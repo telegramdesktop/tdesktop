@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_context_menu.h"
+#include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_react_button.h"
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/text/text_options.h"
 #include "ui/boxes/report_box.h"
 #include "ui/layers/generic_box.h"
@@ -45,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "boxes/about_sponsored_box.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -837,6 +840,19 @@ void HistoryInner::paintEmpty(
 	_emptyPainter->paint(p, st, width, height);
 }
 
+Ui::ChatPaintContext HistoryInner::preparePaintContext(
+		const QRect &clip) const {
+	const auto visibleAreaTopGlobal = mapToGlobal(
+		QPoint(0, _visibleAreaTop)).y();
+	return _controller->preparePaintContext({
+		.theme = _theme.get(),
+		.visibleAreaTop = _visibleAreaTop,
+		.visibleAreaTopGlobal = visibleAreaTopGlobal,
+		.visibleAreaWidth = width(),
+		.clip = clip,
+	});
+}
+
 void HistoryInner::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -851,15 +867,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	auto clip = e->rect();
 
-	const auto visibleAreaTopGlobal = mapToGlobal(
-		QPoint(0, _visibleAreaTop)).y();
-	auto context = _controller->preparePaintContext({
-		.theme = _theme.get(),
-		.visibleAreaTop = _visibleAreaTop,
-		.visibleAreaTopGlobal = visibleAreaTopGlobal,
-		.visibleAreaWidth = width(),
-		.clip = clip,
-	});
+	auto context = preparePaintContext(clip);
 	_pathGradient->startFrame(
 		0,
 		width(),
@@ -1017,9 +1025,12 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			QRect(0, hdrawtop, width(), clip.top() + clip.height()));
 		context.translate(0, -top);
 		p.translate(0, top);
+		const auto &sendingAnimation = _controller->sendingAnimation();
 		while (top < drawToY) {
 			const auto height = view->height();
-			if (context.clip.y() < height && hdrawtop < top + height) {
+			if ((context.clip.y() < height)
+				&& (hdrawtop < top + height)
+				&& !sendingAnimation.hasAnimatedMessage(view->data())) {
 				context.reactionInfo
 					= _reactionsManager->currentReactionPaintInfo();
 				context.outbg = view->hasOutLayout();
@@ -1066,12 +1077,29 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 					width(),
 					st::msgPhotoSize);
 			} else if (const auto info = view->data()->hiddenSenderInfo()) {
-				info->userpic.paint(
-					p,
-					st::historyPhotoLeft,
-					userpicTop,
-					width(),
-					st::msgPhotoSize);
+				if (info->customUserpic.empty()) {
+					info->emptyUserpic.paint(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						width(),
+						st::msgPhotoSize);
+				} else {
+					const auto painted = info->paintCustomUserpic(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						width(),
+						st::msgPhotoSize);
+					if (!painted) {
+						const auto itemId = view->data()->fullId();
+						auto &v = _sponsoredUserpics[itemId.msg];
+						if (!info->customUserpic.isCurrentView(v)) {
+							v = info->customUserpic.createView();
+							info->customUserpic.load(&session(), itemId);
+						}
+					}
+				}
 			} else {
 				Unexpected("Corrupt forwarded information in message.");
 			}
@@ -1826,11 +1854,34 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 			|| _mouseCursorState == CursorState::Date)
 		&& !inSelectionMode()
 		&& !_emptyPainter) {
-		if (const auto item = _mouseActionItem) {
+		if (const auto view = Element::Moused()) {
 			mouseActionCancel();
-			_widget->replyToMessage(item);
+			switch (HistoryView::CurrentQuickAction()) {
+			case HistoryView::DoubleClickQuickAction::Reply: {
+				_widget->replyToMessage(view->data());
+			} break;
+			case HistoryView::DoubleClickQuickAction::React: {
+				toggleFavoriteReaction(view);
+			} break;
+			default: break;
+			}
 		}
 	}
+}
+
+void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
+	const auto favorite = session().data().reactions().favorite();
+	const auto allowed = _reactionsManager->allowedSublist();
+	if (allowed && !allowed->contains(favorite)) {
+		return;
+	}
+	const auto item = view->data();
+	if (item->chosenReaction() != favorite) {
+		if (const auto top = itemTop(view); top >= 0) {
+			view->animateReaction({ .emoji = favorite });
+		}
+	}
+	item->toggleReaction(favorite);
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {
@@ -2024,7 +2075,12 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				showContextInFolder(document);
 			}, &st::menuIconShowInFolder);
 		}
-		if (!hasCopyRestriction(item)) {
+		if (item && !hasCopyRestriction(item)) {
+			HistoryView::AddSaveSoundForNotifications(
+				_menu,
+				item,
+				document,
+				controller);
 			_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ? tr::lng_context_save_audio(tr::now) : (lnkIsAudio ? tr::lng_context_save_audio_file(tr::now) : tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				saveDocumentToFile(itemId, document);
 			}), &st::menuIconDownload);
@@ -2192,7 +2248,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							_menu,
 							poll,
 							item,
-							HistoryView::Context::History);
+							HistoryView::Context::History,
+							_controller);
 					} else if (const auto contact = media->sharedContact()) {
 						const auto phone = contact->phoneNumber;
 						_menu->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
@@ -2349,7 +2406,6 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	const auto image = media->image(Data::PhotoSize::Large)->original();
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
@@ -2360,7 +2416,7 @@ void HistoryInner::savePhotoToFile(not_null<PhotoData*> photo) {
 			qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				image.save(result, "JPG");
+				media->saveToFile(result);
 			}
 		}));
 }
@@ -2396,7 +2452,7 @@ void HistoryInner::showContextInFolder(not_null<DocumentData*> document) {
 void HistoryInner::saveDocumentToFile(
 		FullMsgId contextId,
 		not_null<DocumentData*> document) {
-	DocumentSaveClickHandler::Save(
+	DocumentSaveClickHandler::SaveAndTrack(
 		contextId,
 		document,
 		DocumentSaveClickHandler::Mode::ToNewFile);
@@ -2544,7 +2600,7 @@ void HistoryInner::checkHistoryActivation() {
 	}
 	adjustCurrent(_visibleAreaBottom);
 	if (_history->loadedAtBottom() && _visibleAreaBottom >= height()) {
-		// Clear possible scheduled messages notifications.
+		// Clear possible message notifications.
 		Core::App().notifications().clearFromHistory(_history);
 	}
 	if (_curHistory != _history || _history->isEmpty()) {
@@ -3278,7 +3334,7 @@ void HistoryInner::mouseActionUpdate() {
 		if (item != _mouseActionItem || (m - _dragStartPosition).manhattanLength() >= QApplication::startDragDistance()) {
 			if (_mouseAction == MouseAction::PrepareDrag) {
 				_mouseAction = MouseAction::Dragging;
-				crl::on_main(this, [=] { performDrag(); });
+				InvokeQueued(this, [=] { performDrag(); });
 			} else if (_mouseAction == MouseAction::PrepareSelect) {
 				_mouseAction = MouseAction::Selecting;
 			}
@@ -3810,17 +3866,17 @@ void HistoryInner::deleteAsGroup(FullMsgId itemId) {
 }
 
 void HistoryInner::reportItem(FullMsgId itemId) {
-	HistoryView::ShowReportItemsBox(_peer, { 1, itemId });
+	_controller->show(ReportItemsBox(_peer, { 1, itemId }));
 }
 
 void HistoryInner::reportAsGroup(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		const auto group = session().data().groups().find(item);
-		HistoryView::ShowReportItemsBox(
+		_controller->show(ReportItemsBox(
 			_peer,
 			(group
 				? session().data().itemsToIds(group->items)
-				: MessageIdsList{ 1, itemId }));
+				: MessageIdsList{ 1, itemId })));
 	}
 }
 

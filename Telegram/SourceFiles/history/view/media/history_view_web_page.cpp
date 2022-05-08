@@ -235,11 +235,6 @@ QSize WebPage::countOptimalSize() {
 	}
 	if (_title.isEmpty() && !title.isEmpty()) {
 		auto titleWithEntities = Ui::Text::Link(title, _data->url);
-		if (textFloatsAroundInfo && _description.isEmpty()) {
-			_title.updateSkipBlock(
-				_parent->skipBlockWidth(),
-				_parent->skipBlockHeight());
-		}
 		if (!_siteNameLines && !_data->url.isEmpty()) {
 			_title.setMarkedText(
 				st::webPageTitleStyle,
@@ -251,6 +246,11 @@ QSize WebPage::countOptimalSize() {
 				st::webPageTitleStyle,
 				title,
 				Ui::WebpageTextTitleOptions());
+		}
+		if (textFloatsAroundInfo && _description.isEmpty()) {
+			_title.updateSkipBlock(
+				_parent->skipBlockWidth(),
+				_parent->skipBlockHeight());
 		}
 	}
 

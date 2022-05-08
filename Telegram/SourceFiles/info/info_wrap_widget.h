@@ -18,7 +18,7 @@ namespace Ui {
 class SettingsSlider;
 class FadeShadow;
 class PlainShadow;
-class DropdownMenu;
+class PopupMenu;
 class IconButton;
 } // namespace Ui
 
@@ -51,10 +51,10 @@ enum class Wrap {
 };
 
 struct SelectedItem {
-	explicit SelectedItem(FullMsgId msgId) : msgId(msgId) {
+	explicit SelectedItem(GlobalMsgId globalId) : globalId(globalId) {
 	}
 
-	FullMsgId msgId;
+	GlobalMsgId globalId;
 	bool canDelete = false;
 	bool canForward = false;
 };
@@ -66,7 +66,12 @@ struct SelectedItems {
 
 	Storage::SharedMediaType type;
 	std::vector<SelectedItem> list;
+};
 
+enum class SelectionAction {
+	Clear,
+	Forward,
+	Delete,
 };
 
 class WrapWidget final : public Window::SectionWidget {
@@ -113,11 +118,15 @@ public:
 
 	object_ptr<Ui::RpWidget> createTopBarSurrogate(QWidget *parent);
 
-	bool closeByOutsideClick() const;
+	[[nodiscard]] bool closeByOutsideClick() const;
 
-	void updateGeometry(QRect newGeometry, int additionalScroll);
-	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int>  scrollTillBottomChanges() const;
+	void updateGeometry(
+		QRect newGeometry,
+		bool expanding,
+		int additionalScroll);
+	[[nodiscard]] int scrollTillBottom(int forHeight) const;
+	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
+	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;
 
 	~WrapWidget();
 
@@ -190,15 +199,16 @@ private:
 	bool requireTopBarSearch() const;
 
 	void addTopBarMenuButton();
-	void addContentSaveButton();
 	void addProfileCallsButton();
-	void addProfileNotificationsButton();
-	void showTopBarMenu();
+	void showTopBarMenu(bool check);
+	void deleteAllDownloads();
 
 	rpl::variable<Wrap> _wrap;
 	std::unique_ptr<Controller> _controller;
 	object_ptr<ContentWidget> _content = { nullptr };
 	int _additionalScroll = 0;
+	bool _expanding = false;
+	rpl::variable<bool> _grabbingForExpanding = false;
 	//object_ptr<Ui::PlainShadow> _topTabsBackground = { nullptr };
 	//object_ptr<Ui::SettingsSlider> _topTabs = { nullptr };
 	object_ptr<TopBar> _topBar = { nullptr };
@@ -208,7 +218,7 @@ private:
 
 	object_ptr<Ui::FadeShadow> _topShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
-	base::unique_qptr<Ui::DropdownMenu> _topBarMenu;
+	base::unique_qptr<Ui::PopupMenu> _topBarMenu;
 
 //	Tab _tab = Tab::Profile;
 //	std::shared_ptr<ContentMemento> _anotherTabMemento;

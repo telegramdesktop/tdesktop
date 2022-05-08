@@ -75,9 +75,7 @@ namespace {
 	) | rpl::map([](const QByteArray &code) {
 		return Qr::Encode(code, Qr::Redundancy::Quartile);
 	});
-	auto palettes = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto palettes = rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -401,10 +399,11 @@ void QrWidget::sendCheckPasswordRequest() {
 					Core::UpdateApplication();
 					close();
 				};
-				Ui::show(Box<Ui::ConfirmBox>(
-					tr::lng_passport_app_out_of_date(tr::now),
-					tr::lng_menu_update(tr::now),
-					callback));
+				Ui::show(Ui::MakeConfirmBox({
+					.text = tr::lng_passport_app_out_of_date(),
+					.confirmed = callback,
+					.confirmText = tr::lng_menu_update(),
+				}));
 				return;
 			}
 			goReplace<PasswordCheckWidget>(Animate::Forward);

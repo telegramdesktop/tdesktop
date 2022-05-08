@@ -28,6 +28,10 @@ namespace Settings {
 struct Tag;
 } // namespace Settings
 
+namespace Downloads {
+struct Tag;
+} // namespace Downloads
+
 class ContentMemento;
 class Controller;
 
@@ -41,8 +45,8 @@ public:
 		not_null<ContentMemento*> memento) = 0;
 	std::shared_ptr<ContentMemento> createMemento();
 
-	virtual void setIsStackBottom(bool isStackBottom) {
-	}
+	virtual void setIsStackBottom(bool isStackBottom);
+	[[nodiscard]] bool isStackBottom() const;
 
 	rpl::producer<int> scrollHeightValue() const;
 	rpl::producer<int> desiredHeightValue() const override;
@@ -50,6 +54,8 @@ public:
 	bool hasTopBarShadow() const;
 
 	virtual void setInnerFocus();
+	virtual void showFinished() {
+	}
 
 	// When resizing the widget with top edge moved up or down and we
 	// want to add this top movement to the scroll position, so inner
@@ -66,10 +72,11 @@ public:
 	QRect floatPlayerAvailableRect() const;
 
 	virtual rpl::producer<SelectedItems> selectedListValue() const;
-	virtual void cancelSelection() {
+	virtual void selectionAction(SelectionAction action) {
 	}
 
-	virtual rpl::producer<bool> canSaveChanges() const;
+	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
+
 	virtual void saveChanges(FnMut<void()> done);
 
 protected:
@@ -108,6 +115,7 @@ private:
 	base::unique_qptr<Ui::RpWidget> _searchWrap = nullptr;
 	QPointer<Ui::InputField> _searchField;
 	int _innerDesiredHeight = 0;
+	bool _isStackBottom = false;
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
@@ -121,6 +129,7 @@ public:
 	, _migratedPeerId(migratedPeerId) {
 	}
 	explicit ContentMemento(Settings::Tag settings);
+	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
 	: _poll(poll)
 	, _pollContextId(contextId) {

@@ -32,12 +32,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/ui_utility.h"
 #include "ui/boxes/confirm_box.h"
+#include "webview/webview_interface.h"
 #include "boxes/background_box.h"
 #include "core/application.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
 #include <QtCore/QBuffer>
+#include <QtCore/QJsonDocument>
+#include <QtCore/QJsonObject>
 
 namespace Window {
 namespace Theme {
@@ -1371,9 +1374,7 @@ rpl::producer<bool> IsNightModeValue() {
 		return update.type == BackgroundUpdate::Type::ApplyingTheme;
 	}) | rpl::to_empty;
 
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		std::move(changes)
 	) | rpl::map([=] {
 		return IsNightMode();
@@ -1406,10 +1407,11 @@ void ToggleNightModeWithConfirmation(
 			toggle();
 			close();
 		};
-		window->show(Box<Ui::ConfirmBox>(
-			tr::lng_settings_auto_night_warning(tr::now),
-			tr::lng_settings_auto_night_disable(tr::now),
-			disableAndToggle));
+		window->show(Ui::MakeConfirmBox({
+			.text = tr::lng_settings_auto_night_warning(),
+			.confirmed = disableAndToggle,
+			.confirmText = tr::lng_settings_auto_night_disable(),
+		}));
 	}
 }
 
@@ -1454,9 +1456,7 @@ bool LoadFromContent(
 }
 
 rpl::producer<bool> IsThemeDarkValue() {
-	return rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	return rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	) | rpl::map([] {
 		return (st::dialogsBg->c.valueF() < kDarkValueThreshold);
@@ -1490,6 +1490,39 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 		}
 	}
 	return true;
+}
+
+[[nodiscard]] Webview::ThemeParams WebViewParams() {
+	const auto colors = std::vector<std::pair<QString, const style::color&>>{
+		{ "bg_color", st::windowBg },
+		{ "text_color", st::windowFg },
+		{ "hint_color", st::windowSubTextFg },
+		{ "link_color", st::windowActiveTextFg },
+		{ "button_color", st::windowBgActive },
+		{ "button_text_color", st::windowFgActive },
+	};
+	auto object = QJsonObject();
+	for (const auto &[name, color] : colors) {
+		auto r = 0;
+		auto g = 0;
+		auto b = 0;
+		color->c.getRgb(&r, &g, &b);
+		const auto hex = [](int component) {
+			const auto digit = [](int c) {
+				return QChar((c < 10) ? ('0' + c) : ('a' + c - 10));
+			};
+			return QString() + digit(component / 16) + digit(component % 16);
+		};
+		object.insert(name, '#' + hex(r) + hex(g) + hex(b));
+	}
+	return {
+		.scrollBg = st::scrollBg->c,
+		.scrollBgOver = st::scrollBgOver->c,
+		.scrollBarBg = st::scrollBarBg->c,
+		.scrollBarBgOver = st::scrollBarBgOver->c,
+
+		.json = QJsonDocument(object).toJson(QJsonDocument::Compact),
+	};
 }
 
 } // namespace Theme

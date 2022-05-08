@@ -7,94 +7,28 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_reactions.h"
 
+#include "boxes/reactions_settings_box.h" // AddReactionLottieIcon
 #include "data/data_message_reactions.h"
-#include "data/data_document.h"
-#include "data/data_document_media.h"
 #include "data/data_peer.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "lottie/lottie_icon.h"
 #include "lang/lang_keys.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
-#include "info/profile/info_profile_icon.h"
 #include "settings/settings_common.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
 
-namespace {
-
-using Data::Reaction;
-
-void AddReactionIcon(
-		not_null<Ui::RpWidget*> button,
-		not_null<DocumentData*> document) {
-	struct State {
-		std::shared_ptr<Data::DocumentMedia> media;
-		std::unique_ptr<Lottie::Icon> icon;
-		QImage image;
-	};
-
-	const auto size = st::editPeerReactionsPreview;
-	const auto state = button->lifetime().make_state<State>(State{
-		.media = document->createMediaView(),
-	});
-	const auto icon = Ui::CreateChild<Ui::RpWidget>(button.get());
-	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
-	icon->resize(size, size);
-	button->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		icon->moveToLeft(
-			st::editPeerReactionsIconLeft,
-			(size.height() - icon->height()) / 2,
-			size.width());
-	}, icon->lifetime());
-
-	const auto initLottie = [=] {
-		state->icon = std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
-			.path = state->media->owner()->filepath(true),
-			.json = state->media->bytes(),
-			.sizeOverride = QSize(size, size),
-			.frame = -1,
-		});
-		state->media = nullptr;
-	};
-	state->media->checkStickerLarge();
-	if (state->media->loaded()) {
-		initLottie();
-	} else {
-		document->session().downloaderTaskFinished(
-		) | rpl::filter([=] {
-			return state->media->loaded();
-		}) | rpl::take(1) | rpl::start_with_next([=] {
-			initLottie();
-			icon->update();
-		}, icon->lifetime());
-	}
-
-	icon->paintRequest(
-	) | rpl::start_with_next([=] {
-		QPainter p(icon);
-		if (state->image.isNull() && state->icon) {
-			state->image = state->icon->frame();
-			crl::async([icon = std::move(state->icon)]{});
-		}
-		if (!state->image.isNull()) {
-			p.drawImage(QRect(0, 0, size, size), state->image);
-		}
-	}, icon->lifetime());
-}
-
-} // namespace
-
 void EditAllowedReactionsBox(
 		not_null<Ui::GenericBox*> box,
 		bool isGroup,
-		const std::vector<Reaction> &list,
+		const std::vector<Data::Reaction> &list,
 		const base::flat_set<QString> &selected,
 		Fn<void(const std::vector<QString> &)> callback) {
+	const auto iconHeight = st::editPeerReactionsPreview;
 	box->setTitle(tr::lng_manage_peer_reactions());
 
 	struct State {
@@ -123,10 +57,21 @@ void EditAllowedReactionsBox(
 		container,
 		tr::lng_manage_peer_reactions_enable(),
 		st::manageGroupButton.button);
-	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		enabled.get(),
-		st::infoIconReactions,
-		st::manageGroupButton.iconPosition);
+	if (!list.empty()) {
+		AddReactionLottieIcon(
+			enabled,
+			enabled->sizeValue(
+			) | rpl::map([=](const QSize &size) {
+				return QPoint(
+					st::manageGroupButton.iconPosition.x(),
+					(size.height() - iconHeight) / 2);
+			}),
+			iconHeight,
+			list.front(),
+			rpl::never<>(),
+			rpl::never<>(),
+			&enabled->lifetime());
+	}
 	enabled->toggleOn(state->anyToggled.value());
 	enabled->toggledChanges(
 	) | rpl::filter([=](bool value) {
@@ -153,9 +98,22 @@ void EditAllowedReactionsBox(
 			container,
 			rpl::single(entry.title),
 			st::manageGroupButton.button);
-		AddReactionIcon(button, entry.centerIcon
-			? entry.centerIcon
-			: entry.appearAnimation.get());
+		AddReactionLottieIcon(
+			button,
+			button->sizeValue(
+			) | rpl::map([=](const QSize &size) {
+				return QPoint(
+					st::editPeerReactionsIconLeft,
+					(size.height() - iconHeight) / 2);
+			}),
+			iconHeight,
+			entry,
+			button->events(
+			) | rpl::filter([=](not_null<QEvent*> event) {
+				return event->type() == QEvent::Enter;
+			}) | rpl::to_empty,
+			rpl::never<>(),
+			&button->lifetime());
 		state->toggles.emplace(entry.emoji, button);
 		button->toggleOn(rpl::single(
 			active(entry)
@@ -190,7 +148,7 @@ void SaveAllowedReactions(
 		const std::vector<QString> &allowed) {
 	auto ids = allowed | ranges::views::transform([=](QString value) {
 		return MTP_string(value);
-	}) | ranges::to<QVector>;
+	}) | ranges::to<QVector<MTPstring>>;
 
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
 		peer->input,

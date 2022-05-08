@@ -7,14 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/special_buttons.h"
 
-#include "styles/style_boxes.h"
-#include "styles/style_chat.h"
+#include "base/call_delayed.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/image/image_prepare.h"
 #include "ui/empty_userpic.h"
 #include "ui/ui_utility.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -32,18 +32,65 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
+#include "settings/settings_calls.h" // Calls::AddCameraSubsection.
+#include "calls/calls_instance.h"
+#include "webrtc/webrtc_media_devices.h" // Webrtc::GetVideoInputList.
+#include "webrtc/webrtc_video_track.h"
+#include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "mainwidget.h"
-#include "facades.h"
+#include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {
 
 constexpr auto kAnimationDuration = crl::time(120);
+
+bool IsCameraAvailable() {
+	return (Core::App().calls().currentCall() == nullptr)
+		&& !Webrtc::GetVideoInputList().empty();
+}
+
+void CameraBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Window::Controller*> controller,
+		Fn<void(QImage &&image)> &&doneCallback) {
+	using namespace Webrtc;
+
+	const auto track = Settings::Calls::AddCameraSubsection(
+		std::make_shared<Ui::BoxShow>(box),
+		box->verticalLayout(),
+		false);
+	if (!track) {
+		box->closeBox();
+		return;
+	}
+	track->stateValue(
+	) | rpl::start_with_next([=](const VideoState &state) {
+		if (state == VideoState::Inactive) {
+			box->closeBox();
+		}
+	}, box->lifetime());
+
+	auto done = [=, done = std::move(doneCallback)](QImage &&image) {
+		box->closeBox();
+		done(std::move(image));
+	};
+
+	box->setTitle(tr::lng_profile_camera_title());
+	box->addButton(tr::lng_continue(), [=, done = std::move(done)]() mutable {
+		Editor::PrepareProfilePhoto(
+			box,
+			controller,
+			std::move(done),
+			track->frame(FrameRequest()).mirrored(true, false));
+	});
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
 
 QString CropTitle(not_null<PeerData*> peer) {
 	if (peer->isChat() || peer->isMegagroup()) {
@@ -144,7 +191,7 @@ UserpicButton::UserpicButton(
 , _window(window)
 , _cropTitle(cropTitle)
 , _role(role) {
-	Expects(_role == Role::ChangePhoto);
+	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
 	_waiting = false;
 	prepare();
@@ -193,21 +240,30 @@ void UserpicButton::prepare() {
 		prepareUserpicPixmap();
 	}
 	setClickHandlerByRole();
+
+	if (_role == Role::ChangePhoto || _role == Role::OpenPhoto) {
+		chosenImages(
+		) | rpl::start_with_next([=](QImage &&image) {
+			setImage(std::move(image));
+			if (_requestToUpload) {
+				_uploadPhotoRequests.fire({});
+			}
+		}, lifetime());
+	}
 }
 
 void UserpicButton::setClickHandlerByRole() {
 	switch (_role) {
+	case Role::ChoosePhoto:
+		addClickHandler([=] { choosePhotoLocally(); });
+		break;
+
 	case Role::ChangePhoto:
-		addClickHandler(App::LambdaDelayed(
-			_st.changeButton.ripple.hideDuration,
-			this,
-			[=] { changePhotoLocally(); }));
+		addClickHandler([=] { changePhotoLocally(); });
 		break;
 
 	case Role::OpenPhoto:
-		addClickHandler([=] {
-			openPeerPhoto();
-		});
+		addClickHandler([=] { openPeerPhoto(); });
 		break;
 
 	case Role::OpenProfile:
@@ -220,20 +276,42 @@ void UserpicButton::setClickHandlerByRole() {
 	}
 }
 
-void UserpicButton::changePhotoLocally(bool requestToUpload) {
+void UserpicButton::changeTo(QImage &&image) {
+	setImage(std::move(image));
+}
+
+void UserpicButton::choosePhotoLocally() {
 	if (!_window) {
 		return;
 	}
 	auto callback = [=](QImage &&image) {
-		setImage(std::move(image));
-		if (requestToUpload) {
-			_uploadPhotoRequests.fire({});
-		}
+		_chosenImages.fire(std::move(image));
 	};
-	Editor::PrepareProfilePhoto(
-		this,
-		_window,
-		std::move(callback));
+	const auto chooseFile = [=] {
+		base::call_delayed(
+			_st.changeButton.ripple.hideDuration,
+			crl::guard(this, [=] {
+			Editor::PrepareProfilePhotoFromFile(
+				this,
+				_window,
+				callback);
+		}));
+	};
+	if (!IsCameraAvailable()) {
+		chooseFile();
+	} else {
+		_menu = base::make_unique_q<Ui::PopupMenu>(this);
+		_menu->addAction(tr::lng_attach_file(tr::now), chooseFile);
+		_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
+			_window->show(Box(CameraBox, _window, callback));
+		});
+		_menu->popup(QCursor::pos());
+	}
+}
+
+void UserpicButton::changePhotoLocally(bool requestToUpload) {
+	_requestToUpload = requestToUpload;
+	choosePhotoLocally();
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -309,7 +387,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 		paintUserpicFrame(p, photoPosition);
 	}
 
-	if (_role == Role::ChangePhoto) {
+	if (_role == Role::ChangePhoto || _role == Role::ChoosePhoto) {
 		auto over = isOver() || isDown();
 		if (over) {
 			PainterHighQualityEnabler hq(p);
@@ -730,41 +808,29 @@ void UserpicButton::prepareUserpicPixmap() {
 		: InMemoryKey();
 }
 
-rpl::producer<> UserpicButton::uploadPhotoRequests() const {
-	return _uploadPhotoRequests.events();
-}
-
 SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 : RippleButton(parent, st::historySilentToggle.ripple)
 , _st(st::historySilentToggle)
-, _colorOver(st::historyComposeIconFgOver->c)
 , _channel(channel)
-, _checked(channel->owner().notifySilentPosts(_channel))
-, _crossLine(st::historySilentToggleCrossLine) {
-	Expects(!channel->owner().notifySilentPostsUnknown(_channel));
+, _checked(channel->owner().notifySettings().silentPosts(_channel)) {
+	Expects(!channel->owner().notifySettings().silentPostsUnknown(_channel));
 
 	resize(_st.width, _st.height);
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_crossLine.invalidate();
-	}, lifetime());
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
 		Painter p(this);
 		paintRipple(p, _st.rippleAreaPosition, nullptr);
 
-		_crossLine.paint(
-			p,
-			(width() - _st.icon.width()) / 2,
-			(height() - _st.icon.height()) / 2,
-			_crossLineAnimation.value(_checked ? 1. : 0.),
-			// Since buttons of the compose controls have no duration
-			// for the over animation, we can skip this animation here.
-			isOver()
-				? std::make_optional<QColor>(_colorOver)
-				: std::nullopt);
+		//const auto checked = _crossLineAnimation.value(_checked ? 1. : 0.);
+		const auto over = isOver();
+		(_checked
+			? (over
+				? st::historySilentToggleOnOver
+				: st::historySilentToggleOn)
+			: (over
+				? st::historySilentToggle.iconOver
+				: st::historySilentToggle.icon)).paintInCenter(p, rect());
 	}, lifetime());
 
 	setMouseTracking(true);
@@ -799,10 +865,7 @@ void SilentToggle::mouseReleaseEvent(QMouseEvent *e) {
 	setChecked(!_checked);
 	RippleButton::mouseReleaseEvent(e);
 	Ui::Tooltip::Show(0, this);
-	_channel->owner().updateNotifySettings(
-		_channel,
-		std::nullopt,
-		_checked);
+	_channel->owner().notifySettings().update(_channel, {}, _checked);
 }
 
 QString SilentToggle::tooltipText() const {

@@ -126,7 +126,7 @@ passportUploadButton: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 18px;
 	padding: margins(22px, 14px, 22px, 12px);

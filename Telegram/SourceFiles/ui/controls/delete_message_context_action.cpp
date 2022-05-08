@@ -106,7 +106,14 @@ void ActionWithTimer::paint(Painter &p) {
 		paintRipple(p, 0, 0);
 	}
 
-	st::menuIconDelete.paint(p, _st.itemIconPosition, width());
+	const auto normalHeight = _st.itemPadding.top()
+		+ _st.itemStyle.font->height
+		+ _st.itemPadding.bottom();
+	const auto deltaHeight = _height - normalHeight;
+	st::menuIconDelete.paint(
+		p,
+		_st.itemIconPosition + QPoint(0, deltaHeight / 2),
+		width());
 
 	p.setPen(selected ? _st.itemFgOver : _st.itemFg);
 	_text.drawLeftElided(
@@ -130,10 +137,7 @@ void ActionWithTimer::refreshAutoDeleteText() {
 	const auto left = (_destroyAt > now) ? (_destroyAt - now) : 0;
 	const auto text = [&] {
 		const auto duration = (left >= 86400)
-			? tr::lng_group_call_duration_days(
-				tr::now,
-				lt_count,
-				((left + 43200) / 86400))
+			? tr::lng_days(tr::now, lt_count, ((left + 43200) / 86400))
 			: (left >= 3600)
 			? QString("%1:%2:%3"
 			).arg(left / 3600
@@ -184,10 +188,7 @@ void ActionWithTimer::prepare() {
 			+ padding.right();
 	};
 	const auto maxWidth1 = ttlMaxWidth("23:59:59");
-	const auto maxWidth2 = ttlMaxWidth(tr::lng_group_call_duration_days(
-		tr::now,
-		lt_count,
-		7));
+	const auto maxWidth2 = ttlMaxWidth(tr::lng_days(tr::now, lt_count, 7));
 
 	const auto w = std::clamp(
 		std::max({ goodWidth, maxWidth1, maxWidth2 }),

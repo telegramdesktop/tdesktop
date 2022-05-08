@@ -38,7 +38,7 @@ class PaintContext : public PaintContextBase {
 public:
 	PaintContext(crl::time ms, bool selecting) : PaintContextBase(ms, selecting) {
 	}
-	bool isAfterDate = false;
+	bool skipBorder = false;
 
 };
 
@@ -53,9 +53,9 @@ public:
 		TextSelection selection,
 		const PaintContext *context) = 0;
 
-	QDateTime dateTime() const;
+	[[nodiscard]] QDateTime dateTime() const;
 
-	HistoryItem *getItem() const {
+	[[nodiscard]] not_null<HistoryItem*> getItem() const {
 		return _parent;
 	}
 
@@ -79,7 +79,7 @@ protected:
 		QPoint position,
 		bool selected,
 		const PaintContext *context);
-	virtual const style::RoundCheckbox &checkboxStyle() const;
+	[[nodiscard]] virtual const style::RoundCheckbox &checkboxStyle() const;
 
 private:
 	void ensureCheckboxCreated();
@@ -335,12 +335,17 @@ private:
 
 };
 
+struct DocumentFields {
+	not_null<DocumentData*> document;
+	TimeId dateOverride = 0;
+	bool forceFileLayout = false;
+};
 class Document final : public RadialProgressItem {
 public:
 	Document(
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
-		not_null<DocumentData*> document,
+		DocumentFields fields,
 		const style::OverviewFileLayout &st);
 
 	void initDimensions() override;
@@ -365,6 +370,7 @@ private:
 		QPoint point,
 		StateRequest request) const;
 
+	[[nodiscard]] bool songLayout() const;
 	void ensureDataMediaCreated() const;
 
 	not_null<DocumentData*> _data;
@@ -376,6 +382,7 @@ private:
 	const ::Layout::DocumentGenericPreview _generic;
 
 	bool _thumbLoaded = false;
+	bool _forceFileLayout = false;
 	QPixmap _thumb;
 
 	Ui::Text::String _name;

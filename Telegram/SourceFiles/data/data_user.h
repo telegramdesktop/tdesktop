@@ -8,19 +8,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_peer.h"
+#include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 
 struct BotInfo {
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
+	bool supportsAttachMenu = false;
 	int version = 0;
 	QString description, inlinePlaceholder;
 	std::vector<BotCommand> commands;
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
-	QString startToken, startGroupToken, shareGameShortName;
+	QString botMenuButtonText;
+	QString botMenuButtonUrl;
+
+	QString startToken;
 	Dialogs::EntryState inlineReturnTo;
+
+	ChatAdminRights groupAdminRights;
+	ChatAdminRights channelAdminRights;
 };
 
 enum class UserDataFlag {

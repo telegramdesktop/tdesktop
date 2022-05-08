@@ -49,4 +49,8 @@ struct PinnedId {
 	not_null<Main::Session*> session,
 	rpl::producer<PinnedId> id);
 
+[[nodiscard]] rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
+	not_null<Main::Session*> session,
+	rpl::producer<PinnedId> id);
+
 } // namespace HistoryView

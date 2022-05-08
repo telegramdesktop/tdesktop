@@ -527,6 +527,9 @@ QByteArray SerializeMessage(
 	}, [&](const ActionChatJoinedByRequest &data) {
 		pushActor();
 		pushAction("join_group_by_request");
+	}, [&](const ActionWebViewDataSent &data) {
+		pushAction("send_webview_data");
+		push("text", data.text);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

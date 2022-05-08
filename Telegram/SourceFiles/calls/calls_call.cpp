@@ -37,6 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace tgcalls {
 class InstanceImpl;
 class InstanceV2Impl;
+class InstanceV2ReferenceImpl;
+class InstanceV2_4_0_0Impl;
 class InstanceImplLegacy;
 void SetLegacyGlobalServerConfig(const std::string &serverConfig);
 } // namespace tgcalls
@@ -52,6 +54,8 @@ const auto kDefaultVersion = "2.4.4"_q;
 
 const auto Register = tgcalls::Register<tgcalls::InstanceImpl>();
 const auto RegisterV2 = tgcalls::Register<tgcalls::InstanceV2Impl>();
+const auto RegV2Ref = tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
+const auto RegisterV240 = tgcalls::Register<tgcalls::InstanceV2_4_0_0Impl>();
 const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
 void AppendEndpoint(
@@ -1234,7 +1238,7 @@ void Call::handleRequestError(const QString &error) {
 		? Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)
 		: QString();
 	if (!inform.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(inform));
+		Ui::show(Ui::MakeInformBox(inform));
 	}
 	finish(FinishType::Failed);
 }
@@ -1246,7 +1250,7 @@ void Call::handleControllerError(const QString &error) {
 		? tr::lng_call_error_audio_io(tr::now)
 		: QString();
 	if (!inform.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(inform));
+		Ui::show(Ui::MakeInformBox(inform));
 	}
 	finish(FinishType::Failed);
 }

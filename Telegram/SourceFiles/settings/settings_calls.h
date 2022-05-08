@@ -23,20 +23,29 @@ class Call;
 namespace Ui {
 class LevelMeter;
 class GenericBox;
+class Show;
 } // namespace Ui
 
 namespace Webrtc {
 class AudioInputTester;
+class VideoTrack;
 } // namespace Webrtc
 
 namespace Settings {
 
-class Calls : public Section {
+class Calls : public Section<Calls> {
 public:
 	Calls(QWidget *parent, not_null<Window::SessionController*> controller);
 	~Calls();
 
+	[[nodiscard]] rpl::producer<QString> title() override;
+
 	void sectionSaveChanges(FnMut<void()> done) override;
+
+	static Webrtc::VideoTrack *AddCameraSubsection(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Ui::VerticalLayout*> content,
+		bool saveToSettings);
 
 private:
 	void setupContent();

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/style/style_palette_colorizer.h"
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "ui/ui_utility.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -655,7 +655,7 @@ void StartEditor(
 		? GenerateDefaultPalette()
 		: ParseTheme(object, true).palette;
 	if (palette.isEmpty() || !CopyColorsToPalette(path, palette, cloud)) {
-		window->show(Box<Ui::InformBox>(tr::lng_theme_editor_error(tr::now)));
+		window->show(Ui::MakeInformBox(tr::lng_theme_editor_error()));
 		return;
 	}
 	if (Core::App().settings().systemDarkModeEnabled()) {

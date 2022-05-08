@@ -28,14 +28,23 @@ struct Tag {
 
 } // namespace Settings
 
+namespace Downloads {
+
+struct Tag {
+};
+
+} // namespace Downloads
+
 class Key {
 public:
 	Key(not_null<PeerData*> peer);
 	Key(Settings::Tag settings);
+	Key(Downloads::Tag downloads);
 	Key(not_null<PollData*> poll, FullMsgId contextId);
 
 	PeerData *peer() const;
 	UserData *settingsSelf() const;
+	bool isDownloads() const;
 	PollData *poll() const;
 	FullMsgId pollContextId() const;
 
@@ -47,6 +56,7 @@ private:
 	std::variant<
 		not_null<PeerData*>,
 		Settings::Tag,
+		Downloads::Tag,
 		PollKey> _value;
 
 };
@@ -64,6 +74,7 @@ public:
 		CommonGroups,
 		Members,
 		Settings,
+		Downloads,
 		PollResults,
 	};
 	using SettingsType = ::Settings::Type;
@@ -115,6 +126,9 @@ public:
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}
+	bool isDownloads() const {
+		return key().isDownloads();
+	}
 	PollData *poll() const;
 	FullMsgId pollContextId() const {
 		return key().pollContextId();
@@ -127,6 +141,7 @@ public:
 		int limitBefore,
 		int limitAfter) const;
 	virtual rpl::producer<QString> mediaSourceQueryValue() const;
+	virtual rpl::producer<QString> searchQueryValue() const;
 
 	void showSection(
 		std::shared_ptr<Window::SectionMemento> memento,
@@ -184,13 +199,10 @@ public:
 		int limitBefore,
 		int limitAfter) const override;
 	rpl::producer<QString> mediaSourceQueryValue() const override;
+	rpl::producer<QString> searchQueryValue() const override;
 	bool takeSearchStartsFocused() {
 		return base::take(_searchStartsFocused);
 	}
-
-	void setCanSaveChanges(rpl::producer<bool> can);
-	rpl::producer<bool> canSaveChanges() const;
-	bool canSaveChangesNow() const;
 
 	void saveSearchState(not_null<ContentMemento*> memento);
 
@@ -222,7 +234,6 @@ private:
 	std::unique_ptr<Ui::SearchFieldController> _searchFieldController;
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
 	rpl::variable<bool> _seachEnabledByContent = false;
-	rpl::variable<bool> _canSaveChanges = false;
 	bool _searchStartsFocused = false;
 
 	rpl::lifetime _lifetime;

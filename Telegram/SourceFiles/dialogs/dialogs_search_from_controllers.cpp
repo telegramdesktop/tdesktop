@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Dialogs {
 
-void ShowSearchFromBox(
+object_ptr<Ui::BoxContent> SearchFromBox(
 		not_null<PeerData*> peer,
 		Fn<void(not_null<PeerData*>)> callback,
 		Fn<void()> closedCallback) {
@@ -34,15 +34,19 @@ void ShowSearchFromBox(
 	};
 	if (auto controller = createController()) {
 		auto subscription = std::make_shared<rpl::lifetime>();
-		auto box = Ui::show(Box<PeerListBox>(std::move(controller), [subscription](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_cancel(), [box, subscription] {
-				box->closeBox();
+		auto box = Box<PeerListBox>(
+			std::move(controller),
+			[subscription](not_null<PeerListBox*> box) {
+				box->addButton(tr::lng_cancel(), [box, subscription] {
+					box->closeBox();
+				});
 			});
-		}), Ui::LayerOption::KeepOther);
 		box->boxClosing() | rpl::start_with_next(
 			std::move(closedCallback),
 			*subscription);
+		return box;
 	}
+	return nullptr;
 }
 
 SearchFromController::SearchFromController(

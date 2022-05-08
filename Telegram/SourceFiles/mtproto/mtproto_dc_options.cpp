@@ -604,7 +604,7 @@ DcType DcOptions::dcType(ShiftedDcId shiftedDcId) const {
 		return DcType::Cdn;
 	}
 	const auto dcId = BareDcId(shiftedDcId);
-	if (isDownloadDcId(shiftedDcId) && hasMediaOnlyOptionsFor(dcId)) {
+	if (isMediaClusterDcId(shiftedDcId) && hasMediaOnlyOptionsFor(dcId)) {
 		return DcType::MediaCluster;
 	}
 	return DcType::Regular;

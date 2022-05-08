@@ -7,8 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "menu/add_action_callback.h"
 #include "ui/rp_widget.h"
+#include "ui/round_rect.h"
 #include "base/object_ptr.h"
+#include "settings/settings_type.h"
+
+namespace anim {
+enum class repeat : uchar;
+} // namespace anim
 
 namespace Main {
 class Session;
@@ -26,46 +33,117 @@ class SessionController;
 } // namespace Window
 
 namespace style {
+struct FlatLabel;
 struct SettingsButton;
 } // namespace style
 
+namespace Lottie {
+struct IconDescriptor;
+} // namespace Lottie
+
 namespace Settings {
 
-enum class Type {
-	Main,
-	Information,
-	Notifications,
-	PrivacySecurity,
-	Sessions,
-	Advanced,
-	Chat,
-	Folders,
-	Calls,
-	Experimental,
-};
+extern const char kOptionMonoSettingsIcons[];
 
 using Button = Ui::SettingsButton;
 
-class Section : public Ui::RpWidget {
+class AbstractSection;
+
+struct SectionMeta {
+	[[nodiscard]] virtual object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller) const = 0;
+};
+
+template <typename SectionType>
+struct SectionMetaImplementation : SectionMeta {
+	object_ptr<AbstractSection> create(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller
+	) const final override {
+		return object_ptr<SectionType>(parent, controller);
+	}
+
+	[[nodiscard]] static not_null<SectionMeta*> Meta() {
+		static SectionMetaImplementation result;
+		return &result;
+	}
+};
+
+class AbstractSection : public Ui::RpWidget {
 public:
 	using RpWidget::RpWidget;
 
-	virtual rpl::producer<Type> sectionShowOther() {
+	[[nodiscard]] virtual Type id() const = 0;
+	[[nodiscard]] virtual rpl::producer<Type> sectionShowOther() {
 		return nullptr;
 	}
-	virtual rpl::producer<bool> sectionCanSaveChanges() {
-		return rpl::single(false);
-	}
+	[[nodiscard]] virtual rpl::producer<QString> title() = 0;
 	virtual void sectionSaveChanges(FnMut<void()> done) {
 		done();
 	}
-
+	virtual void showFinished() {
+	}
+	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
+			not_null<QWidget*> parent) {
+		return nullptr;
+	}
 };
 
-object_ptr<Section> CreateSection(
-	Type type,
-	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller);
+template <typename SectionType>
+class Section : public AbstractSection {
+public:
+	using AbstractSection::AbstractSection;
+
+	[[nodiscard]] static Type Id() {
+		return &SectionMetaImplementation<SectionType>::Meta;
+	}
+	[[nodiscard]] Type id() const final override {
+		return Id();
+	}
+};
+
+inline constexpr auto kIconRed = 1;
+inline constexpr auto kIconGreen = 2;
+inline constexpr auto kIconLightOrange = 3;
+inline constexpr auto kIconLightBlue = 4;
+inline constexpr auto kIconDarkBlue = 5;
+inline constexpr auto kIconPurple = 6;
+inline constexpr auto kIconDarkOrange = 8;
+inline constexpr auto kIconGray = 9;
+
+enum class IconType {
+	Rounded,
+	Round,
+};
+
+struct IconDescriptor {
+	const style::icon *icon = nullptr;
+	int color = 0; // settingsIconBg{color}, 9 for settingsIconBgArchive.
+	IconType type = IconType::Rounded;
+	const style::color *background = nullptr;
+
+	explicit operator bool() const {
+		return (icon != nullptr);
+	}
+};
+
+class Icon final {
+public:
+	explicit Icon(IconDescriptor descriptor);
+
+	void paint(QPainter &p, QPoint position) const;
+	void paint(QPainter &p, int x, int y) const;
+
+	[[nodiscard]] int width() const;
+	[[nodiscard]] int height() const;
+	[[nodiscard]] QSize size() const;
+
+private:
+	not_null<const style::icon*> _icon;
+	std::optional<Ui::RoundRect> _background;
+
+};
 
 void AddSkip(not_null<Ui::VerticalLayout*> container);
 void AddSkip(not_null<Ui::VerticalLayout*> container, int skip);
@@ -73,31 +151,26 @@ void AddDivider(not_null<Ui::VerticalLayout*> container);
 void AddDividerText(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text);
-not_null<Ui::RpWidget*> AddButtonIcon(
+void AddButtonIcon(
 	not_null<Ui::AbstractButton*> button,
-	const style::icon *leftIcon,
-	int iconLeft,
-	const style::color *leftIconOver);
+	const style::SettingsButton &st,
+	IconDescriptor &&descriptor);
 object_ptr<Button> CreateButton(
 	not_null<QWidget*> parent,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
-	const style::icon *leftIcon = nullptr,
-	int iconLeft = 0,
-	const style::color *leftIconOver = nullptr);
+	IconDescriptor &&descriptor = {});
 not_null<Button*> AddButton(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	const style::SettingsButton &st,
-	const style::icon *leftIcon = nullptr,
-	int iconLeft = 0);
+	IconDescriptor &&descriptor = {});
 not_null<Button*> AddButtonWithLabel(
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> text,
 	rpl::producer<QString> label,
 	const style::SettingsButton &st,
-	const style::icon *leftIcon = nullptr,
-	int iconLeft = 0);
+	IconDescriptor &&descriptor = {});
 void CreateRightLabel(
 	not_null<Button*> button,
 	rpl::producer<QString> label,
@@ -105,17 +178,23 @@ void CreateRightLabel(
 	rpl::producer<QString> buttonText);
 not_null<Ui::FlatLabel*> AddSubsectionTitle(
 	not_null<Ui::VerticalLayout*> container,
-	rpl::producer<QString> text);
+	rpl::producer<QString> text,
+	style::margins addPadding = {},
+	const style::FlatLabel *st = nullptr);
 
-using MenuCallback = Fn<QAction*(
-	const QString &text,
-	Fn<void()> handler,
-	const style::icon *icon)>;
+struct LottieIcon {
+	object_ptr<Ui::RpWidget> widget;
+	Fn<void(anim::repeat repeat)> animate;
+};
+[[nodiscard]] LottieIcon CreateLottieIcon(
+	not_null<QWidget*> parent,
+	Lottie::IconDescriptor &&descriptor,
+	style::margins padding = {});
 
 void FillMenu(
 	not_null<Window::SessionController*> controller,
 	Type type,
 	Fn<void(Type)> showOther,
-	MenuCallback addAction);
+	Menu::MenuCallback addAction);
 
 } // namespace Settings

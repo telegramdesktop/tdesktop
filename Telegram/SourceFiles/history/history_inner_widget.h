@@ -7,9 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
-#include "ui/chat/select_scroll_manager.h" // Has base/timer.h.
+#include "ui/dragging_scroll_manager.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
@@ -44,6 +45,7 @@ class ChatTheme;
 class ChatStyle;
 class PopupMenu;
 enum class ReportReason;
+struct ChatPaintContext;
 class PathShiftGradient;
 } // namespace Ui
 
@@ -71,9 +73,6 @@ class HistoryWidget;
 class HistoryInner
 	: public Ui::RpWidget
 	, public Ui::AbstractTooltipShower {
-	// The Q_OBJECT meta info is used for qobject_cast!
-	Q_OBJECT
-
 public:
 	using Element = HistoryView::Element;
 
@@ -88,6 +87,8 @@ public:
 	[[nodiscard]] not_null<Ui::ChatTheme*> theme() const {
 		return _theme.get();
 	}
+
+	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
 	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
 	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
@@ -373,6 +374,7 @@ private:
 		QPoint position,
 		const HistoryView::TextState &reactionState) const
 	-> HistoryView::Reactions::ButtonParameters;
+	void toggleFavoriteReaction(not_null<Element*> view) const;
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -425,6 +427,9 @@ private:
 	base::flat_map<
 		not_null<PeerData*>,
 		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+	base::flat_map<
+		MsgId,
+		std::shared_ptr<Data::CloudImageView>> _sponsoredUserpics;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 
@@ -454,7 +459,7 @@ private:
 	QPoint _touchStart, _touchPrevPos, _touchPos;
 	base::Timer _touchSelectTimer;
 
-	Ui::SelectScrollManager _selectScroll;
+	Ui::DraggingScrollManager _selectScroll;
 
 	rpl::variable<bool> _sharingDisallowed = false;
 

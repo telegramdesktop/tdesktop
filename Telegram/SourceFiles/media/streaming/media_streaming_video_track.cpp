@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/audio/media_audio.h"
 #include "base/concurrent_timer.h"
 #include "core/crash_reports.h"
+#include "base/debug_log.h"
 
 namespace Media {
 namespace Streaming {
@@ -21,10 +22,12 @@ constexpr auto kDisplaySkipped = crl::time(-1);
 constexpr auto kFinishedPosition = std::numeric_limits<crl::time>::max();
 static_assert(kDisplaySkipped != kTimeUnknown);
 
-[[nodiscard]] QImage ConvertToARGB32(const FrameYUV420 &data) {
+[[nodiscard]] QImage ConvertToARGB32(
+		FrameFormat format,
+		const FrameYUV &data) {
 	Expects(data.y.data != nullptr);
 	Expects(data.u.data != nullptr);
-	Expects(data.v.data != nullptr);
+	Expects((format == FrameFormat::NV12) || (data.v.data != nullptr));
 	Expects(!data.size.isEmpty());
 
 	//if (FFmpeg::RotationSwapWidthHeight(stream.rotation)) {
@@ -34,7 +37,9 @@ static_assert(kDisplaySkipped != kTimeUnknown);
 	auto result = FFmpeg::CreateFrameStorage(data.size);
 	const auto swscale = FFmpeg::MakeSwscalePointer(
 		data.size,
-		AV_PIX_FMT_YUV420P,
+		(format == FrameFormat::YUV420
+			? AV_PIX_FMT_YUV420P
+			: AV_PIX_FMT_NV12),
 		data.size,
 		AV_PIX_FMT_BGRA);
 	if (!swscale) {
@@ -154,6 +159,7 @@ private:
 	Fn<void(Error)> _error;
 	crl::time _pausedTime = kTimeUnknown;
 	crl::time _resumedTime = kTimeUnknown;
+	int _frameIndex = 0;
 	int _durationByLastPacket = 0;
 	mutable TimePoint _syncTimePoint;
 	crl::time _loopingShift = 0;
@@ -330,6 +336,7 @@ bool VideoTrackObject::loopAround() {
 		return false;
 	}
 	avcodec_flush_buffers(_stream.codec.get());
+	_frameIndex = 0;
 	_loopingShift += duration;
 	_readTillEnd = false;
 	return true;
@@ -371,7 +378,9 @@ auto VideoTrackObject::readFrame(not_null<Frame*> frame) -> FrameResult {
 		fail(Error::InvalidData);
 		return FrameResult::Error;
 	}
-	std::swap(frame->decoded, _stream.frame);
+	std::swap(frame->decoded, _stream.decodedFrame);
+	std::swap(frame->transferred, _stream.transferredFrame);
+	frame->index = _frameIndex++;
 	frame->position = position;
 	frame->displayed = kTimeUnknown;
 	return FrameResult::Done;
@@ -424,14 +433,35 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 
 	fillRequests(frame);
 	frame->format = FrameFormat::None;
-	if (frame->decoded->format == AV_PIX_FMT_YUV420P && !requireARGB32()) {
+	if (frame->decoded->hw_frames_ctx) {
+		if (!frame->transferred) {
+			frame->transferred = FFmpeg::MakeFramePointer();
+		}
+		const auto success = TransferFrame(
+			_stream,
+			frame->decoded.get(),
+			frame->transferred.get());
+		if (!success) {
+			frame->prepared.clear();
+			fail(Error::InvalidData);
+			return;
+		}
+	} else {
+		frame->transferred = nullptr;
+	}
+	const auto frameWithData = frame->transferred
+		? frame->transferred.get()
+		: frame->decoded.get();
+	if ((frameWithData->format == AV_PIX_FMT_YUV420P
+		|| frameWithData->format == AV_PIX_FMT_NV12) && !requireARGB32()) {
+		const auto nv12 = (frameWithData->format == AV_PIX_FMT_NV12);
 		frame->alpha = false;
-		frame->yuv420 = ExtractYUV420(_stream, frame->decoded.get());
-		if (frame->yuv420.size.isEmpty()
-			|| frame->yuv420.chromaSize.isEmpty()
-			|| !frame->yuv420.y.data
-			|| !frame->yuv420.u.data
-			|| !frame->yuv420.v.data) {
+		frame->yuv = ExtractYUV(_stream, frameWithData);
+		if (frame->yuv.size.isEmpty()
+			|| frame->yuv.chromaSize.isEmpty()
+			|| !frame->yuv.y.data
+			|| !frame->yuv.u.data
+			|| (!nv12 && !frame->yuv.v.data)) {
 			frame->prepared.clear();
 			fail(Error::InvalidData);
 			return;
@@ -442,17 +472,17 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 				prepared.image = QImage();
 			}
 		}
-		frame->format = FrameFormat::YUV420;
+		frame->format = nv12 ? FrameFormat::NV12 : FrameFormat::YUV420;
 	} else {
-		frame->alpha = (frame->decoded->format == AV_PIX_FMT_BGRA)
-			|| (frame->decoded->format == AV_PIX_FMT_YUVA420P);
-		frame->yuv420.size = {
-			frame->decoded->width,
-			frame->decoded->height
+		frame->alpha = (frameWithData->format == AV_PIX_FMT_BGRA)
+			|| (frameWithData->format == AV_PIX_FMT_YUVA420P);
+		frame->yuv.size = {
+			frameWithData->width,
+			frameWithData->height
 		};
 		frame->original = ConvertFrame(
 			_stream,
-			frame->decoded.get(),
+			frameWithData,
 			chooseOriginalResize(),
 			std::move(frame->original));
 		if (frame->original.isNull()) {
@@ -584,7 +614,7 @@ bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 					return false;
 				}
 				// Return the last valid frame if we seek too far.
-				_stream.frame = std::move(_initialSkippingFrame);
+				_stream.decodedFrame = std::move(_initialSkippingFrame);
 				return processFirstFrame();
 			} else if (error.code() != AVERROR(EAGAIN) || _readTillEnd) {
 				return false;
@@ -600,22 +630,45 @@ bool VideoTrackObject::tryReadFirstFrame(FFmpeg::Packet &&packet) {
 
 		// Seek was with AVSEEK_FLAG_BACKWARD so first we get old frames.
 		// Try skipping frames until one is after the requested position.
-		std::swap(_initialSkippingFrame, _stream.frame);
-		if (!_stream.frame) {
-			_stream.frame = FFmpeg::MakeFramePointer();
+		std::swap(_initialSkippingFrame, _stream.decodedFrame);
+		if (!_stream.decodedFrame) {
+			_stream.decodedFrame = FFmpeg::MakeFramePointer();
 		}
 	}
 }
 
 bool VideoTrackObject::processFirstFrame() {
-	if (_stream.frame->width * _stream.frame->height > kMaxFrameArea) {
+	const auto decodedFrame = _stream.decodedFrame.get();
+	if (decodedFrame->width * decodedFrame->height > kMaxFrameArea) {
 		return false;
+	} else if (decodedFrame->hw_frames_ctx) {
+		if (!_stream.transferredFrame) {
+			_stream.transferredFrame = FFmpeg::MakeFramePointer();
+		}
+		const auto success = TransferFrame(
+			_stream,
+			decodedFrame,
+			_stream.transferredFrame.get());
+		if (!success) {
+			LOG(("Video Error: Failed accelerated decoding from format %1."
+				).arg(int(decodedFrame->format)));
+			return false;
+		}
+		DEBUG_LOG(("Video Info: "
+			"Using accelerated decoding from format %1 to format %2."
+			).arg(int(decodedFrame->format)
+			).arg(int(_stream.transferredFrame->format)));
+	} else {
+		_stream.transferredFrame = nullptr;
 	}
-	const auto alpha = (_stream.frame->format == AV_PIX_FMT_BGRA)
-		|| (_stream.frame->format == AV_PIX_FMT_YUVA420P);
+	const auto frameWithData = _stream.transferredFrame
+		? _stream.transferredFrame.get()
+		: decodedFrame;
+	const auto alpha = (frameWithData->format == AV_PIX_FMT_BGRA)
+		|| (frameWithData->format == AV_PIX_FMT_YUVA420P);
 	auto frame = ConvertFrame(
 		_stream,
-		_stream.frame.get(),
+		frameWithData,
 		QSize(),
 		QImage());
 	if (frame.isNull()) {
@@ -651,6 +704,7 @@ void VideoTrackObject::callReady() {
 	Expects(_ready != nullptr);
 
 	const auto frame = _shared->frameForPaint();
+	++_frameIndex;
 
 	auto data = VideoInformation();
 	data.size = FFmpeg::CorrectByAspect(
@@ -961,9 +1015,6 @@ bool VideoTrack::Shared::markFrameShown() {
 		if (frame->displayed == kTimeUnknown) {
 			return false;
 		}
-		if (counter == 2 * kFramesCount - 1) {
-			++_counterCycle;
-		}
 		_counter.store(
 			next,
 			std::memory_order_release);
@@ -995,7 +1046,7 @@ VideoTrack::FrameWithIndex VideoTrack::Shared::frameForPaintWithIndex() {
 	Assert(frame->displayed != kTimeUnknown);
 	return {
 		.frame = frame,
-		.index = (_counterCycle * 2 * kFramesCount) + index,
+		.index = frame->index,
 	};
 }
 
@@ -1101,7 +1152,44 @@ bool VideoTrack::markFrameShown() {
 QImage VideoTrack::frame(
 		const FrameRequest &request,
 		const Instance *instance) {
-	const auto frame = _shared->frameForPaint();
+	return frameImage(_shared->frameForPaint(), request, instance);
+}
+
+FrameWithInfo VideoTrack::frameWithInfo(
+		const FrameRequest &request,
+		const Instance *instance) {
+	const auto data = _shared->frameForPaintWithIndex();
+	return {
+		.image = frameImage(data.frame, request, instance),
+		.format = FrameFormat::ARGB32,
+		.index = data.index,
+	};
+}
+
+FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
+	const auto data = _shared->frameForPaintWithIndex();
+	const auto i = data.frame->prepared.find(instance);
+	const auto none = (i == data.frame->prepared.end());
+	if (none || i->second.request.requireARGB32) {
+		_wrapped.with([=](Implementation &unwrapped) {
+			unwrapped.updateFrameRequest(
+				instance,
+				{ .requireARGB32 = false });
+		});
+	}
+	return {
+		.image = data.frame->original,
+		.yuv = &data.frame->yuv,
+		.format = data.frame->format,
+		.index = data.index,
+		.alpha = data.frame->alpha,
+	};
+}
+
+QImage VideoTrack::frameImage(
+		not_null<Frame*> frame,
+		const FrameRequest &request,
+		const Instance *instance) {
 	const auto i = frame->prepared.find(instance);
 	const auto none = (i == frame->prepared.end());
 	const auto preparedFor = frame->prepared.empty()
@@ -1115,8 +1203,9 @@ QImage VideoTrack::frame(
 		});
 	}
 	if (frame->original.isNull()
-		&& frame->format == FrameFormat::YUV420) {
-		frame->original = ConvertToARGB32(frame->yuv420);
+		&& (frame->format == FrameFormat::YUV420
+			|| frame->format == FrameFormat::NV12)) {
+		frame->original = ConvertToARGB32(frame->format, frame->yuv);
 	}
 	if (GoodForRequest(
 			frame->original,
@@ -1151,30 +1240,12 @@ QImage VideoTrack::frame(
 	return i->second.image;
 }
 
-FrameWithInfo VideoTrack::frameWithInfo(const Instance *instance) {
-	const auto data = _shared->frameForPaintWithIndex();
-	const auto i = data.frame->prepared.find(instance);
-	const auto none = (i == data.frame->prepared.end());
-	if (none || i->second.request.requireARGB32) {
-		_wrapped.with([=](Implementation &unwrapped) {
-			unwrapped.updateFrameRequest(
-				instance,
-				{ .requireARGB32 = false });
-		});
-	}
-	return {
-		.original = data.frame->original,
-		.yuv420 = &data.frame->yuv420,
-		.format = data.frame->format,
-		.index = data.index,
-		.alpha = data.frame->alpha,
-	};
-}
-
 QImage VideoTrack::currentFrameImage() {
 	const auto frame = _shared->frameForPaint();
-	if (frame->original.isNull() && frame->format == FrameFormat::YUV420) {
-		frame->original = ConvertToARGB32(frame->yuv420);
+	if (frame->original.isNull()
+		&& (frame->format == FrameFormat::YUV420
+			|| frame->format == FrameFormat::NV12)) {
+		frame->original = ConvertToARGB32(frame->format, frame->yuv);
 	}
 	return frame->original;
 }
@@ -1231,7 +1302,8 @@ bool VideoTrack::IsDecoded(not_null<const Frame*> frame) {
 bool VideoTrack::IsRasterized(not_null<const Frame*> frame) {
 	return IsDecoded(frame)
 		&& (!frame->original.isNull()
-			|| frame->format == FrameFormat::YUV420);
+			|| frame->format == FrameFormat::YUV420
+			|| frame->format == FrameFormat::NV12);
 }
 
 bool VideoTrack::IsStale(not_null<const Frame*> frame, crl::time trackTime) {

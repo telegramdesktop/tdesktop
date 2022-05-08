@@ -158,7 +158,7 @@ void PeerListsBox::prepare() {
 		content->scrollToRequests(
 		) | rpl::start_with_next([=](Ui::ScrollToRequest request) {
 			const auto skip = content->y();
-			onScrollToY(
+			scrollToY(
 				skip + request.ymin,
 				(request.ymax >= 0) ? (skip + request.ymax) : request.ymax);
 		}, lifetime());
@@ -181,7 +181,7 @@ void PeerListsBox::prepare() {
 		_select->finishAnimating();
 		Ui::SendPendingMoveResizeEvents(_select);
 		_scrollBottomFixed = true;
-		onScrollToY(0);
+		scrollToY(0);
 	}
 
 	if (_init) {
@@ -256,7 +256,7 @@ void PeerListsBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void PeerListsBox::searchQueryChanged(const QString &query) {
-	onScrollToY(0);
+	scrollToY(0);
 	for (const auto &list : _lists) {
 		list.content->searchQueryChanged(query);
 	}
@@ -300,7 +300,8 @@ PeerListsBox::Delegate::Delegate(
 	not_null<PeerListsBox*> box,
 	not_null<PeerListController*> controller)
 : _box(box)
-, _controller(controller) {
+, _controller(controller)
+, _show(_box) {
 }
 
 void PeerListsBox::Delegate::peerListSetTitle(rpl::producer<QString> title) {
@@ -343,7 +344,7 @@ void PeerListsBox::Delegate::peerListSetForeignRowChecked(
 }
 
 void PeerListsBox::Delegate::peerListScrollToTop() {
-	_box->onScrollToY(0);
+	_box->scrollToY(0);
 }
 
 void PeerListsBox::Delegate::peerListSetSearchMode(PeerListSearchMode mode) {
@@ -368,6 +369,20 @@ void PeerListsBox::Delegate::peerListFinishSelectedRowsBunch() {
 	Expects(_box->_select != nullptr);
 
 	_box->_select->entity()->finishItemsBunch();
+}
+
+void PeerListsBox::Delegate::peerListShowBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) {
+	_show.showBox(std::move(content), options);
+}
+
+void PeerListsBox::Delegate::peerListHideLayer() {
+	_show.hideLayer();
+}
+
+not_null<QWidget*> PeerListsBox::Delegate::peerListToastParent() {
+	return _show.toastParent();
 }
 
 bool PeerListsBox::Delegate::peerListIsRowChecked(

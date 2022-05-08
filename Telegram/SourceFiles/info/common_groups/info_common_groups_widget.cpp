@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/search_field_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/ui_utility.h"
+#include "lang/lang_keys.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
@@ -60,6 +61,10 @@ Widget::Widget(
 		this,
 		controller,
 		user));
+}
+
+rpl::producer<QString> Widget::title() {
+	return tr::lng_profile_common_groups_section();
 }
 
 not_null<UserData*> Widget::user() const {

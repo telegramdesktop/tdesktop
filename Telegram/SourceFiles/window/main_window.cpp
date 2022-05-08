@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "window/window_session_controller.h"
 #include "window/window_lock_widgets.h"
-#include "window/window_outdated_bar.h"
 #include "window/window_controller.h"
 #include "main/main_account.h" // Account::sessionValue.
 #include "core/application.h"
@@ -27,11 +26,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/crc32hash.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/shadow.h"
+#include "ui/controls/window_outdated_bar.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
 #include "mainwidget.h" // session->content()->windowShown().
 #include "facades.h"
+#include "tray.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
 
@@ -307,7 +308,7 @@ QImage WithSmallCounter(QImage image, CounterLayerArgs &&args) {
 MainWindow::MainWindow(not_null<Controller*> controller)
 : _controller(controller)
 , _positionUpdatedTimer([=] { savePosition(); })
-, _outdated(CreateOutdatedBar(body()))
+, _outdated(Ui::CreateOutdatedBar(body(), cWorkingDir()))
 , _body(body()) {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
@@ -324,7 +325,9 @@ MainWindow::MainWindow(not_null<Controller*> controller)
 		workmodeUpdated(mode);
 	}, lifetime());
 
-	Ui::Toast::SetDefaultParent(_body.data());
+	if (isPrimary()) {
+		Ui::Toast::SetDefaultParent(_body.data());
+	}
 
 	body()->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
@@ -488,9 +491,6 @@ void MainWindow::handleActiveChanged() {
 	if (isActiveWindow()) {
 		Core::App().checkMediaViewActivation();
 	}
-	InvokeQueued(this, [=] {
-		handleActiveChangedHook();
-	});
 }
 
 void MainWindow::handleVisibleChanged(bool visible) {
@@ -580,8 +580,7 @@ void MainWindow::refreshTitleWidget() {
 }
 
 void MainWindow::updateMinimumSize() {
-	setMinimumWidth(computeMinWidth());
-	setMinimumHeight(computeMinHeight());
+	setMinimumSize(QSize(computeMinWidth(), computeMinHeight()));
 }
 
 void MainWindow::recountGeometryConstraints() {
@@ -763,16 +762,6 @@ void MainWindow::setPositionInited() {
 	_positionInited = true;
 }
 
-void MainWindow::attachToTrayIcon(not_null<QSystemTrayIcon*> icon) {
-	icon->setToolTip(AppName.utf16());
-	connect(icon, &QSystemTrayIcon::activated, this, [=](
-			QSystemTrayIcon::ActivationReason reason) {
-		Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-			handleTrayIconActication(reason);
-		});
-	});
-}
-
 rpl::producer<> MainWindow::leaveEvents() const {
 	return _leaveEvents.events();
 }
@@ -810,11 +799,12 @@ void MainWindow::updateUnreadCounter() {
 	const auto counter = Core::App().unreadBadge();
 	setTitle((counter > 0) ? qsl("Telegram (%1)").arg(counter) : qsl("Telegram"));
 
+	Core::App().tray().updateIconCounters();
 	unreadCounterChangedHook();
 }
 
 QRect MainWindow::computeDesktopRect() const {
-	return (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	return screen()->availableGeometry();
 }
 
 void MainWindow::savePosition(Qt::WindowState state) {
@@ -893,14 +883,13 @@ void MainWindow::savePosition(Qt::WindowState state) {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (Core::Quitting() || !hasTrayIcon()) {
+	if (Core::Quitting()/* || !hasTrayIcon()*/) {
 		return false;
 	}
 
 	closeWithoutDestroy();
 	controller().updateIsActiveBlur();
 	updateGlobalMenu();
-	showTrayTooltip();
 	return true;
 }
 
@@ -940,7 +929,7 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 	const auto nowMinimumWidth = computeMinWidth();
 	const auto firstResize = (nowMinimumWidth < wasMinimumWidth);
 	if (firstResize) {
-		setMinimumWidth(nowMinimumWidth);
+		updateMinimumSize();
 	}
 	if (!isMaximized()) {
 		tryToExtendWidthBy(wasWidth + nowRightWidth - wasRightWidth - width());
@@ -948,17 +937,17 @@ void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
 		updateControlsGeometry();
 	}
 	if (!firstResize) {
-		setMinimumWidth(nowMinimumWidth);
+		updateMinimumSize();
 	}
 }
 
 int MainWindow::maximalExtendBy() const {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	return std::max(desktop.width() - body()->width(), 0);
 }
 
 bool MainWindow::canExtendNoMove(int extendBy) const {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	auto innerRight = (inner.x() + inner.width() + extendBy);
 	auto desktopRight = (desktop.x() + desktop.width());
@@ -966,7 +955,7 @@ bool MainWindow::canExtendNoMove(int extendBy) const {
 }
 
 int MainWindow::tryToExtendWidthBy(int addToWidth) {
-	auto desktop = (screen() ? screen() : QApplication::primaryScreen())->availableGeometry();
+	auto desktop = screen()->availableGeometry();
 	auto inner = body()->mapToGlobal(body()->rect());
 	accumulate_min(
 		addToWidth,

@@ -30,14 +30,17 @@ void AddPrivacyButton(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::VerticalLayout*> container,
 	rpl::producer<QString> label,
+	IconDescriptor &&descriptor,
 	Api::UserPrivacy::Key key,
 	Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory);
 
-class PrivacySecurity : public Section {
+class PrivacySecurity : public Section<PrivacySecurity> {
 public:
 	PrivacySecurity(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
+
+	[[nodiscard]] rpl::producer<QString> title() override;
 
 	rpl::producer<Type> sectionShowOther() override;
 

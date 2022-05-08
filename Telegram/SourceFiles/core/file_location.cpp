@@ -39,23 +39,34 @@ FileLocation::FileLocation(const QString &name) : fname(name) {
 		size = 0;
 	} else {
 		setBookmark(Platform::PathBookmark(name));
+		resolveFromInfo(QFileInfo(name));
+	}
+}
 
-		QFileInfo f(name);
-		if (f.exists()) {
-			qint64 s = f.size();
-			if (s > INT_MAX) {
-				fname = QString();
-				_bookmark = nullptr;
-				size = 0;
-			} else {
-				modified = f.lastModified();
-				size = qint32(s);
-			}
-		} else {
+FileLocation::FileLocation(const QFileInfo &info) : fname(info.filePath()) {
+	if (fname.isEmpty()) {
+		size = 0;
+	} else {
+		setBookmark(Platform::PathBookmark(fname));
+		resolveFromInfo(info);
+	}
+}
+
+void FileLocation::resolveFromInfo(const QFileInfo &info) {
+	if (info.exists()) {
+		const auto s = info.size();
+		if (s > INT_MAX) {
 			fname = QString();
 			_bookmark = nullptr;
 			size = 0;
+		} else {
+			modified = info.lastModified();
+			size = qint32(s);
 		}
+	} else {
+		fname = QString();
+		_bookmark = nullptr;
+		size = 0;
 	}
 }
 

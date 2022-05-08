@@ -300,20 +300,24 @@ InnerWidget::InnerWidget(
 			}
 		}
 	}, lifetime());
-	subscribe(session().data().queryItemVisibility(), [=](
+	session().data().itemVisibilityQueries(
+	) | rpl::filter([=](
 			const Data::Session::ItemVisibilityQuery &query) {
-		if (_history != query.item->history()
-			|| !query.item->isAdminLogEntry()
-			|| !isVisible()) {
-			return;
-		}
+		return (_history == query.item->history())
+			&& query.item->isAdminLogEntry()
+			&& isVisible();
+	}) | rpl::start_with_next([=](
+			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			auto top = itemTop(view);
-			if (top >= 0 && top + view->height() > _visibleTop && top < _visibleBottom) {
+			if (top >= 0
+				&& top + view->height() > _visibleTop
+				&& top < _visibleBottom) {
 				*query.isVisible = true;
 			}
 		}
-	});
+	}, lifetime());
+
 	updateEmptyText();
 
 	requestAdmins();
@@ -355,6 +359,7 @@ void InnerWidget::visibleTopBottomUpdated(
 		scrollDateHideByTimer();
 	}
 	_controller->floatPlayerAreaUpdated();
+	session().data().itemVisibilitiesUpdated();
 }
 
 void InnerWidget::updateVisibleTopItem() {
@@ -504,8 +509,6 @@ void InnerWidget::clearAndRequestLog() {
 }
 
 void InnerWidget::updateEmptyText() {
-	auto options = _defaultOptions;
-	options.flags |= TextParseMarkdown;
 	auto hasSearch = !_searchQuery.isEmpty();
 	auto hasFilter = (_filter.flags != 0) || !_filter.allUsers;
 	auto text = Ui::Text::Semibold((hasSearch || hasFilter)
@@ -522,7 +525,7 @@ void InnerWidget::updateEmptyText() {
 		? tr::lng_admin_log_no_events_text(tr::now)
 		: tr::lng_admin_log_no_events_text_channel(tr::now);
 	text.text.append(qstr("\n\n") + description);
-	_emptyText.setMarkedText(st::defaultTextStyle, text, options);
+	_emptyText.setMarkedText(st::defaultTextStyle, text);
 }
 
 QString InnerWidget::tooltipText() const {
@@ -1318,7 +1321,6 @@ void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	const auto image = media->image(Data::PhotoSize::Large)->original();
 	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
@@ -1327,7 +1329,7 @@ void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
 		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
-				image.save(result, "JPG");
+				media->saveToFile(result);
 			}
 		}));
 }
@@ -1433,7 +1435,7 @@ void InnerWidget::suggestRestrictParticipant(
 					(*weakBox)->closeBox();
 				}
 			});
-			*weakBox = _controller->show(Box<Ui::ConfirmBox>(text, sure));
+			*weakBox = _controller->show(Ui::MakeConfirmBox({ text, sure }));
 		} else if (base::contains(_admins, user)) {
 			editRestrictions(true, ChatRestrictionsInfo());
 		} else {

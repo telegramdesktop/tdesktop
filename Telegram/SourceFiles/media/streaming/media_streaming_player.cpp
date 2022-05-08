@@ -544,7 +544,7 @@ void Player::play(const PlaybackOptions &options) {
 		_options.speed = 1.;
 	}
 	_stage = Stage::Initializing;
-	_file->start(delegate(), _options.position);
+	_file->start(delegate(), _options.position, _options.hwAllowed);
 }
 
 void Player::savePreviousReceivedTill(
@@ -882,6 +882,14 @@ QImage Player::frame(
 	Expects(_video != nullptr);
 
 	return _video->frame(request, instance);
+}
+
+FrameWithInfo Player::frameWithInfo(
+		const FrameRequest &request,
+		const Instance *instance) const {
+	Expects(_video != nullptr);
+
+	return _video->frameWithInfo(request, instance);
 }
 
 FrameWithInfo Player::frameWithInfo(const Instance *instance) const {

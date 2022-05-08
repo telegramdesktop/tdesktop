@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "data/data_document.h"
 #include "data/data_wall_paper.h"
+#include "data/data_media_types.h"
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_photo.h"
@@ -58,6 +59,13 @@ void PaintInterpolatedIcon(
 	p.scale(1. - b_ratio, 1. - b_ratio);
 	a.paintInCenter(p, rect.translated(-rect.center()));
 	p.restore();
+}
+
+std::unique_ptr<Media> CreateAttach(
+		not_null<Element*> parent,
+		DocumentData *document,
+		PhotoData *photo) {
+	return CreateAttach(parent, document, photo, {}, {});
 }
 
 std::unique_ptr<Media> CreateAttach(

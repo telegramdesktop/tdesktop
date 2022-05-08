@@ -336,9 +336,7 @@ void CloudList::setup() {
 			object.cloud.id ? object.cloud.id : kFakeCloudThemeId));
 	});
 
-	auto cloudListChanges = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto cloudListChanges = rpl::single(rpl::empty) | rpl::then(
 		_window->session().data().cloudThemes().updated()
 	);
 
@@ -622,10 +620,11 @@ void CloudList::showMenu(Element &element) {
 				_window->session().data().cloudThemes().remove(id);
 			}
 		};
-		_window->window().show(Box<Ui::ConfirmBox>(
-			tr::lng_theme_delete_sure(tr::now),
-			tr::lng_theme_delete(tr::now),
-			remove));
+		_window->window().show(Ui::MakeConfirmBox({
+			.text = tr::lng_theme_delete_sure(),
+			.confirmed = remove,
+			.confirmText = tr::lng_theme_delete(),
+		}));
 	}, &st::menuIconDelete);
 	_contextMenu->popup(QCursor::pos());
 }

@@ -245,7 +245,8 @@ private:
 	void sendExistingDocument(not_null<DocumentData*> document);
 	bool sendExistingDocument(
 		not_null<DocumentData*> document,
-		Api::SendOptions options);
+		Api::SendOptions options,
+		std::optional<MsgId> localId);
 	void sendExistingPhoto(not_null<PhotoData*> photo);
 	bool sendExistingPhoto(
 		not_null<PhotoData*> photo,
@@ -256,7 +257,8 @@ private:
 	void sendInlineResult(
 		not_null<InlineBots::Result*> result,
 		not_null<UserData*> bot,
-		Api::SendOptions options);
+		Api::SendOptions options,
+		std::optional<MsgId> localMessageId);
 
 	[[nodiscard]] bool showSlowmodeError();
 	[[nodiscard]] std::optional<QString> writeRestriction() const;

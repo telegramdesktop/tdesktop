@@ -44,9 +44,10 @@ void SectionWidget::init() {
 
 	sizeValue(
 	) | rpl::start_with_next([wrap = _content.data()](QSize size) {
+		const auto expanding = false;
 		auto wrapGeometry = QRect{ { 0, 0 }, size };
 		auto additionalScroll = 0;
-		wrap->updateGeometry(wrapGeometry, additionalScroll);
+		wrap->updateGeometry(wrapGeometry, expanding, additionalScroll);
 	}, _content->lifetime());
 
 	_connecting = std::make_unique<Window::ConnectionState>(

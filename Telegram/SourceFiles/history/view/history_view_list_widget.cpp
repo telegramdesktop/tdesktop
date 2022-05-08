@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_react_button.h"
+#include "history/view/history_view_quick_action.h"
 #include "chat_helpers/message_field.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -35,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/inactive_press.h"
+#include "ui/effects/message_sending_animation_controller.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
@@ -330,7 +332,9 @@ ListWidget::ListWidget(
 		itemRemoved(item);
 	}, lifetime());
 
-	subscribe(session().data().queryItemVisibility(), [this](const Data::Session::ItemVisibilityQuery &query) {
+	session().data().itemVisibilityQueries(
+	) | rpl::start_with_next([=](
+			const Data::Session::ItemVisibilityQuery &query) {
 		if (const auto view = viewForItem(query.item)) {
 			const auto top = itemTop(view);
 			if (top >= 0
@@ -339,7 +343,7 @@ ListWidget::ListWidget(
 				*query.isVisible = true;
 			}
 		}
-	});
+	}, lifetime());
 
 	using ChosenReaction = Reactions::Manager::Chosen;
 	_reactionsManager->chosen(
@@ -793,6 +797,7 @@ void ListWidget::visibleTopBottomUpdated(
 		scrollDateHideByTimer();
 	}
 	_controller->floatPlayerAreaUpdated();
+	session().data().itemVisibilitiesUpdated();
 	_applyUpdatedScrollState.call();
 }
 
@@ -1238,6 +1243,11 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 	if (hasCopyRestriction()) {
 		return true;
 	}
+	if (_selected.empty()) {
+		if (_selectedTextItem && _selectedTextItem->forbidsForward()) {
+			return true;
+		}
+	}
 	for (const auto &[itemId, selection] : _selected) {
 		if (const auto item = session().data().message(itemId)) {
 			if (item->forbidsForward()) {
@@ -1249,6 +1259,11 @@ bool ListWidget::hasCopyRestrictionForSelected() const {
 }
 
 bool ListWidget::showCopyRestrictionForSelected() {
+	if (_selected.empty()) {
+		if (_selectedTextItem && showCopyRestriction(_selectedTextItem)) {
+			return true;
+		}
+	}
 	for (const auto &[itemId, selection] : _selected) {
 		if (showCopyRestriction(session().data().message(itemId))) {
 			return true;
@@ -1555,6 +1570,7 @@ void ListWidget::resizeToWidth(int newWidth, int minHeight) {
 void ListWidget::startItemRevealAnimations() {
 	for (const auto &view : base::take(_itemRevealPending)) {
 		if (const auto height = view->height()) {
+			startMessageSendingAnimation(view->data());
 			if (!_itemRevealAnimations.contains(view)) {
 				auto &animation = _itemRevealAnimations[view];
 				animation.startHeight = height;
@@ -1571,6 +1587,30 @@ void ListWidget::startItemRevealAnimations() {
 			}
 		}
 	}
+}
+
+void ListWidget::startMessageSendingAnimation(
+		not_null<HistoryItem*> item) {
+	auto &sendingAnimation = controller()->sendingAnimation();
+	if (!sendingAnimation.hasLocalMessage(item->fullId().msg)
+		|| !sendingAnimation.checkExpectedType(item)) {
+		return;
+	}
+
+	auto globalEndTopLeft = rpl::merge(
+		session().data().newItemAdded() | rpl::to_empty,
+		geometryValue() | rpl::to_empty
+	) | rpl::map([=] {
+		const auto view = viewForItem(item);
+		const auto additional = !_visibleTop ? view->height() : 0;
+		return mapToGlobal(QPoint(0, itemTop(view) - additional));
+	});
+
+	sendingAnimation.startAnimation({
+		.globalEndTopLeft = std::move(globalEndTopLeft),
+		.view = [=] { return viewForItem(item); },
+		.paintContext = [=] { return preparePaintContext({}); },
+	});
 }
 
 void ListWidget::revealItemsCallback() {
@@ -1707,6 +1747,17 @@ TextSelection ListWidget::itemRenderSelection(
 	return TextSelection();
 }
 
+Ui::ChatPaintContext ListWidget::preparePaintContext(
+		const QRect &clip) const {
+	return controller()->preparePaintContext({
+		.theme = _delegate->listChatTheme(),
+		.visibleAreaTop = _visibleTop,
+		.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
+		.visibleAreaWidth = width(),
+		.clip = clip,
+	});
+}
+
 void ListWidget::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -1736,21 +1787,18 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		_reactionsManager->startEffectsCollection();
 
 		auto top = itemTop(from->get());
-		auto context = controller()->preparePaintContext({
-			.theme = _delegate->listChatTheme(),
-			.visibleAreaTop = _visibleTop,
-			.visibleAreaTopGlobal = mapToGlobal(QPoint(0, _visibleTop)).y(),
-			.visibleAreaWidth = width(),
-			.clip = clip,
-		}).translated(0, -top);
+		auto context = preparePaintContext(clip).translated(0, -top);
 		p.translate(0, top);
+		const auto &sendingAnimation = _controller->sendingAnimation();
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
-			context.reactionInfo
-				= _reactionsManager->currentReactionPaintInfo();
-			context.outbg = view->hasOutLayout();
-			context.selection = itemRenderSelection(view);
-			view->draw(p, context);
+			if (!sendingAnimation.hasAnimatedMessage(view->data())) {
+				context.reactionInfo
+					= _reactionsManager->currentReactionPaintInfo();
+				context.outbg = view->hasOutLayout();
+				context.selection = itemRenderSelection(view);
+				view->draw(p, context);
+			}
 			_reactionsManager->recordCurrentReactionEffect(
 				view->data()->fullId(),
 				QPoint(0, top));
@@ -1779,12 +1827,29 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 						view->width(),
 						st::msgPhotoSize);
 				} else if (const auto info = view->data()->hiddenSenderInfo()) {
-					info->userpic.paint(
-						p,
-						st::historyPhotoLeft,
-						userpicTop,
-						view->width(),
-						st::msgPhotoSize);
+					if (info->customUserpic.empty()) {
+						info->emptyUserpic.paint(
+							p,
+							st::historyPhotoLeft,
+							userpicTop,
+							view->width(),
+							st::msgPhotoSize);
+					} else {
+						const auto painted = info->paintCustomUserpic(
+							p,
+							st::historyPhotoLeft,
+							userpicTop,
+							view->width(),
+							st::msgPhotoSize);
+						if (!painted) {
+							const auto itemId = view->data()->fullId();
+							auto &v = _sponsoredUserpics[itemId.msg];
+							if (!info->customUserpic.isCurrentView(v)) {
+								v = info->customUserpic.createView();
+								info->customUserpic.load(&session(), itemId);
+							}
+						}
+					}
 				} else {
 					Unexpected("Corrupt forwarded information in message.");
 				}
@@ -2035,8 +2100,31 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 		&& _overElement
 		&& _overElement->data()->isRegular()) {
 		mouseActionCancel();
-		replyToMessageRequestNotify(_overElement->data()->fullId());
+		switch (CurrentQuickAction()) {
+		case DoubleClickQuickAction::Reply: {
+			replyToMessageRequestNotify(_overElement->data()->fullId());
+		} break;
+		case DoubleClickQuickAction::React: {
+			toggleFavoriteReaction(_overElement);
+		} break;
+		default: break;
+		}
 	}
+}
+
+void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
+	const auto favorite = session().data().reactions().favorite();
+	const auto allowed = _reactionsManager->allowedSublist();
+	if (allowed && !allowed->contains(favorite)) {
+		return;
+	}
+	const auto item = view->data();
+	if (item->chosenReaction() != favorite) {
+		if (const auto top = itemTop(view); top >= 0) {
+			view->animateReaction({ .emoji = favorite });
+		}
+	}
+	item->toggleReaction(favorite);
 }
 
 void ListWidget::trySwitchToWordSelection() {

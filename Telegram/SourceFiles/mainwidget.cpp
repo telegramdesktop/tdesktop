@@ -251,7 +251,9 @@ MainWidget::MainWidget(
 		_callTopBar->finishAnimating();
 	}
 
-	Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	if (isPrimary()) {
+		Core::App().setDefaultFloatPlayerDelegate(floatPlayerDelegate());
+	}
 	Core::App().floatPlayerClosed(
 	) | rpl::start_with_next([=](FullMsgId itemId) {
 		floatPlayerClosed(itemId);
@@ -389,6 +391,10 @@ void MainWidget::setupConnectingWidget() {
 		this,
 		&session().account(),
 		_controller->adaptive().oneColumnValue() | rpl::map(!_1));
+	_controller->connectingBottomSkipValue(
+	) | rpl::start_with_next([=](int skip) {
+		_connecting->setBottomSkip(skip);
+	}, lifetime());
 }
 
 not_null<Media::Player::FloatDelegate*> MainWidget::floatPlayerDelegate() {
@@ -473,9 +479,7 @@ void MainWidget::floatPlayerEnumerateSections(Fn<void(
 }
 
 bool MainWidget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
-	auto isVisible = false;
-	session().data().queryItemVisibility().notify({ item, &isVisible }, true);
-	return isVisible;
+	return session().data().queryItemVisibility(item);
 }
 
 void MainWidget::floatPlayerClosed(FullMsgId itemId) {
@@ -502,7 +506,7 @@ bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
 		session().data().idsToItems(draft.ids),
 		true);
 	if (!error.isEmpty()) {
-		Ui::show(Box<Ui::InformBox>(error), Ui::LayerOption::KeepOther);
+		Ui::show(Ui::MakeInformBox(error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 
@@ -523,7 +527,7 @@ bool MainWidget::shareUrl(
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_share_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
 	TextWithTags textWithTags = {
@@ -553,7 +557,7 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_inline_switch_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
 	const auto h = peer->owner().history(peer);
@@ -576,13 +580,12 @@ bool MainWidget::sendPaths(PeerId peerId) {
 
 	auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_forward_send_files_cant(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else if (const auto error = Data::RestrictionError(
 			peer,
 			ChatRestriction::SendMedia)) {
-		Ui::show(Box<Ui::InformBox>(*error));
+		Ui::show(Ui::MakeInformBox(*error));
 		return false;
 	}
 	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -608,8 +611,7 @@ void MainWidget::onFilesOrForwardDrop(
 	} else {
 		auto peer = session().data().peer(peerId);
 		if (!peer->canWrite()) {
-			Ui::show(Box<Ui::InformBox>(
-				tr::lng_forward_send_files_cant(tr::now)));
+			Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 			return;
 		}
 		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
@@ -674,7 +676,7 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 
 	_hider->confirmed(
 	) | rpl::start_with_next([=] {
-		_dialogs->onCancelSearch();
+		_dialogs->cancelSearch();
 	}, _hider->lifetime());
 
 	if (isOneColumn()) {
@@ -1194,12 +1196,12 @@ Image *MainWidget::newBackgroundThumb() {
 
 void MainWidget::setInnerFocus() {
 	if (_hider || !_history->peer()) {
-		Assert(_dialogs != nullptr);
 		if (!_hider && _mainSection) {
 			_mainSection->setInnerFocus();
 		} else if (!_hider && _thirdSection) {
 			_thirdSection->setInnerFocus();
 		} else {
+			Assert(_dialogs != nullptr);
 			_dialogs->setInnerFocus();
 		}
 	} else if (_mainSection) {
@@ -1300,7 +1302,7 @@ void MainWidget::ui_showPeerHistory(
 		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
 			if (params.activation != anim::activation::background) {
-				controller()->show(Box<Ui::InformBox>(unavailable));
+				controller()->show(Ui::MakeInformBox(unavailable));
 			}
 			return;
 		}
@@ -1368,7 +1370,7 @@ void MainWidget::ui_showPeerHistory(
 
 	const auto wasActivePeer = _controller->activeChatCurrent().peer();
 	if (params.activation != anim::activation::background) {
-		Ui::hideSettingsAndLayer();
+		controller()->window().hideSettingsAndLayer();
 	}
 	if (_hider) {
 		_hider->startHide();
@@ -1645,7 +1647,7 @@ void MainWidget::showNewSection(
 	}
 
 	if (params.activation != anim::activation::background) {
-		Ui::hideSettingsAndLayer();
+		controller()->window().hideSettingsAndLayer();
 	}
 
 	_controller->dialogsListFocused().set(false, true);
@@ -2044,7 +2046,7 @@ void MainWidget::hideAll() {
 void MainWidget::showAll() {
 	if (cPasswordRecovered()) {
 		cSetPasswordRecovered(false);
-		Ui::show(Box<Ui::InformBox>(tr::lng_cloud_password_updated(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_cloud_password_updated()));
 	}
 	if (isOneColumn()) {
 		if (_sideShadow) {
@@ -2603,7 +2605,9 @@ void MainWidget::updateWindowAdaptiveLayout() {
 	auto useSmallColumnWidth = !isOneColumn()
 		&& !dialogsWidthRatio
 		&& !_controller->forceWideDialogs();
-	_dialogsWidth = useSmallColumnWidth
+	_dialogsWidth = !_dialogs
+		? 0
+		: useSmallColumnWidth
 		? _controller->dialogsSmallColumnWidth()
 		: layout.dialogsWidth;
 	_thirdColumnWidth = layout.thirdWidth;
@@ -2653,7 +2657,7 @@ void MainWidget::activate() {
 						_controller,
 						path.mid(interpret.size()));
 					if (!error.isEmpty()) {
-						Ui::show(Box<Ui::InformBox>(error));
+						Ui::show(Ui::MakeInformBox(error));
 					}
 				} else {
 					showSendPathsLayer();

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 
 namespace Settings {
-class Section;
+class AbstractSection;
 } // namespace Settings
 
 namespace Info {
@@ -63,10 +63,13 @@ public:
 		const QRect &geometry,
 		not_null<Memento*> memento);
 
-	rpl::producer<bool> canSaveChanges() const override;
 	void saveChanges(FnMut<void()> done) override;
 
+	void showFinished() override;
+
 	rpl::producer<bool> desiredShadowVisibility() const override;
+
+	rpl::producer<QString> title() override;
 
 private:
 	void saveState(not_null<Memento*> memento);
@@ -77,7 +80,8 @@ private:
 	not_null<UserData*> _self;
 	Type _type = Type();
 
-	not_null<::Settings::Section*> _inner;
+	not_null<::Settings::AbstractSection*> _inner;
+	QPointer<Ui::RpWidget> _pinnedToTop;
 
 };
 

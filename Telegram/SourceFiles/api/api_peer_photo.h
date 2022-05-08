@@ -24,6 +24,7 @@ public:
 
 	void upload(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
+	void set(not_null<PeerData*> peer, not_null<PhotoData*> photo);
 
 private:
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);

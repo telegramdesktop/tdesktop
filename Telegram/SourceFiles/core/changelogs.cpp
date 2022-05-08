@@ -78,6 +78,57 @@ std::map<int, const char*> BetaLogs() {
 		"- Add snap layouts support on Windows 11.\n"
 		
 		"- Fix crash in drafts after accounts switching.\n"
+	},
+	{
+		3005003,
+		"- Check the status of media and file downloads by clicking "
+		"on the new panel in the bottom of the chats list.\n"
+
+		"- View recently downloaded files "
+		"from the new Settings > Advanced > Downloads section.\n"
+
+		"- Manage Live Streams in your groups and channels "
+		"using external software like OBS Studio or XSplit Broadcaster.\n"
+	},
+	{
+		3005005,
+		"- Support stereo audio output in RTMP streams.\n"
+
+		"- Improve RTMP stream full screen mode.\n"
+
+		"- Fix a couple of crashes.\n"
+	},
+	{
+		3005006,
+		"- Show viewers count in RTMP streams.\n"
+
+		"- Send GIFs search results without \"via @bot\".\n"
+
+		"- Display the file thumbnail in downloads bar.\n"
+
+		"- Always try to save original photo bytes to disk.\n"
+
+		"- Fix crash when deleting a user from your contacts list.\n"
+	},
+	{
+		3006003,
+		"- Allow sending the default reaction by a double click.\n"
+
+		"- Select a custom sound for message notifications.\n"
+
+		"- Add chats to folders from a chat context menu.\n"
+
+		"- Fix group and channel photo upload.\n"
+
+		"- Test hardware video decoding.\n"
+	},
+	{
+		3007004,
+		"- More icons for chat folders.\n"
+
+		"- Improve some more sections design.\n"
+		
+		"- Update the OpenAL library to 1.22.0.\n"
 	}
 	};
 };

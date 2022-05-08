@@ -56,12 +56,16 @@ void ShowPhoneBannedError(
 		}
 	};
 	*box = controller->show(
-		Box<Ui::ConfirmBox>(
-			tr::lng_signin_banned_text(tr::now),
-			tr::lng_box_ok(tr::now),
-			tr::lng_signin_banned_help(tr::now),
-			close,
-			[=] { SendToBannedHelp(phone); close(); }),
+		Ui::MakeConfirmBox({
+			.text = tr::lng_signin_banned_text(),
+			.cancelled = [=](Fn<void()> &&close) {
+				SendToBannedHelp(phone);
+				close();
+			},
+			.confirmText = tr::lng_box_ok(),
+			.cancelText = tr::lng_signin_banned_help(),
+			.strictCancel = true,
+		}),
 		Ui::LayerOption::CloseOther);
 }
 

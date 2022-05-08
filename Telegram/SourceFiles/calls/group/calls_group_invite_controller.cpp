@@ -259,9 +259,9 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			inviteWithAdd(users, nonMembers, finishWithConfirm);
 		};
 		auto box = ConfirmBox({
-			.text = { text },
-			.button = tr::lng_participant_invite(),
-			.callback = done,
+			.text = text,
+			.confirmed = done,
+			.confirmText = tr::lng_participant_invite(),
 		});
 		*shared = box.data();
 		parentBox->getDelegate()->showBox(

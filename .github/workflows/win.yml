@@ -13,7 +13,7 @@ on:
       - '!.github/workflows/win.yml'
       - 'lib/xdg/**'
       - 'snap/**'
-      - 'Telegram/build/**'
+      - 'Telegram/build/docker/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/SourceFiles/platform/mac/**'
@@ -32,7 +32,7 @@ on:
       - '!.github/workflows/win.yml'
       - 'lib/xdg/**'
       - 'snap/**'
-      - 'Telegram/build/**'
+      - 'Telegram/build/docker/**'
       - 'Telegram/Resources/uwp/**'
       - 'Telegram/SourceFiles/platform/linux/**'
       - 'Telegram/SourceFiles/platform/mac/**'
@@ -58,12 +58,12 @@ jobs:
     defaults:
       run:
         shell: cmd
-        working-directory: ${{ github.workspace }}
 
     steps:
       - name: Prepare directories.
         run: |
-          mkdir %userprofile%\TBuild\Libraries
+          mkdir %userprofile%\TBuild Libraries
+          mklink /d %userprofile%\TBuild\Libraries %GITHUB_WORKSPACE%\Libraries
           echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
 
       - name: Get repository name.
@@ -98,6 +98,8 @@ jobs:
           echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
           echo "C:\\ProgramData\\chocolatey\\lib\\ninja\\tools\\" >> $GITHUB_PATH
 
+          echo "CACHE_KEY=$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> $GITHUB_ENV
+
           echo "Configurate git for cherry-picks."
           git config --global user.email "you@example.com"
           git config --global user.name "Sample"
@@ -111,17 +113,15 @@ jobs:
         id: cache-libs
         uses: actions/cache@v2
         with:
-          path: ${{ env.TBUILD }}/Libraries
-          key: ${{ runner.OS }}-libs
+          path: Libraries
+          key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
+          restore-keys: ${{ runner.OS }}-${{ matrix.arch }}-libs-
 
       - name: Libraries.
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
           GYP_MSVS_VERSION: 2022
-        run: |
-          C:
-          cd %TBUILD%
-          %REPO_NAME%/Telegram/build/prepare/win.bat skip-release silent
+        run: '%TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat skip-release silent'
 
       - name: Read defines.
         shell: bash
@@ -138,8 +138,6 @@ jobs:
 
       - name: Free up some disk space.
         run: |
-          C:
-          cd %TBUILD%
           del /S Libraries\*.pdb
           del /S Libraries\*.pch
           del /S Libraries\*.obj

@@ -37,9 +37,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/admin_log/history_admin_log_section.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "mainwidget.h"
-#include "mainwindow.h"
 #include "mtproto/sender.h"
+#include "settings/settings_common.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
@@ -53,22 +52,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
-#include "apiwrap.h"
 #include "api/api_invite_links.h"
-#include "facades.h"
+#include "facades.h" // Ui::showChatsList
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_settings.h"
 
 namespace {
 
-auto ToPositiveNumberString() {
+[[nodiscard]] auto ToPositiveNumberString() {
 	return rpl::map([](int count) {
 		return count ? QString::number(count) : QString();
 	});
 }
 
-auto ToPositiveNumberStringRestrictions() {
+[[nodiscard]] auto ToPositiveNumberStringRestrictions() {
 	return rpl::map([](int count) {
 		return QString::number(count)
 		+ QString("/")
@@ -94,40 +93,29 @@ void AddButtonWithCount(
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
-		const style::icon &icon) {
+		Settings::IconDescriptor &&descriptor) {
 	parent->add(EditPeerInfoBox::CreateButton(
 		parent,
 		std::move(text),
 		std::move(count),
 		std::move(callback),
 		st::manageGroupButton,
-		&icon));
+		std::move(descriptor)));
 }
 
-object_ptr<Ui::SettingsButton> CreateButtonWithText(
-		not_null<QWidget*> parent,
+not_null<Ui::SettingsButton*> AddButtonWithText(
+		not_null<Ui::VerticalLayout*> parent,
 		rpl::producer<QString> &&text,
 		rpl::producer<QString> &&label,
-		Fn<void()> callback) {
-	return EditPeerInfoBox::CreateButton(
+		Fn<void()> callback,
+		Settings::IconDescriptor &&descriptor) {
+	return parent->add(EditPeerInfoBox::CreateButton(
 		parent,
 		std::move(text),
 		std::move(label),
 		std::move(callback),
 		st::manageGroupTopButtonWithText,
-		nullptr);
-}
-
-Ui::SettingsButton *AddButtonWithText(
-		not_null<Ui::VerticalLayout*> parent,
-		rpl::producer<QString> &&text,
-		rpl::producer<QString> &&label,
-		Fn<void()> callback) {
-	return parent->add(CreateButtonWithText(
-		parent,
-		std::move(text),
-		std::move(label),
-		std::move(callback)));
+		std::move(descriptor)));
 }
 
 void AddButtonDelete(
@@ -140,7 +128,7 @@ void AddButtonDelete(
 		rpl::single(QString()),
 		std::move(callback),
 		st::manageDeleteGroupButton,
-		nullptr));
+		{}));
 }
 
 void SaveDefaultRestrictions(
@@ -262,7 +250,7 @@ public:
 		not_null<Ui::BoxContent*> box,
 		not_null<PeerData*> peer);
 
-	object_ptr<Ui::VerticalLayout> createContent();
+	[[nodiscard]] object_ptr<Ui::VerticalLayout> createContent();
 	void setFocus();
 
 private:
@@ -284,12 +272,12 @@ private:
 		std::optional<ChannelData*> linkedChat;
 	};
 
-	object_ptr<Ui::RpWidget> createPhotoAndTitleEdit();
-	object_ptr<Ui::RpWidget> createTitleEdit();
-	object_ptr<Ui::RpWidget> createPhotoEdit();
-	object_ptr<Ui::RpWidget> createDescriptionEdit();
-	object_ptr<Ui::RpWidget> createManageGroupButtons();
-	object_ptr<Ui::RpWidget> createStickersEdit();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createPhotoAndTitleEdit();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createTitleEdit();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createPhotoEdit();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createDescriptionEdit();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createManageGroupButtons();
+	[[nodiscard]] object_ptr<Ui::RpWidget> createStickersEdit();
 
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditReactions() const;
@@ -310,14 +298,14 @@ private:
 	void deleteWithConfirmation();
 	void deleteChannel();
 
-	std::optional<Saving> validate() const;
-	bool validateUsername(Saving &to) const;
-	bool validateLinkedChat(Saving &to) const;
-	bool validateTitle(Saving &to) const;
-	bool validateDescription(Saving &to) const;
-	bool validateHistoryVisibility(Saving &to) const;
-	bool validateSignatures(Saving &to) const;
-	bool validateForwards(Saving &to) const;
+	[[nodiscard]] std::optional<Saving> validate() const;
+	[[nodiscard]] bool validateUsername(Saving &to) const;
+	[[nodiscard]] bool validateLinkedChat(Saving &to) const;
+	[[nodiscard]] bool validateTitle(Saving &to) const;
+	[[nodiscard]] bool validateDescription(Saving &to) const;
+	[[nodiscard]] bool validateHistoryVisibility(Saving &to) const;
+	[[nodiscard]] bool validateSignatures(Saving &to) const;
+	[[nodiscard]] bool validateForwards(Saving &to) const;
 
 	void save();
 	void saveUsername();
@@ -522,7 +510,8 @@ object_ptr<Ui::RpWidget> Controller::createDescriptionEdit() {
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
 	result->entity()->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
-	result->entity()->setSubmitSettings(Core::App().settings().sendSubmitWay());
+	result->entity()->setSubmitSettings(
+		Core::App().settings().sendSubmitWay());
 	Ui::Emoji::SuggestionsController::Init(
 		_wrap->window(),
 		result->entity(),
@@ -555,38 +544,36 @@ object_ptr<Ui::RpWidget> Controller::createStickersEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
+	const auto bottomSkip = st::editPeerTopButtonsLayoutSkipCustomBottom;
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
-		object_ptr<Ui::VerticalLayout>(_wrap),
-		st::editPeerInvitesMargins);
+		object_ptr<Ui::VerticalLayout>(_wrap));
 	const auto container = result->entity();
 
-	container->add(object_ptr<Ui::FlatLabel>(
+	Settings::AddSubsectionTitle(
 		container,
 		tr::lng_group_stickers(),
-		st::editPeerSectionLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
+		{ 0, st::settingsSubsectionTitlePadding.top() - bottomSkip, 0, 0 });
 
-	container->add(object_ptr<Ui::FlatLabel>(
+	AddButtonWithCount(
 		container,
-		tr::lng_group_stickers_description(),
-		st::editPeerPrivacyLabel));
-	container->add(object_ptr<Ui::FixedHeightWidget>(
-		container,
-		st::editPeerInviteLinkSkip));
+		tr::lng_group_stickers_add(),
+		rpl::single(QString()), //Empty count.
+		[=, controller = _navigation->parentController()] {
+			controller->show(
+				Box<StickersBox>(controller, channel),
+				Ui::LayerOption::KeepOther);
+		},
+		{ &st::settingsIconStickers, Settings::kIconLightOrange });
 
-	container->add(object_ptr<Ui::LinkButton>(
-		_wrap,
-		tr::lng_group_stickers_add(tr::now),
-		st::editPeerInviteLinkButton)
-	)->addClickHandler([=] {
-		_navigation->parentController()->show(
-			Box<StickersBox>(_navigation->parentController(), channel),
-			Ui::LayerOption::KeepOther);
-	});
+	Settings::AddSkip(container, bottomSkip);
+
+	Settings::AddDividerText(
+		container,
+		tr::lng_group_stickers_description());
+
+	Settings::AddSkip(container, bottomSkip);
 
 	return result;
 }
@@ -718,6 +705,9 @@ void Controller::fillPrivacyTypeButton() {
 	_noForwardsSavedValue = !_peer->allowsForwarding();
 
 	const auto isGroup = (_peer->isChat() || _peer->isMegagroup());
+	const auto icon = isGroup
+		? &st::settingsIconGroup
+		: &st::settingsIconChannel;
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		(hasLocation
@@ -739,7 +729,8 @@ void Controller::fillPrivacyTypeButton() {
 					? tr::lng_manage_private_group_title
 					: tr::lng_manage_private_peer_title)();
 		}) | rpl::flatten_latest(),
-		[=] { showEditPeerTypeBox(); });
+		[=] { showEditPeerTypeBox(); },
+		{ icon, Settings::kIconLightBlue });
 
 	_privacyTypeUpdates.fire_copy(*_privacySavedValue);
 }
@@ -781,7 +772,8 @@ void Controller::fillLinkedChatButton() {
 		_controls.buttonsLayout,
 		std::move(text),
 		std::move(label),
-		[=] { showEditLinkedChatBox(); });
+		[=] { showEditLinkedChatBox(); },
+		{ &st::settingsIconChat, Settings::kIconGreen });
 	_linkedChatUpdates.fire_copy(*_linkedChatSavedValue);
 }
 //
@@ -803,13 +795,16 @@ void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto channel = _peer->asChannel();
-	if (!channel) return;
+	if (!channel) {
+		return;
+	}
 
 	AddButtonWithText(
 		_controls.buttonsLayout,
 		tr::lng_edit_sign_messages(),
 		rpl::single(QString()),
-		[=] {}
+		[] {},
+		{ &st::infoIconSignature, Settings::kIconLightBlue }
 	)->toggleOn(rpl::single(channel->addsSignature())
 	)->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
@@ -843,12 +838,23 @@ void Controller::fillHistoryVisibilityButton() {
 		_historyVisibilitySavedValue = checked;
 	});
 	const auto buttonCallback = [=] {
-		_navigation->parentController()->show(
-			Box<EditPeerHistoryVisibilityBox>(
-				_peer,
-				boxCallback,
-				*_historyVisibilitySavedValue),
-			Ui::LayerOption::KeepOther);
+		_peer->updateFull();
+		const auto canEdit = [&] {
+			if (const auto chat = _peer->asChat()) {
+				return chat->canEditPreHistoryHidden();
+			} else if (const auto channel = _peer->asChannel()) {
+				return channel->canEditPreHistoryHidden();
+			}
+			Unexpected("User in HistoryVisibilityEdit.");
+		}();
+		if (!canEdit) {
+			return;
+		}
+		_navigation->parentController()->show(Box(
+			EditPeerHistoryVisibilityBox,
+			_peer->isChat(),
+			boxCallback,
+			*_historyVisibilitySavedValue));
 	};
 	AddButtonWithText(
 		container,
@@ -859,7 +865,8 @@ void Controller::fillHistoryVisibilityButton() {
 				? tr::lng_manage_history_visibility_shown
 				: tr::lng_manage_history_visibility_hidden)();
 		}) | rpl::flatten_latest(),
-		buttonCallback);
+		buttonCallback,
+		{ &st::settingsIconChat, Settings::kIconGreen });
 
 	updateHistoryVisibility->fire_copy(*_historyVisibilitySavedValue);
 
@@ -970,6 +977,40 @@ void Controller::fillManageSection() {
 			st::editPeerTopButtonsLayoutSkipCustomBottom);
 	}
 
+	if (canEditReactions()) {
+		const auto session = &_peer->session();
+		auto reactionsCount = Info::Profile::MigratedOrMeValue(
+			_peer
+		) | rpl::map(
+			Info::Profile::AllowedReactionsCountValue
+		) | rpl::flatten_latest();
+		auto fullCount = Info::Profile::FullReactionsCountValue(session);
+		auto label = rpl::combine(
+			std::move(reactionsCount),
+			std::move(fullCount)
+		) | rpl::map([=](int allowed, int total) {
+			return allowed
+				? QString::number(allowed) + " / " + QString::number(total)
+				: tr::lng_manage_peer_reactions_off(tr::now);
+		});
+		const auto done = [=](const std::vector<QString> &chosen) {
+			SaveAllowedReactions(_peer, chosen);
+		};
+		AddButtonWithCount(
+			_controls.buttonsLayout,
+			tr::lng_manage_peer_reactions(),
+			std::move(label),
+			[=] {
+				_navigation->parentController()->show(Box(
+					EditAllowedReactionsBox,
+					!_peer->isBroadcast(),
+					session->data().reactions().list(
+						Data::Reactions::Type::Active),
+					*Data::PeerAllowedReactions(_peer),
+					done));
+			},
+			{ &st::infoIconReactions, Settings::kIconRed });
+	}
 	if (canEditPermissions) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
@@ -981,12 +1022,9 @@ void Controller::fillManageSection() {
 			) | rpl::flatten_latest(
 			) | ToPositiveNumberStringRestrictions(),
 			[=] { ShowEditPermissions(_navigation, _peer); },
-			st::infoIconPermissions);
+			{ &st::settingsIconKey, Settings::kIconGreen });
 	}
-	if (canEditInviteLinks
-		&& (canEditType
-			|| !_peer->isChannel()
-			|| !_peer->asChannel()->hasUsername())) {
+	if (canEditInviteLinks) {
 		auto count = Info::Profile::MigratedOrMeValue(
 			_peer
 		) | rpl::map([=](not_null<PeerData*> peer) {
@@ -1020,7 +1058,7 @@ void Controller::fillManageSection() {
 						0),
 					Ui::LayerOption::KeepOther);
 			},
-			st::infoIconInviteLinks);
+			{ &st::infoIconInviteLinks, Settings::kIconLightOrange });
 
 		if (_privacySavedValue) {
 			_privacyTypeUpdates.events_starting_with_copy(
@@ -1031,40 +1069,6 @@ void Controller::fillManageSection() {
 					anim::type::instant);
 			}, wrap->lifetime());
 		}
-	}
-	if (canEditReactions()) {
-		const auto session = &_peer->session();
-		auto reactionsCount = Info::Profile::MigratedOrMeValue(
-			_peer
-		) | rpl::map(
-			Info::Profile::AllowedReactionsCountValue
-		) | rpl::flatten_latest();
-		auto fullCount = Info::Profile::FullReactionsCountValue(session);
-		auto label = rpl::combine(
-			std::move(reactionsCount),
-			std::move(fullCount)
-		) | rpl::map([=](int allowed, int total) {
-			return allowed
-				? QString::number(allowed) + " / " + QString::number(total)
-				: tr::lng_manage_peer_reactions_off(tr::now);
-		});
-		const auto done = [=](const std::vector<QString> &chosen) {
-			SaveAllowedReactions(_peer, chosen);
-		};
-		AddButtonWithCount(
-			_controls.buttonsLayout,
-			tr::lng_manage_peer_reactions(),
-			std::move(label),
-			[=] {
-				_navigation->parentController()->show(Box(
-					EditAllowedReactionsBox,
-					!_peer->isBroadcast(),
-					session->data().reactions().list(
-						Data::Reactions::Type::Active),
-					*Data::PeerAllowedReactions(_peer),
-					done));
-			},
-			st::infoIconReactions);
 	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
@@ -1082,12 +1086,14 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Admins);
 			},
-			st::infoIconAdministrators);
+			{ &st::infoIconAdministrators, Settings::kIconLightBlue });
 	}
 	if (canViewMembers) {
 		AddButtonWithCount(
 			_controls.buttonsLayout,
-			(_isGroup ? tr::lng_manage_peer_members() : tr::lng_manage_peer_subscribers()),
+			(_isGroup
+				? tr::lng_manage_peer_members()
+				: tr::lng_manage_peer_subscribers()),
 			Info::Profile::MigratedOrMeValue(
 				_peer
 			) | rpl::map(
@@ -1100,7 +1106,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Members);
 			},
-			st::infoIconMembers);
+			{ &st::settingsIconGroup, Settings::kIconDarkBlue });
 	}
 
 	fillPendingRequestsButton();
@@ -1117,7 +1123,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Kicked);
 			},
-			st::infoIconBlacklist);
+			{ &st::settingsIconMinus, Settings::kIconRed });
 	}
 	if (hasRecentActions) {
 		auto callback = [=] {
@@ -1129,7 +1135,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
 			std::move(callback),
-			st::infoIconRecentActions);
+			{ &st::infoIconRecentActions, Settings::kIconPurple });
 	}
 
 	if (canEditStickers || canDeleteChannel) {
@@ -1171,7 +1177,7 @@ void Controller::fillPendingRequestsButton() {
 			: tr::lng_manage_peer_requests_channel()),
 		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
 		[=] { RequestsBoxController::Start(_navigation, _peer); },
-		st::infoIconRequests);
+		{ &st::infoIconRequests, Settings::kIconRed });
 	std::move(
 		pendingRequestsCount
 	) | rpl::start_with_next([=](int count) {
@@ -1606,11 +1612,12 @@ void Controller::deleteWithConfirmation() {
 		deleteChannel();
 	});
 	_navigation->parentController()->show(
-		Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_box_delete(tr::now),
-			st::attentionBoxButton,
-			deleteCallback),
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = deleteCallback,
+			.confirmText = tr::lng_box_delete(),
+			.confirmStyle = &st::attentionBoxButton,
+		}),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -1672,18 +1679,18 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 		rpl::producer<QString> &&count,
 		Fn<void()> callback,
 		const style::SettingsCountButton &st,
-		const style::icon *icon) {
+		Settings::IconDescriptor &&descriptor) {
 	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
 		rpl::duplicate(text),
 		st.button);
 	const auto button = result.data();
 	button->addClickHandler(callback);
-	if (icon) {
-		Ui::CreateChild<Info::Profile::FloatingIcon>(
+	if (descriptor) {
+		AddButtonIcon(
 			button,
-			*icon,
-			st.iconPosition);
+			st.button,
+			std::move(descriptor));
 	}
 
 	auto labelText = rpl::combine(
@@ -1693,8 +1700,8 @@ object_ptr<Ui::SettingsButton> EditPeerInfoBox::CreateButton(
 	) | rpl::map([&st](const QString &text, const QString &count, int width) {
 		const auto available = width
 			- st.button.padding.left()
-			- (st.button.font->spacew * 2)
-			- st.button.font->width(text)
+			- (st.button.style.font->spacew * 2)
+			- st.button.style.font->width(text)
 			- st.labelPosition.x();
 		const auto required = st.label.style.font->width(count);
 		return (required > available)

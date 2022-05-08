@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"
@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -288,7 +289,7 @@ void StickerSetBox::handleError(Error error) {
 	switch (error) {
 	case Error::NotFound:
 		_controller->show(
-			Box<Ui::InformBox>(tr::lng_stickers_not_found(tr::now)));
+			Ui::MakeInformBox(tr::lng_stickers_not_found(tr::now)));
 		break;
 	default: Unexpected("Error in StickerSetBox::handleError.");
 	}
@@ -669,7 +670,7 @@ void StickerSetBox::Inner::send(
 	const auto controller = _controller;
 	Ui::PostponeCall(controller, [=] {
 		if (controller->content()->sendExistingDocument(sticker, options)) {
-			Ui::hideSettingsAndLayer();
+			controller->window().hideSettingsAndLayer();
 		}
 	});
 }

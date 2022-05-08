@@ -74,9 +74,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 		peerForBackground
 	) | rpl::map([=](PeerData *peer) -> rpl::producer<> {
 		if (!peer) {
-			return rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			return rpl::single(rpl::empty) | rpl::then(
 				controller->defaultChatTheme()->repaintBackgroundRequests()
 			);
 		}
@@ -84,9 +82,7 @@ AbstractSectionWidget::AbstractSectionWidget(
 			controller,
 			peer
 		) | rpl::map([](const std::shared_ptr<Ui::ChatTheme> &theme) {
-			return rpl::single(
-				rpl::empty_value()
-			) | rpl::then(
+			return rpl::single(rpl::empty) | rpl::then(
 				theme->repaintBackgroundRequests()
 			);
 		}) | rpl::flatten_latest();
@@ -153,6 +149,7 @@ void SectionWidget::showAnimated(
 		myContentCache);
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
 	_showAnimation->setWithFade(params.withFade);
+	_showAnimation->setTopSkip(params.topSkip);
 	_showAnimation->start();
 
 	show();
@@ -271,8 +268,12 @@ void SectionWidget::PaintBackground(
 void SectionWidget::paintEvent(QPaintEvent *e) {
 	if (_showAnimation) {
 		Painter p(this);
-		_showAnimation->paintContents(p, e->rect());
+		_showAnimation->paintContents(p);
 	}
+}
+
+bool SectionWidget::animatingShow() const {
+	return (_showAnimation != nullptr);
 }
 
 void SectionWidget::showFinished() {

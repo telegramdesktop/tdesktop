@@ -7,21 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_members_controllers.h"
 
-#include <rpl/variable.h>
-#include "base/weak_ptr.h"
 #include "boxes/peers/edit_participants_box.h"
-#include "ui/widgets/popup_menu.h"
-#include "lang/lang_keys.h"
-#include "apiwrap.h"
-#include "main/main_session.h"
-#include "mainwidget.h"
-#include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
-#include "ui/boxes/confirm_box.h"
-#include "window/window_session_controller.h"
+#include "lang/lang_keys.h"
 #include "styles/style_info.h"
-#include "data/data_peer_values.h"
 
 namespace Info {
 namespace Profile {
@@ -29,12 +19,18 @@ namespace Profile {
 MemberListRow::MemberListRow(
 	not_null<UserData*> user,
 	Type type)
-: PeerListRow(user)
+: PeerListRowWithLink(user)
 , _type(type) {
+	PeerListRowWithLink::setActionLink(_type.adminRank);
 }
 
 void MemberListRow::setType(Type type) {
 	_type = type;
+	PeerListRowWithLink::setActionLink(_type.adminRank);
+}
+
+bool MemberListRow::rightActionDisabled() const {
+	return !canRemove();
 }
 
 QSize MemberListRow::rightActionSize() const {
@@ -43,7 +39,7 @@ QSize MemberListRow::rightActionSize() const {
 			QPoint(),
 			st::infoMembersRemoveIcon.size()).marginsAdded(
 				st::infoMembersRemoveIconMargins).size()
-		: QSize();
+		: PeerListRowWithLink::rightActionSize();
 }
 
 void MemberListRow::rightActionPaint(
@@ -59,7 +55,21 @@ void MemberListRow::rightActionPaint(
 		(actionSelected
 			? st::infoMembersRemoveIconOver
 			: st::infoMembersRemoveIcon).paint(p, x, y, outerWidth);
+	} else {
+		PeerListRowWithLink::rightActionPaint(
+			p,
+			x,
+			y,
+			outerWidth,
+			selected,
+			actionSelected);
 	}
+}
+
+QMargins MemberListRow::rightActionMargins() const {
+	return canRemove()
+		? QMargins()
+		: PeerListRowWithLink::rightActionMargins();
 }
 
 int MemberListRow::nameIconWidth() const {
@@ -80,7 +90,7 @@ void MemberListRow::paintNameIcon(
 		int y,
 		int outerWidth,
 		bool selected) {
-	auto icon = [&] {
+	const auto icon = [&] {
 		return (_type.rights == Rights::Admin)
 			? (selected
 				? &st::infoMembersAdminIconOver
@@ -94,13 +104,18 @@ void MemberListRow::paintNameIcon(
 
 void MemberListRow::refreshStatus() {
 	if (user()->isBot()) {
-		auto seesAllMessages = (user()->botInfo->readsAllHistory || _type.rights != Rights::Normal);
+		const auto seesAllMessages = (user()->botInfo->readsAllHistory
+			|| _type.rights != Rights::Normal);
 		setCustomStatus(seesAllMessages
 			? tr::lng_status_bot_reads_all(tr::now)
 			: tr::lng_status_bot_not_reads_all(tr::now));
 	} else {
 		PeerListRow::refreshStatus();
 	}
+}
+
+bool MemberListRow::canRemove() const {
+	return _type.canRemove;
 }
 
 std::unique_ptr<PeerListController> CreateMembersController(

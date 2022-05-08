@@ -138,9 +138,12 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
-	_content->draw(p, context, inner);
+	if (context.skipDrawingParts != PaintContext::SkipDrawingParts::Content) {
+		_content->draw(p, context, inner);
+	}
 
-	if (!inWebPage) {
+	if (!inWebPage && (context.skipDrawingParts
+			!= PaintContext::SkipDrawingParts::Surrounding)) {
 		drawSurrounding(p, inner, context, via, reply, forwarded);
 	}
 }

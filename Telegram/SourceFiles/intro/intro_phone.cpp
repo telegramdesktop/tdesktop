@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_app_config.h"
@@ -240,7 +240,7 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	_sentRequest = 0;
 	auto &err = error.type();
 	if (err == qstr("PHONE_NUMBER_FLOOD")) {
-		Ui::show(Box<Ui::InformBox>(tr::lng_error_phone_flood(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
 	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
 		showPhoneError(tr::lng_bad_phone());
 	} else if (err == qstr("PHONE_NUMBER_BANNED")) {

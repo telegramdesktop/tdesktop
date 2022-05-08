@@ -48,6 +48,9 @@ nice_target_sources(td_ui ${src_loc}
 PRIVATE
     ${style_files}
 
+    boxes/peers/edit_peer_history_visibility_box.cpp
+    boxes/peers/edit_peer_history_visibility_box.h
+
     calls/group/ui/calls_group_recording_box.cpp
     calls/group/ui/calls_group_recording_box.h
     calls/group/ui/calls_group_scheduled_labels.cpp
@@ -102,6 +105,15 @@ PRIVATE
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
 
+    menu/add_action_callback.cpp
+    menu/add_action_callback.h
+    menu/add_action_callback_factory.cpp
+    menu/add_action_callback_factory.h
+    menu/menu_check_item.cpp
+    menu/menu_check_item.h
+    menu/menu_ttl.cpp
+    menu/menu_ttl.h
+
     passport/ui/passport_details_row.cpp
     passport/ui/passport_details_row.h
     passport/ui/passport_form_row.cpp
@@ -130,6 +142,8 @@ PRIVATE
     ui/boxes/calendar_box.h
     ui/boxes/choose_date_time.cpp
     ui/boxes/choose_date_time.h
+    ui/boxes/choose_time.cpp
+    ui/boxes/choose_time.h
     ui/boxes/confirm_box.cpp
     ui/boxes/confirm_box.h
     ui/boxes/confirm_phone_box.cpp
@@ -144,6 +158,8 @@ PRIVATE
     ui/boxes/report_box.h
     ui/boxes/single_choice_box.cpp
     ui/boxes/single_choice_box.h
+    ui/boxes/time_picker_box.cpp
+    ui/boxes/time_picker_box.h
 
     ui/chat/attach/attach_abstract_single_file_preview.cpp
     ui/chat/attach/attach_abstract_single_file_preview.h
@@ -154,6 +170,8 @@ PRIVATE
     ui/chat/attach/attach_album_preview.h
     ui/chat/attach/attach_album_thumbnail.cpp
     ui/chat/attach/attach_album_thumbnail.h
+    ui/chat/attach/attach_bot_webview.cpp
+    ui/chat/attach/attach_bot_webview.h
     ui/chat/attach/attach_controls.cpp
     ui/chat/attach/attach_controls.h
     ui/chat/attach/attach_extensions.cpp
@@ -186,12 +204,14 @@ PRIVATE
     ui/chat/pinned_bar.h
     ui/chat/requests_bar.cpp
     ui/chat/requests_bar.h
-    ui/chat/select_scroll_manager.cpp
-    ui/chat/select_scroll_manager.h
     ui/controls/call_mute_button.cpp
     ui/controls/call_mute_button.h
+    ui/controls/chat_service_checkbox.cpp
+    ui/controls/chat_service_checkbox.h
     ui/controls/delete_message_context_action.cpp
     ui/controls/delete_message_context_action.h
+    ui/controls/download_bar.cpp
+    ui/controls/download_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
     ui/controls/invite_link_buttons.cpp
@@ -204,30 +224,36 @@ PRIVATE
     ui/controls/send_button.h
     ui/controls/who_reacted_context_action.cpp
     ui/controls/who_reacted_context_action.h
+    ui/controls/window_outdated_bar.cpp
+    ui/controls/window_outdated_bar.h
+    ui/effects/scroll_content_shadow.cpp
+    ui/effects/scroll_content_shadow.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp
     ui/text/format_values.h
     ui/text/text_options.cpp
     ui/text/text_options.h
-    ui/toasts/common_toasts.cpp
-    ui/toasts/common_toasts.h
 
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
     ui/widgets/discrete_sliders.h
+    ui/widgets/multi_select.cpp
+    ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
-    ui/widgets/separate_panel.cpp
-    ui/widgets/separate_panel.h
+    ui/widgets/vertical_drum_picker.cpp
+    ui/widgets/vertical_drum_picker.h
 
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
-    ui/special_fields.cpp
-    ui/special_fields.h
+    ui/widgets/fields/special_fields.cpp
+    ui/widgets/fields/special_fields.h
+    ui/widgets/fields/time_part_input_with_placeholder.cpp
+    ui/widgets/fields/time_part_input_with_placeholder.h
 
     ui/ui_pch.h
 )

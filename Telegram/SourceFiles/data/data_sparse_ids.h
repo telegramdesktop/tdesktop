@@ -62,7 +62,7 @@ public:
 		std::optional<SparseIdsSlice> migrated);
 	SparseIdsMergedSlice(
 		Key key,
-		SparseUnsortedIdsSlice scheduled);
+		SparseUnsortedIdsSlice unsorted);
 
 	std::optional<int> fullCount() const;
 	std::optional<int> skippedBefore() const;
@@ -139,7 +139,7 @@ private:
 	Key _key;
 	SparseIdsSlice _part;
 	std::optional<SparseIdsSlice> _migrated;
-	std::optional<SparseUnsortedIdsSlice> _scheduled;
+	std::optional<SparseUnsortedIdsSlice> _unsorted;
 
 };
 

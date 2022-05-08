@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -454,8 +455,8 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 			}).send();
 			close();
 		};
-		_controller->window().show(Box<Ui::ConfirmBox>(
-			tr::lng_new_contact_share_sure(
+		_controller->window().show(Ui::MakeConfirmBox({
+			.text = tr::lng_new_contact_share_sure(
 				tr::now,
 				lt_phone,
 				Ui::Text::WithEntities(
@@ -463,8 +464,9 @@ void ContactStatus::setupShareHandler(not_null<UserData*> user) {
 				lt_user,
 				Ui::Text::Bold(user->name),
 				Ui::Text::WithEntities),
-			tr::lng_box_ok(tr::now),
-			share));
+			.confirmed = share,
+			.confirmText = tr::lng_box_ok(),
+		}));
 	}, _bar.lifetime());
 }
 
@@ -472,7 +474,7 @@ void ContactStatus::setupUnarchiveHandler(not_null<PeerData*> peer) {
 	_bar.entity()->unarchiveClicks(
 	) | rpl::start_with_next([=] {
 		Window::ToggleHistoryArchived(peer->owner().history(peer), false);
-		peer->owner().resetNotifySettingsToDefault(peer);
+		peer->owner().notifySettings().resetToDefault(peer);
 		if (const auto settings = peer->settings()) {
 			const auto flags = PeerSetting::AutoArchived
 				| PeerSetting::BlockContact
@@ -509,14 +511,15 @@ void ContactStatus::setupReportHandler(not_null<PeerData*> peer) {
 		if (const auto user = peer->asUser()) {
 			peer->session().api().blockedPeers().block(user);
 		}
-		const auto text = ((peer->isChat() || peer->isMegagroup())
+		auto text = ((peer->isChat() || peer->isMegagroup())
 			? tr::lng_report_spam_sure_group
-			: tr::lng_report_spam_sure_channel)(tr::now);
-		_controller->window().show(Box<Ui::ConfirmBox>(
-			text,
-			tr::lng_report_spam_ok(tr::now),
-			st::attentionBoxButton,
-			callback));
+			: tr::lng_report_spam_sure_channel)();
+		_controller->window().show(Ui::MakeConfirmBox({
+			.text= std::move(text),
+			.confirmed = callback,
+			.confirmText = tr::lng_report_spam_ok(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
 	}, _bar.lifetime());
 }
 

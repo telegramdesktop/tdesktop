@@ -104,9 +104,9 @@ QString TimeLimitText(size_type limit) {
 	const auto weeks = (days / 7);
 	const auto months = (days / 29);
 	return (months > 0)
-		? tr::lng_local_storage_limit_months(tr::now, lt_count, months)
+		? tr::lng_months(tr::now, lt_count, months)
 		: (limit > 0)
-		? tr::lng_local_storage_limit_weeks(tr::now, lt_count, weeks)
+		? tr::lng_weeks(tr::now, lt_count, weeks)
 		: tr::lng_local_storage_limit_never(tr::now);
 }
 
@@ -167,6 +167,7 @@ LocalStorageBox::Row::Row(
 	sizeText(data),
 	st::localStorageRowSize)
 , _clear(this, std::move(clear), st::localStorageClear) {
+	_clear->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	_clear->setVisible(data.count != 0);
 }
 
