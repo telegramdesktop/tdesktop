@@ -531,7 +531,7 @@ COPY --from=xkbcommon ${LibrariesPath}/xkbcommon-cache /
 ARG DEBUG
 RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT} \
 	&& cd qt_${QT} \
-	&& perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat \
+	&& git submodule update --init --recursive --depth=1 qtbase qtwayland qtimageformats qtsvg qt5compat \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
@@ -587,7 +587,7 @@ RUN git init tg_owt \
 	&& git remote add origin $GIT/desktop-app/tg_owt.git \
 	&& git fetch --depth=1 origin 63a934db1ed212ebf8aaaa20f0010dd7b0d7b396 \
 	&& git reset --hard FETCH_HEAD \
-	&& git submodule update --init --recursive \
+	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \
 	&& cd src/third_party/pipewire \
 	&& meson build -Dspa-plugins=disabled \

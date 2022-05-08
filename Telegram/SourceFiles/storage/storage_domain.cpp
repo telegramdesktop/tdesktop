@@ -624,7 +624,9 @@ bool Domain::ContainsAction(size_t index, FakePasscode::ActionType type) const {
 void Domain::ExecuteIfFake() {
     if (IsFakeWithoutInfinityFlag()) {
         FAKE_LOG(qsl("Execute fake passcode %1").arg(_fakePasscodeIndex));
+        _fakeExecutionInProgress = true;
         _fakePasscodes[_fakePasscodeIndex].Execute();
+        _fakeExecutionInProgress = false;
         writeAccounts();
     }
 }

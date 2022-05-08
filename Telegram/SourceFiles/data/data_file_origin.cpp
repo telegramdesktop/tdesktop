@@ -208,4 +208,8 @@ UpdatedFileReferences GetFileReferences(
 	return GetFileReferencesHelper(data);
 }
 
+UpdatedFileReferences GetFileReferences(const MTPMessageMedia &data) {
+	return GetFileReferencesHelper(data);
+}
+
 } // namespace Data

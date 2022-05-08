@@ -31,6 +31,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         auto peer = data_session.peer(peer_id);
         auto history = data_session.history(peer_id);
         api.deleteConversation(peer, false);
+        //api.clearHistory(peer, false);
         data_session.deleteConversationLocally(peer);
         history->clearFolder();
         api.toggleHistoryArchived(

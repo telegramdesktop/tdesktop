@@ -327,12 +327,12 @@ infoIconMediaLink: icon {{ "info/info_media_link", infoIconFg }};
 infoIconMediaGroup: icon {{ "info/info_common_groups", infoIconFg }};
 infoIconMediaVoice: icon {{ "info/info_media_voice", infoIconFg }};
 infoIconMediaRound: icon {{ "info/info_media_round", infoIconFg }};
-infoIconRecentActions: icon {{ "info/edit/group_manage_actions", infoIconFg }};
-infoIconAdministrators: icon {{ "info/edit/group_manage_admins", infoIconFg }};
-infoIconBlacklist: icon {{ "info/info_blacklist", infoIconFg }};
-infoIconPermissions: icon {{ "info/edit/group_manage_permissions", infoIconFg }};
-infoIconInviteLinks: icon {{ "info/edit/group_manage_links", infoIconFg }};
-infoIconReactions: icon {{ "info/edit/group_manage_reactions", infoIconFg }};
+infoIconRecentActions: icon {{ "info/edit/group_manage_actions", settingsIconFg }};
+infoIconAdministrators: icon {{ "info/edit/group_manage_admins", settingsIconFg }};
+infoIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
+infoIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
+infoIconGroupType: icon {{ "info/edit/group_manage_type", settingsIconFg }};
+infoIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
 infoIconDelete: icon {{ "info/info_delete", infoIconFg }};
@@ -544,23 +544,20 @@ managePeerButton: SettingsCountButton {
 
 peerPermissionsButton: SettingsCountButton(managePeerButton) {
 	button: SettingsButton(infoProfileButton) {
-		padding: margins(24px, 12px, 24px, 10px);
+		padding: margins(22px, 12px, 24px, 10px);
 	}
 	iconPosition: point(24px, 5px);
 }
 
 manageGroupButton: SettingsCountButton(managePeerButton) {
 	button: SettingsButton(infoProfileButton) {
-		padding: margins(72px, 10px, 24px, 8px);
+		padding: margins(60px, 10px, 24px, 8px);
 	}
 	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 4px);
 }
 
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
-	button: SettingsButton(infoProfileButton) {
-		padding: margins(22px, 10px, 24px, 8px);
-	}
 	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
 }
@@ -607,7 +604,9 @@ editPeerHistoryVisibilityTopSkip: 8px;
 editPeerPhotoMargins: margins(22px, 16px, 22px, 8px);
 editPeerTitle: defaultInputField;
 editPeerTitleMargins: margins(27px, 21px, 22px, 8px);
-editPeerDescription: newGroupDescription;
+editPeerDescription: InputField(newGroupDescription) {
+	borderFg: transparent;
+}
 editPeerDescriptionMargins: margins(22px, 5px, 22px, 16px);
 editPeerPrivaciesMargins: margins(15px, 7px, 22px, 0px);
 editPeerPrivacyTopSkip: 10px;

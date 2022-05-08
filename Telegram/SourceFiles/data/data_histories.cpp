@@ -21,6 +21,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "apiwrap.h"
 
+#include "fakepasscode/mtp_holder/crit_api.h"
+
 namespace Data {
 namespace {
 
@@ -811,6 +813,9 @@ int Histories::sendRequest(
 		return id;
 	}
 	const auto requestId = generator([=] { checkPostponed(history, id); });
+	if (type == RequestType::Delete) {
+		FAKE_CRITICAL_REQUEST(this->session()) requestId;
+	}
 	state.sent.emplace(id, SentRequest{
 		std::move(generator),
 		requestId,

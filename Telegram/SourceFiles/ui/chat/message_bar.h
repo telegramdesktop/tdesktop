@@ -24,6 +24,7 @@ struct MessageBarContent {
 	QString title;
 	TextWithEntities text;
 	QImage preview;
+	style::margins margins;
 };
 
 class MessageBar final {

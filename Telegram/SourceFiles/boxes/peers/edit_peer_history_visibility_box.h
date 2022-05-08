@@ -7,32 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
-#include "ui/widgets/checkbox.h"
+namespace Ui {
+class GenericBox;
+} // namespace Ui
 
 enum class HistoryVisibility {
 	Visible,
 	Hidden,
 };
 
-class EditPeerHistoryVisibilityBox : public Ui::BoxContent {
-public:
-	EditPeerHistoryVisibilityBox(
-		QWidget*,
-		not_null<PeerData*> peer,
-		FnMut<void(HistoryVisibility)> savedCallback,
-		HistoryVisibility historyVisibilitySavedValue);
-
-protected:
-	void prepare() override;
-
-private:
-	void setupContent();
-
-	not_null<PeerData*> _peer;
-	FnMut<void(HistoryVisibility)> _savedCallback;
-
-	HistoryVisibility _historyVisibilitySavedValue;
-	std::shared_ptr<Ui::RadioenumGroup<HistoryVisibility>> _historyVisibility;
-
-};
+void EditPeerHistoryVisibilityBox(
+	not_null<Ui::GenericBox*> box,
+	bool isLegacy,
+	Fn<void(HistoryVisibility)> savedCallback,
+	HistoryVisibility historyVisibilitySavedValue);
