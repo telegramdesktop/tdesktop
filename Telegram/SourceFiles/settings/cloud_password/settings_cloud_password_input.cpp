@@ -16,10 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/cloud_password/settings_cloud_password_hint.h"
 #include "settings/cloud_password/settings_cloud_password_manage.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
@@ -58,6 +60,25 @@ Icon CreateInteractiveLottieIcon(
 
 	container->add(std::move(object));
 	return { .icon = icon, .update = [=] { raw->update(); } };
+}
+
+[[nodiscard]] not_null<Ui::LinkButton*> AddLinkButton(
+		not_null<Ui::VerticalLayout*> content,
+		not_null<Ui::PasswordInput*> input) {
+	const auto button = Ui::CreateChild<Ui::LinkButton>(
+		content.get(),
+		QString());
+
+	rpl::merge(
+		content->geometryValue(),
+		input->geometryValue()
+	) | rpl::start_with_next([=] {
+		const auto topLeft = input->mapTo(content, input->pos());
+		button->moveToLeft(
+			input->pos().x(),
+			topLeft.y() + input->height() + st::passcodeTextLine);
+	}, button->lifetime());
+	return button;
 }
 
 } // namespace
@@ -171,19 +192,8 @@ void Input::setupContent() {
 			}
 		}, hintInfo->lifetime());
 
-		const auto recover = Ui::CreateChild<Ui::LinkButton>(
-			content,
-			tr::lng_signin_recover(tr::now));
-
-		rpl::merge(
-			content->geometryValue(),
-			newInput->geometryValue()
-		) | rpl::start_with_next([=] {
-			const auto topLeft = newInput->mapTo(content, newInput->pos());
-			recover->moveToLeft(
-				newInput->pos().x(),
-				topLeft.y() + newInput->height() + st::passcodeTextLine);
-		}, recover->lifetime());
+		const auto recover = AddLinkButton(content, newInput);
+		recover->setText(tr::lng_signin_recover(tr::now));
 		recover->setClickedCallback([=] {
 			if (_requestLifetime) {
 				return;
@@ -208,6 +218,36 @@ void Input::setupContent() {
 				}
 			});
 		});
+	} else if (currentStepProcessRecover.setNewPassword && reenterInput) {
+		const auto skip = AddLinkButton(content, reenterInput);
+		skip->setText(tr::lng_settings_auto_night_disable(tr::now));
+		skip->setClickedCallback([=] {
+			if (_requestLifetime) {
+				return;
+			}
+			_requestLifetime = cloudPassword().recoverPassword(
+				currentStepProcessRecover.checkedCode,
+				QString(),
+				QString()
+			) | rpl::start_with_error_done([=](const QString &type) {
+				_requestLifetime.destroy();
+
+				error->show();
+				if (MTP::IsFloodError(type)) {
+					error->setText(tr::lng_flood_error(tr::now));
+				} else {
+					error->setText(Lang::Hard::ServerError());
+				}
+			}, [=] {
+				_requestLifetime.destroy();
+
+				controller()->show(
+					Ui::MakeInformBox(tr::lng_cloud_password_removed()));
+				setStepData(StepData());
+				showBack();
+			});
+		});
+		AddSkip(content);
 	}
 
 	if (!newInput->text().isEmpty()) {
