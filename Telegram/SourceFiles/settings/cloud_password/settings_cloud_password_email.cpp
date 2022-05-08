@@ -132,14 +132,9 @@ void Email::setupContent() {
 		}));
 	};
 
-	const auto skip = Ui::CreateChild<Ui::LinkButton>(
-		this,
-		tr::lng_cloud_password_skip_email(tr::now));
-	wrap->geometryValue(
-	) | rpl::start_with_next([=](QRect r) {
-		r.translate(wrap->entity()->pos().x(), 0);
-		skip->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
-	}, skip->lifetime());
+	const auto skip = AddLinkButton(
+		wrap,
+		tr::lng_cloud_password_skip_email());
 	skip->setClickedCallback([=] {
 		confirm(QString());
 	});

@@ -15,6 +15,7 @@ template <typename Widget>
 class CenterWrap;
 class FlatLabel;
 class InputField;
+class LinkButton;
 class PasswordInput;
 class RoundButton;
 class VerticalLayout;
@@ -58,6 +59,10 @@ void SetupHeader(
 
 [[nodiscard]] not_null<Ui::RoundButton*> AddDoneButton(
 	not_null<Ui::VerticalLayout*> content,
+	rpl::producer<QString> &&text);
+
+[[nodiscard]] not_null<Ui::LinkButton*> AddLinkButton(
+	not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
 	rpl::producer<QString> &&text);
 
 void AddSkipInsteadOfField(not_null<Ui::VerticalLayout*> content);

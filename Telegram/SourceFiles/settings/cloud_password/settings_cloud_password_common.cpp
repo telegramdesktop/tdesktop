@@ -166,6 +166,26 @@ not_null<Ui::CenterWrap<Ui::InputField>*> AddWrappedField(
 			text)));
 }
 
+not_null<Ui::LinkButton*> AddLinkButton(
+		not_null<Ui::CenterWrap<Ui::InputField>*> wrap,
+		rpl::producer<QString> &&text) {
+	const auto button = Ui::CreateChild<Ui::LinkButton>(
+		wrap->parentWidget(),
+		QString());
+	std::move(
+		text
+	) | rpl::start_with_next([=](const QString &text) {
+		button->setText(text);
+	}, button->lifetime());
+
+	wrap->geometryValue(
+	) | rpl::start_with_next([=](QRect r) {
+		r.translate(wrap->entity()->pos().x(), 0);
+		button->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
+	}, button->lifetime());
+	return button;
+}
+
 not_null<Ui::FlatLabel*> AddError(
 		not_null<Ui::VerticalLayout*> content,
 		Ui::PasswordInput *input) {

@@ -96,14 +96,15 @@ void EmailConfirm::setupContent() {
 
 	AddSkip(content, st::settingLocalPasscodeDescriptionBottomSkip);
 
+	auto objectInput = object_ptr<Ui::SentCodeField>(
+		content,
+		st::settingLocalPasscodeInputField,
+		tr::lng_change_phone_code_title());
+	const auto newInput = objectInput.data();
 	const auto wrap = content->add(
-		object_ptr<Ui::CenterWrap<Ui::SentCodeField>>(
+		object_ptr<Ui::CenterWrap<Ui::InputField>>(
 			content,
-			object_ptr<Ui::SentCodeField>(
-				content,
-				st::settingLocalPasscodeInputField,
-				tr::lng_change_phone_code_title())));
-	const auto newInput = wrap->entity();
+			std::move(objectInput)));
 
 	const auto error = AddError(content, nullptr);
 	QObject::connect(newInput, &Ui::InputField::changed, [=] {
@@ -127,14 +128,7 @@ void EmailConfirm::setupContent() {
 		}
 	}, resendInfo->lifetime());
 
-	const auto resend = Ui::CreateChild<Ui::LinkButton>(
-		this,
-		tr::lng_cloud_password_resend(tr::now));
-	wrap->geometryValue(
-	) | rpl::start_with_next([=](QRect r) {
-		r.translate(wrap->entity()->pos().x(), 0);
-		resend->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
-	}, resend->lifetime());
+	const auto resend = AddLinkButton(wrap, tr::lng_cloud_password_resend());
 	resend->setClickedCallback([=] {
 		if (_requestLifetime) {
 			return;

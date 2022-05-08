@@ -67,15 +67,10 @@ void Hint::setupContent() {
 		showOther(CloudPasswordEmailId());
 	};
 
-	const auto skip = Ui::CreateChild<Ui::LinkButton>(
-		this,
-		tr::lng_settings_cloud_password_skip_hint(tr::now));
-	wrap->geometryValue(
-	) | rpl::start_with_next([=](QRect r) {
-		r.translate(wrap->entity()->pos().x(), 0);
-		skip->moveToLeft(r.x(), r.y() + r.height() + st::passcodeTextLine);
-	}, skip->lifetime());
-	skip->setClickedCallback([=] {
+	AddLinkButton(
+		wrap,
+		tr::lng_settings_cloud_password_skip_hint()
+	)->setClickedCallback([=] {
 		save(QString());
 	});
 
