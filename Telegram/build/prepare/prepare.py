@@ -947,24 +947,28 @@ depends:yasm/yasm
 
 stage('openal-soft', """
 version: 2
+win:
     git clone -b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    cd build
-win:
-    cmake .. ^
+    cmake -B build . ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
-    msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="%WIN32X64%"
+    cmake --build build --config Debug --parallel
+release:
+    cmake --build build --config RelWithDebInfo --parallel
 mac:
-    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake .. \\
+    git clone -b 1.22.0 https://github.com/kcat/openal-soft.git
+    cd openal-soft
+    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
         -D ALSOFT_EXAMPLES=OFF \\
+        -D ALSOFT_UTILS=OFF \\
         -D LIBTYPE:STRING=STATIC \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    make $MAKE_THREADS_CNT
-    make install
+    cmake --build build $MAKE_THREADS_CNT
+    cmake --install build
 """)
 
 if 'build-stackwalk' in options:
@@ -1130,6 +1134,8 @@ win:
 
     jom -j16
     jom -j16 install
+    
+    del /S ./*.cpp
 mac:
     find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
