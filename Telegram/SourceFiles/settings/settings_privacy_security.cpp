@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_local_passcode.h"
 #include "settings/settings_privacy_controllers.h"
 #include "base/timer_rpl.h"
-#include "base/unixtime.h"
 #include "boxes/edit_privacy_box.h"
 #include "boxes/passcode_box.h"
 #include "boxes/auto_lock_box.h"
@@ -457,7 +456,6 @@ void SetupCloudPassword(
 		rpl::duplicate(noconfirmed),
 		_1 && !_2));
 	disable->entity()->addClickHandler(remove);
-#endif
 
 	auto resetAt = session->api().cloudPassword().state(
 	) | rpl::map([](const State &state) {
@@ -574,7 +572,6 @@ void SetupCloudPassword(
 		}
 	});
 
-#if 0
 	const auto abort = container->add(
 		object_ptr<Ui::SlideWrap<Button>>(
 			container,

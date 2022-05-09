@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 
 #include "api/api_cloud_password.h"
+#include "base/unixtime.h"
 #include "core/core_cloud_password.h"
 #include "lang/lang_keys.h"
 #include "settings/cloud_password/settings_cloud_password_common.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_manage.h"
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/sent_code_field.h"
 #include "ui/wrap/padding_wrap.h"
@@ -155,7 +157,65 @@ void EmailConfirm::setupContent() {
 			newInput->hideError();
 		});
 	});
-	resend->setVisible(recoverEmailPattern.isEmpty());
+
+	if (!recoverEmailPattern.isEmpty()) {
+		resend->setText(tr::lng_signin_try_password(tr::now));
+
+		resend->setClickedCallback([=] {
+			const auto reset = [=](Fn<void()> close) {
+				if (_requestLifetime) {
+					return;
+				}
+				_requestLifetime = cloudPassword().resetPassword(
+				) | rpl::start_with_next_error_done([=](
+						Api::CloudPassword::ResetRetryDate retryDate) {
+					_requestLifetime.destroy();
+					const auto left = std::max(
+						retryDate - base::unixtime::now(),
+						60);
+					controller()->show(Ui::MakeInformBox(
+						tr::lng_cloud_password_reset_later(
+							tr::now,
+							lt_duration,
+							Ui::FormatResetCloudPasswordIn(left))));
+				}, [=](const QString &type) {
+					_requestLifetime.destroy();
+				}, [=] {
+					_requestLifetime.destroy();
+
+					cloudPassword().reload();
+					using PasswordState = Core::CloudPasswordState;
+					_requestLifetime = cloudPassword().state(
+					) | rpl::filter([=](const PasswordState &s) {
+						return s.pendingResetDate != 0;
+					}) | rpl::take(
+						1
+					) | rpl::start_with_next([=](const PasswordState &s) {
+						const auto left = (s.pendingResetDate
+							- base::unixtime::now());
+						if (left > 0) {
+							_requestLifetime.destroy();
+							controller()->show(Ui::MakeInformBox(
+								tr::lng_settings_cloud_password_reset_in(
+									tr::now,
+									lt_duration,
+									Ui::FormatResetCloudPasswordIn(left))));
+							setStepData(StepData());
+							showBack();
+						}
+					});
+				});
+				_requestLifetime.add(close);
+			};
+
+			controller()->show(Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_reset_with_email(),
+				.confirmed = reset,
+				.confirmText = tr::lng_cloud_password_reset_ok(),
+				.confirmStyle = &st::attentionBoxButton,
+			}));
+		});
+	}
 
 	const auto button = AddDoneButton(
 		content,

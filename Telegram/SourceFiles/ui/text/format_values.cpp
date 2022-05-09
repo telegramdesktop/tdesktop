@@ -436,4 +436,8 @@ QString FormatMuteForTiny(float64 sec) {
 		: QString();
 }
 
+QString FormatResetCloudPasswordIn(float64 sec) {
+	return (sec >= 3600) ? FormatTTL(sec) : FormatDurationText(sec);
+}
+
 } // namespace Ui
