@@ -23,6 +23,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+/*
+Available actions for follow states.
+
+CreateEmail:
+– Continue to EmailConfirm.
++ Continue to Manage if Email is confirmed already.
+– Warn and Skip to Manage.
+– Back to CreateHint.
+
+ChangeEmail from ChangePassword:
+– Continue to EmailConfirm.
++ Continue to Manage if Email is confirmed already.
+– Warn and Skip to Manage.
+– Back to ChangeHint.
+
+ChangeEmail from Manage:
+– Continue to EmailConfirm.
++ Continue to Manage if Email is confirmed already.
+– Back to Manage.
+*/
+
 namespace Settings {
 namespace CloudPassword {
 

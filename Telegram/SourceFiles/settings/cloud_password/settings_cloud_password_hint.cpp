@@ -20,6 +20,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 
+/*
+Available actions for follow states.
+
+CreateHint:
+– Continue to Email.
+– Skip to Email.
+– Back to CreatePassword.
+
+ChangeHint:
+– Continue to Email.
+– Skip to Email.
+– Back to ChangePassword.
+
+RecreateResetHint:
+– Continue to Manage.
+– Skip to Manage.
+– Back to RecreateResetPassword.
+*/
+
 namespace Settings {
 namespace CloudPassword {
 

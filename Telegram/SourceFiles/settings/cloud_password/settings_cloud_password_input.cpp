@@ -29,6 +29,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+/*
+Available actions for follow states.
+
+CreatePassword:
+– Continue to CreateHint.
+– Back to Start.
+
+ChangePassword:
+– Continue to ChangeHint.
+– Back to Manage.
+
+CheckPassword:
+– Continue to Manage.
+– Recover to EmailConfirm.
+– Reset and wait (+ Cancel reset).
+– Reset now and Back to Settings.
+– Back to Settings.
+
+RecreateResetPassword:
+– Continue to RecreateResetHint.
+– Clear password and Back to Settings.
+– Back to Settings.
+*/
+
 namespace Settings {
 namespace CloudPassword {
 namespace {

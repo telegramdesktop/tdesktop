@@ -28,6 +28,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+/*
+Available actions for follow states.
+
+CreateEmailConfirm from CreateEmail:
+– Continue to Manage.
+– Abort to Settings.
+– Back to Settings.
+
+ChangeEmailConfirm from ChangeEmail:
+– Continue to Manage.
+– Abort to Settings.
+– Back to Settings.
+
+Recover from CreatePassword:
+– Continue to RecreateResetPassword.
+– Back to Settings.
+*/
+
 namespace Settings {
 namespace CloudPassword {
 
