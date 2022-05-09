@@ -35,8 +35,6 @@ public:
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	static constexpr int kPinnedLimit = 100;
-
 	ChatFilter() = default;
 	ChatFilter(
 		FilterId id,

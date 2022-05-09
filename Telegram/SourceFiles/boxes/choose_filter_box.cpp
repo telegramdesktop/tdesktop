@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/choose_filter_box.h"
 
 #include "apiwrap.h"
+#include "boxes/premium_limits_box.h"
 #include "core/application.h" // primaryWindow
 #include "data/data_chat_filters.h"
 #include "data/data_session.h"
@@ -116,6 +117,15 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 	return false;
 }
 
+bool ChooseFilterValidator::limitReached(FilterId filterId) const {
+	const auto list = _history->owner().chatsFilters().list();
+	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
+	const auto limit = _history->owner().pinnedChatsLimit(nullptr, filterId);
+	return (i != end(list))
+		&& !ranges::contains(i->always(), _history)
+		&& (i->always().size() >= limit);
+}
+
 void ChooseFilterValidator::add(FilterId filterId) const {
 	ChangeFilterById(filterId, _history, true);
 }
@@ -125,8 +135,10 @@ void ChooseFilterValidator::remove(FilterId filterId) const {
 }
 
 void FillChooseFilterMenu(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::PopupMenu*> menu,
 		not_null<History*> history) {
+	const auto weak = base::make_weak(controller.get());
 	const auto validator = ChooseFilterValidator(history);
 	for (const auto &filter : history->owner().chatsFilters().list()) {
 		const auto id = filter.id();
@@ -136,10 +148,11 @@ void FillChooseFilterMenu(
 				if (validator.canRemove(id)) {
 					validator.remove(id);
 				}
-			} else {
-				if (validator.canAdd()) {
-					validator.add(id);
-				}
+			} else if (validator.limitReached(id)) {
+				controller->show(
+					Box(FilterChatsLimitBox, &controller->session()));
+			} else if (validator.canAdd()) {
+				validator.add(id);
 			}
 		}, contains ? &st::mediaPlayerMenuCheck : nullptr);
 		action->setEnabled(contains

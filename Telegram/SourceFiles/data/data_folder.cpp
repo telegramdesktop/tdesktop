@@ -38,7 +38,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 , _chatsList(
 	&owner->session(),
 	FilterId(),
-	owner->session().serverConfig().pinnedDialogsInFolderMax.value())
+	owner->maxPinnedChatsLimitValue(this, FilterId()))
 , _name(tr::lng_archived_name(tr::now))
 , _chatListNameSortKey(owner->nameSortKey(_name)) {
 	indexNameParts();

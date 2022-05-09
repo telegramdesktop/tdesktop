@@ -329,7 +329,12 @@ public:
 		Data::Folder *folder,
 		FilterId filterId,
 		not_null<History*> history) const;
-	int pinnedChatsLimit(Data::Folder *folder) const;
+	int pinnedChatsLimit(
+		Data::Folder *folder,
+		FilterId filterId) const;
+	rpl::producer<int> maxPinnedChatsLimitValue(
+		Data::Folder *folder,
+		FilterId filterId) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Data::Folder *folder,
 		FilterId filterId) const;

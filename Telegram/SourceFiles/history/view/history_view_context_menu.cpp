@@ -129,9 +129,10 @@ void ShowStickerPackInfo(
 }
 
 void ToggleFavedSticker(
+		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document,
 		FullMsgId contextId) {
-	Api::ToggleFavedSticker(document, contextId);
+	Api::ToggleFavedSticker(controller, document, contextId);
 }
 
 void AddPhotoActions(
@@ -174,7 +175,11 @@ void SaveGif(
 	if (const auto item = controller->session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				Api::ToggleSavedGif(document, item->fullId(), true);
+				Api::ToggleSavedGif(
+					controller,
+					document,
+					item->fullId(),
+					true);
 			}
 		}
 	}
@@ -243,6 +248,7 @@ void AddDocumentActions(
 		}, &st::menuIconCancel);
 		return;
 	}
+	const auto controller = list->controller();
 	const auto contextId = item ? item->fullId() : FullMsgId();
 	const auto session = &document->session();
 	if (item && document->isGifv()) {
@@ -273,7 +279,7 @@ void AddDocumentActions(
 			(isFaved
 				? tr::lng_faved_stickers_remove(tr::now)
 				: tr::lng_faved_stickers_add(tr::now)),
-			[=] { ToggleFavedSticker(document, contextId); },
+			[=] { ToggleFavedSticker(controller, document, contextId); },
 			isFaved ? &st::menuIconUnfave : &st::menuIconFave);
 	}
 	if (!document->filepath(true).isEmpty()) {

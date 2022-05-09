@@ -16,9 +16,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_histories.h"
 #include "dialogs/dialogs_main_list.h"
+#include "history/history.h"
 #include "history/history_unread_things.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -225,10 +228,15 @@ ChatFilters::~ChatFilters() = default;
 not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 	auto &pointer = _chatsLists[filterId];
 	if (!pointer) {
+		auto limit = rpl::single(rpl::empty_value()) | rpl::then(
+			_owner->session().account().appConfig().refreshed()
+		) | rpl::map([=] {
+			return _owner->pinnedChatsLimit(nullptr, filterId);
+		});
 		pointer = std::make_unique<Dialogs::MainList>(
 			&_owner->session(),
 			filterId,
-			rpl::single(ChatFilter::kPinnedLimit));
+			_owner->maxPinnedChatsLimitValue(nullptr, filterId));
 	}
 	return pointer.get();
 }
@@ -450,6 +458,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	Assert(i != end(_list));
 
+	const auto limit = _owner->pinnedChatsLimit(nullptr, id);
 	auto always = i->always();
 	auto pinned = std::vector<not_null<History*>>();
 	pinned.reserve(dialogs.size());
@@ -457,7 +466,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 		if (const auto history = row.history()) {
 			if (always.contains(history)) {
 				pinned.push_back(history);
-			} else if (always.size() < ChatFilter::kPinnedLimit) {
+			} else if (always.size() < limit) {
 				always.insert(history);
 				pinned.push_back(history);
 			}

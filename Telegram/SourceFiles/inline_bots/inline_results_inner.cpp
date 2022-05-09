@@ -353,7 +353,10 @@ void Inner::contextMenuEvent(QContextMenuEvent *e) {
 				const style::icon *icon) {
 			_menu->addAction(text, std::move(done), icon);
 		};
-		ChatHelpers::AddGifAction(std::move(callback), previewDocument);
+		ChatHelpers::AddGifAction(
+			std::move(callback),
+			_controller,
+			previewDocument);
 	}
 
 	if (!_menu->empty()) {

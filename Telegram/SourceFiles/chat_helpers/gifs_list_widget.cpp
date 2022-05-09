@@ -52,6 +52,7 @@ constexpr auto kMinAfterScrollDelay = crl::time(33);
 
 void AddGifAction(
 		Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
+		Window::SessionController *controller,
 		not_null<DocumentData*> document) {
 	if (!document->isGifv()) {
 		return;
@@ -64,6 +65,7 @@ void AddGifAction(
 		: tr::lng_context_save_gif)(tr::now);
 	callback(text, [=] {
 		Api::ToggleSavedGif(
+			controller,
 			document,
 			Data::FileOriginSavedGifs(),
 			!saved);
@@ -396,7 +398,7 @@ void GifsListWidget::fillContextMenu(
 					const style::icon *icon) {
 				menu->addAction(text, std::move(done), icon);
 			};
-			AddGifAction(std::move(callback), document);
+			AddGifAction(std::move(callback), controller(), document);
 		}
 	};
 }

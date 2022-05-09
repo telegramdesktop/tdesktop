@@ -11,6 +11,10 @@ namespace Ui {
 class PopupMenu;
 } // namespace Ui
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 class History;
 
 class ChooseFilterValidator final {
@@ -19,6 +23,7 @@ public:
 
 	[[nodiscard]] bool canAdd() const;
 	[[nodiscard]] bool canRemove(FilterId filterId) const;
+	[[nodiscard]] bool limitReached(FilterId filterId) const;
 
 	void add(FilterId filterId) const;
 	void remove(FilterId filterId) const;
@@ -29,5 +34,6 @@ private:
 };
 
 void FillChooseFilterMenu(
+	not_null<Window::SessionController*> controller,
 	not_null<Ui::PopupMenu*> menu,
 	not_null<History*> history);

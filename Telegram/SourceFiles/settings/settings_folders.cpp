@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_folders.h"
 
 #include "apiwrap.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_box.h"
 #include "core/application.h"
 #include "data/data_chat_filters.h"
@@ -38,8 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 namespace {
-
-constexpr auto kFiltersLimit = 10;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
@@ -327,6 +326,14 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	auto &lifetime = container->lifetime();
 
 	const auto session = &controller->session();
+	const auto limit = [=] {
+		return CurrentPremiumLimit(
+			session,
+			"dialog_filters_limit_default",
+			10,
+			"dialog_filters_limit_premium",
+			20);
+	};
 	AddSkip(container, st::settingsSectionSkip);
 	AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
@@ -339,10 +346,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto showLimitReached = [=] {
 		const auto removed = ranges::count_if(*rows, &FilterRow::removed);
-		if (rows->size() < kFiltersLimit + removed) {
+		if (rows->size() < limit() + removed) {
 			return false;
 		}
-		controller->window().showToast(tr::lng_filters_limit(tr::now));
+		controller->show(Box(FiltersLimitBox, session));
 		return true;
 	};
 	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(
@@ -487,7 +494,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	auto showSuggestions = rpl::combine(
 		suggested->value(),
 		rowsCount->value()
-	) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_2 < kFiltersLimit);
+	) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_2 < limit());
 	nonEmptyAbout->toggleOn(std::move(showSuggestions));
 
 	const auto prepareGoodIdsForNewFilters = [=] {

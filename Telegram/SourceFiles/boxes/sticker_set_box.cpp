@@ -699,8 +699,10 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 		SendMenu::DefaultSilentCallback(sendSelected),
 		SendMenu::DefaultScheduleCallback(this, type, sendSelected));
 
+	const auto controller = _controller;
 	const auto toggleFavedSticker = [=] {
 		Api::ToggleFavedSticker(
+			controller,
 			document,
 			Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
 	};

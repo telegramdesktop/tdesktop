@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "api/api_text_entities.h"
@@ -33,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/audio/media_audio.h"
 #include "boxes/abstract_box.h"
+#include "boxes/premium_limits_box.h"
 #include "passport/passport_form_controller.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/stickers/data_stickers.h"
@@ -225,7 +227,7 @@ Session::Session(not_null<Main::Session*> session)
 , _chatsList(
 	session,
 	FilterId(),
-	session->serverConfig().pinnedDialogsCountMax.value())
+	maxPinnedChatsLimitValue(nullptr, FilterId()))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _ttlCheckTimer([=] { checkTTLs(); })
@@ -1832,20 +1834,54 @@ int Session::pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const {
 	if (!filterId) {
-		const auto limit = pinnedChatsLimit(folder);
+		const auto limit = pinnedChatsLimit(folder, filterId);
 		return pinnedChatsOrder(folder, FilterId()).size() < limit;
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	return (i == end(list))
 		|| (i->always().contains(history))
-		|| (i->always().size() < Data::ChatFilter::kPinnedLimit);
+		|| (i->always().size() < pinnedChatsLimit(folder, filterId));
 }
 
-int Session::pinnedChatsLimit(Data::Folder *folder) const {
-	return folder
-		? session().serverConfig().pinnedDialogsInFolderMax.current()
-		: session().serverConfig().pinnedDialogsCountMax.current();
+int Session::pinnedChatsLimit(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	return CurrentPremiumLimit(
+		_session,
+		(filterId
+			? "dialog_filters_chats_limit_default"
+			: folder
+			? "dialog_filters_chats_limit_default"
+			: "dialogs_pinned_limit_default"),
+		(filterId || folder) ? 100 : 5,
+		(filterId
+			? "dialog_filters_chats_limit_premium"
+			: folder
+			? "dialog_filters_chats_limit_premium"
+			: "dialogs_pinned_limit_premium"),
+		(filterId || folder) ? 200 : 10);
+}
+
+rpl::producer<int> Session::maxPinnedChatsLimitValue(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	// Premium limit from appconfig.
+	// We always use premium limit in the MainList limit producer,
+	// because it slices the list to that limit. We don't want to slice
+	// premium-ly added chats from the pinned list because of sync issues.
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		_session->account().appConfig().refreshed()
+	) | rpl::map([=] {
+		return AppConfigLimit(
+			_session,
+			(filterId
+				? "dialog_filters_chats_limit_premium"
+				: folder
+				? "dialog_filters_chats_limit_premium"
+				: "dialogs_pinned_limit_premium"),
+			(filterId || folder) ? 200 : 10);
+	});
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(

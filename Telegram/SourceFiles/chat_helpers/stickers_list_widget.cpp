@@ -2509,8 +2509,10 @@ void StickersListWidget::fillContextMenu(
 			SendMenu::DefaultSilentCallback(send),
 			SendMenu::DefaultScheduleCallback(this, type, send));
 
+		const auto window = controller();
 		const auto toggleFavedSticker = [=] {
 			Api::ToggleFavedSticker(
+				window,
 				document,
 				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
 		};
@@ -2683,8 +2685,9 @@ void StickersListWidget::removeFavedSticker(int section, int index) {
 	clearSelection();
 	const auto &sticker = _mySets[section].stickers[index];
 	const auto document = sticker.document;
-	session().data().stickers().setFaved(document, false);
+	session().data().stickers().setFaved(controller(), document, false);
 	Api::ToggleFavedSticker(
+		controller(),
 		document,
 		Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0),
 		false);

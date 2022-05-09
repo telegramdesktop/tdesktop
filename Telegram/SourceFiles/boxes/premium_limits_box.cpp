@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
+#include "styles/style_info.h"
 
 namespace {
 
@@ -243,8 +244,8 @@ std::unique_ptr<PeerListRow> InactiveController::createRow(
 [[nodiscard]] float64 Limit(
 		not_null<Main::Session*> session,
 		const QString &key,
-		double fallback) {
-	return session->account().appConfig().get<double>(key, fallback);
+		int fallback) {
+	return 1. * AppConfigLimit(session, key, fallback);
 }
 
 void SimpleLimitBox(
@@ -276,6 +277,19 @@ void SimpleLimitBox(
 				std::move(text),
 				st::changePhoneDescription)),
 		st::changePhoneDescriptionPadding);
+
+	box->setNoContentMargin(true);
+
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box.get(),
+		st::infoLayerTopBarClose);
+	close->addClickHandler([=] { box->closeBox(); });
+	box->widthValue() | rpl::start_with_next([=](int width) {
+		close->moveToRight(0, 0, width);
+	}, close->lifetime());
+	box->setFocusCallback([=] {
+		close->raise();
+	});
 
 	if (premium) {
 		box->addButton(tr::lng_box_ok(), [=] {
@@ -531,9 +545,21 @@ void FilterPinsLimitBox(
 	SimplePinsLimitBox(
 		box,
 		session,
-		"dialog_filters_pinned_limit_default",
+		"dialog_filters_chats_limit_default",
 		100,
-		"dialog_filters_pinned_limit_premium",
+		"dialog_filters_chats_limit_premium",
+		200);
+}
+
+void FolderPinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	SimplePinsLimitBox(
+		box,
+		session,
+		"dialog_filters_chats_limit_default",
+		100,
+		"dialog_filters_chats_limit_premium",
 		200);
 }
 
@@ -547,4 +573,25 @@ void PinsLimitBox(
 		5,
 		"dialogs_pinned_limit_premium",
 		10);
+}
+
+int AppConfigLimit(
+		not_null<Main::Session*> session,
+		const QString &key,
+		int fallback) {
+	return int(base::SafeRound(
+		session->account().appConfig().get<double>(key, 1. * fallback)));
+}
+
+int CurrentPremiumLimit(
+		not_null<Main::Session*> session,
+		const QString &keyDefault,
+		int limitDefault,
+		const QString &keyPremium,
+		int limitPremium) {
+	const auto premium = session->user()->isPremium();
+	return AppConfigLimit(
+		session,
+		premium ? keyPremium : keyDefault,
+		premium ? limitPremium : limitDefault);
 }

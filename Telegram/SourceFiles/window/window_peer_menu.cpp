@@ -249,13 +249,11 @@ bool PinnedLimitReached(
 		owner->setChatPinned(history, FilterId(), true);
 		history->session().api().savePinnedOrder(folder);
 	} else if (filterId) {
-		controller->show(
-			Box(FilterPinsLimitBox, &history->session()),
-			Ui::LayerOption::CloseOther);
+		controller->show(Box(FilterPinsLimitBox, &history->session()));
+	} else if (folder) {
+		controller->show(Box(FolderPinsLimitBox, &history->session()));
 	} else {
-		controller->show(
-			Box(PinsLimitBox, &history->session()),
-			Ui::LayerOption::CloseOther);
+		controller->show(Box(PinsLimitBox, &history->session()));
 	}
 	return true;
 }
@@ -419,6 +417,7 @@ void Filler::addInfo() {
 }
 
 void Filler::addToggleFolder() {
+	const auto controller = _controller;
 	const auto history = _request.key.history();
 	if (!history || history->owner().chatsFilters().list().empty()) {
 		return;
@@ -428,7 +427,7 @@ void Filler::addToggleFolder() {
 		.handler = nullptr,
 		.icon = &st::menuIconAddToFolder,
 		.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
-			FillChooseFilterMenu(menu, history);
+			FillChooseFilterMenu(controller, menu, history);
 		},
 	});
 }

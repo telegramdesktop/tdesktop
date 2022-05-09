@@ -130,6 +130,7 @@ void Gif::setPosition(int32 position) {
 void DeleteSavedGifClickHandler::onClickImpl() const {
 	ChatHelpers::AddGifAction(
 		[](QString, Fn<void()> &&done, const style::icon*) { done(); },
+		nullptr,
 		_data);
 }
 

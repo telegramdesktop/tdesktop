@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
+#include "boxes/premium_limits_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
@@ -23,7 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "ui/image/image_location_factory.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
+#include "mainwindow.h"
 #include "base/unixtime.h"
 #include "boxes/abstract_box.h" // Ui::show().
 #include "styles/style_chat_helpers.h"
@@ -31,7 +37,80 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace {
 
+constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
+
 using SetFlag = StickersSetFlag;
+
+[[nodiscard]] TextWithEntities SavedGifsToast(
+		not_null<Main::Session*> session) {
+	const auto defaultLimit = AppConfigLimit(
+		session,
+		"saved_gifs_limit_default",
+		200);
+	const auto premiumLimit = AppConfigLimit(
+		session,
+		"saved_gifs_limit_premium",
+		400);
+	return Ui::Text::Bold(
+		tr::lng_saved_gif_limit_title(tr::now, lt_count, defaultLimit)
+	).append('\n').append(
+		tr::lng_saved_gif_limit_more(
+			tr::now,
+			lt_count,
+			premiumLimit,
+			lt_link,
+			Ui::Text::Link(tr::lng_saved_gif_limit_link(tr::now)),
+			Ui::Text::WithEntities));
+}
+
+[[nodiscard]] TextWithEntities FaveStickersToast(
+		not_null<Main::Session*> session) {
+	const auto defaultLimit = AppConfigLimit(
+		session,
+		"stickers_faved_limit_default",
+		5);
+	const auto premiumLimit = AppConfigLimit(
+		session,
+		"stickers_faved_limit_premium",
+		200);
+	return Ui::Text::Bold(
+		tr::lng_fave_sticker_limit_title(tr::now, lt_count, defaultLimit)
+	).append('\n').append(
+		tr::lng_fave_sticker_limit_more(
+			tr::now,
+			lt_count,
+			premiumLimit,
+			lt_link,
+			Ui::Text::Link(tr::lng_fave_sticker_limit_link(tr::now)),
+			Ui::Text::WithEntities));
+}
+
+void MaybeShowPremiumToast(
+		Window::SessionController *controller,
+		TextWithEntities text) {
+	if (!controller) {
+		return;
+	}
+	const auto session = &controller->session();
+	if (session->user()->isPremium()) {
+		return;
+	}
+	const auto widget = QPointer<Ui::RpWidget>(
+		controller->window().widget()->bodyWidget());
+	const auto filter = [=](const auto ...) {
+		Ui::ShowMultilineToast({
+			.parentOverride = widget,
+			.text = { u"Premium!"_q },
+		});
+		return false;
+	};
+	Ui::ShowMultilineToast({
+		.parentOverride = widget,
+		.text = std::move(text),
+		.duration = kPremiumToastDuration,
+		.filter = filter,
+	});
+}
 
 void RemoveFromSet(
 		StickersSets &sets,
@@ -225,7 +304,9 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	notifyRecentUpdated();
 }
 
-void Stickers::addSavedGif(not_null<DocumentData*> document) {
+void Stickers::addSavedGif(
+		Window::SessionController *controller,
+		not_null<DocumentData*> document) {
 	const auto index = _savedGifs.indexOf(document);
 	if (!index) {
 		return;
@@ -234,14 +315,22 @@ void Stickers::addSavedGif(not_null<DocumentData*> document) {
 		_savedGifs.remove(index);
 	}
 	_savedGifs.push_front(document);
-	if (_savedGifs.size() > session().serverConfig().savedGifsLimit) {
+	const auto session = &document->session();
+	const auto limit = CurrentPremiumLimit(
+		session,
+		"saved_gifs_limit_default",
+		200,
+		"saved_gifs_limit_premium",
+		400);
+	if (_savedGifs.size() > limit) {
 		_savedGifs.pop_back();
+		MaybeShowPremiumToast(controller, SavedGifsToast(session));
 	}
-	session().local().writeSavedGifs();
+	session->local().writeSavedGifs();
 
 	notifySavedGifsUpdated();
 	setLastSavedGifsUpdate(0);
-	session().api().updateStickers();
+	session->api().updateStickers();
 }
 
 void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
@@ -253,7 +342,7 @@ void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
 	if (const auto media = item->media()) {
 		if (const auto document = media->document()) {
 			if (document->isGifv()) {
-				addSavedGif(document);
+				addSavedGif(nullptr, document);
 			}
 		}
 	}
@@ -421,8 +510,17 @@ bool Stickers::isFaved(not_null<const DocumentData*> document) {
 	return false;
 }
 
-void Stickers::checkFavedLimit(StickersSet &set) {
-	if (set.stickers.size() <= session().serverConfig().stickersFavedLimit) {
+void Stickers::checkFavedLimit(
+		StickersSet &set,
+		Window::SessionController *controller) {
+	const auto session = &_owner->session();
+	const auto limit = CurrentPremiumLimit(
+		session,
+		"stickers_faved_limit_default",
+		5,
+		"stickers_faved_limit_premium",
+		200);
+	if (set.stickers.size() <= limit) {
 		return;
 	}
 	auto removing = set.stickers.back();
@@ -438,17 +536,19 @@ void Stickers::checkFavedLimit(StickersSet &set) {
 		}
 		++i;
 	}
+	MaybeShowPremiumToast(controller, FaveStickersToast(session));
 }
 
 void Stickers::pushFavedToFront(
 		StickersSet &set,
+		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		const std::vector<not_null<EmojiPtr>> &emojiList) {
 	set.stickers.push_front(document);
 	for (auto emoji : emojiList) {
 		set.emoji[emoji].push_front(document);
 	}
-	checkFavedLimit(set);
+	checkFavedLimit(set, controller);
 }
 
 void Stickers::moveFavedToFront(StickersSet &set, int index) {
@@ -471,6 +571,7 @@ void Stickers::moveFavedToFront(StickersSet &set, int index) {
 }
 
 void Stickers::setIsFaved(
+		Window::SessionController *controller,
 		not_null<DocumentData*> document,
 		std::optional<std::vector<not_null<EmojiPtr>>> emojiList) {
 	auto &sets = setsRef();
@@ -495,11 +596,11 @@ void Stickers::setIsFaved(
 	if (index > 0) {
 		moveFavedToFront(*set, index);
 	} else if (emojiList) {
-		pushFavedToFront(*set, document, *emojiList);
+		pushFavedToFront(*set, controller, document, *emojiList);
 	} else if (auto list = getEmojiListFromSet(document)) {
-		pushFavedToFront(*set, document, *list);
+		pushFavedToFront(*set, controller, document, *list);
 	} else {
-		requestSetToPushFaved(document);
+		requestSetToPushFaved(controller, document);
 		return;
 	}
 	session().local().writeFavedStickers();
@@ -507,7 +608,11 @@ void Stickers::setIsFaved(
 	notifyStickerSetInstalled(FavedSetId);
 }
 
-void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
+void Stickers::requestSetToPushFaved(
+		Window::SessionController *controller,
+		not_null<DocumentData*> document) {
+	controller = nullptr;
+	const auto weak = base::make_weak(controller);
 	auto addAnyway = [=](std::vector<not_null<EmojiPtr>> list) {
 		if (list.empty()) {
 			if (auto sticker = document->sticker()) {
@@ -516,7 +621,7 @@ void Stickers::requestSetToPushFaved(not_null<DocumentData*> document) {
 				}
 			}
 		}
-		setIsFaved(document, std::move(list));
+		setIsFaved(weak.get(), document, std::move(list));
 	};
 	session().api().request(MTPmessages_GetStickerSet(
 		Data::InputStickerSet(document->sticker()->set),
@@ -558,9 +663,12 @@ void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
 	notifyUpdated();
 }
 
-void Stickers::setFaved(not_null<DocumentData*> document, bool faved) {
+void Stickers::setFaved(
+		Window::SessionController *controller,
+		not_null<DocumentData*> document,
+		bool faved) {
 	if (faved) {
-		setIsFaved(document);
+		setIsFaved(controller, document);
 	} else {
 		setIsNotFaved(document);
 	}

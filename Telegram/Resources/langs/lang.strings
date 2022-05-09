@@ -204,14 +204,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_fave_sticker_limit_title#one" = "The Limit of {count} Stickers Reached";
 "lng_fave_sticker_limit_title#other" = "The Limit of {count} Stickers Reached";
-"lng_fave_sticker_limit_more#one" = "An older sticker was replaced with this one. You can {link} to {count} sticker.";
-"lng_fave_sticker_limit_more#other" = "An older sticker was replaced with this one. You can {link} to {count} stickers.";
+"lng_fave_sticker_limit_more#one" = "An older sticker was replaced with this one.\nYou can {link} to {count} sticker.";
+"lng_fave_sticker_limit_more#other" = "An older sticker was replaced with this one.\nYou can {link} to {count} stickers.";
 "lng_fave_sticker_limit_link" = "increase the limit";
 
 "lng_saved_gif_limit_title#one" = "The Limit of {count} GIF Reached";
 "lng_saved_gif_limit_title#other" = "The Limit of {count} GIFs Reached";
-"lng_saved_gif_limit_more#one" = "An older GIF was replaced with this one. You can {link} to {count} GIF.";
-"lng_saved_gif_limit_more#other" = "An older GIF was replaced with this one. You can {link} to {count} GIFs.";
+"lng_saved_gif_limit_more#one" = "An older GIF was replaced with this one.\nYou can {link} to {count} GIF.";
+"lng_saved_gif_limit_more#other" = "An older GIF was replaced with this one.\nYou can {link} to {count} GIFs.";
 "lng_saved_gif_limit_link" = "increase the limit";
 
 "lng_limits_increase" = "Increase Limit";
