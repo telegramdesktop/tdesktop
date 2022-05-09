@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_common.h"
 
 #include "apiwrap.h"
+#include "base/timer.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
@@ -96,6 +98,19 @@ BottomButton CreateBottomDisableButton(
 			return r.height() > 0;
 		}),
 	};
+}
+
+void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback) {
+	constexpr auto kTimerCheck = crl::time(1000 * 60);
+	constexpr auto kAutoCloseTimeout = crl::time(1000 * 60 * 10);
+
+	const auto timer = lifetime.make_state<base::Timer>([=] {
+		const auto idle = crl::now() - Core::App().lastNonIdleTime();
+		if (idle >= kAutoCloseTimeout) {
+			callback();
+		}
+	});
+	timer->callEach(kTimerCheck);
 }
 
 void SetupHeader(

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_local_passcode.h"
 
 #include "base/platform/base_platform_last_input.h"
-#include "base/timer.h"
 #include "boxes/auto_lock_box.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
@@ -31,25 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
-constexpr auto kTimerCheck = crl::time(1000 * 60);
-constexpr auto kAutoCloseTimeout = crl::time(1000 * 60 * 10);
-
 void SetPasscode(
 		not_null<Window::SessionController*> controller,
 		const QString &pass) {
 	cSetPasscodeBadTries(0);
 	controller->session().domain().local().setPasscode(pass.toUtf8());
 	Core::App().localPasscodeChanged();
-}
-
-void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback) {
-	const auto timer = lifetime.make_state<base::Timer>([=] {
-		const auto idle = crl::now() - Core::App().lastNonIdleTime();
-		if (idle >= kAutoCloseTimeout) {
-			callback();
-		}
-	});
-	timer->callEach(kTimerCheck);
 }
 
 } // namespace
@@ -127,7 +113,9 @@ void LocalPasscodeEnter::setupContent() {
 	}, content->lifetime());
 
 	if (isChange) {
-		SetupAutoCloseTimer(content->lifetime(), [=] { _showBack.fire({}); });
+		CloudPassword::SetupAutoCloseTimer(
+			content->lifetime(),
+			[=] { _showBack.fire({}); });
 	}
 
 	AddSkip(content);
@@ -441,7 +429,9 @@ void LocalPasscodeManage::setupContent() {
 	};
 	const auto state = content->lifetime().make_state<State>();
 
-	SetupAutoCloseTimer(content->lifetime(), [=] { _showBack.fire({}); });
+	CloudPassword::SetupAutoCloseTimer(
+		content->lifetime(),
+		[=] { _showBack.fire({}); });
 
 	AddSkip(content);
 

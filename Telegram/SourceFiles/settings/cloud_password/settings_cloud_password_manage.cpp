@@ -132,17 +132,22 @@ void Manage::setupContent() {
 	// we should forget the current password.
 	setStepData(std::move(currentStepData));
 
-	const auto state = cloudPassword().stateCurrent();
-	if (!state) {
+	const auto quit = [=] {
 		setStepData(StepData());
 		showBack();
+	};
+
+	SetupAutoCloseTimer(content->lifetime(), quit);
+
+	const auto state = cloudPassword().stateCurrent();
+	if (!state) {
+		quit();
 		return;
 	}
 	cloudPassword().state(
 	) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
 		if (!_requestLifetime && !state.hasPassword) {
-			setStepData(StepData());
-			showBack();
+			quit();
 		}
 	}, lifetime());
 
