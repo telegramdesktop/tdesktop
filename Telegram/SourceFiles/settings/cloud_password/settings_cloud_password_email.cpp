@@ -68,8 +68,11 @@ void Email::setupContent() {
 		tr::lng_cloud_password_email(),
 		currentStepDataEmail);
 	const auto newInput = wrap->entity();
+	const auto error = AddError(content, nullptr);
+	QObject::connect(newInput, &Ui::InputField::changed, [=] {
+		error->hide();
+	});
 	AddSkipInsteadOfField(content);
-	AddSkipInsteadOfError(content);
 
 	const auto send = [=](Fn<void()> close) {
 		Expects(!_requestLifetime);
@@ -91,9 +94,19 @@ void Email::setupContent() {
 			data.unconfirmedEmailLengthCode = d.unconfirmedEmailLengthCode;
 			setStepData(std::move(data));
 			showOther(CloudPasswordEmailConfirmId());
-		}, [=](const QString &error) {
+		}, [=](const QString &type) {
 			_requestLifetime.destroy();
 
+			if (MTP::IsFloodError(type)) {
+				error->show();
+				error->setText(tr::lng_flood_error(tr::now));
+			} else if (type == u"EMAIL_INVALID"_q) {
+				error->show();
+				error->setText(tr::lng_cloud_password_bad_email(tr::now));
+				newInput->setFocus();
+				newInput->showError();
+				newInput->selectAll();
+			}
 		}, [=] {
 			_requestLifetime.destroy();
 
