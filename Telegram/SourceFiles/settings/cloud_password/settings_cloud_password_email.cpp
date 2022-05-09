@@ -121,6 +121,7 @@ void Email::setupContent() {
 			if (MTP::IsFloodError(type)) {
 				error->show();
 				error->setText(tr::lng_flood_error(tr::now));
+			} else if (AbstractStep::isPasswordInvalidError(type)) {
 			} else if (type == u"EMAIL_INVALID"_q) {
 				error->show();
 				error->setText(tr::lng_cloud_password_bad_email(tr::now));

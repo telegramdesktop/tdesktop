@@ -118,7 +118,8 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
-	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
+protected:
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeTypes() override;
 
 private:
 	void setupRecoverButton(
@@ -132,7 +133,7 @@ private:
 
 };
 
-rpl::producer<std::vector<Type>> Input::removeFromStack() {
+rpl::producer<std::vector<Type>> Input::removeTypes() {
 	return _removesFromStack.value();
 }
 

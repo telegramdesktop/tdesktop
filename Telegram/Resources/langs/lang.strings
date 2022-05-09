@@ -730,6 +730,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_reset_cancel_title" = "Cancel reset";
 "lng_cloud_password_reset_cancel_sure" = "Cancel the password reset process? If you request a new reset later, it will take another 7 days.";
 "lng_cloud_password_reset_later" = "You recently requested a password reset that was cancelled. Please wait {duration} before making a new request.";
+"lng_cloud_password_expired" = "Please re-enter your password.";
 
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";

@@ -94,10 +94,11 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
-	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
-
 	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
+
+protected:
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeTypes() override;
 
 private:
 	rpl::variable<bool> _isBottomFillerShown;
@@ -112,7 +113,7 @@ rpl::producer<QString> Manage::title() {
 	return tr::lng_settings_cloud_password_start_title();
 }
 
-rpl::producer<std::vector<Type>> Manage::removeFromStack() {
+rpl::producer<std::vector<Type>> Manage::removeTypes() {
 	return rpl::single(std::vector<Type>{
 		CloudPasswordStartId(),
 		CloudPasswordInputId(),
@@ -221,7 +222,9 @@ QPointer<Ui::RpWidget> Manage::createPinnedToBottom(
 			QString(),
 			false,
 			QString()
-		) | rpl::start_with_done([=] {
+		) | rpl::start_with_error_done([=](const QString &type) {
+			AbstractStep::isPasswordInvalidError(type);
+		}, [=] {
 			setStepData(StepData());
 			close();
 			showBack();

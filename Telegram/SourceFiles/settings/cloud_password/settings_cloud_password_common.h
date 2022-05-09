@@ -43,6 +43,8 @@ struct StepData {
 	ProcessRecover processRecover;
 };
 
+void SetupAutoCloseTimer(rpl::lifetime &lifetime, Fn<void()> callback);
+
 void SetupHeader(
 	not_null<Ui::VerticalLayout*> content,
 	const QString &lottie,
@@ -102,21 +104,28 @@ private:
 
 class AbstractStep : public AbstractSection {
 public:
+	using Types = std::vector<Type>;
 	AbstractStep(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 	~AbstractStep();
 
-	void showFinished() override;
-	void setInnerFocus() override;
-	[[nodiscard]] rpl::producer<Type> sectionShowOther() override;
-	[[nodiscard]] rpl::producer<> sectionShowBack() override;
+	void showFinished() override final;
+	void setInnerFocus() override final;
+	[[nodiscard]] rpl::producer<Type> sectionShowOther() override final;
+	[[nodiscard]] rpl::producer<> sectionShowBack() override final;
+
+	[[nodiscard]] rpl::producer<Types> removeFromStack() override final;
 
 	void setStepDataReference(std::any &data) override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const;
 	[[nodiscard]] Api::CloudPassword &cloudPassword();
+
+	[[nodiscard]] virtual rpl::producer<Types> removeTypes();
+
+	bool isPasswordInvalidError(const QString &type);
 
 	void showBack();
 	void showOther(Type type);
@@ -136,6 +145,7 @@ private:
 	rpl::event_stream<> _showFinished;
 	rpl::event_stream<Type> _showOther;
 	rpl::event_stream<> _showBack;
+	rpl::event_stream<Types> _quits;
 
 	std::any *_stepData;
 

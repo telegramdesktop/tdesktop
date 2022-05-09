@@ -11,7 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "settings/cloud_password/settings_cloud_password_common.h"
+#include "settings/cloud_password/settings_cloud_password_email.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
+#include "settings/cloud_password/settings_cloud_password_hint.h"
+#include "settings/cloud_password/settings_cloud_password_input.h"
+#include "settings/cloud_password/settings_cloud_password_manage.h"
+#include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_common.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/labels.h"
@@ -250,6 +258,10 @@ Api::CloudPassword &AbstractStep::cloudPassword() {
 	return _controller->session().api().cloudPassword();
 }
 
+rpl::producer<AbstractStep::Types> AbstractStep::removeTypes() {
+	return rpl::never<Types>();
+}
+
 void AbstractStep::showBack() {
 	_showBack.fire({});
 }
@@ -276,12 +288,40 @@ void AbstractStep::setInnerFocus() {
 	}
 }
 
+bool AbstractStep::isPasswordInvalidError(const QString &type) {
+	if (type == u"PASSWORD_HASH_INVALID"_q
+		|| type == u"SRP_PASSWORD_CHANGED"_q) {
+
+		// Most likely the cloud password has been changed on another device.
+		// Quit.
+		_quits.fire(AbstractStep::Types{
+			CloudPasswordStartId(),
+			CloudPasswordInputId(),
+			CloudPasswordHintId(),
+			CloudPasswordEmailId(),
+			CloudPasswordEmailConfirmId(),
+			CloudPasswordManageId(),
+		});
+		controller()->show(
+			Ui::MakeInformBox(tr::lng_cloud_password_expired()),
+			Ui::LayerOption::CloseOther);
+		setStepData(StepData());
+		showBack();
+		return true;
+	}
+	return false;
+}
+
 rpl::producer<Type> AbstractStep::sectionShowOther() {
 	return _showOther.events();
 }
 
 rpl::producer<> AbstractStep::sectionShowBack() {
 	return _showBack.events();
+}
+
+rpl::producer<std::vector<Type>> AbstractStep::removeFromStack() {
+	return rpl::merge(removeTypes(), _quits.events());
 }
 
 void AbstractStep::setStepDataReference(std::any &data) {

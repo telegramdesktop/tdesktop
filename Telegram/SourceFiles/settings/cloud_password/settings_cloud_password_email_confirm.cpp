@@ -56,7 +56,8 @@ public:
 	[[nodiscard]] rpl::producer<QString> title() override;
 	void setupContent();
 
-	[[nodiscard]] rpl::producer<std::vector<Type>> removeFromStack() override;
+protected:
+	[[nodiscard]] rpl::producer<std::vector<Type>> removeTypes() override;
 
 private:
 	rpl::lifetime _requestLifetime;
@@ -67,7 +68,7 @@ rpl::producer<QString> EmailConfirm::title() {
 	return tr::lng_settings_cloud_password_email_title();
 }
 
-rpl::producer<std::vector<Type>> EmailConfirm::removeFromStack() {
+rpl::producer<std::vector<Type>> EmailConfirm::removeTypes() {
 	return rpl::single(std::vector<Type>{
 		CloudPasswordStartId(),
 		CloudPasswordInputId(),
