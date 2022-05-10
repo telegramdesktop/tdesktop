@@ -141,7 +141,7 @@ jobs:
         run: |
           C:
           cd %TBUILD%\%REPO_NAME%\Telegram
-          SET CXXFLAGS="/bigobj /m:2 /Zm200"
+          SET CXXFLAGS="-bigobj"
           call configure.bat ^
           ${{ matrix.arch }} ^
           -D TDESKTOP_API_TEST=OFF ^
