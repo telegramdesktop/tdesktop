@@ -477,6 +477,12 @@ win:
     cmake --build . --config Debug
 release:
     cmake --build . --config Release
+    cd ..
+    
+    del /S mozjpeg\*.cpp
+    del /S mozjpeg\*.pdb
+    
+    cd mozjpeg
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
@@ -576,6 +582,12 @@ stage('rnnoise', """
 win:
     cmake -A %WIN32X64% ..
     cmake --build . --config Release
+    cd ../..
+    
+    del /S rnnoise\*.cpp
+    del /S rnnoise\*.pdb
+    
+    cd rnnoise\out
 !win:
     mkdir Release
     cd Release
