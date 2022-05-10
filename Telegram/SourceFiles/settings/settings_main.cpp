@@ -115,6 +115,9 @@ Cover::Cover(
 	_name->setSelectable(true);
 	_name->setContextCopyText(tr::lng_profile_copy_fullname(tr::now));
 
+	_phone->setSelectable(true);
+	_phone->setContextCopyText(tr::lng_profile_copy_phone(tr::now));
+
 	initViewers();
 	setupChildGeometry();
 
