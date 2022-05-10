@@ -1138,6 +1138,7 @@ win:
     cd ..
     del /S qt_5_15_3\*.cpp
     del /S qt_5_15_3\*.pdb
+    del /S qt_5_15_3\*.obj
 mac:
     find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
