@@ -1787,6 +1787,7 @@ void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
 	sponsored->sender = std::make_unique<HiddenSenderInfo>(
 		from.title,
 		false);
+	sponsored->recommended = from.isRecommended;
 	if (from.userpic.location.valid()) {
 		sponsored->sender->customUserpic.set(
 			&history()->session(),

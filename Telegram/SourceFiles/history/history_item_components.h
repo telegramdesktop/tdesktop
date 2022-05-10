@@ -121,6 +121,7 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 	};
 	std::unique_ptr<HiddenSenderInfo> sender;
 	Type type = Type::User;
+	bool recommended = false;
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {

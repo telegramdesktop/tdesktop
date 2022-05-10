@@ -426,7 +426,9 @@ void BottomInfo::layoutDateText() {
 	const auto name = _authorElided
 		? st::msgDateFont->elided(author, maxWidth - afterAuthorWidth)
 		: author;
-	const auto full = (_data.flags & Data::Flag::Sponsored)
+	const auto full = (_data.flags & Data::Flag::Recommended)
+		? tr::lng_recommended(tr::now)
+		: (_data.flags & Data::Flag::Sponsored)
 		? tr::lng_sponsored(tr::now)
 		: (_data.flags & Data::Flag::Imported)
 		? (date + ' ' + tr::lng_imported(tr::now))
@@ -586,7 +588,10 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	if (message->context() == Context::Replies) {
 		result.flags |= Flag::RepliesContext;
 	}
-	if (item->isSponsored()) {
+	if (const auto sponsored = item->Get<HistoryMessageSponsored>()) {
+		if (sponsored->recommended) {
+			result.flags |= Flag::Recommended;
+		}
 		result.flags |= Flag::Sponsored;
 	}
 	if (item->isPinned() && message->context() != Context::Pinned) {

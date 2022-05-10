@@ -1576,6 +1576,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_signed_author" = "Author: {user}";
 "lng_in_reply_to" = "In reply to";
 "lng_sponsored" = "sponsored";
+"lng_recommended" = "recommended";
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
