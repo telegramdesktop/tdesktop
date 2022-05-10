@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -56,13 +57,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-auto ListFromMimeData(not_null<const QMimeData*> data) {
+auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 	using Error = Ui::PreparedList::Error;
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			// When we edit media, we need only 1 file.
 			data->urls().mid(0, 1),
-			st::sendMediaPreviewSize)
+			st::sendMediaPreviewSize,
+			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		return result;
@@ -343,11 +345,13 @@ void EditCaptionBox::setupEditEventHandler() {
 			}
 			return true;
 		};
+		const auto premium = _controller->session().user()->isPremium();
 		auto list = Storage::PreparedFileFromFilesDialog(
 			std::move(result),
 			checkResult,
 			showError,
-			st::sendMediaPreviewSize);
+			st::sendMediaPreviewSize,
+			premium);
 
 		if (list) {
 			setPreparedList(std::move(*list));
@@ -520,7 +524,8 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
-	return setPreparedList(ListFromMimeData(data));
+	const auto premium = _controller->session().user()->isPremium();
+	return setPreparedList(ListFromMimeData(data, premium));
 }
 
 bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {

@@ -31,12 +31,12 @@ constexpr auto kDefaultAutoPlayLimit = 50 * kMegabyte;
 
 using Type = Data::AutoDownload::Type;
 
-not_null<int*> AddSizeLimitSlider(
+not_null<int64*> AddSizeLimitSlider(
 		not_null<Ui::VerticalLayout*> container,
-		const base::flat_map<Type, int> &values,
-		int defaultValue) {
+		const base::flat_map<Type, int64> &values,
+		int64 defaultValue) {
 	using namespace Settings;
-	using Pair = base::flat_map<Type, int>::value_type;
+	using Pair = base::flat_map<Type, int64>::value_type;
 
 	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(
 		container.get());
@@ -44,13 +44,13 @@ not_null<int*> AddSizeLimitSlider(
 		values,
 		std::less<>(),
 		[](Pair pair) { return pair.second; })->second;
-	const auto initialLimit = currentLimit ? currentLimit : defaultValue;
-	const auto result = Ui::CreateChild<int>(container.get(), initialLimit);
+	const auto startLimit = currentLimit ? currentLimit : defaultValue;
+	const auto result = Ui::CreateChild<int64>(container.get(), startLimit);
 	AddButtonWithLabel(
 		container,
 		tr::lng_media_size_limit(),
 		limits->events_starting_with_copy(
-			initialLimit
+			startLimit
 		) | rpl::map([](int value) {
 			return tr::lng_media_size_up_to(
 				tr::now,
@@ -92,7 +92,7 @@ void AutoDownloadBox::setupContent() {
 	using namespace Settings;
 	using namespace Data::AutoDownload;
 	using Type = Data::AutoDownload::Type;
-	using Pair = base::flat_map<Type, int>::value_type;
+	using Pair = base::flat_map<Type, int64>::value_type;
 
 	setTitle(tr::lng_profile_settings_section());
 
@@ -105,7 +105,7 @@ void AutoDownloadBox::setupContent() {
 		std::move(wrap)));
 
 	const auto add = [&](
-			not_null<base::flat_map<Type, int>*> values,
+			not_null<base::flat_map<Type, int64>*> values,
 			Type type,
 			rpl::producer<QString> label) {
 		const auto value = settings->bytesLimit(_source, type);
@@ -124,7 +124,7 @@ void AutoDownloadBox::setupContent() {
 
 	AddSubsectionTitle(content, tr::lng_media_auto_title());
 
-	const auto downloadValues = Ui::CreateChild<base::flat_map<Type, int>>(
+	const auto downloadValues = Ui::CreateChild<base::flat_map<Type, int64>>(
 		content);
 	add(downloadValues, Type::Photo, tr::lng_media_photo_title());
 	add(downloadValues, Type::File, tr::lng_media_file_title());
@@ -137,7 +137,7 @@ void AutoDownloadBox::setupContent() {
 	AddSkip(content);
 	AddSubsectionTitle(content, tr::lng_media_auto_play());
 
-	const auto autoPlayValues = Ui::CreateChild<base::flat_map<Type, int>>(
+	const auto autoPlayValues = Ui::CreateChild<base::flat_map<Type, int64>>(
 		content);
 	add(
 		autoPlayValues,

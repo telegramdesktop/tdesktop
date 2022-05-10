@@ -52,8 +52,8 @@ public:
 	static constexpr auto kMaxFileSize = 256 * 1024 * 1024;
 
 	struct Progress {
-		int64 already;
-		int64 size;
+		int64 already = 0;
+		int64 size = 0;
 
 		inline bool operator<(const Progress &other) const {
 			return (already < other.already)
@@ -68,8 +68,8 @@ public:
 	void wipeFolder();
 	void wipeOutput();
 
-	int alreadySize() const;
-	int totalSize() const;
+	int64 alreadySize() const;
+	int64 totalSize() const;
 
 	rpl::producer<Progress> progress() const;
 	rpl::producer<QString> ready() const;
@@ -96,8 +96,8 @@ private:
 	int _chunkSize = 0;
 
 	QFile _output;
-	int _alreadySize = 0;
-	int _totalSize = 0;
+	int64 _alreadySize = 0;
+	int64 _totalSize = 0;
 	mutable QMutex _sizesMutex;
 	rpl::event_stream<Progress> _progress;
 	rpl::event_stream<QString> _ready;
@@ -115,7 +115,7 @@ public:
 	};
 	struct File {
 		QString name;
-		int32 size = 0;
+		int64 size = 0;
 		DcId dcId = 0;
 		MTPInputFileLocation location;
 	};
@@ -127,7 +127,7 @@ public:
 
 private:
 	struct Request {
-		int offset = 0;
+		int64 offset = 0;
 		QByteArray bytes;
 	};
 	void startLoading() override;
@@ -139,8 +139,8 @@ private:
 	static constexpr auto kNextRequestDelay = crl::time(20);
 
 	std::deque<Request> _requests;
-	int32 _size = 0;
-	int _offset = 0;
+	int64 _size = 0;
+	int64 _offset = 0;
 	DcId _dcId = 0;
 	MTPInputFileLocation _location;
 	WeakInstance _mtp;

@@ -68,7 +68,7 @@ struct File {
 		DateLimits,
 	};
 	FileLocation location;
-	int size = 0;
+	int64 size = 0;
 	QByteArray content;
 
 	QString suggestedPath;

@@ -431,7 +431,7 @@ SendMediaReady PrepareThemeMedia(
 		MTP_bytes(),
 		MTP_int(base::unixtime::now()),
 		MTP_string("application/x-tgtheme-tdesktop"),
-		MTP_int(content.size()),
+		MTP_long(content.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),

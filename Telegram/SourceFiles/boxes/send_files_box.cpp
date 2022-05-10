@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/emoji_button.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
+#include "data/data_user.h"
 #include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
@@ -68,7 +69,8 @@ inline bool CanAddUrls(const QList<QUrl> &urls) {
 void FileDialogCallback(
 		FileDialog::OpenResult &&result,
 		Fn<bool(const Ui::PreparedList&)> checkResult,
-		Fn<void(Ui::PreparedList)> callback) {
+		Fn<void(Ui::PreparedList)> callback,
+		bool premium) {
 	auto showError = [](tr::phrase<> text) {
 		Ui::Toast::Show(text(tr::now));
 	};
@@ -77,7 +79,8 @@ void FileDialogCallback(
 		std::move(result),
 		checkResult,
 		showError,
-		st::sendMediaPreviewSize);
+		st::sendMediaPreviewSize,
+		premium);
 
 	if (!list) {
 		return;
@@ -397,10 +400,12 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 		return true;
 	};
 	const auto callback = [=](FileDialog::OpenResult &&result) {
+		const auto premium = _controller->session().user()->isPremium();
 		FileDialogCallback(
 			std::move(result),
 			checkResult,
-			[=](Ui::PreparedList list) { addFiles(std::move(list)); });
+			[=](Ui::PreparedList list) { addFiles(std::move(list)); },
+			premium);
 	};
 
 	FileDialog::GetOpenPaths(
@@ -566,10 +571,12 @@ void SendFilesBox::pushBlock(int from, int till) {
 			return true;
 		};
 		const auto callback = [=](FileDialog::OpenResult &&result) {
+			const auto premium = _controller->session().user()->isPremium();
 			FileDialogCallback(
 				std::move(result),
 				checkResult,
-				replace);
+				replace,
+				premium);
 		};
 
 		FileDialog::GetOpenPath(
@@ -763,10 +770,14 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
+	const auto premium = _controller->session().user()->isPremium();
 	auto list = [&] {
 		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
 		auto result = CanAddUrls(urls)
-			? Storage::PrepareMediaList(urls, st::sendMediaPreviewSize)
+			? Storage::PrepareMediaList(
+				urls,
+				st::sendMediaPreviewSize,
+				premium)
 			: Ui::PreparedList(
 				Ui::PreparedList::Error::EmptyFile,
 				QString());

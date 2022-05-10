@@ -116,7 +116,7 @@ public:
 	void cancel();
 	[[nodiscard]] bool cancelled() const;
 	[[nodiscard]] float64 progress() const;
-	[[nodiscard]] int loadOffset() const;
+	[[nodiscard]] int64 loadOffset() const;
 	[[nodiscard]] bool uploading() const;
 	[[nodiscard]] bool loadedInMediaCache() const;
 	void setLoadedInMediaCache(bool loaded);
@@ -260,11 +260,10 @@ public:
 	[[nodiscard]] bool inappPlaybackFailed() const;
 
 	DocumentId id = 0;
-	DocumentType type = FileDocument;
+	int64 size = 0;
 	QSize dimensions;
 	int32 date = 0;
-	int32 size = 0;
-
+	DocumentType type = FileDocument;
 	FileStatus status = FileReady;
 
 	std::unique_ptr<Data::UploadState> uploadingData;

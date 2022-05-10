@@ -65,7 +65,11 @@ void File::refreshParentId(not_null<HistoryItem*> realParent) {
 	}
 }
 
-void File::setStatusSize(int newSize, int fullSize, int duration, qint64 realDuration) const {
+void File::setStatusSize(
+		int64 newSize,
+		int64 fullSize,
+		TimeId duration,
+		TimeId realDuration) const {
 	_statusSize = newSize;
 	if (_statusSize == Ui::FileStatusSizeReady) {
 		_statusText = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));

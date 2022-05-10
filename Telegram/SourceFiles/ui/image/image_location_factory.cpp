@@ -310,7 +310,7 @@ ImageLocation FromWebDocument(const MTPWebDocument &document) {
 		// We don't use size from WebDocument, because it is not reliable.
 		// It can be > 0 and different from the real size
 		// that we get in upload.WebFile result.
-		//auto filesize = 0; // data.vsize().v;
+		//auto filesize = int64(); // data.vsize().v;
 		return ImageLocation(
 			DownloadLocation{ WebFileLocation(
 				data.vurl().v,
@@ -323,7 +323,7 @@ ImageLocation FromWebDocument(const MTPWebDocument &document) {
 		// We don't use size from WebDocument, because it is not reliable.
 		// It can be > 0 and different from the real size
 		// that we get in upload.WebFile result.
-		//auto filesize = 0; // data.vsize().v;
+		//auto filesize = int64(); // data.vsize().v;
 		return ImageLocation(
 			DownloadLocation{ PlainUrlLocation{ qs(data.vurl()) } },
 			size.width(),

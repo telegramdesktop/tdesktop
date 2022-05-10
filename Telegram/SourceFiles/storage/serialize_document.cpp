@@ -29,11 +29,21 @@ enum StickerSetType {
 } // namespace
 
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
-	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
-	stream << document->_fileReference << qint32(kVersionTag) << qint32(kVersion);
-	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
-	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
-	stream << qint32(document->type);
+	stream
+		<< quint64(document->id)
+		<< quint64(document->_access)
+		<< qint32(document->date)
+		<< document->_fileReference
+		<< qint32(kVersionTag)
+		<< qint32(kVersion)
+		<< document->filename()
+		<< document->mimeString()
+		<< qint32(document->_dc)
+		// FileSize: Right now any file size fits 32 bit.
+		<< qint32(uint32(document->size))
+		<< qint32(document->dimensions.width())
+		<< qint32(document->dimensions.height())
+		<< qint32(document->type);
 	if (const auto sticker = document->sticker()) {
 		stream << document->sticker()->alt;
 		if (document->sticker()->set.id) {
@@ -79,9 +89,14 @@ DocumentData *Document::readFromStreamHelper(
 		versionTag = 0;
 		version = 0;
 	}
-	stream >> name >> mime >> dc >> size;
-	stream >> width >> height;
-	stream >> type;
+	stream
+		>> name
+		>> mime
+		>> dc
+		>> size // FileSize: Right now any file size fits 32 bit.
+		>> width
+		>> height
+		>> type;
 
 	QVector<MTPDocumentAttribute> attributes;
 	if (!name.isEmpty()) {
@@ -194,7 +209,7 @@ DocumentData *Document::readFromStreamHelper(
 		},
 		(isPremiumSticker == 1),
 		dc,
-		size);
+		int64(uint32(size)));
 }
 
 DocumentData *Document::readStickerFromStream(

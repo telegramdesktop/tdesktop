@@ -120,7 +120,7 @@ void SetGlobalLoader(base::unique_qptr<Loader> loader) {
 	GlobalLoaderValues.fire(GlobalLoader.get());
 }
 
-int GetDownloadSize(int id) {
+int64 GetDownloadSize(int id) {
 	return ranges::find(kSets, id, &Set::id)->size;
 }
 

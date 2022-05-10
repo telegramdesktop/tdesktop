@@ -29,7 +29,7 @@ namespace {
 // max 512kb uploaded at the same time in each session
 constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024;
 
-constexpr auto kDocumentMaxPartsCount = 4000;
+constexpr auto kDocumentMaxPartsCount = 8000;
 
 // 32kb for tiny document ( < 1mb )
 constexpr auto kDocumentUploadPartSize0 = 32 * 1024;
@@ -62,13 +62,13 @@ struct Uploader::File {
 	File(const SendMediaReady &media);
 	File(const std::shared_ptr<FileLoadResult> &file);
 
-	void setDocSize(int32 size);
+	void setDocSize(int64 size);
 	bool setPartSize(uint32 partSize);
 
 	std::shared_ptr<FileLoadResult> file;
 	SendMediaReady media;
 	int32 partsCount = 0;
-	mutable int32 fileSentSize = 0;
+	mutable int64 fileSentSize = 0;
 
 	uint64 id() const;
 	SendMediaType type() const;
@@ -78,10 +78,10 @@ struct Uploader::File {
 	HashMd5 md5Hash;
 
 	std::unique_ptr<QFile> docFile;
-	int32 docSentParts = 0;
-	int32 docSize = 0;
-	int32 docPartSize = 0;
-	int32 docPartsCount = 0;
+	int64 docSize = 0;
+	int64 docPartSize = 0;
+	int docSentParts = 0;
+	int docPartsCount = 0;
 
 };
 
@@ -112,7 +112,7 @@ Uploader::File::File(const std::shared_ptr<FileLoadResult> &file)
 	}
 }
 
-void Uploader::File::setDocSize(int32 size) {
+void Uploader::File::setDocSize(int64 size) {
 	docSize = size;
 	constexpr auto limit0 = 1024 * 1024;
 	constexpr auto limit1 = 32 * limit0;
@@ -226,7 +226,8 @@ void Uploader::processDocumentProgress(const FullMsgId &newId) {
 			? Api::SendProgressType::UploadVoice
 			: Api::SendProgressType::UploadFile;
 		const auto progress = (document && document->uploading())
-			? document->uploadingData->offset
+			? ((document->uploadingData->offset * 100)
+				/ document->uploadingData->size)
 			: 0;
 		sendProgressUpdate(item, sendAction, progress);
 	}
@@ -701,7 +702,7 @@ void Uploader::partLoaded(const MTPBool &result, mtpRequestId requestId) {
 			auto dc = dcIt->second;
 			dcMap.erase(dcIt);
 
-			int32 sentPartSize = 0;
+			int64 sentPartSize = 0;
 			auto k = queue.find(uploadingId);
 			Assert(k != queue.cend());
 			auto &[fullId, file] = *k;

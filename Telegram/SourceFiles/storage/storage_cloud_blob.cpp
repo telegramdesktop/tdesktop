@@ -99,7 +99,7 @@ BlobLoader::BlobLoader(
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
-	int size)
+	int64 size)
 : QObject(parent)
 , _folder(folder)
 , _id(id)

@@ -34,7 +34,7 @@ struct MediaSettings {
 	friend inline constexpr auto is_flag_type(Type) { return true; };
 
 	Types types = DefaultTypes();
-	int sizeLimit = 8 * 1024 * 1024;
+	int64 sizeLimit = 8 * 1024 * 1024;
 
 	static inline Types DefaultTypes() {
 		return Type::Photo;

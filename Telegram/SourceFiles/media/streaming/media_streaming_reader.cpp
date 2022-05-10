@@ -17,7 +17,7 @@ namespace {
 
 constexpr auto kPartSize = Loader::kPartSize;
 constexpr auto kPartsInSlice = 64;
-constexpr auto kInSlice = kPartsInSlice * kPartSize;
+constexpr auto kInSlice = uint32(kPartsInSlice * kPartSize);
 constexpr auto kMaxPartsInHeader = 64;
 constexpr auto kMaxOnlyInHeader = 80 * kPartSize;
 constexpr auto kPartsOutsideFirstSliceGood = 8;
@@ -27,7 +27,7 @@ constexpr auto kSlicesInMemory = 2;
 constexpr auto kPreloadPartsAhead = 8;
 constexpr auto kDownloaderRequestsLimit = 4;
 
-using PartsMap = base::flat_map<int, QByteArray>;
+using PartsMap = base::flat_map<uint32, QByteArray>;
 
 struct ParsedCacheEntry {
 	PartsMap parts;
@@ -38,11 +38,11 @@ bool IsContiguousSerialization(int serializedSize, int maxSliceSize) {
 	return !(serializedSize % kPartSize) || (serializedSize == maxSliceSize);
 }
 
-bool IsFullInHeader(int size) {
+bool IsFullInHeader(int64 size) {
 	return (size <= kMaxOnlyInHeader);
 }
 
-bool ComputeIsGoodHeader(int size, const PartsMap &header) {
+bool ComputeIsGoodHeader(int64 size, const PartsMap &header) {
 	if (IsFullInHeader(size)) {
 		return false;
 	}
@@ -55,11 +55,14 @@ bool ComputeIsGoodHeader(int size, const PartsMap &header) {
 	return (outsideFirstSlice <= kPartsOutsideFirstSliceGood);
 }
 
-int SlicesCount(int size) {
-	return (size + kInSlice - 1) / kInSlice;
+int SlicesCount(uint32 size) {
+	const auto result = (size + kInSlice - 1) / kInSlice;
+
+	Ensures(result < 0x1FFU);
+	return result;
 }
 
-int MaxSliceSize(int sliceNumber, int size) {
+int MaxSliceSize(int sliceNumber, uint32 size) {
 	return !sliceNumber
 		? size
 		: (sliceNumber == SlicesCount(size))
@@ -71,13 +74,13 @@ bytes::const_span ParseComplexCachedMap(
 		PartsMap &result,
 		bytes::const_span data,
 		int maxSize) {
-	const auto takeInt = [&]() -> std::optional<int> {
-		if (data.size() < sizeof(int32)) {
+	const auto takeInt = [&]() -> std::optional<uint32> {
+		if (data.size() < sizeof(uint32)) {
 			return std::nullopt;
 		}
 		const auto bytes = data.data();
-		const auto result = *reinterpret_cast<const int32*>(bytes);
-		data = data.subspan(sizeof(int32));
+		const auto result = *reinterpret_cast<const uint32*>(bytes);
+		data = data.subspan(sizeof(uint32));
 		return result;
 	};
 	const auto takeBytes = [&](int count) {
@@ -93,18 +96,15 @@ bytes::const_span ParseComplexCachedMap(
 		return {};
 	}
 	const auto count = *maybeCount;
-	if (count < 0) {
-		return {};
-	} else if (!count) {
+	if (!count || count > (kMaxOnlyInHeader / kPartSize)) {
 		return data;
 	}
 	for (auto i = 0; i != count; ++i) {
 		const auto offset = takeInt().value_or(0);
 		const auto size = takeInt().value_or(0);
 		const auto bytes = takeBytes(size);
-		if (offset < 0
-			|| offset >= maxSize
-			|| size <= 0
+		if (offset >= maxSize
+			|| !size
 			|| size > maxSize
 			|| offset + size > maxSize
 			|| bytes.size() != size) {
@@ -132,7 +132,7 @@ bytes::const_span ParseCachedMap(
 				offset,
 				std::min(kPartSize, size - offset));
 			result.try_emplace(
-				offset,
+				uint32(offset),
 				reinterpret_cast<const char*>(part.data()),
 				part.size());
 		}
@@ -144,7 +144,7 @@ bytes::const_span ParseCachedMap(
 ParsedCacheEntry ParseCacheEntry(
 		bytes::const_span data,
 		int sliceNumber,
-		int size) {
+		int64 size) {
 	auto result = ParsedCacheEntry();
 	const auto remaining = ParseCachedMap(
 		result.parts,
@@ -158,7 +158,7 @@ ParsedCacheEntry ParseCacheEntry(
 }
 
 template <typename Range> // Range::value_type is Pair<int, QByteArray>
-int FindNotLoadedStart(Range &&parts, int offset) {
+uint32 FindNotLoadedStart(Range &&parts, uint32 offset) {
 	auto result = offset;
 	for (const auto &part : parts) {
 		const auto partStart = part.first;
@@ -172,13 +172,17 @@ int FindNotLoadedStart(Range &&parts, int offset) {
 	return result;
 }
 
-template <typename Range> // Range::value_type is Pair<int, QByteArray>
-void CopyLoaded(bytes::span buffer, Range &&parts, int offset, int till) {
+template <typename Range> // Range::value_type is Pair<uint32, QByteArray>
+void CopyLoaded(
+		bytes::span buffer,
+		Range &&parts,
+		uint32 offset,
+		uint32 till) {
 	auto filled = offset;
 	for (const auto &part : parts) {
 		const auto bytes = bytes::make_span(part.second);
 		const auto partStart = part.first;
-		const auto partEnd = int(partStart + bytes.size());
+		const auto partEnd = uint32(partStart + bytes.size());
 		const auto copyTill = std::min(partEnd, till);
 		Assert(partStart <= filled && filled < copyTill);
 
@@ -193,10 +197,10 @@ void CopyLoaded(bytes::span buffer, Range &&parts, int offset, int till) {
 } // namespace
 
 template <int Size>
-bool Reader::StackIntVector<Size>::add(int value) {
+bool Reader::StackIntVector<Size>::add(uint32 value) {
 	using namespace rpl::mappers;
 
-	const auto i = ranges::find_if(_storage, _1 < 0);
+	const auto i = ranges::find_if(_storage, _1 == uint32(-1));
 	if (i == end(_storage)) {
 		return false;
 	}
@@ -212,7 +216,9 @@ template <int Size>
 auto Reader::StackIntVector<Size>::values() const {
 	using namespace rpl::mappers;
 
-	return ranges::views::all(_storage) | ranges::views::take_while(_1 >= 0);
+	return ranges::views::all(
+		_storage
+	) | ranges::views::take_while(_1 != uint32(-1));
 }
 
 struct Reader::CacheHelper {
@@ -223,7 +229,7 @@ struct Reader::CacheHelper {
 	const Storage::Cache::Key baseKey;
 
 	QMutex mutex;
-	base::flat_map<int, PartsMap> results;
+	base::flat_map<uint32, PartsMap> results;
 	std::vector<int> sizes;
 	std::atomic<crl::semaphore*> waiting = nullptr;
 };
@@ -253,7 +259,7 @@ void Reader::Slice::processCacheData(PartsMap &&data) {
 	}
 }
 
-void Reader::Slice::addPart(int offset, QByteArray bytes) {
+void Reader::Slice::addPart(uint32 offset, QByteArray bytes) {
 	Expects(!parts.contains(offset));
 
 	parts.emplace(offset, std::move(bytes));
@@ -262,7 +268,9 @@ void Reader::Slice::addPart(int offset, QByteArray bytes) {
 	}
 }
 
-auto Reader::Slice::prepareFill(int from, int till) -> PrepareFillResult {
+auto Reader::Slice::prepareFill(
+		uint32 from,
+		uint32 till) -> PrepareFillResult {
 	auto result = PrepareFillResult();
 
 	result.ready = false;
@@ -308,7 +316,7 @@ auto Reader::Slice::prepareFill(int from, int till) -> PrepareFillResult {
 	return result;
 }
 
-auto Reader::Slice::offsetsFromLoader(int from, int till) const
+auto Reader::Slice::offsetsFromLoader(uint32 from, uint32 till) const
 -> StackIntVector<Reader::kLoadFromRemoteMax> {
 	auto result = StackIntVector<kLoadFromRemoteMax>();
 
@@ -332,7 +340,7 @@ auto Reader::Slice::offsetsFromLoader(int from, int till) const
 	return result;
 }
 
-Reader::Slices::Slices(int size, bool useCache)
+Reader::Slices::Slices(uint32 size, bool useCache)
 : _size(size) {
 	Expects(size > 0);
 
@@ -406,7 +414,7 @@ void Reader::Slices::applyHeaderCacheData() {
 
 	const auto applyWhile = [&](auto &&predicate) {
 		for (const auto &[offset, part] : _header.parts) {
-			const auto index = offset / kInSlice;
+			const auto index = int(offset / kInSlice);
 			if (!predicate(index)) {
 				break;
 			}
@@ -520,7 +528,7 @@ bool Reader::Slices::checkFullInCache() const {
 }
 
 void Reader::Slices::processPart(
-		int offset,
+		uint32 offset,
 		QByteArray &&bytes) {
 	Expects(isFullInHeader() || (offset / kInSlice < _data.size()));
 
@@ -540,7 +548,7 @@ void Reader::Slices::processPart(
 	checkSliceFullLoaded(index + 1);
 }
 
-auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
+auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 	Expects(!buffer.empty());
 	Expects(offset >= 0 && offset < _size);
 	Expects(offset + buffer.size() <= _size);
@@ -558,7 +566,7 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 	}
 
 	auto result = FillResult();
-	const auto till = int(offset + buffer.size());
+	const auto till = uint32(offset + buffer.size());
 	const auto fromSlice = offset / kInSlice;
 	const auto tillSlice = (till + kInSlice - 1) / kInSlice;
 	Assert(fromSlice >= 0
@@ -595,7 +603,9 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 	const auto firstFrom = offset - fromSlice * kInSlice;
 	const auto firstTill = std::min(kInSlice, till - fromSlice * kInSlice);
 	const auto secondFrom = 0;
-	const auto secondTill = till - (fromSlice + 1) * kInSlice;
+	const auto secondTill = (till > (fromSlice + 1) * kInSlice)
+		? (till - (fromSlice + 1) * kInSlice)
+		: 0;
 	const auto first = _data[fromSlice].prepareFill(firstFrom, firstTill);
 	const auto second = (fromSlice + 1 < tillSlice)
 		? _data[fromSlice + 1].prepareFill(secondFrom, secondTill)
@@ -630,11 +640,11 @@ auto Reader::Slices::fill(int offset, bytes::span buffer) -> FillResult {
 	return result;
 }
 
-auto Reader::Slices::fillFromHeader(int offset, bytes::span buffer)
+auto Reader::Slices::fillFromHeader(uint32 offset, bytes::span buffer)
 -> FillResult {
 	auto result = FillResult();
 	const auto from = offset;
-	const auto till = int(offset + buffer.size());
+	const auto till = uint32(offset + buffer.size());
 
 	const auto prepared = _header.prepareFill(from, till);
 	for (const auto full : prepared.offsetsFromLoader.values()) {
@@ -653,7 +663,7 @@ auto Reader::Slices::fillFromHeader(int offset, bytes::span buffer)
 	return result;
 }
 
-QByteArray Reader::Slices::partForDownloader(int offset) const {
+QByteArray Reader::Slices::partForDownloader(uint32 offset) const {
 	Expects(offset < _size);
 
 	if (const auto i = _header.parts.find(offset); i != end(_header.parts)) {
@@ -671,7 +681,7 @@ bool Reader::Slices::waitingForHeaderCache() const {
 	return (_header.flags & Slice::Flag::LoadingFromCache);
 }
 
-bool Reader::Slices::readCacheForDownloaderRequired(int offset) {
+bool Reader::Slices::readCacheForDownloaderRequired(uint32 offset) {
 	Expects(offset < _size);
 	Expects(!waitingForHeaderCache());
 
@@ -924,7 +934,9 @@ rpl::producer<LoadedPart> Reader::partsForDownloader() const {
 
 void Reader::loadForDownloader(
 		not_null<Storage::StreamedFileDownloader*> downloader,
-		int offset) {
+		int64 offset) {
+	Expects(offset >= 0 && offset <= std::numeric_limits<uint32>::max());
+
 	if (_attachedDownloader != downloader) {
 		if (_attachedDownloader) {
 			cancelForDownloader(_attachedDownloader);
@@ -932,7 +944,7 @@ void Reader::loadForDownloader(
 		_attachedDownloader = downloader;
 		_loader->attachDownloader(downloader);
 	}
-	_downloaderOffsetRequests.emplace(offset);
+	_downloaderOffsetRequests.emplace(uint32(offset));
 	if (_streamingActive) {
 		wakeFromSleep();
 	} else {
@@ -940,7 +952,9 @@ void Reader::loadForDownloader(
 	}
 }
 
-void Reader::doneForDownloader(int offset) {
+void Reader::doneForDownloader(int64 offset) {
+	Expects(offset >= 0 && offset <= std::numeric_limits<uint32>::max());
+
 	_downloaderOffsetAcks.emplace(offset);
 	if (!_streamingActive) {
 		processDownloaderRequests();
@@ -994,16 +1008,16 @@ void Reader::checkForDownloaderChange(int checkItemsCount) {
 void Reader::checkForDownloaderReadyOffsets() {
 	// If a requested part is available right now we simply fire it on the
 	// main thread, until the first not-available-right-now offset is found.
-	const auto unavailableInBytes = [&](int offset, QByteArray &&bytes) {
+	const auto unavailableInBytes = [&](uint32 offset, QByteArray &&bytes) {
 		if (bytes.isEmpty()) {
 			return true;
 		}
 		crl::on_main(this, [=, bytes = std::move(bytes)]() mutable {
-			_partsForDownloader.fire({ offset, std::move(bytes) });
+			_partsForDownloader.fire({ int64(offset), std::move(bytes) });
 		});
 		return false;
 	};
-	const auto unavailableInCache = [&](int offset) {
+	const auto unavailableInCache = [&](uint32 offset) {
 		const auto index = (offset / kInSlice);
 		const auto sliceNumber = index + 1;
 		const auto i = _downloaderReadCache.find(sliceNumber);
@@ -1016,7 +1030,7 @@ void Reader::checkForDownloaderReadyOffsets() {
 		}
 		return unavailableInBytes(offset, std::move(j->second));
 	};
-	const auto unavailable = [&](int offset) {
+	const auto unavailable = [&](uint32 offset) {
 		return unavailableInBytes(offset, _slices.partForDownloader(offset))
 			&& unavailableInCache(offset);
 	};
@@ -1036,13 +1050,13 @@ void Reader::processDownloaderRequests() {
 	}
 }
 
-void Reader::pruneDownloaderCache(int minimalOffset) {
+void Reader::pruneDownloaderCache(uint32 minimalOffset) {
 	const auto minimalSliceNumber = (minimalOffset / kInSlice) + 1;
 	const auto removeTill = ranges::lower_bound(
 		_downloaderReadCache,
 		minimalSliceNumber,
 		ranges::less(),
-		&base::flat_map<int, std::optional<PartsMap>>::value_type::first);
+		&base::flat_map<uint32, std::optional<PartsMap>>::value_type::first);
 	_downloaderReadCache.erase(_downloaderReadCache.begin(), removeTill);
 }
 
@@ -1068,7 +1082,7 @@ void Reader::sendDownloaderRequests() {
 	}
 }
 
-bool Reader::downloaderWaitForCachedSlice(int offset) {
+bool Reader::downloaderWaitForCachedSlice(uint32 offset) {
 	if (_slices.waitingForHeaderCache()) {
 		return true;
 	}
@@ -1191,7 +1205,7 @@ void Reader::putToCache(SerializedSlice &&slice) {
 	_cache->put(_cacheHelper->key(slice.number), std::move(slice.data));
 }
 
-int Reader::size() const {
+int64 Reader::size() const {
 	return _loader->size();
 }
 
@@ -1212,10 +1226,11 @@ bool Reader::fullInCache() const {
 }
 
 Reader::FillState Reader::fill(
-		int offset,
+		int64 offset,
 		bytes::span buffer,
 		not_null<crl::semaphore*> notify) {
 	Expects(offset + buffer.size() <= size());
+	Expects(offset >= 0 && size() <= std::numeric_limits<uint32>::max());
 
 	const auto startWaiting = [&] {
 		if (_cacheHelper) {
@@ -1246,7 +1261,7 @@ Reader::FillState Reader::fill(
 
 	auto lastResult = FillState();
 	do {
-		lastResult = fillFromSlices(offset, buffer);
+		lastResult = fillFromSlices(uint32(offset), buffer);
 		if (lastResult == FillState::Success) {
 			return done();
 		}
@@ -1256,7 +1271,7 @@ Reader::FillState Reader::fill(
 	return _streamingError ? failed() : lastResult;
 }
 
-Reader::FillState Reader::fillFromSlices(int offset, bytes::span buffer) {
+Reader::FillState Reader::fillFromSlices(uint32 offset, bytes::span buffer) {
 	using namespace rpl::mappers;
 
 	auto result = _slices.fill(offset, buffer);
@@ -1289,7 +1304,7 @@ Reader::FillState Reader::fillFromSlices(int offset, bytes::span buffer) {
 	return result.state;
 }
 
-void Reader::cancelLoadInRange(int from, int till) {
+void Reader::cancelLoadInRange(uint32 from, uint32 till) {
 	Expects(from < till);
 
 	for (const auto offset : _loadingOffsets.takeInRange(from, till)) {
@@ -1299,7 +1314,7 @@ void Reader::cancelLoadInRange(int from, int till) {
 	}
 }
 
-void Reader::checkLoadWillBeFirst(int offset) {
+void Reader::checkLoadWillBeFirst(uint32 offset) {
 	if (_loadingOffsets.front().value_or(offset) != offset) {
 		_loadingOffsets.resetPriorities();
 		_loader->resetPriorities();
@@ -1369,7 +1384,7 @@ bool Reader::checkForSomethingMoreReceived() {
 	return result1 || result2;
 }
 
-void Reader::loadAtOffset(int offset) {
+void Reader::loadAtOffset(uint32 offset) {
 	if (_loadingOffsets.add(offset)) {
 		_loader->load(offset);
 	}

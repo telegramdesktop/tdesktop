@@ -425,7 +425,7 @@ float64 PlaybackControls::countDownloadedTillPercent(
 	return (_loadingReady - header) / float64(_loadingTotal - header);
 }
 
-void PlaybackControls::setLoadingProgress(int ready, int total) {
+void PlaybackControls::setLoadingProgress(int64 ready, int64 total) {
 	if (_loadingReady == ready && _loadingTotal == total) {
 		return;
 	}

@@ -756,7 +756,7 @@ float64 DocumentData::progress() const {
 	if (uploading()) {
 		if (uploadingData->size > 0) {
 			const auto result = float64(uploadingData->offset)
-				/ uploadingData->size;
+				/ float64(uploadingData->size);
 			return std::clamp(result, 0., 1.);
 		}
 		return 0.;
@@ -764,7 +764,7 @@ float64 DocumentData::progress() const {
 	return loading() ? _loader->currentProgress() : 0.;
 }
 
-int DocumentData::loadOffset() const {
+int64 DocumentData::loadOffset() const {
 	return loading() ? _loader->currentOffset() : 0;
 }
 

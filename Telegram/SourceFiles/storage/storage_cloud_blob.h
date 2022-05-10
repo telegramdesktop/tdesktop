@@ -25,12 +25,12 @@ constexpr auto kCloudLocationUsername = "tdhbcfiles"_cs;
 struct Blob {
 	int id = 0;
 	int postId = 0;
-	int size = 0;
+	int64 size = 0;
 	QString name;
 };
 
 struct Available {
-	int size = 0;
+	int64 size = 0;
 
 	inline bool operator<(const Available &other) const {
 		return size < other.size;
@@ -87,7 +87,7 @@ public:
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,
-		int size);
+		int64 size);
 
 	int id() const;
 

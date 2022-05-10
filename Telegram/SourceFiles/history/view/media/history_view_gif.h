@@ -167,7 +167,7 @@ private:
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
-	void setStatusSize(int newSize) const;
+	void setStatusSize(int64 newSize) const;
 	void updateStatusText() const;
 	[[nodiscard]] QSize sizeForAspectRatio() const;
 

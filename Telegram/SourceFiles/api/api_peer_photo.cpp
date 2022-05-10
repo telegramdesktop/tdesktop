@@ -75,7 +75,7 @@ SendMediaReady PreparePeerPhoto(
 		MTP_int(dcId));
 
 	QString file, filename;
-	int32 filesize = 0;
+	int64 filesize = 0;
 	QByteArray data;
 
 	return SendMediaReady(

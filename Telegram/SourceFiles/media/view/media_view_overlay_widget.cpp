@@ -693,7 +693,7 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 		const auto ready = _documentMedia->loaded()
 			? _document->size
 			: _document->loading()
-			? std::clamp(_document->loadOffset(), 0, _document->size)
+			? std::clamp(_document->loadOffset(), int64(), _document->size)
 			: 0;
 		_streamed->controls.setLoadingProgress(ready, _document->size);
 	}

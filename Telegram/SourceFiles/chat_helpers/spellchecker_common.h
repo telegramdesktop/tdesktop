@@ -21,7 +21,7 @@ namespace Spellchecker {
 struct Dict : public Storage::CloudBlob::Blob {
 };
 
-int GetDownloadSize(int id);
+int64 GetDownloadSize(int id);
 MTP::DedicatedLoader::Location GetDownloadLocation(int id);
 
 [[nodiscard]] QString DictionariesPath();
@@ -48,7 +48,7 @@ public:
 		int id,
 		MTP::DedicatedLoader::Location location,
 		const QString &folder,
-		int size,
+		int64 size,
 		Fn<void()> destroyCallback);
 
 	void destroy() override;

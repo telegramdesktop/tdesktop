@@ -23,7 +23,7 @@ class File {
 public:
 	File(const QString &path, Stats *stats);
 
-	[[nodiscard]] int size() const;
+	[[nodiscard]] int64 size() const;
 	[[nodiscard]] bool empty() const;
 
 	[[nodiscard]] Result writeBlock(const QByteArray &block);
@@ -45,7 +45,7 @@ private:
 	[[nodiscard]] Result fatalError() const;
 
 	QString _path;
-	int _offset = 0;
+	int64 _offset = 0;
 	std::optional<QFile> _file;
 
 	Stats *_stats = nullptr;

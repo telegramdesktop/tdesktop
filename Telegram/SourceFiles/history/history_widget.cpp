@@ -4106,9 +4106,11 @@ void HistoryWidget::chooseAttach(
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
 		} else {
+			const auto premium = controller()->session().user()->isPremium();
 			auto list = Storage::PrepareMediaList(
 				result.paths,
-				st::sendMediaPreviewSize);
+				st::sendMediaPreviewSize,
+				premium);
 			list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
 			confirmSendingFiles(std::move(list));
 		}
@@ -4963,6 +4965,7 @@ bool HistoryWidget::showSendingFilesError(
 			tr::now,
 			lt_name,
 			list.errorData);
+		case Error::PremiumRequired: return u"premium.."_q;
 		}
 		return tr::lng_forward_send_files_cant(tr::now);
 	}();
@@ -4987,8 +4990,9 @@ bool HistoryWidget::confirmSendingFiles(not_null<const QMimeData*> data) {
 bool HistoryWidget::confirmSendingFiles(
 		const QStringList &files,
 		const QString &insertTextOnCancel) {
+	const auto premium = controller()->session().user()->isPremium();
 	return confirmSendingFiles(
-		Storage::PrepareMediaList(files, st::sendMediaPreviewSize),
+		Storage::PrepareMediaList(files, st::sendMediaPreviewSize, premium),
 		insertTextOnCancel);
 }
 
@@ -5127,11 +5131,13 @@ bool HistoryWidget::confirmSendingFiles(
 	}
 
 	const auto hasImage = data->hasImage();
+	const auto premium = controller()->session().user()->isPremium();
 
 	if (const auto urls = data->urls(); !urls.empty()) {
 		auto list = Storage::PrepareMediaList(
 			urls,
-			st::sendMediaPreviewSize);
+			st::sendMediaPreviewSize,
+			premium);
 		if (list.error != Ui::PreparedList::Error::NonLocalUrl) {
 			if (list.error == Ui::PreparedList::Error::None
 				|| !hasImage) {

@@ -266,7 +266,11 @@ void RadialProgressItem::checkRadialFinished() const {
 
 RadialProgressItem::~RadialProgressItem() = default;
 
-void StatusText::update(int newSize, int fullSize, int duration, crl::time realDuration) {
+void StatusText::update(
+		int64 newSize,
+		int64 fullSize,
+		TimeId duration,
+		TimeId realDuration) {
 	setSize(newSize);
 	if (_size == Ui::FileStatusSizeReady) {
 		_text = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
@@ -281,7 +285,7 @@ void StatusText::update(int newSize, int fullSize, int duration, crl::time realD
 	}
 }
 
-void StatusText::setSize(int newSize) {
+void StatusText::setSize(int64 newSize) {
 	_size = newSize;
 }
 
@@ -586,7 +590,7 @@ TextState Video::getState(
 }
 
 void Video::updateStatusText() {
-	int statusSize = 0;
+	auto statusSize = int64();
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
@@ -597,8 +601,9 @@ void Video::updateStatusText() {
 		statusSize = Ui::FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
-		int status = statusSize, size = _data->size;
-		if (statusSize >= 0 && statusSize < 0x7F000000) {
+		auto status = statusSize;
+		auto size = _data->size;
+		if (statusSize >= 0 && statusSize < 0xFF000000LL) {
 			size = status;
 			status = Ui::FileStatusSizeReady;
 		}
@@ -893,8 +898,9 @@ int Voice::duration() const {
 }
 
 bool Voice::updateStatusText() {
-	bool showPause = false;
-	int32 statusSize = 0, realDuration = 0;
+	auto showPause = false;
+	auto statusSize = int64();
+	auto realDuration = TimeId();
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (dataLoaded()) {
@@ -1419,8 +1425,9 @@ bool Document::withThumb() const {
 }
 
 bool Document::updateStatusText() {
-	bool showPause = false;
-	int32 statusSize = 0, realDuration = 0;
+	auto showPause = false;
+	auto statusSize = int64();
+	auto realDuration = TimeId();
 	if (_data->status == FileDownloadFailed
 		|| _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
@@ -2138,7 +2145,7 @@ TextState Gif::getState(
 }
 
 void Gif::updateStatusText() {
-	int statusSize = 0;
+	auto statusSize = int64();
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {
@@ -2149,8 +2156,9 @@ void Gif::updateStatusText() {
 		statusSize = Ui::FileStatusSizeReady;
 	}
 	if (statusSize != _status.size()) {
-		int status = statusSize, size = _data->size;
-		if (statusSize >= 0 && statusSize < 0x7F000000) {
+		auto status = statusSize;
+		auto size = _data->size;
+		if (statusSize >= 0 && statusSize < 0xFF000000LL) {
 			size = status;
 			status = Ui::FileStatusSizeReady;
 		}

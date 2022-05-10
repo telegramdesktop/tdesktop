@@ -15,7 +15,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
-constexpr auto kFileSizeLimit = 2000 * 1024 * 1024; // Load files up to 2000MB
+// Load files up to 2'000 MB.
+constexpr auto kFileSizeLimit = 2'000 * int64(1024 * 1024);
+
+// Load files up to 4'000 MB.
+constexpr auto kFileSizePremiumLimit = 4'000 * int64(1024 * 1024);
 
 enum class SendMediaType {
 	Photo,
@@ -67,7 +71,7 @@ struct SendMediaReady {
 		SendMediaType type,
 		const QString &file,
 		const QString &filename,
-		int32 filesize,
+		int64 filesize,
 		const QByteArray &data,
 		const uint64 &id,
 		const uint64 &thumbId,
@@ -82,7 +86,7 @@ struct SendMediaReady {
 	MsgId replyTo;
 	SendMediaType type;
 	QString file, filename;
-	int32 filesize;
+	int64 filesize = 0;
 	QByteArray data;
 	QString thumbExt;
 	uint64 id, thumbId; // id always file-id of media, thumbId is file-id of thumb ( == id for photos)
@@ -226,10 +230,10 @@ struct FileLoadResult {
 
 	QString filename;
 	QString filemime;
-	int32 filesize = 0;
+	int64 filesize = 0;
 	UploadFileParts fileparts;
 	QByteArray filemd5;
-	int32 partssize;
+	int64 partssize = 0;
 
 	uint64 thumbId = 0; // id is always file-id of media, thumbId is file-id of thumb ( == id for photos)
 	QString thumbname;

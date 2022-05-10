@@ -57,8 +57,8 @@ public:
 	FileLoader(
 		not_null<Main::Session*> session,
 		const QString &toFile,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
@@ -88,17 +88,17 @@ public:
 	// Used in MainWidget::documentLoadFailed.
 	[[nodiscard]] virtual Data::FileOrigin fileOrigin() const;
 	[[nodiscard]] float64 currentProgress() const;
-	[[nodiscard]] virtual int currentOffset() const;
-	[[nodiscard]] int fullSize() const {
+	[[nodiscard]] virtual int64 currentOffset() const;
+	[[nodiscard]] int64 fullSize() const {
 		return _fullSize;
 	}
-	[[nodiscard]] int loadSize() const {
+	[[nodiscard]] int64 loadSize() const {
 		return _loadSize;
 	}
 
 	bool setFileName(const QString &filename); // set filename for loaders to cache
 	void permitLoadFromCloud();
-	void increaseLoadSize(int size, bool autoLoading);
+	void increaseLoadSize(int64 size, bool autoLoading);
 
 	void start();
 	void cancel();
@@ -148,9 +148,9 @@ protected:
 
 	void notifyAboutProgress();
 
-	bool writeResultPart(int offset, bytes::const_span buffer);
+	bool writeResultPart(int64 offset, bytes::const_span buffer);
 	bool finalizeResult();
-	[[nodiscard]] QByteArray readLoadedPartBack(int offset, int size);
+	[[nodiscard]] QByteArray readLoadedPartBack(int64 offset, int size);
 
 	const not_null<Main::Session*> _session;
 
@@ -169,9 +169,9 @@ protected:
 
 	QByteArray _data;
 
-	int _loadSize = 0;
-	int _fullSize = 0;
-	int _skippedBytes = 0;
+	int64 _loadSize = 0;
+	int64 _fullSize = 0;
+	int64 _skippedBytes = 0;
 	LocationType _locationType = LocationType();
 
 	base::binary_guard _localLoading;
@@ -188,8 +188,8 @@ protected:
 	const DownloadLocation &location,
 	Data::FileOrigin origin,
 	const QString &toFile,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,

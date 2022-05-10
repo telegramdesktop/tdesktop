@@ -163,8 +163,10 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		}
 
 		const auto filesize = info.size();
-		if (filesize > kFileSizeLimit) {
+		if (filesize > kFileSizePremiumLimit) {
 			return MimeDataState::None;
+		} else if (filesize > kFileSizeLimit) {
+			return MimeDataState::PremiumFile;
 		} else if (allAreSmallImages) {
 			if (filesize > Images::kReadBytesLimit) {
 				allAreSmallImages = false;
@@ -178,7 +180,10 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		: MimeDataState::Files;
 }
 
-PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth) {
+PreparedList PrepareMediaList(
+		const QList<QUrl> &files,
+		int previewWidth,
+		bool premium) {
 	auto locals = QStringList();
 	locals.reserve(files.size());
 	for (const auto &url : files) {
@@ -190,10 +195,13 @@ PreparedList PrepareMediaList(const QList<QUrl> &files, int previewWidth) {
 		}
 		locals.push_back(Platform::File::UrlToLocal(url));
 	}
-	return PrepareMediaList(locals, previewWidth);
+	return PrepareMediaList(locals, previewWidth, premium);
 }
 
-PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
+PreparedList PrepareMediaList(
+		const QStringList &files,
+		int previewWidth,
+		bool premium) {
 	auto result = PreparedList();
 	result.files.reserve(files.size());
 	for (const auto &file : files) {
@@ -209,9 +217,14 @@ PreparedList PrepareMediaList(const QStringList &files, int previewWidth) {
 				PreparedList::Error::EmptyFile,
 				file
 			};
-		} else if (filesize > kFileSizeLimit) {
+		} else if (filesize > kFileSizePremiumLimit) {
 			return {
 				PreparedList::Error::TooLargeFile,
+				file
+			};
+		} else if (filesize > kFileSizeLimit && !premium) {
+			return {
+				PreparedList::Error::PremiumRequired,
 				file
 			};
 		}
@@ -253,13 +266,14 @@ std::optional<PreparedList> PreparedFileFromFilesDialog(
 		FileDialog::OpenResult &&result,
 		Fn<bool(const Ui::PreparedList&)> checkResult,
 		Fn<void(tr::phrase<>)> errorCallback,
-		int previewWidth) {
+		int previewWidth,
+		bool premium) {
 	if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
 		return std::nullopt;
 	}
 
 	auto list = result.remoteContent.isEmpty()
-		? PrepareMediaList(result.paths, previewWidth)
+		? PrepareMediaList(result.paths, previewWidth, premium)
 		: PrepareMediaFromImage(
 			QImage(),
 			std::move(result.remoteContent),

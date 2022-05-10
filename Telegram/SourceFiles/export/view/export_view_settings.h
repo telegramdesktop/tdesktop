@@ -25,8 +25,8 @@ class Session;
 namespace Export {
 namespace View {
 
-constexpr auto kSizeValueCount = 90;
-int SizeLimitByIndex(int index);
+constexpr auto kSizeValueCount = 100;
+int64 SizeLimitByIndex(int index);
 
 class SettingsWidget : public Ui::RpWidget {
 public:

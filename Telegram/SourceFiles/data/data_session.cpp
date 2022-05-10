@@ -2731,7 +2731,7 @@ not_null<DocumentData*> Session::document(
 		const ImageWithLocation &videoThumbnail,
 		bool isPremiumSticker,
 		int32 dc,
-		int32 size) {
+		int64 size) {
 	const auto result = document(id);
 	documentApplyFields(
 		result,
@@ -2814,7 +2814,7 @@ DocumentData *Session::documentFromWeb(
 		ImageWithLocation{ .location = videoThumbnailLocation },
 		false, // isPremiumSticker
 		session().mainDcId(),
-		int32(0)); // data.vsize().v
+		int64(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
 		data.vurl().v,
 		data.vaccess_hash().v));
@@ -2837,7 +2837,7 @@ DocumentData *Session::documentFromWeb(
 		ImageWithLocation{ .location = videoThumbnailLocation },
 		false, // isPremiumSticker
 		session().mainDcId(),
-		int32(0)); // data.vsize().v
+		int64(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
@@ -2892,7 +2892,7 @@ void Session::documentApplyFields(
 		const ImageWithLocation &videoThumbnail,
 		bool isPremiumSticker,
 		int32 dc,
-		int32 size) {
+		int64 size) {
 	if (!date) {
 		return;
 	}

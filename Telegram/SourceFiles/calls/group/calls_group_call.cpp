@@ -2515,7 +2515,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 				: (videoQuality == Quality::Medium)
 				? 1
 				: 0)),
-		MTP_int(0),
+		MTP_long(0),
 		MTP_int(128 * 1024)
 	)).done([=](
 			const MTPupload_File &result,

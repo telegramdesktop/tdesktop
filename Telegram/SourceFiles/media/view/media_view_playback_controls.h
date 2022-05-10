@@ -55,7 +55,7 @@ public:
 	void hideAnimated();
 
 	void updatePlayback(const Player::TrackState &state);
-	void setLoadingProgress(int ready, int total);
+	void setLoadingProgress(int64 ready, int64 total);
 	void setInFullScreen(bool inFullScreen);
 	[[nodiscard]] bool hasMenu() const;
 
@@ -95,8 +95,8 @@ private:
 	QString _timeAlready, _timeLeft;
 	crl::time _seekPositionMs = -1;
 	crl::time _lastDurationMs = 0;
-	int _loadingReady = 0;
-	int _loadingTotal = 0;
+	int64 _loadingReady = 0;
+	int64 _loadingTotal = 0;
 	int _loadingPercent = 0;
 
 	object_ptr<Ui::IconButton> _playPauseResume;

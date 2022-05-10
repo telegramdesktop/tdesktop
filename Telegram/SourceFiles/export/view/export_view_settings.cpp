@@ -81,7 +81,7 @@ void ChooseFormatBox(
 
 } // namespace
 
-int SizeLimitByIndex(int index) {
+int64 SizeLimitByIndex(int index) {
 	Expects(index >= 0 && index < kSizeValueCount);
 
 	index += 1;
@@ -98,8 +98,10 @@ int SizeLimitByIndex(int index) {
 			return 300 + (index - 60) * 20;
 		} else if (index <= 80) {
 			return 500 + (index - 70) * 50;
-		} else {
+		} else if (index <= 90) {
 			return 1000 + (index - 80) * 100;
+		} else {
+			return 2000 + (index - 90) * 200;
 		}
 	}();
 	return megabytes * kMegabyte;
@@ -693,7 +695,7 @@ void SettingsWidget::addSizeSlider(
 		kSizeValueCount,
 		SizeLimitByIndex,
 		readData().media.sizeLimit,
-		[=](int limit) {
+		[=](int64 limit) {
 			changeData([&](Settings &data) {
 				data.media.sizeLimit = limit;
 			});
@@ -704,10 +706,13 @@ void SettingsWidget::addSizeSlider(
 		st::exportFileSizeLabel);
 	value() | rpl::map([](const Settings &data) {
 		return data.media.sizeLimit;
-	}) | rpl::start_with_next([=](int sizeLimit) {
+	}) | rpl::start_with_next([=](int64 sizeLimit) {
 		const auto limit = sizeLimit / kMegabyte;
 		const auto size = QString::number(limit) + " MB";
-		const auto text = tr::lng_export_option_size_limit(tr::now, lt_size, size);
+		const auto text = tr::lng_export_option_size_limit(
+			tr::now,
+			lt_size,
+			size);
 		label->setText(text);
 	}, slider->lifetime());
 

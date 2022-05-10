@@ -295,7 +295,7 @@ void DownloadManager::addLoaded(
 		.download = id,
 		.started = started,
 		.path = path,
-		.size = int32(size),
+		.size = size,
 		.itemId = item->fullId(),
 		.peerAccessHash = PeerAccessHash(item->history()->peer),
 		.object = std::make_unique<DownloadObject>(object),

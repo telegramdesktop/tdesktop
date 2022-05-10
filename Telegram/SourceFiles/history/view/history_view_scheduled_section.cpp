@@ -332,9 +332,11 @@ void ScheduledWidget::chooseAttach() {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
 		} else {
+			const auto premium = controller()->session().user()->isPremium();
 			auto list = Storage::PrepareMediaList(
 				result.paths,
-				st::sendMediaPreviewSize);
+				st::sendMediaPreviewSize,
+				premium);
 			confirmSendingFiles(std::move(list));
 		}
 	}), nullptr);
@@ -345,11 +347,13 @@ bool ScheduledWidget::confirmSendingFiles(
 		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel) {
 	const auto hasImage = data->hasImage();
+	const auto premium = controller()->session().user()->isPremium();
 
 	if (const auto urls = data->urls(); !urls.empty()) {
 		auto list = Storage::PrepareMediaList(
 			urls,
-			st::sendMediaPreviewSize);
+			st::sendMediaPreviewSize,
+			premium);
 		if (list.error != Ui::PreparedList::Error::NonLocalUrl) {
 			if (list.error == Ui::PreparedList::Error::None
 				|| !hasImage) {
@@ -505,6 +509,7 @@ bool ScheduledWidget::showSendingFilesError(
 			tr::now,
 			lt_name,
 			list.errorData);
+		case Error::PremiumRequired: return u"premium.."_q;
 		}
 		return tr::lng_forward_send_files_cant(tr::now);
 	}();

@@ -9,9 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-inline constexpr auto FileStatusSizeReady = 0x7FFFFFF0;
-inline constexpr auto FileStatusSizeLoaded = 0x7FFFFFF1;
-inline constexpr auto FileStatusSizeFailed = 0x7FFFFFF2;
+inline constexpr auto FileStatusSizeReady = 0xFFFFFFF0LL;
+inline constexpr auto FileStatusSizeLoaded = 0xFFFFFFF1LL;
+inline constexpr auto FileStatusSizeFailed = 0xFFFFFFF2LL;
 
 [[nodiscard]] QString FormatSizeText(qint64 size);
 [[nodiscard]] QString FormatDownloadText(qint64 ready, qint64 total);

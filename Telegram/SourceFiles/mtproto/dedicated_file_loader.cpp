@@ -67,7 +67,7 @@ std::optional<DedicatedLoader::File> ParseFile(
 		LOG(("Update Error: MTP file name not found."));
 		return std::nullopt;
 	}
-	const auto size = fields.vsize().v;
+	const auto size = int64(fields.vsize().v);
 	if (size <= 0) {
 		LOG(("Update Error: MTP file size is invalid."));
 		return std::nullopt;
@@ -171,12 +171,12 @@ void AbstractDedicatedLoader::start() {
 	startLoading();
 }
 
-int AbstractDedicatedLoader::alreadySize() const {
+int64 AbstractDedicatedLoader::alreadySize() const {
 	QMutexLocker lock(&_sizesMutex);
 	return _alreadySize;
 }
 
-int AbstractDedicatedLoader::totalSize() const {
+int64 AbstractDedicatedLoader::totalSize() const {
 	QMutexLocker lock(&_sizesMutex);
 	return _totalSize;
 }
@@ -223,7 +223,7 @@ bool AbstractDedicatedLoader::validateOutput() {
 	if (fullSize < _chunkSize || fullSize > kMaxFileSize) {
 		return _output.remove();
 	}
-	const auto goodSize = int((fullSize % _chunkSize)
+	const auto goodSize = int64((fullSize % _chunkSize)
 		? (fullSize - (fullSize % _chunkSize))
 		: fullSize);
 	if (_output.resize(goodSize)) {
@@ -319,7 +319,7 @@ void DedicatedLoader::sendRequest() {
 		MTPupload_GetFile(
 			MTP_flags(0),
 			_location,
-			MTP_int(offset),
+			MTP_long(offset),
 			MTP_int(kChunkSize)),
 		[=](const MTPupload_File &result) { gotPart(offset, result); },
 		failHandler(),

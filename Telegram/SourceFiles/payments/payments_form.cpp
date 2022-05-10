@@ -392,7 +392,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.canSaveCredentials = data.is_can_save_credentials(),
 		.passwordMissing = data.is_password_missing(),
 	};
-	_invoice.isTest = data.is_test();
+	//_invoice.isTest = data.is_test();
 	_invoice.cover.title = qs(data.vtitle());
 	_invoice.cover.description = qs(data.vdescription());
 	if (_invoice.cover.thumbnail.isNull() && !_thumbnailLoadProcess) {

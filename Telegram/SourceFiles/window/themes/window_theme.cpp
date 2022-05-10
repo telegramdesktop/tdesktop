@@ -496,7 +496,7 @@ SendMediaReady PrepareWallPaper(MTP::DcId dcId, const QImage &image) {
 		MTP_bytes(),
 		MTP_int(base::unixtime::now()),
 		MTP_string("image/jpeg"),
-		MTP_int(jpeg.size()),
+		MTP_long(jpeg.size()),
 		MTP_vector<MTPPhotoSize>(sizes),
 		MTPVector<MTPVideoSize>(),
 		MTP_int(dcId),

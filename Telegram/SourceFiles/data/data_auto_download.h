@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 namespace AutoDownload {
 
-constexpr auto kMaxBytesLimit = 4000 * 512 * 1024;
+constexpr auto kMaxBytesLimit = 8000 * int64(512 * 1024);
 
 enum class Source {
 	User    = 0x00,
@@ -47,27 +47,27 @@ constexpr auto kTypesCount = 7;
 
 class Single {
 public:
-	void setBytesLimit(int bytesLimit);
+	void setBytesLimit(int64 bytesLimit);
 
 	bool hasValue() const;
-	bool shouldDownload(int fileSize) const;
-	int bytesLimit() const;
+	bool shouldDownload(int64 fileSize) const;
+	int64 bytesLimit() const;
 
 	qint32 serialize() const;
 	bool setFromSerialized(qint32 serialized);
 
 private:
-	int _limit = -1;
+	int _limit = -1; // FileSize: Right now any file size fits 32 bit.
 
 };
 
 class Set {
 public:
-	void setBytesLimit(Type type, int bytesLimit);
+	void setBytesLimit(Type type, int64 bytesLimit);
 
 	bool hasValue(Type type) const;
-	bool shouldDownload(Type type, int fileSize) const;
-	int bytesLimit(Type type) const;
+	bool shouldDownload(Type type, int64 fileSize) const;
+	int64 bytesLimit(Type type) const;
 
 	qint32 serialize(Type type) const;
 	bool setFromSerialized(Type type, qint32 serialized);
@@ -82,13 +82,13 @@ private:
 
 class Full {
 public:
-	void setBytesLimit(Source source, Type type, int bytesLimit);
+	void setBytesLimit(Source source, Type type, int64 bytesLimit);
 
 	[[nodiscard]] bool shouldDownload(
 		Source source,
 		Type type,
-		int fileSize) const;
-	[[nodiscard]] int bytesLimit(Source source, Type type) const;
+		int64 fileSize) const;
+	[[nodiscard]] int64 bytesLimit(Source source, Type type) const;
 
 	[[nodiscard]] QByteArray serialize() const;
 	bool setFromSerialized(const QByteArray &serialized);

@@ -839,8 +839,8 @@ bool Document::uploading() const {
 	return _data->uploading();
 }
 
-void Document::setStatusSize(int newSize, qint64 realDuration) const {
-	auto duration = _data->isSong()
+void Document::setStatusSize(int64 newSize, TimeId realDuration) const {
+	TimeId duration = _data->isSong()
 		? _data->song()->duration
 		: (_data->isVoiceMessage()
 			? _data->voice()->duration
@@ -864,8 +864,8 @@ void Document::setStatusSize(int newSize, qint64 realDuration) const {
 
 bool Document::updateStatusText() const {
 	auto showPause = false;
-	auto statusSize = 0;
-	auto realDuration = 0;
+	auto statusSize = int64();
+	auto realDuration = TimeId();
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {

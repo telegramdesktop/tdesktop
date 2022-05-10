@@ -509,7 +509,7 @@ public:
 		const ImageWithLocation &videoThumbnail,
 		bool isPremiumSticker,
 		int32 dc,
-		int32 size);
+		int64 size);
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
@@ -761,7 +761,7 @@ private:
 		const ImageWithLocation &videoThumbnail,
 		bool isPremiumSticker,
 		int32 dc,
-		int32 size);
+		int64 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
 		const ImageLocation &thumbnailLocation,
