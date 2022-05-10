@@ -2689,7 +2689,7 @@ void FormController::cancel() {
 		_view->show(Ui::MakeConfirmBox({
 			.text = tr::lng_passport_stop_sure(),
 			.confirmed = [=] { cancelSure(); },
-			.cancelled = [=] { cancelAbort(); },
+			.cancelled = [=](Fn<void()> close) { cancelAbort(); close(); },
 			.confirmText = tr::lng_passport_stop(),
 		}));
 	} else {
