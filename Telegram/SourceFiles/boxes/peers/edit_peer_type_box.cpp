@@ -199,7 +199,7 @@ void Controller::createContent() {
 				Ui::LayerOption::KeepOther);
 		},
 		st::manageGroupButton,
-		{ &st::infoIconInviteLinks, Settings::kIconLightOrange }));
+		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange }));
 	AddSkip(_wrap.get());
 	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 

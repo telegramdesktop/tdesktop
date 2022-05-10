@@ -804,7 +804,7 @@ void Controller::fillSignaturesButton() {
 		tr::lng_edit_sign_messages(),
 		rpl::single(QString()),
 		[] {},
-		{ &st::infoIconSignature, Settings::kIconLightBlue }
+		{ &st::infoRoundedIconSignature, Settings::kIconLightBlue }
 	)->toggleOn(rpl::single(channel->addsSignature())
 	)->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
@@ -1009,7 +1009,7 @@ void Controller::fillManageSection() {
 					*Data::PeerAllowedReactions(_peer),
 					done));
 			},
-			{ &st::infoIconReactions, Settings::kIconRed });
+			{ &st::infoRoundedIconReactions, Settings::kIconRed });
 	}
 	if (canEditPermissions) {
 		AddButtonWithCount(
@@ -1058,7 +1058,7 @@ void Controller::fillManageSection() {
 						0),
 					Ui::LayerOption::KeepOther);
 			},
-			{ &st::infoIconInviteLinks, Settings::kIconLightOrange });
+			{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
 
 		if (_privacySavedValue) {
 			_privacyTypeUpdates.events_starting_with_copy(
@@ -1086,7 +1086,7 @@ void Controller::fillManageSection() {
 					_peer,
 					ParticipantsBoxController::Role::Admins);
 			},
-			{ &st::infoIconAdministrators, Settings::kIconLightBlue });
+			{ &st::infoRoundedIconAdministrators, Settings::kIconLightBlue });
 	}
 	if (canViewMembers) {
 		AddButtonWithCount(
@@ -1135,7 +1135,7 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_recent_actions(),
 			rpl::single(QString()), //Empty count.
 			std::move(callback),
-			{ &st::infoIconRecentActions, Settings::kIconPurple });
+			{ &st::infoRoundedIconRecentActions, Settings::kIconPurple });
 	}
 
 	if (canEditStickers || canDeleteChannel) {
@@ -1177,7 +1177,7 @@ void Controller::fillPendingRequestsButton() {
 			: tr::lng_manage_peer_requests_channel()),
 		rpl::duplicate(pendingRequestsCount) | ToPositiveNumberString(),
 		[=] { RequestsBoxController::Start(_navigation, _peer); },
-		{ &st::infoIconRequests, Settings::kIconRed });
+		{ &st::infoRoundedIconRequests, Settings::kIconRed });
 	std::move(
 		pendingRequestsCount
 	) | rpl::start_with_next([=](int count) {
