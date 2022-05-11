@@ -120,6 +120,7 @@ private:
 	void initSendWay();
 	void initPreview();
 
+	bool validateLength(const QString &text) const;
 	void refreshControls();
 	void setupSendWayControls();
 	void setupCaption();

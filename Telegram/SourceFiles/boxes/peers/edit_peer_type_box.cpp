@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/edit_participants_box.h"
 #include "boxes/peers/edit_peer_common.h"
@@ -48,6 +49,7 @@ namespace {
 class Controller : public base::has_weak_ptr {
 public:
 	Controller(
+		Window::SessionNavigation *navigation,
 		std::shared_ptr<Ui::BoxShow> show,
 		not_null<Ui::VerticalLayout*> container,
 		not_null<PeerData*> peer,
@@ -131,6 +133,7 @@ private:
 		const QString &text,
 		rpl::producer<QString> about);
 
+	Window::SessionNavigation *_navigation = nullptr;
 	std::shared_ptr<Ui::BoxShow> _show;
 
 	not_null<PeerData*> _peer;
@@ -154,12 +157,14 @@ private:
 };
 
 Controller::Controller(
+	Window::SessionNavigation *navigation,
 	std::shared_ptr<Ui::BoxShow> show,
 	not_null<Ui::VerticalLayout*> container,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
 	std::optional<EditPeerTypeData> dataSavedValue)
-: _show(show)
+: _navigation(navigation)
+, _show(show)
 , _peer(peer)
 , _linkOnly(!dataSavedValue.has_value())
 , _api(&_peer->session().mtp())
@@ -249,7 +254,7 @@ void Controller::createContent() {
 						tr::lng_manage_peer_send_approve_members(),
 						rpl::single(QString()),
 						[=] {},
-						st::manageGroupTopButtonWithText,
+						st::peerPermissionsButton,
 						{})))->setDuration(0);
 			requestToJoinWrap->toggleOn(rpl::duplicate(joinToWrite));
 			_controls.requestToJoin = requestToJoinWrap->entity();
@@ -574,9 +579,7 @@ void Controller::askUsernameRevoke() {
 		checkUsernameAvailability();
 	});
 	_show->showBox(
-		Box<RevokePublicLinkBox>(
-			&_peer->session(),
-			std::move(revokeCallback)),
+		Box(PublicLinksLimitBox, _navigation),
 		Ui::LayerOption::KeepOther);
 }
 
@@ -676,12 +679,14 @@ object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
 
 EditPeerTypeBox::EditPeerTypeBox(
 	QWidget*,
+	Window::SessionNavigation *navigation,
 	not_null<PeerData*> peer,
 	bool useLocationPhrases,
 	std::optional<FnMut<void(EditPeerTypeData)>> savedCallback,
 	std::optional<EditPeerTypeData> dataSaved,
 	std::optional<rpl::producer<QString>> usernameError)
-: _peer(peer)
+: _navigation(navigation)
+, _peer(peer)
 , _useLocationPhrases(useLocationPhrases)
 , _savedCallback(std::move(savedCallback))
 , _dataSavedValue(dataSaved)
@@ -691,7 +696,7 @@ EditPeerTypeBox::EditPeerTypeBox(
 EditPeerTypeBox::EditPeerTypeBox(
 	QWidget*,
 	not_null<PeerData*> peer)
-: EditPeerTypeBox(nullptr, peer, {}, {}, {}) {
+: EditPeerTypeBox(nullptr, nullptr, peer, {}, {}, {}) {
 }
 
 void EditPeerTypeBox::setInnerFocus() {
@@ -705,6 +710,7 @@ void EditPeerTypeBox::prepare() {
 
 	const auto controller = Ui::CreateChild<Controller>(
 		this,
+		_navigation,
 		std::make_shared<Ui::BoxShow>(this),
 		content.data(),
 		_peer,

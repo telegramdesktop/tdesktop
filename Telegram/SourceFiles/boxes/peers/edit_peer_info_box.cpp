@@ -626,6 +626,7 @@ void Controller::showEditPeerTypeBox(
 		= (_linkedChatSavedValue.value_or(nullptr) != nullptr);
 	_navigation->parentController()->show(
 		Box<EditPeerTypeBox>(
+			_navigation,
 			_peer,
 			_channelHasLocationOriginalValue,
 			boxCallback,

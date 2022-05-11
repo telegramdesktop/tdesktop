@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "boxes/premium_limits_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -33,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "storage/localimageloader.h" // SendMediaType
 #include "storage/storage_media_prepare.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_item_single_file_preview.h"
 #include "ui/chat/attach/attach_item_single_media_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
@@ -240,8 +242,6 @@ void EditCaptionBox::rebuildPreview() {
 void EditCaptionBox::setupField() {
 	const auto show = std::make_shared<Window::Show>(_controller);
 	const auto session = &_controller->session();
-	_field->setMaxLength(
-		_controller->session().serverConfig().captionLengthMax);
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -648,6 +648,22 @@ void EditCaptionBox::setInnerFocus() {
 	_field->setFocusFast();
 }
 
+bool EditCaptionBox::validateLength(const QString &text) const {
+	const auto session = &_controller->session();
+	const auto limit = CurrentPremiumLimit(
+		session,
+		"caption_length_limit_default",
+		1024,
+		"caption_length_limit_premium",
+		2048);
+	const auto remove = int(text.size()) - limit;
+	if (remove <= 0) {
+		return true;
+	}
+	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	return false;
+}
+
 void EditCaptionBox::save() {
 	if (_saveRequestId) {
 		return;
@@ -662,6 +678,9 @@ void EditCaptionBox::save() {
 	}
 
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
+	if (!validateLength(textWithTags.text)) {
+		return;
+	}
 	const auto sending = TextWithEntities{
 		textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)

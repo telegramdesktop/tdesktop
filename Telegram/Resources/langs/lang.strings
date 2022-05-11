@@ -214,6 +214,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_saved_gif_limit_more#other" = "An older GIF was replaced with this one.\nYou can {link} to {count} GIFs.";
 "lng_saved_gif_limit_link" = "increase the limit";
 
+"lng_caption_limit_title" = "Limit Reached";
+"lng_caption_limit1#one" = "Sorry, you can't use more than **{count}** character in media captions.";
+"lng_caption_limit1#other" = "Sorry, you can't use more than **{count}** characters in media captions.";
+"lng_caption_limit2#one" = "Make the caption shorter or subscribe to **Telegram Premium** to double the limit to **{count}** character.";
+"lng_caption_limit2#other" = "Make the caption shorter or subscribe to **Telegram Premium** to double the limit to **{count}** characters.";
+"lng_caption_limit_reached#one" = "You've reached the media caption limit. Please make the caption shorter by {count} character.";
+"lng_caption_limit_reached#other" = "You've reached the media caption limit. Please make the caption shorter by {count} characters.";
+
 "lng_limits_increase" = "Increase Limit";
 
 "lng_flood_error" = "Too many tries. Please try again later.";

@@ -18,6 +18,10 @@ class VerticalLayout;
 class SettingsButton;
 } // namespace Ui
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 enum class Privacy {
 	HasUsername,
 	NoUsername,
@@ -42,6 +46,7 @@ class EditPeerTypeBox : public Ui::BoxContent {
 public:
 	EditPeerTypeBox(
 		QWidget*,
+		Window::SessionNavigation *navigation,
 		not_null<PeerData*> peer,
 		bool useLocationPhrases,
 		std::optional<FnMut<void(EditPeerTypeData)>> savedCallback,
@@ -58,7 +63,8 @@ protected:
 	void setInnerFocus() override;
 
 private:
-	not_null<PeerData*> _peer;
+	Window::SessionNavigation *_navigation = nullptr;
+	const not_null<PeerData*> _peer;
 	bool _useLocationPhrases = false;
 	std::optional<FnMut<void(EditPeerTypeData)>> _savedCallback;
 

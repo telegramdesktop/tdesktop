@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/premium_limits_box.h"
 
+#include "ui/boxes/confirm_box.h"
 #include "ui/controls/peer_list_dummy.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
@@ -16,7 +17,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "boxes/peer_list_controllers.h"
+#include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
+#include "window/window_session_controller.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
@@ -43,6 +47,29 @@ private:
 		TimeId date) const;
 
 	const not_null<Main::Session*> _session;
+	mtpRequestId _requestId = 0;
+
+};
+
+class PublicsController final : public PeerListController {
+public:
+	PublicsController(
+		not_null<Window::SessionNavigation*> navigation,
+		Fn<void()> closeBox);
+	~PublicsController();
+
+	Main::Session &session() const override;
+	void prepare() override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+	void rowRightActionClicked(not_null<PeerListRow*> row) override;
+
+private:
+	void appendRow(not_null<PeerData*> peer);
+	[[nodiscard]] std::unique_ptr<PeerListRow> createRow(
+		not_null<PeerData*> peer) const;
+
+	const not_null<Window::SessionNavigation*> _navigation;
+	Fn<void()> _closeBox;
 	mtpRequestId _requestId = 0;
 
 };
@@ -149,7 +176,6 @@ const base::flat_set<PeerListRowId> &InactiveDelegate::selected() const {
 	return _selectedIds;
 }
 
-
 InactiveController::InactiveController(not_null<Main::Session*> session)
 : _session(session) {
 }
@@ -165,10 +191,6 @@ Main::Session &InactiveController::session() const {
 }
 
 void InactiveController::prepare() {
-	delegate()->peerListSetTitle(tr::lng_blocked_list_title());
-	setDescriptionText(tr::lng_contacts_loading(tr::now));
-	delegate()->peerListRefreshRows();
-
 	_requestId = _session->api().request(MTPchannels_GetInactiveChannels(
 	)).done([=](const MTPmessages_InactiveChats &result) {
 		_requestId = 0;
@@ -238,6 +260,102 @@ std::unique_ptr<PeerListRow> InactiveController::createRow(
 			: tr::lng_group_status(tr::now)),
 		lt_time,
 		time));
+	return result;
+}
+
+PublicsController::PublicsController(
+	not_null<Window::SessionNavigation*> navigation,
+	Fn<void()> closeBox)
+: _navigation(navigation)
+, _closeBox(std::move(closeBox)) {
+}
+
+PublicsController::~PublicsController() {
+	if (_requestId) {
+		_navigation->session().api().request(_requestId).cancel();
+	}
+}
+
+Main::Session &PublicsController::session() const {
+	return _navigation->session();
+}
+
+void PublicsController::prepare() {
+	_requestId = _navigation->session().api().request(
+		MTPchannels_GetAdminedPublicChannels(MTP_flags(0))
+	).done([=](const MTPmessages_Chats &result) {
+		_requestId = 0;
+
+		const auto &chats = result.match([](const auto &data) {
+			return data.vchats().v;
+		});
+		auto &owner = _navigation->session().data();
+		for (const auto &chat : chats) {
+			if (const auto peer = owner.processChat(chat)) {
+				if (!peer->isChannel() || peer->userName().isEmpty()) {
+					continue;
+				}
+				appendRow(peer);
+			}
+			delegate()->peerListRefreshRows();
+		}
+	}).send();
+}
+
+void PublicsController::rowClicked(not_null<PeerListRow*> row) {
+	_navigation->parentController()->show(
+		PrepareShortInfoBox(row->peer(), _navigation));
+}
+
+void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
+	const auto peer = row->peer();
+	const auto textMethod = peer->isMegagroup()
+		? tr::lng_channels_too_much_public_revoke_confirm_group
+		: tr::lng_channels_too_much_public_revoke_confirm_channel;
+	const auto text = textMethod(
+		tr::now,
+		lt_link,
+		peer->session().createInternalLink(peer->userName()),
+		lt_group,
+		peer->name);
+	const auto confirmText = tr::lng_channels_too_much_public_revoke(
+		tr::now);
+	const auto closeBox = _closeBox;
+	const auto once = std::make_shared<bool>(false);
+	auto callback = crl::guard(_navigation, [=](Fn<void()> &&close) {
+		if (*once) {
+			return;
+		}
+		*once = true;
+		peer->session().api().request(MTPchannels_UpdateUsername(
+			peer->asChannel()->inputChannel,
+			MTP_string()
+		)).done([=, close = std::move(close)] {
+			closeBox();
+			close();
+		}).send();
+	});
+	_navigation->parentController()->show(
+		Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = std::move(callback),
+			.confirmText = confirmText,
+		}),
+		Ui::LayerOption::KeepOther);
+}
+
+void PublicsController::appendRow(not_null<PeerData*> participant) {
+	if (!delegate()->peerListFindRow(participant->id.value)) {
+		delegate()->peerListAppendRow(createRow(participant));
+	}
+}
+
+std::unique_ptr<PeerListRow> PublicsController::createRow(
+		not_null<PeerData*> peer) const {
+	auto result = std::make_unique<PeerListRowWithLink>(peer);
+	result->setActionLink(tr::lng_channels_too_much_public_revoke(tr::now));
+	result->setCustomStatus(
+		_navigation->session().createInternalLink(peer->userName()));
 	return result;
 }
 
@@ -385,7 +503,7 @@ void ChannelsLimitBox(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	const auto count = 50;
+	const auto count = 100;
 	const auto placeholder = box->addRow(
 		object_ptr<PeerListDummy>(box, count, st::defaultPeerList),
 		{});
@@ -431,7 +549,8 @@ void ChannelsLimitBox(
 
 void PublicLinksLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Window::SessionNavigation*> navigation) {
+	const auto session = &navigation->session();
 	const auto premium = session->user()->isPremium();
 
 	auto text = rpl::combine(
@@ -462,7 +581,30 @@ void PublicLinksLimitBox(
 		session,
 		tr::lng_links_limit_title(),
 		std::move(text),
-		premium);
+		premium,
+		true);
+
+	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
+	const auto controller = box->lifetime().make_state<PublicsController>(
+		navigation,
+		crl::guard(box, [=] { box->closeBox(); }));
+
+	const auto content = box->addRow(
+		object_ptr<PeerListContent>(box, controller),
+		{});
+	delegate->setContent(content);
+	controller->setDelegate(delegate);
+
+	const auto count = Limit(session, "channels_public_limit_default", 10);
+	const auto placeholder = box->addRow(
+		object_ptr<PeerListDummy>(box, count, st::defaultPeerList),
+		{});
+
+	using namespace rpl::mappers;
+	content->heightValue(
+	) | rpl::filter(_1 > 0) | rpl::start_with_next([=] {
+		delete placeholder;
+	}, placeholder->lifetime());
 }
 
 void FilterChatsLimitBox(
@@ -574,6 +716,58 @@ void PinsLimitBox(
 		"dialogs_pinned_limit_premium",
 		10);
 }
+
+void CaptionLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto premium = session->user()->isPremium();
+
+	auto text = rpl::combine(
+		tr::lng_caption_limit1(
+			lt_count,
+			rpl::single(Limit(
+				session,
+				(premium
+					? "caption_length_limit_premium"
+					: "caption_length_limit_default"),
+				premium ? 2048 : 1024)),
+			Ui::Text::RichLangValue),
+		tr::lng_caption_limit2(
+				lt_count,
+				rpl::single(
+					Limit(session, "caption_length_limit_premium", 2048)),
+				Ui::Text::RichLangValue)
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return a.append(QChar(' ')).append(std::move(b));
+	});
+
+	SimpleLimitBox(
+		box,
+		session,
+		tr::lng_caption_limit_title(),
+		std::move(text),
+		premium);
+}
+
+void CaptionLimitReachedBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		int remove) {
+	Ui::ConfirmBox(box, Ui::ConfirmBoxArgs{
+		.text = tr::lng_caption_limit_reached(tr::now, lt_count, remove),
+		.inform = true,
+	});
+	if (!session->user()->isPremium()) {
+		box->addLeftButton(tr::lng_limits_increase(), [=] {
+			box->getDelegate()->showBox(
+				Box(CaptionLimitBox, session),
+				Ui::LayerOption::KeepOther,
+				anim::type::normal);
+			box->closeBox();
+		});
+	}
+}
+
 
 int AppConfigLimit(
 		not_null<Main::Session*> session,

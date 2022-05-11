@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "base/unixtime.h"
@@ -1042,6 +1043,11 @@ void FileLoadTask::process(Args &&args) {
 }
 
 void FileLoadTask::finish() {
+	const auto session = _session.get();
+	if (!session) {
+		return;
+	}
+	const auto premium = session->user()->isPremium();
 	if (!_result || !_result->filesize || _result->filesize < 0) {
 		Ui::show(
 			Ui::MakeInformBox(
@@ -1054,13 +1060,13 @@ void FileLoadTask::finish() {
 				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (_result->filesize > kFileSizeLimit) {
+	} else if (_result->filesize > kFileSizeLimit && !premium) {
 		Ui::show(
 			Ui::MakeInformBox(
 				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (const auto session = _session.get()) {
+	} else {
 		Api::SendConfirmedFile(session, _result);
 	}
 }

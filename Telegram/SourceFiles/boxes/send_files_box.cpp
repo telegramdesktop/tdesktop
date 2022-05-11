@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "base/event_filter.h"
+#include "boxes/premium_limits_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/widgets/checkbox.h"
@@ -59,6 +61,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeData>
 
 namespace {
+
+constexpr auto kMaxMessageLength = 4096;
 
 using Ui::SendFilesWay;
 
@@ -660,8 +664,7 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 }
 
 void SendFilesBox::setupCaption() {
-	_caption->setMaxLength(
-		_controller->session().serverConfig().captionLengthMax);
+	_caption->setMaxLength(kMaxMessageLength);
 	_caption->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
 	connect(_caption, &Ui::InputField::resized, [=] {
@@ -973,6 +976,25 @@ void SendFilesBox::saveSendWaySettings() {
 	}
 }
 
+bool SendFilesBox::validateLength(const QString &text) const {
+	const auto session = &_controller->session();
+	const auto limit = CurrentPremiumLimit(
+		session,
+		"caption_length_limit_default",
+		1024,
+		"caption_length_limit_premium",
+		2048);
+	const auto remove = int(text.size()) - limit;
+	const auto way = _sendWay.current();
+	if (remove <= 0
+		|| !_list.canAddCaption(
+			way.groupFiles() && way.sendImagesAsPhotos())) {
+		return true;
+	}
+	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	return false;
+}
+
 void SendFilesBox::send(
 		Api::SendOptions options,
 		bool ctrlShiftEnter) {
@@ -1001,6 +1023,9 @@ void SendFilesBox::send(
 		auto caption = (_caption && !_caption->isHidden())
 			? _caption->getTextWithAppliedMarkdown()
 			: TextWithTags();
+		if (!validateLength(caption.text)) {
+			return;
+		}
 		_confirmedCallback(
 			std::move(_list),
 			_sendWay.current(),

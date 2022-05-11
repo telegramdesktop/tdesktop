@@ -13,12 +13,16 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Window {
+class SessionNavigation;
+} // namespace Window
+
 void ChannelsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
 void PublicLinksLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Window::SessionNavigation*> navigation);
 void FilterChatsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
@@ -34,6 +38,13 @@ void FolderPinsLimitBox(
 void PinsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
+void CaptionLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+void CaptionLimitReachedBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session,
+	int remove);
 
 [[nodiscard]] int AppConfigLimit(
 	not_null<Main::Session*> session,
