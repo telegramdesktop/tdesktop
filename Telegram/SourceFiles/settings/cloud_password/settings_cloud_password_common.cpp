@@ -131,9 +131,8 @@ void SetupHeader(
 		) | rpl::start_with_next([animate = std::move(icon.animate)] {
 			animate(anim::repeat::once);
 		}, content->lifetime());
-
-		AddSkip(content);
 	}
+	AddSkip(content);
 
 	content->add(
 		object_ptr<Ui::CenterWrap<>>(
@@ -146,11 +145,14 @@ void SetupHeader(
 
 	{
 		const auto &st = st::settingLocalPasscodeDescription;
-		content->add(
+		const auto wrap = content->add(
 			object_ptr<Ui::CenterWrap<>>(
 				content,
 				object_ptr<Ui::FlatLabel>(content, std::move(about), st)),
 			st::changePhoneDescriptionPadding);
+		wrap->resize(
+			wrap->width(),
+			st::settingLocalPasscodeDescriptionHeight);
 	}
 }
 
@@ -254,7 +256,8 @@ void AddSkipInsteadOfError(not_null<Ui::VerticalLayout*> content) {
 		content,
 		tr::lng_language_name(tr::now),
 		st::settingLocalPasscodeError);
-	AddSkip(content, dummy->height());
+	const auto &padding = st::changePhoneDescriptionPadding;
+	AddSkip(content, dummy->height() + padding.top() + padding.bottom());
 	dummy = nullptr;
 }
 

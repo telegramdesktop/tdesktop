@@ -167,8 +167,8 @@ void Input::setupContent() {
 		{
 			.name = u"cloud_password/password_input"_q,
 			.sizeOverride = {
-				st::changePhoneIconSize,
-				st::changePhoneIconSize
+				st::settingsCloudPasswordIconSize,
+				st::settingsCloudPasswordIconSize
 			},
 		},
 		st::settingLocalPasscodeIconPadding);
