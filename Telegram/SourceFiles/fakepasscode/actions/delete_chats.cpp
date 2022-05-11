@@ -13,6 +13,7 @@
 #include "apiwrap.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/mtp_holder/crit_api.h"
 
 using namespace FakePasscode;
 
@@ -61,7 +62,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                         MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
                         MTP_int(computed.id()),
                         tl));
-                api.request(MTPmessages_UpdateDialogFilter(
+                FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
                         MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
                         MTP_int(computed.id()),
                         tl
@@ -80,7 +81,7 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                     MTP_flags(MTPDupdateDialogFilter::Flag(0)),
                     MTP_int(rules.id()),
                     MTPDialogFilter()));
-            api.request(MTPmessages_UpdateDialogFilter(
+            FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
                     MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
                     MTP_int(rules.id()),
                     MTPDialogFilter()

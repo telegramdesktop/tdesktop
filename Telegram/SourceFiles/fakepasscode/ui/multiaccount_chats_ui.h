@@ -24,10 +24,10 @@ public:
         FakePasscode::ActionType action_type;
         std::function<rpl::producer<QString>()> title;
         std::function<rpl::producer<QString>()> popup_window_title;
-        std::function<rpl::producer<QString>(const std::unique_ptr<Main::Account>&)> account_title;
+        std::function<rpl::producer<QString>(gsl::not_null<Main::Account*>)> account_title;
         ButtonHandler button_handler;
     };
-    static rpl::producer<QString> DefaultAccountNameFormat(const std::unique_ptr<Main::Account>& account);
+    static rpl::producer<QString> DefaultAccountNameFormat(gsl::not_null<Main::Account*> account);
 
     MultiAccountSelectChatsUi(QWidget* parent, gsl::not_null<Main::Domain*> domain, size_t index,
                               Description description);
@@ -39,7 +39,6 @@ private:
     using Action = FakePasscode::MultiAccountAction<FakePasscode::SelectPeersData>;
     Description _description;
     Action* _action = nullptr;
-    std::vector<Ui::SettingsButton*> account_buttons_;
 };
 
 
