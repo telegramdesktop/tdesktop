@@ -117,6 +117,7 @@ public:
 
     void loggedOut();
 	void loggedOutAfterAction();
+	void postLogoutClearing();
 
     [[nodiscard]] std::unique_ptr<MTP::Instance> logOutAfterAction();
 
