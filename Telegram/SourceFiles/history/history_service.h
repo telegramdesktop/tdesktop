@@ -34,6 +34,7 @@ struct HistoryServiceGameScore
 struct HistoryServicePayment
 : public RuntimeComponent<HistoryServicePayment, HistoryItem>
 , public HistoryServiceDependentData {
+	QString slug;
 	QString amount;
 	ClickHandlerPtr invoiceLink;
 };

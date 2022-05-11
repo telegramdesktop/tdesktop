@@ -120,7 +120,7 @@ void activateBotCommand(
 		Payments::CheckoutProcess::Start(
 			msg,
 			Payments::Mode::Payment,
-			crl::guard(App::wnd(), [] { App::wnd()->activate(); }));
+			crl::guard(App::wnd(), [](auto) { App::wnd()->activate(); }));
 	} break;
 
 	case ButtonType::Url: {

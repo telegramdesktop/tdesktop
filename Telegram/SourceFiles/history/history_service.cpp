@@ -1372,7 +1372,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				CheckoutProcess::Start(
 					item,
 					Mode::Receipt,
-					crl::guard(weak, [=] { weak->window().activate(); }));
+					crl::guard(weak, [=](auto) { weak->window().activate(); }));
 			}
 		});
 	} else if (type == mtpc_messageActionGroupCall

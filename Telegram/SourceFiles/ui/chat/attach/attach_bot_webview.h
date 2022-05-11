@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/object_ptr.h"
+#include "base/weak_ptr.h"
 
 namespace Ui {
 class BoxContent;
@@ -29,12 +30,13 @@ struct MainButtonArgs {
 	QString text;
 };
 
-class Panel final {
+class Panel final : public base::has_weak_ptr {
 public:
 	Panel(
 		const QString &userDataPath,
 		rpl::producer<QString> title,
 		Fn<bool(QString)> handleLocalUri,
+		Fn<void(QString)> handleInvoice,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
 		Fn<Webview::ThemeParams()> themeParams);
@@ -57,6 +59,9 @@ public:
 
 	void updateThemeParams(const Webview::ThemeParams &params);
 
+	void hideForPayment();
+	void invoiceClosed(const QString &slug, const QString &status);
+
 	[[nodiscard]] rpl::lifetime &lifetime();
 
 private:
@@ -70,6 +75,8 @@ private:
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonValue &value);
 	void processMainButtonMessage(const QJsonValue &value);
+	void openTgLink(const QJsonValue &value);
+	void openInvoice(const QJsonValue &value);
 	void createMainButton();
 
 	void postEvent(const QString &event, const QString &data = {});
@@ -80,6 +87,7 @@ private:
 
 	QString _userDataPath;
 	Fn<bool(QString)> _handleLocalUri;
+	Fn<void(QString)> _handleInvoice;
 	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
 	std::unique_ptr<SeparatePanel> _widget;
@@ -93,6 +101,7 @@ private:
 	rpl::lifetime _bgLifetime;
 	bool _webviewProgress = false;
 	bool _themeUpdateScheduled = false;
+	bool _hiddenForPayment = false;
 
 };
 
@@ -102,6 +111,7 @@ struct Args {
 	rpl::producer<QString> title;
 	rpl::producer<QString> bottom;
 	Fn<bool(QString)> handleLocalUri;
+	Fn<void(QString)> handleInvoice;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
 	Fn<Webview::ThemeParams()> themeParams;

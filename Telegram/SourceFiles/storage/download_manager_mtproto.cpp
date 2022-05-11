@@ -673,7 +673,7 @@ void DownloadMtprotoTask::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequ
 		auto ivec = bytes::make_span(state.ivec);
 		std::copy(iv.begin(), iv.end(), ivec.begin());
 
-		auto counterOffset = static_cast<uint32>(requestData.offset) >> 4;
+		auto counterOffset = static_cast<uint32>(requestData.offset >> 4);
 		state.ivec[15] = static_cast<uchar>(counterOffset & 0xFF);
 		state.ivec[14] = static_cast<uchar>((counterOffset >> 8) & 0xFF);
 		state.ivec[13] = static_cast<uchar>((counterOffset >> 16) & 0xFF);

@@ -305,11 +305,13 @@ Panel::Panel(
 	const QString &userDataPath,
 	rpl::producer<QString> title,
 	Fn<bool(QString)> handleLocalUri,
+	Fn<void(QString)> handleInvoice,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
 	Fn<Webview::ThemeParams()> themeParams)
 : _userDataPath(userDataPath)
 , _handleLocalUri(std::move(handleLocalUri))
+, _handleInvoice(std::move(handleInvoice))
 , _sendData(std::move(sendData))
 , _close(std::move(close))
 , _widget(std::make_unique<SeparatePanel>()) {
@@ -320,7 +322,9 @@ Panel::Panel(
 	) | rpl::start_with_next(_close, _widget->lifetime());
 
 	_widget->closeEvents(
-	) | rpl::start_with_next(_close, _widget->lifetime());
+	) | rpl::filter([=] {
+		return !_hiddenForPayment;
+	}) | rpl::start_with_next(_close, _widget->lifetime());
 
 	rpl::combine(
 		style::PaletteChanged(),
@@ -568,6 +572,10 @@ bool Panel::createWebview() {
 			processMainButtonMessage(list.at(1));
 		} else if (command == "web_app_request_theme") {
 			_themeUpdateForced.fire({});
+		} else if (command == "web_app_open_tg_link") {
+			openTgLink(list.at(1).toString());
+		} else if (command == "web_app_open_invoice") {
+			openInvoice(list.at(1).toString());
 		}
 	});
 
@@ -616,6 +624,38 @@ void Panel::sendDataMessage(const QJsonValue &value) {
 		return;
 	}
 	_sendData(data.toUtf8());
+}
+
+void Panel::openTgLink(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	if (args.isEmpty()) {
+		_close();
+		return;
+	}
+	const auto path = args["path_full"].toString();
+	if (path.isEmpty()) {
+		LOG(("BotWebView Error: Bad tg link \"%1\".").arg(json));
+		_close();
+		return;
+	}
+	_handleLocalUri("https://t.me" + path);
+}
+
+void Panel::openInvoice(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	if (args.isEmpty()) {
+		_close();
+		return;
+	}
+	const auto slug = args["slug"].toString();
+	if (slug.isEmpty()) {
+		LOG(("BotWebView Error: Bad invoice \"%1\".").arg(json));
+		_close();
+		return;
+	}
+	_handleInvoice(slug);
 }
 
 void Panel::processMainButtonMessage(const QJsonValue &value) {
@@ -760,6 +800,22 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 	postEvent("theme_changed", "\"theme_params\": " + params.json);
 }
 
+void Panel::invoiceClosed(const QString &slug, const QString &status) {
+	if (!_webview || !_webview->window.widget()) {
+		return;
+	}
+	postEvent(
+		"invoice_closed",
+		"\"slug\": \"" + slug + "\", \"status\": \"" + status + "\"");
+	_widget->showAndActivate();
+	_hiddenForPayment = false;
+}
+
+void Panel::hideForPayment() {
+	_hiddenForPayment = true;
+	_widget->hideGetDuration();
+}
+
 void Panel::postEvent(const QString &event, const QString &data) {
 	_webview->window.eval(R"(
 if (window.TelegramGameProxy) {
@@ -820,6 +876,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		args.userDataPath,
 		std::move(args.title),
 		std::move(args.handleLocalUri),
+		std::move(args.handleInvoice),
 		std::move(args.sendData),
 		std::move(args.close),
 		std::move(args.themeParams));

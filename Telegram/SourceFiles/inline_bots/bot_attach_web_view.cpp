@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/basic_click_handlers.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "payments/payments_checkout_process.h"
 #include "storage/storage_account.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
@@ -711,6 +712,28 @@ void AttachWebView::show(
 		close();
 		return true;
 	};
+	const auto panel = std::make_shared<
+		base::weak_ptr<Ui::BotWebView::Panel>>(nullptr);
+	const auto handleInvoice = [=, session = _session](QString slug) {
+		using Result = Payments::CheckoutResult;
+		const auto reactivate = [=](Result result) {
+			if (const auto strong = panel->get()) {
+				strong->invoiceClosed(slug, [&] {
+					switch (result) {
+					case Result::Paid: return "paid";
+					case Result::Failed: return "failed";
+					case Result::Pending: return "pending";
+					case Result::Cancelled: return "cancelled";
+					}
+					Unexpected("Payments::CheckoutResult value.");
+				}());
+			}
+		};
+		if (const auto strong = panel->get()) {
+			strong->hideForPayment();
+		}
+		Payments::CheckoutProcess::Start(session, slug, reactivate);
+	};
 	auto title = Info::Profile::NameValue(
 		_bot
 	) | rpl::map([](const TextWithEntities &value) {
@@ -723,10 +746,12 @@ void AttachWebView::show(
 		.title = std::move(title),
 		.bottom = rpl::single('@' + _bot->username),
 		.handleLocalUri = handleLocalUri,
+		.handleInvoice = handleInvoice,
 		.sendData = sendData,
 		.close = close,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
 	});
+	*panel = _panel.get();
 	started(queryId);
 }
 

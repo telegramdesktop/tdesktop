@@ -37,8 +37,8 @@ namespace {
 struct SessionProcesses {
 	base::flat_map<FullMsgId, std::unique_ptr<CheckoutProcess>> byItem;
 	base::flat_map<QString, std::unique_ptr<CheckoutProcess>> bySlug;
-	base::flat_set<FullMsgId> paymentStartedByItem;
-	base::flat_set<QString> paymentStartedBySlug;
+	base::flat_map<FullMsgId, PaidInvoice> paymentStartedByItem;
+	base::flat_map<QString, PaidInvoice> paymentStartedBySlug;
 	rpl::lifetime lifetime;
 };
 
@@ -64,7 +64,7 @@ base::flat_map<not_null<Main::Session*>, SessionProcesses> Processes;
 void CheckoutProcess::Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void()> reactivate) {
+		Fn<void(CheckoutResult)> reactivate) {
 	auto &processes = LookupSessionProcesses(&item->history()->session());
 	const auto media = item->media();
 	const auto invoice = media ? media->invoice() : nullptr;
@@ -99,7 +99,7 @@ void CheckoutProcess::Start(
 void CheckoutProcess::Start(
 		not_null<Main::Session*> session,
 		const QString &slug,
-		Fn<void()> reactivate) {
+		Fn<void(CheckoutResult)> reactivate) {
 	auto &processes = LookupSessionProcesses(session);
 	const auto i = processes.bySlug.find(slug);
 	if (i != end(processes.bySlug)) {
@@ -117,24 +117,57 @@ void CheckoutProcess::Start(
 	j->second->requestActivate();
 }
 
-bool CheckoutProcess::TakePaymentStarted(
+std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
 		not_null<const HistoryItem*> item) {
 	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
 	const auto i = Processes.find(session);
-	if (i == end(Processes)
-		|| !i->second.paymentStartedByItem.contains(itemId)) {
-		return false;
+	if (i == end(Processes)) {
+		return std::nullopt;
 	}
-	i->second.paymentStartedByItem.erase(itemId);
+	const auto k = i->second.paymentStartedByItem.find(itemId);
+	if (k == end(i->second.paymentStartedByItem)) {
+		return std::nullopt;
+	}
+	const auto result = k->second;
+	i->second.paymentStartedByItem.erase(k);
+
 	const auto j = i->second.byItem.find(itemId);
 	if (j != end(i->second.byItem)) {
-		j->second->closeAndReactivate();
+		j->second->closeAndReactivate(CheckoutResult::Paid);
 	} else if (i->second.paymentStartedByItem.empty()
-		&& i->second.byItem.empty()) {
+		&& i->second.byItem.empty()
+		&& i->second.paymentStartedBySlug.empty()
+		&& i->second.bySlug.empty()) {
 		Processes.erase(i);
 	}
-	return true;
+	return result;
+}
+
+std::optional<PaidInvoice> CheckoutProcess::InvoicePaid(
+		not_null<Main::Session*> session,
+		const QString &slug) {
+	const auto i = Processes.find(session);
+	if (i == end(Processes)) {
+		return std::nullopt;
+	}
+	const auto k = i->second.paymentStartedBySlug.find(slug);
+	if (k == end(i->second.paymentStartedBySlug)) {
+		return std::nullopt;
+	}
+	const auto result = k->second;
+	i->second.paymentStartedBySlug.erase(k);
+
+	const auto j = i->second.bySlug.find(slug);
+	if (j != end(i->second.bySlug)) {
+		j->second->closeAndReactivate(CheckoutResult::Paid);
+	} else if (i->second.paymentStartedByItem.empty()
+		&& i->second.byItem.empty()
+		&& i->second.paymentStartedBySlug.empty()
+		&& i->second.bySlug.empty()) {
+		Processes.erase(i);
+	}
+	return result;
 }
 
 void CheckoutProcess::ClearAll() {
@@ -142,18 +175,19 @@ void CheckoutProcess::ClearAll() {
 }
 
 void CheckoutProcess::RegisterPaymentStart(
-		not_null<CheckoutProcess*> process) {
+		not_null<CheckoutProcess*> process,
+		PaidInvoice info) {
 	const auto i = Processes.find(process->_session);
 	Assert(i != end(Processes));
 	for (const auto &[itemId, itemProcess] : i->second.byItem) {
 		if (itemProcess.get() == process) {
-			i->second.paymentStartedByItem.emplace(itemId);
+			i->second.paymentStartedByItem.emplace(itemId, info);
 			return;
 		}
 	}
 	for (const auto &[slug, itemProcess] : i->second.bySlug) {
 		if (itemProcess.get() == process) {
-			i->second.paymentStartedBySlug.emplace(slug);
+			i->second.paymentStartedBySlug.emplace(slug, info);
 			return;
 		}
 	}
@@ -162,26 +196,33 @@ void CheckoutProcess::RegisterPaymentStart(
 void CheckoutProcess::UnregisterPaymentStart(
 		not_null<CheckoutProcess*> process) {
 	const auto i = Processes.find(process->_session);
-	if (i != end(Processes)) {
-		for (const auto &[itemId, itemProcess] : i->second.byItem) {
-			if (itemProcess.get() == process) {
-				i->second.paymentStartedByItem.emplace(itemId);
-				return;
-			}
+	if (i == end(Processes)) {
+		return;
+	}
+	for (const auto &[itemId, itemProcess] : i->second.byItem) {
+		if (itemProcess.get() == process) {
+			i->second.paymentStartedByItem.remove(itemId);
+			break;
 		}
-		for (const auto &[slug, itemProcess] : i->second.bySlug) {
-			if (itemProcess.get() == process) {
-				i->second.paymentStartedBySlug.emplace(slug);
-				return;
-			}
+	}
+	for (const auto &[slug, itemProcess] : i->second.bySlug) {
+		if (itemProcess.get() == process) {
+			i->second.paymentStartedBySlug.remove(slug);
+			break;
 		}
+	}
+	if (i->second.paymentStartedByItem.empty()
+		&& i->second.byItem.empty()
+		&& i->second.paymentStartedBySlug.empty()
+		&& i->second.bySlug.empty()) {
+		Processes.erase(i);
 	}
 }
 
 CheckoutProcess::CheckoutProcess(
 	InvoiceId id,
 	Mode mode,
-	Fn<void()> reactivate,
+	Fn<void(CheckoutResult)> reactivate,
 	PrivateTag)
 : _session(SessionFromId(id))
 , _form(std::make_unique<Form>(id, (mode == Mode::Receipt)))
@@ -221,7 +262,8 @@ CheckoutProcess::CheckoutProcess(
 CheckoutProcess::~CheckoutProcess() {
 }
 
-void CheckoutProcess::setReactivateCallback(Fn<void()> reactivate) {
+void CheckoutProcess::setReactivateCallback(
+		Fn<void(CheckoutResult)> reactivate) {
 	_reactivate = std::move(reactivate);
 }
 
@@ -276,6 +318,8 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		auto bottomText = tr::lng_payments_processed_by(
 			lt_provider,
 			rpl::single(_form->invoice().provider));
+		_sendFormFailed = false;
+		_sendFormPending = true;
 		if (!_panel->showWebview(data.url, false, std::move(bottomText))) {
 			File::OpenUrl(data.url);
 			close();
@@ -284,7 +328,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		const auto weak = base::make_weak(this);
 		_session->api().applyUpdates(data.updates);
 		if (weak) {
-			closeAndReactivate();
+			closeAndReactivate(CheckoutResult::Paid);
 		}
 	}, [&](const Error &error) {
 		handleError(error);
@@ -386,6 +430,7 @@ void CheckoutProcess::handleError(const Error &error) {
 		}
 		break;
 	case Error::Type::Send:
+		_sendFormFailed = true;
 		if (const auto box = _enterPasswordBox.data()) {
 			box->closeBox();
 		}
@@ -424,14 +469,18 @@ void CheckoutProcess::panelRequestClose() {
 }
 
 void CheckoutProcess::panelCloseSure() {
-	closeAndReactivate();
+	closeAndReactivate(_sendFormFailed
+		? CheckoutResult::Failed
+		: _sendFormPending
+		? CheckoutResult::Pending
+		: CheckoutResult::Cancelled);
 }
 
-void CheckoutProcess::closeAndReactivate() {
+void CheckoutProcess::closeAndReactivate(CheckoutResult result) {
 	const auto reactivate = std::move(_reactivate);
 	close();
 	if (reactivate) {
-		reactivate();
+		reactivate(result);
 	}
 }
 
@@ -463,7 +512,7 @@ void CheckoutProcess::close() {
 
 void CheckoutProcess::panelSubmit() {
 	if (_form->invoice().receipt.paid) {
-		closeAndReactivate();
+		closeAndReactivate(CheckoutResult::Paid);
 		return;
 	} else if (_submitState == SubmitState::Validating
 		|| _submitState == SubmitState::Finishing) {
@@ -485,7 +534,7 @@ void CheckoutProcess::panelSubmit() {
 	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
 	} else {
-		RegisterPaymentStart(this);
+		RegisterPaymentStart(this, { _form->invoice().cover.title });
 		_submitState = SubmitState::Finishing;
 		_form->submit();
 	}
@@ -550,7 +599,8 @@ bool CheckoutProcess::panelWebviewNavigationAttempt(const QString &uri) {
 	if (Core::TryConvertUrlToLocal(uri) == uri) {
 		return true;
 	}
-	crl::on_main(this, [=] { closeAndReactivate(); });
+	// #TODO payments
+	crl::on_main(this, [=] { closeAndReactivate(CheckoutResult::Paid); });
 	return false;
 }
 

@@ -733,7 +733,7 @@ bool ResolveInvoice(
 	Payments::CheckoutProcess::Start(
 		&controller->session(),
 		slug,
-		crl::guard(window, [=] { window->activate(); }));
+		crl::guard(window, [=](auto) { window->activate(); }));
 	return true;
 }
 
