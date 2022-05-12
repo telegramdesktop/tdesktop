@@ -1194,7 +1194,9 @@ bool DocumentData::hasRemoteLocation() const {
 }
 
 bool DocumentData::useStreamingLoader() const {
-	if (const auto info = sticker()) {
+	if (size <= 0) {
+		return false;
+	} else if (const auto info = sticker()) {
 		return info->isWebm();
 	}
 	return isAnimation()
