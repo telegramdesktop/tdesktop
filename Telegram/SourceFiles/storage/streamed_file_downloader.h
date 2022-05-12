@@ -34,7 +34,7 @@ public:
 
 		// For FileLoader
 		const QString &toFile,
-		int32 size,
+		int64 size,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
