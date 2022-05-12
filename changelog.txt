@@ -1,3 +1,9 @@
+3.7.5 beta (12.05.22)
+
+- Improve cloud password management design.
+- Fix a crash in shared media search.
+- Fix audio recording on macOS.
+
 3.7.4 beta (03.05.22)
 
 - More icons for chat folders.
