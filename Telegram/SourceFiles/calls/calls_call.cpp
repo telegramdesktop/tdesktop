@@ -58,6 +58,19 @@ const auto RegV2Ref = tgcalls::Register<tgcalls::InstanceV2ReferenceImpl>();
 const auto RegisterV240 = tgcalls::Register<tgcalls::InstanceV2_4_0_0Impl>();
 const auto RegisterLegacy = tgcalls::Register<tgcalls::InstanceImplLegacy>();
 
+[[nodiscard]] base::flat_set<int64> CollectEndpointIds(
+		const QVector<MTPPhoneConnection> &list) {
+	auto result = base::flat_set<int64>();
+	result.reserve(list.size());
+	for (const auto &connection : list) {
+		connection.match([&](const MTPDphoneConnection &data) {
+			result.emplace(int64(data.vid().v));
+		}, [](const MTPDphoneConnectionWebrtc &) {
+		});
+	}
+	return result;
+}
+
 void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
 		const MTPPhoneConnection &connection) {
@@ -84,8 +97,41 @@ void AppendEndpoint(
 
 void AppendServer(
 		std::vector<tgcalls::RtcServer> &list,
-		const MTPPhoneConnection &connection) {
+		const MTPPhoneConnection &connection,
+		const base::flat_set<int64> &ids) {
 	connection.match([&](const MTPDphoneConnection &data) {
+		const auto hex = [](const QByteArray &value) {
+			const auto digit = [](uchar c) {
+				return char((c < 10) ? ('0' + c) : ('a' + c - 10));
+			};
+			auto result = std::string();
+			result.reserve(value.size() * 2);
+			for (const auto ch : value) {
+				result += digit(uchar(ch) / 16);
+				result += digit(uchar(ch) % 16);
+			}
+			return result;
+		};
+		const auto host = data.vip().v;
+		const auto hostv6 = data.vipv6().v;
+		const auto port = uint16_t(data.vport().v);
+		const auto username = std::string("reflector");
+		const auto password = hex(data.vpeer_tag().v);
+		const auto i = ids.find(int64(data.vid().v));
+		Assert(i != end(ids));
+		const auto id = uint8_t((i - begin(ids)) + 1);
+		const auto pushTurn = [&](const QString &host) {
+			list.push_back(tgcalls::RtcServer{
+				.id = id,
+				.host = host.toStdString(),
+				.port = port,
+				.login = username,
+				.password = password,
+				.isTurn = true,
+			});
+		};
+		pushTurn(host);
+		pushTurn(hostv6);
 	}, [&](const MTPDphoneConnectionWebrtc &data) {
 		const auto host = qs(data.vip());
 		const auto hostv6 = qs(data.vipv6());
@@ -861,11 +907,12 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		QDir().mkpath(callLogFolder);
 	}
 
+	const auto ids = CollectEndpointIds(call.vconnections().v);
 	for (const auto &connection : call.vconnections().v) {
 		AppendEndpoint(descriptor.endpoints, connection);
 	}
 	for (const auto &connection : call.vconnections().v) {
-		AppendServer(descriptor.rtcServers, connection);
+		AppendServer(descriptor.rtcServers, connection, ids);
 	}
 
 	{
