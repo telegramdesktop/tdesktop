@@ -62,7 +62,7 @@ void AppendEndpoint(
 		std::vector<tgcalls::Endpoint> &list,
 		const MTPPhoneConnection &connection) {
 	connection.match([&](const MTPDphoneConnection &data) {
-		if (data.vpeer_tag().v.length() != 16) {
+		if (data.vpeer_tag().v.length() != 16 || data.is_tcp()) {
 			return;
 		}
 		tgcalls::Endpoint endpoint = {
@@ -782,10 +782,20 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 		kAuthKeySize>>();
 	memcpy(encryptionKeyValue->data(), _authKey.data(), kAuthKeySize);
 
-	const auto &settings = Core::App().settings();
+	const auto version = call.vprotocol().match([&](
+			const MTPDphoneCallProtocol &data) {
+		return data.vlibrary_versions().v;
+	}).value(0, MTP_bytes(kDefaultVersion)).v;
 
+	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
+		QString::fromUtf8(version),
+		Logs::b(call.is_p2p_allowed())));
+
+	const auto versionString = version.toStdString();
+	const auto &settings = Core::App().settings();
 	const auto weak = base::make_weak(this);
 	tgcalls::Descriptor descriptor = {
+		.version = versionString,
 		.config = tgcalls::Config{
 			.initializationTimeout =
 				serverConfig.callConnectTimeoutMs / 1000.,
@@ -873,18 +883,7 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			}
 		}
 	}
-
-	const auto version = call.vprotocol().match([&](
-			const MTPDphoneCallProtocol &data) {
-		return data.vlibrary_versions().v;
-	}).value(0, MTP_bytes(kDefaultVersion)).v;
-
-	LOG(("Call Info: Creating instance with version '%1', allowP2P: %2").arg(
-		QString::fromUtf8(version),
-		Logs::b(descriptor.config.enableP2P)));
-	_instance = tgcalls::Meta::Create(
-		version.toStdString(),
-		std::move(descriptor));
+	_instance = tgcalls::Meta::Create(versionString, std::move(descriptor));
 	if (!_instance) {
 		LOG(("Call Error: Wrong library version: %1."
 			).arg(QString::fromUtf8(version)));
