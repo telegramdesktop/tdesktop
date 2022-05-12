@@ -730,12 +730,14 @@ void Account::readLocations() {
 		QByteArray bookmark;
 		Core::FileLocation loc;
 		quint32 legacyTypeField = 0;
+		quint32 size = 0;
 		locations.stream >> first >> second >> legacyTypeField >> loc.fname;
 		if (locations.version > 9013) {
 			locations.stream >> bookmark;
 		}
-		locations.stream >> loc.modified >> loc.size;
+		locations.stream >> loc.modified >> size;
 		loc.setBookmark(bookmark);
+		loc.size = int64(size);
 
 		if (!first && !second && !legacyTypeField && loc.fname.isEmpty() && !loc.size) { // end mark
 			endMarkFound = true;

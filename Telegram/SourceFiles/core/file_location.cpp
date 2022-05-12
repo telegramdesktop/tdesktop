@@ -16,6 +16,7 @@ namespace Core {
 namespace {
 
 const auto kInMediaCacheLocation = u"*media_cache*"_q;
+constexpr auto kMaxFileSize = 4000 * int64(1024 * 1024);
 
 } // namespace
 
@@ -55,13 +56,13 @@ FileLocation::FileLocation(const QFileInfo &info) : fname(info.filePath()) {
 void FileLocation::resolveFromInfo(const QFileInfo &info) {
 	if (info.exists()) {
 		const auto s = info.size();
-		if (s > INT_MAX) {
+		if (s > kMaxFileSize) {
 			fname = QString();
 			_bookmark = nullptr;
 			size = 0;
 		} else {
 			modified = info.lastModified();
-			size = qint32(s);
+			size = s;
 		}
 	} else {
 		fname = QString();
@@ -88,12 +89,12 @@ bool FileLocation::check() const {
 	if (!f.isReadable()) return false;
 
 	quint64 s = f.size();
-	if (s > INT_MAX) {
+	if (s > kMaxFileSize) {
 		DEBUG_LOG(("File location check: Wrong size %1").arg(s));
 		return false;
 	}
 
-	if (qint32(s) != size) {
+	if (s != size) {
 		DEBUG_LOG(("File location check: Wrong size %1 when should be %2").arg(s).arg(size));
 		return false;
 	}
