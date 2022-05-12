@@ -222,6 +222,7 @@ void Account::destroySessionAfterAction() {
 
 	_sessionValue = nullptr;
 
+
     _session->data().cache().close();
     _session->data().cacheBigFile().close();
     _session->unlockTerms();
@@ -575,8 +576,9 @@ void Account::loggedOut() {
 }
 
 void Account::loggedOutAfterAction() {
-	_loggingOut = false;
+
 	Media::Player::mixer()->stopAndClear();
+
 	destroySessionAfterAction();
 	local().resetWithoutWrite();
 	cSetOtherOnline(0);
@@ -652,6 +654,7 @@ void Account::resetAuthorizationKeys() {
 	}
 	local().writeMtpData();
 }
+
 
 std::unique_ptr<MTP::Instance> Account::stealMtpInstance(){
 	if (!_mtp) {

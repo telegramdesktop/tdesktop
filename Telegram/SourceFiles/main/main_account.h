@@ -63,8 +63,6 @@ public:
 	void forcedLogOut();
 	[[nodiscard]] bool loggingOut() const;
 
-    void postLogoutClearing();
-
 	[[nodiscard]] AppConfig &appConfig() const {
 		Expects(_appConfig != nullptr);
 
@@ -119,6 +117,7 @@ public:
 
     void loggedOut();
 	void loggedOutAfterAction();
+	void postLogoutClearing();
 
     [[nodiscard]] std::unique_ptr<MTP::Instance> logOutAfterAction();
 
