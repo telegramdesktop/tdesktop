@@ -970,8 +970,9 @@ win:
 release:
     cmake --build build --config RelWithDebInfo --parallel
 mac:
-    git clone -b 1.22.0 https://github.com/kcat/openal-soft.git
+    git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
+    git checkout af8e756d
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
         -D ALSOFT_EXAMPLES=OFF \\
