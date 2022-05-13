@@ -330,9 +330,11 @@ RUN git init ffmpeg \
 		--enable-decoder=aac_fixed \
 		--enable-decoder=aac_latm \
 		--enable-decoder=aasc \
+		--enable-decoder=ac3 \
 		--enable-decoder=alac \
 		--enable-decoder=av1 \
 		--enable-decoder=av1_cuvid \
+		--enable-decoder=eac3 \
 		--enable-decoder=flac \
 		--enable-decoder=gif \
 		--enable-decoder=h264 \

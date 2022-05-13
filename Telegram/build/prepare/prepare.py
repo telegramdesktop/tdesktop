@@ -399,7 +399,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 22629a5df5
+    git checkout 5a7ba9ae3e
 """)
 
 stage('depot_tools', """
@@ -734,9 +734,11 @@ depends:yasm/yasm
     --enable-decoder=aac_fixed \
     --enable-decoder=aac_latm \
     --enable-decoder=aasc \
+    --enable-decoder=ac3 \
     --enable-decoder=alac \
     --enable-decoder=alac_at \
     --enable-decoder=av1 \
+    --enable-decoder=eac3 \
     --enable-decoder=flac \
     --enable-decoder=gif \
     --enable-decoder=h264 \
