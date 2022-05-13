@@ -93,6 +93,11 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 
 } // namespace
 
+bool IsScheduledMsgId(MsgId id) {
+	return (id > ServerMaxMsgId)
+		&& (id < ServerMaxMsgId + ScheduledMsgIdsRange);
+}
+
 ScheduledMessages::ScheduledMessages(not_null<Session*> owner)
 : _session(&owner->session())
 , _clearTimer([=] { clearOldRequests(); }) {

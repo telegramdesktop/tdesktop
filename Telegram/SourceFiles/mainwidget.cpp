@@ -1307,7 +1307,7 @@ void MainWidget::ui_showPeerHistory(
 			return;
 		}
 	}
-	if (IsServerMsgId(showAtMsgId)
+	if ((IsServerMsgId(showAtMsgId) || Data::IsScheduledMsgId(showAtMsgId))
 		&& _mainSection
 		&& _mainSection->showMessage(peerId, params, showAtMsgId)) {
 		session().data().hideShownSpoilers();

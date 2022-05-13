@@ -1585,9 +1585,7 @@ bool RepliesWidget::showMessage(
 		}
 		return nullptr;
 	}();
-	showAtPosition(
-		Data::MessagePosition{ .fullId = id, .date = message->date() },
-		originItem);
+	showAtPosition(message->position(), originItem);
 	return true;
 }
 

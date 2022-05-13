@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "data/data_sponsored_messages.h"
+#include "data/data_scheduled_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
@@ -307,7 +308,10 @@ HistoryMessage::HistoryMessage(
 					config.replyToPeer = 0;
 				}
 			}
-			config.replyTo = data.vreply_to_msg_id().v;
+			const auto id = data.vreply_to_msg_id().v;
+			config.replyTo = data.is_reply_to_scheduled()
+				? history->owner().scheduledMessages().localMessageId(id)
+				: id;
 			config.replyToTop = data.vreply_to_top_id().value_or(
 				data.vreply_to_msg_id().v);
 		});
