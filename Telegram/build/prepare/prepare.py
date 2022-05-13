@@ -477,6 +477,12 @@ win:
     cmake --build . --config Debug
 release:
     cmake --build . --config Release
+    cd ..
+    
+    del /S mozjpeg\*.cpp
+    del /S mozjpeg\*.pdb
+    
+    cd mozjpeg
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
         -D CMAKE_SYSTEM_NAME=Darwin \\
@@ -576,6 +582,12 @@ stage('rnnoise', """
 win:
     cmake -A %WIN32X64% ..
     cmake --build . --config Release
+    cd ../..
+    
+    del /S rnnoise\*.cpp
+    del /S rnnoise\*.pdb
+    
+    cd rnnoise\out
 !win:
     mkdir Release
     cd Release
@@ -605,69 +617,6 @@ mac:
     mkdir out.x86_64
     mv lib/.libs/libiconv.a out.x86_64
     lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
-    make install
-""")
-
-stage('libvpx', """
-    git clone https://github.com/webmproject/libvpx.git
-    cd libvpx
-    git checkout v1.11.0
-win:
-depends:patches/libvpx/*.patch
-    for /r %%i in (..\\patches\\libvpx\\*) do git apply %%i
-
-    SET PATH_BACKUP_=%PATH%
-    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
-
-    SET CHERE_INVOKING=enabled_from_arguments
-    SET MSYS2_PATH_TYPE=inherit
-
-    if "%X8664%" equ "x64" (
-        SET "TARGET=x86_64-win64-vs17"
-    ) else (
-        SET "TARGET=x86-win32-vs17"
-    )
-
-depends:patches/build_libvpx_win.sh
-    bash --login ../patches/build_libvpx_win.sh
-
-    SET PATH=%PATH_BACKUP_%
-mac:
-depends:yasm/yasm
-    ./configure --prefix=$USED_PREFIX \
-    --target=arm64-darwin20-gcc \
-    --disable-examples \
-    --disable-unit-tests \
-    --disable-tools \
-    --disable-docs \
-    --enable-vp8 \
-    --enable-vp9 \
-    --enable-webm-io
-
-    make $MAKE_THREADS_CNT
-
-    mkdir out.arm64
-    mv libvpx.a out.arm64
-
-    make clean
-
-    ./configure --prefix=$USED_PREFIX \
-    --target=x86_64-darwin20-gcc \
-    --disable-examples \
-    --disable-unit-tests \
-    --disable-tools \
-    --disable-docs \
-    --enable-vp8 \
-    --enable-vp9 \
-    --enable-webm-io
-
-    make $MAKE_THREADS_CNT
-
-    mkdir out.x86_64
-    mv libvpx.a out.x86_64
-
-    lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
-
     make install
 """)
 
@@ -1010,24 +959,28 @@ depends:yasm/yasm
 
 stage('openal-soft', """
 version: 2
+win:
     git clone -b wasapi_exact_device_time https://github.com/telegramdesktop/openal-soft.git
     cd openal-soft
-    cd build
-win:
-    cmake .. ^
+    cmake -B build . ^
         -A %WIN32X64% ^
         -D LIBTYPE:STRING=STATIC ^
         -D FORCE_STATIC_VCRT=ON
-    msbuild OpenAL.vcxproj /property:Configuration=RelWithDebInfo /property:Platform="%WIN32X64%"
+    cmake --build build --config Debug --parallel
+release:
+    cmake --build build --config RelWithDebInfo --parallel
 mac:
-    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake .. \\
+    git clone -b 1.22.0 https://github.com/kcat/openal-soft.git
+    cd openal-soft
+    CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
         -D ALSOFT_EXAMPLES=OFF \\
+        -D ALSOFT_UTILS=OFF \\
         -D LIBTYPE:STRING=STATIC \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
         -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
-    make $MAKE_THREADS_CNT
-    make install
+    cmake --build build $MAKE_THREADS_CNT
+    cmake --install build
 """)
 
 if 'build-stackwalk' in options:
@@ -1193,6 +1146,11 @@ win:
 
     jom -j16
     jom -j16 install
+    
+    cd ..
+    del /S qt_5_15_3\*.cpp
+    del /S qt_5_15_3\*.pdb
+    del /S qt_5_15_3\*.obj
 mac:
     find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
     cd ..

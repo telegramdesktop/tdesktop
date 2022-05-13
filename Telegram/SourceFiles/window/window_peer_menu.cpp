@@ -889,7 +889,7 @@ void Filler::fillHistoryActions() {
     if (!Core::App().domain().local().IsFake()) {
         addJoinChat();
     }
-    addDeleteMyMessages();
+    //addDeleteMyMessages();
 }
 
 void Filler::fillProfileActions() {

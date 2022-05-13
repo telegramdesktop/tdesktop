@@ -8,10 +8,12 @@
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_folder.h"
+#include "data/data_chat_filters.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
 
 #include "fakepasscode/log/fake_log.h"
+#include "fakepasscode/mtp_holder/crit_api.h"
 
 using namespace FakePasscode;
 
@@ -29,17 +31,64 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         auto peer_id = PeerId(id);
         auto peer = data_session.peer(peer_id);
         auto history = data_session.history(peer_id);
-        history->clearFolder();
         api.deleteConversation(peer, false);
         //api.clearHistory(peer, false);
         data_session.deleteConversationLocally(peer);
+        history->clearFolder();
         api.toggleHistoryArchived(
                 history,
                 false,
                 [] {
                     FAKE_LOG(qsl("Remove from folder"));
                 });
+        for (const auto& rules : data_session.chatsFilters().list()) {
+            auto always = rules.always();
+            auto pinned = rules.pinned();
+            auto never = rules.never();
+            if (rules.contains(history) || never.contains(history)) {
+                always.remove(history);
+                pinned.erase(ranges::remove(pinned, history), end(pinned));
+                never.remove(history);
+                auto computed = Data::ChatFilter(
+                        rules.id(),
+                        rules.title(),
+                        rules.iconEmoji(),
+                        rules.flags(),
+                        std::move(always),
+                        std::move(pinned),
+                        std::move(never));
+                const auto tl = computed.tl();
+                data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                        MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+                        MTP_int(computed.id()),
+                        tl));
+                FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
+                        MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+                        MTP_int(computed.id()),
+                        tl
+                )).send();
+            }
+        }
     }
+
+    for (const auto& rules : data_session.chatsFilters().list()) {
+        auto always = rules.always();
+        auto pinned = rules.pinned();
+        auto never = rules.never();
+        if ((always.size() + pinned.size() + never.size()) == 0) {
+            // We don't have any chats in filters after action, clear
+            data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                    MTP_flags(MTPDupdateDialogFilter::Flag(0)),
+                    MTP_int(rules.id()),
+                    MTPDialogFilter()));
+            FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
+                    MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
+                    MTP_int(rules.id()),
+                    MTPDialogFilter()
+            )).send();
+        }
+    }
+    data_session.notifyPinnedDialogsOrderUpdated();
     UpdateOrAddAction(index, {});
 }
 

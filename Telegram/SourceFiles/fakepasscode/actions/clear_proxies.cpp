@@ -1,6 +1,12 @@
 #include "clear_proxies.h"
 
 #include "core/application.h"
+#include "main/main_domain.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
+#include "data/data_session.h"
+#include "apiwrap.h"
+
 #include "fakepasscode/log/fake_log.h"
 
 void FakePasscode::ClearProxies::Execute() {
@@ -14,6 +20,11 @@ void FakePasscode::ClearProxies::Execute() {
         app.setCurrentProxy(MTP::ProxyData(), MTP::ProxyData::Settings::Disabled);
     }
     app.saveSettings();
+    for (const auto&[_, account]: app.domain().accounts()) {
+        if (account->sessionExists()) {
+            account->session().data().setTopPromoted(nullptr, QString(), QString());;
+        }
+    }
 }
 
 QByteArray FakePasscode::ClearProxies::Serialize() const {

@@ -107,7 +107,17 @@ void SelectChatsContent::setupContent() {
     const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
     Settings::AddSubsectionTitle(content, description_->popup_window_title());
 
-    const auto& account_data = domain_->accounts()[index_].account->session().data();
+    const auto& accounts = domain_->accounts();
+    Main::Account* cur_account = nullptr;
+    for (const auto&[index, account]: accounts) {
+        if (index == index_) {
+            cur_account = account.get();
+        }
+    }
+    if (cur_account == nullptr) {
+        return;
+    }
+    const auto& account_data = cur_account->session().data();
 
     std::vector<ChatWithName> chat_lists;
     if (auto archive_folder = account_data.folderLoaded(Data::Folder::kId)) {
@@ -127,7 +137,7 @@ void SelectChatsContent::setupContent() {
             auto dialog_id = chat->key().peer()->id.value;
             button->toggleOn(rpl::single(data_.peer_ids.contains(dialog_id)));
             button->addClickHandler([this, chat, button] {
-                data_ = description_->button_handler(button, chat, data_);
+                data_ = description_->button_handler(button, chat, std::move(data_));
                 action_->UpdateOrAddAction(index_, data_);
                 domain_->local().writeAccounts();
             });
@@ -141,7 +151,7 @@ void SelectChatsContent::setupContent() {
 MultiAccountSelectChatsUi::MultiAccountSelectChatsUi(QWidget *parent, gsl::not_null<Main::Domain*> domain, size_t index, Description description)
         : ActionUI(parent, domain, index)
         , _description(std::move(description)) {
-    if (auto* action = domain->local().GetAction(index, _description.action_type); action != nullptr) {
+    if (auto* action = domain->local().GetAction(_index, _description.action_type)) {
         _action = dynamic_cast<Action*>(action);
     } else {
         _action = dynamic_cast<Action*>(
@@ -154,18 +164,12 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
     Expects(controller != nullptr);
     Settings::AddSubsectionTitle(content, _description.title());
     const auto& accounts = Core::App().domain().accounts();
-    account_buttons_.resize(accounts.size());
-    for (size_t idx = 0; idx < accounts.size(); ++idx) {
-        const auto&[index, account] = accounts[idx];
-        auto button = Settings::AddButton(
+    for (const auto&[index, account] : accounts) {
+        Settings::AddButton(
                 content,
-                _description.account_title(account),
+                _description.account_title(account.get()),
                 st::settingsButton
-        );
-        account_buttons_[idx] = button;
-
-        button->addClickHandler([index = index, button, controller, this] {
-            FAKE_LOG(qsl("%1: Set  %2 to %3").arg(_description.name).arg(index).arg(button->toggled()));
+        )->addClickHandler([index = index, controller, this] {
             if (!_action->HasAction(index)) {
                 _action->AddAction(index, FakePasscode::SelectPeersData{});
             }
@@ -176,7 +180,7 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
     }
 }
 
-rpl::producer<QString> MultiAccountSelectChatsUi::DefaultAccountNameFormat(const std::unique_ptr<Main::Account>& account) {
+rpl::producer<QString> MultiAccountSelectChatsUi::DefaultAccountNameFormat(gsl::not_null<Main::Account*> account) {
     auto user = account->session().user();
     return rpl::single(user->firstName + " " + user->lastName);
 }
