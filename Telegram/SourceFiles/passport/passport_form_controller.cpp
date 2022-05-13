@@ -995,12 +995,17 @@ void FormController::recoverPassword() {
 			.hasRecovery = _password.hasRecovery,
 			.pendingResetDate = _password.pendingResetDate,
 		};
+
+		// MSVC x64 (non-LTO) Release build fails with a linker error:
+		// - unresolved external variant::variant(variant const &)
+		// It looks like a MSVC bug and this works like a workaround.
+		const auto force = fields.mtp.newSecureSecretAlgo;
+
 		const auto box = _view->show(Box<RecoverBox>(
 			&_controller->session().mtp(),
 			&_controller->session(),
 			pattern,
 			fields));
-
 		box->newPasswordSet(
 		) | rpl::start_with_next([=](const QByteArray &password) {
 			if (password.isEmpty()) {

@@ -690,6 +690,12 @@ void PanelController::setupPassword() {
 		.hasRecovery = settings.hasRecovery,
 		.pendingResetDate = settings.pendingResetDate,
 	};
+
+	// MSVC x64 (non-LTO) Release build fails with a linker error:
+	// - unresolved external variant::variant(variant const &)
+	// It looks like a MSVC bug and this works like a workaround.
+	const auto force = fields.mtp.newSecureSecretAlgo;
+
 	auto box = show(Box<PasscodeBox>(&_form->window()->session(), fields));
 	box->newPasswordSet(
 	) | rpl::start_with_next([=](const QByteArray &password) {
