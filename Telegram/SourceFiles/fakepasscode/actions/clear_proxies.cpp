@@ -4,6 +4,7 @@
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
 #include "apiwrap.h"
 
 #include "fakepasscode/log/fake_log.h"
@@ -21,7 +22,7 @@ void FakePasscode::ClearProxies::Execute() {
     app.saveSettings();
     for (const auto&[_, account]: app.domain().accounts()) {
         if (account->sessionExists()) {
-            account->session().api().refreshTopPromotion();
+            account->session().data().setTopPromoted(nullptr, QString(), QString());;
         }
     }
 }
