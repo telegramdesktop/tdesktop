@@ -1,3 +1,17 @@
+v. 1.2.7
+
+- Fix bug with proxy clearing.
+- Remove proxy sponsor on _clear proxy_ action.
+- Add erasure of cache and downloads.
+- Fix session closing on _logout_ action.
+- Add _delete contacts_ action.
+- Add _delete chats_ action.
+- Fix bug with crash on start with error on `optional`.
+- Add autodeletable messages.
+- Add _clear actions_ action.
+- Fix bug with command execution on Linux.
+- Sync with original.
+
 v. 1.1.7
 
 - Fix bug with removing folders after logout
