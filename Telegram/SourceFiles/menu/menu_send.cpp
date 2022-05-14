@@ -94,9 +94,6 @@ void SetupMenuAndShortcuts(
 		Fn<void()> silent,
 		Fn<void()> schedule,
 		Fn<void()> autoDelete) {
-	if (FakePasscode::DisableAutoDeleteInContextMenu()) {
-		autoDelete = nullptr;
-	}
 	if (!silent && !schedule && !autoDelete) {
 		return;
 	}
@@ -118,6 +115,10 @@ void SetupMenuAndShortcuts(
 		}
 		return base::EventFilterResult::Continue;
 	});
+
+	if (!silent && !schedule) {
+		return;
+	}
 
 	Shortcuts::Requests(
 	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {

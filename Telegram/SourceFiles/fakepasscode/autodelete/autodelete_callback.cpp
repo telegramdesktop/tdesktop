@@ -14,7 +14,8 @@
 namespace FakePasscode{
 
 bool DisableAutoDeleteInContextMenu() {
-    return Core::App().domain().local().IsFake();
+    auto& local = Core::App().domain().local();
+    return local.IsFake() || local.GetAutoDelete() == nullptr || !local.hasLocalPasscode();
 }
 
 Fn<void()> DefaultAutoDeleteCallback(
