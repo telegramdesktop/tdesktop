@@ -257,9 +257,6 @@ private:
 	// Request to show results in the emoji panel.
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
-	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
-
 	[[nodiscard]] Data::DraftKey draftKey(
 		DraftType type = DraftType::Normal) const;
 	[[nodiscard]] Data::DraftKey draftKeyCurrent() const;
