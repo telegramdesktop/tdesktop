@@ -594,9 +594,6 @@ private:
 	void checkSupportPreload(bool force = false);
 	void handleSupportSwitch(not_null<History*> updated);
 
-	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
-
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isSearching() const;
 
