@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "history/view/history_view_schedule_box.h"
 #include "settings/settings_common.h"
 #include "base/unique_qptr.h"
@@ -851,7 +851,10 @@ not_null<Ui::InputField*> CreatePollBox::setupSolution(
 		Core::App().settings().replaceEmojiValue());
 	solution->setMarkdownReplacesEnabled(rpl::single(true));
 	solution->setEditLinkCallback(
-		DefaultEditLinkCallback(_controller, solution));
+		DefaultEditLinkCallback(
+			std::make_shared<Window::Show>(_controller),
+			session,
+			solution));
 	solution->customTab(true);
 
 	const auto warning = CreateWarningLabel(

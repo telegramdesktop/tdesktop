@@ -84,6 +84,36 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_calendar_days#one" = "{count} day";
 "lng_calendar_days#other" = "{count} days";
 
+"lng_seconds#one" = "{count} second";
+"lng_seconds#other" = "{count} seconds";
+"lng_minutes#one" = "{count} minute";
+"lng_minutes#other" = "{count} minutes";
+"lng_hours#one" = "{count} hour";
+"lng_hours#other" = "{count} hours";
+"lng_days#one" = "{count} day";
+"lng_days#other" = "{count} days";
+"lng_weeks#one" = "{count} week";
+"lng_weeks#other" = "{count} weeks";
+"lng_months#one" = "{count} month";
+"lng_months#other" = "{count} months";
+"lng_years#one" = "{count} year";
+"lng_years#other" = "{count} years";
+
+"lng_seconds_tiny#one" = "{count}s";
+"lng_seconds_tiny#other" = "{count}s";
+"lng_minutes_tiny#one" = "{count}m";
+"lng_minutes_tiny#other" = "{count}m";
+"lng_hours_tiny#one" = "{count}h";
+"lng_hours_tiny#other" = "{count}h";
+"lng_days_tiny#one" = "{count}d";
+"lng_days_tiny#other" = "{count}d";
+"lng_weeks_tiny#one" = "{count}w";
+"lng_weeks_tiny#other" = "{count}w";
+"lng_months_tiny#one" = "{count}m";
+"lng_months_tiny#other" = "{count}m";
+"lng_years_tiny#one" = "{count}y";
+"lng_years_tiny#other" = "{count}y";
+
 "lng_box_ok" = "OK";
 "lng_box_done" = "Done";
 "lng_box_yes" = "Yes";
@@ -257,12 +287,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_signin_sure_reset" = "Warning!\n\nYou will lose all your chats and messages, along with any media and files you shared!\n\nDo you want to reset your account?";
 "lng_signin_reset" = "Reset";
 "lng_signin_reset_wait" = "Since the account {phone_number} is active and protected by a password, we will delete it in 1 week for security purposes. You can cancel this process at any time.\n\nYou’ll be able to reset your account in:\n{when}";
-"lng_signin_reset_days#one" = "{count} day";
-"lng_signin_reset_days#other" = "{count} days";
-"lng_signin_reset_hours#one" = "{count} hour";
-"lng_signin_reset_hours#other" = "{count} hours";
-"lng_signin_reset_minutes#one" = "{count} minute";
-"lng_signin_reset_minutes#other" = "{count} minutes";
 "lng_signin_reset_in_days" = "{days_count} {hours_count} {minutes_count}";
 "lng_signin_reset_in_hours" = "{hours_count} {minutes_count}";
 "lng_signin_reset_cancelled" = "Your recent attempts to reset this account have been cancelled by its active user. Please try again in 7 days.";
@@ -296,7 +320,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_drop_area_subtitle" = "to set it as your photo";
 
 "lng_username_title" = "Username";
-"lng_username_about" = "You can choose a username on Telegram.\nIf you do, other people will be able to find\nyou by this username and contact you\nwithout knowing your phone number.\n\nYou can use a-z, 0-9 and underscores.\nMinimum length is 5 characters.";
+"lng_username_description" = "You can choose a username on Telegram. If you do, other people will be able to find you by this username and contact you without knowing your phone number.\n\nYou can use **a-z**, **0-9** and **underscores**.\nMinimum length is **5 characters**.";
 "lng_username_choose" = "Choose your username.";
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
@@ -304,6 +328,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
+"lng_username_by_phone_not_found" = "User {phone} not found.";
 "lng_username_link_willbe" = "This link will open a chat with you:";
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
@@ -323,14 +348,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_notify_all_about" = "Turn this off if you want to receive notifications only from the account you are currently using.";
 "lng_settings_notify_title" = "Notifications for chats";
 "lng_settings_desktop_notify" = "Desktop notifications";
-"lng_settings_show_name" = "Show sender's name";
-"lng_settings_show_preview" = "Show message preview";
 "lng_settings_native_title" = "Native notifications";
 "lng_settings_use_windows" = "Use Windows notifications";
 "lng_settings_use_native_notifications" = "Use native notifications";
 "lng_settings_notifications_position" = "Location on the screen";
 "lng_settings_notifications_count" = "Notifications count";
 "lng_settings_sound_notify" = "Play sound";
+"lng_settings_sound_notify_off" = "Off";
 "lng_settings_alert_windows" = "Flash the taskbar icon";
 "lng_settings_alert_mac" = "Bounce the dock icon";
 "lng_settings_alert_linux" = "Draw attention to the window";
@@ -342,6 +366,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_events_pinned" = "Pinned messages";
 "lng_settings_notifications_calls_title" = "Calls";
 
+"lng_notification_preview_title" = "Dino Rex";
+"lng_notification_preview_text" = "It's morning in Tokyo 😎";
+"lng_notification_show_name" = "Name";
+"lng_notification_show_text" = "Text";
 "lng_notification_preview" = "You have a new message";
 "lng_notification_reply" = "Reply";
 "lng_notification_hide_all" = "Hide all";
@@ -368,6 +396,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_general" = "General";
 "lng_settings_change_lang" = "Change language";
 "lng_languages" = "Languages";
+"lng_languages_none" = "No languages found.";
 "lng_sure_save_language" = "Telegram will restart in order to change language";
 "lng_settings_update_automatically" = "Update automatically";
 "lng_settings_install_beta" = "Install beta versions";
@@ -408,6 +437,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_send_enter" = "Send by Enter";
 "lng_settings_send_ctrlenter" = "Send by Ctrl+Enter";
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
+"lng_settings_chat_quick_action_reply" = "Reply with double click";
+"lng_settings_chat_quick_action_react" = "Send reaction with double click";
+
+"lng_settings_chat_reactions_title" = "Quick Reaction";
+"lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";
+"lng_settings_chat_message_reply_from" = "Bob Harris";
+"lng_settings_chat_message_reply" = "Good morning";
+"lng_settings_chat_message" = "Do you know what time it is?";
 
 "lng_settings_section_filters" = "Folders";
 
@@ -453,8 +490,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
-"lng_settings_passcode_disable" = "Disable passcode";
-"lng_settings_password_disable" = "Disable cloud password";
+"lng_settings_passcode_disable" = "Disable Passcode";
+"lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
+"lng_settings_password_disable" = "Disable Cloud Password";
 "lng_settings_password_abort" = "Abort two-step verification setup";
 "lng_settings_password_reenter_email" = "Re-enter recovery email";
 "lng_settings_about_bio" = "Any details such as age, occupation or city.\nExample: 23 y.o. designer from San Francisco";
@@ -475,6 +513,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_theme_accent_title" = "Choose accent color";
 "lng_settings_data_storage" = "Data and storage";
 "lng_settings_information" = "Edit profile";
+"lng_settings_security" = "Security";
 "lng_settings_passcode_title" = "Local passcode";
 "lng_settings_password_title" = "Two-step verification";
 "lng_settings_sessions_title" = "Active sessions";
@@ -487,6 +526,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_system_integration" = "System integration";
 "lng_settings_performance" = "Performance";
 "lng_settings_enable_animations" = "Enable animations";
+"lng_settings_enable_hwaccel" = "Hardware accelerated video decoding";
 "lng_settings_enable_opengl" = "Enable OpenGL rendering for media";
 "lng_settings_angle_backend" = "ANGLE graphics backend";
 "lng_settings_angle_backend_auto" = "Auto";
@@ -500,6 +540,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_sensitive_about" = "Display sensitive media in public channels on all your Telegram devices.";
 "lng_settings_security_bots" = "Bots and websites";
 "lng_settings_clear_payment_info" = "Clear Payment and Shipping Info";
+
+"lng_settings_cloud_password_on" = "On";
+"lng_settings_cloud_password_off" = "Off";
+"lng_settings_cloud_password_start_title" = "Two-Step Verification";
+"lng_settings_cloud_password_password_title" = "Password";
+"lng_settings_cloud_password_hint_title" = "Password Hint";
+"lng_settings_cloud_password_email_title" = "Recovery Email";
+"lng_settings_cloud_password_start_about" = "Protect your Telegram account with an additional password.";
+"lng_settings_cloud_password_hint_about" = "You can create a hint for your password.";
+"lng_settings_cloud_password_email_about" = "Please enter your new recovery email. It is the only way to recover a forgotten password.";
+"lng_settings_cloud_password_password_subtitle" = "Create Password";
+"lng_settings_cloud_password_check_subtitle" = "Your Password";
+"lng_settings_cloud_password_hint_subtitle" = "Add Password Hint";
+"lng_settings_cloud_password_email_subtitle" = "Add Recovery Email";
+"lng_settings_cloud_password_email_recovery_subtitle" = "Password Recovery";
+"lng_settings_cloud_password_manage_about1" = "You have Two-Step Verification enabled, so your account is protected with an additional password.";
+"lng_settings_cloud_password_manage_about2" = "This email is the only way to recover a forgotten password.";
+"lng_settings_cloud_password_manage_disable_sure" = "Are you sure you want to disable your password?";
+"lng_settings_cloud_password_manage_email_new" = "Set Recovery Email";
+"lng_settings_cloud_password_manage_email_change" = "Change Recovery Email";
+"lng_settings_cloud_password_manage_password_change" = "Change Password";
+"lng_settings_cloud_password_skip_hint" = "Skip hint";
+"lng_settings_cloud_password_save" = "Save and Finish";
+"lng_settings_cloud_password_email_confirm" = "Confirm and Finish";
+"lng_settings_cloud_password_reset_in" = "You can reset your password in {duration}.";
 
 "lng_clear_payment_info_title" = "Clear payment info";
 "lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
@@ -582,10 +647,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_local_storage_size_limit" = "Total size limit: {size}";
 "lng_local_storage_media_limit" = "Media cache limit: {size}";
 "lng_local_storage_time_limit" = "Clear files older than: {limit}";
-"lng_local_storage_limit_weeks#one" = "{count} week";
-"lng_local_storage_limit_weeks#other" = "{count} weeks";
-"lng_local_storage_limit_months#one" = "{count} month";
-"lng_local_storage_limit_months#other" = "{count} months";
 "lng_local_storage_limit_never" = "Never";
 "lng_local_storage_summary" = "Summary";
 "lng_local_storage_clear_some" = "Clear";
@@ -599,23 +660,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_remove_button" = "Remove";
 
 "lng_passcode_turn_on" = "Turn on local passcode";
-"lng_passcode_change" = "Change local passcode";
+"lng_passcode_change" = "Change Passcode";
 "lng_passcode_create" = "Local passcode";
 "lng_passcode_remove" = "Remove local passcode";
 "lng_passcode_turn_off" = "Turn off";
 "lng_passcode_autolock" = "Auto-Lock";
 "lng_passcode_autolock_away" = "Auto-Lock if away for...";
 "lng_passcode_autolock_inactive" = "Auto-Lock if inactive for...";
-"lng_passcode_autolock_minutes#one" = "{count} minute";
-"lng_passcode_autolock_minutes#other" = "{count} minutes";
-"lng_passcode_autolock_hours#one" = "{count} hour";
-"lng_passcode_autolock_hours#other" = "{count} hours";
 "lng_passcode_autolock_hours_minutes" = "{hours_count}h {minutes_count}m";
 "lng_passcode_enter_old" = "Enter current passcode";
 "lng_passcode_enter_first" = "Enter a passcode";
 "lng_passcode_enter_new" = "Enter new passcode";
 "lng_passcode_confirm_new" = "Re-enter new passcode";
 "lng_passcode_about" = "When a local passcode is set, a lock icon appears at the top of your chats list. Click it to lock the app.\n\nNote: if you forget your local passcode, you'll need to relogin in Telegram Desktop.";
+"lng_passcode_about1" = "When a local passcode is set, a lock icon appears at the top of your chats list.";
+"lng_passcode_about2" = "Click it to lock Telegram Desktop.";
+"lng_passcode_about3" = "Note: if you forget your passcode, you'll need to log out of Telegram Desktop and log in again.";
 "lng_passcode_differ" = "Passcodes are different";
 "lng_passcode_wrong" = "Wrong passcode";
 "lng_passcode_is_same" = "Passcode was not changed";
@@ -624,6 +684,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_passcode_submit" = "Submit";
 "lng_passcode_logout" = "Log out";
 "lng_passcode_need_unblock" = "You need to unlock me first.";
+"lng_passcode_create_button" = "Save Passcode";
+"lng_passcode_check_button" = "Submit";
+"lng_passcode_change_button" = "Save Passcode";
+"lng_passcode_create_title" = "Create Local Passcode";
+"lng_passcode_check_title" = "Enter Passcode";
+"lng_passcode_change_title" = "Enter Passcode";
 
 "lng_cloud_password_waiting_code" = "Confirmation code sent to {email}...";
 "lng_cloud_password_confirm" = "Confirm recovery email";
@@ -637,12 +703,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_reset_cancel" = "Cancel password reset";
 "lng_cloud_password_enter_old" = "Enter current password";
 "lng_cloud_password_enter_first" = "Enter a password";
-"lng_cloud_password_enter_new" = "Enter new password";
-"lng_cloud_password_confirm_new" = "Re-enter new password";
-"lng_cloud_password_hint" = "Enter password hint";
+"lng_cloud_password_enter_new" = "Enter password";
+"lng_cloud_password_confirm_new" = "Re-enter password";
+"lng_cloud_password_hint" = "Enter Password Hint";
 "lng_cloud_password_change_hint" = "Enter new password hint";
 "lng_cloud_password_bad" = "Password and hint cannot be the same.";
-"lng_cloud_password_email" = "Enter recovery email";
+"lng_cloud_password_email" = "Enter Email";
 "lng_cloud_password_bad_email" = "Incorrect email, please try other.";
 "lng_cloud_password_about" = "This password will be asked when you log in on a new device in addition to the SMS code.";
 "lng_cloud_password_about_recover" = "Warning! Are you sure you don't want to\nadd a password recovery email?\n\nIf you forget your password, you will\nlose access to your Telegram account.";
@@ -664,6 +730,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_cloud_password_reset_cancel_title" = "Cancel reset";
 "lng_cloud_password_reset_cancel_sure" = "Cancel the password reset process? If you request a new reset later, it will take another 7 days.";
 "lng_cloud_password_reset_later" = "You recently requested a password reset that was cancelled. Please wait {duration} before making a new request.";
+"lng_cloud_password_expired" = "Please re-enter your password.";
 
 "lng_connection_auto_connecting" = "Default (connecting...)";
 "lng_connection_auto" = "Default ({transport} used)";
@@ -732,6 +799,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_faq_button" = "Go to FAQ";
 "lng_settings_ask_ok" = "Ask a Volunteer";
 "lng_settings_faq" = "Telegram FAQ";
+"lng_settings_features" = "Telegram Features";
 "lng_settings_logout" = "Log Out";
 "lng_sure_logout" = "Are you sure you want to log out?";
 
@@ -767,6 +835,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_blocked_list_confirm_text" = "Do you want to block {name} from messaging and calling you on Telegram?";
 "lng_blocked_list_confirm_clear" = "Delete this chat";
 "lng_blocked_list_confirm_ok" = "Block";
+"lng_blocked_list_empty_title" = "No blocked users";
+"lng_blocked_list_empty_description" = "You haven't blocked anyone yet.";
+"lng_blocked_list_subtitle#one" = "{count} blocked user";
+"lng_blocked_list_subtitle#other" = "{count} blocked users";
 
 "lng_edit_privacy_everyone" = "Everybody";
 "lng_edit_privacy_contacts" = "My contacts";
@@ -851,12 +923,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
 "lng_self_destruct_sessions_title" = "Session termination";
 "lng_self_destruct_sessions_description" = "If you don't come online from a specific session at least once within this period, it will be terminated.";
-"lng_self_destruct_weeks#one" = "{count} week";
-"lng_self_destruct_weeks#other" = "{count} weeks";
-"lng_self_destruct_months#one" = "{count} month";
-"lng_self_destruct_months#other" = "{count} months";
-"lng_self_destruct_years#one" = "{count} year";
-"lng_self_destruct_years#other" = "{count} years";
 
 "lng_change_phone_title" = "Change phone number";
 "lng_change_phone_about" = "You can change your Telegram number\nhere. Your account and all your cloud data\n— messages, media, contacts, etc. will be\nmoved to the new number.\n\n**Important**: all your Telegram contacts will\nget your **new number** added to their address\nbook, provided they had your old number and\nyou haven't blocked them in Telegram.";
@@ -869,6 +935,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_change_phone_code_title" = "Enter code";
 "lng_change_phone_code_description" = "We've sent an SMS with a confirmation code to your phone {phone}.";
 "lng_change_phone_success" = "Your phone number has been changed.";
+
+"lng_mute_menu_mute" = "Mute";
+"lng_mute_menu_unmute" = "Unmute";
+"lng_mute_menu_duration_hours#one" = "Mute for {count} hour";
+"lng_mute_menu_duration_hours#other" = "Mute for {count} hours";
+"lng_mute_menu_duration_any" = "Mute for {duration}";
+"lng_mute_menu_duration" = "Mute for...";
+"lng_mute_menu_duration_forever" = "Mute forever";
+"lng_mute_menu_duration_unmute" = "Unmute";
+"lng_mute_menu_sound_on" = "Enable sound";
+"lng_mute_menu_sound_off" = "Disable sound";
+"lng_mute_menu_sound_select" = "Select sound";
+"lng_mute_box_title" = "Mute notifications for...";
 
 "lng_mute_duration_hours#one" = "For {count} hour";
 "lng_mute_duration_hours#other" = "For {count} hours";
@@ -908,6 +987,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_block_bot" = "Stop and block bot";
 "lng_profile_restart_bot" = "Restart bot";
 "lng_profile_invite_to_group" = "Add to Group";
+"lng_profile_add_bot_as_admin" = "Add to Group or Channel";
+"lng_profile_invite_to_channel" = "Add to Channel";
+"lng_profile_invite_to_group_about" = "This bot is able to manage a group.";
+"lng_profile_invite_to_channel_about" = "This bot is able to manage a channel.";
+"lng_profile_add_bot_as_admin_about" = "This bot is able to manage a group or channel.";
 "lng_profile_delete_contact" = "Delete";
 "lng_profile_set_group_photo" = "Set Photo";
 "lng_profile_add_participant" = "Add Members";
@@ -985,8 +1069,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_delete_conversation" = "Delete conversation";
 "lng_profile_block_user" = "Block user";
 "lng_profile_unblock_user" = "Unblock user";
-"lng_profile_export_chat" = "Export chat history";
-"lng_profile_export_channel" = "Export channel history";
+"lng_profile_export_chat" = "Export history";
+"lng_profile_export_channel" = "Export history";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
 "lng_media_selected_gif#one" = "{count} GIF";
@@ -1076,11 +1160,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_history_visibility_hidden_about" = "New members won't see earlier messages.";
 "lng_manage_history_visibility_hidden_legacy" = "New members won't see more than 100 previous messages.";
 
-"lng_manage_messages_ttl_title" = "Auto-delete messages";
-"lng_manage_messages_ttl_never" = "Off";
-"lng_manage_messages_ttl_after1" = "1 day";
-"lng_manage_messages_ttl_after2" = "1 week";
-"lng_manage_messages_ttl_after3" = "1 month";
+"lng_manage_messages_ttl_title" = "Auto-delete after...";
+"lng_manage_messages_ttl_disable" = "Disable";
+"lng_manage_messages_ttl_after1" = "1 hour";
+"lng_manage_messages_ttl_after2" = "1 day";
+"lng_manage_messages_ttl_after3" = "1 week";
+"lng_manage_messages_ttl_after4" = "1 month";
+"lng_manage_messages_ttl_after_custom" = "Custom";
+"lng_manage_messages_ttl_menu" = "Auto-Delete";
 
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
@@ -1089,14 +1176,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_off" = "Auto-delete is now disabled.";
-"lng_ttl_about_duration1" = "1 day";
-"lng_ttl_about_duration2" = "1 week";
-"lng_ttl_about_duration3" = "1 month";
 
 "lng_report_title" = "Report channel";
 "lng_report_group_title" = "Report group";
 "lng_report_bot_title" = "Report bot";
 "lng_report_message_title" = "Report message";
+"lng_report_profile_photo_title" = "Report profile photo";
+"lng_report_profile_video_title" = "Report profile video";
 "lng_report_please_select_messages" = "Please select messages to report.";
 "lng_report_select_messages" = "Select messages";
 "lng_report_messages_none" = "Select Messages";
@@ -1109,6 +1195,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_reason_violence" = "Violence";
 "lng_report_reason_child_abuse" = "Child Abuse";
 "lng_report_reason_pornography" = "Pornography";
+"lng_report_reason_copyright" = "Copyright";
+"lng_report_reason_illegal_drugs" = "Illegal Drugs";
+"lng_report_reason_personal_details" = "Personal Details";
 "lng_report_reason_other" = "Other";
 "lng_report_reason_description" = "Description";
 "lng_report_button" = "Report";
@@ -1173,9 +1262,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_failed_add_not_mutual_channel" = "Sorry, if a person leaves a channel, only a mutual contact can bring them back (they need to have your phone number, and you need theirs).";
 
 "lng_sure_delete_contact" = "Are you sure you want to delete {contact} from your contact list?";
-"lng_sure_delete_history" = "Are you sure you want to delete all message history with {contact}?\n\nThis action cannot be undone.";
-"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in «{group}»?\n\nThis action cannot be undone.";
-"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave «{group}»?\n\nThis action cannot be undone.";
+"lng_sure_delete_history" = "Are you sure you want to clear your chat history with **{contact}**?\n\nThis action cannot be undone.";
+"lng_sure_delete_group_history" = "Are you sure, you want to delete all message history in **«{group}»**?\n\nThis action cannot be undone.";
+"lng_sure_delete_and_exit" = "Are you sure, you want to delete all message history and leave **«{group}»**?\n\nThis action cannot be undone.";
 "lng_sure_leave_channel" = "Are you sure you want to leave\nthis channel?";
 "lng_sure_delete_channel" = "Are you sure you want to delete this channel? All members will be removed and all messages will be lost.";
 "lng_sure_leave_group" = "Are you sure you want to leave this group?";
@@ -1190,9 +1279,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_message_empty" = "Empty Message";
 "lng_message_unsupported" = "This message is not supported by your version of Telegram Desktop. Please update to the latest version in Settings, or install it from {link}";
+"lng_message_not_found" = "Message doesn't exist.";
 
-"lng_duration_seconds#one" = "{count} second";
-"lng_duration_seconds#other" = "{count} seconds";
 "lng_duration_minsec_minutes#one" = "{count} min";
 "lng_duration_minsec_minutes#other" = "{count} min";
 "lng_duration_minsec_seconds#one" = "{count} sec";
@@ -1284,6 +1372,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_proximity_distance_m#other" = "{count} metres";
 "lng_action_proximity_distance_km#one" = "{count} km";
 "lng_action_proximity_distance_km#other" = "{count} km";
+"lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";
@@ -1298,6 +1387,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_migrate_learn_more" = "Learn more »";
 "lng_profile_migrate_button" = "Upgrade to supergroup";
 "lng_profile_add_more_after_create" = "You will be able to add more members after you create the group.";
+"lng_profile_camera_title" = "Capture yourself";
 
 "lng_channel_not_accessible" = "Sorry, this channel is not accessible.";
 "lng_group_not_accessible" = "Sorry, this group is not accessible.";
@@ -1449,6 +1539,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_attach_failed" = "Failed";
 "lng_attach_file" = "File";
 "lng_attach_photo" = "Photo";
+"lng_attach_camera" = "Camera";
+"lng_attach_document" = "Document";
+"lng_attach_photo_or_video" = "Photo or video";
 
 "lng_media_open_with" = "Open With";
 "lng_media_download" = "Download";
@@ -1560,7 +1653,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_poll" = "Poll";
 
 "lng_ban_user" = "Ban User";
-"lng_delete_all_from" = "Delete all from this user";
+"lng_delete_all_from_user" = "Delete all from {user}";
 "lng_report_spam" = "Report Spam";
 "lng_report_spam_and_leave" = "Report spam and leave";
 "lng_report_spam_done" = "Thank you for your report.";
@@ -1678,6 +1771,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_open_link" = "Open";
 "lng_allow_bot_pass" = "Allow {bot_name} to pass your Telegram name and ID to the web pages you open via this bot?";
 "lng_allow_bot" = "Allow";
+"lng_allow_bot_webview" = "{bot_name} would like to open its web app to proceed.\n\nIt will be able to access your **IP address** and basic device info.";
 "lng_url_auth_open_confirm" = "Do you want to open {link}?";
 "lng_url_auth_login_option" = "Log in to {domain} as {user}";
 "lng_url_auth_allow_messages" = "Allow {bot} to send me messages";
@@ -1693,6 +1787,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_chats_not_found" = "No chats found";
 "lng_bot_sure_share_game" = "Share the game with {user}?";
 "lng_bot_sure_share_game_group" = "Share the game with «{group}»?";
+"lng_bot_groups_manage" = "Groups I manage";
+"lng_bot_channels_manage" = "Channels I manage";
+"lng_bot_groups" = "Groups";
+"lng_bot_add_title" = "Add Bot";
+"lng_bot_as_admin_check" = "Admin rights";
+"lng_bot_add_as_admin" = "Add Bot as Admin";
+"lng_bot_add_as_member" = "Add Bot as Member";
+"lng_bot_sure_add_title" = "Add bot as admin";
+"lng_bot_sure_add_text_group" = "Are you sure you want to add this bot as an admin in the group {group}?";
+"lng_bot_sure_add_text_channel" = "Are you sure you want to add this bot as an admin in the channel {group}?";
+"lng_bot_sure_add" = "Add as admin";
+"lng_bot_no_webview" = "Unfortunately, you can't open such menu with current system configuration.";
+"lng_bot_remove_from_menu" = "Remove from menu";
+"lng_bot_remove_from_menu_done" = "Bot removed from the menu.";
+"lng_bot_add_to_menu" = "{bot} asks your permission to be added as an option to your attachments menu so you can access it from any chat.";
+"lng_bot_add_to_menu_done" = "Bot added to the menu.";
+"lng_bot_menu_not_supported" = "This bot isn't supported in the attach menu.";
+"lng_bot_menu_already_added" = "This bot is already added in your attach menu.";
+"lng_bot_menu_button" = "Menu";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -1762,7 +1875,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_archive_to_list" = "Move to chats list";
 "lng_context_archive_to_menu_info" = "Archive moved to the main menu!\nYou can return it from the context menu of the archive button.";
 
-"lng_context_mute" = "Mute notifications";
+"lng_context_mute" = "Mute";
 "lng_context_unmute" = "Unmute";
 
 "lng_context_promote_admin" = "Promote to admin";
@@ -1828,6 +1941,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_seen_reacted_none" = "Nobody Reacted";
 "lng_context_seen_reacted_all" = "Show All Reactions";
 "lng_context_set_as_quick" = "Set As Quick";
+"lng_context_delete_from_disk" = "Delete from disk";
+"lng_context_delete_all_files" = "Delete all files";
+"lng_context_save_custom_sound" = "Save for notifications";
+
+"lng_downloads_section" = "Downloads";
+"lng_downloads_view_in_chat" = "View in chat";
+"lng_downloads_view_in_section" = "View in downloads";
+"lng_downloads_delete_sure_one" = "Do you want to delete this file?";
+"lng_downloads_delete_sure_all" = "Do you want to delete all files?";
+"lng_downloads_delete_sure#one" = "Do you want to delete {count} file?";
+"lng_downloads_delete_sure#other" = "Do you want to delete {count} files?";
+"lng_downloads_delete_in_cloud_one" = "It will be deleted from your disk, but will remain accessible in the cloud.";
+"lng_downloads_delete_in_cloud" = "They will be deleted from your disk, but will remain accessible in the cloud.";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
@@ -1890,7 +2016,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_try_other_contact" = "Try someone else";
 "lng_create_group_link" = "Link";
 "lng_create_group_invite_link" = "Invite link";
-"lng_create_group_description" = "Description (optional)";
+"lng_create_group_description" = "Add description...";
 
 "lng_drag_images_here" = "Drop images here";
 "lng_drag_photos_here" = "Drop photos here";
@@ -1926,12 +2052,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_selected_unsend_about_group#one" = "You can also delete the {count} message you sent from the inboxes of other group members by checking \"Unsend my messages\".";
 "lng_selected_unsend_about_group#other" = "You can also delete the {count} messages you sent from the inboxes of other group members by checking \"Unsend my messages\".";
 "lng_delete_for_everyone_check" = "Delete for everyone";
-"lng_delete_for_other_check" = "Also delete for {user}";
+"lng_delete_for_other_check" = "Also delete for **{user}**";
 "lng_delete_for_other_my" = "Unsend my messages";
 "lng_box_delete" = "Delete";
 "lng_box_leave" = "Leave";
 
 "lng_upload_sure_stop" = "Are you sure you want to stop uploading your files?\n\nIf you do, you'll need to start over.";
+"lng_download_sure_stop" = "Are you sure you want to stop downloading your files?\n\nIf you do, you'll need to start over.";
 "lng_upload_show_file" = "Show file";
 
 "lng_about_version" = "version {version}";
@@ -1947,6 +2074,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_search_found_results#other" = "Found {count} messages";
 "lng_search_global_results" = "Global search results";
 "lng_search_messages_from" = "Show messages from";
+"lng_search_messages_n_of_amount" = "{n} of {amount}";
+"lng_search_messages_none" = "No result";
 
 "lng_media_save_progress" = "{ready} of {total} {mb}";
 "lng_mediaview_save_as" = "Save As...";
@@ -1965,6 +2094,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_today" = "today at {time}";
 "lng_mediaview_yesterday" = "yesterday at {time}";
 "lng_mediaview_date_time" = "{date} at {time}";
+"lng_mediaview_set_userpic" = "Set as Main";
+"lng_mediaview_report_profile_photo" = "Report";
 
 "lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";
@@ -2057,6 +2188,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_webview_install_webkit" = "Please install WebKitGTK (webkit2gtk-5.0/webkit2gtk-4.1/webkit2gtk-4.0) using your package manager.";
 "lng_payments_webview_switch_mutter" = "Qt's window embedding doesn't work well with Mutter window manager. Please switch to another window manager or desktop environment.";
 "lng_payments_webview_switch_wayland" = "There is no way to embed WebView window on Wayland. Please switch to X11.";
+"lng_payments_webview_update_windows" = "Please update your system to Windows 8.1 or later.";
 "lng_payments_sure_close" = "Are you sure you want to close this payment form? The changes you made will be lost.";
 "lng_payments_receipt_label" = "Receipt";
 "lng_payments_receipt_label_test" = "Test receipt";
@@ -2281,14 +2413,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_context_remove" = "Remove";
 "lng_group_call_remove_channel" = "Remove {channel} from the voice chat?";
 "lng_group_call_remove_channel_from_channel" = "Remove {channel} from the live stream?";
-"lng_group_call_duration_days#one" = "{count} day";
-"lng_group_call_duration_days#other" = "{count} days";
-"lng_group_call_duration_hours#one" = "{count} hour";
-"lng_group_call_duration_hours#other" = "{count} hours";
-"lng_group_call_duration_minutes#one" = "{count} minute";
-"lng_group_call_duration_minutes#other" = "{count} minutes";
-"lng_group_call_duration_seconds#one" = "{count} second";
-"lng_group_call_duration_seconds#other" = "{count} seconds";
 "lng_group_call_mac_access" = "Telegram Desktop does not have access to system wide keyboard input required for Push to Talk.";
 "lng_group_call_mac_input" = "Please allow **Input Monitoring** for Telegram in Privacy Settings.";
 "lng_group_call_mac_accessibility" = "Please allow **Accessibility** for Telegram in Privacy Settings.\n\nApp restart may be required.";
@@ -2349,6 +2473,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_unpinned_camera" = "{user}'s video is unpinned.";
 "lng_group_call_unpinned_screen" = "{user}'s screencast is unpinned.";
 "lng_group_call_sure_screencast" = "{user} is screensharing. This action will make your screencast pinned for all participants.";
+"lng_group_call_pinned_on_top" = "Live stream is pinned on top.";
+"lng_group_call_unpinned_on_top" = "Live stream is unpinned from top.";
 "lng_group_call_recording_start_sure" = "Participants will see the chat is being recorded.";
 "lng_group_call_recording_stop_sure" = "Do you want to stop recording this chat?";
 "lng_group_call_recording_start_field" = "Recording Title";
@@ -2366,6 +2492,30 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_call_title_changed_channel" = "Live stream title changed to {title}";
 "lng_group_call_join_as_changed" = "Members of this voice chat will now see you as {name}";
 "lng_group_call_join_as_changed_channel" = "Members of this live stream will now see you as {name}";
+"lng_group_call_no_stream_admin" = "Oops! Telegram doesn't see any stream coming from your streaming app. Please make sure you entered the right Server URL and Stream Key in your app..";
+"lng_group_call_no_stream" = "{group} is currently not broadcasting live stream data to Telegram.";
+
+"lng_menu_start_group_call" = "Start video chat";
+"lng_menu_start_group_call_scheduled" = "Schedule video chat";
+"lng_menu_start_group_call_with" = "Stream with...";
+"lng_menu_start_group_call_channel" = "Start live stream";
+"lng_menu_start_group_call_scheduled_channel" = "Schedule live stream";
+"lng_menu_start_group_call_with_channel" = "Stream with...";
+
+"lng_group_call_rtmp_title" = "Stream with other apps";
+"lng_group_call_rtmp_url_subtitle" = "Server URL";
+"lng_group_call_rtmp_url_copy" = "Copy Server URL";
+"lng_group_call_rtmp_url_copied" = "Server URL copied to clipboard.";
+"lng_group_call_rtmp_key_subtitle" = "Stream Key";
+"lng_group_call_rtmp_key_copy" = "Copy Stream Key";
+"lng_group_call_rtmp_key_copied" = "Stream Key copied to clipboard.";
+"lng_group_call_rtmp_key_warning" = "**Never share your Stream Key with anyone or show it on stream!**";
+"lng_group_call_rtmp_info" = "To stream video with another app, enter these Server URL and Stream Key in your streaming app.\n\nOnce you start broadcasting in your streaming app, tap Start Streaming below.";
+"lng_group_call_rtmp_start" = "Start Streaming";
+"lng_group_call_rtmp_revoke" = "Revoke Stream Key";
+"lng_group_call_rtmp_revoke_sure" = "Are you sure you want to revoke your Server URL and Stream Key?";
+"lng_group_call_rtmp_viewers#one" = "{count} viewer";
+"lng_group_call_rtmp_viewers#other" = "{count} viewers";
 
 "lng_no_mic_permission" = "Telegram needs access to your microphone so that you can make calls and record voice messages.";
 
@@ -2394,12 +2544,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_default_restrictions_header" = "What can members of this group do?";
 "lng_rights_slowmode_header" = "Slow mode";
 "lng_rights_slowmode_off" = "Off";
-"lng_rights_slowmode_seconds#one" = "{count}s";
-"lng_rights_slowmode_seconds#other" = "{count}s";
-"lng_rights_slowmode_minutes#one" = "{count}m";
-"lng_rights_slowmode_minutes#other" = "{count}m";
-"lng_rights_slowmode_hours#one" = "{count}h";
-"lng_rights_slowmode_hours#other" = "{count}h";
 "lng_rights_slowmode_about" = "Members will be able to send only one message per this interval.";
 "lng_rights_slowmode_about_interval" = "Members will be able to send only one message {interval}.";
 "lng_rights_slowmode_interval_seconds#one" = "every {count} second";
@@ -2501,11 +2645,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";
 
-"lng_admin_log_slow_mode_seconds#one" = "{count} second";
-"lng_admin_log_slow_mode_seconds#other" = "{count} seconds";
-"lng_admin_log_slow_mode_minutes#one" = "{count} minute";
-"lng_admin_log_slow_mode_minutes#other" = "{count} minutes";
-
 "lng_admin_log_title_all" = "All actions";
 "lng_admin_log_title_selected" = "Selected actions";
 "lng_admin_log_filter" = "Filter";
@@ -2562,7 +2701,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_pinned_message" = "{from} pinned this message:";
 "lng_admin_log_unpinned_message" = "{from} unpinned this message";
 "lng_admin_log_edited_caption" = "{from} edited caption:";
-"lng_admin_log_removed_caption" = "{from} removed caption";
+"lng_admin_log_edited_media" = "{from} edited media:";
+"lng_admin_log_edited_media_and_caption" = "{from} edited media and caption:";
+"lng_admin_log_edited_media_and_removed_caption" = "{from} edited media and removed caption:";
+"lng_admin_log_removed_caption" = "{from} removed caption:";
 "lng_admin_log_previous_caption" = "Original caption";
 "lng_admin_log_edited_message" = "{from} edited this message:";
 "lng_admin_log_previous_message" = "Original message";
@@ -2867,8 +3009,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_export_invalid" = "Sorry, you have started a new data export, so this data export is now cancelled.";
 "lng_export_delay" = "Sorry, for security reasons, you will be able to begin downloading your data in {hours}. We have notified all your devices about the export request to make sure it's authorized and to give you time to react if it's not.\n\nPlease come back on {date} and repeat the request using the same device.";
 "lng_export_delay_less_than_hour" = "less than an hour";
-"lng_export_delay_hours#one" = "{count} hour";
-"lng_export_delay_hours#other" = "{count} hours";
 "lng_export_suggest_title" = "Data export ready";
 "lng_export_suggest_text" = "You can now download the data you requested. Start exporting data?";
 "lng_export_suggest_cancel" = "Not now";
@@ -3001,6 +3141,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filters_context_remove" = "Remove";
 "lng_filters_remove_sure" = "This will remove the folder, your chats will not be deleted.";
 "lng_filters_remove_yes" = "Remove";
+"lng_filters_menu_add" = "Add to folder";
+"lng_filters_menu_remove" = "Remove from folder";
+"lng_filters_add_box_title" = "Add to...";
+"lng_filters_toast_add" = "{chat} added to {folder} folder";
+"lng_filters_toast_remove" = "{chat} removed from {folder} folder";
 
 "lng_chat_theme_change" = "Change colors";
 "lng_chat_theme_none" = "No\nTheme";
@@ -3033,6 +3178,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sponsored_title" = "What are sponsored messages?";
 "lng_sponsored_info_description1" = "Unlike other apps, Telegram never uses your private data to target ads. Sponsored messages on Telegram are based solely on the topic of the public channels in which they are shown. This means that no user data is mined or analyzed to display ads, and every user viewing a channel on Telegram sees the same sponsored messages.\n\nUnlike other apps, Telegram doesn't track whether you tapped on a sponsored message and doesn't profile you based on your activity. We also prevent external links in sponsored messages to ensure that third parties can’t spy on our users. We believe that everyone has the right to privacy, and technological platforms should respect that.\n\nTelegram offers a free and unlimited service to hundreds of millions of users, which involves significant server and traffic costs. In order to remain independent and stay true to its values, Telegram developed a paid tool to promote messages with user privacy in mind. We welcome responsible advertisers at:";
 "lng_sponsored_info_description2" = "Sponsored Messages are currently in test mode. Once they are fully launched and allow Telegram to cover its basic costs, we will start sharing ad revenue with the owners of public channels in which sponsored messages are displayed.\n\nOnline ads should no longer be synonymous with abuse of user privacy. Let us redefine how a tech company should operate – together.";
+
+"lng_telegram_features_url" = "https://t.me/TelegramTips";
+
+"lng_ringtones_box_title" = "Notification Sound";
+"lng_ringtones_box_cloud_subtitle" = "Choose your tone";
+"lng_ringtones_box_upload_choose" = "Choose ringtone";
+"lng_ringtones_box_upload_button" = "Upload Sound";
+"lng_ringtones_box_about" = "Click on any short voice note or mp3 file in chat and select \"Save for Notifications\". It will appear here.";
+"lng_ringtones_box_default" = "Default";
+"lng_ringtones_box_no_sound" = "No sound";
+"lng_ringtones_toast_added" = "Sound added!";
+"lng_ringtones_error_max_size" = "Sorry, but your file is too big. The maximum size for ringtones is {size}.";
+"lng_ringtones_error_max_duration" = "Sorry, but your file is too long. The maximum duration for ringtones is {duration}.";
 
 // Wnd specific
 

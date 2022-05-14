@@ -8,13 +8,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "api/api_common.h"
-#include "chat_helpers/send_context_menu.h"
+#include "menu/menu_send.h"
 #include "data/data_poll.h"
+#include "menu/add_action_callback.h"
 
 class History;
 
 namespace Ui {
 class RpWidget;
+class BoxContent;
 class GenericBox;
 } // namespace Ui
 
@@ -37,10 +39,7 @@ class SessionNavigation;
 
 extern const char kOptionViewProfileInChatsListContextMenu[];
 
-using PeerMenuCallback = Fn<QAction*(
-	const QString &text,
-	Fn<void()> handler,
-	const style::icon *icon)>;
+using PeerMenuCallback = Menu::MenuCallback;
 
 void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
@@ -48,19 +47,23 @@ void FillDialogsEntryMenu(
 	const PeerMenuCallback &addAction);
 
 void PeerMenuAddMuteAction(
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadAllChatsAction(
-	not_null<Data::Session*> data,
+	not_null<Window::SessionController*> controller,
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadChatListAction(
+	not_null<Window::SessionController*> controller,
 	Fn<not_null<Dialogs::MainList*>()> &&list,
 	const PeerMenuCallback &addAction);
 
 void PeerMenuExportChat(not_null<PeerData*> peer);
-void PeerMenuDeleteContact(not_null<UserData*> user);
+void PeerMenuDeleteContact(
+	not_null<Window::SessionController*> controller,
+	not_null<UserData*> user);
 void PeerMenuShareContactBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<UserData*> user);
@@ -95,23 +98,27 @@ void BlockSenderFromRepliesBox(
 	FullMsgId id);
 
 void ToggleHistoryArchived(not_null<History*> history, bool archived);
-Fn<void()> ClearHistoryHandler(not_null<PeerData*> peer);
-Fn<void()> DeleteAndLeaveHandler(not_null<PeerData*> peer);
+Fn<void()> ClearHistoryHandler(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
+Fn<void()> DeleteAndLeaveHandler(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
 
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	Data::ForwardDraft &&draft,
 	FnMut<void()> &&successCallback = nullptr);
-QPointer<Ui::RpWidget> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
 
-QPointer<Ui::RpWidget> ShowSendNowMessagesBox(
+QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<History*> history,
 	MessageIdsList &&items,
-	FnMut<void()> &&successCallback = nullptr);
+	Fn<void()> &&successCallback = nullptr);
 
 void ToggleMessagePinned(
 	not_null<Window::SessionNavigation*> navigation,

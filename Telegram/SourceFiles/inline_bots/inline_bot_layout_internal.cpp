@@ -139,6 +139,15 @@ int Gif::resizeGetHeight(int width) {
 	return _height;
 }
 
+QRect Gif::innerContentRect() const {
+	ensureDataMediaCreated(getShownDocument());
+
+	const auto size = (!_thumb.isNull())
+		? (_thumb.size() / style::DevicePixelRatio())
+		: countFrameSize();
+	return QRect(QPoint(), size);
+}
+
 void Gif::paint(Painter &p, const QRect &clip, const PaintContext *context) const {
 	const auto document = getShownDocument();
 	ensureDataMediaCreated(document);
@@ -463,6 +472,20 @@ void Sticker::unloadHeavyPart() {
 	_lifetime.destroy();
 	_lottie = nullptr;
 	_webm = nullptr;
+}
+
+QRect Sticker::innerContentRect() const {
+	ensureDataMediaCreated(getShownDocument());
+
+	const auto size = (_lottie && _lottie->ready())
+		? (_lottie->frame().size() / style::DevicePixelRatio())
+		: (!_thumb.isNull())
+		? (_thumb.size() / style::DevicePixelRatio())
+		: getThumbSize();
+	const auto pos = QPoint(
+		(st::stickerPanSize.width() - size.width()) / 2,
+		(st::stickerPanSize.height() - size.height()) / 2);
+	return QRect(pos, size);
 }
 
 void Sticker::paint(Painter &p, const QRect &clip, const PaintContext *context) const {

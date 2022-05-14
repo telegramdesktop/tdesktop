@@ -203,7 +203,8 @@ void ChatData::setMigrateToChannel(ChannelData *channel) {
 
 void ChatData::setGroupCall(
 		const MTPInputGroupCall &call,
-		TimeId scheduleDate) {
+		TimeId scheduleDate,
+		bool rtmp) {
 	if (migrateTo()) {
 		return;
 	}
@@ -224,7 +225,8 @@ void ChatData::setGroupCall(
 			this,
 			data.vid().v,
 			data.vaccess_hash().v,
-			scheduleDate);
+			scheduleDate,
+			rtmp);
 		owner().registerGroupCall(_call.get());
 		session().changes().peerUpdated(this, UpdateFlag::GroupCall);
 		addFlags(Flag::CallActive);

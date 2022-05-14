@@ -83,7 +83,7 @@ MTPInputMedia PrepareUploadedPhoto(RemoteFileInfo info) {
 		MTP_flags(flags),
 		info.file,
 		MTP_vector<MTPInputDocument>(
-			ranges::to<QVector>(info.attachedStickers)),
+			ranges::to<QVector<MTPInputDocument>>(info.attachedStickers)),
 		MTP_int(0));
 }
 
@@ -107,7 +107,7 @@ MTPInputMedia PrepareUploadedDocument(
 		MTP_string(document->mimeString()),
 		ComposeSendingDocumentAttributes(document),
 		MTP_vector<MTPInputDocument>(
-			ranges::to<QVector>(info.attachedStickers)),
+			ranges::to<QVector<MTPInputDocument>>(info.attachedStickers)),
 		MTP_int(0));
 }
 

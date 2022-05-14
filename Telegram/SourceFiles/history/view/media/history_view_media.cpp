@@ -75,7 +75,7 @@ TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {
 	} else if (webpage->duration > 0) {
 		return webpage->duration;
 	}
-	constexpr auto kMaxYouTubeTimestampDuration = 10 * 60 * TimeId(60);
+	constexpr auto kMaxYouTubeTimestampDuration = 100 * 60 * TimeId(60);
 	return kMaxYouTubeTimestampDuration;
 }
 

@@ -346,15 +346,16 @@ void CodeWidget::gotPassword(const MTPaccount_Password &result) {
 		LOG(("API Error: No current password received on login."));
 		_code->setFocus();
 		return;
-	} else if (!getData()->pwdState.request) {
+	} else if (!getData()->pwdState.hasPassword) {
 		const auto callback = [=](Fn<void()> &&close) {
 			Core::UpdateApplication();
 			close();
 		};
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_passport_app_out_of_date(tr::now),
-			tr::lng_menu_update(tr::now),
-			callback));
+		Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_passport_app_out_of_date(),
+			.confirmed = callback,
+			.confirmText = tr::lng_menu_update(),
+		}));
 		return;
 	}
 	goReplace<PasswordCheckWidget>(Animate::Forward);

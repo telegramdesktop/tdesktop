@@ -49,7 +49,6 @@ void RequestDependentMessageData(
 	const HistoryItemsList &items,
 	const TextWithTags &comment,
 	bool ignoreSlowmodeCountdown = false);
-void FastShareMessage(not_null<HistoryItem*> item);
 
 class HistoryMessage final : public HistoryItem {
 public:

@@ -23,11 +23,13 @@ struct SendAction;
 
 void SendExistingDocument(
 	MessageToSend &&message,
-	not_null<DocumentData*> document);
+	not_null<DocumentData*> document,
+	std::optional<MsgId> localMessageId = std::nullopt);
 
 void SendExistingPhoto(
 	MessageToSend &&message,
-	not_null<PhotoData*> photo);
+	not_null<PhotoData*> photo,
+	std::optional<MsgId> localMessageId = std::nullopt);
 
 bool SendDice(MessageToSend &message);
 

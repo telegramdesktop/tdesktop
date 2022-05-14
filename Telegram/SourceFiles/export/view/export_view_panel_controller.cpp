@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/qt/qt_common_adapters.h"
+#include "boxes/abstract_box.h" // Ui::show().
 #include "styles/style_export.h"
 #include "styles/style_layers.h"
 
@@ -230,7 +231,7 @@ void PanelController::showError(const ApiErrorState &error) {
 			if (hours <= 0) {
 				return tr::lng_export_delay_less_than_hour(tr::now);
 			}
-			return tr::lng_export_delay_hours(tr::now, lt_count, hours);
+			return tr::lng_hours(tr::now, lt_count, hours);
 		}();
 		showError(tr::lng_export_delay(
 			tr::now,
@@ -273,7 +274,7 @@ void PanelController::showCriticalError(const QString &text) {
 }
 
 void PanelController::showError(const QString &text) {
-	auto box = Box<Ui::InformBox>(text);
+	auto box = Ui::MakeInformBox(text);
 	const auto weak = Ui::MakeWeak(box.data());
 	const auto hidden = _panel->isHidden();
 	_panel->showBox(
@@ -329,7 +330,7 @@ void PanelController::showProgress() {
 	_panel->setHideOnDeactivate(true);
 }
 
-void PanelController::stopWithConfirmation(FnMut<void()> callback) {
+void PanelController::stopWithConfirmation(Fn<void()> callback) {
 	if (!v::is<ProcessingState>(_state)) {
 		LOG(("Export Info: Stop Panel Without Confirmation."));
 		stopExport();
@@ -349,11 +350,12 @@ void PanelController::stopWithConfirmation(FnMut<void()> callback) {
 	};
 	const auto hidden = _panel->isHidden();
 	const auto old = _confirmStopBox;
-	auto box = Box<Ui::ConfirmBox>(
-		tr::lng_export_sure_stop(tr::now),
-		tr::lng_export_stop(tr::now),
-		st::attentionBoxButton,
-		std::move(stop));
+	auto box = Ui::MakeConfirmBox({
+		.text = tr::lng_export_sure_stop(),
+		.confirmed = std::move(stop),
+		.confirmText = tr::lng_export_stop(),
+		.confirmStyle = &st::attentionBoxButton,
+	});
 	_confirmStopBox = box.data();
 	_panel->showBox(
 		std::move(box),

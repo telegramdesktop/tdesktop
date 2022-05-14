@@ -26,29 +26,43 @@ constexpr auto kIconsPerRow = 6;
 
 constexpr auto kIcons = std::array{
 	FilterIcon::Cat,
-	FilterIcon::Crown,
-	FilterIcon::Favorite,
-	FilterIcon::Flower,
+	FilterIcon::Book,
+	FilterIcon::Money,
+	// FilterIcon::Camera,
 	FilterIcon::Game,
+	// FilterIcon::House,
+	FilterIcon::Light,
+	FilterIcon::Like,
+	// FilterIcon::Plus,
+	FilterIcon::Note,
+	FilterIcon::Palette,
+	FilterIcon::Travel,
+	FilterIcon::Sport,
+	FilterIcon::Favorite,
+	FilterIcon::Study,
+	FilterIcon::Airplane,
+	// FilterIcon::Microbe,
+	// FilterIcon::Worker,
+	FilterIcon::Private,
+	FilterIcon::Groups,
+	FilterIcon::All,
+	FilterIcon::Unread,
+	// FilterIcon::Check,
+	FilterIcon::Bots,
+	// FilterIcon::Folders,
+	FilterIcon::Crown,
+	FilterIcon::Flower,
 	FilterIcon::Home,
 	FilterIcon::Love,
 	FilterIcon::Mask,
 	FilterIcon::Party,
-	FilterIcon::Sport,
-	FilterIcon::Study,
 	FilterIcon::Trade,
-	FilterIcon::Travel,
 	FilterIcon::Work,
-
-	FilterIcon::All,
-	FilterIcon::Unread,
 	FilterIcon::Unmuted,
-	FilterIcon::Bots,
 	FilterIcon::Channels,
-	FilterIcon::Groups,
-	FilterIcon::Private,
 	FilterIcon::Custom,
 	FilterIcon::Setup,
+	// FilterIcon::Poo,
 };
 
 } // namespace
@@ -105,7 +119,7 @@ void FilterIconPanel::setupInner() {
 		Ui::FillRoundRect(
 			p,
 			_inner->rect(),
-			st::emojiPanBg,
+			st::dialogsBg,
 			ImageRoundRadius::Small);
 		p.setFont(st::emojiPanHeaderFont);
 		p.setPen(st::emojiPanHeaderFg);
@@ -121,15 +135,21 @@ void FilterIconPanel::setupInner() {
 			if (!rect.intersects(clip)) {
 				continue;
 			}
-			if (i == selected) {
+			const auto over = (i == selected);
+			if (over) {
 				Ui::FillRoundRect(
 					p,
 					rect,
-					st::emojiPanHover,
+					st::dialogsBgOver,
 					Ui::StickerHoverCorners);
 			}
 			const auto icon = LookupFilterIcon(kIcons[i]).normal;
-			icon->paintInCenter(p, rect, st::emojiIconFg->c);
+			icon->paintInCenter(
+				p,
+				rect,
+				(over
+					? st::dialogsUnreadBgMutedOver
+					: st::dialogsUnreadBgMuted)->c);
 		}
 	}, _inner->lifetime());
 

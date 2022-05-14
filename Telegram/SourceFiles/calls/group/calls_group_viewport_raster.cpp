@@ -51,8 +51,10 @@ void Viewport::RendererSW::paintFallback(
 		}
 		paintTile(p, tile.get(), bounding, bg);
 	}
+	const auto fullscreen = _owner->_fullscreen;
+	const auto color = fullscreen ? QColor(0, 0, 0) : st::groupCallBg->c;
 	for (const auto &rect : bg) {
-		p.fillRect(rect, st::groupCallBg);
+		p.fillRect(rect, color);
 	}
 	for (auto i = _tileData.begin(); i != _tileData.end();) {
 		if (i->second.stale) {
@@ -113,10 +115,13 @@ void Viewport::RendererSW::paintTile(
 	const auto frameRotation = _userpicFrame ? 0 : data.rotation;
 	Assert(!image.isNull());
 
+	const auto background = _owner->_fullscreen
+		? QColor(0, 0, 0)
+		: st::groupCallMembersBg->c;
 	const auto fill = [&](QRect rect) {
 		const auto intersected = rect.intersected(clip);
 		if (!intersected.isEmpty()) {
-			p.fillRect(intersected, st::groupCallMembersBg);
+			p.fillRect(intersected, background);
 			bg -= intersected;
 		}
 	};

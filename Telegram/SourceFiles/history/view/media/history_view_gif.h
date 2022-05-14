@@ -101,6 +101,10 @@ public:
 	QPoint resolveCustomInfoRightBottom() const override;
 	QString additionalInfoString() const override;
 
+	void stickerClearLoopPlayed() override {
+		_stickerOncePlayed = false;
+	}
+
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}
@@ -192,6 +196,7 @@ private:
 	ClickHandlerPtr _stickerLink;
 
 	QString _downloadSize;
+	mutable bool _stickerOncePlayed = false;
 
 };
 

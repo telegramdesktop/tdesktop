@@ -43,7 +43,7 @@ public:
 	}
 
 	void activatePanel();
-	void stopWithConfirmation(FnMut<void()> callback = nullptr);
+	void stopWithConfirmation(Fn<void()> callback = nullptr);
 
 	[[nodiscard]] rpl::producer<> stopRequests() const;
 

@@ -111,10 +111,13 @@ mainMenuResetScaleLeft: 36px;
 mainMenuResetScaleRight: 12px;
 mainMenuResetScaleTop: 2px;
 mainMenuResetScaleIconLeft: 5px;
-mainMenuCoverTextLeft: 30px;
+mainMenuCoverNameLeft: 26px;
 mainMenuCoverNameTop: 84px;
-mainMenuCoverStatusTop: 102px;
-mainMenuSkip: 10px;
+mainMenuCoverStatusLeft: 24px;
+mainMenuCoverStatusTop: 103px;
+mainMenuPhoneFont: font(12px);
+mainMenuSkip: 6px;
+mainMenuFooterHeightMin: 80px;
 mainMenu: Menu(defaultMenu) {
 	itemFg: windowBoldFg;
 	itemFgOver: windowBoldFgOver;
@@ -129,36 +132,23 @@ mainMenu: Menu(defaultMenu) {
 	}
 	itemToggleShift: 11px;
 }
-mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
-mainMenuNewGroup: icon {{ "menu_new_group", menuIconFg }};
-mainMenuNewGroupOver: icon {{ "menu_new_group", menuIconFgOver }};
-mainMenuNewChannel: icon {{ "menu_new_channel", menuIconFg }};
-mainMenuNewChannelOver: icon {{ "menu_new_channel", menuIconFgOver }};
-mainMenuContacts: icon {{ "settings/settings_name", menuIconFg }};
-mainMenuContactsOver: icon {{ "settings/settings_name", menuIconFgOver }};
-mainMenuCalls: icon {{ "settings/settings_phone_number", menuIconFg }};
-mainMenuCallsOver: icon {{ "settings/settings_phone_number", menuIconFgOver }};
-mainMenuSettings: icon {{ "menu_settings", menuIconFg }};
-mainMenuSettingsOver: icon {{ "menu_settings", menuIconFgOver }};
-mainMenuNightMode: icon {{ "menu_night_mode", menuIconFg }};
-mainMenuNightModeOver: icon {{ "menu_night_mode", menuIconFgOver }};
-mainMenuReload: icon {{ "menu_reload", menuIconFg }};
-mainMenuReloadOver: icon {{ "menu_reload", menuIconFgOver }};
-mainMenuFixOrder: icon {{ "menu_fix_order", menuIconFg }};
-mainMenuFixOrderOver: icon {{ "menu_fix_order", menuIconFgOver }};
-mainMenuAddAccount: icon {{ "menu_add_account", menuIconFg }};
-mainMenuAddAccountOver: icon {{ "menu_add_account", menuIconFgOver }};
-mainMenuAccountSize: 32px;
-mainMenuAccountCheckPosition: point(7px, 5px);
-mainMenuAccountCheckLine: 2px;
-mainMenuAccountCheck: RoundCheckbox(defaultRoundCheckbox) {
-	size: 18px;
-	bgInactive: overviewCheckBg;
-	bgActive: overviewCheckBgActive;
-	check: icon {{ "account_check", overviewCheckFgActive }};
+mainMenuButton: SettingsButton(defaultSettingsButton) {
+	style: semiboldTextStyle;
+	padding: margins(61px, 11px, 20px, 9px);
+	toggleSkip: 19px;
+	iconLeft: 21px;
+}
+mainMenuAddAccountButton: SettingsButton(mainMenuButton) {
+	iconLeft: 23px;
 }
 
-mainMenuFooterLeft: 30px;
+mainMenuShadow: icon {{ "menu_shadow", windowShadowFg }};
+mainMenuAccountSize: 26px;
+mainMenuAccountLine: 2px;
+mainMenuBadgeFont: font(11px bold);
+mainMenuBadgeSize: 18px;
+
+mainMenuFooterLeft: 25px;
 mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 	align: align(left);
 	textFg: windowSubTextFg;
@@ -171,15 +161,15 @@ mainMenuTelegramLabel: FlatLabel(defaultFlatLabel) {
 		linkFg: windowSubTextFg;
 	}
 }
-mainMenuTelegramBottom: 43px;
+mainMenuTelegramBottom: 38px;
 mainMenuVersionLabel: FlatLabel(mainMenuTelegramLabel) {
 	style: defaultTextStyle;
 }
-mainMenuVersionBottom: 21px;
+mainMenuVersionBottom: 17px;
 
-mainMenuToggleSize: 8px;
+mainMenuToggleSize: 6px;
 mainMenuToggleFourStrokes: 4px;
-mainMenuTogglePosition: point(32px, 32px);
+mainMenuTogglePosition: point(30px, 30px);
 
 themeEditorSampleSize: size(90px, 51px);
 themeEditorMargin: margins(17px, 10px, 17px, 10px);
@@ -228,8 +218,8 @@ windowOutdatedSkip: 6px;
 windowOutdatedClose: IconButton(defaultIconButton) {
 	width: 60px;
 	height: 60px;
-	icon: icon {{ "info_close", outdatedFg }};
-	iconOver: icon {{ "info_close", outdatedFg }};
+	icon: icon {{ "info/info_close", outdatedFg }};
+	iconOver: icon {{ "info/info_close", outdatedFg }};
 	iconPosition: point(-1px, -1px);
 }
 
@@ -239,7 +229,7 @@ createThemeImportButton: SettingsButton(defaultSettingsButton) {
 	textBg: windowBg;
 	textBgOver: windowBgOver;
 
-	font: semiboldFont;
+	style: semiboldTextStyle;
 
 	height: 20px;
 	padding: margins(22px, 10px, 22px, 8px);
@@ -295,8 +285,8 @@ windowFiltersMainMenuUnreadMuted: icon {
 };
 windowFilterSmallItem: PeerListItem(defaultPeerListItem) {
 	height: 44px;
-	photoPosition: point(15px, 5px);
-	namePosition: point(62px, 14px);
+	photoPosition: point(13px, 5px);
+	namePosition: point(59px, 14px);
 	photoSize: 34px;
 	checkbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 		imageRadius: 17px;
@@ -318,14 +308,14 @@ windwoFilterIconPanelPosition: point(-2px, -1px);
 windowFilterIconSingle: size(44px, 42px);
 windowFilterIconPadding: margins(10px, 36px, 10px, 8px);
 windowFilterIconHeaderPosition: point(18px, 14px);
-windowFilterTypeContacts: icon {{ "filters/filters_type_contacts", historyPeerUserpicFg }};
-windowFilterTypeNonContacts: icon {{ "filters/filters_type_noncontacts", historyPeerUserpicFg }};
-windowFilterTypeGroups: icon {{ "filters/filters_type_groups", historyPeerUserpicFg }};
-windowFilterTypeChannels: icon {{ "filters/filters_type_channels", historyPeerUserpicFg }};
-windowFilterTypeBots: icon {{ "filters/filters_type_bots", historyPeerUserpicFg }};
-windowFilterTypeNoMuted: icon {{ "filters/filters_type_muted", historyPeerUserpicFg }};
-windowFilterTypeNoArchived: icon {{ "filters/filters_type_archived", historyPeerUserpicFg }};
-windowFilterTypeNoRead: icon {{ "filters/filters_type_read", historyPeerUserpicFg }};
+windowFilterTypeContacts: icon {{ "folders/folders_type_contacts", historyPeerUserpicFg }};
+windowFilterTypeNonContacts: icon {{ "folders/folders_type_noncontacts", historyPeerUserpicFg }};
+windowFilterTypeGroups: icon {{ "folders/folders_type_groups", historyPeerUserpicFg }};
+windowFilterTypeChannels: icon {{ "folders/folders_type_channels", historyPeerUserpicFg }};
+windowFilterTypeBots: icon {{ "folders/folders_type_bots", historyPeerUserpicFg }};
+windowFilterTypeNoMuted: icon {{ "folders/folders_type_muted", historyPeerUserpicFg }};
+windowFilterTypeNoArchived: icon {{ "folders/folders_type_archived", historyPeerUserpicFg }};
+windowFilterTypeNoRead: icon {{ "folders/folders_type_read", historyPeerUserpicFg }};
 windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		font: searchedBarFont;
@@ -333,7 +323,6 @@ windowFilterChatsSectionSubtitle: FlatLabel(defaultFlatLabel) {
 	textFg: searchedBarFg;
 }
 windowFilterChatsSectionSubtitlePadding: margins(17px, 7px, 17px, 7px);
-windowFilterAboutPadding: margins(22px, 0px, 22px, 19px);
 
 windowArchiveToast: Toast(defaultToast) {
 	minWidth: boxWideWidth;

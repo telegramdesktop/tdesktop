@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_create_adm.h" // Webrtc::Backend.
 #include "tgcalls/VideoCaptureInterface.h"
 #include "facades.h"
+#include "boxes/abstract_box.h" // Ui::hideLayer().
 #include "styles/style_layers.h"
 
 namespace Settings {
@@ -55,6 +56,159 @@ Calls::Calls(
 
 Calls::~Calls() = default;
 
+rpl::producer<QString> Calls::title() {
+	return tr::lng_settings_section_call_settings();
+}
+
+Webrtc::VideoTrack *Calls::AddCameraSubsection(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Ui::VerticalLayout*> content,
+		bool saveToSettings) {
+	auto &lifetime = content->lifetime();
+
+	const auto hasCall = (Core::App().calls().currentCall() != nullptr);
+
+	const auto cameraNameStream = lifetime.make_state<
+		rpl::event_stream<QString>
+	>();
+
+	auto capturerOwner = lifetime.make_state<
+		std::shared_ptr<tgcalls::VideoCaptureInterface>
+	>();
+
+	const auto track = lifetime.make_state<VideoTrack>(
+		(hasCall
+			? VideoState::Inactive
+			: VideoState::Active));
+
+	const auto currentCameraName = [&] {
+		const auto cameras = GetVideoInputList();
+		const auto i = ranges::find(
+			cameras,
+			Core::App().settings().callVideoInputDeviceId(),
+			&VideoInput::id);
+		return (i != end(cameras))
+			? i->name
+			: tr::lng_settings_call_device_default(tr::now);
+	}();
+
+	AddButtonWithLabel(
+		content,
+		tr::lng_settings_call_input_device(),
+		rpl::single(
+			currentCameraName
+		) | rpl::then(
+			cameraNameStream->events()
+		),
+		st::settingsButtonNoIcon
+	)->addClickHandler([=] {
+		const auto &devices = GetVideoInputList();
+		const auto options = ranges::views::concat(
+			ranges::views::single(
+				tr::lng_settings_call_device_default(tr::now)),
+			devices | ranges::views::transform(&VideoInput::name)
+		) | ranges::to_vector;
+		const auto i = ranges::find(
+			devices,
+			Core::App().settings().callVideoInputDeviceId(),
+			&VideoInput::id);
+		const auto currentOption = (i != end(devices))
+			? int(i - begin(devices) + 1)
+			: 0;
+		const auto save = crl::guard(content, [=](int option) {
+			cameraNameStream->fire_copy(options[option]);
+			const auto deviceId = option
+				? devices[option - 1].id
+				: "default";
+			if (saveToSettings) {
+				Core::App().settings().setCallVideoInputDeviceId(deviceId);
+				Core::App().saveSettingsDelayed();
+			}
+			if (const auto call = Core::App().calls().currentCall()) {
+				call->setCurrentCameraDevice(deviceId);
+			}
+			if (*capturerOwner) {
+				(*capturerOwner)->switchToDevice(
+					deviceId.toStdString(),
+					false);
+			}
+		});
+		show->showBox(Box([=](not_null<Ui::GenericBox*> box) {
+			SingleChoiceBox(box, {
+				.title = tr::lng_settings_call_camera(),
+				.options = options,
+				.initialSelection = currentOption,
+				.callback = save,
+			});
+		}));
+	});
+	const auto bubbleWrap = content->add(object_ptr<Ui::RpWidget>(content));
+	const auto bubble = lifetime.make_state<::Calls::VideoBubble>(
+		bubbleWrap,
+		track);
+	const auto padding = st::settingsButtonNoIcon.padding.left();
+	const auto top = st::boxRoundShadow.extend.top();
+	const auto bottom = st::boxRoundShadow.extend.bottom();
+
+	auto frameSize = track->renderNextFrame(
+	) | rpl::map([=] {
+		return track->frameSize();
+	}) | rpl::filter([=](QSize size) {
+		return !size.isEmpty()
+			&& !Core::App().calls().currentCall()
+			&& !Core::App().calls().currentGroupCall();
+	});
+	auto bubbleWidth = bubbleWrap->widthValue(
+	) | rpl::filter([=](int width) {
+		return width > 2 * padding + 1;
+	});
+	rpl::combine(
+		std::move(bubbleWidth),
+		std::move(frameSize)
+	) | rpl::start_with_next([=](int width, QSize frame) {
+		const auto useWidth = (width - 2 * padding);
+		const auto useHeight = std::min(
+			((useWidth * frame.height()) / frame.width()),
+			(useWidth * 480) / 640);
+		bubbleWrap->resize(width, top + useHeight + bottom);
+		bubble->updateGeometry(
+			::Calls::VideoBubble::DragMode::None,
+			QRect(padding, top, useWidth, useHeight));
+		bubbleWrap->update();
+	}, bubbleWrap->lifetime());
+
+	using namespace rpl::mappers;
+	const auto checkCapturer = [=] {
+		if (*capturerOwner
+			|| Core::App().calls().currentCall()
+			|| Core::App().calls().currentGroupCall()) {
+			return;
+		}
+		*capturerOwner = Core::App().calls().getVideoCapture(
+			Core::App().settings().callVideoInputDeviceId(),
+			false);
+		(*capturerOwner)->setPreferredAspectRatio(0.);
+		track->setState(VideoState::Active);
+		(*capturerOwner)->setState(tgcalls::VideoState::Active);
+		(*capturerOwner)->setOutput(track->sink());
+	};
+	rpl::combine(
+		Core::App().calls().currentCallValue(),
+		Core::App().calls().currentGroupCallValue(),
+		_1 || _2
+	) | rpl::start_with_next([=](bool has) {
+		if (has) {
+			track->setState(VideoState::Inactive);
+			bubbleWrap->resize(bubbleWrap->width(), 0);
+			*capturerOwner = nullptr;
+		} else {
+			crl::on_main(content, checkCapturer);
+		}
+	}, lifetime);
+
+	return track;
+}
+
 void Calls::sectionSaveChanges(FnMut<void()> done) {
 	if (_micTester) {
 		_micTester.reset();
@@ -65,144 +219,13 @@ void Calls::sectionSaveChanges(FnMut<void()> done) {
 void Calls::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto &settings = Core::App().settings();
-	const auto cameras = GetVideoInputList();
-	if (!cameras.empty()) {
-		const auto hasCall = (Core::App().calls().currentCall() != nullptr);
-
-		auto capturerOwner = content->lifetime().make_state<
-			std::shared_ptr<tgcalls::VideoCaptureInterface>
-		>();
-
-		const auto track = content->lifetime().make_state<VideoTrack>(
-			(hasCall
-				? VideoState::Inactive
-				: VideoState::Active));
-
-		const auto currentCameraName = [&] {
-			const auto i = ranges::find(
-				cameras,
-				settings.callVideoInputDeviceId(),
-				&VideoInput::id);
-			return (i != end(cameras))
-				? i->name
-				: tr::lng_settings_call_device_default(tr::now);
-		}();
-
+	if (!GetVideoInputList().empty()) {
 		AddSkip(content);
 		AddSubsectionTitle(content, tr::lng_settings_call_camera());
-		AddButtonWithLabel(
+		AddCameraSubsection(
+			std::make_shared<Window::Show>(_controller),
 			content,
-			tr::lng_settings_call_input_device(),
-			rpl::single(
-				currentCameraName
-			) | rpl::then(
-				_cameraNameStream.events()
-			),
-			st::settingsButton
-		)->addClickHandler([=] {
-			const auto &devices = GetVideoInputList();
-			const auto options = ranges::views::concat(
-				ranges::views::single(
-					tr::lng_settings_call_device_default(tr::now)),
-				devices | ranges::views::transform(&VideoInput::name)
-			) | ranges::to_vector;
-			const auto i = ranges::find(
-				devices,
-				Core::App().settings().callVideoInputDeviceId(),
-				&VideoInput::id);
-			const auto currentOption = (i != end(devices))
-				? int(i - begin(devices) + 1)
-				: 0;
-			const auto save = crl::guard(this, [=](int option) {
-				_cameraNameStream.fire_copy(options[option]);
-				const auto deviceId = option
-					? devices[option - 1].id
-					: "default";
-				Core::App().settings().setCallVideoInputDeviceId(deviceId);
-				Core::App().saveSettingsDelayed();
-				if (const auto call = Core::App().calls().currentCall()) {
-					call->setCurrentCameraDevice(deviceId);
-				}
-				if (*capturerOwner) {
-					(*capturerOwner)->switchToDevice(
-						deviceId.toStdString(),
-						false);
-				}
-			});
-			_controller->show(Box([=](not_null<Ui::GenericBox*> box) {
-				SingleChoiceBox(box, {
-					.title = tr::lng_settings_call_camera(),
-					.options = options,
-					.initialSelection = currentOption,
-					.callback = save,
-				});
-			}));
-		});
-		const auto bubbleWrap = content->add(object_ptr<Ui::RpWidget>(content));
-		const auto bubble = content->lifetime().make_state<::Calls::VideoBubble>(
-			bubbleWrap,
-			track);
-		const auto padding = st::settingsButton.padding.left();
-		const auto top = st::boxRoundShadow.extend.top();
-		const auto bottom = st::boxRoundShadow.extend.bottom();
-
-		bubbleWrap->widthValue(
-		) | rpl::filter([=](int width) {
-			return (width > 2 * padding + 1);
-		}) | rpl::start_with_next([=](int width) {
-			const auto use = (width - 2 * padding);
-			bubble->updateGeometry(
-				::Calls::VideoBubble::DragMode::None,
-				QRect(padding, top, use, (use * 480) / 640));
-		}, bubbleWrap->lifetime());
-
-		track->renderNextFrame(
-		) | rpl::start_with_next([=] {
-			const auto size = track->frameSize();
-			if (size.isEmpty()
-				|| Core::App().calls().currentCall()
-				|| Core::App().calls().currentGroupCall()) {
-				return;
-			}
-			const auto width = bubbleWrap->width();
-			const auto use = (width - 2 * padding);
-			const auto height = std::min(
-				((use * size.height()) / size.width()),
-				(use * 480) / 640);
-			bubbleWrap->resize(width, top + height + bottom);
-			bubbleWrap->update();
-		}, bubbleWrap->lifetime());
-
-		using namespace rpl::mappers;
-		const auto checkCapturer = [=] {
-			if (*capturerOwner
-				|| Core::App().calls().currentCall()
-				|| Core::App().calls().currentGroupCall()) {
-				return;
-			}
-			*capturerOwner = Core::App().calls().getVideoCapture(
-				Core::App().settings().callVideoInputDeviceId(),
-				false);
-			(*capturerOwner)->setPreferredAspectRatio(0.);
-			track->setState(VideoState::Active);
-			(*capturerOwner)->setState(tgcalls::VideoState::Active);
-			(*capturerOwner)->setOutput(track->sink());
-		};
-		rpl::combine(
-			Core::App().calls().currentCallValue(),
-			Core::App().calls().currentGroupCallValue(),
-			_1 || _2
-		) | rpl::start_with_next([=](bool has) {
-			if (has) {
-				track->setState(VideoState::Inactive);
-				bubbleWrap->resize(bubbleWrap->width(), 0);
-				*capturerOwner = nullptr;
-			} else {
-				crl::on_main(content, checkCapturer);
-			}
-		}, content->lifetime());
-
+			true);
 		AddSkip(content);
 		AddDivider(content);
 	}
@@ -216,7 +239,7 @@ void Calls::setupContent() {
 		) | rpl::then(
 			_outputNameStream.events()
 		),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(ChooseAudioOutputBox(crl::guard(this, [=](
 				const QString &id,
@@ -237,7 +260,7 @@ void Calls::setupContent() {
 		) | rpl::then(
 			_inputNameStream.events()
 		),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(ChooseAudioInputBox(crl::guard(this, [=](
 				const QString &id,
@@ -273,7 +296,7 @@ void Calls::setupContent() {
 	AddButton(
 		content,
 		tr::lng_settings_call_accept_calls(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->toggleOn(
 		api->authorizations().callsDisabledHereValue(
 		) | rpl::map(!rpl::mappers::_1)
@@ -287,13 +310,13 @@ void Calls::setupContent() {
 	AddButton(
 		content,
 		tr::lng_settings_call_open_system_prefs(),
-		st::settingsButton
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		const auto opened = Platform::OpenSystemSettings(
 			Platform::SystemSettingsType::Audio);
 		if (!opened) {
 			_controller->show(
-				Box<Ui::InformBox>(tr::lng_linux_no_audio_prefs(tr::now)));
+				Ui::MakeInformBox(tr::lng_linux_no_audio_prefs()));
 		}
 	});
 
@@ -325,10 +348,11 @@ void Calls::requestPermissionAndStartTestingMicrophone() {
 				Platform::PermissionType::Microphone);
 			Ui::hideLayer();
 		};
-		_controller->show(Box<Ui::ConfirmBox>(
-			tr::lng_no_mic_permission(tr::now),
-			tr::lng_menu_settings(tr::now),
-			showSystemSettings));
+		_controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_no_mic_permission(),
+			.confirmed = showSystemSettings,
+			.confirmText = tr::lng_menu_settings(),
+		}));
 	}
 }
 

@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
+#include <qpa/qplatformscreen.h>
 
 namespace {
 
@@ -43,7 +44,10 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	_size = QFontMetrics(QGuiApplication::font()).height();
+	const auto dpi = screen()->handle()->logicalDpi().second;
+	auto font = this->font();
+	font.setPixelSize(base::SafeRound(std::floor(font.pointSizeF() * dpi / 72. * 100. + 0.5) / 100.));
+	_size = QFontMetrics(font).height();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
@@ -98,11 +102,11 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 	setFont(logFont);
 
 	QPalette p(palette());
+	p.setColor(QPalette::Window, QColor(255, 255, 255));
+	p.setColor(QPalette::Base, QColor(255, 255, 255));
 	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
 	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
-
-	setStyleSheet("QLineEdit { background-color: white; }");
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);

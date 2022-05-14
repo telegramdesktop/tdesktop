@@ -65,17 +65,6 @@ namespace {
 // fullscreen mode, after that we'll hide the window no matter what.
 constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
 
-[[nodiscard]] QImage TrayIconBack(bool darkMode) {
-	static const auto WithColor = [](QColor color) {
-		return st::macTrayIcon.instance(color, 100);
-	};
-	static const auto DarkModeResult = WithColor({ 255, 255, 255 });
-	static const auto LightModeResult = WithColor({ 0, 0, 0, 180 });
-	auto result = darkMode ? DarkModeResult : LightModeResult;
-	result.detach();
-	return result;
-}
-
 } // namespace
 
 class MainWindow::Private {
@@ -144,7 +133,7 @@ namespace {
 
 void SendKeySequence(Qt::Key key, Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
 	const auto focused = QApplication::focusWidget();
-	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || qobject_cast<HistoryInner*>(focused)) {
+	if (qobject_cast<QLineEdit*>(focused) || qobject_cast<QTextEdit*>(focused) || dynamic_cast<HistoryInner*>(focused)) {
 		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyPress, key, modifiers));
 		QApplication::postEvent(focused, new QKeyEvent(QEvent::KeyRelease, key, modifiers));
 	}
@@ -248,20 +237,6 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 	}
 }
 
-void MainWindow::handleActiveChangedHook() {
-	// On macOS just remove trayIcon menu if the window is not active.
-	// So we will activate the window on click instead of showing the menu.
-	if (isActiveForTrayMenu()) {
-		if (trayIcon
-			&& trayIconMenu
-			&& trayIcon->contextMenu() != trayIconMenu) {
-			trayIcon->setContextMenu(trayIconMenu);
-		}
-	} else if (trayIcon) {
-		trayIcon->setContextMenu(nullptr);
-	}
-}
-
 void MainWindow::initHook() {
 	_customTitleHeight = 0;
 	if (auto view = reinterpret_cast<NSView*>(winId())) {
@@ -282,9 +257,6 @@ void MainWindow::hideAndDeactivate() {
 	hide();
 }
 
-void MainWindow::psShowTrayMenu() {
-}
-
 bool MainWindow::preventsQuit(Core::QuitReason reason) {
 	// Thanks Chromium, see
 	// chromium.org/developers/design-documents/confirm-to-quit-experiment
@@ -298,87 +270,12 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 				Platform::ConfirmQuit::QuitKeysString()));
 }
 
-void MainWindow::psTrayMenuUpdated() {
-}
-
-void MainWindow::psSetupTrayIcon() {
-	if (!trayIcon) {
-		trayIcon = new QSystemTrayIcon(this);
-		trayIcon->setIcon(generateIconForTray(
-			Core::App().unreadBadge(),
-			Core::App().unreadBadgeMuted()));
-		if (isActiveForTrayMenu()) {
-			trayIcon->setContextMenu(trayIconMenu);
-		} else {
-			trayIcon->setContextMenu(nullptr);
-		}
-		attachToTrayIcon(trayIcon);
-	} else {
-		updateIconCounters();
-	}
-
-	trayIcon->show();
-}
-
-void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
-	psSetupTrayIcon();
-	if (mode == Core::Settings::WorkMode::WindowOnly) {
-		if (trayIcon) {
-			trayIcon->setContextMenu(0);
-			delete trayIcon;
-			trayIcon = nullptr;
-		}
-	}
-}
-
-void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
-	if (!count) return;
-	auto savedRatio = img.devicePixelRatio();
-	img.setDevicePixelRatio(1.);
-
-	{
-		Painter p(&img);
-		PainterHighQualityEnabler hq(p);
-
-		auto cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
-		auto cntSize = cnt.size();
-
-		p.setBrush(bg);
-		p.setPen(Qt::NoPen);
-		int32 fontSize, skip;
-		if (size == 22) {
-			skip = 1;
-			fontSize = 8;
-		} else {
-			skip = 2;
-			fontSize = 16;
-		}
-		style::font f(fontSize, 0, 0);
-		int32 w = f->width(cnt), d, r;
-		if (size == 22) {
-			d = (cntSize < 2) ? 3 : 2;
-			r = (cntSize < 2) ? 6 : 5;
-		} else {
-			d = (cntSize < 2) ? 6 : 5;
-			r = (cntSize < 2) ? 9 : 11;
-		}
-		p.drawRoundedRect(QRect(size - w - d * 2 - skip, size - f->height - skip, w + d * 2, f->height), r, r);
-
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setFont(f);
-		p.setPen(color);
-		p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
-	}
-	img.setDevicePixelRatio(savedRatio);
-}
-
 void MainWindow::unreadCounterChangedHook() {
 	updateIconCounters();
 }
 
 void MainWindow::updateIconCounters() {
 	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
 
 	const auto string = !counter
 		? QString()
@@ -386,43 +283,6 @@ void MainWindow::updateIconCounters() {
 		? QString("%1").arg(counter)
 		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 	_private->setWindowBadge(string);
-
-	if (trayIcon) {
-		trayIcon->setIcon(generateIconForTray(counter, muted));
-	}
-}
-
-QIcon MainWindow::generateIconForTray(int counter, bool muted) const {
-	auto result = QIcon();
-	auto lightMode = TrayIconBack(false);
-	auto darkMode = TrayIconBack(true);
-	auto lightModeActive = darkMode;
-	auto darkModeActive = darkMode;
-	lightModeActive.detach();
-	darkModeActive.detach();
-	const auto size = 22 * cIntRetinaFactor();
-	const auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
-	_placeCounter(lightMode, size, counter, bg, st::trayCounterFg);
-	_placeCounter(darkMode, size, counter, bg, muted ? st::trayCounterFgMacInvert : st::trayCounterFg);
-	_placeCounter(lightModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-	_placeCounter(darkModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(lightMode)),
-		QIcon::Normal,
-		QIcon::Off);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(darkMode)),
-		QIcon::Normal,
-		QIcon::On);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(lightModeActive)),
-		QIcon::Active,
-		QIcon::Off);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(darkModeActive)),
-		QIcon::Active,
-		QIcon::On);
-	return result;
 }
 
 void MainWindow::createGlobalMenu() {
@@ -474,27 +334,99 @@ void MainWindow::createGlobalMenu() {
 	}
 
 	QMenu *edit = psMainMenu.addMenu(tr::lng_mac_menu_edit(tr::now));
-	psUndo = edit->addAction(tr::lng_mac_menu_undo(tr::now), this, SLOT(psMacUndo()), QKeySequence::Undo);
-	psRedo = edit->addAction(tr::lng_mac_menu_redo(tr::now), this, SLOT(psMacRedo()), QKeySequence::Redo);
+	psUndo = edit->addAction(
+		tr::lng_mac_menu_undo(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_Z, Qt::ControlModifier); },
+		QKeySequence::Undo);
+	psRedo = edit->addAction(
+		tr::lng_mac_menu_redo(tr::now),
+		this,
+		[] {
+			SendKeySequence(
+				Qt::Key_Z,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		QKeySequence::Redo);
 	edit->addSeparator();
-	psCut = edit->addAction(tr::lng_mac_menu_cut(tr::now), this, SLOT(psMacCut()), QKeySequence::Cut);
-	psCopy = edit->addAction(tr::lng_mac_menu_copy(tr::now), this, SLOT(psMacCopy()), QKeySequence::Copy);
-	psPaste = edit->addAction(tr::lng_mac_menu_paste(tr::now), this, SLOT(psMacPaste()), QKeySequence::Paste);
-	psDelete = edit->addAction(tr::lng_mac_menu_delete(tr::now), this, SLOT(psMacDelete()), QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
+	psCut = edit->addAction(
+		tr::lng_mac_menu_cut(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_X, Qt::ControlModifier); },
+		QKeySequence::Cut);
+	psCopy = edit->addAction(
+		tr::lng_mac_menu_copy(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_C, Qt::ControlModifier); },
+		QKeySequence::Copy);
+	psPaste = edit->addAction(
+		tr::lng_mac_menu_paste(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_V, Qt::ControlModifier); },
+		QKeySequence::Paste);
+	psDelete = edit->addAction(
+		tr::lng_mac_menu_delete(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_Delete); },
+		QKeySequence(Qt::ControlModifier | Qt::Key_Backspace));
 
 	edit->addSeparator();
-	psBold = edit->addAction(tr::lng_menu_formatting_bold(tr::now), this, SLOT(psMacBold()), QKeySequence::Bold);
-	psItalic = edit->addAction(tr::lng_menu_formatting_italic(tr::now), this, SLOT(psMacItalic()), QKeySequence::Italic);
-	psUnderline = edit->addAction(tr::lng_menu_formatting_underline(tr::now), this, SLOT(psMacUnderline()), QKeySequence::Underline);
-	psStrikeOut = edit->addAction(tr::lng_menu_formatting_strike_out(tr::now), this, SLOT(psMacStrikeOut()), Ui::kStrikeOutSequence);
-	psMonospace = edit->addAction(tr::lng_menu_formatting_monospace(tr::now), this, SLOT(psMacMonospace()), Ui::kMonospaceSequence);
-	psClearFormat = edit->addAction(tr::lng_menu_formatting_clear(tr::now), this, SLOT(psMacClearFormat()), Ui::kClearFormatSequence);
+	psBold = edit->addAction(
+		tr::lng_menu_formatting_bold(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_B, Qt::ControlModifier); },
+		QKeySequence::Bold);
+	psItalic = edit->addAction(
+		tr::lng_menu_formatting_italic(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_I, Qt::ControlModifier); },
+		QKeySequence::Italic);
+	psUnderline = edit->addAction(
+		tr::lng_menu_formatting_underline(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_U, Qt::ControlModifier); },
+		QKeySequence::Underline);
+	psStrikeOut = edit->addAction(
+		tr::lng_menu_formatting_strike_out(tr::now),
+		this,
+		[] {
+			SendKeySequence(
+				Qt::Key_X,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kStrikeOutSequence);
+	psMonospace = edit->addAction(
+		tr::lng_menu_formatting_monospace(tr::now),
+		this,
+		[] {
+			SendKeySequence(
+				Qt::Key_M,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kMonospaceSequence);
+	psClearFormat = edit->addAction(
+		tr::lng_menu_formatting_clear(tr::now),
+		this,
+		[] {
+			SendKeySequence(
+				Qt::Key_N,
+				Qt::ControlModifier | Qt::ShiftModifier);
+		},
+		Ui::kClearFormatSequence);
 
 	edit->addSeparator();
-	psSelectAll = edit->addAction(tr::lng_mac_menu_select_all(tr::now), this, SLOT(psMacSelectAll()), QKeySequence::SelectAll);
+	psSelectAll = edit->addAction(
+		tr::lng_mac_menu_select_all(tr::now),
+		this,
+		[] { SendKeySequence(Qt::Key_A, Qt::ControlModifier); },
+		QKeySequence::SelectAll);
 
 	edit->addSeparator();
-	edit->addAction(tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"), this, SLOT(psMacEmojiAndSymbols()), QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space));
+	edit->addAction(
+		tr::lng_mac_menu_emoji_and_symbols(tr::now).replace('&', "&&"),
+		this,
+		[] { [NSApp orderFrontCharacterPalette:nil]; },
+		QKeySequence(Qt::MetaModifier | Qt::ControlModifier | Qt::Key_Space));
 
 	QMenu *window = psMainMenu.addMenu(tr::lng_mac_menu_window(tr::now));
 	psContacts = window->addAction(tr::lng_mac_menu_contacts(tr::now));
@@ -550,62 +482,6 @@ void MainWindow::createGlobalMenu() {
 	updateGlobalMenu();
 }
 
-void MainWindow::psMacUndo() {
-	SendKeySequence(Qt::Key_Z, Qt::ControlModifier);
-}
-
-void MainWindow::psMacRedo() {
-	SendKeySequence(Qt::Key_Z, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
-void MainWindow::psMacCut() {
-	SendKeySequence(Qt::Key_X, Qt::ControlModifier);
-}
-
-void MainWindow::psMacCopy() {
-	SendKeySequence(Qt::Key_C, Qt::ControlModifier);
-}
-
-void MainWindow::psMacPaste() {
-	SendKeySequence(Qt::Key_V, Qt::ControlModifier);
-}
-
-void MainWindow::psMacDelete() {
-	SendKeySequence(Qt::Key_Delete);
-}
-
-void MainWindow::psMacSelectAll() {
-	SendKeySequence(Qt::Key_A, Qt::ControlModifier);
-}
-
-void MainWindow::psMacEmojiAndSymbols() {
-	[NSApp orderFrontCharacterPalette:nil];
-}
-
-void MainWindow::psMacBold() {
-	SendKeySequence(Qt::Key_B, Qt::ControlModifier);
-}
-
-void MainWindow::psMacItalic() {
-	SendKeySequence(Qt::Key_I, Qt::ControlModifier);
-}
-
-void MainWindow::psMacUnderline() {
-	SendKeySequence(Qt::Key_U, Qt::ControlModifier);
-}
-
-void MainWindow::psMacStrikeOut() {
-	SendKeySequence(Qt::Key_X, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
-void MainWindow::psMacMonospace() {
-	SendKeySequence(Qt::Key_M, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
-void MainWindow::psMacClearFormat() {
-	SendKeySequence(Qt::Key_N, Qt::ControlModifier | Qt::ShiftModifier);
-}
-
 void MainWindow::updateGlobalMenuHook() {
 	if (!positionInited()) {
 		return;
@@ -628,12 +504,12 @@ void MainWindow::updateGlobalMenuHook() {
 		canRedo = edit->document()->isRedoAvailable();
 		canPaste = clipboardHasText;
 		if (canCopy) {
-			if (const auto inputField = qobject_cast<Ui::InputField*>(
+			if (const auto inputField = dynamic_cast<Ui::InputField*>(
 					focused->parentWidget())) {
 				canApplyMarkdown = inputField->isMarkdownEnabled();
 			}
 		}
-	} else if (auto list = qobject_cast<HistoryInner*>(focused)) {
+	} else if (auto list = dynamic_cast<HistoryInner*>(focused)) {
 		canCopy = list->canCopySelected();
 		canDelete = list->canDeleteSelected();
 	}
@@ -669,7 +545,7 @@ void MainWindow::updateGlobalMenuHook() {
 bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 	QEvent::Type t = evt->type();
 	if (t == QEvent::FocusIn || t == QEvent::FocusOut) {
-		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || qobject_cast<HistoryInner*>(obj)) {
+		if (qobject_cast<QLineEdit*>(obj) || qobject_cast<QTextEdit*>(obj) || dynamic_cast<HistoryInner*>(obj)) {
 			updateGlobalMenu();
 		}
 	}

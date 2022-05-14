@@ -75,9 +75,7 @@ namespace {
 	) | rpl::map([](const QByteArray &code) {
 		return Qr::Encode(code, Qr::Redundancy::Quartile);
 	});
-	auto palettes = rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	auto palettes = rpl::single(rpl::empty) | rpl::then(
 		style::PaletteChanged()
 	);
 	auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -396,15 +394,16 @@ void QrWidget::sendCheckPasswordRequest() {
 				LOG(("API Error: No current password received on login."));
 				goReplace<QrWidget>(Animate::Forward);
 				return;
-			} else if (!getData()->pwdState.request) {
+			} else if (!getData()->pwdState.hasPassword) {
 				const auto callback = [=](Fn<void()> &&close) {
 					Core::UpdateApplication();
 					close();
 				};
-				Ui::show(Box<Ui::ConfirmBox>(
-					tr::lng_passport_app_out_of_date(tr::now),
-					tr::lng_menu_update(tr::now),
-					callback));
+				Ui::show(Ui::MakeConfirmBox({
+					.text = tr::lng_passport_app_out_of_date(),
+					.confirmed = callback,
+					.confirmText = tr::lng_menu_update(),
+				}));
 				return;
 			}
 			goReplace<PasswordCheckWidget>(Animate::Forward);

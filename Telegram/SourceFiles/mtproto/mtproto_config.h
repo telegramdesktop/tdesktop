@@ -39,7 +39,6 @@ struct ConfigFields {
 	int callPacketTimeoutMs = 10000;
 	int webFileDcId = 4;
 	QString txtDomainString;
-	rpl::variable<bool> phoneCallsEnabled = true;
 	bool blockedMode = false;
 	int captionLengthMax = 1024;
 };

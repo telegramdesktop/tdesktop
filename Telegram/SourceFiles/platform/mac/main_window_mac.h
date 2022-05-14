@@ -17,9 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Platform {
 
 class MainWindow : public Window::MainWindow {
-	// The Q_OBJECT meta info is used for qobject_cast!
-	Q_OBJECT
-
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
@@ -33,50 +30,18 @@ public:
 
 	void updateWindowIcon() override;
 
-	void psShowTrayMenu();
-
 	bool preventsQuit(Core::QuitReason reason) override;
 
 	class Private;
 
-public Q_SLOTS:
-	void psMacUndo();
-	void psMacRedo();
-	void psMacCut();
-	void psMacCopy();
-	void psMacPaste();
-	void psMacDelete();
-	void psMacSelectAll();
-	void psMacEmojiAndSymbols();
-
-	void psMacBold();
-	void psMacItalic();
-	void psMacUnderline();
-	void psMacStrikeOut();
-	void psMacMonospace();
-	void psMacClearFormat();
-
 protected:
 	bool eventFilter(QObject *obj, QEvent *evt) override;
 
-	void handleActiveChangedHook() override;
 	void stateChangedHook(Qt::WindowState state) override;
 	void initHook() override;
 	void unreadCounterChangedHook() override;
 
-	bool hasTrayIcon() const override {
-		return trayIcon;
-	}
-
 	void updateGlobalMenuHook() override;
-
-	void workmodeUpdated(Core::Settings::WorkMode mode) override;
-
-	QSystemTrayIcon *trayIcon = nullptr;
-	QMenu *trayIconMenu = nullptr;
-
-	void psTrayMenuUpdated();
-	void psSetupTrayIcon();
 
 	void closeWithoutDestroy() override;
 	void createGlobalMenu() override;
@@ -86,7 +51,6 @@ private:
 
 	void hideAndDeactivate();
 	void updateIconCounters();
-	[[nodiscard]] QIcon generateIconForTray(int counter, bool muted) const;
 
 	std::unique_ptr<Private> _private;
 

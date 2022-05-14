@@ -26,6 +26,7 @@ constexpr auto kRequestPerPage = 50;
 constexpr auto kSpeakingAfterActive = crl::time(6000);
 constexpr auto kActiveAfterJoined = crl::time(1000);
 constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
+constexpr auto kReloadStaleTimeout = 16 * crl::time(1000);
 
 [[nodiscard]] QString ExtractNextOffset(const MTPphone_GroupCall &call) {
 	return call.match([&](const MTPDphone_groupCall &data) {
@@ -34,6 +35,11 @@ constexpr auto kWaitForUpdatesTimeout = 3 * crl::time(1000);
 }
 
 } // namespace
+
+const std::string &RtmpEndpointId() {
+	static const auto result = std::string("unified");
+	return result;
+}
 
 const std::string &GroupCallParticipant::cameraEndpoint() const {
 	return GetCameraEndpoint(videoParams);
@@ -55,13 +61,16 @@ GroupCall::GroupCall(
 	not_null<PeerData*> peer,
 	CallId id,
 	CallId accessHash,
-	TimeId scheduleDate)
+	TimeId scheduleDate,
+	bool rtmp)
 : _id(id)
 , _accessHash(accessHash)
 , _peer(peer)
 , _reloadByQueuedUpdatesTimer([=] { reload(); })
 , _speakingByActiveFinishTimer([=] { checkFinishSpeakingByActive(); })
-, _scheduleDate(scheduleDate) {
+, _scheduleDate(scheduleDate)
+, _rtmp(rtmp)
+, _listenersHidden(rtmp) {
 }
 
 GroupCall::~GroupCall() {
@@ -76,6 +85,14 @@ CallId GroupCall::id() const {
 
 bool GroupCall::loaded() const {
 	return _version > 0;
+}
+
+bool GroupCall::rtmp() const {
+	return _rtmp;
+}
+
+bool GroupCall::listenersHidden() const {
+	return _listenersHidden;
 }
 
 not_null<PeerData*> GroupCall::peer() const {
@@ -152,6 +169,7 @@ bool GroupCall::processSavedFullCall() {
 		return false;
 	}
 	_reloadRequestId = 0;
+	_reloadLastFinished = crl::now();
 	processFullCallFields(*base::take(_savedFull));
 	return true;
 }
@@ -383,6 +401,8 @@ void GroupCall::applyCallFields(const MTPDgroupCall &data) {
 		LOG(("API Error: Got zero version in groupCall."));
 		_version = 1;
 	}
+	_rtmp = data.is_rtmp_stream();
+	_listenersHidden = data.is_listeners_hidden();
 	_joinMuted = data.is_join_muted();
 	_canChangeJoinMuted = data.is_can_change_join_muted();
 	_joinedToTop = !data.is_join_date_asc();
@@ -474,9 +494,18 @@ void GroupCall::processQueuedUpdates() {
 }
 
 void GroupCall::computeParticipantsCount() {
-	_fullCount = _allParticipantsLoaded
+	_fullCount = (_allParticipantsLoaded && !_listenersHidden)
 		? int(_participants.size())
 		: std::max(int(_participants.size()), _serverParticipantsCount);
+}
+
+void GroupCall::reloadIfStale() {
+	if (!fullCount() && !participantsLoaded()) {
+		reload();
+	} else if (!_reloadLastFinished
+		|| crl::now() > _reloadLastFinished + kReloadStaleTimeout) {
+		reload();
+	}
 }
 
 void GroupCall::reload() {
@@ -510,9 +539,11 @@ void GroupCall::reload() {
 			return;
 		}
 		_reloadRequestId = 0;
+		_reloadLastFinished = crl::now();
 		processFullCall(result);
 	}).fail([=] {
 		_reloadRequestId = 0;
+		_reloadLastFinished = crl::now();
 	}).send();
 }
 

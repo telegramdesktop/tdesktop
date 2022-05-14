@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/type_traits.h"
-#include "base/observer.h"
 #include "base/call_delayed.h"
 #include "mtproto/mtproto_proxy_data.h"
 

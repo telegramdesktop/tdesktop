@@ -181,7 +181,7 @@ void SetupSendAsButton(
 		const auto channel = peer->asMegagroup();
 
 		auto updates = rpl::single(
-			rpl::empty_value()
+			rpl::empty
 		) | rpl::then(channel->session().sendAsPeers().updated(
 		) | rpl::filter(
 			_1 == channel

@@ -13,7 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
-#include "boxes/abstract_box.h"
+#include "ui/layers/generic_box.h"
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -61,29 +61,6 @@ private:
 
 };
 
-class EditLinkBox : public Ui::BoxContent {
-public:
-	EditLinkBox(
-		QWidget*,
-		not_null<Window::SessionController*> controller,
-		const QString &text,
-		const QString &link,
-		Fn<void(QString, QString)> callback);
-
-	void setInnerFocus() override;
-
-protected:
-	void prepare() override;
-
-private:
-	const not_null<Window::SessionController*> _controller;
-	QString _startText;
-	QString _startLink;
-	Fn<void(QString, QString)> _callback;
-	Fn<void()> _setInnerFocus;
-
-};
-
 FieldTagMimeProcessor::FieldTagMimeProcessor(
 	not_null<Window::SessionController*> controller)
 : _controller(controller) {
@@ -112,44 +89,34 @@ QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
 //		&& IsGoodProtocol(protocolMatch.captured(1));
 //}
 
-EditLinkBox::EditLinkBox(
-	QWidget*,
-	not_null<Window::SessionController*> controller,
-	const QString &text,
-	const QString &link,
-	Fn<void(QString, QString)> callback)
-: _controller(controller)
-, _startText(text)
-, _startLink(link)
-, _callback(std::move(callback)) {
-	Expects(_callback != nullptr);
-}
+void EditLinkBox(
+		not_null<Ui::GenericBox*> box,
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		const QString &startText,
+		const QString &startLink,
+		Fn<void(QString, QString)> callback,
+		const style::InputField *fieldStyle) {
+	Expects(callback != nullptr);
 
-void EditLinkBox::setInnerFocus() {
-	Expects(_setInnerFocus != nullptr);
+	const auto &fieldSt = fieldStyle ? *fieldStyle : st::defaultInputField;
+	const auto content = box->verticalLayout();
 
-	_setInnerFocus();
-}
-
-void EditLinkBox::prepare() {
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
-
-	const auto session = &_controller->session();
 	const auto text = content->add(
 		object_ptr<Ui::InputField>(
 			content,
-			st::defaultInputField,
+			fieldSt,
 			tr::lng_formatting_link_text(),
-			_startText),
+			startText),
 		st::markdownLinkFieldPadding);
 	text->setInstantReplaces(Ui::InstantReplaces::Default());
 	text->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	Ui::Emoji::SuggestionsController::Init(
-		getDelegate()->outerContainer(),
+		box->getDelegate()->outerContainer(),
 		text,
 		session);
-	InitSpellchecker(_controller, text);
+	InitSpellchecker(std::move(show), session, text, fieldStyle != nullptr);
 
 	const auto placeholder = content->add(
 		object_ptr<Ui::RpWidget>(content),
@@ -157,11 +124,11 @@ void EditLinkBox::prepare() {
 	placeholder->setAttribute(Qt::WA_TransparentForMouseEvents);
 	const auto url = Ui::AttachParentChild(
 		content,
-		object_ptr<Ui::MaskedInputField>(
+		object_ptr<Ui::InputField>(
 			content,
-			st::defaultInputField,
+			fieldSt,
 			tr::lng_formatting_link_url(),
-			_startLink.trimmed()));
+			startLink.trimmed()));
 	url->heightValue(
 	) | rpl::start_with_next([placeholder](int height) {
 		placeholder->resize(placeholder->width(), height);
@@ -182,17 +149,17 @@ void EditLinkBox::prepare() {
 			url->showError();
 			return;
 		}
-		const auto weak = Ui::MakeWeak(this);
-		_callback(linkText, linkUrl);
+		const auto weak = Ui::MakeWeak(box);
+		callback(linkText, linkUrl);
 		if (weak) {
-			closeBox();
+			box->closeBox();
 		}
 	};
 
-	connect(text, &Ui::InputField::submitted, [=] {
+	QObject::connect(text, &Ui::InputField::submitted, [=] {
 		url->setFocusFast();
 	});
-	connect(url, &Ui::MaskedInputField::submitted, [=] {
+	QObject::connect(url, &Ui::InputField::submitted, [=] {
 		if (text->getLastText().isEmpty()) {
 			text->setFocusFast();
 		} else {
@@ -200,24 +167,30 @@ void EditLinkBox::prepare() {
 		}
 	});
 
-	setTitle(url->getLastText().isEmpty()
+	box->setTitle(url->getLastText().isEmpty()
 		? tr::lng_formatting_link_create_title()
 		: tr::lng_formatting_link_edit_title());
 
-	addButton(tr::lng_formatting_link_create(), submit);
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
+	box->addButton(tr::lng_formatting_link_create(), submit);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 
 	content->resizeToWidth(st::boxWidth);
 	content->moveToLeft(0, 0);
-	setDimensions(st::boxWidth, content->height());
+	box->setWidth(st::boxWidth);
 
-	_setInnerFocus = [=] {
-		if (_startText.isEmpty()) {
+	box->setFocusCallback([=] {
+		if (startText.isEmpty()) {
 			text->setFocusFast();
 		} else {
 			url->setFocusFast();
 		}
-	};
+	});
+
+	url->customTab(true);
+	text->customTab(true);
+
+	QObject::connect(url, &Ui::InputField::tabbed, [=] { text->setFocus(); });
+	QObject::connect(text, &Ui::InputField::tabbed, [=] { url->setFocus(); });
 }
 
 TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
@@ -270,8 +243,10 @@ Fn<bool(
 	QString text,
 	QString link,
 	EditLinkAction action)> DefaultEditLinkCallback(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::InputField*> field) {
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		not_null<Ui::InputField*> field,
+		const style::InputField *fieldStyle) {
 	const auto weak = Ui::MakeWeak(field);
 	return [=](
 			EditLinkSelection selection,
@@ -282,13 +257,21 @@ Fn<bool(
 			return Ui::InputField::IsValidMarkdownLink(link)
 				&& !TextUtilities::IsMentionLink(link);
 		}
-		controller->show(Box<EditLinkBox>(controller, text, link, [=](
-				const QString &text,
-				const QString &link) {
+		auto callback = [=](const QString &text, const QString &link) {
 			if (const auto strong = weak.data()) {
 				strong->commitMarkdownLinkEdit(selection, text, link);
 			}
-		}), Ui::LayerOption::KeepOther);
+		};
+		show->showBox(
+			Box(
+				EditLinkBox,
+				show,
+				session,
+				text,
+				link,
+				std::move(callback),
+				fieldStyle),
+			Ui::LayerOption::KeepOther);
 		return true;
 	};
 }
@@ -310,24 +293,41 @@ void InitMessageField(
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(DefaultEditLinkCallback(controller, field));
+	field->setEditLinkCallback(
+		DefaultEditLinkCallback(
+			std::make_shared<Window::Show>(controller),
+			&controller->session(),
+			field));
+}
+
+void InitSpellchecker(
+		std::shared_ptr<Ui::Show> show,
+		not_null<Main::Session*> session,
+		not_null<Ui::InputField*> field,
+		bool skipDictionariesManager) {
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
+	using namespace Spellchecker;
+	const auto menuItem = skipDictionariesManager
+		? std::nullopt
+		: std::make_optional(SpellingHighlighter::CustomContextMenuItem{
+			tr::lng_settings_manage_dictionaries(tr::now),
+			[=] { show->showBox(Box<Ui::ManageDictionariesBox>(session)); }
+		});
+	const auto s = Ui::CreateChild<SpellingHighlighter>(
+		field.get(),
+		Core::App().settings().spellcheckerEnabledValue(),
+		menuItem);
+	field->setExtendedContextMenu(s->contextMenuCreated());
+#endif // TDESKTOP_DISABLE_SPELLCHECK
 }
 
 void InitSpellchecker(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
-#ifndef TDESKTOP_DISABLE_SPELLCHECK
-	const auto s = Ui::CreateChild<Spellchecker::SpellingHighlighter>(
-		field.get(),
-		Core::App().settings().spellcheckerEnabledValue(),
-		Spellchecker::SpellingHighlighter::CustomContextMenuItem{
-			tr::lng_settings_manage_dictionaries(tr::now),
-			[=] {
-				controller->show(Box<Ui::ManageDictionariesBox>(controller));
-			}
-		});
-	field->setExtendedContextMenu(s->contextMenuCreated());
-#endif // TDESKTOP_DISABLE_SPELLCHECK
+	InitSpellchecker(
+		std::make_shared<Window::Show>(controller),
+		&controller->session(),
+		field);
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

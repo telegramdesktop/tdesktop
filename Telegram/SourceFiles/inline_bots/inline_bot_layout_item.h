@@ -109,6 +109,11 @@ public:
 		update();
 	}
 
+	virtual QRect innerContentRect() const {
+		// Only stickers are supported for now.
+		Unexpected("Unsupported type to get a rect of inner content.");
+	}
+
 	static std::unique_ptr<ItemBase> createLayout(
 		not_null<Context*> context,
 		not_null<Result*> result,

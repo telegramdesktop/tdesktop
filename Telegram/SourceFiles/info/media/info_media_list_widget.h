@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "info/media/info_media_widget.h"
-#include "data/data_shared_media.h"
+#include "info/media/info_media_common.h"
 #include "overview/overview_layout_delegate.h"
 
 class DeleteMessagesBox;
@@ -27,6 +27,7 @@ enum class PointState : char;
 
 namespace Ui {
 class PopupMenu;
+class BoxContent;
 } // namespace Ui
 
 namespace Overview {
@@ -45,8 +46,10 @@ class AbstractController;
 
 namespace Media {
 
-using BaseLayout = Overview::Layout::ItemBase;
-using UniversalMsgId = MsgId;
+struct ListFoundItem;
+struct ListContext;
+class ListSection;
+class ListProvider;
 
 class ListWidget final
 	: public Ui::RpWidget
@@ -63,9 +66,7 @@ public:
 
 	rpl::producer<int> scrollToRequests() const;
 	rpl::producer<SelectedItems> selectedListValue() const;
-	void cancelSelection() {
-		clearSelected();
-	}
+	void selectionAction(SelectionAction action);
 
 	QRect getCurrentSongGeometry();
 	rpl::producer<> checkForHide() const {
@@ -89,12 +90,15 @@ public:
 		bool showInMediaView = false) override;
 
 private:
-	struct Context;
 	struct DateBadge;
-	class Section;
+	using Section = ListSection;
+	using FoundItem = ListFoundItem;
 	using CursorState = HistoryView::CursorState;
 	using TextState = HistoryView::TextState;
 	using StateRequest = HistoryView::StateRequest;
+	using SelectionData = ListItemSelectionData;
+	using SelectedMap = ListSelectedMap;
+	using DragSelectAction = ListDragSelectAction;
 	enum class MouseAction {
 		None,
 		PrepareDrag,
@@ -102,45 +106,14 @@ private:
 		PrepareSelect,
 		Selecting,
 	};
-	struct CachedItem {
-		CachedItem(std::unique_ptr<BaseLayout> item);
-		CachedItem(CachedItem &&other);
-		CachedItem &operator=(CachedItem &&other);
-		~CachedItem();
-
-		std::unique_ptr<BaseLayout> item;
-		bool stale = false;
-	};
-	struct FoundItem {
-		not_null<BaseLayout*> layout;
-		QRect geometry;
-		bool exact = false;
-	};
-	struct SelectionData {
-		explicit SelectionData(TextSelection text) : text(text) {
-		}
-
-		TextSelection text;
-		bool canDelete = false;
-		bool canForward = false;
-	};
-	using SelectedMap = base::flat_map<
-		UniversalMsgId,
-		SelectionData,
-		std::less<>>;
-	enum class DragSelectAction {
-		None,
-		Selecting,
-		Deselecting,
-	};
 	struct MouseState {
-		UniversalMsgId itemId = 0;
+		HistoryItem *item = nullptr;
 		QSize size;
 		QPoint cursor;
 		bool inside = false;
 
 		inline bool operator==(const MouseState &other) const {
-			return (itemId == other.itemId)
+			return (item == other.item)
 				&& (cursor == other.cursor);
 		}
 		inline bool operator!=(const MouseState &other) const {
@@ -152,10 +125,6 @@ private:
 		Mouse,
 		Touch,
 		Other,
-	};
-	struct ScrollTopState {
-		UniversalMsgId item = 0;
-		int shift = 0;
 	};
 
 	int resizeGetHeight(int newWidth) override;
@@ -175,97 +144,87 @@ private:
 	void start();
 	int recountHeight();
 	void refreshHeight();
+	void subscribeToSession(
+		not_null<Main::Session*> session,
+		rpl::lifetime &lifetime);
 
 	void setupSelectRestriction();
-	[[nodiscard]] bool hasSelectRestriction() const;
 
 	QMargins padding() const;
-	bool isMyItem(not_null<const HistoryItem*> item) const;
 	bool isItemLayout(
 		not_null<const HistoryItem*> item,
 		BaseLayout *layout) const;
-	bool isPossiblyMyId(FullMsgId fullId) const;
 	void repaintItem(const HistoryItem *item);
-	void repaintItem(UniversalMsgId msgId);
 	void repaintItem(const BaseLayout *item);
 	void repaintItem(QRect itemGeometry);
 	void itemRemoved(not_null<const HistoryItem*> item);
 	void itemLayoutChanged(not_null<const HistoryItem*> item);
 
 	void refreshViewer();
-	void invalidatePaletteCache();
 	void refreshRows();
-	SparseIdsMergedSlice::Key sliceKey(
-		UniversalMsgId universalId) const;
-	BaseLayout *getLayout(UniversalMsgId universalId);
-	BaseLayout *getExistingLayout(UniversalMsgId universalId) const;
-	std::unique_ptr<BaseLayout> createLayout(
-		UniversalMsgId universalId,
-		Type type);
+	void trackSession(not_null<Main::Session*> session);
 
-	SelectedItems collectSelectedItems() const;
-	MessageIdsList collectSelectedIds() const;
+	[[nodiscard]] SelectedItems collectSelectedItems() const;
+	[[nodiscard]] MessageIdsList collectSelectedIds() const;
+	[[nodiscard]] MessageIdsList collectSelectedIds(
+		const SelectedItems &items) const;
 	void pushSelectedItems();
-	FullMsgId computeFullId(UniversalMsgId universalId) const;
-	bool hasSelected() const;
-	bool isSelectedItem(
+	[[nodiscard]] bool hasSelected() const;
+	[[nodiscard]] bool isSelectedItem(
 		const SelectedMap::const_iterator &i) const;
 	void removeItemSelection(
 		const SelectedMap::const_iterator &i);
-	bool hasSelectedText() const;
-	bool hasSelectedItems() const;
+	[[nodiscard]] bool hasSelectedText() const;
+	[[nodiscard]] bool hasSelectedItems() const;
 	void clearSelected();
 	void forwardSelected();
-	void forwardItem(UniversalMsgId universalId);
+	void forwardItem(GlobalMsgId globalId);
 	void forwardItems(MessageIdsList &&items);
 	void deleteSelected();
-	void deleteItem(UniversalMsgId universalId);
-	DeleteMessagesBox *deleteItems(MessageIdsList &&items);
+	void deleteItem(GlobalMsgId globalId);
+	void deleteItems(SelectedItems &&items, Fn<void()> confirmed = nullptr);
 	void applyItemSelection(
-		UniversalMsgId universalId,
+		HistoryItem *item,
 		TextSelection selection);
-	void toggleItemSelection(
-		UniversalMsgId universalId);
-	SelectedMap::iterator itemUnderPressSelection();
-	SelectedMap::const_iterator itemUnderPressSelection() const;
+	void toggleItemSelection(not_null<HistoryItem*> item);
+	[[nodiscard]] SelectedMap::iterator itemUnderPressSelection();
+	[[nodiscard]] auto itemUnderPressSelection() const
+		-> SelectedMap::const_iterator;
 	bool isItemUnderPressSelected() const;
-	bool requiredToStartDragging(not_null<BaseLayout*> layout) const;
-	bool isPressInSelectedText(TextState state) const;
+	[[nodiscard]] bool requiredToStartDragging(
+		not_null<BaseLayout*> layout) const;
+	[[nodiscard]] bool isPressInSelectedText(TextState state) const;
 	void applyDragSelection();
 	void applyDragSelection(SelectedMap &applyTo) const;
-	bool changeItemSelection(
-		SelectedMap &selected,
-		UniversalMsgId universalId,
-		TextSelection selection) const;
 
-	static bool IsAfter(
+	[[nodiscard]] bool isAfter(
 		const MouseState &a,
-		const MouseState &b);
-	static bool SkipSelectFromItem(const MouseState &state);
-	static bool SkipSelectTillItem(const MouseState &state);
+		const MouseState &b) const;
+	[[nodiscard]] static bool SkipSelectFromItem(const MouseState &state);
+	[[nodiscard]] static bool SkipSelectTillItem(const MouseState &state);
 
-	void markLayoutsStale();
-	void clearStaleLayouts();
-	std::vector<Section>::iterator findSectionByItem(
-		UniversalMsgId universalId);
-	std::vector<Section>::iterator findSectionAfterTop(int top);
-	std::vector<Section>::const_iterator findSectionAfterTop(
+	[[nodiscard]] std::vector<Section>::iterator findSectionByItem(
+		not_null<const HistoryItem*> item);
+	[[nodiscard]] std::vector<Section>::iterator findSectionAfterTop(
+		int top);
+	[[nodiscard]] std::vector<Section>::const_iterator findSectionAfterTop(
 		int top) const;
-	std::vector<Section>::const_iterator findSectionAfterBottom(
+	[[nodiscard]] auto findSectionAfterBottom(
 		std::vector<Section>::const_iterator from,
-		int bottom) const;
-	FoundItem findItemByPoint(QPoint point) const;
-	std::optional<FoundItem> findItemById(UniversalMsgId universalId);
-	FoundItem findItemDetails(not_null<BaseLayout*> item);
-	FoundItem foundItemInSection(
+		int bottom) const -> std::vector<Section>::const_iterator;
+	[[nodiscard]] FoundItem findItemByPoint(QPoint point) const;
+	[[nodiscard]] std::optional<FoundItem> findItemByItem(
+		const HistoryItem *item);
+	[[nodiscard]] FoundItem findItemDetails(not_null<BaseLayout*> item);
+	[[nodiscard]] FoundItem foundItemInSection(
 		const FoundItem &item,
 		const Section &section) const;
 
-	ScrollTopState countScrollState() const;
+	[[nodiscard]] ListScrollTopState countScrollState() const;
 	void saveScrollState();
 	void restoreScrollState();
 
-	QPoint clampMousePosition(QPoint position) const;
+	[[nodiscard]] QPoint clampMousePosition(QPoint position) const;
 	void mouseActionStart(
 		const QPoint &globalPosition,
 		Qt::MouseButton button);
@@ -276,7 +235,7 @@ private:
 		Qt::MouseButton button);
 	void mouseActionCancel();
 	void performDrag();
-	style::cursor computeMouseCursor() const;
+	[[nodiscard]] style::cursor computeMouseCursor() const;
 	void showContextMenu(
 		QContextMenuEvent *e,
 		ContextMenuSource source);
@@ -295,27 +254,18 @@ private:
 	void checkMoveToOtherViewer();
 	void clearHeavyItems();
 
-	void setActionBoxWeak(QPointer<Ui::RpWidget> box);
+	void setActionBoxWeak(QPointer<Ui::BoxContent> box);
 
 	const not_null<AbstractController*> _controller;
-	const not_null<PeerData*> _peer;
-	PeerData * const _migrated = nullptr;
-	const Type _type = Type::Photo;
+	const std::unique_ptr<ListProvider> _provider;
 
-	static constexpr auto kMinimalIdsLimit = 16;
-	static constexpr auto kDefaultAroundId = (ServerMaxMsgId - 1);
-	UniversalMsgId _universalAroundId = kDefaultAroundId;
-	int _idsLimit = kMinimalIdsLimit;
-	SparseIdsMergedSlice _slice;
-
-	std::unordered_map<UniversalMsgId, CachedItem> _layouts;
 	base::flat_set<not_null<const BaseLayout*>> _heavyLayouts;
 	bool _heavyLayoutsInvalidated = false;
 	std::vector<Section> _sections;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	ScrollTopState _scrollTopState;
+	ListScrollTopState _scrollTopState;
 	rpl::event_stream<int> _scrollToRequests;
 
 	MouseAction _mouseAction = MouseAction::None;
@@ -324,7 +274,7 @@ private:
 	MouseState _overState;
 	MouseState _pressState;
 	BaseLayout *_overLayout = nullptr;
-	UniversalMsgId _contextUniversalId = 0;
+	HistoryItem *_contextItem = nullptr;
 	CursorState _mouseCursorState = CursorState();
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
@@ -336,16 +286,15 @@ private:
 	bool _wasSelectedText = false; // was some text selected in current drag action
 
 	const std::unique_ptr<DateBadge> _dateBadge;
+	base::flat_map<not_null<Main::Session*>, rpl::lifetime> _trackedSessions;
 
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
 	rpl::event_stream<> _checkForHide;
-	QPointer<Ui::RpWidget> _actionBoxWeak;
+	QPointer<Ui::BoxContent> _actionBoxWeak;
 	rpl::lifetime _actionBoxWeakLifetime;
 
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
-
-	rpl::lifetime _viewerLifetime;
 
 };
 

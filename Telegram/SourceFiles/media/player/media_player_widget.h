@@ -41,7 +41,7 @@ class SpeedButton;
 class Dropdown;
 struct TrackState;
 
-class Widget final : public Ui::RpWidget, private base::Subscriber {
+class Widget final : public Ui::RpWidget {
 public:
 	Widget(
 		QWidget *parent,

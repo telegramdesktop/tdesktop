@@ -84,6 +84,7 @@ class CloudManager;
 
 namespace Data {
 struct CloudTheme;
+class DownloadManager;
 } // namespace Data
 
 namespace Stickers {
@@ -102,6 +103,7 @@ namespace Core {
 
 class Launcher;
 struct LocalUrlHandler;
+class Tray;
 
 enum class LaunchState {
 	Running,
@@ -143,6 +145,12 @@ public:
 
 		return *_notifications;
 	}
+	[[nodiscard]] Data::DownloadManager &downloadManager() const {
+		return *_downloadManager;
+	}
+	[[nodiscard]] Tray &tray() const {
+		return *_tray;
+	}
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
@@ -159,6 +167,7 @@ public:
 	[[nodiscard]] QWidget *getFileDialogParent();
 	void notifyFileDialogShown(bool shown);
 	void checkSystemDarkMode();
+	[[nodiscard]] bool isActiveForTrayMenu() const;
 
 	// Media view interface.
 	void checkMediaViewActivation();
@@ -251,6 +260,7 @@ public:
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation);
 	[[nodiscard]] bool uploadPreventsQuit();
+	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
 	void unlockPasscode();
@@ -311,6 +321,7 @@ private:
 	void startDomain();
 	void startEmojiImageLoader();
 	void startSystemDarkModeViewer();
+	void startTray();
 
 	friend void QuitAttempt();
 	void quitDelayed();
@@ -354,6 +365,7 @@ private:
 	// Mutable because is created in run() after OpenSSL is inited.
 	std::unique_ptr<Window::Notifications::System> _notifications;
 
+	const std::unique_ptr<Data::DownloadManager> _downloadManager;
 	const std::unique_ptr<Main::Domain> _domain;
 	const std::unique_ptr<Export::Manager> _exportManager;
 	const std::unique_ptr<Calls::Instance> _calls;
@@ -369,6 +381,8 @@ private:
 	const std::unique_ptr<ChatHelpers::EmojiKeywords> _emojiKeywords;
 	std::unique_ptr<Lang::Translator> _translator;
 	QPointer<Ui::BoxContent> _badProxyDisableBox;
+
+	const std::unique_ptr<Tray> _tray;
 
 	std::unique_ptr<Media::Player::FloatController> _floatPlayers;
 	Media::Player::FloatDelegate *_defaultFloatPlayerDelegate = nullptr;

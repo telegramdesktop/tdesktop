@@ -110,8 +110,11 @@ void AboutBox::showVersionHistory() {
 
 		QGuiApplication::clipboard()->setText(url);
 
-		Ui::show(Box<Ui::InformBox>("The link to the current private alpha "
-			"version of Telegram Desktop was copied to the clipboard."));
+		getDelegate()->show(
+			Ui::MakeInformBox(
+				"The link to the current private alpha "
+				"version of Telegram Desktop was copied to the clipboard."),
+			Ui::LayerOption::CloseOther);
 	} else {
 		UrlClickHandler::Open(Core::App().changelogLink());
 	}

@@ -239,6 +239,13 @@ historyComposeFieldMaxHeight: 224px;
 
 historySendPadding: 9px;
 historySendRight: 2px;
+historyBotMenuSkip: 8px;
+historyBotMenuMaxWidth: 160px;
+historyBotMenuButton: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 30px;
+	textTop: 6px;
+}
 
 historyComposeButton: FlatButton {
 	color: windowActiveTextFg;
@@ -311,14 +318,26 @@ historyAttachEmoji: IconButton(historyAttach) {
 	icon: icon {{ "chat/input_smile_face", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_smile_face", historyComposeIconFgOver }};
 }
-historyMessagesTTL: IconButton(historyAttach) {
-	icon: icon {{ "chat/input_autodelete_1d", historyComposeIconFg }};
-	iconOver: icon {{ "chat/input_autodelete_1d", historyComposeIconFgOver }};
+historyMessagesTTL: IconButtonWithText {
+	iconButton: IconButton(historyAttach) {
+		icon: icon {{ "chat/input_autodelete", historyComposeIconFg }};
+		iconOver: icon {{ "chat/input_autodelete", historyComposeIconFgOver }};
+	}
+	textFg: historyComposeIconFg;
+	textFgOver: historyComposeIconFgOver;
+	textPadding: margins(21px, 20px, 3px, 7px);
+	textAlign: align(left);
+
+	font: font(10px semibold);
 }
-historyMessagesTTL2Icon: icon {{ "chat/input_autodelete_7d", historyComposeIconFg }};
-historyMessagesTTL2IconOver: icon {{ "chat/input_autodelete_7d", historyComposeIconFgOver }};
-historyMessagesTTL3Icon: icon {{ "chat/input_autodelete_30d", historyComposeIconFg }};
-historyMessagesTTL3IconOver: icon {{ "chat/input_autodelete_30d", historyComposeIconFgOver }};
+historyMessagesTTLPickerHeight: 200px;
+historyMessagesTTLPickerItemHeight: 40px;
+historyMessagesTTLLabel: FlatLabel(defaultFlatLabel) {
+	minWidth: 200px;
+	align: align(topleft);
+	textFg: windowSubTextFg;
+}
+
 historyAttachEmojiFgActive: windowBgActive;
 historyAttachEmojiActive: icon {{ "chat/input_smile_face", historyAttachEmojiFgActive }};
 historyAttachEmojiTooltipDelta: 4px;
@@ -326,7 +345,7 @@ historyEmojiCircle: size(20px, 20px);
 historyEmojiCirclePeriod: 1500;
 historyEmojiCircleDuration: 500;
 historyEmojiCircleTop: 13px;
-historyEmojiCircleLine: 2px;
+historyEmojiCircleLine: 1.5;
 historyEmojiCircleFg: historyComposeIconFg;
 historyEmojiCircleFgOver: historyComposeIconFgOver;
 historyEmojiCirclePart: 3.5;
@@ -410,8 +429,8 @@ historyRecordLockArrow: icon {{ "voice_lock/voice_arrow", historyToDownFg }};
 historyRecordLockRippleMargin: margins(6px, 6px, 6px, 6px);
 
 historyRecordDelete: IconButton(historyAttach) {
-	icon: icon {{ "info_media_delete", historyComposeIconFg }};
-	iconOver: icon {{ "info_media_delete", historyComposeIconFgOver }};
+	icon: icon {{ "info/info_media_delete", historyComposeIconFg }};
+	iconOver: icon {{ "info/info_media_delete", historyComposeIconFgOver }};
 	iconPosition: point(10px, 11px);
 }
 historyRecordWaveformRightSkip: 10px;
@@ -428,14 +447,8 @@ historySilentToggle: IconButton(historyBotKeyboardShow) {
 	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
 	iconOver: icon {{ "chat/input_silent", historyComposeIconFgOver }};
 }
-
-historySilentToggleCrossLine: CrossLineAnimation {
-	fg: historyComposeIconFg;
-	icon: icon {{ "chat/input_silent", historyComposeIconFg }};
-	startPosition: point(13px, 11px);
-	endPosition: point(29px, 26px);
-	stroke: 2px;
-}
+historySilentToggleOn: icon {{ "chat/input_silent_on", historyComposeIconFg }};
+historySilentToggleOnOver: icon {{ "chat/input_silent_on", historyComposeIconFgOver }};
 
 historyReplySkip: 51px;
 historyReplyNameFg: windowActiveTextFg;
@@ -464,13 +477,21 @@ historyPinnedShowAll: IconButton(historyReplyCancel) {
 	icon: icon {{ "pinned_show_all", historyReplyCancelFg }};
 	iconOver: icon {{ "pinned_show_all", historyReplyCancelFgOver }};
 }
+historyPinnedBotButton: RoundButton(defaultActiveButton) {
+	width: -34px;
+	height: 30px;
+	textTop: 6px;
+	padding: margins(2px, 10px, 10px, 9px);
+}
+historyPinnedBotButtonMaxWidth: 150px;
 
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
-msgBotKbIconPadding: 2px;
+msgBotKbIconPadding: 4px;
 msgBotKbUrlIcon: icon {{ "inline_button_url", msgBotKbIconFg }};
 msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
+msgBotKbWebviewIcon: icon {{ "inline_button_web", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
 	margin: 5px;
 	padding: 10px;
@@ -663,7 +684,7 @@ historyAdminLogCancelSearch: CrossButton {
 	cross: CrossAnimation {
 		size: 32px;
 		skip: 10px;
-		stroke: 2px;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	crossFg: menuIconFg;
@@ -887,6 +908,13 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
+	menu: Menu(menuWithIcons) {
+		separatorPadding: margins(0px, 4px, 0px, 4px);
+		separatorWidth: 6px;
+	}
+}
+
 WhoRead {
 	userpics: GroupCallUserpics;
 	photoLeft: pixels;
@@ -910,22 +938,18 @@ defaultWhoRead: WhoRead {
 	iconPosition: point(15px, 7px);
 	itemPadding: margins(44px, 9px, 17px, 7px);
 }
-whoReadMenu: PopupMenu(popupMenuWithIcons) {
+whoReadMenu: PopupMenu(popupMenuExpandedSeparator) {
 	scrollPadding: margins(0px, 6px, 0px, 4px);
 	maxHeight: 400px;
-	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 4px, 0px, 4px);
-		separatorWidth: 6px;
-	}
 }
-whoReadChecks: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
-whoReadChecksOver: icon{{ "menu/read_ticks", menuSubmenuArrowFg }};
+whoReadChecks: icon{{ "menu/read_ticks", windowBoldFg }};
+whoReadChecksOver: icon{{ "menu/read_ticks", windowBoldFg }};
 whoReadChecksDisabled: icon{{ "menu/read_ticks", menuFgDisabled }};
-whoReadPlayed: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
-whoReadPlayedOver: icon{{ "menu/read_audio", menuSubmenuArrowFg }};
+whoReadPlayed: icon{{ "menu/read_audio", windowBoldFg }};
+whoReadPlayedOver: icon{{ "menu/read_audio", windowBoldFg }};
 whoReadPlayedDisabled: icon {{ "menu/read_audio", menuFgDisabled }};
-whoReadReactions: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
-whoReadReactionsOver: icon{{ "menu/read_reactions", menuSubmenuArrowFg }};
+whoReadReactions: icon{{ "menu/read_reactions", windowBoldFg }};
+whoReadReactionsOver: icon{{ "menu/read_reactions", windowBoldFg }};
 whoReadReactionsDisabled: icon{{ "menu/read_reactions", menuFgDisabled }};
 
 reactionsTabAll: icon {{ "menu/read_reactions", windowFg }};
@@ -965,7 +989,7 @@ sendAsButton: SendAsButton {
 	cross: CrossAnimation {
 		size: 28px;
 		skip: 10px;
-		stroke: 2px;
+		stroke: 1.5;
 		minScale: 0.3;
 	}
 	duration: 150;
@@ -1007,3 +1031,16 @@ reactionAppearStartSkip: 2px;
 reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
+
+searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
+	maxWidth: 200px;
+}
+searchInChatMultiSelect: MultiSelect(defaultMultiSelect) {
+	item: searchInChatMultiSelectItem;
+}
+searchInChatPeerListItem: PeerListItem(defaultPeerListItem) {
+	height: dialogsRowHeight;
+}
+searchInChatPeerList: PeerList(defaultPeerList) {
+	item: searchInChatPeerListItem;
+}

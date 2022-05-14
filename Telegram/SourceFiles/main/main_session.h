@@ -53,6 +53,10 @@ class EmojiPack;
 class DicePacks;
 } // namespace Stickers;
 
+namespace InlineBots {
+class AttachWebView;
+} // namespace InlineBots
+
 namespace Main {
 
 class Account;
@@ -117,6 +121,9 @@ public:
 	[[nodiscard]] SendAsPeers &sendAsPeers() const {
 		return *_sendAsPeers;
 	}
+	[[nodiscard]] InlineBots::AttachWebView &attachWebView() const {
+		return *_attachWebView;
+	}
 
 	void saveSettings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
@@ -167,11 +174,9 @@ public:
 		return _lifetime;
 	}
 
-	base::Observable<DocumentData*> documentUpdated;
-
-	bool supportMode() const;
-	Support::Helper &supportHelper() const;
-	Support::Templates &supportTemplates() const;
+	[[nodiscard]] bool supportMode() const;
+	[[nodiscard]] Support::Helper &supportHelper() const;
+	[[nodiscard]] Support::Templates &supportTemplates() const;
 
 private:
 	static constexpr auto kDefaultSaveDelay = crl::time(1000);
@@ -196,6 +201,7 @@ private:
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
+	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 

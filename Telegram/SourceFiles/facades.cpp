@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_bot.h"
 #include "info/info_memento.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "core/click_handler_types.h"
 #include "core/application.h"
 #include "media/clip/media_clip_reader.h"
@@ -27,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/url_auth_box.h"
 #include "ui/layers/layer_widget.h"
 #include "lang/lang_keys.h"
-#include "base/observer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/view/media/history_view_media.h"
@@ -140,18 +140,16 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_bot_share_location_unavailable(tr::now)));
+		Ui::show(Ui::MakeInformBox(tr::lng_bot_share_location_unavailable()));
 	} break;
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
 		const auto msgId = msg->id;
 		const auto history = msg->history();
-		Ui::show(Box<Ui::ConfirmBox>(
-			tr::lng_bot_share_phone(tr::now),
-			tr::lng_bot_share_phone_confirm(tr::now),
-			[=] {
+		Ui::show(Ui::MakeConfirmBox({
+			.text = tr::lng_bot_share_phone(),
+			.confirmed = [=] {
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
 				auto action = Api::SendAction(history);
 				action.clearDraft = false;
@@ -159,7 +157,9 @@ void activateBotCommand(
 				history->session().api().shareContact(
 					history->session().user(),
 					action);
-			}));
+			},
+			.confirmText = tr::lng_bot_share_phone_confirm(),
+		}));
 	} break;
 
 	case ButtonType::RequestPoll: {
@@ -218,6 +218,29 @@ void activateBotCommand(
 			const auto &windows = session->windows();
 			if (!windows.empty()) {
 				windows.front()->showPeerInfo(user);
+			}
+		}
+	} break;
+
+	case ButtonType::WebView: {
+		if (const auto bot = msg->getMessageBot()) {
+			if (sessionController) {
+				bot->session().attachWebView().request(
+					sessionController,
+					bot,
+					bot,
+					{ .text = button->text, .url = button->data });
+			}
+		}
+	} break;
+
+	case ButtonType::SimpleWebView: {
+		if (const auto bot = msg->getMessageBot()) {
+			if (sessionController) {
+				bot->session().attachWebView().requestSimple(
+					sessionController,
+					bot,
+					{ .text = button->text, .url = button->data });
 			}
 		}
 	} break;

@@ -86,6 +86,8 @@ public:
 
 	void unloadHeavyPart() override;
 
+	QRect innerContentRect() const override;
+
 private:
 	enum class StateFlag {
 		Over = (1 << 0),
@@ -200,6 +202,8 @@ public:
 	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active) override;
 
 	void unloadHeavyPart() override;
+
+	QRect innerContentRect() const override;
 
 private:
 	void ensureDataMediaCreated(not_null<DocumentData*> document) const;

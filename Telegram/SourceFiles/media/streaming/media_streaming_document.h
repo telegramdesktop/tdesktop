@@ -62,11 +62,14 @@ private:
 	void waitingChange(bool waiting);
 
 	void validateGoodThumbnail();
+	void resubscribe();
 
 	DocumentData *_document = nullptr;
 	PhotoData *_photo = nullptr;
 	Player _player;
 	Information _info;
+
+	rpl::lifetime _subscription;
 
 	bool _waiting = false;
 	mutable Ui::InfiniteRadialAnimation _radial;

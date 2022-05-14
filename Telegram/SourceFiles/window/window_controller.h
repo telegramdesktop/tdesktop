@@ -83,6 +83,8 @@ public:
 
 	void showRightColumn(object_ptr<TWidget> widget);
 
+	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
+
 	void activate();
 	void reActivate();
 	void updateIsActiveFocus();

@@ -30,6 +30,8 @@ PRIVATE
     EncryptedConnection.h
     FakeAudioDeviceModule.cpp
     FakeAudioDeviceModule.h
+    FieldTrialsConfig.cpp
+    FieldTrialsConfig.h
     InstanceImpl.cpp
     InstanceImpl.h
     LogSinkImpl.cpp
@@ -55,14 +57,35 @@ PRIVATE
     VideoCaptureInterfaceImpl.h
     VideoCapturerInterface.h
 
+    utils/gzip.cpp
+    utils/gzip.h
+
+    v2/ContentNegotiation.cpp
+    v2/ContentNegotiation.h
+    v2/ExternalSignalingConnection.cpp
+    v2/ExternalSignalingConnection.h
+    v2/InstanceV2ReferenceImpl.cpp
+    v2/InstanceV2ReferenceImpl.h
     v2/InstanceV2Impl.cpp
     v2/InstanceV2Impl.h
     v2/NativeNetworkingImpl.cpp
     v2/NativeNetworkingImpl.h
+    v2/ReflectorPort.cpp
+    v2/ReflectorPort.h
+    v2/ReflectorRelayPortFactory.cpp
+    v2/ReflectorRelayPortFactory.h
     v2/Signaling.cpp
     v2/Signaling.h
+    v2/SignalingConnection.cpp
+    v2/SignalingConnection.h
     v2/SignalingEncryption.cpp
     v2/SignalingEncryption.h
+    v2/SignalingSctpConnection.cpp
+    v2/SignalingSctpConnection.h
+    v2_4_0_0/InstanceV2_4_0_0Impl.cpp
+    v2_4_0_0/InstanceV2_4_0_0Impl.h
+    v2_4_0_0/Signaling_4_0_0.cpp
+    v2_4_0_0/Signaling_4_0_0.h
 
     # Desktop capturer
     desktop_capturer/DesktopCaptureSource.h
@@ -73,8 +96,14 @@ PRIVATE
     desktop_capturer/DesktopCaptureSourceManager.cpp
 
     # Group calls
+    group/AVIOContextImpl.cpp
+    group/AVIOContextImpl.h
     group/AudioStreamingPart.cpp
     group/AudioStreamingPart.h
+    group/AudioStreamingPartInternal.cpp
+    group/AudioStreamingPartInternal.h
+    group/AudioStreamingPartPersistentDecoder.cpp
+    group/AudioStreamingPartPersistentDecoder.h
     group/GroupInstanceCustomImpl.cpp
     group/GroupInstanceCustomImpl.h
     group/GroupInstanceImpl.h
@@ -171,6 +200,7 @@ PRIVATE
     desktop-app::external_ffmpeg
     desktop-app::external_openssl
     desktop-app::external_rnnoise
+    desktop-app::external_zlib
 )
 
 target_compile_definitions(lib_tgcalls

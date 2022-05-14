@@ -29,9 +29,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "media/audio/media_audio_track.h"
 #include "settings/settings_common.h"
+#include "settings/settings_folders.h"
 #include "api/api_updates.h"
 #include "base/qt/qt_common_adapters.h"
 #include "base/custom_app_icon.h"
+#include "boxes/abstract_box.h" // Ui::show().
 
 #include "zlib.h"
 
@@ -78,9 +80,9 @@ auto GenerateCodes() {
 			? qsl("Do you want to disable DEBUG logs?")
 			: qsl("Do you want to enable DEBUG logs?\n\n"
 				"All network events will be logged.");
-		Ui::show(Box<Ui::ConfirmBox>(text, [] {
+		Ui::show(Ui::MakeConfirmBox({ text, [] {
 			Core::App().switchDebugMode();
-		}));
+		} }));
 	});
 	codes.emplace(qsl("viewlogs"), [](SessionController *window) {
 		File::ShowInFolder(cWorkingDir() + "log.txt");
@@ -98,11 +100,11 @@ auto GenerateCodes() {
 	});
 	codes.emplace(qsl("moderate"), [](SessionController *window) {
 		auto text = Core::App().settings().moderateModeEnabled() ? qsl("Disable moderate mode?") : qsl("Enable moderate mode?");
-		Ui::show(Box<Ui::ConfirmBox>(text, [=] {
+		Ui::show(Ui::MakeConfirmBox({ text, [=] {
 			Core::App().settings().setModerateModeEnabled(!Core::App().settings().moderateModeEnabled());
 			Core::App().saveSettingsDelayed();
 			Ui::hideLayer();
-		}));
+		} }));
 	});
 	codes.emplace(qsl("getdifference"), [](SessionController *window) {
 		if (window) {
@@ -121,11 +123,11 @@ auto GenerateCodes() {
 			return;
 		}
 		auto text = cUseExternalVideoPlayer() ? qsl("Use internal video player?") : qsl("Use external video player?");
-		Ui::show(Box<Ui::ConfirmBox>(text, [=] {
+		Ui::show(Ui::MakeConfirmBox({ text, [=] {
 			cSetUseExternalVideoPlayer(!cUseExternalVideoPlayer());
 			window->session().saveSettingsDelayed();
 			Ui::hideLayer();
-		}));
+		} }));
 	});
 	codes.emplace(qsl("endpoints"), [](SessionController *window) {
 		if (!Core::App().domain().started()) {
@@ -138,7 +140,7 @@ auto GenerateCodes() {
 			if (!result.paths.isEmpty()) {
 				const auto loadFor = [&](not_null<Main::Account*> account) {
 					if (!account->mtp().dcOptions().loadFromFile(result.paths.front())) {
-						Ui::show(Box<Ui::InformBox>("Could not load endpoints"
+						Ui::show(Ui::MakeInformBox("Could not load endpoints"
 							" :( Errors in 'log.txt'."));
 					}
 				};
@@ -170,7 +172,7 @@ auto GenerateCodes() {
 	});
 	codes.emplace(qsl("folders"), [](SessionController *window) {
 		if (window) {
-			window->showSettings(Settings::Type::Folders);
+			window->showSettings(Settings::Folders::Id());
 		}
 	});
 	codes.emplace(qsl("registertg"), [](SessionController *window) {
@@ -188,9 +190,9 @@ auto GenerateCodes() {
 #endif // !Q_OS_WIN
 			: qsl("Switch font engine to FreeType?");
 
-		Ui::show(Box<Ui::ConfirmBox>(text, [] {
+		Ui::show(Ui::MakeConfirmBox({ text, [] {
 			Core::App().switchFreeType();
-		}));
+		} }));
 	});
 #endif // Q_OS_WIN || Q_OS_MAC
 
@@ -217,7 +219,7 @@ auto GenerateCodes() {
 					auto track = Media::Audio::Current().createTrack();
 					track->fillFromFile(result.paths.front());
 					if (track->failed()) {
-						Ui::show(Box<Ui::InformBox>(
+						Ui::show(Ui::MakeInformBox(
 							"Could not audio :( Errors in 'log.txt'."));
 					} else {
 						Core::App().settings().setSoundOverride(
@@ -232,7 +234,7 @@ auto GenerateCodes() {
 	codes.emplace(qsl("sounds_reset"), [](SessionController *window) {
 		Core::App().settings().clearSoundOverrides();
 		Core::App().saveSettingsDelayed();
-		Ui::show(Box<Ui::InformBox>("All sound overrides were reset."));
+		Ui::show(Ui::MakeInformBox("All sound overrides were reset."));
 	});
 	codes.emplace(qsl("unpacklog"), [](SessionController *window) {
 		FileDialog::GetOpenPath(Core::App().getFileDialogParent(), "Open crash log file", "Crash dump (*.txt)", [=](const FileDialog::OpenResult &result) {

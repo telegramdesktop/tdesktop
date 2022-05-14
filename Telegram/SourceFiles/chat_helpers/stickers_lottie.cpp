@@ -285,7 +285,7 @@ QSize ComputeStickerSize(not_null<DocumentData*> document, QSize box) {
 	}
 	const auto ratio = style::DevicePixelRatio();
 	const auto request = Lottie::FrameRequest{ box * ratio };
-	return HistoryView::NonEmptySize(request.size(dimensions, true) / ratio);
+	return HistoryView::NonEmptySize(request.size(dimensions, 8) / ratio);
 }
 
 } // namespace ChatHelpers

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "dialogs/dialogs_key.h"
 #include "window/section_widget.h"
 #include "ui/effects/animations.h"
@@ -14,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/special_buttons.h"
 #include "mtproto/sender.h"
 #include "api/api_single_message_search.h"
-
-#include <QtCore/QTimer>
 
 namespace MTP {
 class Error;
@@ -36,6 +35,7 @@ class DropdownMenu;
 class FlatButton;
 class FlatInput;
 class CrossButton;
+class DownloadBar;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -56,7 +56,6 @@ class InnerWidget;
 enum class SearchRequestType;
 
 class Widget final : public Window::AbstractSectionWidget {
-	Q_OBJECT
 
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
@@ -85,7 +84,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	void searchMessages(const QString &query, Key inChat = {});
-	void onSearchMore();
+	void searchMore();
 
 	void updateForwardBar();
 
@@ -98,26 +97,9 @@ public:
 	bool floatPlayerHandleWheelEvent(QEvent *e) override;
 	QRect floatPlayerAvailableRect() override;
 
+	bool cancelSearch();
+
 	~Widget();
-
-public Q_SLOTS:
-	void onDraggingScrollDelta(int delta);
-
-	void onListScroll();
-	bool onCancelSearch();
-	void onCancelSearchInChat();
-
-	void onFilterCursorMoved(int from = -1, int to = -1);
-	void onCompleteHashtag(QString tag);
-
-	void onDialogMoved(int movedFrom, int movedTo);
-	bool onSearchMessages(bool searchCache = false);
-	void onNeedSearchMessages();
-
-	void onChooseByDrag();
-
-private Q_SLOTS:
-	void onDraggingScrollTimer();
 
 protected:
 	void dragEnterEvent(QDragEnterEvent *e) override;
@@ -134,6 +116,14 @@ private:
 		Internal,
 	};
 
+	void listScrollUpdated();
+	void cancelSearchInChat();
+	void filterCursorMoved(int from = -1, int to = -1);
+	void completeHashtag(QString tag);
+
+	bool searchMessages(bool searchCache = false);
+	void needSearchMessages();
+
 	void animationCallback();
 	void searchReceived(
 		SearchRequestType type,
@@ -148,6 +138,7 @@ private:
 	void setupSupportMode();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
+	void setupDownloadBar();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showCalendar();
@@ -187,7 +178,7 @@ private:
 
 	bool _dragInScroll = false;
 	bool _dragForward = false;
-	QTimer _chooseByDragTimer;
+	base::Timer _chooseByDragTimer;
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
@@ -204,6 +195,7 @@ private:
 	class BottomButton;
 	object_ptr<BottomButton> _updateTelegram = { nullptr };
 	object_ptr<BottomButton> _loadMoreChats = { nullptr };
+	std::unique_ptr<Ui::DownloadBar> _downloadBar;
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	Ui::Animations::Simple _scrollToAnimation;
@@ -222,7 +214,7 @@ private:
 	PeerData *_searchFromAuthor = nullptr;
 	QString _lastFilterText;
 
-	QTimer _searchTimer;
+	base::Timer _searchTimer;
 
 	QString _peerSearchQuery;
 	bool _peerSearchFull = false;
@@ -243,9 +235,6 @@ private:
 	base::flat_map<mtpRequestId, QString> _peerSearchQueries;
 
 	QPixmap _widthAnimationCache;
-
-	object_ptr<QTimer> _draggingScrollTimer = { nullptr };
-	int _draggingScrollDelta = 0;
 
 	int _topDelta = 0;
 

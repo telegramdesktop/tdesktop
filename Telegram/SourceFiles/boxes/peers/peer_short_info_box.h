@@ -65,6 +65,8 @@ public:
 	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 	[[nodiscard]] object_ptr<Ui::RpWidget> takeOwned();
 
+	[[nodiscard]] gsl::span<const QImage, 4> roundMask() const;
+
 	void setScrollTop(int scrollTop);
 
 	[[nodiscard]] rpl::producer<int> moveRequests() const;
@@ -106,6 +108,7 @@ private:
 	std::unique_ptr<CustomLabelStyle> _statusStyle;
 	object_ptr<Ui::FlatLabel> _status;
 
+	std::array<QImage, 4> _roundMask;
 	QImage _userpicImage;
 	QImage _roundedTopImage;
 	QImage _barSmall;

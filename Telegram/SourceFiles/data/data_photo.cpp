@@ -296,7 +296,7 @@ void PhotoData::load(
 		}
 		return true;
 	};
-	const auto done = [=](QImage result) {
+	const auto done = [=](QImage result, QByteArray bytes) {
 		Expects(_images[valid].loader != nullptr);
 
 		// Find out what progressive photo size have we loaded exactly.
@@ -316,7 +316,8 @@ void PhotoData::load(
 			active->set(
 				validSize,
 				goodFor,
-				ValidatePhotoImage(std::move(result), _images[valid]));
+				ValidatePhotoImage(std::move(result), _images[valid]),
+				std::move(bytes));
 		}
 		if (validSize == PhotoSize::Large && goodFor == validSize) {
 			_owner->photoLoadDone(this);
@@ -382,14 +383,15 @@ void PhotoData::updateImages(
 			owner().cache(),
 			Data::kImageCacheTag,
 			[=](Data::FileOrigin origin) { load(size, origin); },
-			[=](QImage preloaded) {
+			[=](QImage preloaded, QByteArray bytes) {
 				if (const auto media = activeMediaView()) {
 					media->set(
 						size,
 						size,
 						ValidatePhotoImage(
 							std::move(preloaded),
-							_images[index]));
+							_images[index]),
+						std::move(bytes));
 				}
 			});
 	};

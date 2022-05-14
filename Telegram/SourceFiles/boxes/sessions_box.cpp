@@ -289,7 +289,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 		Unexpected("Type in LottieForType.");
 	}();
 	const auto size = st::sessionBigLottieSize;
-	return std::make_unique<Lottie::Icon>(Lottie::IconDescriptor{
+	return Lottie::MakeIcon({
 		.path = u":/icons/settings/devices/"_q + path + u".lottie"_q,
 		.sizeOverride = QSize(size, size),
 	});
@@ -636,7 +636,7 @@ private:
 	Full _data;
 
 	object_ptr<Inner> _inner;
-	QPointer<Ui::ConfirmBox> _terminateBox;
+	QPointer<Ui::BoxContent> _terminateBox;
 
 	base::Timer _shortPollTimer;
 
@@ -823,13 +823,14 @@ void SessionsContent::terminate(Fn<void()> terminateRequest, QString message) {
 		}
 		terminateRequest();
 	});
-	_terminateBox = Ui::show(
-		Box<Ui::ConfirmBox>(
-			message,
-			tr::lng_settings_reset_button(tr::now),
-			st::attentionBoxButton,
-			callback),
-		Ui::LayerOption::KeepOther);
+	auto box = Ui::MakeConfirmBox({
+		.text = message,
+		.confirmed = callback,
+		.confirmText = tr::lng_settings_reset_button(),
+		.confirmStyle = &st::attentionBoxButton,
+	});
+	_terminateBox = Ui::MakeWeak(box.data());
+	_controller->show(std::move(box), Ui::LayerOption::KeepOther);
 }
 
 void SessionsContent::terminateOne(uint64 hash) {
@@ -911,7 +912,7 @@ void SessionsContent::Inner::setupContent() {
 		rename->moveToRight(x, y, outer.width());
 	}, rename->lifetime());
 	rename->setClickedCallback([=] {
-		Ui::show(Box(RenameBox), Ui::LayerOption::KeepOther);
+		_controller->show(Box(RenameBox), Ui::LayerOption::KeepOther);
 	});
 
 	const auto session = &_controller->session();
@@ -928,10 +929,8 @@ void SessionsContent::Inner::setupContent() {
 		CreateButton(
 			terminateInner,
 			tr::lng_sessions_terminate_all(),
-			st::sessionsTerminateAll,
-			&st::sessionsTerminateAllIcon,
-			st::sessionsTerminateAllIconLeft,
-			&st::attentionButtonFg));
+			st::infoBlockButton,
+			{ .icon = &st::infoIconBlock }));
 	AddSkip(terminateInner);
 	AddDividerText(terminateInner, tr::lng_sessions_terminate_all_about());
 
@@ -968,9 +967,8 @@ void SessionsContent::Inner::setupContent() {
 	AddButtonWithLabel(
 		ttlInner,
 		tr::lng_settings_terminate_if(),
-		_ttlDays.value(
-	) | rpl::map(SelfDestructionBox::DaysLabel),
-		st::settingsButton
+		_ttlDays.value() | rpl::map(SelfDestructionBox::DaysLabel),
+		st::settingsButtonNoIcon
 	)->addClickHandler([=] {
 		_controller->show(Box<SelfDestructionBox>(
 			&_controller->session(),
@@ -1163,6 +1161,10 @@ Sessions::Sessions(
 	not_null<Window::SessionController*> controller)
 : Section(parent) {
 	setupContent(controller);
+}
+
+rpl::producer<QString> Sessions::title() {
+	return tr::lng_settings_sessions_title();
 }
 
 void Sessions::setupContent(not_null<Window::SessionController*> controller) {

@@ -135,6 +135,14 @@ struct ChatPaintContext {
 		return result;
 	}
 
+	// This is supported only in unwrapped media for now.
+	enum class SkipDrawingParts {
+		None,
+		Content,
+		Surrounding,
+	};
+	SkipDrawingParts skipDrawingParts = SkipDrawingParts::None;
+
 };
 
 [[nodiscard]] int HistoryServiceMsgRadius();
@@ -223,6 +231,9 @@ public:
 	}
 	[[nodiscard]] const style::icon &msgBotKbSwitchPmIcon() const {
 		return _msgBotKbSwitchPmIcon;
+	}
+	[[nodiscard]] const style::icon &msgBotKbWebviewIcon() const {
+		return _msgBotKbWebviewIcon;
 	}
 	[[nodiscard]] const style::icon &historyFastCommentsIcon() const {
 		return _historyFastCommentsIcon;
@@ -318,6 +329,7 @@ private:
 	style::icon _msgBotKbUrlIcon = { Qt::Uninitialized };
 	style::icon _msgBotKbPaymentIcon = { Qt::Uninitialized };
 	style::icon _msgBotKbSwitchPmIcon = { Qt::Uninitialized };
+	style::icon _msgBotKbWebviewIcon = { Qt::Uninitialized };
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };

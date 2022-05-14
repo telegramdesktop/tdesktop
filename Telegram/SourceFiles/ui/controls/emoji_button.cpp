@@ -58,15 +58,12 @@ void EmojiButton::paintEvent(QPaintEvent *e) {
 		: (over
 			? st::historyEmojiCircleFgOver
 			: st::historyEmojiCircleFg));
+	const auto line = style::ConvertScaleExact(st::historyEmojiCircleLine);
 	if (anim::Disabled() && _loading && _loading->animating()) {
-		anim::DrawStaticLoading(
-			p,
-			inner,
-			st::historyEmojiCircleLine,
-			color);
+		anim::DrawStaticLoading(p, inner, line, color);
 	} else {
 		auto pen = color->p;
-		pen.setWidth(st::historyEmojiCircleLine);
+		pen.setWidthF(line);
 		pen.setCapStyle(Qt::RoundCap);
 		p.setPen(pen);
 		p.setBrush(Qt::NoBrush);

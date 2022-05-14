@@ -20,6 +20,10 @@ namespace Ui {
 enum class InputSubmitSettings;
 } // namespace Ui
 
+namespace HistoryView {
+enum class DoubleClickQuickAction;
+} // namespace HistoryView
+
 namespace Window {
 enum class Column;
 } // namespace Window
@@ -663,11 +667,24 @@ public:
 		_accountsOrder = order;
 	}
 
+	[[nodiscard]] bool hardwareAcceleratedVideo() const {
+		return _hardwareAcceleratedVideo;
+	}
+	void setHardwareAcceleratedVideo(bool value) {
+		_hardwareAcceleratedVideo = value;
+	}
+
 	void setMacWarnBeforeQuit(bool value) {
 		_macWarnBeforeQuit = value;
 	}
 	[[nodiscard]] bool macWarnBeforeQuit() const {
 		return _macWarnBeforeQuit;
+	}
+	void setChatQuickAction(HistoryView::DoubleClickQuickAction value) {
+		_chatQuickAction = value;
+	}
+	[[nodiscard]] HistoryView::DoubleClickQuickAction chatQuickAction() const {
+		return _chatQuickAction;
 	}
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
@@ -775,6 +792,13 @@ private:
 	rpl::variable<Media::Player::OrderMode> _playerOrderMode;
 	bool _macWarnBeforeQuit = true;
 	std::vector<uint64> _accountsOrder;
+#ifdef Q_OS_MAC
+	bool _hardwareAcceleratedVideo = true;
+#else // Q_OS_MAC
+	bool _hardwareAcceleratedVideo = false;
+#endif // Q_OS_MAC
+	HistoryView::DoubleClickQuickAction _chatQuickAction =
+		HistoryView::DoubleClickQuickAction();
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

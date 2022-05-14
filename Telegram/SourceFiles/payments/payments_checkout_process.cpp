@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
+#include "window/themes/window_theme.h"
+#include "webview/webview_interface.h"
 
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -161,10 +163,21 @@ CheckoutProcess::CheckoutProcess(
 	showForm();
 	_panel->toggleProgress(true);
 
+	style::PaletteChanged(
+	) | rpl::filter([=] {
+		return !_themeUpdateScheduled;
+	}) | rpl::start_with_next([=] {
+		_themeUpdateScheduled = true;
+		crl::on_main(this, [=] {
+			_themeUpdateScheduled = false;
+			_panel->updateThemeParams(Window::Theme::WebViewParams());
+		});
+	}, _panel->lifetime());
+
 	if (mode == Mode::Payment) {
 		_session->api().cloudPassword().state(
 		) | rpl::start_with_next([=](const Core::CloudPasswordState &state) {
-			_form->setHasPassword(!!state.request);
+			_form->setHasPassword(state.hasPassword);
 		}, _lifetime);
 	}
 }
@@ -611,7 +624,7 @@ void CheckoutProcess::requestPassword() {
 
 void CheckoutProcess::panelSetPassword() {
 	getPasswordState([=](const Core::CloudPasswordState &state) {
-		if (state.request) {
+		if (state.hasPassword) {
 			return;
 		}
 		auto owned = Box<PasscodeBox>(

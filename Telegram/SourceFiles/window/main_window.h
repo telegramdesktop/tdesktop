@@ -13,8 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "base/required.h"
 
-#include <QtWidgets/QSystemTrayIcon>
-
 namespace Main {
 class Session;
 class Account;
@@ -75,9 +73,6 @@ public:
 	void showFromTray();
 	void quitFromTray();
 	void activate();
-	virtual void showFromTrayMenu() {
-		showFromTray();
-	}
 
 	[[nodiscard]] QRect desktopRect() const;
 
@@ -107,8 +102,6 @@ public:
 	// Returns how much could the window get extended.
 	int tryToExtendWidthBy(int addToWidth);
 
-	virtual void updateTrayMenu() {
-	}
 	virtual void fixOrder() {
 	}
 	virtual void setInnerFocus() {
@@ -156,9 +149,6 @@ protected:
 	virtual void activeChangedHook() {
 	}
 
-	virtual void handleActiveChangedHook() {
-	}
-
 	virtual void handleVisibleChangedHook(bool visible) {
 	}
 
@@ -178,14 +168,6 @@ protected:
 	virtual void updateGlobalMenuHook() {
 	}
 
-	virtual void initTrayMenuHook() {
-	}
-	virtual bool hasTrayIcon() const {
-		return false;
-	}
-	virtual void showTrayTooltip() {
-	}
-
 	virtual void workmodeUpdated(Core::Settings::WorkMode mode) {
 	}
 
@@ -200,9 +182,6 @@ protected:
 	virtual int32 screenNameChecksum(const QString &name) const;
 
 	void setPositionInited();
-	void attachToTrayIcon(not_null<QSystemTrayIcon*> icon);
-	virtual void handleTrayIconActication(
-		QSystemTrayIcon::ActivationReason reason) = 0;
 	void updateUnreadCounter();
 
 	virtual QRect computeDesktopRect() const;

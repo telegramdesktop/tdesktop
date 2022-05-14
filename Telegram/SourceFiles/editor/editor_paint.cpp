@@ -27,11 +27,6 @@ namespace {
 constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 
-constexpr auto kViewStyle = "QGraphicsView {\
-		background-color: transparent;\
-		border: 0px\
-	}"_cs;
-
 std::shared_ptr<Scene> EnsureScene(
 		PhotoModifications &mods,
 		const QSize &size) {
@@ -62,7 +57,8 @@ Paint::Paint(
 	_view->show();
 	_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	_view->setStyleSheet(kViewStyle.utf8());
+	_view->setFrameStyle(int(QFrame::NoFrame) | QFrame::Plain);
+	_view->viewport()->setAutoFillBackground(false);
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
@@ -195,7 +191,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 		}
 		if (!Ui::ValidateThumbDimensions(image.width(), image.height())) {
 			_controllers->showBox(
-				Box<Ui::InformBox>(tr::lng_edit_media_invalid_file(tr::now)));
+				Ui::MakeInformBox(tr::lng_edit_media_invalid_file()));
 			return;
 		}
 

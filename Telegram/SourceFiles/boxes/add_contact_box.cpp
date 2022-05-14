@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
-#include "ui/special_fields.h"
+#include "ui/widgets/fields/special_fields.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
@@ -161,11 +161,11 @@ void ShowAddParticipantsError(
 				*weak = Ui::show(std::move(box));
 			};
 			Ui::show(
-				Box<Ui::ConfirmBox>(
-					tr::lng_cant_invite_offer_admin(tr::now),
-					tr::lng_cant_invite_make_admin(tr::now),
-					tr::lng_cancel(tr::now),
-					makeAdmin),
+				Ui::MakeConfirmBox({
+					.text = tr::lng_cant_invite_offer_admin(),
+					.confirmed = makeAdmin,
+					.confirmText = tr::lng_cant_invite_make_admin(),
+				}),
 				Ui::LayerOption::KeepOther);
 			return;
 		}
@@ -176,7 +176,7 @@ void ShowAddParticipantsError(
 			? PeerFloodType::InviteGroup
 			: PeerFloodType::InviteChannel;
 		const auto text = PeerFloodErrorText(&chat->session(), type);
-		Ui::show(Box<Ui::InformBox>(text), Ui::LayerOption::KeepOther);
+		Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 		return;
 	}
 	const auto text = [&] {
@@ -203,7 +203,7 @@ void ShowAddParticipantsError(
 		}
 		return tr::lng_failed_add_participant(tr::now);
 	}();
-	Ui::show(Box<Ui::InformBox>(text), Ui::LayerOption::KeepOther);
+	Ui::show(Ui::MakeInformBox(text), Ui::LayerOption::KeepOther);
 }
 
 class RevokePublicLinkBox::Inner : public TWidget {
@@ -656,18 +656,18 @@ void GroupInfoBox::createGroup(
 			}
 		} else if (type == u"USERS_TOO_FEW"_q) {
 			controller->show(
-				Box<Ui::InformBox>(tr::lng_cant_invite_privacy(tr::now)),
+				Ui::MakeInformBox(tr::lng_cant_invite_privacy()),
 				Ui::LayerOption::KeepOther);
 		} else if (type == u"PEER_FLOOD"_q) {
 			controller->show(
-				Box<Ui::InformBox>(
+				Ui::MakeInformBox(
 					PeerFloodErrorText(
 						&_navigation->session(),
 						PeerFloodType::InviteGroup)),
 				Ui::LayerOption::KeepOther);
 		} else if (type == u"USER_RESTRICTED"_q) {
 			controller->show(
-				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
+				Ui::MakeInformBox(tr::lng_cant_do_this()),
 				Ui::LayerOption::KeepOther);
 		}
 	}).send();
@@ -778,11 +778,11 @@ void GroupInfoBox::createChannel(
 			_title->showError();
 		} else if (type == u"USER_RESTRICTED"_q) {
 			controller->show(
-				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
+				Ui::MakeInformBox(tr::lng_cant_do_this()),
 				Ui::LayerOption::CloseOther);
 		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
 			controller->show(
-				Box<Ui::InformBox>(tr::lng_cant_do_this(tr::now)),
+				Ui::MakeInformBox(tr::lng_cant_do_this()),
 				Ui::LayerOption::CloseOther); // TODO
 		}
 	}).send();
@@ -878,14 +878,14 @@ SetupChannelBox::SetupChannelBox(
 	(channel->isMegagroup()
 		? tr::lng_create_public_group_about
 		: tr::lng_create_public_channel_about)(tr::now),
-	_defaultOptions,
+	kDefaultTextOptions,
 	_aboutPublicWidth)
 , _aboutPrivate(
 	st::defaultTextStyle,
 	(channel->isMegagroup()
 		? tr::lng_create_private_group_about
 		: tr::lng_create_private_channel_about)(tr::now),
-	_defaultOptions,
+	kDefaultTextOptions,
 	_aboutPublicWidth)
 , _link(
 	this,
@@ -1381,7 +1381,7 @@ void EditNameBox::prepare() {
 	newHeight += st::contactSkip + _last->height();
 
 	newHeight += st::boxPadding.bottom() + st::contactPadding.bottom();
-	setDimensions(st::boxWideWidth, newHeight);
+	setDimensions(st::boxWidth, newHeight);
 
 	addButton(tr::lng_settings_save(), [=] { save(); });
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
@@ -1393,6 +1393,18 @@ void EditNameBox::prepare() {
 
 	connect(_first, &Ui::InputField::submitted, [=] { submit(); });
 	connect(_last, &Ui::InputField::submitted, [=] { submit(); });
+
+	_first->customTab(true);
+	_last->customTab(true);
+
+	QObject::connect(
+		_first,
+		&Ui::InputField::tabbed,
+		[=] { _last->setFocus(); });
+	QObject::connect(
+		_last,
+		&Ui::InputField::tabbed,
+		[=] { _first->setFocus(); });
 }
 
 void EditNameBox::setInnerFocus() {
@@ -1649,7 +1661,11 @@ void RevokePublicLinkBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 			}).send();
 		});
 		Ui::show(
-			Box<Ui::ConfirmBox>(text, confirmText, std::move(callback)),
+			Ui::MakeConfirmBox({
+				.text = text,
+				.confirmed = std::move(callback),
+				.confirmText = confirmText,
+			}),
 			Ui::LayerOption::KeepOther);
 	}
 }

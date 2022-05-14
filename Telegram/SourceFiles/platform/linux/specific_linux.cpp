@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "base/platform/base_platform_info.h"
-#include "base/platform/linux/base_linux_wayland_integration.h"
-#include "ui/platform/linux/ui_linux_wayland_integration.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
 #include "lang/lang_keys.h"
@@ -32,11 +30,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 #include "base/platform/linux/base_linux_xcb_utilities.h"
-#include "base/platform/linux/base_linux_xsettings.h"
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtWidgets/QApplication>
-#include <QtWidgets/QStyle>
+#include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <QtGui/QWindow>
@@ -50,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <sys/un.h>
 #include <cstdlib>
 #include <unistd.h>
 #include <dirent.h>
@@ -58,8 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <iostream>
 
 using namespace Platform;
-using BaseWaylandIntegration = base::Platform::WaylandIntegration;
-using UiWaylandIntegration = Ui::Platform::WaylandIntegration;
 using Platform::internal::WaylandIntegration;
 
 namespace Platform {
@@ -67,12 +63,8 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
-constexpr auto kDarkColorLimit = 192;
 
-constexpr auto kXDGDesktopPortalService = "org.freedesktop.portal.Desktop"_cs;
-constexpr auto kXDGDesktopPortalObjectPath = "/org/freedesktop/portal/desktop"_cs;
 constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
-constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -85,24 +77,13 @@ void PortalAutostart(bool start, bool silent) {
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
-			std::stringstream result;
-
 			const auto activeWindow = Core::App().activeWindow();
 			if (!activeWindow) {
-				return result.str();
+				return {};
 			}
 
-			const auto window = activeWindow->widget()->windowHandle();
-			if (const auto integration = BaseWaylandIntegration::Instance()) {
-				if (const auto handle = integration->nativeHandle(window)
-					; !handle.isEmpty()) {
-					result << "wayland:" << handle.toStdString();
-				}
-			} else if (IsX11()) {
-				result << "x11:" << std::hex << window->winId();
-			}
-
-			return result.str();
+			return base::Platform::XDP::ParentWindowID(
+				activeWindow->widget()->windowHandle());
 		}();
 
 		const auto handleToken = Glib::ustring("tdesktop")
@@ -167,7 +148,7 @@ void PortalAutostart(bool start, bool silent) {
 
 				loop->quit();
 			},
-			std::string(kXDGDesktopPortalService),
+			std::string(base::Platform::XDP::kService),
 			"org.freedesktop.portal.Request",
 			"Response",
 			requestPath);
@@ -179,14 +160,14 @@ void PortalAutostart(bool start, bool silent) {
 		});
 
 		connection->call_sync(
-			std::string(kXDGDesktopPortalObjectPath),
+			std::string(base::Platform::XDP::kObjectPath),
 			"org.freedesktop.portal.Background",
 			"RequestBackground",
 			base::Platform::MakeGlibVariant(std::tuple{
 				parentWindowId,
 				options,
 			}),
-			std::string(kXDGDesktopPortalService));
+			std::string(base::Platform::XDP::kService));
 
 		if (signalId != 0) {
 			QWindow window;
@@ -384,7 +365,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 		+ '-'
 		+ cGUIDStr();
 
-	if (idealSocketPath.size() >= 108) {
+	if ((idealSocketPath.size() + 1) >= sizeof(sockaddr_un().sun_path)) {
 		return AppRuntimeDirectory() + hash;
 	} else {
 		return idealSocketPath;
@@ -399,147 +380,44 @@ QString GetIconName() {
 }
 
 std::optional<bool> IsDarkMode() {
-	[[maybe_unused]] static const auto Inited = [] {
-		static const auto Setter = [] {
-			crl::on_main([] {
-				Core::App().settings().setSystemDarkMode(IsDarkMode());
-			});
-		};
-
-		QObject::connect(
-			qGuiApp,
-			&QGuiApplication::paletteChanged,
-			Setter);
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-		using base::Platform::XCB::XSettings;
-		if (const auto xSettings = XSettings::Instance()) {
-			xSettings->registerCallbackForProperty("Net/ThemeName", [](
-					xcb_connection_t *,
-					const QByteArray &,
-					const QVariant &,
-					void *) {
-				Setter();
-			}, nullptr);
-		}
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	[[maybe_unused]] static const auto Inited = [] {
 		using XDPSettingWatcher = base::Platform::XDP::SettingWatcher;
-		static const XDPSettingWatcher GtkThemeWatcher(
+		static const XDPSettingWatcher Watcher(
 			[=](
 				const Glib::ustring &group,
 				const Glib::ustring &key,
 				const Glib::VariantBase &value) {
-				if (group == "org.gnome.desktop.interface"
-					&& key == "gtk-theme") {
-					Setter();
-				}
-			});
+				if (group == "org.freedesktop.appearance"
+					&& key == "color-scheme") {
+					try {
+						const auto ivalue = base::Platform::GlibVariantCast<uint>(value);
 
-		static const XDPSettingWatcher KdeColorSchemeWatcher(
-			[=](
-				const Glib::ustring &group,
-				const Glib::ustring &key,
-				const Glib::VariantBase &value) {
-				if (group == "org.kde.kdeglobals.General"
-					&& key == "ColorScheme") {
-					Setter();
+						crl::on_main([=] {
+							Core::App().settings().setSystemDarkMode(ivalue == 1);
+						});
+					} catch (...) {
+					}
 				}
 			});
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 		return true;
 	}();
 
-	std::optional<bool> result;
-
-	const auto styleName = QApplication::style()->metaObject()->className();
-	if (styleName != qstr("QFusionStyle")
-		&& styleName != qstr("QWindowsStyle")) {
-		result = false;
-
-		const auto paletteBackgroundGray = qGray(
-			QPalette().color(QPalette::Window).rgb());
-
-		if (paletteBackgroundGray < kDarkColorLimit) {
-			result = true;
-			return result;
-		}
-	}
-
-#ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
-	using base::Platform::XCB::XSettings;
-	if (const auto xSettings = XSettings::Instance()) {
-		const auto gtkThemeX = xSettings->setting("Net/ThemeName");
-		if (gtkThemeX.isValid()) {
-			result = false;
-			if (gtkThemeX.toString().contains(
-				qsl("-dark"),
-				Qt::CaseInsensitive)) {
-				result = true;
-				return result;
-			}
-		}
-	}
-#endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	try {
-		using namespace base::Platform::XDP;
+		const auto result = base::Platform::XDP::ReadSetting(
+			"org.freedesktop.appearance",
+			"color-scheme");
 
-		const auto gtkThemePortal = ReadSetting(
-			"org.gnome.desktop.interface",
-			"gtk-theme");
-
-		if (gtkThemePortal.has_value()) {
-			const auto gtkThemePortalString = QString::fromStdString(
-				base::Platform::GlibVariantCast<Glib::ustring>(
-					*gtkThemePortal));
-
-			result = false;
-
-			if (gtkThemePortalString.contains(
-				qsl("-dark"),
-				Qt::CaseInsensitive)) {
-				result = true;
-				return result;
-			}
-		}
-	} catch (...) {
-	}
-
-	try {
-		using namespace base::Platform::XDP;
-
-		const auto kdeBackgroundColorOptional = ReadSetting(
-			"org.kde.kdeglobals.Colors:Window",
-			"BackgroundNormal");
-
-		if (kdeBackgroundColorOptional.has_value()) {
-			const auto kdeBackgroundColorList = QString::fromStdString(
-				base::Platform::GlibVariantCast<Glib::ustring>(
-					*kdeBackgroundColorOptional)).split(',');
-
-			if (kdeBackgroundColorList.size() >= 3) {
-				result = false;
-
-				const auto kdeBackgroundGray = qGray(
-					kdeBackgroundColorList[0].toInt(),
-					kdeBackgroundColorList[1].toInt(),
-					kdeBackgroundColorList[2].toInt());
-
-				if (kdeBackgroundGray < kDarkColorLimit) {
-					result = true;
-					return result;
-				}
-			}
+		if (result.has_value()) {
+			const auto value = base::Platform::GlibVariantCast<uint>(*result);
+			return value == 1;
 		}
 	} catch (...) {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-	return result;
+	return std::nullopt;
 }
 
 bool AutostartSupported() {
@@ -842,11 +720,6 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
-
-	// wait for interface announce to know if native window frame is supported
-	if (const auto integration = UiWaylandIntegration::Instance()) {
-		integration->waitForInterfaceAnnounce();
-	}
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	FileDialog::XDP::Start();

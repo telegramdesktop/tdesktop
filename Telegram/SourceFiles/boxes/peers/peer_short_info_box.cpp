@@ -93,6 +93,7 @@ PeerShortInfoCover::PeerShortInfoCover(
 , _name(_widget.get(), std::move(name), _nameStyle->st)
 , _statusStyle(std::make_unique<CustomLabelStyle>(_st.status))
 , _status(_widget.get(), std::move(status), _statusStyle->st)
+, _roundMask(Images::CornersMask(_st.radius))
 , _videoPaused(std::move(videoPaused)) {
 	_widget->setCursor(_cursor);
 
@@ -145,7 +146,7 @@ PeerShortInfoCover::PeerShortInfoCover(
 		_st.size);
 
 	_roundedTopImage = QImage(
-		QSize(_st.size, st::boxRadius) * style::DevicePixelRatio(),
+		QSize(_st.size, _st.radius) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	_roundedTopImage.setDevicePixelRatio(style::DevicePixelRatio());
 	_roundedTopImage.fill(Qt::transparent);
@@ -159,6 +160,10 @@ not_null<Ui::RpWidget*> PeerShortInfoCover::widget() const {
 
 object_ptr<Ui::RpWidget> PeerShortInfoCover::takeOwned() {
 	return std::move(_owned);
+}
+
+gsl::span<const QImage, 4> PeerShortInfoCover::roundMask() const {
+	return _roundMask;
 }
 
 void PeerShortInfoCover::setScrollTop(int scrollTop) {
@@ -176,16 +181,21 @@ rpl::lifetime &PeerShortInfoCover::lifetime() {
 
 void PeerShortInfoCover::paint(QPainter &p) {
 	checkStreamedIsStarted();
-	const auto frame = currentVideoFrame();
+	auto frame = currentVideoFrame();
 	auto paused = _videoPaused && _videoPaused();
-	if (frame.isNull() && _userpicImage.isNull()) {
+	if (!frame.isNull()) {
+		frame = Images::Round(
+			std::move(frame),
+			_roundMask,
+			RectPart::TopLeft | RectPart::TopRight);
+	} else if (_userpicImage.isNull()) {
 		auto image = QImage(
 			_widget->size() * style::DevicePixelRatio(),
 			QImage::Format_ARGB32_Premultiplied);
 		image.fill(Qt::black);
 		_userpicImage = Images::Round(
 			std::move(image),
-			ImageRoundRadius::Small,
+			_roundMask,
 			RectPart::TopLeft | RectPart::TopRight);
 	}
 
@@ -200,7 +210,7 @@ void PeerShortInfoCover::paint(QPainter &p) {
 
 void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	const auto roundedWidth = _st.size;
-	const auto roundedHeight = st::boxRadius;
+	const auto roundedHeight = _st.radius;
 	const auto covered = (_st.size - _scrollTop);
 	if (covered <= 0) {
 		return;
@@ -230,7 +240,7 @@ void PeerShortInfoCover::paintCoverImage(QPainter &p, const QImage &image) {
 	q.end();
 	_roundedTopImage = Images::Round(
 		std::move(_roundedTopImage),
-		ImageRoundRadius::Small,
+		_roundMask,
 		RectPart::TopLeft | RectPart::TopRight);
 	p.drawImage(
 		QRect(0, from, roundedWidth, rounded),
@@ -245,7 +255,7 @@ void PeerShortInfoCover::paintBars(QPainter &p) {
 		_shadowTop = Images::GenerateShadow(height, kShadowMaxAlpha, 0);
 		_shadowTop = Images::Round(
 			_shadowTop.scaled(QSize(_st.size, height) * factor),
-			ImageRoundRadius::Small,
+			_roundMask,
 			RectPart::TopLeft | RectPart::TopRight);
 	}
 	const auto shadowRect = QRect(0, _scrollTop, _st.size, height);
@@ -395,8 +405,6 @@ QImage PeerShortInfoCover::currentVideoFrame() const {
 	const auto request = Media::Streaming::FrameRequest{
 		.resize = size * style::DevicePixelRatio(),
 		.outer = size,
-		.radius = ImageRoundRadius::Small,
-		.corners = RectPart::TopLeft | RectPart::TopRight,
 	};
 	return (_videoInstance
 		&& _videoInstance->player().ready()
@@ -420,9 +428,12 @@ void PeerShortInfoCover::applyUserpic(PeerShortInfoUserpic &&value) {
 		const auto videoChanged = _videoInstance
 			? (_videoInstance->shared() != value.videoDocument)
 			: (value.videoDocument != nullptr);
-		const auto frame = videoChanged ? currentVideoFrame() : QImage();
+		auto frame = videoChanged ? currentVideoFrame() : QImage();
 		if (!frame.isNull()) {
-			_userpicImage = frame;
+			_userpicImage = Images::Round(
+				std::move(frame),
+				_roundMask,
+				RectPart::TopLeft | RectPart::TopRight);
 		}
 	} else if (_userpicImage.cacheKey() != value.photo.cacheKey()) {
 		_userpicImage = std::move(value.photo);
@@ -771,7 +782,7 @@ void PeerShortInfoBox::refreshRoundedTopImage(const QColor &color) {
 	_roundedTop.fill(color);
 	_roundedTop = Images::Round(
 		std::move(_roundedTop),
-		ImageRoundRadius::Small,
+		_cover.roundMask(),
 		RectPart::TopLeft | RectPart::TopRight);
 }
 

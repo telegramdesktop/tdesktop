@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 
 struct MessageBarContent;
+template <typename Widget>
+class FadeWrapScaled;
 class MessageBar;
 class IconButton;
 class PlainShadow;
@@ -20,9 +22,7 @@ class RpWidget;
 
 class PinnedBar final {
 public:
-	PinnedBar(
-		not_null<QWidget*> parent,
-		rpl::producer<Ui::MessageBarContent> content);
+	PinnedBar(not_null<QWidget*> parent);
 	~PinnedBar();
 
 	void show();
@@ -32,6 +32,7 @@ public:
 
 	void setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess);
 
+	void setContent(rpl::producer<Ui::MessageBarContent> content);
 	void setRightButton(object_ptr<Ui::RpWidget> button);
 
 	void move(int x, int y);
@@ -45,18 +46,26 @@ public:
 	}
 
 private:
+	using RightButton = object_ptr<Ui::FadeWrapScaled<Ui::RpWidget>>;
 	void createControls();
 	void updateShadowGeometry(QRect wrapGeometry);
 	void updateControlsGeometry(QRect wrapGeometry);
 
 	Ui::SlideWrap<> _wrap;
 	std::unique_ptr<Ui::MessageBar> _bar;
-	object_ptr<Ui::RpWidget> _rightButton = { nullptr };
+
+	struct {
+		RightButton button = { nullptr };
+		rpl::lifetime previousButtonLifetime;
+	} _right;
+
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
+
+	rpl::lifetime _contentLifetime;
 
 };
 

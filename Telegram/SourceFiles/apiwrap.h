@@ -30,6 +30,7 @@ namespace Data {
 struct UpdatedFileReferences;
 class WallPaper;
 struct ResolvedForwardDraft;
+enum class DefaultNotify;
 } // namespace Data
 
 namespace InlineBots {
@@ -68,6 +69,7 @@ class PeerPhoto;
 class Polls;
 class ChatParticipants;
 class UnreadThings;
+class Ringtones;
 
 namespace details {
 
@@ -196,7 +198,6 @@ public:
 		const QString &hash,
 		FnMut<void(const MTPChatInvite &)> done,
 		Fn<void(const MTP::Error &)> fail);
-	void importChatInvite(const QString &hash, bool isGroup);
 
 	void processFullPeer(
 		not_null<PeerData*> peer,
@@ -239,6 +240,7 @@ public:
 
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
+	void updateDefaultNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	static int OnlineTillFromStatus(
@@ -321,11 +323,15 @@ public:
 	void cancelLocalItem(not_null<HistoryItem*> item);
 
 	void sendMessage(MessageToSend &&message);
-	void sendBotStart(not_null<UserData*> bot, PeerData *chat = nullptr);
+	void sendBotStart(
+		not_null<UserData*> bot,
+		PeerData *chat = nullptr,
+		const QString &startTokenForChat = QString());
 	void sendInlineResult(
 		not_null<UserData*> bot,
 		not_null<InlineBots::Result*> data,
-		const SendAction &action);
+		const SendAction &action,
+		std::optional<MsgId> localMessageId);
 	void sendMessageFail(
 		const MTP::Error &error,
 		not_null<PeerData*> peer,
@@ -354,8 +360,11 @@ public:
 	[[nodiscard]] Api::Polls &polls();
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
+	[[nodiscard]] Api::Ringtones &ringtones();
 
 	void updatePrivacyLastSeens();
+
+	static constexpr auto kJoinErrorDuration = 5 * crl::time(1000);
 
 private:
 	struct MessageDataRequest {
@@ -588,6 +597,7 @@ private:
 	base::Timer _topPromotionTimer;
 
 	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
+	base::flat_set<Data::DefaultNotify> _updateNotifySettingsDefaults;
 	base::Timer _updateNotifySettingsTimer;
 
 	std::map<
@@ -633,6 +643,7 @@ private:
 	const std::unique_ptr<Api::Polls> _polls;
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
+	const std::unique_ptr<Api::Ringtones> _ringtones;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

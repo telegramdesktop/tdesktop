@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_download_manager.h"
 #include "base/timer.h"
 #include "base/event_filter.h"
 #include "base/concurrent_timer.h"
@@ -43,8 +44,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_cloud_manager.h"
 #include "lang/lang_hardcoded.h"
 #include "lang/lang_instance.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "mainwidget.h"
+#include "tray.h"
 #include "core/file_utilities.h"
+#include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/crash_reports.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -139,12 +143,14 @@ Application::Application(not_null<Launcher*> launcher)
 , _audio(std::make_unique<Media::Audio::Instance>())
 , _fallbackProductionConfig(
 	std::make_unique<MTP::Config>(MTP::Environment::Production))
+, _downloadManager(std::make_unique<Data::DownloadManager>())
 , _domain(std::make_unique<Main::Domain>(cDataFile()))
 , _exportManager(std::make_unique<Export::Manager>())
 , _calls(std::make_unique<Calls::Instance>())
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
+, _tray(std::make_unique<Tray>())
 , _autoLockTimer([=] { checkAutoLock(); }) {
 	Ui::Integration::Set(&_private->uiIntegration);
 
@@ -188,6 +194,7 @@ Application::~Application() {
 	// For example Domain::removeRedundantAccounts() is called from
 	// Domain::finish() and there is a violation on Ensures(started()).
 	Payments::CheckoutProcess::ClearAll();
+	InlineBots::AttachWebView::ClearAll();
 
 	_domain->finish();
 
@@ -295,6 +302,8 @@ void Application::run() {
 	startShortcuts();
 	startDomain();
 
+	startTray();
+
 	_primaryWindow->widget()->show();
 
 	const auto currentGeometry = _primaryWindow->widget()->geometry();
@@ -349,15 +358,17 @@ void Application::showOpenGLCrashNotification() {
 		Core::App().settings().setDisableOpenGL(true);
 		Local::writeSettings();
 	};
-	_primaryWindow->show(Box<Ui::ConfirmBox>(
+	_primaryWindow->show(Ui::MakeConfirmBox({
+		.text = ""
 		"There may be a problem with your graphics drivers and OpenGL. "
 		"Try updating your drivers.\n\n"
 		"OpenGL has been disabled. You can try to enable it again "
 		"or keep it disabled if crashes continue.",
-		"Enable",
-		"Keep Disabled",
-		enable,
-		keepDisabled));
+		.confirmed = enable,
+		.cancelled = keepDisabled,
+		.confirmText = "Enable",
+		.cancelText = "Keep Disabled",
+	}));
 }
 
 void Application::startDomain() {
@@ -402,6 +413,38 @@ void Application::startSystemDarkModeViewer() {
 	}, _lifetime);
 }
 
+void Application::startTray() {
+	using WindowRaw = not_null<Window::Controller*>;
+	const auto enumerate = [=](Fn<void(WindowRaw)> c) {
+		if (_primaryWindow) {
+			c(_primaryWindow.get());
+		}
+		for (const auto &window : ranges::views::values(_secondaryWindows)) {
+			c(window.get());
+		}
+	};
+	_tray->create();
+	_tray->aboutToShowRequests(
+	) | rpl::start_with_next([=] {
+		enumerate([&](WindowRaw w) { w->updateIsActive(); });
+		_tray->updateMenuText();
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->showFromTrayRequests(
+	) | rpl::start_with_next([=] {
+		const auto last = _lastActiveWindow;
+		enumerate([&](WindowRaw w) { w->widget()->showFromTray(); });
+		if (last) {
+			last->widget()->showFromTray();
+		}
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->hideToTrayRequests(
+	) | rpl::start_with_next([=] {
+		enumerate([&](WindowRaw w) { w->widget()->minimizeToTray(); });
+	}, _primaryWindow->widget()->lifetime());
+}
+
 auto Application::prepareEmojiSourceImages()
 -> std::shared_ptr<Ui::Emoji::UniversalImages> {
 	const auto &images = Ui::Emoji::SourceImages();
@@ -417,6 +460,16 @@ void Application::clearEmojiSourceImages() {
 		crl::on_main([images = loader.releaseImages()]{
 			Ui::Emoji::ClearSourceImages(images);
 		});
+	});
+}
+
+bool Application::isActiveForTrayMenu() const {
+	if (_primaryWindow && _primaryWindow->widget()->isActiveForTrayMenu()) {
+		return true;
+	}
+	return ranges::any_of(ranges::views::values(_secondaryWindows), [=](
+			const std::unique_ptr<Window::Controller> &controller) {
+		return controller->widget()->isActiveForTrayMenu();
 	});
 }
 
@@ -544,9 +597,12 @@ void Application::badMtprotoConfigurationError() {
 				settings().proxy().selected(),
 				MTP::ProxyData::Settings::System);
 		};
-		_badProxyDisableBox = Ui::show(Box<Ui::InformBox>(
-			Lang::Hard::ProxyConfigError(),
-			disableCallback));
+		_badProxyDisableBox = Ui::show(
+			Ui::MakeInformBox(Lang::Hard::ProxyConfigError()));
+		_badProxyDisableBox->boxClosing(
+		) | rpl::start_with_next(
+			disableCallback,
+			_badProxyDisableBox->lifetime());
 	}
 }
 
@@ -653,6 +709,10 @@ void Application::logoutWithChecks(Main::Account *account) {
 		_exportManager->stopWithConfirmation(retry);
 	} else if (account->session().uploadsInProgress()) {
 		account->session().uploadsStopWithConfirmation(retry);
+	} else if (_downloadManager->loadingInProgress(&account->session())) {
+		_downloadManager->loadingStopWithConfirmation(
+			retry,
+			&account->session());
 	} else {
 		logout(account);
 	}
@@ -661,9 +721,11 @@ void Application::logoutWithChecks(Main::Account *account) {
 void Application::forceLogOut(
 		not_null<Main::Account*> account,
 		const TextWithEntities &explanation) {
-	const auto box = Ui::show(Box<Ui::InformBox>(
-		explanation,
-		tr::lng_passcode_logout(tr::now)));
+	const auto box = Ui::show(Ui::MakeConfirmBox({
+		.text = explanation,
+		.confirmText = tr::lng_passcode_logout(tr::now),
+		.inform = true,
+	}));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
 	const auto weak = base::make_weak(account.get());
@@ -791,8 +853,18 @@ bool Application::uploadPreventsQuit() {
 	return false;
 }
 
+bool Application::downloadPreventsQuit() {
+	if (_downloadManager->loadingInProgress()) {
+		_downloadManager->loadingStopWithConfirmation([=] { Quit(); });
+		return true;
+	}
+	return false;
+}
+
 bool Application::preventsQuit(QuitReason reason) {
-	if (exportPreventsQuit() || uploadPreventsQuit()) {
+	if (exportPreventsQuit()
+		|| uploadPreventsQuit()
+		|| downloadPreventsQuit()) {
 		return true;
 	} else if (const auto window = activeWindow()) {
 		if (window->widget()->isActive()) {
@@ -890,7 +962,10 @@ bool Application::openCustomUrl(
 		return false;
 	}
 	const auto command = base::StringViewMid(urlTrimmed, protocol.size(), 8192);
-	const auto controller = _primaryWindow
+	const auto my = context.value<ClickHandlerContext>();
+	const auto controller = my.sessionWindow.get()
+		? my.sessionWindow.get()
+		: _primaryWindow
 		? _primaryWindow->sessionController()
 		: nullptr;
 

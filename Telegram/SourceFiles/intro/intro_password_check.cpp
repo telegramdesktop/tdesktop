@@ -36,7 +36,7 @@ PasswordCheckWidget::PasswordCheckWidget(
 , _codeField(this, st::introPassword, tr::lng_signin_code())
 , _toRecover(this, tr::lng_signin_recover(tr::now))
 , _toPassword(this, tr::lng_signin_try_password(tr::now)) {
-	Expects(!!_passwordState.request);
+	Expects(_passwordState.hasPassword);
 
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
@@ -169,7 +169,7 @@ void PasswordCheckWidget::handleSrpIdInvalid() {
 	const auto now = crl::now();
 	if (_lastSrpIdInvalidTime > 0
 		&& now - _lastSrpIdInvalidTime < Core::kHandleSrpIdInvalidTimeout) {
-		_passwordState.request.id = 0;
+		_passwordState.mtp.request.id = 0;
 		showError(rpl::single(Lang::Hard::ServerError()));
 	} else {
 		_lastSrpIdInvalidTime = now;
@@ -178,7 +178,7 @@ void PasswordCheckWidget::handleSrpIdInvalid() {
 }
 
 void PasswordCheckWidget::checkPasswordHash() {
-	if (_passwordState.request.id) {
+	if (_passwordState.mtp.request.id) {
 		passwordChecked();
 	} else {
 		requestPasswordData();
@@ -201,12 +201,12 @@ void PasswordCheckWidget::requestPasswordData() {
 
 void PasswordCheckWidget::passwordChecked() {
 	const auto check = Core::ComputeCloudPasswordCheck(
-		_passwordState.request,
+		_passwordState.mtp.request,
 		_passwordHash);
 	if (!check) {
 		return serverError();
 	}
-	_passwordState.request.id = 0;
+	_passwordState.mtp.request.id = 0;
 	_sentRequest = api().request(
 		MTPauth_CheckPassword(check.result)
 	).done([=](const MTPauth_Authorization &result) {
@@ -226,7 +226,8 @@ void PasswordCheckWidget::codeSubmitDone(
 	auto fields = PasscodeBox::CloudFields::From(_passwordState);
 	fields.fromRecoveryCode = code;
 	fields.hasRecovery = false;
-	fields.curRequest = {};
+	fields.mtp.curRequest = {};
+	fields.hasPassword = false;
 	auto box = Box<PasscodeBox>(&api().instance(), nullptr, fields);
 	const auto boxShared = std::make_shared<QPointer<PasscodeBox>>();
 
@@ -311,16 +312,22 @@ void PasswordCheckWidget::toRecover() {
 			}).send();
 		}
 	} else {
-		Ui::show(Box<Ui::InformBox>(
-			tr::lng_signin_no_email_forgot(tr::now),
-			[=] { showReset(); }));
+		const auto box = Ui::show(
+			Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
+		box->boxClosing(
+		) | rpl::start_with_next([=] {
+			showReset();
+		}, box->lifetime());
 	}
 }
 
 void PasswordCheckWidget::toPassword() {
-	Ui::show(Box<Ui::InformBox>(
-		tr::lng_signin_cant_email_forgot(tr::now),
-		[=] { showReset(); }));
+	const auto box = Ui::show(
+		Ui::MakeInformBox(tr::lng_signin_cant_email_forgot()));
+	box->boxClosing(
+	) | rpl::start_with_next([=] {
+		showReset();
+	}, box->lifetime());
 }
 
 void PasswordCheckWidget::showReset() {
@@ -372,10 +379,11 @@ void PasswordCheckWidget::submit() {
 				send();
 				close();
 			};
-			Ui::show(Box<Ui::ConfirmBox>(
-				tr::lng_cloud_password_passport_losing(tr::now),
-				tr::lng_continue(tr::now),
-				confirmed));
+			Ui::show(Ui::MakeConfirmBox({
+				.text = tr::lng_cloud_password_passport_losing(),
+				.confirmed = confirmed,
+				.confirmText = tr::lng_continue(),
+			}));
 		} else {
 			send();
 		}
@@ -384,7 +392,7 @@ void PasswordCheckWidget::submit() {
 
 		const auto password = _pwdField->getLastText().toUtf8();
 		_passwordHash = Core::ComputeCloudPasswordHash(
-			_passwordState.request.algo,
+			_passwordState.mtp.request.algo,
 			bytes::make_span(password));
 		checkPasswordHash();
 	}

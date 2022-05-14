@@ -382,6 +382,7 @@ void RequestsBoxController::processRequest(
 		remove();
 		if (approved) {
 			Ui::ShowMultilineToast({
+				.parentOverride = delegate()->peerListToastParent(),
 				.text = (_peer->isBroadcast()
 					? tr::lng_group_requests_was_added_channel
 					: tr::lng_group_requests_was_added)(

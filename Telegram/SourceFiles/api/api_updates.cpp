@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_authorizations.h"
 #include "api/api_chat_participants.h"
+#include "api/api_ringtones.h"
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
 #include "api/api_unread_things.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -32,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_message_reactions.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "lang/lang_cloud_manager.h"
 #include "history/history.h"
@@ -1906,7 +1909,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateNotifySettings: {
 		auto &d = update.c_updateNotifySettings();
-		session().data().applyNotifySetting(d.vpeer(), d.vnotify_settings());
+		session().data().notifySettings().apply(
+			d.vpeer(),
+			d.vnotify_settings());
 	} break;
 
 	case mtpc_updateDcOptions: {
@@ -1997,6 +2002,26 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateAttachMenuBots: {
+		session().attachWebView().requestBots();
+	} break;
+
+	case mtpc_updateWebViewResultSent: {
+		const auto &d = update.c_updateWebViewResultSent();
+		session().data().webViewResultSent({ .queryId = d.vquery_id().v });
+	} break;
+
+	case mtpc_updateBotMenuButton: {
+		const auto &d = update.c_updateBotMenuButton();
+		if (const auto bot = session().data().userLoaded(d.vbot_id())) {
+			if (const auto info = bot->botInfo.get(); info && info->inited) {
+				if (Data::ApplyBotMenuButton(info, d.vbutton())) {
+					session().data().botCommandsChanged(bot);
+				}
+			}
+		}
+	} break;
+
 	case mtpc_updatePendingJoinRequests: {
 		const auto &d = update.c_updatePendingJoinRequests();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
@@ -2021,7 +2046,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		} else if (d.is_popup()) {
 			const auto &windows = session().windows();
 			if (!windows.empty()) {
-				windows.front()->window().show(Box<Ui::InformBox>(text));
+				windows.front()->window().show(Ui::MakeInformBox(text));
 			}
 		} else {
 			session().data().serviceNotification(text, d.vmedia());
@@ -2356,6 +2381,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateTheme: {
 		const auto &data = update.c_updateTheme();
 		session().data().cloudThemes().applyUpdate(data.vtheme());
+	} break;
+
+	case mtpc_updateSavedRingtones: {
+		session().api().ringtones().applyUpdate();
 	} break;
 
 	}

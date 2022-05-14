@@ -237,7 +237,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 		QImage::Format_ARGB32_Premultiplied);
 	background->setDevicePixelRatio(cRetinaFactor());
 	rpl::merge(
-		rpl::single(rpl::empty_value()),
+		rpl::single(rpl::empty),
 		Ui::Emoji::Updated(),
 		style::PaletteChanged()
 	) | rpl::start_with_next([=] {

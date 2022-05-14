@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_common.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/message_sending_animation_common.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/object_ptr.h"
@@ -86,6 +87,7 @@ public:
 		not_null<DocumentData*> sticker;
 		Api::SendOptions options;
 		ChooseMethod method;
+		Ui::MessageSendingAnimationFrom messageSendingFrom;
 	};
 	enum class Type {
 		Mentions,

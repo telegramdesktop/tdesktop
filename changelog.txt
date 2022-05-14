@@ -1,3 +1,109 @@
+3.7.5 beta (12.05.22)
+
+- Improve cloud password management design.
+- Fix a crash in shared media search.
+- Fix audio recording on macOS.
+
+3.7.4 beta (03.05.22)
+
+- More icons for chat folders.
+- Improve some more sections design.
+- Update the OpenAL library to 1.22.0.
+
+3.7.3 (26.04.22)
+
+- Fix a crash in the pinned bar bot button refresh.
+
+3.7.2 (25.04.22)
+
+- Fix mute period selector values.
+- Fix a crash in repeated context menu item selection.
+- Fix context menu item selection of systems without a compositor.
+
+3.7.1 (19.04.22)
+
+- Hardware accelerated video decoding off by default.
+- Fix several crashes.
+
+3.7 (16.04.22)
+
+- Use any short music file or voice message as a notification sound.
+- Right click audio files in chats to add them to your list of sounds - or use 'Upload Sound' in the Notifications menu.
+- Click on Mute notifications > Select sound in a chat's (...) menu to change its notification sound.
+- Set custom tones for notifications in Settings > Notifications > Play sound.
+- Click on Mute notifications in a chat's (...) menu to manage its notifications.
+- Choose 'Mute for...' to turn off notifications for a preset period, like 1 hour or 1 day.
+- Quickly configure Auto-Delete settings from any chat info page.
+- Click (...) to turn on Auto-Delete, then select a specific duration.
+- Replies are now preserved when forwarding messages, making forwarded conversations easier to read.
+- Bots can now open detailed pages directly in the chat.
+- Use these streamlined interfaces to buy real-world goods and services without leaving the app.
+- Open a bot's profile to add it to your group or channel.
+- Instantly configure a bot's rights and permissions when adding it.
+- Bots can send a new type of button that lets you add them to your group or channel.
+
+3.6.3 beta (13.04.22)
+
+- Allow sending the default reaction by a double click.
+- Select a custom sound for message notifications.
+- Add chats to folders from a chat context menu.
+- Fix group and channel photo upload.
+- Test hardware video decoding.
+
+3.6.2 (27.03.22)
+
+- Fix photo changing in settings, groups and channels.
+- Fix non-square animated video-stickers.
+
+3.6.1 (16.03.22)
+
+- Change volume for RTMP stream from the context menu.
+- Set a profile photo from your camera.
+- Improve RTMP stream full screen mode.
+- Improve edit account section design.
+- Fix switching personal account or channel in video chats.
+- Fix pinning chats in folders with 100 chats.
+- Fix YouTube timestamp links after 10 hours.
+
+3.6 (11.03.22)
+
+- Active and recently finished downloads pop up in bar in the bottom left corner, like they do in browsers.
+- View recently downloaded files in Settings > Advanced > Downloads.
+- Get an alert before closing the app if you have unfinished downloads.
+- Share a direct t.me link to your phone number that instantly opens a chat with you.
+- Use the full number in international format, like t.me/+123456789
+- Manage Live Streams in your channels using external software like OBS Studio or XSplit Broadcaster.
+- Choose "Stream With..." when staring a video chat or live stream - then copy your Stream Key and paste it into your streaming software.
+
+3.5.6 beta (08.03.22)
+
+- Show viewers count in RTMP streams.
+- Send GIFs search results without "via @bot".
+- Display the file thumbnail in downloads bar.
+- Always try to save original photo bytes to disk.
+- Fix crash when deleting a user from your contacts list.
+
+3.5.5 beta (05.03.22)
+
+- Support stereo audio output in RTMP streams.
+- Improve RTMP stream full screen mode.
+- Fix a couple of crashes.
+
+3.5.4 beta (01.03.22)
+
+- Bug fixes and other minor improvements.
+
+3.5.3 beta (28.02.22)
+
+- Check the status of media and file downloads by clicking on the new panel in the bottom of the chats list.
+- View recently downloaded files from the new Settings > Advanced > Downloads section.
+- Manage Live Streams in your groups and channels using external software like OBS Studio or XSplit Broadcaster.
+
+3.5.2 (06.02.22)
+
+- Fix a freeze in audio playback on Linux.
+- Fix a crash in screen sharing initialization on Linux.
+
 3.5.1 (04.02.22)
 
 - Keep the screen on while watching a video or participating in a video chat.

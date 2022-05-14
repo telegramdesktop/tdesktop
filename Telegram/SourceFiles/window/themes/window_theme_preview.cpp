@@ -566,7 +566,7 @@ void Generator::paintComposeArea() {
 	emojiIcon.paint(*_p, attachEmojiLeft + emojiIconLeft, controlsTop + emojiIconTop, _rect.width());
 
 	auto pen = st::historyEmojiCircleFg[_palette]->p;
-	pen.setWidth(st::historyEmojiCircleLine);
+	pen.setWidthF(style::ConvertScaleExact(st::historyEmojiCircleLine));
 	pen.setCapStyle(Qt::RoundCap);
 	_p->setPen(pen);
 	_p->setBrush(Qt::NoBrush);

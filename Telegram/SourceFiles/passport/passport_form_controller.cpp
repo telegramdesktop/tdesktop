@@ -765,7 +765,7 @@ std::vector<not_null<const Value*>> FormController::submitGetErrors() {
 		} else if (AcceptErrorRequiresRestart(error.type())) {
 			suggestRestart();
 		} else {
-			_view->show(Box<Ui::InformBox>(
+			_view->show(Ui::MakeInformBox(
 				Lang::Hard::SecureAcceptError() + "\n" + error.type()));
 		}
 	}).send();
@@ -974,8 +974,7 @@ void FormController::checkSavedPasswordSettings(
 
 void FormController::recoverPassword() {
 	if (!_password.hasRecovery) {
-		_view->show(Box<Ui::InformBox>(
-			tr::lng_signin_no_email_forgot(tr::now)));
+		_view->show(Ui::MakeInformBox(tr::lng_signin_no_email_forgot()));
 		return;
 	} else if (_recoverRequestId) {
 		return;
@@ -989,17 +988,24 @@ void FormController::recoverPassword() {
 		const auto &data = result.c_auth_passwordRecovery();
 		const auto pattern = qs(data.vemail_pattern());
 		auto fields = PasscodeBox::CloudFields{
-			.newAlgo = _password.newAlgo,
+			.mtp = PasscodeBox::CloudFields::Mtp {
+				.newAlgo = _password.newAlgo,
+				.newSecureSecretAlgo = _password.newSecureAlgo,
+			},
 			.hasRecovery = _password.hasRecovery,
-			.newSecureSecretAlgo = _password.newSecureAlgo,
 			.pendingResetDate = _password.pendingResetDate,
 		};
+
+		// MSVC x64 (non-LTO) Release build fails with a linker error:
+		// - unresolved external variant::variant(variant const &)
+		// It looks like a MSVC bug and this works like a workaround.
+		const auto force = fields.mtp.newSecureSecretAlgo;
+
 		const auto box = _view->show(Box<RecoverBox>(
 			&_controller->session().mtp(),
 			&_controller->session(),
 			pattern,
 			fields));
-
 		box->newPasswordSet(
 		) | rpl::start_with_next([=](const QByteArray &password) {
 			if (password.isEmpty()) {
@@ -1015,7 +1021,7 @@ void FormController::recoverPassword() {
 		}, box->lifetime());
 	}).fail([=](const MTP::Error &error) {
 		_recoverRequestId = 0;
-		_view->show(Box<Ui::InformBox>(Lang::Hard::ServerError()
+		_view->show(Ui::MakeInformBox(Lang::Hard::ServerError()
 			+ '\n'
 			+ error.type()));
 	}).send();
@@ -2245,7 +2251,7 @@ void FormController::requestPhoneCall(not_null<Value*> value) {
 void FormController::valueSaveShowError(
 		not_null<Value*> value,
 		const MTP::Error &error) {
-	_view->show(Box<Ui::InformBox>(
+	_view->show(Ui::MakeInformBox(
 		Lang::Hard::SecureSaveError() + "\n" + error.type()));
 	valueSaveFailed(value);
 }
@@ -2320,11 +2326,12 @@ void FormController::saveSecret(
 
 void FormController::suggestRestart() {
 	_suggestingRestart = true;
-	_view->show(Box<Ui::ConfirmBox>(
-		tr::lng_passport_restart_sure(tr::now),
-		tr::lng_passport_restart(tr::now),
-		[=] { _controller->showPassportForm(_request); },
-		[=] { cancel(); }));
+	_view->show(Ui::MakeConfirmBox({
+		.text = tr::lng_passport_restart_sure(),
+		.confirmed = [=] { _controller->showPassportForm(_request); },
+		.cancelled = [=] { cancel(); },
+		.confirmText = tr::lng_passport_restart(),
+	}));
 }
 
 void FormController::requestForm() {
@@ -2684,11 +2691,12 @@ bool FormController::applyPassword(PasswordSettings &&settings) {
 
 void FormController::cancel() {
 	if (!_submitSuccess && _serviceErrorText.isEmpty()) {
-		_view->show(Box<Ui::ConfirmBox>(
-			tr::lng_passport_stop_sure(tr::now),
-			tr::lng_passport_stop(tr::now),
-			[=] { cancelSure(); },
-			[=] { cancelAbort(); }));
+		_view->show(Ui::MakeConfirmBox({
+			.text = tr::lng_passport_stop_sure(),
+			.confirmed = [=] { cancelSure(); },
+			.cancelled = [=](Fn<void()> close) { cancelAbort(); close(); },
+			.confirmText = tr::lng_passport_stop(),
+		}));
 	} else {
 		cancelSure();
 	}

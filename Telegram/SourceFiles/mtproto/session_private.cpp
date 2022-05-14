@@ -223,7 +223,7 @@ void SessionPrivate::appendTestConnection(
 		});
 	});
 
-	const auto protocolForFiles = isDownloadDcId(_shiftedDcId)
+	const auto protocolForFiles = isMediaClusterDcId(_shiftedDcId)
 		//|| isUploadDcId(_shiftedDcId)
 		|| (_realDcType == DcType::Cdn);
 	const auto protocolDcId = getProtocolDcId();

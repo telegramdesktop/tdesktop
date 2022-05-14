@@ -87,7 +87,11 @@ EditInfoBox::EditInfoBox(
 	_field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(DefaultEditLinkCallback(controller, _field));
+	_field->setEditLinkCallback(
+		DefaultEditLinkCallback(
+			std::make_shared<Window::Show>(controller),
+			&controller->session(),
+			_field));
 }
 
 void EditInfoBox::prepare() {

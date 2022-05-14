@@ -16,9 +16,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "data/data_channel.h"
+#include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
 #include "boxes/sticker_set_box.h"
@@ -133,6 +135,18 @@ bool MediaCanHaveCaption(const MTPMessage &message) {
 	const auto mediaType = media ? media->type() : mtpc_messageMediaEmpty;
 	return (mediaType == mtpc_messageMediaDocument)
 		|| (mediaType == mtpc_messageMediaPhoto);
+}
+
+uint64 MediaId(const MTPMessage &message) {
+	if (!MediaCanHaveCaption(message)) {
+		return 0;
+	}
+	const auto &media = message.c_message().vmedia();
+	return media
+		? v::match(
+			Data::GetFileReferences(*media).data.begin()->first,
+			[](const auto &d) { return d.id; })
+		: 0;
 }
 
 TextWithEntities ExtractEditedText(
@@ -483,7 +497,10 @@ auto GenerateParticipantChangeText(
 				user,
 				ChatRestrictionsInfo(),
 				oldRestrictions);
-		} else if (oldParticipant && oldParticipant->type() == Type::Restricted && participant.type() == Type::Member) {
+		} else if (oldParticipant
+				&& oldParticipant->type() == Type::Restricted
+				&& (participant.type() == Type::Member
+						|| participant.type() == Type::Left)) {
 			return GeneratePermissionsChangeText(
 				participantId,
 				user,
@@ -864,22 +881,36 @@ void GenerateItems(
 		const auto newValue = ExtractEditedText(
 			session,
 			action.vnew_message());
+		auto oldValue = ExtractEditedText(
+			session,
+			action.vprev_message());
+
 		const auto canHaveCaption = MediaCanHaveCaption(
 			action.vnew_message());
+		const auto changedCaption = (newValue != oldValue);
+		const auto changedMedia = MediaId(action.vnew_message())
+			!= MediaId(action.vprev_message());
+		const auto removedCaption = !oldValue.text.isEmpty()
+			&& newValue.text.isEmpty();
 		const auto text = (!canHaveCaption
 			? tr::lng_admin_log_edited_message
-			: newValue.text.isEmpty()
+			: (changedMedia && removedCaption)
+			? tr::lng_admin_log_edited_media_and_removed_caption
+			: (changedMedia && changedCaption)
+			? tr::lng_admin_log_edited_media_and_caption
+			: changedMedia
+			? tr::lng_admin_log_edited_media
+			: removedCaption
 			? tr::lng_admin_log_removed_caption
-			: tr::lng_admin_log_edited_caption)(
+			: changedCaption
+			? tr::lng_admin_log_edited_caption
+			: tr::lng_admin_log_edited_message)(
 				tr::now,
 				lt_from,
 				fromLinkText,
 				Ui::Text::WithEntities);
 		addSimpleServiceMessage(text);
 
-		auto oldValue = ExtractEditedText(
-			session,
-			action.vprev_message());
 		const auto detachExistingItem = false;
 		const auto body = history->createItem(
 			history->nextNonHistoryEntryId(),
@@ -1121,14 +1152,8 @@ void GenerateItems(
 	const auto createToggleSlowMode = [&](const LogSlowMode &action) {
 		if (const auto seconds = action.vnew_value().v) {
 			const auto duration = (seconds >= 60)
-				? tr::lng_admin_log_slow_mode_minutes(
-					tr::now,
-					lt_count,
-					seconds / 60)
-				: tr::lng_admin_log_slow_mode_seconds(
-					tr::now,
-					lt_count,
-					seconds);
+				? tr::lng_minutes(tr::now, lt_count, seconds / 60)
+				: tr::lng_seconds(tr::now, lt_count, seconds);
 			const auto text = tr::lng_admin_log_changed_slow_mode(
 				tr::now,
 				lt_from,
@@ -1345,11 +1370,7 @@ void GenerateItems(
 		const auto wrap = [](int duration) -> TextWithEntities {
 			const auto text = (duration == 5)
 				? u"5 seconds"_q
-				: (duration < 2 * 86400)
-				? tr::lng_manage_messages_ttl_after1(tr::now)
-				: (duration < 8 * 86400)
-				? tr::lng_manage_messages_ttl_after2(tr::now)
-				: tr::lng_manage_messages_ttl_after3(tr::now);
+				: Ui::FormatTTL(duration);
 			return { .text = text };
 		};
 		const auto text = !was

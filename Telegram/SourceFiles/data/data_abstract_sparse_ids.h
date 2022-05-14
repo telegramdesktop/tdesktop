@@ -24,31 +24,31 @@ public:
 	, _skippedAfter(skippedAfter) {
 	}
 
-	std::optional<int> fullCount() const {
+	[[nodiscard]] std::optional<int> fullCount() const {
 		return _fullCount;
 	}
-	std::optional<int> skippedBefore() const {
+	[[nodiscard]] std::optional<int> skippedBefore() const {
 		return _skippedBefore;
 	}
-	std::optional<int> skippedAfter() const {
+	[[nodiscard]] std::optional<int> skippedAfter() const {
 		return _skippedAfter;
 	}
-	std::optional<int> indexOf(Id id) const {
+	[[nodiscard]] std::optional<int> indexOf(Id id) const {
 		const auto it = ranges::find(_ids, id);
 		if (it != _ids.end()) {
 			return (it - _ids.begin());
 		}
 		return std::nullopt;
 	}
-	int size() const {
+	[[nodiscard]] int size() const {
 		return _ids.size();
 	}
-	Id operator[](int index) const {
+	[[nodiscard]] Id operator[](int index) const {
 		Expects(index >= 0 && index < size());
 
 		return *(_ids.begin() + index);
 	}
-	std::optional<int> distance(Id a, Id b) const {
+	[[nodiscard]] std::optional<int> distance(Id a, Id b) const {
 		if (const auto i = indexOf(a)) {
 			if (const auto j = indexOf(b)) {
 				return *j - *i;
@@ -56,7 +56,8 @@ public:
 		}
 		return std::nullopt;
 	}
-	std::optional<Id> nearest(Id id) const {
+	[[nodiscard]] std::optional<Id> nearest(Id id) const {
+		static_assert(std::is_same_v<IdsContainer, base::flat_set<MsgId>>);
 		if (const auto it = ranges::lower_bound(_ids, id); it != _ids.end()) {
 			return *it;
 		} else if (_ids.empty()) {

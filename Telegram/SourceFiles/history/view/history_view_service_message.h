@@ -39,6 +39,8 @@ public:
 		TextSelection selection,
 		TextSelectType type) const override;
 
+	QRect innerGeometry() const override;
+
 private:
 	not_null<HistoryService*> message() const;
 

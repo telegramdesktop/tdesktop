@@ -76,14 +76,13 @@ Q_DECLARE_METATYPE(MsgId);
 constexpr auto StartClientMsgId = MsgId(0x01 - (1LL << 58));
 constexpr auto EndClientMsgId = MsgId(-(1LL << 57));
 constexpr auto ServerMaxMsgId = MsgId(1LL << 56);
+constexpr auto ScheduledMsgIdsRange = (1LL << 32);
 constexpr auto ShowAtUnreadMsgId = MsgId(0);
 
 constexpr auto SpecialMsgIdShift = EndClientMsgId.bare;
 constexpr auto ShowAtTheEndMsgId = MsgId(SpecialMsgIdShift + 1);
 constexpr auto SwitchAtTopMsgId = MsgId(SpecialMsgIdShift + 2);
-constexpr auto ShowAtProfileMsgId = MsgId(SpecialMsgIdShift + 3);
 constexpr auto ShowAndStartBotMsgId = MsgId(SpecialMsgIdShift + 4);
-constexpr auto ShowAtGameShareMsgId = MsgId(SpecialMsgIdShift + 5);
 constexpr auto ShowForChooseMessagesMsgId = MsgId(SpecialMsgIdShift + 6);
 
 static_assert(SpecialMsgIdShift + 0xFF < 0);
@@ -180,6 +179,60 @@ struct FullMsgId {
 }
 
 Q_DECLARE_METATYPE(FullMsgId);
+
+struct GlobalMsgId {
+	FullMsgId itemId;
+	uint64 sessionUniqueId = 0;
+
+	constexpr explicit operator bool() const noexcept {
+		return itemId && sessionUniqueId;
+	}
+	constexpr bool operator!() const noexcept {
+		return !itemId || !sessionUniqueId;
+	}
+};
+
+[[nodiscard]] inline constexpr bool operator<(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	if (a.itemId < b.itemId) {
+		return true;
+	} else if (a.itemId > b.itemId) {
+		return false;
+	}
+	return a.sessionUniqueId < b.sessionUniqueId;
+}
+
+[[nodiscard]] inline constexpr bool operator>(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return b < a;
+}
+
+[[nodiscard]] inline constexpr bool operator<=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(b < a);
+}
+
+[[nodiscard]] inline constexpr bool operator>=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(a < b);
+}
+
+[[nodiscard]] inline constexpr bool operator==(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return (a.itemId == b.itemId)
+		&& (a.sessionUniqueId == b.sessionUniqueId);
+}
+
+[[nodiscard]] inline constexpr bool operator!=(
+		const GlobalMsgId &a,
+		const GlobalMsgId &b) noexcept {
+	return !(a == b);
+}
 
 namespace std {
 

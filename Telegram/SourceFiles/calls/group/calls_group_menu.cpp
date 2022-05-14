@@ -473,22 +473,10 @@ void LeaveBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-void ConfirmBoxBuilder(
-		not_null<Ui::GenericBox*> box,
-		ConfirmBoxArgs &&args) {
-	const auto label = box->addRow(
-		object_ptr<Ui::FlatLabel>(
-			box.get(),
-			rpl::single(args.text),
-			args.st ? *args.st : st::groupCallBoxLabel),
-		st::boxPadding);
-	if (args.callback) {
-		box->addButton(std::move(args.button), std::move(args.callback));
-	}
-	if (args.filter) {
-		label->setClickHandlerFilter(std::move(args.filter));
-	}
-	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+object_ptr<Ui::GenericBox> ConfirmBox(Ui::ConfirmBoxArgs &&args) {
+	auto copy = std::move(args);
+	copy.labelStyle = &st::groupCallBoxLabel;
+	return Ui::MakeConfirmBox(std::move(copy));
 }
 
 void FillMenu(

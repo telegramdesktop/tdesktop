@@ -28,4 +28,10 @@ void ToggleSavedGif(
 	Data::FileOrigin origin,
 	bool saved);
 
+void ToggleSavedRingtone(
+	not_null<DocumentData*> document,
+	Data::FileOrigin origin,
+	Fn<void()> &&done,
+	bool saved);
+
 } // namespace Api
