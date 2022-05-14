@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "dialogs/dialogs_key.h"
 
+namespace Data {
+struct BotCommand;
+} // namespace Data
+
 struct BotInfo {
 	bool inited = false;
 	bool readsAllHistory = false;
@@ -18,7 +22,7 @@ struct BotInfo {
 	bool supportsAttachMenu = false;
 	int version = 0;
 	QString description, inlinePlaceholder;
-	std::vector<BotCommand> commands;
+	std::vector<Data::BotCommand> commands;
 	Ui::Text::String text = { int(st::msgMinWidth) }; // description
 
 	QString botMenuButtonText;

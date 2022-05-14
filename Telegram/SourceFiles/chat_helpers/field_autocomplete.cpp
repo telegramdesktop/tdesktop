@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
+#include "data/data_peer_bot_command.h"
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/message_field.h" // PrepareMentionTag.
@@ -480,7 +481,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		bool hasUsername = _filter.indexOf('@') > 0;
 		base::flat_map<
 			not_null<UserData*>,
-			not_null<const std::vector<BotCommand>*>> bots;
+			not_null<const std::vector<Data::BotCommand>*>> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
@@ -527,7 +528,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		if (cnt) {
 			const auto make = [&](
 					not_null<UserData*> user,
-					const BotCommand &command) {
+					const Data::BotCommand &command) {
 				return BotCommandRow{
 					user,
 					command.command,

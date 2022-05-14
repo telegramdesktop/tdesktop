@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/data_peer_bot_command.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
 #include "data/data_user.h"

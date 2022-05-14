@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_bot_command.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"

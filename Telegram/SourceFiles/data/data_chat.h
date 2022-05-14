@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
 
+namespace Data {
+struct BotCommand;
+} // namespace Data
+
 enum class ChatAdminRight;
 
 enum class ChatDataFlag {
@@ -153,7 +157,7 @@ public:
 		UserId botId,
 		const MTPVector<MTPBotCommand> &data);
 	[[nodiscard]] auto botCommands() const
-		-> const base::flat_map<UserId, std::vector<BotCommand>> & {
+		-> const base::flat_map<UserId, std::vector<Data::BotCommand>> & {
 		return _botCommands;
 	}
 
@@ -201,7 +205,7 @@ private:
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;
-	base::flat_map<UserId, std::vector<BotCommand>> _botCommands;
+	base::flat_map<UserId, std::vector<Data::BotCommand>> _botCommands;
 
 	ChannelData *_migratedTo = nullptr;
 	rpl::lifetime _lifetime;

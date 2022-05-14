@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_peer_bot_command.h"
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
 #include "data/data_photo.h"
