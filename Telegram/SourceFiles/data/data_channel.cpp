@@ -50,14 +50,9 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 	_location = location;
 }
 
-bool MegagroupInfo::updateBotCommands(const MTPVector<MTPBotInfo> &data) {
-	return Data::UpdateBotCommands(_botCommands, data);
-}
-
-bool MegagroupInfo::updateBotCommands(
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	return Data::UpdateBotCommands(_botCommands, botId, &data);
+Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
+		const std::vector<Data::BotCommands> &list) {
+	return _botCommands.update(list);
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
@@ -908,7 +903,13 @@ void ApplyChannelUpdate(
 		SetTopPinnedMessageId(channel, pinned->v);
 	}
 	if (channel->isMegagroup()) {
-		if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
+		auto commands = ranges::views::all(
+			update.vbot_info().v
+		) | ranges::views::transform(
+			Data::BotCommandsFromTL
+		) | ranges::to_vector;
+
+		if (channel->mgInfo->setBotCommands(std::move(commands))) {
 			channel->owner().botCommandsChanged(channel);
 		}
 		const auto stickerSet = update.vstickerset();

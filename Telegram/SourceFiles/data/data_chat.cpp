@@ -13,7 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
-#include "data/data_peer_bot_command.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -258,16 +257,8 @@ PeerId ChatData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
-void ChatData::setBotCommands(const MTPVector<MTPBotInfo> &data) {
-	if (Data::UpdateBotCommands(_botCommands, data)) {
-		owner().botCommandsChanged(this);
-	}
-}
-
-void ChatData::setBotCommands(
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	if (Data::UpdateBotCommands(_botCommands, botId, &data)) {
+void ChatData::setBotCommands(const std::vector<Data::BotCommands> &list) {
+	if (_botCommands.update(list)) {
 		owner().botCommandsChanged(this);
 	}
 }
@@ -458,9 +449,12 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 
 	chat->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
-		chat->setBotCommands(*info);
+		auto &&commands = ranges::views::all(
+			info->v
+		) | ranges::views::transform(Data::BotCommandsFromTL);
+		chat->setBotCommands(std::move(commands) | ranges::to_vector);
 	} else {
-		chat->setBotCommands(MTP_vector<MTPBotInfo>());
+		chat->setBotCommands({});
 	}
 	using Flag = ChatDataFlag;
 	const auto mask = Flag::CanSetUsername;

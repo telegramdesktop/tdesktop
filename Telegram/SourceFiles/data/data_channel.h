@@ -11,10 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_pts_waiter.h"
 #include "data/data_location.h"
 #include "data/data_chat_participant_status.h"
-
-namespace Data {
-struct BotCommand;
-} // namespace Data
+#include "data/data_peer_bot_commands.h"
 
 struct ChannelLocation {
 	QString address;
@@ -89,12 +86,9 @@ public:
 	const ChannelLocation *getLocation() const;
 	void setLocation(const ChannelLocation &location);
 
-	bool updateBotCommands(const MTPVector<MTPBotInfo> &data);
-	bool updateBotCommands(
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data);
-	[[nodiscard]] auto botCommands() const
-		-> const base::flat_map<UserId, std::vector<Data::BotCommand>> & {
+	Data::ChatBotCommands::Changed setBotCommands(
+		const std::vector<Data::BotCommands> &commands);
+	[[nodiscard]] const Data::ChatBotCommands &botCommands() const {
 		return _botCommands;
 	}
 
@@ -124,7 +118,7 @@ public:
 private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
-	base::flat_map<UserId, std::vector<Data::BotCommand>> _botCommands;
+	Data::ChatBotCommands _botCommands;
 
 };
 

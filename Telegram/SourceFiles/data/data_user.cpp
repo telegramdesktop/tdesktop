@@ -136,9 +136,17 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
-		const auto changedCommands = Data::UpdateBotCommands(
+
+		auto commands = ranges::views::all(
+			d.vcommands().v
+		) | ranges::views::transform(
+			Data::BotCommandFromTL
+		) | ranges::to_vector;
+		const auto changedCommands = !ranges::equal(
 			botInfo->commands,
-			d.vcommands());
+			commands);
+		botInfo->commands = std::move(commands);
+
 		const auto changedButton = Data::ApplyBotMenuButton(
 			botInfo.get(),
 			d.vmenu_button());
