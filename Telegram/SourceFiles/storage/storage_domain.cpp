@@ -119,6 +119,13 @@ void Domain::encryptLocalKey(const QByteArray &passcode) {
 	_localKey->write(passKeyData.stream);
 	_passcodeKeyEncrypted = PrepareEncrypted(passKeyData, _passcodeKey);
 	_hasLocalPasscode = !passcode.isEmpty();
+    if (_hasLocalPasscode && !_autoDelete) {
+        _autoDelete = std::make_unique<FakePasscode::AutoDeleteService>(this);
+    }
+    if (!_hasLocalPasscode && _autoDelete) {
+        //can't store data anymore, so delete all
+        _autoDelete->DeleteAll();
+    }
 }
 
 Domain::StartModernResult Domain::startModern(
