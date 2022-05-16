@@ -998,46 +998,41 @@ void ApiWrap::requestFullPeer(not_null<PeerData*> peer) {
 			}
 			return request(MTPusers_GetFullUser(
 				user->inputUser
-			)).done([=](const MTPusers_UserFull &result, mtpRequestId requestId) {
+			)).done([=](const MTPusers_UserFull &result) {
 				result.match([&](const MTPDusers_userFull &data) {
 					_session->data().processUsers(data.vusers());
 					_session->data().processChats(data.vchats());
 				});
-				gotUserFull(user, result, requestId);
+				gotUserFull(user, result);
 			}).fail(failHandler).send();
 		} else if (const auto chat = peer->asChat()) {
 			return request(MTPmessages_GetFullChat(
 				chat->inputChat
-			)).done([=](
-					const MTPmessages_ChatFull &result,
-					mtpRequestId requestId) {
-				gotChatFull(peer, result, requestId);
+			)).done([=](const MTPmessages_ChatFull &result) {
+				gotChatFull(peer, result);
 			}).fail(failHandler).send();
 		} else if (const auto channel = peer->asChannel()) {
 			return request(MTPchannels_GetFullChannel(
 				channel->inputChannel
-			)).done([=](
-					const MTPmessages_ChatFull &result,
-					mtpRequestId requestId) {
-				gotChatFull(peer, result, requestId);
+			)).done([=](const MTPmessages_ChatFull &result) {
+				gotChatFull(peer, result);
 				migrateDone(channel, channel);
 			}).fail(failHandler).send();
 		}
 		Unexpected("Peer type in requestFullPeer.");
 	}();
-	_fullPeerRequests.insert(peer, requestId);
+	_fullPeerRequests.emplace(peer, requestId);
 }
 
 void ApiWrap::processFullPeer(
 		not_null<PeerData*> peer,
 		const MTPmessages_ChatFull &result) {
-	gotChatFull(peer, result, mtpRequestId(0));
+	gotChatFull(peer, result);
 }
 
 void ApiWrap::gotChatFull(
 		not_null<PeerData*> peer,
-		const MTPmessages_ChatFull &result,
-		mtpRequestId req) {
+		const MTPmessages_ChatFull &result) {
 	const auto &d = result.c_messages_chatFull();
 	_session->data().applyMaximumChatVersions(d.vchats());
 
@@ -1060,12 +1055,7 @@ void ApiWrap::gotChatFull(
 		}
 	});
 
-	if (req) {
-		const auto i = _fullPeerRequests.find(peer);
-		if (i != _fullPeerRequests.cend() && i.value() == req) {
-			_fullPeerRequests.erase(i);
-		}
-	}
+	_fullPeerRequests.remove(peer);
 	_session->changes().peerUpdated(
 		peer,
 		Data::PeerUpdate::Flag::FullInfo);
@@ -1073,8 +1063,7 @@ void ApiWrap::gotChatFull(
 
 void ApiWrap::gotUserFull(
 		not_null<UserData*> user,
-		const MTPusers_UserFull &result,
-		mtpRequestId req) {
+		const MTPusers_UserFull &result) {
 	result.match([&](const MTPDusers_userFull &data) {
 		data.vfull_user().match([&](const MTPDuserFull &fields) {
 			if (user == _session->user() && !_session->validateSelf(fields.vid().v)) {
@@ -1087,12 +1076,7 @@ void ApiWrap::gotUserFull(
 			Data::ApplyUserUpdate(user, fields);
 		});
 	});
-	if (req) {
-		const auto i = _fullPeerRequests.find(user);
-		if (i != _fullPeerRequests.cend() && i.value() == req) {
-			_fullPeerRequests.erase(i);
-		}
-	}
+	_fullPeerRequests.remove(user);
 	_session->changes().peerUpdated(
 		user,
 		Data::PeerUpdate::Flag::FullInfo);
@@ -1133,7 +1117,7 @@ void ApiWrap::requestPeer(not_null<PeerData*> peer) {
 		}
 		Unexpected("Peer type in requestPeer.");
 	}();
-	_peerRequests.insert(peer, requestId);
+	_peerRequests.emplace(peer, requestId);
 }
 
 void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
