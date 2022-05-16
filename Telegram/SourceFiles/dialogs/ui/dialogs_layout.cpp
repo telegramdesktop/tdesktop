@@ -302,6 +302,7 @@ enum class Flag {
 	SavedMessages    = 0x08,
 	RepliesMessages  = 0x10,
 	AllowUserOnline  = 0x20,
+	VideoPaused      = 0x40,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -366,7 +367,8 @@ void paintRow(
 			(flags & Flag::AllowUserOnline) ? history : nullptr,
 			ms,
 			active,
-			fullWidth);
+			fullWidth,
+			(flags & Flag::VideoPaused));
 	} else if (hiddenSenderInfo) {
 		hiddenSenderInfo->emptyUserpic.paint(
 			p,
@@ -798,7 +800,8 @@ void RowPainter::paint(
 		int fullWidth,
 		bool active,
 		bool selected,
-		crl::time ms) {
+		crl::time ms,
+		bool paused) {
 	const auto entry = row->entry();
 	const auto history = row->history();
 	const auto peer = history ? history->peer.get() : nullptr;
@@ -868,7 +871,8 @@ void RowPainter::paint(
 		| (selected ? Flag::Selected : Flag(0))
 		| (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
-		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0));
+		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0))
+		| (paused ? Flag::VideoPaused : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = st::dialogsPadding.y()
 			+ st::msgNameFont->height

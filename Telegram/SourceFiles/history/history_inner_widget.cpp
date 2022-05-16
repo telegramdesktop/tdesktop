@@ -84,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_sponsored_messages.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h" // st::windowMinWidth
@@ -367,8 +368,7 @@ HistoryInner::HistoryInner(
 	setMouseTracking(true);
 	_controller->gifPauseLevelChanged(
 	) | rpl::start_with_next([=] {
-		if (!_controller->isGifPausedAtLeastFor(
-				Window::GifPauseReason::Any)) {
+		if (!elementIsGifPaused()) {
 			update();
 		}
 	}, lifetime());
@@ -1079,6 +1079,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		p.translate(0, -top);
 	}
 
+	const auto paused = elementIsGifPaused();
 	enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
 		// stop the enumeration if the userpic is below the painted rect
 		if (userpicTop >= clip.top() + clip.height()) {
@@ -1088,13 +1089,16 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
 			if (const auto from = view->data()->displayFrom()) {
-				from->paintUserpicLeft(
+				Dialogs::Ui::PaintUserpic(
 					p,
+					from,
+					validateVideoUserpic(from),
 					_userpics[from],
 					st::historyPhotoLeft,
 					userpicTop,
 					width(),
-					st::msgPhotoSize);
+					st::msgPhotoSize,
+					paused);
 			} else if (const auto info = view->data()->hiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
 					info->emptyUserpic.paint(
@@ -1198,6 +1202,46 @@ bool HistoryInner::eventHook(QEvent *e) {
 		}
 	}
 	return RpWidget::eventHook(e);
+}
+
+HistoryInner::VideoUserpic *HistoryInner::validateVideoUserpic(
+		not_null<PeerData*> peer) {
+	if (!peer->isPremium()
+		|| peer->userpicPhotoUnknown()
+		|| !peer->userpicHasVideo()) {
+		_videoUserpics.remove(peer);
+		return nullptr;
+	}
+	const auto i = _videoUserpics.find(peer);
+	if (i != end(_videoUserpics)) {
+		return i->second.get();
+	}
+	const auto repaint = [=] {
+		enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+			// stop the enumeration if the userpic is below the painted rect
+			if (userpicTop >= _visibleAreaBottom) {
+				return false;
+			}
+
+			// repaint the userpic if it intersects the painted rect
+			if (userpicTop + st::msgPhotoSize > _visibleAreaTop) {
+				if (const auto from = view->data()->displayFrom()) {
+					if (from == peer) {
+						rtlupdate(
+							st::historyPhotoLeft,
+							userpicTop,
+							st::msgPhotoSize,
+							st::msgPhotoSize);
+					}
+				}
+			}
+			return true;
+		});
+	};
+	return _videoUserpics.emplace(peer, std::make_unique<VideoUserpic>(
+		peer,
+		repaint
+	)).first->second.get();
 }
 
 void HistoryInner::onTouchScrollTimer() {

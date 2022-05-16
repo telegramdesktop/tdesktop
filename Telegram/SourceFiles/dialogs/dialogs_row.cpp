@@ -80,22 +80,6 @@ namespace {
 		: accumulated;
 }
 
-void PaintUserpic(
-		Painter &p,
-		not_null<PeerData*> peer,
-		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	if (videoUserpic) {
-		videoUserpic->paintLeft(p, view, x, y, outerWidth, size);
-	} else {
-		peer->paintUserpicLeft(p, view, x, y, outerWidth, size);
-	}
-}
-
 } // namespace
 
 BasicRow::BasicRow() = default;
@@ -142,7 +126,8 @@ void BasicRow::paintUserpic(
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
-		int fullWidth) const {
+		int fullWidth,
+		bool paused) const {
 	PaintUserpic(
 		p,
 		peer,
@@ -151,7 +136,8 @@ void BasicRow::paintUserpic(
 		st::dialogsPadding.x(),
 		st::dialogsPadding.y(),
 		fullWidth,
-		st::dialogsPhotoSize);
+		st::dialogsPhotoSize,
+		paused);
 }
 
 Row::Row(Key key, int pos) : _id(key), _pos(pos) {
@@ -232,7 +218,8 @@ void Row::PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view) {
+		std::shared_ptr<Data::CloudImageView> &view,
+		bool paused) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
@@ -244,7 +231,8 @@ void Row::PaintCornerBadgeFrame(
 		0,
 		0,
 		data->frame.width() / data->frame.devicePixelRatio(),
-		st::dialogsPhotoSize);
+		st::dialogsPhotoSize,
+		paused);
 
 	PainterHighQualityEnabler hq(q);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
@@ -279,7 +267,8 @@ void Row::paintUserpic(
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
-		int fullWidth) const {
+		int fullWidth,
+		bool paused) const {
 	updateCornerBadgeShown(peer);
 
 	const auto shown = _cornerBadgeUserpic
@@ -293,7 +282,8 @@ void Row::paintUserpic(
 			historyForCornerBadge,
 			now,
 			active,
-			fullWidth);
+			fullWidth,
+			paused);
 		if (!historyForCornerBadge || !_cornerBadgeShown) {
 			_cornerBadgeUserpic = nullptr;
 		}
@@ -322,7 +312,8 @@ void Row::paintUserpic(
 			_cornerBadgeUserpic.get(),
 			peer,
 			videoUserpic,
-			userpicView());
+			userpicView(),
+			paused);
 	}
 	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
 	if (historyForCornerBadge->peer->isUser()) {

@@ -49,6 +49,10 @@ struct ChatPaintContext;
 class PathShiftGradient;
 } // namespace Ui
 
+namespace Dialogs::Ui {
+class VideoUserpic;
+} // namespace Dialogs::Ui
+
 class HistoryInner;
 class HistoryMainElementDelegate;
 class HistoryMainElementDelegateMixin {
@@ -209,6 +213,7 @@ private:
 	void onTouchScrollTimer();
 
 	class BotAbout;
+	using VideoUserpic = Dialogs::Ui::VideoUserpic;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	enum class MouseAction {
 		None,
@@ -387,6 +392,8 @@ private:
 	bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
 
+	VideoUserpic *validateVideoUserpic(not_null<PeerData*> peer);
+
 	// Does any of the shown histories has this flag set.
 	bool hasPendingResizedItems() const;
 
@@ -434,6 +441,9 @@ private:
 	base::flat_map<
 		MsgId,
 		std::shared_ptr<Data::CloudImageView>> _sponsoredUserpics;
+	base::flat_map<
+		not_null<PeerData*>,
+		std::unique_ptr<VideoUserpic>> _videoUserpics;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 

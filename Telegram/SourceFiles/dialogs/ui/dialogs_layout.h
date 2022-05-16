@@ -37,7 +37,8 @@ public:
 		int fullWidth,
 		bool active,
 		bool selected,
-		crl::time ms);
+		crl::time ms,
+		bool paused);
 	static void paint(
 		Painter &p,
 		not_null<const FakeRow*> row,

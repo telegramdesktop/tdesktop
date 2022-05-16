@@ -33,7 +33,8 @@ void VideoUserpic::paintLeft(
 		int x,
 		int y,
 		int w,
-		int size) {
+		int size,
+		bool paused) {
 	_lastSize = size;
 
 	const auto photoId = _peer->userpicPhotoId();
@@ -76,11 +77,8 @@ void VideoUserpic::paintLeft(
 	if (_video && _video->ready()) {
 		startReady();
 
-		const auto now = crl::now();
-		p.drawPixmap(
-			x,
-			y,
-			_video->current(request(size), now));
+		const auto now = paused ? crl::time(0) : crl::now();
+		p.drawPixmap(x, y, _video->current(request(size), now));
 	} else {
 		_peer->paintUserpicLeft(p, view, x, y, w, size);
 	}
@@ -119,6 +117,23 @@ void VideoUserpic::clipCallback(Media::Clip::Notification notification) {
 	} break;
 
 	case Notification::Repaint: _repaint(); break;
+	}
+}
+
+void PaintUserpic(
+		Painter &p,
+		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
+		std::shared_ptr<Data::CloudImageView> &view,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		bool paused) {
+	if (videoUserpic) {
+		videoUserpic->paintLeft(p, view, x, y, outerWidth, size, paused);
+	} else {
+		peer->paintUserpicLeft(p, view, x, y, outerWidth, size);
 	}
 }
 

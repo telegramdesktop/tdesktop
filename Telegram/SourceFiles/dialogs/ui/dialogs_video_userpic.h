@@ -33,7 +33,8 @@ public:
 		int x,
 		int y,
 		int w,
-		int size);
+		int size,
+		bool paused);
 
 private:
 	void clipCallback(Media::Clip::Notification notification);
@@ -50,5 +51,16 @@ private:
 	PhotoId _photoIdRequested = 0;
 
 };
+
+void PaintUserpic(
+	Painter &p,
+	not_null<PeerData*> peer,
+	Ui::VideoUserpic *videoUserpic,
+	std::shared_ptr<Data::CloudImageView> &view,
+	int x,
+	int y,
+	int outerWidth,
+	int size,
+	bool paused);
 
 } // namespace Dialogs::Ui

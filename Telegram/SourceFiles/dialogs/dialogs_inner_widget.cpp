@@ -401,6 +401,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();
+	const auto videoPaused = _controller->isGifPausedAtLeastFor(
+		Window::GifPauseReason::Any);
 	auto fullWidth = width();
 	auto dialogsClip = r;
 	auto ms = crl::now();
@@ -449,7 +451,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					fullWidth,
 					isActive,
 					isSelected,
-					ms);
+					ms,
+					videoPaused);
 				if (xadd || yadd) {
 					p.translate(-xadd, -yadd);
 				}
@@ -568,7 +571,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						fullWidth,
 						active,
 						selected,
-						ms);
+						ms,
+						videoPaused);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -686,13 +690,13 @@ Ui::VideoUserpic *InnerWidget::validateVideoUserpic(
 	if (i != end(_videoUserpics)) {
 		return i->second.get();
 	}
-	const auto update = [=] {
+	const auto repaint = [=] {
 		updateDialogRow({ history, FullMsgId() });
 		updateSearchResult(history->peer);
 	};
 	return _videoUserpics.emplace(peer, std::make_unique<Ui::VideoUserpic>(
 		peer,
-		update
+		repaint
 	)).first->second.get();
 }
 

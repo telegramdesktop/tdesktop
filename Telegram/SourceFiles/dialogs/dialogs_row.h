@@ -45,7 +45,8 @@ public:
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
-		int fullWidth) const;
+		int fullWidth,
+		bool paused) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
@@ -84,7 +85,8 @@ public:
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
-		int fullWidth) const final override;
+		int fullWidth,
+		bool paused) const final override;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -131,7 +133,8 @@ private:
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view);
+		std::shared_ptr<Data::CloudImageView> &view,
+		bool paused);
 
 	Key _id;
 	int _pos = 0;
