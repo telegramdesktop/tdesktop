@@ -1470,7 +1470,7 @@ void InnerWidget::suggestRestrictParticipant(
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}
-	});
+	}, &st::menuIconRestrict);
 }
 
 void InnerWidget::restrictParticipant(

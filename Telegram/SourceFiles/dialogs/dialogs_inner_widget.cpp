@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/history.h"
@@ -218,9 +219,21 @@ InnerWidget::InnerWidget(
 		UpdateFlag::Name
 		| UpdateFlag::Photo
 		| UpdateFlag::IsContact
+		| UpdateFlag::FullInfo
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (update.flags & (UpdateFlag::Name | UpdateFlag::Photo)) {
-			this->update();
+		if (update.flags
+			& (UpdateFlag::Name
+				| UpdateFlag::Photo
+				| UpdateFlag::FullInfo)) {
+			const auto peer = update.peer;
+			const auto history = peer->owner().historyLoaded(peer);
+			if (_state == WidgetState::Default) {
+				if (history) {
+					updateDialogRow({ history, FullMsgId() });
+				}
+			} else {
+				this->update();
+			}
 			_updated.fire({});
 		}
 		if (update.flags & UpdateFlag::IsContact) {
@@ -425,11 +438,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				if (xadd || yadd) {
 					p.translate(xadd, yadd);
 				}
-				const auto isActive = (row->key() == active);
-				const auto isSelected = (row->key() == selected);
+				const auto key = row->key();
+				const auto isActive = (key == active);
+				const auto isSelected = (key == selected);
 				Ui::RowPainter::paint(
 					p,
 					row,
+					validateVideoUserpic(row),
 					_filterId,
 					fullWidth,
 					isActive,
@@ -548,6 +563,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					Ui::RowPainter::paint(
 						p,
 						_filterResults[from],
+						validateVideoUserpic(row),
 						_filterId,
 						fullWidth,
 						active,
@@ -650,6 +666,34 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			}
 		}
 	}
+}
+
+Ui::VideoUserpic *InnerWidget::validateVideoUserpic(not_null<Row*> row) {
+	const auto history = row->history();
+	return history ? validateVideoUserpic(history) : nullptr;
+}
+
+Ui::VideoUserpic *InnerWidget::validateVideoUserpic(
+		not_null<History*> history) {
+	const auto peer = history->peer;
+	if (!peer->isPremium()
+		|| peer->userpicPhotoUnknown()
+		|| !peer->userpicHasVideo()) {
+		_videoUserpics.remove(peer);
+		return nullptr;
+	}
+	const auto i = _videoUserpics.find(peer);
+	if (i != end(_videoUserpics)) {
+		return i->second.get();
+	}
+	const auto update = [=] {
+		updateDialogRow({ history, FullMsgId() });
+		updateSearchResult(history->peer);
+	};
+	return _videoUserpics.emplace(peer, std::make_unique<Ui::VideoUserpic>(
+		peer,
+		update
+	)).first->second.get();
 }
 
 void InnerWidget::paintCollapsedRows(Painter &p, QRect clip) const {
@@ -1528,15 +1572,18 @@ void InnerWidget::refreshDialogRow(RowDescriptor row) {
 
 void InnerWidget::updateSearchResult(not_null<PeerData*> peer) {
 	if (_state == WidgetState::Filtered) {
-		if (!_peerSearchResults.empty()) {
-			auto index = 0, add = peerSearchOffset();
-			for (const auto &result : _peerSearchResults) {
-				if (result->peer == peer) {
-					rtlupdate(0, add + index * st::dialogsRowHeight, width(), st::dialogsRowHeight);
-					break;
-				}
-				++index;
-			}
+		const auto i = ranges::find(
+			_peerSearchResults,
+			peer,
+			&PeerSearchResult::peer);
+		if (i != end(_peerSearchResults)) {
+			const auto top = peerSearchOffset();
+			const auto index = (i - begin(_peerSearchResults));
+			rtlupdate(
+				0,
+				top + index * st::dialogsRowHeight,
+				width(),
+				st::dialogsRowHeight);
 		}
 	}
 }
@@ -1968,11 +2015,13 @@ void InnerWidget::visibleTopBottomUpdated(
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	loadPeerPhotos();
-	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop) >= height()) {
+	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop)
+		>= height()) {
 		if (_loadMoreCallback) {
 			_loadMoreCallback();
 		}
 	}
+
 }
 
 void InnerWidget::itemRemoved(not_null<const HistoryItem*> item) {

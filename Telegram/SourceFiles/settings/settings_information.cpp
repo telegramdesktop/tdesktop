@@ -153,10 +153,13 @@ void UploadPhoto(not_null<UserData*> user, QImage image) {
 	auto bytes = QByteArray();
 	auto buffer = QBuffer(&bytes);
 	image.save(&buffer, "JPG", 87);
-	user->setUserpic(base::RandomValue<PhotoId>(), ImageLocation(
-		{ .data = InMemoryLocation{ .bytes = bytes } },
-		image.width(),
-		image.height()));
+	user->setUserpic(
+		base::RandomValue<PhotoId>(),
+		ImageLocation(
+			{ .data = InMemoryLocation{ .bytes = bytes } },
+			image.width(),
+			image.height()),
+		false);
 	user->session().api().peerPhoto().upload(user, std::move(image));
 }
 

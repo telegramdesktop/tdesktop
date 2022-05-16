@@ -307,8 +307,12 @@ ClickHandlerPtr PeerData::createOpenLink() {
 	return std::make_shared<PeerClickHandler>(this);
 }
 
-void PeerData::setUserpic(PhotoId photoId, const ImageLocation &location) {
+void PeerData::setUserpic(
+		PhotoId photoId,
+		const ImageLocation &location,
+		bool hasVideo) {
 	_userpicPhotoId = photoId;
+	_userpicHasVideo = hasVideo;
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
 }
 
@@ -479,7 +483,10 @@ Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 		: Data::FileOrigin();
 }
 
-void PeerData::updateUserpic(PhotoId photoId, MTP::DcId dcId) {
+void PeerData::updateUserpic(
+		PhotoId photoId,
+		MTP::DcId dcId,
+		bool hasVideo) {
 	setUserpicChecked(
 		photoId,
 		ImageLocation(
@@ -491,19 +498,27 @@ void PeerData::updateUserpic(PhotoId photoId, MTP::DcId dcId) {
 					input,
 					MTP_long(photoId))) },
 			kUserpicSize,
-			kUserpicSize));
+			kUserpicSize),
+		hasVideo);
 }
 
 void PeerData::clearUserpic() {
-	setUserpicChecked(PhotoId(), ImageLocation());
+	setUserpicChecked(PhotoId(), ImageLocation(), false);
 }
 
 void PeerData::setUserpicChecked(
 		PhotoId photoId,
-		const ImageLocation &location) {
-	if (_userpicPhotoId != photoId || _userpic.location() != location) {
-		setUserpic(photoId, location);
+		const ImageLocation &location,
+		bool hasVideo) {
+	if (_userpicPhotoId != photoId
+		|| _userpic.location() != location
+		|| _userpicHasVideo != hasVideo) {
+		const auto known = !userpicPhotoUnknown();
+		setUserpic(photoId, location, hasVideo);
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
+		if (known && isPremium() && userpicPhotoUnknown()) {
+			updateFull();
+		}
 	}
 }
 
@@ -845,6 +860,13 @@ bool PeerData::isVerified() const {
 		return user->isVerified();
 	} else if (const auto channel = asChannel()) {
 		return channel->isVerified();
+	}
+	return false;
+}
+
+bool PeerData::isPremium() const {
+	if (const auto user = asUser()) {
+		return user->isPremium();
 	}
 	return false;
 }

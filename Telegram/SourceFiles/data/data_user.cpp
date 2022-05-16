@@ -47,7 +47,10 @@ void UserData::setIsContact(bool is) {
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
-		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
+		updateUserpic(
+			data.vphoto_id().v,
+			data.vdc_id().v,
+			data.is_has_video());
 	}, [&](const MTPDuserProfilePhotoEmpty &) {
 		clearUserpic();
 	});
@@ -189,6 +192,75 @@ void UserData::addFlags(UserDataFlags which) {
 
 void UserData::removeFlags(UserDataFlags which) {
 	_flags.remove(which & ~UserDataFlag::Self);
+}
+
+bool UserData::isVerified() const {
+	return flags() & UserDataFlag::Verified;
+}
+
+bool UserData::isScam() const {
+	return flags() & UserDataFlag::Scam;
+}
+
+bool UserData::isFake() const {
+	return flags() & UserDataFlag::Fake;
+}
+
+bool UserData::isPremium() const {
+	return flags() & UserDataFlag::Premium;
+}
+
+bool UserData::isBotInlineGeo() const {
+	return flags() & UserDataFlag::BotInlineGeo;
+}
+
+bool UserData::isBot() const {
+	return botInfo != nullptr;
+}
+
+bool UserData::isSupport() const {
+	return flags() & UserDataFlag::Support;
+}
+
+bool UserData::isInaccessible() const {
+	return flags() & UserDataFlag::Deleted;
+}
+
+bool UserData::canWrite() const {
+	// Duplicated in Data::CanWriteValue().
+	return !isInaccessible() && !isRepliesChat();
+}
+
+bool UserData::applyMinPhoto() const {
+	return !(flags() & UserDataFlag::DiscardMinPhoto);
+}
+
+bool UserData::canAddContact() const {
+	return canShareThisContact() && !isContact();
+}
+
+bool UserData::canShareThisContactFast() const {
+	return !_phone.isEmpty();
+}
+
+const QString &UserData::phone() const {
+	return _phone;
+}
+
+UserData::ContactStatus UserData::contactStatus() const {
+	return _contactStatus;
+}
+
+bool UserData::isContact() const {
+	return (contactStatus() == ContactStatus::Contact);
+}
+
+UserData::CallsStatus UserData::callsStatus() const {
+	return _callsStatus;
+}
+
+int UserData::commonChatsCount() const {
+	return _commonChatsCount;
 }
 
 void UserData::setCallsStatus(CallsStatus callsStatus) {

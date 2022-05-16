@@ -18,6 +18,8 @@ class BasicRow;
 
 namespace Dialogs::Ui {
 
+class VideoUserpic;
+
 using namespace ::Ui;
 
 const style::icon *ChatTypeIcon(
@@ -30,6 +32,7 @@ public:
 	static void paint(
 		Painter &p,
 		not_null<const Row*> row,
+		VideoUserpic *videoUserpic,
 		FilterId filterId,
 		int fullWidth,
 		bool active,

@@ -1362,6 +1362,7 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		const auto payment = Get<HistoryServicePayment>();
 		const auto id = fullId();
 		const auto owner = &history()->owner();
+		payment->slug = data.vinvoice_slug().value_or_empty();
 		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
 		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {

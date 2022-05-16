@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
 #include "storage/localstorage.h"
@@ -310,6 +311,7 @@ void paintRow(
 		not_null<const BasicRow*> row,
 		not_null<Entry*> entry,
 		Dialogs::Key chat,
+		VideoUserpic *videoUserpic,
 		FilterId filterId,
 		PeerData *from,
 		const HiddenSenderInfo *hiddenSenderInfo,
@@ -360,6 +362,7 @@ void paintRow(
 		row->paintUserpic(
 			p,
 			from,
+			videoUserpic,
 			(flags & Flag::AllowUserOnline) ? history : nullptr,
 			ms,
 			active,
@@ -450,13 +453,13 @@ void paintRow(
 		if (!ShowSendActionInDialogs(history)
 			|| !history->sendActionPainter()->paint(p, nameleft, texttop, availableWidth, fullWidth, color, ms)) {
 			if (history->cloudDraftTextCache.isEmpty()) {
-				auto draftWrapped = Ui::Text::PlainLink(
+				auto draftWrapped = Text::PlainLink(
 					tr::lng_dialogs_text_from_wrapped(
 						tr::now,
 						lt_from,
 						tr::lng_from_draft(tr::now)));
 				auto draftText = supportMode
-					? Ui::Text::PlainLink(
+					? Text::PlainLink(
 						Support::ChatOccupiedString(history))
 					: tr::lng_dialogs_text_with_from(
 						tr::now,
@@ -464,7 +467,7 @@ void paintRow(
 						draftWrapped,
 						lt_message,
 						{ .text = draft->textWithTags.text },
-						Ui::Text::WithEntities);
+						Text::WithEntities);
 				history->cloudDraftTextCache.setMarkedText(
 					st::dialogsTextStyle,
 					draftText,
@@ -790,6 +793,7 @@ QRect PaintUnreadBadge(
 void RowPainter::paint(
 		Painter &p,
 		not_null<const Row*> row,
+		VideoUserpic *videoUserpic,
 		FilterId filterId,
 		int fullWidth,
 		bool active,
@@ -934,6 +938,7 @@ void RowPainter::paint(
 		row,
 		entry,
 		row->key(),
+		videoUserpic,
 		filterId,
 		from,
 		nullptr,
@@ -1067,6 +1072,7 @@ void RowPainter::paint(
 		row,
 		history,
 		history,
+		nullptr,
 		FilterId(),
 		from,
 		hiddenSenderInfo,

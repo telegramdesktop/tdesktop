@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "dialogs/dialogs_entry.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "data/data_folder.h"
 #include "data/data_peer_values.h"
 #include "history/history.h"
@@ -79,36 +80,26 @@ namespace {
 		: accumulated;
 }
 
+void PaintUserpic(
+		Painter &p,
+		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
+		std::shared_ptr<Data::CloudImageView> &view,
+		int x,
+		int y,
+		int outerWidth,
+		int size) {
+	if (videoUserpic) {
+		videoUserpic->paintLeft(p, view, x, y, outerWidth, size);
+	} else {
+		peer->paintUserpicLeft(p, view, x, y, outerWidth, size);
+	}
+}
+
 } // namespace
 
 BasicRow::BasicRow() = default;
 BasicRow::~BasicRow() = default;
-
-void BasicRow::setCornerBadgeShown(
-		bool shown,
-		Fn<void()> updateCallback) const {
-	if (_cornerBadgeShown == shown) {
-		return;
-	}
-	_cornerBadgeShown = shown;
-	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
-		_cornerBadgeUserpic->animation.change(
-			_cornerBadgeShown ? 1. : 0.,
-			st::dialogsOnlineBadgeDuration);
-	} else if (updateCallback) {
-		ensureCornerBadgeUserpic();
-		_cornerBadgeUserpic->animation.start(
-			std::move(updateCallback),
-			_cornerBadgeShown ? 0. : 1.,
-			_cornerBadgeShown ? 1. : 0.,
-			st::dialogsOnlineBadgeDuration);
-	}
-	if (!_cornerBadgeShown
-		&& _cornerBadgeUserpic
-		&& !_cornerBadgeUserpic->animation.animating()) {
-		_cornerBadgeUserpic = nullptr;
-	}
-}
 
 void BasicRow::addRipple(
 		QPoint origin,
@@ -144,7 +135,79 @@ void BasicRow::paintRipple(
 	}
 }
 
-void BasicRow::updateCornerBadgeShown(
+void BasicRow::paintUserpic(
+		Painter &p,
+		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
+		History *historyForCornerBadge,
+		crl::time now,
+		bool active,
+		int fullWidth) const {
+	PaintUserpic(
+		p,
+		peer,
+		videoUserpic,
+		_userpic,
+		st::dialogsPadding.x(),
+		st::dialogsPadding.y(),
+		fullWidth,
+		st::dialogsPhotoSize);
+}
+
+Row::Row(Key key, int pos) : _id(key), _pos(pos) {
+	if (const auto history = key.history()) {
+		updateCornerBadgeShown(history->peer);
+	}
+}
+
+uint64 Row::sortKey(FilterId filterId) const {
+	return _id.entry()->sortKeyInChatList(filterId);
+}
+
+void Row::validateListEntryCache() const {
+	const auto folder = _id.folder();
+	if (!folder) {
+		return;
+	}
+	const auto version = folder->chatListViewVersion();
+	if (_listEntryCacheVersion == version) {
+		return;
+	}
+	_listEntryCacheVersion = version;
+	_listEntryCache.setMarkedText(
+		st::dialogsTextStyle,
+		ComposeFolderListEntryText(folder),
+		// Use rich options as long as the entry text does not have user text.
+		Ui::ItemTextDefaultOptions());
+}
+
+void Row::setCornerBadgeShown(
+		bool shown,
+		Fn<void()> updateCallback) const {
+	if (_cornerBadgeShown == shown) {
+		return;
+	}
+	_cornerBadgeShown = shown;
+	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
+		_cornerBadgeUserpic->animation.change(
+			_cornerBadgeShown ? 1. : 0.,
+			st::dialogsOnlineBadgeDuration);
+	} else if (updateCallback) {
+		ensureCornerBadgeUserpic();
+		_cornerBadgeUserpic->animation.start(
+			std::move(updateCallback),
+			_cornerBadgeShown ? 0. : 1.,
+			_cornerBadgeShown ? 1. : 0.,
+			st::dialogsOnlineBadgeDuration);
+	}
+	if (!_cornerBadgeShown
+		&& _cornerBadgeUserpic
+		&& !_cornerBadgeUserpic->animation.animating()) {
+		_cornerBadgeUserpic = nullptr;
+	}
+}
+
+void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback) const {
 	const auto shown = [&] {
@@ -158,25 +221,29 @@ void BasicRow::updateCornerBadgeShown(
 	setCornerBadgeShown(shown, std::move(updateCallback));
 }
 
-void BasicRow::ensureCornerBadgeUserpic() const {
+void Row::ensureCornerBadgeUserpic() const {
 	if (_cornerBadgeUserpic) {
 		return;
 	}
 	_cornerBadgeUserpic = std::make_unique<CornerBadgeUserpic>();
 }
 
-void BasicRow::PaintCornerBadgeFrame(
+void Row::PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
 		std::shared_ptr<Data::CloudImageView> &view) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
-	peer->paintUserpic(
+	PaintUserpic(
 		q,
+		peer,
+		videoUserpic,
 		view,
 		0,
 		0,
+		data->frame.width() / data->frame.devicePixelRatio(),
 		st::dialogsPhotoSize);
 
 	PainterHighQualityEnabler hq(q);
@@ -205,9 +272,10 @@ void BasicRow::PaintCornerBadgeFrame(
 	).marginsRemoved({ shrink, shrink, shrink, shrink }));
 }
 
-void BasicRow::paintUserpic(
+void Row::paintUserpic(
 		Painter &p,
 		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
@@ -218,13 +286,14 @@ void BasicRow::paintUserpic(
 		? _cornerBadgeUserpic->animation.value(_cornerBadgeShown ? 1. : 0.)
 		: (_cornerBadgeShown ? 1. : 0.);
 	if (!historyForCornerBadge || shown == 0.) {
-		peer->paintUserpicLeft(
+		BasicRow::paintUserpic(
 			p,
-			_userpic,
-			st::dialogsPadding.x(),
-			st::dialogsPadding.y(),
-			fullWidth,
-			st::dialogsPhotoSize);
+			peer,
+			videoUserpic,
+			historyForCornerBadge,
+			now,
+			active,
+			fullWidth);
 		if (!historyForCornerBadge || !_cornerBadgeShown) {
 			_cornerBadgeUserpic = nullptr;
 		}
@@ -238,14 +307,22 @@ void BasicRow::paintUserpic(
 			QImage::Format_ARGB32_Premultiplied);
 		_cornerBadgeUserpic->frame.setDevicePixelRatio(cRetinaFactor());
 	}
-	const auto key = peer->userpicUniqueKey(_userpic);
+	const auto key = peer->userpicUniqueKey(userpicView());
+	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
 	if (_cornerBadgeUserpic->shown != shown
 		|| _cornerBadgeUserpic->key != key
-		|| _cornerBadgeUserpic->active != active) {
+		|| _cornerBadgeUserpic->active != active
+		|| _cornerBadgeUserpic->frameIndex != frameIndex
+		|| videoUserpic) {
 		_cornerBadgeUserpic->shown = shown;
 		_cornerBadgeUserpic->key = key;
 		_cornerBadgeUserpic->active = active;
-		PaintCornerBadgeFrame(_cornerBadgeUserpic.get(), peer, _userpic);
+		_cornerBadgeUserpic->frameIndex = frameIndex;
+		PaintCornerBadgeFrame(
+			_cornerBadgeUserpic.get(),
+			peer,
+			videoUserpic,
+			userpicView());
 	}
 	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
 	if (historyForCornerBadge->peer->isUser()) {
@@ -268,33 +345,6 @@ void BasicRow::paintUserpic(
 		now);
 	p.translate(-st::dialogsPadding);
 	p.setOpacity(1.);
-}
-
-Row::Row(Key key, int pos) : _id(key), _pos(pos) {
-	if (const auto history = key.history()) {
-		updateCornerBadgeShown(history->peer);
-	}
-}
-
-uint64 Row::sortKey(FilterId filterId) const {
-	return _id.entry()->sortKeyInChatList(filterId);
-}
-
-void Row::validateListEntryCache() const {
-	const auto folder = _id.folder();
-	if (!folder) {
-		return;
-	}
-	const auto version = folder->chatListViewVersion();
-	if (_listEntryCacheVersion == version) {
-		return;
-	}
-	_listEntryCacheVersion = version;
-	_listEntryCache.setMarkedText(
-		st::dialogsTextStyle,
-		ComposeFolderListEntryText(folder),
-		// Use rich options as long as the entry text does not have user text.
-		Ui::ItemTextDefaultOptions());
 }
 
 FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
