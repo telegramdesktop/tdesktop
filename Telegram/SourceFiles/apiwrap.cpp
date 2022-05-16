@@ -90,7 +90,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
-#include "storage/storage_user_photos.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
 #include "facades.h"
@@ -103,7 +102,6 @@ constexpr auto kSaveCloudDraftTimeout = 1000;
 constexpr auto kTopPromotionInterval = TimeId(60 * 60);
 constexpr auto kTopPromotionMinDelay = TimeId(10);
 constexpr auto kSmallDelayMs = 5;
-constexpr auto kSharedMediaLimit = 100;
 constexpr auto kReadFeaturedSetsTimeout = crl::time(1000);
 constexpr auto kFileLoaderQueueStopTimeout = crl::time(5000);
 constexpr auto kStickersByEmojiInvalidateTimeout = crl::time(6 * 1000);
@@ -2057,15 +2055,16 @@ void ApiWrap::saveDraftsToCloud() {
 			history->finishSavingCloudDraft(
 				UnixtimeFromMsgId(response.outerMsgId));
 
+			const auto requestId = response.requestId;
 			if (const auto cloudDraft = history->cloudDraft()) {
-				if (cloudDraft->saveRequestId == response.requestId) {
+				if (cloudDraft->saveRequestId == requestId) {
 					cloudDraft->saveRequestId = 0;
 					history->draftSavedToCloud();
 				}
 			}
 			auto i = _draftsSaveRequestIds.find(history);
 			if (i != _draftsSaveRequestIds.cend()
-				&& i->second == response.requestId) {
+				&& i->second == requestId) {
 				_draftsSaveRequestIds.erase(history);
 				checkQuitPreventFinished();
 			}
@@ -2073,14 +2072,15 @@ void ApiWrap::saveDraftsToCloud() {
 			history->finishSavingCloudDraft(
 				UnixtimeFromMsgId(response.outerMsgId));
 
+			const auto requestId = response.requestId;
 			if (const auto cloudDraft = history->cloudDraft()) {
-				if (cloudDraft->saveRequestId == response.requestId) {
+				if (cloudDraft->saveRequestId == requestId) {
 					history->clearCloudDraft();
 				}
 			}
 			auto i = _draftsSaveRequestIds.find(history);
 			if (i != _draftsSaveRequestIds.cend()
-				&& i->second == response.requestId) {
+				&& i->second == requestId) {
 				_draftsSaveRequestIds.erase(history);
 				checkQuitPreventFinished();
 			}
@@ -2957,67 +2957,6 @@ void ApiWrap::sharedMediaDone(
 	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
 		peer->owner().history(peer)->setHasPinnedMessages(true);
 	}
-}
-
-void ApiWrap::requestUserPhotos(
-		not_null<UserData*> user,
-		PhotoId afterId) {
-	if (_userPhotosRequests.contains(user)) {
-		return;
-	}
-
-	auto limit = kSharedMediaLimit;
-
-	auto requestId = request(MTPphotos_GetUserPhotos(
-		user->inputUser,
-		MTP_int(0),
-		MTP_long(afterId),
-		MTP_int(limit)
-	)).done([this, user, afterId](const MTPphotos_Photos &result) {
-		_userPhotosRequests.remove(user);
-		userPhotosDone(user, afterId, result);
-	}).fail([this, user] {
-		_userPhotosRequests.remove(user);
-	}).send();
-	_userPhotosRequests.emplace(user, requestId);
-}
-
-void ApiWrap::userPhotosDone(
-		not_null<UserData*> user,
-		PhotoId photoId,
-		const MTPphotos_Photos &result) {
-	auto fullCount = 0;
-	auto &photos = *[&] {
-		switch (result.type()) {
-		case mtpc_photos_photos: {
-			auto &d = result.c_photos_photos();
-			_session->data().processUsers(d.vusers());
-			fullCount = d.vphotos().v.size();
-			return &d.vphotos().v;
-		} break;
-
-		case mtpc_photos_photosSlice: {
-			auto &d = result.c_photos_photosSlice();
-			_session->data().processUsers(d.vusers());
-			fullCount = d.vcount().v;
-			return &d.vphotos().v;
-		} break;
-		}
-		Unexpected("photos.Photos type in userPhotosDone()");
-	}();
-
-	auto photoIds = std::vector<PhotoId>();
-	photoIds.reserve(photos.size());
-	for (auto &photo : photos) {
-		if (auto photoData = _session->data().processPhoto(photo)) {
-			photoIds.push_back(photoData->id);
-		}
-	}
-	_session->storage().add(Storage::UserPhotosAddSlice(
-		peerToUser(user->id),
-		std::move(photoIds),
-		fullCount
-	));
 }
 
 void ApiWrap::sendAction(const SendAction &action) {

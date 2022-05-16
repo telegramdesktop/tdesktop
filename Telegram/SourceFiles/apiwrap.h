@@ -266,10 +266,6 @@ public:
 			not_null<PeerData*> peer,
 			Storage::SharedMediaType type);
 
-	void requestUserPhotos(
-		not_null<UserData*> user,
-		PhotoId afterId);
-
 	void readFeaturedSetDelayed(uint64 setId);
 
 	rpl::producer<SendAction> sendActions() const {
@@ -460,11 +456,6 @@ private:
 		SliceType slice,
 		const MTPmessages_Messages &result);
 
-	void userPhotosDone(
-		not_null<UserData*> user,
-		PhotoId photoId,
-		const MTPphotos_Photos &result);
-
 	void sendSharedContact(
 		const QString &phone,
 		const QString &firstName,
@@ -578,8 +569,6 @@ private:
 		SharedMediaType,
 		MsgId,
 		SliceType>> _sharedMediaRequests;
-
-	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;
