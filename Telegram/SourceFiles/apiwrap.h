@@ -53,6 +53,8 @@ struct PreparedList;
 
 namespace Api {
 
+struct SearchResult;
+
 class Updates;
 class Authorizations;
 class AttachedStickers;
@@ -450,9 +452,7 @@ private:
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
 		SharedMediaType type,
-		MsgId messageId,
-		SliceType slice,
-		const MTPmessages_Messages &result);
+		Api::SearchResult &&parsed);
 
 	void sendSharedContact(
 		const QString &phone,

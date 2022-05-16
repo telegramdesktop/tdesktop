@@ -20,11 +20,12 @@ namespace Api {
 namespace {
 
 constexpr auto kSharedMediaLimit = 100;
+constexpr auto kFirstSharedMediaLimit = 0;
 constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 } // namespace
 
-std::optional<MTPmessages_Search> PrepareSearchRequest(
+std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
 		Storage::SharedMediaType type,
 		const QString &query,
@@ -66,7 +67,7 @@ std::optional<MTPmessages_Search> PrepareSearchRequest(
 
 	const auto minId = 0;
 	const auto maxId = 0;
-	const auto limit = messageId ? kSharedMediaLimit : 0;
+	const auto limit = messageId ? kSharedMediaLimit : kFirstSharedMediaLimit;
 	const auto offsetId = [&] {
 		switch (direction) {
 		case Data::LoadDirection::Before:
@@ -111,7 +112,7 @@ SearchResult ParseSearchResult(
 		Storage::SharedMediaType type,
 		MsgId messageId,
 		Data::LoadDirection direction,
-		const MTPmessages_Messages &data) {
+		const SearchRequestResult &data) {
 	auto result = SearchResult();
 	result.noSkipRange = MsgRange{ messageId, messageId };
 
@@ -382,7 +383,7 @@ void SearchController::requestMore(
 	auto requestId = histories.sendRequest(history, type, [=](Fn<void()> finish) {
 		return _session->api().request(
 			std::move(*prepared)
-		).done([=](const MTPmessages_Messages &result) {
+		).done([=](const SearchRequestResult &result) {
 			listData->requests.remove(key);
 			auto parsed = ParseSearchResult(
 				listData->peer,

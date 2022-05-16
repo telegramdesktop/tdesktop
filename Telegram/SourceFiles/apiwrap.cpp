@@ -2906,10 +2906,16 @@ void ApiWrap::requestSharedMedia(
 	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
 		return request(
 			std::move(*prepared)
-		).done([=](const MTPmessages_Messages &result) {
+		).done([=](const Api::SearchRequestResult &result) {
 			const auto key = std::make_tuple(peer, type, messageId, slice);
 			_sharedMediaRequests.remove(key);
-			sharedMediaDone(peer, type, messageId, slice, result);
+			auto parsed = Api::ParseSearchResult(
+				peer,
+				type,
+				messageId,
+				slice,
+				result);
+			sharedMediaDone(peer, type, std::move(parsed));
 			finish();
 		}).fail([=] {
 			_sharedMediaRequests.remove(key);
@@ -2922,15 +2928,7 @@ void ApiWrap::requestSharedMedia(
 void ApiWrap::sharedMediaDone(
 		not_null<PeerData*> peer,
 		SharedMediaType type,
-		MsgId messageId,
-		SliceType slice,
-		const MTPmessages_Messages &result) {
-	auto parsed = Api::ParseSearchResult(
-		peer,
-		type,
-		messageId,
-		slice,
-		result);
+		Api::SearchResult &&parsed) {
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		type,
