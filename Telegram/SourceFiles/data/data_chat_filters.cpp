@@ -107,6 +107,8 @@ ChatFilter ChatFilter::FromTL(
 			std::move(list),
 			std::move(pinned),
 			{ never.begin(), never.end() });
+	}, [](const MTPDdialogFilterDefault &d) {
+		return ChatFilter();
 	});
 }
 
@@ -220,6 +222,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 }
 
 ChatFilters::ChatFilters(not_null<Session*> owner) : _owner(owner) {
+	_list.emplace_back();
 	crl::on_main(&owner->session(), [=] { load(); });
 }
 
@@ -295,6 +298,9 @@ void ChatFilters::received(const QVector<MTPDialogFilter> &list) {
 		applyRemove(position);
 		changed = true;
 	}
+	if (!ranges::contains(begin(_list), end(_list), 0, &ChatFilter::id)) {
+		_list.insert(begin(_list), ChatFilter());
+	}
 	if (changed || !_loaded) {
 		_loaded = true;
 		_listChanged.fire({});
@@ -350,6 +356,16 @@ void ChatFilters::remove(FilterId id) {
 	}
 	applyRemove(i - begin(_list));
 	_listChanged.fire({});
+}
+
+void ChatFilters::moveAllToFront() {
+	const auto i = ranges::find(_list, FilterId(), &ChatFilter::id);
+	if (!_list.empty() && i == begin(_list)) {
+		return;
+	} else if (i != end(_list)) {
+		_list.erase(i);
+	}
+	_list.insert(begin(_list), ChatFilter());
 }
 
 void ChatFilters::applyRemove(int position) {
@@ -516,6 +532,10 @@ bool ChatFilters::archiveNeeded() const {
 
 const std::vector<ChatFilter> &ChatFilters::list() const {
 	return _list;
+}
+
+bool ChatFilters::has() const {
+	return _list.size() > 1;
 }
 
 rpl::producer<> ChatFilters::changed() const {

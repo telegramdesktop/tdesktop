@@ -99,8 +99,10 @@ public:
 	void apply(const MTPUpdate &update);
 	void set(ChatFilter filter);
 	void remove(FilterId id);
+	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
+	[[nodiscard]] bool has() const;
 
 	bool loadNextExceptions(bool chatsListLoaded);
 

@@ -764,7 +764,7 @@ void SessionController::toggleFiltersMenu(bool enabled) {
 }
 
 void SessionController::refreshFiltersMenu() {
-	toggleFiltersMenu(!session().data().chatsFilters().list().empty());
+	toggleFiltersMenu(session().data().chatsFilters().has());
 }
 
 rpl::producer<> SessionController::filtersMenuChanged() const {

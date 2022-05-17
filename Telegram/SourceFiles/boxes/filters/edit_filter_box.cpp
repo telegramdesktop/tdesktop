@@ -668,6 +668,8 @@ void EditFilterBox(
 void EditExistingFilter(
 		not_null<Window::SessionController*> window,
 		FilterId id) {
+	Expects(id != 0);
+
 	const auto session = &window->session();
 	const auto &list = session->data().chatsFilters().list();
 	const auto i = ranges::find(list, id, &Data::ChatFilter::id);

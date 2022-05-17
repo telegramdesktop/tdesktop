@@ -289,7 +289,7 @@ void SetupSections(
 				st::settingsButton,
 				{ &st::settingsIconFolders, kIconDarkBlue }))
 	)->setDuration(0);
-	if (!controller->session().data().chatsFilters().list().empty()
+	if (controller->session().data().chatsFilters().has()
 		|| controller->session().settings().dialogsFiltersEnabled()) {
 		slided->show(anim::type::instant);
 		preload();

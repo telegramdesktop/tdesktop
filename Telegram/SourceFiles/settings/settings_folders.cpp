@@ -424,7 +424,9 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto &list = session->data().chatsFilters().list();
 	for (const auto &filter : list) {
-		addFilter(filter);
+		if (filter.id()) {
+			addFilter(filter);
+		}
 	}
 
 	AddButton(

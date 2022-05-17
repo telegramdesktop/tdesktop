@@ -57,6 +57,8 @@ void ChangeFilterById(
 		FilterId filterId,
 		not_null<History*> history,
 		bool add) {
+	Expects(filterId != 0);
+
 	const auto list = history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
@@ -99,7 +101,7 @@ ChooseFilterValidator::ChooseFilterValidator(not_null<History*> history)
 
 bool ChooseFilterValidator::canAdd() const {
 	for (const auto &filter : _history->owner().chatsFilters().list()) {
-		if (!filter.contains(_history)) {
+		if (filter.id() && !filter.contains(_history)) {
 			return true;
 		}
 	}
@@ -107,6 +109,8 @@ bool ChooseFilterValidator::canAdd() const {
 }
 
 bool ChooseFilterValidator::canRemove(FilterId filterId) const {
+	Expects(filterId != 0);
+
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	if (i != end(list)) {
@@ -118,6 +122,8 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 }
 
 bool ChooseFilterValidator::limitReached(FilterId filterId) const {
+	Expects(filterId != 0);
+
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	const auto limit = _history->owner().pinnedChatsLimit(nullptr, filterId);
@@ -142,6 +148,10 @@ void FillChooseFilterMenu(
 	const auto validator = ChooseFilterValidator(history);
 	for (const auto &filter : history->owner().chatsFilters().list()) {
 		const auto id = filter.id();
+		if (!id) {
+			continue;
+		}
+
 		const auto contains = filter.contains(history);
 		const auto action = menu->addAction(filter.title(), [=] {
 			if (filter.contains(history)) {

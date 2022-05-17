@@ -2706,7 +2706,7 @@ bool InnerWidget::chooseCollapsedRow() {
 }
 
 void InnerWidget::switchToFilter(FilterId filterId) {
-	const auto found = ranges::contains(
+	const auto found = filterId && ranges::contains(
 		session().data().chatsFilters().list(),
 		filterId,
 		&Data::ChatFilter::id);
@@ -3204,16 +3204,16 @@ void InnerWidget::setupShortcuts() {
 			return false;
 		});
 
-		const auto filters = &session().data().chatsFilters().list();
-		if (const auto filtersCount = int(filters->size())) {
+		if (session().data().chatsFilters().has()) {
+			const auto filters = &session().data().chatsFilters().list();
+			const auto filtersCount = int(filters->size());
 			auto &&folders = ranges::views::zip(
 				Shortcuts::kShowFolder,
 				ranges::views::ints(0, ranges::unreachable));
-
 			for (const auto [command, index] : folders) {
 				const auto select = (command == Command::ShowFolderLast)
 					? filtersCount
-					: std::clamp(index, 0, filtersCount);
+					: std::clamp(index, 0, int(filtersCount));
 				request->check(command) && request->handle([=] {
 					if (select <= filtersCount) {
 						_controller->setActiveChatsFilter((select > 0)
@@ -3256,15 +3256,16 @@ void InnerWidget::setupShortcuts() {
 		const auto nearFolder = [=](bool isNext) {
 			const auto id = _controller->activeChatsFilterCurrent();
 			const auto list = &session().data().chatsFilters().list();
-			const auto index = (id != 0)
-				? int(ranges::find(*list, id, &Data::ChatFilter::id)
-					- begin(*list))
-				: -1;
+			const auto index = int(ranges::find(
+				*list,
+				id,
+				&Data::ChatFilter::id
+			) - begin(*list));
 			if (index == list->size() && id != 0) {
 				return false;
 			}
 			const auto changed = index + (isNext ? 1 : -1);
-			if (changed >= int(list->size()) || changed < -1) {
+			if (changed >= int(list->size()) || changed < 0) {
 				return false;
 			}
 			_controller->setActiveChatsFilter((changed >= 0)

@@ -419,7 +419,7 @@ void Filler::addInfo() {
 void Filler::addToggleFolder() {
 	const auto controller = _controller;
 	const auto history = _request.key.history();
-	if (!history || history->owner().chatsFilters().list().empty()) {
+	if (!history || !history->owner().chatsFilters().has()) {
 		return;
 	}
 	_addAction(PeerMenuCallback::Args{

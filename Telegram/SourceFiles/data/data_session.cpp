@@ -268,7 +268,7 @@ Session::Session(not_null<Main::Session*> session)
 
 	_chatsFilters->changed(
 	) | rpl::start_with_next([=] {
-		const auto enabled = !_chatsFilters->list().empty();
+		const auto enabled = _chatsFilters->has();
 		if (enabled != session->settings().dialogsFiltersEnabled()) {
 			session->settings().setDialogsFiltersEnabled(enabled);
 			session->saveSettingsDelayed();
