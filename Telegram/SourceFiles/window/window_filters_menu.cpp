@@ -121,8 +121,12 @@ void FiltersMenu::setup() {
 	_activeFilterId = _session->activeChatsFilterCurrent();
 	_session->activeChatsFilter(
 	) | rpl::filter([=](FilterId id) {
-		return id != _activeFilterId;
+		return (id != _activeFilterId);
 	}) | rpl::start_with_next([=](FilterId id) {
+		if (!_list) {
+			_activeFilterId = id;
+			return;
+		}
 		const auto i = _filters.find(_activeFilterId);
 		if (i != end(_filters)) {
 			i->second->setActive(false);

@@ -534,6 +534,28 @@ const std::vector<ChatFilter> &ChatFilters::list() const {
 	return _list;
 }
 
+FilterId ChatFilters::defaultId() const {
+	return lookupId(0);
+}
+
+FilterId ChatFilters::lookupId(int index) const {
+	Expects(index >= 0 && index < _list.size());
+
+	if (_owner->session().user()->isPremium() || !_list.front().id()) {
+		return _list[index].id();
+	}
+	const auto i = ranges::find(_list, FilterId(0), &ChatFilter::id);
+	return !index
+		? FilterId()
+		: (index <= int(i - begin(_list)))
+		? _list[index - 1].id()
+		: _list[index].id();
+}
+
+bool ChatFilters::loaded() const {
+	return _loaded;
+}
+
 bool ChatFilters::has() const {
 	return _list.size() > 1;
 }

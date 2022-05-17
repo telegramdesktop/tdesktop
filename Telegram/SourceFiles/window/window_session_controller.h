@@ -513,6 +513,7 @@ private:
 	void refreshFiltersMenu();
 	void checkOpenedFilter();
 	void suggestArchiveAndMute();
+	void activateFirstChatsFilter();
 
 	int minimalThreeColumnWidth() const;
 	int countDialogsWidthFromRatio(int bodyWidth) const;
@@ -562,6 +563,7 @@ private:
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
+	bool _filtersActivated = false;
 	bool _selectingPeer = false;
 
 	base::Timer _invitePeekTimer;

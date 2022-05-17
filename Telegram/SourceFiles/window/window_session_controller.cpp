@@ -600,6 +600,7 @@ SessionController::SessionController(
 		_window->widget(),
 		this))
 , _invitePeekTimer([=] { checkInvitePeek(); })
+, _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>()) {
@@ -657,6 +658,10 @@ SessionController::SessionController(
 	}, _lifetime);
 
 	session->addWindow(this);
+
+	crl::on_main(this, [=] {
+		activateFirstChatsFilter();
+	});
 }
 
 void SessionController::suggestArchiveAndMute() {
@@ -772,6 +777,7 @@ rpl::producer<> SessionController::filtersMenuChanged() const {
 }
 
 void SessionController::checkOpenedFilter() {
+	activateFirstChatsFilter();
 	if (const auto filterId = activeChatsFilterCurrent()) {
 		const auto &list = session().data().chatsFilters().list();
 		const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
@@ -779,6 +785,14 @@ void SessionController::checkOpenedFilter() {
 			setActiveChatsFilter(0);
 		}
 	}
+}
+
+void SessionController::activateFirstChatsFilter() {
+	if (_filtersActivated || !session().data().chatsFilters().loaded()) {
+		return;
+	}
+	_filtersActivated = true;
+	setActiveChatsFilter(session().data().chatsFilters().defaultId());
 }
 
 bool SessionController::uniqueChatsInSearchResults() const {

@@ -102,7 +102,11 @@ public:
 	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
+	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool has() const;
+
+	[[nodiscard]] FilterId defaultId() const;
+	[[nodiscard]] FilterId lookupId(int index) const;
 
 	bool loadNextExceptions(bool chatsListLoaded);
 

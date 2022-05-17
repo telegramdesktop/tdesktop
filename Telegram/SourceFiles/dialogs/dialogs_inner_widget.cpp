@@ -3205,20 +3205,19 @@ void InnerWidget::setupShortcuts() {
 		});
 
 		if (session().data().chatsFilters().has()) {
-			const auto filters = &session().data().chatsFilters().list();
-			const auto filtersCount = int(filters->size());
+			const auto filters = &session().data().chatsFilters();
+			const auto filtersCount = int(filters->list().size());
 			auto &&folders = ranges::views::zip(
 				Shortcuts::kShowFolder,
 				ranges::views::ints(0, ranges::unreachable));
 			for (const auto [command, index] : folders) {
 				const auto select = (command == Command::ShowFolderLast)
-					? filtersCount
-					: std::clamp(index, 0, int(filtersCount));
+					? (filtersCount - 1)
+					: std::clamp(index, 0, filtersCount - 1);
 				request->check(command) && request->handle([=] {
 					if (select <= filtersCount) {
-						_controller->setActiveChatsFilter((select > 0)
-							? (*filters)[select - 1].id()
-							: 0);
+						_controller->setActiveChatsFilter(
+							filters->lookupId(select));
 					}
 					return true;
 				});
