@@ -1077,3 +1077,10 @@ ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
 	iconLeft: 25px;
 }
 ringtonesBoxSkip: 7px;
+
+premiumBubblePadding: margins(14px, 0px, 14px, 0px);
+premiumBubbleHeight: 40px;
+premiumBubbleSkip: 5px;
+premiumBubbleSlideDuration: 500;
+premiumBubbleTailSize: size(21px, 7px);
+premiumBubbleFont: font(19px);
