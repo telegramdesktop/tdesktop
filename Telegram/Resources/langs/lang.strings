@@ -177,6 +177,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_leave_done" = "You've left the selected communities.";
 
 "lng_links_limit_title" = "Too Many Public Links";
+"lng_links_limit_subtitle" = "Your public communitites";
 "lng_links_limit1#one" = "You have reserved **{count}** public link.";
 "lng_links_limit1#other" = "You have reserved **{count}** public links.";
 "lng_links_limit2#one" = "Try revoking the link from an older group or channel, or upgrade to **Telegram Premium** to double the limit to **{count}** public link.";

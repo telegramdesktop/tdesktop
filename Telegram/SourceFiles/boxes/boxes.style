@@ -1081,7 +1081,16 @@ ringtonesBoxSkip: 7px;
 premiumBubblePadding: margins(14px, 0px, 14px, 0px);
 premiumBubbleHeight: 40px;
 premiumBubbleSkip: 5px;
+premiumBubbleTextSkip: 3px;
 premiumBubbleSlideDuration: 500;
 premiumBubbleTailSize: size(21px, 7px);
 premiumBubbleFont: font(19px);
 premiumLineTextSkip: 11px;
+premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
+
+premiumIconChats: icon {{ "limits/chats", settingsIconFg }};
+premiumIconFiles: icon {{ "limits/files", settingsIconFg }};
+premiumIconFolders: icon {{ "limits/folders", settingsIconFg }};
+premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
+premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
+premiumIconPins: icon {{ "limits/pins", settingsIconFg }};

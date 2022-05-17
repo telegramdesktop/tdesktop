@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/peer_list_dummy.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
+#include "settings/settings_common.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
@@ -30,6 +32,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 
 namespace {
+
+struct InfographicDescriptor {
+	float64 defaultLimit = 0;
+	float64 current = 0;
+	float64 premiumLimit = 0;
+	const style::icon *icon;
+};
+
+[[nodiscard]] rpl::producer<> BoxShowFinishes(not_null<Ui::GenericBox*> box) {
+	const auto singleShot = box->lifetime().make_state<rpl::lifetime>();
+	const auto showFinishes = singleShot->make_state<rpl::event_stream<>>();
+
+	box->setShowFinishedCallback([=] {
+		showFinishes->fire({});
+		singleShot->destroy();
+		box->setShowFinishedCallback(nullptr);
+	});
+
+	return showFinishes->events();
+}
 
 class InactiveController final : public PeerListController {
 public:
@@ -371,6 +393,7 @@ void SimpleLimitBox(
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
+		const InfographicDescriptor &descriptor,
 		bool premium,
 		bool fixed = false) {
 	box->setWidth(st::boxWideWidth);
@@ -378,36 +401,30 @@ void SimpleLimitBox(
 	const auto top = fixed
 		? box->setPinnedToTopContent(object_ptr<Ui::VerticalLayout>(box))
 		: box->verticalLayout();
+
+	Settings::AddSkip(top, st::premiumInfographicPadding.top());
+	Ui::Premium::AddBubbleRow(
+		top,
+		BoxShowFinishes(box),
+		descriptor.defaultLimit,
+		descriptor.current,
+		descriptor.premiumLimit,
+		std::nullopt,
+		descriptor.icon);
+	Settings::AddSkip(top, st::premiumLineTextSkip);
+	Ui::Premium::AddLimitRow(top, descriptor.premiumLimit);
+	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+
+	box->setTitle(std::move(title));
+
+	auto padding = st::boxPadding;
+	padding.setTop(padding.bottom());
 	top->add(
-		object_ptr<Ui::CenterWrap<>>(
+		object_ptr<Ui::FlatLabel>(
 			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				std::move(title),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding);
-
-	top->add(
-		object_ptr<Ui::CenterWrap<>>(
-			box,
-			object_ptr<Ui::FlatLabel>(
-				box,
-				std::move(text),
-				st::changePhoneDescription)),
-		st::changePhoneDescriptionPadding);
-
-	box->setNoContentMargin(true);
-
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		box.get(),
-		st::infoLayerTopBarClose);
-	close->addClickHandler([=] { box->closeBox(); });
-	box->widthValue() | rpl::start_with_next([=](int width) {
-		close->moveToRight(0, 0, width);
-	}, close->lifetime());
-	box->setFocusCallback([=] {
-		close->raise();
-	});
+			std::move(text),
+			st::aboutRevokePublicLabel),
+		padding);
 
 	if (premium) {
 		box->addButton(tr::lng_box_ok(), [=] {
@@ -420,6 +437,15 @@ void SimpleLimitBox(
 			});
 		});
 	}
+
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+
+	if (fixed) {
+		Settings::AddSkip(top);
+		Settings::AddDivider(top);
+	}
 }
 
 void SimplePinsLimitBox(
@@ -431,19 +457,19 @@ void SimplePinsLimitBox(
 		int limitPremium) {
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(session, keyDefault, limitDefault);
+	const auto premiumLimit = Limit(session, keyPremium, limitPremium);
+
 	auto text = rpl::combine(
 		tr::lng_filter_pin_limit1(
 			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium ? keyPremium : keyDefault),
-				premium ? limitPremium : limitDefault)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		(premium
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_pin_limit2(
 				lt_count,
-				rpl::single(Limit(session, keyPremium, limitPremium)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
@@ -455,6 +481,7 @@ void SimplePinsLimitBox(
 		session,
 		tr::lng_filter_pin_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconPins },
 		premium);
 }
 
@@ -465,21 +492,19 @@ void ChannelsLimitBox(
 		not_null<Main::Session*> session) {
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(session, "channels_limit_default", 500);
+	const auto premiumLimit = Limit(session, "channels_limit_premium", 1000);
+
 	auto text = rpl::combine(
 		tr::lng_channels_limit1(
 			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium
-					? "channels_limit_premium"
-					: "channels_limit_default"),
-				premium ? 1000 : 500)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		(premium
 			? tr::lng_channels_limit2_final(Ui::Text::RichLangValue)
 			: tr::lng_channels_limit2(
 				lt_count,
-				rpl::single(Limit(session, "channels_limit_premium", 1000)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
@@ -490,6 +515,7 @@ void ChannelsLimitBox(
 		session,
 		tr::lng_channels_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconGroups },
 		premium,
 		true);
 
@@ -553,24 +579,25 @@ void PublicLinksLimitBox(
 	const auto session = &navigation->session();
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(
+		session,
+		"channels_public_limit_default",
+		10);
+	const auto premiumLimit = Limit(
+		session,
+		"channels_public_limit_premium",
+		20);
+
 	auto text = rpl::combine(
 		tr::lng_links_limit1(
 			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium
-					? "channels_public_limit_premium"
-					: "channels_public_limit_default"),
-				premium ? 20 : 10)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		(premium
 			? tr::lng_links_limit2_final(Ui::Text::RichLangValue)
 			: tr::lng_links_limit2(
 				lt_count,
-				rpl::single(Limit(
-					session,
-					"channels_public_limit_premium",
-					20)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
@@ -581,8 +608,13 @@ void PublicLinksLimitBox(
 		session,
 		tr::lng_links_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconLinks },
 		premium,
 		true);
+
+	Settings::AddSubsectionTitle(
+		box->verticalLayout(),
+		tr::lng_links_limit_subtitle());
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<PublicsController>(
@@ -612,25 +644,25 @@ void FilterChatsLimitBox(
 		not_null<Main::Session*> session) {
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(
+		session,
+		"dialog_filters_chats_limit_default",
+		100);
+	const auto premiumLimit = Limit(
+		session,
+		"dialog_filters_chats_limit_premium",
+		200);
+
 	auto text = rpl::combine(
 		tr::lng_filter_chats_limit1(
 			lt_count,
-			rpl::single(
-				Limit(
-					session,
-					(premium
-						? "dialog_filters_chats_limit_premium"
-						: "dialog_filters_chats_limit_default"),
-					premium ? 200 : 100)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		(premium
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_chats_limit2(
 				lt_count,
-				rpl::single(Limit(
-					session,
-					"dialog_filters_chats_limit_premium",
-					200)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
@@ -643,6 +675,7 @@ void FilterChatsLimitBox(
 		session,
 		tr::lng_filter_chats_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
 		premium);
 }
 
@@ -651,22 +684,25 @@ void FiltersLimitBox(
 		not_null<Main::Session*> session) {
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(
+		session,
+		"dialog_filters_limit_default",
+		10);
+	const auto premiumLimit = Limit(
+		session,
+		"dialog_filters_limit_premium",
+		20);
+
 	auto text = rpl::combine(
 		tr::lng_filters_limit1(
 			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium
-					? "dialog_filters_limit_premium"
-					: "dialog_filters_limit_default"),
-				premium ? 20 : 10)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		(premium
 			? rpl::single(TextWithEntities())
 			: tr::lng_filters_limit2(
 				lt_count,
-				rpl::single(
-					Limit(session, "dialog_filters_limit_premium", 20)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return b.text.isEmpty()
@@ -678,6 +714,7 @@ void FiltersLimitBox(
 		session,
 		tr::lng_filters_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconFolders },
 		premium);
 }
 
@@ -722,20 +759,23 @@ void CaptionLimitBox(
 		not_null<Main::Session*> session) {
 	const auto premium = session->user()->isPremium();
 
+	const auto defaultLimit = Limit(
+		session,
+		"caption_length_limit_default",
+		1024);
+	const auto premiumLimit = Limit(
+		session,
+		"caption_length_limit_premium",
+		2048);
+
 	auto text = rpl::combine(
 		tr::lng_caption_limit1(
 			lt_count,
-			rpl::single(Limit(
-				session,
-				(premium
-					? "caption_length_limit_premium"
-					: "caption_length_limit_default"),
-				premium ? 2048 : 1024)),
+			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
 		tr::lng_caption_limit2(
 				lt_count,
-				rpl::single(
-					Limit(session, "caption_length_limit_premium", 2048)),
+				rpl::single(premiumLimit),
 				Ui::Text::RichLangValue)
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
@@ -746,6 +786,7 @@ void CaptionLimitBox(
 		session,
 		tr::lng_caption_limit_title(),
 		std::move(text),
+		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
 		premium);
 }
 
