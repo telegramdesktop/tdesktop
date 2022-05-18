@@ -323,6 +323,15 @@ rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
 	return rpl::single(false);
 }
 
+rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
+	return session->user()->flagsValue(
+	) | rpl::filter([=](UserData::Flags::Change change) {
+		return (change.diff & UserDataFlag::Premium);
+	}) | rpl::map([=] {
+		return session->user()->isPremium();
+	});
+}
+
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {
 	if (user->isServiceUser() || user->isBot()) {
 		return -1;

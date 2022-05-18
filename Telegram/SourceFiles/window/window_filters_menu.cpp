@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_user.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
@@ -104,12 +105,8 @@ void FiltersMenu::setup() {
 		_container->move(0, 0);
 	}, _outer.lifetime());
 
-	auto premium = _session->session().user()->flagsValue(
-	) | rpl::filter([=](UserData::Flags::Change change) {
-		return (change.diff & UserDataFlag::Premium);
-	}) | rpl::map([=] {
-		return _session->session().user()->isPremium();
-	});
+	auto premium = Data::AmPremiumValue(&_session->session());
+
 	const auto filters = &_session->session().data().chatsFilters();
 	rpl::combine(
 		rpl::single(rpl::empty) | rpl::then(filters->changed()),

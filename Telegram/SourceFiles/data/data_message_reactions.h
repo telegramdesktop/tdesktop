@@ -40,7 +40,6 @@ public:
 	void refresh();
 
 	enum class Type {
-		ActiveNonPremium,
 		Active,
 		All,
 	};
@@ -103,7 +102,6 @@ private:
 
 	const not_null<Session*> _owner;
 
-	std::vector<Reaction> _activeNonPremium;
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
 	QString _favorite;

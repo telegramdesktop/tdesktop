@@ -443,8 +443,7 @@ rpl::producer<int> FullReactionsCountValue(
 	return rpl::single(rpl::empty) | rpl::then(
 		reactions->updates()
 	) | rpl::map([=] {
-		return int(reactions->list(
-			Data::Reactions::Type::ActiveNonPremium).size());
+		return int(reactions->list(Data::Reactions::Type::Active).size());
 	}) | rpl::distinct_until_changed();
 }
 

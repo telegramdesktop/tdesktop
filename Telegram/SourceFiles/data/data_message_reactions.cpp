@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "lottie/lottie_icon.h"
+#include "storage/localimageloader.h"
+#include "ui/image/image_location_factory.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -73,7 +75,6 @@ void Reactions::refresh() {
 
 const std::vector<Reaction> &Reactions::list(Type type) const {
 	switch (type) {
-	case Type::ActiveNonPremium: return _activeNonPremium;
 	case Type::Active: return _active;
 	case Type::All: return _available;
 	}
@@ -302,7 +303,6 @@ void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
 			_iconsCache.emplace(document, document->createMediaView());
 		}
 	};
-	_activeNonPremium.clear();
 	_active.clear();
 	_available.clear();
 	_active.reserve(list.size());
@@ -317,9 +317,6 @@ void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
 				toCache(parsed->selectAnimation);
 				toCache(parsed->centerIcon);
 				toCache(parsed->aroundAnimation);
-				if (!parsed->premium) {
-					_activeNonPremium.push_back(*parsed);
-				}
 			}
 		}
 	}
@@ -339,6 +336,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 		}
 		const auto selectAnimation = _owner->processDocument(
 			data.vselect_animation());
+		static auto test = 0; AssertIsDebug();
 		return known
 			? std::make_optional(Reaction{
 				.emoji = emoji,
@@ -359,7 +357,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 						*data.varound_animation()).get()
 					: nullptr),
 				.active = !data.is_inactive(),
-				.premium = data.is_premium(),
+				.premium = (data.is_premium() || ((++test) % 2)),
 			})
 			: std::nullopt;
 	});

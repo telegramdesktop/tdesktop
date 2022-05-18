@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
 #include "lottie/lottie_icon.h"
@@ -467,6 +468,7 @@ void Manager::applyListFilters() {
 		&& (_buttonAlreadyNotMineCount >= limit);
 	auto icons = std::vector<not_null<ReactionIcons*>>();
 	icons.reserve(_list.size());
+	auto showPremiumLock = (ReactionIcons*)nullptr;
 	auto favoriteIndex = -1;
 	for (auto &icon : _list) {
 		const auto &emoji = icon.emoji;
@@ -474,13 +476,24 @@ void Manager::applyListFilters() {
 			? _buttonAlreadyList.contains(emoji)
 			: (!_filter || _filter->contains(emoji));
 		if (add) {
-			if (emoji == _favorite) {
-				favoriteIndex = int(icons.size());
+			if (icon.premium
+				&& !_allowSendingPremium
+				&& !_buttonAlreadyList.contains(emoji)) {
+				showPremiumLock = &icon;
+			} else {
+				icon.premiumLock = false;
+				if (emoji == _favorite) {
+					favoriteIndex = int(icons.size());
+				}
+				icons.push_back(&icon);
 			}
-			icons.push_back(&icon);
 		} else {
 			clearStateForHidden(icon);
 		}
+	}
+	if (showPremiumLock) {
+		showPremiumLock->premiumLock = true;
+		icons.push_back(showPremiumLock);
 	}
 	if (favoriteIndex > 0) {
 		const auto first = begin(icons);
@@ -492,7 +505,7 @@ void Manager::applyListFilters() {
 	const auto selected = _selectedIcon;
 	setSelectedIcon(-1);
 	_icons = std::move(icons);
-	setSelectedIcon(selected < _icons.size() ? selected : -1);
+	setSelectedIcon((selected < _icons.size()) ? selected : -1);
 	resolveMainReactionIcon();
 }
 
@@ -525,7 +538,7 @@ void Manager::updateButton(ButtonParameters parameters) {
 	}
 	_buttonContext = parameters.context;
 	parameters.reactionsCount = _icons.size();
-	if (!_buttonContext || _icons.empty()) {
+	if (!_buttonContext || !parameters.reactionsCount) {
 		return;
 	} else if (_button) {
 		_button->applyParameters(parameters);
@@ -564,7 +577,8 @@ void Manager::applyList(
 		return std::tie(
 			obj.emoji,
 			obj.appearAnimation,
-			obj.selectAnimation);
+			obj.selectAnimation,
+			obj.premium);
 	};
 	const auto favoriteChanged = (_favorite != favorite);
 	if (favoriteChanged) {
@@ -585,10 +599,11 @@ void Manager::applyList(
 			.emoji = reaction.emoji,
 			.appearAnimation = reaction.appearAnimation,
 			.selectAnimation = reaction.selectAnimation,
+			.premium = reaction.premium,
 		});
 	}
 	applyListFilters();
-	setSelectedIcon(selected < _icons.size() ? selected : -1);
+	setSelectedIcon((selected < _icons.size()) ? selected : -1);
 }
 
 void Manager::updateAllowedSublist(AllowedSublist filter) {
@@ -596,6 +611,14 @@ void Manager::updateAllowedSublist(AllowedSublist filter) {
 		return;
 	}
 	_filter = std::move(filter);
+	applyListFilters();
+}
+
+void Manager::updateAllowSendingPremium(bool allow) {
+	if (_allowSendingPremium == allow) {
+		return;
+	}
+	_allowSendingPremium = allow;
 	applyListFilters();
 }
 
@@ -1348,6 +1371,8 @@ void Manager::paintAllEmoji(
 			if (current) {
 				clearStateForHidden(*icon);
 			}
+		} else if (icon->premiumLock) {
+			p.fillRect(target, QColor(0, 128, 0, 128));
 		} else {
 			const auto appear = icon->appear.get();
 			if (current
@@ -1621,6 +1646,12 @@ void SetupManagerList(
 	) | rpl::start_with_next([=](const QString &emoji) {
 		reactions->setFavorite(emoji);
 		manager->updateButton({});
+	}, manager->lifetime());
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		manager->updateAllowSendingPremium(premium);
 	}, manager->lifetime());
 }
 

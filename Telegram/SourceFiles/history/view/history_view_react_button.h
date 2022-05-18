@@ -149,6 +149,7 @@ public:
 		const std::vector<Data::Reaction> &list,
 		const QString &favorite);
 	void updateAllowedSublist(AllowedSublist filter);
+	void updateAllowSendingPremium(bool allow);
 	[[nodiscard]] const AllowedSublist &allowedSublist() const;
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
@@ -204,6 +205,8 @@ private:
 		mutable ClickHandlerPtr link;
 		mutable Ui::Animations::Simple selectedScale;
 		bool appearAnimated = false;
+		bool premium = false;
+		bool premiumLock = false;
 		mutable bool selected = false;
 		mutable bool selectAnimated = false;
 	};
@@ -340,8 +343,10 @@ private:
 	rpl::variable<int> _uniqueLimit = 0;
 	base::flat_map<not_null<DocumentData*>, ReactionDocument> _loadCache;
 	std::vector<not_null<ReactionIcons*>> _icons;
+	std::optional<ReactionIcons> _premiumIcon;
 	rpl::lifetime _loadCacheLifetime;
 	bool _showingAll = false;
+	bool _allowSendingPremium = false;
 	mutable int _selectedIcon = -1;
 
 	std::optional<ButtonParameters> _scheduledParameters;
