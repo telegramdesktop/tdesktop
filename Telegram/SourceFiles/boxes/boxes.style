@@ -1084,3 +1084,4 @@ premiumBubbleSkip: 5px;
 premiumBubbleSlideDuration: 500;
 premiumBubbleTailSize: size(21px, 7px);
 premiumBubbleFont: font(19px);
+premiumLineTextSkip: 11px;

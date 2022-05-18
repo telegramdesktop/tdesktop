@@ -29,5 +29,7 @@ void AddBubbleRow(
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	const style::icon *icon);
 
+void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max);
+
 } // namespace Premium
 } // namespace Ui

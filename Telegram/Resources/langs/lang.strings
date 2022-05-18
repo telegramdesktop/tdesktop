@@ -1658,6 +1658,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_unlock_button" = "Unlock Premium Stickers";
 "lng_premium_unlock_about" = "Unlock this sticker and more by subscribing to Telegram Premium.";
 
+"lng_premium" = "Premium";
+"lng_premium_free" = "Free";
+
 "lng_group_about_header" = "You have created a group.";
 "lng_group_about_text" = "Groups can have:";
 "lng_group_about1" = "Up to 100,000 members";

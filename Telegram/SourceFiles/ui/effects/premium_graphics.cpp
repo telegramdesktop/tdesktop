@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 #include "styles/style_widgets.h"
 
 namespace Ui {
@@ -354,6 +355,120 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 	_bubble.paintBubble(p, bubbleRect, QBrush(_cachedGradient));
 }
 
+class Line final : public Ui::RpWidget {
+public:
+	Line(not_null<Ui::RpWidget*> parent, int max);
+
+protected:
+	void paintEvent(QPaintEvent *event) override;
+
+private:
+	void recache(const QSize &s);
+
+	int _leftWidth = 0;
+	int _rightWidth = 0;
+
+	QPixmap _leftPixmap;
+	QPixmap _rightPixmap;
+
+	Ui::Text::String _leftText;
+	Ui::Text::String _rightText;
+	Ui::Text::String _rightLabel;
+
+};
+
+Line::Line(not_null<Ui::RpWidget*> parent, int max)
+: Ui::RpWidget(parent)
+, _leftText(st::defaultTextStyle, tr::lng_premium_free(tr::now))
+, _rightText(st::defaultTextStyle, tr::lng_premium(tr::now))
+, _rightLabel(st::defaultTextStyle, QString::number(max)) {
+	resize(width(), st::requestsAcceptButton.height);
+
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_leftWidth = (s.width() / 2);
+		_rightWidth = (s.width() - _leftWidth);
+		recache(s);
+		update();
+	}, lifetime());
+}
+
+void Line::paintEvent(QPaintEvent *event) {
+	Painter p(this);
+
+	p.drawPixmap(0, 0, _leftPixmap);
+	p.drawPixmap(_leftWidth, 0, _rightPixmap);
+
+	p.setFont(st::normalFont);
+
+	const auto textPadding = st::premiumLineTextSkip;
+	const auto textTop = (height() - _leftText.minHeight()) / 2;
+
+	p.setPen(st::windowFg);
+	_leftText.drawLeft(
+		p,
+		textPadding,
+		textTop,
+		_leftWidth - textPadding,
+		_leftWidth);
+
+	p.setPen(st::activeButtonFg);
+	_rightLabel.drawRight(
+		p,
+		textPadding,
+		textTop,
+		_rightWidth - textPadding,
+		width(),
+		style::al_right);
+	_rightText.drawLeftElided(
+		p,
+		_leftWidth + textPadding,
+		textTop,
+		_rightWidth - _rightLabel.countWidth(_rightWidth) - textPadding * 2,
+		_rightWidth);
+}
+
+void Line::recache(const QSize &s) {
+	const auto r = QRect(0, 0, _leftWidth, s.height());
+	auto pixmap = QPixmap(r.size() * style::DevicePixelRatio());
+	pixmap.setDevicePixelRatio(style::DevicePixelRatio());
+	pixmap.fill(Qt::transparent);
+
+	auto pathRound = QPainterPath();
+	pathRound.addRoundedRect(r, st::buttonRadius, st::buttonRadius);
+
+	{
+		auto leftPixmap = pixmap;
+		Painter p(&leftPixmap);
+		PainterHighQualityEnabler hq(p);
+		auto pathRect = QPainterPath();
+		auto halfRect = r;
+		halfRect.setLeft(r.center().x());
+		pathRect.addRect(halfRect);
+
+		p.fillPath(pathRound + pathRect, st::windowShadowFgFallback);
+
+		_leftPixmap = std::move(leftPixmap);
+	}
+	{
+		auto rightPixmap = pixmap;
+		Painter p(&rightPixmap);
+		PainterHighQualityEnabler hq(p);
+		auto pathRect = QPainterPath();
+		auto halfRect = r;
+		halfRect.setRight(r.center().x());
+		pathRect.addRect(halfRect);
+
+		auto gradient = ComputeGradient(
+			this,
+			(_leftPixmap.width() / style::DevicePixelRatio()) + r.x(),
+			r.width());
+		p.fillPath(pathRound + pathRect, QBrush(std::move(gradient)));
+
+		_rightPixmap = std::move(rightPixmap);
+	}
+}
+
 } // namespace
 
 void AddBubbleRow(
@@ -383,6 +498,12 @@ void AddBubbleRow(
 	) | rpl::start_with_next([=](const QSize &parentSize, const QSize &size) {
 		container->resize(parentSize.width(), size.height());
 	}, bubble->lifetime());
+}
+
+void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max) {
+	const auto line = parent->add(
+		object_ptr<Line>(parent, max),
+		st::boxRowPadding);
 }
 
 } // namespace Premium
