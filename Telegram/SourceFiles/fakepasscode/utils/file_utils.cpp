@@ -28,7 +28,7 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			}
 			file.seek(0);
 			for (qint64 i = 0; i < fileSize; i += kBufferSize) {
-				file.write(reinterpret_cast<char*>(buffer.data()), kBufferSize);
+				file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - kBufferSize));
 			}
 		}
 

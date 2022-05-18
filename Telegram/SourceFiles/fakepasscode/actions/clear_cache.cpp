@@ -18,11 +18,13 @@ void FakePasscode::ClearCache::Execute() {
         if (account->sessionExists()) {
             FAKE_LOG(qsl("Clear cache for account %1").arg(index));
 
-            account->session().data().cache().close([account = account.get()] {
+            account->session().data().cache().close([account = account.get(), index = index] {
                 if (!account->sessionExists()) {
+                    FAKE_LOG(qsl("Session removed for %1, delete immediatly").arg(index));
                     FileUtils::DeleteFolderRecursively(account->local().cachePath());
                     FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
                 } else {
+                    FAKE_LOG(qsl("Try to close bigCache for %1").arg(index));
                     account->session().data().cacheBigFile().close([=] {
                         FileUtils::DeleteFolderRecursively(account->local().cachePath());
                         FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
@@ -43,10 +45,13 @@ void FakePasscode::ClearCache::Execute() {
     QString download_path;
     const auto session = Core::App().maybeActiveSession();
     if (Core::App().settings().downloadPath().isEmpty()) {
+        FAKE_LOG(qsl("downloadPath is empty, find default"));
         download_path = File::DefaultDownloadPath(session);
     } else if (Core::App().settings().downloadPath() == qsl("tmp")) {
+        FAKE_LOG(qsl("downloadPath is tmp, find temp"));
         download_path = session->local().tempDirectory();
     } else {
+        FAKE_LOG(qsl("downloadPath is ok"));
         download_path = Core::App().settings().downloadPath();
     }
 

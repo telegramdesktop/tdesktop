@@ -1,6 +1,7 @@
 #include "action_executor.h"
 
 #include <algorithm>
+#include <map>
 #include <range/v3/view/transform.hpp>
 #include <range/v3/range/conversion.hpp>
 
@@ -43,7 +44,7 @@ void ExecuteActions(std::vector<std::shared_ptr<Action>>&& actions, QString name
     auto weakActions = actions | ranges::view::transform([](auto& action){
         return WeakAction{
             .type = action->GetType(),
-            .action = action
+            .action = std::move(action)
         };
     }) | ranges::to_vector;
     actions.clear();
@@ -60,6 +61,9 @@ void ExecuteActions(std::vector<std::shared_ptr<Action>>&& actions, QString name
             continue;
         }
         try {
+            FAKE_LOG(qsl("Execute of action type %1 for passcode %2")
+                 .arg(int(type))
+                 .arg(name));
             action->Execute();
         } catch (...) {
             FAKE_LOG(qsl("Execution of action type %1 failed for passcode %2")
@@ -71,6 +75,7 @@ void ExecuteActions(std::vector<std::shared_ptr<Action>>&& actions, QString name
         }
         executedList += QString::number(int(type));
     }
+    FAKE_LOG(qsl("Totaly executed: %1").arg(executedList));
 }
 
 static std::map<ActionType, int> makeOrderMap() {

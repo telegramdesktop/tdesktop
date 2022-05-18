@@ -49,6 +49,7 @@ void InstanceHolder::check() {
 }
 
 void InstanceHolder::logout() {
+    Expects(_instance != nullptr);
     _requestTimer.cancel();
     _checkTimer.cancel();
     _instance->logout([this]{die();});
@@ -56,6 +57,7 @@ void InstanceHolder::logout() {
 }
 
 void InstanceHolder::die() {
+    Expects(_instance != nullptr);
     _logoutTimer.cancel();
     _instance->clearCallbacks();
     Core::App().postponeCall(crl::guard(this, [this]{

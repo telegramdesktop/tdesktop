@@ -2882,7 +2882,7 @@ void Account::removeAccountSpecificData() {
 	_writeLocationsTimer.cancel();
 	_writeMapTimer.cancel();
 
-	crl::async([base = _basePath, temp = _tempPath, database = _databasePath, names = std::move(names)]{
+	crl::async([base = _basePath, temp = _tempPath, database = _databasePath, names = std::move(names)] {
 		for (const auto& name : names) {
 			if (!name.endsWith(qstr("map0"))
 				&& !name.endsWith(qstr("map1"))
@@ -2891,12 +2891,12 @@ void Account::removeAccountSpecificData() {
 				FakePasscode::FileUtils::DeleteFileDod(base + name);
 			}
 		}
-	for (const auto& dir : { database, temp, LegacyTempDirectory(), base }) {
-			if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir, true)) {
-				FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
-			}
-		}
-		});
+        for (const auto& dir : { database, temp, LegacyTempDirectory(), base }) {
+            if (!FakePasscode::FileUtils::DeleteFolderRecursively(dir, true)) {
+                FAKE_LOG(qsl("%1 cannot be removed right now").arg(dir));
+            }
+        }
+    });
 
 	Local::sync();
 }
