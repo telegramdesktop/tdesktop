@@ -1662,6 +1662,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";
 
+"lng_premium_summary_title" = "Telegram Premium";
+"lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
+"lng_premium_summary_subtitle1" = "Doubled Limits";
+"lng_premium_summary_about1" = "Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.";
+"lng_premium_summary_subtitle2" = "4Gb Upload Size";
+"lng_premium_summary_about2" = "Increased upload size from 2Gb to 4Gb to per document, unlimited storage overall.";
+"lng_premium_summary_subtitle3" = "Faster Download Speed";
+"lng_premium_summary_about3" = "No more limits on the speed with which media and documents are downloaded.";
+"lng_premium_summary_subtitle4" = "Voice-to-Text Conversion";
+"lng_premium_summary_about4" = "Ability to read the transcript of any incoming voice message.";
+"lng_premium_summary_subtitle5" = "No Ads";
+"lng_premium_summary_about5" = "No more ads in public channels where Telegram sometimes shows ads.";
+"lng_premium_summary_subtitle6" = "Unique Reactions";
+"lng_premium_summary_about6" = "Additional animated reactions on messages available only to the Premium subscribers.";
+"lng_premium_summary_subtitle7" = "Premium Stickers";
+"lng_premium_summary_about7" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
+"lng_premium_summary_subtitle8" = "Advanced Chat Management";
+"lng_premium_summary_about8" = "Tools to set default folder, auto-archive and hide new chats from non-contacts.";
+"lng_premium_summary_subtitle9" = "Profile Badge";
+"lng_premium_summary_about9" = "A badge next to your name showing that you are helping support Telegram.";
+"lng_premium_summary_subtitle10" = "Animated Profile Pictures";
+"lng_premium_summary_about10" = "Video avatars animated in chat lists and chats to allow for additional self-expression.";
+"lng_premium_summary_bottom_subtitle" = "About Telegram Premium";
+"lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
+"lng_premium_summary_button" = "Subscribe for {cost} per month.";
+
 "lng_group_about_header" = "You have created a group.";
 "lng_group_about_text" = "Groups can have:";
 "lng_group_about1" = "Up to 100,000 members";

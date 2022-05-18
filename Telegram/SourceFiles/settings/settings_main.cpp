@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_advanced.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_calls.h"
+#include "settings/settings_premium.h"
 #include "boxes/language_box.h"
 #include "boxes/username_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -329,6 +330,15 @@ void SetupSections(
 		{ &st::settingsIconCalls, kIconGreen });
 
 	SetupLanguageButton(container);
+
+	AddSkip(container);
+	AddDivider(container);
+	AddSkip(container);
+
+	addSection(
+		tr::lng_premium_summary_title(),
+		PremiumId(),
+		{ &st::settingsIconCalls, kIconGreen });
 
 	AddSkip(container);
 }

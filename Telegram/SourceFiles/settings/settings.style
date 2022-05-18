@@ -93,6 +93,14 @@ settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 
+settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
+settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
+settingsPremiumIconLike: icon {{ "settings/premium/like", settingsIconFg }};
+settingsPremiumIconPlay: icon {{ "settings/premium/play", settingsIconFg }};
+settingsPremiumIconSpeed: icon {{ "settings/premium/speed", settingsIconFg }};
+settingsPremiumIconStar: icon {{ "settings/premium/star", settingsIconFg }};
+settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
+
 settingsIconAdd: icon {{ "settings/add", windowFgActive }};
 settingsIconRemove: icon {{ "settings/remove", windowFgActive }};
 
@@ -411,3 +419,7 @@ notifyPreviewTitlePosition: point(64px, 9px);
 notifyPreviewTextPosition: point(64px, 30px);
 notifyPreviewChecksSkip: 12px;
 notifyPreviewBottomSkip: 9px;
+
+settingsPremiumDescriptionSkip: 3px;
+settingsPremiumButtonPadding: margins(11px, 11px, 11px, 11px);
+
