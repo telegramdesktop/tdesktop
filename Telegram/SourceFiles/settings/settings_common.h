@@ -137,6 +137,7 @@ struct IconDescriptor {
 	int color = 0; // settingsIconBg{color}, 9 for settingsIconBgArchive.
 	IconType type = IconType::Rounded;
 	const style::color *background = nullptr;
+	std::optional<QBrush> backgroundBrush; // Can be useful for gragdients.
 
 	explicit operator bool() const {
 		return (icon != nullptr);
@@ -157,6 +158,7 @@ public:
 private:
 	not_null<const style::icon*> _icon;
 	std::optional<Ui::RoundRect> _background;
+	std::optional<std::pair<int, QBrush>> _backgroundBrush;
 
 };
 

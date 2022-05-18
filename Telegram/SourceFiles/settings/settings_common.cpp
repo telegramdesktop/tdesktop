@@ -83,6 +83,11 @@ Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
 			? st::settingsIconRadius
 			: (std::min(_icon->width(), _icon->height()) / 2);
 		_background.emplace(radius, *background);
+	} else if (const auto brush = descriptor.backgroundBrush) {
+		const auto radius = (descriptor.type == IconType::Rounded)
+			? st::settingsIconRadius
+			: (std::min(_icon->width(), _icon->height()) / 2);
+		_backgroundBrush.emplace(radius, std::move(*brush));
 	}
 }
 
@@ -93,6 +98,14 @@ void Icon::paint(QPainter &p, QPoint position) const {
 void Icon::paint(QPainter &p, int x, int y) const {
 	if (_background) {
 		_background->paint(p, { { x, y }, _icon->size() });
+	} else if (_backgroundBrush) {
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_backgroundBrush->second);
+		p.drawRoundedRect(
+			QRect(QPoint(x, y), _icon->size()),
+			_backgroundBrush->first,
+			_backgroundBrush->first);
 	}
 	if (OptionMonoSettingsIcons.value()) {
 		_icon->paint(p, { x, y }, 2 * x + _icon->width(), st::menuIconFg->c);
