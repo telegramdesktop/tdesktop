@@ -318,6 +318,7 @@ void SetupCloudPassword(
 	QObject::connect(
 		static_cast<QGuiApplication*>(QCoreApplication::instance()),
 		&QGuiApplication::applicationStateChanged,
+		container,
 		reloadOnActivation);
 
 	session->api().cloudPassword().reload();
