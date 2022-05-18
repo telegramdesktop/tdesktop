@@ -3771,6 +3771,9 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	}
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
+		if (!id) {
+			continue;
+		}
 		const auto filterList = chatsFilters().chatsList(id);
 		auto event = ChatListEntryRefresh{ .key = key, .filterId = id };
 		if (filter.contains(history)) {
@@ -3808,7 +3811,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 	Assert(entry->folderKnown());
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
-		if (entry->inChatList(id)) {
+		if (id && entry->inChatList(id)) {
 			entry->removeFromChatList(id, chatsFilters().chatsList(id));
 			_chatListEntryRefreshes.fire(ChatListEntryRefresh{
 				.key = key,

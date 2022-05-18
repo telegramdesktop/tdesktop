@@ -132,7 +132,7 @@ struct FilterRow {
 	const auto &list = session->data().chatsFilters().list();
 	const auto id = filter.id();
 	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
-	if (i != end(list)
+	if ((id && i != end(list))
 		&& (!check
 			|| (i->flags() == filter.flags()
 				&& i->always() == filter.always()
@@ -515,7 +515,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto id = row.filter.id();
 			if (row.removed) {
 				continue;
-			} else if (!ranges::contains(list, id, &Data::ChatFilter::id)) {
+			} else if (!id
+				|| !ranges::contains(list, id, &Data::ChatFilter::id)) {
 				result.emplace(row.button, chooseNextId());
 			}
 		}
@@ -563,6 +564,19 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 					: MTPDupdateDialogFilter::Flag::f_filter),
 				MTP_int(newId),
 				tl));
+		}
+		if (!ranges::contains(order, FilterId(0))) {
+			auto position = 0;
+			for (const auto &filter : list) {
+				const auto id = filter.id();
+				if (!id) {
+					break;
+				} else if (const auto i = ranges::find(order, id)
+					; i != order.end()) {
+					position = int(i - order.begin()) + 1;
+				}
+			}
+			order.insert(order.begin() + position, FilterId(0));
 		}
 		auto previousId = mtpRequestId(0);
 		auto &&requests = ranges::views::concat(removeRequests, addRequests);
