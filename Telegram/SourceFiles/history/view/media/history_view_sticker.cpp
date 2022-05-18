@@ -75,7 +75,7 @@ Sticker::Sticker(
 	if (const auto media = replacing ? replacing->media() : nullptr) {
 		_lottie = media->stickerTakeLottie(_data, _replacements);
 		if (_lottie) {
-			_externalTillFrame = media->externalLottieTillFrame();
+			_externalInfo = media->externalLottieInfo();
 			if (_data->isPremiumSticker()
 				&& !_premiumEffectPlayed) {
 				_premiumEffectPlayed = true;
@@ -217,8 +217,8 @@ void Sticker::paintLottie(
 	const auto count = _lottie->information().framesCount;
 	_frameIndex = frame.index;
 	_framesCount = count;
-	const auto paused = (_externalTillFrame >= 0)
-		? (_frameIndex >= _externalTillFrame)
+	const auto paused = (_externalInfo.frame >= 0)
+		? (_frameIndex % _externalInfo.count >= _externalInfo.frame)
 		: _parent->delegate()->elementIsGifPaused();
 	_nextLastDiceFrame = !paused
 		&& (_diceIndex > 0)
@@ -230,7 +230,7 @@ void Sticker::paintLottie(
 		: (isEmojiSticker()
 			|| !Core::App().settings().loopAnimatedStickers());
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
-	const auto switchToNext = (_externalTillFrame >= 0)
+	const auto switchToNext = (_externalInfo.frame >= 0)
 		|| !playOnce
 		|| (!lastDiceFrame && (_frameIndex != 0 || !_lottieOncePlayed));
 	if (!paused
@@ -407,7 +407,7 @@ void Sticker::setupLottie() {
 		_dataMedia.get(),
 		_replacements,
 		ChatHelpers::StickerLottieSize::MessageHistory,
-		size() * cIntRetinaFactor(),
+		size() * style::DevicePixelRatio(),
 		Lottie::Quality::High);
 	if (_data->isPremiumSticker()
 		&& !_premiumEffectPlayed) {
@@ -466,29 +466,32 @@ std::unique_ptr<Lottie::SinglePlayer> Sticker::stickerTakeLottie(
 }
 
 void Sticker::externalLottieProgressing(bool external) {
-	_externalTillFrame = !external
-		? -1
-		: (_externalTillFrame > 0)
-		? _externalTillFrame
-		: 0;
+	_externalInfo = !external
+		? ExternalLottieInfo{}
+		: (_externalInfo.frame > 0)
+		? _externalInfo
+		: ExternalLottieInfo{ 0, 2 };
 }
 
-bool Sticker::externalLottieTill(int frame) {
-	_externalTillFrame = (_externalTillFrame >= 0) ? frame : -1;
+bool Sticker::externalLottieTill(ExternalLottieInfo info) {
+	if (_externalInfo.frame >= 0) {
+		_externalInfo = info;
+	}
 	return markFramesTillExternal();
 }
 
-int Sticker::externalLottieTillFrame() const {
-	return _externalTillFrame;
+ExternalLottieInfo Sticker::externalLottieInfo() const {
+	return _externalInfo;
 }
 
 bool Sticker::markFramesTillExternal() {
-	if (_externalTillFrame < 0 || !_lottie) {
+	if (_externalInfo.frame < 0 || !_lottie) {
 		return true;
 	} else if (!_lottie->ready()) {
 		return false;
 	}
-	while (_lottie->frameIndex() < _externalTillFrame) {
+	const auto till = _externalInfo.frame % _lottie->framesCount();
+	while (_lottie->frameIndex() < till) {
 		if (!_lottie->markFrameShown()) {
 			return false;
 		}

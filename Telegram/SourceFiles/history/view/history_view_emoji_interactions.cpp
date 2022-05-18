@@ -25,7 +25,8 @@ namespace HistoryView {
 namespace {
 
 constexpr auto kEmojiMultiplier = 3;
-constexpr auto kPremiumMultiplier = 2.25;
+constexpr auto kPremiumShift = 0.082;
+constexpr auto kPremiumMultiplier = 1.5;
 constexpr auto kEmojiCachesCount = 4;
 constexpr auto kPremiumCachesCount = 8;
 constexpr auto kMaxPlays = 5;
@@ -277,7 +278,9 @@ QRect EmojiInteractions::computeRect(
 	const auto fullWidth = view->width();
 	const auto sticker = premium ? _premiumSize : _emojiSize;
 	const auto size = sizeFor(premium);
-	const auto shift = size.width() / 40;
+	const auto shift = premium
+		? int(_premiumSize.width() * kPremiumShift)
+		: (size.width() / 40);
 	const auto inner = view->innerGeometry();
 	const auto rightAligned = view->hasOutLayout()
 		&& !view->delegate()->elementIsChatWide();
@@ -325,7 +328,11 @@ void EmojiInteractions::paint(QPainter &p) {
 		p.drawImage(
 			QRect(rect.topLeft(), frame.image.size() / factor),
 			frame.image);
-		if (!play.premium || play.view->externalLottieTill(frame.index)) {
+		const auto info = HistoryView::ExternalLottieInfo{
+			.frame = frame.index,
+			.count = play.framesCount,
+		};
+		if (!play.premium || play.view->externalLottieTill(info)) {
 			play.lottie->markFrameShown();
 		}
 	}

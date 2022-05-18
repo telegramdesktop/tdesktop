@@ -242,6 +242,7 @@ public:
 	void saveFieldToHistoryLocalDraft();
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 
 	void applyCloudDraft(History *history);
 

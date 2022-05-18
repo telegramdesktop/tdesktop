@@ -1606,6 +1606,10 @@ void HistoryWidget::toggleChooseChatTheme(not_null<PeerData*> peer) {
 	) | rpl::start_with_next(update, _chooseTheme->lifetime());
 }
 
+Ui::ChatTheme *HistoryWidget::customChatTheme() const {
+	return _list ? _list->theme().get() : nullptr;
+}
+
 void HistoryWidget::fieldChanged() {
 	const auto updateTyping = (_textUpdateEvents & TextUpdateEvent::SendTyping);
 
@@ -7821,7 +7825,7 @@ void HistoryWidget::paintEvent(QPaintEvent *e) {
 
 	Window::SectionWidget::PaintBackground(
 		controller(),
-		_list ? _list->theme().get() : controller()->defaultChatTheme().get(),
+		controller()->currentChatTheme(),
 		this,
 		e->rect());
 

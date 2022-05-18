@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/toasts/common_toasts.h"
+#include "boxes/sticker_preview_box.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
@@ -334,9 +335,7 @@ bool ShowSendPremiumError(
 		|| document->session().user()->isPremium()) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.text = { u"Premium sticker."_q },
-	});
+	ShowStickerPreviewBox(controller, document);
 	return true;
 }
 

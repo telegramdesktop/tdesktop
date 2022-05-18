@@ -464,12 +464,12 @@ void UnwrappedMedia::externalLottieProgressing(bool external) {
 	_content->externalLottieProgressing(external);
 }
 
-bool UnwrappedMedia::externalLottieTill(int frame) {
-	return _content->externalLottieTill(frame);
+bool UnwrappedMedia::externalLottieTill(ExternalLottieInfo info) {
+	return _content->externalLottieTill(info);
 }
 
-int UnwrappedMedia::externalLottieTillFrame() const {
-	return _content->externalLottieTillFrame();
+ExternalLottieInfo UnwrappedMedia::externalLottieInfo() const {
+	return _content->externalLottieInfo();
 }
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {

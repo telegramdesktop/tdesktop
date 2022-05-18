@@ -278,3 +278,23 @@ manageEmojiStatusTop: 25px;
 
 inlineRadialSize: 44px;
 inlineFileSize: 44px;
+
+premiumPreviewBox: Box(defaultBox) {
+	buttonPadding: margins(18px, 18px, 18px, 18px);
+	buttonHeight: 44px;
+	button: RoundButton(defaultActiveButton) {
+		height: 44px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
+premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+}
+premiumPreviewAboutPadding: margins(18px, 23px, 18px, 8px);
+premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: premiumButtonFg;
+	style: semiboldTextStyle;
+}

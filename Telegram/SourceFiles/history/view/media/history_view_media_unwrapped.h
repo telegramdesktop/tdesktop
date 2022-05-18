@@ -43,11 +43,11 @@ public:
 
 		virtual void externalLottieProgressing(bool external) {
 		}
-		virtual bool externalLottieTill(int frame) {
+		virtual bool externalLottieTill(ExternalLottieInfo info) {
 			return true;
 		}
-		virtual int externalLottieTillFrame() const {
-			return -1;
+		virtual ExternalLottieInfo externalLottieInfo() const {
+			return {};
 		}
 
 		virtual bool hasHeavyPart() const {
@@ -103,8 +103,8 @@ public:
 		const Lottie::ColorReplacements *replacements) override;
 
 	void externalLottieProgressing(bool external) override;
-	bool externalLottieTill(int frame) override;
-	int externalLottieTillFrame() const override;
+	bool externalLottieTill(ExternalLottieInfo info) override;
+	ExternalLottieInfo externalLottieInfo() const override;
 
 	bool hasHeavyPart() const override {
 		return _content->hasHeavyPart();

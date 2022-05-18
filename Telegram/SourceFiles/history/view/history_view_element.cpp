@@ -418,9 +418,9 @@ void Element::externalLottieProgressing(bool external) const {
 	}
 }
 
-bool Element::externalLottieTill(int frame) const {
+bool Element::externalLottieTill(ExternalLottieInfo info) const {
 	if (const auto media = _media.get()) {
-		return media->externalLottieTill(frame);
+		return media->externalLottieTill(info);
 	}
 	return true;
 }

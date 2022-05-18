@@ -52,8 +52,8 @@ public:
 		const Lottie::ColorReplacements *replacements) override;
 
 	void externalLottieProgressing(bool external) override;
-	bool externalLottieTill(int frame) override;
-	int externalLottieTillFrame() const override;
+	bool externalLottieTill(ExternalLottieInfo info) override;
+	ExternalLottieInfo externalLottieInfo() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -107,10 +107,10 @@ private:
 	QSize _size;
 	QImage _lastDiceFrame;
 	QString _diceEmoji;
+	ExternalLottieInfo _externalInfo;
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
-	int _externalTillFrame = -1;
 	mutable bool _lottieOncePlayed = false;
 	mutable bool _premiumEffectPlayed = false;
 	mutable bool _nextLastDiceFrame = false;

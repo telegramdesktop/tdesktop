@@ -70,6 +70,7 @@ struct Content;
 } // namespace Export
 
 namespace Ui {
+class ChatTheme;
 class ConfirmBox;
 class ResizeArea;
 class PlainShadow;
@@ -144,7 +145,8 @@ public:
 	void dialogsToUp();
 	void checkHistoryActivation();
 
-	PeerData *peer();
+	[[nodiscard]] PeerData *peer() const;
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 
 	int backgroundFromY() const;
 	void showSection(

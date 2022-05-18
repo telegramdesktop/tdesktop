@@ -1654,6 +1654,13 @@ void SessionController::pushLastUsedChatTheme(
 	}
 }
 
+not_null<Ui::ChatTheme*> SessionController::currentChatTheme() const {
+	if (const auto custom = content()->customChatTheme()) {
+		return custom;
+	}
+	return defaultChatTheme().get();
+}
+
 void SessionController::setChatStyleTheme(
 		const std::shared_ptr<Ui::ChatTheme> &theme) {
 	if (_chatStyleTheme.lock() == theme) {

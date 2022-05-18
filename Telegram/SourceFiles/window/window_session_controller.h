@@ -473,6 +473,7 @@ public:
 	void setChatStyleTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
 	void clearCachedChatThemes();
 	void pushLastUsedChatTheme(const std::shared_ptr<Ui::ChatTheme> &theme);
+	[[nodiscard]] not_null<Ui::ChatTheme*> currentChatTheme() const;
 
 	void overridePeerTheme(
 		not_null<PeerData*> peer,

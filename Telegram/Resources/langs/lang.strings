@@ -224,6 +224,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_limits_increase" = "Increase Limit";
 
+"lng_sticker_premium_about" = "Unlock this sticker and more by subscribing to\nTelegram Premium.";
+"lng_sticker_premium_button" = "Unlock Premium Stickers";
+
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";

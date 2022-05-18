@@ -1476,8 +1476,12 @@ void MainWidget::ui_showPeerHistory(
 	floatPlayerCheckVisibility();
 }
 
-PeerData *MainWidget::peer() {
+PeerData *MainWidget::peer() const {
 	return _history->peer();
+}
+
+Ui::ChatTheme *MainWidget::customChatTheme() const {
+	return _history->customChatTheme();
 }
 
 void MainWidget::saveSectionInStack() {

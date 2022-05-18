@@ -26,8 +26,9 @@ namespace Window {
 namespace {
 
 constexpr auto kStickerPreviewEmojiLimit = 10;
-constexpr auto kPremiumMultiplier = 2.25;
-constexpr auto kPremiumDownscale = 1.5;
+constexpr auto kPremiumShift = 0.082;
+constexpr auto kPremiumMultiplier = 1.5;
+constexpr auto kPremiumDownscale = 1.25;
 
 } // namespace
 
@@ -71,6 +72,10 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 		: Lottie::Animation::FrameInfo();
 	const auto image = frame.image;
 	const auto effectImage = effect.image;
+	const auto framesCount = !image.isNull() ? _lottie->framesCount() : 1;
+	const auto effectsCount = !effectImage.isNull()
+		? _effect->framesCount()
+		: 1;
 	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
 	const auto size = image.isNull() ? pixmap.size() : image.size();
 	int w = size.width() / factor, h = size.height() / factor;
@@ -111,10 +116,12 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}
-	if (!frame.image.isNull() && frame.index <= effect.index) {
+	if (!frame.image.isNull()
+		&& (!_effect || ((frame.index % effectsCount) <= effect.index))) {
 		_lottie->markFrameShown();
 	}
-	if (!effect.image.isNull() && effect.index <= frame.index) {
+	if (!effect.image.isNull()
+		&& ((effect.index % framesCount) <= frame.index)) {
 		_effect->markFrameShown();
 	}
 }
@@ -130,7 +137,7 @@ QPoint MediaPreviewWidget::innerPosition(QSize size) const {
 			(height() - size.height()) / 2);
 	}
 	const auto outer = size * kPremiumMultiplier;
-	const auto shift = outer.width() / 40;
+	const auto shift = size.width() * kPremiumShift;
 	return outerPosition(size)
 		+ QPoint(
 			outer.width() - size.width() - shift,

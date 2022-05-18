@@ -69,6 +69,11 @@ enum class MediaInBubbleState {
 	TimeId duration,
 	const QString &base);
 
+struct ExternalLottieInfo {
+	int frame = -1;
+	int count = -1;
+};
+
 class Media : public Object {
 public:
 	explicit Media(not_null<Element*> parent) : _parent(parent) {
@@ -175,11 +180,11 @@ public:
 
 	virtual void externalLottieProgressing(bool external) {
 	}
-	virtual bool externalLottieTill(int frame) {
+	virtual bool externalLottieTill(ExternalLottieInfo info) {
 		return true;
 	}
-	virtual int externalLottieTillFrame() const {
-		return -1;
+	virtual ExternalLottieInfo externalLottieInfo() const {
+		return {};
 	}
 
 	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {

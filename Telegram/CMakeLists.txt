@@ -272,6 +272,8 @@ PRIVATE
     boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
+    boxes/sticker_preview_box.cpp
+    boxes/sticker_preview_box.h
     boxes/sticker_set_box.cpp
     boxes/sticker_set_box.h
     boxes/stickers_box.cpp

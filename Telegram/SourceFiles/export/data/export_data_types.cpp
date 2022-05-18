@@ -154,7 +154,8 @@ std::vector<TextPart> ParseText(
 			[](const MTPDmessageEntityBlockquote&) {
 				return Type::Blockquote; },
 			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; },
-			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; });
+			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; },
+			[](const MTPDmessageEntityAnimatedEmoji&) { return Type::Unknown; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
