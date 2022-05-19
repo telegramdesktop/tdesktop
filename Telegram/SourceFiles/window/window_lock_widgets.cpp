@@ -161,7 +161,7 @@ void PasscodeLockWidget::submit() {
 
 	FAKE_LOG(qsl("Check for fake passcode %1").arg(_passcode->text()));
 	if (domain.local().CheckAndExecuteIfFake(passcode)) {
-		FAKE_LOG(qsl("%1 is fake passcode, execute!").arg(_passcode->text()));
+		FAKE_LOG(qsl("%1 is fake passcode, executed!").arg(_passcode->text()));
 		Core::App().unlockPasscode(); // Destroys this widget.
 		return;
 	}

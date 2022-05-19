@@ -17,23 +17,8 @@ void FakePasscode::ClearCache::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (account->sessionExists()) {
             FAKE_LOG(qsl("Clear cache for account %1").arg(index));
-
-            account->session().data().cache().close([account = account.get(), index = index] {
-                if (!account->sessionExists()) {
-                    FAKE_LOG(qsl("Session removed for %1, delete immediatly").arg(index));
-                    FileUtils::DeleteFolderRecursively(account->local().cachePath());
-                    FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
-                } else {
-                    FAKE_LOG(qsl("Try to close bigCache for %1").arg(index));
-                    account->session().data().cacheBigFile().close([=] {
-                        FileUtils::DeleteFolderRecursively(account->local().cachePath());
-                        FileUtils::DeleteFolderRecursively(account->local().cacheBigFilePath());
-                        if (account->sessionExists()) {
-                            account->session().data().resetCaches();
-                        }
-                    });
-                }
-            });
+            account->session().data().cache().clear();
+            account->session().data().cacheBigFile().clear();
         }
     }
 
