@@ -184,6 +184,7 @@ private:
 		bool paused) const;
 	void paintSelectionBar(Painter &p) const;
 	void paintLeftRightFading(Painter &p) const;
+	void validatePremiumIcon() const;
 
 	void initSearch();
 	void toggleSearch(bool visible);
@@ -204,6 +205,7 @@ private:
 	bool _iconsDragging = false;
 	Ui::Animations::Basic _iconsAnimation;
 	QPoint _iconsMousePos, _iconsMouseDown;
+	mutable QImage _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
@@ -327,6 +329,36 @@ StickersListWidget::Footer::Footer(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_premiumIcon = QImage();
+	}, lifetime());
+}
+
+void StickersListWidget::Footer::validatePremiumIcon() const {
+	if (!_premiumIcon.isNull()) {
+		return;
+	}
+	const auto size = st::stickersPremium.size();
+	const auto mask = st::stickersPremium.instance(Qt::white);
+	const auto factor = style::DevicePixelRatio();
+	_premiumIcon = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	_premiumIcon.setDevicePixelRatio(factor);
+
+	QPainter p(&_premiumIcon);
+	auto gradient = QLinearGradient(
+		QPoint(0, size.height()),
+		QPoint(size.width(), 0));
+	gradient.setStops({
+		{ 0., st::stickerPanPremium1->c },
+		{ 1., st::stickerPanPremium2->c },
+	});
+	p.fillRect(QRect(QPoint(), size), gradient);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	p.drawImage(QRect(QPoint(), size), mask);
 }
 
 void StickersListWidget::Footer::clearHeavyData() {
@@ -1037,6 +1069,13 @@ void StickersListWidget::Footer::paintSetIcon(
 			_iconsTop + (st::emojiFooterHeight - size) / 2,
 			width(),
 			st::stickerGroupCategorySize);
+	} else if (icon.setId == Data::Stickers::PremiumSetId) {
+		validatePremiumIcon();
+		const auto size = st::stickersPremium.size();
+		p.drawImage(
+			info.left + (st::stickerIconWidth - size.width()) / 2,
+			_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
+			_premiumIcon);
 	} else {
 		const auto paintedIcon = [&] {
 			if (icon.setId == Data::Stickers::FeaturedSetId) {
@@ -1044,12 +1083,10 @@ void StickersListWidget::Footer::paintSetIcon(
 				return session->data().stickers().featuredSetsUnreadCount()
 					? &st::stickersTrendingUnread
 					: &st::stickersTrending;
-			} else if (icon.setId == Data::Stickers::PremiumSetId) {
-				return &st::stickersPremium;
 			//} else if (setId == Stickers::FavedSetId) {
 			//	return &st::stickersFaved;
 			}
-			return &st::stickersRecent;
+			return &st::emojiRecent;
 		}();
 		paintedIcon->paint(
 			p,

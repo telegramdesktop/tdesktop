@@ -94,9 +94,9 @@ stickersTrendingUnread: icon {
 	{ "emoji/stickers_add_unread", emojiIconFg },
 	{ "emoji/stickers_add_dot", dialogsUnreadBg }
 };
-stickersRecent: icon {{ "emoji/stickers_recent", emojiIconFg }};
+stickersRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
 stickersSearch: icon {{ "emoji/stickers_search", emojiIconFg }};
-stickersPremium: icon {{ "emoji/stickers_search", emojiIconFg }};
+stickersPremium: icon {{ "emoji/stickers_premium", emojiIconFg }};
 
 stickersSettingsUnreadSize: 6px;
 stickersSettingsUnreadPosition: point(6px, 10px);
