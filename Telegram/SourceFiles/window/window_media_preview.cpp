@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_media_preview.h"
 
+#include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
+#include "history/view/media/history_view_sticker.h"
 #include "ui/image/image.h"
 #include "ui/emoji_config.h"
 #include "lottie/lottie_single_player.h"
@@ -72,10 +75,10 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 		: Lottie::Animation::FrameInfo();
 	const auto image = frame.image;
 	const auto effectImage = effect.image;
-	const auto framesCount = !image.isNull() ? _lottie->framesCount() : 1;
-	const auto effectsCount = !effectImage.isNull()
-		? _effect->framesCount()
-		: 1;
+	//const auto framesCount = !image.isNull() ? _lottie->framesCount() : 1;
+	//const auto effectsCount = !effectImage.isNull()
+	//	? _effect->framesCount()
+	//	: 1;
 	const auto pixmap = image.isNull() ? currentImage() : QPixmap();
 	const auto size = image.isNull() ? pixmap.size() : image.size();
 	int w = size.width() / factor, h = size.height() / factor;
@@ -309,15 +312,25 @@ void MediaPreviewWidget::setupLottie() {
 	Expects(_document != nullptr);
 
 	const auto factor = cIntRetinaFactor();
-	const auto size = currentDimensions();
-	_lottie = std::make_unique<Lottie::SinglePlayer>(
-		Lottie::ReadContent(_documentMedia->bytes(), _document->filepath()),
-		Lottie::FrameRequest{ size * factor },
-		Lottie::Quality::High);
 	if (_document->isPremiumSticker()) {
-		_effect = std::make_unique<Lottie::SinglePlayer>(
-			Lottie::ReadContent(_documentMedia->videoThumbnailContent(), {}),
-			Lottie::FrameRequest{ size * kPremiumMultiplier * factor },
+		const auto size = HistoryView::Sticker::Size(_document);
+		_cachedSize = size;
+		_lottie = ChatHelpers::LottiePlayerFromDocument(
+			_documentMedia.get(),
+			nullptr,
+			ChatHelpers::StickerLottieSize::MessageHistory,
+			size * factor,
+			Lottie::Quality::High);
+		_effect = _document->session().emojiStickersPack().effectPlayer(
+			_document,
+			_documentMedia->videoThumbnailContent(),
+			QString(),
+			true);
+	} else {
+		const auto size = currentDimensions();
+		_lottie = std::make_unique<Lottie::SinglePlayer>(
+			Lottie::ReadContent(_documentMedia->bytes(), _document->filepath()),
+			Lottie::FrameRequest{ size * factor },
 			Lottie::Quality::High);
 	}
 

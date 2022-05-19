@@ -39,6 +39,8 @@ namespace {
 
 constexpr auto kMaxSizeFixed = 512;
 constexpr auto kMaxEmojiSizeFixed = 256;
+constexpr auto kPremiumMultiplier = 1.5;
+constexpr auto kEmojiMultiplier = 3;
 
 [[nodiscard]] QImage CacheDiceImage(
 		const QString &emoji,
@@ -104,12 +106,12 @@ bool Sticker::isEmojiSticker() const {
 
 void Sticker::initSize() {
 	if (isEmojiSticker() || _diceIndex >= 0) {
-		_size = Sticker::EmojiSize();
+		_size = EmojiSize();
 		if (_diceIndex > 0) {
 			[[maybe_unused]] bool result = readyToDrawLottie();
 		}
 	} else {
-		_size = DownscaledSize(_data->dimensions, Sticker::Size());
+		_size = Size(_data);
 	}
 }
 
@@ -143,6 +145,18 @@ bool Sticker::readyToDrawLottie() {
 QSize Sticker::Size() {
 	const auto side = std::min(st::maxStickerSize, kMaxSizeFixed);
 	return { side, side };
+}
+
+QSize Sticker::Size(not_null<DocumentData*> document) {
+	return DownscaledSize(document->dimensions, Size());
+}
+
+QSize Sticker::PremiumEffectSize(not_null<DocumentData*> document) {
+	return Size(document) * kPremiumMultiplier;
+}
+
+QSize Sticker::EmojiEffectSize() {
+	return EmojiSize() * kEmojiMultiplier;
 }
 
 QSize Sticker::EmojiSize() {

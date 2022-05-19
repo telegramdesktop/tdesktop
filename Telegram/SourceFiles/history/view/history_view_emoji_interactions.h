@@ -17,7 +17,6 @@ struct EmojiInteractionPlayRequest;
 
 namespace Lottie {
 class SinglePlayer;
-class FrameProvider;
 } // namespace Lottie
 
 namespace Main {
@@ -53,6 +52,8 @@ private:
 		not_null<const Element*> view;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		QPoint shift;
+		QSize inner;
+		QSize outer;
 		int frame = 0;
 		int framesCount = 0;
 		int frameRate = 0;
@@ -68,9 +69,7 @@ private:
 		bool incoming = false;
 	};
 
-	[[nodiscard]] QRect computeRect(
-		not_null<const Element*> view,
-		bool premium) const;
+	[[nodiscard]] QRect computeRect(const Play &play) const;
 
 	void play(
 		QString emoticon,
@@ -87,28 +86,16 @@ private:
 		bool premium);
 	void checkDelayed();
 
-	[[nodiscard]] QSize sizeFor(bool premium) const;
-	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> preparePlayer(
-		not_null<DocumentData*> document,
-		QByteArray data,
-		QString filepath,
-		bool premium);
-
 	const not_null<Main::Session*> _session;
 	const Fn<int(not_null<const Element*>)> _itemTop;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	QSize _emojiSize;
-	QSize _premiumSize;
 
 	std::vector<Play> _plays;
 	std::vector<Delayed> _delayed;
 	rpl::event_stream<QRect> _updateRequests;
 	rpl::event_stream<QString> _playStarted;
-	base::flat_map<
-		not_null<DocumentData*>,
-		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
 
 	rpl::lifetime _lifetime;
 

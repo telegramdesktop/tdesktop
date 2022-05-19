@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "main/main_session.h"
@@ -24,11 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kEmojiMultiplier = 3;
 constexpr auto kPremiumShift = 0.082;
-constexpr auto kPremiumMultiplier = 1.5;
-constexpr auto kEmojiCachesCount = 4;
-constexpr auto kPremiumCachesCount = 8;
 constexpr auto kMaxPlays = 5;
 constexpr auto kMaxPlaysWithSmallDelay = 3;
 constexpr auto kSmallDelay = crl::time(200);
@@ -59,9 +56,6 @@ EmojiInteractions::EmojiInteractions(
 			ranges::remove(_delayed, view, &Delayed::view),
 			end(_delayed));
 	}, _lifetime);
-
-	_emojiSize = Sticker::EmojiSize();
-	_premiumSize = Sticker::Size();
 }
 
 EmojiInteractions::~EmojiInteractions() {
@@ -172,9 +166,16 @@ void EmojiInteractions::play(
 		return;
 	}
 
-	auto lottie = preparePlayer(document, data, filepath, premium);
+	auto lottie = document->session().emojiStickersPack().effectPlayer(
+		document,
+		data,
+		filepath,
+		premium);
 
-	const auto shift = premium ? QPoint() : GenerateRandomShift(_emojiSize);
+	const auto inner = premium
+		? HistoryView::Sticker::Size(document)
+		: HistoryView::Sticker::EmojiSize();
+	const auto shift = premium ? QPoint() : GenerateRandomShift(inner);
 	const auto raw = lottie.get();
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
@@ -183,9 +184,7 @@ void EmojiInteractions::play(
 			const auto i = ranges::find(_plays, raw, [](const Play &p) {
 				return p.lottie.get();
 			});
-			const auto rect = computeRect(
-				i->view,
-				i->premium).translated(shift);
+			const auto rect = computeRect(*i).translated(shift);
 			if (rect.y() + rect.height() >= _visibleTop
 				&& rect.y() <= _visibleBottom) {
 				_updateRequests.fire_copy(rect);
@@ -199,6 +198,10 @@ void EmojiInteractions::play(
 		.view = view,
 		.lottie = std::move(lottie),
 		.shift = shift,
+		.inner = inner,
+		.outer = (premium
+			? HistoryView::Sticker::PremiumEffectSize(document)
+			: HistoryView::Sticker::EmojiEffectSize()),
 		.premium = premium,
 	});
 	if (incoming) {
@@ -211,60 +214,6 @@ void EmojiInteractions::play(
 	}
 }
 
-QSize EmojiInteractions::sizeFor(bool premium) const {
-	return premium
-		? (_premiumSize * kPremiumMultiplier)
-		: (_emojiSize * kEmojiMultiplier);
-}
-
-std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
-		not_null<DocumentData*> document,
-		QByteArray data,
-		QString filepath,
-		bool premium) {
-	// Shortened copy from stickers_lottie module.
-	const auto baseKey = document->bigFileBaseCacheKey();
-	const auto tag = uint8(0);
-	const auto keyShift = ((tag << 4) & 0xF0)
-		| (uint8(ChatHelpers::StickerLottieSize::EmojiInteraction) & 0x0F);
-	const auto key = Storage::Cache::Key{
-		baseKey.high,
-		baseKey.low + keyShift
-	};
-	const auto get = [=](int i, FnMut<void(QByteArray &&cached)> handler) {
-		document->owner().cacheBigFile().get(
-			{ key.high, key.low + i },
-			std::move(handler));
-	};
-	const auto weak = base::make_weak(&document->session());
-	const auto put = [=](int i, QByteArray &&cached) {
-		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
-			weak->data().cacheBigFile().put(
-				{ key.high, key.low + i },
-				std::move(data));
-		});
-	};
-	const auto request = Lottie::FrameRequest{
-		sizeFor(premium) * style::DevicePixelRatio(),
-	};
-	auto &weakProvider = _sharedProviders[document];
-	auto shared = [&] {
-		if (const auto result = weakProvider.lock()) {
-			return result;
-		}
-		const auto result = Lottie::SinglePlayer::SharedProvider(
-			premium ? kPremiumCachesCount : kEmojiCachesCount,
-			get,
-			put,
-			Lottie::ReadContent(data, filepath),
-			request,
-			Lottie::Quality::High);
-		weakProvider = result;
-		return result;
-	}();
-	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
-}
-
 void EmojiInteractions::visibleAreaUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -272,14 +221,13 @@ void EmojiInteractions::visibleAreaUpdated(
 	_visibleBottom = visibleBottom;
 }
 
-QRect EmojiInteractions::computeRect(
-		not_null<const Element*> view,
-		bool premium) const {
+QRect EmojiInteractions::computeRect(const Play &play) const {
+	const auto view = play.view;
 	const auto fullWidth = view->width();
-	const auto sticker = premium ? _premiumSize : _emojiSize;
-	const auto size = sizeFor(premium);
-	const auto shift = premium
-		? int(_premiumSize.width() * kPremiumShift)
+	const auto sticker = play.inner;
+	const auto size = play.outer;
+	const auto shift = play.premium
+		? int(sticker.width() * kPremiumShift)
 		: (size.width() / 40);
 	const auto inner = view->innerGeometry();
 	const auto rightAligned = view->hasOutLayout()
@@ -292,7 +240,7 @@ QRect EmojiInteractions::computeRect(
 		return QRect();
 	}
 	const auto top = viewTop + (sticker.height() - size.height()) / 2;
-	return QRect(QPoint(left, top), size);
+	return QRect(QPoint(left, top), size).translated(play.shift);
 }
 
 void EmojiInteractions::paint(QPainter &p) {
@@ -302,7 +250,7 @@ void EmojiInteractions::paint(QPainter &p) {
 			continue;
 		}
 		auto request = Lottie::FrameRequest();
-		request.box = sizeFor(play.premium) * factor;
+		request.box = play.outer * factor;
 		const auto rightAligned = play.view->hasOutLayout()
 			&& !play.view->delegate()->elementIsChatWide();
 		if (!rightAligned) {
@@ -315,9 +263,7 @@ void EmojiInteractions::paint(QPainter &p) {
 			play.framesCount = information.framesCount;
 			play.frameRate = information.frameRate;
 		}
-		const auto rect = computeRect(
-			play.view,
-			play.premium).translated(play.shift);
+		const auto rect = computeRect(play);
 		if (play.started && !play.frame) {
 			play.finished = true;
 			_updateRequests.fire_copy(rect);

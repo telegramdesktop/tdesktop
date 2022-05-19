@@ -7,15 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/sticker_preview_box.h"
 
+#include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
 #include "lottie/lottie_single_player.h"
+#include "history/view/media/history_view_sticker.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
@@ -23,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPremiumShift = 0.082;
-constexpr auto kPremiumMultiplier = 1.5;
 
 struct Preload {
 	not_null<DocumentData*> document;
@@ -57,9 +60,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	};
 	const auto state = lifetime.make_state<State>();
 
-	const auto lottie = int(size / kPremiumMultiplier);
-	const auto lottieSize = QSize(lottie, lottie);
-	const auto effectSize = QSize(size, size);
+	using namespace HistoryView;
+	const auto document = media->owner();
+	const auto lottieSize = Sticker::Size(document);
+	const auto effectSize = Sticker::PremiumEffectSize(document);
 	const auto createLottieIfReady = [=] {
 		if (state->lottie) {
 			return;
@@ -73,14 +77,17 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		}
 
 		const auto factor = style::DevicePixelRatio();
-		state->lottie = std::make_unique<Lottie::SinglePlayer>(
-			Lottie::ReadContent(media->bytes(), document->filepath()),
-			Lottie::FrameRequest{ lottieSize * factor },
+		state->lottie = ChatHelpers::LottiePlayerFromDocument(
+			media.get(),
+			nullptr,
+			ChatHelpers::StickerLottieSize::MessageHistory,
+			lottieSize * factor,
 			Lottie::Quality::High);
-		state->effect = std::make_unique<Lottie::SinglePlayer>(
-			Lottie::ReadContent(media->videoThumbnailContent(), {}),
-			Lottie::FrameRequest{ effectSize * factor },
-			Lottie::Quality::High);
+		state->effect = document->session().emojiStickersPack().effectPlayer(
+			document,
+			media->videoThumbnailContent(),
+			QString(),
+			true);
 
 		const auto update = [=] { raw->update(); };
 		auto &lifetime = raw->lifetime();
@@ -104,12 +111,12 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		const auto frame = state->lottie->frameInfo({ lottieSize * factor });
 		const auto effect = state->effect->frameInfo(
 			{ effectSize * factor });
-		const auto framesCount = !frame.image.isNull()
-			? state->lottie->framesCount()
-			: 1;
-		const auto effectsCount = !effect.image.isNull()
-			? state->effect->framesCount()
-			: 1;
+		//const auto framesCount = !frame.image.isNull()
+		//	? state->lottie->framesCount()
+		//	: 1;
+		//const auto effectsCount = !effect.image.isNull()
+		//	? state->effect->framesCount()
+		//	: 1;
 
 		const auto left = effectSize.width()
 			- int(lottieSize.width() * (1. + kPremiumShift));
