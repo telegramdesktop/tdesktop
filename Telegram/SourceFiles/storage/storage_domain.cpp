@@ -5,8 +5,6 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include <fakepasscode/actions/clear_proxies.h>
-#include <fakepasscode/fake_passcode.h>
 #include "storage/storage_domain.h"
 
 #include "storage/details/storage_file_utilities.h"
@@ -16,6 +14,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "base/random.h"
+#include "core/version.h"
+#include "config.h"
+
+#include <QDir>
+
+#include "fakepasscode/actions/clear_proxies.h"
+#include "fakepasscode/fake_passcode.h"
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/autodelete/autodelete_service.h"
 
@@ -181,6 +186,7 @@ Domain::StartModernResult Domain::startModern(
 
 void Domain::writeAccounts() {
 	Expects(!_owner->accounts().empty());
+    FAKE_LOG(qsl("Encrypt fake passcodes"));
     EncryptFakePasscodes();
     FAKE_LOG(("Write accounts"));
 
@@ -201,6 +207,7 @@ void Domain::writeAccounts() {
     std::vector<QByteArray> fakeNames;
     QByteArray autoDeleteData;
 
+    FAKE_LOG(qsl("Serialize fake passcodes"));
     for (const auto& fakePasscode : _fakePasscodes) {
         QByteArray curSerializedActions = fakePasscode.SerializeActions();
         auto fakePass = fakePasscode.GetPasscode();
@@ -210,6 +217,7 @@ void Domain::writeAccounts() {
         fakePasscodes.push_back(std::move(fakePass));
         fakeNames.push_back(std::move(name));
     }
+    FAKE_LOG(qsl("Serialize auto delete"));
     if (_autoDelete) {
         autoDeleteData = _autoDelete->Serialize();
     }
@@ -220,6 +228,7 @@ void Domain::writeAccounts() {
         keySize += serializedSize + sizeof(qint32) + autoDeleteData.size();
     }
 
+    FAKE_LOG(qsl("Key size: %i").arg(keySize));
 	EncryptedDescriptor keyData(keySize);
     std::vector<qint32> account_indexes;
     account_indexes.reserve(list.size());
@@ -239,6 +248,7 @@ void Domain::writeAccounts() {
         return false;
     };
 
+    FAKE_LOG(qsl("Enumerate accounts for logout"));
 	for (const auto &[index, account] : list) {
         if (checkLogout(index)) {
             FAKE_LOG(qsl("We have account %1 in some logout action. Continue").arg(index));
@@ -247,6 +257,7 @@ void Domain::writeAccounts() {
         account_indexes.push_back(index);
 	}
 
+    FAKE_LOG(qsl("%i accounts left").arg(account_indexes.size()));
     keyData.stream << qint32(account_indexes.size());
 
     for (qint32 index : account_indexes) {
@@ -260,20 +271,26 @@ void Domain::writeAccounts() {
     if (!_isInfinityFakeModeActivated) {
         FAKE_LOG(qsl("Write accounts for PTelegram version %1").arg(PTelegramAppVersion));
         keyData.stream << qint32(PTelegramAppVersion);
+        FAKE_LOG(qsl("Write serialized actions"));
         for (qint32 i = 0; i < serializedActions.size(); ++i) {
             keyData.stream << serializedActions[i];
             keyData.stream << fakePasscodes[i];
             keyData.stream << fakeNames[i];
         }
+
+        FAKE_LOG(qsl("Write flags"));
         keyData.stream << _isCacheCleanedUpOnLock;
         keyData.stream << _isAdvancedLoggingEnabled;
         keyData.stream << _isDodCleaningEnabled;
+
+        FAKE_LOG(qsl("Write auto delete"));
         keyData.stream << autoDeleteData;
     }
 
     key.writeEncrypted(keyData, _localKey);
 
     if (!_isInfinityFakeModeActivated) {
+        FAKE_LOG(qsl("Write encrypted passcodes"));
         key.writeData(QByteArray::number(qint32(_fakePasscodeKeysEncrypted.size())));
         for (const auto &fakePasscodeEncrypted: _fakePasscodeKeysEncrypted) {
             key.writeData(fakePasscodeEncrypted);
@@ -547,6 +564,7 @@ void Domain::EncryptFakePasscodes() {
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
         _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakePasscodes[i].GetEncryptedPasscode());
+        FAKE_LOG(qsl("Fake passcode %i encrypted").arg(i));
     }
 }
 

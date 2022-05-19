@@ -14,7 +14,7 @@
 MTP::AuthKeyPtr FakePasscode::FakePasscode::GetEncryptedPasscode() const {
     if (!encrypted_passcode_) {
         encrypted_passcode_ = EncryptPasscode(fake_passcode_.current());
-    }    
+    }
     return encrypted_passcode_;
 }
 
