@@ -64,8 +64,6 @@ namespace {
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
 
-constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
 	if (cExeName().isEmpty()) {
@@ -181,30 +179,6 @@ void PortalAutostart(bool start, bool silent) {
 				QString::fromStdString(e.what())));
 		}
 	}
-}
-
-bool IsIBusPortalPresent() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
-				connection,
-				std::string(kIBusPortalService));
-
-			const auto serviceActivatable = ranges::contains(
-				base::Platform::DBus::ListActivatableNames(connection),
-				Glib::ustring(std::string(kIBusPortalService)));
-
-			return serviceRegistered || serviceActivatable;
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -523,9 +497,6 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	// Prevent any later calls into setlocale() by Qt
-	QCoreApplicationPrivate::initLocale();
-
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
@@ -553,19 +524,6 @@ void start() {
 		"Application was built without embedded fonts, "
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
-
-	// IBus has changed its socket path several times
-	// and each change should be synchronized with Qt.
-	// Moreover, the last time Qt changed the path,
-	// they didn't introduce a fallback to the old path
-	// and made the new Qt incompatible with IBus from older distributions.
-	// Since tdesktop is distributed in static binary form,
-	// it makes sense to use ibus portal whenever it present
-	// to ensure compatibility with the maximum range of distributions.
-	if (IsIBusPortalPresent()) {
-		LOG(("IBus portal is present! Using it."));
-		qputenv("IBUS_USE_PORTAL", "1");
-	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
