@@ -157,6 +157,7 @@ void SectionWidget::showAnimated(
 	_showAnimation->setTopBarShadow(params.withTopBarShadow);
 	_showAnimation->setWithFade(params.withFade);
 	_showAnimation->setTopSkip(params.topSkip);
+	_showAnimation->setTopBarMask(params.topMask);
 	_showAnimation->start();
 
 	show();

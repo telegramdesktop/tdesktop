@@ -39,6 +39,45 @@ void SlideAnimation::paintContents(Painter &p) const {
 		const auto leftWidth = (leftWidthFull + leftCoord);
 		const auto rightWidth = rightWidthFull - rightCoord;
 
+		if (!_mask.isNull()) {
+			auto frame = QImage(
+				_mask.size(),
+				QImage::Format_ARGB32_Premultiplied);
+			frame.setDevicePixelRatio(_mask.devicePixelRatio());
+			frame.fill(Qt::transparent);
+			QPainter q(&frame);
+
+			if (leftWidth > 0) {
+				q.setOpacity(leftAlpha);
+				q.drawPixmap(
+					0,
+					0,
+					_cacheUnder,
+					(_cacheUnder.width() - leftWidth * cIntRetinaFactor()),
+					0,
+					leftWidth * cIntRetinaFactor(),
+					_topSkip * retina);
+			}
+
+			if (rightWidth > 0) {
+				q.setOpacity(rightAlpha);
+				q.drawPixmap(
+					rightCoord,
+					0,
+					_cacheOver,
+					0,
+					0,
+					rightWidth * cIntRetinaFactor(),
+					_topSkip * retina);
+			}
+
+			q.setOpacity(1.);
+			q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+			q.drawPixmap(0, 0, _mask);
+
+			p.drawImage(0, 0, frame);
+		}
+
 		if (leftWidth > 0) {
 			p.setOpacity(leftAlpha);
 			p.drawPixmap(
@@ -131,6 +170,10 @@ void SlideAnimation::setRepaintCallback(RepaintCallback &&callback) {
 
 void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 	_finishedCallback = std::move(callback);
+}
+
+void SlideAnimation::setTopBarMask(const QPixmap &mask) {
+	_mask = mask;
 }
 
 void SlideAnimation::start() {
