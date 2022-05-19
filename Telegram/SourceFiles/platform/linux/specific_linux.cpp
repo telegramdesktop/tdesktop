@@ -435,12 +435,6 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 		}
 	});
 
-#ifdef __HAIKU__
-
-	HaikuAutostart(enabled);
-
-#else // __HAIKU__
-
 	const auto silent = !done;
 	if (InFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -457,8 +451,6 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 			QFile::remove(autostart + QGuiApplication::desktopFileName());
 		}
 	}
-
-#endif // __HAIKU__
 }
 
 bool AutostartSkip() {
@@ -489,37 +481,6 @@ bool SkipTaskbarSupported() {
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
-
-namespace {
-
-#ifdef __HAIKU__
-void HaikuAutostart(bool start) {
-	const auto home = QDir::homePath();
-	if (home.isEmpty()) {
-		return;
-	}
-
-	QFile file(home + "/config/settings/boot/launch/telegram-desktop");
-	if (start) {
-		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-			QTextStream out(&file);
-			out
-				<< "#!/bin/bash" << Qt::endl
-				<< "cd /system/apps" << Qt::endl
-				<< "./Telegram -autostart" << " &" << Qt::endl;
-			file.close();
-			file.setPermissions(file.permissions()
-				| QFileDevice::ExeOwner
-				| QFileDevice::ExeGroup
-				| QFileDevice::ExeOther);
-		}
-	} else {
-		file.remove();
-	}
-}
-#endif // __HAIKU__
-
-} // namespace
 
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
@@ -700,9 +661,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 				add("mate-volume-control");
 			}
 		}
-#ifdef __HAIKU__
-		add("Media");
-#endif // __ HAIKU__
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
@@ -734,9 +692,7 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
-#ifndef __HAIKU__
 	Platform::InstallLauncher();
-#endif // __HAIKU__
 }
 
 void psSendToMenu(bool send, bool silent) {
