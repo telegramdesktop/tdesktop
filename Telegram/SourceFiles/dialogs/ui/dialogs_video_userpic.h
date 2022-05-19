@@ -48,7 +48,6 @@ private:
 	int _lastSize = 0;
 	std::shared_ptr<Data::PhotoMedia> _videoPhotoMedia;
 	PhotoId _videoPhotoId = 0;
-	PhotoId _photoIdRequested = 0;
 
 };
 

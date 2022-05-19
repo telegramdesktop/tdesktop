@@ -28,7 +28,7 @@ constexpr auto kFileRequestsCount = 2;
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
-constexpr auto kFileMaxSize = 4000 * 1024 * 1024;
+constexpr auto kFileMaxSize = 4000 * int64(1024 * 1024);
 constexpr auto kLocationCacheSize = 100'000;
 
 struct LocationKey {
