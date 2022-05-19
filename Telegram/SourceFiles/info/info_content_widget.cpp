@@ -275,6 +275,20 @@ void ContentWidget::refreshSearchField(bool shown) {
 	}
 }
 
+int ContentWidget::scrollBottomSkip() const {
+	return _scrollBottomSkip.current();
+}
+
+rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
+	using namespace rpl::mappers;
+	return rpl::combine(
+		_scroll->scrollTopValue(),
+		_scrollBottomSkip.value()
+	) | rpl::map([=](int scroll, int skip) {
+		return ((skip > 0) && (scroll < _scroll->scrollTopMax()));
+	});
+}
+
 Key ContentMemento::key() const {
 	if (const auto peer = this->peer()) {
 		return Key(peer);

@@ -70,12 +70,18 @@ WrapWidget::WrapWidget(
 : SectionWidget(parent, window, rpl::producer<PeerData*>())
 , _wrap(wrap)
 , _controller(createController(window, memento->content()))
-, _topShadow(this) {
+, _topShadow(this)
+, _bottomShadow(this) {
 	_topShadow->toggleOn(
 		topShadowToggledValue(
 		) | rpl::filter([](bool shown) {
 			return true;
 		}));
+
+	_bottomShadow->toggleOn(
+		_desiredBottomShadowVisibilities.events(
+		) | rpl::flatten_latest() | rpl::distinct_until_changed());
+
 	_wrap.changes(
 	) | rpl::start_with_next([this] {
 		setupTop();
@@ -651,10 +657,14 @@ void WrapWidget::finishShowContent() {
 	_topBar->setTitle(_content->title());
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
+	_desiredBottomShadowVisibilities.fire(
+		_content->desiredBottomShadowVisibility());
 	_selectedLists.fire(_content->selectedListValue());
 	_scrollTillBottomChanges.fire(_content->scrollTillBottomChanges());
 	_topShadow->raise();
 	_topShadow->finishAnimating();
+	_bottomShadow->raise();
+	_bottomShadow->finishAnimating();
 	_contentChanges.fire({});
 
 	// This was done for tabs support.
@@ -810,6 +820,7 @@ void WrapWidget::doSetInnerFocus() {
 void WrapWidget::showFinishedHook() {
 	// Restore shadow visibility after showChildren() call.
 	_topShadow->toggle(_topShadow->toggled(), anim::type::instant);
+	_bottomShadow->toggle(_bottomShadow->toggled(), anim::type::instant);
 	_topBarSurrogate.destroy();
 	_content->showFinished();
 }
@@ -1023,6 +1034,12 @@ void WrapWidget::updateContentGeometry() {
 		_topShadow->resizeToWidth(width());
 		_topShadow->moveToLeft(0, topWidget()->height());
 		_content->setGeometry(contentGeometry());
+		_bottomShadow->resizeToWidth(width());
+		_bottomShadow->moveToLeft(
+			0,
+			_content->y()
+				+ _content->height()
+				- _content->scrollBottomSkip());
 	}
 }
 

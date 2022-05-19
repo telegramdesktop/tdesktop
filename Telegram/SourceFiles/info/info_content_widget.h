@@ -79,6 +79,9 @@ public:
 
 	virtual void saveChanges(FnMut<void()> done);
 
+	[[nodiscard]] int scrollBottomSkip() const;
+	[[nodiscard]] rpl::producer<bool> desiredBottomShadowVisibility() const;
+
 protected:
 	template <typename Widget>
 	Widget *setInnerWidget(object_ptr<Widget> inner) {

@@ -218,6 +218,7 @@ private:
 	bool _topBarOverrideShown = false;
 
 	object_ptr<Ui::FadeShadow> _topShadow;
+	object_ptr<Ui::FadeShadow> _bottomShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
 	base::unique_qptr<Ui::PopupMenu> _topBarMenu;
 
@@ -227,6 +228,7 @@ private:
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
+	rpl::event_stream<rpl::producer<bool>> _desiredBottomShadowVisibilities;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _scrollTillBottomChanges;
 	rpl::event_stream<> _contentChanges;
