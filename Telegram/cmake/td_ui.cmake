@@ -241,6 +241,8 @@ PRIVATE
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
     ui/widgets/discrete_sliders.h
+    ui/widgets/gradient_round_button.cpp
+    ui/widgets/gradient_round_button.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
