@@ -119,12 +119,12 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 			state->lottie->frame());
 		p.drawImage(raw->rect(), state->effect->frame());
 
-		if (!frame.image.isNull()
-			&& ((frame.index % effectsCount) <= effect.index)) {
+		if (!frame.image.isNull()/*
+			&& ((frame.index % effectsCount) <= effect.index)*/) {
 			state->lottie->markFrameShown();
 		}
-		if (!effect.image.isNull()
-			&& ((effect.index % framesCount) <= frame.index)) {
+		if (!effect.image.isNull()/*
+			&& ((effect.index % framesCount) <= frame.index)*/) {
 			state->effect->markFrameShown();
 		}
 	}, lifetime);

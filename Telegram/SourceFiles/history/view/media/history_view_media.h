@@ -69,10 +69,10 @@ enum class MediaInBubbleState {
 	TimeId duration,
 	const QString &base);
 
-struct ExternalLottieInfo {
-	int frame = -1;
-	int count = -1;
-};
+//struct ExternalLottieInfo {
+//	int frame = -1;
+//	int count = -1;
+//};
 
 class Media : public Object {
 public:
@@ -178,14 +178,14 @@ public:
 	virtual void checkAnimation() {
 	}
 
-	virtual void externalLottieProgressing(bool external) {
-	}
-	virtual bool externalLottieTill(ExternalLottieInfo info) {
-		return true;
-	}
-	virtual ExternalLottieInfo externalLottieInfo() const {
-		return {};
-	}
+	//virtual void externalLottieProgressing(bool external) {
+	//}
+	//virtual bool externalLottieTill(ExternalLottieInfo info) {
+	//	return true;
+	//}
+	//virtual ExternalLottieInfo externalLottieInfo() const {
+	//	return {};
+	//}
 
 	[[nodiscard]] virtual QSize sizeForGroupingOptimal(int maxWidth) const {
 		Unexpected("Grouping method call.");

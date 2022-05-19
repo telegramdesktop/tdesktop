@@ -44,7 +44,7 @@ enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
-struct ExternalLottieInfo;
+//struct ExternalLottieInfo;
 
 using PaintContext = Ui::ChatPaintContext;
 
@@ -272,8 +272,8 @@ public:
 	Context context() const;
 	void refreshDataId();
 
-	void externalLottieProgressing(bool external) const;
-	bool externalLottieTill(ExternalLottieInfo info) const;
+	//void externalLottieProgressing(bool external) const;
+	//bool externalLottieTill(ExternalLottieInfo info) const;
 
 	QDateTime dateTime() const;
 

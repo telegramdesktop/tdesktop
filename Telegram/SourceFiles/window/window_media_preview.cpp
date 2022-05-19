@@ -116,12 +116,12 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 			emojiLeft += _emojiSize + st::stickerEmojiSkip;
 		}
 	}
-	if (!frame.image.isNull()
-		&& (!_effect || ((frame.index % effectsCount) <= effect.index))) {
+	if (!frame.image.isNull()/*
+		&& (!_effect || ((frame.index % effectsCount) <= effect.index))*/) {
 		_lottie->markFrameShown();
 	}
-	if (!effect.image.isNull()
-		&& ((effect.index % framesCount) <= frame.index)) {
+	if (!effect.image.isNull()/*
+		&& ((effect.index % framesCount) <= frame.index)*/) {
 		_effect->markFrameShown();
 	}
 }

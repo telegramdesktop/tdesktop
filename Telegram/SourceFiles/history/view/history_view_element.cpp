@@ -412,18 +412,18 @@ void Element::setY(int y) {
 void Element::refreshDataIdHook() {
 }
 
-void Element::externalLottieProgressing(bool external) const {
-	if (const auto media = _media.get()) {
-		media->externalLottieProgressing(external);
-	}
-}
-
-bool Element::externalLottieTill(ExternalLottieInfo info) const {
-	if (const auto media = _media.get()) {
-		return media->externalLottieTill(info);
-	}
-	return true;
-}
+//void Element::externalLottieProgressing(bool external) const {
+//	if (const auto media = _media.get()) {
+//		media->externalLottieProgressing(external);
+//	}
+//}
+//
+//bool Element::externalLottieTill(ExternalLottieInfo info) const {
+//	if (const auto media = _media.get()) {
+//		return media->externalLottieTill(info);
+//	}
+//	return true;
+//}
 
 void Element::repaint() const {
 	history()->owner().requestViewRepaint(this);

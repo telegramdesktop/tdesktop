@@ -65,11 +65,11 @@ EmojiInteractions::EmojiInteractions(
 }
 
 EmojiInteractions::~EmojiInteractions() {
-	for (const auto &play : _plays) {
-		if (play.premium) {
-			play.view->externalLottieProgressing(false);
-		}
-	}
+	//for (const auto &play : _plays) {
+	//	if (play.premium) {
+	//		play.view->externalLottieProgressing(false);
+	//	}
+	//}
 }
 
 void EmojiInteractions::play(
@@ -103,13 +103,13 @@ void EmojiInteractions::playPremiumEffect(
 	if (replacing) {
 		const auto i = ranges::find(_plays, replacing, &Play::view);
 		if (i != end(_plays)) {
-			if (i->premium) {
-				replacing->externalLottieProgressing(false);
-			}
+			//if (i->premium) {
+			//	replacing->externalLottieProgressing(false);
+			//}
 			i->view = view;
-			if (i->premium) {
-				view->externalLottieProgressing(true);
-			}
+			//if (i->premium) {
+			//	view->externalLottieProgressing(true);
+			//}
 			return;
 		}
 	}
@@ -133,8 +133,8 @@ void EmojiInteractions::cancelPremiumEffect(not_null<const Element*> view) {
 	_plays.erase(ranges::remove_if(_plays, [&](const Play &play) {
 		if (play.view != view) {
 			return false;
-		} else if (play.premium) {
-			play.view->externalLottieProgressing(false);
+		//} else if (play.premium) {
+		//	play.view->externalLottieProgressing(false);
 		}
 		return true;
 	}), end(_plays));
@@ -192,9 +192,9 @@ void EmojiInteractions::play(
 			}
 		});
 	}, lottie->lifetime());
-	if (premium) {
-		view->externalLottieProgressing(true);
-	}
+	//if (premium) {
+	//	view->externalLottieProgressing(true);
+	//}
 	_plays.push_back({
 		.view = view,
 		.lottie = std::move(lottie),
@@ -328,19 +328,19 @@ void EmojiInteractions::paint(QPainter &p) {
 		p.drawImage(
 			QRect(rect.topLeft(), frame.image.size() / factor),
 			frame.image);
-		const auto info = HistoryView::ExternalLottieInfo{
-			.frame = frame.index,
-			.count = play.framesCount,
-		};
-		if (!play.premium || play.view->externalLottieTill(info)) {
+		//const auto info = HistoryView::ExternalLottieInfo{
+		//	.frame = frame.index,
+		//	.count = play.framesCount,
+		//};
+		//if (!play.premium || play.view->externalLottieTill(info)) {
 			play.lottie->markFrameShown();
-		}
+		//}
 	}
 	_plays.erase(ranges::remove_if(_plays, [](const Play &play) {
 		if (!play.finished) {
 			return false;
-		} else if (play.premium) {
-			play.view->externalLottieProgressing(false);
+		//} else if (play.premium) {
+		//	play.view->externalLottieProgressing(false);
 		}
 		return true;
 	}), end(_plays));
