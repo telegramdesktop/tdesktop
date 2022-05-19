@@ -36,9 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
-#include <QtGui/QWindow>
-
-#include <private/qguiapplication_p.h>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
@@ -113,12 +110,7 @@ void PortalAutostart(bool start, bool silent) {
 			+ '/'
 			+ handleToken;
 
-		const auto context = Glib::MainContext::create();
-		const auto loop = Glib::MainLoop::create(context);
-		g_main_context_push_thread_default(context->gobj());
-		const auto contextGuard = gsl::finally([&] {
-			g_main_context_pop_thread_default(context->gobj());
-		});
+		const auto loop = Glib::MainLoop::create();
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -168,10 +160,11 @@ void PortalAutostart(bool start, bool silent) {
 			std::string(base::Platform::XDP::kService));
 
 		if (signalId != 0) {
-			QWindow window;
-			QGuiApplicationPrivate::showModalWindow(&window);
+			QWidget window;
+			window.setAttribute(Qt::WA_DontShowOnScreen);
+			window.setWindowModality(Qt::ApplicationModal);
+			window.show();
 			loop->run();
-			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 	} catch (const Glib::Error &e) {
 		if (!silent) {
