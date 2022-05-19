@@ -90,7 +90,9 @@ WrapWidget::WrapWidget(
 	selectedListValue(
 	) | rpl::start_with_next([this](SelectedItems &&items) {
 		InvokeQueued(this, [this, items = std::move(items)]() mutable {
-			if (_topBar) _topBar->setSelectedItems(std::move(items));
+			if (_topBar) {
+				_topBar->setSelectedItems(std::move(items));
+			}
 		});
 	}, lifetime());
 	restoreHistoryStack(memento->takeStack());
@@ -575,7 +577,7 @@ void WrapWidget::deleteAllDownloads() {
 }
 
 bool WrapWidget::requireTopBarSearch() const {
-	if (!_controller->searchFieldController()) {
+	if (!_topBar || !_controller->searchFieldController()) {
 		return false;
 	} else if (_controller->wrap() == Wrap::Layer
 		|| _controller->section().type() == Section::Type::Profile) {
@@ -654,7 +656,9 @@ void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 void WrapWidget::finishShowContent() {
 	updateContentGeometry();
 	_content->setIsStackBottom(!hasStackHistory());
-	_topBar->setTitle(_content->title());
+	if (_topBar) {
+		_topBar->setTitle(_content->title());
+	}
 	_desiredHeights.fire(desiredHeightForContent());
 	_desiredShadowVisibilities.fire(_content->desiredShadowVisibility());
 	_desiredBottomShadowVisibilities.fire(
@@ -684,14 +688,15 @@ rpl::producer<bool> WrapWidget::topShadowToggledValue() const {
 	//	_desiredShadowVisibilities.events() | rpl::flatten_latest(),
 	//	(_1 == Wrap::Side) || _2);
 	return _desiredShadowVisibilities.events()
-		| rpl::flatten_latest();
+		| rpl::flatten_latest(
+		) | rpl::map([=](bool v) { return v && (_topBar != nullptr); });
 }
 
 rpl::producer<int> WrapWidget::desiredHeightForContent() const {
 	using namespace rpl::mappers;
 	return rpl::single(0) | rpl::then(rpl::combine(
 		_content->desiredHeightValue(),
-		topWidget()->heightValue(),
+		(_topBar ? _topBar->heightValue() : rpl::single(0)),
 		_1 + _2));
 }
 
@@ -816,7 +821,7 @@ void WrapWidget::showAnimatedHook(
 }
 
 void WrapWidget::doSetInnerFocus() {
-	if (!_topBar->focusSearchField()) {
+	if (_topBar && !_topBar->focusSearchField()) {
 		_content->setInnerFocus();
 	}
 }
@@ -906,7 +911,8 @@ rpl::producer<int> WrapWidget::desiredHeightValue() const {
 }
 
 QRect WrapWidget::contentGeometry() const {
-	return rect().marginsRemoved({ 0, topWidget()->height(), 0, 0 });
+	const auto top = _topBar ? _topBar->height() : 0;
+	return rect().marginsRemoved({ 0, top, 0, 0 });
 }
 
 bool WrapWidget::returnToFirstStackFrame(
@@ -1035,8 +1041,10 @@ void WrapWidget::keyPressEvent(QKeyEvent *e) {
 
 void WrapWidget::updateContentGeometry() {
 	if (_content) {
-		_topShadow->resizeToWidth(width());
-		_topShadow->moveToLeft(0, topWidget()->height());
+		if (_topBar) {
+			_topShadow->resizeToWidth(width());
+			_topShadow->moveToLeft(0, _topBar->height());
+		}
 		_content->setGeometry(contentGeometry());
 		_bottomShadow->resizeToWidth(width());
 		_bottomShadow->moveToLeft(
@@ -1057,7 +1065,7 @@ QRect WrapWidget::floatPlayerAvailableRect() {
 
 object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		QWidget *parent) {
-	if (hasStackHistory() || wrap() == Wrap::Narrow) {
+	if (_topBar && (hasStackHistory() || wrap() == Wrap::Narrow)) {
 		Assert(_topBar != nullptr);
 
 		auto result = object_ptr<Ui::AbstractButton>(parent);
@@ -1099,7 +1107,8 @@ void WrapWidget::updateGeometry(
 }
 
 int WrapWidget::scrollTillBottom(int forHeight) const {
-	return _content->scrollTillBottom(forHeight - topWidget()->height());
+	return _content->scrollTillBottom(forHeight
+		- (_topBar ? _topBar->height() : 0));
 }
 
 int WrapWidget::scrollBottomSkip() const {
