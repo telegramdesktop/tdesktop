@@ -21,7 +21,9 @@ public:
 	void paintContents(Painter &p) const;
 
 	void setDirection(SlideDirection direction);
-	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
+	void setPixmaps(
+		const QPixmap &oldContentCache,
+		const QPixmap &newContentCache);
 	void setTopBarShadow(bool enabled);
 	void setTopSkip(int skip);
 	void setWithFade(bool withFade);

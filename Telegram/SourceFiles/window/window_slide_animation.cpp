@@ -15,45 +15,90 @@ namespace Window {
 void SlideAnimation::paintContents(Painter &p) const {
 	const auto retina = style::DevicePixelRatio();
 
-	auto progress = _animation.value((_direction == SlideDirection::FromLeft) ? 0. : 1.);
+	const auto slideLeft = (_direction == SlideDirection::FromLeft);
+	const auto progress = _animation.value(slideLeft ? 0. : 1.);
 	if (_withFade) {
-		auto slideLeft = (_direction == SlideDirection::FromLeft);
-		auto dt = slideLeft
+		const auto dt = slideLeft
 			? (1. - progress)
 			: progress;
-		auto easeOut = anim::easeOutCirc(1., dt);
-		auto easeIn = anim::easeInCirc(1., dt);
-		auto arrivingAlpha = easeIn;
-		auto departingAlpha = 1. - easeOut;
-		auto leftWidthFull = _cacheUnder.width() / cIntRetinaFactor();
-		auto rightWidthFull = _cacheOver.width() / cIntRetinaFactor();
-		auto leftCoord = (slideLeft ? anim::interpolate(-leftWidthFull, 0, easeOut) : anim::interpolate(0, -leftWidthFull, easeIn));
-		auto leftAlpha = (slideLeft ? arrivingAlpha : departingAlpha);
-		auto rightCoord = (slideLeft ? anim::interpolate(0, rightWidthFull, easeIn) : anim::interpolate(rightWidthFull, 0, easeOut));
-		auto rightAlpha = (slideLeft ? departingAlpha : arrivingAlpha);
+		const auto easeOut = anim::easeOutCirc(1., dt);
+		const auto easeIn = anim::easeInCirc(1., dt);
+		const auto arrivingAlpha = easeIn;
+		const auto departingAlpha = 1. - easeOut;
+		const auto leftWidthFull = _cacheUnder.width() / retina;
+		const auto rightWidthFull = _cacheOver.width() / retina;
+		const auto leftCoord = slideLeft
+			? anim::interpolate(-leftWidthFull, 0, easeOut)
+			: anim::interpolate(0, -leftWidthFull, easeIn);
+		const auto leftAlpha = (slideLeft ? arrivingAlpha : departingAlpha);
+		const auto rightCoord = slideLeft
+			? anim::interpolate(0, rightWidthFull, easeIn)
+			: anim::interpolate(rightWidthFull, 0, easeOut);
+		const auto rightAlpha = (slideLeft ? departingAlpha : arrivingAlpha);
 
-		auto leftWidth = (leftWidthFull + leftCoord);
+		const auto leftWidth = (leftWidthFull + leftCoord);
+		const auto rightWidth = rightWidthFull - rightCoord;
+
 		if (leftWidth > 0) {
 			p.setOpacity(leftAlpha);
-			p.drawPixmap(0, _topSkip, _cacheUnder, (_cacheUnder.width() - leftWidth * cIntRetinaFactor()), _topSkip * retina, leftWidth * cIntRetinaFactor(), _cacheUnder.height() - _topSkip * retina);
+			p.drawPixmap(
+				0,
+				_topSkip,
+				_cacheUnder,
+				(_cacheUnder.width() - leftWidth * retina),
+				_topSkip * retina,
+				leftWidth * retina,
+				_cacheUnder.height() - _topSkip * retina);
 		}
-		auto rightWidth = rightWidthFull - rightCoord;
 		if (rightWidth > 0) {
 			p.setOpacity(rightAlpha);
-			p.drawPixmap(rightCoord, _topSkip, _cacheOver, 0, _topSkip * retina, rightWidth * cIntRetinaFactor(), _cacheOver.height() - _topSkip * retina);
+			p.drawPixmap(
+				rightCoord,
+				_topSkip,
+				_cacheOver,
+				0,
+				_topSkip * retina,
+				rightWidth * retina,
+				_cacheOver.height() - _topSkip * retina);
 		}
 	} else {
-		auto coordUnder = anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = anim::interpolate(_cacheOver.width() / cIntRetinaFactor(), 0, progress);
+		const auto coordUnder = anim::interpolate(
+			0,
+			-st::slideShift,
+			progress);
+		const auto coordOver = anim::interpolate(
+			_cacheOver.width() / retina,
+			0,
+			progress);
 		if (coordOver) {
-			p.drawPixmap(QRect(0, 0, coordOver, _cacheUnder.height() / retina), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, _cacheUnder.height()));
+			p.drawPixmap(
+				QRect(0, 0, coordOver, _cacheUnder.height() / retina),
+				_cacheUnder,
+				QRect(
+					-coordUnder * retina,
+					0,
+					coordOver * retina,
+					_cacheUnder.height()));
 			p.setOpacity(progress);
-			p.fillRect(0, 0, coordOver, _cacheUnder.height() / retina, st::slideFadeOutBg);
+			p.fillRect(
+				0,
+				0,
+				coordOver, _cacheUnder.height() / retina,
+				st::slideFadeOutBg);
 			p.setOpacity(1);
 		}
-		p.drawPixmap(QRect(coordOver, 0, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
+		p.drawPixmap(
+			QRect(QPoint(coordOver, 0), _cacheOver.size() / retina),
+			_cacheOver,
+			QRect(QPoint(), _cacheOver.size()));
 		p.setOpacity(progress);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), _cacheOver.height() / retina));
+		st::slideShadow.fill(
+			p,
+			QRect(
+				coordOver - st::slideShadow.width(),
+				0,
+				st::slideShadow.width(),
+				_cacheOver.height() / retina));
 	}
 }
 
@@ -61,7 +106,9 @@ void SlideAnimation::setDirection(SlideDirection direction) {
 	_direction = direction;
 }
 
-void SlideAnimation::setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache) {
+void SlideAnimation::setPixmaps(
+		const QPixmap &oldContentCache,
+		const QPixmap &newContentCache) {
 	_cacheUnder = oldContentCache;
 	_cacheOver = newContentCache;
 }
@@ -87,8 +134,10 @@ void SlideAnimation::setFinishedCallback(FinishedCallback &&callback) {
 }
 
 void SlideAnimation::start() {
-	auto fromLeft = (_direction == SlideDirection::FromLeft);
-	if (fromLeft) std::swap(_cacheUnder, _cacheOver);
+	const auto fromLeft = (_direction == SlideDirection::FromLeft);
+	if (fromLeft) {
+		std::swap(_cacheUnder, _cacheOver);
+	}
 	_animation.start(
 		[this] { animationCallback(); },
 		fromLeft ? 1. : 0.,
