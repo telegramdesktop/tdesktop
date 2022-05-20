@@ -90,7 +90,7 @@ void Premium::setupContent(not_null<Window::SessionController*> controller) {
 
 	const auto icons = std::array<const style::icon *, 10>{ {
 		&st::settingsPremiumIconDouble,
-		&st::premiumIconFolders, //
+		&st::settingsPremiumIconFiles,
 		&st::settingsPremiumIconSpeed,
 		&st::settingsPremiumIconVoice,
 		&st::settingsPremiumIconChannelsOff,
