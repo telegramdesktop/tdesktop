@@ -568,7 +568,9 @@ bool MainWindow::eventFilter(QObject *obj, QEvent *evt) {
 		if (qobject_cast<QLineEdit*>(obj)
 			|| qobject_cast<QTextEdit*>(obj)
 			|| dynamic_cast<HistoryInner*>(obj)) {
-			updateGlobalMenu();
+			if (QApplication::focusWidget()) {
+				updateGlobalMenu();
+			}
 		}
 	}
 	return Window::MainWindow::eventFilter(obj, evt);
