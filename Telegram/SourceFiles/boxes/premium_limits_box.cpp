@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
@@ -432,9 +433,7 @@ void SimpleLimitBox(
 		});
 	} else {
 		box->addButton(tr::lng_limits_increase(), [=] {
-			Ui::ShowMultilineToast({
-				.text = { u"Premium!"_q },
-			});
+			Settings::ShowPremium(session);
 		});
 	}
 
@@ -565,9 +564,7 @@ void ChannelsLimitBox(
 			});
 		} else {
 			box->addButton(tr::lng_limits_increase(), [=] {
-				Ui::ShowMultilineToast({
-					.text = { u"Premium!"_q },
-				});
+				Settings::ShowPremium(session);
 			});
 		}
 	}, box->lifetime());

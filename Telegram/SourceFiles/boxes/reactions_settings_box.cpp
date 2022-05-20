@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
+#include "settings/settings_premium.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/effects/scroll_content_shadow.h"
@@ -447,9 +448,7 @@ void ReactionsSettingsBox(
 
 		button->setClickedCallback([=, emoji = r.emoji] {
 			if (premium && !controller->session().user()->isPremium()) {
-				Ui::ShowMultilineToast({
-					.text = { u"Premium reaction."_q },
-				});
+				Settings::ShowPremium(&controller->session());
 				return;
 			}
 			checkButton(button);

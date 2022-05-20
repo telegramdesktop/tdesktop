@@ -303,7 +303,7 @@ BubbleWidget::BubbleWidget(
 		0.,
 		1.,
 		st::premiumBubbleSlideDuration,
-		anim::easeOutCubic);
+		anim::easeOutCirc);
 	}, lifetime());
 }
 

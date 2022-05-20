@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "settings/settings_premium.h"
+#include "core/application.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/gradient.h"
 #include "ui/text/text_utilities.h"
@@ -17,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
+#include "main/main_session.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -249,6 +253,22 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 
 Type PremiumId() {
 	return Premium::Id();
+}
+
+void ShowPremium(not_null<Main::Session*> session) {
+	const auto active = Core::App().activeWindow();
+	const auto controller = (active && active->isPrimary())
+		? active->sessionController()
+		: nullptr;
+	if (controller && session == &controller->session()) {
+		controller->showSettings(Settings::PremiumId());
+	} else {
+		for (const auto &controller : session->windows()) {
+			if (controller->window().isPrimary()) {
+				controller->showSettings(Settings::PremiumId());
+			}
+		}
+	}
 }
 
 } // namespace Settings

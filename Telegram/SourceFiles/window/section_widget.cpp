@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_message_reactions.h"
 #include "history/history_item.h"
+#include "settings/settings_premium.h"
 #include "main/main_session.h"
 #include "window/section_memento.h"
 #include "window/window_slide_animation.h"
@@ -353,9 +354,7 @@ bool ShowReactPremiumError(
 	if (i == end(list) || !i->premium) {
 		return false;
 	}
-	Ui::ShowMultilineToast({
-		.text = { u"Premium reaction."_q },
-	});
+	Settings::ShowPremium(&controller->session());
 	return true;
 }
 

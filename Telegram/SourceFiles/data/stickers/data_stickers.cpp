@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "apiwrap.h"
 #include "storage/storage_account.h"
+#include "settings/settings_premium.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
@@ -98,10 +99,7 @@ void MaybeShowPremiumToast(
 	const auto widget = QPointer<Ui::RpWidget>(
 		controller->window().widget()->bodyWidget());
 	const auto filter = [=](const auto ...) {
-		Ui::ShowMultilineToast({
-			.parentOverride = widget,
-			.text = { u"Premium!"_q },
-		});
+		controller->showSettings(Settings::PremiumId());
 		return false;
 	};
 	Ui::ShowMultilineToast({

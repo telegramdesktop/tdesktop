@@ -82,6 +82,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/toasts/common_toasts.h"
 #include "support/support_helper.h"
+#include "settings/settings_premium.h"
 #include "storage/localimageloader.h"
 #include "storage/download_manager_mtproto.h"
 #include "storage/file_upload.h"
@@ -452,10 +453,7 @@ void ApiWrap::sendMessageFail(
 			: tr::lng_error_noforwards_group(tr::now)
 		}, .duration = kJoinErrorDuration });
 	} else if (error.type() == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
-		Ui::ShowMultilineToast({
-			.text = { u"Premium sticker."_q },
-			.duration = kJoinErrorDuration,
-		});
+		Settings::ShowPremium(&session());
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

@@ -9,9 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Settings {
 
-Type PremiumId();
+[[nodiscard]] Type PremiumId();
+
+void ShowPremium(not_null<::Main::Session*> session);
 
 } // namespace Settings
 

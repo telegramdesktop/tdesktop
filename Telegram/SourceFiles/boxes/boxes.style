@@ -1082,7 +1082,7 @@ premiumBubblePadding: margins(14px, 0px, 14px, 0px);
 premiumBubbleHeight: 40px;
 premiumBubbleSkip: 5px;
 premiumBubbleTextSkip: 3px;
-premiumBubbleSlideDuration: 500;
+premiumBubbleSlideDuration: 1000;
 premiumBubbleTailSize: size(21px, 7px);
 premiumBubbleFont: font(19px);
 premiumLineTextSkip: 11px;
