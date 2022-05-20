@@ -45,9 +45,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtWidgets/QMenuBar>
 
-#include <private/qguiapplication_p.h>
-#include <private/qaction_p.h>
-
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
@@ -157,17 +154,14 @@ void SkipTaskbar(QWindow *window, bool skip) {
 void SendKeySequence(
 	Qt::Key key,
 	Qt::KeyboardModifiers modifiers = Qt::NoModifier) {
-	const auto focused = QApplication::focusWidget();
+	const auto focused = static_cast<QObject*>(QApplication::focusWidget());
 	if (qobject_cast<QLineEdit*>(focused)
 		|| qobject_cast<QTextEdit*>(focused)
 		|| dynamic_cast<HistoryInner*>(focused)) {
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyPress, key, modifiers));
-
-		QApplication::postEvent(
-			focused,
-			new QKeyEvent(QEvent::KeyRelease, key, modifiers));
+		QKeyEvent pressEvent(QEvent::KeyPress, key, modifiers);
+		focused->event(&pressEvent);
+		QKeyEvent releaseEvent(QEvent::KeyRelease, key, modifiers);
+		focused->event(&releaseEvent);
 	}
 }
 
@@ -176,11 +170,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 		if (disabled) action->setDisabled(true);
 	} else if (!disabled) {
 		action->setDisabled(false);
-
-		const auto privateAction = QActionPrivate::get(action);
-		privateAction->setShortcutEnabled(
-			false,
-			QGuiApplicationPrivate::instance()->shortcutMap);
 	}
 }
 
@@ -505,17 +494,6 @@ void MainWindow::createGlobalMenu() {
 		});
 
 	about->setMenuRole(QAction::AboutQtRole);
-
-	// avoid shadowing actual shortcuts by the menubar
-	for (const auto &child : psMainMenu->children()) {
-		const auto action = qobject_cast<QAction*>(child);
-		if (action) {
-			const auto privateAction = QActionPrivate::get(action);
-			privateAction->setShortcutEnabled(
-				false,
-				QGuiApplicationPrivate::instance()->shortcutMap);
-		}
-	}
 
 	updateGlobalMenu();
 }
