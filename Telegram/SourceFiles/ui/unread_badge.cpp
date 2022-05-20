@@ -117,6 +117,14 @@ int DrawPeerBadgeGetWidth(
 			rectForName.y(),
 			outerWidth);
 		return iconw;
+	} else if (peer->isPremium() && st.premium) {
+		const auto iconw = st.premium->width();
+		st.premium->paint(
+			p,
+			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+			rectForName.y(),
+			outerWidth);
+		return iconw;
 	} else if ((peer->isScam() || peer->isFake()) && st.scam) {
 		const auto phrase = peer->isScam()
 			? tr::lng_scam_badge(tr::now)

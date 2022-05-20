@@ -301,9 +301,10 @@ infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
 }
 infoVerifiedCheckPosition: point(10px, 2px);
 infoVerifiedCheck: icon {
-	{ "profile_verified_star", profileVerifiedCheckBg, point(0px, 0px) },
-	{ "profile_verified_check", profileVerifiedCheckFg, point(4px, 4px) }
+	{ "profile_verified_star", profileVerifiedCheckBg },
+	{ "profile_verified_check", profileVerifiedCheckFg }
 };
+infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
 
 infoProfileSkip: 7px;
 

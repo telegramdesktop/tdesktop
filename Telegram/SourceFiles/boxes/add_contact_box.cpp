@@ -1711,6 +1711,7 @@ void RevokePublicLinkBox::Inner::paintChat(
 
 	const auto badgeStyle = Ui::PeerBadgeStyle{
 		&st::dialogsVerifiedIcon,
+		nullptr, // premium
 		&st::attentionButtonFg
 	};
 	namew -= Ui::DrawPeerBadgeGetWidth(

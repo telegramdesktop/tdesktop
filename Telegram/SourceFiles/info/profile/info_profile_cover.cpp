@@ -356,15 +356,19 @@ void Cover::setBadge(Badge badge) {
 	_scamFakeBadge.destroy();
 	switch (_badge) {
 	case Badge::Verified:
+	case Badge::Premium: {
+		const auto icon = (_badge == Badge::Verified)
+			? &st::infoVerifiedCheck
+			: &st::infoPremiumStar;
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
-		_verifiedCheck->resize(st::infoVerifiedCheck.size());
+		_verifiedCheck->resize(icon->size());
 		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([check = _verifiedCheck.data()]{
+		) | rpl::start_with_next([icon, check = _verifiedCheck.data()] {
 			Painter p(check);
-			st::infoVerifiedCheck.paint(p, 0, 0, check->width());
-			}, _verifiedCheck->lifetime());
-		break;
+			icon->paint(p, 0, 0, check->width());
+		}, _verifiedCheck->lifetime());
+	} break;
 	case Badge::Scam:
 	case Badge::Fake: {
 		const auto fake = (_badge == Badge::Fake);

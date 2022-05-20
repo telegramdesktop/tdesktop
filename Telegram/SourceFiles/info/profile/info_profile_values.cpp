@@ -466,12 +466,16 @@ rpl::producer<int> AllowedReactionsCountValue(not_null<PeerData*> peer) {
 
 template <typename Flag, typename Peer>
 rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
-	return Data::PeerFlagsValue(
-		peer,
-		Flag::Verified | Flag::Scam | Flag::Fake
-	) | rpl::map([=](base::flags<Flag> value) {
+	return rpl::combine(
+		Data::PeerFlagsValue(
+			peer,
+			Flag::Verified | Flag::Scam | Flag::Fake),
+		Data::PeerPremiumValue(peer)
+	) | rpl::map([=](base::flags<Flag> value, bool premium) {
 		return (value & Flag::Verified)
 			? Badge::Verified
+			: premium
+			? Badge::Premium
 			: (value & Flag::Scam)
 			? Badge::Scam
 			: (value & Flag::Fake)

@@ -338,7 +338,7 @@ void SetupSections(
 	addSection(
 		tr::lng_premium_summary_title(),
 		PremiumId(),
-		{ &st::settingsIconCalls, kIconGreen });
+		{ &st::settingsPremiumIconStar, kIconLightBlue });
 
 	AddSkip(container);
 }

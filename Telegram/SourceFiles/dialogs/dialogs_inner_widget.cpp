@@ -781,6 +781,11 @@ void InnerWidget::paintPeerSearchResult(
 			? &st::dialogsVerifiedIconOver
 			: &st::dialogsVerifiedIcon),
 		(active
+			? &st::dialogsPremiumIconActive
+			: selected
+			? &st::dialogsPremiumIconOver
+			: &st::dialogsPremiumIcon),
+		(active
 			? &st::dialogsScamFgActive
 			: selected
 			? &st::dialogsScamFgOver
