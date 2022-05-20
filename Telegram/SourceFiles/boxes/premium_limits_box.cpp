@@ -454,7 +454,7 @@ void SimplePinsLimitBox(
 		int limitDefault,
 		const QString &keyPremium,
 		int limitPremium) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(session, keyDefault, limitDefault);
 	const auto premiumLimit = Limit(session, keyPremium, limitPremium);
@@ -489,7 +489,7 @@ void SimplePinsLimitBox(
 void ChannelsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(session, "channels_limit_default", 500);
 	const auto premiumLimit = Limit(session, "channels_limit_premium", 1000);
@@ -574,7 +574,7 @@ void PublicLinksLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionNavigation*> navigation) {
 	const auto session = &navigation->session();
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -639,7 +639,7 @@ void PublicLinksLimitBox(
 void FilterChatsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -679,7 +679,7 @@ void FilterChatsLimitBox(
 void FiltersLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -754,7 +754,7 @@ void PinsLimitBox(
 void CaptionLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -795,7 +795,7 @@ void CaptionLimitReachedBox(
 		.text = tr::lng_caption_limit_reached(tr::now, lt_count, remove),
 		.inform = true,
 	});
-	if (!session->user()->isPremium()) {
+	if (!session->premium()) {
 		box->addLeftButton(tr::lng_limits_increase(), [=] {
 			box->getDelegate()->showBox(
 				Box(CaptionLimitBox, session),
@@ -821,7 +821,7 @@ int CurrentPremiumLimit(
 		int limitDefault,
 		const QString &keyPremium,
 		int limitPremium) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 	return AppConfigLimit(
 		session,
 		premium ? keyPremium : keyDefault,

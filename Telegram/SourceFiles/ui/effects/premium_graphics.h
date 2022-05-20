@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include <QtGui/QBrush>
+
 namespace tr {
 template <typename ...>
 struct phrase;
@@ -30,6 +32,10 @@ void AddBubbleRow(
 	const style::icon *icon);
 
 void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max);
+
+[[nodiscard]] QGradientStops LimitGradientStops();
+[[nodiscard]] QGradientStops ButtonGradientStops();
+[[nodiscard]] QGradientStops LockGradientStops();
 
 } // namespace Premium
 } // namespace Ui

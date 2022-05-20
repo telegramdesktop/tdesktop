@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/layers/generic_box.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
@@ -149,11 +150,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] object_ptr<Ui::AbstractButton> CreatePremiumButton(
 		QWidget *parent) {
-	return CreateGradientButton(parent, {
-		{ 0., st::premiumButtonBg1->c },
-		{ 0.6, st::premiumButtonBg2->c },
-		{ 1., st::premiumButtonBg3->c },
-	});
+	return CreateGradientButton(parent, Ui::Premium::ButtonGradientStops());
 }
 
 [[nodiscard]] object_ptr<Ui::AbstractButton> CreateUnlockButton(
@@ -167,6 +164,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		result.data(),
 		tr::lng_sticker_premium_button(),
 		st::premiumPreviewButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
 		result->widthValue(),
 		label->widthValue()

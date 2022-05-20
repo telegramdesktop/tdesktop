@@ -255,6 +255,7 @@ void Sticker::paintLottie(
 		_lottieOncePlayed = true;
 		_parent->delegate()->elementStartStickerLoop(_parent);
 	}
+	checkPremiumEffectStart();
 }
 
 bool Sticker::paintPixmap(
@@ -362,7 +363,16 @@ void Sticker::refreshLink() {
 			}
 		});
 	} else if (sticker && sticker->set) {
-		_link = ShowSetHandler(_data);
+		if (_data->isPremiumSticker()) {
+			const auto weak = base::make_weak(this);
+			_link = std::make_shared<LambdaClickHandler>([weak] {
+				if (const auto that = weak.get()) {
+					that->premiumStickerClicked();
+				}
+			});
+		} else {
+			_link = ShowSetHandler(_data);
+		}
 	} else if (sticker
 		&& (_data->dimensions.width() > kStickerSideSize
 			|| _data->dimensions.height() > kStickerSideSize)
@@ -385,6 +395,11 @@ void Sticker::emojiStickerClicked() {
 		_parent->delegate()->elementStartInteraction(_parent);
 	}
 	_lottieOncePlayed = false;
+	_parent->history()->owner().requestViewRepaint(_parent);
+}
+
+void Sticker::premiumStickerClicked() {
+	_premiumEffectPlayed = false;
 	_parent->history()->owner().requestViewRepaint(_parent);
 }
 
@@ -423,12 +438,15 @@ void Sticker::setupLottie() {
 		ChatHelpers::StickerLottieSize::MessageHistory,
 		size() * style::DevicePixelRatio(),
 		Lottie::Quality::High);
-	if (_data->isPremiumSticker()
-		&& !_premiumEffectPlayed) {
+	checkPremiumEffectStart();
+	lottieCreated();
+}
+
+void Sticker::checkPremiumEffectStart() {
+	if (!_premiumEffectPlayed && _data->isPremiumSticker()) {
 		_premiumEffectPlayed = true;
 		_parent->delegate()->elementStartPremium(_parent, nullptr);
 	}
-	lottieCreated();
 }
 
 void Sticker::lottieCreated() {

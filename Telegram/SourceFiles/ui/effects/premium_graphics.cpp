@@ -29,15 +29,6 @@ constexpr auto kStepBeforeDeflection = 0.75;
 constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	+ (1. - kStepBeforeDeflection) / 2.;
 
-[[nodiscard]] QGradientStops GradientStops() {
-	return QGradientStops{
-		QGradientStop(0.0, st::premiumButtonBg1->c),
-		QGradientStop(.25, st::premiumButtonBg1->c),
-		QGradientStop(.85, st::premiumButtonBg2->c),
-		QGradientStop(1.0, st::premiumButtonBg3->c),
-	};
-}
-
 [[nodiscard]] QLinearGradient ComputeGradient(
 		not_null<QWidget*> content,
 		int left,
@@ -46,7 +37,7 @@ constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	// Take a full width of parent box without paddings.
 	const auto fullGradientWidth = content->parentWidget()->width();
 	auto fullGradient = QLinearGradient(0, 0, fullGradientWidth, 0);
-	fullGradient.setStops(GradientStops());
+	fullGradient.setStops(ButtonGradientStops());
 
 	auto gradient = QLinearGradient(0, 0, width, 0);
 	const auto fullFinal = float64(fullGradient.finalStop().x());
@@ -504,6 +495,27 @@ void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max) {
 	const auto line = parent->add(
 		object_ptr<Line>(parent, max),
 		st::boxRowPadding);
+}
+
+QGradientStops LimitGradientStops() {
+	return {
+		{ 0.0, st::premiumButtonBg1->c },
+		{ .25, st::premiumButtonBg1->c },
+		{ .85, st::premiumButtonBg2->c },
+		{ 1.0, st::premiumButtonBg3->c },
+	};
+}
+
+QGradientStops ButtonGradientStops() {
+	return {
+		{ 0., st::premiumButtonBg1->c },
+		{ 0.6, st::premiumButtonBg2->c },
+		{ 1., st::premiumButtonBg3->c },
+	};
+}
+
+QGradientStops LockGradientStops() {
+	return ButtonGradientStops();
 }
 
 } // namespace Premium

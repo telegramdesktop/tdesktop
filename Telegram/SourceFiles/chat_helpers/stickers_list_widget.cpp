@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_cloud_file.h"
 #include "data/data_changes.h"
+#include "data/data_peer_values.h"
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/buttons.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
 #include "lottie/lottie_multi_player.h"
@@ -56,6 +58,7 @@ constexpr auto kPreloadOfficialPages = 4;
 constexpr auto kOfficialLoadLimit = 40;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
+constexpr auto kPremiumLockedOpacity = 0.5;
 
 using Data::StickersSet;
 using Data::StickersPack;
@@ -1176,6 +1179,17 @@ StickersListWidget::StickersListWidget(
 	) | rpl::skip(1) | rpl::map_to(
 		TabbedSelector::Action::Update
 	) | rpl::start_to_stream(_choosingUpdated, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_premiumLock = QImage();
+	}, lifetime());
+
+	Data::AmPremiumValue(
+		&session()
+	) | rpl::start_with_next([=](bool premium) {
+		refreshStickers();
+	}, lifetime());
 }
 
 Main::Session &StickersListWidget::session() const {
@@ -2276,6 +2290,7 @@ void StickersListWidget::paintSticker(
 		return;
 	}
 
+	const auto locked = document->isPremiumSticker() && !session().premium();
 	const auto isLottie = document->sticker()->isLottie();
 	const auto isWebm = document->sticker()->isWebm();
 	if (isLottie
@@ -2302,6 +2317,9 @@ void StickersListWidget::paintSticker(
 		(_singleSize.width() - size.width()) / 2,
 		(_singleSize.height() - size.height()) / 2);
 
+	if (locked) {
+		p.setOpacity(kPremiumLockedOpacity);
+	}
 	if (sticker.lottie && sticker.lottie->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * cIntRetinaFactor();
@@ -2341,6 +2359,7 @@ void StickersListWidget::paintSticker(
 				sticker.savedFrameFor = _singleSize;
 			}
 		} else {
+			p.setOpacity(1.);
 			PaintStickerThumbnailPath(
 				p,
 				media.get(),
@@ -2358,14 +2377,38 @@ void StickersListWidget::paintSticker(
 		p.setOpacity(1.);
 	}
 
-	if (document->isPremiumSticker()) {
+	if (locked) {
+		p.setOpacity(1.);
+
+		validatePremiumLock();
+		const auto factor = style::DevicePixelRatio();
 		const auto point = pos
 			+ QPoint(
-				_singleSize.width() - st::stickerPanDeleteIconBg.width(),
-				_singleSize.height() - st::stickerPanDeleteIconBg.height());
-		st::stickerPanDeleteIconBg.paint(p, point, width());
-		st::stickerPanDeleteIconFg.paint(p, point, width());
+				_singleSize.width() - (_premiumLock.width() / factor),
+				_singleSize.height() - (_premiumLock.height() / factor));
+		p.drawImage(point, _premiumLock);
 	}
+}
+
+void StickersListWidget::validatePremiumLock() {
+	if (!_premiumLock.isNull()) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::stickersPremiumLock.size();
+	_premiumLock = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	_premiumLock.setDevicePixelRatio(factor);
+	auto p = QPainter(&_premiumLock);
+	auto gradient = QLinearGradient(
+		QPoint(0, size.height()),
+		QPoint(size.width(), 0));
+	gradient.setStops(Ui::Premium::LockGradientStops());
+	p.fillRect(QRect(QPoint(), size), gradient);
+	st::stickersPremiumLock.paint(p, 0, 0, size.width());
+	p.end();
+	_premiumLock = Images::Circle(std::move(_premiumLock));
 }
 
 int StickersListWidget::stickersRight() const {
@@ -2991,7 +3034,7 @@ bool StickersListWidget::appendSet(
 		PrepareStickers((set->stickers.empty() && externalLayout)
 			? set->covers
 			: set->stickers));
-	if (!externalLayout && _premiumsIndex >= 0) {
+	if (!externalLayout && _premiumsIndex >= 0 && session().premium()) {
 		for (const auto &sticker : to.back().stickers) {
 			const auto document = sticker.document;
 			if (document->isPremiumSticker()) {

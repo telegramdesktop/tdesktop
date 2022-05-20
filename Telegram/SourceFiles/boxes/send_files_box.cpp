@@ -404,7 +404,7 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 		return true;
 	};
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		const auto premium = _controller->session().user()->isPremium();
+		const auto premium = _controller->session().premium();
 		FileDialogCallback(
 			std::move(result),
 			checkResult,
@@ -575,7 +575,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 			return true;
 		};
 		const auto callback = [=](FileDialog::OpenResult &&result) {
-			const auto premium = _controller->session().user()->isPremium();
+			const auto premium = _controller->session().premium();
 			FileDialogCallback(
 				std::move(result),
 				checkResult,
@@ -773,7 +773,7 @@ bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
-	const auto premium = _controller->session().user()->isPremium();
+	const auto premium = _controller->session().premium();
 	auto list = [&] {
 		const auto urls = data->hasUrls() ? data->urls() : QList<QUrl>();
 		auto result = CanAddUrls(urls)

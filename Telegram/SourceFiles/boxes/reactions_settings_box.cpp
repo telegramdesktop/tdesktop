@@ -447,7 +447,7 @@ void ReactionsSettingsBox(
 			&button->lifetime());
 
 		button->setClickedCallback([=, emoji = r.emoji] {
-			if (premium && !controller->session().user()->isPremium()) {
+			if (premium && !controller->session().premium()) {
 				Settings::ShowPremium(&controller->session());
 				return;
 			}

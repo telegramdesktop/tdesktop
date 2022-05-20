@@ -345,7 +345,7 @@ void EditCaptionBox::setupEditEventHandler() {
 			}
 			return true;
 		};
-		const auto premium = _controller->session().user()->isPremium();
+		const auto premium = _controller->session().premium();
 		auto list = Storage::PreparedFileFromFilesDialog(
 			std::move(result),
 			checkResult,
@@ -524,7 +524,7 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
-	const auto premium = _controller->session().user()->isPremium();
+	const auto premium = _controller->session().premium();
 	return setPreparedList(ListFromMimeData(data, premium));
 }
 

@@ -218,6 +218,10 @@ rpl::producer<> Session::downloaderTaskFinished() const {
 	return downloader().taskFinished();
 }
 
+bool Session::premium() const {
+	return _user->isPremium();
+}
+
 uint64 Session::uniqueId() const {
 	// See also Account::willHaveSessionUniqueId.
 	return userId().bare

@@ -100,6 +100,8 @@ private:
 	void lottieCreated();
 	void unloadLottie();
 	void emojiStickerClicked();
+	void premiumStickerClicked();
+	void checkPremiumEffectStart();
 	//bool markFramesTillExternal();
 
 	const not_null<Element*> _parent;

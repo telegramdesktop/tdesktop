@@ -298,3 +298,5 @@ premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	style: semiboldTextStyle;
 }
+
+stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};

@@ -94,18 +94,25 @@ void EmojiInteractions::play(
 void EmojiInteractions::playPremiumEffect(
 		not_null<const Element*> view,
 		Element *replacing) {
+	const auto already = ranges::contains(_plays, view, &Play::view);
 	if (replacing) {
 		const auto i = ranges::find(_plays, replacing, &Play::view);
 		if (i != end(_plays)) {
 			//if (i->premium) {
 			//	replacing->externalLottieProgressing(false);
 			//}
-			i->view = view;
+			if (already) {
+				_plays.erase(i);
+			} else {
+				i->view = view;
+			}
 			//if (i->premium) {
 			//	view->externalLottieProgressing(true);
 			//}
 			return;
 		}
+	} else if (already) {
+		return;
 	}
 	if (const auto media = view->media()) {
 		if (const auto document = media->getDocument()) {

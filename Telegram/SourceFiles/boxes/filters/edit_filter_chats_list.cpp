@@ -104,7 +104,7 @@ private:
 }
 
 [[nodiscard]] int Limit(not_null<Main::Session*> session) {
-	const auto premium = session->user()->isPremium();
+	const auto premium = session->premium();
 	return Limit(session,
 		(premium
 			? "dialog_filters_chats_limit_premium"
