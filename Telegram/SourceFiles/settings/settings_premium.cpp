@@ -169,9 +169,10 @@ void Premium::setupContent() {
 	const auto from = iconContainers.front()->y();
 	const auto to = iconContainers.back()->y() + iconSize.height();
 	auto gradient = QLinearGradient(0, 0, 0, to - from);
-	gradient.setColorAt(.0, st::premiumButtonBg3->c);
-	gradient.setColorAt(.5, st::premiumButtonBg2->c);
-	gradient.setColorAt(1., st::premiumButtonBg1->c);
+	gradient.setColorAt(0.0, st::premiumIconBg1->c);
+	gradient.setColorAt(.28, st::premiumIconBg2->c);
+	gradient.setColorAt(.55, st::premiumButtonBg2->c);
+	gradient.setColorAt(1.0, st::premiumButtonBg1->c);
 	for (auto i = 0; i < int(icons.size()); i++) {
 		const auto &iconContainer = iconContainers[i];
 

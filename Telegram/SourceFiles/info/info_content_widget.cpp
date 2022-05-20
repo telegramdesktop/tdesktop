@@ -283,8 +283,9 @@ rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_scroll->scrollTopValue(),
-		_scrollBottomSkip.value()
-	) | rpl::map([=](int scroll, int skip) {
+		_scrollBottomSkip.value(),
+		_scroll->heightValue()
+	) | rpl::map([=](int scroll, int skip, int) {
 		return ((skip > 0) && (scroll < _scroll->scrollTopMax()));
 	});
 }
