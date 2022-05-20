@@ -1383,7 +1383,7 @@ inputInvoiceSlug#c326caef slug:string = InputInvoice;
 
 payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
-messages.transcribedAudio#aa01cb2f text:string = messages.TranscribedAudio;
+messages.transcribedAudio#bfcd7e0a transcription_id:long text:string = messages.TranscribedAudio;
 
 ---functions---
 
@@ -1686,6 +1686,7 @@ messages.requestSimpleWebView#6abb2f73 flags:# bot:InputUser url:string theme_pa
 messages.sendWebViewResultMessage#a4314f5 bot_query_id:string result:InputBotInlineResult = WebViewMessageSent;
 messages.sendWebViewData#dc0242c8 bot:InputUser random_id:long button_text:string data:string = Updates;
 messages.transcribeAudio#269e9a49 peer:InputPeer msg_id:int = messages.TranscribedAudio;
+messages.rateTranscribedAudio#7f1d072f peer:InputPeer msg_id:int transcription_id:long good:Bool = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
