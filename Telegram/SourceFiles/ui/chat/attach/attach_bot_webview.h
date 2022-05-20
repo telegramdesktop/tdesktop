@@ -75,7 +75,9 @@ private:
 	void setTitle(rpl::producer<QString> title);
 	void sendDataMessage(const QJsonValue &value);
 	void processMainButtonMessage(const QJsonValue &value);
+	void processBackButtonMessage(const QJsonValue &value);
 	void openTgLink(const QJsonValue &value);
+	void openExternalLink(const QJsonValue &value);
 	void openInvoice(const QJsonValue &value);
 	void createMainButton();
 

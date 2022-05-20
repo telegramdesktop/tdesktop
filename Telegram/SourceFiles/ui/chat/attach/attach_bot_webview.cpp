@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
+#include <QtGui/QDesktopServices>
 
 namespace Ui::BotWebView {
 namespace {
@@ -326,6 +327,11 @@ Panel::Panel(
 		return !_hiddenForPayment;
 	}) | rpl::start_with_next(_close, _widget->lifetime());
 
+	_widget->backRequests(
+	) | rpl::start_with_next([=] {
+		postEvent("back_button_pressed");
+	}, _widget->lifetime());
+
 	rpl::combine(
 		style::PaletteChanged(),
 		_themeUpdateForced.events()
@@ -570,10 +576,14 @@ bool Panel::createWebview() {
 			sendDataMessage(list.at(1));
 		} else if (command == "web_app_setup_main_button") {
 			processMainButtonMessage(list.at(1));
+		} else if (command == "web_app_setup_back_button") {
+			processBackButtonMessage(list.at(1));
 		} else if (command == "web_app_request_theme") {
 			_themeUpdateForced.fire({});
 		} else if (command == "web_app_open_tg_link") {
 			openTgLink(list.at(1).toString());
+		} else if (command == "web_app_open_link") {
+			openExternalLink(list.at(1).toString());
 		} else if (command == "web_app_open_invoice") {
 			openInvoice(list.at(1).toString());
 		}
@@ -642,6 +652,24 @@ void Panel::openTgLink(const QJsonValue &value) {
 	_handleLocalUri("https://t.me" + path);
 }
 
+void Panel::openExternalLink(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	if (args.isEmpty()) {
+		_close();
+		return;
+	}
+	const auto url = args["url"].toString();
+	const auto lower = url.toLower();
+	if (url.isEmpty()
+		|| (!lower.startsWith("http://") && !lower.startsWith("https://"))) {
+		LOG(("BotWebView Error: Bad external link \"%1\".").arg(json));
+		_close();
+		return;
+	}
+	QDesktopServices::openUrl(url);
+}
+
 void Panel::openInvoice(const QJsonValue &value) {
 	const auto json = value.toString();
 	const auto args = ParseMethodArgs(json);
@@ -702,6 +730,12 @@ void Panel::processMainButtonMessage(const QJsonValue &value) {
 		.isProgressVisible = args["is_progress_visible"].toBool(),
 		.text = args["text"].toString(),
 	});
+}
+
+void Panel::processBackButtonMessage(const QJsonValue &value) {
+	const auto json = value.toString();
+	const auto args = ParseMethodArgs(json);
+	_widget->setBackAllowed(args["is_visible"].toBool());
 }
 
 void Panel::createMainButton() {
