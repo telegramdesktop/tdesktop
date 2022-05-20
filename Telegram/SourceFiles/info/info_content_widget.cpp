@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QCoreApplication>
 

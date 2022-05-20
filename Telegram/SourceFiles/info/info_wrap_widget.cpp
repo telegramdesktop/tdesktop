@@ -799,6 +799,10 @@ QPixmap WrapWidget::grabForShowAnimation(
 	return result;
 }
 
+bool WrapWidget::hasCustomBottomBar() const {
+	return _content->scrollBottomSkip() > 0;
+}
+
 void WrapWidget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	//if (params.withTabs && _topTabs) {

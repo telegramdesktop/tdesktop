@@ -270,28 +270,32 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 }
 
 QRect LayerWidget::countGeometry(int newWidth) {
-	auto parentSize = parentWidget()->size();
-	auto windowWidth = parentSize.width();
-	auto windowHeight = parentSize.height();
-	auto newLeft = (windowWidth - newWidth) / 2;
-	auto newTop = std::clamp(
+	const auto &parentSize = parentWidget()->size();
+	const auto windowWidth = parentSize.width();
+	const auto windowHeight = parentSize.height();
+	const auto newLeft = (windowWidth - newWidth) / 2;
+	const auto newTop = std::clamp(
 		windowHeight / 24,
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
-	auto newBottom = newTop;
+	const auto newBottom = newTop;
 
+	const auto hasCustomBottomBar = _content->hasCustomBottomBar();
+	const auto bottomRadius = st::boxRadius;
 	// Top rounding is included in _contentHeight.
-	auto desiredHeight = _contentHeight + st::boxRadius;
+	auto desiredHeight = _contentHeight + bottomRadius;
 	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
 
 	// First resize content to new width and get the new desired height.
-	auto contentLeft = 0;
-	auto contentTop = 0;
-	auto contentBottom = st::boxRadius;
-	auto contentWidth = newWidth;
+	const auto contentLeft = 0;
+	const auto contentTop = 0;
+	const auto contentBottom = bottomRadius;
+	const auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;
-	auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
-	auto additionalScroll = std::min(scrollTillBottom, newBottom);
+	const auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
+	auto additionalScroll = hasCustomBottomBar
+		? 0
+		: std::min(scrollTillBottom, newBottom);
 
 	const auto expanding = (_desiredHeight > _contentHeight);
 
