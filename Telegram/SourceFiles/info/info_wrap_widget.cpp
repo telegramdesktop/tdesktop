@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_main.h"
+#include "settings/settings_premium.h"
+#include "ui/effects/ripple_animation.h" // maskByDrawer.
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -53,6 +55,12 @@ const style::InfoTopBar &TopBarStyle(Wrap wrap) {
 	return (wrap == Wrap::Layer)
 		? st::infoLayerTopBar
 		: st::infoTopBar;
+}
+
+[[nodiscard]] bool HasCustomTopBar(not_null<const Controller*> controller) {
+	const auto section = controller->section();
+	return (section.type() == Section::Type::Settings
+		&& (section.settingsType() == ::Settings::PremiumId()));
 }
 
 } // namespace
@@ -346,6 +354,10 @@ void WrapWidget::setupTop() {
 	//} else {
 	//	createTopBar();
 	//}
+	if (HasCustomTopBar(_controller.get())) {
+		_topBar.destroy();
+		return;
+	}
 	createTopBar();
 }
 
@@ -957,6 +969,20 @@ void WrapWidget::showNewContent(
 		const auto layer = (wrap() == Wrap::Layer);
 		animationParams.withFade = layer;
 		animationParams.topSkip = layer ? st::boxRadius : 0;
+
+		if (HasCustomTopBar(_controller.get())
+			|| HasCustomTopBar(newController.get())) {
+
+			const auto s = QSize(
+				newContent->width(),
+				animationParams.topSkip);
+			auto image = Ui::RippleAnimation::maskByDrawer(s, false, [&](
+					QPainter &p) {
+				const auto r = QRect(0, 0, s.width(), s.height() * 2);
+				p.drawRoundedRect(r, st::boxRadius, st::boxRadius);
+			});
+			animationParams.topMask = Ui::PixmapFromImage(std::move(image));
+		}
 	}
 	if (saveToStack) {
 		auto item = StackItem();

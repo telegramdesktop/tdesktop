@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
+#include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
@@ -41,6 +43,8 @@ public:
 
 	[[nodiscard]] rpl::producer<QString> title() override;
 
+	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToTop(
+		not_null<QWidget*> parent) override;
 	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
@@ -226,6 +230,48 @@ void Premium::setupContent() {
 
 	Ui::ResizeFitChild(this, content);
 
+}
+
+QPointer<Ui::RpWidget> Premium::createPinnedToTop(
+		not_null<QWidget*> parent) {
+	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
+	const auto content = container->add(object_ptr<Ui::RpWidget>(container));
+	content->resize(content->width(), st::introQrStepsTop);
+
+	container->setAttribute(Qt::WA_OpaquePaintEvent, false);
+	content->setAttribute(Qt::WA_OpaquePaintEvent, false);
+
+	content->paintRequest(
+	) | rpl::start_with_next([=](const QRect &paintRect) {
+		Painter p(content);
+
+		p.fillRect(paintRect, Qt::transparent);
+
+		const auto rect = content->rect();
+		auto pathTop = QPainterPath();
+		pathTop.addRoundedRect(rect, st::boxRadius, st::boxRadius);
+		auto pathBottom = QPainterPath();
+		pathBottom.addRect(
+			QRect(
+				QPoint(rect.x(), rect.y() + rect.height() - st::boxRadius),
+				QSize(rect.width(), st::boxRadius)));
+
+		const auto gradientPointTop = rect.height() / 3. * 2.;
+		auto gradient = QLinearGradient(
+			QPointF(0, gradientPointTop),
+			QPointF(rect.width(), rect.height() - gradientPointTop));
+		gradient.setColorAt(0., st::premiumButtonBg1->c);
+		gradient.setColorAt(.6, st::premiumButtonBg2->c);
+		gradient.setColorAt(1., st::premiumButtonBg3->c);
+
+		PainterHighQualityEnabler hq(p);
+		p.fillPath(pathTop + pathBottom, gradient);
+	}, content->lifetime());
+
+	container->setMaximumHeight(st::introQrStepsTop);
+	container->setMinimumHeight(st::infoLayerTopBarHeight);
+
+	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ container });
 }
 
 QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
