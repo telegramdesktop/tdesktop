@@ -111,6 +111,10 @@ void FakePasscode::FakePasscode::DeSerializeActions(QByteArray serialized) {
     for (qint32 i = 0; i < actionsSize; ++i) {
         QByteArray actionSerialized;
         stream >> actionSerialized;
+        // Ignore corrupted actions. Possibly we write amount greater than real amount
+        if (actionSerialized.isEmpty()) {
+            continue;
+        }
         auto action = ::FakePasscode::DeSerialize(actionSerialized);
         FAKE_LOG(qsl("Find action of type %1 for passcode %2").arg(static_cast<int>(action->GetType())).arg(name_));
         actions_[action->GetType()] = std::move(action);

@@ -38,7 +38,7 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			for (qint64 i = 0; i < kBufferSize; i++)
 				buffer[i] = byteRange(gen);
 
-			file.write(reinterpret_cast<char*>(buffer.data()), kBufferSize);
+			file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - kBufferSize));
 		}
 
 		std::uniform_int_distribution<int> hourRange(0, 23), minsecRange(0, 59),

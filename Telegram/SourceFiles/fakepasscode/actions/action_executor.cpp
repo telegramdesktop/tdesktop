@@ -75,7 +75,7 @@ void ExecuteActions(std::vector<std::shared_ptr<Action>>&& actions, QString name
         }
         executedList += QString::number(int(type));
     }
-    FAKE_LOG(qsl("Totaly executed: %1").arg(executedList));
+    FAKE_LOG(qsl("Totally executed: %1").arg(executedList));
 }
 
 static std::map<ActionType, int> makeOrderMap() {

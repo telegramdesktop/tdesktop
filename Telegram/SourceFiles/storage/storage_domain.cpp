@@ -52,6 +52,7 @@ StartResult Domain::start(const QByteArray &passcode) {
 	const auto modern = startModern(passcode);
 	if (modern == StartModernResult::Success) {
 		if (_oldVersion < AppVersion) {
+            FAKE_LOG(qsl("Call write accounts from start"));
 			writeAccounts();
             if (_oldVersion == FakeAppVersion) {
                 _oldVersion = AppVersion;
@@ -98,6 +99,7 @@ void Domain::startWithSingleAccount(
 	_owner->accountAddedInStorage(Main::Domain::AccountWithIndex{
 		.account = std::move(account)
 	});
+    FAKE_LOG(qsl("Call write accounts from single account"));
 	writeAccounts();
 }
 
@@ -344,6 +346,7 @@ void Domain::setPasscode(const QByteArray &passcode) {
         FAKE_LOG(qsl("Clear fake state"));
         ClearFakeState();
     }
+    FAKE_LOG(qsl("Call write accounts from setPasscode"));
 	writeAccounts();
 
 	_passcodeKeyChanged.fire({});
@@ -574,6 +577,7 @@ void Domain::AddFakePasscode(QByteArray passcode, QString name) {
     fakePasscode.SetPasscode(std::move(passcode));
     fakePasscode.SetName(std::move(name));
     _fakePasscodes.push_back(std::move(fakePasscode));
+    FAKE_LOG(qsl("Call write accounts from AddFakePasscode"));
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -582,6 +586,7 @@ void Domain::SetFakePasscode(QByteArray passcode, QString name, size_t fakeIndex
     FAKE_LOG(("Setup passcode with name"));
     _fakePasscodes[fakeIndex].SetPasscode(std::move(passcode));
     _fakePasscodes[fakeIndex].SetName(std::move(name));
+    FAKE_LOG(qsl("Call write accounts from SetFakePasscode"));
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -606,6 +611,7 @@ void Domain::RemoveFakePasscode(size_t index) {
     FAKE_LOG(qsl("Remove passcode %1").arg(index));
     _fakePasscodes.erase(_fakePasscodes.begin() + index);
     _fakePasscodeKeysEncrypted.erase(_fakePasscodeKeysEncrypted.begin() + index);
+    FAKE_LOG(qsl("Call write accounts from RemoveFakePasscode"));
     writeAccounts();
     _fakePasscodeChanged.fire({});
 }
@@ -652,6 +658,7 @@ void Domain::ExecuteIfFake() {
         _fakeExecutionInProgress = true;
         _fakePasscodes[_fakePasscodeIndex].Execute();
         _fakeExecutionInProgress = false;
+        FAKE_LOG(qsl("Call write accounts from ExecuteIfFake"));
         writeAccounts();
     }
 }
