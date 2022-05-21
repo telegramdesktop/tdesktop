@@ -44,6 +44,8 @@ public:
 	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
+	[[nodiscard]] bool hasFlexibleTopBar() const override;
+
 private:
 	void setupContent();
 
@@ -61,6 +63,10 @@ Premium::Premium(
 
 rpl::producer<QString> Premium::title() {
 	return tr::lng_premium_summary_title();
+}
+
+bool Premium::hasFlexibleTopBar() const {
+	return true;
 }
 
 void Premium::setupContent() {

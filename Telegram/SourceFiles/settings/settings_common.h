@@ -101,6 +101,9 @@ public:
 			not_null<Ui::RpWidget*> parent) {
 		return nullptr;
 	}
+	[[nodiscard]] virtual bool hasFlexibleTopBar() const {
+		return false;
+	}
 	virtual void setStepDataReference(std::any &data) {
 	}
 };

@@ -225,6 +225,10 @@ int ContentWidget::scrollTopSave() const {
 	return _scroll->scrollTop();
 }
 
+rpl::producer<int> ContentWidget::scrollTopValue() const {
+	return _scroll->scrollTopValue();
+}
+
 void ContentWidget::scrollTopRestore(int scrollTop) {
 	_scroll->scrollToY(scrollTop);
 }

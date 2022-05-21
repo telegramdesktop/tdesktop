@@ -81,6 +81,10 @@ private:
 	not_null<UserData*> _self;
 	Type _type = Type();
 
+	struct {
+		rpl::event_stream<int> contentHeightValue;
+		rpl::event_stream<int> fillerWidthValue;
+	} _flexibleScroll;
 	not_null<::Settings::AbstractSection*> _inner;
 	QPointer<Ui::RpWidget> _pinnedToTop;
 	QPointer<Ui::RpWidget> _pinnedToBottom;

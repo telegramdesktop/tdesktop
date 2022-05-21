@@ -101,6 +101,7 @@ protected:
 	int scrollTopSave() const;
 	void scrollTopRestore(int scrollTop);
 	void scrollTo(const Ui::ScrollToRequest &request);
+	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 
 private:
 	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
