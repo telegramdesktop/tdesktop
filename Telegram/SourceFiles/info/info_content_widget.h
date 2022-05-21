@@ -103,6 +103,8 @@ protected:
 	void scrollTo(const Ui::ScrollToRequest &request);
 	[[nodiscard]] rpl::producer<int> scrollTopValue() const;
 
+	void setPaintPadding(const style::margins &padding);
+
 private:
 	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
 	void updateControlsGeometry();
@@ -125,6 +127,9 @@ private:
 
 	// Saving here topDelta in setGeometryWithTopMoved() to get it passed to resizeEvent().
 	int _topDelta = 0;
+
+	// To paint round edges from content.
+	style::margins _paintPadding;
 
 };
 

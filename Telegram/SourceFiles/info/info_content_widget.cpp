@@ -114,7 +114,17 @@ bool ContentWidget::isStackBottom() const {
 
 void ContentWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), _bg);
+	if (_paintPadding.isNull()) {
+		p.fillRect(e->rect(), _bg);
+	} else {
+		const auto &r = e->rect();
+		const auto padding = QMargins(
+			0,
+			std::min(0, (r.top() - _paintPadding.top())),
+			0,
+			std::min(0, (r.bottom() - _paintPadding.bottom())));
+		p.fillRect(r + padding, _bg);
+	}
 }
 
 void ContentWidget::setGeometryWithTopMoved(
@@ -247,6 +257,10 @@ QRect ContentWidget::floatPlayerAvailableRect() const {
 
 rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
+}
+
+void ContentWidget::setPaintPadding(const style::margins &padding) {
+	_paintPadding = padding;
 }
 
 void ContentWidget::saveChanges(FnMut<void()> done) {
