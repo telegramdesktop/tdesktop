@@ -30,6 +30,7 @@ namespace FakePasscode {
         base::flat_map<qint32, bool> index_to_logout_;
 
         rpl::lifetime lifetime_;
+        rpl::lifetime sub_lifetime_;
     };
 }
 #endif //TELEGRAM_LOGOUT_H

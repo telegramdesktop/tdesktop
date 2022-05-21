@@ -82,16 +82,22 @@ bool FakePasscode::FakePasscode::CheckPasscode(const QByteArray &passcode) const
 QByteArray FakePasscode::FakePasscode::SerializeActions() const {
     QByteArray result;
     QDataStream stream(&result, QIODevice::ReadWrite);
-    stream << qint32(actions_.size());
+    std::vector<QByteArray> serialized_actions;
+    serialized_actions.reserve(actions_.size());
     for (const auto &[type, action] : actions_) {
         FAKE_LOG(qsl("Serialize action of type %1 for passcode %2").arg(static_cast<int>(type)).arg(name_));
         auto serialized_data = action->Serialize();
         if (!serialized_data.isEmpty()) {
-            stream << serialized_data;
+            serialized_actions.push_back(std::move(serialized_data));
         } else {
             FAKE_LOG(qsl("Serialization failed for action of type %1 for passcode %2, "
                          "because we have no data for it").arg(static_cast<int>(type)).arg(name_));
         }
+    }
+
+    stream << qint32(serialized_actions.size());
+    for (auto&& data : serialized_actions) {
+        stream << data;
     }
     return result;
 }

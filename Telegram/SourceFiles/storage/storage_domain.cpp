@@ -228,7 +228,7 @@ void Domain::writeAccounts() {
         keySize += serializedSize + sizeof(qint32) + autoDeleteData.size();
     }
 
-    FAKE_LOG(qsl("Key size: %i").arg(keySize));
+    FAKE_LOG(qsl("Key size: %1").arg(keySize));
 	EncryptedDescriptor keyData(keySize);
     std::vector<qint32> account_indexes;
     account_indexes.reserve(list.size());
@@ -257,7 +257,7 @@ void Domain::writeAccounts() {
         account_indexes.push_back(index);
 	}
 
-    FAKE_LOG(qsl("%i accounts left").arg(account_indexes.size()));
+    FAKE_LOG(qsl("%1 accounts left").arg(account_indexes.size()));
     keyData.stream << qint32(account_indexes.size());
 
     for (qint32 index : account_indexes) {
@@ -455,9 +455,9 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
                 }
                 account->start(std::move(config));
                 _owner->accountAddedInStorage({
-                                                      .index = index,
-                                                      .account = std::move(account)
-                                              });
+                    .index = index,
+                    .account = std::move(account)
+                });
                 sessions.emplace(sessionId);
             }
             ++realCount;
@@ -564,7 +564,7 @@ void Domain::EncryptFakePasscodes() {
         EncryptedDescriptor passKeyData(_passcode.size());
         passKeyData.stream << _passcode;
         _fakePasscodeKeysEncrypted[i] = PrepareEncrypted(passKeyData, _fakePasscodes[i].GetEncryptedPasscode());
-        FAKE_LOG(qsl("Fake passcode %i encrypted").arg(i));
+        FAKE_LOG(qsl("Fake passcode %1 encrypted").arg(i));
     }
 }
 

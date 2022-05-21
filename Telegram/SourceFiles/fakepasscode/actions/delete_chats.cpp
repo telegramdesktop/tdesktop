@@ -24,6 +24,11 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         return;
     }
 
+    if (data.peer_ids.empty()) {
+        FAKE_LOG(qsl("Execute DeleteChatsAction on account %1 with empty chat list").arg(index));
+        return;
+    }
+
     auto& session = account->session();
     auto& data_session = session.data();
     auto& api = session.api();

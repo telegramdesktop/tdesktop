@@ -11,9 +11,7 @@ void FakePasscode::LogoutAction::Execute() {
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
-            crl::guard(&account->session(), [account = account.get()] {
-                Core::App().logoutWithChecksAndClear(account);
-            })();
+            Core::App().logoutWithChecksAndClear(account.get());
             index_to_logout_.remove(index);
         }
     }
@@ -80,13 +78,16 @@ const base::flat_map<qint32, bool>& FakePasscode::LogoutAction::GetLogout() cons
 }
 
 void FakePasscode::LogoutAction::SubscribeOnLoggingOut() {
-    for (const auto&[index, account] : Core::App().domain().accounts()) {
-        FAKE_LOG(qsl("Subscribe on logout for account %1").arg(index));
-        account->sessionChanges() | rpl::start_with_next([index = index, this] (const Main::Session* session) {
-            if (session == nullptr) {
-                FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
-                index_to_logout_.remove(index);
-            }
-        }, lifetime_);
-    }
+    Core::App().domain().accountsChanges() | rpl::start_with_next([this] {
+        sub_lifetime_.destroy();
+        for (const auto&[index, account] : Core::App().domain().accounts()) {
+            FAKE_LOG(qsl("Subscribe on logout for account %1").arg(index));
+            account->sessionChanges() | rpl::start_with_next([index = index, this] (const Main::Session* session) {
+                if (session == nullptr) {
+                    FAKE_LOG(qsl("Account %1 logged out, remove from us.").arg(index));
+                    index_to_logout_.remove(index);
+                }
+            }, sub_lifetime_);
+        }
+    }, lifetime_);
 }

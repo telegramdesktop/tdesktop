@@ -16,6 +16,7 @@ namespace FakePasscode {
 
     protected:
         rpl::lifetime sub_lifetime_;
+        rpl::lifetime lifetime_;
 
         virtual void SubscribeOnLoggingOut();
         virtual void OnAccountLoggedOut(qint32 index) = 0;

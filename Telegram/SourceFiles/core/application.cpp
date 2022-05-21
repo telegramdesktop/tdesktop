@@ -699,20 +699,17 @@ void Application::logoutWithChecksAndClear(Main::Account* account) {
 			autoDelete->DeleteAll(account->maybeSession());
 		}
 	}
-    const auto weak = base::make_weak(account);
-    const auto retry = [=] {
-        if (const auto account = weak.get()) {
-            logoutWithChecksAndClear(account);
-        }
-    };
 	if (!account || !account->sessionExists()) {
 		logoutWithClear(account);
 	} else if (_exportManager->inProgress(&account->session())) {
-		_exportManager->stopWithConfirmation(retry);
+		_exportManager->stop();
+        logoutWithChecksAndClear(account);
 	} else if (account->session().uploadsInProgress()) {
-		account->session().uploadsStopWithConfirmation(retry);
+		account->session().uploadsStop();
+        logoutWithChecksAndClear(account);
 	} else if (_downloadManager->loadingInProgress(&account->session())) {
-        _downloadManager->loadingStopWithConfirmation(retry, &account->session());
+        _downloadManager->loadingStop(&account->session());
+        logoutWithChecksAndClear(account);
     } else {
 		logoutWithClear(account);
 	}
