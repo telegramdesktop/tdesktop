@@ -8,11 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 
 #include "core/application.h"
+#include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
+#include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
-#include "core/application.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/effects/gradient.h"
@@ -22,12 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
-#include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
@@ -64,7 +66,9 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
+	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	rpl::variable<bool> _backToggles;
+	rpl::variable<Info::Wrap> _wrap;
 
 	rpl::event_stream<> _showBack;
 
@@ -96,6 +100,7 @@ void Premium::setStepDataReference(std::any &data) {
 		_backToggles = std::move(
 			my->backButtonEnables
 		) | rpl::map_to(true);
+		_wrap = std::move(my->wrapValue);
 	}
 }
 
@@ -297,15 +302,22 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 	container->setMaximumHeight(st::introQrStepsTop);
 	container->setMinimumHeight(st::infoLayerTopBarHeight);
 
-	const auto back = Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
-		content,
-		object_ptr<Ui::IconButton>(content, st::settingsPremiumTopBarBack),
-		st::infoTopBarScale);
-	back->setDuration(0);
-	back->toggleOn(_backToggles.value());
-	back->entity()->addClickHandler([=] {
-		_showBack.fire({});
-	});
+	_wrap.value(
+	) | rpl::start_with_next([=](Info::Wrap wrap) {
+		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
+			content,
+			object_ptr<Ui::IconButton>(
+				content,
+				(wrap == Info::Wrap::Layer)
+					? st::settingsPremiumLayerTopBarBack
+					: st::settingsPremiumTopBarBack),
+			st::infoTopBarScale);
+		_back->setDuration(0);
+		_back->toggleOn(_backToggles.value());
+		_back->entity()->addClickHandler([=] {
+			_showBack.fire({});
+		});
+	}, container->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ container });
 }
@@ -340,7 +352,17 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			st::premiumPreviewBox.button.textTop,
 			outer);
 	}, label->lifetime());
-	content->add(std::move(result), st::settingsPremiumButtonPadding);
+	auto padding = st::settingsPremiumButtonPadding;
+	const auto paddingBottom = padding.bottom();
+	padding.setBottom(paddingBottom - st::boxRadius);
+	content->add(std::move(result), padding);
+
+	content->add(
+		object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
+			content,
+			object_ptr<Ui::FixedHeightWidget>(content, st::boxRadius))
+	)->setDuration(0)->toggleOn(_wrap.value(
+	) | rpl::map(rpl::mappers::_1 != Info::Wrap::Layer));
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }

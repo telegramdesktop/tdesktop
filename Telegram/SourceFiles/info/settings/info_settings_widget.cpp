@@ -62,6 +62,7 @@ Widget::Widget(
 
 		controller->stepDataReference() = SectionCustomTopBarData{
 			.backButtonEnables = _flexibleScroll.backButtonEnables.events(),
+			.wrapValue = controller->wrapValue(),
 		};
 
 		// ScrollArea -> PaddingWrap -> RpWidget.

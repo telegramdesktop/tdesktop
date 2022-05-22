@@ -23,6 +23,7 @@ struct Tag;
 
 struct SectionCustomTopBarData {
 	rpl::producer<> backButtonEnables;
+	rpl::producer<Info::Wrap> wrapValue;
 };
 
 class Memento final : public ContentMemento {
