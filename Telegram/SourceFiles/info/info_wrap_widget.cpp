@@ -376,7 +376,7 @@ void WrapWidget::createTopBar() {
 		_content->selectionAction(action);
 	}, _topBar->lifetime());
 
-	if (wrapValue == Wrap::Narrow || hasStackHistory()) {
+	if (hasBackButton()) {
 		_topBar->enableBackButton();
 		_topBar->backRequest(
 		) | rpl::start_with_next([=] {
@@ -996,6 +996,11 @@ void WrapWidget::showNewContent(
 	}
 
 	{
+		if (hasBackButton()) {
+			newContent->enableBackButton();
+		}
+	}
+	{
 		// Let old controller outlive old content widget.
 		const auto oldController = std::exchange(
 			_controller,
@@ -1091,7 +1096,7 @@ QRect WrapWidget::floatPlayerAvailableRect() {
 
 object_ptr<Ui::RpWidget> WrapWidget::createTopBarSurrogate(
 		QWidget *parent) {
-	if (_topBar && (hasStackHistory() || wrap() == Wrap::Narrow)) {
+	if (_topBar && hasBackButton()) {
 		Assert(_topBar != nullptr);
 
 		auto result = object_ptr<Ui::AbstractButton>(parent);
@@ -1149,6 +1154,10 @@ rpl::producer<int> WrapWidget::scrollTillBottomChanges() const {
 
 rpl::producer<bool> WrapWidget::grabbingForExpanding() const {
 	return _grabbingForExpanding.value();
+}
+
+bool WrapWidget::hasBackButton() const {
+	return (wrap() == Wrap::Narrow || hasStackHistory());
 }
 
 WrapWidget::~WrapWidget() = default;

@@ -60,6 +60,10 @@ Widget::Widget(
 			_flexibleScroll.fillerWidthValue,
 			lifetime());
 
+		controller->stepDataReference() = SectionCustomTopBarData{
+			.backButtonEnables = _flexibleScroll.backButtonEnables.events(),
+		};
+
 		// ScrollArea -> PaddingWrap -> RpWidget.
 		inner->setParent(filler->parentWidget()->parentWidget());
 		inner->raise();
@@ -218,6 +222,10 @@ std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(self(), _type);
 	saveState(result.get());
 	return result;
+}
+
+void Widget::enableBackButton() {
+	_flexibleScroll.backButtonEnables.fire({});
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

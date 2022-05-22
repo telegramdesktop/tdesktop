@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_premium.h"
 
+#include "core/application.h"
+#include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -18,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_session_controller.h"
@@ -35,6 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Settings {
 namespace {
 
+using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
+
 class Premium : public Section<Premium> {
 public:
 	Premium(
@@ -50,10 +55,18 @@ public:
 
 	[[nodiscard]] bool hasFlexibleTopBar() const override;
 
+	void setStepDataReference(std::any &data) override;
+
+	[[nodiscard]] rpl::producer<> sectionShowBack() override final;
+
 private:
 	void setupContent();
 
 	const not_null<Window::SessionController*> _controller;
+
+	rpl::variable<bool> _backToggles;
+
+	rpl::event_stream<> _showBack;
 
 };
 
@@ -71,6 +84,19 @@ rpl::producer<QString> Premium::title() {
 
 bool Premium::hasFlexibleTopBar() const {
 	return true;
+}
+
+rpl::producer<> Premium::sectionShowBack() {
+	return _showBack.events();
+}
+
+void Premium::setStepDataReference(std::any &data) {
+	const auto my = std::any_cast<SectionCustomTopBarData>(&data);
+	if (my) {
+		_backToggles = std::move(
+			my->backButtonEnables
+		) | rpl::map_to(true);
+	}
 }
 
 void Premium::setupContent() {
@@ -270,6 +296,16 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 
 	container->setMaximumHeight(st::introQrStepsTop);
 	container->setMinimumHeight(st::infoLayerTopBarHeight);
+
+	const auto back = Ui::CreateChild<Ui::FadeWrap<Ui::IconButton>>(
+		content,
+		object_ptr<Ui::IconButton>(content, st::settingsPremiumTopBarBack),
+		st::infoTopBarScale);
+	back->setDuration(0);
+	back->toggleOn(_backToggles.value());
+	back->entity()->addClickHandler([=] {
+		_showBack.fire({});
+	});
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ container });
 }

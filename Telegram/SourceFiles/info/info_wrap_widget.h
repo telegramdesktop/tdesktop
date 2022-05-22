@@ -180,6 +180,8 @@ private:
 	void highlightTopBar();
 	void setupShortcuts();
 
+	[[nodiscard]] bool hasBackButton() const;
+
 	not_null<RpWidget*> topWidget() const;
 
 	QRect contentGeometry() const;

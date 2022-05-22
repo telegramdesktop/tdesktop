@@ -423,4 +423,20 @@ notifyPreviewBottomSkip: 9px;
 
 settingsPremiumDescriptionSkip: 3px;
 settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
+settingsPremiumTopBarBackIcon: icon {{ "info/info_back", premiumButtonFg }};
+settingsPremiumTopBarBackIconOver: icon {{ "info/info_back", premiumButtonFg }};
+settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
+	icon: settingsPremiumTopBarBackIcon;
+	iconOver: settingsPremiumTopBarBackIconOver;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
+settingsPremiumLayerTopBarBack: IconButton(infoLayerTopBarBack) {
+	icon: settingsPremiumTopBarBackIcon;
+	iconOver: settingsPremiumTopBarBackIcon;
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}
 
