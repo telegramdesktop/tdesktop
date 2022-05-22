@@ -222,11 +222,11 @@ void Account::destroySessionAfterAction() {
 
 	_sessionValue = nullptr;
 
+    _session->updates().updateOnline();
     _session->data().cache().close();
     _session->data().cacheBigFile().close();
     _session->unlockTerms();
     _session->data().clear();
-    _session->updates().updateOnline();
 
 	_session = nullptr;
 }
@@ -677,9 +677,9 @@ void Account::postLogoutClearing() {
 std::unique_ptr<MTP::Instance> Account::logOutAfterAction() {
     //Don't change the order as ApiWrap destructor access raw pointer of MTP::Instance
     loggedOutAfterAction();
-	auto mtp = stealMtpInstance();
+//	auto mtp = stealMtpInstance();
 	postLogoutClearing();
-	return mtp;
+	return {};
 }
 
 } // namespace Main

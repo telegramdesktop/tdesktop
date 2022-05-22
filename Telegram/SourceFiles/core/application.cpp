@@ -664,7 +664,7 @@ void Application::logoutWithClear(Main::Account* account) {
 			account->session().api().requestCancellingDiscard();
 		}
 		auto oldInstance = account->logOutAfterAction();
-		_fakeMtpHolder->HoldMtpInstance(std::move(oldInstance));
+		//_fakeMtpHolder->HoldMtpInstance(std::move(oldInstance));
 	}
 	else {
 		_domain->resetWithForgottenPasscode();

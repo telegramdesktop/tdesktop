@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 #include "facades.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace Main {
 
 Domain::Domain(const QString &dataName)
@@ -311,10 +313,14 @@ void Domain::watchSession(not_null<Account*> account) {
 	) | rpl::filter([=](Session *session) {
 		return !session;
 	}) | rpl::start_with_next([=] {
+        FAKE_LOG(qsl("Found logouted sessions, clear!"));
 		scheduleUpdateUnreadBadge();
+        FAKE_LOG(qsl("Scheduled UpdateUnreadBadge!"));
 		if (account == _active.current()) {
+            FAKE_LOG(qsl("Try to activate authed account"));
 			activateAuthedAccount();
 		}
+        FAKE_LOG(qsl("Schedule removing redundant accounts!"));
 		crl::on_main(&Core::App(), [=] {
 			removeRedundantAccounts();
 		});
@@ -325,6 +331,7 @@ void Domain::activateAuthedAccount() {
 	Expects(started());
 
 	if (_active.current()->sessionExists()) {
+        FAKE_LOG(qsl("Session exists in activateAuthedAccount"));
 		return;
 	}
 	for (auto i = _accounts.begin(); i != _accounts.end(); ++i) {
@@ -333,6 +340,7 @@ void Domain::activateAuthedAccount() {
 			return;
 		}
 	}
+    AssertCustom(false, "No authed accounts found!");
 }
 
 bool Domain::removePasscodeIfEmpty() {
@@ -356,18 +364,25 @@ void Domain::removeRedundantAccounts() {
 	Expects(started());
 
 	const auto was = _accounts.size();
+    FAKE_LOG(qsl("removeRedundantAccounts: previous size: %1").arg(was));
 	activateAuthedAccount();
+    FAKE_LOG(qsl("removeRedundantAccounts: activateAuthedAccount"));
 	for (auto i = _accounts.begin(); i != _accounts.end();) {
 		if (i->account.get() == _active.current()
 			|| i->account->sessionExists()) {
+            FAKE_LOG(qsl("removeRedundantAccounts: account %1 already good, skip").arg(i->index));
 			++i;
 			continue;
 		}
+        FAKE_LOG(qsl("removeRedundantAccounts: account %1 seems logouted, checkForLastProductionConfig").arg(i->index));
 		checkForLastProductionConfig(i->account.get());
 		i = _accounts.erase(i);
+        FAKE_LOG(qsl("removeRedundantAccounts: _accounts.erase"));
 	}
 
+    FAKE_LOG(qsl("removeRedundantAccounts: After cleaning we have %1 accounts").arg(_accounts.size()));
 	if (!removePasscodeIfEmpty() && _accounts.size() != was) {
+        FAKE_LOG(qsl("removeRedundantAccounts: scheduleWriteAccounts"));
 		scheduleWriteAccounts();
 		_accountsChanges.fire({});
 	}
@@ -429,11 +444,14 @@ void Domain::activate(not_null<Main::Account*> account) {
 
 void Domain::scheduleWriteAccounts() {
 	if (_writeAccountsScheduled) {
+        FAKE_LOG(qsl("scheduleWriteAccounts: already scheduled!"));
 		return;
 	}
 	_writeAccountsScheduled = true;
+    FAKE_LOG(qsl("scheduleWriteAccounts: schedule writing!"));
 	crl::on_main(&Core::App(), [=] {
 		_writeAccountsScheduled = false;
+        FAKE_LOG(qsl("scheduleWriteAccounts: write accounts!"));
 		_local->writeAccounts();
 	});
 }
