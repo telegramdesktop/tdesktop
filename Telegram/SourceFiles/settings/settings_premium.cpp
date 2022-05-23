@@ -37,10 +37,136 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 
+#include <QSvgRenderer>
+
 namespace Settings {
 namespace {
 
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
+
+constexpr auto kBodyAnimationPart = 0.90;
+constexpr auto kTitleAnimationPart = 0.15;
+
+class TopBar final : public Ui::RpWidget {
+public:
+	TopBar(not_null<QWidget*> parent);
+
+	void setRoundEdges(bool value);
+	void setTextPosition(int x, int y);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+
+private:
+	QSvgRenderer _star;
+	Ui::Text::String _title;
+	Ui::Text::String _about;
+
+	QPoint _titlePosition;
+	bool _roundEdges = true;
+
+};
+
+TopBar::TopBar(not_null<QWidget*> parent)
+: Ui::RpWidget(parent)
+, _star(u":/gui/icons/settings/star.svg"_q)
+, _title(st::boxTitle.style, tr::lng_premium_summary_title(tr::now)) {
+	_about.setMarkedText(
+		st::aboutLabel.style,
+		tr::lng_premium_summary_top_about(tr::now, Ui::Text::RichLangValue));
+}
+
+void TopBar::setRoundEdges(bool value) {
+	_roundEdges = value;
+	update();
+}
+
+void TopBar::setTextPosition(int x, int y) {
+	_titlePosition = { x, y };
+}
+
+void TopBar::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(e->rect(), Qt::transparent);
+
+	const auto progress = (height() - minimumHeight())
+		/ float64(maximumHeight() - minimumHeight());
+	const auto topProgress = 1. -
+		std::clamp(
+			(1. - progress) / kBodyAnimationPart,
+			0.,
+			1.);
+	const auto bodyProgress = topProgress;
+
+	const auto r = rect();
+	auto pathTop = QPainterPath();
+	if (_roundEdges) {
+		pathTop.addRoundedRect(r, st::boxRadius, st::boxRadius);
+	} else {
+		pathTop.addRect(r);
+	}
+	auto pathBottom = QPainterPath();
+	pathBottom.addRect(
+		QRect(
+			QPoint(r.x(), r.y() + r.height() - st::boxRadius),
+			QSize(r.width(), st::boxRadius)));
+
+	const auto gradientPointTop = r.height() / 3. * 2.;
+	auto gradient = QLinearGradient(
+		QPointF(0, gradientPointTop),
+		QPointF(r.width(), r.height() - gradientPointTop));
+	gradient.setColorAt(0., st::premiumButtonBg1->c);
+	gradient.setColorAt(.6, st::premiumButtonBg2->c);
+	gradient.setColorAt(1., st::premiumButtonBg3->c);
+
+	PainterHighQualityEnabler hq(p);
+	p.fillPath(pathTop + pathBottom, gradient);
+
+	p.setOpacity(bodyProgress);
+
+	const auto &starSize = st::settingsPremiumStarSize;
+	const auto starRect = QRectF(
+		QPointF(
+			(width() - starSize.width()) / 2,
+			st::settingsPremiumStarTopSkip * topProgress),
+		st::settingsPremiumStarSize);
+	_star.render(&p, starRect);
+
+	p.setPen(st::premiumButtonFg);
+
+	const auto &padding = st::boxRowPadding;
+	const auto availableWidth = width() - padding.left() - padding.right();
+	const auto titleTop = starRect.top()
+		+ starRect.height()
+		+ st::changePhoneTitlePadding.top();
+	const auto aboutTop = titleTop
+		+ _title.countHeight(availableWidth)
+		+ st::changePhoneTitlePadding.bottom();
+
+	p.setFont(st::aboutLabel.style.font);
+	_about.draw(p, padding.left(), aboutTop, availableWidth, style::al_top);
+
+	// Subtitle.
+	p.setFont(st::boxTitle.style.font);
+	_title.draw(p, padding.left(), titleTop, availableWidth, style::al_top);
+
+	// Title.
+	const auto titleProgress =
+		std::clamp(
+			(kTitleAnimationPart - progress) / kTitleAnimationPart,
+			0.,
+			1.);
+	if (titleProgress > 0.) {
+		p.setOpacity(titleProgress);
+		const auto availableWidth = width() - _titlePosition.x() * 2;
+		_title.drawElided(
+			p,
+			_titlePosition.x(),
+			_titlePosition.y(),
+			availableWidth);
+	}
+}
 
 class Premium : public Section<Premium> {
 public:
@@ -108,29 +234,6 @@ void Premium::setStepDataReference(std::any &data) {
 void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_premium_summary_title(),
-				st::changePhoneTitle)),
-		st::changePhoneTitlePadding);
-
-	const auto wrap = content->add(
-		object_ptr<Ui::CenterWrap<>>(
-			content,
-			object_ptr<Ui::FlatLabel>(
-				content,
-				tr::lng_premium_summary_top_about(Ui::Text::RichLangValue),
-				st::changePhoneDescription)),
-		st::changePhoneDescriptionPadding);
-	wrap->resize(
-		wrap->width(),
-		st::settingLocalPasscodeDescriptionHeight);
-
-	AddSkip(content);
-	AddDivider(content);
 	AddSkip(content);
 
 	const auto &st = st::settingsButton;
@@ -266,42 +369,17 @@ void Premium::setupContent() {
 
 QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		not_null<QWidget*> parent) {
-	const auto container = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
-	const auto content = container->add(object_ptr<Ui::RpWidget>(container));
-	content->resize(content->width(), st::introQrStepsTop);
+	const auto content = Ui::CreateChild<TopBar>(parent.get());
 
-	container->setAttribute(Qt::WA_OpaquePaintEvent, false);
-	content->setAttribute(Qt::WA_OpaquePaintEvent, false);
-
-	content->paintRequest(
-	) | rpl::start_with_next([=](const QRect &paintRect) {
-		Painter p(content);
-
-		p.fillRect(paintRect, Qt::transparent);
-
-		const auto rect = content->rect();
-		auto pathTop = QPainterPath();
-		pathTop.addRoundedRect(rect, st::boxRadius, st::boxRadius);
-		auto pathBottom = QPainterPath();
-		pathBottom.addRect(
-			QRect(
-				QPoint(rect.x(), rect.y() + rect.height() - st::boxRadius),
-				QSize(rect.width(), st::boxRadius)));
-
-		const auto gradientPointTop = rect.height() / 3. * 2.;
-		auto gradient = QLinearGradient(
-			QPointF(0, gradientPointTop),
-			QPointF(rect.width(), rect.height() - gradientPointTop));
-		gradient.setColorAt(0., st::premiumButtonBg1->c);
-		gradient.setColorAt(.6, st::premiumButtonBg2->c);
-		gradient.setColorAt(1., st::premiumButtonBg3->c);
-
-		PainterHighQualityEnabler hq(p);
-		p.fillPath(pathTop + pathBottom, gradient);
+	_wrap.value(
+	) | rpl::start_with_next([=](Info::Wrap wrap) {
+		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
-	container->setMaximumHeight(st::introQrStepsTop);
-	container->setMinimumHeight(st::infoLayerTopBarHeight);
+	content->setMaximumHeight(st::introQrStepsTop);
+	content->setMinimumHeight(st::infoLayerTopBarHeight);
+
+	content->resize(content->width(), content->maximumHeight());
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -319,6 +397,13 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		_back->entity()->addClickHandler([=] {
 			_showBack.fire({});
 		});
+		_back->toggledValue(
+		) | rpl::start_with_next([=](bool toggled) {
+			const auto &st = isLayer ? st::infoLayerTopBar : st::infoTopBar;
+			content->setTextPosition(
+				toggled ? st.back.width : st.titlePosition.x(),
+				st.titlePosition.y());
+		}, _back->lifetime());
 
 		if (!isLayer) {
 			_close = nullptr;
@@ -335,9 +420,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 				_close->moveToRight(0, 0);
 			}, _close->lifetime());
 		}
-	}, container->lifetime());
+	}, content->lifetime());
 
-	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ container });
+	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }
 
 QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
