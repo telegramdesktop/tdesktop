@@ -346,6 +346,8 @@ void SessionNavigation::showPeerByLinkResolved(
 		// Show specific posts only in channels / supergroups.
 		const auto msgId = peer->isChannel()
 			? info.messageId
+			: info.startAutoSubmit
+			? ShowAndStartBotMsgId
 			: ShowAtUnreadMsgId;
 		const auto attachBotUsername = info.attachBotUsername;
 		if (bot && bot->botInfo->startToken != info.startToken) {

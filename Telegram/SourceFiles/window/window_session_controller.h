@@ -193,6 +193,7 @@ public:
 		ResolveType resolveType = ResolveType::Default;
 		QString startToken;
 		ChatAdminRights startAdminRights;
+		bool startAutoSubmit = false;
 		QString attachBotUsername;
 		std::optional<QString> attachBotToggleCommand;
 		std::optional<QString> voicechatHash;

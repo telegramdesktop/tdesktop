@@ -598,7 +598,12 @@ void StartPremiumPayment(
 		"premium_invoice_slug",
 		QString());
 	if (!username.isEmpty()) {
-		UrlClickHandler::Open("https://t.me/" + username + "?start=" + ref);
+		controller->showPeerByLink(Window::SessionNavigation::PeerByLinkInfo{
+			.usernameOrId = username,
+			.resolveType = Window::ResolveType::BotStart,
+			.startToken = ref,
+			.startAutoSubmit = true,
+		});
 	} else if (!slug.isEmpty()) {
 		UrlClickHandler::Open("https://t.me/$" + slug);
 	}
