@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_main.h"
 #include "settings/settings_privacy_security.h"
 #include "settings/settings_chat.h"
+#include "settings/settings_premium.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -737,6 +738,22 @@ bool ResolveInvoice(
 	return true;
 }
 
+bool ResolvePremiumOffer(
+		Window::SessionController *controller,
+		const Match &match,
+		const QVariant &context) {
+	if (!controller) {
+		return false;
+	}
+	const auto params = url_parse_params(
+		match->captured(1).mid(1),
+		qthelp::UrlParamNameTransform::ToLower);
+	const auto ref = params.value(qsl("ref"));
+	controller->showSettings(::Settings::PremiumId());
+	controller->window().activate();
+	return true;
+}
+
 } // namespace
 
 const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
@@ -804,6 +821,10 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 		{
 			qsl("invoice/?\\?(.+)(#|$)"),
 			ResolveInvoice,
+		},
+		{
+			qsl("premium_offer/?(\\?.+)?(#|$)"),
+			ResolvePremiumOffer,
 		},
 		{
 			qsl("^([^\\?]+)(\\?|#|$)"),
