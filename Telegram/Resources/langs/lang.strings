@@ -223,6 +223,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_caption_limit_reached#one" = "You've reached the media caption limit. Please make the caption shorter by {count} character.";
 "lng_caption_limit_reached#other" = "You've reached the media caption limit. Please make the caption shorter by {count} characters.";
 
+"lng_file_size_limit_title" = "File Too Large";
+"lng_file_size_limit" = "{total} Gb";
+"lng_file_size_limit1" = "The document can't be sent, because it is larger than {size}.";
+"lng_file_size_limit2" = "You can double this limit to {size} per document by subscribing to **Telegram Premium**.";
+
 "lng_limits_increase" = "Increase Limit";
 
 "lng_sticker_premium_about" = "Unlock this sticker and more by subscribing to\nTelegram Premium.";

@@ -88,7 +88,8 @@ using SetFlag = StickersSetFlag;
 
 void MaybeShowPremiumToast(
 		Window::SessionController *controller,
-		TextWithEntities text) {
+		TextWithEntities text,
+		const QString &ref) {
 	if (!controller) {
 		return;
 	}
@@ -99,7 +100,7 @@ void MaybeShowPremiumToast(
 	const auto widget = QPointer<Ui::RpWidget>(
 		controller->window().widget()->bodyWidget());
 	const auto filter = [=](const auto ...) {
-		controller->showSettings(Settings::PremiumId());
+		Settings::ShowPremium(controller, ref);
 		return false;
 	};
 	Ui::ShowMultilineToast({
@@ -322,7 +323,10 @@ void Stickers::addSavedGif(
 		400);
 	if (_savedGifs.size() > limit) {
 		_savedGifs.pop_back();
-		MaybeShowPremiumToast(controller, SavedGifsToast(session));
+		MaybeShowPremiumToast(
+			controller,
+			SavedGifsToast(session),
+			LimitsPremiumRef("saved_gifs"));
 	}
 	session->local().writeSavedGifs();
 
@@ -534,7 +538,10 @@ void Stickers::checkFavedLimit(
 		}
 		++i;
 	}
-	MaybeShowPremiumToast(controller, FaveStickersToast(session));
+	MaybeShowPremiumToast(
+		controller,
+		FaveStickersToast(session),
+		LimitsPremiumRef("stickers_faved"));
 }
 
 void Stickers::pushFavedToFront(

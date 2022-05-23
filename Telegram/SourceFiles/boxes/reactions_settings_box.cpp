@@ -448,7 +448,7 @@ void ReactionsSettingsBox(
 
 		button->setClickedCallback([=, emoji = r.emoji] {
 			if (premium && !controller->session().premium()) {
-				Settings::ShowPremium(&controller->session());
+				Settings::ShowPremium(controller, "unique_reactions");
 				return;
 			}
 			checkButton(button);

@@ -203,7 +203,7 @@ void StickerBox(
 	const auto width = size - buttonPadding.left() - buttonPadding.right();
 	auto button = CreateUnlockButton(box, width);
 	button->setClickedCallback([=] {
-		controller->showSettings(Settings::PremiumId());
+		Settings::ShowPremium(controller, "premium_stickers");
 	});
 	box->addButton(std::move(button));
 }

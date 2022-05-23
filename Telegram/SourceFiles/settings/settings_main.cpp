@@ -251,7 +251,12 @@ void SetupSections(
 			std::move(label),
 			st::settingsButton,
 			std::move(descriptor)
-		)->addClickHandler([=] { showOther(type); });
+		)->addClickHandler([=] {
+			if (type == PremiumId()) {
+				controller->setPremiumRef("settings");
+			}
+			showOther(type);
+		});
 	};
 	if (controller->session().supportMode()) {
 		SetupSupport(controller, container);

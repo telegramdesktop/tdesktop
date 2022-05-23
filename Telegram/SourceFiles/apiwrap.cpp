@@ -453,7 +453,7 @@ void ApiWrap::sendMessageFail(
 			: tr::lng_error_noforwards_group(tr::now)
 		}, .duration = kJoinErrorDuration });
 	} else if (error.type() == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
-		Settings::ShowPremium(&session());
+		Settings::ShowPremium(&session(), "premium_stickers");
 	}
 	if (const auto item = _session->data().message(itemId)) {
 		Assert(randomId != 0);

@@ -748,8 +748,10 @@ bool ResolvePremiumOffer(
 	const auto params = url_parse_params(
 		match->captured(1).mid(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	const auto ref = params.value(qsl("ref"));
-	controller->showSettings(::Settings::PremiumId());
+	const auto refAddition = params.value(qsl("ref"));
+	const auto ref = "deeplink"
+		+ (refAddition.isEmpty() ? QString() : '_' + refAddition);
+	::Settings::ShowPremium(controller, ref);
 	controller->window().activate();
 	return true;
 }

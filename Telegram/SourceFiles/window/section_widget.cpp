@@ -355,7 +355,7 @@ bool ShowReactPremiumError(
 	if (i == end(list) || !i->premium) {
 		return false;
 	}
-	Settings::ShowPremium(&controller->session());
+	Settings::ShowPremium(controller, "unique_reactions");
 	return true;
 }
 

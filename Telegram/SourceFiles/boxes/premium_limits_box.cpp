@@ -394,6 +394,7 @@ void SimpleLimitBox(
 		not_null<Main::Session*> session,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
+		const QString &refAddition,
 		const InfographicDescriptor &descriptor,
 		bool premium,
 		bool fixed = false) {
@@ -433,7 +434,7 @@ void SimpleLimitBox(
 		});
 	} else {
 		box->addButton(tr::lng_limits_increase(), [=] {
-			Settings::ShowPremium(session);
+			Settings::ShowPremium(session, LimitsPremiumRef(refAddition));
 		});
 	}
 
@@ -450,6 +451,7 @@ void SimpleLimitBox(
 void SimplePinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
+		const QString &refAddition,
 		const QString &keyDefault,
 		int limitDefault,
 		const QString &keyPremium,
@@ -480,6 +482,7 @@ void SimplePinsLimitBox(
 		session,
 		tr::lng_filter_pin_limit_title(),
 		std::move(text),
+		refAddition,
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconPins },
 		premium);
 }
@@ -514,6 +517,7 @@ void ChannelsLimitBox(
 		session,
 		tr::lng_channels_limit_title(),
 		std::move(text),
+		"channels",
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconGroups },
 		premium,
 		true);
@@ -564,7 +568,7 @@ void ChannelsLimitBox(
 			});
 		} else {
 			box->addButton(tr::lng_limits_increase(), [=] {
-				Settings::ShowPremium(session);
+				Settings::ShowPremium(session, LimitsPremiumRef("channels"));
 			});
 		}
 	}, box->lifetime());
@@ -572,7 +576,8 @@ void ChannelsLimitBox(
 
 void PublicLinksLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Window::SessionNavigation*> navigation) {
+		not_null<Window::SessionNavigation*> navigation,
+		Fn<void()> retry) {
 	const auto session = &navigation->session();
 	const auto premium = session->premium();
 
@@ -605,6 +610,7 @@ void PublicLinksLimitBox(
 		session,
 		tr::lng_links_limit_title(),
 		std::move(text),
+		"channels_public",
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconLinks },
 		premium,
 		true);
@@ -616,7 +622,7 @@ void PublicLinksLimitBox(
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<PublicsController>(
 		navigation,
-		crl::guard(box, [=] { box->closeBox(); }));
+		crl::guard(box, [=] { box->closeBox(); retry(); }));
 
 	const auto content = box->addRow(
 		object_ptr<PeerListContent>(box, controller),
@@ -672,6 +678,7 @@ void FilterChatsLimitBox(
 		session,
 		tr::lng_filter_chats_limit_title(),
 		std::move(text),
+		"dialog_filters_chats",
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
 		premium);
 }
@@ -711,6 +718,7 @@ void FiltersLimitBox(
 		session,
 		tr::lng_filters_limit_title(),
 		std::move(text),
+		"dialog_filters",
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconFolders },
 		premium);
 }
@@ -721,6 +729,7 @@ void FilterPinsLimitBox(
 	SimplePinsLimitBox(
 		box,
 		session,
+		"dialog_filters_pinned",
 		"dialog_filters_chats_limit_default",
 		100,
 		"dialog_filters_chats_limit_premium",
@@ -733,9 +742,10 @@ void FolderPinsLimitBox(
 	SimplePinsLimitBox(
 		box,
 		session,
-		"dialog_filters_chats_limit_default",
+		"dialogs_folder_pinned",
+		"dialogs_folder_pinned_limit_default",
 		100,
-		"dialog_filters_chats_limit_premium",
+		"dialogs_folder_pinned_limit_premium",
 		200);
 }
 
@@ -745,6 +755,7 @@ void PinsLimitBox(
 	SimplePinsLimitBox(
 		box,
 		session,
+		"dialog_pinned",
 		"dialogs_pinned_limit_default",
 		5,
 		"dialogs_pinned_limit_premium",
@@ -783,6 +794,7 @@ void CaptionLimitBox(
 		session,
 		tr::lng_caption_limit_title(),
 		std::move(text),
+		"caption_length",
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
 		premium);
 }
@@ -806,6 +818,55 @@ void CaptionLimitReachedBox(
 	}
 }
 
+void FileSizeLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto premium = session->premium();
+
+	const auto defaultLimit = Limit(
+		session,
+		"upload_max_fileparts_default",
+		4000);
+	const auto premiumLimit = Limit(
+		session,
+		"upload_max_fileparts_premium",
+		8000);
+
+	const auto defaultGb = (defaultLimit + 999) / 2000;
+	const auto premiumGb = (premiumLimit + 999) / 2000;
+	const auto gb = [](int count) {
+		return tr::lng_file_size_limit(
+			tr::now,
+			lt_total,
+			QString::number(count));
+	};
+
+	auto text = rpl::combine(
+		tr::lng_file_size_limit1(
+			lt_size,
+			rpl::single(Ui::Text::Bold(gb(defaultGb))),
+			Ui::Text::RichLangValue),
+		tr::lng_file_size_limit2(
+			lt_size,
+			rpl::single(Ui::Text::Bold(gb(premiumGb))),
+			Ui::Text::RichLangValue)
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return a.append(QChar(' ')).append(std::move(b));
+	});
+
+	SimpleLimitBox(
+		box,
+		session,
+		tr::lng_file_size_limit_title(),
+		std::move(text),
+		"upload_max_fileparts",
+		{ defaultGb, defaultGb, premiumGb, &st::premiumIconFiles },
+		premium);
+}
+
+QString LimitsPremiumRef(const QString &addition) {
+	return "double_limits__" + addition;
+}
 
 int AppConfigLimit(
 		not_null<Main::Session*> session,

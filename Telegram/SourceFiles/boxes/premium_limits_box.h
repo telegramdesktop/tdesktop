@@ -22,7 +22,8 @@ void ChannelsLimitBox(
 	not_null<Main::Session*> session);
 void PublicLinksLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Window::SessionNavigation*> navigation);
+	not_null<Window::SessionNavigation*> navigation,
+	Fn<void()> retry);
 void FilterChatsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
@@ -45,6 +46,11 @@ void CaptionLimitReachedBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,
 	int remove);
+void FileSizeLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
+
+[[nodiscard]] QString LimitsPremiumRef(const QString &addition);
 
 [[nodiscard]] int AppConfigLimit(
 	not_null<Main::Session*> session,

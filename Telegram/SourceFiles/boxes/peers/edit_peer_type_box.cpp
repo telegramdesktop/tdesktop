@@ -579,7 +579,7 @@ void Controller::askUsernameRevoke() {
 		checkUsernameAvailability();
 	});
 	_show->showBox(
-		Box(PublicLinksLimitBox, _navigation),
+		Box(PublicLinksLimitBox, _navigation, revokeCallback),
 		Ui::LayerOption::KeepOther);
 }
 

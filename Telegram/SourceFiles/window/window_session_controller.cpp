@@ -1862,6 +1862,14 @@ HistoryView::PaintContext SessionController::preparePaintContext(
 		args.clip);
 }
 
+void SessionController::setPremiumRef(const QString &ref) {
+	_premiumRef = ref;
+}
+
+QString SessionController::premiumRef() const {
+	return _premiumRef;
+}
+
 SessionController::~SessionController() {
 	resetFakeUnreadWhileOpened();
 }

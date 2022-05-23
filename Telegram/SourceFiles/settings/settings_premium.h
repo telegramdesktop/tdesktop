@@ -21,7 +21,11 @@ namespace Settings {
 
 [[nodiscard]] Type PremiumId();
 
-void ShowPremium(not_null<::Main::Session*> session);
+void ShowPremium(not_null<::Main::Session*> session, const QString &ref);
+void ShowPremium(
+	not_null<Window::SessionController*> controller,
+	const QString &ref);
+
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,
 	const QString &ref);

@@ -503,6 +503,9 @@ public:
 		return *_cachedReactionIconFactory;
 	}
 
+	void setPremiumRef(const QString &ref);
+	[[nodiscard]] QString premiumRef() const;
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -589,6 +592,8 @@ private:
 
 	using ReactionIconFactory = HistoryView::Reactions::CachedIconFactory;
 	std::unique_ptr<ReactionIconFactory> _cachedReactionIconFactory;
+
+	QString _premiumRef;
 
 	rpl::lifetime _lifetime;
 

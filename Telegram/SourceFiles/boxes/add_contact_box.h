@@ -249,28 +249,3 @@ private:
 	QString _sentName;
 
 };
-
-class RevokePublicLinkBox final : public Ui::BoxContent {
-public:
-	RevokePublicLinkBox(
-		QWidget*,
-		not_null<Main::Session*> session,
-		Fn<void()> revokeCallback);
-
-protected:
-	void prepare() override;
-
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	const not_null<Main::Session*> _session;
-
-	object_ptr<Ui::FlatLabel> _aboutRevoke;
-
-	class Inner;
-	QPointer<Inner> _inner;
-
-	int _innerTop = 0;
-	Fn<void()> _revokeCallback;
-
-};

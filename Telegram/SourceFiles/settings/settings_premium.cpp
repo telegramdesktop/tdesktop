@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "window/window_session_controller.h"
+#include "base/unixtime.h"
+#include "apiwrap.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
@@ -136,6 +138,58 @@ struct Entry {
 			},
 		},
 	};
+}
+
+void SendAppLog(
+		not_null<Main::Session*> session,
+		const QString &type,
+		const MTPJSONValue &data) {
+	const auto now = double(base::unixtime::now())
+		+ (QTime::currentTime().msec() / 1000.);
+	session->api().request(MTPhelp_SaveAppLog(
+		MTP_vector<MTPInputAppEvent>(1, MTP_inputAppEvent(
+			MTP_double(now),
+			MTP_string(type),
+			MTP_long(0),
+			data
+		))
+	)).send();
+}
+
+[[nodiscard]] QString ResolveRef(const QString &ref) {
+	return ref.isEmpty() ? "settings" : ref;
+}
+
+void SendScreenShow(
+		not_null<Window::SessionController*> controller,
+		const std::vector<QString> &order,
+		const QString &ref) {
+	auto list = QVector<MTPJSONValue>();
+	list.reserve(order.size());
+	for (const auto &element : order) {
+		list.push_back(MTP_jsonString(MTP_string(element)));
+	}
+	auto values = QVector<MTPJSONObjectValue>{
+		MTP_jsonObjectValue(
+			MTP_string("premium_promo_order"),
+			MTP_jsonArray(MTP_vector<MTPJSONValue>(std::move(list)))),
+		MTP_jsonObjectValue(
+			MTP_string("source"),
+			MTP_jsonString(MTP_string(ResolveRef(ref)))),
+	};
+	const auto data = MTP_jsonObject(
+		MTP_vector<MTPJSONObjectValue>(std::move(values)));
+	SendAppLog(
+		&controller->session(),
+		"premium.promo_screen_show",
+		data);
+}
+
+void SendScreenAccept(not_null<Window::SessionController*> controller) {
+	SendAppLog(
+		&controller->session(),
+		"premium.promo_screen_accept",
+		MTP_jsonNull());
 }
 
 class TopBar final : public Ui::RpWidget {
@@ -282,6 +336,7 @@ private:
 	void setupContent();
 
 	const not_null<Window::SessionController*> _controller;
+	const QString _ref;
 
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
@@ -296,7 +351,8 @@ Premium::Premium(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Section(parent)
-, _controller(controller) {
+, _controller(controller)
+, _ref(ResolveRef(controller->premiumRef())) {
 	setupContent();
 }
 
@@ -400,6 +456,8 @@ void Premium::setupContent() {
 				processEntry(entry);
 			}
 		}
+
+		SendScreenShow(_controller, mtpOrder, _ref);
 	}
 
 	content->resizeToWidth(content->height());
@@ -530,7 +588,8 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		Ui::Premium::ButtonGradientStops());
 
 	result->setClickedCallback([=] {
-		StartPremiumPayment(_controller, "settings");
+		SendScreenAccept(_controller);
+		StartPremiumPayment(_controller, _ref);
 	});
 
 	const auto &st = st::premiumPreviewBox.button;
@@ -561,20 +620,27 @@ Type PremiumId() {
 	return Premium::Id();
 }
 
-void ShowPremium(not_null<Main::Session*> session) {
+void ShowPremium(not_null<Main::Session*> session, const QString &ref) {
 	const auto active = Core::App().activeWindow();
 	const auto controller = (active && active->isPrimary())
 		? active->sessionController()
 		: nullptr;
 	if (controller && session == &controller->session()) {
-		controller->showSettings(Settings::PremiumId());
+		ShowPremium(controller, ref);
 	} else {
 		for (const auto &controller : session->windows()) {
 			if (controller->window().isPrimary()) {
-				controller->showSettings(Settings::PremiumId());
+				ShowPremium(controller, ref);
 			}
 		}
 	}
+}
+
+void ShowPremium(
+		not_null<Window::SessionController*> controller,
+		const QString &ref) {
+	controller->setPremiumRef(ref);
+	controller->showSettings(Settings::PremiumId());
 }
 
 void StartPremiumPayment(
