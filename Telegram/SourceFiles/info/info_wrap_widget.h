@@ -100,8 +100,6 @@ public:
 	QPixmap grabForShowAnimation(
 		const Window::SectionSlideParams &params) override;
 
-	[[nodiscard]] bool hasCustomBottomBar() const;
-
 	void forceContentRepaint();
 
 	bool showInternal(

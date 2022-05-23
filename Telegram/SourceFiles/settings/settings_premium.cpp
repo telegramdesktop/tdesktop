@@ -550,17 +550,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			st::premiumPreviewBox.button.textTop,
 			outer);
 	}, label->lifetime());
-	auto padding = st::settingsPremiumButtonPadding;
-	const auto paddingBottom = padding.bottom();
-	padding.setBottom(paddingBottom - st::boxRadius);
-	content->add(std::move(result), padding);
-
-	content->add(
-		object_ptr<Ui::SlideWrap<Ui::FixedHeightWidget>>(
-			content,
-			object_ptr<Ui::FixedHeightWidget>(content, st::boxRadius))
-	)->setDuration(0)->toggleOn(_wrap.value(
-	) | rpl::map(rpl::mappers::_1 != Info::Wrap::Layer));
+	content->add(std::move(result), st::settingsPremiumButtonPadding);
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }

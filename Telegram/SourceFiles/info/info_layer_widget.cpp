@@ -280,7 +280,6 @@ QRect LayerWidget::countGeometry(int newWidth) {
 		st::infoLayerTopMaximal);
 	const auto newBottom = newTop;
 
-	const auto hasCustomBottomBar = _content->hasCustomBottomBar();
 	const auto bottomRadius = st::boxRadius;
 	// Top rounding is included in _contentHeight.
 	auto desiredHeight = _contentHeight + bottomRadius;
@@ -293,9 +292,7 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	const auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;
 	const auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
-	auto additionalScroll = hasCustomBottomBar
-		? 0
-		: std::min(scrollTillBottom, newBottom);
+	auto additionalScroll = std::min(scrollTillBottom, newBottom);
 
 	const auto expanding = (_desiredHeight > _contentHeight);
 
