@@ -439,4 +439,10 @@ settingsPremiumLayerTopBarBack: IconButton(infoLayerTopBarBack) {
 		color: shadowFg;
 	}
 }
-
+settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
+	icon: icon {{ "info/info_close", premiumButtonFg }};
+	iconOver: icon {{ "info/info_close", premiumButtonFg }};
+	ripple: RippleAnimation(defaultRippleAnimation) {
+		color: shadowFg;
+	}
+}

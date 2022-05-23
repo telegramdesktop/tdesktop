@@ -67,6 +67,7 @@ private:
 	const not_null<Window::SessionController*> _controller;
 
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
+	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
 
@@ -304,11 +305,12 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
+		const auto isLayer = (wrap == Info::Wrap::Layer);
 		_back = base::make_unique_q<Ui::FadeWrap<Ui::IconButton>>(
 			content,
 			object_ptr<Ui::IconButton>(
 				content,
-				(wrap == Info::Wrap::Layer)
+				isLayer
 					? st::settingsPremiumLayerTopBarBack
 					: st::settingsPremiumTopBarBack),
 			st::infoTopBarScale);
@@ -317,6 +319,22 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		_back->entity()->addClickHandler([=] {
 			_showBack.fire({});
 		});
+
+		if (!isLayer) {
+			_close = nullptr;
+		} else {
+			_close = base::make_unique_q<Ui::IconButton>(
+				content,
+				st::settingsPremiumTopBarClose);
+			_close->addClickHandler([=] {
+				_controller->parentController()->hideLayer();
+				_controller->parentController()->hideSpecialLayer();
+			});
+			content->widthValue(
+			) | rpl::start_with_next([=] {
+				_close->moveToRight(0, 0);
+			}, _close->lifetime());
+		}
 	}, container->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ container });
