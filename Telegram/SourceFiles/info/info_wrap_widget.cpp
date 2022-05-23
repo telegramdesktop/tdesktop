@@ -645,8 +645,8 @@ void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 		old->setParent(nullptr);
 		old.destroy();
 	}
-	_content->show();
 	_additionalScroll = 0;
+	_content->show();
 	//_anotherTabMemento = nullptr;
 	finishShowContent();
 }
@@ -1096,6 +1096,10 @@ void WrapWidget::updateGeometry(
 
 int WrapWidget::scrollTillBottom(int forHeight) const {
 	return _content->scrollTillBottom(forHeight - topWidget()->height());
+}
+
+int WrapWidget::scrollBottomSkip() const {
+	return _content->scrollBottomSkip();
 }
 
 rpl::producer<int> WrapWidget::scrollTillBottomChanges() const {

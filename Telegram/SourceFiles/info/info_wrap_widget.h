@@ -125,6 +125,7 @@ public:
 		QRect newGeometry,
 		bool expanding,
 		int additionalScroll);
+	[[nodiscard]] int scrollBottomSkip() const;
 	[[nodiscard]] int scrollTillBottom(int forHeight) const;
 	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
 	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;

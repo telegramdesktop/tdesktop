@@ -299,9 +299,13 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	contentHeight += additionalScroll;
 	_tillBottom = (newTop + desiredHeight >= windowHeight);
 	if (_tillBottom) {
-		contentHeight += contentBottom;
 		additionalScroll += contentBottom;
 	}
+	_contentTillBottom = _tillBottom && !_content->scrollBottomSkip();
+	if (_contentTillBottom) {
+		contentHeight += contentBottom;
+	}
+	const auto bottomPadding = _tillBottom ? 0 : contentBottom;
 	_content->updateGeometry({
 		contentLeft,
 		contentTop,
@@ -328,6 +332,8 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 		if (clip.intersects({ 0, height() - radius, width(), radius })) {
 			parts |= RectPart::FullBottom;
 		}
+	} else if (!_contentTillBottom) {
+		p.fillRect(0, height() - radius, width(), radius, st::boxBg);
 	}
 	if (_content->animatingShow()) {
 		if (clip.intersects({ 0, 0, width(), radius })) {

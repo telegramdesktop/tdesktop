@@ -12,7 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "core/application.h"
 #include "ui/abstract_button.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/effects/gradient.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
@@ -21,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
@@ -41,22 +45,25 @@ public:
 		not_null<Ui::RpWidget*> parent) override;
 
 private:
-	void setupContent(not_null<Window::SessionController*> controller);
+	void setupContent();
+
+	const not_null<Window::SessionController*> _controller;
 
 };
 
 Premium::Premium(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
-: Section(parent) {
-	setupContent(controller);
+: Section(parent)
+, _controller(controller) {
+	setupContent();
 }
 
 rpl::producer<QString> Premium::title() {
 	return tr::lng_premium_summary_title();
 }
 
-void Premium::setupContent(not_null<Window::SessionController*> controller) {
+void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
 	content->add(
@@ -221,11 +228,11 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 
 	auto result = object_ptr<Ui::GradientButton>(
 		content,
-		QGradientStops{
-			{ 0., st::premiumButtonBg1->c },
-			{ .6, st::premiumButtonBg2->c },
-			{ 1., st::premiumButtonBg3->c },
-		});
+		Ui::Premium::ButtonGradientStops());
+
+	result->setClickedCallback([=] {
+		StartPremiumPayment(_controller, "settings");
+	});
 
 	const auto &st = st::premiumPreviewBox.button;
 	result->resize(content->width(), st.height);
@@ -268,6 +275,23 @@ void ShowPremium(not_null<Main::Session*> session) {
 				controller->showSettings(Settings::PremiumId());
 			}
 		}
+	}
+}
+
+void StartPremiumPayment(
+		not_null<Window::SessionController*> controller,
+		const QString &ref) {
+	const auto account = &controller->session().account();
+	const auto username = account->appConfig().get<QString>(
+		"premium_bot_username",
+		QString());
+	const auto slug = account->appConfig().get<QString>(
+		"premium_invoice_slug",
+		QString());
+	if (!username.isEmpty()) {
+		UrlClickHandler::Open("https://t.me/" + username + "?start=" + ref);
+	} else if (!slug.isEmpty()) {
+		UrlClickHandler::Open("https://t.me/$" + slug);
 	}
 }
 

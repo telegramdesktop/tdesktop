@@ -63,6 +63,7 @@ protected:
 
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;
+	void paintEvent(QPaintEvent *e) override;
 
 private:
 	void init();

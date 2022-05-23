@@ -113,7 +113,7 @@ private:
 
 	style::color _bg;
 	rpl::variable<int> _scrollTopSkip = -1;
-	rpl::variable<int> _scrollBottomSkip = -1;
+	rpl::variable<int> _scrollBottomSkip = 0;
 	rpl::event_stream<int> _scrollTillBottomChanges;
 	object_ptr<Ui::ScrollArea> _scroll;
 	Ui::PaddingWrap<Ui::RpWidget> *_innerWrap = nullptr;

@@ -422,5 +422,5 @@ notifyPreviewChecksSkip: 12px;
 notifyPreviewBottomSkip: 9px;
 
 settingsPremiumDescriptionSkip: 3px;
-settingsPremiumButtonPadding: margins(11px, 11px, 11px, 11px);
+settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
 
