@@ -244,7 +244,7 @@ int LayerWidget::MinimalSupportedWidth() {
 }
 
 int LayerWidget::resizeGetHeight(int newWidth) {
-	if (!parentWidget() || !_content) {
+	if (!parentWidget() || !_content || !newWidth) {
 		return 0;
 	}
 	constexpr auto kMaxAttempts = 16;

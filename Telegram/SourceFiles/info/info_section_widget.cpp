@@ -46,14 +46,16 @@ void SectionWidget::init() {
 	rpl::combine(
 		sizeValue(),
 		_content->desiredHeightValue()
-	) | rpl::start_with_next([wrap = _content.data()](QSize size, int) {
+	) | rpl::filter([=] {
+		return (_content != nullptr);
+	}) | rpl::start_with_next([=](QSize size, int) {
 		const auto expanding = false;
 		const auto additionalScroll = st::boxRadius;
-		const auto full = !wrap->scrollBottomSkip();
+		const auto full = !_content->scrollBottomSkip();
 		const auto height = size.height() - (full ? 0 : st::boxRadius);
 		const auto wrapGeometry = QRect{ 0, 0, size.width(), height };
-		wrap->updateGeometry(wrapGeometry, expanding, additionalScroll);
-	}, _content->lifetime());
+		_content->updateGeometry(wrapGeometry, expanding, additionalScroll);
+	}, lifetime());
 
 	_connecting = std::make_unique<Window::ConnectionState>(
 		_content.data(),
