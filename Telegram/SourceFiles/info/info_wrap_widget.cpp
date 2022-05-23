@@ -829,7 +829,7 @@ void WrapWidget::showAnimatedHook(
 }
 
 void WrapWidget::doSetInnerFocus() {
-	if (_topBar && !_topBar->focusSearchField()) {
+	if (!_topBar || !_topBar->focusSearchField()) {
 		_content->setInnerFocus();
 	}
 }

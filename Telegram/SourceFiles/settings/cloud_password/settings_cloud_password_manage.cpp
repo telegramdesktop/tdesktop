@@ -125,6 +125,9 @@ rpl::producer<std::vector<Type>> Manage::removeTypes() {
 }
 
 void Manage::setupContent() {
+	setFocusPolicy(Qt::StrongFocus);
+	setFocus();
+
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 	auto currentStepData = stepData();
 	_currentPassword = base::take(currentStepData.currentPassword);
