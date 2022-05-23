@@ -47,6 +47,97 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAnimationPart = 0.15;
 
+struct Entry {
+	const style::icon *icon;
+	rpl::producer<QString> title;
+	rpl::producer<QString> description;
+};
+
+[[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
+	return base::flat_map<QString, Entry>{
+		{
+			QString("double_limits"),
+			Entry{
+				&st::settingsPremiumIconDouble,
+				tr::lng_premium_summary_subtitle_double_limits(),
+				tr::lng_premium_summary_about_double_limits(),
+			},
+		},
+		{
+			QString("more_upload"),
+			Entry{
+				&st::settingsPremiumIconFiles,
+				tr::lng_premium_summary_subtitle_more_upload(),
+				tr::lng_premium_summary_about_more_upload(),
+			},
+		},
+		{
+			QString("faster_download"),
+			Entry{
+				&st::settingsPremiumIconSpeed,
+				tr::lng_premium_summary_subtitle_faster_download(),
+				tr::lng_premium_summary_about_faster_download(),
+			},
+		},
+		{
+			QString("voice_to_text"),
+			Entry{
+				&st::settingsPremiumIconVoice,
+				tr::lng_premium_summary_subtitle_voice_to_text(),
+				tr::lng_premium_summary_about_voice_to_text(),
+			},
+		},
+		{
+			QString("no_ads"),
+			Entry{
+				&st::settingsPremiumIconChannelsOff,
+				tr::lng_premium_summary_subtitle_no_ads(),
+				tr::lng_premium_summary_about_no_ads(),
+			},
+		},
+		{
+			QString("unique_reactions"),
+			Entry{
+				&st::settingsPremiumIconLike,
+				tr::lng_premium_summary_subtitle_unique_reactions(),
+				tr::lng_premium_summary_about_unique_reactions(),
+			},
+		},
+		{
+			QString("premium_stickers"),
+			Entry{
+				&st::settingsIconStickers,
+				tr::lng_premium_summary_subtitle_premium_stickers(),
+				tr::lng_premium_summary_about_premium_stickers(),
+			},
+		},
+		{
+			QString("advanced_chat_management"),
+			Entry{
+				&st::settingsIconChat,
+				tr::lng_premium_summary_subtitle_advanced_chat_management(),
+				tr::lng_premium_summary_about_advanced_chat_management(),
+			},
+		},
+		{
+			QString("profile_badge"),
+			Entry{
+				&st::settingsPremiumIconStar,
+				tr::lng_premium_summary_subtitle_profile_badge(),
+				tr::lng_premium_summary_about_profile_badge(),
+			},
+		},
+		{
+			QString("animated_userpics"),
+			Entry{
+				&st::settingsPremiumIconPlay,
+				tr::lng_premium_summary_subtitle_animated_userpics(),
+				tr::lng_premium_summary_about_animated_userpics(),
+			},
+		},
+	};
+}
+
 class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(not_null<QWidget*> parent);
@@ -240,21 +331,9 @@ void Premium::setupContent() {
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto iconSize = st::settingsPremiumIconDouble.size();
 
-	const auto icons = std::array<const style::icon *, 10>{ {
-		&st::settingsPremiumIconDouble,
-		&st::settingsPremiumIconFiles,
-		&st::settingsPremiumIconSpeed,
-		&st::settingsPremiumIconVoice,
-		&st::settingsPremiumIconChannelsOff,
-		&st::settingsPremiumIconLike,
-		&st::settingsIconStickers,
-		&st::settingsIconChat,
-		&st::settingsPremiumIconStar,
-		&st::settingsPremiumIconPlay,
-	} };
-
+	auto entryMap = EntryMap();
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
-	iconContainers.reserve(int(icons.size()));
+	iconContainers.reserve(int(entryMap.size()));
 
 	auto titlePadding = st.padding;
 	titlePadding.setBottom(0);
@@ -295,17 +374,33 @@ void Premium::setupContent() {
 		iconContainers.push_back(dummy);
 	};
 
-	using namespace tr;
-	addRow(lng_premium_summary_subtitle1(), lng_premium_summary_about1());
-	addRow(lng_premium_summary_subtitle2(), lng_premium_summary_about2());
-	addRow(lng_premium_summary_subtitle3(), lng_premium_summary_about3());
-	addRow(lng_premium_summary_subtitle4(), lng_premium_summary_about4());
-	addRow(lng_premium_summary_subtitle5(), lng_premium_summary_about5());
-	addRow(lng_premium_summary_subtitle6(), lng_premium_summary_about6());
-	addRow(lng_premium_summary_subtitle7(), lng_premium_summary_about7());
-	addRow(lng_premium_summary_subtitle8(), lng_premium_summary_about8());
-	addRow(lng_premium_summary_subtitle9(), lng_premium_summary_about9());
-	addRow(lng_premium_summary_subtitle10(), lng_premium_summary_about10());
+	auto icons = std::vector<const style::icon *>();
+	icons.reserve(int(entryMap.size()));
+	{
+		using Order = std::vector<QString>;
+		const auto &account = _controller->session().account();
+		const auto mtpOrder = account.appConfig().get<Order>(
+			"premium_promo_order",
+			Order());
+		const auto processEntry = [&](Entry &entry) {
+			icons.push_back(entry.icon);
+			addRow(base::take(entry.title), base::take(entry.description));
+		};
+
+		if (!mtpOrder.empty()) {
+			for (const auto &key : mtpOrder) {
+				auto it = entryMap.find(key);
+				if (it == end(entryMap)) {
+					continue;
+				}
+				processEntry(it->second);
+			}
+		} else {
+			for (auto &entry : ranges::views::values(entryMap)) {
+				processEntry(entry);
+			}
+		}
+	}
 
 	content->resizeToWidth(content->height());
 
