@@ -155,6 +155,8 @@ PRIVATE
     api/api_text_entities.h
     api/api_toggling_media.cpp
     api/api_toggling_media.h
+    api/api_transcribes.cpp
+    api/api_transcribes.h
     api/api_unread_things.cpp
     api/api_unread_things.h
     api/api_updates.cpp
@@ -690,6 +692,8 @@ PRIVATE
     history/view/history_view_service_message.h
     history/view/history_view_spoiler_click_handler.cpp
     history/view/history_view_spoiler_click_handler.h
+    history/view/history_view_transcribe_button.cpp
+    history/view/history_view_transcribe_button.h
     history/view/history_view_top_bar_widget.cpp
     history/view/history_view_top_bar_widget.h
     history/view/history_view_view_button.cpp

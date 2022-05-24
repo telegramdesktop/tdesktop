@@ -63,6 +63,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
+#include "data/data_peer_values.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -274,6 +275,20 @@ Session::Session(not_null<Main::Session*> session)
 			session->saveSettingsDelayed();
 		}
 	}, _lifetime);
+
+	crl::on_main(_session, [=] {
+		AmPremiumValue(
+			_session
+		) | rpl::start_with_next([=] {
+			for (const auto &[document, items] : _documentItems) {
+				if (document->isVoiceMessage()) {
+					for (const auto &item : items) {
+						requestItemResize(item);
+					}
+				}
+			}
+		}, _lifetime);
+	});
 }
 
 void Session::clear() {
@@ -1175,7 +1190,6 @@ void Session::setupPeerNameViewer() {
 		const auto &oldLetters = update.oldFirstLetters;
 		_contactsNoChatsList.peerNameChanged(peer, oldLetters);
 		_contactsList.peerNameChanged(peer, oldLetters);
-
 	}, _lifetime);
 }
 

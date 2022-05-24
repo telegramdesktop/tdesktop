@@ -9,12 +9,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
+#include "main/main_session.h"
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
@@ -30,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
+#include "api/api_transcribes.h"
+#include "apiwrap.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -226,6 +230,41 @@ void Document::fillNamedFromData(HistoryDocumentNamed *named) {
 
 QSize Document::countOptimalSize() {
 	auto captioned = Get<HistoryDocumentCaptioned>();
+	auto hasTranscribe = false;
+	const auto voice = Get<HistoryDocumentVoice>();
+	if (voice) {
+		const auto session = &_realParent->history()->session();
+		if (!session->premium()) {
+			voice->transcribe = nullptr;
+			voice->transcribeText = {};
+		} else {
+			if (!voice->transcribe) {
+				voice->transcribe = std::make_unique<TranscribeButton>(
+					_realParent);
+			}
+			const auto &entry = session->api().transcribes().entry(
+				_realParent);
+			auto text = entry.requestId
+				? "Transcribing..."
+				: entry.failed
+				? "Transcribing Failed."
+				: entry.shown
+				? ((entry.pending ? "Still Transcribing...\n" : "")
+					+ entry.result)
+				: QString();
+			if (text.isEmpty()) {
+				voice->transcribeText = {};
+			} else {
+				const auto minResizeWidth = st::minPhotoSize
+					- st::msgPadding.left()
+					- st::msgPadding.right();
+				voice->transcribeText = Ui::Text::String(minResizeWidth);
+				voice->transcribeText.setText(st::messageTextStyle, text);
+				hasTranscribe = true;
+			}
+		}
+	}
+
 	if (_parent->media() != this && !_realParent->groupId()) {
 		if (captioned) {
 			RemoveComponents(HistoryDocumentCaptioned::Bit());
@@ -236,6 +275,7 @@ QSize Document::countOptimalSize() {
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
 	}
+
 	auto thumbed = Get<HistoryDocumentThumbed>();
 	const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
 	if (thumbed) {
@@ -264,15 +304,30 @@ QSize Document::countOptimalSize() {
 		accumulate_max(maxWidth, tleft + named->_namew + tright);
 		accumulate_min(maxWidth, st::msgMaxWidth);
 	}
+	if (voice && voice->transcribe) {
+		maxWidth += st::historyTranscribeSkip
+			+ voice->transcribe->size().width();
+	}
 
 	auto minHeight = st.padding.top() + st.thumbSize + st.padding.bottom();
-	if (!captioned && _parent->bottomInfoIsWide()) {
+	if (!captioned && !hasTranscribe && _parent->bottomInfoIsWide()) {
 		minHeight += st::msgDateFont->height - st::msgDateDelta.y();
 	}
 	if (!isBubbleTop()) {
 		minHeight -= st::msgFileTopMinus;
 	}
 
+	if (hasTranscribe) {
+		auto captionw = maxWidth
+			- st::msgPadding.left()
+			- st::msgPadding.right();
+		minHeight += voice->transcribeText.countHeight(captionw);
+		if (captioned) {
+			minHeight += st::mediaCaptionSkip;
+		} else if (isBubbleBottom()) {
+			minHeight += st::msgPadding.bottom();
+		}
+	}
 	if (captioned) {
 		auto captionw = maxWidth
 			- st::msgPadding.left()
@@ -287,7 +342,9 @@ QSize Document::countOptimalSize() {
 
 QSize Document::countCurrentSize(int newWidth) {
 	const auto captioned = Get<HistoryDocumentCaptioned>();
-	if (!captioned) {
+	const auto voice = Get<HistoryDocumentVoice>();
+	const auto hasTranscribe = voice && !voice->transcribeText.isEmpty();
+	if (!captioned && !hasTranscribe) {
 		return File::countCurrentSize(newWidth);
 	}
 
@@ -299,9 +356,19 @@ QSize Document::countCurrentSize(int newWidth) {
 		newHeight -= st::msgFileTopMinus;
 	}
 	auto captionw = newWidth - st::msgPadding.left() - st::msgPadding.right();
-	newHeight += captioned->_caption.countHeight(captionw);
-	if (isBubbleBottom()) {
-		newHeight += st::msgPadding.bottom();
+	if (hasTranscribe) {
+		newHeight += voice->transcribeText.countHeight(captionw);
+		if (captioned) {
+			newHeight += st::mediaCaptionSkip;
+		} else if (isBubbleBottom()) {
+			newHeight += st::msgPadding.bottom();
+		}
+	}
+	if (captioned) {
+		newHeight += captioned->_caption.countHeight(captionw);
+		if (isBubbleBottom()) {
+			newHeight += st::msgPadding.bottom();
+		}
 	}
 
 	return { newWidth, newHeight };
@@ -498,7 +565,8 @@ void Document::draw(
 	auto statuswidth = namewidth;
 
 	auto voiceStatusOverride = QString();
-	if (const auto voice = Get<HistoryDocumentVoice>()) {
+	const auto voice = Get<HistoryDocumentVoice>();
+	if (voice) {
 		ensureDataMediaCreated();
 
 		if (const auto voiceData = _data->voice()) {
@@ -527,9 +595,19 @@ void Document::draw(
 				base::SafeRound(progress * voice->_lastDurationMs) / 1000,
 				voice->_lastDurationMs / 1000);
 		}
-
+		if (voice->transcribe) {
+			const auto size = voice->transcribe->size();
+			namewidth -= st::historyTranscribeSkip + size.width();
+			const auto x = nameleft + namewidth + st::historyTranscribeSkip;
+			const auto y = st.padding.top()
+				- topMinus
+				+ st::msgWaveformMax
+				- size.height();
+			voice->transcribe->paint(p, x, y, context);
+		}
 		p.save();
 		p.translate(nameleft, st.padding.top() - topMinus);
+
 		PaintWaveform(p,
 			context,
 			_data->voice(),
@@ -564,9 +642,15 @@ void Document::draw(
 		}
 	}
 
+	auto captiontop = bottom;
+	if (voice && !voice->transcribeText.isEmpty()) {
+		p.setPen(stm->historyTextFg);
+		voice->transcribeText.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, context.selection);
+		captiontop += voice->transcribeText.countHeight(captionw) + st::mediaCaptionSkip;
+	}
 	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(stm->historyTextFg);
-		captioned->_caption.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, context.selection);
+		captioned->_caption.draw(p, st::msgPadding.left(), captiontop, captionw, style::al_left, 0, -1, context.selection);
 	}
 }
 
@@ -745,9 +829,23 @@ TextState Document::textState(
 		}
 	}
 
-	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		auto namewidth = width - nameleft - nameright;
+	const auto voice = Get<HistoryDocumentVoice>();
+	auto namewidth = width - nameleft - nameright;
+	if (voice) {
 		auto waveformbottom = st.padding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
+		if (voice->transcribe) {
+			const auto size = voice->transcribe->size();
+			namewidth -= st::historyTranscribeSkip + size.width();
+			const auto x = nameleft + namewidth + st::historyTranscribeSkip;
+			const auto y = st.padding.top()
+				- topMinus
+				+ st::msgWaveformMax
+				- size.height();
+			if (QRect(QPoint(x, y), size).contains(point)) {
+				result.link = voice->transcribe->link();
+				return result;
+			}
+		}
 		if (QRect(nameleft, nametop, namewidth, waveformbottom - nametop).contains(point)) {
 			const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Voice);
 			if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
@@ -776,7 +874,8 @@ TextState Document::textState(
 			painth -= st::msgPadding.bottom();
 		}
 	}
-	if (QRect(0, 0, width, painth).contains(point)
+	const auto till = voice ? (nameleft + namewidth) : width;
+	if (QRect(0, 0, till, painth).contains(point)
 		&& (!_data->loading() || downloadInCorner())
 		&& !_data->uploading()
 		&& !_data->isNull()) {

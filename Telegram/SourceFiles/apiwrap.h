@@ -70,6 +70,7 @@ class Polls;
 class ChatParticipants;
 class UnreadThings;
 class Ringtones;
+class Transcribes;
 
 namespace details {
 
@@ -361,6 +362,7 @@ public:
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 	[[nodiscard]] Api::Ringtones &ringtones();
+	[[nodiscard]] Api::Transcribes &transcribes();
 
 	void updatePrivacyLastSeens();
 
@@ -644,6 +646,7 @@ private:
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 	const std::unique_ptr<Api::Ringtones> _ringtones;
+	const std::unique_ptr<Api::Transcribes> _transcribes;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

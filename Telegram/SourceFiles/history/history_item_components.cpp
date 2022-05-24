@@ -937,3 +937,23 @@ void HistoryDocumentVoice::stopSeeking() {
 	_seeking = false;
 	Media::Player::instance()->cancelSeeking(AudioMsgId::Type::Voice);
 }
+
+bool HistoryDocumentVoice::seeking() const {
+	return _seeking;
+}
+
+float64 HistoryDocumentVoice::seekingStart() const {
+	return _seekingStart / kFloatToIntMultiplier;
+}
+
+void HistoryDocumentVoice::setSeekingStart(float64 seekingStart) const {
+	_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
+}
+
+float64 HistoryDocumentVoice::seekingCurrent() const {
+	return _seekingCurrent / kFloatToIntMultiplier;
+}
+
+void HistoryDocumentVoice::setSeekingCurrent(float64 seekingCurrent) {
+	_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
+}

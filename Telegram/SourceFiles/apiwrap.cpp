@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_confirm_phone.h"
 #include "api/api_unread_things.h"
 #include "api/api_ringtones.h"
+#include "api/api_transcribes.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -145,7 +146,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _polls(std::make_unique<Api::Polls>(this))
 , _chatParticipants(std::make_unique<Api::ChatParticipants>(this))
 , _unreadThings(std::make_unique<Api::UnreadThings>(this))
-, _ringtones(std::make_unique<Api::Ringtones>(this)) {
+, _ringtones(std::make_unique<Api::Ringtones>(this))
+, _transcribes(std::make_unique<Api::Transcribes>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -4104,4 +4106,8 @@ Api::UnreadThings &ApiWrap::unreadThings() {
 
 Api::Ringtones &ApiWrap::ringtones() {
 	return *_ringtones;
+}
+
+Api::Transcribes &ApiWrap::transcribes() {
+	return *_transcribes;
 }

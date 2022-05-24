@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
 #include "api/api_unread_things.h"
+#include "api/api_transcribes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
@@ -2386,6 +2387,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateSavedRingtones: {
 		session().api().ringtones().applyUpdate();
 	} break;
+
+	case mtpc_updateTranscribeAudio: {
+		const auto &data = update.c_updateTranscribeAudio();
+		_session->api().transcribes().apply(data);
+	}
 
 	}
 }
