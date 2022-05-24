@@ -677,9 +677,9 @@ void Account::postLogoutClearing() {
 std::unique_ptr<MTP::Instance> Account::logOutAfterAction() {
     //Don't change the order as ApiWrap destructor access raw pointer of MTP::Instance
     loggedOutAfterAction();
-//	auto mtp = stealMtpInstance();
+	auto mtp = stealMtpInstance();
 	postLogoutClearing();
-	return {};
+	return mtp;
 }
 
 } // namespace Main

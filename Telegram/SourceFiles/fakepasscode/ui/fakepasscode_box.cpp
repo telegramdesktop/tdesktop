@@ -191,14 +191,6 @@ void FakePasscodeBox::setInnerFocus() {
     }
 }
 
-void FakePasscodeBox::closeReplacedBy() {
-    if (isHidden()) {
-        if (_replacedBy && !_replacedBy->isHidden()) {
-            _replacedBy->closeBox();
-        }
-    }
-}
-
 void FakePasscodeBox::save(bool force) {
     QString old = _oldPasscode->text(), pwd = _newPasscode->text(), conf = _reenterPasscode->text();
     QString name = _passwordName->getLastText();
@@ -231,19 +223,16 @@ void FakePasscodeBox::save(bool force) {
         _reenterPasscode->showError();
         _newError = tr::lng_passcode_differ(tr::now);
         update();
-        closeReplacedBy();
         return;
     } else if (!onlyCheck && has && old == pwd) {
         _newPasscode->setFocus();
         _newPasscode->showError();
         _newError = tr::lng_passcode_is_same(tr::now);
         update();
-        closeReplacedBy();
         return;
     } else if (!onlyCheck && name.isEmpty()) {
         _passwordName->setFocus();
         _passwordName->showError();
-        closeReplacedBy();
         return;
     } else if (_session->domain().local().CheckFakePasscodeExists(pwd.toUtf8())) {
         _newPasscode->selectAll();
@@ -251,10 +240,8 @@ void FakePasscodeBox::save(bool force) {
         _newPasscode->showError();
         _newError = tr::lng_passcode_exists(tr::now);
         update();
-        closeReplacedBy();
         return;
     } else {
-        closeReplacedBy();
         const auto weak = Ui::MakeWeak(this);
         cSetPasscodeBadTries(0);
         if (_turningOn) {
@@ -270,8 +257,6 @@ void FakePasscodeBox::save(bool force) {
             closeBox();
         }
     }
-
-    closeBox();
 }
 
 void FakePasscodeBox::badOldPasscode() {

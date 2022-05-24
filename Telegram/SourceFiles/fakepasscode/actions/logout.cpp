@@ -12,6 +12,7 @@ void FakePasscode::LogoutAction::Execute() {
         if (index_to_logout_[index]) {
             FAKE_LOG(qsl("Account %1 setup to logout, perform.").arg(index));
             Core::App().logoutWithChecksAndClear(account.get());
+            index_to_logout_.remove(index);
         }
     }
 }
