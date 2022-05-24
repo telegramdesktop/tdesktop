@@ -381,11 +381,11 @@ void Premium::setStepDataReference(std::any &data) {
 void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	AddSkip(content);
-
 	const auto &st = st::settingsButton;
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto iconSize = st::settingsPremiumIconDouble.size();
+
+	AddSkip(content, st.padding.top());
 
 	auto entryMap = EntryMap();
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
@@ -395,6 +395,7 @@ void Premium::setupContent() {
 	titlePadding.setBottom(0);
 	auto descriptionPadding = st.padding;
 	descriptionPadding.setTop(0);
+	descriptionPadding.setRight(st::settingsPremiumLabelDescriptionRightSkip);
 	const auto addRow = [&](
 			rpl::producer<QString> &&title,
 			rpl::producer<QString> &&text) {
@@ -514,7 +515,7 @@ void Premium::setupContent() {
 			tr::lng_premium_summary_bottom_about(Ui::Text::RichLangValue),
 			st::aboutLabel),
 		st::boxRowPadding);
-	AddSkip(content);
+	AddSkip(content, st.padding.top() + st.padding.bottom());
 
 	Ui::ResizeFitChild(this, content);
 

@@ -448,3 +448,4 @@ settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 		color: shadowFg;
 	}
 }
+settingsPremiumLabelDescriptionRightSkip: 46px;

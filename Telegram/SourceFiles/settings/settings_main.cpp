@@ -368,7 +368,7 @@ void SetupInterfaceScale(
 		container,
 		tr::lng_settings_default_scale(),
 		icon ? st::settingsButton : st::settingsButtonNoIcon,
-		{ icon ? &st::settingsIconInterfaceScale : nullptr, kIconLightBlue }
+		{ icon ? &st::settingsIconInterfaceScale : nullptr, kIconLightOrange }
 	)->toggleOn(toggled->events_starting_with_copy(switched));
 
 	const auto slider = container->add(
