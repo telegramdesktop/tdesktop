@@ -270,20 +270,23 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	p.setOpacity(bodyProgress);
 
-	const auto &starSize = st::settingsPremiumStarSize;
-	const auto starRect = QRectF(
-		QPointF(
-			(width() - starSize.width()) / 2,
-			st::settingsPremiumStarTopSkip * topProgress),
-		st::settingsPremiumStarSize);
-	_star.render(&p, starRect);
+	const auto starRect = [&](float64 topProgress, float64 sizeProgress) {
+		const auto starSize = st::settingsPremiumStarSize * sizeProgress;
+		return QRectF(
+			QPointF(
+				(width() - starSize.width()) / 2,
+				st::settingsPremiumStarTopSkip * topProgress),
+			starSize);
+	};
+	const auto currentStarRect = starRect(topProgress, bodyProgress);
+	_star.render(&p, currentStarRect);
 
 	p.setPen(st::premiumButtonFg);
 
 	const auto &padding = st::boxRowPadding;
 	const auto availableWidth = width() - padding.left() - padding.right();
-	const auto titleTop = starRect.top()
-		+ starRect.height()
+	const auto titleTop = currentStarRect.top()
+		+ currentStarRect.height()
 		+ st::changePhoneTitlePadding.top();
 	const auto aboutTop = titleTop
 		+ _title.countHeight(availableWidth)
@@ -292,25 +295,22 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	p.setFont(st::aboutLabel.style.font);
 	_about.draw(p, padding.left(), aboutTop, availableWidth, style::al_top);
 
-	// Subtitle.
-	p.setFont(st::boxTitle.style.font);
-	_title.draw(p, padding.left(), titleTop, availableWidth, style::al_top);
-
 	// Title.
-	const auto titleProgress =
-		std::clamp(
-			(kTitleAnimationPart - progress) / kTitleAnimationPart,
-			0.,
-			1.);
-	if (titleProgress > 0.) {
-		p.setOpacity(titleProgress);
-		const auto availableWidth = width() - _titlePosition.x() * 2;
-		_title.drawElided(
-			p,
+	p.setOpacity(1.);
+	p.setFont(st::boxTitle.style.font);
+	const auto titleProgress = 1. - progress;
+	const auto fullStarRect = starRect(1., 1.);
+	const auto fullTitleTop = fullStarRect.top()
+		+ fullStarRect.height()
+		+ st::changePhoneTitlePadding.top();
+	_title.draw(
+		p,
+		anim::interpolate(
+			(width() - _title.countWidth(availableWidth)) / 2,
 			_titlePosition.x(),
-			_titlePosition.y(),
-			availableWidth);
-	}
+			titleProgress),
+		anim::interpolate(fullTitleTop, _titlePosition.y(), titleProgress),
+		availableWidth);
 }
 
 class Premium : public Section<Premium> {
