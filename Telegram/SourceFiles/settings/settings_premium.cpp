@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_premium.h"
 
+#include "base/random.h"
 #include "core/application.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
@@ -16,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/effects/animation_value_f.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/text/text_utilities.h"
@@ -209,6 +211,140 @@ void SendScreenAccept(not_null<Window::SessionController*> controller) {
 		MTP_jsonNull());
 }
 
+class MiniStars final {
+public:
+	MiniStars(Fn<void()> updateCallback);
+
+	void paint(Painter &p, const QRectF &rect);
+
+private:
+	void createStar(crl::time now);
+	int angle() const;
+
+	struct MiniStar {
+		crl::time birthTime = 0;
+		crl::time deathTime = 0;
+		int angle = 0;
+		float64 size = 0.;
+		float64 alpha = 0.;
+	};
+
+	struct Interval {
+		int from;
+		int length;
+	};
+	const std::vector<Interval> _availableAngles;
+	const Interval _lifeLength;
+	const Interval _deathTime;
+	const Interval _size;
+	const Interval _alpha;
+
+	const float64 _appearProgressTill;
+	const float64 _disappearProgressAfter;
+	const float64 _distanceProgressStart;
+
+	QSvgRenderer _sprite;
+
+	Ui::Animations::Basic _animation;
+
+	std::vector<MiniStar> _ministars;
+
+	crl::time _nextBirthTime = 0;
+
+};
+
+MiniStars::MiniStars(Fn<void()> updateCallback)
+: _availableAngles({
+	Interval{ -10, 40 },
+	Interval{ 180 + 10 - 40, 40 },
+	Interval{ 180 + 15, 50 },
+	Interval{ -15 - 50, 50 },
+})
+, _lifeLength({ 150, 200 })
+, _deathTime({ 1500, 2000 })
+, _size({ 10, 20 })
+, _alpha({ 40, 60 })
+, _appearProgressTill(0.2)
+, _disappearProgressAfter(0.8)
+, _distanceProgressStart(0.5)
+, _sprite(u":/gui/icons/settings/starmini.svg"_q)
+, _animation([=](crl::time now) {
+	if (now > _nextBirthTime) {
+		createStar(now);
+		_nextBirthTime = now
+			+ _lifeLength.from
+			+ base::RandomIndex(_lifeLength.length);
+	}
+	updateCallback();
+}) {
+	_animation.start();
+}
+
+void MiniStars::paint(Painter &p, const QRectF &rect) {
+	const auto center = rect.center();
+	const auto opacity = p.opacity();
+	for (const auto &ministar : _ministars) {
+		const auto progress = (crl::now() - ministar.birthTime)
+			/ float64(ministar.deathTime - ministar.birthTime);
+		if (progress > 1.) {
+			continue;
+		}
+		const auto appearProgress = std::clamp(
+			progress / _appearProgressTill,
+			0.,
+			1.);
+		const auto rsin = float(std::sin(ministar.angle * M_PI / 180.));
+		const auto rcos = float(std::cos(ministar.angle * M_PI / 180.));
+		const auto end = QPointF(
+			rect.width() / 1.5 * rcos,
+			rect.height() / 1.5 * rsin);
+
+		const auto alphaProgress = 1.
+			- (std::clamp(progress - _disappearProgressAfter, 0., 1.)
+				/ (1. - _disappearProgressAfter));
+		p.setOpacity(ministar.alpha * alphaProgress * appearProgress);
+
+		const auto distanceProgress = _distanceProgressStart + progress;
+		const auto starSize = ministar.size * appearProgress;
+		_sprite.render(&p, QRectF(
+			center.x()
+				+ anim::interpolateF(0, end.x(), distanceProgress)
+				- starSize / 2.,
+			center.y()
+				+ anim::interpolateF(0, end.y(), distanceProgress)
+				- starSize / 2.,
+			starSize,
+			starSize));
+	}
+	p.setOpacity(opacity);
+}
+
+int MiniStars::angle() const {
+	const auto &interval = _availableAngles[
+		base::RandomIndex(_availableAngles.size())];
+	return base::RandomIndex(interval.length) + interval.from;
+}
+
+void MiniStars::createStar(crl::time now) {
+	auto ministar = MiniStar{
+		.birthTime = now,
+		.deathTime = now
+			+ _deathTime.from
+			+ base::RandomIndex(_deathTime.length),
+		.angle = angle(),
+		.size = float64(_size.from + base::RandomIndex(_size.length)),
+		.alpha = float64(_alpha.from + base::RandomIndex(_alpha.length))
+			/ 100.,
+	};
+	for (auto i = 0; i < _ministars.size(); i++) {
+		if (ministar.birthTime > _ministars[i].deathTime) {
+			_ministars[i] = ministar;
+			return;
+		}
+	}
+	_ministars.push_back(ministar);
+}
+
 class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(not_null<QWidget*> parent);
@@ -220,6 +356,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	MiniStars _ministars;
 	QSvgRenderer _star;
 	Ui::Text::String _title;
 	Ui::Text::String _about;
@@ -231,6 +368,7 @@ private:
 
 TopBar::TopBar(not_null<QWidget*> parent)
 : Ui::RpWidget(parent)
+, _ministars([=] { update(); })
 , _star(u":/gui/icons/settings/star.svg"_q)
 , _title(st::boxTitle.style, tr::lng_premium_summary_title(tr::now)) {
 	_about.setMarkedText(
@@ -296,6 +434,13 @@ void TopBar::paintEvent(QPaintEvent *e) {
 			starSize);
 	};
 	const auto currentStarRect = starRect(topProgress, bodyProgress);
+
+	p.translate(currentStarRect.center());
+	p.scale(bodyProgress, bodyProgress);
+	p.translate(-currentStarRect.center());
+	_ministars.paint(p, starRect(topProgress, 1.));
+	p.resetTransform();
+
 	_star.render(&p, currentStarRect);
 
 	p.setPen(st::premiumButtonFg);
