@@ -1372,7 +1372,11 @@ void Manager::paintAllEmoji(
 				clearStateForHidden(*icon);
 			}
 		} else if (icon->premiumLock) {
-			p.fillRect(target, QColor(0, 128, 0, 128));
+			st::reactionPremiumLocked.paintInCenter(p, QRect(
+				_inner.x() + (_inner.width() - finalSize) / 2,
+				_inner.y() + (_inner.height() - finalSize) / 2,
+				finalSize,
+				finalSize).translated(emojiPosition - shift));
 		} else {
 			const auto appear = icon->appear.get();
 			if (current

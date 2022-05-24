@@ -1035,6 +1035,11 @@ reactionMainAppearShift: 20px;
 reactionCollapseFadeThreshold: 40px;
 reactionFlyUp: 50px;
 
+reactionPremiumLocked: icon{
+	{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
+	{ "chat/reactions_premium_star", historyPeerUserpicFg },
+};
+
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {
 	maxWidth: 200px;
 }
