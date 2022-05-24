@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/ui_utility.h"
+#include "info/profile/info_profile_values.h"
 #include "window/window_session_controller.h"
 #include "history/history.h"
 #include "styles/style_menu_icons.h"
@@ -1930,8 +1931,19 @@ auto ParticipantsBoxController::computeType(
 		: (user && _additional.adminRights(user).has_value())
 		? Rights::Admin
 		: Rights::Normal;
-	// result.canRemove = _additional.canRemoveParticipant(participant);
 	result.adminRank = user ? _additional.adminRank(user) : QString();
+	using Badge = Info::Profile::Badge;
+	result.badge = !user
+		? Badge::None
+		: user->isScam()
+		? Badge::Scam
+		: user->isFake()
+		? Badge::Fake
+		: user->isVerified()
+		? Badge::Verified
+		: user->isPremium()
+		? Badge::Premium
+		: Badge::None;
 	return result;
 }
 

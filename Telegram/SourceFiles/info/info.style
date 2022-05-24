@@ -492,14 +492,6 @@ infoMembersAdminIconOver: icon {{
 	profileOtherAdminStarFgOver,
 	point(4px, 3px)
 }};
-infoMembersRemoveIcon: icon {{
-	"simple_close",
-	menuIconFg
-}};
-infoMembersRemoveIconOver: icon {{
-	"simple_close",
-	menuIconFgOver
-}};
 infoMembersAdminIconMarigns: margins(10px, 18px, 10px, 10px);
 infoMembersRemoveIconMargins: margins(10px, 12px, 12px, 10px);
 
