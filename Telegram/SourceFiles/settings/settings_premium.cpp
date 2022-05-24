@@ -51,6 +51,8 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAnimationPart = 0.15;
 
+constexpr auto kTitleAdditionalScale = 0.15;
+
 struct Entry {
 	const style::icon *icon;
 	rpl::producer<QString> title;
@@ -230,8 +232,8 @@ private:
 	};
 
 	struct Interval {
-		int from;
-		int length;
+		int from = 0;
+		int length = 0;
 	};
 	const std::vector<Interval> _availableAngles;
 	const Interval _lifeLength;
@@ -356,23 +358,33 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
+	const style::font &_titleFont;
+	const style::margins &_titlePadding;
+	const style::TextStyle &_aboutSt;
 	MiniStars _ministars;
 	QSvgRenderer _star;
-	Ui::Text::String _title;
 	Ui::Text::String _about;
 
 	QPoint _titlePosition;
+	QPainterPath _titlePath;
 	bool _roundEdges = true;
 
 };
 
 TopBar::TopBar(not_null<QWidget*> parent)
 : Ui::RpWidget(parent)
+, _titleFont(st::boxTitle.style.font)
+, _titlePadding(st::settingsPremiumTitlePadding)
+, _aboutSt(st::settingsPremiumAboutTextStyle)
 , _ministars([=] { update(); })
-, _star(u":/gui/icons/settings/star.svg"_q)
-, _title(st::boxTitle.style, tr::lng_premium_summary_title(tr::now)) {
+, _star(u":/gui/icons/settings/star.svg"_q) {
+	_titlePath.addText(
+		0,
+		_titleFont->ascent,
+		_titleFont,
+		tr::lng_premium_summary_title(tr::now));
 	_about.setMarkedText(
-		st::aboutLabel.style,
+		_aboutSt,
 		tr::lng_premium_summary_top_about(tr::now, Ui::Text::RichLangValue));
 }
 
@@ -449,30 +461,35 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	const auto availableWidth = width() - padding.left() - padding.right();
 	const auto titleTop = currentStarRect.top()
 		+ currentStarRect.height()
-		+ st::changePhoneTitlePadding.top();
+		+ _titlePadding.top();
+	const auto titlePathRect = _titlePath.boundingRect();
 	const auto aboutTop = titleTop
-		+ _title.countHeight(availableWidth)
-		+ st::changePhoneTitlePadding.bottom();
+		+ titlePathRect.height()
+		+ _titlePadding.bottom();
 
-	p.setFont(st::aboutLabel.style.font);
+	p.setFont(_aboutSt.font);
 	_about.draw(p, padding.left(), aboutTop, availableWidth, style::al_top);
 
 	// Title.
 	p.setOpacity(1.);
-	p.setFont(st::boxTitle.style.font);
+	p.setFont(_titleFont);
 	const auto titleProgress = 1. - progress;
 	const auto fullStarRect = starRect(1., 1.);
 	const auto fullTitleTop = fullStarRect.top()
 		+ fullStarRect.height()
-		+ st::changePhoneTitlePadding.top();
-	_title.draw(
-		p,
+		+ _titlePadding.top();
+	p.translate(
 		anim::interpolate(
-			(width() - _title.countWidth(availableWidth)) / 2,
+			(width() - titlePathRect.width()) / 2,
 			_titlePosition.x(),
 			titleProgress),
-		anim::interpolate(fullTitleTop, _titlePosition.y(), titleProgress),
-		availableWidth);
+		anim::interpolate(fullTitleTop, _titlePosition.y(), titleProgress));
+
+	const auto scale = 1. + kTitleAdditionalScale * (1. - titleProgress);
+	p.translate(titlePathRect.center());
+	p.scale(scale, scale);
+	p.translate(-titlePathRect.center());
+	p.fillPath(_titlePath, st::premiumButtonFg);
 }
 
 class Premium : public Section<Premium> {

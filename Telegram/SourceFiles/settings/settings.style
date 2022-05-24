@@ -449,3 +449,9 @@ settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 }
 settingsPremiumRowTitlePadding: margins(60px, 5px, 46px, 3px);
 settingsPremiumRowAboutPadding: margins(60px, 0px, 46px, 6px);
+
+settingsPremiumTitlePadding: margins(0px, 20px, 0px, 16px);
+settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	lineHeight: 18px;
+}
