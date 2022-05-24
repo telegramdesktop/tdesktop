@@ -107,6 +107,8 @@ protected:
 
 	void setPaintPadding(const style::margins &padding);
 
+	void setViewport(rpl::producer<not_null<QEvent*>> &&events) const;
+
 private:
 	RpWidget *doSetInnerWidget(object_ptr<RpWidget> inner);
 	void updateControlsGeometry();

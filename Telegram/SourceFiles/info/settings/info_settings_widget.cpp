@@ -165,6 +165,11 @@ Widget::Widget(
 		}, _inner->lifetime());
 
 		setPaintPadding({ 0, _pinnedToTop->minimumHeight(), 0, 0 });
+
+		setViewport(_pinnedToTop->events(
+		) | rpl::filter([](not_null<QEvent*> e) {
+			return e->type() == QEvent::Wheel;
+		}));
 	}
 }
 

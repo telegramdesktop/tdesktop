@@ -263,6 +263,15 @@ void ContentWidget::setPaintPadding(const style::margins &padding) {
 	_paintPadding = padding;
 }
 
+void ContentWidget::setViewport(
+		rpl::producer<not_null<QEvent*>> &&events) const {
+	std::move(
+		events
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, _scroll->lifetime());
+}
+
 void ContentWidget::saveChanges(FnMut<void()> done) {
 	done();
 }
