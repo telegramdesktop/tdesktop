@@ -650,6 +650,10 @@ not_null<Ui::RpWidget*> WrapWidget::topWidget() const {
 
 void WrapWidget::showContent(object_ptr<ContentWidget> content) {
 	if (auto old = std::exchange(_content, std::move(content))) {
+		if (Ui::InFocusChain(old)) {
+			// Prevent activating dialogs filter field while animating.
+			setFocus();
+		}
 		old->hide();
 
 		// Content destructor may invoke closeBox() that will try to
