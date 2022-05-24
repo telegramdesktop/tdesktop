@@ -288,6 +288,7 @@ rpl::producer<> TrayEventFilter::contextMenuFilters() const {
 }
 
 Tray::Tray() {
+	LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
 }
 
 void Tray::createIcon() {
