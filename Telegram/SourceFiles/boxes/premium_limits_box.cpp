@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -39,6 +40,7 @@ struct InfographicDescriptor {
 	float64 current = 0;
 	float64 premiumLimit = 0;
 	const style::icon *icon;
+	std::optional<tr::phrase<lngtag_count>> phrase;
 };
 
 [[nodiscard]] rpl::producer<> BoxShowFinishes(not_null<Ui::GenericBox*> box) {
@@ -52,6 +54,16 @@ struct InfographicDescriptor {
 	});
 
 	return showFinishes->events();
+}
+
+void AddSubsectionTitle(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> text) {
+	const auto &subtitlePadding = st::settingsButton.padding;
+	Settings::AddSubsectionTitle(
+		container,
+		std::move(text),
+		{ 0, subtitlePadding.top(), 0, -subtitlePadding.bottom() });
 }
 
 class InactiveController final : public PeerListController {
@@ -411,10 +423,10 @@ void SimpleLimitBox(
 		descriptor.defaultLimit,
 		descriptor.current,
 		descriptor.premiumLimit,
-		std::nullopt,
+		descriptor.phrase,
 		descriptor.icon);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
-	Ui::Premium::AddLimitRow(top, descriptor.premiumLimit);
+	Ui::Premium::AddLimitRow(top, descriptor.premiumLimit, descriptor.phrase);
 	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
 
 	box->setTitle(std::move(title));
@@ -443,7 +455,7 @@ void SimpleLimitBox(
 	});
 
 	if (fixed) {
-		Settings::AddSkip(top);
+		Settings::AddSkip(top, st::settingsButton.padding.bottom());
 		Settings::AddDivider(top);
 	}
 }
@@ -521,6 +533,8 @@ void ChannelsLimitBox(
 		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconGroups },
 		premium,
 		true);
+
+	AddSubsectionTitle(box->verticalLayout(), tr::lng_channels_leave_title());
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<InactiveController>(
@@ -615,9 +629,7 @@ void PublicLinksLimitBox(
 		premium,
 		true);
 
-	Settings::AddSubsectionTitle(
-		box->verticalLayout(),
-		tr::lng_links_limit_subtitle());
+	AddSubsectionTitle(box->verticalLayout(), tr::lng_links_revoke_title());
 
 	const auto delegate = box->lifetime().make_state<InactiveDelegate>();
 	const auto controller = box->lifetime().make_state<PublicsController>(
@@ -835,10 +847,7 @@ void FileSizeLimitBox(
 	const auto defaultGb = (defaultLimit + 999) / 2000;
 	const auto premiumGb = (premiumLimit + 999) / 2000;
 	const auto gb = [](int count) {
-		return tr::lng_file_size_limit(
-			tr::now,
-			lt_total,
-			QString::number(count));
+		return tr::lng_file_size_limit(tr::now, lt_count, count);
 	};
 
 	auto text = rpl::combine(
@@ -860,7 +869,13 @@ void FileSizeLimitBox(
 		tr::lng_file_size_limit_title(),
 		std::move(text),
 		"upload_max_fileparts",
-		{ defaultGb, defaultGb, premiumGb, &st::premiumIconFiles },
+		{
+			defaultGb,
+			defaultGb,
+			premiumGb,
+			&st::premiumIconFiles,
+			tr::lng_file_size_limit
+		},
 		premium);
 }
 

@@ -177,7 +177,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_leave_done" = "You've left the selected communities.";
 
 "lng_links_limit_title" = "Too Many Public Links";
-"lng_links_limit_subtitle" = "Your public communitites";
 "lng_links_limit1#one" = "You have reserved **{count}** public link.";
 "lng_links_limit1#other" = "You have reserved **{count}** public links.";
 "lng_links_limit2#one" = "Try revoking the link from an older group or channel, or upgrade to **Telegram Premium** to double the limit to **{count}** public link.";
@@ -224,7 +223,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_caption_limit_reached#other" = "You've reached the media caption limit. Please make the caption shorter by {count} characters.";
 
 "lng_file_size_limit_title" = "File Too Large";
-"lng_file_size_limit" = "{total} Gb";
+"lng_file_size_limit#one" = "{count} Gb";
+"lng_file_size_limit#other" = "{count} Gb";
 "lng_file_size_limit1" = "The document can't be sent, because it is larger than {size}.";
 "lng_file_size_limit2" = "You can double this limit to {size} per document by subscribing to **Telegram Premium**.";
 

@@ -1080,7 +1080,8 @@ ringtonesBoxSkip: 7px;
 
 premiumBubblePadding: margins(14px, 0px, 14px, 0px);
 premiumBubbleHeight: 40px;
-premiumBubbleSkip: 5px;
+premiumBubbleSkip: 8px;
+premiumBubbleWidthLimit: 80px;
 premiumBubbleTextSkip: 3px;
 premiumBubbleSlideDuration: 1000;
 premiumBubbleTailSize: size(21px, 7px);

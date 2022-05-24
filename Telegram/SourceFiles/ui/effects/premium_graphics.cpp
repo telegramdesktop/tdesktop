@@ -23,11 +23,19 @@ namespace {
 
 using TextFactory = Fn<QString(int)>;
 
+constexpr auto kDeflectionSmall = 20.;
 constexpr auto kDeflection = 30.;
 
 constexpr auto kStepBeforeDeflection = 0.75;
 constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	+ (1. - kStepBeforeDeflection) / 2.;
+
+[[nodiscard]] TextFactory ProcessTextFactory(
+		std::optional<tr::phrase<lngtag_count>> phrase) {
+	return phrase
+		? TextFactory([=](int n) { return (*phrase)(tr::now, lt_count, n); })
+		: TextFactory([=](int n) { return QString::number(n); });
+}
 
 [[nodiscard]] QLinearGradient ComputeGradient(
 		not_null<QWidget*> content,
@@ -103,6 +111,7 @@ Bubble::Bubble(
 , _tailSize(st::premiumBubbleTailSize)
 , _height(st::premiumBubbleHeight + _tailSize.height())
 , _textTop((_height - _tailSize.height() - _font->height) / 2) {
+	_numberAnimation.setDisabledMonospace(true);
 	_numberAnimation.setWidthChangedCallback([=] {
 		_widthChanges.fire({});
 	});
@@ -216,6 +225,8 @@ private:
 
 	QLinearGradient _cachedGradient;
 
+	float64 _deflection;
+
 };
 
 BubbleWidget::BubbleWidget(
@@ -228,8 +239,12 @@ BubbleWidget::BubbleWidget(
 : RpWidget(parent)
 , _currentCounter(current)
 , _maxCounter(maxCounter)
-, _bubble([=] { update(); }, std::move(textFactory), icon) {
+, _bubble([=] { update(); }, std::move(textFactory), icon)
+, _deflection(kDeflection) {
 	const auto resizeTo = [=](int w, int h) {
+		_deflection = (w > st::premiumBubbleWidthLimit)
+			? kDeflectionSmall
+			: kDeflection;
 		_spaceForDeflection = QSize(
 			st::premiumBubbleSkip,
 			st::premiumBubbleSkip);
@@ -338,8 +353,8 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		const auto offsetY = bubbleRect.y() + bubbleRect.height();
 		p.translate(offsetX, offsetY);
 		p.scale(scale, scale);
-		p.rotate(rotationProgress * kDeflection
-			- rotationProgressReverse * kDeflection);
+		p.rotate(rotationProgress * _deflection
+			- rotationProgressReverse * _deflection);
 		p.translate(-offsetX, -offsetY);
 	}
 
@@ -348,7 +363,7 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 class Line final : public Ui::RpWidget {
 public:
-	Line(not_null<Ui::RpWidget*> parent, int max);
+	Line(not_null<Ui::RpWidget*> parent, int max, TextFactory textFactory);
 
 protected:
 	void paintEvent(QPaintEvent *event) override;
@@ -368,11 +383,11 @@ private:
 
 };
 
-Line::Line(not_null<Ui::RpWidget*> parent, int max)
+Line::Line(not_null<Ui::RpWidget*> parent, int max, TextFactory textFactory)
 : Ui::RpWidget(parent)
 , _leftText(st::defaultTextStyle, tr::lng_premium_free(tr::now))
 , _rightText(st::defaultTextStyle, tr::lng_premium(tr::now))
-, _rightLabel(st::defaultTextStyle, QString::number(max)) {
+, _rightLabel(st::defaultTextStyle, textFactory(max)) {
 	resize(width(), st::requestsAcceptButton.height);
 
 	sizeValue(
@@ -470,15 +485,11 @@ void AddBubbleRow(
 		int max,
 		std::optional<tr::phrase<lngtag_count>> phrase,
 		const style::icon *icon) {
-	auto textFactory = phrase
-		? TextFactory([=](int n) { return (*phrase)(tr::now, lt_count, n); })
-		: TextFactory([=](int n) { return QString::number(n); });
-
 	const auto container = parent->add(
 		object_ptr<Ui::FixedHeightWidget>(parent, 0));
 	const auto bubble = Ui::CreateChild<BubbleWidget>(
 		container,
-		std::move(textFactory),
+		ProcessTextFactory(phrase),
 		current,
 		max,
 		std::move(showFinishes),
@@ -491,9 +502,12 @@ void AddBubbleRow(
 	}, bubble->lifetime());
 }
 
-void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max) {
+void AddLimitRow(
+		not_null<Ui::VerticalLayout*> parent,
+		int max,
+		std::optional<tr::phrase<lngtag_count>> phrase) {
 	const auto line = parent->add(
-		object_ptr<Line>(parent, max),
+		object_ptr<Line>(parent, max, ProcessTextFactory(phrase)),
 		st::boxRowPadding);
 }
 

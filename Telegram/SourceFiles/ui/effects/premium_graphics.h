@@ -31,7 +31,10 @@ void AddBubbleRow(
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	const style::icon *icon);
 
-void AddLimitRow(not_null<Ui::VerticalLayout*> parent, int max);
+void AddLimitRow(
+	not_null<Ui::VerticalLayout*> parent,
+	int max,
+	std::optional<tr::phrase<lngtag_count>> phrase);
 
 [[nodiscard]] QGradientStops LimitGradientStops();
 [[nodiscard]] QGradientStops ButtonGradientStops();
