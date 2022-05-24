@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_peer_values.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "storage/storage_domain.h"
@@ -215,13 +216,17 @@ void SetupArchiveAndMute(
 	AddSkip(inner);
 	AddDividerText(inner, tr::lng_settings_auto_archive_about());
 
-	using namespace rpl::mappers;
-	wrap->toggleOn(rpl::single(
+	auto shown = rpl::single(
 		false
-	) | rpl::then(
-		session->api().globalPrivacy().showArchiveAndMute(
-		) | rpl::filter(_1) | rpl::take(1)
-	));
+	) | rpl::then(session->api().globalPrivacy().showArchiveAndMute(
+	) | rpl::filter(_1) | rpl::take(1));
+	auto premium = Data::AmPremiumValue(&controller->session());
+
+	using namespace rpl::mappers;
+	wrap->toggleOn(rpl::combine(
+		std::move(shown),
+		std::move(premium),
+		_1 || _2));
 }
 
 void SetupLocalPasscode(
