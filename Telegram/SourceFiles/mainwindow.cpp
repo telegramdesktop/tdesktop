@@ -8,24 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 
 #include "data/data_document.h"
-#include "data/data_session.h"
 #include "data/data_document_media.h"
-#include "dialogs/ui/dialogs_layout.h"
-#include "history/history.h"
-#include "ui/widgets/popup_menu.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/shadow.h"
 #include "ui/widgets/tooltip.h"
-#include "ui/layers/layer_widget.h"
-#include "ui/emoji_config.h"
-#include "ui/ui_utility.h"
 #include "lang/lang_cloud_manager.h"
-#include "lang/lang_instance.h"
-#include "lang/lang_keys.h"
-#include "core/shortcuts.h"
 #include "core/sandbox.h"
 #include "core/application.h"
-#include "export/export_manager.h"
 #include "intro/intro_widget.h"
 #include "main/main_session.h"
 #include "main/main_account.h" // Account::sessionValue.
@@ -33,30 +20,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "media/system_media_controls_manager.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/connection_box.h"
-#include "storage/storage_account.h"
-#include "storage/localstorage.h"
-#include "apiwrap.h"
 #include "api/api_updates.h"
 #include "settings/settings_intro.h"
-#include "platform/platform_notifications_manager.h"
 #include "base/platform/base_platform_info.h"
-#include "base/variant.h"
-#include "window/notifications_manager.h"
 #include "window/themes/window_theme.h"
 #include "window/themes/window_theme_warning.h"
-#include "window/window_lock_widgets.h"
 #include "window/window_main_menu.h"
 #include "window/window_controller.h" // App::wnd.
 #include "window/window_session_controller.h"
 #include "window/window_media_preview.h"
-#include "facades.h"
-#include "styles/style_dialogs.h"
-#include "styles/style_layers.h"
 #include "styles/style_window.h"
 
 #include <QtGui/QWindow>
 #include <QtCore/QCoreApplication>
+#include <QMenu>
 
 namespace {
 
