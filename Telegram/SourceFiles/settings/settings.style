@@ -421,7 +421,6 @@ notifyPreviewTextPosition: point(64px, 30px);
 notifyPreviewChecksSkip: 12px;
 notifyPreviewBottomSkip: 9px;
 
-settingsPremiumDescriptionSkip: 3px;
 settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
 settingsPremiumTopBarBackIcon: icon {{ "info/info_back", premiumButtonFg }};
 settingsPremiumTopBarBackIconOver: icon {{ "info/info_back", premiumButtonFg }};
@@ -448,4 +447,5 @@ settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 		color: shadowFg;
 	}
 }
-settingsPremiumLabelDescriptionRightSkip: 46px;
+settingsPremiumRowTitlePadding: margins(60px, 5px, 46px, 3px);
+settingsPremiumRowAboutPadding: margins(60px, 0px, 46px, 6px);

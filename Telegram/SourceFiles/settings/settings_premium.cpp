@@ -55,6 +55,23 @@ struct Entry {
 	rpl::producer<QString> description;
 };
 
+using Order = std::vector<QString>;
+
+[[nodiscard]] Order FallbackOrder() {
+	return Order{
+		QString("double_limits"),
+		QString("more_upload"),
+		QString("faster_download"),
+		QString("voice_to_text"),
+		QString("no_ads"),
+		QString("unique_reactions"),
+		QString("premium_stickers"),
+		QString("advanced_chat_management"),
+		QString("profile_badge"),
+		QString("animated_userpics"),
+	};
+}
+
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
@@ -381,21 +398,18 @@ void Premium::setStepDataReference(std::any &data) {
 void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto &st = st::settingsButton;
+	const auto &stDefault = st::settingsButton;
 	const auto &stLabel = st::defaultFlatLabel;
 	const auto iconSize = st::settingsPremiumIconDouble.size();
+	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
+	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
 
-	AddSkip(content, st.padding.top());
+	AddSkip(content, stDefault.padding.top() + titlePadding.top());
 
 	auto entryMap = EntryMap();
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
 	iconContainers.reserve(int(entryMap.size()));
 
-	auto titlePadding = st.padding;
-	titlePadding.setBottom(0);
-	auto descriptionPadding = st.padding;
-	descriptionPadding.setTop(0);
-	descriptionPadding.setRight(st::settingsPremiumLabelDescriptionRightSkip);
 	const auto addRow = [&](
 			rpl::producer<QString> &&title,
 			rpl::producer<QString> &&text) {
@@ -407,7 +421,6 @@ void Premium::setupContent() {
 				std::move(title) | rpl::map(Ui::Text::Bold),
 				stLabel),
 			titlePadding);
-		AddSkip(content, st::settingsPremiumDescriptionSkip);
 		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
@@ -434,28 +447,21 @@ void Premium::setupContent() {
 	auto icons = std::vector<const style::icon *>();
 	icons.reserve(int(entryMap.size()));
 	{
-		using Order = std::vector<QString>;
 		const auto &account = _controller->session().account();
 		const auto mtpOrder = account.appConfig().get<Order>(
 			"premium_promo_order",
-			Order());
+			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
 			addRow(base::take(entry.title), base::take(entry.description));
 		};
 
-		if (!mtpOrder.empty()) {
-			for (const auto &key : mtpOrder) {
-				auto it = entryMap.find(key);
-				if (it == end(entryMap)) {
-					continue;
-				}
-				processEntry(it->second);
+		for (const auto &key : mtpOrder) {
+			auto it = entryMap.find(key);
+			if (it == end(entryMap)) {
+				continue;
 			}
-		} else {
-			for (auto &entry : ranges::views::values(entryMap)) {
-				processEntry(entry);
-			}
+			processEntry(it->second);
 		}
 
 		SendScreenShow(_controller, mtpOrder, _ref);
@@ -494,10 +500,11 @@ void Premium::setupContent() {
 		const auto brush = QBrush(resultGradient);
 		AddButtonIcon(
 			iconContainer,
-			st,
+			stDefault,
 			{ .icon = icons[i], .backgroundBrush = brush });
 	}
 
+	AddSkip(content, descriptionPadding.bottom());
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
@@ -515,7 +522,7 @@ void Premium::setupContent() {
 			tr::lng_premium_summary_bottom_about(Ui::Text::RichLangValue),
 			st::aboutLabel),
 		st::boxRowPadding);
-	AddSkip(content, st.padding.top() + st.padding.bottom());
+	AddSkip(content, stDefault.padding.top() + stDefault.padding.bottom());
 
 	Ui::ResizeFitChild(this, content);
 
