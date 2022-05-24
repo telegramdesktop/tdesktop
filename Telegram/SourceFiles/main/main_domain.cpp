@@ -340,7 +340,6 @@ void Domain::activateAuthedAccount() {
 			return;
 		}
 	}
-    AssertCustom(false, "No authed accounts found!");
 }
 
 bool Domain::removePasscodeIfEmpty() {
