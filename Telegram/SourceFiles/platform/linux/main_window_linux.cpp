@@ -240,8 +240,6 @@ void MainWindow::initHook() {
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	XCBSetDesktopFileName(windowHandle());
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
-
-	LOG(("System tray available: %1").arg(Logs::b(TrayIconSupported())));
 }
 
 bool MainWindow::isActiveForTrayMenu() {
