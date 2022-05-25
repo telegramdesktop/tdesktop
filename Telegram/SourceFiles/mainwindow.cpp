@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/widgets/popup_menu.h"
 #include "lang/lang_cloud_manager.h"
 #include "core/sandbox.h"
 #include "core/application.h"
