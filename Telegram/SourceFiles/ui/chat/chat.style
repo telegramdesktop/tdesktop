@@ -652,11 +652,20 @@ msgVideoSize: size(320px, 240px);
 
 msgWaveformBar: 2px;
 msgWaveformSkip: 1px;
-msgWaveformMin: 2px;
-msgWaveformMax: 20px;
+msgWaveformMin: 3px;
+msgWaveformMax: 17px;
 
 historyTranscribeSkip: 10px;
-historyTranscribeSize: 24px;
+historyTranscribeSize: size(28px, 22px);
+historyTranscribeRadius: 4px;
+historyTranscribeInIcon: icon {{ "chat/voice_to_text", msgFileInBg }};
+historyTranscribeInIconSelected: icon {{ "chat/voice_to_text", msgFileInBgSelected }};
+historyTranscribeOutIcon: icon {{ "chat/voice_to_text", msgFileOutBg }};
+historyTranscribeOutIconSelected: icon {{ "chat/voice_to_text", msgFileOutBgSelected }};
+historyTranscribeInHide: icon {{ "chat/voice_to_text_collapse", msgFileInBg }};
+historyTranscribeInHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileInBgSelected }};
+historyTranscribeOutHide: icon {{ "chat/voice_to_text_collapse", msgFileOutBg }};
+historyTranscribeOutHideSelected: icon {{ "chat/voice_to_text_collapse", msgFileOutBgSelected }};
 
 historyVideoMessageMute: icon {{ "volume_mute", historyFileThumbIconFg }};
 historyVideoMessageMuteSelected: icon {{ "volume_mute", historyFileThumbIconFgSelected }};

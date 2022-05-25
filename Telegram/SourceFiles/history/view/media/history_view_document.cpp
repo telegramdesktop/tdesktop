@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/text/format_song_document_name.h"
+#include "ui/text/text_utilities.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
@@ -105,6 +106,7 @@ void PaintWaveform(
 	const auto maxDelta = st::msgWaveformMax - st::msgWaveformMin;
 	const auto &bottom = st::msgWaveformMax;
 	p.setPen(Qt::NoPen);
+	auto hq = PainterHighQualityEnabler(p);
 	for (auto i = 0, barLeft = 0, sum = 0, maxValue = 0; i < wfSize; ++i) {
 		const auto value = wf ? wf->at(i) : 0;
 		if (sum + barCount < wfSize) {
@@ -120,16 +122,20 @@ void PaintWaveform(
 		const auto barValue = ((maxValue * maxDelta) + (barNormValue / 2))
 			/ barNormValue;
 		const auto barHeight = st::msgWaveformMin + barValue;
-		const auto barTop = bottom - barValue;
+		const auto barTop = st::lineWidth + (st::msgWaveformMax - barValue) / 2.;
 
 		if ((barLeft < activeWidth) && (barLeft + barWidth > activeWidth)) {
 			const auto leftWidth = activeWidth - barLeft;
 			const auto rightWidth = barWidth - leftWidth;
-			p.fillRect(barLeft, barTop, leftWidth, barHeight, active);
-			p.fillRect(activeWidth, barTop, rightWidth, barHeight, inactive);
+			p.fillRect(
+				QRectF(barLeft, barTop, leftWidth, barHeight),
+				active);
+			p.fillRect(
+				QRectF(activeWidth, barTop, rightWidth, barHeight),
+				inactive);
 		} else {
 			const auto &color = (barLeft >= activeWidth) ? inactive : active;
-			p.fillRect(barLeft, barTop, barWidth, barHeight, color);
+			p.fillRect(QRectF(barLeft, barTop, barWidth, barHeight), color);
 		}
 		barLeft += barWidth + st::msgWaveformSkip;
 
@@ -244,22 +250,26 @@ QSize Document::countOptimalSize() {
 			}
 			const auto &entry = session->api().transcribes().entry(
 				_realParent);
-			auto text = entry.requestId
-				? "Transcribing..."
+			const auto update = [=] { repaint(); };
+			voice->transcribe->setLoading(
+				entry.shown && (entry.requestId || entry.pending),
+				update);
+			auto text = (entry.requestId || !entry.shown)
+				? TextWithEntities()
 				: entry.failed
-				? "Transcribing Failed."
-				: entry.shown
-				? ((entry.pending ? "Still Transcribing...\n" : "")
-					+ entry.result)
-				: QString();
-			if (text.isEmpty()) {
+				? Ui::Text::Italic(tr::lng_attach_failed(tr::now))
+				: TextWithEntities{ entry.result };
+			voice->transcribe->setOpened(!text.empty(), update);
+			if (text.empty()) {
 				voice->transcribeText = {};
 			} else {
 				const auto minResizeWidth = st::minPhotoSize
 					- st::msgPadding.left()
 					- st::msgPadding.right();
 				voice->transcribeText = Ui::Text::String(minResizeWidth);
-				voice->transcribeText.setText(st::messageTextStyle, text);
+				voice->transcribeText.setMarkedText(
+					st::messageTextStyle,
+					text);
 				hasTranscribe = true;
 			}
 		}
@@ -599,10 +609,7 @@ void Document::draw(
 			const auto size = voice->transcribe->size();
 			namewidth -= st::historyTranscribeSkip + size.width();
 			const auto x = nameleft + namewidth + st::historyTranscribeSkip;
-			const auto y = st.padding.top()
-				- topMinus
-				+ st::msgWaveformMax
-				- size.height();
+			const auto y = st.padding.top() - topMinus;
 			voice->transcribe->paint(p, x, y, context);
 		}
 		p.save();
@@ -837,10 +844,7 @@ TextState Document::textState(
 			const auto size = voice->transcribe->size();
 			namewidth -= st::historyTranscribeSkip + size.width();
 			const auto x = nameleft + namewidth + st::historyTranscribeSkip;
-			const auto y = st.padding.top()
-				- topMinus
-				+ st::msgWaveformMax
-				- size.height();
+			const auto y = st.padding.top() - topMinus;
 			if (QRect(QPoint(x, y), size).contains(point)) {
 				result.link = voice->transcribe->link();
 				return result;
