@@ -917,13 +917,14 @@ void TopBarWidget::updateControlsVisibility() {
 		_unreadBadge->setVisible(!_chooseForReportReason);
 	}
 	const auto section = _activeChat.section;
+    const auto& domain = Core::App().domain().local();
 	const auto historyMode = (section == Section::History ||
-            (!Core::App().domain().local().IsFake() && section == Section::Replies));
+            (!domain.IsFake() && domain.hasLocalPasscode() && section == Section::Replies));
 	const auto hasPollsMenu = _activeChat.key.peer()
 		&& _activeChat.key.peer()->canSendPolls();
 	const auto hasMenu = !_activeChat.key.folder()
 		&& ((section == Section::Scheduled ||
-        (Core::App().domain().local().IsFake() && section == Section::Replies))
+        ((domain.IsFake() || !domain.hasLocalPasscode()) && section == Section::Replies))
 			? hasPollsMenu
 			: historyMode);
 	updateSearchVisibility();

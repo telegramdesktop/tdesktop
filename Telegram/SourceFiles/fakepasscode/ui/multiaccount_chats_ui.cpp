@@ -168,7 +168,8 @@ void MultiAccountSelectChatsUi::Create(not_null<Ui::VerticalLayout *> content,
         Settings::AddButton(
                 content,
                 _description.account_title(account.get()),
-                st::settingsButton
+                st::settingsButton,
+                {&st::settingsIconChat, Settings::kIconGray}
         )->addClickHandler([index = index, controller, this] {
             if (!_action->HasAction(index)) {
                 _action->AddAction(index, FakePasscode::SelectPeersData{});

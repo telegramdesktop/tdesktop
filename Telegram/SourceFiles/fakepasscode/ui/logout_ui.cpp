@@ -24,7 +24,8 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content,
         auto *button = Settings::AddButton(
                 content,
                 tr::lng_logout_account(lt_caption, rpl::single(user->firstName + " " + user->lastName)),
-                st::settingsButton
+                st::settingsButton,
+                {&st::settingsIconAccount, Settings::kIconRed}
             )->toggleOn(toggled->events_starting_with_copy(_logout != nullptr && _logout->IsLogout(index)));
         account_buttons_[idx] = button;
 
@@ -41,6 +42,7 @@ void LogoutUI::Create(not_null<Ui::VerticalLayout *> content,
                 FAKE_LOG(("LogoutUI: Activate"));
                 _logout = dynamic_cast<FakePasscode::LogoutAction*>(
                         _domain->local().AddAction(_index, FakePasscode::ActionType::Logout));
+                _logout->SubscribeOnLoggingOut();
             } else if (!any_activate) {
                 FAKE_LOG(("LogoutUI: Remove"));
                 _domain->local().RemoveAction(_index, FakePasscode::ActionType::Logout);

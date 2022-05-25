@@ -31,7 +31,8 @@ void MultiAccountToggleUi::Create(not_null<Ui::VerticalLayout *> content,
         auto *button = Settings::AddButton(
                 content,
                 _description.account_title(account.get()),
-                st::settingsButton
+                st::settingsButton,
+                {&st::settingsIconMinus, Settings::kIconRed}
         )->toggleOn(toggled->events_starting_with_copy(_action != nullptr && _action->HasAction(index)));
         account_buttons_[idx] = button;
 

@@ -70,7 +70,8 @@ void FakePasscodeContent::setupContent() {
         ui->Create(content, _controller);
         Settings::AddDivider(content);
     }
-    Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton)
+    Settings::AddButton(content, tr::lng_fakepasscode_change(), st::settingsButton,
+                        {&st::settingsIconReload, Settings::kIconGreen})
             ->addClickHandler([this] {
                 _controller->show(Box<FakePasscodeBox>(&_controller->session(), false, false,
                                                        _passcodeIndex),
@@ -125,7 +126,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     AddDividerText(content, tr::lng_special_actions());
     const auto toggledCacheCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
     auto buttonCacheCleaning = AddButton(content, tr::lng_clear_cache_on_lock(), st::settingsButton,
-                                         {&st::settingsIconArchive, kIconRed})
+                                         {&st::settingsIconGeneral, kIconRed})
             ->toggleOn(toggledCacheCleaning->events_starting_with_copy(_domain->local().IsCacheCleanedUpOnLock()));
 
     buttonCacheCleaning->addClickHandler([=] {
@@ -135,7 +136,7 @@ void FakePasscodeList::draw(size_t passcodesSize) {
 
     const auto toggledLogging = Ui::CreateChild<rpl::event_stream<bool>>(this);
     auto buttonLogging = AddButton(content, tr::lng_enable_advance_logging(), st::settingsButton,
-                                   {&st::settingsIconGeneral, kIconGreen})
+                                   {&st::settingsIconSavedMessages, kIconGreen})
             ->toggleOn(toggledLogging->events_starting_with_copy(_domain->local().IsAdvancedLoggingEnabled()));
 
     buttonLogging->addClickHandler([=] {
@@ -144,7 +145,8 @@ void FakePasscodeList::draw(size_t passcodesSize) {
     });
 
     const auto toggledDodCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto buttonDodCleaning = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton)
+    auto buttonDodCleaning = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton,
+                                       {&st::settingsIconLock, kIconGray})
         ->toggleOn(toggledDodCleaning->events_starting_with_copy(_domain->local().IsDodCleaningEnabled()));
 
     buttonDodCleaning->addClickHandler([=] {
