@@ -508,7 +508,6 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
                             createAndAddAccount(index, realCount);
                         }
                     }
-                    logout->SubscribeOnLoggingOut();
                 }
                 fakePasscode.Prepare();
             }
