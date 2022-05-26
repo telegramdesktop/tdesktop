@@ -991,7 +991,9 @@ void Manager::paintButton(
 		? QPoint(0, expanded - expandedSkip)
 		: QPoint(0, expandedSkip);
 	const auto source = validateEmoji(frameIndex, scale);
-	if (expanded || (current && !onlyMainEmojiVisible())) {
+	if (expanded
+		|| (current && !onlyMainEmojiVisible())
+		|| (_icons.size() == 1 && _icons.front()->premiumLock)) {
 		const auto origin = expanded ? QPoint() : position;
 		const auto scroll = button->expandAnimationScroll(expandRatio);
 		const auto opacity = button->expandAnimationOpacity(expandRatio);
@@ -1372,11 +1374,7 @@ void Manager::paintAllEmoji(
 				clearStateForHidden(*icon);
 			}
 		} else if (icon->premiumLock) {
-			st::reactionPremiumLocked.paintInCenter(p, QRect(
-				_inner.x() + (_inner.width() - finalSize) / 2,
-				_inner.y() + (_inner.height() - finalSize) / 2,
-				finalSize,
-				finalSize).translated(emojiPosition - shift));
+			paintPremiumIcon(p, emojiPosition - shift, target);
 		} else {
 			const auto appear = icon->appear.get();
 			if (current
@@ -1395,6 +1393,30 @@ void Manager::paintAllEmoji(
 		if (current) {
 			clearStateForSelectFinished(*icon);
 		}
+	}
+}
+
+void Manager::paintPremiumIcon(
+		QPainter &p,
+		QPoint position,
+		QRectF target) const {
+	const auto finalSize = CornerImageSize(1.);
+	const auto to = QRect(
+		_inner.x() + (_inner.width() - finalSize) / 2,
+		_inner.y() + (_inner.height() - finalSize) / 2,
+		finalSize,
+		finalSize).translated(position);
+	const auto scale = target.width() / to.width();
+	if (scale != 1.) {
+		p.save();
+		p.translate(target.center());
+		p.scale(scale, scale);
+		p.translate(-target.center());
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	st::reactionPremiumLocked.paintInCenter(p, to);
+	if (scale != 1.) {
+		p.restore();
 	}
 }
 

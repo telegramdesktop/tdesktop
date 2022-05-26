@@ -241,6 +241,7 @@ private:
 		float64 scale,
 		QPoint position,
 		QPoint mainEmojiPosition);
+	void paintPremiumIcon(QPainter &p, QPoint position, QRectF target) const;
 	void paintInnerGradients(
 		Painter &p,
 		const QColor &background,
