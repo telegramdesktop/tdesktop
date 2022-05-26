@@ -298,9 +298,9 @@ void ShowStickerPreviewBox(
 	crl::async([=] {
 		using Option = Images::Option;
 		auto back = color
-			? SolidColorImage(fill, *color)
+			? SolidColorImage(area, *color)
 			: request.background.waitingForNegativePattern()
-			? SolidColorImage(fill, Qt::black)
+			? SolidColorImage(area, Qt::black)
 			: Ui::CacheBackground(request).image;
 		const auto factor = style::DevicePixelRatio();
 		auto cropped = back.copy(QRect(
