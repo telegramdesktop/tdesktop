@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
+#include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/gradient_round_button.h"
@@ -23,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/history_view_element.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
@@ -50,16 +53,18 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] object_ptr<Ui::RpWidget> StickerPreview(
 		QWidget *parent,
+		not_null<Window::SessionController*> controller,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		const QImage &back,
-		int size) {
-	auto result = object_ptr<Ui::FixedHeightWidget>(parent, size);
+		QSize size) {
+	auto result = object_ptr<Ui::FixedHeightWidget>(parent, size.height());
 	const auto raw = result.data();
 	auto &lifetime = raw->lifetime();
 
 	struct State {
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		std::unique_ptr<Lottie::SinglePlayer> effect;
+		std::unique_ptr<Ui::PathShiftGradient> pathGradient;
 	};
 	const auto state = lifetime.make_state<State>();
 
@@ -97,6 +102,9 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		state->lottie->updates() | rpl::start_with_next(update, lifetime);
 		state->effect->updates() | rpl::start_with_next(update, lifetime);
 	};
+	state->pathGradient = MakePathShiftGradient(
+		controller->chatStyle(),
+		[=] { raw->update(); });
 
 	raw->paintRequest(
 	) | rpl::start_with_next([=] {
@@ -104,9 +112,22 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 		auto p = QPainter(raw);
 		p.drawImage(0, 0, back);
+
+		const auto zero = (size.width() - effectSize.width()) / 2;
+		const auto left = zero
+			+ effectSize.width()
+			- int(lottieSize.width() * (1. + kPremiumShift));
+		const auto top = (effectSize.height() - lottieSize.height()) / 2;
+		const auto r = QRect(QPoint(left, top), lottieSize);
 		if (!state->lottie
 			|| !state->lottie->ready()
 			|| !state->effect->ready()) {
+			p.setBrush(controller->chatStyle()->msgServiceBg());
+			ChatHelpers::PaintStickerThumbnailPath(
+				p,
+				media.get(),
+				r,
+				state->pathGradient.get());
 			return;
 		}
 
@@ -121,13 +142,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		//	? state->effect->framesCount()
 		//	: 1;
 
-		const auto left = effectSize.width()
-			- int(lottieSize.width() * (1. + kPremiumShift));
-		const auto top = (effectSize.height() - lottieSize.height()) / 2;
-		p.drawImage(
-			QRect(QPoint(left, top), lottieSize),
-			state->lottie->frame());
-		p.drawImage(raw->rect(), state->effect->frame());
+		p.drawImage(r, frame.image);
+		p.drawImage(QRect(QPoint(zero, 0), effectSize), effect.image);
 
 		if (!frame.image.isNull()/*
 			&& ((frame.index % effectsCount) <= effect.index)*/) {
@@ -183,16 +199,18 @@ void StickerBox(
 		not_null<Window::SessionController*> controller,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		const QImage &back) {
-	const auto size = st::boxWideWidth;
-	box->setWidth(size);
+	const auto size = QSize(
+		st::boxWideWidth,
+		HistoryView::Sticker::PremiumEffectSize(media->owner()).height());
+	box->setWidth(size.width());
 	box->setNoContentMargin(true);
-	box->addRow(StickerPreview(box, media, back, size), {});
+	box->addRow(StickerPreview(box, controller, media, back, size), {});
 	const auto padding = st::premiumPreviewAboutPadding;
 	auto label = object_ptr<Ui::FlatLabel>(
 		box,
 		tr::lng_sticker_premium_about(),
 		st::premiumPreviewAbout);
-	label->resizeToWidth(size - padding.left() - padding.right());
+	label->resizeToWidth(size.width() - padding.left() - padding.right());
 	box->addRow(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 			box,
@@ -200,7 +218,9 @@ void StickerBox(
 		padding);
 	box->setStyle(st::premiumPreviewBox);
 	const auto buttonPadding = st::premiumPreviewBox.buttonPadding;
-	const auto width = size - buttonPadding.left() - buttonPadding.right();
+	const auto width = size.width()
+		- buttonPadding.left()
+		- buttonPadding.right();
 	auto button = CreateUnlockButton(box, width);
 	button->setClickedCallback([=] {
 		Settings::ShowPremium(controller, "premium_stickers");
