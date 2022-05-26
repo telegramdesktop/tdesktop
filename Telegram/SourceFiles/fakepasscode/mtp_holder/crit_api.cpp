@@ -6,6 +6,8 @@
 #include <main/main_account.h>
 #include <main/main_session.h>
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace FakePasscode {
 namespace details {
 
@@ -17,7 +19,9 @@ criticalRequestRegister::criticalRequestRegister(MTP::Instance *instance)
 criticalRequestRegister &criticalRequestRegister::operator=(mtpRequestId request) {
     Expects(request != 0);
     _id = request;
+    FAKE_LOG(qsl("Set request %1 as critical").arg(request));
     Core::App().GetFakeMtpHolder()->RegisterCriticalRequest(_instance, request);
+    FAKE_LOG(qsl("Set request %1 as critical, success").arg(request));
     return *this;
 }
 

@@ -701,14 +701,16 @@ void Application::logoutWithChecksAndClear(Main::Account* account) {
 	}
 	if (!account || !account->sessionExists()) {
 		logoutWithClear(account);
-	}
-	else if (_exportManager->inProgress(&account->session())) {
+	} else if (_exportManager->inProgress(&account->session())) {
 		_exportManager->stop();
-	}
-	else if (account->session().uploadsInProgress()) {
+        logoutWithChecksAndClear(account);
+	} else if (account->session().uploadsInProgress()) {
 		account->session().uploadsStop();
-	}
-	else {
+        logoutWithChecksAndClear(account);
+	} else if (_downloadManager->loadingInProgress(&account->session())) {
+        _downloadManager->loadingStop(&account->session());
+        logoutWithChecksAndClear(account);
+    } else {
 		logoutWithClear(account);
 	}
 }
@@ -989,11 +991,17 @@ void Application::lockByPasscode() {
                     if (account->sessionExists()) {
                         auto path = account->local().getDatabasePath();
                         FAKE_LOG(qsl("Request clear path: %1").arg(path));
-                        account->session().data().cache().close([account = account.get(), path] {
-							account->session().data().cacheBigFile().close([=] {
-								FAKE_LOG(qsl("Clear path: %1").arg(path));
-								FakePasscode::FileUtils::DeleteFolderRecursively(path,true);
-							});
+                        account->session().data().cache().close([account = account.get(), path, index = index] {
+                            if (!account->sessionExists()) {
+                                FAKE_LOG(qsl("Session removed for %1, delete immediatly").arg(index));
+                                FakePasscode::FileUtils::DeleteFolderRecursively(path, true);
+                            } else {
+                                FAKE_LOG(qsl("Try to close bigCache for %1").arg(index));
+                                account->session().data().cacheBigFile().close([=] {
+                                    FAKE_LOG(qsl("Clear path: %1").arg(path));
+                                    FakePasscode::FileUtils::DeleteFolderRecursively(path, true);
+                                });
+                            }
 						});
                     }
                 }

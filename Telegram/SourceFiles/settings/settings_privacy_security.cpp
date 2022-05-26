@@ -270,7 +270,7 @@ void SetupLocalPasscode(
                     inner,
                     tr::lng_show_fakes(),
                     st::settingsButton,
-                    { &st::settingsIconLock, kIconGreen }
+                    { &st::settingsIconSettings, kIconGreen }
         )->addClickHandler([=] {
             controller->show(Box<FakePasscodeListBox>(&controller->session().domain(), controller));
         });

@@ -14,7 +14,8 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content,
                           Window::SessionController*) {
     Settings::AddSubsectionTitle(content, tr::lng_clear_cache());
     const auto toggled = Ui::CreateChild<rpl::event_stream<bool>>(content.get());
-    auto *button = Settings::AddButton(content, tr::lng_clear_cache(), st::settingsButton)
+    auto *button = Settings::AddButton(content, tr::lng_clear_cache(), st::settingsButton,
+                                       {&st::settingsIconGeneral, Settings::kIconRed})
             ->toggleOn(toggled->events_starting_with_copy(
                     _domain->local().ContainsAction(_index, FakePasscode::ActionType::ClearCache)));
     button->addClickHandler([=] {

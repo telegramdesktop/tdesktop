@@ -5,6 +5,8 @@
 #include <mtproto/facade.h>
 #include <mtproto/mtp_instance.h>
 
+#include "fakepasscode/log/fake_log.h"
+
 namespace FakePasscode {
 
 InstanceHolder::InstanceHolder(FakePasscode::FakeMtpHolder *parent, std::unique_ptr<MTP::Instance> &&instance)
@@ -33,12 +35,15 @@ InstanceHolder::InstanceHolder(FakePasscode::FakeMtpHolder *parent, std::unique_
 }
 
 bool InstanceHolder::completed() const {
+    FAKE_LOG(qsl("Check completed"));
     auto critRequests = _parent->getCriticalRequests(_instance.get());
     for (mtpRequestId request : critRequests) {
         if (_instance->state(request) != MTP::RequestSent) {
+            FAKE_LOG(qsl("Check completed, found uncompleted requests"));
             return false;
         }
     }
+    FAKE_LOG(qsl("Check completed, everything ok"));
     return true;
 }
 
@@ -49,16 +54,21 @@ void InstanceHolder::check() {
 }
 
 void InstanceHolder::logout() {
+    Expects(_instance != nullptr);
+    FAKE_LOG(qsl("Called logout"));
     _requestTimer.cancel();
     _checkTimer.cancel();
-    _instance->logout([this]{die();});
+    _instance->logout(crl::guard(this, [this]{die();}));
     _logoutTimer.callOnce(1000);
 }
 
 void InstanceHolder::die() {
+    FAKE_LOG(qsl("Called die"));
+    Expects(_instance != nullptr);
     _logoutTimer.cancel();
     _instance->clearCallbacks();
     Core::App().postponeCall(crl::guard(this, [this]{
+        FAKE_LOG(qsl("Destroy this instance!"));
         _parent->destroy(this);
     }));
 }

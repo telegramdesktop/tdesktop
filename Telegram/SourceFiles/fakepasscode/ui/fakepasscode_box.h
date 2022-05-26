@@ -42,7 +42,6 @@ protected:
 
 private:
     void submit();
-    void closeReplacedBy();
     void oldChanged();
     void newChanged();
     void save(bool force = false);
@@ -54,7 +53,6 @@ private:
 
     QString _pattern;
 
-    QPointer<Ui::BoxContent> _replacedBy;
     bool _turningOff = false;
     bool _turningOn = false;
     size_t _fakeIndex = 0;

@@ -222,12 +222,11 @@ void Account::destroySessionAfterAction() {
 
 	_sessionValue = nullptr;
 
-
+    _session->updates().updateOnline();
     _session->data().cache().close();
     _session->data().cacheBigFile().close();
     _session->unlockTerms();
     _session->data().clear();
-    _session->updates().updateOnline();
 
 	_session = nullptr;
 }
@@ -576,9 +575,7 @@ void Account::loggedOut() {
 }
 
 void Account::loggedOutAfterAction() {
-
 	Media::Player::mixer()->stopAndClear();
-
 	destroySessionAfterAction();
 	local().resetWithoutWrite();
 	cSetOtherOnline(0);

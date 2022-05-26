@@ -105,6 +105,7 @@ public:
 
 	[[nodiscard]] bool loadingInProgress(
 		Main::Session *onlyInSession = nullptr) const;
+    void loadingStop(Main::Session *onlyInSession);
 	void loadingStopWithConfirmation(
 		Fn<void()> callback,
 		Main::Session *onlyInSession = nullptr);
@@ -170,7 +171,6 @@ private:
 
 	[[nodiscard]] HistoryItem *lookupLoadingItem(
 		Main::Session *onlyInSession) const;
-	void loadingStop(Main::Session *onlyInSession);
 
 	void finishFilesDelete(DeleteFilesDescriptor &&descriptor);
 	void writePostponed(not_null<Main::Session*> session);

@@ -26,10 +26,15 @@ namespace FakePasscode {
 
         void SubscribeOnLoggingOut();
 
+        void Prepare() override;
+
     private:
         base::flat_map<qint32, bool> index_to_logout_;
 
         rpl::lifetime lifetime_;
+        rpl::lifetime sub_lifetime_;
+
+        void SubscribeOnAccountsChanges();
     };
 }
 #endif //TELEGRAM_LOGOUT_H

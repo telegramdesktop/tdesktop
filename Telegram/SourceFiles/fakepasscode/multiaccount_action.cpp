@@ -10,6 +10,9 @@ using namespace FakePasscode;
 
 void LogoutSubscribedAction::Prepare() {
     SubscribeOnLoggingOut();
+    Core::App().domain().accountsChanges() | rpl::start_with_next([this] {
+        SubscribeOnLoggingOut();
+    }, lifetime_);
 }
 
 void LogoutSubscribedAction::SubscribeOnLoggingOut() {

@@ -20,9 +20,11 @@ void FakePasscode::ClearProxies::Execute() {
         app.setCurrentProxy(MTP::ProxyData(), MTP::ProxyData::Settings::Disabled);
     }
     app.saveSettings();
-    for (const auto&[_, account]: app.domain().accounts()) {
+    for (const auto&[index, account]: app.domain().accounts()) {
+        FAKE_LOG(("Remove proxy for %1").arg(index));
         if (account->sessionExists()) {
-            account->session().data().setTopPromoted(nullptr, QString(), QString());;
+            FAKE_LOG(("%1 exists, remove promoted").arg(index));
+            account->session().data().setTopPromoted(nullptr, QString(), QString());
         }
     }
 }

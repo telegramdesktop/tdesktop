@@ -1,3 +1,5 @@
+#include <QDir>
+#include <QString>
 
 namespace FakePasscode {
     namespace FileUtils  {

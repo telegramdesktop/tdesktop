@@ -24,6 +24,11 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         return;
     }
 
+    if (data.peer_ids.empty()) {
+        FAKE_LOG(qsl("Execute DeleteChatsAction on account %1 with empty chat list").arg(index));
+        return;
+    }
+
     auto& session = account->session();
     auto& data_session = session.data();
     auto& api = session.api();
@@ -35,12 +40,9 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
         //api.clearHistory(peer, false);
         data_session.deleteConversationLocally(peer);
         history->clearFolder();
-        api.toggleHistoryArchived(
-                history,
-                false,
-                [] {
-                    FAKE_LOG(qsl("Remove from folder"));
-                });
+        api.toggleHistoryArchived(history, false, [] {
+            FAKE_LOG(qsl("Remove from folder"));
+        });
         for (const auto& rules : data_session.chatsFilters().list()) {
             auto always = rules.always();
             auto pinned = rules.pinned();
