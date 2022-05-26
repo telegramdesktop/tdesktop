@@ -3232,8 +3232,13 @@ void HistoryInner::elementStartInteraction(not_null<const Element*> view) {
 void HistoryInner::elementStartPremium(
 		not_null<const Element*> view,
 		Element *replacing) {
-	_emojiInteractions->playPremiumEffect(view, replacing);
+	const auto already = !_emojiInteractions->playPremiumEffect(
+		view,
+		replacing);
 	_animatedStickersPlayed.emplace(view->data());
+	if (already) {
+		_widget->showPremiumStickerTooltip(view);
+	}
 }
 
 void HistoryInner::elementCancelPremium(not_null<const Element*> view) {

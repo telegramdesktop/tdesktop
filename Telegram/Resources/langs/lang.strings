@@ -232,14 +232,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_sticker_premium_about" = "Unlock this sticker and more by subscribing to\nTelegram Premium.";
 "lng_sticker_premium_button" = "Unlock Premium Stickers";
+"lng_sticker_premium_title" = "With Effects";
+"lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
+"lng_sticker_premium_view" = "View";
 
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
 "lng_edit_error" = "You cannot edit this message";
 "lng_error_phone_flood" = "Sorry, you have deleted and re-created your account too many times recently. Please wait for a few days before signing up again.";
 "lng_error_start_minimized_passcoded" = "You have set a local passcode, so Telegram Desktop can't be launched minimised; it will ask you to enter your passcode before it can start working.";
-"lng_error_pinned_max#one" = "Sorry, you can pin no more than {count} chat to the top.";
-"lng_error_pinned_max#other" = "Sorry, you can pin no more than {count} chats to the top.";
 "lng_error_public_groups_denied" = "Unfortunately, you were banned from participating in public groups.\n{more_info}";
 "lng_error_cant_add_member" = "Sorry, you can't add the bot to this group. Ask a group admin to do it.";
 "lng_error_cant_add_bot" = "Sorry, this bot can't be added to groups.";
@@ -1661,8 +1662,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
 "lng_premium_stickers" = "Premium stickers";
-"lng_premium_unlock_button" = "Unlock Premium Stickers";
-"lng_premium_unlock_about" = "Unlock this sticker and more by subscribing to Telegram Premium.";
 
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";

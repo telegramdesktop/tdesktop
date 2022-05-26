@@ -102,6 +102,7 @@ enum class MimeDataState;
 } // namespace Storage
 
 namespace HistoryView {
+class StickerToast;
 class TopBarWidget;
 class ContactStatus;
 class Element;
@@ -277,6 +278,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
 	void hideInfoTooltip(anim::type animated);
+	void showPremiumStickerTooltip(
+		not_null<const HistoryView::Element*> view);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
@@ -798,6 +801,7 @@ private:
 	base::Timer _saveCloudDraftTimer;
 
 	base::weak_ptr<Ui::Toast::Instance> _topToast;
+	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	base::flat_set<not_null<HistoryItem*>> _itemRevealPending;

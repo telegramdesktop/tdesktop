@@ -692,6 +692,8 @@ PRIVATE
     history/view/history_view_service_message.h
     history/view/history_view_spoiler_click_handler.cpp
     history/view/history_view_spoiler_click_handler.h
+    history/view/history_view_sticker_toast.cpp
+    history/view/history_view_sticker_toast.h
     history/view/history_view_transcribe_button.cpp
     history/view/history_view_transcribe_button.h
     history/view/history_view_top_bar_widget.cpp

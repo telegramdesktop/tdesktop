@@ -98,6 +98,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_group_call_bar.h"
 #include "history/view/history_view_item_preview.h"
 #include "history/view/history_view_requests_bar.h"
+#include "history/view/history_view_sticker_toast.h"
 #include "history/view/media/history_view_media.h"
 #include "profile/profile_block_group_members.h"
 #include "info/info_memento.h"
@@ -6767,6 +6768,21 @@ void HistoryWidget::hideInfoTooltip(anim::type animated) {
 			strong->hideAnimated();
 		} else {
 			strong->hide();
+		}
+	}
+}
+
+void HistoryWidget::showPremiumStickerTooltip(
+		not_null<const HistoryView::Element*> view) {
+	if (const auto media = view->data()->media()) {
+		if (const auto document = media->document()) {
+			if (!_stickerToast) {
+				_stickerToast = std::make_unique<HistoryView::StickerToast>(
+					controller(),
+					_scroll.data(),
+					[=] { _stickerToast = nullptr; });
+			}
+			_stickerToast->showFor(document);
 		}
 	}
 }

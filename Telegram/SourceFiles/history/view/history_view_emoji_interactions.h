@@ -37,7 +37,7 @@ public:
 	void play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view);
-	void playPremiumEffect(
+	bool playPremiumEffect(
 		not_null<const Element*> view,
 		Element *replacing);
 	void cancelPremiumEffect(not_null<const Element*> view);

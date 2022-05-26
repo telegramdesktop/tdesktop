@@ -91,7 +91,7 @@ void EmojiInteractions::play(
 	}
 }
 
-void EmojiInteractions::playPremiumEffect(
+bool EmojiInteractions::playPremiumEffect(
 		not_null<const Element*> view,
 		Element *replacing) {
 	const auto already = ranges::contains(_plays, view, &Play::view);
@@ -109,10 +109,10 @@ void EmojiInteractions::playPremiumEffect(
 			//if (i->premium) {
 			//	view->externalLottieProgressing(true);
 			//}
-			return;
+			return true;
 		}
 	} else if (already) {
-		return;
+		return false;
 	}
 	if (const auto media = view->media()) {
 		if (const auto document = media->getDocument()) {
@@ -128,6 +128,7 @@ void EmojiInteractions::playPremiumEffect(
 			}
 		}
 	}
+	return true;
 }
 
 void EmojiInteractions::cancelPremiumEffect(not_null<const Element*> view) {

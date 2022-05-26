@@ -75,6 +75,22 @@ historyResizeWidth: 6px;
 
 historyPaddingBottom: 8px;
 
+historyPremiumToast: Toast(defaultToast) {
+	minWidth: msgMinWidth;
+	maxWidth: 380px;
+	padding: margins(19px, 13px, 19px, 12px);
+}
+historyPremiumViewSet: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 44px;
+	textTop: 13px;
+	textFg: mediaviewTextLinkFg;
+	textFgOver: mediaviewTextLinkFg;
+	textBg: transparent;
+	textBgOver: transparent;
+	ripple: emptyRippleAnimation;
+}
+
 historyToDownPosition: point(12px, 10px);
 historyToDownAbove: icon {{ "history_down_arrow", historyToDownFg }};
 historyToDownAboveOver: icon {{ "history_down_arrow", historyToDownFgOver }};
