@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui::BotWebView {
 namespace {
 
+constexpr auto kProcessClickTimeout = crl::time(1000);
 constexpr auto kProgressDuration = crl::time(200);
 constexpr auto kProgressOpacity = 0.3;
 constexpr auto kLightnessThreshold = 128;
@@ -84,6 +85,30 @@ constexpr auto kLightnessDelta = 32;
 			? kLightnessDelta
 			: -kLightnessDelta),
 		alpha);
+}
+
+[[nodiscard]] QString EncodeForJs(const QString &text) {
+	auto result = QString();
+	for (auto ch = text.data(), e = ch + text.size(); ch != e; ++ch) {
+		const auto code = ch->unicode();
+		const auto hex = [&](int value) {
+			const auto v = value & 0x0F;
+			return QChar((v < 10) ? ('0' + v) : 'A' + (v - 10));
+		};
+		if (code >= 32 && code < 128) {
+			if (code == '\\' || code == '"' || code == '\'') {
+				result += QChar('\\');
+			}
+			result += *ch;
+		} else {
+			result += u"\\u"_q
+				+ hex(code >> 12)
+				+ hex(code >> 8)
+				+ hex(code >> 4)
+				+ hex(code);
+		}
+	}
+	return result;
 }
 
 } // namespace
@@ -667,7 +692,15 @@ void Panel::openExternalLink(const QJsonValue &value) {
 		_close();
 		return;
 	}
-	QDesktopServices::openUrl(url);
+	const auto now = crl::now();
+	if (_mainButtonLastClick
+		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
+		_mainButtonLastClick = 0;
+		QDesktopServices::openUrl(url);
+	} else {
+		const auto string = EncodeForJs(url);
+		_webview->window.eval(("window.open(\"" + string + "\");").toUtf8());
+	}
 }
 
 void Panel::openInvoice(const QJsonValue &value) {
@@ -747,6 +780,7 @@ void Panel::createMainButton() {
 	button->setClickedCallback([=] {
 		if (!button->isDisabled()) {
 			postEvent("main_button_pressed");
+			_mainButtonLastClick = crl::now();
 		}
 	});
 	button->hide();

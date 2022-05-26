@@ -97,6 +97,7 @@ private:
 	std::unique_ptr<RpWidget> _webviewBottom;
 	QPointer<QWidget> _webviewParent;
 	std::unique_ptr<Button> _mainButton;
+	crl::time _mainButtonLastClick = 0;
 	std::unique_ptr<Progress> _progress;
 	rpl::event_stream<> _themeUpdateForced;
 	rpl::lifetime _fgLifetime;
