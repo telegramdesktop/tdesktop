@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/toasts/common_toasts.h"
-#include "boxes/sticker_preview_box.h"
+#include "boxes/premium_preview_box.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
@@ -355,7 +355,10 @@ bool ShowReactPremiumError(
 	if (i == end(list) || !i->premium) {
 		return false;
 	}
-	Settings::ShowPremium(controller, "unique_reactions");
+	ShowPremiumPreviewBox(
+		controller,
+		PremiumPreview::Reactions,
+		{});
 	return true;
 }
 

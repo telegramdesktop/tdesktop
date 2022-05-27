@@ -336,7 +336,6 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 		}
 		const auto selectAnimation = _owner->processDocument(
 			data.vselect_animation());
-		static auto test = 0; AssertIsDebug();
 		return known
 			? std::make_optional(Reaction{
 				.emoji = emoji,
@@ -357,7 +356,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 						*data.varound_animation()).get()
 					: nullptr),
 				.active = !data.is_inactive(),
-				.premium = (data.is_premium() || ((++test) % 2)),
+				.premium = data.is_premium(),
 			})
 			: std::nullopt;
 	});

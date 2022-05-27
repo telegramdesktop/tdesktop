@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_react_button.h" // DefaultIconFactory
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
+#include "boxes/premium_preview_box.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -448,7 +449,9 @@ void ReactionsSettingsBox(
 
 		button->setClickedCallback([=, emoji = r.emoji] {
 			if (premium && !controller->session().premium()) {
-				Settings::ShowPremium(controller, "unique_reactions");
+				ShowPremiumPreviewBox(
+					controller,
+					PremiumPreview::Reactions);
 				return;
 			}
 			checkButton(button);

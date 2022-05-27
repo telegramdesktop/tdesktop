@@ -344,7 +344,11 @@ void HistoryMessageReply::updateName(
 		not_null<HistoryMessage*> holder) const {
 	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
-		replyToVersion = replyToMsg->author()->nameVersion;
+		if (const auto from = replyToFrom(holder)) {
+			replyToVersion = from->nameVersion;
+		} else {
+			replyToVersion = replyToMsg->author()->nameVersion;
+		}
 		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;
 		int32 w = replyToName.maxWidth();

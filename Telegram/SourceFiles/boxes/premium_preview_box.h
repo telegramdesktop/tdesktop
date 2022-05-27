@@ -16,3 +16,14 @@ class SessionController;
 void ShowStickerPreviewBox(
 	not_null<Window::SessionController*> controller,
 	not_null<DocumentData*> document);
+
+enum class PremiumPreview {
+	Reactions,
+	Stickers,
+	Avatars,
+};
+
+void ShowPremiumPreviewBox(
+	not_null<Window::SessionController*> controller,
+	PremiumPreview section,
+	const base::flat_set<QString> &disabledReactions = {});

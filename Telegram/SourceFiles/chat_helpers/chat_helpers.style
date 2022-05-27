@@ -300,3 +300,14 @@ premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
 }
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
+
+premiumReactionSize: 152px;
+premiumReactionAround: 192px;
+premiumReactionTop: 108px;
+premiumReactionSkip1: 96px;
+premiumReactionScale1: 0.78;
+premiumReactionSkip2: 78px;
+premiumReactionScale2: 0.62;
+premiumReactionSkip3: 64px;
+premiumReactionScale3: 0.5;
+

@@ -155,6 +155,11 @@ QSize Sticker::PremiumEffectSize(not_null<DocumentData*> document) {
 	return Size(document) * kPremiumMultiplier;
 }
 
+QSize Sticker::UsualPremiumEffectSize() {
+	return DownscaledSize({ kMaxSizeFixed, kMaxSizeFixed }, Size())
+		* kPremiumMultiplier;
+}
+
 QSize Sticker::EmojiEffectSize() {
 	return EmojiSize() * kEmojiMultiplier;
 }

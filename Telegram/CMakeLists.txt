@@ -260,6 +260,8 @@ PRIVATE
     boxes/pin_messages_box.h
     boxes/premium_limits_box.cpp
     boxes/premium_limits_box.h
+    boxes/premium_preview_box.cpp
+    boxes/premium_preview_box.h
     boxes/reactions_settings_box.cpp
     boxes/reactions_settings_box.h
     boxes/report_messages_box.cpp
@@ -274,8 +276,6 @@ PRIVATE
     boxes/sessions_box.h
     boxes/share_box.cpp
     boxes/share_box.h
-    boxes/sticker_preview_box.cpp
-    boxes/sticker_preview_box.h
     boxes/sticker_set_box.cpp
     boxes/sticker_set_box.h
     boxes/stickers_box.cpp
