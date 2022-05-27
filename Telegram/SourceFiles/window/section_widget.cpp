@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
+#include "history/history.h"
 #include "history/history_item.h"
 #include "settings/settings_premium.h"
 #include "main/main_session.h"
@@ -341,6 +343,24 @@ bool ShowSendPremiumError(
 	return true;
 }
 
+[[nodiscard]] auto ExtractDisabledReactions(
+	not_null<PeerData*> peer,
+	const std::vector<Data::Reaction> &list)
+-> base::flat_map<QString, ReactionDisableType> {
+	auto result = base::flat_map<QString, ReactionDisableType>();
+	const auto type = peer->isBroadcast()
+		? ReactionDisableType::Channel
+		: ReactionDisableType::Group;
+	if (const auto allowed = Data::PeerAllowedReactions(peer)) {
+		for (const auto &reaction : list) {
+			if (reaction.premium && !allowed->contains(reaction.emoji)) {
+				result.emplace(reaction.emoji, type);
+			}
+		}
+	}
+	return result;
+}
+
 bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
@@ -358,7 +378,7 @@ bool ShowReactPremiumError(
 	ShowPremiumPreviewBox(
 		controller,
 		PremiumPreview::Reactions,
-		{});
+		ExtractDisabledReactions(item->history()->peer, list));
 	return true;
 }
 

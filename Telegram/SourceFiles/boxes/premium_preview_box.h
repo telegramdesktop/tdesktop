@@ -22,8 +22,13 @@ enum class PremiumPreview {
 	Stickers,
 	Avatars,
 };
+enum class ReactionDisableType {
+	None,
+	Group,
+	Channel,
+};
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	const base::flat_set<QString> &disabledReactions = {});
+	const base::flat_map<QString, ReactionDisableType> &disabled = {});

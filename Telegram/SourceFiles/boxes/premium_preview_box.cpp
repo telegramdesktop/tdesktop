@@ -42,13 +42,13 @@ constexpr auto kEnumerateCount = 3;
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
 	DocumentData *requestedSticker = nullptr;
-	base::flat_set<QString> disabledReactions;
+	base::flat_map<QString, ReactionDisableType> disabled;
 };
 
 bool operator==(const Descriptor &a, const Descriptor &b) {
 	return (a.section == b.section)
 		&& (a.requestedSticker == b.requestedSticker)
-		&& (a.disabledReactions == b.disabledReactions);
+		&& (a.disabled == b.disabled);
 }
 
 bool operator!=(const Descriptor &a, const Descriptor &b) {
@@ -201,17 +201,20 @@ public:
 	ReactionPreview(
 		not_null<Window::SessionController*> controller,
 		const Data::Reaction &reaction,
+		ReactionDisableType type,
 		Fn<void()> update);
 
 	[[nodiscard]] bool playsEffect() const;
-	void paint(QPainter &p, int x, int y, float64 scale);
+	void paint(Painter &p, int x, int y, float64 scale);
 	void paintEffect(QPainter &p, int x, int y, float64 scale);
+	void paintRestricted(Painter &p, int x, int bottom, float64 scale);
 
 	void startAnimations();
 	void cancelAnimations();
 
 private:
 	void checkReady();
+	void paintTitle(Painter &p, int x, int y, float64 scale);
 
 	const not_null<Window::SessionController*> _controller;
 	const Fn<void()> _update;
@@ -220,6 +223,8 @@ private:
 	std::unique_ptr<Lottie::SinglePlayer> _center;
 	std::unique_ptr<Lottie::SinglePlayer> _around;
 	std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	Ui::Text::String _name;
+	Ui::Text::String _disabled;
 	QImage _cache1;
 	QImage _cache2;
 	QImage _cache3;
@@ -230,9 +235,20 @@ private:
 
 };
 
+[[nodiscard]] QString DisabledText(ReactionDisableType type) {
+	switch (type) {
+	case ReactionDisableType::Group:
+		return tr::lng_premium_reaction_no_group(tr::now);
+	case ReactionDisableType::Channel:
+		return tr::lng_premium_reaction_no_channel(tr::now);
+	}
+	return QString();
+}
+
 ReactionPreview::ReactionPreview(
 	not_null<Window::SessionController*> controller,
 	const Data::Reaction &reaction,
+	ReactionDisableType type,
 	Fn<void()> update)
 : _controller(controller)
 , _update(std::move(update))
@@ -241,7 +257,9 @@ ReactionPreview::ReactionPreview(
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
-		_update)) {
+		_update))
+, _name(st::premiumReactionName, reaction.title)
+, _disabled(st::defaultTextStyle, DisabledText(type)) {
 	_centerMedia->checkStickerLarge();
 	_aroundMedia->checkStickerLarge();
 	checkReady();
@@ -258,7 +276,7 @@ void ReactionPreview::checkReady() {
 			nullptr,
 			ChatHelpers::StickerLottieSize::PremiumReactionPreview,
 			QSize(size, size) * style::DevicePixelRatio(),
-			Lottie::Quality::High);
+			Lottie::Quality::Default);
 		result->updates() | rpl::start_with_next(_update, _lifetime);
 		return result;
 	};
@@ -282,7 +300,7 @@ void ReactionPreview::cancelAnimations() {
 	_playRequested = false;
 }
 
-void ReactionPreview::paint(QPainter &p, int x, int y, float64 scale) {
+void ReactionPreview::paint(Painter &p, int x, int y, float64 scale) {
 	const auto size = st::premiumReactionAround;
 	const auto center = st::premiumReactionSize;
 	const auto inner = QRect(
@@ -357,6 +375,54 @@ void ReactionPreview::paint(QPainter &p, int x, int y, float64 scale) {
 	if (useScale) {
 		p.restore();
 	}
+	paintTitle(p, x, y, scale);
+}
+
+void ReactionPreview::paintTitle(Painter &p, int x, int y, float64 scale) {
+	const auto first = st::premiumReactionScale1;
+	if (scale <= first) {
+		return;
+	}
+	const auto opacity = (scale - first) / (1. - first);
+	p.setOpacity(opacity * 0.2);
+	auto hq = PainterHighQualityEnabler(p);
+	const auto width = _name.maxWidth();
+	const auto sticker = st::premiumReactionAround;
+	const auto inner = QRect(
+		x + (sticker - width) / 2,
+		y + (sticker / 2) + st::premiumReactionNameTop,
+		width,
+		st::premiumReactionName.font->height);
+	const auto outer = inner.marginsAdded(st::premiumReactionNamePadding);
+	const auto radius = outer.height() / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::premiumButtonFg);
+	p.drawRoundedRect(outer, radius, radius);
+	p.setOpacity(opacity);
+	p.setPen(st::premiumButtonFg);
+	_name.draw(p, inner.x(), inner.y(), width);
+	if (!_disabled.isEmpty()) {
+		const auto left = x + (sticker / 2) - (_disabled.maxWidth() / 2);
+	}
+	p.setOpacity(1.);
+}
+
+void ReactionPreview::paintRestricted(
+		Painter &p,
+		int x,
+		int bottom,
+		float64 scale) {
+	const auto first = st::premiumReactionScale1;
+	if (scale <= first || _disabled.isEmpty()) {
+		return;
+	}
+	const auto sticker = st::premiumReactionAround;
+	const auto opacity = (scale - first) / (1. - first);
+	p.setOpacity(opacity);
+	p.setPen(st::premiumButtonFg);
+	const auto left = x + (sticker / 2) - (_disabled.maxWidth() / 2);
+	_disabled.draw(p, left, bottom - 2.5 * st::normalFont->height, _disabled.maxWidth());
+	p.setOpacity(1.);
 }
 
 bool ReactionPreview::playsEffect() const {
@@ -389,7 +455,8 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 
 [[nodiscard]] not_null<Ui::RpWidget*> ReactionsPreview(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		const base::flat_map<QString, ReactionDisableType> &disabled) {
 	struct State {
 		std::vector<std::unique_ptr<ReactionPreview>> entries;
 		Ui::Animations::Simple shifting;
@@ -417,9 +484,11 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 			|| !reaction.aroundAnimation) {
 			continue;
 		}
+		const auto i = disabled.find(reaction.emoji);
 		state->entries.push_back(std::make_unique<ReactionPreview>(
 			controller,
 			reaction,
+			(i != end(disabled)) ? i->second : ReactionDisableType::None,
 			[=] { result->update(); }));
 	}
 	const auto enumerate = [=](
@@ -485,16 +554,15 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 			if (entry->playsEffect()
 				|| (paintedRight > 0 && paintedLeft < st::boxWideWidth)) {
 				callback(entry, left, scale, delta + index);
-			} else {
-				int a = 0;
 			}
 		}
 	};
 
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
-		auto p = QPainter(result);
-		const auto top = result->height() / 2 - st::premiumReactionTop;
+		auto p = Painter(result);
+		const auto bottom = result->height();
+		const auto top = (bottom / 2) - st::premiumReactionTop;
 		auto effects = std::vector<Fn<void()>>();
 		if (!state->played && !state->shifting.animating()) {
 			state->played = true;
@@ -509,6 +577,7 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 				float64 scale,
 				int index) {
 			entry->paint(p, left, top, scale);
+			entry->paintRestricted(p, left, bottom, scale);
 			if (entry->playsEffect()) {
 				effects.push_back([=, &p] {
 					entry->paintEffect(p, left, top, scale);
@@ -629,7 +698,10 @@ void StickerBox(
 		state->content = StickerPreview(outer, controller, media);
 		break;
 	case PremiumPreview::Reactions:
-		state->content = ReactionsPreview(outer, controller);
+		state->content = ReactionsPreview(
+			outer,
+			controller,
+			descriptor.disabled);
 		break;
 	case PremiumPreview::Avatars:
 		break;
@@ -774,9 +846,9 @@ void ShowStickerPreviewBox(
 void ShowPremiumPreviewBox(
 		not_null<Window::SessionController*> controller,
 		PremiumPreview section,
-		const base::flat_set<QString> &disabledReactions) {
+		const base::flat_map<QString, ReactionDisableType> &disabled) {
 	Show(controller, Descriptor{
 		.section = section,
-		.disabledReactions = disabledReactions,
+		.disabled = disabled,
 	});
 }

@@ -310,4 +310,10 @@ premiumReactionSkip2: 78px;
 premiumReactionScale2: 0.62;
 premiumReactionSkip3: 64px;
 premiumReactionScale3: 0.5;
-
+premiumReactionName: TextStyle(defaultTextStyle) {
+	font: font(15px semibold);
+	linkFont: font(15px semibold);
+	linkFontOver: font(15px semibold);
+}
+premiumReactionNameTop: 64px;
+premiumReactionNamePadding: margins(12px, 4px, 12px, 6px);
