@@ -1079,6 +1079,7 @@ ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
 ringtonesBoxSkip: 7px;
 
 premiumBubblePadding: margins(14px, 0px, 14px, 0px);
+premiumBubblePenWidth: 6;
 premiumBubbleHeight: 40px;
 premiumBubbleSkip: 8px;
 premiumBubbleWidthLimit: 80px;

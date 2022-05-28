@@ -62,6 +62,8 @@ constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 
 class Bubble final {
 public:
+	using EdgeProgress = float64;
+
 	Bubble(
 		Fn<void()> updateCallback,
 		TextFactory textFactory,
@@ -71,15 +73,18 @@ public:
 	[[nodiscard]] int height() const;
 	[[nodiscard]] int width() const;
 	[[nodiscard]] int bubbleRadius() const;
+	[[nodiscard]] int countMaxWidth(int maxCounter) const;
 
 	void setCounter(int value);
-	void setTailEdge(std::optional<Qt::Edge> edge);
+	void setTailEdge(EdgeProgress edge);
 	void paintBubble(Painter &p, const QRect &r, const QBrush &brush);
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
 	[[nodiscard]] rpl::producer<> updateRequests() const;
 
 private:
+	[[nodiscard]] int filledWidth() const;
+
 	const Fn<void()> _updateCallback;
 	const TextFactory _textFactory;
 
@@ -92,7 +97,7 @@ private:
 	const int _textTop;
 
 	int _counter = -1;
-	std::optional<Qt::Edge> _tailEdge;
+	EdgeProgress _tailEdge = 0.;
 
 	rpl::event_stream<> _widthChanges;
 
@@ -115,6 +120,8 @@ Bubble::Bubble(
 	_numberAnimation.setWidthChangedCallback([=] {
 		_widthChanges.fire({});
 	});
+	_numberAnimation.setText(_textFactory(0), 0);
+	_numberAnimation.finishAnimating();
 }
 
 int Bubble::counter() const {
@@ -129,12 +136,25 @@ int Bubble::bubbleRadius() const {
 	return (_height - _tailSize.height()) / 2;
 }
 
-int Bubble::width() const {
+int Bubble::filledWidth() const {
 	return _padding.left()
 		+ _icon->width()
 		+ st::premiumBubbleTextSkip
-		+ _numberAnimation.countWidth()
 		+ _padding.right();
+}
+
+int Bubble::width() const {
+	return filledWidth() + _numberAnimation.countWidth();
+}
+
+int Bubble::countMaxWidth(int maxCounter) const {
+	auto numbers = Ui::NumbersAnimation(_font, [] {});
+	numbers.setDisabledMonospace(true);
+	numbers.setDuration(0);
+	numbers.setText(_textFactory(0), 0);
+	numbers.setText(_textFactory(maxCounter), maxCounter);
+	numbers.finishAnimating();
+	return filledWidth() + numbers.maxWidth();
 }
 
 void Bubble::setCounter(int value) {
@@ -144,8 +164,8 @@ void Bubble::setCounter(int value) {
 	}
 }
 
-void Bubble::setTailEdge(std::optional<Qt::Edge> edge) {
-	_tailEdge = edge;
+void Bubble::setTailEdge(EdgeProgress edge) {
+	_tailEdge = std::clamp(edge, 0., 1.);
 }
 
 void Bubble::paintBubble(Painter &p, const QRect &r, const QBrush &brush) {
@@ -153,33 +173,56 @@ void Bubble::paintBubble(Painter &p, const QRect &r, const QBrush &brush) {
 		return;
 	}
 
-	const auto bubbleRect = r - style::margins{ 0, 0, 0, _tailSize.height() };
+	const auto penWidth = st::premiumBubblePenWidth;
+	const auto penWidthHalf = penWidth / 2;
+	const auto bubbleRect = r - style::margins(
+		penWidthHalf,
+		penWidthHalf,
+		penWidthHalf,
+		_tailSize.height() + penWidthHalf);
 	{
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(brush);
 		const auto radius = bubbleRadius();
 		auto pathTail = QPainterPath();
 
-		const auto offset = bubbleRect.topLeft()
-			+ QPoint(
-				(_tailEdge.value_or(Qt::TopEdge) == Qt::RightEdge)
-					? (bubbleRect.width() - _tailSize.width() - radius)
-					: (bubbleRect.width() - _tailSize.width()) / 2,
-				bubbleRect.height())
-			- QPoint(0, 1);
+		const auto tailWHalf = _tailSize.width() / 2.;
+		const auto progress = _tailEdge;
 
-		pathTail.moveTo(offset);
-		pathTail.lineTo(QPoint(_tailSize.width() / 2, _tailSize.height())
-			+ offset);
-		pathTail.lineTo(offset + QPoint(_tailSize.width(), 0));
-		pathTail.lineTo(offset);
+		const auto tailTop = bubbleRect.y() + bubbleRect.height();
+		const auto tailLeftFull = bubbleRect.x()
+			+ (bubbleRect.width() * 0.5)
+			- tailWHalf;
+		const auto tailLeft = bubbleRect.x()
+			+ (bubbleRect.width() * 0.5 * (progress + 1.))
+			- tailWHalf;
+		const auto tailCenter = tailLeft + tailWHalf;
+		const auto tailRight = [&] {
+			const auto max = bubbleRect.x() + bubbleRect.width();
+			const auto right = tailLeft + _tailSize.width();
+			const auto bottomMax = max - radius;
+			return (right > bottomMax)
+				? std::max(float64(tailCenter), float64(bottomMax))
+				: right;
+		}();
+		pathTail.moveTo(tailLeftFull, tailTop);
+		pathTail.lineTo(tailLeft, tailTop);
+		pathTail.lineTo(tailCenter, tailTop + _tailSize.height());
+		pathTail.lineTo(tailRight, tailTop);
+		pathTail.lineTo(tailRight, tailTop - radius);
+		pathTail.moveTo(tailLeftFull, tailTop);
 
 		auto pathBubble = QPainterPath();
 		pathBubble.setFillRule(Qt::WindingFill);
 		pathBubble.addRoundedRect(bubbleRect, radius, radius);
 
-		p.fillPath(pathTail + pathBubble, p.brush());
+		PainterHighQualityEnabler hq(p);
+		p.setPen(QPen(
+			brush,
+			penWidth,
+			Qt::SolidLine,
+			Qt::RoundCap,
+			Qt::RoundJoin));
+		p.setBrush(brush);
+		p.drawPath(pathTail + pathBubble);
 	}
 	p.setPen(st::activeButtonFg);
 	p.setFont(_font);
@@ -187,8 +230,8 @@ void Bubble::paintBubble(Painter &p, const QRect &r, const QBrush &brush) {
 	_icon->paint(
 		p,
 		iconLeft,
-		r.y() + (bubbleRect.height() - _icon->height()) / 2,
-		r.width());
+		bubbleRect.y() + (bubbleRect.height() - _icon->height()) / 2,
+		bubbleRect.width());
 	_numberAnimation.paint(
 		p,
 		iconLeft + _icon->width() + st::premiumBubbleTextSkip,
@@ -219,6 +262,7 @@ private:
 	const int _currentCounter;
 	const int _maxCounter;
 	Bubble _bubble;
+	const int _maxBubbleWidth;
 
 	Ui::Animations::Simple _appearanceAnimation;
 	QSize _spaceForDeflection;
@@ -226,6 +270,10 @@ private:
 	QLinearGradient _cachedGradient;
 
 	float64 _deflection;
+
+	bool _ignoreDeflection = false;
+	float64 _stepBeforeDeflection;
+	float64 _stepAfterDeflection;
 
 };
 
@@ -240,7 +288,10 @@ BubbleWidget::BubbleWidget(
 , _currentCounter(current)
 , _maxCounter(maxCounter)
 , _bubble([=] { update(); }, std::move(textFactory), icon)
-, _deflection(kDeflection) {
+, _maxBubbleWidth(_bubble.countMaxWidth(_maxCounter))
+, _deflection(kDeflection)
+, _stepBeforeDeflection(kStepBeforeDeflection)
+, _stepAfterDeflection(kStepAfterDeflection) {
 	const auto resizeTo = [=](int w, int h) {
 		_deflection = (w > st::premiumBubbleWidthLimit)
 			? kDeflectionSmall
@@ -260,12 +311,13 @@ BubbleWidget::BubbleWidget(
 	const auto moveEndPoint = _currentCounter / float64(_maxCounter);
 	const auto computeLeft = [=](float64 pointRatio, float64 animProgress) {
 		const auto &padding = st::boxRowPadding;
-		const auto left = _bubble.bubbleRadius() + padding.left();
-		const auto right = _bubble.bubbleRadius() + padding.right();
+		const auto halfWidth = (_maxBubbleWidth / 2);
+		const auto left = padding.left();
+		const auto right = padding.right();
 		return ((parent->width() - left - right)
 				* pointRatio
 				* animProgress)
-			- (_bubble.width() / 2)
+			- halfWidth
 			+ left;
 	};
 
@@ -273,42 +325,51 @@ BubbleWidget::BubbleWidget(
 		showFinishes
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		const auto computeEdge = [=] {
-			return computeLeft(1., 1.);
+			return parent->width()
+				- st::boxRowPadding.right()
+				- _maxBubbleWidth;
 		};
-		const auto checkBubbleEdges = [&]() -> std::optional<Qt::Edge> {
+		const auto checkBubbleEdges = [&]() -> Bubble::EdgeProgress {
 			const auto finish = computeLeft(moveEndPoint, 1.);
-			if (finish >= computeEdge()) {
-				return Qt::RightEdge;
-			}
-			return std::nullopt;
+			const auto edge = computeEdge();
+			return (finish >= edge)
+				? (finish - edge) / (_maxBubbleWidth / 2.)
+				: 0.;
 		};
-		_bubble.setTailEdge(checkBubbleEdges());
+		const auto bubbleEdge = checkBubbleEdges();
+		_ignoreDeflection = bubbleEdge;
+		if (_ignoreDeflection) {
+			_stepBeforeDeflection = 1.;
+			_stepAfterDeflection = 1.;
+		}
 
 		_appearanceAnimation.start([=](float64 value) {
 			const auto moveProgress = std::clamp(
-				(value / kStepBeforeDeflection),
+				(value / _stepBeforeDeflection),
 				0.,
 				1.);
 			const auto counterProgress = std::clamp(
-				(value / kStepAfterDeflection),
+				(value / _stepAfterDeflection),
 				0.,
 				1.);
 			moveToLeft(
-				std::clamp(
-					int(computeLeft(moveEndPoint, moveProgress)),
-					0,
-					int(computeEdge())),
+				computeLeft(moveEndPoint, moveProgress)
+					- (_maxBubbleWidth / 2.) * bubbleEdge,
 				0);
 
 			const auto counter = int(0 + counterProgress * _currentCounter);
-			if (!(counter % 4) || counterProgress > 0.8) {
+			// if (!(counter % 4) || counterProgress > 0.8) {
 				_bubble.setCounter(counter);
-			}
+			// }
+
+			const auto edgeProgress = value * bubbleEdge;
+			_bubble.setTailEdge(edgeProgress);
 			update();
 		},
 		0.,
 		1.,
-		st::premiumBubbleSlideDuration,
+		st::premiumBubbleSlideDuration
+			* (_ignoreDeflection ? kStepBeforeDeflection : 1.),
 		anim::easeOutCirc);
 	}, lifetime());
 }
@@ -318,6 +379,10 @@ bool BubbleWidget::animating() const {
 }
 
 void BubbleWidget::paintEvent(QPaintEvent *e) {
+	if (_bubble.counter() <= 0) {
+		return;
+	}
+
 	Painter p(this);
 
 	const auto padding = QMargins(
@@ -336,16 +401,16 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 		const auto progress = _appearanceAnimation.value(1.);
 		const auto scaleProgress = std::clamp(
-			(progress / kStepBeforeDeflection),
+			(progress / _stepBeforeDeflection),
 			0.,
 			1.);
 		const auto scale = scaleProgress;
 		const auto rotationProgress = std::clamp(
-			(progress - kStepBeforeDeflection) / (1. - kStepBeforeDeflection),
+			(progress - _stepBeforeDeflection) / (1. - _stepBeforeDeflection),
 			0.,
 			1.);
 		const auto rotationProgressReverse = std::clamp(
-			(progress - kStepAfterDeflection) / (1. - kStepAfterDeflection),
+			(progress - _stepAfterDeflection) / (1. - _stepAfterDeflection),
 			0.,
 			1.);
 
@@ -353,8 +418,10 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		const auto offsetY = bubbleRect.y() + bubbleRect.height();
 		p.translate(offsetX, offsetY);
 		p.scale(scale, scale);
-		p.rotate(rotationProgress * _deflection
-			- rotationProgressReverse * _deflection);
+		if (!_ignoreDeflection) {
+			p.rotate(rotationProgress * _deflection
+				- rotationProgressReverse * _deflection);
+		}
 		p.translate(-offsetX, -offsetY);
 	}
 
