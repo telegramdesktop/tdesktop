@@ -321,19 +321,25 @@ void MiniStars::paint(Painter &p, const QRectF &rect) {
 		const auto alphaProgress = 1.
 			- (std::clamp(progress - _disappearProgressAfter, 0., 1.)
 				/ (1. - _disappearProgressAfter));
-		p.setOpacity(ministar.alpha * alphaProgress * appearProgress);
+		p.setOpacity(ministar.alpha
+			* alphaProgress
+			* appearProgress
+			* opacity);
 
 		const auto distanceProgress = _distanceProgressStart + progress;
-		const auto starSize = ministar.size * appearProgress;
+		const auto starSide = ministar.size * appearProgress;
+		const auto widthFade = (std::abs(rcos) >= std::abs(rsin));
+		const auto starWidth = starSide * (widthFade ? alphaProgress : 1.);
+		const auto starHeight = starSide * (!widthFade ? alphaProgress : 1.);
 		_sprite.render(&p, QRectF(
 			center.x()
 				+ anim::interpolateF(0, end.x(), distanceProgress)
-				- starSize / 2.,
+				- starWidth / 2.,
 			center.y()
 				+ anim::interpolateF(0, end.y(), distanceProgress)
-				- starSize / 2.,
-			starSize,
-			starSize));
+				- starHeight / 2.,
+			starWidth,
+			starHeight));
 	}
 	p.setOpacity(opacity);
 }
