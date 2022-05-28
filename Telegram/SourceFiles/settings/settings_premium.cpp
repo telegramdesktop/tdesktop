@@ -220,9 +220,6 @@ public:
 	void paint(Painter &p, const QRectF &rect);
 
 private:
-	void createStar(crl::time now);
-	int angle() const;
-
 	struct MiniStar {
 		crl::time birthTime = 0;
 		crl::time deathTime = 0;
@@ -235,6 +232,12 @@ private:
 		int from = 0;
 		int length = 0;
 	};
+
+	void createStar(crl::time now);
+	[[nodiscard]] int angle() const;
+	[[nodiscard]] crl::time timeNow() const;
+	[[nodiscard]] int randomInterval(const Interval &interval) const;
+
 	const std::vector<Interval> _availableAngles;
 	const Interval _lifeLength;
 	const Interval _deathTime;
@@ -273,20 +276,34 @@ MiniStars::MiniStars(Fn<void()> updateCallback)
 , _animation([=](crl::time now) {
 	if (now > _nextBirthTime) {
 		createStar(now);
-		_nextBirthTime = now
-			+ _lifeLength.from
-			+ base::RandomIndex(_lifeLength.length);
+		_nextBirthTime = now + randomInterval(_lifeLength);
 	}
 	updateCallback();
 }) {
-	_animation.start();
+	if (anim::Disabled()) {
+		const auto from = _deathTime.from + _deathTime.length;
+		for (auto i = -from; i < 0; i += randomInterval(_lifeLength)) {
+			createStar(i);
+		}
+		updateCallback();
+	} else {
+		_animation.start();
+	}
+}
+
+int MiniStars::randomInterval(const Interval &interval) const {
+	return interval.from + base::RandomIndex(interval.length);
+}
+
+crl::time MiniStars::timeNow() const {
+	return anim::Disabled() ? 0 : crl::now();
 }
 
 void MiniStars::paint(Painter &p, const QRectF &rect) {
 	const auto center = rect.center();
 	const auto opacity = p.opacity();
 	for (const auto &ministar : _ministars) {
-		const auto progress = (crl::now() - ministar.birthTime)
+		const auto progress = (timeNow() - ministar.birthTime)
 			/ float64(ministar.deathTime - ministar.birthTime);
 		if (progress > 1.) {
 			continue;
@@ -330,13 +347,10 @@ int MiniStars::angle() const {
 void MiniStars::createStar(crl::time now) {
 	auto ministar = MiniStar{
 		.birthTime = now,
-		.deathTime = now
-			+ _deathTime.from
-			+ base::RandomIndex(_deathTime.length),
+		.deathTime = now + randomInterval(_deathTime),
 		.angle = angle(),
-		.size = float64(_size.from + base::RandomIndex(_size.length)),
-		.alpha = float64(_alpha.from + base::RandomIndex(_alpha.length))
-			/ 100.,
+		.size = float64(randomInterval(_size)),
+		.alpha = float64(randomInterval(_alpha)) / 100.,
 	};
 	for (auto i = 0; i < _ministars.size(); i++) {
 		if (ministar.birthTime > _ministars[i].deathTime) {
