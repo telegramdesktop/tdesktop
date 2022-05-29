@@ -53,6 +53,8 @@ constexpr auto kTitleAnimationPart = 0.15;
 
 constexpr auto kTitleAdditionalScale = 0.15;
 
+constexpr auto kDeformationMax = 0.1;
+
 struct Entry {
 	const style::icon *icon;
 	rpl::producer<QString> title;
@@ -226,6 +228,7 @@ private:
 		int angle = 0;
 		float64 size = 0.;
 		float64 alpha = 0.;
+		float64 sinFactor = 0.;
 	};
 
 	struct Interval {
@@ -243,6 +246,7 @@ private:
 	const Interval _deathTime;
 	const Interval _size;
 	const Interval _alpha;
+	const Interval _sinFactor;
 
 	const float64 _appearProgressTill;
 	const float64 _disappearProgressAfter;
@@ -269,6 +273,7 @@ MiniStars::MiniStars(Fn<void()> updateCallback)
 , _deathTime({ 1500, 2000 })
 , _size({ 10, 20 })
 , _alpha({ 40, 60 })
+, _sinFactor({ 10, 190 })
 , _appearProgressTill(0.2)
 , _disappearProgressAfter(0.8)
 , _distanceProgressStart(0.5)
@@ -326,11 +331,21 @@ void MiniStars::paint(Painter &p, const QRectF &rect) {
 			* appearProgress
 			* opacity);
 
+		const auto deformResult = progress * 360;
+		const auto rsinDeform = float(
+			std::sin(ministar.sinFactor * deformResult * M_PI / 180.));
+		const auto deformH = 1. + kDeformationMax * rsinDeform;
+		const auto deformW = 1. / deformH;
+
 		const auto distanceProgress = _distanceProgressStart + progress;
 		const auto starSide = ministar.size * appearProgress;
 		const auto widthFade = (std::abs(rcos) >= std::abs(rsin));
-		const auto starWidth = starSide * (widthFade ? alphaProgress : 1.);
-		const auto starHeight = starSide * (!widthFade ? alphaProgress : 1.);
+		const auto starWidth = starSide
+			* (widthFade ? alphaProgress : 1.)
+			* deformW;
+		const auto starHeight = starSide
+			* (!widthFade ? alphaProgress : 1.)
+			* deformH;
 		_sprite.render(&p, QRectF(
 			center.x()
 				+ anim::interpolateF(0, end.x(), distanceProgress)
@@ -357,6 +372,8 @@ void MiniStars::createStar(crl::time now) {
 		.angle = angle(),
 		.size = float64(randomInterval(_size)),
 		.alpha = float64(randomInterval(_alpha)) / 100.,
+		.sinFactor = randomInterval(_sinFactor) / 100.
+			* (base::RandomIndex(2) == 1 ? 1. : -1.),
 	};
 	for (auto i = 0; i < _ministars.size(); i++) {
 		if (ministar.birthTime > _ministars[i].deathTime) {
