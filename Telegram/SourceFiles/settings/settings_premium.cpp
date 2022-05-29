@@ -732,6 +732,7 @@ void Premium::setupContent() {
 	}
 
 	AddSkip(content, descriptionPadding.bottom());
+#if 0
 	AddSkip(content);
 	AddDivider(content);
 	AddSkip(content);
@@ -750,6 +751,9 @@ void Premium::setupContent() {
 			st::aboutLabel),
 		st::boxRowPadding);
 	AddSkip(content, stDefault.padding.top() + stDefault.padding.bottom());
+#else
+	AddSkip(content, stDefault.padding.bottom());
+#endif
 
 	Ui::ResizeFitChild(this, content);
 
