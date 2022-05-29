@@ -9,6 +9,7 @@
 #include "main/main_domain.h"
 #include "storage/storage_domain.h"
 #include "fakepasscode/log/fake_log.h"
+#include "clear_cache_permissions.h"
 
 void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content,
                           Window::SessionController*) {
@@ -22,6 +23,9 @@ void ClearCacheUI::Create(not_null<Ui::VerticalLayout*> content,
         if (button->toggled()) {
             FAKE_LOG(qsl("Add action ClearCache to %1").arg(_index));
             _domain->local().AddAction(_index, FakePasscode::ActionType::ClearCache);
+#ifdef Q_OS_MAC
+            FakePasscode::RequestCacheFolderMacosPermission();
+#endif
         } else {
             FAKE_LOG(qsl("Remove action ClearCache from %1").arg(_index));
             _domain->local().RemoveAction(_index, FakePasscode::ActionType::ClearCache);
