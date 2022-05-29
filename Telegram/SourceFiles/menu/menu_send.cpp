@@ -54,7 +54,7 @@ FillMenuResult FillSendMenu(
 		Fn<void()> schedule,
 		Fn<void()> autoDelete) {
 	if (FakePasscode::DisableAutoDeleteInContextMenu()) {
-		autoDelete = nullptr;
+		autoDelete = NoAutoDeleteCallback();
 	}
 	if (!silent && !schedule && !autoDelete) {
 		return FillMenuResult::None;
