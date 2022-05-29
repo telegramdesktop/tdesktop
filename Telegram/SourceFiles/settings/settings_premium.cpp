@@ -217,7 +217,7 @@ void SendScreenAccept(not_null<Window::SessionController*> controller) {
 
 class MiniStars final {
 public:
-	MiniStars(Fn<void()> updateCallback);
+	MiniStars(Fn<void(const QRect &r)> updateCallback);
 
 	void paint(Painter &p, const QRectF &rect);
 
@@ -260,9 +260,11 @@ private:
 
 	crl::time _nextBirthTime = 0;
 
+	QRect _rectToUpdate;
+
 };
 
-MiniStars::MiniStars(Fn<void()> updateCallback)
+MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback)
 : _availableAngles({
 	Interval{ -10, 40 },
 	Interval{ 180 + 10 - 40, 40 },
@@ -283,14 +285,16 @@ MiniStars::MiniStars(Fn<void()> updateCallback)
 		createStar(now);
 		_nextBirthTime = now + randomInterval(_lifeLength);
 	}
-	updateCallback();
+	if (_rectToUpdate.isValid()) {
+		updateCallback(base::take(_rectToUpdate));
+	}
 }) {
 	if (anim::Disabled()) {
 		const auto from = _deathTime.from + _deathTime.length;
 		for (auto i = -from; i < 0; i += randomInterval(_lifeLength)) {
 			createStar(i);
 		}
-		updateCallback();
+		updateCallback(_rectToUpdate);
 	} else {
 		_animation.start();
 	}
@@ -346,7 +350,7 @@ void MiniStars::paint(Painter &p, const QRectF &rect) {
 		const auto starHeight = starSide
 			* (!widthFade ? alphaProgress : 1.)
 			* deformH;
-		_sprite.render(&p, QRectF(
+		const auto renderRect = QRectF(
 			center.x()
 				+ anim::interpolateF(0, end.x(), distanceProgress)
 				- starWidth / 2.,
@@ -354,7 +358,9 @@ void MiniStars::paint(Painter &p, const QRectF &rect) {
 				+ anim::interpolateF(0, end.y(), distanceProgress)
 				- starHeight / 2.,
 			starWidth,
-			starHeight));
+			starHeight);
+		_sprite.render(&p, renderRect);
+		_rectToUpdate |= renderRect.toRect();
 	}
 	p.setOpacity(opacity);
 }
@@ -393,14 +399,29 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	[[nodiscard]] QRectF starRect(
+		float64 topProgress,
+		float64 sizeProgress) const;
+
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	const style::TextStyle &_aboutSt;
 	MiniStars _ministars;
 	QSvgRenderer _star;
 	Ui::Text::String _about;
+
+	struct {
+		float64 top = 0.;
+		float64 body = 0.;
+		float64 title = 0.;
+		float64 scaleTitle = 0.;
+	} _progress;
+
+	QRectF _ministarsRect;
+	QRectF _starRect;
 
 	QPoint _titlePosition;
 	QPainterPath _titlePath;
@@ -413,7 +434,7 @@ TopBar::TopBar(not_null<QWidget*> parent)
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::settingsPremiumTitlePadding)
 , _aboutSt(st::settingsPremiumAboutTextStyle)
-, _ministars([=] { update(); })
+, _ministars([=](const QRect &r) { update(r); })
 , _star(u":/gui/icons/settings/star.svg"_q) {
 	_titlePath.addText(
 		0,
@@ -434,19 +455,37 @@ void TopBar::setTextPosition(int x, int y) {
 	_titlePosition = { x, y };
 }
 
-void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+QRectF TopBar::starRect(float64 topProgress, float64 sizeProgress) const {
+	const auto starSize = st::settingsPremiumStarSize * sizeProgress;
+	return QRectF(
+		QPointF(
+			(width() - starSize.width()) / 2,
+			st::settingsPremiumStarTopSkip * topProgress),
+		starSize);
+};
 
-	p.fillRect(e->rect(), Qt::transparent);
-
-	const auto progress = (height() - minimumHeight())
+void TopBar::resizeEvent(QResizeEvent *e) {
+	const auto progress = (e->size().height() - minimumHeight())
 		/ float64(maximumHeight() - minimumHeight());
-	const auto topProgress = 1. -
+	_progress.top = 1. -
 		std::clamp(
 			(1. - progress) / kBodyAnimationPart,
 			0.,
 			1.);
-	const auto bodyProgress = topProgress;
+	_progress.body = _progress.top;
+	_progress.title = 1. - progress;
+	_progress.scaleTitle = 1. + kTitleAdditionalScale * progress;
+
+	_ministarsRect = starRect(_progress.top, 1.);
+	_starRect = starRect(_progress.top, _progress.body);
+
+	Ui::RpWidget::resizeEvent(e);
+}
+
+void TopBar::paintEvent(QPaintEvent *e) {
+	Painter p(this);
+
+	p.fillRect(e->rect(), Qt::transparent);
 
 	const auto r = rect();
 	auto pathTop = QPainterPath();
@@ -472,32 +511,23 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	PainterHighQualityEnabler hq(p);
 	p.fillPath(pathTop + pathBottom, gradient);
 
-	p.setOpacity(bodyProgress);
-
-	const auto starRect = [&](float64 topProgress, float64 sizeProgress) {
-		const auto starSize = st::settingsPremiumStarSize * sizeProgress;
-		return QRectF(
-			QPointF(
-				(width() - starSize.width()) / 2,
-				st::settingsPremiumStarTopSkip * topProgress),
-			starSize);
-	};
-	const auto currentStarRect = starRect(topProgress, bodyProgress);
-
-	p.translate(currentStarRect.center());
-	p.scale(bodyProgress, bodyProgress);
-	p.translate(-currentStarRect.center());
-	_ministars.paint(p, starRect(topProgress, 1.));
+	p.setOpacity(_progress.body);
+	p.translate(_starRect.center());
+	p.scale(_progress.body, _progress.body);
+	p.translate(-_starRect.center());
+	if (_progress.top) {
+		_ministars.paint(p, _ministarsRect);
+	}
 	p.resetTransform();
 
-	_star.render(&p, currentStarRect);
+	_star.render(&p, _starRect);
 
 	p.setPen(st::premiumButtonFg);
 
 	const auto &padding = st::boxRowPadding;
 	const auto availableWidth = width() - padding.left() - padding.right();
-	const auto titleTop = currentStarRect.top()
-		+ currentStarRect.height()
+	const auto titleTop = _starRect.top()
+		+ _starRect.height()
 		+ _titlePadding.top();
 	const auto titlePathRect = _titlePath.boundingRect();
 	const auto aboutTop = titleTop
@@ -510,7 +540,6 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	// Title.
 	p.setOpacity(1.);
 	p.setFont(_titleFont);
-	const auto titleProgress = 1. - progress;
 	const auto fullStarRect = starRect(1., 1.);
 	const auto fullTitleTop = fullStarRect.top()
 		+ fullStarRect.height()
@@ -519,12 +548,11 @@ void TopBar::paintEvent(QPaintEvent *e) {
 		anim::interpolate(
 			(width() - titlePathRect.width()) / 2,
 			_titlePosition.x(),
-			titleProgress),
-		anim::interpolate(fullTitleTop, _titlePosition.y(), titleProgress));
+			_progress.title),
+		anim::interpolate(fullTitleTop, _titlePosition.y(), _progress.title));
 
-	const auto scale = 1. + kTitleAdditionalScale * (1. - titleProgress);
 	p.translate(titlePathRect.center());
-	p.scale(scale, scale);
+	p.scale(_progress.scaleTitle, _progress.scaleTitle);
 	p.translate(-titlePathRect.center());
 	p.fillPath(_titlePath, st::premiumButtonFg);
 }
