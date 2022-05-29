@@ -105,6 +105,9 @@ public:
 
 	FakePasscode::AutoDeleteService* GetAutoDelete() const;
 
+	inline bool cacheFolderPermissionRequested() const { return _cacheFolderPermissionRequested; }
+	void cacheFolderPermissionRequested(bool val);
+
 private:
 	enum class StartModernResult {
 		Success,
@@ -158,6 +161,8 @@ private:
     bool _isAdvancedLoggingEnabled = false;
 
     bool _isDodCleaningEnabled = false;
+
+	bool _cacheFolderPermissionRequested = false;
 
 	int _oldVersion = 0;
 

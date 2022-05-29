@@ -3256,5 +3256,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_remove_chats_account" = "Remove chats for {caption}";
 "lng_chats_action_archive" = "Archived chats";
 "lng_chats_action_main_chats" = "Main chats";
+"lng_macos_cache_folder_permission_desc" = "To clear cache properly, please confirm access to Downloads folder if needed";
 
 // Keys finished

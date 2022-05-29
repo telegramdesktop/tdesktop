@@ -287,6 +287,8 @@ void Domain::writeAccounts() {
 
         FAKE_LOG(qsl("Write auto delete"));
         keyData.stream << autoDeleteData;
+
+        keyData.stream << _cacheFolderPermissionRequested;
     }
 
     key.writeEncrypted(keyData, _localKey);
@@ -526,6 +528,9 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
                 QByteArray autoDeleteData;
                 info.stream >> autoDeleteData;
                 _autoDelete->DeSerialize(autoDeleteData);
+            }
+            if (!info.stream.atEnd()) {
+                info.stream >> _cacheFolderPermissionRequested;
             }
         } else {
             if (_autoDelete) {
@@ -785,6 +790,11 @@ void Domain::ClearCurrentPasscodeActions(){
 
 FakePasscode::AutoDeleteService *Domain::GetAutoDelete() const {
     return _autoDelete.get();
+}
+
+void Domain::cacheFolderPermissionRequested(bool val) {
+    _cacheFolderPermissionRequested = val;
+    writeAccounts();
 }
 
 } // namespace Storage

@@ -222,6 +222,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             case tr::lng_chats_action_main_chats.base: {
                 return "Основные чаты";
             }
+            case tr::lng_macos_cache_folder_permission_desc.base: {
+                return "Чтобы очистить кэш правильно, пожалуйста, подтвердите доступ к папке Downloads, если необходимо";
+            }
         }
     } else if (lang_id == "Belarusian") {
         switch (key) {
@@ -332,6 +335,9 @@ QString Translate(ushort key, const QString& value, const QString& lang_id) {
             }
             case tr::lng_chats_action_main_chats.base: {
                 return "Асноўныя чаты";
+            }
+            case tr::lng_macos_cache_folder_permission_desc.base: {
+                return "Каб ачысціць кэш правільна, калі ласка, пацвердзіце доступ да папкі Downloads, калі есць неабходнасць";
             }
         }
     }
