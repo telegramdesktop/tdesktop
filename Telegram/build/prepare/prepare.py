@@ -14,8 +14,8 @@ def error(text):
 
 win = (sys.platform == 'win32')
 mac = (sys.platform == 'darwin')
-win32 = win and (os.environ['Platform'] == 'x86')
-win64 = win and (os.environ['Platform'] == 'x64')
+win32 = win and (os.environ['PROCESSOR_ARCHITECTURE'].endswith('86'))
+win64 = win and (os.environ['PROCESSOR_ARCHITECTURE'].endswith('64'))
 
 if win and not 'COMSPEC' in os.environ:
     error('COMSPEC environment variable is not set.')
