@@ -37,7 +37,8 @@ namespace {
 
 constexpr auto kPremiumShift = 0.082;
 constexpr auto kShiftDuration = crl::time(200);
-constexpr auto kEnumerateCount = 3;
+constexpr auto kReactionsPerRow = 5;
+constexpr auto kDisabledOpacity = 0.5;
 
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
@@ -53,6 +54,23 @@ bool operator==(const Descriptor &a, const Descriptor &b) {
 
 bool operator!=(const Descriptor &a, const Descriptor &b) {
 	return !(a == b);
+}
+
+[[nodiscard]] int ComputeX(int column, int columns) {
+	const auto skip = st::premiumReactionWidthSkip;
+	const auto fullWidth = columns * skip;
+	const auto left = (st::boxWideWidth - fullWidth) / 2;
+	return left + column * skip + (skip / 2);
+}
+
+[[nodiscard]] int ComputeY(int row, int rows) {
+	const auto middle = (rows > 3)
+		? (st::premiumReactionInfoTop / 2)
+		: st::premiumReactionsMiddle;
+	const auto skip = st::premiumReactionHeightSkip;
+	const auto fullHeight = rows * skip;
+	const auto top = middle - (fullHeight / 2);
+	return top + row * skip + (skip / 2);
 }
 
 struct Preload {
@@ -202,32 +220,35 @@ public:
 		not_null<Window::SessionController*> controller,
 		const Data::Reaction &reaction,
 		ReactionDisableType type,
-		Fn<void()> update);
+		Fn<void()> update,
+		QPoint position);
 
 	[[nodiscard]] bool playsEffect() const;
-	void paint(Painter &p, int x, int y, float64 scale);
-	void paintEffect(QPainter &p, int x, int y, float64 scale);
-	void paintRestricted(Painter &p, int x, int bottom, float64 scale);
+	void paint(Painter &p);
+	void paintEffect(QPainter &p);
 
+	void setOver(bool over);
 	void startAnimations();
 	void cancelAnimations();
+	[[nodiscard]] bool disabled() const;
+	[[nodiscard]] QRect geometry() const;
 
 private:
 	void checkReady();
-	void paintTitle(Painter &p, int x, int y, float64 scale);
 
 	const not_null<Window::SessionController*> _controller;
 	const Fn<void()> _update;
+	const QPoint _position;
+	Ui::Animations::Simple _scale;
 	std::shared_ptr<Data::DocumentMedia> _centerMedia;
 	std::shared_ptr<Data::DocumentMedia> _aroundMedia;
 	std::unique_ptr<Lottie::SinglePlayer> _center;
 	std::unique_ptr<Lottie::SinglePlayer> _around;
 	std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
-	Ui::Text::String _name;
-	Ui::Text::String _disabled;
 	QImage _cache1;
 	QImage _cache2;
-	QImage _cache3;
+	bool _over = false;
+	bool _disabled = false;
 	bool _playRequested = false;
 	bool _aroundPlaying = false;
 	bool _centerPlaying = false;
@@ -249,20 +270,27 @@ ReactionPreview::ReactionPreview(
 	not_null<Window::SessionController*> controller,
 	const Data::Reaction &reaction,
 	ReactionDisableType type,
-	Fn<void()> update)
+	Fn<void()> update,
+	QPoint position)
 : _controller(controller)
 , _update(std::move(update))
+, _position(position)
 , _centerMedia(reaction.centerIcon->createMediaView())
 , _aroundMedia(reaction.aroundAnimation->createMediaView())
 , _pathGradient(
 	HistoryView::MakePathShiftGradient(
 		controller->chatStyle(),
 		_update))
-, _name(st::premiumReactionName, reaction.title)
-, _disabled(st::defaultTextStyle, DisabledText(type)) {
+, _disabled(type != ReactionDisableType::None) {
 	_centerMedia->checkStickerLarge();
 	_aroundMedia->checkStickerLarge();
 	checkReady();
+}
+
+QRect ReactionPreview::geometry() const {
+	const auto xsize = st::premiumReactionWidthSkip;
+	const auto ysize = st::premiumReactionHeightSkip;
+	return { _position - QPoint(xsize / 2, ysize / 2), QSize(xsize, ysize) };
 }
 
 void ReactionPreview::checkReady() {
@@ -288,7 +316,23 @@ void ReactionPreview::checkReady() {
 	}
 }
 
+void ReactionPreview::setOver(bool over) {
+	if (_over == over || _disabled) {
+		return;
+	}
+	_over = over;
+	const auto from = st::premiumReactionScale;
+	_scale.start(
+		_update,
+		over ? from : 1.,
+		over ? 1. : from,
+		st::slideWrapDuration);
+}
+
 void ReactionPreview::startAnimations() {
+	if (_disabled) {
+		return;
+	}
 	_playRequested = true;
 	if (!_center || !_center->ready() || !_around || !_around->ready()) {
 		return;
@@ -300,37 +344,42 @@ void ReactionPreview::cancelAnimations() {
 	_playRequested = false;
 }
 
-void ReactionPreview::paint(Painter &p, int x, int y, float64 scale) {
+bool ReactionPreview::disabled() const {
+	return _disabled;
+}
+
+void ReactionPreview::paint(Painter &p) {
 	const auto size = st::premiumReactionAround;
 	const auto center = st::premiumReactionSize;
+	const auto scale = _scale.value(_over ? 1. : st::premiumReactionScale);
 	const auto inner = QRect(
-		x + (size - center) / 2,
-		y + (size - center) / 2,
+		-center / 2,
+		-center / 2,
 		center,
-		center);
+		center
+	).translated(_position);
 	auto hq = PainterHighQualityEnabler(p);
 	const auto centerReady = _center && _center->ready();
 	const auto staticCenter = centerReady && !_centerPlaying;
-	const auto use1 = staticCenter && scale == st::premiumReactionScale1;
-	const auto use2 = staticCenter && scale == st::premiumReactionScale2;
-	const auto use3 = staticCenter && scale == st::premiumReactionScale3;
-	const auto useScale = (!use1 && !use2 && !use3 && scale != 1.);
+	const auto use1 = staticCenter && scale == 1.;
+	const auto use2 = staticCenter && scale == st::premiumReactionScale;
+	const auto useScale = (!use1 && !use2 && scale != 1.);
 	if (useScale) {
 		p.save();
 		p.translate(inner.center());
 		p.scale(scale, scale);
 		p.translate(-inner.center());
 	}
+	if (_disabled) {
+		p.setOpacity(kDisabledOpacity);
+	}
 	checkReady();
 	if (centerReady) {
-		if (use1 || use2 || use3) {
-			auto &cache = use1 ? _cache1 : use2 ? _cache2 : _cache3;
+		if (use1 || use2) {
+			auto &cache = use1 ? _cache1 : _cache2;
 			const auto use = int(std::round(center * scale));
-			const auto rect = QRect(
-				x + (size - use) / 2,
-				y + (size - use) / 2,
-				use,
-				use);
+			const auto rect = QRect(-use / 2, -use / 2, use, use).translated(
+				_position);
 			if (cache.isNull()) {
 				cache = _center->frame().scaledToWidth(
 					use * style::DevicePixelRatio(),
@@ -339,14 +388,6 @@ void ReactionPreview::paint(Painter &p, int x, int y, float64 scale) {
 			p.drawImage(rect, cache);
 		} else {
 			p.drawImage(inner, _center->frame());
-		}
-		if (_aroundPlaying) {
-			const auto almost = (_around->frameIndex() + 1)
-				== _around->framesCount();
-			const auto marked = _around->markFrameShown();
-			if (almost && marked) {
-				_aroundPlaying = false;
-			}
 		}
 		if (_centerPlaying) {
 			const auto almost = (_center->frameIndex() + 1)
@@ -374,67 +415,23 @@ void ReactionPreview::paint(Painter &p, int x, int y, float64 scale) {
 	}
 	if (useScale) {
 		p.restore();
+	} else if (_disabled) {
+		p.setOpacity(1.);
 	}
-	paintTitle(p, x, y, scale);
-}
-
-void ReactionPreview::paintTitle(Painter &p, int x, int y, float64 scale) {
-	const auto first = st::premiumReactionScale1;
-	if (scale <= first) {
-		return;
-	}
-	const auto opacity = (scale - first) / (1. - first);
-	p.setOpacity(opacity * 0.2);
-	auto hq = PainterHighQualityEnabler(p);
-	const auto width = _name.maxWidth();
-	const auto sticker = st::premiumReactionAround;
-	const auto inner = QRect(
-		x + (sticker - width) / 2,
-		y + (sticker / 2) + st::premiumReactionNameTop,
-		width,
-		st::premiumReactionName.font->height);
-	const auto outer = inner.marginsAdded(st::premiumReactionNamePadding);
-	const auto radius = outer.height() / 2;
-	p.setPen(Qt::NoPen);
-	p.setBrush(st::premiumButtonFg);
-	p.drawRoundedRect(outer, radius, radius);
-	p.setOpacity(opacity);
-	p.setPen(st::premiumButtonFg);
-	_name.draw(p, inner.x(), inner.y(), width);
-	if (!_disabled.isEmpty()) {
-		const auto left = x + (sticker / 2) - (_disabled.maxWidth() / 2);
-	}
-	p.setOpacity(1.);
-}
-
-void ReactionPreview::paintRestricted(
-		Painter &p,
-		int x,
-		int bottom,
-		float64 scale) {
-	const auto first = st::premiumReactionScale1;
-	if (scale <= first || _disabled.isEmpty()) {
-		return;
-	}
-	const auto sticker = st::premiumReactionAround;
-	const auto opacity = (scale - first) / (1. - first);
-	p.setOpacity(opacity);
-	p.setPen(st::premiumButtonFg);
-	const auto left = x + (sticker / 2) - (_disabled.maxWidth() / 2);
-	_disabled.draw(p, left, bottom - 2.5 * st::normalFont->height, _disabled.maxWidth());
-	p.setOpacity(1.);
 }
 
 bool ReactionPreview::playsEffect() const {
 	return _aroundPlaying;
 }
 
-void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
+void ReactionPreview::paintEffect(QPainter &p) {
 	if (!_aroundPlaying) {
 		return;
 	}
 	const auto size = st::premiumReactionAround;
-	const auto outer = QRect(x, y, size, size);
+	const auto outer = QRect(-size/2, -size/2, size, size).translated(
+		_position);
+	const auto scale = _scale.value(_over ? 1. : st::premiumReactionScale);
 	auto hq = PainterHighQualityEnabler(p);
 	if (scale != 1.) {
 		p.save();
@@ -446,10 +443,13 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 	if (scale != 1.) {
 		p.restore();
 	}
-	if (_aroundPlaying
-		&& (_around->frameIndex() + 1 == _around->framesCount())
-		&& _around->markFrameShown()) {
-		_aroundPlaying = false;
+	if (_aroundPlaying) {
+		const auto almost = (_around->frameIndex() + 1)
+			== _around->framesCount();
+		const auto marked = _around->markFrameShown();
+		if (almost && marked) {
+			_aroundPlaying = false;
+		}
 	}
 }
 
@@ -459,10 +459,8 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 		const base::flat_map<QString, ReactionDisableType> &disabled) {
 	struct State {
 		std::vector<std::unique_ptr<ReactionPreview>> entries;
-		Ui::Animations::Simple shifting;
-		int shift = 2;
-		bool played = false;
-		bool inside = false;
+		Ui::Text::String bottom;
+		int selected = -1;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	auto &lifetime = result->lifetime();
@@ -478,155 +476,122 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 	using namespace HistoryView;
 	const auto list = controller->session().data().reactions().list(
 		Data::Reactions::Type::Active);
+	const auto count = ranges::count(list, true, &Data::Reaction::premium);
+	const auto rows = (count + kReactionsPerRow - 1) / kReactionsPerRow;
+	const auto inrowmax = (count + rows - 1) / rows;
+	const auto inrowless = (inrowmax * rows - count);
+	const auto inrowmore = rows - inrowless;
+	const auto inmaxrows = inrowmore * inrowmax;
+	auto index = 0;
+	auto disableType = ReactionDisableType::None;
 	for (const auto &reaction : list) {
-		if (!reaction.premium
-			|| !reaction.centerIcon
-			|| !reaction.aroundAnimation) {
+		if (!reaction.premium) {
+			continue;
+		}
+		const auto inrow = (index < inmaxrows) ? inrowmax : (inrowmax - 1);
+		const auto row = (index < inmaxrows)
+			? (index / inrow)
+			: (inrowmore + ((index - inmaxrows) / inrow));
+		const auto column = (index < inmaxrows)
+			? (index % inrow)
+			: ((index - inmaxrows) % inrow);
+		++index;
+		if (!reaction.centerIcon || !reaction.aroundAnimation) {
 			continue;
 		}
 		const auto i = disabled.find(reaction.emoji);
+		const auto disable = (i != end(disabled))
+			? i->second
+			: ReactionDisableType::None;
+		if (disable != ReactionDisableType::None) {
+			disableType = disable;
+		}
 		state->entries.push_back(std::make_unique<ReactionPreview>(
 			controller,
 			reaction,
-			(i != end(disabled)) ? i->second : ReactionDisableType::None,
-			[=] { result->update(); }));
+			disable,
+			[=] { result->update(); },
+			QPoint(ComputeX(column, inrow), ComputeY(row, rows))));
 	}
-	const auto enumerate = [=](
-			Fn<void(not_null<ReactionPreview*>,int,float64,int)> callback) {
-		const auto count = int(state->entries.size());
-		if (!count) {
-			return;
-		}
-		const auto computeLeft = [](int index) {
-			const auto skips = std::array{
-				st::premiumReactionSkip1,
-				st::premiumReactionSkip2,
-				st::premiumReactionSkip3,
-			};
-			const auto id = std::abs(index);
-			const auto delta = !id
-				? 0
-				: (id <= skips.size())
-				? std::accumulate(begin(skips), begin(skips) + id, 0)
-				: (ranges::accumulate(skips, 0)
-					+ skips.back() * int(id - skips.size()));
-			return (st::boxWideWidth / 2)
-				+ (index < 0 ? -delta : delta)
-				- st::premiumReactionAround / 2;
-		};
-		const auto computeScale = [](int index) {
-			const auto id = std::abs(index);
-			const auto scales = std::array{
-				st::premiumReactionScale1,
-				st::premiumReactionScale2,
-				st::premiumReactionScale3,
-			};
-			return !id
-				? 1.
-				: scales[std::min(id, int(scales.size())) - 1];
-		};
-		const auto shift = state->shifting.value(state->shift);
-		const auto delta = !state->shifting.animating()
-			? state->shift
-			: (shift < 0)
-			? -(int(std::floor(-shift)) + 1)
-			: int(std::floor(shift));
-		const auto progress = shift - delta;
-		const auto start = delta - kEnumerateCount;
-		const auto from = ((start % count) + count) % count;
-		const auto till = from + kEnumerateCount * 2 + 1;
-		const auto outerSize = st::premiumReactionAround;
-		for (auto i = from; i != till; ++i) {
-			const auto index = (i - from) - kEnumerateCount;
-			auto left = computeLeft(index);
-			auto scale = computeScale(index);
-			if (progress > 0.) {
-				left = anim::interpolate(
-					left,
-					computeLeft(index - 1),
-					progress);
-				scale = scale + (computeScale(index - 1) - scale) * progress;
-			}
-			const auto entry = state->entries[i % count].get();
-			const auto scaledSize = scale * st::premiumReactionSize;
-			const auto paintedLeft = left + (outerSize - scaledSize) / 2;
-			const auto paintedRight = left + (outerSize + scaledSize) / 2;
-			if (entry->playsEffect()
-				|| (paintedRight > 0 && paintedLeft < st::boxWideWidth)) {
-				callback(entry, left, scale, delta + index);
-			}
-		}
-	};
+
+	const auto bottom1 = tr::lng_reaction_premium_info(tr::now);
+	const auto bottom2 = (disableType == ReactionDisableType::None)
+		? QString()
+		: (disableType == ReactionDisableType::Group)
+		? tr::lng_reaction_premium_no_group(tr::now)
+		: tr::lng_reaction_premium_no_channel(tr::now);
+	state->bottom.setText(
+		st::defaultTextStyle,
+		(bottom1 + '\n' + bottom2).trimmed());
 
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = Painter(result);
-		const auto bottom = result->height();
-		const auto top = (bottom / 2) - st::premiumReactionTop;
 		auto effects = std::vector<Fn<void()>>();
-		if (!state->played && !state->shifting.animating()) {
-			state->played = true;
-			if (const auto count = state->entries.size()) {
-				const auto index = ((state->shift % count) + count) % count;
-				state->entries[index]->startAnimations();
-			}
-		}
-		enumerate([&](
-				not_null<ReactionPreview*> entry,
-				int left,
-				float64 scale,
-				int index) {
-			entry->paint(p, left, top, scale);
-			entry->paintRestricted(p, left, bottom, scale);
+		for (const auto &entry : state->entries) {
+			entry->paint(p);
 			if (entry->playsEffect()) {
-				effects.push_back([=, &p] {
-					entry->paintEffect(p, left, top, scale);
+				effects.push_back([&] {
+					entry->paintEffect(p);
 				});
 			}
-		});
+		}
+		const auto padding = st::boxRowPadding;
+		const auto available = parent->width()
+			- padding.left()
+			- padding.right();
+		const auto top = st::premiumReactionInfoTop
+			+ ((state->bottom.maxWidth() > available)
+				? st::normalFont->height
+				: 0);
+		p.setPen(st::premiumButtonFg);
+		state->bottom.draw(
+			p,
+			padding.left(),
+			top,
+			available,
+			style::al_top);
 		for (const auto &paint : effects) {
 			paint();
 		}
 	}, lifetime);
 
-	const auto lookup = [=](QPoint point) -> std::optional<int> {
-		auto found = std::optional<int>();
-		const auto top = result->height() / 2 - st::premiumReactionTop;
-		enumerate([&](auto, int left, float64 scale, int index) {
-			const auto size = int(st::premiumReactionSize * scale) / 2;
-			const auto outer = st::premiumReactionAround / 2;
-			const auto rect = QRect(
-				left + outer - (size / 2),
-				top + outer - (size / 2),
-				size,
-				size);
-			if (rect.contains(point)) {
-				found = index;
+	const auto lookup = [=](QPoint point) {
+		auto index = 0;
+		for (const auto &entry : state->entries) {
+			if (entry->geometry().contains(point) && !entry->disabled()) {
+				return index;
 			}
-		});
-		return found;
+			++index;
+		}
+		return -1;
 	};
 	result->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		if (event->type() == QEvent::MouseButtonPress) {
 			const auto point = static_cast<QMouseEvent*>(event.get())->pos();
-			if (const auto index = lookup(point)) {
-				state->shifting.start(
-					[=] { result->update(); },
-					state->shift,
-					*index,
-					kShiftDuration,
-					anim::sineInOut);
-				state->shift = *index;
-				state->played = false;
+			if (state->selected >= 0) {
+				state->entries[state->selected]->cancelAnimations();
 			}
-
+			if (const auto index = lookup(point); index >= 0) {
+				state->entries[index]->startAnimations();
+			}
 		} else if (event->type() == QEvent::MouseMove) {
 			const auto point = static_cast<QMouseEvent*>(event.get())->pos();
-			const auto inside = lookup(point).has_value();
-			if (state->inside != inside) {
-				state->inside = inside;
-				result->setCursor(inside
+			const auto index = lookup(point);
+			const auto wasInside = (state->selected >= 0);
+			const auto nowInside = (index >= 0);
+			if (state->selected != index) {
+				if (wasInside) {
+					state->entries[state->selected]->setOver(false);
+				}
+				if (nowInside) {
+					state->entries[index]->setOver(true);
+				}
+				state->selected = index;
+			}
+			if (wasInside != nowInside) {
+				result->setCursor(nowInside
 					? style::cur_pointer
 					: style::cur_default);
 			}
@@ -656,7 +621,7 @@ void ReactionPreview::paintEffect(QPainter &p, int x, int y, float64 scale) {
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		result.data(),
-		tr::lng_sticker_premium_button(),
+		tr::lng_premium_more_about(),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
@@ -678,9 +643,7 @@ void StickerBox(
 		const Descriptor &descriptor,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		const QImage &back) {
-	const auto size = QSize(
-		st::boxWideWidth,
-		HistoryView::Sticker::UsualPremiumEffectSize().height());
+	const auto size = QSize(st::boxWideWidth, st::premiumPreviewHeight);
 	box->setWidth(size.width());
 	box->setNoContentMargin(true);
 
@@ -692,31 +655,46 @@ void StickerBox(
 	};
 	const auto state = outer->lifetime().make_state<State>();
 
+	auto text = rpl::producer<QString>();
+	auto title = rpl::producer<QString>();
 	switch (descriptor.section) {
 	case PremiumPreview::Stickers:
 		Assert(media != nullptr);
 		state->content = StickerPreview(outer, controller, media);
+		text = tr::lng_premium_summary_about_premium_stickers();
+		title = tr::lng_premium_summary_subtitle_premium_stickers();
 		break;
 	case PremiumPreview::Reactions:
 		state->content = ReactionsPreview(
 			outer,
 			controller,
 			descriptor.disabled);
+		text = tr::lng_premium_summary_about_unique_reactions();
+		title = tr::lng_premium_summary_subtitle_unique_reactions();
 		break;
 	case PremiumPreview::Avatars:
 		break;
 	}
 
 	const auto padding = st::premiumPreviewAboutPadding;
-	auto label = object_ptr<Ui::FlatLabel>(
+	const auto available = size.width() - padding.left() - padding.right();
+	auto titleLabel = object_ptr<Ui::FlatLabel>(
 		box,
-		tr::lng_sticker_premium_about(),
-		st::premiumPreviewAbout);
-	label->resizeToWidth(size.width() - padding.left() - padding.right());
+		std::move(title),
+		st::premiumPreviewAboutTitle);
+	titleLabel->resizeToWidth(available);
 	box->addRow(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(
 			box,
-			std::move(label)),
+			std::move(titleLabel)),
+		st::premiumPreviewAboutTitlePadding);
+	auto textLabel = object_ptr<Ui::FlatLabel>(
+		box,
+		std::move(text),
+		st::premiumPreviewAbout);
+	textLabel->resizeToWidth(available);
+	box->addRow(
+		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
 		padding);
 	box->setStyle(st::premiumPreviewBox);
 	const auto buttonPadding = st::premiumPreviewBox.buttonPadding;

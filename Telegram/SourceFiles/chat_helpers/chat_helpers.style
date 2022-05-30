@@ -288,12 +288,23 @@ premiumPreviewBox: Box(defaultBox) {
 		font: font(13px semibold);
 	}
 }
+premiumPreviewAboutTitlePadding: margins(18px, 19px, 18px, 0px);
+premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: windowBoldFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold);
+	}
+}
 premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
 	textFg: membersAboutLimitFg;
 	align: align(top);
 }
-premiumPreviewAboutPadding: margins(18px, 23px, 18px, 8px);
+premiumPreviewAboutPadding: margins(18px, 8px, 18px, 8px);
 premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	style: semiboldTextStyle;
@@ -301,19 +312,12 @@ premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
 
-premiumReactionSize: 152px;
-premiumReactionAround: 192px;
-premiumReactionTop: 108px;
-premiumReactionSkip1: 96px;
-premiumReactionScale1: 0.78;
-premiumReactionSkip2: 78px;
-premiumReactionScale2: 0.62;
-premiumReactionSkip3: 64px;
-premiumReactionScale3: 0.5;
-premiumReactionName: TextStyle(defaultTextStyle) {
-	font: font(15px semibold);
-	linkFont: font(15px semibold);
-	linkFontOver: font(15px semibold);
-}
-premiumReactionNameTop: 64px;
-premiumReactionNamePadding: margins(12px, 4px, 12px, 6px);
+premiumPreviewHeight: 312px;
+
+premiumReactionWidthSkip: 64px;
+premiumReactionHeightSkip: 75px;
+premiumReactionSize: 108px;
+premiumReactionAround: 164px;
+premiumReactionsMiddle: 148px;
+premiumReactionScale: 0.70;
+premiumReactionInfoTop: 260px;

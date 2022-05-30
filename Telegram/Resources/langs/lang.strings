@@ -230,11 +230,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_limits_increase" = "Increase Limit";
 
-"lng_sticker_premium_about" = "Unlock this sticker and more by subscribing to\nTelegram Premium.";
-"lng_sticker_premium_button" = "Unlock Premium Stickers";
 "lng_sticker_premium_title" = "With Effects";
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
+"lng_reaction_premium_info" = "Click on the reaction to preview the animation.";
+"lng_reaction_premium_no_group" = "Some reactions are restricted in this group.";
+"lng_reaction_premium_no_channel" = "Some reactions are restricted in this channel.";
 
 "lng_flood_error" = "Too many tries. Please try again later.";
 "lng_gif_error" = "An error has occurred while reading GIF animation :(";
@@ -1667,6 +1668,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";
+"lng_premium_more_about" = "More About Telegram Premium";
 
 "lng_premium_summary_title" = "Telegram Premium";
 "lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
