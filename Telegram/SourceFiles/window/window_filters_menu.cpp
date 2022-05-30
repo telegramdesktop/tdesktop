@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/filters/edit_filter_box.h"
+#include "boxes/premium_limits_box.h"
 #include "settings/settings_common.h"
 #include "settings/settings_folders.h"
 #include "api/api_chat_filters.h"
@@ -127,17 +128,12 @@ void FiltersMenu::setup() {
 		const auto i = _filters.find(_activeFilterId);
 		if (i != end(_filters)) {
 			i->second->setActive(false);
-		} else if (!_activeFilterId && _all) {
-			_all->setActive(false);
 		}
 		_activeFilterId = id;
 		const auto j = _filters.find(_activeFilterId);
 		if (j != end(_filters)) {
 			j->second->setActive(true);
 			scrollToButton(j->second);
-		} else if (!_activeFilterId && _all) {
-			_all->setActive(true);
-			scrollToButton(_all);
 		}
 		_reorder->finishReordering();
 	}, _outer.lifetime());
@@ -194,24 +190,29 @@ void FiltersMenu::refresh() {
 	const auto reorderAll = premium();
 	if (!_list) {
 		setupList();
-	} else if (reorderAll && _all) {
-		_all = nullptr;
-	} else if (!reorderAll && !_all) {
-		_all = prepareAll();
 	}
 	_reorder->cancel();
+
+	_reorder->clearPinnedIntervals();
+	const auto maxLimit = CurrentPremiumFiltersLimit(&_session->session());
+	const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
+	if (!reorderAll) {
+		_reorder->addPinnedInterval(0, 1);
+	}
+	_reorder->addPinnedInterval(
+		premiumFrom,
+		std::max(1, int(filters->list().size()) - maxLimit));
+
 	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
 	for (const auto &filter : filters->list()) {
-		if (!reorderAll && !filter.id()) {
-			continue;
-		}
-		now.emplace(
+		const auto nextIsLocked = (now.size() >= premiumFrom);
+		auto button = prepareButton(
+			_list,
 			filter.id(),
-			prepareButton(
-				_list,
-				filter.id(),
-				filter.title(),
-				Ui::ComputeFilterIcon(filter)));
+			filter.title(),
+			Ui::ComputeFilterIcon(filter));
+		button->setLocked(nextIsLocked);
+		now.emplace(filter.id(), std::move(button));
 	}
 	_filters = std::move(now);
 	_reorder->start();
@@ -222,14 +223,13 @@ void FiltersMenu::refresh() {
 	// so we have to restore it.
 	_scroll.scrollToY(oldTop);
 	const auto i = _filters.find(_activeFilterId);
-	const auto button = ((i != end(_filters)) ? i->second : _all).get();
+	const auto button = ((i != end(_filters)) ? i->second.get() : nullptr);
 	if (button) {
 		scrollToButton(button);
 	}
 }
 
 void FiltersMenu::setupList() {
-	_all = premium() ? nullptr : prepareAll();
 	_list = _container->add(object_ptr<Ui::VerticalLayout>(_container));
 	_setup = prepareButton(
 		_container,
@@ -300,6 +300,8 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	raw->setClickedCallback([=] {
 		if (_reordering) {
 			return;
+		} else if (raw->locked()) {
+			_session->show(Box(FiltersLimitBox, &_session->session()));
 		} else if (id >= 0) {
 			_session->setActiveChatsFilter(id);
 		} else {
@@ -318,9 +320,12 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 	});
 	if (id > 0) {
 		raw->events(
-		) | rpl::filter([=](not_null<QEvent*> e) {
+		) | rpl::filter([](not_null<QEvent*> e) {
 			return e->type() == QEvent::ContextMenu;
 		}) | rpl::start_with_next([=] {
+			if (raw->locked()) {
+				return;
+			}
 			showMenu(QCursor::pos(), id);
 		}, raw->lifetime());
 	}
@@ -401,12 +406,10 @@ void FiltersMenu::applyReorder(
 
 	const auto filters = &_session->session().data().chatsFilters();
 	const auto &list = filters->list();
-	if (_all) {
+	if (!premium()) {
 		if (list[0].id() != FilterId()) {
 			filters->moveAllToFront();
 		}
-		++oldPosition;
-		++newPosition;
 	}
 	Assert(oldPosition >= 0 && oldPosition < list.size());
 	Assert(newPosition >= 0 && newPosition < list.size());

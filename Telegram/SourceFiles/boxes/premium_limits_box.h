@@ -62,3 +62,6 @@ void FileSizeLimitBox(
 	int limitDefault,
 	const QString &keyPremium,
 	int limitPremium);
+
+[[nodiscard]] int CurrentPremiumFiltersLimit(
+	not_null<Main::Session*> session);

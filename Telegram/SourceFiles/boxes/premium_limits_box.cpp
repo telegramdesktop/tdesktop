@@ -903,3 +903,12 @@ int CurrentPremiumLimit(
 		premium ? keyPremium : keyDefault,
 		premium ? limitPremium : limitDefault);
 }
+
+int CurrentPremiumFiltersLimit(not_null<Main::Session*> session) {
+	return CurrentPremiumLimit(
+		session,
+		"dialog_filters_limit_default",
+		10,
+		"dialog_filters_limit_premium",
+		20);
+}

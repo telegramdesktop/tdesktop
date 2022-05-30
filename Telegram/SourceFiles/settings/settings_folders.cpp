@@ -327,12 +327,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	const auto session = &controller->session();
 	const auto limit = [=] {
-		return CurrentPremiumLimit(
-			session,
-			"dialog_filters_limit_default",
-			10,
-			"dialog_filters_limit_premium",
-			20);
+		return CurrentPremiumFiltersLimit(session);
 	};
 	AddSkip(container, st::settingsSectionSkip);
 	AddSubsectionTitle(container, tr::lng_filters_subtitle());
