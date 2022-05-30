@@ -106,14 +106,6 @@ void ChatCreateDone(
 
 } // namespace
 
-style::InputField CreateBioFieldStyle() {
-	auto result = st::newGroupDescription;
-	result.textMargins.setRight(
-		st::boxTextFont->spacew
-		+ st::boxTextFont->width(QString::number(kMaxBioLength)));
-	return result;
-}
-
 TextWithEntities PeerFloodErrorText(
 		not_null<Main::Session*> session,
 		PeerFloodType type) {

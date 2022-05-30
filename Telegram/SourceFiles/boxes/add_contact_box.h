@@ -35,15 +35,11 @@ class LinkButton;
 class UserpicButton;
 } // namespace Ui
 
-constexpr auto kMaxBioLength = 70;
-
 enum class PeerFloodType {
 	Send,
 	InviteGroup,
 	InviteChannel,
 };
-
-[[nodiscard]] style::InputField CreateBioFieldStyle();
 
 [[nodiscard]] TextWithEntities PeerFloodErrorText(
 	not_null<Main::Session*> session,

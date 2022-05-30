@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "boxes/add_contact_box.h"
 #include "boxes/change_phone_box.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/username_box.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -343,10 +344,18 @@ void SetupRows(
 void SetupBio(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
-	const auto bioStyle = [] {
+	const auto defaultLimit = AppConfigLimit(
+		&self->session(),
+		"about_length_limit_default",
+		70);
+	const auto premiumLimit = AppConfigLimit(
+		&self->session(),
+		"about_length_limit_premium",
+		140);
+	const auto bioStyle = [=] {
 		auto result = st::settingsBio;
 		result.textMargins.setRight(st::boxTextFont->spacew
-			+ st::boxTextFont->width(QString::number(kMaxBioLength)));
+			+ st::boxTextFont->width('-' + QString::number(premiumLimit)));
 		return result;
 	};
 	const auto style = Ui::AttachAsChild(container, bioStyle());
@@ -390,8 +399,11 @@ void SetupBio(
 			text = bio->getLastText();
 		}
 		changed->fire(*current != text);
-		const auto countLeft = qMax(kMaxBioLength - text.size(), 0);
+		const auto limit = self->isPremium() ? premiumLimit : defaultLimit;
+		const auto countLeft = limit - int(text.size());
 		countdown->setText(QString::number(countLeft));
+		countdown->setTextColorOverride(
+			countLeft < 0 ? st::boxTextFgError->c : std::optional<QColor>());
 	};
 	const auto save = [=] {
 		self->session().api().saveSelfBio(
@@ -435,7 +447,7 @@ void SetupBio(
 		}
 	});
 
-	bio->setMaxLength(kMaxBioLength);
+	bio->setMaxLength(premiumLimit * 2);
 	bio->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
 	auto cursor = bio->textCursor();
 	cursor.setPosition(bio->getLastText().size());
