@@ -163,66 +163,6 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 
 } // namespace
 
-SectionWithToggle *SectionWithToggle::setToggleShown(
-		rpl::producer<bool> &&shown) {
-	_toggle.create(
-		this,
-		QString(),
-		st::infoToggleCheckbox,
-		std::make_unique<SectionToggle>(
-			st::infoToggle,
-			false,
-			[this] { _toggle->updateCheck(); }));
-	_toggle->hide();
-	_toggle->lower();
-	_toggle->setCheckAlignment(style::al_right);
-	widthValue(
-	) | rpl::start_with_next([this](int newValue) {
-		_toggle->setGeometry(0, 0, newValue, height());
-	}, _toggle->lifetime());
-	std::move(
-		shown
-	) | rpl::start_with_next([this](bool shown) {
-		if (_toggle->isHidden() == shown) {
-			_toggle->setVisible(shown);
-			_toggleShown.fire_copy(shown);
-		}
-	}, lifetime());
-	return this;
-}
-
-void SectionWithToggle::toggle(bool toggled, anim::type animated) {
-	if (_toggle) {
-		_toggle->setChecked(toggled);
-		if (animated == anim::type::instant) {
-			_toggle->finishAnimating();
-		}
-	}
-}
-
-bool SectionWithToggle::toggled() const {
-	return _toggle ? _toggle->checked() : false;
-}
-
-rpl::producer<bool> SectionWithToggle::toggledValue() const {
-	if (_toggle) {
-		return _toggle->checkedValue();
-	}
-	return nullptr;
-}
-
-rpl::producer<bool> SectionWithToggle::toggleShownValue() const {
-	return _toggleShown.events_starting_with(
-		_toggle && !_toggle->isHidden());
-}
-
-int SectionWithToggle::toggleSkip() const {
-	return (!_toggle || _toggle->isHidden())
-		? 0
-		: st::infoToggleCheckbox.checkPosition.x()
-			+ _toggle->checkRect().width();
-}
-
 Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
@@ -239,7 +179,7 @@ Cover::Cover(
 	not_null<PeerData*> peer,
 	not_null<Window::SessionController*> controller,
 	rpl::producer<QString> title)
-: SectionWithToggle(
+: FixedHeightWidget(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
@@ -279,11 +219,7 @@ Cover::Cover(
 }
 
 void Cover::setupChildGeometry() {
-	using namespace rpl::mappers;
-	rpl::combine(
-		toggleShownValue(),
-		widthValue(),
-		_2
+	widthValue(
 	) | rpl::start_with_next([this](int newWidth) {
 		_userpic->moveToLeft(
 			st::infoProfilePhotoLeft,
@@ -451,8 +387,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameTop = st::infoProfileNameTop;
 	auto nameWidth = newWidth
 		- nameLeft
-		- st::infoProfileNameRight
-		- toggleSkip();
+		- st::infoProfileNameRight;
 	if (_verifiedCheck) {
 		nameWidth -= st::infoVerifiedCheckPosition.x()
 			+ _verifiedCheck->width();
@@ -484,8 +419,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth
 		- st::infoProfileStatusLeft
-		- st::infoProfileStatusRight
-		- toggleSkip();
+		- st::infoProfileStatusRight;
 	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(
 		st::infoProfileStatusLeft,

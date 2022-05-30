@@ -36,26 +36,7 @@ namespace Profile {
 
 enum class Badge;
 
-class SectionWithToggle : public Ui::FixedHeightWidget {
-public:
-	using FixedHeightWidget::FixedHeightWidget;
-
-	SectionWithToggle *setToggleShown(rpl::producer<bool> &&shown);
-	void toggle(bool toggled, anim::type animated);
-	bool toggled() const;
-	rpl::producer<bool> toggledValue() const;
-
-protected:
-	rpl::producer<bool> toggleShownValue() const;
-	int toggleSkip() const;
-
-private:
-	object_ptr<Ui::Checkbox> _toggle = { nullptr };
-	rpl::event_stream<bool> _toggleShown;
-
-};
-
-class Cover : public SectionWithToggle {
+class Cover : public Ui::FixedHeightWidget {
 public:
 	Cover(
 		QWidget *parent,
@@ -68,11 +49,6 @@ public:
 		rpl::producer<QString> title);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
-
-	Cover *setToggleShown(rpl::producer<bool> &&shown) {
-		return static_cast<Cover*>(
-			SectionWithToggle::setToggleShown(std::move(shown)));
-	}
 
 	rpl::producer<Section> showSection() const {
 		return _showSection.events();
