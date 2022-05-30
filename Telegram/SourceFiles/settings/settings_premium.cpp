@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "core/application.h"
+#include "data/data_peer_values.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
@@ -392,7 +393,7 @@ void MiniStars::createStar(crl::time now) {
 
 class TopBar final : public Ui::RpWidget {
 public:
-	TopBar(not_null<QWidget*> parent);
+	TopBar(not_null<QWidget*> parent, rpl::producer<bool> premiumValue);
 
 	void setRoundEdges(bool value);
 	void setTextPosition(int x, int y);
@@ -429,21 +430,32 @@ private:
 
 };
 
-TopBar::TopBar(not_null<QWidget*> parent)
+TopBar::TopBar(not_null<QWidget*> parent, rpl::producer<bool> premiumValue)
 : Ui::RpWidget(parent)
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::settingsPremiumTitlePadding)
 , _aboutSt(st::settingsPremiumAboutTextStyle)
 , _ministars([=](const QRect &r) { update(r); })
 , _star(u":/gui/icons/settings/star.svg"_q) {
-	_titlePath.addText(
-		0,
-		_titleFont->ascent,
-		_titleFont,
-		tr::lng_premium_summary_title(tr::now));
-	_about.setMarkedText(
-		_aboutSt,
-		tr::lng_premium_summary_top_about(tr::now, Ui::Text::RichLangValue));
+	std::move(
+		premiumValue
+	) | rpl::start_with_next([=](bool premium) {
+		_titlePath = QPainterPath();
+		_titlePath.addText(
+			0,
+			_titleFont->ascent,
+			_titleFont,
+			(premium
+				? tr::lng_premium_summary_title_subscribed
+				: tr::lng_premium_summary_title)(tr::now));
+		const auto &about = premium
+			? tr::lng_premium_summary_top_about_subscribed
+			: tr::lng_premium_summary_top_about;
+		_about.setMarkedText(
+			_aboutSt,
+			about(tr::now, Ui::Text::RichLangValue));
+		update();
+	}, lifetime());
 }
 
 void TopBar::setRoundEdges(bool value) {
@@ -761,7 +773,9 @@ void Premium::setupContent() {
 
 QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		not_null<QWidget*> parent) {
-	const auto content = Ui::CreateChild<TopBar>(parent.get());
+	const auto content = Ui::CreateChild<TopBar>(
+		parent.get(),
+		Data::AmPremiumValue(&_controller->session()));
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
