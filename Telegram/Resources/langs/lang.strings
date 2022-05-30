@@ -2353,6 +2353,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_payments_precheckout_failed" = "The bot couldn't process your payment. Your card has not been billed.";
 "lng_payments_already_paid" = "You have already paid for this item.";
 
+"lng_payments_terms_title" = "Terms of Service";
+"lng_payments_terms_text" = "Subscribe and accept terms of service of {bot}?";
+"lng_payments_terms_agree" = "I agree to {link}";
+"lng_payments_terms_link" = "Terms of Service";
+"lng_payments_terms_accept" = "Accept";
+
 "lng_call_status_incoming" = "is calling you...";
 "lng_call_status_connecting" = "connecting...";
 "lng_call_status_exchanging" = "exchanging encryption keys...";

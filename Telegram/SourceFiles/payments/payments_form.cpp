@@ -368,8 +368,12 @@ void Form::processInvoice(const MTPDinvoice &data) {
 		.isPhoneRequested = data.is_phone_requested(),
 		.isEmailRequested = data.is_email_requested(),
 		.isShippingAddressRequested = data.is_shipping_address_requested(),
+		.isRecurring = data.is_recurring(),
 		.isFlexible = data.is_flexible(),
 		.isTest = data.is_test(),
+
+		.recurringTermsUrl = qs(
+			data.vrecurring_terms_url().value_or_empty()),
 
 		.phoneSentToProvider = data.is_phone_to_provider(),
 		.emailSentToProvider = data.is_email_to_provider(),
@@ -403,6 +407,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
 			_invoice.cover.seller = bot->name;
+			_details.termsBotUsername = bot->username;
 		}
 	}
 	if (const auto providerId = _details.providerId) {
@@ -936,6 +941,10 @@ void Form::setShippingOption(const QString &id) {
 
 void Form::setTips(int64 value) {
 	_invoice.tipsSelected = std::min(value, _invoice.tipsMax);
+}
+
+void Form::acceptTerms() {
+	_details.termsAccepted = true;
 }
 
 void Form::trustBot() {

@@ -123,6 +123,7 @@ private:
 	void panelCloseSure() override;
 	void panelSubmit() override;
 	void panelTrustAndSubmit() override;
+	void panelAcceptTermsAndSubmit() override;
 	void panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) override;

@@ -533,6 +533,10 @@ void CheckoutProcess::panelSubmit() {
 		_form->validateInformation(_form->information());
 	} else if (!method.newCredentials && !method.savedCredentials) {
 		editPaymentMethod();
+	} else if (invoice.isRecurring && !_form->details().termsAccepted) {
+		_panel->requestTermsAcceptance(
+			_form->details().termsBotUsername,
+			invoice.recurringTermsUrl);
 	} else {
 		RegisterPaymentStart(this, { _form->invoice().cover.title });
 		_submitState = SubmitState::Finishing;
@@ -542,6 +546,11 @@ void CheckoutProcess::panelSubmit() {
 
 void CheckoutProcess::panelTrustAndSubmit() {
 	_form->trustBot();
+	panelSubmit();
+}
+
+void CheckoutProcess::panelAcceptTermsAndSubmit() {
+	_form->acceptTerms();
 	panelSubmit();
 }
 

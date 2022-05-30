@@ -173,8 +173,8 @@ messageActionChannelMigrateFrom#ea3948e9 title:string chat_id:long = MessageActi
 messageActionPinMessage#94bd38ed = MessageAction;
 messageActionHistoryClear#9fbab604 = MessageAction;
 messageActionGameScore#92a72876 game_id:long score:int = MessageAction;
-messageActionPaymentSentMe#8f31b327 flags:# currency:string total_amount:long payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string charge:PaymentCharge = MessageAction;
-messageActionPaymentSent#96163f56 flags:# currency:string total_amount:long invoice_slug:flags.0?string = MessageAction;
+messageActionPaymentSentMe#8f31b327 flags:# recurring_init:flags.2?true recurring_used:flags.3?true currency:string total_amount:long payload:bytes info:flags.0?PaymentRequestedInfo shipping_option_id:flags.1?string charge:PaymentCharge = MessageAction;
+messageActionPaymentSent#96163f56 flags:# recurring_init:flags.2?true recurring_used:flags.3?true currency:string total_amount:long invoice_slug:flags.0?string = MessageAction;
 messageActionPhoneCall#80e11a7f flags:# video:flags.2?true call_id:long reason:flags.0?PhoneCallDiscardReason duration:flags.1?int = MessageAction;
 messageActionScreenshotTaken#4792929b = MessageAction;
 messageActionCustomAction#fae69f56 message:string = MessageAction;
@@ -826,7 +826,7 @@ dataJSON#7d748d04 data:string = DataJSON;
 
 labeledPrice#cb296bf8 label:string amount:long = LabeledPrice;
 
-invoice#cd886e0 flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true currency:string prices:Vector<LabeledPrice> max_tip_amount:flags.8?long suggested_tip_amounts:flags.8?Vector<long> = Invoice;
+invoice#3e85a91b flags:# test:flags.0?true name_requested:flags.1?true phone_requested:flags.2?true email_requested:flags.3?true shipping_address_requested:flags.4?true flexible:flags.5?true phone_to_provider:flags.6?true email_to_provider:flags.7?true recurring:flags.9?true currency:string prices:Vector<LabeledPrice> max_tip_amount:flags.8?long suggested_tip_amounts:flags.8?Vector<long> recurring_terms_url:flags.9?string = Invoice;
 
 paymentCharge#ea02c27e id:string provider_charge_id:string = PaymentCharge;
 
@@ -1345,7 +1345,7 @@ attachMenuBotIconColor#4576f3f0 name:string color:int = AttachMenuBotIconColor;
 
 attachMenuBotIcon#b2a7386b flags:# name:string icon:Document colors:flags.0?Vector<AttachMenuBotIconColor> = AttachMenuBotIcon;
 
-attachMenuBot#c8aa2cd2 flags:# inactive:flags.0?true bot_id:long short_name:string peer_types:Vector<AttachMenuPeerType> icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
+attachMenuBot#c8aa2cd2 flags:# inactive:flags.0?true has_settings:flags.1?true bot_id:long short_name:string peer_types:Vector<AttachMenuPeerType> icons:Vector<AttachMenuBotIcon> = AttachMenuBot;
 
 attachMenuBotsNotModified#f1d88a5c = AttachMenuBots;
 attachMenuBots#3c4301c0 hash:long bots:Vector<AttachMenuBot> users:Vector<User> = AttachMenuBots;
@@ -1385,6 +1385,8 @@ inputInvoiceSlug#c326caef slug:string = InputInvoice;
 payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
 messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id:long text:string = messages.TranscribedAudio;
+
+help.premiumPromo#3f7ae6ee status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> = help.PremiumPromo;
 
 ---functions---
 
@@ -1729,6 +1731,7 @@ help.getPromoData#c0977421 = help.PromoData;
 help.hidePromoData#1e251c95 peer:InputPeer = Bool;
 help.dismissSuggestion#f50dbaa1 peer:InputPeer suggestion:string = Bool;
 help.getCountriesList#735787a8 lang_code:string hash:int = help.CountriesList;
+help.getPremiumPromo#b81b93d4 = help.PremiumPromo;
 
 channels.readHistory#cc104937 channel:InputChannel max_id:int = Bool;
 channels.deleteMessages#84c1fd4e channel:InputChannel id:Vector<int> = messages.AffectedMessages;
@@ -1792,6 +1795,7 @@ payments.getBankCardData#2e79d779 number:string = payments.BankCardData;
 payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoice;
 payments.assignAppStoreTransaction#6299a12f transaction_id:string = Updates;
 payments.assignPlayMarketTransaction#4faa4aed purchase_token:string = Updates;
+payments.requestRecurringPayment#146e958d user_id:InputUser recurring_init_charge:string invoice_media:InputMedia = Updates;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;

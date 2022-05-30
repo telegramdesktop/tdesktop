@@ -644,6 +644,91 @@ void Panel::showWarning(const QString &bot, const QString &provider) {
 	}));
 }
 
+void Panel::requestTermsAcceptance(
+		const QString &username,
+		const QString &url) {
+	showBox(Box([=](not_null<GenericBox*> box) {
+		box->setTitle(tr::lng_payments_terms_title());
+		box->addRow(object_ptr<Ui::FlatLabel>(
+			box.get(),
+			tr::lng_payments_terms_text(
+				lt_bot,
+				rpl::single(Ui::Text::Bold('@' + username)),
+				Ui::Text::WithEntities),
+			st::boxLabel));
+		const auto update = std::make_shared<Fn<void()>>();
+		auto checkView = std::make_unique<Ui::CheckView>(
+			st::defaultCheck,
+			false,
+			[=] { if (*update) { (*update)(); } });
+		const auto check = checkView.get();
+		const auto row = box->addRow(
+			object_ptr<Ui::Checkbox>(
+				box.get(),
+				tr::lng_payments_terms_agree(
+					lt_link,
+					rpl::single(Ui::Text::Link(
+						tr::lng_payments_terms_link(tr::now),
+						url)),
+					Ui::Text::WithEntities),
+				st::defaultBoxCheckbox,
+				std::move(checkView)),
+			{
+				st::boxRowPadding.left(),
+				st::boxRowPadding.left(),
+				st::boxRowPadding.right(),
+				st::defaultBoxCheckbox.margin.bottom(),
+			});
+		(*update) = [=] { row->update(); };
+
+		struct State {
+			bool error = false;
+			Ui::Animations::Simple errorAnimation;
+		};
+		const auto state = box->lifetime().make_state<State>();
+		const auto showError = [=] {
+			const auto callback = [=] {
+				const auto error = state->errorAnimation.value(
+					state->error ? 1. : 0.);
+				if (error == 0.) {
+					check->setUntoggledOverride(std::nullopt);
+				} else {
+					const auto color = anim::color(
+						st::defaultCheck.untoggledFg,
+						st::boxTextFgError,
+						error);
+					check->setUntoggledOverride(color);
+				}
+			};
+			state->error = true;
+			state->errorAnimation.stop();
+			state->errorAnimation.start(
+				callback,
+				0.,
+				1.,
+				st::defaultCheck.duration);
+		};
+
+		row->checkedChanges(
+		) | rpl::filter([=](bool checked) {
+			return checked;
+		}) | rpl::start_with_next([=] {
+			state->error = false;
+			check->setUntoggledOverride(std::nullopt);
+		}, row->lifetime());
+
+		box->addButton(tr::lng_payments_terms_accept(), [=] {
+			if (check->checked()) {
+				_delegate->panelAcceptTermsAndSubmit();
+				box->closeBox();
+			} else {
+				showError();
+			}
+		});
+		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+	}));
+}
+
 void Panel::showEditCard(
 		const NativeMethodDetails &native,
 		CardField field) {

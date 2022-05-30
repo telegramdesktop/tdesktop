@@ -72,6 +72,7 @@ public:
 	void askSetPassword();
 	void showCloseConfirm();
 	void showWarning(const QString &bot, const QString &provider);
+	void requestTermsAcceptance(const QString &username, const QString &url);
 
 	bool showWebview(
 		const QString &url,

@@ -29,6 +29,7 @@ public:
 	virtual void panelCloseSure() = 0;
 	virtual void panelSubmit() = 0;
 	virtual void panelTrustAndSubmit() = 0;
+	virtual void panelAcceptTermsAndSubmit() = 0;
 	virtual void panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) = 0;

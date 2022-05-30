@@ -42,11 +42,13 @@ struct FormDetails {
 	uint64 formId = 0;
 	QString url;
 	QString nativeProvider;
+	QString termsBotUsername;
 	QByteArray nativeParamsJson;
 	UserId botId = 0;
 	UserId providerId = 0;
 	bool canSaveCredentials = false;
 	bool passwordMissing = false;
+	bool termsAccepted = false;
 
 	[[nodiscard]] bool valid() const {
 		return !url.isEmpty();
@@ -223,6 +225,7 @@ public:
 	void setHasPassword(bool has);
 	void setShippingOption(const QString &id);
 	void setTips(int64 value);
+	void acceptTerms();
 	void trustBot();
 	void submit();
 	void submit(const Core::CloudPasswordResult &result);
