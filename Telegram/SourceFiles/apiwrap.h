@@ -71,6 +71,7 @@ class ChatParticipants;
 class UnreadThings;
 class Ringtones;
 class Transcribes;
+class Premium;
 
 namespace details {
 
@@ -363,6 +364,7 @@ public:
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 	[[nodiscard]] Api::Ringtones &ringtones();
 	[[nodiscard]] Api::Transcribes &transcribes();
+	[[nodiscard]] Api::Premium &premium();
 
 	void updatePrivacyLastSeens();
 
@@ -647,6 +649,7 @@ private:
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 	const std::unique_ptr<Api::Ringtones> _ringtones;
 	const std::unique_ptr<Api::Transcribes> _transcribes;
+	const std::unique_ptr<Api::Premium> _premium;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

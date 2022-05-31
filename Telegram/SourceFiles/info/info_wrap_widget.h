@@ -20,6 +20,7 @@ class FadeShadow;
 class PlainShadow;
 class PopupMenu;
 class IconButton;
+class RoundRect;
 } // namespace Ui
 
 namespace Window {
@@ -129,6 +130,7 @@ public:
 	[[nodiscard]] int scrollTillBottom(int forHeight) const;
 	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
 	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;
+	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const;
 
 	~WrapWidget();
 

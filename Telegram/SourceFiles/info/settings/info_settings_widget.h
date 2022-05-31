@@ -72,6 +72,7 @@ public:
 
 	void showFinished() override;
 	void setInnerFocus() override;
+	const Ui::RoundRect *bottomSkipRounding() const override;
 
 	rpl::producer<bool> desiredShadowVisibility() const override;
 

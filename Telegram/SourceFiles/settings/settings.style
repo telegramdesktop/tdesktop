@@ -455,3 +455,4 @@ settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
 	lineHeight: 18px;
 }
+settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);

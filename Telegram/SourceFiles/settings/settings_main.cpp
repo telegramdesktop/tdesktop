@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_cloud_password.h"
 #include "api/api_global_privacy.h"
 #include "api/api_sensitive_content.h"
+#include "api/api_premium.h"
 #include "info/profile/info_profile_values.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -558,6 +559,9 @@ Main::Main(
 : Section(parent)
 , _controller(controller) {
 	setupContent(controller);
+	if (_controller->session().premium()) {
+		_controller->session().api().premium().reload();
+	}
 }
 
 rpl::producer<QString> Main::title() {

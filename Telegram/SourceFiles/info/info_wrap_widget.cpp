@@ -1156,6 +1156,10 @@ rpl::producer<bool> WrapWidget::grabbingForExpanding() const {
 	return _grabbingForExpanding.value();
 }
 
+const Ui::RoundRect *WrapWidget::bottomSkipRounding() const {
+	return _content->bottomSkipRounding();
+}
+
 bool WrapWidget::hasBackButton() const {
 	return (wrap() == Wrap::Narrow || hasStackHistory());
 }

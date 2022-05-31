@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
+#include "api/api_premium.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
@@ -162,6 +163,43 @@ using Order = std::vector<QString>;
 			},
 		},
 	};
+}
+
+[[nodiscard]] not_null<Ui::RpWidget*> CreateSubscribeButton(
+		not_null<Ui::RpWidget*> parent,
+		Fn<void()> callback) {
+	const auto result = Ui::CreateChild<Ui::GradientButton>(
+		parent.get(),
+		Ui::Premium::ButtonGradientStops());
+
+	result->setClickedCallback(std::move(callback));
+
+	const auto &st = st::premiumPreviewBox.button;
+	result->resize(parent->width(), st.height);
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		result,
+		tr::lng_premium_summary_button(tr::now, lt_cost, "$5"),
+		st::premiumPreviewButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		result->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=](int outer, int width) {
+		label->moveToLeft(
+			(outer - width) / 2,
+			st::premiumPreviewBox.button.textTop,
+			outer);
+	}, label->lifetime());
+
+	parent->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto padding = st::settingsPremiumButtonPadding;
+		result->resizeToWidth(width - padding.left() - padding.right());
+		result->moveToLeft(padding.left(), padding.top(), width);
+	}, result->lifetime());
+
+	return result;
 }
 
 void SendAppLog(
@@ -583,6 +621,7 @@ public:
 		not_null<Ui::RpWidget*> parent) override;
 
 	[[nodiscard]] bool hasFlexibleTopBar() const override;
+	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const override;
 
 	void setStepDataReference(std::any &data) override;
 
@@ -598,6 +637,7 @@ private:
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
+	std::optional<Ui::RoundRect> _bottomSkipRounding;
 
 	rpl::event_stream<> _showBack;
 
@@ -610,6 +650,7 @@ Premium::Premium(
 , _controller(controller)
 , _ref(ResolveRef(controller->premiumRef())) {
 	setupContent();
+	_controller->session().api().premium().reload();
 }
 
 rpl::producer<QString> Premium::title() {
@@ -618,6 +659,10 @@ rpl::producer<QString> Premium::title() {
 
 bool Premium::hasFlexibleTopBar() const {
 	return true;
+}
+
+const Ui::RoundRect *Premium::bottomSkipRounding() const {
+	return _bottomSkipRounding ? &*_bottomSkipRounding : nullptr;
 }
 
 rpl::producer<> Premium::sectionShowBack() {
@@ -763,8 +808,6 @@ void Premium::setupContent() {
 			st::aboutLabel),
 		st::boxRowPadding);
 	AddSkip(content, stDefault.padding.top() + stDefault.padding.bottom());
-#else
-	AddSkip(content, stDefault.padding.bottom());
 #endif
 
 	Ui::ResizeFitChild(this, content);
@@ -835,51 +878,51 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	auto result = object_ptr<Ui::GradientButton>(
-		content,
-		Ui::Premium::ButtonGradientStops());
-	const auto raw = result.data();
-
-	raw->setClickedCallback([=] {
+	const auto button = CreateSubscribeButton(content, [=] {
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
 	});
-
-	const auto &st = st::premiumPreviewBox.button;
-	raw->resize(content->width(), st.height);
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		raw,
-		tr::lng_premium_summary_button(tr::now, lt_cost, "$5"),
-		st::premiumPreviewButtonLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(
-		raw->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([=](int outer, int width) {
-		label->moveToLeft(
-			(outer - width) / 2,
-			st::premiumPreviewBox.button.textTop,
-			outer);
-	}, label->lifetime());
-
+	auto text = _controller->session().api().premium().statusTextValue();
+	const auto status = Ui::CreateChild<Ui::DividerLabel>(
+		content,
+		object_ptr<Ui::FlatLabel>(
+			content,
+			rpl::duplicate(text),
+			st::boxDividerLabel),
+		st::settingsPremiumStatusPadding,
+		RectPart::Top);
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
-		const auto padding = st::settingsPremiumButtonPadding;
-		raw->resizeToWidth(width - padding.left() - padding.right());
-	}, raw->lifetime());
+		status->resizeToWidth(width);
+	}, status->lifetime());
 
 	rpl::combine(
-		raw->heightValue(),
+		button->heightValue(),
+		status->heightValue(),
+		std::move(text),
 		Data::AmPremiumValue(&_controller->session())
-	) | rpl::start_with_next([=](int height, bool premium) {
+	) | rpl::start_with_next([=](
+			int buttonHeight,
+			int statusHeight,
+			const TextWithEntities &text,
+			bool premium) {
 		const auto padding = st::settingsPremiumButtonPadding;
-		const auto finalHeight = premium
+		const auto finalHeight = !premium
+			? (padding.top() + buttonHeight + padding.bottom())
+			: text.text.isEmpty()
 			? 0
-			: (padding.top() + height + padding.bottom());
+			: statusHeight;
 		content->resize(content->width(), finalHeight);
-		raw->moveToLeft(padding.left(), padding.top());
-	}, raw->lifetime());
+		button->moveToLeft(padding.left(), padding.top());
+		status->moveToLeft(0, 0);
+		button->setVisible(!premium);
+		status->setVisible(premium && !text.text.isEmpty());
+		if (!premium || text.text.isEmpty()) {
+			_bottomSkipRounding.reset();
+		} else if (!_bottomSkipRounding) {
+			_bottomSkipRounding.emplace(st::boxRadius, st::boxDividerBg);
+		}
+	}, button->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }

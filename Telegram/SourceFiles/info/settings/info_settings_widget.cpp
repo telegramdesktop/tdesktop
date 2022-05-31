@@ -213,6 +213,10 @@ void Widget::setInnerFocus() {
 	_inner->setInnerFocus();
 }
 
+const Ui::RoundRect *Widget::bottomSkipRounding() const {
+	return _inner->bottomSkipRounding();
+}
+
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
 	return (_type == ::Settings::Main::Id()
 		|| _type == ::Settings::Information::Id())

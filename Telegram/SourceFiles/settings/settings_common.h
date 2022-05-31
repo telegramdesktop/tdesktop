@@ -93,6 +93,9 @@ public:
 	virtual void setInnerFocus() {
 		setFocus();
 	}
+	[[nodiscard]] virtual const Ui::RoundRect *bottomSkipRounding() const {
+		return nullptr;
+	}
 	[[nodiscard]] virtual QPointer<Ui::RpWidget> createPinnedToTop(
 			not_null<QWidget*> parent) {
 		return nullptr;

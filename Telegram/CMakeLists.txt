@@ -137,6 +137,8 @@ PRIVATE
     api/api_peer_photo.h
     api/api_polls.cpp
     api/api_polls.h
+    api/api_premium.cpp
+    api/api_premium.h
     api/api_report.cpp
     api/api_report.h
     api/api_ringtones.cpp

@@ -16,6 +16,7 @@ enum class SharedMediaType : signed char;
 } // namespace Storage
 
 namespace Ui {
+class RoundRect;
 class ScrollArea;
 class InputField;
 struct ScrollToRequest;
@@ -67,7 +68,10 @@ public:
 		int topDelta);
 	void applyAdditionalScroll(int additionalScroll);
 	int scrollTillBottom(int forHeight) const;
-	rpl::producer<int> scrollTillBottomChanges() const;
+	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
+	[[nodiscard]] virtual const Ui::RoundRect *bottomSkipRounding() const {
+		return nullptr;
+	}
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e);

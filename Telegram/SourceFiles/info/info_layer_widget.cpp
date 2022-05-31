@@ -306,7 +306,6 @@ QRect LayerWidget::countGeometry(int newWidth) {
 	if (_contentTillBottom) {
 		contentHeight += contentBottom;
 	}
-	const auto bottomPadding = _tillBottom ? 0 : contentBottom;
 	_content->updateGeometry({
 		contentLeft,
 		contentTop,
@@ -330,11 +329,18 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	const auto radius = st::boxRadius;
 	auto parts = RectPart::None | 0;
 	if (!_tillBottom) {
-		if (clip.intersects({ 0, height() - radius, width(), radius })) {
-			parts |= RectPart::FullBottom;
+		const auto bottom = QRect{ 0, height() - radius, width(), radius };
+		if (clip.intersects(bottom)) {
+			if (const auto rounding = _content->bottomSkipRounding()) {
+				rounding->paint(p, rect(), RectPart::FullBottom);
+			} else {
+				parts |= RectPart::FullBottom;
+			}
 		}
 	} else if (!_contentTillBottom) {
-		p.fillRect(0, height() - radius, width(), radius, st::boxBg);
+		const auto rounding = _content->bottomSkipRounding();
+		const auto &color = rounding ? rounding->color() : st::boxBg;
+		p.fillRect(0, height() - radius, width(), radius, color);
 	}
 	if (_content->animatingShow()) {
 		if (clip.intersects({ 0, 0, width(), radius })) {
