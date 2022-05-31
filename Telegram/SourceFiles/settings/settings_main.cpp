@@ -340,10 +340,22 @@ void SetupSections(
 	AddDivider(container);
 	AddSkip(container);
 
-	addSection(
-		tr::lng_premium_summary_title(),
-		PremiumId(),
-		{ &st::settingsPremiumIconStar, kIconLightBlue });
+	{
+		const auto icon = &st::settingsPremiumIconStar;
+		auto gradient = QLinearGradient(
+			0,
+			icon->height(),
+			icon->width() + icon->width() / 3,
+			0 - icon->height() / 3);
+		gradient.setStops(QGradientStops{
+			{ 0.0, st::premiumButtonBg1->c },
+			{ 1.0, st::premiumButtonBg3->c },
+		});
+		addSection(
+			tr::lng_premium_summary_title(),
+			PremiumId(),
+			{ .icon = icon, .backgroundBrush = QBrush(gradient) });
+	}
 
 	AddSkip(container);
 }
