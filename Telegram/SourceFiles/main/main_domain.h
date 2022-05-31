@@ -31,6 +31,7 @@ public:
 	};
 
 	static constexpr auto kMaxAccounts = 3;
+	static constexpr auto kPremiumMaxAccounts = 4;
 
 	explicit Domain(const QString &dataName);
 	~Domain();
@@ -39,6 +40,8 @@ public:
 	[[nodiscard]] Storage::StartResult start(const QByteArray &passcode);
 	void resetWithForgottenPasscode();
 	void finish();
+
+	[[nodiscard]] int maxAccounts() const;
 
 	[[nodiscard]] Storage::Domain &local() const {
 		return *_local;

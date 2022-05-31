@@ -326,7 +326,7 @@ void FillMenu(
 			&st::menuIconCancel);
 	} else {
 		const auto &list = Core::App().domain().accounts();
-		if (list.size() < ::Main::Domain::kMaxAccounts) {
+		if (list.size() < Core::App().domain().maxAccounts()) {
 			addAction(tr::lng_menu_add_account(tr::now), [=] {
 				Core::App().domain().addActivated(MTP::Environment{});
 			}, &st::menuIconAddAccount);

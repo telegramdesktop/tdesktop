@@ -708,7 +708,13 @@ not_null<Ui::SlideWrap<Ui::SettingsButton>*> AccountsList::setupAdd() {
 
 	const auto add = [=](MTP::Environment environment) {
 		Core::App().preventOrInvoke([=] {
-			Core::App().domain().addActivated(environment);
+			auto &domain = _controller->session().domain();
+			if (domain.accounts().size() >= domain.maxAccounts()) {
+				_controller->show(
+					Box(AccountsLimitBox, &_controller->session()));
+			} else {
+				domain.addActivated(environment);
+			}
 		});
 	};
 
@@ -804,7 +810,7 @@ void AccountsList::rebuild() {
 	inner->resizeToWidth(_outer->width());
 
 	_addAccount->toggle(
-		(inner->count() < Main::Domain::kMaxAccounts),
+		(inner->count() < Main::Domain::kPremiumMaxAccounts),
 		anim::type::instant);
 
 	_reorder->start();

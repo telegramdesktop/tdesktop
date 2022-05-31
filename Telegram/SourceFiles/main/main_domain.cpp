@@ -236,7 +236,7 @@ void Domain::scheduleUpdateUnreadBadge() {
 
 not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 	Expects(started());
-	Expects(_accounts.size() < kMaxAccounts);
+	Expects(_accounts.size() < kPremiumMaxAccounts);
 
 	static const auto cloneConfig = [](const MTP::Config &config) {
 		return std::make_unique<MTP::Config>(config);
@@ -283,7 +283,7 @@ not_null<Main::Account*> Domain::add(MTP::Environment environment) {
 }
 
 void Domain::addActivated(MTP::Environment environment) {
-	if (accounts().size() < Main::Domain::kMaxAccounts) {
+	if (accounts().size() < maxAccounts()) {
 		activate(add(environment));
 	} else {
 		for (auto &[index, account] : accounts()) {
@@ -436,6 +436,14 @@ void Domain::scheduleWriteAccounts() {
 		_writeAccountsScheduled = false;
 		_local->writeAccounts();
 	});
+}
+
+int Domain::maxAccounts() const {
+	const auto isAnyPreimium = ranges::any_of(accounts(), [](
+			const Main::Domain::AccountWithIndex &d) {
+		return d.account->session().premium();
+	});
+	return isAnyPreimium ? kPremiumMaxAccounts : kMaxAccounts;
 }
 
 } // namespace Main
