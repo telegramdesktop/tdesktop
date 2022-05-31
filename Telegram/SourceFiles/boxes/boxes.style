@@ -1096,3 +1096,17 @@ premiumIconFolders: icon {{ "limits/folders", settingsIconFg }};
 premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
 premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
 premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
+
+premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+	imageRadius: 27px;
+	imageSmallRadius: 23px;
+	check: RoundCheckbox(defaultRoundCheckbox) {
+		size: 0px;
+	}
+}
+premiumAccountsLabelSize: size(22px, 15px);
+premiumAccountsLabelPadding: margins(2px, 2px, 2px, 2px);
+premiumAccountsLabelRadius: 6;
+premiumAccountsNameTop: 13px;
+premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
+premiumAccountsHeight: 105px;

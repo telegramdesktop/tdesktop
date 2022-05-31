@@ -11,11 +11,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/numbers_animation.h"
+#include "ui/text/text_options.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"
+
+#include <QtGui/QBrush>
 
 namespace Ui {
 namespace Premium {
@@ -23,6 +27,7 @@ namespace {
 
 using TextFactory = Fn<QString(int)>;
 
+constexpr auto kBubbleRadiusSubtractor = 2;
 constexpr auto kDeflectionSmall = 20.;
 constexpr auto kDeflection = 30.;
 
@@ -133,7 +138,7 @@ int Bubble::height() const {
 }
 
 int Bubble::bubbleRadius() const {
-	return (_height - _tailSize.height()) / 2;
+	return (_height - _tailSize.height()) / 2 - kBubbleRadiusSubtractor;
 }
 
 int Bubble::filledWidth() const {
@@ -430,7 +435,11 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 
 class Line final : public Ui::RpWidget {
 public:
-	Line(not_null<Ui::RpWidget*> parent, int max, TextFactory textFactory);
+	Line(
+		not_null<Ui::RpWidget*> parent,
+		int max,
+		TextFactory textFactory,
+		int min);
 
 protected:
 	void paintEvent(QPaintEvent *event) override;
@@ -447,14 +456,20 @@ private:
 	Ui::Text::String _leftText;
 	Ui::Text::String _rightText;
 	Ui::Text::String _rightLabel;
+	Ui::Text::String _leftLabel;
 
 };
 
-Line::Line(not_null<Ui::RpWidget*> parent, int max, TextFactory textFactory)
+Line::Line(
+	not_null<Ui::RpWidget*> parent,
+	int max,
+	TextFactory textFactory,
+	int min)
 : Ui::RpWidget(parent)
 , _leftText(st::defaultTextStyle, tr::lng_premium_free(tr::now))
 , _rightText(st::defaultTextStyle, tr::lng_premium(tr::now))
-, _rightLabel(st::defaultTextStyle, textFactory(max)) {
+, _rightLabel(st::defaultTextStyle, max ? textFactory(max) : QString())
+, _leftLabel(st::defaultTextStyle, min ? textFactory(min) : QString()) {
 	resize(width(), st::requestsAcceptButton.height);
 
 	sizeValue(
@@ -478,6 +493,13 @@ void Line::paintEvent(QPaintEvent *event) {
 	const auto textTop = (height() - _leftText.minHeight()) / 2;
 
 	p.setPen(st::windowFg);
+	_leftLabel.drawRight(
+		p,
+		textPadding,
+		textTop,
+		_leftWidth - textPadding,
+		_leftWidth,
+		style::al_right);
 	_leftText.drawLeft(
 		p,
 		textPadding,
@@ -572,10 +594,137 @@ void AddBubbleRow(
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
 		int max,
-		std::optional<tr::phrase<lngtag_count>> phrase) {
+		std::optional<tr::phrase<lngtag_count>> phrase,
+		int min) {
 	const auto line = parent->add(
-		object_ptr<Line>(parent, max, ProcessTextFactory(phrase)),
+		object_ptr<Line>(parent, max, ProcessTextFactory(phrase), min),
 		st::boxRowPadding);
+}
+
+void AddAccountsRow(
+		not_null<Ui::VerticalLayout*> parent,
+		AccountsRowArgs &&args) {
+	const auto container = parent->add(
+		object_ptr<Ui::FixedHeightWidget>(parent, st::premiumAccountsHeight),
+		st::boxRowPadding);
+
+	struct Account {
+		not_null<Ui::AbstractButton*> widget;
+		Ui::RoundImageCheckbox checkbox;
+		Ui::Text::String name;
+		QPixmap badge;
+	};
+	struct State {
+		std::vector<Account> accounts;
+	};
+	const auto state = container->lifetime().make_state<State>();
+	const auto group = args.group;
+
+	group->setChangedCallback([=](int value) {
+		for (auto i = 0; i < state->accounts.size(); i++) {
+			state->accounts[i].checkbox.setChecked(i == value);
+		}
+	});
+
+	const auto imageRadius = args.st.imageRadius;
+	const auto checkSelectWidth = args.st.selectWidth;
+	const auto nameFg = args.stNameFg;
+
+	const auto cacheBadge = [=](int center) {
+		const auto &padding = st::premiumAccountsLabelPadding;
+		const auto size = st::premiumAccountsLabelSize
+			+ QSize(
+				padding.left() + padding.right(),
+				padding.top() + padding.bottom());
+		auto badge = QPixmap(size * style::DevicePixelRatio());
+		badge.setDevicePixelRatio(style::DevicePixelRatio());
+		badge.fill(Qt::transparent);
+
+		Painter p(&badge);
+		PainterHighQualityEnabler hq(p);
+
+		p.setPen(Qt::NoPen);
+		const auto rectOut = QRect(QPoint(), size);
+		const auto rectIn = rectOut - padding;
+
+		const auto radius = st::premiumAccountsLabelRadius;
+		p.setBrush(st::premiumButtonFg);
+		p.drawRoundedRect(rectOut, radius, radius);
+
+		const auto left = center - rectIn.width() / 2;
+		p.setBrush(QBrush(ComputeGradient(container, left, rectIn.width())));
+		p.drawRoundedRect(rectIn, radius / 2, radius / 2);
+
+		p.setPen(st::premiumButtonFg);
+		p.setFont(st::semiboldFont);
+		p.drawText(rectIn, u"+1"_q, style::al_center);
+
+		return badge;
+	};
+
+	for (auto &entry : args.entries) {
+		const auto widget = Ui::CreateChild<Ui::AbstractButton>(container);
+		auto name = Ui::Text::String(imageRadius * 2);
+		name.setText(args.stName, entry.name, Ui::NameTextOptions());
+		state->accounts.push_back(Account{
+			.widget = widget,
+			.checkbox = Ui::RoundImageCheckbox(
+				args.st,
+				[=] { widget->update(); },
+				base::take(entry.paintRoundImage)),
+			.name = std::move(name),
+		});
+		const auto index = int(state->accounts.size()) - 1;
+		state->accounts[index].checkbox.setChecked(index == group->value());
+
+		widget->paintRequest(
+		) | rpl::start_with_next([=] {
+			Painter p(widget);
+			const auto width = widget->width();
+			const auto photoLeft = (width - (imageRadius * 2)) / 2;
+			const auto photoTop = checkSelectWidth;
+			auto &account = state->accounts[index];
+			account.checkbox.paint(p, photoLeft, photoTop, width);
+
+			const auto &badgeSize = account.badge.size()
+				/ style::DevicePixelRatio();
+			p.drawPixmap(
+				(width - badgeSize.width()) / 2,
+				photoTop + (imageRadius * 2) - badgeSize.height() / 2,
+				account.badge);
+
+			p.setPen(nameFg);
+			p.setBrush(Qt::NoBrush);
+			account.name.drawLeftElided(
+				p,
+				0,
+				photoTop + imageRadius * 2 + st::premiumAccountsNameTop,
+				width,
+				width,
+				2,
+				style::al_top,
+				0,
+				-1,
+				0,
+				true);
+		}, widget->lifetime());
+
+		widget->setClickedCallback([=] {
+			group->setValue(index);
+		});
+	}
+
+	container->sizeValue(
+	) | rpl::start_with_next([=](const QSize &size) {
+		const auto count = state->accounts.size();
+		const auto columnWidth = size.width() / count;
+		for (auto i = 0; i < count; i++) {
+			state->accounts[i].widget->resize(columnWidth, size.height());
+			const auto left = columnWidth * i;
+			state->accounts[i].widget->moveToLeft(left, 0);
+			state->accounts[i].badge = cacheBadge(left + columnWidth / 2);
+		}
+	}, container->lifetime());
 }
 
 QGradientStops LimitGradientStops() {

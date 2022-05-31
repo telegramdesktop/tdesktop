@@ -10,13 +10,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/controls/peer_list_dummy.h"
 #include "ui/effects/premium_graphics.h"
-#include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
+#include "main/main_domain.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
 #include "window/window_session_controller.h"
@@ -877,6 +878,111 @@ void FileSizeLimitBox(
 			tr::lng_file_size_limit
 		},
 		premium);
+}
+
+void AccountsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	const auto premium = session->premium();
+
+	const auto defaultLimit = Main::Domain::kMaxAccounts;
+	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
+
+	const auto &accounts = session->domain().accounts();
+	const auto current = int(accounts.size());
+
+	auto text = tr::lng_accounts_limit1(
+		lt_count,
+		rpl::single<float64>(premiumLimit),
+		Ui::Text::RichLangValue);
+
+	box->setWidth(st::boxWideWidth);
+
+	const auto top = box->verticalLayout();
+	const auto group = std::make_shared<Ui::RadiobuttonGroup>(0);
+
+	Settings::AddSkip(top, st::premiumInfographicPadding.top());
+	Ui::Premium::AddBubbleRow(
+		top,
+		BoxShowFinishes(box),
+		0,
+		current,
+		(current == premiumLimit) ? premiumLimit : (current * 2),
+		std::nullopt,
+		&st::premiumIconFiles);
+	Settings::AddSkip(top, st::premiumLineTextSkip);
+	Ui::Premium::AddLimitRow(top, 0, std::nullopt, defaultLimit);
+	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+
+	box->setTitle(tr::lng_accounts_limit_title());
+
+	auto padding = st::boxPadding;
+	padding.setTop(padding.bottom());
+	top->add(
+		object_ptr<Ui::FlatLabel>(
+			box,
+			std::move(text),
+			st::aboutRevokePublicLabel),
+		padding);
+
+
+	if (premium) {
+		box->addButton(tr::lng_box_ok(), [=] {
+			box->closeBox();
+		});
+	} else {
+		auto switchingLifetime = std::make_shared<rpl::lifetime>();
+		box->addButton(tr::lng_continue(), [=]() mutable {
+			const auto ref = QString();
+
+			const auto &accounts = session->domain().accounts();
+			const auto wasAccount = &session->account();
+			const auto nowAccount = accounts[group->value()].account.get();
+			if (wasAccount == nowAccount) {
+				Settings::ShowPremium(session, ref);
+				return;
+			}
+
+			if (*switchingLifetime) {
+				return;
+			}
+			*switchingLifetime = session->domain().activeSessionChanges(
+			) | rpl::start_with_next([=](Main::Session *session) mutable {
+				if (session) {
+					Settings::ShowPremium(session, ref);
+				}
+				if (switchingLifetime) {
+					base::take(switchingLifetime)->destroy();
+				}
+			});
+			session->domain().activate(nowAccount);
+		});
+	}
+
+	box->addButton(tr::lng_cancel(), [=] {
+		box->closeBox();
+	});
+
+	using Args = Ui::Premium::AccountsRowArgs;
+
+	auto &&entries = ranges::views::all(
+		accounts
+	) | ranges::views::transform([&](
+			const Main::Domain::AccountWithIndex &d) {
+		const auto user = d.account->session().user();
+		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
+	});
+
+	auto args = Args{
+		.group = group,
+		.st = st::premiumAccountsCheckbox,
+		.stName = st::shareBoxListItem.nameStyle,
+		.stNameFg = st::shareBoxListItem.nameFg,
+		.entries = std::move(entries) | ranges::to_vector,
+	};
+	box->addSkip(st::premiumAccountsPadding.top());
+	Ui::Premium::AddAccountsRow(box->verticalLayout(), std::move(args));
+	box->addSkip(st::premiumAccountsPadding.bottom());
 }
 
 QString LimitsPremiumRef(const QString &addition) {

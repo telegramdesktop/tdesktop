@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <QtGui/QBrush>
+#include "ui/effects/round_checkbox.h"
 
 namespace tr {
 template <typename ...>
@@ -16,8 +16,14 @@ struct phrase;
 
 enum lngtag_count : int;
 
+namespace style {
+struct RoundImageCheckbox;
+struct TextStyle;
+} // namespace style
+
 namespace Ui {
 
+class RadiobuttonGroup;
 class VerticalLayout;
 
 namespace Premium {
@@ -34,7 +40,24 @@ void AddBubbleRow(
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
 	int max,
-	std::optional<tr::phrase<lngtag_count>> phrase);
+	std::optional<tr::phrase<lngtag_count>> phrase,
+	int min = 0);
+
+struct AccountsRowArgs final {
+	std::shared_ptr<Ui::RadiobuttonGroup> group;
+	const style::RoundImageCheckbox &st;
+	const style::TextStyle &stName;
+	const style::color &stNameFg;
+	struct Entry final {
+		QString name;
+		Ui::RoundImageCheckbox::PaintRoundImage paintRoundImage;
+	};
+	std::vector<Entry> entries;
+};
+
+void AddAccountsRow(
+	not_null<Ui::VerticalLayout*> parent,
+	AccountsRowArgs &&args);
 
 [[nodiscard]] QGradientStops LimitGradientStops();
 [[nodiscard]] QGradientStops ButtonGradientStops();

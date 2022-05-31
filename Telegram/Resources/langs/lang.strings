@@ -1698,6 +1698,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_bottom_about" = "While the free version of Telegram already gives its users more than any other messaging application, **Telegram Premium** pushes its capabilities even further.\n\n**Telegram Premium** is a paid option, because most Premium Features require additional expenses from Telegram to third parties such as data center providers and server manufacturers. Contributions from **Telegram Premium** users allow us to cover such costs and also help Telegram stay free for everyone.";
 "lng_premium_summary_button" = "Subscribe for {cost} per month";
 
+"lng_accounts_limit_title" = "Limit Reached";
+"lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts. You can free one space by subscribing to **Telegram Premium** with on of these connected accounts:";
+"lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts. You can free one space by subscribing to **Telegram Premium** with on of these connected accounts:";
+
 "lng_group_about_header" = "You have created a group.";
 "lng_group_about_text" = "Groups can have:";
 "lng_group_about1" = "Up to 100,000 members";
