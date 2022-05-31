@@ -385,8 +385,6 @@ parts:
       - -./usr/libexec
       - -./usr/mkspecs
       - -./usr/modules
-      # Allow tdesktop's custom try-portal-and-fallback logic to work
-      - -./usr/plugins/platformthemes/libqxdgdesktopportal.so
     after:
       - mozjpeg
       - patches
