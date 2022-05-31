@@ -154,7 +154,7 @@ jobs:
 
           bless --folder "Telegram.app/" --openfolder "Telegram.app/"
 
-          zip -r Telegram.app.zip Telegram.app
+          zip -r Telegram.app_macos.zip Telegram.app
 
           shasum -a 256 Telegram.app_macos.zip | awk -F " " 'END {print $1}' > Telegram_app_sha256.txt
           mv Telegram.app.zip artifact/
