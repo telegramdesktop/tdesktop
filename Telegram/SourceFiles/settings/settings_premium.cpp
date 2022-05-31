@@ -833,28 +833,28 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 
 QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
-
-	const auto content = Ui::CreateChild<Ui::VerticalLayout>(parent.get());
+	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
 	auto result = object_ptr<Ui::GradientButton>(
 		content,
 		Ui::Premium::ButtonGradientStops());
+	const auto raw = result.data();
 
-	result->setClickedCallback([=] {
+	raw->setClickedCallback([=] {
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
 	});
 
 	const auto &st = st::premiumPreviewBox.button;
-	result->resize(content->width(), st.height);
+	raw->resize(content->width(), st.height);
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		result.data(),
+		raw,
 		tr::lng_premium_summary_button(tr::now, lt_cost, "$5"),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
-		result->widthValue(),
+		raw->widthValue(),
 		label->widthValue()
 	) | rpl::start_with_next([=](int outer, int width) {
 		label->moveToLeft(
@@ -862,7 +862,24 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			st::premiumPreviewBox.button.textTop,
 			outer);
 	}, label->lifetime());
-	content->add(std::move(result), st::settingsPremiumButtonPadding);
+
+	content->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto padding = st::settingsPremiumButtonPadding;
+		raw->resizeToWidth(width - padding.left() - padding.right());
+	}, raw->lifetime());
+
+	rpl::combine(
+		raw->heightValue(),
+		Data::AmPremiumValue(&_controller->session())
+	) | rpl::start_with_next([=](int height, bool premium) {
+		const auto padding = st::settingsPremiumButtonPadding;
+		const auto finalHeight = premium
+			? 0
+			: (padding.top() + height + padding.bottom());
+		content->resize(content->width(), finalHeight);
+		raw->moveToLeft(padding.left(), padding.top());
+	}, raw->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }
