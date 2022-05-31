@@ -157,7 +157,7 @@ jobs:
           zip -r Telegram.app_macos.zip Telegram.app
 
           shasum -a 256 Telegram.app | awk -F " " 'END {print $1}' > Telegram_app_sha256.txt
-          mv Telegram.app.zip artifact/
+          mv Telegram.app_macos.zip artifact/
           mv Telegram_app_sha256.txt artifact/
       - uses: actions/upload-artifact@master
         if: env.UPLOAD_ARTIFACT == 'true'
