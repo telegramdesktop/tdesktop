@@ -132,7 +132,7 @@ jobs:
           mkdir "artifact/Telegram"
           strip -s "Telegram"
           mv Telegram artifact/Telegram/
-          mv Telegram_sha256.txt artifact/Telegram/
+          mv Telegram_sha256.txt artifact/
           cd artifact
           tar -cJvf "${{ env.ARTIFACT_NAME }}.tar.xz" "Telegram/"
           rm -rf Telegram/
