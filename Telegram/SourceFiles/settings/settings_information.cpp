@@ -619,29 +619,6 @@ void SetupAccountsWrap(
 	return result;
 }
 
-[[nodiscard]] std::vector<not_null<Main::Account*>> OrderedAccounts() {
-	using namespace Main;
-
-	const auto order = Core::App().settings().accountsOrder();
-	auto accounts = ranges::views::all(
-		Core::App().domain().accounts()
-	) | ranges::views::transform([](const Domain::AccountWithIndex &a) {
-		return not_null{ a.account.get() };
-	}) | ranges::to_vector;
-	ranges::stable_sort(accounts, [&](
-			not_null<Account*> a,
-			not_null<Account*> b) {
-		const auto aIt = a->sessionExists()
-			? ranges::find(order, a->session().uniqueId())
-			: end(order);
-		const auto bIt = b->sessionExists()
-			? ranges::find(order, b->session().uniqueId())
-			: end(order);
-		return aIt < bIt;
-	});
-	return accounts;
-}
-
 AccountsList::AccountsList(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller)
@@ -851,6 +828,29 @@ AccountsEvents SetupAccounts(
 	return {
 		.currentAccountActivations = list->currentAccountActivations(),
 	};
+}
+
+std::vector<not_null<Main::Account*>> OrderedAccounts() {
+	using namespace Main;
+
+	const auto order = Core::App().settings().accountsOrder();
+	auto accounts = ranges::views::all(
+		Core::App().domain().accounts()
+	) | ranges::views::transform([](const Domain::AccountWithIndex &a) {
+		return not_null{ a.account.get() };
+	}) | ranges::to_vector;
+	ranges::stable_sort(accounts, [&](
+			not_null<Account*> a,
+			not_null<Account*> b) {
+		const auto aIt = a->sessionExists()
+			? ranges::find(order, a->session().uniqueId())
+			: end(order);
+		const auto bIt = b->sessionExists()
+			? ranges::find(order, b->session().uniqueId())
+			: end(order);
+		return aIt < bIt;
+	});
+	return accounts;
 }
 
 Dialogs::Ui::UnreadBadgeStyle BadgeStyle() {

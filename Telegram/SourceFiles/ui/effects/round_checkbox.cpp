@@ -258,7 +258,7 @@ RoundCheckbox::RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCa
 , _updateCallback(updateCallback) {
 }
 
-void RoundCheckbox::paint(Painter &p, int x, int y, int outerWidth, float64 masterScale) {
+void RoundCheckbox::paint(Painter &p, int x, int y, int outerWidth, float64 masterScale) const {
 	if (!_st.size
 		|| (!_checkedProgress.animating()
 			&& !_checked
@@ -361,7 +361,7 @@ RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<v
 , _check(_st.check, _updateCallback) {
 }
 
-void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
+void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	auto selectionLevel = _selection.value(checked() ? 1. : 0.);
 	if (_selection.animating()) {
 		auto userpicRadius = qRound(kWideScale * (_st.imageRadius + (_st.imageSmallRadius - _st.imageRadius) * selectionLevel));
@@ -374,9 +374,6 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		PainterHighQualityEnabler hq(p);
 		p.drawPixmapLeft(to, outerWidth, _wideCache, from);
 	} else {
-		if (!_wideCache.isNull()) {
-			_wideCache = QPixmap();
-		}
 		auto userpicRadius = checked() ? _st.imageSmallRadius : _st.imageRadius;
 		auto userpicShift = _st.imageRadius - userpicRadius;
 		auto userpicLeft = x + userpicShift;
@@ -388,8 +385,9 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) {
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
-		auto pen = _st.selectFg->p;
-		pen.setWidth(_st.selectWidth);
+		const auto pen = QPen(
+			_fgOverride ? (*_fgOverride) : _st.selectFg->b,
+			_st.selectWidth);
 		p.setPen(pen);
 		p.drawEllipse(style::rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
 		p.setOpacity(1.);
@@ -416,7 +414,21 @@ void RoundImageCheckbox::setChecked(bool newChecked, anim::type animated) {
 	}
 	if (animated == anim::type::normal) {
 		prepareWideCache();
-		_selection.start(_updateCallback, checked() ? 0 : 1, checked() ? 1 : 0, _st.selectDuration, anim::bumpy(1.25));
+		const auto from = checked() ? 0. : 1.;
+		const auto to = checked() ? 1. : 0.;
+		_selection.start(
+			[=](float64 value) {
+				if (_updateCallback) {
+					_updateCallback();
+				}
+				if (value == to) {
+					_wideCache = QPixmap();
+				}
+			},
+			from,
+			to,
+			_st.selectDuration,
+			anim::bumpy(1.25));
 	} else {
 		_selection.stop();
 	}
@@ -437,6 +449,10 @@ void RoundImageCheckbox::prepareWideCache() {
 		}
 		_wideCache = Ui::PixmapFromImage(std::move(cache));
 	}
+}
+
+void RoundImageCheckbox::setColorOverride(std::optional<QBrush> fg) {
+	_fgOverride = fg;
 }
 
 } // namespace Ui

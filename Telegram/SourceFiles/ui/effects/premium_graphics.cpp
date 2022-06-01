@@ -683,7 +683,7 @@ void AddAccountsRow(
 			const auto width = widget->width();
 			const auto photoLeft = (width - (imageRadius * 2)) / 2;
 			const auto photoTop = checkSelectWidth;
-			auto &account = state->accounts[index];
+			const auto &account = state->accounts[index];
 			account.checkbox.paint(p, photoLeft, photoTop, width);
 
 			const auto &badgeSize = account.badge.size()
@@ -719,10 +719,18 @@ void AddAccountsRow(
 		const auto count = state->accounts.size();
 		const auto columnWidth = size.width() / count;
 		for (auto i = 0; i < count; i++) {
-			state->accounts[i].widget->resize(columnWidth, size.height());
+			auto &account = state->accounts[i];
+			account.widget->resize(columnWidth, size.height());
 			const auto left = columnWidth * i;
-			state->accounts[i].widget->moveToLeft(left, 0);
-			state->accounts[i].badge = cacheBadge(left + columnWidth / 2);
+			account.widget->moveToLeft(left, 0);
+			account.badge = cacheBadge(left + columnWidth / 2);
+
+			const auto photoWidth = ((imageRadius + checkSelectWidth) * 2);
+			account.checkbox.setColorOverride(QBrush(
+				ComputeGradient(
+					container,
+					left + (columnWidth - photoWidth) / 2,
+					photoWidth)));
 		}
 	}, container->lifetime());
 }

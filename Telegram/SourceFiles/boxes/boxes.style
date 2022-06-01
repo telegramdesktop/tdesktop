@@ -1096,6 +1096,7 @@ premiumIconFolders: icon {{ "limits/folders", settingsIconFg }};
 premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
 premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
 premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
+premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
 
 premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
 	imageRadius: 27px;

@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
+#include "settings/settings_information.h" // Settings::OrderedAccounts().
 #include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
@@ -888,7 +889,7 @@ void AccountsLimitBox(
 	const auto defaultLimit = Main::Domain::kMaxAccounts;
 	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
 
-	const auto &accounts = session->domain().accounts();
+	const auto accounts = Settings::OrderedAccounts();
 	const auto current = int(accounts.size());
 
 	auto text = tr::lng_accounts_limit1(
@@ -909,7 +910,7 @@ void AccountsLimitBox(
 		current,
 		(current == premiumLimit) ? premiumLimit : (current * 2),
 		std::nullopt,
-		&st::premiumIconFiles);
+		&st::premiumIconAccounts);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
 	Ui::Premium::AddLimitRow(top, 0, std::nullopt, defaultLimit);
 	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
@@ -935,9 +936,8 @@ void AccountsLimitBox(
 		box->addButton(tr::lng_continue(), [=]() mutable {
 			const auto ref = QString();
 
-			const auto &accounts = session->domain().accounts();
 			const auto wasAccount = &session->account();
-			const auto nowAccount = accounts[group->value()].account.get();
+			const auto nowAccount = accounts[group->value()];
 			if (wasAccount == nowAccount) {
 				Settings::ShowPremium(session, ref);
 				return;
@@ -967,9 +967,8 @@ void AccountsLimitBox(
 
 	auto &&entries = ranges::views::all(
 		accounts
-	) | ranges::views::transform([&](
-			const Main::Domain::AccountWithIndex &d) {
-		const auto user = d.account->session().user();
+	) | ranges::views::transform([&](not_null<Main::Account*> account) {
+		const auto user = account->session().user();
 		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
 	});
 

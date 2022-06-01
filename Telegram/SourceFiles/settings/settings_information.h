@@ -13,6 +13,10 @@ namespace Dialogs::Ui {
 struct UnreadBadgeStyle;
 } // namespace Dialogs::Ui
 
+namespace Main {
+class Account;
+} // namespace Main
+
 namespace Settings {
 
 class Information : public Section<Information> {
@@ -35,6 +39,7 @@ AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller);
 
+[[nodiscard]] std::vector<not_null<::Main::Account*>> OrderedAccounts();
 [[nodiscard]] Dialogs::Ui::UnreadBadgeStyle BadgeStyle();
 
 struct UnreadBadge {
