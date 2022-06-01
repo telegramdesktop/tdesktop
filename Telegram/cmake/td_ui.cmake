@@ -228,8 +228,12 @@ PRIVATE
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp
     ui/controls/window_outdated_bar.h
+    ui/effects/fireworks_animation.cpp
+    ui/effects/fireworks_animation.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/round_checkbox.cpp
+    ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
     ui/text/format_song_name.cpp

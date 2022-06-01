@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+constexpr auto kAnimationTimerDelta = crl::time(7);
 constexpr auto kWideScale = 3;
 
 class CheckCaches : public QObject {
@@ -64,9 +65,9 @@ QPixmap PrepareOuterWide(const style::RoundCheckbox *st) {
 	const auto size = st->size;
 	const auto wideSize = size * kWideScale;
 	auto result = QImage(
-		QSize(wideSize, wideSize) * cIntRetinaFactor(),
+		QSize(wideSize, wideSize) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
@@ -87,9 +88,9 @@ QPixmap PrepareOuterWide(const style::RoundCheckbox *st) {
 QPixmap PrepareInner(const style::RoundCheckbox *st, bool displayInactive) {
 	const auto size = st->size;
 	auto result = QImage(
-		QSize(size, size) * cIntRetinaFactor(),
+		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
@@ -110,9 +111,9 @@ QPixmap PrepareInner(const style::RoundCheckbox *st, bool displayInactive) {
 QPixmap PrepareCheck(const style::RoundCheckbox *st) {
 	const auto size = st->size;
 	auto result = QImage(
-		QSize(size, size) * cIntRetinaFactor(),
+		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
@@ -138,7 +139,7 @@ QRect WideDestRect(
 }
 
 int CheckCaches::countFramesCount(const style::RoundCheckbox *st) {
-	return (st->duration / AnimationTimerDelta) + 1;
+	return (st->duration / kAnimationTimerDelta) + 1;
 }
 
 CheckCaches::Frames &CheckCaches::framesForStyle(
@@ -193,8 +194,8 @@ QPixmap CheckCaches::paintFrame(
 	const auto size = st->size;
 	const auto wideSize = size * kWideScale;
 	const auto skip = (wideSize - size) / 2;
-	auto result = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QImage(wideSize * style::DevicePixelRatio(), wideSize * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 
 	const auto roundProgress = (progress >= st->bgDuration)
@@ -214,7 +215,7 @@ QPixmap CheckCaches::paintFrame(
 			const auto outerTo = WideDestRect(st, skip, skip, outerScale);
 			const auto outerFrom = QRect(
 				QPoint(0, 0),
-				QSize(wideSize, wideSize) * cIntRetinaFactor());
+				QSize(wideSize, wideSize) * style::DevicePixelRatio());
 			p.drawPixmap(outerTo, frames.outerWide, outerFrom);
 		}
 		p.drawPixmap(skip, skip, frames.inner);
@@ -223,7 +224,7 @@ QPixmap CheckCaches::paintFrame(
 		const auto checkTo = QRect(skip, skip, divider, st->size);
 		const auto checkFrom = QRect(
 			QPoint(0, 0),
-			QSize(divider, st->size) * cIntRetinaFactor());
+			QSize(divider, st->size) * style::DevicePixelRatio());
 		p.drawPixmap(checkTo, frames.check, checkFrom);
 
 		p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -265,7 +266,7 @@ void RoundCheckbox::paint(Painter &p, int x, int y, int outerWidth, float64 mast
 		return;
 	}
 
-	auto cacheSize = kWideScale * _st.size * cIntRetinaFactor();
+	auto cacheSize = kWideScale * _st.size * style::DevicePixelRatio();
 	auto cacheFrom = QRect(0, 0, cacheSize, cacheSize);
 	auto inactiveTo = WideDestRect(&_st, x, y, masterScale);
 
@@ -326,8 +327,8 @@ void RoundCheckbox::prepareInactiveCache() {
 	auto wideSize = _st.size * kWideScale;
 	auto ellipse = QRect((wideSize - _st.size) / 2, (wideSize - _st.size) / 2, _st.size, _st.size);
 
-	auto cacheBg = QImage(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	cacheBg.setDevicePixelRatio(cRetinaFactor());
+	auto cacheBg = QImage(wideSize * style::DevicePixelRatio(), wideSize * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+	cacheBg.setDevicePixelRatio(style::DevicePixelRatio());
 	cacheBg.fill(Qt::transparent);
 	auto cacheFg = cacheBg;
 	if (_st.bgInactive) {
@@ -425,8 +426,8 @@ void RoundImageCheckbox::prepareWideCache() {
 	if (_wideCache.isNull()) {
 		auto size = _st.imageRadius * 2;
 		auto wideSize = size * kWideScale;
-		QImage cache(wideSize * cIntRetinaFactor(), wideSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-		cache.setDevicePixelRatio(cRetinaFactor());
+		QImage cache(wideSize * style::DevicePixelRatio(), wideSize * style::DevicePixelRatio(), QImage::Format_ARGB32_Premultiplied);
+		cache.setDevicePixelRatio(style::DevicePixelRatio());
 		{
 			Painter p(&cache);
 			p.setCompositionMode(QPainter::CompositionMode_Source);
