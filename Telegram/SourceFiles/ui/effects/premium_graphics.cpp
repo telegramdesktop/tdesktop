@@ -474,6 +474,9 @@ Line::Line(
 
 	sizeValue(
 	) | rpl::start_with_next([=](const QSize &s) {
+		if (s.isEmpty()) {
+			return;
+		}
 		_leftWidth = (s.width() / 2);
 		_rightWidth = (s.width() - _leftWidth);
 		recache(s);
@@ -620,12 +623,6 @@ void AddAccountsRow(
 	const auto state = container->lifetime().make_state<State>();
 	const auto group = args.group;
 
-	group->setChangedCallback([=](int value) {
-		for (auto i = 0; i < state->accounts.size(); i++) {
-			state->accounts[i].checkbox.setChecked(i == value);
-		}
-	});
-
 	const auto imageRadius = args.st.imageRadius;
 	const auto checkSelectWidth = args.st.selectWidth;
 	const auto nameFg = args.stNameFg;
@@ -675,7 +672,9 @@ void AddAccountsRow(
 			.name = std::move(name),
 		});
 		const auto index = int(state->accounts.size()) - 1;
-		state->accounts[index].checkbox.setChecked(index == group->value());
+		state->accounts[index].checkbox.setChecked(
+			index == group->value(),
+			anim::type::instant);
 
 		widget->paintRequest(
 		) | rpl::start_with_next([=] {
@@ -733,6 +732,12 @@ void AddAccountsRow(
 					photoWidth)));
 		}
 	}, container->lifetime());
+
+	group->setChangedCallback([=](int value) {
+		for (auto i = 0; i < state->accounts.size(); i++) {
+			state->accounts[i].checkbox.setChecked(i == value);
+		}
+	});
 }
 
 QGradientStops LimitGradientStops() {
