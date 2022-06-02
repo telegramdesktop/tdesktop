@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
 #include "window/window_session_controller.h"
+#include "data/data_chat_filters.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -710,6 +711,9 @@ void FiltersLimitBox(
 		session,
 		"dialog_filters_limit_premium",
 		20);
+	const auto current = float64(ranges::count_if(
+		session->data().chatsFilters().list(),
+		[](const Data::ChatFilter &f) { return f.id() != FilterId(); }));
 
 	auto text = rpl::combine(
 		tr::lng_filters_limit1(
@@ -733,7 +737,7 @@ void FiltersLimitBox(
 		tr::lng_filters_limit_title(),
 		std::move(text),
 		"dialog_filters",
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconFolders },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders },
 		premium);
 }
 

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
@@ -490,8 +491,11 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	auto showSuggestions = rpl::combine(
 		suggested->value(),
-		rowsCount->value()
-	) | rpl::map(rpl::mappers::_1 > 0 && rpl::mappers::_2 < limit());
+		rowsCount->value(),
+		Data::AmPremiumValue(session)
+	) | rpl::map([limit](int suggested, int count, bool) {
+		return suggested > 0 && count < limit();
+	});
 	nonEmptyAbout->toggleOn(std::move(showSuggestions));
 
 	const auto prepareGoodIdsForNewFilters = [=] {

@@ -194,7 +194,8 @@ void FiltersMenu::refresh() {
 	_reorder->cancel();
 
 	_reorder->clearPinnedIntervals();
-	const auto maxLimit = CurrentPremiumFiltersLimit(&_session->session());
+	const auto maxLimit = (reorderAll ? 1 : 0)
+		+ CurrentPremiumFiltersLimit(&_session->session());
 	const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
 	if (!reorderAll) {
 		_reorder->addPinnedInterval(0, 1);
@@ -204,8 +205,12 @@ void FiltersMenu::refresh() {
 		std::max(1, int(filters->list().size()) - maxLimit));
 
 	auto now = base::flat_map<int, base::unique_qptr<Ui::SideBarButton>>();
+	const auto &currentFilter = _session->activeChatsFilterCurrent();
 	for (const auto &filter : filters->list()) {
 		const auto nextIsLocked = (now.size() >= premiumFrom);
+		if (nextIsLocked && (currentFilter == filter.id())) {
+			_session->setActiveChatsFilter(FilterId(0));
+		}
 		auto button = prepareButton(
 			_list,
 			filter.id(),
