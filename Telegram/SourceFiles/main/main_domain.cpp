@@ -467,11 +467,11 @@ void Domain::scheduleWriteAccounts() {
 }
 
 int Domain::maxAccounts() const {
-	const auto isAnyPreimium = ranges::any_of(accounts(), [](
+	const auto premiumCount = ranges::count_if(accounts(), [](
 			const Main::Domain::AccountWithIndex &d) {
-		return d.account->session().premium();
+		return d.account->sessionExists() && d.account->session().premium();
 	});
-	return isAnyPreimium ? kPremiumMaxAccounts : kMaxAccounts;
+	return std::min(int(premiumCount) + kMaxAccounts, kPremiumMaxAccounts);
 }
 
 rpl::producer<int> Domain::maxAccountsChanges() const {

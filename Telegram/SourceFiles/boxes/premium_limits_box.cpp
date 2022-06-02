@@ -887,18 +887,25 @@ void FileSizeLimitBox(
 void AccountsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
-	const auto premium = session->premium();
-
 	const auto defaultLimit = Main::Domain::kMaxAccounts;
 	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
 
 	const auto accounts = session->domain().orderedAccounts();
 	const auto current = int(accounts.size());
 
-	auto text = tr::lng_accounts_limit1(
-		lt_count,
-		rpl::single<float64>(premiumLimit),
-		Ui::Text::RichLangValue);
+	auto text = rpl::combine(
+		tr::lng_accounts_limit1(
+			lt_count,
+			rpl::single<float64>(current),
+			Ui::Text::RichLangValue),
+		((current > premiumLimit)
+			? rpl::single(TextWithEntities())
+			: tr::lng_accounts_limit2(Ui::Text::RichLangValue))
+	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
+		return b.text.isEmpty()
+			? a
+			: a.append(QChar(' ')).append(std::move(b));
+	});
 
 	box->setWidth(st::boxWideWidth);
 
@@ -911,7 +918,7 @@ void AccountsLimitBox(
 		BoxShowFinishes(box),
 		0,
 		current,
-		(current == premiumLimit) ? premiumLimit : (current * 2),
+		(current > defaultLimit) ? current : (defaultLimit * 2),
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
@@ -930,37 +937,38 @@ void AccountsLimitBox(
 		padding);
 
 
-	if (premium) {
+	if (current > premiumLimit) {
+		// Probably an unreachable state.
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
-	} else {
-		auto switchingLifetime = std::make_shared<rpl::lifetime>();
-		box->addButton(tr::lng_continue(), [=]() mutable {
-			const auto ref = QString();
-
-			const auto wasAccount = &session->account();
-			const auto nowAccount = accounts[group->value()];
-			if (wasAccount == nowAccount) {
-				Settings::ShowPremium(session, ref);
-				return;
-			}
-
-			if (*switchingLifetime) {
-				return;
-			}
-			*switchingLifetime = session->domain().activeSessionChanges(
-			) | rpl::start_with_next([=](Main::Session *session) mutable {
-				if (session) {
-					Settings::ShowPremium(session, ref);
-				}
-				if (switchingLifetime) {
-					base::take(switchingLifetime)->destroy();
-				}
-			});
-			session->domain().activate(nowAccount);
-		});
+		return;
 	}
+	auto switchingLifetime = std::make_shared<rpl::lifetime>();
+	box->addButton(tr::lng_continue(), [=]() mutable {
+		const auto ref = QString();
+
+		const auto wasAccount = &session->account();
+		const auto nowAccount = accounts[group->value()];
+		if (wasAccount == nowAccount) {
+			Settings::ShowPremium(session, ref);
+			return;
+		}
+
+		if (*switchingLifetime) {
+			return;
+		}
+		*switchingLifetime = session->domain().activeSessionChanges(
+		) | rpl::start_with_next([=](Main::Session *session) mutable {
+			if (session) {
+				Settings::ShowPremium(session, ref);
+			}
+			if (switchingLifetime) {
+				base::take(switchingLifetime)->destroy();
+			}
+		});
+		session->domain().activate(nowAccount);
+	});
 
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
@@ -970,10 +978,12 @@ void AccountsLimitBox(
 
 	auto &&entries = ranges::views::all(
 		accounts
-	) | ranges::views::transform([&](not_null<Main::Account*> account) {
+	) | ranges::views::filter([&](not_null<Main::Account*> account) {
+		return account->sessionExists() && !account->session().premium();
+	}) | ranges::views::transform([&](not_null<Main::Account*> account) {
 		const auto user = account->session().user();
 		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
-	});
+	}) | ranges::views::take(defaultLimit);
 
 	auto args = Args{
 		.group = group,

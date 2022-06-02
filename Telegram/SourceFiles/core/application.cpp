@@ -85,8 +85,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/connection_box.h"
+#include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/share_box.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtGui/QGuiApplication>
@@ -283,6 +283,31 @@ void Application::run() {
 	_domain->activeChanges(
 	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
 		_primaryWindow->showAccount(account);
+	}, _primaryWindow->widget()->lifetime());
+
+	(
+		_domain->activeValue(
+		) | rpl::to_empty | rpl::filter([=] {
+			return _domain->started();
+		}) | rpl::take(1)
+	) | rpl::then(
+		_domain->accountsChanges()
+	) | rpl::map([=] {
+		return (_domain->accounts().size() > Main::Domain::kMaxAccounts)
+			? _domain->activeChanges()
+			: rpl::never<not_null<Main::Account*>>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
+		const auto ordered = _domain->orderedAccounts();
+		const auto it = ranges::find(ordered, account);
+		if (it != end(ordered)) {
+			const auto index = std::distance(begin(ordered), it);
+			if ((index + 1) > _domain->maxAccounts()) {
+				_primaryWindow->show(Box(
+					AccountsLimitBox,
+					&account->session()));
+			}
+		}
 	}, _primaryWindow->widget()->lifetime());
 
 	QCoreApplication::instance()->installEventFilter(this);
