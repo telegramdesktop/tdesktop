@@ -39,6 +39,8 @@ class Session;
 
 namespace InlineBots {
 class AttachWebView;
+enum class PeerType : uint8;
+using PeerTypes = base::flags<PeerType>;
 } // namespace InlineBots
 
 namespace Calls {
@@ -196,6 +198,7 @@ public:
 		bool startAutoSubmit = false;
 		QString attachBotUsername;
 		std::optional<QString> attachBotToggleCommand;
+		InlineBots::PeerTypes attachBotChooseTypes;
 		std::optional<QString> voicechatHash;
 		FullMsgId clickFromMessageId;
 	};

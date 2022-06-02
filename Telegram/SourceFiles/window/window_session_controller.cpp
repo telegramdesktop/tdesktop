@@ -376,7 +376,9 @@ void SessionNavigation::showPeerByLinkResolved(
 			bot->session().attachWebView().requestAddToMenu(
 				contextUser,
 				bot,
-				*info.attachBotToggleCommand);
+				*info.attachBotToggleCommand,
+				parentController(),
+				info.attachBotChooseTypes);
 		} else {
 			crl::on_main(this, [=] {
 				showPeerHistory(peer->id, params, msgId);

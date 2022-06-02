@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "payments/payments_checkout_process.h"
 #include "storage/storage_account.h"
+#include "boxes/peer_list_controllers.h"
 #include "lang/lang_keys.h"
 #include "base/random.h"
 #include "base/timer_rpl.h"
@@ -112,6 +113,45 @@ struct ParsedBot {
 		result->icon->forceToCache(true);
 	}
 	return result;
+}
+
+void ShowChooseBox(
+		not_null<Window::SessionController*> controller,
+		PeerTypes types,
+		Fn<void(not_null<PeerData*>)> callback) {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto done = [=](not_null<PeerData*> peer) mutable {
+		if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+		callback(peer);
+	};
+	auto filter = [=](not_null<PeerData*> peer) -> bool {
+		if (!peer->canWrite()) {
+			return false;
+		} else if (const auto user = peer->asUser()) {
+			if (user->isBot()) {
+				return (types & PeerType::Bot);
+			} else {
+				return (types & PeerType::User);
+			}
+		} else if (peer->isBroadcast()) {
+			return (types & PeerType::Broadcast);
+		} else {
+			return (types & PeerType::Group);
+		}
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = controller->show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(
+			&controller->session(),
+			std::move(done),
+			std::move(filter)),
+		std::move(initBox)), Ui::LayerOption::KeepOther);
 }
 
 [[nodiscard]] base::flat_set<not_null<AttachWebView*>> &ActiveWebViews() {
@@ -332,6 +372,22 @@ bool PeerMatchesTypes(
 	return (types & PeerType::Group);
 }
 
+PeerTypes ParseChooseTypes(const QString &choose) {
+	auto result = PeerTypes();
+	for (const auto entry : choose.split(QChar(' '))) {
+		if (entry == "users") {
+			result |= PeerType::User;
+		} else if (entry == "bots") {
+			result |= PeerType::Bot;
+		} else if (entry == "groups") {
+			result |= PeerType::Group;
+		} else if (entry == "channels") {
+			result |= PeerType::Broadcast;
+		}
+	}
+	return result;
+}
+
 AttachWebView::AttachWebView(not_null<Main::Session*> session)
 : _session(session) {
 }
@@ -465,14 +521,18 @@ void AttachWebView::requestBots() {
 void AttachWebView::requestAddToMenu(
 		PeerData *peer,
 		not_null<UserData*> bot,
-		const QString &startCommand) {
+		const QString &startCommand,
+		Window::SessionController *controller,
+		PeerTypes chooseTypes) {
 	if (!bot->isBot() || !bot->botInfo->supportsAttachMenu) {
 		Ui::ShowMultilineToast({
 			.text = { tr::lng_bot_menu_not_supported(tr::now) },
 		});
 		return;
 	}
+	_addToMenuChooseController = base::make_weak(controller);
 	_addToMenuStartCommand = startCommand;
+	_addToMenuChooseTypes = chooseTypes;
 	_addToMenuPeer = peer;
 	if (_addToMenuId) {
 		if (_addToMenuBot == bot) {
@@ -487,9 +547,24 @@ void AttachWebView::requestAddToMenu(
 		_addToMenuId = 0;
 		const auto bot = base::take(_addToMenuBot);
 		const auto contextPeer = base::take(_addToMenuPeer);
+		const auto chooseTypes = base::take(_addToMenuChooseTypes);
 		const auto startCommand = base::take(_addToMenuStartCommand);
-		const auto open = [=] {
-			if (!contextPeer) {
+		const auto chooseController = base::take(_addToMenuChooseController);
+		const auto open = [=](PeerTypes types) {
+			if (const auto useTypes = chooseTypes & types) {
+				if (const auto strong = chooseController.get()) {
+					const auto callback = [=](not_null<PeerData*> peer) {
+						strong->showPeerHistory(peer);
+						request(
+							nullptr,
+							peer,
+							bot,
+							{ .startCommand = startCommand });
+					};
+					ShowChooseBox(strong, useTypes, callback);
+				}
+				return true;
+			} else if (!contextPeer) {
 				return false;
 			}
 			request(
@@ -503,11 +578,14 @@ void AttachWebView::requestAddToMenu(
 			_session->data().processUsers(data.vusers());
 			if (const auto parsed = ParseAttachBot(_session, data.vbot())) {
 				if (bot == parsed->user) {
+					const auto types = parsed->types;
 					if (parsed->inactive) {
-						confirmAddToMenu(*parsed, open);
+						confirmAddToMenu(*parsed, [=] {
+							open(types);
+						});
 					} else {
 						requestBots();
-						if (!open()) {
+						if (!open(types)) {
 							Ui::ShowMultilineToast({
 								.text = {
 									tr::lng_bot_menu_already_added(tr::now) },

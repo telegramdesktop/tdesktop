@@ -173,7 +173,8 @@ class ChooseRecipientBoxController
 public:
 	ChooseRecipientBoxController(
 		not_null<Main::Session*> session,
-		FnMut<void(not_null<PeerData*>)> callback);
+		FnMut<void(not_null<PeerData*>)> callback,
+		Fn<bool(not_null<PeerData*>)> filter = nullptr);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -189,5 +190,6 @@ protected:
 private:
 	const not_null<Main::Session*> _session;
 	FnMut<void(not_null<PeerData*>)> _callback;
+	Fn<bool(not_null<PeerData*>)> _filter;
 
 };

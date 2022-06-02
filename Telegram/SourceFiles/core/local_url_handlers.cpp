@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
 #include "base/qt/qt_common_adapters.h"
 #include "apiwrap.h"
@@ -387,6 +388,8 @@ bool ResolveUsernameOrPhone(
 		.attachBotToggleCommand = (params.contains(u"startattach"_q)
 			? params.value(u"startattach"_q)
 			: std::optional<QString>()),
+		.attachBotChooseTypes = InlineBots::ParseChooseTypes(
+			params.value(u"choose"_q)),
 		.voicechatHash = (params.contains(u"livestream"_q)
 			? std::make_optional(params.value(u"livestream"_q))
 			: params.contains(u"videochat"_q)

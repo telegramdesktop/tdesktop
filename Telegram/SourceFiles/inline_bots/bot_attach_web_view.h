@@ -47,6 +47,7 @@ using PeerTypes = base::flags<PeerType>;
 	not_null<PeerData*> peer,
 	not_null<UserData*> bot,
 	PeerTypes types);
+[[nodiscard]] PeerTypes ParseChooseTypes(const QString &choose);
 
 struct AttachWebViewBot {
 	not_null<UserData*> user;
@@ -97,7 +98,9 @@ public:
 	void requestAddToMenu(
 		PeerData *peer,
 		not_null<UserData*> bot,
-		const QString &startCommand);
+		const QString &startCommand,
+		Window::SessionController *controller = nullptr,
+		PeerTypes chooseTypes = {});
 	void removeFromMenu(not_null<UserData*> bot);
 
 	static void ClearAll();
@@ -147,6 +150,8 @@ private:
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
 	QString _addToMenuStartCommand;
+	base::weak_ptr<Window::SessionController> _addToMenuChooseController;
+	PeerTypes _addToMenuChooseTypes;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;

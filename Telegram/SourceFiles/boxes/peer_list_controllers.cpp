@@ -480,10 +480,12 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createRow(
 
 ChooseRecipientBoxController::ChooseRecipientBoxController(
 	not_null<Main::Session*> session,
-	FnMut<void(not_null<PeerData*>)> callback)
+	FnMut<void(not_null<PeerData*>)> callback,
+	Fn<bool(not_null<PeerData*>)> filter)
 : ChatsListBoxController(session)
 , _session(session)
-, _callback(std::move(callback)) {
+, _callback(std::move(callback))
+, _filter(std::move(filter)) {
 }
 
 Main::Session &ChooseRecipientBoxController::session() const {
@@ -506,7 +508,9 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 auto ChooseRecipientBoxController::createRow(
 		not_null<History*> history) -> std::unique_ptr<Row> {
 	const auto peer = history->peer;
-	const auto skip = (peer->isBroadcast() && !peer->canWrite())
-		|| peer->isRepliesChat();
+	const auto skip = _filter
+		? !_filter(peer)
+		: ((peer->isBroadcast() && !peer->canWrite())
+			|| peer->isRepliesChat());
 	return skip ? nullptr : std::make_unique<Row>(history);
 }
