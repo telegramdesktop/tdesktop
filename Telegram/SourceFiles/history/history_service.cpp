@@ -1048,23 +1048,35 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 	}();
 
 	if (invoiceTitle.text.isEmpty()) {
-		result.text = tr::lng_action_payment_done(
-			tr::now,
-			lt_amount,
-			{ .text = payment->amount },
-			lt_user,
-			{ .text = history()->peer->name },
-			Ui::Text::WithEntities);
+		if (payment->recurringUsed) {
+			result.text = tr::lng_action_payment_used_recurring(
+				tr::now,
+				lt_amount,
+				{ .text = payment->amount },
+				Ui::Text::WithEntities);
+		} else {
+			result.text = (payment->recurringInit
+				? tr::lng_action_payment_init_recurring
+				: tr::lng_action_payment_done)(
+					tr::now,
+					lt_amount,
+					{ .text = payment->amount },
+					lt_user,
+					{ .text = history()->peer->name },
+					Ui::Text::WithEntities);
+		}
 	} else {
-		result.text = tr::lng_action_payment_done_for(
-			tr::now,
-			lt_amount,
-			{ .text = payment->amount },
-			lt_user,
-			{ .text = history()->peer->name },
-			lt_invoice,
-			invoiceTitle,
-			Ui::Text::WithEntities);
+		result.text = (payment->recurringInit
+			? tr::lng_action_payment_init_recurring_for
+			: tr::lng_action_payment_done_for)(
+				tr::now,
+				lt_amount,
+				{ .text = payment->amount },
+				lt_user,
+				{ .text = history()->peer->name },
+				lt_invoice,
+				invoiceTitle,
+				Ui::Text::WithEntities);
 		if (payment->msg) {
 			result.links.push_back(payment->lnk);
 		}
@@ -1363,6 +1375,8 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 		const auto id = fullId();
 		const auto owner = &history()->owner();
 		payment->slug = data.vinvoice_slug().value_or_empty();
+		payment->recurringInit = data.is_recurring_init();
+		payment->recurringUsed = data.is_recurring_used();
 		payment->amount = Ui::FillAmountAndCurrency(amount, currency);
 		payment->invoiceLink = std::make_shared<LambdaClickHandler>([=](
 				ClickContext context) {

@@ -430,7 +430,13 @@ QByteArray SerializeMessage(
 		pushAction("send_payment");
 		push("amount", data.amount);
 		push("currency", data.currency);
+		const auto amount = FormatMoneyAmount(data.amount, data.currency);
 		pushReplyToMsgId("invoice_message_id");
+		if (data.recurringUsed) {
+			push("recurring", "used");
+		} else if (data.recurringInit) {
+			push("recurring", "init");
+		}
 	}, [&](const ActionPhoneCall &data) {
 		pushActor();
 		pushAction("phone_call");

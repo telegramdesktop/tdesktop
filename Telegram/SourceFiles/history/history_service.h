@@ -37,6 +37,8 @@ struct HistoryServicePayment
 	QString slug;
 	QString amount;
 	ClickHandlerPtr invoiceLink;
+	bool recurringInit = false;
+	bool recurringUsed = false;
 };
 
 struct HistoryServiceSelfDestruct

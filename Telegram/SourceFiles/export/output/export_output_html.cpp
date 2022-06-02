@@ -1001,10 +1001,18 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " in "
 			+ wrapReplyToLink("this game");
 	}, [&](const ActionPaymentSent &data) {
-		return "You have successfully transferred "
-			+ FormatMoneyAmount(data.amount, data.currency)
+		const auto amount = FormatMoneyAmount(data.amount, data.currency);
+		if (data.recurringUsed) {
+			return "You were charged " + amount + " via recurring payment";
+		}
+		auto result =  "You have successfully transferred "
+			+ amount
 			+ " for "
 			+ wrapReplyToLink("this invoice");
+		if (data.recurringInit) {
+			result += " and allowed future recurring payments";
+		}
+		return result;
 	}, [&](const ActionPhoneCall &data) {
 		return QByteArray();
 	}, [&](const ActionScreenshotTaken &data) {

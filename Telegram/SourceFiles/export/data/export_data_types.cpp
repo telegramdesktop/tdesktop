@@ -1023,6 +1023,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionPaymentSent();
 		content.currency = ParseString(data.vcurrency());
 		content.amount = data.vtotal_amount().v;
+		content.recurringInit = data.is_recurring_init();
+		content.recurringUsed = data.is_recurring_used();
 		result.content = content;
 	}, [&](const MTPDmessageActionPhoneCall &data) {
 		auto content = ActionPhoneCall();

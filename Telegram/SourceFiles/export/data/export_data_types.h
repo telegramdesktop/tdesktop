@@ -401,6 +401,8 @@ struct ActionGameScore {
 struct ActionPaymentSent {
 	Utf8String currency;
 	uint64 amount = 0;
+	bool recurringInit = false;
+	bool recurringUsed = false;
 };
 
 struct ActionPhoneCall {
