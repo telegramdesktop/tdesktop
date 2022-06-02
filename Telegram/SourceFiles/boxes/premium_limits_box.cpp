@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
-#include "settings/settings_information.h" // Settings::OrderedAccounts().
 #include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
@@ -893,7 +892,7 @@ void AccountsLimitBox(
 	const auto defaultLimit = Main::Domain::kMaxAccounts;
 	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
 
-	const auto accounts = Settings::OrderedAccounts();
+	const auto accounts = session->domain().orderedAccounts();
 	const auto current = int(accounts.size());
 
 	auto text = tr::lng_accounts_limit1(

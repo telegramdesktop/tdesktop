@@ -39,7 +39,6 @@ AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller);
 
-[[nodiscard]] std::vector<not_null<::Main::Account*>> OrderedAccounts();
 [[nodiscard]] Dialogs::Ui::UnreadBadgeStyle BadgeStyle();
 
 struct UnreadBadge {

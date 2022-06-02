@@ -140,6 +140,27 @@ const std::vector<Domain::AccountWithIndex> &Domain::accounts() const {
 	return _accounts;
 }
 
+std::vector<not_null<Account*>> Domain::orderedAccounts() const {
+	const auto order = Core::App().settings().accountsOrder();
+	auto accounts = ranges::views::all(
+		_accounts
+	) | ranges::views::transform([](const Domain::AccountWithIndex &a) {
+		return not_null{ a.account.get() };
+	}) | ranges::to_vector;
+	ranges::stable_sort(accounts, [&](
+			not_null<Account*> a,
+			not_null<Account*> b) {
+		const auto aIt = a->sessionExists()
+			? ranges::find(order, a->session().uniqueId())
+			: end(order);
+		const auto bIt = b->sessionExists()
+			? ranges::find(order, b->session().uniqueId())
+			: end(order);
+		return aIt < bIt;
+	});
+	return accounts;
+}
+
 rpl::producer<> Domain::accountsChanges() const {
 	return _accountsChanges.events();
 }
