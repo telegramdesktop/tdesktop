@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localstorage.h"
 #include "export/export_settings.h"
 #include "window/notifications_manager.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "facades.h"
 
 namespace Main {
@@ -326,6 +327,12 @@ void Domain::watchSession(not_null<Account*> account) {
 		) | rpl::start_with_next([=] {
 			scheduleUpdateUnreadBadge();
 		}, session->lifetime());
+
+		Data::AmPremiumValue(
+			session
+		) | rpl::start_with_next([=] {
+			_lastMaxAccounts = maxAccounts();
+		}, session->lifetime());
 	}, account->lifetime());
 
 	account->sessionChanges(
@@ -465,6 +472,10 @@ int Domain::maxAccounts() const {
 		return d.account->session().premium();
 	});
 	return isAnyPreimium ? kPremiumMaxAccounts : kMaxAccounts;
+}
+
+rpl::producer<int> Domain::maxAccountsChanges() const {
+	return _lastMaxAccounts.changes();
 }
 
 } // namespace Main

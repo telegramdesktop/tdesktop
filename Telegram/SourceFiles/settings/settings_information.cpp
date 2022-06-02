@@ -485,7 +485,8 @@ void SetupAccountsWrap(
 		QWidget *parent,
 		not_null<Window::SessionController*> window,
 		not_null<Main::Account*> account,
-		Fn<void()> callback) {
+		Fn<void()> callback,
+		bool locked) {
 	const auto active = (account == &Core::App().activeAccount());
 	const auto session = &account->session();
 	const auto user = session->user();
@@ -568,7 +569,7 @@ void SetupAccountsWrap(
 			return;
 		}
 		const auto addAction = Menu::CreateAddActionCallback(state->menu);
-		if (!state->menu && IsAltShift(raw->clickModifiers())) {
+		if (!state->menu && IsAltShift(raw->clickModifiers()) && !locked) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				raw,
 				st::popupMenuWithIcons);
@@ -589,9 +590,11 @@ void SetupAccountsWrap(
 			QGuiApplication::clipboard()->setText(phone.current().text);
 		}, &st::menuIconCopy);
 
-		addAction(tr::lng_menu_activate(tr::now), [=] {
-			Core::App().domain().activate(&session->account());
-		}, &st::menuIconProfile);
+		if (!locked) {
+			addAction(tr::lng_menu_activate(tr::now), [=] {
+				Core::App().domain().activate(&session->account());
+			}, &st::menuIconProfile);
+		}
 
 		auto logoutCallback = [=] {
 			const auto callback = [=](Fn<void()> &&close) {
@@ -657,10 +660,19 @@ void AccountsList::setup() {
 		for (const auto &[index, account] : list) {
 			if (_watched.emplace(account.get()).second) {
 				account->sessionChanges(
-				) | rpl::start_with_next([=](Main::Session *session) {
+				) | rpl::start_with_next([=] {
 					rebuild();
 				}, _outer->lifetime());
 			}
+		}
+		rebuild();
+	}, _outer->lifetime());
+
+	Core::App().domain().maxAccountsChanges(
+	) | rpl::start_with_next([=] {
+		// Full rebuild.
+		for (auto i = _watched.begin(); i != _watched.end(); i++) {
+			i->second = nullptr;
 		}
 		rebuild();
 	}, _outer->lifetime());
@@ -749,6 +761,7 @@ void AccountsList::rebuild() {
 		}
 	}, inner->lifetime());
 
+	const auto premiumLimit = _controller->session().domain().maxAccounts();
 	const auto list = _controller->session().domain().orderedAccounts();
 	for (const auto &account : list) {
 		auto i = _watched.find(account);
@@ -758,6 +771,7 @@ void AccountsList::rebuild() {
 		if (!account->sessionExists() || list.size() == 1) {
 			button = nullptr;
 		} else if (!button) {
+			const auto nextIsLocked = (inner->count() >= premiumLimit);
 			auto callback = [=] {
 				if (_reordering) {
 					return;
@@ -781,13 +795,20 @@ void AccountsList::rebuild() {
 				inner,
 				_controller,
 				account,
-				std::move(callback))));
+				std::move(callback),
+				nextIsLocked)));
 		}
 	}
 	inner->resizeToWidth(_outer->width());
 
+	const auto count = int(list.size());
+
+	_reorder->addPinnedInterval(
+		premiumLimit,
+		std::max(1, count - premiumLimit));
+
 	_addAccount->toggle(
-		(inner->count() < Main::Domain::kPremiumMaxAccounts),
+		(count < Main::Domain::kPremiumMaxAccounts),
 		anim::type::instant);
 
 	_reorder->start();

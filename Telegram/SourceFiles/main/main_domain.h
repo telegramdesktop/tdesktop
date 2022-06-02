@@ -42,6 +42,7 @@ public:
 	void finish();
 
 	[[nodiscard]] int maxAccounts() const;
+	[[nodiscard]] rpl::producer<int> maxAccountsChanges() const;
 
 	[[nodiscard]] Storage::Domain &local() const {
 		return *_local;
@@ -104,6 +105,8 @@ private:
 	int _unreadBadge = 0;
 	bool _unreadBadgeMuted = true;
 	bool _unreadBadgeUpdateScheduled = false;
+
+	rpl::variable<int> _lastMaxAccounts;
 
 	rpl::lifetime _activeLifetime;
 	rpl::lifetime _lifetime;
