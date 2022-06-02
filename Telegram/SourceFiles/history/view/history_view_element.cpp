@@ -565,12 +565,14 @@ void Element::refreshMedia(Element *replacing) {
 		&& Core::App().settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();
 		const auto emojiStickers = &session->emojiStickersPack();
+		const auto skipPremiumEffect = false;
 		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
 			_media = std::make_unique<UnwrappedMedia>(
 				this,
 				std::make_unique<Sticker>(
 					this,
 					sticker.document,
+					skipPremiumEffect,
 					replacing,
 					sticker.replacements));
 		} else {

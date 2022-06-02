@@ -635,10 +635,12 @@ std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 
 MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
-	not_null<DocumentData*> document)
+	not_null<DocumentData*> document,
+	bool skipPremiumEffect)
 : Media(parent)
 , _document(document)
-, _emoji(document->sticker() ? document->sticker()->alt : QString()) {
+, _emoji(document->sticker() ? document->sticker()->alt : QString())
+, _skipPremiumEffect(skipPremiumEffect) {
 	parent->history()->owner().registerDocumentItem(_document, parent);
 
 	if (!_emoji.isEmpty()) {
@@ -658,7 +660,10 @@ MediaFile::~MediaFile() {
 }
 
 std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaFile>(parent, _document);
+	return std::make_unique<MediaFile>(
+		parent,
+		_document,
+		!_document->session().premium());
 }
 
 DocumentData *MediaFile::document() const {
@@ -953,6 +958,7 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 			std::make_unique<HistoryView::Sticker>(
 				message,
 				_document,
+				_skipPremiumEffect,
 				replacing));
 	} else if (_document->isAnimation()
 		|| _document->isVideoFile()

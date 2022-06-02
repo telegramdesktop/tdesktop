@@ -61,16 +61,18 @@ constexpr auto kEmojiMultiplier = 3;
 Sticker::Sticker(
 	not_null<Element*> parent,
 	not_null<DocumentData*> data,
+	bool skipPremiumEffect,
 	Element *replacing,
 	const Lottie::ColorReplacements *replacements)
 : _parent(parent)
 , _data(data)
-, _replacements(replacements) {
+, _replacements(replacements)
+, _skipPremiumEffect(skipPremiumEffect) {
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else {
 		_data->loadThumbnail(parent->data()->fullId());
-		if (_data->isPremiumSticker()) {
+		if (hasPremiumEffect()) {
 			_data->loadVideoThumbnail(parent->data()->fullId());
 		}
 	}
@@ -78,8 +80,7 @@ Sticker::Sticker(
 		_lottie = media->stickerTakeLottie(_data, _replacements);
 		if (_lottie) {
 			//_externalInfo = media->externalLottieInfo();
-			if (_data->isPremiumSticker()
-				&& !_premiumEffectPlayed) {
+			if (hasPremiumEffect() && !_premiumEffectPlayed) {
 				_premiumEffectPlayed = true;
 				_parent->delegate()->elementStartPremium(_parent, replacing);
 			}
@@ -98,6 +99,10 @@ Sticker::~Sticker() {
 			_parent->checkHeavyPart();
 		}
 	}
+}
+
+bool Sticker::hasPremiumEffect() const {
+	return !_skipPremiumEffect && _data->isPremiumSticker();
 }
 
 bool Sticker::isEmojiSticker() const {
@@ -134,7 +139,7 @@ bool Sticker::readyToDrawLottie() {
 	ensureDataMediaCreated();
 	_dataMedia->checkStickerLarge();
 	const auto loaded = _dataMedia->loaded();
-	const auto waitingForPremium = _data->isPremiumSticker()
+	const auto waitingForPremium = hasPremiumEffect()
 		&& _dataMedia->videoThumbnailContent().isEmpty();
 	if (sticker->isLottie() && !_lottie && loaded && !waitingForPremium) {
 		setupLottie();
@@ -338,7 +343,7 @@ QPixmap Sticker::paintedPixmap(const PaintContext &context) const {
 }
 
 bool Sticker::mirrorHorizontal() const {
-	if (!_data->isPremiumSticker()) {
+	if (!hasPremiumEffect()) {
 		return false;
 	}
 	const auto rightAligned = _parent->hasOutLayout()
@@ -368,7 +373,7 @@ void Sticker::refreshLink() {
 			}
 		});
 	} else if (sticker && sticker->set) {
-		if (_data->isPremiumSticker()) {
+		if (hasPremiumEffect()) {
 			const auto weak = base::make_weak(this);
 			_link = std::make_shared<LambdaClickHandler>([weak] {
 				if (const auto that = weak.get()) {
@@ -423,7 +428,7 @@ void Sticker::dataMediaCreated() const {
 	if (_dataMedia->thumbnailPath().isEmpty()) {
 		_dataMedia->thumbnailWanted(_parent->data()->fullId());
 	}
-	if (_data->isPremiumSticker()) {
+	if (hasPremiumEffect()) {
 		_data->loadVideoThumbnail(_parent->data()->fullId());
 	}
 	_parent->history()->owner().registerHeavyViewPart(_parent);
@@ -448,7 +453,7 @@ void Sticker::setupLottie() {
 }
 
 void Sticker::checkPremiumEffectStart() {
-	if (!_premiumEffectPlayed && _data->isPremiumSticker()) {
+	if (!_premiumEffectPlayed && hasPremiumEffect()) {
 		_premiumEffectPlayed = true;
 		_parent->delegate()->elementStartPremium(_parent, nullptr);
 	}
@@ -488,7 +493,7 @@ void Sticker::unloadLottie() {
 		_lottieOncePlayed = false;
 	}
 	_lottie = nullptr;
-	if (_data->isPremiumSticker()) {
+	if (hasPremiumEffect()) {
 		_parent->delegate()->elementCancelPremium(_parent);
 	}
 	_parent->checkHeavyPart();

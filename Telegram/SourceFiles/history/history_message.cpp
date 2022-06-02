@@ -534,7 +534,11 @@ HistoryMessage::HistoryMessage(
 		postAuthor,
 		std::move(markup));
 
-	_media = std::make_unique<Data::MediaFile>(this, document);
+	const auto skipPremiumEffect = !history->session().premium();
+	_media = std::make_unique<Data::MediaFile>(
+		this,
+		document,
+		skipPremiumEffect);
 	setText(caption);
 }
 
@@ -1173,7 +1177,8 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return document->match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().processDocument(document));
+				item->history()->owner().processDocument(document),
+				media.is_nopremium());
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});

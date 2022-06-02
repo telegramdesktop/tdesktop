@@ -33,6 +33,7 @@ public:
 	Sticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> data,
+		bool skipPremiumEffect,
 		Element *replacing = nullptr,
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
@@ -87,6 +88,7 @@ public:
 		not_null<DocumentData*> document);
 
 private:
+	[[nodiscard]] bool hasPremiumEffect() const;
 	[[nodiscard]] bool isEmojiSticker() const;
 	void paintLottie(Painter &p, const PaintContext &context, const QRect &r);
 	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
@@ -121,6 +123,7 @@ private:
 	mutable bool _lottieOncePlayed = false;
 	mutable bool _premiumEffectPlayed = false;
 	mutable bool _nextLastDiceFrame = false;
+	bool _skipPremiumEffect = false;
 
 	rpl::lifetime _lifetime;
 

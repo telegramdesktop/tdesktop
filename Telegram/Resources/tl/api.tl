@@ -150,7 +150,7 @@ messageMediaPhoto#695150d7 flags:# photo:flags.0?Photo ttl_seconds:flags.2?int =
 messageMediaGeo#56e0d474 geo:GeoPoint = MessageMedia;
 messageMediaContact#70322949 phone_number:string first_name:string last_name:string vcard:string user_id:long = MessageMedia;
 messageMediaUnsupported#9f84f49e = MessageMedia;
-messageMediaDocument#9cb070d7 flags:# document:flags.0?Document ttl_seconds:flags.2?int = MessageMedia;
+messageMediaDocument#9cb070d7 flags:# nopremium:flags.3?true document:flags.0?Document ttl_seconds:flags.2?int = MessageMedia;
 messageMediaWebPage#a32dd600 webpage:WebPage = MessageMedia;
 messageMediaVenue#2ec0533f geo:GeoPoint title:string address:string provider:string venue_id:string venue_type:string = MessageMedia;
 messageMediaGame#fdb19008 game:Game = MessageMedia;
@@ -1386,7 +1386,7 @@ payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
 messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id:long text:string = messages.TranscribedAudio;
 
-help.premiumPromo#3f7ae6ee status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> = help.PremiumPromo;
+help.premiumPromo#e0360f1b status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> currency:string monthly_amount:long = help.PremiumPromo;
 
 ---functions---
 
