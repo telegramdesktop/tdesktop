@@ -20,6 +20,7 @@ struct InfoToggle;
 } // namespace style
 
 namespace Ui {
+class AbstractButton;
 class UserpicButton;
 class FlatLabel;
 template <typename Widget>
@@ -65,13 +66,14 @@ private:
 	void refreshUploadPhotoOverlay();
 	void setBadge(Badge badge);
 
-	not_null<PeerData*> _peer;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 	Badge _badge = Badge();
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
-	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
+	object_ptr<Ui::AbstractButton> _verifiedCheck = { nullptr };
 	object_ptr<Ui::RpWidget> _scamFakeBadge = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
@@ -184,6 +186,7 @@ Cover::Cover(
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
+, _controller(controller)
 , _peer(peer)
 , _userpic(
 	this,
@@ -304,6 +307,16 @@ void Cover::setBadge(Badge badge) {
 			Painter p(check);
 			icon->paint(p, 0, 0, check->width());
 		}, _verifiedCheck->lifetime());
+		if (_badge == Badge::Premium) {
+			const auto userId = peerToUser(_peer->id).bare;
+			_verifiedCheck->setClickedCallback([=] {
+				::Settings::ShowPremium(
+					_controller,
+					u"profile__%1"_q.arg(userId));
+			});
+		} else {
+			_verifiedCheck->setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
 	} break;
 	case Badge::Scam:
 	case Badge::Fake: {
