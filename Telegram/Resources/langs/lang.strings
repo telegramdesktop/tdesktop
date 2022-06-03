@@ -1918,8 +1918,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_sure_add_text_channel" = "Are you sure you want to add this bot as an admin in the channel {group}?";
 "lng_bot_sure_add" = "Add as admin";
 "lng_bot_no_webview" = "Unfortunately, you can't open such menu with current system configuration.";
-"lng_bot_remove_from_menu" = "Remove from menu";
+"lng_bot_remove_from_menu" = "Remove From Menu";
+"lng_bot_remove_from_menu_sure" = "Remove {bot} from the attachment menu?";
 "lng_bot_remove_from_menu_done" = "Bot removed from the menu.";
+"lng_bot_settings" = "Settings";
+"lng_bot_open" = "Open Bot";
+"lng_bot_reload_page" = "Reload Page";
 "lng_bot_add_to_menu" = "{bot} asks your permission to be added as an option to your attachments menu so you can access it from any chat.";
 "lng_bot_add_to_menu_done" = "Bot added to the menu.";
 "lng_bot_menu_not_supported" = "This bot isn't supported in the attach menu.";

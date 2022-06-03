@@ -56,6 +56,7 @@ struct AttachWebViewBot {
 	QString name;
 	PeerTypes types = 0;
 	bool inactive = false;
+	bool hasSettings = false;
 };
 
 class AttachWebView final : public base::has_weak_ptr {

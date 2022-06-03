@@ -108,7 +108,6 @@ private:
 
 	void call();
 	void groupCall();
-	void startGroupCall(not_null<ChannelData*> megagroup, bool confirmed);
 	void showPeerMenu();
 	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();

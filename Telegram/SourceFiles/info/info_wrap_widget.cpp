@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/search_field_controller.h"
 #include "core/application.h"
@@ -34,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "main/main_session.h"
-#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "data/data_download_manager.h"
 #include "data/data_session.h"
@@ -532,7 +532,7 @@ void WrapWidget::showTopBarMenu(bool check) {
 		}
 	});
 
-	const auto addAction = Menu::CreateAddActionCallback(_topBarMenu);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_topBarMenu);
 	if (key().isDownloads()) {
 		addAction(
 			tr::lng_context_delete_all_files(tr::now),

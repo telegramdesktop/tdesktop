@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "menu/add_action_callback.h"
 #include "ui/rp_widget.h"
 #include "ui/round_rect.h"
 #include "base/object_ptr.h"
@@ -27,6 +26,10 @@ class FlatLabel;
 class SettingsButton;
 class AbstractButton;
 } // namespace Ui
+
+namespace Ui::Menu {
+struct MenuCallback;
+} // namespace Ui::Menu
 
 namespace Window {
 class SessionController;
@@ -218,6 +221,6 @@ void FillMenu(
 	not_null<Window::SessionController*> controller,
 	Type type,
 	Fn<void(Type)> showOther,
-	Menu::MenuCallback addAction);
+	Ui::Menu::MenuCallback addAction);
 
 } // namespace Settings

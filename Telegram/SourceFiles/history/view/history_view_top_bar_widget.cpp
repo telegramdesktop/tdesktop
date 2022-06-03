@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
@@ -27,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/boxes/report_box.h" // Ui::ReportReason
@@ -306,7 +306,7 @@ void TopBarWidget::showPeerMenu() {
 	if (!created) {
 		return;
 	}
-	const auto addAction = Menu::CreateAddActionCallback(_menu);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
 		_menu = nullptr;

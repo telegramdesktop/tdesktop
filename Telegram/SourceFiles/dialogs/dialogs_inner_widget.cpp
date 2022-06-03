@@ -38,7 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "menu/add_action_callback_factory.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -48,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
@@ -1828,7 +1828,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
-		const auto addAction = Menu::CreateAddActionCallback(_menu);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 		Window::FillDialogsEntryMenu(
 			_controller,
 			Dialogs::EntryState{

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/object_ptr.h"
 #include "base/weak_ptr.h"
+#include "base/flags.h"
 
 namespace Ui {
 class BoxContent;
@@ -30,6 +31,15 @@ struct MainButtonArgs {
 	QString text;
 };
 
+enum class MenuButton {
+	None           = 0x00,
+	Settings       = 0x01,
+	OpenBot        = 0x02,
+	RemoveFromMenu = 0x04,
+};
+inline constexpr bool is_flag_type(MenuButton) { return true; }
+using MenuButtons = base::flags<MenuButton>;
+
 class Panel final : public base::has_weak_ptr {
 public:
 	Panel(
@@ -39,6 +49,8 @@ public:
 		Fn<void(QString)> handleInvoice,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
+		MenuButtons menuButtons,
+		Fn<void(MenuButton)> handleMenuButton,
 		Fn<Webview::ThemeParams()> themeParams);
 	~Panel();
 
@@ -92,6 +104,8 @@ private:
 	Fn<void(QString)> _handleInvoice;
 	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
+	MenuButtons _menuButtons = {};
+	Fn<void(MenuButton)> _handleMenuButton;
 	std::unique_ptr<SeparatePanel> _widget;
 	std::unique_ptr<WebviewWithLifetime> _webview;
 	std::unique_ptr<RpWidget> _webviewBottom;
@@ -117,6 +131,8 @@ struct Args {
 	Fn<void(QString)> handleInvoice;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
+	MenuButtons menuButtons;
+	Fn<void(MenuButton)> handleMenuButton;
 	Fn<Webview::ThemeParams()> themeParams;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);

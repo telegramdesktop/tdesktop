@@ -107,6 +107,7 @@ struct ParsedBot {
 				.name = qs(data.vshort_name()),
 				.types = ResolvePeerTypes(data.vpeer_types().v),
 				.inactive = data.is_inactive(),
+				.hasSettings = data.is_has_settings(),
 			} : std::optional<AttachWebViewBot>();
 	});
 	if (result && result->icon) {
@@ -818,6 +819,61 @@ void AttachWebView::show(
 		return value.text;
 	});
 	ActiveWebViews().emplace(this);
+
+	using Button = Ui::BotWebView::MenuButton;
+	const auto attached = ranges::find(
+		_attachBots,
+		not_null{ _bot },
+		&AttachWebViewBot::user);
+	const auto name = (attached != end(_attachBots))
+		? attached->name
+		: _bot->name;
+	const auto hasSettings = (attached != end(_attachBots))
+		&& !attached->inactive
+		&& attached->hasSettings;
+	const auto hasOpenBot = (_bot != _peer);
+	const auto hasRemoveFromMenu = (attached != end(_attachBots))
+		&& !attached->inactive;
+	const auto buttons = (hasSettings ? Button::Settings : Button::None)
+		| (hasOpenBot ? Button::OpenBot : Button::None)
+		| (hasRemoveFromMenu ? Button::RemoveFromMenu : Button::None);
+	const auto bot = _bot;
+
+	const auto handleMenuButton = crl::guard(this, [=](Button button) {
+		switch (button) {
+		case Button::OpenBot:
+			close();
+			if (bot->session().windows().empty()) {
+				Core::App().domain().activate(&bot->session().account());
+			}
+			if (!bot->session().windows().empty()) {
+				const auto window = bot->session().windows().front();
+				window->showPeerHistory(bot);
+				window->window().activate();
+			}
+			break;
+		case Button::RemoveFromMenu:
+			if (const auto strong = panel->get()) {
+				const auto done = crl::guard(this, [=] {
+					removeFromMenu(bot);
+					close();
+					if (const auto active = Core::App().activeWindow()) {
+						active->activate();
+					}
+				});
+				strong->showBox(Ui::MakeConfirmBox({
+					tr::lng_bot_remove_from_menu_sure(
+						tr::now,
+						lt_bot,
+						Ui::Text::Bold(name),
+						Ui::Text::WithEntities),
+					done,
+				}));
+			}
+			break;
+		}
+	});
+
 	_panel = Ui::BotWebView::Show({
 		.url = url,
 		.userDataPath = _session->domain().local().webviewDataPath(),
@@ -827,6 +883,8 @@ void AttachWebView::show(
 		.handleInvoice = handleInvoice,
 		.sendData = sendData,
 		.close = close,
+		.menuButtons = buttons,
+		.handleMenuButton = handleMenuButton,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
 	});
 	*panel = _panel.get();
@@ -881,7 +939,11 @@ void AttachWebView::confirmAddToMenu(
 		return;
 	}
 	_confirmAddBox = active->show(Ui::MakeConfirmBox({
-		tr::lng_bot_add_to_menu(tr::now, lt_bot, bot.name),
+		tr::lng_bot_add_to_menu(
+			tr::now,
+			lt_bot,
+			Ui::Text::Bold(bot.name),
+			Ui::Text::WithEntities),
 		done,
 	}));
 }

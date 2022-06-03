@@ -105,10 +105,6 @@ PRIVATE
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
 
-    menu/add_action_callback.cpp
-    menu/add_action_callback.h
-    menu/add_action_callback_factory.cpp
-    menu/add_action_callback_factory.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
     menu/menu_ttl.cpp

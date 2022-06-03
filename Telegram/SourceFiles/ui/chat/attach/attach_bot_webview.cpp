@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/separate_panel.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/wrap/fade_wrap.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
@@ -22,8 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/debug_log.h"
 #include "styles/style_payments.h"
 #include "styles/style_layers.h"
-
-#include "base/timer_rpl.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
@@ -334,12 +334,16 @@ Panel::Panel(
 	Fn<void(QString)> handleInvoice,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
+	MenuButtons menuButtons,
+	Fn<void(MenuButton)> handleMenuButton,
 	Fn<Webview::ThemeParams()> themeParams)
 : _userDataPath(userDataPath)
 , _handleLocalUri(std::move(handleLocalUri))
 , _handleInvoice(std::move(handleInvoice))
 , _sendData(std::move(sendData))
 , _close(std::move(close))
+, _menuButtons(menuButtons)
+, _handleMenuButton(std::move(handleMenuButton))
 , _widget(std::make_unique<SeparatePanel>()) {
 	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
@@ -531,6 +535,32 @@ bool Panel::showWebview(
 		label->show();
 		_webviewBottom->resize(_webviewBottom->width(), height);
 	}
+	_widget->setMenuAllowed([=](const Ui::Menu::MenuCallback &callback) {
+		if (_menuButtons & MenuButton::Settings) {
+			callback(tr::lng_bot_settings(tr::now), [=] {
+				postEvent("settings_button_pressed");
+			}, &st::menuIconSettings);
+		}
+		if (_menuButtons & MenuButton::OpenBot) {
+			callback(tr::lng_bot_open(tr::now), [=] {
+				_handleMenuButton(MenuButton::OpenBot);
+			}, &st::menuIconLeave);
+		}
+		callback(tr::lng_bot_reload_page(tr::now), [=] {
+			_webview->window.reload();
+		}, &st::menuIconRestore);
+		if (_menuButtons & MenuButton::RemoveFromMenu) {
+			const auto handler = [=] {
+				_handleMenuButton(MenuButton::RemoveFromMenu);
+			};
+			callback({
+				.text = tr::lng_bot_remove_from_menu(tr::now),
+				.handler = handler,
+				.icon = &st::menuIconDeleteAttention,
+				.isAttention = true,
+			});
+		}
+	});
 	return true;
 }
 
@@ -947,6 +977,8 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		std::move(args.handleInvoice),
 		std::move(args.sendData),
 		std::move(args.close),
+		args.menuButtons,
+		std::move(args.handleMenuButton),
 		std::move(args.themeParams));
 	if (!result->showWebview(args.url, params, std::move(args.bottom))) {
 		const auto available = Webview::Availability();

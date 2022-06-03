@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
@@ -38,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
-#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -568,7 +568,8 @@ void SetupAccountsWrap(
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		const auto addAction = Menu::CreateAddActionCallback(state->menu);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(
+			state->menu);
 		if (!state->menu && IsAltShift(raw->clickModifiers()) && !locked) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				raw,

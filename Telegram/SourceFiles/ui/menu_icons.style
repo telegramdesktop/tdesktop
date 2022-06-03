@@ -8,32 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 using "ui/colors.palette";
 using "ui/widgets/widgets.style";
 
-menuIconColor: windowBoldFg;
-menuIconAttentionColor: attentionButtonFg;
-
-menuIconSubmenuArrow: icon {{ "menu/submenu_arrow", menuIconColor }};
-
-menuWithIcons: Menu(defaultMenu) {
-	itemIconPosition: point(15px, 5px);
-	itemPadding: margins(54px, 8px, 17px, 8px);
-
-	arrow: menuIconSubmenuArrow;
-}
-menuWithIconsAttention: Menu(menuWithIcons) {
-	itemFg: attentionButtonFg;
-	itemFgOver: attentionButtonFgOver;
-}
-popupMenuWithIcons: PopupMenu(defaultPopupMenu) {
-	scrollPadding: margins(0px, 5px, 0px, 5px);
-	menu: menuWithIcons;
-}
-dropdownMenuWithIcons: DropdownMenu(defaultDropdownMenu) {
-	wrap: InnerDropdown(defaultInnerDropdown) {
-		scrollPadding: margins(0px, 5px, 0px, 5px);
-	}
-	menu: menuWithIcons;
-}
-
 menuIconReactions: icon {{ "menu/read_reactions", menuIconColor }};
 menuIconReply: icon {{ "menu/reply", menuIconColor }};
 menuIconViewReplies: icon {{ "menu/view_replies", menuIconColor }};
@@ -112,6 +86,7 @@ menuIconSoundAdd: icon {{ "menu/sound_add", menuIconColor }};
 menuIconFile: icon {{ "menu/file", menuIconColor }};
 menuIconPhoto: icon {{ "menu/image", menuIconColor }};
 menuIconAddToFolder: icon {{ "menu/add_to_folder", menuIconColor }};
+menuIconLeave: icon {{ "menu/leave", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
