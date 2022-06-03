@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/format_values.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
@@ -166,6 +167,7 @@ using Order = std::vector<QString>;
 }
 
 [[nodiscard]] not_null<Ui::RpWidget*> CreateSubscribeButton(
+		not_null<Window::SessionController*> controller,
 		not_null<Ui::RpWidget*> parent,
 		Fn<void()> callback) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
@@ -177,9 +179,21 @@ using Order = std::vector<QString>;
 	const auto &st = st::premiumPreviewBox.button;
 	result->resize(parent->width(), st.height);
 
+	const auto premium = &controller->session().api().premium();
+	const auto computeCost = [=] {
+		const auto amount = premium->monthlyAmount();
+		const auto currency = premium->monthlyCurrency();
+		const auto valid = (amount > 0) && !currency.isEmpty();
+		return Ui::FillAmountAndCurrency(
+			valid ? amount : 500,
+			valid ? currency : "USD");
+	};
+
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		result,
-		tr::lng_premium_summary_button(tr::now, lt_cost, "$5"),
+		tr::lng_premium_summary_button(
+			lt_cost,
+			premium->statusTextValue() | rpl::map(computeCost)),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
@@ -878,7 +892,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	const auto button = CreateSubscribeButton(content, [=] {
+	const auto button = CreateSubscribeButton(_controller, content, [=] {
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
 	});

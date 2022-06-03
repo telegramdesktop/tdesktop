@@ -24,6 +24,9 @@ public:
 	void reload();
 	[[nodiscard]] rpl::producer<TextWithEntities> statusTextValue() const;
 
+	[[nodiscard]] int64 monthlyAmount() const;
+	[[nodiscard]] QString monthlyCurrency() const;
+
 private:
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -31,6 +34,9 @@ private:
 	mtpRequestId _statusRequestId = 0;
 	std::optional<TextWithEntities> _statusText;
 	rpl::event_stream<TextWithEntities> _statusTextUpdates;
+
+	int64 _monthlyAmount = 0;
+	QString _monthlyCurrency;
 
 };
 

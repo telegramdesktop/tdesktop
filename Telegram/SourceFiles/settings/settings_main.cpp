@@ -559,9 +559,7 @@ Main::Main(
 : Section(parent)
 , _controller(controller) {
 	setupContent(controller);
-	if (_controller->session().premium()) {
-		_controller->session().api().premium().reload();
-	}
+	_controller->session().api().premium().reload();
 }
 
 rpl::producer<QString> Main::title() {

@@ -35,6 +35,14 @@ rpl::producer<TextWithEntities> Premium::statusTextValue() const {
 		_statusText.value_or(TextWithEntities()));
 }
 
+int64 Premium::monthlyAmount() const {
+	return _monthlyAmount;
+}
+
+QString Premium::monthlyCurrency() const {
+	return _monthlyCurrency;
+}
+
 void Premium::reload() {
 	if (_statusRequestId) {
 		return;
@@ -43,6 +51,8 @@ void Premium::reload() {
 	)).done([=](const MTPhelp_PremiumPromo &result) {
 		_statusRequestId = 0;
 		result.match([&](const MTPDhelp_premiumPromo &data) {
+			_monthlyAmount = data.vmonthly_amount().v;
+			_monthlyCurrency = qs(data.vcurrency());
 			auto text = TextWithEntities{
 				qs(data.vstatus_text()),
 				EntitiesFromMTP(_session, data.vstatus_entities().v),
