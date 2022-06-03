@@ -755,7 +755,7 @@ void OverlayWidget::checkForSaveLoaded() {
 		return;
 	} else if (!_photo
 		|| !_photo->hasVideo()
-		|| _photoMedia->videoContent().isEmpty()) {
+		|| _photoMedia->videoContent(Data::PhotoSize::Large).isEmpty()) {
 		return;
 	} else if (_savePhotoVideoWhenLoaded == SavePhotoVideo::QuickSave) {
 		_savePhotoVideoWhenLoaded = SavePhotoVideo::None;
@@ -1647,7 +1647,8 @@ void OverlayWidget::saveAs() {
 			updateOver(_lastMouseMovePos);
 		}
 	} else if (_photo && _photo->hasVideo()) {
-		if (const auto bytes = _photoMedia->videoContent(); !bytes.isEmpty()) {
+		constexpr auto large = Data::PhotoSize::Large;
+		if (const auto bytes = _photoMedia->videoContent(large); !bytes.isEmpty()) {
 			const auto photo = _photo;
 			auto filter = qsl("Video Files (*.mp4);;") + FileDialog::AllFilesFilter();
 			FileDialog::GetWritePath(
@@ -1669,7 +1670,7 @@ void OverlayWidget::saveAs() {
 					}
 				}));
 		} else {
-			_photo->loadVideo(fileOrigin());
+			_photo->loadVideo(large, fileOrigin());
 			_savePhotoVideoWhenLoaded = SavePhotoVideo::SaveAs;
 		}
 	} else {
@@ -1765,7 +1766,7 @@ void OverlayWidget::downloadMedia() {
 			updateOver(_lastMouseMovePos);
 		}
 	} else if (_photo && _photo->hasVideo()) {
-		if (!_photoMedia->videoContent().isEmpty()) {
+		if (!_photoMedia->videoContent(Data::PhotoSize::Large).isEmpty()) {
 			if (!QDir().exists(path)) {
 				QDir().mkpath(path);
 			}
@@ -1774,7 +1775,7 @@ void OverlayWidget::downloadMedia() {
 				toName = QString();
 			}
 		} else {
-			_photo->loadVideo(fileOrigin());
+			_photo->loadVideo(Data::PhotoSize::Large, fileOrigin());
 			_savePhotoVideoWhenLoaded = SavePhotoVideo::QuickSave;
 		}
 	} else {
@@ -2783,8 +2784,8 @@ void OverlayWidget::initStreamingThumbnail() {
 		: _photoMedia->thumbnailInline();
 	const auto size = _photo
 		? QSize(
-			_photo->videoLocation().width(),
-			_photo->videoLocation().height())
+			_photo->videoLocation(Data::PhotoSize::Large).width(),
+			_photo->videoLocation(Data::PhotoSize::Large).height())
 		: good
 		? good->size()
 		: _document->dimensions;

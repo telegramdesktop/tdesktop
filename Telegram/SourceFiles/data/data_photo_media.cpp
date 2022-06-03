@@ -117,23 +117,24 @@ void PhotoMedia::set(
 	_owner->session().notifyDownloaderTaskFinished();
 }
 
-QByteArray PhotoMedia::videoContent() const {
-	return _videoBytes;
+QByteArray PhotoMedia::videoContent(PhotoSize size) const {
+	return (size == PhotoSize::Large) ? _videoBytesLarge : _videoBytesSmall;
 }
 
-QSize PhotoMedia::videoSize() const {
-	const auto &location = _owner->videoLocation();
+QSize PhotoMedia::videoSize(PhotoSize size) const {
+	const auto &location = _owner->videoLocation(size);
 	return { location.width(), location.height() };
 }
 
-void PhotoMedia::videoWanted(Data::FileOrigin origin) {
-	if (_videoBytes.isEmpty()) {
-		_owner->loadVideo(origin);
+void PhotoMedia::videoWanted(PhotoSize size, Data::FileOrigin origin) {
+	if (videoContent(size).isEmpty()) {
+		_owner->loadVideo(size, origin);
 	}
 }
 
-void PhotoMedia::setVideo(QByteArray content) {
-	_videoBytes = std::move(content);
+void PhotoMedia::setVideo(PhotoSize size, QByteArray content) {
+	((size == PhotoSize::Large) ? _videoBytesLarge : _videoBytesSmall)
+		= std::move(content);
 }
 
 bool PhotoMedia::loaded() const {
@@ -191,16 +192,17 @@ void PhotoMedia::collectLocalData(not_null<PhotoMedia*> local) {
 }
 
 bool PhotoMedia::saveToFile(const QString &path) {
-	if (const auto video = videoContent(); !video.isEmpty()) {
+	constexpr auto large = PhotoSize::Large;
+	if (const auto video = videoContent(large); !video.isEmpty()) {
 		QFile f(path);
 		return f.open(QIODevice::WriteOnly)
 			&& (f.write(video) == video.size());
-	} else if (const auto photo = imageBytes(Data::PhotoSize::Large)
+	} else if (const auto photo = imageBytes(large)
 		; !photo.isEmpty()) {
 		QFile f(path);
 		return f.open(QIODevice::WriteOnly)
 			&& (f.write(photo) == photo.size());
-	} else if (const auto fallback = image(Data::PhotoSize::Large)->original()
+	} else if (const auto fallback = image(large)->original()
 		; !fallback.isNull()) {
 		return fallback.save(path, "JPG");
 	}

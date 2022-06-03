@@ -33,10 +33,10 @@ public:
 		QImage image,
 		QByteArray bytes);
 
-	[[nodiscard]] QByteArray videoContent() const;
-	[[nodiscard]] QSize videoSize() const;
-	void videoWanted(Data::FileOrigin origin);
-	void setVideo(QByteArray content);
+	[[nodiscard]] QByteArray videoContent(PhotoSize size) const;
+	[[nodiscard]] QSize videoSize(PhotoSize size) const;
+	void videoWanted(PhotoSize size, Data::FileOrigin origin);
+	void setVideo(PhotoSize size, QByteArray content);
 
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] float64 progress() const;
@@ -64,7 +64,8 @@ private:
 	const not_null<PhotoData*> _owner;
 	mutable std::unique_ptr<Image> _inlineThumbnail;
 	std::array<PhotoImage, kPhotoSizeCount>  _images;
-	QByteArray _videoBytes;
+	QByteArray _videoBytesSmall;
+	QByteArray _videoBytesLarge;
 
 };
 

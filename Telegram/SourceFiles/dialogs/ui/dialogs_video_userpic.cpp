@@ -47,7 +47,9 @@ void VideoUserpic::paintLeft(
 			_peer->updateFullForced();
 		} else {
 			_videoPhotoMedia = photo->createMediaView();
-			_videoPhotoMedia->videoWanted(_peer->userpicPhotoOrigin());
+			_videoPhotoMedia->videoWanted(
+				Data::PhotoSize::Small,
+				_peer->userpicPhotoOrigin());
 		}
 	}
 	if (!_video) {
@@ -55,11 +57,17 @@ void VideoUserpic::paintLeft(
 			const auto photo = _peer->owner().photo(photoId);
 			if (!photo->isNull()) {
 				_videoPhotoMedia = photo->createMediaView();
-				_videoPhotoMedia->videoWanted(_peer->userpicPhotoOrigin());
+				_videoPhotoMedia->videoWanted(
+					Data::PhotoSize::Small,
+					_peer->userpicPhotoOrigin());
 			}
 		}
 		if (_videoPhotoMedia) {
-			auto bytes = _videoPhotoMedia->videoContent();
+			auto small = _videoPhotoMedia->videoContent(
+				Data::PhotoSize::Small);
+			auto bytes = small.isEmpty()
+				? _videoPhotoMedia->videoContent(Data::PhotoSize::Large)
+				: small;
 			if (!bytes.isEmpty()) {
 				auto callback = [=](Media::Clip::Notification notification) {
 					clipCallback(notification);

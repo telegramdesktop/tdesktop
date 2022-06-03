@@ -317,7 +317,7 @@ bool ShouldAutoPlay(
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
 	const auto source = SourceFromPeer(peer);
-	const auto size = photo->videoByteSize();
+	const auto size = photo->videoByteSize(PhotoSize::Large);
 	return photo->hasVideo()
 		&& (data.shouldDownload(source, Type::AutoPlayGIF, size)
 			|| data.shouldDownload(source, Type::AutoPlayVideo, size)

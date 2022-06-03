@@ -2478,6 +2478,7 @@ not_null<PhotoData*> Session::processPhoto(
 			thumbnail,
 			large,
 			ImageWithLocation{},
+			ImageWithLocation{},
 			crl::time(0));
 	}, [&](const MTPDphotoEmpty &data) {
 		return photo(data.vid().v);
@@ -2495,7 +2496,8 @@ not_null<PhotoData*> Session::photo(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime) {
 	const auto result = photo(id);
 	photoApplyFields(
@@ -2509,7 +2511,8 @@ not_null<PhotoData*> Session::photo(
 		small,
 		thumbnail,
 		large,
-		video,
+		videoSmall,
+		videoLarge,
 		videoStartTime);
 	return result;
 }
@@ -2559,6 +2562,7 @@ PhotoData *Session::photoFromWeb(
 		ImageWithLocation{},
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = large },
+		ImageWithLocation{},
 		ImageWithLocation{},
 		crl::time(0));
 }
@@ -2612,9 +2616,10 @@ void Session::photoApplyFields(
 			? ImageWithLocation()
 			: Images::FromPhotoSize(_session, data, *i);
 	};
-	const auto findVideoSize = [&]() -> std::optional<MTPVideoSize> {
+	const auto findVideoSize = [&](PhotoSize size)
+	-> std::optional<MTPVideoSize> {
 		const auto sizes = data.vvideo_sizes();
-		if (!sizes || sizes->v.isEmpty()) {
+		if (!sizes) {
 			return std::nullopt;
 		}
 		const auto area = [](const MTPVideoSize &size) {
@@ -2622,18 +2627,28 @@ void Session::photoApplyFields(
 				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
 			});
 		};
-		const auto result = *ranges::max_element(
-			sizes->v,
-			std::greater<>(),
-			area);
-		return (area(result) > 0) ? std::make_optional(result) : std::nullopt;
+		const auto type = [](const MTPVideoSize &size) {
+			return size.match([](const MTPDvideoSize &data) {
+				return data.vtype().v.isEmpty()
+					? char(0)
+					: data.vtype().v.front();
+			});
+		};
+		const auto result = (size == PhotoSize::Small)
+			? ranges::find(sizes->v, 'p', type)
+			: ranges::max_element(sizes->v, std::less<>(), area);
+		if (result == sizes->v.end() || area(*result) <= 0) {
+			return std::nullopt;
+		}
+		return std::make_optional(*result);
 	};
 	const auto useProgressive = (progressive != sizes.end());
 	const auto large = useProgressive
 		? Images::FromPhotoSize(_session, data, *progressive)
 		: image(LargeLevels);
 	if (large.location.valid()) {
-		const auto video = findVideoSize();
+		const auto videoSmall = findVideoSize(PhotoSize::Small);
+		const auto videoLarge = findVideoSize(PhotoSize::Large);
 		photoApplyFields(
 			photo,
 			data.vaccess_hash().v,
@@ -2649,12 +2664,15 @@ void Session::photoApplyFields(
 				? Images::FromProgressiveSize(_session, *progressive, 1)
 				: image(ThumbnailLevels)),
 			large,
-			(video
-				? Images::FromVideoSize(_session, data, *video)
+			(videoSmall
+				? Images::FromVideoSize(_session, data, *videoSmall)
 				: ImageWithLocation()),
-			(video
-				? VideoStartTime(
-					*video->match([](const auto &data) { return &data; }))
+			(videoLarge
+				? Images::FromVideoSize(_session, data, *videoLarge)
+				: ImageWithLocation()),
+			(videoLarge
+				? VideoStartTime(*videoLarge->match(
+					[](const auto &data) { return &data; }))
 				: 0));
 	}
 }
@@ -2670,7 +2688,8 @@ void Session::photoApplyFields(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime) {
 	if (!date) {
 		return;
@@ -2683,7 +2702,8 @@ void Session::photoApplyFields(
 		small,
 		thumbnail,
 		large,
-		video,
+		videoSmall,
+		videoLarge,
 		videoStartTime);
 }
 
