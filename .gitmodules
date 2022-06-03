@@ -85,15 +85,9 @@
 [submodule "Telegram/ThirdParty/jemalloc"]
 	path = Telegram/ThirdParty/jemalloc
 	url = https://github.com/jemalloc/jemalloc
-[submodule "Telegram/ThirdParty/kwayland"]
-	path = Telegram/ThirdParty/kwayland
-	url = https://github.com/KDE/kwayland.git
 [submodule "Telegram/ThirdParty/dispatch"]
 	path = Telegram/ThirdParty/dispatch
 	url = https://github.com/apple/swift-corelibs-libdispatch
-[submodule "Telegram/ThirdParty/extra-cmake-modules"]
-	path = Telegram/ThirdParty/extra-cmake-modules
-	url = https://github.com/KDE/extra-cmake-modules.git
 [submodule "Telegram/ThirdParty/plasma-wayland-protocols"]
 	path = Telegram/ThirdParty/plasma-wayland-protocols
 	url = https://github.com/KDE/plasma-wayland-protocols.git

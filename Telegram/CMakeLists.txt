@@ -95,7 +95,7 @@ PRIVATE
     desktop-app::external_xxhash
 )
 
-target_precompile_headers(Telegram PRIVATE ${src_loc}/stdafx.h)
+target_precompile_headers(Telegram PRIVATE $<$<COMPILE_LANGUAGE:CXX,OBJCXX>:${src_loc}/stdafx.h>)
 nice_target_sources(Telegram ${src_loc}
 PRIVATE
     ${style_files}
@@ -1436,10 +1436,19 @@ else()
     endif()
 
     if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
+        if (DESKTOP_APP_QT6)
+            qt6_generate_wayland_protocol_client_sources(Telegram
+            FILES
+                ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
+            )
+        else()
+            message(FATAL_ERROR "This piece of cmake code is not ported to Qt 5")
+        endif()
+
         target_link_libraries(Telegram
         PRIVATE
             desktop-app::lib_waylandshells
-            desktop-app::external_kwayland
+            desktop-app::external_wayland_client
         )
     endif()
 endif()
