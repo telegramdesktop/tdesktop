@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "ui/effects/animations.h"
 
 class HistoryItem;
 
@@ -32,13 +33,24 @@ public:
 	void highlight(FullMsgId itemId);
 	void clear();
 
-	[[nodiscard]] crl::time elementTime(
-		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] float64 progress(not_null<const HistoryItem*> item) const;
 
 private:
 	void checkNextHighlight();
 	void repaintHighlightedItem(not_null<const Element*> view);
 	void updateMessage();
+
+	class AnimationManager final {
+	public:
+		AnimationManager(ElementHighlighter &parent);
+		[[nodiscard]] bool animating() const;
+		[[nodiscard]] float64 progress() const;
+		void start();
+		void cancel();
+	private:
+		ElementHighlighter &_parent;
+		Ui::Animations::Simple _simple;
+	};
 
 	const not_null<Data::Session*> _data;
 	const ViewForItem _viewForItem;
@@ -49,6 +61,7 @@ private:
 	base::Timer _timer;
 	crl::time _highlightStart = 0;
 
+	AnimationManager _animation;
 };
 
 } // namespace HistoryView

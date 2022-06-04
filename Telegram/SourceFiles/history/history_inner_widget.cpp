@@ -158,9 +158,9 @@ public:
 			not_null<const Element*> view) override {
 		return (Element::Moused() == view);
 	}
-	crl::time elementHighlightTime(
-			not_null<const HistoryItem*> item) override {
-		return _widget ? _widget->elementHighlightTime(item) : 0;
+	[[nodiscard]] float64 elementHighlightOpacity(
+			not_null<const HistoryItem*> item) const override {
+		return _widget ? _widget->elementHighlightOpacity(item) : 0.;
 	}
 	bool elementInSelectionMode() override {
 		return _widget ? _widget->inSelectionMode() : false;
@@ -3156,9 +3156,9 @@ void HistoryInner::elementStartStickerLoop(
 	_animatedStickersPlayed.emplace(view->data());
 }
 
-crl::time HistoryInner::elementHighlightTime(
-		not_null<const HistoryItem*> item) {
-	return _widget->highlightStartTime(item);
+float64 HistoryInner::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return _widget->highlightOpacity(item);
 }
 
 void HistoryInner::elementShowPollResults(

@@ -20,13 +20,14 @@ ElementHighlighter::ElementHighlighter(
 : _data(data)
 , _viewForItem(std::move(viewForItem))
 , _repaintView(std::move(repaintView))
-, _timer([=] { updateMessage(); }) {
+, _timer([=] { updateMessage(); })
+, _animation(*this) {
 }
 
 void ElementHighlighter::enqueue(not_null<Element*> view) {
 	const auto item = view->data();
 	const auto fullId = item->fullId();
-	if (_queue.empty() && !_timer.isActive()) {
+	if (_queue.empty() && !_animation.animating()) {
 		highlight(fullId);
 	} else if (_highlightedMessageId != fullId
 		&& !base::contains(_queue, fullId)) {
@@ -36,7 +37,7 @@ void ElementHighlighter::enqueue(not_null<Element*> view) {
 }
 
 void ElementHighlighter::checkNextHighlight() {
-	if (_timer.isActive()) {
+	if (_animation.animating()) {
 		return;
 	}
 	const auto nextHighlight = [&] {
@@ -57,14 +58,16 @@ void ElementHighlighter::checkNextHighlight() {
 	highlight(nextHighlight);
 }
 
-crl::time ElementHighlighter::elementTime(
+float64 ElementHighlighter::progress(
 		not_null<const HistoryItem*> item) const {
 	if (item->fullId() == _highlightedMessageId) {
-		if (_timer.isActive()) {
-			return crl::now() - _highlightStart;
-		}
+		const auto progress = _animation.progress();
+		const auto firstPart = st::activeFadeInDuration
+			/ float64(st::activeFadeInDuration + st::activeFadeOutDuration);
+		return std::min(progress / firstPart, 1.)
+			- ((progress - firstPart) / (1. - firstPart));
 	}
-	return crl::time(0);
+	return 0.;
 }
 
 void ElementHighlighter::highlight(FullMsgId itemId) {
@@ -72,7 +75,7 @@ void ElementHighlighter::highlight(FullMsgId itemId) {
 		if (const auto view = _viewForItem(item)) {
 			_highlightStart = crl::now();
 			_highlightedMessageId = itemId;
-			_timer.callEach(AnimationTimerDelta);
+			_animation.start();
 
 			repaintHighlightedItem(view);
 		}
@@ -105,7 +108,7 @@ void ElementHighlighter::updateMessage() {
 			}
 		}
 	}
-	_timer.cancel();
+	_animation.cancel();
 	_highlightedMessageId = FullMsgId();
 	checkNextHighlight();
 }
@@ -113,6 +116,32 @@ void ElementHighlighter::updateMessage() {
 void ElementHighlighter::clear() {
 	_highlightedMessageId = FullMsgId();
 	updateMessage();
+}
+
+ElementHighlighter::AnimationManager::AnimationManager(
+	ElementHighlighter &parent)
+: _parent(parent) {
+}
+
+bool ElementHighlighter::AnimationManager::animating() const {
+	return _simple.animating();
+}
+
+float64 ElementHighlighter::AnimationManager::progress() const {
+	return _simple.value(0.);
+}
+
+void ElementHighlighter::AnimationManager::start() {
+	_simple.stop();
+	_simple.start(
+		[=] { _parent.updateMessage(); },
+		0.,
+		1.,
+		st::activeFadeInDuration + st::activeFadeOutDuration);
+}
+
+void ElementHighlighter::AnimationManager::cancel() {
+	_simple.stop();
 }
 
 } // namespace HistoryView

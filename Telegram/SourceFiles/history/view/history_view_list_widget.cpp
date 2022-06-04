@@ -1397,9 +1397,9 @@ bool ListWidget::elementUnderCursor(
 	return (_overElement == view);
 }
 
-crl::time ListWidget::elementHighlightTime(
-		not_null<const HistoryItem*> item) {
-	return _highlighter.elementTime(item);
+float64 ListWidget::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return _highlighter.progress(item);
 }
 
 bool ListWidget::elementInSelectionMode() {

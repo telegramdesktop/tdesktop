@@ -191,7 +191,8 @@ public:
 	bool touchScroll(const QPoint &delta);
 
 	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
-	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] float64 highlightOpacity(
+		not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(not_null<HistoryItem*> item);

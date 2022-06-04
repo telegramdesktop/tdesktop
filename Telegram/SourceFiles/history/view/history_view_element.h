@@ -72,8 +72,8 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	virtual crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item) = 0;
+	[[nodiscard]] virtual float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const = 0;
 	virtual bool elementInSelectionMode() = 0;
 	virtual bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -134,8 +134,8 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item) override;
+	[[nodiscard]] float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -410,7 +410,6 @@ public:
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const;
-	float64 highlightOpacity(not_null<const HistoryItem*> item) const;
 
 	// Legacy blocks structure.
 	HistoryBlock *block();

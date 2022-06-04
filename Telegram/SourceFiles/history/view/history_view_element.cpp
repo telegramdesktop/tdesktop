@@ -124,9 +124,9 @@ bool SimpleElementDelegate::elementUnderCursor(
 	return false;
 }
 
-crl::time SimpleElementDelegate::elementHighlightTime(
-		not_null<const HistoryItem*> item) {
-	return crl::time(0);
+float64 SimpleElementDelegate::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return 0.;
 }
 
 bool SimpleElementDelegate::elementInSelectionMode() {
@@ -442,26 +442,13 @@ void Element::paintHighlight(
 	paintCustomHighlight(p, context, skiptop, fillheight, data());
 }
 
-float64 Element::highlightOpacity(not_null<const HistoryItem*> item) const {
-	const auto animms = delegate()->elementHighlightTime(item);
-	if (!animms
-		|| animms >= st::activeFadeInDuration + st::activeFadeOutDuration) {
-		return 0.;
-	}
-
-	return (animms > st::activeFadeInDuration)
-		? (1. - (animms - st::activeFadeInDuration)
-			/ float64(st::activeFadeOutDuration))
-		: (animms / float64(st::activeFadeInDuration));
-}
-
 void Element::paintCustomHighlight(
 		Painter &p,
 		const PaintContext &context,
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const {
-	const auto opacity = highlightOpacity(item);
+	const auto opacity = delegate()->elementHighlightOpacity(item);
 	if (opacity == 0.) {
 		return;
 	}

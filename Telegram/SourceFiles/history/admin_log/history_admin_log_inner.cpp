@@ -587,9 +587,9 @@ bool InnerWidget::elementUnderCursor(
 	return (Element::Hovered() == view);
 }
 
-crl::time InnerWidget::elementHighlightTime(
-		not_null<const HistoryItem*> item) {
-	return crl::time(0);
+float64 InnerWidget::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return 0.;
 }
 
 bool InnerWidget::elementInSelectionMode() {

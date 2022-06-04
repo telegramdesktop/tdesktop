@@ -1266,9 +1266,9 @@ void HistoryWidget::enqueueMessageHighlight(
 	_highlighter.enqueue(view);
 }
 
-crl::time HistoryWidget::highlightStartTime(
+float64 HistoryWidget::highlightOpacity(
 		not_null<const HistoryItem*> item) const {
-	return _highlighter.elementTime(item);
+	return _highlighter.progress(item);
 }
 
 int HistoryWidget::itemTopForHighlight(

@@ -124,8 +124,8 @@ public:
 		int from,
 		int till) const;
 	void elementStartStickerLoop(not_null<const Element*> view);
-	[[nodiscard]] crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item);
+	[[nodiscard]] float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const;
 	void elementShowPollResults(
 		not_null<PollData*> poll,
 		FullMsgId context);
