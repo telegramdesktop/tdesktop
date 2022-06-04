@@ -3259,6 +3259,9 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 	const auto reply = [&](Element *view) {
 		if (view) {
 			const auto newFullId = view->data()->fullId();
+			if (!view->data()->isRegular()) {
+				return replyNextMessage(newFullId, next);
+			}
 			replyToMessageRequestNotify(newFullId);
 			_requestedToShowMessage.fire_copy(newFullId);
 		} else {
