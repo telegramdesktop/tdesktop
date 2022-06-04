@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_drag_area.h"
+#include "history/history_view_highlight_manager.h"
 #include "history/history.h"
 #include "ui/widgets/tooltip.h"
 #include "mainwidget.h"
@@ -115,7 +116,6 @@ class TTLButton;
 } // namespace Controls
 } // namespace HistoryView
 
-class DragArea;
 class SendFilesBox;
 class BotKeyboard;
 class MessageField;
@@ -419,12 +419,6 @@ private:
 	void supportInitAutocomplete();
 	void supportInsertText(const QString &text);
 	void supportShareContact(Support::Contact contact);
-
-	void highlightMessage(MsgId universalMessageId);
-	void checkNextHighlight();
-	void updateHighlightedMessage();
-	void clearHighlightMessages();
-	void stopMessageHighlight();
 
 	auto computeSendButtonType() const;
 
@@ -792,10 +786,7 @@ private:
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 
-	MsgId _highlightedMessageId = 0;
-	std::deque<MsgId> _highlightQueue;
-	base::Timer _highlightTimer;
-	crl::time _highlightStart = 0;
+	HistoryView::ElementHighlighter _highlighter;
 
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;

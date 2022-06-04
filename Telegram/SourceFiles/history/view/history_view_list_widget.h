@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
+#include "history/history_view_highlight_manager.h"
 
 namespace Main {
 class Session;
@@ -405,7 +406,6 @@ private:
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(FullMsgId itemId);
 	void repaintItem(const Element *view);
-	void repaintHighlightedItem(not_null<const Element*> view);
 	void resizeItem(not_null<Element*> view);
 	void refreshItem(not_null<const Element*> view);
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -515,9 +515,6 @@ private:
 	void revealItemsCallback();
 
 	void startMessageSendingAnimation(not_null<HistoryItem*> item);
-
-	void updateHighlightedMessage();
-	void clearHighlightedMessage();
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -638,9 +635,7 @@ private:
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
 
-	crl::time _highlightStart = 0;
-	FullMsgId _highlightedMessageId;
-	base::Timer _highlightTimer;
+	ElementHighlighter _highlighter;
 
 	Ui::Animations::Simple _spoilerOpacity;
 

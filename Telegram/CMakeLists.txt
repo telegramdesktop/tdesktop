@@ -728,6 +728,8 @@ PRIVATE
     history/history_service.h
     history/history_unread_things.cpp
     history/history_unread_things.h
+    history/history_view_highlight_manager.cpp
+    history/history_view_highlight_manager.h
     history/history_widget.cpp
     history/history_widget.h
     info/info_content_widget.cpp

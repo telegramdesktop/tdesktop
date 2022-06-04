@@ -283,7 +283,10 @@ ListWidget::ListWidget(
 , _scrollDateCheck([this] { scrollDateCheck(); })
 , _applyUpdatedScrollState([this] { applyUpdatedScrollState(); })
 , _selectEnabled(_delegate->listAllowsMultiSelect())
-, _highlightTimer([this] { updateHighlightedMessage(); }) {
+, _highlighter(
+	&session().data(),
+	[=](const HistoryItem *item) { return viewForItem(item); },
+	[=](const Element *view) { repaintItem(view); }) {
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
@@ -578,15 +581,7 @@ bool ListWidget::isBelowPosition(Data::MessagePosition position) const {
 }
 
 void ListWidget::highlightMessage(FullMsgId itemId) {
-	if (const auto item = session().data().message(itemId)) {
-		if (const auto view = viewForItem(item)) {
-			_highlightStart = crl::now();
-			_highlightedMessageId = itemId;
-			_highlightTimer.callEach(AnimationTimerDelta);
-
-			repaintHighlightedItem(view);
-		}
-	}
+	_highlighter.highlight(itemId);
 }
 
 void ListWidget::showAroundPosition(
@@ -596,39 +591,6 @@ void ListWidget::showAroundPosition(
 	_aroundIndex = -1;
 	_overrideInitialScroll = std::move(overrideInitialScroll);
 	refreshViewer();
-}
-
-void ListWidget::repaintHighlightedItem(not_null<const Element*> view) {
-	if (view->isHiddenByGroup()) {
-		if (const auto group = session().data().groups().find(view->data())) {
-			if (const auto leader = viewForItem(group->items.front())) {
-				if (!leader->isHiddenByGroup()) {
-					repaintItem(leader);
-					return;
-				}
-			}
-		}
-	}
-	repaintItem(view);
-}
-
-void ListWidget::updateHighlightedMessage() {
-	if (const auto item = session().data().message(_highlightedMessageId)) {
-		if (const auto view = viewForItem(item)) {
-			repaintHighlightedItem(view);
-			auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
-			if (crl::now() - _highlightStart <= duration) {
-				return;
-			}
-		}
-	}
-	_highlightTimer.cancel();
-	_highlightedMessageId = FullMsgId();
-}
-
-void ListWidget::clearHighlightedMessage() {
-	_highlightedMessageId = FullMsgId();
-	updateHighlightedMessage();
 }
 
 void ListWidget::checkUnreadBarCreation() {
@@ -1437,12 +1399,7 @@ bool ListWidget::elementUnderCursor(
 
 crl::time ListWidget::elementHighlightTime(
 		not_null<const HistoryItem*> item) {
-	if (item->fullId() == _highlightedMessageId) {
-		if (_highlightTimer.isActive()) {
-			return crl::now() - _highlightStart;
-		}
-	}
-	return crl::time(0);
+	return _highlighter.elementTime(item);
 }
 
 bool ListWidget::elementInSelectionMode() {
@@ -3266,7 +3223,7 @@ void ListWidget::replyNextMessage(FullMsgId fullId, bool next) {
 			_requestedToShowMessage.fire_copy(newFullId);
 		} else {
 			replyToMessageRequestNotify(FullMsgId());
-			clearHighlightedMessage();
+			_highlighter.clear();
 		}
 	};
 	const auto replyFirst = [&] {

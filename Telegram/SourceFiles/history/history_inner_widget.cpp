@@ -3158,14 +3158,7 @@ void HistoryInner::elementStartStickerLoop(
 
 crl::time HistoryInner::elementHighlightTime(
 		not_null<const HistoryItem*> item) {
-	const auto fullAnimMs = _widget->highlightStartTime(item);
-	if (fullAnimMs > 0) {
-		const auto now = crl::now();
-		if (fullAnimMs < now) {
-			return now - fullAnimMs;
-		}
-	}
-	return 0;
+	return _widget->highlightStartTime(item);
 }
 
 void HistoryInner::elementShowPollResults(

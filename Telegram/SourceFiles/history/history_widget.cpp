@@ -277,6 +277,12 @@ HistoryWidget::HistoryWidget(
 	controller,
 	this)))
 , _membersDropdownShowTimer([=] { showMembersDropdown(); })
+, _highlighter(
+	&session().data(),
+	[=](const HistoryItem *item) { return item->mainView(); },
+	[=](const HistoryView::Element *view) {
+		session().data().requestViewRepaint(view);
+	})
 , _saveDraftTimer([=] { saveDraft(); })
 , _saveCloudDraftTimer([=] { saveCloudDraft(); })
 , _topShadow(this) {
@@ -356,8 +362,6 @@ HistoryWidget::HistoryWidget(
 		st::historyAttach.ripple.hideDuration,
 		this,
 		[=] { chooseAttach(); }));
-
-	_highlightTimer.setCallback([this] { updateHighlightedMessage(); });
 
 	const auto rawTextEdit = _field->rawTextEdit().get();
 	rpl::merge(
@@ -1259,92 +1263,12 @@ void HistoryWidget::scrollToAnimationCallback(
 
 void HistoryWidget::enqueueMessageHighlight(
 		not_null<HistoryView::Element*> view) {
-	auto enqueueMessageId = [this](MsgId universalId) {
-		if (_highlightQueue.empty() && !_highlightTimer.isActive()) {
-			highlightMessage(universalId);
-		} else if (_highlightedMessageId != universalId
-			&& !base::contains(_highlightQueue, universalId)) {
-			_highlightQueue.push_back(universalId);
-			checkNextHighlight();
-		}
-	};
-	const auto item = view->data();
-	if (item->history() == _history) {
-		enqueueMessageId(item->id);
-	} else if (item->history() == _migrated) {
-		enqueueMessageId(-item->id);
-	}
+	_highlighter.enqueue(view);
 }
 
-void HistoryWidget::highlightMessage(MsgId universalMessageId) {
-	_highlightStart = crl::now();
-	_highlightedMessageId = universalMessageId;
-	_highlightTimer.callEach(AnimationTimerDelta);
-}
-
-void HistoryWidget::checkNextHighlight() {
-	if (_highlightTimer.isActive()) {
-		return;
-	}
-	auto nextHighlight = [this] {
-		while (!_highlightQueue.empty()) {
-			auto msgId = _highlightQueue.front();
-			_highlightQueue.pop_front();
-			auto item = getItemFromHistoryOrMigrated(msgId);
-			if (item && item->mainView()) {
-				return msgId;
-			}
-		}
-		return MsgId();
-	}();
-	if (!nextHighlight) {
-		return;
-	}
-	highlightMessage(nextHighlight);
-}
-
-void HistoryWidget::updateHighlightedMessage() {
-	const auto item = getItemFromHistoryOrMigrated(_highlightedMessageId);
-	auto view = item ? item->mainView() : nullptr;
-	if (!view) {
-		return stopMessageHighlight();
-	}
-	auto duration = st::activeFadeInDuration + st::activeFadeOutDuration;
-	if (crl::now() - _highlightStart > duration) {
-		return stopMessageHighlight();
-	}
-
-	if (const auto group = session().data().groups().find(view->data())) {
-		if (const auto leader = group->items.front()->mainView()) {
-			view = leader;
-		}
-	}
-	session().data().requestViewRepaint(view);
-}
-
-crl::time HistoryWidget::highlightStartTime(not_null<const HistoryItem*> item) const {
-	auto isHighlighted = [this](not_null<const HistoryItem*> item) {
-		if (item->id == _highlightedMessageId) {
-			return (item->history() == _history);
-		} else if (item->id == -_highlightedMessageId) {
-			return (item->history() == _migrated);
-		}
-		return false;
-	};
-	return (isHighlighted(item) && _highlightTimer.isActive())
-		? _highlightStart
-		: 0;
-}
-
-void HistoryWidget::stopMessageHighlight() {
-	_highlightTimer.cancel();
-	_highlightedMessageId = 0;
-	checkNextHighlight();
-}
-
-void HistoryWidget::clearHighlightMessages() {
-	_highlightQueue.clear();
-	stopMessageHighlight();
+crl::time HistoryWidget::highlightStartTime(
+		not_null<const HistoryItem*> item) const {
+	return _highlighter.elementTime(item);
 }
 
 int HistoryWidget::itemTopForHighlight(
@@ -2048,7 +1972,7 @@ void HistoryWidget::showHistory(
 		showAtMsgId = ShowAtTheEndMsgId;
 	}
 
-	clearHighlightMessages();
+	_highlighter.clear();
 	controller()->sendingAnimation().clear();
 	hideInfoTooltip(anim::type::instant);
 	if (_history) {
@@ -6233,7 +6157,7 @@ bool HistoryWidget::replyToNextMessage() {
 				controller()->showPeerHistoryAtItem(next);
 				replyToMessage(next);
 			} else {
-				clearHighlightMessages();
+				_highlighter.clear();
 				cancelReply(false);
 			}
 			return true;
