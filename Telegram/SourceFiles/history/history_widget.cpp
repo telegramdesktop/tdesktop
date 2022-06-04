@@ -122,6 +122,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "core/application.h"
 #include "apiwrap.h"
+#include "base/options.h"
 #include "base/qthelp_regex.h"
 #include "ui/boxes/report_box.h"
 #include "ui/chat/pinned_bar.h"
@@ -165,6 +166,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
 
+const char kOptionAutoScrollInactiveChat[] =
+	"auto-scroll-inactive-chat";
+
 namespace {
 
 constexpr auto kMessagesPerPageFirst = 30;
@@ -184,6 +188,13 @@ constexpr auto kCommonModifiers = 0
 	| Qt::MetaModifier
 	| Qt::ControlModifier;
 const auto kPsaAboutPrefix = "cloud_lng_about_psa_";
+
+base::options::toggle AutoScrollInactiveChat({
+	.id = kOptionAutoScrollInactiveChat,
+	.name = "Enable auto-scroll of inactive chat",
+	.description = "Enable auto-scrolling chat for new messages, "
+		"even when the window is not in focus.",
+});
 
 [[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
 	return std::clamp(
@@ -5434,6 +5445,9 @@ int HistoryWidget::countAutomaticScrollTop() {
 	Expects(_list != nullptr);
 
 	if (const auto unread = _history->firstUnreadMessage()) {
+		if (AutoScrollInactiveChat.value()) {
+			return ScrollMax;
+		}
 		const auto firstUnreadTop = _list->itemTop(unread);
 		const auto possibleUnreadBarTop = _scroll->scrollTopMax()
 			+ HistoryView::UnreadBar::height()

@@ -122,6 +122,8 @@ class MessageField;
 class HistoryInner;
 struct HistoryMessageMarkupButton;
 
+extern const char kOptionAutoScrollInactiveChat[];
+
 class HistoryWidget final : public Window::AbstractSectionWidget {
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
