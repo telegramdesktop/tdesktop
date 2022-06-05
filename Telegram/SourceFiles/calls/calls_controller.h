@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "TgVoip.h"
+#include <TgVoip.h>
 
 namespace Calls {
 
