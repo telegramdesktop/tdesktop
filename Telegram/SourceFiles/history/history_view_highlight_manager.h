@@ -50,6 +50,7 @@ private:
 	private:
 		ElementHighlighter &_parent;
 		Ui::Animations::Simple _simple;
+		std::optional<base::Timer> _timer;
 	};
 
 	const not_null<Data::Session*> _data;
@@ -58,8 +59,6 @@ private:
 
 	FullMsgId _highlightedMessageId;
 	std::deque<FullMsgId> _queue;
-	base::Timer _timer;
-	crl::time _highlightStart = 0;
 
 	AnimationManager _animation;
 };

@@ -13,6 +13,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+constexpr auto kAnimationFirstPart = st::activeFadeInDuration
+	/ float64(st::activeFadeInDuration + st::activeFadeOutDuration);
+
 ElementHighlighter::ElementHighlighter(
 	not_null<Data::Session*> data,
 	ViewForItem viewForItem,
@@ -20,7 +23,6 @@ ElementHighlighter::ElementHighlighter(
 : _data(data)
 , _viewForItem(std::move(viewForItem))
 , _repaintView(std::move(repaintView))
-, _timer([=] { updateMessage(); })
 , _animation(*this) {
 }
 
@@ -62,10 +64,8 @@ float64 ElementHighlighter::progress(
 		not_null<const HistoryItem*> item) const {
 	if (item->fullId() == _highlightedMessageId) {
 		const auto progress = _animation.progress();
-		const auto firstPart = st::activeFadeInDuration
-			/ float64(st::activeFadeInDuration + st::activeFadeOutDuration);
-		return std::min(progress / firstPart, 1.)
-			- ((progress - firstPart) / (1. - firstPart));
+		return std::min(progress / kAnimationFirstPart, 1.)
+			- ((progress - kAnimationFirstPart) / (1. - kAnimationFirstPart));
 	}
 	return 0.;
 }
@@ -73,7 +73,6 @@ float64 ElementHighlighter::progress(
 void ElementHighlighter::highlight(FullMsgId itemId) {
 	if (const auto item = _data->message(itemId)) {
 		if (const auto view = _viewForItem(item)) {
-			_highlightStart = crl::now();
 			_highlightedMessageId = itemId;
 			_animation.start();
 
@@ -101,21 +100,14 @@ void ElementHighlighter::updateMessage() {
 	if (const auto item = _data->message(_highlightedMessageId)) {
 		if (const auto view = _viewForItem(item)) {
 			repaintHighlightedItem(view);
-			const auto duration = st::activeFadeInDuration
-				+ st::activeFadeOutDuration;
-			if (crl::now() - _highlightStart <= duration) {
-				return;
-			}
 		}
 	}
-	_animation.cancel();
-	_highlightedMessageId = FullMsgId();
-	checkNextHighlight();
 }
 
 void ElementHighlighter::clear() {
+	_animation.cancel();
 	_highlightedMessageId = FullMsgId();
-	updateMessage();
+	_queue.clear();
 }
 
 ElementHighlighter::AnimationManager::AnimationManager(
@@ -124,24 +116,53 @@ ElementHighlighter::AnimationManager::AnimationManager(
 }
 
 bool ElementHighlighter::AnimationManager::animating() const {
-	return _simple.animating();
+	if (anim::Disabled()) {
+		return (_timer && _timer->isActive());
+	} else {
+		return _simple.animating();
+	}
 }
 
 float64 ElementHighlighter::AnimationManager::progress() const {
-	return _simple.value(0.);
+	if (anim::Disabled()) {
+		return (_timer && _timer->isActive()) ? kAnimationFirstPart : 0.;
+	} else {
+		return _simple.value(0.);
+	}
 }
 
 void ElementHighlighter::AnimationManager::start() {
-	_simple.stop();
-	_simple.start(
-		[=] { _parent.updateMessage(); },
-		0.,
-		1.,
-		st::activeFadeInDuration + st::activeFadeOutDuration);
+	const auto finish = [=] {
+		cancel();
+		_parent._highlightedMessageId = FullMsgId();
+		_parent.checkNextHighlight();
+	};
+	cancel();
+	if (anim::Disabled()) {
+		_timer.emplace([=] {
+			_parent.updateMessage();
+			finish();
+		});
+		_timer->callOnce(st::activeFadeOutDuration);
+		_parent.updateMessage();
+	} else {
+		const auto to = 1.;
+		_simple.start(
+			[=](float64 value) {
+				_parent.updateMessage();
+				if (value == to) {
+					finish();
+				}
+			},
+			0.,
+			to,
+			st::activeFadeInDuration + st::activeFadeOutDuration);
+	}
 }
 
 void ElementHighlighter::AnimationManager::cancel() {
 	_simple.stop();
+	_timer.reset();
 }
 
 } // namespace HistoryView
