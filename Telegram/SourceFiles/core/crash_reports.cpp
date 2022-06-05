@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #pragma warning(push)
 #pragma warning(disable:4091)
-#include "client/windows/handler/exception_handler.h"
+#include <client/windows/handler/exception_handler.h>
 #pragma warning(pop)
 
 #elif defined Q_OS_UNIX // Q_OS_WIN
@@ -36,14 +36,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <unistd.h>
 
 #ifdef MAC_USE_BREAKPAD
-#include "client/mac/handler/exception_handler.h"
+#include <client/mac/handler/exception_handler.h>
 #else // MAC_USE_BREAKPAD
-#include "client/crashpad_client.h"
+#include <client/crashpad_client.h>
 #endif // else for MAC_USE_BREAKPAD
 
 #else // Q_OS_MAC
 
-#include "client/linux/handler/exception_handler.h"
+#include <client/linux/handler/exception_handler.h>
 
 #endif // Q_OS_MAC
 
