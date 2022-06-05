@@ -329,6 +329,9 @@ OverlayWidget::OverlayWidget()
 	_saveMsgImage = QImage(
 		_saveMsg.size() * cIntRetinaFactor(),
 		QImage::Format_ARGB32_Premultiplied);
+	_saveMsgTimer.setCallback([=, delay = st::mediaviewSaveMsgHiding] {
+		_saveMsgAnimation.start([=] { updateImage(); }, 1., 0., delay);
+	});
 
 	_docRectImage = QImage(
 		st::mediaviewFileSize * cIntRetinaFactor(),
@@ -456,8 +459,6 @@ OverlayWidget::OverlayWidget()
 			playbackResumeOnCall();
 		}
 	}, lifetime());
-
-	_saveMsgUpdater.setCallback([=] { updateImage(); });
 
 	_widget->setAttribute(Qt::WA_AcceptTouchEvents);
 	_touchTimer.setCallback([=] { handleTouchTimer(); });
@@ -1795,8 +1796,17 @@ void OverlayWidget::downloadMedia() {
 	}
 	if (!toName.isEmpty()) {
 		_saveMsgFilename = toName;
-		_saveMsgStarted = crl::now();
-		_saveMsgOpacity.start(1);
+		const auto toIn = 1.;
+		_saveMsgAnimation.start(
+			[=](float64 value) {
+				updateImage();
+				if (value == toIn) {
+					_saveMsgTimer.callOnce(st::mediaviewSaveMsgShown);
+				}
+			},
+			0.,
+			toIn,
+			st::mediaviewSaveMsgShowing);
 		updateImage();
 	}
 }
@@ -2329,7 +2339,8 @@ void OverlayWidget::initGroupThumbs() {
 }
 
 void OverlayWidget::clearControlsState() {
-	_saveMsgStarted = 0;
+	_saveMsgAnimation.stop();
+	_saveMsgTimer.cancel();
 	_loadRequest = 0;
 	_over = _down = OverNone;
 	_pressed = false;
@@ -3442,8 +3453,7 @@ void OverlayWidget::paint(not_null<Renderer*> renderer) {
 			renderer->paintDocumentBubble(_docRect, _docIconRect);
 		}
 	}
-	updateSaveMsgState();
-	if (_saveMsgStarted && _saveMsgOpacity.current() > 0.) {
+	if (isSaveMsgShown()) {
 		renderer->paintSaveMsg(_saveMsg);
 	}
 
@@ -3686,7 +3696,7 @@ void OverlayWidget::paintSaveMsgContent(
 		Painter &p,
 		QRect outer,
 		QRect clip) {
-	p.setOpacity(_saveMsgOpacity.current());
+	p.setOpacity(_saveMsgAnimation.value(1.));
 	Ui::FillRoundRect(p, outer, st::mediaviewSaveMsgBg, Ui::MediaviewSaveCorners);
 	st::mediaviewSaveMsgCheck.paint(p, outer.topLeft() + st::mediaviewSaveMsgCheckPos, width());
 
@@ -3856,29 +3866,8 @@ void OverlayWidget::paintGroupThumbsContent(
 	}
 }
 
-void OverlayWidget::updateSaveMsgState() {
-	if (!_saveMsgStarted) {
-		return;
-	}
-	float64 dt = float64(crl::now()) - _saveMsgStarted;
-	float64 hidingDt = dt - st::mediaviewSaveMsgShowing - st::mediaviewSaveMsgShown;
-	if (dt >= st::mediaviewSaveMsgShowing
-		+ st::mediaviewSaveMsgShown
-		+ st::mediaviewSaveMsgHiding) {
-		_saveMsgStarted = 0;
-		return;
-	}
-	if (hidingDt >= 0 && _saveMsgOpacity.to() > 0.5) {
-		_saveMsgOpacity.start(0);
-	}
-	float64 progress = (hidingDt >= 0) ? (hidingDt / st::mediaviewSaveMsgHiding) : (dt / st::mediaviewSaveMsgShowing);
-	_saveMsgOpacity.update(qMin(progress, 1.), anim::linear);
-	if (!_blurred) {
-		const auto nextFrame = (dt < st::mediaviewSaveMsgShowing || hidingDt >= 0)
-			? int(AnimationTimerDelta)
-			: (st::mediaviewSaveMsgShowing + st::mediaviewSaveMsgShown + 1 - dt);
-		_saveMsgUpdater.callOnce(nextFrame);
-	}
+bool OverlayWidget::isSaveMsgShown() const {
+	return _saveMsgAnimation.animating() || _saveMsgTimer.isActive();
 }
 
 void OverlayWidget::handleKeyPress(not_null<QKeyEvent*> e) {
@@ -4267,7 +4256,7 @@ void OverlayWidget::handleMousePress(
 				|| _over == OverClose
 				|| _over == OverVideo) {
 				_down = _over;
-			} else if (!_saveMsg.contains(position) || !_saveMsgStarted) {
+			} else if (!_saveMsg.contains(position) || !isSaveMsgShown()) {
 				_pressed = true;
 				_dragging = 0;
 				updateCursor();
@@ -4397,7 +4386,7 @@ bool OverlayWidget::updateOverState(OverState newState) {
 void OverlayWidget::updateOver(QPoint pos) {
 	ClickHandlerPtr lnk;
 	ClickHandlerHost *lnkhost = nullptr;
-	if (_saveMsgStarted && _saveMsg.contains(pos)) {
+	if (isSaveMsgShown() && _saveMsg.contains(pos)) {
 		auto textState = _saveMsgText.getState(pos - _saveMsg.topLeft() - QPoint(st::mediaviewSaveMsgPadding.left(), st::mediaviewSaveMsgPadding.top()), _saveMsg.width() - st::mediaviewSaveMsgPadding.left() - st::mediaviewSaveMsgPadding.right());
 		lnk = textState.link;
 		lnkhost = this;
