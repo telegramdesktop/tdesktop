@@ -41,7 +41,8 @@ void PinsLimitBox(
 	not_null<Main::Session*> session);
 void CaptionLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	int remove);
 void CaptionLimitReachedBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,

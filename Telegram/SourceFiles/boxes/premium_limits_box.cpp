@@ -781,7 +781,8 @@ void PinsLimitBox(
 
 void CaptionLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		int remove) {
 	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
@@ -792,11 +793,16 @@ void CaptionLimitBox(
 		session,
 		"caption_length_limit_premium",
 		2048);
+	const auto currentLimit = premium ? premiumLimit : defaultLimit;
+	const auto current = std::clamp(
+		remove + currentLimit,
+		defaultLimit,
+		premiumLimit);
 
 	auto text = rpl::combine(
 		tr::lng_caption_limit1(
 			lt_count,
-			rpl::single(premium ? premiumLimit : defaultLimit),
+			rpl::single(currentLimit),
 			Ui::Text::RichLangValue),
 		tr::lng_caption_limit2(
 				lt_count,
@@ -812,7 +818,7 @@ void CaptionLimitBox(
 		tr::lng_caption_limit_title(),
 		std::move(text),
 		"caption_length",
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconChats },
 		premium);
 }
 
@@ -827,7 +833,7 @@ void CaptionLimitReachedBox(
 	if (!session->premium()) {
 		box->addLeftButton(tr::lng_limits_increase(), [=] {
 			box->getDelegate()->showBox(
-				Box(CaptionLimitBox, session),
+				Box(CaptionLimitBox, session, remove),
 				Ui::LayerOption::KeepOther,
 				anim::type::normal);
 			box->closeBox();
