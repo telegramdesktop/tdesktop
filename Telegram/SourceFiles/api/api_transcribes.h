@@ -25,6 +25,7 @@ public:
 		QString result;
 		bool shown = false;
 		bool failed = false;
+		bool toolong = false;
 		bool pending = false;
 		mtpRequestId requestId = 0;
 	};

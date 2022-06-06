@@ -78,12 +78,14 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 				_session->data().requestItemResize(item);
 			}
 		});
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
 		auto &entry = _map[id];
 		entry.requestId = 0;
 		entry.pending = false;
 		entry.failed = true;
-		if (const auto item = _session->data().message(id)) {
+		if (error.type() == qstr("MSG_VOICE_TOO_LONG")) {
+			entry.toolong = true;
+		} else if (const auto item = _session->data().message(id)) {
 			_session->data().requestItemResize(item);
 		}
 	}).send();

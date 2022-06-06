@@ -256,9 +256,13 @@ QSize Document::countOptimalSize() {
 				update);
 			auto text = (entry.requestId || !entry.shown)
 				? TextWithEntities()
+				: entry.toolong
+				? Ui::Text::Italic(tr::lng_audio_transcribe_long(tr::now))
 				: entry.failed
 				? Ui::Text::Italic(tr::lng_attach_failed(tr::now))
-				: TextWithEntities{ entry.result };
+				: TextWithEntities{
+					entry.result + (entry.pending ? " [...]" : ""),
+				};
 			voice->transcribe->setOpened(!text.empty(), update);
 			if (text.empty()) {
 				voice->transcribeText = {};
