@@ -41,7 +41,7 @@ const Transcribes::Entry &Transcribes::entry(
 	return (i != _map.end()) ? i->second : empty;
 }
 
-void Transcribes::apply(const MTPDupdateTranscribeAudio &update) {
+void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
 	const auto id = update.vtranscription_id().v;
 	const auto i = _ids.find(id);
 	if (i == _ids.end()) {
@@ -53,7 +53,7 @@ void Transcribes::apply(const MTPDupdateTranscribeAudio &update) {
 	}
 	const auto text = qs(update.vtext());
 	j->second.result = text;
-	j->second.pending = !update.is_final();
+	j->second.pending = update.is_pending();
 	if (const auto item = _session->data().message(i->second)) {
 		_session->data().requestItemResize(item);
 	}

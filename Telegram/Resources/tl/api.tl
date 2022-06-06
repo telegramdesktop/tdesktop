@@ -390,7 +390,7 @@ updateAttachMenuBots#17b7a20b = Update;
 updateWebViewResultSent#1592b79d query_id:long = Update;
 updateBotMenuButton#14b85813 bot_id:long button:BotMenuButton = Update;
 updateSavedRingtones#74d8be99 = Update;
-updateTranscribeAudio#88617090 flags:# final:flags.0?true transcription_id:long text:string = Update;
+updateTranscribedAudio#84cd5a flags:# pending:flags.0?true peer:Peer msg_id:int transcription_id:long text:string = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1794,7 +1794,10 @@ payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?t
 payments.getBankCardData#2e79d779 number:string = payments.BankCardData;
 payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoice;
 payments.assignAppStoreTransaction#6299a12f transaction_id:string = Updates;
+payments.restoreAppStoreReceipt#80de2ac7 receipt:bytes = Updates;
 payments.assignPlayMarketTransaction#4faa4aed purchase_token:string = Updates;
+payments.restorePlayMarketReceipt#d164e36a receipt:bytes = Updates;
+payments.canPurchasePremium#aa6a90c8 = Bool;
 payments.requestRecurringPayment#146e958d user_id:InputUser recurring_init_charge:string invoice_media:InputMedia = Updates;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;

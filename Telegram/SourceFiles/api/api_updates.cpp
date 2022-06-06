@@ -2388,8 +2388,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		session().api().ringtones().applyUpdate();
 	} break;
 
-	case mtpc_updateTranscribeAudio: {
-		const auto &data = update.c_updateTranscribeAudio();
+	case mtpc_updateTranscribedAudio: {
+		const auto &data = update.c_updateTranscribedAudio();
 		_session->api().transcribes().apply(data);
 	}
 

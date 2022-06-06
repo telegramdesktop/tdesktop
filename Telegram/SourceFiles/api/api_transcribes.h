@@ -32,7 +32,7 @@ public:
 	void toggle(not_null<HistoryItem*> item);
 	[[nodiscard]] const Entry &entry(not_null<HistoryItem*> item) const;
 
-	void apply(const MTPDupdateTranscribeAudio &update);
+	void apply(const MTPDupdateTranscribedAudio &update);
 
 private:
 	void load(not_null<HistoryItem*> item);
