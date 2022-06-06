@@ -58,7 +58,7 @@ constexpr auto kPreloadOfficialPages = 4;
 constexpr auto kOfficialLoadLimit = 40;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
-constexpr auto kPremiumLockedOpacity = 0.5;
+constexpr auto kGrayLockOpacity = 0.3;
 
 using Data::StickersSet;
 using Data::StickersPack;
@@ -67,6 +67,47 @@ using SetFlag = Data::StickersSetFlag;
 
 [[nodiscard]] bool SetInMyList(Data::StickersSetFlags flags) {
 	return (flags & SetFlag::Installed) && !(flags & SetFlag::Archived);
+}
+
+[[nodiscard]] std::optional<QColor> ComputeImageColor(const QImage &frame) {
+	if (frame.isNull()
+		|| frame.format() != QImage::Format_ARGB32_Premultiplied) {
+		return {};
+	}
+	auto sr = int64();
+	auto sg = int64();
+	auto sb = int64();
+	auto sa = int64();
+	const auto factor = frame.devicePixelRatio();
+	const auto size = st::stickersPremiumLock.size() * factor;
+	const auto width = std::min(frame.width(), size.width());
+	const auto height = std::min(frame.height(), size.height());
+	const auto skipx = (frame.width() - width) / 2;
+	const auto radius = st::roundRadiusSmall;
+	const auto skipy = std::max(frame.height() - height - radius, 0);
+	const auto perline = frame.bytesPerLine();
+	const auto addperline = perline - (width * 4);
+	auto bits = static_cast<const uchar*>(frame.bits())
+		+ perline * skipy
+		+ sizeof(uint32) * skipx;
+	for (auto y = 0; y != height; ++y) {
+		for (auto x = 0; x != width; ++x) {
+			sb += int(*bits++);
+			sg += int(*bits++);
+			sr += int(*bits++);
+			sa += int(*bits++);
+		}
+		bits += addperline;
+	}
+	if (!sa) {
+		return {};
+	}
+	return QColor(sr * 255 / sa, sg * 255 / sa, sb * 255 / sa, 255);
+
+}
+
+[[nodiscard]] QColor ComputeLockColor(const QImage &frame) {
+	return ComputeImageColor(frame).value_or(st::windowSubTextFg->c);
 }
 
 } // namespace
@@ -236,6 +277,7 @@ struct StickersListWidget::Sticker {
 	Media::Clip::ReaderPointer webm;
 	QPixmap savedFrame;
 	QSize savedFrameFor;
+	QImage premiumLock;
 
 	void ensureMediaCreated();
 };
@@ -1182,7 +1224,7 @@ StickersListWidget::StickersListWidget(
 
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
-		_premiumLock = QImage();
+		_premiumLockGray = QImage();
 	}, lifetime());
 
 	Data::AmPremiumValue(
@@ -2317,18 +2359,18 @@ void StickersListWidget::paintSticker(
 		(_singleSize.width() - size.width()) / 2,
 		(_singleSize.height() - size.height()) / 2);
 
-	if (locked) {
-		p.setOpacity(kPremiumLockedOpacity);
-	}
+	auto lottieFrame = QImage();
 	if (sticker.lottie && sticker.lottie->ready()) {
 		auto request = Lottie::FrameRequest();
 		request.box = boundingBoxSize() * cIntRetinaFactor();
-		const auto frame = sticker.lottie->frame(request);
+		lottieFrame = sticker.lottie->frame(request);
 		p.drawImage(
-			QRect(ppos, frame.size() / cIntRetinaFactor()),
-			frame);
+			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
+			lottieFrame);
 		if (sticker.savedFrame.isNull()) {
-			sticker.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
+			sticker.savedFrame = QPixmap::fromImage(
+				lottieFrame,
+				Qt::ColorOnly);
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			sticker.savedFrameFor = _singleSize;
 		}
@@ -2358,6 +2400,10 @@ void StickersListWidget::paintSticker(
 				sticker.savedFrame = pixmap;
 				sticker.savedFrameFor = _singleSize;
 			}
+			if (locked) {
+				lottieFrame = pixmap.toImage().convertToFormat(
+					QImage::Format_ARGB32_Premultiplied);
+			}
 		} else {
 			p.setOpacity(1.);
 			PaintStickerThumbnailPath(
@@ -2378,37 +2424,45 @@ void StickersListWidget::paintSticker(
 	}
 
 	if (locked) {
-		p.setOpacity(1.);
-
-		validatePremiumLock();
+		validatePremiumLock(set, index, lottieFrame);
+		const auto &bg = lottieFrame.isNull()
+			? _premiumLockGray
+			: sticker.premiumLock;
 		const auto factor = style::DevicePixelRatio();
-		const auto point = pos
-			+ QPoint(
-				_singleSize.width() - (_premiumLock.width() / factor),
-				_singleSize.height() - (_premiumLock.height() / factor));
-		p.drawImage(point, _premiumLock);
+		const auto radius = st::roundRadiusSmall;
+		const auto point = pos + QPoint(
+			(_singleSize.width() - (bg.width() / factor)) / 2,
+			_singleSize.height() - (bg.height() / factor) - radius);
+		p.drawImage(point, bg);
+
+		st::stickersPremiumLock.paint(p, point, width());
 	}
 }
 
-void StickersListWidget::validatePremiumLock() {
-	if (!_premiumLock.isNull()) {
-		return;
+const QImage &StickersListWidget::validatePremiumLock(
+		Set &set,
+		int index,
+		const QImage &frame) {
+	auto &sticker = set.stickers[index];
+	auto &image = frame.isNull() ? _premiumLockGray : sticker.premiumLock;
+	if (!image.isNull()) {
+		return image;
 	}
 	const auto factor = style::DevicePixelRatio();
 	const auto size = st::stickersPremiumLock.size();
-	_premiumLock = QImage(
+	image = QImage(
 		size * factor,
 		QImage::Format_ARGB32_Premultiplied);
-	_premiumLock.setDevicePixelRatio(factor);
-	auto p = QPainter(&_premiumLock);
-	auto gradient = QLinearGradient(
-		QPoint(0, size.height()),
-		QPoint(size.width(), 0));
-	gradient.setStops(Ui::Premium::LockGradientStops());
-	p.fillRect(QRect(QPoint(), size), gradient);
-	st::stickersPremiumLock.paint(p, 0, 0, size.width());
+	image.setDevicePixelRatio(factor);
+	auto p = QPainter(&image);
+	const auto color = ComputeLockColor(frame);
+	p.fillRect(
+		QRect(QPoint(), size),
+		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
 	p.end();
-	_premiumLock = Images::Circle(std::move(_premiumLock));
+
+	image = Images::Circle(std::move(image));
+	return image;
 }
 
 int StickersListWidget::stickersRight() const {

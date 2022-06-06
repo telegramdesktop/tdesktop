@@ -330,7 +330,10 @@ private:
 	void addSearchRow(not_null<Data::StickersSet*> set);
 
 	void showPreview();
-	void validatePremiumLock();
+	const QImage &validatePremiumLock(
+		Set &set,
+		int index,
+		const QImage &frame);
 
 	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
 		int section,
@@ -391,7 +394,7 @@ private:
 	base::Timer _previewTimer;
 	bool _previewShown = false;
 
-	QImage _premiumLock;
+	QImage _premiumLockGray;
 
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;
