@@ -251,7 +251,8 @@ bool PinnedLimitReached(
 		owner->setChatPinned(history, FilterId(), true);
 		history->session().api().savePinnedOrder(folder);
 	} else if (filterId) {
-		controller->show(Box(FilterPinsLimitBox, &history->session()));
+		controller->show(
+			Box(FilterPinsLimitBox, &history->session(), filterId));
 	} else if (folder) {
 		controller->show(Box(FolderPinsLimitBox, &history->session()));
 	} else {

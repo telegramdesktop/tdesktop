@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_folder.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -462,6 +463,10 @@ void SimpleLimitBox(
 	}
 }
 
+[[nodiscard]] int PinsCount(not_null<Dialogs::MainList*> list) {
+	return list->pinned()->order().size();
+}
+
 void SimplePinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
@@ -469,11 +474,16 @@ void SimplePinsLimitBox(
 		const QString &keyDefault,
 		int limitDefault,
 		const QString &keyPremium,
-		int limitPremium) {
+		int limitPremium,
+		int currentCount) {
 	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(session, keyDefault, limitDefault);
 	const auto premiumLimit = Limit(session, keyPremium, limitPremium);
+	const auto current = std::clamp(
+		float64(currentCount),
+		defaultLimit,
+		premiumLimit);
 
 	auto text = rpl::combine(
 		tr::lng_filter_pin_limit1(
@@ -497,7 +507,7 @@ void SimplePinsLimitBox(
 		tr::lng_filter_pin_limit_title(),
 		std::move(text),
 		refAddition,
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconPins },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconPins },
 		premium);
 }
 
@@ -742,7 +752,8 @@ void FiltersLimitBox(
 
 void FilterPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		FilterId filterId) {
 	SimplePinsLimitBox(
 		box,
 		session,
@@ -750,7 +761,8 @@ void FilterPinsLimitBox(
 		"dialog_filters_chats_limit_default",
 		100,
 		"dialog_filters_chats_limit_premium",
-		200);
+		200,
+		PinsCount(session->data().chatsFilters().chatsList(filterId)));
 }
 
 void FolderPinsLimitBox(
@@ -763,7 +775,8 @@ void FolderPinsLimitBox(
 		"dialogs_folder_pinned_limit_default",
 		100,
 		"dialogs_folder_pinned_limit_premium",
-		200);
+		200,
+		PinsCount(session->data().folder(Data::Folder::kId)->chatsList()));
 }
 
 void PinsLimitBox(
@@ -776,7 +789,8 @@ void PinsLimitBox(
 		"dialogs_pinned_limit_default",
 		5,
 		"dialogs_pinned_limit_premium",
-		10);
+		10,
+		PinsCount(session->data().chatsList()));
 }
 
 void CaptionLimitBox(

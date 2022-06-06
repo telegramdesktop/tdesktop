@@ -32,7 +32,8 @@ void FiltersLimitBox(
 	not_null<Main::Session*> session);
 void FilterPinsLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	FilterId filterId);
 void FolderPinsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
