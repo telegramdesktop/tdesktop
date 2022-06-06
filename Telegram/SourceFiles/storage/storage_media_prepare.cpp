@@ -223,10 +223,12 @@ PreparedList PrepareMediaList(
 				file
 			};
 		} else if (filesize > kFileSizeLimit && !premium) {
-			return {
+			auto errorResult = PreparedList(
 				PreparedList::Error::PremiumRequired,
-				file
-			};
+				QString());
+			errorResult.files.emplace_back(file);
+			errorResult.files.back().size = filesize;
+			return errorResult;
 		}
 		if (result.files.size() < Ui::MaxAlbumItems()) {
 			result.files.emplace_back(file);

@@ -568,7 +568,8 @@ bool ScheduledWidget::showSendingFilesError(
 	if (text.isEmpty()) {
 		return false;
 	} else if (text == u"(premium)"_q) {
-		controller()->show(Box(FileSizeLimitBox, &session()));
+		const auto fileSize = list.files.back().size;
+		controller()->show(Box(FileSizeLimitBox, &session(), fileSize));
 		return true;
 	}
 

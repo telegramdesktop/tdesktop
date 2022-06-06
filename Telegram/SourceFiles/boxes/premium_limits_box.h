@@ -48,7 +48,8 @@ void CaptionLimitReachedBox(
 	int remove);
 void FileSizeLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	uint64 fileSizeBytes);
 void AccountsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);

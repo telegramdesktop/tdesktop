@@ -837,7 +837,8 @@ void CaptionLimitReachedBox(
 
 void FileSizeLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		uint64 fileSizeBytes) {
 	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
@@ -851,6 +852,12 @@ void FileSizeLimitBox(
 
 	const auto defaultGb = (defaultLimit + 999) / 2000;
 	const auto premiumGb = (premiumLimit + 999) / 2000;
+	const auto current = fileSizeBytes
+		? std::clamp(
+			float64(((fileSizeBytes / uint64(1024 * 1024)) + 999) / 1000),
+			defaultGb,
+			premiumGb)
+		: defaultGb;
 	const auto gb = [](int count) {
 		return tr::lng_file_size_limit(tr::now, lt_count, count);
 	};
@@ -876,7 +883,7 @@ void FileSizeLimitBox(
 		"upload_max_fileparts",
 		{
 			defaultGb,
-			defaultGb,
+			current,
 			premiumGb,
 			&st::premiumIconFiles,
 			tr::lng_file_size_limit
