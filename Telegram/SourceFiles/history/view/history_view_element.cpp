@@ -869,10 +869,6 @@ ClickHandlerPtr Element::rightActionLink() const {
 	return ClickHandlerPtr();
 }
 
-bool Element::displayEditedBadge() const {
-	return false;
-}
-
 TimeId Element::displayedEditDate() const {
 	return TimeId(0);
 }

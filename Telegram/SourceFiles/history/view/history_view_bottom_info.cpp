@@ -602,10 +602,8 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 			result.author = msgsigned->author;
 		 }
 	}
-	if (!item->hideEditedBadge()) {
-		if (const auto edited = message->displayedEditBadge()) {
-			result.flags |= Flag::Edited;
-		}
+	if (message->displayedEditDate()) {
+		result.flags |= Flag::Edited;
 	}
 	if (const auto views = item->Get<HistoryMessageViews>()) {
 		if (views->views.count >= 0) {

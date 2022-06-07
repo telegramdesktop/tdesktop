@@ -3073,10 +3073,6 @@ void Message::refreshInfoSkipBlock() {
 	}
 }
 
-bool Message::displayEditedBadge() const {
-	return (displayedEditDate() != TimeId(0));
-}
-
 TimeId Message::displayedEditDate() const {
 	const auto item = message();
 	const auto overrided = media() && media()->overrideEditedDate();
