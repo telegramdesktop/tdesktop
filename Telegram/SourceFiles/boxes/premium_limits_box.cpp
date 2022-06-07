@@ -520,11 +520,12 @@ void ChannelsLimitBox(
 
 	const auto defaultLimit = Limit(session, "channels_limit_default", 500);
 	const auto premiumLimit = Limit(session, "channels_limit_premium", 1000);
+	const auto current = (premium ? premiumLimit : defaultLimit);
 
 	auto text = rpl::combine(
 		tr::lng_channels_limit1(
 			lt_count,
-			rpl::single(premium ? premiumLimit : defaultLimit),
+			rpl::single(current),
 			Ui::Text::RichLangValue),
 		(premium
 			? tr::lng_channels_limit2_final(Ui::Text::RichLangValue)
@@ -542,7 +543,7 @@ void ChannelsLimitBox(
 		tr::lng_channels_limit_title(),
 		std::move(text),
 		"channels",
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconGroups },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconGroups },
 		premium,
 		true);
 
@@ -615,11 +616,12 @@ void PublicLinksLimitBox(
 		session,
 		"channels_public_limit_premium",
 		20);
+	const auto current = (premium ? premiumLimit : defaultLimit);
 
 	auto text = rpl::combine(
 		tr::lng_links_limit1(
 			lt_count,
-			rpl::single(premium ? premiumLimit : defaultLimit),
+			rpl::single(current),
 			Ui::Text::RichLangValue),
 		(premium
 			? tr::lng_links_limit2_final(Ui::Text::RichLangValue)
@@ -637,7 +639,7 @@ void PublicLinksLimitBox(
 		tr::lng_links_limit_title(),
 		std::move(text),
 		"channels_public",
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconLinks },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconLinks },
 		premium,
 		true);
 

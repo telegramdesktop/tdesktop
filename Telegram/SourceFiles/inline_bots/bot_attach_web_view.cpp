@@ -375,7 +375,7 @@ bool PeerMatchesTypes(
 
 PeerTypes ParseChooseTypes(const QString &choose) {
 	auto result = PeerTypes();
-	for (const auto entry : choose.split(QChar(' '))) {
+	for (const auto &entry : choose.split(QChar(' '))) {
 		if (entry == "users") {
 			result |= PeerType::User;
 		} else if (entry == "bots") {
