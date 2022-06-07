@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_chat_filters.h"
+#include "data/data_peer_values.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "chat_helpers/emoji_interactions.h"
@@ -665,6 +666,7 @@ SessionController::SessionController(
 
 	crl::on_main(this, [=] {
 		activateFirstChatsFilter();
+		setupPremiumToast();
 	});
 }
 
@@ -815,6 +817,30 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 
 void SessionController::closeFolder() {
 	_openedFolder = nullptr;
+}
+
+void SessionController::setupPremiumToast() {
+	rpl::combine(
+		Data::AmPremiumValue(&session()),
+		session().changes().peerUpdates(
+			Data::PeerUpdate::Flag::FullInfo
+		)
+	) | rpl::filter([=] {
+		return session().user()->isFullLoaded();
+	}) | rpl::map([=](bool premium, const auto&) {
+		return premium;
+	}) | rpl::distinct_until_changed() | rpl::skip(
+		1
+	) | rpl::filter([=](bool premium) {
+		return premium;
+	}) | rpl::start_with_next([=] {
+		Ui::Toast::Show(
+			Window::Show(this).toastParent(),
+			{
+				.text = tr::lng_premium_success(tr::now),
+				.st = &st::defaultToast,
+			});
+	}, _lifetime);
 }
 
 const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {

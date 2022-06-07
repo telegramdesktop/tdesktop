@@ -540,6 +540,7 @@ private:
 	void resetFakeUnreadWhileOpened();
 
 	void checkInvitePeek();
+	void setupPremiumToast();
 
 	void pushDefaultChatBackground();
 	void cacheChatTheme(
@@ -616,8 +617,10 @@ public:
 	[[nodiscard]] not_null<QWidget*> toastParent() const override;
 	[[nodiscard]] bool valid() const override;
 	operator bool() const override;
+
 private:
 	const base::weak_ptr<Controller> _window;
+
 };
 
 } // namespace Window
