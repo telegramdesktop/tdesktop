@@ -668,7 +668,8 @@ void PublicLinksLimitBox(
 
 void FilterChatsLimitBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<Main::Session*> session) {
+		not_null<Main::Session*> session,
+		int currentCount) {
 	const auto premium = session->premium();
 
 	const auto defaultLimit = Limit(
@@ -679,6 +680,10 @@ void FilterChatsLimitBox(
 		session,
 		"dialog_filters_chats_limit_premium",
 		200);
+	const auto current = std::clamp(
+		float64(currentCount),
+		defaultLimit,
+		premiumLimit);
 
 	auto text = rpl::combine(
 		tr::lng_filter_chats_limit1(
@@ -703,7 +708,7 @@ void FilterChatsLimitBox(
 		tr::lng_filter_chats_limit_title(),
 		std::move(text),
 		"dialog_filters_chats",
-		{ defaultLimit, defaultLimit, premiumLimit, &st::premiumIconChats },
+		{ defaultLimit, current, premiumLimit, &st::premiumIconChats },
 		premium);
 }
 

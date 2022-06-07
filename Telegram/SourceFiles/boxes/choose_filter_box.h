@@ -20,10 +20,14 @@ class History;
 class ChooseFilterValidator final {
 public:
 	ChooseFilterValidator(not_null<History*> history);
+	struct LimitData {
+		const bool reached = false;
+		const int count = 0;
+	};
 
 	[[nodiscard]] bool canAdd() const;
 	[[nodiscard]] bool canRemove(FilterId filterId) const;
-	[[nodiscard]] bool limitReached(FilterId filterId) const;
+	[[nodiscard]] LimitData limitReached(FilterId filterId) const;
 
 	void add(FilterId filterId) const;
 	void remove(FilterId filterId) const;

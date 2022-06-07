@@ -121,15 +121,19 @@ bool ChooseFilterValidator::canRemove(FilterId filterId) const {
 	return false;
 }
 
-bool ChooseFilterValidator::limitReached(FilterId filterId) const {
+ChooseFilterValidator::LimitData ChooseFilterValidator::limitReached(
+		FilterId filterId) const {
 	Expects(filterId != 0);
 
 	const auto list = _history->owner().chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	const auto limit = _history->owner().pinnedChatsLimit(nullptr, filterId);
-	return (i != end(list))
-		&& !ranges::contains(i->always(), _history)
-		&& (i->always().size() >= limit);
+	return {
+		.reached = (i != end(list))
+			&& !ranges::contains(i->always(), _history)
+			&& (i->always().size() >= limit),
+		.count = int(i->always().size()),
+	};
 }
 
 void ChooseFilterValidator::add(FilterId filterId) const {
@@ -158,9 +162,11 @@ void FillChooseFilterMenu(
 				if (validator.canRemove(id)) {
 					validator.remove(id);
 				}
-			} else if (validator.limitReached(id)) {
-				controller->show(
-					Box(FilterChatsLimitBox, &controller->session()));
+			} else if (const auto r = validator.limitReached(id); r.reached) {
+				controller->show(Box(
+					FilterChatsLimitBox,
+					&controller->session(),
+					r.count));
 			} else if (validator.canAdd()) {
 				validator.add(id);
 			}

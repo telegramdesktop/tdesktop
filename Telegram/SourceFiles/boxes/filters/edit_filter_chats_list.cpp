@@ -348,7 +348,8 @@ void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
 	} else {
-		delegate()->peerListShowBox(Box(FilterChatsLimitBox, _session));
+		delegate()->peerListShowBox(
+			Box(FilterChatsLimitBox, _session, count));
 	}
 }
 

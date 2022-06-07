@@ -26,7 +26,8 @@ void PublicLinksLimitBox(
 	Fn<void()> retry);
 void FilterChatsLimitBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<Main::Session*> session);
+	not_null<Main::Session*> session,
+	int currentCount);
 void FiltersLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
