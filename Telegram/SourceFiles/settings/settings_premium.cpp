@@ -206,13 +206,6 @@ using Order = std::vector<QString>;
 			outer);
 	}, label->lifetime());
 
-	parent->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		const auto padding = st::settingsPremiumButtonPadding;
-		result->resizeToWidth(width - padding.left() - padding.right());
-		result->moveToLeft(padding.left(), padding.top(), width);
-	}, result->lifetime());
-
 	return result;
 }
 
@@ -892,6 +885,24 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
+	constexpr auto TosLink = [](const QString &text) {
+		return Ui::Text::Link(text, "https://telegram.org/tos");
+	};
+	constexpr auto PolicyLink = [](const QString &text) {
+		return Ui::Text::Link(text, "https://telegram.org/privacy");
+	};
+	const auto terms = Ui::CreateChild<Ui::DividerLabel>(
+		content,
+		object_ptr<Ui::FlatLabel>(
+			content,
+			tr::lng_premium_summary_agree(
+				lt_terms,
+				tr::lng_premium_summary_terms() | rpl::map(TosLink),
+				lt_policy,
+				tr::lng_premium_summary_policy() | rpl::map(PolicyLink),
+				Ui::Text::WithEntities),
+			st::boxDividerLabel),
+		st::settingsPremiumPolicyPadding);
 	const auto button = CreateSubscribeButton(_controller, content, [=] {
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
@@ -907,7 +918,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		RectPart::Top);
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
+		const auto padding = st::settingsPremiumButtonPadding;
 		status->resizeToWidth(width);
+		terms->resizeToWidth(width);
+		button->resizeToWidth(width - padding.left() - padding.right());
 	}, status->lifetime());
 
 	const auto session = &_controller->session();
@@ -916,12 +930,14 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		return session->premiumPossible();
 	});
 	rpl::combine(
+		terms->heightValue(),
 		button->heightValue(),
 		status->heightValue(),
 		std::move(text),
 		Data::AmPremiumValue(session),
 		std::move(premiumPossible)
 	) | rpl::start_with_next([=](
+			int termsHeight,
 			int buttonHeight,
 			int statusHeight,
 			const TextWithEntities &text,
@@ -931,13 +947,15 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		const auto finalHeight = !premiumPossible
 			? 0
 			: !premium
-			? (padding.top() + buttonHeight + padding.bottom())
+			? (termsHeight + padding.top() + buttonHeight + padding.bottom())
 			: text.text.isEmpty()
 			? 0
 			: statusHeight;
 		content->resize(content->width(), finalHeight);
-		button->moveToLeft(padding.left(), padding.top());
+		terms->moveToLeft(0, 0);
+		button->moveToLeft(padding.left(), termsHeight + padding.top());
 		status->moveToLeft(0, 0);
+		terms->setVisible(!premium && premiumPossible);
 		button->setVisible(!premium && premiumPossible);
 		status->setVisible(premium && !text.text.isEmpty());
 		if (!premium || text.text.isEmpty()) {

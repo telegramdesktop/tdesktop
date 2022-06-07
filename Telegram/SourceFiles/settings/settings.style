@@ -456,3 +456,4 @@ settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	lineHeight: 18px;
 }
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
+settingsPremiumPolicyPadding: margins(22px, 8px, 22px, 8px);
