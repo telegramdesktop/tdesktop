@@ -226,7 +226,7 @@ bool Session::premium() const {
 bool Session::premiumPossible() const {
 	return !_account->appConfig().get<bool>(
 		"premium_purchase_blocked",
-		false);
+		true);
 }
 
 uint64 Session::uniqueId() const {
