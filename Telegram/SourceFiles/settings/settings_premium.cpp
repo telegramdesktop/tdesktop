@@ -910,18 +910,27 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		status->resizeToWidth(width);
 	}, status->lifetime());
 
+	const auto session = &_controller->session();
+	auto premiumPossible = session->account().appConfig().value(
+	) | rpl::map([=] {
+		return session->premiumPossible();
+	});
 	rpl::combine(
 		button->heightValue(),
 		status->heightValue(),
 		std::move(text),
-		Data::AmPremiumValue(&_controller->session())
+		Data::AmPremiumValue(session),
+		std::move(premiumPossible)
 	) | rpl::start_with_next([=](
 			int buttonHeight,
 			int statusHeight,
 			const TextWithEntities &text,
-			bool premium) {
+			bool premium,
+			bool premiumPossible) {
 		const auto padding = st::settingsPremiumButtonPadding;
-		const auto finalHeight = !premium
+		const auto finalHeight = !premiumPossible
+			? 0
+			: !premium
 			? (padding.top() + buttonHeight + padding.bottom())
 			: text.text.isEmpty()
 			? 0
@@ -929,7 +938,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		content->resize(content->width(), finalHeight);
 		button->moveToLeft(padding.left(), padding.top());
 		status->moveToLeft(0, 0);
-		button->setVisible(!premium);
+		button->setVisible(!premium && premiumPossible);
 		status->setVisible(premium && !text.text.isEmpty());
 		if (!premium || text.text.isEmpty()) {
 			_bottomSkipRounding.reset();

@@ -890,7 +890,7 @@ void FileSizeLimitBox(
 
 	const auto defaultGb = (defaultLimit + 999) / 2000;
 	const auto premiumGb = (premiumLimit + 999) / 2000;
-	const auto current = fileSizeBytes
+	const auto current = (fileSizeBytes && premiumPossible)
 		? std::clamp(
 			float64(((fileSizeBytes / uint64(1024 * 1024)) + 999) / 1000),
 			defaultGb,
