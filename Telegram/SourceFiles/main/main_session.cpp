@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
+#include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -220,6 +221,12 @@ rpl::producer<> Session::downloaderTaskFinished() const {
 
 bool Session::premium() const {
 	return _user->isPremium();
+}
+
+bool Session::premiumPossible() const {
+	return !_account->appConfig().get<bool>(
+		"premium_purchase_blocked",
+		false);
 }
 
 uint64 Session::uniqueId() const {

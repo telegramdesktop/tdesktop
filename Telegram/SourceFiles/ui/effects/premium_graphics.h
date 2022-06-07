@@ -34,6 +34,7 @@ void AddBubbleRow(
 	int min,
 	int current,
 	int max,
+	bool premiumPossible,
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	const style::icon *icon);
 

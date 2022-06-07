@@ -429,6 +429,10 @@ void ReactionsSettingsBox(
 			st::settingsButton);
 
 		const auto premium = r.premium;
+		if (premium && !controller->session().premiumPossible()) {
+			continue;
+		}
+
 		const auto iconSize = st::settingsReactionSize;
 		AddReactionLottieIcon(
 			button,

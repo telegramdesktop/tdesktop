@@ -411,10 +411,10 @@ void SimpleLimitBox(
 		rpl::producer<TextWithEntities> text,
 		const QString &refAddition,
 		const InfographicDescriptor &descriptor,
-		bool premium,
 		bool fixed = false) {
 	box->setWidth(st::boxWideWidth);
 
+	const auto premiumPossible = session->premiumPossible();
 	const auto top = fixed
 		? box->setPinnedToTopContent(object_ptr<Ui::VerticalLayout>(box))
 		: box->verticalLayout();
@@ -426,11 +426,17 @@ void SimpleLimitBox(
 		descriptor.defaultLimit,
 		descriptor.current,
 		descriptor.premiumLimit,
+		premiumPossible,
 		descriptor.phrase,
 		descriptor.icon);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
-	Ui::Premium::AddLimitRow(top, descriptor.premiumLimit, descriptor.phrase);
-	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+	if (premiumPossible) {
+		Ui::Premium::AddLimitRow(
+			top,
+			descriptor.premiumLimit,
+			descriptor.phrase);
+		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+	}
 
 	box->setTitle(std::move(title));
 
@@ -443,7 +449,7 @@ void SimpleLimitBox(
 			st::aboutRevokePublicLabel),
 		padding);
 
-	if (premium) {
+	if (session->premium() || !premiumPossible) {
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
@@ -451,11 +457,11 @@ void SimpleLimitBox(
 		box->addButton(tr::lng_limits_increase(), [=] {
 			Settings::ShowPremium(session, LimitsPremiumRef(refAddition));
 		});
-	}
 
-	box->addButton(tr::lng_cancel(), [=] {
-		box->closeBox();
-	});
+		box->addButton(tr::lng_cancel(), [=] {
+			box->closeBox();
+		});
+	}
 
 	if (fixed) {
 		Settings::AddSkip(top, st::settingsButton.padding.bottom());
@@ -477,6 +483,7 @@ void SimplePinsLimitBox(
 		int limitPremium,
 		int currentCount) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(session, keyDefault, limitDefault);
 	const auto premiumLimit = Limit(session, keyPremium, limitPremium);
@@ -490,7 +497,7 @@ void SimplePinsLimitBox(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
-		(premium
+		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_pin_limit2(
 				lt_count,
@@ -507,8 +514,7 @@ void SimplePinsLimitBox(
 		tr::lng_filter_pin_limit_title(),
 		std::move(text),
 		refAddition,
-		{ defaultLimit, current, premiumLimit, &st::premiumIconPins },
-		premium);
+		{ defaultLimit, current, premiumLimit, &st::premiumIconPins });
 }
 
 } // namespace
@@ -517,6 +523,7 @@ void ChannelsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(session, "channels_limit_default", 500);
 	const auto premiumLimit = Limit(session, "channels_limit_premium", 1000);
@@ -527,7 +534,7 @@ void ChannelsLimitBox(
 			lt_count,
 			rpl::single(current),
 			Ui::Text::RichLangValue),
-		(premium
+		((premium || !premiumPossible)
 			? tr::lng_channels_limit2_final(Ui::Text::RichLangValue)
 			: tr::lng_channels_limit2(
 				lt_count,
@@ -544,7 +551,6 @@ void ChannelsLimitBox(
 		std::move(text),
 		"channels",
 		{ defaultLimit, current, premiumLimit, &st::premiumIconGroups },
-		premium,
 		true);
 
 	AddSubsectionTitle(box->verticalLayout(), tr::lng_channels_leave_title());
@@ -607,6 +613,7 @@ void PublicLinksLimitBox(
 		Fn<void()> retry) {
 	const auto session = &navigation->session();
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -623,7 +630,7 @@ void PublicLinksLimitBox(
 			lt_count,
 			rpl::single(current),
 			Ui::Text::RichLangValue),
-		(premium
+		((premium || !premiumPossible)
 			? tr::lng_links_limit2_final(Ui::Text::RichLangValue)
 			: tr::lng_links_limit2(
 				lt_count,
@@ -640,7 +647,6 @@ void PublicLinksLimitBox(
 		std::move(text),
 		"channels_public",
 		{ defaultLimit, current, premiumLimit, &st::premiumIconLinks },
-		premium,
 		true);
 
 	AddSubsectionTitle(box->verticalLayout(), tr::lng_links_revoke_title());
@@ -673,6 +679,7 @@ void FilterChatsLimitBox(
 		not_null<Main::Session*> session,
 		int currentCount) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -692,7 +699,7 @@ void FilterChatsLimitBox(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
-		(premium
+		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filter_chats_limit2(
 				lt_count,
@@ -710,14 +717,14 @@ void FilterChatsLimitBox(
 		tr::lng_filter_chats_limit_title(),
 		std::move(text),
 		"dialog_filters_chats",
-		{ defaultLimit, current, premiumLimit, &st::premiumIconChats },
-		premium);
+		{ defaultLimit, current, premiumLimit, &st::premiumIconChats });
 }
 
 void FiltersLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -736,7 +743,7 @@ void FiltersLimitBox(
 			lt_count,
 			rpl::single(premium ? premiumLimit : defaultLimit),
 			Ui::Text::RichLangValue),
-		(premium
+		((premium || !premiumPossible)
 			? rpl::single(TextWithEntities())
 			: tr::lng_filters_limit2(
 				lt_count,
@@ -753,8 +760,7 @@ void FiltersLimitBox(
 		tr::lng_filters_limit_title(),
 		std::move(text),
 		"dialog_filters",
-		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders },
-		premium);
+		{ defaultLimit, current, premiumLimit, &st::premiumIconFolders });
 }
 
 void FilterPinsLimitBox(
@@ -805,6 +811,7 @@ void CaptionLimitBox(
 		not_null<Main::Session*> session,
 		int remove) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -825,12 +832,16 @@ void CaptionLimitBox(
 			lt_count,
 			rpl::single(currentLimit),
 			Ui::Text::RichLangValue),
-		tr::lng_caption_limit2(
+		(!premiumPossible
+			? rpl::single(TextWithEntities())
+			: tr::lng_caption_limit2(
 				lt_count,
 				rpl::single(premiumLimit),
-				Ui::Text::RichLangValue)
+				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
-		return a.append(QChar(' ')).append(std::move(b));
+		return b.text.isEmpty()
+			? a
+			: a.append(QChar(' ')).append(std::move(b));
 	});
 
 	SimpleLimitBox(
@@ -839,8 +850,7 @@ void CaptionLimitBox(
 		tr::lng_caption_limit_title(),
 		std::move(text),
 		"caption_length",
-		{ defaultLimit, current, premiumLimit, &st::premiumIconChats },
-		premium);
+		{ defaultLimit, current, premiumLimit, &st::premiumIconChats });
 }
 
 void CaptionLimitReachedBox(
@@ -867,6 +877,7 @@ void FileSizeLimitBox(
 		not_null<Main::Session*> session,
 		uint64 fileSizeBytes) {
 	const auto premium = session->premium();
+	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(
 		session,
@@ -894,10 +905,12 @@ void FileSizeLimitBox(
 			lt_size,
 			rpl::single(Ui::Text::Bold(gb(defaultGb))),
 			Ui::Text::RichLangValue),
-		tr::lng_file_size_limit2(
-			lt_size,
-			rpl::single(Ui::Text::Bold(gb(premiumGb))),
-			Ui::Text::RichLangValue)
+		(!premiumPossible
+			? rpl::single(TextWithEntities())
+			: tr::lng_file_size_limit2(
+				lt_size,
+				rpl::single(Ui::Text::Bold(gb(premiumGb))),
+				Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
 		return a.append(QChar(' ')).append(std::move(b));
 	});
@@ -914,8 +927,7 @@ void FileSizeLimitBox(
 			premiumGb,
 			&st::premiumIconFiles,
 			tr::lng_file_size_limit
-		},
-		premium);
+		});
 }
 
 void AccountsLimitBox(
@@ -925,6 +937,7 @@ void AccountsLimitBox(
 	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
 
 	const auto accounts = session->domain().orderedAccounts();
+	const auto premiumPossible = session->premiumPossible();
 	const auto current = int(accounts.size());
 
 	auto text = rpl::combine(
@@ -953,6 +966,7 @@ void AccountsLimitBox(
 		0,
 		current,
 		(current > defaultLimit) ? current : (defaultLimit * 2),
+		premiumPossible,
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Settings::AddSkip(top, st::premiumLineTextSkip);

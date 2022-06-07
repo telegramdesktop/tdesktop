@@ -81,6 +81,7 @@ public:
 	[[nodiscard]] Storage::Domain &domainLocal() const;
 
 	[[nodiscard]] bool premium() const;
+	[[nodiscard]] bool premiumPossible() const;
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;

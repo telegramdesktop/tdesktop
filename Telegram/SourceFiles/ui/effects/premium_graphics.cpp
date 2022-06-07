@@ -72,7 +72,8 @@ public:
 	Bubble(
 		Fn<void()> updateCallback,
 		TextFactory textFactory,
-		const style::icon *icon);
+		const style::icon *icon,
+		bool premiumPossible);
 
 	[[nodiscard]] int counter() const;
 	[[nodiscard]] int height() const;
@@ -85,7 +86,6 @@ public:
 	void paintBubble(Painter &p, const QRect &r, const QBrush &brush);
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
-	[[nodiscard]] rpl::producer<> updateRequests() const;
 
 private:
 	[[nodiscard]] int filledWidth() const;
@@ -100,6 +100,7 @@ private:
 	const QSize _tailSize;
 	const int _height;
 	const int _textTop;
+	const bool _premiumPossible;
 
 	int _counter = -1;
 	EdgeProgress _tailEdge = 0.;
@@ -111,7 +112,8 @@ private:
 Bubble::Bubble(
 	Fn<void()> updateCallback,
 	TextFactory textFactory,
-	const style::icon *icon)
+	const style::icon *icon,
+	bool premiumPossible)
 : _updateCallback(std::move(updateCallback))
 , _textFactory(std::move(textFactory))
 , _font(st::premiumBubbleFont)
@@ -120,7 +122,8 @@ Bubble::Bubble(
 , _numberAnimation(_font, _updateCallback)
 , _tailSize(st::premiumBubbleTailSize)
 , _height(st::premiumBubbleHeight + _tailSize.height())
-, _textTop((_height - _tailSize.height() - _font->height) / 2) {
+, _textTop((_height - _tailSize.height() - _font->height) / 2)
+, _premiumPossible(premiumPossible) {
 	_numberAnimation.setDisabledMonospace(true);
 	_numberAnimation.setWidthChangedCallback([=] {
 		_widthChanges.fire({});
@@ -208,13 +211,14 @@ void Bubble::paintBubble(Painter &p, const QRect &r, const QBrush &brush) {
 				? std::max(float64(tailCenter), float64(bottomMax))
 				: right;
 		}();
-		pathTail.moveTo(tailLeftFull, tailTop);
-		pathTail.lineTo(tailLeft, tailTop);
-		pathTail.lineTo(tailCenter, tailTop + _tailSize.height());
-		pathTail.lineTo(tailRight, tailTop);
-		pathTail.lineTo(tailRight, tailTop - radius);
-		pathTail.moveTo(tailLeftFull, tailTop);
-
+		if (_premiumPossible) {
+			pathTail.moveTo(tailLeftFull, tailTop);
+			pathTail.lineTo(tailLeft, tailTop);
+			pathTail.lineTo(tailCenter, tailTop + _tailSize.height());
+			pathTail.lineTo(tailRight, tailTop);
+			pathTail.lineTo(tailRight, tailTop - radius);
+			pathTail.moveTo(tailLeftFull, tailTop);
+		}
 		auto pathBubble = QPainterPath();
 		pathBubble.setFillRule(Qt::WindingFill);
 		pathBubble.addRoundedRect(bubbleRect, radius, radius);
@@ -255,6 +259,7 @@ public:
 		TextFactory textFactory,
 		int current,
 		int maxCounter,
+		bool premiumPossible,
 		rpl::producer<> showFinishes,
 		const style::icon *icon);
 
@@ -268,6 +273,7 @@ private:
 	const int _maxCounter;
 	Bubble _bubble;
 	const int _maxBubbleWidth;
+	const bool _premiumPossible;
 
 	Ui::Animations::Simple _appearanceAnimation;
 	QSize _spaceForDeflection;
@@ -287,13 +293,15 @@ BubbleWidget::BubbleWidget(
 	TextFactory textFactory,
 	int current,
 	int maxCounter,
+	bool premiumPossible,
 	rpl::producer<> showFinishes,
 	const style::icon *icon)
 : RpWidget(parent)
 , _currentCounter(current)
 , _maxCounter(maxCounter)
-, _bubble([=] { update(); }, std::move(textFactory), icon)
+, _bubble([=] { update(); }, std::move(textFactory), icon, premiumPossible)
 , _maxBubbleWidth(_bubble.countMaxWidth(_maxCounter))
+, _premiumPossible(premiumPossible)
 , _deflection(kDeflection)
 , _stepBeforeDeflection(kStepBeforeDeflection)
 , _stepAfterDeflection(kStepAfterDeflection) {
@@ -430,7 +438,10 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		p.translate(-offsetX, -offsetY);
 	}
 
-	_bubble.paintBubble(p, bubbleRect, QBrush(_cachedGradient));
+	_bubble.paintBubble(
+		p,
+		bubbleRect,
+		_premiumPossible ? QBrush(_cachedGradient) : st::windowBgActive->b);
 }
 
 class Line final : public Ui::RpWidget {
@@ -575,6 +586,7 @@ void AddBubbleRow(
 		int min,
 		int current,
 		int max,
+		bool premiumPossible,
 		std::optional<tr::phrase<lngtag_count>> phrase,
 		const style::icon *icon) {
 	const auto container = parent->add(
@@ -584,6 +596,7 @@ void AddBubbleRow(
 		ProcessTextFactory(phrase),
 		current,
 		max,
+		premiumPossible,
 		std::move(showFinishes),
 		icon);
 	rpl::combine(
