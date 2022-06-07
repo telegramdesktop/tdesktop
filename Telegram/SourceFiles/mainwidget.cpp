@@ -1912,7 +1912,7 @@ QPixmap MainWidget::grabForShowAnimation(const Window::SectionSlideParams &param
 		result = Ui::GrabWidget(this, QRect(
 			0,
 			sectionTop,
-			_dialogsWidth,
+			width(),
 			height() - sectionTop));
 	} else {
 		if (_sideShadow) {
@@ -2163,7 +2163,7 @@ void MainWidget::updateControlsGeometry() {
 	auto dialogsWidth = _dialogs
 		? qRound(_a_dialogsWidth.value(_dialogsWidth))
 		: isOneColumn()
-		? _dialogsWidth
+		? width()
 		: 0;
 	if (isOneColumn()) {
 		if (_callTopBar) {
@@ -2276,7 +2276,7 @@ void MainWidget::updateControlsGeometry() {
 }
 
 void MainWidget::refreshResizeAreas() {
-	if (!isOneColumn()) {
+	if (!isOneColumn() && _dialogs) {
 		ensureFirstColumnResizeAreaCreated();
 		_firstColumnResizeArea->setGeometryToLeft(
 			_history->x(),
@@ -2314,6 +2314,8 @@ void MainWidget::createResizeArea(
 }
 
 void MainWidget::ensureFirstColumnResizeAreaCreated() {
+	Expects(_dialogs != nullptr);
+
 	if (_firstColumnResizeArea) {
 		return;
 	}

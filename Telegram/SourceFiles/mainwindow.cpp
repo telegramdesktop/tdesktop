@@ -127,20 +127,22 @@ void MainWindow::applyInitialWorkMode() {
 	const auto workMode = Core::App().settings().workMode();
 	workmodeUpdated(workMode);
 
-	if (Core::App().settings().windowPosition().maximized) {
-		DEBUG_LOG(("Window Pos: First show, setting maximized."));
-		setWindowState(Qt::WindowMaximized);
-	}
-	if (cStartInTray()
-		|| (cLaunchMode() == LaunchModeAutoStart
-			&& cStartMinimized()
-			&& !Core::App().passcodeLocked())) {
-		DEBUG_LOG(("Window Pos: First show, setting minimized after."));
-		if (workMode == Core::Settings::WorkMode::TrayOnly
-			|| workMode == Core::Settings::WorkMode::WindowAndTray) {
-			hide();
-		} else {
-			setWindowState(windowState() | Qt::WindowMinimized);
+	if (controller().isPrimary()) {
+		if (Core::App().settings().windowPosition().maximized) {
+			DEBUG_LOG(("Window Pos: First show, setting maximized."));
+			setWindowState(Qt::WindowMaximized);
+		}
+		if (!cStartInTray()
+			|| (cLaunchMode() == LaunchModeAutoStart
+				&& cStartMinimized()
+				&& !Core::App().passcodeLocked())) {
+			DEBUG_LOG(("Window Pos: First show, setting minimized after."));
+			if (workMode == Core::Settings::WorkMode::TrayOnly
+				|| workMode == Core::Settings::WorkMode::WindowAndTray) {
+				hide();
+			} else {
+				setWindowState(windowState() | Qt::WindowMinimized);
+			}
 		}
 	}
 	setPositionInited();
@@ -645,22 +647,28 @@ void MainWindow::closeEvent(QCloseEvent *e) {
 	if (Core::Sandbox::Instance().isSavingSession() || Core::Quitting()) {
 		e->accept();
 		Core::Quit();
-	} else {
-		e->ignore();
-		const auto hasAuth = [&] {
-			if (!Core::App().domain().started()) {
-				return false;
-			}
-			for (const auto &[_, account] : Core::App().domain().accounts()) {
-				if (account->sessionExists()) {
-					return true;
-				}
-			}
+		return;
+	} else if (!isPrimary()) {
+		e->accept();
+		crl::on_main(this, [=] {
+			Core::App().closeWindow(&controller());
+		});
+		return;
+	}
+	e->ignore();
+	const auto hasAuth = [&] {
+		if (!Core::App().domain().started()) {
 			return false;
-		}();
-		if (!hasAuth || !hideNoQuit()) {
-			Core::Quit();
 		}
+		for (const auto &[_, account] : Core::App().domain().accounts()) {
+			if (account->sessionExists()) {
+				return true;
+			}
+		}
+		return false;
+	}();
+	if (!hasAuth || !hideNoQuit()) {
+		Core::Quit();
 	}
 }
 

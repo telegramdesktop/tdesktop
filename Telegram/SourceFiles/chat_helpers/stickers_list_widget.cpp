@@ -1264,7 +1264,7 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 	_footer->openSettingsRequests(
 	) | rpl::start_with_next([=] {
 		const auto onlyFeatured = _footer->hasOnlyFeaturedSets();
-		Ui::show(Box<StickersBox>(
+		controller()->show(Box<StickersBox>(
 			controller(),
 			(onlyFeatured
 				? StickersBox::Section::Featured

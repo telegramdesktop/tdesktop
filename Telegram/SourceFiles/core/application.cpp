@@ -323,7 +323,7 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: window created..."));
 
-	// Depend on activeWindow() for now :(
+	// Depend on primaryWindow() for now :(
 	startShortcuts();
 	startDomain();
 
@@ -1170,6 +1170,26 @@ Window::Controller *Application::activeWindow() const {
 	return _lastActiveWindow;
 }
 
+void Application::closeWindow(not_null<Window::Controller*> window) {
+	for (auto i = begin(_secondaryWindows); i != end(_secondaryWindows);) {
+		if (i->second.get() == window) {
+			if (_lastActiveWindow == window) {
+				_lastActiveWindow = _primaryWindow.get();
+			}
+			i = _secondaryWindows.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
+void Application::windowActivated(not_null<Window::Controller*> window) {
+	_lastActiveWindow = window;
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->activate();
+	}
+}
+
 bool Application::closeActiveWindow() {
 	if (hideMediaView()) {
 		return true;
@@ -1198,22 +1218,17 @@ bool Application::minimizeActiveWindow() {
 }
 
 QWidget *Application::getFileDialogParent() {
-	return (_mediaView && !_mediaView->isHidden())
-		? static_cast<QWidget*>(_mediaView->widget())
-		: activeWindow()
-		? static_cast<QWidget*>(activeWindow()->widget())
-		: nullptr;
+	if (const auto view = _mediaView.get(); view && !view->isHidden()) {
+		return view->widget();
+	} else if (const auto active = activeWindow()) {
+		return active->widget();
+	}
+	return nullptr;
 }
 
 void Application::notifyFileDialogShown(bool shown) {
 	if (_mediaView) {
 		_mediaView->notifyFileDialogShown(shown);
-	}
-}
-
-void Application::checkMediaViewActivation() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->activate();
 	}
 }
 

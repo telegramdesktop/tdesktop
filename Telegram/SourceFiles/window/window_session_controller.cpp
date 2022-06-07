@@ -243,7 +243,7 @@ void SessionNavigation::resolveDone(
 		const MTPcontacts_ResolvedPeer &result,
 		Fn<void(not_null<PeerData*>)> done) {
 	_resolveRequestId = 0;
-	Ui::hideLayer();
+	parentController()->hideLayer();
 	result.match([&](const MTPDcontacts_resolvedPeer &data) {
 		_session->data().processUsers(data.vusers());
 		_session->data().processChats(data.vchats());
@@ -598,6 +598,7 @@ SessionController::SessionController(
 , _window(window)
 , _emojiInteractions(
 	std::make_unique<ChatHelpers::EmojiInteractions>(session))
+, _isPrimary(window->isPrimary())
 , _sendingAnimation(
 	std::make_unique<Ui::MessageSendingAnimationController>(this))
 , _tabbedSelector(
@@ -700,7 +701,7 @@ PeerData *SessionController::singlePeer() const {
 }
 
 bool SessionController::isPrimary() const {
-	return _window->isPrimary();
+	return _isPrimary;
 }
 
 not_null<::MainWindow*> SessionController::widget() const {
@@ -762,7 +763,7 @@ void SessionController::initSupportMode() {
 }
 
 void SessionController::toggleFiltersMenu(bool enabled) {
-	if (!isPrimary() || (!enabled == !_filters)) {
+	if (!_isPrimary || (!enabled == !_filters)) {
 		return;
 	} else if (enabled) {
 		_filters = std::make_unique<FiltersMenu>(
@@ -1009,7 +1010,7 @@ int SessionController::dialogsSmallColumnWidth() const {
 }
 
 int SessionController::minimalThreeColumnWidth() const {
-	return st::columnMinimalWidthLeft
+	return (_isPrimary ? st::columnMinimalWidthLeft : 0)
 		+ st::columnMinimalWidthMain
 		+ st::columnMinimalWidthThird;
 }
@@ -1032,7 +1033,7 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 	auto useOneColumnLayout = [&] {
 		auto minimalNormal = st::columnMinimalWidthLeft
 			+ st::columnMinimalWidthMain;
-		if (bodyWidth < minimalNormal) {
+		if (_isPrimary && bodyWidth < minimalNormal) {
 			return true;
 		}
 		return false;
@@ -1074,6 +1075,9 @@ auto SessionController::computeColumnLayout() const -> ColumnLayout {
 }
 
 int SessionController::countDialogsWidthFromRatio(int bodyWidth) const {
+	if (!_isPrimary) {
+		return 0;
+	}
 	auto result = qRound(bodyWidth * Core::App().settings().dialogsWidthRatio());
 	accumulate_max(result, st::columnMinimalWidthLeft);
 //	accumulate_min(result, st::columnMaximalWidthLeft);
@@ -1102,8 +1106,8 @@ SessionController::ShrinkResult SessionController::shrinkDialogsAndThirdColumns(
 	if (thirdWidthNew < st::columnMinimalWidthThird) {
 		thirdWidthNew = st::columnMinimalWidthThird;
 		dialogsWidthNew = bodyWidth - thirdWidthNew - chatWidth;
-		Assert(dialogsWidthNew >= st::columnMinimalWidthLeft);
-	} else if (dialogsWidthNew < st::columnMinimalWidthLeft) {
+		Assert(!_isPrimary || dialogsWidthNew >= st::columnMinimalWidthLeft);
+	} else if (_isPrimary && dialogsWidthNew < st::columnMinimalWidthLeft) {
 		dialogsWidthNew = st::columnMinimalWidthLeft;
 		thirdWidthNew = bodyWidth - dialogsWidthNew - chatWidth;
 		Assert(thirdWidthNew >= st::columnMinimalWidthThird);
@@ -1240,8 +1244,8 @@ void SessionController::startOrJoinGroupCall(
 	const auto askConfirmation = [&](QString text, QString button) {
 		show(Ui::MakeConfirmBox({
 			.text = text,
-			.confirmed = crl::guard(this, [=, hash = args.joinHash] {
-				Ui::hideLayer();
+			.confirmed = crl::guard(this,[=, hash = args.joinHash] {
+				hideLayer();
 				startOrJoinGroupCall(peer, { hash, JoinConfirm::None });
 			}),
 			.confirmText = button,
@@ -1597,7 +1601,7 @@ QPointer<Ui::BoxContent> SessionController::show(
 }
 
 void SessionController::hideLayer(anim::type animated) {
-	show({ nullptr }, Ui::LayerOption::CloseOther, animated);
+	_window->hideLayer(animated);
 }
 
 void SessionController::openPhoto(

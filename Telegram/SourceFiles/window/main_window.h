@@ -75,6 +75,9 @@ public:
 	void activate();
 
 	[[nodiscard]] QRect desktopRect() const;
+	[[nodiscard]] Core::WindowPosition withScreenInPosition(
+		Core::WindowPosition position) const;
+	[[nodiscard]] static Core::WindowPosition SecondaryInitPosition();
 
 	void init();
 

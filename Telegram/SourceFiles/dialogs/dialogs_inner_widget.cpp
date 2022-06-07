@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
 #include "base/unixtime.h"
+#include "base/options.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
@@ -64,6 +65,13 @@ namespace {
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
 
+base::options::toggle TabbedPanelShowOnClick({
+	.id = kOptionCtrlClickChatNewWindow,
+	.name = "New chat window by Ctrl+Click",
+	.description = "Open chat in a new window by Ctrl+Click "
+	"(Cmd+Click on macOS).",
+});
+
 int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
 	for (const auto &row : *list) {
@@ -91,6 +99,8 @@ int PinnedDialogsCount(
 }
 
 } // namespace
+
+const char kOptionCtrlClickChatNewWindow[] = "ctrl-click-chat-new-window";
 
 struct InnerWidget::CollapsedRow {
 	CollapsedRow(Data::Folder *folder) : folder(folder) {
@@ -2801,9 +2811,9 @@ bool InnerWidget::chooseRow(Qt::KeyboardModifiers modifiers) {
 	const auto modifyChosenRow = [](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
-#ifdef _DEBUG
-		row.newWindow = (modifiers & Qt::ControlModifier);
-#endif
+		if (TabbedPanelShowOnClick.value()) {
+			row.newWindow = (modifiers & Qt::ControlModifier);
+		}
 		return row;
 	};
 	const auto chosen = modifyChosenRow(computeChosenRow(), modifiers);

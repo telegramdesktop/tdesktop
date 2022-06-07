@@ -96,6 +96,10 @@ void Controller::showAccount(
 
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
+		if (!session && !isPrimary()) {
+			Core::App().closeWindow(this);
+			return;
+		}
 		const auto was = base::take(_sessionController);
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
@@ -119,9 +123,6 @@ void Controller::showAccount(
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
-		} else if (!isPrimary()) {
-			// #TODO windows test
-			close();
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
@@ -230,7 +231,7 @@ void Controller::showTermsDelete() {
 		if (const auto session = account().maybeSession()) {
 			session->termsDeleteNow();
 		} else {
-			Ui::hideLayer();
+			hideLayer();
 		}
 	};
 	show(
@@ -325,6 +326,10 @@ void Controller::showBox(
 
 void Controller::showRightColumn(object_ptr<TWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
+}
+
+void Controller::hideLayer(anim::type animated) {
+	_widget.ui_showBox({ nullptr }, Ui::LayerOption::CloseOther, animated);
 }
 
 void Controller::hideSettingsAndLayer(anim::type animated) {

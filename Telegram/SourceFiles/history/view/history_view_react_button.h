@@ -147,7 +147,8 @@ public:
 
 	void applyList(
 		const std::vector<Data::Reaction> &list,
-		const QString &favorite);
+		const QString &favorite,
+		bool premiumPossible);
 	void updateAllowedSublist(AllowedSublist filter);
 	void updateAllowSendingPremium(bool allow);
 	[[nodiscard]] const AllowedSublist &allowedSublist() const;
@@ -348,6 +349,7 @@ private:
 	rpl::lifetime _loadCacheLifetime;
 	bool _showingAll = false;
 	bool _allowSendingPremium = false;
+	bool _premiumPossible = false;
 	mutable int _selectedIcon = -1;
 
 	std::optional<ButtonParameters> _scheduledParameters;

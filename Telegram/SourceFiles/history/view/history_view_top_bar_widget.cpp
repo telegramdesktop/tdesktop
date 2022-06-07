@@ -84,6 +84,7 @@ TopBarWidget::TopBarWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _primaryWindow(controller->isPrimary())
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
 , _forward(this, tr::lng_selected_forward(), st::defaultActiveButton)
 , _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
@@ -846,10 +847,10 @@ void TopBarWidget::updateControlsGeometry() {
 		_leftTaken = smallDialogsColumn ? (width() - _back->width()) / 2 : 0;
 		_back->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _back->width();
-		if (_info && !_info->isHidden()) {
-			_info->moveToLeft(_leftTaken, otherButtonsTop);
-			_leftTaken += _info->width();
-		}
+	}
+	if (_info && !_info->isHidden()) {
+		_info->moveToLeft(_leftTaken, otherButtonsTop);
+		_leftTaken += _info->width();
 	}
 
 	_rightTaken = 0;
@@ -908,7 +909,8 @@ void TopBarWidget::updateControlsVisibility() {
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {
-		_info->setVisible(isOneColumn && !_chooseForReportReason);
+		_info->setVisible((isOneColumn || !_primaryWindow)
+			&& !_chooseForReportReason);
 	}
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason);

@@ -479,7 +479,11 @@ void Manager::applyListFilters() {
 			if (icon.premium
 				&& !_allowSendingPremium
 				&& !_buttonAlreadyList.contains(emoji)) {
-				showPremiumLock = &icon;
+				if (_premiumPossible) {
+					showPremiumLock = &icon;
+				} else {
+					clearStateForHidden(icon);
+				}
 			} else {
 				icon.premiumLock = false;
 				if (emoji == _favorite) {
@@ -572,7 +576,10 @@ void Manager::showButtonDelayed() {
 
 void Manager::applyList(
 		const std::vector<Data::Reaction> &list,
-		const QString &favorite) {
+		const QString &favorite,
+		bool premiumPossible) {
+	const auto possibleChanged = (_premiumPossible != premiumPossible);
+	_premiumPossible = premiumPossible;
 	const auto proj = [](const auto &obj) {
 		return std::tie(
 			obj.emoji,
@@ -585,7 +592,7 @@ void Manager::applyList(
 		_favorite = favorite;
 	}
 	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
-		if (favoriteChanged) {
+		if (favoriteChanged || possibleChanged) {
 			applyListFilters();
 		}
 		return;
@@ -1659,7 +1666,8 @@ void SetupManagerList(
 	) | rpl::start_with_next([=] {
 		manager->applyList(
 			reactions->list(Data::Reactions::Type::Active),
-			reactions->favorite());
+			reactions->favorite(),
+			session->premiumPossible());
 	}, manager->lifetime());
 
 	std::move(

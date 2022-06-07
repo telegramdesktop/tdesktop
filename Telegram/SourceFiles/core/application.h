@@ -162,6 +162,8 @@ public:
 	Window::Controller *ensureSeparateWindowForPeer(
 		not_null<PeerData*> peer,
 		MsgId showAtMsgId);
+	void closeWindow(not_null<Window::Controller*> window);
+	void windowActivated(not_null<Window::Controller*> window);
 	bool closeActiveWindow();
 	bool minimizeActiveWindow();
 	[[nodiscard]] QWidget *getFileDialogParent();
@@ -170,7 +172,6 @@ public:
 	[[nodiscard]] bool isActiveForTrayMenu() const;
 
 	// Media view interface.
-	void checkMediaViewActivation();
 	bool hideMediaView();
 
 	[[nodiscard]] QPoint getPointForCallPanelCenter() const;
