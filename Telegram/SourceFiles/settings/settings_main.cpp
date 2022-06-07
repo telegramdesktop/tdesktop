@@ -337,11 +337,11 @@ void SetupSections(
 
 	SetupLanguageButton(container);
 
-	AddSkip(container);
-	AddDivider(container);
-	AddSkip(container);
+	if (controller->session().premiumPossible()) {
+		AddSkip(container);
+		AddDivider(container);
+		AddSkip(container);
 
-	{
 		const auto icon = &st::settingsPremiumIconStar;
 		auto gradient = QLinearGradient(
 			0,

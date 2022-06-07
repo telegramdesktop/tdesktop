@@ -365,8 +365,7 @@ bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
 		const QString &emoji) {
-	if (item->chosenReaction() == emoji
-		|| controller->session().user()->isPremium()) {
+	if (item->chosenReaction() == emoji || controller->session().premium()) {
 		return false;
 	}
 	const auto &list = controller->session().data().reactions().list(
