@@ -132,7 +132,7 @@ void MainWindow::applyInitialWorkMode() {
 			DEBUG_LOG(("Window Pos: First show, setting maximized."));
 			setWindowState(Qt::WindowMaximized);
 		}
-		if (!cStartInTray()
+		if (cStartInTray()
 			|| (cLaunchMode() == LaunchModeAutoStart
 				&& cStartMinimized()
 				&& !Core::App().passcodeLocked())) {
