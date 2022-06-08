@@ -51,6 +51,7 @@ void Premium::reload() {
 	)).done([=](const MTPhelp_PremiumPromo &result) {
 		_statusRequestId = 0;
 		result.match([&](const MTPDhelp_premiumPromo &data) {
+			_session->data().processUsers(data.vusers());
 			_monthlyAmount = data.vmonthly_amount().v;
 			_monthlyCurrency = qs(data.vcurrency());
 			auto text = TextWithEntities{

@@ -628,7 +628,6 @@ messageEntityStrike#bf0693d4 offset:int length:int = MessageEntity;
 messageEntityBlockquote#20df5d0 offset:int length:int = MessageEntity;
 messageEntityBankCard#761e6af4 offset:int length:int = MessageEntity;
 messageEntitySpoiler#32ca960f offset:int length:int = MessageEntity;
-messageEntityAnimatedEmoji#5eef0214 offset:int length:int = MessageEntity;
 
 inputChannelEmpty#ee8c1e86 = InputChannel;
 inputChannel#f35aec28 channel_id:long access_hash:long = InputChannel;
@@ -1386,7 +1385,7 @@ payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
 messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id:long text:string = messages.TranscribedAudio;
 
-help.premiumPromo#e0360f1b status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> currency:string monthly_amount:long = help.PremiumPromo;
+help.premiumPromo#8a4f3c29 status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> currency:string monthly_amount:long users:Vector<User> = help.PremiumPromo;
 
 ---functions---
 
@@ -1793,8 +1792,7 @@ payments.getSavedInfo#227d824b = payments.SavedInfo;
 payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?true = Bool;
 payments.getBankCardData#2e79d779 number:string = payments.BankCardData;
 payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoice;
-payments.assignAppStoreTransaction#6299a12f transaction_id:string = Updates;
-payments.restoreAppStoreReceipt#80de2ac7 receipt:bytes = Updates;
+payments.assignAppStoreTransaction#fec13c6 flags:# restore:flags.0?true transaction_id:string receipt:bytes = Updates;
 payments.assignPlayMarketTransaction#4faa4aed purchase_token:string = Updates;
 payments.restorePlayMarketReceipt#d164e36a receipt:bytes = Updates;
 payments.canPurchasePremium#aa6a90c8 = Bool;
