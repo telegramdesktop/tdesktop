@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kPremiumShift = 0.082;
+constexpr auto kPremiumShift = 21. / 240;
 constexpr auto kMaxPlays = 5;
 constexpr auto kMaxPlaysWithSmallDelay = 3;
 constexpr auto kSmallDelay = crl::time(200);

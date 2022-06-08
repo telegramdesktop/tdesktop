@@ -39,7 +39,7 @@ namespace {
 
 constexpr auto kMaxSizeFixed = 512;
 constexpr auto kMaxEmojiSizeFixed = 256;
-constexpr auto kPremiumMultiplier = 1.5;
+constexpr auto kPremiumMultiplier = (1 + 0.245 * 2);
 constexpr auto kEmojiMultiplier = 3;
 
 [[nodiscard]] QImage CacheDiceImage(

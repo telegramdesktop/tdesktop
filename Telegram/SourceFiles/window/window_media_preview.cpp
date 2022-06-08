@@ -29,8 +29,8 @@ namespace Window {
 namespace {
 
 constexpr auto kStickerPreviewEmojiLimit = 10;
-constexpr auto kPremiumShift = 0.082;
-constexpr auto kPremiumMultiplier = 1.5;
+constexpr auto kPremiumShift = 21. / 240;
+constexpr auto kPremiumMultiplier = (1 + 0.245 * 2);
 constexpr auto kPremiumDownscale = 1.25;
 
 } // namespace
@@ -102,7 +102,9 @@ void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
 		p.drawImage(QRect(position, QSize(w, h)), image);
 	}
 	if (!effectImage.isNull()) {
-		p.drawImage(outerPosition({ w, h }), effectImage);
+		p.drawImage(
+			QRect(outerPosition({ w, h }), effectImage.size() / factor),
+			effectImage);
 	}
 	if (!_emojiList.empty()) {
 		const auto emojiCount = _emojiList.size();
