@@ -336,7 +336,7 @@ bool ShowSendPremiumError(
 		not_null<SessionController*> controller,
 		not_null<DocumentData*> document) {
 	if (!document->isPremiumSticker()
-		|| document->session().user()->isPremium()) {
+		|| document->session().premium()) {
 		return false;
 	}
 	ShowStickerPreviewBox(controller, document);

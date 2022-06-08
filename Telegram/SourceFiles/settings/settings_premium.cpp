@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "boxes/premium_preview_box.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
 #include "ui/abstract_button.h"
@@ -23,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
@@ -993,6 +995,10 @@ void ShowPremium(not_null<Main::Session*> session, const QString &ref) {
 void ShowPremium(
 		not_null<Window::SessionController*> controller,
 		const QString &ref) {
+	if (!controller->session().premiumPossible()) {
+		controller->show(Box(PremiumUnavailableBox));
+		return;
+	}
 	controller->setPremiumRef(ref);
 	controller->showSettings(Settings::PremiumId());
 }

@@ -1705,6 +1705,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_agree" = "By purchasing a Premium subscription, you agree to {terms} and {policy}.";
 
 "lng_premium_success" = "You've successfully subscribed to Telegram Premium!";
+"lng_premium_unavailable" = "This feature requires subscription to **Telegram Premium**.\n\nUnfortunately, **Telegram Premium** is not available in your region.";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";

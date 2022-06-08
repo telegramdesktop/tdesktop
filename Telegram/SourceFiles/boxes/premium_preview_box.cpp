@@ -22,9 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/text/text.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/boxes/confirm_box.h"
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -743,6 +745,10 @@ void Show(not_null<Window::SessionController*> controller, QImage back) {
 void Show(
 		not_null<Window::SessionController*> controller,
 		Descriptor &&descriptor) {
+	if (!controller->session().premiumPossible()) {
+		controller->show(Box(PremiumUnavailableBox));
+		return;
+	}
 	auto &list = Preloads();
 	for (auto i = begin(list); i != end(list);) {
 		const auto already = i->controller.get();
@@ -828,5 +834,14 @@ void ShowPremiumPreviewBox(
 	Show(controller, Descriptor{
 		.section = section,
 		.disabled = disabled,
+	});
+}
+
+void PremiumUnavailableBox(not_null<Ui::GenericBox*> box) {
+	Ui::ConfirmBox(box, {
+		.text = tr::lng_premium_unavailable(
+			tr::now,
+			Ui::Text::RichLangValue),
+		.inform = true,
 	});
 }

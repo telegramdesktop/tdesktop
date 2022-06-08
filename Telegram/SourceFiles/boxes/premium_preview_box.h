@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace Ui {
+class GenericBox;
+} // namespace Ui
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -32,3 +36,5 @@ void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
 	const base::flat_map<QString, ReactionDisableType> &disabled = {});
+
+void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);
