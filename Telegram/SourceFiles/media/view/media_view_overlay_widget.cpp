@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/gl/gl_surface.h"
 #include "ui/boxes/confirm_box.h"
+#include "info/info_memento.h"
+#include "info/info_controller.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "media/audio/media_audio.h"
@@ -1897,7 +1899,13 @@ void OverlayWidget::showMediaOverview() {
 	update();
 	if (const auto overviewType = computeOverviewType()) {
 		close();
-		SharedMediaShowOverview(*overviewType, _history);
+		if (SharedMediaOverviewType(*overviewType)) {
+			if (const auto window = findWindow()) {
+				window->showSection(std::make_shared<Info::Memento>(
+					_history->peer,
+					Info::Section(*overviewType)));
+			}
+		}
 	}
 }
 

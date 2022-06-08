@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
 
+class History;
+
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;

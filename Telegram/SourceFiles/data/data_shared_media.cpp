@@ -9,23 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <rpl/combine.h>
 #include "main/main_session.h"
-#include "main/main_domain.h"
-#include "core/application.h"
 #include "apiwrap.h"
 #include "storage/storage_facade.h"
-#include "storage/storage_shared_media.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
 #include "data/data_photo.h"
 #include "data/data_scheduled_messages.h"
-#include "data/data_sparse_ids.h"
 #include "data/data_session.h"
-#include "info/info_memento.h"
-#include "info/info_controller.h"
-#include "window/window_session_controller.h"
-#include "mainwindow.h"
 #include "core/crash_reports.h"
 
 namespace {
@@ -90,23 +82,6 @@ std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	case Type::Link: return type;
 	}
 	return std::nullopt;
-}
-
-void SharedMediaShowOverview(
-		Storage::SharedMediaType type,
-		not_null<History*> history) {
-	if (SharedMediaOverviewType(type)) {
-		const auto &windows = history->session().windows();
-		if (windows.empty()) {
-			Core::App().domain().activate(&history->session().account());
-			if (windows.empty()) {
-				return;
-			}
-		}
-		windows.front()->showSection(std::make_shared<Info::Memento>(
-			history->peer,
-			Info::Section(type)));
-	}
 }
 
 bool SharedMediaAllowSearch(Storage::SharedMediaType type) {

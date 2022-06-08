@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class AudioMsgId;
 class DocumentData;
+class History;
 
 namespace Media {
 namespace Audio {

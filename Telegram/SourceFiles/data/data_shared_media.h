@@ -11,17 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "data/data_sparse_ids.h"
 
-class History;
-
 namespace Main {
 class Session;
 } // namespace Main
 
-std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
+[[nodiscard]] std::optional<Storage::SharedMediaType> SharedMediaOverviewType(
 	Storage::SharedMediaType type);
-void SharedMediaShowOverview(
-	Storage::SharedMediaType type,
-	not_null<History*> history);
 bool SharedMediaAllowSearch(Storage::SharedMediaType type);
 
 rpl::producer<SparseIdsSlice> SharedMediaViewer(

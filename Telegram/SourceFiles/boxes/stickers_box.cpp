@@ -278,8 +278,6 @@ private:
 	QString _undoText;
 	int _undoWidth = 0;
 
-	int _buttonHeight = 0;
-
 	QPoint _mouse;
 	bool _inDragArea = false;
 	SelectedRow _selected;
