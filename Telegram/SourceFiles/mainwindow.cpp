@@ -577,13 +577,20 @@ bool MainWindow::eventFilter(QObject *object, QEvent *e) {
 			FeedLangTestingKey(key);
 		}
 #ifdef _DEBUG
-		switch (static_cast<QKeyEvent*>(e)->key()) {
-		case Qt::Key_F3:
-			anim::SetSlowMultiplier((anim::SlowMultiplier() == 10) ? 1 : 10);
-			return true;
-		case Qt::Key_F4:
-			anim::SetSlowMultiplier((anim::SlowMultiplier() == 50) ? 1 : 50);
-			return true;
+		if (static_cast<QKeyEvent*>(e)->modifiers().testFlag(
+				Qt::ControlModifier)) {
+			switch (static_cast<QKeyEvent*>(e)->key()) {
+			case Qt::Key_F11:
+				anim::SetSlowMultiplier((anim::SlowMultiplier() == 10)
+					? 1
+					: 10);
+				return true;
+			case Qt::Key_F12:
+				anim::SetSlowMultiplier((anim::SlowMultiplier() == 50)
+					? 1
+					: 50);
+				return true;
+			}
 		}
 #endif
 	} break;

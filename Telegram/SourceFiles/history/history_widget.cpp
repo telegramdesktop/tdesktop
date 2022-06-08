@@ -4459,7 +4459,7 @@ void HistoryWidget::searchInChat() {
 	}
 	if (controller()->isPrimary()) {
 		controller()->content()->searchInChat(_history);
-	} else {
+	} else if (!_composeSearch) {
 		const auto search = [=] {
 			const auto update = [=] {
 				updateControlsVisibility();
