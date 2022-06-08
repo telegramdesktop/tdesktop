@@ -927,17 +927,13 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 	}, status->lifetime());
 
 	const auto session = &_controller->session();
-	auto premiumPossible = session->account().appConfig().value(
-	) | rpl::map([=] {
-		return session->premiumPossible();
-	});
 	rpl::combine(
 		terms->heightValue(),
 		button->heightValue(),
 		status->heightValue(),
 		std::move(text),
 		Data::AmPremiumValue(session),
-		std::move(premiumPossible)
+		session->premiumPossibleValue()
 	) | rpl::start_with_next([=](
 			int termsHeight,
 			int buttonHeight,

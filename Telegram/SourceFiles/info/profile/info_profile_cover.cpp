@@ -271,6 +271,9 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	BadgeValue(
 		_peer
 	) | rpl::start_with_next([=](Badge badge) {
+		if (badge == Badge::Premium && !_peer->session().premiumPossible()) {
+			badge = Badge::None;
+		}
 		setBadge(badge);
 	}, lifetime());
 }

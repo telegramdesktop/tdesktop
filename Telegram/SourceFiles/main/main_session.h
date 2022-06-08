@@ -82,6 +82,8 @@ public:
 
 	[[nodiscard]] bool premium() const;
 	[[nodiscard]] bool premiumPossible() const;
+	[[nodiscard]] rpl::producer<bool> premiumPossibleValue() const;
+
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;
@@ -208,6 +210,7 @@ private:
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
 	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
+	rpl::variable<bool> _premiumPossible = false;
 
 	rpl::event_stream<bool> _termsLockChanges;
 	std::unique_ptr<Window::TermsLock> _termsLock;

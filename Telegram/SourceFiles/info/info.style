@@ -472,29 +472,6 @@ infoChannelsAddChannel: IconButton(infoMembersButton) {
 	iconOver: icon {{ "settings/settings_edit_name", menuIconFgOver, point(9px, 9px) }};
 }
 
-infoMembersCreatorIcon: icon {{
-	"profile_admin_star",
-	profileAdminStartFg,
-	point(4px, 3px)
-}};
-infoMembersCreatorIconOver: icon {{
-	"profile_admin_star",
-	profileAdminStarFgOver,
-	point(4px, 3px)
-}};
-infoMembersAdminIcon: icon {{
-	"profile_admin_star",
-	profileOtherAdminStarFg,
-	point(4px, 3px)
-}};
-infoMembersAdminIconOver: icon {{
-	"profile_admin_star",
-	profileOtherAdminStarFgOver,
-	point(4px, 3px)
-}};
-infoMembersAdminIconMarigns: margins(10px, 18px, 10px, 10px);
-infoMembersRemoveIconMargins: margins(10px, 12px, 12px, 10px);
-
 infoMediaHeaderStyle: TextStyle(semiboldTextStyle) {
 }
 infoMediaHeaderHeight: 28px;

@@ -1941,7 +1941,7 @@ auto ParticipantsBoxController::computeType(
 		? Badge::Fake
 		: user->isVerified()
 		? Badge::Verified
-		: user->isPremium()
+		: (user->isPremium() && participant->session().premiumPossible())
 		? Badge::Premium
 		: Badge::None;
 	return result;

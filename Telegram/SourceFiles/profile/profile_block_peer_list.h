@@ -37,12 +37,8 @@ public:
 		Ui::Text::String name;
 		QString statusText;
 		bool statusHasOnlineColor = false;
-		enum class AdminState {
-			None,
-			Admin,
-			Creator,
-		};
-		AdminState adminState = AdminState::None;
+		std::optional<QString> rank;
+		int rankWidth = 0;
 		bool hasRemoveLink = false;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 	};

@@ -133,6 +133,13 @@ Session::Session(
 			}
 		}, _lifetime);
 
+		_account->appConfig().value(
+		) | rpl::start_with_next([=] {
+			_premiumPossible = !_account->appConfig().get<bool>(
+				"premium_purchase_blocked",
+				true);
+		}, _lifetime);
+
 		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().userPrivacy().save(
 				Api::UserPrivacy::Key::CallsPeer2Peer,
@@ -224,9 +231,22 @@ bool Session::premium() const {
 }
 
 bool Session::premiumPossible() const {
-	return !premium() && !_account->appConfig().get<bool>(
-		"premium_purchase_blocked",
-		true);
+	return premium() || _premiumPossible.current();
+}
+
+rpl::producer<bool> Session::premiumPossibleValue() const {
+	using namespace rpl::mappers;
+
+	auto premium = _user->flagsValue(
+	) | rpl::filter([=](UserData::Flags::Change change) {
+		return (change.diff & UserDataFlag::Premium);
+	}) | rpl::map([=] {
+		return _user->isPremium();
+	});
+	return rpl::combine(
+		std::move(premium),
+		_premiumPossible.value(),
+		_1 || _2);
 }
 
 uint64 Session::uniqueId() const {
