@@ -306,16 +306,27 @@ infoVerifiedCheck: icon {
 };
 infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
 
+infoIconFg: windowBoldFg;
+
 infoProfileSkip: 7px;
 
 infoProfileLabeledPadding: margins(79px, 9px, 30px, 7px);
+infoProfileLabeledUsernamePadding: margins(79px, 9px, 20px, 7px);
 infoProfileSeparatorPadding: margins(
 	77px,
 	infoProfileSkip,
 	0px,
 	infoProfileSkip);
+infoProfileLabeledButtonCopy: IconButton(defaultIconButton) {
+	width: 34px;
+	height: 34px;
+	icon: icon {{ "menu/copy", infoIconFg }};
+	iconOver: icon {{ "menu/copy", infoIconFg }};
+	rippleAreaPosition: point(0px, 0px);
+	rippleAreaSize: 34px;
+	ripple: defaultRippleAnimation;
+}
 
-infoIconFg: windowBoldFg;
 infoIconInformation: icon {{ "info/info_information", infoIconFg }};
 infoIconAddMember: icon {{ "info/info_add_member", infoIconFg }};
 infoIconNotifications: icon {{ "info/info_notifications", infoIconFg }};

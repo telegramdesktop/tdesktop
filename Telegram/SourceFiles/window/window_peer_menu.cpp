@@ -27,7 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
-#include "ui/text/text_entity.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
@@ -197,7 +196,6 @@ private:
 	void addExportChat();
 	void addReport();
 	void addNewContact();
-	void addShareUsername();
 	void addShareContact();
 	void addEditContact();
 	void addBotToGroup();
@@ -653,27 +651,6 @@ void Filler::addNewContact() {
 		&st::menuIconInvite);
 }
 
-void Filler::addShareUsername() {
-	const auto user = _peer->asUser();
-	if (!user || user->userName().isEmpty()) {
-		return;
-	}
-	_addAction(
-		tr::lng_group_invite_share(tr::now),
-		[=, controller = _controller] {
-			const auto link = controller->session().createInternalLinkFull(
-				user->userName());
-			if (link.isEmpty()) {
-				return;
-			}
-			TextUtilities::SetClipboardText(TextForMimeData::Simple(link));
-			Ui::Toast::Show(
-				Window::Show(controller).toastParent(),
-				tr::lng_username_copied(tr::now));
-		},
-		&st::menuIconShare);
-}
-
 void Filler::addShareContact() {
 	const auto user = _peer->asUser();
 	if (!user || !user->canShareThisContact()) {
@@ -880,7 +857,6 @@ void Filler::fillProfileActions() {
 	addSupportInfo();
 	addNewContact();
 	addShareContact();
-	addShareUsername();
 	addEditContact();
 	addBotToGroup();
 	addNewMembers();

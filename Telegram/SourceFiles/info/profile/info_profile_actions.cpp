@@ -244,43 +244,49 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return true;
 	};
 
-	auto addInfoLineGeneric = [&](
+	const auto addInfoLineGeneric = [&](
 			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
-			const style::FlatLabel &textSt = st::infoLabeled) {
+			const style::FlatLabel &textSt = st::infoLabeled,
+			const style::margins &padding = st::infoProfileLabeledPadding) {
 		auto line = CreateTextWithLabel(
 			result,
 			std::move(label) | Ui::Text::ToWithEntities(),
 			std::move(text),
 			textSt,
-			st::infoProfileLabeledPadding);
+			padding);
 		tracker.track(result->add(std::move(line.wrap)));
 
 		line.text->setClickHandlerFilter(infoClickFilter);
 		return line.text;
 	};
-	auto addInfoLine = [&](
+	const auto addInfoLine = [&](
 			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
-			const style::FlatLabel &textSt = st::infoLabeled) {
+			const style::FlatLabel &textSt = st::infoLabeled,
+			const style::margins &padding = st::infoProfileLabeledPadding) {
 		return addInfoLineGeneric(
 			std::move(label),
 			std::move(text),
-			textSt);
+			textSt,
+			padding);
 	};
-	auto addInfoOneLine = [&](
+	const auto addInfoOneLine = [&](
 			rpl::producer<QString> &&label,
 			rpl::producer<TextWithEntities> &&text,
-			const QString &contextCopyText) {
-		auto result = addInfoLine(
+			const QString &contextCopyText,
+			const style::margins &padding = st::infoProfileLabeledPadding) {
+		const auto result = addInfoLine(
 			std::move(label),
 			std::move(text),
-			st::infoLabeledOneLine);
+			st::infoLabeledOneLine,
+			padding);
 		result->setDoubleClickSelectsParagraph(true);
 		result->setContextCopyText(contextCopyText);
 		return result;
 	};
 	if (const auto user = _peer->asUser()) {
+		const auto controller = _controller->parentController();
 		if (user->session().supportMode()) {
 			addInfoLineGeneric(
 				user->session().supportHelper().infoLabelValue(user),
@@ -295,12 +301,36 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			? tr::lng_info_about_label()
 			: tr::lng_info_bio_label();
 		addInfoLine(std::move(label), AboutValue(user));
-		addInfoOneLine(
+
+		const auto usernameLabel = addInfoOneLine(
 			tr::lng_info_username_label(),
 			UsernameValue(user),
-			tr::lng_context_copy_mention(tr::now));
+			tr::lng_context_copy_mention(tr::now),
+			st::infoProfileLabeledUsernamePadding);
+		if (user->isBot()) {
+			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
+				usernameLabel->parentWidget(),
+				st::infoProfileLabeledButtonCopy);
+			result->sizeValue(
+			) | rpl::start_with_next([=] {
+				const auto s = usernameLabel->parentWidget()->size();
+				copyUsername->moveToRight(
+					0,
+					(s.height() - copyUsername->height()) / 2);
+			}, copyUsername->lifetime());
+			copyUsername->setClickedCallback([=] {
+				const auto link = user->session().createInternalLinkFull(
+					user->userName());
+				if (!link.isEmpty()) {
+					QGuiApplication::clipboard()->setText(link);
+					Ui::Toast::Show(
+						Window::Show(controller).toastParent(),
+						tr::lng_username_copied(tr::now));
+				}
+				return false;
+			});
+		}
 
-		const auto controller = _controller->parentController();
 		AddMainButton(
 			result,
 			tr::lng_info_add_as_contact(),
