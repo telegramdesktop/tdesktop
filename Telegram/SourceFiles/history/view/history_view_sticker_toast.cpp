@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "ui/text/text_utilities.h"
 #include "boxes/sticker_set_box.h"
@@ -39,7 +40,9 @@ StickerToast::~StickerToast() = default;
 
 void StickerToast::showFor(not_null<DocumentData*> document) {
 	const auto sticker = document->sticker();
-	if (!sticker || sticker->type != StickerType::Tgs) {
+	if (!sticker
+		|| sticker->type != StickerType::Tgs
+		|| !document->session().premiumPossible()) {
 		return;
 	} else if (const auto strong = _weak.get()) {
 		if (_for == document) {
