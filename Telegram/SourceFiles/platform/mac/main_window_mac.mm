@@ -519,7 +519,8 @@ void MainWindow::updateGlobalMenuHook() {
 	updateIsActive();
 	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
-	const auto support = logged && account().session().supportMode();
+	const auto support = logged
+		&& sessionController()->session().supportMode();
 	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
 	ForceDisabled(psUndo, !canUndo);
 	ForceDisabled(psRedo, !canRedo);

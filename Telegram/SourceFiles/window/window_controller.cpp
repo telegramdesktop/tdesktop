@@ -96,7 +96,7 @@ void Controller::showAccount(
 
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
-		if (!session && !isPrimary()) {
+		if (!isPrimary() && (&_singlePeer->session() != session)) {
 			Core::App().closeWindow(this);
 			return;
 		}
