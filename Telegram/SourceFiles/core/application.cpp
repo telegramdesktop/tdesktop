@@ -353,12 +353,16 @@ void Application::run() {
 		showOpenGLCrashNotification();
 	}
 
-	_primaryWindow->openInMediaViewRequests(
+	_openInMediaViewRequests.events(
 	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
 		if (_mediaView) {
 			_mediaView->show(std::move(request));
 		}
-	}, _primaryWindow->lifetime());
+	}, _lifetime);
+	_primaryWindow->openInMediaViewRequests(
+	) | rpl::start_to_stream(
+		_openInMediaViewRequests,
+		_primaryWindow->lifetime());
 
 	{
 		const auto countries = std::make_shared<Countries::Manager>(
@@ -446,6 +450,12 @@ void Application::enumerateWindows(Fn<void(
 	for (const auto &window : ranges::views::values(_secondaryWindows)) {
 		callback(window.get());
 	}
+}
+
+void Application::processSecondaryWindow(
+		not_null<Window::Controller*> window) {
+	window->openInMediaViewRequests(
+	) | rpl::start_to_stream(_openInMediaViewRequests, window->lifetime());
 }
 
 void Application::startTray() {
@@ -1163,6 +1173,7 @@ Window::Controller *Application::ensureSeparateWindowForPeer(
 		peer->owner().history(peer),
 		std::make_unique<Window::Controller>(peer, showAtMsgId)
 	).first->second.get();
+	processSecondaryWindow(result);
 	result->widget()->show();
 	result->finishFirstShow();
 	return activate(result);

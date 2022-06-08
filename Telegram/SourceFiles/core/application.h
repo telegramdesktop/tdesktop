@@ -69,6 +69,7 @@ class Instance;
 } // namespace Audio
 namespace View {
 class OverlayWidget;
+struct OpenRequest;
 } // namespace View
 namespace Player {
 class FloatController;
@@ -326,6 +327,7 @@ private:
 
 	void enumerateWindows(
 		Fn<void(not_null<Window::Controller*>)> callback) const;
+	void processSecondaryWindow(not_null<Window::Controller*> window);
 
 	friend void QuitAttempt();
 	void quitDelayed();
@@ -405,6 +407,8 @@ private:
 		QPointer<QObject> filter;
 	};
 	base::flat_map<not_null<QWidget*>, LeaveFilter> _leaveFilters;
+
+	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;
 
 	rpl::lifetime _lifetime;
 
