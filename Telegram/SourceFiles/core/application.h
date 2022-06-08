@@ -324,6 +324,9 @@ private:
 	void startSystemDarkModeViewer();
 	void startTray();
 
+	void enumerateWindows(
+		Fn<void(not_null<Window::Controller*>)> callback) const;
+
 	friend void QuitAttempt();
 	void quitDelayed();
 	[[nodiscard]] bool readyToQuit();

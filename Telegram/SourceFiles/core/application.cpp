@@ -438,27 +438,29 @@ void Application::startSystemDarkModeViewer() {
 	}, _lifetime);
 }
 
+void Application::enumerateWindows(Fn<void(
+		not_null<Window::Controller*>)> callback) const {
+	if (_primaryWindow) {
+		callback(_primaryWindow.get());
+	}
+	for (const auto &window : ranges::views::values(_secondaryWindows)) {
+		callback(window.get());
+	}
+}
+
 void Application::startTray() {
 	using WindowRaw = not_null<Window::Controller*>;
-	const auto enumerate = [=](Fn<void(WindowRaw)> c) {
-		if (_primaryWindow) {
-			c(_primaryWindow.get());
-		}
-		for (const auto &window : ranges::views::values(_secondaryWindows)) {
-			c(window.get());
-		}
-	};
 	_tray->create();
 	_tray->aboutToShowRequests(
 	) | rpl::start_with_next([=] {
-		enumerate([&](WindowRaw w) { w->updateIsActive(); });
+		enumerateWindows([&](WindowRaw w) { w->updateIsActive(); });
 		_tray->updateMenuText();
 	}, _primaryWindow->widget()->lifetime());
 
 	_tray->showFromTrayRequests(
 	) | rpl::start_with_next([=] {
 		const auto last = _lastActiveWindow;
-		enumerate([&](WindowRaw w) { w->widget()->showFromTray(); });
+		enumerateWindows([&](WindowRaw w) { w->widget()->showFromTray(); });
 		if (last) {
 			last->widget()->showFromTray();
 		}
@@ -466,7 +468,7 @@ void Application::startTray() {
 
 	_tray->hideToTrayRequests(
 	) | rpl::start_with_next([=] {
-		enumerate([&](WindowRaw w) { w->widget()->minimizeToTray(); });
+		enumerateWindows([&](WindowRaw w) { w->widget()->minimizeToTray(); });
 	}, _primaryWindow->widget()->lifetime());
 }
 
@@ -1012,18 +1014,18 @@ void Application::preventOrInvoke(Fn<void()> &&callback) {
 
 void Application::lockByPasscode() {
 	preventOrInvoke([=] {
-		if (_primaryWindow) {
+		enumerateWindows([&](not_null<Window::Controller*> w) {
 			_passcodeLock = true;
-			_primaryWindow->setupPasscodeLock();
-		}
+			w->setupPasscodeLock();
+		});
 	});
 }
 
 void Application::unlockPasscode() {
 	clearPasscodeLock();
-	if (_primaryWindow) {
-		_primaryWindow->clearPasscodeLock();
-	}
+	enumerateWindows([&](not_null<Window::Controller*> w) {
+		w->clearPasscodeLock();
+	});
 }
 
 void Application::clearPasscodeLock() {
