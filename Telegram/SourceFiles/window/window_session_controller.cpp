@@ -1265,7 +1265,10 @@ void SessionController::startOrJoinGroupCall(
 		if (now == peer) {
 			calls.activateCurrentCall(args.joinHash);
 		} else if (calls.currentGroupCall()->scheduleDate()) {
-			calls.startOrJoinGroupCall(peer, { args.joinHash });
+			calls.startOrJoinGroupCall(
+				std::make_shared<Show>(this),
+				peer,
+				{args.joinHash});
 		} else {
 			askConfirmation(
 				((peer->isBroadcast() && now->isBroadcast())
@@ -1278,7 +1281,10 @@ void SessionController::startOrJoinGroupCall(
 				tr::lng_group_call_leave(tr::now));
 		}
 	} else {
-		calls.startOrJoinGroupCall(peer, args);
+		calls.startOrJoinGroupCall(
+			std::make_shared<Show>(this),
+			peer,
+			args);
 	}
 }
 

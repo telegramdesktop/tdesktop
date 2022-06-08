@@ -202,14 +202,15 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 }
 
 void Instance::startOrJoinGroupCall(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const StartGroupCallArgs &args) {
 	using JoinConfirm = StartGroupCallArgs::JoinConfirm;
 	if (args.rtmpNeeded) {
 		_startWithRtmp->start(peer, [=](object_ptr<Ui::BoxContent> box) {
-			Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+			show->showBox(std::move(box), Ui::LayerOption::KeepOther);
 		}, [=](QString text) {
-			Ui::Toast::Show(text);
+			Ui::Toast::Show(show->toastParent(), text);
 		}, [=](Group::JoinInfo info) {
 			createGroupCall(
 				std::move(info),
@@ -225,9 +226,9 @@ void Instance::startOrJoinGroupCall(
 		? Group::ChooseJoinAsProcess::Context::CreateScheduled
 		: Group::ChooseJoinAsProcess::Context::Create;
 	_chooseJoinAs->start(peer, context, [=](object_ptr<Ui::BoxContent> box) {
-		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+		show->showBox(std::move(box), Ui::LayerOption::KeepOther);
 	}, [=](QString text) {
-		Ui::Toast::Show(text);
+		Ui::Toast::Show(show->toastParent(), text);
 	}, [=](Group::JoinInfo info) {
 		const auto call = info.peer->groupCall();
 		info.joinHash = args.joinHash;
