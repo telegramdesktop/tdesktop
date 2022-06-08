@@ -36,6 +36,7 @@ struct ClickHandlerContext {
 	Fn<HistoryView::ElementDelegate*()> elementDelegate;
 	base::weak_ptr<Window::SessionController> sessionWindow;
 	bool skipBotAutoLogin = false;
+	bool botStartAutoSubmit = false;
 	// Is filled from peer info.
 	PeerData *peer = nullptr;
 };

@@ -366,7 +366,7 @@ bool ResolveUsernameOrPhone(
 		startToken = gameParam;
 		resolveType = ResolveType::ShareGame;
 	}
-	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
+	const auto myContext = context.value<ClickHandlerContext>();
 	using Navigation = Window::SessionNavigation;
 	controller->showPeerByLink(Navigation::PeerByLinkInfo{
 		.usernameOrId = domain,
@@ -384,6 +384,7 @@ bool ResolveUsernameOrPhone(
 		.resolveType = resolveType,
 		.startToken = startToken,
 		.startAdminRights = adminRights,
+		.startAutoSubmit = myContext.botStartAutoSubmit,
 		.attachBotUsername = params.value(u"attach"_q),
 		.attachBotToggleCommand = (params.contains(u"startattach"_q)
 			? params.value(u"startattach"_q)
@@ -397,7 +398,7 @@ bool ResolveUsernameOrPhone(
 			: params.contains(u"voicechat"_q)
 			? std::make_optional(params.value(u"voicechat"_q))
 			: std::nullopt),
-		.clickFromMessageId = fromMessageId,
+		.clickFromMessageId = myContext.itemId,
 	});
 	controller->window().activate();
 	return true;

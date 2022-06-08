@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/random.h"
 #include "core/application.h"
+#include "core/click_handler_types.h"
 #include "data/data_peer_values.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
@@ -925,6 +926,20 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		terms->resizeToWidth(width);
 		button->resizeToWidth(width - padding.left() - padding.right());
 	}, status->lifetime());
+
+	const auto controller = _controller;
+	status->entity()->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		ActivateClickHandler(status, handler, {
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller.get()),
+				.botStartAutoSubmit = true,
+			})
+		});
+		return false;
+	});
 
 	const auto session = &_controller->session();
 	rpl::combine(
