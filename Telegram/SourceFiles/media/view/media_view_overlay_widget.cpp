@@ -79,7 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_download.h"
 #include "storage/storage_account.h"
 #include "calls/calls_instance.h"
-#include "facades.h"
 #include "styles/style_media_view.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -4482,7 +4481,9 @@ void OverlayWidget::handleMouseRelease(
 	if (_over == OverName && _down == OverName) {
 		if (_from) {
 			close();
-			Ui::showPeerProfile(_from);
+			if (const auto window = findWindow(true)) {
+				window->showPeerInfo(_from);
+			}
 		}
 	} else if (_over == OverDate && _down == OverDate) {
 		toMessage();

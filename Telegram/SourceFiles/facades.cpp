@@ -251,29 +251,6 @@ void activateBotCommand(
 
 namespace Ui {
 
-void showPeerProfile(not_null<PeerData*> peer) {
-	if (const auto window = App::wnd()) { // multi good
-		if (const auto controller = window->sessionController()) {
-			if (&controller->session() == &peer->session()) {
-				controller->showPeerInfo(peer);
-				return;
-			}
-		}
-		if (&Core::App().domain().active() != &peer->session().account()) {
-			Core::App().domain().activate(&peer->session().account());
-		}
-		if (const auto controller = window->sessionController()) {
-			if (&controller->session() == &peer->session()) {
-				controller->showPeerInfo(peer);
-			}
-		}
-	}
-}
-
-void showPeerProfile(not_null<const History*> history) {
-	showPeerProfile(history->peer);
-}
-
 void showChatsList(not_null<Main::Session*> session) {
 	if (const auto m = CheckMainWidget(session)) {
 		m->ui_showPeerHistory(

@@ -47,9 +47,6 @@ namespace Ui {
 
 // Legacy global methods.
 
-void showPeerProfile(not_null<PeerData*> peer);
-void showPeerProfile(not_null<const History*> history);
-
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 void showChatsList(not_null<Main::Session*> session);

@@ -30,6 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+// Possible context owners: media viewer, profile, history widget.
+
 void SearchByHashtag(ClickContext context, const QString &tag) {
 	const auto my = context.other.value<ClickHandlerContext>();
 	const auto controller = my.sessionWindow.get();
@@ -172,9 +174,10 @@ QString MentionClickHandler::copyToClipboardContextItemText() const {
 void MentionClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (const auto m = App::main()) { // multi good
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
 			using Info = Window::SessionNavigation::PeerByLinkInfo;
-			m->controller()->showPeerByLink(Info{
+			controller->showPeerByLink(Info{
 				.usernameOrId = _tag.mid(1),
 				.resolveType = Window::ResolveType::Mention,
 			});
@@ -189,8 +192,11 @@ auto MentionClickHandler::getTextEntity() const -> TextEntity {
 void MentionNameClickHandler::onClick(ClickContext context) const {
 	const auto button = context.button;
 	if (button == Qt::LeftButton || button == Qt::MiddleButton) {
-		if (auto user = _session->data().userLoaded(_userId)) {
-			Ui::showPeerProfile(user);
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (auto user = _session->data().userLoaded(_userId)) {
+				controller->showPeerInfo(user);
+			}
 		}
 	}
 }
