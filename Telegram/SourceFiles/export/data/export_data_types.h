@@ -709,6 +709,7 @@ bool SkipMessageByDate(const Message &message, const Settings &settings);
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
 Utf8String FormatDateTime(
 	TimeId date,
+	bool hasTimeZone = false,
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));

@@ -1193,7 +1193,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	block.append(pushDiv("body"));
 	block.append(pushTag("div", {
 		{ "class", "pull_right date details" },
-		{ "title", FormatDateTime(message.date) },
+		{ "title", FormatDateTime(message.date, true) },
 	}));
 	block.append(FormatTimeText(message.date));
 	block.append(popTag());
@@ -1223,7 +1223,8 @@ auto HtmlWriter::Wrap::pushMessage(
 				block.append(" via @" + via);
 			}
 			block.append(pushTag("span", {
-				{ "class", "details" },
+				{ "class", "date details" },
+				{ "title", FormatDateTime(message.forwardedDate, true) },
 				{ "inline", "" }
 			}));
 			block.append(' ' + FormatDateTime(message.forwardedDate));
