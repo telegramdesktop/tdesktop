@@ -1333,6 +1333,7 @@ void ComposeControls::orderControls() {
 bool ComposeControls::showRecordButton() const {
 	return ::Media::Capture::instance()->available()
 		&& !_voiceRecordBar->isListenState()
+		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
 		//&& !readyToForward()
 		&& !isEditingMessage();

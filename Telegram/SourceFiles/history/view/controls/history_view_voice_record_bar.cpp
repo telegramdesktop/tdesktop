@@ -1541,7 +1541,13 @@ rpl::producer<not_null<QEvent*>> VoiceRecordBar::lockViewportEvents() const {
 }
 
 rpl::producer<> VoiceRecordBar::updateSendButtonTypeRequests() const {
-	return _listenChanges.events();
+	return rpl::merge(
+		::Media::Capture::instance()->startedChanges(
+		) | rpl::filter([=] {
+			// Perhaps a voice is recording from another place.
+			return !isActive();
+		}) | rpl::to_empty,
+		_listenChanges.events());
 }
 
 rpl::producer<> VoiceRecordBar::recordingTipRequests() const {
@@ -1558,6 +1564,10 @@ bool VoiceRecordBar::isListenState() const {
 
 bool VoiceRecordBar::isTypeRecord() const {
 	return (_send->type() == Ui::SendButton::Type::Record);
+}
+
+bool VoiceRecordBar::isRecordingByAnotherBar() const {
+	return !isRecording() && ::Media::Capture::instance()->started();
 }
 
 bool VoiceRecordBar::hasDuration() const {

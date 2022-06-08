@@ -4351,6 +4351,7 @@ bool HistoryWidget::isSearching() const {
 bool HistoryWidget::showRecordButton() const {
 	return Media::Capture::instance()->available()
 		&& !_voiceRecordBar->isListenState()
+		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
 		&& !readyToForward()
 		&& !_editMsgId;
