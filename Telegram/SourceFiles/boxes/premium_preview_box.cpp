@@ -786,22 +786,33 @@ void Show(
 	}
 
 	const auto fill = QSize(st::boxWideWidth, st::boxWideWidth);
-	const auto theme = controller->currentChatTheme();
-	const auto color = theme->background().colorForFill;
-	const auto area = QSize(fill.width(), fill.height() * 2);
-	const auto request = theme->cacheBackgroundRequest(area);
+	const auto stops = Ui::Premium::LimitGradientStops();
+	//const auto theme = controller->currentChatTheme();
+	//const auto color = theme->background().colorForFill;
+	//const auto area = QSize(fill.width(), fill.height() * 2);
+	//const auto request = theme->cacheBackgroundRequest(area);
 	crl::async([=] {
 		using Option = Images::Option;
-		auto back = color
-			? SolidColorImage(area, *color)
-			: request.background.waitingForNegativePattern()
-			? SolidColorImage(area, Qt::black)
-			: Ui::CacheBackground(request).image;
+		//auto back = color
+		//	? SolidColorImage(area, *color)
+		//	: request.background.waitingForNegativePattern()
+		//	? SolidColorImage(area, Qt::black)
+		//	: Ui::CacheBackground(request).image;
 		const auto factor = style::DevicePixelRatio();
-		auto cropped = back.copy(QRect(
-			QPoint(0, fill.height() * factor / 2),
-			fill * factor));
+		//auto cropped = back.copy(QRect(
+		//	QPoint(0, fill.height() * factor / 2),
+		//	fill * factor));
+		//cropped.setDevicePixelRatio(factor);
+		auto cropped = QImage(
+			fill * factor,
+			QImage::Format_ARGB32_Premultiplied);
 		cropped.setDevicePixelRatio(factor);
+		auto p = QPainter(&cropped);
+		auto gradient = QLinearGradient(0, fill.height(), fill.width(), 0);
+		gradient.setStops(stops);
+		p.fillRect(QRect(QPoint(), fill), gradient);
+		p.end();
+
 		const auto options = Images::Options()
 			| Option::RoundSkipBottomLeft
 			| Option::RoundSkipBottomRight
