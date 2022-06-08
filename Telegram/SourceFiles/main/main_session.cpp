@@ -224,7 +224,7 @@ bool Session::premium() const {
 }
 
 bool Session::premiumPossible() const {
-	return !_account->appConfig().get<bool>(
+	return !premium() && !_account->appConfig().get<bool>(
 		"premium_purchase_blocked",
 		true);
 }

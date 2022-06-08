@@ -53,3 +53,5 @@ private:
 	QPointer<Inner> _inner;
 
 };
+
+void ValidatePremiumLockBg(QImage &image, const QImage &frame);

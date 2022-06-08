@@ -55,11 +55,53 @@ namespace {
 constexpr auto kStickersPanelPerRow = 5;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
+constexpr auto kGrayLockOpacity = 0.3;
 
 using Data::StickersSet;
 using Data::StickersPack;
 using Data::StickersByEmojiMap;
 using SetFlag = Data::StickersSetFlag;
+
+[[nodiscard]] std::optional<QColor> ComputeImageColor(const QImage &frame) {
+	if (frame.isNull()
+		|| frame.format() != QImage::Format_ARGB32_Premultiplied) {
+		return {};
+	}
+	auto sr = int64();
+	auto sg = int64();
+	auto sb = int64();
+	auto sa = int64();
+	const auto factor = frame.devicePixelRatio();
+	const auto size = st::stickersPremiumLock.size() * factor;
+	const auto width = std::min(frame.width(), size.width());
+	const auto height = std::min(frame.height(), size.height());
+	const auto skipx = (frame.width() - width) / 2;
+	const auto radius = st::roundRadiusSmall;
+	const auto skipy = std::max(frame.height() - height - radius, 0);
+	const auto perline = frame.bytesPerLine();
+	const auto addperline = perline - (width * 4);
+	auto bits = static_cast<const uchar*>(frame.bits())
+		+ perline * skipy
+		+ sizeof(uint32) * skipx;
+	for (auto y = 0; y != height; ++y) {
+		for (auto x = 0; x != width; ++x) {
+			sb += int(*bits++);
+			sg += int(*bits++);
+			sr += int(*bits++);
+			sa += int(*bits++);
+		}
+		bits += addperline;
+	}
+	if (!sa) {
+		return {};
+	}
+	return QColor(sr * 255 / sa, sg * 255 / sa, sb * 255 / sa, 255);
+
+}
+
+[[nodiscard]] QColor ComputeLockColor(const QImage &frame) {
+	return ComputeImageColor(frame).value_or(st::windowSubTextFg->c);
+}
 
 } // namespace
 
@@ -106,6 +148,7 @@ private:
 		Lottie::Animation *lottie = nullptr;
 		Media::Clip::ReaderPointer webm;
 		Ui::Animations::Simple overAnimation;
+		mutable QImage premiumLock;
 	};
 
 	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
@@ -138,6 +181,7 @@ private:
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
 	void showPreview();
+	const QImage &validatePremiumLock(int index, const QImage &frame) const;
 	void updateItems();
 	void repaintItems(crl::time now = 0);
 
@@ -158,6 +202,7 @@ private:
 	ImageWithLocation _setThumbnail;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
+	mutable QImage _premiumLockGray;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -416,6 +461,11 @@ StickerSetBox::Inner::Inner(
 		updateItems();
 	}, lifetime());
 
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_premiumLockGray = QImage();
+	}, lifetime());
+
 	setMouseTracking(true);
 }
 
@@ -425,18 +475,25 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	_elements.clear();
 	_selected = -1;
 	setCursor(style::cur_default);
+	const auto owner = &_controller->session().data();
+	const auto premiumPossible = _controller->session().premiumPossible();
 	set.match([&](const MTPDmessages_stickerSet &data) {
 		const auto &v = data.vdocuments().v;
 		_pack.reserve(v.size());
 		_elements.reserve(v.size());
 		for (const auto &item : v) {
-			const auto document = _controller->session().data().processDocument(item);
+			const auto document = owner->processDocument(item);
 			const auto sticker = document->sticker();
 			if (!sticker) {
 				continue;
 			}
 			_pack.push_back(document);
-			_elements.push_back({ document, document->createMediaView() });
+			if (!document->isPremiumSticker() || premiumPossible) {
+				_elements.push_back({
+					document,
+					document->createMediaView(),
+				});
+			}
 		}
 		for (const auto &pack : data.vpacks().v) {
 			pack.match([&](const MTPDstickerPack &pack) {
@@ -756,6 +813,15 @@ void StickerSetBox::Inner::showPreview() {
 	}
 }
 
+const QImage &StickerSetBox::Inner::validatePremiumLock(
+		int index,
+		const QImage &frame) const {
+	auto &element = _elements[index];
+	auto &image = frame.isNull() ? _premiumLockGray : element.premiumLock;
+	ValidatePremiumLockBg(image, frame);
+	return image;
+}
+
 not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
 	if (!_lottiePlayer) {
 		_lottiePlayer = std::make_unique<Lottie::MultiPlayer>(
@@ -939,6 +1005,8 @@ void StickerSetBox::Inner::paintSticker(
 	const auto document = element.document;
 	const auto &media = element.documentMedia;
 	const auto sticker = document->sticker();
+	const auto locked = document->isPremiumSticker()
+		&& !_controller->session().premium();
 	media->checkStickerSmall();
 
 	if (media->loaded()) {
@@ -955,12 +1023,12 @@ void StickerSetBox::Inner::paintSticker(
 	const auto ppos = position + QPoint(
 		(st::stickersSize.width() - size.width()) / 2,
 		(st::stickersSize.height() - size.height()) / 2);
-
+	auto lottieFrame = QImage();
 	if (element.lottie && element.lottie->ready()) {
-		const auto frame = element.lottie->frame();
+		lottieFrame = element.lottie->frame();
 		p.drawImage(
-			QRect(ppos, frame.size() / cIntRetinaFactor()),
-			frame);
+			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
+			lottieFrame);
 
 		_lottiePlayer->unpause(element.lottie);
 	} else if (element.webm && element.webm->started()) {
@@ -979,6 +1047,20 @@ void StickerSetBox::Inner::paintSticker(
 			media.get(),
 			QRect(ppos, size),
 			_pathGradient.get());
+	}
+	if (locked) {
+		validatePremiumLock(index, lottieFrame);
+		const auto &bg = lottieFrame.isNull()
+			? _premiumLockGray
+			: element.premiumLock;
+		const auto factor = style::DevicePixelRatio();
+		const auto radius = st::roundRadiusSmall;
+		const auto point = position + QPoint(
+			(st::stickersSize.width() - (bg.width() / factor)) / 2,
+			st::stickersSize.height() - (bg.height() / factor) - radius);
+		p.drawImage(point, bg);
+
+		st::stickersPremiumLock.paint(p, point, width());
 	}
 }
 
@@ -1066,3 +1148,23 @@ void StickerSetBox::Inner::repaintItems(crl::time now) {
 }
 
 StickerSetBox::Inner::~Inner() = default;
+
+void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
+	if (!image.isNull()) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::stickersPremiumLock.size();
+	image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	auto p = QPainter(&image);
+	const auto color = ComputeLockColor(frame);
+	p.fillRect(
+		QRect(QPoint(), size),
+		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
+	p.end();
+
+	image = Images::Circle(std::move(image));
+}

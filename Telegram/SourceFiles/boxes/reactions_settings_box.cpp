@@ -422,6 +422,7 @@ void ReactionsSettingsBox(
 	};
 
 	auto firstCheckedButton = (Ui::RpWidget*)(nullptr);
+	const auto premiumPossible = controller->session().premiumPossible();
 	for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
 		const auto button = Settings::AddButton(
 			container,
@@ -429,7 +430,7 @@ void ReactionsSettingsBox(
 			st::settingsButton);
 
 		const auto premium = r.premium;
-		if (premium && !controller->session().premiumPossible()) {
+		if (premium && !premiumPossible) {
 			continue;
 		}
 

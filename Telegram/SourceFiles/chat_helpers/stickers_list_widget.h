@@ -192,7 +192,8 @@ private:
 	};
 
 	static std::vector<Sticker> PrepareStickers(
-		const QVector<DocumentData*> &pack);
+		const QVector<DocumentData*> &pack,
+		bool skipPremium);
 
 	void preloadMoreOfficial();
 	QSize boundingBoxSize() const;

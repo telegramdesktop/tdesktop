@@ -58,7 +58,6 @@ constexpr auto kPreloadOfficialPages = 4;
 constexpr auto kOfficialLoadLimit = 40;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
-constexpr auto kGrayLockOpacity = 0.3;
 
 using Data::StickersSet;
 using Data::StickersPack;
@@ -67,47 +66,6 @@ using SetFlag = Data::StickersSetFlag;
 
 [[nodiscard]] bool SetInMyList(Data::StickersSetFlags flags) {
 	return (flags & SetFlag::Installed) && !(flags & SetFlag::Archived);
-}
-
-[[nodiscard]] std::optional<QColor> ComputeImageColor(const QImage &frame) {
-	if (frame.isNull()
-		|| frame.format() != QImage::Format_ARGB32_Premultiplied) {
-		return {};
-	}
-	auto sr = int64();
-	auto sg = int64();
-	auto sb = int64();
-	auto sa = int64();
-	const auto factor = frame.devicePixelRatio();
-	const auto size = st::stickersPremiumLock.size() * factor;
-	const auto width = std::min(frame.width(), size.width());
-	const auto height = std::min(frame.height(), size.height());
-	const auto skipx = (frame.width() - width) / 2;
-	const auto radius = st::roundRadiusSmall;
-	const auto skipy = std::max(frame.height() - height - radius, 0);
-	const auto perline = frame.bytesPerLine();
-	const auto addperline = perline - (width * 4);
-	auto bits = static_cast<const uchar*>(frame.bits())
-		+ perline * skipy
-		+ sizeof(uint32) * skipx;
-	for (auto y = 0; y != height; ++y) {
-		for (auto x = 0; x != width; ++x) {
-			sb += int(*bits++);
-			sg += int(*bits++);
-			sr += int(*bits++);
-			sa += int(*bits++);
-		}
-		bits += addperline;
-	}
-	if (!sa) {
-		return {};
-	}
-	return QColor(sr * 255 / sa, sg * 255 / sa, sb * 255 / sa, 255);
-
-}
-
-[[nodiscard]] QColor ComputeLockColor(const QImage &frame) {
-	return ComputeImageColor(frame).value_or(st::windowSubTextFg->c);
 }
 
 } // namespace
@@ -313,11 +271,14 @@ struct StickersListWidget::Set {
 };
 
 auto StickersListWidget::PrepareStickers(
-	const QVector<DocumentData*> &pack)
+	const QVector<DocumentData*> &pack,
+	bool skipPremium)
 -> std::vector<Sticker> {
 	return ranges::views::all(
 		pack
-	) | ranges::views::transform([](DocumentData *document) {
+	) | ranges::views::filter([&](DocumentData *document) {
+		return !skipPremium || !document->isPremiumSticker();
+	}) | ranges::views::transform([](DocumentData *document) {
 		return Sticker{ document };
 	}) | ranges::to_vector;
 }
@@ -1673,6 +1634,10 @@ void StickersListWidget::fillCloudSearchRows(
 }
 
 void StickersListWidget::addSearchRow(not_null<StickersSet*> set) {
+	const auto skipPremium = !session().premiumPossible();
+	auto elements = PrepareStickers(
+		set->stickers.empty() ? set->covers : set->stickers,
+		skipPremium);
 	_searchSets.emplace_back(
 		set->id,
 		set,
@@ -1681,9 +1646,7 @@ void StickersListWidget::addSearchRow(not_null<StickersSet*> set) {
 		set->shortName,
 		set->count,
 		!SetInMyList(set->flags),
-		PrepareStickers(set->stickers.empty()
-			? set->covers
-			: set->stickers));
+		std::move(elements));
 }
 
 void StickersListWidget::takeHeavyData(
@@ -2445,23 +2408,7 @@ const QImage &StickersListWidget::validatePremiumLock(
 		const QImage &frame) {
 	auto &sticker = set.stickers[index];
 	auto &image = frame.isNull() ? _premiumLockGray : sticker.premiumLock;
-	if (!image.isNull()) {
-		return image;
-	}
-	const auto factor = style::DevicePixelRatio();
-	const auto size = st::stickersPremiumLock.size();
-	image = QImage(
-		size * factor,
-		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(factor);
-	auto p = QPainter(&image);
-	const auto color = ComputeLockColor(frame);
-	p.fillRect(
-		QRect(QPoint(), size),
-		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
-	p.end();
-
-	image = Images::Circle(std::move(image));
+	ValidatePremiumLockBg(image, frame);
 	return image;
 }
 
@@ -2996,13 +2943,15 @@ void StickersListWidget::refreshSearchSets() {
 	refreshSearchIndex();
 
 	const auto &sets = session().data().stickers().sets();
+	const auto skipPremium = !session().premiumPossible();
 	for (auto &entry : _searchSets) {
 		if (const auto it = sets.find(entry.id); it != sets.end()) {
 			const auto set = it->second.get();
 			entry.flags = set->flags;
-			if (!set->stickers.empty()) {
+			auto elements = PrepareStickers(set->stickers, skipPremium);
+			if (!elements.empty()) {
 				entry.lottiePlayer = nullptr;
-				entry.stickers = PrepareStickers(set->stickers);
+				entry.stickers = std::move(elements);
 			}
 			if (!SetInMyList(entry.flags)) {
 				_installedLocallySets.remove(entry.id);
@@ -3077,6 +3026,15 @@ bool StickersListWidget::appendSet(
 			return false;
 		}
 	}
+	const auto skipPremium = !session().premiumPossible();
+	auto elements = PrepareStickers(
+		((set->stickers.empty() && externalLayout)
+			? set->covers
+			: set->stickers),
+		skipPremium);
+	if (elements.empty()) {
+		return false;
+	}
 	to.emplace_back(
 		set->id,
 		set,
@@ -3085,9 +3043,7 @@ bool StickersListWidget::appendSet(
 		set->shortName,
 		set->count,
 		externalLayout,
-		PrepareStickers((set->stickers.empty() && externalLayout)
-			? set->covers
-			: set->stickers));
+		std::move(elements));
 	if (!externalLayout && _premiumsIndex >= 0 && session().premium()) {
 		for (const auto &sticker : to.back().stickers) {
 			const auto document = sticker.document;
@@ -3232,12 +3188,17 @@ void StickersListWidget::refreshFavedStickers() {
 	clearSelection();
 	const auto &sets = session().data().stickers().sets();
 	const auto it = sets.find(Data::Stickers::FavedSetId);
-	if (it == sets.cend() || it->second->stickers.isEmpty()) {
+	if (it == sets.cend()) {
 		return;
 	}
+	const auto skipPremium = !session().premiumPossible();
 	const auto set = it->second.get();
 	const auto externalLayout = false;
 	const auto shortName = QString();
+	auto elements = PrepareStickers(set->stickers, skipPremium);
+	if (elements.empty()) {
+		return;
+	}
 	_mySets.insert(_mySets.begin(), Set{
 		Data::Stickers::FavedSetId,
 		nullptr,
@@ -3246,7 +3207,7 @@ void StickersListWidget::refreshFavedStickers() {
 		shortName,
 		set->count,
 		externalLayout,
-		PrepareStickers(set->stickers)
+		std::move(elements)
 	});
 	_favedStickersMap = base::flat_set<not_null<DocumentData*>> {
 		set->stickers.begin(),
@@ -3308,15 +3269,19 @@ void StickersListWidget::refreshMegagroupStickers(GroupStickersPlace place) {
 		} else if (isShownHere(hidden)) {
 			const auto shortName = QString();
 			const auto externalLayout = false;
-			_mySets.emplace_back(
-				Data::Stickers::MegagroupSetId,
-				set,
-				SetFlag::Special,
-				tr::lng_group_stickers(tr::now),
-				shortName,
-				set->count,
-				externalLayout,
-				PrepareStickers(set->stickers));
+			const auto skipPremium = !session().premiumPossible();
+			auto elements = PrepareStickers(set->stickers, skipPremium);
+			if (!elements.empty()) {
+				_mySets.emplace_back(
+					Data::Stickers::MegagroupSetId,
+					set,
+					SetFlag::Special,
+					tr::lng_group_stickers(tr::now),
+					shortName,
+					set->count,
+					externalLayout,
+					std::move(elements));
+			}
 		}
 		return;
 	} else if (!isShownHere(hidden) || _megagroupSetIdRequested == set.id) {
