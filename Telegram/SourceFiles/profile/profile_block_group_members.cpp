@@ -25,7 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h" // Ui::showPeerProfile
+#include "window/window_session_controller.h"
 
 namespace Profile {
 namespace {
@@ -43,9 +43,11 @@ not_null<UserData*> GroupMembersWidget::Member::user() const {
 
 GroupMembersWidget::GroupMembersWidget(
 	QWidget *parent,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	const style::PeerListItem &st)
 : PeerListWidget(parent, peer, QString(), st, tr::lng_profile_kick(tr::now))
+, _controller(controller)
 , _updateOnlineTimer([=] { updateOnlineDisplay(); }) {
 	peer->session().changes().peerUpdates(
 		UpdateFlag::Admins
@@ -59,7 +61,7 @@ GroupMembersWidget::GroupMembersWidget(
 		removePeer(selectedPeer);
 	});
 	setSelectedCallback([=](PeerData *selectedPeer) {
-		Ui::showPeerProfile(selectedPeer);
+		controller->showPeerInfo(selectedPeer);
 	});
 	setUpdateItemCallback([=](Item *item) {
 		updateItemStatusText(item);
@@ -75,8 +77,10 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	const auto user = selectedPeer->asUser();
 	Assert(user != nullptr);
 
-	auto text = tr::lng_profile_sure_kick(tr::now, lt_user, user->firstName);
-	auto currentRestrictedRights = [&]() -> ChatRestrictionsInfo {
+	const auto text = tr::lng_profile_sure_kick(
+		tr::now,
+		lt_user, user->firstName);
+	const auto currentRestrictedRights = [&]() -> ChatRestrictionsInfo {
 		if (auto channel = peer()->asMegagroup()) {
 			auto it = channel->mgInfo->lastRestricted.find(user);
 			if (it != channel->mgInfo->lastRestricted.cend()) {
@@ -87,11 +91,14 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 	}();
 
 	const auto peer = this->peer();
-	const auto callback = [=] {
-		Ui::hideLayer();
+	const auto callback = [=, controller = _controller] {
+		controller->hideLayer();
 		if (const auto chat = peer->asChat()) {
 			chat->session().api().chatParticipants().kick(chat, user);
-			Ui::showPeerHistory(chat, ShowAtTheEndMsgId);
+			controller->showPeerHistory(
+				chat->id,
+				Window::SectionShow::Way::ClearStack,
+				ShowAtTheEndMsgId);
 		} else if (const auto channel = peer->asChannel()) {
 			channel->session().api().chatParticipants().kick(
 				channel,
@@ -99,7 +106,7 @@ void GroupMembersWidget::removePeer(PeerData *selectedPeer) {
 				currentRestrictedRights);
 		}
 	};
-	Ui::show(Ui::MakeConfirmBox({
+	_controller->show(Ui::MakeConfirmBox({
 		.text = text,
 		.confirmed = crl::guard(&peer->session(), callback),
 		.confirmText = tr::lng_box_remove(),
