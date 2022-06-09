@@ -210,10 +210,12 @@ void SessionNavigation::resolvePhone(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
-			show(Ui::MakeInformBox(tr::lng_username_by_phone_not_found(
-				tr::now,
-				lt_phone,
-				Ui::FormatPhone(phone))));
+			parentController()->show(
+				Ui::MakeInformBox(tr::lng_username_by_phone_not_found(
+					tr::now,
+					lt_phone,
+					Ui::FormatPhone(phone))),
+				Ui::LayerOption::CloseOther);
 		}
 	}).send();
 }
@@ -233,8 +235,10 @@ void SessionNavigation::resolveUsername(
 	}).fail([=](const MTP::Error &error) {
 		_resolveRequestId = 0;
 		if (error.code() == 400) {
-			show(Ui::MakeInformBox(
-				tr::lng_username_not_found(tr::now, lt_user, username)));
+			parentController()->show(
+				Ui::MakeInformBox(
+					tr::lng_username_not_found(tr::now, lt_user, username)),
+				Ui::LayerOption::CloseOther);
 		}
 	}).send();
 }
