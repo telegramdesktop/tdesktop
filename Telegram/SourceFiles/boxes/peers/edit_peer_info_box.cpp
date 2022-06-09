@@ -53,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "info/profile/info_profile_icon.h"
 #include "api/api_invite_links.h"
-#include "facades.h" // Ui::showChatsList
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -1702,8 +1701,8 @@ void Controller::deleteChannel() {
 
 	const auto session = &_peer->session();
 
-	Ui::hideLayer();
-	Ui::showChatsList(session);
+	_navigation->parentController()->hideLayer();
+	Core::App().closeChatFromWindows(_peer);
 	if (chat) {
 		session->api().deleteConversation(chat, false);
 	}

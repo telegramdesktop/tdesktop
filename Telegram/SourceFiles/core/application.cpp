@@ -1196,6 +1196,33 @@ void Application::closeWindow(not_null<Window::Controller*> window) {
 	}
 }
 
+void Application::closeChatFromWindows(not_null<PeerData*> peer) {
+	for (const auto &[history, window] : _secondaryWindows) {
+		if (!window) {
+			continue;
+		}
+		if (history->peer == peer) {
+			closeWindow(window.get());
+		} else if (const auto session = window->sessionController()) {
+			if (session->activeChatCurrent().peer() == peer) {
+				session->showPeerHistory(
+					window->singlePeer()->id,
+					Window::SectionShow::Way::ClearStack);
+			}
+		}
+	}
+	if (_primaryWindow && _primaryWindow->sessionController()) {
+		const auto primary = _primaryWindow->sessionController();
+		if ((primary->activeChatCurrent().peer() == peer)
+			&& (&primary->session() == &peer->session())) {
+			// showChatsList
+			primary->showPeerHistory(
+				PeerId(0),
+				Window::SectionShow::Way::ClearStack);
+		}
+	}
+}
+
 void Application::windowActivated(not_null<Window::Controller*> window) {
 	_lastActiveWindow = window;
 	if (_mediaView && !_mediaView->isHidden()) {

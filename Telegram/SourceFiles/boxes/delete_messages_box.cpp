@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "api/api_messages_search.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_histories.h"
@@ -26,8 +27,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
-#include "window/window_session_controller.h"
-#include "facades.h" // Ui::showChatsList
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -493,11 +492,7 @@ void DeleteMessagesBox::deleteAndClear() {
 		if (justClear) {
 			session->api().clearHistory(peer, revoke);
 		} else {
-			for (const auto &controller : session->windows()) {
-				if (controller->activeChatCurrent().peer() == peer) {
-					Ui::showChatsList(session);
-				}
-			}
+			Core::App().closeChatFromWindows(peer);
 			// Don't delete old history by default,
 			// because Android app doesn't.
 			//

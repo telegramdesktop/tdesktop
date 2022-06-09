@@ -171,6 +171,7 @@ public:
 	void notifyFileDialogShown(bool shown);
 	void checkSystemDarkMode();
 	[[nodiscard]] bool isActiveForTrayMenu() const;
+	void closeChatFromWindows(not_null<PeerData*> peer);
 
 	// Media view interface.
 	bool hideMediaView();
