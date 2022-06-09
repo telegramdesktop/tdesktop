@@ -522,24 +522,24 @@ bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
 bool MainWidget::shareUrl(
 		PeerId peerId,
 		const QString &url,
-		const QString &text) {
+		const QString &text) const {
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
 	if (!peer->canWrite()) {
-		Ui::show(Ui::MakeInformBox(tr::lng_share_cant()));
+		_controller->show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
-	TextWithTags textWithTags = {
+	const auto textWithTags = TextWithTags{
 		url + '\n' + text,
 		TextWithTags::Tags()
 	};
-	MessageCursor cursor = {
+	const auto cursor = MessageCursor{
 		int(url.size()) + 1,
 		int(url.size()) + 1 + int(text.size()),
 		QFIXED_MAX
 	};
-	auto history = peer->owner().history(peer);
+	const auto history = peer->owner().history(peer);
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
 		0,
@@ -552,7 +552,9 @@ bool MainWidget::shareUrl(
 	return true;
 }
 
-bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
+bool MainWidget::inlineSwitchChosen(
+		PeerId peerId,
+		const QString &botAndQuery) const {
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
@@ -561,8 +563,15 @@ bool MainWidget::inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) {
 		return false;
 	}
 	const auto h = peer->owner().history(peer);
-	TextWithTags textWithTags = { botAndQuery, TextWithTags::Tags() };
-	MessageCursor cursor = { int(botAndQuery.size()), int(botAndQuery.size()), QFIXED_MAX };
+	const auto textWithTags = TextWithTags{
+		botAndQuery,
+		TextWithTags::Tags(),
+	};
+	const auto cursor = MessageCursor{
+		int(botAndQuery.size()),
+		int(botAndQuery.size()),
+		QFIXED_MAX
+	};
 	h->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
 		0,
