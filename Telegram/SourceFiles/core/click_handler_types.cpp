@@ -25,8 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "window/window_session_controller.h"
-#include "boxes/abstract_box.h" // Ui::hideLayer().
-#include "facades.h"
 
 namespace {
 
@@ -119,15 +117,18 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				: parsedUrl.isValid()
 				? QString::fromUtf8(parsedUrl.toEncoded())
 				: ShowEncoded(displayed);
-			Ui::show(
-				Ui::MakeConfirmBox({
-					.text = (tr::lng_open_this_link(tr::now)
-						+ qsl("\n\n")
-						+ displayUrl),
-					.confirmed = [=] { Ui::hideLayer(); open(); },
-					.confirmText = tr::lng_open_link(),
-				}),
-				Ui::LayerOption::KeepOther);
+			const auto my = context.value<ClickHandlerContext>();
+			if (const auto controller = my.sessionWindow.get()) {
+				controller->show(
+					Ui::MakeConfirmBox({
+						.text = (tr::lng_open_this_link(tr::now)
+							+ qsl("\n\n")
+							+ displayUrl),
+						.confirmed = [=](Fn<void()> hide) { hide(); open(); },
+						.confirmText = tr::lng_open_link(),
+					}),
+					Ui::LayerOption::KeepOther);
+			}
 		} else {
 			open();
 		}
@@ -150,16 +151,22 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 		|| _bot->session().local().isBotTrustedOpenGame(_bot->id)) {
 		open();
 	} else {
-		const auto callback = [=, bot = _bot] {
-			Ui::hideLayer();
-			bot->session().local().markBotTrustedOpenGame(bot->id);
-			open();
-		};
-		Ui::show(Ui::MakeConfirmBox({
-			.text = tr::lng_allow_bot_pass(tr::now, lt_bot_name, _bot->name),
-			.confirmed = callback,
-			.confirmText = tr::lng_allow_bot(),
-		}));
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			const auto callback = [=, bot = _bot](Fn<void()> close) {
+				close();
+				bot->session().local().markBotTrustedOpenGame(bot->id);
+				open();
+			};
+			controller->show(Ui::MakeConfirmBox({
+				.text = tr::lng_allow_bot_pass(
+					tr::now,
+					lt_bot_name,
+					_bot->name),
+				.confirmed = callback,
+				.confirmText = tr::lng_allow_bot(),
+			}));
+		}
 	}
 }
 
