@@ -718,9 +718,9 @@ void Instance::requestPermissionOrFail(Platform::PermissionType type, Fn<void()>
 		}
 		Ui::show(Ui::MakeConfirmBox({
 			.text = tr::lng_no_mic_permission(),
-			.confirmed = crl::guard(this, [=] {
+			.confirmed = crl::guard(this, [=](Fn<void()> &&close) {
 				Platform::OpenSystemSettingsForPermission(type);
-				Ui::hideLayer();
+				close();
 			}),
 			.confirmText = tr::lng_menu_settings(),
 		}));

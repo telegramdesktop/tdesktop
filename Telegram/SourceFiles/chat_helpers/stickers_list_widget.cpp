@@ -3683,13 +3683,14 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 	_removingSetId = Data::Stickers::MegagroupSetId;
 	controller()->show(Ui::MakeConfirmBox({
 		.text = tr::lng_stickers_remove_group_set(),
-		.confirmed = crl::guard(this, [this, group = _megagroupSet] {
+		.confirmed = crl::guard(this, [this, group = _megagroupSet](
+				Fn<void()> &&close) {
 			Expects(group->mgInfo != nullptr);
 
 			if (group->mgInfo->stickerSet) {
 				session().api().setGroupStickerSet(group, {});
 			}
-			Ui::hideLayer();
+			close();
 			_removingSetId = 0;
 			_checkForHide.fire({});
 		}),

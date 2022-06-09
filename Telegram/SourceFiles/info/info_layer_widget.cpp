@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "main/main_session.h"
-#include "boxes/abstract_box.h"
 #include "core/application.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
@@ -227,7 +226,7 @@ bool LayerWidget::showSectionInternal(
 		const Window::SectionShow &params) {
 	if (_content && _content->showInternal(memento, params)) {
 		if (params.activation != anim::activation::background) {
-			Ui::hideLayer();
+			_controller->parentController()->hideLayer();
 		}
 		return true;
 	}

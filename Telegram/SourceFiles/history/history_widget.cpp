@@ -7026,7 +7026,7 @@ void HistoryWidget::cancelEdit() {
 }
 
 void HistoryWidget::cancelFieldAreaState() {
-	Ui::hideLayer();
+	controller()->hideLayer();
 	_replyForwardPressed = false;
 	if (_previewData && _previewData->pendingTill >= 0) {
 		_previewState = Data::PreviewState::Cancelled;
@@ -7292,10 +7292,10 @@ void HistoryWidget::escape() {
 			&& PrepareEditText(_replyEditMsg) != _field->getTextWithTags()) {
 			controller()->show(Ui::MakeConfirmBox({
 				.text = tr::lng_cancel_edit_post_sure(),
-				.confirmed = crl::guard(this, [this] {
+				.confirmed = crl::guard(this, [this](Fn<void()> &&close) {
 					if (_editMsgId) {
 						cancelEdit();
-						Ui::hideLayer();
+						close();
 					}
 				}),
 				.confirmText = tr::lng_cancel_edit_post_yes(),

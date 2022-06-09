@@ -397,7 +397,7 @@ void AddContactBox::save() {
 			if (user->isContact() || user->session().supportMode()) {
 				Ui::showPeerHistory(user, ShowAtTheEndMsgId);
 			}
-			Ui::hideLayer();
+			getDelegate()->hideLayer();
 		} else if (isBoxShown()) {
 			hideChildren();
 			_retrying = true;
@@ -593,7 +593,7 @@ void GroupInfoBox::createGroup(
 		auto image = _photo->takeResultImage();
 		const auto navigation = _navigation;
 
-		Ui::hideLayer(); // Destroys 'this'.
+		getDelegate()->hideLayer(); // Destroys 'this'.
 		ChatCreateDone(navigation, std::move(image), result);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
@@ -1253,7 +1253,7 @@ void SetupChannelBox::updateFail(UsernameResult result) {
 
 void SetupChannelBox::checkFail(UsernameResult result) {
 	if (result == UsernameResult::NA) {
-		Ui::hideLayer();
+		getDelegate()->hideLayer();
 	} else if (result == UsernameResult::ChatsTooMuch) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();
@@ -1291,7 +1291,7 @@ void SetupChannelBox::showRevokePublicLinkBoxForEdit() {
 
 void SetupChannelBox::firstCheckFail(UsernameResult result) {
 	if (result == UsernameResult::NA) {
-		Ui::hideLayer();
+		getDelegate()->hideLayer();
 	} else if (result == UsernameResult::ChatsTooMuch) {
 		if (_existing) {
 			showRevokePublicLinkBoxForEdit();

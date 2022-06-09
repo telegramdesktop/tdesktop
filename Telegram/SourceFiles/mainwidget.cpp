@@ -311,7 +311,7 @@ MainWidget::MainWidget(
 			} else {
 				Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 			}
-			Ui::hideLayer();
+			_controller->hideLayer();
 		}
 	}, lifetime());
 
@@ -1644,7 +1644,7 @@ void MainWidget::showNewSection(
 		saveInStack = false;
 	} else if (auto layer = memento->createLayer(_controller, layerRect)) {
 		if (params.activation != anim::activation::background) {
-			Ui::hideLayer(anim::type::instant);
+			_controller->hideLayer(anim::type::instant);
 		}
 		_controller->showSpecialLayer(std::move(layer));
 		return;

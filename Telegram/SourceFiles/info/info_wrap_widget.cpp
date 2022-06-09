@@ -453,7 +453,7 @@ void WrapWidget::createTopBar() {
 }
 
 void WrapWidget::checkBeforeClose(Fn<void()> close) {
-	Ui::hideLayer();
+	_controller->parentController()->hideLayer();
 	close();
 }
 

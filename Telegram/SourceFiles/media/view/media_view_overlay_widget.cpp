@@ -1876,7 +1876,7 @@ void OverlayWidget::deleteMedia() {
 						.text = tr::lng_delete_photo_sure(),
 						.confirmed = crl::guard(_widget, [=] {
 							session->api().peerPhoto().clear(photo);
-							Ui::hideLayer();
+							window->hideLayer();
 						}),
 						.confirmText = tr::lng_box_delete(),
 					}),
