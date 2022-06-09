@@ -86,6 +86,7 @@ public:
 	virtual void saveChanges(FnMut<void()> done);
 
 	[[nodiscard]] int scrollBottomSkip() const;
+	[[nodiscard]] rpl::producer<int> scrollBottomSkipValue() const;
 	[[nodiscard]] rpl::producer<bool> desiredBottomShadowVisibility() const;
 
 protected:

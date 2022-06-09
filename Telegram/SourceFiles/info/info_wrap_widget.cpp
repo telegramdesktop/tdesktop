@@ -687,6 +687,11 @@ void WrapWidget::finishShowContent() {
 	_bottomShadow->finishAnimating();
 	_contentChanges.fire({});
 
+	_content->scrollBottomSkipValue(
+	) | rpl::start_with_next([=] {
+		updateContentGeometry();
+	}, _content->lifetime());
+
 	// This was done for tabs support.
 	//
 	//if (_topTabs) {

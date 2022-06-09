@@ -85,6 +85,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/data_sponsored_messages.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "settings/settings_premium.h"
 #include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h" // st::windowMinWidth
@@ -2324,6 +2325,10 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_sponsored_title({}), [=] {
 						_controller->show(Box(Ui::AboutSponsoredBox));
 					}, &st::menuIconInfo);
+					_menu->addSeparator();
+					_menu->addAction(tr::lng_sponsored_hide_ads({}), [=] {
+						Settings::ShowPremium(_controller, "no_ads");
+					}, &st::menuIconBlock);
 				}
 				if (!item->isService()
 					&& view

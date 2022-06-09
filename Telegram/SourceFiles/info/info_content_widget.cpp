@@ -307,6 +307,10 @@ int ContentWidget::scrollBottomSkip() const {
 	return _scrollBottomSkip.current();
 }
 
+rpl::producer<int> ContentWidget::scrollBottomSkipValue() const {
+	return _scrollBottomSkip.value();
+}
+
 rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
