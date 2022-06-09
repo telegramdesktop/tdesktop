@@ -199,10 +199,18 @@ void AddParticipantsBoxController::addInviteLinkButton() {
 			tr::lng_profile_add_via_link(),
 			st::inviteViaLinkButton),
 		style::margins(0, st::membersMarginTop, 0, 0));
-	object_ptr<Info::Profile::FloatingIcon>(
+
+	const auto icon = Ui::CreateChild<Info::Profile::FloatingIcon>(
 		button->entity(),
 		st::inviteViaLinkIcon,
-		st::inviteViaLinkIconPosition);
+		QPoint());
+	button->entity()->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		icon->moveToLeft(
+			st::inviteViaLinkIconPosition.x(),
+			(height - st::inviteViaLinkIcon.height()) / 2);
+	}, icon->lifetime());
+
 	button->entity()->setClickedCallback([=] {
 		showBox(Box<EditPeerTypeBox>(_peer));
 	});
