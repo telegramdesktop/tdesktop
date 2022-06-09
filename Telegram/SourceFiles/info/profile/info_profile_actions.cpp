@@ -554,11 +554,12 @@ void ActionsFiller::addInviteToGroupAction(
 	const auto notEmpty = [](const QString &value) {
 		return !value.isEmpty();
 	};
+	const auto controller = _controller->parentController();
 	AddActionButton(
 		_wrap,
 		InviteToChatButton(user) | rpl::filter(notEmpty),
 		InviteToChatButton(user) | rpl::map(notEmpty),
-		[=] { AddBotToGroupBoxController::Start(user); },
+		[=] { AddBotToGroupBoxController::Start(controller, user); },
 		&st::infoIconAddMember);
 	const auto about = _wrap->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(

@@ -384,6 +384,7 @@ void EditAdminBox::prepare() {
 				return;
 			} else if (_addAsAdmin && !_addAsAdmin->checked()) {
 				AddBotToGroup(user(), peer(), _addingBot->token);
+				getDelegate()->hideLayer();
 				return;
 			} else if (_addingBot && !_addingBot->existing) {
 				const auto phrase = peer()->isBroadcast()

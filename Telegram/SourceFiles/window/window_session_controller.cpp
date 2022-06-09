@@ -335,6 +335,7 @@ void SessionNavigation::showPeerByLinkResolved(
 		Assert(scope != Scope::None);
 
 		AddBotToGroupBoxController::Start(
+			parentController(),
 			bot,
 			scope,
 			info.startToken,

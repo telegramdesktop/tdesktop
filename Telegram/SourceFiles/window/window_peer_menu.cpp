@@ -684,9 +684,10 @@ void Filler::addBotToGroup() {
 		user
 	) | rpl::take(1) | rpl::start_with_next([=](QString label) {
 		if (!label.isEmpty()) {
+			const auto controller = _controller;
 			_addAction(
 				label,
-				[=] { AddBotToGroupBoxController::Start(user); },
+				[=] { AddBotToGroupBoxController::Start(controller, user); },
 				&st::menuIconInvite);
 		}
 	});
