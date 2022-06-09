@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_item_components.h"
 #include "main/main_session.h"
+#include "window/window_session_controller.h"
 #include "ui/toast/toast.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
@@ -31,6 +32,7 @@ namespace Api {
 namespace {
 
 void SendBotCallbackData(
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		int row,
 		int column,
@@ -73,6 +75,8 @@ void SendBotCallbackData(
 	if (withPassword) {
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_password;
 	}
+	const auto weak = base::make_weak(controller.get());
+	const auto show = std::make_shared<Window::Show>(controller);
 	button->requestId = api->request(MTPmessages_GetBotCallbackAnswer(
 		MTP_flags(flags),
 		history->peer->input,
@@ -100,12 +104,12 @@ void SendBotCallbackData(
 
 		if (!message.isEmpty()) {
 			if (showAlert) {
-				Ui::show(Ui::MakeInformBox(message));
+				show->showBox(Ui::MakeInformBox(message));
 			} else {
 				if (withPassword) {
-					Ui::hideLayer();
+					show->hideLayer();
 				}
-				Ui::Toast::Show(message);
+				Ui::Toast::Show(show->toastParent(), message);
 			}
 		} else if (!link.isEmpty()) {
 			if (!isGame) {
@@ -116,12 +120,18 @@ void SendBotCallbackData(
 				session,
 				link,
 				item->fullId());
-			BotGameUrlClickHandler(bot, scoreLink).onClick({});
+			BotGameUrlClickHandler(bot, scoreLink).onClick({
+				Qt::LeftButton,
+				QVariant::fromValue(ClickHandlerContext{
+					.itemId = item->fullId(),
+					.sessionWindow = weak,
+				}),
+			});
 			session->sendProgressManager().update(
 				history,
 				Api::SendProgressType::PlayGame);
 		} else if (withPassword) {
-			Ui::hideLayer();
+			show->hideLayer();
 		}
 	}).fail([=](const MTP::Error &error) {
 		const auto item = owner->message(fullId);
@@ -147,13 +157,15 @@ void SendBotCallbackData(
 } // namespace
 
 void SendBotCallbackData(
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		int row,
 		int column) {
-	SendBotCallbackData(item, row, column, std::nullopt);
+	SendBotCallbackData(controller, item, row, column, std::nullopt);
 }
 
 void SendBotCallbackDataWithPassword(
+		not_null<Window::SessionController*> controller,
 		not_null<HistoryItem*> item,
 		int row,
 		int column) {
@@ -177,7 +189,9 @@ void SendBotCallbackDataWithPassword(
 		return;
 	}
 	api->cloudPassword().reload();
-	SendBotCallbackData(item, row, column, std::nullopt, [=](const QString &error) {
+	const auto weak = base::make_weak(controller.get());
+	const auto show = std::make_shared<Window::Show>(controller);
+	SendBotCallbackData(controller, item, row, column, std::nullopt, [=](const QString &error) {
 		auto box = PrePasswordErrorBox(
 			error,
 			session,
@@ -185,7 +199,7 @@ void SendBotCallbackDataWithPassword(
 				tr::now,
 				Ui::Text::WithEntities));
 		if (box) {
-			Ui::show(std::move(box));
+			show->showBox(std::move(box), Ui::LayerOption::CloseOther);
 		} else {
 			auto lifetime = std::make_shared<rpl::lifetime>();
 			button->requestId = -1;
@@ -219,14 +233,20 @@ void SendBotCallbackDataWithPassword(
 						return;
 					}
 					if (const auto item = owner->message(fullId)) {
-						SendBotCallbackData(item, row, column, result, [=](const QString &error) {
+						const auto strongController = weak.get();
+						if (!strongController) {
+							return;
+						}
+						SendBotCallbackData(strongController, item, row, column, result, [=](const QString &error) {
 							if (*box) {
 								(*box)->handleCustomCheckError(error);
 							}
 						});
 					}
 				};
-				*box = Ui::show(Box<PasscodeBox>(session, fields));
+				auto object = Box<PasscodeBox>(session, fields);
+				*box = Ui::MakeWeak(object.data());
+				show->showBox(std::move(object), Ui::LayerOption::CloseOther);
 			}, *lifetime);
 		}
 	});

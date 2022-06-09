@@ -72,7 +72,7 @@ bool insertBotCommand(const QString &cmd) {
 }
 
 void activateBotCommand(
-		Window::SessionController *sessionController,
+		not_null<Window::SessionController*> sessionController,
 		not_null<const HistoryItem*> msg,
 		int row,
 		int column) {
@@ -90,20 +90,19 @@ void activateBotCommand(
 	case ButtonType::Default: {
 		// Copy string before passing it to the sending method
 		// because the original button can be destroyed inside.
-		if (sessionController) {
-			MsgId replyTo = msg->isRegular() ? msg->id : 0;
-			sessionController->content()->sendBotCommand({
-				.peer = msg->history()->peer,
-				.command = QString(button->text),
-				.context = msg->fullId(),
-				.replyTo = replyTo,
-			});
-		}
+		const auto replyTo = msg->isRegular() ? msg->id : 0;
+		sessionController->content()->sendBotCommand({
+			.peer = msg->history()->peer,
+			.command = QString(button->text),
+			.context = msg->fullId(),
+			.replyTo = replyTo,
+		});
 	} break;
 
 	case ButtonType::Callback:
 	case ButtonType::Game: {
 		Api::SendBotCallbackData(
+			sessionController,
 			const_cast<HistoryItem*>(msg.get()),
 			row,
 			column);
@@ -111,6 +110,7 @@ void activateBotCommand(
 
 	case ButtonType::CallbackWithPassword: {
 		Api::SendBotCallbackDataWithPassword(
+			sessionController,
 			const_cast<HistoryItem*>(msg.get()),
 			row,
 			column);
@@ -120,7 +120,9 @@ void activateBotCommand(
 		Payments::CheckoutProcess::Start(
 			msg,
 			Payments::Mode::Payment,
-			crl::guard(App::wnd(), [](auto) { App::wnd()->activate(); }));
+			crl::guard(sessionController, [=](auto) {
+				sessionController->widget()->activate();
+			}));
 	} break;
 
 	case ButtonType::Url: {
@@ -140,14 +142,15 @@ void activateBotCommand(
 
 	case ButtonType::RequestLocation: {
 		hideSingleUseKeyboard(msg);
-		Ui::show(Ui::MakeInformBox(tr::lng_bot_share_location_unavailable()));
+		sessionController->show(
+			Ui::MakeInformBox(tr::lng_bot_share_location_unavailable()));
 	} break;
 
 	case ButtonType::RequestPhone: {
 		hideSingleUseKeyboard(msg);
 		const auto msgId = msg->id;
 		const auto history = msg->history();
-		Ui::show(Ui::MakeConfirmBox({
+		sessionController->show(Ui::MakeConfirmBox({
 			.text = tr::lng_bot_share_phone(),
 			.confirmed = [=] {
 				Ui::showPeerHistory(history, ShowAtTheEndMsgId);
@@ -224,24 +227,20 @@ void activateBotCommand(
 
 	case ButtonType::WebView: {
 		if (const auto bot = msg->getMessageBot()) {
-			if (sessionController) {
-				bot->session().attachWebView().request(
-					sessionController,
-					bot,
-					bot,
-					{ .text = button->text, .url = button->data });
-			}
+			bot->session().attachWebView().request(
+				sessionController,
+				bot,
+				bot,
+				{ .text = button->text, .url = button->data });
 		}
 	} break;
 
 	case ButtonType::SimpleWebView: {
 		if (const auto bot = msg->getMessageBot()) {
-			if (sessionController) {
-				bot->session().attachWebView().requestSimple(
-					sessionController,
-					bot,
-					{ .text = button->text, .url = button->data });
-			}
+			bot->session().attachWebView().requestSimple(
+				sessionController,
+				bot,
+				{ .text = button->text, .url = button->data });
 		}
 	} break;
 	}

@@ -36,7 +36,7 @@ template <typename Guard, typename Lambda>
 
 bool insertBotCommand(const QString &cmd);
 void activateBotCommand(
-	Window::SessionController *sessionController,
+	not_null<Window::SessionController*> sessionController,
 	not_null<const HistoryItem*> msg,
 	int row,
 	int column);
