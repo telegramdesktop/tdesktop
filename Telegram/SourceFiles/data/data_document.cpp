@@ -1353,6 +1353,12 @@ LocationType DocumentData::locationType() const {
 		: DocumentFileLocation;
 }
 
+void DocumentData::forceIsStreamedAnimation() {
+	type = AnimatedDocument;
+	_additional = nullptr;
+	setMaybeSupportsStreaming(true);
+}
+
 bool DocumentData::isVoiceMessage() const {
 	return (type == VoiceDocument);
 }

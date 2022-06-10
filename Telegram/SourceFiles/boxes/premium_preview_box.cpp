@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
 #include "data/data_document_media.h"
+#include "data/data_streaming.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/chat/chat_theme.h"
@@ -21,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/effects/gradient.h"
 #include "ui/text/text.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/buttons.h"
@@ -31,7 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/history_view_element.h"
+#include "media/streaming/media_streaming_instance.h"
+#include "media/streaming/media_streaming_player.h"
 #include "window/window_session_controller.h"
+#include "api/api_premium.h"
+#include "apiwrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
 
@@ -41,6 +47,7 @@ constexpr auto kPremiumShift = 21. / 240;
 constexpr auto kShiftDuration = crl::time(200);
 constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
+constexpr auto kPreviewsCount = int(PremiumPreview::kCount);
 
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
@@ -92,6 +99,54 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	media->videoThumbnailWanted(origin);
 }
 
+[[nodiscard]] rpl::producer<QString> SectionTitle(PremiumPreview section) {
+	switch (section) {
+	case PremiumPreview::MoreUpload:
+		return tr::lng_premium_summary_subtitle_more_upload();
+	case PremiumPreview::FasterDownload:
+		return tr::lng_premium_summary_subtitle_faster_download();
+	case PremiumPreview::VoiceToText:
+		return tr::lng_premium_summary_subtitle_voice_to_text();
+	case PremiumPreview::NoAds:
+		return tr::lng_premium_summary_subtitle_no_ads();
+	case PremiumPreview::Reactions:
+		return tr::lng_premium_summary_subtitle_unique_reactions();
+	case PremiumPreview::Stickers:
+		return tr::lng_premium_summary_subtitle_premium_stickers();
+	case PremiumPreview::AdvancedChatManagement:
+		return tr::lng_premium_summary_subtitle_advanced_chat_management();
+	case PremiumPreview::ProfileBadge:
+		return tr::lng_premium_summary_subtitle_profile_badge();
+	case PremiumPreview::AnimatedUserpics:
+		return tr::lng_premium_summary_subtitle_animated_userpics();
+	}
+	Unexpected("PremiumPreview in SectionTitle.");
+}
+
+[[nodiscard]] rpl::producer<QString> SectionAbout(PremiumPreview section) {
+	switch (section) {
+	case PremiumPreview::MoreUpload:
+		return tr::lng_premium_summary_about_more_upload();
+	case PremiumPreview::FasterDownload:
+		return tr::lng_premium_summary_about_faster_download();
+	case PremiumPreview::VoiceToText:
+		return tr::lng_premium_summary_about_voice_to_text();
+	case PremiumPreview::NoAds:
+		return tr::lng_premium_summary_about_no_ads();
+	case PremiumPreview::Reactions:
+		return tr::lng_premium_summary_about_unique_reactions();
+	case PremiumPreview::Stickers:
+		return tr::lng_premium_summary_about_premium_stickers();
+	case PremiumPreview::AdvancedChatManagement:
+		return tr::lng_premium_summary_about_advanced_chat_management();
+	case PremiumPreview::ProfileBadge:
+		return tr::lng_premium_summary_about_profile_badge();
+	case PremiumPreview::AnimatedUserpics:
+		return tr::lng_premium_summary_about_animated_userpics();
+	}
+	Unexpected("PremiumPreview in SectionTitle.");
+}
+
 [[nodiscard]] object_ptr<Ui::RpWidget> ChatBackPreview(
 		QWidget *parent,
 		int height,
@@ -113,10 +168,15 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		not_null<Window::SessionController*> controller,
 		const std::shared_ptr<Data::DocumentMedia> &media) {
 	using namespace HistoryView;
+
+	PreloadSticker(media);
+
 	const auto document = media->owner();
 	const auto lottieSize = Sticker::Size(document);
 	const auto effectSize = Sticker::PremiumEffectSize(document);
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->show();
+
 	parent->sizeValue(
 	) | rpl::start_with_next([=](QSize size) {
 		result->setGeometry(QRect(
@@ -217,6 +277,196 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 	return result;
 }
+
+[[nodiscard]] not_null<Ui::RpWidget*> StickersPreview(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller) {
+	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->show();
+
+	parent->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		result->setGeometry(QRect(QPoint(), size));
+	}, result->lifetime());
+	auto &lifetime = result->lifetime();
+
+	struct State {
+		std::vector<std::shared_ptr<Data::DocumentMedia>> medias;
+		Ui::RpWidget *single = nullptr;
+	};
+	const auto premium = &controller->session().api().premium();
+	const auto state = lifetime.make_state<State>();
+	const auto fill = [=] {
+		const auto &list = premium->stickers();
+		for (const auto &document : list) {
+			state->medias.push_back(document->createMediaView());
+		}
+		if (state->medias.empty()) {
+			return;
+		}
+		state->single = StickerPreview(
+			result,
+			controller,
+			state->medias.front());
+	};
+	fill();
+	if (state->medias.empty()) {
+		premium->stickersUpdated(
+		) | rpl::take(1) | rpl::start_with_next(fill, lifetime);
+	}
+
+	return result;
+}
+
+[[nodiscard]] DocumentData *LookupVideo(
+		not_null<Main::Session*> session,
+		PremiumPreview section) {
+	const auto name = [&] {
+		switch (section) {
+		case PremiumPreview::MoreUpload: return "more_upload";
+		case PremiumPreview::FasterDownload: return "faster_download";
+		case PremiumPreview::VoiceToText: return "voice_to_text";
+		case PremiumPreview::NoAds: return "no_ads";
+		case PremiumPreview::AdvancedChatManagement:
+			return "advanced_chat_management";
+		case PremiumPreview::ProfileBadge: return "profile_badge";
+		case PremiumPreview::AnimatedUserpics: return "animated_userpics";
+		}
+		return "";
+	}();
+	const auto &videos = session->api().premium().videos();
+	const auto i = videos.find(name);
+	return (i != end(videos)) ? i->second.get() : nullptr;
+}
+
+[[nodiscard]] not_null<Ui::RpWidget*> VideoPreview(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		not_null<DocumentData*> document) {
+	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->show();
+
+	parent->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		result->setGeometry(parent->rect());
+	}, result->lifetime());
+	auto &lifetime = result->lifetime();
+
+	auto shared = document->owner().streaming().sharedDocument(
+		document,
+		Data::FileOriginPremiumPreviews());
+	if (!shared) {
+		return result;
+	}
+
+	struct State {
+		State(
+			std::shared_ptr<Media::Streaming::Document> shared,
+			Fn<void()> waitingCallback)
+		: instance(shared, std::move(waitingCallback)) {
+		}
+		QImage blurred;
+		Media::Streaming::Instance instance;
+		std::shared_ptr<Data::DocumentMedia> media;
+	};
+	const auto state = lifetime.make_state<State>(std::move(shared), [] {});
+	state->media = document->createMediaView();
+	if (const auto image = state->media->thumbnailInline()) {
+		state->blurred = image->original();
+	}
+	const auto width = st::premiumVideoWidth;
+	const auto height = state->blurred.size().isEmpty()
+		? width
+		: int(base::SafeRound(float64(width) * state->blurred.height()
+			/ state->blurred.width()));
+	if (!state->blurred.isNull()) {
+		const auto factor = style::DevicePixelRatio();
+		state->blurred = state->blurred.scaled(
+			QSize(width, height) * factor,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+	}
+	const auto check = [=] {
+		if (state->instance.playerLocked()) {
+			return;
+		} else if (state->instance.paused()) {
+			state->instance.resume();
+		}
+		if (!state->instance.active() && !state->instance.failed()) {
+			auto options = Media::Streaming::PlaybackOptions();
+			options.waitForMarkAsShown = true;
+			options.mode = ::Media::Streaming::Mode::Video;
+			options.loop = true;
+			state->instance.play(options);
+		}
+	};
+	state->instance.player().updates(
+	) | rpl::start_with_next_error([=](Media::Streaming::Update &&update) {
+		if (v::is<Media::Streaming::Information>(update.data)
+			|| v::is<Media::Streaming::UpdateVideo>(update.data)) {
+			result->update();
+		}
+	}, [=](::Media::Streaming::Error &&error) {
+		result->update();
+	}, state->instance.lifetime());
+
+	result->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(result);
+
+		check();
+		const auto left = (result->width() - width) / 2;
+		const auto top = (result->height() - height);
+		const auto ready = state->instance.player().ready()
+			&& !state->instance.player().videoSize().isEmpty();
+		const auto size = QSize(width, height) * style::DevicePixelRatio();
+		const auto frame = !ready
+			? state->blurred
+			: state->instance.frame({ .resize = size, .outer = size });
+		p.drawImage(QRect(left, top, width, height), frame);
+		if (ready) {
+			state->instance.markFrameShown();
+		}
+	}, lifetime);
+
+	return result;
+}
+
+[[nodiscard]] not_null<Ui::RpWidget*> GenericPreview(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		PremiumPreview section) {
+	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->show();
+
+	parent->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		result->setGeometry(QRect(QPoint(), size));
+	}, result->lifetime());
+	auto &lifetime = result->lifetime();
+
+	struct State {
+		std::vector<std::shared_ptr<Data::DocumentMedia>> medias;
+		Ui::RpWidget *single = nullptr;
+	};
+	const auto session = &controller->session();
+	const auto state = lifetime.make_state<State>();
+	const auto create = [=] {
+		const auto document = LookupVideo(session, section);
+		if (!document) {
+			return;
+		}
+		state->single = VideoPreview(result, controller, document);
+	};
+	create();
+	if (!state->single) {
+		session->api().premium().videosUpdated(
+		) | rpl::take(1) | rpl::start_with_next(create, lifetime);
+	}
+
+	return result;
+}
+
 
 class ReactionPreview final {
 public:
@@ -467,6 +717,8 @@ void ReactionPreview::paintEffect(QPainter &p) {
 		int selected = -1;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	result->show();
+
 	auto &lifetime = result->lifetime();
 	const auto state = lifetime.make_state<State>();
 
@@ -605,6 +857,20 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	return result;
 }
 
+[[nodiscard]] not_null<Ui::RpWidget*> GenerateDefaultPreview(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		PremiumPreview section) {
+	switch (section) {
+	case PremiumPreview::Reactions:
+		return ReactionsPreview(parent, controller, {});
+	case PremiumPreview::Stickers:
+		return StickersPreview(parent, controller);
+	default:
+		return GenericPreview(parent, controller, section);
+	}
+}
+
 [[nodiscard]] object_ptr<Ui::AbstractButton> CreateGradientButton(
 		QWidget *parent,
 		QGradientStops stops) {
@@ -641,7 +907,49 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	return result;
 }
 
-void StickerBox(
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateSwitch(
+		not_null<Ui::RpWidget*> parent,
+		not_null<rpl::variable<PremiumPreview>*> selected) {
+	const auto padding = st::premiumDotPadding;
+	const auto width = padding.left() + st::premiumDot + padding.right();
+	const auto height = padding.top() + st::premiumDot + padding.bottom();
+	const auto stops = Ui::Premium::ButtonGradientStops();
+	auto result = object_ptr<Ui::FixedHeightWidget>(parent.get(), height);
+	const auto raw = result.data();
+	for (auto i = 0; i != kPreviewsCount; ++i) {
+		const auto section = PremiumPreview(i);
+		const auto button = Ui::CreateChild<Ui::AbstractButton>(raw);
+		parent->widthValue(
+		) | rpl::start_with_next([=](int outer) {
+			const auto full = width * kPreviewsCount;
+			const auto left = (outer - full) / 2 + (i * width);
+			button->setGeometry(left, 0, width, height);
+		}, button->lifetime());
+		button->setClickedCallback([=] {
+			*selected = section;
+		});
+		button->paintRequest(
+		) | rpl::start_with_next([=] {
+			auto p = QPainter(button);
+			auto hq = PainterHighQualityEnabler(p);
+			p.setBrush((selected->current() == section)
+				? anim::gradient_color_at(
+					stops,
+					float64(i) / (kPreviewsCount - 1))
+				: st::windowBgRipple->c);
+			p.setPen(Qt::NoPen);
+			p.drawEllipse(
+				button->rect().marginsRemoved(st::premiumDotPadding));
+		}, button->lifetime());
+		selected->changes(
+		) | rpl::start_with_next([=] {
+			button->update();
+		}, button->lifetime());
+	}
+	return result;
+}
+
+void PreviewBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
 		const Descriptor &descriptor,
@@ -656,29 +964,45 @@ void StickerBox(
 		{});
 	struct State {
 		Ui::RpWidget *content = nullptr;
+		rpl::variable<PremiumPreview> selected;
 	};
 	const auto state = outer->lifetime().make_state<State>();
+	state->selected = descriptor.section;
 
-	auto text = rpl::producer<QString>();
-	auto title = rpl::producer<QString>();
 	switch (descriptor.section) {
 	case PremiumPreview::Stickers:
 		Assert(media != nullptr);
 		state->content = StickerPreview(outer, controller, media);
-		text = tr::lng_premium_summary_about_premium_stickers();
-		title = tr::lng_premium_summary_subtitle_premium_stickers();
 		break;
 	case PremiumPreview::Reactions:
 		state->content = ReactionsPreview(
 			outer,
 			controller,
 			descriptor.disabled);
-		text = tr::lng_premium_summary_about_unique_reactions();
-		title = tr::lng_premium_summary_subtitle_unique_reactions();
 		break;
-	case PremiumPreview::Avatars:
+	default:
+		state->content = GenericPreview(
+			outer,
+			controller,
+			descriptor.section);
 		break;
 	}
+
+	state->selected.changes(
+	) | rpl::start_with_next([=](PremiumPreview section) {
+		delete base::take(state->content);
+		state->content = GenerateDefaultPreview(outer, controller, section);
+	}, outer->lifetime());
+
+	auto title = state->selected.value(
+	) | rpl::map([=](PremiumPreview section) {
+		return SectionTitle(section);
+	}) | rpl::flatten_latest();
+
+	auto text = state->selected.value(
+	) | rpl::map([=](PremiumPreview section) {
+		return SectionAbout(section);
+	}) | rpl::flatten_latest();
 
 	const auto padding = st::premiumPreviewAboutPadding;
 	const auto available = size.width() - padding.left() - padding.right();
@@ -700,6 +1024,9 @@ void StickerBox(
 	box->addRow(
 		object_ptr<Ui::CenterWrap<Ui::FlatLabel>>(box, std::move(textLabel)),
 		padding);
+	box->addRow(
+		CreateSwitch(box->verticalLayout(), &state->selected),
+		st::premiumDotsMargin);
 	box->setStyle(st::premiumPreviewBox);
 	const auto buttonPadding = st::premiumPreviewBox.buttonPadding;
 	const auto width = size.width()
@@ -717,7 +1044,7 @@ void Show(
 		const Descriptor &descriptor,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		QImage back) {
-	controller->show(Box(StickerBox, controller, descriptor, media, back));
+	controller->show(Box(PreviewBox, controller, descriptor, media, back));
 }
 
 void Show(not_null<Window::SessionController*> controller, QImage back) {

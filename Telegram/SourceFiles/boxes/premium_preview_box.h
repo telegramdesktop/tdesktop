@@ -22,9 +22,17 @@ void ShowStickerPreviewBox(
 	not_null<DocumentData*> document);
 
 enum class PremiumPreview {
+	MoreUpload,
+	FasterDownload,
+	VoiceToText,
+	NoAds,
 	Reactions,
 	Stickers,
-	Avatars,
+	AdvancedChatManagement,
+	ProfileBadge,
+	AnimatedUserpics,
+
+	kCount,
 };
 enum class ReactionDisableType {
 	None,

@@ -2454,6 +2454,8 @@ void ApiWrap::refreshFileReference(
 			MTP_long(0)));
 	}, [&](Data::FileOriginRingtones data) {
 		request(MTPaccount_GetSavedRingtones(MTP_long(0)));
+	}, [&](Data::FileOriginPremiumPreviews data) {
+		request(MTPhelp_GetPremiumPromo());
 	}, [&](v::null_t) {
 		fail();
 	});
