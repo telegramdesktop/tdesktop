@@ -339,6 +339,36 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	return (i != end(videos)) ? i->second.get() : nullptr;
 }
 
+[[nodiscard]] QPainterPath GenerateFrame(
+		int left,
+		int top,
+		int width,
+		int height) {
+	const auto radius = style::ConvertScaleExact(20.);
+	const auto thickness = style::ConvertScaleExact(6.);
+	const auto skip = thickness / 2.;
+	auto path = QPainterPath();
+	path.moveTo(left - skip, top + height);
+	path.lineTo(left - skip, top - skip + radius);
+	path.arcTo(
+		left - skip,
+		top - skip,
+		radius * 2,
+		radius * 2,
+		180,
+		-90);
+	path.lineTo(left + width + skip - radius, top - skip);
+	path.arcTo(
+		left + width + skip - 2 * radius,
+		top - skip,
+		radius * 2,
+		radius * 2,
+		90,
+		-90);
+	path.lineTo(left + width + skip, top + height);
+	return path;
+}
+
 [[nodiscard]] not_null<Ui::RpWidget*> VideoPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
@@ -368,24 +398,35 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		QImage blurred;
 		Media::Streaming::Instance instance;
 		std::shared_ptr<Data::DocumentMedia> media;
+		QPainterPath frame;
 	};
 	const auto state = lifetime.make_state<State>(std::move(shared), [] {});
 	state->media = document->createMediaView();
 	if (const auto image = state->media->thumbnailInline()) {
-		state->blurred = image->original();
+		if (image->width() > 0) {
+			const auto width = st::premiumVideoWidth;
+			const auto height = std::max(
+				int(base::SafeRound(
+					float64(width) * image->height() / image->width())),
+				1);
+			using Option = Images::Option;
+			state->blurred = Images::Prepare(
+				image->original(),
+				QSize(width, height) * style::DevicePixelRatio(),
+				{ .options = (Option::Blur
+					| Option::RoundLarge
+					| Option::RoundSkipBottomLeft
+					| Option::RoundSkipBottomRight),
+				});
+		}
 	}
 	const auto width = st::premiumVideoWidth;
-	const auto height = state->blurred.size().isEmpty()
-		? width
-		: int(base::SafeRound(float64(width) * state->blurred.height()
-			/ state->blurred.width()));
-	if (!state->blurred.isNull()) {
-		const auto factor = style::DevicePixelRatio();
-		state->blurred = state->blurred.scaled(
-			QSize(width, height) * factor,
-			Qt::IgnoreAspectRatio,
-			Qt::SmoothTransformation);
-	}
+	const auto height = state->blurred.height()
+		? state->blurred.height()
+		: width;
+	const auto left = (st::boxWideWidth - width) / 2;
+	const auto top = st::premiumPreviewHeight - height;
+	state->frame = GenerateFrame(left, top, width, height);
 	const auto check = [=] {
 		if (state->instance.playerLocked()) {
 			return;
@@ -413,6 +454,14 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(result);
+		const auto paintFrame = [&](QColor color, float64 thickness) {
+			auto hq = PainterHighQualityEnabler(p);
+			auto pen = QPen(color);
+			pen.setWidthF(style::ConvertScaleExact(thickness));
+			p.setPen(pen);
+			p.setBrush(Qt::NoBrush);
+			p.drawPath(state->frame);
+		};
 
 		check();
 		const auto left = (result->width() - width) / 2;
@@ -422,8 +471,15 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		const auto size = QSize(width, height) * style::DevicePixelRatio();
 		const auto frame = !ready
 			? state->blurred
-			: state->instance.frame({ .resize = size, .outer = size });
+			: state->instance.frame({
+				.resize = size,
+				.outer = size,
+				.radius = ImageRoundRadius::Large,
+				.corners = RectPart::TopLeft | RectPart::TopRight,
+			});
+		paintFrame(QColor(0, 0, 0, 128), 12.);
 		p.drawImage(QRect(left, top, width, height), frame);
+		paintFrame(Qt::black, 6.6);
 		if (ready) {
 			state->instance.markFrameShown();
 		}
@@ -955,15 +1011,24 @@ void PreviewBox(
 		const Descriptor &descriptor,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		const QImage &back) {
-	const auto size = QSize(st::boxWideWidth, st::premiumPreviewHeight);
+	const auto single = st::boxWideWidth;
+	const auto size = QSize(single, st::premiumPreviewHeight);
 	box->setWidth(size.width());
 	box->setNoContentMargin(true);
 
 	const auto outer = box->addRow(
 		ChatBackPreview(box, size.height(), back),
 		{});
+	struct Hiding {
+		not_null<Ui::RpWidget*> widget;
+		int leftFrom = 0;
+		int leftTill = 0;
+	};
 	struct State {
+		int leftFrom = 0;
 		Ui::RpWidget *content = nullptr;
+		Ui::Animations::Simple animation;
+		std::vector<Hiding> hiding;
 		rpl::variable<PremiumPreview> selected;
 	};
 	const auto state = outer->lifetime().make_state<State>();
@@ -988,10 +1053,53 @@ void PreviewBox(
 		break;
 	}
 
-	state->selected.changes(
-	) | rpl::start_with_next([=](PremiumPreview section) {
-		delete base::take(state->content);
-		state->content = GenerateDefaultPreview(outer, controller, section);
+	state->selected.value(
+	) | rpl::combine_previous(
+	) | rpl::start_with_next([=](PremiumPreview was, PremiumPreview now) {
+		const auto animationCallback = [=] {
+			if (!state->animation.animating()) {
+				for (const auto &hiding : base::take(state->hiding)) {
+					delete hiding.widget;
+				}
+				state->leftFrom = 0;
+				state->content->move(0, 0);
+			} else {
+				const auto progress = state->animation.value(1.);
+				state->content->move(
+					anim::interpolate(state->leftFrom, 0, progress),
+					0);
+				for (const auto &hiding : state->hiding) {
+					hiding.widget->move(anim::interpolate(
+						hiding.leftFrom,
+						hiding.leftTill,
+						progress), 0);
+				}
+			}
+		};
+		animationCallback();
+		const auto toLeft = int(now) > int(was);
+		auto start = state->content->x() + (toLeft ? single : -single);
+		for (const auto &hiding : state->hiding) {
+			const auto left = hiding.widget->x();
+			if (toLeft && left + single > start) {
+				start = left + single;
+			} else if (!toLeft && left - single < start) {
+				start = left - single;
+			}
+		}
+		for (auto &hiding : state->hiding) {
+			hiding.leftFrom = hiding.widget->x();
+			hiding.leftTill = hiding.leftFrom - start;
+		}
+		state->hiding.push_back({
+			.widget = state->content,
+			.leftFrom = state->content->x(),
+			.leftTill = state->content->x() - start,
+		});
+		state->leftFrom = start;
+		state->content = GenerateDefaultPreview(outer, controller, now);
+		state->animation.stop();
+		state->animation.start(animationCallback, 0., 1., st::slideDuration);
 	}, outer->lifetime());
 
 	auto title = state->selected.value(
