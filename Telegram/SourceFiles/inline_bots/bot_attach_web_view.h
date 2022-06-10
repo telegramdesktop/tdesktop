@@ -47,7 +47,7 @@ using PeerTypes = base::flags<PeerType>;
 	not_null<PeerData*> peer,
 	not_null<UserData*> bot,
 	PeerTypes types);
-[[nodiscard]] PeerTypes ParseChooseTypes(const QString &choose);
+[[nodiscard]] PeerTypes ParseChooseTypes(QStringView choose);
 
 struct AttachWebViewBot {
 	not_null<UserData*> user;

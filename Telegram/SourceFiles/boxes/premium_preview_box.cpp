@@ -422,7 +422,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	}
 	const auto width = st::premiumVideoWidth;
 	const auto height = state->blurred.height()
-		? state->blurred.height()
+		? (state->blurred.height() / state->blurred.devicePixelRatio())
 		: width;
 	const auto left = (st::boxWideWidth - width) / 2;
 	const auto top = st::premiumPreviewHeight - height;

@@ -843,7 +843,7 @@ void SessionController::setupPremiumToast() {
 		Ui::Toast::Show(
 			Window::Show(this).toastParent(),
 			{
-				.text = tr::lng_premium_success(tr::now),
+				.text = { tr::lng_premium_success(tr::now) },
 				.st = &st::defaultToast,
 			});
 	}, _lifetime);

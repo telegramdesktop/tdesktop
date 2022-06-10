@@ -373,16 +373,16 @@ bool PeerMatchesTypes(
 	return (types & PeerType::Group);
 }
 
-PeerTypes ParseChooseTypes(const QString &choose) {
+PeerTypes ParseChooseTypes(QStringView choose) {
 	auto result = PeerTypes();
 	for (const auto &entry : choose.split(QChar(' '))) {
-		if (entry == "users") {
+		if (entry == u"users"_q) {
 			result |= PeerType::User;
-		} else if (entry == "bots") {
+		} else if (entry == u"bots"_q) {
 			result |= PeerType::Bot;
-		} else if (entry == "groups") {
+		} else if (entry == u"groups"_q) {
 			result |= PeerType::Group;
-		} else if (entry == "channels") {
+		} else if (entry == u"channels"_q) {
 			result |= PeerType::Broadcast;
 		}
 	}
