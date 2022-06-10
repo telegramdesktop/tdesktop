@@ -383,7 +383,17 @@ void Controller::preventOrInvoke(Fn<void()> &&callback) {
 
 void Controller::invokeForSessionController(
 		not_null<Main::Account*> account,
+		PeerData *singlePeer,
 		Fn<void(not_null<SessionController*>)> &&callback) {
+	const auto separateWindow = singlePeer
+		? Core::App().separateWindowForPeer(singlePeer)
+		: nullptr;
+	const auto separateSession = separateWindow
+		? separateWindow->sessionController()
+		: nullptr;
+	if (separateSession) {
+		return callback(separateSession);
+	}
 	_account->domain().activate(std::move(account));
 	if (_sessionController) {
 		callback(_sessionController.get());

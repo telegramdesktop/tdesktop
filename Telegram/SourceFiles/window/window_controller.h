@@ -98,6 +98,7 @@ public:
 
 	void invokeForSessionController(
 		not_null<Main::Account*> account,
+		PeerData *singlePeer,
 		Fn<void(not_null<SessionController*>)> &&callback);
 
 	void openInMediaView(Media::View::OpenRequest &&request);

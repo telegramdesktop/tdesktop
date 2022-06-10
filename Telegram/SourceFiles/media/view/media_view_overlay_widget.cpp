@@ -4735,16 +4735,17 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 		}
 	}
 
-	const auto &active = _session->windows();
-	if (!active.empty()) {
-		return active.front();
-	} else if (window && switchTo) {
-		Window::SessionController *controllerPtr = nullptr;
-		window->invokeForSessionController(
-			&_session->account(),
-			[&](not_null<Window::SessionController*> newController) {
-				controllerPtr = newController;
-			});
+	if (switchTo) {
+		auto controllerPtr = (Window::SessionController*)nullptr;
+		const auto anyWindow = window ? window : Core::App().primaryWindow();
+		if (anyWindow) {
+			anyWindow->invokeForSessionController(
+				&_session->account(),
+				_history ? _history->peer : nullptr,
+				[&](not_null<Window::SessionController*> newController) {
+					controllerPtr = newController;
+				});
+		}
 		return controllerPtr;
 	}
 

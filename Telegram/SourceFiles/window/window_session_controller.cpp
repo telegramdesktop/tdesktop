@@ -1466,7 +1466,8 @@ void SessionController::showPeerHistoryAtItem(
 		not_null<const HistoryItem*> item) {
 	_window->invokeForSessionController(
 		&item->history()->peer->session().account(),
-		[=](not_null<SessionController*> controller) {
+		item->history()->peer,
+		[&](not_null<SessionController*> controller) {
 			if (item->isScheduled()) {
 				controller->showSection(
 					std::make_shared<HistoryView::ScheduledMemento>(

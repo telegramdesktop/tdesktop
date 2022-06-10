@@ -194,7 +194,8 @@ bool Widget::floatPlayerIsVisible(not_null<HistoryItem*> item) {
 void Widget::floatPlayerDoubleClickEvent(not_null<const HistoryItem*> item) {
 	getData()->controller->invokeForSessionController(
 		&item->history()->peer->session().account(),
-		[=](not_null<Window::SessionController*> controller) {
+		item->history()->peer,
+		[&](not_null<Window::SessionController*> controller) {
 			controller->showPeerHistoryAtItem(item);
 		});
 }
