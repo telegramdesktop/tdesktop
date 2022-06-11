@@ -149,9 +149,6 @@ protected:
 	virtual void initHook() {
 	}
 
-	virtual void activeChangedHook() {
-	}
-
 	virtual void handleVisibleChangedHook(bool visible) {
 	}
 

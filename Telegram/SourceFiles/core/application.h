@@ -207,7 +207,7 @@ public:
 	[[nodiscard]] bool exportPreventsQuit();
 
 	// Main::Session component.
-	Main::Session *maybeActiveSession() const;
+	Main::Session *maybePrimarySession() const;
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;

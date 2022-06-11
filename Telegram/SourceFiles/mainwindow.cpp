@@ -718,12 +718,6 @@ void MainWindow::sendPaths() {
 	}
 }
 
-void MainWindow::activeChangedHook() {
-	if (const auto controller = sessionController()) {
-		controller->session().updates().updateOnline();
-	}
-}
-
 MainWindow::~MainWindow() = default;
 
 namespace App {

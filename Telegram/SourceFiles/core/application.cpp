@@ -781,7 +781,7 @@ void Application::checkLocalTime() {
 		base::ConcurrentTimerEnvironment::Adjust();
 		base::unixtime::http_invalidate();
 	}
-	if (const auto session = maybeActiveSession()) {
+	if (const auto session = maybePrimarySession()) {
 		session->updates().checkLastUpdate(adjusted);
 	}
 }
@@ -796,6 +796,14 @@ void Application::handleAppActivated() {
 void Application::handleAppDeactivated() {
 	if (_primaryWindow) {
 		_primaryWindow->updateIsActiveBlur();
+	}
+	if (_domain->started()) {
+		const auto session = _lastActiveWindow
+			? _lastActiveWindow->account().maybeSession()
+			: nullptr;
+		if (session) {
+			session->updates().updateOnline();
+		}
 	}
 	Ui::Tooltip::Hide();
 }
@@ -854,7 +862,7 @@ Main::Account &Application::activeAccount() const {
 	return _domain->active();
 }
 
-Main::Session *Application::maybeActiveSession() const {
+Main::Session *Application::maybePrimarySession() const {
 	return _domain->started() ? activeAccount().maybeSession() : nullptr;
 }
 
@@ -1050,7 +1058,7 @@ bool Application::passcodeLocked() const {
 
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
-	if (const auto session = maybeActiveSession()) {
+	if (const auto session = maybePrimarySession()) {
 		session->updates().checkIdleFinish(_lastNonIdleTime);
 	}
 }
@@ -1124,11 +1132,9 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
 		return true;
-	} else if (const auto controller = _primaryWindow->sessionController()) {
-		if (&controller->session() == session
-			&& _primaryWindow->widget()->isActive()) {
-			return true;
-		}
+	} else if (const auto window = _lastActiveWindow) {
+		return (window->account().maybeSession() == session)
+			&& window->widget()->isActive();
 	}
 	return false;
 }
@@ -1225,7 +1231,20 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 }
 
 void Application::windowActivated(not_null<Window::Controller*> window) {
+	const auto was = _lastActiveWindow;
+	const auto now = window;
 	_lastActiveWindow = window;
+
+	const auto wasSession = was ? was->account().maybeSession() : nullptr;
+	const auto nowSession = now->account().maybeSession();
+	if (wasSession != nowSession) {
+		if (wasSession) {
+			wasSession->updates().updateOnline();
+		}
+		if (nowSession) {
+			nowSession->updates().updateOnline();
+		}
+	}
 	if (_mediaView && !_mediaView->isHidden()) {
 		_mediaView->activate();
 	}

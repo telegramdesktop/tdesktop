@@ -123,6 +123,8 @@ void Controller::showAccount(
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
+
+			session->updates().updateOnline(crl::now());
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();

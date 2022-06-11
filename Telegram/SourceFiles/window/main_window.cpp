@@ -402,7 +402,6 @@ void MainWindow::updateIsActive() {
 	const auto isActive = computeIsActive();
 	if (_isActive != isActive) {
 		_isActive = isActive;
-		activeChangedHook();
 	}
 }
 
