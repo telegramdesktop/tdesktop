@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/event_filter.h"
 #include "chat_helpers/spellchecker_common.h"
 #include "core/application.h"
+#include "core/core_settings.h"
+#include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "mainwidget.h"

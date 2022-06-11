@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "tray.h"
 
 #include "core/application.h"
+#include "core/core_settings.h"
 
 #include <QtWidgets/QApplication>
 

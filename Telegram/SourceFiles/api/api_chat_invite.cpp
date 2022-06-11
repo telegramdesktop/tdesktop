@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/empty_userpic.h"
 #include "core/application.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toasts/common_toasts.h"
-#include "boxes/abstract_box.h"
 #include "boxes/premium_limits_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"

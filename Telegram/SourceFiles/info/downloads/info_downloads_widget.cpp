@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_download_manager.h"
 #include "data/data_user.h"
 #include "core/application.h"
+#include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
 namespace Info::Downloads {

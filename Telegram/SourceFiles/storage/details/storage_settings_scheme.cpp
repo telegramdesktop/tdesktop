@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/cache/storage_cache_database.h"
 #include "storage/serialize_common.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/widgets/input_fields.h"

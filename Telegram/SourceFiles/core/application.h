@@ -7,15 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "core/core_settings.h"
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_proxy_data.h"
 #include "base/timer.h"
 
-class MainWindow;
-class MainWidget;
-class FileUploader;
-class Translator;
+class History;
 
 namespace Platform {
 class Integration;
@@ -104,6 +100,7 @@ namespace Core {
 
 class Launcher;
 struct LocalUrlHandler;
+class Settings;
 class Tray;
 
 enum class LaunchState {

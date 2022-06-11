@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "history/history.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_location.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"

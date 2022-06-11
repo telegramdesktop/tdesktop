@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "emoji_suggestions_helper.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
+#include "lang/lang_keys.h"
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/emoji_config.h"

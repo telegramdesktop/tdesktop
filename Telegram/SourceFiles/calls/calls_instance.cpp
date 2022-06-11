@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_rtmp.h"
 #include "mtproto/mtproto_dh_utils.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "apiwrap.h"
