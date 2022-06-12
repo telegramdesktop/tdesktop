@@ -1111,3 +1111,7 @@ premiumAccountsLabelRadius: 6;
 premiumAccountsNameTop: 13px;
 premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
 premiumAccountsHeight: 105px;
+
+gradientButtonGlareDuration: 700;
+gradientButtonGlareTimeout: 2000;
+gradientButtonGlareWidth: 100px;

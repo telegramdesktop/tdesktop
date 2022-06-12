@@ -15,12 +15,28 @@ class GradientButton final : public Ui::RippleButton {
 public:
 	GradientButton(QWidget *widget, QGradientStops stops);
 
+	void startGlareAnimation();
+
 private:
 	void paintEvent(QPaintEvent *e);
+	void paintGlare(QPainter &p);
 	void validateBg();
+	void validateGlare();
+
+	struct Glare final {
+		crl::time birthTime = 0;
+		crl::time deathTime = 0;
+	};
 
 	QGradientStops _stops;
 	QImage _bg;
+
+	struct {
+		Ui::Animations::Basic animation;
+		Glare glare;
+		QPixmap pixmap;
+		int width;
+	} _glare;
 
 };
 

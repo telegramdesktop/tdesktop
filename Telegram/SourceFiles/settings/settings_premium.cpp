@@ -169,7 +169,7 @@ using Order = std::vector<QString>;
 	};
 }
 
-[[nodiscard]] not_null<Ui::RpWidget*> CreateSubscribeButton(
+[[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::RpWidget*> parent,
 		Fn<void()> callback) {
@@ -630,6 +630,8 @@ public:
 	[[nodiscard]] QPointer<Ui::RpWidget> createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) override;
 
+	void showFinished() override;
+
 	[[nodiscard]] bool hasFlexibleTopBar() const override;
 	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const override;
 
@@ -650,6 +652,7 @@ private:
 	std::optional<Ui::RoundRect> _bottomSkipRounding;
 
 	rpl::event_stream<> _showBack;
+	rpl::event_stream<> _showFinished;
 
 };
 
@@ -884,6 +887,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }
 
+void Premium::showFinished() {
+	_showFinished.fire({});
+}
+
 QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
@@ -892,6 +899,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
 	});
+	_showFinished.events(
+	) | rpl::take(1) | rpl::start_with_next([=] {
+		button->startGlareAnimation();
+	}, button->lifetime());
 	auto text = _controller->session().api().premium().statusTextValue();
 	const auto status = Ui::CreateChild<Ui::DividerLabel>(
 		content,
