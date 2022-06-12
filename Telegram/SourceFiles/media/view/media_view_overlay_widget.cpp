@@ -4741,7 +4741,7 @@ Window::SessionController *OverlayWidget::findWindow(bool switchTo) const {
 		if (anyWindow) {
 			anyWindow->invokeForSessionController(
 				&_session->account(),
-				_history ? _history->peer : nullptr,
+				_history ? _history->peer.get() : nullptr,
 				[&](not_null<Window::SessionController*> newController) {
 					controllerPtr = newController;
 				});
