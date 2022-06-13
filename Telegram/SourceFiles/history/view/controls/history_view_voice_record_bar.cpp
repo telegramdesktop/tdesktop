@@ -650,7 +650,7 @@ RecordLock::RecordLock(not_null<Ui::RpWidget*> parent)
 	st::historyRecordLockTopShadow.width())
 		.marginsRemoved(st::historyRecordLockRippleMargin))
 , _arcPen(
-	st::historyRecordLockIconFg,
+	QColor(Qt::white),
 	st::historyRecordLockIconLineWidth,
 	Qt::SolidLine,
 	Qt::SquareCap,
@@ -758,7 +758,6 @@ void RecordLock::drawProgress(Painter &p) {
 		paintRipple(p, _rippleRect.x(), _rippleRect.y());
 	}
 	{
-		PainterHighQualityEnabler hq(p);
 		const auto &arcOffset = st::historyRecordLockIconLineSkip;
 		const auto &size = st::historyRecordLockIconSize;
 
@@ -787,45 +786,70 @@ void RecordLock::drawProgress(Painter &p) {
 			blockRectHeight);
 		const auto &lineHeight = st::historyRecordLockIconLineHeight;
 
-		p.setPen(Qt::NoPen);
-		p.setBrush(st::historyRecordLockIconFg);
-		p.translate(
-			inner.x() + (inner.width() - size.width()) / 2,
-			inner.y() + (originTop.height() * 2 - size.height()) / 2);
-		{
-			const auto xRadius = anim::interpolate(2, 3, _lockToStopProgress);
+		const auto lockTranslation = QPoint(
+			(inner.width() - size.width()) / 2,
+			(originTop.height() * 2 - size.height()) / 2);
+		const auto xRadius = anim::interpolate(2, 3, _lockToStopProgress);
+
+		if (_lockToStopProgress == 1.) {
+			// Paint the block.
+			PainterHighQualityEnabler hq(p);
+			p.translate(inner.topLeft() + lockTranslation);
+			p.setPen(Qt::NoPen);
+			p.setBrush(st::historyRecordLockIconFg);
 			p.drawRoundedRect(blockRect, xRadius, 3);
-		}
+		} else {
+			// Paint an animation frame.
+			auto frame = QImage(
+				inner.size() * style::DevicePixelRatio(),
+				QImage::Format_ARGB32_Premultiplied);
+			frame.setDevicePixelRatio(style::DevicePixelRatio());
+			frame.fill(Qt::transparent);
 
-		const auto offsetTranslate = _lockToStopProgress *
-			(lineHeight + arcHeight + _arcPen.width() * 2);
-		p.translate(
-			size.width() - arcOffset,
-			blockRect.y() + offsetTranslate);
+			Painter q(&frame);
+			PainterHighQualityEnabler hq(q);
 
-		if (progress < 1. && progress > 0.) {
-			p.rotate(kLockArcAngle * progress);
-		}
+			q.setPen(Qt::NoPen);
+			q.setBrush(_arcPen.brush());
 
-		p.setPen(_arcPen);
-		const auto rLine = QLineF(0, 0, 0, -lineHeight);
-		p.drawLine(rLine);
+			q.translate(lockTranslation);
+			q.drawRoundedRect(blockRect, xRadius, 3);
 
-		p.drawArc(
-			-arcWidth,
-			rLine.dy() - arcHeight - _arcPen.width() + rLine.y1(),
-			arcWidth,
-			arcHeight * 2,
-			0,
-			180 * 16);
+			const auto offsetTranslate = _lockToStopProgress *
+				(lineHeight + arcHeight + _arcPen.width() * 2);
+			q.translate(
+				size.width() - arcOffset,
+				blockRect.y() + offsetTranslate);
 
-		const auto lockProgress = 1. - _lockToStopProgress;
-		if (progress == 1. && lockProgress < 1.) {
-			p.drawLine(
+			if (progress < 1. && progress > 0.) {
+				q.rotate(kLockArcAngle * progress);
+			}
+
+			q.setPen(_arcPen);
+			const auto rLine = QLineF(0, 0, 0, -lineHeight);
+			q.drawLine(rLine);
+
+			q.drawArc(
 				-arcWidth,
-				rLine.y2(),
-				-arcWidth,
-				rLine.dy() * lockProgress);
+				rLine.dy() - arcHeight - _arcPen.width() + rLine.y1(),
+				arcWidth,
+				arcHeight * 2,
+				0,
+				180 * 16);
+
+			const auto lockProgress = 1. - _lockToStopProgress;
+			if (progress == 1. && lockProgress < 1.) {
+				q.drawLine(
+					-arcWidth,
+					rLine.y2(),
+					-arcWidth,
+					rLine.dy() * lockProgress);
+			}
+			q.end();
+
+			p.drawImage(
+				inner.topLeft(),
+				style::colorizeImage(frame, st::historyRecordLockIconFg));
 		}
 	}
 }
