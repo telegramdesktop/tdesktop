@@ -11,11 +11,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/numbers_animation.h"
+#include "ui/text/text_utilities.h"
+#include "ui/layers/generic_box.h"
 #include "ui/text/text_options.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"
 
@@ -452,6 +455,8 @@ public:
 		TextFactory textFactory,
 		int min);
 
+	void setColorOverride(QBrush brush);
+
 protected:
 	void paintEvent(QPaintEvent *event) override;
 
@@ -468,6 +473,8 @@ private:
 	Ui::Text::String _rightText;
 	Ui::Text::String _rightLabel;
 	Ui::Text::String _leftLabel;
+
+	std::optional<QBrush> _overrideBrush;
 
 };
 
@@ -493,6 +500,14 @@ Line::Line(
 		recache(s);
 		update();
 	}, lifetime());
+}
+
+void Line::setColorOverride(QBrush brush) {
+	if (brush.style() == Qt::NoBrush) {
+		_overrideBrush = std::nullopt;
+	} else {
+		_overrideBrush = brush;
+	}
 }
 
 void Line::paintEvent(QPaintEvent *event) {
@@ -568,11 +583,15 @@ void Line::recache(const QSize &s) {
 		halfRect.setRight(r.center().x());
 		pathRect.addRect(halfRect);
 
-		auto gradient = ComputeGradient(
-			this,
-			(_leftPixmap.width() / style::DevicePixelRatio()) + r.x(),
-			r.width());
-		p.fillPath(pathRound + pathRect, QBrush(std::move(gradient)));
+		if (_overrideBrush) {
+			p.fillPath(pathRound + pathRect, *_overrideBrush);
+		} else {
+			auto gradient = ComputeGradient(
+				this,
+				(_leftPixmap.width() / style::DevicePixelRatio()) + r.x(),
+				r.width());
+			p.fillPath(pathRound + pathRect, QBrush(std::move(gradient)));
+		}
 
 		_rightPixmap = std::move(rightPixmap);
 	}
@@ -612,7 +631,7 @@ void AddLimitRow(
 		int max,
 		std::optional<tr::phrase<lngtag_count>> phrase,
 		int min) {
-	const auto line = parent->add(
+	parent->add(
 		object_ptr<Line>(parent, max, ProcessTextFactory(phrase), min),
 		st::boxRowPadding);
 }
@@ -772,6 +791,102 @@ QGradientStops ButtonGradientStops() {
 
 QGradientStops LockGradientStops() {
 	return ButtonGradientStops();
+}
+
+QGradientStops FullHeightGradientStops() {
+	return {
+		{ 0.0, st::premiumIconBg1->c },
+		{ .28, st::premiumIconBg2->c },
+		{ .55, st::premiumButtonBg2->c },
+		{ 1.0, st::premiumButtonBg1->c },
+	};
+}
+
+void ShowListBox(
+		not_null<Ui::GenericBox*> box,
+		std::vector<ListEntry> entries) {
+
+	const auto &stLabel = st::defaultFlatLabel;
+	const auto &titlePadding = st::settingsPremiumPreviewTitlePadding;
+	const auto &descriptionPadding = st::settingsPremiumPreviewAboutPadding;
+
+	auto lines = std::vector<Line*>();
+	lines.reserve(int(entries.size()));
+
+	const auto content = box->verticalLayout();
+	for (auto &entry : entries) {
+		const auto subtitle = content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				base::take(entry.subtitle) | rpl::map(Ui::Text::Bold),
+				stLabel),
+			titlePadding);
+		const auto description = content->add(
+			object_ptr<Ui::FlatLabel>(
+				content,
+				base::take(entry.description),
+				st::boxDividerLabel),
+			descriptionPadding);
+
+		const auto limitRow = content->add(
+			object_ptr<Line>(
+				content,
+				entry.rightNumber,
+				TextFactory([=, text = ProcessTextFactory(std::nullopt)](
+						int n) {
+					if (entry.customRightText && (n == entry.rightNumber)) {
+						return *entry.customRightText;
+					} else {
+						return text(n);
+					}
+				}),
+				entry.leftNumber),
+			st::settingsPremiumPreviewLinePadding);
+		lines.push_back(limitRow);
+	}
+
+	content->resizeToWidth(content->height());
+
+	// Color lines.
+	Assert(lines.size() > 2);
+	const auto from = lines.front()->y();
+	const auto to = lines.back()->y() + lines.back()->height();
+	auto gradient = QLinearGradient(0, 0, 0, to - from);
+
+	{
+		auto stops = Ui::Premium::FullHeightGradientStops();
+		for (auto &stop : stops) {
+			stop.first = std::abs(stop.first - 1.);
+		}
+		gradient.setStops(std::move(stops));
+	}
+
+	for (auto i = 0; i < int(lines.size()); i++) {
+		const auto &line = lines[i];
+
+		const auto pointTop = line->y() - from;
+		const auto pointBottom = pointTop + line->height();
+		const auto ratioTop = pointTop / float64(to - from);
+		const auto ratioBottom = pointBottom / float64(to - from);
+
+		auto resultGradient = QLinearGradient(
+			QPointF(),
+			QPointF(0, pointBottom - pointTop));
+
+		resultGradient.setColorAt(
+			.0,
+			anim::gradient_color_at(gradient, ratioTop));
+		resultGradient.setColorAt(
+			.1,
+			anim::gradient_color_at(gradient, ratioBottom));
+
+		const auto brush = QBrush(resultGradient);
+		line->setColorOverride(brush);
+	}
+	box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
+
+	box->setTitle(tr::lng_premium_summary_subtitle_double_limits());
+	box->setWidth(st::boxWideWidth);
 }
 
 } // namespace Premium

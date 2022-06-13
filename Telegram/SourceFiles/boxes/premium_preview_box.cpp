@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
+#include "main/main_domain.h" // kMaxAccounts
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
 #include "ui/layers/generic_box.h"
@@ -29,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/premium_limits_box.h" // AppConfigLimit
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -1292,4 +1294,179 @@ void PremiumUnavailableBox(not_null<Ui::GenericBox*> box) {
 			Ui::Text::RichLangValue),
 		.inform = true,
 	});
+}
+
+void DoubledLimitsPreviewBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	auto entries = std::vector<Ui::Premium::ListEntry>();
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"channels_limit_premium",
+			500 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_channels(),
+			tr::lng_premium_double_limits_about_channels(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"channels_limit_default",
+				500),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"dialogs_folder_pinned_limit_premium",
+			5 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_pins(),
+			tr::lng_premium_double_limits_about_pins(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"dialogs_folder_pinned_limit_default",
+				5),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"channels_public_limit_premium",
+			10 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_links(),
+			tr::lng_premium_double_limits_about_links(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"channels_public_limit_default",
+				10),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"saved_gifs_limit_premium",
+			200 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_gifs(),
+			tr::lng_premium_double_limits_about_gifs(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"saved_gifs_limit_default",
+				200),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"stickers_faved_limit_premium",
+			5 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_stickers(),
+			tr::lng_premium_double_limits_about_stickers(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"stickers_faved_limit_default",
+				5),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"about_length_limit_premium",
+			70 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_bio(),
+			tr::lng_premium_double_limits_about_bio(
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"about_length_limit_default",
+				70),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"caption_length_limit_premium",
+			1024 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_captions(),
+			tr::lng_premium_double_limits_about_captions(
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"caption_length_limit_default",
+				1024),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"dialog_filters_limit_premium",
+			10 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_folders(),
+			tr::lng_premium_double_limits_about_folders(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"dialog_filters_limit_default",
+				10),
+			premium,
+		});
+	}
+	{
+		const auto premium = AppConfigLimit(
+			session,
+			"dialog_filters_chats_limit_premium",
+			100 * 2);
+		entries.push_back(Ui::Premium::ListEntry{
+			tr::lng_premium_double_limits_subtitle_folder_chats(),
+			tr::lng_premium_double_limits_about_folder_chats(
+				lt_count,
+				rpl::single(float64(premium)),
+				Ui::Text::RichLangValue),
+			AppConfigLimit(
+				session,
+				"dialog_filters_chats_limit_default",
+				100),
+			premium,
+		});
+	}
+	entries.push_back(Ui::Premium::ListEntry{
+		tr::lng_premium_double_limits_subtitle_accounts(),
+		tr::lng_premium_double_limits_about_accounts(
+			lt_count,
+			rpl::single(float64(Main::Domain::kMaxAccounts)),
+			Ui::Text::RichLangValue),
+		Main::Domain::kMaxAccounts,
+		Main::Domain::kPremiumMaxAccounts,
+		QString::number(Main::Domain::kMaxAccounts + 1) + QChar('+'),
+	});
+	Ui::Premium::ShowListBox(box, std::move(entries));
 }

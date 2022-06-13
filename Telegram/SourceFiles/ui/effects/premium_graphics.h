@@ -23,6 +23,7 @@ struct TextStyle;
 
 namespace Ui {
 
+class GenericBox;
 class RadiobuttonGroup;
 class VerticalLayout;
 
@@ -63,6 +64,18 @@ void AddAccountsRow(
 [[nodiscard]] QGradientStops LimitGradientStops();
 [[nodiscard]] QGradientStops ButtonGradientStops();
 [[nodiscard]] QGradientStops LockGradientStops();
+[[nodiscard]] QGradientStops FullHeightGradientStops();
+
+struct ListEntry final {
+	rpl::producer<QString> subtitle;
+	rpl::producer<TextWithEntities> description;
+	int leftNumber = 0;
+	int rightNumber = 0;
+	std::optional<QString> customRightText;
+};
+void ShowListBox(
+	not_null<Ui::GenericBox*> box,
+	std::vector<ListEntry> entries);
 
 } // namespace Premium
 } // namespace Ui

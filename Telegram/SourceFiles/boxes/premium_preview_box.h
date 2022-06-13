@@ -17,9 +17,17 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace Main {
+class Session;
+} // namespace Main
+
 void ShowStickerPreviewBox(
 	not_null<Window::SessionController*> controller,
 	not_null<DocumentData*> document);
+
+void DoubledLimitsPreviewBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Main::Session*> session);
 
 enum class PremiumPreview {
 	MoreUpload,

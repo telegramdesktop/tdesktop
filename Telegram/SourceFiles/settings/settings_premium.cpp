@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "main/main_session.h"
 #include "boxes/premium_preview_box.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -782,6 +781,33 @@ void Premium::setupContent() {
 			arrow->moveToRight(0, (s.height() - arrow->height()) / 2);
 		}, arrow->lifetime());
 
+		button->setClickedCallback([=, controller = _controller] {
+			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
+				DoubledLimitsPreviewBox(box, &controller->session());
+
+				auto callback = [=] {
+					SendScreenAccept(controller);
+					StartPremiumPayment(controller, _ref);
+				};
+				const auto button = CreateSubscribeButton(
+					controller,
+					box,
+					std::move(callback));
+				box->setStyle(st::premiumPreviewDoubledLimitsBox);
+				box->widthValue(
+				) | rpl::start_with_next([=](int width) {
+					const auto &padding =
+						st::premiumPreviewDoubledLimitsBox.buttonPadding;
+					button->resizeToWidth(width
+						- padding.left()
+						- padding.right());
+					button->moveToLeft(padding.left(), padding.top());
+				}, button->lifetime());
+				box->addButton(
+					object_ptr<Ui::AbstractButton>::fromRaw(button));
+			}));
+		});
+
 		iconContainers.push_back(dummy);
 	};
 
@@ -815,10 +841,7 @@ void Premium::setupContent() {
 	const auto from = iconContainers.front()->y();
 	const auto to = iconContainers.back()->y() + iconSize.height();
 	auto gradient = QLinearGradient(0, 0, 0, to - from);
-	gradient.setColorAt(0.0, st::premiumIconBg1->c);
-	gradient.setColorAt(.28, st::premiumIconBg2->c);
-	gradient.setColorAt(.55, st::premiumButtonBg2->c);
-	gradient.setColorAt(1.0, st::premiumButtonBg1->c);
+	gradient.setStops(Ui::Premium::FullHeightGradientStops());
 	for (auto i = 0; i < int(icons.size()); i++) {
 		const auto &iconContainer = iconContainers[i];
 
