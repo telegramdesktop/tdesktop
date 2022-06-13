@@ -441,7 +441,11 @@ void MiniStars::createStar(crl::time now) {
 
 class TopBar final : public Ui::RpWidget {
 public:
-	TopBar(not_null<QWidget*> parent, rpl::producer<bool> premiumValue);
+	TopBar(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> controller,
+		rpl::producer<QString> title,
+		rpl::producer<TextWithEntities> about);
 
 	void setRoundEdges(bool value);
 	void setTextPosition(int x, int y);
@@ -457,10 +461,9 @@ private:
 
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
-	const style::TextStyle &_aboutSt;
+	object_ptr<Ui::FlatLabel> _about;
 	MiniStars _ministars;
 	QSvgRenderer _star;
-	Ui::Text::String _about;
 
 	struct {
 		float64 top = 0.;
@@ -478,32 +481,37 @@ private:
 
 };
 
-TopBar::TopBar(not_null<QWidget*> parent, rpl::producer<bool> premiumValue)
+TopBar::TopBar(
+	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> controller,
+	rpl::producer<QString> title,
+	rpl::producer<TextWithEntities> about)
 : Ui::RpWidget(parent)
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::settingsPremiumTitlePadding)
-, _aboutSt(st::settingsPremiumAboutTextStyle)
+, _about(this, std::move(about), st::settingsPremiumAbout)
 , _ministars([=](const QRect &r) { update(r); })
 , _star(u":/gui/icons/settings/star.svg"_q) {
 	std::move(
-		premiumValue
-	) | rpl::start_with_next([=](bool premium) {
+		title
+	) | rpl::start_with_next([=](QString text) {
 		_titlePath = QPainterPath();
-		_titlePath.addText(
-			0,
-			_titleFont->ascent,
-			_titleFont,
-			(premium
-				? tr::lng_premium_summary_title_subscribed
-				: tr::lng_premium_summary_title)(tr::now));
-		const auto &about = premium
-			? tr::lng_premium_summary_top_about_subscribed
-			: tr::lng_premium_summary_top_about;
-		_about.setMarkedText(
-			_aboutSt,
-			about(tr::now, Ui::Text::RichLangValue));
+		_titlePath.addText(0, _titleFont->ascent, _titleFont, text);
 		update();
 	}, lifetime());
+
+	_about->setClickHandlerFilter([=](
+			const ClickHandlerPtr &handler,
+			Qt::MouseButton button) {
+		ActivateClickHandler(_about, handler, {
+			button,
+			QVariant::fromValue(ClickHandlerContext{
+				.sessionWindow = base::make_weak(controller.get()),
+				.botStartAutoSubmit = true,
+			})
+		});
+		return false;
+	});
 }
 
 void TopBar::setRoundEdges(bool value) {
@@ -538,6 +546,19 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 
 	_ministarsRect = starRect(_progress.top, 1.);
 	_starRect = starRect(_progress.top, _progress.body);
+
+	const auto &padding = st::boxRowPadding;
+	const auto availableWidth = width() - padding.left() - padding.right();
+	const auto titleTop = _starRect.top()
+		+ _starRect.height()
+		+ _titlePadding.top();
+	const auto titlePathRect = _titlePath.boundingRect();
+	const auto aboutTop = titleTop
+		+ titlePathRect.height()
+		+ _titlePadding.bottom();
+	_about->resizeToWidth(availableWidth);
+	_about->moveToLeft(padding.left(), aboutTop);
+	_about->setOpacity(_progress.body);
 
 	Ui::RpWidget::resizeEvent(e);
 }
@@ -584,18 +605,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	p.setPen(st::premiumButtonFg);
 
-	const auto &padding = st::boxRowPadding;
-	const auto availableWidth = width() - padding.left() - padding.right();
-	const auto titleTop = _starRect.top()
-		+ _starRect.height()
-		+ _titlePadding.top();
 	const auto titlePathRect = _titlePath.boundingRect();
-	const auto aboutTop = titleTop
-		+ titlePathRect.height()
-		+ _titlePadding.bottom();
-
-	p.setFont(_aboutSt.font);
-	_about.draw(p, padding.left(), aboutTop, availableWidth, style::al_top);
 
 	// Title.
 	p.setOpacity(1.);
@@ -633,7 +643,6 @@ public:
 	void showFinished() override;
 
 	[[nodiscard]] bool hasFlexibleTopBar() const override;
-	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const override;
 
 	void setStepDataReference(std::any &data) override;
 
@@ -649,7 +658,6 @@ private:
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
-	std::optional<Ui::RoundRect> _bottomSkipRounding;
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
@@ -672,10 +680,6 @@ rpl::producer<QString> Premium::title() {
 
 bool Premium::hasFlexibleTopBar() const {
 	return true;
-}
-
-const Ui::RoundRect *Premium::bottomSkipRounding() const {
-	return _bottomSkipRounding ? &*_bottomSkipRounding : nullptr;
 }
 
 rpl::producer<> Premium::sectionShowBack() {
@@ -829,9 +833,22 @@ void Premium::setupContent() {
 
 QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		not_null<QWidget*> parent) {
+	auto title = _controller->session().premium()
+		? tr::lng_premium_summary_title()
+		: rpl::conditional(
+			Data::AmPremiumValue(&_controller->session()),
+			tr::lng_premium_summary_title_subscribed(),
+			tr::lng_premium_summary_title());
+	auto about = rpl::conditional(
+		Data::AmPremiumValue(&_controller->session()),
+		_controller->session().api().premium().statusTextValue(),
+		tr::lng_premium_summary_top_about(Ui::Text::RichLangValue));
+
 	const auto content = Ui::CreateChild<TopBar>(
 		parent.get(),
-		Data::AmPremiumValue(&_controller->session()));
+		_controller,
+		std::move(title),
+		std::move(about));
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -899,51 +916,25 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		SendScreenAccept(_controller);
 		StartPremiumPayment(_controller, _ref);
 	});
+
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
 		button->startGlareAnimation();
 	}, button->lifetime());
-	auto text = _controller->session().api().premium().statusTextValue();
-	const auto status = Ui::CreateChild<Ui::DividerLabel>(
-		content,
-		object_ptr<Ui::FlatLabel>(
-			content,
-			rpl::duplicate(text),
-			st::boxDividerLabel),
-		st::settingsPremiumStatusPadding,
-		RectPart::Top);
+
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto padding = st::settingsPremiumButtonPadding;
-		status->resizeToWidth(width);
 		button->resizeToWidth(width - padding.left() - padding.right());
-	}, status->lifetime());
-
-	const auto controller = _controller;
-	status->entity()->setClickHandlerFilter([=](
-			const ClickHandlerPtr &handler,
-			Qt::MouseButton button) {
-		ActivateClickHandler(status, handler, {
-			button,
-			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(controller.get()),
-				.botStartAutoSubmit = true,
-			})
-		});
-		return false;
-	});
+	}, button->lifetime());
 
 	const auto session = &_controller->session();
 	rpl::combine(
 		button->heightValue(),
-		status->heightValue(),
-		std::move(text),
 		Data::AmPremiumValue(session),
 		session->premiumPossibleValue()
 	) | rpl::start_with_next([=](
 			int buttonHeight,
-			int statusHeight,
-			const TextWithEntities &text,
 			bool premium,
 			bool premiumPossible) {
 		const auto padding = st::settingsPremiumButtonPadding;
@@ -951,19 +942,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			? 0
 			: !premium
 			? (padding.top() + buttonHeight + padding.bottom())
-			: text.text.isEmpty()
-			? 0
-			: statusHeight;
+			: 0;
 		content->resize(content->width(), finalHeight);
 		button->moveToLeft(padding.left(), padding.top());
-		status->moveToLeft(0, 0);
 		button->setVisible(!premium && premiumPossible);
-		status->setVisible(premium && !text.text.isEmpty());
-		if (!premium || text.text.isEmpty()) {
-			_bottomSkipRounding.reset();
-		} else if (!_bottomSkipRounding) {
-			_bottomSkipRounding.emplace(st::boxRadius, st::boxDividerBg);
-		}
 	}, button->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
