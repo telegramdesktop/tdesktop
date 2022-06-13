@@ -715,6 +715,9 @@ void Premium::setupContent() {
 			rpl::producer<QString> &&title,
 			rpl::producer<QString> &&text) {
 		const auto labelAscent = stLabel.style.font->ascent;
+		const auto button = Ui::CreateChild<Ui::SettingsButton>(
+			content,
+			rpl::single(QString()));
 
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
@@ -722,12 +725,14 @@ void Premium::setupContent() {
 				std::move(title) | rpl::map(Ui::Text::Bold),
 				stLabel),
 			titlePadding);
-		content->add(
+		label->setAttribute(Qt::WA_TransparentForMouseEvents);
+		const auto description = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				std::move(text),
 				st::boxDividerLabel),
 			descriptionPadding);
+		description->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 		const auto dummy = Ui::CreateChild<Ui::AbstractButton>(content);
 		dummy->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -741,6 +746,41 @@ void Premium::setupContent() {
 		) | rpl::start_with_next([=](const QRect &r) {
 			dummy->moveToLeft(0, r.y() + (r.height() - labelAscent));
 		}, dummy->lifetime());
+
+		rpl::combine(
+			content->widthValue(),
+			label->heightValue(),
+			description->heightValue()
+		) | rpl::start_with_next([=,
+			topPadding = titlePadding,
+			bottomPadding = descriptionPadding](
+				int width,
+				int topHeight,
+				int bottomHeight) {
+			button->resize(
+				width,
+				topPadding.top()
+					+ topHeight
+					+ topPadding.bottom()
+					+ bottomPadding.top()
+					+ bottomHeight
+					+ bottomPadding.bottom());
+		}, button->lifetime());
+		label->topValue(
+		) | rpl::start_with_next([=, padding = titlePadding.top()](int top) {
+			button->moveToLeft(0, top - padding);
+		}, button->lifetime());
+		const auto arrow = Ui::CreateChild<Ui::IconButton>(
+			button,
+			st::backButton);
+		arrow->setIconOverride(
+			&st::menuIconSubmenuArrow,
+			&st::menuIconSubmenuArrow);
+		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
+		button->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			arrow->moveToRight(0, (s.height() - arrow->height()) / 2);
+		}, arrow->lifetime());
 
 		iconContainers.push_back(dummy);
 	};
