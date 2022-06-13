@@ -43,6 +43,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QSvgRenderer>
+
 namespace {
 
 constexpr auto kPremiumShift = 21. / 240;
@@ -51,6 +53,9 @@ constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
 constexpr auto kPreviewsCount = int(PremiumPreview::kCount);
 constexpr auto kToggleStickerTimeout = 2 * crl::time(1000);
+constexpr auto kStarOpacityOff = 0.1;
+constexpr auto kStarOpacityOn = 1.;
+constexpr auto kStarPeriod = 3 * crl::time(1000);
 
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
@@ -428,6 +433,16 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	return result;
 }
 
+struct VideoPreviewDocument {
+	DocumentData *document = nullptr;
+	RectPart align = RectPart::Bottom;
+};
+
+[[nodiscard]] bool VideoAlignToTop(PremiumPreview section) {
+	return (section == PremiumPreview::MoreUpload)
+		|| (section == PremiumPreview::NoAds);
+}
+
 [[nodiscard]] DocumentData *LookupVideo(
 		not_null<Main::Session*> session,
 		PremiumPreview section) {
@@ -453,29 +468,51 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		int left,
 		int top,
 		int width,
-		int height) {
+		int height,
+		bool alignToBottom) {
 	const auto radius = style::ConvertScaleExact(20.);
 	const auto thickness = style::ConvertScaleExact(6.);
 	const auto skip = thickness / 2.;
 	auto path = QPainterPath();
-	path.moveTo(left - skip, top + height);
-	path.lineTo(left - skip, top - skip + radius);
-	path.arcTo(
-		left - skip,
-		top - skip,
-		radius * 2,
-		radius * 2,
-		180,
-		-90);
-	path.lineTo(left + width + skip - radius, top - skip);
-	path.arcTo(
-		left + width + skip - 2 * radius,
-		top - skip,
-		radius * 2,
-		radius * 2,
-		90,
-		-90);
-	path.lineTo(left + width + skip, top + height);
+	if (alignToBottom) {
+		path.moveTo(left - skip, top + height);
+		path.lineTo(left - skip, top - skip + radius);
+		path.arcTo(
+			left - skip,
+			top - skip,
+			radius * 2,
+			radius * 2,
+			180,
+			-90);
+		path.lineTo(left + width + skip - radius, top - skip);
+		path.arcTo(
+			left + width + skip - 2 * radius,
+			top - skip,
+			radius * 2,
+			radius * 2,
+			90,
+			-90);
+		path.lineTo(left + width + skip, top + height);
+	} else {
+		path.moveTo(left - skip, top);
+		path.lineTo(left - skip, top + height + skip - radius);
+		path.arcTo(
+			left - skip,
+			top + height + skip - 2 * radius,
+			radius * 2,
+			radius * 2,
+			180,
+			90);
+		path.lineTo(left + width + skip - radius, top + height + skip);
+		path.arcTo(
+			left + width + skip - 2 * radius,
+			top + height + skip - 2 * radius,
+			radius * 2,
+			radius * 2,
+			270,
+			90);
+		path.lineTo(left + width + skip, top);
+	}
 	return path;
 }
 
@@ -483,6 +520,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		not_null<DocumentData*> document,
+		bool alignToBottom,
 		Fn<void()> readyCallback) {
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
@@ -504,12 +542,15 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		State(
 			std::shared_ptr<Media::Streaming::Document> shared,
 			Fn<void()> waitingCallback)
-		: instance(shared, std::move(waitingCallback)) {
+		: instance(shared, std::move(waitingCallback))
+		, star(u":/gui/icons/settings/star.svg"_q) {
 		}
 		QImage blurred;
 		Media::Streaming::Instance instance;
 		std::shared_ptr<Data::DocumentMedia> media;
+		Ui::Animations::Basic loading;
 		QPainterPath frame;
+		QSvgRenderer star;
 		bool readyInvoked = false;
 	};
 	const auto state = lifetime.make_state<State>(std::move(shared), [] {});
@@ -522,14 +563,15 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 					float64(width) * image->height() / image->width())),
 				1);
 			using Option = Images::Option;
+			const auto corners = alignToBottom
+				? (Option::RoundSkipBottomLeft
+					| Option::RoundSkipBottomRight)
+				: (Option::RoundSkipTopLeft
+					| Option::RoundSkipTopRight);
 			state->blurred = Images::Prepare(
 				image->original(),
 				QSize(width, height) * style::DevicePixelRatio(),
-				{ .options = (Option::Blur
-					| Option::RoundLarge
-					| Option::RoundSkipBottomLeft
-					| Option::RoundSkipBottomRight),
-				});
+				{ .options = (Option::Blur | Option::RoundLarge | corners) });
 		}
 	}
 	const auto width = st::premiumVideoWidth;
@@ -537,8 +579,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		? (state->blurred.height() / state->blurred.devicePixelRatio())
 		: width;
 	const auto left = (st::boxWideWidth - width) / 2;
-	const auto top = st::premiumPreviewHeight - height;
-	state->frame = GenerateFrame(left, top, width, height);
+	const auto top = alignToBottom ? (st::premiumPreviewHeight - height) : 0;
+	state->frame = GenerateFrame(left, top, width, height, alignToBottom);
 	const auto check = [=] {
 		if (state->instance.playerLocked()) {
 			return;
@@ -567,6 +609,12 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		result->update();
 	}, state->instance.lifetime());
 
+	state->loading.init([=] {
+		if (!anim::Disabled()) {
+			result->update();
+		}
+	});
+
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(result);
@@ -580,8 +628,9 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		};
 
 		check();
-		const auto left = (result->width() - width) / 2;
-		const auto top = (result->height() - height);
+		const auto corners = alignToBottom
+			? (RectPart::TopLeft | RectPart::TopRight)
+			: (RectPart::BottomLeft | RectPart::BottomRight);
 		const auto ready = state->instance.player().ready()
 			&& !state->instance.player().videoSize().isEmpty();
 		const auto size = QSize(width, height) * style::DevicePixelRatio();
@@ -591,13 +640,34 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 				.resize = size,
 				.outer = size,
 				.radius = ImageRoundRadius::Large,
-				.corners = RectPart::TopLeft | RectPart::TopRight,
+				.corners = corners,
 			});
 		paintFrame(QColor(0, 0, 0, 128), 12.);
 		p.drawImage(QRect(left, top, width, height), frame);
 		paintFrame(Qt::black, 6.6);
 		if (ready) {
+			state->loading.stop();
 			state->instance.markFrameShown();
+		} else {
+			if (!state->loading.animating()) {
+				state->loading.start();
+			}
+			const auto progress = anim::Disabled()
+				? 1.
+				: ((crl::now() % kStarPeriod) / float64(kStarPeriod));
+			const auto ratio = anim::Disabled()
+				? 1.
+				: (1. + cos(progress * 2 * M_PI)) / 2.;
+			const auto opacity = kStarOpacityOff
+				+ (kStarOpacityOn - kStarOpacityOff) * ratio;
+			p.setOpacity(opacity);
+
+			const auto starSize = st::premiumVideoStarSize;
+			state->star.render(&p, QRectF(
+				QPointF(
+					left + (width - starSize.width()) / 2.,
+					top + (height - starSize.height()) / 2.),
+				starSize));
 		}
 	}, lifetime);
 
@@ -633,6 +703,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 			result,
 			controller,
 			document,
+			!VideoAlignToTop(section),
 			readyCallback);
 	};
 	create();
