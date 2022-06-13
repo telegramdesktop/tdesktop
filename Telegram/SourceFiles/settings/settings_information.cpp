@@ -516,11 +516,11 @@ void SetupAccountsWrap(
 	const auto state = raw->lifetime().make_state<State>(raw);
 
 	if (!active) {
-		AddUnreadBadge(raw, rpl::single(rpl::empty) | rpl::then(
+		Badge::AddUnread(raw, rpl::single(rpl::empty) | rpl::then(
 			session->data().unreadBadgeChanges()
 		) | rpl::map([=] {
 			auto &owner = session->data();
-			return UnreadBadge{
+			return Badge::UnreadBadge{
 				owner.unreadBadge(),
 				owner.unreadBadgeMuted(),
 			};
@@ -852,7 +852,9 @@ AccountsEvents SetupAccounts(
 	};
 }
 
-Dialogs::Ui::UnreadBadgeStyle BadgeStyle() {
+namespace Badge {
+
+Dialogs::Ui::UnreadBadgeStyle Style() {
 	auto result = Dialogs::Ui::UnreadBadgeStyle();
 	result.font = st::mainMenuBadgeFont;
 	result.size = st::mainMenuBadgeSize;
@@ -860,8 +862,33 @@ Dialogs::Ui::UnreadBadgeStyle BadgeStyle() {
 	return result;
 }
 
-void AddUnreadBadge(
-		not_null<Ui::SettingsButton*> button,
+not_null<Ui::RpWidget*> AddRight(
+		not_null<Ui::SettingsButton*> button) {
+	const auto widget = Ui::CreateChild<Ui::RpWidget>(button.get());
+
+	rpl::combine(
+		button->sizeValue(),
+		widget->sizeValue(),
+		widget->shownValue()
+	) | rpl::start_with_next([=](QSize outer, QSize inner, bool shown) {
+		auto padding = button->st().padding;
+		if (shown) {
+			widget->moveToRight(
+				padding.right(),
+				(outer.height() - inner.height()) / 2,
+				outer.width());
+			padding.setRight(padding.right()
+				+ inner.width()
+				+ button->st().style.font->spacew);
+		}
+		button->setPaddingOverride(padding);
+	}, widget->lifetime());
+
+	return widget;
+}
+
+not_null<Ui::RpWidget*> CreateUnread(
+		not_null<Ui::RpWidget*> container,
 		rpl::producer<UnreadBadge> value) {
 	struct State {
 		State(QWidget *parent) : widget(parent) {
@@ -869,11 +896,11 @@ void AddUnreadBadge(
 		}
 
 		Ui::RpWidget widget;
-		Dialogs::Ui::UnreadBadgeStyle st = BadgeStyle();
+		Dialogs::Ui::UnreadBadgeStyle st = Style();
 		int count = 0;
 		QString string;
 	};
-	const auto state = button->lifetime().make_state<State>(button);
+	const auto state = container->lifetime().make_state<State>(container);
 
 	std::move(
 		value
@@ -902,23 +929,19 @@ void AddUnreadBadge(
 			state->st);
 	}, state->widget.lifetime());
 
-	rpl::combine(
-		button->sizeValue(),
-		state->widget.sizeValue(),
-		state->widget.shownValue()
-	) | rpl::start_with_next([=](QSize outer, QSize inner, bool shown) {
-		auto padding = button->st().padding;
-		if (shown) {
-			state->widget.moveToRight(
-				padding.right(),
-				(outer.height() - inner.height()) / 2,
-				outer.width());
-			padding.setRight(padding.right()
-				+ inner.width()
-				+ button->st().style.font->spacew);
-		}
-		button->setPaddingOverride(padding);
-	}, state->widget.lifetime());
+	return &state->widget;
 }
 
+void AddUnread(
+		not_null<Ui::SettingsButton*> button,
+		rpl::producer<UnreadBadge> value) {
+	const auto container = AddRight(button);
+	const auto badge = CreateUnread(container, std::move(value));
+	badge->sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		container->resize(s);
+	}, container->lifetime());
+}
+
+} // namespace Badge
 } // namespace Settings
