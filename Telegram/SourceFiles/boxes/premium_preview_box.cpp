@@ -302,7 +302,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 [[nodiscard]] not_null<Ui::RpWidget*> StickersPreview(
 		not_null<Ui::RpWidget*> parent,
-		not_null<Window::SessionController*> controller) {
+		not_null<Window::SessionController*> controller,
+		Fn<void()> readyCallback) {
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
 
@@ -319,8 +320,9 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		Ui::RpWidget *next = nullptr;
 		Ui::Animations::Simple slide;
 		base::Timer toggleTimer;
-		Fn<void()> readyCallback;
-		bool singleReady = false;
+		bool toggleTimerPending = false;
+		Fn<void()> singleReadyCallback;
+		bool readyInvoked = false;
 		bool timerFired = false;
 		bool nextReady = false;
 		int index = 0;
@@ -340,7 +342,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 			outer,
 			controller,
 			media,
-			state->readyCallback);
+			state->singleReadyCallback);
 
 		return outer;
 	};
@@ -379,15 +381,31 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		state->timerFired = true;
 		check();
 	});
-	state->readyCallback = [=] {
+	state->singleReadyCallback = [=] {
+		if (!state->readyInvoked && readyCallback) {
+			state->readyInvoked = true;
+			readyCallback();
+		}
 		if (!state->next) {
 			createNext();
-			state->toggleTimer.callOnce(kToggleStickerTimeout);
+			if (result->isHidden()) {
+				state->toggleTimerPending = true;
+			} else {
+				state->toggleTimer.callOnce(kToggleStickerTimeout);
+			}
 		} else {
 			state->nextReady = true;
 			check();
 		}
 	};
+
+	result->shownValue(
+	) | rpl::filter([=](bool shown) {
+		return shown && state->toggleTimerPending;
+	}) | rpl::start_with_next([=] {
+		state->toggleTimerPending = false;
+		state->toggleTimer.callOnce(kToggleStickerTimeout);
+	}, result->lifetime());
 
 	const auto fill = [=] {
 		const auto &list = premium->stickers();
@@ -396,6 +414,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		}
 		if (!state->medias.empty()) {
 			state->current = create(state->medias.front());
+			state->index = 1 % state->medias.size();
 			state->current->move(0, 0);
 		}
 	};
@@ -463,7 +482,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 [[nodiscard]] not_null<Ui::RpWidget*> VideoPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<DocumentData*> document) {
+		not_null<DocumentData*> document,
+		Fn<void()> readyCallback) {
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
 
@@ -490,6 +510,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		Media::Streaming::Instance instance;
 		std::shared_ptr<Data::DocumentMedia> media;
 		QPainterPath frame;
+		bool readyInvoked = false;
 	};
 	const auto state = lifetime.make_state<State>(std::move(shared), [] {});
 	state->media = document->createMediaView();
@@ -536,6 +557,10 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 	) | rpl::start_with_next_error([=](Media::Streaming::Update &&update) {
 		if (v::is<Media::Streaming::Information>(update.data)
 			|| v::is<Media::Streaming::UpdateVideo>(update.data)) {
+			if (!state->readyInvoked && readyCallback) {
+				state->readyInvoked = true;
+				readyCallback();
+			}
 			result->update();
 		}
 	}, [=](::Media::Streaming::Error &&error) {
@@ -582,7 +607,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 [[nodiscard]] not_null<Ui::RpWidget*> GenericPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		PremiumPreview section) {
+		PremiumPreview section,
+		Fn<void()> readyCallback) {
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
 
@@ -603,7 +629,11 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		if (!document) {
 			return;
 		}
-		state->single = VideoPreview(result, controller, document);
+		state->single = VideoPreview(
+			result,
+			controller,
+			document,
+			readyCallback);
 	};
 	create();
 	if (!state->single) {
@@ -631,6 +661,7 @@ public:
 	void setOver(bool over);
 	void startAnimations();
 	void cancelAnimations();
+	[[nodiscard]] bool ready() const;
 	[[nodiscard]] bool disabled() const;
 	[[nodiscard]] QRect geometry() const;
 
@@ -686,6 +717,13 @@ ReactionPreview::ReactionPreview(
 	_centerMedia->checkStickerLarge();
 	_aroundMedia->checkStickerLarge();
 	checkReady();
+	if (!_center || !_around) {
+		_controller->session().downloaderTaskFinished(
+		) | rpl::take_while([=] {
+			checkReady();
+			return !_center || !_around;
+		}) | rpl::start(_lifetime);
+	}
 }
 
 QRect ReactionPreview::geometry() const {
@@ -743,6 +781,10 @@ void ReactionPreview::startAnimations() {
 
 void ReactionPreview::cancelAnimations() {
 	_playRequested = false;
+}
+
+bool ReactionPreview::ready() const {
+	return _center && _center->ready();
 }
 
 bool ReactionPreview::disabled() const {
@@ -857,11 +899,13 @@ void ReactionPreview::paintEffect(QPainter &p) {
 [[nodiscard]] not_null<Ui::RpWidget*> ReactionsPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		const base::flat_map<QString, ReactionDisableType> &disabled) {
+		const base::flat_map<QString, ReactionDisableType> &disabled,
+		Fn<void()> readyCallback) {
 	struct State {
 		std::vector<std::unique_ptr<ReactionPreview>> entries;
 		Ui::Text::String bottom;
 		int selected = -1;
+		bool readyInvoked = false;
 	};
 	const auto result = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	result->show();
@@ -931,13 +975,25 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	) | rpl::start_with_next([=] {
 		auto p = Painter(result);
 		auto effects = std::vector<Fn<void()>>();
+		auto ready = 0;
 		for (const auto &entry : state->entries) {
 			entry->paint(p);
+			if (entry->ready()) {
+				++ready;
+			}
 			if (entry->playsEffect()) {
 				effects.push_back([&] {
 					entry->paintEffect(p);
 				});
 			}
+		}
+		if (!state->readyInvoked
+			&& readyCallback
+			&& ready > 0
+			&& ready == state->entries.size()) {
+			state->readyInvoked = true;
+			readyCallback();
+
 		}
 		const auto padding = st::boxRowPadding;
 		const auto available = parent->width()
@@ -1007,14 +1063,15 @@ void ReactionPreview::paintEffect(QPainter &p) {
 [[nodiscard]] not_null<Ui::RpWidget*> GenerateDefaultPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		PremiumPreview section) {
+		PremiumPreview section,
+		Fn<void()> readyCallback) {
 	switch (section) {
 	case PremiumPreview::Reactions:
-		return ReactionsPreview(parent, controller, {});
+		return ReactionsPreview(parent, controller, {}, readyCallback);
 	case PremiumPreview::Stickers:
-		return StickersPreview(parent, controller);
+		return StickersPreview(parent, controller, readyCallback);
 	default:
-		return GenericPreview(parent, controller, section);
+		return GenericPreview(parent, controller, section, readyCallback);
 	}
 }
 
@@ -1118,29 +1175,74 @@ void PreviewBox(
 	struct State {
 		int leftFrom = 0;
 		Ui::RpWidget *content = nullptr;
+		Ui::RpWidget *stickersPreload = nullptr;
+		bool stickersPreloadReady = false;
+		Ui::RpWidget *reactionsPreload = nullptr;
+		bool reactionsPreloadReady = false;
 		Ui::Animations::Simple animation;
+		Fn<void()> preload;
 		std::vector<Hiding> hiding;
 		rpl::variable<PremiumPreview> selected;
 	};
 	const auto state = outer->lifetime().make_state<State>();
 	state->selected = descriptor.section;
 
+	state->preload = [=] {
+		const auto now = state->selected.current();
+		if (now != PremiumPreview::Stickers && !state->stickersPreload) {
+			const auto ready = [=] {
+				if (state->stickersPreload) {
+					state->stickersPreloadReady = true;
+				} else {
+					state->preload();
+				}
+			};
+			state->stickersPreload = GenerateDefaultPreview(
+				outer,
+				controller,
+				PremiumPreview::Stickers,
+				ready);
+			state->stickersPreload->hide();
+		}
+		if (now != PremiumPreview::Reactions && !state->reactionsPreload) {
+			const auto ready = [=] {
+				if (state->reactionsPreload) {
+					state->reactionsPreloadReady = true;
+				} else {
+					state->preload();
+				}
+			};
+			state->reactionsPreload = GenerateDefaultPreview(
+				outer,
+				controller,
+				PremiumPreview::Reactions,
+				ready);
+			state->reactionsPreload->hide();
+		}
+	};
+
 	switch (descriptor.section) {
 	case PremiumPreview::Stickers:
 		Assert(media != nullptr);
-		state->content = StickerPreview(outer, controller, media);
+		state->content = StickerPreview(
+			outer,
+			controller,
+			media,
+			state->preload);
 		break;
 	case PremiumPreview::Reactions:
 		state->content = ReactionsPreview(
 			outer,
 			controller,
-			descriptor.disabled);
+			descriptor.disabled,
+			state->preload);
 		break;
 	default:
 		state->content = GenericPreview(
 			outer,
 			controller,
-			descriptor.section);
+			descriptor.section,
+			state->preload);
 		break;
 	}
 
@@ -1188,7 +1290,26 @@ void PreviewBox(
 			.leftTill = state->content->x() - start,
 		});
 		state->leftFrom = start;
-		state->content = GenerateDefaultPreview(outer, controller, now);
+		if (now == PremiumPreview::Stickers && state->stickersPreload) {
+			state->content = base::take(state->stickersPreload);
+			state->content->show();
+			if (base::take(state->stickersPreloadReady)) {
+				state->preload();
+			}
+		} else if (now == PremiumPreview::Reactions
+			&& state->reactionsPreload) {
+			state->content = base::take(state->reactionsPreload);
+			state->content->show();
+			if (base::take(state->reactionsPreloadReady)) {
+				state->preload();
+			}
+		} else {
+			state->content = GenerateDefaultPreview(
+				outer,
+				controller,
+				now,
+				state->preload);
+		}
 		state->animation.stop();
 		state->animation.start(
 			animationCallback,
