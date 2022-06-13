@@ -50,6 +50,7 @@ constexpr auto kShiftDuration = crl::time(200);
 constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
 constexpr auto kPreviewsCount = int(PremiumPreview::kCount);
+constexpr auto kToggleStickerTimeout = 2 * crl::time(1000);
 
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
@@ -168,7 +169,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 [[nodiscard]] not_null<Ui::RpWidget*> StickerPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		const std::shared_ptr<Data::DocumentMedia> &media) {
+		const std::shared_ptr<Data::DocumentMedia> &media,
+		Fn<void()> readyCallback = nullptr) {
 	using namespace HistoryView;
 
 	PreloadSticker(media);
@@ -193,6 +195,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		std::unique_ptr<Lottie::SinglePlayer> effect;
 		std::unique_ptr<Ui::PathShiftGradient> pathGradient;
+		bool readyInvoked = false;
 	};
 	const auto state = lifetime.make_state<State>();
 	const auto createLottieIfReady = [=] {
@@ -220,11 +223,28 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 			QString(),
 			true);
 
-		const auto update = [=] { result->update(); };
+		const auto update = [=] {
+			if (!state->readyInvoked
+				&& readyCallback
+				&& state->lottie->ready()
+				&& state->effect->ready()) {
+				state->readyInvoked = true;
+				readyCallback();
+			}
+			result->update();
+		};
 		auto &lifetime = result->lifetime();
 		state->lottie->updates() | rpl::start_with_next(update, lifetime);
 		state->effect->updates() | rpl::start_with_next(update, lifetime);
 	};
+	createLottieIfReady();
+	if (!state->lottie || !state->effect) {
+		controller->session().downloaderTaskFinished(
+		) | rpl::take_while([=] {
+			createLottieIfReady();
+			return !state->lottie || !state->effect;
+		}) | rpl::start(result->lifetime());
+	}
 	state->pathGradient = MakePathShiftGradient(
 		controller->chatStyle(),
 		[=] { result->update(); });
@@ -294,23 +314,92 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 
 	struct State {
 		std::vector<std::shared_ptr<Data::DocumentMedia>> medias;
-		Ui::RpWidget *single = nullptr;
+		Ui::RpWidget *previous = nullptr;
+		Ui::RpWidget *current = nullptr;
+		Ui::RpWidget *next = nullptr;
+		Ui::Animations::Simple slide;
+		base::Timer toggleTimer;
+		Fn<void()> readyCallback;
+		bool singleReady = false;
+		bool timerFired = false;
+		bool nextReady = false;
+		int index = 0;
 	};
 	const auto premium = &controller->session().api().premium();
 	const auto state = lifetime.make_state<State>();
+	const auto create = [=](std::shared_ptr<Data::DocumentMedia> media) {
+		const auto outer = Ui::CreateChild<Ui::RpWidget>(result);
+		outer->show();
+
+		result->sizeValue(
+		) | rpl::start_with_next([=](QSize size) {
+			outer->resize(size);
+		}, outer->lifetime());
+
+		[[maybe_unused]] const auto sticker = StickerPreview(
+			outer,
+			controller,
+			media,
+			state->readyCallback);
+
+		return outer;
+	};
+	const auto createNext = [=] {
+		state->nextReady = false;
+		state->next = create(state->medias[state->index]);
+		state->next->move(0, state->current->height());
+	};
+	const auto check = [=] {
+		if (!state->timerFired || !state->nextReady) {
+			return;
+		}
+		const auto animationCallback = [=] {
+			const auto top = int(base::SafeRound(state->slide.value(0.)));
+			state->previous->move(0, top - state->current->height());
+			state->current->move(0, top);
+			if (!state->slide.animating()) {
+				delete base::take(state->previous);
+				state->timerFired = false;
+				state->toggleTimer.callOnce(kToggleStickerTimeout);
+			}
+		};
+		state->index = (++state->index) % state->medias.size();
+		delete std::exchange(state->previous, state->current);
+		state->current = state->next;
+		createNext();
+		state->slide.stop();
+		state->slide.start(
+			animationCallback,
+			state->current->height(),
+			0,
+			st::premiumSlideDuration,
+			anim::sineInOut);
+	};
+	state->toggleTimer.setCallback([=] {
+		state->timerFired = true;
+		check();
+	});
+	state->readyCallback = [=] {
+		if (!state->next) {
+			createNext();
+			state->toggleTimer.callOnce(kToggleStickerTimeout);
+		} else {
+			state->nextReady = true;
+			check();
+		}
+	};
+
 	const auto fill = [=] {
 		const auto &list = premium->stickers();
 		for (const auto &document : list) {
 			state->medias.push_back(document->createMediaView());
 		}
-		if (state->medias.empty()) {
-			return;
+		if (!state->medias.empty()) {
+			state->current = create(state->medias.front());
+			state->current->move(0, 0);
 		}
-		state->single = StickerPreview(
-			result,
-			controller,
-			state->medias.front());
 	};
+
 	fill();
 	if (state->medias.empty()) {
 		premium->stickersUpdated(
@@ -1101,7 +1190,12 @@ void PreviewBox(
 		state->leftFrom = start;
 		state->content = GenerateDefaultPreview(outer, controller, now);
 		state->animation.stop();
-		state->animation.start(animationCallback, 0., 1., st::slideDuration);
+		state->animation.start(
+			animationCallback,
+			0.,
+			1.,
+			st::premiumSlideDuration,
+			anim::sineInOut);
 	}, outer->lifetime());
 
 	auto title = state->selected.value(

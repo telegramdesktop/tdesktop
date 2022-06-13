@@ -70,23 +70,23 @@ using Order = std::vector<QString>;
 
 [[nodiscard]] Order FallbackOrder() {
 	return Order{
-		QString("double_limits"),
-		QString("more_upload"),
-		QString("faster_download"),
-		QString("voice_to_text"),
-		QString("no_ads"),
-		QString("unique_reactions"),
-		QString("premium_stickers"),
-		QString("advanced_chat_management"),
-		QString("profile_badge"),
-		QString("animated_userpics"),
+		u"double_limits"_q,
+		u"more_upload"_q,
+		u"faster_download"_q,
+		u"voice_to_text"_q,
+		u"no_ads"_q,
+		u"unique_reactions"_q,
+		u"premium_stickers"_q,
+		u"advanced_chat_management"_q,
+		u"profile_badge"_q,
+		u"animated_userpics"_q,
 	};
 }
 
 [[nodiscard]] base::flat_map<QString, Entry> EntryMap() {
 	return base::flat_map<QString, Entry>{
 		{
-			QString("double_limits"),
+			u"double_limits"_q,
 			Entry{
 				&st::settingsPremiumIconDouble,
 				tr::lng_premium_summary_subtitle_double_limits(),
@@ -94,7 +94,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("more_upload"),
+			u"more_upload"_q,
 			Entry{
 				&st::settingsPremiumIconFiles,
 				tr::lng_premium_summary_subtitle_more_upload(),
@@ -102,7 +102,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("faster_download"),
+			u"faster_download"_q,
 			Entry{
 				&st::settingsPremiumIconSpeed,
 				tr::lng_premium_summary_subtitle_faster_download(),
@@ -110,7 +110,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("voice_to_text"),
+			u"voice_to_text"_q,
 			Entry{
 				&st::settingsPremiumIconVoice,
 				tr::lng_premium_summary_subtitle_voice_to_text(),
@@ -118,7 +118,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("no_ads"),
+			u"no_ads"_q,
 			Entry{
 				&st::settingsPremiumIconChannelsOff,
 				tr::lng_premium_summary_subtitle_no_ads(),
@@ -126,7 +126,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("unique_reactions"),
+			u"unique_reactions"_q,
 			Entry{
 				&st::settingsPremiumIconLike,
 				tr::lng_premium_summary_subtitle_unique_reactions(),
@@ -134,7 +134,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("premium_stickers"),
+			u"premium_stickers"_q,
 			Entry{
 				&st::settingsIconStickers,
 				tr::lng_premium_summary_subtitle_premium_stickers(),
@@ -142,7 +142,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("advanced_chat_management"),
+			u"advanced_chat_management"_q,
 			Entry{
 				&st::settingsIconChat,
 				tr::lng_premium_summary_subtitle_advanced_chat_management(),
@@ -150,7 +150,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("profile_badge"),
+			u"profile_badge"_q,
 			Entry{
 				&st::settingsPremiumIconStar,
 				tr::lng_premium_summary_subtitle_profile_badge(),
@@ -158,7 +158,7 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			QString("animated_userpics"),
+			u"animated_userpics"_q,
 			Entry{
 				&st::settingsPremiumIconPlay,
 				tr::lng_premium_summary_subtitle_animated_userpics(),

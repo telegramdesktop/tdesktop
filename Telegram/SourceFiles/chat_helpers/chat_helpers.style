@@ -312,6 +312,7 @@ premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	style: semiboldTextStyle;
 }
+premiumSlideDuration: 200;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
 
