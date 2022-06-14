@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "lang/lang_cloud_manager.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -200,6 +201,7 @@ void Step::createSession(
 	if (!photo.isNull()) {
 		session.api().peerPhoto().upload(session.user(), std::move(photo));
 	}
+	account->appConfig().refresh();
 	if (session.supportMode()) {
 		PrepareSupportMode(&session);
 	}
