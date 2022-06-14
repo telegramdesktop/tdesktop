@@ -550,7 +550,7 @@ void Reader::Slices::processPart(
 
 auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 	Expects(!buffer.empty());
-	Expects(offset >= 0 && offset < _size);
+	Expects(offset < _size);
 	Expects(offset + buffer.size() <= _size);
 	Expects(buffer.size() <= kInSlice);
 
@@ -569,8 +569,7 @@ auto Reader::Slices::fill(uint32 offset, bytes::span buffer) -> FillResult {
 	const auto till = uint32(offset + buffer.size());
 	const auto fromSlice = offset / kInSlice;
 	const auto tillSlice = (till + kInSlice - 1) / kInSlice;
-	Assert(fromSlice >= 0
-		&& (fromSlice + 1 == tillSlice || fromSlice + 2 == tillSlice)
+	Assert((fromSlice + 1 == tillSlice || fromSlice + 2 == tillSlice)
 		&& tillSlice <= _data.size());
 
 	const auto cacheNotLoaded = [&](int sliceIndex) {

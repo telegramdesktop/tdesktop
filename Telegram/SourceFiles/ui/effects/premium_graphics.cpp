@@ -266,8 +266,6 @@ public:
 		rpl::producer<> showFinishes,
 		const style::icon *icon);
 
-	[[nodiscard]] bool animating() const;
-
 protected:
 	void paintEvent(QPaintEvent *e) override;
 
@@ -388,10 +386,6 @@ BubbleWidget::BubbleWidget(
 			* (_ignoreDeflection ? kStepBeforeDeflection : 1.),
 		anim::easeOutCirc);
 	}, lifetime());
-}
-
-bool BubbleWidget::animating() const {
-	return _appearanceAnimation.animating();
 }
 
 void BubbleWidget::paintEvent(QPaintEvent *e) {
@@ -832,13 +826,13 @@ void ShowListBox(
 
 	const auto content = box->verticalLayout();
 	for (auto &entry : entries) {
-		const auto subtitle = content->add(
+		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				base::take(entry.subtitle) | rpl::map(Ui::Text::Bold),
 				stLabel),
 			titlePadding);
-		const auto description = content->add(
+		content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
 				base::take(entry.description),

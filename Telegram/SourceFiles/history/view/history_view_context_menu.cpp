@@ -320,7 +320,6 @@ void AddPostLinkAction(
 		&& !request.link->copyToClipboardContextItemText().isEmpty()) {
 		return;
 	}
-	const auto session = &item->history()->session();
 	const auto itemId = item->fullId();
 	const auto context = request.view
 		? request.view->context()

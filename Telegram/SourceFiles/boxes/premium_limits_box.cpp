@@ -876,7 +876,6 @@ void FileSizeLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		uint64 fileSizeBytes) {
-	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
 	const auto defaultLimit = Limit(

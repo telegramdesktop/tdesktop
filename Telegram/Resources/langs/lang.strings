@@ -1666,8 +1666,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_group_stickers_description" = "You can choose a sticker set which will be available for every member while in the group chat.";
 "lng_group_stickers_add" = "Choose sticker set";
 "lng_premium_stickers" = "Premium stickers";
-"lng_premium_reaction_no_group" = "This reaction is not available in this group.";
-"lng_premium_reaction_no_channel" = "This reaction is not available in this channel.";
 
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";

@@ -104,7 +104,6 @@ void PaintWaveform(
 		wfSize);
 	const auto barNormValue = (wf ? voiceData->wavemax : 0) + 1;
 	const auto maxDelta = st::msgWaveformMax - st::msgWaveformMin;
-	const auto &bottom = st::msgWaveformMax;
 	p.setPen(Qt::NoPen);
 	auto hq = PainterHighQualityEnabler(p);
 	for (auto i = 0, barLeft = 0, sum = 0, maxValue = 0; i < wfSize; ++i) {

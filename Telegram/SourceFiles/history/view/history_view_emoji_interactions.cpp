@@ -231,7 +231,6 @@ void EmojiInteractions::visibleAreaUpdated(
 
 QRect EmojiInteractions::computeRect(const Play &play) const {
 	const auto view = play.view;
-	const auto fullWidth = view->width();
 	const auto sticker = play.inner;
 	const auto size = play.outer;
 	const auto shift = play.premium

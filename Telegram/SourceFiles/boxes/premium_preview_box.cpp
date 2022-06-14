@@ -74,10 +74,6 @@ bool operator==(const Descriptor &a, const Descriptor &b) {
 		&& (a.fromSettings == b.fromSettings);
 }
 
-bool operator!=(const Descriptor &a, const Descriptor &b) {
-	return !(a == b);
-}
-
 [[nodiscard]] int ComputeX(int column, int columns) {
 	const auto skip = st::premiumReactionWidthSkip;
 	const auto fullWidth = columns * skip;
@@ -375,7 +371,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 				state->toggleTimer.callOnce(kToggleStickerTimeout);
 			}
 		};
-		state->index = (++state->index) % state->medias.size();
+		++state->index;
+		state->index %= state->medias.size();
 		delete std::exchange(state->previous, state->current);
 		state->current = state->next;
 		createNext();
@@ -764,16 +761,6 @@ private:
 
 };
 
-[[nodiscard]] QString DisabledText(ReactionDisableType type) {
-	switch (type) {
-	case ReactionDisableType::Group:
-		return tr::lng_premium_reaction_no_group(tr::now);
-	case ReactionDisableType::Channel:
-		return tr::lng_premium_reaction_no_channel(tr::now);
-	}
-	return QString();
-}
-
 ReactionPreview::ReactionPreview(
 	not_null<Window::SessionController*> controller,
 	const Data::Reaction &reaction,
@@ -868,7 +855,6 @@ bool ReactionPreview::disabled() const {
 }
 
 void ReactionPreview::paint(Painter &p) {
-	const auto size = st::premiumReactionAround;
 	const auto center = st::premiumReactionSize;
 	const auto scale = _scale.value(_over ? 1. : st::premiumReactionScale);
 	const auto inner = QRect(
@@ -1518,14 +1504,6 @@ void Show(not_null<Window::SessionController*> controller, QImage back) {
 	}
 }
 
-[[nodiscard]] QImage SolidColorImage(QSize size, QColor color) {
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(size * ratio, QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(color);
-	return result;
-}
-
 void Show(
 		not_null<Window::SessionController*> controller,
 		Descriptor &&descriptor) {
@@ -1569,22 +1547,8 @@ void Show(
 
 	const auto fill = QSize(st::boxWideWidth, st::boxWideWidth);
 	const auto stops = Ui::Premium::LimitGradientStops();
-	//const auto theme = controller->currentChatTheme();
-	//const auto color = theme->background().colorForFill;
-	//const auto area = QSize(fill.width(), fill.height() * 2);
-	//const auto request = theme->cacheBackgroundRequest(area);
 	crl::async([=] {
-		using Option = Images::Option;
-		//auto back = color
-		//	? SolidColorImage(area, *color)
-		//	: request.background.waitingForNegativePattern()
-		//	? SolidColorImage(area, Qt::black)
-		//	: Ui::CacheBackground(request).image;
 		const auto factor = style::DevicePixelRatio();
-		//auto cropped = back.copy(QRect(
-		//	QPoint(0, fill.height() * factor / 2),
-		//	fill * factor));
-		//cropped.setDevicePixelRatio(factor);
 		auto cropped = QImage(
 			fill * factor,
 			QImage::Format_ARGB32_Premultiplied);
@@ -1595,10 +1559,6 @@ void Show(
 		p.fillRect(QRect(QPoint(), fill), gradient);
 		p.end();
 
-		const auto options = Images::Options()
-			| Option::RoundSkipBottomLeft
-			| Option::RoundSkipBottomRight
-			| Option::RoundLarge;
 		const auto result = Images::Round(
 			std::move(cropped),
 			Images::CornersMask(st::boxRadius),
