@@ -484,10 +484,10 @@ Line::Line(
 	TextFactory textFactory,
 	int min)
 : Ui::RpWidget(parent)
-, _leftText(st::defaultTextStyle, tr::lng_premium_free(tr::now))
-, _rightText(st::defaultTextStyle, tr::lng_premium(tr::now))
-, _rightLabel(st::defaultTextStyle, max ? textFactory(max) : QString())
-, _leftLabel(st::defaultTextStyle, min ? textFactory(min) : QString()) {
+, _leftText(st::semiboldTextStyle, tr::lng_premium_free(tr::now))
+, _rightText(st::semiboldTextStyle, tr::lng_premium(tr::now))
+, _rightLabel(st::semiboldTextStyle, max ? textFactory(max) : QString())
+, _leftLabel(st::semiboldTextStyle, min ? textFactory(min) : QString()) {
 	resize(width(), st::requestsAcceptButton.height);
 
 	sizeValue(

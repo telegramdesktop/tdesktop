@@ -1672,6 +1672,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium" = "Premium";
 "lng_premium_free" = "Free";
 "lng_premium_more_about" = "More About Telegram Premium";
+"lng_premium_unlock_reactions" = "Unlock Premium Reactions";
+"lng_premium_unlock_stickers" = "Unlock Premium Stickers";
 
 "lng_premium_summary_title" = "Telegram Premium";
 "lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
@@ -1739,7 +1741,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_double_limits_about_folder_chats#other" = "Add up to {count} chats into each of your folders";
 
 "lng_premium_double_limits_subtitle_accounts" = "Connected Accounts";
-"lng_premium_double_limits_about_accounts#one" = "Connect {count} accounts with different mobile numbers";
+"lng_premium_double_limits_about_accounts#one" = "Connect {count} account with different mobile numbers";
 "lng_premium_double_limits_about_accounts#other" = "Connect {count} accounts with different mobile numbers";
 //
 

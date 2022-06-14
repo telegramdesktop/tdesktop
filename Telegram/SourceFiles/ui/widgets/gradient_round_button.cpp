@@ -81,6 +81,10 @@ void GradientButton::validateBg() {
 	_bg = Images::Round(std::move(_bg), ImageRoundRadius::Large);
 }
 
+void GradientButton::setGlarePaused(bool paused) {
+	_glare.paused = paused;
+}
+
 void GradientButton::validateGlare() {
 	if (anim::Disabled()) {
 		return;
@@ -88,7 +92,7 @@ void GradientButton::validateGlare() {
 	_glare.width = st::gradientButtonGlareWidth;
 	_glare.animation.init([=](crl::time now) {
 		if (const auto diff = (now - _glare.glare.deathTime); diff > 0) {
-			if (diff > st::gradientButtonGlareTimeout) {
+			if (diff > st::gradientButtonGlareTimeout && !_glare.paused) {
 				_glare.glare = Glare{
 					.birthTime = now,
 					.deathTime = now + st::gradientButtonGlareDuration,

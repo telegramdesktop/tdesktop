@@ -53,4 +53,9 @@ void ShowPremiumPreviewBox(
 	PremiumPreview section,
 	const base::flat_map<QString, ReactionDisableType> &disabled = {});
 
+void ShowPremiumPreviewToBuy(
+	not_null<Window::SessionController*> controller,
+	PremiumPreview section,
+	Fn<void()> hiddenCallback);
+
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);

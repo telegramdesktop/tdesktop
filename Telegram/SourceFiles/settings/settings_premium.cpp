@@ -178,49 +178,6 @@ using Order = std::vector<QString>;
 	};
 }
 
-[[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::RpWidget*> parent,
-		Fn<void()> callback) {
-	const auto result = Ui::CreateChild<Ui::GradientButton>(
-		parent.get(),
-		Ui::Premium::ButtonGradientStops());
-
-	result->setClickedCallback(std::move(callback));
-
-	const auto &st = st::premiumPreviewBox.button;
-	result->resize(parent->width(), st.height);
-
-	const auto premium = &controller->session().api().premium();
-	const auto computeCost = [=] {
-		const auto amount = premium->monthlyAmount();
-		const auto currency = premium->monthlyCurrency();
-		const auto valid = (amount > 0) && !currency.isEmpty();
-		return Ui::FillAmountAndCurrency(
-			valid ? amount : 500,
-			valid ? currency : "USD");
-	};
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		result,
-		tr::lng_premium_summary_button(
-			lt_cost,
-			premium->statusTextValue() | rpl::map(computeCost)),
-		st::premiumPreviewButtonLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(
-		result->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([=](int outer, int width) {
-		label->moveToLeft(
-			(outer - width) / 2,
-			st::premiumPreviewBox.button.textTop,
-			outer);
-	}, label->lifetime());
-
-	return result;
-}
-
 void SendAppLog(
 		not_null<Main::Session*> session,
 		const QString &type,
@@ -278,6 +235,7 @@ public:
 	MiniStars(Fn<void(const QRect &r)> updateCallback);
 
 	void paint(Painter &p, const QRectF &rect);
+	void setPaused(bool paused);
 
 private:
 	struct MiniStar {
@@ -317,6 +275,7 @@ private:
 	std::vector<MiniStar> _ministars;
 
 	crl::time _nextBirthTime = 0;
+	bool _paused = false;
 
 	QRect _rectToUpdate;
 
@@ -339,7 +298,7 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback)
 , _distanceProgressStart(0.5)
 , _sprite(u":/gui/icons/settings/starmini.svg"_q)
 , _animation([=](crl::time now) {
-	if (now > _nextBirthTime) {
+	if (now > _nextBirthTime && !_paused) {
 		createStar(now);
 		_nextBirthTime = now + randomInterval(_lifeLength);
 	}
@@ -423,6 +382,10 @@ void MiniStars::paint(Painter &p, const QRectF &rect) {
 	p.setOpacity(opacity);
 }
 
+void MiniStars::setPaused(bool paused) {
+	_paused = paused;
+}
+
 int MiniStars::angle() const {
 	const auto &interval = _availableAngles[
 		base::RandomIndex(_availableAngles.size())];
@@ -456,6 +419,7 @@ public:
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> about);
 
+	void setPaused(bool paused);
 	void setRoundEdges(bool value);
 	void setTextPosition(int x, int y);
 
@@ -523,6 +487,10 @@ TopBar::TopBar(
 	});
 }
 
+void TopBar::setPaused(bool paused) {
+	_ministars.setPaused(paused);
+}
+
 void TopBar::setRoundEdges(bool value) {
 	_roundEdges = value;
 	update();
@@ -578,17 +546,6 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	p.fillRect(e->rect(), Qt::transparent);
 
 	const auto r = rect();
-	auto pathTop = QPainterPath();
-	if (_roundEdges) {
-		pathTop.addRoundedRect(r, st::boxRadius, st::boxRadius);
-	} else {
-		pathTop.addRect(r);
-	}
-	auto pathBottom = QPainterPath();
-	pathBottom.addRect(
-		QRect(
-			QPoint(r.x(), r.y() + r.height() - st::boxRadius),
-			QSize(r.width(), st::boxRadius)));
 
 	const auto gradientPointTop = r.height() / 3. * 2.;
 	auto gradient = QLinearGradient(
@@ -599,7 +556,16 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	gradient.setColorAt(1., st::premiumButtonBg3->c);
 
 	PainterHighQualityEnabler hq(p);
-	p.fillPath(pathTop + pathBottom, gradient);
+	if (_roundEdges) {
+		const auto radius = st::boxRadius;
+		p.setBrush(gradient);
+		p.drawRoundedRect(
+			r + QMargins{ 0, 0, 0, radius + 1 },
+			radius,
+			radius);
+	} else {
+		p.fillRect(r, gradient);
+	}
 
 	p.setOpacity(_progress.body);
 	p.translate(_starRect.center());
@@ -663,10 +629,12 @@ private:
 	const not_null<Window::SessionController*> _controller;
 	const QString _ref;
 
+	QPointer<Ui::GradientButton> _subscribe;
 	base::unique_qptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	base::unique_qptr<Ui::IconButton> _close;
 	rpl::variable<bool> _backToggles;
 	rpl::variable<Info::Wrap> _wrap;
+	Fn<void(bool)> _setPaused;
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
@@ -791,21 +759,30 @@ void Premium::setupContent() {
 
 		const auto section = entry.section;
 		button->setClickedCallback([=, controller = _controller] {
+			_setPaused(true);
+			const auto hidden = crl::guard(this, [=] {
+				_setPaused(false);
+			});
+
 			if (section) {
-				ShowPremiumPreviewBox(controller, *section);
+				ShowPremiumPreviewToBuy(controller, *section, hidden);
 				return;
 			}
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				DoubledLimitsPreviewBox(box, &controller->session());
 
-				auto callback = [=] {
-					SendScreenAccept(controller);
-					StartPremiumPayment(controller, _ref);
-				};
 				const auto button = CreateSubscribeButton(
 					controller,
 					box,
-					std::move(callback));
+					[] { return u"double_limits"_q; });
+
+				box->boxClosing(
+				) | rpl::start_with_next(hidden, box->lifetime());
+
+				box->setShowFinishedCallback([=] {
+					button->startGlareAnimation();
+				});
+
 				box->setStyle(st::premiumPreviewDoubledLimitsBox);
 				box->widthValue(
 				) | rpl::start_with_next([=](int width) {
@@ -925,6 +902,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		_controller,
 		std::move(title),
 		std::move(about));
+	_setPaused = [=](bool paused) {
+		content->setPaused(paused);
+		_subscribe->setGlarePaused(paused);
+	};
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
@@ -988,25 +969,24 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	const auto button = CreateSubscribeButton(_controller, content, [=] {
-		SendScreenAccept(_controller);
-		StartPremiumPayment(_controller, _ref);
+	_subscribe = CreateSubscribeButton(_controller, content, [=] {
+		return _ref;
 	});
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
-		button->startGlareAnimation();
-	}, button->lifetime());
+		_subscribe->startGlareAnimation();
+	}, _subscribe->lifetime());
 
 	content->widthValue(
 	) | rpl::start_with_next([=](int width) {
 		const auto padding = st::settingsPremiumButtonPadding;
-		button->resizeToWidth(width - padding.left() - padding.right());
-	}, button->lifetime());
+		_subscribe->resizeToWidth(width - padding.left() - padding.right());
+	}, _subscribe->lifetime());
 
 	const auto session = &_controller->session();
 	rpl::combine(
-		button->heightValue(),
+		_subscribe->heightValue(),
 		Data::AmPremiumValue(session),
 		session->premiumPossibleValue()
 	) | rpl::start_with_next([=](
@@ -1020,9 +1000,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			? (padding.top() + buttonHeight + padding.bottom())
 			: 0;
 		content->resize(content->width(), finalHeight);
-		button->moveToLeft(padding.left(), padding.top());
-		button->setVisible(!premium && premiumPossible);
-	}, button->lifetime());
+		_subscribe->moveToLeft(padding.left(), padding.top());
+		_subscribe->setVisible(!premium && premiumPossible);
+	}, _subscribe->lifetime());
 
 	return Ui::MakeWeak(not_null<Ui::RpWidget*>{ content });
 }
@@ -1080,6 +1060,62 @@ void StartPremiumPayment(
 	} else if (!slug.isEmpty()) {
 		UrlClickHandler::Open("https://t.me/$" + slug);
 	}
+}
+
+QString LookupPremiumRef(PremiumPreview section) {
+	for (const auto &[ref, entry] : EntryMap()) {
+		if (entry.section == section) {
+			return ref;
+		}
+	}
+	return QString();
+}
+
+not_null<Ui::GradientButton*> CreateSubscribeButton(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::RpWidget*> parent,
+		Fn<QString()> computeRef) {
+	const auto result = Ui::CreateChild<Ui::GradientButton>(
+		parent.get(),
+		Ui::Premium::ButtonGradientStops());
+
+	result->setClickedCallback([=] {
+		SendScreenAccept(controller);
+		StartPremiumPayment(controller, computeRef());
+	});
+
+	const auto &st = st::premiumPreviewBox.button;
+	result->resize(parent->width(), st.height);
+
+	const auto premium = &controller->session().api().premium();
+	premium->reload();
+	const auto computeCost = [=] {
+		const auto amount = premium->monthlyAmount();
+		const auto currency = premium->monthlyCurrency();
+		const auto valid = (amount > 0) && !currency.isEmpty();
+		return Ui::FillAmountAndCurrency(
+			valid ? amount : 500,
+			valid ? currency : "USD");
+	};
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		result,
+		tr::lng_premium_summary_button(
+			lt_cost,
+			premium->statusTextValue() | rpl::map(computeCost)),
+		st::premiumPreviewButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		result->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=](int outer, int width) {
+		label->moveToLeft(
+			(outer - width) / 2,
+			st::premiumPreviewBox.button.textTop,
+			outer);
+	}, label->lifetime());
+
+	return result;
 }
 
 } // namespace Settings

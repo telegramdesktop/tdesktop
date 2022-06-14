@@ -61,12 +61,15 @@ struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
 	DocumentData *requestedSticker = nullptr;
 	base::flat_map<QString, ReactionDisableType> disabled;
+	bool fromSettings = false;
+	Fn<void()> hiddenCallback;
 };
 
 bool operator==(const Descriptor &a, const Descriptor &b) {
 	return (a.section == b.section)
 		&& (a.requestedSticker == b.requestedSticker)
-		&& (a.disabled == b.disabled);
+		&& (a.disabled == b.disabled)
+		&& (a.fromSettings == b.fromSettings);
 }
 
 bool operator!=(const Descriptor &a, const Descriptor &b) {
@@ -1146,27 +1149,27 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	}
 }
 
-[[nodiscard]] object_ptr<Ui::AbstractButton> CreateGradientButton(
+[[nodiscard]] object_ptr<Ui::GradientButton> CreateGradientButton(
 		QWidget *parent,
 		QGradientStops stops) {
 	return object_ptr<Ui::GradientButton>(parent, std::move(stops));
 }
 
-[[nodiscard]] object_ptr<Ui::AbstractButton> CreatePremiumButton(
+[[nodiscard]] object_ptr<Ui::GradientButton> CreatePremiumButton(
 		QWidget *parent) {
 	return CreateGradientButton(parent, Ui::Premium::ButtonGradientStops());
 }
 
-[[nodiscard]] object_ptr<Ui::AbstractButton> CreateUnlockButton(
+[[nodiscard]] object_ptr<Ui::GradientButton> CreateUnlockButton(
 		QWidget *parent,
-		int width) {
+		rpl::producer<QString> text) {
 	auto result = CreatePremiumButton(parent);
 	const auto &st = st::premiumPreviewBox.button;
-	result->resize(width, st.height);
+	result->resize(result->width(), st.height);
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		result.data(),
-		tr::lng_premium_more_about(),
+		std::move(text),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
@@ -1250,6 +1253,8 @@ void PreviewBox(
 		bool stickersPreloadReady = false;
 		Ui::RpWidget *reactionsPreload = nullptr;
 		bool reactionsPreloadReady = false;
+		bool preloadScheduled = false;
+		bool showFinished = false;
 		Ui::Animations::Simple animation;
 		Fn<void()> preload;
 		std::vector<Hiding> hiding;
@@ -1259,6 +1264,10 @@ void PreviewBox(
 	state->selected = descriptor.section;
 
 	state->preload = [=] {
+		if (!state->showFinished) {
+			state->preloadScheduled = true;
+			return;
+		}
 		const auto now = state->selected.current();
 		if (now != PremiumPreview::Stickers && !state->stickersPreload) {
 			const auto ready = [=] {
@@ -1294,12 +1303,17 @@ void PreviewBox(
 
 	switch (descriptor.section) {
 	case PremiumPreview::Stickers:
-		Assert(media != nullptr);
-		state->content = StickerPreview(
-			outer,
-			controller,
-			media,
-			state->preload);
+		state->content = media
+			? StickerPreview(
+				outer,
+				controller,
+				media,
+				state->preload)
+			: GenericPreview(
+				outer,
+				controller,
+				descriptor.section,
+				state->preload);
 		break;
 	case PremiumPreview::Reactions:
 		state->content = ReactionsPreview(
@@ -1428,11 +1442,39 @@ void PreviewBox(
 	const auto width = size.width()
 		- buttonPadding.left()
 		- buttonPadding.right();
-	auto button = CreateUnlockButton(box, width);
+	const auto computeRef = [=] {
+		return Settings::LookupPremiumRef(state->selected.current());
+	};
+	auto unlock = state->selected.value(
+	) | rpl::map([=](PremiumPreview section) {
+		return (section == PremiumPreview::Reactions)
+			? tr::lng_premium_unlock_reactions()
+			: (section == PremiumPreview::Stickers)
+			? tr::lng_premium_unlock_stickers()
+			: tr::lng_premium_more_about();
+	}) | rpl::flatten_latest();
+	auto button = descriptor.fromSettings
+		? object_ptr<Ui::GradientButton>::fromRaw(
+			Settings::CreateSubscribeButton(controller, box, computeRef))
+		: CreateUnlockButton(box, std::move(unlock));
+	button->resizeToWidth(width);
 	button->setClickedCallback([=] {
-		Settings::ShowPremium(controller, "premium_stickers");
+		Settings::ShowPremium(
+			controller,
+			Settings::LookupPremiumRef(state->selected.current()));
+	});
+	box->setShowFinishedCallback([=, raw = button.data()] {
+		state->showFinished = true;
+		if (base::take(state->preloadScheduled)) {
+			state->preload();
+		}
+		raw->startGlareAnimation();
 	});
 	box->addButton(std::move(button));
+
+	if (const auto &hidden = descriptor.hiddenCallback) {
+		box->boxClosing() | rpl::start_with_next(hidden, box->lifetime());
+	}
 }
 
 void Show(
@@ -1570,6 +1612,17 @@ void ShowPremiumPreviewBox(
 	Show(controller, Descriptor{
 		.section = section,
 		.disabled = disabled,
+	});
+}
+
+void ShowPremiumPreviewToBuy(
+		not_null<Window::SessionController*> controller,
+		PremiumPreview section,
+		Fn<void()> hiddenCallback) {
+	Show(controller, Descriptor{
+		.section = section,
+		.fromSettings = true,
+		.hiddenCallback = std::move(hiddenCallback),
 	});
 }
 
@@ -1744,15 +1797,19 @@ void DoubledLimitsPreviewBox(
 			premium,
 		});
 	}
+	const auto now = session->domain().accounts().size();
+	const auto till = (now + 1 >= Main::Domain::kPremiumMaxAccounts)
+		? QString::number(Main::Domain::kPremiumMaxAccounts)
+		: (QString::number(now + 1) + QChar('+'));
 	entries.push_back(Ui::Premium::ListEntry{
 		tr::lng_premium_double_limits_subtitle_accounts(),
 		tr::lng_premium_double_limits_about_accounts(
 			lt_count,
-			rpl::single(float64(Main::Domain::kMaxAccounts)),
+			rpl::single(float64(Main::Domain::kPremiumMaxAccounts)),
 			Ui::Text::RichLangValue),
 		Main::Domain::kMaxAccounts,
 		Main::Domain::kPremiumMaxAccounts,
-		QString::number(Main::Domain::kMaxAccounts + 1) + QChar('+'),
+		till,
 	});
 	Ui::Premium::ShowListBox(box, std::move(entries));
 }

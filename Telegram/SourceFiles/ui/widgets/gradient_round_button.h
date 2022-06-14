@@ -16,6 +16,7 @@ public:
 	GradientButton(QWidget *widget, QGradientStops stops);
 
 	void startGlareAnimation();
+	void setGlarePaused(bool paused);
 
 private:
 	void paintEvent(QPaintEvent *e);
@@ -35,7 +36,8 @@ private:
 		Ui::Animations::Basic animation;
 		Glare glare;
 		QPixmap pixmap;
-		int width;
+		int width = 0;
+		bool paused = false;
 	} _glare;
 
 };

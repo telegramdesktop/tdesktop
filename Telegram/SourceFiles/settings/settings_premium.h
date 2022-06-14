@@ -9,6 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_type.h"
 
+enum class PremiumPreview;
+
+namespace Ui {
+class RpWidget;
+class GradientButton;
+} // namespace Ui
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -29,6 +36,14 @@ void ShowPremium(
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,
 	const QString &ref);
+
+[[nodiscard]] QString LookupPremiumRef(PremiumPreview section);
+
+[[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
+	not_null<Window::SessionController*> controller,
+	not_null<Ui::RpWidget*> parent,
+	Fn<QString()> computeRef);
+
 
 } // namespace Settings
 
