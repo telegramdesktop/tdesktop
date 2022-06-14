@@ -568,6 +568,7 @@ RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT} \
 		-no-feature-xcb-sm \
 		-no-feature-egl-extension-platform-wayland \
 		-no-feature-highdpiscaling \
+		-no-feature-wayland-server \
 		-static \
 		-dbus-runtime \
 		-openssl-linked \
