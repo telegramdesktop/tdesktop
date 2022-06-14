@@ -344,9 +344,9 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_3_0
+      QT=6_3_1
 
-      git clone -b v6.3.0 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.3.1 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase

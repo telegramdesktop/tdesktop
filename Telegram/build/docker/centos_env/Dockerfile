@@ -4,9 +4,9 @@ FROM centos:7 AS builder
 ENV GIT https://github.com
 ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
-ENV QT 6_3_0
-ENV QT_TAG v6.3.0
-ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.0
+ENV QT 6_3_1
+ENV QT_TAG v6.3.1
+ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.1
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 ENV OPENSSL_ROOT_DIR ${OPENSSL_PREFIX}
@@ -47,7 +47,7 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 3be70fc6b5 \
+	&& git checkout 4a5c759f8f \
 	&& rm -rf .git
 
 FROM builder AS libffi
