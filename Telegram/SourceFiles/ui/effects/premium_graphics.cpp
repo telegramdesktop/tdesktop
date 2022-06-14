@@ -454,6 +454,7 @@ public:
 		int max,
 		TextFactory textFactory,
 		int min);
+	Line(not_null<Ui::RpWidget*> parent, QString max, QString min);
 
 	void setColorOverride(QBrush brush);
 
@@ -483,11 +484,18 @@ Line::Line(
 	int max,
 	TextFactory textFactory,
 	int min)
+: Line(
+	parent,
+	max ? textFactory(max) : QString(),
+	min ? textFactory(min) : QString()) {
+}
+
+Line::Line(not_null<Ui::RpWidget*> parent, QString max, QString min)
 : Ui::RpWidget(parent)
 , _leftText(st::semiboldTextStyle, tr::lng_premium_free(tr::now))
 , _rightText(st::semiboldTextStyle, tr::lng_premium(tr::now))
-, _rightLabel(st::semiboldTextStyle, max ? textFactory(max) : QString())
-, _leftLabel(st::semiboldTextStyle, min ? textFactory(min) : QString()) {
+, _rightLabel(st::semiboldTextStyle, max)
+, _leftLabel(st::semiboldTextStyle, min) {
 	resize(width(), st::requestsAcceptButton.height);
 
 	sizeValue(
@@ -628,12 +636,21 @@ void AddBubbleRow(
 
 void AddLimitRow(
 		not_null<Ui::VerticalLayout*> parent,
+		QString max,
+		QString min) {
+	parent->add(object_ptr<Line>(parent, max, min), st::boxRowPadding);
+}
+
+void AddLimitRow(
+		not_null<Ui::VerticalLayout*> parent,
 		int max,
 		std::optional<tr::phrase<lngtag_count>> phrase,
 		int min) {
-	parent->add(
-		object_ptr<Line>(parent, max, ProcessTextFactory(phrase), min),
-		st::boxRowPadding);
+	const auto factory = ProcessTextFactory(phrase);
+	AddLimitRow(
+		parent,
+		max ? factory(max) : QString(),
+		min ? factory(min) : QString());
 }
 
 void AddAccountsRow(

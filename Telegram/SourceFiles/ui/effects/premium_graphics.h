@@ -41,6 +41,11 @@ void AddBubbleRow(
 
 void AddLimitRow(
 	not_null<Ui::VerticalLayout*> parent,
+	QString max,
+	QString min = {});
+
+void AddLimitRow(
+	not_null<Ui::VerticalLayout*> parent,
 	int max,
 	std::optional<tr::phrase<lngtag_count>> phrase,
 	int min = 0);

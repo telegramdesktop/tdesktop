@@ -977,13 +977,21 @@ void AccountsLimitBox(
 		BoxShowFinishes(box),
 		0,
 		current,
-		(current > defaultLimit) ? current : (defaultLimit * 2),
+		(!premiumPossible
+			? (current * 2)
+			: (current > defaultLimit)
+			? (current + 1)
+			: (defaultLimit * 2)),
 		premiumPossible,
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
 	if (premiumPossible) {
-		Ui::Premium::AddLimitRow(top, 0, std::nullopt, defaultLimit);
+		Ui::Premium::AddLimitRow(
+			top,
+			(QString::number(std::max(current, defaultLimit) + 1)
+				+ ((current + 1 == premiumLimit) ? "" : "+")),
+			QString::number(defaultLimit));
 		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
 	}
 	box->setTitle(tr::lng_accounts_limit_title());
