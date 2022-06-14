@@ -29,11 +29,17 @@ ChatBotCommands::Changed ChatBotCommands::update(
 
 BotCommands BotCommandsFromTL(const MTPBotInfo &result) {
 	return result.match([](const MTPDbotInfo &data) {
+		const auto userId = data.vuser_id()
+			? UserId(*data.vuser_id())
+			: UserId();
+		if (!data.vcommands()) {
+			return BotCommands{ .userId = userId };
+		}
 		auto commands = ranges::views::all(
-			data.vcommands().v
+			data.vcommands()->v
 		) | ranges::views::transform(BotCommandFromTL) | ranges::to_vector;
 		return BotCommands{
-			.userId = UserId(data.vuser_id().v),
+			.userId = userId,
 			.commands = std::move(commands),
 		};
 	});

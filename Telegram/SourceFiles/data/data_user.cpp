@@ -137,11 +137,13 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
 
-		auto commands = ranges::views::all(
-			d.vcommands().v
-		) | ranges::views::transform(
-			Data::BotCommandFromTL
-		) | ranges::to_vector;
+		auto commands = d.vcommands()
+			? ranges::views::all(
+				d.vcommands()->v
+			) | ranges::views::transform(
+				Data::BotCommandFromTL
+			) | ranges::to_vector
+			: std::vector<Data::BotCommand>();
 		const auto changedCommands = !ranges::equal(
 			botInfo->commands,
 			commands);
