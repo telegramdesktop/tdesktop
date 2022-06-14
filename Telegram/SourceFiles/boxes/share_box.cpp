@@ -1270,7 +1270,7 @@ void FastShareMessage(
 		}
 		if (item->hasDirectLink()) {
 			using namespace HistoryView;
-			CopyPostLink(session, item->fullId(), Context::History);
+			CopyPostLink(controller, item->fullId(), Context::History);
 		} else if (const auto bot = item->getMessageBot()) {
 			if (const auto media = item->media()) {
 				if (const auto game = media->game()) {

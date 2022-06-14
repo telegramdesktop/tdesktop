@@ -325,11 +325,12 @@ void AddPostLinkAction(
 	const auto context = request.view
 		? request.view->context()
 		: Context::History;
+	const auto controller = request.navigation->parentController();
 	menu->addAction(
 		(item->history()->peer->isMegagroup()
 			? tr::lng_context_copy_message_link
 			: tr::lng_context_copy_post_link)(tr::now),
-		[=] { CopyPostLink(session, itemId, context); },
+		[=] { CopyPostLink(controller, itemId, context); },
 		&st::menuIconLink);
 }
 
@@ -1007,10 +1008,10 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 }
 
 void CopyPostLink(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		FullMsgId itemId,
 		Context context) {
-	const auto item = session->data().message(itemId);
+	const auto item = controller->session().data().message(itemId);
 	if (!item || !item->hasDirectLink()) {
 		return;
 	}
@@ -1037,9 +1038,11 @@ void CopyPostLink(
 		return channel->hasUsername();
 	}();
 
-	Ui::Toast::Show(isPublicLink
-		? tr::lng_channel_public_link_copied(tr::now)
-		: tr::lng_context_about_private_link(tr::now));
+	Ui::Toast::Show(
+		Window::Show(controller).toastParent(),
+		isPublicLink
+			? tr::lng_channel_public_link_copied(tr::now)
+			: tr::lng_context_about_private_link(tr::now));
 }
 
 void AddPollActions(
