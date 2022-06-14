@@ -558,6 +558,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	PainterHighQualityEnabler hq(p);
 	if (_roundEdges) {
 		const auto radius = st::boxRadius;
+		p.setPen(Qt::NoPen);
 		p.setBrush(gradient);
 		p.drawRoundedRect(
 			r + QMargins{ 0, 0, 0, radius + 1 },
