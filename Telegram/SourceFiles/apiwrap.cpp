@@ -1630,9 +1630,6 @@ void ApiWrap::saveStickerSets(
 }
 
 void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
-	Ui::show(Box(ChannelsLimitBox, _session));
-	AssertIsDebug();
-	return;
 	if (channel->amIn()) {
 		session().changes().peerUpdated(
 			channel,
