@@ -49,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
 #include "base/random.h"
+#include "styles/style_dialogs.h" // dialogsPremiumIcon
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
@@ -61,6 +62,116 @@ namespace Settings {
 namespace {
 
 constexpr auto kSaveBioTimeout = 1000;
+
+class ComposedBadge final : public Ui::RpWidget {
+public:
+	ComposedBadge(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Ui::SettingsButton*> button,
+		not_null<Main::Session*> session,
+		rpl::producer<QString> &&text,
+		bool hasUnread);
+
+private:
+	rpl::variable<QString> _text;
+	rpl::event_stream<int> _unreadWidth;
+	rpl::event_stream<int> _premiumWidth;
+
+	QPointer<Ui::RpWidget> _unread;
+	QPointer<Ui::RpWidget> _premium;
+
+};
+
+ComposedBadge::ComposedBadge(
+	not_null<Ui::RpWidget*> parent,
+	not_null<Ui::SettingsButton*> button,
+	not_null<Main::Session*> session,
+	rpl::producer<QString> &&text,
+	bool hasUnread)
+: Ui::RpWidget(parent)
+, _text(std::move(text)) {
+	if (hasUnread) {
+		_unread = CreateUnread(this, rpl::single(
+			rpl::empty
+		) | rpl::then(
+			session->data().unreadBadgeChanges()
+		) | rpl::map([=] {
+			auto &owner = session->data();
+			return Badge::UnreadBadge{
+				owner.unreadBadge(),
+				owner.unreadBadgeMuted(),
+			};
+		}));
+		rpl::combine(
+			_unread->shownValue(),
+			_unread->widthValue()
+		) | rpl::map([=](bool shown, int width) {
+			return shown ? width : 0;
+		}) | rpl::start_to_stream(_unreadWidth, _unread->lifetime());
+	}
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool hasPremium) {
+		if (hasPremium && !_premium) {
+			_premium = Ui::CreateChild<Ui::RpWidget>(this);
+			const auto offset = st::dialogsPremiumIconOffset;
+			_premium->resize(
+				st::dialogsPremiumIcon.width() - offset.x(),
+				st::dialogsPremiumIcon.height() - offset.y());
+			_premium->paintRequest(
+			) | rpl::start_with_next([=](const QRect &r) {
+				Painter p(_premium);
+				st::dialogsPremiumIcon.paint(
+					p,
+					-offset.x(),
+					-offset.y(),
+					_premium->width());
+			}, _premium->lifetime());
+			_premium->widthValue(
+			) | rpl::start_to_stream(_premiumWidth, _premium->lifetime());
+		} else if (!hasPremium && _premium) {
+			_premium = nullptr;
+			_premiumWidth.fire(0);
+		}
+	}, lifetime());
+
+	rpl::combine(
+		_unreadWidth.events_starting_with(_unread ? _unread->width() : 0),
+		_premiumWidth.events_starting_with(_premium ? _premium->width() : 0),
+		_text.value(),
+		button->sizeValue()
+	) | rpl::start_with_next([=](
+			int unreadWidth,
+			int premiumWidth,
+			const QString &text,
+			const QSize &buttonSize) {
+		const auto &st = button->st();
+		const auto skip = st.style.font->spacew;
+		const auto textRightPosition = st.padding.left()
+			+ st.style.font->width(text)
+			+ skip * 2;
+		const auto minWidth = unreadWidth + premiumWidth + skip;
+		const auto maxTextWidth = buttonSize.width()
+			- minWidth
+			- st.padding.right();
+
+		const auto finalTextRight = std::min(textRightPosition, maxTextWidth);
+
+		resize(
+			buttonSize.width() - st.padding.right() - finalTextRight,
+			buttonSize.height());
+
+		if (_premium) {
+			_premium->moveToLeft(0, st.padding.top());
+		}
+		if (_unread) {
+			_unread->moveToRight(
+				0,
+				(buttonSize.height() - _unread->height()) / 2);
+		}
+	}, lifetime());
+}
 
 class AccountsList final {
 public:
@@ -500,9 +611,23 @@ void SetupAccountsWrap(
 	}));
 	auto result = object_ptr<Ui::SettingsButton>(
 		parent,
-		std::move(text),
+		rpl::duplicate(text),
 		st::mainMenuAddAccountButton);
 	const auto raw = result.data();
+
+	{
+		const auto container = Badge::AddRight(raw);
+		const auto composedBadge = Ui::CreateChild<ComposedBadge>(
+			container.get(),
+			raw,
+			session,
+			std::move(text),
+			!active);
+		composedBadge->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			container->resize(s);
+		}, container->lifetime());
+	}
 
 	struct State {
 		State(QWidget *parent) : userpic(parent) {
@@ -514,18 +639,6 @@ void SetupAccountsWrap(
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
 	const auto state = raw->lifetime().make_state<State>(raw);
-
-	if (!active) {
-		Badge::AddUnread(raw, rpl::single(rpl::empty) | rpl::then(
-			session->data().unreadBadgeChanges()
-		) | rpl::map([=] {
-			auto &owner = session->data();
-			return Badge::UnreadBadge{
-				owner.unreadBadge(),
-				owner.unreadBadgeMuted(),
-			};
-		}));
-	}
 
 	const auto userpicSkip = 2 * st::mainMenuAccountLine + st::lineWidth;
 	const auto userpicSize = st::mainMenuAccountSize
@@ -882,6 +995,7 @@ not_null<Ui::RpWidget*> AddRight(
 				+ button->st().style.font->spacew);
 		}
 		button->setPaddingOverride(padding);
+		button->update();
 	}, widget->lifetime());
 
 	return widget;
