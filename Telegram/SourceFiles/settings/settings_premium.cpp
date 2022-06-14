@@ -770,31 +770,39 @@ void Premium::setupContent() {
 			}
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				DoubledLimitsPreviewBox(box, &controller->session());
-
-				const auto button = CreateSubscribeButton(
-					controller,
-					box,
-					[] { return u"double_limits"_q; });
-
-				box->boxClosing(
-				) | rpl::start_with_next(hidden, box->lifetime());
-
-				box->setShowFinishedCallback([=] {
-					button->startGlareAnimation();
+				box->addTopButton(st::boxTitleClose, [=] {
+					box->closeBox();
 				});
+				if (controller->session().premium()) {
+					box->addButton(tr::lng_close(), [=] {
+						box->closeBox();
+					});
+				} else {
+					const auto button = CreateSubscribeButton(
+						controller,
+						box,
+						[] { return u"double_limits"_q; });
 
-				box->setStyle(st::premiumPreviewDoubledLimitsBox);
-				box->widthValue(
-				) | rpl::start_with_next([=](int width) {
-					const auto &padding =
-						st::premiumPreviewDoubledLimitsBox.buttonPadding;
-					button->resizeToWidth(width
-						- padding.left()
-						- padding.right());
-					button->moveToLeft(padding.left(), padding.top());
-				}, button->lifetime());
-				box->addButton(
-					object_ptr<Ui::AbstractButton>::fromRaw(button));
+					box->boxClosing(
+					) | rpl::start_with_next(hidden, box->lifetime());
+
+					box->setShowFinishedCallback([=] {
+						button->startGlareAnimation();
+					});
+
+					box->setStyle(st::premiumPreviewDoubledLimitsBox);
+					box->widthValue(
+					) | rpl::start_with_next([=](int width) {
+						const auto &padding =
+							st::premiumPreviewDoubledLimitsBox.buttonPadding;
+						button->resizeToWidth(width
+							- padding.left()
+							- padding.right());
+						button->moveToLeft(padding.left(), padding.top());
+					}, button->lifetime());
+					box->addButton(
+						object_ptr<Ui::AbstractButton>::fromRaw(button));
+				}
 			}));
 		});
 

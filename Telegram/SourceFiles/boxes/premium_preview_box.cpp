@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_document_media.h"
 #include "data/data_streaming.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/main_domain.h" // kMaxAccounts
@@ -42,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_settings.h"
 
 #include <QSvgRenderer>
 
@@ -1241,6 +1243,15 @@ void PreviewBox(
 	const auto outer = box->addRow(
 		ChatBackPreview(box, size.height(), back),
 		{});
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		box->verticalLayout().get(),
+		st::settingsPremiumTopBarClose);
+	box->verticalLayout()->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		close->moveToRight(0, 0, width);
+	}, close->lifetime());
+	close->setClickedCallback([=] { box->closeBox(); });
+
 	struct Hiding {
 		not_null<Ui::RpWidget*> widget;
 		int leftFrom = 0;
@@ -1304,16 +1315,8 @@ void PreviewBox(
 	switch (descriptor.section) {
 	case PremiumPreview::Stickers:
 		state->content = media
-			? StickerPreview(
-				outer,
-				controller,
-				media,
-				state->preload)
-			: GenericPreview(
-				outer,
-				controller,
-				descriptor.section,
-				state->preload);
+			? StickerPreview(outer, controller, media, state->preload)
+			: StickersPreview(outer, controller, state->preload);
 		break;
 	case PremiumPreview::Reactions:
 		state->content = ReactionsPreview(
@@ -1437,40 +1440,52 @@ void PreviewBox(
 	box->addRow(
 		CreateSwitch(box->verticalLayout(), &state->selected),
 		st::premiumDotsMargin);
-	box->setStyle(st::premiumPreviewBox);
-	const auto buttonPadding = st::premiumPreviewBox.buttonPadding;
-	const auto width = size.width()
-		- buttonPadding.left()
-		- buttonPadding.right();
-	const auto computeRef = [=] {
-		return Settings::LookupPremiumRef(state->selected.current());
-	};
-	auto unlock = state->selected.value(
-	) | rpl::map([=](PremiumPreview section) {
-		return (section == PremiumPreview::Reactions)
-			? tr::lng_premium_unlock_reactions()
-			: (section == PremiumPreview::Stickers)
-			? tr::lng_premium_unlock_stickers()
-			: tr::lng_premium_more_about();
-	}) | rpl::flatten_latest();
-	auto button = descriptor.fromSettings
-		? object_ptr<Ui::GradientButton>::fromRaw(
-			Settings::CreateSubscribeButton(controller, box, computeRef))
-		: CreateUnlockButton(box, std::move(unlock));
-	button->resizeToWidth(width);
-	button->setClickedCallback([=] {
-		Settings::ShowPremium(
-			controller,
-			Settings::LookupPremiumRef(state->selected.current()));
-	});
-	box->setShowFinishedCallback([=, raw = button.data()] {
-		state->showFinished = true;
-		if (base::take(state->preloadScheduled)) {
-			state->preload();
-		}
-		raw->startGlareAnimation();
-	});
-	box->addButton(std::move(button));
+	if (descriptor.fromSettings && controller->session().premium()) {
+		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
+	} else {
+		box->setStyle(st::premiumPreviewBox);
+		const auto buttonPadding = st::premiumPreviewBox.buttonPadding;
+		const auto width = size.width()
+			- buttonPadding.left()
+			- buttonPadding.right();
+		const auto computeRef = [=] {
+			return Settings::LookupPremiumRef(state->selected.current());
+		};
+		auto unlock = state->selected.value(
+		) | rpl::map([=](PremiumPreview section) {
+			return (section == PremiumPreview::Reactions)
+				? tr::lng_premium_unlock_reactions()
+				: (section == PremiumPreview::Stickers)
+				? tr::lng_premium_unlock_stickers()
+				: tr::lng_premium_more_about();
+		}) | rpl::flatten_latest();
+		auto button = descriptor.fromSettings
+			? object_ptr<Ui::GradientButton>::fromRaw(
+				Settings::CreateSubscribeButton(controller, box, computeRef))
+			: CreateUnlockButton(box, std::move(unlock));
+		button->resizeToWidth(width);
+		button->setClickedCallback([=] {
+			Settings::ShowPremium(
+				controller,
+				Settings::LookupPremiumRef(state->selected.current()));
+		});
+		box->setShowFinishedCallback([=, raw = button.data()] {
+			state->showFinished = true;
+			if (base::take(state->preloadScheduled)) {
+				state->preload();
+			}
+			raw->startGlareAnimation();
+		});
+		box->addButton(std::move(button));
+	}
+
+	if (descriptor.fromSettings) {
+		Data::AmPremiumValue(
+			&controller->session()
+		) | rpl::skip(1) | rpl::start_with_next([=](bool premium) {
+			box->closeBox();
+		}, box->lifetime());
+	}
 
 	if (const auto &hidden = descriptor.hiddenCallback) {
 		box->boxClosing() | rpl::start_with_next(hidden, box->lifetime());
