@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_chat_filters.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue
 #include "lang/lang_keys.h"
 #include "lang/lang_instance.h"
 #include "storage/localstorage.h"
@@ -89,6 +90,7 @@ private:
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _phone = { nullptr };
 	object_ptr<Ui::FlatLabel> _username = { nullptr };
+	object_ptr<Ui::RpWidget> _badge = { nullptr };
 
 };
 
@@ -130,6 +132,24 @@ Cover::Cover(
 			_user,
 			_userpic->takeResultImage());
 	}, _userpic->lifetime());
+
+	Data::AmPremiumValue(
+		&controller->session()
+	) | rpl::start_with_next([=](bool hasPremium) {
+		if (hasPremium && !_badge) {
+			const auto icon = &st::infoPremiumStar;
+			_badge.create(this);
+			_badge->show();
+			_badge->resize(icon->size());
+			_badge->paintRequest(
+			) | rpl::start_with_next([icon, check = _badge.data()] {
+				Painter p(check);
+				icon->paint(p, 0, 0, check->width());
+			}, _badge->lifetime());
+		} else if (!hasPremium && _badge) {
+			_badge.destroy();
+		}
+	}, lifetime());
 }
 
 Cover::~Cover() = default;
@@ -188,9 +208,19 @@ void Cover::initViewers() {
 void Cover::refreshNameGeometry(int newWidth) {
 	const auto nameLeft = st::settingsNameLeft;
 	const auto nameTop = st::settingsNameTop;
-	const auto nameWidth = newWidth - nameLeft - st::infoProfileNameRight;
+	const auto nameWidth = newWidth
+		- nameLeft
+		- st::infoProfileNameRight
+		- (!_badge ? 0 : _badge->width() + st::infoVerifiedCheckPosition.x());
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
+
+	if (_badge) {
+		const auto &pos = st::infoVerifiedCheckPosition;
+		const auto badgeLeft = nameLeft + _name->width() + pos.x();
+		const auto badgeTop = nameTop + pos.y();
+		_badge->moveToLeft(badgeLeft, badgeTop, newWidth);
+	}
 }
 
 void Cover::refreshPhoneGeometry(int newWidth) {
