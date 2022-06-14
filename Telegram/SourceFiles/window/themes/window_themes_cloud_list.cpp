@@ -592,7 +592,8 @@ void CloudList::showMenu(Element &element) {
 		_contextMenu->addAction(tr::lng_theme_share(tr::now), [=] {
 			QGuiApplication::clipboard()->setText(
 				_window->session().createInternalLinkFull("addtheme/" + slug));
-			Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
+			_window->window().showToast(
+				tr::lng_background_link_copied(tr::now));
 		}, &st::menuIconShare);
 	}
 	if (cloud.documentId

@@ -297,10 +297,12 @@ void TogglePinnedDialog(
 
 	// This can happen when you remove this filter from another client.
 	if (!ranges::contains(
-		(&owner->session())->data().chatsFilters().list(),
-		filterId,
-		&Data::ChatFilter::id)) {
-		Ui::Toast::Show(tr::lng_cant_do_this(tr::now));
+			(&owner->session())->data().chatsFilters().list(),
+			filterId,
+			&Data::ChatFilter::id)) {
+		Ui::Toast::Show(
+			Window::Show(controller).toastParent(),
+			tr::lng_cant_do_this(tr::now));
 		return;
 	}
 
@@ -601,6 +603,7 @@ void Filler::addViewDiscussion() {
 	_addAction(tr::lng_profile_view_discussion(tr::now), [=] {
 		if (channel->invitePeekExpires()) {
 			Ui::Toast::Show(
+				Window::Show(navigation).toastParent(),
 				tr::lng_channel_invite_private(tr::now));
 			return;
 		}
@@ -895,12 +898,14 @@ void Filler::fillArchiveActions() {
 	}, hidden ? &st::menuIconExpand : &st::menuIconCollapse);
 
 	_addAction(tr::lng_context_archive_to_menu(tr::now), [=] {
-		Ui::Toast::Show(Ui::Toast::Config{
-			.text = { tr::lng_context_archive_to_menu_info(tr::now) },
-			.st = &st::windowArchiveToast,
-			.durationMs = kArchivedToastDuration,
-			.multiline = true,
-		});
+		Ui::Toast::Show(
+			Window::Show(controller).toastParent(),
+			Ui::Toast::Config{
+				.text = { tr::lng_context_archive_to_menu_info(tr::now) },
+				.st = &st::windowArchiveToast,
+				.durationMs = kArchivedToastDuration,
+				.multiline = true,
+			});
 
 		controller->session().settings().setArchiveInMainMenu(
 			!controller->session().settings().archiveInMainMenu());
@@ -959,7 +964,7 @@ void PeerMenuShareContactBox(
 			action.clearDraft = false;
 			user->session().api().shareContact(user, action);
 			Ui::Toast::Show(
-				navigation->parentController()->widget()->bodyWidget(),
+				Window::Show(navigation).toastParent(),
 				tr::lng_share_done(tr::now));
 			if (auto strong = *weak) {
 				strong->closeBox();
@@ -1152,6 +1157,7 @@ void PeerMenuBlockUserBox(
 		}
 
 		Ui::Toast::Show(
+			Window::Show(window).toastParent(),
 			tr::lng_new_contact_block_done(tr::now, lt_user, name));
 	}, st::attentionBoxButton);
 

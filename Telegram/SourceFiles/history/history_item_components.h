@@ -81,6 +81,8 @@ struct HiddenSenderInfo {
 	Ui::EmptyUserpic emptyUserpic;
 	mutable Data::CloudImage customUserpic;
 
+	[[nodiscard]] static ClickHandlerPtr ForwardClickHandler();
+
 	[[nodiscard]] bool paintCustomUserpic(
 		Painter &p,
 		int x,

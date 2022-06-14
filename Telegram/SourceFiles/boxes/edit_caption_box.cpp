@@ -324,9 +324,10 @@ void EditCaptionBox::setupControls() {
 }
 
 void EditCaptionBox::setupEditEventHandler() {
+	const auto toastParent = Ui::BoxShow(this).toastParent();
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		auto showError = [](tr::phrase<> t) {
-			Ui::Toast::Show(t(tr::now));
+		auto showError = [toastParent](tr::phrase<> t) {
+			Ui::Toast::Show(toastParent, t(tr::now));
 		};
 
 		const auto checkResult = [=](const Ui::PreparedList &list) {
@@ -547,7 +548,9 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		}
 	}
 	if (invalidForAlbum) {
-		Ui::Toast::Show(tr::lng_edit_media_album_error(tr::now));
+		Ui::Toast::Show(
+			Ui::BoxShow(this).toastParent(),
+			tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
 	_preparedList = std::move(list);

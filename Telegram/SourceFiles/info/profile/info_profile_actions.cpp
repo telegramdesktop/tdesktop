@@ -353,12 +353,15 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			tr::lng_info_link_label(),
 			std::move(linkText),
 			QString());
-		link->setClickHandlerFilter([peer = _peer](auto&&...) {
+		const auto controller = _controller->parentController();
+		link->setClickHandlerFilter([=, peer = _peer](auto&&...) {
 			const auto link = peer->session().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
 				QGuiApplication::clipboard()->setText(link);
-				Ui::Toast::Show(tr::lng_username_copied(tr::now));
+				Ui::Toast::Show(
+					Window::Show(controller).toastParent(),
+					tr::lng_username_copied(tr::now));
 			}
 			return false;
 		});

@@ -272,7 +272,9 @@ void StickerSetBox::prepare() {
 	_inner->setInstalled(
 	) | rpl::start_with_next([=](uint64 setId) {
 		if (_inner->isMasksSet()) {
-			Ui::Toast::Show(tr::lng_masks_installed(tr::now));
+			Ui::Toast::Show(
+				Ui::BoxShow(this).toastParent(),
+				tr::lng_masks_installed(tr::now));
 		} else {
 			auto &stickers = _controller->session().data().stickers();
 			stickers.notifyStickerSetInstalled(setId);
@@ -289,9 +291,11 @@ void StickerSetBox::prepare() {
 	) | rpl::start_with_next([=](uint64 setId) {
 		const auto isMasks = _inner->isMasksSet();
 
-		Ui::Toast::Show(isMasks
-			? tr::lng_masks_has_been_archived(tr::now)
-			: tr::lng_stickers_has_been_archived(tr::now));
+		Ui::Toast::Show(
+			Ui::BoxShow(this).toastParent(),
+			isMasks
+				? tr::lng_masks_has_been_archived(tr::now)
+				: tr::lng_stickers_has_been_archived(tr::now));
 
 		auto &order = isMasks
 			? _controller->session().data().stickers().maskSetsOrderRef()
@@ -360,7 +364,9 @@ void StickerSetBox::updateButtons() {
 				const auto top = addTopButton(st::infoTopBarMenu);
 				const auto share = [=] {
 					copyStickersLink();
-					Ui::Toast::Show(tr::lng_stickers_copied(tr::now));
+					Ui::Toast::Show(
+						Ui::BoxShow(this).toastParent(),
+						tr::lng_stickers_copied(tr::now));
 					closeBox();
 				};
 				const auto menu =
@@ -384,7 +390,9 @@ void StickerSetBox::updateButtons() {
 		} else {
 			auto share = [=] {
 				copyStickersLink();
-				Ui::Toast::Show(tr::lng_stickers_copied(tr::now));
+				Ui::Toast::Show(
+					Ui::BoxShow(this).toastParent(),
+					tr::lng_stickers_copied(tr::now));
 			};
 			auto shareText = isMasks
 				? tr::lng_stickers_share_masks()
@@ -1123,8 +1131,8 @@ void StickerSetBox::Inner::archiveStickers() {
 		if (result.type() == mtpc_messages_stickerSetInstallResultSuccess) {
 			_setArchived.fire_copy(_setId);
 		}
-	}).fail([] {
-		Ui::Toast::Show(Lang::Hard::ServerError());
+	}).fail([toastParent = Window::Show(_controller).toastParent()] {
+		Ui::Toast::Show(toastParent, Lang::Hard::ServerError());
 	}).send();
 }
 

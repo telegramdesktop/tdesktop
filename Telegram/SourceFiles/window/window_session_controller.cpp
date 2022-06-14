@@ -525,7 +525,9 @@ void SessionNavigation::showRepliesForMessage(
 		_showingRepliesRequestId = 0;
 		if (error.type() == u"CHANNEL_PRIVATE"_q
 			|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
-			Ui::Toast::Show(tr::lng_group_not_accessible(tr::now));
+			Ui::Toast::Show(
+				Show(this).toastParent(),
+				tr::lng_group_not_accessible(tr::now));
 		}
 	}).send();
 }

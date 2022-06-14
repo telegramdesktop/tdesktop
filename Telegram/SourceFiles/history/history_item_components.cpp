@@ -113,6 +113,20 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 	}
 }
 
+ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
+	static const auto hidden = std::make_shared<LambdaClickHandler>([](
+			ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		const auto weak = my.sessionWindow;
+		if (const auto strong = weak.get()) {
+			Ui::Toast::Show(
+				Window::Show(strong).toastParent(),
+				tr::lng_forwarded_hidden(tr::now));
+		}
+	});
+	return hidden;
+}
+
 bool HiddenSenderInfo::paintCustomUserpic(
 		Painter &p,
 		int x,
@@ -202,15 +216,12 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		}
 	}
 	text.setMarkedText(st::fwdTextStyle, phrase);
-	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
-	});
 
 	text.setLink(1, fromChannel
 		? goToMessageClickHandler(originalSender, originalId)
 		: originalSender
 		? originalSender->openLink()
-		: hidden);
+		: HiddenSenderInfo::ForwardClickHandler());
 	if (via) {
 		text.setLink(2, via->link);
 	}

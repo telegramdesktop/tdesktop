@@ -308,14 +308,17 @@ void MonospaceClickHandler::onClick(ClickContext context) const {
 		const auto hasCopyRestriction = item
 			&& (!item->history()->peer->allowsForwarding()
 				|| item->forbidsForward());
+		const auto toastParent = Window::Show(controller).toastParent();
 		if (hasCopyRestriction) {
-			Ui::Toast::Show(item->history()->peer->isBroadcast()
-				? tr::lng_error_nocopy_channel(tr::now)
-				: tr::lng_error_nocopy_group(tr::now));
+			Ui::Toast::Show(
+				toastParent,
+				item->history()->peer->isBroadcast()
+					? tr::lng_error_nocopy_channel(tr::now)
+					: tr::lng_error_nocopy_group(tr::now));
 			return;
 		}
+		Ui::Toast::Show(toastParent, tr::lng_text_copied(tr::now));
 	}
-	Ui::Toast::Show(tr::lng_text_copied(tr::now));
 	TextUtilities::SetClipboardText(TextForMimeData::Simple(_text.trimmed()));
 }
 

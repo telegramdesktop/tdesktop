@@ -405,6 +405,7 @@ void Stickers::applyArchivedResult(
 		session().local().writeArchivedMasks();
 	}
 
+	// TODO async toast.
 	Ui::Toast::Show(Ui::Toast::Config{
 		.text = { tr::lng_stickers_packs_archived(tr::now) },
 		.st = &st::stickersToast,

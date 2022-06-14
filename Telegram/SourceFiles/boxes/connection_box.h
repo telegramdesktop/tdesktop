@@ -117,6 +117,7 @@ private:
 	rpl::event_stream<ItemView> _views;
 	base::Timer _saveTimer;
 	rpl::event_stream<ProxyData::Settings> _proxySettingsChanges;
+	QPointer<QWidget> _toastParent;
 
 	ProxyData _lastSelectedProxy;
 	bool _lastSelectedProxyUsed = false;

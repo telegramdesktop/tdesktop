@@ -1651,6 +1651,7 @@ ClickHandlerPtr Message::createGoToCommentsLink() const {
 			if (const auto channel = history->peer->asChannel()) {
 				if (channel->invitePeekExpires()) {
 					Ui::Toast::Show(
+						Window::Show(controller).toastParent(),
 						tr::lng_channel_invite_private(tr::now));
 					return;
 				}

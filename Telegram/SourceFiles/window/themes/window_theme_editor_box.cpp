@@ -893,10 +893,11 @@ void SaveThemeBox(
 				type = SaveErrorType::Link;
 			} else if (error == qstr("THEME_SLUG_OCCUPIED")) {
 				Ui::Toast::Show(
+					Ui::BoxShow(box).toastParent(),
 					tr::lng_create_channel_link_occupied(tr::now));
 				type = SaveErrorType::Link;
 			} else if (!error.isEmpty()) {
-				Ui::Toast::Show(error);
+				Ui::Toast::Show(Ui::BoxShow(box).toastParent(), error);
 			}
 			if (type == SaveErrorType::Name) {
 				name->showError();

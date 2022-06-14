@@ -74,9 +74,10 @@ void FileDialogCallback(
 		FileDialog::OpenResult &&result,
 		Fn<bool(const Ui::PreparedList&)> checkResult,
 		Fn<void(Ui::PreparedList)> callback,
-		bool premium) {
-	auto showError = [](tr::phrase<> text) {
-		Ui::Toast::Show(text(tr::now));
+		bool premium,
+		not_null<QWidget*> toastParent) {
+	auto showError = [=](tr::phrase<> text) {
+		Ui::Toast::Show(toastParent, text(tr::now));
 	};
 
 	auto list = Storage::PreparedFileFromFilesDialog(
@@ -394,11 +395,12 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem) {
 }
 
 void SendFilesBox::openDialogToAddFileToAlbum() {
+	const auto toastParent = Ui::BoxShow(this).toastParent();
 	const auto checkResult = [=](const Ui::PreparedList &list) {
 		if (_sendLimit != SendLimit::One) {
 			return true;
 		} else if (!_list.canBeSentInSlowmodeWith(list)) {
-			Ui::Toast::Show(tr::lng_slowmode_no_many(tr::now));
+			Ui::Toast::Show(toastParent, tr::lng_slowmode_no_many(tr::now));
 			return false;
 		}
 		return true;
@@ -409,7 +411,8 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 			std::move(result),
 			checkResult,
 			[=](Ui::PreparedList list) { addFiles(std::move(list)); },
-			premium);
+			premium,
+			toastParent);
 	};
 
 	FileDialog::GetOpenPaths(
@@ -549,6 +552,7 @@ void SendFilesBox::pushBlock(int from, int till) {
 		});
 	}, widget->lifetime());
 
+	const auto toastParent = Ui::BoxShow(this).toastParent();
 	block.itemReplaceRequest(
 	) | rpl::start_with_next([=](int index) {
 		const auto replace = [=](Ui::PreparedList list) {
@@ -569,7 +573,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			_list.files.push_back(std::move(removing));
 			std::swap(_list.files[index], _list.files.back());
 			if (!result) {
-				Ui::Toast::Show(tr::lng_slowmode_no_many(tr::now));
+				Ui::Toast::Show(
+					toastParent,
+					tr::lng_slowmode_no_many(tr::now));
 				return false;
 			}
 			return true;
@@ -580,7 +586,8 @@ void SendFilesBox::pushBlock(int from, int till) {
 				std::move(result),
 				checkResult,
 				replace,
-				premium);
+				premium,
+				toastParent);
 		};
 
 		FileDialog::GetOpenPath(

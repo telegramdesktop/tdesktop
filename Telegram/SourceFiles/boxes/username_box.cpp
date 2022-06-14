@@ -254,7 +254,9 @@ void UsernameBox::changed() {
 void UsernameBox::linkClick() {
 	QGuiApplication::clipboard()->setText(
 		_session->createInternalLinkFull(getName()));
-	Ui::Toast::Show(tr::lng_username_copied(tr::now));
+	Ui::Toast::Show(
+		Ui::BoxShow(this).toastParent(),
+		tr::lng_username_copied(tr::now));
 }
 
 void UsernameBox::updateFail(const QString &error) {

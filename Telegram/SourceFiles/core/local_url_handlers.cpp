@@ -565,7 +565,9 @@ bool ShowInviteLink(
 		return false;
 	}
 	QGuiApplication::clipboard()->setText(link);
-	Ui::Toast::Show(tr::lng_group_invite_copied(tr::now));
+	Ui::Toast::Show(
+		Window::Show(controller).toastParent(),
+		tr::lng_group_invite_copied(tr::now));
 	return true;
 }
 
@@ -579,13 +581,15 @@ bool OpenExternalLink(
 }
 
 void ExportTestChatTheme(
-		not_null<Main::Session*> session,
+		not_null<Window::SessionController*> controller,
 		not_null<const Data::CloudTheme*> theme) {
+	const auto session = &controller->session();
+	const auto show = std::make_shared<Window::Show>(controller);
 	const auto inputSettings = [&](Data::CloudThemeType type)
 	-> std::optional<MTPInputThemeSettings> {
 		const auto i = theme->settings.find(type);
 		if (i == end(theme->settings)) {
-			Ui::Toast::Show("Something went wrong :(");
+			Ui::Toast::Show(show->toastParent(), "Something went wrong :(");
 			return std::nullopt;
 		}
 		const auto &fields = i->second;
@@ -593,7 +597,7 @@ void ExportTestChatTheme(
 			|| !fields.paper->isPattern()
 			|| fields.paper->backgroundColors().empty()
 			|| !fields.paper->hasShareUrl()) {
-			Ui::Toast::Show("Something went wrong :(");
+			Ui::Toast::Show(show->toastParent(), "Something went wrong :(");
 			return std::nullopt;
 		}
 		const auto &bg = fields.paper->backgroundColors();
@@ -601,7 +605,9 @@ void ExportTestChatTheme(
 		const auto from = url.indexOf("bg/");
 		const auto till = url.indexOf("?");
 		if (from < 0 || till <= from) {
-			Ui::Toast::Show("Bad WallPaper link: " + url);
+			Ui::Toast::Show(
+				show->toastParent(),
+				"Bad WallPaper link: " + url);
 			return std::nullopt;
 		}
 
@@ -683,9 +689,15 @@ void ExportTestChatTheme(
 		const auto slug = Data::CloudTheme::Parse(session, result, true).slug;
 		QGuiApplication::clipboard()->setText(
 			session->createInternalLinkFull("addtheme/" + slug));
-		Ui::Toast::Show(tr::lng_background_link_copied(tr::now));
+		if (show->valid()) {
+			Ui::Toast::Show(
+				show->toastParent(),
+				tr::lng_background_link_copied(tr::now));
+		}
 	}).fail([=](const MTP::Error &error) {
-		Ui::Toast::Show("Error: " + error.type());
+		if (show->valid()) {
+			Ui::Toast::Show(show->toastParent(), "Error: " + error.type());
+		}
 	}).send();
 }
 
@@ -706,7 +718,7 @@ bool ResolveTestChatTheme(
 			params);
 		if (theme) {
 			if (!params["export"].isEmpty()) {
-				ExportTestChatTheme(&controller->session(), &*theme);
+				ExportTestChatTheme(controller, &*theme);
 			}
 			const auto recache = [&](Data::CloudThemeType type) {
 				[[maybe_unused]] auto value = theme->settings.contains(type)

@@ -682,10 +682,7 @@ ClickHandlerPtr Element::fromLink() const {
 			return imported;
 		}
 	}
-	static const auto hidden = std::make_shared<LambdaClickHandler>([] {
-		Ui::Toast::Show(tr::lng_forwarded_hidden(tr::now));
-	});
-	_fromLink = hidden;
+	_fromLink = HiddenSenderInfo::ForwardClickHandler();
 	return _fromLink;
 }
 
