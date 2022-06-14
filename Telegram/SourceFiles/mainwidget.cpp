@@ -962,11 +962,12 @@ void MainWidget::setCurrentGroupCall(Calls::GroupCall *call) {
 void MainWidget::createCallTopBar() {
 	Expects(_currentCall != nullptr || _currentGroupCall != nullptr);
 
+	const auto show = std::make_shared<Window::Show>(controller());
 	_callTopBar.create(
 		this,
 		(_currentCall
-			? object_ptr<Calls::TopBar>(this, _currentCall)
-			: object_ptr<Calls::TopBar>(this, _currentGroupCall)));
+			? object_ptr<Calls::TopBar>(this, _currentCall, show)
+			: object_ptr<Calls::TopBar>(this, _currentGroupCall, show)));
 	_callTopBar->entity()->initBlobsUnder(this, _callTopBar->geometryValue());
 	_callTopBar->heightValue(
 	) | rpl::start_with_next([this](int value) {
