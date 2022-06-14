@@ -936,8 +936,20 @@ void AccountsLimitBox(
 	const auto defaultLimit = Main::Domain::kMaxAccounts;
 	const auto premiumLimit = Main::Domain::kPremiumMaxAccounts;
 
+	using Args = Ui::Premium::AccountsRowArgs;
 	const auto accounts = session->domain().orderedAccounts();
-	const auto premiumPossible = session->premiumPossible();
+	auto promotePossible = ranges::views::all(
+		accounts
+	) | ranges::views::filter([&](not_null<Main::Account*> account) {
+		return account->sessionExists()
+			&& !account->session().premium()
+			&& account->session().premiumPossible();
+	}) | ranges::views::transform([&](not_null<Main::Account*> account) {
+		const auto user = account->session().user();
+		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
+	}) | ranges::views::take(defaultLimit) | ranges::to_vector;
+
+	const auto premiumPossible = !promotePossible.empty();
 	const auto current = int(accounts.size());
 
 	auto text = rpl::combine(
@@ -945,7 +957,7 @@ void AccountsLimitBox(
 			lt_count,
 			rpl::single<float64>(current),
 			Ui::Text::RichLangValue),
-		((current > premiumLimit)
+		((!premiumPossible || current > premiumLimit)
 			? rpl::single(TextWithEntities())
 			: tr::lng_accounts_limit2(Ui::Text::RichLangValue))
 	) | rpl::map([](TextWithEntities &&a, TextWithEntities &&b) {
@@ -970,9 +982,10 @@ void AccountsLimitBox(
 		std::nullopt,
 		&st::premiumIconAccounts);
 	Settings::AddSkip(top, st::premiumLineTextSkip);
-	Ui::Premium::AddLimitRow(top, 0, std::nullopt, defaultLimit);
-	Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
-
+	if (premiumPossible) {
+		Ui::Premium::AddLimitRow(top, 0, std::nullopt, defaultLimit);
+		Settings::AddSkip(top, st::premiumInfographicPadding.bottom());
+	}
 	box->setTitle(tr::lng_accounts_limit_title());
 
 	auto padding = st::boxPadding;
@@ -984,9 +997,7 @@ void AccountsLimitBox(
 			st::aboutRevokePublicLabel),
 		padding);
 
-
-	if (current > premiumLimit) {
-		// Probably an unreachable state.
+	if (!premiumPossible || current > premiumLimit) {
 		box->addButton(tr::lng_box_ok(), [=] {
 			box->closeBox();
 		});
@@ -1022,27 +1033,18 @@ void AccountsLimitBox(
 		box->closeBox();
 	});
 
-	using Args = Ui::Premium::AccountsRowArgs;
-
-	auto &&entries = ranges::views::all(
-		accounts
-	) | ranges::views::filter([&](not_null<Main::Account*> account) {
-		return account->sessionExists() && !account->session().premium();
-	}) | ranges::views::transform([&](not_null<Main::Account*> account) {
-		const auto user = account->session().user();
-		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
-	}) | ranges::views::take(defaultLimit);
-
 	auto args = Args{
 		.group = group,
 		.st = st::premiumAccountsCheckbox,
 		.stName = st::shareBoxListItem.nameStyle,
 		.stNameFg = st::shareBoxListItem.nameFg,
-		.entries = std::move(entries) | ranges::to_vector,
+		.entries = std::move(promotePossible),
 	};
-	box->addSkip(st::premiumAccountsPadding.top());
-	Ui::Premium::AddAccountsRow(box->verticalLayout(), std::move(args));
-	box->addSkip(st::premiumAccountsPadding.bottom());
+	if (!args.entries.empty()) {
+		box->addSkip(st::premiumAccountsPadding.top());
+		Ui::Premium::AddAccountsRow(box->verticalLayout(), std::move(args));
+		box->addSkip(st::premiumAccountsPadding.bottom());
+	}
 }
 
 QString LimitsPremiumRef(const QString &addition) {
