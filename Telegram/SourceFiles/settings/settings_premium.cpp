@@ -64,6 +64,7 @@ struct Entry {
 	const style::icon *icon;
 	rpl::producer<QString> title;
 	rpl::producer<QString> description;
+	std::optional<PremiumPreview> section;
 };
 
 using Order = std::vector<QString>;
@@ -99,6 +100,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconFiles,
 				tr::lng_premium_summary_subtitle_more_upload(),
 				tr::lng_premium_summary_about_more_upload(),
+				PremiumPreview::MoreUpload,
 			},
 		},
 		{
@@ -107,6 +109,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconSpeed,
 				tr::lng_premium_summary_subtitle_faster_download(),
 				tr::lng_premium_summary_about_faster_download(),
+				PremiumPreview::FasterDownload,
 			},
 		},
 		{
@@ -115,6 +118,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconVoice,
 				tr::lng_premium_summary_subtitle_voice_to_text(),
 				tr::lng_premium_summary_about_voice_to_text(),
+				PremiumPreview::VoiceToText,
 			},
 		},
 		{
@@ -123,6 +127,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconChannelsOff,
 				tr::lng_premium_summary_subtitle_no_ads(),
 				tr::lng_premium_summary_about_no_ads(),
+				PremiumPreview::NoAds,
 			},
 		},
 		{
@@ -131,6 +136,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconLike,
 				tr::lng_premium_summary_subtitle_unique_reactions(),
 				tr::lng_premium_summary_about_unique_reactions(),
+				PremiumPreview::Reactions,
 			},
 		},
 		{
@@ -139,6 +145,7 @@ using Order = std::vector<QString>;
 				&st::settingsIconStickers,
 				tr::lng_premium_summary_subtitle_premium_stickers(),
 				tr::lng_premium_summary_about_premium_stickers(),
+				PremiumPreview::Stickers,
 			},
 		},
 		{
@@ -147,6 +154,7 @@ using Order = std::vector<QString>;
 				&st::settingsIconChat,
 				tr::lng_premium_summary_subtitle_advanced_chat_management(),
 				tr::lng_premium_summary_about_advanced_chat_management(),
+				PremiumPreview::AdvancedChatManagement,
 			},
 		},
 		{
@@ -155,6 +163,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconStar,
 				tr::lng_premium_summary_subtitle_profile_badge(),
 				tr::lng_premium_summary_about_profile_badge(),
+				PremiumPreview::ProfileBadge,
 			},
 		},
 		{
@@ -163,6 +172,7 @@ using Order = std::vector<QString>;
 				&st::settingsPremiumIconPlay,
 				tr::lng_premium_summary_subtitle_animated_userpics(),
 				tr::lng_premium_summary_about_animated_userpics(),
+				PremiumPreview::AnimatedUserpics,
 			},
 		},
 	};
@@ -710,9 +720,7 @@ void Premium::setupContent() {
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
 	iconContainers.reserve(int(entryMap.size()));
 
-	const auto addRow = [&](
-			rpl::producer<QString> &&title,
-			rpl::producer<QString> &&text) {
+	const auto addRow = [&](Entry &entry) {
 		const auto labelAscent = stLabel.style.font->ascent;
 		const auto button = Ui::CreateChild<Ui::SettingsButton>(
 			content,
@@ -721,14 +729,14 @@ void Premium::setupContent() {
 		const auto label = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(title) | rpl::map(Ui::Text::Bold),
+				std::move(entry.title) | rpl::map(Ui::Text::Bold),
 				stLabel),
 			titlePadding);
 		label->setAttribute(Qt::WA_TransparentForMouseEvents);
 		const auto description = content->add(
 			object_ptr<Ui::FlatLabel>(
 				content,
-				std::move(text),
+				std::move(entry.description),
 				st::boxDividerLabel),
 			descriptionPadding);
 		description->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -781,7 +789,12 @@ void Premium::setupContent() {
 			arrow->moveToRight(0, (s.height() - arrow->height()) / 2);
 		}, arrow->lifetime());
 
+		const auto section = entry.section;
 		button->setClickedCallback([=, controller = _controller] {
+			if (section) {
+				ShowPremiumPreviewBox(controller, *section);
+				return;
+			}
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				DoubledLimitsPreviewBox(box, &controller->session());
 
@@ -820,7 +833,7 @@ void Premium::setupContent() {
 			FallbackOrder());
 		const auto processEntry = [&](Entry &entry) {
 			icons.push_back(entry.icon);
-			addRow(base::take(entry.title), base::take(entry.description));
+			addRow(entry);
 		};
 
 		for (const auto &key : mtpOrder) {
