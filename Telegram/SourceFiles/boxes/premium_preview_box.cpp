@@ -1464,11 +1464,13 @@ void PreviewBox(
 				Settings::CreateSubscribeButton(controller, box, computeRef))
 			: CreateUnlockButton(box, std::move(unlock));
 		button->resizeToWidth(width);
-		button->setClickedCallback([=] {
-			Settings::ShowPremium(
-				controller,
-				Settings::LookupPremiumRef(state->selected.current()));
-		});
+		if (!descriptor.fromSettings) {
+			button->setClickedCallback([=] {
+				Settings::ShowPremium(
+					controller,
+					Settings::LookupPremiumRef(state->selected.current()));
+			});
+		}
 		box->setShowFinishedCallback([=, raw = button.data()] {
 			state->showFinished = true;
 			if (base::take(state->preloadScheduled)) {
