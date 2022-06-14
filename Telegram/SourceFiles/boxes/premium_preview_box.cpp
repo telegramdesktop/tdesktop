@@ -1484,7 +1484,7 @@ void PreviewBox(
 	if (descriptor.fromSettings) {
 		Data::AmPremiumValue(
 			&controller->session()
-		) | rpl::skip(1) | rpl::start_with_next([=](bool premium) {
+		) | rpl::skip(1) | rpl::start_with_next([=] {
 			box->closeBox();
 		}, box->lifetime());
 	}

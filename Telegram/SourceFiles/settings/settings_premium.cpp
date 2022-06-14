@@ -771,9 +771,17 @@ void Premium::setupContent() {
 			}
 			controller->show(Box([=](not_null<Ui::GenericBox*> box) {
 				DoubledLimitsPreviewBox(box, &controller->session());
+
 				box->addTopButton(st::boxTitleClose, [=] {
 					box->closeBox();
 				});
+
+				Data::AmPremiumValue(
+					&controller->session()
+				) | rpl::skip(1) | rpl::start_with_next([=] {
+					box->closeBox();
+				}, box->lifetime());
+
 				if (controller->session().premium()) {
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
