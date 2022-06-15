@@ -299,7 +299,7 @@ infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
 		linkFontOver: font(16px semibold underline);
 	}
 }
-infoVerifiedCheckPosition: point(2px, 2px);
+infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedCheck: icon {
 	{ "profile_verified_star", profileVerifiedCheckBg },
 	{ "profile_verified_check", profileVerifiedCheckFg }

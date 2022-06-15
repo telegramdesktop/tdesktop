@@ -106,6 +106,9 @@ void UserData::setPhone(const QString &newPhone) {
 void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
 		// We don't support bots becoming non-bots.
+		if (botInfo) {
+			botInfo->version = -1;
+		}
 	} else if (!botInfo) {
 		botInfo = std::make_unique<BotInfo>();
 		botInfo->version = version;

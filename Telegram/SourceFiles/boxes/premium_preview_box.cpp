@@ -1118,7 +1118,6 @@ void ReactionPreview::paintEffect(QPainter &p) {
 			}
 		} else if (event->type() == QEvent::MouseMove) {
 			const auto point = static_cast<QMouseEvent*>(event.get())->pos();
-			const auto index = lookup(point);
 			select(lookup(point));
 		} else if (event->type() == QEvent::Leave) {
 			select(-1);
