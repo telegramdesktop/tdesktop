@@ -184,7 +184,9 @@ void LocalPasscodeEnter::setupContent() {
 		return error;
 	};
 
-	const auto newPasscode = addField(tr::lng_passcode_enter_first());
+	const auto newPasscode = addField(isCreate
+		? tr::lng_passcode_enter_first()
+		: tr::lng_passcode_enter());
 
 	const auto reenterPasscode = isCheck
 		? (Ui::PasswordInput*)(nullptr)
