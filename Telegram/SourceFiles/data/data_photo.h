@@ -127,6 +127,7 @@ public:
 	[[nodiscard]] int imageByteSize(Data::PhotoSize size) const;
 
 	[[nodiscard]] bool hasVideo() const;
+	[[nodiscard]] bool hasVideoSmall() const;
 	[[nodiscard]] bool videoLoading(Data::PhotoSize size) const;
 	[[nodiscard]] bool videoFailed(Data::PhotoSize size) const;
 	void loadVideo(Data::PhotoSize size, Data::FileOrigin origin);

@@ -118,7 +118,8 @@ void PhotoMedia::set(
 }
 
 QByteArray PhotoMedia::videoContent(PhotoSize size) const {
-	return (size == PhotoSize::Large) ? _videoBytesLarge : _videoBytesSmall;
+	const auto small = (size == PhotoSize::Small) && _owner->hasVideoSmall();
+	return small ? _videoBytesSmall : _videoBytesLarge;
 }
 
 QSize PhotoMedia::videoSize(PhotoSize size) const {
@@ -133,8 +134,8 @@ void PhotoMedia::videoWanted(PhotoSize size, Data::FileOrigin origin) {
 }
 
 void PhotoMedia::setVideo(PhotoSize size, QByteArray content) {
-	((size == PhotoSize::Large) ? _videoBytesLarge : _videoBytesSmall)
-		= std::move(content);
+	const auto small = (size == PhotoSize::Small) && _owner->hasVideoSmall();
+	(small ? _videoBytesSmall : _videoBytesLarge) = std::move(content);
 }
 
 bool PhotoMedia::loaded() const {

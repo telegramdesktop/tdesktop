@@ -443,7 +443,7 @@ int PhotoData::height() const {
 Data::CloudFile &PhotoData::videoFile(PhotoSize size) {
 	Expects(_videoSizes != nullptr);
 
-	return (size == PhotoSize::Small)
+	return (size == PhotoSize::Small && hasVideoSmall())
 		? _videoSizes->small
 		: _videoSizes->large;
 }
@@ -451,7 +451,7 @@ Data::CloudFile &PhotoData::videoFile(PhotoSize size) {
 const Data::CloudFile &PhotoData::videoFile(PhotoSize size) const {
 	Expects(_videoSizes != nullptr);
 
-	return (size == PhotoSize::Small)
+	return (size == PhotoSize::Small && hasVideoSmall())
 		? _videoSizes->small
 		: _videoSizes->large;
 }
@@ -459,6 +459,10 @@ const Data::CloudFile &PhotoData::videoFile(PhotoSize size) const {
 
 bool PhotoData::hasVideo() const {
 	return _videoSizes != nullptr;
+}
+
+bool PhotoData::hasVideoSmall() const {
+	return hasVideo() && _videoSizes->small.location.valid();
 }
 
 bool PhotoData::videoLoading(Data::PhotoSize size) const {
