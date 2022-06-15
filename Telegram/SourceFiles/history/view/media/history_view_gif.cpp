@@ -652,6 +652,11 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
 				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
 				p.restoreTextPalette();
+
+				const auto skip = std::min(
+					forwarded->text.countHeight(rectw),
+					kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
+				recty += skip;
 			} else if (via) {
 				p.setFont(st::msgServiceNameFont);
 				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
