@@ -266,8 +266,9 @@ void SessionNavigation::resolveChannelById(
 	}
 	const auto fail = [=] {
 		Ui::ShowMultilineToast({
+			.parentOverride = Window::Show(this).toastParent(),
 			.text = { tr::lng_error_post_link_invalid(tr::now) }
-			});
+		});
 	};
 	_api.request(base::take(_resolveRequestId)).cancel();
 	_resolveRequestId = _api.request(MTPchannels_GetChannels(
@@ -400,6 +401,7 @@ void SessionNavigation::joinVoiceChatFromLink(
 
 	const auto bad = [=] {
 		Ui::ShowMultilineToast({
+			.parentOverride = Window::Show(this).toastParent(),
 			.text = { tr::lng_group_invite_bad_link(tr::now) }
 		});
 	};
@@ -428,8 +430,7 @@ void SessionNavigation::joinVoiceChatFromLink(
 		_resolveRequestId = _api.request(
 			MTPphone_GetGroupCall(call->input(), MTP_int(limit))
 		).done([=](const MTPphone_GroupCall &result) {
-			if (const auto now = peer->groupCall()
-				; now && now->id() == id) {
+			if (const auto now = peer->groupCall(); now && now->id() == id) {
 				if (!now->loaded()) {
 					now->processFullCall(result);
 				}
@@ -1229,6 +1230,7 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 				|| currentPeer->asChannel()->linkedChat()
 					!= clickedChannel)) {
 			Ui::ShowMultilineToast({
+				.parentOverride = Window::Show(this).toastParent(),
 				.text = {
 					.text = peer->isMegagroup()
 						? tr::lng_group_not_accessible(tr::now)

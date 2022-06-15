@@ -1266,8 +1266,8 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		TextWithTags());
 	if (!error.isEmpty()) {
 		Ui::ShowMultilineToast({
-			navigation->parentController()->widget()->bodyWidget(),
-			{ error },
+			.parentOverride = Window::Show(navigation).toastParent(),
+			.text = { error },
 		});
 		return { nullptr };
 	}

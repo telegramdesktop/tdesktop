@@ -1253,6 +1253,7 @@ void MainWidget::showChooseReportMessages(
 		SectionShow::Way::Forward,
 		ShowForChooseMessagesMsgId);
 	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(controller()).toastParent(),
 		.text = { tr::lng_report_please_select_messages(tr::now) },
 	});
 }

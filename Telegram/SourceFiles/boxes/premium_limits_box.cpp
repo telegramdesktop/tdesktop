@@ -586,6 +586,7 @@ void ChannelsLimitBox(
 				}
 			}
 			Ui::ShowMultilineToast({
+				.parentOverride = Ui::BoxShow(box).toastParent(),
 				.text = { tr::lng_channels_leave_done(tr::now) },
 			});
 			box->closeBox();

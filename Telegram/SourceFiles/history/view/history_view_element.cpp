@@ -674,10 +674,16 @@ ClickHandlerPtr Element::fromLink() const {
 	}
 	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
 		if (forwarded->imported) {
-			static const auto imported = std::make_shared<LambdaClickHandler>([] {
-				Ui::ShowMultilineToast({
-					.text = { tr::lng_forwarded_imported(tr::now) },
-				});
+			static const auto imported = std::make_shared<LambdaClickHandler>([](
+					ClickContext context) {
+				const auto my = context.other.value<ClickHandlerContext>();
+				const auto weak = my.sessionWindow;
+				if (const auto strong = weak.get()) {
+					Ui::ShowMultilineToast({
+						.parentOverride = Window::Show(strong).toastParent(),
+						.text = { tr::lng_forwarded_imported(tr::now) },
+					});
+				}
 			});
 			return imported;
 		}

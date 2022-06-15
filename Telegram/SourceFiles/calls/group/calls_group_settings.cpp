@@ -594,7 +594,7 @@ void SettingsBox(
 		});
 		const auto showToast = crl::guard(box, [=](QString text) {
 			Ui::ShowMultilineToast({
-				.parentOverride = box->getDelegate()->outerContainer(),
+				.parentOverride = Ui::BoxShow(box).toastParent(),
 				.text = { text },
 			});
 		});
@@ -637,7 +637,7 @@ void SettingsBox(
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
 					Ui::ShowMultilineToast({
-						.parentOverride = box->getDelegate()->outerContainer(),
+						.parentOverride = Ui::BoxShow(box).toastParent(),
 						.text = { tr::lng_create_channel_link_copied(tr::now) },
 					});
 				}

@@ -2434,6 +2434,7 @@ bool HistoryInner::showCopyRestriction(HistoryItem *item) {
 		return false;
 	}
 	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(_controller).toastParent(),
 		.text = { _peer->isBroadcast()
 			? tr::lng_error_nocopy_channel(tr::now)
 			: tr::lng_error_nocopy_group(tr::now) },
