@@ -216,7 +216,13 @@ void MainWindow::shadowsDeactivate() {
 }
 
 void MainWindow::destroyedFromSystem() {
-	Core::Quit();
+	if (isPrimary()) {
+		Core::Quit();
+	} else {
+		crl::on_main(this, [=] {
+			Core::App().closeWindow(&controller());
+		});
+	}
 }
 
 int32 MainWindow::screenNameChecksum(const QString &name) const {
