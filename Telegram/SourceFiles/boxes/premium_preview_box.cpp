@@ -1765,10 +1765,10 @@ void DoubledLimitsPreviewBox(
 			premium,
 		});
 	}
-	const auto now = session->domain().accounts().size();
-	const auto till = (now + 1 >= Main::Domain::kPremiumMaxAccounts)
+	const auto nextMax = session->domain().maxAccounts() + 1;
+	const auto till = (nextMax >= Main::Domain::kPremiumMaxAccounts)
 		? QString::number(Main::Domain::kPremiumMaxAccounts)
-		: (QString::number(now + 1) + QChar('+'));
+		: (QString::number(nextMax) + QChar('+'));
 	entries.push_back(Ui::Premium::ListEntry{
 		tr::lng_premium_double_limits_subtitle_accounts(),
 		tr::lng_premium_double_limits_about_accounts(
