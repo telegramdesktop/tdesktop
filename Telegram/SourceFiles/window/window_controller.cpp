@@ -251,6 +251,10 @@ void Controller::finishFirstShow() {
 	checkThemeEditor();
 }
 
+Main::Session *Controller::maybeSession() const {
+	return _account ? _account->maybeSession() : nullptr;
+}
+
 bool Controller::locked() const {
 	if (Core::App().passcodeLocked()) {
 		return true;

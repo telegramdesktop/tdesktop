@@ -797,13 +797,11 @@ void Application::handleAppDeactivated() {
 	if (_primaryWindow) {
 		_primaryWindow->updateIsActiveBlur();
 	}
-	if (_domain->started()) {
-		const auto session = _lastActiveWindow
-			? _lastActiveWindow->account().maybeSession()
-			: nullptr;
-		if (session) {
-			session->updates().updateOnline();
-		}
+	const auto session = _lastActiveWindow
+		? _lastActiveWindow->maybeSession()
+		: nullptr;
+	if (session) {
+		session->updates().updateOnline();
 	}
 	Ui::Tooltip::Hide();
 }
@@ -1235,8 +1233,8 @@ void Application::windowActivated(not_null<Window::Controller*> window) {
 	const auto now = window;
 	_lastActiveWindow = window;
 
-	const auto wasSession = was ? was->account().maybeSession() : nullptr;
-	const auto nowSession = now->account().maybeSession();
+	const auto wasSession = was ? was->maybeSession() : nullptr;
+	const auto nowSession = now->maybeSession();
 	if (wasSession != nowSession) {
 		if (wasSession) {
 			wasSession->updates().updateOnline();

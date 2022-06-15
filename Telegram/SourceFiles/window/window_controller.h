@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 class Account;
+class Session;
 } // namespace Main
 
 namespace Media::View {
@@ -46,6 +47,10 @@ public:
 
 		return *_account;
 	}
+	[[nodiscard]] Main::Account *maybeAccount() const {
+		return _account;
+	}
+	[[nodiscard]] Main::Session *maybeSession() const;
 	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
