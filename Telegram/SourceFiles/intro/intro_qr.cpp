@@ -189,7 +189,11 @@ QrWidget::QrWidget(
 	}, lifetime());
 
 	setupControls();
-	refreshCode();
+	account->mtp().mainDcIdValue(
+	) | rpl::start_with_next([=] {
+		api().request(base::take(_requestId)).cancel();
+		refreshCode();
+	}, lifetime());
 }
 
 int QrWidget::errorTop() const {
