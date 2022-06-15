@@ -405,6 +405,8 @@ stage('patches', """
 stage('depot_tools', """
 mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    cd depot_tools
+    ./update_depot_tools
 """, 'ThirdParty')
 
 if not mac or 'build-stackwalk' in options:
