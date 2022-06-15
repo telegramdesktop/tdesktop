@@ -84,9 +84,14 @@ void StickerToast::showFor(not_null<DocumentData*> document) {
 		st::historyPremiumViewSet);
 	button->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	button->show();
-	widget->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		button->moveToRight(0, 0, width);
+	rpl::combine(
+		widget->sizeValue(),
+		button->sizeValue()
+	) | rpl::start_with_next([=](QSize outer, QSize inner) {
+		button->moveToRight(
+			0,
+			(outer.height() - inner.height()) / 2,
+			outer.width());
 	}, widget->lifetime());
 	const auto preview = Ui::CreateChild<Ui::RpWidget>(widget.get());
 	preview->moveToLeft(skip, skip);
