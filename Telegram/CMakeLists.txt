@@ -498,6 +498,8 @@ PRIVATE
     data/data_photo_media.h
     data/data_poll.cpp
     data/data_poll.h
+    data/data_premium_limits.cpp
+    data/data_premium_limits.h
     data/data_pts_waiter.cpp
     data/data_pts_waiter.h
     data/data_replies_list.cpp

@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_premium_limits.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -653,12 +654,7 @@ void EditCaptionBox::setInnerFocus() {
 
 bool EditCaptionBox::validateLength(const QString &text) const {
 	const auto session = &_controller->session();
-	const auto limit = CurrentPremiumLimit(
-		session,
-		"caption_length_limit_default",
-		1024,
-		"caption_length_limit_premium",
-		2048);
+	const auto limit = Data::PremiumLimits(session).captionLengthCurrent();
 	const auto remove = int(text.size()) - limit;
 	if (remove <= 0) {
 		return true;

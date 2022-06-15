@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h" // instance()->play()
 #include "media/audio/media_audio.h"
 #include "boxes/abstract_box.h"
-#include "boxes/premium_limits_box.h"
 #include "passport/passport_form_controller.h"
 #include "lang/lang_keys.h" // tr::lng_deleted(tr::now) in user name
 #include "data/stickers/data_stickers.h"
@@ -65,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -1862,20 +1862,12 @@ int Session::pinnedCanPin(
 int Session::pinnedChatsLimit(
 		Data::Folder *folder,
 		FilterId filterId) const {
-	return CurrentPremiumLimit(
-		_session,
-		(filterId
-			? "dialog_filters_chats_limit_default"
-			: folder
-			? "dialog_filters_chats_limit_default"
-			: "dialogs_pinned_limit_default"),
-		(filterId || folder) ? 100 : 5,
-		(filterId
-			? "dialog_filters_chats_limit_premium"
-			: folder
-			? "dialog_filters_chats_limit_premium"
-			: "dialogs_pinned_limit_premium"),
-		(filterId || folder) ? 200 : 10);
+	const auto limits = Data::PremiumLimits(_session);
+	return filterId
+		? limits.dialogFiltersChatsCurrent()
+		: folder
+		? limits.dialogsFolderPinnedCurrent()
+		: limits.dialogsPinnedCurrent();
 }
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
@@ -1888,14 +1880,12 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 	return rpl::single(rpl::empty_value()) | rpl::then(
 		_session->account().appConfig().refreshed()
 	) | rpl::map([=] {
-		return AppConfigLimit(
-			_session,
-			(filterId
-				? "dialog_filters_chats_limit_premium"
-				: folder
-				? "dialog_filters_chats_limit_premium"
-				: "dialogs_pinned_limit_premium"),
-			(filterId || folder) ? 200 : 10);
+		const auto limits = Data::PremiumLimits(_session);
+		return filterId
+			? limits.dialogFiltersChatsPremium()
+			: folder
+			? limits.dialogsFolderPinnedPremium()
+			: limits.dialogsPinnedPremium();
 	});
 }
 

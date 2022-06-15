@@ -58,17 +58,3 @@ void AccountsLimitBox(
 	not_null<Main::Session*> session);
 
 [[nodiscard]] QString LimitsPremiumRef(const QString &addition);
-
-[[nodiscard]] int AppConfigLimit(
-	not_null<Main::Session*> session,
-	const QString &key,
-	int fallback);
-[[nodiscard]] int CurrentPremiumLimit(
-	not_null<Main::Session*> session,
-	const QString &keyDefault,
-	int limitDefault,
-	const QString &keyPremium,
-	int limitPremium);
-
-[[nodiscard]] int CurrentPremiumFiltersLimit(
-	not_null<Main::Session*> session);

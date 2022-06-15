@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
+#include "data/data_premium_limits.h"
 #include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
@@ -985,12 +986,7 @@ void SendFilesBox::saveSendWaySettings() {
 
 bool SendFilesBox::validateLength(const QString &text) const {
 	const auto session = &_controller->session();
-	const auto limit = CurrentPremiumLimit(
-		session,
-		"caption_length_limit_default",
-		1024,
-		"caption_length_limit_premium",
-		2048);
+	const auto limit = Data::PremiumLimits(session).captionLengthCurrent();
 	const auto remove = int(text.size()) - limit;
 	const auto way = _sendWay.current();
 	if (remove <= 0

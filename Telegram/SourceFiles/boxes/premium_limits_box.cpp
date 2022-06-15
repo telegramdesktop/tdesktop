@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "main/main_domain.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
@@ -26,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
 #include "settings/settings_common.h"
 #include "settings/settings_premium.h"
@@ -397,13 +397,6 @@ std::unique_ptr<PeerListRow> PublicsController::createRow(
 	return result;
 }
 
-[[nodiscard]] float64 Limit(
-		not_null<Main::Session*> session,
-		const QString &key,
-		int fallback) {
-	return 1. * AppConfigLimit(session, key, fallback);
-}
-
 void SimpleLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
@@ -496,20 +489,13 @@ void SimplePinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		const QString &refAddition,
-		const QString &keyDefault,
-		int limitDefault,
-		const QString &keyPremium,
-		int limitPremium,
-		int currentCount) {
+		float64 defaultLimit,
+		float64 premiumLimit,
+		float64 currentCount) {
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(session, keyDefault, limitDefault);
-	const auto premiumLimit = Limit(session, keyPremium, limitPremium);
-	const auto current = std::clamp(
-		float64(currentCount),
-		defaultLimit,
-		premiumLimit);
+	const auto current = std::clamp(currentCount, defaultLimit, premiumLimit);
 
 	auto text = rpl::combine(
 		tr::lng_filter_pin_limit1(
@@ -544,8 +530,9 @@ void ChannelsLimitBox(
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(session, "channels_limit_default", 500);
-	const auto premiumLimit = Limit(session, "channels_limit_premium", 1000);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.channelsDefault());
+	const auto premiumLimit = float64(limits.channelsPremium());
 	const auto current = (premium ? premiumLimit : defaultLimit);
 
 	auto text = rpl::combine(
@@ -635,14 +622,9 @@ void PublicLinksLimitBox(
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(
-		session,
-		"channels_public_limit_default",
-		10);
-	const auto premiumLimit = Limit(
-		session,
-		"channels_public_limit_premium",
-		20);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.channelsPublicDefault());
+	const auto premiumLimit = float64(limits.channelsPublicPremium());
 	const auto current = (premium ? premiumLimit : defaultLimit);
 
 	auto text = rpl::combine(
@@ -682,7 +664,7 @@ void PublicLinksLimitBox(
 	delegate->setContent(content);
 	controller->setDelegate(delegate);
 
-	const auto count = Limit(session, "channels_public_limit_default", 10);
+	const auto count = defaultLimit;
 	const auto placeholder = box->addRow(
 		object_ptr<PeerListDummy>(box, count, st::defaultPeerList),
 		{});
@@ -701,14 +683,9 @@ void FilterChatsLimitBox(
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(
-		session,
-		"dialog_filters_chats_limit_default",
-		100);
-	const auto premiumLimit = Limit(
-		session,
-		"dialog_filters_chats_limit_premium",
-		200);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.dialogFiltersChatsDefault());
+	const auto premiumLimit = float64(limits.dialogFiltersChatsPremium());
 	const auto current = std::clamp(
 		float64(currentCount),
 		defaultLimit,
@@ -746,14 +723,9 @@ void FiltersLimitBox(
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(
-		session,
-		"dialog_filters_limit_default",
-		10);
-	const auto premiumLimit = Limit(
-		session,
-		"dialog_filters_limit_premium",
-		20);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.dialogFiltersDefault());
+	const auto premiumLimit = float64(limits.dialogFiltersPremium());
 	const auto current = float64(ranges::count_if(
 		session->data().chatsFilters().list(),
 		[](const Data::ChatFilter &f) { return f.id() != FilterId(); }));
@@ -787,42 +759,39 @@ void FilterPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		FilterId filterId) {
+	const auto limits = Data::PremiumLimits(session);
 	SimplePinsLimitBox(
 		box,
 		session,
 		"dialog_filters_pinned",
-		"dialog_filters_chats_limit_default",
-		100,
-		"dialog_filters_chats_limit_premium",
-		200,
+		limits.dialogFiltersChatsDefault(),
+		limits.dialogFiltersChatsPremium(),
 		PinsCount(session->data().chatsFilters().chatsList(filterId)));
 }
 
 void FolderPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
+	const auto limits = Data::PremiumLimits(session);
 	SimplePinsLimitBox(
 		box,
 		session,
 		"dialogs_folder_pinned",
-		"dialogs_folder_pinned_limit_default",
-		100,
-		"dialogs_folder_pinned_limit_premium",
-		200,
+		limits.dialogsFolderPinnedDefault(),
+		limits.dialogsFolderPinnedPremium(),
 		PinsCount(session->data().folder(Data::Folder::kId)->chatsList()));
 }
 
 void PinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
+	const auto limits = Data::PremiumLimits(session);
 	SimplePinsLimitBox(
 		box,
 		session,
 		"dialog_pinned",
-		"dialogs_pinned_limit_default",
-		5,
-		"dialogs_pinned_limit_premium",
-		10,
+		limits.dialogsPinnedDefault(),
+		limits.dialogsPinnedPremium(),
 		PinsCount(session->data().chatsList()));
 }
 
@@ -833,14 +802,9 @@ void CaptionLimitBox(
 	const auto premium = session->premium();
 	const auto premiumPossible = session->premiumPossible();
 
-	const auto defaultLimit = Limit(
-		session,
-		"caption_length_limit_default",
-		1024);
-	const auto premiumLimit = Limit(
-		session,
-		"caption_length_limit_premium",
-		2048);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.captionLengthDefault());
+	const auto premiumLimit = float64(limits.captionLengthPremium());
 	const auto currentLimit = premium ? premiumLimit : defaultLimit;
 	const auto current = std::clamp(
 		remove + currentLimit,
@@ -896,14 +860,9 @@ void FileSizeLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		uint64 fileSizeBytes) {
-	const auto defaultLimit = Limit(
-		session,
-		"upload_max_fileparts_default",
-		4000);
-	const auto premiumLimit = Limit(
-		session,
-		"upload_max_fileparts_premium",
-		8000);
+	const auto limits = Data::PremiumLimits(session);
+	const auto defaultLimit = float64(limits.uploadMaxDefault());
+	const auto premiumLimit = float64(limits.uploadMaxPremium());
 
 	const auto defaultGb = float64(int(defaultLimit + 999) / 2000);
 	const auto premiumGb = float64(int(premiumLimit + 999) / 2000);
@@ -1080,34 +1039,4 @@ void AccountsLimitBox(
 
 QString LimitsPremiumRef(const QString &addition) {
 	return "double_limits__" + addition;
-}
-
-int AppConfigLimit(
-		not_null<Main::Session*> session,
-		const QString &key,
-		int fallback) {
-	return int(base::SafeRound(
-		session->account().appConfig().get<double>(key, 1. * fallback)));
-}
-
-int CurrentPremiumLimit(
-		not_null<Main::Session*> session,
-		const QString &keyDefault,
-		int limitDefault,
-		const QString &keyPremium,
-		int limitPremium) {
-	const auto premium = session->premium();
-	return AppConfigLimit(
-		session,
-		premium ? keyPremium : keyDefault,
-		premium ? limitPremium : limitDefault);
-}
-
-int CurrentPremiumFiltersLimit(not_null<Main::Session*> session) {
-	return CurrentPremiumLimit(
-		session,
-		"dialog_filters_limit_default",
-		10,
-		"dialog_filters_limit_premium",
-		20);
 }

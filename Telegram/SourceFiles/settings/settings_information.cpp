@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
+#include "data/data_premium_limits.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
@@ -455,14 +456,9 @@ void SetupRows(
 void SetupBio(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<UserData*> self) {
-	const auto defaultLimit = AppConfigLimit(
-		&self->session(),
-		"about_length_limit_default",
-		70);
-	const auto premiumLimit = AppConfigLimit(
-		&self->session(),
-		"about_length_limit_premium",
-		140);
+	const auto limits = Data::PremiumLimits(&self->session());
+	const auto defaultLimit = limits.aboutLengthDefault();
+	const auto premiumLimit = limits.aboutLengthPremium();
 	const auto bioStyle = [=] {
 		auto result = st::settingsBio;
 		result.textMargins.setRight(st::boxTextFont->spacew

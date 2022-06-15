@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_streaming.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/main_domain.h" // kMaxAccounts
@@ -31,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/premium_limits_box.h" // AppConfigLimit
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"
@@ -1659,162 +1659,109 @@ void PremiumUnavailableBox(not_null<Ui::GenericBox*> box) {
 void DoubledLimitsPreviewBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session) {
+	const auto limits = Data::PremiumLimits(session);
 	auto entries = std::vector<Ui::Premium::ListEntry>();
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"channels_limit_premium",
-			500 * 2);
+		const auto premium = limits.channelsPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_channels(),
 			tr::lng_premium_double_limits_about_channels(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"channels_limit_default",
-				500),
+			limits.channelsDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"dialogs_folder_pinned_limit_premium",
-			5 * 2);
+		const auto premium = limits.dialogsFolderPinnedPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_pins(),
 			tr::lng_premium_double_limits_about_pins(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"dialogs_folder_pinned_limit_default",
-				5),
+			limits.dialogsFolderPinnedDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"channels_public_limit_premium",
-			10 * 2);
+		const auto premium = limits.channelsPublicPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_links(),
 			tr::lng_premium_double_limits_about_links(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"channels_public_limit_default",
-				10),
+			limits.channelsPublicDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"saved_gifs_limit_premium",
-			200 * 2);
+		const auto premium = limits.gifsPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_gifs(),
 			tr::lng_premium_double_limits_about_gifs(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"saved_gifs_limit_default",
-				200),
+			limits.gifsDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"stickers_faved_limit_premium",
-			5 * 2);
+		const auto premium = limits.stickersFavedPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_stickers(),
 			tr::lng_premium_double_limits_about_stickers(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"stickers_faved_limit_default",
-				5),
+			limits.stickersFavedDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"about_length_limit_premium",
-			70 * 2);
+		const auto premium = limits.captionLengthPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_bio(),
 			tr::lng_premium_double_limits_about_bio(
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"about_length_limit_default",
-				70),
+			limits.captionLengthDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"caption_length_limit_premium",
-			1024 * 2);
+		const auto premium = limits.captionLengthPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_captions(),
 			tr::lng_premium_double_limits_about_captions(
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"caption_length_limit_default",
-				1024),
+			limits.captionLengthDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"dialog_filters_limit_premium",
-			10 * 2);
+		const auto premium = limits.dialogFiltersPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_folders(),
 			tr::lng_premium_double_limits_about_folders(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"dialog_filters_limit_default",
-				10),
+			limits.dialogFiltersDefault(),
 			premium,
 		});
 	}
 	{
-		const auto premium = AppConfigLimit(
-			session,
-			"dialog_filters_chats_limit_premium",
-			100 * 2);
+		const auto premium = limits.dialogFiltersChatsPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_folder_chats(),
 			tr::lng_premium_double_limits_about_folder_chats(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			AppConfigLimit(
-				session,
-				"dialog_filters_chats_limit_default",
-				100),
+			limits.dialogFiltersChatsDefault(),
 			premium,
 		});
 	}

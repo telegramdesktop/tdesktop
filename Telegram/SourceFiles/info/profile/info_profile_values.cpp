@@ -25,8 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_premium_limits.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
-#include "boxes/premium_limits_box.h"
 #include "base/unixtime.h"
 
 namespace Info {
@@ -135,10 +135,8 @@ TextWithEntities AboutWithEntities(
 	const auto stripExternal = peer->isChat()
 		|| peer->isMegagroup()
 		|| (user && !isBot && !isPremium);
-	const auto limit = AppConfigLimit(
-		&peer->session(),
-		"about_length_limit_default",
-		70);
+	const auto limit = Data::PremiumLimits(&peer->session())
+		.aboutLengthDefault();
 	const auto used = (!user || isPremium || value.size() <= limit)
 		? value
 		: value.mid(0, limit) + "...";

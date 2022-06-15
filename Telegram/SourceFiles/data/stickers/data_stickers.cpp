@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
+#include "data/data_premium_limits.h"
 #include "boxes/premium_limits_box.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -43,15 +44,9 @@ constexpr auto kPremiumToastDuration = 5 * crl::time(1000);
 using SetFlag = StickersSetFlag;
 
 [[nodiscard]] TextWithEntities SavedGifsToast(
-		not_null<Main::Session*> session) {
-	const auto defaultLimit = AppConfigLimit(
-		session,
-		"saved_gifs_limit_default",
-		200);
-	const auto premiumLimit = AppConfigLimit(
-		session,
-		"saved_gifs_limit_premium",
-		400);
+		const Data::PremiumLimits &limits) {
+	const auto defaultLimit = limits.gifsDefault();
+	const auto premiumLimit = limits.gifsPremium();
 	return Ui::Text::Bold(
 		tr::lng_saved_gif_limit_title(tr::now, lt_count, defaultLimit)
 	).append('\n').append(
@@ -65,15 +60,9 @@ using SetFlag = StickersSetFlag;
 }
 
 [[nodiscard]] TextWithEntities FaveStickersToast(
-		not_null<Main::Session*> session) {
-	const auto defaultLimit = AppConfigLimit(
-		session,
-		"stickers_faved_limit_default",
-		5);
-	const auto premiumLimit = AppConfigLimit(
-		session,
-		"stickers_faved_limit_premium",
-		200);
+		const Data::PremiumLimits &limits) {
+	const auto defaultLimit = limits.stickersFavedDefault();
+	const auto premiumLimit = limits.stickersFavedPremium();
 	return Ui::Text::Bold(
 		tr::lng_fave_sticker_limit_title(tr::now, lt_count, defaultLimit)
 	).append('\n').append(
@@ -315,17 +304,12 @@ void Stickers::addSavedGif(
 	}
 	_savedGifs.push_front(document);
 	const auto session = &document->session();
-	const auto limit = CurrentPremiumLimit(
-		session,
-		"saved_gifs_limit_default",
-		200,
-		"saved_gifs_limit_premium",
-		400);
-	if (_savedGifs.size() > limit) {
+	const auto limits = Data::PremiumLimits(session);
+	if (_savedGifs.size() > limits.gifsCurrent()) {
 		_savedGifs.pop_back();
 		MaybeShowPremiumToast(
 			controller,
-			SavedGifsToast(session),
+			SavedGifsToast(limits),
 			LimitsPremiumRef("saved_gifs"));
 	}
 	session->local().writeSavedGifs();
@@ -517,13 +501,8 @@ void Stickers::checkFavedLimit(
 		StickersSet &set,
 		Window::SessionController *controller) {
 	const auto session = &_owner->session();
-	const auto limit = CurrentPremiumLimit(
-		session,
-		"stickers_faved_limit_default",
-		5,
-		"stickers_faved_limit_premium",
-		200);
-	if (set.stickers.size() <= limit) {
+	const auto limits = Data::PremiumLimits(session);
+	if (set.stickers.size() <= limits.stickersFavedCurrent()) {
 		return;
 	}
 	auto removing = set.stickers.back();
@@ -541,7 +520,7 @@ void Stickers::checkFavedLimit(
 	}
 	MaybeShowPremiumToast(
 		controller,
-		FaveStickersToast(session),
+		FaveStickersToast(limits),
 		LimitsPremiumRef("stickers_faved"));
 }
 

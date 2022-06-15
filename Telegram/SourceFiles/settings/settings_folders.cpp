@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "data/data_session.h"
+#include "data/data_premium_limits.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
@@ -328,7 +329,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	const auto session = &controller->session();
 	const auto limit = [=] {
-		return CurrentPremiumFiltersLimit(session);
+		return Data::PremiumLimits(session).dialogFiltersCurrent();
 	};
 	AddSkip(container, st::settingsSectionSkip);
 	AddSubsectionTitle(container, tr::lng_filters_subtitle());

@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
 #include "ui/wrap/vertical_layout_reorder.h"
@@ -195,7 +196,7 @@ void FiltersMenu::refresh() {
 
 	_reorder->clearPinnedIntervals();
 	const auto maxLimit = (reorderAll ? 1 : 0)
-		+ CurrentPremiumFiltersLimit(&_session->session());
+		+ Data::PremiumLimits(&_session->session()).dialogFiltersCurrent();
 	const auto premiumFrom = (reorderAll ? 0 : 1) + maxLimit;
 	if (!reorderAll) {
 		_reorder->addPinnedInterval(0, 1);
