@@ -1088,6 +1088,24 @@ void ReactionPreview::paintEffect(QPainter &p) {
 		}
 		return -1;
 	};
+	const auto select = [=](int index) {
+		const auto wasInside = (state->selected >= 0);
+		const auto nowInside = (index >= 0);
+		if (state->selected != index) {
+			if (wasInside) {
+				state->entries[state->selected]->setOver(false);
+			}
+			if (nowInside) {
+				state->entries[index]->setOver(true);
+			}
+			state->selected = index;
+		}
+		if (wasInside != nowInside) {
+			result->setCursor(nowInside
+				? style::cur_pointer
+				: style::cur_default);
+		}
+	};
 	result->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		if (event->type() == QEvent::MouseButtonPress) {
@@ -1101,22 +1119,9 @@ void ReactionPreview::paintEffect(QPainter &p) {
 		} else if (event->type() == QEvent::MouseMove) {
 			const auto point = static_cast<QMouseEvent*>(event.get())->pos();
 			const auto index = lookup(point);
-			const auto wasInside = (state->selected >= 0);
-			const auto nowInside = (index >= 0);
-			if (state->selected != index) {
-				if (wasInside) {
-					state->entries[state->selected]->setOver(false);
-				}
-				if (nowInside) {
-					state->entries[index]->setOver(true);
-				}
-				state->selected = index;
-			}
-			if (wasInside != nowInside) {
-				result->setCursor(nowInside
-					? style::cur_pointer
-					: style::cur_default);
-			}
+			select(lookup(point));
+		} else if (event->type() == QEvent::Leave) {
+			select(-1);
 		}
 	}, lifetime);
 
@@ -1230,14 +1235,6 @@ void PreviewBox(
 	const auto outer = box->addRow(
 		ChatBackPreview(box, size.height(), back),
 		{});
-	const auto close = Ui::CreateChild<Ui::IconButton>(
-		box->verticalLayout().get(),
-		st::settingsPremiumTopBarClose);
-	box->verticalLayout()->widthValue(
-	) | rpl::start_with_next([=](int width) {
-		close->moveToRight(0, 0, width);
-	}, close->lifetime());
-	close->setClickedCallback([=] { box->closeBox(); });
 
 	struct Hiding {
 		not_null<Ui::RpWidget*> widget;
@@ -1260,6 +1257,37 @@ void PreviewBox(
 	};
 	const auto state = outer->lifetime().make_state<State>();
 	state->selected = descriptor.section;
+
+	const auto move = [=](int delta) {
+		using Type = PremiumPreview;
+		const auto count = int(Type::kCount);
+		const auto now = state->selected.current();
+		state->selected = Type((int(now) + count + delta) % count);
+	};
+
+	const auto buttonsParent = box->verticalLayout().get();
+	const auto close = Ui::CreateChild<Ui::IconButton>(
+		buttonsParent,
+		st::settingsPremiumTopBarClose);
+	close->setClickedCallback([=] { box->closeBox(); });
+
+	const auto left = Ui::CreateChild<Ui::IconButton>(
+		buttonsParent,
+		st::settingsPremiumMoveLeft);
+	left->setClickedCallback([=] { move(-1); });
+
+	const auto right = Ui::CreateChild<Ui::IconButton>(
+		buttonsParent,
+		st::settingsPremiumMoveRight);
+	right->setClickedCallback([=] { move(1); });
+
+	buttonsParent->widthValue(
+	) | rpl::start_with_next([=](int width) {
+		const auto outerHeight = st::premiumPreviewHeight;
+		close->moveToRight(0, 0, width);
+		left->moveToLeft(0, (outerHeight - left->height()) / 2, width);
+		right->moveToRight(0, (outerHeight - right->height()) / 2, width);
+	}, close->lifetime());
 
 	state->preload = [=] {
 		if (!state->showFinished) {
@@ -1480,15 +1508,10 @@ void PreviewBox(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {
 		if (e->type() == QEvent::KeyPress) {
 			const auto key = static_cast<QKeyEvent*>(e.get())->key();
-			using Type = PremiumPreview;
 			if (key == Qt::Key_Left) {
-				const auto count = int(Type::kCount);
-				const auto now = state->selected.current();
-				state->selected = Type((int(now) + count - 1) % count);
+				move(-1);
 			} else if (key == Qt::Key_Right) {
-				const auto count = int(Type::kCount);
-				const auto now = state->selected.current();
-				state->selected = Type((int(now) + 1) % count);
+				move(1);
 			}
 		}
 	}, box->lifetime());

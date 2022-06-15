@@ -435,7 +435,7 @@ settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
 }
 settingsPremiumLayerTopBarBack: IconButton(infoLayerTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
-	iconOver: settingsPremiumTopBarBackIcon;
+	iconOver: settingsPremiumTopBarBackIconOver;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;
 	}
@@ -446,6 +446,17 @@ settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;
 	}
+}
+settingsPremiumMoveLeft: IconButton(settingsPremiumLayerTopBarBack) {
+	width: 52px;
+	height: 56px;
+	iconPosition: point(-1px, -1px);
+}
+settingsPremiumMoveRightIcon: icon {{ "info/info_back-flip_horizontal", premiumButtonFg }};
+settingsPremiumMoveRightIconOver: icon {{ "info/info_back-flip_horizontal", premiumButtonFg }};
+settingsPremiumMoveRight: IconButton(settingsPremiumMoveLeft) {
+	icon: settingsPremiumMoveRightIcon;
+	iconOver: settingsPremiumMoveRightIconOver;
 }
 settingsPremiumRowTitlePadding: margins(60px, 5px, 46px, 3px);
 settingsPremiumRowAboutPadding: margins(60px, 0px, 46px, 6px);
