@@ -363,6 +363,7 @@ parts:
         -no-feature-renameat2 \
         -no-feature-statx \
         -no-feature-egl-extension-platform-wayland \
+        -no-feature-wayland-server \
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
