@@ -2,7 +2,7 @@ name: telegram-desktop
 adopt-info: telegram
 icon: Telegram/Resources/art/icon512@2x.png
 
-base: core20
+base: core22
 grade: stable
 confinement: strict
 compression: lzo
@@ -77,8 +77,8 @@ layout:
     bind: $SNAP/usr/share/alsa
   /usr/share/X11:
     bind: $SNAP/usr/share/X11
-  /usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.0:
-    bind: $SNAP/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/webkit2gtk-4.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.0:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.0
 
 parts:
   telegram:
@@ -87,14 +87,10 @@ parts:
     source-type: git
     parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.metainfo.xml]
     build-environment:
-      - CC: gcc-10
-      - CXX: g++-10
-      - LD_LIBRARY_PATH: $SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET:$LD_LIBRARY_PATH
+      - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     build-packages:
       - clang
-      - g++-10
-      - ninja-build
-      - python
+      - python3
       - libasound2-dev
       - libglib2.0-dev
       - libglibmm-2.4-dev
@@ -113,9 +109,9 @@ parts:
       - libglibmm-2.4-1v5
       - libopus0
       - libpulse0
-      - libssl1.1
+      - libssl3
       - libwayland-client0
-      - libwebkit2gtk-4.0-37
+      - libwebkit2gtk-4.1-0
       - libxcb1
       - libxcb-keysyms1
       - libxcb-record0
@@ -123,18 +119,18 @@ parts:
       - zlib1g
       - glib-networking
       - systemd
+    cmake-generator: Ninja
     cmake-parameters:
-      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
-      - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
+      - -DCMAKE_LIBRARY_PATH=$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET
+      - -DCMAKE_INCLUDE_PATH=$CRAFT_STAGE/usr/include
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
       - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
-      snapcraftctl pull
+      craftctl default
 
       version_file=Telegram/build/version
       version=$(sed -n "s/AppVersionStr[ ]\+\(.*\)\+/\1/p" $version_file)
@@ -146,14 +142,14 @@ parts:
 
       version="${version}$(git describe --tags | sed 's,^v[^-]\+,,')"
 
-      snapcraftctl set-version "$version"
+      craftctl set version="$version"
 
       sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
     override-build: |
-      snapcraftctl build
-      rm -rf "$SNAPCRAFT_PART_INSTALL/usr/share/icons"
+      craftctl default
+      rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     prime:
       - -./lib/systemd
     after:
@@ -168,9 +164,12 @@ parts:
     source: https://github.com/desktop-app/patches.git
     source-depth: 1
     plugin: dump
-    organize:
-      "*": patches/
-    prime: [-./*]
+    override-pull: |
+      craftctl default
+      cp -r . "$CRAFT_STAGE/patches"
+    override-stage: |
+      rm -rf patches
+    stage: [-./*]
 
   desktop-qt:
     source: https://github.com/desktop-app/snapcraft-desktop-helpers.git
@@ -182,7 +181,7 @@ parts:
       - dpkg-dev
     stage-packages:
       - libxkbcommon0
-      - ttf-ubuntu-font-family
+      - fonts-ubuntu
       - dmz-cursor-theme
       - light-themes
       - adwaita-icon-theme
@@ -192,7 +191,7 @@ parts:
       - locales-all
       - xdg-user-dirs
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
       - qt
@@ -212,7 +211,7 @@ parts:
       - libswresample3
       - libswscale5
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
 
@@ -221,10 +220,8 @@ parts:
     source-depth: 1
     source-tag: v4.0.3
     plugin: cmake
-    build-packages:
-      - ninja-build
+    cmake-generator: Ninja
     cmake-parameters:
-      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DENABLE_STATIC=OFF
@@ -233,8 +230,8 @@ parts:
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
   openal:
@@ -243,16 +240,17 @@ parts:
     source-tag: 1.22.0
     plugin: cmake
     build-packages:
-      - ninja-build
       - libasound2-dev
       - libdbus-1-dev
+      - libpipewire-0.3-dev
       - libpulse-dev
     stage-packages:
       - libasound2
       - libdbus-1-3
+      - libpipewire-0.3-0
       - libpulse0
+    cmake-generator: Ninja
     cmake-parameters:
-      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DALSOFT_EXAMPLES=OFF
@@ -261,9 +259,9 @@ parts:
       - -DALSOFT_INSTALL_CONFIG=OFF
     prime:
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libopenal.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libopenal.so
 
   qt:
     plugin: nil
@@ -314,12 +312,12 @@ parts:
       - libgtk-3-0
       - libharfbuzz0b
       - libice6
-      - libicu66
+      - libicu70
       - libopengl0
       - libpcre2-16-0
       - libpng16-16
       - libsm6
-      - libssl1.1
+      - libssl3
       - libwayland-client0
       - libwayland-cursor0
       - libwayland-egl1
@@ -350,12 +348,12 @@ parts:
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
-      find $SNAPCRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
+      find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
       cd ..
     override-build: |
       ./configure \
         -prefix /usr \
-        -libdir /usr/lib/$SNAPCRAFT_ARCH_TRIPLET \
+        -libdir /usr/lib/$CRAFT_ARCH_TRIPLET \
         -release \
         -opensource \
         -confirm-license \
@@ -369,20 +367,20 @@ parts:
         -nomake examples \
         -nomake tests
 
-      cmake --build . -j$SNAPCRAFT_PARALLEL_BUILD_COUNT
-      DESTDIR="$SNAPCRAFT_PART_INSTALL" cmake --install .
+      cmake --build . -j$CRAFT_PARALLEL_BUILD_COUNT
+      DESTDIR="$CRAFT_PART_INSTALL" cmake --install .
     stage:
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     prime:
       - -./usr/bin
       - -./usr/doc
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/metatypes
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.la
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.prl
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/metatypes
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.prl
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/libexec
       - -./usr/mkspecs
       - -./usr/modules
@@ -397,38 +395,16 @@ parts:
     plugin: autotools
     autotools-configure-parameters:
       - --prefix=/usr
-      - --libdir=\${exec_prefix}/lib/$SNAPCRAFT_ARCH_TRIPLET
+      - --libdir=\${exec_prefix}/lib/$CRAFT_ARCH_TRIPLET
       - --disable-static
       - --disable-examples
       - --disable-doc
     prime:
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.la
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/librnnoise.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/librnnoise.la
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/librnnoise.so
       - -./usr/share
-
-  vpx:
-    source: https://github.com/webmproject/libvpx.git
-    source-depth: 1
-    source-tag: v1.11.0
-    plugin: autotools
-    autotools-configure-parameters:
-      - --prefix=/usr
-      - --libdir=/usr/lib/$SNAPCRAFT_ARCH_TRIPLET
-      - --disable-examples
-      - --disable-unit-tests
-      - --disable-tools
-      - --disable-docs
-      - --enable-shared
-      - --disable-static
-      - --enable-vp8
-      - --enable-vp9
-      - --enable-webm-io
-    prime:
-      - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libvpx.so
 
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
@@ -436,16 +412,17 @@ parts:
     source-commit: 10d5f4bf77333ef6b43516f90d2ce13273255f41
     plugin: cmake
     build-packages:
-      - ninja-build
       - yasm
-      #- libdrm-dev
-      #- libegl-dev
-      #- libgbm-dev
-      #- libgl-dev
-      #- libglib2.0-dev
+      - libdrm-dev
+      - libegl-dev
+      - libgbm-dev
+      - libgl-dev
+      - libglib2.0-dev
+      - libopenh264-dev
       - libopus-dev
-      #- libpipewire-0.2-dev
+      - libpipewire-0.3-dev
       - libssl-dev
+      - libvpx-dev
       - libx11-dev
       - libxcomposite-dev
       - libxdamage-dev
@@ -455,14 +432,16 @@ parts:
       - libxrandr-dev
       - libxtst-dev
     stage-packages:
-      #- libdrm2
-      #- libegl1
-      #- libgbm1
-      #- libgl1
-      #- libglib2.0-0
+      - libdrm2
+      - libegl1
+      - libgbm1
+      - libgl1
+      - libglib2.0-0
+      - libopenh264-6
       - libopus0
-      #- libpipewire-0.2-1
-      - libssl1.1
+      - libpipewire-0.3-0
+      - libssl3
+      - libvpx7
       - libx11-6
       - libxcomposite1
       - libxdamage1
@@ -471,18 +450,16 @@ parts:
       - libxrender1
       - libxrandr2
       - libxtst6
+    cmake-generator: Ninja
     cmake-parameters:
-      - -GNinja
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DJPEG_LIBRARY_RELEASE=$SNAPCRAFT_STAGE/usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libjpeg.so
-      - -DJPEG_INCLUDE_DIR=$SNAPCRAFT_STAGE/usr/include
-      - -DTG_OWT_USE_PIPEWIRE=OFF
+      - -DCMAKE_LIBRARY_PATH=$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET
+      - -DCMAKE_INCLUDE_PATH=$CRAFT_STAGE/usr/include
     prime:
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
     after:
       - ffmpeg
       - mozjpeg
-      - vpx
