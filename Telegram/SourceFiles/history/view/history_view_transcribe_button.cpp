@@ -126,11 +126,15 @@ void TranscribeButton::setOpened(bool opened, Fn<void()> update) {
 		return;
 	}
 	_opened = opened;
-	_openedAnimation.start(
-		std::move(update),
-		_opened ? 0. : 1.,
-		_opened ? 1. : 0.,
-		st::fadeWrapDuration);
+	if (update) {
+		_openedAnimation.start(
+			std::move(update),
+			_opened ? 0. : 1.,
+			_opened ? 1. : 0.,
+			st::fadeWrapDuration);
+	} else {
+		_openedAnimation.stop();
+	}
 }
 
 ClickHandlerPtr TranscribeButton::link() {
