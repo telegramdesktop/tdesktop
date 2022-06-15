@@ -1476,6 +1476,23 @@ void PreviewBox(
 		}, box->lifetime());
 	}
 
+	box->events(
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		if (e->type() == QEvent::KeyPress) {
+			const auto key = static_cast<QKeyEvent*>(e.get())->key();
+			using Type = PremiumPreview;
+			if (key == Qt::Key_Left) {
+				const auto count = int(Type::kCount);
+				const auto now = state->selected.current();
+				state->selected = Type((int(now) + count - 1) % count);
+			} else if (key == Qt::Key_Right) {
+				const auto count = int(Type::kCount);
+				const auto now = state->selected.current();
+				state->selected = Type((int(now) + 1) % count);
+			}
+		}
+	}, box->lifetime());
+
 	if (const auto &hidden = descriptor.hiddenCallback) {
 		box->boxClosing() | rpl::start_with_next(hidden, box->lifetime());
 	}
