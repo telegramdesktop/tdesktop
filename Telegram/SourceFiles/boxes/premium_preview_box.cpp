@@ -371,6 +371,7 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 				state->toggleTimer.callOnce(kToggleStickerTimeout);
 			}
 		};
+		state->timerFired = false;
 		++state->index;
 		state->index %= state->medias.size();
 		delete std::exchange(state->previous, state->current);
