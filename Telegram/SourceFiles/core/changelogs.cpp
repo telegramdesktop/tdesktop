@@ -129,6 +129,15 @@ std::map<int, const char*> BetaLogs() {
 		"- Improve some more sections design.\n"
 		
 		"- Update the OpenAL library to 1.22.0.\n"
+	},
+	{
+		3007006,
+		"- Settings > Advanced > Experimental adds an option "
+		"to open chats in separate windows.\n"
+
+		"- Fix possible crash in video chat reconnection.\n"
+
+		"- Fix possible crash after account switch.\n"
 	}
 	};
 };

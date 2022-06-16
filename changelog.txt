@@ -1,3 +1,9 @@
+3.7.6 beta (16.06.22)
+
+- Settings > Advanced > Experimental adds an option to open chats in separate windows.
+- Fix possible crash in video chat reconnection.
+- Fix possible crash after account switch.
+
 3.7.5 beta (12.05.22)
 
 - Improve cloud password management design.
