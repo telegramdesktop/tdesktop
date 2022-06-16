@@ -235,6 +235,17 @@ void Document::fillNamedFromData(HistoryDocumentNamed *named) {
 
 QSize Document::countOptimalSize() {
 	auto captioned = Get<HistoryDocumentCaptioned>();
+	if (_parent->media() != this && !_realParent->groupId()) {
+		if (captioned) {
+			RemoveComponents(HistoryDocumentCaptioned::Bit());
+			captioned = nullptr;
+		}
+	} else if (captioned && captioned->_caption.hasSkipBlock()) {
+		captioned->_caption.updateSkipBlock(
+			_parent->skipBlockWidth(),
+			_parent->skipBlockHeight());
+	}
+
 	auto hasTranscribe = false;
 	const auto voice = Get<HistoryDocumentVoice>();
 	if (voice) {
@@ -277,19 +288,15 @@ QSize Document::countOptimalSize() {
 					st::messageTextStyle,
 					text);
 				hasTranscribe = true;
+				if (const auto skipBlockWidth = captioned
+					? 0
+					: _parent->skipBlockWidth()) {
+					voice->transcribeText.updateSkipBlock(
+						skipBlockWidth,
+						_parent->skipBlockHeight());
+				}
 			}
 		}
-	}
-
-	if (_parent->media() != this && !_realParent->groupId()) {
-		if (captioned) {
-			RemoveComponents(HistoryDocumentCaptioned::Bit());
-			captioned = nullptr;
-		}
-	} else if (captioned && captioned->_caption.hasSkipBlock()) {
-		captioned->_caption.updateSkipBlock(
-			_parent->skipBlockWidth(),
-			_parent->skipBlockHeight());
 	}
 
 	auto thumbed = Get<HistoryDocumentThumbed>();
@@ -655,15 +662,17 @@ void Document::draw(
 		}
 	}
 
+	auto selection = context.selection;
 	auto captiontop = bottom;
 	if (voice && !voice->transcribeText.isEmpty()) {
 		p.setPen(stm->historyTextFg);
-		voice->transcribeText.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, context.selection);
+		voice->transcribeText.draw(p, st::msgPadding.left(), bottom, captionw, style::al_left, 0, -1, selection);
 		captiontop += voice->transcribeText.countHeight(captionw) + st::mediaCaptionSkip;
+		selection = HistoryView::UnshiftItemSelection(selection, voice->transcribeText);
 	}
-	if (auto captioned = Get<HistoryDocumentCaptioned>()) {
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(stm->historyTextFg);
-		captioned->_caption.draw(p, st::msgPadding.left(), captiontop, captionw, style::al_left, 0, -1, context.selection);
+		captioned->_caption.draw(p, st::msgPadding.left(), captiontop, captionw, style::al_left, 0, -1, selection);
 	}
 }
 
@@ -812,7 +821,7 @@ TextState Document::textState(
 	const auto nametop = st.nameTop - topMinus;
 	const auto nameright = st.padding.left();
 	const auto linktop = st.linkTop - topMinus;
-	const auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
+	auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
 	const auto innerSize = st::msgFileLayout.thumbSize;
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
@@ -844,6 +853,9 @@ TextState Document::textState(
 
 	const auto voice = Get<HistoryDocumentVoice>();
 	auto namewidth = width - nameleft - nameright;
+	auto transcribeLength = 0;
+	auto transcribeHeight = 0;
+	auto painth = layout.height();
 	if (voice) {
 		auto waveformbottom = st.padding.top() - topMinus + st::msgWaveformMax + st::msgWaveformMin;
 		if (voice->transcribe) {
@@ -867,15 +879,36 @@ TextState Document::textState(
 				return result;
 			}
 		}
+		transcribeLength = voice->transcribeText.length();
+		if (transcribeLength > 0) {
+			auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
+			transcribeHeight = voice->transcribeText.countHeight(captionw);
+			painth -= transcribeHeight;
+			if (point.y() >= bottom && point.y() < bottom + transcribeHeight) {
+				result = TextState(_parent, voice->transcribeText.getState(
+					point - QPoint(st::msgPadding.left(), bottom),
+					width - st::msgPadding.left() - st::msgPadding.right(),
+					request.forText()));
+				return result;
+			}
+			bottom += transcribeHeight;
+		}
 	}
 
-	auto painth = layout.height();
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		if (point.y() >= bottom) {
+			result.symbol += transcribeLength;
+		}
+		if (transcribeHeight) {
+			painth -= st::mediaCaptionSkip;
+			bottom += st::mediaCaptionSkip;
+		}
 		if (point.y() >= bottom) {
 			result = TextState(_parent, captioned->_caption.getState(
 				point - QPoint(st::msgPadding.left(), bottom),
 				width - st::msgPadding.left() - st::msgPadding.right(),
 				request.forText()));
+			result.symbol += transcribeLength;
 			return result;
 		}
 		auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
@@ -883,6 +916,8 @@ TextState Document::textState(
 		if (isBubbleBottom()) {
 			painth -= st::msgPadding.bottom();
 		}
+	} else if (transcribeHeight && isBubbleBottom()) {
+		painth -= st::msgPadding.bottom();
 	}
 	const auto till = voice ? (nameleft + namewidth) : width;
 	if (QRect(0, 0, till, painth).contains(point)
@@ -901,7 +936,7 @@ TextState Document::textState(
 
 void Document::updatePressed(QPoint point) {
 	// LayoutMode should be passed here.
-	if (auto voice = Get<HistoryDocumentVoice>()) {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
 		if (voice->seeking()) {
 			const auto thumbed = Get<HistoryDocumentThumbed>();
 			const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
@@ -920,28 +955,80 @@ void Document::updatePressed(QPoint point) {
 TextSelection Document::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
+	auto transcribe = (const Ui::Text::String*)nullptr;
+	auto caption = (const Ui::Text::String*)nullptr;
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		transcribe = &voice->transcribeText;
+	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		return captioned->_caption.adjustSelection(selection, type);
+		caption = &captioned->_caption;
+	}
+	const auto transcribeLength = transcribe ? transcribe->length() : 0;
+	if (transcribe && selection.from < transcribeLength) {
+		const auto adjusted = transcribe->adjustSelection(selection, type);
+		if (selection.to <= transcribeLength) {
+			return adjusted;
+		}
+		selection = TextSelection(adjusted.from, selection.to);
+	}
+	if (caption && selection.to > transcribeLength) {
+		auto unshifted = transcribe
+			? HistoryView::UnshiftItemSelection(selection, *transcribe)
+			: selection;
+		const auto adjusted = caption->adjustSelection(unshifted, type);
+		const auto shifted = transcribe
+			? HistoryView::ShiftItemSelection(adjusted, *transcribe)
+			: adjusted;
+		if (selection.from >= transcribeLength) {
+			return shifted;
+		}
+		selection = TextSelection(selection.from, shifted.to);
 	}
 	return selection;
 }
 
 uint16 Document::fullSelectionLength() const {
+	auto result = uint16();
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		result += voice->transcribeText.length();
+	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		return captioned->_caption.length();
+		result += captioned->_caption.length();
 	}
 	return 0;
 }
 
 bool Document::hasTextForCopy() const {
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		if (!voice->transcribeText.isEmpty()) {
+			return true;
+		}
+	}
 	return Has<HistoryDocumentCaptioned>();
 }
 
 TextForMimeData Document::selectedText(TextSelection selection) const {
-	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		return captioned->_caption.toTextForMimeData(selection);
+	auto result = TextForMimeData();
+	if (const auto voice = Get<HistoryDocumentVoice>()) {
+		const auto length = voice->transcribeText.length();
+		if (selection.from < length) {
+			result.append(
+				voice->transcribeText.toTextForMimeData(selection));
+		}
+		if (selection.to <= length) {
+			return result;
+		}
+		selection = HistoryView::UnshiftItemSelection(
+			selection,
+			voice->transcribeText);
 	}
-	return TextForMimeData();
+	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
+		if (!result.empty()) {
+			result.append("\n\n");
+		}
+		result.append(captioned->_caption.toTextForMimeData(selection));
+	}
+	return result;
 }
 
 bool Document::uploading() const {

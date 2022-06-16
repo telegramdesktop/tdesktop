@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/emoji_config.h"
 #include "api/api_sending.h"
+#include "api/api_transcribes.h"
 #include "storage/storage_shared_media.h"
 #include "storage/localstorage.h"
 #include "chat_helpers/stickers_dice_pack.h" // Stickers::DicePacks::IsSlot.
@@ -56,6 +57,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/file_upload.h"
 #include "window/window_session_controller.h" // Window::Show
+#include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 
@@ -858,9 +860,27 @@ TextForMimeData MediaFile::clipboardText() const {
 		}
 		return tr::lng_in_dlg_file(tr::now) + addName;
 	}();
-	return WithCaptionClipboardText(
-		attachType,
-		parent()->clipboardText());
+	auto caption = parent()->clipboardText();
+
+	if (_document->isVoiceMessage()) {
+		const auto &entry = _document->session().api().transcribes().entry(
+			parent());
+		if (!entry.requestId
+			&& entry.shown
+			&& !entry.toolong
+			&& !entry.failed
+			&& (entry.pending || !entry.result.isEmpty())) {
+			const auto text = "{{\n"
+				+ entry.result
+				+ (entry.result.isEmpty() ? "" : " ")
+				+ (entry.pending ? "[...]" : "")
+				+ "\n}}"
+				+ (caption.rich.text.isEmpty() ? "" : "\n");
+			caption = TextForMimeData{ text, { text } }.append(std::move(caption));
+		}
+	}
+
+	return WithCaptionClipboardText(attachType, std::move(caption));
 }
 
 bool MediaFile::allowsEditCaption() const {
