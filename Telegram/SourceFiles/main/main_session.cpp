@@ -133,12 +133,14 @@ Session::Session(
 			}
 		}, _lifetime);
 
+#ifndef OS_MAC_STORE
 		_account->appConfig().value(
 		) | rpl::start_with_next([=] {
 			_premiumPossible = !_account->appConfig().get<bool>(
 				"premium_purchase_blocked",
 				true);
 		}, _lifetime);
+#endif // OS_MAC_STORE
 
 		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().userPrivacy().save(
