@@ -217,14 +217,10 @@ PreparedList PrepareMediaList(
 				PreparedList::Error::EmptyFile,
 				file
 			};
-		} else if (filesize > kFileSizePremiumLimit) {
-			return {
-				PreparedList::Error::TooLargeFile,
-				file
-			};
-		} else if (filesize > kFileSizeLimit && !premium) {
+		} else if (filesize > kFileSizePremiumLimit
+			|| (filesize > kFileSizeLimit && !premium)) {
 			auto errorResult = PreparedList(
-				PreparedList::Error::PremiumRequired,
+				PreparedList::Error::TooLargeFile,
 				QString());
 			errorResult.files.emplace_back(file);
 			errorResult.files.back().size = filesize;

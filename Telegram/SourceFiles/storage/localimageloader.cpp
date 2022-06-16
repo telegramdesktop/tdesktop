@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "boxes/send_files_box.h"
+#include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
@@ -1054,16 +1055,10 @@ void FileLoadTask::finish() {
 				tr::lng_send_image_empty(tr::now, lt_name, _filepath)),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
-	} else if (_result->filesize > kFileSizePremiumLimit) {
+	} else if (_result->filesize > kFileSizePremiumLimit
+		|| (_result->filesize > kFileSizeLimit && !premium)) {
 		Ui::show(
-			Ui::MakeInformBox(
-				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
-			Ui::LayerOption::KeepOther);
-		removeFromAlbum();
-	} else if (_result->filesize > kFileSizeLimit && !premium) {
-		Ui::show(
-			Ui::MakeInformBox(
-				tr::lng_send_image_too_large(tr::now, lt_name, _filepath)),
+			Box(FileSizeLimitBox, session, _result->filesize),
 			Ui::LayerOption::KeepOther);
 		removeFromAlbum();
 	} else {

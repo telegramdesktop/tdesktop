@@ -2121,7 +2121,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_downloads_delete_in_cloud" = "They will be deleted from your disk, but will remain accessible in the cloud.";
 
 "lng_send_image_empty" = "Could not send an empty file: {name}";
-"lng_send_image_too_large" = "Could not send a file, because it is larger than 1500 MB: {name}";
 "lng_send_images_selected#one" = "{count} image selected";
 "lng_send_images_selected#other" = "{count} images selected";
 "lng_send_photos#one" = "Send {count} photo";

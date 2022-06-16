@@ -91,7 +91,6 @@ struct PreparedList {
 		Directory,
 		EmptyFile,
 		TooLargeFile,
-		PremiumRequired,
 	};
 
 	PreparedList() = default;

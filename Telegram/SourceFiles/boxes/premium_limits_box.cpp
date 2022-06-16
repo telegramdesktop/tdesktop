@@ -407,6 +407,7 @@ std::unique_ptr<PeerListRow> PublicsController::createRow(
 void SimpleLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
+		bool premiumPossible,
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> text,
 		const QString &refAddition,
@@ -414,7 +415,6 @@ void SimpleLimitBox(
 		bool fixed = false) {
 	box->setWidth(st::boxWideWidth);
 
-	const auto premiumPossible = session->premiumPossible();
 	const auto top = fixed
 		? box->setPinnedToTopContent(object_ptr<Ui::VerticalLayout>(box))
 		: box->verticalLayout();
@@ -467,6 +467,25 @@ void SimpleLimitBox(
 		Settings::AddSkip(top, st::settingsButton.padding.bottom());
 		Settings::AddDivider(top);
 	}
+}
+
+void SimpleLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session,
+		rpl::producer<QString> title,
+		rpl::producer<TextWithEntities> text,
+		const QString &refAddition,
+		const InfographicDescriptor &descriptor,
+		bool fixed = false) {
+	SimpleLimitBox(
+		box,
+		session,
+		session->premiumPossible(),
+		std::move(title),
+		std::move(text),
+		refAddition,
+		descriptor,
+		fixed);
 }
 
 [[nodiscard]] int PinsCount(not_null<Dialogs::MainList*> list) {
@@ -877,8 +896,6 @@ void FileSizeLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Main::Session*> session,
 		uint64 fileSizeBytes) {
-	const auto premiumPossible = session->premiumPossible();
-
 	const auto defaultLimit = Limit(
 		session,
 		"upload_max_fileparts_default",
@@ -888,14 +905,19 @@ void FileSizeLimitBox(
 		"upload_max_fileparts_premium",
 		8000);
 
-	const auto defaultGb = (defaultLimit + 999) / 2000;
-	const auto premiumGb = (premiumLimit + 999) / 2000;
+	const auto defaultGb = float64(int(defaultLimit + 999) / 2000);
+	const auto premiumGb = float64(int(premiumLimit + 999) / 2000);
+
+	const auto tooLarge = (fileSizeBytes > premiumLimit * 512ULL * 1024);
+	const auto showLimit = tooLarge ? premiumGb : defaultGb;
+	const auto premiumPossible = !tooLarge && session->premiumPossible();
+
 	const auto current = (fileSizeBytes && premiumPossible)
 		? std::clamp(
-			float64(((fileSizeBytes / uint64(1024 * 1024)) + 999) / 1000),
+			float64(((fileSizeBytes / uint64(1024 * 1024)) + 499) / 1000),
 			defaultGb,
 			premiumGb)
-		: defaultGb;
+		: showLimit;
 	const auto gb = [](int count) {
 		return tr::lng_file_size_limit(tr::now, lt_count, count);
 	};
@@ -903,7 +925,7 @@ void FileSizeLimitBox(
 	auto text = rpl::combine(
 		tr::lng_file_size_limit1(
 			lt_size,
-			rpl::single(Ui::Text::Bold(gb(defaultGb))),
+			rpl::single(Ui::Text::Bold(gb(showLimit))),
 			Ui::Text::RichLangValue),
 		(!premiumPossible
 			? rpl::single(TextWithEntities())
@@ -918,13 +940,14 @@ void FileSizeLimitBox(
 	SimpleLimitBox(
 		box,
 		session,
+		premiumPossible,
 		tr::lng_file_size_limit_title(),
 		std::move(text),
 		"upload_max_fileparts",
 		{
 			defaultGb,
 			current,
-			premiumGb,
+			(tooLarge ? showLimit * 2 : premiumGb),
 			&st::premiumIconFiles,
 			tr::lng_file_size_limit
 		});
