@@ -77,8 +77,8 @@ layout:
     bind: $SNAP/usr/share/alsa
   /usr/share/X11:
     bind: $SNAP/usr/share/X11
-  /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.0:
-    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.0
+  /usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1:
+    bind: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET/webkit2gtk-4.1
 
 parts:
   telegram:
