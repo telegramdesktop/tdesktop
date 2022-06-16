@@ -914,7 +914,10 @@ bool MainWindow::minimizeToTray() {
 }
 
 void MainWindow::reActivateWindow() {
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
+	// X11 is the only platform with unreliable activate requests
+	if (!Platform::IsX11()) {
+		return;
+	}
 	const auto weak = Ui::MakeWeak(this);
 	const auto reActivate = [=] {
 		if (const auto w = weak.data()) {
@@ -930,7 +933,6 @@ void MainWindow::reActivateWindow() {
 	};
 	crl::on_main(this, reActivate);
 	base::call_delayed(200, this, reActivate);
-#endif // Q_OS_UNIX && !Q_OS_MAC
 }
 
 void MainWindow::showRightColumn(object_ptr<TWidget> widget) {
