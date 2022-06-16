@@ -995,7 +995,7 @@ uint16 Document::fullSelectionLength() const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		result += captioned->_caption.length();
 	}
-	return 0;
+	return result;
 }
 
 bool Document::hasTextForCopy() const {
