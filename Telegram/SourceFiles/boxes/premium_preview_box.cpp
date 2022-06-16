@@ -1454,7 +1454,14 @@ void PreviewBox(
 	box->addRow(
 		CreateSwitch(box->verticalLayout(), &state->selected),
 		st::premiumDotsMargin);
+	const auto showFinished = [=] {
+		state->showFinished = true;
+		if (base::take(state->preloadScheduled)) {
+			state->preload();
+		}
+	};
 	if (descriptor.fromSettings && controller->session().premium()) {
+		box->setShowFinishedCallback(showFinished);
 		box->addButton(tr::lng_close(), [=] { box->closeBox(); });
 	} else {
 		box->setStyle(st::premiumPreviewBox);
@@ -1485,11 +1492,8 @@ void PreviewBox(
 					Settings::LookupPremiumRef(state->selected.current()));
 			});
 		}
-		box->setShowFinishedCallback([=, raw = button.data()] {
-			state->showFinished = true;
-			if (base::take(state->preloadScheduled)) {
-				state->preload();
-			}
+		box->setShowFinishedCallback([=, raw = button.data()]{
+			showFinished();
 			raw->startGlareAnimation();
 		});
 		box->addButton(std::move(button));
