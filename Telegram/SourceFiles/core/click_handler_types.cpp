@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
 namespace {
@@ -118,8 +119,12 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 				? QString::fromUtf8(parsedUrl.toEncoded())
 				: ShowEncoded(displayed);
 			const auto my = context.value<ClickHandlerContext>();
-			if (const auto controller = my.sessionWindow.get()) {
-				controller->show(
+			const auto controller = my.sessionWindow.get();
+			const auto use = controller
+				? &controller->window()
+				: Core::App().activeWindow();
+			if (use) {
+				use->show(
 					Ui::MakeConfirmBox({
 						.text = (tr::lng_open_this_link(tr::now)
 							+ qsl("\n\n")

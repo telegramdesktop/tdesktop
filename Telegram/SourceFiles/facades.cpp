@@ -133,10 +133,13 @@ void activateBotCommand(
 				skipConfirmation = true;
 			}
 		}
+		const auto context = QVariant::fromValue(ClickHandlerContext{
+			.sessionWindow = sessionController.get(),
+		});
 		if (skipConfirmation) {
-			UrlClickHandler::Open(url);
+			UrlClickHandler::Open(url, context);
 		} else {
-			HiddenUrlClickHandler::Open(url);
+			HiddenUrlClickHandler::Open(url, context);
 		}
 	} break;
 
