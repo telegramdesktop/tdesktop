@@ -29,7 +29,7 @@ namespace {
 // max 512kb uploaded at the same time in each session
 constexpr auto kMaxUploadFileParallelSize = MTP::kUploadSessionsCount * 512 * 1024;
 
-constexpr auto kDocumentMaxPartsCount = 8000;
+constexpr auto kDocumentMaxPartsCountDefault = 4000;
 
 // 32kb for tiny document ( < 1mb )
 constexpr auto kDocumentUploadPartSize0 = 32 * 1024;
@@ -120,9 +120,7 @@ void Uploader::File::setDocSize(int64 size) {
 		if (docSize > limit1 || !setPartSize(kDocumentUploadPartSize1)) {
 			if (!setPartSize(kDocumentUploadPartSize2)) {
 				if (!setPartSize(kDocumentUploadPartSize3)) {
-					if (!setPartSize(kDocumentUploadPartSize4)) {
-						LOG(("Upload Error: bad doc size: %1").arg(docSize));
-					}
+					setPartSize(kDocumentUploadPartSize4);
 				}
 			}
 		}
@@ -133,7 +131,7 @@ bool Uploader::File::setPartSize(uint32 partSize) {
 	docPartSize = partSize;
 	docPartsCount = (docSize / docPartSize)
 		+ ((docSize % docPartSize) ? 1 : 0);
-	return (docPartsCount <= kDocumentMaxPartsCount);
+	return (docPartsCount <= kDocumentMaxPartsCountDefault);
 }
 
 uint64 Uploader::File::id() const {
