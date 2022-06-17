@@ -365,6 +365,8 @@ void AddContactBox::save() {
 		firstName = lastName;
 		lastName = QString();
 	}
+	const auto weak = Ui::MakeWeak(this);
+	const auto session = _session;
 	_sentName = firstName;
 	_contactId = base::RandomValue<uint64>();
 	_addRequest = _session->api().request(MTPcontacts_ImportContacts(
@@ -375,18 +377,20 @@ void AddContactBox::save() {
 				MTP_string(phone),
 				MTP_string(firstName),
 				MTP_string(lastName)))
-	)).done(crl::guard(this, [=](
+	)).done(crl::guard(weak, [=](
 			const MTPcontacts_ImportedContacts &result) {
 		const auto &data = result.match([](
 				const auto &data) -> const MTPDcontacts_importedContacts& {
 			return data;
 		});
-		_session->data().processUsers(data.vusers());
-
+		session->data().processUsers(data.vusers());
+		if (!weak) {
+			return;
+		}
 		const auto extractUser = [&](const MTPImportedContact &data) {
 			return data.match([&](const MTPDimportedContact &data) {
 				return (data.vclient_id().v == _contactId)
-					? _session->data().userLoaded(data.vuser_id())
+					? session->data().userLoaded(data.vuser_id())
 					: nullptr;
 			});
 		};
@@ -398,7 +402,9 @@ void AddContactBox::save() {
 			if (user->isContact() || user->session().supportMode()) {
 				Ui::showPeerHistory(user, ShowAtTheEndMsgId);
 			}
-			getDelegate()->hideLayer();
+			if (weak) { // showPeerHistory could close the box.
+				getDelegate()->hideLayer();
+			}
 		} else if (isBoxShown()) {
 			hideChildren();
 			_retrying = true;
