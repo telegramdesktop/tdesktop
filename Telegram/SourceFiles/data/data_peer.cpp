@@ -903,9 +903,7 @@ bool PeerData::canRevokeFullHistory() const {
 	} else if (const auto chat = asChat()) {
 		return chat->amCreator();
 	} else if (const auto megagroup = asMegagroup()) {
-		return megagroup->amCreator()
-			&& megagroup->membersCountKnown()
-			&& megagroup->canDelete();
+		return megagroup->amCreator();
 	}
 	return false;
 }
