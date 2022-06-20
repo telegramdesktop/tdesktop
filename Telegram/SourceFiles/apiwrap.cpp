@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "boxes/premium_limits_box.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "window/window_lock_widgets.h"
 #include "window/window_session_controller.h"
 #include "inline_bots/inline_bot_result.h"
@@ -115,6 +116,26 @@ using UpdatedFileReferences = Data::UpdatedFileReferences;
 
 [[nodiscard]] TimeId UnixtimeFromMsgId(mtpMsgId msgId) {
 	return TimeId(msgId >> 32);
+}
+
+[[nodiscard]] std::shared_ptr<Window::Show> ShowForPeer(
+		not_null<PeerData*> peer) {
+	const auto separate = Core::App().separateWindowForPeer(peer);
+	const auto window = separate ? separate : Core::App().primaryWindow();
+	return std::make_shared<Window::Show>(window);
+}
+
+void ShowChannelsLimitBox(not_null<PeerData*> peer) {
+	const auto primary = Core::App().primaryWindow();
+	if (!primary) {
+		return;
+	}
+	primary->invokeForSessionController(
+		&peer->session().account(),
+		peer,
+		[&](not_null<Window::SessionController*> controller) {
+			controller->show(Box(ChannelsLimitBox, &peer->session()));
+		});
 }
 
 } // namespace
@@ -417,19 +438,25 @@ void ApiWrap::sendMessageFail(
 		not_null<PeerData*> peer,
 		uint64 randomId,
 		FullMsgId itemId) {
+	const auto show = ShowForPeer(peer);
+
 	if (error.type() == qstr("PEER_FLOOD")) {
-		Ui::show(Ui::MakeInformBox(
-			PeerFloodErrorText(&session(), PeerFloodType::Send)));
+		show->showBox(
+			Ui::MakeInformBox(
+				PeerFloodErrorText(&session(), PeerFloodType::Send)),
+			Ui::LayerOption::CloseOther);
 	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = Ui::Text::Link(
 			tr::lng_cant_more_info(tr::now),
 			session().createInternalLinkFull(qsl("spambot")));
-		Ui::show(Ui::MakeInformBox(
-			tr::lng_error_public_groups_denied(
-				tr::now,
-				lt_more_info,
-				link,
-				Ui::Text::WithEntities)));
+		show->showBox(
+			Ui::MakeInformBox(
+				tr::lng_error_public_groups_denied(
+					tr::now,
+					lt_more_info,
+					link,
+					Ui::Text::WithEntities)),
+			Ui::LayerOption::CloseOther);
 	} else if (error.type().startsWith(qstr("SLOWMODE_WAIT_"))) {
 		const auto chop = qstr("SLOWMODE_WAIT_").size();
 		const auto left = base::StringViewMid(error.type(), chop).toInt();
@@ -447,13 +474,21 @@ void ApiWrap::sendMessageFail(
 		Assert(peer->isUser());
 		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
 			scheduled.removeSending(item);
-			Ui::show(Ui::MakeInformBox(tr::lng_cant_do_this()));
+			show->showBox(
+				Ui::MakeInformBox(tr::lng_cant_do_this()),
+				Ui::LayerOption::CloseOther);
 		}
 	} else if (error.type() == qstr("CHAT_FORWARDS_RESTRICTED")) {
-		Ui::ShowMultilineToast({ .text = { peer->isBroadcast()
-			? tr::lng_error_noforwards_channel(tr::now)
-			: tr::lng_error_noforwards_group(tr::now)
-		}, .duration = kJoinErrorDuration });
+		if (show->valid()) {
+			Ui::ShowMultilineToast({
+				.parentOverride = show->toastParent(),
+				.text = { peer->isBroadcast()
+					? tr::lng_error_noforwards_channel(tr::now)
+					: tr::lng_error_noforwards_group(tr::now)
+				},
+				.duration = kJoinErrorDuration
+			});
+		}
 	} else if (error.type() == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
 		Settings::ShowPremium(&session(), "premium_stickers");
 	}
@@ -1214,7 +1249,7 @@ void ApiWrap::migrateDone(
 
 void ApiWrap::migrateFail(not_null<PeerData*> peer, const QString &error) {
 	if (error == u"CHANNELS_TOO_MUCH"_q) {
-		Ui::show(Box(ChannelsLimitBox, _session));
+		ShowChannelsLimitBox(peer);
 	}
 	if (auto handlers = _migrateCallbacks.take(peer)) {
 		for (auto &handler : *handlers) {
@@ -1635,37 +1670,40 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			channel,
 			Data::PeerUpdate::Flag::ChannelAmIn);
 	} else if (!_channelAmInRequests.contains(channel)) {
-		auto requestId = request(MTPchannels_JoinChannel(
+		const auto requestId = request(MTPchannels_JoinChannel(
 			channel->inputChannel
 		)).done([=](const MTPUpdates &result) {
 			_channelAmInRequests.remove(channel);
 			applyUpdates(result);
 		}).fail([=](const MTP::Error &error) {
 			const auto &type = error.type();
-			if (type == qstr("CHANNEL_PRIVATE")
+
+			const auto show = ShowForPeer(channel);
+			if (type == u"CHANNEL_PRIVATE"_q
 				&& channel->invitePeekExpires()) {
 				channel->privateErrorReceived();
-			} else if (type == qstr("CHANNELS_TOO_MUCH")) {
-				Ui::show(Box(ChannelsLimitBox, _session));
+			} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+				ShowChannelsLimitBox(channel);
 			} else {
 				const auto text = [&] {
-					if (type == qstr("INVITE_REQUEST_SENT")) {
+					if (type == u"INVITE_REQUEST_SENT"_q) {
 						return channel->isMegagroup()
 							? tr::lng_group_request_sent(tr::now)
 							: tr::lng_group_request_sent_channel(tr::now);
-					} else if (type == qstr("CHANNEL_PRIVATE")
-						|| type == qstr("CHANNEL_PUBLIC_GROUP_NA")
-						|| type == qstr("USER_BANNED_IN_CHANNEL")) {
+					} else if (type == u"CHANNEL_PRIVATE"_q
+						|| type == u"CHANNEL_PUBLIC_GROUP_NA"_q
+						|| type == u"USER_BANNED_IN_CHANNEL"_q) {
 						return channel->isMegagroup()
 							? tr::lng_group_not_accessible(tr::now)
 							: tr::lng_channel_not_accessible(tr::now);
-					} else if (type == qstr("USERS_TOO_MUCH")) {
+					} else if (type == u"USERS_TOO_MUCH"_q) {
 						return tr::lng_group_full(tr::now);
 					}
 					return QString();
 				}();
-				if (!text.isEmpty()) {
+				if (!text.isEmpty() && show->valid()) {
 					Ui::ShowMultilineToast({
+						.parentOverride = show->toastParent(),
 						.text = { text },
 						.duration = kJoinErrorDuration,
 					});

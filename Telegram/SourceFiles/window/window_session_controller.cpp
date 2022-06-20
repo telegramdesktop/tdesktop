@@ -1926,8 +1926,8 @@ Show::Show(not_null<SessionNavigation*> navigation)
 : Show(&navigation->parentController()->window()) {
 }
 
-Show::Show(not_null<Controller*> window)
-: _window(base::make_weak(window.get())) {
+Show::Show(Controller *window)
+: _window(base::make_weak(window)) {
 }
 
 Show::~Show() = default;
