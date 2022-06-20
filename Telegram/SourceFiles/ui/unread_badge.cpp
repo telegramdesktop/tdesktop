@@ -120,7 +120,7 @@ int DrawPeerBadgeGetWidth(
 		return iconw;
 	} else if (peer->isPremium()
 		&& st.premium
-		&& peer->session().premiumPossible()) {
+		&& peer->session().premiumBadgesShown()) {
 		const auto iconw = st.premium->width();
 		st.premium->paint(
 			p,

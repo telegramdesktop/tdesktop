@@ -177,7 +177,8 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	BadgeValue(
 		_peer
 	) | rpl::start_with_next([=](Badge badge) {
-		if (badge == Badge::Premium && !_peer->session().premiumPossible()) {
+		if (badge == Badge::Premium
+			&& !_peer->session().premiumBadgesShown()) {
 			badge = Badge::None;
 		}
 		setBadge(badge);

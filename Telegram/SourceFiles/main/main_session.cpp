@@ -236,6 +236,10 @@ bool Session::premiumPossible() const {
 	return premium() || _premiumPossible.current();
 }
 
+bool Session::premiumBadgesShown() const {
+	return supportMode() || premiumPossible();
+}
+
 rpl::producer<bool> Session::premiumPossibleValue() const {
 	using namespace rpl::mappers;
 
