@@ -1722,12 +1722,12 @@ void DoubledLimitsPreviewBox(
 		});
 	}
 	{
-		const auto premium = limits.captionLengthPremium();
+		const auto premium = limits.aboutLengthPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_bio(),
 			tr::lng_premium_double_limits_about_bio(
 				Ui::Text::RichLangValue),
-			limits.captionLengthDefault(),
+			limits.aboutLengthDefault(),
 			premium,
 		});
 	}
