@@ -1,3 +1,20 @@
+4.0 (22.06.22)
+
+- Premium: Send media and files each up to 4 GB in size.
+- Premium: Download media and files at the fastest possible speed, with no limits.
+- Premium: Double most of the limits in the app.
+- Premium: Get a new button next to any voice message to generate a transcript of its audio.
+- Premium: React with even more emoji, including :clown: and :heart_eyes:.
+- Premium: Send unique stickers with additional effects, updated monthly.
+- Premium: Set a default chat folder or enable tools to auto-archive and hide new chats.
+- Premium: Subscribers have a badge next to their name, showing they help support Telegram.
+- Premium: Show off your profile video that will be animated for everyone in chats and the chat list.
+- Premium: Sponsored Messages that are sometimes shown in public channels will no longer appear.
+- Enable join requests for your public groups – no invite links required.
+- Users who open the group will see an Apply to Join Group button.
+- Once approved by an admin, users will be able to participate in the chat.
+- Bots that are integrated into the attachment menu can be programmed to work in groups and channels.
+
 3.7.6 beta (16.06.22)
 
 - Settings > Advanced > Experimental adds an option to open chats in separate windows.
