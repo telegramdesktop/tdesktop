@@ -38,7 +38,7 @@ not_null<int64*> AddSizeLimitSlider(
 	using namespace Settings;
 	using Pair = base::flat_map<Type, int64>::value_type;
 
-	const auto limits = Ui::CreateChild<rpl::event_stream<int>>(
+	const auto limits = Ui::CreateChild<rpl::event_stream<int64>>(
 		container.get());
 	const auto currentLimit = ranges::max_element(
 		values,
@@ -51,7 +51,7 @@ not_null<int64*> AddSizeLimitSlider(
 		tr::lng_media_size_limit(),
 		limits->events_starting_with_copy(
 			startLimit
-		) | rpl::map([](int value) {
+		) | rpl::map([](int64 value) {
 			return tr::lng_media_size_up_to(
 				tr::now,
 				lt_size,
@@ -67,7 +67,7 @@ not_null<int64*> AddSizeLimitSlider(
 		Export::View::kSizeValueCount,
 		Export::View::SizeLimitByIndex,
 		*result,
-		[=](int value) {
+		[=](int64 value) {
 			*result = value;
 			limits->fire_copy(value);
 		});

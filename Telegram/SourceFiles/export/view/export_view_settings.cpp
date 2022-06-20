@@ -34,7 +34,7 @@ namespace Export {
 namespace View {
 namespace {
 
-constexpr auto kMegabyte = 1024 * 1024;
+constexpr auto kMegabyte = int64(1024) * 1024;
 
 [[nodiscard]] PeerId ReadPeerId(
 		not_null<Main::Session*> session,
