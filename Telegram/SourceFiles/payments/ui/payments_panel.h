@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 
 namespace Ui {
+class Show;
 class RpWidget;
 class SeparatePanel;
 class BoxContent;
@@ -85,6 +86,7 @@ public:
 	void showBox(object_ptr<Ui::BoxContent> box);
 	void showToast(const TextWithEntities &text);
 	void showCriticalError(const TextWithEntities &text);
+	[[nodiscard]] std::shared_ptr<Show> uiShow();
 
 	[[nodiscard]] rpl::lifetime &lifetime();
 

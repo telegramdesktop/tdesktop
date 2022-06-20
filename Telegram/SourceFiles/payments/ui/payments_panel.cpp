@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/click_handler.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_interface.h"
@@ -679,6 +680,17 @@ void Panel::requestTermsAcceptance(
 				st::boxRowPadding.right(),
 				st::defaultBoxCheckbox.margin.bottom(),
 			});
+		row->setAllowTextLines(5);
+		row->setClickHandlerFilter([=](
+				const ClickHandlerPtr &link,
+				Qt::MouseButton button) {
+			ActivateClickHandler(_widget.get(), link, ClickContext{
+				.button = button,
+				.other = _delegate->panelClickHandlerContext(),
+			});
+			return false;
+		});
+
 		(*update) = [=] { row->update(); };
 
 		struct State {
@@ -828,6 +840,10 @@ void Panel::showCriticalError(const TextWithEntities &text) {
 		});
 		_widget->showInner(std::move(error));
 	}
+}
+
+std::shared_ptr<Show> Panel::uiShow() {
+	return _widget->uiShow();
 }
 
 void Panel::showWebviewError(

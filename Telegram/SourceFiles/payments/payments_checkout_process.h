@@ -147,6 +147,7 @@ private:
 		Ui::UncheckedCardDetails data,
 		bool saveInformation) override;
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
+	QVariant panelClickHandlerContext();
 
 	QString panelWebviewDataPath() override;
 

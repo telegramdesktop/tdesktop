@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "core/file_utilities.h" // File::OpenUrl.
 #include "core/core_cloud_password.h" // Core::CloudPasswordState
+#include "core/click_handler_types.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 #include "api/api_cloud_password.h"
@@ -806,6 +807,12 @@ void CheckoutProcess::panelValidateInformation(
 
 void CheckoutProcess::panelShowBox(object_ptr<Ui::BoxContent> box) {
 	_panel->showBox(std::move(box));
+}
+
+QVariant CheckoutProcess::panelClickHandlerContext() {
+	return QVariant::fromValue(ClickHandlerContext{
+		.show = _panel->uiShow(),
+	});
 }
 
 void CheckoutProcess::performInitialSilentValidation() {

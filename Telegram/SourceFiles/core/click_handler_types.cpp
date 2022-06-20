@@ -123,16 +123,17 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			const auto use = controller
 				? &controller->window()
 				: Core::App().activeWindow();
-			if (use) {
-				use->show(
-					Ui::MakeConfirmBox({
-						.text = (tr::lng_open_this_link(tr::now)
-							+ qsl("\n\n")
-							+ displayUrl),
-						.confirmed = [=](Fn<void()> hide) { hide(); open(); },
-						.confirmText = tr::lng_open_link(),
-					}),
-					Ui::LayerOption::KeepOther);
+			auto box = Ui::MakeConfirmBox({
+				.text = (tr::lng_open_this_link(tr::now)
+					+ qsl("\n\n")
+					+ displayUrl),
+				.confirmed = [=](Fn<void()> hide) { hide(); open(); },
+				.confirmText = tr::lng_open_link(),
+			});
+			if (my.show) {
+				my.show->showBox(std::move(box));
+			} else if (use) {
+				use->show(std::move(box), Ui::LayerOption::KeepOther);
 			}
 		} else {
 			open();
