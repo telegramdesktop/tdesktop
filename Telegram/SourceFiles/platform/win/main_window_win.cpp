@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "platform/win/tray_win.h"
 #include "platform/win/windows_dlls.h"
+#include "platform/win/integration_win.h"
 #include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
@@ -82,9 +83,7 @@ private:
 
 using namespace Microsoft::WRL;
 
-ComPtr<ITaskbarList3> taskbarList;
 bool handleSessionNotification = false;
-uint32 kTaskbarCreatedMsgId = 0;
 
 [[nodiscard]] HICON NativeIcon(const QIcon &icon, QSize size) {
 	if (!icon.isNull()) {
@@ -124,15 +123,6 @@ bool EventFilter::mainWindowEvent(
 		WPARAM wParam,
 		LPARAM lParam,
 		LRESULT *result) {
-	if (const auto tbCreatedMsgId = kTaskbarCreatedMsgId) {
-		if (msg == tbCreatedMsgId) {
-			HRESULT hr = CoCreateInstance(CLSID_TaskbarList, nullptr, CLSCTX_ALL, IID_PPV_ARGS(&taskbarList));
-			if (!SUCCEEDED(hr)) {
-				taskbarList.Reset();
-			}
-		}
-	}
-
 	switch (msg) {
 
 	case WM_DESTROY: {
@@ -179,9 +169,6 @@ MainWindow::MainWindow(not_null<Window::Controller*> controller)
 , _taskbarHiderWindow(std::make_unique<QWindow>()) {
 	qApp->installNativeEventFilter(&_private->filter);
 
-	if (!kTaskbarCreatedMsgId) {
-		kTaskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
-	}
 	setupNativeWindowFrame();
 
 	using namespace rpl::mappers;
@@ -356,7 +343,9 @@ void MainWindow::updateIconCounters() {
 	QIcon iconSmall, iconBig;
 	iconSmall.addPixmap(iconSmallPixmap16);
 	iconSmall.addPixmap(iconSmallPixmap32);
-	const auto bigCounter = taskbarList.Get() ? 0 : counter;
+	const auto integration = &Platform::WindowsIntegration::Instance();
+	const auto taskbarList = integration->taskbarList();
+	const auto bigCounter = taskbarList ? 0 : counter;
 	iconBig.addPixmap(Tray::IconWithCounter(
 		Tray::CounterLayerArgs(32, bigCounter, muted),
 		false,
@@ -528,9 +517,6 @@ void MainWindow::destroyCachedIcons() {
 MainWindow::~MainWindow() {
 	WTSUnRegisterSessionNotification(_hWnd);
 	_private->viewSettings.Reset();
-	if (taskbarList) {
-		taskbarList.Reset();
-	}
 	destroyCachedIcons();
 }
 
