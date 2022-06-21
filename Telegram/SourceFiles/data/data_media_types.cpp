@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
+#include "ui/text/text_entity.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
@@ -246,12 +247,15 @@ TextForMimeData WithCaptionClipboardText(
 Invoice ComputeInvoiceData(
 		not_null<HistoryItem*> item,
 		const MTPDmessageMediaInvoice &data) {
+	auto description = qs(data.vdescription());
 	return {
 		.receiptMsgId = data.vreceipt_msg_id().value_or_empty(),
 		.amount = data.vtotal_amount().v,
 		.currency = qs(data.vcurrency()),
 		.title = TextUtilities::SingleLine(qs(data.vtitle())),
-		.description = qs(data.vdescription()),
+		.description = TextUtilities::ParseEntities(
+			description,
+			TextParseLinks | TextParseMultiline),
 		.photo = (data.vphoto()
 			? item->history()->owner().photoFromWeb(
 				*data.vphoto(),

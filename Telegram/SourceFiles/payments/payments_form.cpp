@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "smartglocal/smartglocal_token.h"
 #include "storage/storage_account.h"
 #include "ui/image/image.h"
+#include "ui/text/text_entity.h"
 #include "apiwrap.h"
 #include "core/core_cloud_password.h"
 #include "window/themes/window_theme.h"
@@ -400,7 +401,9 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 		.passwordMissing = data.is_password_missing(),
 	};
 	_invoice.cover.title = qs(data.vtitle());
-	_invoice.cover.description = qs(data.vdescription());
+	_invoice.cover.description = TextUtilities::ParseEntities(
+		qs(data.vdescription()),
+		TextParseLinks | TextParseMultiline)
 	if (_invoice.cover.thumbnail.isNull() && !_thumbnailLoadProcess) {
 		if (const auto photo = data.vphoto()) {
 			loadThumbnail(

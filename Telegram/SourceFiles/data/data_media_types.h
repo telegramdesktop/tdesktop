@@ -63,7 +63,7 @@ struct Invoice {
 	uint64 amount = 0;
 	QString currency;
 	QString title;
-	QString description;
+	TextWithEntities description;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
 };

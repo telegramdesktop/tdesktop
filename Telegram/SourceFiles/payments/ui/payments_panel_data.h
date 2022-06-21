@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_entity.h"
+
 namespace Payments::Ui {
 
 struct LabeledPrice {
@@ -16,7 +18,7 @@ struct LabeledPrice {
 
 struct Cover {
 	QString title;
-	QString description;
+	TextWithEntities description;
 	QString seller;
 	QImage thumbnail;
 };
