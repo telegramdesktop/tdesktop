@@ -422,15 +422,13 @@ RUN git init ffmpeg \
 	&& rm -rf ffmpeg
 
 FROM builder AS pipewire
-RUN git clone -b 0.3.42 --depth=1 $GIT/PipeWire/pipewire.git \
+RUN git clone -b 0.3.33 --depth=1 $GIT/PipeWire/pipewire.git \
 	&& cd pipewire \
 	&& meson build \
 		--buildtype=release \
 		-Dtests=disabled \
 		-Dexamples=disabled \
-		-Dpipewire-v4l2=disabled \
 		-Dspa-plugins=disabled \
-		-Dsession-managers=[] \
 	&& meson compile -C build \
 	&& DESTDIR="$LibrariesPath/pipewire-cache" meson install -C build \
 	&& cd .. \
@@ -439,15 +437,12 @@ RUN git clone -b 0.3.42 --depth=1 $GIT/PipeWire/pipewire.git \
 FROM builder AS openal
 COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 
-RUN git clone -b 1.22.0 --depth=1 $GIT/kcat/openal-soft.git \
+RUN git clone -b 1.22.1 --depth=1 $GIT/kcat/openal-soft.git \
 	&& cd openal-soft \
-	&& curl -sSL https://github.com/kcat/openal-soft/commit/2ea5bb91686ee1a7350672bf15b7b63649dbf111.patch \
-		| git apply \
 	&& CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLIBTYPE:STRING=STATIC \
 		-DALSOFT_EXAMPLES=OFF \
-		-DALSOFT_TESTS=OFF \
 		-DALSOFT_UTILS=OFF \
 		-DALSOFT_INSTALL_CONFIG=OFF \
 	&& cmake --build build --parallel \

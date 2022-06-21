@@ -237,7 +237,7 @@ parts:
   openal:
     source: https://github.com/kcat/openal-soft.git
     source-depth: 1
-    source-tag: 1.22.0
+    source-tag: 1.22.1
     plugin: cmake
     build-packages:
       - libasound2-dev
@@ -254,7 +254,6 @@ parts:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DALSOFT_EXAMPLES=OFF
-      - -DALSOFT_TESTS=OFF
       - -DALSOFT_UTILS=OFF
       - -DALSOFT_INSTALL_CONFIG=OFF
     prime:
