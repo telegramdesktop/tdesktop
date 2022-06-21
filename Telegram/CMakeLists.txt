@@ -1445,10 +1445,14 @@ else()
         if (DESKTOP_APP_QT6)
             qt6_generate_wayland_protocol_client_sources(Telegram
             FILES
-                ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
+                ${PLASMA_WAYLAND_PROTOCOLS_DIR}/plasma-shell.xml
             )
         else()
-            message(FATAL_ERROR "This piece of cmake code is not ported to Qt 5")
+            ecm_add_qtwayland_client_protocol(Telegram
+                PROTOCOL ${PLASMA_WAYLAND_PROTOCOLS_DIR}/plasma-shell.xml
+                BASENAME plasma-shell
+            )
+            target_include_directories(Telegram PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
         endif()
 
         target_link_libraries(Telegram
