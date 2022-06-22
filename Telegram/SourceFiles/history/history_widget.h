@@ -390,6 +390,7 @@ private:
 	void handleHistoryChange(not_null<const History*> history);
 	void showAboutTopPromotion();
 	void unreadCountUpdated();
+	void closeCurrent();
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();

@@ -1314,6 +1314,7 @@ void MainWidget::ui_showPeerHistory(
 		}
 		const auto unavailable = peer->computeUnavailableReason();
 		if (!unavailable.isEmpty()) {
+			Assert(isPrimary());
 			if (params.activation != anim::activation::background) {
 				controller()->show(Ui::MakeInformBox(unavailable));
 			}

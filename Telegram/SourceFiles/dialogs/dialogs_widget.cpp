@@ -263,7 +263,7 @@ Widget::Widget(
 			const auto showAtMsgId = controller->uniqueChatsInSearchResults()
 				? ShowAtUnreadMsgId
 				: row.message.fullId.msg;
-			if (row.newWindow) {
+			if (row.newWindow && controller->canShowSeparateWindow(peer)) {
 				const auto active = controller->activeChatCurrent();
 				if (const auto history = active.history()) {
 					if (history->peer == peer) {
