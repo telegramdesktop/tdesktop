@@ -23,7 +23,7 @@ enum class MimeDataState {
 	None,
 	Files,
 	PhotoFiles,
-	PremiumFile,
+	//PremiumFile,
 	Image,
 };
 
