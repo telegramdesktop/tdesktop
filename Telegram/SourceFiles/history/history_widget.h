@@ -743,6 +743,7 @@ private:
 	bool _inClickable = false;
 
 	bool _kbShown = false;
+	bool _fieldIsEmpty = true;
 	HistoryItem *_kbReplyTo = nullptr;
 	object_ptr<Ui::ScrollArea> _kbScroll;
 	const not_null<BotKeyboard*> _keyboard;

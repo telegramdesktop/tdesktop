@@ -1597,6 +1597,12 @@ void HistoryWidget::fieldChanged() {
 	updateSendButtonType();
 	if (!HasSendText(_field)) {
 		_previewState = Data::PreviewState::Allowed;
+		_fieldIsEmpty = true;
+	} else if (_fieldIsEmpty) {
+		_fieldIsEmpty = false;
+		if (_kbShown) {
+			toggleKeyboard();
+		}
 	}
 	if (updateCmdStartShown()) {
 		updateControlsVisibility();
