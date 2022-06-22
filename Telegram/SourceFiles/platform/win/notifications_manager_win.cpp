@@ -440,6 +440,7 @@ private:
 		const QString &subtitle,
 		const QString &msg,
 		DisplayOptions options);
+	void tryHide(const ToastNotification &notification);
 	[[nodiscard]] std::wstring ensureSendButtonIcon();
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
@@ -485,7 +486,7 @@ void Manager::Private::clearAll() {
 
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
-			_notifier.Hide(notification);
+			tryHide(notification);
 		}
 	}
 }
@@ -511,7 +512,7 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	if (i->second.empty()) {
 		_notifications.erase(i);
 	}
-	_notifier.Hide(taken);
+	tryHide(taken);
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
@@ -528,7 +529,7 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			_notifier.Hide(notification);
+			tryHide(notification);
 		}
 	}
 }
@@ -548,7 +549,7 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 		_notifications.erase(i);
 
 		for (const auto &[msgId, notification] : temp) {
-			_notifier.Hide(notification);
+			tryHide(notification);
 		}
 	}
 }
@@ -807,7 +808,7 @@ bool Manager::Private::showNotificationInTryCatch(
 		if (j != i->second.end()) {
 			const auto existing = j->second;
 			i->second.erase(j);
-			_notifier.Hide(existing);
+			tryHide(existing);
 			i = _notifications.find(key);
 		}
 	}
@@ -827,7 +828,14 @@ bool Manager::Private::showNotificationInTryCatch(
 	return true;
 }
 
-Manager::Manager(Window::Notifications::System *system) : NativeManager(system)
+void Manager::Private::tryHide(const ToastNotification &notification) {
+	base::WinRT::Try([&] {
+		_notifier.Hide(notification);
+	});
+}
+
+Manager::Manager(Window::Notifications::System *system)
+: NativeManager(system)
 , _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
 }
 
