@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QBuffer>
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
+#include <QtCore/QFileSystemWatcher>
 
 namespace Window {
 namespace Theme {
@@ -540,6 +541,8 @@ ChatBackground::ChatBackground() : _adjustableColors({
 		st::historyScrollBarBgOver }) {
 }
 
+ChatBackground::~ChatBackground() = default;
+
 void ChatBackground::setThemeData(QImage &&themeImage, bool themeTile) {
 	_themeImage = PostprocessBackgroundImage(
 		std::move(themeImage),
@@ -566,6 +569,22 @@ void ChatBackground::start() {
 
 	_updates.events(
 	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
+		if (const auto path = _themeObject.pathAbsolute
+			; !path.isEmpty() && QFileInfo(path).isNativePath()) {
+			if (!_themeWatcher || !_themeWatcher->files().contains(path)) {
+				_themeWatcher = std::make_unique<QFileSystemWatcher>(
+					QStringList(path));
+				QObject::connect(
+					_themeWatcher.get(),
+					&QFileSystemWatcher::fileChanged,
+					[](const QString &path) {
+						Apply(path);
+						KeepApplied();
+					});
+			}
+		} else {
+			_themeWatcher = nullptr;
+		}
 		if (update.paletteChanged()) {
 			style::NotifyPaletteChanged();
 		}
