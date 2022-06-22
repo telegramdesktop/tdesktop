@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "ui/style/style_core_palette.h"
 
+class QFileSystemWatcher;
+
 namespace style {
 struct colorizer;
 } // namespace style
@@ -154,6 +156,7 @@ enum class ClearEditing {
 class ChatBackground final {
 public:
 	ChatBackground();
+	~ChatBackground();
 
 	[[nodiscard]] rpl::producer<BackgroundUpdate> updates() const {
 		return _updates.events();
@@ -276,6 +279,7 @@ private:
 	QImage _themeImage;
 	bool _themeTile = false;
 	std::optional<Data::CloudTheme> _editingTheme;
+	std::unique_ptr<QFileSystemWatcher> _themeWatcher;
 
 	Data::WallPaper _paperForRevert
 		= Data::details::UninitializedWallPaper();
