@@ -280,6 +280,7 @@ void MainWindow::setupMain(MsgId singlePeerShowAtMsgId) {
 	clearWidgets();
 	_main = std::move(created);
 	if (const auto peer = singlePeer()) {
+		updateControlsGeometry();
 		_main->controller()->showPeerHistory(
 			peer,
 			Window::SectionShow::Way::ClearStack,
