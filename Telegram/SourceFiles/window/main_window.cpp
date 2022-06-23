@@ -903,7 +903,7 @@ Core::WindowPosition MainWindow::SecondaryInitPosition() {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (Core::Quitting()/* || !hasTrayIcon()*/) {
+	if (Core::Quitting() || !Core::App().tray().has()) {
 		return false;
 	}
 

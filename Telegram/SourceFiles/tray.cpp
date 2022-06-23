@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "platform/platform_specific.h"
 
 #include <QtWidgets/QApplication>
 
@@ -19,17 +20,20 @@ Tray::Tray() {
 
 void Tray::create() {
 	rebuildMenu();
-	if (Core::App().settings().workMode() != Settings::WorkMode::WindowOnly) {
+	using WorkMode = Settings::WorkMode;
+	if (Platform::TrayIconSupported()
+		&& (Core::App().settings().workMode() != WorkMode::WindowOnly)) {
 		_tray.createIcon();
 	}
 
 	Core::App().settings().workModeValue(
 	) | rpl::combine_previous(
-	) | rpl::start_with_next([=](
-			Settings::WorkMode previous,
-			Settings::WorkMode state) {
-		const auto wasHasIcon = (previous != Settings::WorkMode::WindowOnly);
-		const auto nowHasIcon = (state != Settings::WorkMode::WindowOnly);
+	) | rpl::start_with_next([=](WorkMode previous, WorkMode state) {
+		if (!Platform::TrayIconSupported()) {
+			return;
+		}
+		const auto wasHasIcon = (previous != WorkMode::WindowOnly);
+		const auto nowHasIcon = (state != WorkMode::WindowOnly);
 		if (wasHasIcon != nowHasIcon) {
 			if (nowHasIcon) {
 				_tray.createIcon();
@@ -175,6 +179,10 @@ void Tray::toggleSoundNotifications() {
 	if (flashBounceNotifyChanged) {
 		notifications.notifySettingsChanged(Change::FlashBounceEnabled);
 	}
+}
+
+bool Tray::has() const {
+	return _tray.hasIcon();
 }
 
 } // namespace Core

@@ -413,6 +413,10 @@ rpl::producer<> Tray::iconClicks() const {
 	return rpl::never<>();
 }
 
+bool Tray::hasIcon() const {
+	return _nativeIcon != nullptr;
+}
+
 rpl::lifetime &Tray::lifetime() {
 	return _lifetime;
 }
