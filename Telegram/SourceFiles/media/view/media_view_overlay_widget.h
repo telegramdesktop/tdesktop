@@ -20,6 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_playback_controls.h"
 #include "media/view/media_view_open_common.h"
 
+class History;
+
 namespace Data {
 class PhotoMedia;
 class DocumentMedia;
@@ -389,7 +391,7 @@ private:
 		QRect clip,
 		float64 opacity);
 
-	void updateSaveMsgState();
+	[[nodiscard]] bool isSaveMsgShown() const;
 
 	void updateOverRect(OverState state);
 	bool updateOverState(OverState newState);
@@ -569,13 +571,13 @@ private:
 	QPoint _touchStart;
 
 	QString _saveMsgFilename;
-	crl::time _saveMsgStarted = 0;
-	anim::value _saveMsgOpacity;
 	QRect _saveMsg;
 	QImage _saveMsgImage;
-	base::Timer _saveMsgUpdater;
 	Ui::Text::String _saveMsgText;
 	SavePhotoVideo _savePhotoVideoWhenLoaded = SavePhotoVideo::None;
+	// _saveMsgAnimation -> _saveMsgTimer -> _saveMsgAnimation.
+	Ui::Animations::Simple _saveMsgAnimation;
+	base::Timer _saveMsgTimer;
 
 	base::flat_map<OverState, crl::time> _animations;
 	base::flat_map<OverState, anim::value> _animationOpacities;

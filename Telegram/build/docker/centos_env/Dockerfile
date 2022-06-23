@@ -4,9 +4,9 @@ FROM centos:7 AS builder
 ENV GIT https://github.com
 ENV GIT_FREEDESKTOP ${GIT}/gitlab-freedesktop-mirrors
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
-ENV QT 6_3_0
-ENV QT_TAG v6.3.0
-ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.0
+ENV QT 6_3_1
+ENV QT_TAG v6.3.1
+ENV QT_PREFIX /usr/local/desktop-app/Qt-6.3.1
 ENV OPENSSL_VER 1_1_1
 ENV OPENSSL_PREFIX /usr/local/desktop-app/openssl-1.1.1
 ENV OPENSSL_ROOT_DIR ${OPENSSL_PREFIX}
@@ -47,7 +47,7 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone $GIT/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 4a676dea5a \
+	&& git checkout 4a5c759f8f \
 	&& rm -rf .git
 
 FROM builder AS libffi
@@ -330,9 +330,11 @@ RUN git init ffmpeg \
 		--enable-decoder=aac_fixed \
 		--enable-decoder=aac_latm \
 		--enable-decoder=aasc \
+		--enable-decoder=ac3 \
 		--enable-decoder=alac \
 		--enable-decoder=av1 \
 		--enable-decoder=av1_cuvid \
+		--enable-decoder=eac3 \
 		--enable-decoder=flac \
 		--enable-decoder=gif \
 		--enable-decoder=h264 \
@@ -419,17 +421,35 @@ RUN git init ffmpeg \
 	&& cd .. \
 	&& rm -rf ffmpeg
 
+FROM builder AS pipewire
+RUN git clone -b 0.3.42 --depth=1 $GIT/PipeWire/pipewire.git \
+	&& cd pipewire \
+	&& meson build \
+		--buildtype=release \
+		-Dtests=disabled \
+		-Dexamples=disabled \
+		-Dpipewire-v4l2=disabled \
+		-Dspa-plugins=disabled \
+		-Dsession-managers=[] \
+	&& meson compile -C build \
+	&& DESTDIR="$LibrariesPath/pipewire-cache" meson install -C build \
+	&& cd .. \
+	&& rm -rf pipewire
+
 FROM builder AS openal
-ADD https://api.github.com/repos/telegramdesktop/openal-soft/git/refs/heads/fix_pulse_default openal-soft-version.json
-RUN git clone -b fix_pulse_default --depth=1 $GIT/telegramdesktop/openal-soft.git \
+COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
+
+RUN git clone -b 1.22.0 --depth=1 $GIT/kcat/openal-soft.git \
 	&& cd openal-soft \
+	&& curl -sSL https://github.com/kcat/openal-soft/commit/2ea5bb91686ee1a7350672bf15b7b63649dbf111.patch \
+		| git apply \
 	&& CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLIBTYPE:STRING=STATIC \
 		-DALSOFT_EXAMPLES=OFF \
 		-DALSOFT_TESTS=OFF \
 		-DALSOFT_UTILS=OFF \
-		-DALSOFT_CONFIG=OFF \
+		-DALSOFT_INSTALL_CONFIG=OFF \
 	&& cmake --build build --parallel \
 	&& DESTDIR="$LibrariesPath/openal-cache" cmake --install build \
 	&& cd .. \
@@ -547,6 +567,7 @@ RUN git clone -b ${QT_TAG} --depth=1 git://code.qt.io/qt/qt5.git qt_${QT} \
 		-no-icu \
 		-no-feature-xcb-sm \
 		-no-feature-egl-extension-platform-wayland \
+		-no-feature-wayland-server \
 		-no-feature-highdpiscaling \
 		-static \
 		-dbus-runtime \
@@ -580,18 +601,16 @@ COPY --from=libvpx ${LibrariesPath}/libvpx-cache /
 COPY --from=ffmpeg ${LibrariesPath}/ffmpeg-cache /
 COPY --from=openssl ${LibrariesPath}/openssl-cache /
 COPY --from=libXtst ${LibrariesPath}/libXtst-cache /
+COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 
 # Shallow clone on a specific commit.
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin $GIT/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 63a934db1ed212ebf8aaaa20f0010dd7b0d7b396 \
+	&& git fetch --depth=1 origin 442d5bb593c0ae314960308d78f2016ad1f80c3e \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \
-	&& cd src/third_party/pipewire \
-	&& meson build -Dspa-plugins=disabled \
-	&& cd ../../.. \
 	&& cmake -G"Ninja Multi-Config" -B out . \
 		-DCMAKE_C_FLAGS_RELEASE="-O3 -DNDEBUG $HFLAGS" \
 		-DCMAKE_C_FLAGS_DEBUG="-g $HFLAGS_DEBUG" \

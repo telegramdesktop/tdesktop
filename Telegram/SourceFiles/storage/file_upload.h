@@ -37,8 +37,8 @@ struct UploadedMedia {
 
 struct UploadSecureProgress {
 	FullMsgId fullId;
-	int offset = 0;
-	int size = 0;
+	int64 offset = 0;
+	int64 size = 0;
 };
 
 struct UploadSecureDone {
@@ -126,7 +126,7 @@ private:
 	base::flat_map<mtpRequestId, QByteArray> requestsSent;
 	base::flat_map<mtpRequestId, int32> docRequestsSent;
 	base::flat_map<mtpRequestId, int32> dcMap;
-	uint32 sentSize = 0;
+	uint32 sentSize = 0; // FileSize: Right now any file size fits 32 bit.
 	uint32 sentSizes[MTP::kUploadSessionsCount] = { 0 };
 
 	FullMsgId uploadingId;

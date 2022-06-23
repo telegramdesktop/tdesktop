@@ -9,16 +9,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "window/window_session_controller.h"
+#include "boxes/premium_limits_box.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "main/main_app_config.h"
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "base/object_ptr.h"
+#include "data/data_user.h"
 #include "styles/style_window.h"
 #include "styles/style_boxes.h"
 
 namespace {
-
-constexpr auto kMaxExceptions = 100;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
@@ -91,6 +94,22 @@ private:
 
 [[nodiscard]] uint64 TypeId(Flag flag) {
 	return PeerId(FakeChatId(static_cast<BareId>(flag))).value;
+}
+
+[[nodiscard]] int Limit(
+		not_null<Main::Session*> session,
+		const QString &key,
+		double fallback) {
+	return session->account().appConfig().get<double>(key, fallback);
+}
+
+[[nodiscard]] int Limit(not_null<Main::Session*> session) {
+	const auto premium = session->premium();
+	return Limit(session,
+		(premium
+			? "dialog_filters_chats_limit_premium"
+			: "dialog_filters_chats_limit_default"),
+		premium ? 200 : 100);
 }
 
 TypeRow::TypeRow(Flag flag) : PeerListRow(TypeId(flag)) {
@@ -302,18 +321,35 @@ EditFilterChatsListController::EditFilterChatsListController(
 , _title(std::move(title))
 , _peers(peers)
 , _options(options)
-, _selected(selected) {
+, _selected(selected)
+, _limit(Limit(session)) {
 }
 
 Main::Session &EditFilterChatsListController::session() const {
 	return *_session;
 }
 
+int EditFilterChatsListController::selectedTypesCount() const {
+	Expects(_typesDelegate != nullptr);
+
+	auto result = 0;
+	for (auto i = 0; i != _typesDelegate->peerListFullRowsCount(); ++i) {
+		if (_typesDelegate->peerListRowAt(i)->checked()) {
+			++result;
+		}
+	}
+	return result;
+}
+
 void EditFilterChatsListController::rowClicked(not_null<PeerListRow*> row) {
-	const auto count = delegate()->peerListSelectedRowsCount();
-	if (count < kMaxExceptions || row->checked()) {
+	const auto count = delegate()->peerListSelectedRowsCount()
+		- selectedTypesCount();
+	if (count < _limit || row->checked()) {
 		delegate()->peerListSetRowChecked(row, !row->checked());
 		updateTitle();
+	} else {
+		delegate()->peerListShowBox(
+			Box(FilterChatsLimitBox, _session, count));
 	}
 }
 
@@ -363,7 +399,7 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	container->add(object_ptr<Ui::FixedHeightWidget>(
 		container,
 		st::membersMarginTop));
-	const auto delegate = container->lifetime().make_state<
+	_typesDelegate = container->lifetime().make_state<
 		PeerListContentDelegateSimple
 	>();
 	const auto controller = container->lifetime().make_state<TypeController>(
@@ -374,11 +410,11 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	const auto content = result->add(object_ptr<PeerListContent>(
 		container,
 		controller));
-	delegate->setContent(content);
-	controller->setDelegate(delegate);
+	_typesDelegate->setContent(content);
+	controller->setDelegate(_typesDelegate);
 	for (const auto flag : kAllTypes) {
 		if (_selected & flag) {
-			if (const auto row = delegate->peerListFindRow(TypeId(flag))) {
+			if (const auto row = _typesDelegate->peerListFindRow(TypeId(flag))) {
 				content->changeCheckState(row, true, anim::type::instant);
 				this->delegate()->peerListSetForeignRowChecked(
 					row,
@@ -408,8 +444,8 @@ object_ptr<Ui::RpWidget> EditFilterChatsListController::prepareTypesList() {
 	}, _lifetime);
 
 	_deselectOption = [=](PeerListRowId itemId) {
-		if (const auto row = delegate->peerListFindRow(itemId)) {
-			delegate->peerListSetRowChecked(row, false);
+		if (const auto row = _typesDelegate->peerListFindRow(itemId)) {
+			_typesDelegate->peerListSetRowChecked(row, false);
 		}
 	};
 
@@ -424,13 +460,8 @@ auto EditFilterChatsListController::createRow(not_null<History*> history)
 }
 
 void EditFilterChatsListController::updateTitle() {
-	auto types = 0;
-	for (const auto flag : kAllTypes) {
-		if (_selected & flag) {
-			++types;
-		}
-	}
-	const auto count = delegate()->peerListSelectedRowsCount() - types;
-	const auto additional = qsl("%1 / %2").arg(count).arg(kMaxExceptions);
+	const auto count = delegate()->peerListSelectedRowsCount()
+		- selectedTypesCount();
+	const auto additional = qsl("%1 / %2").arg(count).arg(_limit);
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }

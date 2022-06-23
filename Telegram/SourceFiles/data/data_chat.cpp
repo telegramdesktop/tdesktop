@@ -39,7 +39,10 @@ ChatData::ChatData(not_null<Data::Session*> owner, PeerId id)
 
 void ChatData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto &data) {
-		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
+		updateUserpic(
+			data.vphoto_id().v,
+			data.vdc_id().v,
+			data.is_has_video());
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
@@ -254,16 +257,8 @@ PeerId ChatData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
-void ChatData::setBotCommands(const MTPVector<MTPBotInfo> &data) {
-	if (Data::UpdateBotCommands(_botCommands, data)) {
-		owner().botCommandsChanged(this);
-	}
-}
-
-void ChatData::setBotCommands(
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	if (Data::UpdateBotCommands(_botCommands, botId, data)) {
+void ChatData::setBotCommands(const std::vector<Data::BotCommands> &list) {
+	if (_botCommands.update(list)) {
 		owner().botCommandsChanged(this);
 	}
 }
@@ -454,9 +449,12 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 
 	chat->setMessagesTTL(update.vttl_period().value_or_empty());
 	if (const auto info = update.vbot_info()) {
-		chat->setBotCommands(*info);
+		auto &&commands = ranges::views::all(
+			info->v
+		) | ranges::views::transform(Data::BotCommandsFromTL);
+		chat->setBotCommands(std::move(commands) | ranges::to_vector);
 	} else {
-		chat->setBotCommands(MTP_vector<MTPBotInfo>());
+		chat->setBotCommands({});
 	}
 	using Flag = ChatDataFlag;
 	const auto mask = Flag::CanSetUsername;

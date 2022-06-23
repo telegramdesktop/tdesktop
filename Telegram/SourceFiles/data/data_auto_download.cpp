@@ -17,8 +17,8 @@ namespace Data {
 namespace AutoDownload {
 namespace {
 
-constexpr auto kDefaultMaxSize = 8 * 1024 * 1024;
-constexpr auto kDefaultAutoPlaySize = 50 * 1024 * 1024;
+constexpr auto kDefaultMaxSize = 8 * int64(1024 * 1024);
+constexpr auto kDefaultAutoPlaySize = 50 * int64(1024 * 1024);
 constexpr auto kVersion1 = char(1);
 constexpr auto kVersion = char(2);
 
@@ -82,26 +82,29 @@ Type AutoPlayTypeFromDocument(not_null<DocumentData*> document) {
 
 } // namespace
 
-void Single::setBytesLimit(int bytesLimit) {
+void Single::setBytesLimit(int64 bytesLimit) {
 	Expects(bytesLimit >= 0 && bytesLimit <= kMaxBytesLimit);
 
-	_limit = bytesLimit;
+	_limit = int32(uint32(bytesLimit));
+
+	Ensures(hasValue());
 }
 
 bool Single::hasValue() const {
-	return (_limit >= 0);
+	return (_limit != -1);
 }
 
-bool Single::shouldDownload(int fileSize) const {
+bool Single::shouldDownload(int64 fileSize) const {
 	Expects(hasValue());
 
-	return (_limit > 0) && (fileSize <= _limit);
+	const auto realLimit = bytesLimit();
+	return (realLimit > 0) && (fileSize <= realLimit);
 }
 
-int Single::bytesLimit() const {
+int64 Single::bytesLimit() const {
 	Expects(hasValue());
 
-	return _limit;
+	return uint32(_limit);
 }
 
 qint32 Single::serialize() const {
@@ -109,7 +112,8 @@ qint32 Single::serialize() const {
 }
 
 bool Single::setFromSerialized(qint32 serialized) {
-	if (serialized < -1 || serialized > kMaxBytesLimit) {
+	auto realLimit = quint32(serialized);
+	if (serialized != -1 && int64(realLimit) > kMaxBytesLimit) {
 		return false;
 	}
 	_limit = serialized;
@@ -127,7 +131,7 @@ Single &Set::single(Type type) {
 	return const_cast<Single&>(static_cast<const Set*>(this)->single(type));
 }
 
-void Set::setBytesLimit(Type type, int bytesLimit) {
+void Set::setBytesLimit(Type type, int64 bytesLimit) {
 	single(type).setBytesLimit(bytesLimit);
 }
 
@@ -135,11 +139,11 @@ bool Set::hasValue(Type type) const {
 	return single(type).hasValue();
 }
 
-bool Set::shouldDownload(Type type, int fileSize) const {
+bool Set::shouldDownload(Type type, int64 fileSize) const {
 	return single(type).shouldDownload(fileSize);
 }
 
-int Set::bytesLimit(Type type) const {
+int64 Set::bytesLimit(Type type) const {
 	return single(type).bytesLimit();
 }
 
@@ -174,11 +178,11 @@ const Set &Full::setOrDefault(Source source, Type type) const {
 	return result;
 }
 
-void Full::setBytesLimit(Source source, Type type, int bytesLimit) {
+void Full::setBytesLimit(Source source, Type type, int64 bytesLimit) {
 	set(source).setBytesLimit(type, bytesLimit);
 }
 
-bool Full::shouldDownload(Source source, Type type, int fileSize) const {
+bool Full::shouldDownload(Source source, Type type, int64 fileSize) const {
 	if (ranges::find(kStreamedTypes, type) != end(kStreamedTypes)) {
 		// With streaming we disable autodownload and hide them in Settings.
 		return false;
@@ -186,7 +190,7 @@ bool Full::shouldDownload(Source source, Type type, int fileSize) const {
 	return setOrDefault(source, type).shouldDownload(type, fileSize);
 }
 
-int Full::bytesLimit(Source source, Type type) const {
+int64 Full::bytesLimit(Source source, Type type) const {
 	return setOrDefault(source, type).bytesLimit(type);
 }
 
@@ -313,7 +317,7 @@ bool ShouldAutoPlay(
 		not_null<PeerData*> peer,
 		not_null<PhotoData*> photo) {
 	const auto source = SourceFromPeer(peer);
-	const auto size = photo->videoByteSize();
+	const auto size = photo->videoByteSize(PhotoSize::Large);
 	return photo->hasVideo()
 		&& (data.shouldDownload(source, Type::AutoPlayGIF, size)
 			|| data.shouldDownload(source, Type::AutoPlayVideo, size)

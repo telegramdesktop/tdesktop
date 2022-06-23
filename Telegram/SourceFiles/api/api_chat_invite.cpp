@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "window/window_session_controller.h"
+#include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/empty_userpic.h"
 #include "core/application.h"
@@ -20,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/toasts/common_toasts.h"
-#include "boxes/abstract_box.h"
+#include "boxes/premium_limits_box.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 
@@ -70,12 +71,16 @@ void SubmitChatInvite(
 				"(ApiWrap::importChatInvite)").arg(result.type()));
 		});
 	}).fail([=](const MTP::Error &error) {
+		const auto &type = error.type();
+
 		const auto strongController = weak.get();
 		if (!strongController) {
 			return;
+		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+			strongController->show(
+				Box(ChannelsLimitBox, &strongController->session()));
 		}
 
-		const auto &type = error.type();
 		strongController->hideLayer();
 		Ui::ShowMultilineToast({
 			.parentOverride = Window::Show(strongController).toastParent(),
@@ -84,8 +89,6 @@ void SubmitChatInvite(
 					return isGroup
 						? tr::lng_group_request_sent(tr::now)
 						: tr::lng_group_request_sent_channel(tr::now);
-				} else if (type == u"CHANNELS_TOO_MUCH"_q) {
-					return tr::lng_join_channel_error(tr::now);
 				} else if (type == u"USERS_TOO_MUCH"_q) {
 					return tr::lng_group_invite_no_room(tr::now);
 				} else {

@@ -41,11 +41,14 @@ private:
 		not_null<Ui::RpWidget*> widget,
 		int oldPosition,
 		int newPosition);
+	[[nodiscard]] bool premium() const;
+	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareAll();
 	[[nodiscard]] base::unique_qptr<Ui::SideBarButton> prepareButton(
 		not_null<Ui::VerticalLayout*> container,
 		FilterId id,
 		const QString &title,
-		Ui::FilterIcon icon);
+		Ui::FilterIcon icon,
+		bool toBeginning = false);
 	void setupMainMenuIcon();
 	void showMenu(QPoint position, FilterId id);
 	void showEditBox(FilterId id);
@@ -61,7 +64,6 @@ private:
 	not_null<Ui::VerticalLayout*> _container;
 	Ui::VerticalLayout *_list = nullptr;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
-	base::unique_qptr<Ui::SideBarButton> _all;
 	base::unique_qptr<Ui::SideBarButton> _setup;
 	base::flat_map<FilterId, base::unique_qptr<Ui::SideBarButton>> _filters;
 	FilterId _activeFilterId = 0;

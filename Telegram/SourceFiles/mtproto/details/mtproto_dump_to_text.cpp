@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "scheme-dump_to_text.h"
 #include "scheme.h"
 
-#include "zlib.h"
+#include <zlib.h>
 
 namespace MTP::details {
 

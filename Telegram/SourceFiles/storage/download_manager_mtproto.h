@@ -156,9 +156,9 @@ public:
 
 protected:
 	[[nodiscard]] bool haveSentRequests() const;
-	[[nodiscard]] bool haveSentRequestForOffset(int offset) const;
+	[[nodiscard]] bool haveSentRequestForOffset(int64 offset) const;
 	void cancelAllRequests();
-	void cancelRequestForOffset(int offset);
+	void cancelRequestForOffset(int64 offset);
 
 	void addToQueue(int priority = 0);
 	void removeFromQueue();
@@ -169,7 +169,7 @@ protected:
 
 private:
 	struct RequestData {
-		int offset = 0;
+		int64 offset = 0;
 		mutable int sessionIndex = 0;
 		int requestedInSession = 0;
 		crl::time sent = 0;
@@ -196,9 +196,9 @@ private:
 	};
 
 	// Called only if readyToRequest() == true.
-	[[nodiscard]] virtual int takeNextRequestOffset() = 0;
-	virtual bool feedPart(int offset, const QByteArray &bytes) = 0;
-	virtual bool setWebFileSizeHook(int size);
+	[[nodiscard]] virtual int64 takeNextRequestOffset() = 0;
+	virtual bool feedPart(int64 offset, const QByteArray &bytes) = 0;
+	virtual bool setWebFileSizeHook(int64 size);
 	virtual void cancelOnFail() = 0;
 
 	void cancelRequest(mtpRequestId requestId);
@@ -220,7 +220,7 @@ private:
 		const MTPVector<MTPFileHash> &result,
 		mtpRequestId requestId);
 
-	void partLoaded(int offset, const QByteArray &bytes);
+	void partLoaded(int64 offset, const QByteArray &bytes);
 
 	bool partFailed(const MTP::Error &error, mtpRequestId requestId);
 	bool normalPartFailed(
@@ -249,7 +249,7 @@ private:
 		const QVector<MTPFileHash> &hashes);
 
 	[[nodiscard]] CheckCdnHashResult checkCdnFileHash(
-		int offset,
+		int64 offset,
 		bytes::const_span buffer);
 
 	const not_null<DownloadManagerMtproto*> _owner;
@@ -260,13 +260,13 @@ private:
 	const Data::FileOrigin _origin;
 
 	base::flat_map<mtpRequestId, RequestData> _sentRequests;
-	base::flat_map<int, mtpRequestId> _requestByOffset;
+	base::flat_map<int64, mtpRequestId> _requestByOffset;
 
 	MTP::DcId _cdnDcId = 0;
 	QByteArray _cdnToken;
 	QByteArray _cdnEncryptionKey;
 	QByteArray _cdnEncryptionIV;
-	base::flat_map<int, CdnFileHash> _cdnFileHashes;
+	base::flat_map<int64, CdnFileHash> _cdnFileHashes;
 	base::flat_map<RequestData, QByteArray> _cdnUncheckedParts;
 	mtpRequestId _cdnHashesRequestId = 0;
 

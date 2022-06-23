@@ -75,7 +75,7 @@ struct PreparedFile {
 
 	QString path;
 	QByteArray content;
-	int size = 0;
+	int64 size = 0;
 	std::unique_ptr<Ui::PreparedFileInformation> information;
 	QImage preview;
 	QSize shownDimensions;

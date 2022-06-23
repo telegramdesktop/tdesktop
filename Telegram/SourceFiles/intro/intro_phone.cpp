@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/phone_banned_box.h"
 #include "core/application.h"
+#include "window/window_session_controller.h"
 #include "countries/countries_instance.h" // Countries::Groups
 
 namespace Intro {
@@ -43,7 +44,10 @@ PhoneWidget::PhoneWidget(
 	not_null<Main::Account*> account,
 	not_null<Data*> data)
 : Step(parent, account, data)
-, _country(this, st::introCountry)
+, _country(
+	this,
+	std::make_shared<Window::Show>(getData()->controller),
+	st::introCountry)
 , _code(this, st::introCountryCode)
 , _phone(
 	this,

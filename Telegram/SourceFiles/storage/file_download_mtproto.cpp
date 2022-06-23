@@ -22,8 +22,8 @@ mtpFileLoader::mtpFileLoader(
 	Data::FileOrigin origin,
 	LocationType type,
 	const QString &to,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
@@ -44,8 +44,8 @@ mtpFileLoader::mtpFileLoader(
 mtpFileLoader::mtpFileLoader(
 	not_null<Main::Session*> session,
 	const WebFileLocation &location,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
@@ -68,8 +68,8 @@ mtpFileLoader::mtpFileLoader(
 mtpFileLoader::mtpFileLoader(
 	not_null<Main::Session*> session,
 	const GeoPointLocation &location,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LoadFromCloudSetting fromCloud,
 	bool autoLoading,
 	uint8 cacheTag)
@@ -110,7 +110,7 @@ bool mtpFileLoader::readyToRequest() const {
 		&& (!_fullSize || _nextRequestOffset < _loadSize);
 }
 
-int mtpFileLoader::takeNextRequestOffset() {
+int64 mtpFileLoader::takeNextRequestOffset() {
 	Expects(readyToRequest());
 
 	const auto result = _nextRequestOffset;
@@ -118,7 +118,7 @@ int mtpFileLoader::takeNextRequestOffset() {
 	return result;
 }
 
-bool mtpFileLoader::feedPart(int offset, const QByteArray &bytes) {
+bool mtpFileLoader::feedPart(int64 offset, const QByteArray &bytes) {
 	const auto buffer = bytes::make_span(bytes);
 	if (!writeResultPart(offset, buffer)) {
 		return false;
@@ -143,7 +143,7 @@ void mtpFileLoader::cancelOnFail() {
 	cancel(true);
 }
 
-bool mtpFileLoader::setWebFileSizeHook(int size) {
+bool mtpFileLoader::setWebFileSizeHook(int64 size) {
 	if (!_fullSize || _fullSize == size) {
 		_fullSize = _loadSize = size;
 		return true;
@@ -165,7 +165,7 @@ void mtpFileLoader::startLoadingWithPartial(const QByteArray &data) {
 
 	constexpr auto kPrefix = 8;
 	const auto parts = (data.size() - kPrefix) / Storage::kDownloadPartSize;
-	const auto use = parts * Storage::kDownloadPartSize;
+	const auto use = parts * int64(Storage::kDownloadPartSize);
 	if (use > 0) {
 		_nextRequestOffset = use;
 		feedPart(0, QByteArray::fromRawData(data.data() + kPrefix, use));

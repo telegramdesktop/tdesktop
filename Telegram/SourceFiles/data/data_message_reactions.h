@@ -29,6 +29,7 @@ struct Reaction {
 	DocumentData *centerIcon = nullptr;
 	DocumentData *aroundAnimation = nullptr;
 	bool active = false;
+	bool premium = false;
 };
 
 class Reactions final {

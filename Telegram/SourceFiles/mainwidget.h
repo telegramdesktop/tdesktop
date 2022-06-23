@@ -70,6 +70,7 @@ struct Content;
 } // namespace Export
 
 namespace Ui {
+class ChatTheme;
 class ConfirmBox;
 class ResizeArea;
 class PlainShadow;
@@ -144,7 +145,8 @@ public:
 	void dialogsToUp();
 	void checkHistoryActivation();
 
-	PeerData *peer();
+	[[nodiscard]] PeerData *peer() const;
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 
 	int backgroundFromY() const;
 	void showSection(
@@ -175,11 +177,6 @@ public:
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
 	bool setForwardDraft(PeerId peer, Data::ForwardDraft &&draft);
-	bool shareUrl(
-		PeerId peerId,
-		const QString &url,
-		const QString &text);
-	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery);
 	bool sendPaths(PeerId peerId);
 	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
 	bool selectingPeer() const;
@@ -255,6 +252,12 @@ private:
 	[[nodiscard]] bool saveThirdSectionToStackBack() const;
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
 		-> std::shared_ptr<Window::SectionMemento>;
+
+	bool shareUrl(
+		PeerId peerId,
+		const QString &url,
+		const QString &text) const;
+	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) const;
 
 	void setupConnectingWidget();
 	void createPlayer();

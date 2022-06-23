@@ -54,8 +54,9 @@ int64_t File::Context::Seek(void *opaque, int64_t offset, int whence) {
 }
 
 int File::Context::read(bytes::span buffer) {
-	Assert(_size >= _offset);
-	const auto amount = std::min(std::size_t(_size - _offset), buffer.size());
+	Expects(_size >= _offset);
+
+	const auto amount = std::min(_size - _offset, int64(buffer.size()));
 
 	if (unroll()) {
 		return -1;
@@ -102,7 +103,7 @@ int File::Context::read(bytes::span buffer) {
 int64_t File::Context::seek(int64_t offset, int whence) {
 	const auto checkedSeek = [&](int64_t offset) {
 		if (_failed || offset < 0 || offset > _size) {
-			return -1;
+			return int64(-1);
 		}
 		return (_offset = offset);
 	};

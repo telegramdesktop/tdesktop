@@ -100,12 +100,13 @@ void LoadAndApplyThumbnail(
 	document->updateThumbnails(
 		InlineImageLocation(),
 		imageWithLocation,
-		ImageWithLocation{ .location = ImageLocation() });
+		ImageWithLocation{ .location = ImageLocation() },
+		document->isPremiumSticker());
 
 	document->loadThumbnail(Data::FileOrigin());
 }
 
-}
+} // namespace
 
 void LoadThumbnailFromExternal(not_null<DocumentData*> document) {
 	const auto songData = document->song();

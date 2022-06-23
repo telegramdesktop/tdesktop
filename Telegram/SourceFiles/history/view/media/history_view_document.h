@@ -95,9 +95,9 @@ protected:
 
 private:
 	struct StateFromPlayback {
-		int statusSize = 0;
+		int64 statusSize = 0;
 		bool showPause = false;
-		int realDuration = 0;
+		TimeId realDuration = 0;
 	};
 	enum class LayoutMode {
 		Full,
@@ -124,7 +124,7 @@ private:
 	void createComponents(bool caption);
 	void fillNamedFromData(HistoryDocumentNamed *named);
 
-	void setStatusSize(int newSize, qint64 realDuration = 0) const;
+	void setStatusSize(int64 newSize, TimeId realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause
 
 	[[nodiscard]] bool downloadInCorner() const;

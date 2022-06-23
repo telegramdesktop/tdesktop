@@ -96,6 +96,10 @@ void Controller::showAccount(
 
 	_account->sessionValue(
 	) | rpl::start_with_next([=](Main::Session *session) {
+		if (!isPrimary() && (&_singlePeer->session() != session)) {
+			Core::App().closeWindow(this);
+			return;
+		}
 		const auto was = base::take(_sessionController);
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
@@ -119,9 +123,8 @@ void Controller::showAccount(
 			}, _sessionController->lifetime());
 
 			widget()->setInnerFocus();
-		} else if (!isPrimary()) {
-			// #TODO windows test
-			close();
+
+			session->updates().updateOnline(crl::now());
 		} else {
 			setupIntro();
 			_widget.updateGlobalMenu();
@@ -230,7 +233,7 @@ void Controller::showTermsDelete() {
 		if (const auto session = account().maybeSession()) {
 			session->termsDeleteNow();
 		} else {
-			Ui::hideLayer();
+			hideLayer();
 		}
 	};
 	show(
@@ -246,6 +249,10 @@ void Controller::showTermsDelete() {
 void Controller::finishFirstShow() {
 	_widget.finishFirstShow();
 	checkThemeEditor();
+}
+
+Main::Session *Controller::maybeSession() const {
+	return _account ? _account->maybeSession() : nullptr;
 }
 
 bool Controller::locked() const {
@@ -327,6 +334,10 @@ void Controller::showRightColumn(object_ptr<TWidget> widget) {
 	_widget.showRightColumn(std::move(widget));
 }
 
+void Controller::hideLayer(anim::type animated) {
+	_widget.ui_showBox({ nullptr }, Ui::LayerOption::CloseOther, animated);
+}
+
 void Controller::hideSettingsAndLayer(anim::type animated) {
 	_widget.ui_hideSettingsAndLayer(animated);
 }
@@ -378,7 +389,17 @@ void Controller::preventOrInvoke(Fn<void()> &&callback) {
 
 void Controller::invokeForSessionController(
 		not_null<Main::Account*> account,
+		PeerData *singlePeer,
 		Fn<void(not_null<SessionController*>)> &&callback) {
+	const auto separateWindow = singlePeer
+		? Core::App().separateWindowForPeer(singlePeer)
+		: nullptr;
+	const auto separateSession = separateWindow
+		? separateWindow->sessionController()
+		: nullptr;
+	if (separateSession) {
+		return callback(separateSession);
+	}
 	_account->domain().activate(std::move(account));
 	if (_sessionController) {
 		callback(_sessionController.get());

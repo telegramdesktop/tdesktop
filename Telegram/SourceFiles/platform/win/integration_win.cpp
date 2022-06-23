@@ -10,36 +10,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_integration.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/sandbox.h"
+#include "base/platform/win/base_windows_winrt.h"
 
 #include <QtCore/QCoreApplication>
 #include <QtCore/QAbstractNativeEventFilter>
 
 namespace Platform {
-namespace {
-
-class WindowsIntegration final
-	: public Integration
-	, public QAbstractNativeEventFilter {
-public:
-	void init() override;
-
-private:
-	bool nativeEventFilter(
-		const QByteArray &eventType,
-		void *message,
-		long *result) override;
-	bool processEvent(
-		HWND hWnd,
-		UINT msg,
-		WPARAM wParam,
-		LPARAM lParam,
-		LRESULT *result);
-
-};
 
 void WindowsIntegration::init() {
 	QCoreApplication::instance()->installNativeEventFilter(this);
+	_taskbarCreatedMsgId = RegisterWindowMessage(L"TaskbarButtonCreated");
+}
+
+ITaskbarList3 *WindowsIntegration::taskbarList() const {
+	return _taskbarList.get();
+}
+
+WindowsIntegration &WindowsIntegration::Instance() {
+	return static_cast<WindowsIntegration&>(Integration::Instance());
 }
 
 bool WindowsIntegration::nativeEventFilter(
@@ -63,6 +53,12 @@ bool WindowsIntegration::processEvent(
 		WPARAM wParam,
 		LPARAM lParam,
 		LRESULT *result) {
+	if (msg && msg == _taskbarCreatedMsgId && !_taskbarList) {
+		_taskbarList = base::WinRT::TryCreateInstance<ITaskbarList3>(
+			CLSID_TaskbarList,
+			CLSCTX_ALL);
+	}
+
 	switch (msg) {
 	case WM_ENDSESSION:
 		Core::Quit();
@@ -88,8 +84,6 @@ bool WindowsIntegration::processEvent(
 	}
 	return false;
 }
-
-} // namespace
 
 std::unique_ptr<Integration> CreateIntegration() {
 	return std::make_unique<WindowsIntegration>();

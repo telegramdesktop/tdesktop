@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer_rpl.h"
 #include "base/unixtime.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "data/data_document.h"
@@ -39,7 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-#include "styles/style_window.h"
+#include "styles/style_settings.h"
 
 namespace {
 
@@ -276,7 +277,7 @@ void RingtonesBox(
 			tr::lng_ringtones_box_upload_button(),
 			st::ringtonesBoxButton,
 			{
-				&st::mainMenuAddAccount,
+				&st::settingsIconAdd,
 				0,
 				Settings::IconType::Round,
 				&st::windowBgActive

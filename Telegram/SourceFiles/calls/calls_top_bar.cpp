@@ -227,23 +227,27 @@ private:
 
 TopBar::TopBar(
 	QWidget *parent,
-	const base::weak_ptr<Call> &call)
-: TopBar(parent, call, nullptr) {
+	const base::weak_ptr<Call> &call,
+	std::shared_ptr<Ui::Show> show)
+: TopBar(parent, show, call, nullptr) {
 }
 
 TopBar::TopBar(
 	QWidget *parent,
-	const base::weak_ptr<GroupCall> &call)
-: TopBar(parent, nullptr, call) {
+	const base::weak_ptr<GroupCall> &call,
+	std::shared_ptr<Ui::Show> show)
+: TopBar(parent, show, nullptr, call) {
 }
 
 TopBar::TopBar(
 	QWidget *parent,
+	std::shared_ptr<Ui::Show> show,
 	const base::weak_ptr<Call> &call,
 	const base::weak_ptr<GroupCall> &groupCall)
 : RpWidget(parent)
 , _call(call)
 , _groupCall(groupCall)
+, _show(show)
 , _userpics(call
 	? nullptr
 	: std::make_unique<Ui::GroupCallUserpics>(
@@ -279,7 +283,9 @@ void TopBar::initControls() {
 			call->setMuted(!call->muted());
 		} else if (const auto group = _groupCall.get()) {
 			if (group->mutedByAdmin()) {
-				Ui::Toast::Show(tr::lng_group_call_force_muted_sub(tr::now));
+				Ui::Toast::Show(
+					_show->toastParent(),
+					tr::lng_group_call_force_muted_sub(tr::now));
 			} else {
 				group->setMuted((group->muted() == MuteState::Muted)
 					? MuteState::Active
@@ -394,7 +400,9 @@ void TopBar::initControls() {
 		if (const auto call = _call.get()) {
 			if (Logs::DebugEnabled()
 				&& (_info->clickModifiers() & Qt::ControlModifier)) {
-				Ui::show(Box<DebugInfoBox>(_call));
+				_show->showBox(
+					Box<DebugInfoBox>(_call),
+					Ui::LayerOption::CloseOther);
 			} else {
 				Core::App().calls().showInfoPanel(call);
 			}
@@ -409,11 +417,13 @@ void TopBar::initControls() {
 			if (!group->peer()->canManageGroupCall()) {
 				group->hangup();
 			} else {
-				Ui::show(Box(
-					Group::LeaveBox,
-					group,
-					false,
-					Group::BoxContext::MainWindow));
+				_show->showBox(
+					Box(
+						Group::LeaveBox,
+						group,
+						false,
+						Group::BoxContext::MainWindow),
+					Ui::LayerOption::CloseOther);
 			}
 		}
 	});

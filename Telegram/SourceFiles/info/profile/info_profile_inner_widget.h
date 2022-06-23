@@ -62,16 +62,12 @@ private:
 		_desiredHeight.fire(countDesiredHeight());
 	}
 
-	bool canHideDetailsEver() const;
-	rpl::producer<bool> canHideDetails() const;
-
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
 
 	Members *_members = nullptr;
 	Cover *_cover = nullptr;
-	Ui::SlideWrap<RpWidget> *_infoWrap = nullptr;
 	Ui::SlideWrap<RpWidget> *_sharedMediaWrap = nullptr;
 	object_ptr<RpWidget> _content;
 

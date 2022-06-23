@@ -38,7 +38,14 @@ namespace Data {
 class CloudImageView;
 } // namespace Data
 
+namespace Dialogs::Ui {
+using namespace ::Ui;
+class VideoUserpic;
+} // namespace Dialogs::Ui
+
 namespace Dialogs {
+
+extern const char kOptionCtrlClickChatNewWindow[];
 
 class Row;
 class FakeRow;
@@ -312,6 +319,9 @@ private:
 		const Ui::Text::String &text) const;
 	void refreshSearchInChatLabel();
 
+	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
+	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
+
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
 
@@ -410,6 +420,10 @@ private:
 	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
 	RowDescriptor _menuRow;
+
+	base::flat_map<
+		not_null<PeerData*>,
+		std::unique_ptr<Ui::VideoUserpic>> _videoUserpics;
 
 	Fn<void()> _loadMoreCallback;
 	rpl::event_stream<> _listBottomReached;

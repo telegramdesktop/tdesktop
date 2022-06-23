@@ -652,6 +652,11 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				auto breakEverywhere = (forwardedHeightReal > forwardedHeight);
 				forwarded->text.drawElided(p, rectx, recty + st::msgReplyPadding.top(), rectw, kMaxGifForwardedBarLines, style::al_left, 0, -1, 0, breakEverywhere);
 				p.restoreTextPalette();
+
+				const auto skip = std::min(
+					forwarded->text.countHeight(rectw),
+					kMaxGifForwardedBarLines * st::msgServiceNameFont->height);
+				recty += skip;
 			} else if (via) {
 				p.setFont(st::msgServiceNameFont);
 				p.drawTextLeft(rectx, recty + st::msgReplyPadding.top(), 2 * rectx + rectw, via->text);
@@ -1386,7 +1391,7 @@ void Gif::validateGroupedCache(
 		{ .options = options, .outer = { width, height } });
 }
 
-void Gif::setStatusSize(int newSize) const {
+void Gif::setStatusSize(int64 newSize) const {
 	if (newSize < 0) {
 		_statusSize = newSize;
 		_statusText = Ui::FormatDurationText(-newSize - 1);
@@ -1404,7 +1409,7 @@ void Gif::setStatusSize(int newSize) const {
 
 void Gif::updateStatusText() const {
 	ensureDataMediaCreated();
-	auto statusSize = 0;
+	auto statusSize = int64();
 	if (_data->status == FileDownloadFailed || _data->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_data->uploading()) {

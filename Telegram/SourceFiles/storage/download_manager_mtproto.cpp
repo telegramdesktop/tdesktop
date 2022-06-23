@@ -480,7 +480,7 @@ void DownloadMtprotoTask::loadPart(int sessionIndex) {
 void DownloadMtprotoTask::removeSession(int sessionIndex) {
 	struct Redirect {
 		mtpRequestId requestId = 0;
-		int offset = 0;
+		int64 offset = 0;
 	};
 	auto redirect = std::vector<Redirect>();
 	for (const auto &[requestId, requestData] : _sentRequests) {
@@ -517,7 +517,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 	if (_cdnDcId) {
 		return api().request(MTPupload_GetCdnFile(
 			MTP_bytes(_cdnToken),
-			MTP_int(offset),
+			MTP_long(offset),
 			MTP_int(limit)
 		)).done([=](const MTPupload_CdnFile &result, mtpRequestId id) {
 			cdnPartLoaded(result, id);
@@ -562,7 +562,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 		return api().request(MTPupload_GetFile(
 			MTP_flags(MTPupload_GetFile::Flag::f_cdn_supported),
 			location.tl(api().session().userId()),
-			MTP_int(offset),
+			MTP_long(offset),
 			MTP_int(limit)
 		)).done([=](const MTPupload_File &result, mtpRequestId id) {
 			normalPartLoaded(result, id);
@@ -572,7 +572,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 	});
 }
 
-bool DownloadMtprotoTask::setWebFileSizeHook(int size) {
+bool DownloadMtprotoTask::setWebFileSizeHook(int64 size) {
 	return true;
 }
 
@@ -591,7 +591,7 @@ void DownloadMtprotoTask::requestMoreCdnFileHashes() {
 		requestData.sessionIndex);
 	_cdnHashesRequestId = api().request(MTPupload_GetCdnFileHashes(
 		MTP_bytes(_cdnToken),
-		MTP_int(requestData.offset)
+		MTP_long(requestData.offset)
 	)).done([=](const MTPVector<MTPFileHash> &result, mtpRequestId id) {
 		getCdnFileHashesDone(result, id);
 	}).fail([=](const MTP::Error &error, mtpRequestId id) {
@@ -673,7 +673,7 @@ void DownloadMtprotoTask::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequ
 		auto ivec = bytes::make_span(state.ivec);
 		std::copy(iv.begin(), iv.end(), ivec.begin());
 
-		auto counterOffset = static_cast<uint32>(requestData.offset) >> 4;
+		auto counterOffset = static_cast<uint32>(requestData.offset >> 4);
 		state.ivec[15] = static_cast<uchar>(counterOffset & 0xFF);
 		state.ivec[14] = static_cast<uchar>((counterOffset >> 8) & 0xFF);
 		state.ivec[13] = static_cast<uchar>((counterOffset >> 16) & 0xFF);
@@ -704,7 +704,7 @@ void DownloadMtprotoTask::cdnPartLoaded(const MTPupload_CdnFile &result, mtpRequ
 }
 
 DownloadMtprotoTask::CheckCdnHashResult DownloadMtprotoTask::checkCdnFileHash(
-		int offset,
+		int64 offset,
 		bytes::const_span buffer) {
 	const auto cdnFileHashIt = _cdnFileHashes.find(offset);
 	if (cdnFileHashIt == _cdnFileHashes.cend()) {
@@ -831,7 +831,7 @@ bool DownloadMtprotoTask::haveSentRequests() const {
 	return !_sentRequests.empty() || !_cdnUncheckedParts.empty();
 }
 
-bool DownloadMtprotoTask::haveSentRequestForOffset(int offset) const {
+bool DownloadMtprotoTask::haveSentRequestForOffset(int64 offset) const {
 	return _requestByOffset.contains(offset)
 		|| _cdnUncheckedParts.contains({ offset, 0 });
 }
@@ -843,7 +843,7 @@ void DownloadMtprotoTask::cancelAllRequests() {
 	_cdnUncheckedParts.clear();
 }
 
-void DownloadMtprotoTask::cancelRequestForOffset(int offset) {
+void DownloadMtprotoTask::cancelRequestForOffset(int64 offset) {
 	const auto i = _requestByOffset.find(offset);
 	if (i != end(_requestByOffset)) {
 		cancelRequest(i->second);
@@ -873,7 +873,7 @@ void DownloadMtprotoTask::removeFromQueue() {
 }
 
 void DownloadMtprotoTask::partLoaded(
-		int offset,
+		int64 offset,
 		const QByteArray &bytes) {
 	feedPart(offset, bytes);
 }

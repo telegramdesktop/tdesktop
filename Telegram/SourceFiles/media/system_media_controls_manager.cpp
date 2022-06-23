@@ -282,7 +282,7 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 
 	Core::App().passcodeLockValue(
 	) | rpl::filter([=](bool locked) {
-		return locked && Core::App().maybeActiveSession();
+		return locked && Core::App().maybePrimarySession();
 	}) | rpl::start_with_next([=] {
 		_controls->setEnabled(false);
 	}, _lifetime);

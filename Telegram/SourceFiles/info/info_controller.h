@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <rpl/variable.h>
 #include "data/data_search_controller.h"
 #include "window/window_session_controller.h"
-#include "settings/settings_common.h"
 
 namespace Ui {
 class SearchFieldController;
@@ -212,6 +211,11 @@ public:
 	void showBackFromStack(
 		const Window::SectionShow &params = Window::SectionShow()) override;
 
+	void removeFromStack(const std::vector<Section> &sections) const;
+
+	void takeStepData(not_null<Controller*> another);
+	std::any &stepDataReference();
+
 	rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -235,6 +239,9 @@ private:
 	std::unique_ptr<Api::DelayedSearchController> _searchController;
 	rpl::variable<bool> _seachEnabledByContent = false;
 	bool _searchStartsFocused = false;
+
+	// Data between sections based on steps.
+	std::any _stepData;
 
 	rpl::lifetime _lifetime;
 

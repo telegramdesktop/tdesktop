@@ -7,7 +7,3 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/colors.palette";
 using "ui/widgets/widgets.style";
-
-defaultMultilineToast: Toast(defaultToast) {
-	minWidth: msgMinWidth;
-}

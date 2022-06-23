@@ -405,7 +405,9 @@ QString FormatTTLTiny(float64 ttl) {
 		? tr::lng_weeks_tiny(tr::now, lt_count, int(ttl / (86400 * 7)))
 		: (ttl <= (86400 * 31) * 11)
 		? tr::lng_months_tiny({}, lt_count, int(ttl / (86400 * 31)))
-		: tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)));
+		: (ttl <= 86400 * 366)
+		? tr::lng_years_tiny({}, lt_count, std::round(ttl / (86400 * 365)))
+		: QString();
 }
 
 QString FormatMuteFor(float64 sec) {
@@ -420,14 +422,22 @@ QString FormatMuteForTiny(float64 sec) {
 	return (sec <= 60)
 		? QString()
 		: (sec <= 60 * 59)
-		? tr::lng_minutes_tiny(tr::now, lt_count, int(sec / 60))
+		? tr::lng_minutes_tiny(tr::now, lt_count, std::round(sec / 60))
 		: (sec <= 3600 * 23)
-		? tr::lng_hours_tiny(tr::now, lt_count, int(sec / 3600))
+		? tr::lng_hours_tiny(tr::now, lt_count, std::round(sec / 3600))
 		: (sec <= 86400 * 6)
-		? tr::lng_days_tiny(tr::now, lt_count, int(sec / 86400))
+		? tr::lng_days_tiny(tr::now, lt_count, std::round(sec / 86400))
 		: (sec <= (86400 * 7) * 3)
-		? tr::lng_weeks_tiny(tr::now, lt_count, int(sec / (86400 * 7)))
+		? tr::lng_weeks_tiny(tr::now, lt_count, std::round(sec / (86400 * 7)))
+		: (sec <= (86400 * 31) * 11)
+		? tr::lng_months_tiny({}, lt_count, std::round(sec / (86400 * 31)))
+		: (sec <= 86400 * 366)
+		? tr::lng_years_tiny({}, lt_count, std::round(sec / (86400 * 365)))
 		: QString();
+}
+
+QString FormatResetCloudPasswordIn(float64 sec) {
+	return (sec >= 3600) ? FormatTTL(sec) : FormatDurationText(sec);
 }
 
 } // namespace Ui

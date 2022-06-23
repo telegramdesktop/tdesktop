@@ -5,6 +5,6 @@ pushd `dirname $0` > /dev/null
 FullScriptPath=`pwd`
 popd > /dev/null
 
-python $FullScriptPath/configure.py "$@"
+python3 $FullScriptPath/configure.py "$@"
 
 exit

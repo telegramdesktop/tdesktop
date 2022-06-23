@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "base/weak_ptr.h"
 #include "api/api_chat_participants.h"
+#include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "facades.h"
 #include "styles/style_boxes.h"
@@ -91,8 +92,6 @@ void ShareBotGame(
 		).send();
 		return history->sendRequestId;
 	});
-	Ui::hideLayer();
-	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 }
 
 Controller::Controller(
@@ -144,6 +143,7 @@ void Controller::addRow(not_null<PeerData*> peer) {
 } // namespace
 
 void AddBotToGroupBoxController::Start(
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		Scope scope,
 		const QString &token,
@@ -151,8 +151,9 @@ void AddBotToGroupBoxController::Start(
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] { box->closeBox(); });
 	};
-	Ui::show(Box<PeerListBox>(
+	controller->show(Box<PeerListBox>(
 		std::make_unique<AddBotToGroupBoxController>(
+			controller,
 			bot,
 			scope,
 			token,
@@ -161,6 +162,7 @@ void AddBotToGroupBoxController::Start(
 }
 
 AddBotToGroupBoxController::AddBotToGroupBoxController(
+	not_null<Window::SessionController*> controller,
 	not_null<UserData*> bot,
 	Scope scope,
 	const QString &token,
@@ -168,6 +170,7 @@ AddBotToGroupBoxController::AddBotToGroupBoxController(
 : ChatsListBoxController((scope == Scope::ShareGame)
 	? std::make_unique<PeerListGlobalSearchController>(&bot->session())
 	: nullptr)
+, _controller(controller)
 , _bot(bot)
 , _scope(scope)
 , _token(token)
@@ -192,8 +195,15 @@ void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto send = crl::guard(this, [bot = _bot, chat, token = _token] {
+	auto send = crl::guard(this, [
+			bot = _bot,
+			controller = _controller,
+			chat,
+			token = _token] {
 		ShareBotGame(bot, chat, token);
+		using Way = Window::SectionShow::Way;
+		controller->hideLayer();
+		controller->showPeerHistory(chat, Way::ClearStack, ShowAtUnreadMsgId);
 	});
 	auto confirmText = [chat] {
 		if (chat->isUser()) {
@@ -201,7 +211,7 @@ void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
 		}
 		return tr::lng_bot_sure_share_game_group(tr::now, lt_group, chat->name);
 	}();
-	Ui::show(
+	_controller->show(
 		Ui::MakeConfirmBox({
 			.text = confirmText,
 			.confirmed = std::move(send),
@@ -240,7 +250,7 @@ void AddBotToGroupBoxController::requestExistingRights(
 void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 	if (const auto megagroup = chat->asMegagroup()) {
 		if (!megagroup->canAddMembers()) {
-			Ui::show(
+			_controller->show(
 				Ui::MakeInformBox(tr::lng_error_cant_add_member()),
 				Ui::LayerOption::KeepOther);
 			return;
@@ -261,9 +271,11 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 		return;
 	}
 	const auto bot = _bot;
+	const auto controller = _controller;
 	const auto close = [=](auto&&...) {
-		Ui::hideLayer();
-		Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+		using Way = Window::SectionShow::Way;
+		controller->hideLayer();
+		controller->showPeerHistory(chat, Way::ClearStack, ShowAtUnreadMsgId);
 	};
 	const auto rights = requestedAddAdmin
 		? _requestedRights
@@ -300,12 +312,16 @@ void AddBotToGroupBoxController::addBotToGroup(not_null<PeerData*> chat) {
 				_token,
 				_existingRights.value_or(ChatAdminRights()) });
 		box->setSaveCallback(saveCallback);
-		Ui::show(std::move(box), Ui::LayerOption::KeepOther);
+		controller->show(std::move(box), Ui::LayerOption::KeepOther);
 	} else {
-		Ui::show(
+		auto callback = crl::guard(this, [=] {
+			AddBotToGroup(bot, chat, _token);
+			controller->hideLayer();
+		});
+		controller->show(
 			Ui::MakeConfirmBox({
 				tr::lng_bot_sure_invite(tr::now, lt_group, chat->name),
-				crl::guard(this, [=] { AddBotToGroup(bot, chat, _token); }),
+				std::move(callback),
 			}),
 			Ui::LayerOption::KeepOther);
 	}
@@ -469,6 +485,5 @@ void AddBotToGroup(
 	} else {
 		chat->session().api().chatParticipants().add(chat, { 1, bot });
 	}
-	Ui::hideLayer();
 	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
 }

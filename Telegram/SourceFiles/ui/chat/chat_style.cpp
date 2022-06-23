@@ -399,6 +399,18 @@ ChatStyle::ChatStyle() {
 		st::historyPollOutChoiceRight,
 		st::historyPollOutChoiceRightSelected);
 	make(
+		&MessageStyle::historyTranscribeIcon,
+		st::historyTranscribeInIcon,
+		st::historyTranscribeInIconSelected,
+		st::historyTranscribeOutIcon,
+		st::historyTranscribeOutIconSelected);
+	make(
+		&MessageStyle::historyTranscribeHide,
+		st::historyTranscribeInHide,
+		st::historyTranscribeInHideSelected,
+		st::historyTranscribeOutHide,
+		st::historyTranscribeOutHideSelected);
+	make(
 		&MessageImageStyle::msgDateImgBg,
 		st::msgDateImgBg,
 		st::msgDateImgBgSelected);

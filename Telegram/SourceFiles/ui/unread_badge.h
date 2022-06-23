@@ -29,6 +29,7 @@ private:
 
 struct PeerBadgeStyle {
 	const style::icon *verified = nullptr;
+	const style::icon *premium = nullptr;
 	const style::color *scam = nullptr;
 };
 int DrawPeerBadgeGetWidth(

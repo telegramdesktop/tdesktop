@@ -78,9 +78,13 @@ std::unique_ptr<Media> CreateAttach(
 		return std::make_unique<GroupedMedia>(parent, collage);
 	} else if (document) {
 		if (document->sticker()) {
+			const auto skipPremiumEffect = false;
 			return std::make_unique<UnwrappedMedia>(
 				parent,
-				std::make_unique<Sticker>(parent, document));
+				std::make_unique<Sticker>(
+					parent,
+					document,
+					skipPremiumEffect));
 		} else if (document->isAnimation() || document->isVideoFile()) {
 			return std::make_unique<Gif>(parent, parent->data(), document);
 		} else if (document->isWallPaper() || document->isTheme()) {

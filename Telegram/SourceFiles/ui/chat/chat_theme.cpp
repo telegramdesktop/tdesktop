@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
-constexpr auto kMaxChatEntryHistorySize = 50;
 constexpr auto kCacheBackgroundTimeout = 1 * crl::time(1000);
 constexpr auto kCacheBackgroundFastTimeout = crl::time(200);
 constexpr auto kBackgroundFadeDuration = crl::time(200);
@@ -52,7 +51,7 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	return (doubled % 2) ? 0.5 : 1.;
 }
 
-[[nodiscard]] CacheBackgroundResult CacheBackground(
+[[nodiscard]] CacheBackgroundResult CacheBackgroundByRequest(
 		const CacheBackgroundRequest &request) {
 	Expects(!request.area.isEmpty());
 
@@ -204,6 +203,11 @@ bool operator!=(
 		const CacheBackgroundRequest &a,
 		const CacheBackgroundRequest &b) {
 	return !(a == b);
+}
+
+CacheBackgroundResult CacheBackground(
+		const CacheBackgroundRequest &request) {
+	return CacheBackgroundByRequest(request);
 }
 
 CachedBackground::CachedBackground(CacheBackgroundResult &&result)

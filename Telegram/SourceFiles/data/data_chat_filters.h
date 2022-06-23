@@ -35,8 +35,6 @@ public:
 	friend constexpr inline bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	static constexpr int kPinnedLimit = 100;
-
 	ChatFilter() = default;
 	ChatFilter(
 		FilterId id,
@@ -101,8 +99,14 @@ public:
 	void apply(const MTPUpdate &update);
 	void set(ChatFilter filter);
 	void remove(FilterId id);
+	void moveAllToFront();
 	[[nodiscard]] const std::vector<ChatFilter> &list() const;
 	[[nodiscard]] rpl::producer<> changed() const;
+	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] bool has() const;
+
+	[[nodiscard]] FilterId defaultId() const;
+	[[nodiscard]] FilterId lookupId(int index) const;
 
 	bool loadNextExceptions(bool chatsListLoaded);
 

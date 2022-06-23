@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 
 #include "data/data_peer.h"
+#include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
@@ -112,6 +113,16 @@ int DrawPeerBadgeGetWidth(
 	if (peer->isVerified() && st.verified) {
 		const auto iconw = st.verified->width();
 		st.verified->paint(
+			p,
+			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
+			rectForName.y(),
+			outerWidth);
+		return iconw;
+	} else if (peer->isPremium()
+		&& st.premium
+		&& peer->session().premiumBadgesShown()) {
+		const auto iconw = st.premium->width();
+		st.premium->paint(
 			p,
 			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
 			rectForName.y(),

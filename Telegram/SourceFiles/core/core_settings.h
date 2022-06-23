@@ -44,8 +44,6 @@ enum class OrderMode;
 namespace Core {
 
 struct WindowPosition {
-	WindowPosition() = default;
-
 	int32 moncrc = 0;
 	int maximized = 0;
 	int scale = 0;

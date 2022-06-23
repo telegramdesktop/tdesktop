@@ -35,7 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/custom_app_icon.h"
 #include "boxes/abstract_box.h" // Ui::show().
 
-#include "zlib.h"
+#include <zlib.h>
 
 namespace Settings {
 namespace {

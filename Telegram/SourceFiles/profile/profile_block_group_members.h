@@ -18,6 +18,10 @@ namespace Data {
 struct PeerUpdate;
 } // namespace Data
 
+namespace Window {
+class SessionController;
+} // namespace Window
+
 namespace Profile {
 
 class GroupMembersWidget : public PeerListWidget {
@@ -25,6 +29,7 @@ class GroupMembersWidget : public PeerListWidget {
 public:
 	GroupMembersWidget(
 		QWidget *parent,
+		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		const style::PeerListItem &st);
 
@@ -72,6 +77,8 @@ private:
 		not_null<Item*> item,
 		not_null<ChannelData*> megagroup);
 	bool addUsersToEnd(not_null<ChannelData*> megagroup);
+
+	const not_null<Window::SessionController*> _controller;
 
 	base::flat_map<UserData*, Member*> _membersByUser;
 	bool _sortByOnline = false;

@@ -510,7 +510,7 @@ void ChangePhone::setupContent() {
 }
 
 void ChangePhone::showFinished() {
-	_animate();
+	_animate(anim::repeat::loop);
 }
 
 } // namespace Settings

@@ -55,7 +55,7 @@ public:
 
 	QString fname;
 	QDateTime modified;
-	qint32 size;
+	qint64 size = 0;
 
 private:
 	void resolveFromInfo(const QFileInfo &info);

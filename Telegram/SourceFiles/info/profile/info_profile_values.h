@@ -93,6 +93,7 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 enum class Badge {
 	None,
 	Verified,
+	Premium,
 	Scam,
 	Fake,
 };

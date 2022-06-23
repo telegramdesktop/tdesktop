@@ -399,12 +399,14 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 22629a5df5
+    git checkout e1383b0e8f
 """)
 
 stage('depot_tools', """
 mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
+    cd depot_tools
+    ./update_depot_tools
 """, 'ThirdParty')
 
 if not mac or 'build-stackwalk' in options:
@@ -478,10 +480,10 @@ win:
 release:
     cmake --build . --config Release
     cd ..
-    
+
     del /S mozjpeg\*.cpp
     del /S mozjpeg\*.pdb
-    
+
     cd mozjpeg
 mac:
     CFLAGS="-arch arm64" cmake -B build.arm64 . \\
@@ -583,10 +585,10 @@ win:
     cmake -A %WIN32X64% ..
     cmake --build . --config Release
     cd ../..
-    
+
     del /S rnnoise\*.cpp
     del /S rnnoise\*.pdb
-    
+
     cd rnnoise\out
 !win:
     mkdir Release
@@ -734,9 +736,11 @@ depends:yasm/yasm
     --enable-decoder=aac_fixed \
     --enable-decoder=aac_latm \
     --enable-decoder=aasc \
+    --enable-decoder=ac3 \
     --enable-decoder=alac \
     --enable-decoder=alac_at \
     --enable-decoder=av1 \
+    --enable-decoder=eac3 \
     --enable-decoder=flac \
     --enable-decoder=gif \
     --enable-decoder=h264 \
@@ -970,8 +974,9 @@ win:
 release:
     cmake --build build --config RelWithDebInfo --parallel
 mac:
-    git clone -b 1.22.0 https://github.com/kcat/openal-soft.git
+    git clone https://github.com/kcat/openal-soft.git
     cd openal-soft
+    git checkout af8e756d
     CFLAGS=$UNGUARDED CPPFLAGS=$UNGUARDED cmake -B build . \\
         -D CMAKE_INSTALL_PREFIX:PATH=$USED_PREFIX \\
         -D ALSOFT_EXAMPLES=OFF \\
@@ -1095,28 +1100,28 @@ win:
 """)
 
 if buildQt5:
-    stage('qt_5_15_3', """
-    git clone https://code.qt.io/qt/qt5.git qt_5_15_3
-    cd qt_5_15_3
+    stage('qt_5_15_4', """
+    git clone https://code.qt.io/qt/qt5.git qt_5_15_4
+    cd qt_5_15_4
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.3-lts-lgpl
+    git checkout v5.15.4-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5_15_3/*.patch
+depends:patches/qtbase_5_15_4/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5_15_3\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5_15_4\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.3\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.4\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib\\contrib\\vstudio\\vc14\\%X8664%
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.3" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.4" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1146,18 +1151,18 @@ win:
 
     jom -j16
     jom -j16 install
-    
+
     cd ..
     del /S qt_5_15_3\*.cpp
     del /S qt_5_15_3\*.pdb
     del /S qt_5_15_3\*.obj
 mac:
-    find ../../patches/qtbase_5_15_3 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_4 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.3" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.4" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1178,20 +1183,20 @@ mac:
 """)
 
 if buildQt6:
-    stage('qt_6_3_0', """
+    stage('qt_6_3_1', """
 mac:
-    git clone -b v6.3.0 https://code.qt.io/qt/qt5.git qt_6_3_0
-    cd qt_6_3_0
+    git clone -b v6.3.1 https://code.qt.io/qt/qt5.git qt_6_3_1
+    cd qt_6_3_1
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg,qt5compat
-depends:patches/qtbase_6_3_0/*.patch
+depends:patches/qtbase_6_3_1/*.patch
     cd qtbase
 
-    find ../../patches/qtbase_6_3_0 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_6_3_1 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-6.3.0" \
+    ./configure -prefix "$USED_PREFIX/Qt-6.3.1" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1213,9 +1218,9 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout 1fe5e68d99
+    git checkout bab760d7bd
     git submodule init
-    git submodule update src/third_party/libyuv
+    git submodule update src/third_party/libyuv src/third_party/crc32c/src
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus

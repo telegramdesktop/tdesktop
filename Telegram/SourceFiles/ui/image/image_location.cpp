@@ -502,7 +502,7 @@ Storage::Cache::Key StorageFileLocation::bigFileBaseCacheKey() const {
 			| (_id >> 48);
 		const auto low = (_id << 16);
 
-		Ensures((low & 0xFFULL) == 0);
+		Ensures((low & 0x1FFULL) == 0);
 		return Storage::Cache::Key{ high, low };
 	}
 

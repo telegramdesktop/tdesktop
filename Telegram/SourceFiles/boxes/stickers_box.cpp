@@ -242,11 +242,11 @@ private:
 	[[nodiscard]] Data::StickersSetFlags fillSetFlags(
 		not_null<StickersSet*> set) const;
 	void rebuildMegagroupSet();
-	void fixupMegagroupSetAddress();
 	void handleMegagroupSetAddressChange();
 	void setMegagroupSelectedSet(const StickerSetIdentifier &set);
 
 	int countMaxNameWidth() const;
+	[[nodiscard]] bool skipPremium() const;
 
 	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
@@ -277,8 +277,6 @@ private:
 	int _addWidth = 0;
 	QString _undoText;
 	int _undoWidth = 0;
-
-	int _buttonHeight = 0;
 
 	QPoint _mouse;
 	bool _inDragArea = false;
@@ -2193,6 +2191,10 @@ bool StickersBox::Inner::appendSet(not_null<StickersSet*> set) {
 	return true;
 }
 
+bool StickersBox::Inner::skipPremium() const {
+	return !_controller->session().premiumPossible();
+}
+
 int StickersBox::Inner::countMaxNameWidth() const {
 	int namex = st::contactsPadding.left() + st::contactsPhotoSize + st::contactsPadding.left();
 	if (!_megagroupSet && _isInstalled) {
@@ -2317,23 +2319,39 @@ void StickersBox::Inner::fillSetCover(
 }
 
 int StickersBox::Inner::fillSetCount(not_null<StickersSet*> set) const {
+	const auto skipPremium = this->skipPremium();
 	int result = set->stickers.isEmpty()
 		? set->count
 		: set->stickers.size();
+	if (skipPremium && !set->stickers.isEmpty()) {
+		result -= ranges::count(
+			set->stickers,
+			true,
+			&DocumentData::isPremiumSticker);
+	}
 	auto added = 0;
 	if (set->id == Data::Stickers::CloudRecentSetId) {
 		const auto &sets = session().data().stickers().sets();
+		const auto &recent = session().data().stickers().getRecentPack();
 		auto customIt = sets.find(Data::Stickers::CustomSetId);
 		if (customIt != sets.cend()) {
-			added = customIt->second->stickers.size();
-			const auto &recent = session().data().stickers().getRecentPack();
+			auto &custom = customIt->second->stickers;
+			added = custom.size();
+			if (skipPremium) {
+				added -= ranges::count(
+					custom,
+					true,
+					&DocumentData::isPremiumSticker);
+			}
 			for (const auto &sticker : recent) {
-				if (customIt->second->stickers.indexOf(sticker.first) < 0) {
+				if (skipPremium && sticker.first->isPremiumSticker()) {
+					continue;
+				} else if (customIt->second->stickers.indexOf(sticker.first) < 0) {
 					++added;
 				}
 			}
 		} else {
-			added = session().data().stickers().getRecentPack().size();
+			added = recent.size();
 		}
 	}
 	return result + added;

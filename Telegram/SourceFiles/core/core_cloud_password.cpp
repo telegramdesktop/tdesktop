@@ -303,18 +303,53 @@ bytes::vector ComputeSecureSecretHash(
 CloudPasswordState ParseCloudPasswordState(
 		const MTPDaccount_password &data) {
 	auto result = CloudPasswordState();
-	result.request = ParseCloudPasswordCheckRequest(data);
-	result.unknownAlgorithm = data.vcurrent_algo() && !result.request;
+	result.mtp.request = ParseCloudPasswordCheckRequest(data);
+	result.hasPassword = (!!result.mtp.request);
+	result.mtp.unknownAlgorithm = data.vcurrent_algo() && !result.hasPassword;
 	result.hasRecovery = data.is_has_recovery();
 	result.notEmptyPassport = data.is_has_secure_values();
 	result.hint = qs(data.vhint().value_or_empty());
-	result.newPassword = ValidateNewCloudPasswordAlgo(
+	result.mtp.newPassword = ValidateNewCloudPasswordAlgo(
 		ParseCloudPasswordAlgo(data.vnew_algo()));
-	result.newSecureSecret = ValidateNewSecureSecretAlgo(
+	result.mtp.newSecureSecret = ValidateNewSecureSecretAlgo(
 		ParseSecureSecretAlgo(data.vnew_secure_algo()));
 	result.unconfirmedPattern =
 		qs(data.vemail_unconfirmed_pattern().value_or_empty());
 	result.pendingResetDate = data.vpending_reset_date().value_or_empty();
+
+	result.outdatedClient = [&] {
+		const auto badSecureAlgo = data.vnew_secure_algo().match([](
+				const MTPDsecurePasswordKdfAlgoUnknown &) {
+			return true;
+		}, [](const auto &) {
+			return false;
+		});
+		if (badSecureAlgo) {
+			return true;
+		}
+		if (data.vcurrent_algo()) {
+			const auto badCurrentAlgo = data.vcurrent_algo()->match([](
+					const MTPDpasswordKdfAlgoUnknown &) {
+				return true;
+			}, [](const auto &) {
+				return false;
+			});
+			if (badCurrentAlgo) {
+				return true;
+			}
+		}
+		const auto badNewAlgo = data.vnew_algo().match([](
+				const MTPDpasswordKdfAlgoUnknown &) {
+			return true;
+		}, [](const auto &) {
+			return false;
+		});
+		if (badNewAlgo) {
+			return true;
+		}
+		return false;
+	}();
+
 	return result;
 }
 

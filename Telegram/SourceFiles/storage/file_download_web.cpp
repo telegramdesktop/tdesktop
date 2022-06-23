@@ -488,7 +488,7 @@ void webFileLoader::startLoading() {
 	_manager->enqueue(this);
 }
 
-int webFileLoader::currentOffset() const {
+int64 webFileLoader::currentOffset() const {
 	return _ready;
 }
 

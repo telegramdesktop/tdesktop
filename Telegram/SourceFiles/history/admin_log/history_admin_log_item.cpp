@@ -302,15 +302,23 @@ TextWithEntities GeneratePermissionsChangeText(
 	return result;
 }
 
+QString PublicJoinLink() {
+	return u"(public_join_link)"_q;
+}
+
 QString ExtractInviteLink(const MTPExportedChatInvite &data) {
 	return data.match([&](const MTPDchatInviteExported &data) {
 		return qs(data.vlink());
+	}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+		return PublicJoinLink();
 	});
 }
 
 QString ExtractInviteLinkLabel(const MTPExportedChatInvite &data) {
 	return data.match([&](const MTPDchatInviteExported &data) {
 		return qs(data.vtitle().value_or_empty());
+	}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+		return PublicJoinLink();
 	});
 }
 
@@ -361,21 +369,29 @@ TextWithEntities GenerateInviteLinkChangeText(
 	const auto label = [](const MTPExportedChatInvite &link) {
 		return link.match([](const MTPDchatInviteExported &data) {
 			return qs(data.vtitle().value_or_empty());
+		}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+			return PublicJoinLink();
 		});
 	};
 	const auto expireDate = [](const MTPExportedChatInvite &link) {
 		return link.match([](const MTPDchatInviteExported &data) {
 			return data.vexpire_date().value_or_empty();
+		}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+			return TimeId();
 		});
 	};
 	const auto usageLimit = [](const MTPExportedChatInvite &link) {
 		return link.match([](const MTPDchatInviteExported &data) {
 			return data.vusage_limit().value_or_empty();
+		}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+			return 0;
 		});
 	};
 	const auto requestApproval = [](const MTPExportedChatInvite &link) {
 		return link.match([](const MTPDchatInviteExported &data) {
 			return data.is_request_needed();
+		}, [&](const MTPDchatInvitePublicJoinRequests &data) {
+			return true;
 		});
 	};
 	const auto wrapDate = [](TimeId date) {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "data/data_peer_bot_command.h"
 #include "ui/text/text_options.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -47,7 +48,10 @@ void UserData::setIsContact(bool is) {
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
-		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
+		updateUserpic(
+			data.vphoto_id().v,
+			data.vdc_id().v,
+			data.is_has_video());
 	}, [&](const MTPDuserProfilePhotoEmpty &) {
 		clearUserpic();
 	});
@@ -102,6 +106,9 @@ void UserData::setPhone(const QString &newPhone) {
 void UserData::setBotInfoVersion(int version) {
 	if (version < 0) {
 		// We don't support bots becoming non-bots.
+		if (botInfo) {
+			botInfo->version = -1;
+		}
 	} else if (!botInfo) {
 		botInfo = std::make_unique<BotInfo>();
 		botInfo->version = version;
@@ -121,18 +128,30 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 	switch (info.type()) {
 	case mtpc_botInfo: {
 		const auto &d = info.c_botInfo();
-		if (peerFromUser(d.vuser_id().v) != id || !isBot()) {
+		if (!isBot()) {
+			return;
+		} else if (d.vuser_id() && peerFromUser(*d.vuser_id()) != id) {
 			return;
 		}
 
-		QString desc = qs(d.vdescription());
+		QString desc = qs(d.vdescription().value_or_empty());
 		if (botInfo->description != desc) {
 			botInfo->description = desc;
 			botInfo->text = Ui::Text::String(st::msgMinWidth);
 		}
-		const auto changedCommands = Data::UpdateBotCommands(
+
+		auto commands = d.vcommands()
+			? ranges::views::all(
+				d.vcommands()->v
+			) | ranges::views::transform(
+				Data::BotCommandFromTL
+			) | ranges::to_vector
+			: std::vector<Data::BotCommand>();
+		const auto changedCommands = !ranges::equal(
 			botInfo->commands,
-			d.vcommands());
+			commands);
+		botInfo->commands = std::move(commands);
+
 		const auto changedButton = Data::ApplyBotMenuButton(
 			botInfo.get(),
 			d.vmenu_button());
@@ -187,6 +206,75 @@ void UserData::addFlags(UserDataFlags which) {
 
 void UserData::removeFlags(UserDataFlags which) {
 	_flags.remove(which & ~UserDataFlag::Self);
+}
+
+bool UserData::isVerified() const {
+	return flags() & UserDataFlag::Verified;
+}
+
+bool UserData::isScam() const {
+	return flags() & UserDataFlag::Scam;
+}
+
+bool UserData::isFake() const {
+	return flags() & UserDataFlag::Fake;
+}
+
+bool UserData::isPremium() const {
+	return flags() & UserDataFlag::Premium;
+}
+
+bool UserData::isBotInlineGeo() const {
+	return flags() & UserDataFlag::BotInlineGeo;
+}
+
+bool UserData::isBot() const {
+	return botInfo != nullptr;
+}
+
+bool UserData::isSupport() const {
+	return flags() & UserDataFlag::Support;
+}
+
+bool UserData::isInaccessible() const {
+	return flags() & UserDataFlag::Deleted;
+}
+
+bool UserData::canWrite() const {
+	// Duplicated in Data::CanWriteValue().
+	return !isInaccessible() && !isRepliesChat();
+}
+
+bool UserData::applyMinPhoto() const {
+	return !(flags() & UserDataFlag::DiscardMinPhoto);
+}
+
+bool UserData::canAddContact() const {
+	return canShareThisContact() && !isContact();
+}
+
+bool UserData::canShareThisContactFast() const {
+	return !_phone.isEmpty();
+}
+
+const QString &UserData::phone() const {
+	return _phone;
+}
+
+UserData::ContactStatus UserData::contactStatus() const {
+	return _contactStatus;
+}
+
+bool UserData::isContact() const {
+	return (contactStatus() == ContactStatus::Contact);
+}
+
+UserData::CallsStatus UserData::callsStatus() const {
+	return _callsStatus;
+}
+
+int UserData::commonChatsCount() const {
+	return _commonChatsCount;
 }
 
 void UserData::setCallsStatus(CallsStatus callsStatus) {

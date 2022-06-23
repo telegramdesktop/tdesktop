@@ -363,7 +363,7 @@ if [ "$BuildTarget" == "mac" ] || [ "$BuildTarget" == "macstore" ]; then
         cp -f tsetup_template.dmg tsetup.temp.dmg
         TempDiskPath=`hdiutil attach -nobrowse -noautoopenrw -readwrite tsetup.temp.dmg | awk -F "\t" 'END {print $3}'`
         cp -R "./$BundleName" "$TempDiskPath/"
-        bless --folder "$TempDiskPath/" --openfolder "$TempDiskPath/"
+        bless --folder "$TempDiskPath/"
         hdiutil detach "$TempDiskPath"
         hdiutil convert tsetup.temp.dmg -format UDBZ -ov -o "$SetupFile"
         rm tsetup.temp.dmg

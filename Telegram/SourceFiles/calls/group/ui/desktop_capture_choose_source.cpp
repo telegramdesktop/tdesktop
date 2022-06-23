@@ -574,6 +574,7 @@ void ChooseSourceProcess::setupSourcesGeometry() {
 
 void ChooseSourceProcess::setupGeometryWithParent(
 		not_null<QWidget*> parent) {
+	_window->createWinId();
 	const auto parentScreen = [&] {
 		if (!::Platform::IsWayland()) {
 			if (const auto screen = QGuiApplication::screenAt(
@@ -585,7 +586,7 @@ void ChooseSourceProcess::setupGeometryWithParent(
 	}();
 	const auto myScreen = _window->screen();
 	if (parentScreen && myScreen != parentScreen) {
-		_window->setScreen(parentScreen);
+		_window->windowHandle()->setScreen(parentScreen);
 	}
 	_window->move(
 		parent->x() + (parent->width() - _window->width()) / 2,

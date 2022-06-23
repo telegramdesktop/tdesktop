@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "core/changelogs.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "lang/lang_keys.h"
 
 namespace Api {

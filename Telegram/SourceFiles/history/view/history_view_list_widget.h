@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
+#include "history/history_view_highlight_manager.h"
 
 namespace Main {
 class Session;
@@ -45,6 +46,7 @@ namespace HistoryView {
 
 struct TextState;
 struct StateRequest;
+class EmojiInteractions;
 enum class CursorState : char;
 enum class PointState : char;
 enum class Context : char;
@@ -259,8 +261,8 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item) override;
+	[[nodiscard]] float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -292,6 +294,11 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementStartPremium(
+		not_null<const Element*> view,
+		Element *replacing) override;
+	void elementCancelPremium(not_null<const Element*> view) override;
+
 	void elementShowSpoilerAnimation() override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
@@ -399,7 +406,6 @@ private:
 	int itemTop(not_null<const Element*> view) const;
 	void repaintItem(FullMsgId itemId);
 	void repaintItem(const Element *view);
-	void repaintHighlightedItem(not_null<const Element*> view);
 	void resizeItem(not_null<Element*> view);
 	void refreshItem(not_null<const Element*> view);
 	void itemRemoved(not_null<const HistoryItem*> item);
@@ -510,9 +516,6 @@ private:
 
 	void startMessageSendingAnimation(not_null<HistoryItem*> item);
 
-	void updateHighlightedMessage();
-	void clearHighlightedMessage();
-
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
 	//
@@ -541,6 +544,8 @@ private:
 
 	const not_null<ListDelegate*> _delegate;
 	const not_null<Window::SessionController*> _controller;
+	const std::unique_ptr<EmojiInteractions> _emojiInteractions;
+
 	Data::MessagePosition _aroundPosition;
 	Data::MessagePosition _shownAtPosition;
 	Context _context;
@@ -630,9 +635,7 @@ private:
 	QPoint _trippleClickPoint;
 	crl::time _trippleClickStartTime = 0;
 
-	crl::time _highlightStart = 0;
-	FullMsgId _highlightedMessageId;
-	base::Timer _highlightTimer;
+	ElementHighlighter _highlighter;
 
 	Ui::Animations::Simple _spoilerOpacity;
 

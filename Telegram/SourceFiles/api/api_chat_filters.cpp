@@ -21,9 +21,7 @@ void SaveNewFilterPinned(
 		nullptr,
 		filterId);
 	auto &filters = session->data().chatsFilters();
-	const auto &filter = filters.applyUpdatedPinned(
-		filterId,
-		order);
+	const auto &filter = filters.applyUpdatedPinned(filterId, order);
 	session->api().request(MTPmessages_UpdateDialogFilter(
 		MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 		MTP_int(filterId),

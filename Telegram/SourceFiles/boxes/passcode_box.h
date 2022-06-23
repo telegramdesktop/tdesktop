@@ -36,13 +36,17 @@ public:
 	struct CloudFields {
 		static CloudFields From(const Core::CloudPasswordState &current);
 
-		Core::CloudPasswordCheckRequest curRequest;
-		Core::CloudPasswordAlgo newAlgo;
+		struct Mtp {
+			Core::CloudPasswordCheckRequest curRequest;
+			Core::CloudPasswordAlgo newAlgo;
+			Core::SecureSecretAlgo newSecureSecretAlgo;
+		};
+		Mtp mtp;
+		bool hasPassword = false;
 		bool hasRecovery = false;
 		QString fromRecoveryCode;
 		bool notEmptyPassport = false;
 		QString hint;
-		Core::SecureSecretAlgo newSecureSecretAlgo;
 		bool turningOff = false;
 		TimeId pendingResetDate = 0;
 

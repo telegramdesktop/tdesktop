@@ -7,27 +7,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_folders.h"
 
+#include "apiwrap.h"
+#include "boxes/premium_limits_box.h"
 #include "boxes/filters/edit_filter_box.h"
-#include "data/data_session.h"
+#include "core/application.h"
+#include "data/data_chat_filters.h"
 #include "data/data_folder.h"
 #include "data/data_peer.h"
-#include "data/data_chat_filters.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
+#include "data/data_session.h"
+#include "data/data_premium_limits.h"
 #include "history/history.h"
+#include "lang/lang_keys.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
-#include "window/window_session_controller.h"
-#include "window/window_controller.h"
+#include "settings/settings_common.h"
+#include "ui/filter_icons.h"
 #include "ui/layers/generic_box.h"
-#include "ui/widgets/labels.h"
+#include "ui/painter.h"
+#include "ui/text/text_utilities.h"
+#include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/text/text_utilities.h"
+#include "ui/widgets/labels.h"
 #include "ui/wrap/slide_wrap.h"
-#include "ui/painter.h"
-#include "ui/filter_icons.h"
-#include "settings/settings_common.h"
-#include "core/application.h"
-#include "lang/lang_keys.h"
-#include "apiwrap.h"
+#include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -36,8 +41,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Settings {
 namespace {
-
-constexpr auto kFiltersLimit = 10;
 
 using Flag = Data::ChatFilter::Flag;
 using Flags = Data::ChatFilter::Flags;
@@ -131,7 +134,7 @@ struct FilterRow {
 	const auto &list = session->data().chatsFilters().list();
 	const auto id = filter.id();
 	const auto i = ranges::find(list, id, &Data::ChatFilter::id);
-	if (i != end(list)
+	if ((id && i != end(list))
 		&& (!check
 			|| (i->flags() == filter.flags()
 				&& i->always() == filter.always()
@@ -183,6 +186,8 @@ FilterRowButton::FilterRowButton(
 , _restore(this, tr::lng_filters_restore(), st::stickersUndoRemove)
 , _add(this, tr::lng_filters_recommended_add(), st::stickersTrendingAdd)
 , _state(state) {
+	_restore.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
+	_add.setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	setup(filter, status);
 }
 
@@ -271,7 +276,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	const auto left = (_state == State::Suggested)
 		? st::settingsSubsectionTitlePadding.left()
-		: st::settingsFilterIconSkip;
+		: st::settingsButtonActive.padding.left();
 	const auto buttonsLeft = std::min(
 		_add.x(),
 		std::min(_remove.x(), _restore.x()));
@@ -295,14 +300,25 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 
 	if (_state != State::Suggested) {
 		const auto icon = Ui::LookupFilterIcon(_icon).normal;
+
+		// For now.
+		auto hq = PainterHighQualityEnabler(p);
+		const auto iconWidth = icon->width() - style::ConvertScale(9);
+		const auto scale = st::settingsIconAdd.width() / float64(iconWidth);
+		p.translate(
+			st::settingsButtonActive.iconLeft,
+			(height() - icon->height() * scale) / 2);
+		p.translate(-iconWidth / 2, -iconWidth / 2);
+		p.scale(scale, scale);
+		p.translate(iconWidth / 2, iconWidth / 2);
 		icon->paint(
 			p,
-			st::settingsFilterIconLeft,
-			(height() - icon->height()) / 2,
+			0,
+			0,
 			width(),
 			(over
-				? st::dialogsUnreadBgMutedOver
-				: st::dialogsUnreadBgMuted)->c);
+				? st::activeButtonBgOver
+				: st::activeButtonBg)->c);
 	}
 }
 
@@ -312,6 +328,9 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	auto &lifetime = container->lifetime();
 
 	const auto session = &controller->session();
+	const auto limit = [=] {
+		return Data::PremiumLimits(session).dialogFiltersCurrent();
+	};
 	AddSkip(container, st::settingsSectionSkip);
 	AddSubsectionTitle(container, tr::lng_filters_subtitle());
 
@@ -324,10 +343,10 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto showLimitReached = [=] {
 		const auto removed = ranges::count_if(*rows, &FilterRow::removed);
-		if (rows->size() < kFiltersLimit + removed) {
+		if (rows->size() < limit() + removed) {
 			return false;
 		}
-		controller->window().showToast(tr::lng_filters_limit(tr::now));
+		controller->show(Box(FiltersLimitBox, session));
 		return true;
 	};
 	const auto wrap = container->add(object_ptr<Ui::VerticalLayout>(
@@ -402,13 +421,16 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 	};
 	const auto &list = session->data().chatsFilters().list();
 	for (const auto &filter : list) {
-		addFilter(filter);
+		if (filter.id()) {
+			addFilter(filter);
+		}
 	}
 
 	AddButton(
 		container,
-		tr::lng_filters_create() | Ui::Text::ToUpper(),
-		st::settingsUpdate
+		tr::lng_filters_create(),
+		st::settingsButtonActive,
+		{ &st::settingsIconAdd, 0, IconType::Round, &st::windowBgActive }
 	)->setClickedCallback([=] {
 		if (showLimitReached()) {
 			return;
@@ -423,22 +445,13 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			crl::guard(container, doneCallback)));
 	});
 	AddSkip(container);
-	const auto emptyAbout = container->add(
-		object_ptr<Ui::SlideWrap<Ui::FlatLabel>>(
-			container,
-			object_ptr<Ui::FlatLabel>(
-				container,
-				tr::lng_filters_about(),
-				st::boxDividerLabel),
-			st::settingsDividerLabelPadding)
-	)->setDuration(0);
 	const auto nonEmptyAbout = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container))
 	)->setDuration(0);
 	const auto aboutRows = nonEmptyAbout->entity();
-	AddDividerText(aboutRows, tr::lng_filters_about());
+	AddDivider(aboutRows);
 	AddSkip(aboutRows);
 	AddSubsectionTitle(aboutRows, tr::lng_filters_recommended());
 
@@ -477,14 +490,13 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 		AddSkip(aboutRows, st::settingsSectionSkip);
 	}, aboutRows->lifetime());
 
-	using namespace rpl::mappers;
 	auto showSuggestions = rpl::combine(
 		suggested->value(),
-		rowsCount->value()
-	) | rpl::map(_1 > 0 && _2 < kFiltersLimit);
-	emptyAbout->toggleOn(rpl::duplicate(
-		showSuggestions
-	) | rpl::map(!_1));
+		rowsCount->value(),
+		Data::AmPremiumValue(session)
+	) | rpl::map([limit](int suggested, int count, bool) {
+		return suggested > 0 && count < limit();
+	});
 	nonEmptyAbout->toggleOn(std::move(showSuggestions));
 
 	const auto prepareGoodIdsForNewFilters = [=] {
@@ -503,7 +515,8 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto id = row.filter.id();
 			if (row.removed) {
 				continue;
-			} else if (!ranges::contains(list, id, &Data::ChatFilter::id)) {
+			} else if (!id
+				|| !ranges::contains(list, id, &Data::ChatFilter::id)) {
 				result.emplace(row.button, chooseNextId());
 			}
 		}
@@ -552,6 +565,19 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 				MTP_int(newId),
 				tl));
 		}
+		if (!ranges::contains(order, FilterId(0))) {
+			auto position = 0;
+			for (const auto &filter : list) {
+				const auto id = filter.id();
+				if (!id) {
+					break;
+				} else if (const auto i = ranges::find(order, id)
+					; i != order.end()) {
+					position = int(i - order.begin()) + 1;
+				}
+			}
+			order.insert(order.begin() + position, FilterId(0));
+		}
 		auto previousId = mtpRequestId(0);
 		auto &&requests = ranges::views::concat(removeRequests, addRequests);
 		for (auto &request : requests) {
@@ -563,6 +589,46 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			realFilters.saveOrder(order, previousId);
 		}
 	};
+}
+
+void SetupTopContent(
+		not_null<Ui::VerticalLayout*> parent,
+		rpl::producer<> showFinished) {
+	const auto divider = Ui::CreateChild<Ui::BoxContentDivider>(parent.get());
+	const auto verticalLayout = parent->add(
+		object_ptr<Ui::VerticalLayout>(parent.get()));
+
+	auto icon = CreateLottieIcon(
+		verticalLayout,
+		{
+			.name = u"filters"_q,
+			.sizeOverride = {
+				st::settingsFilterIconSize,
+				st::settingsFilterIconSize,
+			},
+		},
+		st::settingsFilterIconPadding);
+	std::move(
+		showFinished
+	) | rpl::start_with_next([animate = std::move(icon.animate)] {
+		animate(anim::repeat::once);
+	}, verticalLayout->lifetime());
+	verticalLayout->add(std::move(icon.widget));
+
+	verticalLayout->add(
+		object_ptr<Ui::CenterWrap<>>(
+			verticalLayout,
+			object_ptr<Ui::FlatLabel>(
+				verticalLayout,
+				tr::lng_filters_about(),
+				st::settingsFilterDividerLabel)),
+		st::settingsFilterDividerLabelPadding);
+
+	verticalLayout->geometryValue(
+	) | rpl::start_with_next([=](const QRect &r) {
+		divider->setGeometry(r);
+	}, divider->lifetime());
+
 }
 
 } // namespace
@@ -589,9 +655,15 @@ void Folders::setupContent(not_null<Window::SessionController*> controller) {
 
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
+	SetupTopContent(content, _showFinished.events());
+
 	_save = SetupFoldersContent(controller, content);
 
 	Ui::ResizeFitChild(this, content);
+}
+
+void Folders::showFinished() {
+	_showFinished.fire({});
 }
 
 } // namespace Settings

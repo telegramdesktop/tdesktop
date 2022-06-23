@@ -20,6 +20,8 @@ namespace Serialize {
 namespace {
 
 constexpr auto kModernImageLocationTag = std::numeric_limits<qint32>::min();
+constexpr auto kVersionTag = uint64(0x77FF'FFFF'FFFF'FFFFULL);
+constexpr auto kVersion = 1;
 
 } // namespace
 
@@ -111,7 +113,10 @@ std::optional<ImageLocation> readImageLocation(
 uint32 peerSize(not_null<PeerData*> peer) {
 	uint32 result = sizeof(quint64)
 		+ sizeof(quint64)
-		+ imageLocationSize(peer->userpicLocation());
+		+ sizeof(qint32)
+		+ sizeof(quint64)
+		+ imageLocationSize(peer->userpicLocation())
+		+ sizeof(qint32);
 	if (const auto user = peer->asUser()) {
 		result += stringSize(user->firstName)
 			+ stringSize(user->lastName)
@@ -144,8 +149,13 @@ uint32 peerSize(not_null<PeerData*> peer) {
 }
 
 void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
-	stream << SerializePeerId(peer->id) << quint64(peer->userpicPhotoId());
+	stream
+		<< SerializePeerId(peer->id)
+		<< quint64(kVersionTag)
+		<< qint32(kVersion)
+		<< quint64(peer->userpicPhotoId());
 	writeImageLocation(stream, peer->userpicLocation());
+	stream << qint32(peer->userpicHasVideo() ? 1 : 0);
 	if (const auto user = peer->asUser()) {
 		const auto botInlinePlaceholder = user->isBot()
 			? user->botInfo->inlinePlaceholder
@@ -189,17 +199,26 @@ PeerData *readPeer(
 		not_null<Main::Session*> session,
 		int streamAppVersion,
 		QDataStream &stream) {
-	quint64 peerIdSerialized = 0, photoId = 0;
-	stream >> peerIdSerialized >> photoId;
+	quint64 peerIdSerialized = 0, versionTag = 0, photoId = 0;
+	qint32 version = 0, photoHasVideo = 0;
+	stream >> peerIdSerialized >> versionTag;
 	const auto peerId = DeserializePeerId(peerIdSerialized);
 	if (!peerId) {
 		return nullptr;
+	}
+	if (versionTag == kVersionTag) {
+		stream >> version >> photoId;
+	} else {
+		photoId = versionTag;
 	}
 
 	const auto userpic = readImageLocation(streamAppVersion, stream);
 	auto userpicAccessHash = uint64(0);
 	if (!userpic) {
 		return nullptr;
+	}
+	if (version > 0) {
+		stream >> photoHasVideo;
 	}
 
 	const auto selfId = session->userPeerId();
@@ -424,20 +443,31 @@ PeerData *readPeer(
 			result->id.value,
 			userpicAccessHash,
 			photoId);
-		result->setUserpic(photoId, location);
+		result->setUserpic(photoId, location, (photoHasVideo == 1));
 	}
 	return result;
 }
 
 QString peekUserPhone(int streamAppVersion, QDataStream &stream) {
-	quint64 peerIdSerialized = 0, photoId = 0;
-	stream >> peerIdSerialized >> photoId;
+	quint64 peerIdSerialized = 0, versionTag = 0, photoId = 0;
+	qint32 version = 0, photoHasVideo = 0;
+	stream >> peerIdSerialized >> versionTag;
 	const auto peerId = DeserializePeerId(peerIdSerialized);
 	DEBUG_LOG(("peekUserPhone.id: %1").arg(peerId.value));
-	if (!peerId
-		|| !peerIsUser(peerId)
-		|| !readImageLocation(streamAppVersion, stream)) {
-		return QString();
+	if (!peerId || !peerIsUser(peerId)) {
+		return nullptr;
+	}
+	if (versionTag == kVersionTag) {
+		stream >> version >> photoId;
+	} else {
+		photoId = versionTag;
+	}
+
+	if (!readImageLocation(streamAppVersion, stream)) {
+		return nullptr;
+	}
+	if (version > 0) {
+		stream >> photoHasVideo;
 	}
 
 	QString first, last, phone;

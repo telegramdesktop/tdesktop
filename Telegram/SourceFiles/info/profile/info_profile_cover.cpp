@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
@@ -34,100 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 namespace Profile {
 namespace {
-
-class SectionToggle : public Ui::AbstractCheckView {
-public:
-	SectionToggle(
-		const style::InfoToggle &st,
-		bool checked,
-		Fn<void()> updateCallback);
-
-	QSize getSize() const override;
-	void paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) override;
-	QImage prepareRippleMask() const override;
-	bool checkRippleStartPosition(QPoint position) const override;
-
-private:
-	QSize rippleSize() const;
-
-	const style::InfoToggle &_st;
-
-};
-
-SectionToggle::SectionToggle(
-		const style::InfoToggle &st,
-		bool checked,
-		Fn<void()> updateCallback)
-: AbstractCheckView(st.duration, checked, std::move(updateCallback))
-, _st(st) {
-}
-
-QSize SectionToggle::getSize() const {
-	return QSize(_st.size, _st.size);
-}
-
-void SectionToggle::paint(
-		Painter &p,
-		int left,
-		int top,
-		int outerWidth) {
-	auto sqrt2 = sqrt(2.);
-	auto vLeft = style::rtlpoint(left + _st.skip, 0, outerWidth).x() + 0.;
-	auto vTop = top + _st.skip + 0.;
-	auto vWidth = _st.size - 2 * _st.skip;
-	auto vHeight = _st.size - 2 * _st.skip;
-	auto vStroke = _st.stroke / sqrt2;
-	constexpr auto kPointCount = 6;
-	std::array<QPointF, kPointCount> pathV = { {
-		{ vLeft, vTop + (vHeight / 4.) + vStroke },
-		{ vLeft + vStroke, vTop + (vHeight / 4.) },
-		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) - vStroke },
-		{ vLeft + vWidth - vStroke, vTop + (vHeight / 4.) },
-		{ vLeft + vWidth, vTop + (vHeight / 4.) + vStroke },
-		{ vLeft + (vWidth / 2.), vTop + (vHeight * 3. / 4.) + vStroke },
-	} };
-
-	auto toggled = currentAnimationValue();
-	auto alpha = (toggled - 1.) * M_PI_2;
-	auto cosalpha = cos(alpha);
-	auto sinalpha = sin(alpha);
-	auto shiftx = vLeft + (vWidth / 2.);
-	auto shifty = vTop + (vHeight / 2.);
-	for (auto &point : pathV) {
-		auto x = point.x() - shiftx;
-		auto y = point.y() - shifty;
-		point.setX(shiftx + x * cosalpha - y * sinalpha);
-		point.setY(shifty + y * cosalpha + x * sinalpha);
-	}
-	QPainterPath path;
-	path.moveTo(pathV[0]);
-	for (int i = 1; i != kPointCount; ++i) {
-		path.lineTo(pathV[i]);
-	}
-	path.lineTo(pathV[0]);
-
-	PainterHighQualityEnabler hq(p);
-	p.fillPath(path, _st.color);
-}
-
-QImage SectionToggle::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(rippleSize());
-}
-
-QSize SectionToggle::rippleSize() const {
-	return getSize() + 2 * QSize(
-		_st.rippleAreaPadding,
-		_st.rippleAreaPadding);
-}
-
-bool SectionToggle::checkRippleStartPosition(QPoint position) const {
-	return QRect(QPoint(0, 0), rippleSize()).contains(position);
-
-}
 
 auto MembersStatusText(int count) {
 	return tr::lng_chat_status_members(tr::now, lt_count_decimal, count);
@@ -163,66 +71,6 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 
 } // namespace
 
-SectionWithToggle *SectionWithToggle::setToggleShown(
-		rpl::producer<bool> &&shown) {
-	_toggle.create(
-		this,
-		QString(),
-		st::infoToggleCheckbox,
-		std::make_unique<SectionToggle>(
-			st::infoToggle,
-			false,
-			[this] { _toggle->updateCheck(); }));
-	_toggle->hide();
-	_toggle->lower();
-	_toggle->setCheckAlignment(style::al_right);
-	widthValue(
-	) | rpl::start_with_next([this](int newValue) {
-		_toggle->setGeometry(0, 0, newValue, height());
-	}, _toggle->lifetime());
-	std::move(
-		shown
-	) | rpl::start_with_next([this](bool shown) {
-		if (_toggle->isHidden() == shown) {
-			_toggle->setVisible(shown);
-			_toggleShown.fire_copy(shown);
-		}
-	}, lifetime());
-	return this;
-}
-
-void SectionWithToggle::toggle(bool toggled, anim::type animated) {
-	if (_toggle) {
-		_toggle->setChecked(toggled);
-		if (animated == anim::type::instant) {
-			_toggle->finishAnimating();
-		}
-	}
-}
-
-bool SectionWithToggle::toggled() const {
-	return _toggle ? _toggle->checked() : false;
-}
-
-rpl::producer<bool> SectionWithToggle::toggledValue() const {
-	if (_toggle) {
-		return _toggle->checkedValue();
-	}
-	return nullptr;
-}
-
-rpl::producer<bool> SectionWithToggle::toggleShownValue() const {
-	return _toggleShown.events_starting_with(
-		_toggle && !_toggle->isHidden());
-}
-
-int SectionWithToggle::toggleSkip() const {
-	return (!_toggle || _toggle->isHidden())
-		? 0
-		: st::infoToggleCheckbox.checkPosition.x()
-			+ _toggle->checkRect().width();
-}
-
 Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
@@ -239,11 +87,12 @@ Cover::Cover(
 	not_null<PeerData*> peer,
 	not_null<Window::SessionController*> controller,
 	rpl::producer<QString> title)
-: SectionWithToggle(
+: FixedHeightWidget(
 	parent,
 	st::infoProfilePhotoTop
 		+ st::infoProfilePhoto.size.height()
 		+ st::infoProfilePhotoBottom)
+, _controller(controller)
 , _peer(peer)
 , _userpic(
 	this,
@@ -279,11 +128,7 @@ Cover::Cover(
 }
 
 void Cover::setupChildGeometry() {
-	using namespace rpl::mappers;
-	rpl::combine(
-		toggleShownValue(),
-		widthValue(),
-		_2
+	widthValue(
 	) | rpl::start_with_next([this](int newWidth) {
 		_userpic->moveToLeft(
 			st::infoProfilePhotoLeft,
@@ -332,6 +177,10 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	BadgeValue(
 		_peer
 	) | rpl::start_with_next([=](Badge badge) {
+		if (badge == Badge::Premium
+			&& !_peer->session().premiumBadgesShown()) {
+			badge = Badge::None;
+		}
 		setBadge(badge);
 	}, lifetime());
 }
@@ -356,15 +205,29 @@ void Cover::setBadge(Badge badge) {
 	_scamFakeBadge.destroy();
 	switch (_badge) {
 	case Badge::Verified:
+	case Badge::Premium: {
+		const auto icon = (_badge == Badge::Verified)
+			? &st::infoVerifiedCheck
+			: &st::infoPremiumStar;
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
-		_verifiedCheck->resize(st::infoVerifiedCheck.size());
+		_verifiedCheck->resize(icon->size());
 		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([check = _verifiedCheck.data()]{
+		) | rpl::start_with_next([icon, check = _verifiedCheck.data()] {
 			Painter p(check);
-			st::infoVerifiedCheck.paint(p, 0, 0, check->width());
-			}, _verifiedCheck->lifetime());
-		break;
+			icon->paint(p, 0, 0, check->width());
+		}, _verifiedCheck->lifetime());
+		if (_badge == Badge::Premium) {
+			const auto userId = peerToUser(_peer->id).bare;
+			_verifiedCheck->setClickedCallback([=] {
+				::Settings::ShowPremium(
+					_controller,
+					u"profile__%1"_q.arg(userId));
+			});
+		} else {
+			_verifiedCheck->setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+	} break;
 	case Badge::Scam:
 	case Badge::Fake: {
 		const auto fake = (_badge == Badge::Fake);
@@ -447,8 +310,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameTop = st::infoProfileNameTop;
 	auto nameWidth = newWidth
 		- nameLeft
-		- st::infoProfileNameRight
-		- toggleSkip();
+		- st::infoProfileNameRight;
 	if (_verifiedCheck) {
 		nameWidth -= st::infoVerifiedCheckPosition.x()
 			+ _verifiedCheck->width();
@@ -480,8 +342,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 void Cover::refreshStatusGeometry(int newWidth) {
 	auto statusWidth = newWidth
 		- st::infoProfileStatusLeft
-		- st::infoProfileStatusRight
-		- toggleSkip();
+		- st::infoProfileStatusRight;
 	_status->resizeToWidth(statusWidth);
 	_status->moveToLeft(
 		st::infoProfileStatusLeft,

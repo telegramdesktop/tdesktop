@@ -68,7 +68,7 @@ struct File {
 		DateLimits,
 	};
 	FileLocation location;
-	int size = 0;
+	int64 size = 0;
 	QByteArray content;
 
 	QString suggestedPath;
@@ -401,6 +401,8 @@ struct ActionGameScore {
 struct ActionPaymentSent {
 	Utf8String currency;
 	uint64 amount = 0;
+	bool recurringInit = false;
+	bool recurringUsed = false;
 };
 
 struct ActionPhoneCall {
@@ -707,6 +709,7 @@ bool SkipMessageByDate(const Message &message, const Settings &settings);
 Utf8String FormatPhoneNumber(const Utf8String &phoneNumber);
 Utf8String FormatDateTime(
 	TimeId date,
+	bool hasTimeZone = false,
 	QChar dateSeparator = QChar('.'),
 	QChar timeSeparator = QChar(':'),
 	QChar separator = QChar(' '));

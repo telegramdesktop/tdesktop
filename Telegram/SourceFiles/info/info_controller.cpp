@@ -290,6 +290,10 @@ void Controller::showBackFromStack(const Window::SectionShow &params) {
 	}
 }
 
+void Controller::removeFromStack(const std::vector<Section> &sections) const {
+	_widget->removeFromStack(sections);
+}
+
 auto Controller::produceSearchQuery(
 		const QString &query) const -> SearchQuery {
 	Expects(_key.peer() != nullptr);
@@ -336,6 +340,14 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 			query.type),
 		limitBefore,
 		limitAfter);
+}
+
+std::any &Controller::stepDataReference() {
+	return _stepData;
+}
+
+void Controller::takeStepData(not_null<Controller*> another) {
+	_stepData = base::take(another->_stepData);
 }
 
 Controller::~Controller() = default;

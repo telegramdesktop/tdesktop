@@ -2515,7 +2515,7 @@ void GroupCall::broadcastPartStart(std::shared_ptr<LoadPartTask> task) {
 				: (videoQuality == Quality::Medium)
 				? 1
 				: 0)),
-		MTP_int(0),
+		MTP_long(0),
 		MTP_int(128 * 1024)
 	)).done([=](
 			const MTPupload_File &result,
@@ -3482,6 +3482,7 @@ void GroupCall::destroyController() {
 		DEBUG_LOG(("Call Info: Destroying call controller.."));
 		invalidate_weak_ptrs(&_instanceGuard);
 
+		_instance->stop();
 		crl::async([
 			instance = base::take(_instance),
 			done = _delegate->groupCallAddAsyncWaiter()
@@ -3497,6 +3498,8 @@ void GroupCall::destroyScreencast() {
 	if (_screenInstance) {
 		DEBUG_LOG(("Call Info: Destroying call screen controller.."));
 		invalidate_weak_ptrs(&_screenInstanceGuard);
+
+		_screenInstance->stop();
 		crl::async([
 			instance = base::take(_screenInstance),
 			done = _delegate->groupCallAddAsyncWaiter()

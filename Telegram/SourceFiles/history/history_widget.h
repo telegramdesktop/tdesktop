@@ -8,9 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/history_drag_area.h"
+#include "history/history_view_highlight_manager.h"
 #include "history/history.h"
-#include "ui/widgets/tooltip.h"
-#include "mainwidget.h"
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
@@ -22,11 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 struct FileLoadResult;
-struct SendingAlbum;
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
 struct AutocompleteQuery;
+class History;
 
 namespace MTP {
 class Error;
@@ -47,11 +46,9 @@ struct SendAction;
 
 namespace InlineBots {
 namespace Layout {
-class ItemBase;
 class Widget;
 } // namespace Layout
 struct ResultSelected;
-class AttachBotsList;
 } // namespace InlineBots
 
 namespace Support {
@@ -60,18 +57,15 @@ struct Contact;
 } // namespace Support
 
 namespace Ui {
-class AbstractButton;
 class InnerDropdown;
 class DropdownMenu;
 class PlainShadow;
-class PopupMenu;
 class IconButton;
 class HistoryDownButton;
 class EmojiButton;
 class SendButton;
 class SilentToggle;
 class FlatButton;
-class LinkButton;
 class RoundButton;
 class PinnedBar;
 class GroupCallBar;
@@ -93,15 +87,11 @@ class SessionController;
 
 namespace ChatHelpers {
 class TabbedPanel;
-class TabbedSection;
 class TabbedSelector;
 } // namespace ChatHelpers
 
-namespace Storage {
-enum class MimeDataState;
-} // namespace Storage
-
 namespace HistoryView {
+class StickerToast;
 class TopBarWidget;
 class ContactStatus;
 class Element;
@@ -114,12 +104,10 @@ class TTLButton;
 } // namespace Controls
 } // namespace HistoryView
 
-class DragArea;
-class SendFilesBox;
 class BotKeyboard;
-class MessageField;
 class HistoryInner;
-struct HistoryMessageMarkupButton;
+
+extern const char kOptionAutoScrollInactiveChat[];
 
 class HistoryWidget final : public Window::AbstractSectionWidget {
 public:
@@ -188,7 +176,8 @@ public:
 	bool touchScroll(const QPoint &delta);
 
 	void enqueueMessageHighlight(not_null<HistoryView::Element*> view);
-	crl::time highlightStartTime(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] float64 highlightOpacity(
+		not_null<const HistoryItem*> item) const;
 
 	MessageIdsList getSelectedItems() const;
 	void itemEdited(not_null<HistoryItem*> item);
@@ -242,6 +231,7 @@ public:
 	void saveFieldToHistoryLocalDraft();
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
+	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
 
 	void applyCloudDraft(History *history);
 
@@ -276,6 +266,8 @@ public:
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
 	void hideInfoTooltip(anim::type animated);
+	void showPremiumStickerTooltip(
+		not_null<const HistoryView::Element*> view);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
@@ -375,6 +367,7 @@ private:
 	[[nodiscard]] Dialogs::EntryState computeDialogsEntryState() const;
 	void refreshTopBarActiveChat();
 
+	void refreshJoinChannelText();
 	void requestMessageData(MsgId msgId);
 	void messageDataReceived(not_null<PeerData*> peer, MsgId msgId);
 
@@ -413,12 +406,6 @@ private:
 	void supportInitAutocomplete();
 	void supportInsertText(const QString &text);
 	void supportShareContact(Support::Contact contact);
-
-	void highlightMessage(MsgId universalMessageId);
-	void checkNextHighlight();
-	void updateHighlightedMessage();
-	void clearHighlightMessages();
-	void stopMessageHighlight();
 
 	auto computeSendButtonType() const;
 
@@ -608,9 +595,6 @@ private:
 	void checkSupportPreload(bool force = false);
 	void handleSupportSwitch(not_null<History*> updated);
 
-	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
-
 	[[nodiscard]] bool isRecording() const;
 	[[nodiscard]] bool isSearching() const;
 
@@ -631,6 +615,7 @@ private:
 	void refreshScheduledToggle();
 	void setupSendAsToggle();
 	void refreshSendAsToggle();
+	void refreshAttachBotsMenu();
 
 	bool kbWasHidden() const;
 
@@ -785,10 +770,7 @@ private:
 	Window::SlideDirection _showDirection;
 	QPixmap _cacheUnder, _cacheOver;
 
-	MsgId _highlightedMessageId = 0;
-	std::deque<MsgId> _highlightQueue;
-	base::Timer _highlightTimer;
-	crl::time _highlightStart = 0;
+	HistoryView::ElementHighlighter _highlighter;
 
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;
@@ -796,6 +778,7 @@ private:
 	base::Timer _saveCloudDraftTimer;
 
 	base::weak_ptr<Ui::Toast::Instance> _topToast;
+	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
 	base::flat_set<not_null<HistoryItem*>> _itemRevealPending;

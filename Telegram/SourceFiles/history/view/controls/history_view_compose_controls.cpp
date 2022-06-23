@@ -122,7 +122,6 @@ public:
 
 private:
 	void updatePreview();
-	void gotPreview(const MTPmessageMedia &result, const QString &links);
 	void getWebPagePreview();
 
 	const not_null<History*> _history;
@@ -243,37 +242,6 @@ void WebpageProcessor::updatePreview() {
 	_paintRequests.fire({});
 }
 
-void WebpageProcessor::gotPreview(
-		const MTPmessageMedia &result,
-		const QString &links) {
-	if (_previewRequest) {
-		_previewRequest = 0;
-	}
-	result.match([=](const MTPDmessageMediaWebPage &d) {
-		const auto page = _history->owner().processWebpage(d.vwebpage());
-		_previewCache.insert({ links, page->id });
-		auto &till = page->pendingTill;
-		if (till > 0 && till <= base::unixtime::now()) {
-			till = -1;
-		}
-		if (links == _previewLinks
-			&& _previewState == Data::PreviewState::Allowed) {
-			_previewData = (page->id && page->pendingTill >= 0)
-				? page.get()
-				: nullptr;
-			updatePreview();
-		}
-	}, [=](const MTPDmessageMediaEmpty &d) {
-		_previewCache.insert({ links, 0 });
-		if (links == _previewLinks
-			&& _previewState == Data::PreviewState::Allowed) {
-			_previewData = nullptr;
-			updatePreview();
-		}
-	}, [](const auto &d) {
-	});
-}
-
 void WebpageProcessor::getWebPagePreview() {
 	const auto links = _previewLinks;
 	_previewRequest = _api.request(
@@ -282,7 +250,32 @@ void WebpageProcessor::getWebPagePreview() {
 			MTP_string(links),
 			MTPVector<MTPMessageEntity>()
 	)).done([=](const MTPMessageMedia &result) {
-		gotPreview(result, links);
+		_previewRequest = 0;
+		result.match([=](const MTPDmessageMediaWebPage &d) {
+			const auto page = _history->owner().processWebpage(d.vwebpage());
+			_previewCache.insert({ links, page->id });
+			auto &till = page->pendingTill;
+			if (till > 0 && till <= base::unixtime::now()) {
+				till = -1;
+			}
+			if (links == _previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
+				_previewData = (page->id && page->pendingTill >= 0)
+					? page.get()
+					: nullptr;
+				updatePreview();
+			}
+		}, [=](const MTPDmessageMediaEmpty &d) {
+			_previewCache.insert({ links, 0 });
+			if (links == _previewLinks
+				&& _previewState == Data::PreviewState::Allowed) {
+				_previewData = nullptr;
+				updatePreview();
+			}
+		}, [](const auto &d) {
+		});
+	}).fail([=] {
+		_previewRequest = 0;
 	}).send();
 }
 
@@ -1215,6 +1208,19 @@ void ComposeControls::checkAutocomplete() {
 		autocomplete.fromStart);
 }
 
+void ComposeControls::hide() {
+	showStarted();
+	_hidden = true;
+}
+
+void ComposeControls::show() {
+	if (_hidden.current()) {
+		_hidden = false;
+		showFinished();
+		checkAutocomplete();
+	}
+}
+
 void ComposeControls::init() {
 	initField();
 	initTabbedSelector();
@@ -1223,6 +1229,11 @@ void ComposeControls::init() {
 	initWriteRestriction();
 	initVoiceRecordBar();
 	initKeyHandler();
+
+	_hidden.changes(
+	) | rpl::start_with_next([=] {
+		updateWrappingVisibility();
+	}, _wrap->lifetime());
 
 	_botCommandStart->setClickedCallback([=] { setText({ "/" }); });
 
@@ -1315,6 +1326,7 @@ void ComposeControls::orderControls() {
 bool ComposeControls::showRecordButton() const {
 	return ::Media::Capture::instance()->available()
 		&& !_voiceRecordBar->isListenState()
+		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
 		//&& !readyToForward()
 		&& !isEditingMessage();
@@ -1881,42 +1893,6 @@ void ComposeControls::initSendAsButton() {
 	}, _wrap->lifetime());
 }
 
-void ComposeControls::inlineBotResolveDone(
-		const MTPcontacts_ResolvedPeer &result) {
-	Expects(result.type() == mtpc_contacts_resolvedPeer);
-
-	_inlineBotResolveRequestId = 0;
-	const auto &data = result.c_contacts_resolvedPeer();
-	const auto resolvedBot = [&]() -> UserData* {
-		if (const auto result = session().data().processUsers(data.vusers())) {
-			if (result->isBot()
-				&& !result->botInfo->inlinePlaceholder.isEmpty()) {
-				return result;
-			}
-		}
-		return nullptr;
-	}();
-	session().data().processChats(data.vchats());
-
-	const auto query = ParseInlineBotQuery(&session(), _field);
-	if (_inlineBotUsername == query.username) {
-		applyInlineBotQuery(
-			query.lookingUpBot ? resolvedBot : query.bot,
-			query.query);
-	} else {
-		clearInlineBot();
-	}
-}
-
-void ComposeControls::inlineBotResolveFail(
-		const MTP::Error &error,
-		const QString &username) {
-	_inlineBotResolveRequestId = 0;
-	if (username == _inlineBotUsername) {
-		clearInlineBot();
-	}
-}
-
 void ComposeControls::cancelInlineBot() {
 	const auto &textWithTags = _field->getTextWithTags();
 	if (textWithTags.text.size() > _inlineBotUsername.size() + 2) {
@@ -2022,10 +1998,11 @@ void ComposeControls::initVoiceRecordBar() {
 }
 
 void ComposeControls::updateWrappingVisibility() {
+	const auto hidden = _hidden.current();
 	const auto restricted = _writeRestriction.current().has_value();
-	_writeRestricted->setVisible(restricted);
-	_wrap->setVisible(!restricted);
-	if (!restricted) {
+	_writeRestricted->setVisible(!hidden && restricted);
+	_wrap->setVisible(!hidden && !restricted);
+	if (!hidden && !restricted) {
 		_wrap->raise();
 	}
 }
@@ -2561,9 +2538,36 @@ void ComposeControls::updateInlineBotQuery() {
 			_inlineBotResolveRequestId = api.request(
 				MTPcontacts_ResolveUsername(MTP_string(username))
 			).done([=](const MTPcontacts_ResolvedPeer &result) {
-				inlineBotResolveDone(result);
-			}).fail([=](const MTP::Error &error) {
-				inlineBotResolveFail(error, username);
+				Expects(result.type() == mtpc_contacts_resolvedPeer);
+
+				const auto &data = result.c_contacts_resolvedPeer();
+				const auto resolvedBot = [&]() -> UserData* {
+					if (const auto user = session().data().processUsers(
+							data.vusers())) {
+						if (user->isBot()
+							&& !user->botInfo->inlinePlaceholder.isEmpty()) {
+							return user;
+						}
+					}
+					return nullptr;
+				}();
+				session().data().processChats(data.vchats());
+
+				_inlineBotResolveRequestId = 0;
+				const auto query = ParseInlineBotQuery(&session(), _field);
+				if (_inlineBotUsername == query.username) {
+					applyInlineBotQuery(
+						query.lookingUpBot ? resolvedBot : query.bot,
+						query.query);
+				} else {
+					clearInlineBot();
+				}
+
+			}).fail([=] {
+				_inlineBotResolveRequestId = 0;
+				if (username == _inlineBotUsername) {
+					clearInlineBot();
+				}
 			}).send();
 		} else {
 			applyInlineBotQuery(query.bot, query.query);

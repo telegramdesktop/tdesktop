@@ -62,6 +62,7 @@ private:
 
 	void setupDragArea();
 
+	bool validateLength(const QString &text) const;
 	void save();
 
 	bool fileFromClipboard(not_null<const QMimeData*> data);

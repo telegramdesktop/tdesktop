@@ -327,14 +327,18 @@ private:
 
 	// >= 0 will contain download / upload string, _statusSize = loaded bytes
 	// < 0 will contain played string, _statusSize = -(seconds + 1) played
-	// 0x7FFFFFF0 will contain status for not yet downloaded file
-	// 0x7FFFFFF1 will contain status for already downloaded file
-	// 0x7FFFFFF2 will contain status for failed to download / upload file
-	mutable int32 _statusSize;
+	// 0xFFFFFFF0LL will contain status for not yet downloaded file
+	// 0xFFFFFFF1LL will contain status for already downloaded file
+	// 0xFFFFFFF2LL will contain status for failed to download / upload file
+	mutable int64 _statusSize = 0;
 	mutable QString _statusText;
 
 	// duration = -1 - no duration, duration = -2 - "GIF" duration
-	void setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const;
+	void setStatusSize(
+		int64 newSize,
+		int64 fullSize,
+		TimeId duration,
+		TimeId realDuration) const;
 
 	not_null<DocumentData*> _document;
 	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;

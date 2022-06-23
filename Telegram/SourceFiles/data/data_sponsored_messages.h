@@ -30,6 +30,7 @@ struct SponsoredFrom {
 	bool isPublic = false;
 	bool isBot = false;
 	bool isExactPost = false;
+	bool isRecommended = false;
 	ImageWithLocation userpic;
 };
 

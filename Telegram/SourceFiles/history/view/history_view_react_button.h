@@ -147,8 +147,10 @@ public:
 
 	void applyList(
 		const std::vector<Data::Reaction> &list,
-		const QString &favorite);
+		const QString &favorite,
+		bool premiumPossible);
 	void updateAllowedSublist(AllowedSublist filter);
+	void updateAllowSendingPremium(bool allow);
 	[[nodiscard]] const AllowedSublist &allowedSublist() const;
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
@@ -204,6 +206,8 @@ private:
 		mutable ClickHandlerPtr link;
 		mutable Ui::Animations::Simple selectedScale;
 		bool appearAnimated = false;
+		bool premium = false;
+		bool premiumLock = false;
 		mutable bool selected = false;
 		mutable bool selectAnimated = false;
 	};
@@ -238,6 +242,7 @@ private:
 		float64 scale,
 		QPoint position,
 		QPoint mainEmojiPosition);
+	void paintPremiumIcon(QPainter &p, QPoint position, QRectF target) const;
 	void paintInnerGradients(
 		Painter &p,
 		const QColor &background,
@@ -340,8 +345,11 @@ private:
 	rpl::variable<int> _uniqueLimit = 0;
 	base::flat_map<not_null<DocumentData*>, ReactionDocument> _loadCache;
 	std::vector<not_null<ReactionIcons*>> _icons;
+	std::optional<ReactionIcons> _premiumIcon;
 	rpl::lifetime _loadCacheLifetime;
 	bool _showingAll = false;
+	bool _allowSendingPremium = false;
+	bool _premiumPossible = false;
 	mutable int _selectedIcon = -1;
 
 	std::optional<ButtonParameters> _scheduledParameters;

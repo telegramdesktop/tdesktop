@@ -20,8 +20,8 @@ public:
 		Data::FileOrigin origin,
 		LocationType type,
 		const QString &toFile,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
@@ -29,16 +29,16 @@ public:
 	mtpFileLoader(
 		not_null<Main::Session*> session,
 		const WebFileLocation &location,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
 	mtpFileLoader(
 		not_null<Main::Session*> session,
 		const GeoPointLocation &location,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
@@ -55,12 +55,12 @@ private:
 	void cancelHook() override;
 
 	bool readyToRequest() const override;
-	int takeNextRequestOffset() override;
-	bool feedPart(int offset, const QByteArray &bytes) override;
+	int64 takeNextRequestOffset() override;
+	bool feedPart(int64 offset, const QByteArray &bytes) override;
 	void cancelOnFail() override;
-	bool setWebFileSizeHook(int size) override;
+	bool setWebFileSizeHook(int64 size) override;
 
 	bool _lastComplete = false;
-	int32 _nextRequestOffset = 0;
+	int64 _nextRequestOffset = 0;
 
 };

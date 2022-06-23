@@ -20,6 +20,7 @@ class FadeShadow;
 class PlainShadow;
 class PopupMenu;
 class IconButton;
+class RoundRect;
 } // namespace Ui
 
 namespace Window {
@@ -106,6 +107,7 @@ public:
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) override;
 	bool showBackFromStackInternal(const Window::SectionShow &params);
+	void removeFromStack(const std::vector<Section> &sections);
 	std::shared_ptr<Window::SectionMemento> createMemento() override;
 
 	rpl::producer<int> desiredHeightValue() const override;
@@ -124,9 +126,11 @@ public:
 		QRect newGeometry,
 		bool expanding,
 		int additionalScroll);
+	[[nodiscard]] int scrollBottomSkip() const;
 	[[nodiscard]] int scrollTillBottom(int forHeight) const;
 	[[nodiscard]] rpl::producer<int> scrollTillBottomChanges() const;
 	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;
+	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const;
 
 	~WrapWidget();
 
@@ -176,6 +180,8 @@ private:
 	void highlightTopBar();
 	void setupShortcuts();
 
+	[[nodiscard]] bool hasBackButton() const;
+
 	not_null<RpWidget*> topWidget() const;
 
 	QRect contentGeometry() const;
@@ -217,6 +223,7 @@ private:
 	bool _topBarOverrideShown = false;
 
 	object_ptr<Ui::FadeShadow> _topShadow;
+	object_ptr<Ui::FadeShadow> _bottomShadow;
 	base::unique_qptr<Ui::IconButton> _topBarMenuToggle;
 	base::unique_qptr<Ui::PopupMenu> _topBarMenu;
 
@@ -226,6 +233,7 @@ private:
 
 	rpl::event_stream<rpl::producer<int>> _desiredHeights;
 	rpl::event_stream<rpl::producer<bool>> _desiredShadowVisibilities;
+	rpl::event_stream<rpl::producer<bool>> _desiredBottomShadowVisibilities;
 	rpl::event_stream<rpl::producer<SelectedItems>> _selectedLists;
 	rpl::event_stream<rpl::producer<int>> _scrollTillBottomChanges;
 	rpl::event_stream<> _contentChanges;

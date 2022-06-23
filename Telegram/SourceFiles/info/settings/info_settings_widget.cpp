@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/settings/info_settings_widget.h"
 
 #include "info/info_memento.h"
-#include "info/info_controller.h"
 #include "settings/settings_common.h"
 #include "settings/settings_main.h"
 #include "settings/settings_information.h"
@@ -45,13 +44,133 @@ Widget::Widget(
 : ContentWidget(parent, controller)
 , _self(controller->key().settingsSelf())
 , _type(controller->section().settingsType())
-, _inner(
-	setInnerWidget(
-		_type()->create(this, controller->parentController()))) {
+, _inner([&] {
+	auto inner = _type()->create(this, controller->parentController());
+	if (inner->hasFlexibleTopBar()) {
+		auto filler = setInnerWidget(object_ptr<Ui::RpWidget>(this));
+		filler->resize(1, 1);
+
+		_flexibleScroll.contentHeightValue.events(
+		) | rpl::start_with_next([=](int h) {
+			filler->resize(filler->width(), h);
+		}, filler->lifetime());
+
+		filler->widthValue(
+		) | rpl::start_to_stream(
+			_flexibleScroll.fillerWidthValue,
+			lifetime());
+
+		controller->stepDataReference() = SectionCustomTopBarData{
+			.backButtonEnables = _flexibleScroll.backButtonEnables.events(),
+			.wrapValue = controller->wrapValue(),
+		};
+
+		// ScrollArea -> PaddingWrap -> RpWidget.
+		inner->setParent(filler->parentWidget()->parentWidget());
+		inner->raise();
+
+		using InnerPtr = base::unique_qptr<::Settings::AbstractSection>;
+		auto owner = filler->lifetime().make_state<InnerPtr>(
+			std::move(inner.release()));
+		return owner->get();
+	} else {
+		return setInnerWidget(std::move(inner));
+	}
+}())
+, _pinnedToTop(_inner->createPinnedToTop(this))
+, _pinnedToBottom(_inner->createPinnedToBottom(this)) {
 	_inner->sectionShowOther(
 	) | rpl::start_with_next([=](Type type) {
 		controller->showSettings(type);
 	}, _inner->lifetime());
+
+	_inner->sectionShowBack(
+	) | rpl::start_with_next([=] {
+		controller->showBackFromStack();
+	}, _inner->lifetime());
+
+	_inner->setStepDataReference(controller->stepDataReference());
+
+	_removesFromStack.events(
+	) | rpl::start_with_next([=](const std::vector<Type> &types) {
+		const auto sections = ranges::views::all(
+			types
+		) | ranges::views::transform([](Type type) {
+			return Section(type);
+		}) | ranges::to_vector;
+		controller->removeFromStack(sections);
+	}, _inner->lifetime());
+
+	if (_pinnedToTop) {
+		_inner->widthValue(
+		) | rpl::start_with_next([=](int w) {
+			_pinnedToTop->resizeToWidth(w);
+			setScrollTopSkip(_pinnedToTop->height());
+		}, _pinnedToTop->lifetime());
+
+		_pinnedToTop->heightValue(
+		) | rpl::start_with_next([=](int h) {
+			setScrollTopSkip(h);
+		}, _pinnedToTop->lifetime());
+	}
+
+	if (_pinnedToBottom) {
+		const auto processHeight = [=](int bottomHeight, int height) {
+			setScrollBottomSkip(bottomHeight);
+			_pinnedToBottom->moveToLeft(
+				_pinnedToBottom->x(),
+				height - bottomHeight);
+		};
+
+		_inner->sizeValue(
+		) | rpl::start_with_next([=](const QSize &s) {
+			_pinnedToBottom->resizeToWidth(s.width());
+			processHeight(_pinnedToBottom->height(), height());
+		}, _pinnedToBottom->lifetime());
+
+		rpl::combine(
+			_pinnedToBottom->heightValue(),
+			heightValue()
+		) | rpl::start_with_next(processHeight, _pinnedToBottom->lifetime());
+	}
+
+	if (_pinnedToTop
+		&& _pinnedToTop->minimumHeight()
+		&& _inner->hasFlexibleTopBar()) {
+		const auto heightDiff = [=] {
+			return _pinnedToTop->maximumHeight()
+				- _pinnedToTop->minimumHeight();
+		};
+
+		_inner->heightValue(
+		) | rpl::start_with_next([=](int h) {
+			_flexibleScroll.contentHeightValue.fire(h + heightDiff());
+		}, _pinnedToTop->lifetime());
+
+		scrollTopValue(
+		) | rpl::start_with_next([=](int top) {
+			if (!_pinnedToTop) {
+				return;
+			}
+			const auto current = heightDiff() - top;
+			_inner->moveToLeft(0, std::min(0, current));
+			_pinnedToTop->resize(
+				_pinnedToTop->width(),
+				std::max(current + _pinnedToTop->minimumHeight(), 0));
+		}, _inner->lifetime());
+
+		_flexibleScroll.fillerWidthValue.events(
+		) | rpl::start_with_next([=](int w) {
+			_inner->resizeToWidth(w);
+		}, _inner->lifetime());
+
+		setPaintPadding({ 0, _pinnedToTop->minimumHeight(), 0, 0 });
+
+		setViewport(_pinnedToTop->events(
+		) | rpl::filter([](not_null<QEvent*> e) {
+			return e->type() == QEvent::Wheel;
+		}));
+	}
 }
 
 Widget::~Widget() = default;
@@ -85,6 +204,17 @@ void Widget::saveChanges(FnMut<void()> done) {
 
 void Widget::showFinished() {
 	_inner->showFinished();
+
+	_inner->removeFromStack(
+	) | rpl::start_to_stream(_removesFromStack, lifetime());
+}
+
+void Widget::setInnerFocus() {
+	_inner->setInnerFocus();
+}
+
+const Ui::RoundRect *Widget::bottomSkipRounding() const {
+	return _inner->bottomSkipRounding();
 }
 
 rpl::producer<bool> Widget::desiredShadowVisibility() const {
@@ -102,6 +232,10 @@ std::shared_ptr<ContentMemento> Widget::doCreateMemento() {
 	auto result = std::make_shared<Memento>(self(), _type);
 	saveState(result.get());
 	return result;
+}
+
+void Widget::enableBackButton() {
+	_flexibleScroll.backButtonEnables.fire({});
 }
 
 void Widget::saveState(not_null<Memento*> memento) {

@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/main_window.h"
 #include "main/main_session.h"
-#include "boxes/abstract_box.h"
 #include "core/application.h"
 #include "styles/style_info.h"
 #include "styles/style_window.h"
@@ -82,7 +81,11 @@ void LayerWidget::setupHeightConsumers() {
 
 	_content->scrollTillBottomChanges(
 	) | rpl::filter([this] {
-		return !_inResize;
+		if (!_inResize) {
+			return true;
+		}
+		_pendingResize = true;
+		return false;
 	}) | rpl::start_with_next([this] {
 		resizeToWidth(width());
 	}, lifetime());
@@ -125,8 +128,11 @@ void LayerWidget::setContentHeight(int height) {
 	if (_contentHeight == height) {
 		return;
 	}
+
 	_contentHeight = height;
-	if (_content && !_inResize) {
+	if (_inResize) {
+		_pendingResize = true;
+	} else if (_content) {
 		resizeToWidth(width());
 	}
 }
@@ -220,7 +226,7 @@ bool LayerWidget::showSectionInternal(
 		const Window::SectionShow &params) {
 	if (_content && _content->showInternal(memento, params)) {
 		if (params.activation != anim::activation::background) {
-			Ui::hideLayer();
+			_controller->parentController()->hideLayer();
 		}
 		return true;
 	}
@@ -237,33 +243,54 @@ int LayerWidget::MinimalSupportedWidth() {
 }
 
 int LayerWidget::resizeGetHeight(int newWidth) {
-	if (!parentWidget() || !_content) {
+	if (!parentWidget() || !_content || !newWidth) {
 		return 0;
 	}
-	_inResize = true;
-	auto guard = gsl::finally([&] { _inResize = false; });
+	constexpr auto kMaxAttempts = 16;
+	auto attempts = 0;
+	while (true) {
+		_inResize = true;
+		const auto newGeometry = countGeometry(newWidth);
+		_inResize = false;
+		if (!_pendingResize) {
+			const auto oldGeometry = geometry();
+			if (newGeometry != oldGeometry) {
+				_content->forceContentRepaint();
+			}
+			if (newGeometry.topLeft() != oldGeometry.topLeft()) {
+				move(newGeometry.topLeft());
+			}
+			floatPlayerUpdatePositions();
+			return newGeometry.height();
+		}
+		_pendingResize = false;
+		Assert(attempts++ < kMaxAttempts);
+	}
+}
 
-	auto parentSize = parentWidget()->size();
-	auto windowWidth = parentSize.width();
-	auto windowHeight = parentSize.height();
-	auto newLeft = (windowWidth - newWidth) / 2;
-	auto newTop = std::clamp(
+QRect LayerWidget::countGeometry(int newWidth) {
+	const auto &parentSize = parentWidget()->size();
+	const auto windowWidth = parentSize.width();
+	const auto windowHeight = parentSize.height();
+	const auto newLeft = (windowWidth - newWidth) / 2;
+	const auto newTop = std::clamp(
 		windowHeight / 24,
 		st::infoLayerTopMinimal,
 		st::infoLayerTopMaximal);
-	auto newBottom = newTop;
+	const auto newBottom = newTop;
 
+	const auto bottomRadius = st::boxRadius;
 	// Top rounding is included in _contentHeight.
-	auto desiredHeight = _contentHeight + st::boxRadius;
+	auto desiredHeight = _contentHeight + bottomRadius;
 	accumulate_min(desiredHeight, windowHeight - newTop - newBottom);
 
 	// First resize content to new width and get the new desired height.
-	auto contentLeft = 0;
-	auto contentTop = 0;
-	auto contentBottom = st::boxRadius;
-	auto contentWidth = newWidth;
+	const auto contentLeft = 0;
+	const auto contentTop = 0;
+	const auto contentBottom = bottomRadius;
+	const auto contentWidth = newWidth;
 	auto contentHeight = desiredHeight - contentTop - contentBottom;
-	auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
+	const auto scrollTillBottom = _content->scrollTillBottom(contentHeight);
 	auto additionalScroll = std::min(scrollTillBottom, newBottom);
 
 	const auto expanding = (_desiredHeight > _contentHeight);
@@ -272,8 +299,11 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 	contentHeight += additionalScroll;
 	_tillBottom = (newTop + desiredHeight >= windowHeight);
 	if (_tillBottom) {
-		contentHeight += contentBottom;
 		additionalScroll += contentBottom;
+	}
+	_contentTillBottom = _tillBottom && !_content->scrollBottomSkip();
+	if (_contentTillBottom) {
+		contentHeight += contentBottom;
 	}
 	_content->updateGeometry({
 		contentLeft,
@@ -282,16 +312,7 @@ int LayerWidget::resizeGetHeight(int newWidth) {
 		contentHeight,
 	}, expanding, additionalScroll);
 
-	auto newGeometry = QRect(newLeft, newTop, newWidth, desiredHeight);
-	if (newGeometry != geometry()) {
-		_content->forceContentRepaint();
-	}
-	if (newGeometry.topLeft() != geometry().topLeft()) {
-		move(newGeometry.topLeft());
-	}
-
-	floatPlayerUpdatePositions();
-	return desiredHeight;
+	return QRect(newLeft, newTop, newWidth, desiredHeight);
 }
 
 void LayerWidget::doSetInnerFocus() {
@@ -307,9 +328,18 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	const auto radius = st::boxRadius;
 	auto parts = RectPart::None | 0;
 	if (!_tillBottom) {
-		if (clip.intersects({ 0, height() - radius, width(), radius })) {
-			parts |= RectPart::FullBottom;
+		const auto bottom = QRect{ 0, height() - radius, width(), radius };
+		if (clip.intersects(bottom)) {
+			if (const auto rounding = _content->bottomSkipRounding()) {
+				rounding->paint(p, rect(), RectPart::FullBottom);
+			} else {
+				parts |= RectPart::FullBottom;
+			}
 		}
+	} else if (!_contentTillBottom) {
+		const auto rounding = _content->bottomSkipRounding();
+		const auto &color = rounding ? rounding->color() : st::boxBg;
+		p.fillRect(0, height() - radius, width(), radius, color);
 	}
 	if (_content->animatingShow()) {
 		if (clip.intersects({ 0, 0, width(), radius })) {

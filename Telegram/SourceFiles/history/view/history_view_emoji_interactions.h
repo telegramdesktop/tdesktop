@@ -17,7 +17,6 @@ struct EmojiInteractionPlayRequest;
 
 namespace Lottie {
 class SinglePlayer;
-class FrameProvider;
 } // namespace Lottie
 
 namespace Main {
@@ -30,12 +29,18 @@ class Element;
 
 class EmojiInteractions final {
 public:
-	explicit EmojiInteractions(not_null<Main::Session*> session);
+	EmojiInteractions(
+		not_null<Main::Session*> session,
+		Fn<int(not_null<const Element*>)> itemTop);
 	~EmojiInteractions();
 
 	void play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
 		not_null<Element*> view);
+	bool playPremiumEffect(
+		not_null<const Element*> view,
+		Element *replacing);
+	void cancelPremiumEffect(not_null<const Element*> view);
 	void visibleAreaUpdated(int visibleTop, int visibleBottom);
 
 	void paint(QPainter &p);
@@ -44,47 +49,53 @@ public:
 
 private:
 	struct Play {
-		not_null<Element*> view;
+		not_null<const Element*> view;
 		std::unique_ptr<Lottie::SinglePlayer> lottie;
 		QPoint shift;
+		QSize inner;
+		QSize outer;
 		int frame = 0;
 		int framesCount = 0;
 		int frameRate = 0;
+		bool premium = false;
+		bool started = false;
 		bool finished = false;
 	};
 	struct Delayed {
 		QString emoticon;
-		not_null<Element*> view;
+		not_null<const Element*> view;
 		std::shared_ptr<Data::DocumentMedia> media;
 		crl::time shouldHaveStartedAt = 0;
 		bool incoming = false;
 	};
 
-	[[nodiscard]] QRect computeRect(not_null<Element*> view) const;
+	[[nodiscard]] QRect computeRect(const Play &play) const;
 
 	void play(
 		QString emoticon,
-		not_null<Element*> view,
+		not_null<const Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming);
+	void play(
+		QString emoticon,
+		not_null<const Element*> view,
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool incoming,
+		bool premium);
 	void checkDelayed();
 
-	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> preparePlayer(
-		not_null<Data::DocumentMedia*> media);
-
 	const not_null<Main::Session*> _session;
+	const Fn<int(not_null<const Element*>)> _itemTop;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
-	QSize _emojiSize;
 
 	std::vector<Play> _plays;
 	std::vector<Delayed> _delayed;
 	rpl::event_stream<QRect> _updateRequests;
 	rpl::event_stream<QString> _playStarted;
-	base::flat_map<
-		not_null<DocumentData*>,
-		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
 
 	rpl::lifetime _lifetime;
 

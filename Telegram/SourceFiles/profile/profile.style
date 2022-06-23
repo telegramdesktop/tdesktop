@@ -104,10 +104,6 @@ profileLimitReachedSkip: 6px;
 
 profileMemberPaddingLeft: 16px;
 profileMemberNameFg: windowBoldFg;
-profileMemberCreatorIcon: icon {{ "profile_admin_star", profileAdminStartFg, point(4px, 3px) }};
-profileMemberCreatorIconOver: icon {{ "profile_admin_star", profileAdminStarFgOver, point(4px, 3px) }};
-profileMemberAdminIcon: icon {{ "profile_admin_star", profileOtherAdminStarFg, point(4px, 3px) }};
-profileMemberAdminIconOver: icon {{ "profile_admin_star", profileOtherAdminStarFgOver, point(4px, 3px) }};
 profileLimitReachedLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 180px;
 	margin: margins(profileMemberPaddingLeft, 9px, profileMemberPaddingLeft, 6px);
@@ -120,12 +116,6 @@ profileReportReasonOther: InputField(defaultInputField) {
 	textMargins: margins(1px, 26px, 1px, 4px);
 	heightMax: 135px;
 }
-
-profileVerifiedCheckShift: -3px;
-profileVerifiedCheck: icon {
-	{ "profile_verified_star", profileVerifiedCheckBg, point(0px, 7px) },
-	{ "profile_verified_check", profileVerifiedCheckFg, point(4px, 11px) }
-};
 
 profileCommonGroupsSkip: 24px;
 profileCommonGroupsLeftMin: 24px;

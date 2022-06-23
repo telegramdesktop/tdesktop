@@ -16,6 +16,8 @@ class SessionNavigation;
 namespace Info {
 namespace Profile {
 
+enum class Badge;
+
 class MemberListRow final : public PeerListRowWithLink {
 public:
 	enum class Rights {
@@ -24,8 +26,8 @@ public:
 		Creator,
 	};
 	struct Type {
+		Badge badge;
 		Rights rights;
-		bool canRemove = false;
 		QString adminRank;
 	};
 
@@ -34,14 +36,6 @@ public:
 	void setType(Type type);
 	bool rightActionDisabled() const override;
 	QMargins rightActionMargins() const override;
-	QSize rightActionSize() const override;
-	void rightActionPaint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) override;
 	int nameIconWidth() const override;
 	void paintNameIcon(
 		Painter &p,
@@ -54,8 +48,8 @@ public:
 	not_null<UserData*> user() const;
 
 private:
-	[[nodiscard]] bool canRemove() const;
 	Type _type;
+	QSize _fakeScamSize;
 
 };
 

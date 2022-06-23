@@ -23,7 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "info/info_memento.h"
-#include "info/settings/info_settings_widget.h"
+#include "info/info_controller.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_intro.h"

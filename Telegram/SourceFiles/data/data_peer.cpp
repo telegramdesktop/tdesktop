@@ -88,89 +88,18 @@ PeerId FakePeerIdForJustName(const QString &name) {
 	return peerFromUser(kShift + std::abs(base));
 }
 
-bool UpdateBotCommands(
-		std::vector<BotCommand> &commands,
-		const MTPVector<MTPBotCommand> &data) {
-	const auto &v = data.v;
-	commands.reserve(v.size());
-	auto result = false;
-	auto index = 0;
-	for (const auto &command : v) {
-		command.match([&](const MTPDbotCommand &data) {
-			const auto command = qs(data.vcommand());
-			const auto description = qs(data.vdescription());
-			if (commands.size() <= index) {
-				commands.push_back({
-					.command = command,
-					.description = description,
-				});
-				result = true;
-			} else {
-				auto &entry = commands[index];
-				if (entry.command != command
-					|| entry.description != description) {
-					entry.command = command;
-					entry.description = description;
-					result = true;
-				}
-			}
-			++index;
-		});
-	}
-	if (index < commands.size()) {
-		result = true;
-	}
-	commands.resize(index);
-	return result;
-}
-
-bool UpdateBotCommands(
-		base::flat_map<UserId, std::vector<BotCommand>> &commands,
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	return data.v.isEmpty()
-		? commands.remove(botId)
-		: UpdateBotCommands(commands[botId], data);
-}
-
-bool UpdateBotCommands(
-		base::flat_map<UserId, std::vector<BotCommand>> &commands,
-		const MTPVector<MTPBotInfo> &data) {
-	auto result = false;
-	auto filled = base::flat_set<UserId>();
-	filled.reserve(data.v.size());
-	for (const auto &item : data.v) {
-		item.match([&](const MTPDbotInfo &data) {
-			const auto id = UserId(data.vuser_id().v);
-			if (!filled.emplace(id).second) {
-				LOG(("API Error: Two BotInfo for a single bot."));
-				return;
-			} else if (UpdateBotCommands(commands, id, data.vcommands())) {
-				result = true;
-			}
-		});
-	}
-	for (auto i = begin(commands); i != end(commands);) {
-		if (filled.contains(i->first)) {
-			++i;
-		} else {
-			i = commands.erase(i);
-			result = true;
-		}
-	}
-	return result;
-}
-
 bool ApplyBotMenuButton(
 		not_null<BotInfo*> info,
-		const MTPBotMenuButton &button) {
+		const MTPBotMenuButton *button) {
 	auto text = QString();
 	auto url = QString();
-	button.match([&](const MTPDbotMenuButton &data) {
-		text = qs(data.vtext());
-		url = qs(data.vurl());
-	}, [&](const auto &) {
-	});
+	if (button) {
+		button->match([&](const MTPDbotMenuButton &data) {
+			text = qs(data.vtext());
+			url = qs(data.vurl());
+		}, [&](const auto &) {
+		});
+	}
 	const auto changed = (info->botMenuButtonText != text)
 		|| (info->botMenuButtonUrl != url);
 
@@ -296,8 +225,12 @@ ClickHandlerPtr PeerData::createOpenLink() {
 	return std::make_shared<PeerClickHandler>(this);
 }
 
-void PeerData::setUserpic(PhotoId photoId, const ImageLocation &location) {
+void PeerData::setUserpic(
+		PhotoId photoId,
+		const ImageLocation &location,
+		bool hasVideo) {
 	_userpicPhotoId = photoId;
+	_userpicHasVideo = hasVideo;
 	_userpic.set(&session(), ImageWithLocation{ .location = location });
 }
 
@@ -468,7 +401,10 @@ Data::FileOrigin PeerData::userpicPhotoOrigin() const {
 		: Data::FileOrigin();
 }
 
-void PeerData::updateUserpic(PhotoId photoId, MTP::DcId dcId) {
+void PeerData::updateUserpic(
+		PhotoId photoId,
+		MTP::DcId dcId,
+		bool hasVideo) {
 	setUserpicChecked(
 		photoId,
 		ImageLocation(
@@ -480,19 +416,27 @@ void PeerData::updateUserpic(PhotoId photoId, MTP::DcId dcId) {
 					input,
 					MTP_long(photoId))) },
 			kUserpicSize,
-			kUserpicSize));
+			kUserpicSize),
+		hasVideo);
 }
 
 void PeerData::clearUserpic() {
-	setUserpicChecked(PhotoId(), ImageLocation());
+	setUserpicChecked(PhotoId(), ImageLocation(), false);
 }
 
 void PeerData::setUserpicChecked(
 		PhotoId photoId,
-		const ImageLocation &location) {
-	if (_userpicPhotoId != photoId || _userpic.location() != location) {
-		setUserpic(photoId, location);
+		const ImageLocation &location,
+		bool hasVideo) {
+	if (_userpicPhotoId != photoId
+		|| _userpic.location() != location
+		|| _userpicHasVideo != hasVideo) {
+		const auto known = !userpicPhotoUnknown();
+		setUserpic(photoId, location, hasVideo);
 		session().changes().peerUpdated(this, UpdateFlag::Photo);
+		if (known && isPremium() && userpicPhotoUnknown()) {
+			updateFull();
+		}
 	}
 }
 
@@ -834,6 +778,13 @@ bool PeerData::isVerified() const {
 		return user->isVerified();
 	} else if (const auto channel = asChannel()) {
 		return channel->isVerified();
+	}
+	return false;
+}
+
+bool PeerData::isPremium() const {
+	if (const auto user = asUser()) {
+		return user->isPremium();
 	}
 	return false;
 }

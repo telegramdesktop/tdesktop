@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/history.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "main/main_session.h"
@@ -24,8 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kSizeMultiplier = 3;
-constexpr auto kCachesCount = 4;
+constexpr auto kPremiumShift = 21. / 240;
 constexpr auto kMaxPlays = 5;
 constexpr auto kMaxPlaysWithSmallDelay = 3;
 constexpr auto kSmallDelay = crl::time(200);
@@ -42,8 +42,11 @@ constexpr auto kDropDelayedAfterDelay = crl::time(2000);
 
 } // namespace
 
-EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
-: _session(session) {
+EmojiInteractions::EmojiInteractions(
+	not_null<Main::Session*> session,
+	Fn<int(not_null<const Element*>)> itemTop)
+: _session(session)
+, _itemTop(std::move(itemTop)) {
 	_session->data().viewRemoved(
 	) | rpl::filter([=] {
 		return !_plays.empty() || !_delayed.empty();
@@ -53,11 +56,15 @@ EmojiInteractions::EmojiInteractions(not_null<Main::Session*> session)
 			ranges::remove(_delayed, view, &Delayed::view),
 			end(_delayed));
 	}, _lifetime);
-
-	_emojiSize = Sticker::EmojiSize();
 }
 
-EmojiInteractions::~EmojiInteractions() = default;
+EmojiInteractions::~EmojiInteractions() {
+	//for (const auto &play : _plays) {
+	//	if (play.premium) {
+	//		play.view->externalLottieProgressing(false);
+	//	}
+	//}
+}
 
 void EmojiInteractions::play(
 		ChatHelpers::EmojiInteractionPlayRequest request,
@@ -84,92 +91,135 @@ void EmojiInteractions::play(
 	}
 }
 
+bool EmojiInteractions::playPremiumEffect(
+		not_null<const Element*> view,
+		Element *replacing) {
+	const auto already = ranges::contains(_plays, view, &Play::view);
+	if (replacing) {
+		const auto i = ranges::find(_plays, replacing, &Play::view);
+		if (i != end(_plays)) {
+			//if (i->premium) {
+			//	replacing->externalLottieProgressing(false);
+			//}
+			if (already) {
+				_plays.erase(i);
+			} else {
+				i->view = view;
+			}
+			//if (i->premium) {
+			//	view->externalLottieProgressing(true);
+			//}
+			return true;
+		}
+	} else if (already) {
+		return false;
+	}
+	if (const auto media = view->media()) {
+		if (const auto document = media->getDocument()) {
+			if (document->isPremiumSticker()) {
+				play(
+					QString(),
+					view,
+					document,
+					document->createMediaView()->videoThumbnailContent(),
+					QString(),
+					false,
+					true);
+			}
+		}
+	}
+	return true;
+}
+
+void EmojiInteractions::cancelPremiumEffect(not_null<const Element*> view) {
+	_plays.erase(ranges::remove_if(_plays, [&](const Play &play) {
+		if (play.view != view) {
+			return false;
+		//} else if (play.premium) {
+		//	play.view->externalLottieProgressing(false);
+		}
+		return true;
+	}), end(_plays));
+}
+
 void EmojiInteractions::play(
 		QString emoticon,
-		not_null<Element*> view,
+		not_null<const Element*> view,
 		std::shared_ptr<Data::DocumentMedia> media,
 		bool incoming) {
-	const auto top = view->block()->y() + view->y();
+	play(
+		std::move(emoticon),
+		view,
+		media->owner(),
+		media->bytes(),
+		media->owner()->filepath(),
+		incoming,
+		false);
+}
+
+void EmojiInteractions::play(
+		QString emoticon,
+		not_null<const Element*> view,
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool incoming,
+		bool premium) {
+	const auto top = _itemTop(view);
 	const auto bottom = top + view->height();
 	if (_visibleTop >= bottom
 		|| _visibleBottom <= top
-		|| _visibleTop == _visibleBottom) {
+		|| _visibleTop == _visibleBottom
+		|| (data.isEmpty() && filepath.isEmpty())) {
 		return;
 	}
 
-	auto lottie = preparePlayer(media.get());
+	auto lottie = document->session().emojiStickersPack().effectPlayer(
+		document,
+		data,
+		filepath,
+		premium);
 
-	const auto shift = GenerateRandomShift(_emojiSize);
+	const auto inner = premium
+		? HistoryView::Sticker::Size(document)
+		: HistoryView::Sticker::EmojiSize();
+	const auto shift = premium ? QPoint() : GenerateRandomShift(inner);
+	const auto raw = lottie.get();
 	lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
 		}, [&](const Lottie::DisplayFrameRequest &request) {
-			const auto rect = computeRect(view).translated(shift);
+			const auto i = ranges::find(_plays, raw, [](const Play &p) {
+				return p.lottie.get();
+			});
+			const auto rect = computeRect(*i).translated(shift);
 			if (rect.y() + rect.height() >= _visibleTop
 				&& rect.y() <= _visibleBottom) {
 				_updateRequests.fire_copy(rect);
 			}
 		});
 	}, lottie->lifetime());
+	//if (premium) {
+	//	view->externalLottieProgressing(true);
+	//}
 	_plays.push_back({
 		.view = view,
 		.lottie = std::move(lottie),
 		.shift = shift,
+		.inner = inner,
+		.outer = (premium
+			? HistoryView::Sticker::PremiumEffectSize(document)
+			: HistoryView::Sticker::EmojiEffectSize()),
+		.premium = premium,
 	});
 	if (incoming) {
 		_playStarted.fire(std::move(emoticon));
 	}
 	if (const auto media = view->media()) {
-		media->stickerClearLoopPlayed();
-	}
-}
-
-std::unique_ptr<Lottie::SinglePlayer> EmojiInteractions::preparePlayer(
-		not_null<Data::DocumentMedia*> media) {
-	// Shortened copy from stickers_lottie module.
-	const auto document = media->owner();
-	const auto baseKey = document->bigFileBaseCacheKey();
-	const auto tag = uint8(0);
-	const auto keyShift = ((tag << 4) & 0xF0)
-		| (uint8(ChatHelpers::StickerLottieSize::EmojiInteraction) & 0x0F);
-	const auto key = Storage::Cache::Key{
-		baseKey.high,
-		baseKey.low + keyShift
-	};
-	const auto get = [=](int i, FnMut<void(QByteArray &&cached)> handler) {
-		document->owner().cacheBigFile().get(
-			{ key.high, key.low + i },
-			std::move(handler));
-	};
-	const auto weak = base::make_weak(&document->session());
-	const auto put = [=](int i, QByteArray &&cached) {
-		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
-			weak->data().cacheBigFile().put(
-				{ key.high, key.low + i },
-				std::move(data));
-		});
-	};
-	const auto data = media->bytes();
-	const auto filepath = document->filepath();
-	const auto request = Lottie::FrameRequest{
-		_emojiSize * kSizeMultiplier * style::DevicePixelRatio(),
-	};
-	auto &weakProvider = _sharedProviders[document];
-	auto shared = [&] {
-		if (const auto result = weakProvider.lock()) {
-			return result;
+		if (!premium) {
+			media->stickerClearLoopPlayed();
 		}
-		const auto result = Lottie::SinglePlayer::SharedProvider(
-			kCachesCount,
-			get,
-			put,
-			Lottie::ReadContent(data, filepath),
-			request,
-			Lottie::Quality::High);
-		weakProvider = result;
-		return result;
-	}();
-	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
+	}
 }
 
 void EmojiInteractions::visibleAreaUpdated(
@@ -179,19 +229,25 @@ void EmojiInteractions::visibleAreaUpdated(
 	_visibleBottom = visibleBottom;
 }
 
-QRect EmojiInteractions::computeRect(not_null<Element*> view) const {
-	const auto fullWidth = view->width();
-	const auto shift = (_emojiSize.width() * kSizeMultiplier) / 40;
-	const auto skip = (view->hasFromPhoto() ? st::msgPhotoSkip : 0)
-		+ st::msgMargin.left();
+QRect EmojiInteractions::computeRect(const Play &play) const {
+	const auto view = play.view;
+	const auto sticker = play.inner;
+	const auto size = play.outer;
+	const auto shift = play.premium
+		? int(sticker.width() * kPremiumShift)
+		: (size.width() / 40);
+	const auto inner = view->innerGeometry();
 	const auto rightAligned = view->hasOutLayout()
 		&& !view->delegate()->elementIsChatWide();
 	const auto left = rightAligned
-		? (fullWidth - skip + shift - _emojiSize.width() * kSizeMultiplier)
-		: (skip - shift);
-	const auto viewTop = view->block()->y() + view->y() + view->marginTop();
-	const auto top = viewTop - _emojiSize.height();
-	return QRect(QPoint(left, top), _emojiSize * kSizeMultiplier);
+		? (inner.x() + inner.width() + shift - size.width())
+		: (inner.x() - shift);
+	const auto viewTop = _itemTop(view) + inner.y();
+	if (viewTop < 0) {
+		return QRect();
+	}
+	const auto top = viewTop + (sticker.height() - size.height()) / 2;
+	return QRect(QPoint(left, top), size).translated(play.shift);
 }
 
 void EmojiInteractions::paint(QPainter &p) {
@@ -201,7 +257,7 @@ void EmojiInteractions::paint(QPainter &p) {
 			continue;
 		}
 		auto request = Lottie::FrameRequest();
-		request.box = _emojiSize * kSizeMultiplier * factor;
+		request.box = play.outer * factor;
 		const auto rightAligned = play.view->hasOutLayout()
 			&& !play.view->delegate()->elementIsChatWide();
 		if (!rightAligned) {
@@ -214,16 +270,33 @@ void EmojiInteractions::paint(QPainter &p) {
 			play.framesCount = information.framesCount;
 			play.frameRate = information.frameRate;
 		}
-		if (play.frame + 1 == play.framesCount) {
+		const auto rect = computeRect(play);
+		if (play.started && !play.frame) {
 			play.finished = true;
+			_updateRequests.fire_copy(rect);
+			continue;
+		} else if (play.frame > 0) {
+			play.started = true;
 		}
-		const auto rect = computeRect(play.view);
 		p.drawImage(
-			QRect(rect.topLeft() + play.shift, frame.image.size() / factor),
+			QRect(rect.topLeft(), frame.image.size() / factor),
 			frame.image);
-		play.lottie->markFrameShown();
+		//const auto info = HistoryView::ExternalLottieInfo{
+		//	.frame = frame.index,
+		//	.count = play.framesCount,
+		//};
+		//if (!play.premium || play.view->externalLottieTill(info)) {
+			play.lottie->markFrameShown();
+		//}
 	}
-	_plays.erase(ranges::remove(_plays, true, &Play::finished), end(_plays));
+	_plays.erase(ranges::remove_if(_plays, [](const Play &play) {
+		if (!play.finished) {
+			return false;
+		//} else if (play.premium) {
+		//	play.view->externalLottieProgressing(false);
+		}
+		return true;
+	}), end(_plays));
 	checkDelayed();
 }
 

@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "data/data_sponsored_messages.h"
+#include "data/data_scheduled_messages.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
@@ -307,7 +308,10 @@ HistoryMessage::HistoryMessage(
 					config.replyToPeer = 0;
 				}
 			}
-			config.replyTo = data.vreply_to_msg_id().v;
+			const auto id = data.vreply_to_msg_id().v;
+			config.replyTo = data.is_reply_to_scheduled()
+				? history->owner().scheduledMessages().localMessageId(id)
+				: id;
 			config.replyToTop = data.vreply_to_top_id().value_or(
 				data.vreply_to_msg_id().v);
 		});
@@ -530,7 +534,11 @@ HistoryMessage::HistoryMessage(
 		postAuthor,
 		std::move(markup));
 
-	_media = std::make_unique<Data::MediaFile>(this, document);
+	const auto skipPremiumEffect = !history->session().premium();
+	_media = std::make_unique<Data::MediaFile>(
+		this,
+		document,
+		skipPremiumEffect);
 	setText(caption);
 }
 
@@ -1169,7 +1177,8 @@ std::unique_ptr<Data::Media> HistoryMessage::CreateMedia(
 		return document->match([&](const MTPDdocument &document) -> Result {
 			return std::make_unique<Data::MediaFile>(
 				item,
-				item->history()->owner().processDocument(document));
+				item->history()->owner().processDocument(document),
+				media.is_nopremium());
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -1787,6 +1796,7 @@ void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
 	sponsored->sender = std::make_unique<HiddenSenderInfo>(
 		from.title,
 		false);
+	sponsored->recommended = from.isRecommended;
 	if (from.userpic.location.valid()) {
 		sponsored->sender->customUserpic.set(
 			&history()->session(),

@@ -470,7 +470,7 @@ AutocompleteQuery ParseMentionHashtagBotCommandQuery(
 				}
 				return result;
 			} else if (text[i - 1] == '/') {
-				if (i < 2) {
+				if (i < 2 && !fragmentPosition) {
 					result.fromStart = (i == 1) && (fragmentPosition == 0);
 					result.query = text.mid(i - 1, position - fragmentPosition - i + 1);
 				}

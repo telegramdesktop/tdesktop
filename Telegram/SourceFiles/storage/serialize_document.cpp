@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 3;
+constexpr auto kVersion = 4;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -29,11 +29,21 @@ enum StickerSetType {
 } // namespace
 
 void Document::writeToStream(QDataStream &stream, DocumentData *document) {
-	stream << quint64(document->id) << quint64(document->_access) << qint32(document->date);
-	stream << document->_fileReference << qint32(kVersionTag) << qint32(kVersion);
-	stream << document->filename() << document->mimeString() << qint32(document->_dc) << qint32(document->size);
-	stream << qint32(document->dimensions.width()) << qint32(document->dimensions.height());
-	stream << qint32(document->type);
+	stream
+		<< quint64(document->id)
+		<< quint64(document->_access)
+		<< qint32(document->date)
+		<< document->_fileReference
+		<< qint32(kVersionTag)
+		<< qint32(kVersion)
+		<< document->filename()
+		<< document->mimeString()
+		<< qint32(document->_dc)
+		// FileSize: Right now any file size fits 32 bit.
+		<< qint32(uint32(document->size))
+		<< qint32(document->dimensions.width())
+		<< qint32(document->dimensions.height())
+		<< qint32(document->type);
 	if (const auto sticker = document->sticker()) {
 		stream << document->sticker()->alt;
 		if (document->sticker()->set.id) {
@@ -45,6 +55,9 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		}
 	}
 	stream << qint32(document->getDuration());
+	if (document->type == StickerDocument) {
+		stream << qint32(document->isPremiumSticker() ? 1 : 0);
+	}
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
 	writeImageLocation(stream, document->videoThumbnailLocation());
@@ -76,9 +89,14 @@ DocumentData *Document::readFromStreamHelper(
 		versionTag = 0;
 		version = 0;
 	}
-	stream >> name >> mime >> dc >> size;
-	stream >> width >> height;
-	stream >> type;
+	stream
+		>> name
+		>> mime
+		>> dc
+		>> size // FileSize: Right now any file size fits 32 bit.
+		>> width
+		>> height
+		>> type;
 
 	QVector<MTPDocumentAttribute> attributes;
 	if (!name.isEmpty()) {
@@ -86,6 +104,7 @@ DocumentData *Document::readFromStreamHelper(
 	}
 
 	qint32 duration = -1;
+	qint32 isPremiumSticker = 0;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -116,6 +135,9 @@ DocumentData *Document::readFromStreamHelper(
 		}
 		if (version >= 3) {
 			stream >> duration;
+			if (version >= 4) {
+				stream >> isPremiumSticker;
+			}
 		}
 	} else {
 		stream >> duration;
@@ -155,14 +177,17 @@ DocumentData *Document::readFromStreamHelper(
 		}
 	}
 
-	const auto storage = std::get_if<StorageFileLocation>(
-		&thumb->file().data);
 	if ((stream.status() != QDataStream::Ok)
 		|| (!dc && !access)
 		|| !thumb
-		|| !videoThumb
-		|| (thumb->valid()
-			&& (!storage || !storage->isDocumentThumbnail()))) {
+		|| !videoThumb) {
+		stream.setStatus(QDataStream::ReadCorruptData);
+		return nullptr;
+	}
+	const auto storage = std::get_if<StorageFileLocation>(
+		&thumb->file().data);
+	if (thumb->valid()
+		&& (!storage || !storage->isDocumentThumbnail())) {
 		stream.setStatus(QDataStream::ReadCorruptData);
 		// We can't convert legacy thumbnail location to modern, because
 		// size letter ('s' or 'm') is lost, it was not saved in legacy.
@@ -187,8 +212,9 @@ DocumentData *Document::readFromStreamHelper(
 			.location = *videoThumb,
 			.bytesCount = videoThumbnailByteSize
 		},
+		(isPremiumSticker == 1),
 		dc,
-		size);
+		int64(uint32(size)));
 }
 
 DocumentData *Document::readStickerFromStream(

@@ -42,6 +42,7 @@ namespace ChatHelpers {
 
 void AddGifAction(
 	Fn<void(QString, Fn<void()> &&, const style::icon*)> callback,
+	Window::SessionController *controller,
 	not_null<DocumentData*> document);
 
 class GifsListWidget

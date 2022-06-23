@@ -1001,10 +1001,18 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " in "
 			+ wrapReplyToLink("this game");
 	}, [&](const ActionPaymentSent &data) {
-		return "You have successfully transferred "
-			+ FormatMoneyAmount(data.amount, data.currency)
+		const auto amount = FormatMoneyAmount(data.amount, data.currency);
+		if (data.recurringUsed) {
+			return "You were charged " + amount + " via recurring payment";
+		}
+		auto result =  "You have successfully transferred "
+			+ amount
 			+ " for "
 			+ wrapReplyToLink("this invoice");
+		if (data.recurringInit) {
+			result += " and allowed future recurring payments";
+		}
+		return result;
 	}, [&](const ActionPhoneCall &data) {
 		return QByteArray();
 	}, [&](const ActionScreenshotTaken &data) {
@@ -1185,7 +1193,7 @@ auto HtmlWriter::Wrap::pushMessage(
 	block.append(pushDiv("body"));
 	block.append(pushTag("div", {
 		{ "class", "pull_right date details" },
-		{ "title", FormatDateTime(message.date) },
+		{ "title", FormatDateTime(message.date, true) },
 	}));
 	block.append(FormatTimeText(message.date));
 	block.append(popTag());
@@ -1215,7 +1223,8 @@ auto HtmlWriter::Wrap::pushMessage(
 				block.append(" via @" + via);
 			}
 			block.append(pushTag("span", {
-				{ "class", "details" },
+				{ "class", "date details" },
+				{ "title", FormatDateTime(message.forwardedDate, true) },
 				{ "inline", "" }
 			}));
 			block.append(' ' + FormatDateTime(message.forwardedDate));

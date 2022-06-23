@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_entity.h"
 #include "countries/countries_instance.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
@@ -209,7 +210,6 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 		FlatLabel *description = nullptr;
 		FlatLabel *seller = nullptr;
 	};
-
 	const auto cover = layout->add(object_ptr<RpWidget>(layout));
 	const auto state = cover->lifetime().make_state<State>();
 	state->title = CreateChild<FlatLabel>(
@@ -218,7 +218,9 @@ void FormSummary::setupCover(not_null<VerticalLayout*> layout) {
 		st::paymentsTitle);
 	state->description = CreateChild<FlatLabel>(
 		cover,
-		_invoice.cover.description,
+		rpl::single(TextUtilities::ParseEntities(
+			_invoice.cover.description,
+			TextParseLinks)),
 		st::paymentsDescription);
 	state->seller = CreateChild<FlatLabel>(
 		cover,

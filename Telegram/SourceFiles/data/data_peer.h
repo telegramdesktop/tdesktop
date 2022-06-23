@@ -20,11 +20,6 @@ class ChannelData;
 
 enum class ChatRestriction;
 
-struct BotCommand {
-	QString command;
-	QString description;
-};
-
 namespace Ui {
 class EmptyUserpic;
 } // namespace Ui
@@ -100,19 +95,9 @@ struct UnavailableReason {
 	}
 };
 
-bool UpdateBotCommands(
-	std::vector<BotCommand> &commands,
-	const MTPVector<MTPBotCommand> &data);
-bool UpdateBotCommands(
-	base::flat_map<UserId, std::vector<BotCommand>> &commands,
-	UserId botId,
-	const MTPVector<MTPBotCommand> &data);
-bool UpdateBotCommands(
-	base::flat_map<UserId, std::vector<BotCommand>> &commands,
-	const MTPVector<MTPBotInfo> &data);
 bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
-	const MTPBotMenuButton &button);
+	const MTPBotMenuButton *button);
 
 } // namespace Data
 
@@ -172,6 +157,7 @@ public:
 	}
 	[[nodiscard]] bool isSelf() const;
 	[[nodiscard]] bool isVerified() const;
+	[[nodiscard]] bool isPremium() const;
 	[[nodiscard]] bool isScam() const;
 	[[nodiscard]] bool isFake() const;
 	[[nodiscard]] bool isMegagroup() const;
@@ -266,7 +252,10 @@ public:
 		return _nameFirstLetters;
 	}
 
-	void setUserpic(PhotoId photoId, const ImageLocation &location);
+	void setUserpic(
+		PhotoId photoId,
+		const ImageLocation &location,
+		bool hasVideo);
 	void setUserpicPhoto(const MTPPhoto &data);
 	void paintUserpic(
 		Painter &p,
@@ -319,6 +308,9 @@ public:
 	}
 	[[nodiscard]] PhotoId userpicPhotoId() const {
 		return userpicPhotoUnknown() ? 0 : _userpicPhotoId;
+	}
+	[[nodiscard]] bool userpicHasVideo() const {
+		return _userpicHasVideo;
 	}
 	[[nodiscard]] Data::FileOrigin userpicOrigin() const;
 	[[nodiscard]] Data::FileOrigin userpicPhotoOrigin() const;
@@ -426,7 +418,7 @@ protected:
 		const QString &newName,
 		const QString &newNameOrPhone,
 		const QString &newUsername);
-	void updateUserpic(PhotoId photoId, MTP::DcId dcId);
+	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
 	void clearUserpic();
 
 private:
@@ -435,12 +427,17 @@ private:
 	[[nodiscard]] virtual auto unavailableReasons() const
 		-> const std::vector<Data::UnavailableReason> &;
 
-	void setUserpicChecked(PhotoId photoId, const ImageLocation &location);
+	void setUserpicChecked(
+		PhotoId photoId,
+		const ImageLocation &location,
+		bool hasVideo);
 
 	const not_null<Data::Session*> _owner;
 
 	mutable Data::CloudImage _userpic;
 	PhotoId _userpicPhotoId = kUnknownPhotoId;
+	bool _userpicHasVideo = false;
+
 	mutable std::unique_ptr<Ui::EmptyUserpic> _userpicEmpty;
 	Ui::Text::String _nameText;
 

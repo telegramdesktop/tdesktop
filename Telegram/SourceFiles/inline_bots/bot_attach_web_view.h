@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "mtproto/sender.h"
 #include "base/weak_ptr.h"
+#include "base/flags.h"
 
 namespace Ui {
 class GenericBox;
@@ -33,12 +34,29 @@ class DocumentMedia;
 
 namespace InlineBots {
 
+enum class PeerType : uint8 {
+	SameBot   = 0x01,
+	Bot       = 0x02,
+	User      = 0x04,
+	Group     = 0x08,
+	Broadcast = 0x10,
+};
+using PeerTypes = base::flags<PeerType>;
+
+[[nodiscard]] bool PeerMatchesTypes(
+	not_null<PeerData*> peer,
+	not_null<UserData*> bot,
+	PeerTypes types);
+[[nodiscard]] PeerTypes ParseChooseTypes(QStringView choose);
+
 struct AttachWebViewBot {
 	not_null<UserData*> user;
 	DocumentData *icon = nullptr;
 	std::shared_ptr<Data::DocumentMedia> media;
 	QString name;
+	PeerTypes types = 0;
 	bool inactive = false;
+	bool hasSettings = false;
 };
 
 class AttachWebView final : public base::has_weak_ptr {
@@ -81,7 +99,9 @@ public:
 	void requestAddToMenu(
 		PeerData *peer,
 		not_null<UserData*> bot,
-		const QString &startCommand);
+		const QString &startCommand,
+		Window::SessionController *controller = nullptr,
+		PeerTypes chooseTypes = {});
 	void removeFromMenu(not_null<UserData*> bot);
 
 	static void ClearAll();
@@ -131,6 +151,8 @@ private:
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
 	QString _addToMenuStartCommand;
+	base::weak_ptr<Window::SessionController> _addToMenuChooseController;
+	PeerTypes _addToMenuChooseTypes;
 
 	std::vector<AttachWebViewBot> _attachBots;
 	rpl::event_stream<> _attachBotsUpdates;
@@ -141,8 +163,7 @@ private:
 
 [[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	not_null<QWidget*> parent,
-	not_null<Window::SessionController*> controller,
-	Fn<void(bool)> forceShown,
+	not_null<PeerData*> peer,
 	Fn<void(bool)> attach);
 
 } // namespace InlineBots

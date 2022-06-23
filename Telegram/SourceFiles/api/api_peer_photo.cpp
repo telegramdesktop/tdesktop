@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+constexpr auto kSharedMediaLimit = 100;
+
 SendMediaReady PreparePeerPhoto(
 		MTP::DcId dcId,
 		PeerId peerId,
@@ -75,7 +77,7 @@ SendMediaReady PreparePeerPhoto(
 		MTP_int(dcId));
 
 	QString file, filename;
-	int32 filesize = 0;
+	int64 filesize = 0;
 	QByteArray data;
 
 	return SendMediaReady(
@@ -238,6 +240,53 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				MTPdouble()) // video_start_ts
 		)).done(applier).afterRequest(history->sendRequestId).send();
 	}
+}
+
+void PeerPhoto::requestUserPhotos(
+		not_null<UserData*> user,
+		UserPhotoId afterId) {
+	if (_userPhotosRequests.contains(user)) {
+		return;
+	}
+
+	const auto requestId = _api.request(MTPphotos_GetUserPhotos(
+		user->inputUser,
+		MTP_int(0),
+		MTP_long(afterId),
+		MTP_int(kSharedMediaLimit)
+	)).done([this, user](const MTPphotos_Photos &result) {
+		_userPhotosRequests.remove(user);
+
+		const auto fullCount = result.match([](const MTPDphotos_photos &d) {
+			return int(d.vphotos().v.size());
+		}, [](const MTPDphotos_photosSlice &d) {
+			return d.vcount().v;
+		});
+
+		auto photoIds = result.match([&](const auto &data) {
+			auto &owner = _session->data();
+			owner.processUsers(data.vusers());
+
+			auto photoIds = std::vector<PhotoId>();
+			photoIds.reserve(data.vphotos().v.size());
+
+			for (const auto &photo : data.vphotos().v) {
+				if (const auto photoData = owner.processPhoto(photo)) {
+					photoIds.push_back(photoData->id);
+				}
+			}
+			return photoIds;
+		});
+
+		_session->storage().add(Storage::UserPhotosAddSlice(
+			peerToUser(user->id),
+			std::move(photoIds),
+			fullCount
+		));
+	}).fail([this, user] {
+		_userPhotosRequests.remove(user);
+	}).send();
+	_userPhotosRequests.emplace(user, requestId);
 }
 
 } // namespace Api

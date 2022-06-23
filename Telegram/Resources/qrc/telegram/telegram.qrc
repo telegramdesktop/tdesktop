@@ -26,6 +26,8 @@
     <file alias="recording/info_video_landscape.svg">../../art/recording/recording_info_video_landscape.svg</file>
     <file alias="recording/info_video_portrait.svg">../../art/recording/recording_info_video_portrait.svg</file>
     <file alias="icons/settings/dino.svg">../../icons/settings/dino.svg</file>
+    <file alias="icons/settings/star.svg">../../icons/settings/star.svg</file>
+    <file alias="icons/settings/starmini.svg">../../icons/settings/starmini.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>

@@ -26,6 +26,7 @@ class RippleAnimation;
 namespace Dialogs::Ui {
 using namespace ::Ui;
 class RowPainter;
+class VideoUserpic;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -35,18 +36,17 @@ enum class SortMode;
 class BasicRow {
 public:
 	BasicRow();
-	~BasicRow();
+	virtual ~BasicRow();
 
-	void updateCornerBadgeShown(
-		not_null<PeerData*> peer,
-		Fn<void()> updateCallback = nullptr) const;
-	void paintUserpic(
+	virtual void paintUserpic(
 		Painter &p,
 		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
 		crl::time now,
 		bool active,
-		int fullWidth) const;
+		int fullWidth,
+		bool paused) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
@@ -63,27 +63,8 @@ public:
 	}
 
 private:
-	struct CornerBadgeUserpic {
-		InMemoryKey key;
-		float64 shown = 0.;
-		bool active = false;
-		QImage frame;
-		Ui::Animations::Simple animation;
-	};
-
-	void setCornerBadgeShown(
-		bool shown,
-		Fn<void()> updateCallback) const;
-	void ensureCornerBadgeUserpic() const;
-	static void PaintCornerBadgeFrame(
-		not_null<CornerBadgeUserpic*> data,
-		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &view);
-
 	mutable std::shared_ptr<Data::CloudImageView> _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
-	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
-	mutable bool _cornerBadgeShown = false;
 
 };
 
@@ -93,6 +74,19 @@ public:
 	explicit Row(std::nullptr_t) {
 	}
 	Row(Key key, int pos);
+
+	void updateCornerBadgeShown(
+		not_null<PeerData*> peer,
+		Fn<void()> updateCallback = nullptr) const;
+	void paintUserpic(
+		Painter &p,
+		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
+		History *historyForCornerBadge,
+		crl::time now,
+		bool active,
+		int fullWidth,
+		bool paused) const final override;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -122,10 +116,32 @@ public:
 private:
 	friend class List;
 
+	struct CornerBadgeUserpic {
+		InMemoryKey key;
+		float64 shown = 0.;
+		int frameIndex = -1;
+		bool active = false;
+		QImage frame;
+		Ui::Animations::Simple animation;
+	};
+
+	void setCornerBadgeShown(
+		bool shown,
+		Fn<void()> updateCallback) const;
+	void ensureCornerBadgeUserpic() const;
+	static void PaintCornerBadgeFrame(
+		not_null<CornerBadgeUserpic*> data,
+		not_null<PeerData*> peer,
+		Ui::VideoUserpic *videoUserpic,
+		std::shared_ptr<Data::CloudImageView> &view,
+		bool paused);
+
 	Key _id;
 	int _pos = 0;
 	mutable uint32 _listEntryCacheVersion = 0;
 	mutable Ui::Text::String _listEntryCache;
+	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
+	mutable bool _cornerBadgeShown = false;
 
 };
 

@@ -106,7 +106,7 @@ if building:
             finish(1, 'Adding tdesktop to archive.')
 
         print('Beginning notarization process.')
-        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True)
+        lines = subprocess.check_output('xcrun altool --notarize-app --primary-bundle-id "com.tdesktop.TelegramDebug" --username "' + username + '" --password "@keychain:AC_PASSWORD" --file "' + archive + '"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
         print('Response received.')
         uuid = ''
         for line in lines.split('\n'):
@@ -124,7 +124,7 @@ if building:
     while requestStatus == '':
         time.sleep(5)
         print('Checking...')
-        lines = subprocess.check_output('xcrun altool --notarization-info "' + uuid + '" --username "' + username + '" --password "@keychain:AC_PASSWORD"', stderr=subprocess.STDOUT, shell=True)
+        lines = subprocess.check_output('xcrun altool --notarization-info "' + uuid + '" --username "' + username + '" --password "@keychain:AC_PASSWORD"', stderr=subprocess.STDOUT, shell=True).decode('utf-8')
         statusFound = False
         for line in lines.split('\n'):
             parts = line.strip().split(' ')
@@ -152,7 +152,7 @@ if building:
     logLines = ''
     if logUrl != '':
         print('Requesting log...')
-        logLines = subprocess.check_output('curl ' + logUrl, shell=True)
+        logLines = subprocess.check_output('curl ' + logUrl, shell=True).decode('utf-8')
     result = subprocess.call('xcrun stapler staple Telegram.app', shell=True)
     if result != 0:
         finish(1, 'Error calling stapler')
@@ -203,7 +203,7 @@ if composing:
     if not re.match(r'^[a-f0-9]{9,40}$', lastCommit):
         finish(1, 'Wrong last commit: ' + lastCommit)
 
-    log = subprocess.check_output(['git', 'log', lastCommit+'..HEAD'])
+    log = subprocess.check_output(['git', 'log', lastCommit+'..HEAD']).decode('utf-8')
     logLines = log.split('\n')
     firstCommit = ''
     commits = []

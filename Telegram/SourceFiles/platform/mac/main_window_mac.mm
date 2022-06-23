@@ -65,17 +65,6 @@ namespace {
 // fullscreen mode, after that we'll hide the window no matter what.
 constexpr auto kHideAfterFullscreenTimeoutMs = 3000;
 
-[[nodiscard]] QImage TrayIconBack(bool darkMode) {
-	static const auto WithColor = [](QColor color) {
-		return st::macTrayIcon.instance(color, 100);
-	};
-	static const auto DarkModeResult = WithColor({ 255, 255, 255 });
-	static const auto LightModeResult = WithColor({ 0, 0, 0, 180 });
-	auto result = darkMode ? DarkModeResult : LightModeResult;
-	result.detach();
-	return result;
-}
-
 } // namespace
 
 class MainWindow::Private {
@@ -248,20 +237,6 @@ void MainWindow::stateChangedHook(Qt::WindowState state) {
 	}
 }
 
-void MainWindow::handleActiveChangedHook() {
-	// On macOS just remove trayIcon menu if the window is not active.
-	// So we will activate the window on click instead of showing the menu.
-	if (isActiveForTrayMenu()) {
-		if (trayIcon
-			&& trayIconMenu
-			&& trayIcon->contextMenu() != trayIconMenu) {
-			trayIcon->setContextMenu(trayIconMenu);
-		}
-	} else if (trayIcon) {
-		trayIcon->setContextMenu(nullptr);
-	}
-}
-
 void MainWindow::initHook() {
 	_customTitleHeight = 0;
 	if (auto view = reinterpret_cast<NSView*>(winId())) {
@@ -282,9 +257,6 @@ void MainWindow::hideAndDeactivate() {
 	hide();
 }
 
-void MainWindow::psShowTrayMenu() {
-}
-
 bool MainWindow::preventsQuit(Core::QuitReason reason) {
 	// Thanks Chromium, see
 	// chromium.org/developers/design-documents/confirm-to-quit-experiment
@@ -298,87 +270,12 @@ bool MainWindow::preventsQuit(Core::QuitReason reason) {
 				Platform::ConfirmQuit::QuitKeysString()));
 }
 
-void MainWindow::psTrayMenuUpdated() {
-}
-
-void MainWindow::psSetupTrayIcon() {
-	if (!trayIcon) {
-		trayIcon = new QSystemTrayIcon(this);
-		trayIcon->setIcon(generateIconForTray(
-			Core::App().unreadBadge(),
-			Core::App().unreadBadgeMuted()));
-		if (isActiveForTrayMenu()) {
-			trayIcon->setContextMenu(trayIconMenu);
-		} else {
-			trayIcon->setContextMenu(nullptr);
-		}
-		attachToTrayIcon(trayIcon);
-	} else {
-		updateIconCounters();
-	}
-
-	trayIcon->show();
-}
-
-void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
-	psSetupTrayIcon();
-	if (mode == Core::Settings::WorkMode::WindowOnly) {
-		if (trayIcon) {
-			trayIcon->setContextMenu(0);
-			delete trayIcon;
-			trayIcon = nullptr;
-		}
-	}
-}
-
-void _placeCounter(QImage &img, int size, int count, style::color bg, style::color color) {
-	if (!count) return;
-	auto savedRatio = img.devicePixelRatio();
-	img.setDevicePixelRatio(1.);
-
-	{
-		Painter p(&img);
-		PainterHighQualityEnabler hq(p);
-
-		auto cnt = (count < 100) ? QString("%1").arg(count) : QString("..%1").arg(count % 100, 2, 10, QChar('0'));
-		auto cntSize = cnt.size();
-
-		p.setBrush(bg);
-		p.setPen(Qt::NoPen);
-		int32 fontSize, skip;
-		if (size == 22) {
-			skip = 1;
-			fontSize = 8;
-		} else {
-			skip = 2;
-			fontSize = 16;
-		}
-		style::font f(fontSize, 0, 0);
-		int32 w = f->width(cnt), d, r;
-		if (size == 22) {
-			d = (cntSize < 2) ? 3 : 2;
-			r = (cntSize < 2) ? 6 : 5;
-		} else {
-			d = (cntSize < 2) ? 6 : 5;
-			r = (cntSize < 2) ? 9 : 11;
-		}
-		p.drawRoundedRect(QRect(size - w - d * 2 - skip, size - f->height - skip, w + d * 2, f->height), r, r);
-
-		p.setCompositionMode(QPainter::CompositionMode_Source);
-		p.setFont(f);
-		p.setPen(color);
-		p.drawText(size - w - d - skip, size - f->height + f->ascent - skip, cnt);
-	}
-	img.setDevicePixelRatio(savedRatio);
-}
-
 void MainWindow::unreadCounterChangedHook() {
 	updateIconCounters();
 }
 
 void MainWindow::updateIconCounters() {
 	const auto counter = Core::App().unreadBadge();
-	const auto muted = Core::App().unreadBadgeMuted();
 
 	const auto string = !counter
 		? QString()
@@ -386,43 +283,6 @@ void MainWindow::updateIconCounters() {
 		? QString("%1").arg(counter)
 		: QString("..%1").arg(counter % 100, 2, 10, QChar('0'));
 	_private->setWindowBadge(string);
-
-	if (trayIcon) {
-		trayIcon->setIcon(generateIconForTray(counter, muted));
-	}
-}
-
-QIcon MainWindow::generateIconForTray(int counter, bool muted) const {
-	auto result = QIcon();
-	auto lightMode = TrayIconBack(false);
-	auto darkMode = TrayIconBack(true);
-	auto lightModeActive = darkMode;
-	auto darkModeActive = darkMode;
-	lightModeActive.detach();
-	darkModeActive.detach();
-	const auto size = 22 * cIntRetinaFactor();
-	const auto &bg = (muted ? st::trayCounterBgMute : st::trayCounterBg);
-	_placeCounter(lightMode, size, counter, bg, st::trayCounterFg);
-	_placeCounter(darkMode, size, counter, bg, muted ? st::trayCounterFgMacInvert : st::trayCounterFg);
-	_placeCounter(lightModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-	_placeCounter(darkModeActive, size, counter, st::trayCounterBgMacInvert, st::trayCounterFgMacInvert);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(lightMode)),
-		QIcon::Normal,
-		QIcon::Off);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(darkMode)),
-		QIcon::Normal,
-		QIcon::On);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(lightModeActive)),
-		QIcon::Active,
-		QIcon::Off);
-	result.addPixmap(Ui::PixmapFromImage(
-		std::move(darkModeActive)),
-		QIcon::Active,
-		QIcon::On);
-	return result;
 }
 
 void MainWindow::createGlobalMenu() {
@@ -659,7 +519,8 @@ void MainWindow::updateGlobalMenuHook() {
 	updateIsActive();
 	const auto logged = (sessionController() != nullptr);
 	const auto inactive = !logged || controller().locked();
-	const auto support = logged && account().session().supportMode();
+	const auto support = logged
+		&& sessionController()->session().supportMode();
 	ForceDisabled(psLogout, !logged && !Core::App().passcodeLocked());
 	ForceDisabled(psUndo, !canUndo);
 	ForceDisabled(psRedo, !canRedo);

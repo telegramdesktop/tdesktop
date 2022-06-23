@@ -22,6 +22,7 @@ class LabelSimple;
 class FlatLabel;
 struct GroupCallUser;
 class GroupCallUserpics;
+class Show;
 } // namespace Ui
 
 namespace Main {
@@ -39,8 +40,14 @@ enum class BarState;
 
 class TopBar : public Ui::RpWidget {
 public:
-	TopBar(QWidget *parent, const base::weak_ptr<Call> &call);
-	TopBar(QWidget *parent, const base::weak_ptr<GroupCall> &call);
+	TopBar(
+		QWidget *parent,
+		const base::weak_ptr<Call> &call,
+		std::shared_ptr<Ui::Show> show);
+	TopBar(
+		QWidget *parent,
+		const base::weak_ptr<GroupCall> &call,
+		std::shared_ptr<Ui::Show> show);
 	~TopBar();
 
 	void initBlobsUnder(
@@ -56,6 +63,7 @@ private:
 
 	TopBar(
 		QWidget *parent,
+		std::shared_ptr<Ui::Show> show,
 		const base::weak_ptr<Call> &call,
 		const base::weak_ptr<GroupCall> &groupCall);
 
@@ -72,6 +80,7 @@ private:
 
 	const base::weak_ptr<Call> _call;
 	const base::weak_ptr<GroupCall> _groupCall;
+	const std::shared_ptr<Ui::Show> _show;
 
 	bool _muted = false;
 	std::vector<Ui::GroupCallUser> _users;

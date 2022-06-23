@@ -18,7 +18,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
-#include "info/profile/info_profile_icon.h"
 #include "settings/settings_common.h"
 #include "styles/style_settings.h"
 #include "styles/style_info.h"
@@ -29,6 +28,7 @@ void EditAllowedReactionsBox(
 		const std::vector<Data::Reaction> &list,
 		const base::flat_set<QString> &selected,
 		Fn<void(const std::vector<QString> &)> callback) {
+	const auto iconHeight = st::editPeerReactionsPreview;
 	box->setTitle(tr::lng_manage_peer_reactions());
 
 	struct State {
@@ -57,10 +57,21 @@ void EditAllowedReactionsBox(
 		container,
 		tr::lng_manage_peer_reactions_enable(),
 		st::manageGroupButton.button);
-	Ui::CreateChild<Info::Profile::FloatingIcon>(
-		enabled.get(),
-		st::infoIconReactions,
-		st::manageGroupButton.iconPosition);
+	if (!list.empty()) {
+		AddReactionLottieIcon(
+			enabled,
+			enabled->sizeValue(
+			) | rpl::map([=](const QSize &size) {
+				return QPoint(
+					st::manageGroupButton.iconPosition.x(),
+					(size.height() - iconHeight) / 2);
+			}),
+			iconHeight,
+			list.front(),
+			rpl::never<>(),
+			rpl::never<>(),
+			&enabled->lifetime());
+	}
 	enabled->toggleOn(state->anyToggled.value());
 	enabled->toggledChanges(
 	) | rpl::filter([=](bool value) {
@@ -87,7 +98,6 @@ void EditAllowedReactionsBox(
 			container,
 			rpl::single(entry.title),
 			st::manageGroupButton.button);
-		const auto iconHeight = st::editPeerReactionsPreview;
 		AddReactionLottieIcon(
 			button,
 			button->sizeValue(
@@ -138,7 +148,7 @@ void SaveAllowedReactions(
 		const std::vector<QString> &allowed) {
 	auto ids = allowed | ranges::views::transform([=](QString value) {
 		return MTP_string(value);
-	}) | ranges::to<QVector>;
+	}) | ranges::to<QVector<MTPstring>>;
 
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
 		peer->input,

@@ -22,12 +22,14 @@ public:
 		All,
 	};
 	static void Start(
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		Scope scope = Scope::All,
 		const QString &token = QString(),
 		ChatAdminRights requestedRights = {});
 
 	AddBotToGroupBoxController(
+		not_null<Window::SessionController*> controller,
 		not_null<UserData*> bot,
 		Scope scope,
 		const QString &token,
@@ -56,6 +58,7 @@ private:
 	void addBotToGroup(not_null<PeerData*> chat);
 	void requestExistingRights(not_null<ChannelData*> channel);
 
+	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _bot;
 	const Scope _scope = Scope::None;
 	const QString _token;

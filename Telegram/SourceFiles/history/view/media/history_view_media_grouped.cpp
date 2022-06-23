@@ -313,7 +313,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			selection = part.content->skipSelection(selection);
 		}
 		const auto highlightOpacity = (_mode == Mode::Grid)
-			? _parent->highlightOpacity(part.item)
+			? _parent->delegate()->elementHighlightOpacity(part.item)
 			: 0.;
 		if (!part.cache.isNull()) {
 			wasCache = true;

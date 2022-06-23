@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "mtproto/sender.h"
 #include "data/data_sparse_ids.h"
 #include "storage/storage_sparse_ids_list.h"
 #include "storage/storage_shared_media.h"
@@ -30,7 +29,10 @@ struct SearchResult {
 	int fullCount = 0;
 };
 
-std::optional<MTPmessages_Search> PrepareSearchRequest(
+using SearchRequest = MTPmessages_Search;
+using SearchRequestResult = MTPmessages_Messages;
+
+std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
 	Storage::SharedMediaType type,
 	const QString &query,
@@ -42,7 +44,7 @@ SearchResult ParseSearchResult(
 	Storage::SharedMediaType type,
 	MsgId messageId,
 	Data::LoadDirection direction,
-	const MTPmessages_Messages &data);
+	const SearchRequestResult &data);
 
 class SearchController final {
 public:
