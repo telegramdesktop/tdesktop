@@ -654,9 +654,13 @@ void PeerListRow::invalidatePixmapsCache() {
 }
 
 int PeerListRow::nameIconWidth() const {
-	return (special() || !_peer->isVerified())
+	return special()
 		? 0
-		: st::dialogsVerifiedIcon.width();
+		: _peer->isVerified()
+		? st::dialogsVerifiedIcon.width()
+		: _peer->isPremium()
+		? st::dialogsPremiumIcon.width()
+		: 0;
 }
 
 void PeerListRow::paintNameIcon(
@@ -665,7 +669,11 @@ void PeerListRow::paintNameIcon(
 		int y,
 		int outerWidth,
 		bool selected) {
-	st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
+	if (_peer->isVerified()) {
+		st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
+	} else if (_peer->isPremium()) {
+		st::dialogsPremiumIcon.paint(p, x, y, outerWidth);
+	}
 }
 
 void PeerListRow::paintStatusText(

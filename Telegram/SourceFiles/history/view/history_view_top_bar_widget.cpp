@@ -513,9 +513,10 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		const auto peer = history->peer;
 		const auto &text = peer->topBarNameText();
 		const auto badgeStyle = Ui::PeerBadgeStyle{
-			&st::dialogsVerifiedIcon, // verified
-			&st::dialogsPremiumIcon, // premium
-			&st::attentionButtonFg };
+			&st::dialogsVerifiedIcon,
+			&st::dialogsPremiumIcon,
+			&st::attentionButtonFg,
+		};
 		const auto badgeWidth = Ui::DrawPeerBadgeGetWidth(
 			peer,
 			p,
