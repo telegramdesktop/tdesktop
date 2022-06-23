@@ -419,6 +419,8 @@ PRIVATE
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
     data/notify/data_peer_notify_settings.h
+    data/stickers/data_custom_emoji.cpp
+    data/stickers/data_custom_emoji.h
     data/stickers/data_stickers_set.cpp
     data/stickers/data_stickers_set.h
     data/stickers/data_stickers.cpp

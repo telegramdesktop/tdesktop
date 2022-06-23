@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/ui_integration.h"
 
+#include "api/api_text_entities.h"
 #include "core/local_url_handlers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/click_handler_types.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_session.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
@@ -243,7 +246,10 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		const QString &data,
 		const std::any &context) {
 	const auto my = std::any_cast<MarkedTextContext>(&context);
-	return nullptr;
+	if (!my || !my->session) {
+		return nullptr;
+	}
+	return my->session->data().customEmojiManager().create(data);
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {

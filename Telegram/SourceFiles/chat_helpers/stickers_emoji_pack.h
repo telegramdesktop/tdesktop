@@ -66,6 +66,7 @@ public:
 	bool add(not_null<HistoryItem*> item);
 	void remove(not_null<const HistoryItem*> item);
 
+	[[nodiscard]] Sticker stickerForEmoji(EmojiPtr emoji);
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 

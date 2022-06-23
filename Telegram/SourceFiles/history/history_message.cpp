@@ -42,6 +42,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 
+#include "data/stickers/data_custom_emoji.h"
+
 namespace {
 
 [[nodiscard]] MessageFlags NewForwardedFlags(
@@ -329,12 +331,13 @@ HistoryMessage::HistoryMessage(
 	if (const auto media = data.vmedia()) {
 		setMedia(*media);
 	}
-	const auto textWithEntities = TextWithEntities{
+	auto textWithEntities = TextWithEntities{
 		qs(data.vmessage()),
 		Api::EntitiesFromMTP(
 			&history->session(),
 			data.ventities().value_or_empty())
 	};
+	Data::FillTestCustomEmoji(&history->session(), textWithEntities);
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(

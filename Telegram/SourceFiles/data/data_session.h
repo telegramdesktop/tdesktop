@@ -62,6 +62,7 @@ class PhotoMedia;
 class Stickers;
 class GroupCall;
 class NotifySettings;
+class CustomEmojiManager;
 
 class Session final {
 public:
@@ -119,6 +120,9 @@ public:
 	}
 	[[nodiscard]] NotifySettings &notifySettings() const {
 		return *_notifySettings;
+	}
+	[[nodiscard]] CustomEmojiManager &customEmojiManager() const {
+		return *_customEmojiManager;
 	}
 
 	[[nodiscard]] MsgId nextNonHistoryEntryId() {
@@ -978,6 +982,7 @@ private:
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
 	const std::unique_ptr<NotifySettings> _notifySettings;
+	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 
 	MsgId _nonHistoryEntryId = ServerMaxMsgId.bare + ScheduledMsgIdsRange;
 
