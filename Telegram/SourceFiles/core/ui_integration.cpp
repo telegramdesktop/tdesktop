@@ -237,7 +237,13 @@ bool UiIntegration::handleUrlClick(
 		File::OpenUrl(UrlWithAutoLoginToken(url, std::move(parsed), domain));
 	}
 	return true;
+}
 
+std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
+		const QString &data,
+		const std::any &context) {
+	const auto my = std::any_cast<MarkedTextContext>(&context);
+	return nullptr;
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {

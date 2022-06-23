@@ -56,6 +56,9 @@ public:
 	QString convertTagToMimeTag(const QString &tagId) override;
 	const Ui::Emoji::One *defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) override;
+	std::unique_ptr<Ui::Text::CustomEmoji> createCustomEmoji(
+		const QString &data,
+		const std::any &context) override;
 
 	QString phraseContextCopyText() override;
 	QString phraseContextCopyEmail() override;
