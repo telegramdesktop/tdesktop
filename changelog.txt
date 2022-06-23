@@ -1,3 +1,8 @@
+4.0.1 (23.06.22)
+
+- Fix window title on Windows 7.
+- Bug fixes and other minor improvements.
+
 4.0 (22.06.22)
 
 - Premium: Send media and files each up to 4 GB in size.
