@@ -16,7 +16,7 @@ class RoundCheckbox {
 public:
 	RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback);
 
-	void paint(Painter &p, int x, int y, int outerWidth, float64 masterScale = 1.);
+	void paint(Painter &p, int x, int y, int outerWidth, float64 masterScale = 1.) const;
 
 	void setDisplayInactive(bool displayInactive);
 	bool checked() const {
@@ -47,8 +47,10 @@ public:
 	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
 	RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<void()> updateCallback, PaintRoundImage &&paintRoundImage);
 
-	void paint(Painter &p, int x, int y, int outerWidth);
+	void paint(Painter &p, int x, int y, int outerWidth) const;
 	float64 checkedAnimationRatio() const;
+
+	void setColorOverride(std::optional<QBrush> fg);
 
 	bool checked() const {
 		return _check.checked();
@@ -72,6 +74,8 @@ private:
 	Ui::Animations::Simple _selection;
 
 	RoundCheckbox _check;
+
+	std::optional<QBrush> _fgOverride;
 
 };
 

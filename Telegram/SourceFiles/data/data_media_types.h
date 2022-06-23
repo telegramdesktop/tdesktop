@@ -185,7 +185,8 @@ class MediaFile final : public Media {
 public:
 	MediaFile(
 		not_null<HistoryItem*> parent,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		bool skipPremiumEffect);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -218,6 +219,7 @@ public:
 private:
 	not_null<DocumentData*> _document;
 	QString _emoji;
+	bool _skipPremiumEffect = false;
 
 };
 

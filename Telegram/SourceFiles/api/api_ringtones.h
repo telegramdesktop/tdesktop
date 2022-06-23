@@ -38,7 +38,7 @@ public:
 	[[nodiscard]] rpl::producer<QString> uploadFails() const;
 	[[nodiscard]] rpl::producer<DocumentId> uploadDones() const;
 
-	[[nodiscard]] int maxSize() const;
+	[[nodiscard]] int64 maxSize() const;
 	[[nodiscard]] int maxSavedCount() const;
 	[[nodiscard]] int maxDuration() const;
 

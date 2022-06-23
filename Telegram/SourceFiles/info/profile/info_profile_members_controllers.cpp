@@ -8,10 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_members_controllers.h"
 
 #include "boxes/peers/edit_participants_box.h"
+#include "info/profile/info_profile_values.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "ui/unread_badge.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
+#include "styles/style_boxes.h"
+#include "styles/style_dialogs.h"
 
 namespace Info {
 namespace Profile {
@@ -21,63 +25,48 @@ MemberListRow::MemberListRow(
 	Type type)
 : PeerListRowWithLink(user)
 , _type(type) {
-	PeerListRowWithLink::setActionLink(_type.adminRank);
+	setType(type);
 }
 
 void MemberListRow::setType(Type type) {
 	_type = type;
-	PeerListRowWithLink::setActionLink(_type.adminRank);
+	_fakeScamSize = (_type.badge == Badge::Fake)
+		? Ui::ScamBadgeSize(true)
+		: (_type.badge == Badge::Scam)
+		? Ui::ScamBadgeSize(false)
+		: QSize();
+	PeerListRowWithLink::setActionLink(!_type.adminRank.isEmpty()
+		? _type.adminRank
+		: (_type.rights == Rights::Creator)
+		? tr::lng_owner_badge(tr::now)
+		: (_type.rights == Rights::Admin)
+		? tr::lng_admin_badge(tr::now)
+		: QString());
 }
 
 bool MemberListRow::rightActionDisabled() const {
-	return !canRemove();
-}
-
-QSize MemberListRow::rightActionSize() const {
-	return canRemove()
-		? QRect(
-			QPoint(),
-			st::infoMembersRemoveIcon.size()).marginsAdded(
-				st::infoMembersRemoveIconMargins).size()
-		: PeerListRowWithLink::rightActionSize();
-}
-
-void MemberListRow::rightActionPaint(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected,
-		bool actionSelected) {
-	if (_type.canRemove && selected) {
-		x += st::infoMembersRemoveIconMargins.left();
-		y += st::infoMembersRemoveIconMargins.top();
-		(actionSelected
-			? st::infoMembersRemoveIconOver
-			: st::infoMembersRemoveIcon).paint(p, x, y, outerWidth);
-	} else {
-		PeerListRowWithLink::rightActionPaint(
-			p,
-			x,
-			y,
-			outerWidth,
-			selected,
-			actionSelected);
-	}
+	return true;
 }
 
 QMargins MemberListRow::rightActionMargins() const {
-	return canRemove()
-		? QMargins()
-		: PeerListRowWithLink::rightActionMargins();
+	const auto skip = st::contactsCheckPosition.x();
+	return QMargins(
+		skip,
+		st::defaultPeerListItem.namePosition.y(),
+		st::defaultPeerListItem.photoPosition.x() + skip,
+		0);
 }
 
 int MemberListRow::nameIconWidth() const {
-	return (_type.rights == Rights::Admin)
-		? st::infoMembersAdminIcon.width()
-		: (_type.rights == Rights::Creator)
-		? st::infoMembersCreatorIcon.width()
-		: 0;
+	switch (_type.badge) {
+	case Badge::None: return 0;
+	case Badge::Verified: return st::dialogsVerifiedIcon.width();
+	case Badge::Premium: return st::dialogsPremiumIcon.width();
+	case Badge::Scam:
+	case Badge::Fake:
+		return st::dialogsScamSkip + _fakeScamSize.width();
+	}
+	return 0;
 }
 
 not_null<UserData*> MemberListRow::user() const {
@@ -90,16 +79,31 @@ void MemberListRow::paintNameIcon(
 		int y,
 		int outerWidth,
 		bool selected) {
-	const auto icon = [&] {
-		return (_type.rights == Rights::Admin)
-			? (selected
-				? &st::infoMembersAdminIconOver
-				: &st::infoMembersAdminIcon)
-			: (selected
-				? &st::infoMembersCreatorIconOver
-				: &st::infoMembersCreatorIcon);
-	}();
-	icon->paint(p, x, y, outerWidth);
+	switch (_type.badge) {
+	case Badge::None: return;
+	case Badge::Verified:
+		(selected
+			? st::dialogsVerifiedIconOver
+			: st::dialogsVerifiedIcon).paint(p, x, y, outerWidth);
+		break;
+	case Badge::Premium:
+		(selected
+			? st::dialogsPremiumIconOver
+			: st::dialogsPremiumIcon).paint(p, x, y, outerWidth);
+		break;
+	case Badge::Scam:
+	case Badge::Fake:
+		return Ui::DrawScamBadge(
+			(_type.badge == Badge::Fake),
+			p,
+			QRect(
+				x + st::dialogsScamSkip,
+				y + (st::normalFont->height - _fakeScamSize.height()) / 2,
+				_fakeScamSize.width(),
+				_fakeScamSize.height()),
+			outerWidth,
+			(selected ? st::dialogsScamFgOver : st::dialogsScamFg));
+	}
 }
 
 void MemberListRow::refreshStatus() {
@@ -112,10 +116,6 @@ void MemberListRow::refreshStatus() {
 	} else {
 		PeerListRow::refreshStatus();
 	}
-}
-
-bool MemberListRow::canRemove() const {
-	return _type.canRemove;
 }
 
 std::unique_ptr<PeerListController> CreateMembersController(

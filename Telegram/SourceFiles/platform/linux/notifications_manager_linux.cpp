@@ -435,11 +435,13 @@ private:
 
 	uint _notificationId = 0;
 	uint _actionInvokedSignalId = 0;
+	uint _activationTokenSignalId = 0;
 	uint _notificationRepliedSignalId = 0;
 	uint _notificationClosedSignalId = 0;
 
 	void notificationClosed(uint id, uint reason);
 	void actionInvoked(uint id, const Glib::ustring &actionName);
+	void activationToken(uint id, const Glib::ustring &token);
 	void notificationReplied(uint id, const Glib::ustring &text);
 
 };
@@ -486,6 +488,14 @@ bool NotificationData::init(
 					parameters.get_child(1));
 
 				crl::on_main(weak, [=] { actionInvoked(id, actionName); });
+			} else if (signal_name == "ActivationToken") {
+				const auto id = GlibVariantCast<uint>(
+					parameters.get_child(0));
+
+				const auto token = GlibVariantCast<Glib::ustring>(
+					parameters.get_child(1));
+
+				crl::on_main(weak, [=] { activationToken(id, token); });
 			} else if (signal_name == "NotificationReplied") {
 				const auto id = GlibVariantCast<uint>(
 					parameters.get_child(0));
@@ -558,6 +568,13 @@ bool NotificationData::init(
 			std::string(kInterface),
 			"ActionInvoked",
 			std::string(kObjectPath));
+
+		_activationTokenSignalId = _dbusConnection->signal_subscribe(
+			signalEmitted,
+			std::string(kService),
+			std::string(kInterface),
+			"ActivationToken",
+			std::string(kObjectPath));
 	}
 
 	if (capabilities.contains("action-icons")) {
@@ -599,6 +616,10 @@ NotificationData::~NotificationData() {
 	if (_dbusConnection) {
 		if (_actionInvokedSignalId != 0) {
 			_dbusConnection->signal_unsubscribe(_actionInvokedSignalId);
+		}
+
+		if (_activationTokenSignalId != 0) {
+			_dbusConnection->signal_unsubscribe(_activationTokenSignalId);
 		}
 
 		if (_notificationRepliedSignalId != 0) {
@@ -735,6 +756,12 @@ void NotificationData::actionInvoked(
 		_manager->notificationActivated(_id);
 	} else if (actionName == "mail-mark-read") {
 		_manager->notificationReplied(_id, {});
+	}
+}
+
+void NotificationData::activationToken(uint id, const Glib::ustring &token) {
+	if (id == _notificationId) {
+		qputenv("XDG_ACTIVATION_TOKEN", QByteArray::fromStdString(token));
 	}
 }
 

@@ -21,6 +21,8 @@ class Session;
 } // namespace Main
 
 namespace Lottie {
+class SinglePlayer;
+class FrameProvider;
 struct ColorReplacements;
 } // namespace Lottie
 
@@ -70,6 +72,12 @@ public:
 	[[nodiscard]] auto animationsForEmoji(EmojiPtr emoji) const
 		-> const base::flat_map<int, not_null<DocumentData*>> &;
 
+	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> effectPlayer(
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool premium);
+
 private:
 	class ImageLoader;
 
@@ -102,6 +110,10 @@ private:
 		EmojiPtr,
 		base::flat_map<int, not_null<DocumentData*>>> _animations;
 	mtpRequestId _animationsRequestId = 0;
+
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::weak_ptr<Lottie::FrameProvider>> _sharedProviders;
 
 	rpl::lifetime _lifetime;
 

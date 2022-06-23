@@ -27,11 +27,6 @@ namespace {
 constexpr auto kMaxBrush = 25.;
 constexpr auto kMinBrush = 1.;
 
-constexpr auto kViewStyle = "QGraphicsView {\
-		background-color: transparent;\
-		border: 0px\
-	}"_cs;
-
 std::shared_ptr<Scene> EnsureScene(
 		PhotoModifications &mods,
 		const QSize &size) {
@@ -62,7 +57,8 @@ Paint::Paint(
 	_view->show();
 	_view->setVerticalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
 	_view->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-	_view->setStyleSheet(kViewStyle.utf8());
+	_view->setFrameStyle(int(QFrame::NoFrame) | QFrame::Plain);
+	_view->viewport()->setAutoFillBackground(false);
 
 	// Undo / Redo.
 	controllers->undoController->performRequestChanges(
@@ -207,10 +203,12 @@ void Paint::handleMimeData(const QMimeData *data) {
 	};
 
 	using Error = Ui::PreparedList::Error;
+	const auto premium = false; // Don't support > 2GB files here.
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			data->urls().mid(0, 1),
-			_imageSize.width() / 2)
+			_imageSize.width() / 2,
+			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		add(base::take(result.files.front().preview));

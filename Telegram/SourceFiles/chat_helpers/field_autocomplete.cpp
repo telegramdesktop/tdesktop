@@ -480,7 +480,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		bool hasUsername = _filter.indexOf('@') > 0;
 		base::flat_map<
 			not_null<UserData*>,
-			not_null<const std::vector<BotCommand>*>> bots;
+			not_null<const std::vector<Data::BotCommand>*>> bots;
 		int32 cnt = 0;
 		if (_chat) {
 			if (_chat->noParticipantInfo()) {
@@ -527,7 +527,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		if (cnt) {
 			const auto make = [&](
 					not_null<UserData*> user,
-					const BotCommand &command) {
+					const Data::BotCommand &command) {
 				return BotCommandRow{
 					user,
 					command.command,

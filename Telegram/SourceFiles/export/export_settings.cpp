@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Export {
 namespace {
 
-constexpr auto kMaxFileSize = 2000 * 1024 * 1024;
+constexpr auto kMaxFileSize = 4000 * int64(1024 * 1024);
 
 } // namespace
 

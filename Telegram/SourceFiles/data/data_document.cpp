@@ -465,7 +465,8 @@ bool DocumentData::checkWallPaperProperties() {
 void DocumentData::updateThumbnails(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
-		const ImageWithLocation &videoThumbnail) {
+		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker) {
 	if (!inlineThumbnail.bytes.isEmpty()
 		&& _inlineThumbnailBytes.isEmpty()) {
 		_inlineThumbnailBytes = inlineThumbnail.bytes;
@@ -474,6 +475,11 @@ void DocumentData::updateThumbnails(
 		} else {
 			_flags &= ~Flag::InlineThumbnailIsPath;
 		}
+	}
+	if (isPremiumSticker) {
+		_flags |= Flag::PremiumSticker;
+	} else {
+		_flags &= ~Flag::PremiumSticker;
 	}
 	Data::UpdateCloudFile(
 		_thumbnail,
@@ -509,6 +515,10 @@ bool DocumentData::isPatternWallPaperPNG() const {
 
 bool DocumentData::isPatternWallPaperSVG() const {
 	return isWallPaper() && hasMimeType(qstr("application/x-tgwallpattern"));
+}
+
+bool DocumentData::isPremiumSticker() const {
+	return (_flags & Flag::PremiumSticker);
 }
 
 bool DocumentData::hasThumbnail() const {
@@ -746,7 +756,7 @@ float64 DocumentData::progress() const {
 	if (uploading()) {
 		if (uploadingData->size > 0) {
 			const auto result = float64(uploadingData->offset)
-				/ uploadingData->size;
+				/ float64(uploadingData->size);
 			return std::clamp(result, 0., 1.);
 		}
 		return 0.;
@@ -754,7 +764,7 @@ float64 DocumentData::progress() const {
 	return loading() ? _loader->currentProgress() : 0.;
 }
 
-int DocumentData::loadOffset() const {
+int64 DocumentData::loadOffset() const {
 	return loading() ? _loader->currentOffset() : 0;
 }
 
@@ -1194,7 +1204,9 @@ bool DocumentData::hasRemoteLocation() const {
 }
 
 bool DocumentData::useStreamingLoader() const {
-	if (const auto info = sticker()) {
+	if (size <= 0) {
+		return false;
+	} else if (const auto info = sticker()) {
 		return info->isWebm();
 	}
 	return isAnimation()
@@ -1339,6 +1351,12 @@ LocationType DocumentData::locationType() const {
 		: isVideoFile()
 		? VideoFileLocation
 		: DocumentFileLocation;
+}
+
+void DocumentData::forceIsStreamedAnimation() {
+	type = AnimatedDocument;
+	_additional = nullptr;
+	setMaybeSupportsStreaming(true);
 }
 
 bool DocumentData::isVoiceMessage() const {

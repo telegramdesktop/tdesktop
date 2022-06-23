@@ -108,7 +108,6 @@ private:
 
 	void call();
 	void groupCall();
-	void startGroupCall(not_null<ChannelData*> megagroup, bool confirmed);
 	void showPeerMenu();
 	void showGroupCallMenu(not_null<PeerData*> peer);
 	void toggleInfoSection();
@@ -154,6 +153,7 @@ private:
 	[[nodiscard]] bool showSelectedActions() const;
 
 	const not_null<Window::SessionController*> _controller;
+	const bool _primaryWindow = false;
 	ActiveChat _activeChat;
 	QString _customTitleText;
 	std::unique_ptr<EmojiInteractionSeenAnimation> _emojiInteractionSeen;

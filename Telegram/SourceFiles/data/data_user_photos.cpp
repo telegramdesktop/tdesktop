@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "storage/storage_facade.h"
@@ -45,7 +46,7 @@ private:
 	int _limitBefore = 0;
 	int _limitAfter = 0;
 
-	rpl::event_stream<PhotoId> _insufficientPhotosAround;
+	rpl::event_stream<Api::PeerPhoto::UserPhotoId> _insufficientPhotosAround;
 
 };
 
@@ -109,7 +110,7 @@ bool UserPhotosSliceBuilder::applyUpdate(const Storage::UserPhotosSliceUpdate &u
 	if (update.userId != _key.userId) {
 		return false;
 	}
-	auto idsCount = update.photoIds ? int(update.photoIds->size()) : 0;
+	const auto idsCount = update.photoIds ? int(update.photoIds->size()) : 0;
 	mergeSliceData(
 		update.count,
 		update.photoIds ? *update.photoIds : std::deque<PhotoId> {},
@@ -152,9 +153,9 @@ void UserPhotosSliceBuilder::mergeSliceData(
 }
 
 void UserPhotosSliceBuilder::sliceToLimits() {
-	auto aroundIt = ranges::find(_ids, _key.photoId);
-	auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
-	auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
+	const auto aroundIt = ranges::find(_ids, _key.photoId);
+	const auto removeFromBegin = (aroundIt - _ids.begin() - _limitBefore);
+	const auto removeFromEnd = (_ids.end() - aroundIt - _limitAfter - 1);
 	if (removeFromEnd > 0) {
 		_ids.erase(_ids.end() - removeFromEnd, _ids.end());
 		_skippedAfter += removeFromEnd;
@@ -164,7 +165,8 @@ void UserPhotosSliceBuilder::sliceToLimits() {
 		if (_skippedBefore) {
 			*_skippedBefore += removeFromBegin;
 		}
-	} else if (removeFromBegin < 0 && (!_skippedBefore || *_skippedBefore > 0)) {
+	} else if (removeFromBegin < 0
+		&& (!_skippedBefore || *_skippedBefore > 0)) {
 		_insufficientPhotosAround.fire(_ids.empty() ? 0 : _ids.front());
 	}
 }
@@ -185,21 +187,23 @@ rpl::producer<UserPhotosSlice> UserPhotosViewer(
 		int limitAfter) {
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
-		auto builder = lifetime.make_state<UserPhotosSliceBuilder>(
+		const auto builder = lifetime.make_state<UserPhotosSliceBuilder>(
 			key,
 			limitBefore,
 			limitAfter);
-		auto applyUpdate = [=](auto &&update) {
+		const auto applyUpdate = [=](auto &&update) {
 			if (builder->applyUpdate(std::forward<decltype(update)>(update))) {
 				consumer.put_next(builder->snapshot());
 			}
 		};
 		auto requestPhotosAround = [user = session->data().user(key.userId)](
-				PhotoId photoId) {
-			user->session().api().requestUserPhotos(user, photoId);
+				Api::PeerPhoto::UserPhotoId photoId) {
+			user->session().api().peerPhoto().requestUserPhotos(
+				user,
+				photoId);
 		};
 		builder->insufficientPhotosAround()
-			| rpl::start_with_next(requestPhotosAround, lifetime);
+			| rpl::start_with_next(std::move(requestPhotosAround), lifetime);
 
 		session->storage().userPhotosSliceUpdated()
 			| rpl::start_with_next(applyUpdate, lifetime);

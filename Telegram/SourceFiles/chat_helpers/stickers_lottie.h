@@ -60,6 +60,11 @@ enum class StickerLottieSize : uchar {
 	EmojiInteractionReserved1,
 	EmojiInteractionReserved2,
 	EmojiInteractionReserved3,
+	EmojiInteractionReserved4,
+	EmojiInteractionReserved5,
+	EmojiInteractionReserved6,
+	EmojiInteractionReserved7,
+	PremiumReactionPreview,
 };
 
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
@@ -105,13 +110,15 @@ bool PaintStickerThumbnailPath(
 	QPainter &p,
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
-	QLinearGradient *gradient = nullptr);
+	QLinearGradient *gradient = nullptr,
+	bool mirrorHorizontal = false);
 
 bool PaintStickerThumbnailPath(
 	QPainter &p,
 	not_null<Data::DocumentMedia*> media,
 	QRect target,
-	not_null<Ui::PathShiftGradient*> gradient);
+	not_null<Ui::PathShiftGradient*> gradient,
+	bool mirrorHorizontal = false);
 
 [[nodiscard]] QSize ComputeStickerSize(
 	not_null<DocumentData*> document,

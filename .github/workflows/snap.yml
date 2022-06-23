@@ -29,7 +29,7 @@ on:
 
 jobs:
 
-  linux:
+  snap:
     name: Ubuntu
     runs-on: ubuntu-latest
 
@@ -55,23 +55,14 @@ jobs:
 
       - name: First set up.
         run: |
-          sudo apt-get purge --autoremove lxd
-
           sudo snap install --classic snapcraft
-          sudo snap install lxd
-
-          # Workaround for snapcraft
-          # See https://forum.snapcraft.io/t/13258
-          sudo chown root:root /
-
           sudo usermod -aG lxd $USER
-
           sudo snap run lxd init --auto
           sudo snap run lxd waitready
 
           sudo pip3 install meson
       - name: Telegram Desktop snap build.
-        run: export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft
+        run: export SNAPCRAFT_BUILD_ENVIRONMENT=host; snap run snapcraft -v
         env:
           API_ID: ${{ secrets.API_ID }}
           API_HASH: ${{ secrets.API_HASH }}

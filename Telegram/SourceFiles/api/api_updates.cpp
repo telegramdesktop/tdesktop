@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "api/api_user_privacy.h"
 #include "api/api_unread_things.h"
+#include "api/api_transcribes.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "mtproto/mtp_instance.h"
@@ -1990,16 +1991,29 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateBotCommands();
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(d.vpeer()))) {
 			const auto botId = UserId(d.vbot_id().v);
+			const auto commands = Data::BotCommands{
+				.userId = UserId(d.vbot_id().v),
+				.commands = ranges::views::all(
+					d.vcommands().v
+				) | ranges::views::transform(
+					Data::BotCommandFromTL
+				) | ranges::to_vector,
+			};
+
 			if (const auto user = peer->asUser()) {
 				if (user->isBot() && user->id == peerFromUser(botId)) {
-					if (Data::UpdateBotCommands(user->botInfo->commands, d.vcommands())) {
+					const auto equal = ranges::equal(
+						user->botInfo->commands,
+						commands.commands);
+					user->botInfo->commands = commands.commands;
+					if (!equal) {
 						session().data().botCommandsChanged(user);
 					}
 				}
 			} else if (const auto chat = peer->asChat()) {
-				chat->setBotCommands(botId, d.vcommands());
+				chat->setBotCommands({ commands });
 			} else if (const auto megagroup = peer->asMegagroup()) {
-				if (megagroup->mgInfo->updateBotCommands(botId, d.vcommands())) {
+				if (megagroup->mgInfo->setBotCommands({ commands })) {
 					session().data().botCommandsChanged(megagroup);
 				}
 			}
@@ -2019,7 +2033,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateBotMenuButton();
 		if (const auto bot = session().data().userLoaded(d.vbot_id())) {
 			if (const auto info = bot->botInfo.get(); info && info->inited) {
-				if (Data::ApplyBotMenuButton(info, d.vbutton())) {
+				if (Data::ApplyBotMenuButton(info, &d.vbutton())) {
 					session().data().botCommandsChanged(bot);
 				}
 			}
@@ -2390,6 +2404,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateSavedRingtones: {
 		session().api().ringtones().applyUpdate();
 	} break;
+
+	case mtpc_updateTranscribedAudio: {
+		const auto &data = update.c_updateTranscribedAudio();
+		_session->api().transcribes().apply(data);
+	}
 
 	}
 }

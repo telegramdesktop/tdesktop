@@ -324,6 +324,14 @@ QString UiIntegration::phraseFormattingSpoiler() {
 	return tr::lng_menu_formatting_spoiler(tr::now);
 }
 
+QString UiIntegration::phraseButtonOk() {
+	return tr::lng_box_ok(tr::now);
+}
+
+QString UiIntegration::phraseButtonCancel() {
+	return tr::lng_cancel(tr::now);
+}
+
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());
 }

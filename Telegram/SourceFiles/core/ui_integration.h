@@ -71,6 +71,8 @@ public:
 	QString phraseFormattingStrikeOut() override;
 	QString phraseFormattingMonospace() override;
 	QString phraseFormattingSpoiler() override;
+	QString phraseButtonOk() override;
+	QString phraseButtonCancel() override;
 
 };
 

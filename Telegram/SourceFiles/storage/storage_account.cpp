@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtp_instance.h"
 #include "history/history.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/file_location.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_session.h"
@@ -761,12 +762,14 @@ void Account::readLocations() {
 		QByteArray bookmark;
 		Core::FileLocation loc;
 		quint32 legacyTypeField = 0;
+		quint32 size = 0;
 		locations.stream >> first >> second >> legacyTypeField >> loc.fname;
 		if (locations.version > 9013) {
 			locations.stream >> bookmark;
 		}
-		locations.stream >> loc.modified >> loc.size;
+		locations.stream >> loc.modified >> size;
 		loc.setBookmark(bookmark);
+		loc.size = int64(size);
 
 		if (!first && !second && !legacyTypeField && loc.fname.isEmpty() && !loc.size) { // end mark
 			endMarkFound = true;
@@ -2200,8 +2203,9 @@ void Account::importOldRecentStickers() {
 			attributes,
 			mime,
 			InlineImageLocation(),
-			ImageWithLocation(),
-			ImageWithLocation(),
+			ImageWithLocation(), // thumbnail
+			ImageWithLocation(), // videoThumbnail
+			false, // isPremiumSticker
 			dc,
 			size);
 		if (!doc->sticker()) {

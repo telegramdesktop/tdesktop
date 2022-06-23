@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/concurrent_timer.h"
 #include "base/qt_signal_producer.h"
 #include "base/unixtime.h"
+#include "core/core_settings.h"
 #include "core/update_checker.h"
 #include "core/shortcuts.h"
 #include "core/sandbox.h"
@@ -46,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_instance.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "mainwidget.h"
+#include "tray.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/crash_reports.h"
@@ -84,8 +86,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "boxes/connection_box.h"
+#include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
-#include "boxes/share_box.h"
 
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
@@ -154,6 +156,7 @@ Application::Application(not_null<Launcher*> launcher)
 , _langpack(std::make_unique<Lang::Instance>())
 , _langCloudManager(std::make_unique<Lang::CloudManager>(langpack()))
 , _emojiKeywords(std::make_unique<ChatHelpers::EmojiKeywords>())
+, _tray(std::make_unique<Tray>())
 , _autoLockTimer([=] { checkAutoLock(); })
 , _fakeMtpHolder(new FakePasscode::FakeMtpHolder) {
 	Ui::Integration::Set(&_private->uiIntegration);
@@ -291,6 +294,31 @@ void Application::run() {
 		_primaryWindow->showAccount(account);
 	}, _primaryWindow->widget()->lifetime());
 
+	(
+		_domain->activeValue(
+		) | rpl::to_empty | rpl::filter([=] {
+			return _domain->started();
+		}) | rpl::take(1)
+	) | rpl::then(
+		_domain->accountsChanges()
+	) | rpl::map([=] {
+		return (_domain->accounts().size() > Main::Domain::kMaxAccounts)
+			? _domain->activeChanges()
+			: rpl::never<not_null<Main::Account*>>();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](not_null<Main::Account*> account) {
+		const auto ordered = _domain->orderedAccounts();
+		const auto it = ranges::find(ordered, account);
+		if (it != end(ordered)) {
+			const auto index = std::distance(begin(ordered), it);
+			if ((index + 1) > _domain->maxAccounts()) {
+				_primaryWindow->show(Box(
+					AccountsLimitBox,
+					&account->session()));
+			}
+		}
+	}, _primaryWindow->widget()->lifetime());
+
 	QCoreApplication::instance()->installEventFilter(this);
 
 	appDeactivatedValue(
@@ -304,9 +332,11 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: window created..."));
 
-	// Depend on activeWindow() for now :(
+	// Depend on primaryWindow() for now :(
 	startShortcuts();
 	startDomain();
+
+	startTray();
 
 	_primaryWindow->widget()->show();
 
@@ -332,12 +362,16 @@ void Application::run() {
 		showOpenGLCrashNotification();
 	}
 
-	_primaryWindow->openInMediaViewRequests(
+	_openInMediaViewRequests.events(
 	) | rpl::start_with_next([=](Media::View::OpenRequest &&request) {
 		if (_mediaView) {
 			_mediaView->show(std::move(request));
 		}
-	}, _primaryWindow->lifetime());
+	}, _lifetime);
+	_primaryWindow->openInMediaViewRequests(
+	) | rpl::start_to_stream(
+		_openInMediaViewRequests,
+		_primaryWindow->lifetime());
 
 	{
 		const auto countries = std::make_shared<Countries::Manager>(
@@ -417,6 +451,46 @@ void Application::startSystemDarkModeViewer() {
 	}, _lifetime);
 }
 
+void Application::enumerateWindows(Fn<void(
+		not_null<Window::Controller*>)> callback) const {
+	if (_primaryWindow) {
+		callback(_primaryWindow.get());
+	}
+	for (const auto &window : ranges::views::values(_secondaryWindows)) {
+		callback(window.get());
+	}
+}
+
+void Application::processSecondaryWindow(
+		not_null<Window::Controller*> window) {
+	window->openInMediaViewRequests(
+	) | rpl::start_to_stream(_openInMediaViewRequests, window->lifetime());
+}
+
+void Application::startTray() {
+	using WindowRaw = not_null<Window::Controller*>;
+	_tray->create();
+	_tray->aboutToShowRequests(
+	) | rpl::start_with_next([=] {
+		enumerateWindows([&](WindowRaw w) { w->updateIsActive(); });
+		_tray->updateMenuText();
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->showFromTrayRequests(
+	) | rpl::start_with_next([=] {
+		const auto last = _lastActiveWindow;
+		enumerateWindows([&](WindowRaw w) { w->widget()->showFromTray(); });
+		if (last) {
+			last->widget()->showFromTray();
+		}
+	}, _primaryWindow->widget()->lifetime());
+
+	_tray->hideToTrayRequests(
+	) | rpl::start_with_next([=] {
+		enumerateWindows([&](WindowRaw w) { w->widget()->minimizeToTray(); });
+	}, _primaryWindow->widget()->lifetime());
+}
+
 auto Application::prepareEmojiSourceImages()
 -> std::shared_ptr<Ui::Emoji::UniversalImages> {
 	const auto &images = Ui::Emoji::SourceImages();
@@ -432,6 +506,16 @@ void Application::clearEmojiSourceImages() {
 		crl::on_main([images = loader.releaseImages()]{
 			Ui::Emoji::ClearSourceImages(images);
 		});
+	});
+}
+
+bool Application::isActiveForTrayMenu() const {
+	if (_primaryWindow && _primaryWindow->widget()->isActiveForTrayMenu()) {
+		return true;
+	}
+	return ranges::any_of(ranges::views::values(_secondaryWindows), [=](
+			const std::unique_ptr<Window::Controller> &controller) {
+		return controller->widget()->isActiveForTrayMenu();
 	});
 }
 
@@ -740,7 +824,7 @@ void Application::checkLocalTime() {
 		base::ConcurrentTimerEnvironment::Adjust();
 		base::unixtime::http_invalidate();
 	}
-	if (const auto session = maybeActiveSession()) {
+	if (const auto session = maybePrimarySession()) {
 		session->updates().checkLastUpdate(adjusted);
 	}
 }
@@ -755,6 +839,12 @@ void Application::handleAppActivated() {
 void Application::handleAppDeactivated() {
 	if (_primaryWindow) {
 		_primaryWindow->updateIsActiveBlur();
+	}
+	const auto session = _lastActiveWindow
+		? _lastActiveWindow->maybeSession()
+		: nullptr;
+	if (session) {
+		session->updates().updateOnline();
 	}
 	Ui::Tooltip::Hide();
 }
@@ -813,7 +903,7 @@ Main::Account &Application::activeAccount() const {
 	return _domain->active();
 }
 
-Main::Session *Application::maybeActiveSession() const {
+Main::Session *Application::maybePrimarySession() const {
 	return _domain->started() ? activeAccount().maybeSession() : nullptr;
 }
 
@@ -986,7 +1076,7 @@ void Application::lockByPasscode() {
 	preventOrInvoke([=] {
 		if (_primaryWindow) {
 			_passcodeLock = true;
-            if (_domain->local().IsCacheCleanedUpOnLock()) {
+			if (_domain->local().IsCacheCleanedUpOnLock()) {
                 for (const auto &[index, account]: _domain->accounts()) {
                     if (account->sessionExists()) {
                         auto path = account->local().getDatabasePath();
@@ -1002,13 +1092,13 @@ void Application::lockByPasscode() {
                                     FakePasscode::FileUtils::DeleteFolderRecursively(path, true);
                                 });
                             }
-						});
+                        });
                     }
                 }
                 Ui::Emoji::ClearIrrelevantCache();
             }
-			_primaryWindow->setupPasscodeLock();
-		}
+			w->setupPasscodeLock();
+		});
 	});
 }
 
@@ -1021,9 +1111,9 @@ void Application::unlockPasscode() {
             }
         }
     }
-	if (_primaryWindow) {
-		_primaryWindow->clearPasscodeLock();
-	}
+	enumerateWindows([&](not_null<Window::Controller*> w) {
+		w->clearPasscodeLock();
+	});
 }
 
 void Application::clearPasscodeLock() {
@@ -1037,7 +1127,7 @@ bool Application::passcodeLocked() const {
 
 void Application::updateNonIdle() {
 	_lastNonIdleTime = crl::now();
-	if (const auto session = maybeActiveSession()) {
+	if (const auto session = maybePrimarySession()) {
 		session->updates().checkIdleFinish(_lastNonIdleTime);
 	}
 }
@@ -1111,11 +1201,9 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 		return false;
 	} else if (_calls->hasActivePanel(session)) {
 		return true;
-	} else if (const auto controller = _primaryWindow->sessionController()) {
-		if (&controller->session() == session
-			&& _primaryWindow->widget()->isActive()) {
-			return true;
-		}
+	} else if (const auto window = _lastActiveWindow) {
+		return (window->account().maybeSession() == session)
+			&& window->widget()->isActive();
 	}
 	return false;
 }
@@ -1161,6 +1249,7 @@ Window::Controller *Application::ensureSeparateWindowForPeer(
 		peer->owner().history(peer),
 		std::make_unique<Window::Controller>(peer, showAtMsgId)
 	).first->second.get();
+	processSecondaryWindow(result);
 	result->widget()->show();
 	result->finishFirstShow();
 	return activate(result);
@@ -1168,6 +1257,66 @@ Window::Controller *Application::ensureSeparateWindowForPeer(
 
 Window::Controller *Application::activeWindow() const {
 	return _lastActiveWindow;
+}
+
+void Application::closeWindow(not_null<Window::Controller*> window) {
+	for (auto i = begin(_secondaryWindows); i != end(_secondaryWindows);) {
+		if (i->second.get() == window) {
+			if (_lastActiveWindow == window) {
+				_lastActiveWindow = _primaryWindow.get();
+			}
+			i = _secondaryWindows.erase(i);
+		} else {
+			++i;
+		}
+	}
+}
+
+void Application::closeChatFromWindows(not_null<PeerData*> peer) {
+	for (const auto &[history, window] : _secondaryWindows) {
+		if (!window) {
+			continue;
+		}
+		if (history->peer == peer) {
+			closeWindow(window.get());
+		} else if (const auto session = window->sessionController()) {
+			if (session->activeChatCurrent().peer() == peer) {
+				session->showPeerHistory(
+					window->singlePeer()->id,
+					Window::SectionShow::Way::ClearStack);
+			}
+		}
+	}
+	if (_primaryWindow && _primaryWindow->sessionController()) {
+		const auto primary = _primaryWindow->sessionController();
+		if ((primary->activeChatCurrent().peer() == peer)
+			&& (&primary->session() == &peer->session())) {
+			// showChatsList
+			primary->showPeerHistory(
+				PeerId(0),
+				Window::SectionShow::Way::ClearStack);
+		}
+	}
+}
+
+void Application::windowActivated(not_null<Window::Controller*> window) {
+	const auto was = _lastActiveWindow;
+	const auto now = window;
+	_lastActiveWindow = window;
+
+	const auto wasSession = was ? was->maybeSession() : nullptr;
+	const auto nowSession = now->maybeSession();
+	if (wasSession != nowSession) {
+		if (wasSession) {
+			wasSession->updates().updateOnline();
+		}
+		if (nowSession) {
+			nowSession->updates().updateOnline();
+		}
+	}
+	if (_mediaView && !_mediaView->isHidden()) {
+		_mediaView->activate();
+	}
 }
 
 bool Application::closeActiveWindow() {
@@ -1198,22 +1347,17 @@ bool Application::minimizeActiveWindow() {
 }
 
 QWidget *Application::getFileDialogParent() {
-	return (_mediaView && !_mediaView->isHidden())
-		? static_cast<QWidget*>(_mediaView->widget())
-		: activeWindow()
-		? static_cast<QWidget*>(activeWindow()->widget())
-		: nullptr;
+	if (const auto view = _mediaView.get(); view && !view->isHidden()) {
+		return view->widget();
+	} else if (const auto active = activeWindow()) {
+		return active->widget();
+	}
+	return nullptr;
 }
 
 void Application::notifyFileDialogShown(bool shown) {
 	if (_mediaView) {
 		_mediaView->notifyFileDialogShown(shown);
-	}
-}
-
-void Application::checkMediaViewActivation() {
-	if (_mediaView && !_mediaView->isHidden()) {
-		_mediaView->activate();
 	}
 }
 

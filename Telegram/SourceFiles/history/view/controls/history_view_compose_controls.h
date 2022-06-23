@@ -169,6 +169,9 @@ public:
 	void hidePanelsAnimated();
 	void clearListenState();
 
+	void hide();
+	void show();
+
 	[[nodiscard]] rpl::producer<bool> lockShowStarts() const;
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
@@ -254,9 +257,6 @@ private:
 	// Request to show results in the emoji panel.
 	void applyInlineBotQuery(UserData *bot, const QString &query);
 
-	void inlineBotResolveDone(const MTPcontacts_ResolvedPeer &result);
-	void inlineBotResolveFail(const MTP::Error &error, const QString &username);
-
 	[[nodiscard]] Data::DraftKey draftKey(
 		DraftType type = DraftType::Normal) const;
 	[[nodiscard]] Data::DraftKey draftKeyCurrent() const;
@@ -285,6 +285,7 @@ private:
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<std::optional<QString>> _writeRestriction;
+	rpl::variable<bool> _hidden;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

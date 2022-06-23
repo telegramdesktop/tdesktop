@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_domain.h"
 #include "main/main_session_settings.h"
+#include "main/main_app_config.h"
 #include "main/session/send_as_peers.h"
 #include "mtproto/mtproto_config.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -134,6 +135,15 @@ Session::Session(
 			}
 		}, _lifetime);
 
+#ifndef OS_MAC_STORE
+		_account->appConfig().value(
+		) | rpl::start_with_next([=] {
+			_premiumPossible = !_account->appConfig().get<bool>(
+				"premium_purchase_blocked",
+				true);
+		}, _lifetime);
+#endif // OS_MAC_STORE
+
 		if (_settings->hadLegacyCallsPeerToPeerNobody()) {
 			api().userPrivacy().save(
 				Api::UserPrivacy::Key::CallsPeer2Peer,
@@ -218,6 +228,33 @@ void Session::notifyDownloaderTaskFinished() {
 
 rpl::producer<> Session::downloaderTaskFinished() const {
 	return downloader().taskFinished();
+}
+
+bool Session::premium() const {
+	return _user->isPremium();
+}
+
+bool Session::premiumPossible() const {
+	return premium() || _premiumPossible.current();
+}
+
+bool Session::premiumBadgesShown() const {
+	return supportMode() || premiumPossible();
+}
+
+rpl::producer<bool> Session::premiumPossibleValue() const {
+	using namespace rpl::mappers;
+
+	auto premium = _user->flagsValue(
+	) | rpl::filter([=](UserData::Flags::Change change) {
+		return (change.diff & UserDataFlag::Premium);
+	}) | rpl::map([=] {
+		return _user->isPremium();
+	});
+	return rpl::combine(
+		std::move(premium),
+		_premiumPossible.value(),
+		_1 || _2);
 }
 
 uint64 Session::uniqueId() const {

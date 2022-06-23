@@ -122,13 +122,18 @@ bytes::vector ComputeSecureSecretHash(
 	bytes::const_span password);
 
 struct CloudPasswordState {
-	CloudPasswordCheckRequest request;
-	bool unknownAlgorithm = false;
+	struct Mtp {
+		CloudPasswordCheckRequest request;
+		bool unknownAlgorithm = false;
+		CloudPasswordAlgo newPassword;
+		SecureSecretAlgo newSecureSecret;
+	};
+	Mtp mtp;
+	bool hasPassword = false;
 	bool hasRecovery = false;
 	bool notEmptyPassport = false;
+	bool outdatedClient = false;
 	QString hint;
-	CloudPasswordAlgo newPassword;
-	SecureSecretAlgo newSecureSecret;
 	QString unconfirmedPattern;
 	TimeId pendingResetDate = 0;
 };

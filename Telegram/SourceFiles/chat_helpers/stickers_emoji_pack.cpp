@@ -20,6 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/application.h"
 #include "base/call_delayed.h"
+#include "chat_helpers/stickers_lottie.h"
+#include "history/view/media/history_view_sticker.h"
+#include "lottie/lottie_single_player.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -29,6 +32,8 @@ namespace Stickers {
 namespace {
 
 constexpr auto kRefreshTimeout = 7200 * crl::time(1000);
+constexpr auto kEmojiCachesCount = 4;
+constexpr auto kPremiumCachesCount = 8;
 
 [[nodiscard]] std::optional<int> IndexFromEmoticon(const QString &emoticon) {
 	if (emoticon.size() < 2) {
@@ -199,6 +204,57 @@ auto EmojiPack::animationsForEmoji(EmojiPtr emoji) const
 	static const auto empty = base::flat_map<int, not_null<DocumentData*>>();
 	const auto i = _animations.find(emoji);
 	return (i != end(_animations)) ? i->second : empty;
+}
+
+std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
+		not_null<DocumentData*> document,
+		QByteArray data,
+		QString filepath,
+		bool premium) {
+	// Shortened copy from stickers_lottie module.
+	const auto baseKey = document->bigFileBaseCacheKey();
+	const auto tag = uint8(0);
+	const auto keyShift = ((tag << 4) & 0xF0)
+		| (uint8(ChatHelpers::StickerLottieSize::EmojiInteraction) & 0x0F);
+	const auto key = Storage::Cache::Key{
+		baseKey.high,
+		baseKey.low + keyShift
+	};
+	const auto get = [=](int i, FnMut<void(QByteArray &&cached)> handler) {
+		document->owner().cacheBigFile().get(
+			{ key.high, key.low + i },
+			std::move(handler));
+	};
+	const auto weak = base::make_weak(&document->session());
+	const auto put = [=](int i, QByteArray &&cached) {
+		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
+			weak->data().cacheBigFile().put(
+				{ key.high, key.low + i },
+				std::move(data));
+		});
+	};
+	const auto size = premium
+		? HistoryView::Sticker::PremiumEffectSize(document)
+		: HistoryView::Sticker::EmojiEffectSize();
+	const auto request = Lottie::FrameRequest{
+		size * style::DevicePixelRatio(),
+	};
+	auto &weakProvider = _sharedProviders[document];
+	auto shared = [&] {
+		if (const auto result = weakProvider.lock()) {
+			return result;
+		}
+		const auto result = Lottie::SinglePlayer::SharedProvider(
+			premium ? kPremiumCachesCount : kEmojiCachesCount,
+			get,
+			put,
+			Lottie::ReadContent(data, filepath),
+			request,
+			Lottie::Quality::High);
+		weakProvider = result;
+		return result;
+	}();
+	return std::make_unique<Lottie::SinglePlayer>(std::move(shared), request);
 }
 
 void EmojiPack::refresh() {

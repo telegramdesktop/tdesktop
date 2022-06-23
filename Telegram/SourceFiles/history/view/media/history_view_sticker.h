@@ -33,6 +33,7 @@ public:
 	Sticker(
 		not_null<Element*> parent,
 		not_null<DocumentData*> data,
+		bool skipPremiumEffect,
 		Element *replacing = nullptr,
 		const Lottie::ColorReplacements *replacements = nullptr);
 	~Sticker();
@@ -43,19 +44,17 @@ public:
 		Painter &p,
 		const PaintContext &context,
 		const QRect &r) override;
-	ClickHandlerPtr link() override {
-		return _link;
-	}
+	ClickHandlerPtr link() override;
 
-	DocumentData *document() override {
-		return _data;
-	}
-	void stickerClearLoopPlayed() override {
-		_lottieOncePlayed = false;
-	}
+	DocumentData *document() override;
+	void stickerClearLoopPlayed() override;
 	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
+
+	//void externalLottieProgressing(bool external) override;
+	//bool externalLottieTill(ExternalLottieInfo info) override;
+	//ExternalLottieInfo externalLottieInfo() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -79,16 +78,23 @@ public:
 	[[nodiscard]] bool readyToDrawLottie();
 
 	[[nodiscard]] static QSize Size();
+	[[nodiscard]] static QSize Size(not_null<DocumentData*> document);
+	[[nodiscard]] static QSize PremiumEffectSize(
+		not_null<DocumentData*> document);
+	[[nodiscard]] static QSize UsualPremiumEffectSize();
+	[[nodiscard]] static QSize EmojiEffectSize();
 	[[nodiscard]] static QSize EmojiSize();
 	[[nodiscard]] static ClickHandlerPtr ShowSetHandler(
 		not_null<DocumentData*> document);
 
 private:
+	[[nodiscard]] bool hasPremiumEffect() const;
 	[[nodiscard]] bool isEmojiSticker() const;
 	void paintLottie(Painter &p, const PaintContext &context, const QRect &r);
 	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
 	void paintPath(Painter &p, const PaintContext &context, const QRect &r);
 	[[nodiscard]] QPixmap paintedPixmap(const PaintContext &context) const;
+	[[nodiscard]] bool mirrorHorizontal() const;
 
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
@@ -97,6 +103,9 @@ private:
 	void lottieCreated();
 	void unloadLottie();
 	void emojiStickerClicked();
+	void premiumStickerClicked();
+	void checkPremiumEffectStart();
+	//bool markFramesTillExternal();
 
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _data;
@@ -107,11 +116,14 @@ private:
 	QSize _size;
 	QImage _lastDiceFrame;
 	QString _diceEmoji;
+	//ExternalLottieInfo _externalInfo;
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
 	mutable bool _lottieOncePlayed = false;
+	mutable bool _premiumEffectPlayed = false;
 	mutable bool _nextLastDiceFrame = false;
+	bool _skipPremiumEffect = false;
 
 	rpl::lifetime _lifetime;
 

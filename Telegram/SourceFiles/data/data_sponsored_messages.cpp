@@ -152,7 +152,7 @@ void SponsoredMessages::append(
 	});
 	const auto randomId = data.vrandom_id().v;
 	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
-	const auto makeFrom = [](
+	const auto makeFrom = [&](
 			not_null<PeerData*> peer,
 			bool exactPost = false) {
 		const auto channel = peer->asChannel();
@@ -165,6 +165,7 @@ void SponsoredMessages::append(
 			.isPublic = (channel && channel->isPublic()),
 			.isBot = (peer->isUser() && peer->asUser()->isBot()),
 			.isExactPost = exactPost,
+			.isRecommended = data.is_recommended(),
 			.userpic = { .location = peer->userpicLocation() },
 		};
 	};

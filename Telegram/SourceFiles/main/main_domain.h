@@ -31,6 +31,7 @@ public:
 	};
 
 	static constexpr auto kMaxAccounts = 3;
+	static constexpr auto kPremiumMaxAccounts = 6;
 
 	explicit Domain(const QString &dataName);
 	~Domain();
@@ -40,12 +41,16 @@ public:
 	void resetWithForgottenPasscode();
 	void finish();
 
+	[[nodiscard]] int maxAccounts() const;
+	[[nodiscard]] rpl::producer<int> maxAccountsChanges() const;
+
 	[[nodiscard]] Storage::Domain &local() const {
 		return *_local;
 	}
 
 	[[nodiscard]] auto accounts() const
 		-> const std::vector<AccountWithIndex> &;
+	[[nodiscard]] std::vector<not_null<Account*>> orderedAccounts() const;
 	[[nodiscard]] rpl::producer<Account*> activeValue() const;
 	[[nodiscard]] rpl::producer<> accountsChanges() const;
 	[[nodiscard]] Account *maybeLastOrSomeAuthedAccount();
@@ -100,6 +105,8 @@ private:
 	int _unreadBadge = 0;
 	bool _unreadBadgeMuted = true;
 	bool _unreadBadgeUpdateScheduled = false;
+
+	rpl::variable<int> _lastMaxAccounts;
 
 	rpl::lifetime _activeLifetime;
 	rpl::lifetime _lifetime;

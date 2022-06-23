@@ -28,19 +28,12 @@ public:
 
 	Section section() const override;
 
-	void setInfoExpanded(bool expanded) {
-		_infoExpanded = expanded;
-	}
-	bool infoExpanded() const {
-		return _infoExpanded;
-	}
 	void setMembersState(std::unique_ptr<MembersState> state);
 	std::unique_ptr<MembersState> membersState();
 
 	~Memento();
 
 private:
-	bool _infoExpanded = true;
 	std::unique_ptr<MembersState> _membersState;
 
 };

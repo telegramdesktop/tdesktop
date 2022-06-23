@@ -72,7 +72,9 @@ struct SimpleFieldState {
 		SimpleFieldState result) {
 	if (result.value.isEmpty()) {
 		return result;
-	} else if (result.value[0] == '1' && result.value[1] > '2') {
+	} else if (result.value[0] == '1'
+		&& (result.value.size() > 1)
+		&& result.value[1] > '2') {
 		result.value = result.value.mid(0, 2);
 		return result;
 	} else if (result.value[0] > '1') {

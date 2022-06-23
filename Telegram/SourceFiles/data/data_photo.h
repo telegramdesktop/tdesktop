@@ -93,7 +93,8 @@ public:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime);
 	[[nodiscard]] int validSizeIndex(Data::PhotoSize size) const;
 	[[nodiscard]] int existingSizeIndex(Data::PhotoSize size) const;
@@ -126,20 +127,16 @@ public:
 	[[nodiscard]] int imageByteSize(Data::PhotoSize size) const;
 
 	[[nodiscard]] bool hasVideo() const;
-	[[nodiscard]] bool videoLoading() const;
-	[[nodiscard]] bool videoFailed() const;
-	void loadVideo(Data::FileOrigin origin);
-	[[nodiscard]] const ImageLocation &videoLocation() const;
-	[[nodiscard]] int videoByteSize() const;
-	[[nodiscard]] crl::time videoStartPosition() const {
-		return _videoStartTime;
-	}
-	void setVideoPlaybackFailed() {
-		_videoPlaybackFailed = true;
-	}
-	[[nodiscard]] bool videoPlaybackFailed() const {
-		return _videoPlaybackFailed;
-	}
+	[[nodiscard]] bool hasVideoSmall() const;
+	[[nodiscard]] bool videoLoading(Data::PhotoSize size) const;
+	[[nodiscard]] bool videoFailed(Data::PhotoSize size) const;
+	void loadVideo(Data::PhotoSize size, Data::FileOrigin origin);
+	[[nodiscard]] const ImageLocation &videoLocation(
+		Data::PhotoSize size) const;
+	[[nodiscard]] int videoByteSize(Data::PhotoSize size) const;
+	[[nodiscard]] crl::time videoStartPosition() const;
+	void setVideoPlaybackFailed();
+	[[nodiscard]] bool videoPlaybackFailed() const;
 	[[nodiscard]] bool videoCanBePlayed() const;
 	[[nodiscard]] auto createStreamingLoader(
 		Data::FileOrigin origin,
@@ -162,11 +159,19 @@ public:
 	std::unique_ptr<Data::UploadState> uploadingData;
 
 private:
+	[[nodiscard]] Data::CloudFile &videoFile(Data::PhotoSize size);
+	[[nodiscard]] const Data::CloudFile &videoFile(
+		Data::PhotoSize size) const;
+
+	struct VideoSizes {
+		Data::CloudFile small;
+		Data::CloudFile large;
+		crl::time startTime = 0;
+		bool playbackFailed = false;
+	};
 	QByteArray _inlineThumbnailBytes;
 	std::array<Data::CloudFile, Data::kPhotoSizeCount> _images;
-	Data::CloudFile _video;
-	crl::time _videoStartTime = 0;
-	bool _videoPlaybackFailed = false;
+	std::unique_ptr<VideoSizes> _videoSizes;
 
 	int32 _dc = 0;
 	uint64 _access = 0;

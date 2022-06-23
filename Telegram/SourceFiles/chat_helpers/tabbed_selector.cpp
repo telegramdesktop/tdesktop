@@ -394,11 +394,12 @@ TabbedSelector::TabbedSelector(
 			_showRequests.fire({});
 		}, lifetime());
 
-		session().data().stickers().updated(
+		rpl::merge(
+			session().premiumPossibleValue() | rpl::to_empty,
+			session().data().stickers().updated()
 		) | rpl::start_with_next([=] {
 			refreshStickers();
 		}, lifetime());
-		refreshStickers();
 	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);

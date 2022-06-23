@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QCoreApplication>
 
@@ -61,7 +62,9 @@ ContentWidget::ContentWidget(
 			refreshSearchField(shown);
 		}, lifetime());
 	}
-	_scrollTopSkip.changes(
+	rpl::merge(
+		_scrollTopSkip.changes(),
+		_scrollBottomSkip.changes()
 	) | rpl::start_with_next([this] {
 		updateControlsGeometry();
 	}, lifetime());
@@ -79,7 +82,7 @@ void ContentWidget::updateControlsGeometry() {
 
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollGeometry = rect().marginsRemoved(
-		QMargins(0, _scrollTopSkip.current(), 0, 0));
+		{ 0, _scrollTopSkip.current(), 0, _scrollBottomSkip.current() });
 	if (_scroll->geometry() != scrollGeometry) {
 		_scroll->setGeometry(scrollGeometry);
 	}
@@ -111,7 +114,17 @@ bool ContentWidget::isStackBottom() const {
 
 void ContentWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	p.fillRect(e->rect(), _bg);
+	if (_paintPadding.isNull()) {
+		p.fillRect(e->rect(), _bg);
+	} else {
+		const auto &r = e->rect();
+		const auto padding = QMargins(
+			0,
+			std::min(0, (r.top() - _paintPadding.top())),
+			0,
+			std::min(0, (r.bottom() - _paintPadding.bottom())));
+		p.fillRect(r + padding, _bg);
+	}
 }
 
 void ContentWidget::setGeometryWithTopMoved(
@@ -159,9 +172,11 @@ Ui::RpWidget *ContentWidget::doSetInnerWidget(
 }
 
 int ContentWidget::scrollTillBottom(int forHeight) const {
-	auto scrollHeight = forHeight - _scrollTopSkip.current();
-	auto scrollBottom = _scroll->scrollTop() + scrollHeight;
-	auto desired = _innerDesiredHeight;
+	const auto scrollHeight = forHeight
+		- _scrollTopSkip.current()
+		- _scrollBottomSkip.current();
+	const auto scrollBottom = _scroll->scrollTop() + scrollHeight;
+	const auto desired = _innerDesiredHeight;
 	return std::max(desired - scrollBottom, 0);
 }
 
@@ -171,6 +186,10 @@ rpl::producer<int> ContentWidget::scrollTillBottomChanges() const {
 
 void ContentWidget::setScrollTopSkip(int scrollTopSkip) {
 	_scrollTopSkip = scrollTopSkip;
+}
+
+void ContentWidget::setScrollBottomSkip(int scrollBottomSkip) {
+	_scrollBottomSkip = scrollBottomSkip;
 }
 
 rpl::producer<int> ContentWidget::scrollHeightValue() const {
@@ -187,8 +206,9 @@ rpl::producer<int> ContentWidget::desiredHeightValue() const {
 	using namespace rpl::mappers;
 	return rpl::combine(
 		_innerWrap->entity()->desiredHeightValue(),
-		_scrollTopSkip.value()
-	) | rpl::map(_1 + _2);
+		_scrollTopSkip.value(),
+		_scrollBottomSkip.value()
+	) | rpl::map(_1 + _2 + _3);
 }
 
 rpl::producer<bool> ContentWidget::desiredShadowVisibility() const {
@@ -215,6 +235,10 @@ int ContentWidget::scrollTopSave() const {
 	return _scroll->scrollTop();
 }
 
+rpl::producer<int> ContentWidget::scrollTopValue() const {
+	return _scroll->scrollTopValue();
+}
+
 void ContentWidget::scrollTopRestore(int scrollTop) {
 	_scroll->scrollToY(scrollTop);
 }
@@ -233,6 +257,19 @@ QRect ContentWidget::floatPlayerAvailableRect() const {
 
 rpl::producer<SelectedItems> ContentWidget::selectedListValue() const {
 	return rpl::single(SelectedItems(Storage::SharedMediaType::Photo));
+}
+
+void ContentWidget::setPaintPadding(const style::margins &padding) {
+	_paintPadding = padding;
+}
+
+void ContentWidget::setViewport(
+		rpl::producer<not_null<QEvent*>> &&events) const {
+	std::move(
+		events
+	) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		_scroll->viewportEvent(e);
+	}, _scroll->lifetime());
 }
 
 void ContentWidget::saveChanges(FnMut<void()> done) {
@@ -264,6 +301,25 @@ void ContentWidget::refreshSearchField(bool shown) {
 		_searchWrap = nullptr;
 		setScrollTopSkip(0);
 	}
+}
+
+int ContentWidget::scrollBottomSkip() const {
+	return _scrollBottomSkip.current();
+}
+
+rpl::producer<int> ContentWidget::scrollBottomSkipValue() const {
+	return _scrollBottomSkip.value();
+}
+
+rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
+	using namespace rpl::mappers;
+	return rpl::combine(
+		_scroll->scrollTopValue(),
+		_scrollBottomSkip.value(),
+		_scroll->heightValue()
+	) | rpl::map([=](int scroll, int skip, int) {
+		return ((skip > 0) && (scroll < _scroll->scrollTopMax()));
+	});
 }
 
 Key ContentMemento::key() const {

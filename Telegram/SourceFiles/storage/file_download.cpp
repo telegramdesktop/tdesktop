@@ -31,8 +31,8 @@ public:
 		not_null<Main::Session*> session,
 		const QByteArray &data,
 		const QString &toFile,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,
@@ -53,8 +53,8 @@ FromMemoryLoader::FromMemoryLoader(
 	not_null<Main::Session*> session,
 	const QByteArray &data,
 	const QString &toFile,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
@@ -93,8 +93,8 @@ void FromMemoryLoader::startLoading() {
 FileLoader::FileLoader(
 	not_null<Main::Session*> session,
 	const QString &toFile,
-	int loadSize,
-	int fullSize,
+	int64 loadSize,
+	int64 fullSize,
 	LocationType locationType,
 	LoadToCacheSetting toCache,
 	LoadFromCloudSetting fromCloud,
@@ -193,7 +193,7 @@ void FileLoader::permitLoadFromCloud() {
 	_fromCloud = LoadFromCloudOrLocal;
 }
 
-void FileLoader::increaseLoadSize(int size, bool autoLoading) {
+void FileLoader::increaseLoadSize(int64 size, bool autoLoading) {
 	Expects(size > _loadSize);
 	Expects(size <= _fullSize);
 
@@ -358,11 +358,11 @@ void FileLoader::cancel(bool fail) {
 	}
 }
 
-int FileLoader::currentOffset() const {
+int64 FileLoader::currentOffset() const {
 	return (_fileIsOpen ? _file.size() : _data.size()) - _skippedBytes;
 }
 
-bool FileLoader::writeResultPart(int offset, bytes::const_span buffer) {
+bool FileLoader::writeResultPart(int64 offset, bytes::const_span buffer) {
 	Expects(!_finished);
 
 	if (buffer.empty()) {
@@ -402,7 +402,7 @@ bool FileLoader::writeResultPart(int offset, bytes::const_span buffer) {
 	return true;
 }
 
-QByteArray FileLoader::readLoadedPartBack(int offset, int size) {
+QByteArray FileLoader::readLoadedPartBack(int64 offset, int size) {
 	Expects(offset >= 0 && size > 0);
 
 	if (_fileIsOpen) {
@@ -478,8 +478,8 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 		const DownloadLocation &location,
 		Data::FileOrigin origin,
 		const QString &toFile,
-		int loadSize,
-		int fullSize,
+		int64 loadSize,
+		int64 fullSize,
 		LocationType locationType,
 		LoadToCacheSetting toCache,
 		LoadFromCloudSetting fromCloud,

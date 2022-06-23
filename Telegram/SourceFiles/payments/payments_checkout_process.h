@@ -36,10 +36,22 @@ namespace Payments {
 class Form;
 struct FormUpdate;
 struct Error;
+struct InvoiceId;
 
 enum class Mode {
 	Payment,
 	Receipt,
+};
+
+enum class CheckoutResult {
+	Paid,
+	Pending,
+	Cancelled,
+	Failed,
+};
+
+struct PaidInvoice {
+	QString title;
 };
 
 class CheckoutProcess final
@@ -51,16 +63,22 @@ public:
 	static void Start(
 		not_null<const HistoryItem*> item,
 		Mode mode,
-		Fn<void()> reactivate);
-	[[nodiscard]] static bool TakePaymentStarted(
+		Fn<void(CheckoutResult)> reactivate);
+	static void Start(
+		not_null<Main::Session*> session,
+		const QString &slug,
+		Fn<void(CheckoutResult)> reactivate);
+	[[nodiscard]] static std::optional<PaidInvoice> InvoicePaid(
 		not_null<const HistoryItem*> item);
+	[[nodiscard]] static std::optional<PaidInvoice> InvoicePaid(
+		not_null<Main::Session*> session,
+		const QString &slug);
 	static void ClearAll();
 
 	CheckoutProcess(
-		not_null<PeerData*> peer,
-		MsgId itemId,
+		InvoiceId id,
 		Mode mode,
-		Fn<void()> reactivate,
+		Fn<void(CheckoutResult)> reactivate,
 		PrivateTag);
 	~CheckoutProcess();
 
@@ -73,12 +91,14 @@ private:
 	};
 	[[nodiscard]] not_null<PanelDelegate*> panelDelegate();
 
-	static void RegisterPaymentStart(not_null<CheckoutProcess*> process);
+	static void RegisterPaymentStart(
+		not_null<CheckoutProcess*> process,
+		PaidInvoice info);
 	static void UnregisterPaymentStart(not_null<CheckoutProcess*> process);
 
-	void setReactivateCallback(Fn<void()> reactivate);
+	void setReactivateCallback(Fn<void(CheckoutResult)> reactivate);
 	void requestActivate();
-	void closeAndReactivate();
+	void closeAndReactivate(CheckoutResult result);
 	void close();
 
 	void handleFormUpdate(const FormUpdate &update);
@@ -103,6 +123,7 @@ private:
 	void panelCloseSure() override;
 	void panelSubmit() override;
 	void panelTrustAndSubmit() override;
+	void panelAcceptTermsAndSubmit() override;
 	void panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) override;
@@ -126,6 +147,7 @@ private:
 		Ui::UncheckedCardDetails data,
 		bool saveInformation) override;
 	void panelShowBox(object_ptr<Ui::BoxContent> box) override;
+	QVariant panelClickHandlerContext() override;
 
 	QString panelWebviewDataPath() override;
 
@@ -133,9 +155,11 @@ private:
 	const std::unique_ptr<Form> _form;
 	const std::unique_ptr<Ui::Panel> _panel;
 	QPointer<PasscodeBox> _enterPasswordBox;
-	Fn<void()> _reactivate;
+	Fn<void(CheckoutResult)> _reactivate;
 	SubmitState _submitState = SubmitState::None;
 	bool _initialSilentValidation = false;
+	bool _sendFormPending = false;
+	bool _sendFormFailed = false;
 
 	bool _themeUpdateScheduled = false;
 	rpl::lifetime _gettingPasswordState;

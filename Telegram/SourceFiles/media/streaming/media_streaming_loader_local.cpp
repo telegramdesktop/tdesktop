@@ -16,10 +16,10 @@ namespace Streaming {
 namespace {
 
 // This is the maximum file size in Telegram API.
-constexpr auto kMaxFileSize = 4000 * 512 * 1024;
+constexpr auto kMaxFileSize = 8000 * int64(512 * 1024);
 
-int ValidateLocalSize(int64 size) {
-	return (size > 0 && size <= kMaxFileSize) ? int(size) : 0;
+[[nodiscard]] int64 ValidateLocalSize(int64 size) {
+	return (size > 0 && size <= kMaxFileSize) ? size : 0;
 }
 
 } // namespace
@@ -38,11 +38,11 @@ Storage::Cache::Key LoaderLocal::baseCacheKey() const {
 	return {};
 }
 
-int LoaderLocal::size() const {
+int64 LoaderLocal::size() const {
 	return _size;
 }
 
-void LoaderLocal::load(int offset) {
+void LoaderLocal::load(int64 offset) {
 	if (_device->pos() != offset && !_device->seek(offset)) {
 		fail();
 		return;
@@ -65,7 +65,7 @@ void LoaderLocal::fail() {
 	});
 }
 
-void LoaderLocal::cancel(int offset) {
+void LoaderLocal::cancel(int64 offset) {
 }
 
 void LoaderLocal::resetPriorities() {

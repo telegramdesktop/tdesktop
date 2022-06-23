@@ -44,6 +44,7 @@ enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
+//struct ExternalLottieInfo;
 
 using PaintContext = Ui::ChatPaintContext;
 
@@ -71,8 +72,8 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
-	virtual crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item) = 0;
+	[[nodiscard]] virtual float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const = 0;
 	virtual bool elementInSelectionMode() = 0;
 	virtual bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -104,6 +105,10 @@ public:
 	virtual not_null<Ui::PathShiftGradient*> elementPathShiftGradient() = 0;
 	virtual void elementReplyTo(const FullMsgId &to) = 0;
 	virtual void elementStartInteraction(not_null<const Element*> view) = 0;
+	virtual void elementStartPremium(
+		not_null<const Element*> view,
+		Element *replacing) = 0;
+	virtual void elementCancelPremium(not_null<const Element*> view) = 0;
 	virtual void elementShowSpoilerAnimation() = 0;
 
 	virtual ~ElementDelegate() {
@@ -129,8 +134,8 @@ public:
 		not_null<HistoryService*> message,
 		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
-	crl::time elementHighlightTime(
-		not_null<const HistoryItem*> item) override;
+	[[nodiscard]] float64 elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const override;
 	bool elementInSelectionMode() override;
 	bool elementIntersectsRange(
 		not_null<const Element*> view,
@@ -162,6 +167,10 @@ public:
 	not_null<Ui::PathShiftGradient*> elementPathShiftGradient() override;
 	void elementReplyTo(const FullMsgId &to) override;
 	void elementStartInteraction(not_null<const Element*> view) override;
+	void elementStartPremium(
+		not_null<const Element*> view,
+		Element *replacing) override;
+	void elementCancelPremium(not_null<const Element*> view) override;
 	void elementShowSpoilerAnimation() override;
 
 protected:
@@ -262,6 +271,9 @@ public:
 	Media *media() const;
 	Context context() const;
 	void refreshDataId();
+
+	//void externalLottieProgressing(bool external) const;
+	//bool externalLottieTill(ExternalLottieInfo info) const;
 
 	QDateTime dateTime() const;
 
@@ -368,7 +380,6 @@ public:
 		int top,
 		int outerWidth) const;
 	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
-	[[nodiscard]] virtual bool displayEditedBadge() const;
 	[[nodiscard]] virtual TimeId displayedEditDate() const;
 	[[nodiscard]] virtual bool hasVisibleText() const;
 	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;
@@ -398,7 +409,6 @@ public:
 		int y,
 		int height,
 		not_null<const HistoryItem*> item) const;
-	float64 highlightOpacity(not_null<const HistoryItem*> item) const;
 
 	// Legacy blocks structure.
 	HistoryBlock *block();

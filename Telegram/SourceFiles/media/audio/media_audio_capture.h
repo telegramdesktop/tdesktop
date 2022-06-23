@@ -42,6 +42,9 @@ public:
 		return _updates.events();
 	}
 
+	[[nodiscard]] bool started() const {
+		return _started.current();
+	}
 	[[nodiscard]] rpl::producer<bool> startedChanges() const {
 		return _started.changes();
 	}

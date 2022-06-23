@@ -251,8 +251,13 @@ public:
 	[[nodiscard]] rpl::producer<> queryChanges() const;
 	[[nodiscard]] rpl::producer<> closeRequests() const;
 	[[nodiscard]] rpl::producer<> cancelRequests() const;
+	[[nodiscard]] rpl::producer<not_null<QKeyEvent*>> keyEvents() const;
 
 	void setFrom(PeerData *peer);
+	bool handleKeyPress(not_null<QKeyEvent*> e);
+
+protected:
+	void keyPressEvent(QKeyEvent *e) override;
 
 private:
 	void clearItems();
@@ -271,6 +276,7 @@ private:
 	rpl::event_stream<SearchRequest> _searchRequests;
 	rpl::event_stream<> _queryChanges;
 	rpl::event_stream<> _cancelRequests;
+	rpl::event_stream<not_null<QKeyEvent*>> _keyEvents;
 };
 
 TopBar::TopBar(not_null<Ui::RpWidget*> parent)
@@ -317,6 +323,18 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 	_select->setCancelledCallback([=] {
 		_cancelRequests.fire({});
 	});
+}
+
+void TopBar::keyPressEvent(QKeyEvent *e) {
+	_keyEvents.fire_copy(e);
+}
+
+bool TopBar::handleKeyPress(not_null<QKeyEvent*> e) {
+	return false;
+}
+
+rpl::producer<not_null<QKeyEvent*>> TopBar::keyEvents() const {
+	return _keyEvents.events();
 }
 
 void TopBar::setInnerFocus() {
@@ -410,13 +428,24 @@ public:
 	void buttonFromToggleOn(rpl::producer<bool> &&visible);
 	void buttonCalendarToggleOn(rpl::producer<bool> &&visible);
 
+	bool handleKeyPress(not_null<QKeyEvent*> e);
+
 private:
 	void updateText(int current);
 
 	base::unique_qptr<Ui::FlatButton> _showList;
 
-	base::unique_qptr<Ui::IconButton> _previous;
-	base::unique_qptr<Ui::IconButton> _next;
+	struct Navigation {
+		base::unique_qptr<Ui::IconButton> button;
+		bool enabled = false;
+
+		Ui::IconButton *operator->() const {
+			return button.get();
+		}
+	};
+
+	Navigation _previous;
+	Navigation _next;
 
 	base::unique_qptr<Ui::IconButton> _jumpToDate;
 	base::unique_qptr<Ui::IconButton> _chooseFromUser;
@@ -433,8 +462,8 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	QString(),
 	st::historyComposeButton))
 // Icons are swaped.
-, _previous(base::make_unique_q<Ui::IconButton>(this, st::calendarNext))
-, _next(base::make_unique_q<Ui::IconButton>(this, st::calendarPrevious))
+, _previous({ base::make_unique_q<Ui::IconButton>(this, st::calendarNext) })
+, _next({ base::make_unique_q<Ui::IconButton>(this, st::calendarPrevious) })
 , _jumpToDate(base::make_unique_q<Ui::IconButton>(this, st::dialogCalendar))
 , _chooseFromUser(
 	base::make_unique_q<Ui::IconButton>(this, st::dialogSearchFrom))
@@ -490,6 +519,8 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	) | rpl::start_with_next([=](int current) {
 		const auto nextDisabled = (current <= 0) || (current >= _total);
 		const auto prevDisabled = (current <= 1);
+		_next.enabled = !nextDisabled;
+		_previous.enabled = !prevDisabled;
 		_next->setAttribute(Qt::WA_TransparentForMouseEvents, nextDisabled);
 		_previous->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
@@ -513,6 +544,34 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 	) | rpl::start_with_next([=](int way) {
 		_current = _current.current() + way;
 	}, lifetime());
+}
+
+bool BottomBar::handleKeyPress(not_null<QKeyEvent*> e) {
+	if (e->key() == Qt::Key_F3) {
+		const auto modifiers = e->modifiers();
+		if (modifiers == Qt::NoModifier && _next.enabled) {
+			_next->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+			return true;
+		} else if (modifiers == Qt::ShiftModifier && _previous.enabled) {
+			_previous->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+			return true;
+		}
+	}
+#ifdef Q_OS_MAC
+	if (e->key() == Qt::Key_G) {
+		const auto modifiers = e->modifiers();
+		if (modifiers.testFlag(Qt::ControlModifier)) {
+			const auto &navigation = (modifiers.testFlag(Qt::ShiftModifier)
+				? _previous
+				: _next);
+			if (navigation.enabled) {
+				navigation->clicked(Qt::KeyboardModifiers(), Qt::LeftButton);
+				return true;
+			}
+		}
+	}
+#endif
+	return false;
 }
 
 void BottomBar::setTotal(int total) {
@@ -631,6 +690,13 @@ ComposeSearch::Inner::Inner(
 			top.topLeft() + QPoint(0, top.height()),
 			bottom.topLeft() + QPoint(bottom.width(), 0)));
 	}, _list.container->lifetime());
+
+	_topBar->keyEvents(
+	) | rpl::start_with_next([=](not_null<QKeyEvent*> e) {
+		if (!_bottomBar->handleKeyPress(e)) {
+			_topBar->handleKeyPress(e);
+		}
+	}, _topBar->lifetime());
 
 	_topBar->searchRequests(
 	) | rpl::start_with_next([=](const SearchRequest &search) {

@@ -27,6 +27,7 @@ class Session;
 namespace HistoryView {
 class Element;
 class Document;
+class TranscribeButton;
 } // namespace HistoryView
 
 struct HistoryMessageVia : public RuntimeComponent<HistoryMessageVia, HistoryItem> {
@@ -80,6 +81,8 @@ struct HiddenSenderInfo {
 	Ui::EmptyUserpic emptyUserpic;
 	mutable Data::CloudImage customUserpic;
 
+	[[nodiscard]] static ClickHandlerPtr ForwardClickHandler();
+
 	[[nodiscard]] bool paintCustomUserpic(
 		Painter &p,
 		int x,
@@ -121,6 +124,7 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 	};
 	std::unique_ptr<HiddenSenderInfo> sender;
 	Type type = Type::User;
+	bool recommended = false;
 };
 
 struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
@@ -443,23 +447,16 @@ public:
 	std::shared_ptr<VoiceSeekClickHandler> _seekl;
 	mutable int _lastDurationMs = 0;
 
-	bool seeking() const {
-		return _seeking;
-	}
+	[[nodiscard]] bool seeking() const;
 	void startSeeking();
 	void stopSeeking();
-	float64 seekingStart() const {
-		return _seekingStart / kFloatToIntMultiplier;
-	}
-	void setSeekingStart(float64 seekingStart) const {
-		_seekingStart = qRound(seekingStart * kFloatToIntMultiplier);
-	}
-	float64 seekingCurrent() const {
-		return _seekingCurrent / kFloatToIntMultiplier;
-	}
-	void setSeekingCurrent(float64 seekingCurrent) {
-		_seekingCurrent = qRound(seekingCurrent * kFloatToIntMultiplier);
-	}
+	[[nodiscard]] float64 seekingStart() const;
+	void setSeekingStart(float64 seekingStart) const;
+	[[nodiscard]] float64 seekingCurrent() const;
+	void setSeekingCurrent(float64 seekingCurrent);
+
+	std::unique_ptr<HistoryView::TranscribeButton> transcribe;
+	Ui::Text::String transcribeText;
 
 private:
 	bool _seeking = false;

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Main {
 class Account;
+class Session;
 } // namespace Main
 
 namespace Media::View {
@@ -46,6 +47,10 @@ public:
 
 		return *_account;
 	}
+	[[nodiscard]] Main::Account *maybeAccount() const {
+		return _account;
+	}
+	[[nodiscard]] Main::Session *maybeSession() const;
 	[[nodiscard]] SessionController *sessionController() const {
 		return _sessionController.get();
 	}
@@ -83,6 +88,7 @@ public:
 
 	void showRightColumn(object_ptr<TWidget> widget);
 
+	void hideLayer(anim::type animated = anim::type::normal);
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
 
 	void activate();
@@ -97,6 +103,7 @@ public:
 
 	void invokeForSessionController(
 		not_null<Main::Account*> account,
+		PeerData *singlePeer,
 		Fn<void(not_null<SessionController*>)> &&callback);
 
 	void openInMediaView(Media::View::OpenRequest &&request);

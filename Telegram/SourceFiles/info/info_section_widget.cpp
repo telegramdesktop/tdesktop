@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_layer_widget.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
+#include "styles/style_layers.h"
 
 namespace Info {
 
@@ -42,13 +43,19 @@ SectionWidget::SectionWidget(
 void SectionWidget::init() {
 	Expects(_connecting == nullptr);
 
-	sizeValue(
-	) | rpl::start_with_next([wrap = _content.data()](QSize size) {
+	rpl::combine(
+		sizeValue(),
+		_content->desiredHeightValue()
+	) | rpl::filter([=] {
+		return (_content != nullptr);
+	}) | rpl::start_with_next([=](QSize size, int) {
 		const auto expanding = false;
-		auto wrapGeometry = QRect{ { 0, 0 }, size };
-		auto additionalScroll = 0;
-		wrap->updateGeometry(wrapGeometry, expanding, additionalScroll);
-	}, _content->lifetime());
+		const auto additionalScroll = st::boxRadius;
+		const auto full = !_content->scrollBottomSkip();
+		const auto height = size.height() - (full ? 0 : st::boxRadius);
+		const auto wrapGeometry = QRect{ 0, 0, size.width(), height };
+		_content->updateGeometry(wrapGeometry, expanding, additionalScroll);
+	}, lifetime());
 
 	_connecting = std::make_unique<Window::ConnectionState>(
 		_content.data(),
@@ -86,6 +93,13 @@ void SectionWidget::showFinishedHook() {
 void SectionWidget::showAnimatedHook(
 		const Window::SectionSlideParams &params) {
 	_topBarSurrogate = _content->createTopBarSurrogate(this);
+}
+
+void SectionWidget::paintEvent(QPaintEvent *e) {
+	Window::SectionWidget::paintEvent(e);
+	if (!animatingShow()) {
+		QPainter(this).fillRect(e->rect(), st::windowBg);
+	}
 }
 
 bool SectionWidget::showInternal(

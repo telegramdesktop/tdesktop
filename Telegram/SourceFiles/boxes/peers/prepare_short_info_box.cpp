@@ -115,7 +115,9 @@ void Preload(
 				: Data::FileOriginUserPhoto(peerToUser(peer->id), photo->id);
 			state->photoPreloads.push_back(photo->createMediaView());
 			if (photo->hasVideo()) {
-				state->photoPreloads.back()->videoWanted(origin);
+				state->photoPreloads.back()->videoWanted(
+					Data::PhotoSize::Large,
+					origin);
 			} else {
 				state->photoPreloads.back()->wanted(
 					Data::PhotoSize::Large,

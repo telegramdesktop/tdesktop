@@ -29,6 +29,7 @@ public:
 	virtual void panelCloseSure() = 0;
 	virtual void panelSubmit() = 0;
 	virtual void panelTrustAndSubmit() = 0;
+	virtual void panelAcceptTermsAndSubmit() = 0;
 	virtual void panelWebviewMessage(
 		const QJsonDocument &message,
 		bool saveInformation) = 0;
@@ -52,6 +53,7 @@ public:
 		Ui::UncheckedCardDetails data,
 		bool saveInformation) = 0;
 	virtual void panelShowBox(object_ptr<BoxContent> box) = 0;
+	virtual QVariant panelClickHandlerContext() = 0;
 
 	virtual QString panelWebviewDataPath() = 0;
 };

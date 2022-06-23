@@ -200,7 +200,7 @@ DictLoader::DictLoader(
 	int id,
 	MTP::DedicatedLoader::Location location,
 	const QString &folder,
-	int size,
+	int64 size,
 	Fn<void()> destroyCallback)
 : BlobLoader(parent, session, id, location, folder, size)
 , _destroyCallback(std::move(destroyCallback)) {
@@ -233,7 +233,7 @@ std::vector<Dict> Dictionaries() {
 	return kDictionaries | ranges::to_vector;
 }
 
-int GetDownloadSize(int id) {
+int64 GetDownloadSize(int id) {
 	return ranges::find(kDictionaries, id, &Spellchecker::Dict::id)->size;
 }
 

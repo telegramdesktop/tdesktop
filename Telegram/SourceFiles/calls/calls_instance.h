@@ -25,6 +25,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+class Show;
+} // namespace Ui
+
 namespace Calls::Group {
 struct JoinInfo;
 class Panel;
@@ -64,6 +68,7 @@ public:
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
 	void startOrJoinGroupCall(
+		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const StartGroupCallArgs &args);
 	void handleUpdate(

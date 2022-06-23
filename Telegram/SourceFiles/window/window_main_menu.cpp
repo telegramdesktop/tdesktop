@@ -65,6 +65,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
+
 namespace Window {
 namespace {
 
@@ -232,7 +235,7 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(Painter &p) {
 		return;
 	}
 
-	auto st = Settings::BadgeStyle();
+	auto st = Settings::Badge::Style();
 	const auto right = width()
 		- st::mainMenuTogglePosition.x()
 		- st::mainMenuToggleSize * 3;
@@ -256,7 +259,7 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 
 	_rightSkip = base;
 	if (!_unreadBadge.isEmpty()) {
-		const auto st = Settings::BadgeStyle();
+		const auto st = Settings::Badge::Style();
 		_rightSkip += 2 * st::mainMenuToggleSize
 			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
 	}
@@ -510,13 +513,13 @@ void MainMenu::setupArchive() {
 		}) | rpl::take(1);
 
 	using namespace Settings;
-	AddUnreadBadge(button, rpl::single(rpl::empty) | rpl::then(std::move(
+	Badge::AddUnread(button, rpl::single(rpl::empty) | rpl::then(std::move(
 		folderValue
 	) | rpl::map([=](not_null<Data::Folder*> folder) {
 		return folder->owner().chatsList(folder)->unreadStateChanges();
 	}) | rpl::flatten_latest() | rpl::to_empty) | rpl::map([=] {
 		const auto loaded = folder();
-		return UnreadBadge{
+		return Badge::UnreadBadge{
 			loaded ? loaded->chatListUnreadCount() : 0,
 			true,
 		};
@@ -568,7 +571,20 @@ void MainMenu::setupAccounts() {
 
 void MainMenu::setupAccountsToggle() {
 	_toggleAccounts->show();
-	_toggleAccounts->setClickedCallback([=] { toggleAccounts(); });
+	_toggleAccounts->setAcceptBoth();
+	_toggleAccounts->addClickHandler([=](Qt::MouseButton button) {
+		if (button == Qt::LeftButton) {
+			toggleAccounts();
+		} else if (button == Qt::RightButton) {
+			const auto menu = Ui::CreateChild<Ui::PopupMenu>(
+				_toggleAccounts.data());
+
+			menu->addAction(tr::lng_profile_copy_phone(tr::now), [=] {
+				QGuiApplication::clipboard()->setText(_phoneText);
+			});
+			menu->popup(QCursor::pos());
+		}
+	});
 }
 
 void MainMenu::parentResized() {

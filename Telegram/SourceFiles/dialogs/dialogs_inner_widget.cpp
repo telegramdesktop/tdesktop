@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_indexed_list.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/dialogs_widget.h"
 #include "dialogs/dialogs_search_from_controllers.h"
 #include "history/history.h"
@@ -34,10 +35,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/data_send_action.h"
 #include "base/unixtime.h"
+#include "base/options.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
-#include "menu/add_action_callback_factory.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -47,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_peer_menu.h"
 #include "ui/widgets/multi_select.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
@@ -62,6 +64,13 @@ namespace {
 
 constexpr auto kHashtagResultsLimit = 5;
 constexpr auto kStartReorderThreshold = 30;
+
+base::options::toggle TabbedPanelShowOnClick({
+	.id = kOptionCtrlClickChatNewWindow,
+	.name = "New chat window by Ctrl+Click",
+	.description = "Open chat in a new window by Ctrl+Click "
+	"(Cmd+Click on macOS).",
+});
 
 int FixedOnTopDialogsCount(not_null<Dialogs::IndexedList*> list) {
 	auto result = 0;
@@ -90,6 +99,8 @@ int PinnedDialogsCount(
 }
 
 } // namespace
+
+const char kOptionCtrlClickChatNewWindow[] = "ctrl-click-chat-new-window";
 
 struct InnerWidget::CollapsedRow {
 	CollapsedRow(Data::Folder *folder) : folder(folder) {
@@ -218,9 +229,21 @@ InnerWidget::InnerWidget(
 		UpdateFlag::Name
 		| UpdateFlag::Photo
 		| UpdateFlag::IsContact
+		| UpdateFlag::FullInfo
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (update.flags & (UpdateFlag::Name | UpdateFlag::Photo)) {
-			this->update();
+		if (update.flags
+			& (UpdateFlag::Name
+				| UpdateFlag::Photo
+				| UpdateFlag::FullInfo)) {
+			const auto peer = update.peer;
+			const auto history = peer->owner().historyLoaded(peer);
+			if (_state == WidgetState::Default) {
+				if (history) {
+					updateDialogRow({ history, FullMsgId() });
+				}
+			} else {
+				this->update();
+			}
 			_updated.fire({});
 		}
 		if (update.flags & UpdateFlag::IsContact) {
@@ -388,6 +411,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();
+	const auto videoPaused = _controller->isGifPausedAtLeastFor(
+		Window::GifPauseReason::Any);
 	auto fullWidth = width();
 	auto dialogsClip = r;
 	auto ms = crl::now();
@@ -425,16 +450,19 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				if (xadd || yadd) {
 					p.translate(xadd, yadd);
 				}
-				const auto isActive = (row->key() == active);
-				const auto isSelected = (row->key() == selected);
+				const auto key = row->key();
+				const auto isActive = (key == active);
+				const auto isSelected = (key == selected);
 				Ui::RowPainter::paint(
 					p,
 					row,
+					validateVideoUserpic(row),
 					_filterId,
 					fullWidth,
 					isActive,
 					isSelected,
-					ms);
+					ms,
+					videoPaused);
 				if (xadd || yadd) {
 					p.translate(-xadd, -yadd);
 				}
@@ -548,11 +576,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					Ui::RowPainter::paint(
 						p,
 						_filterResults[from],
+						validateVideoUserpic(row),
 						_filterId,
 						fullWidth,
 						active,
 						selected,
-						ms);
+						ms,
+						videoPaused);
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -652,6 +682,34 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+Ui::VideoUserpic *InnerWidget::validateVideoUserpic(not_null<Row*> row) {
+	const auto history = row->history();
+	return history ? validateVideoUserpic(history) : nullptr;
+}
+
+Ui::VideoUserpic *InnerWidget::validateVideoUserpic(
+		not_null<History*> history) {
+	const auto peer = history->peer;
+	if (!peer->isPremium()
+		|| peer->userpicPhotoUnknown()
+		|| !peer->userpicHasVideo()) {
+		_videoUserpics.remove(peer);
+		return nullptr;
+	}
+	const auto i = _videoUserpics.find(peer);
+	if (i != end(_videoUserpics)) {
+		return i->second.get();
+	}
+	const auto repaint = [=] {
+		updateDialogRow({ history, FullMsgId() });
+		updateSearchResult(history->peer);
+	};
+	return _videoUserpics.emplace(peer, std::make_unique<Ui::VideoUserpic>(
+		peer,
+		repaint
+	)).first->second.get();
+}
+
 void InnerWidget::paintCollapsedRows(Painter &p, QRect clip) const {
 	auto index = 0;
 	const auto rowHeight = st::dialogsImportantBarHeight;
@@ -732,6 +790,11 @@ void InnerWidget::paintPeerSearchResult(
 			: selected
 			? &st::dialogsVerifiedIconOver
 			: &st::dialogsVerifiedIcon),
+		(active
+			? &st::dialogsPremiumIconActive
+			: selected
+			? &st::dialogsPremiumIconOver
+			: &st::dialogsPremiumIcon),
 		(active
 			? &st::dialogsScamFgActive
 			: selected
@@ -1528,15 +1591,18 @@ void InnerWidget::refreshDialogRow(RowDescriptor row) {
 
 void InnerWidget::updateSearchResult(not_null<PeerData*> peer) {
 	if (_state == WidgetState::Filtered) {
-		if (!_peerSearchResults.empty()) {
-			auto index = 0, add = peerSearchOffset();
-			for (const auto &result : _peerSearchResults) {
-				if (result->peer == peer) {
-					rtlupdate(0, add + index * st::dialogsRowHeight, width(), st::dialogsRowHeight);
-					break;
-				}
-				++index;
-			}
+		const auto i = ranges::find(
+			_peerSearchResults,
+			peer,
+			&PeerSearchResult::peer);
+		if (i != end(_peerSearchResults)) {
+			const auto top = peerSearchOffset();
+			const auto index = (i - begin(_peerSearchResults));
+			rtlupdate(
+				0,
+				top + index * st::dialogsRowHeight,
+				width(),
+				st::dialogsRowHeight);
 		}
 	}
 }
@@ -1772,7 +1838,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			fillArchiveSearchMenu(_menu.get());
 		}
 	} else {
-		const auto addAction = Menu::CreateAddActionCallback(_menu);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 		Window::FillDialogsEntryMenu(
 			_controller,
 			Dialogs::EntryState{
@@ -1968,11 +2034,13 @@ void InnerWidget::visibleTopBottomUpdated(
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	loadPeerPhotos();
-	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop) >= height()) {
+	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop)
+		>= height()) {
 		if (_loadMoreCallback) {
 			_loadMoreCallback();
 		}
 	}
+
 }
 
 void InnerWidget::itemRemoved(not_null<const HistoryItem*> item) {
@@ -2653,7 +2721,7 @@ bool InnerWidget::chooseCollapsedRow() {
 }
 
 void InnerWidget::switchToFilter(FilterId filterId) {
-	const auto found = ranges::contains(
+	const auto found = filterId && ranges::contains(
 		session().data().chatsFilters().list(),
 		filterId,
 		&Data::ChatFilter::id);
@@ -2743,9 +2811,9 @@ bool InnerWidget::chooseRow(Qt::KeyboardModifiers modifiers) {
 	const auto modifyChosenRow = [](
 			ChosenRow row,
 			Qt::KeyboardModifiers modifiers) {
-#ifdef _DEBUG
-		row.newWindow = (modifiers & Qt::ControlModifier);
-#endif
+		if (TabbedPanelShowOnClick.value()) {
+			row.newWindow = (modifiers & Qt::ControlModifier);
+		}
 		return row;
 	};
 	const auto chosen = modifyChosenRow(computeChosenRow(), modifiers);
@@ -3151,21 +3219,20 @@ void InnerWidget::setupShortcuts() {
 			return false;
 		});
 
-		const auto filters = &session().data().chatsFilters().list();
-		if (const auto filtersCount = int(filters->size())) {
+		if (session().data().chatsFilters().has()) {
+			const auto filters = &session().data().chatsFilters();
+			const auto filtersCount = int(filters->list().size());
 			auto &&folders = ranges::views::zip(
 				Shortcuts::kShowFolder,
 				ranges::views::ints(0, ranges::unreachable));
-
 			for (const auto [command, index] : folders) {
 				const auto select = (command == Command::ShowFolderLast)
-					? filtersCount
-					: std::clamp(index, 0, filtersCount);
+					? (filtersCount - 1)
+					: std::clamp(index, 0, filtersCount - 1);
 				request->check(command) && request->handle([=] {
 					if (select <= filtersCount) {
-						_controller->setActiveChatsFilter((select > 0)
-							? (*filters)[select - 1].id()
-							: 0);
+						_controller->setActiveChatsFilter(
+							filters->lookupId(select));
 					}
 					return true;
 				});
@@ -3203,15 +3270,16 @@ void InnerWidget::setupShortcuts() {
 		const auto nearFolder = [=](bool isNext) {
 			const auto id = _controller->activeChatsFilterCurrent();
 			const auto list = &session().data().chatsFilters().list();
-			const auto index = (id != 0)
-				? int(ranges::find(*list, id, &Data::ChatFilter::id)
-					- begin(*list))
-				: -1;
+			const auto index = int(ranges::find(
+				*list,
+				id,
+				&Data::ChatFilter::id
+			) - begin(*list));
 			if (index == list->size() && id != 0) {
 				return false;
 			}
 			const auto changed = index + (isNext ? 1 : -1);
-			if (changed >= int(list->size()) || changed < -1) {
+			if (changed >= int(list->size()) || changed < 0) {
 				return false;
 			}
 			_controller->setActiveChatsFilter((changed >= 0)

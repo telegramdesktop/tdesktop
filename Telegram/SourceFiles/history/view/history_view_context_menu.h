@@ -51,7 +51,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	const ContextMenuRequest &request);
 
 void CopyPostLink(
-	not_null<Main::Session*> session,
+	not_null<Window::SessionController*> controller,
 	FullMsgId itemId,
 	Context context);
 void AddPollActions(

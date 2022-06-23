@@ -1,5 +1,12 @@
 <RCC>
   <qresource prefix="/animations">
     <file alias="change_number.tgs">../../animations/change_number.tgs</file>
+    <file alias="blocked_peers_empty.tgs">../../animations/blocked_peers_empty.tgs</file>
+    <file alias="filters.tgs">../../animations/filters.tgs</file>
+    <file alias="local_passcode_enter.tgs">../../animations/local_passcode_enter.tgs</file>
+    <file alias="cloud_password/intro.tgs">../../animations/cloud_password/intro.tgs</file>
+    <file alias="cloud_password/password_input.tgs">../../animations/cloud_password/password_input.tgs</file>
+    <file alias="cloud_password/hint.tgs">../../animations/cloud_password/hint.tgs</file>
+    <file alias="cloud_password/email.tgs">../../animations/cloud_password/email.tgs</file>
   </qresource>
 </RCC>

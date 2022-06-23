@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QDesktopServices>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QTimer>
-#include <qpa/qplatformscreen.h>
 
 namespace {
 
@@ -44,18 +43,7 @@ PreLaunchWindow::PreLaunchWindow(QString title) {
 	p.setColor(QPalette::Window, QColor(255, 255, 255));
 	setPalette(p);
 
-	constexpr auto processDpi = [](const QDpi &dpi) {
-		return (dpi.first + dpi.second) * 0.5;
-	};
-
-	const auto screen = QGuiApplication::primaryScreen();
-	const auto scale = processDpi(screen->handle()->logicalDpi())
-		/ processDpi(screen->handle()->logicalBaseDpi());
-
-	auto font = QGuiApplication::font();
-	font.setPixelSize(base::SafeRound(font.pointSize() * scale));
-
-	_size = QFontMetrics(font).height();
+	_size = QFontMetrics(font()).height();
 
 	int paddingVertical = (_size / 2);
 	int paddingHorizontal = _size;
@@ -110,11 +98,11 @@ PreLaunchInput::PreLaunchInput(QWidget *parent, bool password) : QLineEdit(paren
 	setFont(logFont);
 
 	QPalette p(palette());
+	p.setColor(QPalette::Window, QColor(255, 255, 255));
+	p.setColor(QPalette::Base, QColor(255, 255, 255));
 	p.setColor(QPalette::WindowText, QColor(0, 0, 0));
 	p.setColor(QPalette::Text, QColor(0, 0, 0));
 	setPalette(p);
-
-	setStyleSheet("QLineEdit { background-color: white; }");
 
 	QLineEdit::setTextMargins(0, 0, 0, 0);
 	setContentsMargins(0, 0, 0, 0);

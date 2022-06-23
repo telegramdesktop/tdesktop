@@ -587,9 +587,9 @@ bool InnerWidget::elementUnderCursor(
 	return (Element::Hovered() == view);
 }
 
-crl::time InnerWidget::elementHighlightTime(
-		not_null<const HistoryItem*> item) {
-	return crl::time(0);
+float64 InnerWidget::elementHighlightOpacity(
+		not_null<const HistoryItem*> item) const {
+	return 0.;
 }
 
 bool InnerWidget::elementInSelectionMode() {
@@ -671,6 +671,14 @@ void InnerWidget::elementReplyTo(const FullMsgId &to) {
 }
 
 void InnerWidget::elementStartInteraction(not_null<const Element*> view) {
+}
+
+void InnerWidget::elementStartPremium(
+	not_null<const Element*> view,
+	Element *replacing) {
+}
+
+void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
 void InnerWidget::elementShowSpoilerAnimation() {
@@ -1462,7 +1470,7 @@ void InnerWidget::suggestRestrictParticipant(
 				editRestrictions(false, ChatRestrictionsInfo());
 			}).send();
 		}
-	});
+	}, &st::menuIconRestrict);
 }
 
 void InnerWidget::restrictParticipant(

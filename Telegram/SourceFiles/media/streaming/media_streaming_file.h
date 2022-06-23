@@ -97,8 +97,8 @@ private:
 		const not_null<Reader*> _reader;
 
 		base::flat_map<int, std::vector<FFmpeg::Packet>> _queuedPackets;
-		int _offset = 0;
-		int _size = 0;
+		int64 _offset = 0;
+		int64 _size = 0;
 		bool _failed = false;
 		bool _readTillEnd = false;
 		std::optional<bool> _fullInCache;

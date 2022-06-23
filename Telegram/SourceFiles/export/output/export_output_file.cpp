@@ -22,7 +22,7 @@ namespace Output {
 File::File(const QString &path, Stats *stats) : _path(path), _stats(stats) {
 }
 
-int File::size() const {
+int64 File::size() const {
 	return _offset;
 }
 

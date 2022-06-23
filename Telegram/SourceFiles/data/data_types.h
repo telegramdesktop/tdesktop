@@ -37,10 +37,10 @@ using Options = base::flags<Option>;
 namespace Data {
 
 struct UploadState {
-	UploadState(int size) : size(size) {
+	explicit UploadState(int64 size) : size(size) {
 	}
-	int offset = 0;
-	int size = 0;
+	int64 offset = 0;
+	int64 size = 0;
 	bool waitingForAlbum = false;
 };
 
@@ -92,7 +92,6 @@ class PeerData;
 class UserData;
 class ChatData;
 class ChannelData;
-struct BotCommand;
 struct BotInfo;
 
 namespace Data {
@@ -149,7 +148,7 @@ enum LocationType {
 	SecureFileLocation = 0xcbc7ee28, // mtpc_inputSecureFileLocation
 };
 
-enum FileStatus {
+enum FileStatus : char {
 	FileDownloadFailed = -2,
 	FileUploadFailed = -1,
 	FileReady = 1,

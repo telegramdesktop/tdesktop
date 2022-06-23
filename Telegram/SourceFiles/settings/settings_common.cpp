@@ -7,6 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_common.h"
 
+#include "apiwrap.h"
+#include "api/api_cloud_password.h"
+#include "settings/cloud_password/settings_cloud_password_email_confirm.h"
 #include "settings/settings_chat.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_information.h"
@@ -17,11 +20,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_calls.h"
 #include "settings/settings_experimental.h"
 #include "core/application.h"
+#include "core/core_cloud_password.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/menu/menu_add_action_callback.h"
 #include "boxes/abstract_box.h"
 #include "boxes/sessions_box.h"
 #include "window/themes/window_theme_editor_box.h"
@@ -83,6 +88,11 @@ Icon::Icon(IconDescriptor descriptor) : _icon(descriptor.icon) {
 			? st::settingsIconRadius
 			: (std::min(_icon->width(), _icon->height()) / 2);
 		_background.emplace(radius, *background);
+	} else if (const auto brush = descriptor.backgroundBrush) {
+		const auto radius = (descriptor.type == IconType::Rounded)
+			? st::settingsIconRadius
+			: (std::min(_icon->width(), _icon->height()) / 2);
+		_backgroundBrush.emplace(radius, std::move(*brush));
 	}
 }
 
@@ -93,6 +103,14 @@ void Icon::paint(QPainter &p, QPoint position) const {
 void Icon::paint(QPainter &p, int x, int y) const {
 	if (_background) {
 		_background->paint(p, { { x, y }, _icon->size() });
+	} else if (_backgroundBrush) {
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(_backgroundBrush->second);
+		p.drawRoundedRect(
+			QRect(QPoint(x, y), _icon->size()),
+			_backgroundBrush->first,
+			_backgroundBrush->first);
 	}
 	if (OptionMonoSettingsIcons.value()) {
 		_icon->paint(p, { x, y }, 2 * x + _icon->width(), st::menuIconFg->c);
@@ -298,17 +316,22 @@ LottieIcon CreateLottieIcon(
 	const auto icon = owned.get();
 
 	raw->lifetime().add([kept = std::move(owned)]{});
+	const auto looped = raw->lifetime().make_state<bool>(true);
 
-	const auto animate = [=] {
-		icon->animate([=] { raw->update(); }, 0, icon->framesCount());
+	const auto start = [=] {
+		icon->animate([=] { raw->update(); }, 0, icon->framesCount() - 1);
+	};
+	const auto animate = [=](anim::repeat repeat) {
+		*looped = (repeat == anim::repeat::loop);
+		start();
 	};
 	raw->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(raw);
 		const auto left = (raw->width() - width) / 2;
 		icon->paint(p, left, padding.top());
-		if (!icon->animating() && icon->frameIndex() > 0) {
-			animate();
+		if (!icon->animating() && icon->frameIndex() > 0 && *looped) {
+			start();
 		}
 
 	}, raw->lifetime());
@@ -320,16 +343,27 @@ void FillMenu(
 		not_null<Window::SessionController*> controller,
 		Type type,
 		Fn<void(Type)> showOther,
-		Menu::MenuCallback addAction) {
+		Ui::Menu::MenuCallback addAction) {
 	const auto window = &controller->window();
 	if (type == Chat::Id()) {
 		addAction(
 			tr::lng_settings_bg_theme_create(tr::now),
 			[=] { window->show(Box(Window::Theme::CreateBox, window)); },
 			&st::menuIconChangeColors);
+	} else if (type == CloudPasswordEmailConfirmId()) {
+		const auto api = &controller->session().api();
+		if (const auto state = api->cloudPassword().stateCurrent()) {
+			if (state->unconfirmedPattern.isEmpty()) {
+				return;
+			}
+		}
+		addAction(
+			tr::lng_settings_password_abort(tr::now),
+			[=] { api->cloudPassword().clearUnconfirmedPassword(); },
+			&st::menuIconCancel);
 	} else {
 		const auto &list = Core::App().domain().accounts();
-		if (list.size() < ::Main::Domain::kMaxAccounts) {
+		if (list.size() < Core::App().domain().maxAccounts()) {
 			addAction(tr::lng_menu_add_account(tr::now), [=] {
 				Core::App().domain().addActivated(MTP::Environment{});
 			}, &st::menuIconAddAccount);

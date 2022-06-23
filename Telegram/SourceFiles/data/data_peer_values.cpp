@@ -205,6 +205,7 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 	using Flag = ChannelDataFlag;
 	const auto mask = 0
 		| Flag::Left
+		| Flag::JoinToWrite
 		| Flag::HasLink
 		| Flag::Forbidden
 		| Flag::Creator
@@ -227,7 +228,7 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 				bool defaultSendMessagesRestriction) {
 			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
 			const auto allowed = !(flags & notAmInFlags)
-				|| (flags & Flag::HasLink);
+				|| ((flags & Flag::HasLink) && !(flags & Flag::JoinToWrite));
 			return allowed && (postMessagesRight
 					|| (flags & Flag::Creator)
 					|| (!(flags & Flag::Broadcast)
@@ -320,6 +321,23 @@ rpl::producer<bool> CanManageGroupCallValue(not_null<PeerData*> peer) {
 			: AdminRightValue(channel, flag);
 	}
 	return rpl::single(false);
+}
+
+rpl::producer<bool> PeerPremiumValue(not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (!user) {
+		return rpl::single(false);
+	}
+	return user->flagsValue(
+	) | rpl::filter([=](UserData::Flags::Change change) {
+		return (change.diff & UserDataFlag::Premium);
+	}) | rpl::map([=] {
+		return user->isPremium();
+	});
+}
+
+rpl::producer<bool> AmPremiumValue(not_null<Main::Session*> session) {
+	return PeerPremiumValue(session->user());
 }
 
 TimeId SortByOnlineValue(not_null<UserData*> user, TimeId now) {

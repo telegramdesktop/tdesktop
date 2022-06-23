@@ -66,7 +66,9 @@ void ShowPeerInfoSync(not_null<PeerData*> peer) {
 	// we can safely use activeWindow.
 	if (const auto window = Core::App().activeWindow()) {
 		if (const auto controller = window->sessionController()) {
-			controller->showPeerInfo(peer);
+			if (&controller->session() == &peer->session()) {
+				controller->showPeerInfo(peer);
+			}
 		}
 	}
 }

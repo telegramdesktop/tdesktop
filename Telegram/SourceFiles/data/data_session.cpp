@@ -10,10 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
 #include "api/api_text_entities.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
 #include "core/crash_reports.h" // CrashReports::SetAnnotation
 #include "ui/image/image.h"
@@ -61,6 +63,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
+#include "data/data_peer_values.h"
+#include "data/data_premium_limits.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -225,7 +229,7 @@ Session::Session(not_null<Main::Session*> session)
 , _chatsList(
 	session,
 	FilterId(),
-	session->serverConfig().pinnedDialogsCountMax.value())
+	maxPinnedChatsLimitValue(nullptr, FilterId()))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _ttlCheckTimer([=] { checkTTLs(); })
@@ -266,12 +270,26 @@ Session::Session(not_null<Main::Session*> session)
 
 	_chatsFilters->changed(
 	) | rpl::start_with_next([=] {
-		const auto enabled = !_chatsFilters->list().empty();
+		const auto enabled = _chatsFilters->has();
 		if (enabled != session->settings().dialogsFiltersEnabled()) {
 			session->settings().setDialogsFiltersEnabled(enabled);
 			session->saveSettingsDelayed();
 		}
 	}, _lifetime);
+
+	crl::on_main(_session, [=] {
+		AmPremiumValue(
+			_session
+		) | rpl::start_with_next([=] {
+			for (const auto &[document, items] : _documentItems) {
+				if (document->isVoiceMessage()) {
+					for (const auto &item : items) {
+						requestItemResize(item);
+					}
+				}
+			}
+		}, _lifetime);
+	});
 }
 
 void Session::clear() {
@@ -414,6 +432,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| Flag::Scam
 			| Flag::Fake
 			| Flag::BotInlineGeo
+			| Flag::Premium
 			| Flag::Support
 			| (!minimal
 				? Flag::Contact
@@ -425,6 +444,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			| (data.is_scam() ? Flag::Scam : Flag())
 			| (data.is_fake() ? Flag::Fake : Flag())
 			| (data.is_bot_inline_geo() ? Flag::BotInlineGeo : Flag())
+			| (data.is_premium() ? Flag::Premium : Flag())
 			| (data.is_support() ? Flag::Support : Flag())
 			| (!minimal
 				? (data.is_contact() ? Flag::Contact : Flag())
@@ -741,7 +761,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| Flag::CallNotEmpty
 			| Flag::Forbidden
 			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
-			| Flag::NoForwards;
+			| Flag::NoForwards
+			| Flag::JoinToWrite
+			| Flag::RequestToJoin;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -762,7 +784,9 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? (data.is_left() ? Flag::Left : Flag())
 				| (data.is_creator() ? Flag::Creator : Flag())
 				: Flag())
-			| (data.is_noforwards() ? Flag::NoForwards : Flag());
+			| (data.is_noforwards() ? Flag::NoForwards : Flag())
+			| (data.is_join_to_send() ? Flag::JoinToWrite : Flag())
+			| (data.is_join_request() ? Flag::RequestToJoin : Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		channel->setName(
@@ -1167,7 +1191,6 @@ void Session::setupPeerNameViewer() {
 		const auto &oldLetters = update.oldFirstLetters;
 		_contactsNoChatsList.peerNameChanged(peer, oldLetters);
 		_contactsList.peerNameChanged(peer, oldLetters);
-
 	}, _lifetime);
 }
 
@@ -1826,20 +1849,44 @@ int Session::pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const {
 	if (!filterId) {
-		const auto limit = pinnedChatsLimit(folder);
+		const auto limit = pinnedChatsLimit(folder, filterId);
 		return pinnedChatsOrder(folder, FilterId()).size() < limit;
 	}
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	return (i == end(list))
 		|| (i->always().contains(history))
-		|| (i->always().size() < Data::ChatFilter::kPinnedLimit);
+		|| (i->always().size() < pinnedChatsLimit(folder, filterId));
 }
 
-int Session::pinnedChatsLimit(Data::Folder *folder) const {
-	return folder
-		? session().serverConfig().pinnedDialogsInFolderMax.current()
-		: session().serverConfig().pinnedDialogsCountMax.current();
+int Session::pinnedChatsLimit(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	const auto limits = Data::PremiumLimits(_session);
+	return filterId
+		? limits.dialogFiltersChatsCurrent()
+		: folder
+		? limits.dialogsFolderPinnedCurrent()
+		: limits.dialogsPinnedCurrent();
+}
+
+rpl::producer<int> Session::maxPinnedChatsLimitValue(
+		Data::Folder *folder,
+		FilterId filterId) const {
+	// Premium limit from appconfig.
+	// We always use premium limit in the MainList limit producer,
+	// because it slices the list to that limit. We don't want to slice
+	// premium-ly added chats from the pinned list because of sync issues.
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		_session->account().appConfig().refreshed()
+	) | rpl::map([=] {
+		const auto limits = Data::PremiumLimits(_session);
+		return filterId
+			? limits.dialogFiltersChatsPremium()
+			: folder
+			? limits.dialogsFolderPinnedPremium()
+			: limits.dialogsPinnedPremium();
+	});
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
@@ -2422,6 +2469,7 @@ not_null<PhotoData*> Session::processPhoto(
 			thumbnail,
 			large,
 			ImageWithLocation{},
+			ImageWithLocation{},
 			crl::time(0));
 	}, [&](const MTPDphotoEmpty &data) {
 		return photo(data.vid().v);
@@ -2439,7 +2487,8 @@ not_null<PhotoData*> Session::photo(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime) {
 	const auto result = photo(id);
 	photoApplyFields(
@@ -2453,7 +2502,8 @@ not_null<PhotoData*> Session::photo(
 		small,
 		thumbnail,
 		large,
-		video,
+		videoSmall,
+		videoLarge,
 		videoStartTime);
 	return result;
 }
@@ -2503,6 +2553,7 @@ PhotoData *Session::photoFromWeb(
 		ImageWithLocation{},
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = large },
+		ImageWithLocation{},
 		ImageWithLocation{},
 		crl::time(0));
 }
@@ -2556,9 +2607,10 @@ void Session::photoApplyFields(
 			? ImageWithLocation()
 			: Images::FromPhotoSize(_session, data, *i);
 	};
-	const auto findVideoSize = [&]() -> std::optional<MTPVideoSize> {
+	const auto findVideoSize = [&](PhotoSize size)
+	-> std::optional<MTPVideoSize> {
 		const auto sizes = data.vvideo_sizes();
-		if (!sizes || sizes->v.isEmpty()) {
+		if (!sizes) {
 			return std::nullopt;
 		}
 		const auto area = [](const MTPVideoSize &size) {
@@ -2566,18 +2618,28 @@ void Session::photoApplyFields(
 				return data.vsize().v ? (data.vw().v * data.vh().v) : 0;
 			});
 		};
-		const auto result = *ranges::max_element(
-			sizes->v,
-			std::greater<>(),
-			area);
-		return (area(result) > 0) ? std::make_optional(result) : std::nullopt;
+		const auto type = [](const MTPVideoSize &size) {
+			return size.match([](const MTPDvideoSize &data) {
+				return data.vtype().v.isEmpty()
+					? char(0)
+					: data.vtype().v.front();
+			});
+		};
+		const auto result = (size == PhotoSize::Small)
+			? ranges::find(sizes->v, 'p', type)
+			: ranges::max_element(sizes->v, std::less<>(), area);
+		if (result == sizes->v.end() || area(*result) <= 0) {
+			return std::nullopt;
+		}
+		return std::make_optional(*result);
 	};
 	const auto useProgressive = (progressive != sizes.end());
 	const auto large = useProgressive
 		? Images::FromPhotoSize(_session, data, *progressive)
 		: image(LargeLevels);
 	if (large.location.valid()) {
-		const auto video = findVideoSize();
+		const auto videoSmall = findVideoSize(PhotoSize::Small);
+		const auto videoLarge = findVideoSize(PhotoSize::Large);
 		photoApplyFields(
 			photo,
 			data.vaccess_hash().v,
@@ -2593,12 +2655,15 @@ void Session::photoApplyFields(
 				? Images::FromProgressiveSize(_session, *progressive, 1)
 				: image(ThumbnailLevels)),
 			large,
-			(video
-				? Images::FromVideoSize(_session, data, *video)
+			(videoSmall
+				? Images::FromVideoSize(_session, data, *videoSmall)
 				: ImageWithLocation()),
-			(video
-				? VideoStartTime(
-					*video->match([](const auto &data) { return &data; }))
+			(videoLarge
+				? Images::FromVideoSize(_session, data, *videoLarge)
+				: ImageWithLocation()),
+			(videoLarge
+				? VideoStartTime(*videoLarge->match(
+					[](const auto &data) { return &data; }))
 				: 0));
 	}
 }
@@ -2614,7 +2679,8 @@ void Session::photoApplyFields(
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime) {
 	if (!date) {
 		return;
@@ -2627,7 +2693,8 @@ void Session::photoApplyFields(
 		small,
 		thumbnail,
 		large,
-		video,
+		videoSmall,
+		videoLarge,
 		videoStartTime);
 }
 
@@ -2668,7 +2735,8 @@ not_null<DocumentData*> Session::processDocument(
 			qs(data.vmime_type()),
 			InlineImageLocation(),
 			thumbnail,
-			ImageWithLocation(),
+			ImageWithLocation(), // videoThumbnail
+			false, // isPremiumSticker
 			data.vdc_id().v,
 			data.vsize().v);
 	}, [&](const MTPDdocumentEmpty &data) {
@@ -2686,8 +2754,9 @@ not_null<DocumentData*> Session::document(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
-		int32 size) {
+		int64 size) {
 	const auto result = document(id);
 	documentApplyFields(
 		result,
@@ -2699,6 +2768,7 @@ not_null<DocumentData*> Session::document(
 		inlineThumbnail,
 		thumbnail,
 		videoThumbnail,
+		isPremiumSticker,
 		dc,
 		size);
 	return result;
@@ -2767,8 +2837,9 @@ DocumentData *Session::documentFromWeb(
 		InlineImageLocation(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
+		false, // isPremiumSticker
 		session().mainDcId(),
-		int32(0)); // data.vsize().v
+		int64(0)); // data.vsize().v
 	result->setWebLocation(WebFileLocation(
 		data.vurl().v,
 		data.vaccess_hash().v));
@@ -2789,8 +2860,9 @@ DocumentData *Session::documentFromWeb(
 		InlineImageLocation(),
 		ImageWithLocation{ .location = thumbnailLocation },
 		ImageWithLocation{ .location = videoThumbnailLocation },
+		false, // isPremiumSticker
 		session().mainDcId(),
-		int32(0)); // data.vsize().v
+		int64(0)); // data.vsize().v
 	result->setContentUrl(qs(data.vurl()));
 	return result;
 }
@@ -2816,6 +2888,8 @@ void Session::documentApplyFields(
 	const auto videoThumbnail = videoThumbnailSize
 		? Images::FromVideoSize(_session, data, *videoThumbnailSize)
 		: ImageWithLocation();
+	const auto isPremiumSticker = videoThumbnailSize
+		&& (videoThumbnailSize->c_videoSize().vtype().v == "f");
 	documentApplyFields(
 		document,
 		data.vaccess_hash().v,
@@ -2826,6 +2900,7 @@ void Session::documentApplyFields(
 		inlineThumbnail,
 		prepared,
 		videoThumbnail,
+		isPremiumSticker,
 		data.vdc_id().v,
 		data.vsize().v);
 }
@@ -2840,8 +2915,9 @@ void Session::documentApplyFields(
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
-		int32 size) {
+		int64 size) {
 	if (!date) {
 		return;
 	}
@@ -2850,7 +2926,8 @@ void Session::documentApplyFields(
 	document->updateThumbnails(
 		inlineThumbnail,
 		thumbnail,
-		videoThumbnail);
+		videoThumbnail,
+		isPremiumSticker);
 	document->size = size;
 	document->setattributes(attributes);
 
@@ -3719,6 +3796,9 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	}
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
+		if (!id) {
+			continue;
+		}
 		const auto filterList = chatsFilters().chatsList(id);
 		auto event = ChatListEntryRefresh{ .key = key, .filterId = id };
 		if (filter.contains(history)) {
@@ -3756,7 +3836,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 	Assert(entry->folderKnown());
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
-		if (entry->inChatList(id)) {
+		if (id && entry->inChatList(id)) {
 			entry->removeFromChatList(id, chatsFilters().chatsList(id));
 			_chatListEntryRefreshes.fire(ChatListEntryRefresh{
 				.key = key,

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/file_utilities_linux.h"
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-#include "platform/linux/linux_xdp_file_dialog.h"
 #include "platform/linux/linux_xdp_open_with_dialog.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -84,22 +83,11 @@ bool Get(
 	if (parent) {
 		parent = parent->window();
 	}
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	{
-		const auto result = XDP::Get(
-			parent,
-			files,
-			remoteContent,
-			caption,
-			filter,
-			type,
-			startFile);
-
-		if (result.has_value()) {
-			return *result;
-		}
+	// Workaround for sandboxed paths
+	static const auto docRegExp = QRegularExpression("^/run/user/\\d+/doc");
+	if (cDialogLastPath().contains(docRegExp)) {
+		InitLastPath();
 	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return ::FileDialog::internal::GetDefault(
 		parent,
 		files,

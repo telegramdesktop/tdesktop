@@ -21,6 +21,8 @@ namespace Data {
 class Session;
 struct MessagesSlice;
 
+[[nodiscard]] bool IsScheduledMsgId(MsgId id);
+
 class ScheduledMessages final {
 public:
 	explicit ScheduledMessages(not_null<Session*> owner);
@@ -32,6 +34,7 @@ public:
 	[[nodiscard]] HistoryItem *lookupItem(PeerId peer, MsgId msg) const;
 	[[nodiscard]] HistoryItem *lookupItem(FullMsgId itemId) const;
 	[[nodiscard]] int count(not_null<History*> history) const;
+	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
 	void checkEntitiesAndUpdate(const MTPDmessage &data);
 	void apply(const MTPDupdateNewScheduledMessage &update);
@@ -80,8 +83,6 @@ private:
 	void remove(not_null<const HistoryItem*> item);
 	[[nodiscard]] uint64 countListHash(const List &list) const;
 	void clearOldRequests();
-
-	[[nodiscard]] MsgId localMessageId(MsgId remoteId) const;
 
 	const not_null<Main::Session*> _session;
 

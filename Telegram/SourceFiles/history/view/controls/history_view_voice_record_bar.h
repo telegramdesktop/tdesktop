@@ -79,6 +79,7 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isListenState() const;
 	[[nodiscard]] bool isActive() const;
+	[[nodiscard]] bool isRecordingByAnotherBar() const;
 
 private:
 	enum class StopType {

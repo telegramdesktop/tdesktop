@@ -339,7 +339,7 @@ Widget::Widget(
 void Widget::showFilter() {
 	_inner->showFilter([this](FilterValue &&filter) {
 		applyFilter(std::move(filter));
-		Ui::hideLayer();
+		controller()->hideLayer();
 	});
 }
 

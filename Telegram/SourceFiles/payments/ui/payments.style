@@ -11,7 +11,11 @@ using "info/info.style";
 
 paymentsPanelSize: size(392px, 600px);
 
-paymentsPanelButton: defaultBoxButton;
+paymentsPanelButton: RoundButton(defaultBoxButton) {
+	width: -36px;
+	height: 36px;
+	font: boxButtonFont;
+}
 paymentsPanelSubmit: RoundButton(defaultActiveButton) {
 	width: -36px;
 	height: 36px;

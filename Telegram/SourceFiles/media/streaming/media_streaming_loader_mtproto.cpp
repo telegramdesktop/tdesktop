@@ -18,7 +18,7 @@ namespace Streaming {
 LoaderMtproto::LoaderMtproto(
 	not_null<Storage::DownloadManagerMtproto*> owner,
 	const StorageFileLocation &location,
-	int size,
+	int64 size,
 	Data::FileOrigin origin)
 : DownloadMtprotoTask(owner, location, origin)
 , _size(size)
@@ -31,11 +31,11 @@ Storage::Cache::Key LoaderMtproto::baseCacheKey() const {
 	).bigFileBaseCacheKey();
 }
 
-int LoaderMtproto::size() const {
+int64 LoaderMtproto::size() const {
 	return _size;
 }
 
-void LoaderMtproto::load(int offset) {
+void LoaderMtproto::load(int64 offset) {
 	crl::on_main(this, [=] {
 		if (_downloader) {
 			auto bytes = _downloader->readLoadedPart(offset);
@@ -73,13 +73,13 @@ void LoaderMtproto::tryRemoveFromQueue() {
 	});
 }
 
-void LoaderMtproto::cancel(int offset) {
+void LoaderMtproto::cancel(int64 offset) {
 	crl::on_main(this, [=] {
 		cancelForOffset(offset);
 	});
 }
 
-void LoaderMtproto::cancelForOffset(int offset) {
+void LoaderMtproto::cancelForOffset(int64 offset) {
 	if (haveSentRequestForOffset(offset)) {
 		cancelRequestForOffset(offset);
 		if (!_requested.empty()) {
@@ -119,14 +119,14 @@ bool LoaderMtproto::readyToRequest() const {
 	return !_requested.empty();
 }
 
-int LoaderMtproto::takeNextRequestOffset() {
+int64 LoaderMtproto::takeNextRequestOffset() {
 	const auto offset = _requested.take();
 
 	Ensures(offset.has_value());
 	return *offset;
 }
 
-bool LoaderMtproto::feedPart(int offset, const QByteArray &bytes) {
+bool LoaderMtproto::feedPart(int64 offset, const QByteArray &bytes) {
 	_parts.fire({ offset, bytes });
 	return true;
 }

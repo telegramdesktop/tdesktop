@@ -53,6 +53,8 @@ struct PreparedList;
 
 namespace Api {
 
+struct SearchResult;
+
 class Updates;
 class Authorizations;
 class AttachedStickers;
@@ -70,6 +72,8 @@ class Polls;
 class ChatParticipants;
 class UnreadThings;
 class Ringtones;
+class Transcribes;
+class Premium;
 
 namespace details {
 
@@ -264,10 +268,6 @@ public:
 			not_null<PeerData*> peer,
 			Storage::SharedMediaType type);
 
-	void requestUserPhotos(
-		not_null<UserData*> user,
-		PhotoId afterId);
-
 	void readFeaturedSetDelayed(uint64 setId);
 
 	rpl::producer<SendAction> sendActions() const {
@@ -361,6 +361,8 @@ public:
 	[[nodiscard]] Api::ChatParticipants &chatParticipants();
 	[[nodiscard]] Api::UnreadThings &unreadThings();
 	[[nodiscard]] Api::Ringtones &ringtones();
+	[[nodiscard]] Api::Transcribes &transcribes();
+	[[nodiscard]] Api::Premium &premium();
 
 	void updatePrivacyLastSeens();
 
@@ -420,12 +422,10 @@ private:
 
 	void gotChatFull(
 		not_null<PeerData*> peer,
-		const MTPmessages_ChatFull &result,
-		mtpRequestId req);
+		const MTPmessages_ChatFull &result);
 	void gotUserFull(
 		not_null<UserData*> user,
-		const MTPusers_UserFull &result,
-		mtpRequestId req);
+		const MTPusers_UserFull &result);
 	void resolveWebPages();
 	void gotWebPages(
 		ChannelData *channel,
@@ -452,14 +452,7 @@ private:
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
 		SharedMediaType type,
-		MsgId messageId,
-		SliceType slice,
-		const MTPmessages_Messages &result);
-
-	void userPhotosDone(
-		not_null<UserData*> user,
-		PhotoId photoId,
-		const MTPphotos_Photos &result);
+		Api::SearchResult &&parsed);
 
 	void sendSharedContact(
 		const QString &phone,
@@ -527,7 +520,7 @@ private:
 		MessageDataRequests> _channelMessageDataRequests;
 	SingleQueuedInvokation _messageDataResolveDelayed;
 
-	using PeerRequests = QMap<PeerData*, mtpRequestId>;
+	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
 	PeerRequests _peerRequests;
 	base::flat_set<not_null<PeerData*>> _requestedPeerSettings;
@@ -574,8 +567,6 @@ private:
 		SharedMediaType,
 		MsgId,
 		SliceType>> _sharedMediaRequests;
-
-	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;
@@ -644,6 +635,8 @@ private:
 	const std::unique_ptr<Api::ChatParticipants> _chatParticipants;
 	const std::unique_ptr<Api::UnreadThings> _unreadThings;
 	const std::unique_ptr<Api::Ringtones> _ringtones;
+	const std::unique_ptr<Api::Transcribes> _transcribes;
+	const std::unique_ptr<Api::Premium> _premium;
 
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;

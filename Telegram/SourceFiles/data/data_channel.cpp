@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_bot_command.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
 #include "base/unixtime.h"
@@ -49,14 +50,9 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 	_location = location;
 }
 
-bool MegagroupInfo::updateBotCommands(const MTPVector<MTPBotInfo> &data) {
-	return Data::UpdateBotCommands(_botCommands, data);
-}
-
-bool MegagroupInfo::updateBotCommands(
-		UserId botId,
-		const MTPVector<MTPBotCommand> &data) {
-	return Data::UpdateBotCommands(_botCommands, botId, data);
+Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
+		const std::vector<Data::BotCommands> &list) {
+	return _botCommands.update(list);
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
@@ -92,7 +88,10 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
 	photo.match([&](const MTPDchatPhoto & data) {
-		updateUserpic(data.vphoto_id().v, data.vdc_id().v);
+		updateUserpic(
+			data.vphoto_id().v,
+			data.vdc_id().v,
+			data.is_has_video());
 	}, [&](const MTPDchatPhotoEmpty &) {
 		clearUserpic();
 	});
@@ -467,7 +466,8 @@ bool ChannelData::canPublish() const {
 
 bool ChannelData::canWrite() const {
 	// Duplicated in Data::CanWriteValue().
-	const auto allowed = amIn() || (flags() & Flag::HasLink);
+	const auto allowed = amIn()
+		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
 	return allowed && (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::SendMessages)));
@@ -903,7 +903,13 @@ void ApplyChannelUpdate(
 		SetTopPinnedMessageId(channel, pinned->v);
 	}
 	if (channel->isMegagroup()) {
-		if (channel->mgInfo->updateBotCommands(update.vbot_info())) {
+		auto commands = ranges::views::all(
+			update.vbot_info().v
+		) | ranges::views::transform(
+			Data::BotCommandsFromTL
+		) | ranges::to_vector;
+
+		if (channel->mgInfo->setBotCommands(std::move(commands))) {
 			channel->owner().botCommandsChanged(channel);
 		}
 		const auto stickerSet = update.vstickerset();

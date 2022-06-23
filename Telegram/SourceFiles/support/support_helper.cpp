@@ -596,8 +596,12 @@ QString InterpretSendPath(
 			+ QString::number(peerToChannel(toId).bare);
 	}
 	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+	const auto premium = window->session().user()->isPremium();
 	history->session().api().sendFiles(
-		Storage::PrepareMediaList(QStringList(filePath), st::sendMediaPreviewSize),
+		Storage::PrepareMediaList(
+			QStringList(filePath),
+			st::sendMediaPreviewSize,
+			premium),
 		SendMediaType::File,
 		{ caption },
 		nullptr,

@@ -20,6 +20,7 @@ struct InfoToggle;
 } // namespace style
 
 namespace Ui {
+class AbstractButton;
 class UserpicButton;
 class FlatLabel;
 template <typename Widget>
@@ -36,26 +37,7 @@ namespace Profile {
 
 enum class Badge;
 
-class SectionWithToggle : public Ui::FixedHeightWidget {
-public:
-	using FixedHeightWidget::FixedHeightWidget;
-
-	SectionWithToggle *setToggleShown(rpl::producer<bool> &&shown);
-	void toggle(bool toggled, anim::type animated);
-	bool toggled() const;
-	rpl::producer<bool> toggledValue() const;
-
-protected:
-	rpl::producer<bool> toggleShownValue() const;
-	int toggleSkip() const;
-
-private:
-	object_ptr<Ui::Checkbox> _toggle = { nullptr };
-	rpl::event_stream<bool> _toggleShown;
-
-};
-
-class Cover : public SectionWithToggle {
+class Cover : public Ui::FixedHeightWidget {
 public:
 	Cover(
 		QWidget *parent,
@@ -68,11 +50,6 @@ public:
 		rpl::producer<QString> title);
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
-
-	Cover *setToggleShown(rpl::producer<bool> &&shown) {
-		return static_cast<Cover*>(
-			SectionWithToggle::setToggleShown(std::move(shown)));
-	}
 
 	rpl::producer<Section> showSection() const {
 		return _showSection.events();
@@ -89,13 +66,14 @@ private:
 	void refreshUploadPhotoOverlay();
 	void setBadge(Badge badge);
 
-	not_null<PeerData*> _peer;
+	const not_null<Window::SessionController*> _controller;
+	const not_null<PeerData*> _peer;
 	int _onlineCount = 0;
 	Badge _badge = Badge();
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
-	object_ptr<Ui::RpWidget> _verifiedCheck = { nullptr };
+	object_ptr<Ui::AbstractButton> _verifiedCheck = { nullptr };
 	object_ptr<Ui::RpWidget> _scamFakeBadge = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

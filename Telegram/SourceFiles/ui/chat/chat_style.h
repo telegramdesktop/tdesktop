@@ -70,6 +70,9 @@ struct MessageStyle {
 	style::icon historyQuizExplain = { Qt::Uninitialized };
 	style::icon historyPollChosen = { Qt::Uninitialized };
 	style::icon historyPollChoiceRight = { Qt::Uninitialized };
+	style::icon historyTranscribeIcon = { Qt::Uninitialized };
+	style::icon historyTranscribeHide = { Qt::Uninitialized };
+
 };
 
 struct MessageImageStyle {

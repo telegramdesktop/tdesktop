@@ -64,8 +64,8 @@ public:
 		uint64 randomId = 0;
 		QString path;
 		int itemIndex = 0;
-		int ready = 0;
-		int total = 0;
+		int64 ready = 0;
+		int64 total = 0;
 	};
 	void requestUserpics(
 		FnMut<bool(Data::UserpicsInfo&&)> start,
@@ -186,11 +186,11 @@ private:
 		Fn<bool(FileProgress)> progress,
 		FnMut<void(QString)> done);
 	void loadFilePart();
-	void filePartDone(int offset, const MTPupload_File &result);
+	void filePartDone(int64 offset, const MTPupload_File &result);
 	void filePartUnavailable();
-	void filePartRefreshReference(int offset);
+	void filePartRefreshReference(int64 offset);
 	void filePartExtractReference(
-		int offset,
+		int64 offset,
 		const MTPmessages_Messages &result);
 
 	template <typename Request>
@@ -204,7 +204,7 @@ private:
 
 	[[nodiscard]] auto fileRequest(
 		const Data::FileLocation &location,
-		int offset);
+		int64 offset);
 
 	void error(const MTP::Error &error);
 	void error(const QString &text);

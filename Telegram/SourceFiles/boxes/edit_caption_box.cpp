@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "apiwrap.h"
 #include "base/event_filter.h"
+#include "boxes/premium_limits_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -22,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_photo_media.h"
 #include "data/data_session.h"
+#include "data/data_user.h"
+#include "data/data_premium_limits.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -32,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "storage/localimageloader.h" // SendMediaType
 #include "storage/storage_media_prepare.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/chat/attach/attach_item_single_file_preview.h"
 #include "ui/chat/attach/attach_item_single_media_preview.h"
 #include "ui/chat/attach/attach_single_file_preview.h"
@@ -56,13 +60,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-auto ListFromMimeData(not_null<const QMimeData*> data) {
+auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 	using Error = Ui::PreparedList::Error;
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			// When we edit media, we need only 1 file.
 			data->urls().mid(0, 1),
-			st::sendMediaPreviewSize)
+			st::sendMediaPreviewSize,
+			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
 	if (result.error == Error::None) {
 		return result;
@@ -238,8 +243,6 @@ void EditCaptionBox::rebuildPreview() {
 void EditCaptionBox::setupField() {
 	const auto show = std::make_shared<Window::Show>(_controller);
 	const auto session = &_controller->session();
-	_field->setMaxLength(
-		_controller->session().serverConfig().captionLengthMax);
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
 	_field->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -322,9 +325,10 @@ void EditCaptionBox::setupControls() {
 }
 
 void EditCaptionBox::setupEditEventHandler() {
+	const auto toastParent = Ui::BoxShow(this).toastParent();
 	const auto callback = [=](FileDialog::OpenResult &&result) {
-		auto showError = [](tr::phrase<> t) {
-			Ui::Toast::Show(t(tr::now));
+		auto showError = [toastParent](tr::phrase<> t) {
+			Ui::Toast::Show(toastParent, t(tr::now));
 		};
 
 		const auto checkResult = [=](const Ui::PreparedList &list) {
@@ -343,11 +347,13 @@ void EditCaptionBox::setupEditEventHandler() {
 			}
 			return true;
 		};
+		const auto premium = _controller->session().premium();
 		auto list = Storage::PreparedFileFromFilesDialog(
 			std::move(result),
 			checkResult,
 			showError,
-			st::sendMediaPreviewSize);
+			st::sendMediaPreviewSize,
+			premium);
 
 		if (list) {
 			setPreparedList(std::move(*list));
@@ -520,7 +526,8 @@ void EditCaptionBox::updateEmojiPanelGeometry() {
 }
 
 bool EditCaptionBox::fileFromClipboard(not_null<const QMimeData*> data) {
-	return setPreparedList(ListFromMimeData(data));
+	const auto premium = _controller->session().premium();
+	return setPreparedList(ListFromMimeData(data, premium));
 }
 
 bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
@@ -542,7 +549,9 @@ bool EditCaptionBox::setPreparedList(Ui::PreparedList &&list) {
 		}
 	}
 	if (invalidForAlbum) {
-		Ui::Toast::Show(tr::lng_edit_media_album_error(tr::now));
+		Ui::Toast::Show(
+			Ui::BoxShow(this).toastParent(),
+			tr::lng_edit_media_album_error(tr::now));
 		return false;
 	}
 	_preparedList = std::move(list);
@@ -643,6 +652,17 @@ void EditCaptionBox::setInnerFocus() {
 	_field->setFocusFast();
 }
 
+bool EditCaptionBox::validateLength(const QString &text) const {
+	const auto session = &_controller->session();
+	const auto limit = Data::PremiumLimits(session).captionLengthCurrent();
+	const auto remove = int(text.size()) - limit;
+	if (remove <= 0) {
+		return true;
+	}
+	_controller->show(Box(CaptionLimitReachedBox, session, remove));
+	return false;
+}
+
 void EditCaptionBox::save() {
 	if (_saveRequestId) {
 		return;
@@ -657,6 +677,9 @@ void EditCaptionBox::save() {
 	}
 
 	const auto textWithTags = _field->getTextWithAppliedMarkdown();
+	if (!validateLength(textWithTags.text)) {
+		return;
+	}
 	const auto sending = TextWithEntities{
 		textWithTags.text,
 		TextUtilities::ConvertTextTagsToEntities(textWithTags.tags)

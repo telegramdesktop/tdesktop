@@ -17,7 +17,6 @@ enum {
 	LocalEncryptNoPwdIterCount = 4, // key derivation iteration count without pwd (not secure anyway)
 	LocalEncryptSaltSize = 32, // 256 bit
 
-	AnimationTimerDelta = 7,
 	RecentInlineBotsLimit = 10,
 
 	AutoSearchTimeout = 900, // 0.9 secs

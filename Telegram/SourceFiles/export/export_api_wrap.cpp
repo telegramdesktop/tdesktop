@@ -28,7 +28,7 @@ constexpr auto kFileRequestsCount = 2;
 constexpr auto kChatsSliceLimit = 100;
 constexpr auto kMessagesSliceLimit = 100;
 constexpr auto kTopPeerSliceLimit = 100;
-constexpr auto kFileMaxSize = 2000 * 1024 * 1024;
+constexpr auto kFileMaxSize = 4000 * int64(1024 * 1024);
 constexpr auto kLocationCacheSize = 100'000;
 
 struct LocationKey {
@@ -156,11 +156,11 @@ struct ApiWrap::FileProcess {
 	uint64 randomId = 0;
 	Data::FileLocation location;
 	Data::FileOrigin origin;
-	int offset = 0;
-	int size = 0;
+	int64 offset = 0;
+	int64 size = 0;
 
 	struct Request {
-		int offset = 0;
+		int64 offset = 0;
 		QByteArray bytes;
 	};
 	std::deque<Request> requests;
@@ -168,8 +168,8 @@ struct ApiWrap::FileProcess {
 };
 
 struct ApiWrap::FileProgress {
-	int ready = 0;
-	int total = 0;
+	int64 ready = 0;
+	int64 total = 0;
 };
 
 struct ApiWrap::ChatsProcess {
@@ -352,7 +352,7 @@ auto ApiWrap::splitRequest(int index, Request &&request) {
 		std::forward<Request>(request)));
 }
 
-auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
+auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 	Expects(location.dcId != 0
 		|| location.data.type() == mtpc_inputTakeoutFileLocation);
 	Expects(_takeoutId.has_value());
@@ -363,7 +363,7 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int offset) {
 		MTPupload_GetFile(
 			MTP_flags(0),
 			location.data,
-			MTP_int(offset),
+			MTP_long(offset),
 			MTP_int(kFileChunkSize))
 	)).fail([=](const MTP::Error &result) {
 		_fileProcess->requestId = 0;
@@ -656,7 +656,7 @@ void ApiWrap::startMainSession(FnMut<void()> done) {
 		}
 		_mtp.request(MTPaccount_InitTakeoutSession(
 			MTP_flags(flags),
-			MTP_int(sizeLimit)
+			MTP_long(sizeLimit)
 		)).done([=, done = std::move(done)](
 				const MTPaccount_Takeout &result) mutable {
 			_takeoutId = result.match([](const MTPDaccount_takeout &data) {
@@ -1785,7 +1785,7 @@ void ApiWrap::loadFilePart() {
 	}
 }
 
-void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
+void ApiWrap::filePartDone(int64 offset, const MTPupload_File &result) {
 	Expects(_fileProcess != nullptr);
 	Expects(!_fileProcess->requests.empty());
 
@@ -1845,7 +1845,7 @@ void ApiWrap::filePartDone(int offset, const MTPupload_File &result) {
 	process->done(process->relativePath);
 }
 
-void ApiWrap::filePartRefreshReference(int offset) {
+void ApiWrap::filePartRefreshReference(int64 offset) {
 	Expects(_fileProcess != nullptr);
 	Expects(_fileProcess->requestId == 0);
 
@@ -1897,7 +1897,7 @@ void ApiWrap::filePartRefreshReference(int offset) {
 }
 
 void ApiWrap::filePartExtractReference(
-		int offset,
+		int64 offset,
 		const MTPmessages_Messages &result) {
 	Expects(_fileProcess != nullptr);
 	Expects(_fileProcess->requestId == 0);

@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
-#include "platform/linux/linux_xdp_file_dialog.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -33,11 +32,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
 #include <QtWidgets/QApplication>
+#include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
-#include <QtGui/QWindow>
-
-#include <private/qguiapplication_p.h>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
@@ -62,9 +59,6 @@ namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
 constexpr auto kIconName = "telegram"_cs;
-
-constexpr auto kIBusPortalService = "org.freedesktop.portal.IBus"_cs;
-constexpr auto kWebviewService = "org.telegram.desktop.GtkIntegration.WebviewHelper-%1-%2"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -115,12 +109,7 @@ void PortalAutostart(bool start, bool silent) {
 			+ '/'
 			+ handleToken;
 
-		const auto context = Glib::MainContext::create();
-		const auto loop = Glib::MainLoop::create(context);
-		g_main_context_push_thread_default(context->gobj());
-		const auto contextGuard = gsl::finally([&] {
-			g_main_context_pop_thread_default(context->gobj());
-		});
+		const auto loop = Glib::MainLoop::create();
 
 		const auto signalId = connection->signal_subscribe(
 			[&](
@@ -170,10 +159,11 @@ void PortalAutostart(bool start, bool silent) {
 			std::string(base::Platform::XDP::kService));
 
 		if (signalId != 0) {
-			QWindow window;
-			QGuiApplicationPrivate::showModalWindow(&window);
+			QWidget window;
+			window.setAttribute(Qt::WA_DontShowOnScreen);
+			window.setWindowModality(Qt::ApplicationModal);
+			window.show();
 			loop->run();
-			QGuiApplicationPrivate::hideModalWindow(&window);
 		}
 	} catch (const Glib::Error &e) {
 		if (!silent) {
@@ -181,30 +171,6 @@ void PortalAutostart(bool start, bool silent) {
 				QString::fromStdString(e.what())));
 		}
 	}
-}
-
-bool IsIBusPortalPresent() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-			const auto serviceRegistered = base::Platform::DBus::NameHasOwner(
-				connection,
-				std::string(kIBusPortalService));
-
-			const auto serviceActivatable = ranges::contains(
-				base::Platform::DBus::ListActivatableNames(connection),
-				Glib::ustring(std::string(kIBusPortalService)));
-
-			return serviceRegistered || serviceActivatable;
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
@@ -435,12 +401,6 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 		}
 	});
 
-#ifdef __HAIKU__
-
-	HaikuAutostart(enabled);
-
-#else // __HAIKU__
-
 	const auto silent = !done;
 	if (InFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -457,8 +417,6 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 			QFile::remove(autostart + QGuiApplication::desktopFileName());
 		}
 	}
-
-#endif // __HAIKU__
 }
 
 bool AutostartSkip() {
@@ -477,6 +435,7 @@ bool SkipTaskbarSupported() {
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	if (IsX11()) {
 		return base::Platform::XCB::IsSupportedByWM(
+			base::Platform::XCB::GetConnectionFromQt(),
 			"_NET_WM_STATE_SKIP_TASKBAR");
 	}
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -489,37 +448,6 @@ bool SkipTaskbarSupported() {
 void psActivateProcess(uint64 pid) {
 //	objc_activateProgram();
 }
-
-namespace {
-
-#ifdef __HAIKU__
-void HaikuAutostart(bool start) {
-	const auto home = QDir::homePath();
-	if (home.isEmpty()) {
-		return;
-	}
-
-	QFile file(home + "/config/settings/boot/launch/telegram-desktop");
-	if (start) {
-		if (file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-			QTextStream out(&file);
-			out
-				<< "#!/bin/bash" << Qt::endl
-				<< "cd /system/apps" << Qt::endl
-				<< "./Telegram -autostart" << " &" << Qt::endl;
-			file.close();
-			file.setPermissions(file.permissions()
-				| QFileDevice::ExeOwner
-				| QFileDevice::ExeGroup
-				| QFileDevice::ExeOther);
-		}
-	} else {
-		file.remove();
-	}
-}
-#endif // __HAIKU__
-
-} // namespace
 
 QString psAppDataPath() {
 	// Previously we used ~/.TelegramDesktop, so look there first.
@@ -562,9 +490,6 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	// Prevent any later calls into setlocale() by Qt
-	QCoreApplicationPrivate::initLocale();
-
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
@@ -592,19 +517,6 @@ void start() {
 		"Application was built without embedded fonts, "
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
-
-	// IBus has changed its socket path several times
-	// and each change should be synchronized with Qt.
-	// Moreover, the last time Qt changed the path,
-	// they didn't introduce a fallback to the old path
-	// and made the new Qt incompatible with IBus from older distributions.
-	// Since tdesktop is distributed in static binary form,
-	// it makes sense to use ibus portal whenever it present
-	// to ensure compatibility with the maximum range of distributions.
-	if (IsIBusPortalPresent()) {
-		LOG(("IBus portal is present! Using it."));
-		qputenv("IBUS_USE_PORTAL", "1");
-	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
@@ -700,9 +612,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 				add("mate-volume-control");
 			}
 		}
-#ifdef __HAIKU__
-		add("Media");
-#endif // __ HAIKU__
 		add("pavucontrol-qt");
 		add("pavucontrol");
 		add("alsamixergui");
@@ -720,10 +629,6 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
-
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	FileDialog::XDP::Start();
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void finish() {
@@ -734,9 +639,7 @@ void finish() {
 } // namespace Platform
 
 void psNewVersion() {
-#ifndef __HAIKU__
 	Platform::InstallLauncher();
-#endif // __HAIKU__
 }
 
 void psSendToMenu(bool send, bool silent) {

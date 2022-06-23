@@ -192,7 +192,8 @@ private:
 	};
 
 	static std::vector<Sticker> PrepareStickers(
-		const QVector<DocumentData*> &pack);
+		const QVector<DocumentData*> &pack,
+		bool skipPremium);
 
 	void preloadMoreOfficial();
 	QSize boundingBoxSize() const;
@@ -220,6 +221,7 @@ private:
 	bool stickerHasDeleteButton(const Set &set, int index) const;
 	std::vector<Sticker> collectRecentStickers();
 	void refreshRecentStickers(bool resize = true);
+	void refreshPremiumStickers();
 	void refreshFavedStickers();
 	enum class GroupStickersPlace {
 		Visible,
@@ -329,6 +331,10 @@ private:
 	void addSearchRow(not_null<Data::StickersSet*> set);
 
 	void showPreview();
+	const QImage &validatePremiumLock(
+		Set &set,
+		int index,
+		const QImage &frame);
 
 	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
 		int section,
@@ -341,6 +347,7 @@ private:
 	std::vector<Set> _mySets;
 	std::vector<Set> _officialSets;
 	std::vector<Set> _searchSets;
+	int _premiumsIndex = -1;
 	int _featuredSetsCount = 0;
 	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;
@@ -387,6 +394,8 @@ private:
 
 	base::Timer _previewTimer;
 	bool _previewShown = false;
+
+	QImage _premiumLockGray;
 
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;

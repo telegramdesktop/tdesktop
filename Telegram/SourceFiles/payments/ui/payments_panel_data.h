@@ -49,10 +49,12 @@ struct Invoice {
 	bool isPhoneRequested = false;
 	bool isEmailRequested = false;
 	bool isShippingAddressRequested = false;
+	bool isRecurring = false;
 	bool isFlexible = false;
 	bool isTest = false;
 
 	QString provider;
+	QString recurringTermsUrl;
 	bool phoneSentToProvider = false;
 	bool emailSentToProvider = false;
 

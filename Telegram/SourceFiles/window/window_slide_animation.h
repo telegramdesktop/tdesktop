@@ -21,9 +21,12 @@ public:
 	void paintContents(Painter &p) const;
 
 	void setDirection(SlideDirection direction);
-	void setPixmaps(const QPixmap &oldContentCache, const QPixmap &newContentCache);
+	void setPixmaps(
+		const QPixmap &oldContentCache,
+		const QPixmap &newContentCache);
 	void setTopBarShadow(bool enabled);
 	void setTopSkip(int skip);
+	void setTopBarMask(const QPixmap &mask);
 	void setWithFade(bool withFade);
 
 	using RepaintCallback = Fn<void()>;
@@ -48,6 +51,7 @@ private:
 
 	mutable Ui::Animations::Simple _animation;
 	QPixmap _cacheUnder, _cacheOver;
+	QPixmap _mask;
 
 	RepaintCallback _repaintCallback;
 	FinishedCallback _finishedCallback;

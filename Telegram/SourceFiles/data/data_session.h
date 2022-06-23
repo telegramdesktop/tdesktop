@@ -329,7 +329,12 @@ public:
 		Data::Folder *folder,
 		FilterId filterId,
 		not_null<History*> history) const;
-	int pinnedChatsLimit(Data::Folder *folder) const;
+	int pinnedChatsLimit(
+		Data::Folder *folder,
+		FilterId filterId) const;
+	rpl::producer<int> maxPinnedChatsLimitValue(
+		Data::Folder *folder,
+		FilterId filterId) const;
 	const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		Data::Folder *folder,
 		FilterId filterId) const;
@@ -477,7 +482,8 @@ public:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime);
 	void photoConvert(
 		not_null<PhotoData*> original,
@@ -502,8 +508,9 @@ public:
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
-		int32 size);
+		int64 size);
 	void documentConvert(
 		not_null<DocumentData*> original,
 		const MTPDocument &data);
@@ -738,7 +745,8 @@ private:
 		const ImageWithLocation &small,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &large,
-		const ImageWithLocation &video,
+		const ImageWithLocation &videoSmall,
+		const ImageWithLocation &videoLarge,
 		crl::time videoStartTime);
 
 	void documentApplyFields(
@@ -757,8 +765,9 @@ private:
 		const InlineImageLocation &inlineThumbnail,
 		const ImageWithLocation &thumbnail,
 		const ImageWithLocation &videoThumbnail,
+		bool isPremiumSticker,
 		int32 dc,
-		int32 size);
+		int64 size);
 	DocumentData *documentFromWeb(
 		const MTPDwebDocument &data,
 		const ImageLocation &thumbnailLocation,

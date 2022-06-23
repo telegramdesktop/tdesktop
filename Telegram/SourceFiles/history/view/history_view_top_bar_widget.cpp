@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
-#include "menu/add_action_callback_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "lang/lang_keys.h"
 #include "core/shortcuts.h"
@@ -27,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/boxes/report_box.h" // Ui::ReportReason
@@ -88,6 +88,7 @@ TopBarWidget::TopBarWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _primaryWindow(controller->isPrimary())
 , _clear(this, tr::lng_selected_clear(), st::topBarClearButton)
 , _forward(this, tr::lng_selected_forward(), st::defaultActiveButton)
 , _sendNow(this, tr::lng_selected_send_now(), st::defaultActiveButton)
@@ -310,7 +311,7 @@ void TopBarWidget::showPeerMenu() {
 	if (!created) {
 		return;
 	}
-	const auto addAction = Menu::CreateAddActionCallback(_menu);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
 	Window::FillDialogsEntryMenu(_controller, _activeChat, addAction);
 	if (_menu->empty()) {
 		_menu = nullptr;
@@ -516,7 +517,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		const auto peer = history->peer;
 		const auto &text = peer->topBarNameText();
 		const auto badgeStyle = Ui::PeerBadgeStyle{
-			nullptr,
+			nullptr, // verified
+			&st::dialogsPremiumIcon, // premium
 			&st::attentionButtonFg };
 		const auto badgeWidth = Ui::DrawPeerBadgeGetWidth(
 			peer,
@@ -849,10 +851,10 @@ void TopBarWidget::updateControlsGeometry() {
 		_leftTaken = smallDialogsColumn ? (width() - _back->width()) / 2 : 0;
 		_back->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _back->width();
-		if (_info && !_info->isHidden()) {
-			_info->moveToLeft(_leftTaken, otherButtonsTop);
-			_leftTaken += _info->width();
-		}
+	}
+	if (_info && !_info->isHidden()) {
+		_info->moveToLeft(_leftTaken, otherButtonsTop);
+		_leftTaken += _info->width();
 	}
 
 	_rightTaken = 0;
@@ -911,7 +913,8 @@ void TopBarWidget::updateControlsVisibility() {
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {
-		_info->setVisible(isOneColumn && !_chooseForReportReason);
+		_info->setVisible((isOneColumn || !_primaryWindow)
+			&& !_chooseForReportReason);
 	}
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason);

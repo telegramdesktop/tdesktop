@@ -105,10 +105,6 @@ PRIVATE
     media/player/media_player_dropdown.cpp
     media/player/media_player_dropdown.h
 
-    menu/add_action_callback.cpp
-    menu/add_action_callback.h
-    menu/add_action_callback_factory.cpp
-    menu/add_action_callback_factory.h
     menu/menu_check_item.cpp
     menu/menu_check_item.h
     menu/menu_ttl.cpp
@@ -218,6 +214,8 @@ PRIVATE
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
     ui/controls/invite_link_label.h
+    ui/controls/peer_list_dummy.cpp
+    ui/controls/peer_list_dummy.h
     ui/controls/send_as_button.cpp
     ui/controls/send_as_button.h
     ui/controls/send_button.cpp
@@ -226,6 +224,12 @@ PRIVATE
     ui/controls/who_reacted_context_action.h
     ui/controls/window_outdated_bar.cpp
     ui/controls/window_outdated_bar.h
+    ui/effects/fireworks_animation.cpp
+    ui/effects/fireworks_animation.h
+    ui/effects/premium_graphics.cpp
+    ui/effects/premium_graphics.h
+    ui/effects/round_checkbox.cpp
+    ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
     ui/text/format_song_name.cpp
@@ -234,19 +238,17 @@ PRIVATE
     ui/text/format_values.h
     ui/text/text_options.cpp
     ui/text/text_options.h
-    ui/toasts/common_toasts.cpp
-    ui/toasts/common_toasts.h
 
     ui/widgets/continuous_sliders.cpp
     ui/widgets/continuous_sliders.h
     ui/widgets/discrete_sliders.cpp
     ui/widgets/discrete_sliders.h
+    ui/widgets/gradient_round_button.cpp
+    ui/widgets/gradient_round_button.h
     ui/widgets/multi_select.cpp
     ui/widgets/multi_select.h
     ui/widgets/sent_code_field.cpp
     ui/widgets/sent_code_field.h
-    ui/widgets/separate_panel.cpp
-    ui/widgets/separate_panel.h
     ui/widgets/vertical_drum_picker.cpp
     ui/widgets/vertical_drum_picker.h
 

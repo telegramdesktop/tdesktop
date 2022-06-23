@@ -24,7 +24,7 @@ public:
 
 	[[nodiscard]] QString url() const;
 
-	int currentOffset() const override;
+	int64 currentOffset() const override;
 
 private:
 	void cancelRequest();
@@ -38,7 +38,7 @@ private:
 	void loadFailed();
 
 	const QString _url;
-	int _ready = 0;
+	int64 _ready = 0;
 
 	std::shared_ptr<WebLoadManager> _manager;
 	rpl::lifetime _managerLifetime;

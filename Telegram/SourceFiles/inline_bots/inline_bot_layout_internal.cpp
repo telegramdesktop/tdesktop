@@ -130,6 +130,7 @@ void Gif::setPosition(int32 position) {
 void DeleteSavedGifClickHandler::onClickImpl() const {
 	ChatHelpers::AddGifAction(
 		[](QString, Fn<void()> &&done, const style::icon*) { done(); },
+		nullptr,
 		_data);
 }
 
@@ -1104,8 +1105,9 @@ void File::checkAnimationFinished() const {
 
 bool File::updateStatusText() const {
 	ensureDataMediaCreated();
-	bool showPause = false;
-	int32 statusSize = 0, realDuration = 0;
+	auto showPause = false;
+	auto statusSize = int64();
+	auto realDuration = TimeId();
 	if (_document->status == FileDownloadFailed || _document->status == FileUploadFailed) {
 		statusSize = Ui::FileStatusSizeFailed;
 	} else if (_document->uploading()) {
@@ -1132,7 +1134,7 @@ bool File::updateStatusText() const {
 	}
 
 	if (statusSize != _statusSize) {
-		int32 duration = _document->isSong()
+		TimeId duration = _document->isSong()
 			? _document->song()->duration
 			: (_document->isVoiceMessage()
 				? _document->voice()->duration
@@ -1142,7 +1144,11 @@ bool File::updateStatusText() const {
 	return showPause;
 }
 
-void File::setStatusSize(int32 newSize, int32 fullSize, int32 duration, qint64 realDuration) const {
+void File::setStatusSize(
+		int64 newSize,
+		int64 fullSize,
+		TimeId duration,
+		TimeId realDuration) const {
 	_statusSize = newSize;
 	if (_statusSize == Ui::FileStatusSizeReady) {
 		_statusText = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));

@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "data/data_changes.h"
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "ui/boxes/single_choice_box.h"
 #include "webrtc/webrtc_audio_input_tester.h"
 #include "webrtc/webrtc_media_devices.h"
@@ -593,7 +594,7 @@ void SettingsBox(
 		});
 		const auto showToast = crl::guard(box, [=](QString text) {
 			Ui::ShowMultilineToast({
-				.parentOverride = box->getDelegate()->outerContainer(),
+				.parentOverride = Ui::BoxShow(box).toastParent(),
 				.text = { text },
 			});
 		});
@@ -636,7 +637,7 @@ void SettingsBox(
 				QGuiApplication::clipboard()->setText(link);
 				if (weakBox) {
 					Ui::ShowMultilineToast({
-						.parentOverride = box->getDelegate()->outerContainer(),
+						.parentOverride = Ui::BoxShow(box).toastParent(),
 						.text = { tr::lng_create_channel_link_copied(tr::now) },
 					});
 				}
