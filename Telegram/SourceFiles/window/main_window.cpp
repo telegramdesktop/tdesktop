@@ -47,6 +47,12 @@ namespace {
 
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
+[[nodiscard]] bool HasTrayIcon() {
+	return Core::App().settings().workMode()
+		!= Core::Settings::WorkMode::WindowOnly
+		&& Platform::TrayIconSupported();
+}
+
 } // namespace
 
 const QImage &Logo() {
@@ -903,7 +909,7 @@ Core::WindowPosition MainWindow::SecondaryInitPosition() {
 }
 
 bool MainWindow::minimizeToTray() {
-	if (Core::Quitting()/* || !hasTrayIcon()*/) {
+	if (Core::Quitting() || !HasTrayIcon()) {
 		return false;
 	}
 
