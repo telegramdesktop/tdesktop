@@ -479,14 +479,14 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 			Flag::Verified | Flag::Scam | Flag::Fake),
 		Data::PeerPremiumValue(peer)
 	) | rpl::map([=](base::flags<Flag> value, bool premium) {
-		return (value & Flag::Verified)
-			? Badge::Verified
-			: premium
-			? Badge::Premium
-			: (value & Flag::Scam)
+		return (value & Flag::Scam)
 			? Badge::Scam
 			: (value & Flag::Fake)
 			? Badge::Fake
+			: (value & Flag::Verified)
+			? Badge::Verified
+			: premium
+			? Badge::Premium
 			: Badge::None;
 	});
 }
