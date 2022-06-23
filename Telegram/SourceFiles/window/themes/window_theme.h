@@ -243,6 +243,7 @@ private:
 	[[nodiscard]] bool isNonDefaultBackground();
 	void checkUploadWallPaper();
 	[[nodiscard]] QImage postprocessBackgroundImage(QImage image);
+	void refreshThemeWatcher();
 
 	friend bool IsNightMode();
 	friend void SetNightModeValue(bool nightMode);
