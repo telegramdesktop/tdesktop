@@ -439,6 +439,7 @@ COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 
 RUN git clone -b 1.22.1 --depth=1 $GIT/kcat/openal-soft.git \
 	&& cd openal-soft \
+	&& sed -i 's@PW_CHECK_VERSION(major, minor, revision)@!PW_CHECK_VERSION(major, minor, revision + 1)@' alc/backends/pipewire.cpp \
 	&& CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLIBTYPE:STRING=STATIC \
