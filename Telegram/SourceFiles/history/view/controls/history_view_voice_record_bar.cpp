@@ -408,6 +408,7 @@ void ListenWrap::initPlayButton() {
 	using State = TrackState;
 
 	_mediaView->setBytes(_data->bytes);
+	_document->size = _data->bytes.size();
 	_document->type = VoiceDocument;
 
 	const auto &play = _playPauseSt.playOuter;
