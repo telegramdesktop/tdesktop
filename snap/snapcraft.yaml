@@ -256,6 +256,9 @@ parts:
       - -DALSOFT_EXAMPLES=OFF
       - -DALSOFT_UTILS=OFF
       - -DALSOFT_INSTALL_CONFIG=OFF
+    override-pull: |
+      craftctl default
+      sed -i 's@PW_CHECK_VERSION(major, minor, revision)@!PW_CHECK_VERSION(major, minor, revision + 1)@' alc/backends/pipewire.cpp
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
