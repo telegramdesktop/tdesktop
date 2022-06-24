@@ -148,7 +148,7 @@ enum LocationType {
 	SecureFileLocation = 0xcbc7ee28, // mtpc_inputSecureFileLocation
 };
 
-enum FileStatus : char {
+enum FileStatus : signed char {
 	FileDownloadFailed = -2,
 	FileUploadFailed = -1,
 	FileReady = 1,
