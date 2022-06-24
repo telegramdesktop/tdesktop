@@ -265,15 +265,25 @@ Widget::Widget(
 				: row.message.fullId.msg;
 			if (row.newWindow && controller->canShowSeparateWindow(peer)) {
 				const auto active = controller->activeChatCurrent();
-				if (const auto history = active.history()) {
-					if (history->peer == peer) {
+				const auto fromActive = active.history()
+					? (active.history()->peer == peer)
+					: false;
+				const auto toSeparate = [=] {
+					Core::App().ensureSeparateWindowForPeer(
+						peer,
+						showAtMsgId);
+				};
+				if (fromActive) {
+					controller->window().preventOrInvoke([=] {
 						controller->content()->ui_showPeerHistory(
 							0,
 							Window::SectionShow::Way::ClearStack,
 							0);
-					}
+						toSeparate();
+					});
+				} else {
+					toSeparate();
 				}
-				Core::App().ensureSeparateWindowForPeer(peer, showAtMsgId);
 			} else {
 				controller->content()->choosePeer(peer->id, showAtMsgId);
 			}
