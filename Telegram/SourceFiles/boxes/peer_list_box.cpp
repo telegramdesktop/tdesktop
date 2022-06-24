@@ -658,7 +658,7 @@ int PeerListRow::nameIconWidth() const {
 		? 0
 		: _peer->isVerified()
 		? st::dialogsVerifiedIcon.width()
-		: _peer->isPremium()
+		: (_peer->isPremium() && !_peer->isSelf())
 		? st::dialogsPremiumIcon.width()
 		: 0;
 }
@@ -671,7 +671,7 @@ void PeerListRow::paintNameIcon(
 		bool selected) {
 	if (_peer->isVerified()) {
 		st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
-	} else if (_peer->isPremium()) {
+	} else if (_peer->isPremium() && !_peer->isSelf()) {
 		st::dialogsPremiumIcon.paint(p, x, y, outerWidth);
 	}
 }
