@@ -1,3 +1,9 @@
+4.0.2 (24.06.22)
+
+- Fix window title on Windows 7. (again)
+- Fix file chooser and global menu on macOS.
+- Crash fix and OpenAL check for PipeWire fix on Linux.
+
 4.0.1 (23.06.22)
 
 - Fix window title on Windows 7.
