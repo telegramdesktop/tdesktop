@@ -1242,6 +1242,10 @@ void Message::paintText(
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
 	item->_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, context.selection);
+	if (!_heavyCustomEmoji && item->_text.hasCustomEmoji()) {
+		_heavyCustomEmoji = true;
+		history()->owner().registerHeavyViewPart(const_cast<Message*>(this));
+	}
 }
 
 PointState Message::pointState(QPoint point) const {
@@ -1368,12 +1372,16 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 }
 
 bool Message::hasHeavyPart() const {
-	return _comments || Element::hasHeavyPart();
+	return _heavyCustomEmoji || _comments || Element::hasHeavyPart();
 }
 
 void Message::unloadHeavyPart() {
 	Element::unloadHeavyPart();
 	_comments = nullptr;
+	if (_heavyCustomEmoji) {
+		_heavyCustomEmoji = false;
+		message()->_text.unloadCustomEmoji();
+	}
 }
 
 bool Message::showForwardsFromSender(

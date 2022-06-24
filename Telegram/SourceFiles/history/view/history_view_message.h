@@ -252,6 +252,7 @@ private:
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
+	mutable bool _heavyCustomEmoji = false;
 
 	BottomInfo _bottomInfo;
 

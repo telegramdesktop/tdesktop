@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/custom_emoji_instance.h"
+
+struct StickerSetIdentifier;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -14,6 +18,8 @@ class Session;
 namespace Data {
 
 class Session;
+struct CustomEmojiId;
+class CustomEmojiLoader;
 
 class CustomEmojiManager final {
 public:
@@ -28,7 +34,24 @@ public:
 	[[nodiscard]] Session &owner() const;
 
 private:
+	struct Set {
+		int32 hash = 0;
+		mtpRequestId requestId = 0;
+		base::flat_set<uint64> documents;
+		base::flat_set<uint64> waiting;
+	};
+
+	void requestSetIfNeeded(const CustomEmojiId &id);
+
 	const not_null<Session*> _owner;
+
+	base::flat_map<uint64, base::flat_map<
+		uint64,
+		std::unique_ptr<Ui::CustomEmoji::Instance>>> _instances;
+	base::flat_map<uint64, Set> _sets;
+	base::flat_map<
+		uint64,
+		std::vector<base::weak_ptr<CustomEmojiLoader>>> _loaders;
 
 };
 
