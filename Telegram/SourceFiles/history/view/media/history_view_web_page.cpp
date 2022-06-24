@@ -210,7 +210,11 @@ QSize WebPage::countOptimalSize() {
 				- st::msgPadding.right()
 				- st::webPageLeft);
 		}
-		auto context = Core::MarkedTextContext();
+		auto context = Core::MarkedTextContext{
+			.session = &history()->session(),
+			.customEmojiRepaint = [=] {
+				history()->owner().requestViewRepaint(_parent); },
+		};
 		using MarkedTextContext = Core::MarkedTextContext;
 		if (_data->siteName == qstr("Twitter")) {
 			context.type = MarkedTextContext::HashtagMentionType::Twitter;

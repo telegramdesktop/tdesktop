@@ -249,7 +249,9 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 	if (!my || !my->session) {
 		return nullptr;
 	}
-	return my->session->data().customEmojiManager().create(data);
+	return my->session->data().customEmojiManager().create(
+		data,
+		my->customEmojiRepaint);
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {

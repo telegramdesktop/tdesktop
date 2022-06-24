@@ -2265,7 +2265,8 @@ void OverlayWidget::refreshCaption() {
 		? TimestampLinkBase(_document, _message->fullId())
 		: QString();
 	const auto context = Core::MarkedTextContext{
-		.session = &_message->history()->session()
+		.session = &_message->history()->session(),
+		.customEmojiRepaint = [=] { update(); },
 	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,

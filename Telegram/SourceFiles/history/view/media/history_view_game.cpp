@@ -35,7 +35,9 @@ Game::Game(
 , _description(st::msgMinWidth - st::webPageLeft) {
 	if (!consumed.text.isEmpty()) {
 		const auto context = Core::MarkedTextContext{
-			.session = &history()->session()
+			.session = &history()->session(),
+			.customEmojiRepaint = [=] {
+				history()->owner().requestViewRepaint(_parent); },
 		};
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
@@ -428,7 +430,9 @@ void Game::parentTextUpdated() {
 		const auto consumed = media->consumedMessageText();
 		if (!consumed.text.isEmpty()) {
 			const auto context = Core::MarkedTextContext{
-				.session = &history()->session()
+				.session = &history()->session(),
+				.customEmojiRepaint = [=] {
+					history()->owner().requestViewRepaint(_parent); },
 			};
 			_description.setMarkedText(
 				st::webPageDescriptionStyle,

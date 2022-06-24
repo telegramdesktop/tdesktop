@@ -21,7 +21,8 @@ public:
 	~CustomEmojiManager();
 
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
-		const QString &data);
+		const QString &data,
+		Fn<void()> update);
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;

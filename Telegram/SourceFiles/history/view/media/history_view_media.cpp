@@ -200,7 +200,9 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 		- st::msgPadding.right();
 	auto result = Ui::Text::String(minResizeWidth);
 	const auto context = Core::MarkedTextContext{
-		.session = &history()->session()
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] {
+			history()->owner().requestViewRepaint(_parent); },
 	};
 	result.setMarkedText(
 		st::messageTextStyle,

@@ -11,6 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_file_origin.h"
+#include "lottie/lottie_common.h"
+#include "lottie/lottie_single_player.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "ui/text/text_block.h"
 
 namespace Data {
@@ -72,40 +77,74 @@ class DocumentCustomEmoji final : public CustomEmojiWithData {
 public:
 	DocumentCustomEmoji(
 		const QString &data,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		Fn<void()> update);
 
 	void paint(QPainter &p, int x, int y) override;
 
 private:
 	not_null<DocumentData*> _document;
+	std::shared_ptr<Data::DocumentMedia> _media;
+	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	Fn<void()> _update;
+	rpl::lifetime _lifetime;
 
 };
 
 DocumentCustomEmoji::DocumentCustomEmoji(
 	const QString &data,
-	not_null<DocumentData*> document)
+	not_null<DocumentData*> document,
+	Fn<void()> update)
 : CustomEmojiWithData(data)
-, _document(document) {
+, _document(document)
+, _update(update) {
 }
 
 void DocumentCustomEmoji::paint(QPainter &p, int x, int y) {
-	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
-	p.fillRect(QRect{ x, y, size, size }, Qt::red);
+	if (!_media) {
+		_media = _document->createMediaView();
+		_media->automaticLoad(_document->stickerSetOrigin(), nullptr);
+	}
+	if (_media->loaded() && !_lottie) {
+		const auto size = Ui::Emoji::GetSizeNormal();
+		_lottie = ChatHelpers::LottiePlayerFromDocument(
+			_media.get(),
+			nullptr,
+			ChatHelpers::StickerLottieSize::MessageHistory,
+			QSize(size, size),
+			Lottie::Quality::High);
+		_lottie->updates() | rpl::start_with_next(_update, _lifetime);
+	}
+	if (_lottie && _lottie->ready()) {
+		const auto frame = _lottie->frame();
+		p.drawImage(
+			QRect(
+				x,
+				y,
+				frame.width() / frame.devicePixelRatio(),
+				frame.height() / frame.devicePixelRatio()),
+			frame);
+		_lottie->markFrameShown();
+	}
 }
 
 class ResolvingCustomEmoji final : public CustomEmojiWithData {
 public:
-	explicit ResolvingCustomEmoji(const QString &data);
+	ResolvingCustomEmoji(const QString &data, Fn<void()> update);
 
 	void paint(QPainter &p, int x, int y) override;
 
 private:
 	std::optional<DocumentCustomEmoji> _resolved;
+	Fn<void()> _update;
 
 };
 
-ResolvingCustomEmoji::ResolvingCustomEmoji(const QString &data)
-: CustomEmojiWithData(data) {
+ResolvingCustomEmoji::ResolvingCustomEmoji(
+	const QString &data,
+	Fn<void()> update)
+: CustomEmojiWithData(data)
+, _update(update) {
 }
 
 void ResolvingCustomEmoji::paint(QPainter &p, int x, int y) {
@@ -123,16 +162,17 @@ CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 CustomEmojiManager::~CustomEmojiManager() = default;
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
-		const QString &data) {
+		const QString &data,
+		Fn<void()> update) {
 	const auto parsed = ParseCustomEmojiData(data);
 	if (!parsed.id) {
 		return nullptr;
 	}
 	const auto document = _owner->document(parsed.id);
 	if (!document->isNull()) {
-		return std::make_unique<DocumentCustomEmoji>(data, document);
+		return std::make_unique<DocumentCustomEmoji>(data, document, update);
 	}
-	return std::make_unique<ResolvingCustomEmoji>(data);
+	return std::make_unique<ResolvingCustomEmoji>(data, update);
 }
 
 Main::Session &CustomEmojiManager::session() const {
