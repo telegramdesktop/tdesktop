@@ -315,12 +315,15 @@ base::Observable<AudioMsgId> &Updated() {
 
 // Thread: Any. Must be locked: AudioMutex.
 float64 ComputeVolume(AudioMsgId::Type type) {
-	switch (type) {
-	case AudioMsgId::Type::Voice: return VolumeMultiplierAll;
-	case AudioMsgId::Type::Song: return VolumeMultiplierSong * mixer()->getSongVolume();
-	case AudioMsgId::Type::Video: return mixer()->getVideoVolume();
-	}
-	return 1.;
+	const auto gain = [&] {
+		switch (type) {
+		case AudioMsgId::Type::Voice: return VolumeMultiplierAll;
+		case AudioMsgId::Type::Song: return VolumeMultiplierSong * mixer()->getSongVolume();
+		case AudioMsgId::Type::Video: return mixer()->getVideoVolume();
+		}
+		return 1.;
+	}();
+	return gain * gain * gain;
 }
 
 Mixer *mixer() {
