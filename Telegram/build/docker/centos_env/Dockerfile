@@ -422,7 +422,7 @@ RUN git init ffmpeg \
 	&& rm -rf ffmpeg
 
 FROM builder AS pipewire
-RUN git clone -b 0.3.33 --depth=1 $GIT/PipeWire/pipewire.git \
+RUN git clone -b 0.3.25 --depth=1 $GIT/PipeWire/pipewire.git \
 	&& cd pipewire \
 	&& meson build \
 		--buildtype=release \
@@ -437,9 +437,8 @@ RUN git clone -b 0.3.33 --depth=1 $GIT/PipeWire/pipewire.git \
 FROM builder AS openal
 COPY --from=pipewire ${LibrariesPath}/pipewire-cache /
 
-RUN git clone -b 1.22.1 --depth=1 $GIT/kcat/openal-soft.git \
+RUN git clone -b 1.22.2 --depth=1 $GIT/kcat/openal-soft.git \
 	&& cd openal-soft \
-	&& sed -i 's@PW_CHECK_VERSION(major, minor, revision)@!PW_CHECK_VERSION(major, minor, revision + 1)@' alc/backends/pipewire.cpp \
 	&& CFLAGS="$HFLAGS" CXXFLAGS="$HFLAGS" cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DLIBTYPE:STRING=STATIC \
