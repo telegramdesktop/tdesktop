@@ -260,7 +260,7 @@ parts:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/libopenal.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
 
   qt:
     plugin: nil
@@ -401,8 +401,8 @@ parts:
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/librnnoise.la
-      - -./usr/lib/$CRAFT_ARCH_TRIPLET/librnnoise.so
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
   webrtc:
