@@ -375,6 +375,13 @@ void HistoryItem::invalidateChatListEntry() {
 	history()->lastItemDialogsView.itemInvalidated(this);
 }
 
+void HistoryItem::customEmojiRepaint() {
+	if (!_textRepaintScheduled) {
+		_textRepaintScheduled = true;
+		history()->owner().requestItemRepaint(this);
+	}
+}
+
 void HistoryItem::finishEditionToEmpty() {
 	finishEdition(-1);
 	_history->itemVanished(this);

@@ -463,6 +463,7 @@ protected:
 	MessageFlags _flags = 0;
 
 	void invalidateChatListEntry();
+	void customEmojiRepaint();
 
 	void setGroupId(MessageGroupId groupId);
 
@@ -473,6 +474,7 @@ protected:
 	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
+	bool _textRepaintScheduled = false;
 
 	struct SavedMediaData {
 		TextWithEntities text;

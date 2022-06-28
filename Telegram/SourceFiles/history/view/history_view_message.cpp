@@ -1258,6 +1258,7 @@ void Message::paintText(
 		0,
 		-1,
 		context.selection);
+	item->_textRepaintScheduled = false;
 	if (!_heavyCustomEmoji && custom) {
 		_heavyCustomEmoji = true;
 		history()->owner().registerHeavyViewPart(const_cast<Message*>(this));
