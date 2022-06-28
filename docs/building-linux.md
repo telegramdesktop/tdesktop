@@ -10,13 +10,14 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Prepare libraries
 
-Go to the `tdesktop` directory and run
+Install [poetry](https://python-poetry.org), go to the `tdesktop/Telegram/build/docker/centos_env` directory and run
 
-    docker build -t tdesktop:centos_env Telegram/build/docker/centos_env/
+    poetry install
+    poetry run gen_dockerfile | docker build -t tdesktop:centos_env -
 
 ### Building the project
 
-Make sure that you're still in the `tdesktop` directory and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
+Go up to the `tdesktop` directory and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
     docker run --rm -it \
         -v $PWD:/usr/src/tdesktop \
