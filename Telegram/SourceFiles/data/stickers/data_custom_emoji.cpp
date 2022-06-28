@@ -13,13 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
-#include "data/stickers/data_stickers_set.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_emoji.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/text/text_block.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
+
+#include "data/stickers/data_stickers.h"
+#include "data/stickers/data_stickers_set.h"
 
 namespace Data {
 
@@ -537,24 +539,39 @@ Session &CustomEmojiManager::owner() const {
 void FillTestCustomEmoji(
 		not_null<Main::Session*> session,
 		TextWithEntities &text) {
+	auto &sets = session->data().stickers().sets();
+	auto recentIt = sets.find(Data::Stickers::CloudRecentSetId);
 	const auto pack = &session->emojiStickersPack();
 	const auto begin = text.text.constData(), end = begin + text.text.size();
 	for (auto ch = begin; ch != end;) {
 		auto length = 0;
 		if (const auto emoji = Ui::Emoji::Find(ch, end, &length)) {
+			auto replace = (DocumentData*)nullptr;
+			if (recentIt != sets.end()) {
+				for (const auto document : recentIt->second->stickers) {
+					if (const auto sticker = document->sticker()) {
+						if (Ui::Emoji::Find(sticker->alt) == emoji) {
+							replace = document;
+						}
+					}
+				}
+			}
 			if (const auto found = pack->stickerForEmoji(emoji)) {
 				Assert(found.document->sticker() != nullptr);
-				if (found.document->sticker()->set.id) {
-					text.entities.push_back({
-						EntityType::CustomEmoji,
-						(ch - begin),
-						length,
-						SerializeCustomEmojiId({
-							found.document->sticker()->set,
-							found.document->id,
-						}),
-					});
+				if (!replace && found.document->sticker()->set.id) {
+					replace = found.document;
 				}
+			}
+			if (replace) {
+				text.entities.push_back({
+					EntityType::CustomEmoji,
+					(ch - begin),
+					length,
+					SerializeCustomEmojiId({
+						replace->sticker()->set,
+						replace->id,
+					}),
+				});
 			}
 			ch += length;
 		} else if (ch->isHighSurrogate()
