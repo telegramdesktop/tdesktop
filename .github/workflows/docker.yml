@@ -24,8 +24,16 @@ jobs:
         with:
           submodules: recursive
 
+      - name: First set up.
+        run: |
+          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
+          echo $HOME/.poetry/bin >> $GITHUB_PATH
+
       - name: Docker image build.
-        run: docker build -t $IMAGE_TAG --build-arg DEBUG= Telegram/build/docker/centos_env
+        run: |
+          cd Telegram/build/docker/centos_env
+          poetry install
+          DEBUG= poetry run gen_dockerfile | docker build -t $IMAGE_TAG -
       
       - name: Push the Docker image.
         if: ${{ github.ref_name == github.event.repository.default_branch }}
