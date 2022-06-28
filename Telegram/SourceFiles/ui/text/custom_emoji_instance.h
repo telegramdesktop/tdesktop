@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class QColor;
 class QPainter;
 
+namespace Ui {
+class FrameGenerator;
+} // namespace Ui
+
 namespace Ui::CustomEmoji {
 
 class Preview final {
@@ -23,6 +27,7 @@ public:
 	Preview(QPainterPath path, float64 scale);
 
 	void paint(QPainter &p, int x, int y, const QColor &preview);
+	[[nodiscard]] bool image() const;
 
 	[[nodiscard]] explicit operator bool() const {
 		return !v::is_null(_data);
@@ -45,81 +50,124 @@ private:
 
 };
 
+struct PaintFrameResult {
+	bool painted = false;
+	crl::time next = 0;
+	crl::time duration = 0;
+};
+
 class Cache final {
 public:
-	Cache(QSize size);
+	Cache(int size);
 
+	[[nodiscard]] static std::optional<Cache> FromSerialized(
+		const QByteArray &serialized);
+	[[nodiscard]] QByteArray serialize();
+
+	[[nodiscard]] int size() const;
 	[[nodiscard]] int frames() const;
 	[[nodiscard]] QImage frame(int index) const;
 	void reserve(int frames);
+	void add(crl::time duration, const QImage &frame);
+	void finish();
+
+	[[nodiscard]] Preview makePreview() const;
+
+	PaintFrameResult paintCurrentFrame(
+		QPainter &p,
+		int x,
+		int y,
+		crl::time now);
+	[[nodiscard]] int currentFrame() const;
 
 private:
-	static constexpr auto kPerRow = 30;
+	static constexpr auto kPerRow = 16;
+
+	[[nodiscard]] int frameRowByteSize() const;
+	[[nodiscard]] int frameByteSize() const;
+	[[nodiscard]] crl::time currentFrameFinishes() const;
 
 	std::vector<bytes::vector> _bytes;
 	std::vector<int> _durations;
-	QSize _size;
+	crl::time _shown = 0;
+	int _frame = 0;
+	int _size = 0;
 	int _frames = 0;
+	bool _finished = false;
 
 };
 
 class Loader;
 class Loading;
 
-class Unloader {
-public:
-	[[nodiscard]] virtual std::unique_ptr<Loader> unload() = 0;
-	virtual ~Unloader() = default;
-};
-
 class Cached final {
 public:
-	Cached(std::unique_ptr<Unloader> unloader, Cache cache);
+	Cached(
+		const QString &entityData,
+		Fn<std::unique_ptr<Loader>()> unloader,
+		Cache cache);
 
-	void paint(QPainter &p, int x, int y);
+	[[nodiscard]] QString entityData() const;
+
+	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
 	[[nodiscard]] Loading unload();
 
 private:
-	std::unique_ptr<Unloader> _unloader;
+	Fn<std::unique_ptr<Loader>()> _unloader;
 	Cache _cache;
+	QString _entityData;
 
 };
 
-class Cacher {
+struct RendererDescriptor {
+	Fn<std::unique_ptr<Ui::FrameGenerator>()> generator;
+	Fn<void(QByteArray)> put;
+	Fn<std::unique_ptr<Loader>()> loader;
+	int size = 0;
+};
+
+class Renderer final : public base::has_weak_ptr {
 public:
-	virtual bool paint(QPainter &p, int x, int y) = 0;
-	[[nodiscard]] virtual std::optional<Cached> ready() = 0;
-	[[nodiscard]] virtual std::unique_ptr<Loader> cancel() = 0;
-	virtual ~Cacher() = default;
+	explicit Renderer(RendererDescriptor &&descriptor);
+	virtual ~Renderer() = default;
 
-protected:
-	void reserve(int frames);
-	void add(crl::time duration, QImage frame);
+	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
+	[[nodiscard]] std::optional<Cached> ready(const QString &entityData);
+	[[nodiscard]] std::unique_ptr<Loader> cancel();
 
+	[[nodiscard]] Preview makePreview() const;
+
+	void setRepaintCallback(Fn<void()> repaint);
 	[[nodiscard]] Cache takeCache();
 
 private:
+	void frameReady(
+		std::unique_ptr<Ui::FrameGenerator> generator,
+		crl::time duration,
+		QImage frame);
+	void finish();
+
 	Cache _cache;
+	std::unique_ptr<Ui::FrameGenerator> _generator;
+	Fn<void(QByteArray)> _put;
+	Fn<void()> _repaint;
+	Fn<std::unique_ptr<Loader>()> _loader;
+	bool _finished = false;
 
 };
 
-class Caching final {
-public:
-	Caching(std::unique_ptr<Cacher> cacher, Preview preview);
-	void paint(QPainter &p, int x, int y, const QColor &preview);
-
-	[[nodiscard]] std::optional<Cached> ready();
-	[[nodiscard]] Loading cancel();
-
-private:
-	std::unique_ptr<Cacher> _cacher;
-	Preview _preview;
-
+struct Caching {
+	std::unique_ptr<Renderer> renderer;
+	QString entityData;
+	Preview preview;
 };
 
 class Loader {
 public:
-	virtual void load(Fn<void(Caching)> ready) = 0;
+	using LoadResult = std::variant<Caching, Cached>;
+	[[nodiscard]] virtual QString entityData() = 0;
+	virtual void load(Fn<void(LoadResult)> loaded) = 0;
+	[[nodiscard]] virtual bool loading() = 0;
 	virtual void cancel() = 0;
 	[[nodiscard]] virtual Preview preview() = 0;
 	virtual ~Loader() = default;
@@ -129,7 +177,10 @@ class Loading final : public base::has_weak_ptr {
 public:
 	Loading(std::unique_ptr<Loader> loader, Preview preview);
 
-	void load(Fn<void(Caching)> done);
+	[[nodiscard]] QString entityData() const;
+
+	void load(Fn<void(Loader::LoadResult)> done);
+	[[nodiscard]] bool loading() const;
 	void paint(QPainter &p, int x, int y, const QColor &preview);
 	void cancel();
 
@@ -139,21 +190,36 @@ private:
 
 };
 
-class Instance final {
+struct RepaintRequest {
+	crl::time when = 0;
+	crl::time duration = 0;
+};
+
+class Object;
+class Instance final : public base::has_weak_ptr {
 public:
-	Instance(const QString &entityData, Loading loading);
+	Instance(
+		Loading loading,
+		Fn<void(not_null<Instance*>, RepaintRequest)> repaintLater);
 
 	[[nodiscard]] QString entityData() const;
-	void paint(QPainter &p, int x, int y, const QColor &preview);
+	void paint(
+		QPainter &p,
+		int x,
+		int y,
+		crl::time now,
+		const QColor &preview,
+		bool paused);
 
-	void incrementUsage();
-	void decrementUsage();
+	void incrementUsage(not_null<Object*> object);
+	void decrementUsage(not_null<Object*> object);
+
+	void repaint();
 
 private:
 	std::variant<Loading, Caching, Cached> _state;
-	QString _entityData;
-
-	int _usage = 0;
+	base::flat_set<not_null<Object*>> _usage;
+	Fn<void(not_null<Instance*> that, RepaintRequest)> _repaintLater;
 
 };
 
@@ -165,15 +231,24 @@ public:
 
 class Object final : public Ui::Text::CustomEmoji {
 public:
-	Object(not_null<Instance*> instance);
+	Object(not_null<Instance*> instance, Fn<void()> repaint);
 	~Object();
 
 	QString entityData() override;
-	void paint(QPainter &p, int x, int y, const QColor &preview) override;
+	void paint(
+		QPainter &p,
+		int x,
+		int y,
+		crl::time now,
+		const QColor &preview,
+		bool paused) override;
 	void unload() override;
+
+	void repaint();
 
 private:
 	const not_null<Instance*> _instance;
+	Fn<void()> _repaint;
 	bool _using = false;
 
 };

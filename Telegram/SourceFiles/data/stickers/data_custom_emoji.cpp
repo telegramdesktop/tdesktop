@@ -15,9 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/stickers/data_stickers_set.h"
 #include "lottie/lottie_common.h"
-#include "lottie/lottie_single_player.h"
+#include "lottie/lottie_emoji.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/text/text_block.h"
+#include "ui/ui_utility.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -29,12 +30,40 @@ struct CustomEmojiId {
 
 namespace {
 
+using SizeTag = CustomEmojiManager::SizeTag;
+
+[[nodiscard]] ChatHelpers::StickerLottieSize LottieSizeFromTag(SizeTag tag) {
+	using LottieSize = ChatHelpers::StickerLottieSize;
+	switch (tag) {
+	case SizeTag::Normal: return LottieSize::MessageHistory;
+	case SizeTag::Large: return LottieSize::EmojiInteraction;
+	}
+	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
+}
+
+[[nodiscard]] int SizeFromTag(SizeTag tag) {
+	switch (tag) {
+	case SizeTag::Normal: return Ui::Emoji::GetSizeNormal();
+	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
+	}
+	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
+}
+
 [[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id) {
 	return QString::number(id.id)
 		+ '@'
 		+ QString::number(id.set.id)
 		+ ':'
 		+ QString::number(id.set.accessHash);
+}
+
+[[nodiscard]] QString SerializeCustomEmojiId(
+		not_null<DocumentData*> document) {
+	const auto sticker = document->sticker();
+	return SerializeCustomEmojiId({
+		sticker ? sticker->set : StickerSetIdentifier(),
+		document->id,
+	});
 }
 
 [[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data) {
@@ -56,120 +85,83 @@ namespace {
 	};
 }
 
-class CustomEmojiWithData {
-public:
-	explicit CustomEmojiWithData(const QString &data);
-
-	QString entityData();
-
-private:
-	const QString _data;
-
-};
-
-CustomEmojiWithData::CustomEmojiWithData(const QString &data) : _data(data) {
-}
-
-QString CustomEmojiWithData::entityData() {
-	return _data;
-}
-
-class DocumentCustomEmoji final : public CustomEmojiWithData {
-public:
-	DocumentCustomEmoji(
-		const QString &data,
-		not_null<DocumentData*> document,
-		Fn<void()> update);
-
-	void paint(QPainter &p, int x, int y, const QColor &preview);
-
-private:
-	not_null<DocumentData*> _document;
-	std::shared_ptr<Data::DocumentMedia> _media;
-	std::unique_ptr<Lottie::SinglePlayer> _lottie;
-	Fn<void()> _update;
-	rpl::lifetime _lifetime;
-
-};
-
-DocumentCustomEmoji::DocumentCustomEmoji(
-	const QString &data,
-	not_null<DocumentData*> document,
-	Fn<void()> update)
-: CustomEmojiWithData(data)
-, _document(document)
-, _update(update) {
-}
-
-void DocumentCustomEmoji::paint(QPainter &p, int x, int y, const QColor &preview) {
-	if (!_media) {
-		_media = _document->createMediaView();
-		_media->automaticLoad(_document->stickerSetOrigin(), nullptr);
-	}
-	if (_media->loaded() && !_lottie) {
-		const auto size = Ui::Emoji::GetSizeNormal();
-		_lottie = ChatHelpers::LottiePlayerFromDocument(
-			_media.get(),
-			nullptr,
-			ChatHelpers::StickerLottieSize::MessageHistory,
-			QSize(size, size),
-			Lottie::Quality::High);
-		_lottie->updates() | rpl::start_with_next(_update, _lifetime);
-	}
-	if (_lottie && _lottie->ready()) {
-		const auto frame = _lottie->frame();
-		p.drawImage(
-			QRect(
-				x,
-				y,
-				frame.width() / frame.devicePixelRatio(),
-				frame.height() / frame.devicePixelRatio()),
-			frame);
-		_lottie->markFrameShown();
-	}
-}
-
 } // namespace
 
 class CustomEmojiLoader final
 	: public Ui::CustomEmoji::Loader
 	, public base::has_weak_ptr {
 public:
-	CustomEmojiLoader(not_null<Session*> owner, const CustomEmojiId id);
+	CustomEmojiLoader(
+		not_null<Session*> owner,
+		const CustomEmojiId id,
+		SizeTag tag);
+	CustomEmojiLoader(not_null<DocumentData*> document, SizeTag tag);
 
 	[[nodiscard]] bool resolving() const;
 	void resolved(not_null<DocumentData*> document);
 
-	void load(Fn<void(Ui::CustomEmoji::Caching)> ready) override;
+	QString entityData() override;
+
+	void load(Fn<void(LoadResult)> loaded) override;
+	bool loading() override;
 	void cancel() override;
 	Ui::CustomEmoji::Preview preview() override;
 
 private:
 	struct Resolve {
-		Fn<void(Ui::CustomEmoji::Caching)> requested;
+		Fn<void(LoadResult)> requested;
+		QString entityData;
 	};
 	struct Process {
 		std::shared_ptr<DocumentMedia> media;
-		Fn<void(Ui::CustomEmoji::Caching)> callback;
+		Fn<void(LoadResult)> loaded;
+		base::has_weak_ptr guard;
 		rpl::lifetime lifetime;
 	};
-	struct Load {
+	struct Requested {
 		not_null<DocumentData*> document;
 		std::unique_ptr<Process> process;
 	};
+	struct Lookup : Requested {
+	};
+	struct Load : Requested {
+	};
 
-	[[nodiscard]] static std::variant<Resolve, Load> InitialState(
+	void check();
+	[[nodiscard]] Storage::Cache::Key cacheKey(
+		not_null<DocumentData*> document) const;
+	void startCacheLookup(
+		not_null<Lookup*> lookup,
+		Fn<void(LoadResult)> loaded);
+	void lookupDone(
+		not_null<Lookup*> lookup,
+		std::optional<Ui::CustomEmoji::Cache> result);
+	void loadNoCache(
+		not_null<DocumentData*> document,
+		Fn<void(LoadResult)> loaded);
+
+	[[nodiscard]] static std::variant<Resolve, Lookup, Load> InitialState(
 		not_null<Session*> owner,
 		const CustomEmojiId &id);
 
-	std::variant<Resolve, Load> _state;
+	std::variant<Resolve, Lookup, Load> _state;
+	SizeTag _tag = SizeTag::Normal;
 
 };
 
 CustomEmojiLoader::CustomEmojiLoader(
 	not_null<Session*> owner,
-	const CustomEmojiId id)
-: _state(InitialState(owner, id)) {
+	const CustomEmojiId id,
+	SizeTag tag)
+: _state(InitialState(owner, id))
+, _tag(tag) {
+}
+
+CustomEmojiLoader::CustomEmojiLoader(
+	not_null<DocumentData*> document,
+	SizeTag tag)
+: _state(Lookup{ document })
+, _tag(tag) {
 }
 
 bool CustomEmojiLoader::resolving() const {
@@ -180,41 +172,179 @@ void CustomEmojiLoader::resolved(not_null<DocumentData*> document) {
 	Expects(resolving());
 
 	auto requested = std::move(v::get<Resolve>(_state).requested);
-	_state = Load{ document };
+	_state = Lookup{ document };
 	if (requested) {
 		load(std::move(requested));
 	}
 }
 
-void CustomEmojiLoader::load(Fn<void(Ui::CustomEmoji::Caching)> ready) {
+void CustomEmojiLoader::load(Fn<void(LoadResult)> loaded) {
 	if (const auto resolve = std::get_if<Resolve>(&_state)) {
-		resolve->requested = std::move(ready);
+		resolve->requested = std::move(loaded);
+	} else if (const auto lookup = std::get_if<Lookup>(&_state)) {
+		if (!lookup->process) {
+			startCacheLookup(lookup, std::move(loaded));
+		} else {
+			lookup->process->loaded = std::move(loaded);
+		}
 	} else if (const auto load = std::get_if<Load>(&_state)) {
 		if (!load->process) {
 			load->process = std::make_unique<Process>(Process{
 				.media = load->document->createMediaView(),
-				.callback = std::move(ready),
+				.loaded = std::move(loaded),
 			});
 			load->process->media->checkStickerLarge();
+			if (load->process->media->loaded()) {
+				check();
+			} else {
+				load->document->session().downloaderTaskFinished(
+				) | rpl::start_with_next([=] {
+					check();
+				}, load->process->lifetime);
+			}
 		} else {
-			load->process->callback = std::move(ready);
+			load->process->loaded = std::move(loaded);
 		}
 	}
+}
+
+QString CustomEmojiLoader::entityData() {
+	if (const auto resolve = std::get_if<Resolve>(&_state)) {
+		return resolve->entityData;
+	} else if (const auto lookup = std::get_if<Lookup>(&_state)) {
+		return SerializeCustomEmojiId(lookup->document);
+	} else if (const auto load = std::get_if<Load>(&_state)) {
+		return SerializeCustomEmojiId(load->document);
+	}
+	Unexpected("State in CustomEmojiLoader::entityData.");
+}
+
+bool CustomEmojiLoader::loading() {
+	if (const auto resolve = std::get_if<Resolve>(&_state)) {
+		return (resolve->requested != nullptr);
+	} else if (const auto lookup = std::get_if<Lookup>(&_state)) {
+		return (lookup->process != nullptr);
+	} else if (const auto load = std::get_if<Load>(&_state)) {
+		return (load->process != nullptr);
+	}
+	return false;
+}
+
+Storage::Cache::Key CustomEmojiLoader::cacheKey(
+		not_null<DocumentData*> document) const {
+	const auto baseKey = document->bigFileBaseCacheKey();
+	if (!baseKey) {
+		return {};
+	}
+	return Storage::Cache::Key{
+		baseKey.high,
+		baseKey.low + ChatHelpers::LottieCacheKeyShift(
+			0x0F,
+			LottieSizeFromTag(_tag)),
+	};
+}
+
+void CustomEmojiLoader::startCacheLookup(
+		not_null<Lookup*> lookup,
+		Fn<void(LoadResult)> loaded) {
+	const auto document = lookup->document;
+	const auto key = cacheKey(document);
+	if (!key) {
+		loadNoCache(document, std::move(loaded));
+		return;
+	}
+	lookup->process = std::make_unique<Process>(Process{
+		.loaded = std::move(loaded),
+	});
+	const auto weak = base::make_weak(&lookup->process->guard);
+	document->owner().cacheBigFile().get(key, [=](QByteArray value) {
+		auto cache = Ui::CustomEmoji::Cache::FromSerialized(value);
+		crl::on_main(weak, [=, result = std::move(cache)]() mutable {
+			lookupDone(lookup, std::move(result));
+		});
+	});
+}
+
+void CustomEmojiLoader::lookupDone(
+		not_null<Lookup*> lookup,
+		std::optional<Ui::CustomEmoji::Cache> result) {
+	const auto document = lookup->document;
+	if (!result) {
+		loadNoCache(document, std::move(lookup->process->loaded));
+		return;
+	}
+	const auto tag = _tag;
+	auto loader = [=] {
+		return std::make_unique<CustomEmojiLoader>(document, tag);
+	};
+	lookup->process->loaded(Ui::CustomEmoji::Cached(
+		SerializeCustomEmojiId(document),
+		std::move(loader),
+		std::move(*result)));
+}
+
+void CustomEmojiLoader::loadNoCache(
+		not_null<DocumentData*> document,
+		Fn<void(LoadResult)> loaded) {
+	_state = Load{ document };
+	load(std::move(loaded));
+}
+
+void CustomEmojiLoader::check() {
+	using namespace Ui::CustomEmoji;
+
+	const auto load = std::get_if<Load>(&_state);
+	Assert(load != nullptr);
+	Assert(load->process != nullptr);
+
+	const auto media = load->process->media.get();
+	const auto document = media->owner();
+	const auto data = media->bytes();
+	const auto filepath = document->filepath();
+	if (data.isEmpty() && filepath.isEmpty()) {
+		return;
+	}
+	load->process->lifetime.destroy();
+
+	const auto tag = _tag;
+	const auto size = SizeFromTag(_tag);
+	auto bytes = Lottie::ReadContent(data, filepath);
+	auto loader = [=] {
+		return std::make_unique<CustomEmojiLoader>(document, tag);
+	};
+	auto put = [=, key = cacheKey(document)](QByteArray value) {
+		document->owner().cacheBigFile().put(key, std::move(value));
+	};
+	auto generator = [=, bytes = Lottie::ReadContent(data, filepath)]() {
+		return std::make_unique<Lottie::EmojiGenerator>(bytes);
+	};
+	auto renderer = std::make_unique<Renderer>(RendererDescriptor{
+		.generator = std::move(generator),
+		.put = std::move(put),
+		.loader = std::move(loader),
+		.size = SizeFromTag(_tag),
+	});
+	base::take(load->process)->loaded(Caching{
+		std::move(renderer),
+		SerializeCustomEmojiId(document),
+	});
 }
 
 auto CustomEmojiLoader::InitialState(
 	not_null<Session*> owner,
 	const CustomEmojiId &id)
--> std::variant<Resolve, Load> {
+-> std::variant<Resolve, Lookup, Load> {
 	const auto document = owner->document(id.id);
 	if (!document->isNull()) {
-		return Load{ document };
+		return Lookup{ document };
 	}
 	return Resolve();
 }
 
 void CustomEmojiLoader::cancel() {
-	if (const auto load = std::get_if<Load>(&_state)) {
+	if (const auto lookup = std::get_if<Lookup>(&_state)) {
+		base::take(lookup->process);
+	} else if (const auto load = std::get_if<Load>(&_state)) {
 		if (base::take(load->process)) {
 			load->document->cancel();
 		}
@@ -222,22 +352,28 @@ void CustomEmojiLoader::cancel() {
 }
 
 Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
-	if (const auto load = std::get_if<Load>(&_state)) {
-		if (const auto process = load->process.get()) {
-			const auto dimensions = load->document->dimensions;
-			if (!dimensions.width()) {
-				return {};
-			}
-			const auto scale = (Ui::Emoji::GetSizeNormal() * 1.)
-				/ (style::DevicePixelRatio() * dimensions.width());
-			return { process->media->thumbnailPath(), scale };
+	using Preview = Ui::CustomEmoji::Preview;
+	const auto make = [&](not_null<DocumentData*> document) -> Preview {
+		const auto dimensions = document->dimensions;
+		if (!document->inlineThumbnailIsPath()
+			|| !dimensions.width()) {
+			return {};
 		}
+		const auto scale = (SizeFromTag(_tag) * 1.)
+			/ (style::DevicePixelRatio() * dimensions.width());
+		return { document->createMediaView()->thumbnailPath(), scale };
+	};
+	if (const auto lookup = std::get_if<Lookup>(&_state)) {
+		return make(lookup->document);
+	} else if (const auto load = std::get_if<Load>(&_state)) {
+		return make(load->document);
 	}
 	return {};
 }
 
 CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
-: _owner(owner) {
+: _owner(owner)
+, _repaintTimer([=] { invokeRepaints(); }) {
 }
 
 CustomEmojiManager::~CustomEmojiManager() = default;
@@ -256,20 +392,30 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	auto j = i->second.find(parsed.id);
 	if (j == end(i->second)) {
 		using Loading = Ui::CustomEmoji::Loading;
-		auto loader = std::make_unique<CustomEmojiLoader>(_owner, parsed);
+		auto loader = std::make_unique<CustomEmojiLoader>(
+			_owner,
+			parsed,
+			SizeTag::Normal);
 		if (loader->resolving()) {
 			_loaders[parsed.id].push_back(base::make_weak(loader.get()));
 		}
+		const auto repaint = [=](
+				not_null<Ui::CustomEmoji::Instance*> instance,
+				Ui::CustomEmoji::RepaintRequest request) {
+			repaintLater(instance, request);
+		};
 		j = i->second.emplace(
 			parsed.id,
-			std::make_unique<Ui::CustomEmoji::Instance>(data, Loading{
+			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
 				std::move(loader),
 				Ui::CustomEmoji::Preview()
-			})).first;
+			}, std::move(repaint))).first;
 	}
 	requestSetIfNeeded(parsed);
 
-	return std::make_unique<Ui::CustomEmoji::Object>(j->second.get());
+	return std::make_unique<Ui::CustomEmoji::Object>(
+		j->second.get(),
+		std::move(update));
 }
 
 void CustomEmojiManager::requestSetIfNeeded(const CustomEmojiId &id) {
@@ -320,6 +466,64 @@ void CustomEmojiManager::requestSetIfNeeded(const CustomEmojiId &id) {
 		i->second.requestId = 0;
 		LOG(("API Error: Failed getting set '%1' for emoji.").arg(setId));
 	}).send();
+}
+
+void CustomEmojiManager::repaintLater(
+		not_null<Ui::CustomEmoji::Instance*> instance,
+		Ui::CustomEmoji::RepaintRequest request) {
+	auto &bunch = _repaints[request.duration];
+	if (bunch.when < request.when) {
+		bunch.when = request.when;
+	}
+	bunch.instances.emplace_back(instance);
+	scheduleRepaintTimer();
+}
+
+void CustomEmojiManager::scheduleRepaintTimer() {
+	if (_repaintTimerScheduled) {
+		return;
+	}
+	_repaintTimerScheduled = true;
+	Ui::PostponeCall(this, [=] {
+		_repaintTimerScheduled = false;
+
+		auto next = crl::time();
+		for (const auto &[duration, bunch] : _repaints) {
+			if (!next || next > bunch.when) {
+				next = bunch.when;
+			}
+		}
+		if (next && (!_repaintNext || _repaintNext > next)) {
+			const auto now = crl::now();
+			if (now >= next) {
+				_repaintNext = 0;
+				_repaintTimer.cancel();
+				invokeRepaints();
+			} else {
+				_repaintNext = next;
+				_repaintTimer.callOnce(next - now);
+			}
+		}
+	});
+}
+
+void CustomEmojiManager::invokeRepaints() {
+	_repaintNext = 0;
+	const auto now = crl::now();
+	for (auto i = begin(_repaints); i != end(_repaints);) {
+		if (i->second.when > now) {
+			++i;
+			continue;
+		}
+		auto bunch = std::move(i->second);
+		i = _repaints.erase(i);
+		for (const auto &weak : bunch.instances) {
+			if (const auto strong = weak.get()) {
+				strong->repaint();
+			}
+		}
+	}
+	scheduleRepaintTimer();
 }
 
 Main::Session &CustomEmojiManager::session() const {

@@ -841,6 +841,7 @@ void SessionController::setupPremiumToast() {
 	}) | rpl::distinct_until_changed() | rpl::skip(
 		1
 	) | rpl::filter([=](bool premium) {
+		session().mtp().requestConfig();
 		return premium;
 	}) | rpl::start_with_next([=] {
 		Ui::Toast::Show(

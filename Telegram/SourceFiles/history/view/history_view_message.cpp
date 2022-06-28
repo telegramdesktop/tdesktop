@@ -275,8 +275,12 @@ Message::Message(
 }
 
 Message::~Message() {
-	if (_comments) {
+	if (_comments || _heavyCustomEmoji) {
 		_comments = nullptr;
+		if (_heavyCustomEmoji) {
+			_heavyCustomEmoji = false;
+			message()->_text.unloadCustomEmoji();
+		}
 		checkHeavyPart();
 	}
 }
@@ -1241,8 +1245,20 @@ void Message::paintText(
 	const auto stm = context.messageStyle();
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
-	item->_text.draw(p, trect.x(), trect.y(), trect.width(), style::al_left, 0, -1, context.selection);
-	if (!_heavyCustomEmoji && item->_text.hasCustomEmoji()) {
+	const auto custom = item->_text.hasCustomEmoji();
+	if (custom) {
+		p.setInactive(delegate()->elementIsGifPaused());
+	}
+	item->_text.draw(
+		p,
+		trect.x(),
+		trect.y(),
+		trect.width(),
+		style::al_left,
+		0,
+		-1,
+		context.selection);
+	if (!_heavyCustomEmoji && custom) {
 		_heavyCustomEmoji = true;
 		history()->owner().registerHeavyViewPart(const_cast<Message*>(this));
 	}
