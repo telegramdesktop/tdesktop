@@ -6,7 +6,7 @@ jobs:
   publish:
     runs-on: windows-latest # action can only be run on windows
     steps:
-      - uses: vedantmgoyal2009/winget-releaser@latest
+      - uses: telegramdesktop/winget-releaser@latest
         with:
           identifier: Telegram.TelegramDesktop
           token: ${{ secrets.WINGET_TOKEN }}
