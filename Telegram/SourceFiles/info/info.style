@@ -639,7 +639,7 @@ topBarBackward: icon {{ "title_back", menuIconFg }};
 topBarForwardAlpha: 0.6;
 topBarBack: icon {{ "title_back", lightButtonFg }};
 topBarArrowPadding: margins(39px, 8px, 17px, 8px);
-topBarMinPadding: 5px;
+topBarNameRightPadding: 3px;
 topBarButton: RoundButton(defaultLightButton) {
 	width: -18px;
 	padding: margins(0px, 10px, 12px, 10px);

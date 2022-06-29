@@ -425,7 +425,10 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	auto nameleft = _leftTaken;
 	auto nametop = st::topBarArrowPadding.top();
 	auto statustop = st::topBarHeight - st::topBarArrowPadding.bottom() - st::dialogsTextFont->height;
-	auto availableWidth = width() - _rightTaken - nameleft;
+	auto availableWidth = width()
+		- _rightTaken
+		- nameleft
+		- st::topBarNameRightPadding;
 
 	if (_chooseForReportReason) {
 		const auto text = [&] {
