@@ -230,7 +230,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_limits_increase" = "Increase Limit";
 
-"lng_sticker_premium_title" = "With Effects";
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
 "lng_reaction_premium_info" = "Click on the reaction to preview the animation.";

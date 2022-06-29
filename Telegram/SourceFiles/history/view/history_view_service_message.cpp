@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
+#include "menu/menu_ttl_validator.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 
@@ -612,6 +613,12 @@ TextState Service::textState(QPoint point, StateRequest request) const {
 				const auto peer = history()->peer;
 				if (PeerHasThisCall(peer, call->id).value_or(false)) {
 					result.link = call->link;
+				}
+			} else if (const auto theme = item->Get<HistoryServiceChatThemeChange>()) {
+				result.link = theme->link;
+			} else if (const auto ttl = item->Get<HistoryServiceTTLChange>()) {
+				if (TTLMenu::TTLValidator(nullptr, history()->peer).can()) {
+					result.link = ttl->link;
 				}
 			}
 		}

@@ -34,12 +34,19 @@ public:
 	void showFor(not_null<DocumentData*> document);
 
 private:
+	void requestSet();
+	void cancelRequest();
+	void showWithTitle(const QString &title);
+	[[nodiscard]] QString lookupTitle() const;
+
 	const not_null<Window::SessionController*> _controller;
 	const not_null<QWidget*> _parent;
 	style::Toast _st;
 	base::weak_ptr<Ui::Toast::Instance> _weak;
 	DocumentData *_for = nullptr;
 	Fn<void()> _destroy;
+
+	mtpRequestId _setRequestId = 0;
 
 };
 

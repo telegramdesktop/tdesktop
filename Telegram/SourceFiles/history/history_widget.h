@@ -391,6 +391,7 @@ private:
 	void handleHistoryChange(not_null<const History*> history);
 	void showAboutTopPromotion();
 	void unreadCountUpdated();
+	void closeCurrent();
 
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
@@ -743,6 +744,7 @@ private:
 	bool _inClickable = false;
 
 	bool _kbShown = false;
+	bool _fieldIsEmpty = true;
 	HistoryItem *_kbReplyTo = nullptr;
 	object_ptr<Ui::ScrollArea> _kbScroll;
 	const not_null<BotKeyboard*> _keyboard;

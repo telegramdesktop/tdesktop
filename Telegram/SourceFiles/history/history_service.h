@@ -59,6 +59,16 @@ struct HistoryServiceOngoingCall
 	rpl::lifetime lifetime;
 };
 
+struct HistoryServiceChatThemeChange
+: public RuntimeComponent<HistoryServiceChatThemeChange, HistoryItem> {
+	ClickHandlerPtr link;
+};
+
+struct HistoryServiceTTLChange
+: public RuntimeComponent<HistoryServiceTTLChange, HistoryItem> {
+	ClickHandlerPtr link;
+};
+
 namespace HistoryView {
 class ServiceMessagePainter;
 } // namespace HistoryView
@@ -155,6 +165,8 @@ private:
 	void updateDependentText();
 	void updateText(PreparedText &&text);
 	void clearDependency();
+	void setupChatThemeChange();
+	void setupTTLChange();
 
 	void createFromMtp(const MTPDmessage &message);
 	void createFromMtp(const MTPDmessageService &message);

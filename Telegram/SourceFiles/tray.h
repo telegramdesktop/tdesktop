@@ -23,6 +23,8 @@ public:
 	[[nodiscard]] rpl::producer<> showFromTrayRequests() const;
 	[[nodiscard]] rpl::producer<> hideToTrayRequests() const;
 
+	[[nodiscard]] bool has() const;
+
 private:
 	void rebuildMenu();
 	void toggleSoundNotifications();

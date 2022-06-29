@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_domain.h" // Core::App().domain().activate().
+#include "menu/menu_ttl_validator.h"
 #include "apiwrap.h"
 #include "history/history.h"
 #include "history/view/media/history_view_invoice.h"
@@ -1362,7 +1363,11 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	const auto type = message.vaction().type();
-	if (type == mtpc_messageActionGameScore) {
+	if (type == mtpc_messageActionSetChatTheme) {
+		setupChatThemeChange();
+	} else if (type == mtpc_messageActionSetMessagesTTL) {
+		setupTTLChange();
+	} else if (type == mtpc_messageActionGameScore) {
 		const auto &data = message.vaction().c_messageActionGameScore();
 		UpdateComponents(HistoryServiceGameScore::Bit());
 		Get<HistoryServiceGameScore>()->score = data.vscore().v;
@@ -1523,6 +1528,42 @@ void HistoryService::clearDependency() {
 			dependent->msgId = 0;
 		}
 	}
+}
+
+void HistoryService::setupChatThemeChange() {
+	if (const auto user = history()->peer->asUser()) {
+		auto link = std::make_shared<LambdaClickHandler>([=](
+				ClickContext context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			if (const auto controller = my.sessionWindow.get()) {
+				controller->toggleChooseChatTheme(user);
+			}
+		});
+
+		UpdateComponents(HistoryServiceChatThemeChange::Bit());
+		Get<HistoryServiceChatThemeChange>()->link = std::move(link);
+	} else {
+		RemoveComponents(HistoryServiceChatThemeChange::Bit());
+	}
+}
+
+void HistoryService::setupTTLChange() {
+	const auto peer = history()->peer;
+	auto link = std::make_shared<LambdaClickHandler>([=](
+			ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			const auto validator = TTLMenu::TTLValidator(
+				std::make_shared<Window::Show>(controller),
+				peer);
+			if (validator.can()) {
+				validator.showBox();
+			}
+		}
+	});
+
+	UpdateComponents(HistoryServiceTTLChange::Bit());
+	Get<HistoryServiceTTLChange>()->link = std::move(link);
 }
 
 void HistoryService::dependencyItemRemoved(HistoryItem *dependency) {

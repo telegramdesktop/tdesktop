@@ -165,8 +165,8 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		const auto filesize = info.size();
 		if (filesize > kFileSizePremiumLimit) {
 			return MimeDataState::None;
-		} else if (filesize > kFileSizeLimit) {
-			return MimeDataState::PremiumFile;
+		//} else if (filesize > kFileSizeLimit) {
+		//	return MimeDataState::PremiumFile;
 		} else if (allAreSmallImages) {
 			if (filesize > Images::kReadBytesLimit) {
 				allAreSmallImages = false;

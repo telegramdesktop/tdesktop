@@ -608,7 +608,7 @@ void Controller::refreshHistoryVisibility() {
 	const auto withUsername = _typeDataSavedValue
 		&& (_typeDataSavedValue->privacy == Privacy::HasUsername);
 	_controls.historyVisibilityWrap->toggle(
-		(withUsername
+		(!withUsername
 			&& !_channelHasLocationOriginalValue
 			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
 		anim::type::instant);

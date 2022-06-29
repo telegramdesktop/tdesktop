@@ -408,6 +408,7 @@ void ListenWrap::initPlayButton() {
 	using State = TrackState;
 
 	_mediaView->setBytes(_data->bytes);
+	_document->size = _data->bytes.size();
 	_document->type = VoiceDocument;
 
 	const auto &play = _playPauseSt.playOuter;
@@ -1415,7 +1416,6 @@ void VoiceRecordBar::hideFast() {
 	hide();
 	_lock->hide();
 	_level->hide();
-	stopRecording(StopType::Cancel);
 }
 
 void VoiceRecordBar::stopRecording(StopType type) {
@@ -1542,7 +1542,10 @@ void VoiceRecordBar::hideAnimated() {
 		return;
 	}
 	_lockShowing = false;
-	visibilityAnimate(false, [=] { hideFast(); });
+	visibilityAnimate(false, [=] {
+		hideFast();
+		stopRecording(StopType::Cancel);
+	});
 }
 
 void VoiceRecordBar::finishAnimating() {
@@ -1676,6 +1679,7 @@ void VoiceRecordBar::showDiscardBox(
 	auto sure = [=, callback = std::move(callback)](Fn<void()> &&close) {
 		if (animated == anim::type::instant) {
 			hideFast();
+			stopRecording(StopType::Cancel);
 		} else {
 			hideAnimated();
 		}
