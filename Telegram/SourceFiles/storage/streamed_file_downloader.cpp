@@ -107,7 +107,7 @@ void StreamedFileDownloader::requestPart() {
 	++_partsRequested;
 }
 
-QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
+QByteArray StreamedFileDownloader::readLoadedPart(int64 offset) {
 	Expects(offset >= 0 && offset < _fullSize);
 	Expects(!(offset % kPartSize));
 

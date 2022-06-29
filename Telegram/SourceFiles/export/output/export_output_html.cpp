@@ -274,6 +274,9 @@ QByteArray FormatText(
 			"onclick=\"ShowSpoiler(this)\">"
 			"<span aria-hidden=\"true\">"
 			+ text + "</span></span>";
+		case Type::CustomEmoji: return SerializeString("{custom_emoji}")
+			+ text // TODO custom-emoji
+			+ SerializeString("{/custom_emoji}");
 		}
 		Unexpected("Type in text entities serialization.");
 	}) | ranges::to_vector);

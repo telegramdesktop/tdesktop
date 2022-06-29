@@ -22,15 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "data/stickers/data_stickers.h"
-#include "data/stickers/data_stickers_set.h"
 
 namespace Data {
-
-struct CustomEmojiId {
-	StickerSetIdentifier set;
-	uint64 id = 0;
-};
-
 namespace {
 
 using SizeTag = CustomEmojiManager::SizeTag;
@@ -50,42 +43,6 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
-}
-
-[[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id) {
-	return QString::number(id.id)
-		+ '@'
-		+ QString::number(id.set.id)
-		+ ':'
-		+ QString::number(id.set.accessHash);
-}
-
-[[nodiscard]] QString SerializeCustomEmojiId(
-		not_null<DocumentData*> document) {
-	const auto sticker = document->sticker();
-	return SerializeCustomEmojiId({
-		sticker ? sticker->set : StickerSetIdentifier(),
-		document->id,
-	});
-}
-
-[[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data) {
-	const auto parts = data.split('@');
-	if (parts.size() != 2) {
-		return {};
-	}
-	const auto id = parts[0].toULongLong();
-	if (!id) {
-		return {};
-	}
-	const auto second = parts[1].split(':');
-	return {
-		.set = {
-			.id = second[0].toULongLong(),
-			.accessHash = second[1].toULongLong(),
-		},
-		.id = id
-	};
 }
 
 } // namespace
@@ -392,7 +349,7 @@ CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 CustomEmojiManager::~CustomEmojiManager() = default;
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
-		const QString &data,
+		QStringView data,
 		Fn<void()> update) {
 	const auto parsed = ParseCustomEmojiData(data);
 	if (!parsed.id || !parsed.set.id) {
@@ -547,56 +504,46 @@ Session &CustomEmojiManager::owner() const {
 	return *_owner;
 }
 
-void FillTestCustomEmoji(
-		not_null<Main::Session*> session,
-		TextWithEntities &text) {
-	auto &sets = session->data().stickers().sets();
-	auto recentIt = sets.find(Data::Stickers::CloudRecentSetId);
-	const auto pack = &session->emojiStickersPack();
-	const auto begin = text.text.constData(), end = begin + text.text.size();
-	for (auto ch = begin; ch != end;) {
-		auto length = 0;
-		if (const auto emoji = Ui::Emoji::Find(ch, end, &length)) {
-			auto replace = (DocumentData*)nullptr;
-			if (recentIt != sets.end()) {
-				for (const auto document : recentIt->second->stickers) {
-					if (const auto sticker = document->sticker()) {
-						if (Ui::Emoji::Find(sticker->alt) == emoji) {
-							replace = document;
-						}
-					}
-				}
-			}
-			if (const auto found = pack->stickerForEmoji(emoji)) {
-				Assert(found.document->sticker() != nullptr);
-				if (!replace && found.document->sticker()->set.id) {
-					replace = found.document;
-				}
-			}
-			if (replace) {
-				text.entities.push_back({
-					EntityType::CustomEmoji,
-					(ch - begin),
-					length,
-					SerializeCustomEmojiId({
-						replace->sticker()->set,
-						replace->id,
-					}),
-				});
-			}
-			ch += length;
-		} else if (ch->isHighSurrogate()
-			&& (ch + 1 != end)
-			&& (ch + 1)->isLowSurrogate()) {
-			ch += 2;
-		} else {
-			++ch;
-		}
+QString SerializeCustomEmojiId(const CustomEmojiId &id) {
+	return QString::number(id.set.id)
+		+ '.'
+		+ QString::number(id.set.accessHash)
+		+ ':'
+		+ QString::number(id.selfId)
+		+ '/'
+		+ QString::number(id.id);
+}
+
+QString SerializeCustomEmojiId(not_null<DocumentData*> document) {
+	const auto sticker = document->sticker();
+	return SerializeCustomEmojiId({
+		.selfId = document->session().userId().bare,
+		.id = document->id,
+		.set = sticker ? sticker->set : StickerSetIdentifier(),
+	});
+}
+
+CustomEmojiId ParseCustomEmojiData(QStringView data) {
+	const auto components = data.split('.');
+	if (components.size() != 2) {
+		return {};
 	}
-	ranges::stable_sort(
-		text.entities,
-		ranges::less(),
-		&EntityInText::offset);
+	const auto parts = components[1].split(':');
+	if (parts.size() != 2) {
+		return {};
+	}
+	const auto endings = parts[1].split('/');
+	if (endings.size() != 2) {
+		return {};
+	}
+	return {
+		.selfId = endings[0].toULongLong(),
+		.id = endings[1].toULongLong(),
+		.set = {
+			.id = components[0].toULongLong(),
+			.accessHash = parts[0].toULongLong(),
+		},
+	};
 }
 
 } // namespace Data

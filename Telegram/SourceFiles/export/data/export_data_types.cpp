@@ -155,7 +155,8 @@ std::vector<TextPart> ParseText(
 			[](const MTPDmessageEntityBlockquote&) {
 				return Type::Blockquote; },
 			[](const MTPDmessageEntityBankCard&) { return Type::BankCard; },
-			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; });
+			[](const MTPDmessageEntitySpoiler&) { return Type::Spoiler; },
+			[](const MTPDmessageEntityCustomEmoji&) { return Type::CustomEmoji; });
 		part.text = mid(start, length);
 		part.additional = entity.match(
 		[](const MTPDmessageEntityPre &data) {
@@ -164,6 +165,8 @@ std::vector<TextPart> ParseText(
 			return ParseString(data.vurl());
 		}, [](const MTPDmessageEntityMentionName &data) {
 			return NumberToString(data.vuser_id().v);
+		}, [](const MTPDmessageEntityCustomEmoji &data) {
+			return NumberToString(data.vdocument_id().v);
 		}, [](const auto &) { return Utf8String(); });
 
 		result.push_back(std::move(part));

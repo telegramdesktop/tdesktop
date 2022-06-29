@@ -258,15 +258,6 @@ rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return Core::App().passcodeLockChanges() | rpl::to_empty;
 }
 
-QString UiIntegration::convertTagToMimeTag(const QString &tagId) {
-	if (TextUtilities::IsMentionLink(tagId)) {
-		if (const auto session = Core::App().activeAccount().maybeSession()) {
-			return tagId + ':' + QString::number(session->userId().bare);
-		}
-	}
-	return tagId;
-}
-
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) {
 	if (!emoji || !emoji->hasVariants()) {

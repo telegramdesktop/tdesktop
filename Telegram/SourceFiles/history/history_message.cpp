@@ -337,7 +337,6 @@ HistoryMessage::HistoryMessage(
 			&history->session(),
 			data.ventities().value_or_empty())
 	};
-	Data::FillTestCustomEmoji(&history->session(), textWithEntities);
 	setText(_media ? textWithEntities : EnsureNonEmpty(textWithEntities));
 	if (const auto groupedId = data.vgrouped_id()) {
 		setGroupId(

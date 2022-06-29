@@ -127,7 +127,7 @@ bytes::const_span ParseCachedMap(
 		if (size > maxSize) {
 			return {};
 		}
-		for (auto offset = 0; offset < size; offset += kPartSize) {
+		for (auto offset = int64(); offset < size; offset += kPartSize) {
 			const auto part = data.subspan(
 				offset,
 				std::min(kPartSize, size - offset));

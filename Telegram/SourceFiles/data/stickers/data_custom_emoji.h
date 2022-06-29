@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/stickers/data_stickers_set.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "base/timer.h"
 #include "base/weak_ptr.h"
@@ -20,8 +21,13 @@ class Session;
 namespace Data {
 
 class Session;
-struct CustomEmojiId;
 class CustomEmojiLoader;
+
+struct CustomEmojiId {
+	uint64 selfId = 0;
+	uint64 id = 0;
+	StickerSetIdentifier set;
+};
 
 class CustomEmojiManager final : public base::has_weak_ptr {
 public:
@@ -34,7 +40,7 @@ public:
 	~CustomEmojiManager();
 
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
-		const QString &data,
+		QStringView data,
 		Fn<void()> update);
 
 	[[nodiscard]] Main::Session &session() const;
@@ -76,8 +82,9 @@ private:
 
 };
 
-void FillTestCustomEmoji(
-	not_null<Main::Session*> session,
-	TextWithEntities &text);
+[[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id);
+[[nodiscard]] QString SerializeCustomEmojiId(
+	not_null<DocumentData*> document);
+[[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data);
 
 } // namespace Data

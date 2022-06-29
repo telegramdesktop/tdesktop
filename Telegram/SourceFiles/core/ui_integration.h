@@ -54,7 +54,6 @@ public:
 		const QString &url,
 		const QVariant &context) override;
 	rpl::producer<> forcePopupMenuHideRequests() override;
-	QString convertTagToMimeTag(const QString &tagId) override;
 	const Ui::Emoji::One *defaultEmojiVariant(
 		const Ui::Emoji::One *emoji) override;
 	std::unique_ptr<Ui::Text::CustomEmoji> createCustomEmoji(

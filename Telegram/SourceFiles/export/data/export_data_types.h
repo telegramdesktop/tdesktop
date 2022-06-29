@@ -549,6 +549,7 @@ struct TextPart {
 		Blockquote,
 		BankCard,
 		Spoiler,
+		CustomEmoji,
 	};
 	Type type = Type::Text;
 	Utf8String text;

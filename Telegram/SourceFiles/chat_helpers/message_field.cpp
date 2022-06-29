@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
 #include "lang/lang_keys.h"
@@ -48,13 +49,14 @@ using EditLinkSelection = Ui::InputField::EditLinkSelection;
 
 constexpr auto kParseLinksTimeout = crl::time(1000);
 
-// For mention tags save and validate userId, ignore tags for different userId.
-class FieldTagMimeProcessor : public Ui::InputField::TagMimeProcessor {
+// For mention / custom emoji tags save and validate selfId,
+// ignore tags for different users.
+class FieldTagMimeProcessor final {
 public:
 	explicit FieldTagMimeProcessor(
 		not_null<Window::SessionController*> controller);
 
-	QString tagFromMimeTag(const QString &mimeTag) override;
+	QString operator()(QStringView mimeTag);
 
 private:
 	const not_null<Window::SessionController*> _controller;
@@ -66,17 +68,23 @@ FieldTagMimeProcessor::FieldTagMimeProcessor(
 : _controller(controller) {
 }
 
-QString FieldTagMimeProcessor::tagFromMimeTag(const QString &mimeTag) {
-	if (TextUtilities::IsMentionLink(mimeTag)) {
-		const auto userId = _controller->session().userId();
-		auto match = QRegularExpression(":(\\d+)$").match(mimeTag);
-		if (!match.hasMatch()
-			|| match.capturedView(1).toULongLong() != userId.bare) {
-			return QString();
+QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
+	const auto id = _controller->session().userId().bare;
+	auto all = TextUtilities::SplitTags(mimeTag);
+	for (auto i = all.begin(); i != all.end();) {
+		const auto tag = *i;
+		if (TextUtilities::IsMentionLink(tag)
+			&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
+			i = all.erase(i);
+		} else if (Ui::InputField::IsCustomEmojiLink(tag)
+			&& Data::ParseCustomEmojiData(
+				Ui::InputField::CustomEmojiEntityData(tag)).selfId != id) {
+			i = all.erase(i);
+		} else {
+			++i;
 		}
-		return mimeTag.mid(0, mimeTag.size() - match.capturedLength());
 	}
-	return mimeTag;
+	return TextUtilities::JoinTag(all);
 }
 
 //bool ValidateUrl(const QString &value) {
@@ -225,7 +233,9 @@ QString PrepareMentionTag(not_null<UserData*> user) {
 	return TextUtilities::kMentionTagStart
 		+ QString::number(user->id.value)
 		+ '.'
-		+ QString::number(user->accessHash());
+		+ QString::number(user->accessHash())
+		+ ':'
+		+ QString::number(user->session().userId().bare);
 }
 
 TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
@@ -279,11 +289,19 @@ Fn<bool(
 void InitMessageField(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field) {
-	field->setMinHeight(st::historySendSize.height() - 2 * st::historySendPadding);
+	field->setMinHeight(
+		st::historySendSize.height() - 2 * st::historySendPadding);
 	field->setMaxHeight(st::historyComposeFieldMaxHeight);
 
-	field->setTagMimeProcessor(
-		std::make_unique<FieldTagMimeProcessor>(controller));
+	field->setTagMimeProcessor(FieldTagMimeProcessor(controller));
+	field->setCustomEmojiFactory([=](QStringView data, Fn<void()> update) {
+		return controller->session().data().customEmojiManager().create(
+			data,
+			std::move(update));
+	}, [=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	});
 
 	field->document()->setDocumentMargin(4.);
 	field->setAdditionalMargin(style::ConvertScale(4) - 4);
