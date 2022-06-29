@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_emoji.h"
+#include "ffmpeg/ffmpeg_emoji.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/text/text_block.h"
 #include "ui/ui_utility.h"
@@ -317,8 +318,18 @@ void CustomEmojiLoader::check() {
 	auto put = [=, key = cacheKey(document)](QByteArray value) {
 		document->owner().cacheBigFile().put(key, std::move(value));
 	};
-	auto generator = [=, bytes = Lottie::ReadContent(data, filepath)]() {
-		return std::make_unique<Lottie::EmojiGenerator>(bytes);
+	const auto type = document->sticker()->type;
+	auto generator = [=, bytes = Lottie::ReadContent(data, filepath)]()
+	-> std::unique_ptr<Ui::FrameGenerator> {
+		switch (type) {
+		case StickerType::Tgs:
+			return std::make_unique<Lottie::EmojiGenerator>(bytes);
+		case StickerType::Webm:
+			return std::make_unique<FFmpeg::EmojiGenerator>(bytes);
+		case StickerType::Webp:
+			return std::make_unique<Ui::ImageFrameGenerator>(bytes);
+		}
+		Unexpected("Type in custom emoji sticker frame generator.");
 	};
 	auto renderer = std::make_unique<Renderer>(RendererDescriptor{
 		.generator = std::move(generator),

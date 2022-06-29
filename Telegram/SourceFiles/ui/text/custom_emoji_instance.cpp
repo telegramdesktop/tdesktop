@@ -270,6 +270,13 @@ void Renderer::frameReady(
 	}
 	const auto explicitRepaint = (_cache.frames() == _cache.currentFrame());
 	_cache.add(duration, frame);
+	if (explicitRepaint && _repaint) {
+		_repaint();
+	}
+	if (!duration) {
+		finish();
+		return;
+	}
 	const auto size = _cache.size();
 	const auto guard = base::make_weak(this);
 	crl::async([
@@ -292,9 +299,6 @@ void Renderer::frameReady(
 				std::move(frame.image));
 		});
 	});
-	if (explicitRepaint && _repaint) {
-		_repaint();
-	}
 }
 
 void Renderer::finish() {
