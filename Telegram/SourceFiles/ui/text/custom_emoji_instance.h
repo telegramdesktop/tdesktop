@@ -60,13 +60,18 @@ class Cache final {
 public:
 	Cache(int size);
 
+	struct Frame {
+		not_null<const QImage*> image;
+		QRect source;
+	};
+
 	[[nodiscard]] static std::optional<Cache> FromSerialized(
 		const QByteArray &serialized);
 	[[nodiscard]] QByteArray serialize();
 
 	[[nodiscard]] int size() const;
 	[[nodiscard]] int frames() const;
-	[[nodiscard]] QImage frame(int index) const;
+	[[nodiscard]] Frame frame(int index) const;
 	void reserve(int frames);
 	void add(crl::time duration, const QImage &frame);
 	void finish();
@@ -87,8 +92,9 @@ private:
 	[[nodiscard]] int frameByteSize() const;
 	[[nodiscard]] crl::time currentFrameFinishes() const;
 
-	std::vector<bytes::vector> _bytes;
-	std::vector<int> _durations;
+	std::vector<QImage> _images;
+	std::vector<uint16> _durations;
+	QImage _full;
 	crl::time _shown = 0;
 	int _frame = 0;
 	int _size = 0;

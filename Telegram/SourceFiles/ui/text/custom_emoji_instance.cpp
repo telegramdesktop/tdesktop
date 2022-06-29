@@ -10,15 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/frame_generator.h"
 
 #include <crl/crl_async.h>
+#include <lz4.h>
 
 class QPainter;
 
 namespace Ui::CustomEmoji {
 namespace {
 
+constexpr auto kMaxSize = 128;
+constexpr auto kMaxFrames = 512;
 constexpr auto kMaxFrameDuration = 86400 * crl::time(1000);
+constexpr auto kCacheVersion = 1;
 
-struct CacheHelper {
+struct CacheHeader {
 	int version = 0;
 	int size = 0;
 	int frames = 0;
@@ -76,25 +80,99 @@ Cache::Cache(int size) : _size(size) {
 }
 
 std::optional<Cache> Cache::FromSerialized(const QByteArray &serialized) {
-	return {};
+	if (serialized.size() <= sizeof(CacheHeader)) {
+		return {};
+	}
+	auto header = CacheHeader();
+	memcpy(&header, serialized.data(), sizeof(header));
+	const auto size = header.size;
+	if (size <= 0
+		|| size > kMaxSize
+		|| header.frames <= 0
+		|| header.frames >= kMaxFrames
+		|| header.length <= 0
+		|| header.length > (size * size * header.frames * sizeof(int32))
+		|| (serialized.size() != sizeof(CacheHeader)
+			+ header.length
+			+ (header.frames * sizeof(Cache(0)._durations[0])))) {
+		return {};
+	}
+	const auto rows = (header.frames + kPerRow - 1) / kPerRow;
+	const auto columns = std::min(header.frames, kPerRow);
+	auto durations = std::vector<uint16>(header.frames, 0);
+	auto full = QImage(
+		columns * size,
+		rows * size,
+		QImage::Format_ARGB32_Premultiplied);
+	Assert(full.bytesPerLine() == full.width() * sizeof(int32));
+
+	const auto decompressed = LZ4_decompress_safe(
+		serialized.data() + sizeof(CacheHeader),
+		reinterpret_cast<char*>(full.bits()),
+		header.length,
+		full.bytesPerLine() * full.height());
+	if (decompressed <= 0) {
+		return {};
+	}
+	memcpy(
+		durations.data(),
+		serialized.data() + sizeof(CacheHeader) + header.length,
+		header.frames * sizeof(durations[0]));
+
+	auto result = Cache(size);
+	result._finished = true;
+	result._full = std::move(full);
+	result._frames = header.frames;
+	result._durations = std::move(durations);
+	return result;
 }
 
 QByteArray Cache::serialize() {
-	return {};
+	Expects(_finished);
+	Expects(_durations.size() == _frames);
+	Expects(_full.bytesPerLine() == sizeof(int32) * _full.width());
+
+	auto header = CacheHeader{
+		.version = kCacheVersion,
+		.size = _size,
+		.frames = _frames,
+	};
+	const auto input = _full.width() * _full.height() * sizeof(int32);
+	const auto max = sizeof(CacheHeader)
+		+ LZ4_compressBound(input)
+		+ (_frames * sizeof(_durations[0]));
+	auto result = QByteArray(max, Qt::Uninitialized);
+	header.length = LZ4_compress_default(
+		reinterpret_cast<const char*>(_full.constBits()),
+		result.data() + sizeof(CacheHeader),
+		input,
+		result.size() - sizeof(CacheHeader));
+	Assert(header.length > 0);
+	memcpy(result.data(), &header, sizeof(CacheHeader));
+	memcpy(
+		result.data() + sizeof(CacheHeader) + header.length,
+		_durations.data(),
+		_frames * sizeof(_durations[0]));
+	result.resize(sizeof(CacheHeader)
+		+ header.length
+		+ _frames * sizeof(_durations[0]));
+
+	return result;
 }
 
 int Cache::frames() const {
 	return _frames;
 }
 
-QImage Cache::frame(int index) const {
+Cache::Frame Cache::frame(int index) const {
 	Expects(index < _frames);
 
 	const auto row = index / kPerRow;
 	const auto inrow = index % kPerRow;
-	const auto bytes = _bytes[row].data() + inrow * frameByteSize();
-	const auto data = reinterpret_cast<const uchar*>(bytes);
-	return QImage(data, _size, _size, QImage::Format_ARGB32_Premultiplied);
+	if (_finished) {
+		return { &_full, { inrow * _size, row * _size, _size, _size } };
+	}
+	return { &_images[row], { 0, inrow * _size, _size, _size } };
 }
 
 int Cache::size() const {
@@ -104,17 +182,21 @@ int Cache::size() const {
 Preview Cache::makePreview() const {
 	Expects(_frames > 0);
 
-	auto image = frame(0);
-	image.detach();
-	return { std::move(image) };
+	const auto first = frame(0);
+	return { first.image->copy(first.source) };
 }
 
 void Cache::reserve(int frames) {
+	Expects(!_finished);
+
 	const auto rows = (frames + kPerRow - 1) / kPerRow;
-	if (const auto add = rows - int(_bytes.size()); add > 0) {
-		_bytes.resize(rows);
-		for (auto e = end(_bytes), i = e - add; i != e; ++i) {
-			i->resize(kPerRow * frameByteSize());
+	if (const auto add = rows - int(_images.size()); add > 0) {
+		_images.resize(rows);
+		for (auto e = end(_images), i = e - add; i != e; ++i) {
+			(*i) = QImage(
+				_size,
+				_size * kPerRow,
+				QImage::Format_ARGB32_Premultiplied);
 		}
 	}
 	_durations.reserve(frames);
@@ -129,35 +211,74 @@ int Cache::frameByteSize() const {
 }
 
 void Cache::add(crl::time duration, const QImage &frame) {
-	Expects(duration < kMaxFrameDuration);
+	Expects(!_finished);
 	Expects(frame.size() == QSize(_size, _size));
 	Expects(frame.format() == QImage::Format_ARGB32_Premultiplied);
 
-	const auto rowSize = frameRowByteSize();
-	const auto frameSize = frameByteSize();
 	const auto row = (_frames / kPerRow);
 	const auto inrow = (_frames % kPerRow);
 	const auto rows = row + 1;
-	while (_bytes.size() < rows) {
-		_bytes.emplace_back();
-		_bytes.back().resize(kPerRow * frameSize);
+	while (_images.size() < rows) {
+		_images.emplace_back();
+		_images.back() = QImage(
+			_size,
+			_size * kPerRow,
+			QImage::Format_ARGB32_Premultiplied);
 	}
-	const auto perLine = frame.bytesPerLine();
-	auto dst = _bytes[row].data() + inrow * frameSize;
+	const auto srcPerLine = frame.bytesPerLine();
+	const auto dstPerLine = _images[row].bytesPerLine();
+	const auto perLine = std::min(srcPerLine, dstPerLine);
+	auto dst = _images[row].bits() + inrow * _size * dstPerLine;
 	auto src = frame.constBits();
 	for (auto y = 0; y != _size; ++y) {
-		memcpy(dst, src, rowSize);
-		dst += rowSize;
-		src += perLine;
+		memcpy(dst, src, perLine);
+		dst += dstPerLine;
+		src += srcPerLine;
 	}
 	++_frames;
-	_durations.push_back(duration);
+	_durations.push_back(std::clamp(
+		duration,
+		crl::time(0),
+		crl::time(std::numeric_limits<uint16>::max())));
 }
 
 void Cache::finish() {
 	_finished = true;
 	if (_frame == _frames) {
 		_frame = 0;
+	}
+	const auto rows = (_frames + kPerRow - 1) / kPerRow;
+	const auto columns = std::min(_frames, kPerRow);
+	const auto zero = (rows * columns) - _frames;
+	_full = QImage(
+		columns * _size,
+		rows * _size,
+		QImage::Format_ARGB32_Premultiplied);
+	auto dstData = _full.bits();
+	const auto perLine = _size * 4;
+	const auto dstPerLine = _full.bytesPerLine();
+	for (auto y = 0; y != rows; ++y) {
+		auto &row = _images[y];
+		auto src = row.bits();
+		const auto srcPerLine = row.bytesPerLine();
+		const auto till = columns - ((y + 1 == rows) ? zero : 0);
+		for (auto x = 0; x != till; ++x) {
+			auto dst = dstData + y * dstPerLine * _size + x * perLine;
+			for (auto line = 0; line != _size; ++line) {
+				memcpy(dst, src, perLine);
+				src += srcPerLine;
+				dst += dstPerLine;
+			}
+		}
+	}
+	if (const auto perLine = zero * _size) {
+		auto dst = dstData
+			+ (rows - 1) * dstPerLine * _size
+			+ (columns - zero) * _size * 4;
+		for (auto left = 0; left != _size; ++left) {
+			memset(dst, 0, perLine);
+			dst += dstPerLine;
+		}
 	}
 }
 
@@ -179,9 +300,8 @@ PaintFrameResult Cache::paintCurrentFrame(
 	} else if (!_shown) {
 		_shown = now;
 	}
-	p.drawImage(
-		QRect(x, y, _size, _size),
-		frame(std::min(_frame, _frames - 1)));
+	const auto info = frame(std::min(_frame, _frames - 1));
+	p.drawImage(QPoint(x, y), *info.image, info.source);
 	const auto next = currentFrameFinishes();
 	const auto duration = next ? (next - _shown) : 0;
 	return {
