@@ -515,26 +515,26 @@ QImage CreateFrameStorage(QSize size) {
 		cleanupData);
 }
 
-void UnPremultiply(QImage &to, const QImage &from) {
+void UnPremultiply(QImage &dst, const QImage &src) {
 	// This creates QImage::Format_ARGB32_Premultiplied, but we use it
 	// as an image in QImage::Format_ARGB32 format.
-	if (!GoodStorageForFrame(to, from.size())) {
-		to = CreateFrameStorage(from.size());
+	if (!GoodStorageForFrame(dst, src.size())) {
+		dst = CreateFrameStorage(src.size());
 	}
-	const auto fromPerLine = from.bytesPerLine();
-	const auto toPerLine = to.bytesPerLine();
-	const auto width = from.width();
-	const auto height = from.height();
-	auto fromBytes = from.bits();
-	auto toBytes = to.bits();
-	if (fromPerLine != width * 4 || toPerLine != width * 4) {
+	const auto srcPerLine = src.bytesPerLine();
+	const auto dstPerLine = dst.bytesPerLine();
+	const auto width = src.width();
+	const auto height = src.height();
+	auto srcBytes = src.bits();
+	auto dstBytes = dst.bits();
+	if (srcPerLine != width * 4 || dstPerLine != width * 4) {
 		for (auto i = 0; i != height; ++i) {
-			UnPremultiplyLine(toBytes, fromBytes, width);
-			fromBytes += fromPerLine;
-			toBytes += toPerLine;
+			UnPremultiplyLine(dstBytes, srcBytes, width);
+			srcBytes += srcPerLine;
+			dstBytes += dstPerLine;
 		}
 	} else {
-		UnPremultiplyLine(toBytes, fromBytes, width * height);
+		UnPremultiplyLine(dstBytes, srcBytes, width * height);
 	}
 }
 

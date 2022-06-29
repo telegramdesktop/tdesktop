@@ -179,16 +179,16 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 	const auto dstSize = scaled;
 	const auto bgra = (srcFormat == AV_PIX_FMT_BGRA);
 	const auto withAlpha = bgra || (srcFormat == AV_PIX_FMT_YUVA420P);
-	const auto toPerLine = storage.bytesPerLine();
-	auto to = storage.bits();
+	const auto dstPerLine = storage.bytesPerLine();
+	auto dst = storage.bits();
 	if (srcSize == dstSize && bgra) {
-		const auto fromPerLine = frame->linesize[0];
-		const auto perLine = std::min(fromPerLine, toPerLine);
-		auto from = frame->data[0];
-		for (auto y = 0, height =srcSize.height(); y != height; ++y) {
-			memcpy(to, from, perLine);
-			from += fromPerLine;
-			to += toPerLine;
+		const auto srcPerLine = frame->linesize[0];
+		const auto perLine = std::min(srcPerLine, dstPerLine);
+		auto src = frame->data[0];
+		for (auto y = 0, height = srcSize.height(); y != height; ++y) {
+			memcpy(dst, src, perLine);
+			src += srcPerLine;
+			dst += dstPerLine;
 		}
 	} else {
 		_scale = MakeSwscalePointer(
@@ -200,16 +200,16 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 		Assert(_scale != nullptr);
 
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
-		uint8_t *toData[AV_NUM_DATA_POINTERS] = { to, nullptr };
-		int toLinesize[AV_NUM_DATA_POINTERS] = { toPerLine, 0 };
+		uint8_t *dstData[AV_NUM_DATA_POINTERS] = { dst, nullptr };
+		int dstLinesize[AV_NUM_DATA_POINTERS] = { dstPerLine, 0 };
 		sws_scale(
 			_scale.get(),
 			frame->data,
 			frame->linesize,
 			0,
 			frame->height,
-			toData,
-			toLinesize);
+			dstData,
+			dstLinesize);
 	}
 	if (withAlpha) {
 		PremultiplyInplace(storage);
