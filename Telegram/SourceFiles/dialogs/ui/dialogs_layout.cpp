@@ -175,7 +175,6 @@ int PaintWideCounter(
 		bool unreadMuted,
 		bool mentionOrReactionMuted) {
 	const auto initial = availableWidth;
-	auto hadOneBadge = false;
 	if (displayUnreadCounter || displayUnreadMark) {
 		const auto counter = (unreadCount > 0)
 			? QString::number(unreadCount)
@@ -198,8 +197,6 @@ int PaintWideCounter(
 			unreadTop,
 			st);
 		availableWidth -= badge.width() + st.padding;
-
-		hadOneBadge = true;
 	} else if (displayPinnedIcon) {
 		const auto &icon = active
 			? st::dialogsPinnedIconActive
@@ -212,8 +209,6 @@ int PaintWideCounter(
 			texttop,
 			fullWidth);
 		availableWidth -= icon.width() + st::dialogsUnreadPadding;
-
-		hadOneBadge = true;
 	}
 	if (displayMentionBadge || displayReactionBadge) {
 		const auto counter = QString();
@@ -253,7 +248,7 @@ int PaintWideCounter(
 				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
 		availableWidth -= badge.width()
 			+ st.padding
-			+ (hadOneBadge ? st::dialogsUnreadPadding : 0);
+			+ st::dialogsUnreadPadding;
 	}
 	return availableWidth;
 }
