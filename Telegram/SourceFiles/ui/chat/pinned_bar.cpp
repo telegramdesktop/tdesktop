@@ -82,6 +82,7 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 }
 
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
+	const auto hasPrevious = (_right.button != nullptr);
 	if (auto previous = _right.button.release()) {
 		_right.previousButtonLifetime.make_state<RightButton>(
 			RightButton::fromRaw(std::move(previous)));
@@ -94,8 +95,13 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 	_right.button.create(_wrap.entity(), std::move(button));
 	if (_right.button) {
 		_right.button->setParent(_wrap.entity());
-		_right.button->setDuration(st::defaultMessageBar.duration);
-		_right.button->show(anim::type::normal);
+		if (hasPrevious) {
+			_right.button->setDuration(st::defaultMessageBar.duration);
+			_right.button->show(anim::type::normal);
+		} else {
+			_right.button->setDuration(0);
+			_right.button->show(anim::type::instant);
+		}
 	}
 	if (_bar) {
 		updateControlsGeometry(_wrap.geometry());
