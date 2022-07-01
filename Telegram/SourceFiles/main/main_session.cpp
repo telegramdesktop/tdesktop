@@ -321,7 +321,9 @@ void Session::unlockTerms() {
 
 void Session::termsDeleteNow() {
 	api().request(MTPaccount_DeleteAccount(
-		MTP_string("Decline ToS update")
+		MTP_flags(0),
+		MTP_string("Decline ToS update"),
+		MTPInputCheckPasswordSRP()
 	)).send();
 }
 

@@ -492,7 +492,9 @@ void Widget::resetAccount() {
 			return;
 		}
 		_resetRequest = _api->request(MTPaccount_DeleteAccount(
-			MTP_string("Forgot password")
+			MTP_flags(0),
+			MTP_string("Forgot password"),
+			MTPInputCheckPasswordSRP()
 		)).done([=] {
 			_resetRequest = 0;
 

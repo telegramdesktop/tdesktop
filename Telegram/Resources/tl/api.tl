@@ -191,6 +191,7 @@ messageActionSetChatTheme#aa786345 emoticon:string = MessageAction;
 messageActionChatJoinedByRequest#ebbca3cb = MessageAction;
 messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
 messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
+messageActionGiftPremium#16ad5dac currency:string amount:long duration:int = MessageAction;
 
 dialog#a8edd0f5 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -240,7 +241,7 @@ inputReportReasonFake#f5ddd6e7 = ReportReason;
 inputReportReasonIllegalDrugs#a8eb2be = ReportReason;
 inputReportReasonPersonalDetails#9ec7863d = ReportReason;
 
-userFull#8c72ea81 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true id:long about:flags.1?string settings:PeerSettings profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights = UserFull;
+userFull#a5b947a4 flags:# blocked:flags.0?true phone_calls_available:flags.4?true phone_calls_private:flags.5?true can_pin_message:flags.7?true has_scheduled:flags.12?true video_calls_available:flags.13?true id:long about:flags.1?string settings:PeerSettings profile_photo:flags.2?Photo notify_settings:PeerNotifySettings bot_info:flags.3?BotInfo pinned_msg_id:flags.6?int common_chats_count:int folder_id:flags.11?int ttl_period:flags.14?int theme_emoticon:flags.15?string private_forward_name:flags.16?string bot_group_admin_rights:flags.17?ChatAdminRights bot_broadcast_admin_rights:flags.18?ChatAdminRights gift_premium_url:flags.19?string = UserFull;
 
 contact#145ade0b user_id:long mutual:Bool = Contact;
 
@@ -1388,6 +1389,9 @@ messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id
 
 help.premiumPromo#8a4f3c29 status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> currency:string monthly_amount:long users:Vector<User> = help.PremiumPromo;
 
+inputStorePaymentPremiumSubscription#d27356fd = InputStorePaymentPurpose;
+inputStorePaymentGiftPremium#44618a7d user_id:InputUser = InputStorePaymentPurpose;
+
 ---functions---
 
 invokeAfterMsg#cb9f372d {X:Type} msg_id:long query:!X = X;
@@ -1431,7 +1435,7 @@ account.checkUsername#2714d86c username:string = Bool;
 account.updateUsername#3e0bdd7c username:string = User;
 account.getPrivacy#dadbc950 key:InputPrivacyKey = account.PrivacyRules;
 account.setPrivacy#c9f81ce8 key:InputPrivacyKey rules:Vector<InputPrivacyRule> = account.PrivacyRules;
-account.deleteAccount#418d4e0b reason:string = Bool;
+account.deleteAccount#a2c0cf74 flags:# reason:string password:flags.0?InputCheckPasswordSRP = Bool;
 account.getAccountTTL#8fc711d = AccountDaysTTL;
 account.setAccountTTL#2442485e ttl:AccountDaysTTL = Bool;
 account.sendChangePhoneCode#82574ae5 phone_number:string settings:CodeSettings = auth.SentCode;
@@ -1793,8 +1797,8 @@ payments.getSavedInfo#227d824b = payments.SavedInfo;
 payments.clearSavedInfo#d83d70c1 flags:# credentials:flags.0?true info:flags.1?true = Bool;
 payments.getBankCardData#2e79d779 number:string = payments.BankCardData;
 payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoice;
-payments.assignAppStoreTransaction#d5ccfd0 flags:# restore:flags.0?true receipt:bytes = Updates;
-payments.assignPlayMarketTransaction#4faa4aed purchase_token:string = Updates;
+payments.assignAppStoreTransaction#11a671cf flags:# restore:flags.0?true receipt:bytes purpose:InputStorePaymentPurpose = Updates;
+payments.assignPlayMarketTransaction#f546d3fe purchase_token:string purpose:InputStorePaymentPurpose = Updates;
 payments.canPurchasePremium#aa6a90c8 = Bool;
 payments.requestRecurringPayment#146e958d user_id:InputUser recurring_init_charge:string invoice_media:InputMedia = Updates;
 

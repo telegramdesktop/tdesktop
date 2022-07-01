@@ -1142,6 +1142,8 @@ ServiceAction ParseServiceAction(
 		auto content = ActionWebViewDataSent();
 		content.text = ParseString(data.vtext());
 		result.content = content;
+	}, [&](const MTPDmessageActionGiftPremium &data) {
+		// #TODO gifts
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

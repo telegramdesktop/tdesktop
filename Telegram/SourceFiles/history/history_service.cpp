@@ -613,6 +613,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareGiftPremium = [](const MTPDmessageActionGiftPremium &action) {
+		return PreparedText{ .text = { "gift premium" }, }; // #TODO gifts
+	};
+
 	const auto messageText = action.match([&](
 		const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -680,6 +684,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareChatJoinedByRequest(data);
 	}, [&](const MTPDmessageActionWebViewDataSent &data) {
 		return prepareWebViewDataSent(data);
+	}, [&](const MTPDmessageActionGiftPremium &data) {
+		return prepareGiftPremium(data);
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
 		return PreparedText{
