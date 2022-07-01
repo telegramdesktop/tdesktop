@@ -301,10 +301,11 @@ void InitMessageFieldHandlers(
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
-	field->setEditLinkCallback(
-		DefaultEditLinkCallback(show, session, field, fieldStyle));
-
-	InitSpellchecker(show, session, field, fieldStyle != nullptr);
+	if (show) {
+		field->setEditLinkCallback(
+			DefaultEditLinkCallback(show, session, field, fieldStyle));
+		InitSpellchecker(show, session, field, fieldStyle != nullptr);
+	}
 }
 
 void InitMessageFieldHandlers(

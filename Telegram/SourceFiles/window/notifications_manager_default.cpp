@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "core/application.h"
 #include "core/ui_integration.h"
+#include "chat_helpers/message_field.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -731,6 +732,8 @@ void Notification::updateGeometry(int x, int y, int width, int height) {
 }
 
 void Notification::paintEvent(QPaintEvent *e) {
+	repaintText();
+
 	Painter p(this);
 	p.setClipRect(e->rect());
 	p.drawImage(0, 0, _cache);
@@ -756,16 +759,21 @@ void Notification::customEmojiCallback() {
 		return;
 	}
 	_textRepaintScheduled = true;
-	InvokeQueued(this, [=] {
-		_textRepaintScheduled = false;
-		if (_cache.isNull()) {
-			return;
-		}
-		Painter p(&_cache);
-		p.fillRect(_textRect, st::notificationBg);
-		paintText(p);
-		update();
-	});
+	crl::on_main(this, [=] { repaintText(); });
+}
+
+void Notification::repaintText() {
+	if (!_textRepaintScheduled) {
+		return;
+	}
+	_textRepaintScheduled = false;
+	if (_cache.isNull()) {
+		return;
+	}
+	Painter p(&_cache);
+	p.fillRect(_textRect, st::notificationBg);
+	paintText(p);
+	update();
 }
 
 void Notification::paintText(Painter &p) {
@@ -1013,18 +1021,11 @@ void Notification::showReplyField() {
 	_replyArea->setFocus();
 	_replyArea->setMaxLength(MaxMessageSize);
 	_replyArea->setSubmitSettings(Ui::InputField::SubmitSettings::Both);
-	_replyArea->setInstantReplaces(Ui::InstantReplaces::Default());
-	_replyArea->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	_replyArea->setMarkdownReplacesEnabled(rpl::single(true));
-	const auto session = &_item->history()->session();
-	_replyArea->setCustomEmojiFactory([=](
-			QStringView data,
-			Fn<void()> update) {
-		return session->data().customEmojiManager().create(
-			data,
-			std::move(update));
-	});
+	InitMessageFieldHandlers(
+		&_item->history()->session(),
+		nullptr,
+		_replyArea.data(),
+		nullptr);
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);

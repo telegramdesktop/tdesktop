@@ -261,6 +261,7 @@ private:
 	void changeHeight(int newHeight);
 	void updateGeometry(int x, int y, int width, int height) override;
 	void actionsOpacityCallback();
+	void repaintText();
 	void paintText(Painter &p);
 	void customEmojiCallback();
 
