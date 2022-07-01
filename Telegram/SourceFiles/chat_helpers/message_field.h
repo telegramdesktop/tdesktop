@@ -45,6 +45,12 @@ Fn<bool(
 		not_null<Ui::InputField*> field,
 		const style::InputField *fieldStyle = nullptr);
 void InitMessageFieldHandlers(
+	not_null<Main::Session*> session,
+	std::shared_ptr<Ui::Show> show,
+	not_null<Ui::InputField*> field,
+	Fn<bool()> customEmojiPaused,
+	const style::InputField *fieldStyle = nullptr);
+void InitMessageFieldHandlers(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field,
 	Window::GifPauseReason pauseReasonLevel);

@@ -220,28 +220,16 @@ void ShareBox::prepareCommentField() {
 	connect(field, &Ui::InputField::submitted, [=] {
 		submit({});
 	});
-
-	field->setInstantReplaces(Ui::InstantReplaces::Default());
-	field->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	field->setMarkdownReplacesEnabled(rpl::single(true));
-	if (_descriptor.initEditLink) {
-		_descriptor.initEditLink(field);
-	} else if (_show->valid()) {
-		field->setEditLinkCallback(
-			DefaultEditLinkCallback(
-				_show,
-				_descriptor.session,
-				field,
-				_descriptor.stLabel));
+	if (_show->valid()) {
+		InitMessageFieldHandlers(
+			_descriptor.session,
+			_show,
+			field,
+			nullptr,
+			_descriptor.stLabel);
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
 
-	if (_descriptor.initSpellchecker) {
-		_descriptor.initSpellchecker(field);
-	} else if (_show->valid()) {
-		InitSpellchecker(_show, _descriptor.session, field, true);
-	}
 	Ui::SendPendingMoveResizeEvents(_comment);
 	if (_bottomWidget) {
 		Ui::SendPendingMoveResizeEvents(_bottomWidget);

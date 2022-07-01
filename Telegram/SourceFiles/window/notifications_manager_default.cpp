@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/empty_userpic.h"
 #include "ui/ui_utility.h"
+#include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "window/window_controller.h"
 #include "storage/file_download.h"
@@ -974,6 +976,14 @@ void Notification::showReplyField() {
 	_replyArea->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	_replyArea->setMarkdownReplacesEnabled(rpl::single(true));
+	const auto session = &_item->history()->session();
+	_replyArea->setCustomEmojiFactory([=](
+			QStringView data,
+			Fn<void()> update) {
+		return session->data().customEmojiManager().create(
+			data,
+			std::move(update));
+	});
 
 	// Catch mouse press event to activate the window.
 	QCoreApplication::instance()->installEventFilter(this);

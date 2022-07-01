@@ -53,23 +53,22 @@ constexpr auto kParseLinksTimeout = crl::time(1000);
 // ignore tags for different users.
 class FieldTagMimeProcessor final {
 public:
-	explicit FieldTagMimeProcessor(
-		not_null<Window::SessionController*> controller);
+	explicit FieldTagMimeProcessor(not_null<Main::Session*> _session);
 
 	QString operator()(QStringView mimeTag);
 
 private:
-	const not_null<Window::SessionController*> _controller;
+	const not_null<Main::Session*> _session;
 
 };
 
 FieldTagMimeProcessor::FieldTagMimeProcessor(
-	not_null<Window::SessionController*> controller)
-: _controller(controller) {
+	not_null<Main::Session*> session)
+: _session(session) {
 }
 
 QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
-	const auto id = _controller->session().userId().bare;
+	const auto id = _session->userId().bare;
 	auto all = TextUtilities::SplitTags(mimeTag);
 	for (auto i = all.begin(); i != all.end();) {
 		const auto tag = *i;
@@ -287,31 +286,36 @@ Fn<bool(
 }
 
 void InitMessageFieldHandlers(
-		not_null<Window::SessionController*> controller,
+		not_null<Main::Session*> session,
+		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::InputField*> field,
-		Window::GifPauseReason pauseReasonLevel) {
-	const auto show = std::make_shared<Window::Show>(controller);
-	const auto session = &controller->session();
-
-	field->setTagMimeProcessor(FieldTagMimeProcessor(controller));
+		Fn<bool()> customEmojiPaused,
+		const style::InputField *fieldStyle) {
+	field->setTagMimeProcessor(FieldTagMimeProcessor(session));
 	field->setCustomEmojiFactory([=](QStringView data, Fn<void()> update) {
-		return controller->session().data().customEmojiManager().create(
+		return session->data().customEmojiManager().create(
 			data,
 			std::move(update));
-	}, [=] {
-		return controller->isGifPausedAtLeastFor(pauseReasonLevel);
-	});
+	}, std::move(customEmojiPaused));
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
-		DefaultEditLinkCallback(show, session, field));
+		DefaultEditLinkCallback(show, session, field, fieldStyle));
 
-	InitSpellchecker(
+	InitSpellchecker(show, session, field, fieldStyle != nullptr);
+}
+
+void InitMessageFieldHandlers(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field,
+		Window::GifPauseReason pauseReasonLevel) {
+	InitMessageFieldHandlers(
+		&controller->session(),
 		std::make_shared<Window::Show>(controller),
-		session,
-		field);
+		field,
+		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); });
 }
 
 void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {

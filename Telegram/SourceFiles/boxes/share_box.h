@@ -81,8 +81,6 @@ public:
 		CopyCallback copyCallback;
 		SubmitCallback submitCallback;
 		FilterCallback filterCallback;
-		Fn<void(not_null<Ui::InputField*>)> initSpellchecker;
-		Fn<void(not_null<Ui::InputField*>)> initEditLink;
 		object_ptr<Ui::RpWidget> bottomWidget = { nullptr };
 		rpl::producer<QString> copyLinkText;
 		const style::MultiSelect *stMultiSelect = nullptr;
