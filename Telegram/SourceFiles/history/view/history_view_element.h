@@ -427,7 +427,10 @@ public:
 
 	virtual QRect innerGeometry() const = 0;
 
-	virtual void customEmojiRepaint();
+	void customEmojiRepaint();
+	void prepareCustomEmojiPaint(
+		Painter &p,
+		const Ui::Text::String &text) const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
@@ -491,6 +494,9 @@ private:
 	std::unique_ptr<Media> _media;
 	mutable ClickHandlerPtr _fromLink;
 	bool _isScheduledUntilOnline = false;
+	mutable bool _heavyCustomEmoji = false;
+	mutable bool _customEmojiRepaintScheduled = false;
+
 	const QDateTime _dateTime;
 
 	int _y = 0;

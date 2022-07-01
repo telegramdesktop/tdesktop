@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
@@ -925,7 +926,12 @@ HistoryService::PreparedText HistoryService::preparePinnedText() {
 			original = Ui::Text::Wrapped(
 				Ui::Text::Filtered(
 					std::move(original),
-					{ EntityType::Spoiler, EntityType::StrikeOut }),
+					{
+						EntityType::Spoiler,
+						EntityType::StrikeOut,
+						EntityType::Italic,
+						EntityType::CustomEmoji,
+					}),
 				EntityType::CustomUrl,
 				Ui::Text::Link({}, 2).entities.front().data());
 			result.text = tr::lng_action_pinned_message(
@@ -1251,10 +1257,15 @@ ClickHandlerPtr HistoryService::fromLink() const {
 }
 
 void HistoryService::setServiceText(const PreparedText &prepared) {
+	const auto context = Core::MarkedTextContext{
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
+	};
 	_text.setMarkedText(
 		st::serviceTextStyle,
 		prepared.text,
-		Ui::ItemTextServiceOptions());
+		Ui::ItemTextServiceOptions(),
+		context);
 	HistoryView::FillTextWithAnimatedSpoilers(_text);
 	auto linkIndex = 0;
 	for (const auto &link : prepared.links) {

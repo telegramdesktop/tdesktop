@@ -474,7 +474,7 @@ protected:
 	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
-	bool _textRepaintScheduled = false;
+	bool _customEmojiRepaintScheduled = false;
 
 	struct SavedMediaData {
 		TextWithEntities text;

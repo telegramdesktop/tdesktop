@@ -191,14 +191,6 @@ void Media::repaint() const {
 	history()->owner().requestViewRepaint(_parent);
 }
 
-void Media::applyCustomEmojiPause(
-		Painter &p,
-		const Ui::Text::String &text) const {
-	if (text.hasCustomEmoji()) {
-		p.setInactive(_parent->delegate()->elementIsGifPaused());
-	}
-}
-
 Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 	if (item->emptyText()) {
 		return {};

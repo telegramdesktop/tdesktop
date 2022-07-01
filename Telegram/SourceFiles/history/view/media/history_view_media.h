@@ -329,9 +329,6 @@ protected:
 	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
 
 	void repaint() const;
-	void applyCustomEmojiPause(
-		Painter &p,
-		const Ui::Text::String &text) const;
 
 	const not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;

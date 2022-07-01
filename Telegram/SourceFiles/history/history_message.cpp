@@ -42,8 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 
-#include "data/stickers/data_custom_emoji.h"
-
 namespace {
 
 [[nodiscard]] MessageFlags NewForwardedFlags(

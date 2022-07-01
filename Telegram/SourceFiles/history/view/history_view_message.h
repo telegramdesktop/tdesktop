@@ -140,8 +140,6 @@ public:
 
 	QRect innerGeometry() const override;
 
-	void customEmojiRepaint() override;
-
 protected:
 	void refreshDataIdHook() override;
 
@@ -254,8 +252,6 @@ private:
 
 	Ui::Text::String _rightBadge;
 	int _bubbleWidthLimit = 0;
-	mutable bool _heavyCustomEmoji = false;
-	mutable bool _mediaRepaintScheduled = false;
 
 	BottomInfo _bottomInfo;
 

@@ -80,14 +80,8 @@ public:
 
 	void parentTextUpdated() override;
 
-	bool hasHeavyPart() const override {
-		return _attach ? _attach->hasHeavyPart() : false;
-	}
-	void unloadHeavyPart() override {
-		if (_attach) {
-			_attach->unloadHeavyPart();
-		}
-	}
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
 
 	~Game();
 

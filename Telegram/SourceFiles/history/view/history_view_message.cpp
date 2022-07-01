@@ -275,12 +275,8 @@ Message::Message(
 }
 
 Message::~Message() {
-	if (_comments || _heavyCustomEmoji) {
+	if (_comments) {
 		_comments = nullptr;
-		if (_heavyCustomEmoji) {
-			_heavyCustomEmoji = false;
-			message()->_text.unloadCustomEmoji();
-		}
 		checkHeavyPart();
 	}
 }
@@ -849,7 +845,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			auto mediaPosition = QPoint(
 				inner.left(),
 				trect.y() + trect.height() - mediaHeight);
-			_mediaRepaintScheduled = false;
 			p.translate(mediaPosition);
 			media->draw(p, context.translated(
 				-mediaPosition
@@ -918,7 +913,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			media->paintBubbleFireworks(p, g, context.now);
 		}
 	} else if (media && media->isDisplayed()) {
-		_mediaRepaintScheduled = false;
 		p.translate(g.topLeft());
 		media->draw(p, context.translated(
 			-g.topLeft()
@@ -1246,10 +1240,7 @@ void Message::paintText(
 	const auto stm = context.messageStyle();
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
-	const auto custom = item->_text.hasCustomEmoji();
-	if (custom) {
-		p.setInactive(delegate()->elementIsGifPaused());
-	}
+	prepareCustomEmojiPaint(p, item->_text);
 	item->_text.draw(
 		p,
 		trect.x(),
@@ -1259,11 +1250,6 @@ void Message::paintText(
 		0,
 		-1,
 		context.selection);
-	item->_textRepaintScheduled = false;
-	if (!_heavyCustomEmoji && custom) {
-		_heavyCustomEmoji = true;
-		history()->owner().registerHeavyViewPart(const_cast<Message*>(this));
-	}
 }
 
 PointState Message::pointState(QPoint point) const {
@@ -1390,16 +1376,12 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 }
 
 bool Message::hasHeavyPart() const {
-	return _heavyCustomEmoji || _comments || Element::hasHeavyPart();
+	return _comments || Element::hasHeavyPart();
 }
 
 void Message::unloadHeavyPart() {
 	Element::unloadHeavyPart();
 	_comments = nullptr;
-	if (_heavyCustomEmoji) {
-		_heavyCustomEmoji = false;
-		message()->_text.unloadCustomEmoji();
-	}
 }
 
 bool Message::showForwardsFromSender(
@@ -2822,13 +2804,6 @@ QRect Message::innerGeometry() const {
 		}
 	}
 	return result;
-}
-
-void Message::customEmojiRepaint() {
-	if (!_mediaRepaintScheduled) {
-		_mediaRepaintScheduled = true;
-		history()->owner().requestViewRepaint(this);
-	}
 }
 
 QRect Message::countGeometry() const {

@@ -376,8 +376,8 @@ void HistoryItem::invalidateChatListEntry() {
 }
 
 void HistoryItem::customEmojiRepaint() {
-	if (!_textRepaintScheduled) {
-		_textRepaintScheduled = true;
+	if (!_customEmojiRepaintScheduled) {
+		_customEmojiRepaintScheduled = true;
 		history()->owner().requestItemRepaint(this);
 	}
 }
