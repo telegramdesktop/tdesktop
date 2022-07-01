@@ -527,6 +527,7 @@ void Instance::paint(
 				_state = std::move(*caching);
 			} else if (auto cached = std::get_if<Cached>(&result)) {
 				_state = std::move(*cached);
+				repaint();
 			} else {
 				Unexpected("Value in Loader::LoadResult.");
 			}

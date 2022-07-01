@@ -237,7 +237,8 @@ void CustomEmojiLoader::lookupDone(
 	auto loader = [=] {
 		return std::make_unique<CustomEmojiLoader>(document, tag);
 	};
-	lookup->process->loaded(Ui::CustomEmoji::Cached(
+	auto done = std::move(lookup->process->loaded);
+	done(Ui::CustomEmoji::Cached(
 		SerializeCustomEmojiId(document),
 		std::move(loader),
 		std::move(*result)));

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_notifications_manager.h"
 #include "platform/platform_specific.h"
 #include "core/application.h"
+#include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -732,7 +733,7 @@ void Notification::updateGeometry(int x, int y, int width, int height) {
 void Notification::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 	p.setClipRect(e->rect());
-	p.drawPixmap(0, 0, _cache);
+	p.drawImage(0, 0, _cache);
 
 	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
 	if (a_actionsOpacity.animating()) {
@@ -750,8 +751,40 @@ void Notification::actionsOpacityCallback() {
 	}
 }
 
+void Notification::customEmojiCallback() {
+	if (_textRepaintScheduled) {
+		return;
+	}
+	_textRepaintScheduled = true;
+	InvokeQueued(this, [=] {
+		_textRepaintScheduled = false;
+		if (_cache.isNull()) {
+			return;
+		}
+		Painter p(&_cache);
+		p.fillRect(_textRect, st::notificationBg);
+		paintText(p);
+		update();
+	});
+}
+
+void Notification::paintText(Painter &p) {
+	p.setTextPalette(st::dialogsTextPalette);
+	p.setPen(st::dialogsTextFg);
+	p.setFont(st::dialogsTextFont);
+	_textCache.drawElided(
+		p,
+		_textRect.left(),
+		_textRect.top(),
+		_textRect.width(),
+		_textRect.height() / st::dialogsTextFont->height);
+	p.restoreTextPalette();
+}
+
 void Notification::updateNotifyDisplay() {
-	if (!_history || (!_item && _forwardedCount < 2)) return;
+	if (!_history || (!_item && _forwardedCount < 2)) {
+		return;
+	}
 
 	const auto options = manager()->getNotificationOptions(
 		_item,
@@ -810,15 +843,13 @@ void Notification::updateNotifyDisplay() {
 		const auto composeText = !options.hideMessageText
 			|| (!_reaction.isEmpty() && !options.hideNameAndPhoto);
 		if (composeText) {
-			auto itemTextCache = Ui::Text::String(itemWidth);
+			auto old = base::take(_textCache);
+			_textCache = Ui::Text::String(itemWidth);
 			auto r = QRect(
 				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
 				st::notifyItemTop + st::msgNameFont->height,
 				itemWidth,
 				2 * st::dialogsTextFont->height);
-			p.setTextPalette(st::dialogsTextPalette);
-			p.setPen(st::dialogsTextFg);
-			p.setFont(st::dialogsTextFont);
 			const auto text = !_reaction.isEmpty()
 				? (!_author.isEmpty()
 					? Ui::Text::PlainLink(_author).append(' ')
@@ -842,20 +873,27 @@ void Notification::updateNotifyDisplay() {
 							_forwardedCount))
 						: QString()));
 			const auto options = TextParseOptions{
-				TextParsePlainLinks
-					| (_forwardedCount > 1 ? TextParseMultiline : 0),
+				(TextParsePlainLinks
+					| TextParseMarkdown
+					| (_forwardedCount > 1 ? TextParseMultiline : 0)),
 				0,
 				0,
 				Qt::LayoutDirectionAuto,
 			};
-			itemTextCache.setMarkedText(st::dialogsTextStyle, text, options);
-			itemTextCache.drawElided(
-				p,
-				r.left(),
-				r.top(),
-				r.width(),
-				r.height() / st::dialogsTextFont->height);
-			p.restoreTextPalette();
+			const auto context = Core::MarkedTextContext{
+				.session = &_history->session(),
+				.customEmojiRepaint = [=] { customEmojiCallback(); },
+			};
+			_textCache.setMarkedText(
+				st::dialogsTextStyle,
+				text,
+				options,
+				context);
+			_textRect = r;
+			paintText(p);
+			if (!_textCache.hasCustomEmoji()) {
+				_textCache = Ui::Text::String();
+			}
 		} else {
 			p.setFont(st::dialogsTextFont);
 			p.setPen(st::dialogsTextFgService);
@@ -881,7 +919,7 @@ void Notification::updateNotifyDisplay() {
 		titleText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	}
 
-	_cache = Ui::PixmapFromImage(std::move(img));
+	_cache = std::move(img);
 	if (!canReply()) {
 		toggleActionButtons(false);
 	}
@@ -898,18 +936,21 @@ void Notification::updatePeerPhoto() {
 	}
 	_userpicLoaded = true;
 
-	auto img = _cache.toImage();
-	{
-		Painter p(&img);
-		_peer->paintUserpicLeft(
-			p,
-			_userpicView,
-			st::notifyPhotoPos.x(),
-			st::notifyPhotoPos.y(),
-			width(),
-			st::notifyPhotoSize);
-	}
-	_cache = Ui::PixmapFromImage(std::move(img));
+	Painter p(&_cache);
+	p.fillRect(
+		style::rtlrect(
+			QRect(
+				st::notifyPhotoPos,
+				QSize(st::notifyPhotoSize, st::notifyPhotoSize)),
+			width()),
+		st::notificationBg);
+	_peer->paintUserpicLeft(
+		p,
+		_userpicView,
+		st::notifyPhotoPos.x(),
+		st::notifyPhotoPos.y(),
+		width(),
+		st::notifyPhotoSize);
 	_userpicView = nullptr;
 	update();
 }
