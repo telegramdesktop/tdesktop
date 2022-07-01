@@ -286,12 +286,12 @@ Fn<bool(
 	};
 }
 
-void InitMessageField(
+void InitMessageFieldHandlers(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::InputField*> field) {
-	field->setMinHeight(
-		st::historySendSize.height() - 2 * st::historySendPadding);
-	field->setMaxHeight(st::historyComposeFieldMaxHeight);
+		not_null<Ui::InputField*> field,
+		Window::GifPauseReason pauseReasonLevel) {
+	const auto show = std::make_shared<Window::Show>(controller);
+	const auto session = &controller->session();
 
 	field->setTagMimeProcessor(FieldTagMimeProcessor(controller));
 	field->setCustomEmojiFactory([=](QStringView data, Fn<void()> update) {
@@ -299,23 +299,36 @@ void InitMessageField(
 			data,
 			std::move(update));
 	}, [=] {
-		return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Any);
+		return controller->isGifPausedAtLeastFor(pauseReasonLevel);
 	});
-
-	field->document()->setDocumentMargin(4.);
-	field->setAdditionalMargin(style::ConvertScale(4) - 4);
-
-	field->customTab(true);
 	field->setInstantReplaces(Ui::InstantReplaces::Default());
 	field->setInstantReplacesEnabled(
 		Core::App().settings().replaceEmojiValue());
 	field->setMarkdownReplacesEnabled(rpl::single(true));
 	field->setEditLinkCallback(
-		DefaultEditLinkCallback(
-			std::make_shared<Window::Show>(controller),
-			&controller->session(),
-			field));
+		DefaultEditLinkCallback(show, session, field));
+
+	InitSpellchecker(
+		std::make_shared<Window::Show>(controller),
+		session,
+		field);
+}
+
+void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
+	field->setMinHeight(
+		st::historySendSize.height() - 2 * st::historySendPadding);
+	field->setMaxHeight(st::historyComposeFieldMaxHeight);
+
+	field->document()->setDocumentMargin(4.);
+	field->setAdditionalMargin(style::ConvertScale(4) - 4);
+}
+
+void InitMessageField(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::InputField*> field) {
+	InitMessageFieldHandlers(controller, field, Window::GifPauseReason::Any);
+	InitMessageFieldGeometry(field);
+	field->customTab(true);
 }
 
 void InitSpellchecker(
@@ -337,15 +350,6 @@ void InitSpellchecker(
 		menuItem);
 	field->setExtendedContextMenu(s->contextMenuCreated());
 #endif // TDESKTOP_DISABLE_SPELLCHECK
-}
-
-void InitSpellchecker(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::InputField*> field) {
-	InitSpellchecker(
-		std::make_shared<Window::Show>(controller),
-		&controller->session(),
-		field);
 }
 
 bool HasSendText(not_null<const Ui::InputField*> field) {

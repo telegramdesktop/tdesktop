@@ -1426,7 +1426,6 @@ void ComposeControls::initField() {
 		_field,
 		&_window->session());
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
-	InitSpellchecker(_window, _field);
 
 	const auto rawTextEdit = _field->rawTextEdit().get();
 	rpl::merge(

@@ -221,9 +221,11 @@ void MentionNameClickHandler::onClick(ClickContext context) const {
 }
 
 auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
-	const auto data = QString::number(_userId.bare)
-		+ '.'
-		+ QString::number(_accessHash);
+	const auto data = TextUtilities::MentionNameDataFromFields({
+		.selfId = _session->userId().bare,
+		.userId = _userId.bare,
+		.accessHash = _accessHash,
+	});
 	return { EntityType::MentionName, data };
 }
 
