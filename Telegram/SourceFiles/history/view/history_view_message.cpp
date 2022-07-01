@@ -849,7 +849,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			auto mediaPosition = QPoint(
 				inner.left(),
 				trect.y() + trect.height() - mediaHeight);
-
+			_mediaRepaintScheduled = false;
 			p.translate(mediaPosition);
 			media->draw(p, context.translated(
 				-mediaPosition
@@ -918,6 +918,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			media->paintBubbleFireworks(p, g, context.now);
 		}
 	} else if (media && media->isDisplayed()) {
+		_mediaRepaintScheduled = false;
 		p.translate(g.topLeft());
 		media->draw(p, context.translated(
 			-g.topLeft()
@@ -2821,6 +2822,13 @@ QRect Message::innerGeometry() const {
 		}
 	}
 	return result;
+}
+
+void Message::customEmojiRepaint() {
+	if (!_mediaRepaintScheduled) {
+		_mediaRepaintScheduled = true;
+		history()->owner().requestViewRepaint(this);
+	}
 }
 
 QRect Message::countGeometry() const {

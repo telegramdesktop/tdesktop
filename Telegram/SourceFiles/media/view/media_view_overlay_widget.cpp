@@ -2264,9 +2264,15 @@ void OverlayWidget::refreshCaption() {
 	const auto base = duration
 		? TimestampLinkBase(_document, _message->fullId())
 		: QString();
+	const auto captionRepaint = [=] {
+		if (_fullScreenVideo || !_controlsOpacity.current()) {
+			return;
+		}
+		update(captionGeometry());
+	};
 	const auto context = Core::MarkedTextContext{
 		.session = &_message->history()->session(),
-		.customEmojiRepaint = [=] { update(); },
+		.customEmojiRepaint = captionRepaint,
 	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,

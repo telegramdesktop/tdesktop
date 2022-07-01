@@ -427,6 +427,8 @@ public:
 
 	virtual QRect innerGeometry() const = 0;
 
+	virtual void customEmojiRepaint();
+
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
 	}

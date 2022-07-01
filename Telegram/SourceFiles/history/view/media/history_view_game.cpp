@@ -36,8 +36,7 @@ Game::Game(
 	if (!consumed.text.isEmpty()) {
 		const auto context = Core::MarkedTextContext{
 			.session = &history()->session(),
-			.customEmojiRepaint = [=] {
-				history()->owner().requestViewRepaint(_parent); },
+			.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
 		};
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
@@ -246,6 +245,7 @@ void Game::draw(Painter &p, const PaintContext &context) const {
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
+		applyCustomEmojiPause(p, _description);
 		_description.drawLeftElided(p, padding.left(), tshift, paintw, width(), _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(context.selection));
 		tshift += _descriptionLines * lineHeight;
 	}
@@ -431,8 +431,7 @@ void Game::parentTextUpdated() {
 		if (!consumed.text.isEmpty()) {
 			const auto context = Core::MarkedTextContext{
 				.session = &history()->session(),
-				.customEmojiRepaint = [=] {
-					history()->owner().requestViewRepaint(_parent); },
+				.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
 			};
 			_description.setMarkedText(
 				st::webPageDescriptionStyle,

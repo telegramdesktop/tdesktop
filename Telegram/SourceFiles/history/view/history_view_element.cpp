@@ -412,6 +412,9 @@ void Element::setY(int y) {
 void Element::refreshDataIdHook() {
 }
 
+void Element::customEmojiRepaint() {
+}
+
 //void Element::externalLottieProgressing(bool external) const {
 //	if (const auto media = _media.get()) {
 //		media->externalLottieProgressing(external);
