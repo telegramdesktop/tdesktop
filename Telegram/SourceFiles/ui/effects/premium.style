@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 using "ui/basic.style";
 using "ui/widgets/widgets.style";
+using "settings/settings.style";
 
 // Preview.
 premiumPreviewBox: Box(defaultBox) {
@@ -96,6 +97,7 @@ premiumAccountsNameTop: 13px;
 premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
 premiumAccountsHeight: 105px;
 
+// Gift.
 premiumGiftRowHeight: 56px;
 premiumGiftRowBorderWidth: 2px;
 premiumGiftRowBorderRadius: 9px;
@@ -107,3 +109,18 @@ premiumGiftRowBadgeHeight: 18px;
 premiumGiftRowBadgeRadius: 4px;
 premiumGiftRowBadgeMargins: margins(5px, 1px, 5px, 0px);
 
+premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
+premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
+premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
+premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
+
+premiumGiftTerms: FlatLabel(settingLocalPasscodeDescription) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px underline);
+	}
+}
+premiumGiftBox: Box(premiumPreviewBox) {
+	buttonPadding: margins(12px, 12px, 12px, 12px);
+}

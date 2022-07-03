@@ -617,7 +617,8 @@ SessionController::SessionController(
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
-, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>()) {
+, _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
+, _giftPremiumValidator(GiftPremiumValidator(this)) {
 	init();
 
 	_chatStyleTheme = _defaultChatTheme;
@@ -746,6 +747,14 @@ bool SessionController::hasTabbedSelectorOwnership() const {
 void SessionController::showEditPeerBox(PeerData *peer) {
 	_showEditPeer = peer;
 	session().api().requestFullPeer(peer);
+}
+
+void SessionController::showGiftPremiumBox(UserData *user) {
+	if (user) {
+		_giftPremiumValidator.showBox(user);
+	} else {
+		_giftPremiumValidator.cancel();
+	}
 }
 
 void SessionController::init() {

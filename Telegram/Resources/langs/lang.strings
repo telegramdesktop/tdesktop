@@ -167,8 +167,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
 "lng_channels_limit1#other" = "You are a member of **{count}** groups and channels.";
-"lng_channels_limit2#one" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
-"lng_channels_limit2#other" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
+"lng_channels_limit2#one" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to double the limit to **{count}** groups and channels.";
+"lng_channels_limit2#other" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to double the limit to **{count}** groups and channels.";
 "lng_channels_limit2_final" = "Please leave some before joining a new one.";
 "lng_channels_leave_title" = "Least active communities";
 "lng_channels_leave_status" = "{type}, inactive {time}";
@@ -1140,6 +1140,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_unblock_user" = "Unblock user";
 "lng_profile_export_chat" = "Export history";
 "lng_profile_export_channel" = "Export history";
+"lng_profile_gift_premium" = "Gift Premium";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
 "lng_media_selected_gif#one" = "{count} GIF";
@@ -1446,7 +1447,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_you_theme_disabled" = "You disabled chat theme";
 "lng_action_theme_disabled" = "{from} disabled chat theme";
 "lng_action_proximity_distance_m#one" = "{count} meter";
-"lng_action_proximity_distance_m#other" = "{count} metres";
+"lng_action_proximity_distance_m#other" = "{count} meters";
 "lng_action_proximity_distance_km#one" = "{count} km";
 "lng_action_proximity_distance_km#other" = "{count} km";
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
@@ -1678,7 +1679,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_subtitle_double_limits" = "Doubled Limits";
 "lng_premium_summary_about_double_limits" = "Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.";
 "lng_premium_summary_subtitle_more_upload" = "4Gb Upload Size";
-"lng_premium_summary_about_more_upload" = "Increased upload size from 2Gb to 4Gb to per document, unlimited storage overall.";
+"lng_premium_summary_about_more_upload" = "Increased upload size from 2Gb to 4Gb per document, unlimited storage overall.";
 "lng_premium_summary_subtitle_faster_download" = "Faster Download Speed";
 "lng_premium_summary_about_faster_download" = "No more limits on the speed with which media and documents are downloaded.";
 "lng_premium_summary_subtitle_voice_to_text" = "Voice-to-Text Conversion";
@@ -1741,6 +1742,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_double_limits_about_accounts#one" = "Connect {count} account with different mobile numbers";
 "lng_premium_double_limits_about_accounts#other" = "Connect {count} accounts with different mobile numbers";
 //
+
+"lng_premium_gift_title" = "Gift Telegram Premium";
+"lng_premium_gift_about" = "Let **{user}** enjoy exclusive features of Telegram with **Telegram Premium**.";
+"lng_premium_gift_button" = "Gift Subscription for {cost}";
+"lng_premium_gift_per" = "{cost} / month";
+"lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
+"lng_premium_gift_terms_link" = "here";
 
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";
