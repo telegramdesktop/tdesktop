@@ -18,9 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PinnedBar::PinnedBar(not_null<QWidget*> parent)
+PinnedBar::PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused)
 : _wrap(parent, object_ptr<RpWidget>(parent))
-, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
+, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget()))
+, _customEmojiPaused(std::move(customEmojiPaused)) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
 
@@ -133,7 +134,8 @@ void PinnedBar::createControls() {
 
 	_bar = std::make_unique<MessageBar>(
 		_wrap.entity(),
-		st::defaultMessageBar);
+		st::defaultMessageBar,
+		_customEmojiPaused);
 	if (_right.button) {
 		_right.button->raise();
 	}
@@ -203,6 +205,12 @@ void PinnedBar::hide() {
 void PinnedBar::raise() {
 	_wrap.raise();
 	_shadow->raise();
+}
+
+void PinnedBar::update() {
+	if (_bar) {
+		_bar->widget()->update();
+	}
 }
 
 void PinnedBar::finishAnimating() {

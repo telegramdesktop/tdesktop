@@ -149,6 +149,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "core/crash_reports.h"
 #include "core/shortcuts.h"
+#include "core/ui_integration.h"
 #include "support/support_common.h"
 #include "support/support_autocomplete.h"
 #include "support/support_preload.h"
@@ -6365,10 +6366,10 @@ void HistoryWidget::checkPinnedBarState() {
 		return;
 	}
 
-	auto barContent = HistoryView::PinnedBarContent(
-		&session(),
-		_pinnedTracker->shownMessageId());
-	_pinnedBar = std::make_unique<Ui::PinnedBar>(this);
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
+		return controller()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	});
 	rpl::combine(
 		Info::Profile::SharedMediaCountValue(
 			_peer,
@@ -6389,7 +6390,11 @@ void HistoryWidget::checkPinnedBarState() {
 	) | rpl::start_with_next([=](bool many, HistoryItem *item) {
 		refreshPinnedBarButton(many, item);
 	}, _pinnedBar->lifetime());
-	_pinnedBar->setContent(std::move(barContent));
+
+	_pinnedBar->setContent(HistoryView::PinnedBarContent(
+		&session(),
+		_pinnedTracker->shownMessageId(),
+		[bar = _pinnedBar.get()] { bar->update(); }));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
@@ -7417,10 +7422,15 @@ void HistoryWidget::messageDataReceived(
 }
 
 void HistoryWidget::updateReplyEditText(not_null<HistoryItem*> item) {
+	const auto context = Core::MarkedTextContext{
+		.session = &session(),
+		.customEmojiRepaint = [=] { updateField(); },
+	};
 	_replyEditMsgText.setMarkedText(
 		st::messageTextStyle,
 		item->inReplyText(),
-		Ui::DialogTextOptions());
+		Ui::DialogTextOptions(),
+		context);
 	if (!_field->isHidden() || isRecording()) {
 		_fieldBarCancel->show();
 		updateMouseTracking();
@@ -7518,10 +7528,15 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 	}
 	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());
+	const auto context = Core::MarkedTextContext{
+		.session = &session(),
+		.customEmojiRepaint = [=] { updateField(); },
+	};
 	_toForwardText.setMarkedText(
 		st::messageTextStyle,
 		text,
-		Ui::DialogTextOptions());
+		Ui::DialogTextOptions(),
+		context);
 	_toForwardNameVersion = keepNames ? version : keepCaptions ? -1 : -2;
 }
 
@@ -7570,7 +7585,7 @@ void HistoryWidget::updateReplyToName() {
 }
 
 void HistoryWidget::updateField() {
-	auto fieldAreaTop = _scroll->y() + _scroll->height();
+	const auto fieldAreaTop = _scroll->y() + _scroll->height();
 	rtlupdate(0, fieldAreaTop, width(), height() - fieldAreaTop);
 }
 
@@ -7594,6 +7609,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backh += st::historyReplyHeight;
 	}
 	auto drawWebPagePreview = (_previewData && _previewData->pendingTill >= 0) && !_replyForwardPressed;
+	p.setInactive(
+		controller()->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
 	p.fillRect(myrtlrect(0, backy, width(), backh), st::historyReplyBg);
 	if (_editMsgId || _replyToId || (!hasForward && _kbReplyTo)) {
 		auto replyLeft = st::historyReplySkip;

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "layout/layout_position.h"
 #include "mainwindow.h"
 #include "media/audio/media_audio.h"
@@ -256,10 +257,15 @@ bool HistoryMessageReply::updateData(
 	}
 
 	if (replyToMsg) {
+		const auto context = Core::MarkedTextContext{
+			.session = &holder->history()->session(),
+			.customEmojiRepaint = [=] { holder->customEmojiRepaint(); },
+		};
 		replyToText.setMarkedText(
 			st::messageTextStyle,
 			replyToMsg->inReplyText(),
-			Ui::DialogTextOptions());
+			Ui::DialogTextOptions(),
+			context);
 
 		updateName(holder);
 
@@ -447,6 +453,7 @@ void HistoryMessageReply::paint(
 				p.setTextPalette(inBubble
 					? stm->replyTextPalette
 					: st->imgReplyTextPalette());
+				holder->prepareCustomEmojiPaint(p, replyToText);
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				p.setTextPalette(stm->textPalette);
 			}

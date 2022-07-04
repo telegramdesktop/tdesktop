@@ -23,13 +23,17 @@ struct MessageBarContent {
 	int count = 1;
 	QString title;
 	TextWithEntities text;
+	std::any context;
 	QImage preview;
 	style::margins margins;
 };
 
 class MessageBar final {
 public:
-	MessageBar(not_null<QWidget*> parent, const style::MessageBar &st);
+	MessageBar(
+		not_null<QWidget*> parent,
+		const style::MessageBar &st,
+		Fn<bool()> customEmojiPaused);
 
 	void set(MessageBarContent &&content);
 	void set(rpl::producer<MessageBarContent> content);
@@ -100,6 +104,7 @@ private:
 
 	const style::MessageBar &_st;
 	Ui::RpWidget _widget;
+	Fn<bool()> _customEmojiPaused;
 	MessageBarContent _content;
 	rpl::lifetime _contentLifetime;
 	Ui::Text::String _title, _text;

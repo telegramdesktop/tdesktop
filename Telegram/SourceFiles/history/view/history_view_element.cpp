@@ -944,6 +944,9 @@ void Element::unloadHeavyPart() {
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
 		data()->_text.unloadCustomEmoji();
+		if (const auto reply = data()->Get<HistoryMessageReply>()) {
+			reply->replyToText.unloadCustomEmoji();
+		}
 	}
 }
 

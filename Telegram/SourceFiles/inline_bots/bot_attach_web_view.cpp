@@ -250,6 +250,7 @@ void BotAction::validateIcon() {
 			_mask = QImage(
 				size * style::DevicePixelRatio(),
 				QImage::Format_ARGB32_Premultiplied);
+			_mask.setDevicePixelRatio(style::DevicePixelRatio());
 			_mask.fill(Qt::transparent);
 			{
 				auto p = QPainter(&_mask);

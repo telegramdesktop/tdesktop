@@ -431,6 +431,7 @@ public:
 
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;
+	void customEmojiRepaint();
 
 	[[nodiscard]] TimeId ttlDestroyAt() const {
 		return _ttlDestroyAt;
@@ -463,7 +464,6 @@ protected:
 	MessageFlags _flags = 0;
 
 	void invalidateChatListEntry();
-	void customEmojiRepaint();
 
 	void setGroupId(MessageGroupId groupId);
 

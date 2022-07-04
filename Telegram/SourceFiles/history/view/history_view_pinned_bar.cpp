@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_tracker.h"
 #include "history/history_item.h"
 #include "history/history.h"
+#include "core/ui_integration.h"
 #include "base/weak_ptr.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -23,16 +24,22 @@ namespace HistoryView {
 namespace {
 
 [[nodiscard]] Ui::MessageBarContent ContentWithoutPreview(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		Fn<void()> repaint) {
 	return Ui::MessageBarContent{
 		.text = item->inReplyText(),
+		.context = Core::MarkedTextContext{
+			.session = &item->history()->session(),
+			.customEmojiRepaint = std::move(repaint),
+		},
 	};
 }
 
 [[nodiscard]] Ui::MessageBarContent ContentWithPreview(
 		not_null<HistoryItem*> item,
-		Image *preview) {
-	auto result = ContentWithoutPreview(item);
+		Image *preview,
+		Fn<void()> repaint) {
+	auto result = ContentWithoutPreview(item, std::move(repaint));
 	if (!preview) {
 		static const auto kEmpty = [&] {
 			const auto size = st::historyReplyHeight * cIntRetinaFactor();
@@ -51,14 +58,15 @@ namespace {
 }
 
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItem(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		Fn<void()> repaint) {
 	return item->history()->session().changes().messageFlagsValue(
 		item,
 		Data::MessageUpdate::Flag::Edited
 	) | rpl::map([=]() -> rpl::producer<Ui::MessageBarContent> {
 		const auto media = item->media();
 		if (!media || !media->hasReplyPreview()) {
-			return rpl::single(ContentWithoutPreview(item));
+			return rpl::single(ContentWithoutPreview(item, repaint));
 		}
 		constexpr auto kFullLoaded = 2;
 		constexpr auto kSomeLoaded = 1;
@@ -82,7 +90,7 @@ namespace {
 		}) | rpl::then(
 			rpl::single(kFullLoaded)
 		) | rpl::map([=] {
-			return ContentWithPreview(item, media->replyPreview());
+			return ContentWithPreview(item, media->replyPreview(), repaint);
 		});
 	}) | rpl::flatten_latest();
 }
@@ -90,11 +98,12 @@ namespace {
 [[nodiscard]] rpl::producer<Ui::MessageBarContent> ContentByItemId(
 		not_null<Main::Session*> session,
 		FullMsgId id,
+		Fn<void()> repaint,
 		bool alreadyLoaded = false) {
 	if (!id) {
 		return rpl::single(Ui::MessageBarContent());
 	} else if (const auto item = session->data().message(id)) {
-		return ContentByItem(item);
+		return ContentByItem(item, repaint);
 	} else if (alreadyLoaded) {
 		return rpl::single(Ui::MessageBarContent()); // Deleted message?..
 	}
@@ -110,7 +119,7 @@ namespace {
 	return std::move(
 		load
 	) | rpl::then(rpl::deferred([=] {
-		return ContentByItemId(session, id, true);
+		return ContentByItemId(session, id, repaint, true);
 	}));
 }
 
@@ -137,20 +146,23 @@ auto WithPinnedTitle(not_null<Main::Session*> session, PinnedId id) {
 
 rpl::producer<Ui::MessageBarContent> MessageBarContentByItemId(
 		not_null<Main::Session*> session,
-		FullMsgId id) {
-	return ContentByItemId(session, id);
+		FullMsgId id,
+		Fn<void()> repaint) {
+	return ContentByItemId(session, id, std::move(repaint));
 }
 
 rpl::producer<Ui::MessageBarContent> PinnedBarContent(
 		not_null<Main::Session*> session,
-		rpl::producer<PinnedId> id) {
+		rpl::producer<PinnedId> id,
+		Fn<void()> repaint) {
 	return std::move(
 		id
 	) | rpl::distinct_until_changed(
 	) | rpl::map([=](PinnedId id) {
 		return ContentByItemId(
 			session,
-			id.message
+			id.message,
+			repaint
 		) | rpl::map(WithPinnedTitle(session, id));
 	}) | rpl::flatten_latest();
 }

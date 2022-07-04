@@ -90,10 +90,12 @@ bool CanSendFiles(not_null<const QMimeData*> data) {
 
 rpl::producer<Ui::MessageBarContent> RootViewContent(
 		not_null<History*> history,
-		MsgId rootId) {
+		MsgId rootId,
+		Fn<void()> repaint) {
 	return MessageBarContentByItemId(
 		&history->session(),
-		FullMsgId(history->peer->id, rootId)
+		FullMsgId(history->peer->id, rootId),
+		std::move(repaint)
 	) | rpl::map([=](Ui::MessageBarContent &&content) {
 		const auto item = history->owner().message(history->peer, rootId);
 		if (!item) {
@@ -387,14 +389,19 @@ void RepliesWidget::setupRoot() {
 }
 
 void RepliesWidget::setupRootView() {
-	auto content = rpl::combine(
-		RootViewContent(_history, _rootId),
+	_rootView = std::make_unique<Ui::PinnedBar>(this, [=] {
+		return controller()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	});
+	_rootView->setContent(rpl::combine(
+		RootViewContent(
+			_history,
+			_rootId,
+			[bar = _rootView.get()] { bar->update(); }),
 		_rootVisible.value()
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool shown) {
 		return shown ? std::move(content) : Ui::MessageBarContent();
-	});
-	_rootView = std::make_unique<Ui::PinnedBar>(this);
-	_rootView->setContent(std::move(content));
+	}));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
