@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
+#include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
 
@@ -126,10 +127,18 @@ void MessageView::paint(
 			_senderCache = { st::dialogsTextWidthMin };
 		}
 		TextUtilities::Trim(preview.text);
+		const auto history = item->history();
+		const auto context = Core::MarkedTextContext{
+			.session = &history->session(),
+			.customEmojiRepaint = [=] {
+				history->updateChatListEntry();
+			},
+		};
 		_textCache.setMarkedText(
 			st::dialogsTextStyle,
 			preview.text,
-			DialogTextOptions());
+			DialogTextOptions(),
+			context);
 		_textCachedFor = item;
 		_imagesCache = std::move(preview.images);
 		if (preview.loadingContext.has_value()) {

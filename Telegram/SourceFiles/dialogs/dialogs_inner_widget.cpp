@@ -406,6 +406,8 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 void InnerWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	p.setInactive(
+		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
 	const auto r = e->rect();
 	if (_controller->widget()->contentOverlapped(this, r)) {
 		return;

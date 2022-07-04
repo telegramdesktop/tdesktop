@@ -309,7 +309,7 @@ auto CustomEmojiLoader::InitialState(
 	if (!document->isNull()) {
 		return Lookup{ document };
 	}
-	return Resolve();
+	return Resolve{ .entityData = SerializeCustomEmojiId(id) };
 }
 
 void CustomEmojiLoader::cancel() {

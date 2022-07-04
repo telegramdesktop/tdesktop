@@ -483,7 +483,7 @@ public:
 private:
 	friend class HistoryBlock;
 
-	enum class Flag {
+	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
 		UnreadThingsKnown = (1 << 1),
 	};
