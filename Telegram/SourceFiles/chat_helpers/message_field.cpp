@@ -75,13 +75,19 @@ QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 		if (TextUtilities::IsMentionLink(tag)
 			&& TextUtilities::MentionNameDataToFields(tag).selfId != id) {
 			i = all.erase(i);
-		} else if (Ui::InputField::IsCustomEmojiLink(tag)
-			&& Data::ParseCustomEmojiData(
-				Ui::InputField::CustomEmojiEntityData(tag)).selfId != id) {
-			i = all.erase(i);
-		} else {
-			++i;
+			continue;
+		} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
+			if (!_session->premium()) {
+				i = all.erase(i);
+				continue;
+			}
+			const auto data = Ui::InputField::CustomEmojiEntityData(tag);
+			if (Data::ParseCustomEmojiData(data).selfId != id) {
+				i = all.erase(i);
+				continue;
+			}
 		}
+		++i;
 	}
 	return TextUtilities::JoinTag(all);
 }
