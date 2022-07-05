@@ -60,6 +60,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
 
+#include "data/stickers/data_custom_emoji.h"
+
 namespace HistoryView {
 namespace {
 
@@ -1485,6 +1487,9 @@ void ComposeControls::initAutocomplete() {
 
 	_autocomplete->stickerChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
+		Data::InsertCustomEmoji(_field, data.sticker);
+		AssertIsDebug();
+#if 0
 		if (!_showSlowmodeError || !_showSlowmodeError()) {
 			setText({});
 		}
@@ -1497,6 +1502,7 @@ void ComposeControls::initAutocomplete() {
 			.options = data.options,
 			.messageSendingFrom = base::take(data.messageSendingFrom),
 		});
+#endif
 	}, _autocomplete->lifetime());
 
 	_autocomplete->choosingProcesses(
@@ -1829,7 +1835,13 @@ void ComposeControls::initTabbedSelector() {
 	}, wrap->lifetime());
 
 	selector->fileChosen(
+	) | rpl::start_with_next([=](const FileChosen &data) {
+		Data::InsertCustomEmoji(_field, data.document);
+		AssertIsDebug();
+	}, wrap->lifetime());
+#if 0
 	) | rpl::start_to_stream(_fileChosen, wrap->lifetime());
+#endif
 
 	selector->photoChosen(
 	) | rpl::start_to_stream(_photoChosen, wrap->lifetime());
