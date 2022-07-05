@@ -69,6 +69,45 @@ constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	return gradient;
 }
 
+class PartialGradient final {
+public:
+	PartialGradient(int from, int to, QGradientStops stops);
+
+	[[nodiscard]] QLinearGradient compute(int position, int size) const;
+
+private:
+	const int _from;
+	const int _to;
+	QLinearGradient _gradient;
+
+};
+
+PartialGradient::PartialGradient(int from, int to, QGradientStops stops)
+: _from(from)
+, _to(to)
+, _gradient(0, 0, 0, to - from) {
+	_gradient.setStops(std::move(stops));
+}
+
+QLinearGradient PartialGradient::compute(int position, int size) const {
+	const auto pointTop = position - _from;
+	const auto pointBottom = pointTop + size;
+	const auto ratioTop = pointTop / float64(_to - _from);
+	const auto ratioBottom = pointBottom / float64(_to - _from);
+
+	auto resultGradient = QLinearGradient(
+		QPointF(),
+		QPointF(0, pointBottom - pointTop));
+
+	resultGradient.setColorAt(
+		.0,
+		anim::gradient_color_at(_gradient, ratioTop));
+	resultGradient.setColorAt(
+		.1,
+		anim::gradient_color_at(_gradient, ratioBottom));
+	return resultGradient;
+}
+
 class Bubble final {
 public:
 	using EdgeProgress = float64;
@@ -863,36 +902,21 @@ void ShowListBox(
 	Assert(lines.size() > 2);
 	const auto from = lines.front()->y();
 	const auto to = lines.back()->y() + lines.back()->height();
-	auto gradient = QLinearGradient(0, 0, 0, to - from);
 
-	{
+	const auto partialGradient = [&] {
 		auto stops = Ui::Premium::FullHeightGradientStops();
+		// Reverse.
 		for (auto &stop : stops) {
 			stop.first = std::abs(stop.first - 1.);
 		}
-		gradient.setStops(std::move(stops));
-	}
+		return PartialGradient(from, to, std::move(stops));
+	}();
 
 	for (auto i = 0; i < int(lines.size()); i++) {
 		const auto &line = lines[i];
 
-		const auto pointTop = line->y() - from;
-		const auto pointBottom = pointTop + line->height();
-		const auto ratioTop = pointTop / float64(to - from);
-		const auto ratioBottom = pointBottom / float64(to - from);
-
-		auto resultGradient = QLinearGradient(
-			QPointF(),
-			QPointF(0, pointBottom - pointTop));
-
-		resultGradient.setColorAt(
-			.0,
-			anim::gradient_color_at(gradient, ratioTop));
-		resultGradient.setColorAt(
-			.1,
-			anim::gradient_color_at(gradient, ratioBottom));
-
-		const auto brush = QBrush(resultGradient);
+		const auto brush = QBrush(
+			partialGradient.compute(line->y(), line->height()));
 		line->setColorOverride(brush);
 	}
 	box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
