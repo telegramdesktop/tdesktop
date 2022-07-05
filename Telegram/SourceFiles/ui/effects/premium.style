@@ -95,3 +95,15 @@ premiumAccountsLabelRadius: 6;
 premiumAccountsNameTop: 13px;
 premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
 premiumAccountsHeight: 105px;
+
+premiumGiftRowHeight: 56px;
+premiumGiftRowBorderWidth: 2px;
+premiumGiftRowBorderRadius: 9px;
+premiumGiftRowPaddings: margins(19px, 2px, 17px, 2px);
+premiumGiftRowMargins: margins(14px, 0px, 15px, 0px);
+premiumGiftRowSubtitleTop: 7px;
+premiumGiftRowTextLeft: 53px;
+premiumGiftRowBadgeHeight: 18px;
+premiumGiftRowBadgeRadius: 4px;
+premiumGiftRowBadgeMargins: margins(5px, 1px, 5px, 0px);
+

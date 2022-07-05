@@ -29,6 +29,13 @@ class VerticalLayout;
 
 namespace Premium {
 
+struct GiftInfo {
+	QString duration;
+	QString discount;
+	QString perMonth;
+	QString total;
+};
+
 void AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
 	rpl::producer<> showFinishes,
@@ -70,6 +77,7 @@ void AddAccountsRow(
 [[nodiscard]] QGradientStops ButtonGradientStops();
 [[nodiscard]] QGradientStops LockGradientStops();
 [[nodiscard]] QGradientStops FullHeightGradientStops();
+[[nodiscard]] QGradientStops GiftGradientStops();
 
 struct ListEntry final {
 	rpl::producer<QString> subtitle;
@@ -81,6 +89,11 @@ struct ListEntry final {
 void ShowListBox(
 	not_null<Ui::GenericBox*> box,
 	std::vector<ListEntry> entries);
+
+void AddGiftOptions(
+	not_null<Ui::VerticalLayout*> parent,
+	std::shared_ptr<Ui::RadiobuttonGroup> group,
+	std::vector<GiftInfo> gifts);
 
 } // namespace Premium
 } // namespace Ui
