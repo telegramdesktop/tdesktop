@@ -1078,40 +1078,6 @@ ringtonesBoxButton: SettingsButton(defaultSettingsButton) {
 }
 ringtonesBoxSkip: 7px;
 
-premiumBubblePadding: margins(14px, 0px, 14px, 0px);
-premiumBubblePenWidth: 6;
-premiumBubbleHeight: 40px;
-premiumBubbleSkip: 8px;
-premiumBubbleWidthLimit: 80px;
-premiumBubbleTextSkip: 3px;
-premiumBubbleSlideDuration: 1000;
-premiumBubbleTailSize: size(21px, 7px);
-premiumBubbleFont: font(19px);
-premiumLineTextSkip: 11px;
-premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
-
-premiumIconChats: icon {{ "limits/chats", settingsIconFg }};
-premiumIconFiles: icon {{ "limits/files", settingsIconFg }};
-premiumIconFolders: icon {{ "limits/folders", settingsIconFg }};
-premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
-premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
-premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
-premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
-
-premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
-	imageRadius: 27px;
-	imageSmallRadius: 23px;
-	check: RoundCheckbox(defaultRoundCheckbox) {
-		size: 0px;
-	}
-}
-premiumAccountsLabelSize: size(22px, 15px);
-premiumAccountsLabelPadding: margins(2px, 2px, 2px, 2px);
-premiumAccountsLabelRadius: 6;
-premiumAccountsNameTop: 13px;
-premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
-premiumAccountsHeight: 105px;
-
 gradientButtonGlareDuration: 700;
 gradientButtonGlareTimeout: 2000;
 gradientButtonGlareWidth: 100px;
