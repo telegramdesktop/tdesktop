@@ -775,7 +775,7 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 	if (type == Window::SectionActionResult::Fallback) {
 		ui_showPeerHistory(
 			request.peer->id,
-			SectionShow::Way::ClearStack,
+			SectionShow::Way::Forward,
 			ShowAtTheEndMsgId);
 		_history->sendBotCommand(request);
 	}
