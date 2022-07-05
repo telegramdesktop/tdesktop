@@ -27,4 +27,16 @@ void SendBotCallbackDataWithPassword(
 	int row,
 	int column);
 
+bool SwitchInlineBotButtonReceived(
+	not_null<Window::SessionController*> controller,
+	const QString &query,
+	UserData *samePeerBot = nullptr,
+	MsgId samePeerReplyTo = 0);
+
+void ActivateBotCommand(
+	not_null<Window::SessionController*> controller,
+	not_null<HistoryItem*> item,
+	int row,
+	int column);
+
 } // namespace Api

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "api/api_bot.h"
 #include "api/api_text_entities.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -105,9 +106,13 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 				for (const auto &button : row) {
 					using ButtonType = HistoryMessageMarkupButton::Type;
 					if (button.type == ButtonType::SwitchInline) {
-						Notify::switchInlineBotButtonReceived(
-							&item->history()->session(),
-							QString::fromUtf8(button.data));
+						const auto session = &item->history()->session();
+						const auto &windows = session->windows();
+						if (!windows.empty()) {
+							Api::SwitchInlineBotButtonReceived(
+								windows.front(),
+								QString::fromUtf8(button.data));
+						}
 						return;
 					}
 				}

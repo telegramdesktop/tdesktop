@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/cached_round_corners.h"
-#include "facades.h"
+#include "api/api_bot.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
@@ -202,7 +202,7 @@ bool BotKeyboard::moderateKeyActivate(int key) {
 				if (!markup->data.rows.empty()
 					&& index >= 0
 					&& index < int(markup->data.rows.front().size())) {
-					App::activateBotCommand(_controller, item, 0, index);
+					Api::ActivateBotCommand(_controller, item, 0, index);
 					return true;
 				}
 			} else if (const auto user = item->history()->peer->asUser()) {

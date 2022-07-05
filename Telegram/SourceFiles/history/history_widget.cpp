@@ -155,7 +155,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_preload.h"
 #include "dialogs/dialogs_key.h"
 #include "calls/calls_instance.h"
-#include "facades.h"
+#include "api/api_bot.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_window.h"
@@ -359,10 +359,11 @@ HistoryWidget::HistoryWidget(
 
 	initTabbedSelector();
 
-	_attachToggle->addClickHandler(App::LambdaDelayed(
-		st::historyAttach.ripple.hideDuration,
-		this,
-		[=] { chooseAttach(); }));
+	_attachToggle->setClickedCallback([=] {
+		base::call_delayed(st::historyAttach.ripple.hideDuration, this, [=] {
+			chooseAttach();
+		});
+	});
 
 	const auto rawTextEdit = _field->rawTextEdit().get();
 	rpl::merge(
@@ -1792,7 +1793,7 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			if (history == _history) {
 				applyDraft();
 			} else {
-				Ui::showPeerHistory(history->peer, ShowAtUnreadMsgId);
+				controller()->showPeerHistory(history->peer);
 			}
 		}
 		return true;
@@ -4207,7 +4208,9 @@ void HistoryWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 }
 
 bool HistoryWidget::insertBotCommand(const QString &cmd) {
-	if (!canWriteMessage()) return false;
+	if (!canWriteMessage()) {
+		return false;
+	}
 
 	auto insertingInlineBot = !cmd.isEmpty() && (cmd.at(0) == '@');
 	auto toInsert = cmd;
@@ -6056,7 +6059,10 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 				optionsChanged,
 				changeRecipient));
 		} else {
-			Ui::showPeerHistory(_peer, _editMsgId ? _editMsgId : replyToId());
+			controller()->showPeerHistory(
+				_peer,
+				Window::SectionShow::Way::Forward,
+				_editMsgId ? _editMsgId : replyToId());
 		}
 	}
 }
@@ -6410,7 +6416,10 @@ void HistoryWidget::checkPinnedBarState() {
 	) | rpl::start_with_next([=] {
 		const auto id = _pinnedTracker->currentMessageId();
 		if (const auto item = session().data().message(id.message)) {
-			Ui::showPeerHistory(item->history()->peer, item->id);
+			controller()->showPeerHistory(
+				item->history()->peer,
+				Window::SectionShow::Way::Forward,
+				item->id);
 			if (const auto group = session().data().groups().find(item)) {
 				// Hack for the case when a non-first item of an album
 				// is pinned and we still want the 'show last after first'.
@@ -6495,7 +6504,7 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 					Ui::RoundButton::TextTransform::NoTransform);
 				button->setFullRadius(true);
 				button->setClickedCallback([=] {
-					App::activateBotCommand(controller(), item, 0, 0);
+					Api::ActivateBotCommand(controller(), item, 0, 0);
 				});
 				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
 					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
@@ -7806,10 +7815,8 @@ bool HistoryWidget::paintShowAnimationFrame() {
 }
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
-	if (paintShowAnimationFrame()) {
-		return;
-	}
-	if (Ui::skipPaintEvent(this, e)) {
+	if (paintShowAnimationFrame()
+		|| controller()->window().widget()->contentOverlapped(this, e)) {
 		return;
 	}
 	if (hasPendingResizedItems()) {

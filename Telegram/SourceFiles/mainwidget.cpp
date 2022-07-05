@@ -785,10 +785,6 @@ void MainWidget::hideSingleUseKeyboard(PeerData *peer, MsgId replyTo) {
 	_history->hideSingleUseKeyboard(peer, replyTo);
 }
 
-bool MainWidget::insertBotCommand(const QString &cmd) {
-	return _history->insertBotCommand(cmd);
-}
-
 void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	// #TODO windows
 	if (!_dialogs) {
