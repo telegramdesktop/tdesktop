@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
 #include "data/data_user.h"
 
 namespace Api {
@@ -24,7 +25,6 @@ using namespace TextUtilities;
 	return Data::SerializeCustomEmojiId({
 		.selfId = session->userId().bare,
 		.id = data.vdocument_id().v,
-		.set = Data::FromInputSet(data.vstickerset()),
 	});
 }
 
@@ -37,11 +37,14 @@ using namespace TextUtilities;
 	if (!parsed.id || parsed.selfId != session->userId().bare) {
 		return {};
 	}
+	const auto document = session->data().document(parsed.id);
+	if (!document->sticker()) {
+		return {};
+	}
 	return MTP_messageEntityCustomEmoji(
 		offset,
 		length,
-		Data::InputStickerSet(parsed.set),
-		MTP_long(parsed.id));
+		MTP_long(document->id));
 }
 
 [[nodiscard]] std::optional<MTPMessageEntity> MentionNameEntity(

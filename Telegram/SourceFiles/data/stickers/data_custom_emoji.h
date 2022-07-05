@@ -26,7 +26,6 @@ class CustomEmojiLoader;
 struct CustomEmojiId {
 	uint64 selfId = 0;
 	uint64 id = 0;
-	StickerSetIdentifier set;
 };
 
 class CustomEmojiManager final : public base::has_weak_ptr {
@@ -47,18 +46,13 @@ public:
 	[[nodiscard]] Session &owner() const;
 
 private:
-	struct Set {
-		int32 hash = 0;
-		mtpRequestId requestId = 0;
-		base::flat_set<uint64> documents;
-		base::flat_set<uint64> waiting;
-	};
 	struct RepaintBunch {
 		crl::time when = 0;
 		std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>> instances;
 	};
 
-	void requestSetIfNeeded(const CustomEmojiId &id);
+	void request();
+	void requestFinished();
 	void repaintLater(
 		not_null<Ui::CustomEmoji::Instance*> instance,
 		Ui::CustomEmoji::RepaintRequest request);
@@ -67,13 +61,14 @@ private:
 
 	const not_null<Session*> _owner;
 
-	base::flat_map<uint64, base::flat_map<
+	base::flat_map<
 		uint64,
-		std::unique_ptr<Ui::CustomEmoji::Instance>>> _instances;
-	base::flat_map<uint64, Set> _sets;
+		std::unique_ptr<Ui::CustomEmoji::Instance>> _instances;
 	base::flat_map<
 		uint64,
 		std::vector<base::weak_ptr<CustomEmojiLoader>>> _loaders;
+	base::flat_set<uint64> _pendingForRequest;
+	mtpRequestId _requestId = 0;
 
 	base::flat_map<crl::time, RepaintBunch> _repaints;
 	crl::time _repaintNext = 0;
@@ -86,5 +81,9 @@ private:
 [[nodiscard]] QString SerializeCustomEmojiId(
 	not_null<DocumentData*> document);
 [[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data);
+
+void InsertCustomEmoji(
+	not_null<Ui::InputField*> field,
+	not_null<DocumentData*> document);
 
 } // namespace Data

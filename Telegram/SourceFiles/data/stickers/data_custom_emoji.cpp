@@ -22,9 +22,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 
 #include "data/stickers/data_stickers.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/text/text_block.h"
 
 namespace Data {
 namespace {
+
+constexpr auto kMaxPerRequest = 100;
 
 using SizeTag = CustomEmojiManager::SizeTag;
 
@@ -306,7 +310,7 @@ auto CustomEmojiLoader::InitialState(
 	const CustomEmojiId &id)
 -> std::variant<Resolve, Lookup, Load> {
 	const auto document = owner->document(id.id);
-	if (!document->isNull()) {
+	if (document->sticker()) {
 		return Lookup{ document };
 	}
 	return Resolve{ .entityData = SerializeCustomEmojiId(id) };
@@ -353,15 +357,11 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		QStringView data,
 		Fn<void()> update) {
 	const auto parsed = ParseCustomEmojiData(data);
-	if (!parsed.id || !parsed.set.id) {
+	if (!parsed.id) {
 		return nullptr;
 	}
-	auto i = _instances.find(parsed.set.id);
+	auto i = _instances.find(parsed.id);
 	if (i == end(_instances)) {
-		i = _instances.emplace(parsed.set.id).first;
-	}
-	auto j = i->second.find(parsed.id);
-	if (j == end(i->second)) {
 		using Loading = Ui::CustomEmoji::Loading;
 		auto loader = std::make_unique<CustomEmojiLoader>(
 			_owner,
@@ -369,74 +369,67 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			SizeTag::Normal);
 		if (loader->resolving()) {
 			_loaders[parsed.id].push_back(base::make_weak(loader.get()));
+			_pendingForRequest.emplace(parsed.id);
+			if (!_requestId && _pendingForRequest.size() == 1) {
+				crl::on_main(this, [=] { request(); });
+			}
 		}
 		const auto repaint = [=](
 				not_null<Ui::CustomEmoji::Instance*> instance,
 				Ui::CustomEmoji::RepaintRequest request) {
 			repaintLater(instance, request);
 		};
-		j = i->second.emplace(
+		i = _instances.emplace(
 			parsed.id,
 			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
 				std::move(loader),
 				Ui::CustomEmoji::Preview()
 			}, std::move(repaint))).first;
 	}
-	requestSetIfNeeded(parsed);
 
 	return std::make_unique<Ui::CustomEmoji::Object>(
-		j->second.get(),
+		i->second.get(),
 		std::move(update));
 }
 
-void CustomEmojiManager::requestSetIfNeeded(const CustomEmojiId &id) {
-	const auto setId = id.set.id;
-	auto i = _sets.find(setId);
-	if (i == end(_sets)) {
-		i = _sets.emplace(setId).first;
+void CustomEmojiManager::request() {
+	auto ids = QVector<MTPlong>();
+	ids.reserve(std::min(kMaxPerRequest, int(_pendingForRequest.size())));
+	while (!_pendingForRequest.empty() && ids.size() < kMaxPerRequest) {
+		const auto i = _pendingForRequest.end() - 1;
+		ids.push_back(MTP_long(*i));
+		_pendingForRequest.erase(i);
 	}
-	if (i->second.documents.contains(id.id)) {
-		return;
-	} else if (!i->second.waiting.emplace(id.id).second
-		|| i->second.requestId) {
+	if (ids.isEmpty()) {
 		return;
 	}
 	const auto api = &_owner->session().api();
-	i->second.requestId = api->request(MTPmessages_GetStickerSet(
-		InputStickerSet(id.set),
-		MTP_int(i->second.hash)
-	)).done([=](const MTPmessages_StickerSet &result) {
-		const auto i = _sets.find(setId);
-		Assert(i != end(_sets));
-		i->second.requestId = 0;
-		result.match([&](const MTPDmessages_stickerSet &data) {
-			data.vset().match([&](const MTPDstickerSet &data) {
-				i->second.hash = data.vhash().v;
-			});
-			for (const auto &entry : data.vdocuments().v) {
-				const auto document = _owner->processDocument(entry);
-				const auto id = document->id;
-				i->second.documents.emplace(id);
-				i->second.waiting.remove(id);
-				if (const auto loaders = _loaders.take(id)) {
-					for (const auto &weak : *loaders) {
-						if (const auto strong = weak.get()) {
-							strong->resolved(document);
-						}
+	_requestId = api->request(MTPmessages_GetCustomEmojiDocuments(
+		MTP_vector<MTPlong>(ids)
+	)).done([=](const MTPVector<MTPDocument> &result) {
+		for (const auto &entry : result.v) {
+			const auto document = _owner->processDocument(entry);
+			const auto id = document->id;
+			if (const auto loaders = _loaders.take(id)) {
+				for (const auto &weak : *loaders) {
+					if (const auto strong = weak.get()) {
+						strong->resolved(document);
 					}
 				}
 			}
-		}, [&](const MTPDmessages_stickerSetNotModified &) {
-		});
-		for (const auto &id : base::take(i->second.waiting)) {
-			DEBUG_LOG(("API Error: Sticker '%1' not found for emoji.").arg(id));
 		}
+		requestFinished();
 	}).fail([=] {
-		const auto i = _sets.find(setId);
-		Assert(i != end(_sets));
-		i->second.requestId = 0;
-		LOG(("API Error: Failed getting set '%1' for emoji.").arg(setId));
+		LOG(("API Error: Failed to get documents for emoji."));
+		requestFinished();
 	}).send();
+}
+
+void CustomEmojiManager::requestFinished() {
+	_requestId = 0;
+	if (!_pendingForRequest.empty()) {
+		request();
+	}
 }
 
 void CustomEmojiManager::repaintLater(
@@ -506,45 +499,40 @@ Session &CustomEmojiManager::owner() const {
 }
 
 QString SerializeCustomEmojiId(const CustomEmojiId &id) {
-	return QString::number(id.set.id)
-		+ '.'
-		+ QString::number(id.set.accessHash)
+	return QString::number(id.id)
 		+ ':'
-		+ QString::number(id.selfId)
-		+ '/'
-		+ QString::number(id.id);
+		+ QString::number(id.selfId);
 }
 
 QString SerializeCustomEmojiId(not_null<DocumentData*> document) {
-	const auto sticker = document->sticker();
 	return SerializeCustomEmojiId({
 		.selfId = document->session().userId().bare,
 		.id = document->id,
-		.set = sticker ? sticker->set : StickerSetIdentifier(),
 	});
 }
 
 CustomEmojiId ParseCustomEmojiData(QStringView data) {
-	const auto components = data.split('.');
+	const auto components = data.split(':');
 	if (components.size() != 2) {
 		return {};
 	}
-	const auto parts = components[1].split(':');
-	if (parts.size() != 2) {
-		return {};
-	}
-	const auto endings = parts[1].split('/');
-	if (endings.size() != 2) {
-		return {};
-	}
 	return {
-		.selfId = endings[0].toULongLong(),
-		.id = endings[1].toULongLong(),
-		.set = {
-			.id = components[0].toULongLong(),
-			.accessHash = parts[0].toULongLong(),
-		},
+		.selfId = components[1].toULongLong(),
+		.id = components[0].toULongLong(),
 	};
+}
+
+void InsertCustomEmoji(
+		not_null<Ui::InputField*> field,
+		not_null<DocumentData*> document) {
+	const auto sticker = document->sticker();
+	if (!sticker || sticker->alt.isEmpty()) {
+		return;
+	}
+	Ui::InsertCustomEmojiAtCursor(
+		field->textCursor(),
+		sticker->alt,
+		Ui::InputField::CustomEmojiLink(SerializeCustomEmojiId(document)));
 }
 
 } // namespace Data
