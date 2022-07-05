@@ -71,9 +71,20 @@ TextWithTagOffset<kTag> ReplaceTag<TextWithTagOffset<kTag>>::Call(
 } // namespace Lang
 
 namespace Dialogs::Ui {
-namespace {
 
-} // namespace
+TextWithEntities DialogsPreviewText(TextWithEntities text) {
+	return Ui::Text::Filtered(
+		std::move(text),
+		{
+			EntityType::Pre,
+			EntityType::Code,
+			EntityType::Spoiler,
+			EntityType::StrikeOut,
+			EntityType::Underline,
+			EntityType::Italic,
+			EntityType::CustomEmoji,
+		});
+}
 
 struct MessageView::LoadingContext {
 	std::any context;
@@ -136,7 +147,7 @@ void MessageView::paint(
 		};
 		_textCache.setMarkedText(
 			st::dialogsTextStyle,
-			preview.text,
+			DialogsPreviewText(std::move(preview.text)),
 			DialogTextOptions(),
 			context);
 		_textCachedFor = item;

@@ -470,11 +470,11 @@ void paintRow(
 						lt_from_part,
 						draftWrapped,
 						lt_message,
-						{
+						DialogsPreviewText({
 							.text = draft->textWithTags.text,
 							.entities = ConvertTextTagsToEntities(
 								draft->textWithTags.tags),
-						},
+						}),
 						Text::WithEntities);
 				const auto context = Core::MarkedTextContext{
 					.session = &history->session(),
