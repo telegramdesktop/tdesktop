@@ -41,12 +41,18 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
 
-[[nodiscard]] int SizeFromTag(SizeTag tag) {
+[[nodiscard]] int EmojiSizeFromTag(SizeTag tag) {
 	switch (tag) {
 	case SizeTag::Normal: return Ui::Emoji::GetSizeNormal();
 	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
+}
+
+[[nodiscard]] int SizeFromTag(SizeTag tag) {
+	const auto emoji = EmojiSizeFromTag(tag);
+	const auto factor = style::DevicePixelRatio();
+	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
 
 } // namespace
@@ -220,9 +226,10 @@ void CustomEmojiLoader::startCacheLookup(
 	lookup->process = std::make_unique<Process>(Process{
 		.loaded = std::move(loaded),
 	});
+	const auto size = SizeFromTag(_tag);
 	const auto weak = base::make_weak(&lookup->process->guard);
 	document->owner().cacheBigFile().get(key, [=](QByteArray value) {
-		auto cache = Ui::CustomEmoji::Cache::FromSerialized(value);
+		auto cache = Ui::CustomEmoji::Cache::FromSerialized(value, size);
 		crl::on_main(weak, [=, result = std::move(cache)]() mutable {
 			lookupDone(lookup, std::move(result));
 		});
@@ -297,7 +304,7 @@ void CustomEmojiLoader::check() {
 		.generator = std::move(generator),
 		.put = std::move(put),
 		.loader = std::move(loader),
-		.size = SizeFromTag(_tag),
+		.size = size,
 	});
 	base::take(load->process)->loaded(Caching{
 		std::move(renderer),

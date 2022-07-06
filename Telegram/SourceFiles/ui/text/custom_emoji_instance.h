@@ -66,7 +66,8 @@ public:
 	};
 
 	[[nodiscard]] static std::optional<Cache> FromSerialized(
-		const QByteArray &serialized);
+		const QByteArray &serialized,
+		int requestedSize);
 	[[nodiscard]] QByteArray serialize();
 
 	[[nodiscard]] int size() const;

@@ -79,15 +79,17 @@ void Preview::paintPath(
 Cache::Cache(int size) : _size(size) {
 }
 
-std::optional<Cache> Cache::FromSerialized(const QByteArray &serialized) {
+std::optional<Cache> Cache::FromSerialized(
+		const QByteArray &serialized,
+		int requestedSize) {
+	Expects(requestedSize > 0 && requestedSize <= kMaxSize);
 	if (serialized.size() <= sizeof(CacheHeader)) {
 		return {};
 	}
 	auto header = CacheHeader();
 	memcpy(&header, serialized.data(), sizeof(header));
 	const auto size = header.size;
-	if (size <= 0
-		|| size > kMaxSize
+	if (size != requestedSize
 		|| header.frames <= 0
 		|| header.frames >= kMaxFrames
 		|| header.length <= 0
