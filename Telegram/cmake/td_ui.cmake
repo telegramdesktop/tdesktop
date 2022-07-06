@@ -229,6 +229,8 @@ PRIVATE
     ui/effects/fireworks_animation.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/premium_stars.cpp
+    ui/effects/premium_stars.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
