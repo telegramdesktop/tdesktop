@@ -83,6 +83,7 @@ TextWithEntities DialogsPreviewText(TextWithEntities text) {
 			EntityType::Underline,
 			EntityType::Italic,
 			EntityType::CustomEmoji,
+			EntityType::PlainLink,
 		});
 }
 
