@@ -28,7 +28,7 @@ public:
 	void show();
 	void hide();
 	void raise();
-	void update();
+	void customEmojiRepaint();
 	void finishAnimating();
 
 	void setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess);

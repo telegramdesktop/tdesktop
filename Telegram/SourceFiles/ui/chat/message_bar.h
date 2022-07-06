@@ -42,6 +42,7 @@ public:
 		return &_widget;
 	}
 
+	void customEmojiRepaint();
 	void finishAnimating();
 
 private:
@@ -110,6 +111,7 @@ private:
 	Ui::Text::String _title, _text;
 	QPixmap _image, _topBarGradient, _bottomBarGradient;
 	std::unique_ptr<Animation> _animation;
+	bool _customEmojiRepaintScheduled = false;
 
 };
 

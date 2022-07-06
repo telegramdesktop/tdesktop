@@ -397,7 +397,7 @@ void RepliesWidget::setupRootView() {
 		RootViewContent(
 			_history,
 			_rootId,
-			[bar = _rootView.get()] { bar->update(); }),
+			[bar = _rootView.get()] { bar->customEmojiRepaint(); }),
 		_rootVisible.value()
 	) | rpl::map([=](Ui::MessageBarContent &&content, bool shown) {
 		return shown ? std::move(content) : Ui::MessageBarContent();

@@ -6410,7 +6410,7 @@ void HistoryWidget::checkPinnedBarState() {
 	_pinnedBar->setContent(HistoryView::PinnedBarContent(
 		&session(),
 		_pinnedTracker->shownMessageId(),
-		[bar = _pinnedBar.get()] { bar->update(); }));
+		[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
@@ -7604,11 +7604,17 @@ void HistoryWidget::updateReplyToName() {
 }
 
 void HistoryWidget::updateField() {
+	if (_repaintFieldScheduled) {
+		return;
+	}
+	_repaintFieldScheduled = true;
 	const auto fieldAreaTop = _scroll->y() + _scroll->height();
 	rtlupdate(0, fieldAreaTop, width(), height() - fieldAreaTop);
 }
 
 void HistoryWidget::drawField(Painter &p, const QRect &rect) {
+	_repaintFieldScheduled = false;
+
 	auto backy = _field->y() - st::historySendPadding;
 	auto backh = _field->height() + 2 * st::historySendPadding;
 	auto hasForward = readyToForward();

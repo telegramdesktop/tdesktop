@@ -650,6 +650,7 @@ private:
 	int _requestsBarHeight = 0;
 
 	bool _preserveScrollTop = false;
+	bool _repaintFieldScheduled = false;
 
 	mtpRequestId _saveEditMsgRequestId = 0;
 

@@ -56,12 +56,21 @@ MessageBar::MessageBar(
 	}, _widget.lifetime());
 }
 
+void MessageBar::customEmojiRepaint() {
+	if (_customEmojiRepaintScheduled) {
+		return;
+	}
+	_customEmojiRepaintScheduled = true;
+	_widget.update();
+}
+
 void MessageBar::setup() {
 	_widget.resize(0, st::historyReplyHeight);
 	_widget.paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
 		auto p = Painter(&_widget);
 		p.setInactive(_customEmojiPaused());
+		_customEmojiRepaintScheduled = false;
 		paint(p);
 	}, _widget.lifetime());
 }

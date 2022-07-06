@@ -207,9 +207,9 @@ void PinnedBar::raise() {
 	_shadow->raise();
 }
 
-void PinnedBar::update() {
+void PinnedBar::customEmojiRepaint() {
 	if (_bar) {
-		_bar->widget()->update();
+		_bar->customEmojiRepaint();
 	}
 }
 
