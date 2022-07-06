@@ -1482,7 +1482,11 @@ void PreviewBox(
 		}) | rpl::flatten_latest();
 		auto button = descriptor.fromSettings
 			? object_ptr<Ui::GradientButton>::fromRaw(
-				Settings::CreateSubscribeButton(controller, box, computeRef))
+				Settings::CreateSubscribeButton({
+					controller,
+					box,
+					computeRef,
+				}))
 			: CreateUnlockButton(box, std::move(unlock));
 		button->resizeToWidth(width);
 		if (!descriptor.fromSettings) {

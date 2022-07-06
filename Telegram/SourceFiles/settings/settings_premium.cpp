@@ -787,10 +787,11 @@ void Premium::setupContent() {
 						box->closeBox();
 					});
 				} else {
-					const auto button = CreateSubscribeButton(
+					const auto button = CreateSubscribeButton({
 						controller,
 						box,
-						[] { return u"double_limits"_q; });
+						[] { return u"double_limits"_q; }
+					});
 
 					box->boxClosing(
 					) | rpl::start_with_next(hidden, box->lifetime());
@@ -986,8 +987,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	_subscribe = CreateSubscribeButton(_controller, content, [=] {
-		return _ref;
+	_subscribe = CreateSubscribeButton({
+		_controller,
+		content,
+		[=] { return _ref; }
 	});
 
 	_showFinished.events(
@@ -1089,22 +1092,24 @@ QString LookupPremiumRef(PremiumPreview section) {
 }
 
 not_null<Ui::GradientButton*> CreateSubscribeButton(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::RpWidget*> parent,
-		Fn<QString()> computeRef) {
+		SubscribeButtonArgs &&args) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
-		parent.get(),
-		Ui::Premium::ButtonGradientStops());
+		args.parent.get(),
+		args.gradientStops
+			? base::take(*args.gradientStops)
+			: Ui::Premium::ButtonGradientStops());
 
-	result->setClickedCallback([=] {
+	result->setClickedCallback([
+			controller = args.controller,
+			computeRef = args.computeRef] {
 		SendScreenAccept(controller);
 		StartPremiumPayment(controller, computeRef());
 	});
 
 	const auto &st = st::premiumPreviewBox.button;
-	result->resize(parent->width(), st.height);
+	result->resize(args.parent->width(), st.height);
 
-	const auto premium = &controller->session().api().premium();
+	const auto premium = &args.controller->session().api().premium();
 	premium->reload();
 	const auto computeCost = [=] {
 		const auto amount = premium->monthlyAmount();
@@ -1117,9 +1122,11 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		result,
-		tr::lng_premium_summary_button(
-			lt_cost,
-			premium->statusTextValue() | rpl::map(computeCost)),
+		args.text
+			? base::take(*args.text)
+			: tr::lng_premium_summary_button(
+				lt_cost,
+				premium->statusTextValue() | rpl::map(computeCost)),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(
