@@ -59,7 +59,9 @@ private:
 	QPointer<Ui::BoxContent> showBox(object_ptr<Ui::BoxContent> box) const;
 
 	void addInviteLinkButton();
-	bool inviteSelectedUsers(not_null<PeerListBox*> box) const;
+	void inviteSelectedUsers(
+		not_null<PeerListBox*> box,
+		Fn<void()> done) const;
 	void subscribeToMigration();
 	int alreadyInCount() const;
 	bool isAlreadyIn(not_null<UserData*> user) const;

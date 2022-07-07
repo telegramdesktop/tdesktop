@@ -21,7 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "history/history.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
@@ -30,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_icon.h"
 #include "apiwrap.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -223,8 +226,9 @@ void AddParticipantsBoxController::addInviteLinkButton() {
 	delegate()->peerListSetAboveWidget(std::move(button));
 }
 
-bool AddParticipantsBoxController::inviteSelectedUsers(
-		not_null<PeerListBox*> box) const {
+void AddParticipantsBoxController::inviteSelectedUsers(
+		not_null<PeerListBox*> box,
+		Fn<void()> done) const {
 	Expects(_peer != nullptr);
 
 	const auto rows = box->collectSelectedRows();
@@ -237,10 +241,52 @@ bool AddParticipantsBoxController::inviteSelectedUsers(
 		return not_null<UserData*>(peer->asUser());
 	}) | ranges::to_vector;
 	if (users.empty()) {
-		return false;
+		return;
 	}
-	_peer->session().api().chatParticipants().add(_peer, users);
-	return true;
+	const auto request = [=](bool checked) {
+		_peer->session().api().chatParticipants().add(_peer, users, checked);
+	};
+	if (_peer->isChannel()) {
+		request(false);
+		return done();
+	}
+	Ui::BoxShow(box).showBox(Box([=](not_null<Ui::GenericBox*> box) {
+		auto checkbox = object_ptr<Ui::Checkbox>(
+			box.get(),
+			tr::lng_participant_invite_history(),
+			true,
+			st::defaultBoxCheckbox);
+		const auto weak = Ui::MakeWeak(checkbox.data());
+
+		auto text = (users.size() == 1)
+			? tr::lng_participant_invite_sure(
+				tr::now,
+				lt_user,
+				{ users.front()->name },
+				lt_group,
+				{ _peer->name },
+				Ui::Text::RichLangValue)
+			: tr::lng_participant_invite_sure_many(
+				tr::now,
+				lt_count,
+				int(users.size()),
+				lt_group,
+				{ _peer->name },
+				Ui::Text::RichLangValue);
+		Ui::ConfirmBox(box, {
+			.text = std::move(text),
+			.confirmed = crl::guard(weak, [=](Fn<void()> &&close) {
+				request(weak->checked());
+				done();
+				close();
+			}),
+			.confirmText = tr::lng_participant_invite(),
+		});
+
+		auto padding = st::boxPadding;
+		padding.setTop(padding.bottom());
+		box->addRow(std::move(checkbox), std::move(padding));
+	}));
 }
 
 void AddParticipantsBoxController::Start(
@@ -250,12 +296,12 @@ void AddParticipantsBoxController::Start(
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
-			if (weak->inviteSelectedUsers(box)) {
+			weak->inviteSelectedUsers(box, [=] {
 				navigation->parentController()->showPeerHistory(
 					chat,
 					Window::SectionShow::Way::ClearStack,
 					ShowAtTheEndMsgId);
-			}
+			});
 		});
 		box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 	};
@@ -275,7 +321,7 @@ void AddParticipantsBoxController::Start(
 	const auto weak = controller.get();
 	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_participant_invite(), [=] {
-			if (weak->inviteSelectedUsers(box)) {
+			weak->inviteSelectedUsers(box, [=] {
 				if (channel->isMegagroup()) {
 					navigation->parentController()->showPeerHistory(
 						channel,
@@ -284,7 +330,7 @@ void AddParticipantsBoxController::Start(
 				} else {
 					box->closeBox();
 				}
-			}
+			});
 		});
 		box->addButton(
 			justCreated ? tr::lng_create_group_skip() : tr::lng_cancel(),

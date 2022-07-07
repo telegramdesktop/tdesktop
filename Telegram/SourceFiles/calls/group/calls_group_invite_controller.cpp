@@ -225,6 +225,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		peer->session().api().chatParticipants().add(
 			peer,
 			nonMembers,
+			true,
 			[=](bool) { invite(users); finish(); });
 	};
 	const auto inviteWithConfirmation = [=](

@@ -1299,8 +1299,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
+"lng_participant_invite_history" = "Show the last 100 messages";
+"lng_participant_invite_sure" = "Are you sure you want to add **{user}** to **{group}**?";
+"lng_participant_invite_sure_many#one" = "Are you sure you want to add {count} member to **{group}**?";
+"lng_participant_invite_sure_many#other" = "Are you sure you want to add {count} members to **{group}**?";
 "lng_participant_invite_sorry#one" = "Sorry, you can only add the first {count} member to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
 "lng_participant_invite_sorry#other" = "Sorry, you can only add the first {count} members to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
+
 "lng_create_group_back" = "Back";
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
