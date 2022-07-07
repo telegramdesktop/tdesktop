@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "styles/style_layers.h"
 
 namespace {
 
@@ -123,12 +124,18 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 			const auto use = controller
 				? &controller->window()
 				: Core::App().activeWindow();
-			auto box = Ui::MakeConfirmBox({
-				.text = (tr::lng_open_this_link(tr::now)
-					+ qsl("\n\n")
-					+ displayUrl),
-				.confirmed = [=](Fn<void()> hide) { hide(); open(); },
-				.confirmText = tr::lng_open_link(),
+			auto box = Box([=](not_null<Ui::GenericBox*> box) {
+				Ui::ConfirmBox(box, {
+					.text = (tr::lng_open_this_link(tr::now)),
+					.confirmed = [=](Fn<void()> hide) { hide(); open(); },
+					.confirmText = tr::lng_open_link(),
+				});
+				const auto &st = st::boxLabel;
+				box->addSkip(st.style.lineHeight - st::boxPadding.bottom());
+				const auto url = box->addRow(
+					object_ptr<Ui::FlatLabel>(box, displayUrl, st));
+				url->setSelectable(true);
+				url->setContextCopyText(tr::lng_context_copy_link(tr::now));
 			});
 			if (my.show) {
 				my.show->showBox(std::move(box));
