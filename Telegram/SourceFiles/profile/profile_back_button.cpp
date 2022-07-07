@@ -24,7 +24,7 @@ BackButton::BackButton(
 	rpl::producer<bool> oneColumnValue)
 : Ui::AbstractButton(parent)
 , _session(session)
-, _text(text.toUpper()) {
+, _text(text) {
 	setCursor(style::cur_pointer);
 
 	std::move(
@@ -46,7 +46,7 @@ BackButton::BackButton(
 }
 
 void BackButton::setText(const QString &text) {
-	_text = text.toUpper();
+	_text = text;
 	update();
 }
 

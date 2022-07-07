@@ -124,6 +124,7 @@ FixedBar::FixedBar(
 	_search->setClickedCallback([=] { showSearch(); });
 	_cancel->setClickedCallback([=] { cancelSearch(); });
 	_field->hide();
+	_filter->setTextTransform(Ui::RoundButton::TextTransform::NoTransform);
 	connect(_field, &Ui::FlatInput::cancelled, [=] { cancelSearch(); });
 	connect(_field, &Ui::FlatInput::changed, [=] { searchUpdated(); });
 	connect(_field, &Ui::FlatInput::submitted, [=] { applySearch(); });
@@ -281,7 +282,7 @@ Widget::Widget(
 , _fixedBarShadow(this)
 , _whatIsThis(
 		this,
-		tr::lng_admin_log_about(tr::now).toUpper(),
+		tr::lng_admin_log_about(tr::now),
 		st::historyComposeButton) {
 	_fixedBar->move(0, 0);
 	_fixedBar->resizeToWidth(width());
