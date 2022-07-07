@@ -333,8 +333,24 @@ QString UiIntegration::phraseButtonOk() {
 	return tr::lng_box_ok(tr::now);
 }
 
+QString UiIntegration::phraseButtonClose() {
+	return tr::lng_close(tr::now);
+}
+
 QString UiIntegration::phraseButtonCancel() {
 	return tr::lng_cancel(tr::now);
+}
+
+QString UiIntegration::phrasePanelCloseWarning() {
+	return tr::lng_bot_close_warning_title(tr::now);
+}
+
+QString UiIntegration::phrasePanelCloseUnsaved() {
+	return tr::lng_bot_close_warning(tr::now);
+}
+
+QString UiIntegration::phrasePanelCloseAnyway() {
+	return tr::lng_bot_close_warning_sure(tr::now);
 }
 
 bool OpenGLLastCheckFailed() {

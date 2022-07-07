@@ -75,7 +75,11 @@ public:
 	QString phraseFormattingMonospace() override;
 	QString phraseFormattingSpoiler() override;
 	QString phraseButtonOk() override;
+	QString phraseButtonClose() override;
 	QString phraseButtonCancel() override;
+	QString phrasePanelCloseWarning() override;
+	QString phrasePanelCloseUnsaved() override;
+	QString phrasePanelCloseAnyway() override;
 
 };
 
