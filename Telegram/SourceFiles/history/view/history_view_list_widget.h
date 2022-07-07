@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 #include "history/history_view_highlight_manager.h"
+#include "history/history_view_top_toast.h"
 
 namespace Main {
 class Session;
@@ -640,6 +641,8 @@ private:
 	Ui::Animations::Simple _spoilerOpacity;
 
 	Ui::DraggingScrollManager _selectScroll;
+
+	InfoTooltip _topToast;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;

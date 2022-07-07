@@ -85,6 +85,9 @@ PRIVATE
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
 
+    history/history_view_top_toast.cpp
+    history/history_view_top_toast.h
+
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
     layout/layout_mosaic.cpp

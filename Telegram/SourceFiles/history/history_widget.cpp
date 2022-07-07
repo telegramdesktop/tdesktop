@@ -198,13 +198,6 @@ base::options::toggle AutoScrollInactiveChat({
 		"even when the window is not in focus.",
 });
 
-[[nodiscard]] crl::time CountToastDuration(const TextWithEntities &text) {
-	return std::clamp(
-		crl::time(1000) * int(text.text.size()) / 14,
-		crl::time(1000) * 5,
-		crl::time(1000) * 8);
-}
-
 [[nodiscard]] rpl::producer<PeerData*> ActivePeerValue(
 		not_null<Window::SessionController*> controller) {
 	return controller->activeChatValue(
@@ -2020,7 +2013,7 @@ void HistoryWidget::showHistory(
 
 	_highlighter.clear();
 	controller()->sendingAnimation().clear();
-	hideInfoTooltip(anim::type::instant);
+	_topToast.hide(anim::type::instant);
 	if (_history) {
 		if (_peer->id == peerId && !reload) {
 			updateForwarding();
@@ -6723,32 +6716,7 @@ bool HistoryWidget::sendExistingPhoto(
 void HistoryWidget::showInfoTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
-	hideInfoTooltip(anim::type::normal);
-	_topToast = Ui::Toast::Show(_scroll, Ui::Toast::Config{
-		.text = text,
-		.st = &st::historyInfoToast,
-		.durationMs = CountToastDuration(text),
-		.multiline = true,
-		.dark = true,
-		.slideSide = RectPart::Top,
-	});
-	if (const auto strong = _topToast.get()) {
-		if (hiddenCallback) {
-			connect(strong->widget(), &QObject::destroyed, hiddenCallback);
-		}
-	} else if (hiddenCallback) {
-		hiddenCallback();
-	}
-}
-
-void HistoryWidget::hideInfoTooltip(anim::type animated) {
-	if (const auto strong = _topToast.get()) {
-		if (animated == anim::type::normal) {
-			strong->hideAnimated();
-		} else {
-			strong->hide();
-		}
-	}
+	_topToast.show(_scroll.data(), text, std::move(hiddenCallback));
 }
 
 void HistoryWidget::showPremiumStickerTooltip(

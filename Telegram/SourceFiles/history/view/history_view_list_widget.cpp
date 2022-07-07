@@ -1447,8 +1447,10 @@ void ListWidget::elementCancelUpload(const FullMsgId &context) {
 }
 
 void ListWidget::elementShowTooltip(
-	const TextWithEntities &text,
-	Fn<void()> hiddenCallback) {
+		const TextWithEntities &text,
+		Fn<void()> hiddenCallback) {
+	// Under the parent is supposed to be a scroll widget.
+	_topToast.show(parentWidget(), text, hiddenCallback);
 }
 
 bool ListWidget::elementIsGifPaused() {

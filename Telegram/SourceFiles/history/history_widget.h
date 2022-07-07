@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_drag_area.h"
 #include "history/history_view_highlight_manager.h"
+#include "history/history_view_top_toast.h"
 #include "history/history.h"
 #include "chat_helpers/bot_command.h"
 #include "chat_helpers/field_autocomplete.h"
@@ -74,9 +75,6 @@ struct PreparedList;
 class SendFilesWay;
 class SendAsButton;
 enum class ReportReason;
-namespace Toast {
-class Instance;
-} // namespace Toast
 class ChooseThemeController;
 class ContinuousScroll;
 } // namespace Ui
@@ -265,7 +263,6 @@ public:
 	void showInfoTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
-	void hideInfoTooltip(anim::type animated);
 	void showPremiumStickerTooltip(
 		not_null<const HistoryView::Element*> view);
 
@@ -779,7 +776,7 @@ private:
 	base::Timer _saveDraftTimer;
 	base::Timer _saveCloudDraftTimer;
 
-	base::weak_ptr<Ui::Toast::Instance> _topToast;
+	HistoryView::InfoTooltip _topToast;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 	std::unique_ptr<ChooseMessagesForReport> _chooseForReport;
 
