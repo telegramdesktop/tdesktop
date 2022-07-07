@@ -1814,7 +1814,8 @@ void HistoryWidget::setupShortcuts() {
 	) | rpl::filter([=] {
 		return Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown();
+			&& !Ui::isLayerShown()
+			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 		if (_history) {

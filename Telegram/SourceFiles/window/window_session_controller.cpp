@@ -767,7 +767,9 @@ void SessionController::initSupportMode() {
 	session().supportHelper().registerWindow(this);
 
 	Shortcuts::Requests(
-	) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+	) | rpl::filter([=] {
+		return (Core::App().activeWindow() == &window());
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using C = Shortcuts::Command;
 
 		request->check(C::SupportHistoryBack) && request->handle([=] {
