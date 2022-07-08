@@ -127,8 +127,12 @@ public:
 
 	void archiveStickers();
 
-	bool isMasksSet() const {
-		return (_setFlags & SetFlag::Masks);
+	[[nodiscard]] Data::StickersType setType() const {
+		return (_setFlags & SetFlag::Emoji)
+			? Data::StickersType::Emoji
+			: (_setFlags & SetFlag::Masks)
+			? Data::StickersType::Masks
+			: Data::StickersType::Stickers;
 	}
 
 	~Inner();
@@ -271,11 +275,14 @@ void StickerSetBox::prepare() {
 
 	_inner->setInstalled(
 	) | rpl::start_with_next([=](uint64 setId) {
-		if (_inner->isMasksSet()) {
+		if (_inner->setType() == Data::StickersType::Masks) {
 			Ui::Toast::Show(
 				Ui::BoxShow(this).toastParent(),
 				tr::lng_masks_installed(tr::now));
-		} else {
+		} else if (_inner->setType() == Data::StickersType::Emoji) {
+			auto &stickers = _controller->session().data().stickers();
+			stickers.notifyEmojiSetInstalled(setId);
+		} else if (_inner->setType() == Data::StickersType::Stickers) {
 			auto &stickers = _controller->session().data().stickers();
 			stickers.notifyStickerSetInstalled(setId);
 		}
@@ -289,15 +296,18 @@ void StickerSetBox::prepare() {
 
 	_inner->setArchived(
 	) | rpl::start_with_next([=](uint64 setId) {
-		const auto isMasks = _inner->isMasksSet();
+		const auto type = _inner->setType();
+		if (type == Data::StickersType::Emoji) {
+			return;
+		}
 
 		Ui::Toast::Show(
 			Ui::BoxShow(this).toastParent(),
-			isMasks
+			(type == Data::StickersType::Masks)
 				? tr::lng_masks_has_been_archived(tr::now)
 				: tr::lng_stickers_has_been_archived(tr::now));
 
-		auto &order = isMasks
+		auto &order = (type == Data::StickersType::Masks)
 			? _controller->session().data().stickers().maskSetsOrderRef()
 			: _controller->session().data().stickers().setsOrderRef();
 		const auto index = order.indexOf(setId);
@@ -305,7 +315,7 @@ void StickerSetBox::prepare() {
 			order.removeAt(index);
 
 			auto &local = _controller->session().local();
-			if (isMasks) {
+			if (type == Data::StickersType::Masks) {
 				local.writeInstalledMasks();
 				local.writeArchivedMasks();
 			} else {
@@ -352,11 +362,11 @@ void StickerSetBox::updateTitleAndButtons() {
 void StickerSetBox::updateButtons() {
 	clearButtons();
 	if (_inner->loaded()) {
-		const auto isMasks = _inner->isMasksSet();
+		const auto type = _inner->setType();
 		if (_inner->notInstalled()) {
-			auto addText = isMasks
+			auto addText = (type == Data::StickersType::Masks)
 				? tr::lng_stickers_add_masks()
-				: tr::lng_stickers_add_pack();
+				: tr::lng_stickers_add_pack(); // #TODO emoji
 			addButton(std::move(addText), [=] { addStickers(); });
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
 
@@ -376,9 +386,9 @@ void StickerSetBox::updateButtons() {
 						top,
 						st::popupMenuWithIcons);
 					(*menu)->addAction(
-						(isMasks
+						((type == Data::StickersType::Masks)
 							? tr::lng_stickers_share_masks
-							: tr::lng_stickers_share_pack)(tr::now),
+							: tr::lng_stickers_share_pack)(tr::now), // #TODO emoji
 						share,
 						&st::menuIconShare);
 					(*menu)->popup(QCursor::pos());
@@ -394,9 +404,9 @@ void StickerSetBox::updateButtons() {
 					Ui::BoxShow(this).toastParent(),
 					tr::lng_stickers_copied(tr::now));
 			};
-			auto shareText = isMasks
+			auto shareText = (type == Data::StickersType::Masks)
 				? tr::lng_stickers_share_masks()
-				: tr::lng_stickers_share_pack();
+				: tr::lng_stickers_share_pack(); // #TODO emoji
 			addButton(std::move(shareText), std::move(share));
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
 
@@ -412,9 +422,9 @@ void StickerSetBox::updateButtons() {
 						top,
 						st::popupMenuWithIcons);
 					(*menu)->addAction(
-						isMasks
+						(type == Data::StickersType::Masks)
 							? tr::lng_masks_archive_pack(tr::now)
-							: tr::lng_stickers_archive_pack(tr::now),
+							: tr::lng_stickers_archive_pack(tr::now), // #TODO emoji
 						archive,
 						&st::menuIconArchive);
 					(*menu)->popup(QCursor::pos());
@@ -599,15 +609,15 @@ void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
 	auto &stickers = _controller->session().data().stickers();
 	auto &sets = stickers.setsRef();
-	const auto isMasks = isMasksSet();
+	const auto type = setType();
 
 	const bool wasArchived = (_setFlags & SetFlag::Archived);
-	if (wasArchived) {
-		const auto index = (isMasks
+	if (wasArchived && type != Data::StickersType::Emoji) {
+		const auto index = ((type == Data::StickersType::Masks)
 			? stickers.archivedMaskSetsOrderRef()
 			: stickers.archivedSetsOrderRef()).indexOf(_setId);
 		if (index >= 0) {
-			(isMasks
+			((type == Data::StickersType::Masks)
 				? stickers.archivedMaskSetsOrderRef()
 				: stickers.archivedSetsOrderRef()).removeAt(index);
 		}
@@ -638,7 +648,9 @@ void StickerSetBox::Inner::installDone(
 	set->stickers = _pack;
 	set->emoji = _emoji;
 
-	auto &order = isMasks
+	auto &order = (type == Data::StickersType::Emoji)
+		? stickers.emojiSetsOrderRef()
+		: (type == Data::StickersType::Masks)
 		? stickers.maskSetsOrderRef()
 		: stickers.setsOrderRef();
 	const auto insertAtIndex = 0, currentIndex = int(order.indexOf(_setId));
@@ -668,14 +680,16 @@ void StickerSetBox::Inner::installDone(
 			result.c_messages_stickerSetInstallResultArchive());
 	} else {
 		auto &storage = _controller->session().local();
-		if (wasArchived) {
-			if (isMasks) {
+		if (wasArchived && type != Data::StickersType::Emoji) {
+			if (type == Data::StickersType::Masks) {
 				storage.writeArchivedMasks();
 			} else {
 				storage.writeArchivedStickers();
 			}
 		}
-		if (isMasks) {
+		if (type == Data::StickersType::Emoji) {
+			storage.writeInstalledCustomEmoji();
+		} else if (type == Data::StickersType::Masks) {
 			storage.writeInstalledMasks();
 		} else {
 			storage.writeInstalledStickers();
@@ -723,7 +737,9 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	_previewTimer.cancel();
 	const auto index = stickerFromGlobalPos(e->globalPos());
-	if (index < 0 || index >= _pack.size() || isMasksSet()) {
+	if (index < 0
+		|| index >= _pack.size()
+		|| setType() != Data::StickersType::Stickers) {
 		return;
 	}
 	send(_pack[index], {});
@@ -786,7 +802,7 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 
 void StickerSetBox::Inner::updateSelected() {
 	auto selected = stickerFromGlobalPos(QCursor::pos());
-	setSelected(isMasksSet() ? -1 : selected);
+	setSelected(setType() != Data::StickersType::Stickers ? -1 : selected);
 }
 
 void StickerSetBox::Inner::setSelected(int selected) {

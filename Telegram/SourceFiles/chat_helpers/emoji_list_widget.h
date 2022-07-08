@@ -53,6 +53,8 @@ public:
 	void showEmojiSection(Section section);
 	[[nodiscard]] Section currentSection(int yOffset) const;
 
+	void showCustomSet(uint64 setId);
+
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
 	QPoint tooltipPos() const override;

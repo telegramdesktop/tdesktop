@@ -178,6 +178,14 @@ rpl::producer<uint64> Stickers::stickerSetInstalled() const {
 	return _stickerSetInstalled.events();
 }
 
+void Stickers::notifyEmojiSetInstalled(uint64 setId) {
+	_emojiSetInstalled.fire(std::move(setId));
+}
+
+rpl::producer<uint64> Stickers::emojiSetInstalled() const {
+	return _emojiSetInstalled.events();
+}
+
 void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	if (!document->sticker() || !document->sticker()->set) {
 		return;
@@ -662,28 +670,42 @@ void Stickers::setFaved(
 void Stickers::setsReceived(
 		const QVector<MTPStickerSet> &data,
 		uint64 hash) {
-	setsOrMasksReceived(data, hash, false);
+	somethingReceived(data, hash, StickersType::Stickers);
 }
 
 void Stickers::masksReceived(
 		const QVector<MTPStickerSet> &data,
 		uint64 hash) {
-	setsOrMasksReceived(data, hash, true);
+	somethingReceived(data, hash, StickersType::Masks);
 }
 
-void Stickers::setsOrMasksReceived(
+void Stickers::emojiReceived(
+		const QVector<MTPStickerSet> &data,
+		uint64 hash) {
+	somethingReceived(data, hash, StickersType::Emoji);
+}
+
+void Stickers::somethingReceived(
 		const QVector<MTPStickerSet> &data,
 		uint64 hash,
-		bool masks) {
-	auto &setsOrder = masks ? maskSetsOrderRef() : setsOrderRef();
+		StickersType type) {
+	auto &setsOrder = (type == StickersType::Emoji)
+		? emojiSetsOrderRef()
+		: (type == StickersType::Masks)
+		? maskSetsOrderRef()
+		: setsOrderRef();
 	setsOrder.clear();
 
 	auto &sets = setsRef();
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &[id, set] : sets) {
 		const auto archived = !!(set->flags & SetFlag::Archived);
-		const auto maskset = !!(set->flags & SetFlag::Masks);
-		if (!archived && (masks == maskset)) {
+		const auto setType = !!(set->flags & SetFlag::Emoji)
+			? StickersType::Emoji
+			: !!(set->flags & SetFlag::Masks)
+			? StickersType::Masks
+			: StickersType::Stickers;
+		if (!archived && (type == setType)) {
 			// Mark for removing.
 			set->flags &= ~SetFlag::Installed;
 			set->installDate = 0;
@@ -736,7 +758,9 @@ void Stickers::setsOrMasksReceived(
 		api.requestStickerSets();
 	}
 
-	if (masks) {
+	if (type == StickersType::Emoji) {
+		session().local().writeInstalledCustomEmoji();
+	} else if (type == StickersType::Masks) {
 		session().local().writeInstalledMasks();
 	} else {
 		session().local().writeInstalledStickers();
@@ -745,12 +769,18 @@ void Stickers::setsOrMasksReceived(
 		session().saveSettings();
 	}
 
-	const auto counted = masks
+	const auto counted = (type == StickersType::Emoji)
+		? Api::CountCustomEmojiHash(&session())
+		: (type == StickersType::Masks)
 		? Api::CountMasksHash(&session())
 		: Api::CountStickersHash(&session());
 	if (counted != hash) {
 		LOG(("API Error: received %1 hash %2 while counted hash is %3"
-			).arg(masks ? "masks" : "stickers"
+			).arg((type == StickersType::Emoji)
+				? "custom-emoji"
+				: (type == StickersType::Masks)
+				? "masks"
+				: "stickers"
 			).arg(hash
 			).arg(counted));
 	}

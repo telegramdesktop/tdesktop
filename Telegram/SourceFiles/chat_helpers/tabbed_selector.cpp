@@ -401,6 +401,15 @@ TabbedSelector::TabbedSelector(
 			refreshStickers();
 		}, lifetime());
 	}
+
+	if (hasEmojiTab()) {
+		session().data().stickers().emojiSetInstalled(
+		) | rpl::start_with_next([=](uint64 setId) {
+			_tabsSlider->setActiveSection(indexByType(SelectorTab::Emoji));
+			emoji()->showCustomSet(setId);
+			_showRequests.fire({});
+		}, lifetime());
+	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
 	showAll();
@@ -771,6 +780,9 @@ void TabbedSelector::showStarted() {
 	}
 	if (hasMasksTab()) {
 		session().api().updateMasks();
+	}
+	if (hasEmojiTab()) {
+		session().api().updateCustomEmoji();
 	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();

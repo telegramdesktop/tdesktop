@@ -1001,13 +1001,13 @@ void StickersBox::saveChanges() {
 		session().api().saveStickerSets(
 			installed->getOrder(),
 			installed->getRemovedSets(),
-			false);
+			Data::StickersType::Stickers);
 	}
 	if (masks) {
 		session().api().saveStickerSets(
 			masks->getOrder(),
 			masks->getRemovedSets(),
-			true);
+			Data::StickersType::Masks);
 	}
 }
 

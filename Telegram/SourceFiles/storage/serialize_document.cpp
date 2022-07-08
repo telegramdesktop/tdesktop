@@ -144,8 +144,7 @@ DocumentData *Document::readFromStreamHelper(
 					MTP_string(alt),
 					MTP_inputStickerSetID(
 						MTP_long(info->setId),
-						MTP_long(info->accessHash)),
-					MTPMaskCoords()));
+						MTP_long(info->accessHash))));
 			} break;
 			case StickerSetTypeEmpty:
 			default: {

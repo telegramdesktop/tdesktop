@@ -1024,7 +1024,7 @@ void EmojiListWidget::refreshCustom() {
 	auto searchFromIndex = 0;
 	auto old = base::take(_custom);
 	const auto owner = &controller()->session().data();
-	const auto &order = owner->stickers().setsOrder();
+	const auto &order = owner->stickers().emojiSetsOrder();
 	const auto &sets = owner->stickers().sets();
 	for (const auto setId : order) {
 		auto it = sets.find(setId);
@@ -1158,10 +1158,32 @@ void EmojiListWidget::showEmojiSection(Section section) {
 	refreshRecent();
 
 	auto y = 0;
-	enumerateSections([&y, sectionForSearch = section](const SectionInfo &info) {
-		if (static_cast<Section>(info.section) == sectionForSearch) {
+	enumerateSections([&](const SectionInfo &info) {
+		if (static_cast<Section>(info.section) == section) {
 			y = info.top;
 			return false;
+		}
+		return true;
+	});
+	scrollTo(y);
+
+	_lastMousePos = QCursor::pos();
+
+	update();
+}
+
+void EmojiListWidget::showCustomSet(uint64 setId) {
+	clearSelection();
+
+	refreshCustom();
+
+	auto y = 0;
+	enumerateSections([&](const SectionInfo &info) {
+		if (info.section >= kEmojiSectionCount) {
+			if (_custom[info.section - kEmojiSectionCount].id == setId) {
+				y = info.top;
+				return false;
+			}
 		}
 		return true;
 	});

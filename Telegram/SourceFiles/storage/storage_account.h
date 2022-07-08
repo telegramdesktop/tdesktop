@@ -286,6 +286,9 @@ private:
 	FileKey _exportSettingsKey = 0;
 	FileKey _installedMasksKey = 0;
 	FileKey _recentMasksKey = 0;
+	FileKey _installedCustomEmojiKey = 0;
+	FileKey _recentCustomEmojiKey = 0;
+	FileKey _archivedCustomEmojiKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
 	qint64 _cacheBigFileTotalSizeLimit = 0;

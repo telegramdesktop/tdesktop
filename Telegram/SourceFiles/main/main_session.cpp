@@ -155,6 +155,7 @@ Session::Session(
 		// So they can't be called during Main::Session construction.
 		local().readInstalledStickers();
 		local().readInstalledMasks();
+		local().readInstalledCustomEmoji();
 		local().readFeaturedStickers();
 		local().readRecentStickers();
 		local().readRecentMasks();
