@@ -304,7 +304,8 @@ PaintFrameResult Cache::paintCurrentFrame(
 		_shown = now;
 	}
 	const auto info = frame(std::min(_frame, _frames - 1));
-	p.drawImage(QPoint(x, y), *info.image, info.source);
+	const auto size = _size / style::DevicePixelRatio();
+	p.drawImage(QRect(x, y, size, size), *info.image, info.source);
 	const auto next = currentFrameFinishes();
 	const auto duration = next ? (next - _shown) : 0;
 	return {
@@ -360,7 +361,7 @@ Renderer::Renderer(RendererDescriptor &&descriptor)
 		auto generator = factory();
 		auto rendered = generator->renderNext(
 			QImage(),
-			QSize(size, size) * style::DevicePixelRatio(),
+			QSize(size, size),
 			Qt::KeepAspectRatio);
 		if (rendered.image.isNull()) {
 			return;
@@ -422,7 +423,7 @@ void Renderer::renderNext(
 	]() mutable {
 		auto rendered = generator->renderNext(
 			std::move(storage),
-			QSize(size, size) * style::DevicePixelRatio(),
+			QSize(size, size),
 			Qt::KeepAspectRatio);
 		crl::on_main(guard, [
 			=,

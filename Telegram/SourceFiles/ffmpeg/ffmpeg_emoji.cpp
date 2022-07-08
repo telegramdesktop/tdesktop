@@ -70,10 +70,6 @@ private:
 	int _rotation = 0;
 	//AVRational _aspect = kNormalAspect;
 
-	int _width = 0;
-	int _height = 0;
-	QSize _swsSize;
-
 	crl::time _framePosition = 0;
 	int _nextFrameDelay = 0;
 	int _currentFrameDelay = 0;
@@ -118,7 +114,7 @@ int EmojiGenerator::Impl::read(uint8_t *buf, int buf_size) {
 	if (available <= 0) {
 		return -1;
 	}
-	const auto fill = std::min(available, buf_size);
+	const auto fill = std::min(int(available), buf_size);
 	memcpy(buf, _bytes.data() + _deviceOffset, fill);
 	_deviceOffset += fill;
 	return fill;
@@ -187,7 +183,7 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 	auto dst = storage.bits() + dx * sizeof(int32) + dy * dstPerLine;
 	if (srcSize == dstSize && bgra) {
 		const auto srcPerLine = frame->linesize[0];
-		const auto perLine = std::min(srcPerLine, dstPerLine);
+		const auto perLine = std::min(srcPerLine, int(dstPerLine));
 		auto src = frame->data[0];
 		for (auto y = 0, height = srcSize.height(); y != height; ++y) {
 			memcpy(dst, src, perLine);
@@ -205,7 +201,7 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 
 		// AV_NUM_DATA_POINTERS defined in AVFrame struct
 		uint8_t *dstData[AV_NUM_DATA_POINTERS] = { dst, nullptr };
-		int dstLinesize[AV_NUM_DATA_POINTERS] = { dstPerLine, 0 };
+		int dstLinesize[AV_NUM_DATA_POINTERS] = { int(dstPerLine), 0 };
 		sws_scale(
 			_scale.get(),
 			frame->data,

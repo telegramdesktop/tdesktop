@@ -1057,7 +1057,6 @@ void EmojiListWidget::refreshCustom() {
 			if (document->sticker()) {
 				auto i = _instances.find(document->id);
 				if (i == end(_instances)) {
-					using Loading = Ui::CustomEmoji::Loading;
 					auto loader = owner->customEmojiManager().createLoader(
 						document,
 						Data::CustomEmojiManager::SizeTag::Large);
