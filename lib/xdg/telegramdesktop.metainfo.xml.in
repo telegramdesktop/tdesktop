@@ -69,8 +69,9 @@
         <content_attribute id="social-audio">intense</content_attribute>
         <content_attribute id="social-location">none</content_attribute>
         <content_attribute id="social-contacts">intense</content_attribute>
-        <content_attribute id="money-purchasing">none</content_attribute>
+        <content_attribute id="money-purchasing">intense</content_attribute>
         <content_attribute id="money-gambling">none</content_attribute>
+        <content_attribute id="money-advertising">moderate</content_attribute>
     </content_rating>
     <launchable type="desktop-id">@TDESKTOP_LAUNCHER_BASENAME@.desktop</launchable>
     <provides>
