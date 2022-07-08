@@ -168,9 +168,13 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 	if (!scaled.isEmpty() && rotationSwapWidthHeight()) {
 		scaled.transpose();
 	}
-	if (!GoodStorageForFrame(storage, scaled)) {
-		storage = CreateFrameStorage(scaled);
+	if (!GoodStorageForFrame(storage, size)) {
+		storage = CreateFrameStorage(size);
 	}
+	const auto dx = (size.width() - scaled.width()) / 2;
+	const auto dy = (size.height() - scaled.height()) / 2;
+	Assert(dx >= 0 && dy >= 0 && (!dx || !dy));
+
 	const auto srcFormat = (frame->format == AV_PIX_FMT_NONE)
 		? _codec->pix_fmt
 		: frame->format;
@@ -180,7 +184,7 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 	const auto bgra = (srcFormat == AV_PIX_FMT_BGRA);
 	const auto withAlpha = bgra || (srcFormat == AV_PIX_FMT_YUVA420P);
 	const auto dstPerLine = storage.bytesPerLine();
-	auto dst = storage.bits();
+	auto dst = storage.bits() + dx * sizeof(int32) + dy * dstPerLine;
 	if (srcSize == dstSize && bgra) {
 		const auto srcPerLine = frame->linesize[0];
 		const auto perLine = std::min(srcPerLine, dstPerLine);
@@ -210,6 +214,25 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 			frame->height,
 			dstData,
 			dstLinesize);
+	}
+	if (dx && size.height() > 0) {
+		auto dst = storage.bits();
+		const auto line = scaled.width() * sizeof(int32);
+		memset(dst, 0, dx * sizeof(int32));
+		dst += dx * sizeof(int32);
+		for (auto y = 0; y != size.height() - 1; ++y) {
+			memset(dst + line, 0, (dstPerLine - line));
+			dst += dstPerLine;
+		}
+		dst += line;
+		memset(dst, 0, (size.width() - scaled.width() - dx) * sizeof(int32));
+	} else if (dy && size.width() > 0) {
+		const auto dst = storage.bits();
+		memset(dst, 0, dstPerLine * dy);
+		memset(
+			dst + dstPerLine * (dy + scaled.height()),
+			0,
+			dstPerLine * (size.height() - scaled.height() - dy));
 	}
 	if (withAlpha) {
 		PremultiplyInplace(storage);
