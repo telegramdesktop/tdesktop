@@ -36,6 +36,7 @@ namespace Data {
 class Session;
 class DocumentMedia;
 class ReplyPreview;
+enum class StickersType : uchar;
 } // namespace Data
 
 namespace Main {
@@ -73,6 +74,7 @@ struct StickerData : public DocumentAdditionalData {
 	QString alt;
 	StickerSetIdentifier set;
 	StickerType type = StickerType::Webp;
+	Data::StickersType setType = Data::StickersType();
 };
 
 struct SongData : public DocumentAdditionalData {
@@ -174,6 +176,7 @@ public:
 	[[nodiscard]] bool isPatternWallPaperPNG() const;
 	[[nodiscard]] bool isPatternWallPaperSVG() const;
 	[[nodiscard]] bool isPremiumSticker() const;
+	[[nodiscard]] bool isPremiumEmoji() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	[[nodiscard]] bool thumbnailLoading() const;

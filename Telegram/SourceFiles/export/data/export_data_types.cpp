@@ -284,6 +284,9 @@ void ParseAttributes(
 		}, [&](const MTPDdocumentAttributeSticker &data) {
 			result.isSticker = true;
 			result.stickerEmoji = ParseString(data.valt());
+		}, [&](const MTPDdocumentAttributeCustomEmoji &data) {
+			result.isSticker = true;
+			result.stickerEmoji = ParseString(data.valt());
 		}, [&](const MTPDdocumentAttributeVideo &data) {
 			if (data.is_round_message()) {
 				result.isVideoMessage = true;

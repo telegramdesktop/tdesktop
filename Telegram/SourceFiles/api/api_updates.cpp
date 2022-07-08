@@ -2298,6 +2298,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateStickerSetsOrder: {
 		auto &d = update.c_updateStickerSetsOrder();
 		auto &stickers = session().data().stickers();
+		const auto isEmoji = d.is_emojis();
 		const auto isMasks = d.is_masks();
 		const auto &order = d.vorder().v;
 		const auto &sets = stickers.sets();
@@ -2308,11 +2309,16 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			}
 			result.push_back(item.v);
 		}
-		const auto localSize = isMasks
+		const auto localSize = isEmoji
+			? stickers.emojiSetsOrder().size()
+			: isMasks
 			? stickers.maskSetsOrder().size()
 			: stickers.setsOrder().size();
 		if ((result.size() != localSize) || (result.size() != order.size())) {
-			if (isMasks) {
+			if (isEmoji) {
+				stickers.setLastEmojiUpdate(0);
+				session().api().updateCustomEmoji();
+			} else if (isMasks) {
 				stickers.setLastMasksUpdate(0);
 				session().api().updateMasks();
 			} else {
@@ -2320,7 +2326,10 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				session().api().updateStickers();
 			}
 		} else {
-			if (isMasks) {
+			if (isEmoji) {
+				stickers.emojiSetsOrderRef() = std::move(result);
+				session().local().writeInstalledCustomEmoji();
+			} else if (isMasks) {
 				stickers.maskSetsOrderRef() = std::move(result);
 				session().local().writeInstalledMasks();
 			} else {

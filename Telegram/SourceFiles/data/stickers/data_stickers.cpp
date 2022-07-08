@@ -1458,7 +1458,11 @@ void Stickers::newSetReceived(const MTPDmessages_stickerSet &set) {
 			"updateNewStickerSet with archived flag."));
 		return;
 	}
-	auto &order = s.is_masks() ? maskSetsOrderRef() : setsOrderRef();
+	auto &order = s.is_emojis()
+		? emojiSetsOrderRef()
+		: s.is_masks()
+		? maskSetsOrderRef()
+		: setsOrderRef();
 	int32 insertAtIndex = 0, currentIndex = order.indexOf(s.vid().v);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {

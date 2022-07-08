@@ -80,6 +80,15 @@ uint64 CountMasksHash(
 		checkOutdatedInfo);
 }
 
+uint64 CountCustomEmojiHash(
+		not_null<Main::Session*> session,
+		bool checkOutdatedInfo) {
+	return CountStickersOrderHash(
+		session,
+		session->data().stickers().emojiSetsOrder(),
+		checkOutdatedInfo);
+}
+
 uint64 CountRecentStickersHash(
 		not_null<Main::Session*> session,
 		bool attached) {

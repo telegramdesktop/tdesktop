@@ -27,6 +27,12 @@ namespace Data {
 class Session;
 class DocumentMedia;
 
+enum class StickersType : uchar {
+	Stickers,
+	Masks,
+	Emoji,
+};
+
 class Stickers final {
 public:
 	explicit Stickers(not_null<Session*> owner);
@@ -91,6 +97,12 @@ public:
 	void setLastMasksUpdate(crl::time update) {
 		_lastMasksUpdate = update;
 	}
+	bool emojiUpdateNeeded(crl::time now) const {
+		return updateNeeded(_lastEmojiUpdate, now);
+	}
+	void setLastEmojiUpdate(crl::time update) {
+		_lastEmojiUpdate = update;
+	}
 	bool recentAttachedUpdateNeeded(crl::time now) const {
 		return updateNeeded(_lastRecentAttachedUpdate, now);
 	}
@@ -145,6 +157,12 @@ public:
 	StickersSetsOrder &maskSetsOrderRef() {
 		return _maskSetsOrder;
 	}
+	const StickersSetsOrder &emojiSetsOrder() const {
+		return _emojiSetsOrder;
+	}
+	StickersSetsOrder &emojiSetsOrderRef() {
+		return _emojiSetsOrder;
+	}
 	const StickersSetsOrder &featuredSetsOrder() const {
 		return _featuredSetsOrder;
 	}
@@ -188,6 +206,7 @@ public:
 
 	void setsReceived(const QVector<MTPStickerSet> &data, uint64 hash);
 	void masksReceived(const QVector<MTPStickerSet> &data, uint64 hash);
+	void emojiReceived(const QVector<MTPStickerSet> &data, uint64 hash);
 	void specialSetReceived(
 		uint64 setId,
 		const QString &setTitle,
@@ -244,10 +263,10 @@ private:
 		StickersPack &&pack,
 		const std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
-	void setsOrMasksReceived(
+	void setsOrMasksOrEmojiReceived(
 		const QVector<MTPStickerSet> &data,
 		uint64 hash,
-		bool masks);
+		StickersType type);
 
 	const not_null<Session*> _owner;
 	rpl::event_stream<> _updated;
@@ -260,11 +279,13 @@ private:
 	crl::time _lastFeaturedUpdate = 0;
 	crl::time _lastSavedGifsUpdate = 0;
 	crl::time _lastMasksUpdate = 0;
+	crl::time _lastEmojiUpdate = 0;
 	crl::time _lastRecentAttachedUpdate = 0;
 	rpl::variable<int> _featuredSetsUnreadCount = 0;
 	StickersSets _sets;
 	StickersSetsOrder _setsOrder;
 	StickersSetsOrder _maskSetsOrder;
+	StickersSetsOrder _emojiSetsOrder;
 	StickersSetsOrder _featuredSetsOrder;
 	StickersSetsOrder _archivedSetsOrder;
 	StickersSetsOrder _archivedMaskSetsOrder;

@@ -76,6 +76,19 @@ QString JoinStringList(const QStringList &list, const QString &separator) {
 	return result;
 }
 
+void UpdateStickerSetIdentifier(
+		StickerSetIdentifier &now,
+		const MTPInputStickerSet &from) {
+	now = from.match([&](const MTPDinputStickerSetID &data) {
+		return StickerSetIdentifier{
+			.id = data.vid().v,
+			.accessHash = data.vaccess_hash().v,
+		};
+	}, [](const auto &) {
+		return StickerSetIdentifier();
+	});
+}
+
 } // namespace
 
 QString FileNameUnsafe(
@@ -334,26 +347,33 @@ void DocumentData::setattributes(
 				_additional = std::make_unique<StickerData>();
 			}
 			if (const auto info = sticker()) {
+				info->setType = data.is_mask()
+					? Data::StickersType::Masks
+					: Data::StickersType::Stickers;
 				if (was == VideoDocument) {
 					info->type = StickerType::Webm;
 				}
 				info->alt = qs(data.valt());
-				if (!info->set.id
-					|| data.vstickerset().type() == mtpc_inputStickerSetID) {
-					info->set = data.vstickerset().match([&](
-							const MTPDinputStickerSetID &data) {
-						return StickerSetIdentifier{
-							.id = data.vid().v,
-							.accessHash = data.vaccess_hash().v,
-						};
-					}, [&](const MTPDinputStickerSetShortName &data) {
-						return StickerSetIdentifier{
-							.shortName = qs(data.vshort_name()),
-						};
-					}, [](const auto &) {
-						return StickerSetIdentifier();
-					});
+				UpdateStickerSetIdentifier(info->set, data.vstickerset());
+			}
+		}, [&](const MTPDdocumentAttributeCustomEmoji &data) {
+			const auto was = type;
+			if (type == FileDocument || type == VideoDocument) {
+				type = StickerDocument;
+				_additional = std::make_unique<StickerData>();
+			}
+			if (const auto info = sticker()) {
+				info->setType = Data::StickersType::Emoji;
+				if (was == VideoDocument) {
+					info->type = StickerType::Webm;
 				}
+				info->alt = qs(data.valt());
+				if (data.is_free()) {
+					_flags &= ~Flag::PremiumSticker;
+				} else {
+					_flags |= Flag::PremiumSticker;
+				}
+				UpdateStickerSetIdentifier(info->set, data.vstickerset());
 			}
 		}, [&](const MTPDdocumentAttributeVideo &data) {
 			if (type == FileDocument) {
@@ -476,10 +496,12 @@ void DocumentData::updateThumbnails(
 			_flags &= ~Flag::InlineThumbnailIsPath;
 		}
 	}
-	if (isPremiumSticker) {
-		_flags |= Flag::PremiumSticker;
-	} else {
-		_flags &= ~Flag::PremiumSticker;
+	if (!sticker() || sticker()->setType != Data::StickersType::Emoji) {
+		if (isPremiumSticker) {
+			_flags |= Flag::PremiumSticker;
+		} else {
+			_flags &= ~Flag::PremiumSticker;
+		}
 	}
 	Data::UpdateCloudFile(
 		_thumbnail,
@@ -518,7 +540,19 @@ bool DocumentData::isPatternWallPaperSVG() const {
 }
 
 bool DocumentData::isPremiumSticker() const {
-	return (_flags & Flag::PremiumSticker);
+	if (!(_flags & Flag::PremiumSticker)) {
+		return false;
+	}
+	const auto info = sticker();
+	return info && info->setType == Data::StickersType::Stickers;
+}
+
+bool DocumentData::isPremiumEmoji() const {
+	if (!(_flags & Flag::PremiumSticker)) {
+		return false;
+	}
+	const auto info = sticker();
+	return info && info->setType == Data::StickersType::Emoji;
 }
 
 bool DocumentData::hasThumbnail() const {
@@ -1120,15 +1154,6 @@ bool DocumentData::isStickerSetInstalled() const {
 		return (i != sets.cend())
 			&& !(i->second->flags & SetFlag::Archived)
 			&& (i->second->flags & SetFlag::Installed);
-	} else if (!sticker()->set.shortName.isEmpty()) {
-		const auto name = sticker()->set.shortName.toLower();
-		for (const auto &[id, set] : sets) {
-			if (set->shortName.toLower() == name) {
-				return !(set->flags & SetFlag::Archived)
-					&& (set->flags & SetFlag::Installed);
-			}
-		}
-		return false;
 	} else {
 		return false;
 	}

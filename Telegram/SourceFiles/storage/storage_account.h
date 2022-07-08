@@ -135,6 +135,8 @@ public:
 	void writeRecentMasks();
 	void readInstalledMasks();
 	void readRecentMasks();
+	void writeInstalledCustomEmoji();
+	void readInstalledCustomEmoji();
 
 	void writeRecentHashtagsAndBots();
 	void readRecentHashtagsAndBots();
