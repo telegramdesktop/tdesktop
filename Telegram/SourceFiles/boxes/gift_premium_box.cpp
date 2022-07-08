@@ -76,7 +76,7 @@ GiftOptions GiftOptionFromTL(
 		}();
 		auto info = Ui::Premium::GiftInfo{
 			.duration = Ui::FormatTTL(months * 86400 * 31),
-			.discount = QString("\u2212%1%").arg(discount),
+			.discount = QString::fromUtf8("\xe2\x88\x92%1%").arg(discount),
 			.perMonth = tr::lng_premium_gift_per(
 				tr::now,
 				lt_cost,
@@ -320,8 +320,8 @@ void GiftBox(
 		UrlClickHandler::Open(
 			local,
 			QVariant::fromValue(ClickHandlerContext{
-				.botStartAutoSubmit = true,
 				.sessionWindow = base::make_weak(controller.get()),
+				.botStartAutoSubmit = true,
 			}));
 	});
 	box->setShowFinishedCallback([raw = button.data()]{
