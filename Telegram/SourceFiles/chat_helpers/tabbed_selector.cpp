@@ -462,7 +462,11 @@ rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
 	return emoji()->chosen();
 }
 
-rpl::producer<TabbedSelector::FileChosen> TabbedSelector::fileChosen() const {
+auto TabbedSelector::customEmojiChosen() const -> rpl::producer<FileChosen> {
+	return emoji()->customChosen();
+}
+
+auto TabbedSelector::fileChosen() const -> rpl::producer<FileChosen> {
 	auto never = rpl::never<TabbedSelector::FileChosen>(
 	) | rpl::type_erased();
 	return rpl::merge(

@@ -83,6 +83,7 @@ public:
 	Main::Session &session() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
+	rpl::producer<FileChosen> customEmojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;

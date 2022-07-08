@@ -136,7 +136,7 @@ struct RendererDescriptor {
 class Renderer final : public base::has_weak_ptr {
 public:
 	explicit Renderer(RendererDescriptor &&descriptor);
-	virtual ~Renderer() = default;
+	virtual ~Renderer();
 
 	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
 	[[nodiscard]] std::optional<Cached> ready(const QString &entityData);
@@ -152,10 +152,14 @@ private:
 		std::unique_ptr<Ui::FrameGenerator> generator,
 		crl::time duration,
 		QImage frame);
+	void renderNext(
+		std::unique_ptr<Ui::FrameGenerator> generator,
+		QImage storage);
 	void finish();
 
 	Cache _cache;
 	std::unique_ptr<Ui::FrameGenerator> _generator;
+	QImage _storage;
 	Fn<void(QByteArray)> _put;
 	Fn<void()> _repaint;
 	Fn<std::unique_ptr<Loader>()> _loader;
@@ -208,6 +212,8 @@ public:
 	Instance(
 		Loading loading,
 		Fn<void(not_null<Instance*>, RepaintRequest)> repaintLater);
+	Instance(const Instance&) = delete;
+	Instance &operator=(const Instance&) = delete;
 
 	[[nodiscard]] QString entityData() const;
 	void paint(

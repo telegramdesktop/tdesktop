@@ -163,6 +163,7 @@ void CustomEmojiLoader::load(Fn<void(LoadResult)> loaded) {
 				.media = load->document->createMediaView(),
 				.loaded = std::move(loaded),
 			});
+			load->process->media->owner()->resetCancelled();
 			load->process->media->checkStickerLarge();
 			if (load->process->media->loaded()) {
 				check();
@@ -397,6 +398,12 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),
 		std::move(update));
+}
+
+std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
+		not_null<DocumentData*> document,
+		SizeTag tag) {
+	return std::make_unique<CustomEmojiLoader>(document, tag);
 }
 
 void CustomEmojiManager::request() {

@@ -115,6 +115,7 @@ public:
 		bool autoLoading = false);
 	void cancel();
 	[[nodiscard]] bool cancelled() const;
+	void resetCancelled();
 	[[nodiscard]] float64 progress() const;
 	[[nodiscard]] int64 loadOffset() const;
 	[[nodiscard]] bool uploading() const;

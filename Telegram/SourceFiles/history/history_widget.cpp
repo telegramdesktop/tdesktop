@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
 #include "data/stickers/data_stickers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_message.h"
@@ -1049,6 +1050,13 @@ void HistoryWidget::initTabbedSelector() {
 		return !isHidden() && !_field->isHidden();
 	}) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}, lifetime());
+
+	selector->customEmojiChosen(
+	) | rpl::filter([=] {
+		return !isHidden() && !_field->isHidden();
+	}) | rpl::start_with_next([=](Selector::FileChosen data) {
+		Data::InsertCustomEmoji(_field.data(), data.document);
 	}, lifetime());
 
 	selector->fileChosen(

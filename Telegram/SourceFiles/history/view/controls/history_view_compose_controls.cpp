@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_channel.h"
 #include "data/stickers/data_stickers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
 #include "storage/storage_account.h"
 #include "apiwrap.h"
@@ -1826,6 +1827,12 @@ void ComposeControls::initTabbedSelector() {
 	selector->emojiChosen(
 	) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}, wrap->lifetime());
+
+	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
+	selector->customEmojiChosen(
+	) | rpl::start_with_next([=](FileChosen data) {
+		Data::InsertCustomEmoji(_field, data.document);
 	}, wrap->lifetime());
 
 	selector->fileChosen(

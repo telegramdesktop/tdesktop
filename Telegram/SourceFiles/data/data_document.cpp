@@ -708,7 +708,7 @@ void DocumentData::automaticLoadSettingsChanged() {
 		return;
 	}
 	_loader = nullptr;
-	_flags &= ~Flag::DownloadCancelled;
+	resetCancelled();
 }
 
 void DocumentData::finishLoad() {
@@ -867,7 +867,7 @@ void DocumentData::save(
 			cancel();
 		}
 	}
-	_flags &= ~Flag::DownloadCancelled;
+	resetCancelled();
 
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
@@ -990,6 +990,10 @@ void DocumentData::cancel() {
 
 bool DocumentData::cancelled() const {
 	return (_flags & Flag::DownloadCancelled);
+}
+
+void DocumentData::resetCancelled() {
+	_flags &= ~Flag::DownloadCancelled;
 }
 
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {

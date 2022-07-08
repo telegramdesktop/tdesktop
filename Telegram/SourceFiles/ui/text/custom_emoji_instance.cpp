@@ -21,6 +21,7 @@ constexpr auto kMaxSize = 128;
 constexpr auto kMaxFrames = 512;
 constexpr auto kMaxFrameDuration = 86400 * crl::time(1000);
 constexpr auto kCacheVersion = 1;
+constexpr auto kPreloadFrames = 3;
 
 struct CacheHeader {
 	int version = 0;
@@ -377,6 +378,8 @@ Renderer::Renderer(RendererDescriptor &&descriptor)
 	});
 }
 
+Renderer::~Renderer() = default;
+
 void Renderer::frameReady(
 		std::unique_ptr<Ui::FrameGenerator> generator,
 		crl::time duration,
@@ -390,24 +393,35 @@ void Renderer::frameReady(
 			_cache.reserve(count);
 		}
 	}
-	const auto explicitRepaint = (_cache.frames() == _cache.currentFrame());
+	const auto current = _cache.currentFrame();
+	const auto total = _cache.frames();
+	const auto explicitRepaint = (current == total);
 	_cache.add(duration, frame);
 	if (explicitRepaint && _repaint) {
 		_repaint();
 	}
 	if (!duration) {
 		finish();
-		return;
+	} else if (current + kPreloadFrames > total) {
+		renderNext(std::move(generator), std::move(frame));
+	} else {
+		_generator = std::move(generator);
+		_storage = std::move(frame);
 	}
+}
+
+void Renderer::renderNext(
+		std::unique_ptr<Ui::FrameGenerator> generator,
+		QImage storage) {
 	const auto size = _cache.size();
 	const auto guard = base::make_weak(this);
 	crl::async([
 		=,
-		frame = std::move(frame),
+		storage = std::move(storage),
 		generator = std::move(generator)
 	]() mutable {
 		auto rendered = generator->renderNext(
-			std::move(frame),
+			std::move(storage),
 			QSize(size, size) * style::DevicePixelRatio(),
 			Qt::KeepAspectRatio);
 		crl::on_main(guard, [
@@ -432,7 +446,13 @@ void Renderer::finish() {
 }
 
 PaintFrameResult Renderer::paint(QPainter &p, int x, int y, crl::time now) {
-	return _cache.paintCurrentFrame(p, x, y, now);
+	const auto result = _cache.paintCurrentFrame(p, x, y, now);
+	if (_generator
+		&& (!result.painted
+			|| _cache.currentFrame() + kPreloadFrames >= _cache.frames())) {
+		renderNext(std::move(_generator), std::move(_storage));
+	}
+	return result;
 }
 
 std::optional<Cached> Renderer::ready(const QString &entityData) {

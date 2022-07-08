@@ -42,6 +42,10 @@ public:
 		QStringView data,
 		Fn<void()> update);
 
+	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
+		not_null<DocumentData*> document,
+		SizeTag tag);
+
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;
 

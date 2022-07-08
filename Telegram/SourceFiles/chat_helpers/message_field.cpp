@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_document.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "window/window_session_controller.h"
@@ -77,14 +78,18 @@ QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 			i = all.erase(i);
 			continue;
 		} else if (Ui::InputField::IsCustomEmojiLink(tag)) {
-			if (!_session->premium()) {
+			const auto data = Ui::InputField::CustomEmojiEntityData(tag);
+			const auto emoji = Data::ParseCustomEmojiData(data);
+			if (emoji.selfId != id) {
 				i = all.erase(i);
 				continue;
 			}
-			const auto data = Ui::InputField::CustomEmojiEntityData(tag);
-			if (Data::ParseCustomEmojiData(data).selfId != id) {
-				i = all.erase(i);
-				continue;
+			if (!_session->premium()) {
+				const auto document = _session->data().document(emoji.id);
+				if (document->isPremiumSticker()) {
+					i = all.erase(i);
+					continue;
+				}
 			}
 		}
 		++i;
