@@ -167,8 +167,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtCore/QMimeData>
 
-#include "data/stickers/data_custom_emoji.h"
-
 const char kOptionAutoScrollInactiveChat[] =
 	"auto-scroll-inactive-chat";
 
@@ -426,14 +424,10 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->stickerChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
-		Data::InsertCustomEmoji(_field.data(), data.sticker);
-		AssertIsDebug();
-#if 0
 		controller->sendingAnimation().appendSending(
 			data.messageSendingFrom);
 		const auto localId = data.messageSendingFrom.localId;
 		sendExistingDocument(data.sticker, data.options, localId);
-#endif
 	}, lifetime());
 
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
@@ -1059,16 +1053,12 @@ void HistoryWidget::initTabbedSelector() {
 
 	selector->fileChosen(
 	) | filter | rpl::start_with_next([=](Selector::FileChosen data) {
-		Data::InsertCustomEmoji(_field.data(), data.document);
-		AssertIsDebug();
-#if 0
 		controller()->sendingAnimation().appendSending(
 			data.messageSendingFrom);
 		sendExistingDocument(
 			data.document,
 			data.options,
 			data.messageSendingFrom.localId);
-#endif
 	}, lifetime());
 
 	selector->photoChosen(
