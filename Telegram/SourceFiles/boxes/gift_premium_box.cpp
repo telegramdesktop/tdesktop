@@ -364,17 +364,10 @@ void GiftPremiumValidator::showBox(not_null<UserData*> user) {
 		}
 		_requestId = 0;
 //		_controller->api().processFullPeer(peer, result);
-		const auto &data = result.match([](
-				const MTPDusers_userFull &d) -> const MTPDusers_userFull & {
-			return d;
-		});
-		_controller->session().data().processUsers(data.vusers());
-		_controller->session().data().processChats(data.vchats());
+		_controller->session().data().processUsers(result.data().vusers());
+		_controller->session().data().processChats(result.data().vchats());
 
-		const auto &fullUser = data.vfull_user().match(
-				[](const MTPDuserFull &d) -> const MTPDuserFull & {
-			return d;
-		});
+		const auto &fullUser = result.data().vfull_user().data();
 		auto options = GiftOptionFromTL(
 			fullUser,
 			_controller->session().api().premium().monthlyAmount(),

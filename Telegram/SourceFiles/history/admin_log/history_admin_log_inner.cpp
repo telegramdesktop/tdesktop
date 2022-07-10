@@ -818,10 +818,7 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
 	for (const auto &event : events) {
-		const auto &data = event.match([](const MTPDchannelAdminLogEvent &d)
-				-> const MTPDchannelAdminLogEvent & {
-			return d;
-		});
+		const auto &data = event.data();
 		const auto id = data.vid().v;
 		if (_eventIds.find(id) != _eventIds.end()) {
 			return;

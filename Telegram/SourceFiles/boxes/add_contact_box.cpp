@@ -379,10 +379,7 @@ void AddContactBox::save() {
 				MTP_string(lastName)))
 	)).done(crl::guard(weak, [=](
 			const MTPcontacts_ImportedContacts &result) {
-		const auto &data = result.match([](
-				const auto &data) -> const MTPDcontacts_importedContacts& {
-			return data;
-		});
+		const auto &data = result.data();
 		session->data().processUsers(data.vusers());
 		if (!weak) {
 			return;

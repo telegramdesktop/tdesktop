@@ -100,10 +100,7 @@ void SendBotCallbackData(
 			button->requestId = 0;
 			owner->requestItemRepaint(item);
 		}
-		const auto &data = result.match([](
-				const auto &data) -> const MTPDmessages_botCallbackAnswer& {
-			return data;
-		});
+		const auto &data = result.data();
 		const auto message = data.vmessage()
 			? qs(*data.vmessage())
 			: QString();
