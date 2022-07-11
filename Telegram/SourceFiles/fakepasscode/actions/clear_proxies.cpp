@@ -1,6 +1,7 @@
 #include "clear_proxies.h"
 
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
 #include "main/main_session.h"

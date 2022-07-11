@@ -1,6 +1,7 @@
 #include "clear_cache.h"
 
 #include "core/application.h"
+#include "core/core_settings.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "main/main_account.h"
@@ -13,7 +14,7 @@
 #include "fakepasscode/utils/file_utils.h"
 
 void FakePasscode::ClearCache::Execute() {
-    Expects(Core::App().maybeActiveSession() != nullptr);
+    Expects(Core::App().maybePrimarySession() != nullptr);
     for (const auto &[index, account] : Core::App().domain().accounts()) {
         if (account->sessionExists()) {
             FAKE_LOG(qsl("Clear cache for account %1").arg(index));
@@ -28,7 +29,7 @@ void FakePasscode::ClearCache::Execute() {
     Ui::Emoji::ClearIrrelevantCache();
 
     QString download_path;
-    const auto session = Core::App().maybeActiveSession();
+    const auto session = Core::App().maybePrimarySession();
     if (Core::App().settings().downloadPath().isEmpty()) {
         FAKE_LOG(qsl("downloadPath is empty, find default"));
         download_path = File::DefaultDownloadPath(session);
