@@ -1787,11 +1787,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
 "lng_stickers_add_pack" = "Add stickers";
 "lng_stickers_add_masks" = "Add masks";
+"lng_stickers_add_emoji" = "Add emoji";
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_share_masks" = "Share Masks";
+"lng_stickers_share_emoji" = "Share Emoji";
 "lng_stickers_not_found" = "Sticker pack not found.";
 "lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
+"lng_stickers_copied_emoji" = "Emoji pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage sticker packs";
 "lng_stickers_return" = "Undo";
