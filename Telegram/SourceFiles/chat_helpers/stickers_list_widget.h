@@ -55,11 +55,8 @@ public:
 		not_null<Window::SessionController*> controller,
 		bool masks = false);
 
-	Main::Session &session() const;
-
 	rpl::producer<TabbedSelector::FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
-	rpl::producer<> checkForHide() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
 	void refreshRecent() override;
@@ -76,7 +73,6 @@ public:
 	void refreshStickers();
 
 	std::vector<StickerIcon> fillIcons();
-	bool preventAutoHide();
 
 	uint64 currentSet(int yOffset) const;
 
@@ -205,7 +201,6 @@ private:
 
 	void setSection(Section section);
 	void displaySet(uint64 setId);
-	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 	void installSet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
@@ -367,7 +362,6 @@ private:
 	base::Timer _updateSetsTimer;
 	base::flat_set<uint64> _repaintSetsIds;
 
-	bool _displayingSet = false;
 	uint64 _removingSetId = 0;
 
 	Footer *_footer = nullptr;
@@ -405,9 +399,12 @@ private:
 
 	rpl::event_stream<TabbedSelector::FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;
-	rpl::event_stream<> _checkForHide;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 
 };
+
+[[nodiscard]] object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
+	not_null<Main::Session*> session,
+	uint64 setId);
 
 } // namespace ChatHelpers

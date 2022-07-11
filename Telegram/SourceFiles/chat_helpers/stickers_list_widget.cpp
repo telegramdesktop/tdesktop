@@ -1195,20 +1195,12 @@ StickersListWidget::StickersListWidget(
 	}, lifetime());
 }
 
-Main::Session &StickersListWidget::session() const {
-	return controller()->session();
-}
-
 rpl::producer<TabbedSelector::FileChosen> StickersListWidget::chosen() const {
 	return _chosen.events();
 }
 
 rpl::producer<> StickersListWidget::scrollUpdated() const {
 	return _scrollUpdated.events();
-}
-
-rpl::producer<> StickersListWidget::checkForHide() const {
-	return _checkForHide.events();
 }
 
 auto StickersListWidget::choosingUpdated() const
@@ -2554,7 +2546,6 @@ QPoint StickersListWidget::buttonRippleTopLeft(int section) const {
 
 void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
 	if (document->sticker() && document->sticker()->set) {
-		_displayingSet = true;
 		checkHideWithBox(StickerSetBox::Show(controller(), document));
 	}
 }
@@ -3364,10 +3355,6 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 	return result;
 }
 
-bool StickersListWidget::preventAutoHide() {
-	return _removingSetId != 0 || _displayingSet != 0;
-}
-
 void StickersListWidget::updateSelected() {
 	if (!v::is_null(_pressed) && !_previewShown) {
 		return;
@@ -3598,7 +3585,6 @@ void StickersListWidget::beforeHiding() {
 void StickersListWidget::displaySet(uint64 setId) {
 	if (setId == Data::Stickers::MegagroupSetId) {
 		if (_megagroupSet->canEditStickers()) {
-			_displayingSet = true;
 			checkHideWithBox(controller()->show(
 				Box<StickersBox>(controller(), _megagroupSet),
 				Ui::LayerOption::KeepOther).data());
@@ -3612,21 +3598,10 @@ void StickersListWidget::displaySet(uint64 setId) {
 	const auto &sets = session().data().stickers().sets();
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
-		_displayingSet = true;
 		checkHideWithBox(controller()->show(
 			Box<StickerSetBox>(controller(), it->second->identifier()),
 			Ui::LayerOption::KeepOther).data());
 	}
-}
-
-void StickersListWidget::checkHideWithBox(QPointer<Ui::BoxContent> box) {
-	if (!box) {
-		return;
-	}
-	connect(box, &QObject::destroyed, this, [=] {
-		_displayingSet = false;
-		_checkForHide.fire({});
-	});
 }
 
 void StickersListWidget::installSet(uint64 setId) {
@@ -3680,8 +3655,7 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 		refreshStickers();
 		return;
 	}
-	_removingSetId = Data::Stickers::MegagroupSetId;
-	controller()->show(Ui::MakeConfirmBox({
+	checkHideWithBox(controller()->show(Ui::MakeConfirmBox({
 		.text = tr::lng_stickers_remove_group_set(),
 		.confirmed = crl::guard(this, [this, group = _megagroupSet](
 				Fn<void()> &&close) {
@@ -3691,92 +3665,19 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 				session().api().setGroupStickerSet(group, {});
 			}
 			close();
-			_removingSetId = 0;
-			_checkForHide.fire({});
 		}),
-		.cancelled = crl::guard(this, [this] {
-			_removingSetId = 0;
-			_checkForHide.fire({});
+		.cancelled = crl::guard(this, [this](Fn<void()> &&close) {
+			close();
 		}),
-	}));
+	})));
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
-	const auto &sets = session().data().stickers().sets();
-	const auto it = sets.find(setId);
-	if (it == sets.cend()) {
-		return;
+	if (auto box = MakeConfirmRemoveSetBox(&session(), setId)) {
+		checkHideWithBox(controller()->show(
+			std::move(box),
+			Ui::LayerOption::KeepOther));
 	}
-	const auto set = it->second.get();
-	_removingSetId = set->id;
-	const auto text = tr::lng_stickers_remove_pack(
-		tr::now,
-		lt_sticker_pack,
-		set->title);
-	controller()->show(Ui::MakeConfirmBox({
-		.text = text,
-		.confirmed = crl::guard(this, [=](Fn<void()> &&close) {
-			close();
-			const auto &sets = session().data().stickers().sets();
-			const auto it = sets.find(_removingSetId);
-			if (it != sets.cend()) {
-				const auto set = it->second.get();
-				if (set->id && set->accessHash) {
-					_api.request(MTPmessages_UninstallStickerSet(
-						MTP_inputStickerSetID(
-							MTP_long(set->id),
-							MTP_long(set->accessHash)))
-					).send();
-				} else if (!set->shortName.isEmpty()) {
-					_api.request(MTPmessages_UninstallStickerSet(
-						MTP_inputStickerSetShortName(
-							MTP_string(set->shortName)))
-					).send();
-				}
-				auto writeRecent = false;
-				auto &recent = session().data().stickers().getRecentPack();
-				for (auto i = recent.begin(); i != recent.cend();) {
-					if (set->stickers.indexOf(i->first) >= 0) {
-						i = recent.erase(i);
-						writeRecent = true;
-					} else {
-						++i;
-					}
-				}
-				set->flags &= ~SetFlag::Installed;
-				set->installDate = TimeId(0);
-				//
-				// Set can be in search results.
-				//
-				//if (!(set->flags & SetFlag::Featured)
-				//	&& !(set->flags & SetFlag::Special)) {
-				//	sets.erase(it);
-				//}
-				const auto removeIndex = defaultSetsOrder().indexOf(
-					_removingSetId);
-				if (removeIndex >= 0) {
-					defaultSetsOrderRef().removeAt(removeIndex);
-				}
-				refreshStickers();
-				if (set->flags & SetFlag::Masks) {
-					session().local().writeInstalledMasks();
-				} else {
-					session().local().writeInstalledStickers();
-				}
-				if (writeRecent) {
-					session().saveSettings();
-				}
-				session().data().stickers().notifyUpdated();
-			}
-			_removingSetId = 0;
-			_checkForHide.fire({});
-		}),
-		.cancelled = crl::guard(this, [=] {
-			_removingSetId = 0;
-			_checkForHide.fire({});
-		}),
-		.confirmText = tr::lng_stickers_remove_pack_confirm(),
-	}), Ui::LayerOption::KeepOther);
 }
 
 const Data::StickersSetsOrder &StickersListWidget::defaultSetsOrder() const {
@@ -3796,5 +3697,84 @@ bool StickersListWidget::mySetsEmpty() const {
 }
 
 StickersListWidget::~StickersListWidget() = default;
+
+object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
+		not_null<Main::Session*> session,
+		uint64 setId) {
+	const auto &sets = session->data().stickers().sets();
+	const auto it = sets.find(setId);
+	if (it == sets.cend()) {
+		return nullptr;
+	}
+	const auto set = it->second.get();
+	const auto text = tr::lng_stickers_remove_pack(
+		tr::now,
+		lt_sticker_pack,
+		set->title);
+	return Ui::MakeConfirmBox({
+		.text = text,
+		.confirmed = [=](Fn<void()> &&close) {
+			close();
+			const auto &sets = session->data().stickers().sets();
+			const auto it = sets.find(setId);
+			if (it != sets.cend()) {
+				const auto set = it->second.get();
+				if (set->id && set->accessHash) {
+					session->api().request(MTPmessages_UninstallStickerSet(
+						MTP_inputStickerSetID(
+							MTP_long(set->id),
+							MTP_long(set->accessHash)))
+					).send();
+				} else if (!set->shortName.isEmpty()) {
+					session->api().request(MTPmessages_UninstallStickerSet(
+						MTP_inputStickerSetShortName(
+							MTP_string(set->shortName)))
+					).send();
+				}
+				auto writeRecent = false;
+				auto &recent = session->data().stickers().getRecentPack();
+				for (auto i = recent.begin(); i != recent.cend();) {
+					if (set->stickers.indexOf(i->first) >= 0) {
+						i = recent.erase(i);
+						writeRecent = true;
+					} else {
+						++i;
+					}
+				}
+				set->flags &= ~SetFlag::Installed;
+				set->installDate = TimeId(0);
+				//
+				// Set can be in search results.
+				//
+				//if (!(set->flags & SetFlag::Featured)
+				//	&& !(set->flags & SetFlag::Special)) {
+				//	sets.erase(it);
+				//}
+				auto &orderRef = (set->flags & SetFlag::Emoji)
+					? session->data().stickers().emojiSetsOrderRef()
+					: (set->flags & SetFlag::Masks)
+					? session->data().stickers().maskSetsOrderRef()
+					: session->data().stickers().setsOrderRef();
+				const auto removeIndex = orderRef.indexOf(setId);
+				if (removeIndex >= 0) {
+					orderRef.removeAt(removeIndex);
+				}
+				if (set->flags & SetFlag::Masks) {
+					session->local().writeInstalledMasks();
+				} else {
+					session->local().writeInstalledStickers();
+				}
+				if (writeRecent) {
+					session->saveSettings();
+				}
+				session->data().stickers().notifyUpdated();
+			}
+		},
+		.cancelled = [=](Fn<void()> &&close) {
+			close();
+		},
+		.confirmText = tr::lng_stickers_remove_pack_confirm(),
+	});
+}
 
 } // namespace ChatHelpers

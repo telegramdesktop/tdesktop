@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/layers/box_content.h"
 #include "ui/image/image_prepare.h"
 #include "ui/cached_round_corners.h"
 #include "window/window_session_controller.h"
@@ -509,7 +510,8 @@ rpl::producer<> TabbedSelector::checkForHide() const {
 	auto never = rpl::never<>();
 	return rpl::merge(
 		hasStickersTab() ? stickers()->checkForHide() : never,
-		hasMasksTab() ? masks()->checkForHide() : never);
+		hasMasksTab() ? masks()->checkForHide() : never,
+		hasEmojiTab() ? emoji()->checkForHide() : never);
 }
 
 rpl::producer<> TabbedSelector::slideFinished() const {
@@ -723,8 +725,9 @@ void TabbedSelector::refreshStickers() {
 }
 
 bool TabbedSelector::preventAutoHide() const {
-	return (hasStickersTab() ? stickers()->preventAutoHide() : false)
-		|| (hasMasksTab() ? masks()->preventAutoHide() : false)
+	return (hasStickersTab() && stickers()->preventAutoHide())
+		|| (hasMasksTab() && masks()->preventAutoHide())
+		|| (hasEmojiTab() && emoji()->preventAutoHide())
 		|| hasMenu();
 }
 
@@ -1133,6 +1136,10 @@ TabbedSelector::Inner::Inner(
 , _controller(controller) {
 }
 
+Main::Session &TabbedSelector::Inner::session() const {
+	return controller()->session();
+}
+
 rpl::producer<int> TabbedSelector::Inner::scrollToRequests() const {
 	return _scrollToRequests.events();
 }
@@ -1147,6 +1154,17 @@ void TabbedSelector::Inner::scrollTo(int y) {
 
 void TabbedSelector::Inner::disableScroll(bool disabled) {
 	_disableScrollRequests.fire_copy(disabled);
+}
+
+void TabbedSelector::Inner::checkHideWithBox(QPointer<Ui::BoxContent> box) {
+	if (!box) {
+		return;
+	}
+	_preventHideWithBox = true;
+	connect(box, &QObject::destroyed, this, [=] {
+		_preventHideWithBox = false;
+		_checkForHide.fire({});
+	});
 }
 
 void TabbedSelector::Inner::visibleTopBottomUpdated(

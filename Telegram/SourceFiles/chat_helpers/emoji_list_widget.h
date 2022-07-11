@@ -16,6 +16,10 @@ template <typename ...Tags>
 struct phrase;
 } // namespace tr
 
+namespace Ui {
+class RippleAnimation;
+} // namespace Ui
+
 namespace Ui::Emoji {
 enum class Section;
 } // namespace Ui::Emoji
@@ -102,12 +106,50 @@ private:
 		uint64 id = 0;
 		QString title;
 		std::vector<CustomOne> list;
+		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
 	};
 	struct RepaintSet {
 		base::flat_set<uint64> ids;
 		crl::time when = 0;
 	};
+	struct OverEmoji {
+		int section = 0;
+		int index = 0;
+
+		inline bool operator==(OverEmoji other) const {
+			return (section == other.section)
+				&& (index == other.index);
+		}
+		inline bool operator!=(OverEmoji other) const {
+			return !(*this == other);
+		}
+	};
+	struct OverSet {
+		int section = 0;
+
+		inline bool operator==(OverSet other) const {
+			return (section == other.section);
+		}
+		inline bool operator!=(OverSet other) const {
+			return !(*this == other);
+		}
+	};
+	struct OverButton {
+		int section = 0;
+
+		inline bool operator==(OverButton other) const {
+			return (section == other.section);
+		}
+		inline bool operator!=(OverButton other) const {
+			return !(*this == other);
+		}
+	};
+	using OverState = std::variant<
+		v::null_t,
+		OverEmoji,
+		OverSet,
+		OverButton>;
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -124,7 +166,8 @@ private:
 
 	void ensureLoaded(int section);
 	void updateSelected();
-	void setSelected(int newSelected);
+	void setSelected(OverState newSelected);
+	void setPressed(OverState newPressed);
 
 	void selectEmoji(EmojiPtr emoji);
 	void selectCustom(not_null<DocumentData*> document);
@@ -140,7 +183,18 @@ private:
 		bool paused,
 		int set,
 		int index);
-	[[nodiscard]] QRect emojiRect(int section, int sel) const;
+	[[nodiscard]] bool hasRemoveButton(int index) const;
+	[[nodiscard]] QRect removeButtonRect(int index) const;
+	[[nodiscard]] QRect emojiRect(int section, int index) const;
+	[[nodiscard]] int emojiRight() const;
+	[[nodiscard]] int emojiLeft() const;
+
+	void displaySet(uint64 setId);
+	void removeSet(uint64 setId);
+
+	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
+		int section);
+	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
 
 	void repaintLater(
 		uint64 setId,
@@ -162,9 +216,9 @@ private:
 	QSize _singleSize;
 	int _esize = 0;
 
-	int _selected = -1;
-	int _pressedSel = -1;
-	int _pickerSel = -1;
+	OverState _selected;
+	OverState _pressed;
+	OverState _pickerSelected;
 	QPoint _lastMousePos;
 
 	object_ptr<EmojiColorPicker> _picker;

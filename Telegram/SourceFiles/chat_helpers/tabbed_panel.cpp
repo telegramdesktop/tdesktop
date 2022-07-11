@@ -280,8 +280,9 @@ void TabbedPanel::opacityAnimationCallback() {
 }
 
 void TabbedPanel::hideByTimerOrLeave() {
-	if (isHidden() || preventAutoHide()) return;
-
+	if (isHidden() || preventAutoHide()) {
+		return;
+	}
 	hideAnimated();
 }
 

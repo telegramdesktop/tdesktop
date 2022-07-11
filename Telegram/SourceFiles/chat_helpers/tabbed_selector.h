@@ -29,6 +29,7 @@ class PopupMenu;
 class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
+class BoxContent;
 } // namespace Ui
 
 namespace Window {
@@ -259,17 +260,25 @@ class TabbedSelector::Inner : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
 
-	not_null<Window::SessionController*> controller() const {
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
+	[[nodiscard]] Main::Session &session() const;
 
-	int getVisibleTop() const {
+	[[nodiscard]] int getVisibleTop() const {
 		return _visibleTop;
 	}
-	int getVisibleBottom() const {
+	[[nodiscard]] int getVisibleBottom() const {
 		return _visibleBottom;
 	}
 	void setMinimalHeight(int newWidth, int newMinimalHeight);
+
+	[[nodiscard]] rpl::producer<> checkForHide() const {
+		return _checkForHide.events();
+	}
+	[[nodiscard]] bool preventAutoHide() const {
+		return _preventHideWithBox;
+	}
 
 	virtual void refreshRecent() = 0;
 	virtual void preloadImages() {
@@ -309,6 +318,8 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
+	void checkHideWithBox(QPointer<Ui::BoxContent> box);
+
 private:
 	not_null<Window::SessionController*> _controller;
 
@@ -318,6 +329,9 @@ private:
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;
+	rpl::event_stream<> _checkForHide;
+
+	bool _preventHideWithBox = false;
 
 };
 
