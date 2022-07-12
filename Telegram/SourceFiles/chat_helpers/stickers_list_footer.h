@@ -42,7 +42,7 @@ enum class ValidateIconAnimations {
 
 [[nodiscard]] uint64 EmojiSectionSetId(Ui::Emoji::Section section);
 [[nodiscard]] uint64 RecentEmojiSectionSetId();
-[[nodiscard]] uint64 FirstEmojiSectionSetId();
+[[nodiscard]] uint64 AllEmojiSectionSetId();
 [[nodiscard]] std::optional<Ui::Emoji::Section> SetIdEmojiSection(uint64 id);
 
 struct StickerIcon {
@@ -134,14 +134,27 @@ private:
 		int width = 0;
 		bool visible = false;
 	};
+	struct ScrollState {
+		int selected = 0;
+		int max = 0;
+		anim::value x;
+		anim::value selectionX;
+		anim::value selectionWidth;
+		crl::time animationStart = 0;
+	};
 
 	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback) const;
 	void enumerateIcons(Fn<bool(const IconInfo &)> callback) const;
+	void enumerateSubicons(Fn<bool(const IconInfo &)> callback) const;
 	[[nodiscard]] IconInfo iconInfo(int index) const;
+	[[nodiscard]] IconInfo subiconInfo(int index) const;
 
 	[[nodiscard]] std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 	bool iconsAnimationCallback(crl::time now);
 	void setSelectedIcon(
+		int newSelected,
+		ValidateIconAnimations animations);
+	void setSelectedSubicon(
 		int newSelected,
 		ValidateIconAnimations animations);
 	void validateIconLottieAnimation(const StickerIcon &icon);
@@ -186,21 +199,22 @@ private:
 	Fn<std::shared_ptr<Lottie::FrameRenderer>()> _renderer;
 	uint64 _activeByScrollId = 0;
 	OverState _iconOver = SpecialOver::None;
-	int _iconSel = 0;
 	OverState _iconDown = SpecialOver::None;
-	bool _iconsDragging = false;
-	Ui::Animations::Basic _iconsAnimation;
+
 	QPoint _iconsMousePos, _iconsMouseDown;
 	mutable QImage _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
+
 	int _iconsStartX = 0;
-	int _iconsMax = 0;
-	anim::value _iconsX;
-	anim::value _iconSelX;
-	anim::value _iconSelWidth;
-	crl::time _iconsStartAnim = 0;
+	bool _iconsDragging = false;
+
+	ScrollState _iconState;
+	Ui::Animations::Basic _iconsAnimation;
+
+	ScrollState _subiconState;
+	Ui::Animations::Basic _subiconsAnimation;
 
 	Ui::RoundRect _selectionBg;
 	Ui::Animations::Simple _emojiIconWidthAnimation;

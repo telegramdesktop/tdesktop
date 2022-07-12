@@ -1213,8 +1213,15 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
 	result.reserve(2 + _custom.size());
 
-	result.emplace_back(EmojiSectionSetId(Ui::Emoji::Section::Recent));
-	result.emplace_back(EmojiSectionSetId(Ui::Emoji::Section::People));
+	result.emplace_back(RecentEmojiSectionSetId());
+	if (_custom.empty()) {
+		using Section = Ui::Emoji::Section;
+		for (auto i = int(Section::People); i <= int(Section::Symbols); ++i) {
+			result.emplace_back(EmojiSectionSetId(Section(i)));
+		}
+	} else {
+		result.emplace_back(AllEmojiSectionSetId());
+	}
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		const auto s = custom.list[0].document;
