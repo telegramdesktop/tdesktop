@@ -1097,8 +1097,8 @@ void Application::lockByPasscode() {
                 }
                 Ui::Emoji::ClearIrrelevantCache();
             }
-			w->setupPasscodeLock();
-		});
+            _primaryWindow->setupPasscodeLock();
+		}
 	});
 }
 

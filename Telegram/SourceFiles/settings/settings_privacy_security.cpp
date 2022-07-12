@@ -262,10 +262,10 @@ void SetupLocalPasscode(
 
     if (!controller->session().domain().local().IsFake()) {
         AddButton(
-                    inner,
-                    tr::lng_show_fakes(),
-                    st::settingsButton,
-                    { &st::settingsIconSettings, kIconGreen }
+            container,
+            tr::lng_show_fakes(),
+            st::settingsButton,
+            { &st::settingsIconSettings, kIconGreen }
         )->addClickHandler([=] {
             controller->show(Box<FakePasscodeListBox>(&controller->session().domain(), controller));
         });
