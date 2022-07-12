@@ -47,6 +47,8 @@ enum class Notification;
 namespace ChatHelpers {
 
 struct StickerIcon;
+enum class ValidateIconAnimations;
+class StickersListFooter;
 
 class StickersListWidget final : public TabbedSelector::Inner {
 public:
@@ -113,7 +115,6 @@ protected:
 	int countDesiredHeight(int newWidth) override;
 
 private:
-	class Footer;
 	struct Sticker;
 	struct Set;
 
@@ -231,13 +232,6 @@ private:
 	std::unique_ptr<Ui::RippleAnimation> createButtonRipple(int section);
 	QPoint buttonRippleTopLeft(int section) const;
 
-	enum class ValidateIconAnimations {
-		Full,
-		Scroll,
-		None,
-	};
-	void validateSelectedIcon(ValidateIconAnimations animations);
-
 	std::vector<Set> &shownSets();
 	const std::vector<Set> &shownSets() const;
 	int featuredRowHeight() const;
@@ -313,6 +307,7 @@ private:
 	void removeFavedSticker(int section, int index);
 	void setColumnCount(int count);
 	void refreshFooterIcons();
+	void refreshIcons(ValidateIconAnimations animations);
 
 	void showStickerSetBox(not_null<DocumentData*> document);
 
@@ -362,9 +357,7 @@ private:
 	base::Timer _updateSetsTimer;
 	base::flat_set<uint64> _repaintSetsIds;
 
-	uint64 _removingSetId = 0;
-
-	Footer *_footer = nullptr;
+	StickersListFooter *_footer = nullptr;
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;

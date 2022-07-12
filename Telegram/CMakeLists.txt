@@ -370,6 +370,8 @@ PRIVATE
     chat_helpers/stickers_emoji_pack.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
+    chat_helpers/stickers_list_footer.cpp
+    chat_helpers/stickers_list_footer.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
     chat_helpers/stickers_lottie.cpp

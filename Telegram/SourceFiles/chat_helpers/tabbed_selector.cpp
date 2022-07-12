@@ -407,7 +407,7 @@ TabbedSelector::TabbedSelector(
 		session().data().stickers().emojiSetInstalled(
 		) | rpl::start_with_next([=](uint64 setId) {
 			_tabsSlider->setActiveSection(indexByType(SelectorTab::Emoji));
-			emoji()->showCustomSet(setId);
+			emoji()->showSet(setId);
 			_showRequests.fire({});
 		}, lifetime());
 	}

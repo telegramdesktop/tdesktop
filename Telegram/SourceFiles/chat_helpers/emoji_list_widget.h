@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "base/timer.h"
 
+namespace Data {
+class StickersSet;
+} // namespace Data
+
 namespace tr {
 template <typename ...Tags>
 struct phrase;
@@ -37,7 +41,9 @@ namespace ChatHelpers {
 
 inline constexpr auto kEmojiSectionCount = 8;
 
+struct StickerIcon;
 class EmojiColorPicker;
+class StickersListFooter;
 
 class EmojiListWidget
 	: public TabbedSelector::Inner
@@ -55,9 +61,8 @@ public:
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
 	void showEmojiSection(Section section);
-	[[nodiscard]] Section currentSection(int yOffset) const;
-
-	void showCustomSet(uint64 setId);
+	void showSet(uint64 setId);
+	[[nodiscard]] uint64 currentSet(int yOffset) const;
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -87,8 +92,6 @@ protected:
 	int countDesiredHeight(int newWidth) override;
 
 private:
-	class Footer;
-
 	struct SectionInfo {
 		int section = 0;
 		int count = 0;
@@ -104,6 +107,7 @@ private:
 	};
 	struct CustomSet {
 		uint64 id = 0;
+		not_null<Data::StickersSet*> set;
 		QString title;
 		std::vector<CustomOne> list;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
@@ -188,6 +192,8 @@ private:
 	[[nodiscard]] QRect emojiRect(int section, int index) const;
 	[[nodiscard]] int emojiRight() const;
 	[[nodiscard]] int emojiLeft() const;
+	[[nodiscard]] uint64 sectionSetId(int section) const;
+	[[nodiscard]] std::vector<StickerIcon> fillIcons();
 
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);
@@ -204,7 +210,7 @@ private:
 	void scheduleRepaintTimer();
 	void invokeRepaints();
 
-	Footer *_footer = nullptr;
+	StickersListFooter *_footer = nullptr;
 
 	int _counts[kEmojiSectionCount];
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];

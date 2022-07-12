@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "chat_helpers/stickers_list_widget.h"
+#include "chat_helpers/stickers_list_footer.h"
 #include "emoji_suggestions_data.h"
 #include "emoji_suggestions_helper.h"
 #include "main/main_session.h"
@@ -85,6 +86,7 @@ private:
 
 };
 
+#if 0
 class EmojiListWidget::Footer : public TabbedSelector::InnerFooter {
 public:
 	Footer(not_null<EmojiListWidget*> parent);
@@ -102,6 +104,7 @@ private:
 	std::array<object_ptr<Ui::IconButton>, kEmojiSectionCount> _sections;
 
 };
+#endif
 
 struct EmojiListWidget::CustomInstance {
 	CustomInstance(
@@ -127,6 +130,7 @@ EmojiListWidget::CustomInstance::CustomInstance(
 , object(&emoji, std::move(repaint)) {
 }
 
+#if 0
 EmojiListWidget::Footer::Footer(not_null<EmojiListWidget*> parent)
 : InnerFooter(parent)
 , _pan(parent)
@@ -185,6 +189,7 @@ void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {
 void EmojiListWidget::Footer::setActiveSection(Ui::Emoji::Section section) {
 	_pan->showEmojiSection(section);
 }
+#endif
 
 EmojiColorPicker::EmojiColorPicker(QWidget *parent)
 : RpWidget(parent) {
@@ -552,7 +557,9 @@ void EmojiListWidget::visibleTopBottomUpdated(
 		int visibleBottom) {
 	Inner::visibleTopBottomUpdated(visibleTop, visibleBottom);
 	if (_footer) {
-		_footer->setCurrentSectionIcon(currentSection(visibleTop));
+		_footer->validateSelectedIcon(
+			currentSet(visibleTop),
+			ValidateIconAnimations::Full);
 	}
 	unloadNotSeenCustom(visibleTop, visibleBottom);
 }
@@ -580,8 +587,19 @@ void EmojiListWidget::unloadNotSeenCustom(
 
 object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	Expects(_footer == nullptr);
-	auto result = object_ptr<Footer>(this);
+
+	using FooterDescriptor = StickersListFooter::Descriptor;
+	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
+		.controller = controller(),
+		.parent = this,
+	});
 	_footer = result;
+
+	_footer->setChosen(
+	) | rpl::start_with_next([=](uint64 setId) {
+		showSet(setId);
+	}, _footer->lifetime());
+
 	return result;
 }
 
@@ -665,7 +683,17 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 	_rowsLeft -= st::roundRadiusSmall;
 	_singleSize = QSize(singleWidth, singleWidth - 4 * st::lineWidth);
 	_picker->setSingleSize(_singleSize);
-	return sectionInfo(sectionsCount() - 1).rowsBottom + st::emojiPanPadding;
+
+	auto visibleHeight = minimalHeight();
+	auto minimalHeight = (visibleHeight - st::stickerPanPadding);
+	auto countResult = [this](int minimalLastHeight) {
+		const auto info = sectionInfo(sectionsCount() - 1);
+		return info.top
+			+ qMax(info.rowsBottom - info.top, minimalLastHeight);
+	};
+	const auto minimalLastHeight = minimalHeight;
+	return qMax(minimalHeight, countResult(minimalLastHeight))
+		+ st::emojiPanPadding;
 }
 
 void EmojiListWidget::ensureLoaded(int section) {
@@ -1052,8 +1080,8 @@ void EmojiListWidget::clearSelection() {
 	_lastMousePos = mapToGlobal(QPoint(-10, -10));
 }
 
-Ui::Emoji::Section EmojiListWidget::currentSection(int yOffset) const {
-	return static_cast<Section>(sectionInfoByOffset(yOffset).section);
+uint64 EmojiListWidget::currentSet(int yOffset) const {
+	return sectionSetId(sectionInfoByOffset(yOffset).section);
 }
 
 QString EmojiListWidget::tooltipText() const {
@@ -1132,7 +1160,7 @@ void EmojiListWidget::refreshCustom() {
 				return true;
 			}();
 			if (valid) {
-				_custom.push_back(base::take(*i));
+				_custom.push_back(std::move(*i));
 				continue;
 			}
 		}
@@ -1170,10 +1198,51 @@ void EmojiListWidget::refreshCustom() {
 		}
 		_custom.push_back({
 			.id = setId,
+			.set = it->second.get(),
 			.title = it->second->title,
 			.list = std::move(set),
 		});
 	}
+	_footer->refreshIcons(
+		fillIcons(),
+		nullptr,
+		ValidateIconAnimations::None);
+}
+
+std::vector<StickerIcon> EmojiListWidget::fillIcons() {
+	auto result = std::vector<StickerIcon>();
+	result.reserve(kEmojiSectionCount + _custom.size());
+
+	for (auto i = 0; i != kEmojiSectionCount; ++i) {
+		result.emplace_back(EmojiSectionSetId(static_cast<Section>(i)));
+	}
+	for (const auto &custom : _custom) {
+		const auto set = custom.set;
+		const auto s = custom.list[0].document;
+		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
+		const auto availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
+		const auto size = set->hasThumbnail()
+			? QSize(
+				set->thumbnailLocation().width(),
+				set->thumbnailLocation().height())
+			: s->hasThumbnail()
+			? QSize(
+				s->thumbnailLocation().width(),
+				s->thumbnailLocation().height())
+			: QSize();
+		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
+		if (availw * thumbh > availh * thumbw) {
+			pixh = availh;
+			pixw = (pixh * thumbw) / thumbh;
+		} else {
+			pixw = availw;
+			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
+		}
+		if (pixw < 1) pixw = 1;
+		if (pixh < 1) pixh = 1;
+		result.emplace_back(set, s, pixw, pixh);
+	}
+	return result;
 }
 
 bool EmojiListWidget::eventHook(QEvent *e) {
@@ -1293,13 +1362,17 @@ QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 }
 
 void EmojiListWidget::showEmojiSection(Section section) {
+	showSet(EmojiSectionSetId(section));
+}
+
+void EmojiListWidget::showSet(uint64 setId) {
 	clearSelection();
 
 	refreshRecent();
 
 	auto y = 0;
 	enumerateSections([&](const SectionInfo &info) {
-		if (static_cast<Section>(info.section) == section) {
+		if (setId == sectionSetId(info.section)) {
 			y = info.top;
 			return false;
 		}
@@ -1312,26 +1385,14 @@ void EmojiListWidget::showEmojiSection(Section section) {
 	update();
 }
 
-void EmojiListWidget::showCustomSet(uint64 setId) {
-	clearSelection();
+uint64 EmojiListWidget::sectionSetId(int section) const {
+	Expects(section < kEmojiSectionCount
+		|| (section - kEmojiSectionCount) < _custom.size());
 
-	refreshCustom();
+	return (section < kEmojiSectionCount)
+		? EmojiSectionSetId(static_cast<Section>(section))
+		: _custom[section - kEmojiSectionCount].id;
 
-	auto y = 0;
-	enumerateSections([&](const SectionInfo &info) {
-		if (info.section >= kEmojiSectionCount) {
-			if (_custom[info.section - kEmojiSectionCount].id == setId) {
-				y = info.top;
-				return false;
-			}
-		}
-		return true;
-	});
-	scrollTo(y);
-
-	_lastMousePos = QCursor::pos();
-
-	update();
 }
 
 tr::phrase<> EmojiCategoryTitle(int index) {
