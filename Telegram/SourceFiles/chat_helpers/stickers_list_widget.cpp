@@ -252,6 +252,7 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 		.parent = this,
 		.searchButtonVisible = !_isMasks,
 		.settingsButtonVisible = true,
+		.barSelection = true,
 	});
 	_footer = result;
 
@@ -303,7 +304,7 @@ void StickersListWidget::visibleTopBottomUpdated(
 	}
 	if (_footer) {
 		_footer->validateSelectedIcon(
-			currentSet(top),
+			currentSet(visibleTop),
 			ValidateIconAnimations::Full);
 	}
 }

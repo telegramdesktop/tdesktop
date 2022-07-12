@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/clip/media_clip_reader.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "ui/round_rect.h"
 
 namespace Ui {
 class InputField;
@@ -40,6 +41,8 @@ enum class ValidateIconAnimations {
 };
 
 [[nodiscard]] uint64 EmojiSectionSetId(Ui::Emoji::Section section);
+[[nodiscard]] uint64 RecentEmojiSectionSetId();
+[[nodiscard]] uint64 FirstEmojiSectionSetId();
 [[nodiscard]] std::optional<Ui::Emoji::Section> SetIdEmojiSection(uint64 id);
 
 struct StickerIcon {
@@ -77,6 +80,7 @@ public:
 		not_null<RpWidget*> parent;
 		bool searchButtonVisible = false;
 		bool settingsButtonVisible = false;
+		bool barSelection = false;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 
@@ -127,11 +131,13 @@ private:
 	struct IconInfo {
 		int index = 0;
 		int left = 0;
+		int width = 0;
 		bool visible = false;
 	};
 
-	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback);
-	void enumerateIcons(Fn<void(const IconInfo &)> callback);
+	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback) const;
+	void enumerateIcons(Fn<bool(const IconInfo &)> callback) const;
+	[[nodiscard]] IconInfo iconInfo(int index) const;
 
 	[[nodiscard]] std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 	bool iconsAnimationCallback(crl::time now);
@@ -154,9 +160,13 @@ private:
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const;
+	void paintSelectionBg(Painter &p) const;
 	void paintSelectionBar(Painter &p) const;
 	void paintLeftRightFading(Painter &p) const;
 	void validatePremiumIcon() const;
+
+	void updateEmojiSectionWidth();
+	void updateEmojiWidthCallback();
 
 	void initSearch();
 	void toggleSearch(bool visible);
@@ -189,7 +199,14 @@ private:
 	int _iconsMax = 0;
 	anim::value _iconsX;
 	anim::value _iconSelX;
+	anim::value _iconSelWidth;
 	crl::time _iconsStartAnim = 0;
+
+	Ui::RoundRect _selectionBg;
+	Ui::Animations::Simple _emojiIconWidthAnimation;
+	int _emojiIconWidth = 0;
+	bool _emojiIconExpanded = false;
+	bool _barSelection = false;
 
 	bool _horizontal = false;
 

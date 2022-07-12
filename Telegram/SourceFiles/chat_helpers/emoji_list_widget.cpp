@@ -1211,11 +1211,10 @@ void EmojiListWidget::refreshCustom() {
 
 std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	auto result = std::vector<StickerIcon>();
-	result.reserve(kEmojiSectionCount + _custom.size());
+	result.reserve(2 + _custom.size());
 
-	for (auto i = 0; i != kEmojiSectionCount; ++i) {
-		result.emplace_back(EmojiSectionSetId(static_cast<Section>(i)));
-	}
+	result.emplace_back(EmojiSectionSetId(Ui::Emoji::Section::Recent));
+	result.emplace_back(EmojiSectionSetId(Ui::Emoji::Section::People));
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		const auto s = custom.list[0].document;
