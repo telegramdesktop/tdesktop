@@ -86,26 +86,6 @@ private:
 
 };
 
-#if 0
-class EmojiListWidget::Footer : public TabbedSelector::InnerFooter {
-public:
-	Footer(not_null<EmojiListWidget*> parent);
-
-	void setCurrentSectionIcon(Section section);
-
-protected:
-	void processPanelHideFinished() override;
-	void resizeEvent(QResizeEvent *e) override;
-
-private:
-	void setActiveSection(Section section);
-
-	not_null<EmojiListWidget*> _pan;
-	std::array<object_ptr<Ui::IconButton>, kEmojiSectionCount> _sections;
-
-};
-#endif
-
 struct EmojiListWidget::CustomInstance {
 	CustomInstance(
 		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
@@ -129,67 +109,6 @@ EmojiListWidget::CustomInstance::CustomInstance(
 	std::move(repaintLater))
 , object(&emoji, std::move(repaint)) {
 }
-
-#if 0
-EmojiListWidget::Footer::Footer(not_null<EmojiListWidget*> parent)
-: InnerFooter(parent)
-, _pan(parent)
-, _sections { {
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryRecent),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryPeople),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryNature),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryFood),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryActivity),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryTravel),
-	object_ptr<Ui::IconButton>(this, st::emojiCategoryObjects),
-	object_ptr<Ui::IconButton>(this, st::emojiCategorySymbols),
-} } {
-	for (auto i = 0; i != _sections.size(); ++i) {
-		auto value = static_cast<Section>(i);
-		_sections[i]->setClickedCallback([=] {
-			setActiveSection(value);
-		});
-	}
-	setCurrentSectionIcon(Section::Recent);
-}
-
-void EmojiListWidget::Footer::resizeEvent(QResizeEvent *e) {
-	auto availableWidth = (width() - st::emojiCategorySkip * 2);
-	auto buttonWidth = availableWidth / _sections.size();
-	auto buttonsWidth = buttonWidth * _sections.size();
-	auto left = (width() - buttonsWidth) / 2;
-	for (auto &button : _sections) {
-		button->resizeToWidth(buttonWidth);
-		button->moveToLeft(left, 0);
-		left += button->width();
-	}
-}
-
-void EmojiListWidget::Footer::processPanelHideFinished() {
-	// Preserve panel state through visibility toggles.
-	//setCurrentSectionIcon(Section::Recent);
-}
-
-void EmojiListWidget::Footer::setCurrentSectionIcon(Section section) {
-	std::array<const style::icon *, kEmojiSectionCount> overrides = { {
-		&st::emojiRecentActive,
-		&st::emojiPeopleActive,
-		&st::emojiNatureActive,
-		&st::emojiFoodActive,
-		&st::emojiActivityActive,
-		&st::emojiTravelActive,
-		&st::emojiObjectsActive,
-		&st::emojiSymbolsActive,
-	} };
-	for (auto i = 0; i != _sections.size(); ++i) {
-		_sections[i]->setIconOverride((section == static_cast<Section>(i)) ? overrides[i] : nullptr);
-	}
-}
-
-void EmojiListWidget::Footer::setActiveSection(Ui::Emoji::Section section) {
-	_pan->showEmojiSection(section);
-}
-#endif
 
 EmojiColorPicker::EmojiColorPicker(QWidget *parent)
 : RpWidget(parent) {
