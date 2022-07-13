@@ -1129,7 +1129,6 @@ void EmojiListWidget::refreshRecent() {
 	clearSelection();
 	_emoji[0] = Core::App().settings().recentEmojiSection();
 	_counts[0] = _emoji[0].size();
-	refreshCustom();
 	resizeToWidth(width());
 }
 
@@ -1371,10 +1370,15 @@ void EmojiListWidget::showEmojiSection(Section section) {
 	showSet(EmojiSectionSetId(section));
 }
 
+void EmojiListWidget::refreshEmoji() {
+	refreshRecent();
+	refreshCustom();
+}
+
 void EmojiListWidget::showSet(uint64 setId) {
 	clearSelection();
 
-	refreshRecent();
+	refreshEmoji();
 
 	auto y = 0;
 	enumerateSections([&](const SectionInfo &info) {

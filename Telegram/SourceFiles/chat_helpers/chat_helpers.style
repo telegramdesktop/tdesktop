@@ -114,21 +114,21 @@ emojiTabs: SettingsSlider(defaultTabsSlider) {
 }
 emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-emojiRecentActive: icon {{ "emoji/emoji_recent", emojiIconFgActive }};
+emojiRecentActive: icon {{ "emoji/emoji_recent", windowBoldFg }};
 emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_people", emojiIconFgActive }};
+emojiPeopleActive: icon {{ "emoji/emoji_people", windowBoldFg }};
 emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
-emojiNatureActive: icon {{ "emoji/emoji_nature", emojiIconFgActive }};
+emojiNatureActive: icon {{ "emoji/emoji_nature", windowBoldFg }};
 emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
-emojiFoodActive: icon {{ "emoji/emoji_food", emojiIconFgActive }};
+emojiFoodActive: icon {{ "emoji/emoji_food", windowBoldFg }};
 emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activity", emojiIconFgActive }};
+emojiActivityActive: icon {{ "emoji/emoji_activity", windowBoldFg }};
 emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
-emojiTravelActive: icon {{ "emoji/emoji_travel", emojiIconFgActive }};
+emojiTravelActive: icon {{ "emoji/emoji_travel", windowBoldFg }};
 emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
-emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiIconFgActive }};
+emojiObjectsActive: icon {{ "emoji/emoji_objects", windowBoldFg }};
 emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiIconFgActive }};
+emojiSymbolsActive: icon {{ "emoji/emoji_symbols", windowBoldFg }};
 
 emojiFooterHeight: 46px;
 emojiCategorySkip: 4px;

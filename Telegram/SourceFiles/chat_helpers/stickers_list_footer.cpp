@@ -33,6 +33,9 @@ constexpr auto kEmojiSectionSetIdBase = uint64(0x77FF'FFFF'FFFF'FFF0ULL);
 using EmojiSection = Ui::Emoji::Section;
 
 void UpdateAnimated(anim::value &value, int to) {
+	if (int(base::SafeRound(value.to())) == to) {
+		return;
+	}
 	value = anim::value(
 		(value.from() != value.to()) ? value.from() : to,
 		to);
@@ -118,13 +121,12 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 , _searchButtonVisible(descriptor.searchButtonVisible)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
 , _iconsAnimation([=](crl::time now) {
-	return iconsAnimationCallback(now);
+	return iconsAnimationCallback(_iconState, now);
 })
 , _subiconsAnimation([=](crl::time now) {
-	return iconsAnimationCallback(now);
+	return iconsAnimationCallback(_subiconState, now);
 })
 , _selectionBg(st::roundRadiusSmall, st::windowBgRipple)
-, _emojiIconWidth(st::stickerIconWidth)
 , _barSelection(descriptor.barSelection) {
 	setMouseTracking(true);
 
@@ -273,11 +275,14 @@ void StickersListFooter::enumerateIcons(
 	auto left = _iconsLeft - iconsX;
 	const auto emojiId = AllEmojiSectionSetId();
 	const auto right = width();
+	const auto single = st::stickerIconWidth;
 	for (auto i = 0, count = int(_icons.size()); i != count; ++i) {
 		auto &icon = _icons[i];
 		const auto width = (icon.setId == emojiId)
-			? _emojiIconWidthAnimation.value(_emojiIconWidth)
-			: st::stickerIconWidth;
+			? _subiconsWidthAnimation.value(_subiconsExpanded
+				? _subiconsWidth
+				: single)
+			: single;
 		const auto visible = (left + width > 0 && left < right);
 		const auto result = callback({
 			.index = i,
@@ -296,13 +301,13 @@ void StickersListFooter::enumerateSubicons(
 		Fn<bool(const IconInfo &)> callback) const {
 	auto iconsX = int(base::SafeRound(_subiconState.x.current()));
 	auto left = -iconsX;
-	const auto right = _emojiIconWidth;
+	const auto right = _subiconsWidth;
 	using Section = Ui::Emoji::Section;
 	for (auto i = int(Section::People); i <= int(Section::Symbols); ++i) {
 		const auto width = st::stickerIconWidth;
 		const auto visible = (left + width > 0 && left < right);
 		const auto result = callback({
-			.index = i,
+			.index = i - int(Section::People),
 			.left = left,
 			.width = int(base::SafeRound(width)),
 			.visible = visible,
@@ -353,8 +358,8 @@ void StickersListFooter::preloadImages() {
 }
 
 void StickersListFooter::validateSelectedIcon(
-	uint64 setId,
-	ValidateIconAnimations animations) {
+		uint64 setId,
+		ValidateIconAnimations animations) {
 	_activeByScrollId = setId;
 
 	using EmojiSection = Ui::Emoji::Section;
@@ -389,21 +394,18 @@ void StickersListFooter::validateSelectedIcon(
 }
 
 void StickersListFooter::updateEmojiSectionWidth() {
-	_emojiIconExpanded = (_iconState.selected >= 0)
+	const auto expanded = (_iconState.selected >= 0)
 		&& (_iconState.selected < _icons.size())
 		&& (_icons[_iconState.selected].setId == AllEmojiSectionSetId());
-	const auto desired = _emojiIconExpanded
-		? (9 * st::stickerIconWidth / 2)
-		: st::stickerIconWidth;
-	if (_emojiIconWidth == desired) {
+	if (_subiconsExpanded == expanded) {
 		return;
 	}
-	_emojiIconWidthAnimation.start(
+	_subiconsExpanded = expanded;
+	_subiconsWidthAnimation.start(
 		[=] { updateEmojiWidthCallback(); },
-		_emojiIconWidth,
-		desired,
-		st::stickerIconMove);
-	_emojiIconWidth = desired;
+		expanded ? st::stickerIconWidth : _subiconsWidth,
+		expanded ? _subiconsWidth : st::stickerIconWidth,
+		st::slideDuration);
 }
 
 void StickersListFooter::updateEmojiWidthCallback() {
@@ -411,6 +413,9 @@ void StickersListFooter::updateEmojiWidthCallback() {
 	const auto info = iconInfo(_iconState.selected);
 	UpdateAnimated(_iconState.selectionX, info.left);
 	UpdateAnimated(_iconState.selectionWidth, info.width);
+	if (_iconsAnimation.animating()) {
+		iconsAnimationCallback(_iconState, crl::now());
+	}
 }
 
 void StickersListFooter::setSelectedIcon(
@@ -421,10 +426,11 @@ void StickersListFooter::setSelectedIcon(
 	}
 	_iconState.selected = newSelected;
 	updateEmojiSectionWidth();
+	const auto shift = int(base::SafeRound(_iconState.x.current()));
 	const auto info = iconInfo(_iconState.selected);
-	UpdateAnimated(_iconState.selectionX, info.left, animations);
+	UpdateAnimated(_iconState.selectionX, shift + info.left, animations);
 	UpdateAnimated(_iconState.selectionWidth, info.width, animations);
-	const auto relativeLeft = info.left - _iconsLeft;
+	const auto relativeLeft = shift + info.left - _iconsLeft;
 	const auto iconsWidthForCentering = 2 * relativeLeft + info.width;
 	const auto iconsXFinal = std::clamp(
 		(_iconsLeft + iconsWidthForCentering + _iconsRight - width()) / 2,
@@ -449,23 +455,21 @@ void StickersListFooter::setSelectedSubicon(
 		return;
 	}
 	_subiconState.selected = newSelected;
+	const auto shift = int(base::SafeRound(_subiconState.x.current()));
 	const auto info = subiconInfo(_subiconState.selected);
-	updateEmojiSectionWidth();
-	UpdateAnimated(_subiconState.selectionX, info.left, animations);
+	UpdateAnimated(_subiconState.selectionX, shift + info.left, animations);
 	UpdateAnimated(_subiconState.selectionWidth, info.width, animations);
-	const auto relativeLeft = info.left;
+	const auto relativeLeft = shift + info.left;
 	const auto subiconsWidthForCentering = 2 * relativeLeft + info.width;
 	const auto subiconsXFinal = std::clamp(
-		(subiconsWidthForCentering - width()) / 2,
+		(subiconsWidthForCentering - _subiconsWidth) / 2,
 		0,
 		_subiconState.max);
 	if (animations == ValidateIconAnimations::None) {
-		_subiconState.selectionX = anim::value(
-			subiconsXFinal,
-			subiconsXFinal);
+		_subiconState.x = anim::value(subiconsXFinal, subiconsXFinal);
 		_subiconsAnimation.stop();
 	} else {
-		_subiconState.selectionX.start(subiconsXFinal);
+		_subiconState.x.start(subiconsXFinal);
 		_subiconState.animationStart = crl::now();
 		_subiconsAnimation.start();
 	}
@@ -474,7 +478,7 @@ void StickersListFooter::setSelectedSubicon(
 }
 
 void StickersListFooter::processHideFinished() {
-	_iconOver = _iconDown = SpecialOver::None;
+	_selected = _pressed = SpecialOver::None;
 	_iconsAnimation.stop();
 	_iconState.animationStart = 0;
 	_iconState.x.finish();
@@ -603,6 +607,7 @@ void StickersListFooter::resizeEvent(QResizeEvent *e) {
 		resizeSearchControls();
 	}
 	refreshIconsGeometry(ValidateIconAnimations::None);
+	refreshSubiconsGeometry();
 }
 
 void StickersListFooter::resizeSearchControls() {
@@ -637,12 +642,12 @@ void StickersListFooter::mousePressEvent(QMouseEvent *e) {
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	updateSelected();
 
-	if (_iconOver == SpecialOver::Settings) {
+	if (_selected == SpecialOver::Settings) {
 		_openSettingsRequests.fire({});
-	} else if (_iconOver == SpecialOver::Search) {
+	} else if (_selected == SpecialOver::Search) {
 		toggleSearch(true);
 	} else {
-		_iconDown = _iconOver;
+		_pressed = _selected;
 		_iconsMouseDown = _iconsMousePos;
 		_iconsStartX = qRound(_iconState.x.current());
 	}
@@ -654,7 +659,7 @@ void StickersListFooter::mouseMoveEvent(QMouseEvent *e) {
 
 	if (!_iconsDragging
 		&& !_icons.empty()
-		&& v::is<int>(_iconDown)) {
+		&& v::is<IconId>(_pressed)) {
 		if ((_iconsMousePos - _iconsMouseDown).manhattanLength() >= QApplication::startDragDistance()) {
 			_iconsDragging = true;
 		}
@@ -679,7 +684,7 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 		return;
 	}
 
-	const auto wasDown = std::exchange(_iconDown, SpecialOver::None);
+	const auto wasDown = std::exchange(_pressed, SpecialOver::None);
 
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	if (_iconsDragging) {
@@ -688,12 +693,23 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 	}
 
 	updateSelected();
-	if (wasDown == _iconOver) {
-		if (const auto index = std::get_if<int>(&_iconOver)) {
-			const auto info = iconInfo(*index);
+	if (wasDown == _selected) {
+		if (const auto icon = std::get_if<IconId>(&_selected)) {
+			const auto info = iconInfo(icon->index);
 			_iconState.selectionX = anim::value(info.left, info.left);
 			_iconState.selectionWidth = anim::value(info.width, info.width);
-			_setChosen.fire_copy(_icons[*index].setId);
+			const auto subinfo = subiconInfo(icon->subindex);
+			_subiconState.selectionX = anim::value(
+				subinfo.left,
+				subinfo.left);
+			_subiconState.selectionWidth = anim::value(
+				subinfo.width,
+				subinfo.width);
+			const auto setId = _icons[icon->index].setId;
+			_setChosen.fire_copy((setId == AllEmojiSectionSetId())
+				? EmojiSectionSetId(
+					EmojiSection(int(EmojiSection::People) + icon->subindex))
+				: setId);
 		}
 	}
 }
@@ -717,8 +733,8 @@ bool StickersListFooter::eventHook(QEvent *e) {
 	if (e->type() == QEvent::TouchBegin) {
 	} else if (e->type() == QEvent::Wheel) {
 		if (!_icons.empty()
-			&& v::is<int>(_iconOver)
-			&& (_iconDown == SpecialOver::None)) {
+			&& v::is<IconId>(_selected)
+			&& (_pressed == SpecialOver::None)) {
 			scrollByWheelEvent(static_cast<QWheelEvent*>(e));
 		}
 	}
@@ -789,7 +805,7 @@ void StickersListFooter::clipCallback(
 }
 
 void StickersListFooter::updateSelected() {
-	if (_iconDown != SpecialOver::None) {
+	if (_pressed != SpecialOver::None) {
 		return;
 	}
 
@@ -821,20 +837,30 @@ void StickersListFooter::updateSelected() {
 			x += qRound(_iconState.x.current());
 			enumerateIcons([&](const IconInfo &info) {
 				if (x >= info.left && x < info.left + info.width) {
-					newOver = info.index;
+					newOver = IconId{ .index = info.index };
+					if (_icons[info.index].setId == AllEmojiSectionSetId()) {
+						const auto subx = (x - info.left);
+						enumerateSubicons([&](const IconInfo &info) {
+							if (subx >= info.left && subx < info.left + info.width) {
+								v::get<IconId>(newOver).subindex = info.index;
+								return false;
+							}
+							return true;
+						});
+					}
 					return false;
 				}
 				return true;
 			});
 		}
 	}
-	if (newOver != _iconOver) {
+	if (newOver != _selected) {
 		if (newOver == SpecialOver::None) {
 			setCursor(style::cur_default);
-		} else if (_iconOver == SpecialOver::None) {
+		} else if (_selected == SpecialOver::None) {
 			setCursor(style::cur_pointer);
 		}
-		_iconOver = newOver;
+		_selected = newOver;
 	}
 }
 
@@ -881,7 +907,7 @@ void StickersListFooter::refreshIcons(
 
 void StickersListFooter::refreshIconsGeometry(
 		ValidateIconAnimations animations) {
-	_iconOver = _iconDown = SpecialOver::None;
+	_selected = _pressed = SpecialOver::None;
 	_iconState.x.finish();
 	_iconState.selectionX.finish();
 	_iconState.selectionWidth.finish();
@@ -896,7 +922,37 @@ void StickersListFooter::refreshIconsGeometry(
 	}
 	updateSelected();
 	validateSelectedIcon(_activeByScrollId, animations);
+	refreshSubiconsGeometry();
 	update();
+}
+
+void StickersListFooter::refreshSubiconsGeometry() {
+	using Section = Ui::Emoji::Section;
+	_subiconState.x.finish();
+	_subiconState.selectionX.finish();
+	_subiconState.selectionWidth.finish();
+	_subiconState.animationStart = 0;
+	_subiconsAnimation.stop();
+	const auto single = st::stickerIconWidth;
+	const auto half = single / 2;
+	const auto count = int(Section::Symbols) - int(Section::Recent);
+	const auto widthMax = count * single;
+	const auto widthMin = 4 * single + half;
+	const auto collapsedWidth = int(_icons.size()) * single;
+	_subiconsWidth = std::clamp(
+		width() + single - collapsedWidth,
+		widthMin,
+		widthMax);
+	if (_subiconsWidth < widthMax) {
+		_subiconsWidth = ((_subiconsWidth - half) / single) * single + half;
+	}
+	const auto &last = subiconInfo(int(Section::Symbols));
+	_subiconState.max = std::max(
+		widthMax - _subiconsWidth,
+		0);
+	if (_subiconState.x.current() > _subiconState.max) {
+		_subiconState.x = anim::value(_subiconState.max, _subiconState.max);
+	}
 }
 
 bool StickersListFooter::hasOnlyFeaturedSets() const {
@@ -1069,21 +1125,32 @@ void StickersListFooter::paintSetIcon(
 			_premiumIcon);
 	} else {
 		using Section = Ui::Emoji::Section;
-		const auto sectionIcon = [&](Section section) {
-			switch (section) {
-			case Section::Recent: return &st::emojiRecent;
-			case Section::People: return &st::emojiPeople;
-			case Section::Nature: return &st::emojiNature;
-			case Section::Food: return &st::emojiFood;
-			case Section::Activity: return &st::emojiActivity;
-			case Section::Travel: return &st::emojiTravel;
-			case Section::Objects: return &st::emojiObjects;
-			case Section::Symbols: return &st::emojiSymbols;
-			}
-			Unexpected("Section in SetIdEmojiSection result.");
+		const auto sectionIcon = [&](Section section, bool active) {
+			const auto icons = std::array{
+				&st::emojiRecent,
+				&st::emojiRecentActive,
+				&st::emojiPeople,
+				&st::emojiPeopleActive,
+				&st::emojiNature,
+				&st::emojiNatureActive,
+				&st::emojiFood,
+				&st::emojiFoodActive,
+				&st::emojiActivity,
+				&st::emojiActivityActive,
+				&st::emojiTravel,
+				&st::emojiTravelActive,
+				&st::emojiObjects,
+				&st::emojiObjectsActive,
+				&st::emojiSymbols,
+				&st::emojiSymbolsActive,
+			};
+			const auto index = int(section) * 2 + (active ? 1 : 0);
+
+			Assert(index >= 0 && index < icons.size());
+			return icons[index];
 		};
-		auto left = info.left;
-		const auto paintOne = [&](const style::icon *icon) {
+		const auto left = info.left;
+		const auto paintOne = [&](int left, const style::icon *icon) {
 			icon->paint(
 				p,
 				left + (st::stickerIconWidth - icon->width()) / 2,
@@ -1100,13 +1167,19 @@ void StickersListFooter::paintSetIcon(
 				info.width - 2 * skip,
 				st::emojiFooterHeight,
 				Qt::IntersectClip);
-			for (auto i = int(Section::People); i <= int(Section::Symbols); ++i) {
-				paintOne(sectionIcon(Section(i)));
-				left += st::stickerIconWidth;
-			}
+			enumerateSubicons([&](const IconInfo &info) {
+				if (info.visible) {
+					paintOne(
+						info.left + left,
+						sectionIcon(
+							Section(int(Section::People) + info.index),
+							(_subiconState.selected == info.index)));
+				}
+				return true;
+			});
 			p.restore();
 		} else {
-			paintOne([&] {
+			paintOne(left, [&] {
 				if (icon.setId == Data::Stickers::FeaturedSetId) {
 					const auto session = &_controller->session();
 					return session->data().stickers().featuredSetsUnreadCount()
@@ -1114,8 +1187,10 @@ void StickersListFooter::paintSetIcon(
 						: &st::stickersTrending;
 					//} else if (setId == Stickers::FavedSetId) {
 					//	return &st::stickersFaved;
+				} else if (icon.setId == AllEmojiSectionSetId()) {
+					return &st::emojiPeople;
 				} else if (const auto section = SetIdEmojiSection(icon.setId)) {
-					return sectionIcon(*section);
+					return sectionIcon(*section, false);
 				}
 				return &st::emojiRecent;
 			}());
@@ -1123,28 +1198,30 @@ void StickersListFooter::paintSetIcon(
 	}
 }
 
-bool StickersListFooter::iconsAnimationCallback(crl::time now) {
+bool StickersListFooter::iconsAnimationCallback(
+		ScrollState &state,
+		crl::time now) {
 	if (anim::Disabled()) {
 		now += st::stickerIconMove;
 	}
-	if (_iconState.animationStart) {
-		const auto dt = (now - _iconState.animationStart)
+	if (state.animationStart) {
+		const auto dt = (now - state.animationStart)
 			/ float64(st::stickerIconMove);
 		if (dt >= 1.) {
-			_iconState.animationStart = 0;
-			_iconState.x.finish();
-			_iconState.selectionX.finish();
-			_iconState.selectionWidth.finish();
+			state.animationStart = 0;
+			state.x.finish();
+			state.selectionX.finish();
+			state.selectionWidth.finish();
 		} else {
-			_iconState.x.update(dt, anim::linear);
-			_iconState.selectionX.update(dt, anim::linear);
-			_iconState.selectionWidth.update(dt, anim::linear);
+			state.x.update(dt, anim::linear);
+			state.selectionX.update(dt, anim::linear);
+			state.selectionWidth.update(dt, anim::linear);
 		}
 	}
 
 	update();
 
-	return (_iconState.animationStart != 0);
+	return (state.animationStart != 0);
 }
 
 } // namespace ChatHelpers

@@ -127,7 +127,15 @@ private:
 		Search,
 		Settings,
 	};
-	using OverState = std::variant<SpecialOver, int>;
+	struct IconId {
+		int index = 0;
+		int subindex = 0;
+
+		friend inline bool operator==(IconId a, IconId b) {
+			return (a.index == b.index) && (a.subindex == b.subindex);
+		}
+	};
+	using OverState = std::variant<SpecialOver, IconId>;
 	struct IconInfo {
 		int index = 0;
 		int left = 0;
@@ -150,7 +158,7 @@ private:
 	[[nodiscard]] IconInfo subiconInfo(int index) const;
 
 	[[nodiscard]] std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
-	bool iconsAnimationCallback(crl::time now);
+	bool iconsAnimationCallback(ScrollState &state, crl::time now);
 	void setSelectedIcon(
 		int newSelected,
 		ValidateIconAnimations animations);
@@ -162,6 +170,7 @@ private:
 	void validateIconAnimation(const StickerIcon &icon);
 
 	void refreshIconsGeometry(ValidateIconAnimations animations);
+	void refreshSubiconsGeometry();
 	void updateSelected();
 	void updateSetIcon(uint64 setId);
 	void updateSetIconAt(int left);
@@ -198,8 +207,8 @@ private:
 	std::vector<StickerIcon> _icons;
 	Fn<std::shared_ptr<Lottie::FrameRenderer>()> _renderer;
 	uint64 _activeByScrollId = 0;
-	OverState _iconOver = SpecialOver::None;
-	OverState _iconDown = SpecialOver::None;
+	OverState _selected = SpecialOver::None;
+	OverState _pressed = SpecialOver::None;
 
 	QPoint _iconsMousePos, _iconsMouseDown;
 	mutable QImage _premiumIcon;
@@ -217,9 +226,9 @@ private:
 	Ui::Animations::Basic _subiconsAnimation;
 
 	Ui::RoundRect _selectionBg;
-	Ui::Animations::Simple _emojiIconWidthAnimation;
-	int _emojiIconWidth = 0;
-	bool _emojiIconExpanded = false;
+	Ui::Animations::Simple _subiconsWidthAnimation;
+	int _subiconsWidth = 0;
+	bool _subiconsExpanded = false;
 	bool _barSelection = false;
 
 	bool _horizontal = false;

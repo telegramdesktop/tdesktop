@@ -69,6 +69,8 @@ public:
 	QPoint tooltipPos() const override;
 	bool tooltipWindowActive() const override;
 
+	void refreshEmoji();
+
 	[[nodiscard]] rpl::producer<EmojiPtr> chosen() const;
 	[[nodiscard]] auto customChosen() const
 		-> rpl::producer<TabbedSelector::FileChosen>;

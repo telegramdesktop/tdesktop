@@ -410,6 +410,8 @@ TabbedSelector::TabbedSelector(
 			emoji()->showSet(setId);
 			_showRequests.fire({});
 		}, lifetime());
+
+		emoji()->refreshEmoji();
 	}
 	//setAttribute(Qt::WA_AcceptTouchEvents);
 	setAttribute(Qt::WA_OpaquePaintEvent, false);
