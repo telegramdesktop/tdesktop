@@ -480,11 +480,10 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	if (g.width() < 1) {
 		return;
 	}
+	const auto &margin = st::msgServiceMargin;
 
 	const auto st = context.st;
-	auto height = this->height()
-		- st::msgServiceMargin.top()
-		- st::msgServiceMargin.bottom();
+	auto height = this->height() - margin.top() - margin.bottom();
 	auto dateh = 0;
 	auto unreadbarh = 0;
 	auto clip = context.clip;
@@ -520,15 +519,13 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 
 	p.setTextPalette(st->serviceTextPalette());
 
-	if (auto media = this->media()) {
-		height -= st::msgServiceMargin.top() + media->height();
-		auto left = st::msgServiceMargin.left() + (g.width() - media->maxWidth()) / 2, top = st::msgServiceMargin.top() + height + st::msgServiceMargin.top();
-		p.translate(left, top);
-		media->draw(p, context.translated(-left, -top).withSelection({}));
-		p.translate(-left, -top);
+	const auto media = this->media();
+	if (media) {
+		height -= margin.top() + media->height();
 	}
 
-	auto trect = QRect(g.left(), st::msgServiceMargin.top(), g.width(), height).marginsAdded(-st::msgServicePadding);
+	const auto trect = QRect(g.left(), margin.top(), g.width(), height)
+		- st::msgServicePadding;
 
 	ServiceMessagePainter::PaintComplexBubble(
 		p,
@@ -542,9 +539,25 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(st->msgServiceFg());
 	p.setFont(st::msgServiceFont);
 	prepareCustomEmojiPaint(p, item->_text);
-	item->_text.draw(p, trect.x(), trect.y(), trect.width(), Qt::AlignCenter, 0, -1, context.selection, false);
+	item->_text.draw(
+		p,
+		trect.x(),
+		trect.y(),
+		trect.width(),
+		Qt::AlignCenter,
+		0,
+		-1,
+		context.selection, false);
 
 	p.restoreTextPalette();
+
+	if (media) {
+		const auto left = margin.left() + (g.width() - media->maxWidth()) / 2;
+		const auto top = margin.top() + height + margin.top();
+		p.translate(left, top);
+		media->draw(p, context.translated(-left, -top).withSelection({}));
+		p.translate(-left, -top);
+	}
 
 	if (auto skiph = dateh + unreadbarh) {
 		p.translate(0, -skiph);
