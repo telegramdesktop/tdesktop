@@ -145,6 +145,8 @@ private:
 	struct ScrollState {
 		int selected = 0;
 		int max = 0;
+		int draggingStartX = 0;
+		bool dragging = false;
 		anim::value x;
 		anim::value selectionX;
 		anim::value selectionWidth;
@@ -174,7 +176,11 @@ private:
 	void updateSelected();
 	void updateSetIcon(uint64 setId);
 	void updateSetIconAt(int left);
-	void finishDragging();
+	void checkDragging(ScrollState &state, Ui::Animations::Basic &animation);
+	bool finishDragging(
+		ScrollState &state,
+		Ui::Animations::Basic &animation);
+	bool finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintSearchIcon(Painter &p) const;
 	void paintSetIcon(
@@ -215,9 +221,6 @@ private:
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
-
-	int _iconsStartX = 0;
-	bool _iconsDragging = false;
 
 	ScrollState _iconState;
 	Ui::Animations::Basic _iconsAnimation;

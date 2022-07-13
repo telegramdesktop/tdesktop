@@ -649,7 +649,8 @@ void StickersListFooter::mousePressEvent(QMouseEvent *e) {
 	} else {
 		_pressed = _selected;
 		_iconsMouseDown = _iconsMousePos;
-		_iconsStartX = qRound(_iconState.x.current());
+		_iconState.draggingStartX = qRound(_iconState.x.current());
+		_subiconState.draggingStartX = qRound(_subiconState.x.current());
 	}
 }
 
@@ -657,23 +658,33 @@ void StickersListFooter::mouseMoveEvent(QMouseEvent *e) {
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
 	updateSelected();
 
-	if (!_iconsDragging
+	if (!_iconState.dragging
 		&& !_icons.empty()
 		&& v::is<IconId>(_pressed)) {
 		if ((_iconsMousePos - _iconsMouseDown).manhattanLength() >= QApplication::startDragDistance()) {
-			_iconsDragging = true;
+			const auto &icon = _icons[v::get<IconId>(_pressed).index];
+			(icon.setId == AllEmojiSectionSetId()
+				? _subiconState
+				: _iconState).dragging = true;
 		}
 	}
-	if (_iconsDragging) {
-		auto newX = std::clamp(
+	checkDragging(_iconState, _iconsAnimation);
+	checkDragging(_subiconState, _subiconsAnimation);
+}
+
+void StickersListFooter::checkDragging(
+		ScrollState &state,
+		Ui::Animations::Basic &animation) {
+	if (state.dragging) {
+		const auto newX = std::clamp(
 			(rtl() ? -1 : 1) * (_iconsMouseDown.x() - _iconsMousePos.x())
-				+ _iconsStartX,
+				+ state.draggingStartX,
 			0,
-			_iconState.max);
-		if (newX != qRound(_iconState.x.current())) {
-			_iconState.x = anim::value(newX, newX);
-			_iconState.animationStart = 0;
-			_iconsAnimation.stop();
+			state.max);
+		if (newX != qRound(state.x.current())) {
+			state.x = anim::value(newX, newX);
+			state.animationStart = 0;
+			animation.stop();
 			update();
 		}
 	}
@@ -687,8 +698,7 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 	const auto wasDown = std::exchange(_pressed, SpecialOver::None);
 
 	_iconsMousePos = e ? e->globalPos() : QCursor::pos();
-	if (_iconsDragging) {
-		finishDragging();
+	if (finishDragging()) {
 		return;
 	}
 
@@ -714,19 +724,31 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 	}
 }
 
-void StickersListFooter::finishDragging() {
-	auto newX = std::clamp(
-		_iconsStartX + _iconsMouseDown.x() - _iconsMousePos.x(),
+bool StickersListFooter::finishDragging() {
+	const auto icon = finishDragging(_iconState, _iconsAnimation);
+	const auto subicon = finishDragging(_subiconState, _subiconsAnimation);
+	return icon || subicon;
+}
+
+bool StickersListFooter::finishDragging(
+		ScrollState &state,
+		Ui::Animations::Basic &animation) {
+	if (!state.dragging) {
+		return false;
+	}
+	const auto newX = std::clamp(
+		state.draggingStartX + _iconsMouseDown.x() - _iconsMousePos.x(),
 		0,
-		_iconState.max);
-	if (newX != qRound(_iconState.x.current())) {
-		_iconState.x = anim::value(newX, newX);
-		_iconState.animationStart = 0;
-		_iconsAnimation.stop();
+		state.max);
+	if (newX != qRound(state.x.current())) {
+		state.x = anim::value(newX, newX);
+		state.animationStart = 0;
+		animation.stop();
 		update();
 	}
-	_iconsDragging = false;
+	state.dragging = false;
 	updateSelected();
+	return true;
 }
 
 bool StickersListFooter::eventHook(QEvent *e) {
