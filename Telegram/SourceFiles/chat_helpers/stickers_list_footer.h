@@ -139,6 +139,7 @@ private:
 	struct IconInfo {
 		int index = 0;
 		int left = 0;
+		int adjustedLeft = 0;
 		int width = 0;
 		bool visible = false;
 	};
