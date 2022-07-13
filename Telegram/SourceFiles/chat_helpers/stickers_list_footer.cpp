@@ -115,17 +115,42 @@ void StickerIcon::ensureMediaCreated() const {
 	}
 }
 
+template <typename UpdateCallback>
+StickersListFooter::ScrollState::ScrollState(UpdateCallback &&callback)
+: animation([=](crl::time now) {
+	callback();
+	return animationCallback(now);
+}) {
+}
+
+bool StickersListFooter::ScrollState::animationCallback(crl::time now) {
+	if (anim::Disabled()) {
+		now += st::stickerIconMove;
+	}
+	if (!animationStart) {
+		return false;
+	}
+	const auto dt = (now - animationStart) / float64(st::stickerIconMove);
+	if (dt >= 1.) {
+		animationStart = 0;
+		x.finish();
+		selectionX.finish();
+		selectionWidth.finish();
+		return false;
+	}
+	x.update(dt, anim::linear);
+	selectionX.update(dt, anim::linear);
+	selectionWidth.update(dt, anim::linear);
+	return true;
+}
+
 StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 : InnerFooter(descriptor.parent)
 , _controller(descriptor.controller)
 , _searchButtonVisible(descriptor.searchButtonVisible)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
-, _iconsAnimation([=](crl::time now) {
-	return iconsAnimationCallback(_iconState, now);
-})
-, _subiconsAnimation([=](crl::time now) {
-	return iconsAnimationCallback(_subiconState, now);
-})
+, _iconState([=] { update(); })
+, _subiconState([=] { update(); })
 , _selectionBg(st::roundRadiusSmall, st::windowBgRipple)
 , _barSelection(descriptor.barSelection) {
 	setMouseTracking(true);
@@ -409,13 +434,15 @@ void StickersListFooter::updateEmojiSectionWidth() {
 }
 
 void StickersListFooter::updateEmojiWidthCallback() {
-	update();
+	refreshScrollableDimensions();
+	const auto shift = int(base::SafeRound(_iconState.x.current()));
 	const auto info = iconInfo(_iconState.selected);
-	UpdateAnimated(_iconState.selectionX, info.left);
+	UpdateAnimated(_iconState.selectionX, shift + info.left);
 	UpdateAnimated(_iconState.selectionWidth, info.width);
-	if (_iconsAnimation.animating()) {
-		iconsAnimationCallback(_iconState, crl::now());
+	if (_iconState.animation.animating()) {
+		_iconState.animationCallback(crl::now());
 	}
+	update();
 }
 
 void StickersListFooter::setSelectedIcon(
@@ -438,11 +465,11 @@ void StickersListFooter::setSelectedIcon(
 		_iconState.max);
 	if (animations == ValidateIconAnimations::None) {
 		_iconState.x = anim::value(iconsXFinal, iconsXFinal);
-		_iconsAnimation.stop();
+		_iconState.animation.stop();
 	} else {
 		_iconState.x.start(iconsXFinal);
 		_iconState.animationStart = crl::now();
-		_iconsAnimation.start();
+		_iconState.animation.start();
 	}
 	updateSelected();
 	update();
@@ -467,11 +494,11 @@ void StickersListFooter::setSelectedSubicon(
 		_subiconState.max);
 	if (animations == ValidateIconAnimations::None) {
 		_subiconState.x = anim::value(subiconsXFinal, subiconsXFinal);
-		_subiconsAnimation.stop();
+		_subiconState.animation.stop();
 	} else {
 		_subiconState.x.start(subiconsXFinal);
 		_subiconState.animationStart = crl::now();
-		_subiconsAnimation.start();
+		_subiconState.animation.start();
 	}
 	updateSelected();
 	update();
@@ -479,12 +506,12 @@ void StickersListFooter::setSelectedSubicon(
 
 void StickersListFooter::processHideFinished() {
 	_selected = _pressed = SpecialOver::None;
-	_iconsAnimation.stop();
+	_iconState.animation.stop();
 	_iconState.animationStart = 0;
 	_iconState.x.finish();
 	_iconState.selectionX.finish();
 	_iconState.selectionWidth.finish();
-	_subiconsAnimation.stop();
+	_subiconState.animation.stop();
 	_subiconState.animationStart = 0;
 	_subiconState.x.finish();
 	_subiconState.selectionX.finish();
@@ -668,13 +695,11 @@ void StickersListFooter::mouseMoveEvent(QMouseEvent *e) {
 				: _iconState).dragging = true;
 		}
 	}
-	checkDragging(_iconState, _iconsAnimation);
-	checkDragging(_subiconState, _subiconsAnimation);
+	checkDragging(_iconState);
+	checkDragging(_subiconState);
 }
 
-void StickersListFooter::checkDragging(
-		ScrollState &state,
-		Ui::Animations::Basic &animation) {
+void StickersListFooter::checkDragging(ScrollState &state) {
 	if (state.dragging) {
 		const auto newX = std::clamp(
 			(rtl() ? -1 : 1) * (_iconsMouseDown.x() - _iconsMousePos.x())
@@ -684,7 +709,7 @@ void StickersListFooter::checkDragging(
 		if (newX != qRound(state.x.current())) {
 			state.x = anim::value(newX, newX);
 			state.animationStart = 0;
-			animation.stop();
+			state.animation.stop();
 			update();
 		}
 	}
@@ -705,13 +730,18 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 	updateSelected();
 	if (wasDown == _selected) {
 		if (const auto icon = std::get_if<IconId>(&_selected)) {
+			const auto shift = int(base::SafeRound(_iconState.x.current()));
 			const auto info = iconInfo(icon->index);
-			_iconState.selectionX = anim::value(info.left, info.left);
+			_iconState.selectionX = anim::value(
+				shift + info.left,
+				shift + info.left);
 			_iconState.selectionWidth = anim::value(info.width, info.width);
+			const auto subshift = int(base::SafeRound(
+				_subiconState.x.current()));
 			const auto subinfo = subiconInfo(icon->subindex);
 			_subiconState.selectionX = anim::value(
-				subinfo.left,
-				subinfo.left);
+				subshift + subinfo.left,
+				subshift + subinfo.left);
 			_subiconState.selectionWidth = anim::value(
 				subinfo.width,
 				subinfo.width);
@@ -725,14 +755,12 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 bool StickersListFooter::finishDragging() {
-	const auto icon = finishDragging(_iconState, _iconsAnimation);
-	const auto subicon = finishDragging(_subiconState, _subiconsAnimation);
+	const auto icon = finishDragging(_iconState);
+	const auto subicon = finishDragging(_subiconState);
 	return icon || subicon;
 }
 
-bool StickersListFooter::finishDragging(
-		ScrollState &state,
-		Ui::Animations::Basic &animation) {
+bool StickersListFooter::finishDragging(ScrollState &state) {
 	if (!state.dragging) {
 		return false;
 	}
@@ -743,7 +771,7 @@ bool StickersListFooter::finishDragging(
 	if (newX != qRound(state.x.current())) {
 		state.x = anim::value(newX, newX);
 		state.animationStart = 0;
-		animation.stop();
+		state.animation.stop();
 		update();
 	}
 	state.dragging = false;
@@ -767,32 +795,37 @@ void StickersListFooter::scrollByWheelEvent(
 		not_null<QWheelEvent*> e) {
 	auto horizontal = (e->angleDelta().x() != 0);
 	auto vertical = (e->angleDelta().y() != 0);
+	if (!horizontal && !vertical) {
+		return;
+	}
 	if (horizontal) {
 		_horizontal = true;
 	}
-	auto newX = qRound(_iconState.x.current());
-	if (/*_horizontal && */horizontal) {
-		newX = std::clamp(
-			newX - (rtl() ? -1 : 1) * (e->pixelDelta().x()
-				? e->pixelDelta().x()
-				: e->angleDelta().x()),
-			0,
-			_iconState.max);
-	} else if (/*!_horizontal && */vertical) {
-		newX = std::clamp(
-			newX - (e->pixelDelta().y()
-				? e->pixelDelta().y()
-				: e->angleDelta().y()),
-			0,
-			_iconState.max);
+	auto delta = horizontal
+		? ((rtl() ? -1 : 1) * (e->pixelDelta().x()
+			? e->pixelDelta().x()
+			: e->angleDelta().x()))
+		: (e->pixelDelta().y()
+			? e->pixelDelta().y()
+			: e->angleDelta().y());
+	const auto use = [&](ScrollState &state) {
+		const auto now = qRound(state.x.current());
+		const auto used = now - delta;
+		const auto next = std::clamp(used, 0, state.max);
+		delta = next - used;
+		if (next != now) {
+			state.x = anim::value(next, next);
+			state.animationStart = 0;
+			state.animation.stop();
+			updateSelected();
+			update();
+		}
+	};
+	const auto index = v::get<IconId>(_selected).index;
+	if (_icons[index].setId == AllEmojiSectionSetId()) {
+		use(_subiconState);
 	}
-	if (newX != qRound(_iconState.x.current())) {
-		_iconState.x = anim::value(newX, newX);
-		_iconState.animationStart = 0;
-		_iconsAnimation.stop();
-		updateSelected();
-		update();
-	}
+	use(_iconState);
 }
 
 void StickersListFooter::clipCallback(
@@ -856,7 +889,6 @@ void StickersListFooter::updateSelected() {
 			&& y < _iconsTop + st::emojiFooterHeight
 			&& x >= _iconsLeft
 			&& x < width() - _iconsRight) {
-			x += qRound(_iconState.x.current());
 			enumerateIcons([&](const IconInfo &info) {
 				if (x >= info.left && x < info.left + info.width) {
 					newOver = IconId{ .index = info.index };
@@ -927,14 +959,7 @@ void StickersListFooter::refreshIcons(
 	refreshIconsGeometry(animations);
 }
 
-void StickersListFooter::refreshIconsGeometry(
-		ValidateIconAnimations animations) {
-	_selected = _pressed = SpecialOver::None;
-	_iconState.x.finish();
-	_iconState.selectionX.finish();
-	_iconState.selectionWidth.finish();
-	_iconState.animationStart = 0;
-	_iconsAnimation.stop();
+void StickersListFooter::refreshScrollableDimensions() {
 	const auto &last = iconInfo(_icons.size() - 1);
 	_iconState.max = std::max(
 		last.left + last.width + _iconsRight - width(),
@@ -942,9 +967,19 @@ void StickersListFooter::refreshIconsGeometry(
 	if (_iconState.x.current() > _iconState.max) {
 		_iconState.x = anim::value(_iconState.max, _iconState.max);
 	}
+}
+
+void StickersListFooter::refreshIconsGeometry(
+		ValidateIconAnimations animations) {
+	_selected = _pressed = SpecialOver::None;
+	_iconState.x.finish();
+	_iconState.selectionX.finish();
+	_iconState.selectionWidth.finish();
+	_iconState.animationStart = 0;
+	_iconState.animation.stop();
+	refreshScrollableDimensions();
 	updateSelected();
 	validateSelectedIcon(_activeByScrollId, animations);
-	refreshSubiconsGeometry();
 	update();
 }
 
@@ -954,7 +989,7 @@ void StickersListFooter::refreshSubiconsGeometry() {
 	_subiconState.selectionX.finish();
 	_subiconState.selectionWidth.finish();
 	_subiconState.animationStart = 0;
-	_subiconsAnimation.stop();
+	_subiconState.animation.stop();
 	const auto single = st::stickerIconWidth;
 	const auto half = single / 2;
 	const auto count = int(Section::Symbols) - int(Section::Recent);
@@ -975,6 +1010,7 @@ void StickersListFooter::refreshSubiconsGeometry() {
 	if (_subiconState.x.current() > _subiconState.max) {
 		_subiconState.x = anim::value(_subiconState.max, _subiconState.max);
 	}
+	updateEmojiWidthCallback();
 }
 
 bool StickersListFooter::hasOnlyFeaturedSets() const {
@@ -1218,32 +1254,6 @@ void StickersListFooter::paintSetIcon(
 			}());
 		}
 	}
-}
-
-bool StickersListFooter::iconsAnimationCallback(
-		ScrollState &state,
-		crl::time now) {
-	if (anim::Disabled()) {
-		now += st::stickerIconMove;
-	}
-	if (state.animationStart) {
-		const auto dt = (now - state.animationStart)
-			/ float64(st::stickerIconMove);
-		if (dt >= 1.) {
-			state.animationStart = 0;
-			state.x.finish();
-			state.selectionX.finish();
-			state.selectionWidth.finish();
-		} else {
-			state.x.update(dt, anim::linear);
-			state.selectionX.update(dt, anim::linear);
-			state.selectionWidth.update(dt, anim::linear);
-		}
-	}
-
-	update();
-
-	return (state.animationStart != 0);
 }
 
 } // namespace ChatHelpers

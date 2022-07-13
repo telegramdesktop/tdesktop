@@ -143,6 +143,11 @@ private:
 		bool visible = false;
 	};
 	struct ScrollState {
+		template <typename UpdateCallback>
+		explicit ScrollState(UpdateCallback &&callback);
+
+		bool animationCallback(crl::time now);
+
 		int selected = 0;
 		int max = 0;
 		int draggingStartX = 0;
@@ -151,6 +156,7 @@ private:
 		anim::value selectionX;
 		anim::value selectionWidth;
 		crl::time animationStart = 0;
+		Ui::Animations::Basic animation;
 	};
 
 	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback) const;
@@ -160,7 +166,6 @@ private:
 	[[nodiscard]] IconInfo subiconInfo(int index) const;
 
 	[[nodiscard]] std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
-	bool iconsAnimationCallback(ScrollState &state, crl::time now);
 	void setSelectedIcon(
 		int newSelected,
 		ValidateIconAnimations animations);
@@ -173,13 +178,12 @@ private:
 
 	void refreshIconsGeometry(ValidateIconAnimations animations);
 	void refreshSubiconsGeometry();
+	void refreshScrollableDimensions();
 	void updateSelected();
 	void updateSetIcon(uint64 setId);
 	void updateSetIconAt(int left);
-	void checkDragging(ScrollState &state, Ui::Animations::Basic &animation);
-	bool finishDragging(
-		ScrollState &state,
-		Ui::Animations::Basic &animation);
+	void checkDragging(ScrollState &state);
+	bool finishDragging(ScrollState &state);
 	bool finishDragging();
 	void paintStickerSettingsIcon(Painter &p) const;
 	void paintSearchIcon(Painter &p) const;
@@ -223,10 +227,7 @@ private:
 	int _iconsTop = 0;
 
 	ScrollState _iconState;
-	Ui::Animations::Basic _iconsAnimation;
-
 	ScrollState _subiconState;
-	Ui::Animations::Basic _subiconsAnimation;
 
 	Ui::RoundRect _selectionBg;
 	Ui::Animations::Simple _subiconsWidthAnimation;
