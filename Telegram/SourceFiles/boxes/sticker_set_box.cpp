@@ -201,6 +201,7 @@ private:
 	uint64 _setId = 0;
 	uint64 _setAccessHash = 0;
 	uint64 _setHash = 0;
+	uint64 _setThumbnailDocumentId = 0;
 	QString _setTitle, _setShortName;
 	int _setCount = 0;
 	Data::StickersSetFlags _setFlags;
@@ -549,6 +550,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setCount = set.vcount().v;
 			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
+			_setThumbnailDocumentId = set.vthumb_document_id().value_or_empty();
 			_setThumbnail = [&] {
 				if (const auto thumbs = set.vthumbs()) {
 					for (const auto &thumb : thumbs->v) {
@@ -661,6 +663,7 @@ void StickerSetBox::Inner::installDone(
 		it->second->installDate = _setInstallDate;
 	}
 	const auto set = it->second.get();
+	set->thumbnailDocumentId = _setThumbnailDocumentId;
 	set->setThumbnail(_setThumbnail);
 	set->stickers = _pack;
 	set->emoji = _emoji;

@@ -91,6 +91,7 @@ public:
 	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
 	[[nodiscard]] Storage::Cache::Key thumbnailBigFileBaseCacheKey() const;
 	[[nodiscard]] int thumbnailByteSize() const;
+	[[nodiscard]] DocumentData *lookupThumbnailDocument() const;
 
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> createThumbnailView();
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> activeThumbnailView();
@@ -98,6 +99,7 @@ public:
 	uint64 id = 0;
 	uint64 accessHash = 0;
 	uint64 hash = 0;
+	uint64 thumbnailDocumentId = 0;
 	QString title, shortName;
 	int count = 0;
 	StickersSetFlags flags;

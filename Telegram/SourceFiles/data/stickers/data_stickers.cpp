@@ -1003,7 +1003,6 @@ void Stickers::featuredSetsReceived(
 				data->vcount().v,
 				flags | SetFlag::NotLoaded,
 				installDate)).first;
-			it->second->setThumbnail(thumbnail);
 		} else {
 			const auto set = it->second.get();
 			set->accessHash = data->vaccess_hash().v;
@@ -1012,13 +1011,14 @@ void Stickers::featuredSetsReceived(
 			set->flags = flags
 				| (set->flags & (SetFlag::NotLoaded | SetFlag::Special));
 			set->installDate = installDate;
-			set->setThumbnail(thumbnail);
 			if (set->count != data->vcount().v || set->hash != data->vhash().v || set->emoji.isEmpty()) {
 				set->count = data->vcount().v;
 				set->hash = data->vhash().v;
 				set->flags |= SetFlag::NotLoaded; // need to request this set
 			}
 		}
+		it->second->setThumbnail(thumbnail);
+		it->second->thumbnailDocumentId = data->vthumb_document_id().value_or_empty();
 		setsOrder.push_back(data->vid().v);
 		if (it->second->stickers.isEmpty()
 			|| (it->second->flags & SetFlag::NotLoaded)) {
@@ -1310,7 +1310,6 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 			data.vcount().v,
 			flags | SetFlag::NotLoaded,
 			data.vinstalled_date().value_or_empty())).first;
-		it->second->setThumbnail(thumbnail);
 	} else {
 		const auto set = it->second.get();
 		set->accessHash = data.vaccess_hash().v;
@@ -1327,7 +1326,6 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 		set->installDate = installDate
 			? (installDate->v ? installDate->v : base::unixtime::now())
 			: TimeId(0);
-		it->second->setThumbnail(thumbnail);
 		if (set->count != data.vcount().v
 			|| set->hash != data.vhash().v
 			|| set->emoji.isEmpty()) {
@@ -1338,6 +1336,8 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 		}
 	}
 	const auto set = it->second.get();
+	set->setThumbnail(thumbnail);
+	set->thumbnailDocumentId = data.vthumb_document_id().value_or_empty();
 	auto changedFlags = (oldFlags ^ set->flags);
 	if (changedFlags & SetFlag::Archived) {
 		const auto masks = !!(set->flags & SetFlag::Masks);

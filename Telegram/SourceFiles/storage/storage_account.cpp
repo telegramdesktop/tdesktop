@@ -43,7 +43,7 @@ using Database = Cache::Database;
 constexpr auto kDelayedWriteTimeout = crl::time(1000);
 
 constexpr auto kStickersVersionTag = quint32(-1);
-constexpr auto kStickersSerializeVersion = 2;
+constexpr auto kStickersSerializeVersion = 3;
 constexpr auto kMaxSavedStickerSetsCount = 1000;
 constexpr auto kDefaultStickerInstallDate = TimeId(1);
 
@@ -1633,7 +1633,8 @@ void Account::writeStickerSet(
 			<< set.shortName
 			<< qint32(count)
 			<< qint32(set.flags)
-			<< qint32(set.installDate);
+			<< qint32(set.installDate)
+			<< quint64(set.thumbnailDocumentId);
 		Serialize::writeImageLocation(stream, set.thumbnailLocation());
 	};
 	if (set.flags & SetFlag::NotLoaded) {
@@ -1789,7 +1790,7 @@ void Account::readStickerSets(
 	qint32 version = 0;
 	stickers.stream >> versionTag >> version;
 	if (versionTag != kStickersVersionTag
-		|| version != kStickersSerializeVersion) {
+		|| (version != 2 && version != kStickersSerializeVersion)) {
 		// Old data, without sticker set thumbnails.
 		return failed();
 	}
@@ -1802,6 +1803,7 @@ void Account::readStickerSets(
 	}
 	for (auto i = 0; i != count; ++i) {
 		quint64 setId = 0, setAccessHash = 0, setHash = 0;
+		quint64 setThumbnailDocumentId = 0;
 		QString setTitle, setShortName;
 		qint32 scnt = 0;
 		qint32 setInstallDate = 0;
@@ -1818,6 +1820,9 @@ void Account::readStickerSets(
 			>> scnt
 			>> setFlagsValue
 			>> setInstallDate;
+		if (version > 2) {
+			stickers.stream >> setThumbnailDocumentId;
+		}
 		const auto thumbnail = Serialize::readImageLocation(
 			stickers.version,
 			stickers.stream);
@@ -1864,6 +1869,7 @@ void Account::readStickerSets(
 				setInstallDate)).first;
 			it->second->setThumbnail(
 				ImageWithLocation{ .location = setThumbnail });
+			it->second->thumbnailDocumentId = setThumbnailDocumentId;
 		}
 		const auto set = it->second.get();
 		const auto inputSet = set->identifier();
@@ -2015,7 +2021,7 @@ void Account::writeInstalledStickers() {
 		} else if (!(set.flags & SetFlag::Installed)
 			|| (set.flags & SetFlag::Archived)) {
 			return StickerSetCheckResult::Skip;
-		} else if (set.flags & SetFlag::Masks) {
+		} else if (set.flags & (SetFlag::Masks | SetFlag::Emoji)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & SetFlag::NotLoaded) {
 			// waiting to receive
@@ -2072,7 +2078,7 @@ void Account::writeArchivedStickers() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
-		if (set.flags & SetFlag::Masks) {
+		if (set.flags & (SetFlag::Masks | SetFlag::Emoji)) {
 			return StickerSetCheckResult::Skip;
 		}
 		if (!(set.flags & SetFlag::Archived)

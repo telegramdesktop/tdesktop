@@ -2659,17 +2659,17 @@ void ApiWrap::requestCustomEmoji(TimeId now) {
 		return;
 	}
 	const auto done = [=](const MTPmessages_AllStickers &result) {
-		_session->data().stickers().setLastMasksUpdate(crl::now());
-		_masksUpdateRequest = 0;
+		_session->data().stickers().setLastEmojiUpdate(crl::now());
+		_customEmojiUpdateRequest = 0;
 
 		result.match([&](const MTPDmessages_allStickersNotModified&) {
 		}, [&](const MTPDmessages_allStickers &data) {
-			_session->data().stickers().masksReceived(
+			_session->data().stickers().emojiReceived(
 				data.vsets().v,
 				data.vhash().v);
 		});
 	};
-	_masksUpdateRequest = request(MTPmessages_GetEmojiStickers(
+	_customEmojiUpdateRequest = request(MTPmessages_GetEmojiStickers(
 		MTP_long(Api::CountCustomEmojiHash(_session, true))
 	)).done(done).fail([=] {
 		LOG(("App Fail: Failed to get custom emoji!"));

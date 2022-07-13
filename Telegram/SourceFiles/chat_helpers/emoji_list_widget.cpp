@@ -1159,6 +1159,7 @@ void EmojiListWidget::refreshCustom() {
 				return true;
 			}();
 			if (valid) {
+				i->thumbnailDocument = it->second->lookupThumbnailDocument();
 				_custom.push_back(std::move(*i));
 				continue;
 			}
@@ -1198,6 +1199,7 @@ void EmojiListWidget::refreshCustom() {
 		_custom.push_back({
 			.id = setId,
 			.set = it->second.get(),
+			.thumbnailDocument = it->second->lookupThumbnailDocument(),
 			.title = it->second->title,
 			.list = std::move(set),
 		});
@@ -1223,7 +1225,7 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	}
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
-		const auto s = custom.list[0].document;
+		const auto s = custom.thumbnailDocument;
 		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
 		const auto availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
 		const auto size = set->hasThumbnail()

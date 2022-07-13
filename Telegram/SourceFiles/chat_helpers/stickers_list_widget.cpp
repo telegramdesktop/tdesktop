@@ -99,6 +99,7 @@ struct StickersListWidget::Set {
 
 	uint64 id = 0;
 	Data::StickersSet *set = nullptr;
+	DocumentData *thumbnailDocument = nullptr;
 	Data::StickersSetFlags flags;
 	QString title;
 	QString shortName;
@@ -2087,6 +2088,7 @@ bool StickersListWidget::appendSet(
 		set->count,
 		externalLayout,
 		std::move(elements));
+	to.back().thumbnailDocument = set->lookupThumbnailDocument();
 	if (!externalLayout && _premiumsIndex >= 0 && session().premium()) {
 		for (const auto &sticker : to.back().stickers) {
 			const auto document = sticker.document;
@@ -2380,7 +2382,7 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 		}
 		const auto set = _mySets[i].set;
 		Assert(set != nullptr);
-		const auto s = _mySets[i].stickers[0].document;
+		const auto s = _mySets[i].thumbnailDocument;
 		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
 		const auto availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
 		const auto size = set->hasThumbnail()

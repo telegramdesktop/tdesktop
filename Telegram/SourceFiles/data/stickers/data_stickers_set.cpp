@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
+#include "data/data_document.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
 
@@ -163,6 +164,23 @@ Storage::Cache::Key StickersSet::thumbnailBigFileBaseCacheKey() const {
 
 int StickersSet::thumbnailByteSize() const {
 	return _thumbnail.byteSize;
+}
+
+DocumentData *StickersSet::lookupThumbnailDocument() const {
+	if (thumbnailDocumentId) {
+		const auto i = ranges::find(
+			stickers,
+			thumbnailDocumentId,
+			&DocumentData::id);
+		if (i != stickers.end()) {
+			return *i;
+		}
+	}
+	return !stickers.empty()
+		? stickers.front()
+		: !covers.empty()
+		? covers.front()
+		: nullptr;
 }
 
 std::shared_ptr<StickersSetThumbnailView> StickersSet::createThumbnailView() {

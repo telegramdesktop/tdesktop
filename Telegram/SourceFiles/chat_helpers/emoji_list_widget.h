@@ -110,6 +110,7 @@ private:
 	struct CustomSet {
 		uint64 id = 0;
 		not_null<Data::StickersSet*> set;
+		DocumentData *thumbnailDocument = nullptr;
 		QString title;
 		std::vector<CustomOne> list;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
