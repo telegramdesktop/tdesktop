@@ -475,6 +475,36 @@ private:
 
 };
 
+class MediaGiftBox final : public Media {
+public:
+	MediaGiftBox(not_null<HistoryItem*> parent, int months);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	[[nodiscard]] int months() const;
+
+	[[nodiscard]] bool activated() const;
+	void setActivated(bool activated);
+
+	bool allowsRevoke(TimeId now) const override;
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+	bool forceForwardedInfo() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	int _months = 0;
+	bool _activated = false;
+
+};
+
 [[nodiscard]] TextForMimeData WithCaptionClipboardText(
 	const QString &attachType,
 	TextForMimeData &&caption);

@@ -368,6 +368,8 @@ PRIVATE
     chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
+    chat_helpers/stickers_gift_box_pack.cpp
+    chat_helpers/stickers_gift_box_pack.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
     chat_helpers/stickers_list_footer.cpp
@@ -644,6 +646,8 @@ PRIVATE
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_poll.h
     history/view/media/history_view_poll.cpp
+    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_service_media_gift.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_sticker.h

@@ -1456,6 +1456,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_proximity_distance_km#one" = "{count} km";
 "lng_action_proximity_distance_km#other" = "{count} km";
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
+"lng_action_gift_received" = "{user} sent you a gift for {cost}";
+
+"lng_premium_gift_duration_months#one" = "for {count} month";
+"lng_premium_gift_duration_months#other" = "for {count} months";
+"lng_premium_gift_duration_years#one" = "for {count} year";
+"lng_premium_gift_duration_years#other" = "for {count} years";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";

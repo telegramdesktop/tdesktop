@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/history_service.h"
 
+#include "chat_helpers/stickers_gift_box_pack.h"
 #include "lang/lang_keys.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -614,8 +615,21 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareGiftPremium = [](const MTPDmessageActionGiftPremium &action) {
-		return PreparedText{ .text = { "gift premium" }, }; // #TODO gifts
+	auto prepareGiftPremium = [&](
+			const MTPDmessageActionGiftPremium &action) {
+		history()->session().giftBoxStickersPacks().load();
+		const auto amount = action.vamount().v;
+		const auto currency = qs(action.vcurrency());
+		auto result = PreparedText{};
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_gift_received(
+			tr::now,
+			lt_user,
+			fromLinkText(), // Link 1.
+			lt_cost,
+			{ Ui::FillAmountAndCurrency(amount, currency) },
+			Ui::Text::WithEntities);
+		return result;
 	};
 
 	const auto messageText = action.match([&](
@@ -745,6 +759,8 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 				channel->mgInfo->joinedMessageFound = true;
 			}
 		}
+	}, [&](const MTPDmessageActionGiftPremium &data) {
+		_media = std::make_unique<Data::MediaGiftBox>(this, data.vmonths().v);
 	}, [](const auto &) {
 	});
 }

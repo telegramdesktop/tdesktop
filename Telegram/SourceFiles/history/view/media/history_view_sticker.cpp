@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "lottie/lottie_single_player.h"
+#include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "styles/style_chat.h"
 
@@ -111,7 +112,12 @@ bool Sticker::isEmojiSticker() const {
 
 void Sticker::initSize() {
 	if (isEmojiSticker() || _diceIndex >= 0) {
-		_size = EmojiSize();
+		const auto &session = _data->owner().session();
+		if (session.giftBoxStickersPacks().isGiftSticker(_data)) {
+			_size = st::msgServiceGiftBoxStickerSize;
+		} else {
+			_size = EmojiSize();
+		}
 		if (_diceIndex > 0) {
 			[[maybe_unused]] bool result = readyToDrawLottie();
 		}

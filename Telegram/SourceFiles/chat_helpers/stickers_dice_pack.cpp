@@ -65,8 +65,7 @@ void DicePack::applySet(const MTPDmessages_stickerSet &data) {
 	auto index = 0;
 	auto documents = base::flat_map<DocumentId, not_null<DocumentData*>>();
 	for (const auto &sticker : data.vdocuments().v) {
-		const auto document = _session->data().processDocument(
-			sticker);
+		const auto document = _session->data().processDocument(sticker);
 		if (document->sticker()) {
 			if (isSlotMachine) {
 				_map.emplace(index++, document);

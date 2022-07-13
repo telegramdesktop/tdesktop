@@ -1077,3 +1077,13 @@ searchInChatPeerListItem: PeerListItem(defaultPeerListItem) {
 searchInChatPeerList: PeerList(defaultPeerList) {
 	item: searchInChatPeerListItem;
 }
+
+msgServiceGiftBoxSize: size(206px, 231px); // Plus msgServiceGiftBoxTopSkip.
+msgServiceGiftBoxRadius: 12px;
+msgServiceGiftBoxTopSkip: 4px;
+msgServiceGiftBoxButtonHeight: 32px;
+msgServiceGiftBoxButtonMargins: margins(2px, 0px, 2px, 0px);
+msgServiceGiftBoxButtonPadding: margins(0px, 17px, 0px, 17px);
+msgServiceGiftBoxTitlePadding: margins(0px, 126px, 0px, 2px);
+msgServiceGiftBoxStickerTop: -30px;
+msgServiceGiftBoxStickerSize: size(150px, 150px);

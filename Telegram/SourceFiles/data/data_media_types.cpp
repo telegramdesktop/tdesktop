@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
+#include "history/view/media/history_view_service_media_gift.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/image/image.h"
 #include "ui/text/format_song_document_name.h"
@@ -1716,6 +1717,62 @@ ClickHandlerPtr MediaDice::MakeHandler(
 			ShownToast = Ui::Toast::Show(config);
 		}
 	});
+}
+
+MediaGiftBox::MediaGiftBox(not_null<HistoryItem*> parent, int months)
+: Media(parent)
+, _months(months) {
+}
+
+std::unique_ptr<Media> MediaGiftBox::clone(not_null<HistoryItem*> parent) {
+	return std::make_unique<MediaGiftBox>(parent, _months);
+}
+
+int MediaGiftBox::months() const {
+	return _months;
+}
+
+bool MediaGiftBox::allowsRevoke(TimeId now) const {
+	return false;
+}
+
+TextWithEntities MediaGiftBox::notificationText() const {
+	return {};
+}
+
+QString MediaGiftBox::pinnedTextSubstring() const {
+	return {};
+}
+
+TextForMimeData MediaGiftBox::clipboardText() const {
+	return {};
+}
+
+bool MediaGiftBox::forceForwardedInfo() const {
+	return false;
+}
+
+bool MediaGiftBox::updateInlineResultMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+bool MediaGiftBox::updateSentMedia(const MTPMessageMedia &media) {
+	return false;
+}
+
+std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing) {
+	return std::make_unique<HistoryView::MediaGift>(message, this);
+}
+
+bool MediaGiftBox::activated() const {
+	return _activated;
+}
+
+void MediaGiftBox::setActivated(bool activated) {
+	_activated = activated;
 }
 
 } // namespace Data
