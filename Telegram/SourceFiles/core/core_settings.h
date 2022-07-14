@@ -573,13 +573,19 @@ public:
 		return _workMode.changes();
 	}
 
+	struct RecentEmojiId {
+		std::variant<EmojiPtr, DocumentId> data;
+
+		friend inline auto operator<=>(
+			RecentEmojiId,
+			RecentEmojiId) = default;
+	};
 	struct RecentEmoji {
-		EmojiPtr emoji = nullptr;
+		RecentEmojiId id;
 		ushort rating = 0;
 	};
 	[[nodiscard]] const std::vector<RecentEmoji> &recentEmoji() const;
-	[[nodiscard]] EmojiPack recentEmojiSection() const;
-	void incrementRecentEmoji(EmojiPtr emoji);
+	void incrementRecentEmoji(RecentEmojiId id);
 	void setLegacyRecentEmojiPreload(QVector<QPair<QString, ushort>> data);
 	[[nodiscard]] rpl::producer<> recentEmojiUpdated() const {
 		return _recentEmojiUpdated.events();
@@ -708,7 +714,7 @@ private:
 	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
 	static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
 
-	struct RecentEmojiId {
+	struct RecentEmojiPreload {
 		QString emoji;
 		ushort rating = 0;
 	};
@@ -764,7 +770,7 @@ private:
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
 	rpl::variable<bool> _mainMenuAccountsShown = true;
-	mutable std::vector<RecentEmojiId> _recentEmojiPreload;
+	mutable std::vector<RecentEmojiPreload> _recentEmojiPreload;
 	mutable std::vector<RecentEmoji> _recentEmoji;
 	base::flat_map<QString, uint8> _emojiVariants;
 	rpl::event_stream<> _recentEmojiUpdated;

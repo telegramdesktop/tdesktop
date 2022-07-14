@@ -201,7 +201,7 @@ private:
 	uint64 _setId = 0;
 	uint64 _setAccessHash = 0;
 	uint64 _setHash = 0;
-	uint64 _setThumbnailDocumentId = 0;
+	DocumentId _setThumbnailDocumentId = 0;
 	QString _setTitle, _setShortName;
 	int _setCount = 0;
 	Data::StickersSetFlags _setFlags;

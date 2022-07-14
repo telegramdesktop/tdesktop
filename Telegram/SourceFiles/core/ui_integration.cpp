@@ -269,7 +269,7 @@ const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 	const auto result = (i != end(variants))
 		? emoji->variant(i->second)
 		: emoji;
-	Core::App().settings().incrementRecentEmoji(result);
+	Core::App().settings().incrementRecentEmoji({ result });
 	return result;
 }
 

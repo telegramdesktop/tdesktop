@@ -99,7 +99,7 @@ public:
 	uint64 id = 0;
 	uint64 accessHash = 0;
 	uint64 hash = 0;
-	uint64 thumbnailDocumentId = 0;
+	DocumentId thumbnailDocumentId = 0;
 	QString title, shortName;
 	int count = 0;
 	StickersSetFlags flags;

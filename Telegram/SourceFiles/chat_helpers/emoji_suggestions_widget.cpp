@@ -118,10 +118,14 @@ auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
 	auto lastRecent = begin(result);
 	const auto &recent = Core::App().settings().recentEmoji();
 	for (const auto &item : recent) {
-		const auto emoji = item.emoji->original()
-			? item.emoji->original()
-			: item.emoji;
-		const auto it = ranges::find(result, emoji, [](const Row &row) {
+		const auto emoji = std::get_if<EmojiPtr>(&item.id.data);
+		if (!emoji) {
+			continue;
+		}
+		const auto original = (*emoji)->original()
+			? (*emoji)->original()
+			: (*emoji);
+		const auto it = ranges::find(result, original, [](const Row &row) {
 			return row.emoji.get();
 		});
 		if (it > lastRecent && it != end(result)) {

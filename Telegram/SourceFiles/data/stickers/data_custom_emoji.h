@@ -45,6 +45,9 @@ public:
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
 		SizeTag tag);
+	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
+		DocumentId documentId,
+		SizeTag tag);
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;

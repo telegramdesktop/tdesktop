@@ -29,6 +29,7 @@ enum class Section;
 } // namespace Ui::Emoji
 
 namespace Ui::CustomEmoji {
+class Loader;
 class Instance;
 struct RepaintRequest;
 } // namespace Ui::CustomEmoji
@@ -116,6 +117,10 @@ private:
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
 	};
+	struct RecentOne {
+		not_null<CustomInstance*> instance;
+		std::variant<EmojiPtr, DocumentId> id;
+	};
 	struct RepaintSet {
 		base::flat_set<uint64> ids;
 		crl::time when = 0;
@@ -176,8 +181,15 @@ private:
 	void setSelected(OverState newSelected);
 	void setPressed(OverState newPressed);
 
+	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	void selectEmoji(EmojiPtr emoji);
 	void selectCustom(not_null<DocumentData*> document);
+	void drawRecent(
+		QPainter &p,
+		QPoint position,
+		crl::time now,
+		bool paused,
+		int index);
 	void drawEmoji(
 		QPainter &p,
 		QPoint position,
@@ -206,6 +218,7 @@ private:
 	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
 
 	void repaintLater(
+		DocumentId documentId,
 		uint64 setId,
 		Ui::CustomEmoji::RepaintRequest request);
 	template <typename CheckId>
@@ -213,12 +226,31 @@ private:
 	void scheduleRepaintTimer();
 	void invokeRepaints();
 
+	void fillRecent();
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		not_null<DocumentData*> document,
+		uint64 setId);
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		std::variant<EmojiPtr, DocumentId> customId);
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		DocumentId fakeId,
+		EmojiPtr emoji);
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		DocumentId documentId);
+	[[nodiscard]] std::unique_ptr<CustomInstance> customInstanceWithLoader(
+		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
+		DocumentId documentId,
+		uint64 setId);
+
 	StickersListFooter *_footer = nullptr;
 
 	int _counts[kEmojiSectionCount];
+	std::vector<RecentOne> _recent;
+	base::flat_set<DocumentId> _recentCustomIds;
+	bool _recentPainted = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
-	base::flat_map<uint64, std::unique_ptr<CustomInstance>> _instances;
+	base::flat_map<DocumentId, std::unique_ptr<CustomInstance>> _instances;
 
 	int _rowsLeft = 0;
 	int _columnCount = 1;
