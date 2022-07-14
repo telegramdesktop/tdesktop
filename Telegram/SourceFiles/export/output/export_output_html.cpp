@@ -1128,6 +1128,15 @@ auto HtmlWriter::Wrap::pushMessage(
 		return "You have just successfully transferred data from the &laquo;"
 			+ SerializeString(data.text)
 			+ "&raquo; button to the bot";
+	}, [&](const ActionGiftPremium &data) {
+		if (!data.months || data.cost.isEmpty()) {
+			return (serviceFrom + " sent you a gift.");
+		}
+		return (serviceFrom
+			+ " sent you a gift for "
+			+ data.cost
+			+ ": Telegram Premium for "
+			+ QString::number(data.months).toUtf8() + " months.");
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

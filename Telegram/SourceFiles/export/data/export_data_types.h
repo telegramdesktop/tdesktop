@@ -488,6 +488,11 @@ struct ActionWebViewDataSent {
 	Utf8String text;
 };
 
+struct ActionGiftPremium {
+	Utf8String cost;
+	int months;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -519,7 +524,8 @@ struct ServiceAction {
 		ActionGroupCallScheduled,
 		ActionSetChatTheme,
 		ActionChatJoinedByRequest,
-		ActionWebViewDataSent> content;
+		ActionWebViewDataSent,
+		ActionGiftPremium> content;
 };
 
 ServiceAction ParseServiceAction(

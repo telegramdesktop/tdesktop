@@ -1146,7 +1146,12 @@ ServiceAction ParseServiceAction(
 		content.text = ParseString(data.vtext());
 		result.content = content;
 	}, [&](const MTPDmessageActionGiftPremium &data) {
-		// #TODO gifts
+		auto content = ActionGiftPremium();
+		content.cost = Ui::FillAmountAndCurrency(
+			data.vamount().v,
+			qs(data.vcurrency())).toUtf8();
+		content.months = data.vmonths().v;
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

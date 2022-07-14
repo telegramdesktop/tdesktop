@@ -546,6 +546,15 @@ QByteArray SerializeMessage(
 	}, [&](const ActionWebViewDataSent &data) {
 		pushAction("send_webview_data");
 		push("text", data.text);
+	}, [&](const ActionGiftPremium &data) {
+		pushActor();
+		pushAction("send_premium_gift");
+		if (!data.cost.isEmpty()) {
+			push("cost", data.cost);
+		}
+		if (data.months) {
+			push("months", data.months);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
