@@ -257,6 +257,10 @@ bool UserData::canReceiveGifts() const {
 	return flags() & UserDataFlag::CanReceiveGifts;
 }
 
+bool UserData::canReceiveVoices() const {
+	return flags() & UserDataFlag::CanReceiveVoices;
+}
+
 bool UserData::canShareThisContactFast() const {
 	return !_phone.isEmpty();
 }
@@ -327,7 +331,10 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
 		| (canReceiveGifts ? Flag::CanReceiveGifts : Flag())
 		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
-		| (update.is_blocked() ? Flag::Blocked : Flag()));
+		| (update.is_blocked() ? Flag::Blocked : Flag())
+		| (!update.is_voice_messages_forbidden()
+			? Flag::CanReceiveVoices
+			: Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
 		? UserData::CallsStatus::Private

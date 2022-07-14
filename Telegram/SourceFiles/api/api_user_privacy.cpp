@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
+#include "settings/settings_premium.h" // Settings::ShowPremium.
 
 namespace Api {
 namespace {
@@ -186,6 +187,8 @@ MTPInputPrivacyKey KeyToTL(UserPrivacy::Key key) {
 		return MTP_inputPrivacyKeyForwards();
 	case Key::ProfilePhoto:
 		return MTP_inputPrivacyKeyProfilePhoto();
+	case Key::Voices:
+		return MTP_inputPrivacyKeyVoiceMessages();
 	}
 	Unexpected("Key in Api::UserPrivacy::KetToTL.");
 }
@@ -209,6 +212,8 @@ std::optional<UserPrivacy::Key> TLToKey(mtpTypeId type) {
 	case mtpc_inputPrivacyKeyForwards: return Key::Forwards;
 	case mtpc_privacyKeyProfilePhoto:
 	case mtpc_inputPrivacyKeyProfilePhoto: return Key::ProfilePhoto;
+	case mtpc_privacyKeyVoiceMessages:
+	case mtpc_inputPrivacyKeyVoiceMessages: return Key::Voices;
 	}
 	return std::nullopt;
 }
@@ -241,7 +246,11 @@ void UserPrivacy::save(
 			_privacySaveRequests.remove(keyTypeId);
 			apply(keyTypeId, data.vrules(), true);
 		});
-	}).fail([=] {
+	}).fail([=](const MTP::Error &error) {
+		const auto message = error.type();
+		if (message == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
+			Settings::ShowPremium(_session, QString());
+		}
 		_privacySaveRequests.remove(keyTypeId);
 	}).send();
 

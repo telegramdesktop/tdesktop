@@ -1125,6 +1125,14 @@ std::optional<QString> RestrictionError(
 	return std::nullopt;
 }
 
+std::optional<QString> RestrictionVoicesError(not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (user && !user->canReceiveVoices()) {
+		return tr::lng_restricted_send_voices(tr::now, lt_user, user->name);
+	}
+	return std::nullopt;
+}
+
 void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 	if (const auto channel = peer->asChannel()) {
 		if (messageId <= channel->availableMinId()) {

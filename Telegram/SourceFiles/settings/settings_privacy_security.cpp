@@ -175,6 +175,11 @@ void SetupPrivacy(
 		{ &st::settingsIconGroup, kIconDarkBlue },
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
+	add(
+		tr::lng_settings_voices_privacy(),
+		{ &st::settingsPremiumIconVoice, kIconRed },
+		Key::Voices,
+		[=] { return std::make_unique<VoicesPrivacyController>(session); });
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 

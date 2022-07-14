@@ -469,6 +469,8 @@ std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);
 
+std::optional<QString> RestrictionVoicesError(not_null<PeerData*> peer);
+
 void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,

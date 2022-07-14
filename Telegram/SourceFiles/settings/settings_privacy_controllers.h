@@ -223,4 +223,26 @@ public:
 
 };
 
+class VoicesPrivacyController : public EditPrivacyController {
+public:
+	using Option = EditPrivacyBox::Option;
+	using Exception = EditPrivacyBox::Exception;
+
+	explicit VoicesPrivacyController(not_null<::Main::Session*> session);
+
+	Key key() override;
+
+	rpl::producer<QString> title() override;
+	bool hasOption(Option option) override;
+	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> exceptionButtonTextKey(
+		Exception exception) override;
+	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
+	rpl::producer<QString> exceptionsDescription() override;
+
+private:
+	rpl::lifetime _lifetime;
+
+};
+
 } // namespace Settings

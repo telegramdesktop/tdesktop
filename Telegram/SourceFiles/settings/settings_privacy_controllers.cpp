@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
+#include "data/data_peer_values.h" // Data::AmPremiumValue.
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "history/admin_log/history_admin_log_item.h"
@@ -1005,6 +1006,58 @@ rpl::producer<QString> ProfilePhotoPrivacyController::exceptionBoxTitle(
 auto ProfilePhotoPrivacyController::exceptionsDescription()
 -> rpl::producer<QString> {
 	return tr::lng_edit_privacy_profile_photo_exceptions();
+}
+
+VoicesPrivacyController::VoicesPrivacyController(
+		not_null<::Main::Session*> session) {
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		if (!premium) {
+			if (const auto box = view()) {
+				box->closeBox();
+			}
+		}
+	}, _lifetime);
+}
+
+UserPrivacy::Key VoicesPrivacyController::key() {
+	return Key::Voices;
+}
+
+rpl::producer<QString> VoicesPrivacyController::title() {
+	return tr::lng_edit_privacy_voices_title();
+}
+
+bool VoicesPrivacyController::hasOption(Option option) {
+	return (option != Option::Nobody);
+}
+
+rpl::producer<QString> VoicesPrivacyController::optionsTitleKey() {
+	return tr::lng_edit_privacy_voices_header();
+}
+
+rpl::producer<QString> VoicesPrivacyController::exceptionButtonTextKey(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_voices_always_empty();
+	case Exception::Never: return tr::lng_edit_privacy_voices_never_empty();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+rpl::producer<QString> VoicesPrivacyController::exceptionBoxTitle(
+		Exception exception) {
+	switch (exception) {
+	case Exception::Always: return tr::lng_edit_privacy_voices_always_title();
+	case Exception::Never: return tr::lng_edit_privacy_voices_never_title();
+	}
+	Unexpected("Invalid exception value.");
+}
+
+auto VoicesPrivacyController::exceptionsDescription()
+-> rpl::producer<QString> {
+	return tr::lng_edit_privacy_voices_exceptions();
 }
 
 } // namespace Settings

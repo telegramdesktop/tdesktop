@@ -1962,11 +1962,19 @@ void ComposeControls::initVoiceRecordBar() {
 	}, _wrap->lifetime());
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
-		const auto error = _history
-			? Data::RestrictionError(
-				_history->peer,
-				ChatRestriction::SendMedia)
-			: std::nullopt;
+		const auto error = [&]() -> std::optional<QString> {
+			const auto peer = _history ? _history->peer : nullptr;
+			if (!peer) {
+				const auto type = ChatRestriction::SendMedia;
+				if (const auto error = Data::RestrictionError(peer, type)) {
+					return error;
+				}
+				if (const auto error = Data::RestrictionVoicesError(peer)) {
+					return error;
+				}
+			}
+			return std::nullopt;
+		}();
 		if (error) {
 			_window->show(Ui::MakeInformBox(*error));
 			return true;

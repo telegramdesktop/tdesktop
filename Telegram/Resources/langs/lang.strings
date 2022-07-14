@@ -557,6 +557,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_number_privacy" = "Phone number";
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
+"lng_settings_voices_privacy" = "Voice messages";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable Passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
@@ -986,6 +987,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_profile_photo_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_profile_photo_always_title" = "Always allow";
 "lng_edit_privacy_profile_photo_never_title" = "Never allow";
+
+"lng_edit_privacy_voices_title" = "Voice messages settings";
+"lng_edit_privacy_voices_header" = "Who can send me voice messages";
+"lng_edit_privacy_voices_always_empty" = "Always allow";
+"lng_edit_privacy_voices_never_empty" = "Never allow";
+"lng_edit_privacy_voices_exceptions" = "These users will or will not be able to send voice and video messages to you regardless of the settings above.";
+"lng_edit_privacy_voices_always_title" = "Always allow";
+"lng_edit_privacy_voices_never_title" = "Never allow";
 
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
@@ -2836,6 +2845,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, public polls can't be forwarded to channels.";
+
+"lng_restricted_send_voices" = "{user} restricted sending of voice messages to them.";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

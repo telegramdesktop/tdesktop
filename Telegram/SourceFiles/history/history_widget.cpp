@@ -929,7 +929,7 @@ void HistoryWidget::initVoiceRecordBar() {
 		auto scrollHeight = rpl::combine(
 			_scroll->topValue(),
 			_scroll->heightValue()
-		) | rpl::map([=](int top, int height) {
+		) | rpl::map([](int top, int height) {
 			return top + height - st::historyRecordLockPosition.y();
 		});
 		_voiceRecordBar->setLockBottom(std::move(scrollHeight));
@@ -938,9 +938,18 @@ void HistoryWidget::initVoiceRecordBar() {
 	_voiceRecordBar->setSendButtonGeometryValue(_send->geometryValue());
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
-		const auto error = _peer
-			? Data::RestrictionError(_peer, ChatRestriction::SendMedia)
-			: std::nullopt;
+		const auto error = [&]() -> std::optional<QString> {
+			if (_peer) {
+				const auto type = ChatRestriction::SendMedia;
+				if (const auto error = Data::RestrictionError(_peer, type)) {
+					return error;
+				}
+				if (const auto error = Data::RestrictionVoicesError(_peer)) {
+					return error;
+				}
+			}
+			return std::nullopt;
+		}();
 		if (error) {
 			controller()->show(Ui::MakeInformBox(*error));
 			return true;
