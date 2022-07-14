@@ -22,7 +22,7 @@ class ChatStyle;
 
 namespace Settings {
 
-class BlockedBoxController : public PeerListController {
+class BlockedBoxController final : public PeerListController {
 public:
 	explicit BlockedBoxController(
 		not_null<Window::SessionController*> window);
@@ -56,7 +56,7 @@ private:
 
 };
 
-class PhoneNumberPrivacyController : public EditPrivacyController {
+class PhoneNumberPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
@@ -64,16 +64,17 @@ public:
 	explicit PhoneNumberPrivacyController(
 		not_null<Window::SessionController*> controller);
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<TextWithEntities> warning() override;
-	void prepareWarningLabel(not_null<Ui::FlatLabel*> warning) override;
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
+	rpl::producer<TextWithEntities> warning() const override;
+	void prepareWarningLabel(not_null<Ui::FlatLabel*> warning) const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 	object_ptr<Ui::RpWidget> setupMiddleWidget(
 		not_null<Window::SessionController*> controller,
@@ -90,22 +91,23 @@ private:
 
 };
 
-class LastSeenPrivacyController : public EditPrivacyController {
+class LastSeenPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
 	explicit LastSeenPrivacyController(not_null<::Main::Session*> session);
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<TextWithEntities> warning() override;
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
+	rpl::producer<TextWithEntities> warning() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 	void confirmSave(
 		bool someAreDisallowed,
@@ -116,58 +118,61 @@ private:
 
 };
 
-class GroupsInvitePrivacyController : public EditPrivacyController {
+class GroupsInvitePrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	bool hasOption(Option option) override;
-	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> title() const override;
+	bool hasOption(Option option) const override;
+	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 };
 
-class CallsPrivacyController : public EditPrivacyController {
+class CallsPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 	object_ptr<Ui::RpWidget> setupBelowWidget(
 		not_null<Window::SessionController*> controller,
-		not_null<QWidget*> parent) override;
+		not_null<QWidget*> parent) const override;
 
 };
 
-class CallsPeer2PeerPrivacyController : public EditPrivacyController {
+class CallsPeer2PeerPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	rpl::producer<QString> optionsTitleKey() override;
-	QString optionLabel(EditPrivacyBox::Option option) override;
-	rpl::producer<TextWithEntities> warning() override;
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
+	QString optionLabel(EditPrivacyBox::Option option) const override;
+	rpl::producer<TextWithEntities> warning() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 };
 
@@ -181,15 +186,16 @@ public:
 	explicit ForwardsPrivacyController(
 		not_null<Window::SessionController*> controller);
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	rpl::producer<QString> optionsTitleKey() override;
-	rpl::producer<TextWithEntities> warning() override;
+	rpl::producer<QString> title() const override;
+	rpl::producer<QString> optionsTitleKey() const override;
+	rpl::producer<TextWithEntities> warning() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 	object_ptr<Ui::RpWidget> setupAboveWidget(
 		not_null<QWidget*> parent,
@@ -206,39 +212,41 @@ private:
 
 };
 
-class ProfilePhotoPrivacyController : public EditPrivacyController {
+class ProfilePhotoPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	bool hasOption(Option option) override;
-	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> title() const override;
+	bool hasOption(Option option) const override;
+	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 };
 
-class VoicesPrivacyController : public EditPrivacyController {
+class VoicesPrivacyController final : public EditPrivacyController {
 public:
 	using Option = EditPrivacyBox::Option;
 	using Exception = EditPrivacyBox::Exception;
 
 	explicit VoicesPrivacyController(not_null<::Main::Session*> session);
 
-	Key key() override;
+	Key key() const override;
 
-	rpl::producer<QString> title() override;
-	bool hasOption(Option option) override;
-	rpl::producer<QString> optionsTitleKey() override;
+	rpl::producer<QString> title() const override;
+	bool hasOption(Option option) const override;
+	rpl::producer<QString> optionsTitleKey() const override;
 	rpl::producer<QString> exceptionButtonTextKey(
-		Exception exception) override;
-	rpl::producer<QString> exceptionBoxTitle(Exception exception) override;
-	rpl::producer<QString> exceptionsDescription() override;
+		Exception exception) const override;
+	rpl::producer<QString> exceptionBoxTitle(
+		Exception exception) const override;
+	rpl::producer<QString> exceptionsDescription() const override;
 
 private:
 	rpl::lifetime _lifetime;
