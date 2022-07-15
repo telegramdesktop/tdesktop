@@ -49,6 +49,7 @@ public:
 		Fn<void(QString)> handleInvoice,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
+		QString phone,
 		MenuButtons menuButtons,
 		Fn<void(MenuButton)> handleMenuButton,
 		Fn<Webview::ThemeParams()> themeParams);
@@ -92,6 +93,7 @@ private:
 	void openExternalLink(const QJsonObject &args);
 	void openInvoice(const QJsonObject &args);
 	void openPopup(const QJsonObject &args);
+	void requestPhone();
 	void setupClosingBehaviour(const QJsonObject &args);
 	void createMainButton();
 	void scheduleCloseWithConfirmation();
@@ -108,6 +110,7 @@ private:
 	Fn<void(QString)> _handleInvoice;
 	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
+	QString _phone;
 	bool _closeNeedConfirmation = false;
 	MenuButtons _menuButtons = {};
 	Fn<void(MenuButton)> _handleMenuButton;
@@ -137,6 +140,7 @@ struct Args {
 	Fn<void(QString)> handleInvoice;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
+	QString phone;
 	MenuButtons menuButtons;
 	Fn<void(MenuButton)> handleMenuButton;
 	Fn<Webview::ThemeParams()> themeParams;

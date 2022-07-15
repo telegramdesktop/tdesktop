@@ -884,6 +884,7 @@ void AttachWebView::show(
 		.handleInvoice = handleInvoice,
 		.sendData = sendData,
 		.close = close,
+		.phone = _session->user()->phone(),
 		.menuButtons = buttons,
 		.handleMenuButton = handleMenuButton,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },

@@ -353,6 +353,18 @@ QString UiIntegration::phrasePanelCloseAnyway() {
 	return tr::lng_bot_close_warning_sure(tr::now);
 }
 
+QString UiIntegration::phraseBotSharePhone() {
+	return tr::lng_bot_share_phone(tr::now);
+}
+
+QString UiIntegration::phraseBotSharePhoneTitle() {
+	return tr::lng_settings_phone_label(tr::now);
+}
+
+QString UiIntegration::phraseBotSharePhoneConfirm() {
+	return tr::lng_bot_share_phone_confirm(tr::now);
+}
+
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());
 }

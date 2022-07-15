@@ -340,6 +340,7 @@ Panel::Panel(
 	Fn<void(QString)> handleInvoice,
 	Fn<void(QByteArray)> sendData,
 	Fn<void()> close,
+	QString phone,
 	MenuButtons menuButtons,
 	Fn<void(MenuButton)> handleMenuButton,
 	Fn<Webview::ThemeParams()> themeParams)
@@ -348,6 +349,7 @@ Panel::Panel(
 , _handleInvoice(std::move(handleInvoice))
 , _sendData(std::move(sendData))
 , _close(std::move(close))
+, _phone(phone)
 , _menuButtons(menuButtons)
 , _handleMenuButton(std::move(handleMenuButton))
 , _widget(std::make_unique<SeparatePanel>()) {
@@ -656,6 +658,8 @@ bool Panel::createWebview() {
 			openInvoice(arguments);
 		} else if (command == "web_app_open_popup") {
 			openPopup(arguments);
+		} else if (command == "web_app_request_phone") {
+			requestPhone();
 		} else if (command == "web_app_setup_closing_behavior") {
 			setupClosingBehaviour(arguments);
 		}
@@ -814,6 +818,32 @@ void Panel::openPopup(const QJsonObject &args) {
 		postEvent(
 			"popup_closed",
 			result.id ? ("\"button_id\": " + safe()) : QString());
+	}
+}
+
+void Panel::requestPhone() {
+	using Button = Webview::PopupArgs::Button;
+	const auto widget = _webview->window.widget();
+	const auto weak = base::make_weak(this);
+	const auto integration = &Ui::Integration::Instance();
+	const auto result = Webview::ShowBlockingPopup({
+		.parent = widget ? widget->window() : nullptr,
+		.title = integration->phraseBotSharePhoneTitle(),
+		.text = integration->phraseBotSharePhone(),
+		.buttons = {
+			{
+				.id = "share",
+				.text = integration->phraseBotSharePhoneConfirm(),
+			},
+			{.id = "cancel", .type = Button::Type::Cancel },
+		},
+	});
+	if (weak) {
+		postEvent(
+			"phone_requested",
+			(result.id == "share"
+				? "\"phone_number\": \"" + _phone + "\""
+				: QString()));
 	}
 }
 
@@ -1080,6 +1110,7 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		std::move(args.handleInvoice),
 		std::move(args.sendData),
 		std::move(args.close),
+		args.phone,
 		args.menuButtons,
 		std::move(args.handleMenuButton),
 		std::move(args.themeParams));
