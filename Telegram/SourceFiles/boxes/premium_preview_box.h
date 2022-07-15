@@ -36,6 +36,7 @@ enum class PremiumPreview {
 	NoAds,
 	Reactions,
 	Stickers,
+	AnimatedEmoji,
 	AdvancedChatManagement,
 	ProfileBadge,
 	AnimatedUserpics,

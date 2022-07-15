@@ -144,6 +144,15 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
+			u"animated_emoji"_q,
+			Entry{
+				&st::settingsIconEmoji,
+				tr::lng_premium_summary_subtitle_animated_emoji(),
+				tr::lng_premium_summary_about_animated_emoji(),
+				PremiumPreview::AnimatedEmoji,
+			},
+		},
+		{
 			u"advanced_chat_management"_q,
 			Entry{
 				&st::settingsIconChat,

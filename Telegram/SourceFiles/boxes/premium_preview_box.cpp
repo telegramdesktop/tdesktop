@@ -122,6 +122,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_unique_reactions();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_subtitle_premium_stickers();
+	case PremiumPreview::AnimatedEmoji:
+		return tr::lng_premium_summary_subtitle_animated_emoji();
 	case PremiumPreview::AdvancedChatManagement:
 		return tr::lng_premium_summary_subtitle_advanced_chat_management();
 	case PremiumPreview::ProfileBadge:
@@ -146,6 +148,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_unique_reactions();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_about_premium_stickers();
+	case PremiumPreview::AnimatedEmoji:
+		return tr::lng_premium_summary_about_animated_emoji();
 	case PremiumPreview::AdvancedChatManagement:
 		return tr::lng_premium_summary_about_advanced_chat_management();
 	case PremiumPreview::ProfileBadge:
@@ -443,7 +447,8 @@ struct VideoPreviewDocument {
 
 [[nodiscard]] bool VideoAlignToTop(PremiumPreview section) {
 	return (section == PremiumPreview::MoreUpload)
-		|| (section == PremiumPreview::NoAds);
+		|| (section == PremiumPreview::NoAds)
+		|| (section == PremiumPreview::AnimatedEmoji);
 }
 
 [[nodiscard]] DocumentData *LookupVideo(
@@ -455,6 +460,7 @@ struct VideoPreviewDocument {
 		case PremiumPreview::FasterDownload: return "faster_download";
 		case PremiumPreview::VoiceToText: return "voice_to_text";
 		case PremiumPreview::NoAds: return "no_ads";
+		case PremiumPreview::AnimatedEmoji: return "animated_emoji";
 		case PremiumPreview::AdvancedChatManagement:
 			return "advanced_chat_management";
 		case PremiumPreview::ProfileBadge: return "profile_badge";

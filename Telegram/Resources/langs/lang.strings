@@ -232,6 +232,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
+"lng_animated_emoji_text" = "Subscribe to **Telegram Premium** to unlock this emoji.";
 "lng_reaction_premium_info" = "Click on the reaction to preview the animation.";
 "lng_reaction_premium_no_group" = "Some reactions are restricted in this group.";
 "lng_reaction_premium_no_channel" = "Some reactions are restricted in this channel.";
@@ -1692,6 +1693,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_more_about" = "More About Telegram Premium";
 "lng_premium_unlock_reactions" = "Unlock Premium Reactions";
 "lng_premium_unlock_stickers" = "Unlock Premium Stickers";
+"lng_premium_unlock_emoji" = "Unlock Animated Emoji";
 
 "lng_premium_summary_title" = "Telegram Premium";
 "lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
@@ -1710,6 +1712,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_unique_reactions" = "Additional animated reactions on messages available only to the Premium subscribers.";
 "lng_premium_summary_subtitle_premium_stickers" = "Premium Stickers";
 "lng_premium_summary_about_premium_stickers" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
+"lng_premium_summary_subtitle_animated_emoji" = "Animated Emoji";
+"lng_premium_summary_about_animated_emoji" = "Include animated emoji from different emoji sets in any message you send.";
 "lng_premium_summary_subtitle_advanced_chat_management" = "Advanced Chat Management";
 "lng_premium_summary_about_advanced_chat_management" = "Tools to set default folder, auto-archive and hide new chats from non-contacts.";
 "lng_premium_summary_subtitle_profile_badge" = "Profile Badge";
@@ -2142,6 +2146,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
 "lng_context_save_custom_sound" = "Save for notifications";
+
+"lng_context_animated_emoji" = "This message contains emoji from {name} pack.";
+"lng_context_animated_emoji_many" = "This message contains emoji from {name} packs.";
 
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
