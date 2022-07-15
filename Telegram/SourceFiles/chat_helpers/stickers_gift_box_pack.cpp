@@ -16,15 +16,16 @@ namespace Stickers {
 
 GiftBoxPack::GiftBoxPack(not_null<Main::Session*> session)
 : _session(session)
-, _localMonths({ 3, 6, 12 }) {
+, _localMonths({ 1, 3, 6, 12, 24 }) {
 }
 
 GiftBoxPack::~GiftBoxPack() = default;
 
 DocumentData *GiftBoxPack::lookup(int months) const {
 	const auto it = ranges::lower_bound(_localMonths, months);
+	const auto fallback = _documents.empty() ? nullptr : _documents[0];
 	if (it == begin(_localMonths)) {
-		return _documents.empty() ? nullptr : _documents[0];
+		return fallback;
 	}
 	const auto left = *(it - 1);
 	const auto right = *it;
@@ -32,7 +33,7 @@ DocumentData *GiftBoxPack::lookup(int months) const {
 		? -1
 		: 0;
 	const auto index = int(std::distance(begin(_localMonths), it - shift));
-	return (index >= _documents.size()) ? nullptr : _documents[index];
+	return (index >= _documents.size()) ? fallback : _documents[index];
 }
 
 void GiftBoxPack::load() {
@@ -70,7 +71,19 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 			}
 			for (const auto &id : data.vdocuments().v) {
 				if (const auto document = documents.take(id.v)) {
-					_documents.push_back(*document);
+					if (const auto sticker = (*document)->sticker()) {
+						if (!sticker->alt.isEmpty()) {
+							const auto ch = int(sticker->alt[0].unicode());
+							const auto index = (ch - '1'); // [0, 4];
+							if (index < 0 || index >= _localMonths.size()) {
+								return;
+							}
+							if (_documents.empty()) {
+								_documents.resize(_localMonths.size());
+							}
+							_documents[index] = (*document);
+						}
+					}
 				}
 			}
 		});
