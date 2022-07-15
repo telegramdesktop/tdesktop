@@ -1053,10 +1053,7 @@ void StickersListFooter::validateIconLottieAnimation(
 		icon.thumbnailMedia.get(),
 		icon.stickerMedia.get(),
 		StickerLottieSize::StickersFooter,
-		QSize(
-			st::stickerIconWidth - 2 * st::stickerIconPadding,
-			st::emojiFooterHeight - 2 * st::stickerIconPadding
-		) * cIntRetinaFactor(),
+		QSize(icon.pixw, icon.pixh) * cIntRetinaFactor(),
 		_renderer());
 	if (!player) {
 		return;

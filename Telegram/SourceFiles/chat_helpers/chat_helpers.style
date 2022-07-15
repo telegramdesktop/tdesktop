@@ -179,7 +179,8 @@ emojiSwitchColor: windowActiveTextFg;
 emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
 emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
 
-emojiIconSelectSkip: 2px;
+emojiIconPadding: 8px;
+emojiIconSelectSkip: 3px;
 
 hashtagClose: IconButton {
 	width: 30px;

@@ -1374,8 +1374,8 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		const auto s = custom.thumbnailDocument;
-		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
-		const auto availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
+		const auto availw = st::stickerIconWidth - 2 * st::emojiIconPadding;
+		const auto availh = st::emojiFooterHeight - 2 * st::emojiIconPadding;
 		const auto size = set->hasThumbnail()
 			? QSize(
 				set->thumbnailLocation().width(),
