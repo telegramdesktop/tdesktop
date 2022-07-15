@@ -1484,6 +1484,8 @@ void PreviewBox(
 				? tr::lng_premium_unlock_reactions()
 				: (section == PremiumPreview::Stickers)
 				? tr::lng_premium_unlock_stickers()
+				: (section == PremiumPreview::AnimatedEmoji)
+				? tr::lng_premium_unlock_emoji()
 				: tr::lng_premium_more_about();
 		}) | rpl::flatten_latest();
 		auto button = descriptor.fromSettings

@@ -102,6 +102,7 @@ private:
 		int rowsCount = 0;
 		int rowsTop = 0;
 		int rowsBottom = 0;
+		bool premiumRequired = false;
 	};
 	struct CustomInstance;
 	struct CustomOne {
@@ -116,6 +117,7 @@ private:
 		std::vector<CustomOne> list;
 		std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
+		bool premium = false;
 	};
 	struct RecentOne {
 		not_null<CustomInstance*> instance;
@@ -202,6 +204,7 @@ private:
 		bool paused,
 		int set,
 		int index);
+	void drawPremiumRect(QPainter &p, const SectionInfo &info);
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect emojiRect(int section, int index) const;

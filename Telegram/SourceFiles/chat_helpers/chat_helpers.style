@@ -181,6 +181,7 @@ emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor
 
 emojiIconPadding: 7px;
 emojiIconSelectSkip: 3px;
+emojiPremiumRequired: icon{{ "emoji/premium_lock", windowSubTextFg }};
 
 hashtagClose: IconButton {
 	width: 30px;
