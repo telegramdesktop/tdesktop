@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "base/timer.h"
 
+namespace Core {
+struct RecentEmojiId;
+} // namespace Core
+
 namespace Data {
 class StickersSet;
 } // namespace Data
@@ -119,10 +123,7 @@ private:
 		bool painted = false;
 		bool premium = false;
 	};
-	struct RecentOne {
-		not_null<CustomInstance*> instance;
-		std::variant<EmojiPtr, DocumentId> id;
-	};
+	struct RecentOne;
 	struct RepaintSet {
 		base::flat_set<uint64> ids;
 		crl::time when = 0;
@@ -234,7 +235,7 @@ private:
 		not_null<DocumentData*> document,
 		uint64 setId);
 	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
-		std::variant<EmojiPtr, DocumentId> customId);
+		Core::RecentEmojiId customId);
 	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
 		DocumentId fakeId,
 		EmojiPtr emoji);

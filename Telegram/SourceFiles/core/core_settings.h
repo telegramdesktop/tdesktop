@@ -53,6 +53,30 @@ struct WindowPosition {
 	int h = 0;
 };
 
+constexpr auto kRecentEmojiLimit = 42;
+
+struct RecentEmojiDocument {
+	DocumentId id = 0;
+	bool test = false;
+
+	friend inline auto operator<=>(
+		RecentEmojiDocument,
+		RecentEmojiDocument) = default;
+};
+
+struct RecentEmojiId {
+	std::variant<EmojiPtr, RecentEmojiDocument> data;
+
+	friend inline auto operator<=>(
+		RecentEmojiId,
+		RecentEmojiId) = default;
+};
+
+struct RecentEmoji {
+	RecentEmojiId id;
+	ushort rating = 0;
+};
+
 class Settings final {
 public:
 	enum class ScreenCorner {
@@ -573,17 +597,6 @@ public:
 		return _workMode.changes();
 	}
 
-	struct RecentEmojiId {
-		std::variant<EmojiPtr, DocumentId> data;
-
-		friend inline auto operator<=>(
-			RecentEmojiId,
-			RecentEmojiId) = default;
-	};
-	struct RecentEmoji {
-		RecentEmojiId id;
-		ushort rating = 0;
-	};
 	[[nodiscard]] const std::vector<RecentEmoji> &recentEmoji() const;
 	void incrementRecentEmoji(RecentEmojiId id);
 	void setLegacyRecentEmojiPreload(QVector<QPair<QString, ushort>> data);

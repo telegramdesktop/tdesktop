@@ -40,6 +40,9 @@ namespace {
 
 constexpr auto kFakeEmojiDocumentIdBase = 0x7777'FFFF'FFFF'0000ULL;
 
+using Core::RecentEmojiId;
+using Core::RecentEmojiDocument;
+
 [[nodiscard]] DocumentId FakeEmojiDocumentId(EmojiPtr emoji) {
 	return kFakeEmojiDocumentIdBase + emoji->index();
 }
@@ -175,6 +178,11 @@ struct EmojiListWidget::CustomInstance {
 	Ui::CustomEmoji::Instance emoji;
 	Ui::CustomEmoji::Object object;
 	bool recentOnly = false;
+};
+
+struct EmojiListWidget::RecentOne {
+	not_null<CustomInstance*> instance;
+	RecentEmojiId id;
 };
 
 EmojiListWidget::CustomInstance::CustomInstance(
@@ -435,11 +443,9 @@ EmojiListWidget::EmojiListWidget(
 
 	_esize = Ui::Emoji::GetSizeLarge();
 
-	for (auto i = 0; i != kEmojiSectionCount; ++i) {
+	for (auto i = 1; i != kEmojiSectionCount; ++i) {
 		const auto section = static_cast<Section>(i);
-		_counts[i] = (section == Section::Recent)
-			? int(Core::App().settings().recentEmoji().size())
-			: Ui::Emoji::GetSectionCount(section);
+		_counts[i] = Ui::Emoji::GetSectionCount(section);
 	}
 
 	_picker->chosen(
@@ -646,7 +652,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	};
 	for (; i != kEmojiSectionCount; ++i) {
 		info.section = i;
-		info.count = _counts[i];
+		info.count = i ? _counts[i] : _recent.size();
 		if (!next()) {
 			return false;
 		}
@@ -752,17 +758,24 @@ void EmojiListWidget::fillRecent() {
 	_recentCustomIds.clear();
 
 	const auto &list = Core::App().settings().recentEmoji();
-	_recent.reserve(list.size());
+	_recent.reserve(std::min(int(list.size()), Core::kRecentEmojiLimit));
+	const auto test = controller()->session().isTestMode();
 	for (const auto &one : list) {
+		const auto document = std::get_if<RecentEmojiDocument>(&one.id.data);
+		if (document && document->test != test) {
+			continue;
+		}
 		_recent.push_back({
-			.instance = resolveCustomInstance(one.id.data),
-			.id = one.id.data,
+			.instance = resolveCustomInstance(one.id),
+			.id = one.id,
 		});
-		if (const auto documentId = std::get_if<DocumentId>(&one.id.data)) {
-			_recentCustomIds.emplace(*documentId);
+		if (document) {
+			_recentCustomIds.emplace(document->id);
+		}
+		if (_recent.size() >= Core::kRecentEmojiLimit) {
+			break;
 		}
 	}
-	_counts[0] = _recent.size();
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
@@ -962,8 +975,8 @@ EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 	const auto index = over ? over->index : -1;
 	return (section == int(Section::Recent)
 		&& index < _recent.size()
-		&& v::is<EmojiPtr>(_recent[index].id))
-		? v::get<EmojiPtr>(_recent[index].id)
+		&& v::is<EmojiPtr>(_recent[index].id.data))
+		? v::get<EmojiPtr>(_recent[index].id.data)
 		: (section > int(Section::Recent)
 			&& section < kEmojiSectionCount
 			&& index < _emoji[section].size())
@@ -1033,12 +1046,13 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			selectEmoji(emoji);
 		} else if (section == int(Section::Recent)
 			&& index < _recent.size()) {
-			const auto id = std::get_if<DocumentId>(&_recent[index].id);
-			const auto document = id
-				? session().data().document(*id).get()
+			const auto document = std::get_if<RecentEmojiDocument>(
+				&_recent[index].id.data);
+			const auto custom = document
+				? session().data().document(document->id).get()
 				: nullptr;
-			if (document && document->sticker()) {
-				selectCustom(document);
+			if (custom && custom->sticker()) {
+				selectCustom(custom);
 			}
 		} else if (section >= kEmojiSectionCount
 			&& index < _custom[section - kEmojiSectionCount].list.size()) {
@@ -1086,7 +1100,10 @@ void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
 			PremiumPreview::AnimatedEmoji);
 		return;
 	}
-	Core::App().settings().incrementRecentEmoji({ document->id });
+	Core::App().settings().incrementRecentEmoji({ RecentEmojiDocument{
+		document->id,
+		document->session().isTestMode(),
+	} });
 	_customChosen.fire({ .document = document });
 }
 
@@ -1381,11 +1398,12 @@ auto EmojiListWidget::resolveCustomInstance(
 }
 
 auto EmojiListWidget::resolveCustomInstance(
-	std::variant<EmojiPtr, DocumentId> customId)
+	RecentEmojiId customId)
 -> not_null<CustomInstance*> {
-	if (const auto documentId = std::get_if<DocumentId>(&customId)) {
-		return resolveCustomInstance(*documentId);
-	} else if (const auto emoji = std::get_if<EmojiPtr>(&customId)) {
+	const auto &data = customId.data;
+	if (const auto document = std::get_if<RecentEmojiDocument>(&data)) {
+		return resolveCustomInstance(document->id);
+	} else if (const auto emoji = std::get_if<EmojiPtr>(&data)) {
 		return resolveCustomInstance(FakeEmojiDocumentId(*emoji), *emoji);
 	}
 	Unexpected("Custom recent emoji id.");

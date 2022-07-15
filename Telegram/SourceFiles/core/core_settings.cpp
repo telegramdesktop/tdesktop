@@ -22,8 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Core {
 namespace {
 
-constexpr auto kRecentEmojiLimit = 42;
-
 [[nodiscard]] WindowPosition Deserialize(const QByteArray &data) {
 	QDataStream stream(data);
 	stream.setVersion(QDataStream::Qt_5_1);
@@ -67,6 +65,24 @@ constexpr auto kRecentEmojiLimit = 42;
 	return result;
 }
 
+[[nodiscard]] QString Serialize(RecentEmojiDocument document) {
+	return u"%1-%2"_q.arg(document.id).arg(document.test ? 1 : 0);
+}
+
+[[nodiscard]] std::optional<RecentEmojiDocument> ParseRecentEmojiDocument(
+		const QString &serialized) {
+	const auto parts = QStringView(serialized).split('-');
+	if (parts.size() != 2 || parts[1].size() != 1) {
+		return {};
+	}
+	const auto id = parts[0].toULongLong();
+	const auto test = parts[1][0];
+	if (!id || (test != '0' && test != '1')) {
+		return {};
+	}
+	return RecentEmojiDocument{ id, (test == '1') };
+}
+
 } // namespace
 
 Settings::Settings()
@@ -86,8 +102,9 @@ QByteArray Settings::serialize() const {
 		recentEmojiPreloadGenerated.reserve(_recentEmoji.size());
 		for (const auto &[id, rating] : _recentEmoji) {
 			auto string = QString();
-			if (const auto documentId = std::get_if<DocumentId>(&id.data)) {
-				string = QString::number(*documentId);
+			if (const auto document = std::get_if<RecentEmojiDocument>(
+					&id.data)) {
+				string = Serialize(*document);
 			} else if (const auto emoji = std::get_if<EmojiPtr>(&id.data)) {
 				string = (*emoji)->id();
 			}
@@ -788,7 +805,7 @@ rpl::producer<int> Settings::thirdColumnWidthChanges() const {
 	return _thirdColumnWidth.changes();
 }
 
-const std::vector<Settings::RecentEmoji> &Settings::recentEmoji() const {
+const std::vector<RecentEmoji> &Settings::recentEmoji() const {
 	if (_recentEmoji.empty()) {
 		resolveRecentEmoji();
 	}
@@ -802,6 +819,8 @@ void Settings::resolveRecentEmoji() const {
 			id,
 			[](const RecentEmoji &data) { return data.id; });
 	};
+	auto testCount = 0;
+	auto nonTestCount = 0;
 	if (!_recentEmojiPreload.empty()) {
 		_recentEmoji.reserve(_recentEmojiPreload.size());
 		for (const auto &[id, rating] : base::take(_recentEmojiPreload)) {
@@ -811,16 +830,22 @@ void Settings::resolveRecentEmoji() const {
 				if (!haveAlready({ emoji })) {
 					_recentEmoji.push_back({ { emoji }, rating });
 				}
-			} else if (const auto documentId = id.toULongLong()) {
-				if (!haveAlready({ documentId })) {
-					_recentEmoji.push_back({ { documentId }, rating });
+			} else if (const auto document = ParseRecentEmojiDocument(id)) {
+				if (!haveAlready({ *document })) {
+					_recentEmoji.push_back({ { *document }, rating });
+					if (document->test) {
+						++testCount;
+					} else {
+						++nonTestCount;
+					}
 				}
 			}
 		}
 		_recentEmojiPreload.clear();
 	}
+	const auto specialCount = std::max(testCount, nonTestCount);
 	for (const auto emoji : Ui::Emoji::GetDefaultRecent()) {
-		if (_recentEmoji.size() >= kRecentEmojiLimit) {
+		if (_recentEmoji.size() >= specialCount + kRecentEmojiLimit) {
 			break;
 		} else if (!haveAlready({ emoji })) {
 			_recentEmoji.push_back({ { emoji }, 1 });
@@ -854,15 +879,28 @@ void Settings::incrementRecentEmoji(RecentEmojiId id) {
 		}
 	}
 	if (i == e) {
-		while (_recentEmoji.size() >= kRecentEmojiLimit) {
-			_recentEmoji.pop_back();
-		}
 		_recentEmoji.push_back({ id, 1 });
 		for (i = _recentEmoji.end() - 1; i != _recentEmoji.begin(); --i) {
 			if ((i - 1)->rating > i->rating) {
 				break;
 			}
 			std::swap(*i, *(i - 1));
+		}
+		auto testCount = 0;
+		auto nonTestCount = 0;
+		for (const auto &emoji : _recentEmoji) {
+			const auto id = &emoji.id.data;
+			if (const auto document = std::get_if<RecentEmojiDocument>(id)) {
+				if (document->test) {
+					++testCount;
+				} else {
+					++nonTestCount;
+				}
+			}
+		}
+		const auto specialCount = std::max(testCount, nonTestCount);
+		while (_recentEmoji.size() >= specialCount + kRecentEmojiLimit) {
+			_recentEmoji.pop_back();
 		}
 	}
 	_recentEmojiUpdated.fire({});

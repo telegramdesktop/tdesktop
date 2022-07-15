@@ -258,10 +258,14 @@ rpl::producer<bool> Session::premiumPossibleValue() const {
 		_1 || _2);
 }
 
+bool Session::isTestMode() const {
+	return mtp().isTestMode();
+}
+
 uint64 Session::uniqueId() const {
 	// See also Account::willHaveSessionUniqueId.
 	return userId().bare
-		| (mtp().isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
+		| (isTestMode() ? 0x0100'0000'0000'0000ULL : 0ULL);
 }
 
 UserId Session::userId() const {
