@@ -392,6 +392,7 @@ updateWebViewResultSent#1592b79d query_id:long = Update;
 updateBotMenuButton#14b85813 bot_id:long button:BotMenuButton = Update;
 updateSavedRingtones#74d8be99 = Update;
 updateTranscribedAudio#84cd5a flags:# pending:flags.0?true peer:Peer msg_id:int transcription_id:long text:string = Update;
+updateReadFeaturedEmojiStickers#fb4c496c = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1702,6 +1703,7 @@ messages.transcribeAudio#269e9a49 peer:InputPeer msg_id:int = messages.Transcrib
 messages.rateTranscribedAudio#7f1d072f peer:InputPeer msg_id:int transcription_id:long good:Bool = Bool;
 messages.getCustomEmojiDocuments#d9ab0f54 document_id:Vector<long> = Vector<Document>;
 messages.getEmojiStickers#fbfca18f hash:long = messages.AllStickers;
+messages.getFeaturedEmojiStickers#ecf6736 hash:long = messages.FeaturedStickers;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1807,10 +1809,10 @@ payments.getBankCardData#2e79d779 number:string = payments.BankCardData;
 payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoice;
 payments.assignAppStoreTransaction#80ed747d receipt:bytes purpose:InputStorePaymentPurpose = Updates;
 payments.assignPlayMarketTransaction#dffd50d3 receipt:DataJSON purpose:InputStorePaymentPurpose = Updates;
-payments.canPurchasePremium#aa6a90c8 = Bool;
+payments.canPurchasePremium#9fc19eb6 purpose:InputStorePaymentPurpose = Bool;
 payments.requestRecurringPayment#146e958d user_id:InputUser recurring_init_charge:string invoice_media:InputMedia = Updates;
 
-stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true emojis:flags.5?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
+stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
 stickers.changeStickerPosition#ffb6d4ca sticker:InputDocument position:int = messages.StickerSet;
 stickers.addStickerToSet#8653febe stickerset:InputStickerSet sticker:InputStickerSetItem = messages.StickerSet;
