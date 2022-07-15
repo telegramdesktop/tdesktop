@@ -265,6 +265,7 @@ public:
 		Fn<void()> hiddenCallback);
 	void showPremiumStickerTooltip(
 		not_null<const HistoryView::Element*> view);
+	void showPremiumToast(not_null<DocumentData*> document);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(

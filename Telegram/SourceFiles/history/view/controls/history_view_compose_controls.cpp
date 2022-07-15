@@ -811,6 +811,7 @@ MessageToEdit FieldHeader::queryToEdit() {
 ComposeControls::ComposeControls(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::SessionController*> window,
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
 	Mode mode,
 	SendMenu::Type sendMenuType)
 : _parent(parent)
@@ -847,6 +848,7 @@ ComposeControls::ComposeControls(
 		_send,
 		st::historySendSize.height()))
 , _sendMenuType(sendMenuType)
+, _unavailableEmojiPasted(unavailableEmojiPasted)
 , _saveDraftTimer([=] { saveDraft(); }) {
 	init();
 }
@@ -1420,7 +1422,7 @@ void ComposeControls::initField() {
 	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
 	//Ui::Connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
 	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
-	InitMessageField(_window, _field);
+	InitMessageField(_window, _field, _unavailableEmojiPasted);
 	initAutocomplete();
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
@@ -1963,7 +1965,7 @@ void ComposeControls::initVoiceRecordBar() {
 
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = [&]() -> std::optional<QString> {
-			const auto peer = _history ? _history->peer : nullptr;
+			const auto peer = _history ? _history->peer.get() : nullptr;
 			if (!peer) {
 				const auto type = ChatRestriction::SendMedia;
 				if (const auto error = Data::RestrictionError(peer, type)) {

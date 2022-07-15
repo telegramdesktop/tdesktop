@@ -394,7 +394,10 @@ HistoryWidget::HistoryWidget(
 		return _history ? _history->peer.get() : nullptr;
 	});
 
-	InitMessageField(controller, _field);
+	InitMessageField(controller, _field, [=](
+			not_null<DocumentData*> document) {
+		showPremiumToast(document);
+	});
 
 	_keyboard->sendCommandRequests(
 	) | rpl::start_with_next([=](Bot::SendCommandRequest r) {
@@ -6732,15 +6735,19 @@ void HistoryWidget::showPremiumStickerTooltip(
 		not_null<const HistoryView::Element*> view) {
 	if (const auto media = view->data()->media()) {
 		if (const auto document = media->document()) {
-			if (!_stickerToast) {
-				_stickerToast = std::make_unique<HistoryView::StickerToast>(
-					controller(),
-					_scroll.data(),
-					[=] { _stickerToast = nullptr; });
-			}
-			_stickerToast->showFor(document);
+			showPremiumToast(document);
 		}
 	}
+}
+
+void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
+	if (!_stickerToast) {
+		_stickerToast = std::make_unique<HistoryView::StickerToast>(
+			controller(),
+			_scroll.data(),
+			[=] { _stickerToast = nullptr; });
+	}
+	_stickerToast->showFor(document);
 }
 
 void HistoryWidget::setFieldText(

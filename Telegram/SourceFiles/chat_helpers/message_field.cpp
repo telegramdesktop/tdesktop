@@ -54,23 +54,29 @@ constexpr auto kParseLinksTimeout = crl::time(1000);
 // ignore tags for different users.
 class FieldTagMimeProcessor final {
 public:
-	explicit FieldTagMimeProcessor(not_null<Main::Session*> _session);
+	FieldTagMimeProcessor(
+		not_null<Main::Session*> _session,
+		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted);
 
 	QString operator()(QStringView mimeTag);
 
 private:
 	const not_null<Main::Session*> _session;
+	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 };
 
 FieldTagMimeProcessor::FieldTagMimeProcessor(
-	not_null<Main::Session*> session)
-: _session(session) {
+	not_null<Main::Session*> session,
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted)
+: _session(session)
+, _unavailableEmojiPasted(unavailableEmojiPasted) {
 }
 
 QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 	const auto id = _session->userId().bare;
 	auto all = TextUtilities::SplitTags(mimeTag);
+	auto premiumSkipped = (DocumentData*)nullptr;
 	for (auto i = all.begin(); i != all.end();) {
 		const auto tag = *i;
 		if (TextUtilities::IsMentionLink(tag)
@@ -86,13 +92,19 @@ QString FieldTagMimeProcessor::operator()(QStringView mimeTag) {
 			}
 			if (!_session->premium()) {
 				const auto document = _session->data().document(emoji.id);
-				if (document->isPremiumSticker()) {
+				if (document->isPremiumEmoji()) {
+					premiumSkipped = document;
 					i = all.erase(i);
 					continue;
 				}
 			}
 		}
 		++i;
+	}
+	if (premiumSkipped
+		&& _session->premiumPossible()
+		&& _unavailableEmojiPasted) {
+		_unavailableEmojiPasted(premiumSkipped);
 	}
 	return TextUtilities::JoinTag(all);
 }
@@ -301,8 +313,10 @@ void InitMessageFieldHandlers(
 		std::shared_ptr<Ui::Show> show,
 		not_null<Ui::InputField*> field,
 		Fn<bool()> customEmojiPaused,
+		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
 		const style::InputField *fieldStyle) {
-	field->setTagMimeProcessor(FieldTagMimeProcessor(session));
+	field->setTagMimeProcessor(
+		FieldTagMimeProcessor(session, unavailableEmojiPasted));
 	field->setCustomEmojiFactory([=](QStringView data, Fn<void()> update) {
 		return session->data().customEmojiManager().create(
 			data,
@@ -322,12 +336,14 @@ void InitMessageFieldHandlers(
 void InitMessageFieldHandlers(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::InputField*> field,
-		Window::GifPauseReason pauseReasonLevel) {
+		Window::GifPauseReason pauseReasonLevel,
+		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted) {
 	InitMessageFieldHandlers(
 		&controller->session(),
 		std::make_shared<Window::Show>(controller),
 		field,
-		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); });
+		[=] { return controller->isGifPausedAtLeastFor(pauseReasonLevel); },
+		unavailableEmojiPasted);
 }
 
 void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
@@ -341,8 +357,13 @@ void InitMessageFieldGeometry(not_null<Ui::InputField*> field) {
 
 void InitMessageField(
 		not_null<Window::SessionController*> controller,
-		not_null<Ui::InputField*> field) {
-	InitMessageFieldHandlers(controller, field, Window::GifPauseReason::Any);
+		not_null<Ui::InputField*> field,
+		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted) {
+	InitMessageFieldHandlers(
+		controller,
+		field,
+		Window::GifPauseReason::Any,
+		unavailableEmojiPasted);
 	InitMessageFieldGeometry(field);
 	field->customTab(true);
 }

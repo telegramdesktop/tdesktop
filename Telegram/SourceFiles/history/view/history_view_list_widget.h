@@ -119,6 +119,7 @@ public:
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
 		-> rpl::producer<std::optional<base::flat_set<QString>>> = 0;
+	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
 };
 
 struct SelectionData {
@@ -516,6 +517,8 @@ private:
 	void revealItemsCallback();
 
 	void startMessageSendingAnimation(not_null<HistoryItem*> item);
+	void showPremiumStickerTooltip(
+		not_null<const HistoryView::Element*> view);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.

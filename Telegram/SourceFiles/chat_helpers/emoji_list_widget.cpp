@@ -474,7 +474,7 @@ void EmojiListWidget::repaintLater(
 		DocumentId documentId,
 		uint64 setId,
 		Ui::CustomEmoji::RepaintRequest request) {
-	if (_instances.empty()) {
+	if (_instances.empty() || !request.when) {
 		return;
 	}
 	auto &repaint = _repaints[request.duration];

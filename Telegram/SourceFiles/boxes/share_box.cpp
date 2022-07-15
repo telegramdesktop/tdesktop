@@ -226,6 +226,7 @@ void ShareBox::prepareCommentField() {
 			_show,
 			field,
 			nullptr,
+			nullptr,
 			_descriptor.stLabel);
 	}
 	field->setSubmitSettings(Core::App().settings().sendSubmitWay());

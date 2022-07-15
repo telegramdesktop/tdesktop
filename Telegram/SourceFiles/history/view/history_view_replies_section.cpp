@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_list_widget.h"
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/history_view_pinned_bar.h"
+#include "history/view/history_view_sticker_toast.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -165,6 +166,7 @@ RepliesWidget::RepliesWidget(
 , _composeControls(std::make_unique<ComposeControls>(
 	this,
 	controller,
+	[=](not_null<DocumentData*> emoji) { listShowPremiumToast(emoji); },
 	ComposeControls::Mode::Normal,
 	SendMenu::Type::SilentOnly))
 , _scroll(std::make_unique<Ui::ScrollArea>(
@@ -2041,6 +2043,16 @@ CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 auto RepliesWidget::listAllowedReactionsValue()
 -> rpl::producer<std::optional<base::flat_set<QString>>> {
 	return Data::PeerAllowedReactionsValue(_history->peer);
+}
+
+void RepliesWidget::listShowPremiumToast(not_null<DocumentData*> document) {
+	if (!_stickerToast) {
+		_stickerToast = std::make_unique<HistoryView::StickerToast>(
+			controller(),
+			_scroll.get(),
+			[=] { _stickerToast = nullptr; });
+	}
+	_stickerToast->showFor(document);
 }
 
 void RepliesWidget::confirmDeleteSelected() {

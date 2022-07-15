@@ -49,14 +49,17 @@ void InitMessageFieldHandlers(
 	std::shared_ptr<Ui::Show> show,
 	not_null<Ui::InputField*> field,
 	Fn<bool()> customEmojiPaused,
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted = nullptr,
 	const style::InputField *fieldStyle = nullptr);
 void InitMessageFieldHandlers(
 	not_null<Window::SessionController*> controller,
 	not_null<Ui::InputField*> field,
-	Window::GifPauseReason pauseReasonLevel);
+	Window::GifPauseReason pauseReasonLevel,
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted = nullptr);
 void InitMessageField(
 	not_null<Window::SessionController*> controller,
-	not_null<Ui::InputField*> field);
+	not_null<Ui::InputField*> field,
+	Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted);
 
 void InitSpellchecker(
 	std::shared_ptr<Ui::Show> show,
