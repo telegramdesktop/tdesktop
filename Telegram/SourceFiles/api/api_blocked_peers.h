@@ -42,7 +42,10 @@ public:
 	void request(int offset, Fn<void(Slice)> onDone);
 
 	void block(not_null<PeerData*> peer);
-	void unblock(not_null<PeerData*> peer, Fn<void()> onDone = nullptr);
+	void unblock(
+		not_null<PeerData*> peer,
+		Fn<void()> onDone = nullptr,
+		bool force = false);
 
 private:
 	const not_null<Main::Session*> _session;

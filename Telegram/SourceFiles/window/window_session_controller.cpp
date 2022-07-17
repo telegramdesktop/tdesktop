@@ -73,6 +73,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_chat_invite.h"
 #include "api/api_global_privacy.h"
+#include "api/api_blocked_peers.h"
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
 #include "facades.h"
@@ -186,7 +187,14 @@ void SessionNavigation::showPeerByLink(const PeerByLinkInfo &info) {
 		});
 	} else if (const auto name = std::get_if<QString>(&info.usernameOrId)) {
 		resolveUsername(*name, [=](not_null<PeerData*> peer) {
-			showPeerByLinkResolved(peer, info);
+			if (info.startAutoSubmit) {
+				peer->session().api().blockedPeers().unblock(
+					peer,
+					[=] { showPeerByLinkResolved(peer, info); },
+					true);
+			} else {
+				showPeerByLinkResolved(peer, info);
+			}
 		});
 	} else if (const auto id = std::get_if<ChannelId>(&info.usernameOrId)) {
 		resolveChannelById(*id, [=](not_null<ChannelData*> channel) {
