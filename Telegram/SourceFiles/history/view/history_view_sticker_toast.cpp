@@ -150,6 +150,23 @@ void StickerToast::showWithTitle(const QString &title) {
 	}
 	strong->setInputUsed(true);
 	const auto widget = strong->widget();
+	const auto hideToast = [weak = _weak] {
+		if (const auto strong = weak.get()) {
+			strong->hideAnimated();
+		}
+	};
+
+	const auto clickableBackground = Ui::CreateChild<Ui::AbstractButton>(
+		widget.get());
+	clickableBackground->setPointerCursor(false);
+	clickableBackground->setAcceptBoth();
+	clickableBackground->show();
+	clickableBackground->addClickHandler([=](Qt::MouseButton button) {
+		if (button == Qt::RightButton) {
+			hideToast();
+		}
+	});
+
 	const auto button = Ui::CreateChild<Ui::RoundButton>(
 		widget.get(),
 		rpl::single(view),
@@ -164,6 +181,7 @@ void StickerToast::showWithTitle(const QString &title) {
 			0,
 			(outer.height() - inner.height()) / 2,
 			outer.width());
+		clickableBackground->resize(outer);
 	}, widget->lifetime());
 	const auto preview = Ui::CreateChild<Ui::RpWidget>(widget.get());
 	preview->moveToLeft(skip, skip);
@@ -175,13 +193,11 @@ void StickerToast::showWithTitle(const QString &title) {
 	} else {
 		setupLottiePreview(preview, size);
 	}
-	button->setClickedCallback([=, weak = _weak] {
+	button->setClickedCallback([=] {
 		_controller->show(
 			Box<StickerSetBox>(_controller, _for->sticker()->set),
 			Ui::LayerOption::KeepOther);
-		if (const auto strong = weak.get()) {
-			strong->hideAnimated();
-		}
+		hideToast();
 	});
 }
 
