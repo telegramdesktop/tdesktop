@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_blocked_peers.h"
 #include "settings/settings_common.h"
 #include "settings/settings_local_passcode.h"
+#include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "settings/settings_privacy_controllers.h"
 #include "base/timer_rpl.h"
 #include "boxes/edit_privacy_box.h"
@@ -53,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "facades.h"
+#include "styles/style_chat_helpers.h" // stickersPremiumLock.
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -113,6 +115,67 @@ rpl::producer<QString> PrivacyString(
 	});
 }
 
+void AddPremiumPrivacyButton(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<QString> label,
+		IconDescriptor &&descriptor,
+		Privacy::Key key,
+		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory) {
+	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
+	const auto session = &controller->session();
+	const auto button = AddButtonWithLabel(
+		container,
+		std::move(label),
+		PrivacyString(session, key),
+		st::settingsButton,
+		std::move(descriptor));
+	button->addClickHandler([=] {
+		if (!session->premium()) {
+			Settings::ShowPremium(controller, QString());
+			return;
+		}
+		*shower = session->api().userPrivacy().value(
+			key
+		) | rpl::take(
+			1
+		) | rpl::start_with_next([=](const Privacy::Rule &value) {
+			controller->show(
+				Box<EditPrivacyBox>(controller, controllerFactory(), value),
+				Ui::LayerOption::KeepOther);
+		});
+	});
+
+	const auto lock = Ui::CreateChild<Ui::RpWidget>(button.get());
+	const auto icon = lock->lifetime().make_state<Icon>(IconDescriptor{
+		&st::stickersPremiumLock,
+		kIconGray,
+		IconType::Round,
+	});
+	lock->resize(icon->size());
+	lock->paintRequest(
+	) | rpl::start_with_next([=] {
+		Painter p(lock);
+
+		icon->paint(p, 0, 0);
+	}, lock->lifetime());
+	button->sizeValue(
+	) | rpl::start_with_next([=,
+			left = st::settingsButton.iconLeft,
+			offset = (icon->size() / 3 * 2 * -1),
+			iconSize = descriptor.icon->size()](const QSize &s) {
+		lock->moveToLeft(
+			left + iconSize.width() + offset.width(),
+			(s.height() + iconSize.height()) / 2 + offset.height());
+	}, lock->lifetime());
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		lock->setVisible(!premium);
+	}, lock->lifetime());
+}
+
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {
 	return session->api().blockedPeers().slice(
 	) | rpl::map([](const Api::BlockedPeers::Slice &data) {
@@ -170,16 +233,18 @@ void SetupPrivacy(
 		{ &st::settingsIconVideoCalls, kIconGreen },
 		Key::Calls,
 		[] { return std::make_unique<CallsPrivacyController>(); });
+	AddPremiumPrivacyButton(
+		controller,
+		container,
+		tr::lng_settings_voices_privacy(),
+		{ &st::settingsPremiumIconVoice, kIconRed },
+		Key::Voices,
+		[=] { return std::make_unique<VoicesPrivacyController>(session); });
 	add(
 		tr::lng_settings_groups_invite(),
 		{ &st::settingsIconGroup, kIconDarkBlue },
 		Key::Invites,
 		[] { return std::make_unique<GroupsInvitePrivacyController>(); });
-	add(
-		tr::lng_settings_voices_privacy(),
-		{ &st::settingsPremiumIconVoice, kIconRed },
-		Key::Voices,
-		[=] { return std::make_unique<VoicesPrivacyController>(session); });
 
 	session->api().userPrivacy().reload(Api::UserPrivacy::Key::AddedByPhone);
 
