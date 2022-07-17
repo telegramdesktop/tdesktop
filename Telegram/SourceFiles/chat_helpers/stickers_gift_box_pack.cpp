@@ -44,6 +44,7 @@ void GiftBoxPack::load() {
 		MTP_inputStickerSetPremiumGifts(),
 		MTP_int(0) // Hash.
 	)).done([=](const MTPmessages_StickerSet &result) {
+		_requestId = 0;
 		result.match([&](const MTPDmessages_stickerSet &data) {
 			applySet(data);
 		}, [](const MTPDmessages_stickerSetNotModified &) {
@@ -63,6 +64,11 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 			documents.emplace(document->id, document);
 		}
 	}
+	if (!documents.empty()) {
+		// Fallback.
+		_documents.resize(1);
+		_documents[0] = documents.begin()->second.get();
+	}
 	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
 			const auto emoji = qs(data.vemoticon());
@@ -78,8 +84,8 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 							if (index < 0 || index >= _localMonths.size()) {
 								return;
 							}
-							if (_documents.empty()) {
-								_documents.resize(_localMonths.size());
+							if ((index + 1) > _documents.size()) {
+								_documents.resize((index + 1));
 							}
 							_documents[index] = (*document);
 						}
