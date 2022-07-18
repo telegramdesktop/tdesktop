@@ -2727,9 +2727,9 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 			}
 			close();
 		}),
-		.cancelled = crl::guard(this, [this](Fn<void()> &&close) {
+		.cancelled = [](Fn<void()> &&close) {
 			close();
-		}),
+		},
 	})));
 }
 

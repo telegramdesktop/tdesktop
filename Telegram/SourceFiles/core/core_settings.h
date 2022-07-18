@@ -67,7 +67,7 @@ struct RecentEmojiDocument {
 struct RecentEmojiId {
 	std::variant<EmojiPtr, RecentEmojiDocument> data;
 
-	friend inline auto operator<=>(
+	friend inline bool operator==(
 		RecentEmojiId,
 		RecentEmojiId) = default;
 };
