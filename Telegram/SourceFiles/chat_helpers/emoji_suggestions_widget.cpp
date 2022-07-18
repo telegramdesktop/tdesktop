@@ -22,6 +22,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/event_filter.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -37,8 +41,36 @@ constexpr auto kAnimationDuration = crl::time(120);
 
 } // namespace
 
-SuggestionsWidget::SuggestionsWidget(QWidget *parent)
+struct SuggestionsWidget::CustomInstance {
+	CustomInstance(
+		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
+		Fn<void(
+			not_null<Ui::CustomEmoji::Instance*>,
+			Ui::CustomEmoji::RepaintRequest)> repaintLater,
+		Fn<void()> repaint);
+
+	Ui::CustomEmoji::Instance emoji;
+	Ui::CustomEmoji::Object object;
+};
+
+SuggestionsWidget::CustomInstance::CustomInstance(
+	std::unique_ptr<Ui::CustomEmoji::Loader> loader,
+	Fn<void(
+		not_null<Ui::CustomEmoji::Instance*>,
+		Ui::CustomEmoji::RepaintRequest)> repaintLater,
+	Fn<void()> repaint)
+: emoji(
+	Ui::CustomEmoji::Loading(std::move(loader), Ui::CustomEmoji::Preview()),
+	std::move(repaintLater))
+, object(&emoji, std::move(repaint)) {
+}
+
+SuggestionsWidget::SuggestionsWidget(
+	QWidget *parent,
+	not_null<Main::Session*> session)
 : RpWidget(parent)
+, _session(session)
+, _repaintTimer([=] { invokeRepaints(); })
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -47,11 +79,13 @@ SuggestionsWidget::SuggestionsWidget(QWidget *parent)
 	setMouseTracking(true);
 }
 
+SuggestionsWidget::~SuggestionsWidget() = default;
+
 rpl::producer<bool> SuggestionsWidget::toggleAnimated() const {
 	return _toggleAnimated.events();
 }
 
-rpl::producer<QString> SuggestionsWidget::triggered() const {
+auto SuggestionsWidget::triggered() const -> rpl::producer<Chosen> {
 	return _triggered.events();
 }
 
@@ -60,7 +94,7 @@ void SuggestionsWidget::showWithQuery(const QString &query, bool force) {
 		return;
 	}
 	_query = query;
-	auto rows = getRowsByQuery();
+	auto rows = prependCustom(getRowsByQuery());
 	if (rows.empty()) {
 		_toggleAnimated.fire(false);
 	}
@@ -81,6 +115,142 @@ void SuggestionsWidget::selectFirstResult() {
 	if (!_rows.empty() && _selected < 0) {
 		setSelected(0);
 	}
+}
+
+auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
+-> std::vector<Row> {
+	if (rows.empty()) {
+		return {};
+	}
+	struct Custom {
+		not_null<DocumentData*> document;
+		not_null<EmojiPtr> emoji;
+		QString replacement;
+	};
+	auto custom = base::flat_multi_map<int, Custom>();
+	const auto premium = _session->premium();
+	const auto stickers = &_session->data().stickers();
+	for (const auto setId : stickers->emojiSetsOrder()) {
+		const auto i = stickers->sets().find(setId);
+		if (i == end(stickers->sets())) {
+			continue;
+		}
+		for (const auto &document : i->second->stickers) {
+			if (!premium && document->isPremiumEmoji()) {
+				// Skip the whole premium emoji set.
+				break;
+			}
+			if (const auto sticker = document->sticker()) {
+				if (const auto emoji = Ui::Emoji::Find(sticker->alt)) {
+					const auto j = ranges::find(
+						rows,
+						not_null{ emoji },
+						&Row::emoji);
+					if (j != end(rows)) {
+						custom.emplace(int(j - begin(rows)), Custom{
+							.document = document,
+							.emoji = j->emoji,
+							.replacement = j->replacement,
+						});
+					}
+				}
+			}
+		}
+	}
+	if (custom.empty()) {
+		return rows;
+	}
+	auto result = std::vector<Row>();
+	result.reserve(custom.size() + rows.size());
+	for (const auto &[position, one] : custom) {
+		result.push_back(Row(one.emoji, one.replacement));
+		result.back().document = one.document;
+		result.back().instance = resolveCustomInstance(one.document);
+	}
+	for (auto &row : rows) {
+		result.push_back(std::move(row));
+	}
+	return result;
+}
+
+auto SuggestionsWidget::resolveCustomInstance(
+	not_null<DocumentData*> document)
+-> not_null<CustomInstance*> {
+	const auto i = _instances.find(document);
+	if (i != end(_instances)) {
+		return i->second.get();
+	}
+	const auto repaintDelayed = [=](
+			not_null<Ui::CustomEmoji::Instance*> instance,
+			Ui::CustomEmoji::RepaintRequest request) {
+		if (_instances.empty() || !request.when) {
+			return;
+		}
+		auto &when = _repaints[request.duration];
+		if (when < request.when) {
+			when = request.when;
+		}
+		if (_repaintTimerScheduled) {
+			return;
+		}
+		scheduleRepaintTimer();
+	};
+	const auto repaintNow = [=] {
+		update();
+	};
+	auto instance = std::make_unique<CustomInstance>(
+		_session->data().customEmojiManager().createLoader(
+			document,
+			Data::CustomEmojiManager::SizeTag::Large),
+		std::move(repaintDelayed),
+		std::move(repaintNow));
+	return _instances.emplace(
+		document,
+		std::move(instance)
+	).first->second.get();
+}
+
+void SuggestionsWidget::scheduleRepaintTimer() {
+	_repaintTimerScheduled = true;
+	Ui::PostponeCall(this, [=] {
+		_repaintTimerScheduled = false;
+
+		auto next = crl::time();
+		for (const auto &[duration, when] : _repaints) {
+			if (!next || next > when) {
+				next = when;
+			}
+		}
+		if (next && (!_repaintNext || _repaintNext > next)) {
+			const auto now = crl::now();
+			if (now >= next) {
+				_repaintNext = 0;
+				_repaintTimer.cancel();
+				invokeRepaints();
+			} else {
+				_repaintNext = next;
+				_repaintTimer.callOnce(next - now);
+			}
+		}
+	});
+}
+
+void SuggestionsWidget::invokeRepaints() {
+	_repaintNext = 0;
+	auto invoke = false;
+	const auto now = crl::now();
+	for (auto i = begin(_repaints); i != end(_repaints);) {
+		if (i->second > now) {
+			++i;
+			continue;
+		}
+		invoke = true;
+		i = _repaints.erase(i);
+	}
+	if (invoke) {
+		update();
+	}
+	scheduleRepaintTimer();
 }
 
 SuggestionsWidget::Row::Row(
@@ -230,18 +400,20 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 			Ui::StickerHoverCorners);
 	}
 
+	const auto now = crl::now();
+	const auto preview = st::windowBgOver->c;
 	for (auto i = from; i != till; ++i) {
 		const auto &row = _rows[i];
 		const auto emoji = row.emoji;
 		const auto esize = Ui::Emoji::GetSizeLarge();
-		const auto x = i * _oneWidth;
-		const auto y = 0;
-		Ui::Emoji::Draw(
-			p,
-			emoji,
-			esize,
-			x + (_oneWidth - (esize / cIntRetinaFactor())) / 2,
-			y + (_oneWidth - (esize / cIntRetinaFactor())) / 2);
+		const auto size = esize / style::DevicePixelRatio();
+		const auto x = i * _oneWidth + (_oneWidth - size) / 2;
+		const auto y = (_oneWidth - size) / 2;
+		if (row.instance) {
+			row.instance->object.paint(p, x, y, now, preview, false);
+		} else {
+			Ui::Emoji::Draw(p, emoji, esize, x, y);
+		}
 	}
 	paintFadings(p);
 }
@@ -496,7 +668,10 @@ bool SuggestionsWidget::triggerSelectedRow() const {
 }
 
 void SuggestionsWidget::triggerRow(const Row &row) const {
-	_triggered.fire(row.emoji->text());
+	_triggered.fire({
+		row.emoji->text(),
+		row.document ? Data::SerializeCustomEmojiId(row.document) : QString()
+	});
 }
 
 void SuggestionsWidget::enterEventHook(QEnterEvent *e) {
@@ -525,7 +700,9 @@ SuggestionsController::SuggestionsController(
 		st::emojiSuggestionsDropdown);
 	_container->setAutoHiding(false);
 	_suggestions = _container->setOwnedWidget(
-		object_ptr<Ui::Emoji::SuggestionsWidget>(_container));
+		object_ptr<Ui::Emoji::SuggestionsWidget>(
+			_container,
+			session));
 
 	setReplaceCallback(nullptr);
 
@@ -559,8 +736,8 @@ SuggestionsController::SuggestionsController(
 		suggestionsUpdated(visible);
 	}, _lifetime);
 	_suggestions->triggered(
-	) | rpl::start_with_next([=](QString replacement) {
-		replaceCurrent(replacement);
+	) | rpl::start_with_next([=](const SuggestionsWidget::Chosen &chosen) {
+		replaceCurrent(chosen.emoji, chosen.customData);
 	}, _lifetime);
 	Core::App().emojiKeywords().refreshed(
 	) | rpl::start_with_next([=] {
@@ -589,8 +766,13 @@ SuggestionsController *SuggestionsController::Init(
 	result->setReplaceCallback([=](
 			int from,
 			int till,
-			const QString &replacement) {
-		field->commitInstantReplacement(from, till, replacement);
+			const QString &replacement,
+			const QString &customEmojiData) {
+		field->commitInstantReplacement(
+			from,
+			till,
+			replacement,
+			customEmojiData);
 	});
 	return result;
 }
@@ -599,11 +781,16 @@ void SuggestionsController::setReplaceCallback(
 	Fn<void(
 		int from,
 		int till,
-		const QString &replacement)> callback) {
+		const QString &replacement,
+		const QString &customEmojiData)> callback) {
 	if (callback) {
 		_replaceCallback = std::move(callback);
 	} else {
-		_replaceCallback = [=](int from, int till, const QString &replacement) {
+		_replaceCallback = [=](
+				int from,
+				int till,
+				const QString &replacement,
+				const QString &customEmojiData) {
 			auto cursor = _field->textCursor();
 			cursor.setPosition(from);
 			cursor.setPosition(till, QTextCursor::KeepAnchor);
@@ -667,7 +854,9 @@ QString SuggestionsController::getEmojiQuery() {
 			if (from >= position || till < position) {
 				continue;
 			}
-			if (fragment.charFormat().isImageFormat()) {
+			const auto format = fragment.charFormat();
+			if (format.isImageFormat()
+				|| format.objectType() == InputField::kCustomEmojiFormat) {
 				continue;
 			}
 			_queryStartPosition = from;
@@ -714,7 +903,9 @@ QString SuggestionsController::getEmojiQuery() {
 	return text;
 }
 
-void SuggestionsController::replaceCurrent(const QString &replacement) {
+void SuggestionsController::replaceCurrent(
+		const QString &replacement,
+		const QString &customEmojiData) {
 	const auto suggestion = getEmojiQuery();
 	if (suggestion.isEmpty()) {
 		showWithQuery(QString());
@@ -722,7 +913,7 @@ void SuggestionsController::replaceCurrent(const QString &replacement) {
 		const auto cursor = _field->textCursor();
 		const auto position = cursor.position();
 		const auto from = position - suggestion.size();
-		_replaceCallback(from, position, replacement);
+		_replaceCallback(from, position, replacement, customEmojiData);
 	}
 }
 

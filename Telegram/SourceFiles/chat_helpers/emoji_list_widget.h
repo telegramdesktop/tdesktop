@@ -196,8 +196,7 @@ private:
 	void drawEmoji(
 		QPainter &p,
 		QPoint position,
-		int section,
-		int index);
+		EmojiPtr emoji);
 	void drawCustom(
 		QPainter &p,
 		QPoint position,
@@ -234,11 +233,8 @@ private:
 	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
 		not_null<DocumentData*> document,
 		uint64 setId);
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+	[[nodiscard]] CustomInstance *resolveCustomInstance(
 		Core::RecentEmojiId customId);
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
-		DocumentId fakeId,
-		EmojiPtr emoji);
 	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
 		DocumentId documentId);
 	[[nodiscard]] std::unique_ptr<CustomInstance> customInstanceWithLoader(

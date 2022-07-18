@@ -27,19 +27,28 @@ namespace Emoji {
 
 class SuggestionsWidget final : public Ui::RpWidget {
 public:
-	SuggestionsWidget(QWidget *parent);
+	SuggestionsWidget(QWidget *parent, not_null<Main::Session*> session);
+	~SuggestionsWidget();
 
 	void showWithQuery(const QString &query, bool force = false);
 	void selectFirstResult();
 	bool handleKeyEvent(int key);
 
-	rpl::producer<bool> toggleAnimated() const;
-	rpl::producer<QString> triggered() const;
+	[[nodiscard]] rpl::producer<bool> toggleAnimated() const;
+
+	struct Chosen {
+		QString emoji;
+		QString customData;
+	};
+	[[nodiscard]] rpl::producer<Chosen> triggered() const;
 
 private:
+	struct CustomInstance;
 	struct Row {
 		Row(not_null<EmojiPtr> emoji, const QString &replacement);
 
+		CustomInstance *instance = nullptr;
+		DocumentData *document = nullptr;
 		not_null<EmojiPtr> emoji;
 		QString replacement;
 	};
@@ -56,7 +65,8 @@ private:
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
 	void paintFadings(Painter &p) const;
 
-	std::vector<Row> getRowsByQuery() const;
+	[[nodiscard]] std::vector<Row> getRowsByQuery() const;
+	[[nodiscard]] std::vector<Row> prependCustom(std::vector<Row> rows);
 	void resizeToRows();
 	void setSelected(
 		int selected,
@@ -77,8 +87,21 @@ private:
 	void scrollTo(int value, anim::type animated = anim::type::instant);
 	void stopAnimations();
 
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		not_null<DocumentData*> document);
+	void scheduleRepaintTimer();
+	void invokeRepaints();
+
+	const not_null<Main::Session*> _session;
 	QString _query;
 	std::vector<Row> _rows;
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::unique_ptr<CustomInstance>> _instances;
+	base::flat_map<crl::time, crl::time> _repaints;
+	bool _repaintTimerScheduled = false;
+	base::Timer _repaintTimer;
+	crl::time _repaintNext = 0;
 
 	std::optional<QPoint> _lastMousePosition;
 	bool _mouseSelection = false;
@@ -96,7 +119,7 @@ private:
 	int _dragScrollStart = -1;
 
 	rpl::event_stream<bool> _toggleAnimated;
-	rpl::event_stream<QString> _triggered;
+	rpl::event_stream<Chosen> _triggered;
 
 };
 
@@ -119,7 +142,8 @@ public:
 	void setReplaceCallback(Fn<void(
 		int from,
 		int till,
-		const QString &replacement)> callback);
+		const QString &replacement,
+		const QString &customEmojiData)> callback);
 
 	static SuggestionsController *Init(
 		not_null<QWidget*> outer,
@@ -135,7 +159,9 @@ private:
 	void suggestionsUpdated(bool visible);
 	void updateGeometry();
 	void updateForceHidden();
-	void replaceCurrent(const QString &replacement);
+	void replaceCurrent(
+		const QString &replacement,
+		const QString &customEmojiData);
 	bool fieldFilter(not_null<QEvent*> event);
 	bool outerFilter(not_null<QEvent*> event);
 
@@ -149,7 +175,8 @@ private:
 	Fn<void(
 		int from,
 		int till,
-		const QString &replacement)> _replaceCallback;
+		const QString &replacement,
+		const QString &customEmojiData)> _replaceCallback;
 	base::unique_qptr<InnerDropdown> _container;
 	QPointer<SuggestionsWidget> _suggestions;
 	base::unique_qptr<QObject> _fieldFilter;

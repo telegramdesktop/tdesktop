@@ -38,80 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace ChatHelpers {
 namespace {
 
-constexpr auto kFakeEmojiDocumentIdBase = 0x7777'FFFF'FFFF'0000ULL;
-
 using Core::RecentEmojiId;
 using Core::RecentEmojiDocument;
-
-[[nodiscard]] DocumentId FakeEmojiDocumentId(EmojiPtr emoji) {
-	return kFakeEmojiDocumentIdBase + emoji->index();
-}
-
-class DefaultEmojiLoader final : public Ui::CustomEmoji::Loader {
-public:
-	DefaultEmojiLoader(EmojiPtr emoji, int size);
-
-	QString entityData() override;
-
-	void load(Fn<void(LoadResult)> loaded) override;
-	bool loading() override;
-	void cancel() override;
-	Ui::CustomEmoji::Preview preview() override;
-
-private:
-	void validateImage();
-
-	EmojiPtr _emoji = nullptr;
-	QImage _image;
-	int _size = 0;
-
-};
-
-DefaultEmojiLoader::DefaultEmojiLoader(EmojiPtr emoji, int size)
-: _emoji(emoji)
-, _size(size) {
-}
-
-void DefaultEmojiLoader::load(Fn<void(LoadResult)> loaded) {
-	validateImage();
-	const auto data = entityData();
-	const auto unloader = [emoji = _emoji, size = _size] {
-		return std::make_unique<DefaultEmojiLoader>(emoji, size);
-	};
-	auto cache = Ui::CustomEmoji::Cache(_size);
-	cache.add(0, _image);
-	cache.finish();
-	loaded(Ui::CustomEmoji::Cached(data, unloader, std::move(cache)));
-}
-
-void DefaultEmojiLoader::validateImage() {
-	if (!_image.isNull()) {
-		return;
-	}
-	_image = QImage(
-		{ _size, _size },
-		QImage::Format_ARGB32_Premultiplied);
-	_image.setDevicePixelRatio(style::DevicePixelRatio());
-	_image.fill(Qt::transparent);
-	QPainter p(&_image);
-	Ui::Emoji::Draw(p, _emoji, _size, 0, 0);
-}
-
-QString DefaultEmojiLoader::entityData() {
-	return "default-emoji://" + _emoji->id();
-}
-
-bool DefaultEmojiLoader::loading() {
-	return false;
-}
-
-void DefaultEmojiLoader::cancel() {
-}
-
-Ui::CustomEmoji::Preview DefaultEmojiLoader::preview() {
-	validateImage();
-	return { _image };
-}
 
 } // namespace
 
@@ -181,7 +109,7 @@ struct EmojiListWidget::CustomInstance {
 };
 
 struct EmojiListWidget::RecentOne {
-	not_null<CustomInstance*> instance;
+	CustomInstance *instance = nullptr;
 	RecentEmojiId id;
 };
 
@@ -881,7 +809,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 					if (info.section == int(Section::Recent)) {
 						drawRecent(p, w, now, paused, index);
 					} else if (info.section < kEmojiSectionCount) {
-						drawEmoji(p, w, info.section, index);
+						drawEmoji(p, w, _emoji[info.section][index]);
 					} else {
 						const auto set = info.section - kEmojiSectionCount;
 						drawCustom(p, w, now, paused, set, index);
@@ -919,24 +847,29 @@ void EmojiListWidget::drawRecent(
 		int index) {
 	const auto size = (_esize / cIntRetinaFactor());
 	_recentPainted = true;
-	_recent[index].instance->object.paint(
-		p,
-		position.x() + (_singleSize.width() - size) / 2,
-		position.y() + (_singleSize.height() - size) / 2,
-		now,
-		st::windowBgRipple->c,
-		paused);
+	if (const auto emoji = std::get_if<EmojiPtr>(&_recent[index].id.data)) {
+		drawEmoji(p, position, *emoji);
+	} else {
+		Assert(_recent[index].instance != nullptr);
+
+		_recent[index].instance->object.paint(
+			p,
+			position.x() + (_singleSize.width() - size) / 2,
+			position.y() + (_singleSize.height() - size) / 2,
+			now,
+			st::windowBgRipple->c,
+			paused);
+	}
 }
 
 void EmojiListWidget::drawEmoji(
 		QPainter &p,
 		QPoint position,
-		int section,
-		int index) {
+		EmojiPtr emoji) {
 	const auto size = (_esize / cIntRetinaFactor());
 	Ui::Emoji::Draw(
 		p,
-		_emoji[section][index],
+		emoji,
 		_esize,
 		position.x() + (_singleSize.width() - size) / 2,
 		position.y() + (_singleSize.height() - size) / 2);
@@ -1385,7 +1318,7 @@ auto EmojiListWidget::resolveCustomInstance(
 		setId);
 	if (recentOnly) {
 		for (auto &recent : _recent) {
-			if (recent.instance == i->second.get()) {
+			if (recent.instance && recent.instance == i->second.get()) {
 				recent.instance = instance.get();
 			}
 		}
@@ -1399,33 +1332,14 @@ auto EmojiListWidget::resolveCustomInstance(
 
 auto EmojiListWidget::resolveCustomInstance(
 	RecentEmojiId customId)
--> not_null<CustomInstance*> {
+-> CustomInstance* {
 	const auto &data = customId.data;
 	if (const auto document = std::get_if<RecentEmojiDocument>(&data)) {
 		return resolveCustomInstance(document->id);
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&data)) {
-		return resolveCustomInstance(FakeEmojiDocumentId(*emoji), *emoji);
+		return nullptr;
 	}
 	Unexpected("Custom recent emoji id.");
-}
-
-auto EmojiListWidget::resolveCustomInstance(
-	DocumentId fakeId,
-	EmojiPtr emoji)
--> not_null<CustomInstance*> {
-	const auto i = _instances.find(fakeId);
-	if (i != end(_instances)) {
-		return i->second.get();
-	}
-	return _instances.emplace(
-		fakeId,
-		std::make_unique<CustomInstance>(
-			std::make_unique<DefaultEmojiLoader>(
-				emoji,
-				Ui::Emoji::GetSizeLarge()),
-			[](const auto&, const auto&) {},
-			[] {},
-			true)).first->second.get();
 }
 
 auto EmojiListWidget::resolveCustomInstance(
