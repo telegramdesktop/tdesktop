@@ -15,12 +15,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "mtproto/sender.h"
 #include "storage/storage_account.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/gradient_round_button.h"
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
@@ -35,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -46,6 +49,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -113,9 +117,10 @@ public:
 		not_null<Window::SessionController*> controller,
 		const StickerSetIdentifier &set);
 
-	bool loaded() const;
-	bool notInstalled() const;
-	bool official() const;
+	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] bool notInstalled() const;
+	[[nodiscard]] bool premiumEmojiSet() const;
+	[[nodiscard]] bool official() const;
 	[[nodiscard]] rpl::producer<TextWithEntities> title() const;
 	[[nodiscard]] QString shortName() const;
 	[[nodiscard]] bool isEmojiSet() const;
@@ -379,13 +384,29 @@ void StickerSetBox::updateButtons() {
 					: tr::lng_stickers_copied(tr::now)));
 		};
 		if (_inner->notInstalled()) {
-			auto addText = (type == Data::StickersType::Emoji)
-				? tr::lng_stickers_add_emoji()
-				: (type == Data::StickersType::Masks)
-				? tr::lng_stickers_add_masks()
-				: tr::lng_stickers_add_pack();
-			addButton(std::move(addText), [=] { addStickers(); });
-			addButton(tr::lng_cancel(), [=] { closeBox(); });
+			if (!_controller->session().premium()
+				&& _controller->session().premiumPossible()
+				&& _inner->premiumEmojiSet()) {
+				setStyle(st::premiumPreviewBox);
+				auto button = CreateUnlockButton(
+					this,
+					tr::lng_premium_unlock_emoji());
+				button->resizeToWidth(st::boxWideWidth
+					- st::premiumPreviewBox.buttonPadding.left()
+					- st::premiumPreviewBox.buttonPadding.left());
+				button->setClickedCallback([=] {
+					Settings::ShowPremium(_controller, u"animated_emoji"_q);
+				});
+				addButton(std::move(button));
+			} else {
+				auto addText = (type == Data::StickersType::Emoji)
+					? tr::lng_stickers_add_emoji()
+					: (type == Data::StickersType::Masks)
+					? tr::lng_stickers_add_masks()
+					: tr::lng_stickers_add_pack();
+				addButton(std::move(addText), [=] { addStickers(); });
+				addButton(tr::lng_cancel(), [=] { closeBox(); });
+			}
 
 			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
@@ -1117,6 +1138,12 @@ void StickerSetBox::Inner::paintSticker(
 
 bool StickerSetBox::Inner::loaded() const {
 	return _loaded && !_pack.isEmpty();
+}
+
+bool StickerSetBox::Inner::premiumEmojiSet() const {
+	return (_setFlags & SetFlag::Emoji)
+		&& !_pack.empty()
+		&& _pack.front()->isPremiumEmoji();
 }
 
 bool StickerSetBox::Inner::notInstalled() const {

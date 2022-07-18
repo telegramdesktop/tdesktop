@@ -7,10 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/object_ptr.h"
+
 class DocumentData;
 
 namespace Ui {
 class GenericBox;
+class GradientButton;
 } // namespace Ui
 
 namespace Window {
@@ -60,3 +63,7 @@ void ShowPremiumPreviewToBuy(
 	Fn<void()> hiddenCallback);
 
 void PremiumUnavailableBox(not_null<Ui::GenericBox*> box);
+
+[[nodiscard]] object_ptr<Ui::GradientButton> CreateUnlockButton(
+	QWidget *parent,
+	rpl::producer<QString> text);

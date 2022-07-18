@@ -1159,31 +1159,6 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	return CreateGradientButton(parent, Ui::Premium::ButtonGradientStops());
 }
 
-[[nodiscard]] object_ptr<Ui::GradientButton> CreateUnlockButton(
-		QWidget *parent,
-		rpl::producer<QString> text) {
-	auto result = CreatePremiumButton(parent);
-	const auto &st = st::premiumPreviewBox.button;
-	result->resize(result->width(), st.height);
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		result.data(),
-		std::move(text),
-		st::premiumPreviewButtonLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(
-		result->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([=](int outer, int width) {
-		label->moveToLeft(
-			(outer - width) / 2,
-			st::premiumPreviewBox.button.textTop,
-			outer);
-	}, label->lifetime());
-
-	return result;
-}
-
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateSwitch(
 		not_null<Ui::RpWidget*> parent,
 		not_null<rpl::variable<PremiumPreview>*> selected) {
@@ -1792,4 +1767,29 @@ void DoubledLimitsPreviewBox(
 		till,
 	});
 	Ui::Premium::ShowListBox(box, std::move(entries));
+}
+
+object_ptr<Ui::GradientButton> CreateUnlockButton(
+		QWidget *parent,
+		rpl::producer<QString> text) {
+	auto result = CreatePremiumButton(parent);
+	const auto &st = st::premiumPreviewBox.button;
+	result->resize(result->width(), st.height);
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		result.data(),
+		std::move(text),
+		st::premiumPreviewButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		result->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=](int outer, int width) {
+		label->moveToLeft(
+			(outer - width) / 2,
+			st::premiumPreviewBox.button.textTop,
+			outer);
+	}, label->lifetime());
+
+	return result;
 }

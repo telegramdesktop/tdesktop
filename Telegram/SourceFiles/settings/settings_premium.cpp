@@ -73,6 +73,7 @@ using Order = std::vector<QString>;
 		u"no_ads"_q,
 		u"unique_reactions"_q,
 		u"premium_stickers"_q,
+		u"animated_emoji"_q,
 		u"advanced_chat_management"_q,
 		u"profile_badge"_q,
 		u"animated_userpics"_q,
