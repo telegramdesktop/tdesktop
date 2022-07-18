@@ -771,7 +771,10 @@ void Notification::repaintText() {
 		return;
 	}
 	Painter p(&_cache);
-	p.fillRect(_textRect, st::notificationBg);
+	const auto adjusted = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+	const auto skip = (adjusted - st::emojiSize + 1) / 2;
+	const auto margin = QMargins{ skip, skip, skip, skip };
+	p.fillRect(_textRect.marginsAdded(margin), st::notificationBg);
 	paintText(p);
 	update();
 }
