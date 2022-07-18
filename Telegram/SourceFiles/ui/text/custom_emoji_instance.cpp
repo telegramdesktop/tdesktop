@@ -43,7 +43,10 @@ void Preview::paint(QPainter &p, int x, int y, const QColor &preview) {
 	if (const auto path = std::get_if<ScaledPath>(&_data)) {
 		paintPath(p, x, y, preview, *path);
 	} else if (const auto image = std::get_if<QImage>(&_data)) {
-		p.drawImage(x, y, *image);
+		const auto factor = style::DevicePixelRatio();
+		const auto width = image->width() / factor;
+		const auto height = image->height() / factor;
+		p.drawImage(QRect(x, y, width, height), *image);
 	}
 }
 
