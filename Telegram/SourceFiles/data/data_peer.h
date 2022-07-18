@@ -19,6 +19,7 @@ class ChatData;
 class ChannelData;
 
 enum class ChatRestriction;
+enum class UserRestriction;
 
 namespace Ui {
 class EmptyUserpic;
@@ -469,7 +470,9 @@ std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	ChatRestriction restriction);
 
-std::optional<QString> RestrictionVoicesError(not_null<PeerData*> peer);
+std::optional<QString> RestrictionError(
+	not_null<PeerData*> peer,
+	UserRestriction restriction);
 
 void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(

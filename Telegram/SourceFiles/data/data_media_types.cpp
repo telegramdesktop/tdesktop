@@ -918,6 +918,11 @@ QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
 					ChatRestriction::SendMedia)) {
 				return *error;
 			}
+			if (const auto error = Data::RestrictionError(
+					peer,
+					UserRestriction::SendVideoMessages)) {
+				return *error;
+			}
 		} else {
 			if (const auto error = Data::RestrictionError(
 					peer,
@@ -929,6 +934,12 @@ QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
 			peer,
 			ChatRestriction::SendMedia)) {
 		return *error;
+	} else if (_document->isVoiceMessage()) {
+		if (const auto error = Data::RestrictionError(
+				peer,
+				UserRestriction::SendVoiceMessages)) {
+			return *error;
+		}
 	}
 	return QString();
 }

@@ -943,11 +943,14 @@ void HistoryWidget::initVoiceRecordBar() {
 	_voiceRecordBar->setStartRecordingFilter([=] {
 		const auto error = [&]() -> std::optional<QString> {
 			if (_peer) {
-				const auto type = ChatRestriction::SendMedia;
-				if (const auto error = Data::RestrictionError(_peer, type)) {
+				if (const auto error = Data::RestrictionError(
+						_peer,
+						ChatRestriction::SendMedia)) {
 					return error;
 				}
-				if (const auto error = Data::RestrictionVoicesError(_peer)) {
+				if (const auto error = Data::RestrictionError(
+						_peer,
+						UserRestriction::SendVoiceMessages)) {
 					return error;
 				}
 			}

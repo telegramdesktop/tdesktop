@@ -1967,11 +1967,14 @@ void ComposeControls::initVoiceRecordBar() {
 		const auto error = [&]() -> std::optional<QString> {
 			const auto peer = _history ? _history->peer.get() : nullptr;
 			if (!peer) {
-				const auto type = ChatRestriction::SendMedia;
-				if (const auto error = Data::RestrictionError(peer, type)) {
+				if (const auto error = Data::RestrictionError(
+						peer,
+						ChatRestriction::SendMedia)) {
 					return error;
 				}
-				if (const auto error = Data::RestrictionVoicesError(peer)) {
+				if (const auto error = Data::RestrictionError(
+						peer,
+						UserRestriction::SendVoiceMessages)) {
 					return error;
 				}
 			}
