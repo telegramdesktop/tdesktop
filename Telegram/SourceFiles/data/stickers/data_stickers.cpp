@@ -1410,13 +1410,18 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 		}
 	}
 
+	const auto isEmoji = !!(set->flags & SetFlag::Emoji);
 	const auto isMasks = !!(set->flags & SetFlag::Masks);
 	if (pack.isEmpty()) {
-		const auto removeIndex = (isMasks
+		const auto removeIndex = (isEmoji
+			? emojiSetsOrder()
+			: isMasks
 			? maskSetsOrder()
 			: setsOrder()).indexOf(set->id);
 		if (removeIndex >= 0) {
-			(isMasks
+			(isEmoji
+				? emojiSetsOrderRef()
+				: isMasks
 				? maskSetsOrderRef()
 				: setsOrderRef()).removeAt(removeIndex);
 		}
@@ -1453,10 +1458,12 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 
 	if (set) {
 		const auto isArchived = !!(set->flags & SetFlag::Archived);
-		if (isMasks) {
-			session().local().writeInstalledMasks();
-		} else if (set->flags & SetFlag::Installed) {
-			if (!isArchived) {
+		if ((set->flags & SetFlag::Installed) && !isArchived) {
+			if (isEmoji) {
+				session().local().writeInstalledCustomEmoji();
+			} else if (isMasks) {
+				session().local().writeInstalledMasks();
+			} else {
 				session().local().writeInstalledStickers();
 			}
 		}
@@ -1464,7 +1471,9 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 			session().local().writeFeaturedStickers();
 		}
 		if (wasArchived != isArchived) {
-			if (isMasks) {
+			if (isEmoji) {
+
+			} else if (isMasks) {
 				session().local().writeArchivedMasks();
 			} else {
 				session().local().writeArchivedStickers();

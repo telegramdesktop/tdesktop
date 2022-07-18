@@ -26,8 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/message_reactions_list.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_item_base.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
+#include "ui/text/text_utilities.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/boxes/report_box.h"
@@ -37,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/delete_messages_box.h"
 #include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
+#include "boxes/stickers_box.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
@@ -48,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_message_reactions.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "base/platform/base_platform_info.h"
@@ -1208,6 +1212,123 @@ void ShowWhoReactedMenu(
 			(*menu)->popup(position);
 		}
 	}, lifetime);
+}
+
+std::vector<StickerSetIdentifier> CollectEmojiPacks(
+		not_null<HistoryItem*> item) {
+	auto result = std::vector<StickerSetIdentifier>();
+	const auto owner = &item->history()->owner();
+	for (const auto &entity : item->originalText().entities) {
+		if (entity.type() == EntityType::CustomEmoji) {
+			const auto data = Data::ParseCustomEmojiData(entity.data());
+			if (const auto set = owner->document(data.id)->sticker()) {
+				if (set->set.id
+					&& !ranges::contains(
+						result,
+						set->set.id,
+						&StickerSetIdentifier::id)) {
+					result.push_back(set->set);
+				}
+			}
+		}
+	}
+	return result;
+}
+
+void AddEmojiPacksAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<QWidget*> context,
+		std::vector<StickerSetIdentifier> packIds,
+		not_null<Window::SessionController*> controller) {
+	class Item final : public Ui::Menu::ItemBase {
+	public:
+		Item(
+			not_null<RpWidget*> parent,
+			const style::Menu &st,
+			TextWithEntities &&about)
+		: Ui::Menu::ItemBase(parent, st)
+		, _st(st)
+		, _text(base::make_unique_q<Ui::FlatLabel>(
+			this,
+			rpl::single(std::move(about)),
+			st::historyHasCustomEmoji))
+		, _dummyAction(new QAction(parent)) {
+			enableMouseSelecting();
+			_text->setAttribute(Qt::WA_TransparentForMouseEvents);
+			parent->widthValue() | rpl::start_with_next([=](int width) {
+				const auto top = st::historyHasCustomEmojiPosition.y();
+				const auto skip = st::historyHasCustomEmojiPosition.x();
+				_text->resizeToWidth(width - 2 * skip);
+				_text->moveToLeft(skip, top);
+				resize(width, contentHeight());
+			}, lifetime());
+		}
+
+		not_null<QAction*> action() const override {
+			return _dummyAction;
+		}
+
+		bool isEnabled() const override {
+			return true;
+		}
+
+	private:
+		int contentHeight() const override {
+			const auto skip = st::historyHasCustomEmojiPosition.y();
+			return skip + _text->height() + skip;
+		}
+
+		void paintEvent(QPaintEvent *e) override {
+			auto p = QPainter(this);
+			const auto selected = isSelected();
+			p.fillRect(rect(), selected ? _st.itemBgOver : _st.itemBg);
+			RippleButton::paintRipple(p, 0, 0);
+		}
+
+		const style::Menu &_st;
+		const base::unique_qptr<Ui::FlatLabel> _text;
+		const not_null<QAction*> _dummyAction;
+
+	};
+
+	const auto count = int(packIds.size());
+	const auto manager = &controller->session().data().customEmojiManager();
+	const auto name = (count == 1)
+		? TextWithEntities{ manager->lookupSetName(packIds[0].id) }
+		: TextWithEntities();
+	if (!menu->empty()) {
+		menu->addSeparator();
+	}
+	auto button = base::make_unique_q<Item>(
+		menu,
+		menu->st().menu,
+		(name.text.isEmpty()
+			? tr::lng_context_animated_emoji_many(
+				tr::now,
+				lt_count,
+				count,
+				Ui::Text::RichLangValue)
+			: tr::lng_context_animated_emoji(
+				tr::now,
+				lt_name,
+				TextWithEntities{ name },
+				Ui::Text::RichLangValue)));
+	const auto weak = base::make_weak(controller.get());
+	button->setClickedCallback([=] {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		} else if (packIds.size() > 1) {
+			strong->show(Box<StickersBox>(strong, packIds));
+			return;
+		}
+		// Single used emoji pack.
+		strong->show(
+			Box<StickerSetBox>(strong, packIds.front()),
+			Ui::LayerOption::KeepOther);
+
+	});
+	menu->addAction(std::move(button));
 }
 
 } // namespace HistoryView

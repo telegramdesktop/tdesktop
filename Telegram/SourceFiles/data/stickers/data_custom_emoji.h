@@ -49,6 +49,8 @@ public:
 		DocumentId documentId,
 		SizeTag tag);
 
+	[[nodiscard]] QString lookupSetName(uint64 setId);
+
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;
 
@@ -65,6 +67,7 @@ private:
 		Ui::CustomEmoji::RepaintRequest request);
 	void scheduleRepaintTimer();
 	void invokeRepaints();
+	void requestSetFor(not_null<DocumentData*> document);
 
 	const not_null<Session*> _owner;
 
@@ -81,6 +84,7 @@ private:
 	crl::time _repaintNext = 0;
 	base::Timer _repaintTimer;
 	bool _repaintTimerScheduled = false;
+	bool _requestSetsScheduled = false;
 
 };
 

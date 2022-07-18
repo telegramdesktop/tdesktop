@@ -415,6 +415,12 @@ std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 	return result;
 }
 
+QString CustomEmojiManager::lookupSetName(uint64 setId) {
+	const auto &sets = _owner->stickers().sets();
+	const auto i = sets.find(setId);
+	return (i != end(sets)) ? i->second->title : QString();
+}
+
 void CustomEmojiManager::request() {
 	auto ids = QVector<MTPlong>();
 	ids.reserve(std::min(kMaxPerRequest, int(_pendingForRequest.size())));
@@ -440,12 +446,37 @@ void CustomEmojiManager::request() {
 					}
 				}
 			}
+			requestSetFor(document);
 		}
 		requestFinished();
 	}).fail([=] {
 		LOG(("API Error: Failed to get documents for emoji."));
 		requestFinished();
 	}).send();
+}
+
+void CustomEmojiManager::requestSetFor(not_null<DocumentData*> document) {
+	const auto sticker = document->sticker();
+	if (!sticker || !sticker->set.id) {
+		return;
+	}
+	const auto &sets = document->owner().stickers().sets();
+	const auto i = sets.find(sticker->set.id);
+	if (i != end(sets)) {
+		return;
+	}
+	const auto session = &document->session();
+	session->api().scheduleStickerSetRequest(
+		sticker->set.id,
+		sticker->set.accessHash);
+	if (_requestSetsScheduled) {
+		return;
+	}
+	_requestSetsScheduled = true;
+	crl::on_main(this, [=] {
+		_requestSetsScheduled = false;
+		session->api().requestStickerSets();
+	});
 }
 
 void CustomEmojiManager::requestFinished() {

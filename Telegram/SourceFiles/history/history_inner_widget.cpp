@@ -2412,6 +2412,16 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
+	auto emojiPackIds = _dragStateItem
+		? HistoryView::CollectEmojiPacks(_dragStateItem)
+		: std::vector<StickerSetIdentifier>();
+	if (!emojiPackIds.empty()) {
+		HistoryView::AddEmojiPacksAction(
+			_menu,
+			this,
+			std::move(emojiPackIds),
+			_controller);
+	}
 	if (hasWhoReactedItem) {
 		HistoryView::AddWhoReactedAction(
 			_menu,

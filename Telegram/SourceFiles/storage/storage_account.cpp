@@ -2128,7 +2128,14 @@ void Account::writeInstalledCustomEmoji() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_installedCustomEmojiKey, [](const Data::StickersSet &set) {
-		if (!(set.flags & SetFlag::Emoji) || set.stickers.isEmpty()) {
+		if (!(set.flags & SetFlag::Emoji)) {
+			return StickerSetCheckResult::Skip;
+		} else if (set.flags & SetFlag::NotLoaded) {
+			// waiting to receive
+			return StickerSetCheckResult::Abort;
+		} else if (!(set.flags & SetFlag::Installed)
+			|| (set.flags & SetFlag::Archived)
+			|| set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;

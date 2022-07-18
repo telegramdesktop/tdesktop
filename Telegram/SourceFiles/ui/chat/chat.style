@@ -1087,3 +1087,13 @@ msgServiceGiftBoxButtonPadding: margins(0px, 17px, 0px, 17px);
 msgServiceGiftBoxTitlePadding: margins(0px, 126px, 0px, 2px);
 msgServiceGiftBoxStickerTop: -30px;
 msgServiceGiftBoxStickerSize: size(150px, 150px);
+
+historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(12px);
+		linkFont: font(12px underline);
+		linkFontOver: font(12px underline);
+	}
+	minWidth: 80px;
+}
+historyHasCustomEmojiPosition: point(12px, 4px);
