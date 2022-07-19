@@ -258,7 +258,10 @@ public:
 
 	bool isQuitPrevent();
 
-	void jumpToDate(Dialogs::Key chat, const QDate &date);
+	void resolveJumpToDate(
+		Dialogs::Key chat,
+		const QDate &date,
+		Fn<void(not_null<PeerData*>, MsgId)> callback);
 
 	using SliceType = Data::LoadDirection;
 	void requestSharedMedia(
@@ -445,7 +448,10 @@ private:
 	void requestSavedGifs(TimeId now);
 	void readFeaturedSets();
 
-	void jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date);
+	void resolveJumpToHistoryDate(
+		not_null<PeerData*> peer,
+		const QDate &date,
+		Fn<void(not_null<PeerData*>, MsgId)> callback);
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,

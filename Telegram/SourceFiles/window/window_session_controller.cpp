@@ -1441,12 +1441,19 @@ void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 			button->setPointerCursor(false);
 		}
 	};
+	const auto weak = base::make_weak(this);
+	const auto jump = [=](const QDate &date) {
+		const auto open = [=](not_null<PeerData*> peer, MsgId id) {
+			if (const auto strong = weak.get()) {
+				strong->showPeerHistory(peer, SectionShow::Way::Forward, id);
+			}
+		};
+		session().api().resolveJumpToDate(chat, date, open);
+	};
 	show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
 		.month = highlighted,
 		.highlighted = highlighted,
-		.callback = [=](const QDate &date) {
-			session().api().jumpToDate(chat, date);
-		},
+		.callback = [=](const QDate &date) { jump(date); },
 		.minDate = minPeerDate,
 		.maxDate = maxPeerDate,
 		.allowsSelection = history->peer->isUser(),

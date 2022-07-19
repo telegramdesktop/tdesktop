@@ -2865,9 +2865,12 @@ void ApiWrap::readFeaturedSets() {
 	}
 }
 
-void ApiWrap::jumpToDate(Dialogs::Key chat, const QDate &date) {
+void ApiWrap::resolveJumpToDate(
+		Dialogs::Key chat,
+		const QDate &date,
+		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto peer = chat.peer()) {
-		jumpToHistoryDate(peer, date);
+		resolveJumpToHistoryDate(peer, date, std::move(callback));
 	}
 }
 
@@ -2939,20 +2942,22 @@ void ApiWrap::requestMessageAfterDate(
 	}).send();
 }
 
-void ApiWrap::jumpToHistoryDate(not_null<PeerData*> peer, const QDate &date) {
+void ApiWrap::resolveJumpToHistoryDate(
+		not_null<PeerData*> peer,
+		const QDate &date,
+		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto channel = peer->migrateTo()) {
-		jumpToHistoryDate(channel, date);
-		return;
+		return resolveJumpToHistoryDate(channel, date, std::move(callback));
 	}
 	const auto jumpToDateInPeer = [=] {
 		requestMessageAfterDate(peer, date, [=](MsgId resultId) {
-			Ui::showPeerHistory(peer, resultId);
+			callback(peer, resultId);
 		});
 	};
 	if (const auto chat = peer->migrateFrom()) {
 		requestMessageAfterDate(chat, date, [=](MsgId resultId) {
 			if (resultId) {
-				Ui::showPeerHistory(chat, resultId);
+				callback(chat, resultId);
 			} else {
 				jumpToDateInPeer();
 			}
