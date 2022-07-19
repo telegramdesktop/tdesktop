@@ -160,9 +160,15 @@ struct NativeMethodDetails {
 	bool canSaveInformation = false;
 };
 
+struct PaymentMethodAdditional {
+	QString title;
+	QString url;
+};
+
 struct PaymentMethodDetails {
 	QString title;
 	NativeMethodDetails native;
+	std::vector<PaymentMethodAdditional> additionalMethods;
 	QString url;
 	QString provider;
 	bool ready = false;

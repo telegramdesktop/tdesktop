@@ -318,6 +318,9 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 			processSavedCredentials(data);
 		});
 	}
+	if (const auto additional = data.vadditional_methods()) {
+		processAdditionalPaymentMethods(additional->v);
+	}
 	fillPaymentMethodInformation();
 	_updates.fire(FormReady{});
 }
@@ -468,6 +471,18 @@ void Form::processSavedCredentials(
 		.title = qs(data.vtitle()),
 	};
 	refreshPaymentMethodDetails();
+}
+
+void Form::processAdditionalPaymentMethods(
+		const QVector<MTPPaymentFormMethod> &list) {
+	_paymentMethod.ui.additionalMethods = ranges::views::all(
+		list
+	) | ranges::views::transform([](const MTPPaymentFormMethod &method) {
+		return Ui::PaymentMethodAdditional{
+			.title = qs(method.data().vtitle()),
+			.url = qs(method.data().vurl()),
+		};
+	}) | ranges::to_vector;
 }
 
 void Form::refreshPaymentMethodDetails() {

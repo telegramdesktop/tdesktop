@@ -256,6 +256,8 @@ private:
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
 	void processSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data);
+	void processAdditionalPaymentMethods(
+		const QVector<MTPPaymentFormMethod> &list);
 	void processShippingOptions(const QVector<MTPShippingOption> &data);
 	void fillPaymentMethodInformation();
 	void fillStripeNativeMethod(QJsonObject object);

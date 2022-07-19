@@ -443,6 +443,26 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 	}
 }
 
+void Panel::showAdditionalMethod(
+		const QString &provider,
+		const PaymentMethodAdditional &method) {
+	auto bottomText = tr::lng_payments_processed_by(
+		lt_provider,
+		rpl::single(provider));
+	setTitle(rpl::single(method.title));
+	if (!showWebview(method.url, true, std::move(bottomText))) {
+		const auto available = Webview::Availability();
+		if (available.error != Webview::Available::Error::None) {
+			showWebviewError(
+				tr::lng_payments_webview_no_use(tr::now),
+				available);
+		} else {
+			showCriticalError({ "Error: Could not initialize WebView." });
+		}
+		_widget->setBackAllowed(true);
+	}
+}
+
 void Panel::showWebviewProgress() {
 	if (_webviewProgress && _progress && _progress->shown) {
 		return;
@@ -572,20 +592,37 @@ postEvent: function(eventType, eventData) {
 }
 
 void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
-	if (!method.ready) {
+	const auto hasSaved = method.ready;
+	if (!hasSaved && method.additionalMethods.empty()) {
 		showEditPaymentMethod(method);
 		return;
 	}
 	showBox(Box([=](not_null<GenericBox*> box) {
 		const auto save = [=](int option) {
-			if (option) {
+			const auto basic = hasSaved ? 1 : 0;
+			if (option > basic) {
+				const auto index = option - basic - 1;
+				Assert(index < method.additionalMethods.size());
+				showAdditionalMethod(
+					method.provider,
+					method.additionalMethods[index]);
+			} else if (!option) {
 				showEditPaymentMethod(method);
 			}
 		};
+		auto options = std::vector{
+			tr::lng_payments_new_card(tr::now),
+		};
+		if (hasSaved) {
+			options.push_back(method.title);
+		}
+		for (const auto &additional : method.additionalMethods) {
+			options.push_back(additional.title);
+		}
 		SingleChoiceBox(box, {
 			.title = tr::lng_payments_payment_method(),
-			.options = { method.title, tr::lng_payments_new_card(tr::now) },
-			.initialSelection = 0,
+			.options = std::move(options),
+			.initialSelection = hasSaved ? 1 : -1,
 			.callback = save,
 		});
 	}));

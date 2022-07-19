@@ -36,6 +36,7 @@ class FormSummary;
 class EditInformation;
 class EditCard;
 struct PaymentMethodDetails;
+struct PaymentMethodAdditional;
 struct NativeMethodDetails;
 
 class Panel final {
@@ -61,6 +62,9 @@ public:
 		const RequestedInformation &current,
 		InformationField field);
 	void showEditPaymentMethod(const PaymentMethodDetails &method);
+	void showAdditionalMethod(
+		const QString &provider,
+		const PaymentMethodAdditional &method);
 	void showEditCard(
 		const NativeMethodDetails &native,
 		CardField field);
