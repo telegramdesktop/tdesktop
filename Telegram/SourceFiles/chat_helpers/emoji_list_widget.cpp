@@ -1422,9 +1422,11 @@ void EmojiListWidget::updateSelected() {
 	auto info = sectionInfoByOffset(p.y());
 	auto section = info.section;
 	if (p.y() >= info.top && p.y() < info.rowsTop) {
-		if (hasRemoveButton(section) && myrtlrect(removeButtonRect(section)).contains(p.x(), p.y())) {
+		if (hasRemoveButton(section)
+			&& myrtlrect(
+				removeButtonRect(section)).contains(p.x(), p.y())) {
 			newSelected = OverButton{ section };
-		} else {
+		} else if (section >= kEmojiSectionCount) {
 			newSelected = OverSet{ section };
 		}
 	} else if (p.y() >= info.rowsTop && p.y() < info.rowsBottom) {

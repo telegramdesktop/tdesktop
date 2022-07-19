@@ -228,8 +228,16 @@ public:
 	std::optional<std::vector<not_null<EmojiPtr>>> getEmojiListFromSet(
 		not_null<DocumentData*> document);
 
-	StickersSet *feedSet(const MTPDstickerSet &data);
-	StickersSet *feedSetFull(const MTPDmessages_stickerSet &d);
+	not_null<StickersSet*> feedSet(const MTPStickerSet &data);
+	not_null<StickersSet*> feedSetFull(const MTPDmessages_stickerSet &data);
+	not_null<StickersSet*> feedSetCovered(const MTPStickerSetCovered &data);
+	void feedSetStickers(
+		not_null<StickersSet*> set,
+		const QVector<MTPDocument> &documents,
+		const QVector<MTPStickerPack> &packs);
+	void feedSetCovers(
+		not_null<StickersSet*> set,
+		const QVector<MTPDocument> &documents);
 	void newSetReceived(const MTPDmessages_stickerSet &set);
 
 	QString getSetTitle(const MTPDstickerSet &s);
@@ -266,7 +274,7 @@ private:
 		const std::vector<TimeId> &&dates,
 		const QVector<MTPStickerPack> &packs);
 	void somethingReceived(
-		const QVector<MTPStickerSet> &data,
+		const QVector<MTPStickerSet> &list,
 		uint64 hash,
 		StickersType type);
 

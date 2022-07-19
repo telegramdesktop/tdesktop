@@ -348,38 +348,17 @@ void StickersListWidget::preloadMoreOfficial() {
 			const auto &list = data.vsets().v;
 			_officialOffset += list.size();
 			for (int i = 0, l = list.size(); i != l; ++i) {
-				auto &data = list[i];
-				const auto setData = data.match([&](const auto &data) {
-					return data.vset().match([](const MTPDstickerSet &data) {
-						return &data;
-					});
-				});
-				const auto covers = data.match([](const MTPDstickerSetCovered &) {
-					return StickersPack();
-				}, [&](const MTPDstickerSetMultiCovered &data) {
-					auto result = StickersPack();
-					for (const auto &cover : data.vcovers().v) {
-						const auto document = session().data().processDocument(cover);
-						if (document->sticker()) {
-							result.push_back(document);
-						}
-					}
-					return result;
-				});
-				if (const auto set = session().data().stickers().feedSet(*setData)) {
-					if (!covers.empty()) {
-						set->covers = covers;
-					}
-					if (set->stickers.empty() && set->covers.empty()) {
-						continue;
-					}
-					const auto externalLayout = true;
-					appendSet(
-						_officialSets,
-						set->id,
-						externalLayout,
-						AppendSkip::Installed);
+				const auto set = session().data().stickers().feedSetCovered(
+					list[i]);
+				if (set->stickers.empty() && set->covers.empty()) {
+					continue;
 				}
+				const auto externalLayout = true;
+				appendSet(
+					_officialSets,
+					set->id,
+					externalLayout,
+					AppendSkip::Installed);
 			}
 		});
 		resizeToWidth(width());
@@ -800,40 +779,12 @@ void StickersListWidget::searchResultsDone(
 			std::vector<uint64>()).first;
 	}
 	auto &d = result.c_messages_foundStickerSets();
-	for (const auto &stickerSet : d.vsets().v) {
-		const MTPDstickerSet *setData = nullptr;
-		StickersPack covers;
-		switch (stickerSet.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-			for (const auto &cover : d.vcovers().v) {
-				const auto document = session().data().processDocument(cover);
-				if (document->sticker()) {
-					covers.push_back(document);
-				}
-			}
-		} break;
+	for (const auto &data : d.vsets().v) {
+		const auto set = session().data().stickers().feedSetCovered(data);
+		if (set->stickers.empty() && set->covers.empty()) {
+			continue;
 		}
-		if (!setData) continue;
-
-		if (const auto set = session().data().stickers().feedSet(*setData)) {
-			if (!covers.empty()) {
-				set->covers = covers;
-			}
-			if (set->stickers.empty() && set->covers.empty()) {
-				continue;
-			}
-			it->second.push_back(set->id);
-		}
+		it->second.push_back(set->id);
 	}
 	showSearchResults();
 }

@@ -351,36 +351,19 @@ void Stickers::applyArchivedResult(
 
 	auto masksCount = 0;
 	auto stickersCount = 0;
-	for (const auto &stickerSet : v) {
-		const MTPDstickerSet *setData = nullptr;
-		switch (stickerSet.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-		} break;
+	for (const auto &data : v) {
+		const auto set = feedSetCovered(data);
+		if (set->flags & SetFlag::NotLoaded) {
+			setsToRequest.insert(set->id, set->accessHash);
 		}
-		if (setData) {
-			auto set = feedSet(*setData);
-			if (set->stickers.isEmpty()) {
-				setsToRequest.insert(set->id, set->accessHash);
-			}
-			const auto masks = !!(set->flags & SetFlag::Masks);
-			(masks ? masksCount : stickersCount)++;
-			auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
-			const auto index = order.indexOf(set->id);
-			if (index >= 0) {
-				order.removeAt(index);
-			}
-			archived.push_back(set->id);
+		const auto masks = !!(set->flags & SetFlag::Masks);
+		(masks ? masksCount : stickersCount)++;
+		auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
+		const auto index = order.indexOf(set->id);
+		if (index >= 0) {
+			order.removeAt(index);
 		}
+		archived.push_back(set->id);
 	}
 	if (!setsToRequest.isEmpty()) {
 		for (auto i = setsToRequest.cbegin(), e = setsToRequest.cend(); i != e; ++i) {
@@ -686,7 +669,7 @@ void Stickers::emojiReceived(
 }
 
 void Stickers::somethingReceived(
-		const QVector<MTPStickerSet> &data,
+		const QVector<MTPStickerSet> &list,
 		uint64 hash,
 		StickersType type) {
 	auto &setsOrder = (type == StickersType::Emoji)
@@ -711,11 +694,8 @@ void Stickers::somethingReceived(
 			set->installDate = 0;
 		}
 	}
-	for (const auto &setData : data) {
-		if (setData.type() != mtpc_stickerSet) {
-			continue;
-		}
-		const auto set = feedSet(setData.c_stickerSet());
+	for (const auto &info : list) {
+		const auto set = feedSet(info);
 		if (!(set->flags & SetFlag::Archived)
 			|| (set->flags & SetFlag::Official)) {
 			setsOrder.push_back(set->id);
@@ -1279,8 +1259,9 @@ std::optional<std::vector<not_null<EmojiPtr>>> Stickers::getEmojiListFromSet(
 	return std::nullopt;
 }
 
-StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
+not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 	auto &sets = setsRef();
+	const auto &data = info.data();
 	auto it = sets.find(data.vid().v);
 	auto title = getSetTitle(data);
 	auto oldFlags = StickersSetFlags(0);
@@ -1356,31 +1337,50 @@ StickersSet *Stickers::feedSet(const MTPDstickerSet &data) {
 	return it->second.get();
 }
 
-StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
-	Expects(d.vset().type() == mtpc_stickerSet);
+not_null<StickersSet*> Stickers::feedSetFull(
+		const MTPDmessages_stickerSet &data) {
+	const auto set = feedSet(data.vset());
+	feedSetStickers(set, data.vdocuments().v, data.vpacks().v);
+	return set;
+}
 
-	const auto &s = d.vset().c_stickerSet();
+not_null<StickersSet*> Stickers::feedSetCovered(
+		const MTPStickerSetCovered &data) {
+	const auto set = data.match([&](const auto &data) {
+		return feedSet(data.vset());
+	});
+	data.match([](const MTPDstickerSetCovered &data) {
+	}, [&](const MTPDstickerSetMultiCovered &data) {
+		feedSetCovers(set, data.vcovers().v);
+	}, [&](const MTPDstickerSetFullCovered &data) {
+		feedSetStickers(set, data.vdocuments().v, data.vpacks().v);
+	});
+	return set;
+}
+
+void Stickers::feedSetStickers(
+		not_null<StickersSet*> set,
+		const QVector<MTPDocument> &documents,
+		const QVector<MTPStickerPack> &packs) {
+	set->flags &= ~SetFlag::NotLoaded;
 
 	auto &sets = setsRef();
 	const auto wasArchived = [&] {
-		auto it = sets.find(s.vid().v);
+		const auto it = sets.find(set->id);
 		return (it != sets.end())
 			&& (it->second->flags & SetFlag::Archived);
 	}();
 
-	auto set = feedSet(s);
-
-	set->flags &= ~SetFlag::NotLoaded;
-
-	const auto &d_docs = d.vdocuments().v;
 	auto customIt = sets.find(Stickers::CustomSetId);
 	const auto inputSet = set->identifier();
 
 	auto pack = StickersPack();
-	pack.reserve(d_docs.size());
-	for (const auto &item : d_docs) {
+	pack.reserve(documents.size());
+	for (const auto &item : documents) {
 		const auto document = owner().processDocument(item);
-		if (!document->sticker()) continue;
+		if (!document->sticker()) {
+			continue;
+		}
 
 		pack.push_back(document);
 		if (!document->sticker()->set.id) {
@@ -1402,7 +1402,8 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 	auto writeRecent = false;
 	auto &recent = getRecentPack();
 	for (auto i = recent.begin(); i != recent.cend();) {
-		if (set->stickers.indexOf(i->first) >= 0 && pack.indexOf(i->first) < 0) {
+		if (set->stickers.indexOf(i->first) >= 0
+			&& pack.indexOf(i->first) < 0) {
 			i = recent.erase(i);
 			writeRecent = true;
 		} else {
@@ -1412,43 +1413,24 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 
 	const auto isEmoji = !!(set->flags & SetFlag::Emoji);
 	const auto isMasks = !!(set->flags & SetFlag::Masks);
-	if (pack.isEmpty()) {
-		const auto removeIndex = (isEmoji
-			? emojiSetsOrder()
-			: isMasks
-			? maskSetsOrder()
-			: setsOrder()).indexOf(set->id);
-		if (removeIndex >= 0) {
-			(isEmoji
-				? emojiSetsOrderRef()
-				: isMasks
-				? maskSetsOrderRef()
-				: setsOrderRef()).removeAt(removeIndex);
-		}
-		sets.remove(set->id);
-		set = nullptr;
-	} else {
-		set->stickers = pack;
-		set->emoji.clear();
-		auto &v = d.vpacks().v;
-		for (auto i = 0, l = int(v.size()); i != l; ++i) {
-			if (v[i].type() != mtpc_stickerPack) continue;
+	set->stickers = pack;
+	set->emoji.clear();
+	for (auto i = 0, l = int(packs.size()); i != l; ++i) {
+		const auto &pack = packs[i].data();
+		if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
+			emoji = emoji->original();
+			auto &stickers = pack.vdocuments().v;
 
-			auto &pack = v[i].c_stickerPack();
-			if (auto emoji = Ui::Emoji::Find(qs(pack.vemoticon()))) {
-				emoji = emoji->original();
-				auto &stickers = pack.vdocuments().v;
-
-				StickersPack p;
-				p.reserve(stickers.size());
-				for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
-					auto doc = owner().document(stickers[j].v);
-					if (!doc || !doc->sticker()) continue;
-
-					p.push_back(doc);
+			auto p = StickersPack();
+			p.reserve(stickers.size());
+			for (auto j = 0, c = int(stickers.size()); j != c; ++j) {
+				const auto document = owner().document(stickers[j].v);
+				if (!document->sticker()) {
+					continue;
 				}
-				set->emoji.insert(emoji, p);
+				p.push_back(document);
 			}
+			set->emoji.insert(emoji, p);
 		}
 	}
 
@@ -1456,34 +1438,40 @@ StickersSet *Stickers::feedSetFull(const MTPDmessages_stickerSet &d) {
 		session().saveSettings();
 	}
 
-	if (set) {
-		const auto isArchived = !!(set->flags & SetFlag::Archived);
-		if ((set->flags & SetFlag::Installed) && !isArchived) {
-			if (isEmoji) {
-				session().local().writeInstalledCustomEmoji();
-			} else if (isMasks) {
-				session().local().writeInstalledMasks();
-			} else {
-				session().local().writeInstalledStickers();
-			}
-		}
-		if (set->flags & SetFlag::Featured) {
-			session().local().writeFeaturedStickers();
-		}
-		if (wasArchived != isArchived) {
-			if (isEmoji) {
-
-			} else if (isMasks) {
-				session().local().writeArchivedMasks();
-			} else {
-				session().local().writeArchivedStickers();
-			}
+	const auto isArchived = !!(set->flags & SetFlag::Archived);
+	if ((set->flags & SetFlag::Installed) && !isArchived) {
+		if (isEmoji) {
+			session().local().writeInstalledCustomEmoji();
+		} else if (isMasks) {
+			session().local().writeInstalledMasks();
+		} else {
+			session().local().writeInstalledStickers();
 		}
 	}
-
+	if (set->flags & SetFlag::Featured) {
+		session().local().writeFeaturedStickers();
+	}
+	if (wasArchived != isArchived) {
+		if (isEmoji) {
+		} else if (isMasks) {
+			session().local().writeArchivedMasks();
+		} else {
+			session().local().writeArchivedStickers();
+		}
+	}
 	notifyUpdated();
+}
 
-	return set;
+void Stickers::feedSetCovers(
+		not_null<StickersSet*> set,
+		const QVector<MTPDocument> &documents) {
+	set->covers = StickersPack();
+	for (const auto &cover : documents) {
+		const auto document = session().data().processDocument(cover);
+		if (document->sticker()) {
+			set->covers.push_back(document);
+		}
+	}
 }
 
 void Stickers::newSetReceived(const MTPDmessages_stickerSet &set) {

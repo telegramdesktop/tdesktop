@@ -456,15 +456,8 @@ void StickersBox::showAttachedStickers() {
 			}
 		}
 	};
-	for (const auto &stickerSet : _attachedSets.v) {
-		const auto setData = stickerSet.match([&](const auto &data) {
-			return data.vset().match([&](const MTPDstickerSet &data) {
-				return &data;
-			});
-		});
-		if (const auto set = stickers->feedSet(*setData)) {
-			add(set);
-		}
+	for (const auto &set : _attachedSets.v) {
+		add(stickers->feedSetCovered(set));
 	}
 	for (const auto &setId : _emojiSets) {
 		const auto i = stickers->sets().find(setId.id);
@@ -503,41 +496,22 @@ void StickersBox::getArchivedDone(
 
 	auto addedSet = false;
 	auto changedSets = false;
-	for (const auto &stickerSet : stickers.vsets().v) {
-		const MTPDstickerSet *setData = nullptr;
-		switch (stickerSet.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
+	for (const auto &data : stickers.vsets().v) {
+		const auto set = session().data().stickers().feedSetCovered(data);
+		const auto index = archived.indexOf(set->id);
+		if (archived.isEmpty() || index != archived.size() - 1) {
+			changedSets = true;
+			if (index >= 0 && index < archived.size() - 1) {
+				archived.removeAt(index);
 			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-		} break;
+			archived.push_back(set->id);
 		}
-		if (!setData) continue;
-
-		if (const auto set = session().data().stickers().feedSet(*setData)) {
-			const auto index = archived.indexOf(set->id);
-			if (archived.isEmpty() || index != archived.size() - 1) {
-				changedSets = true;
-				if (index >= 0 && index < archived.size() - 1) {
-					archived.removeAt(index);
-				}
-				archived.push_back(set->id);
-			}
-			if (_archived.widget()->appendSet(set)) {
-				addedSet = true;
-				if (set->stickers.isEmpty()
-					|| (set->flags & SetFlag::NotLoaded)) {
-					session().api().scheduleStickerSetRequest(
-						set->id,
-						set->accessHash);
-				}
+		if (_archived.widget()->appendSet(set)) {
+			addedSet = true;
+			if (set->flags & SetFlag::NotLoaded) {
+				session().api().scheduleStickerSetRequest(
+					set->id,
+					set->accessHash);
 			}
 		}
 	}
