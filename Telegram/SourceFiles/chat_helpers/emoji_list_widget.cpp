@@ -1204,7 +1204,6 @@ void EmojiListWidget::refreshRecent() {
 }
 
 void EmojiListWidget::refreshCustom() {
-	auto searchFromIndex = 0;
 	auto old = base::take(_custom);
 	const auto owner = &controller()->session().data();
 	const auto &order = owner->stickers().emojiSetsOrder();
@@ -1501,7 +1500,6 @@ std::unique_ptr<Ui::RippleAnimation> EmojiListWidget::createButtonRipple(
 	Expects(section >= kEmojiSectionCount
 		&& section < kEmojiSectionCount + _custom.size());
 
-	const auto set = section - kEmojiSectionCount;
 	auto maskSize = QSize(
 		st::stickerPanRemoveSet.rippleAreaSize,
 		st::stickerPanRemoveSet.rippleAreaSize);

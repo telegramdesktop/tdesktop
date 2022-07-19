@@ -984,7 +984,6 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 			}
 		}
 	};
-	const auto count = int(_elements.size());
 	const auto rowsTop = st::stickersPadding.top();
 	const auto singleHeight = _singleSize.height();
 	const auto rowsBottom = rowsTop + _rowsCount * singleHeight;

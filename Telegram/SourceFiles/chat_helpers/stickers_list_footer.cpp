@@ -199,8 +199,6 @@ void StickersListFooter::validatePremiumIcon() const {
 }
 
 void StickersListFooter::clearHeavyData() {
-	const auto count = int(_icons.size());
-	const auto iconsX = qRound(_iconState.x.current());
 	enumerateIcons([&](const IconInfo &info) {
 		auto &icon = _icons[info.index];
 		icon.webm = nullptr;
@@ -960,7 +958,6 @@ void StickersListFooter::refreshIcons(
 }
 
 void StickersListFooter::refreshScrollableDimensions() {
-	const auto shift = int(base::SafeRound(_iconState.x.current()));
 	const auto &last = iconInfo(_icons.size() - 1);
 	_iconState.max = std::max(
 		last.left + last.width + _iconsRight - width(),
@@ -1004,7 +1001,6 @@ void StickersListFooter::refreshSubiconsGeometry() {
 	if (_subiconsWidth < widthMax) {
 		_subiconsWidth = ((_subiconsWidth - half) / single) * single + half;
 	}
-	const auto &last = subiconInfo(int(Section::Symbols));
 	_subiconState.max = std::max(
 		widthMax - _subiconsWidth,
 		0);

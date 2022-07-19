@@ -135,7 +135,7 @@ int64_t EmojiGenerator::Impl::seek(int64_t offset, int whence) {
 		switch (whence) {
 		case SEEK_SET: return offset;
 		case SEEK_CUR: return _deviceOffset + offset;
-		case SEEK_END: return _bytes.size() + offset;
+		case SEEK_END: return int64_t(_bytes.size()) + offset;
 		}
 		return int64_t(-1);
 	}();

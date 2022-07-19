@@ -197,7 +197,7 @@ if [ "$DeployLinux" == "1" ]; then
   Files+=("tlinux/$LinuxUpdateFile" "tlinux/$LinuxSetupFile")
 fi
 cd $DeployPath
-rsync -avR --progress ${Files[@]} "$FullScriptPath/../../../DesktopPrivate/remote/files"
+rsync -avR --no-g --progress ${Files[@]} "$FullScriptPath/../../../DesktopPrivate/remote/files"
 
 echo "Version $AppVersionStrFull was deployed!"
 cd $FullExecPath

@@ -246,7 +246,6 @@ QRect MediaGift::buttonRect() const {
 }
 
 QRect MediaGift::stickerRect() const {
-	const auto &padding = st::msgServiceGiftBoxButtonPadding;
 	const auto &size = st::msgServiceGiftBoxStickerSize;
 	const auto top = st::msgServiceGiftBoxStickerTop;
 	return QRect(QPoint((width() - size.width()) / 2, top), size);

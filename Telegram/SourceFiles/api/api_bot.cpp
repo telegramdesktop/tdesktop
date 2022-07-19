@@ -389,7 +389,6 @@ void ActivateBotCommand(
 
 	case ButtonType::SwitchInlineSame:
 	case ButtonType::SwitchInline: {
-		const auto session = &item->history()->session();
 		if (const auto bot = item->getMessageBot()) {
 			const auto fastSwitchDone = [&] {
 				const auto samePeer = (button->type
