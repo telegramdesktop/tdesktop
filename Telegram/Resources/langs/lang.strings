@@ -1791,6 +1791,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_switch_gifs" = "GIFs";
 "lng_switch_masks" = "Masks";
 "lng_stickers_featured_add" = "Add";
+"lng_emoji_featured_unlock" = "Unlock";
+"lng_emoji_premium_restore" = "Restore";
 "lng_gifs_search" = "Search GIFs";
 "lng_gifs_no_saved" = "You have no saved GIFs yet.";
 
@@ -1825,6 +1827,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_custom_emoji_count#other" = "{count} emoji";
 "lng_stickers_attached_sets" = "Sets of attached stickers";
 "lng_custom_emoji_used_sets" = "Sets of used emoji";
+"lng_custom_emoji_remove_pack_button" = "Remove Emoji";
 "lng_stickers_group_set" = "Group sticker set";
 "lng_stickers_remove_group_set" = "Remove group sticker set?";
 "lng_stickers_group_from_your" = "Choose from your stickers";
@@ -1833,8 +1836,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_nothing_found" = "No stickers found";
 "lng_stickers_remove_pack_confirm" = "Remove";
 "lng_stickers_archive_pack" = "Archive Stickers";
+"lng_stickers_remove_pack_button" = "Remove Stickers";
 "lng_stickers_has_been_archived" = "Sticker pack has been archived.";
 "lng_masks_archive_pack" = "Archive Masks";
+"lng_masks_remove_pack_button" = "Remove Masks";
 "lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
 

@@ -1009,8 +1009,6 @@ void Settings::resetOnLastLogout() {
 	_recentEmoji.clear();
 	_emojiVariants.clear();
 
-	_workMode = WorkMode::WindowAndTray;
-
 	_accountsOrder.clear();
 }
 

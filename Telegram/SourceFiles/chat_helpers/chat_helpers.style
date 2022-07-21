@@ -159,15 +159,22 @@ emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
-emojiPanDesiredSize: 45px;
+emojiPanDesiredSize: 39px;
+emojiPanArea: size(34px, 32px);
+emojiPanLeft: 13px;
+emojiPanRight: 17px;
+emojiPanRadius: 8px;
 
 inlineResultsMinHeight: 278px;
 inlineResultsMaxHeight: 640px;
 
-emojiPanHeader: 42px;
+emojiPanHeader: 40px;
 emojiPanHeaderFont: semiboldFont;
-emojiPanHeaderLeft: 22px;
+emojiPanHeaderLeft: 23px;
+emojiPanHeaderLockLeft: 17px;
+emojiPanHeaderLockedLeft: 36px;
 emojiPanHeaderTop: 12px;
+emojiPanRemoveSkip: 10px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;

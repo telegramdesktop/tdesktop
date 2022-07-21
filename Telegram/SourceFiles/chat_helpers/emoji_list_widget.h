@@ -171,6 +171,7 @@ private:
 	[[nodiscard]] SectionInfo sectionInfo(int section) const;
 	[[nodiscard]] SectionInfo sectionInfoByOffset(int yOffset) const;
 	[[nodiscard]] int sectionsCount() const;
+	void setSingleSize(QSize size);
 
 	void showPicker();
 	void pickerHidden();
@@ -204,7 +205,6 @@ private:
 		bool paused,
 		int set,
 		int index);
-	void drawPremiumRect(QPainter &p, const SectionInfo &info);
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect emojiRect(int section, int index) const;
@@ -255,7 +255,8 @@ private:
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;
-	int _esize = 0;
+	QPoint _areaPosition;
+	QPoint _innerPosition;
 
 	OverState _selected;
 	OverState _pressed;
