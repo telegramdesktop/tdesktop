@@ -97,9 +97,9 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 }
 
 bool GiftBoxPack::isGiftSticker(not_null<DocumentData*> document) const {
-	return document->sticker()
-		? (document->sticker()->set.id == _setId)
-		: false;
+	return _setId
+		&& document->sticker()
+		&& (document->sticker()->set.id == _setId);
 }
 
 } // namespace Stickers
