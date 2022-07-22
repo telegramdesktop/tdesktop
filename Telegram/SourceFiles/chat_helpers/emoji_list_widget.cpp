@@ -392,10 +392,12 @@ EmojiListWidget::EmojiListWidget(
 		resizeToWidth(width());
 	}, lifetime());
 
-	Data::AmPremiumValue(
-		&controller->session()
-	) | rpl::start_with_next([=] {
-		update();
+	rpl::combine(
+		Data::AmPremiumValue(&controller->session()),
+		controller->session().premiumPossibleValue()
+	) | rpl::skip(1) | rpl::start_with_next([=] {
+		refreshCustom();
+		resizeToWidth(width());
 	}, lifetime());
 }
 
@@ -1221,8 +1223,9 @@ void EmojiListWidget::refreshCustom() {
 	auto old = base::take(_custom);
 	const auto owner = &controller()->session().data();
 	const auto &order = owner->stickers().emojiSetsOrder();
+	const auto &featured = owner->stickers().featuredEmojiSetsOrder();
 	const auto &sets = owner->stickers().sets();
-	for (const auto setId : order) {
+	for (const auto setId : ranges::views::concat(order, featured)) {
 		auto it = sets.find(setId);
 		if (it == sets.cend() || it->second->stickers.isEmpty()) {
 			continue;

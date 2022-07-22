@@ -401,14 +401,19 @@ void Stickers::installLocally(uint64 setId) {
 	}
 
 	const auto set = it->second.get();
-	auto flags = set->flags;
+	const auto flags = set->flags;
 	set->flags &= ~(SetFlag::Archived | SetFlag::Unread);
 	set->flags |= SetFlag::Installed;
 	set->installDate = base::unixtime::now();
 	auto changedFlags = flags ^ set->flags;
 
-	const auto masks = !!(flags & SetFlag::Masks);
-	auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
+	const auto isMasks = (set->type() == StickersType::Masks);
+	const auto isEmoji = (set->type() == StickersType::Emoji);
+	auto &order = isEmoji
+		? emojiSetsOrderRef()
+		: isMasks
+		? maskSetsOrderRef()
+		: setsOrderRef();
 	int insertAtIndex = 0, currentIndex = order.indexOf(setId);
 	if (currentIndex != insertAtIndex) {
 		if (currentIndex > 0) {
@@ -429,17 +434,21 @@ void Stickers::installLocally(uint64 setId) {
 		}
 	}
 	session().local().writeInstalledStickers();
-	if (changedFlags & SetFlag::Unread) {
-		session().local().writeFeaturedStickers();
+	if (!isMasks && (changedFlags & SetFlag::Unread)) {
+		if (isEmoji) {
+			session().local().writeFeaturedCustomEmoji();
+		} else {
+			session().local().writeFeaturedStickers();
+		}
 	}
-	if (changedFlags & SetFlag::Archived) {
-		auto &archivedOrder = masks
+	if (!isEmoji && (changedFlags & SetFlag::Archived)) {
+		auto &archivedOrder = isMasks
 			? archivedMaskSetsOrderRef()
 			: archivedSetsOrderRef();
 		const auto index = archivedOrder.indexOf(setId);
 		if (index >= 0) {
 			archivedOrder.removeAt(index);
-			if (masks) {
+			if (isMasks) {
 				session().local().writeArchivedMasks();
 			} else {
 				session().local().writeArchivedStickers();
@@ -922,27 +931,51 @@ void Stickers::specialSetReceived(
 }
 
 void Stickers::featuredSetsReceived(
-		const QVector<MTPStickerSetCovered> &list,
-		const QVector<MTPlong> &unread,
-		uint64 hash) {
+		const MTPmessages_FeaturedStickers &result) {
+	setLastFeaturedUpdate(crl::now());
+	result.match([](const MTPDmessages_featuredStickersNotModified &) {
+	}, [&](const MTPDmessages_featuredStickers &data) {
+		featuredReceived(data, StickersType::Stickers);
+	});
+}
+
+void Stickers::featuredEmojiSetsReceived(
+		const MTPmessages_FeaturedStickers &result) {
+	setLastFeaturedEmojiUpdate(crl::now());
+	result.match([](const MTPDmessages_featuredStickersNotModified &) {
+	}, [&](const MTPDmessages_featuredStickers &data) {
+		featuredReceived(data, StickersType::Emoji);
+	});
+}
+
+void Stickers::featuredReceived(
+		const MTPDmessages_featuredStickers &data,
+		StickersType type) {
+	const auto &list = data.vsets().v;
+	const auto &unread = data.vunread().v;
+	const auto hash = data.vhash().v;
+
 	auto &&unreadIds = ranges::views::all(
 		unread
-	) | ranges::views::transform([](const MTPlong &id) {
-		return id.v;
-	});
+	) | ranges::views::transform(&MTPlong::v);
 	const auto unreadMap = base::flat_set<uint64>{
 		unreadIds.begin(),
 		unreadIds.end()
 	};
 
-	auto &setsOrder = featuredSetsOrderRef();
+	const auto isEmoji = (type == StickersType::Emoji);
+	auto &setsOrder = isEmoji
+		? featuredEmojiSetsOrderRef()
+		: featuredSetsOrderRef();
 	setsOrder.clear();
 
 	auto &sets = setsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
 	for (auto &[id, set] : sets) {
 		// Mark for removing.
-		set->flags &= ~SetFlag::Featured;
+		if (set->type() == type) {
+			set->flags &= ~SetFlag::Featured;
+		}
 	}
 	for (const auto &entry : list) {
 		const auto data = entry.match([&](const auto &data) {
@@ -1015,7 +1048,9 @@ void Stickers::featuredSetsReceived(
 		bool archived = (set->flags & SetFlag::Archived);
 		if (installed || featured || special || archived) {
 			if (featured && (set->flags & SetFlag::Unread)) {
-				++unreadCount;
+				if (!(set->flags & SetFlag::Emoji)) {
+					++unreadCount;
+				}
 			}
 			++it;
 		} else {
@@ -1024,7 +1059,9 @@ void Stickers::featuredSetsReceived(
 	}
 	setFeaturedSetsUnreadCount(unreadCount);
 
-	const auto counted = Api::CountFeaturedStickersHash(&session());
+	const auto counted = isEmoji
+		? Api::CountFeaturedEmojiHash(&session())
+		: Api::CountFeaturedStickersHash(&session());
 	if (counted != hash) {
 		LOG(("API Error: "
 			"received featured stickers hash %1 while counted hash is %2"
@@ -1039,8 +1076,11 @@ void Stickers::featuredSetsReceived(
 		}
 		api.requestStickerSets();
 	}
-
-	session().local().writeFeaturedStickers();
+	if (isEmoji) {
+		session().local().writeFeaturedCustomEmoji();
+	} else {
+		session().local().writeFeaturedStickers();
+	}
 
 	notifyUpdated();
 }
@@ -1411,8 +1451,8 @@ void Stickers::feedSetStickers(
 		}
 	}
 
-	const auto isEmoji = !!(set->flags & SetFlag::Emoji);
-	const auto isMasks = !!(set->flags & SetFlag::Masks);
+	const auto isEmoji = (set->type() == StickersType::Emoji);
+	const auto isMasks = (set->type() == StickersType::Masks);
 	set->stickers = pack;
 	set->emoji.clear();
 	for (auto i = 0, l = int(packs.size()); i != l; ++i) {
@@ -1449,7 +1489,12 @@ void Stickers::feedSetStickers(
 		}
 	}
 	if (set->flags & SetFlag::Featured) {
-		session().local().writeFeaturedStickers();
+		if (isEmoji) {
+			session().local().writeFeaturedCustomEmoji();
+		} else if (isMasks) {
+		} else {
+			session().local().writeFeaturedStickers();
+		}
 	}
 	if (wasArchived != isArchived) {
 		if (isEmoji) {

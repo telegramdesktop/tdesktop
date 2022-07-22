@@ -2526,6 +2526,7 @@ void ApiWrap::updateStickers() {
 	requestRecentStickers(now);
 	requestFavedStickers(now);
 	requestFeaturedStickers(now);
+	requestFeaturedEmoji(now);
 	requestSavedGifs(now);
 }
 
@@ -2778,25 +2779,30 @@ void ApiWrap::requestFeaturedStickers(TimeId now) {
 	_featuredStickersUpdateRequest = request(MTPmessages_GetFeaturedStickers(
 		MTP_long(Api::CountFeaturedStickersHash(_session))
 	)).done([=](const MTPmessages_FeaturedStickers &result) {
-		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		_featuredStickersUpdateRequest = 0;
-
-		switch (result.type()) {
-		case mtpc_messages_featuredStickersNotModified: return;
-		case mtpc_messages_featuredStickers: {
-			auto &d = result.c_messages_featuredStickers();
-			_session->data().stickers().featuredSetsReceived(
-				d.vsets().v,
-				d.vunread().v,
-				d.vhash().v);
-		} return;
-		default: Unexpected("Type in ApiWrap::featuredStickersDone()");
-		}
+		_session->data().stickers().featuredSetsReceived(result);
 	}).fail([=] {
-		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		_featuredStickersUpdateRequest = 0;
-
+		_session->data().stickers().setLastFeaturedUpdate(crl::now());
 		LOG(("App Fail: Failed to get featured stickers!"));
+	}).send();
+}
+
+void ApiWrap::requestFeaturedEmoji(TimeId now) {
+	if (!_session->data().stickers().featuredEmojiUpdateNeeded(now)
+		|| _featuredEmojiUpdateRequest) {
+		return;
+	}
+	_featuredEmojiUpdateRequest = request(
+		MTPmessages_GetFeaturedEmojiStickers(
+			MTP_long(Api::CountFeaturedStickersHash(_session)))
+	).done([=](const MTPmessages_FeaturedStickers &result) {
+		_featuredEmojiUpdateRequest = 0;
+		_session->data().stickers().featuredEmojiSetsReceived(result);
+	}).fail([=] {
+		_featuredEmojiUpdateRequest = 0;
+		_session->data().stickers().setLastFeaturedEmojiUpdate(crl::now());
+		LOG(("App Fail: Failed to get featured emoji!"));
 	}).send();
 }
 

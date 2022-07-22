@@ -205,7 +205,7 @@ base::flat_set<QString> Account::collectGoodNames() const {
 		_recentMasksKey,
 		_archivedMasksKey,
 		_installedCustomEmojiKey,
-		_recentCustomEmojiKey,
+		_featuredCustomEmojiKey,
 		_archivedCustomEmojiKey,
 	};
 	auto result = base::flat_set<QString>{
@@ -288,7 +288,7 @@ Account::ReadMapResult Account::readMapWith(
 	quint64 recentStickersKeyOld = 0;
 	quint64 installedStickersKey = 0, featuredStickersKey = 0, recentStickersKey = 0, favedStickersKey = 0, archivedStickersKey = 0;
 	quint64 installedMasksKey = 0, recentMasksKey = 0, archivedMasksKey = 0;
-	quint64 installedCustomEmojiKey = 0, recentCustomEmojiKey = 0, archivedCustomEmojiKey = 0;
+	quint64 installedCustomEmojiKey = 0, featuredCustomEmojiKey = 0, archivedCustomEmojiKey = 0;
 	quint64 savedGifsKey = 0;
 	quint64 legacyBackgroundKeyDay = 0, legacyBackgroundKeyNight = 0;
 	quint64 userSettingsKey = 0, recentHashtagsAndBotsKey = 0, exportSettingsKey = 0;
@@ -394,7 +394,7 @@ Account::ReadMapResult Account::readMapWith(
 		case lskCustomEmojiKeys: {
 			map.stream
 				>> installedCustomEmojiKey
-				>> recentCustomEmojiKey
+				>> featuredCustomEmojiKey
 				>> archivedCustomEmojiKey;
 		} break;
 		default:
@@ -425,7 +425,7 @@ Account::ReadMapResult Account::readMapWith(
 	_recentMasksKey = recentMasksKey;
 	_archivedMasksKey = archivedMasksKey;
 	_installedCustomEmojiKey = installedCustomEmojiKey;
-	_recentCustomEmojiKey = recentCustomEmojiKey;
+	_featuredCustomEmojiKey = featuredCustomEmojiKey;
 	_archivedCustomEmojiKey = archivedCustomEmojiKey;
 	_legacyBackgroundKeyDay = legacyBackgroundKeyDay;
 	_legacyBackgroundKeyNight = legacyBackgroundKeyNight;
@@ -534,7 +534,7 @@ void Account::writeMap() {
 	if (_installedMasksKey || _recentMasksKey || _archivedMasksKey) {
 		mapSize += sizeof(quint32) + 3 * sizeof(quint64);
 	}
-	if (_installedCustomEmojiKey || _recentCustomEmojiKey || _archivedCustomEmojiKey) {
+	if (_installedCustomEmojiKey || _featuredCustomEmojiKey || _archivedCustomEmojiKey) {
 		mapSize += sizeof(quint32) + 3 * sizeof(quint64);
 	}
 
@@ -589,11 +589,11 @@ void Account::writeMap() {
 			<< quint64(_recentMasksKey)
 			<< quint64(_archivedMasksKey);
 	}
-	if (_installedCustomEmojiKey || _recentCustomEmojiKey || _archivedCustomEmojiKey) {
+	if (_installedCustomEmojiKey || _featuredCustomEmojiKey || _archivedCustomEmojiKey) {
 		mapData.stream << quint32(lskCustomEmojiKeys);
 		mapData.stream
 			<< quint64(_installedCustomEmojiKey)
-			<< quint64(_recentCustomEmojiKey)
+			<< quint64(_featuredCustomEmojiKey)
 			<< quint64(_archivedCustomEmojiKey);
 	}
 	map.writeEncrypted(mapData, _localKey);
@@ -618,7 +618,7 @@ void Account::reset() {
 	_recentMasksKey = 0;
 	_archivedMasksKey = 0;
 	_installedCustomEmojiKey = 0;
-	_recentCustomEmojiKey = 0;
+	_featuredCustomEmojiKey = 0;
 	_archivedCustomEmojiKey = 0;
 	_legacyBackgroundKeyDay = _legacyBackgroundKeyNight = 0;
 	_settingsKey = _recentHashtagsAndBotsKey = _exportSettingsKey = 0;
@@ -2042,7 +2042,7 @@ void Account::writeFeaturedStickers() {
 			|| set.id == Data::Stickers::CloudRecentAttachedSetId) {
 			// separate files for them
 			return StickerSetCheckResult::Skip;
-		} else if (set.flags & SetFlag::Special) {
+		} else if (set.flags & (SetFlag::Special | SetFlag::Emoji)) {
 			return StickerSetCheckResult::Skip;
 		} else if (!(set.flags & SetFlag::Featured)) {
 			return StickerSetCheckResult::Skip;
@@ -2053,6 +2053,23 @@ void Account::writeFeaturedStickers() {
 		}
 		return StickerSetCheckResult::Write;
 	}, _owner->session().data().stickers().featuredSetsOrder());
+}
+
+void Account::writeFeaturedCustomEmoji() {
+	using SetFlag = Data::StickersSetFlag;
+
+	writeStickerSets(_featuredCustomEmojiKey, [](const Data::StickersSet &set) {
+		if (!(set.flags & SetFlag::Emoji)) {
+			return StickerSetCheckResult::Skip;
+		} else if (!(set.flags & SetFlag::Featured)) {
+			return StickerSetCheckResult::Skip;
+		} else if (set.flags & SetFlag::NotLoaded) { // waiting to receive
+			return StickerSetCheckResult::Abort;
+		} else if (set.stickers.isEmpty()) {
+			return StickerSetCheckResult::Skip;
+		}
+		return StickerSetCheckResult::Write;
+	}, _owner->session().data().stickers().featuredEmojiSetsOrder());
 }
 
 void Account::writeRecentStickers() {
@@ -2291,6 +2308,13 @@ void Account::readFeaturedStickers() {
 		}
 	}
 	_owner->session().data().stickers().setFeaturedSetsUnreadCount(unreadCount);
+}
+
+void Account::readFeaturedCustomEmoji() {
+	readStickerSets(
+		_featuredCustomEmojiKey,
+		&_owner->session().data().stickers().featuredEmojiSetsOrderRef(),
+		Data::StickersSetFlag::Featured);
 }
 
 void Account::readRecentStickers() {

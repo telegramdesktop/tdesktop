@@ -126,6 +126,12 @@ public:
 	void setLastFeaturedUpdate(crl::time update) {
 		_lastFeaturedUpdate = update;
 	}
+	bool featuredEmojiUpdateNeeded(crl::time now) const {
+		return updateNeeded(_lastFeaturedEmojiUpdate, now);
+	}
+	void setLastFeaturedEmojiUpdate(crl::time update) {
+		_lastFeaturedEmojiUpdate = update;
+	}
 	bool savedGifsUpdateNeeded(crl::time now) const {
 		return updateNeeded(_lastSavedGifsUpdate, now);
 	}
@@ -170,6 +176,12 @@ public:
 	}
 	StickersSetsOrder &featuredSetsOrderRef() {
 		return _featuredSetsOrder;
+	}
+	const StickersSetsOrder &featuredEmojiSetsOrder() const {
+		return _featuredEmojiSetsOrder;
+	}
+	StickersSetsOrder &featuredEmojiSetsOrderRef() {
+		return _featuredEmojiSetsOrder;
 	}
 	const StickersSetsOrder &archivedSetsOrder() const {
 		return _archivedSetsOrder;
@@ -216,10 +228,9 @@ public:
 		uint64 hash,
 		const QVector<MTPStickerPack> &packs = QVector<MTPStickerPack>(),
 		const QVector<MTPint> &usageDates = QVector<MTPint>());
-	void featuredSetsReceived(
-		const QVector<MTPStickerSetCovered> &list,
-		const QVector<MTPlong> &unread,
-		uint64 hash);
+	void featuredSetsReceived(const MTPmessages_FeaturedStickers &result);
+	void featuredEmojiSetsReceived(
+		const MTPmessages_FeaturedStickers &result);
 	void gifsReceived(const QVector<MTPDocument> &items, uint64 hash);
 
 	std::vector<not_null<DocumentData*>> getListByEmoji(
@@ -277,6 +288,9 @@ private:
 		const QVector<MTPStickerSet> &list,
 		uint64 hash,
 		StickersType type);
+	void featuredReceived(
+		const MTPDmessages_featuredStickers &data,
+		StickersType type);
 
 	const not_null<Session*> _owner;
 	rpl::event_stream<> _updated;
@@ -291,6 +305,7 @@ private:
 	crl::time _lastSavedGifsUpdate = 0;
 	crl::time _lastMasksUpdate = 0;
 	crl::time _lastEmojiUpdate = 0;
+	crl::time _lastFeaturedEmojiUpdate = 0;
 	crl::time _lastRecentAttachedUpdate = 0;
 	rpl::variable<int> _featuredSetsUnreadCount = 0;
 	StickersSets _sets;
@@ -298,6 +313,7 @@ private:
 	StickersSetsOrder _maskSetsOrder;
 	StickersSetsOrder _emojiSetsOrder;
 	StickersSetsOrder _featuredSetsOrder;
+	StickersSetsOrder _featuredEmojiSetsOrder;
 	StickersSetsOrder _archivedSetsOrder;
 	StickersSetsOrder _archivedMaskSetsOrder;
 	SavedGifs _savedGifs;

@@ -136,7 +136,9 @@ public:
 	void readInstalledMasks();
 	void readRecentMasks();
 	void writeInstalledCustomEmoji();
+	void writeFeaturedCustomEmoji();
 	void readInstalledCustomEmoji();
+	void readFeaturedCustomEmoji();
 
 	void writeRecentHashtagsAndBots();
 	void readRecentHashtagsAndBots();
@@ -287,7 +289,7 @@ private:
 	FileKey _installedMasksKey = 0;
 	FileKey _recentMasksKey = 0;
 	FileKey _installedCustomEmojiKey = 0;
-	FileKey _recentCustomEmojiKey = 0;
+	FileKey _featuredCustomEmojiKey = 0;
 	FileKey _archivedCustomEmojiKey = 0;
 
 	qint64 _cacheTotalSizeLimit = 0;
