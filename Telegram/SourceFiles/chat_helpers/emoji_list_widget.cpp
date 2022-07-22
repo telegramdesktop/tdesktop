@@ -1093,7 +1093,11 @@ void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
 	if (document->isPremiumEmoji() && !document->session().premium()) {
 		ShowPremiumPreviewBox(
 			controller(),
-			PremiumPreview::AnimatedEmoji);
+			PremiumPreview::AnimatedEmoji,
+			{},
+			crl::guard(this, [=](not_null<Ui::BoxContent*> box) {
+				checkHideWithBox(box.get());
+			}));
 		return;
 	}
 	Core::App().settings().incrementRecentEmoji({ RecentEmojiDocument{
@@ -1755,7 +1759,7 @@ void EmojiListWidget::initButton(
 	button.back = prepare(Qt::transparent, [&]() -> QBrush {
 		if (gradient) {
 			auto result = QLinearGradient(QPointF(0, 0), QPointF(width, 0));
-			result.setStops(Ui::Premium::ButtonGradientStops());
+			result.setStops(Ui::Premium::GiftGradientStops());
 			return result;
 		}
 		return st::emojiPanButton.textBg;

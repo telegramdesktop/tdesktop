@@ -65,6 +65,7 @@ struct Descriptor {
 	base::flat_map<QString, ReactionDisableType> disabled;
 	bool fromSettings = false;
 	Fn<void()> hiddenCallback;
+	Fn<void(not_null<Ui::BoxContent*>)> shownCallback;
 };
 
 bool operator==(const Descriptor &a, const Descriptor &b) {
@@ -1516,7 +1517,11 @@ void Show(
 		const Descriptor &descriptor,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		QImage back) {
-	controller->show(Box(PreviewBox, controller, descriptor, media, back));
+	const auto box = controller->show(
+		Box(PreviewBox, controller, descriptor, media, back));
+	if (descriptor.shownCallback) {
+		descriptor.shownCallback(box);
+	}
 }
 
 void Show(not_null<Window::SessionController*> controller, QImage back) {
@@ -1539,7 +1544,10 @@ void Show(
 		not_null<Window::SessionController*> controller,
 		Descriptor &&descriptor) {
 	if (!controller->session().premiumPossible()) {
-		controller->show(Box(PremiumUnavailableBox));
+		const auto box = controller->show(Box(PremiumUnavailableBox));
+		if (descriptor.shownCallback) {
+			descriptor.shownCallback(box);
+		}
 		return;
 	}
 	auto &list = Preloads();
@@ -1616,10 +1624,12 @@ void ShowStickerPreviewBox(
 void ShowPremiumPreviewBox(
 		not_null<Window::SessionController*> controller,
 		PremiumPreview section,
-		const base::flat_map<QString, ReactionDisableType> &disabled) {
+		const base::flat_map<QString, ReactionDisableType> &disabled,
+		Fn<void(not_null<Ui::BoxContent*>)> shown) {
 	Show(controller, Descriptor{
 		.section = section,
 		.disabled = disabled,
+		.shownCallback = std::move(shown),
 	});
 }
 

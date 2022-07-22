@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class DocumentData;
 
 namespace Ui {
+class BoxContent;
 class GenericBox;
 class GradientButton;
 } // namespace Ui
@@ -55,7 +56,8 @@ enum class ReactionDisableType {
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	const base::flat_map<QString, ReactionDisableType> &disabled = {});
+	const base::flat_map<QString, ReactionDisableType> &disabled = {},
+	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 
 void ShowPremiumPreviewToBuy(
 	not_null<Window::SessionController*> controller,
