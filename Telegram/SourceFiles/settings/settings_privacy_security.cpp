@@ -31,6 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/fade_wrap.h"
@@ -54,7 +56,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
 #include "facades.h"
-#include "styles/style_chat_helpers.h" // stickersPremiumLock.
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -124,15 +125,105 @@ void AddPremiumPrivacyButton(
 		Fn<std::unique_ptr<EditPrivacyController>()> controllerFactory) {
 	const auto shower = Ui::CreateChild<rpl::lifetime>(container.get());
 	const auto session = &controller->session();
-	const auto button = AddButtonWithLabel(
+	const auto &st = st::settingsButton;
+	const auto button = AddButton(
 		container,
-		std::move(label),
-		PrivacyString(session, key),
-		st::settingsButton,
+		rpl::duplicate(label),
+		st,
 		std::move(descriptor));
+	struct State {
+		State(QWidget *parent) : widget(parent) {
+			widget.setAttribute(Qt::WA_TransparentForMouseEvents);
+		}
+		Ui::RpWidget widget;
+	};
+	const auto state = button->lifetime().make_state<State>(button.get());
+	using WeakToast = base::weak_ptr<Ui::Toast::Instance>;
+	const auto toast = std::make_shared<WeakToast>();
+
+	{
+		const auto rightLabel = Ui::CreateChild<Ui::FlatLabel>(
+			button.get(),
+			st.rightLabel);
+
+		state->widget.resize(st::settingsPremiumLock.size());
+		state->widget.paintRequest(
+		) | rpl::filter([=]() -> bool {
+			return state->widget.x();
+		}) | rpl::start_with_next([=] {
+			auto p = Painter(&state->widget);
+			st::settingsPremiumLock.paint(p, 0, 0, state->widget.width());
+		}, state->widget.lifetime());
+
+		rpl::combine(
+			button->sizeValue(),
+			std::move(label),
+			PrivacyString(session, key),
+			Data::AmPremiumValue(session)
+		) | rpl::start_with_next([=, &st](
+				const QSize &buttonSize,
+				const QString &button,
+				const QString &text,
+				bool premium) {
+			const auto locked = !premium;
+			const auto rightSkip = st::settingsButtonRightSkip;
+			const auto lockSkip = st::settingsPremiumLockSkip;
+			const auto available = buttonSize.width()
+				- st.padding.left()
+				- st.padding.right()
+				- st.style.font->width(button)
+				- rightSkip
+				- (locked ? state->widget.width() + lockSkip : 0);
+			rightLabel->setText(text);
+			rightLabel->resizeToNaturalWidth(available);
+			rightLabel->moveToRight(
+				rightSkip,
+				st.padding.top());
+			state->widget.moveToRight(
+				rightSkip + rightLabel->width() + lockSkip,
+				(buttonSize.height() - state->widget.height()) / 2);
+			state->widget.setVisible(locked);
+		}, rightLabel->lifetime());
+		rightLabel->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+
+	const auto showToast = [=] {
+		auto link = Ui::Text::Link(
+			tr::lng_settings_privacy_premium_link(tr::now));
+		link.entities.push_back(
+			EntityInText(EntityType::Semibold, 0, link.text.size()));
+		const auto config = Ui::Toast::Config{
+			.text = tr::lng_settings_privacy_premium(
+				tr::now,
+				lt_link,
+				link,
+				Ui::Text::WithEntities),
+			.st = &st::defaultMultilineToast,
+			.durationMs = Ui::Toast::kDefaultDuration * 2,
+			.multiline = true,
+			.filter = crl::guard(&controller->session(), [=](
+					const ClickHandlerPtr &,
+					Qt::MouseButton button) {
+				if (button == Qt::LeftButton) {
+					if (const auto strong = toast->get()) {
+						strong->hideAnimated();
+						(*toast) = nullptr;
+						Settings::ShowPremium(controller, QString());
+						return true;
+					}
+				}
+				return false;
+			}),
+		};
+		(*toast) = Ui::Toast::Show(
+			Window::Show(controller).toastParent(),
+			config);
+	};
 	button->addClickHandler([=] {
 		if (!session->premium()) {
-			Settings::ShowPremium(controller, QString());
+			if (toast->empty()) {
+				showToast();
+			}
 			return;
 		}
 		*shower = session->api().userPrivacy().value(
@@ -145,35 +236,6 @@ void AddPremiumPrivacyButton(
 				Ui::LayerOption::KeepOther);
 		});
 	});
-
-	const auto lock = Ui::CreateChild<Ui::RpWidget>(button.get());
-	const auto icon = lock->lifetime().make_state<Icon>(IconDescriptor{
-		&st::stickersPremiumLock,
-		kIconGray,
-		IconType::Round,
-	});
-	lock->resize(icon->size());
-	lock->paintRequest(
-	) | rpl::start_with_next([=] {
-		Painter p(lock);
-
-		icon->paint(p, 0, 0);
-	}, lock->lifetime());
-	button->sizeValue(
-	) | rpl::start_with_next([=,
-			left = st::settingsButton.iconLeft,
-			offset = (icon->size() / 3 * 2 * -1),
-			iconSize = descriptor.icon->size()](const QSize &s) {
-		lock->moveToLeft(
-			left + iconSize.width() + offset.width(),
-			(s.height() + iconSize.height()) / 2 + offset.height());
-	}, lock->lifetime());
-
-	Data::AmPremiumValue(
-		session
-	) | rpl::start_with_next([=](bool premium) {
-		lock->setVisible(!premium);
-	}, lock->lifetime());
 }
 
 rpl::producer<int> BlockedPeersCount(not_null<::Main::Session*> session) {

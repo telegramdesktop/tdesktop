@@ -559,6 +559,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
 "lng_settings_voices_privacy" = "Voice messages";
+"lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
+"lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable Passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
