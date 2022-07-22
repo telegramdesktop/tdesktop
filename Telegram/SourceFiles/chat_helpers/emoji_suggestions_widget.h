@@ -19,11 +19,16 @@ class Session;
 } // namespace Main
 
 namespace Ui {
-
 class InnerDropdown;
 class InputField;
+} // namespace Ui
 
-namespace Emoji {
+namespace Ui::CustomEmoji {
+struct SeparateInstance;
+class SimpleManager;
+} // namespace Ui::CustomEmoji
+
+namespace Ui::Emoji {
 
 class SuggestionsWidget final : public Ui::RpWidget {
 public:
@@ -43,7 +48,7 @@ public:
 	[[nodiscard]] rpl::producer<Chosen> triggered() const;
 
 private:
-	struct CustomInstance;
+	using CustomInstance = Ui::CustomEmoji::SeparateInstance;
 	struct Row {
 		Row(not_null<EmojiPtr> emoji, const QString &replacement);
 
@@ -89,19 +94,17 @@ private:
 
 	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
 		not_null<DocumentData*> document);
-	void scheduleRepaintTimer();
-	void invokeRepaints();
+	void customEmojiRepaint();
 
 	const not_null<Main::Session*> _session;
 	QString _query;
 	std::vector<Row> _rows;
+
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::unique_ptr<CustomInstance>> _instances;
-	base::flat_map<crl::time, crl::time> _repaints;
-	bool _repaintTimerScheduled = false;
-	base::Timer _repaintTimer;
-	crl::time _repaintNext = 0;
+	std::unique_ptr<Ui::CustomEmoji::SimpleManager> _manager;
+	bool _repaintScheduled = false;
 
 	std::optional<QPoint> _lastMousePosition;
 	bool _mouseSelection = false;
@@ -190,5 +193,4 @@ private:
 
 };
 
-} // namespace Emoji
-} // namespace Ui
+} // namespace Ui::Emoji

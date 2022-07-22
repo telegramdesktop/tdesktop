@@ -2611,7 +2611,7 @@ void StickersListWidget::displaySet(uint64 setId) {
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
 		checkHideWithBox(controller()->show(
-			Box<StickerSetBox>(controller(), it->second->identifier()),
+			Box<StickerSetBox>(controller(), it->second.get()),
 			Ui::LayerOption::KeepOther).data());
 	}
 }

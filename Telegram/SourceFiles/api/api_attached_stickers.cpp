@@ -45,19 +45,24 @@ void AttachedStickers::request(
 			return;
 		}
 		// Single attached sticker pack.
-		const auto setData = result.v.front().match([&](const auto &data) {
-			return data.vset().match([&](const MTPDstickerSet &data) {
-				return &data;
-			});
+		const auto data = result.v.front().match([&](const auto &data) {
+			return &data.vset().data();
 		});
 
-		const auto setId = (setData->vid().v && setData->vaccess_hash().v)
+		const auto setId = (data->vid().v && data->vaccess_hash().v)
 			? StickerSetIdentifier{
-				.id = setData->vid().v,
-				.accessHash = setData->vaccess_hash().v }
-			: StickerSetIdentifier{ .shortName = qs(setData->vshort_name()) };
+				.id = data->vid().v,
+				.accessHash = data->vaccess_hash().v }
+			: StickerSetIdentifier{ .shortName = qs(data->vshort_name()) };
 		strongController->show(
-			Box<StickerSetBox>(strongController, setId),
+			Box<StickerSetBox>(
+				strongController,
+				setId,
+				(data->is_emojis()
+					? Data::StickersType::Emoji
+					: data->is_masks()
+					? Data::StickersType::Masks
+					: Data::StickersType::Stickers)),
 			Ui::LayerOption::KeepOther);
 	}).fail([=] {
 		_requestId = 0;

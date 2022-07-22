@@ -1324,7 +1324,10 @@ void AddEmojiPacksAction(
 		}
 		// Single used emoji pack.
 		strong->show(
-			Box<StickerSetBox>(strong, packIds.front()),
+			Box<StickerSetBox>(
+				strong,
+				packIds.front(),
+				Data::StickersType::Emoji),
 			Ui::LayerOption::KeepOther);
 
 	});

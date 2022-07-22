@@ -96,6 +96,7 @@ protected:
 
 	TabbedSelector::InnerFooter *getFooter() const override;
 	void processHideFinished() override;
+	void processPanelHideFinished() override;
 	int countDesiredHeight(int newWidth) override;
 
 private:
@@ -179,6 +180,8 @@ private:
 	bool checkPickerHide();
 	void refreshCustom();
 	void unloadNotSeenCustom(int visibleTop, int visibleBottom);
+	void unloadAllCustom();
+	void unloadCustomIn(const SectionInfo &info);
 
 	void ensureLoaded(int section);
 	void updateSelected();

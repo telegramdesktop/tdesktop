@@ -226,11 +226,13 @@ private:
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
+	int _singleWidth = 0;
+	QPoint _areaPosition;
 
 	ScrollState _iconState;
 	ScrollState _subiconState;
 
-	Ui::RoundRect _selectionBg;
+	Ui::RoundRect _selectionBg, _subselectionBg;
 	Ui::Animations::Simple _subiconsWidthAnimation;
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;

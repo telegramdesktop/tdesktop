@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_block.h"
 #include "base/weak_ptr.h"
 #include "base/bytes.h"
+#include "base/timer.h"
 
 class QColor;
 class QPainter;
@@ -263,6 +264,36 @@ private:
 	const not_null<Instance*> _instance;
 	Fn<void()> _repaint;
 	bool _using = false;
+
+};
+
+struct SeparateInstance {
+	SeparateInstance(
+		std::unique_ptr<Loader> loader,
+		Fn<void(not_null<Instance*>, RepaintRequest)> repaintLater,
+		Fn<void()> repaint);
+
+	Instance emoji;
+	Object object;
+};
+
+class SimpleManager final : public base::has_weak_ptr {
+public:
+	SimpleManager();
+
+	[[nodiscard]] std::unique_ptr<SeparateInstance> make(
+		std::unique_ptr<Loader> loader,
+		Fn<void()> repaint);
+
+private:
+	void scheduleRepaintTimer();
+	void invokeRepaints();
+
+	base::flat_map<crl::time, crl::time> _repaints;
+	bool _repaintTimerScheduled = false;
+	crl::time _repaintNext = 0;
+	base::Timer _repaintTimer;
+	Fn<void()> _simpleRepaint;
 
 };
 

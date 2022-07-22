@@ -96,17 +96,9 @@ private:
 
 };
 
-struct EmojiListWidget::CustomInstance {
-	CustomInstance(
-		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
-		Fn<void(
-			not_null<Ui::CustomEmoji::Instance*>,
-			Ui::CustomEmoji::RepaintRequest)> repaintLater,
-		Fn<void()> repaint,
-		bool recentOnly = false);
+struct EmojiListWidget::CustomInstance : Ui::CustomEmoji::SeparateInstance {
+	using SeparateInstance::SeparateInstance;
 
-	Ui::CustomEmoji::Instance emoji;
-	Ui::CustomEmoji::Object object;
 	bool recentOnly = false;
 };
 
@@ -114,20 +106,6 @@ struct EmojiListWidget::RecentOne {
 	CustomInstance *instance = nullptr;
 	RecentEmojiId id;
 };
-
-EmojiListWidget::CustomInstance::CustomInstance(
-	std::unique_ptr<Ui::CustomEmoji::Loader> loader,
-	Fn<void(
-		not_null<Ui::CustomEmoji::Instance*>,
-		Ui::CustomEmoji::RepaintRequest)> repaintLater,
-	Fn<void()> repaint,
-	bool recentOnly)
-: emoji(
-	Ui::CustomEmoji::Loading(std::move(loader), Ui::CustomEmoji::Preview()),
-	std::move(repaintLater))
-, object(&emoji, std::move(repaint))
-, recentOnly(recentOnly) {
-}
 
 EmojiColorPicker::EmojiColorPicker(QWidget *parent)
 : RpWidget(parent) {
@@ -540,21 +518,40 @@ void EmojiListWidget::unloadNotSeenCustom(
 		int visibleTop,
 		int visibleBottom) {
 	enumerateSections([&](const SectionInfo &info) {
-		if (info.section < kEmojiSectionCount
-			|| (info.rowsBottom > visibleTop
-				&& info.rowsTop < visibleBottom)) {
-			return true;
-		}
-		auto &custom = _custom[info.section - kEmojiSectionCount];
-		if (!custom.painted) {
-			return true;
-		}
-		custom.painted = false;
-		for (const auto &single : custom.list) {
-			single.instance->object.unload();
+		if (info.rowsBottom <= visibleTop || info.rowsTop >= visibleBottom) {
+			unloadCustomIn(info);
 		}
 		return true;
 	});
+}
+
+void EmojiListWidget::unloadAllCustom() {
+	enumerateSections([&](const SectionInfo &info) {
+		unloadCustomIn(info);
+		return true;
+	});
+}
+
+void EmojiListWidget::unloadCustomIn(const SectionInfo &info) {
+	if (!info.section && _recentPainted) {
+		_recentPainted = false;
+		for (const auto &single : _recent) {
+			if (const auto instance = single.instance) {
+				instance->object.unload();
+			}
+		}
+		return;
+	} else if (info.section < kEmojiSectionCount) {
+		return;
+	}
+	auto &custom = _custom[info.section - kEmojiSectionCount];
+	if (!custom.painted) {
+		return;
+	}
+	custom.painted = false;
+	for (const auto &single : custom.list) {
+		single.instance->object.unload();
+	}
 }
 
 object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
@@ -1020,7 +1017,7 @@ void EmojiListWidget::displaySet(uint64 setId) {
 	auto it = sets.find(setId);
 	if (it != sets.cend()) {
 		checkHideWithBox(controller()->show(
-			Box<StickerSetBox>(controller(), it->second->identifier()),
+			Box<StickerSetBox>(controller(), it->second.get()),
 			Ui::LayerOption::KeepOther).data());
 	}
 }
@@ -1206,7 +1203,12 @@ void EmojiListWidget::processHideFinished() {
 		_picker->hideFast();
 		_pickerSelected = v::null;
 	}
+	unloadAllCustom();
 	clearSelection();
+}
+
+void EmojiListWidget::processPanelHideFinished() {
+	unloadAllCustom();
 }
 
 void EmojiListWidget::refreshRecent() {
@@ -1302,11 +1304,12 @@ auto EmojiListWidget::customInstanceWithLoader(
 			});
 		}
 	};
-	return std::make_unique<CustomInstance>(
+	auto result = std::make_unique<CustomInstance>(
 		std::move(loader),
 		std::move(repaintDelayed),
-		std::move(repaintNow),
-		recentOnly);
+		std::move(repaintNow));
+	result->recentOnly = recentOnly;
+	return result;
 }
 
 auto EmojiListWidget::resolveCustomInstance(

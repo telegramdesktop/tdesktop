@@ -82,7 +82,10 @@ bool ShowStickerSet(
 	Core::App().hideMediaView();
 	controller->show(Box<StickerSetBox>(
 		controller,
-		StickerSetIdentifier{ .shortName = match->captured(2) }));
+		StickerSetIdentifier{ .shortName = match->captured(2) },
+		(match->captured(1) == "addemoji"
+			? Data::StickersType::Emoji
+			: Data::StickersType::Stickers)));
 	controller->window().activate();
 	return true;
 }

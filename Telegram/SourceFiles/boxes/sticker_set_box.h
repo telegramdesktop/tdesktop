@@ -19,12 +19,21 @@ namespace Ui {
 class PlainShadow;
 } // namespace Ui
 
+namespace Data {
+class StickersSet;
+} // namespace Data
+
 class StickerSetBox final : public Ui::BoxContent {
 public:
 	StickerSetBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		const StickerSetIdentifier &set);
+		const StickerSetIdentifier &set,
+		Data::StickersType type);
+	StickerSetBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		not_null<Data::StickersSet*> set);
 
 	static QPointer<Ui::BoxContent> Show(
 		not_null<Window::SessionController*> controller,
@@ -48,6 +57,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const StickerSetIdentifier _set;
+	const Data::StickersType _type;
 
 	class Inner;
 	QPointer<Inner> _inner;

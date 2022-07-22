@@ -1806,7 +1806,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		const auto showSetByRow = [&](const Row &row) {
 			setSelected(SelectedRow());
 			_controller->show(
-				Box<StickerSetBox>(_controller, row.set->identifier()),
+				Box<StickerSetBox>(_controller, row.set),
 				Ui::LayerOption::KeepOther);
 		};
 		if (selectedIndex >= 0 && !_inDragArea) {

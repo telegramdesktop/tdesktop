@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
 #include "data/stickers/data_stickers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "menu/menu_send.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
@@ -26,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/custom_emoji_instance.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/toast/toast.h"
@@ -115,7 +117,8 @@ public:
 	Inner(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		const StickerSetIdentifier &set);
+		const StickerSetIdentifier &set,
+		Data::StickersType type);
 
 	[[nodiscard]] bool loaded() const;
 	[[nodiscard]] bool notInstalled() const;
@@ -153,12 +156,15 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
+	using CustomInstance = Ui::CustomEmoji::SeparateInstance;
 	struct Element {
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *lottie = nullptr;
 		Media::Clip::ReaderPointer webm;
+		CustomInstance *emoji = nullptr;
 		Ui::Animations::Simple overAnimation;
+
 		mutable QImage premiumLock;
 	};
 
@@ -178,6 +184,10 @@ private:
 		Media::Clip::Notification notification,
 		not_null<DocumentData*> document,
 		int index);
+	void setupEmoji(int index);
+	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+		not_null<DocumentData*> document);
+	void customEmojiRepaint();
 
 	void updateSelected();
 	void setSelected(int selected);
@@ -196,10 +206,17 @@ private:
 	void updateItems();
 	void repaintItems(crl::time now = 0);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
+
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::unique_ptr<CustomInstance>> _instances;
+	std::unique_ptr<Ui::CustomEmoji::SimpleManager> _manager;
+	bool _repaintScheduled = false;
+
 	StickersPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;
@@ -226,6 +243,7 @@ private:
 	base::Timer _updateItemsTimer;
 
 	StickerSetIdentifier _input;
+	QMargins _padding;
 
 	mtpRequestId _installRequest = 0;
 
@@ -246,9 +264,18 @@ private:
 StickerSetBox::StickerSetBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	const StickerSetIdentifier &set)
+	const StickerSetIdentifier &set,
+	Data::StickersType type)
 : _controller(controller)
-, _set(set) {
+, _set(set)
+, _type(type) {
+}
+
+StickerSetBox::StickerSetBox(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Data::StickersSet*> set)
+: StickerSetBox(parent, controller, set->identifier(), set->type()) {
 }
 
 QPointer<Ui::BoxContent> StickerSetBox::Show(
@@ -257,7 +284,10 @@ QPointer<Ui::BoxContent> StickerSetBox::Show(
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set) {
 			return controller->show(
-				Box<StickerSetBox>(controller, sticker->set),
+				Box<StickerSetBox>(
+					controller,
+					sticker->set,
+					sticker->setType),
 				Ui::LayerOption::KeepOther).data();
 		}
 	}
@@ -268,14 +298,18 @@ void StickerSetBox::prepare() {
 	setTitle(tr::lng_contacts_loading());
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, _controller, _set),
+		object_ptr<Inner>(this, _controller, _set, _type),
 		st::stickersScroll);
 	_controller->session().data().stickers().updated(
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
 
-	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
+	setDimensions(
+		st::boxWideWidth,
+		(_type == Data::StickersType::Emoji
+			? st::emojiSetMaxHeight
+			: st::stickersMaxHeight));
 
 	updateTitleAndButtons();
 
@@ -476,10 +510,12 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 StickerSetBox::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	const StickerSetIdentifier &set)
+	const StickerSetIdentifier &set,
+	Data::StickersType type)
 : RpWidget(parent)
 , _controller(controller)
 , _api(&_controller->session().mtp())
+, _manager(std::make_unique<Ui::CustomEmoji::SimpleManager>())
 , _setId(set.id)
 , _setAccessHash(set.accessHash)
 , _setShortName(set.shortName)
@@ -489,6 +525,9 @@ StickerSetBox::Inner::Inner(
 	[=] { repaintItems(); }))
 , _updateItemsTimer([=] { updateItems(); })
 , _input(set)
+, _padding((type == Data::StickersType::Emoji)
+	? st::emojiSetPadding
+	: st::stickersPadding)
 , _previewTimer([=] { showPreview(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -613,16 +652,11 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	}
 	_perRow = isEmojiSet() ? kEmojiPerRow : kStickersPerRow;
 	_rowsCount = (_pack.size() + _perRow - 1) / _perRow;
-	const auto fullWidth = st::boxWideWidth;
-	const auto rowsLeft = st::stickersPadding.left();
-	const auto rowsRight = rowsLeft;
-	const auto singleWidth = (fullWidth - rowsLeft - rowsRight)
-		/ _perRow;
-	_singleSize = isEmojiSet()
-		? QSize(singleWidth, singleWidth)
-		: st::stickersSize;
+	_singleSize = isEmojiSet() ? st::emojiSetSize : st::stickersSize;
 
-	resize(st::stickersPadding.left() + _perRow * _singleSize.width(), st::stickersPadding.top() + _rowsCount * _singleSize.height() + st::stickersPadding.bottom());
+	resize(
+		_padding.left() + _perRow * _singleSize.width(),
+		_padding.top() + _rowsCount * _singleSize.height() + _padding.bottom());
 
 	_loaded = true;
 	updateSelected();
@@ -862,8 +896,8 @@ void StickerSetBox::Inner::startOverAnimation(int index, float64 from, float64 t
 	_elements[index].overAnimation.start([=] {
 		const auto row = index / _perRow;
 		const auto column = index % _perRow;
-		const auto left = st::stickersPadding.left() + column * _singleSize.width();
-		const auto top = st::stickersPadding.top() + row * _singleSize.height();
+		const auto left = _padding.left() + column * _singleSize.width();
+		const auto top = _padding.top() + row * _singleSize.height();
 		rtlupdate(left, top, _singleSize.width(), _singleSize.height());
 	}, from, to, st::emojiPanDuration);
 }
@@ -903,8 +937,8 @@ not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
 int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	QPoint l(mapFromGlobal(p));
 	if (rtl()) l.setX(width() - l.x());
-	int32 row = (l.y() >= st::stickersPadding.top()) ? qFloor((l.y() - st::stickersPadding.top()) / _singleSize.height()) : -1;
-	int32 col = (l.x() >= st::stickersPadding.left()) ? qFloor((l.x() - st::stickersPadding.left()) / _singleSize.width()) : -1;
+	int32 row = (l.y() >= _padding.top()) ? qFloor((l.y() - _padding.top()) / _singleSize.height()) : -1;
+	int32 col = (l.x() >= _padding.left()) ? qFloor((l.x() - _padding.left()) / _singleSize.width()) : -1;
 	if (row >= 0 && col >= 0 && col < _perRow) {
 		int32 result = row * _perRow + col;
 		return (result < _pack.size()) ? result : -1;
@@ -914,6 +948,8 @@ int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 
 void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	_repaintScheduled = false;
 
 	p.fillRect(e->rect(), st::boxBg);
 	if (_elements.empty()) {
@@ -933,7 +969,9 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 			if (index >= _elements.size()) {
 				break;
 			}
-			const auto pos = QPoint(st::stickersPadding.left() + j * _singleSize.width(), st::stickersPadding.top() + i * _singleSize.height());
+			const auto pos = QPoint(
+				_padding.left() + j * _singleSize.width(),
+				_padding.top() + i * _singleSize.height());
 			paintSticker(p, index, pos, paused, now);
 		}
 	}
@@ -984,7 +1022,7 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 			}
 		}
 	};
-	const auto rowsTop = st::stickersPadding.top();
+	const auto rowsTop = _padding.top();
 	const auto singleHeight = _singleSize.height();
 	const auto rowsBottom = rowsTop + _rowsCount * singleHeight;
 	if (visibleTop >= rowsTop + singleHeight && visibleTop < rowsBottom) {
@@ -1058,6 +1096,37 @@ void StickerSetBox::Inner::clipCallback(
 	updateItems();
 }
 
+void StickerSetBox::Inner::setupEmoji(int index) {
+	auto &element = _elements[index];
+	element.emoji = resolveCustomInstance(element.document);
+}
+
+auto StickerSetBox::Inner::resolveCustomInstance(
+	not_null<DocumentData*> document)
+-> not_null<CustomInstance*> {
+	const auto i = _instances.find(document);
+	if (i != end(_instances)) {
+		return i->second.get();
+	}
+	auto instance = _manager->make(
+		_controller->session().data().customEmojiManager().createLoader(
+			document,
+			Data::CustomEmojiManager::SizeTag::Large),
+		[=] { customEmojiRepaint(); });
+	return _instances.emplace(
+		document,
+		std::move(instance)
+	).first->second.get();
+}
+
+void StickerSetBox::Inner::customEmojiRepaint() {
+	if (_repaintScheduled) {
+		return;
+	}
+	_repaintScheduled = true;
+	update();
+}
+
 void StickerSetBox::Inner::paintSticker(
 		Painter &p,
 		int index,
@@ -1080,7 +1149,9 @@ void StickerSetBox::Inner::paintSticker(
 		&& !_controller->session().premium();
 	media->checkStickerSmall();
 
-	if (media->loaded()) {
+	if (sticker->setType == Data::StickersType::Emoji) {
+		const_cast<Inner*>(this)->setupEmoji(index);
+	} else if (media->loaded()) {
 		if (sticker->isLottie() && !element.lottie) {
 			const_cast<Inner*>(this)->setupLottie(index);
 		} else if (sticker->isWebm() && !element.webm) {
@@ -1095,7 +1166,15 @@ void StickerSetBox::Inner::paintSticker(
 		(_singleSize.width() - size.width()) / 2,
 		(_singleSize.height() - size.height()) / 2);
 	auto lottieFrame = QImage();
-	if (element.lottie && element.lottie->ready()) {
+	if (element.emoji) {
+		element.emoji->object.paint(
+			p,
+			ppos.x(),
+			ppos.y(),
+			now,
+			st::windowBgOver->c,
+			paused);
+	} else if (element.lottie && element.lottie->ready()) {
 		lottieFrame = element.lottie->frame();
 		p.drawImage(
 			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),

@@ -195,7 +195,7 @@ void StickerToast::showWithTitle(const QString &title) {
 	}
 	button->setClickedCallback([=] {
 		_controller->show(
-			Box<StickerSetBox>(_controller, _for->sticker()->set),
+			Box<StickerSetBox>(_controller, _for->sticker()->set, setType),
 			Ui::LayerOption::KeepOther);
 		hideToast();
 	});

@@ -41,36 +41,12 @@ constexpr auto kAnimationDuration = crl::time(120);
 
 } // namespace
 
-struct SuggestionsWidget::CustomInstance {
-	CustomInstance(
-		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
-		Fn<void(
-			not_null<Ui::CustomEmoji::Instance*>,
-			Ui::CustomEmoji::RepaintRequest)> repaintLater,
-		Fn<void()> repaint);
-
-	Ui::CustomEmoji::Instance emoji;
-	Ui::CustomEmoji::Object object;
-};
-
-SuggestionsWidget::CustomInstance::CustomInstance(
-	std::unique_ptr<Ui::CustomEmoji::Loader> loader,
-	Fn<void(
-		not_null<Ui::CustomEmoji::Instance*>,
-		Ui::CustomEmoji::RepaintRequest)> repaintLater,
-	Fn<void()> repaint)
-: emoji(
-	Ui::CustomEmoji::Loading(std::move(loader), Ui::CustomEmoji::Preview()),
-	std::move(repaintLater))
-, object(&emoji, std::move(repaint)) {
-}
-
 SuggestionsWidget::SuggestionsWidget(
 	QWidget *parent,
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
-, _repaintTimer([=] { invokeRepaints(); })
+, _manager(std::make_unique<Ui::CustomEmoji::SimpleManager>())
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -180,77 +156,23 @@ auto SuggestionsWidget::resolveCustomInstance(
 	if (i != end(_instances)) {
 		return i->second.get();
 	}
-	const auto repaintDelayed = [=](
-			not_null<Ui::CustomEmoji::Instance*> instance,
-			Ui::CustomEmoji::RepaintRequest request) {
-		if (_instances.empty() || !request.when) {
-			return;
-		}
-		auto &when = _repaints[request.duration];
-		if (when < request.when) {
-			when = request.when;
-		}
-		if (_repaintTimerScheduled) {
-			return;
-		}
-		scheduleRepaintTimer();
-	};
-	const auto repaintNow = [=] {
-		update();
-	};
-	auto instance = std::make_unique<CustomInstance>(
+	auto instance = _manager->make(
 		_session->data().customEmojiManager().createLoader(
 			document,
 			Data::CustomEmojiManager::SizeTag::Large),
-		std::move(repaintDelayed),
-		std::move(repaintNow));
+		[=] { customEmojiRepaint(); });
 	return _instances.emplace(
 		document,
 		std::move(instance)
 	).first->second.get();
 }
 
-void SuggestionsWidget::scheduleRepaintTimer() {
-	_repaintTimerScheduled = true;
-	Ui::PostponeCall(this, [=] {
-		_repaintTimerScheduled = false;
-
-		auto next = crl::time();
-		for (const auto &[duration, when] : _repaints) {
-			if (!next || next > when) {
-				next = when;
-			}
-		}
-		if (next && (!_repaintNext || _repaintNext > next)) {
-			const auto now = crl::now();
-			if (now >= next) {
-				_repaintNext = 0;
-				_repaintTimer.cancel();
-				invokeRepaints();
-			} else {
-				_repaintNext = next;
-				_repaintTimer.callOnce(next - now);
-			}
-		}
-	});
-}
-
-void SuggestionsWidget::invokeRepaints() {
-	_repaintNext = 0;
-	auto invoke = false;
-	const auto now = crl::now();
-	for (auto i = begin(_repaints); i != end(_repaints);) {
-		if (i->second > now) {
-			++i;
-			continue;
-		}
-		invoke = true;
-		i = _repaints.erase(i);
+void SuggestionsWidget::customEmojiRepaint() {
+	if (_repaintScheduled) {
+		return;
 	}
-	if (invoke) {
-		update();
-	}
-	scheduleRepaintTimer();
+	_repaintScheduled = true;
+	update();
 }
 
 SuggestionsWidget::Row::Row(
@@ -377,6 +299,8 @@ void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
 
 void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
+
+	_repaintScheduled = false;
 
 	const auto clip = e->rect();
 	p.fillRect(clip, st::boxBg);

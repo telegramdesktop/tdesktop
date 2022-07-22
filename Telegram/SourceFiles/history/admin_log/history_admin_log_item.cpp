@@ -1043,7 +1043,8 @@ void GenerateItems(
 					controller->show(
 						Box<StickerSetBox>(
 							controller,
-							Data::FromInputSet(set)),
+							Data::FromInputSet(set),
+							Data::StickersType::Stickers),
 						Ui::LayerOption::CloseOther);
 				}
 			});

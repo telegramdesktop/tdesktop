@@ -79,6 +79,9 @@ stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
+emojiSetPadding: margins(12px, 0px, 12px, 0px);
+emojiSetMaxHeight: 197px;
+emojiSetSize: size(42px, 39px);
 stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
@@ -224,6 +227,9 @@ stickerIconSelColor: emojiIconFgActive;
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
+
+emojiIconWidth: 35px;
+emojiIconArea: 32px;
 
 stickerGroupCategorySize: 28px;
 stickerGroupCategoryAbout: defaultTextStyle;

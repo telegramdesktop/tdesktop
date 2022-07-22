@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/custom_emoji_instance.h"
 
 #include "ui/effects/frame_generator.h"
+#include "ui/ui_utility.h"
 
 #include <crl/crl_async.h>
 #include <lz4.h>
@@ -645,6 +646,86 @@ void Object::unload() {
 
 void Object::repaint() {
 	_repaint();
+}
+
+SeparateInstance::SeparateInstance(
+	std::unique_ptr<Loader> loader,
+	Fn<void(not_null<Instance*>, RepaintRequest)> repaintLater,
+	Fn<void()> repaint)
+: emoji(Loading(std::move(loader), Preview()), std::move(repaintLater))
+, object(&emoji, std::move(repaint)) {
+}
+
+SimpleManager::SimpleManager()
+: _repaintTimer([=] { invokeRepaints(); }) {
+}
+
+std::unique_ptr<SeparateInstance> SimpleManager::make(
+		std::unique_ptr<Loader> loader,
+		Fn<void()> repaint) {
+	auto repaintLater = [=](
+			not_null<Instance*> instance,
+			RepaintRequest request) {
+		if (!request.when) {
+			return;
+		}
+		auto &when = _repaints[request.duration];
+		if (when < request.when) {
+			when = request.when;
+		}
+		if (_repaintTimerScheduled) {
+			return;
+		}
+		scheduleRepaintTimer();
+	};
+	_simpleRepaint = repaint;
+	return std::make_unique<SeparateInstance>(
+		std::move(loader),
+		std::move(repaintLater),
+		std::move(repaint));
+}
+
+void SimpleManager::scheduleRepaintTimer() {
+	_repaintTimerScheduled = true;
+	Ui::PostponeCall(this, [=] {
+		_repaintTimerScheduled = false;
+
+		auto next = crl::time();
+		for (const auto &[duration, when] : _repaints) {
+			if (!next || next > when) {
+				next = when;
+			}
+		}
+		if (next && (!_repaintNext || _repaintNext > next)) {
+			const auto now = crl::now();
+			if (now >= next) {
+				_repaintNext = 0;
+				_repaintTimer.cancel();
+				invokeRepaints();
+			} else {
+				_repaintNext = next;
+				_repaintTimer.callOnce(next - now);
+			}
+		}
+	});
+}
+
+void SimpleManager::invokeRepaints() {
+	_repaintNext = 0;
+	auto invoke = false;
+	const auto now = crl::now();
+	for (auto i = begin(_repaints); i != end(_repaints);) {
+		if (i->second > now) {
+			++i;
+			continue;
+		}
+		invoke = true;
+		i = _repaints.erase(i);
+	}
+	if (invoke && _simpleRepaint) {
+		_simpleRepaint();
+	}
+	scheduleRepaintTimer();
 }
 
 } // namespace Ui::CustomEmoji

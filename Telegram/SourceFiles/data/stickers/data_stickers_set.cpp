@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_document.h"
+#include "data/stickers/data_stickers.h"
 #include "storage/file_download.h"
 #include "ui/image/image.h"
 
@@ -95,6 +96,14 @@ StickerSetIdentifier StickersSet::identifier() const {
 		.id = id,
 		.accessHash = accessHash,
 	};
+}
+
+StickersType StickersSet::type() const {
+	return (flags & StickersSetFlag::Emoji)
+		? StickersType::Emoji
+		: (flags & StickersSetFlag::Masks)
+		? StickersType::Masks
+		: StickersType::Stickers;
 }
 
 void StickersSet::setThumbnail(const ImageWithLocation &data) {

@@ -24,6 +24,8 @@ using SavedGifs = QVector<DocumentData*>;
 using StickersPack = QVector<DocumentData*>;
 using StickersByEmojiMap = QMap<EmojiPtr, StickersPack>;
 
+enum class StickersType : uchar;
+
 class StickersSet;
 using StickersSets = base::flat_map<uint64, std::unique_ptr<StickersSet>>;
 
@@ -81,6 +83,7 @@ public:
 
 	[[nodiscard]] MTPInputStickerSet mtpInput() const;
 	[[nodiscard]] StickerSetIdentifier identifier() const;
+	[[nodiscard]] StickersType type() const;
 
 	void setThumbnail(const ImageWithLocation &data);
 
