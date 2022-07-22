@@ -1275,4 +1275,79 @@ void StickersListFooter::paintSetIcon(
 	}
 }
 
+LocalStickersManager::LocalStickersManager(not_null<Main::Session*> session)
+: _session(session)
+, _api(&session->mtp()) {
+}
+
+void LocalStickersManager::install(uint64 setId) {
+	const auto &sets = _session->data().stickers().sets();
+	const auto it = sets.find(setId);
+	if (it == sets.cend()) {
+		return;
+	}
+	const auto set = it->second.get();
+	const auto input = set->mtpInput();
+	if (!(set->flags & Data::StickersSetFlag::NotLoaded)
+		&& !set->stickers.empty()) {
+		sendInstallRequest(setId, input);
+		return;
+	}
+	_api.request(MTPmessages_GetStickerSet(
+		input,
+		MTP_int(0) // hash
+	)).done([=](const MTPmessages_StickerSet &result) {
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			_session->data().stickers().feedSetFull(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+		sendInstallRequest(setId, input);
+	}).send();
+}
+
+bool LocalStickersManager::isInstalledLocally(uint64 setId) const {
+	return _installedLocallySets.contains(setId);
+}
+
+void LocalStickersManager::sendInstallRequest(
+		uint64 setId,
+		const MTPInputStickerSet &input) {
+	_api.request(MTPmessages_InstallStickerSet(
+		input,
+		MTP_bool(false)
+	)).done([=](const MTPmessages_StickerSetInstallResult &result) {
+		if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
+			_session->data().stickers().applyArchivedResult(
+				result.c_messages_stickerSetInstallResultArchive());
+		}
+	}).fail([=] {
+		notInstalledLocally(setId);
+		_session->data().stickers().undoInstallLocally(setId);
+	}).send();
+
+	installedLocally(setId);
+	_session->data().stickers().installLocally(setId);
+}
+
+void LocalStickersManager::installedLocally(uint64 setId) {
+	_installedLocallySets.insert(setId);
+}
+
+void LocalStickersManager::notInstalledLocally(uint64 setId) {
+	_installedLocallySets.remove(setId);
+}
+
+void LocalStickersManager::removeInstalledLocally(uint64 setId) {
+	_installedLocallySets.remove(setId);
+}
+
+bool LocalStickersManager::clearInstalledLocally() {
+	if (_installedLocallySets.empty()) {
+		return false;
+	}
+	_installedLocallySets.clear();
+	return true;
+}
+
 } // namespace ChatHelpers

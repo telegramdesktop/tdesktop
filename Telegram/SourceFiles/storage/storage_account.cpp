@@ -2019,9 +2019,8 @@ void Account::writeInstalledStickers() {
 				return StickerSetCheckResult::Skip;
 			}
 		} else if (!(set.flags & SetFlag::Installed)
-			|| (set.flags & SetFlag::Archived)) {
-			return StickerSetCheckResult::Skip;
-		} else if (set.flags & (SetFlag::Masks | SetFlag::Emoji)) {
+			|| (set.flags & SetFlag::Archived)
+			|| (set.type() != Data::StickersType::Stickers)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & SetFlag::NotLoaded) {
 			// waiting to receive
@@ -2042,9 +2041,9 @@ void Account::writeFeaturedStickers() {
 			|| set.id == Data::Stickers::CloudRecentAttachedSetId) {
 			// separate files for them
 			return StickerSetCheckResult::Skip;
-		} else if (set.flags & (SetFlag::Special | SetFlag::Emoji)) {
-			return StickerSetCheckResult::Skip;
-		} else if (!(set.flags & SetFlag::Featured)) {
+		} else if ((set.flags & SetFlag::Special)
+			|| !(set.flags & SetFlag::Featured)
+			|| (set.type() != Data::StickersType::Stickers)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & SetFlag::NotLoaded) { // waiting to receive
 			return StickerSetCheckResult::Abort;
@@ -2059,9 +2058,8 @@ void Account::writeFeaturedCustomEmoji() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_featuredCustomEmojiKey, [](const Data::StickersSet &set) {
-		if (!(set.flags & SetFlag::Emoji)) {
-			return StickerSetCheckResult::Skip;
-		} else if (!(set.flags & SetFlag::Featured)) {
+		if (!(set.flags & SetFlag::Featured)
+			|| (set.type() != Data::StickersType::Emoji)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & SetFlag::NotLoaded) { // waiting to receive
 			return StickerSetCheckResult::Abort;
@@ -2095,10 +2093,8 @@ void Account::writeArchivedStickers() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
-		if (set.flags & (SetFlag::Masks | SetFlag::Emoji)) {
-			return StickerSetCheckResult::Skip;
-		}
 		if (!(set.flags & SetFlag::Archived)
+			|| (set.type() != Data::StickersType::Stickers)
 			|| set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
@@ -2110,10 +2106,9 @@ void Account::writeArchivedMasks() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_archivedStickersKey, [](const Data::StickersSet &set) {
-		if (!(set.flags & SetFlag::Masks)) {
-			return StickerSetCheckResult::Skip;
-		}
-		if (!(set.flags & SetFlag::Archived) || set.stickers.isEmpty()) {
+		if (!(set.flags & SetFlag::Archived)
+			|| (set.type() != Data::StickersType::Masks)
+			|| set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
@@ -2124,7 +2119,10 @@ void Account::writeInstalledMasks() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_installedMasksKey, [](const Data::StickersSet &set) {
-		if (!(set.flags & SetFlag::Masks) || set.stickers.isEmpty()) {
+		if (!(set.flags & SetFlag::Installed)
+			|| (set.flags & SetFlag::Archived)
+			|| (set.type() != Data::StickersType::Masks)
+			|| set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;
@@ -2145,14 +2143,14 @@ void Account::writeInstalledCustomEmoji() {
 	using SetFlag = Data::StickersSetFlag;
 
 	writeStickerSets(_installedCustomEmojiKey, [](const Data::StickersSet &set) {
-		if (!(set.flags & SetFlag::Emoji)) {
+		if (!(set.flags & SetFlag::Installed)
+			|| (set.flags & SetFlag::Archived)
+			|| (set.type() != Data::StickersType::Emoji)) {
 			return StickerSetCheckResult::Skip;
 		} else if (set.flags & SetFlag::NotLoaded) {
 			// waiting to receive
 			return StickerSetCheckResult::Abort;
-		} else if (!(set.flags & SetFlag::Installed)
-			|| (set.flags & SetFlag::Archived)
-			|| set.stickers.isEmpty()) {
+		} else if (set.stickers.isEmpty()) {
 			return StickerSetCheckResult::Skip;
 		}
 		return StickerSetCheckResult::Write;

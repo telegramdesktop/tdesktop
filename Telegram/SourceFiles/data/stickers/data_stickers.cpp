@@ -356,9 +356,12 @@ void Stickers::applyArchivedResult(
 		if (set->flags & SetFlag::NotLoaded) {
 			setsToRequest.insert(set->id, set->accessHash);
 		}
-		const auto masks = !!(set->flags & SetFlag::Masks);
-		(masks ? masksCount : stickersCount)++;
-		auto &order = masks ? maskSetsOrderRef() : setsOrderRef();
+		if (set->type() == StickersType::Emoji) {
+			continue;
+		}
+		const auto isMasks = (set->type() == StickersType::Masks);
+		(isMasks ? masksCount : stickersCount)++;
+		auto &order = isMasks ? maskSetsOrderRef() : setsOrderRef();
 		const auto index = order.indexOf(set->id);
 		if (index >= 0) {
 			order.removeAt(index);
@@ -692,12 +695,7 @@ void Stickers::somethingReceived(
 	QMap<uint64, uint64> setsToRequest;
 	for (auto &[id, set] : sets) {
 		const auto archived = !!(set->flags & SetFlag::Archived);
-		const auto setType = !!(set->flags & SetFlag::Emoji)
-			? StickersType::Emoji
-			: !!(set->flags & SetFlag::Masks)
-			? StickersType::Masks
-			: StickersType::Stickers;
-		if (!archived && (type == setType)) {
+		if (!archived && (type == set->type())) {
 			// Mark for removing.
 			set->flags &= ~SetFlag::Installed;
 			set->installDate = 0;
@@ -964,10 +962,10 @@ void Stickers::featuredReceived(
 	};
 
 	const auto isEmoji = (type == StickersType::Emoji);
-	auto &setsOrder = isEmoji
+	auto &featuredOrder = isEmoji
 		? featuredEmojiSetsOrderRef()
 		: featuredSetsOrderRef();
-	setsOrder.clear();
+	featuredOrder.clear();
 
 	auto &sets = setsRef();
 	auto setsToRequest = base::flat_map<uint64, uint64>();
@@ -1000,15 +998,14 @@ void Stickers::featuredReceived(
 			}
 			return ImageWithLocation();
 		}();
+		const auto setId = data->vid().v;
 		const auto flags = SetFlag::Featured
-			| (unreadMap.contains(data->vid().v)
-				? SetFlag::Unread
-				: SetFlag())
+			| (unreadMap.contains(setId) ? SetFlag::Unread : SetFlag())
 			| ParseStickersSetFlags(*data);
 		if (it == sets.cend()) {
 			it = sets.emplace(data->vid().v, std::make_unique<StickersSet>(
 				&owner(),
-				data->vid().v,
+				setId,
 				data->vaccess_hash().v,
 				data->vhash().v,
 				title,
@@ -1032,7 +1029,7 @@ void Stickers::featuredReceived(
 		}
 		it->second->setThumbnail(thumbnail);
 		it->second->thumbnailDocumentId = data->vthumb_document_id().value_or_empty();
-		setsOrder.push_back(data->vid().v);
+		featuredOrder.push_back(data->vid().v);
 		if (it->second->stickers.isEmpty()
 			|| (it->second->flags & SetFlag::NotLoaded)) {
 			setsToRequest.emplace(data->vid().v, data->vaccess_hash().v);
@@ -1361,8 +1358,8 @@ not_null<StickersSet*> Stickers::feedSet(const MTPStickerSet &info) {
 	set->thumbnailDocumentId = data.vthumb_document_id().value_or_empty();
 	auto changedFlags = (oldFlags ^ set->flags);
 	if (changedFlags & SetFlag::Archived) {
-		const auto masks = !!(set->flags & SetFlag::Masks);
-		auto &archivedOrder = masks
+		const auto isMasks = (set->type() == StickersType::Masks);
+		auto &archivedOrder = isMasks
 			? archivedMaskSetsOrderRef()
 			: archivedSetsOrderRef();
 		const auto index = archivedOrder.indexOf(set->id);

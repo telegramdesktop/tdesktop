@@ -403,7 +403,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 	_invoice.cover.title = qs(data.vtitle());
 	_invoice.cover.description = TextUtilities::ParseEntities(
 		qs(data.vdescription()),
-		TextParseLinks | TextParseMultiline)
+		TextParseLinks | TextParseMultiline);
 	if (_invoice.cover.thumbnail.isNull() && !_thumbnailLoadProcess) {
 		if (const auto photo = data.vphoto()) {
 			loadThumbnail(
@@ -435,7 +435,7 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 		.providerId = data.vprovider_id().v,
 	};
 	if (_invoice.cover.title.isEmpty()
-		&& _invoice.cover.description.isEmpty()
+		&& _invoice.cover.description.empty()
 		&& _invoice.cover.thumbnail.isNull()
 		&& !_thumbnailLoadProcess) {
 		_invoice.cover = Ui::Cover{

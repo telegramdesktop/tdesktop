@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/effects/premium_graphics.h"
 #include "ui/emoji_config.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "core/core_settings.h"
 #include "core/application.h"
+#include "settings/settings_premium.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
 #include "styles/style_chat_helpers.h"
@@ -363,6 +365,8 @@ EmojiListWidget::EmojiListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Inner(parent, controller)
+, _localSetsManager(
+	std::make_unique<LocalStickersManager>(&controller->session()))
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); })
 , _repaintTimer([=] { invokeRepaints(); }) {
@@ -398,6 +402,16 @@ EmojiListWidget::EmojiListWidget(
 	) | rpl::skip(1) | rpl::start_with_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
+	}, lifetime());
+
+	rpl::single(
+		rpl::empty
+	) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		initButton(_add, tr::lng_stickers_featured_add(tr::now), false);
+		initButton(_unlock, tr::lng_emoji_featured_unlock(tr::now), true);
+		initButton(_restore, tr::lng_emoji_premium_restore(tr::now), true);
 	}, lifetime());
 }
 
@@ -581,8 +595,6 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	auto i = 0;
 	auto info = SectionInfo();
 	const auto session = &controller()->session();
-	const auto premiumMayBeBought = !session->premium()
-		&& session->premiumPossible();
 	const auto next = [&] {
 		info.rowsCount = (info.count + _columnCount - 1) / _columnCount;
 		info.rowsTop = info.top
@@ -605,7 +617,7 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	}
 	for (auto &section : _custom) {
 		info.section = i++;
-		info.premiumRequired = section.premium && premiumMayBeBought;
+		info.premiumRequired = section.premiumRequired;
 		info.count = int(section.list.size());
 		if (!next()) {
 			return false;
@@ -763,23 +775,13 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		} else if (r.top() + r.height() <= info.top) {
 			return false;
 		}
-		auto widthForTitle = emojiRight() - (st::emojiPanHeaderLeft - st::roundRadiusSmall);
+		const auto buttonSelected = selectedButton
+			? (selectedButton->section == info.section)
+			: false;
+		const auto widthForTitle = emojiRight()
+			- (st::emojiPanHeaderLeft - st::roundRadiusSmall)
+			- paintButtonGetWidth(p, info, buttonSelected, r);
 		const auto skip = st::roundRadiusSmall;
-		if (hasRemoveButton(info.section)) {
-			auto &custom = _custom[info.section - kEmojiSectionCount];
-			auto remove = removeButtonRect(info.section);
-			if (remove.intersects(r)) {
-				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
-				if (custom.ripple) {
-					custom.ripple->paint(p, remove.x() + st::stickerPanRemoveSet.rippleAreaPosition.x(), remove.y() + st::stickerPanRemoveSet.rippleAreaPosition.y(), width());
-					if (custom.ripple->empty()) {
-						custom.ripple.reset();
-					}
-				}
-				(selected ? st::stickerPanRemoveSet.iconOver : st::stickerPanRemoveSet.icon).paint(p, remove.topLeft() + st::stickerPanRemoveSet.iconPosition, width());
-			}
-			widthForTitle -= remove.width();
-		}
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
@@ -1010,7 +1012,14 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	} else if (auto button = std::get_if<OverButton>(&pressed)) {
 		Assert(button->section >= kEmojiSectionCount
 			&& button->section < kEmojiSectionCount + _custom.size());
-		removeSet(_custom[button->section - kEmojiSectionCount].id);
+		const auto id = _custom[button->section - kEmojiSectionCount].id;
+		if (hasRemoveButton(button->section)) {
+			removeSet(id);
+		} else if (hasAddButton(button->section)) {
+			_localSetsManager->install(id);
+		} else {
+			Settings::ShowPremium(controller(), u"animated_emoji"_q);
+		}
 	}
 }
 
@@ -1089,16 +1098,86 @@ bool EmojiListWidget::hasRemoveButton(int index) const {
 		|| index >= kEmojiSectionCount + _custom.size()) {
 		return false;
 	}
-	return true;
+	const auto &set = _custom[index - kEmojiSectionCount];
+	return set.canRemove && !set.premiumRequired;
 }
 
 QRect EmojiListWidget::removeButtonRect(int index) const {
-	auto buttonw = st::stickerPanRemoveSet.rippleAreaPosition.x()
+	return removeButtonRect(sectionInfo(index));
+}
+
+QRect EmojiListWidget::removeButtonRect(const SectionInfo &info) const {
+	const auto buttonw = st::stickerPanRemoveSet.rippleAreaPosition.x()
 		+ st::stickerPanRemoveSet.rippleAreaSize;
-	auto buttonh = st::stickerPanRemoveSet.height;
-	auto buttonx = emojiRight() - st::emojiPanRemoveSkip - buttonw;
-	auto buttony = sectionInfo(index).top + (st::emojiPanHeader - buttonh) / 2;
+	const auto buttonh = st::stickerPanRemoveSet.height;
+	const auto buttonx = emojiRight() - st::emojiPanRemoveSkip - buttonw;
+	const auto buttony = info.top + (st::emojiPanHeader - buttonh) / 2;
 	return QRect(buttonx, buttony, buttonw, buttonh);
+}
+
+bool EmojiListWidget::hasAddButton(int index) const {
+	if (index < kEmojiSectionCount
+		|| index >= kEmojiSectionCount + _custom.size()) {
+		return false;
+	}
+	const auto &set = _custom[index - kEmojiSectionCount];
+	return !set.canRemove && !set.premiumRequired;
+}
+
+QRect EmojiListWidget::addButtonRect(int index) const {
+	return buttonRect(sectionInfo(index), _add);
+}
+
+bool EmojiListWidget::hasUnlockButton(int index) const {
+	if (index < kEmojiSectionCount
+		|| index >= kEmojiSectionCount + _custom.size()) {
+		return false;
+	}
+	const auto &set = _custom[index - kEmojiSectionCount];
+	return set.premiumRequired;
+}
+
+QRect EmojiListWidget::unlockButtonRect(int index) const {
+	Expects(index >= kEmojiSectionCount
+		&& index < kEmojiSectionCount + _custom.size());
+
+	return buttonRect(sectionInfo(index), rightButton(index));
+}
+
+bool EmojiListWidget::hasButton(int index) const {
+	if (index < kEmojiSectionCount
+		|| index >= kEmojiSectionCount + _custom.size()) {
+		return false;
+	}
+	return true;
+}
+
+QRect EmojiListWidget::buttonRect(int index) const {
+	return hasRemoveButton(index)
+		? removeButtonRect(index)
+		: hasAddButton(index)
+		? addButtonRect(index)
+		: unlockButtonRect(index);
+}
+
+QRect EmojiListWidget::buttonRect(
+		const SectionInfo &info,
+		const RightButton &button) const {
+	const auto buttonw = button.textWidth - st::emojiPanButton.width;
+	const auto buttonh = st::emojiPanButton.height;
+	const auto buttonx = emojiRight() - buttonw - st::emojiPanButtonRight;
+	const auto buttony = info.top + st::emojiPanButtonTop;
+	return QRect(buttonx, buttony, buttonw, buttonh);
+}
+
+auto EmojiListWidget::rightButton(int index) const -> const RightButton & {
+	Expects(index >= kEmojiSectionCount
+		&& index < kEmojiSectionCount + _custom.size());
+	return hasAddButton(index)
+		? _add
+		: _custom[index - kEmojiSectionCount].canRemove
+		? _restore
+		: _unlock;
 }
 
 int EmojiListWidget::emojiRight() const {
@@ -1221,15 +1300,22 @@ void EmojiListWidget::refreshRecent() {
 
 void EmojiListWidget::refreshCustom() {
 	auto old = base::take(_custom);
-	const auto owner = &controller()->session().data();
-	const auto &order = owner->stickers().emojiSetsOrder();
-	const auto &featured = owner->stickers().featuredEmojiSetsOrder();
+	const auto session = &controller()->session();
+	const auto premiumPossible = session->premiumPossible();
+	const auto premiumMayBeBought = premiumPossible && !session->premium();
+	const auto owner = &session->data();
 	const auto &sets = owner->stickers().sets();
-	for (const auto setId : ranges::views::concat(order, featured)) {
+	const auto push = [&](uint64 setId, bool installed) {
 		auto it = sets.find(setId);
 		if (it == sets.cend() || it->second->stickers.isEmpty()) {
-			continue;
+			return;
 		}
+		const auto canRemove = !!(it->second->flags
+			& Data::StickersSetFlag::Installed);
+		if (canRemove != installed) {
+			return;
+		}
+		auto premium = false;
 		const auto &list = it->second->stickers;
 		const auto i = ranges::find(old, setId, &CustomSet::id);
 		if (i != end(old)) {
@@ -1239,19 +1325,26 @@ void EmojiListWidget::refreshCustom() {
 					return false;
 				}
 				for (auto k = 0; k != count; ++k) {
+					if (!premium && list[k]->isPremiumEmoji()) {
+						premium = true;
+					}
 					if (i->list[k].document != list[k]) {
 						return false;
 					}
 				}
 				return true;
 			}();
-			if (valid) {
+			if (premium && !premiumPossible) {
+				return;
+			} else if (valid) {
 				i->thumbnailDocument = it->second->lookupThumbnailDocument();
+				i->canRemove = canRemove;
+				i->premiumRequired = premium && premiumMayBeBought;
+				i->ripple.reset();
 				_custom.push_back(std::move(*i));
-				continue;
+				return;
 			}
 		}
-		auto premium = false;
 		auto set = std::vector<CustomOne>();
 		set.reserve(list.size());
 		for (const auto document : list) {
@@ -1260,13 +1353,13 @@ void EmojiListWidget::refreshCustom() {
 					.instance = resolveCustomInstance(document, setId),
 					.document = document,
 				});
-				if (document->isPremiumEmoji()) {
+				if (!premium && document->isPremiumEmoji()) {
 					premium = true;
 				}
 			}
 		}
-		if (premium && !controller()->session().premiumPossible()) {
-			continue;
+		if (premium && !premiumPossible) {
+			return;
 		}
 		_custom.push_back({
 			.id = setId,
@@ -1274,13 +1367,22 @@ void EmojiListWidget::refreshCustom() {
 			.thumbnailDocument = it->second->lookupThumbnailDocument(),
 			.title = it->second->title,
 			.list = std::move(set),
-			.premium = premium,
+			.canRemove = canRemove,
+			.premiumRequired = premium && premiumMayBeBought,
 		});
+	};
+	for (const auto setId : owner->stickers().emojiSetsOrder()) {
+		push(setId, true);
 	}
+	for (const auto setId : owner->stickers().featuredEmojiSetsOrder()) {
+		push(setId, false);
+	}
+
 	_footer->refreshIcons(
 		fillIcons(),
 		nullptr,
 		ValidateIconAnimations::None);
+	update();
 }
 
 auto EmojiListWidget::customInstanceWithLoader(
@@ -1419,6 +1521,64 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	return result;
 }
 
+int EmojiListWidget::paintButtonGetWidth(
+		QPainter &p,
+		const SectionInfo &info,
+		bool selected,
+		QRect clip) const {
+	if (info.section < kEmojiSectionCount
+		|| info.section >= kEmojiSectionCount + _custom.size()) {
+		return 0;
+	}
+	auto &custom = _custom[info.section - kEmojiSectionCount];
+	if (hasRemoveButton(info.section)) {
+		const auto remove = removeButtonRect(info);
+		if (remove.intersects(clip)) {
+			if (custom.ripple) {
+				custom.ripple->paint(
+					p,
+					remove.x() + st::stickerPanRemoveSet.rippleAreaPosition.x(),
+					remove.y() + st::stickerPanRemoveSet.rippleAreaPosition.y(),
+					width());
+				if (custom.ripple->empty()) {
+					custom.ripple.reset();
+				}
+			}
+			(selected
+				? st::stickerPanRemoveSet.iconOver
+				: st::stickerPanRemoveSet.icon).paint(
+					p,
+					remove.topLeft() + st::stickerPanRemoveSet.iconPosition,
+					width());
+		}
+		return remove.width();
+	}
+	const auto canAdd = hasAddButton(info.section);
+	const auto &button = rightButton(info.section);
+	const auto rect = buttonRect(info, button);
+	p.drawImage(rect.topLeft(), selected ? button.backOver : button.back);
+	if (custom.ripple) {
+		const auto ripple = QColor(0, 0, 0, 36);
+		custom.ripple->paint(p, rect.x(), rect.y(), width(), &ripple);
+		if (custom.ripple->empty()) {
+			custom.ripple.reset();
+		}
+	}
+	p.setPen(!canAdd
+		? st::premiumButtonFg
+		: selected
+		? st::emojiPanButton.textFgOver
+		: st::emojiPanButton.textFg);
+	p.setFont(st::emojiPanButton.font);
+	p.drawText(
+		rect.x() - (st::emojiPanButton.width / 2),
+		(rect.y()
+			+ st::emojiPanButton.textTop
+			+ st::emojiPanButton.font->ascent),
+		button.text);
+	return rect.width();
+}
+
 bool EmojiListWidget::eventHook(QEvent *e) {
 	if (e->type() == QEvent::ParentChange) {
 		if (_picker->parentWidget() != parentWidget()) {
@@ -1439,9 +1599,8 @@ void EmojiListWidget::updateSelected() {
 	auto info = sectionInfoByOffset(p.y());
 	auto section = info.section;
 	if (p.y() >= info.top && p.y() < info.rowsTop) {
-		if (hasRemoveButton(section)
-			&& myrtlrect(
-				removeButtonRect(section)).contains(p.x(), p.y())) {
+		if (hasButton(section)
+			&& myrtlrect(buttonRect(section)).contains(p.x(), p.y())) {
 			newSelected = OverButton{ section };
 		} else if (section >= kEmojiSectionCount) {
 			newSelected = OverSet{ section };
@@ -1470,7 +1629,7 @@ void EmojiListWidget::setSelected(OverState newSelected) {
 		if (const auto sticker = std::get_if<OverEmoji>(&_selected)) {
 			rtlupdate(emojiRect(sticker->section, sticker->index));
 		} else if (const auto button = std::get_if<OverButton>(&_selected)) {
-			rtlupdate(removeButtonRect(button->section));
+			rtlupdate(buttonRect(button->section));
 		}
 	};
 	updateSelected();
@@ -1513,27 +1672,72 @@ void EmojiListWidget::setPressed(OverState newPressed) {
 	}
 }
 
+void EmojiListWidget::initButton(
+		RightButton &button,
+		const QString &text,
+		bool gradient) {
+	button.text = text;
+	button.textWidth = st::emojiPanButton.font->width(text);
+	const auto width = button.textWidth - st::emojiPanButton.width;
+	const auto height = st::emojiPanButton.height;
+	const auto factor = style::DevicePixelRatio();
+	auto prepare = [&](QColor bg, QBrush fg) {
+		auto image = QImage(
+			QSize(width, height) * factor,
+			QImage::Format_ARGB32_Premultiplied);
+		image.setDevicePixelRatio(factor);
+		image.fill(Qt::transparent);
+		auto p = QPainter(&image);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(fg);
+		const auto radius = height / 2.;
+		p.drawRoundedRect(QRect(0, 0, width, height), radius, radius);
+		p.end();
+		return image;
+	};
+	button.back = prepare(Qt::transparent, [&]() -> QBrush {
+		if (gradient) {
+			auto result = QLinearGradient(QPointF(0, 0), QPointF(width, 0));
+			result.setStops(Ui::Premium::ButtonGradientStops());
+			return result;
+		}
+		return st::emojiPanButton.textBg;
+	}());
+	button.backOver = gradient
+		? button.back
+		: prepare(Qt::transparent, st::emojiPanButton.textBgOver);
+	button.rippleMask = prepare(Qt::black, Qt::white);
+}
+
 std::unique_ptr<Ui::RippleAnimation> EmojiListWidget::createButtonRipple(
 		int section) {
 	Expects(section >= kEmojiSectionCount
 		&& section < kEmojiSectionCount + _custom.size());
 
-	auto maskSize = QSize(
-		st::stickerPanRemoveSet.rippleAreaSize,
-		st::stickerPanRemoveSet.rippleAreaSize);
-	auto mask = Ui::RippleAnimation::ellipseMask(maskSize);
+	const auto remove = hasRemoveButton(section);
+	const auto &st = remove
+		? st::stickerPanRemoveSet.ripple
+		: st::emojiPanButton.ripple;
+	auto mask = remove
+		? Ui::RippleAnimation::ellipseMask(QSize(
+			st::stickerPanRemoveSet.rippleAreaSize,
+			st::stickerPanRemoveSet.rippleAreaSize))
+		: rightButton(section).rippleMask;
 	return std::make_unique<Ui::RippleAnimation>(
-		st::stickerPanRemoveSet.ripple,
+		st,
 		std::move(mask),
-		[this, section] { rtlupdate(removeButtonRect(section)); });
+		[this, section] { rtlupdate(buttonRect(section)); });
 }
 
 QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 	Expects(section >= kEmojiSectionCount
 		&& section < kEmojiSectionCount + _custom.size());
 
-	return myrtlrect(removeButtonRect(section)).topLeft()
-		+ st::stickerPanRemoveSet.rippleAreaPosition;
+	return myrtlrect(buttonRect(section)).topLeft()
+		+ (hasRemoveButton(section)
+			? st::stickerPanRemoveSet.rippleAreaPosition
+			: QPoint());
 }
 
 void EmojiListWidget::showEmojiSection(Section section) {

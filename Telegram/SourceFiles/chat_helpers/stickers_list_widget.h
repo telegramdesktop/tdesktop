@@ -49,6 +49,7 @@ namespace ChatHelpers {
 struct StickerIcon;
 enum class ValidateIconAnimations;
 class StickersListFooter;
+class LocalStickersManager;
 
 class StickersListWidget final : public TabbedSelector::Inner {
 public:
@@ -77,10 +78,6 @@ public:
 	std::vector<StickerIcon> fillIcons();
 
 	uint64 currentSet(int yOffset) const;
-
-	void installedLocally(uint64 setId);
-	void notInstalledLocally(uint64 setId);
-	void clearInstalledLocally();
 
 	void sendSearchRequest();
 	void searchForSets(const QString &query);
@@ -202,12 +199,8 @@ private:
 
 	void setSection(Section section);
 	void displaySet(uint64 setId);
-	void installSet(uint64 setId);
 	void removeMegagroupSet(bool locally);
 	void removeSet(uint64 setId);
-	void sendInstallRequest(
-		uint64 setId,
-		const MTPInputStickerSet &input);
 	void refreshMySets();
 	void refreshFeaturedSets();
 	void refreshSearchSets();
@@ -277,14 +270,16 @@ private:
 		const SectionInfo &info,
 		crl::time now);
 
-	int stickersRight() const;
-	bool featuredHasAddButton(int index) const;
-	QRect featuredAddRect(int index) const;
-	bool hasRemoveButton(int index) const;
-	QRect removeButtonRect(int index) const;
-	int megagroupSetInfoLeft() const;
+	[[nodiscard]] int stickersRight() const;
+	[[nodiscard]] bool featuredHasAddButton(int index) const;
+	[[nodiscard]] QRect featuredAddRect(int index) const;
+	[[nodiscard]] QRect featuredAddRect(const SectionInfo &info) const;
+	[[nodiscard]] bool hasRemoveButton(int index) const;
+	[[nodiscard]] QRect removeButtonRect(int index) const;
+	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
+	[[nodiscard]] int megagroupSetInfoLeft() const;
 	void refreshMegagroupSetGeometry();
-	QRect megagroupSetButtonRectFinal() const;
+	[[nodiscard]] QRect megagroupSetButtonRectFinal() const;
 
 	[[nodiscard]] const Data::StickersSetsOrder &defaultSetsOrder() const;
 	[[nodiscard]] Data::StickersSetsOrder &defaultSetsOrderRef();
@@ -332,6 +327,7 @@ private:
 		not_null<DocumentData*> document);
 
 	MTP::Sender _api;
+	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;
 	uint64 _megagroupSetIdRequested = 0;
 	std::vector<Set> _mySets;
@@ -339,7 +335,6 @@ private:
 	std::vector<Set> _searchSets;
 	int _premiumsIndex = -1;
 	int _featuredSetsCount = 0;
-	base::flat_set<uint64> _installedLocallySets;
 	std::vector<bool> _custom;
 	base::flat_set<not_null<DocumentData*>> _favedStickersMap;
 	std::weak_ptr<Lottie::FrameRenderer> _lottieRenderer;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/clip/media_clip_reader.h"
 #include "chat_helpers/tabbed_selector.h"
+#include "mtproto/sender.h"
 #include "ui/round_rect.h"
 
 namespace Ui {
@@ -248,6 +249,29 @@ private:
 	rpl::event_stream<> _openSettingsRequests;
 	rpl::event_stream<uint64> _setChosen;
 	rpl::event_stream<SearchRequest> _searchRequests;
+
+};
+
+class LocalStickersManager final {
+public:
+	explicit LocalStickersManager(not_null<Main::Session*> session);
+
+	void install(uint64 setId);
+	[[nodiscard]] bool isInstalledLocally(uint64 setId) const;
+	void removeInstalledLocally(uint64 setId);
+	bool clearInstalledLocally();
+
+private:
+	void sendInstallRequest(
+		uint64 setId,
+		const MTPInputStickerSet &input);
+	void installedLocally(uint64 setId);
+	void notInstalledLocally(uint64 setId);
+
+	const not_null<Main::Session*> _session;
+	MTP::Sender _api;
+
+	base::flat_set<uint64> _installedLocallySets;
 
 };
 

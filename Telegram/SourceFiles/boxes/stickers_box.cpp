@@ -1061,11 +1061,11 @@ bool StickersBox::Inner::Row::isRecentSet() const {
 }
 
 bool StickersBox::Inner::Row::isMasksSet() const {
-	return (set->flags & SetFlag::Masks);
+	return (set->type() == Data::StickersType::Masks);
 }
 
 bool StickersBox::Inner::Row::isEmojiSet() const {
-	return (set->flags & SetFlag::Emoji);
+	return (set->type() == Data::StickersType::Emoji);
 }
 
 bool StickersBox::Inner::Row::isWebm() const {

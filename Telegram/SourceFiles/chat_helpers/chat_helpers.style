@@ -31,6 +31,14 @@ stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
+emojiPanButtonRight: 7px;
+emojiPanButtonTop: 10px;
+emojiPanButton: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 23px;
+	textTop: 2px;
+}
+
 stickersTrendingAddTop: 14px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	width: -16px;

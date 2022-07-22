@@ -49,6 +49,7 @@ inline constexpr auto kEmojiSectionCount = 8;
 struct StickerIcon;
 class EmojiColorPicker;
 class StickersListFooter;
+class LocalStickersManager;
 
 class EmojiListWidget
 	: public TabbedSelector::Inner
@@ -120,9 +121,17 @@ private:
 		DocumentData *thumbnailDocument = nullptr;
 		QString title;
 		std::vector<CustomOne> list;
-		std::unique_ptr<Ui::RippleAnimation> ripple;
+		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
-		bool premium = false;
+		bool canRemove = false;
+		bool premiumRequired = false;
+	};
+	struct RightButton {
+		QImage back;
+		QImage backOver;
+		QImage rippleMask;
+		QString text;
+		int textWidth = 0;
 	};
 	struct RecentOne;
 	struct RepaintSet {
@@ -210,15 +219,32 @@ private:
 		int index);
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
+	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
+	[[nodiscard]] bool hasAddButton(int index) const;
+	[[nodiscard]] QRect addButtonRect(int index) const;
+	[[nodiscard]] bool hasUnlockButton(int index) const;
+	[[nodiscard]] QRect unlockButtonRect(int index) const;
+	[[nodiscard]] bool hasButton(int index) const;
+	[[nodiscard]] QRect buttonRect(int index) const;
+	[[nodiscard]] QRect buttonRect(
+		const SectionInfo &info,
+		const RightButton &button) const;
+	[[nodiscard]] const RightButton &rightButton(int index) const;
 	[[nodiscard]] QRect emojiRect(int section, int index) const;
 	[[nodiscard]] int emojiRight() const;
 	[[nodiscard]] int emojiLeft() const;
 	[[nodiscard]] uint64 sectionSetId(int section) const;
 	[[nodiscard]] std::vector<StickerIcon> fillIcons();
+	int paintButtonGetWidth(
+		QPainter &p,
+		const SectionInfo &info,
+		bool selected,
+		QRect clip) const;
 
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);
 
+	void initButton(RightButton &button, const QString &text, bool gradient);
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
 	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
@@ -246,6 +272,7 @@ private:
 		uint64 setId);
 
 	StickersListFooter *_footer = nullptr;
+	std::unique_ptr<LocalStickersManager> _localSetsManager;
 
 	int _counts[kEmojiSectionCount];
 	std::vector<RecentOne> _recent;
@@ -260,6 +287,10 @@ private:
 	QSize _singleSize;
 	QPoint _areaPosition;
 	QPoint _innerPosition;
+
+	RightButton _add;
+	RightButton _unlock;
+	RightButton _restore;
 
 	OverState _selected;
 	OverState _pressed;
