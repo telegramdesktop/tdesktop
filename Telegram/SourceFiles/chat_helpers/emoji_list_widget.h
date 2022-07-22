@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "ui/widgets/tooltip.h"
+#include "ui/round_rect.h"
 #include "base/timer.h"
 
 namespace Core {
@@ -109,6 +110,7 @@ private:
 		int rowsTop = 0;
 		int rowsBottom = 0;
 		bool premiumRequired = false;
+		bool collapsed = false;
 	};
 	struct CustomInstance;
 	struct CustomOne {
@@ -123,6 +125,7 @@ private:
 		std::vector<CustomOne> list;
 		mutable std::unique_ptr<Ui::RippleAnimation> ripple;
 		bool painted = false;
+		bool expanded = false;
 		bool canRemove = false;
 		bool premiumRequired = false;
 	};
@@ -200,6 +203,7 @@ private:
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	void selectEmoji(EmojiPtr emoji);
 	void selectCustom(not_null<DocumentData*> document);
+	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
 		QPainter &p,
 		QPoint position,
@@ -291,6 +295,7 @@ private:
 	RightButton _add;
 	RightButton _unlock;
 	RightButton _restore;
+	Ui::RoundRect _collapsedBg;
 
 	OverState _selected;
 	OverState _pressed;

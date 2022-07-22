@@ -40,6 +40,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace ChatHelpers {
 namespace {
 
+constexpr auto kCollapsedRows = 3;
+
 using Core::RecentEmojiId;
 using Core::RecentEmojiDocument;
 
@@ -367,6 +369,7 @@ EmojiListWidget::EmojiListWidget(
 : Inner(parent, controller)
 , _localSetsManager(
 	std::make_unique<LocalStickersManager>(&controller->session()))
+, _collapsedBg(st::emojiPanExpand.height / 2, st::emojiPanHeaderFg)
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); })
 , _repaintTimer([=] { invokeRepaints(); }) {
@@ -596,7 +599,9 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 	auto info = SectionInfo();
 	const auto session = &controller()->session();
 	const auto next = [&] {
-		info.rowsCount = (info.count + _columnCount - 1) / _columnCount;
+		info.rowsCount = info.collapsed
+			? kCollapsedRows
+			: (info.count + _columnCount - 1) / _columnCount;
 		info.rowsTop = info.top
 			+ (i == 0 ? st::emojiPanPadding : st::emojiPanHeader);
 		info.rowsBottom = info.rowsTop
@@ -619,6 +624,9 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 		info.section = i++;
 		info.premiumRequired = section.premiumRequired;
 		info.count = int(section.list.size());
+		info.collapsed = !section.expanded
+			&& (!section.canRemove || section.premiumRequired)
+			&& (info.count > _columnCount * kCollapsedRows);
 		if (!next()) {
 			return false;
 		}
@@ -814,8 +822,10 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 			auto toRow = ceilclamp(r.y() + r.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
 			for (auto i = fromRow; i < toRow; ++i) {
 				for (auto j = fromColumn; j < toColumn; ++j) {
-					auto index = i * _columnCount + j;
-					if (index >= info.count) break;
+					const auto index = i * _columnCount + j;
+					if (index >= info.count) {
+						break;
+					}
 
 					const auto state = OverEmoji{
 						.section = info.section,
@@ -824,14 +834,20 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 					const auto selected = (state == _selected)
 						|| (!_picker->isHidden()
 							&& state == _pickerSelected);
-
 					auto w = QPoint(
 						_rowsLeft + j * _singleSize.width(),
 						info.rowsTop + i * _singleSize.height()
 					) + _areaPosition;
+					if (info.collapsed
+						&& index + 1 == _columnCount * kCollapsedRows) {
+						drawCollapsedBadge(p, w - _areaPosition, info.count);
+						continue;
+					}
 					if (selected && !info.premiumRequired) {
 						auto tl = w;
-						if (rtl()) tl.setX(width() - tl.x() - st::emojiPanArea.width());
+						if (rtl()) {
+							tl.setX(width() - tl.x() - st::emojiPanArea.width());
+						}
 						Ui::FillRoundRect(
 							p,
 							QRect(tl, st::emojiPanArea),
@@ -851,6 +867,26 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		}
 		return true;
 	});
+}
+
+void EmojiListWidget::drawCollapsedBadge(
+		QPainter &p,
+		QPoint position,
+		int count) {
+	const auto &st = st::emojiPanExpand;
+	const auto text = u"+%1"_q.arg(count - _columnCount * kCollapsedRows + 1);
+	const auto textWidth = st.font->width(text);
+	const auto buttonw = std::max(textWidth - st.width, st.height);
+	const auto buttonh = st.height;
+	const auto buttonx = position.x() + (_singleSize.width() - buttonw) / 2;
+	const auto buttony = position.y() + (_singleSize.height() - buttonh) / 2;
+	_collapsedBg.paint(p, QRect(buttonx, buttony, buttonw, buttonh));
+	p.setPen(st::emojiPanBg);
+	p.setFont(st.font);
+	p.drawText(
+		buttonx + (buttonw - textWidth) / 2,
+		(buttony + st.textTop + st.font->ascent),
+		text);
 }
 
 void EmojiListWidget::drawRecent(
@@ -985,7 +1021,14 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (const auto over = std::get_if<OverEmoji>(&_selected)) {
 		const auto section = over->section;
 		const auto index = over->index;
-		if (const auto emoji = lookupOverEmoji(over)) {
+		if (section >= kEmojiSectionCount
+			&& sectionInfo(section).collapsed
+			&& index + 1 == _columnCount * kCollapsedRows) {
+			_custom[section - kEmojiSectionCount].expanded = true;
+			resizeToWidth(width());
+			update();
+			return;
+		} else if (const auto emoji = lookupOverEmoji(over)) {
 			if (emoji->hasVariants() && !_picker->isHidden()) {
 				return;
 			}
@@ -1290,6 +1333,9 @@ void EmojiListWidget::processHideFinished() {
 
 void EmojiListWidget::processPanelHideFinished() {
 	unloadAllCustom();
+	if (_localSetsManager->clearInstalledLocally()) {
+		refreshCustom();
+	}
 }
 
 void EmojiListWidget::refreshRecent() {
@@ -1312,7 +1358,10 @@ void EmojiListWidget::refreshCustom() {
 		}
 		const auto canRemove = !!(it->second->flags
 			& Data::StickersSetFlag::Installed);
-		if (canRemove != installed) {
+		const auto sortAsInstalled = canRemove
+			&& (!(it->second->flags & Data::StickersSetFlag::Featured)
+				|| !_localSetsManager->isInstalledLocally(setId));
+		if (sortAsInstalled != installed) {
 			return;
 		}
 		auto premium = false;
@@ -1338,9 +1387,16 @@ void EmojiListWidget::refreshCustom() {
 				return;
 			} else if (valid) {
 				i->thumbnailDocument = it->second->lookupThumbnailDocument();
-				i->canRemove = canRemove;
-				i->premiumRequired = premium && premiumMayBeBought;
-				i->ripple.reset();
+				const auto premiumRequired = premium && premiumMayBeBought;
+				if (i->canRemove != canRemove
+					|| i->premiumRequired != premiumRequired) {
+					i->canRemove = canRemove;
+					i->premiumRequired = premiumRequired;
+					i->ripple.reset();
+				}
+				if (i->canRemove && !i->premiumRequired) {
+					i->expanded = false;
+				}
 				_custom.push_back(std::move(*i));
 				return;
 			}

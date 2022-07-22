@@ -38,6 +38,12 @@ emojiPanButton: RoundButton(defaultActiveButton) {
 	height: 23px;
 	textTop: 2px;
 }
+emojiPanExpand: RoundButton(defaultActiveButton) {
+	font: font(12px bold);
+	width: -8px;
+	height: 19px;
+	textTop: 1px;
+}
 
 stickersTrendingAddTop: 14px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
