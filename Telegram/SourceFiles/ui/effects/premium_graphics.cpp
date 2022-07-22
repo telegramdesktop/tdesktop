@@ -1005,7 +1005,9 @@ void AddGiftOptions(
 
 			const auto discountFont = st::windowFiltersButton.badgeStyle.font;
 			const auto discountWidth = discountFont->width(info.discount);
-			const auto &discountMargins = st::premiumGiftRowBadgeMargins;
+			const auto &discountMargins = discountWidth
+				? st::premiumGiftRowBadgeMargins
+				: style::margins();
 			const auto discountRect = QRect(
 				left,
 				halfHeight + discountMargins.top(),
