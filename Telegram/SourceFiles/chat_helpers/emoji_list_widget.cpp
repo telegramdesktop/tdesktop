@@ -597,7 +597,6 @@ bool EmojiListWidget::enumerateSections(Callback callback) const {
 
 	auto i = 0;
 	auto info = SectionInfo();
-	const auto session = &controller()->session();
 	const auto next = [&] {
 		info.rowsCount = info.collapsed
 			? kCollapsedRows
@@ -789,7 +788,6 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		const auto widthForTitle = emojiRight()
 			- (st::emojiPanHeaderLeft - st::roundRadiusSmall)
 			- paintButtonGetWidth(p, info, buttonSelected, r);
-		const auto skip = st::roundRadiusSmall;
 		if (info.section > 0 && r.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);

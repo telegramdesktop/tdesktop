@@ -578,7 +578,6 @@ void StickersListFooter::paintSelectionBg(Painter &p) const {
 	if (rtl()) {
 		selx = width() - selx - selw;
 	}
-	const auto skip = st::emojiIconSelectSkip;
 	const auto sely = _iconsTop;
 	const auto area = st::emojiIconArea;
 	const auto rect = QRect(

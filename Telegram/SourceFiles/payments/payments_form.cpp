@@ -440,7 +440,7 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 		&& !_thumbnailLoadProcess) {
 		_invoice.cover = Ui::Cover{
 			.title = qs(data.vtitle()),
-			.description = qs(data.vdescription()),
+			.description = { qs(data.vdescription()) },
 		};
 		if (const auto web = data.vphoto()) {
 			if (const auto photo = _session->data().photoFromWeb(*web, {})) {
