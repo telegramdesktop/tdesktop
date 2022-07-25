@@ -830,7 +830,9 @@ void StickerSetBox::Inner::send(
 
 void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	const auto index = stickerFromGlobalPos(e->globalPos());
-	if (index < 0 || index >= _pack.size()) {
+	if (index < 0
+		|| index >= _pack.size()
+		|| setType() != Data::StickersType::Stickers) {
 		return;
 	}
 	const auto type = _controller->content()->sendMenuType();
