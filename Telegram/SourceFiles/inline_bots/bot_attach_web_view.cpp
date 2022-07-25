@@ -779,7 +779,7 @@ void AttachWebView::show(
 		)).done([=](const MTPUpdates &result) {
 			_session->api().applyUpdates(result);
 		}).send();
-		cancel();
+		crl::on_main(this, [=] { cancel(); });
 	});
 	const auto handleLocalUri = [close](QString uri) {
 		const auto local = Core::TryConvertUrlToLocal(uri);
