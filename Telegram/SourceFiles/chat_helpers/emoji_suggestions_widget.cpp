@@ -46,7 +46,6 @@ SuggestionsWidget::SuggestionsWidget(
 	not_null<Main::Session*> session)
 : RpWidget(parent)
 , _session(session)
-, _manager(std::make_unique<Ui::CustomEmoji::SimpleManager>())
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -141,7 +140,7 @@ auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
 	for (const auto &[position, one] : custom) {
 		result.push_back(Row(one.emoji, one.replacement));
 		result.back().document = one.document;
-		result.back().instance = resolveCustomInstance(one.document);
+		result.back().custom = resolveCustomEmoji(one.document);
 	}
 	for (auto &row : rows) {
 		result.push_back(std::move(row));
@@ -149,21 +148,19 @@ auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
 	return result;
 }
 
-auto SuggestionsWidget::resolveCustomInstance(
-	not_null<DocumentData*> document)
--> not_null<CustomInstance*> {
-	const auto i = _instances.find(document);
-	if (i != end(_instances)) {
+not_null<Ui::Text::CustomEmoji*> SuggestionsWidget::resolveCustomEmoji(
+		not_null<DocumentData*> document) {
+	const auto i = _customEmoji.find(document);
+	if (i != end(_customEmoji)) {
 		return i->second.get();
 	}
-	auto instance = _manager->make(
-		_session->data().customEmojiManager().createLoader(
-			document,
-			Data::CustomEmojiManager::SizeTag::Large),
-		[=] { customEmojiRepaint(); });
-	return _instances.emplace(
+	auto emoji = document->session().data().customEmojiManager().create(
 		document,
-		std::move(instance)
+		[=] { customEmojiRepaint(); },
+		Data::CustomEmojiManager::SizeTag::Large);
+	return _customEmoji.emplace(
+		document,
+		std::move(emoji)
 	).first->second.get();
 }
 
@@ -333,8 +330,8 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		const auto size = esize / style::DevicePixelRatio();
 		const auto x = i * _oneWidth + (_oneWidth - size) / 2;
 		const auto y = (_oneWidth - size) / 2;
-		if (row.instance) {
-			row.instance->object.paint(p, x, y, now, preview, false);
+		if (row.custom) {
+			row.custom->paint(p, x, y, now, preview, false);
 		} else {
 			Ui::Emoji::Draw(p, emoji, esize, x, y);
 		}

@@ -112,9 +112,8 @@ private:
 		bool premiumRequired = false;
 		bool collapsed = false;
 	};
-	struct CustomInstance;
 	struct CustomOne {
-		not_null<CustomInstance*> instance;
+		not_null<Ui::Text::CustomEmoji*> custom;
 		not_null<DocumentData*> document;
 	};
 	struct CustomSet {
@@ -129,6 +128,7 @@ private:
 		bool canRemove = false;
 		bool premiumRequired = false;
 	};
+	struct CustomEmojiInstance;
 	struct RightButton {
 		QImage back;
 		QImage backOver;
@@ -137,10 +137,6 @@ private:
 		int textWidth = 0;
 	};
 	struct RecentOne;
-	struct RepaintSet {
-		base::flat_set<uint64> ids;
-		crl::time when = 0;
-	};
 	struct OverEmoji {
 		int section = 0;
 		int index = 0;
@@ -253,25 +249,17 @@ private:
 		int section);
 	[[nodiscard]] QPoint buttonRippleTopLeft(int section) const;
 
-	void repaintLater(
-		DocumentId documentId,
-		uint64 setId,
-		Ui::CustomEmoji::RepaintRequest request);
-	template <typename CheckId>
-	void repaintCustom(CheckId checkId);
-	void scheduleRepaintTimer();
-	void invokeRepaints();
+	void repaintCustom(uint64 setId);
 
 	void fillRecent();
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document,
 		uint64 setId);
-	[[nodiscard]] CustomInstance *resolveCustomInstance(
+	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomEmoji(
 		Core::RecentEmojiId customId);
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		DocumentId documentId);
-	[[nodiscard]] std::unique_ptr<CustomInstance> customInstanceWithLoader(
-		std::unique_ptr<Ui::CustomEmoji::Loader> loader,
+	[[nodiscard]] Fn<void()> repaintCallback(
 		DocumentId documentId,
 		uint64 setId);
 
@@ -281,10 +269,11 @@ private:
 	int _counts[kEmojiSectionCount];
 	std::vector<RecentOne> _recent;
 	base::flat_set<DocumentId> _recentCustomIds;
+	base::flat_set<uint64> _repaintsScheduled;
 	bool _recentPainted = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
-	base::flat_map<DocumentId, std::unique_ptr<CustomInstance>> _instances;
+	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
 
 	int _rowsLeft = 0;
 	int _columnCount = 1;
@@ -304,11 +293,6 @@ private:
 
 	object_ptr<EmojiColorPicker> _picker;
 	base::Timer _showPickerTimer;
-
-	base::flat_map<crl::time, RepaintSet> _repaints;
-	bool _repaintTimerScheduled = false;
-	base::Timer _repaintTimer;
-	crl::time _repaintNext = 0;
 
 	rpl::event_stream<EmojiPtr> _chosen;
 	rpl::event_stream<TabbedSelector::FileChosen> _customChosen;

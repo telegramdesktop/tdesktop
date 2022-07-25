@@ -100,14 +100,13 @@ private:
 
 };
 
-struct EmojiListWidget::CustomInstance : Ui::CustomEmoji::SeparateInstance {
-	using SeparateInstance::SeparateInstance;
-
+struct EmojiListWidget::CustomEmojiInstance {
+	std::unique_ptr<Ui::Text::CustomEmoji> emoji;
 	bool recentOnly = false;
 };
 
 struct EmojiListWidget::RecentOne {
-	CustomInstance *instance = nullptr;
+	Ui::Text::CustomEmoji *custom = nullptr;
 	RecentEmojiId id;
 };
 
@@ -371,8 +370,7 @@ EmojiListWidget::EmojiListWidget(
 	std::make_unique<LocalStickersManager>(&controller->session()))
 , _collapsedBg(st::emojiPanExpand.height / 2, st::emojiPanHeaderFg)
 , _picker(this)
-, _showPickerTimer([=] { showPicker(); })
-, _repaintTimer([=] { invokeRepaints(); }) {
+, _showPickerTimer([=] { showPicker(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -419,88 +417,20 @@ EmojiListWidget::EmojiListWidget(
 }
 
 EmojiListWidget::~EmojiListWidget() {
-	base::take(_instances);
-	base::take(_repaints);
+	base::take(_customEmoji);
 }
 
-void EmojiListWidget::repaintLater(
-		DocumentId documentId,
-		uint64 setId,
-		Ui::CustomEmoji::RepaintRequest request) {
-	if (_instances.empty() || !request.when) {
+void EmojiListWidget::repaintCustom(uint64 setId) {
+	if (!_repaintsScheduled.emplace(setId).second) {
 		return;
 	}
-	auto &repaint = _repaints[request.duration];
-	if (repaint.when < request.when) {
-		repaint.when = request.when;
-	}
-	if (setId) {
-		repaint.ids.emplace(setId);
-	}
-	if (_recentCustomIds.contains(documentId)) {
-		repaint.ids.emplace(RecentEmojiSectionSetId());
-	}
-	scheduleRepaintTimer();
-}
-
-void EmojiListWidget::scheduleRepaintTimer() {
-	if (_repaintTimerScheduled) {
-		return;
-	}
-	_repaintTimerScheduled = true;
-	Ui::PostponeCall(this, [=] {
-		_repaintTimerScheduled = false;
-
-		auto next = crl::time();
-		for (const auto &[duration, bunch] : _repaints) {
-			if (!next || next > bunch.when) {
-				next = bunch.when;
-			}
-		}
-		if (next && (!_repaintNext || _repaintNext > next)) {
-			const auto now = crl::now();
-			if (now >= next) {
-				_repaintNext = 0;
-				_repaintTimer.cancel();
-				invokeRepaints();
-			} else {
-				_repaintNext = next;
-				_repaintTimer.callOnce(next - now);
-			}
-		}
-	});
-}
-
-void EmojiListWidget::invokeRepaints() {
-	_repaintNext = 0;
-	auto ids = base::flat_set<uint64>();
-	const auto now = crl::now();
-	for (auto i = begin(_repaints); i != end(_repaints);) {
-		if (i->second.when > now) {
-			++i;
-			continue;
-		}
-		if (ids.empty()) {
-			ids = std::move(i->second.ids);
-		} else {
-			for (const auto id : i->second.ids) {
-				ids.emplace(id);
-			}
-		}
-		i = _repaints.erase(i);
-	}
-	repaintCustom([&](uint64 id) { return ids.contains(id); });
-	scheduleRepaintTimer();
-}
-
-template <typename CheckId>
-void EmojiListWidget::repaintCustom(CheckId checkId) {
+	const auto repaintRecent = (setId == RecentEmojiSectionSetId());
 	enumerateSections([&](const SectionInfo &info) {
-		const auto repaint1 = (info.section == int(Section::Recent))
-			&& checkId(RecentEmojiSectionSetId());
+		const auto repaint1 = repaintRecent
+			&& (info.section == int(Section::Recent));
 		const auto repaint2 = !repaint1
 			&& (info.section >= kEmojiSectionCount)
-			&& checkId(_custom[info.section - kEmojiSectionCount].id);
+			&& (setId == _custom[info.section - kEmojiSectionCount].id);
 		if (repaint1 || repaint2) {
 			update(
 				0,
@@ -555,8 +485,8 @@ void EmojiListWidget::unloadCustomIn(const SectionInfo &info) {
 	if (!info.section && _recentPainted) {
 		_recentPainted = false;
 		for (const auto &single : _recent) {
-			if (const auto instance = single.instance) {
-				instance->object.unload();
+			if (const auto custom = single.custom) {
+				custom->unload();
 			}
 		}
 		return;
@@ -569,7 +499,7 @@ void EmojiListWidget::unloadCustomIn(const SectionInfo &info) {
 	}
 	custom.painted = false;
 	for (const auto &single : custom.list) {
-		single.instance->object.unload();
+		single.custom->unload();
 	}
 }
 
@@ -742,7 +672,7 @@ void EmojiListWidget::fillRecent() {
 			continue;
 		}
 		_recent.push_back({
-			.instance = resolveCustomInstance(one.id),
+			.custom = resolveCustomEmoji(one.id),
 			.id = one.id,
 		});
 		if (document) {
@@ -756,7 +686,10 @@ void EmojiListWidget::fillRecent() {
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
-	QRect r = e ? e->rect() : rect();
+
+	_repaintsScheduled.clear();
+
+	const auto r = e ? e->rect() : rect();
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
@@ -897,9 +830,9 @@ void EmojiListWidget::drawRecent(
 	if (const auto emoji = std::get_if<EmojiPtr>(&_recent[index].id.data)) {
 		drawEmoji(p, position, *emoji);
 	} else {
-		Assert(_recent[index].instance != nullptr);
+		Assert(_recent[index].custom != nullptr);
 		position += _innerPosition;
-		_recent[index].instance->object.paint(
+		_recent[index].custom->paint(
 			p,
 			position.x(),
 			position.y(),
@@ -931,7 +864,7 @@ void EmojiListWidget::drawCustom(
 		int index) {
 	position += _innerPosition;
 	_custom[set].painted = true;
-	_custom[set].list[index].instance->object.paint(
+	_custom[set].list[index].custom->paint(
 		p,
 		position.x(),
 		position.y(),
@@ -1408,7 +1341,7 @@ void EmojiListWidget::refreshCustom() {
 		for (const auto document : list) {
 			if (document->sticker()) {
 				set.push_back({
-					.instance = resolveCustomInstance(document, setId),
+					.custom = resolveCustomEmoji(document, setId),
 					.document = document,
 				});
 				if (!premium && document->isPremiumEmoji()) {
@@ -1443,98 +1376,75 @@ void EmojiListWidget::refreshCustom() {
 	update();
 }
 
-auto EmojiListWidget::customInstanceWithLoader(
-	std::unique_ptr<Ui::CustomEmoji::Loader> loader,
-	DocumentId documentId,
-	uint64 setId)
--> std::unique_ptr<CustomInstance> {
-	const auto recentOnly = (setId == RecentEmojiSectionSetId());
-	const auto repaintDelayedSetId = !recentOnly ? setId : uint64(0);
-	const auto repaintDelayed = [=](
-			not_null<Ui::CustomEmoji::Instance*> instance,
-			Ui::CustomEmoji::RepaintRequest request) {
-		repaintLater(documentId, repaintDelayedSetId, request);
-	};
-	const auto repaintNow = [=] {
+Fn<void()> EmojiListWidget::repaintCallback(
+		DocumentId documentId,
+		uint64 setId) {
+	return [=] {
+		repaintCustom(setId);
 		if (_recentCustomIds.contains(documentId)) {
-			const auto recentSetId = RecentEmojiSectionSetId();
-			repaintCustom([&](uint64 id) {
-				return (id == setId) || (id == recentSetId);
-			});
-		} else {
-			repaintCustom([&](uint64 id) {
-				return (id == setId);
-			});
+			repaintCustom(RecentEmojiSectionSetId());
 		}
 	};
-	auto result = std::make_unique<CustomInstance>(
-		std::move(loader),
-		std::move(repaintDelayed),
-		std::move(repaintNow));
-	result->recentOnly = recentOnly;
-	return result;
 }
 
-auto EmojiListWidget::resolveCustomInstance(
-	not_null<DocumentData*> document,
-	uint64 setId)
--> not_null<CustomInstance*> {
+not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
+		not_null<DocumentData*> document,
+		uint64 setId) {
 	Expects(document->sticker() != nullptr);
 
 	const auto documentId = document->id;
-	const auto i = _instances.find(documentId);
-	const auto recentOnly = (i != end(_instances)) && i->second->recentOnly;
-	if (i != end(_instances) && !recentOnly) {
-		return i->second.get();
+	const auto i = _customEmoji.find(documentId);
+	const auto recentOnly = (i != end(_customEmoji)) && i->second.recentOnly;
+	if (i != end(_customEmoji) && !recentOnly) {
+		return i->second.emoji.get();
 	}
-	auto instance = customInstanceWithLoader(
-		document->owner().customEmojiManager().createLoader(
-			document,
-			Data::CustomEmojiManager::SizeTag::Large),
-		documentId,
-		setId);
+	auto instance = document->owner().customEmojiManager().create(
+		document,
+		repaintCallback(documentId, setId),
+		Data::CustomEmojiManager::SizeTag::Large);
 	if (recentOnly) {
 		for (auto &recent : _recent) {
-			if (recent.instance && recent.instance == i->second.get()) {
-				recent.instance = instance.get();
+			if (recent.custom && recent.custom == i->second.emoji.get()) {
+				recent.custom = instance.get();
 			}
 		}
-		i->second = std::move(instance);
-		return i->second.get();
+		i->second.emoji = std::move(instance);
+		i->second.recentOnly = false;
+		return i->second.emoji.get();
 	}
-	return _instances.emplace(
+	return _customEmoji.emplace(
 		documentId,
-		std::move(instance)).first->second.get();
+		CustomEmojiInstance{ .emoji = std::move(instance) }
+	).first->second.emoji.get();
 }
 
-auto EmojiListWidget::resolveCustomInstance(
-	RecentEmojiId customId)
--> CustomInstance* {
+Ui::Text::CustomEmoji *EmojiListWidget::resolveCustomEmoji(
+		RecentEmojiId customId) {
 	const auto &data = customId.data;
 	if (const auto document = std::get_if<RecentEmojiDocument>(&data)) {
-		return resolveCustomInstance(document->id);
+		return resolveCustomEmoji(document->id);
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&data)) {
 		return nullptr;
 	}
 	Unexpected("Custom recent emoji id.");
 }
 
-auto EmojiListWidget::resolveCustomInstance(
-	DocumentId documentId)
--> not_null<CustomInstance*> {
-	const auto i = _instances.find(documentId);
-	if (i != end(_instances)) {
-		return i->second.get();
+not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
+		DocumentId documentId) {
+	const auto i = _customEmoji.find(documentId);
+	if (i != end(_customEmoji)) {
+		return i->second.emoji.get();
 	}
-	return _instances.emplace(
+	return _customEmoji.emplace(
 		documentId,
-		customInstanceWithLoader(
-			session().data().customEmojiManager().createLoader(
+		CustomEmojiInstance{
+			.emoji = session().data().customEmojiManager().create(
 				documentId,
+				repaintCallback(documentId, RecentEmojiSectionSetId()),
 				Data::CustomEmojiManager::SizeTag::Large),
-			documentId,
-			RecentEmojiSectionSetId())
-	).first->second.get();
+			.recentOnly = true,
+		}
+	).first->second.emoji.get();
 }
 
 std::vector<StickerIcon> EmojiListWidget::fillIcons() {

@@ -23,10 +23,9 @@ class InnerDropdown;
 class InputField;
 } // namespace Ui
 
-namespace Ui::CustomEmoji {
-struct SeparateInstance;
-class SimpleManager;
-} // namespace Ui::CustomEmoji
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
 
 namespace Ui::Emoji {
 
@@ -48,11 +47,10 @@ public:
 	[[nodiscard]] rpl::producer<Chosen> triggered() const;
 
 private:
-	using CustomInstance = Ui::CustomEmoji::SeparateInstance;
 	struct Row {
 		Row(not_null<EmojiPtr> emoji, const QString &replacement);
 
-		CustomInstance *instance = nullptr;
+		Ui::Text::CustomEmoji *custom = nullptr;
 		DocumentData *document = nullptr;
 		not_null<EmojiPtr> emoji;
 		QString replacement;
@@ -92,7 +90,7 @@ private:
 	void scrollTo(int value, anim::type animated = anim::type::instant);
 	void stopAnimations();
 
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document);
 	void customEmojiRepaint();
 
@@ -102,8 +100,7 @@ private:
 
 	base::flat_map<
 		not_null<DocumentData*>,
-		std::unique_ptr<CustomInstance>> _instances;
-	std::unique_ptr<Ui::CustomEmoji::SimpleManager> _manager;
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customEmoji;
 	bool _repaintScheduled = false;
 
 	std::optional<QPoint> _lastMousePosition;

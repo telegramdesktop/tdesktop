@@ -40,7 +40,16 @@ public:
 
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		QStringView data,
-		Fn<void()> update);
+		Fn<void()> update,
+		SizeTag tag = SizeTag::Normal);
+	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
+		DocumentId documentId,
+		Fn<void()> update,
+		SizeTag tag = SizeTag::Normal);
+	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
+		not_null<DocumentData*> document,
+		Fn<void()> update,
+		SizeTag tag = SizeTag::Normal);
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
@@ -69,14 +78,22 @@ private:
 	void invokeRepaints();
 	void requestSetFor(not_null<DocumentData*> document);
 
+	template <typename LoaderFactory>
+	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
+		DocumentId documentId,
+		Fn<void()> update,
+		SizeTag tag,
+		LoaderFactory factory);
+	[[nodiscard]] static int SizeIndex(SizeTag tag);
+
 	const not_null<Session*> _owner;
 
 	base::flat_map<
 		uint64,
-		std::unique_ptr<Ui::CustomEmoji::Instance>> _instances;
+		std::unique_ptr<Ui::CustomEmoji::Instance>> _instances[2];
 	base::flat_map<
 		uint64,
-		std::vector<base::weak_ptr<CustomEmojiLoader>>> _loaders;
+		std::vector<base::weak_ptr<CustomEmojiLoader>>> _loaders[2];
 	base::flat_set<uint64> _pendingForRequest;
 	mtpRequestId _requestId = 0;
 

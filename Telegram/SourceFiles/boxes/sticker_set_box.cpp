@@ -156,13 +156,12 @@ protected:
 	void leaveEventHook(QEvent *e) override;
 
 private:
-	using CustomInstance = Ui::CustomEmoji::SeparateInstance;
 	struct Element {
 		not_null<DocumentData*> document;
 		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *lottie = nullptr;
 		Media::Clip::ReaderPointer webm;
-		CustomInstance *emoji = nullptr;
+		Ui::Text::CustomEmoji *emoji = nullptr;
 		Ui::Animations::Simple overAnimation;
 
 		mutable QImage premiumLock;
@@ -185,7 +184,7 @@ private:
 		not_null<DocumentData*> document,
 		int index);
 	void setupEmoji(int index);
-	[[nodiscard]] not_null<CustomInstance*> resolveCustomInstance(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document);
 	void customEmojiRepaint();
 
@@ -213,8 +212,7 @@ private:
 
 	base::flat_map<
 		not_null<DocumentData*>,
-		std::unique_ptr<CustomInstance>> _instances;
-	std::unique_ptr<Ui::CustomEmoji::SimpleManager> _manager;
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customEmoji;
 	bool _repaintScheduled = false;
 
 	StickersPack _pack;
@@ -515,7 +513,6 @@ StickerSetBox::Inner::Inner(
 : RpWidget(parent)
 , _controller(controller)
 , _api(&_controller->session().mtp())
-, _manager(std::make_unique<Ui::CustomEmoji::SimpleManager>())
 , _setId(set.id)
 , _setAccessHash(set.accessHash)
 , _setShortName(set.shortName)
@@ -1098,24 +1095,22 @@ void StickerSetBox::Inner::clipCallback(
 
 void StickerSetBox::Inner::setupEmoji(int index) {
 	auto &element = _elements[index];
-	element.emoji = resolveCustomInstance(element.document);
+	element.emoji = resolveCustomEmoji(element.document);
 }
 
-auto StickerSetBox::Inner::resolveCustomInstance(
-	not_null<DocumentData*> document)
--> not_null<CustomInstance*> {
-	const auto i = _instances.find(document);
-	if (i != end(_instances)) {
+not_null<Ui::Text::CustomEmoji*> StickerSetBox::Inner::resolveCustomEmoji(
+		not_null<DocumentData*> document) {
+	const auto i = _customEmoji.find(document);
+	if (i != end(_customEmoji)) {
 		return i->second.get();
 	}
-	auto instance = _manager->make(
-		_controller->session().data().customEmojiManager().createLoader(
-			document,
-			Data::CustomEmojiManager::SizeTag::Large),
-		[=] { customEmojiRepaint(); });
-	return _instances.emplace(
+	auto emoji = document->session().data().customEmojiManager().create(
 		document,
-		std::move(instance)
+		[=] { customEmojiRepaint(); },
+		Data::CustomEmojiManager::SizeTag::Large);
+	return _customEmoji.emplace(
+		document,
+		std::move(emoji)
 	).first->second.get();
 }
 
@@ -1167,7 +1162,7 @@ void StickerSetBox::Inner::paintSticker(
 		(_singleSize.height() - size.height()) / 2);
 	auto lottieFrame = QImage();
 	if (element.emoji) {
-		element.emoji->object.paint(
+		element.emoji->paint(
 			p,
 			ppos.x(),
 			ppos.y(),
