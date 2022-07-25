@@ -620,7 +620,8 @@ SessionController::SessionController(
 , _tabbedSelector(
 	std::make_unique<ChatHelpers::TabbedSelector>(
 		_window->widget(),
-		this))
+		this,
+		GifPauseReason::TabbedPanel))
 , _invitePeekTimer([=] { checkInvitePeek(); })
 , _activeChatsFilter(session->data().chatsFilters().defaultId())
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())

@@ -364,8 +364,9 @@ void EmojiColorPicker::drawVariant(Painter &p, int variant) {
 
 EmojiListWidget::EmojiListWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: Inner(parent, controller)
+	not_null<Window::SessionController*> controller,
+	Window::GifPauseReason level)
+: Inner(parent, controller, level)
 , _localSetsManager(
 	std::make_unique<LocalStickersManager>(&controller->session()))
 , _collapsedBg(st::emojiPanExpand.height / 2, st::emojiPanHeaderFg)
@@ -509,6 +510,7 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 	using FooterDescriptor = StickersListFooter::Descriptor;
 	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
 		.controller = controller(),
+		.level = level(),
 		.parent = this,
 	});
 	_footer = result;
@@ -703,8 +705,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		toColumn = _columnCount - toColumn;
 	}
 
-	const auto paused = controller()->isGifPausedAtLeastFor(
-		Window::GifPauseReason::SavedGifs);
+	const auto paused = controller()->isGifPausedAtLeastFor(level());
 	const auto now = crl::now();
 	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
 		? &_pressed

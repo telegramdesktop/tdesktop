@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_user.h"
 #include "data/data_premium_limits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
@@ -715,13 +716,15 @@ void SendFilesBox::setupEmojiPanel() {
 	Expects(_caption != nullptr);
 
 	const auto container = getDelegate()->outerContainer();
+	using Selector = ChatHelpers::TabbedSelector;
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
 		_controller,
-		object_ptr<ChatHelpers::TabbedSelector>(
+		object_ptr<Selector>(
 			nullptr,
 			_controller,
-			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+			Window::GifPauseReason::Layer,
+			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
@@ -730,6 +733,10 @@ void SendFilesBox::setupEmojiPanel() {
 	_emojiPanel->selector()->emojiChosen(
 	) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_caption->textCursor(), emoji);
+	}, lifetime());
+	_emojiPanel->selector()->customEmojiChosen(
+	) | rpl::start_with_next([=](Selector::FileChosen data) {
+		Data::InsertCustomEmoji(_caption.data(), data.document);
 	}, lifetime());
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {

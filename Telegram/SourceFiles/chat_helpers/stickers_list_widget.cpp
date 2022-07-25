@@ -162,8 +162,9 @@ void StickersListWidget::Sticker::ensureMediaCreated() {
 StickersListWidget::StickersListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
+	Window::GifPauseReason level,
 	bool masks)
-: Inner(parent, controller)
+: Inner(parent, controller, level)
 , _api(&controller->session().mtp())
 , _localSetsManager(
 	std::make_unique<LocalStickersManager>(&controller->session()))
@@ -252,6 +253,7 @@ object_ptr<TabbedSelector::InnerFooter> StickersListWidget::createFooter() {
 	using FooterDescriptor = StickersListFooter::Descriptor;
 	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
 		.controller = controller(),
+		.level = level(),
 		.parent = this,
 		.searchButtonVisible = !_isMasks,
 		.settingsButtonVisible = true,
@@ -818,8 +820,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		: &_selected);
 
 	const auto now = crl::now();
-	const auto paused = controller()->isGifPausedAtLeastFor(
-		Window::GifPauseReason::SavedGifs);
+	const auto paused = controller()->isGifPausedAtLeastFor(level());
 	if (sets.empty() && _section == Section::Search) {
 		paintEmptySearchResults(p);
 	}

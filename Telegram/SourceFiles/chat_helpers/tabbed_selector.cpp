@@ -289,9 +289,11 @@ void TabbedSelector::Tab::saveScrollTop() {
 TabbedSelector::TabbedSelector(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
+	Window::GifPauseReason level,
 	Mode mode)
 : RpWidget(parent)
 , _controller(controller)
+, _level(level)
 , _mode(mode)
 , _topShadow(full() ? object_ptr<Ui::PlainShadow>(this) : nullptr)
 , _bottomShadow(this)
@@ -425,17 +427,25 @@ Main::Session &TabbedSelector::session() const {
 	return _controller->session();
 }
 
+Window::GifPauseReason TabbedSelector::level() const {
+	return _level;
+}
+
 TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 	auto createWidget = [&]() -> object_ptr<Inner> {
 		switch (type) {
 		case SelectorTab::Emoji:
-			return object_ptr<EmojiListWidget>(this, _controller);
+			return object_ptr<EmojiListWidget>(this, _controller, _level);
 		case SelectorTab::Stickers:
-			return object_ptr<StickersListWidget>(this, _controller);
+			return object_ptr<StickersListWidget>(this, _controller, _level);
 		case SelectorTab::Gifs:
-			return object_ptr<GifsListWidget>(this, _controller);
+			return object_ptr<GifsListWidget>(this, _controller, _level);
 		case SelectorTab::Masks:
-			return object_ptr<StickersListWidget>(this, _controller, true);
+			return object_ptr<StickersListWidget>(
+				this,
+				_controller,
+				_level,
+				true);
 		}
 		Unexpected("Type in TabbedSelector::createTab.");
 	};
@@ -1133,9 +1143,11 @@ not_null<const TabbedSelector::Tab*> TabbedSelector::currentTab() const {
 
 TabbedSelector::Inner::Inner(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	Window::GifPauseReason level)
 : RpWidget(parent)
-, _controller(controller) {
+, _controller(controller)
+, _level(level) {
 }
 
 Main::Session &TabbedSelector::Inner::session() const {

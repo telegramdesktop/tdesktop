@@ -78,6 +78,7 @@ class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:
 	struct Descriptor {
 		not_null<Window::SessionController*> controller;
+		Window::GifPauseReason level = {};
 		not_null<RpWidget*> parent;
 		bool searchButtonVisible = false;
 		bool settingsButtonVisible = false;
@@ -210,6 +211,7 @@ private:
 	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
 	const not_null<Window::SessionController*> _controller;
+	const Window::GifPauseReason _level = {};
 	const bool _searchButtonVisible = false;
 	const bool _settingsButtonVisible = false;
 

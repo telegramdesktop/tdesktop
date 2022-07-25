@@ -84,7 +84,7 @@ class FiltersMenu;
 enum class GifPauseReason {
 	Any           = 0,
 	InlineResults = (1 << 0),
-	SavedGifs     = (1 << 1),
+	TabbedPanel   = (1 << 1),
 	Layer         = (1 << 2),
 	RoundPlaying  = (1 << 3),
 	MediaPreview  = (1 << 4),

@@ -168,8 +168,9 @@ void GifsListWidget::Footer::processPanelHideFinished() {
 
 GifsListWidget::GifsListWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
-: Inner(parent, controller)
+	not_null<Window::SessionController*> controller,
+	Window::GifPauseReason level)
+: Inner(parent, controller, level)
 , _api(&controller->session().mtp())
 , _section(Section::Gifs)
 , _updateInlineItems([=] { updateInlineItems(); })
@@ -197,8 +198,7 @@ GifsListWidget::GifsListWidget(
 
 	controller->gifPauseLevelChanged(
 	) | rpl::start_with_next([=] {
-		if (!controller->isGifPausedAtLeastFor(
-				Window::GifPauseReason::SavedGifs)) {
+		if (!controller->isGifPausedAtLeastFor(level)) {
 			updateInlineItems();
 		}
 	}, lifetime());
@@ -343,8 +343,7 @@ void GifsListWidget::paintInlineItems(Painter &p, QRect clip) {
 		p.drawText(QRect(0, 0, width(), (height() / 3) * 2 + st::normalFont->height), text, style::al_center);
 		return;
 	}
-	const auto gifPaused = controller()->isGifPausedAtLeastFor(
-		Window::GifPauseReason::SavedGifs);
+	const auto gifPaused = controller()->isGifPausedAtLeastFor(level());
 	using namespace InlineBots::Layout;
 	PaintContext context(crl::now(), false, gifPaused, false);
 

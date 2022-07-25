@@ -34,6 +34,7 @@ class BoxContent;
 
 namespace Window {
 class SessionController;
+enum class GifPauseReason;
 } // namespace Window
 
 namespace SendMenu {
@@ -78,10 +79,12 @@ public:
 	TabbedSelector(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level,
 		Mode mode = Mode::Full);
 	~TabbedSelector();
 
 	Main::Session &session() const;
+	Window::GifPauseReason level() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<FileChosen> customEmojiChosen() const;
@@ -222,6 +225,7 @@ private:
 	not_null<StickersListWidget*> masks() const;
 
 	const not_null<Window::SessionController*> _controller;
+	const Window::GifPauseReason _level = {};
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
@@ -258,10 +262,16 @@ private:
 
 class TabbedSelector::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
+	Inner(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level);
 
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
+	}
+	[[nodiscard]] Window::GifPauseReason level() const {
+		return _level;
 	}
 	[[nodiscard]] Main::Session &session() const;
 
@@ -321,7 +331,8 @@ protected:
 	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 
 private:
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
+	const Window::GifPauseReason _level = {};
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

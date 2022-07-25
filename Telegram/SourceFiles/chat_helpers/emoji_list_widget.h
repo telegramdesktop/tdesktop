@@ -58,7 +58,8 @@ class EmojiListWidget
 public:
 	EmojiListWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level);
 	~EmojiListWidget();
 
 	using Section = Ui::Emoji::Section;

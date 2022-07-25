@@ -861,7 +861,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 
 				media->checkStickerSmall();
 				const auto paused = _controller->isGifPausedAtLeastFor(
-					Window::GifPauseReason::SavedGifs);
+					Window::GifPauseReason::TabbedPanel);
 				const auto size = ChatHelpers::ComputeStickerSize(
 					document,
 					stickerBoundingBox());

@@ -56,6 +56,7 @@ public:
 	StickersListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level,
 		bool masks = false);
 
 	rpl::producer<TabbedSelector::FileChosen> chosen() const;

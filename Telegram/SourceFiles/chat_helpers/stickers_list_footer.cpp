@@ -147,6 +147,7 @@ bool StickersListFooter::ScrollState::animationCallback(crl::time now) {
 StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 : InnerFooter(descriptor.parent)
 , _controller(descriptor.controller)
+, _level(descriptor.level)
 , _searchButtonVisible(descriptor.searchButtonVisible)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
 , _iconState([=] { update(); })
@@ -559,8 +560,7 @@ void StickersListFooter::paintEvent(QPaintEvent *e) {
 	}
 
 	const auto now = crl::now();
-	const auto paused = _controller->isGifPausedAtLeastFor(
-		Window::GifPauseReason::SavedGifs);
+	const auto paused = _controller->isGifPausedAtLeastFor(_level);
 	enumerateVisibleIcons([&](const IconInfo &info) {
 		paintSetIcon(p, info, now, paused);
 	});
