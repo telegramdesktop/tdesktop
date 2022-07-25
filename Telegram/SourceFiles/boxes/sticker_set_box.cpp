@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_multi_player.h"
 #include "lottie/lottie_animation.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/stickers_list_widget.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
@@ -127,6 +128,7 @@ public:
 	[[nodiscard]] rpl::producer<TextWithEntities> title() const;
 	[[nodiscard]] QString shortName() const;
 	[[nodiscard]] bool isEmojiSet() const;
+	[[nodiscard]] uint64 setId() const;
 
 	void install();
 	[[nodiscard]] rpl::producer<uint64> setInstalled() const;
@@ -471,11 +473,21 @@ void StickerSetBox::updateButtons() {
 			addButton(std::move(shareText), std::move(share));
 			addButton(tr::lng_cancel(), [=] { closeBox(); });
 
-			if (!_inner->shortName().isEmpty()
-				&& !_inner->isEmojiSet()) {
+			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
 				const auto archive = [=] {
 					_inner->archiveStickers();
+				};
+				const auto remove = [=] {
+					const auto session = &_controller->session();
+					auto box = ChatHelpers::MakeConfirmRemoveSetBox(
+						session,
+						_inner->setId());
+					if (box) {
+						_controller->show(
+							std::move(box),
+							Ui::LayerOption::KeepOther);
+					}
 				};
 				const auto menu =
 					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
@@ -483,12 +495,19 @@ void StickerSetBox::updateButtons() {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
 						st::popupMenuWithIcons);
-					(*menu)->addAction(
-						(type == Data::StickersType::Masks)
-							? tr::lng_masks_archive_pack(tr::now)
-							: tr::lng_stickers_archive_pack(tr::now),
-						archive,
-						&st::menuIconArchive);
+					if (type == Data::StickersType::Emoji) {
+						(*menu)->addAction(
+							tr::lng_custom_emoji_remove_pack_button(tr::now),
+							remove,
+							&st::menuIconRemove);
+					} else {
+						(*menu)->addAction(
+							(type == Data::StickersType::Masks
+								? tr::lng_masks_archive_pack(tr::now)
+								: tr::lng_stickers_archive_pack(tr::now)),
+							archive,
+							&st::menuIconArchive);
+					}
 					(*menu)->popup(QCursor::pos());
 					return true;
 				});
@@ -982,6 +1001,10 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 
 bool StickerSetBox::Inner::isEmojiSet() const {
 	return (_setFlags & Data::StickersSetFlag::Emoji);
+}
+
+uint64 StickerSetBox::Inner::setId() const {
+	return _setId;
 }
 
 QSize StickerSetBox::Inner::boundingBoxSize() const {
