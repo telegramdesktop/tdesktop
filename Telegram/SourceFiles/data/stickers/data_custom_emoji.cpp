@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_block.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
+#include "styles/style_chat.h"
 
 #include "data/stickers/data_stickers.h"
 #include "ui/widgets/input_fields.h"
@@ -36,7 +37,8 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	using LottieSize = ChatHelpers::StickerLottieSize;
 	switch (tag) {
 	case SizeTag::Normal: return LottieSize::MessageHistory;
-	case SizeTag::Large: return LottieSize::EmojiInteraction;
+	case SizeTag::Large: return LottieSize::StickersPanel;
+	case SizeTag::Isolated: return LottieSize::EmojiInteraction;
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
@@ -45,6 +47,9 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	switch (tag) {
 	case SizeTag::Normal: return Ui::Emoji::GetSizeNormal();
 	case SizeTag::Large: return Ui::Emoji::GetSizeLarge();
+	case SizeTag::Isolated:
+		return (st::largeEmojiSize + 2 * st::largeEmojiOutline)
+			* style::DevicePixelRatio();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
 }
@@ -396,20 +401,25 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 		DocumentId documentId,
 		SizeTag tag) const {
-	const auto &other = _instances[1 - SizeIndex(tag)];
-	const auto j = other.find(documentId);
-	if (j == end(other)) {
-		return {};
-	} else if (const auto nonExact = j->second->imagePreview()) {
-		const auto size = SizeFromTag(tag);
-		return {
-			nonExact.image().scaled(
-				size,
-				size,
-				Qt::IgnoreAspectRatio,
-				Qt::SmoothTransformation),
-			false,
-		};
+	for (auto i = _instances.size(); i != 0;) {
+		if (SizeIndex(tag) == --i) {
+			continue;
+		}
+		const auto &other = _instances[i];
+		const auto j = other.find(documentId);
+		if (j == end(other)) {
+			continue;
+		} else if (const auto nonExact = j->second->imagePreview()) {
+			const auto size = SizeFromTag(tag);
+			return {
+				nonExact.image().scaled(
+					size,
+					size,
+					Qt::IgnoreAspectRatio,
+					Qt::SmoothTransformation),
+				false,
+			};
+		}
 	}
 	return {};
 }
@@ -535,7 +545,7 @@ void CustomEmojiManager::requestSetFor(not_null<DocumentData*> document) {
 int CustomEmojiManager::SizeIndex(SizeTag tag) {
 	const auto result = static_cast<int>(tag);
 
-	Ensures(result >= 0 && result < 2);
+	Ensures(result >= 0 && result < kSizeCount);
 	return result;
 }
 

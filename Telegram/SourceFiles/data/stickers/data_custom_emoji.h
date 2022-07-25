@@ -33,6 +33,9 @@ public:
 	enum class SizeTag {
 		Normal,
 		Large,
+		Isolated,
+
+		kCount,
 	};
 
 	CustomEmojiManager(not_null<Session*> owner);
@@ -64,6 +67,8 @@ public:
 	[[nodiscard]] Session &owner() const;
 
 private:
+	static constexpr auto kSizeCount = int(SizeTag::kCount);
+
 	struct RepaintBunch {
 		crl::time when = 0;
 		std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>> instances;
@@ -91,12 +96,16 @@ private:
 
 	const not_null<Session*> _owner;
 
-	base::flat_map<
-		uint64,
-		std::unique_ptr<Ui::CustomEmoji::Instance>> _instances[2];
-	base::flat_map<
-		uint64,
-		std::vector<base::weak_ptr<CustomEmojiLoader>>> _loaders[2];
+	std::array<
+		base::flat_map<
+			uint64,
+			std::unique_ptr<Ui::CustomEmoji::Instance>>,
+		kSizeCount> _instances;
+	std::array<
+		base::flat_map<
+			uint64,
+			std::vector<base::weak_ptr<CustomEmojiLoader>>>,
+		kSizeCount> _loaders;
 	base::flat_set<uint64> _pendingForRequest;
 	mtpRequestId _requestId = 0;
 

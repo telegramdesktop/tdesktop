@@ -20,6 +20,11 @@ struct LargeEmojiImage;
 
 namespace HistoryView {
 
+using LargeEmojiMedia = std::variant<
+	v::null_t,
+	std::shared_ptr<Stickers::LargeEmojiImage>,
+	std::unique_ptr<Ui::Text::CustomEmoji>>;
+
 class LargeEmoji final : public UnwrappedMedia::Content {
 public:
 	LargeEmoji(
@@ -39,12 +44,23 @@ public:
 		return true;
 	}
 
+	bool hasHeavyPart() const override;
+	void unloadHeavyPart() override;
+
 private:
+	void paintCustom(
+		QPainter &p,
+		int x,
+		int y,
+		not_null<Ui::Text::CustomEmoji*> emoji,
+		const PaintContext &context,
+		bool paused);
+
 	const not_null<Element*> _parent;
-	const std::array<
-		std::shared_ptr<Stickers::LargeEmojiImage>,
-		Ui::Text::kIsolatedEmojiLimit> _images;
+	const std::array<LargeEmojiMedia, Ui::Text::kIsolatedEmojiLimit> _images;
+	QImage _selectedFrame;
 	QSize _size;
+	bool _hasHeavyPart = false;
 
 };
 

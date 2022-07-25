@@ -1308,7 +1308,7 @@ TextWithEntities HistoryItem::inReplyText() const {
 }
 
 Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
-	return Ui::Text::IsolatedEmoji();
+	return {};
 }
 
 HistoryItem::~HistoryItem() {

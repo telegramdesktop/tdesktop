@@ -19,7 +19,7 @@ namespace Ui::CustomEmoji {
 namespace {
 
 constexpr auto kMaxSize = 128;
-constexpr auto kMaxFrames = 512;
+constexpr auto kMaxFrames = 180;
 constexpr auto kMaxFrameDuration = 86400 * crl::time(1000);
 constexpr auto kCacheVersion = 1;
 constexpr auto kPreloadFrames = 3;
@@ -415,7 +415,7 @@ void Renderer::frameReady(
 	}
 	if (const auto count = generator->count()) {
 		if (!_cache.frames()) {
-			_cache.reserve(count);
+			_cache.reserve(std::max(count, kMaxFrames));
 		}
 	}
 	const auto current = _cache.currentFrame();
@@ -425,7 +425,7 @@ void Renderer::frameReady(
 	if (explicitRepaint && _repaint) {
 		_repaint();
 	}
-	if (!duration) {
+	if (!duration || total + 1 >= kMaxFrames) {
 		finish();
 	} else if (current + kPreloadFrames > total) {
 		renderNext(std::move(generator), std::move(frame));

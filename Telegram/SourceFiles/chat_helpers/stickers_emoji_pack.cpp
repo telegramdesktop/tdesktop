@@ -150,22 +150,25 @@ auto EmojiPack::stickerForEmoji(EmojiPtr emoji) -> Sticker {
 		return { i->second.get(), nullptr };
 	}
 	if (!emoji->colored()) {
-		return Sticker();
+		return {};
 	}
 	const auto j = _map.find(emoji->original());
 	if (j != end(_map)) {
 		const auto index = emoji->variantIndex(emoji);
 		return { j->second.get(), ColorReplacements(index) };
 	}
-	return Sticker();
+	return {};
 }
 
 auto EmojiPack::stickerForEmoji(const IsolatedEmoji &emoji) -> Sticker {
 	Expects(!emoji.empty());
 
-	return (emoji.items[1] != nullptr)
-		? Sticker()
-		: stickerForEmoji(emoji.items[0]);
+	if (!v::is_null(emoji.items[1])) {
+		return {};
+	} else if (const auto regular = std::get_if<EmojiPtr>(&emoji.items[0])) {
+		return stickerForEmoji(*regular);
+	}
+	return {};
 }
 
 std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {

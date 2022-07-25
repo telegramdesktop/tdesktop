@@ -431,6 +431,7 @@ public:
 	void prepareCustomEmojiPaint(
 		Painter &p,
 		const Ui::Text::String &text) const;
+	void clearCustomEmojiRepaint() const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();

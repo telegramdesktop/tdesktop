@@ -419,15 +419,18 @@ void Element::customEmojiRepaint() {
 	}
 }
 
+void Element::clearCustomEmojiRepaint() const {
+	_customEmojiRepaintScheduled = false;
+	data()->_customEmojiRepaintScheduled = false;
+}
+
 void Element::prepareCustomEmojiPaint(
 		Painter &p,
 		const Ui::Text::String &text) const {
-	const auto item = data();
 	if (!text.hasCustomEmoji()) {
 		return;
 	}
-	_customEmojiRepaintScheduled = false;
-	item->_customEmojiRepaintScheduled = false;
+	clearCustomEmojiRepaint();
 	p.setInactive(delegate()->elementIsGifPaused());
 	if (!_heavyCustomEmoji) {
 		_heavyCustomEmoji = true;
