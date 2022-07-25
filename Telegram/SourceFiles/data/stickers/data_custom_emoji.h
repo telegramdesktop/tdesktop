@@ -78,6 +78,9 @@ private:
 	void invokeRepaints();
 	void requestSetFor(not_null<DocumentData*> document);
 
+	[[nodiscard]] Ui::CustomEmoji::Preview prepareNonExactPreview(
+		DocumentId documentId,
+		SizeTag tag) const;
 	template <typename LoaderFactory>
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		DocumentId documentId,

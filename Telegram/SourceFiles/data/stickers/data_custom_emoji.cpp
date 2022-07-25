@@ -380,12 +380,33 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			documentId,
 			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
 				factory(),
-				Ui::CustomEmoji::Preview()
+				prepareNonExactPreview(documentId, tag)
 			}, std::move(repaint))).first;
 	}
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),
 		std::move(update));
+}
+
+Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
+		DocumentId documentId,
+		SizeTag tag) const {
+	const auto &other = _instances[1 - SizeIndex(tag)];
+	const auto j = other.find(documentId);
+	if (j == end(other)) {
+		return {};
+	} else if (const auto nonExact = j->second->imagePreview()) {
+		const auto size = SizeFromTag(tag);
+		return {
+			nonExact.image().scaled(
+				size,
+				size,
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation),
+			false,
+		};
+	}
+	return {};
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(

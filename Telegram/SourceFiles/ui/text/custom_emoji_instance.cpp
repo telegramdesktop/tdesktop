@@ -37,22 +37,38 @@ Preview::Preview(QPainterPath path, float64 scale)
 : _data(ScaledPath{ std::move(path), scale }) {
 }
 
-Preview::Preview(QImage image) : _data(std::move(image)) {
+Preview::Preview(QImage image, bool exact)
+: _data(Image{ .data = std::move(image), .exact = exact }) {
 }
 
 void Preview::paint(QPainter &p, int x, int y, const QColor &preview) {
 	if (const auto path = std::get_if<ScaledPath>(&_data)) {
 		paintPath(p, x, y, preview, *path);
-	} else if (const auto image = std::get_if<QImage>(&_data)) {
+	} else if (const auto image = std::get_if<Image>(&_data)) {
+		const auto &data = image->data;
 		const auto factor = style::DevicePixelRatio();
-		const auto width = image->width() / factor;
-		const auto height = image->height() / factor;
-		p.drawImage(QRect(x, y, width, height), *image);
+		const auto width = data.width() / factor;
+		const auto height = data.height() / factor;
+		p.drawImage(QRect(x, y, width, height), data);
 	}
 }
 
-bool Preview::image() const {
-	return v::is<QImage>(_data);
+bool Preview::isImage() const {
+	return v::is<Image>(_data);
+}
+
+bool Preview::isExactImage() const {
+	if (const auto image = std::get_if<Image>(&_data)) {
+		return image->exact;
+	}
+	return false;
+}
+
+QImage Preview::image() const {
+	if (const auto image = std::get_if<Image>(&_data)) {
+		return image->data;
+	}
+	return QImage();
 }
 
 void Preview::paintPath(
@@ -190,7 +206,7 @@ Preview Cache::makePreview() const {
 	Expects(_frames > 0);
 
 	const auto first = frame(0);
-	return { first.image->copy(first.source) };
+	return { first.image->copy(first.source), true };
 }
 
 void Cache::reserve(int frames) {
@@ -349,8 +365,12 @@ PaintFrameResult Cached::paint(QPainter &p, int x, int y, crl::time now) {
 	return _cache.paintCurrentFrame(p, x, y, now);
 }
 
+Preview Cached::makePreview() const {
+	return _cache.makePreview();
+}
+
 Loading Cached::unload() {
-	return Loading(_unloader(), _cache.makePreview());
+	return Loading(_unloader(), makePreview());
 }
 
 Renderer::Renderer(RendererDescriptor &&descriptor)
@@ -516,6 +536,10 @@ void Loading::paint(QPainter &p, int x, int y, const QColor &preview) {
 	_preview.paint(p, x, y, preview);
 }
 
+Preview Loading::imagePreview() const {
+	return _preview.isImage() ? _preview : Preview();
+}
+
 void Loading::cancel() {
 	_loader->cancel();
 	invalidate_weak_ptrs(this);
@@ -564,7 +588,7 @@ void Instance::paint(
 		if (!result.painted) {
 			caching->preview.paint(p, x, y, preview);
 		} else {
-			if (!caching->preview.image()) {
+			if (!caching->preview.isExactImage()) {
 				caching->preview = caching->renderer->makePreview();
 			}
 			if (result.next > now) {
@@ -580,6 +604,17 @@ void Instance::paint(
 			_repaintLater(this, { result.next, result.duration });
 		}
 	}
+}
+
+Preview Instance::imagePreview() const {
+	if (const auto loading = std::get_if<Loading>(&_state)) {
+		return loading->imagePreview();
+	} else if (const auto caching = std::get_if<Caching>(&_state)) {
+		return caching->preview.isImage() ? caching->preview : Preview();
+	} else if (const auto cached = std::get_if<Cached>(&_state)) {
+		return cached->makePreview();
+	}
+	return {};
 }
 
 void Instance::repaint() {

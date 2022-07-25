@@ -24,11 +24,13 @@ namespace Ui::CustomEmoji {
 class Preview final {
 public:
 	Preview() = default;
-	Preview(QImage image);
+	Preview(QImage image, bool exact);
 	Preview(QPainterPath path, float64 scale);
 
 	void paint(QPainter &p, int x, int y, const QColor &preview);
-	[[nodiscard]] bool image() const;
+	[[nodiscard]] bool isImage() const;
+	[[nodiscard]] bool isExactImage() const;
+	[[nodiscard]] QImage image() const;
 
 	[[nodiscard]] explicit operator bool() const {
 		return !v::is_null(_data);
@@ -39,6 +41,10 @@ private:
 		QPainterPath path;
 		float64 scale = 1.;
 	};
+	struct Image {
+		QImage data;
+		bool exact = false;
+	};
 
 	void paintPath(
 		QPainter &p,
@@ -47,7 +53,7 @@ private:
 		const QColor &preview,
 		const ScaledPath &path);
 
-	std::variant<v::null_t, ScaledPath, QImage> _data;
+	std::variant<v::null_t, ScaledPath, Image> _data;
 
 };
 
@@ -116,7 +122,7 @@ public:
 		Cache cache);
 
 	[[nodiscard]] QString entityData() const;
-
+	[[nodiscard]] Preview makePreview() const;
 	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
 	[[nodiscard]] Loading unload();
 
@@ -194,6 +200,7 @@ public:
 	void load(Fn<void(Loader::LoadResult)> done);
 	[[nodiscard]] bool loading() const;
 	void paint(QPainter &p, int x, int y, const QColor &preview);
+	[[nodiscard]] Preview imagePreview() const;
 	void cancel();
 
 private:
@@ -224,6 +231,7 @@ public:
 		crl::time now,
 		const QColor &preview,
 		bool paused);
+	[[nodiscard]] Preview imagePreview() const;
 
 	void incrementUsage(not_null<Object*> object);
 	void decrementUsage(not_null<Object*> object);
