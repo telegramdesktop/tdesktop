@@ -80,9 +80,11 @@ public:
 	QString phrasePanelCloseWarning() override;
 	QString phrasePanelCloseUnsaved() override;
 	QString phrasePanelCloseAnyway() override;
+#if 0 // disabled for now
 	QString phraseBotSharePhone() override;
 	QString phraseBotSharePhoneTitle() override;
 	QString phraseBotSharePhoneConfirm() override;
+#endif
 
 };
 

@@ -822,6 +822,7 @@ void Panel::openPopup(const QJsonObject &args) {
 }
 
 void Panel::requestPhone() {
+#if 0 // disabled for now
 	using Button = Webview::PopupArgs::Button;
 	const auto widget = _webview->window.widget();
 	const auto weak = base::make_weak(this);
@@ -845,6 +846,7 @@ void Panel::requestPhone() {
 				? "\"phone_number\": \"" + _phone + "\""
 				: QString()));
 	}
+#endif
 }
 
 void Panel::scheduleCloseWithConfirmation() {
