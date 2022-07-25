@@ -60,6 +60,9 @@ public:
 	void unloadHeavyPart() override;
 
 	void refreshLink() override;
+	bool hasTextForCopy() const {
+		return isEmojiSticker();
+	}
 
 	void setDiceIndex(const QString &emoji, int index);
 	[[nodiscard]] bool atTheEnd() const {

@@ -404,6 +404,10 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 	return result;
 }
 
+bool UnwrappedMedia::hasTextForCopy() const {
+	return _content->hasTextForCopy();
+}
+
 QRect UnwrappedMedia::contentRectForReactions() const {
 	const auto inWebPage = (_parent->media() != this);
 	if (inWebPage) {

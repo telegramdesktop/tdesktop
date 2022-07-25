@@ -60,6 +60,9 @@ public:
 		[[nodiscard]] virtual bool alwaysShowOutTimestamp() {
 			return false;
 		}
+		virtual bool hasTextForCopy() const {
+			return false;
+		}
 		virtual ~Content() = default;
 	};
 
@@ -70,6 +73,8 @@ public:
 	void draw(Painter &p, const PaintContext &context) const override;
 	PointState pointState(QPoint point) const override;
 	TextState textState(QPoint point, StateRequest request) const override;
+
+	bool hasTextForCopy() const override;
 
 	bool toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const override {
 		return true;

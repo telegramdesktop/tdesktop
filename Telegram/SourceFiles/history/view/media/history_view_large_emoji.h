@@ -35,6 +35,9 @@ public:
 	bool alwaysShowOutTimestamp() override {
 		return true;
 	}
+	bool hasTextForCopy() const {
+		return true;
+	}
 
 private:
 	const not_null<Element*> _parent;

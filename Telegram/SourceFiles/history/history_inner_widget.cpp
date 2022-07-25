@@ -2275,6 +2275,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto canReport = item && item->suggestReport();
 		const auto canBlockSender = item && item->history()->peer->isRepliesChat();
 		const auto view = item ? item->mainView() : nullptr;
+		const auto actionText = link
+			? link->copyToClipboardContextItemText()
+			: QString();
 
 		if (isUponSelected > 0) {
 			if (!hasCopyRestrictionForSelected()) {
@@ -2335,7 +2338,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 				if (!item->isService()
 					&& view
-					&& !link
+					&& actionText.isEmpty()
 					&& !hasCopyRestriction(item)
 					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
@@ -2344,10 +2347,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 		}
-
-		const auto actionText = link
-			? link->copyToClipboardContextItemText()
-			: QString();
 		if (!actionText.isEmpty()) {
 			_menu->addAction(
 				actionText,
