@@ -2599,26 +2599,30 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		return TextForMimeData();
 	}
 
+	struct Part {
+		QString name;
+		QString time;
+		TextForMimeData unwrapped;
+	};
+
 	const auto timeFormat = QString(", [%1 %2]\n")
 		.arg(cDateFormat())
 		.arg(cTimeFormat());
 	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
-	auto texts = base::flat_map<Data::MessagePosition, TextForMimeData>();
+	auto texts = base::flat_map<Data::MessagePosition, Part>();
 
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextForMimeData &&unwrapped) {
-		auto time = ItemDateTime(item).toString(timeFormat);
-		auto part = TextForMimeData();
-		auto size = item->author()->name.size()
-			+ time.size()
-			+ unwrapped.expanded.size();
-		part.reserve(size);
-		part.append(item->author()->name).append(time);
-		part.append(std::move(unwrapped));
-		texts.emplace(item->position(), part);
-		fullSize += size;
+		const auto i = texts.emplace(item->position(), Part{
+			.name = item->author()->name,
+			.time = ItemDateTime(item).toString(timeFormat),
+			.unwrapped = std::move(unwrapped),
+		}).first;
+		fullSize += i->second.name.size()
+			+ i->second.time.size()
+			+ i->second.unwrapped.expanded.size();
 	};
 	const auto addItem = [&](not_null<HistoryItem*> item) {
 		wrapItem(item, HistoryItemText(item));
@@ -2644,12 +2648,15 @@ TextForMimeData HistoryInner::getSelectedText() const {
 			addItem(item);
 		}
 	}
-
+	if (texts.size() == 1) {
+		return texts.front().second.unwrapped;
+	}
 	auto result = TextForMimeData();
 	const auto sep = qstr("\n\n");
 	result.reserve(fullSize + (texts.size() - 1) * sep.size());
 	for (auto i = texts.begin(), e = texts.end(); i != e;) {
-		result.append(std::move(i->second));
+		result.append(i->second.name).append(i->second.time);
+		result.append(std::move(i->second.unwrapped));
 		if (++i != e) {
 			result.append(sep);
 		}

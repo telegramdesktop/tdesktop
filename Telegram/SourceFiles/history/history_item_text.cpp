@@ -148,7 +148,7 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		auto result = (*first)->clipboardText();
 		return (++first == end) ? result : TextForMimeData();
 	}();
-	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
+	return WrapAsItem(group->items.front(), Data::WithCaptionClipboardText(
 		tr::lng_in_dlg_album(tr::now),
 		std::move(caption)));
 }
