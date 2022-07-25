@@ -382,6 +382,11 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 				factory(),
 				prepareNonExactPreview(documentId, tag)
 			}, std::move(repaint))).first;
+	} else if (!i->second->hasImagePreview()) {
+		auto preview = prepareNonExactPreview(documentId, tag);
+		if (preview.isImage()) {
+			i->second->updatePreview(std::move(preview));
+		}
 	}
 	return std::make_unique<Ui::CustomEmoji::Object>(
 		i->second.get(),

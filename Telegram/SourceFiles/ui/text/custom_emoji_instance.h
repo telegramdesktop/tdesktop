@@ -200,7 +200,9 @@ public:
 	void load(Fn<void(Loader::LoadResult)> done);
 	[[nodiscard]] bool loading() const;
 	void paint(QPainter &p, int x, int y, const QColor &preview);
+	[[nodiscard]] bool hasImagePreview() const;
 	[[nodiscard]] Preview imagePreview() const;
+	void updatePreview(Preview preview);
 	void cancel();
 
 private:
@@ -231,7 +233,9 @@ public:
 		crl::time now,
 		const QColor &preview,
 		bool paused);
+	[[nodiscard]] bool hasImagePreview() const;
 	[[nodiscard]] Preview imagePreview() const;
+	void updatePreview(Preview preview);
 
 	void incrementUsage(not_null<Object*> object);
 	void decrementUsage(not_null<Object*> object);

@@ -536,8 +536,24 @@ void Loading::paint(QPainter &p, int x, int y, const QColor &preview) {
 	_preview.paint(p, x, y, preview);
 }
 
+bool Loading::hasImagePreview() const {
+return _preview.isImage();
+}
+
 Preview Loading::imagePreview() const {
 	return _preview.isImage() ? _preview : Preview();
+}
+
+void Loading::updatePreview(Preview preview) {
+	if (!_preview.isImage() && preview.isImage()) {
+		_preview = std::move(preview);
+	} else if (!_preview) {
+		if (auto loaderPreview = _loader->preview()) {
+			_preview = std::move(loaderPreview);
+		} else if (preview) {
+			_preview = std::move(preview);
+		}
+	}
 }
 
 void Loading::cancel() {
@@ -606,6 +622,17 @@ void Instance::paint(
 	}
 }
 
+bool Instance::hasImagePreview() const {
+	if (const auto loading = std::get_if<Loading>(&_state)) {
+		return loading->hasImagePreview();
+	} else if (const auto caching = std::get_if<Caching>(&_state)) {
+		return caching->preview.isImage();
+	} else if (const auto cached = std::get_if<Cached>(&_state)) {
+		return true;
+	}
+	return false;
+}
+
 Preview Instance::imagePreview() const {
 	if (const auto loading = std::get_if<Loading>(&_state)) {
 		return loading->imagePreview();
@@ -615,6 +642,17 @@ Preview Instance::imagePreview() const {
 		return cached->makePreview();
 	}
 	return {};
+}
+
+void Instance::updatePreview(Preview preview) {
+	if (const auto loading = std::get_if<Loading>(&_state)) {
+		loading->updatePreview(std::move(preview));
+	} else if (const auto caching = std::get_if<Caching>(&_state)) {
+		if ((!caching->preview.isImage() && preview.isImage())
+			|| (!caching->preview && preview)) {
+			caching->preview = std::move(preview);
+		}
+	}
 }
 
 void Instance::repaint() {
