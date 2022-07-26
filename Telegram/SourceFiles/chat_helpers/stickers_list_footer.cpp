@@ -485,8 +485,6 @@ void StickersListFooter::setSelectedSubicon(
 	}
 	_subiconState.selected = newSelected;
 	const auto info = subiconInfo(_subiconState.selected);
-	UpdateAnimated(_subiconState.selectionX, info.left, animations);
-	UpdateAnimated(_subiconState.selectionWidth, info.width, animations);
 	const auto relativeLeft = info.left;
 	const auto subiconsWidthForCentering = 2 * relativeLeft + info.width;
 	const auto subiconsXFinal = std::clamp(
@@ -515,8 +513,6 @@ void StickersListFooter::processHideFinished() {
 	_subiconState.animation.stop();
 	_subiconState.animationStart = 0;
 	_subiconState.x.finish();
-	_subiconState.selectionX.finish();
-	_subiconState.selectionWidth.finish();
 	_horizontal = false;
 }
 
@@ -648,7 +644,6 @@ void StickersListFooter::resizeEvent(QResizeEvent *e) {
 		resizeSearchControls();
 	}
 	refreshIconsGeometry(ValidateIconAnimations::None);
-	refreshSubiconsGeometry();
 }
 
 void StickersListFooter::resizeSearchControls() {
@@ -747,13 +742,6 @@ void StickersListFooter::mouseReleaseEvent(QMouseEvent *e) {
 			const auto info = iconInfo(icon->index);
 			_iconState.selectionX = anim::value(info.left, info.left);
 			_iconState.selectionWidth = anim::value(info.width, info.width);
-			const auto subinfo = subiconInfo(icon->subindex);
-			_subiconState.selectionX = anim::value(
-				subinfo.left,
-				subinfo.left);
-			_subiconState.selectionWidth = anim::value(
-				subinfo.width,
-				subinfo.width);
 			const auto setId = _icons[icon->index].setId;
 			_setChosen.fire_copy((setId == AllEmojiSectionSetId())
 				? EmojiSectionSetId(
@@ -1000,7 +988,8 @@ void StickersListFooter::refreshIconsGeometry(
 		(_singleWidth - st::emojiIconArea) / 2,
 		(st::emojiFooterHeight - st::emojiIconArea) / 2);
 	refreshScrollableDimensions();
-	updateSelected();
+	refreshSubiconsGeometry();
+	_iconState.selected = _subiconState.selected = -1;
 	validateSelectedIcon(_activeByScrollId, animations);
 	update();
 }
@@ -1008,8 +997,6 @@ void StickersListFooter::refreshIconsGeometry(
 void StickersListFooter::refreshSubiconsGeometry() {
 	using Section = Ui::Emoji::Section;
 	_subiconState.x.finish();
-	_subiconState.selectionX.finish();
-	_subiconState.selectionWidth.finish();
 	_subiconState.animationStart = 0;
 	_subiconState.animation.stop();
 	const auto half = _singleWidth / 2;
