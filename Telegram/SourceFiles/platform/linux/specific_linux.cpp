@@ -118,12 +118,10 @@ void PortalAutostart(bool start, bool silent) {
 				const Glib::ustring &object_path,
 				const Glib::ustring &interface_name,
 				const Glib::ustring &signal_name,
-				const Glib::VariantContainerBase &parameters) {
+				Glib::VariantContainerBase parameters) {
 				try {
-					auto parametersCopy = parameters;
-
 					const auto response = base::Platform::GlibVariantCast<
-						uint>(parametersCopy.get_child(0));
+						uint>(parameters.get_child(0));
 
 					if (response && !silent) {
 						LOG(("Portal Autostart Error: Request denied"));
