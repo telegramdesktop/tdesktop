@@ -49,6 +49,18 @@ bool ServiceRegistered = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
+void Noexcept(Fn<void()> callback) noexcept {
+	try {
+		callback();
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	} catch (const std::exception &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+}
+
 std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
@@ -98,24 +110,22 @@ void StartServiceAsync(Fn<void()> callback) {
 			connection,
 			std::string(kService),
 			[=](Fn<DBus::StartReply()> result) {
-				try {
-					result(); // get the error if any
-				} catch (const Glib::Error &e) {
-					static const auto NotSupportedErrors = {
-						"org.freedesktop.DBus.Error.ServiceUnknown",
-					};
+				Noexcept([&] {
+					try {
+						result(); // get the error if any
+					} catch (const Glib::Error &e) {
+						static const auto NotSupportedErrors = {
+							"org.freedesktop.DBus.Error.ServiceUnknown",
+						};
 
-					const auto errorName =
-						Gio::DBus::ErrorUtils::get_remote_error(e);
+						const auto errorName =
+							Gio::DBus::ErrorUtils::get_remote_error(e);
 
-					if (!ranges::contains(NotSupportedErrors, errorName)) {
-						LOG(("Native Notification Error: %1").arg(
-							QString::fromStdString(e.what())));
+						if (!ranges::contains(NotSupportedErrors, errorName)) {
+							throw e;
+						}
 					}
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
+				});
 
 				crl::on_main(callback);
 			});
@@ -161,7 +171,7 @@ bool GetServiceRegistered() {
 
 void GetServerInformation(
 		Fn<void(const std::optional<ServerInformation> &)> callback) {
-	try {
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -171,7 +181,7 @@ void GetServerInformation(
 			"GetServerInformation",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 
 					const auto name = GlibVariantCast<Glib::ustring>(
@@ -198,29 +208,20 @@ void GetServerInformation(
 					});
 
 					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
+				});
 
 				crl::on_main([=] { callback(std::nullopt); });
 			},
 			std::string(kService));
 
 			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
+	});
 
 	crl::on_main([=] { callback(std::nullopt); });
 }
 
 void GetCapabilities(Fn<void(const QStringList &)> callback) {
-	try {
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -230,7 +231,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			"GetCapabilities",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 
 					QStringList value;
@@ -245,23 +246,14 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 					});
 
 					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
+				});
 
 				crl::on_main([=] { callback({}); });
 			},
 			std::string(kService));
 
 			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
+	});
 
 	crl::on_main([=] { callback({}); });
 }
@@ -273,7 +265,7 @@ void GetInhibited(Fn<void(bool)> callback) {
 		return;
 	}
 
-	try {
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -286,7 +278,7 @@ void GetInhibited(Fn<void(bool)> callback) {
 				Glib::ustring("Inhibited"),
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 
 					const auto value = GlibVariantCast<bool>(
@@ -298,23 +290,14 @@ void GetInhibited(Fn<void(bool)> callback) {
 					});
 
 					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
+				});
 
 				crl::on_main([=] { callback(false); });
 			},
 			std::string(kService));
 
 			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
+	});
 
 	crl::on_main([=] { callback(false); });
 }
@@ -425,12 +408,12 @@ bool NotificationData::init(
 		const QString &subtitle,
 		const QString &msg,
 		Window::Notifications::Manager::DisplayOptions options) {
-	try {
+	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+	});
+
+	if (!_dbusConnection) {
 		return false;
 	}
 
@@ -444,7 +427,7 @@ bool NotificationData::init(
 			const Glib::ustring &interface_name,
 			const Glib::ustring &signal_name,
 			Glib::VariantContainerBase parameters) {
-		try {
+		Noexcept([&] {
 			if (signal_name == "ActionInvoked") {
 				const auto id = GlibVariantCast<uint>(
 					parameters.get_child(0));
@@ -478,10 +461,7 @@ bool NotificationData::init(
 
 				crl::on_main(weak, [=] { notificationClosed(id, reason); });
 			}
-		} catch (const std::exception &e) {
-			LOG(("Native Notification Error: %1").arg(
-				QString::fromStdString(e.what())));
-		}
+		});
 	};
 
 	_title = title.toStdString();
@@ -622,24 +602,19 @@ void NotificationData::show() {
 				-1,
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 					const auto notificationId = GlibVariantCast<uint>(
 						reply.get_child(0));
 					crl::on_main(weak, [=] {
 						_notificationId = notificationId;
 					});
-					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
-				crl::on_main(weak, [=] {
-					_manager->clearNotification(_id);
 				});
+				if (!_notificationId) {
+					crl::on_main(weak, [=] {
+						_manager->clearNotification(_id);
+					});
+				}
 			},
 			std::string(kService));
 	}));
@@ -893,12 +868,12 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 			.arg(capabilities.join(", ")));
 	}
 
-	try {
+	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+	});
+
+	if (!_dbusConnection) {
 		return;
 	}
 
@@ -914,7 +889,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 				const Glib::ustring &interface_name,
 				const Glib::ustring &signal_name,
 				Glib::VariantContainerBase parameters) {
-			try {
+			Noexcept([&] {
 				const auto interface = GlibVariantCast<Glib::ustring>(
 					parameters.get_child(0));
 
@@ -926,10 +901,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 					GlibVariantCast<
 						std::map<Glib::ustring, Glib::VariantBase>
 				>(parameters.get_child(1)).at("Inhibited"));
-			} catch (const std::exception &e) {
-				LOG(("Native Notification Error: %1").arg(
-					QString::fromStdString(e.what())));
-			}
+			});
 		},
 		std::string(kService),
 		std::string(kPropertiesInterface),
