@@ -61,6 +61,13 @@ LargeEmoji::LargeEmoji(
 	emoji)) {
 }
 
+LargeEmoji::~LargeEmoji() {
+	if (_hasHeavyPart) {
+		unloadHeavyPart();
+		_parent->checkHeavyPart();
+	}
+}
+
 QSize LargeEmoji::size() {
 	using namespace rpl::mappers;
 

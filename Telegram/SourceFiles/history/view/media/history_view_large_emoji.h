@@ -30,6 +30,7 @@ public:
 	LargeEmoji(
 		not_null<Element*> parent,
 		const Ui::Text::IsolatedEmoji &emoji);
+	~LargeEmoji();
 
 	QSize size() override;
 	void draw(
