@@ -821,8 +821,9 @@ void StickersListFooter::scrollByWheelEvent(
 	const auto index = v::get<IconId>(_selected).index;
 	if (_icons[index].setId == AllEmojiSectionSetId()) {
 		use(_subiconState);
+	} else {
+		use(_iconState);
 	}
-	use(_iconState);
 }
 
 void StickersListFooter::clipCallback(
