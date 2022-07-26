@@ -2397,7 +2397,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
-"lng_payments_webview_no_card" = "Unfortunately, you can't add a new card with current system configuration.";
 "lng_payments_webview_no_use" = "Unfortunately, you can't use payments with current system configuration.";
 "lng_payments_webview_install_edge" = "Please install {link}.";
 "lng_payments_webview_install_webkit" = "Please install WebKitGTK (webkit2gtk-5.0/webkit2gtk-4.1/webkit2gtk-4.0) using your package manager.";

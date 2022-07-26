@@ -167,13 +167,18 @@ struct PaymentMethodAdditional {
 	QString url;
 };
 
-struct PaymentMethodDetails {
+struct PaymentMethodSaved {
+	QString id;
 	QString title;
+};
+
+struct PaymentMethodDetails {
 	NativeMethodDetails native;
+	std::vector<PaymentMethodSaved> savedMethods;
 	std::vector<PaymentMethodAdditional> additionalMethods;
 	QString url;
 	QString provider;
-	bool ready = false;
+	int savedMethodIndex = 0;
 	bool canSaveInformation = false;
 };
 

@@ -500,7 +500,9 @@ void FormSummary::setupSections(not_null<VerticalLayout*> layout) {
 	};
 	add(
 		tr::lng_payments_payment_method(),
-		_method.title,
+		(_method.savedMethods.empty()
+			? QString()
+			: _method.savedMethods[_method.savedMethodIndex].title),
 		&st::paymentsIconPaymentMethod,
 		[=] { _delegate->panelEditPaymentMethod(); });
 	if (_invoice.isShippingAddressRequested) {

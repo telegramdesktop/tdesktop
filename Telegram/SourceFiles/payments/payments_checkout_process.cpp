@@ -234,6 +234,11 @@ CheckoutProcess::CheckoutProcess(
 		handleFormUpdate(update);
 	}, _lifetime);
 
+	_panel->savedMethodChosen(
+	) | rpl::start_with_next([=](QString id) {
+		_form->chooseSavedMethod(id);
+	}, _panel->lifetime());
+
 	_panel->backRequests(
 	) | rpl::start_with_next([=] {
 		panelCancelEdit();
@@ -284,7 +289,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 		if (!_initialSilentValidation) {
 			showForm();
 		}
-		if (_form->paymentMethod().savedCredentials) {
+		if (!_form->paymentMethod().savedCredentials.empty()) {
 			_session->api().cloudPassword().reload();
 		}
 	}, [&](const ThumbnailUpdated &data) {
@@ -532,7 +537,8 @@ void CheckoutProcess::panelSubmit() {
 			|| invoice.isPhoneRequested)) {
 		_submitState = SubmitState::Validating;
 		_form->validateInformation(_form->information());
-	} else if (!method.newCredentials && !method.savedCredentials) {
+	} else if (!method.newCredentials
+		&& method.savedCredentialsIndex >= method.savedCredentials.size()) {
 		editPaymentMethod();
 	} else if (invoice.isRecurring && !_form->details().termsAccepted) {
 		_panel->requestTermsAcceptance(
@@ -712,10 +718,13 @@ void CheckoutProcess::requestPassword() {
 	getPasswordState([=](const Core::CloudPasswordState &state) {
 		auto fields = PasscodeBox::CloudFields::From(state);
 		fields.customTitle = tr::lng_payments_password_title();
+		const auto &method = _form->paymentMethod();
+		const auto &list = method.savedCredentials;
+		const auto index = method.savedCredentialsIndex;
 		fields.customDescription = tr::lng_payments_password_description(
 			tr::now,
 			lt_card,
-			_form->paymentMethod().savedCredentials.title);
+			(index < list.size()) ? list[index].title : QString());
 		fields.customSubmitButton = tr::lng_payments_password_submit();
 		fields.customCheckCallback = [=](
 				const Core::CloudPasswordResult &result) {

@@ -113,7 +113,8 @@ struct NativePaymentMethod {
 
 struct PaymentMethod {
 	NativePaymentMethod native;
-	SavedCredentials savedCredentials;
+	std::vector<SavedCredentials> savedCredentials;
+	int savedCredentialsIndex = 0;
 	NewCredentials newCredentials;
 	Ui::PaymentMethodDetails ui;
 };
@@ -222,6 +223,7 @@ public:
 		const Ui::UncheckedCardDetails &details,
 		bool saveInformation);
 	void setPaymentCredentials(const NewCredentials &credentials);
+	void chooseSavedMethod(const QString &id);
 	void setHasPassword(bool has);
 	void setShippingOption(const QString &id);
 	void setTips(int64 value);
@@ -254,7 +256,7 @@ private:
 	void processDetails(const MTPDpayments_paymentForm &data);
 	void processDetails(const MTPDpayments_paymentReceipt &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
-	void processSavedCredentials(
+	void addSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data);
 	void processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list);
@@ -263,6 +265,7 @@ private:
 	void fillStripeNativeMethod(QJsonObject object);
 	void fillSmartGlocalNativeMethod(QJsonObject object);
 	void refreshPaymentMethodDetails();
+	void refreshSavedPaymentMethodDetails();
 	[[nodiscard]] QString defaultPhone() const;
 	[[nodiscard]] QString defaultCountry() const;
 

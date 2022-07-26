@@ -227,7 +227,9 @@ void Panel::showForm(
 		const RequestedInformation &current,
 		const PaymentMethodDetails &method,
 		const ShippingOptions &options) {
-	if (invoice && !method.ready && !method.native.supported) {
+	if (invoice
+		&& method.savedMethods.empty()
+		&& !method.native.supported) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			showWebviewError(
@@ -410,25 +412,35 @@ void Panel::chooseTips(const Invoice &invoice) {
 }
 
 void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
-	auto bottomText = method.canSaveInformation
-		? rpl::producer<QString>()
-		: tr::lng_payments_processed_by(
-			lt_provider,
-			rpl::single(method.provider));
 	setTitle(tr::lng_payments_card_title());
 	if (method.native.supported) {
 		showEditCard(method.native, CardField::Number);
-	} else if (!showWebview(method.url, true, std::move(bottomText))) {
+	} else {
+		showEditCardByUrl(
+			method.url,
+			method.provider,
+			method.canSaveInformation);
+	}
+}
+
+void Panel::showEditCardByUrl(
+		const QString &url,
+		const QString &provider,
+		bool canSaveInformation) {
+	auto bottomText = canSaveInformation
+		? rpl::producer<QString>()
+		: tr::lng_payments_processed_by(lt_provider, rpl::single(provider));
+	if (!showWebview(url, true, std::move(bottomText))) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
 			showWebviewError(
-				tr::lng_payments_webview_no_card(tr::now),
+				tr::lng_payments_webview_no_use(tr::now),
 				available);
 		} else {
 			showCriticalError({ "Error: Could not initialize WebView." });
 		}
 		_widget->setBackAllowed(true);
-	} else if (method.canSaveInformation) {
+	} else if (canSaveInformation) {
 		const auto &padding = st::paymentsPanelPadding;
 		_saveWebviewInformation = CreateChild<Checkbox>(
 			_webviewBottom.get(),
@@ -444,23 +456,11 @@ void Panel::showEditPaymentMethod(const PaymentMethodDetails &method) {
 }
 
 void Panel::showAdditionalMethod(
+		const PaymentMethodAdditional &method,
 		const QString &provider,
-		const PaymentMethodAdditional &method) {
-	auto bottomText = tr::lng_payments_processed_by(
-		lt_provider,
-		rpl::single(provider));
+		bool canSaveInformation) {
 	setTitle(rpl::single(method.title));
-	if (!showWebview(method.url, true, std::move(bottomText))) {
-		const auto available = Webview::Availability();
-		if (available.error != Webview::Available::Error::None) {
-			showWebviewError(
-				tr::lng_payments_webview_no_use(tr::now),
-				available);
-		} else {
-			showCriticalError({ "Error: Could not initialize WebView." });
-		}
-		_widget->setBackAllowed(true);
-	}
+	showEditCardByUrl(method.url, provider, canSaveInformation);
 }
 
 void Panel::showWebviewProgress() {
@@ -592,29 +592,32 @@ postEvent: function(eventType, eventData) {
 }
 
 void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
-	const auto hasSaved = method.ready;
-	if (!hasSaved && method.additionalMethods.empty()) {
+	if (method.savedMethods.empty() && method.additionalMethods.empty()) {
 		showEditPaymentMethod(method);
 		return;
 	}
 	showBox(Box([=](not_null<GenericBox*> box) {
 		const auto save = [=](int option) {
-			const auto basic = hasSaved ? 1 : 0;
-			if (option > basic) {
-				const auto index = option - basic - 1;
+			const auto saved = int(method.savedMethods.size());
+			if (!option) {
+				showEditPaymentMethod(method);
+			} else if (option > saved) {
+				const auto index = option - saved - 1;
 				Assert(index < method.additionalMethods.size());
 				showAdditionalMethod(
+					method.additionalMethods[index],
 					method.provider,
-					method.additionalMethods[index]);
-			} else if (!option) {
-				showEditPaymentMethod(method);
+					method.canSaveInformation);
+			} else {
+				const auto index = option - 1;
+				_savedMethodChosen.fire_copy(method.savedMethods[index].id);
 			}
 		};
 		auto options = std::vector{
 			tr::lng_payments_new_card(tr::now),
 		};
-		if (hasSaved) {
-			options.push_back(method.title);
+		for (const auto &saved : method.savedMethods) {
+			options.push_back(saved.title);
 		}
 		for (const auto &additional : method.additionalMethods) {
 			options.push_back(additional.title);
@@ -622,7 +625,9 @@ void Panel::choosePaymentMethod(const PaymentMethodDetails &method) {
 		SingleChoiceBox(box, {
 			.title = tr::lng_payments_payment_method(),
 			.options = std::move(options),
-			.initialSelection = hasSaved ? 1 : -1,
+			.initialSelection = (method.savedMethods.empty()
+				? -1
+				: (method.savedMethodIndex + 1)),
 			.callback = save,
 		});
 	}));
@@ -821,6 +826,10 @@ void Panel::setTitle(rpl::producer<QString> title) {
 
 rpl::producer<> Panel::backRequests() const {
 	return _widget->backRequests();
+}
+
+rpl::producer<QString> Panel::savedMethodChosen() const {
+	return _savedMethodChosen.events();
 }
 
 void Panel::showBox(object_ptr<BoxContent> box) {

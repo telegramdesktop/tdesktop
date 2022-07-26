@@ -314,10 +314,15 @@ void Form::processForm(const MTPDpayments_paymentForm &data) {
 			processSavedInformation(data);
 		});
 	}
+	_paymentMethod.savedCredentials.clear();
+	_paymentMethod.savedCredentialsIndex = 0;
 	if (const auto credentials = data.vsaved_credentials()) {
-		credentials->match([&](const auto &data) {
-			processSavedCredentials(data);
-		});
+		_paymentMethod.savedCredentials.reserve(credentials->v.size());
+		for (const auto &saved : credentials->v) {
+			saved.match([&](const auto &data) {
+				addSavedCredentials(data);
+			});
+		}
 	}
 	if (const auto additional = data.vadditional_methods()) {
 		processAdditionalPaymentMethods(additional->v);
@@ -344,10 +349,11 @@ void Form::processReceipt(const MTPDpayments_paymentReceipt &data) {
 			_shippingOptions.selectedId = _shippingOptions.list.front().id;
 		}
 	}
-	_paymentMethod.savedCredentials = SavedCredentials{
+	_paymentMethod.savedCredentials = { {
 		.id = "(used)",
 		.title = qs(data.vcredentials_title()),
-	};
+	} };
+	_paymentMethod.savedCredentialsIndex = 0;
 	fillPaymentMethodInformation();
 	_updates.fire(FormReady{});
 }
@@ -467,12 +473,12 @@ void Form::processSavedInformation(const MTPDpaymentRequestedInfo &data) {
 	};
 }
 
-void Form::processSavedCredentials(
+void Form::addSavedCredentials(
 		const MTPDpaymentSavedCredentialsCard &data) {
-	_paymentMethod.savedCredentials = SavedCredentials{
+	_paymentMethod.savedCredentials.push_back({
 		.id = qs(data.vid()),
 		.title = qs(data.vtitle()),
-	};
+	});
 	refreshPaymentMethodDetails();
 }
 
@@ -489,15 +495,31 @@ void Form::processAdditionalPaymentMethods(
 }
 
 void Form::refreshPaymentMethodDetails() {
-	const auto &saved = _paymentMethod.savedCredentials;
-	const auto &entered = _paymentMethod.newCredentials;
-	_paymentMethod.ui.title = entered ? entered.title : saved.title;
+	refreshSavedPaymentMethodDetails();
 	_paymentMethod.ui.provider = _invoice.provider;
-	_paymentMethod.ui.ready = entered || saved;
 	_paymentMethod.ui.native.defaultCountry = defaultCountry();
 	_paymentMethod.ui.canSaveInformation
 		= _paymentMethod.ui.native.canSaveInformation
 		= _details.canSaveCredentials || _details.passwordMissing;
+}
+
+void Form::refreshSavedPaymentMethodDetails() {
+	const auto &list = _paymentMethod.savedCredentials;
+	const auto index = _paymentMethod.savedCredentialsIndex;
+	const auto &entered = _paymentMethod.newCredentials;
+	_paymentMethod.ui.savedMethods.clear();
+	if (entered) {
+		_paymentMethod.ui.savedMethods.push_back({ .title = entered.title });
+	}
+	for (const auto &item : list) {
+		_paymentMethod.ui.savedMethods.push_back({
+			.id = item.id,
+			.title = item.title,
+		});
+	}
+	_paymentMethod.ui.savedMethodIndex = (index < list.size())
+		? (index + (entered ? 1 : 0))
+		: 0;
 }
 
 QString Form::defaultPhone() const {
@@ -588,12 +610,16 @@ void Form::fillSmartGlocalNativeMethod(QJsonObject object) {
 
 void Form::submit() {
 	Expects(_paymentMethod.newCredentials
-		|| _paymentMethod.savedCredentials);
+		|| (_paymentMethod.savedCredentialsIndex
+			< _paymentMethod.savedCredentials.size()));
 
-	const auto password = _paymentMethod.newCredentials
-		? QByteArray()
-		: _session->validTmpPassword();
-	if (!_paymentMethod.newCredentials && password.isEmpty()) {
+	const auto index = _paymentMethod.savedCredentialsIndex;
+	const auto &list = _paymentMethod.savedCredentials;
+
+	const auto password = (index < list.size())
+		? _session->validTmpPassword()
+		: QByteArray();
+	if (index < list.size() && password.isEmpty()) {
 		_updates.fire(TmpPasswordRequired{});
 		return;
 	} else if (!_session->local().isBotTrustedPayment(_details.botId)) {
@@ -618,16 +644,16 @@ void Form::submit() {
 		inputInvoice(),
 		MTP_string(_requestedInformationId),
 		MTP_string(_shippingOptions.selectedId),
-		(_paymentMethod.newCredentials
-			? MTP_inputPaymentCredentials(
+		(index < list.size()
+			? MTP_inputPaymentCredentialsSaved(
+				MTP_string(list[index].id),
+				MTP_bytes(password))
+			: MTP_inputPaymentCredentials(
 				MTP_flags((_paymentMethod.newCredentials.saveOnServer
 					&& _details.canSaveCredentials)
 					? MTPDinputPaymentCredentials::Flag::f_save
 					: MTPDinputPaymentCredentials::Flag(0)),
-				MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data)))
-			: MTP_inputPaymentCredentialsSaved(
-				MTP_string(_paymentMethod.savedCredentials.id),
-				MTP_bytes(password))),
+				MTP_dataJSON(MTP_bytes(_paymentMethod.newCredentials.data)))),
 		MTP_long(_invoice.tipsSelected)
 	)).done([=](const MTPpayments_PaymentResult &result) {
 		hideProgress();
@@ -725,7 +751,9 @@ bool Form::hasChanges() const {
 	return (information != _savedInformation)
 		|| (_stripe != nullptr)
 		|| (_smartglocal != nullptr)
-		|| !_paymentMethod.newCredentials.empty();
+		|| (!_paymentMethod.newCredentials.empty()
+			&& (_paymentMethod.savedCredentialsIndex
+				>= _paymentMethod.savedCredentials.size()));
 }
 
 bool Form::validateInformationLocal(
@@ -940,10 +968,30 @@ void Form::setPaymentCredentials(const NewCredentials &credentials) {
 	Expects(!credentials.empty());
 
 	_paymentMethod.newCredentials = credentials;
+	_paymentMethod.savedCredentialsIndex
+		= _paymentMethod.savedCredentials.size();
+	refreshSavedPaymentMethodDetails();
 	const auto requestNewPassword = credentials.saveOnServer
 		&& !_details.canSaveCredentials
 		&& _details.passwordMissing;
-	refreshPaymentMethodDetails();
+	_updates.fire(PaymentMethodUpdate{ requestNewPassword });
+}
+
+void Form::chooseSavedMethod(const QString &id) {
+	auto &index = _paymentMethod.savedCredentialsIndex;
+	const auto &list = _paymentMethod.savedCredentials;
+	if (id.isEmpty() && _paymentMethod.newCredentials) {
+		index = list.size();
+	} else {
+		const auto i = ranges::find(list, id, &SavedCredentials::id);
+		index = (i != end(list)) ? (i - begin(list)) : 0;
+	}
+	refreshSavedPaymentMethodDetails();
+	const auto requestNewPassword = (index == list.size())
+		&& _paymentMethod.newCredentials
+		&& _paymentMethod.newCredentials.saveOnServer
+		&& !_details.canSaveCredentials
+		&& _details.passwordMissing;
 	_updates.fire(PaymentMethodUpdate{ requestNewPassword });
 }
 
