@@ -778,7 +778,7 @@ void Panel::openPopup(const QJsonObject &args) {
 		{ "destructive", Type::Destructive },
 	};
 	auto buttons = std::vector<Webview::PopupArgs::Button>();
-	for (const auto &button : args["buttons"].toArray()) {
+	for (const auto button : args["buttons"].toArray()) {
 		const auto fields = button.toObject();
 		const auto i = types.find(fields["type"].toString());
 		if (i == end(types)) {

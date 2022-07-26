@@ -60,7 +60,7 @@ public:
 	void unloadHeavyPart() override;
 
 	void refreshLink() override;
-	bool hasTextForCopy() const {
+	bool hasTextForCopy() const override {
 		return isEmojiSticker();
 	}
 

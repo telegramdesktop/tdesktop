@@ -41,7 +41,7 @@ public:
 	bool alwaysShowOutTimestamp() override {
 		return true;
 	}
-	bool hasTextForCopy() const {
+	bool hasTextForCopy() const override {
 		return true;
 	}
 
