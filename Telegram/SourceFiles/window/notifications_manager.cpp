@@ -91,7 +91,8 @@ System::NotificationInHistoryKey::NotificationInHistoryKey(
 
 System::System()
 : _waitTimer([=] { showNext(); })
-, _waitForAllGroupedTimer([=] { showGrouped(); }) {
+, _waitForAllGroupedTimer([=] { showGrouped(); })
+, _manager(std::make_unique<DummyManager>(this)) {
 	settingsChanged(
 	) | rpl::start_with_next([=](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
@@ -116,11 +117,9 @@ void System::setManager(std::unique_ptr<Manager> manager) {
 	}
 }
 
-std::optional<ManagerType> System::managerType() const {
-	if (_manager) {
-		return _manager->type();
-	}
-	return std::nullopt;
+ManagerType System::managerType() const {
+	Expects(_manager != nullptr);
+	return _manager->type();
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {
