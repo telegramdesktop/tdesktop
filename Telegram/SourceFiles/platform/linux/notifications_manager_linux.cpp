@@ -302,28 +302,6 @@ void GetInhibited(Fn<void(bool)> callback) {
 	crl::on_main([=] { callback(false); });
 }
 
-bool IsQualifiedDaemon() {
-	// A list of capabilities that offer feature parity
-	// with custom notifications
-	static const auto NeededCapabilities = {
-		// To show message content
-		qsl("body"),
-		// To make the sender name bold
-		qsl("body-markup"),
-		// To have buttons on notifications
-		qsl("actions"),
-		// To have quick reply
-		qsl("inline-reply"),
-		// To not to play sound with Don't Disturb activated
-		// (no, using sound capability is not a way)
-		qsl("inhibitions"),
-	};
-
-	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
-		return CurrentCapabilities.contains(capability);
-	});
-}
-
 ServerInformation CurrentServerInformationValue() {
 	return CurrentServerInformation.value_or(ServerInformation{});
 }
@@ -740,7 +718,25 @@ bool Enforced() {
 }
 
 bool ByDefault() {
-	return IsQualifiedDaemon();
+	// A list of capabilities that offer feature parity
+	// with custom notifications
+	static const auto NeededCapabilities = {
+		// To show message content
+		qsl("body"),
+		// To make the sender name bold
+		qsl("body-markup"),
+		// To have buttons on notifications
+		qsl("actions"),
+		// To have quick reply
+		qsl("inline-reply"),
+		// To not to play sound with Don't Disturb activated
+		// (no, using sound capability is not a way)
+		qsl("inhibitions"),
+	};
+
+	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
+		return CurrentCapabilities.contains(capability);
+	});
 }
 
 void Create(Window::Notifications::System *system) {
