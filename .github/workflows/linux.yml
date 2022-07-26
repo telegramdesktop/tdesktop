@@ -77,7 +77,7 @@ jobs:
       - name: First set up.
         run: |
           gcc --version
-          ln -s $LibrariesPath Libraries
+          ln -s /usr/src/Libraries
 
       - name: Telegram Desktop build.
         run: |
