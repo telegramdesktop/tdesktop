@@ -259,8 +259,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 }
 
 void GetInhibited(Fn<void(bool)> callback) {
-	if (!Supported()
-		|| !CurrentCapabilities.contains(qsl("inhibitions"))) {
+	if (!CurrentCapabilities.contains(qsl("inhibitions"))) {
 		crl::on_main([=] { callback(false); });
 		return;
 	}
@@ -744,11 +743,17 @@ void Create(Window::Notifications::System *system) {
 
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
-		if ((Core::App().settings().nativeNotifications() && Supported())
-			|| Enforced()) {
+		if ((Core::App().settings().nativeNotifications() || Enforced())
+			&& Supported()) {
 			if (!system->managerType().has_value()
 				|| *system->managerType() != ManagerType::Native) {
 				system->setManager(std::make_unique<Manager>(system));
+			}
+		} else if (Enforced()) {
+			if (!system->managerType().has_value()
+				|| *system->managerType() != ManagerType::Dummy) {
+				using DummyManager = Window::Notifications::DummyManager;
+				system->setManager(std::make_unique<DummyManager>(system));
 			}
 		} else if (!system->managerType().has_value()
 			|| *system->managerType() != ManagerType::Default) {
@@ -838,10 +843,6 @@ private:
 Manager::Private::Private(not_null<Manager*> manager, Type type)
 : _manager(manager)
 , _cachedUserpics(type) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto serverInformation = CurrentServerInformation;
 	const auto capabilities = CurrentCapabilities;
 
@@ -913,10 +914,6 @@ void Manager::Private::showNotification(
 		const QString &subtitle,
 		const QString &msg,
 		DisplayOptions options) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto key = FullPeer{
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id
@@ -962,10 +959,6 @@ void Manager::Private::showNotification(
 }
 
 void Manager::Private::clearAll() {
-	if (!Supported()) {
-		return;
-	}
-
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
 			notification->close();
@@ -974,9 +967,6 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	if (!Supported()) {
-		return;
-	}
 	const auto key = FullPeer{
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id
@@ -998,10 +988,6 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto key = FullPeer{
 		.sessionId = history->session().uniqueId(),
 		.peerId = history->peer->id
@@ -1018,10 +1004,6 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto sessionId = session->uniqueId();
 	for (auto i = _notifications.begin(); i != _notifications.end();) {
 		if (i->first.sessionId != sessionId) {
@@ -1038,10 +1020,6 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	if (!Supported()) {
-		return;
-	}
-
 	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
 		if (i->second.remove(id.msgId) && i->second.empty()) {
