@@ -745,18 +745,15 @@ void Create(Window::Notifications::System *system) {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() || Enforced())
 			&& Supported()) {
-			if (!system->managerType().has_value()
-				|| *system->managerType() != ManagerType::Native) {
+			if (system->managerType() != ManagerType::Native) {
 				system->setManager(std::make_unique<Manager>(system));
 			}
 		} else if (Enforced()) {
-			if (!system->managerType().has_value()
-				|| *system->managerType() != ManagerType::Dummy) {
+			if (system->managerType() != ManagerType::Dummy) {
 				using DummyManager = Window::Notifications::DummyManager;
 				system->setManager(std::make_unique<DummyManager>(system));
 			}
-		} else if (!system->managerType().has_value()
-			|| *system->managerType() != ManagerType::Default) {
+		} else if (system->managerType() != ManagerType::Default) {
 			system->setManager(nullptr);
 		}
 	};
@@ -768,7 +765,8 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	const auto serviceActivated = [=] {
+	// snap doesn't allow access when the daemon is not running :(
+	StartServiceAsync([=] {
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
@@ -787,17 +785,7 @@ void Create(Window::Notifications::System *system) {
 			CurrentCapabilities = result;
 			oneReady();
 		});
-	};
-
-	// There are some asserts that manager is not nullptr,
-	// avoid crashes until some real manager is created
-	if (!system->managerType().has_value()) {
-		using DummyManager = Window::Notifications::DummyManager;
-		system->setManager(std::make_unique<DummyManager>(system));
-	}
-
-	// snap doesn't allow access when the daemon is not running :(
-	StartServiceAsync(serviceActivated);
+	});
 }
 
 class Manager::Private {

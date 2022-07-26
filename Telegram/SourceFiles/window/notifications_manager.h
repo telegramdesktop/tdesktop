@@ -85,7 +85,7 @@ public:
 
 	void createManager();
 	void setManager(std::unique_ptr<Manager> manager);
-	[[nodiscard]] std::optional<ManagerType> managerType() const;
+	[[nodiscard]] ManagerType managerType() const;
 
 	void checkDelayed();
 	void schedule(ItemNotification notification);
