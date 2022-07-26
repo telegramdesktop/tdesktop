@@ -41,8 +41,6 @@ public:
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
 
-	DocumentData *getDocument() const override;
-
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
 		not_null<DocumentData*> data,

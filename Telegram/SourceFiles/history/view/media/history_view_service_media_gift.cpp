@@ -189,10 +189,6 @@ void MediaGift::clickHandlerPressedChanged(
 	}
 }
 
-DocumentData *MediaGift::getDocument() const {
-	return _sticker ? _sticker->document() : nullptr;
-}
-
 void MediaGift::stickerClearLoopPlayed() {
 	if (_sticker) {
 		_sticker->stickerClearLoopPlayed();
