@@ -1711,10 +1711,6 @@ QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 			: QPoint());
 }
 
-void EmojiListWidget::showEmojiSection(Section section) {
-	showSet(EmojiSectionSetId(section));
-}
-
 void EmojiListWidget::refreshEmoji() {
 	refreshRecent();
 	refreshCustom();
@@ -1722,8 +1718,6 @@ void EmojiListWidget::refreshEmoji() {
 
 void EmojiListWidget::showSet(uint64 setId) {
 	clearSelection();
-
-	refreshEmoji();
 
 	auto y = 0;
 	enumerateSections([&](const SectionInfo &info) {

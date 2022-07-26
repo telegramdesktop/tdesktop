@@ -68,7 +68,6 @@ public:
 	void clearSelection() override;
 	object_ptr<TabbedSelector::InnerFooter> createFooter() override;
 
-	void showEmojiSection(Section section);
 	void showSet(uint64 setId);
 	[[nodiscard]] uint64 currentSet(int yOffset) const;
 
