@@ -32,6 +32,11 @@ void ShowPremium(not_null<::Main::Session*> session, const QString &ref);
 void ShowPremium(
 	not_null<Window::SessionController*> controller,
 	const QString &ref);
+void ShowGiftPremium(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	int months,
+	bool me);
 
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,

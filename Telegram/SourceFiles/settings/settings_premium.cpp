@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -54,6 +55,32 @@ constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAnimationPart = 0.15;
 
 constexpr auto kTitleAdditionalScale = 0.15;
+
+struct GiftRef {
+	PeerId peerId;
+	int months;
+	bool me;
+};
+
+[[nodiscard]] QString SerializeRef(const GiftRef &gift) {
+	return QString::number(gift.peerId.value)
+		+ ':'
+		+ QString::number(gift.months)
+		+ ':'
+		+ QString::number(gift.me ? 1 : 0);
+}
+
+[[nodiscard]] GiftRef ParseGiftRef(QStringView data) {
+	const auto components = data.split(':');
+	if (components.size() != 3) {
+		return {};
+	}
+	return {
+		.peerId = PeerId(components[0].toULongLong()),
+		.months = components[1].toInt(),
+		.me = (components[2].toInt() == 1),
+	};
+}
 
 struct Entry {
 	const style::icon *icon;
@@ -734,10 +761,26 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 			Data::AmPremiumValue(&_controller->session()),
 			tr::lng_premium_summary_title_subscribed(),
 			tr::lng_premium_summary_title());
-	auto about = rpl::conditional(
-		Data::AmPremiumValue(&_controller->session()),
-		_controller->session().api().premium().statusTextValue(),
-		tr::lng_premium_summary_top_about(Ui::Text::RichLangValue));
+	auto about = [&] {
+		const auto gift = ParseGiftRef(_ref);
+		if (gift.peerId) {
+			auto &data = _controller->session().data();
+			if (const auto peer = data.peer(gift.peerId)) {
+				return (gift.me
+					? tr::lng_premium_summary_subtitle_gift_me
+					: tr::lng_premium_summary_subtitle_gift)(
+						lt_count,
+						rpl::single(float64(gift.months)),
+						lt_user,
+						rpl::single(Ui::Text::Bold(peer->name)),
+						Ui::Text::RichLangValue);
+			}
+		}
+		return rpl::conditional(
+			Data::AmPremiumValue(&_controller->session()),
+			_controller->session().api().premium().statusTextValue(),
+			tr::lng_premium_summary_top_about(Ui::Text::RichLangValue));
+	}();
 
 	const auto content = Ui::CreateChild<TopBar>(
 		parent.get(),
@@ -746,7 +789,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		std::move(about));
 	_setPaused = [=](bool paused) {
 		content->setPaused(paused);
-		_subscribe->setGlarePaused(paused);
+		if (_subscribe) {
+			_subscribe->setGlarePaused(paused);
+		}
 	};
 
 	_wrap.value(
@@ -810,6 +855,10 @@ void Premium::showFinished() {
 QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
+
+	if (ParseGiftRef(_ref).peerId) {
+		return nullptr;
+	}
 
 	_subscribe = CreateSubscribeButton({
 		_controller,
@@ -882,6 +931,14 @@ void ShowPremium(
 	}
 	controller->setPremiumRef(ref);
 	controller->showSettings(Settings::PremiumId());
+}
+
+void ShowGiftPremium(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		int months,
+		bool me) {
+	ShowPremium(controller, SerializeRef({ peer->id, months, me }));
 }
 
 void StartPremiumPayment(

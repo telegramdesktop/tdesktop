@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_single_player.h"
 #include "main/main_session.h"
-#include "settings/settings_premium.h" // Settings::ShowPremium
+#include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/chat/chat_style.h"
 #include "ui/effects/ripple_animation.h"
 #include "window/window_session_controller.h"
@@ -66,11 +66,15 @@ MediaGift::MediaGift(
 			+ margins.right(),
 		height);
 
+	const auto from = _gift->from();
+	const auto to = _parent->data()->history()->peer;
+	const auto months = _gift->months();
 	result.link = std::make_shared<LambdaClickHandler>([=](
 			ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
-			Settings::ShowPremium(controller, QString());
+			const auto me = (from->id == controller->session().userPeerId());
+			Settings::ShowGiftPremium(controller, me ? to : from, months, me);
 		}
 	});
 

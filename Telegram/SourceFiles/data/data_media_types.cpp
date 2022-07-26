@@ -1734,13 +1734,21 @@ ClickHandlerPtr MediaDice::MakeHandler(
 	});
 }
 
-MediaGiftBox::MediaGiftBox(not_null<HistoryItem*> parent, int months)
+MediaGiftBox::MediaGiftBox(
+	not_null<HistoryItem*> parent,
+	not_null<PeerData*> from,
+	int months)
 : Media(parent)
+, _from(from)
 , _months(months) {
 }
 
 std::unique_ptr<Media> MediaGiftBox::clone(not_null<HistoryItem*> parent) {
-	return std::make_unique<MediaGiftBox>(parent, _months);
+	return std::make_unique<MediaGiftBox>(parent, _from, _months);
+}
+
+not_null<PeerData*> MediaGiftBox::from() const {
+	return _from;
 }
 
 int MediaGiftBox::months() const {

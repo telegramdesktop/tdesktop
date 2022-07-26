@@ -477,10 +477,14 @@ private:
 
 class MediaGiftBox final : public Media {
 public:
-	MediaGiftBox(not_null<HistoryItem*> parent, int months);
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		int months);
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
 
+	[[nodiscard]] not_null<PeerData*> from() const;
 	[[nodiscard]] int months() const;
 
 	[[nodiscard]] bool activated() const;
@@ -500,6 +504,7 @@ public:
 		HistoryView::Element *replacing = nullptr) override;
 
 private:
+	not_null<PeerData*> _from;
 	int _months = 0;
 	bool _activated = false;
 

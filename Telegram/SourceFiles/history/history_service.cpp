@@ -617,18 +617,22 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareGiftPremium = [&](
 			const MTPDmessageActionGiftPremium &action) {
+		auto result = PreparedText{};
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
 		history()->session().giftBoxStickersPacks().load();
 		const auto amount = action.vamount().v;
 		const auto currency = qs(action.vcurrency());
-		auto result = PreparedText{};
-		result.links.push_back(fromLink());
-		result.text = tr::lng_action_gift_received(
-			tr::now,
-			lt_user,
-			fromLinkText(), // Link 1.
-			lt_cost,
-			{ Ui::FillAmountAndCurrency(amount, currency) },
-			Ui::Text::WithEntities);
+		result.links.push_back(peer->createOpenLink());
+		result.text = (isSelf
+			? tr::lng_action_gift_received_me
+			: tr::lng_action_gift_received)(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(peer->name, 1), // Link 1.
+				lt_cost,
+				{ Ui::FillAmountAndCurrency(amount, currency) },
+				Ui::Text::WithEntities);
 		return result;
 	};
 
@@ -760,7 +764,10 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			}
 		}
 	}, [&](const MTPDmessageActionGiftPremium &data) {
-		_media = std::make_unique<Data::MediaGiftBox>(this, data.vmonths().v);
+		_media = std::make_unique<Data::MediaGiftBox>(
+			this,
+			_from,
+			data.vmonths().v);
 	}, [](const auto &) {
 	});
 }
