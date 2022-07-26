@@ -146,20 +146,30 @@ Main::Session &Stickers::session() const {
 	return _owner->session();
 }
 
-void Stickers::notifyUpdated() {
-	_updated.fire({});
+void Stickers::notifyUpdated(StickersType type) {
+	_updated.fire_copy(type);
 }
 
-rpl::producer<> Stickers::updated() const {
+rpl::producer<StickersType> Stickers::updated() const {
 	return _updated.events();
 }
 
-void Stickers::notifyRecentUpdated(Recent recent) {
-	_recentUpdated.fire(std::move(recent));
+rpl::producer<> Stickers::updated(StickersType type) const {
+	using namespace rpl::mappers;
+	return updated() | rpl::filter(_1 == type) | rpl::to_empty;
 }
 
-rpl::producer<Stickers::Recent> Stickers::recentUpdated() const {
+void Stickers::notifyRecentUpdated(StickersType type) {
+	_recentUpdated.fire_copy(type);
+}
+
+rpl::producer<StickersType> Stickers::recentUpdated() const {
 	return _recentUpdated.events();
+}
+
+rpl::producer<> Stickers::recentUpdated(StickersType type) const {
+	using namespace rpl::mappers;
+	return recentUpdated() | rpl::filter(_1 == type) | rpl::to_empty;
 }
 
 void Stickers::notifySavedGifsUpdated() {
@@ -297,7 +307,7 @@ void Stickers::incrementSticker(not_null<DocumentData*> document) {
 	if (writeRecentStickers) {
 		session().local().writeRecentStickers();
 	}
-	notifyRecentUpdated();
+	notifyRecentUpdated(StickersType::Stickers);
 }
 
 void Stickers::addSavedGif(
@@ -392,8 +402,12 @@ void Stickers::applyArchivedResult(
 	//Ui::show(
 	//	Box<StickersBox>(archived, &session()),
 	//	Ui::LayerOption::KeepOther);
-
-	notifyUpdated();
+	if (stickersCount) {
+		notifyUpdated(StickersType::Stickers);
+	}
+	if (masksCount) {
+		notifyUpdated(StickersType::Masks);
+	}
 }
 
 void Stickers::installLocally(uint64 setId) {
@@ -458,7 +472,7 @@ void Stickers::installLocally(uint64 setId) {
 			}
 		}
 	}
-	notifyUpdated();
+	notifyUpdated(set->type());
 }
 
 void Stickers::undoInstallLocally(uint64 setId) {
@@ -479,7 +493,7 @@ void Stickers::undoInstallLocally(uint64 setId) {
 	}
 
 	session().local().writeInstalledStickers();
-	notifyUpdated();
+	notifyUpdated(set->type());
 
 	Ui::show(
 		Ui::MakeInformBox(tr::lng_stickers_not_found()),
@@ -592,7 +606,7 @@ void Stickers::setIsFaved(
 		return;
 	}
 	session().local().writeFavedStickers();
-	notifyUpdated();
+	notifyUpdated(StickersType::Stickers);
 	notifyStickerSetInstalled(FavedSetId);
 }
 
@@ -642,13 +656,13 @@ void Stickers::requestSetToPushFaved(
 void Stickers::removeFromRecentSet(not_null<DocumentData*> document) {
 	RemoveFromSet(setsRef(), document, CloudRecentSetId);
 	session().local().writeRecentStickers();
-	notifyRecentUpdated();
+	notifyRecentUpdated(StickersType::Stickers);
 }
 
 void Stickers::setIsNotFaved(not_null<DocumentData*> document) {
 	RemoveFromSet(setsRef(), document, FavedSetId);
 	session().local().writeFavedStickers();
-	notifyUpdated();
+	notifyUpdated(StickersType::Stickers);
 }
 
 void Stickers::setFaved(
@@ -772,7 +786,7 @@ void Stickers::somethingReceived(
 			).arg(counted));
 	}
 
-	notifyUpdated();
+	notifyUpdated(type);
 }
 
 void Stickers::setPackAndEmoji(
@@ -925,7 +939,9 @@ void Stickers::specialSetReceived(
 	default: Unexpected("setId in SpecialSetReceived()");
 	}
 
-	notifyUpdated();
+	notifyUpdated((setId == CloudRecentAttachedSetId)
+		? StickersType::Masks
+		: StickersType::Stickers);
 }
 
 void Stickers::featuredSetsReceived(
@@ -1079,7 +1095,7 @@ void Stickers::featuredReceived(
 		session().local().writeFeaturedStickers();
 	}
 
-	notifyUpdated();
+	notifyUpdated(type);
 }
 
 void Stickers::gifsReceived(const QVector<MTPDocument> &items, uint64 hash) {
@@ -1501,7 +1517,7 @@ void Stickers::feedSetStickers(
 			session().local().writeArchivedStickers();
 		}
 	}
-	notifyUpdated();
+	notifyUpdated(set->type());
 }
 
 void Stickers::feedSetCovers(

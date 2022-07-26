@@ -301,6 +301,7 @@ void StickerSetBox::prepare() {
 		object_ptr<Inner>(this, _controller, _set, _type),
 		st::stickersScroll);
 	_controller->session().data().stickers().updated(
+		_type
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
@@ -369,7 +370,7 @@ void StickerSetBox::prepare() {
 			}
 		}
 
-		_controller->session().data().stickers().notifyUpdated();
+		_controller->session().data().stickers().notifyUpdated(type);
 
 		closeBox();
 	}, lifetime());
@@ -785,7 +786,7 @@ void StickerSetBox::Inner::installDone(
 		} else {
 			storage.writeInstalledStickers();
 		}
-		stickers.notifyUpdated();
+		stickers.notifyUpdated(type);
 	}
 	_setInstalled.fire_copy(_setId);
 }

@@ -92,6 +92,7 @@ public:
 		ValidateIconAnimations animations);
 	void refreshIcons(
 		std::vector<StickerIcon> icons,
+		uint64 activeSetId,
 		Fn<std::shared_ptr<Lottie::FrameRenderer>()> renderer,
 		ValidateIconAnimations animations);
 	[[nodiscard]] bool hasOnlyFeaturedSets() const;
@@ -179,7 +180,9 @@ private:
 	void validateIconWebmAnimation(const StickerIcon &icon);
 	void validateIconAnimation(const StickerIcon &icon);
 
-	void refreshIconsGeometry(ValidateIconAnimations animations);
+	void refreshIconsGeometry(
+		uint64 activeSetId,
+		ValidateIconAnimations animations);
 	void refreshSubiconsGeometry();
 	void refreshScrollableDimensions();
 	void updateSelected();

@@ -209,11 +209,8 @@ StickersListWidget::StickersListWidget(
 	}, lifetime());
 
 	session().data().stickers().recentUpdated(
-	) | rpl::start_with_next([=](Data::Stickers::Recent recent) {
-		const auto attached = (recent == Data::Stickers::Recent::Attached);
-		if (attached != _isMasks) {
-			return;
-		}
+		_isMasks ? Data::StickersType::Masks : Data::StickersType::Stickers
+	) | rpl::start_with_next([=] {
 		refreshRecent();
 	}, lifetime());
 
@@ -2547,6 +2544,7 @@ void StickersListWidget::refreshIcons(ValidateIconAnimations animations) {
 	if (_footer) {
 		_footer->refreshIcons(
 			fillIcons(),
+			currentSet(getVisibleTop()),
 			[=] { return getLottieRenderer(); },
 			animations);
 	}
@@ -2725,7 +2723,9 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 				if (removeIndex >= 0) {
 					orderRef.removeAt(removeIndex);
 				}
-				if (set->flags & SetFlag::Masks) {
+				if (set->type() == Data::StickersType::Emoji) {
+					session->local().writeInstalledCustomEmoji();
+				} else if (set->type() == Data::StickersType::Masks) {
 					session->local().writeInstalledMasks();
 				} else {
 					session->local().writeInstalledStickers();
@@ -2733,7 +2733,7 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 				if (writeRecent) {
 					session->saveSettings();
 				}
-				session->data().stickers().notifyUpdated();
+				session->data().stickers().notifyUpdated(set->type());
 			}
 		},
 		.cancelled = [=](Fn<void()> &&close) {

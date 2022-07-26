@@ -2336,7 +2336,11 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				stickers.setsOrderRef() = std::move(result);
 				session().local().writeInstalledStickers();
 			}
-			stickers.notifyUpdated();
+			stickers.notifyUpdated(isEmoji
+				? Data::StickersType::Emoji
+				: isMasks
+				? Data::StickersType::Masks
+				: Data::StickersType::Stickers);
 		}
 	} break;
 

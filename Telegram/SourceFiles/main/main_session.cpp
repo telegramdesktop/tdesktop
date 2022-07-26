@@ -164,7 +164,9 @@ Session::Session(
 		local().readRecentMasks();
 		local().readFavedStickers();
 		local().readSavedGifs();
-		data().stickers().notifyUpdated();
+		data().stickers().notifyUpdated(Data::StickersType::Stickers);
+		data().stickers().notifyUpdated(Data::StickersType::Masks);
+		data().stickers().notifyUpdated(Data::StickersType::Emoji);
 		data().stickers().notifySavedGifsUpdated();
 	});
 

@@ -399,7 +399,9 @@ TabbedSelector::TabbedSelector(
 
 		rpl::merge(
 			session().premiumPossibleValue() | rpl::to_empty,
-			session().data().stickers().updated()
+			session().data().stickers().updated(hasMasksTab()
+				? Data::StickersType::Masks
+				: Data::StickersType::Stickers)
 		) | rpl::start_with_next([=] {
 			refreshStickers();
 		}, lifetime());

@@ -1679,7 +1679,7 @@ void ApiWrap::saveStickerSets(
 	if (writeFaved) {
 		storage.writeFavedStickers();
 	}
-	_session->data().stickers().notifyUpdated();
+	_session->data().stickers().notifyUpdated(type);
 
 	if (setDisenableRequests.empty()) {
 		stickersSaveOrder();
@@ -2555,7 +2555,7 @@ void ApiWrap::setGroupStickerSet(
 		megagroup->inputChannel,
 		Data::InputStickerSet(set)
 	)).send();
-	_session->data().stickers().notifyUpdated();
+	_session->data().stickers().notifyUpdated(Data::StickersType::Stickers);
 }
 
 std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
@@ -2595,7 +2595,8 @@ std::vector<not_null<DocumentData*>> *ApiWrap::stickersByEmoji(
 			}
 			entry.hash = data.vhash().v;
 			entry.received = crl::now();
-			_session->data().stickers().notifyUpdated();
+			_session->data().stickers().notifyUpdated(
+				Data::StickersType::Stickers);
 		}).send();
 	}
 	if (it == _stickersByEmoji.end()) {
@@ -2864,7 +2865,8 @@ void ApiWrap::readFeaturedSets() {
 			MTP_vector<MTPlong>(wrappedIds));
 		request(std::move(requestData)).done([=] {
 			local().writeFeaturedStickers();
-			_session->data().stickers().notifyUpdated();
+			_session->data().stickers().notifyUpdated(
+				Data::StickersType::Stickers);
 		}).send();
 
 		_session->data().stickers().setFeaturedSetsUnreadCount(count);

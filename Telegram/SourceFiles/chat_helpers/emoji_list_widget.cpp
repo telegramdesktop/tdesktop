@@ -393,6 +393,7 @@ EmojiListWidget::EmojiListWidget(
 	}, lifetime());
 
 	controller->session().data().stickers().updated(
+		Data::StickersType::Emoji
 	) | rpl::start_with_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
@@ -1372,6 +1373,7 @@ void EmojiListWidget::refreshCustom() {
 
 	_footer->refreshIcons(
 		fillIcons(),
+		currentSet(getVisibleTop()),
 		nullptr,
 		ValidateIconAnimations::None);
 	update();

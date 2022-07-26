@@ -643,7 +643,7 @@ void StickersListFooter::resizeEvent(QResizeEvent *e) {
 	if (_searchField) {
 		resizeSearchControls();
 	}
-	refreshIconsGeometry(ValidateIconAnimations::None);
+	refreshIconsGeometry(_activeByScrollId, ValidateIconAnimations::None);
 }
 
 void StickersListFooter::resizeSearchControls() {
@@ -929,6 +929,7 @@ auto StickersListFooter::getLottieRenderer()
 
 void StickersListFooter::refreshIcons(
 		std::vector<StickerIcon> icons,
+		uint64 activeSetId,
 		Fn<std::shared_ptr<Lottie::FrameRenderer>()> renderer,
 		ValidateIconAnimations animations) {
 	_renderer = renderer
@@ -955,7 +956,7 @@ void StickersListFooter::refreshIcons(
 	}
 
 	_icons = std::move(icons);
-	refreshIconsGeometry(animations);
+	refreshIconsGeometry(activeSetId, animations);
 }
 
 void StickersListFooter::refreshScrollableDimensions() {
@@ -969,6 +970,7 @@ void StickersListFooter::refreshScrollableDimensions() {
 }
 
 void StickersListFooter::refreshIconsGeometry(
+		uint64 activeSetId,
 		ValidateIconAnimations animations) {
 	_selected = _pressed = SpecialOver::None;
 	_iconState.x.finish();
@@ -990,11 +992,14 @@ void StickersListFooter::refreshIconsGeometry(
 	refreshScrollableDimensions();
 	refreshSubiconsGeometry();
 	_iconState.selected = _subiconState.selected = -1;
-	validateSelectedIcon(_activeByScrollId, animations);
+	validateSelectedIcon(activeSetId, animations);
 	update();
 }
 
 void StickersListFooter::refreshSubiconsGeometry() {
+	if (_barSelection) {
+		return;
+	}
 	using Section = Ui::Emoji::Section;
 	_subiconState.x.finish();
 	_subiconState.animationStart = 0;

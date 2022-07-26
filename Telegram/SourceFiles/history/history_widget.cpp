@@ -1335,6 +1335,7 @@ int HistoryWidget::itemTopForHighlight(
 
 void HistoryWidget::start() {
 	session().data().stickers().updated(
+		Data::StickersType::Stickers
 	) | rpl::start_with_next([=] {
 		updateStickersByEmoji();
 	}, lifetime());

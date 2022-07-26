@@ -619,9 +619,10 @@ void StickersBox::prepare() {
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
 	session().data().stickers().updated(
-	) | rpl::start_with_next(
-		[this] { handleStickersUpdated(); },
-		lifetime());
+		_isMasks ? Data::StickersType::Masks : Data::StickersType::Stickers
+	) | rpl::start_with_next([=] {
+		handleStickersUpdated();
+	}, lifetime());
 	session().api().updateStickers();
 	session().api().updateMasks();
 
@@ -871,7 +872,8 @@ void StickersBox::installSet(uint64 setId) {
 	}
 }
 
-void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
+void StickersBox::installDone(
+		const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		session().data().stickers().applyArchivedResult(
 			result.c_messages_stickerSetInstallResultArchive());

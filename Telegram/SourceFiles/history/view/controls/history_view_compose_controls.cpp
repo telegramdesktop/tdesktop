@@ -1531,6 +1531,7 @@ void ComposeControls::initAutocomplete() {
 	}, _autocomplete->lifetime());
 
 	_window->session().data().stickers().updated(
+		Data::StickersType::Stickers
 	) | rpl::start_with_next([=] {
 		updateStickersByEmoji();
 	}, _autocomplete->lifetime());

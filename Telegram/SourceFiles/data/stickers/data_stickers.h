@@ -60,15 +60,12 @@ public:
 	// For setting up megagroup sticker set.
 	static constexpr auto MegagroupSetId = 0xFFFFFFFFFFFFFFEFULL;
 
-	enum Recent {
-		Regular,
-		Attached,
-	};
-
-	void notifyUpdated();
-	[[nodiscard]] rpl::producer<> updated() const;
-	void notifyRecentUpdated(Recent recent = Recent::Regular);
-	[[nodiscard]] rpl::producer<Recent> recentUpdated() const;
+	void notifyUpdated(StickersType type);
+	[[nodiscard]] rpl::producer<StickersType> updated() const;
+	[[nodiscard]] rpl::producer<> updated(StickersType type) const;
+	void notifyRecentUpdated(StickersType type);
+	[[nodiscard]] rpl::producer<StickersType> recentUpdated() const;
+	[[nodiscard]] rpl::producer<> recentUpdated(StickersType type) const;
 	void notifySavedGifsUpdated();
 	[[nodiscard]] rpl::producer<> savedGifsUpdated() const;
 	void notifyStickerSetInstalled(uint64 setId);
@@ -89,7 +86,7 @@ public:
 	}
 	void setLastRecentUpdate(crl::time update) {
 		if (update) {
-			notifyRecentUpdated();
+			notifyRecentUpdated(StickersType::Stickers);
 		}
 		_lastRecentUpdate = update;
 	}
@@ -110,7 +107,7 @@ public:
 	}
 	void setLastRecentAttachedUpdate(crl::time update) {
 		if (update) {
-			notifyRecentUpdated(Recent::Attached);
+			notifyRecentUpdated(StickersType::Masks);
 		}
 		_lastRecentAttachedUpdate = update;
 	}
@@ -293,8 +290,8 @@ private:
 		StickersType type);
 
 	const not_null<Session*> _owner;
-	rpl::event_stream<> _updated;
-	rpl::event_stream<Recent> _recentUpdated;
+	rpl::event_stream<StickersType> _updated;
+	rpl::event_stream<StickersType> _recentUpdated;
 	rpl::event_stream<> _savedGifsUpdated;
 	rpl::event_stream<uint64> _stickerSetInstalled;
 	rpl::event_stream<uint64> _emojiSetInstalled;
