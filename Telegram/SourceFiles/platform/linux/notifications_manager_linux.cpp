@@ -46,7 +46,6 @@ struct ServerInformation {
 };
 
 bool ServiceRegistered = false;
-bool InhibitionSupported = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
@@ -267,7 +266,13 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 	crl::on_main([=] { callback({}); });
 }
 
-void GetInhibitionSupported(Fn<void(bool)> callback) {
+void GetInhibited(Fn<void(bool)> callback) {
+	if (!Supported()
+		|| !CurrentCapabilities.contains(qsl("inhibitions"))) {
+		crl::on_main([=] { callback(false); });
+		return;
+	}
+
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
@@ -282,24 +287,23 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
 				try {
-					connection->call_finish(result);
+					auto reply = connection->call_finish(result);
+
+					const auto value = GlibVariantCast<bool>(
+						GlibVariantCast<Glib::VariantBase>(
+							reply.get_child(0)));
 
 					crl::on_main([=] {
-						callback(true);
+						callback(value);
 					});
 
 					return;
 				} catch (const Glib::Error &e) {
-					static const auto DontLogErrors = {
-						"org.freedesktop.DBus.Error.InvalidArgs",
-						"org.freedesktop.DBus.Error.UnknownMethod",
-					};
-
-					const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
-					if (!ranges::contains(DontLogErrors, errorName)) {
-						LOG(("Native Notification Error: %1").arg(
-							QString::fromStdString(e.what())));
-					}
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
+				} catch (const std::exception &e) {
+					LOG(("Native Notification Error: %1").arg(
+						QString::fromStdString(e.what())));
 				}
 
 				crl::on_main([=] { callback(false); });
@@ -313,45 +317,6 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 	}
 
 	crl::on_main([=] { callback(false); });
-}
-
-bool Inhibited() {
-	if (!Supported()
-		|| !CurrentCapabilities.contains(qsl("inhibitions"))
-		|| !InhibitionSupported) {
-		return false;
-	}
-
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		// a hack for snap's activation restriction
-		DBus::StartServiceByName(
-			connection,
-			std::string(kService));
-
-		auto reply = connection->call_sync(
-			std::string(kObjectPath),
-			std::string(kPropertiesInterface),
-			"Get",
-			MakeGlibVariant(std::tuple{
-				Glib::ustring(std::string(kInterface)),
-				Glib::ustring("Inhibited"),
-			}),
-			std::string(kService));
-
-		return GlibVariantCast<bool>(
-			GlibVariantCast<Glib::VariantBase>(reply.get_child(0)));
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	return false;
 }
 
 bool IsQualifiedDaemon() {
@@ -373,7 +338,7 @@ bool IsQualifiedDaemon() {
 
 	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
 		return CurrentCapabilities.contains(capability);
-	}) && InhibitionSupported;
+	});
 }
 
 ServerInformation CurrentServerInformationValue() {
@@ -820,7 +785,7 @@ void Create(Window::Notifications::System *system) {
 		}
 	};
 
-	const auto counter = std::make_shared<int>(3);
+	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
 		if (!--*counter) {
 			managerSetter();
@@ -833,7 +798,6 @@ void Create(Window::Notifications::System *system) {
 		if (!ServiceRegistered) {
 			CurrentServerInformation = std::nullopt;
 			CurrentCapabilities = QStringList{};
-			InhibitionSupported = false;
 			managerSetter();
 			return;
 		}
@@ -845,11 +809,6 @@ void Create(Window::Notifications::System *system) {
 
 		GetCapabilities([=](const QStringList &result) {
 			CurrentCapabilities = result;
-			oneReady();
-		});
-
-		GetInhibitionSupported([=](bool result) {
-			InhibitionSupported = result;
 			oneReady();
 		});
 	};
@@ -884,6 +843,10 @@ public:
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
 
+	bool inhibited() {
+		return _inhibited;
+	}
+
 	~Private();
 
 private:
@@ -894,6 +857,10 @@ private:
 		base::flat_map<MsgId, Notification>> _notifications;
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
+
+	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
+	bool _inhibited = false;
+	uint _inhibitedSignalId = 0;
 
 };
 
@@ -925,6 +892,49 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 		LOG(("Notification daemon capabilities: %1")
 			.arg(capabilities.join(", ")));
 	}
+
+	try {
+		_dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+		return;
+	}
+
+	GetInhibited([=](bool result) {
+		_inhibited = result;
+	});
+
+	_inhibitedSignalId = _dbusConnection->signal_subscribe(
+		[=](
+				const Glib::RefPtr<Gio::DBus::Connection> &connection,
+				const Glib::ustring &sender_name,
+				const Glib::ustring &object_path,
+				const Glib::ustring &interface_name,
+				const Glib::ustring &signal_name,
+				Glib::VariantContainerBase parameters) {
+			try {
+				const auto interface = GlibVariantCast<Glib::ustring>(
+					parameters.get_child(0));
+
+				if (interface != std::string(kInterface)) {
+					return;
+				}
+
+				_inhibited = GlibVariantCast<bool>(
+					GlibVariantCast<
+						std::map<Glib::ustring, Glib::VariantBase>
+				>(parameters.get_child(1)).at("Inhibited"));
+			} catch (const std::exception &e) {
+				LOG(("Native Notification Error: %1").arg(
+					QString::fromStdString(e.what())));
+			}
+		},
+		std::string(kService),
+		std::string(kPropertiesInterface),
+		"PropertiesChanged",
+		std::string(kObjectPath));
 }
 
 void Manager::Private::showNotification(
@@ -1074,6 +1084,12 @@ void Manager::Private::clearNotification(NotificationId id) {
 
 Manager::Private::~Private() {
 	clearAll();
+
+	if (_dbusConnection) {
+		if (_inhibitedSignalId != 0) {
+			_dbusConnection->signal_unsubscribe(_inhibitedSignalId);
+		}
+	}
 }
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
@@ -1122,7 +1138,7 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 }
 
 bool Manager::doSkipAudio() const {
-	return Inhibited();
+	return _private->inhibited();
 }
 
 bool Manager::doSkipToast() const {
@@ -1130,7 +1146,7 @@ bool Manager::doSkipToast() const {
 }
 
 bool Manager::doSkipFlashBounce() const {
-	return Inhibited();
+	return _private->inhibited();
 }
 
 } // namespace Notifications
