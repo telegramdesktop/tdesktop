@@ -287,7 +287,9 @@ void Action::populateSubmenu() {
 		return;
 	}
 
-	const auto submenu = _parentMenu->ensureSubmenu(action());
+	const auto submenu = _parentMenu->ensureSubmenu(
+		action(),
+		st::whoReadMenu);
 	_submenu.populate(submenu, _content);
 	_parentMenu->checkSubmenuShow();
 }

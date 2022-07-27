@@ -2024,7 +2024,9 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);
+		(hasWhoReactedItem
+			? st::popupMenuExpandedSeparator
+			: st::popupMenuWithIcons));
 	const auto session = &this->session();
 	const auto controller = _controller;
 	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {

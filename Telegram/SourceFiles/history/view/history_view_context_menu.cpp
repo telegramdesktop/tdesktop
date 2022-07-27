@@ -952,7 +952,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		list,
-		hasWhoReactedItem ? st::whoReadMenu : st::popupMenuWithIcons);
+		(hasWhoReactedItem
+			? st::popupMenuExpandedSeparator
+			: st::popupMenuWithIcons));
 
 	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
 		const auto text = request.selectedItems.empty()
