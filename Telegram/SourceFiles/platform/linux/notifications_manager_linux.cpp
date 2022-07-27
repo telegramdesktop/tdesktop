@@ -788,7 +788,7 @@ void Create(Window::Notifications::System *system) {
 	});
 }
 
-class Manager::Private {
+class Manager::Private : public base::has_weak_ptr {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
 	explicit Private(not_null<Manager*> manager, Type type);
@@ -862,9 +862,10 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 		return;
 	}
 
-	GetInhibited([=](bool result) {
+	const auto weak = base::make_weak(this);
+	GetInhibited(crl::guard(weak, [=](bool result) {
 		_inhibited = result;
-	});
+	}));
 
 	_inhibitedSignalId = _dbusConnection->signal_subscribe(
 		[=](
@@ -882,10 +883,14 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 					return;
 				}
 
-				_inhibited = GlibVariantCast<bool>(
+				const auto inhibited = GlibVariantCast<bool>(
 					GlibVariantCast<
 						std::map<Glib::ustring, Glib::VariantBase>
 				>(parameters.get_child(1)).at("Inhibited"));
+
+				crl::on_main(weak, [=] {
+					_inhibited = inhibited;
+				});
 			});
 		},
 		std::string(kService),
