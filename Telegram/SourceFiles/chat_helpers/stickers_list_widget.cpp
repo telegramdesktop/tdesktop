@@ -151,7 +151,6 @@ StickersListWidget::Set &StickersListWidget::Set::operator=(
 	Set &&other) = default;
 StickersListWidget::Set::~Set() = default;
 
-
 void StickersListWidget::Sticker::ensureMediaCreated() {
 	if (documentMedia) {
 		return;

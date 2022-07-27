@@ -154,6 +154,7 @@ private:
 
 	Section _section;
 	const bool _isMasks;
+	const bool _isEmoji;
 
 	Tab _installed;
 	Tab _masks;

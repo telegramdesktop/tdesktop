@@ -2373,7 +2373,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
 		session().data().stickers().setLastSavedGifsUpdate(0);
-		session().api().updateStickers();
+		session().api().updateSavedGifs();
 	} break;
 
 	////// Cloud drafts

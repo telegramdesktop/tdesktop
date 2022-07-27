@@ -388,6 +388,7 @@ StickersBox::StickersBox(
 	controller->session().data().stickers().featuredSetsUnreadCountValue())
 , _section(section)
 , _isMasks(masks)
+, _isEmoji(false)
 , _installed(_isMasks ? Tab() : Tab(0, this, controller, Section::Installed))
 , _masks(_isMasks ? Tab(0, this, controller, Section::Masks) : Tab())
 , _featured(_isMasks ? Tab() : Tab(1, this, controller, Section::Featured))
@@ -403,6 +404,7 @@ StickersBox::StickersBox(
 , _api(&controller->session().mtp())
 , _section(Section::Installed)
 , _isMasks(false)
+, _isEmoji(false)
 , _installed(0, this, controller, megagroup)
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
@@ -419,6 +421,7 @@ StickersBox::StickersBox(
 , _api(&controller->session().mtp())
 , _section(Section::Attached)
 , _isMasks(false)
+, _isEmoji(false)
 , _attached(0, this, controller, Section::Attached)
 , _attachedType(Data::StickersType::Stickers)
 , _attachedSets(attachedSets) {
@@ -432,6 +435,7 @@ StickersBox::StickersBox(
 , _api(&controller->session().mtp())
 , _section(Section::Attached)
 , _isMasks(false)
+, _isEmoji(true)
 , _attached(0, this, controller, Section::Attached)
 , _attachedType(Data::StickersType::Emoji)
 , _emojiSets(emojiSets) {
@@ -618,13 +622,22 @@ void StickersBox::prepare() {
 	setInnerWidget(_tab->takeWidget(), getTopSkip());
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
-	session().data().stickers().updated(
-		_isMasks ? Data::StickersType::Masks : Data::StickersType::Stickers
+	session().data().stickers().updated(_isEmoji
+		? Data::StickersType::Emoji
+		: _isMasks
+		? Data::StickersType::Masks
+		: Data::StickersType::Stickers
 	) | rpl::start_with_next([=] {
 		handleStickersUpdated();
 	}, lifetime());
-	session().api().updateStickers();
-	session().api().updateMasks();
+
+	if (_isEmoji) {
+		session().api().updateCustomEmoji();
+	} else if (_isMasks) {
+		session().api().updateMasks();
+	} else {
+		session().api().updateStickers();
+	}
 
 	for (const auto &widget : { _installed.widget(), _masks.widget() }) {
 		if (widget) {
@@ -1053,9 +1066,23 @@ StickersBox::Inner::Row::Row(
 , removed(removed)
 , pixw(pixw)
 , pixh(pixh) {
+	++set->locked;
 }
 
-StickersBox::Inner::Row::~Row() = default;
+StickersBox::Inner::Row::~Row() {
+	if (!--set->locked) {
+		const auto installed = !!(set->flags & SetFlag::Installed);
+		const auto featured = !!(set->flags & SetFlag::Featured);
+		const auto special = !!(set->flags & SetFlag::Special);
+		const auto archived = !!(set->flags & SetFlag::Archived);
+		if (!installed && !featured && !special && !archived) {
+			auto &sets = set->owner().stickers().setsRef();
+			if (const auto i = sets.find(set->id); i != end(sets)) {
+				sets.erase(i);
+			}
+		}
+	}
+}
 
 bool StickersBox::Inner::Row::isRecentSet() const {
 	return (set->id == Data::Stickers::CloudRecentSetId)

@@ -334,7 +334,7 @@ void Stickers::addSavedGif(
 
 	notifySavedGifsUpdated();
 	setLastSavedGifsUpdate(0);
-	session->api().updateStickers();
+	session->api().updateSavedGifs();
 }
 
 void Stickers::checkSavedGif(not_null<HistoryItem*> item) {
@@ -734,6 +734,7 @@ void Stickers::somethingReceived(
 		const auto featured = !!(set->flags & SetFlag::Featured);
 		const auto special = !!(set->flags & SetFlag::Special);
 		const auto archived = !!(set->flags & SetFlag::Archived);
+		const auto locked = (set->locked > 0);
 		if (!installed) { // remove not mine sets from recent stickers
 			for (auto i = recent.begin(); i != recent.cend();) {
 				if (set->stickers.indexOf(i->first) >= 0) {
@@ -744,7 +745,7 @@ void Stickers::somethingReceived(
 				}
 			}
 		}
-		if (installed || featured || special || archived) {
+		if (installed || featured || special || archived || locked) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -1055,11 +1056,12 @@ void Stickers::featuredReceived(
 	auto unreadCount = 0;
 	for (auto it = sets.begin(); it != sets.end();) {
 		const auto set = it->second.get();
-		bool installed = (set->flags & SetFlag::Installed);
-		bool featured = (set->flags & SetFlag::Featured);
-		bool special = (set->flags & SetFlag::Special);
-		bool archived = (set->flags & SetFlag::Archived);
-		if (installed || featured || special || archived) {
+		const auto installed = (set->flags & SetFlag::Installed);
+		const auto featured = (set->flags & SetFlag::Featured);
+		const auto special = (set->flags & SetFlag::Special);
+		const auto archived = (set->flags & SetFlag::Archived);
+		const auto locked = (set->locked > 0);
+		if (installed || featured || special || archived || locked) {
 			if (featured && (set->flags & SetFlag::Unread)) {
 				if (!(set->flags & SetFlag::Emoji)) {
 					++unreadCount;

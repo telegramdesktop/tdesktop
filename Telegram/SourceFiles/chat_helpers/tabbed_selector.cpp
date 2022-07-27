@@ -801,6 +801,9 @@ void TabbedSelector::showStarted() {
 	if (hasEmojiTab()) {
 		session().api().updateCustomEmoji();
 	}
+	if (hasGifsTab()) {
+		session().api().updateSavedGifs();
+	}
 	currentTab()->widget()->refreshRecent();
 	currentTab()->widget()->preloadImages();
 	_a_slide.stop();

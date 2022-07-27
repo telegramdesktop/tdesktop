@@ -2526,7 +2526,10 @@ void ApiWrap::updateStickers() {
 	requestRecentStickers(now);
 	requestFavedStickers(now);
 	requestFeaturedStickers(now);
-	requestFeaturedEmoji(now);
+}
+
+void ApiWrap::updateSavedGifs() {
+	const auto now = crl::now();
 	requestSavedGifs(now);
 }
 
@@ -2539,6 +2542,7 @@ void ApiWrap::updateMasks() {
 void ApiWrap::updateCustomEmoji() {
 	const auto now = crl::now();
 	requestCustomEmoji(now);
+	requestFeaturedEmoji(now);
 }
 
 void ApiWrap::requestRecentStickersForce(bool attached) {

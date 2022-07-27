@@ -232,6 +232,7 @@ public:
 		const Data::StickersSetsOrder &localRemoved,
 		Data::StickersType type);
 	void updateStickers();
+	void updateSavedGifs();
 	void updateMasks();
 	void updateCustomEmoji();
 	void requestRecentStickersForce(bool attached = false);

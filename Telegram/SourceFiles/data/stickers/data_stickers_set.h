@@ -105,6 +105,7 @@ public:
 	DocumentId thumbnailDocumentId = 0;
 	QString title, shortName;
 	int count = 0;
+	int locked = 0;
 	StickersSetFlags flags;
 	TimeId installDate = 0;
 	StickersPack covers;
