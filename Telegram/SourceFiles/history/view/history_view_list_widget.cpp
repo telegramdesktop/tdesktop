@@ -2838,7 +2838,7 @@ void ListWidget::mouseActionUpdate() {
 			}
 		}
 	}
-	auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	const auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
 	if (lnkChanged || dragState.cursor != _mouseCursorState) {
 		Ui::Tooltip::Hide();
 	}

@@ -438,11 +438,11 @@ private:
 	bool _thumbnailBlurred = true;
 
 	struct LinkEntry {
-		LinkEntry() : width(0) {
-		}
+		LinkEntry() = default;
 		LinkEntry(const QString &url, const QString &text);
+
 		QString text;
-		int32 width;
+		int width = 0;
 		std::shared_ptr<TextClickHandler> lnk;
 	};
 	QVector<LinkEntry> _links;

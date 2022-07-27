@@ -449,6 +449,21 @@ bool ListWidget::itemVisible(not_null<const BaseLayout*> item) {
 	return true;
 }
 
+QString ListWidget::tooltipText() const {
+	if (const auto link = ClickHandler::getActive()) {
+		return link->tooltip();
+	}
+	return QString();
+}
+
+QPoint ListWidget::tooltipPos() const {
+	return _mousePosition;
+}
+
+bool ListWidget::tooltipWindowActive() const {
+	return Ui::AppInFocus() && Ui::InFocusChain(window());
+}
+
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
 	_controller->parentController()->openPhoto(photo, id);
 }
@@ -1293,6 +1308,7 @@ void ListWidget::leaveEventHook(QEvent *e) {
 		}
 	}
 	ClickHandler::clearActive();
+	Ui::Tooltip::Hide();
 	if (!ClickHandler::getPressed() && _cursor != style::cur_default) {
 		_cursor = style::cur_default;
 		setCursor(_cursor);
@@ -1361,7 +1377,13 @@ void ListWidget::mouseActionUpdate(const QPoint &globalPosition) {
 		dragState = _overLayout->getState(_overState.cursor, request);
 		lnkhost = _overLayout;
 	}
-	ClickHandler::setActive(dragState.link, lnkhost);
+	const auto lnkChanged = ClickHandler::setActive(dragState.link, lnkhost);
+	if (lnkChanged || dragState.cursor != _mouseCursorState) {
+		Ui::Tooltip::Hide();
+	}
+	if (dragState.link) {
+		Ui::Tooltip::Show(1000, this);
+	}
 
 	if (_mouseAction == MouseAction::None) {
 		_mouseCursorState = dragState.cursor;
