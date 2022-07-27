@@ -1085,8 +1085,8 @@ msgServiceGiftBoxButtonHeight: 32px;
 msgServiceGiftBoxButtonMargins: margins(2px, 0px, 2px, 0px);
 msgServiceGiftBoxButtonPadding: margins(0px, 17px, 0px, 17px);
 msgServiceGiftBoxTitlePadding: margins(0px, 126px, 0px, 2px);
-msgServiceGiftBoxStickerTop: -30px;
-msgServiceGiftBoxStickerSize: size(150px, 150px);
+msgServiceGiftBoxStickerTop: -19px;
+msgServiceGiftBoxStickerSize: size(140px, 140px);
 
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
