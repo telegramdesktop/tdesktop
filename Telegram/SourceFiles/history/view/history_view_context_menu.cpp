@@ -1005,6 +1005,16 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 
+	auto emojiPackIds = item
+		? CollectEmojiPacks(item)
+		: std::vector<StickerSetIdentifier>();
+	if (!emojiPackIds.empty()) {
+		AddEmojiPacksAction(
+			result,
+			list,
+			std::move(emojiPackIds),
+			list->controller());
+	}
 	if (hasWhoReactedItem) {
 		AddWhoReactedAction(result, list, item, list->controller());
 	}
