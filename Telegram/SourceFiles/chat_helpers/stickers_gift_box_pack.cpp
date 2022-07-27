@@ -62,12 +62,12 @@ void GiftBoxPack::applySet(const MTPDmessages_stickerSet &data) {
 		const auto document = _session->data().processDocument(sticker);
 		if (document->sticker()) {
 			documents.emplace(document->id, document);
+			if (_documents.empty()) {
+				// Fallback.
+				_documents.resize(1);
+				_documents[0] = document;
+			}
 		}
-	}
-	if (!documents.empty()) {
-		// Fallback.
-		_documents.resize(1);
-		_documents[0] = documents.begin()->second.get();
 	}
 	for (const auto &pack : data.vpacks().v) {
 		pack.match([&](const MTPDstickerPack &data) {
