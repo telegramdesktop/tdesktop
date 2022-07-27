@@ -579,7 +579,12 @@ PointState Service::pointState(QPoint point) const {
 		g.setTop(g.top() + bar->height());
 	}
 	if (media) {
-		g.setHeight(g.height() - (st::msgServiceMargin.top() + media->height()));
+		const auto centerPadding = (g.width() - media->width()) / 2;
+		const auto r = g - QMargins(centerPadding, 0, centerPadding, 0);
+		if (!r.contains(point)) {
+			g.setHeight(g.height()
+				- (st::msgServiceMargin.top() + media->height()));
+		}
 	}
 	return g.contains(point) ? PointState::Inside : PointState::Outside;
 }
