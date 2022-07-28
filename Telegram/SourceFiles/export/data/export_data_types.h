@@ -340,6 +340,12 @@ struct ParseMediaContext {
 	UserId botId = 0;
 };
 
+Document ParseDocument(
+	ParseMediaContext &context,
+	const MTPDocument &data,
+	const QString &suggestedFolder,
+	TimeId date);
+
 Media ParseMedia(
 	ParseMediaContext &context,
 	const MTPMessageMedia &data,
@@ -560,6 +566,10 @@ struct TextPart {
 	Type type = Type::Text;
 	Utf8String text;
 	Utf8String additional;
+
+	[[nodiscard]] static Utf8String UnavailableEmoji() {
+		return "(unavailable)";
+	}
 };
 
 struct MessageId {
@@ -619,6 +629,7 @@ struct FileOrigin {
 	int split = 0;
 	MTPInputPeer peer;
 	int32 messageId = 0;
+	uint64 customEmojiId = 0;
 };
 
 Message ParseMessage(
