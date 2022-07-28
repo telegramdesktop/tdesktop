@@ -1267,6 +1267,7 @@ void AddEmojiPacksAction(
 		, _dummyAction(new QAction(parent)) {
 			enableMouseSelecting();
 			_text->setAttribute(Qt::WA_TransparentForMouseEvents);
+			updateMinWidth();
 			parent->widthValue() | rpl::start_with_next([=](int width) {
 				const auto top = st::historyHasCustomEmojiPosition.y();
 				const auto skip = st::historyHasCustomEmojiPosition.x();
@@ -1295,6 +1296,28 @@ void AddEmojiPacksAction(
 			const auto selected = isSelected();
 			p.fillRect(rect(), selected ? _st.itemBgOver : _st.itemBg);
 			RippleButton::paintRipple(p, 0, 0);
+		}
+
+		void updateMinWidth() {
+			const auto skip = st::historyHasCustomEmojiPosition.x();
+			auto min = _text->naturalWidth() / 2;
+			auto max = _text->naturalWidth() - skip;
+			_text->resizeToWidth(max);
+			const auto height = _text->height();
+			_text->resizeToWidth(min);
+			const auto heightMax = _text->height();
+			if (heightMax > height) {
+				while (min + 1 < max) {
+					const auto middle = (max + min) / 2;
+					_text->resizeToWidth(middle);
+					if (_text->height() > height) {
+						min = middle;
+					} else {
+						max = middle;
+					}
+				}
+			}
+			setMinWidth(skip * 2 + max);
 		}
 
 		const style::Menu &_st;

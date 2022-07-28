@@ -1090,9 +1090,9 @@ msgServiceGiftBoxStickerSize: size(140px, 140px);
 
 historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkFont: font(12px underline);
-		linkFontOver: font(12px underline);
+		font: font(11px);
+		linkFont: font(11px underline);
+		linkFontOver: font(11px underline);
 	}
 	minWidth: 80px;
 }
