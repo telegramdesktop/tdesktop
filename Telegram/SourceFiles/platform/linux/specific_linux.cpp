@@ -638,6 +638,18 @@ void finish() {
 
 void psNewVersion() {
 	Platform::InstallLauncher();
+	if (Local::oldSettingsVersion() > 0
+		&& Local::oldSettingsVersion() <= 4000002
+		&& qEnvironmentVariableIsSet("WAYLAND_DISPLAY")
+		&& DesktopEnvironment::IsGnome()
+		&& !QFile::exists(cWorkingDir() + qsl("tdata/nowayland"))) {
+		QFile f(cWorkingDir() + qsl("tdata/nowayland"));
+		if (f.open(QIODevice::WriteOnly)) {
+			f.write("1");
+			f.close();
+			Core::Restart(); // restart with X backend
+		}
+	}
 }
 
 void psSendToMenu(bool send, bool silent) {
