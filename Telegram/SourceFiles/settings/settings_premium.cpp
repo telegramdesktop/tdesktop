@@ -761,7 +761,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 			Data::AmPremiumValue(&_controller->session()),
 			tr::lng_premium_summary_title_subscribed(),
 			tr::lng_premium_summary_title());
-	auto about = [&] {
+	auto about = [&]() -> rpl::producer<TextWithEntities> {
 		const auto gift = ParseGiftRef(_ref);
 		if (gift.peerId) {
 			auto &data = _controller->session().data();
