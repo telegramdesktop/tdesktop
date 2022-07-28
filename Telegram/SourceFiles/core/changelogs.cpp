@@ -138,6 +138,15 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix possible crash in video chat reconnection.\n"
 
 		"- Fix possible crash after account switch.\n"
+	},
+	{
+		4000003,
+		"- Animated emoji for messages.\n"
+
+		"- Premium: Privacy settings for voice messages.\n"
+
+		"- Premium: Gifting Telegram Premium "
+		"to any user from their profile page.\n"
 	}
 	};
 };
