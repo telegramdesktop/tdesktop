@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+struct ClickHandlerContext;
 class HistoryItem;
 
 namespace Window {
@@ -33,10 +34,6 @@ bool SwitchInlineBotButtonReceived(
 	UserData *samePeerBot = nullptr,
 	MsgId samePeerReplyTo = 0);
 
-void ActivateBotCommand(
-	not_null<Window::SessionController*> controller,
-	not_null<HistoryItem*> item,
-	int row,
-	int column);
+void ActivateBotCommand(ClickHandlerContext context, int row, int column);
 
 } // namespace Api

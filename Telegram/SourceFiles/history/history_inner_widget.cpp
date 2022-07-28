@@ -1793,23 +1793,10 @@ void HistoryInner::mouseActionFinish(
 			? pressedItemView->data()->fullId()
 			: FullMsgId();
 		const auto weak = base::make_weak(_controller.get());
-		ActivateClickHandler(window(), activated, {
-			button,
-			QVariant::fromValue(ClickHandlerContext{
-				.itemId = pressedItemId,
-				.elementDelegate = [=]() -> HistoryView::ElementDelegate* {
-					if (const auto strong = weak.get()) {
-						auto &data = strong->session().data();
-						if (const auto item = data.message(pressedItemId)) {
-							const auto history = item->history();
-							return history->delegateMixin()->delegate();
-						}
-					}
-					return nullptr;
-				},
-				.sessionWindow = weak,
-			})
-		});
+		ActivateClickHandler(
+			window(),
+			activated,
+			prepareClickContext(button, pressedItemId));
 		return;
 	}
 	if ((_mouseAction == MouseAction::PrepareSelect)
@@ -4108,6 +4095,39 @@ void HistoryInner::onParentGeometryChanged() {
 	if (needToUpdate) {
 		mouseActionUpdate(mousePos);
 	}
+}
+
+Fn<HistoryView::ElementDelegate*()> HistoryInner::elementDelegateFactory(
+		FullMsgId itemId) const {
+	const auto weak = base::make_weak(_controller.get());
+	return [=]() -> HistoryView::ElementDelegate* {
+		if (const auto strong = weak.get()) {
+			auto &data = strong->session().data();
+			if (const auto item = data.message(itemId)) {
+				const auto history = item->history();
+				return history->delegateMixin()->delegate();
+			}
+		}
+		return nullptr;
+	};
+}
+
+ClickHandlerContext HistoryInner::prepareClickHandlerContext(
+		FullMsgId itemId) const {
+	return ClickHandlerContext{
+		.itemId = itemId,
+		.elementDelegate = elementDelegateFactory(itemId),
+		.sessionWindow = base::make_weak(_controller.get()),
+	};
+}
+
+ClickContext HistoryInner::prepareClickContext(
+		Qt::MouseButton button,
+		FullMsgId itemId) const {
+	return {
+		button,
+		QVariant::fromValue(prepareClickHandlerContext(itemId)),
+	};
 }
 
 auto HistoryInner::DelegateMixin()

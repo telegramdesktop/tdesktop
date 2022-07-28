@@ -523,12 +523,9 @@ void ReplyMarkupClickHandler::onClick(ClickContext context) const {
 	if (context.button != Qt::LeftButton) {
 		return;
 	}
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto controller = my.sessionWindow.get()) {
-		if (const auto item = _owner->message(_itemId)) {
-			Api::ActivateBotCommand(controller, item, _row, _column);
-		}
-	}
+	auto my = context.other.value<ClickHandlerContext>();
+	my.itemId = _itemId;
+	Api::ActivateBotCommand(my, _row, _column);
 }
 
 // Returns the full text of the corresponding button.

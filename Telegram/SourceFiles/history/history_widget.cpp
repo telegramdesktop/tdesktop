@@ -428,9 +428,12 @@ HistoryWidget::HistoryWidget(
 	}, lifetime());
 
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
-		return _keyboard->isHidden()
-			? false
-			: _keyboard->moderateKeyActivate(key);
+		const auto context = [=](FullMsgId itemId) {
+			return _list->prepareClickContext(Qt::LeftButton, itemId);
+		};
+		return !_keyboard->isHidden() && _keyboard->moderateKeyActivate(
+			key,
+			context);
 	});
 
 	_fieldAutocomplete->choosingProcesses(
@@ -6356,6 +6359,7 @@ void HistoryWidget::setupPinnedTracker() {
 
 void HistoryWidget::checkPinnedBarState() {
 	Expects(_pinnedTracker != nullptr);
+	Expects(_list != nullptr);
 
 	const auto hiddenId = _peer->canPinMessages()
 		? MsgId(0)
@@ -6522,7 +6526,10 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 					Ui::RoundButton::TextTransform::NoTransform);
 				button->setFullRadius(true);
 				button->setClickedCallback([=] {
-					Api::ActivateBotCommand(controller(), item, 0, 0);
+					Api::ActivateBotCommand(
+						_list->prepareClickHandlerContext(item->fullId()),
+						0,
+						0);
 				});
 				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
 					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);

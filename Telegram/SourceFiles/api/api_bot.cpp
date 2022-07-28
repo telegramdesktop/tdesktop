@@ -276,11 +276,15 @@ bool SwitchInlineBotButtonReceived(
 		samePeerReplyTo);
 }
 
-void ActivateBotCommand(
-		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item,
-		int row,
-		int column) {
+void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
+	const auto controller = context.sessionWindow.get();
+	if (!controller) {
+		return;
+	}
+	const auto item = controller->session().data().message(context.itemId);
+	if (!item) {
+		return;
+	}
 	const auto button = HistoryMessageMarkupButton::Get(
 		&item->history()->owner(),
 		item->fullId(),
@@ -330,13 +334,11 @@ void ActivateBotCommand(
 				skipConfirmation = true;
 			}
 		}
-		const auto context = QVariant::fromValue(ClickHandlerContext{
-			.sessionWindow = controller.get(),
-		});
+		const auto variant = QVariant::fromValue(context);
 		if (skipConfirmation) {
-			UrlClickHandler::Open(url, context);
+			UrlClickHandler::Open(url, variant);
 		} else {
-			HiddenUrlClickHandler::Open(url, context);
+			HiddenUrlClickHandler::Open(url, variant);
 		}
 	} break;
 

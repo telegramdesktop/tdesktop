@@ -15,6 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "history/view/history_view_top_bar_widget.h"
 
+struct ClickContext;
+struct ClickHandlerContext;
+
 namespace Data {
 struct Group;
 class CloudImageView;
@@ -188,6 +191,14 @@ public:
 	bool tooltipWindowActive() const override;
 
 	void onParentGeometryChanged();
+
+	[[nodiscard]] Fn<HistoryView::ElementDelegate*()> elementDelegateFactory(
+		FullMsgId itemId) const;
+	[[nodiscard]] ClickHandlerContext prepareClickHandlerContext(
+		FullMsgId itemId) const;
+	[[nodiscard]] ClickContext prepareClickContext(
+		Qt::MouseButton button,
+		FullMsgId itemId) const;
 
 	[[nodiscard]] static auto DelegateMixin()
 	-> std::unique_ptr<HistoryMainElementDelegateMixin>;
