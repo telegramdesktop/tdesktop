@@ -258,7 +258,7 @@ bool UserData::canReceiveGifts() const {
 }
 
 bool UserData::canReceiveVoices() const {
-	return flags() & UserDataFlag::CanReceiveVoices;
+	return !(flags() & UserDataFlag::VoiceMessagesForbidden);
 }
 
 bool UserData::canShareThisContactFast() const {
@@ -332,8 +332,8 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		| (canReceiveGifts ? Flag::CanReceiveGifts : Flag())
 		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
 		| (update.is_blocked() ? Flag::Blocked : Flag())
-		| (!update.is_voice_messages_forbidden()
-			? Flag::CanReceiveVoices
+		| (update.is_voice_messages_forbidden()
+			? Flag::VoiceMessagesForbidden
 			: Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
