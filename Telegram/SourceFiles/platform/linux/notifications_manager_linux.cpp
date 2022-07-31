@@ -49,15 +49,20 @@ bool ServiceRegistered = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
 
-void Noexcept(Fn<void()> callback) noexcept {
+void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
 		callback();
+		return;
 	} catch (const Glib::Error &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
 	} catch (const std::exception &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
+	}
+
+	if (failed) {
+		failed();
 	}
 }
 
@@ -206,18 +211,14 @@ void GetServerInformation(
 								QString::fromStdString(specVersion)),
 						});
 					});
-
-					return;
+				}, [&] {
+					crl::on_main([=] { callback(std::nullopt); });
 				});
-
-				crl::on_main([=] { callback(std::nullopt); });
 			},
 			std::string(kService));
-
-			return;
+	}, [&] {
+		crl::on_main([=] { callback(std::nullopt); });
 	});
-
-	crl::on_main([=] { callback(std::nullopt); });
 }
 
 void GetCapabilities(Fn<void(const QStringList &)> callback) {
@@ -244,18 +245,14 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 					crl::on_main([=] {
 						callback(value);
 					});
-
-					return;
+				}, [&] {
+					crl::on_main([=] { callback({}); });
 				});
-
-				crl::on_main([=] { callback({}); });
 			},
 			std::string(kService));
-
-			return;
+	}, [&] {
+		crl::on_main([=] { callback({}); });
 	});
-
-	crl::on_main([=] { callback({}); });
 }
 
 void GetInhibited(Fn<void(bool)> callback) {
@@ -287,18 +284,14 @@ void GetInhibited(Fn<void(bool)> callback) {
 					crl::on_main([=] {
 						callback(value);
 					});
-
-					return;
+				}, [&] {
+					crl::on_main([=] { callback(false); });
 				});
-
-				crl::on_main([=] { callback(false); });
 			},
 			std::string(kService));
-
-			return;
+	}, [&] {
+		crl::on_main([=] { callback(false); });
 	});
-
-	crl::on_main([=] { callback(false); });
 }
 
 ServerInformation CurrentServerInformationValue() {
@@ -586,12 +579,11 @@ void NotificationData::show() {
 					crl::on_main(weak, [=] {
 						_notificationId = notificationId;
 					});
-				});
-				if (!_notificationId) {
+				}, [&] {
 					crl::on_main(weak, [=] {
 						_manager->clearNotification(_id);
 					});
-				}
+				});
 			},
 			std::string(kService));
 	}));
