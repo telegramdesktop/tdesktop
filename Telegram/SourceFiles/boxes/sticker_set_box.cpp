@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
+#include <QtSvg/QSvgRenderer>
 
 namespace {
 
@@ -203,7 +204,9 @@ private:
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
 	void showPreview();
-	const QImage &validatePremiumLock(int index, const QImage &frame) const;
+	void validatePremiumLock(int index, const QImage &frame) const;
+	void validatePremiumStar() const;
+
 	void updateItems();
 	void repaintItems(crl::time now = 0);
 
@@ -235,6 +238,7 @@ private:
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 	mutable QImage _premiumLockGray;
+	mutable QImage _premiumStar;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -569,6 +573,7 @@ StickerSetBox::Inner::Inner(
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_premiumLockGray = QImage();
+		_premiumStar = QImage();
 	}, lifetime());
 
 	setMouseTracking(true);
@@ -932,13 +937,16 @@ void StickerSetBox::Inner::showPreview() {
 	}
 }
 
-const QImage &StickerSetBox::Inner::validatePremiumLock(
+void StickerSetBox::Inner::validatePremiumLock(
 		int index,
 		const QImage &frame) const {
 	auto &element = _elements[index];
 	auto &image = frame.isNull() ? _premiumLockGray : element.premiumLock;
 	ValidatePremiumLockBg(image, frame);
-	return image;
+}
+
+void StickerSetBox::Inner::validatePremiumStar() const {
+	ValidatePremiumStarFg(_premiumStar);
 }
 
 not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
@@ -1167,8 +1175,7 @@ void StickerSetBox::Inner::paintSticker(
 	const auto document = element.document;
 	const auto &media = element.documentMedia;
 	const auto sticker = document->sticker();
-	const auto locked = document->isPremiumSticker()
-		&& !_controller->session().premium();
+	const auto premium = document->isPremiumSticker();
 	media->checkStickerSmall();
 
 	if (sticker->setType == Data::StickersType::Emoji) {
@@ -1220,19 +1227,26 @@ void StickerSetBox::Inner::paintSticker(
 			QRect(ppos, size),
 			_pathGradient.get());
 	}
-	if (locked) {
+	if (premium) {
 		validatePremiumLock(index, lottieFrame);
 		const auto &bg = lottieFrame.isNull()
 			? _premiumLockGray
 			: element.premiumLock;
 		const auto factor = style::DevicePixelRatio();
 		const auto radius = st::roundRadiusSmall;
+		const auto amPremium = _controller->session().premium();
 		const auto point = position + QPoint(
-			(_singleSize.width() - (bg.width() / factor)) / 2,
+			(amPremium
+				? (_singleSize.width() - (bg.width() / factor) - radius)
+				: (_singleSize.width() - (bg.width() / factor)) / 2),
 			_singleSize.height() - (bg.height() / factor) - radius);
 		p.drawImage(point, bg);
-
-		st::stickersPremiumLock.paint(p, point, width());
+		if (amPremium) {
+			validatePremiumStar();
+			p.drawImage(point, _premiumStar);
+		} else {
+			st::stickersPremiumLock.paint(p, point, width());
+		}
 	}
 }
 
@@ -1345,4 +1359,25 @@ void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
 	p.end();
 
 	image = Images::Circle(std::move(image));
+}
+
+void ValidatePremiumStarFg(QImage &image) {
+	if (!image.isNull()) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::stickersPremiumLock.size();
+	image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	image.fill(Qt::transparent);
+	auto p = QPainter(&image);
+	auto star = QSvgRenderer(u":/gui/icons/settings/star.svg"_q);
+	const auto skip = size.width() / 5.;
+	const auto outer = QRectF(QPointF(), size).marginsRemoved(
+		{ skip, skip, skip, skip });
+	p.setBrush(st::premiumButtonFg);
+	p.setPen(Qt::NoPen);
+	star.render(&p, outer);
 }

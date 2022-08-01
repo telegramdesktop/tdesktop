@@ -317,10 +317,8 @@ private:
 	void addSearchRow(not_null<Data::StickersSet*> set);
 
 	void showPreview();
-	const QImage &validatePremiumLock(
-		Set &set,
-		int index,
-		const QImage &frame);
+	void validatePremiumLock(Set &set, int index, const QImage &frame);
+	void validatePremiumStar();
 
 	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
 		int section,
@@ -357,6 +355,7 @@ private:
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;
+	QImage _premiumStar;
 
 	OverState _selected;
 	OverState _pressed;

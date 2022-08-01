@@ -65,3 +65,4 @@ private:
 };
 
 void ValidatePremiumLockBg(QImage &image, const QImage &frame);
+void ValidatePremiumStarFg(QImage &image);

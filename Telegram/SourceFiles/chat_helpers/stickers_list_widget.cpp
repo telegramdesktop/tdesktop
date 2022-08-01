@@ -221,6 +221,7 @@ StickersListWidget::StickersListWidget(
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
 		_premiumLockGray = QImage();
+		_premiumStar = QImage();
 	}, lifetime());
 
 	Data::AmPremiumValue(
@@ -1282,7 +1283,7 @@ void StickersListWidget::paintSticker(
 		return;
 	}
 
-	const auto locked = document->isPremiumSticker() && !session().premium();
+	const auto premium = document->isPremiumSticker();
 	const auto isLottie = document->sticker()->isLottie();
 	const auto isWebm = document->sticker()->isWebm();
 	if (isLottie
@@ -1350,7 +1351,7 @@ void StickersListWidget::paintSticker(
 				sticker.savedFrame = pixmap;
 				sticker.savedFrameFor = _singleSize;
 			}
-			if (locked) {
+			if (premium) {
 				lottieFrame = pixmap.toImage().convertToFormat(
 					QImage::Format_ARGB32_Premultiplied);
 			}
@@ -1373,30 +1374,40 @@ void StickersListWidget::paintSticker(
 		p.setOpacity(1.);
 	}
 
-	if (locked) {
+	if (premium) {
 		validatePremiumLock(set, index, lottieFrame);
 		const auto &bg = lottieFrame.isNull()
 			? _premiumLockGray
 			: sticker.premiumLock;
 		const auto factor = style::DevicePixelRatio();
 		const auto radius = st::roundRadiusSmall;
+		const auto amPremium = session().premium();
 		const auto point = pos + QPoint(
-			(_singleSize.width() - (bg.width() / factor)) / 2,
+			(amPremium
+				? (_singleSize.width() - (bg.width() / factor) - radius)
+				: (_singleSize.width() - (bg.width() / factor)) / 2),
 			_singleSize.height() - (bg.height() / factor) - radius);
 		p.drawImage(point, bg);
-
-		st::stickersPremiumLock.paint(p, point, width());
+		if (amPremium) {
+			validatePremiumStar();
+			p.drawImage(point, _premiumStar);
+		} else {
+			st::stickersPremiumLock.paint(p, point, width());
+		}
 	}
 }
 
-const QImage &StickersListWidget::validatePremiumLock(
+void StickersListWidget::validatePremiumLock(
 		Set &set,
 		int index,
 		const QImage &frame) {
 	auto &sticker = set.stickers[index];
 	auto &image = frame.isNull() ? _premiumLockGray : sticker.premiumLock;
 	ValidatePremiumLockBg(image, frame);
-	return image;
+}
+
+void StickersListWidget::validatePremiumStar() {
+	ValidatePremiumStarFg(_premiumStar);
 }
 
 int StickersListWidget::stickersRight() const {
