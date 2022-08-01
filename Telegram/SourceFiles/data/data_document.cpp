@@ -37,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 #include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
-#include "storage/storage_cloud_song_cover.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -52,6 +51,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 
 namespace {
+
+constexpr auto kDefaultCoverThumbnailSize = 100;
 
 const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
@@ -407,13 +408,7 @@ void DocumentData::setattributes(
 				songData->duration = data.vduration().v;
 				songData->title = qs(data.vtitle().value_or_empty());
 				songData->performer = qs(data.vperformer().value_or_empty());
-
-				if (!hasThumbnail()
-					&& !songData->title.isEmpty()
-					&& !songData->performer.isEmpty()) {
-
-					Storage::CloudSongCover::LoadThumbnailFromExternal(this);
-				}
+				refreshPossibleCoverThumbnail();
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
 			setFileName(qs(data.vfile_name()));
@@ -556,7 +551,9 @@ bool DocumentData::isPremiumEmoji() const {
 }
 
 bool DocumentData::hasThumbnail() const {
-	return _thumbnail.location.valid();
+	return _thumbnail.location.valid()
+		&& !thumbnailFailed()
+		&& !(_flags & Flag::PossibleCoverThumbnail);
 }
 
 bool DocumentData::thumbnailLoading() const {
@@ -576,6 +573,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		return true;
 	};
 	const auto done = [=](QImage result, QByteArray) {
+		_flags &= ~Flag::PossibleCoverThumbnail;
 		if (const auto active = activeMediaView()) {
 			active->setThumbnail(std::move(result));
 		}
@@ -1141,6 +1139,31 @@ bool DocumentData::saveFromDataChecked() {
 	_location = Core::FileLocation(path);
 	session().local().writeFileLocation(mediaKey(), _location);
 	return true;
+}
+
+void DocumentData::refreshPossibleCoverThumbnail() {
+	Expects(isSong());
+
+	if (_thumbnail.location.valid()) {
+		return;
+	}
+	const auto songData = song();
+	if (songData->performer.isEmpty()
+		|| songData->title.isEmpty()
+		// Ignore cover for voice chat records.
+		|| hasMimeType(qstr("audio/ogg"))) {
+		return;
+	}
+	const auto size = kDefaultCoverThumbnailSize;
+	const auto location = ImageWithLocation{
+		.location = ImageLocation(
+			{ AudioAlbumThumbLocation{ id } },
+			size,
+			size)
+	};
+	_flags |= Flag::PossibleCoverThumbnail;
+	updateThumbnails({}, location, {}, false);
+	loadThumbnail({});
 }
 
 bool DocumentData::isStickerSetInstalled() const {

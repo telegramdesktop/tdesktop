@@ -34,6 +34,7 @@ enum class NonStorageLocationType : quint8 {
 	Geo,
 	Url,
 	Memory,
+	AudioAlbumThumb,
 };
 
 MTPInputPeer GenerateInputPeer(
@@ -710,6 +711,11 @@ InMemoryKey inMemoryKey(const PlainUrlLocation &location) {
 	return result;
 }
 
+InMemoryKey inMemoryKey(const AudioAlbumThumbLocation &location) {
+	const auto key = Data::AudioAlbumThumbCacheKey(location);
+	return { key.high, key.low };
+}
+
 InMemoryKey inMemoryKey(const InMemoryLocation &location) {
 	auto result = InMemoryKey();
 	const auto &data = location.bytes;
@@ -808,6 +814,10 @@ QByteArray DownloadLocation::serialize() const {
 			<< qint32(data.height)
 			<< qint32(data.zoom)
 			<< qint32(data.scale);
+	}, [&](const AudioAlbumThumbLocation &data) {
+		stream
+			<< quint8(NonStorageLocationType::AudioAlbumThumb)
+			<< quint64(data.documentId);
 	}, [&](const PlainUrlLocation &data) {
 		stream << quint8(NonStorageLocationType::Url) << data.url.toUtf8();
 	}, [&](const InMemoryLocation &data) {
@@ -830,6 +840,8 @@ int DownloadLocation::serializeSize() const {
 		result += 2 * sizeof(qreal) + sizeof(quint64) + 4 * sizeof(qint32);
 	}, [&](const PlainUrlLocation &data) {
 		result += Serialize::bytearraySize(data.url.toUtf8());
+	}, [&](const AudioAlbumThumbLocation &data) {
+		result += sizeof(quint64);
 	}, [&](const InMemoryLocation &data) {
 		result += Serialize::bytearraySize(data.bytes);
 	});
@@ -884,6 +896,15 @@ std::optional<DownloadLocation> DownloadLocation::FromSerialized(
 			: std::nullopt;
 	} break;
 
+	case NonStorageLocationType::AudioAlbumThumb: {
+		quint64 id = 0;
+		stream >> id;
+		return (stream.status() == QDataStream::Ok)
+			? std::make_optional(DownloadLocation{
+				AudioAlbumThumbLocation{ id } })
+			: std::nullopt;
+	} break;
+
 	case NonStorageLocationType::Url: {
 		QByteArray utf;
 		stream >> utf;
@@ -933,6 +954,8 @@ Storage::Cache::Key DownloadLocation::cacheKey() const {
 		return data.url.isEmpty()
 			? Storage::Cache::Key()
 			: Data::UrlCacheKey(data.url);
+	}, [](const AudioAlbumThumbLocation &data) {
+		return Data::AudioAlbumThumbCacheKey(data);
 	}, [](const InMemoryLocation &data) {
 		return Storage::Cache::Key();
 	});
@@ -953,6 +976,8 @@ bool DownloadLocation::valid() const {
 		return !data.isNull();
 	}, [](const PlainUrlLocation &data) {
 		return !data.url.isEmpty();
+	}, [](const AudioAlbumThumbLocation &data) {
+		return data.documentId != 0;
 	}, [](const InMemoryLocation &data) {
 		return !data.bytes.isEmpty();
 	});
