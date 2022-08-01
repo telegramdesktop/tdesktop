@@ -47,7 +47,11 @@ constexpr auto kPipLoaderPriority = 2;
 constexpr auto kMsInSecond = 1000;
 
 [[nodiscard]] bool IsWindowControlsOnLeft() {
-	return Platform::IsMac();
+	using Control = Ui::Platform::TitleControls::Control;
+	const auto controlsLayout = Ui::Platform::TitleControlsLayout();
+	return ranges::contains(controlsLayout.left, Control::Close)
+		|| (controlsLayout.left.size() > controlsLayout.right.size()
+			&& !ranges::contains(controlsLayout.right, Control::Close));
 }
 
 [[nodiscard]] QRect ScreenFromPosition(QPoint point) {
