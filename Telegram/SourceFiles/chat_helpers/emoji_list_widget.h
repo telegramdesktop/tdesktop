@@ -70,6 +70,7 @@ public:
 
 	void showSet(uint64 setId);
 	[[nodiscard]] uint64 currentSet(int yOffset) const;
+	void setAllowWithoutPremium(bool allow);
 
 	// Ui::AbstractTooltipShower interface.
 	QString tooltipText() const override;
@@ -274,6 +275,7 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
+	bool _allowWithoutPremium = false;
 
 	int _rowsLeft = 0;
 	int _columnCount = 1;

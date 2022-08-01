@@ -747,7 +747,7 @@ bool RepliesWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		_composeControls->getTextWithAppliedMarkdown(),
-		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
+		_history->peer,
 		Api::SendType::Normal,
 		SendMenu::Type::SilentOnly); // #TODO replies schedule
 

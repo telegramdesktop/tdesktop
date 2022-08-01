@@ -404,7 +404,6 @@ HistoryMessage::HistoryMessage(
 	const auto dropForwardInfo = (originalMedia
 		&& originalMedia->dropForwardedInfo())
 		|| (original->history()->peer->isSelf()
-			&& !history->peer->isSelf()
 			&& !original->Has<HistoryMessageForwarded>()
 			&& (!originalMedia || !originalMedia->forceForwardedInfo()));
 	if (!dropForwardInfo) {

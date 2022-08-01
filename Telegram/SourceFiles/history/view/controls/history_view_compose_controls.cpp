@@ -1422,7 +1422,15 @@ void ComposeControls::initField() {
 	Ui::Connect(_field, &Ui::InputField::resized, [=] { updateHeight(); });
 	//Ui::Connect(_field, &Ui::InputField::focused, [=] { fieldFocused(); });
 	Ui::Connect(_field, &Ui::InputField::changed, [=] { fieldChanged(); });
-	InitMessageField(_window, _field, _unavailableEmojiPasted);
+	InitMessageField(_window, _field, [=](not_null<DocumentData*> emoji) {
+		if (_history && Data::AllowEmojiWithoutPremium(_history->peer)) {
+			return true;
+		}
+		if (_unavailableEmojiPasted) {
+			_unavailableEmojiPasted(emoji);
+		}
+		return false;
+	});
 	initAutocomplete();
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,

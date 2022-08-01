@@ -405,7 +405,7 @@ bool ScheduledWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		_composeControls->getTextWithAppliedMarkdown(),
-		_history->peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
+		_history->peer,
 		CanScheduleUntilOnline(_history->peer)
 			? Api::SendType::ScheduledToUser
 			: Api::SendType::Scheduled,

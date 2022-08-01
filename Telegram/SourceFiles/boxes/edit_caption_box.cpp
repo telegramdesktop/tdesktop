@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -242,10 +243,12 @@ void EditCaptionBox::rebuildPreview() {
 }
 
 void EditCaptionBox::setupField() {
+	const auto peer = _historyItem->history()->peer;
 	InitMessageFieldHandlers(
 		_controller,
 		_field.get(),
-		Window::GifPauseReason::Layer);
+		Window::GifPauseReason::Layer,
+		[=](const auto&) { return Data::AllowEmojiWithoutPremium(peer); });
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
@@ -488,6 +491,7 @@ void EditCaptionBox::setupEmojiPanel() {
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_emojiPanel->hide();
+	_emojiPanel->selector()->setCurrentPeer(_historyItem->history()->peer);
 	_emojiPanel->selector()->emojiChosen(
 	) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);

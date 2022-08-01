@@ -98,6 +98,7 @@ public:
 	rpl::producer<> contextMenuRequested() const;
 	rpl::producer<Action> choosingStickerUpdated() const;
 
+	void setAllowEmojiWithoutPremium(bool allow);
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);

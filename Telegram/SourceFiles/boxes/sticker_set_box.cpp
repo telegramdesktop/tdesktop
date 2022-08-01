@@ -422,13 +422,14 @@ void StickerSetBox::updateButtons() {
 			if (!_controller->session().premium()
 				&& _controller->session().premiumPossible()
 				&& _inner->premiumEmojiSet()) {
-				setStyle(st::premiumPreviewBox);
+				const auto &st = st::premiumPreviewDoubledLimitsBox;
+				setStyle(st);
 				auto button = CreateUnlockButton(
 					this,
 					tr::lng_premium_unlock_emoji());
 				button->resizeToWidth(st::boxWideWidth
-					- st::premiumPreviewBox.buttonPadding.left()
-					- st::premiumPreviewBox.buttonPadding.left());
+					- st.buttonPadding.left()
+					- st.buttonPadding.left());
 				button->setClickedCallback([=] {
 					Settings::ShowPremium(_controller, u"animated_emoji"_q);
 				});

@@ -396,7 +396,11 @@ HistoryWidget::HistoryWidget(
 
 	InitMessageField(controller, _field, [=](
 			not_null<DocumentData*> document) {
+		if (_peer && Data::AllowEmojiWithoutPremium(_peer)) {
+			return true;
+		}
 		showPremiumToast(document);
+		return false;
 	});
 
 	_keyboard->sendCommandRequests(
@@ -5001,7 +5005,7 @@ bool HistoryWidget::confirmSendingFiles(
 		controller(),
 		std::move(list),
 		text,
-		_peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many,
+		_peer,
 		Api::SendType::Normal,
 		sendMenuType());
 	_field->setTextWithTags({});

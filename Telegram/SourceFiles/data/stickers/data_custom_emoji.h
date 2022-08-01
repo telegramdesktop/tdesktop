@@ -122,6 +122,8 @@ private:
 	not_null<DocumentData*> document);
 [[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data);
 
+[[nodiscard]] bool AllowEmojiWithoutPremium(not_null<PeerData*> peer);
+
 void InsertCustomEmoji(
 	not_null<Ui::InputField*> field,
 	not_null<DocumentData*> document);

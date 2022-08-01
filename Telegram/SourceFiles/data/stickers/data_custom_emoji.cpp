@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_peer.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_emoji.h"
 #include "ffmpeg/ffmpeg_emoji.h"
@@ -644,6 +645,10 @@ CustomEmojiId ParseCustomEmojiData(QStringView data) {
 		.selfId = components[1].toULongLong(),
 		.id = components[0].toULongLong(),
 	};
+}
+
+bool AllowEmojiWithoutPremium(not_null<PeerData*> peer) {
+	return peer->isSelf();
 }
 
 void InsertCustomEmoji(

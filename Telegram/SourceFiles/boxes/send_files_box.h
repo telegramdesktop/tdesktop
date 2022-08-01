@@ -57,7 +57,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		Ui::PreparedList &&list,
 		const TextWithTags &caption,
-		SendLimit limit,
+		not_null<PeerData*> peer,
 		Api::SendType sendType,
 		SendMenu::Type sendMenuType);
 
@@ -168,6 +168,7 @@ private:
 
 	SendLimit _sendLimit = SendLimit::Many;
 	SendMenu::Type _sendMenuType = SendMenu::Type();
+	bool _allowEmojiWithoutPremium = false;
 
 	Fn<void(
 		Ui::PreparedList &&list,

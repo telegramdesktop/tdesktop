@@ -776,7 +776,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 						drawCollapsedBadge(p, w - _areaPosition, info.count);
 						continue;
 					}
-					if (selected && !info.premiumRequired) {
+					if (selected) {
 						auto tl = w;
 						if (rtl()) {
 							tl.setX(width() - tl.x() - st::emojiPanArea.width());
@@ -1023,7 +1023,9 @@ void EmojiListWidget::selectEmoji(EmojiPtr emoji) {
 }
 
 void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
-	if (document->isPremiumEmoji() && !document->session().premium()) {
+	if (document->isPremiumEmoji()
+		&& !document->session().premium()
+		&& !_allowWithoutPremium) {
 		ShowPremiumPreviewBox(
 			controller(),
 			PremiumPreview::AnimatedEmoji,
@@ -1231,6 +1233,15 @@ uint64 EmojiListWidget::currentSet(int yOffset) const {
 	return sectionSetId(sectionInfoByOffset(yOffset).section);
 }
 
+void EmojiListWidget::setAllowWithoutPremium(bool allow) {
+	if (_allowWithoutPremium == allow) {
+		return;
+	}
+	_allowWithoutPremium = allow;
+	refreshCustom();
+	resizeToWidth(width());
+}
+
 QString EmojiListWidget::tooltipText() const {
 	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
 	const auto over = std::get_if<OverEmoji>(&_selected);
@@ -1285,7 +1296,9 @@ void EmojiListWidget::refreshCustom() {
 	auto old = base::take(_custom);
 	const auto session = &controller()->session();
 	const auto premiumPossible = session->premiumPossible();
-	const auto premiumMayBeBought = premiumPossible && !session->premium();
+	const auto premiumMayBeBought = premiumPossible
+		&& !session->premium()
+		&& !_allowWithoutPremium;
 	const auto owner = &session->data();
 	const auto &sets = owner->stickers().sets();
 	const auto push = [&](uint64 setId, bool installed) {
