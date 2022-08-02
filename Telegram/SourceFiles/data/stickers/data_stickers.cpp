@@ -25,6 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "mtproto/mtproto_config.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
@@ -1275,16 +1277,69 @@ std::vector<not_null<DocumentData*>> Stickers::getListByEmoji(
 		}
 	}
 
-	ranges::actions::sort(
-		result,
-		std::greater<>(),
-		&StickerWithDate::date);
+	ranges::sort(result, std::greater<>(), &StickerWithDate::date);
 
-	return ranges::views::all(
-		result
-	) | ranges::views::transform([](const StickerWithDate &data) {
-		return data.document;
-	}) | ranges::to_vector;
+	const auto appConfig = &session().account().appConfig();
+	auto mixed = std::vector<not_null<DocumentData*>>();
+	mixed.reserve(result.size());
+	auto premiumIndex = 0, nonPremiumIndex = 0;
+	const auto skipToNext = [&](bool premium) {
+		auto &index = premium ? premiumIndex : nonPremiumIndex;
+		while (index < result.size()
+			&& result[index].document->isPremiumSticker() != premium) {
+			++index;
+		}
+	};
+	const auto done = [&](bool premium) {
+		skipToNext(premium);
+		const auto &index = premium ? premiumIndex : nonPremiumIndex;
+		return (index == result.size());
+	};
+	const auto take = [&](bool premium) {
+		if (done(premium)) {
+			return false;
+		}
+		auto &index = premium ? premiumIndex : nonPremiumIndex;
+		mixed.push_back(result[index++].document);
+		return true;
+	};
+
+	if (session().premium()) {
+		const auto normalsPerPremium = appConfig->get<int>(
+			u"stickers_normal_by_emoji_per_premium_num"_q,
+			2);
+		do {
+			// Add "stickers_normal_by_emoji_per_premium_num" non-premium.
+			for (auto i = 0; i < normalsPerPremium; ++i) {
+				if (!take(false)) {
+					break;
+				}
+			}
+			// Then one premium.
+		} while (!done(false) && take(true));
+
+		// Add what's left.
+		while (take(false)) {
+		}
+		while (take(true)) {
+		}
+	} else {
+		// All non-premium.
+		while (take(false)) {
+		}
+
+		// In the end add "stickers_premium_by_emoji_num" premium.
+		const auto premiumsToEnd = appConfig->get<int>(
+			u"stickers_premium_by_emoji_num"_q,
+			0);
+		for (auto i = 0; i < premiumsToEnd; ++i) {
+			if (!take(true)) {
+				break;
+			}
+		}
+	}
+
+	return mixed;
 }
 
 std::optional<std::vector<not_null<EmojiPtr>>> Stickers::getEmojiListFromSet(
