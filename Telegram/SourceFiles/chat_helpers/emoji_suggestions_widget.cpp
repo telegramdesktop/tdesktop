@@ -64,12 +64,19 @@ auto SuggestionsWidget::triggered() const -> rpl::producer<Chosen> {
 	return _triggered.events();
 }
 
-void SuggestionsWidget::showWithQuery(const QString &query, bool force) {
+void SuggestionsWidget::showWithQuery(SuggestionsQuery query, bool force) {
 	if (!force && (_query == query)) {
 		return;
 	}
 	_query = query;
-	auto rows = prependCustom(getRowsByQuery());
+	auto rows = [&] {
+		if (const auto emoji = std::get_if<EmojiPtr>(&query)) {
+			return prependCustom(
+				{},
+				lookupCustom({ Row(*emoji, (*emoji)->text()) }));
+		}
+		return prependCustom(getRowsByQuery(v::get<QString>(query)));
+	}();
 	if (rows.empty()) {
 		_toggleAnimated.fire(false);
 	}
@@ -94,14 +101,15 @@ void SuggestionsWidget::selectFirstResult() {
 
 auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
 -> std::vector<Row> {
+	const auto custom = lookupCustom(rows);
+	return prependCustom(std::move(rows), custom);
+}
+
+auto SuggestionsWidget::lookupCustom(const std::vector<Row> &rows) const
+-> base::flat_multi_map<int, Custom> {
 	if (rows.empty()) {
 		return {};
 	}
-	struct Custom {
-		not_null<DocumentData*> document;
-		not_null<EmojiPtr> emoji;
-		QString replacement;
-	};
 	auto custom = base::flat_multi_map<int, Custom>();
 	const auto premium = _session->premium();
 	const auto stickers = &_session->data().stickers();
@@ -132,6 +140,13 @@ auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
 			}
 		}
 	}
+	return custom;
+}
+
+auto SuggestionsWidget::prependCustom(
+	std::vector<Row> rows,
+	const base::flat_multi_map<int, Custom> &custom)
+-> std::vector<Row> {
 	if (custom.empty()) {
 		return rows;
 	}
@@ -179,18 +194,19 @@ SuggestionsWidget::Row::Row(
 , replacement(replacement) {
 }
 
-auto SuggestionsWidget::getRowsByQuery() const -> std::vector<Row> {
-	if (_query.isEmpty()) {
+auto SuggestionsWidget::getRowsByQuery(const QString &text) const
+-> std::vector<Row> {
+	if (text.isEmpty()) {
 		return {};
 	}
-	const auto middle = (_query[0] == ':');
-	const auto real = middle ? _query.mid(1) : _query;
+	const auto middle = (text[0] == ':');
+	const auto real = middle ? text.mid(1) : text;
 	const auto simple = [&] {
-		if (!middle || _query.size() > 2) {
+		if (!middle || text.size() > 2) {
 			return false;
 		}
 		// Suggest :D and :-P only as exact matches.
-		return ranges::none_of(_query, [](QChar ch) { return ch.isLower(); });
+		return ranges::none_of(text, [](QChar ch) { return ch.isLower(); });
 	}();
 	const auto exact = !middle || simple;
 	const auto list = Core::App().emojiKeywords().query(real, exact);
@@ -730,8 +746,14 @@ void SuggestionsController::handleTextChange() {
 	InvokeQueued(_container, [=] { _ignoreCursorPositionChange = false; });
 
 	const auto query = getEmojiQuery();
-	if (query.isEmpty() || _textChangeAfterKeyPress) {
-		const auto exact = (!query.isEmpty() && query[0] != ':');
+	if (v::is<EmojiPtr>(query)) {
+		showWithQuery(query);
+		_suggestions->selectFirstResult();
+		return;
+	}
+	const auto text = v::get<QString>(query);
+	if (text.isEmpty() || _textChangeAfterKeyPress) {
+		const auto exact = !text.isEmpty() && (text[0] != ':');
 		if (exact) {
 			const auto hidden = _container->isHidden()
 				|| _container->isHiding();
@@ -743,14 +765,14 @@ void SuggestionsController::handleTextChange() {
 	}
 }
 
-void SuggestionsController::showWithQuery(const QString &query) {
+void SuggestionsController::showWithQuery(SuggestionsQuery query) {
 	_showExactTimer.cancel();
 	const auto force = base::take(_keywordsRefreshed);
 	_lastShownQuery = query;
 	_suggestions->showWithQuery(_lastShownQuery, force);
 }
 
-QString SuggestionsController::getEmojiQuery() {
+SuggestionsQuery SuggestionsController::getEmojiQuery() {
 	if (!Core::App().settings().suggestEmoji()) {
 		return QString();
 	}
@@ -763,7 +785,7 @@ QString SuggestionsController::getEmojiQuery() {
 	const auto modernLimit = Core::App().emojiKeywords().maxQueryLength();
 	const auto legacyLimit = GetSuggestionMaxLength();
 	const auto position = cursor.position();
-	const auto findTextPart = [&] {
+	const auto findTextPart = [&]() -> SuggestionsQuery {
 		auto document = _field->document();
 		auto block = document->findBlock(position);
 		for (auto i = block.begin(); !i.atEnd(); ++i) {
@@ -776,8 +798,13 @@ QString SuggestionsController::getEmojiQuery() {
 				continue;
 			}
 			const auto format = fragment.charFormat();
-			if (format.isImageFormat()
-				|| format.objectType() == InputField::kCustomEmojiFormat) {
+			if (format.objectType() == InputField::kCustomEmojiFormat) {
+				continue;
+			} else if (format.isImageFormat()) {
+				const auto imageName = format.toImageFormat().name();
+				if (const auto emoji = Emoji::FromUrl(imageName)) {
+					return emoji;
+				}
 				continue;
 			}
 			_queryStartPosition = from;
@@ -786,7 +813,11 @@ QString SuggestionsController::getEmojiQuery() {
 		return QString();
 	};
 
-	const auto text = findTextPart();
+	const auto part = findTextPart();
+	if (const auto emoji = std::get_if<EmojiPtr>(&part)) {
+		return *emoji;
+	}
+	const auto text = v::get<QString>(part);
 	if (text.isEmpty()) {
 		return QString();
 	}
@@ -828,12 +859,15 @@ void SuggestionsController::replaceCurrent(
 		const QString &replacement,
 		const QString &customEmojiData) {
 	const auto suggestion = getEmojiQuery();
-	if (suggestion.isEmpty()) {
+	const auto length = v::is<EmojiPtr>(suggestion)
+		? 1
+		: v::get<QString>(suggestion).size();
+	if (!length) {
 		showWithQuery(QString());
 	} else {
 		const auto cursor = _field->textCursor();
 		const auto position = cursor.position();
-		const auto from = position - suggestion.size();
+		const auto from = position - length;
 		_replaceCallback(from, position, replacement, customEmojiData);
 	}
 }

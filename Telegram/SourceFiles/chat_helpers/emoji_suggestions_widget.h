@@ -29,12 +29,14 @@ class CustomEmoji;
 
 namespace Ui::Emoji {
 
+using SuggestionsQuery = std::variant<QString, EmojiPtr>;
+
 class SuggestionsWidget final : public Ui::RpWidget {
 public:
 	SuggestionsWidget(QWidget *parent, not_null<Main::Session*> session);
 	~SuggestionsWidget();
 
-	void showWithQuery(const QString &query, bool force = false);
+	void showWithQuery(SuggestionsQuery query, bool force = false);
 	void selectFirstResult();
 	bool handleKeyEvent(int key);
 
@@ -55,6 +57,11 @@ private:
 		not_null<EmojiPtr> emoji;
 		QString replacement;
 	};
+	struct Custom {
+		not_null<DocumentData*> document;
+		not_null<EmojiPtr> emoji;
+		QString replacement;
+	};
 
 	bool eventHook(QEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -68,8 +75,14 @@ private:
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
 	void paintFadings(Painter &p) const;
 
-	[[nodiscard]] std::vector<Row> getRowsByQuery() const;
-	[[nodiscard]] std::vector<Row> prependCustom(std::vector<Row> rows);
+	[[nodiscard]] std::vector<Row> getRowsByQuery(const QString &text) const;
+	[[nodiscard]] base::flat_multi_map<int, Custom> lookupCustom(
+		const std::vector<Row> &rows) const;
+	[[nodiscard]] std::vector<Row> prependCustom(
+		std::vector<Row> rows);
+	[[nodiscard]] std::vector<Row> prependCustom(
+		std::vector<Row> rows,
+		const base::flat_multi_map<int, Custom> &custom);
 	void resizeToRows();
 	void setSelected(
 		int selected,
@@ -95,7 +108,7 @@ private:
 	void customEmojiRepaint();
 
 	const not_null<Main::Session*> _session;
-	QString _query;
+	SuggestionsQuery _query;
 	std::vector<Row> _rows;
 
 	base::flat_map<
@@ -154,8 +167,8 @@ public:
 private:
 	void handleCursorPositionChange();
 	void handleTextChange();
-	void showWithQuery(const QString &query);
-	[[nodiscard]] QString getEmojiQuery();
+	void showWithQuery(SuggestionsQuery query);
+	[[nodiscard]] SuggestionsQuery getEmojiQuery();
 	void suggestionsUpdated(bool visible);
 	void updateGeometry();
 	void updateForceHidden();
@@ -183,7 +196,7 @@ private:
 	base::unique_qptr<QObject> _outerFilter;
 	base::Timer _showExactTimer;
 	bool _keywordsRefreshed = false;
-	QString _lastShownQuery;
+	SuggestionsQuery _lastShownQuery;
 	Options _options;
 
 	rpl::lifetime _lifetime;
