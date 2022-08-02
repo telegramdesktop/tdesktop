@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/variant.h"
 #include "base/timer.h"
 
+class StickerPremiumMark;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -355,7 +357,6 @@ private:
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;
-	QImage _premiumStar;
 
 	OverState _selected;
 	OverState _pressed;
@@ -377,7 +378,7 @@ private:
 	base::Timer _previewTimer;
 	bool _previewShown = false;
 
-	QImage _premiumLockGray;
+	std::unique_ptr<StickerPremiumMark> _premiumMark;
 
 	std::map<QString, std::vector<uint64>> _searchCache;
 	std::vector<std::pair<uint64, QStringList>> _searchIndex;

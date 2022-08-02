@@ -180,6 +180,7 @@ StickersListWidget::StickersListWidget(
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
 , _settings(this, tr::lng_stickers_you_have(tr::now))
 , _previewTimer([=] { showPreview(); })
+, _premiumMark(std::make_unique<StickerPremiumMark>(&controller->session()))
 , _searchRequestTimer([=] { sendSearchRequest(); }) {
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
@@ -217,12 +218,6 @@ StickersListWidget::StickersListWidget(
 	) | rpl::skip(1) | rpl::map_to(
 		TabbedSelector::Action::Update
 	) | rpl::start_to_stream(_choosingUpdated, lifetime());
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_premiumLockGray = QImage();
-		_premiumStar = QImage();
-	}, lifetime());
 
 	Data::AmPremiumValue(
 		&session()
@@ -1375,39 +1370,14 @@ void StickersListWidget::paintSticker(
 	}
 
 	if (premium) {
-		validatePremiumLock(set, index, lottieFrame);
-		const auto &bg = lottieFrame.isNull()
-			? _premiumLockGray
-			: sticker.premiumLock;
-		const auto factor = style::DevicePixelRatio();
-		const auto radius = st::roundRadiusSmall;
-		const auto amPremium = session().premium();
-		const auto point = pos + QPoint(
-			(amPremium
-				? (_singleSize.width() - (bg.width() / factor) - radius)
-				: (_singleSize.width() - (bg.width() / factor)) / 2),
-			_singleSize.height() - (bg.height() / factor) - radius);
-		p.drawImage(point, bg);
-		if (amPremium) {
-			validatePremiumStar();
-			p.drawImage(point, _premiumStar);
-		} else {
-			st::stickersPremiumLock.paint(p, point, width());
-		}
+		_premiumMark->paint(
+			p,
+			lottieFrame,
+			sticker.premiumLock,
+			pos,
+			_singleSize,
+			width());
 	}
-}
-
-void StickersListWidget::validatePremiumLock(
-		Set &set,
-		int index,
-		const QImage &frame) {
-	auto &sticker = set.stickers[index];
-	auto &image = frame.isNull() ? _premiumLockGray : sticker.premiumLock;
-	ValidatePremiumLockBg(image, frame);
-}
-
-void StickersListWidget::validatePremiumStar() {
-	ValidatePremiumStarFg(_premiumStar);
 }
 
 int StickersListWidget::stickersRight() const {
