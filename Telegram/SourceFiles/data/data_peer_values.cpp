@@ -540,8 +540,7 @@ rpl::producer<int> UniqueReactionsLimitValue(
 	const auto config = &session->account().appConfig();
 	return config->value(
 	) | rpl::map([=] {
-		return int(base::SafeRound(
-			config->get<double>("reactions_uniq_max", 11)));
+		return config->get<int>("reactions_uniq_max", 11);
 	}) | rpl::distinct_until_changed();
 }
 
