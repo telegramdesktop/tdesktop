@@ -746,6 +746,7 @@ void SendFilesBox::setupEmojiPanel() {
 	) | rpl::start_with_next([=](Selector::FileChosen data) {
 		Data::InsertCustomEmoji(_caption.data(), data.document);
 	}, lifetime());
+	_emojiPanel->selector()->showPromoForPremiumEmoji();
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);

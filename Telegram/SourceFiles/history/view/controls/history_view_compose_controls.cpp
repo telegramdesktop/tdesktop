@@ -1850,6 +1850,13 @@ void ComposeControls::initTabbedSelector() {
 		Data::InsertCustomEmoji(_field, data.document);
 	}, wrap->lifetime());
 
+	selector->premiumEmojiChosen(
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		if (_unavailableEmojiPasted) {
+			_unavailableEmojiPasted(document);
+		}
+	}, wrap->lifetime());
+
 	selector->fileChosen(
 	) | rpl::start_to_stream(_fileChosen, wrap->lifetime());
 

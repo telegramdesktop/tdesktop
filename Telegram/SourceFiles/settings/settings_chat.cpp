@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_themes.h"
 #include "data/data_file_origin.h"
 #include "data/data_message_reactions.h"
+#include "data/data_peer_values.h"
 #include "chat_helpers/emoji_sets_manager.h"
 #include "base/platform/base_platform_info.h"
 #include "platform/platform_specific.h"
@@ -710,6 +711,21 @@ void SetupStickersEmoji(
 			std::move(handle),
 			inner->lifetime());
 	};
+	const auto addSliding = [&](
+			const QString &label,
+			bool checked,
+			auto &&handle,
+			rpl::producer<bool> shown) {
+		inner->add(
+			object_ptr<Ui::SlideWrap<Ui::Checkbox>>(
+				inner,
+				checkbox(label, checked),
+				st::settingsCheckboxPadding)
+		)->setDuration(0)->toggleOn(std::move(shown))->entity()->checkedChanges(
+		) | rpl::start_with_next(
+			std::move(handle),
+			inner->lifetime());
+	};
 
 	add(
 		tr::lng_settings_large_emoji(tr::now),
@@ -727,13 +743,30 @@ void SetupStickersEmoji(
 			Core::App().saveSettingsDelayed();
 		});
 
+	const auto suggestEmoji = inner->lifetime().make_state<
+		rpl::variable<bool>
+	>(Core::App().settings().suggestEmoji());
 	add(
 		tr::lng_settings_suggest_emoji(tr::now),
 		Core::App().settings().suggestEmoji(),
 		[=](bool checked) {
+			*suggestEmoji = checked;
 			Core::App().settings().setSuggestEmoji(checked);
 			Core::App().saveSettingsDelayed();
 		});
+
+	using namespace rpl::mappers;
+	addSliding(
+		tr::lng_settings_suggest_animated_emoji(tr::now),
+		Core::App().settings().suggestAnimatedEmoji(),
+		[=](bool checked) {
+			Core::App().settings().setSuggestAnimatedEmoji(checked);
+			Core::App().saveSettingsDelayed();
+		},
+		rpl::combine(
+			Data::AmPremiumValue(session),
+			suggestEmoji->value(),
+			_1 && _2));
 
 	add(
 		tr::lng_settings_suggest_by_emoji(tr::now),

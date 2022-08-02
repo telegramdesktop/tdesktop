@@ -1078,6 +1078,13 @@ void HistoryWidget::initTabbedSelector() {
 		Data::InsertCustomEmoji(_field.data(), data.document);
 	}, lifetime());
 
+	selector->premiumEmojiChosen(
+	) | rpl::filter([=] {
+		return !isHidden() && !_field->isHidden();
+	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		showPremiumToast(document);
+	}, lifetime());
+
 	selector->fileChosen(
 	) | filter | rpl::start_with_next([=](Selector::FileChosen data) {
 		controller()->sendingAnimation().appendSending(
@@ -5004,7 +5011,6 @@ bool HistoryWidget::confirmSendingFiles(
 	const auto position = cursor.position();
 	const auto anchor = cursor.anchor();
 	const auto text = _field->getTextWithTags();
-	using SendLimit = SendFilesBox::SendLimit;
 	auto box = Box<SendFilesBox>(
 		controller(),
 		std::move(list),
@@ -6763,7 +6769,7 @@ void HistoryWidget::showPremiumToast(not_null<DocumentData*> document) {
 	if (!_stickerToast) {
 		_stickerToast = std::make_unique<HistoryView::StickerToast>(
 			controller(),
-			_scroll.data(),
+			this,
 			[=] { _stickerToast = nullptr; });
 	}
 	_stickerToast->showFor(document);

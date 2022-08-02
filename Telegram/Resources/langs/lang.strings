@@ -233,6 +233,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
 "lng_animated_emoji_text" = "Subscribe to **Telegram Premium** to unlock this emoji.";
+"lng_animated_emoji_saved" = "Try sending these emoji in **Saved Messages** for free to test.";
+"lng_animated_emoji_saved_open" = "Open";
 "lng_reaction_premium_info" = "Click on the reaction to preview the animation.";
 "lng_reaction_premium_no_group" = "Some reactions are restricted in this group.";
 "lng_reaction_premium_no_channel" = "Some reactions are restricted in this channel.";
@@ -499,6 +501,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
+"lng_settings_suggest_animated_emoji" = "Suggest animated emoji";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_loop_stickers" = "Loop animated stickers";
 "lng_settings_large_emoji" = "Large emoji";

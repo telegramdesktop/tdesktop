@@ -82,6 +82,8 @@ public:
 	[[nodiscard]] rpl::producer<EmojiPtr> chosen() const;
 	[[nodiscard]] auto customChosen() const
 		-> rpl::producer<TabbedSelector::FileChosen>;
+	[[nodiscard]] auto premiumChosen() const
+		-> rpl::producer<not_null<DocumentData*>>;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -298,6 +300,7 @@ private:
 
 	rpl::event_stream<EmojiPtr> _chosen;
 	rpl::event_stream<TabbedSelector::FileChosen> _customChosen;
+	rpl::event_stream<not_null<DocumentData*>> _premiumChosen;
 
 };
 

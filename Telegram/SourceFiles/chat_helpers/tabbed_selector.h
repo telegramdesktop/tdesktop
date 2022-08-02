@@ -88,6 +88,7 @@ public:
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
 	rpl::producer<FileChosen> customEmojiChosen() const;
+	rpl::producer<not_null<DocumentData*>> premiumEmojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
@@ -102,6 +103,7 @@ public:
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
+	void showPromoForPremiumEmoji();
 
 	void hideFinished();
 	void showStarted();

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "boxes/sticker_set_box.h"
-#include "boxes/premium_preview_box.h"
 #include "lang/lang_keys.h"
 #include "layout/layout_position.h"
 #include "data/data_session.h"
@@ -451,6 +450,11 @@ rpl::producer<EmojiPtr> EmojiListWidget::chosen() const {
 auto EmojiListWidget::customChosen() const
 -> rpl::producer<TabbedSelector::FileChosen> {
 	return _customChosen.events();
+}
+
+auto EmojiListWidget::premiumChosen() const
+-> rpl::producer<not_null<DocumentData*>> {
+	return _premiumChosen.events();
 }
 
 void EmojiListWidget::visibleTopBottomUpdated(
@@ -1026,13 +1030,7 @@ void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
 	if (document->isPremiumEmoji()
 		&& !document->session().premium()
 		&& !_allowWithoutPremium) {
-		ShowPremiumPreviewBox(
-			controller(),
-			PremiumPreview::AnimatedEmoji,
-			{},
-			crl::guard(this, [=](not_null<Ui::BoxContent*> box) {
-				checkHideWithBox(box.get());
-			}));
+		_premiumChosen.fire_copy(document);
 		return;
 	}
 	Core::App().settings().incrementRecentEmoji({ RecentEmojiDocument{

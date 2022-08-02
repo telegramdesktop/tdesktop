@@ -111,7 +111,9 @@ auto SuggestionsWidget::appendCustom(std::vector<Row> rows)
 
 auto SuggestionsWidget::lookupCustom(const std::vector<Row> &rows) const
 -> base::flat_multi_map<int, Custom> {
-	if (rows.empty() || !_suggestCustomEmoji) {
+	if (rows.empty()
+		|| !_suggestCustomEmoji
+		|| !Core::App().settings().suggestAnimatedEmoji()) {
 		return {};
 	}
 	auto custom = base::flat_multi_map<int, Custom>();

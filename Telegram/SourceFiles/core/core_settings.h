@@ -404,6 +404,12 @@ public:
 	void setSuggestStickersByEmoji(bool value) {
 		_suggestStickersByEmoji = value;
 	}
+	[[nodiscard]] bool suggestAnimatedEmoji() const {
+		return _suggestAnimatedEmoji;
+	}
+	void setSuggestAnimatedEmoji(bool value) {
+		_suggestAnimatedEmoji = value;
+	}
 
 	void setSpellcheckerEnabled(bool value) {
 		_spellcheckerEnabled = value;
@@ -775,6 +781,7 @@ private:
 	rpl::variable<bool> _replaceEmoji = true;
 	bool _suggestEmoji = true;
 	bool _suggestStickersByEmoji = true;
+	bool _suggestAnimatedEmoji = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
 	rpl::variable<float64> _videoPlaybackSpeed = 1.;
 	float64 _voicePlaybackSpeed = 2.;
