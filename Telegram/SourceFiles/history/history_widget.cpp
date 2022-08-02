@@ -480,10 +480,14 @@ HistoryWidget::HistoryWidget(
 		Unexpected("action in MimeData hook.");
 	});
 
+	const auto allow = [=](const auto&) {
+		return _peer && _peer->isSelf();
+	};
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		this,
 		_field,
-		&controller->session());
+		&controller->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 	updateFieldSubmitSettings();
 

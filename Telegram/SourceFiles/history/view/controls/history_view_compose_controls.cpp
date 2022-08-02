@@ -1432,10 +1432,14 @@ void ComposeControls::initField() {
 		return false;
 	});
 	initAutocomplete();
+	const auto allow = [=](const auto &) {
+		return _history && Data::AllowEmojiWithoutPremium(_history->peer);
+	};
 	const auto suggestions = Ui::Emoji::SuggestionsController::Init(
 		_parent,
 		_field,
-		&_window->session());
+		&_window->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 	_raiseEmojiSuggestions = [=] { suggestions->raise(); };
 
 	const auto rawTextEdit = _field->rawTextEdit().get();

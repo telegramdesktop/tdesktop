@@ -43,9 +43,13 @@ constexpr auto kAnimationDuration = crl::time(120);
 
 SuggestionsWidget::SuggestionsWidget(
 	QWidget *parent,
-	not_null<Main::Session*> session)
+	not_null<Main::Session*> session,
+	bool suggestCustomEmoji,
+	Fn<bool(not_null<DocumentData*>)> allowCustomWithoutPremium)
 : RpWidget(parent)
 , _session(session)
+, _suggestCustomEmoji(suggestCustomEmoji)
+, _allowCustomWithoutPremium(std::move(allowCustomWithoutPremium))
 , _oneWidth(st::emojiSuggestionSize)
 , _padding(st::emojiSuggestionsPadding) {
 	resize(
@@ -71,11 +75,11 @@ void SuggestionsWidget::showWithQuery(SuggestionsQuery query, bool force) {
 	_query = query;
 	auto rows = [&] {
 		if (const auto emoji = std::get_if<EmojiPtr>(&query)) {
-			return prependCustom(
+			return appendCustom(
 				{},
 				lookupCustom({ Row(*emoji, (*emoji)->text()) }));
 		}
-		return prependCustom(getRowsByQuery(v::get<QString>(query)));
+		return appendCustom(getRowsByQuery(v::get<QString>(query)));
 	}();
 	if (rows.empty()) {
 		_toggleAnimated.fire(false);
@@ -99,15 +103,15 @@ void SuggestionsWidget::selectFirstResult() {
 	}
 }
 
-auto SuggestionsWidget::prependCustom(std::vector<Row> rows)
+auto SuggestionsWidget::appendCustom(std::vector<Row> rows)
 -> std::vector<Row> {
 	const auto custom = lookupCustom(rows);
-	return prependCustom(std::move(rows), custom);
+	return appendCustom(std::move(rows), custom);
 }
 
 auto SuggestionsWidget::lookupCustom(const std::vector<Row> &rows) const
 -> base::flat_multi_map<int, Custom> {
-	if (rows.empty()) {
+	if (rows.empty() || !_suggestCustomEmoji) {
 		return {};
 	}
 	auto custom = base::flat_multi_map<int, Custom>();
@@ -119,20 +123,25 @@ auto SuggestionsWidget::lookupCustom(const std::vector<Row> &rows) const
 			continue;
 		}
 		for (const auto &document : i->second->stickers) {
-			if (!premium && document->isPremiumEmoji()) {
+			if (!premium
+				&& document->isPremiumEmoji()
+				&& (!_allowCustomWithoutPremium
+					|| !_allowCustomWithoutPremium(document))) {
 				// Skip the whole premium emoji set.
 				break;
 			}
 			if (const auto sticker = document->sticker()) {
 				if (const auto emoji = Ui::Emoji::Find(sticker->alt)) {
-					const auto j = ranges::find(
+					const auto original = emoji->original();
+					const auto j = ranges::find_if(
 						rows,
-						not_null{ emoji },
-						&Row::emoji);
+						[&](const Row &row) {
+							return row.emoji->original() == original;
+						});
 					if (j != end(rows)) {
 						custom.emplace(int(j - begin(rows)), Custom{
 							.document = document,
-							.emoji = j->emoji,
+							.emoji = emoji,
 							.replacement = j->replacement,
 						});
 					}
@@ -143,24 +152,17 @@ auto SuggestionsWidget::lookupCustom(const std::vector<Row> &rows) const
 	return custom;
 }
 
-auto SuggestionsWidget::prependCustom(
+auto SuggestionsWidget::appendCustom(
 	std::vector<Row> rows,
 	const base::flat_multi_map<int, Custom> &custom)
 -> std::vector<Row> {
-	if (custom.empty()) {
-		return rows;
-	}
-	auto result = std::vector<Row>();
-	result.reserve(custom.size() + rows.size());
+	rows.reserve(rows.size() + custom.size());
 	for (const auto &[position, one] : custom) {
-		result.push_back(Row(one.emoji, one.replacement));
-		result.back().document = one.document;
-		result.back().custom = resolveCustomEmoji(one.document);
+		rows.push_back(Row(one.emoji, one.replacement));
+		rows.back().document = one.document;
+		rows.back().custom = resolveCustomEmoji(one.document);
 	}
-	for (auto &row : rows) {
-		result.push_back(std::move(row));
-	}
-	return result;
+	return rows;
 }
 
 not_null<Ui::Text::CustomEmoji*> SuggestionsWidget::resolveCustomEmoji(
@@ -639,7 +641,9 @@ SuggestionsController::SuggestionsController(
 	_suggestions = _container->setOwnedWidget(
 		object_ptr<Ui::Emoji::SuggestionsWidget>(
 			_container,
-			session));
+			session,
+			_options.suggestCustomEmoji,
+			_options.allowCustomWithoutPremium));
 
 	setReplaceCallback(nullptr);
 
@@ -689,7 +693,7 @@ SuggestionsController::SuggestionsController(
 	handleTextChange();
 }
 
-SuggestionsController *SuggestionsController::Init(
+not_null<SuggestionsController*> SuggestionsController::Init(
 		not_null<QWidget*> outer,
 		not_null<Ui::InputField*> field,
 		not_null<Main::Session*> session,

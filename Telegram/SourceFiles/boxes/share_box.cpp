@@ -299,7 +299,8 @@ void ShareBox::prepare() {
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_comment->entity(),
-		_descriptor.session);
+		_descriptor.session,
+		{ .suggestCustomEmoji = true });
 
 	_select->raise();
 }

@@ -244,15 +244,19 @@ void EditCaptionBox::rebuildPreview() {
 
 void EditCaptionBox::setupField() {
 	const auto peer = _historyItem->history()->peer;
+	const auto allow = [=](const auto&) {
+		return Data::AllowEmojiWithoutPremium(peer);
+	};
 	InitMessageFieldHandlers(
 		_controller,
 		_field.get(),
 		Window::GifPauseReason::Layer,
-		[=](const auto&) { return Data::AllowEmojiWithoutPremium(peer); });
+		allow);
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_field,
-		&_controller->session());
+		&_controller->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());

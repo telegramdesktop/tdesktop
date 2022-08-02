@@ -674,15 +674,19 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 }
 
 void SendFilesBox::setupCaption() {
+	const auto allow = [=](const auto&) {
+		return _allowEmojiWithoutPremium;
+	};
 	InitMessageFieldHandlers(
 		_controller,
 		_caption.data(),
 		Window::GifPauseReason::Layer,
-		[=](const auto&) { return _allowEmojiWithoutPremium; });
+		allow);
 	Ui::Emoji::SuggestionsController::Init(
 		getDelegate()->outerContainer(),
 		_caption,
-		&_controller->session());
+		&_controller->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
 	_caption->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());

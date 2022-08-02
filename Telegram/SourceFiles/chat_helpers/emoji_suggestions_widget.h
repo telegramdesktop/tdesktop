@@ -33,7 +33,11 @@ using SuggestionsQuery = std::variant<QString, EmojiPtr>;
 
 class SuggestionsWidget final : public Ui::RpWidget {
 public:
-	SuggestionsWidget(QWidget *parent, not_null<Main::Session*> session);
+	SuggestionsWidget(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		bool suggestCustomEmoji,
+		Fn<bool(not_null<DocumentData*>)> allowCustomWithoutPremium);
 	~SuggestionsWidget();
 
 	void showWithQuery(SuggestionsQuery query, bool force = false);
@@ -78,9 +82,9 @@ private:
 	[[nodiscard]] std::vector<Row> getRowsByQuery(const QString &text) const;
 	[[nodiscard]] base::flat_multi_map<int, Custom> lookupCustom(
 		const std::vector<Row> &rows) const;
-	[[nodiscard]] std::vector<Row> prependCustom(
+	[[nodiscard]] std::vector<Row> appendCustom(
 		std::vector<Row> rows);
-	[[nodiscard]] std::vector<Row> prependCustom(
+	[[nodiscard]] std::vector<Row> appendCustom(
 		std::vector<Row> rows,
 		const base::flat_multi_map<int, Custom> &custom);
 	void resizeToRows();
@@ -110,6 +114,8 @@ private:
 	const not_null<Main::Session*> _session;
 	SuggestionsQuery _query;
 	std::vector<Row> _rows;
+	bool _suggestCustomEmoji = false;
+	Fn<bool(not_null<DocumentData*>)> _allowCustomWithoutPremium;
 
 	base::flat_map<
 		not_null<DocumentData*>,
@@ -139,10 +145,9 @@ private:
 class SuggestionsController {
 public:
 	struct Options {
-		Options() : suggestExactFirstWord(true) {
-		}
-
-		bool suggestExactFirstWord;
+		bool suggestExactFirstWord = true;
+		bool suggestCustomEmoji = false;
+		Fn<bool(not_null<DocumentData*>)> allowCustomWithoutPremium;
 	};
 
 	SuggestionsController(
@@ -158,7 +163,7 @@ public:
 		const QString &replacement,
 		const QString &customEmojiData)> callback);
 
-	static SuggestionsController *Init(
+	static not_null<SuggestionsController*> Init(
 		not_null<QWidget*> outer,
 		not_null<Ui::InputField*> field,
 		not_null<Main::Session*> session,
