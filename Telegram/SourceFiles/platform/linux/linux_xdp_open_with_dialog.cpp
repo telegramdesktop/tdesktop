@@ -78,15 +78,15 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
 
-		const auto activationToken = []() -> std::optional<Glib::ustring> {
+		const auto activationToken = []() -> Glib::ustring {
 			using base::Platform::WaylandIntegration;
 			if (const auto integration = WaylandIntegration::Instance()) {
 				if (const auto token = integration->activationToken()
 					; !token.isNull()) {
-					return Glib::ustring(token.toStdString());
+					return token.toStdString();
 				}
 			}
-			return std::nullopt;
+			return {};
 		}();
 
 		auto uniqueName = connection->get_unique_name();
@@ -142,15 +142,13 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 						Glib::Variant<Glib::ustring>::create(handleToken)
 					},
 					{
+						"activation_token",
+						Glib::Variant<Glib::ustring>::create(activationToken)
+					},
+					{
 						"ask",
 						Glib::Variant<bool>::create(true)
 					},
-					activationToken
-						? std::pair<Glib::ustring, Glib::VariantBase>{
-							"activation_token",
-							Glib::Variant<Glib::ustring>::create(*activationToken)
-						}
-						: std::pair<Glib::ustring, Glib::VariantBase>{},
 				}),
 			}),
 			fdList,
