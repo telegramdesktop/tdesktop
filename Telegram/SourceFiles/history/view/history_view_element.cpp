@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_grouped.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
+#include "history/view/media/history_view_custom_emoji.h"
 #include "history/view/history_view_react_animation.h"
 #include "history/view/history_view_react_button.h"
 #include "history/view/history_view_cursor_state.h"
@@ -574,6 +575,13 @@ void Element::refreshMedia(Element *replacing) {
 	const auto session = &history()->session();
 	if (const auto media = _data->media()) {
 		_media = media->createView(this, replacing);
+	} else if (_data->isOnlyCustomEmoji()
+		&& Core::App().settings().largeEmoji()) {
+		_media = std::make_unique<UnwrappedMedia>(
+			this,
+			std::make_unique<CustomEmoji>(
+				this,
+				_data->onlyCustomEmoji()));
 	} else if (_data->isIsolatedEmoji()
 		&& Core::App().settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();

@@ -180,6 +180,7 @@ public:
 
 	void setText(const TextWithEntities &textWithEntities) override;
 	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const override;
+	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] auto originalTextWithLocalEntities() const
 		-> TextWithEntities override;
@@ -232,8 +233,8 @@ private:
 
 	[[nodiscard]] bool checkCommentsLinkedChat(ChannelId id) const;
 
-	void clearIsolatedEmoji();
-	void checkIsolatedEmoji();
+	void clearSpecialOnlyEmoji();
+	void checkSpecialOnlyEmoji();
 
 	// For an invoice button we replace the button text with a "Receipt" key.
 	// It should show the receipt for the payed invoice. Still let mobile apps do that.

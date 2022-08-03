@@ -1311,6 +1311,10 @@ Ui::Text::IsolatedEmoji HistoryItem::isolatedEmoji() const {
 	return {};
 }
 
+Ui::Text::OnlyCustomEmoji HistoryItem::onlyCustomEmoji() const {
+	return {};
+}
+
 HistoryItem::~HistoryItem() {
 	applyTTL(0);
 }

@@ -190,7 +190,12 @@ public:
 		return isGroupEssential() && isEmpty();
 	}
 	[[nodiscard]] bool isIsolatedEmoji() const {
-		return _flags & MessageFlag::IsolatedEmoji;
+		return (_flags & MessageFlag::SpecialOnlyEmoji)
+			&& _text.isIsolatedEmoji();
+	}
+	[[nodiscard]] bool isOnlyCustomEmoji() const {
+		return (_flags & MessageFlag::SpecialOnlyEmoji)
+			&& _text.isOnlyCustomEmoji();
 	}
 	[[nodiscard]] bool hasViews() const {
 		return _flags & MessageFlag::HasViews;
@@ -309,6 +314,7 @@ public:
 		ToPreviewOptions options) const;
 	[[nodiscard]] virtual TextWithEntities inReplyText() const;
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
+	[[nodiscard]] virtual Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}

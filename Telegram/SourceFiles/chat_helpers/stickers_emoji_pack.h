@@ -108,6 +108,13 @@ private:
 	mtpRequestId _requestId = 0;
 
 	base::flat_map<
+		not_null<HistoryItem*>,
+		base::flat_set<DocumentId>> _onlyCustomItems;
+	base::flat_map<
+		DocumentId,
+		base::flat_set<not_null<HistoryItem*>>> _onlyCustomWaiting;
+
+	base::flat_map<
 		EmojiPtr,
 		base::flat_map<int, not_null<DocumentData*>>> _animations;
 	mtpRequestId _animationsRequestId = 0;

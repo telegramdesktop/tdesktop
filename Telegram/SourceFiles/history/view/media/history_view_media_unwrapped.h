@@ -21,7 +21,8 @@ class UnwrappedMedia final : public Media {
 public:
 	class Content {
 	public:
-		[[nodiscard]] virtual QSize size() = 0;
+		[[nodiscard]] virtual QSize countOptimalSize() = 0;
+		[[nodiscard]] virtual QSize countCurrentSize(int newWidth);
 
 		virtual void draw(
 			Painter &p,
@@ -161,6 +162,8 @@ private:
 
 	std::unique_ptr<Content> _content;
 	QSize _contentSize;
+	int _topAdded = 0;
+	bool _additionalOnTop = false;
 
 };
 

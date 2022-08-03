@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/stickers_emoji_image_loader.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "lottie/lottie_common.h"
 #include "ui/emoji_config.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "core/core_settings.h"
 #include "core/application.h"
 #include "base/call_delayed.h"
@@ -121,7 +123,22 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 EmojiPack::~EmojiPack() = default;
 
 bool EmojiPack::add(not_null<HistoryItem*> item) {
-	if (const auto emoji = item->isolatedEmoji()) {
+	if (const auto custom = item->onlyCustomEmoji()) {
+		auto &ids = _onlyCustomItems[item];
+		Assert(ids.empty());
+		auto &manager = item->history()->owner().customEmojiManager();
+		for (const auto &line : custom.lines) {
+			for (const auto &element : line) {
+				const auto &data = element.entityData;
+				const auto id = Data::ParseCustomEmojiData(data).id;
+				if (!manager.resolved(id, [] {})) {
+					ids.emplace(id);
+					_onlyCustomWaiting[id].emplace(item);
+				}
+			}
+		}
+		return true;
+	} else if (const auto emoji = item->isolatedEmoji()) {
 		_items[emoji].emplace(item);
 		return true;
 	}
@@ -129,16 +146,28 @@ bool EmojiPack::add(not_null<HistoryItem*> item) {
 }
 
 void EmojiPack::remove(not_null<const HistoryItem*> item) {
-	Expects(item->isIsolatedEmoji());
+	Expects(item->isIsolatedEmoji() || item->isOnlyCustomEmoji());
 
-	const auto emoji = item->isolatedEmoji();
-	const auto i = _items.find(emoji);
-	Assert(i != end(_items));
-	const auto j = i->second.find(item);
-	Assert(j != end(i->second));
-	i->second.erase(j);
-	if (i->second.empty()) {
-		_items.erase(i);
+	if (item->isOnlyCustomEmoji()) {
+		if (const auto list = _onlyCustomItems.take(item)) {
+			for (const auto id : *list) {
+				const auto i = _onlyCustomWaiting.find(id);
+				Assert(i != end(_onlyCustomWaiting));
+				i->second.remove(item);
+				if (i->second.empty()) {
+					_onlyCustomWaiting.erase(i);
+				}
+			}
+		}
+	} else if (const auto emoji = item->isolatedEmoji()) {
+		const auto i = _items.find(emoji);
+		Assert(i != end(_items));
+		const auto j = i->second.find(item);
+		Assert(j != end(i->second));
+		i->second.erase(j);
+		if (i->second.empty()) {
+			_items.erase(i);
+		}
 	}
 }
 

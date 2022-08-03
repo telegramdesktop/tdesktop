@@ -1491,7 +1491,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		return;
 	}
 
-	clearIsolatedEmoji();
+	clearSpecialOnlyEmoji();
 	const auto context = Core::MarkedTextContext{
 		.session = &history()->session(),
 		.customEmojiRepaint = [=] { customEmojiRepaint(); },
@@ -1510,7 +1510,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			EnsureNonEmpty(),
 			Ui::ItemTextOptions(this));
 	} else if (!_media) {
-		checkIsolatedEmoji();
+		checkSpecialOnlyEmoji();
 	}
 
 	_textWidth = -1;
@@ -1523,7 +1523,7 @@ void HistoryMessage::reapplyText() {
 }
 
 void HistoryMessage::setEmptyText() {
-	clearIsolatedEmoji();
+	clearSpecialOnlyEmoji();
 	_text.setMarkedText(
 		st::messageTextStyle,
 		{ QString(), EntitiesInText() },
@@ -1533,17 +1533,17 @@ void HistoryMessage::setEmptyText() {
 	_textHeight = 0;
 }
 
-void HistoryMessage::clearIsolatedEmoji() {
-	if (!(_flags & MessageFlag::IsolatedEmoji)) {
+void HistoryMessage::clearSpecialOnlyEmoji() {
+	if (!(_flags & MessageFlag::SpecialOnlyEmoji)) {
 		return;
 	}
 	history()->session().emojiStickersPack().remove(this);
-	_flags &= ~MessageFlag::IsolatedEmoji;
+	_flags &= ~MessageFlag::SpecialOnlyEmoji;
 }
 
-void HistoryMessage::checkIsolatedEmoji() {
+void HistoryMessage::checkSpecialOnlyEmoji() {
 	if (history()->session().emojiStickersPack().add(this)) {
-		_flags |= MessageFlag::IsolatedEmoji;
+		_flags |= MessageFlag::SpecialOnlyEmoji;
 	}
 }
 
@@ -1594,6 +1594,10 @@ void HistoryMessage::setReplyMarkup(HistoryMessageMarkupData &&markup) {
 
 Ui::Text::IsolatedEmoji HistoryMessage::isolatedEmoji() const {
 	return _text.toIsolatedEmoji();
+}
+
+Ui::Text::OnlyCustomEmoji HistoryMessage::onlyCustomEmoji() const {
+	return _text.toOnlyCustomEmoji();
 }
 
 TextWithEntities HistoryMessage::originalText() const {

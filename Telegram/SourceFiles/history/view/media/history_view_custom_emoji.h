@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media_unwrapped.h"
-#include "ui/text/text_isolated_emoji.h"
+
+namespace Ui::Text {
+struct OnlyCustomEmoji;
+} // namespace Ui::Text
 
 namespace Stickers {
 struct LargeEmojiImage;
@@ -16,19 +19,22 @@ struct LargeEmojiImage;
 
 namespace HistoryView {
 
-using LargeEmojiMedia = std::variant<
-	v::null_t,
-	std::shared_ptr<Stickers::LargeEmojiImage>,
+class Sticker;
+
+using LargeCustomEmoji = std::variant<
+	QString,
+	std::unique_ptr<Sticker>,
 	std::unique_ptr<Ui::Text::CustomEmoji>>;
 
-class LargeEmoji final : public UnwrappedMedia::Content {
+class CustomEmoji final : public UnwrappedMedia::Content {
 public:
-	LargeEmoji(
+	CustomEmoji(
 		not_null<Element*> parent,
-		const Ui::Text::IsolatedEmoji &emoji);
-	~LargeEmoji();
+		const Ui::Text::OnlyCustomEmoji &emoji);
+	~CustomEmoji();
 
 	QSize countOptimalSize() override;
+	QSize countCurrentSize(int newWidth) override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
@@ -45,8 +51,22 @@ public:
 	void unloadHeavyPart() override;
 
 private:
+	void paintElement(
+		Painter &p,
+		int x,
+		int y,
+		LargeCustomEmoji &element,
+		const PaintContext &context,
+		bool paused);
+	void paintSticker(
+		Painter &p,
+		int x,
+		int y,
+		not_null<Sticker*> sticker,
+		const PaintContext &context,
+		bool paused);
 	void paintCustom(
-		QPainter &p,
+		Painter &p,
 		int x,
 		int y,
 		not_null<Ui::Text::CustomEmoji*> emoji,
@@ -54,9 +74,9 @@ private:
 		bool paused);
 
 	const not_null<Element*> _parent;
-	const std::array<LargeEmojiMedia, Ui::Text::kIsolatedEmojiLimit> _images;
+	std::vector<std::vector<LargeCustomEmoji>> _lines;
 	QImage _selectedFrame;
-	QSize _size;
+	int _singleSize = 0;
 	bool _hasHeavyPart = false;
 
 };

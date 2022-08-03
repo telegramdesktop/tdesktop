@@ -24,6 +24,10 @@ class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
+namespace ChatHelpers {
+enum class StickerLottieSize : uint8;
+} // namespace ChatHelpers
+
 namespace HistoryView {
 
 class Sticker final
@@ -39,7 +43,7 @@ public:
 	~Sticker();
 
 	void initSize();
-	QSize size() override;
+	QSize countOptimalSize() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
@@ -65,6 +69,7 @@ public:
 	}
 
 	void setDiceIndex(const QString &emoji, int index);
+	void setCustomEmojiPart(int size, ChatHelpers::StickerLottieSize tag);
 	[[nodiscard]] bool atTheEnd() const {
 		return 	(_frameIndex >= 0) && (_frameIndex + 1 == _framesCount);
 	}
@@ -92,6 +97,7 @@ public:
 
 private:
 	[[nodiscard]] bool hasPremiumEffect() const;
+	[[nodiscard]] bool customEmojiPart() const;
 	[[nodiscard]] bool isEmojiSticker() const;
 	void paintLottie(Painter &p, const PaintContext &context, const QRect &r);
 	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
@@ -123,10 +129,11 @@ private:
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
-	mutable bool _lottieOncePlayed = false;
-	mutable bool _premiumEffectPlayed = false;
-	mutable bool _nextLastDiceFrame = false;
-	bool _skipPremiumEffect = false;
+	ChatHelpers::StickerLottieSize _cachingTag = {};
+	mutable bool _lottieOncePlayed : 1;
+	mutable bool _premiumEffectPlayed : 1;
+	mutable bool _nextLastDiceFrame : 1;
+	bool _skipPremiumEffect : 1;
 
 	rpl::lifetime _lifetime;
 

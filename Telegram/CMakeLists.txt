@@ -618,6 +618,8 @@ PRIVATE
     history/view/media/history_view_call.cpp
     history/view/media/history_view_contact.h
     history/view/media/history_view_contact.cpp
+    history/view/media/history_view_custom_emoji.h
+    history/view/media/history_view_custom_emoji.cpp
     history/view/media/history_view_dice.h
     history/view/media/history_view_dice.cpp
     history/view/media/history_view_document.h

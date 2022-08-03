@@ -68,6 +68,10 @@ Sticker::Sticker(
 : _parent(parent)
 , _data(data)
 , _replacements(replacements)
+, _cachingTag(ChatHelpers::StickerLottieSize::MessageHistory)
+, _lottieOncePlayed(false)
+, _premiumEffectPlayed(false)
+, _nextLastDiceFrame(false)
 , _skipPremiumEffect(skipPremiumEffect) {
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
@@ -106,6 +110,10 @@ bool Sticker::hasPremiumEffect() const {
 	return !_skipPremiumEffect && _data->isPremiumSticker();
 }
 
+bool Sticker::customEmojiPart() const {
+	return (_cachingTag != ChatHelpers::StickerLottieSize::MessageHistory);
+}
+
 bool Sticker::isEmojiSticker() const {
 	return (_parent->data()->media() == nullptr);
 }
@@ -126,11 +134,11 @@ void Sticker::initSize() {
 	}
 }
 
-QSize Sticker::size() {
+QSize Sticker::countOptimalSize() {
 	if (_size.isEmpty()) {
 		initSize();
 	}
-	return _size;
+	return DownscaledSize(_size, Size());
 }
 
 bool Sticker::readyToDrawLottie() {
@@ -184,6 +192,10 @@ void Sticker::draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &r) {
+	if (!customEmojiPart() && isEmojiSticker()) {
+		_parent->clearCustomEmojiRepaint();
+	}
+
 	ensureDataMediaCreated();
 	if (readyToDrawLottie()) {
 		paintLottie(p, context, r);
@@ -257,7 +269,7 @@ void Sticker::paintLottie(
 		? true
 		: (_diceIndex == 0)
 		? false
-		: (isEmojiSticker()
+		: ((!customEmojiPart() && isEmojiSticker())
 			|| !Core::App().settings().loopAnimatedStickers());
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
 	const auto switchToNext = /*(_externalInfo.frame >= 0)
@@ -445,14 +457,21 @@ void Sticker::setDiceIndex(const QString &emoji, int index) {
 	_diceIndex = index;
 }
 
+void Sticker::setCustomEmojiPart(
+		int size,
+		ChatHelpers::StickerLottieSize tag) {
+	_size = { size, size };
+	_cachingTag = tag;
+}
+
 void Sticker::setupLottie() {
 	Expects(_dataMedia != nullptr);
 
 	_lottie = ChatHelpers::LottiePlayerFromDocument(
 		_dataMedia.get(),
 		_replacements,
-		ChatHelpers::StickerLottieSize::MessageHistory,
-		size() * style::DevicePixelRatio(),
+		_cachingTag,
+		countOptimalSize() * style::DevicePixelRatio(),
 		Lottie::Quality::High);
 	checkPremiumEffectStart();
 	lottieCreated();
@@ -473,10 +492,10 @@ void Sticker::lottieCreated() {
 	_lottie->updates(
 	) | rpl::start_with_next([=](Lottie::Update update) {
 		v::match(update.data, [&](const Lottie::Information &information) {
-			_parent->history()->owner().requestViewResize(_parent);
+			_parent->customEmojiRepaint();
 			//markFramesTillExternal();
 		}, [&](const Lottie::DisplayFrameRequest &request) {
-			_parent->history()->owner().requestViewRepaint(_parent);
+			_parent->customEmojiRepaint();
 		});
 	}, _lifetime);
 }

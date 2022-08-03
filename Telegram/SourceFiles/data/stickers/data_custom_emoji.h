@@ -54,6 +54,9 @@ public:
 		Fn<void()> update,
 		SizeTag tag = SizeTag::Normal);
 
+	bool resolved(QStringView data, Fn<void()> callback);
+	bool resolved(DocumentId documentId, Fn<void()> callback);
+
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
 		SizeTag tag);
@@ -98,15 +101,16 @@ private:
 
 	std::array<
 		base::flat_map<
-			uint64,
+			DocumentId,
 			std::unique_ptr<Ui::CustomEmoji::Instance>>,
 		kSizeCount> _instances;
 	std::array<
 		base::flat_map<
-			uint64,
+			DocumentId,
 			std::vector<base::weak_ptr<CustomEmojiLoader>>>,
 		kSizeCount> _loaders;
-	base::flat_set<uint64> _pendingForRequest;
+	base::flat_map<DocumentId, std::vector<Fn<void()>>> _resolvers;
+	base::flat_set<DocumentId> _pendingForRequest;
 	mtpRequestId _requestId = 0;
 
 	base::flat_map<crl::time, RepaintBunch> _repaints;
@@ -116,6 +120,8 @@ private:
 	bool _requestSetsScheduled = false;
 
 };
+
+[[nodiscard]] int FrameSizeFromTag(CustomEmojiManager::SizeTag tag);
 
 [[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id);
 [[nodiscard]] QString SerializeCustomEmojiId(

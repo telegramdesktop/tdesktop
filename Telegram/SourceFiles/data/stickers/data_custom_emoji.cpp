@@ -35,11 +35,12 @@ constexpr auto kMaxPerRequest = 100;
 using SizeTag = CustomEmojiManager::SizeTag;
 
 [[nodiscard]] ChatHelpers::StickerLottieSize LottieSizeFromTag(SizeTag tag) {
+	// NB! onlyCustomEmoji dimensions caching uses last ::EmojiInteraction-s.
 	using LottieSize = ChatHelpers::StickerLottieSize;
 	switch (tag) {
-	case SizeTag::Normal: return LottieSize::MessageHistory;
-	case SizeTag::Large: return LottieSize::StickersPanel;
-	case SizeTag::Isolated: return LottieSize::EmojiInteraction;
+	case SizeTag::Normal: return LottieSize::EmojiInteraction;
+	case SizeTag::Large: return LottieSize::EmojiInteractionReserved1;
+	case SizeTag::Isolated: return LottieSize::EmojiInteractionReserved2;
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
@@ -53,12 +54,6 @@ using SizeTag = CustomEmojiManager::SizeTag;
 			* style::DevicePixelRatio();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
-}
-
-[[nodiscard]] int SizeFromTag(SizeTag tag) {
-	const auto emoji = EmojiSizeFromTag(tag);
-	const auto factor = style::DevicePixelRatio();
-	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
 
 } // namespace
@@ -233,7 +228,7 @@ void CustomEmojiLoader::startCacheLookup(
 	lookup->process = std::make_unique<Process>(Process{
 		.loaded = std::move(loaded),
 	});
-	const auto size = SizeFromTag(_tag);
+	const auto size = FrameSizeFromTag(_tag);
 	const auto weak = base::make_weak(&lookup->process->guard);
 	document->owner().cacheBigFile().get(key, [=](QByteArray value) {
 		auto cache = Ui::CustomEmoji::Cache::FromSerialized(value, size);
@@ -286,7 +281,7 @@ void CustomEmojiLoader::check() {
 	load->process->lifetime.destroy();
 
 	const auto tag = _tag;
-	const auto size = SizeFromTag(_tag);
+	const auto size = FrameSizeFromTag(_tag);
 	auto bytes = Lottie::ReadContent(data, filepath);
 	auto loader = [=] {
 		return std::make_unique<CustomEmojiLoader>(document, tag);
@@ -348,7 +343,7 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 			|| !dimensions.width()) {
 			return {};
 		}
-		const auto scale = (SizeFromTag(_tag) * 1.)
+		const auto scale = (FrameSizeFromTag(_tag) * 1.)
 			/ (style::DevicePixelRatio() * dimensions.width());
 		return { document->createMediaView()->thumbnailPath(), scale };
 	};
@@ -411,7 +406,7 @@ Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 		if (j == end(other)) {
 			continue;
 		} else if (const auto nonExact = j->second->imagePreview()) {
-			const auto size = SizeFromTag(tag);
+			const auto size = FrameSizeFromTag(tag);
 			return {
 				nonExact.image().scaled(
 					size,
@@ -449,6 +444,24 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	return create(document->id, std::move(update), tag, [&] {
 		return createLoader(document, tag);
 	});
+}
+
+bool CustomEmojiManager::resolved(QStringView data, Fn<void()> callback) {
+	return resolved(ParseCustomEmojiData(data).id, std::move(callback));
+}
+
+bool CustomEmojiManager::resolved(
+		DocumentId documentId,
+		Fn<void()> callback) {
+	if (_owner->document(documentId)->sticker()) {
+		return true;
+	}
+	_resolvers[documentId].push_back(std::move(callback));
+	_pendingForRequest.emplace(documentId);
+	if (!_requestId && _pendingForRequest.size() == 1) {
+		crl::on_main(this, [=] { request(); });
+	}
+	return false;
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
@@ -508,6 +521,11 @@ void CustomEmojiManager::request() {
 							strong->resolved(document);
 						}
 					}
+				}
+			}
+			if (const auto callbacks = _resolvers.take(id)) {
+				for (const auto &callback : *callbacks) {
+					callback();
 				}
 			}
 			requestSetFor(document);
@@ -621,6 +639,12 @@ Main::Session &CustomEmojiManager::session() const {
 
 Session &CustomEmojiManager::owner() const {
 	return *_owner;
+}
+
+int FrameSizeFromTag(SizeTag tag) {
+	const auto emoji = EmojiSizeFromTag(tag);
+	const auto factor = style::DevicePixelRatio();
+	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
 
 QString SerializeCustomEmojiId(const CustomEmojiId &id) {

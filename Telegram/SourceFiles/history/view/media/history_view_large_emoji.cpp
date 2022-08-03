@@ -68,7 +68,7 @@ LargeEmoji::~LargeEmoji() {
 	}
 }
 
-QSize LargeEmoji::size() {
+QSize LargeEmoji::countOptimalSize() {
 	using namespace rpl::mappers;
 
 	const auto count = _images.size()

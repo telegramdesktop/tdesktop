@@ -268,8 +268,8 @@ enum class MessageFlag : uint32 {
 	// Outgoing message and failed to be sent.
 	SendingFailed         = (1U << 26),
 
-	// No media and only a several emoji text.
-	IsolatedEmoji         = (1U << 27),
+	// No media and only a several emoji or an only custom emoji text.
+	SpecialOnlyEmoji      = (1U << 27),
 
 	// Message existing in the message history.
 	HistoryEntry          = (1U << 28),

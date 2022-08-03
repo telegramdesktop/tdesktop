@@ -139,8 +139,8 @@ bool SlotMachine::isEndResolved() const {
 	return _end[0].has_value() || (_dice->value() != kWinValue);
 }
 
-QSize SlotMachine::size() {
-	return _pull ? _pull->size() : Sticker::EmojiSize();
+QSize SlotMachine::countOptimalSize() {
+	return _pull ? _pull->countOptimalSize() : Sticker::EmojiSize();
 }
 
 ClickHandlerPtr SlotMachine::link() {
