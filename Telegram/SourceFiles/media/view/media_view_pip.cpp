@@ -38,6 +38,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
+#include <private/qwidget_p.h>
+
+#ifdef QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+// private QtWaylandClient headers are using keywords :(
+#ifdef QT_NO_KEYWORDS
+#define signals Q_SIGNALS
+#define slots Q_SLOTS
+#endif // QT_NO_KEYWORDS
+
+#include <private/qwaylandeglwindow_p.h>
+#endif // QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
 
 namespace Media {
 namespace View {
@@ -572,6 +583,44 @@ void PipPanel::setGeometry(QRect geometry) {
 	widget()->setGeometry(geometry);
 }
 
+void PipPanel::handleResize(QSize size) {
+	if (!Platform::IsWayland()) {
+		return;
+	}
+	
+	const auto d = dynamic_cast<QWidgetPrivate*>(rp()->rpPrivate());
+	if (!d) {
+		return;
+	}
+
+	// Apply aspect ratio.
+	const auto max = std::max(size.width(), size.height());
+	const auto scaled = (_ratio.width() > _ratio.height())
+		? QSize(max, max * _ratio.height() / _ratio.width())
+		: QSize(max * _ratio.width() / _ratio.height(), max);
+
+	// Buffer can't be bigger than surface size.
+	const auto byWidth = (scaled.width() * size.height())
+		> (scaled.height() * size.width());
+	const auto normalized = (byWidth && scaled.width() > size.width())
+		? QSize(size.width(), size.width() * scaled.height() / scaled.width())
+		: (!byWidth && scaled.height() > size.height())
+		? QSize(
+			size.height() * scaled.width() / scaled.height(),
+			size.height())
+		: scaled;
+
+	d->data.crect = QRect(d->data.crect.topLeft(), normalized);
+
+#ifdef QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+	using QtWaylandClient::QWaylandEglWindow;
+	if (const auto waylandEglWindow = dynamic_cast<QWaylandEglWindow*>(
+		widget()->windowHandle()->handle())) {
+		waylandEglWindow->ensureSize();
+	}
+#endif // QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+}
+
 void PipPanel::handleMousePress(QPoint position, Qt::MouseButton button) {
 	if (button != Qt::LeftButton) {
 		return;
@@ -903,6 +952,11 @@ void Pip::setupPanel() {
 			handleDoubleClick(mouseButton());
 			break;
 		}
+	}, _panel.rp()->lifetime());
+
+	_panel.rp()->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		_panel.handleResize(size);
 	}, _panel.rp()->lifetime());
 }
 

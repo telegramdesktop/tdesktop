@@ -491,6 +491,7 @@ void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 #ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
+	qputenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION", "desktop-app-wayland-egl");
 	qputenv("QT_WAYLAND_SHELL_INTEGRATION", "desktop-app-xdg-shell;xdg-shell");
 #endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 
@@ -627,6 +628,13 @@ namespace ThirdParty {
 void start() {
 	LOG(("Icon theme: %1").arg(QIcon::themeName()));
 	LOG(("Fallback icon theme: %1").arg(QIcon::fallbackThemeName()));
+
+#ifndef DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
+	InvokeQueued(qApp, [] {
+		qunsetenv("QT_WAYLAND_CLIENT_BUFFER_INTEGRATION");
+		qunsetenv("QT_WAYLAND_SHELL_INTEGRATION");
+	});
+#endif // !DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION
 }
 
 void finish() {
