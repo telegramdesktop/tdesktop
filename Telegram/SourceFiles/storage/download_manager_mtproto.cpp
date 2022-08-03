@@ -564,7 +564,7 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 		const auto owner = &api().session().data();
 		return api().request(MTPupload_GetWebFile(
 			MTP_inputWebFileAudioAlbumThumbLocation(
-				MTP_flags(Flag::f_document),
+				MTP_flags(Flag::f_document | Flag::f_small),
 				owner->document(location.documentId)->mtpInput(),
 				MTPstring(),
 				MTPstring()),
