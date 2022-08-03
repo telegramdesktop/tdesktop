@@ -164,10 +164,16 @@ public:
 		const QString &customEmojiData)> callback);
 
 	static not_null<SuggestionsController*> Init(
+			not_null<QWidget*> outer,
+			not_null<Ui::InputField*> field,
+			not_null<Main::Session*> session) {
+		return Init(outer, field, session, {});
+	}
+	static not_null<SuggestionsController*> Init(
 		not_null<QWidget*> outer,
 		not_null<Ui::InputField*> field,
 		not_null<Main::Session*> session,
-		const Options &options = Options());
+		const Options &options);
 
 private:
 	void handleCursorPositionChange();
