@@ -76,6 +76,7 @@ public:
 	void setDragDisabled(bool disabled);
 	[[nodiscard]] bool dragging() const;
 
+	void handleResize(QSize size);
 	void handleMousePress(QPoint position, Qt::MouseButton button);
 	void handleMouseRelease(QPoint position, Qt::MouseButton button);
 	void handleMouseMove(QPoint position);
