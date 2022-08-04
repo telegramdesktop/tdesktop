@@ -101,10 +101,6 @@ public:
 	QPoint resolveCustomInfoRightBottom() const override;
 	QString additionalInfoString() const override;
 
-	void stickerClearLoopPlayed() override {
-		_stickerOncePlayed = false;
-	}
-
 	bool skipBubbleTail() const override {
 		return isRoundedInBubbleBottom() && _caption.isEmpty();
 	}
@@ -181,11 +177,6 @@ private:
 		StateRequest request,
 		QPoint position) const;
 
-	void paintPath(
-		Painter &p,
-		const PaintContext &context,
-		const QRect &r) const;
-
 	const not_null<DocumentData*> _data;
 	int _thumbw = 1;
 	int _thumbh = 1;
@@ -193,10 +184,7 @@ private:
 	std::unique_ptr<Streamed> _streamed;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
-	ClickHandlerPtr _stickerLink;
-
 	QString _downloadSize;
-	mutable bool _stickerOncePlayed = false;
 
 };
 

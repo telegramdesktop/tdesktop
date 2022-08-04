@@ -33,7 +33,11 @@ public:
 	crl::time frameRealTime() const override;
 	crl::time framePresentationTime() const override;
 
-	bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) override;
+	bool renderFrame(
+		QImage &to,
+		bool &hasAlpha,
+		int &index,
+		const QSize &size) override;
 
 	crl::time durationMs() const override;
 
@@ -85,6 +89,7 @@ private:
 	AVCodecContext *_codecContext = nullptr;
 	int _streamId = 0;
 	FFmpeg::FramePointer _frame;
+	int _frameIndex = -1;
 	bool _opened = false;
 	bool _hadFrame = false;
 	bool _frameRead = false;

@@ -208,7 +208,7 @@ void StickersListFooter::clearHeavyData() {
 		icon.lifetime.destroy();
 		icon.stickerMedia = nullptr;
 		if (!info.visible) {
-			icon.savedFrame = QPixmap();
+			icon.savedFrame = QImage();
 		}
 		return true;
 	});
@@ -1142,7 +1142,7 @@ void StickersListFooter::paintSetIcon(
 			const auto frame = icon.lottie->frame();
 			const auto size = frame.size() / cIntRetinaFactor();
 			if (icon.savedFrame.isNull()) {
-				icon.savedFrame = QPixmap::fromImage(frame, Qt::ColorOnly);
+				icon.savedFrame = frame;
 				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			}
 			p.drawImage(
@@ -1163,17 +1163,17 @@ void StickersListFooter::paintSetIcon(
 				icon.savedFrame = frame;
 				icon.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			}
-			p.drawPixmapLeft(x, y, width(), frame);
-		} else if (!icon.savedFrame.isNull() || thumb) {
-			const auto pixmap = !icon.savedFrame.isNull()
-				? icon.savedFrame
-				: (!icon.lottie && thumb)
+			p.drawImage(x, y, frame);
+		} else if (!icon.savedFrame.isNull()) {
+			p.drawImage(x, y, icon.savedFrame);
+		} else if (thumb) {
+			const auto pixmap = (!icon.lottie && thumb)
 				? thumb->pix(icon.pixw, icon.pixh)
 				: QPixmap();
 			if (pixmap.isNull()) {
 				return;
 			} else if (icon.savedFrame.isNull()) {
-				icon.savedFrame = pixmap;
+				icon.savedFrame = pixmap.toImage();
 			}
 			p.drawPixmapLeft(x, y, width(), pixmap);
 		}

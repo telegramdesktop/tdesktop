@@ -25,10 +25,9 @@ constexpr auto kMaxForwardedBarLines = 4;
 
 } // namespace
 
-auto UnwrappedMedia::Content::stickerTakeLottie(
-	not_null<DocumentData*> data,
-	const Lottie::ColorReplacements *replacements)
--> std::unique_ptr<Lottie::SinglePlayer> {
+std::unique_ptr<StickerPlayer> UnwrappedMedia::Content::stickerTakePlayer(
+		not_null<DocumentData*> data,
+		const Lottie::ColorReplacements *replacements) {
 	return nullptr;
 }
 
@@ -465,10 +464,10 @@ QPoint UnwrappedMedia::resolveCustomInfoRightBottom() const {
 	return QPoint(fullRight - skipx, fullBottom - skipy);
 }
 
-std::unique_ptr<Lottie::SinglePlayer> UnwrappedMedia::stickerTakeLottie(
+std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
-	return _content->stickerTakeLottie(data, replacements);
+	return _content->stickerTakePlayer(data, replacements);
 }
 
 //void UnwrappedMedia::externalLottieProgressing(bool external) {

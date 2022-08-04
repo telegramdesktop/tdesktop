@@ -38,7 +38,7 @@ public:
 		}
 		virtual void stickerClearLoopPlayed() {
 		}
-		virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+		virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
 			not_null<DocumentData*> data,
 			const Lottie::ColorReplacements *replacements);
 
@@ -104,7 +104,7 @@ public:
 	void stickerClearLoopPlayed() override {
 		_content->stickerClearLoopPlayed();
 	}
-	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
 

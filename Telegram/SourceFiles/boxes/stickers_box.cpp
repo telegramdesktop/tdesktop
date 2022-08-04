@@ -1421,10 +1421,9 @@ void StickersBox::Inner::paintRowThumbnail(
 			row->lottie->markFrameShown();
 		}
 	} else if (row->webm && row->webm->started()) {
-		p.drawPixmapLeft(
+		p.drawImage(
 			x,
 			y,
-			width(),
 			row->webm->current(
 				{ .frame = { row->pixw, row->pixh }, .keepAlpha = true },
 				paused ? 0 : crl::now()));

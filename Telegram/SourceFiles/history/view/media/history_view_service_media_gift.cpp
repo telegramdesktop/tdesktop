@@ -195,11 +195,11 @@ void MediaGift::stickerClearLoopPlayed() {
 	}
 }
 
-std::unique_ptr<Lottie::SinglePlayer> MediaGift::stickerTakeLottie(
+std::unique_ptr<StickerPlayer> MediaGift::stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
 	return _sticker
-		? _sticker->stickerTakeLottie(data, replacements)
+		? _sticker->stickerTakePlayer(data, replacements)
 		: nullptr;
 }
 

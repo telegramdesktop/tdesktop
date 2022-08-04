@@ -76,7 +76,7 @@ struct StickersListWidget::Sticker {
 	std::shared_ptr<Data::DocumentMedia> documentMedia;
 	Lottie::Animation *lottie = nullptr;
 	Media::Clip::ReaderPointer webm;
-	QPixmap savedFrame;
+	QImage savedFrame;
 	QSize savedFrameFor;
 	QImage premiumLock;
 
@@ -983,7 +983,7 @@ void StickersListWidget::clearHeavyIn(Set &set, bool clearSavedFrames) {
 	const auto lifetime = base::take(set.lottieLifetime);
 	for (auto &sticker : set.stickers) {
 		if (clearSavedFrames) {
-			sticker.savedFrame = QPixmap();
+			sticker.savedFrame = QImage();
 			sticker.savedFrameFor = QSize();
 		}
 		sticker.webm = nullptr;
@@ -1314,9 +1314,7 @@ void StickersListWidget::paintSticker(
 			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
 			lottieFrame);
 		if (sticker.savedFrame.isNull()) {
-			sticker.savedFrame = QPixmap::fromImage(
-				lottieFrame,
-				Qt::ColorOnly);
+			sticker.savedFrame = lottieFrame;
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			sticker.savedFrameFor = _singleSize;
 		}
@@ -1330,20 +1328,22 @@ void StickersListWidget::paintSticker(
 			sticker.savedFrame.setDevicePixelRatio(cRetinaFactor());
 			sticker.savedFrameFor = _singleSize;
 		}
-		p.drawPixmapLeft(ppos, width(), frame);
+		p.drawImage(ppos, frame);
 	} else {
 		const auto image = media->getStickerSmall();
 		const auto useSavedFrame = !sticker.savedFrame.isNull()
 			&& (sticker.savedFrameFor == _singleSize);
-		const auto pixmap = useSavedFrame
-			? sticker.savedFrame
-			: image
-			? image->pixSingle(size, { .outer = size })
-			: QPixmap();
-		if (!pixmap.isNull()) {
+		if (useSavedFrame) {
+			p.drawImage(ppos, sticker.savedFrame);
+			if (premium) {
+				lottieFrame = sticker.savedFrame;
+			}
+		} else if (image) {
+			const auto pixmap = image->pixSingle(size, { .outer = size });
 			p.drawPixmapLeft(ppos, width(), pixmap);
 			if (sticker.savedFrame.isNull()) {
-				sticker.savedFrame = pixmap;
+				sticker.savedFrame = pixmap.toImage().convertToFormat(
+					QImage::Format_ARGB32_Premultiplied);
 				sticker.savedFrameFor = _singleSize;
 			}
 			if (premium) {

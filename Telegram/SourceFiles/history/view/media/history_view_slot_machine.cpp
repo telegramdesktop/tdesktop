@@ -161,16 +161,16 @@ void SlotMachine::draw(
 	//	}
 	//}
 	auto switchedToEnd = _drawingEnd;
-	const auto pullReady = _pull && _pull->readyToDrawLottie();
+	const auto pullReady = _pull && _pull->readyToDrawAnimationFrame();
 	const auto paintReady = [&] {
 		auto result = pullReady;
 		auto allPlayedEnough = true;
 		for (auto i = 1; i != 4; ++i) {
-			if (!_end[i] || !_end[i]->readyToDrawLottie()) {
+			if (!_end[i] || !_end[i]->readyToDrawAnimationFrame()) {
 				switchedToEnd[i] = false;
 			}
 			if (!switchedToEnd[i]
-				&& (!_start[i] || !_start[i]->readyToDrawLottie())) {
+				&& (!_start[i] || !_start[i]->readyToDrawAnimationFrame())) {
 				result = false;
 			}
 			const auto playedTillFrame = !switchedToEnd[i]
@@ -180,11 +180,13 @@ void SlotMachine::draw(
 				allPlayedEnough = false;
 			}
 		}
-		if (!_end[0] || !_end[0]->readyToDrawLottie() || !allPlayedEnough) {
+		if (!_end[0]
+			|| !_end[0]->readyToDrawAnimationFrame()
+			|| !allPlayedEnough) {
 			switchedToEnd[0] = false;
 		}
 		if (ranges::contains(switchedToEnd, false)
-			&& (!_start[0] || !_start[0]->readyToDrawLottie())) {
+			&& (!_start[0] || !_start[0]->readyToDrawAnimationFrame())) {
 			result = false;
 		}
 		return result;
@@ -200,7 +202,7 @@ void SlotMachine::draw(
 		} else {
 			_start[i]->draw(p, context, r);
 			if (_end[i]
-				&& _end[i]->readyToDrawLottie()
+				&& _end[i]->readyToDrawAnimationFrame()
 				&& _start[i]->atTheEnd()) {
 				_drawingEnd[i] = true;
 			}

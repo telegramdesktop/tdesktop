@@ -1283,7 +1283,7 @@ void StickerSetBox::Inner::paintSticker(
 
 		_lottiePlayer->unpause(element.lottie);
 	} else if (element.webm && element.webm->started()) {
-		p.drawPixmap(ppos, element.webm->current({
+		p.drawImage(ppos, element.webm->current({
 			.frame = size,
 			.keepAlpha = true,
 		}, paused ? 0 : now));

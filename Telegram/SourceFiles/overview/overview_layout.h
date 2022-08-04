@@ -255,7 +255,7 @@ private:
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	StatusText _status;
 
-	QPixmap _thumb;
+	QImage _thumb;
 	bool _thumbGood = false;
 
 };

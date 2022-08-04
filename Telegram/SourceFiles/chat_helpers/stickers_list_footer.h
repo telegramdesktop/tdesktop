@@ -63,7 +63,7 @@ struct StickerIcon {
 	Data::StickersSet *set = nullptr;
 	mutable std::unique_ptr<Lottie::SinglePlayer> lottie;
 	mutable Media::Clip::ReaderPointer webm;
-	mutable QPixmap savedFrame;
+	mutable QImage savedFrame;
 	DocumentData *sticker = nullptr;
 	ChannelData *megagroup = nullptr;
 	mutable std::shared_ptr<Data::StickersSetThumbnailView> thumbnailMedia;

@@ -78,7 +78,9 @@ void Dice::draw(Painter &p, const PaintContext &context, const QRect &r) {
 		_end->draw(p, context, r);
 	} else if (_start) {
 		_start->draw(p, context, r);
-		if (_end && _end->readyToDrawLottie() && _start->atTheEnd()) {
+		if (_end
+			&& _end->readyToDrawAnimationFrame()
+			&& _start->atTheEnd()) {
 			_drawingEnd = true;
 		}
 	}

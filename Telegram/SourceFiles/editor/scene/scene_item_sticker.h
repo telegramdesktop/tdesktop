@@ -42,14 +42,14 @@ private:
 	const not_null<DocumentData*> _document;
 	const std::shared_ptr<::Data::DocumentMedia> _mediaView;
 
-	void updatePixmap(QPixmap &&pixmap);
+	void updatePixmap(QImage &&image);
 
 	struct {
 		std::unique_ptr<Lottie::SinglePlayer> player;
 		rpl::lifetime lifetime;
 	} _lottie;
 	::Media::Clip::ReaderPointer _webm;
-	QPixmap _pixmap;
+	QImage _image;
 
 	rpl::lifetime _loadingLifetime;
 

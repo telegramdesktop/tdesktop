@@ -42,7 +42,7 @@ public:
 		bool pressed) override;
 
 	void stickerClearLoopPlayed() override;
-	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
 

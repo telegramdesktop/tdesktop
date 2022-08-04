@@ -882,7 +882,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 						sticker.lottie->markFrameShown();
 					}
 				} else if (sticker.webm && sticker.webm->started()) {
-					p.drawPixmap(ppos, sticker.webm->current({
+					p.drawImage(ppos, sticker.webm->current({
 						.frame = size,
 						.keepAlpha = true,
 					}, paused ? 0 : now));

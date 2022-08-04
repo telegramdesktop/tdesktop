@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_spoiler_click_handler.h"
-#include "lottie/lottie_single_player.h"
+#include "history/view/media/history_view_sticker.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -243,7 +243,7 @@ PointState Media::pointState(QPoint point) const {
 		: PointState::Outside;
 }
 
-std::unique_ptr<Lottie::SinglePlayer> Media::stickerTakeLottie(
+std::unique_ptr<StickerPlayer> Media::stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) {
 	return nullptr;
