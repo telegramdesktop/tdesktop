@@ -221,6 +221,7 @@ private:
 	};
 	void refreshMegagroupStickers(GroupStickersPlace place);
 	void refreshSettingsVisibility();
+	void appendPremiumCloudSet();
 
 	void updateSelected();
 	void setSelected(OverState newSelected);

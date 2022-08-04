@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/clip/media_clip_reader.h"
 #include "apiwrap.h"
 #include "api/api_toggling_media.h" // Api::ToggleFavedSticker
+#include "api/api_premium.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_window.h"
 #include "styles/style_menu_icons.h"
@@ -219,9 +220,10 @@ StickersListWidget::StickersListWidget(
 		TabbedSelector::Action::Update
 	) | rpl::start_to_stream(_choosingUpdated, lifetime());
 
-	Data::AmPremiumValue(
-		&session()
-	) | rpl::start_with_next([=](bool premium) {
+	rpl::merge(
+		Data::AmPremiumValue(&session()) | rpl::to_empty,
+		session().api().premium().cloudSetUpdated()
+	) | rpl::start_with_next([=] {
 		refreshStickers();
 	}, lifetime());
 }
@@ -1854,16 +1856,18 @@ void StickersListWidget::refreshMySets() {
 	refreshRecentStickers(false);
 	refreshMegagroupStickers(GroupStickersPlace::Visible);
 
-	_premiumsIndex = -1;
-	for (auto i = 0, count = int(_mySets.size()); i != count; ++i) {
-		if (_mySets[i].id == Data::Stickers::PremiumSetId) {
-			_premiumsIndex = i;
-		}
-	}
+	const auto i = ranges::find(
+		_mySets,
+		Data::Stickers::PremiumSetId,
+		&Set::id);
+	_premiumsIndex = (i != end(_mySets)) ? int(i - begin(_mySets)) : -1;
 
 	for (const auto setId : defaultSetsOrder()) {
 		const auto externalLayout = false;
 		appendSet(_mySets, setId, externalLayout, AppendSkip::Archived);
+	}
+	if (_premiumsIndex >= 0) {
+		appendPremiumCloudSet();
 	}
 
 	if (_premiumsIndex >= 0 && _mySets[_premiumsIndex].stickers.empty()) {
@@ -1874,6 +1878,16 @@ void StickersListWidget::refreshMySets() {
 	refreshMegagroupStickers(GroupStickersPlace::Hidden);
 
 	takeHeavyData(_mySets, wasSets);
+}
+
+void StickersListWidget::appendPremiumCloudSet() {
+	Expects(_premiumsIndex >= 0 && _premiumsIndex < _mySets.size());
+
+	auto &set = _mySets[_premiumsIndex];
+	for (const auto &document : session().api().premium().cloudSet()) {
+		set.stickers.push_back(Sticker{ document });
+		++set.count;
+	}
 }
 
 void StickersListWidget::refreshFeaturedSets() {
@@ -2018,8 +2032,8 @@ bool StickersListWidget::appendSet(
 			const auto document = sticker.document;
 			if (document->isPremiumSticker()) {
 				to[_premiumsIndex].stickers.push_back(Sticker{ document });
+				++to[_premiumsIndex].count;
 			}
-			++to[_premiumsIndex].count;
 		}
 	}
 	return true;
