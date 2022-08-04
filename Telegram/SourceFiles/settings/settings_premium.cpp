@@ -816,7 +816,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 					: st::settingsPremiumTopBarBack),
 			st::infoTopBarScale);
 		_back->setDuration(0);
-		_back->toggleOn(isLayer ? _backToggles.value() : rpl::single(true));
+		_back->toggleOn(isLayer
+			? _backToggles.value() | rpl::type_erased()
+			: rpl::single(true));
 		_back->entity()->addClickHandler([=] {
 			_showBack.fire({});
 		});

@@ -80,7 +80,7 @@ CustomEmoji::CustomEmoji(
 	_singleSize = !useCustomEmoji
 		? int(base::SafeRound(
 			i->second.scale * Sticker::EmojiSize().width()))
-		: Data::FrameSizeFromTag(tag);
+		: (Data::FrameSizeFromTag(tag) / style::DevicePixelRatio());
 	if (!useCustomEmoji) {
 		_cachingTag = i->second.tag;
 	}
