@@ -42,11 +42,13 @@ private:
 
 	void setupEmojiPreview(not_null<Ui::RpWidget*> widget, int size);
 	void setupLottiePreview(not_null<Ui::RpWidget*> widget, int size);
+	void clearHiddenHiding();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<QWidget*> _parent;
 	style::Toast _st;
 	base::weak_ptr<Ui::Toast::Instance> _weak;
+	std::vector<base::weak_ptr<Ui::Toast::Instance>> _hiding;
 	DocumentData *_for = nullptr;
 	Fn<void()> _destroy;
 

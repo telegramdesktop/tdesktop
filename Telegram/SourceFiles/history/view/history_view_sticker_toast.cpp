@@ -42,6 +42,12 @@ StickerToast::StickerToast(
 
 StickerToast::~StickerToast() {
 	cancelRequest();
+	_hiding.push_back(_weak);
+	for (const auto &weak : base::take(_hiding)) {
+		if (const auto strong = weak.get()) {
+			delete strong->widget();
+		}
+	}
 }
 
 void StickerToast::showFor(not_null<DocumentData*> document) {
@@ -143,6 +149,12 @@ void StickerToast::showWithTitle(const QString &title) {
 	_st.padding.setLeft(skip + size + skip);
 	_st.padding.setRight(st::historyPremiumViewSet.font->width(view)
 		- st::historyPremiumViewSet.width);
+
+	clearHiddenHiding();
+	if (_weak.get()) {
+		_hiding.push_back(_weak);
+	}
+
 	_weak = Ui::Toast::Show(_parent, Ui::Toast::Config{
 		.text = text,
 		.st = &_st,
@@ -224,6 +236,15 @@ void StickerToast::showWithTitle(const QString &title) {
 		}
 		hideToast();
 	});
+}
+
+void StickerToast::clearHiddenHiding() {
+	_hiding.erase(
+		ranges::remove(
+			_hiding,
+			nullptr,
+			&base::weak_ptr<Ui::Toast::Instance>::get),
+		end(_hiding));
 }
 
 void StickerToast::setupEmojiPreview(

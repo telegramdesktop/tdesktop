@@ -3977,6 +3977,7 @@ void HistoryWidget::showAnimated(
 	}
 	_topShadow->setVisible(params.withTopBarShadow ? false : true);
 	_preserveScrollTop = false;
+	_stickerToast = nullptr;
 
 	_cacheOver = controller()->content()->grabForShowAnimation(params);
 
