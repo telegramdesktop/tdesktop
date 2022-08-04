@@ -369,6 +369,18 @@ void PipPanel::init() {
 		// Workaround Qt's forced transient parent.
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());
+
+	rp()->sizeValue(
+	) | rpl::start_with_next([=](QSize size) {
+		handleResize(size);
+	}, rp()->lifetime());
+
+	QObject::connect(
+		widget()->windowHandle(),
+		&QWindow::screenChanged,
+		[=](QScreen *screen) {
+			handleScreenChanged(screen);
+		});
 }
 
 not_null<QWidget*> PipPanel::widget() const {
@@ -531,7 +543,7 @@ void PipPanel::setPositionOnScreen(Position position, QRect available) {
 		std::max(normalized.height(), minimalSize.height()));
 
 	// Apply maximal size.
-	const auto maximalSize = (_ratio.width() > _ratio.height())
+	const auto maximalSize = byWidth
 		? QSize(fit.width(), fit.width() * _ratio.height() / _ratio.width())
 		: QSize(fit.height() * _ratio.width() / _ratio.height(), fit.height());
 
@@ -619,6 +631,22 @@ void PipPanel::handleResize(QSize size) {
 		waylandEglWindow->ensureSize();
 	}
 #endif // QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+}
+
+void PipPanel::handleScreenChanged(QScreen *screen) {
+	const auto screenGeometry = screen->availableGeometry();
+	const auto minimalSize = _ratio.scaled(
+		st::pipMinimalSize,
+		st::pipMinimalSize,
+		Qt::KeepAspectRatioByExpanding);
+	const auto maximalSize = _ratio.scaled(
+		screenGeometry.width() / 2,
+		screenGeometry.height() / 2,
+		Qt::KeepAspectRatio);
+	widget()->setMinimumSize(minimalSize);
+	widget()->setMaximumSize(
+		std::max(minimalSize.width(), maximalSize.width()),
+		std::max(minimalSize.height(), maximalSize.height()));
 }
 
 void PipPanel::handleMousePress(QPoint position, Qt::MouseButton button) {
@@ -770,6 +798,10 @@ void PipPanel::processDrag(QPoint point) {
 	const auto clamped = (dragPart == RectPart::Center)
 		? ClampToEdges(screen, valid)
 		: valid.topLeft();
+	widget()->setMinimumSize(minimalSize);
+	widget()->setMaximumSize(
+		std::max(minimalSize.width(), maximalSize.width()),
+		std::max(minimalSize.height(), maximalSize.height()));
 	if (clamped != valid.topLeft()) {
 		moveAnimated(clamped);
 	} else {
@@ -952,11 +984,6 @@ void Pip::setupPanel() {
 			handleDoubleClick(mouseButton());
 			break;
 		}
-	}, _panel.rp()->lifetime());
-
-	_panel.rp()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		_panel.handleResize(size);
 	}, _panel.rp()->lifetime());
 }
 
