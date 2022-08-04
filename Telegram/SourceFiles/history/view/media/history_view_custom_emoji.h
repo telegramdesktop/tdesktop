@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_media_unwrapped.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/weak_ptr.h"
 
 namespace Ui::Text {
 struct OnlyCustomEmoji;
@@ -33,6 +34,7 @@ using LargeCustomEmoji = std::variant<
 
 class CustomEmoji final
 	: public UnwrappedMedia::Content
+	, public base::has_weak_ptr
 	, private Data::CustomEmojiManager::Listener {
 public:
 	CustomEmoji(
@@ -46,6 +48,7 @@ public:
 		Painter &p,
 		const PaintContext &context,
 		const QRect &r) override;
+	ClickHandlerPtr link() override;
 
 	bool alwaysShowOutTimestamp() override {
 		return true;
@@ -58,9 +61,6 @@ public:
 	void unloadHeavyPart() override;
 
 private:
-	[[nodiscard]] not_null<Data::CustomEmojiManager::Listener*> listener() {
-		return this;
-	}
 	void paintElement(
 		Painter &p,
 		int x,
@@ -83,12 +83,23 @@ private:
 		const PaintContext &context,
 		bool paused);
 
+	[[nodiscard]] not_null<Data::CustomEmojiManager::Listener*> listener() {
+		return this;
+	}
 	void customEmojiResolveDone(not_null<DocumentData*> document) override;
+
+	[[nodiscard]] std::unique_ptr<Sticker> createStickerPart(
+		not_null<DocumentData*> document) const;
+
+	void refreshInteractionLink();
+	void interactionLinkClicked();
 
 	const not_null<Element*> _parent;
 	std::vector<std::vector<LargeCustomEmoji>> _lines;
+	ClickHandlerPtr _interactionLink;
 	QImage _selectedFrame;
 	int _singleSize = 0;
+	int _animationsCheckVersion = -1;
 	ChatHelpers::StickerLottieSize _cachingTag = {};
 	bool _hasHeavyPart = false;
 	bool _resolving = false;

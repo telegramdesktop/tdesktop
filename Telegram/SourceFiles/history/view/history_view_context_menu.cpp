@@ -976,7 +976,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		const auto context = list->elementContext();
 		AddPollActions(result, poll, item, context, list->controller());
 	} else if (!request.overSelection && view && !hasSelection) {
-		const auto owner = &view->data()->history()->owner();
+		const auto owner = &view->history()->owner();
 		const auto media = view->media();
 		const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 		if (const auto document = media ? media->getDocument() : nullptr) {

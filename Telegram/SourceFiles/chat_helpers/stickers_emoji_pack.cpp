@@ -214,11 +214,56 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 	return result;
 }
 
+EmojiPtr EmojiPack::chooseInteractionEmoji(
+		not_null<HistoryItem*> item) const {
+	return chooseInteractionEmoji(item->originalText().text);
+}
+
+EmojiPtr EmojiPack::chooseInteractionEmoji(
+		const QString &emoticon) const {
+	const auto emoji = Ui::Emoji::Find(emoticon);
+	if (!emoji) {
+		return nullptr;
+	}
+	if (!animationsForEmoji(emoji).empty()) {
+		return emoji;
+	}
+	if (const auto original = emoji->original(); original != emoji) {
+		if (!animationsForEmoji(original).empty()) {
+			return original;
+		}
+	}
+	static const auto kHearts = {
+		QString::fromUtf8("\xf0\x9f\x92\x9b"),
+		QString::fromUtf8("\xf0\x9f\x92\x99"),
+		QString::fromUtf8("\xf0\x9f\x92\x9a"),
+		QString::fromUtf8("\xf0\x9f\x92\x9c"),
+		QString::fromUtf8("\xf0\x9f\xa7\xa1"),
+		QString::fromUtf8("\xf0\x9f\x96\xa4"),
+		QString::fromUtf8("\xf0\x9f\xa4\x8e"),
+		QString::fromUtf8("\xf0\x9f\xa4\x8d"),
+	};
+	return ranges::contains(kHearts, emoji->id())
+		? Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\xa4"))
+		: emoji;
+}
+
 auto EmojiPack::animationsForEmoji(EmojiPtr emoji) const
 -> const base::flat_map<int, not_null<DocumentData*>> & {
 	static const auto empty = base::flat_map<int, not_null<DocumentData*>>();
+	if (!emoji) {
+		return empty;
+	}
 	const auto i = _animations.find(emoji);
 	return (i != end(_animations)) ? i->second : empty;
+}
+
+bool EmojiPack::hasAnimationsFor(not_null<HistoryItem*> item) const {
+	return !animationsForEmoji(chooseInteractionEmoji(item)).empty();
+}
+
+bool EmojiPack::hasAnimationsFor(const QString &emoticon) const {
+	return !animationsForEmoji(chooseInteractionEmoji(emoticon)).empty();
 }
 
 std::unique_ptr<Lottie::SinglePlayer> EmojiPack::effectPlayer(
@@ -371,6 +416,7 @@ void EmojiPack::applyAnimationsSet(const MTPDmessages_stickerSet &data) {
 			}
 		});
 	}
+	++_animationsVersion;
 }
 
 auto EmojiPack::collectAnimationsIndices(

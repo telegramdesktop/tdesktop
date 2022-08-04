@@ -70,6 +70,7 @@ public:
 		const QRect &r) override;
 	ClickHandlerPtr link() override;
 
+	[[nodiscard]] bool ready() const;
 	DocumentData *document() override;
 	void stickerClearLoopPlayed() override;
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(

@@ -23,7 +23,7 @@ namespace {
 		not_null<Element*> view,
 		const QString &emoji,
 		int value) {
-	const auto &session = view->data()->history()->session();
+	const auto &session = view->history()->session();
 	return session.diceStickersPacks().lookup(emoji, value);
 }
 

@@ -67,7 +67,7 @@ MediaGift::MediaGift(
 		height);
 
 	const auto from = _gift->from();
-	const auto to = _parent->data()->history()->peer;
+	const auto to = _parent->history()->peer;
 	const auto months = _gift->months();
 	result.link = std::make_shared<LambdaClickHandler>([=](
 			ClickContext context) {
@@ -225,7 +225,7 @@ void MediaGift::ensureStickerCreated() const {
 	if (_sticker) {
 		return;
 	}
-	const auto &session = _parent->data()->history()->session();
+	const auto &session = _parent->history()->session();
 	auto &packs = session.giftBoxStickersPacks();
 	if (const auto document = packs.lookup(_gift->months())) {
 		if (const auto sticker = document->sticker()) {

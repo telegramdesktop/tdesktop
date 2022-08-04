@@ -218,7 +218,7 @@ struct ForwardedTooltip {
 	const auto phrase = tr::lng_forwarded(
 		tr::now,
 		lt_user,
-		view->data()->history()->session().user()->name);
+		view->history()->session().user()->name);
 	const auto kReplacementPosition = QChar(0x0001);
 	const auto possiblePosition = tr::lng_forwarded(
 		tr::now,

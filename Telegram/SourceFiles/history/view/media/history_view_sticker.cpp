@@ -310,7 +310,7 @@ bool Sticker::readyToDrawAnimationFrame() {
 	if (!_player && loaded && !waitingForPremium && sticker->isAnimated()) {
 		setupPlayer();
 	}
-	return (_player && _player->ready());
+	return ready();
 }
 
 QSize Sticker::Size() {
@@ -360,6 +360,10 @@ void Sticker::draw(
 
 ClickHandlerPtr Sticker::link() {
 	return _link;
+}
+
+bool Sticker::ready() const {
+	return _player && _player->ready();
 }
 
 DocumentData *Sticker::document() {

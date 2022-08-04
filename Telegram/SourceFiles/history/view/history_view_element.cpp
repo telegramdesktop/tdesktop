@@ -579,9 +579,7 @@ void Element::refreshMedia(Element *replacing) {
 		&& Core::App().settings().largeEmoji()) {
 		_media = std::make_unique<UnwrappedMedia>(
 			this,
-			std::make_unique<CustomEmoji>(
-				this,
-				_data->onlyCustomEmoji()));
+			std::make_unique<CustomEmoji>(this, _data->onlyCustomEmoji()));
 	} else if (_data->isIsolatedEmoji()
 		&& Core::App().settings().largeEmoji()) {
 		const auto emoji = _data->isolatedEmoji();

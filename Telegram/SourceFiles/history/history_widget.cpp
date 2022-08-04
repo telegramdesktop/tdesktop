@@ -6319,7 +6319,7 @@ void HistoryWidget::updatePinnedViewer() {
 	auto [view, offset] = _list->findViewForPinnedTracking(visibleBottom);
 	const auto lessThanId = !view
 		? (ServerMaxMsgId - 1)
-		: (view->data()->history() != _history)
+		: (view->history() != _history)
 		? (view->data()->id + (offset > 0 ? 1 : 0) - ServerMaxMsgId)
 		: (view->data()->id + (offset > 0 ? 1 : 0));
 	const auto lastClickedId = !_pinnedClickedId

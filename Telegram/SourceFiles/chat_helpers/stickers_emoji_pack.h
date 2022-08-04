@@ -70,8 +70,17 @@ public:
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
 	[[nodiscard]] std::shared_ptr<LargeEmojiImage> image(EmojiPtr emoji);
 
+	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
+		not_null<HistoryItem*> item) const;
+	[[nodiscard]] EmojiPtr chooseInteractionEmoji(
+		const QString &emoticon) const;
 	[[nodiscard]] auto animationsForEmoji(EmojiPtr emoji) const
 		-> const base::flat_map<int, not_null<DocumentData*>> &;
+	[[nodiscard]] bool hasAnimationsFor(not_null<HistoryItem*> item) const;
+	[[nodiscard]] bool hasAnimationsFor(const QString &emoticon) const;
+	[[nodiscard]] int animationsVersion() const {
+		return _animationsVersion;
+	}
 
 	[[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> effectPlayer(
 		not_null<DocumentData*> document,
@@ -109,6 +118,7 @@ private:
 
 	base::flat_set<not_null<HistoryItem*>> _onlyCustomItems;
 
+	int _animationsVersion = 0;
 	base::flat_map<
 		EmojiPtr,
 		base::flat_map<int, not_null<DocumentData*>>> _animations;

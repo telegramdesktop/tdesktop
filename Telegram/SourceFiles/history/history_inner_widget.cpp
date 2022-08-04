@@ -3106,7 +3106,7 @@ auto HistoryInner::prevItem(Element *view) -> Element* {
 		return nullptr;
 	} else if (const auto result = view->previousDisplayedInBlocks()) {
 		return result;
-	} else if (view->data()->history() == _history
+	} else if (view->history() == _history
 		&& _migrated
 		&& _history->loadedAtTop()
 		&& !_migrated->isEmpty()
@@ -3121,7 +3121,7 @@ auto HistoryInner::nextItem(Element *view) -> Element* {
 		return nullptr;
 	} else if (const auto result = view->nextDisplayedInBlocks()) {
 		return result;
-	} else if (view->data()->history() == _migrated
+	} else if (view->history() == _migrated
 		&& _migrated->loadedAtBottom()
 		&& _history->loadedAtTop()
 		&& !_history->isEmpty()) {
@@ -3730,9 +3730,9 @@ int HistoryInner::itemTop(const Element *view) const {
 		return -1;
 	}
 
-	auto top = (view->data()->history() == _history)
+	auto top = (view->history() == _history)
 		? historyTop()
-		: (view->data()->history() == _migrated
+		: (view->history() == _migrated
 			? migratedTop()
 			: -2);
 	return (top < 0) ? top : (top + view->y() + view->block()->y());
@@ -4020,8 +4020,8 @@ void HistoryInner::applyDragSelection(
 		auto toblock = _dragSelTo->block()->indexInHistory();
 		auto toitem = _dragSelTo->indexInBlock();
 		if (_migrated) {
-			if (_dragSelFrom->data()->history() == _migrated) {
-				if (_dragSelTo->data()->history() == _migrated) {
+			if (_dragSelFrom->history() == _migrated) {
+				if (_dragSelTo->history() == _migrated) {
 					addSelectionRange(toItems, _migrated, fromblock, fromitem, toblock, toitem);
 					toblock = -1;
 					toitem = -1;
@@ -4030,7 +4030,7 @@ void HistoryInner::applyDragSelection(
 				}
 				fromblock = 0;
 				fromitem = 0;
-			} else if (_dragSelTo->data()->history() == _migrated) { // wtf
+			} else if (_dragSelTo->history() == _migrated) { // wtf
 				toblock = -1;
 				toitem = -1;
 			}

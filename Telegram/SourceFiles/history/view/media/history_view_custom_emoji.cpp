@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "main/main_session.h"
+#include "chat_helpers/stickers_emoji_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_isolated_emoji.h"
@@ -33,7 +35,7 @@ struct CustomEmojiSizeInfo {
 };
 
 [[nodiscard]] const base::flat_map<int, CustomEmojiSizeInfo> &SizesInfo() {
-	// size = i->second.scale * st::maxAnimatedEmojiSize.
+	// size = i->second.scale * Sticker::EmojiSize().width()
 	// CustomEmojiManager::SizeTag caching uses first ::EmojiInteraction-s.
 	using Info = CustomEmojiSizeInfo;
 	static auto result = base::flat_map<int, Info>{
@@ -64,7 +66,7 @@ CustomEmoji::CustomEmoji(
 : _parent(parent) {
 	Expects(!emoji.lines.empty());
 
-	const auto owner = &parent->data()->history()->owner();
+	const auto owner = &parent->history()->owner();
 	const auto manager = &owner->customEmojiManager();
 	const auto max = ranges::max_element(
 		emoji.lines,
@@ -76,7 +78,8 @@ CustomEmoji::CustomEmoji(
 	const auto useCustomEmoji = (i == end(sizes));
 	const auto tag = EmojiSize(dimension);
 	_singleSize = !useCustomEmoji
-		? int(base::SafeRound(i->second.scale * st::maxAnimatedEmojiSize))
+		? int(base::SafeRound(
+			i->second.scale * Sticker::EmojiSize().width()))
 		: Data::FrameSizeFromTag(tag);
 	if (!useCustomEmoji) {
 		_cachingTag = i->second.tag;
@@ -95,13 +98,7 @@ CustomEmoji::CustomEmoji(
 				const auto id = Data::ParseCustomEmojiData(data).id;
 				const auto document = owner->document(id);
 				if (document->sticker()) {
-					const auto skipPremiumEffect = false;
-					auto sticker = std::make_unique<Sticker>(
-						parent,
-						document,
-						skipPremiumEffect);
-					sticker->setCustomEmojiPart(_singleSize, _cachingTag);
-					_lines.back().push_back(std::move(sticker));
+					_lines.back().push_back(createStickerPart(document));
 				} else {
 					_lines.back().push_back(id);
 					manager->resolve(id, listener());
@@ -118,16 +115,57 @@ void CustomEmoji::customEmojiResolveDone(not_null<DocumentData*> document) {
 	for (auto &line : _lines) {
 		for (auto &entry : line) {
 			if (entry == id) {
-				const auto skipPremiumEffect = false;
-				auto sticker = std::make_unique<Sticker>(
-					_parent,
-					document,
-					skipPremiumEffect);
-				sticker->setCustomEmojiPart(_singleSize, _cachingTag);
-				entry = std::move(sticker);
+				entry = createStickerPart(document);
 			} else if (v::is<DocumentId>(entry)) {
 				_resolving = true;
 			}
+		}
+	}
+}
+
+std::unique_ptr<Sticker> CustomEmoji::createStickerPart(
+	not_null<DocumentData*> document) const {
+	const auto skipPremiumEffect = false;
+	auto result = std::make_unique<Sticker>(
+		_parent,
+		document,
+		skipPremiumEffect);
+	result->setCustomEmojiPart(_singleSize, _cachingTag);
+	return result;
+}
+
+void CustomEmoji::refreshInteractionLink() {
+	if (_lines.size() != 1 || _lines.front().size() != 1) {
+		return;
+	}
+	const auto &pack = _parent->history()->session().emojiStickersPack();
+	const auto version = pack.animationsVersion();
+	if (_animationsCheckVersion == version) {
+		return;
+	}
+	_animationsCheckVersion = version;
+	if (pack.hasAnimationsFor(_parent->data())) {
+		const auto weak = base::make_weak(this);
+		_interactionLink = std::make_shared<LambdaClickHandler>([weak] {
+			if (const auto that = weak.get()) {
+				that->interactionLinkClicked();
+			}
+		});
+	} else {
+		_interactionLink = nullptr;
+	}
+}
+
+ClickHandlerPtr CustomEmoji::link() {
+	refreshInteractionLink();
+	return _interactionLink;
+}
+
+void CustomEmoji::interactionLinkClicked() {
+	const auto &entry = _lines.front().front();
+	if (const auto sticker = std::get_if<StickerPtr>(&entry)) {
+		if ((*sticker)->ready()) {
+			_parent->delegate()->elementStartInteraction(_parent);
 		}
 	}
 }
@@ -138,7 +176,7 @@ CustomEmoji::~CustomEmoji() {
 		_parent->checkHeavyPart();
 	}
 	if (_resolving) {
-		const auto owner = &_parent->data()->history()->owner();
+		const auto owner = &_parent->history()->owner();
 		owner->customEmojiManager().unregisterListener(listener());
 	}
 }

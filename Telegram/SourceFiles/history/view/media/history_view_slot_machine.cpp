@@ -37,7 +37,7 @@ const auto &kEmoji = ::Stickers::DicePacks::kSlotString;
 [[nodiscard]] DocumentData *Lookup(
 		not_null<Element*> view,
 		int value) {
-	const auto &session = view->data()->history()->session();
+	const auto &session = view->history()->session();
 	return session.diceStickersPacks().lookup(kEmoji, value);
 }
 
