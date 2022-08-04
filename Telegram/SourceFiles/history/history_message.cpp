@@ -239,6 +239,16 @@ QString GetErrorTextForSending(
 	return GetErrorTextForSending(peer, items, {}, ignoreSlowmodeCountdown);
 }
 
+TextWithEntities DropCustomEmoji(TextWithEntities text) {
+	text.entities.erase(
+		ranges::remove(
+			text.entities,
+			EntityType::CustomEmoji,
+			&EntityInText::type),
+		text.entities.end());
+	return text;
+}
+
 struct HistoryMessage::CreateConfig {
 	PeerId replyToPeer = 0;
 	MsgId replyTo = 0;
@@ -401,11 +411,7 @@ HistoryMessage::HistoryMessage(
 	auto config = CreateConfig();
 
 	const auto originalMedia = original->media();
-	const auto dropForwardInfo = (originalMedia
-		&& originalMedia->dropForwardedInfo())
-		|| (original->history()->peer->isSelf()
-			&& !original->Has<HistoryMessageForwarded>()
-			&& (!originalMedia || !originalMedia->forceForwardedInfo()));
+	const auto dropForwardInfo = original->computeDropForwardedInfo();
 	if (!dropForwardInfo) {
 		config.originalDate = original->dateOriginal();
 		if (const auto info = original->hiddenSenderInfo()) {
@@ -473,7 +479,13 @@ HistoryMessage::HistoryMessage(
 	if (mediaOriginal && !ignoreMedia()) {
 		_media = mediaOriginal->clone(this);
 	}
-	setText(original->originalText());
+
+	const auto dropCustomEmoji = dropForwardInfo
+		&& !history->session().premium()
+		&& !history->peer->isSelf();
+	setText(dropCustomEmoji
+		? DropCustomEmoji(original->originalText())
+		: original->originalText());
 }
 
 HistoryMessage::HistoryMessage(

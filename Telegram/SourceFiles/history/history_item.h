@@ -395,6 +395,7 @@ public:
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}
+	[[nodiscard]] bool computeDropForwardedInfo() const;
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
 	[[nodiscard]] virtual bool textHasLinks() const {

@@ -7545,11 +7545,19 @@ void HistoryWidget::updateForwardingTexts() {
 		}
 
 		if (count < 2) {
-			text = _toForward.items.front()->toPreview({
+			const auto item = _toForward.items.front();
+			text = item->toPreview({
 				.hideSender = true,
 				.hideCaption = !keepCaptions,
 				.generateImages = false,
 			}).text;
+
+			const auto dropCustomEmoji = !session().premium()
+				&& !_peer->isSelf()
+				&& (item->computeDropForwardedInfo() || !keepNames);
+			if (dropCustomEmoji) {
+				text = DropCustomEmoji(std::move(text));
+			}
 		} else {
 			text = Ui::Text::PlainLink(
 				tr::lng_forward_messages(tr::now, lt_count, count));

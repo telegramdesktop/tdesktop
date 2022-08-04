@@ -49,6 +49,7 @@ void RequestDependentMessageData(
 	const HistoryItemsList &items,
 	const TextWithTags &comment,
 	bool ignoreSlowmodeCountdown = false);
+[[nodiscard]] TextWithEntities DropCustomEmoji(TextWithEntities text);
 
 class HistoryMessage final : public HistoryItem {
 public:
