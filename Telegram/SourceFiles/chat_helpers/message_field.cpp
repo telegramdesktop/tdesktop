@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_widget.h"
 #include "history/history.h" // History::session
 #include "history/history_item.h" // HistoryItem::originalText
+#include "history/history_message.h" // DropCustomEmoji
 #include "base/qthelp_regex.h"
 #include "base/qthelp_url.h"
 #include "base/event_filter.h"
@@ -261,9 +262,14 @@ QString PrepareMentionTag(not_null<UserData*> user) {
 }
 
 TextWithTags PrepareEditText(not_null<HistoryItem*> item) {
-	const auto original = item->history()->session().supportMode()
+	auto original = item->history()->session().supportMode()
 		? StripSupportHashtag(item->originalText())
 		: item->originalText();
+	const auto dropCustomEmoji = !item->history()->session().premium()
+		&& !item->history()->peer->isSelf();
+	if (dropCustomEmoji) {
+		original = DropCustomEmoji(std::move(original));
+	}
 	return TextWithTags{
 		original.text,
 		TextUtilities::ConvertEntitiesToTextTags(original.entities)
