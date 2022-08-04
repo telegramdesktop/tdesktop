@@ -809,6 +809,7 @@ SuggestionsQuery SuggestionsController::getEmojiQuery() {
 			} else if (format.isImageFormat()) {
 				const auto imageName = format.toImageFormat().name();
 				if (const auto emoji = Emoji::FromUrl(imageName)) {
+					_queryStartPosition = position - 1;
 					return emoji;
 				}
 				continue;
