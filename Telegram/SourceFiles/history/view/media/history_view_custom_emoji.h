@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media_unwrapped.h"
+#include "data/stickers/data_custom_emoji.h"
 
 namespace Ui::Text {
 struct OnlyCustomEmoji;
@@ -17,16 +18,22 @@ namespace Stickers {
 struct LargeEmojiImage;
 } // namespace Stickers
 
+namespace ChatHelpers {
+enum class StickerLottieSize : uint8;
+} // namespace ChatHelpers
+
 namespace HistoryView {
 
 class Sticker;
 
 using LargeCustomEmoji = std::variant<
-	QString,
+	DocumentId,
 	std::unique_ptr<Sticker>,
 	std::unique_ptr<Ui::Text::CustomEmoji>>;
 
-class CustomEmoji final : public UnwrappedMedia::Content {
+class CustomEmoji final
+	: public UnwrappedMedia::Content
+	, private Data::CustomEmojiManager::Listener {
 public:
 	CustomEmoji(
 		not_null<Element*> parent,
@@ -51,6 +58,9 @@ public:
 	void unloadHeavyPart() override;
 
 private:
+	[[nodiscard]] not_null<Data::CustomEmojiManager::Listener*> listener() {
+		return this;
+	}
 	void paintElement(
 		Painter &p,
 		int x,
@@ -73,11 +83,15 @@ private:
 		const PaintContext &context,
 		bool paused);
 
+	void customEmojiResolveDone(not_null<DocumentData*> document) override;
+
 	const not_null<Element*> _parent;
 	std::vector<std::vector<LargeCustomEmoji>> _lines;
 	QImage _selectedFrame;
 	int _singleSize = 0;
+	ChatHelpers::StickerLottieSize _cachingTag = {};
 	bool _hasHeavyPart = false;
+	bool _resolving = false;
 
 };
 

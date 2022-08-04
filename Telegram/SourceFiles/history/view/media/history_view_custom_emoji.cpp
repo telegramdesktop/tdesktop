@@ -64,7 +64,6 @@ CustomEmoji::CustomEmoji(
 : _parent(parent) {
 	Expects(!emoji.lines.empty());
 
-	auto resolving = false;
 	const auto owner = &parent->data()->history()->owner();
 	const auto manager = &owner->customEmojiManager();
 	const auto max = ranges::max_element(
@@ -79,6 +78,9 @@ CustomEmoji::CustomEmoji(
 	_singleSize = !useCustomEmoji
 		? int(base::SafeRound(i->second.scale * st::maxAnimatedEmojiSize))
 		: Data::FrameSizeFromTag(tag);
+	if (!useCustomEmoji) {
+		_cachingTag = i->second.tag;
+	}
 	for (const auto &line : emoji.lines) {
 		_lines.emplace_back();
 		for (const auto &element : line) {
@@ -98,17 +100,35 @@ CustomEmoji::CustomEmoji(
 						parent,
 						document,
 						skipPremiumEffect);
-					sticker->setCustomEmojiPart(_singleSize, i->second.tag);
+					sticker->setCustomEmojiPart(_singleSize, _cachingTag);
 					_lines.back().push_back(std::move(sticker));
 				} else {
-					_lines.back().push_back(element.entityData);
-					resolving = true;
+					_lines.back().push_back(id);
+					manager->resolve(id, listener());
+					_resolving = true;
 				}
 			}
 		}
 	}
-	if (resolving) {
+}
 
+void CustomEmoji::customEmojiResolveDone(not_null<DocumentData*> document) {
+	_resolving = false;
+	const auto id = document->id;
+	for (auto &line : _lines) {
+		for (auto &entry : line) {
+			if (entry == id) {
+				const auto skipPremiumEffect = false;
+				auto sticker = std::make_unique<Sticker>(
+					_parent,
+					document,
+					skipPremiumEffect);
+				sticker->setCustomEmojiPart(_singleSize, _cachingTag);
+				entry = std::move(sticker);
+			} else if (v::is<DocumentId>(entry)) {
+				_resolving = true;
+			}
+		}
 	}
 }
 
@@ -116,6 +136,10 @@ CustomEmoji::~CustomEmoji() {
 	if (_hasHeavyPart) {
 		unloadHeavyPart();
 		_parent->checkHeavyPart();
+	}
+	if (_resolving) {
+		const auto owner = &_parent->data()->history()->owner();
+		owner->customEmojiManager().unregisterListener(listener());
 	}
 }
 

@@ -54,8 +54,14 @@ public:
 		Fn<void()> update,
 		SizeTag tag = SizeTag::Normal);
 
-	bool resolved(QStringView data, Fn<void()> callback);
-	bool resolved(DocumentId documentId, Fn<void()> callback);
+	class Listener {
+	public:
+		virtual void customEmojiResolveDone(
+			not_null<DocumentData*> document) = 0;
+	};
+	void resolve(QStringView data, not_null<Listener*> listener);
+	void resolve(DocumentId documentId, not_null<Listener*> listener);
+	void unregisterListener(not_null<Listener*> listener);
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
@@ -109,7 +115,12 @@ private:
 			DocumentId,
 			std::vector<base::weak_ptr<CustomEmojiLoader>>>,
 		kSizeCount> _loaders;
-	base::flat_map<DocumentId, std::vector<Fn<void()>>> _resolvers;
+	base::flat_map<
+		DocumentId,
+		base::flat_set<not_null<Listener*>>> _resolvers;
+	base::flat_map<
+		not_null<Listener*>,
+		base::flat_set<DocumentId>> _listeners;
 	base::flat_set<DocumentId> _pendingForRequest;
 	mtpRequestId _requestId = 0;
 

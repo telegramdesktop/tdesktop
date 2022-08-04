@@ -446,22 +446,37 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 	});
 }
 
-bool CustomEmojiManager::resolved(QStringView data, Fn<void()> callback) {
-	return resolved(ParseCustomEmojiData(data).id, std::move(callback));
+void CustomEmojiManager::resolve(
+		QStringView data,
+		not_null<Listener*> listener) {
+	resolve(ParseCustomEmojiData(data).id, listener);
 }
 
-bool CustomEmojiManager::resolved(
+void CustomEmojiManager::resolve(
 		DocumentId documentId,
-		Fn<void()> callback) {
+		not_null<Listener*> listener) {
 	if (_owner->document(documentId)->sticker()) {
-		return true;
+		return;
 	}
-	_resolvers[documentId].push_back(std::move(callback));
+	_resolvers[documentId].emplace(listener);
+	_listeners[listener].emplace(documentId);
 	_pendingForRequest.emplace(documentId);
 	if (!_requestId && _pendingForRequest.size() == 1) {
 		crl::on_main(this, [=] { request(); });
 	}
-	return false;
+}
+
+void CustomEmojiManager::unregisterListener(not_null<Listener*> listener) {
+	if (const auto list = _listeners.take(listener)) {
+		for (const auto id : *list) {
+			const auto i = _resolvers.find(id);
+			if (i != end(_resolvers)
+				&& i->second.remove(listener)
+				&& i->second.empty()) {
+				_resolvers.erase(i);
+			}
+		}
+	}
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
@@ -523,9 +538,15 @@ void CustomEmojiManager::request() {
 					}
 				}
 			}
-			if (const auto callbacks = _resolvers.take(id)) {
-				for (const auto &callback : *callbacks) {
-					callback();
+			if (const auto listeners = _resolvers.take(id)) {
+				for (const auto &listener : *listeners) {
+					const auto i = _listeners.find(listener);
+					if (i != end(_listeners) && i->second.remove(id)) {
+						if (i->second.empty()) {
+							_listeners.erase(i);
+						}
+						listener->customEmojiResolveDone(document);
+					}
 				}
 			}
 			requestSetFor(document);

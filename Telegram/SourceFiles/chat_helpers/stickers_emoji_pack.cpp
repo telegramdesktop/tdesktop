@@ -124,19 +124,7 @@ EmojiPack::~EmojiPack() = default;
 
 bool EmojiPack::add(not_null<HistoryItem*> item) {
 	if (const auto custom = item->onlyCustomEmoji()) {
-		auto &ids = _onlyCustomItems[item];
-		Assert(ids.empty());
-		auto &manager = item->history()->owner().customEmojiManager();
-		for (const auto &line : custom.lines) {
-			for (const auto &element : line) {
-				const auto &data = element.entityData;
-				const auto id = Data::ParseCustomEmojiData(data).id;
-				if (!manager.resolved(id, [] {})) {
-					ids.emplace(id);
-					_onlyCustomWaiting[id].emplace(item);
-				}
-			}
-		}
+		_onlyCustomItems.emplace(item);
 		return true;
 	} else if (const auto emoji = item->isolatedEmoji()) {
 		_items[emoji].emplace(item);
@@ -149,16 +137,7 @@ void EmojiPack::remove(not_null<const HistoryItem*> item) {
 	Expects(item->isIsolatedEmoji() || item->isOnlyCustomEmoji());
 
 	if (item->isOnlyCustomEmoji()) {
-		if (const auto list = _onlyCustomItems.take(item)) {
-			for (const auto id : *list) {
-				const auto i = _onlyCustomWaiting.find(id);
-				Assert(i != end(_onlyCustomWaiting));
-				i->second.remove(item);
-				if (i->second.empty()) {
-					_onlyCustomWaiting.erase(i);
-				}
-			}
-		}
+		_onlyCustomItems.remove(item);
 	} else if (const auto emoji = item->isolatedEmoji()) {
 		const auto i = _items.find(emoji);
 		Assert(i != end(_items));

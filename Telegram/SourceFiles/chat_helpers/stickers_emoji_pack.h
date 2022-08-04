@@ -107,12 +107,7 @@ private:
 	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
 	mtpRequestId _requestId = 0;
 
-	base::flat_map<
-		not_null<HistoryItem*>,
-		base::flat_set<DocumentId>> _onlyCustomItems;
-	base::flat_map<
-		DocumentId,
-		base::flat_set<not_null<HistoryItem*>>> _onlyCustomWaiting;
+	base::flat_set<not_null<HistoryItem*>> _onlyCustomItems;
 
 	base::flat_map<
 		EmojiPtr,
