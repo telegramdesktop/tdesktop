@@ -1,3 +1,13 @@
+4.0.4 beta (04.08.22)
+
+- Allow sending animated emoji to Saved Messages even without Telegram Premium.
+- Premium: Suggest animated emoji by regular emoji (can be disabled in Settings).
+- Premium: Show all suggested premium stickers in a special section of the stickers panel.
+- Premium: Allow hiding premium stickers special section of the stickers panel.
+- Fix a memory leak in RTMP livestreams.
+- Fix some bot webview bugs on macOS.
+- Fix forwarding of voice messages.
+
 4.0.3 beta (28.07.22)
 
 - Animated emoji for messages.
