@@ -1424,6 +1424,8 @@ bool StickersListWidget::hasRemoveButton(int index) const {
 			return true;
 		}
 		return !set.stickers.empty() && _megagroupSet->canEditStickers();
+	} else if (set.id == Data::Stickers::PremiumSetId) {
+		return !set.stickers.empty();
 	}
 	return false;
 }
@@ -1666,10 +1668,6 @@ void StickersListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			Assert(button->section >= 0 && button->section < sets.size());
 			if (sets[button->section].externalLayout) {
 				_localSetsManager->install(sets[button->section].id);
-			} else if (sets[button->section].id == Data::Stickers::MegagroupSetId) {
-				auto removeLocally = sets[button->section].stickers.empty()
-					|| !_megagroupSet->canEditStickers();
-				removeMegagroupSet(removeLocally);
 			} else {
 				removeSet(sets[button->section].id);
 			}
@@ -2134,7 +2132,8 @@ void StickersListWidget::refreshRecentStickers(bool performResize) {
 }
 
 void StickersListWidget::refreshPremiumStickers() {
-	if (_isMasks) {
+	if (_isMasks
+		|| controller()->session().settings().skipPremiumStickersSet()) {
 		return;
 	}
 	clearSelection();
@@ -2617,7 +2616,14 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
-	if (auto box = MakeConfirmRemoveSetBox(&session(), setId)) {
+	if (setId == Data::Stickers::MegagroupSetId) {
+		const auto &sets = shownSets();
+		const auto i = ranges::find(sets, setId, &Set::id);
+		Assert(i != end(sets));
+		const auto removeLocally = i->stickers.empty()
+			|| !_megagroupSet->canEditStickers();
+		removeMegagroupSet(removeLocally);
+	} else if (auto box = MakeConfirmRemoveSetBox(&session(), setId)) {
 		checkHideWithBox(controller()->show(
 			std::move(box),
 			Ui::LayerOption::KeepOther));
@@ -2645,6 +2651,22 @@ StickersListWidget::~StickersListWidget() = default;
 object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 		not_null<Main::Session*> session,
 		uint64 setId) {
+	if (setId == Data::Stickers::PremiumSetId) {
+		return Ui::MakeConfirmBox({
+			.text = tr::lng_stickers_remove_pack(
+				tr::now,
+				lt_sticker_pack,
+				tr::lng_premium_stickers(tr::now)),
+			.confirmed = [=](Fn<void()> &&close) {
+				close();
+				session->settings().setSkipPremiumStickersSet(true);
+				session->saveSettingsDelayed();
+				session->data().stickers().notifyUpdated(
+					Data::StickersType::Stickers);
+			},
+			.confirmText = tr::lng_stickers_remove_pack_confirm(),
+		});
+	}
 	const auto &sets = session->data().stickers().sets();
 	const auto it = sets.find(setId);
 	if (it == sets.cend()) {
@@ -2715,9 +2737,6 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 				}
 				session->data().stickers().notifyUpdated(set->type());
 			}
-		},
-		.cancelled = [=](Fn<void()> &&close) {
-			close();
 		},
 		.confirmText = tr::lng_stickers_remove_pack_confirm(),
 	});
