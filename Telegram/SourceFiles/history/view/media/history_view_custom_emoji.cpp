@@ -54,10 +54,6 @@ struct CustomEmojiSizeInfo {
 		: SizeTag::Normal;
 }
 
-[[nodiscard]] bool IsLargeSizeDimension(int dimension) {
-	return (dimension == 5) || (dimension == 6);
-}
-
 } //namespace
 
 CustomEmoji::CustomEmoji(

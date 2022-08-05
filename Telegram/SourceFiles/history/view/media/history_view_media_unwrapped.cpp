@@ -267,7 +267,6 @@ PointState UnwrappedMedia::pointState(QPoint point) const {
 	const auto rightAligned = _parent->hasOutLayout()
 		&& !_parent->delegate()->elementIsChatWide();
 	const auto inWebPage = (_parent->media() != this);
-	const auto item = _parent->data();
 	auto usex = 0;
 	auto usew = _contentSize.width();
 	if (!inWebPage && rightAligned) {
@@ -424,10 +423,6 @@ QRect UnwrappedMedia::contentRectForReactions() const {
 	}
 	const auto rightAligned = _parent->hasOutLayout()
 		&& !_parent->delegate()->elementIsChatWide();
-	const auto item = _parent->data();
-	const auto via = item->Get<HistoryMessageVia>();
-	const auto reply = _parent->displayedReply();
-	const auto forwarded = getDisplayedForwardedInfo();
 	auto usex = 0;
 	auto usew = _contentSize.width();
 	accumulate_max(usew, _parent->reactionsOptimalWidth());
