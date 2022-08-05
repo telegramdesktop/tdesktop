@@ -3662,7 +3662,7 @@ void HistoryWidget::saveEditMsg() {
 	const auto weak = Ui::MakeWeak(this);
 	const auto history = _history;
 
-	const auto done = [=](const MTPUpdates &result, mtpRequestId requestId) {
+	const auto done = [=](mtpRequestId requestId) {
 		crl::guard(weak, [=] {
 			if (requestId == _saveEditMsgRequestId) {
 				_saveEditMsgRequestId = 0;
@@ -3677,7 +3677,7 @@ void HistoryWidget::saveEditMsg() {
 		}
 	};
 
-	const auto fail = [=](const MTP::Error &error, mtpRequestId requestId) {
+	const auto fail = [=](const QString &error, mtpRequestId requestId) {
 		if (const auto editDraft = history->localEditDraft()) {
 			if (editDraft->saveRequestId == requestId) {
 				editDraft->saveRequestId = 0;
@@ -3687,12 +3687,11 @@ void HistoryWidget::saveEditMsg() {
 			if (requestId == _saveEditMsgRequestId) {
 				_saveEditMsgRequestId = 0;
 			}
-			const auto &err = error.type();
-			if (ranges::contains(Api::kDefaultEditMessagesErrors, err)) {
+			if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
 				controller()->show(Ui::MakeInformBox(tr::lng_edit_error()));
-			} else if (err == u"MESSAGE_NOT_MODIFIED"_q) {
+			} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 				cancelEdit();
-			} else if (err == u"MESSAGE_EMPTY"_q) {
+			} else if (error == u"MESSAGE_EMPTY"_q) {
 				_field->selectAll();
 				_field->setFocus();
 			} else {

@@ -723,20 +723,19 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	const auto done = crl::guard(this, [=](const MTPUpdates &updates) {
+	const auto done = crl::guard(this, [=] {
 		_saveRequestId = 0;
 		closeBox();
 	});
 
-	const auto fail = crl::guard(this, [=](const MTP::Error &error) {
+	const auto fail = crl::guard(this, [=](const QString &error) {
 		_saveRequestId = 0;
-		const auto &type = error.type();
-		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {
+		if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
 			_error = tr::lng_edit_error(tr::now);
 			update();
-		} else if (type == u"MESSAGE_NOT_MODIFIED"_q) {
+		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 			closeBox();
-		} else if (type == u"MESSAGE_EMPTY"_q) {
+		} else if (error == u"MESSAGE_EMPTY"_q) {
 			_field->setFocus();
 			_field->showError();
 			update();

@@ -27,13 +27,19 @@ using namespace rpl::details;
 
 template <typename T>
 constexpr auto WithId =
-	is_callable_plain_v<T, const MTPUpdates &, Fn<void()>, mtpRequestId>;
+	is_callable_plain_v<T, Fn<void()>, mtpRequestId>;
 template <typename T>
 constexpr auto WithoutId =
-	is_callable_plain_v<T, const MTPUpdates &, Fn<void()>>;
+	is_callable_plain_v<T, Fn<void()>>;
 template <typename T>
 constexpr auto WithoutCallback =
-	is_callable_plain_v<T, const MTPUpdates &>;
+	is_callable_plain_v<T>;
+template <typename T>
+constexpr auto ErrorWithId =
+	is_callable_plain_v<T, QString, mtpRequestId>;
+template <typename T>
+constexpr auto ErrorWithoutId =
+	is_callable_plain_v<T, QString>;
 
 template <typename DoneCallback, typename FailCallback>
 mtpRequestId EditMessage(
@@ -93,22 +99,30 @@ mtpRequestId EditMessage(
 		const auto apply = [=] { api->applyUpdates(result); };
 
 		if constexpr (WithId<DoneCallback>) {
-			done(result, apply, requestId);
+			done(apply, requestId);
 		} else if constexpr (WithoutId<DoneCallback>) {
-			done(result, apply);
+			done(apply);
 		} else if constexpr (WithoutCallback<DoneCallback>) {
-			done(result);
+			done();
 			apply();
 		} else {
-			apply();
+			t_bad_callback(done);
 		}
 
 		if (updateRecentStickers) {
 			api->requestRecentStickersForce(true);
 		}
-	}).fail(
-		fail
-	).send();
+	}).fail([=](const MTP::Error &error, mtpRequestId requestId) {
+		if constexpr (ErrorWithId<FailCallback>) {
+			fail(error.type(), requestId);
+		} else if constexpr (ErrorWithoutId<FailCallback>) {
+			fail(error.type());
+		} else if constexpr (WithoutCallback<FailCallback>) {
+			fail();
+		} else {
+			t_bad_callback(fail);
+		}
+	}).send();
 }
 
 template <typename DoneCallback, typename FailCallback>
@@ -132,7 +146,7 @@ void EditMessageWithUploadedMedia(
 		not_null<HistoryItem*> item,
 		SendOptions options,
 		MTPInputMedia media) {
-	const auto done = [=](const auto &result, Fn<void()> applyUpdates) {
+	const auto done = [=](Fn<void()> applyUpdates) {
 		if (item) {
 			item->clearSavedMedia();
 			item->setIsLocalUpdateMedia(true);
@@ -140,11 +154,10 @@ void EditMessageWithUploadedMedia(
 			item->setIsLocalUpdateMedia(false);
 		}
 	};
-	const auto fail = [=](const MTP::Error &error) {
-		const auto err = error.type();
+	const auto fail = [=](const QString &error) {
 		const auto session = &item->history()->session();
-		const auto notModified = (err == u"MESSAGE_NOT_MODIFIED"_q);
-		const auto mediaInvalid = (err == u"MEDIA_NEW_INVALID"_q);
+		const auto notModified = (error == u"MESSAGE_NOT_MODIFIED"_q);
+		const auto mediaInvalid = (error == u"MEDIA_NEW_INVALID"_q);
 		if (notModified || mediaInvalid) {
 			item->returnSavedMedia();
 			session->data().sendHistoryChangeNotifications();
@@ -200,8 +213,8 @@ mtpRequestId EditCaption(
 		not_null<HistoryItem*> item,
 		const TextWithEntities &caption,
 		SendOptions options,
-		Fn<void(const MTPUpdates &)> done,
-		Fn<void(const MTP::Error &)> fail) {
+		Fn<void()> done,
+		Fn<void(const QString &)> fail) {
 	return EditMessage(item, caption, options, done, fail);
 }
 
@@ -209,17 +222,13 @@ mtpRequestId EditTextMessage(
 		not_null<HistoryItem*> item,
 		const TextWithEntities &caption,
 		SendOptions options,
-		Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
-		Fn<void(const MTP::Error &, mtpRequestId requestId)> fail) {
-	const auto callback = [=](
-			const auto &result,
-			Fn<void()> applyUpdates,
-			auto id) {
+		Fn<void(mtpRequestId requestId)> done,
+		Fn<void(const QString &, mtpRequestId requestId)> fail) {
+	const auto callback = [=](Fn<void()> applyUpdates, mtpRequestId id) {
 		applyUpdates();
-		done(result, id);
+		done(id);
 	};
 	return EditMessage(item, caption, options, callback, fail);
 }
-
 
 } // namespace Api

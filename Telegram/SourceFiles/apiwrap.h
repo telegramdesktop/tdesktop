@@ -343,6 +343,11 @@ public:
 		not_null<PeerData*> peer,
 		uint64 randomId = 0,
 		FullMsgId itemId = FullMsgId());
+	void sendMessageFail(
+		const QString &error,
+		not_null<PeerData*> peer,
+		uint64 randomId = 0,
+		FullMsgId itemId = FullMsgId());
 
 	void reloadContactSignupSilent();
 	rpl::producer<bool> contactSignupSilent() const;

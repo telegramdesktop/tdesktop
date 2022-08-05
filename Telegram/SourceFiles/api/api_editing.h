@@ -42,14 +42,14 @@ mtpRequestId EditCaption(
 	not_null<HistoryItem*> item,
 	const TextWithEntities &caption,
 	SendOptions options,
-	Fn<void(const MTPUpdates &)> done,
-	Fn<void(const MTP::Error &)> fail);
+	Fn<void()> done,
+	Fn<void(const QString &)> fail);
 
 mtpRequestId EditTextMessage(
 	not_null<HistoryItem*> item,
 	const TextWithEntities &caption,
 	SendOptions options,
-	Fn<void(const MTPUpdates &, mtpRequestId requestId)> done,
-	Fn<void(const MTP::Error &, mtpRequestId requestId)> fail);
+	Fn<void(mtpRequestId requestId)> done,
+	Fn<void(const QString &error, mtpRequestId requestId)> fail);
 
 } // namespace Api

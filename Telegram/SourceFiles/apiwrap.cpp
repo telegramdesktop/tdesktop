@@ -438,14 +438,22 @@ void ApiWrap::sendMessageFail(
 		not_null<PeerData*> peer,
 		uint64 randomId,
 		FullMsgId itemId) {
+	sendMessageFail(error.type(), peer, randomId, itemId);
+}
+
+void ApiWrap::sendMessageFail(
+		const QString &error,
+		not_null<PeerData*> peer,
+		uint64 randomId,
+		FullMsgId itemId) {
 	const auto show = ShowForPeer(peer);
 
-	if (error.type() == qstr("PEER_FLOOD")) {
+	if (error == qstr("PEER_FLOOD")) {
 		show->showBox(
 			Ui::MakeInformBox(
 				PeerFloodErrorText(&session(), PeerFloodType::Send)),
 			Ui::LayerOption::CloseOther);
-	} else if (error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+	} else if (error == qstr("USER_BANNED_IN_CHANNEL")) {
 		const auto link = Ui::Text::Link(
 			tr::lng_cant_more_info(tr::now),
 			session().createInternalLinkFull(qsl("spambot")));
@@ -457,9 +465,9 @@ void ApiWrap::sendMessageFail(
 					link,
 					Ui::Text::WithEntities)),
 			Ui::LayerOption::CloseOther);
-	} else if (error.type().startsWith(qstr("SLOWMODE_WAIT_"))) {
+	} else if (error.startsWith(qstr("SLOWMODE_WAIT_"))) {
 		const auto chop = qstr("SLOWMODE_WAIT_").size();
-		const auto left = base::StringViewMid(error.type(), chop).toInt();
+		const auto left = base::StringViewMid(error, chop).toInt();
 		if (const auto channel = peer->asChannel()) {
 			const auto seconds = channel->slowmodeSeconds();
 			if (seconds >= left) {
@@ -469,7 +477,7 @@ void ApiWrap::sendMessageFail(
 				requestFullPeer(peer);
 			}
 		}
-	} else if (error.type() == qstr("SCHEDULE_STATUS_PRIVATE")) {
+	} else if (error == qstr("SCHEDULE_STATUS_PRIVATE")) {
 		auto &scheduled = _session->data().scheduledMessages();
 		Assert(peer->isUser());
 		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
@@ -478,7 +486,7 @@ void ApiWrap::sendMessageFail(
 				Ui::MakeInformBox(tr::lng_cant_do_this()),
 				Ui::LayerOption::CloseOther);
 		}
-	} else if (error.type() == qstr("CHAT_FORWARDS_RESTRICTED")) {
+	} else if (error == qstr("CHAT_FORWARDS_RESTRICTED")) {
 		if (show->valid()) {
 			Ui::ShowMultilineToast({
 				.parentOverride = show->toastParent(),
@@ -489,7 +497,7 @@ void ApiWrap::sendMessageFail(
 				.duration = kJoinErrorDuration
 			});
 		}
-	} else if (error.type() == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
+	} else if (error == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
 		Settings::ShowPremium(&session(), "premium_stickers");
 	}
 	if (const auto item = _session->data().message(itemId)) {
