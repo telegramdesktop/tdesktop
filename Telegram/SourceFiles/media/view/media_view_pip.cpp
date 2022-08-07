@@ -38,17 +38,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
-#include <private/qwidget_p.h>
-
-#ifdef QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
-// private QtWaylandClient headers are using keywords :(
-#ifdef QT_NO_KEYWORDS
-#define signals Q_SIGNALS
-#define slots Q_SLOTS
-#endif // QT_NO_KEYWORDS
-
-#include <private/qwaylandeglwindow_p.h>
-#endif // QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+#include <qpa/qplatformwindow.h>
+#include <qpa/qwindowsysteminterface.h>
 
 namespace Media {
 namespace View {
@@ -599,11 +590,6 @@ void PipPanel::handleResize(QSize size) {
 	if (!Platform::IsWayland()) {
 		return;
 	}
-	
-	const auto d = dynamic_cast<QWidgetPrivate*>(rp()->rpPrivate());
-	if (!d) {
-		return;
-	}
 
 	// Apply aspect ratio.
 	const auto max = std::max(size.width(), size.height());
@@ -622,15 +608,10 @@ void PipPanel::handleResize(QSize size) {
 			size.height())
 		: scaled;
 
-	d->data.crect = QRect(d->data.crect.topLeft(), normalized);
-
-#ifdef QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
-	using QtWaylandClient::QWaylandEglWindow;
-	if (const auto waylandEglWindow = dynamic_cast<QWaylandEglWindow*>(
-		widget()->windowHandle()->handle())) {
-		waylandEglWindow->ensureSize();
-	}
-#endif // QT_WAYLAND_EGL_CLIENT_HW_INTEGRATION_LIB
+	setGeometry(QRect(widget()->geometry().topLeft(), normalized));
+	QWindowSystemInterface::handleGeometryChange<QWindowSystemInterface::SynchronousDelivery>(
+		widget()->windowHandle(),
+		widget()->windowHandle()->handle()->geometry());
 }
 
 void PipPanel::handleScreenChanged(QScreen *screen) {
