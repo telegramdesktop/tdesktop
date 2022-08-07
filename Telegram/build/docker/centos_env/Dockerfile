@@ -679,7 +679,7 @@ ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 
 RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} \
 	&& cd qt_{{ QT }} \
-	&& git submodule update --init --recursive --depth=1 qtbase qtwayland qtimageformats qtsvg qt5compat \
+	&& git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
@@ -697,7 +697,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} 
 		-no-icu \
 		-no-feature-xcb-sm \
 		-no-feature-egl-extension-platform-wayland \
-		-no-feature-wayland-server \
 		-no-feature-highdpiscaling \
 		-static \
 		-dbus-runtime \

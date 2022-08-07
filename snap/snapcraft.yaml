@@ -376,6 +376,7 @@ parts:
       - libwayland-client0
       - libwayland-cursor0
       - libwayland-egl1
+      - libwayland-server0
       - libx11-6
       - libx11-xcb1
       - libxcb1
@@ -400,7 +401,7 @@ parts:
       QT=6_4_0
 
       git clone -b v6.4.0 --depth=1 git://code.qt.io/qt/qt5.git .
-      perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
+      git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
 
       cd qtbase
       find $CRAFT_STAGE/patches/qtbase_${QT} -type f -print0 | sort -z | xargs -r0 git apply
@@ -416,7 +417,6 @@ parts:
         -no-feature-renameat2 \
         -no-feature-statx \
         -no-feature-egl-extension-platform-wayland \
-        -no-feature-wayland-server \
         -no-feature-highdpiscaling \
         -openssl-linked \
         -nomake examples \
