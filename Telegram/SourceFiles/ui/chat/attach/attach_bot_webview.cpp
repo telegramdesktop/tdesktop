@@ -1088,12 +1088,6 @@ void Panel::showWebviewError(
 	case Error::NoGtkOrWebkit2Gtk:
 		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
 		break;
-	case Error::MutterWM:
-		rich.append(tr::lng_payments_webview_switch_mutter(tr::now));
-		break;
-	case Error::Wayland:
-		rich.append(tr::lng_payments_webview_switch_wayland(tr::now));
-		break;
 	default:
 		rich.append(QString::fromStdString(information.details));
 		break;
