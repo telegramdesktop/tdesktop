@@ -334,6 +334,7 @@ parts:
       - libpcre2-dev
       - libpng-dev
       - libsm-dev
+      - libvulkan-dev
       - libwayland-dev
       - libx11-dev
       - libx11-xcb-dev
@@ -370,6 +371,7 @@ parts:
       - libpcre2-16-0
       - libpng16-16
       - libsm6
+      - libvulkan1
       - libwayland-client0
       - libwayland-cursor0
       - libwayland-egl1

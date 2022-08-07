@@ -22,7 +22,7 @@ RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.n
 	&& yum -y install git meson ninja-build autoconf automake libtool patch \
 		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel gtk3-devel \
+		libdrm-devel vulkan-devel gtk3-devel \
 		perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
