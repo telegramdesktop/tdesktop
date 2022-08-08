@@ -1452,14 +1452,10 @@ else()
     endif()
 
     if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-        if (DESKTOP_APP_QT6)
-            qt6_generate_wayland_protocol_client_sources(Telegram
-            FILES
-                ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
-            )
-        else()
-            message(FATAL_ERROR "This piece of cmake code is not ported to Qt 5")
-        endif()
+        qt_generate_wayland_protocol_client_sources(Telegram
+        FILES
+            ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
+        )
 
         target_link_libraries(Telegram
         PRIVATE
