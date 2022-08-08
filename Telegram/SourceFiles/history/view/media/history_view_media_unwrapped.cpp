@@ -87,6 +87,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		accumulate_max(newHeight, minimal + st::msgDateImgDelta + infoHeight);
 	}
 	accumulate_max(newWidth, _parent->reactionsOptimalWidth());
+	_topAdded = 0;
 	const auto via = item->Get<HistoryMessageVia>();
 	const auto reply = _parent->displayedReply();
 	const auto forwarded = getDisplayedForwardedInfo();
