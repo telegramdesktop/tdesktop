@@ -5719,8 +5719,9 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 		return;
 	}
 
-	bool changed = false;
-	bool wasVisible = _kbShown || _kbReplyTo;
+	const auto wasVisible = _kbShown || _kbReplyTo;
+	const auto wasMsgId = _keyboard->forMsgId();
+	auto changed = false;
 	if ((_replyToId && !_replyEditMsg) || _editMsgId || !_history) {
 		changed = _keyboard->updateMarkup(nullptr, force);
 	} else if (_replyToId && _replyEditMsg) {
@@ -5736,6 +5737,8 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 	updateCmdStartShown();
 	if (!changed) {
 		return;
+	} else if (_keyboard->forMsgId() != wasMsgId) {
+		_kbScroll->scrollTo({ 0, 0 });
 	}
 
 	bool hasMarkup = _keyboard->hasMarkup(), forceReply = _keyboard->forceReply() && (!_replyToId || !_replyEditMsg);
