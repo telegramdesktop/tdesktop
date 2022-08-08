@@ -1788,11 +1788,13 @@ void HistoryInner::mouseActionFinish(
 	_wasSelectedText = false;
 
 	if (activated) {
-		mouseActionCancel();
 		const auto pressedItemId = pressedItemView
 			? pressedItemView->data()->fullId()
+			: _mouseActionItem
+			? _mouseActionItem->fullId()
 			: FullMsgId();
 		const auto weak = base::make_weak(_controller.get());
+		mouseActionCancel();
 		ActivateClickHandler(
 			window(),
 			activated,
