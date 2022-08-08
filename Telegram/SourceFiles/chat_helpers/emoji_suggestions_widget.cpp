@@ -798,27 +798,41 @@ SuggestionsQuery SuggestionsController::getEmojiQuery() {
 	const auto legacyLimit = GetSuggestionMaxLength();
 	const auto position = cursor.position();
 	const auto findTextPart = [&]() -> SuggestionsQuery {
+		auto previousFragmentStart = 0;
+		auto previousFragmentName = QString();
 		auto document = _field->document();
 		auto block = document->findBlock(position);
 		for (auto i = block.begin(); !i.atEnd(); ++i) {
 			auto fragment = i.fragment();
-			if (!fragment.isValid()) continue;
+			if (!fragment.isValid()) {
+				continue;
+			}
 
 			auto from = fragment.position();
 			auto till = from + fragment.length();
-			if (from >= position || till < position) {
-				continue;
-			}
 			const auto format = fragment.charFormat();
 			if (format.objectType() == InputField::kCustomEmojiFormat) {
+				previousFragmentName = QString();
 				continue;
 			} else if (format.isImageFormat()) {
 				const auto imageName = format.toImageFormat().name();
-				if (const auto emoji = Emoji::FromUrl(imageName)) {
+				if (from >= position || till < position) {
+					previousFragmentStart = from;
+					previousFragmentName = imageName;
+					continue;
+				} else if (const auto emoji = Emoji::FromUrl(imageName)) {
 					_queryStartPosition = position - 1;
-					_emojiQueryLength = (position - from);
+					const auto start = (previousFragmentName == imageName)
+						? previousFragmentStart
+						: from;
+					_emojiQueryLength = (position - start);
 					return emoji;
+				} else {
+					continue;
 				}
+			}
+			if (from >= position || till < position) {
+				previousFragmentName = QString();
 				continue;
 			}
 			_queryStartPosition = from;
