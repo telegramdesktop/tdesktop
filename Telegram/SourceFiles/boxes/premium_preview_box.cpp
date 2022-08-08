@@ -50,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPremiumShift = 21. / 240;
-constexpr auto kShiftDuration = crl::time(200);
 constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
 constexpr auto kPreviewsCount = int(PremiumPreview::kCount);

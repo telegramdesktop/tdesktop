@@ -43,8 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-constexpr auto kVisibleButtonsCount = 7;
-
 PeerId GenerateUser(not_null<History*> history, const QString &name) {
 	Expects(history->peer->isUser());
 
