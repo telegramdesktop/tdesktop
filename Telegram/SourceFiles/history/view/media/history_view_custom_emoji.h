@@ -50,9 +50,7 @@ public:
 		const QRect &r) override;
 	ClickHandlerPtr link() override;
 
-	bool alwaysShowOutTimestamp() override {
-		return true;
-	}
+	bool alwaysShowOutTimestamp() override;
 	bool hasTextForCopy() const override {
 		return true;
 	}

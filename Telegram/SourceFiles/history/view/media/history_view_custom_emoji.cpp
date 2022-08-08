@@ -292,6 +292,10 @@ void CustomEmoji::paintCustom(
 	}
 }
 
+bool CustomEmoji::alwaysShowOutTimestamp() {
+	return (_lines.size() == 1) && _lines.back().size() > 2;
+}
+
 bool CustomEmoji::hasHeavyPart() const {
 	return _hasHeavyPart;
 }
