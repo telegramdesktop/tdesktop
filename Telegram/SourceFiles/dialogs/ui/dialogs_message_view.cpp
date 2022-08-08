@@ -185,7 +185,9 @@ void MessageView::paint(
 	if (!_senderCache.isEmpty()) {
 		_senderCache.drawElided(
 			p,
-			rect.left(),
+			(rtl() 
+				? (geometry.left() + geometry.right() - rect.left() - _senderCache.maxWidth()) 
+				: rect.left()),
 			rect.top(),
 			rect.width(),
 			rect.height() / st::dialogsTextFont->height);
@@ -198,7 +200,9 @@ void MessageView::paint(
 			break;
 		}
 		p.drawImage(
-			rect.x(),
+			(rtl() 
+				? (geometry.left() + geometry.right() - rect.left() - st::dialogsMiniPreview) 
+				: rect.x()),
 			rect.y() + st::dialogsMiniPreviewTop,
 			image.data);
 		rect.setLeft(rect.x()
@@ -213,7 +217,9 @@ void MessageView::paint(
 	}
 	_textCache.drawElided(
 		p,
-		rect.left(),
+		(rtl() 
+			? geometry.left() 
+			: rect.left()),
 		rect.top(),
 		rect.width(),
 		rect.height() / st::dialogsTextFont->height);

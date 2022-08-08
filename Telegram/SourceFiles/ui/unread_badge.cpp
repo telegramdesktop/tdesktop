@@ -77,12 +77,21 @@ void DrawScamFakeBadge(
 	p.setBrush(Qt::NoBrush);
 	p.drawRoundedRect(rect, st::dialogsScamRadius, st::dialogsScamRadius);
 	p.setFont(st::dialogsScamFont);
-	p.drawTextLeft(
-		rect.x() + st::dialogsScamPadding.left(),
-		rect.y() + st::dialogsScamPadding.top(),
-		outerWidth,
-		phrase,
-		phraseWidth);
+	if (rtl()) {
+		p.drawTextRight(
+			rect.x() + st::dialogsScamPadding.left(),
+			rect.y() + st::dialogsScamPadding.top(),
+			outerWidth,
+			phrase,
+			phraseWidth);
+	} else {
+		p.drawTextLeft(
+			rect.x() + st::dialogsScamPadding.left(),
+			rect.y() + st::dialogsScamPadding.top(),
+			outerWidth,
+			phrase,
+			phraseWidth);
+	}
 }
 
 void DrawScamBadge(
@@ -121,11 +130,11 @@ int DrawPeerBadgeGetWidth(
 		const auto height = st::dialogsScamPadding.top()
 			+ st::dialogsScamFont->height
 			+ st::dialogsScamPadding.bottom();
+		auto x = (rtl()
+					? rectForName.right() - qMin(nameWidth + st::dialogsScamSkip, rectForName.width() - width) - width
+					: rectForName.x() + qMin(nameWidth + st::dialogsScamSkip, rectForName.width() - width));
 		const auto rect = QRect(
-			(rectForName.x()
-				+ qMin(
-					nameWidth + st::dialogsScamSkip,
-					rectForName.width() - width)),
+			x,
 			rectForName.y() + (rectForName.height() - height) / 2,
 			width,
 			height);

@@ -252,8 +252,11 @@ void Row::PaintCornerBadgeFrame(
 	q.setBrush(data->active
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
+	//paints corner online or calling badge next to userpic in dialogs
 	q.drawEllipse(QRectF(
-		st::dialogsPhotoSize - skip.x() - size,
+		(rtl()
+			? skip.x()
+			: (st::dialogsPhotoSize - skip.x() - size)),
 		st::dialogsPhotoSize - skip.y() - size,
 		size,
 		size
@@ -315,7 +318,10 @@ void Row::paintUserpic(
 			userpicView(),
 			paused);
 	}
-	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
+	//when a corner badge exists this function is called to paint userpic
+	rtl()
+		? p.drawImage(fullWidth - st::dialogsPadding.x() - st::dialogsPhotoSize, st::dialogsPadding.y(), _cornerBadgeUserpic->frame)
+		: p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
 	if (historyForCornerBadge->peer->isUser()) {
 		return;
 	}

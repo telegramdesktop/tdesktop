@@ -2209,7 +2209,9 @@ void MainWidget::updateControlsGeometry() {
 		if (_thirdSection) {
 			auto thirdSectionTop = getThirdSectionTop();
 			_thirdSection->setGeometry(
-				width() - thirdSectionWidth,
+				(rtl() 
+					? 0 
+					: width() - thirdSectionWidth),
 				thirdSectionTop,
 				thirdSectionWidth,
 				height() - thirdSectionTop);
@@ -2254,7 +2256,9 @@ void MainWidget::updateControlsGeometry() {
 				_callTopBarHeight + _exportTopBarHeight);
 		}
 		_history->setGeometryWithTopMoved(QRect(
-			dialogsWidth,
+			(rtl() 
+				? thirdSectionWidth 
+				: dialogsWidth),
 			mainSectionTop,
 			mainSectionWidth,
 			height() - mainSectionTop
@@ -2291,7 +2295,9 @@ void MainWidget::refreshResizeAreas() {
 	if (!isOneColumn() && _dialogs) {
 		ensureFirstColumnResizeAreaCreated();
 		_firstColumnResizeArea->setGeometryToLeft(
-			_history->x(),
+			(rtl() 
+				? _dialogsWidth 
+				: _history->x()),
 			0,
 			st::historyResizeWidth,
 			height());
@@ -2302,7 +2308,9 @@ void MainWidget::refreshResizeAreas() {
 	if (isThreeColumn() && _thirdSection) {
 		ensureThirdColumnResizeAreaCreated();
 		_thirdColumnResizeArea->setGeometryToLeft(
-			_thirdSection->x(),
+			(rtl() 
+				? (width() - _thirdSection->width())
+				: _thirdSection->x()),
 			0,
 			st::historyResizeWidth,
 			height());
@@ -2333,6 +2341,9 @@ void MainWidget::ensureFirstColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = globalLeft - mapToGlobal(QPoint(0, 0)).x();
+		newWidth = rtl() 
+			? width() - newWidth 
+			: newWidth;
 		auto newRatio = (newWidth < st::columnMinimalWidthLeft / 2)
 			? 0.
 			: float64(newWidth) / width();
@@ -2360,6 +2371,9 @@ void MainWidget::ensureThirdColumnResizeAreaCreated() {
 	}
 	auto moveLeftCallback = [=](int globalLeft) {
 		auto newWidth = mapToGlobal(QPoint(width(), 0)).x() - globalLeft;
+		newWidth = rtl() 
+			? (width() - newWidth) 
+			: newWidth;
 		Core::App().settings().setThirdColumnWidth(newWidth);
 	};
 	auto moveFinishedCallback = [=] {
