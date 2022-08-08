@@ -223,7 +223,8 @@ void StickerToast::showWithTitle(const QString &title) {
 		const auto id = _for->sticker()->set.id;
 		const auto &sets = _for->owner().stickers().sets();
 		const auto i = sets.find(id);
-		if (i != end(sets)
+		if (isEmoji
+			&& (i != end(sets))
 			&& (i->second->flags & Data::StickersSetFlag::Installed)) {
 			ShowPremiumPreviewBox(
 				_controller,
