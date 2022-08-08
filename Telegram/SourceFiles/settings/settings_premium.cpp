@@ -52,8 +52,6 @@ namespace {
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 
 constexpr auto kBodyAnimationPart = 0.90;
-constexpr auto kTitleAnimationPart = 0.15;
-
 constexpr auto kTitleAdditionalScale = 0.15;
 
 struct GiftRef {

@@ -20,7 +20,6 @@ namespace {
 
 constexpr auto kMaxSize = 128;
 constexpr auto kMaxFrames = 180;
-constexpr auto kMaxFrameDuration = 86400 * crl::time(1000);
 constexpr auto kCacheVersion = 1;
 constexpr auto kPreloadFrames = 3;
 
