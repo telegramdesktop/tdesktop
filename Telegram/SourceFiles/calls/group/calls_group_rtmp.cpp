@@ -341,7 +341,7 @@ void StartRtmpProcess::FillRtmpRows(
 					close();
 				},
 				.confirmText = tr::lng_from_request_understand(),
-				.cancelText = tr::lng_close(),
+				.cancelText = tr::lng_cancel(),
 				.confirmStyle = attentionButtonStyle,
 				.labelStyle = labelStyle,
 			}));

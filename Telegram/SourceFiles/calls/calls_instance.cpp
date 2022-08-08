@@ -202,23 +202,11 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	}), video);
 }
 
-void Instance::startOrJoinGroupCall(
+void Instance::showStartOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const StartGroupCallArgs &args) {
 	using JoinConfirm = StartGroupCallArgs::JoinConfirm;
-	if (args.rtmpNeeded) {
-		_startWithRtmp->start(peer, [=](object_ptr<Ui::BoxContent> box) {
-			show->showBox(std::move(box), Ui::LayerOption::KeepOther);
-		}, [=](QString text) {
-			Ui::Toast::Show(show->toastParent(), text);
-		}, [=](Group::JoinInfo info) {
-			createGroupCall(
-				std::move(info),
-				MTP_inputGroupCall(MTPlong(), MTPlong()));
-		});
-		return;
-	}
 	const auto context = (args.confirm == JoinConfirm::Always)
 		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
 		: peer->groupCall()
@@ -238,7 +226,19 @@ void Instance::startOrJoinGroupCall(
 		}
 		createGroupCall(
 			std::move(info),
-			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
+			call ? call->input() : MTP_inputGroupCall({}, {}));
+	});
+}
+
+void Instance::showStartWithRtmp(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer) {
+	_startWithRtmp->start(peer, [=](object_ptr<Ui::BoxContent> box) {
+		show->showBox(std::move(box), Ui::LayerOption::KeepOther);
+	}, [=](QString text) {
+		Ui::Toast::Show(show->toastParent(), text);
+	}, [=](Group::JoinInfo info) {
+		createGroupCall(std::move(info), MTP_inputGroupCall({}, {}));
 	});
 }
 

@@ -1276,12 +1276,15 @@ void SessionController::startOrJoinGroupCall(
 		const Calls::StartGroupCallArgs &args) {
 	using JoinConfirm = Calls::StartGroupCallArgs::JoinConfirm;
 	auto &calls = Core::App().calls();
+	auto confirmedArgs = args;
+	confirmedArgs.confirm = JoinConfirm::None;
+
 	const auto askConfirmation = [&](QString text, QString button) {
 		show(Ui::MakeConfirmBox({
 			.text = text,
-			.confirmed = crl::guard(this,[=, hash = args.joinHash] {
+			.confirmed = crl::guard(this,[=] {
 				hideLayer();
-				startOrJoinGroupCall(peer, { hash, JoinConfirm::None });
+				startOrJoinGroupCall(peer, confirmedArgs);
 			}),
 			.confirmText = button,
 		}));
@@ -1300,10 +1303,7 @@ void SessionController::startOrJoinGroupCall(
 		if (now == peer) {
 			calls.activateCurrentCall(args.joinHash);
 		} else if (calls.currentGroupCall()->scheduleDate()) {
-			calls.startOrJoinGroupCall(
-				std::make_shared<Show>(this),
-				peer,
-				{args.joinHash});
+			startOrJoinGroupCall(peer, confirmedArgs);
 		} else {
 			askConfirmation(
 				((peer->isBroadcast() && now->isBroadcast())
@@ -1316,7 +1316,7 @@ void SessionController::startOrJoinGroupCall(
 				tr::lng_group_call_leave(tr::now));
 		}
 	} else {
-		calls.startOrJoinGroupCall(
+		calls.showStartOrJoinGroupCall(
 			std::make_shared<Show>(this),
 			peer,
 			args);

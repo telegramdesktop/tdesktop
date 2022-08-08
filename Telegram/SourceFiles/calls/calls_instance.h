@@ -57,8 +57,6 @@ struct StartGroupCallArgs {
 	QString joinHash;
 	JoinConfirm confirm = JoinConfirm::IfNowInAnother;
 	bool scheduleNeeded = false;
-	bool rtmpNeeded = false;
-	bool useRtmp = false;
 };
 
 class Instance final : public base::has_weak_ptr {
@@ -67,10 +65,13 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void startOrJoinGroupCall(
+	void showStartOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
 		const StartGroupCallArgs &args);
+	void showStartWithRtmp(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
