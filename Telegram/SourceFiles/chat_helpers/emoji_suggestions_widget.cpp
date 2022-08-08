@@ -611,7 +611,9 @@ bool SuggestionsWidget::triggerSelectedRow() const {
 void SuggestionsWidget::triggerRow(const Row &row) const {
 	_triggered.fire({
 		row.emoji->text(),
-		row.document ? Data::SerializeCustomEmojiId(row.document) : QString()
+		(row.document
+			? Data::SerializeCustomEmojiId(row.document)
+			: QString()),
 	});
 }
 
@@ -754,7 +756,6 @@ void SuggestionsController::handleTextChange() {
 	const auto query = getEmojiQuery();
 	if (v::is<EmojiPtr>(query)) {
 		showWithQuery(query);
-		_suggestions->selectFirstResult();
 		return;
 	}
 	const auto text = v::get<QString>(query);
