@@ -204,12 +204,20 @@ rpl::producer<HistoryItem*> PinnedBarItemWithReplyMarkup(
 
 			const auto messageFlag = [=](not_null<HistoryItem*> item) {
 				using Update = Data::MessageUpdate;
-				session->changes().messageFlagsValue(
+				session->changes().messageUpdates(
 					item,
-					Update::Flag::ReplyMarkup
+					Update::Flag::ReplyMarkup | Update::Flag::Destroyed
 				) | rpl::start_with_next([=](const Update &update) {
-					pushUnique(update.item);
+					if (update.flags & Update::Flag::Destroyed) {
+						state->lifetime.destroy();
+						invalidate_weak_ptrs(&state->guard);
+						state->hasReplyMarkup = false;
+						consumer.put_next(nullptr);
+					} else {
+						pushUnique(update.item);
+					}
 				}, state->lifetime);
+				pushUnique(item);
 			};
 			if (const auto item = session->data().message(fullId)) {
 				messageFlag(item);
