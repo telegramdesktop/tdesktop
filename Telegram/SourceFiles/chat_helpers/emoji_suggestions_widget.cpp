@@ -756,6 +756,11 @@ void SuggestionsController::handleTextChange() {
 	const auto query = getEmojiQuery();
 	if (v::is<EmojiPtr>(query)) {
 		showWithQuery(query);
+		InvokeQueued(_container, [=] {
+			if (_shown) {
+				updateGeometry();
+			}
+		});
 		return;
 	}
 	const auto text = v::get<QString>(query);
@@ -811,11 +816,13 @@ SuggestionsQuery SuggestionsController::getEmojiQuery() {
 				const auto imageName = format.toImageFormat().name();
 				if (const auto emoji = Emoji::FromUrl(imageName)) {
 					_queryStartPosition = position - 1;
+					_emojiQueryLength = (position - from);
 					return emoji;
 				}
 				continue;
 			}
 			_queryStartPosition = from;
+			_emojiQueryLength = 0;
 			return fragment.text();
 		}
 		return QString();
@@ -866,16 +873,23 @@ SuggestionsQuery SuggestionsController::getEmojiQuery() {
 void SuggestionsController::replaceCurrent(
 		const QString &replacement,
 		const QString &customEmojiData) {
+	const auto cursor = _field->textCursor();
+	const auto position = cursor.position();
 	const auto suggestion = getEmojiQuery();
-	const auto length = v::is<EmojiPtr>(suggestion)
-		? 1
-		: v::get<QString>(suggestion).size();
-	if (!length) {
+	if (v::is<EmojiPtr>(suggestion)) {
+		const auto weak = Ui::MakeWeak(_container.get());
+		const auto count = std::max(_emojiQueryLength, 1);
+		for (auto i = 0; i != count; ++i) {
+			const auto start = position - count + i;
+			_replaceCallback(start, start + 1, replacement, customEmojiData);
+			if (!weak) {
+				return;
+			}
+		}
+	} else if (v::get<QString>(suggestion).isEmpty()) {
 		showWithQuery(QString());
 	} else {
-		const auto cursor = _field->textCursor();
-		const auto position = cursor.position();
-		const auto from = position - length;
+		const auto from = position - v::get<QString>(suggestion).size();
 		_replaceCallback(from, position, replacement, customEmojiData);
 	}
 }

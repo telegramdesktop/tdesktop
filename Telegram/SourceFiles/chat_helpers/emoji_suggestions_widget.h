@@ -192,6 +192,7 @@ private:
 	bool _shown = false;
 	bool _forceHidden = false;
 	int _queryStartPosition = 0;
+	int _emojiQueryLength = 0;
 	bool _ignoreCursorPositionChange = false;
 	bool _textChangeAfterKeyPress = false;
 	QPointer<QTextEdit> _field;
