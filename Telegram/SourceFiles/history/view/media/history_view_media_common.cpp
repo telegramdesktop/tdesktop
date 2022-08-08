@@ -78,7 +78,7 @@ std::unique_ptr<Media> CreateAttach(
 		return std::make_unique<GroupedMedia>(parent, collage);
 	} else if (document) {
 		if (document->sticker()) {
-			const auto skipPremiumEffect = false;
+			const auto skipPremiumEffect = true;
 			return std::make_unique<UnwrappedMedia>(
 				parent,
 				std::make_unique<Sticker>(
