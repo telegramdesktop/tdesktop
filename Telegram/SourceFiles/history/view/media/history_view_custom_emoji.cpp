@@ -265,13 +265,10 @@ void CustomEmoji::paintCustom(
 		_hasHeavyPart = true;
 		_parent->history()->owner().registerHeavyViewPart(_parent);
 	}
-	const auto inner = st::largeEmojiSize + 2 * st::largeEmojiOutline;
-	const auto outer = Ui::Text::AdjustCustomEmojiSize(inner);
-	const auto skip = (inner - outer) / 2;
 	const auto preview = context.imageStyle()->msgServiceBg->c;
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
-		const auto size = QSize(outer, outer) * factor;
+		const auto size = QSize(_singleSize, _singleSize) * factor;
 		if (_selectedFrame.size() != size) {
 			_selectedFrame = QImage(
 				size,
@@ -286,9 +283,9 @@ void CustomEmoji::paintCustom(
 		_selectedFrame = Images::Colored(
 			std::move(_selectedFrame),
 			context.st->msgStickerOverlay()->c);
-		p.drawImage(x + skip, y + skip, _selectedFrame);
+		p.drawImage(x, y, _selectedFrame);
 	} else {
-		emoji->paint(p, x + skip, y + skip, context.now, preview, paused);
+		emoji->paint(p, x, y, context.now, preview, paused);
 	}
 }
 
