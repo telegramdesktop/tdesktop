@@ -65,10 +65,10 @@ public:
 	~Instance();
 
 	void startOutgoingCall(not_null<UserData*> user, bool video);
-	void showStartOrJoinGroupCall(
+	void startOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		const StartGroupCallArgs &args);
+		StartGroupCallArgs args);
 	void showStartWithRtmp(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer);
@@ -120,6 +120,11 @@ private:
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
+	void confirmLeaveCurrent(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		StartGroupCallArgs args,
+		Fn<void(StartGroupCallArgs)> confirmed);
 
 	void requestPermissionOrFail(
 		Platform::PermissionType type,

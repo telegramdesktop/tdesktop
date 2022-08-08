@@ -1273,54 +1273,11 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 
 void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const Calls::StartGroupCallArgs &args) {
-	using JoinConfirm = Calls::StartGroupCallArgs::JoinConfirm;
-	auto &calls = Core::App().calls();
-	auto confirmedArgs = args;
-	confirmedArgs.confirm = JoinConfirm::None;
-
-	const auto askConfirmation = [&](QString text, QString button) {
-		show(Ui::MakeConfirmBox({
-			.text = text,
-			.confirmed = crl::guard(this,[=] {
-				hideLayer();
-				startOrJoinGroupCall(peer, confirmedArgs);
-			}),
-			.confirmText = button,
-		}));
-	};
-	if (args.confirm != JoinConfirm::None && calls.inCall()) {
-		// Do you want to leave your active voice chat
-		// to join a voice chat in this group?
-		askConfirmation(
-			(peer->isBroadcast()
-				? tr::lng_call_leave_to_other_sure_channel
-				: tr::lng_call_leave_to_other_sure)(tr::now),
-			tr::lng_call_bar_hangup(tr::now));
-	} else if (args.confirm != JoinConfirm::None
-		&& calls.inGroupCall()) {
-		const auto now = calls.currentGroupCall()->peer();
-		if (now == peer) {
-			calls.activateCurrentCall(args.joinHash);
-		} else if (calls.currentGroupCall()->scheduleDate()) {
-			startOrJoinGroupCall(peer, confirmedArgs);
-		} else {
-			askConfirmation(
-				((peer->isBroadcast() && now->isBroadcast())
-					? tr::lng_group_call_leave_channel_to_other_sure_channel
-					: now->isBroadcast()
-					? tr::lng_group_call_leave_channel_to_other_sure
-					: peer->isBroadcast()
-					? tr::lng_group_call_leave_to_other_sure_channel
-					: tr::lng_group_call_leave_to_other_sure)(tr::now),
-				tr::lng_group_call_leave(tr::now));
-		}
-	} else {
-		calls.showStartOrJoinGroupCall(
-			std::make_shared<Show>(this),
-			peer,
-			args);
-	}
+		Calls::StartGroupCallArgs args) {
+	Core::App().calls().startOrJoinGroupCall(
+		std::make_shared<Show>(this),
+		peer,
+		args);
 }
 
 void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {

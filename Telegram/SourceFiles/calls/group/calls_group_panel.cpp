@@ -1328,8 +1328,7 @@ void Panel::chooseJoinAs() {
 	_joinAsProcess.start(
 		_peer,
 		context,
-		showBoxCallback,
-		showToastCallback,
+		std::make_shared<Show>(this),
 		callback,
 		_call->joinAs());
 }
@@ -1468,6 +1467,10 @@ void Panel::showBox(
 			std::max(window()->height(), st::groupCallWidth));
 	}
 	_layerBg->showBox(std::move(box), options, animated);
+}
+
+void Panel::hideLayer(anim::type animated) {
+	_layerBg->hideAll(animated);
 }
 
 void Panel::kickParticipantSure(not_null<PeerData*> participantPeer) {
@@ -2553,6 +2556,40 @@ not_null<Ui::RpWindow*> Panel::window() const {
 
 not_null<Ui::RpWidget*> Panel::widget() const {
 	return _window.widget();
+}
+
+Show::Show(not_null<Panel*> panel)
+: _panel(base::make_weak(panel.get())) {
+}
+
+Show::~Show() = default;
+
+void Show::showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options) const {
+	if (const auto panel = _panel.get()) {
+		panel->showBox(std::move(content), options);
+	}
+}
+
+void Show::hideLayer() const {
+	if (const auto panel = _panel.get()) {
+		panel->hideLayer();
+	}
+}
+
+not_null<QWidget*> Show::toastParent() const {
+	const auto panel = _panel.get();
+	Assert(panel != nullptr);
+	return panel->widget();
+}
+
+bool Show::valid() const {
+	return !_panel.empty();
+}
+
+Show::operator bool() const {
+	return valid();
 }
 
 } // namespace Calls::Group

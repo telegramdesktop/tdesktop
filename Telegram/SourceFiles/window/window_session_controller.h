@@ -387,7 +387,7 @@ public:
 
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
-		const Calls::StartGroupCallArgs &args);
+		Calls::StartGroupCallArgs args);
 
 	void showSection(
 		std::shared_ptr<SectionMemento> memento,

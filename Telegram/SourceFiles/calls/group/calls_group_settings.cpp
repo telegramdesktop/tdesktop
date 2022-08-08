@@ -733,18 +733,10 @@ void SettingsBox(
 			return true;
 		});
 
-
 		StartRtmpProcess::FillRtmpRows(
 			layout,
 			false,
-			[=](object_ptr<Ui::BoxContent> &&object) {
-				box->getDelegate()->show(std::move(object));
-			},
-			[=](QString text) {
-				Ui::Toast::Show(
-					box->getDelegate()->outerContainer(),
-					text);
-			},
+			std::make_shared<Ui::BoxShow>(box),
 			state->data.events(),
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,

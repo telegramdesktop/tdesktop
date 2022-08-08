@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/ui/desktop_capture_choose_source.h"
 #include "ui/effects/animations.h"
 #include "ui/gl/gl_window.h"
+#include "ui/layers/show.h"
 #include "ui/rp_widget.h"
 
 class Image;
@@ -74,11 +75,14 @@ enum class PanelMode;
 enum class StickedTooltip;
 class MicLevelTester;
 
-class Panel final : private Ui::DesktopCapture::ChooseSourceDelegate {
+class Panel final
+	: public base::has_weak_ptr
+	, private Ui::DesktopCapture::ChooseSourceDelegate {
 public:
 	Panel(not_null<GroupCall*> call);
 	~Panel();
 
+	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 	[[nodiscard]] not_null<GroupCall*> call() const;
 	[[nodiscard]] bool isActive() const;
 
@@ -88,6 +92,7 @@ public:
 		object_ptr<Ui::BoxContent> box,
 		Ui::LayerOptions options,
 		anim::type animated = anim::type::normal);
+	void hideLayer(anim::type animated = anim::type::normal);
 
 	void minimize();
 	void close();
@@ -111,7 +116,6 @@ private:
 	};
 
 	[[nodiscard]] not_null<Ui::RpWindow*> window() const;
-	[[nodiscard]] not_null<Ui::RpWidget*> widget() const;
 
 	[[nodiscard]] PanelMode mode() const;
 
@@ -266,6 +270,23 @@ private:
 	rpl::lifetime _hideControlsTimerLifetime;
 
 	rpl::lifetime _peerLifetime;
+
+};
+
+class Show : public Ui::Show {
+public:
+	explicit Show(not_null<Panel*> panel);
+	~Show();
+	void showBox(
+		object_ptr<Ui::BoxContent> content,
+		Ui::LayerOptions options = Ui::LayerOption::KeepOther) const override;
+	void hideLayer() const override;
+	[[nodiscard]] not_null<QWidget*> toastParent() const override;
+	[[nodiscard]] bool valid() const override;
+	operator bool() const override;
+
+private:
+	const base::weak_ptr<Panel> _panel;
 
 };
 
