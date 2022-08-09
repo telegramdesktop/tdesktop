@@ -169,7 +169,8 @@ void Account::createSession(
 			MTPint(), // bot_info_version
 			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder
-			MTPstring()), // lang_code
+			MTPstring(), // lang_code
+			MTPEmojiStatus()),
 		serialized,
 		streamVersion,
 		std::move(settings));
