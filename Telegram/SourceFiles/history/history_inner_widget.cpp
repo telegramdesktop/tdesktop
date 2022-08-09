@@ -2607,7 +2607,7 @@ TextForMimeData HistoryInner::getSelectedText() const {
 			not_null<HistoryItem*> item,
 			TextForMimeData &&unwrapped) {
 		const auto i = texts.emplace(item->position(), Part{
-			.name = item->author()->name,
+			.name = item->author()->name(),
 			.time = ItemDateTime(item).toString(timeFormat),
 			.unwrapped = std::move(unwrapped),
 		}).first;

@@ -663,8 +663,8 @@ void Voice::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		}
 	}
 	const auto showPause = updateStatusText();
-	const auto nameVersion = parent()->fromOriginal()->nameVersion;
-	if (nameVersion > _nameVersion) {
+	const auto nameVersion = parent()->fromOriginal()->nameVersion();
+	if (_nameVersion < nameVersion) {
 		updateName();
 	}
 	const auto radial = isRadialAnimation();
@@ -879,18 +879,31 @@ const style::RoundCheckbox &Voice::checkboxStyle() const {
 }
 
 void Voice::updateName() {
-	auto version = 0;
 	if (const auto forwarded = parent()->Get<HistoryMessageForwarded>()) {
 		if (parent()->fromOriginal()->isChannel()) {
-			_name.setText(st::semiboldTextStyle, tr::lng_forwarded_channel(tr::now, lt_channel, parent()->fromOriginal()->name), Ui::NameTextOptions());
+			_name.setText(
+				st::semiboldTextStyle,
+				tr::lng_forwarded_channel(
+					tr::now,
+					lt_channel,
+					parent()->fromOriginal()->name()),
+				Ui::NameTextOptions());
 		} else {
-			_name.setText(st::semiboldTextStyle, tr::lng_forwarded(tr::now, lt_user, parent()->fromOriginal()->name), Ui::NameTextOptions());
+			_name.setText(
+				st::semiboldTextStyle,
+				tr::lng_forwarded(
+					tr::now,
+					lt_user,
+					parent()->fromOriginal()->name()),
+				Ui::NameTextOptions());
 		}
 	} else {
-		_name.setText(st::semiboldTextStyle, parent()->from()->name, Ui::NameTextOptions());
+		_name.setText(
+			st::semiboldTextStyle,
+			parent()->from()->name(),
+			Ui::NameTextOptions());
 	}
-	version = parent()->fromOriginal()->nameVersion;
-	_nameVersion = version;
+	_nameVersion = parent()->fromOriginal()->nameVersion();
 }
 
 int Voice::duration() const {

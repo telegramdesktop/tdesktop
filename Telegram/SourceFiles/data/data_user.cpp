@@ -165,13 +165,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 }
 
 void UserData::setNameOrPhone(const QString &newNameOrPhone) {
-	if (nameOrPhone != newNameOrPhone) {
-		nameOrPhone = newNameOrPhone;
-		phoneText.setText(
-			st::msgNameStyle,
-			nameOrPhone,
-			Ui::NameTextOptions());
-	}
+	nameOrPhone = newNameOrPhone;
 }
 
 void UserData::madeAction(TimeId when) {

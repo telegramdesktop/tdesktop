@@ -1430,7 +1430,7 @@ void Panel::kickParticipant(not_null<PeerData*> participantPeer) {
 						: tr::lng_group_call_remove_channel)(
 							tr::now,
 							lt_channel,
-							participantPeer->name)
+							participantPeer->name())
 					: (_peer->isBroadcast()
 						? tr::lng_profile_sure_kick_channel
 						: tr::lng_profile_sure_kick)(
@@ -1668,7 +1668,7 @@ void Panel::setupEmptyRtmp() {
 			(_call->rtmpInfo().url.isEmpty()
 				? tr::lng_group_call_no_stream(
 					lt_group,
-					rpl::single(_peer->name))
+					rpl::single(_peer->name()))
 				: tr::lng_group_call_no_stream_admin()),
 			_controlsBackgroundColor.color());
 		_emptyRtmp->setAttribute(Qt::WA_TransparentForMouseEvents);

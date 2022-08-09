@@ -193,8 +193,10 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		user->session().api().requestFullPeer(user);
-		Ui::show(Ui::MakeInformBox(
-			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
+		Ui::show(Ui::MakeInformBox(tr::lng_call_error_not_available(
+			tr::now,
+			lt_user,
+			user->name())));
 		return;
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {

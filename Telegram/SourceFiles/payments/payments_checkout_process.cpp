@@ -316,7 +316,7 @@ void CheckoutProcess::handleFormUpdate(const FormUpdate &update) {
 	}, [&](const BotTrustRequired &data) {
 		UnregisterPaymentStart(this);
 		_submitState = SubmitState::Validated;
-		_panel->showWarning(data.bot->name, data.provider->name);
+		_panel->showWarning(data.bot->name(), data.provider->name());
 		if (const auto box = _enterPasswordBox.data()) {
 			box->closeBox();
 		}

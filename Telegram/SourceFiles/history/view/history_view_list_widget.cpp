@@ -1964,11 +1964,11 @@ TextForMimeData ListWidget::getSelectedText() const {
 			TextForMimeData &&unwrapped) {
 		auto time = ItemDateTime(item).toString(timeFormat);
 		auto part = TextForMimeData();
-		auto size = item->author()->name.size()
+		auto size = item->author()->name().size()
 			+ time.size()
 			+ unwrapped.expanded.size();
 		part.reserve(size);
-		part.append(item->author()->name).append(time);
+		part.append(item->author()->name()).append(time);
 		part.append(std::move(unwrapped));
 		texts.emplace_back(std::move(item), std::move(part));
 		fullSize += size;

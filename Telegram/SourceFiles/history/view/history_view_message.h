@@ -243,6 +243,7 @@ private:
 
 	void refreshRightBadge();
 	void refreshReactions();
+	void validateFromNameText(PeerData *from) const;
 
 	mutable ClickHandlerPtr _rightActionLink;
 	mutable ClickHandlerPtr _fastReplyLink;
@@ -250,7 +251,9 @@ private:
 	std::unique_ptr<Reactions::InlineList> _reactions;
 	mutable std::unique_ptr<CommentsButton> _comments;
 
+	mutable Ui::Text::String _fromName;
 	Ui::Text::String _rightBadge;
+	mutable int _fromNameVersion = 0;
 	int _bubbleWidthLimit = 0;
 
 	BottomInfo _bottomInfo;

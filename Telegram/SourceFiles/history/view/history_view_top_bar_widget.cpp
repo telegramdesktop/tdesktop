@@ -519,7 +519,13 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		}
 	} else if (const auto history = _activeChat.key.history()) {
 		const auto peer = history->peer;
-		const auto &text = peer->topBarNameText();
+		if (_titleNameVersion < peer->nameVersion()) {
+			_titleNameVersion = peer->nameVersion();
+			_title.setText(
+				st::msgNameStyle,
+				peer->topBarNameText(),
+				Ui::NameTextOptions());
+		}
 		const auto badgeStyle = Ui::PeerBadgeStyle{
 			&st::dialogsVerifiedIcon,
 			&st::dialogsPremiumIcon,
@@ -533,13 +539,13 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				nametop,
 				availableWidth,
 				st::msgNameStyle.font->height),
-			text.maxWidth(),
+			_title.maxWidth(),
 			width(),
 			badgeStyle);
 		const auto namewidth = availableWidth - badgeWidth;
 
 		p.setPen(st::dialogsNameFg);
-		peer->topBarNameText().drawElided(
+		_title.drawElided(
 			p,
 			nameleft,
 			nametop,
@@ -692,6 +698,7 @@ void TopBarWidget::setActiveChat(
 	update();
 
 	if (peerChanged) {
+		_titleNameVersion = 0;
 		_emojiInteractionSeen = nullptr;
 		_activeChatLifetime.destroy();
 		if (const auto history = _activeChat.key.history()) {

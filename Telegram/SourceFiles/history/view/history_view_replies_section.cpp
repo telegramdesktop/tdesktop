@@ -105,7 +105,9 @@ rpl::producer<Ui::MessageBarContent> RootViewContent(
 		const auto sender = (item && item->discussionPostOriginalSender())
 			? item->discussionPostOriginalSender()
 			: history->peer.get();
-		content.title = sender->name.isEmpty() ? "Message" : sender->name;
+		content.title = sender->name().isEmpty()
+			? "Message"
+			: sender->name();
 		return std::move(content);
 	});
 }

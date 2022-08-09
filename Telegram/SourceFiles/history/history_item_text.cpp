@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 TextForMimeData WrapAsReply(
 		TextForMimeData &&text,
 		not_null<HistoryItem*> to) {
-	const auto name = to->author()->name;
+	const auto name = to->author()->name();
 	auto result = TextForMimeData();
 	result.reserve(
 		tr::lng_in_reply_to(tr::now).size()

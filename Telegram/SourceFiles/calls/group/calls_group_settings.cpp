@@ -156,7 +156,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name)
+					Ui::Text::Bold(error.second->name())
 				).append("\n\n");
 			}
 			text.append(error.first);

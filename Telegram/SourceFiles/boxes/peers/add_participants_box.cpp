@@ -262,16 +262,16 @@ void AddParticipantsBoxController::inviteSelectedUsers(
 			? tr::lng_participant_invite_sure(
 				tr::now,
 				lt_user,
-				{ users.front()->name },
+				{ users.front()->name()},
 				lt_group,
-				{ _peer->name },
+				{ _peer->name()},
 				Ui::Text::RichLangValue)
 			: tr::lng_participant_invite_sure_many(
 				tr::now,
 				lt_count,
 				int(users.size()),
 				lt_group,
-				{ _peer->name },
+				{ _peer->name() },
 				Ui::Text::RichLangValue);
 		Ui::ConfirmBox(box, {
 			.text = std::move(text),
@@ -834,7 +834,7 @@ void AddSpecialBoxController::kickUser(
 			: tr::lng_profile_sure_kick_channel)(
 				tr::now,
 				lt_user,
-				participant->name);
+				participant->name());
 		_editBox = showBox(Ui::MakeConfirmBox({ text, kickUserSure }));
 		return;
 	}

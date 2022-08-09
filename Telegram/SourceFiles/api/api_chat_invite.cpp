@@ -280,7 +280,7 @@ void ConfirmInviteBox::prepare() {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(participant.user->firstName.isEmpty()
-				? participant.user->name
+				? participant.user->name()
 				: participant.user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
 			left += _userWidth;

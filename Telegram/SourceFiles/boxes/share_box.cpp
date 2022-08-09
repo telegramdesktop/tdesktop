@@ -726,7 +726,7 @@ void ShareBox::Inner::updateChatName(
 		? tr::lng_saved_messages(tr::now)
 		: peer->isRepliesChat()
 		? tr::lng_replies_messages(tr::now)
-		: peer->name;
+		: peer->name();
 	chat->name.setText(_st.item.nameStyle, text, Ui::NameTextOptions());
 }
 
@@ -1306,7 +1306,7 @@ void FastShareMessage(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name)
+					Ui::Text::Bold(error.second->name())
 				).append("\n\n");
 			}
 			text.append(error.first);
@@ -1386,7 +1386,7 @@ void FastShareMessage(
 								tr::lng_restricted_send_voice_messages(
 									tr::now,
 									lt_user,
-									peer->name));
+									peer->name()));
 						}
 					}
 					finish();

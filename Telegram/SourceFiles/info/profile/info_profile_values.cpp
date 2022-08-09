@@ -78,7 +78,7 @@ rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
 		peer,
 		UpdateFlag::Name
 	) | rpl::map([=] {
-		return peer->name;
+		return peer->name();
 	}) | Ui::Text::ToWithEntities();
 }
 

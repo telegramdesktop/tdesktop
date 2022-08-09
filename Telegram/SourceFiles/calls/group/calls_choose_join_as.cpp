@@ -288,7 +288,7 @@ void ChooseJoinAsBox(
 	}
 	const auto name = !existing->title().isEmpty()
 		? existing->title()
-		: peer->name;
+		: peer->name();
 	return (peer->isBroadcast()
 		? tr::lng_group_call_join_confirm_channel
 		: tr::lng_group_call_join_confirm)(

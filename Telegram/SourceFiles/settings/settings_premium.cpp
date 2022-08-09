@@ -770,7 +770,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 						lt_count,
 						rpl::single(float64(gift.months)),
 						lt_user,
-						rpl::single(Ui::Text::Bold(peer->name)),
+						rpl::single(Ui::Text::Bold(peer->name())),
 						Ui::Text::RichLangValue);
 			}
 		}

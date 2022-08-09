@@ -1298,7 +1298,7 @@ void ParticipantsBoxController::rebuildChatAdmins(
 		list.emplace_back(creator);
 	}
 	ranges::sort(list, [](not_null<UserData*> a, not_null<UserData*> b) {
-		return (a->name.compare(b->name, Qt::CaseInsensitive) < 0);
+		return (a->name().compare(b->name(), Qt::CaseInsensitive) < 0);
 	});
 
 	const auto same = [&] {
@@ -1723,7 +1723,7 @@ void ParticipantsBoxController::kickParticipant(not_null<PeerData*> participant)
 		: tr::lng_profile_sure_kick_channel)(
 			tr::now,
 			lt_user,
-			user ? user->firstName : participant->name);
+			user ? user->firstName : participant->name());
 	_editBox = showBox(
 		Ui::MakeConfirmBox({
 			.text = text,
@@ -1967,7 +1967,7 @@ void ParticipantsBoxController::refreshCustomStatus(
 			row->setCustomStatus(tr::lng_channel_admin_status_promoted_by(
 				tr::now,
 				lt_user,
-				by->name));
+				by->name()));
 		} else {
 			if (_additional.isCreator(user)) {
 				row->setCustomStatus(
@@ -1984,7 +1984,7 @@ void ParticipantsBoxController::refreshCustomStatus(
 			: tr::lng_channel_banned_status_restricted_by)(
 				tr::now,
 				lt_user,
-				by ? by->name : "Unknown"));
+				by ? by->name() : "Unknown"));
 	}
 }
 

@@ -70,19 +70,20 @@ struct HistoryMessageEdited : public RuntimeComponent<HistoryMessageEdited, Hist
 	TimeId date = 0;
 };
 
-struct HiddenSenderInfo {
+class HiddenSenderInfo {
+public:
 	HiddenSenderInfo(const QString &name, bool external);
 
 	QString name;
 	QString firstName;
 	QString lastName;
 	PeerId colorPeerId = 0;
-	Ui::Text::String nameText;
 	Ui::EmptyUserpic emptyUserpic;
 	mutable Data::CloudImage customUserpic;
 
 	[[nodiscard]] static ClickHandlerPtr ForwardClickHandler();
 
+	[[nodiscard]] const Ui::Text::String &nameText() const;
 	[[nodiscard]] bool paintCustomUserpic(
 		Painter &p,
 		int x,
@@ -96,6 +97,10 @@ struct HiddenSenderInfo {
 	inline bool operator!=(const HiddenSenderInfo &other) const {
 		return !(*this == other);
 	}
+
+private:
+	mutable Ui::Text::String _nameText;
+
 };
 
 struct HistoryMessageForwarded : public RuntimeComponent<HistoryMessageForwarded, HistoryItem> {

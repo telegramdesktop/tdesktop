@@ -874,7 +874,7 @@ QString Manager::addTargetAccountName(
 		? (title
 			+ accountNameSeparator()
 			+ (session->user()->username.isEmpty()
-				? session->user()->name
+				? session->user()->name()
 				: session->user()->username))
 		: title;
 }
@@ -994,10 +994,10 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? AppName.utf16()
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
-		: peer->name;
+		: peer->name();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
 	const auto subtitle = reactionFrom
-		? (reactionFrom != peer ? reactionFrom->name : QString())
+		? (reactionFrom != peer ? reactionFrom->name() : QString())
 		: options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();

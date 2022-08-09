@@ -1091,7 +1091,7 @@ void SetupChannelBox::save() {
 			MTP_string(_sentUsername)
 		)).done([=] {
 			_channel->setName(
-				TextUtilities::SingleLine(_channel->name),
+				TextUtilities::SingleLine(_channel->name()),
 				_sentUsername);
 			closeBox();
 		}).fail([=](const MTP::Error &error) {
@@ -1239,7 +1239,7 @@ void SetupChannelBox::updateFail(UsernameResult result) {
 	if ((result == UsernameResult::Ok)
 		|| (_sentUsername == _channel->username)) {
 		_channel->setName(
-			TextUtilities::SingleLine(_channel->name),
+			TextUtilities::SingleLine(_channel->name()),
 			TextUtilities::SingleLine(_sentUsername));
 		closeBox();
 	} else if (result == UsernameResult::Invalid) {

@@ -66,6 +66,8 @@ private:
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
+	Ui::Text::String _name;
+	int _nameVersion = 0;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;

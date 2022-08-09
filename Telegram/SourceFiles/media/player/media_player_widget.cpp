@@ -1015,7 +1015,7 @@ void Widget::handleSongChange() {
 	if (document->isVoiceMessage() || document->isVideoMessage()) {
 		if (const auto item = document->owner().message(current.contextId())) {
 			const auto name = (!item->out() || item->isPost())
-				? item->fromOriginal()->name
+				? item->fromOriginal()->name()
 				: tr::lng_from_you(tr::now);
 			const auto date = [item] {
 				const auto parsed = ItemDateTime(item);

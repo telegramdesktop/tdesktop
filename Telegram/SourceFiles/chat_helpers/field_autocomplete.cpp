@@ -937,7 +937,10 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				auto firstwidth = st::mentionFont->width(first);
 				auto secondwidth = st::mentionFont->width(second);
 				auto unamewidth = firstwidth + secondwidth;
-				auto namewidth = user->nameText().maxWidth();
+				if (row.name.isEmpty()) {
+					row.name.setText(st::msgNameStyle, user->name(), Ui::NameTextOptions());
+				}
+				auto namewidth = row.name.maxWidth();
 				if (mentionwidth < unamewidth + namewidth) {
 					namewidth = (mentionwidth * namewidth) / (namewidth + unamewidth);
 					unamewidth = mentionwidth - namewidth;
@@ -956,7 +959,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				user->paintUserpicLeft(p, row.userpic, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
 
 				p.setPen(selected ? st::mentionNameFgOver : st::mentionNameFg);
-				user->nameText().drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
+				row.name.drawElided(p, 2 * st::mentionPadding.left() + st::mentionPhotoSize, i * st::mentionHeight + st::mentionTop, namewidth);
 
 				p.setFont(st::mentionFont);
 				p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);

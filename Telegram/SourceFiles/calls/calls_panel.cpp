@@ -124,7 +124,7 @@ void Panel::replaceCall(not_null<Call*> call) {
 void Panel::initWindow() {
 	window()->setAttribute(Qt::WA_OpaquePaintEvent);
 	window()->setAttribute(Qt::WA_NoSystemBackground);
-	window()->setTitle(_user->name);
+	window()->setTitle(_user->name());
 	window()->setTitleStyle(st::callTitle);
 
 	window()->events(
@@ -473,7 +473,10 @@ void Panel::reinitWithCall(Call *call) {
 			case ErrorType::NoCamera:
 				return tr::lng_call_error_no_camera(tr::now);
 			case ErrorType::NotVideoCall:
-				return tr::lng_call_error_camera_outdated(tr::now, lt_user, _user->name);
+				return tr::lng_call_error_camera_outdated(
+					tr::now,
+					lt_user,
+					_user->name());
 			case ErrorType::NotStartedCall:
 				return tr::lng_call_error_camera_not_started(tr::now);
 				//case ErrorType::NoMicrophone:
@@ -490,7 +493,7 @@ void Panel::reinitWithCall(Call *call) {
 		});
 	}, _callLifetime);
 
-	_name->setText(_user->name);
+	_name->setText(_user->name());
 	updateStatusText(_call->state());
 
 	_answerHangupRedial->raise();
@@ -552,7 +555,7 @@ void Panel::initLayout() {
 		// _user may change for the same Panel.
 		return (_call != nullptr) && (update.peer == _user);
 	}) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		_name->setText(_call->user()->name);
+		_name->setText(_call->user()->name());
 		updateControlsGeometry();
 	}, widget()->lifetime());
 

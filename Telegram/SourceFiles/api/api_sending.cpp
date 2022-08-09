@@ -103,7 +103,7 @@ void SendExistingMedia(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
 	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name
+		? session->user()->name()
 		: QString();
 
 	auto caption = TextWithEntities{
@@ -290,7 +290,7 @@ bool SendDice(MessageToSend &message) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
 	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name
+		? session->user()->name()
 		: QString();
 	const auto replyTo = message.action.replyTo;
 
@@ -423,7 +423,7 @@ void SendConfirmedFile(
 		? PeerId()
 		: session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
-		? session->user()->name
+		? session->user()->name()
 		: QString();
 
 	const auto media = MTPMessageMedia([&] {

@@ -102,7 +102,6 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 		: name)) {
 	Expects(!name.isEmpty());
 
-	nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
 	const auto parts = name.trimmed().split(' ', Qt::SkipEmptyParts);
 	firstName = parts[0];
 	for (const auto &part : parts.mid(1)) {
@@ -111,6 +110,13 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 		}
 		lastName.append(part);
 	}
+}
+
+const Ui::Text::String &HiddenSenderInfo::nameText() const {
+	if (_nameText.isEmpty()) {
+		_nameText.setText(st::msgNameStyle, name, Ui::NameTextOptions());
+	}
+	return _nameText;
 }
 
 ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
@@ -153,7 +159,9 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 		&& originalSender->isChannel()
 		&& !originalSender->isMegagroup();
 	const auto name = TextWithEntities{
-		.text = originalSender ? originalSender->name : hiddenSenderInfo->name
+		.text = (originalSender
+			? originalSender->name()
+			: hiddenSenderInfo->name)
 	};
 	if (!originalAuthor.isEmpty()) {
 		phrase = tr::lng_forwarded_signed(
@@ -342,13 +350,13 @@ QString HistoryMessageReply::replyToFromName(
 	if (const auto user = replyToVia ? peer->asUser() : nullptr) {
 		return user->firstName;
 	}
-	return peer->name;
+	return peer->name();
 }
 
 bool HistoryMessageReply::isNameUpdated(
 		not_null<HistoryMessage*> holder) const {
 	if (const auto from = replyToFrom(holder)) {
-		if (from->nameVersion > replyToVersion) {
+		if (replyToVersion < from->nameVersion()) {
 			updateName(holder);
 			return true;
 		}
@@ -361,9 +369,9 @@ void HistoryMessageReply::updateName(
 	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		if (const auto from = replyToFrom(holder)) {
-			replyToVersion = from->nameVersion;
+			replyToVersion = from->nameVersion();
 		} else {
-			replyToVersion = replyToMsg->author()->nameVersion;
+			replyToVersion = replyToMsg->author()->nameVersion();
 		}
 		bool hasPreview = replyToMsg->media() ? replyToMsg->media()->hasReplyPreview() : false;
 		int32 previewSkip = hasPreview ? (st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x()) : 0;

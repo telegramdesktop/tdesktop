@@ -275,8 +275,6 @@ private:
 	[[nodiscard]] bool checkRepliesPts(
 		const HistoryMessageRepliesData &data) const;
 
-	mutable int _fromNameVersion = 0;
-
 	friend class HistoryView::Element;
 	friend class HistoryView::Message;
 

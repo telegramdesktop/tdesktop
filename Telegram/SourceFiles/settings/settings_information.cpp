@@ -599,11 +599,11 @@ void SetupAccountsWrap(
 	const auto user = session->user();
 
 	auto text = rpl::single(
-		user->name
+		user->name()
 	) | rpl::then(session->changes().realtimeNameUpdates(
 		user
 	) | rpl::map([=] {
-		return user->name;
+		return user->name();
 	}));
 	auto result = object_ptr<Ui::SettingsButton>(
 		parent,

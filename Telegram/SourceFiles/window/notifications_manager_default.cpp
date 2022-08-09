@@ -86,7 +86,7 @@ Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 , author(!fields.reactionFrom
 	? fields.item->notificationHeader()
 	: (fields.reactionFrom != peer)
-	? fields.reactionFrom->name
+	? fields.reactionFrom->name()
 	: QString())
 , item((fields.forwardedCount < 2) ? fields.item.get() : nullptr)
 , forwardedCount(fields.forwardedCount)
@@ -922,7 +922,7 @@ void Notification::updateNotifyDisplay() {
 			? qsl("Telegram Desktop")
 			: reminder
 			? tr::lng_notification_reminder(tr::now)
-			: _history->peer->nameText().toString();
+			: _history->peer->name();
 		const auto fullTitle = manager()->addTargetAccountName(
 			title,
 			&_history->session());

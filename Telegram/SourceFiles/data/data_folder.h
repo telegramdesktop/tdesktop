@@ -81,6 +81,8 @@ private:
 	bool applyChatListMessage(HistoryItem *item);
 	void computeChatListMessage();
 
+	int chatListNameVersion() const override;
+
 	void reorderLastHistories();
 	void updateChatListEntryPostponed();
 

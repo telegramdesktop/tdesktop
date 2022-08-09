@@ -744,7 +744,7 @@ void AttachWebView::confirmOpen(
 		.text = tr::lng_allow_bot_webview(
 			tr::now,
 			lt_bot_name,
-			Ui::Text::Bold(_bot->name),
+			Ui::Text::Bold(_bot->name()),
 			Ui::Text::RichLangValue),
 		.confirmed = callback,
 		.confirmText = tr::lng_box_ok(),
@@ -828,7 +828,7 @@ void AttachWebView::show(
 		&AttachWebViewBot::user);
 	const auto name = (attached != end(_attachBots))
 		? attached->name
-		: _bot->name;
+		: _bot->name();
 	const auto hasSettings = (attached != end(_attachBots))
 		&& !attached->inactive
 		&& attached->hasSettings;

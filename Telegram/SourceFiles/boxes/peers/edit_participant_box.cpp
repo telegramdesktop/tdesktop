@@ -99,7 +99,7 @@ EditParticipantBox::Inner::Inner(
 	_userPhoto->setPointerCursor(false);
 	_userName.setText(
 		st::rightsNameStyle,
-		_user->name,
+		_user->name(),
 		Ui::NameTextOptions());
 }
 
@@ -394,7 +394,7 @@ void EditAdminBox::prepare() {
 					phrase(
 						tr::now,
 						lt_group,
-						Ui::Text::Bold(peer()->name),
+						Ui::Text::Bold(peer()->name()),
 						Ui::Text::WithEntities),
 					crl::guard(this, [=] { finishAddAdmin(); })
 				}), Ui::LayerOption::KeepOther);
@@ -542,7 +542,7 @@ void EditAdminBox::transferOwnership() {
 				.text = tr::lng_rights_transfer_about(
 					tr::now,
 					lt_group,
-					Ui::Text::Bold(peer()->name),
+					Ui::Text::Bold(peer()->name()),
 					lt_user,
 					Ui::Text::Bold(user()->shortName()),
 					Ui::Text::RichLangValue),

@@ -1429,7 +1429,7 @@ void InnerWidget::suggestRestrictParticipant(
 				: tr::lng_profile_sure_kick)(
 					tr::now,
 					lt_user,
-					participant->name);
+					participant->name());
 			auto weakBox = std::make_shared<QPointer<Ui::BoxContent>>();
 			const auto sure = crl::guard(this, [=] {
 				restrictParticipant(

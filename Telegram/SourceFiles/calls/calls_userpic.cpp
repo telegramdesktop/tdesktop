@@ -197,7 +197,7 @@ void Userpic::createCache(Image *image) {
 			Painter p(&filled);
 			Ui::EmptyUserpic(
 				Data::PeerUserpicColor(_peer->id),
-				_peer->name
+				_peer->name()
 			).paint(p, 0, 0, size, size);
 		}
 		//_userPhoto = Images::PixmapFast(Images::Round(

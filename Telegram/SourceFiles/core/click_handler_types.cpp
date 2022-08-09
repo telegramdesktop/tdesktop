@@ -175,7 +175,7 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 				.text = tr::lng_allow_bot_pass(
 					tr::now,
 					lt_bot_name,
-					_bot->name),
+					_bot->name()),
 				.confirmed = callback,
 				.confirmText = tr::lng_allow_bot(),
 			}));
@@ -238,7 +238,7 @@ auto MentionNameClickHandler::getTextEntity() const -> TextEntity {
 
 QString MentionNameClickHandler::tooltip() const {
 	if (const auto user = _session->data().userLoaded(_userId)) {
-		const auto name = user->name;
+		const auto name = user->name();
 		if (name != _text) {
 			return name;
 		}

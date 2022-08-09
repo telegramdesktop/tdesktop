@@ -597,6 +597,8 @@ private:
 
 	void setFolderPointer(Data::Folder *folder);
 
+	int chatListNameVersion() const override;
+
 	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 
 	Flags _flags = 0;

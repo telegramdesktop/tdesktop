@@ -155,7 +155,7 @@ void SponsoredMessages::append(
 		const auto channel = peer->asChannel();
 		return SponsoredFrom{
 			.peer = peer,
-			.title = peer->name,
+			.title = peer->name(),
 			.isBroadcast = (channel && channel->isBroadcast()),
 			.isMegagroup = (channel && channel->isMegagroup()),
 			.isChannel = (channel != nullptr),

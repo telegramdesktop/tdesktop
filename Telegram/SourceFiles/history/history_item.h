@@ -63,7 +63,7 @@ enum class Context : char;
 class ElementDelegate;
 } // namespace HistoryView
 
-struct HiddenSenderInfo;
+class HiddenSenderInfo;
 class History;
 
 [[nodiscard]] MessageFlags FlagsFromMTP(

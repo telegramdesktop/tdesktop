@@ -418,13 +418,13 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 	}
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
-			_invoice.cover.seller = bot->name;
+			_invoice.cover.seller = bot->name();
 			_details.termsBotUsername = bot->username;
 		}
 	}
 	if (const auto providerId = _details.providerId) {
 		if (const auto bot = _session->data().userLoaded(providerId)) {
-			_invoice.provider = bot->name;
+			_invoice.provider = bot->name();
 		}
 	}
 }
@@ -456,7 +456,7 @@ void Form::processDetails(const MTPDpayments_paymentReceipt &data) {
 	}
 	if (_details.botId) {
 		if (const auto bot = _session->data().userLoaded(_details.botId)) {
-			_invoice.cover.seller = bot->name;
+			_invoice.cover.seller = bot->name();
 		}
 	}
 }

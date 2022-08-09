@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 
 namespace Dialogs::Ui {
+using namespace ::Ui;
 struct UnreadBadgeStyle;
 } // namespace Dialogs::Ui
 

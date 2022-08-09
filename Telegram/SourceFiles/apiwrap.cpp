@@ -3199,7 +3199,7 @@ void ApiWrap::forwardMessages(
 				? PeerId(0)
 				: self->id;
 			const auto messagePostAuthor = peer->isBroadcast()
-				? self->name
+				? self->name()
 				: QString();
 			history->addNewLocalMessage(
 				newId.msg,
@@ -3282,7 +3282,7 @@ void ApiWrap::sendSharedContact(
 		? PeerId()
 		: _session->userPeerId();
 	const auto messagePostAuthor = peer->isBroadcast()
-		? _session->user()->name
+		? _session->user()->name()
 		: QString();
 	const auto viaBotId = UserId();
 	const auto item = history->addNewLocalMessage(
@@ -3545,7 +3545,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_send_as;
 		}
 		const auto messagePostAuthor = peer->isBroadcast()
-			? _session->user()->name
+			? _session->user()->name()
 			: QString();
 		if (action.options.scheduled) {
 			flags |= MessageFlag::IsOrWasScheduled;
@@ -3693,7 +3693,7 @@ void ApiWrap::sendInlineResult(
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_send_as;
 	}
 	const auto messagePostAuthor = peer->isBroadcast()
-		? _session->user()->name
+		? _session->user()->name()
 		: QString();
 
 	_session->data().registerMessageRandomId(randomId, newId);

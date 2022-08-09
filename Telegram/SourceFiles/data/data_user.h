@@ -123,7 +123,6 @@ public:
 	QString username;
 	[[nodiscard]] const QString &phone() const;
 	QString nameOrPhone;
-	Ui::Text::String phoneText;
 	TimeId onlineTill = 0;
 
 	enum class ContactStatus : char {

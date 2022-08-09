@@ -2233,12 +2233,14 @@ void OverlayWidget::refreshFromLabel() {
 			_fromName = info->name;
 		} else {
 			Assert(_from != nullptr);
-			const auto from = _from->migrateTo() ? _from->migrateTo() : _from;
-			_fromName = from->name;
+			const auto from = _from->migrateTo()
+				? _from->migrateTo()
+				: _from;
+			_fromName = from->name();
 		}
 	} else {
 		_from = _user;
-		_fromName = _user ? _user->name : QString();
+		_fromName = _user ? _user->name() : QString();
 	}
 }
 

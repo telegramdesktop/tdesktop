@@ -18,9 +18,9 @@ class BasicRow;
 
 namespace Dialogs::Ui {
 
-class VideoUserpic;
-
 using namespace ::Ui;
+
+class VideoUserpic;
 
 const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,

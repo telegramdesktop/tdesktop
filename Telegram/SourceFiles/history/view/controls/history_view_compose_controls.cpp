@@ -709,12 +709,12 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 		const auto user = _shownMessage->displayFrom()
 			? _shownMessage->displayFrom()
 			: _shownMessage->author().get();
-		if (user->nameVersion > _shownMessageNameVersion) {
+		if (_shownMessageNameVersion < user->nameVersion()) {
 			_shownMessageName.setText(
 				st::msgNameStyle,
-				user->name,
+				user->name(),
 				Ui::NameTextOptions());
-			_shownMessageNameVersion = user->nameVersion;
+			_shownMessageNameVersion = user->nameVersion();
 		}
 	}
 
@@ -1476,7 +1476,7 @@ void ComposeControls::initAutocomplete() {
 	const auto insertMention = [=](not_null<UserData*> user) {
 		if (user->username.isEmpty()) {
 			_field->insertTag(
-				user->firstName.isEmpty() ? user->name : user->firstName,
+				user->firstName.isEmpty() ? user->name() : user->firstName,
 				PrepareMentionTag(user));
 		} else {
 			_field->insertTag('@' + user->username);

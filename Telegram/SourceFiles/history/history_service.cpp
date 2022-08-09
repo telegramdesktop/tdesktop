@@ -128,7 +128,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 					lt_from,
 					fromLinkText(), // Link 1.
 					lt_user,
-					Ui::Text::Link(u->name, 2), // Link 2.
+					Ui::Text::Link(u->name(), 2), // Link 2.
 					Ui::Text::WithEntities);
 			}
 		} else if (users.isEmpty()) {
@@ -146,7 +146,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				auto user = history()->owner().user(users[i].v);
 				result.links.push_back(user->createOpenLink());
 
-				auto linkText = Ui::Text::Link(user->name, 2 + i);
+				auto linkText = Ui::Text::Link(user->name(), 2 + i);
 				if (i == 0) {
 					result.text = linkText;
 				} else if (i + 1 == l) {
@@ -256,7 +256,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_user,
-				Ui::Text::Link(user->name, 2),  // Link 2.
+				Ui::Text::Link(user->name(), 2),  // Link 2.
 				Ui::Text::WithEntities);
 		}
 		return result;
@@ -367,7 +367,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		result.text = tr::lng_action_secure_values_sent(
 			tr::now,
 			lt_user,
-			Ui::Text::Link(history()->peer->name, QString()), // Link 1.
+			Ui::Text::Link(history()->peer->name(), QString()), // Link 1.
 			lt_documents,
 			{ .text = documents.join(", ") },
 			Ui::Text::WithEntities);
@@ -415,14 +415,14 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 					lt_distance,
 					{ .text = distance },
 					lt_user,
-					Ui::Text::Link(toPeer->name, QString()), // Link 1.
+					Ui::Text::Link(toPeer->name(), QString()), // Link 1.
 					Ui::Text::WithEntities);
 			} else if (toId == selfId) {
 				result.links.push_back(fromPeer->createOpenLink());
 				return tr::lng_action_proximity_reached_you(
 					tr::now,
 					lt_from,
-					Ui::Text::Link(fromPeer->name, QString()), // Link 1.
+					Ui::Text::Link(fromPeer->name(), QString()), // Link 1.
 					lt_distance,
 					{ .text = distance },
 					Ui::Text::WithEntities);
@@ -432,11 +432,11 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				return tr::lng_action_proximity_reached(
 					tr::now,
 					lt_from,
-					Ui::Text::Link(fromPeer->name, 1), // Link 1.
+					Ui::Text::Link(fromPeer->name(), 1), // Link 1.
 					lt_distance,
 					{ .text = distance },
 					lt_user,
-					Ui::Text::Link(toPeer->name, 2), // Link 2.
+					Ui::Text::Link(toPeer->name(), 2), // Link 2.
 					Ui::Text::WithEntities);
 			}
 		}();
@@ -629,7 +629,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			: tr::lng_action_gift_received)(
 				tr::now,
 				lt_user,
-				Ui::Text::Link(peer->name, 1), // Link 1.
+				Ui::Text::Link(peer->name(), 1), // Link 1.
 				lt_cost,
 				{ Ui::FillAmountAndCurrency(amount, currency) },
 				Ui::Text::WithEntities);
@@ -854,7 +854,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 			lt_from,
 			fromLinkText(), // Link 1.
 			lt_user,
-			Ui::Text::Link(user->name, ++linkIndex), // Link N.
+			Ui::Text::Link(user->name(), ++linkIndex), // Link N.
 			lt_chat,
 			chatText,
 			Ui::Text::WithEntities);
@@ -873,7 +873,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 			auto user = owner->user(users[i].v);
 			result.links.push_back(user->createOpenLink());
 
-			auto linkText = Ui::Text::Link(user->name, ++linkIndex);
+			auto linkText = Ui::Text::Link(user->name(), ++linkIndex);
 			if (i == 0) {
 				result.text = linkText;
 			} else if (i + 1 == l) {
@@ -1098,7 +1098,7 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 					lt_amount,
 					{ .text = payment->amount },
 					lt_user,
-					{ .text = history()->peer->name },
+					{ .text = history()->peer->name() },
 					Ui::Text::WithEntities);
 		}
 	} else {
@@ -1109,7 +1109,7 @@ HistoryService::PreparedText HistoryService::preparePaymentSentText() {
 				lt_amount,
 				{ .text = payment->amount },
 				lt_user,
-				{ .text = history()->peer->name },
+				{ .text = history()->peer->name() },
 				lt_invoice,
 				invoiceTitle,
 				Ui::Text::WithEntities);
@@ -1256,7 +1256,7 @@ ItemPreview HistoryService::toPreview(ToPreviewOptions options) const {
 
 TextWithEntities HistoryService::inReplyText() const {
 	auto result = HistoryService::notificationText();
-	const auto &name = author()->name;
+	const auto &name = author()->name();
 	TextUtilities::Trim(result);
 	if (result.text.startsWith(name)) {
 		result = Ui::Text::Mid(result, name.size());
@@ -1272,7 +1272,7 @@ std::unique_ptr<HistoryView::Element> HistoryService::createView(
 }
 
 TextWithEntities HistoryService::fromLinkText() const {
-	return Ui::Text::Link(_from->name, 1);
+	return Ui::Text::Link(_from->name(), 1);
 }
 
 ClickHandlerPtr HistoryService::fromLink() const {
@@ -1628,7 +1628,7 @@ HistoryService::PreparedText GenerateJoinedText(
 			: tr::lng_action_add_you)(
 				tr::now,
 				lt_from,
-				Ui::Text::Link(inviter->name, QString()),
+				Ui::Text::Link(inviter->name(), QString()),
 				Ui::Text::WithEntities);
 		return result;
 	} else if (history->peer->isMegagroup()) {
@@ -1643,7 +1643,7 @@ HistoryService::PreparedText GenerateJoinedText(
 		result.text = tr::lng_action_user_joined(
 			tr::now,
 			lt_from,
-			Ui::Text::Link(self->name, QString()),
+			Ui::Text::Link(self->name(), QString()),
 			Ui::Text::WithEntities);
 		return result;
 	}
