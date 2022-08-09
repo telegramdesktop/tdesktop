@@ -11,7 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "info/profile/info_profile_values.h"
 #include "info/info_controller.h"
@@ -25,13 +29,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
+#include "window/window_controller.h"
 #include "core/application.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "apiwrap.h"
+#include "mainwindow.h"
 #include "api/api_peer_photo.h"
+#include "chat_helpers/tabbed_panel.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Info {
 namespace Profile {
@@ -174,14 +183,11 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	} else if (_peer->isSelf()) {
 		refreshUploadPhotoOverlay();
 	}
-	BadgeValue(
-		_peer
-	) | rpl::start_with_next([=](Badge badge) {
-		if (badge == Badge::Premium
-			&& !_peer->session().premiumBadgesShown()) {
-			badge = Badge::None;
-		}
-		setBadge(badge);
+	rpl::combine(
+		BadgeValue(_peer),
+		EmojiStatusIdValue(_peer)
+	) | rpl::start_with_next([=](Badge badge, DocumentId emojiStatusId) {
+		setBadge(badge, emojiStatusId);
 	}, lifetime());
 }
 
@@ -196,11 +202,19 @@ void Cover::refreshUploadPhotoOverlay() {
 	}());
 }
 
-void Cover::setBadge(Badge badge) {
-	if (_badge == badge) {
+void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
+	if (!_peer->session().premiumBadgesShown() && badge == Badge::Premium) {
+		badge = Badge::None;
+	}
+	if (badge != Badge::Premium) {
+		emojiStatusId = 0;
+	}
+	if (_badge == badge && _emojiStatusId == emojiStatusId) {
 		return;
 	}
 	_badge = badge;
+	_emojiStatusId = emojiStatusId;
+	_emojiStatus = nullptr;
 	_verifiedCheck.destroy();
 	_scamFakeBadge.destroy();
 	switch (_badge) {
@@ -212,17 +226,41 @@ void Cover::setBadge(Badge badge) {
 		_verifiedCheck.create(this);
 		_verifiedCheck->show();
 		_verifiedCheck->resize(icon->size());
+		if (_emojiStatusId) {
+			auto &owner = _controller->session().data();
+			_emojiStatus = owner.customEmojiManager().create(
+				_emojiStatusId,
+				[raw = _verifiedCheck.data()]{ raw->update(); },
+				Data::CustomEmojiManager::SizeTag::Normal);
+		}
+
 		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([icon, check = _verifiedCheck.data()] {
+		) | rpl::start_with_next([=, check = _verifiedCheck.data()] {
 			Painter p(check);
-			icon->paint(p, 0, 0, check->width());
+			if (_emojiStatus) {
+				_emojiStatus->paint(
+					p,
+					0,
+					0,
+					crl::now(),
+					st::windowBgOver->c,
+					_controller->isGifPausedAtLeastFor(
+						Window::GifPauseReason::Layer));
+			} else {
+				icon->paint(p, 0, 0, check->width());
+			}
 		}, _verifiedCheck->lifetime());
+
 		if (_badge == Badge::Premium) {
 			const auto userId = peerToUser(_peer->id).bare;
 			_verifiedCheck->setClickedCallback([=] {
-				::Settings::ShowPremium(
-					_controller,
-					u"profile__%1"_q.arg(userId));
+				if (_peer->isSelf()) {
+					showEmojiStatusSelector();
+				} else {
+					::Settings::ShowPremium(
+						_controller,
+						u"profile__%1"_q.arg(userId));
+				}
 			});
 		} else {
 			_verifiedCheck->setAttribute(Qt::WA_TransparentForMouseEvents);
@@ -251,6 +289,49 @@ void Cover::setBadge(Badge badge) {
 	} break;
 	}
 	refreshNameGeometry(width());
+}
+
+void Cover::showEmojiStatusSelector() {
+	Expects(_verifiedCheck != nullptr);
+
+	if (!_emojiStatusPanel) {
+		createEmojiStatusSelector();
+	}
+	const auto parent = _emojiStatusPanel->parentWidget();
+	const auto global = _verifiedCheck->mapToGlobal({ 0, 0 });
+	const auto local = parent->mapFromGlobal(global);
+	_emojiStatusPanel->moveBottomRight(
+		local.y(),
+		local.x() + _verifiedCheck->width() * 3);
+	_emojiStatusPanel->toggleAnimated();
+}
+
+void Cover::createEmojiStatusSelector() {
+	const auto container = _controller->window().widget()->bodyWidget();
+	using Selector = ChatHelpers::TabbedSelector;
+	_emojiStatusPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		container,
+		_controller,
+		object_ptr<Selector>(
+			nullptr,
+			_controller,
+			Window::GifPauseReason::Layer,
+			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+	_emojiStatusPanel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	_emojiStatusPanel->hide();
+	_emojiStatusPanel->selector()->setAllowEmojiWithoutPremium(false);
+	_emojiStatusPanel->selector()->customEmojiChosen(
+	) | rpl::start_with_next([=](Selector::FileChosen data) {
+		_controller->session().user()->setEmojiStatus(data.document->id);
+		_controller->session().api().request(MTPaccount_UpdateEmojiStatus(
+			MTP_emojiStatus(MTP_long(data.document->id))
+		)).send();
+		_emojiStatusPanel->hideAnimated();
+	}, _emojiStatusPanel->lifetime());
+	_emojiStatusPanel->selector()->showPromoForPremiumEmoji();
 }
 
 void Cover::refreshStatusText() {

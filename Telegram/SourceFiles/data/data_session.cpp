@@ -400,11 +400,6 @@ ChannelData *Session::channelLoaded(ChannelId id) const {
 	return nullptr;
 }
 
-AssertIsDebug();
-base::flat_map<
-	not_null<Data::Session*>,
-	base::flat_set<not_null<DocumentData*>>> Emojis;
-
 not_null<UserData*> Session::processUser(const MTPUser &data) {
 	const auto result = user(data.match([](const auto &data) {
 		return data.vid().v;
@@ -564,20 +559,10 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 					const MTPDemojiStatus &data) {
 				return DocumentId(data.vdocument_id().v);
 			}, [&](const MTPDemojiStatusEmpty &) {
-				//return DocumentId();
-				auto &emojis = Emojis[this];
-				return emojis.empty()
-					? DocumentId()
-					: (*(emojis.begin()
-						+ base::RandomIndex(emojis.size())))->id;
+				return DocumentId();
 			}));
 		} else {
-			//result->setEmojiStatus(0);
-			auto &emojis = Emojis[this];
-			result->setEmojiStatus(emojis.empty()
-				? DocumentId()
-				: (*(emojis.begin()
-					+ base::RandomIndex(emojis.size())))->id);
+			result->setEmojiStatus(0);
 		}
 		if (!minimal) {
 			if (const auto botInfoVersion = data.vbot_info_version()) {
@@ -2967,23 +2952,6 @@ void Session::documentApplyFields(
 	document->recountIsImage();
 	if (dc != 0 && access != 0) {
 		document->setRemoteLocation(dc, access, fileReference);
-	}
-
-	AssertIsDebug();
-	if (document->isPremiumEmoji()) {
-		auto &emojis = Emojis[this];
-		if (emojis.emplace(document).second) {
-			const auto size = int(emojis.size());
-			crl::on_main(_session, [=] {
-				for (auto &[id, peer] : _peers) {
-					if (const auto user = peer->asUser()) {
-						if (user->isPremium() && !base::RandomIndex(size)) {
-							user->setEmojiStatus(document->id);
-						}
-					}
-				}
-			});
-		}
 	}
 }
 

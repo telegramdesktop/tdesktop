@@ -98,6 +98,8 @@ enum class Badge {
 	Fake,
 };
 [[nodiscard]] rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
+	not_null<PeerData*> peer);
 
 } // namespace Profile
 } // namespace Info

@@ -500,5 +500,16 @@ rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
 	return rpl::single(Badge::None);
 }
 
+rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::EmojiStatus
+		) | rpl::map([=] { return user->emojiStatusId(); });
+	}
+	return rpl::single(DocumentId(0));
+}
+
+
 } // namespace Profile
 } // namespace Info

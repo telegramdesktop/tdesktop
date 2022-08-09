@@ -232,11 +232,13 @@ InnerWidget::InnerWidget(
 		| UpdateFlag::Photo
 		| UpdateFlag::IsContact
 		| UpdateFlag::FullInfo
+		| UpdateFlag::EmojiStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags
 			& (UpdateFlag::Name
 				| UpdateFlag::Photo
-				| UpdateFlag::FullInfo)) {
+				| UpdateFlag::FullInfo
+				| UpdateFlag::EmojiStatus)) {
 			const auto peer = update.peer;
 			const auto history = peer->owner().historyLoaded(peer);
 			if (_state == WidgetState::Default) {
@@ -2066,7 +2068,6 @@ void InnerWidget::visibleTopBottomUpdated(
 			_loadMoreCallback();
 		}
 	}
-
 }
 
 void InnerWidget::itemRemoved(not_null<const HistoryItem*> item) {

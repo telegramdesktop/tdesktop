@@ -764,8 +764,6 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			- st::mainMenuCoverNameLeft
 			- _toggleAccounts->rightSkip();
 
-		p.setFont(st::semiboldFont);
-		p.setPen(st::windowBoldFg);
 		const auto user = _controller->session().user();
 		if (_nameVersion < user->nameVersion()) {
 			_nameVersion = user->nameVersion();
@@ -774,11 +772,37 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				user->name(),
 				Ui::NameTextOptions());
 		}
+		const auto paused = _controller->isGifPausedAtLeastFor(
+			GifPauseReason::Layer);
+		const auto badgeWidth = user->emojiStatusId()
+			? _badge.drawGetWidth(
+				p,
+				QRect(
+					st::mainMenuCoverNameLeft,
+					st::mainMenuCoverNameTop,
+					widthText,
+					st::msgNameStyle.font->height),
+				_name.maxWidth(),
+				width(),
+				{
+					.peer = user,
+					.verified = nullptr,
+					.premium = &st::dialogsPremiumIcon,
+					.scam = nullptr,
+					.preview = st::windowBgOver->c,
+					.customEmojiRepaint = [=] { update(); },
+					.now = crl::now(),
+					.paused = paused,
+				})
+			: 0;
+
+		p.setFont(st::semiboldFont);
+		p.setPen(st::windowBoldFg);
 		_name.drawLeftElided(
 			p,
 			st::mainMenuCoverNameLeft,
 			st::mainMenuCoverNameTop,
-			widthText,
+			widthText - badgeWidth,
 			width());
 		p.setFont(st::mainMenuPhoneFont);
 		p.setPen(st::windowSubTextFg);

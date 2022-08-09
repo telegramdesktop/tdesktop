@@ -165,6 +165,7 @@ TopBarWidget::TopBarWidget(
 		| UpdateFlag::Members
 		| UpdateFlag::SupportInfo
 		| UpdateFlag::Rights
+		| UpdateFlag::EmojiStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::HasCalls) {
 			if (update.peer->isUser()
@@ -181,6 +182,10 @@ TopBarWidget::TopBarWidget(
 				| UpdateFlag::Members
 				| UpdateFlag::SupportInfo)) {
 			updateOnlineDisplay();
+		}
+		if ((update.flags & UpdateFlag::EmojiStatus)
+			&& (_activeChat.key.peer() == update.peer)) {
+			this->update();
 		}
 	}, lifetime());
 

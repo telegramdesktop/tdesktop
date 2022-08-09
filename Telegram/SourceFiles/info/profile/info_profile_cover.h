@@ -19,6 +19,10 @@ namespace style {
 struct InfoToggle;
 } // namespace style
 
+namespace ChatHelpers {
+class TabbedPanel;
+} // namespace ChatHelpers
+
 namespace Ui {
 class AbstractButton;
 class UserpicButton;
@@ -64,10 +68,15 @@ private:
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
-	void setBadge(Badge badge);
+	void setBadge(Badge badge, DocumentId emojiStatusId);
+	void createEmojiStatusSelector();
+	void showEmojiStatusSelector();
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
+	DocumentId _emojiStatusId = 0;
+	std::unique_ptr<Ui::Text::CustomEmoji> _emojiStatus;
+	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiStatusPanel;
 	int _onlineCount = 0;
 	Badge _badge = Badge();
 

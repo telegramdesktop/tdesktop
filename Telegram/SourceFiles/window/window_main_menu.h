@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/object_ptr.h"
 #include "base/binary_guard.h"
 #include "ui/rp_widget.h"
+#include "ui/unread_badge.h"
 #include "ui/layers/layer_widget.h"
 
 namespace Ui {
@@ -66,6 +67,7 @@ private:
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
+	Ui::PeerBadge _badge;
 	Ui::Text::String _name;
 	int _nameVersion = 0;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
