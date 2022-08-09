@@ -294,7 +294,9 @@ private:
 		not_null<const PeerSearchResult*> result,
 		int fullWidth,
 		bool active,
-		bool selected) const;
+		bool selected,
+		crl::time now,
+		bool paused);
 	void paintSearchInChat(Painter &p) const;
 	void paintSearchInPeer(
 		Painter &p,
@@ -318,6 +320,7 @@ private:
 		const style::icon *icon,
 		const Ui::Text::String &text) const;
 	void refreshSearchInChatLabel();
+	void repaintSearchResult(int index);
 
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);

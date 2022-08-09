@@ -71,6 +71,9 @@ public:
 		const QString &newPhoneName,
 		const QString &newUsername);
 
+	void setEmojiStatus(DocumentId emojiStatusId);
+	[[nodiscard]] DocumentId emojiStatusId() const;
+
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int version);
 	void setBotInfo(const MTPBotInfo &info);
@@ -167,6 +170,8 @@ private:
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld
 		= 0xFFFFFFFFFFFFFFFFULL;
+
+	DocumentId _emojiStatusId = 0;
 
 };
 

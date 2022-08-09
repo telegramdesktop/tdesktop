@@ -57,6 +57,17 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	});
 }
 
+void UserData::setEmojiStatus(DocumentId emojiStatusId) {
+	if (_emojiStatusId != emojiStatusId) {
+		_emojiStatusId = emojiStatusId;
+		session().changes().peerUpdated(this, UpdateFlag::EmojiStatus);
+	}
+}
+
+DocumentId UserData::emojiStatusId() const {
+	return _emojiStatusId;
+}
+
 auto UserData::unavailableReasons() const
 -> const std::vector<Data::UnavailableReason> & {
 	return _unavailableReasons;

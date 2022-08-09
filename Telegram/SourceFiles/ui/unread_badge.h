@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Ui {
 
 class UnreadBadge : public RpWidget {
@@ -27,18 +31,39 @@ private:
 
 };
 
-struct PeerBadgeStyle {
-	const style::icon *verified = nullptr;
-	const style::icon *premium = nullptr;
-	const style::color *scam = nullptr;
+class PeerBadge {
+public:
+	PeerBadge();
+	~PeerBadge();
+
+	struct Descriptor {
+		not_null<PeerData*> peer;
+		const style::icon *verified = nullptr;
+		const style::icon *premium = nullptr;
+		const style::color *scam = nullptr;
+		QColor preview;
+		Fn<void()> customEmojiRepaint;
+		crl::time now = 0;
+		bool paused = false;
+	};
+	int drawGetWidth(
+		Painter &p,
+		QRect rectForName,
+		int nameWidth,
+		int outerWidth,
+		const Descriptor &descriptor);
+	void unload();
+
+private:
+	struct EmojiStatus {
+		DocumentId id = 0;
+		std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+		int skip = 0;
+	};
+	std::unique_ptr<EmojiStatus> _emojiStatus;
+
 };
-int DrawPeerBadgeGetWidth(
-	not_null<PeerData*> peer,
-	Painter &p,
-	QRect rectForName,
-	int nameWidth,
-	int outerWidth,
-	const PeerBadgeStyle &st);
+
 QSize ScamBadgeSize(bool fake);
 void DrawScamBadge(
 	bool fake,

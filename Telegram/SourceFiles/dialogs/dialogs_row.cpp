@@ -339,9 +339,13 @@ void Row::paintUserpic(
 	p.setOpacity(1.);
 }
 
-FakeRow::FakeRow(Key searchInChat, not_null<HistoryItem*> item)
+FakeRow::FakeRow(
+	Key searchInChat,
+	not_null<HistoryItem*> item,
+	Fn<void()> repaint)
 : _searchInChat(searchInChat)
-, _item(item) {
+, _item(item)
+, _repaint(std::move(repaint)) {
 }
 
 const Ui::Text::String &FakeRow::name() const {

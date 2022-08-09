@@ -176,8 +176,14 @@ void ListController::addItems(const MessageIdsList &ids, bool clear) {
 	const auto key = Dialogs::Key{ _history };
 	for (const auto &id : ids) {
 		if (const auto item = owner.message(id)) {
-			delegate()->peerListAppendRow(std::make_unique<Row>(
-				std::make_unique<Dialogs::FakeRow>(key, item)));
+			const auto shared = std::make_shared<Row*>(nullptr);
+			auto row = std::make_unique<Row>(
+				std::make_unique<Dialogs::FakeRow>(
+					key,
+					item,
+					[=] { delegate()->peerListUpdateRow(*shared); }));
+			*shared = row.get();
+			delegate()->peerListAppendRow(std::move(row));
 		}
 	}
 

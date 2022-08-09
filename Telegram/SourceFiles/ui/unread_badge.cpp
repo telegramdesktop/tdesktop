@@ -8,6 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/unread_badge.h"
 
 #include "data/data_peer.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
@@ -103,14 +106,20 @@ void DrawScamBadge(
 		st::dialogsScamFont->width(phrase));
 }
 
-int DrawPeerBadgeGetWidth(
-		not_null<PeerData*> peer,
+PeerBadge::PeerBadge() = default;
+
+PeerBadge::~PeerBadge() = default;
+
+int PeerBadge::drawGetWidth(
 		Painter &p,
 		QRect rectForName,
 		int nameWidth,
 		int outerWidth,
-		const PeerBadgeStyle &st) {
-	if ((peer->isScam() || peer->isFake()) && st.scam) {
+		const Descriptor &descriptor) {
+	Expects(descriptor.customEmojiRepaint != nullptr);
+
+	const auto peer = descriptor.peer;
+	if ((peer->isScam() || peer->isFake()) && descriptor.scam) {
 		const auto phrase = peer->isScam()
 			? tr::lng_scam_badge(tr::now)
 			: tr::lng_fake_badge(tr::now);
@@ -129,28 +138,62 @@ int DrawPeerBadgeGetWidth(
 			rectForName.y() + (rectForName.height() - height) / 2,
 			width,
 			height);
-		DrawScamFakeBadge(p, rect, outerWidth, *st.scam, phrase, phraseWidth);
+		DrawScamFakeBadge(
+			p,
+			rect,
+			outerWidth,
+			*descriptor.scam,
+			phrase,
+			phraseWidth);
 		return st::dialogsScamSkip + width;
-	} else if (peer->isVerified() && st.verified) {
-		const auto iconw = st.verified->width();
-		st.verified->paint(
+	} else if (peer->isVerified() && descriptor.verified) {
+		const auto iconw = descriptor.verified->width();
+		descriptor.verified->paint(
 			p,
 			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
 			rectForName.y(),
 			outerWidth);
 		return iconw;
 	} else if (peer->isPremium()
-		&& st.premium
+		&& descriptor.premium
 		&& peer->session().premiumBadgesShown()) {
-		const auto iconw = st.premium->width();
-		st.premium->paint(
+		const auto id = peer->isUser() ? peer->asUser()->emojiStatusId() : 0;
+		const auto iconw = descriptor.premium->width();
+		const auto iconx = rectForName.x()
+			+ qMin(nameWidth, rectForName.width() - iconw);
+		const auto icony = rectForName.y();
+		if (!id) {
+			_emojiStatus = nullptr;
+			descriptor.premium->paint(p, iconx, icony, outerWidth);
+			return iconw;
+		}
+		if (!_emojiStatus) {
+			_emojiStatus = std::make_unique<EmojiStatus>();
+			const auto size = st::emojiSize * 1.;
+			const auto emoji = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+			_emojiStatus->skip = (st::emojiSize - emoji) / 2;
+		}
+		if (_emojiStatus->id != id) {
+			auto &manager = peer->session().data().customEmojiManager();
+			_emojiStatus->id = id;
+			_emojiStatus->emoji = manager.create(
+				id,
+				descriptor.customEmojiRepaint);
+		}
+		_emojiStatus->emoji->paint(
 			p,
-			rectForName.x() + qMin(nameWidth, rectForName.width() - iconw),
-			rectForName.y(),
-			outerWidth);
-		return iconw;
+			iconx - _emojiStatus->skip,
+			icony + _emojiStatus->skip,
+			descriptor.now,
+			descriptor.preview,
+			descriptor.paused);
+		return iconw - 2 * _emojiStatus->skip;
 	}
 	return 0;
+}
+
+void PeerBadge::unload() {
+	_emojiStatus = nullptr;
 }
 
 } // namespace Ui
