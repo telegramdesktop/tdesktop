@@ -192,7 +192,7 @@ public:
 	void refreshTopPromotion();
 	void requestDeepLinkInfo(
 		const QString &path,
-		Fn<void(const MTPDhelp_deepLinkInfo &result)> callback);
+		Fn<void(TextWithEntities message, bool updateRequired)> callback);
 	void requestTermsUpdate();
 	void acceptTerms(bytes::const_span termsId);
 

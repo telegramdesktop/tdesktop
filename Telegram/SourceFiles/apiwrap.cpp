@@ -293,14 +293,20 @@ void ApiWrap::topPromotionDone(const MTPhelp_PromoData &proxy) {
 
 void ApiWrap::requestDeepLinkInfo(
 		const QString &path,
-		Fn<void(const MTPDhelp_deepLinkInfo &result)> callback) {
+		Fn<void(TextWithEntities message, bool updateRequired)> callback) {
 	request(_deepLinkInfoRequestId).cancel();
 	_deepLinkInfoRequestId = request(MTPhelp_GetDeepLinkInfo(
 		MTP_string(path)
 	)).done([=](const MTPhelp_DeepLinkInfo &result) {
 		_deepLinkInfoRequestId = 0;
 		if (result.type() == mtpc_help_deepLinkInfo) {
-			callback(result.c_help_deepLinkInfo());
+			const auto &data = result.c_help_deepLinkInfo();
+			callback(TextWithEntities{
+				qs(data.vmessage()),
+				Api::EntitiesFromMTP(
+					_session,
+					data.ventities().value_or_empty())
+			}, data.is_update_app());
 		}
 	}).fail([=] {
 		_deepLinkInfoRequestId = 0;

@@ -491,25 +491,21 @@ bool HandleUnknown(
 		return false;
 	}
 	const auto request = match->captured(1);
-	const auto callback = crl::guard(controller, [=](const MTPDhelp_deepLinkInfo &result) {
-		const auto text = TextWithEntities{
-			qs(result.vmessage()),
-			Api::EntitiesFromMTP(
-				&controller->session(),
-				result.ventities().value_or_empty())
-		};
-		if (result.is_update_app()) {
+	const auto callback = crl::guard(controller, [=](
+			TextWithEntities message,
+			bool updateRequired) {
+		if (updateRequired) {
 			const auto callback = [=](Fn<void()> &&close) {
 				Core::UpdateApplication();
 				close();
 			};
 			controller->show(Ui::MakeConfirmBox({
-				.text = text,
+				.text = message,
 				.confirmed = callback,
 				.confirmText = tr::lng_menu_update(),
 			}));
 		} else {
-			controller->show(Ui::MakeInformBox(text));
+			controller->show(Ui::MakeInformBox(message));
 		}
 	});
 	controller->session().api().requestDeepLinkInfo(request, callback);
