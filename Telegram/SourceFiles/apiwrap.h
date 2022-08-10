@@ -171,7 +171,7 @@ public:
 	void requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
-		Fn<void(const MTP::Error &)> fail);
+		Fn<void()> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
 
@@ -656,7 +656,7 @@ private:
 	mtpRequestId _wallPaperRequestId = 0;
 	QString _wallPaperSlug;
 	Fn<void(const Data::WallPaper &)> _wallPaperDone;
-	Fn<void(const MTP::Error &)> _wallPaperFail;
+	Fn<void()> _wallPaperFail;
 
 	mtpRequestId _contactSignupSilentRequestId = 0;
 	std::optional<bool> _contactSignupSilent;

@@ -992,7 +992,7 @@ rpl::producer<bool> ApiWrap::dialogsLoadBlockedByDate() const {
 void ApiWrap::requestWallPaper(
 		const QString &slug,
 		Fn<void(const Data::WallPaper &)> done,
-		Fn<void(const MTP::Error &)> fail) {
+		Fn<void()> fail) {
 	if (_wallPaperSlug != slug) {
 		_wallPaperSlug = slug;
 		if (_wallPaperRequestId) {
@@ -1014,13 +1014,13 @@ void ApiWrap::requestWallPaper(
 				done(*paper);
 			}
 		} else if (const auto fail = base::take(_wallPaperFail)) {
-			fail(MTP::Error::Local("BAD_DOCUMENT", "In a wallpaper."));
+			fail();
 		}
 	}).fail([=](const MTP::Error &error) {
 		_wallPaperRequestId = 0;
 		_wallPaperSlug = QString();
 		if (const auto fail = base::take(_wallPaperFail)) {
-			fail(error);
+			fail();
 		}
 	}).send();
 }
