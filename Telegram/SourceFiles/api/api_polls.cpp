@@ -37,7 +37,7 @@ void Polls::create(
 		const PollData &data,
 		const SendAction &action,
 		Fn<void()> done,
-		Fn<void(const MTP::Error &error)> fail) {
+		Fn<void()> fail) {
 	_session->api().sendAction(action);
 
 	const auto history = action.history;
@@ -101,7 +101,7 @@ void Polls::create(
 				history->finishSavingCloudDraft(
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
-			fail(error);
+			fail();
 			finish();
 		}).afterRequest(history->sendRequestId
 		).send();

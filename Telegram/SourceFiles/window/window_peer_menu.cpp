@@ -1064,7 +1064,7 @@ void PeerMenuCreatePoll(
 		const auto api = &peer->session().api();
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {
 			weak->closeBox();
-		}), crl::guard(weak, [=](const MTP::Error &error) {
+		}), crl::guard(weak, [=] {
 			*lock = false;
 			weak->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
