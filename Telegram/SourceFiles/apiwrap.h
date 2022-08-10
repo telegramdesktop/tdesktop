@@ -174,9 +174,6 @@ public:
 		Fn<void(const MTP::Error &)> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
-	void requestPeer(not_null<PeerData*> peer);
-	void requestPeers(const QList<PeerData*> &peers);
-	void requestPeerSettings(not_null<PeerData*> peer);
 
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
 	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
@@ -538,8 +535,6 @@ private:
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
-	PeerRequests _peerRequests;
-	base::flat_set<not_null<PeerData*>> _requestedPeerSettings;
 
 	base::flat_map<
 		not_null<History*>,
