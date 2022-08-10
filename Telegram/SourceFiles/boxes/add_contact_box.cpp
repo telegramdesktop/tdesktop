@@ -1164,7 +1164,7 @@ void SetupChannelBox::handleChange() {
 
 void SetupChannelBox::check() {
 	if (_checkRequestId) {
-		_channel->session().api().request(_checkRequestId).cancel();
+		_api.request(_checkRequestId).cancel();
 	}
 	const auto link = _link->text().trimmed();
 	if (link.size() >= Ui::EditPeer::kMinUsernameLength) {
