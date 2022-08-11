@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_block.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
@@ -215,29 +216,25 @@ void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
 	_badge = badge;
 	_emojiStatusId = emojiStatusId;
 	_emojiStatus = nullptr;
-	_verifiedCheck.destroy();
-	_scamFakeBadge.destroy();
+	_badgeView.destroy();
 	switch (_badge) {
 	case Badge::Verified:
 	case Badge::Premium: {
-		const auto icon = (_badge == Badge::Verified)
-			? &st::infoVerifiedCheck
-			: &st::infoPremiumStar;
-		_verifiedCheck.create(this);
-		_verifiedCheck->show();
-		_verifiedCheck->resize(icon->size());
+		_badgeView.create(this);
+		_badgeView->show();
 		if (_emojiStatusId) {
 			auto &owner = _controller->session().data();
 			_emojiStatus = owner.customEmojiManager().create(
 				_emojiStatusId,
-				[raw = _verifiedCheck.data()]{ raw->update(); },
-				Data::CustomEmojiManager::SizeTag::Normal);
-		}
-
-		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([=, check = _verifiedCheck.data()] {
-			Painter p(check);
-			if (_emojiStatus) {
+				[raw = _badgeView.data()]{ raw->update(); },
+				Data::CustomEmojiManager::SizeTag::Large);
+			const auto size = Ui::Emoji::GetSizeLarge()
+				/ style::DevicePixelRatio();
+			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
+			_badgeView->resize(emoji, emoji);
+			_badgeView->paintRequest(
+			) | rpl::start_with_next([=, check = _badgeView.data()]{
+				Painter p(check);
 				_emojiStatus->paint(
 					p,
 					0,
@@ -246,24 +243,17 @@ void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
 					st::windowBgOver->c,
 					_controller->isGifPausedAtLeastFor(
 						Window::GifPauseReason::Layer));
-			} else {
-				icon->paint(p, 0, 0, check->width());
-			}
-		}, _verifiedCheck->lifetime());
-
-		if (_badge == Badge::Premium) {
-			const auto userId = peerToUser(_peer->id).bare;
-			_verifiedCheck->setClickedCallback([=] {
-				if (_peer->isSelf()) {
-					showEmojiStatusSelector();
-				} else {
-					::Settings::ShowPremium(
-						_controller,
-						u"profile__%1"_q.arg(userId));
-				}
-			});
+			}, _badgeView->lifetime());
 		} else {
-			_verifiedCheck->setAttribute(Qt::WA_TransparentForMouseEvents);
+			const auto icon = (_badge == Badge::Verified)
+				? &st::infoVerifiedCheck
+				: &st::infoPremiumStar;
+			_badgeView->resize(icon->size());
+			_badgeView->paintRequest(
+			) | rpl::start_with_next([=, check = _badgeView.data()]{
+				Painter p(check);
+				icon->paint(p, 0, 0, check->width());
+			}, _badgeView->lifetime());
 		}
 	} break;
 	case Badge::Scam:
@@ -271,13 +261,13 @@ void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
 		const auto fake = (_badge == Badge::Fake);
 		const auto size = Ui::ScamBadgeSize(fake);
 		const auto skip = st::infoVerifiedCheckPosition.x();
-		_scamFakeBadge.create(this);
-		_scamFakeBadge->show();
-		_scamFakeBadge->resize(
+		_badgeView.create(this);
+		_badgeView->show();
+		_badgeView->resize(
 			size.width() + 2 * skip,
 			size.height() + 2 * skip);
-		_scamFakeBadge->paintRequest(
-		) | rpl::start_with_next([=, badge = _scamFakeBadge.data()]{
+		_badgeView->paintRequest(
+		) | rpl::start_with_next([=, badge = _badgeView.data()]{
 			Painter p(badge);
 			Ui::DrawScamBadge(
 				fake,
@@ -285,28 +275,51 @@ void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
 				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
 				badge->width(),
 				st::attentionButtonFg);
-			}, _scamFakeBadge->lifetime());
+			}, _badgeView->lifetime());
 	} break;
 	}
+
+	if (_badge == Badge::Premium) {
+		const auto userId = peerToUser(_peer->id).bare;
+		_badgeView->setClickedCallback([=] {
+			if (_peer->isSelf()) {
+				showEmojiStatusSelector();
+			} else {
+				::Settings::ShowPremium(
+					_controller,
+					u"profile__%1"_q.arg(userId));
+			}
+		});
+	} else {
+		_badgeView->setAttribute(Qt::WA_TransparentForMouseEvents);
+	}
+
 	refreshNameGeometry(width());
 }
 
 void Cover::showEmojiStatusSelector() {
-	Expects(_verifiedCheck != nullptr);
+	Expects(_badgeView != nullptr);
 
 	if (!_emojiStatusPanel) {
 		createEmojiStatusSelector();
 	}
 	const auto parent = _emojiStatusPanel->parentWidget();
-	const auto global = _verifiedCheck->mapToGlobal({ 0, 0 });
+	const auto global = _badgeView->mapToGlobal({ 0, 0 });
 	const auto local = parent->mapFromGlobal(global);
-	_emojiStatusPanel->moveBottomRight(
-		local.y(),
-		local.x() + _verifiedCheck->width() * 3);
+	_emojiStatusPanel->moveTopRight(
+		local.y() + _badgeView->height(),
+		local.x() + _badgeView->width() * 3);
 	_emojiStatusPanel->toggleAnimated();
 }
 
 void Cover::createEmojiStatusSelector() {
+	const auto set = [=](DocumentId id) {
+		_controller->session().user()->setEmojiStatus(id);
+		_controller->session().api().request(MTPaccount_UpdateEmojiStatus(
+			id ? MTP_emojiStatus(MTP_long(id)) : MTP_emojiStatusEmpty()
+		)).send();
+		_emojiStatusPanel->hideAnimated();
+	};
 	const auto container = _controller->window().widget()->bodyWidget();
 	using Selector = ChatHelpers::TabbedSelector;
 	_emojiStatusPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
@@ -316,20 +329,21 @@ void Cover::createEmojiStatusSelector() {
 			nullptr,
 			_controller,
 			Window::GifPauseReason::Layer,
-			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+			ChatHelpers::TabbedSelector::Mode::EmojiStatus));
+	_emojiStatusPanel->setDropDown(true);
 	_emojiStatusPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_emojiStatusPanel->hide();
 	_emojiStatusPanel->selector()->setAllowEmojiWithoutPremium(false);
+	_emojiStatusPanel->selector()->emojiChosen(
+	) | rpl::start_with_next([=] {
+		set(0);
+	}, _emojiStatusPanel->lifetime());
 	_emojiStatusPanel->selector()->customEmojiChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen data) {
-		_controller->session().user()->setEmojiStatus(data.document->id);
-		_controller->session().api().request(MTPaccount_UpdateEmojiStatus(
-			MTP_emojiStatus(MTP_long(data.document->id))
-		)).send();
-		_emojiStatusPanel->hideAnimated();
+		set(data.document->id);
 	}, _emojiStatusPanel->lifetime());
 	_emojiStatusPanel->selector()->showPromoForPremiumEmoji();
 }
@@ -392,31 +406,22 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth
 		- nameLeft
 		- st::infoProfileNameRight;
-	if (_verifiedCheck) {
-		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ _verifiedCheck->width();
-	} else if (_scamFakeBadge) {
-		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ _scamFakeBadge->width();
+	if (_badgeView) {
+		nameWidth -= st::infoVerifiedCheckPosition.x() + _badgeView->width();
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
-	if (_verifiedCheck) {
-		const auto checkLeft = nameLeft
-			+ _name->width()
-			+ st::infoVerifiedCheckPosition.x();
-		const auto checkTop = nameTop
-			+ st::infoVerifiedCheckPosition.y();
-		_verifiedCheck->moveToLeft(checkLeft, checkTop, newWidth);
-	} else if (_scamFakeBadge) {
-		const auto skip = st::infoVerifiedCheckPosition.x();
-		const auto badgeLeft = nameLeft
-			+ _name->width()
-			+ st::infoVerifiedCheckPosition.x()
-			- skip;
+	if (_badgeView) {
+		const auto star = !_emojiStatus
+			&& (_badge == Badge::Premium || _badge == Badge::Verified);
+		const auto fake = !_emojiStatus && !star;
+		const auto skip = fake ? 0 : st::infoVerifiedCheckPosition.x();
+		const auto badgeLeft = nameLeft + _name->width() + skip;
 		const auto badgeTop = nameTop
-			+ (_name->height() - _scamFakeBadge->height()) / 2;
-		_scamFakeBadge->moveToLeft(badgeLeft, badgeTop, newWidth);
+			+ (star
+				? st::infoVerifiedCheckPosition.y()
+				: (_name->height() - _badgeView->height()) / 2);
+		_badgeView->moveToLeft(badgeLeft, badgeTop, newWidth);
 	}
 }
 

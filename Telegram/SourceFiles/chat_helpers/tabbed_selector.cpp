@@ -439,7 +439,14 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 	auto createWidget = [&]() -> object_ptr<Inner> {
 		switch (type) {
 		case SelectorTab::Emoji:
-			return object_ptr<EmojiListWidget>(this, _controller, _level);
+			using EmojiMode = EmojiListWidget::Mode;
+			return object_ptr<EmojiListWidget>(
+				this,
+				_controller,
+				_level,
+				(_mode == Mode::EmojiStatus
+					? EmojiMode::EmojiStatus
+					: EmojiMode::Full));
 		case SelectorTab::Stickers:
 			return object_ptr<StickersListWidget>(this, _controller, _level);
 		case SelectorTab::Gifs:
@@ -561,7 +568,7 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 	}
 
 	auto scrollWidth = width() - st::roundRadiusSmall;
-	auto scrollHeight = height() - scrollTop() - marginBottom();
+	auto scrollHeight = height() - scrollTop() - scrollBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
 	auto updateScrollGeometry = [&] {
@@ -591,7 +598,7 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 		st::lineWidth);
 	updateRestrictedLabelGeometry();
 
-	_footerTop = height() - st::emojiFooterHeight;
+	_footerTop = _dropDown ? 0 : (height() - st::emojiFooterHeight);
 	for (auto &tab : _tabs) {
 		tab.footer()->resizeToWidth(width());
 		tab.footer()->moveToLeft(0, _footerTop);
@@ -630,21 +637,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 
 void TabbedSelector::paintSlideFrame(Painter &p) {
 	if (_roundRadius > 0) {
-		const auto topPart = QRect(
-			0,
-			0,
-			width(),
-			_tabsSlider
-				? _tabsSlider->height() + _roundRadius
-				: 3 * _roundRadius);
-		Ui::FillRoundRect(
-			p,
-			topPart,
-			st::emojiPanBg,
-			ImageRoundRadius::Small,
-			tabbed()
-				? RectPart::FullTop | RectPart::NoTopBottom
-				: RectPart::FullTop);
+		paintBgRoundedPart(p);
 	} else if (_tabsSlider) {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 	}
@@ -652,43 +645,53 @@ void TabbedSelector::paintSlideFrame(Painter &p) {
 	_slideAnimation->paintFrame(p, slideDt, 1.);
 }
 
-void TabbedSelector::paintContent(Painter &p) {
-	auto &bottomBg = hasSectionIcons()
-		? st::emojiPanCategories
-		: st::emojiPanBg;
-	if (_roundRadius > 0) {
-		const auto topPart = QRect(
+void TabbedSelector::paintBgRoundedPart(Painter &p) {
+	const auto threeRadius = 3 * _roundRadius;
+	const auto topOrBottomPart = _dropDown
+		? QRect(0, height() - threeRadius, width(), threeRadius)
+		: QRect(
 			0,
 			0,
 			width(),
-			_tabsSlider
+			(_tabsSlider
 				? _tabsSlider->height() + _roundRadius
-				: 3 * _roundRadius);
-		Ui::FillRoundRect(
-			p,
-			topPart,
-			st::emojiPanBg,
-			ImageRoundRadius::Small,
-			tabbed()
-				? RectPart::FullTop | RectPart::NoTopBottom
-				: RectPart::FullTop);
+				: threeRadius));
+	Ui::FillRoundRect(
+		p,
+		topOrBottomPart,
+		st::emojiPanBg,
+		ImageRoundRadius::Small,
+		(_dropDown
+			? RectPart::FullBottom
+			: tabbed()
+			? (RectPart::FullTop | RectPart::NoTopBottom)
+			: RectPart::FullTop));
+}
 
-		const auto bottomPart = QRect(
+void TabbedSelector::paintContent(Painter &p) {
+	auto &footerBg = hasSectionIcons()
+		? st::emojiPanCategories
+		: st::emojiPanBg;
+	if (_roundRadius > 0) {
+		paintBgRoundedPart(p);
+
+		const auto footerPart = QRect(
 			0,
-			_footerTop - _roundRadius,
+			_footerTop - (_dropDown ? 0 : _roundRadius),
 			width(),
 			st::emojiFooterHeight + _roundRadius);
 		Ui::FillRoundRect(
 			p,
-			bottomPart,
-			bottomBg,
+			footerPart,
+			footerBg,
 			ImageRoundRadius::Small,
-			RectPart::NoTopBottom | RectPart::FullBottom);
+			(RectPart::NoTopBottom
+				| (_dropDown ? RectPart::FullTop : RectPart::FullBottom)));
 	} else {
 		if (_tabsSlider) {
 			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 		}
-		p.fillRect(0, _footerTop, width(), st::emojiFooterHeight, bottomBg);
+		p.fillRect(0, _footerTop, width(), st::emojiFooterHeight, footerBg);
 	}
 
 	auto sidesTop = marginTop();
@@ -710,17 +713,23 @@ void TabbedSelector::paintContent(Painter &p) {
 }
 
 int TabbedSelector::marginTop() const {
-	return _tabsSlider
+	return _dropDown
+		? st::emojiFooterHeight
+		: _tabsSlider
 		? (_tabsSlider->height() - st::lineWidth)
 		: _roundRadius;
 }
 
 int TabbedSelector::scrollTop() const {
-	return tabbed() ? marginTop() : 0;
+	return tabbed() ? marginTop() : _dropDown ? st::emojiFooterHeight : 0;
 }
 
 int TabbedSelector::marginBottom() const {
-	return st::emojiFooterHeight;
+	return _dropDown ? _roundRadius : st::emojiFooterHeight;
+}
+
+int TabbedSelector::scrollBottom() const {
+	return _dropDown ? 0 : marginBottom();
 }
 
 void TabbedSelector::refreshStickers() {

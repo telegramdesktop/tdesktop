@@ -50,16 +50,22 @@ inline constexpr auto kEmojiSectionCount = 8;
 struct StickerIcon;
 class EmojiColorPicker;
 class StickersListFooter;
+class GradientPremiumStar;
 class LocalStickersManager;
 
 class EmojiListWidget
 	: public TabbedSelector::Inner
 	, public Ui::AbstractTooltipShower {
 public:
+	enum class Mode {
+		Full,
+		EmojiStatus,
+	};
 	EmojiListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level);
+		Window::GifPauseReason level,
+		Mode mode);
 	~EmojiListWidget();
 
 	using Section = Ui::Emoji::Section;
@@ -266,7 +272,10 @@ private:
 		DocumentId documentId,
 		uint64 setId);
 
+	Mode _mode = Mode::Full;
+	const int _staticCount = 0;
 	StickersListFooter *_footer = nullptr;
+	std::unique_ptr<GradientPremiumStar> _premiumIcon;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 
 	int _counts[kEmojiSectionCount];
@@ -284,6 +293,7 @@ private:
 	QSize _singleSize;
 	QPoint _areaPosition;
 	QPoint _innerPosition;
+	QPoint _customPosition;
 
 	RightButton _add;
 	RightButton _unlock;

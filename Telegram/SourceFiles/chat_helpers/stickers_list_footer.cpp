@@ -145,6 +145,42 @@ bool StickersListFooter::ScrollState::animationCallback(crl::time now) {
 	return true;
 }
 
+GradientPremiumStar::GradientPremiumStar() {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_image = QImage();
+	}, _lifetime);
+}
+
+QImage GradientPremiumStar::image() const {
+	if (_image.isNull()) {
+		renderOnDemand();
+	}
+	return _image;
+}
+
+void GradientPremiumStar::renderOnDemand() const {
+	const auto size = st::stickersPremium.size();
+	const auto mask = st::stickersPremium.instance(Qt::white);
+	const auto factor = style::DevicePixelRatio();
+	_image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	_image.setDevicePixelRatio(factor);
+
+	QPainter p(&_image);
+	auto gradient = QLinearGradient(
+		QPoint(0, size.height()),
+		QPoint(size.width(), 0));
+	gradient.setStops({
+		{ 0., st::stickerPanPremium1->c },
+		{ 1., st::stickerPanPremium2->c },
+		});
+	p.fillRect(QRect(QPoint(), size), gradient);
+	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+	p.drawImage(QRect(QPoint(), size), mask);
+}
+
 StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 : InnerFooter(descriptor.parent)
 , _controller(descriptor.controller)
@@ -169,36 +205,6 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_premiumIcon = QImage();
-	}, lifetime());
-}
-
-void StickersListFooter::validatePremiumIcon() const {
-	if (!_premiumIcon.isNull()) {
-		return;
-	}
-	const auto size = st::stickersPremium.size();
-	const auto mask = st::stickersPremium.instance(Qt::white);
-	const auto factor = style::DevicePixelRatio();
-	_premiumIcon = QImage(
-		size * factor,
-		QImage::Format_ARGB32_Premultiplied);
-	_premiumIcon.setDevicePixelRatio(factor);
-
-	QPainter p(&_premiumIcon);
-	auto gradient = QLinearGradient(
-		QPoint(0, size.height()),
-		QPoint(size.width(), 0));
-	gradient.setStops({
-		{ 0., st::stickerPanPremium1->c },
-		{ 1., st::stickerPanPremium2->c },
-		});
-	p.fillRect(QRect(QPoint(), size), gradient);
-	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
-	p.drawImage(QRect(QPoint(), size), mask);
 }
 
 void StickersListFooter::clearHeavyData() {
@@ -1211,12 +1217,11 @@ void StickersListFooter::paintSetIcon(
 			width(),
 			st::stickerGroupCategorySize);
 	} else if (icon.setId == Data::Stickers::PremiumSetId) {
-		validatePremiumIcon();
 		const auto size = st::stickersPremium.size();
 		p.drawImage(
 			info.adjustedLeft + (_singleWidth - size.width()) / 2,
 			_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
-			_premiumIcon);
+			_premiumIcon.image());
 	} else {
 		using Section = Ui::Emoji::Section;
 		const auto sectionIcon = [&](Section section, bool active) {

@@ -82,8 +82,7 @@ private:
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
-	object_ptr<Ui::AbstractButton> _verifiedCheck = { nullptr };
-	object_ptr<Ui::RpWidget> _scamFakeBadge = { nullptr };
+	object_ptr<Ui::AbstractButton> _badgeView = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 	base::Timer _refreshStatusTimer;

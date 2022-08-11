@@ -70,6 +70,7 @@ public:
 		Full,
 		EmojiOnly,
 		MediaEditor,
+		EmojiStatus,
 	};
 	enum class Action {
 		Update,
@@ -110,9 +111,10 @@ public:
 	void beforeHiding();
 	void afterShown();
 
-	int marginTop() const;
-	int marginBottom() const;
-	int scrollTop() const;
+	[[nodiscard]] int marginTop() const;
+	[[nodiscard]] int marginBottom() const;
+	[[nodiscard]] int scrollTop() const;
+	[[nodiscard]] int scrollBottom() const;
 
 	bool preventAutoHide() const;
 	bool isSliding() const {
@@ -128,6 +130,9 @@ public:
 	}
 
 	void showMenuWithType(SendMenu::Type type);
+	void setDropDown(bool dropDown) {
+		_dropDown = dropDown;
+	}
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e);
@@ -193,6 +198,7 @@ private:
 	Tab createTab(SelectorTab type, int index);
 
 	void paintSlideFrame(Painter &p);
+	void paintBgRoundedPart(Painter &p);
 	void paintContent(Painter &p);
 
 	void checkRestrictedPeer();
@@ -252,6 +258,7 @@ private:
 	const bool _hasGifsTab;
 	const bool _hasMasksTab;
 	const bool _tabbed;
+	bool _dropDown = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

@@ -75,6 +75,20 @@ struct StickerIcon {
 	mutable rpl::lifetime lifetime;
 };
 
+class GradientPremiumStar {
+public:
+	GradientPremiumStar();
+
+	[[nodiscard]] QImage image() const;
+
+private:
+	void renderOnDemand() const;
+
+	mutable QImage _image;
+	rpl::lifetime _lifetime;
+
+};
+
 class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:
 	struct Descriptor {
@@ -203,7 +217,6 @@ private:
 	void paintSelectionBg(Painter &p) const;
 	void paintSelectionBar(Painter &p) const;
 	void paintLeftRightFading(Painter &p) const;
-	void validatePremiumIcon() const;
 
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();
@@ -230,7 +243,7 @@ private:
 	OverState _pressed = SpecialOver::None;
 
 	QPoint _iconsMousePos, _iconsMouseDown;
-	mutable QImage _premiumIcon;
+	GradientPremiumStar _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;
