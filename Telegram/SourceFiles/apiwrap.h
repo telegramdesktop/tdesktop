@@ -174,6 +174,7 @@ public:
 		Fn<void()> fail);
 
 	void requestFullPeer(not_null<PeerData*> peer);
+	void requestPeerSettings(not_null<PeerData*> peer);
 
 	using UpdatedFileReferences = Data::UpdatedFileReferences;
 	using FileReferencesHandler = FnMut<void(const UpdatedFileReferences&)>;
@@ -535,6 +536,7 @@ private:
 
 	using PeerRequests = base::flat_map<PeerData*, mtpRequestId>;
 	PeerRequests _fullPeerRequests;
+	base::flat_set<not_null<PeerData*>> _requestedPeerSettings;
 
 	base::flat_map<
 		not_null<History*>,

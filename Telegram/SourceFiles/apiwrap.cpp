@@ -1131,6 +1131,24 @@ void ApiWrap::gotUserFull(
 		Data::PeerUpdate::Flag::FullInfo);
 }
 
+void ApiWrap::requestPeerSettings(not_null<PeerData*> peer) {
+	if (!_requestedPeerSettings.emplace(peer).second) {
+		return;
+	}
+	request(MTPmessages_GetPeerSettings(
+		peer->input
+	)).done([=](const MTPmessages_PeerSettings &result) {
+		result.match([&](const MTPDmessages_peerSettings &data) {
+			_session->data().processUsers(data.vusers());
+			_session->data().processChats(data.vchats());
+			peer->setSettings(data.vsettings());
+			_requestedPeerSettings.erase(peer);
+		});
+	}).fail([=] {
+		_requestedPeerSettings.erase(peer);
+	}).send();
+}
+
 void ApiWrap::migrateChat(
 		not_null<ChatData*> chat,
 		FnMut<void(not_null<ChannelData*>)> done,
