@@ -1474,31 +1474,12 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	} else {
 		result.emplace_back(AllEmojiSectionSetId());
 	}
+	const auto esize = Data::FrameSizeFromTag(
+		Data::CustomEmojiManager::SizeTag::Large
+	) / style::DevicePixelRatio();
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
-		const auto s = custom.thumbnailDocument;
-		const auto availw = st::stickerIconWidth - 2 * st::emojiIconPadding;
-		const auto availh = st::emojiFooterHeight - 2 * st::emojiIconPadding;
-		const auto size = set->hasThumbnail()
-			? QSize(
-				set->thumbnailLocation().width(),
-				set->thumbnailLocation().height())
-			: s->hasThumbnail()
-			? QSize(
-				s->thumbnailLocation().width(),
-				s->thumbnailLocation().height())
-			: QSize();
-		auto thumbw = size.width(), thumbh = size.height(), pixw = 1, pixh = 1;
-		if (availw * thumbh > availh * thumbw) {
-			pixh = availh;
-			pixw = (pixh * thumbw) / thumbh;
-		} else {
-			pixw = availw;
-			pixh = thumbw ? ((pixw * thumbh) / thumbw) : 1;
-		}
-		if (pixw < 1) pixw = 1;
-		if (pixh < 1) pixh = 1;
-		result.emplace_back(set, s, pixw, pixh);
+		result.emplace_back(set, custom.thumbnailDocument, esize, esize);
 	}
 	return result;
 }

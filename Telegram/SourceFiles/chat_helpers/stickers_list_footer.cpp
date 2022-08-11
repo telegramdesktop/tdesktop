@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "data/stickers/data_stickers_set.h"
 #include "data/stickers/data_stickers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_file_origin.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -88,11 +89,11 @@ StickerIcon::StickerIcon(
 	DocumentData *sticker,
 	int pixw,
 	int pixh)
-	: setId(set->id)
-	, set(set)
-	, sticker(sticker)
-	, pixw(pixw)
-	, pixh(pixh) {
+: setId(set->id)
+, set(set)
+, sticker(sticker)
+, pixw(pixw)
+, pixh(pixh) {
 }
 
 StickerIcon::StickerIcon(StickerIcon&&) = default;
@@ -530,6 +531,7 @@ void StickersListFooter::setLoading(bool loading) {
 void StickersListFooter::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	_repaintScheduled = false;
 	if (_searchButtonVisible) {
 		paintSearchIcon(p);
 	}
@@ -951,6 +953,7 @@ void StickersListFooter::refreshIcons(
 			if (now.sticker == was.sticker) {
 				now.webm = std::move(was.webm);
 				now.lottie = std::move(was.lottie);
+				now.custom = std::move(was.custom);
 				now.lifetime = std::move(was.lifetime);
 				now.savedFrame = std::move(was.savedFrame);
 			}
@@ -1052,6 +1055,13 @@ void StickersListFooter::paintSearchIcon(Painter &p) const {
 		width());
 }
 
+void StickersListFooter::customEmojiRepaint() {
+	if (!_repaintScheduled) {
+		_repaintScheduled = true;
+		update();
+	}
+}
+
 void StickersListFooter::validateIconLottieAnimation(
 		const StickerIcon &icon) {
 	icon.ensureMediaCreated();
@@ -1104,6 +1114,18 @@ void StickersListFooter::validateIconWebmAnimation(
 
 void StickersListFooter::validateIconAnimation(
 		const StickerIcon &icon) {
+	const auto emoji = icon.sticker;
+	if (emoji && emoji->sticker()->setType == Data::StickersType::Emoji) {
+		if (!icon.custom) {
+			const auto tag = Data::CustomEmojiManager::SizeTag::Large;
+			auto &manager = emoji->owner().customEmojiManager();
+			icon.custom = manager.create(
+				emoji->id,
+				[=] { customEmojiRepaint(); },
+				tag);
+		}
+		return;
+	}
 	validateIconWebmAnimation(icon);
 	validateIconLottieAnimation(icon);
 }
@@ -1138,7 +1160,9 @@ void StickersListFooter::paintSetIcon(
 			: nullptr;
 		const auto x = info.adjustedLeft + (_singleWidth - icon.pixw) / 2;
 		const auto y = _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2;
-		if (icon.lottie && icon.lottie->ready()) {
+		if (icon.custom) {
+			icon.custom->paint(p, x, y, now, st::emojiIconFg->c, paused);
+		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
 			const auto size = frame.size() / cIntRetinaFactor();
 			if (icon.savedFrame.isNull()) {

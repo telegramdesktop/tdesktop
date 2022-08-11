@@ -62,6 +62,7 @@ struct StickerIcon {
 	uint64 setId = 0;
 	Data::StickersSet *set = nullptr;
 	mutable std::unique_ptr<Lottie::SinglePlayer> lottie;
+	mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
 	mutable Media::Clip::ReaderPointer webm;
 	mutable QImage savedFrame;
 	DocumentData *sticker = nullptr;
@@ -179,6 +180,7 @@ private:
 	void validateIconLottieAnimation(const StickerIcon &icon);
 	void validateIconWebmAnimation(const StickerIcon &icon);
 	void validateIconAnimation(const StickerIcon &icon);
+	void customEmojiRepaint();
 
 	void refreshIconsGeometry(
 		uint64 activeSetId,
@@ -243,6 +245,7 @@ private:
 	int _subiconsWidth = 0;
 	bool _subiconsExpanded = false;
 	bool _barSelection = false;
+	bool _repaintScheduled = false;
 
 	bool _horizontal = false;
 
