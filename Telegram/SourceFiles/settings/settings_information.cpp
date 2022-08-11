@@ -156,7 +156,10 @@ ComposedBadge::ComposedBadge(
 			buttonSize.width() - st.padding.right() - finalTextRight,
 			buttonSize.height());
 
-		_badge.move(0, 0, buttonSize.height());
+		_badge.move(
+			0,
+			st.padding.top(),
+			buttonSize.height() - st.padding.top());
 		if (_unread) {
 			_unread->moveToRight(
 				0,

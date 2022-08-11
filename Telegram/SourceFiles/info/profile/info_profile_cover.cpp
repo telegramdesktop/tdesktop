@@ -225,7 +225,7 @@ void BadgeView::move(int left, int top, int bottom) {
 	const auto badgeLeft = left + skip;
 	const auto badgeTop = top
 		+ (star
-			? st::infoVerifiedCheckPosition.y()
+			? _st.position.y()
 			: (bottom - top - _view->height()) / 2);
 	_view->moveToLeft(badgeLeft, badgeTop);
 }
@@ -236,11 +236,11 @@ void EmojiStatusPanel::show(
 	if (!_panel) {
 		create(controller);
 
-		using namespace rpl::mappers;
+		const auto weak = Ui::MakeWeak(button.get());
 		_panel->shownValue(
-		) | rpl::filter(
-			!_1
-		) | rpl::start_with_next([=] {
+		) | rpl::filter([=](bool shown) {
+			return !shown && weak;
+		}) | rpl::start_with_next([=] {
 			button->removeEventFilter(_panel.get());
 		}, _panel->lifetime());
 	}
