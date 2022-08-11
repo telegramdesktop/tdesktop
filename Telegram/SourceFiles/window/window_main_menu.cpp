@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_information.h"
+#include "info/profile/info_profile_cover.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -120,7 +121,10 @@ public:
 	explicit ToggleAccountsButton(QWidget *parent);
 
 	[[nodiscard]] int rightSkip() const {
-		return _rightSkip;
+		return _rightSkip.current();
+	}
+	[[nodiscard]] rpl::producer<int> rightSkipValue() const {
+		return _rightSkip.value();
 	}
 
 private:
@@ -130,7 +134,7 @@ private:
 	void validateUnreadBadge();
 	[[nodiscard]] QString computeUnreadBadge() const;
 
-	int _rightSkip = 0;
+	rpl::variable<int> _rightSkip = 0;
 	Ui::Animations::Simple _toggledAnimation;
 	bool _toggled = false;
 
@@ -258,12 +262,13 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	}
 	_unreadBadge = computeUnreadBadge();
 
-	_rightSkip = base;
+	auto skip = base;
 	if (!_unreadBadge.isEmpty()) {
 		const auto st = Settings::Badge::Style();
-		_rightSkip += 2 * st::mainMenuToggleSize
+		skip += 2 * st::mainMenuToggleSize
 			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
 	}
+	_rightSkip = skip;
 }
 
 QString MainMenu::ToggleAccountsButton::computeUnreadBadge() const {
@@ -331,6 +336,13 @@ MainMenu::MainMenu(
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
+, _badge(std::make_unique<Info::Profile::BadgeView>(
+	this,
+	st::settingsInfoPeerBadge,
+	controller->session().user(),
+	[=] { return controller->isGifPausedAtLeastFor(GifPauseReason::Layer); },
+	Info::Profile::Badge::Premium))
+, _emojiStatusPanel(std::make_unique<Info::Profile::EmojiStatusPanel>())
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
@@ -416,6 +428,16 @@ MainMenu::MainMenu(
 			controller->show(Box<AboutBox>());
 		}));
 
+	rpl::combine(
+		_toggleAccounts->rightSkipValue(),
+		rpl::single(rpl::empty) | rpl::then(_badge->updated())
+	) | rpl::start_with_next([=] {
+		moveBadge();
+	}, lifetime());
+	_badge->setPremiumClickCallback([=] {
+		_emojiStatusPanel->show(_controller, _badge->widget());
+	});
+
 	_controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
@@ -430,6 +452,24 @@ MainMenu::MainMenu(
 
 	updatePhone();
 	initResetScaleButton();
+}
+
+MainMenu::~MainMenu() = default;
+
+void MainMenu::moveBadge() {
+	if (!_badge->widget()) {
+		return;
+	}
+	const auto available = width()
+		- st::mainMenuCoverNameLeft
+		- _toggleAccounts->rightSkip()
+		- _badge->widget()->width();
+	const auto left = st::mainMenuCoverNameLeft
+		+ std::min(_name.maxWidth() + st::semiboldFont->spacew, available);
+	_badge->move(
+		left,
+		st::mainMenuCoverNameTop,
+		st::mainMenuCoverNameTop + st::msgNameStyle.font->height);
 }
 
 void MainMenu::setupArchive() {
@@ -771,30 +811,10 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 				st::msgNameStyle,
 				user->name(),
 				Ui::NameTextOptions());
+			moveBadge();
 		}
 		const auto paused = _controller->isGifPausedAtLeastFor(
 			GifPauseReason::Layer);
-		const auto badgeWidth = user->emojiStatusId()
-			? _badge.drawGetWidth(
-				p,
-				QRect(
-					st::mainMenuCoverNameLeft,
-					st::mainMenuCoverNameTop,
-					widthText,
-					st::msgNameStyle.font->height),
-				_name.maxWidth(),
-				width(),
-				{
-					.peer = user,
-					.verified = nullptr,
-					.premium = &st::dialogsPremiumIcon,
-					.scam = nullptr,
-					.preview = st::windowBgOver->c,
-					.customEmojiRepaint = [=] { update(); },
-					.now = crl::now(),
-					.paused = paused,
-				})
-			: 0;
 
 		p.setFont(st::semiboldFont);
 		p.setPen(st::windowBoldFg);
@@ -802,7 +822,10 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 			p,
 			st::mainMenuCoverNameLeft,
 			st::mainMenuCoverNameTop,
-			widthText - badgeWidth,
+			(widthText
+				- (_badge->widget()
+					? (st::semiboldFont->spacew + _badge->widget()->width())
+					: 0)),
 			width());
 		p.setFont(st::mainMenuPhoneFont);
 		p.setPen(st::windowSubTextFg);

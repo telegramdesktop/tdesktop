@@ -85,12 +85,13 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _user;
+	Info::Profile::BadgeView _badge;
+	Info::Profile::EmojiStatusPanel _emojiStatusPanel;
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _phone = { nullptr };
 	object_ptr<Ui::FlatLabel> _username = { nullptr };
-	object_ptr<Ui::RpWidget> _badge = { nullptr };
 
 };
 
@@ -105,6 +106,15 @@ Cover::Cover(
 		+ st::settingsPhotoBottom)
 , _controller(controller)
 , _user(user)
+, _badge(
+	this,
+	st::infoPeerBadge,
+	user,
+	[=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	},
+	Info::Profile::Badge::Premium)
 , _userpic(
 	this,
 	controller,
@@ -133,23 +143,12 @@ Cover::Cover(
 			_userpic->takeResultImage());
 	}, _userpic->lifetime());
 
-	Data::AmPremiumValue(
-		&controller->session()
-	) | rpl::start_with_next([=](bool hasPremium) {
-		if (hasPremium && !_badge) {
-			const auto icon = &st::infoPremiumStar;
-			_badge.create(this);
-			_badge->show();
-			_badge->resize(icon->size());
-			_badge->paintRequest(
-			) | rpl::start_with_next([icon, check = _badge.data()] {
-				Painter p(check);
-				icon->paint(p, 0, 0, check->width());
-			}, _badge->lifetime());
-		} else if (!hasPremium && _badge) {
-			_badge.destroy();
-		}
-	}, lifetime());
+	_badge.setPremiumClickCallback([=] {
+		_emojiStatusPanel.show(_controller, _badge.widget());
+	});
+	_badge.updated() | rpl::start_with_next([=] {
+		refreshNameGeometry(width());
+	}, _name->lifetime());
 }
 
 Cover::~Cover() = default;
@@ -210,19 +209,18 @@ void Cover::initViewers() {
 void Cover::refreshNameGeometry(int newWidth) {
 	const auto nameLeft = st::settingsNameLeft;
 	const auto nameTop = st::settingsNameTop;
-	const auto nameWidth = newWidth
+	auto nameWidth = newWidth
 		- nameLeft
-		- st::infoProfileNameRight
-		- (!_badge ? 0 : _badge->width() + st::infoVerifiedCheckPosition.x());
+		- st::infoProfileNameRight;
+	if (const auto width = _badge.widget() ? _badge.widget()->width() : 0) {
+		nameWidth -= st::infoVerifiedCheckPosition.x() + width;
+	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
-
-	if (_badge) {
-		const auto &pos = st::infoVerifiedCheckPosition;
-		const auto badgeLeft = nameLeft + _name->width() + pos.x();
-		const auto badgeTop = nameTop + pos.y();
-		_badge->moveToLeft(badgeLeft, badgeTop, newWidth);
-	}
+	const auto badgeLeft = nameLeft + _name->width();
+	const auto badgeTop = nameTop;
+	const auto badgeBottom = nameTop + _name->height();
+	_badge.move(badgeLeft, badgeTop, badgeBottom);
 }
 
 void Cover::refreshPhoneGeometry(int newWidth) {

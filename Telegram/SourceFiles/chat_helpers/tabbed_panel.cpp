@@ -227,7 +227,11 @@ void TabbedPanel::paintEvent(QPaintEvent *e) {
 }
 
 void TabbedPanel::moveHorizontally() {
-	const auto right = std::max(parentWidget()->width() - _right, 0);
+	const auto padding = innerPadding();
+	const auto width = innerRect().width() + padding.left() + padding.right();
+	const auto right = std::max(
+		parentWidget()->width() - std::max(_right, width),
+		0);
 	moveToRight(right, y());
 	updateContentHeight();
 }

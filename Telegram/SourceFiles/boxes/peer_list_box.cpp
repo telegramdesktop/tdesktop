@@ -653,27 +653,45 @@ void PeerListRow::invalidatePixmapsCache() {
 	}
 }
 
-int PeerListRow::nameIconWidth() const {
-	return special()
-		? 0
-		: _peer->isVerified()
-		? st::dialogsVerifiedIcon.width()
-		: (_peer->isPremium() && !_peer->isSelf())
-		? st::dialogsPremiumIcon.width()
-		: 0;
-}
-
-void PeerListRow::paintNameIcon(
+int PeerListRow::paintNameIconGetWidth(
 		Painter &p,
-		int x,
-		int y,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int nameWidth,
+		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (_peer->isVerified()) {
-		st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
-	} else if (_peer->isPremium() && !_peer->isSelf()) {
-		st::dialogsPremiumIcon.paint(p, x, y, outerWidth);
+	if (special()
+		|| _isSavedMessagesChat
+		|| _isRepliesMessagesChat
+		|| !_peer->isUser()) {
+		return 0;
 	}
+	return _bagde.drawGetWidth(
+		p,
+		QRect(
+			nameLeft,
+			nameTop,
+			availableWidth,
+			st::msgNameStyle.font->height),
+		nameWidth,
+		outerWidth,
+		{
+			.peer = _peer,
+			.verified = &(selected
+				? st::dialogsVerifiedIconOver
+				: st::dialogsVerifiedIcon),
+			.premium = &(selected
+				? st::dialogsPremiumIconOver
+				: st::dialogsPremiumIcon),
+			.scam = &(selected ? st::dialogsScamFgOver : st::dialogsScamFg),
+			.preview = st::windowBgOver->c,
+			.customEmojiRepaint = repaint,
+			.now = now,
+			.paused = false,
+		});
 }
 
 void PeerListRow::paintStatusText(
@@ -829,7 +847,7 @@ PeerListContent::PeerListContent(
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
-		UpdateFlag::Name | UpdateFlag::Photo
+		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);
@@ -1564,15 +1582,16 @@ crl::time PeerListContent::paintRow(
 			- skipRight;
 	}
 	auto statusw = namew;
-	if (auto iconWidth = row->nameIconWidth()) {
-		namew -= iconWidth;
-		row->paintNameIcon(
-			p,
-			namex + qMin(name.maxWidth(), namew),
-			_st.item.namePosition.y(),
-			width(),
-			selected);
-	}
+	namew -= row->paintNameIconGetWidth(
+		p,
+		[=] { updateRow(row); },
+		now,
+		namex,
+		_st.item.namePosition.y(),
+		name.maxWidth(),
+		namew,
+		width(),
+		selected);
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(_st.item.nameFg, _st.item.nameFgChecked, nameCheckedRatio));
 	name.drawLeftElided(p, namex, _st.item.namePosition.y(), namew, width());

@@ -28,6 +28,11 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Info::Profile {
+class BadgeView;
+class EmojiStatusPanel;
+} // namespace Info::Profile
+
 namespace Main {
 class Account;
 } // namespace Main
@@ -39,6 +44,7 @@ class SessionController;
 class MainMenu final : public Ui::LayerWidget {
 public:
 	MainMenu(QWidget *parent, not_null<SessionController*> controller);
+	~MainMenu();
 
 	void parentResized() override;
 
@@ -54,6 +60,7 @@ private:
 	class ToggleAccountsButton;
 	class ResetScaleButton;
 
+	void moveBadge();
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
@@ -67,10 +74,11 @@ private:
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
-	Ui::PeerBadge _badge;
 	Ui::Text::String _name;
 	int _nameVersion = 0;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
+	std::unique_ptr<Info::Profile::BadgeView> _badge;
+	std::unique_ptr<Info::Profile::EmojiStatusPanel> _emojiStatusPanel;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _inner;

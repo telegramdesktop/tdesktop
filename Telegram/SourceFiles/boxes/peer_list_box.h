@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/empty_userpic.h"
+#include "ui/unread_badge.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 #include "data/data_cloud_file.h"
@@ -94,11 +95,14 @@ public:
 	void clearCustomStatus();
 
 	// Box interface.
-	virtual int nameIconWidth() const;
-	virtual void paintNameIcon(
+	virtual int paintNameIconGetWidth(
 		Painter &p,
-		int x,
-		int y,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int nameWidth,
+		int availableWidth,
 		int outerWidth,
 		bool selected);
 
@@ -258,6 +262,7 @@ private:
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Ui::Text::String _name;
 	Ui::Text::String _status;
+	Ui::PeerBadge _bagde;
 	StatusType _statusType = StatusType::Online;
 	crl::time _statusValidTill = 0;
 	base::flat_set<QChar> _nameFirstLetters;

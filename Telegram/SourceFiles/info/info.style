@@ -20,6 +20,13 @@ InfoToggle {
 	rippleAreaPadding: pixels;
 }
 
+InfoPeerBadge {
+	verified: icon;
+	premium: icon;
+	position: point;
+	sizeTag: int;
+}
+
 infoMediaHeaderFg: windowFg;
 
 infoToggleCheckbox: Checkbox(defaultCheckbox) {
@@ -305,6 +312,13 @@ infoVerifiedCheck: icon {
 	{ "profile_verified_check", profileVerifiedCheckFg }
 };
 infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
+
+infoPeerBadge: InfoPeerBadge {
+	verified: infoVerifiedCheck;
+	premium: infoPremiumStar;
+	position: infoVerifiedCheckPosition;
+	sizeTag: 1; // Large
+}
 
 infoIconFg: windowBoldFg;
 

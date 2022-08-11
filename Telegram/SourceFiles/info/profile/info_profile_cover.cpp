@@ -81,6 +81,217 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 
 } // namespace
 
+BadgeView::BadgeView(
+	not_null<QWidget*> parent,
+	const style::InfoPeerBadge &st,
+	not_null<PeerData*> peer,
+	Fn<bool()> animationPaused,
+	base::flags<Badge> allowed)
+: _parent(parent)
+, _st(st)
+, _peer(peer)
+, _allowed(allowed)
+, _animationPaused(std::move(animationPaused)) {
+	rpl::combine(
+		BadgeValue(peer),
+		EmojiStatusIdValue(peer)
+	) | rpl::start_with_next([=](Badge badge, DocumentId emojiStatusId) {
+		setBadge(badge, emojiStatusId);
+	}, _lifetime);
+}
+
+Ui::RpWidget *BadgeView::widget() const {
+	return _view.data();
+}
+
+void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
+	if ((!_peer->session().premiumBadgesShown() && badge == Badge::Premium)
+		|| !(_allowed & badge)) {
+		badge = Badge::None;
+	}
+	if (!(_allowed & badge)) {
+		badge = Badge::None;
+	}
+	if (badge != Badge::Premium) {
+		emojiStatusId = 0;
+	}
+	if (_badge == badge && _emojiStatusId == emojiStatusId) {
+		return;
+	}
+	_badge = badge;
+	_emojiStatusId = emojiStatusId;
+	_emojiStatus = nullptr;
+	_view.destroy();
+	if (_badge == Badge::None) {
+		_updated.fire({});
+		return;
+	}
+	_view.create(_parent);
+	_view->show();
+	switch (_badge) {
+	case Badge::Verified:
+	case Badge::Premium: {
+		if (_emojiStatusId) {
+			using SizeTag = Data::CustomEmojiManager::SizeTag;
+			const auto tag = (_st.sizeTag == 2)
+				? SizeTag::Isolated
+				: (_st.sizeTag == 1)
+				? SizeTag::Large
+				: SizeTag::Normal;
+			_emojiStatus = _peer->owner().customEmojiManager().create(
+				_emojiStatusId,
+				[raw = _view.data()]{ raw->update(); },
+				tag);
+			const auto emoji = Data::FrameSizeFromTag(tag)
+				/ style::DevicePixelRatio();
+			_view->resize(emoji, emoji);
+			_view->paintRequest(
+			) | rpl::start_with_next([=, check = _view.data()]{
+				Painter p(check);
+				_emojiStatus->paint(
+					p,
+					0,
+					0,
+					crl::now(),
+					st::windowBgOver->c,
+					_animationPaused && _animationPaused());
+			}, _view->lifetime());
+		} else {
+			const auto icon = (_badge == Badge::Verified)
+				? &_st.verified
+				: &_st.premium;
+			_view->resize(icon->size());
+			_view->paintRequest(
+			) | rpl::start_with_next([=, check = _view.data()]{
+				Painter p(check);
+				icon->paint(p, 0, 0, check->width());
+			}, _view->lifetime());
+		}
+	} break;
+	case Badge::Scam:
+	case Badge::Fake: {
+		const auto fake = (_badge == Badge::Fake);
+		const auto size = Ui::ScamBadgeSize(fake);
+		const auto skip = st::infoVerifiedCheckPosition.x();
+		_view->resize(
+			size.width() + 2 * skip,
+			size.height() + 2 * skip);
+		_view->paintRequest(
+		) | rpl::start_with_next([=, badge = _view.data()]{
+			Painter p(badge);
+			Ui::DrawScamBadge(
+				fake,
+				p,
+				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
+				badge->width(),
+				st::attentionButtonFg);
+			}, _view->lifetime());
+	} break;
+	}
+
+	if (_badge != Badge::Premium || !_premiumClickCallback) {
+		_view->setAttribute(Qt::WA_TransparentForMouseEvents);
+	} else {
+		_view->setClickedCallback(_premiumClickCallback);
+	}
+
+	_updated.fire({});
+}
+
+void BadgeView::setPremiumClickCallback(Fn<void()> callback) {
+	_premiumClickCallback = std::move(callback);
+	if (_view && _badge == Badge::Premium) {
+		if (!_premiumClickCallback) {
+			_view->setAttribute(Qt::WA_TransparentForMouseEvents);
+		} else {
+			_view->setAttribute(Qt::WA_TransparentForMouseEvents, false);
+			_view->setClickedCallback(_premiumClickCallback);
+		}
+	}
+}
+
+rpl::producer<> BadgeView::updated() const {
+	return _updated.events();
+}
+
+void BadgeView::move(int left, int top, int bottom) {
+	if (!_view) {
+		return;
+	}
+	const auto star = !_emojiStatus
+		&& (_badge == Badge::Premium || _badge == Badge::Verified);
+	const auto fake = !_emojiStatus && !star;
+	const auto skip = fake ? 0 : _st.position.x();
+	const auto badgeLeft = left + skip;
+	const auto badgeTop = top
+		+ (star
+			? st::infoVerifiedCheckPosition.y()
+			: (bottom - top - _view->height()) / 2);
+	_view->moveToLeft(badgeLeft, badgeTop);
+}
+
+void EmojiStatusPanel::show(
+		not_null<Window::SessionController*> controller,
+		not_null<QWidget*> button) {
+	if (!_panel) {
+		create(controller);
+
+		using namespace rpl::mappers;
+		_panel->shownValue(
+		) | rpl::filter(
+			!_1
+		) | rpl::start_with_next([=] {
+			button->removeEventFilter(_panel.get());
+		}, _panel->lifetime());
+	}
+	const auto parent = _panel->parentWidget();
+	const auto global = button->mapToGlobal({ 0, 0 });
+	const auto local = parent->mapFromGlobal(global);
+	_panel->moveTopRight(
+		local.y() + button->height(),
+		local.x() + button->width() * 3);
+	_panel->toggleAnimated();
+	button->installEventFilter(_panel.get());
+}
+
+void EmojiStatusPanel::create(
+		not_null<Window::SessionController*> controller) {
+	using Selector = ChatHelpers::TabbedSelector;
+	_panel = base::make_unique_q<ChatHelpers::TabbedPanel>(
+		controller->window().widget()->bodyWidget(),
+		controller,
+		object_ptr<Selector>(
+			nullptr,
+			controller,
+			Window::GifPauseReason::Layer,
+			ChatHelpers::TabbedSelector::Mode::EmojiStatus));
+	_panel->setDropDown(true);
+	_panel->setDesiredHeightValues(
+		1.,
+		st::emojiPanMinHeight / 2,
+		st::emojiPanMinHeight);
+	_panel->hide();
+	_panel->selector()->setAllowEmojiWithoutPremium(false);
+
+	auto statusChosen = _panel->selector()->customEmojiChosen(
+	) | rpl::map([=](Selector::FileChosen data) {
+		return data.document->id;
+	});
+
+	rpl::merge(
+		std::move(statusChosen),
+		_panel->selector()->emojiChosen() | rpl::map_to(DocumentId())
+	) | rpl::start_with_next([=](DocumentId id) {
+		controller->session().user()->setEmojiStatus(id);
+		controller->session().api().request(MTPaccount_UpdateEmojiStatus(
+			id ? MTP_emojiStatus(MTP_long(id)) : MTP_emojiStatusEmpty()
+		)).send();
+		_panel->hideAnimated();
+	}, _panel->lifetime());
+
+	_panel->selector()->showPromoForPremiumEmoji();
+}
+
 Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
@@ -104,6 +315,14 @@ Cover::Cover(
 		+ st::infoProfilePhotoBottom)
 , _controller(controller)
 , _peer(peer)
+, _badge(
+	this,
+	st::infoPeerBadge,
+	peer,
+	[=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	})
 , _userpic(
 	this,
 	controller,
@@ -125,6 +344,19 @@ Cover::Cover(
 	if (!_peer->isMegagroup()) {
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+
+	_badge.setPremiumClickCallback([=] {
+		if (_peer->isSelf()) {
+			_emojiStatusPanel.show(_controller, _badge.widget());
+		} else {
+			::Settings::ShowPremium(
+				_controller,
+				u"profile__%1"_q.arg(peerToUser(_peer->id).bare));
+		}
+	});
+	_badge.updated() | rpl::start_with_next([=] {
+		refreshNameGeometry(width());
+	}, _name->lifetime());
 
 	initViewers(std::move(title));
 	setupChildGeometry();
@@ -184,12 +416,6 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	} else if (_peer->isSelf()) {
 		refreshUploadPhotoOverlay();
 	}
-	rpl::combine(
-		BadgeValue(_peer),
-		EmojiStatusIdValue(_peer)
-	) | rpl::start_with_next([=](Badge badge, DocumentId emojiStatusId) {
-		setBadge(badge, emojiStatusId);
-	}, lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
@@ -201,151 +427,6 @@ void Cover::refreshUploadPhotoOverlay() {
 		}
 		return _peer->isSelf();
 	}());
-}
-
-void Cover::setBadge(Badge badge, DocumentId emojiStatusId) {
-	if (!_peer->session().premiumBadgesShown() && badge == Badge::Premium) {
-		badge = Badge::None;
-	}
-	if (badge != Badge::Premium) {
-		emojiStatusId = 0;
-	}
-	if (_badge == badge && _emojiStatusId == emojiStatusId) {
-		return;
-	}
-	_badge = badge;
-	_emojiStatusId = emojiStatusId;
-	_emojiStatus = nullptr;
-	_badgeView.destroy();
-	switch (_badge) {
-	case Badge::Verified:
-	case Badge::Premium: {
-		_badgeView.create(this);
-		_badgeView->show();
-		if (_emojiStatusId) {
-			auto &owner = _controller->session().data();
-			_emojiStatus = owner.customEmojiManager().create(
-				_emojiStatusId,
-				[raw = _badgeView.data()]{ raw->update(); },
-				Data::CustomEmojiManager::SizeTag::Large);
-			const auto size = Ui::Emoji::GetSizeLarge()
-				/ style::DevicePixelRatio();
-			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
-			_badgeView->resize(emoji, emoji);
-			_badgeView->paintRequest(
-			) | rpl::start_with_next([=, check = _badgeView.data()]{
-				Painter p(check);
-				_emojiStatus->paint(
-					p,
-					0,
-					0,
-					crl::now(),
-					st::windowBgOver->c,
-					_controller->isGifPausedAtLeastFor(
-						Window::GifPauseReason::Layer));
-			}, _badgeView->lifetime());
-		} else {
-			const auto icon = (_badge == Badge::Verified)
-				? &st::infoVerifiedCheck
-				: &st::infoPremiumStar;
-			_badgeView->resize(icon->size());
-			_badgeView->paintRequest(
-			) | rpl::start_with_next([=, check = _badgeView.data()]{
-				Painter p(check);
-				icon->paint(p, 0, 0, check->width());
-			}, _badgeView->lifetime());
-		}
-	} break;
-	case Badge::Scam:
-	case Badge::Fake: {
-		const auto fake = (_badge == Badge::Fake);
-		const auto size = Ui::ScamBadgeSize(fake);
-		const auto skip = st::infoVerifiedCheckPosition.x();
-		_badgeView.create(this);
-		_badgeView->show();
-		_badgeView->resize(
-			size.width() + 2 * skip,
-			size.height() + 2 * skip);
-		_badgeView->paintRequest(
-		) | rpl::start_with_next([=, badge = _badgeView.data()]{
-			Painter p(badge);
-			Ui::DrawScamBadge(
-				fake,
-				p,
-				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
-				badge->width(),
-				st::attentionButtonFg);
-			}, _badgeView->lifetime());
-	} break;
-	}
-
-	if (_badge == Badge::Premium) {
-		const auto userId = peerToUser(_peer->id).bare;
-		_badgeView->setClickedCallback([=] {
-			if (_peer->isSelf()) {
-				showEmojiStatusSelector();
-			} else {
-				::Settings::ShowPremium(
-					_controller,
-					u"profile__%1"_q.arg(userId));
-			}
-		});
-	} else {
-		_badgeView->setAttribute(Qt::WA_TransparentForMouseEvents);
-	}
-
-	refreshNameGeometry(width());
-}
-
-void Cover::showEmojiStatusSelector() {
-	Expects(_badgeView != nullptr);
-
-	if (!_emojiStatusPanel) {
-		createEmojiStatusSelector();
-	}
-	const auto parent = _emojiStatusPanel->parentWidget();
-	const auto global = _badgeView->mapToGlobal({ 0, 0 });
-	const auto local = parent->mapFromGlobal(global);
-	_emojiStatusPanel->moveTopRight(
-		local.y() + _badgeView->height(),
-		local.x() + _badgeView->width() * 3);
-	_emojiStatusPanel->toggleAnimated();
-}
-
-void Cover::createEmojiStatusSelector() {
-	const auto set = [=](DocumentId id) {
-		_controller->session().user()->setEmojiStatus(id);
-		_controller->session().api().request(MTPaccount_UpdateEmojiStatus(
-			id ? MTP_emojiStatus(MTP_long(id)) : MTP_emojiStatusEmpty()
-		)).send();
-		_emojiStatusPanel->hideAnimated();
-	};
-	const auto container = _controller->window().widget()->bodyWidget();
-	using Selector = ChatHelpers::TabbedSelector;
-	_emojiStatusPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
-		container,
-		_controller,
-		object_ptr<Selector>(
-			nullptr,
-			_controller,
-			Window::GifPauseReason::Layer,
-			ChatHelpers::TabbedSelector::Mode::EmojiStatus));
-	_emojiStatusPanel->setDropDown(true);
-	_emojiStatusPanel->setDesiredHeightValues(
-		1.,
-		st::emojiPanMinHeight / 2,
-		st::emojiPanMinHeight);
-	_emojiStatusPanel->hide();
-	_emojiStatusPanel->selector()->setAllowEmojiWithoutPremium(false);
-	_emojiStatusPanel->selector()->emojiChosen(
-	) | rpl::start_with_next([=] {
-		set(0);
-	}, _emojiStatusPanel->lifetime());
-	_emojiStatusPanel->selector()->customEmojiChosen(
-	) | rpl::start_with_next([=](Selector::FileChosen data) {
-		set(data.document->id);
-	}, _emojiStatusPanel->lifetime());
-	_emojiStatusPanel->selector()->showPromoForPremiumEmoji();
 }
 
 void Cover::refreshStatusText() {
@@ -406,23 +487,15 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth
 		- nameLeft
 		- st::infoProfileNameRight;
-	if (_badgeView) {
-		nameWidth -= st::infoVerifiedCheckPosition.x() + _badgeView->width();
+	if (const auto width = _badge.widget() ? _badge.widget()->width() : 0) {
+		nameWidth -= st::infoVerifiedCheckPosition.x() + width;
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
-	if (_badgeView) {
-		const auto star = !_emojiStatus
-			&& (_badge == Badge::Premium || _badge == Badge::Verified);
-		const auto fake = !_emojiStatus && !star;
-		const auto skip = fake ? 0 : st::infoVerifiedCheckPosition.x();
-		const auto badgeLeft = nameLeft + _name->width() + skip;
-		const auto badgeTop = nameTop
-			+ (star
-				? st::infoVerifiedCheckPosition.y()
-				: (_name->height() - _badgeView->height()) / 2);
-		_badgeView->moveToLeft(badgeLeft, badgeTop, newWidth);
-	}
+	const auto badgeLeft = nameLeft + _name->width();
+	const auto badgeTop = nameTop;
+	const auto badgeBottom = nameTop + _name->height();
+	_badge.move(badgeLeft, badgeTop, badgeBottom);
 }
 
 void Cover::refreshStatusGeometry(int newWidth) {

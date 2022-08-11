@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
+#include "info/profile/info_profile_cover.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "countries/countries_instance.h"

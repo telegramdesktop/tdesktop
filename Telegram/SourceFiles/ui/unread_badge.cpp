@@ -182,12 +182,12 @@ int PeerBadge::drawGetWidth(
 		}
 		_emojiStatus->emoji->paint(
 			p,
-			iconx - _emojiStatus->skip,
+			iconx - 2 * _emojiStatus->skip,
 			icony + _emojiStatus->skip,
 			descriptor.now,
 			descriptor.preview,
 			descriptor.paused);
-		return iconw - 2 * _emojiStatus->skip;
+		return iconw - 4 * _emojiStatus->skip;
 	}
 	return 0;
 }
