@@ -768,6 +768,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		p.setPen(st::windowBoldFg);
 		const auto user = _controller->session().user();
 		if (_nameVersion < user->nameVersion()) {
+			_nameVersion = user->nameVersion();
 			_name.setText(
 				st::msgNameStyle,
 				user->name(),
