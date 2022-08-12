@@ -38,8 +38,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
-#include <qpa/qplatformwindow.h>
-#include <qpa/qwindowsysteminterface.h>
 
 namespace Media {
 namespace View {
@@ -609,9 +607,6 @@ void PipPanel::handleResize(QSize size) {
 		: scaled;
 
 	setGeometry(QRect(widget()->geometry().topLeft(), normalized));
-	QWindowSystemInterface::handleGeometryChange<QWindowSystemInterface::SynchronousDelivery>(
-		widget()->windowHandle(),
-		widget()->windowHandle()->handle()->geometry());
 }
 
 void PipPanel::handleScreenChanged(QScreen *screen) {
