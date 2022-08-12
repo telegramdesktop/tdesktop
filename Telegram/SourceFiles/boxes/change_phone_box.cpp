@@ -215,6 +215,11 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 		return data;
 	});
 
+	const auto bad = [&](const char *type) {
+		LOG(("API Error: Should not be '%1'.").arg(type));
+		showError(Lang::Hard::ServerError());
+		return false;
+	};
 	auto codeLength = 0;
 	const auto hasLength = data.vtype().match([&](
 			const MTPDauth_sentCodeTypeApp &typeData) {
@@ -227,14 +232,14 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 	}, [&](const MTPDauth_sentCodeTypeCall &typeData) {
 		codeLength = typeData.vlength().v;
 		return true;
-	}, [&](const MTPDauth_sentCodeTypeFlashCall &typeData) {
-		LOG(("Error: should not be flashcall!"));
-		showError(Lang::Hard::ServerError());
-		return false;
-	}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
-		LOG(("Error: should not be missedcall!"));
-		showError(Lang::Hard::ServerError());
-		return false;
+	}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+		return bad("FlashCall");
+	}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
+		return bad("MissedCall");
+	}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
+		return bad("EmailCode");
+	}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
+		return bad("SetUpEmailRequired");
 	});
 	if (!hasLength) {
 		return;

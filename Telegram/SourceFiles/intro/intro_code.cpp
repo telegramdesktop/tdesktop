@@ -381,9 +381,11 @@ void CodeWidget::submit() {
 	_sentCode = text;
 	getData()->pwdState = Core::CloudPasswordState();
 	_sentRequest = api().request(MTPauth_SignIn(
+		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
 		MTP_string(getData()->phone),
 		MTP_bytes(getData()->phoneHash),
-		MTP_string(_sentCode)
+		MTP_string(_sentCode),
+		MTPEmailVerification()
 	)).done([=](const MTPauth_Authorization &result) {
 		codeSubmitDone(result);
 	}).fail([=](const MTP::Error &error) {
