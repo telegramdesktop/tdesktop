@@ -1,3 +1,12 @@
+4.1 (12.08.22)
+
+- Include animated emoji in messages and captions.
+- Premium users unlock over 500 new emoji, including custom packs with unique characters.
+- All users can view any emoji – and try them out in the Saved Messages chat.
+- Control who can send you voice and video messages with Telegram Premium.
+- Send a Premium subscription to any user from their profile.
+- Choose 3, 6, or 12 months – at a discount.
+
 4.0.4 beta (04.08.22)
 
 - Allow sending animated emoji to Saved Messages even without Telegram Premium.
