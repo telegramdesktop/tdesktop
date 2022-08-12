@@ -138,10 +138,10 @@ private:
 
 	PeerData *_singlePeer = nullptr;
 	Main::Account *_account = nullptr;
+	base::Timer _isActiveTimer;
 	::MainWindow _widget;
 	const std::unique_ptr<Adaptive> _adaptive;
 	std::unique_ptr<SessionController> _sessionController;
-	base::Timer _isActiveTimer;
 	QPointer<Ui::BoxContent> _termsBox;
 
 	rpl::event_stream<Media::View::OpenRequest> _openInMediaViewRequests;

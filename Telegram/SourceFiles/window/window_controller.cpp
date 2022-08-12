@@ -53,9 +53,9 @@ Controller::Controller(
 
 Controller::Controller(CreateArgs &&args)
 : _singlePeer(args.singlePeer)
+, _isActiveTimer([=] { updateIsActive(); })
 , _widget(this)
-, _adaptive(std::make_unique<Adaptive>())
-, _isActiveTimer([=] { updateIsActive(); }) {
+, _adaptive(std::make_unique<Adaptive>()) {
 	_widget.init();
 }
 
