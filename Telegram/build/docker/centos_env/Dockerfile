@@ -11,6 +11,8 @@
 {%- set HFLAGS = HFLAGS_DEBUG ~ " -D_FORTIFY_SOURCE=2" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
+# syntax=docker/dockerfile:1
+
 FROM centos:7 AS builder
 ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/local/share/pkgconfig
 
@@ -149,7 +151,7 @@ RUN git clone -b xcb-proto-1.14.1 --depth=1 {{ GIT_FREEDESKTOP }}/xcbproto.git \
 	&& rm -rf xcbproto
 
 FROM builder AS xcb
-COPY --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
+COPY --link --from=xcb-proto {{ LibrariesPath }}/xcb-proto-cache /
 
 RUN git clone -b libxcb-1.14 --depth=1 {{ GIT_FREEDESKTOP }}/libxcb.git \
 	&& cd libxcb \
@@ -178,7 +180,7 @@ RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-util.g
 	&& rm -rf libxcb-util
 
 FROM builder AS xcb-image
-COPY --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
+COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
 
 RUN git clone -b 0.4.0 --depth=1 --recursive {{ GIT_FREEDESKTOP }}/libxcb-image.git \
 	&& cd libxcb-image \
@@ -270,7 +272,7 @@ RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposi
 	&& rm -rf libxcomposite
 
 FROM builder AS wayland
-COPY --from=libffi {{ LibrariesPath }}/libffi-cache /
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 
 RUN git clone -b 1.20.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& cd wayland \
@@ -292,9 +294,9 @@ RUN git clone -b n11.1.5.1 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 	&& rm -rf nv-codec-headers
 
 FROM builder AS ffmpeg
-COPY --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
+COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
+COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
 RUN git init ffmpeg \
 	&& cd ffmpeg \
@@ -431,7 +433,7 @@ RUN git clone -b 0.3.25 --depth=1 {{ GIT }}/PipeWire/pipewire.git \
 	&& rm -rf pipewire
 
 FROM builder AS openal
-COPY --from=pipewire {{ LibrariesPath }}/pipewire-cache /
+COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
 RUN git clone -b 1.22.2 --depth=1 {{ GIT }}/kcat/openal-soft.git \
 	&& cd openal-soft \
@@ -461,7 +463,7 @@ RUN git clone -b OpenSSL_{{ OPENSSL_VER }}-stable --depth=1 {{ GIT }}/openssl/op
 	&& rm -rf $opensslDir
 
 FROM builder AS xkbcommon
-COPY --from=xcb {{ LibrariesPath }}/xcb-cache /
+COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 
 RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git \
 	&& cd libxkbcommon \
@@ -490,7 +492,7 @@ RUN git clone -b 1.0.3 --depth=1 {{ GIT }}/GNOME/mm-common.git \
 	&& rm -rf mm-common
 
 FROM builder AS libsigcplusplus
-COPY --from=mm-common {{ LibrariesPath }}/mm-common-cache /
+COPY --link --from=mm-common {{ LibrariesPath }}/mm-common-cache /
 
 RUN git clone -b 2.10.7 --depth=1 {{ GIT }}/libsigcplusplus/libsigcplusplus.git \
 	&& cd libsigcplusplus \
@@ -506,8 +508,8 @@ RUN git clone -b 2.10.7 --depth=1 {{ GIT }}/libsigcplusplus/libsigcplusplus.git 
 	&& rm -rf libsigcplusplus
 
 FROM patches AS glibmm
-COPY --from=mm-common {{ LibrariesPath }}/mm-common-cache /
-COPY --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
+COPY --link --from=mm-common {{ LibrariesPath }}/mm-common-cache /
+COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
 
 # equals to glib version of Ubuntu 14.04
 RUN git clone -b 2.40.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
@@ -525,19 +527,19 @@ RUN git clone -b 2.40.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& rm -rf glibmm
 
 FROM patches AS qt
-COPY --from=libffi {{ LibrariesPath }}/libffi-cache /
-COPY --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --from=libproxy {{ LibrariesPath }}/libproxy-cache /
-COPY --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --from=xcb {{ LibrariesPath }}/xcb-cache /
-COPY --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
-COPY --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
-COPY --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
-COPY --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
-COPY --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
-COPY --from=wayland {{ LibrariesPath }}/wayland-cache /
-COPY --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
+COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
+COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
+COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
+COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
+COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
+COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
+COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
+COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
+COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
+COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 
 ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 
@@ -589,13 +591,13 @@ RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git \
 	&& rm -rf breakpad
 
 FROM builder AS webrtc
-COPY --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
-COPY --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --from=libXtst {{ LibrariesPath }}/libXtst-cache /
-COPY --from=pipewire {{ LibrariesPath }}/pipewire-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
+COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
+COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
+COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
+COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 
 # Shallow clone on a specific commit.
 RUN git init tg_owt \
@@ -631,41 +633,41 @@ RUN cmake --build out --config Debug --parallel \
 {%- endif %}
 
 FROM builder
-COPY --from=libffi {{ LibrariesPath }}/libffi-cache /
-COPY --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --from=xz {{ LibrariesPath }}/xz-cache /
-COPY --from=libproxy {{ LibrariesPath }}/libproxy-cache /
-COPY --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --from=opus {{ LibrariesPath }}/opus-cache /
-COPY --from=libvpx {{ LibrariesPath }}/libvpx-cache /
-COPY --from=rnnoise {{ LibrariesPath }}/rnnoise-cache /
-COPY --from=xcb {{ LibrariesPath }}/xcb-cache /
-COPY --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
-COPY --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
-COPY --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
-COPY --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
-COPY --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
-COPY --from=libXext {{ LibrariesPath }}/libXext-cache /
-COPY --from=libXfixes {{ LibrariesPath }}/libXfixes-cache /
-COPY --from=libXtst {{ LibrariesPath }}/libXtst-cache /
-COPY --from=libXrandr {{ LibrariesPath }}/libXrandr-cache /
-COPY --from=libXrender {{ LibrariesPath }}/libXrender-cache /
-COPY --from=libXdamage {{ LibrariesPath }}/libXdamage-cache /
-COPY --from=libXcomposite {{ LibrariesPath }}/libXcomposite-cache /
-COPY --from=wayland {{ LibrariesPath }}/wayland-cache /
-COPY --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
-COPY --from=openal {{ LibrariesPath }}/openal-cache /
-COPY --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
-COPY --from=glibmm {{ LibrariesPath }}/glibmm-cache /
-COPY --from=qt {{ LibrariesPath }}/qt-cache /
-COPY --from=breakpad {{ LibrariesPath }}/breakpad-cache /
-COPY --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
-COPY --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
+COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
+COPY --link --from=xz {{ LibrariesPath }}/xz-cache /
+COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
+COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
+COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
+COPY --link --from=rnnoise {{ LibrariesPath }}/rnnoise-cache /
+COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
+COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
+COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
+COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
+COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
+COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
+COPY --link --from=libXext {{ LibrariesPath }}/libXext-cache /
+COPY --link --from=libXfixes {{ LibrariesPath }}/libXfixes-cache /
+COPY --link --from=libXtst {{ LibrariesPath }}/libXtst-cache /
+COPY --link --from=libXrandr {{ LibrariesPath }}/libXrandr-cache /
+COPY --link --from=libXrender {{ LibrariesPath }}/libXrender-cache /
+COPY --link --from=libXdamage {{ LibrariesPath }}/libXdamage-cache /
+COPY --link --from=libXcomposite {{ LibrariesPath }}/libXcomposite-cache /
+COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
+COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
+COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
+COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
+COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
+COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
+COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
+COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
+COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
+COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
 
 {%- if DEBUG %}
-COPY --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
+COPY --link --from=webrtc_debug {{ LibrariesPath }}/tg_owt/out/Debug tg_owt/out/Debug
 {%- endif %}
 
 WORKDIR ../tdesktop
