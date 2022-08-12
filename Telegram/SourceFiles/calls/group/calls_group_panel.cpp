@@ -1319,12 +1319,6 @@ void Panel::chooseJoinAs() {
 	const auto callback = [=](JoinInfo info) {
 		_call->rejoinAs(info);
 	};
-	const auto showBoxCallback = [=](object_ptr<Ui::BoxContent> next) {
-		showBox(std::move(next));
-	};
-	const auto showToastCallback = [=](QString text) {
-		showToast({ text });
-	};
 	_joinAsProcess.start(
 		_peer,
 		context,
