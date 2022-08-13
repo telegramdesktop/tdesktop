@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/frame_generator.h"
 
 #include <QtGui/QImage>
+#include <memory>
 
 namespace FFmpeg {
 
