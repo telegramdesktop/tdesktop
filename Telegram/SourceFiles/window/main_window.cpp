@@ -744,7 +744,7 @@ void MainWindow::initGeometry() {
 		).arg(geometry.y()
 		).arg(geometry.width()
 		).arg(geometry.height()));
-	RpWidget::setGeometry(geometry);
+	setGeometry(geometry);
 }
 
 void MainWindow::positionUpdated() {
