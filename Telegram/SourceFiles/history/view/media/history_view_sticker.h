@@ -91,6 +91,7 @@ public:
 
 	void setDiceIndex(const QString &emoji, int index);
 	void setCustomEmojiPart(int size, ChatHelpers::StickerLottieSize tag);
+	void setGiftBoxSticker(bool giftBoxSticker);
 	[[nodiscard]] bool atTheEnd() const {
 		return 	(_frameIndex >= 0) && (_frameIndex + 1 == _framesCount);
 	}
@@ -158,6 +159,7 @@ private:
 	mutable bool _premiumEffectPlayed : 1;
 	mutable bool _nextLastDiceFrame : 1;
 	bool _skipPremiumEffect : 1;
+	bool _giftBoxSticker : 1;
 
 };
 

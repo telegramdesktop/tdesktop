@@ -232,6 +232,7 @@ void MediaGift::ensureStickerCreated() const {
 			const auto skipPremiumEffect = false;
 			_sticker.emplace(_parent, document, skipPremiumEffect, _parent);
 			_sticker->setDiceIndex(sticker->alt, 1);
+			_sticker->setGiftBoxSticker(true);
 			_sticker->initSize();
 		}
 	}

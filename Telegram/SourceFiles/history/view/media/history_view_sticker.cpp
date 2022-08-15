@@ -21,9 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
-#include "main/main_session.h"
-#include "main/main_account.h"
-#include "main/main_app_config.h"
 #include "window/window_session_controller.h" // isGifPausedAtLeastFor.
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -32,7 +29,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "lottie/lottie_single_player.h"
 #include "media/clip/media_clip_reader.h"
-#include "chat_helpers/stickers_gift_box_pack.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "styles/style_chat.h"
 
@@ -223,7 +219,8 @@ Sticker::Sticker(
 , _oncePlayed(false)
 , _premiumEffectPlayed(false)
 , _nextLastDiceFrame(false)
-, _skipPremiumEffect(skipPremiumEffect) {
+, _skipPremiumEffect(skipPremiumEffect)
+, _giftBoxSticker(false) {
 	if ((_dataMedia = _data->activeMediaView())) {
 		dataMediaCreated();
 	} else {
@@ -271,8 +268,7 @@ bool Sticker::isEmojiSticker() const {
 
 void Sticker::initSize() {
 	if (isEmojiSticker() || _diceIndex >= 0) {
-		const auto &session = _data->owner().session();
-		if (session.giftBoxStickersPacks().isGiftSticker(_data)) {
+		if (_giftBoxSticker) {
 			_size = st::msgServiceGiftBoxStickerSize;
 		} else {
 			_size = EmojiSize();
@@ -620,6 +616,10 @@ void Sticker::setCustomEmojiPart(
 		ChatHelpers::StickerLottieSize tag) {
 	_size = { size, size };
 	_cachingTag = tag;
+}
+
+void Sticker::setGiftBoxSticker(bool giftBoxSticker) {
+	_giftBoxSticker = giftBoxSticker;
 }
 
 void Sticker::setupPlayer() {

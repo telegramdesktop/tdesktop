@@ -23,8 +23,6 @@ public:
 	void load();
 	[[nodiscard]] DocumentData *lookup(int months) const;
 
-	[[nodiscard]] bool isGiftSticker(not_null<DocumentData*> document) const;
-
 private:
 	using SetId = uint64;
 	void applySet(const MTPDmessages_stickerSet &data);
