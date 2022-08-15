@@ -2723,13 +2723,6 @@ object_ptr<Ui::BoxContent> MakeConfirmRemoveSetBox(
 				}
 				set->flags &= ~SetFlag::Installed;
 				set->installDate = TimeId(0);
-				//
-				// Set can be in search results.
-				//
-				//if (!(set->flags & SetFlag::Featured)
-				//	&& !(set->flags & SetFlag::Special)) {
-				//	sets.erase(it);
-				//}
 				auto &orderRef = (set->type() == Data::StickersType::Emoji)
 					? session->data().stickers().emojiSetsOrderRef()
 					: (set->type() == Data::StickersType::Masks)

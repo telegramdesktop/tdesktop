@@ -1030,6 +1030,8 @@ void StickersBox::saveChanges() {
 void StickersBox::setInnerFocus() {
 	if (_megagroupSet) {
 		_installed.widget()->setInnerFocus();
+	} else {
+		BoxContent::setInnerFocus();
 	}
 }
 
@@ -1075,7 +1077,8 @@ StickersBox::Inner::Row::~Row() {
 		const auto featured = !!(set->flags & SetFlag::Featured);
 		const auto special = !!(set->flags & SetFlag::Special);
 		const auto archived = !!(set->flags & SetFlag::Archived);
-		if (!installed && !featured && !special && !archived) {
+		const auto emoji = !!(set->flags & SetFlag::Emoji);
+		if (!installed && !featured && !special && !archived && !emoji) {
 			auto &sets = set->owner().stickers().setsRef();
 			if (const auto i = sets.find(set->id); i != end(sets)) {
 				sets.erase(i);

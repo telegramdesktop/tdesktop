@@ -736,6 +736,7 @@ void Stickers::somethingReceived(
 		const auto featured = !!(set->flags & SetFlag::Featured);
 		const auto special = !!(set->flags & SetFlag::Special);
 		const auto archived = !!(set->flags & SetFlag::Archived);
+		const auto emoji = !!(set->flags & SetFlag::Emoji);
 		const auto locked = (set->locked > 0);
 		if (!installed) { // remove not mine sets from recent stickers
 			for (auto i = recent.begin(); i != recent.cend();) {
@@ -747,7 +748,7 @@ void Stickers::somethingReceived(
 				}
 			}
 		}
-		if (installed || featured || special || archived || locked) {
+		if (installed || featured || special || archived || emoji || locked) {
 			++it;
 		} else {
 			it = sets.erase(it);
@@ -1062,8 +1063,9 @@ void Stickers::featuredReceived(
 		const auto featured = (set->flags & SetFlag::Featured);
 		const auto special = (set->flags & SetFlag::Special);
 		const auto archived = (set->flags & SetFlag::Archived);
+		const auto emoji = !!(set->flags & SetFlag::Emoji);
 		const auto locked = (set->locked > 0);
-		if (installed || featured || special || archived || locked) {
+		if (installed || featured || special || archived || emoji || locked) {
 			if (featured && (set->flags & SetFlag::Unread)) {
 				if (!(set->flags & SetFlag::Emoji)) {
 					++unreadCount;

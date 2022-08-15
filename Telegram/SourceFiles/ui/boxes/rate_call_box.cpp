@@ -109,7 +109,7 @@ void RateCallBox::setInnerFocus() {
 	if (_comment) {
 		_comment->setFocusFast();
 	} else {
-		setFocus();
+		BoxContent::setInnerFocus();
 	}
 }
 

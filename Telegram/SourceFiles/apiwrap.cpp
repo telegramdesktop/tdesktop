@@ -1490,6 +1490,8 @@ void ApiWrap::saveStickerSets(
 			if (!archived) {
 				const auto featured = !!(set->flags & Flag::Featured);
 				const auto special = !!(set->flags & Flag::Special);
+				const auto emoji = !!(set->flags & Flag::Emoji);
+				const auto locked = (set->locked > 0);
 				const auto setId = set->mtpInput();
 
 				auto requestId = request(MTPmessages_UninstallStickerSet(
@@ -1506,7 +1508,7 @@ void ApiWrap::saveStickerSets(
 				if (removeIndex >= 0) {
 					orderRef.removeAt(removeIndex);
 				}
-				if (!featured && !special) {
+				if (!featured && !special && !emoji && !locked) {
 					sets.erase(it);
 				} else {
 					if (archived) {
@@ -1573,7 +1575,9 @@ void ApiWrap::saveStickerSets(
 		if ((set->flags & Flag::Featured)
 			|| (set->flags & Flag::Installed)
 			|| (set->flags & Flag::Archived)
-			|| (set->flags & Flag::Special)) {
+			|| (set->flags & Flag::Special)
+			|| (set->flags & Flag::Emoji)
+			|| (set->locked > 0)) {
 			++it;
 		} else {
 			it = sets.erase(it);
