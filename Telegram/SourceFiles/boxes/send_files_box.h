@@ -180,6 +180,7 @@ private:
 	bool _confirmed = false;
 
 	object_ptr<Ui::InputField> _caption = { nullptr };
+	TextWithTags _prefilledCaptionText;
 	object_ptr<Ui::EmojiButton> _emojiToggle = { nullptr };
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;

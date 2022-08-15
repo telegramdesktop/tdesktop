@@ -260,12 +260,8 @@ SendFilesBox::SendFilesBox(
 , _sendLimit(peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many)
 , _sendMenuType(sendMenuType)
 , _allowEmojiWithoutPremium(Data::AllowEmojiWithoutPremium(peer))
-, _caption(
-	this,
-	st::confirmCaptionArea,
-	Ui::InputField::Mode::MultiLine,
-	nullptr,
-	caption)
+, _caption(this, st::confirmCaptionArea, Ui::InputField::Mode::MultiLine)
+, _prefilledCaptionText(std::move(caption))
 , _scroll(this, st::boxScroll)
 , _inner(
 	_scroll->setOwnedWidget(
@@ -688,6 +684,15 @@ void SendFilesBox::setupCaption() {
 		&_controller->session(),
 		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
 
+	if (!_prefilledCaptionText.text.isEmpty()) {
+		_caption->setTextWithTags(
+			_prefilledCaptionText,
+			Ui::InputField::HistoryAction::Clear);
+
+		auto cursor = _caption->textCursor();
+		cursor.movePosition(QTextCursor::End);
+		_caption->setTextCursor(cursor);
+	}
 	_caption->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
 	_caption->setMaxLength(kMaxMessageLength);
