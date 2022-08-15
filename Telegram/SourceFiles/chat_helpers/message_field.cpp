@@ -623,8 +623,7 @@ void MessageLinksParser::parse() {
 		Expects(tag != tagsEnd);
 
 		if (Ui::InputField::IsValidMarkdownLink(tag->id)
-			&& !TextUtilities::IsMentionLink(tag->id)
-			&& !Ui::InputField::IsCustomEmojiLink(tag->id)) {
+			&& !TextUtilities::IsMentionLink(tag->id)) {
 			ranges.push_back({ tag->offset, tag->length, tag->id });
 		}
 		++tag;
