@@ -290,7 +290,7 @@ void CustomEmoji::paintCustom(
 }
 
 bool CustomEmoji::alwaysShowOutTimestamp() {
-	return (_lines.size() == 1) && _lines.back().size() > 2;
+	return (_lines.size() == 1) && _lines.back().size() > 3;
 }
 
 bool CustomEmoji::hasHeavyPart() const {
