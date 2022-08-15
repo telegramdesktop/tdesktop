@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_changes.h"
 #include "data/data_drafts.h"
@@ -364,6 +365,7 @@ private:
 	void setShownMessage(HistoryItem *message);
 	void resolveMessageData();
 	void updateShownMessageText();
+	void customEmojiRepaint();
 
 	void paintWebPage(Painter &p, not_null<PeerData*> peer);
 	void paintEditOrReplyToMessage(Painter &p);
@@ -393,6 +395,7 @@ private:
 	Ui::Text::String _shownMessageName;
 	Ui::Text::String _shownMessageText;
 	int _shownMessageNameVersion = -1;
+	bool _repaintScheduled = false;
 
 	const not_null<Data::Session*> _data;
 	const not_null<Ui::IconButton*> _cancel;
@@ -547,10 +550,23 @@ void FieldHeader::init() {
 void FieldHeader::updateShownMessageText() {
 	Expects(_shownMessage != nullptr);
 
+	const auto context = Core::MarkedTextContext{
+		.session = &_data->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
+	};
 	_shownMessageText.setMarkedText(
 		st::messageTextStyle,
 		_shownMessage->inReplyText(),
-		Ui::DialogTextOptions());
+		Ui::DialogTextOptions(),
+		context);
+}
+
+void FieldHeader::customEmojiRepaint() {
+	if (_repaintScheduled) {
+		return;
+	}
+	_repaintScheduled = true;
+	update();
 }
 
 void FieldHeader::setShownMessage(HistoryItem *item) {
@@ -685,6 +701,8 @@ void FieldHeader::paintWebPage(Painter &p, not_null<PeerData*> context) {
 }
 
 void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
+	_repaintScheduled = false;
+
 	const auto replySkip = st::historyReplySkip;
 	const auto availableWidth = width()
 		- replySkip
