@@ -24,8 +24,7 @@ class Session;
 class CustomEmojiLoader;
 
 struct CustomEmojiId {
-	uint64 selfId = 0;
-	uint64 id = 0;
+	DocumentId id = 0;
 };
 
 class CustomEmojiManager final : public base::has_weak_ptr {

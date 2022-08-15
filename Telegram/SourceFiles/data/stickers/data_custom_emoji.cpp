@@ -488,10 +488,9 @@ std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 		DocumentId documentId,
 		SizeTag tag) {
-	const auto selfId = _owner->session().userId().bare;
 	auto result = std::make_unique<CustomEmojiLoader>(
 		_owner,
-		CustomEmojiId{ .selfId = selfId, .id = documentId },
+		CustomEmojiId{ .id = documentId },
 		tag);
 	if (result->resolving()) {
 		const auto i = SizeIndex(tag);
@@ -669,27 +668,17 @@ int FrameSizeFromTag(SizeTag tag) {
 }
 
 QString SerializeCustomEmojiId(const CustomEmojiId &id) {
-	return QString::number(id.id)
-		+ ':'
-		+ QString::number(id.selfId);
+	return QString::number(id.id);
 }
 
 QString SerializeCustomEmojiId(not_null<DocumentData*> document) {
 	return SerializeCustomEmojiId({
-		.selfId = document->session().userId().bare,
 		.id = document->id,
 	});
 }
 
 CustomEmojiId ParseCustomEmojiData(QStringView data) {
-	const auto components = data.split(':');
-	if (components.size() != 2) {
-		return {};
-	}
-	return {
-		.selfId = components[1].toULongLong(),
-		.id = components[0].toULongLong(),
-	};
+	return { .id = data.toULongLong() };
 }
 
 bool AllowEmojiWithoutPremium(not_null<PeerData*> peer) {
