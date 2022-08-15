@@ -1082,10 +1082,6 @@ rpl::producer<QString> VoicesPrivacyController::title() const {
 	return tr::lng_edit_privacy_voices_title();
 }
 
-bool VoicesPrivacyController::hasOption(Option option) const {
-	return (option != Option::Nobody);
-}
-
 rpl::producer<QString> VoicesPrivacyController::optionsTitleKey() const {
 	return tr::lng_edit_privacy_voices_header();
 }
