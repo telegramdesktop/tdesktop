@@ -256,8 +256,6 @@ private:
 	void processDetails(const MTPDpayments_paymentForm &data);
 	void processDetails(const MTPDpayments_paymentReceipt &data);
 	void processSavedInformation(const MTPDpaymentRequestedInfo &data);
-	void addSavedCredentials(
-		const MTPDpaymentSavedCredentialsCard &data);
 	void processAdditionalPaymentMethods(
 		const QVector<MTPPaymentFormMethod> &list);
 	void processShippingOptions(const QVector<MTPShippingOption> &data);

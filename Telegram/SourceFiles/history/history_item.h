@@ -46,6 +46,10 @@ class Media;
 class MessageReactions;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
