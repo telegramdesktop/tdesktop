@@ -967,7 +967,7 @@ void StickersListFooter::refreshIcons(
 void StickersListFooter::refreshScrollableDimensions() {
 	const auto &last = iconInfo(_icons.size() - 1);
 	_iconState.max = std::max(
-		last.left + last.width + _iconsRight - width(),
+		last.left + last.width + _iconsLeft + _iconsRight - width(),
 		0);
 	if (_iconState.x.current() > _iconState.max) {
 		_iconState.x = anim::value(_iconState.max, _iconState.max);
