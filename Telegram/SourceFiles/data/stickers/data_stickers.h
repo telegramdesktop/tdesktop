@@ -237,8 +237,8 @@ public:
 		not_null<DocumentData*> document);
 
 	not_null<StickersSet*> feedSet(const MTPStickerSet &data);
+	not_null<StickersSet*> feedSet(const MTPStickerSetCovered &data);
 	not_null<StickersSet*> feedSetFull(const MTPDmessages_stickerSet &data);
-	not_null<StickersSet*> feedSetCovered(const MTPStickerSetCovered &data);
 	void feedSetStickers(
 		not_null<StickersSet*> set,
 		const QVector<MTPDocument> &documents,

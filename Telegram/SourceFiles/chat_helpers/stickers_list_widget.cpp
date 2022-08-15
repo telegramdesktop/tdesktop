@@ -346,7 +346,7 @@ void StickersListWidget::preloadMoreOfficial() {
 			const auto &list = data.vsets().v;
 			_officialOffset += list.size();
 			for (int i = 0, l = list.size(); i != l; ++i) {
-				const auto set = session().data().stickers().feedSetCovered(
+				const auto set = session().data().stickers().feedSet(
 					list[i]);
 				if (set->stickers.empty() && set->covers.empty()) {
 					continue;
@@ -763,7 +763,7 @@ void StickersListWidget::searchResultsDone(
 	}
 	auto &d = result.c_messages_foundStickerSets();
 	for (const auto &data : d.vsets().v) {
-		const auto set = session().data().stickers().feedSetCovered(data);
+		const auto set = session().data().stickers().feedSet(data);
 		if (set->stickers.empty() && set->covers.empty()) {
 			continue;
 		}

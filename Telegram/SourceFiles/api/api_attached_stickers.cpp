@@ -41,7 +41,7 @@ void AttachedStickers::request(
 			return;
 		} else if (result.v.size() > 1) {
 			strongController->show(
-				Box<StickersBox>(strongController, result));
+				Box<StickersBox>(strongController, result.v));
 			return;
 		}
 		// Single attached sticker pack.

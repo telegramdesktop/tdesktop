@@ -364,7 +364,7 @@ void Stickers::applyArchivedResult(
 	auto masksCount = 0;
 	auto stickersCount = 0;
 	for (const auto &data : v) {
-		const auto set = feedSetCovered(data);
+		const auto set = feedSet(data);
 		if (set->flags & SetFlag::NotLoaded) {
 			setsToRequest.insert(set->id, set->accessHash);
 		}
@@ -1454,7 +1454,7 @@ not_null<StickersSet*> Stickers::feedSetFull(
 	return set;
 }
 
-not_null<StickersSet*> Stickers::feedSetCovered(
+not_null<StickersSet*> Stickers::feedSet(
 		const MTPStickerSetCovered &data) {
 	const auto set = data.match([&](const auto &data) {
 		return feedSet(data.vset());

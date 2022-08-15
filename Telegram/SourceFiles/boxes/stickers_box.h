@@ -70,7 +70,7 @@ public:
 	StickersBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		const MTPVector<MTPStickerSetCovered> &attachedSets);
+		const QVector<MTPStickerSetCovered> &attachedSets);
 	StickersBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
@@ -164,7 +164,7 @@ private:
 	Tab *_tab = nullptr;
 
 	const Data::StickersType _attachedType = {};
-	const MTPVector<MTPStickerSetCovered> _attachedSets;
+	const QVector<MTPStickerSetCovered> _attachedSets;
 	const std::vector<StickerSetIdentifier> _emojiSets;
 
 	ChannelData *_megagroupSet = nullptr;
