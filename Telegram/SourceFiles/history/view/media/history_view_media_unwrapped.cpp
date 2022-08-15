@@ -99,7 +99,7 @@ QSize UnwrappedMedia::countCurrentSize(int newWidth) {
 		_additionalOnTop = (optimalw + paddings + additionalMinWidth) > newWidth;
 		const auto surrounding = surroundingInfo(via, reply, forwarded, additional - st::msgReplyPadding.left());
 		if (_additionalOnTop) {
-			_topAdded = surrounding.height;
+			_topAdded = surrounding.height + st::msgMargin.bottom();
 			newHeight += _topAdded;
 		} else {
 			const auto infoHeight = st::msgDateImgPadding.y() * 2
@@ -143,7 +143,10 @@ void UnwrappedMedia::draw(Painter &p, const PaintContext &context) const {
 	const auto useh = rightAligned
 		? std::max(
 			_contentSize.height(),
-			height() - st::msgDateImgPadding.y() * 2 - st::msgDateFont->height)
+			(height()
+				- _topAdded
+				- st::msgDateImgPadding.y() * 2
+				- st::msgDateFont->height))
 		: _contentSize.height();
 	const auto inner = QRect(usex, usey, usew, useh);
 	if (context.skipDrawingParts != PaintContext::SkipDrawingParts::Content) {
@@ -218,7 +221,7 @@ void UnwrappedMedia::drawSurrounding(
 	if (const auto surrounding = surroundingInfo(via, reply, forwarded, rectw)) {
 		auto recth = surrounding.height;
 		int rectx = _additionalOnTop
-			? (rightAligned ? (inner.width() + st::msgReplyPadding.left() - rectw) : 0)
+			? (rightAligned ? (inner.x() + inner.width() - rectw) : 0)
 			: (rightAligned ? 0 : (inner.width() + st::msgReplyPadding.left()));
 		int recty = 0;
 		if (rtl()) rectx = width() - rectx - rectw;
