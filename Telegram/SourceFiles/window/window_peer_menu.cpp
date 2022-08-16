@@ -403,9 +403,12 @@ void Filler::addInfo() {
 	if (_peer->isSelf() || _peer->isRepliesChat()) {
 		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
-		if (Core::App().settings().thirdSectionInfoEnabled()
-			|| Core::App().settings().tabbedReplacedWithInfo()) {
-			return;
+		const auto history = _controller->activeChatCurrent().history();
+		if (history && history->peer == _peer) {
+			if (Core::App().settings().thirdSectionInfoEnabled()
+				|| Core::App().settings().tabbedReplacedWithInfo()) {
+				return;
+			}
 		}
 	}
 	const auto controller = _controller;
