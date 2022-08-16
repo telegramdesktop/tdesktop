@@ -152,6 +152,7 @@ void EditCaptionBox::prepare() {
 
 	setupField();
 	setupEmojiPanel();
+	setInitialText();
 
 	rebuildPreview();
 	setupEditEventHandler();
@@ -279,10 +280,12 @@ void EditCaptionBox::setupField() {
 		}
 		Unexpected("Action in MimeData hook.");
 	});
+}
+
+void EditCaptionBox::setInitialText() {
 	_field->setTextWithTags(
 		PrepareEditText(_historyItem),
 		Ui::InputField::HistoryAction::Clear);
-
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
