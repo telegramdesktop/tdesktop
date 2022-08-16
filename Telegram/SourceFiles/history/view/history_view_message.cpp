@@ -260,10 +260,12 @@ Message::Message(
 	refreshReactions();
 	auto animations = replacing
 		? replacing->takeReactionAnimations()
-		: base::flat_map<QString, std::unique_ptr<Reactions::Animation>>();
+		: base::flat_map<
+			Data::ReactionId,
+			std::unique_ptr<Reactions::Animation>>();
 	if (!animations.empty()) {
 		const auto repainter = [=] { repaint(); };
-		for (const auto &[emoji, animation] : animations) {
+		for (const auto &[id, animation] : animations) {
 			animation->setRepaintCallback(repainter);
 		}
 		if (_reactions) {
@@ -433,7 +435,7 @@ void Message::animateReaction(ReactionAnimationArgs &&args) {
 }
 
 auto Message::takeReactionAnimations()
--> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<Data::ReactionId, std::unique_ptr<Reactions::Animation>> {
 	return _reactions
 		? _reactions->takeAnimations()
 		: _bottomInfo.takeReactionAnimations();
@@ -2182,15 +2184,15 @@ void Message::refreshReactions() {
 	using namespace Reactions;
 	auto reactionsData = InlineListDataFromMessage(this);
 	if (!_reactions) {
-		const auto handlerFactory = [=](QString emoji) {
+		const auto handlerFactory = [=](ReactionId id) {
 			const auto weak = base::make_weak(this);
 			return std::make_shared<LambdaClickHandler>([=] {
 				if (const auto strong = weak.get()) {
-					strong->data()->toggleReaction(emoji);
+					strong->data()->toggleReaction(id);
 					if (const auto now = weak.get()) {
-						if (now->data()->chosenReaction() == emoji) {
+						if (now->data()->chosenReaction() == id) {
 							now->animateReaction({
-								.emoji = emoji,
+								.id = id,
 							});
 						}
 					}

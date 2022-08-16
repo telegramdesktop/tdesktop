@@ -401,16 +401,16 @@ HistoryInner::HistoryInner(
 			|| Window::ShowReactPremiumError(
 				_controller,
 				item,
-				reaction.emoji)) {
+				reaction.id)) {
 			return;
 		}
-		item->toggleReaction(reaction.emoji);
-		if (item->chosenReaction() != reaction.emoji) {
+		item->toggleReaction(reaction.id);
+		if (item->chosenReaction() != reaction.id) {
 			return;
 		} else if (const auto view = item->mainView()) {
 			if (const auto top = itemTop(view); top >= 0) {
 				view->animateReaction({
-					.emoji = reaction.emoji,
+					.id = reaction.id,
 					.flyIcon = reaction.icon,
 					.flyFrom = reaction.geometry.translated(0, -top),
 				});
@@ -1926,7 +1926,9 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto favorite = session().data().reactions().favorite();
 	const auto allowed = _reactionsManager->allowedSublist();
-	if (allowed && !allowed->contains(favorite)) {
+	if (allowed
+		&& (favorite.emoji().isEmpty()
+			|| !allowed->contains(favorite.emoji()))) {
 		return;
 	}
 	const auto item = view->data();
@@ -1934,7 +1936,7 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 		return;
 	} else if (item->chosenReaction() != favorite) {
 		if (const auto top = itemTop(view); top >= 0) {
-			view->animateReaction({ .emoji = favorite });
+			view->animateReaction({ .id = favorite });
 		}
 	}
 	item->toggleReaction(favorite);
@@ -1951,7 +1953,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto link = ClickHandler::getActive();
 	if (link
-		&& !link->property(kSendReactionEmojiProperty).toString().isEmpty()
+		&& !link->property(
+			kSendReactionEmojiProperty).value<Data::ReactionId>().empty()
 		&& _reactionsManager->showContextMenu(
 			this,
 			e,
@@ -1995,17 +1998,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	const auto hasWhoReactedItem = _dragStateItem
 		&& Api::WhoReactedExists(_dragStateItem);
-	const auto clickedEmoji = link
-		? link->property(kReactionsCountEmojiProperty).toString()
-		: QString();
+	const auto clickedReaction = link
+		? link->property(
+			kReactionsCountEmojiProperty).value<Data::ReactionId>()
+		: Data::ReactionId();
 	_whoReactedMenuLifetime.destroy();
-	if (hasWhoReactedItem && !clickedEmoji.isEmpty()) {
+	if (hasWhoReactedItem && !clickedReaction.empty()) {
 		HistoryView::ShowWhoReactedMenu(
 			&_menu,
 			e->globalPos(),
 			this,
 			_dragStateItem,
-			clickedEmoji,
+			clickedReaction,
 			_controller,
 			_whoReactedMenuLifetime);
 		e->accept();

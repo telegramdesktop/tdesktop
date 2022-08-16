@@ -883,7 +883,7 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addReaction(const QString &reaction) {
+void HistoryItem::addReaction(const Data::ReactionId &reaction) {
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 	}
@@ -891,7 +891,7 @@ void HistoryItem::addReaction(const QString &reaction) {
 	history()->owner().notifyItemDataChange(this);
 }
 
-void HistoryItem::toggleReaction(const QString &reaction) {
+void HistoryItem::toggleReaction(const Data::ReactionId &reaction) {
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 		const auto canViewReactions = !isDiscussionPost()
@@ -977,15 +977,17 @@ void HistoryItem::updateReactionsUnknown() {
 	_reactionsLastRefreshed = 1;
 }
 
-const base::flat_map<QString, int> &HistoryItem::reactions() const {
-	static const auto kEmpty = base::flat_map<QString, int>();
+const base::flat_map<Data::ReactionId, int> &HistoryItem::reactions() const {
+	static const auto kEmpty = base::flat_map<Data::ReactionId, int>();
 	return _reactions ? _reactions->list() : kEmpty;
 }
 
 auto HistoryItem::recentReactions() const
--> const base::flat_map<QString, std::vector<Data::RecentReaction>> & {
+-> const base::flat_map<
+		Data::ReactionId,
+		std::vector<Data::RecentReaction>> & {
 	static const auto kEmpty = base::flat_map<
-		QString,
+		Data::ReactionId,
 		std::vector<Data::RecentReaction>>();
 	return _reactions ? _reactions->recent() : kEmpty;
 }
@@ -996,25 +998,26 @@ bool HistoryItem::canViewReactions() const {
 		&& !_reactions->list().empty();
 }
 
-QString HistoryItem::chosenReaction() const {
-	return _reactions ? _reactions->chosen() : QString();
+Data::ReactionId HistoryItem::chosenReaction() const {
+	return _reactions ? _reactions->chosen() : Data::ReactionId();
 }
 
-QString HistoryItem::lookupUnreadReaction(not_null<UserData*> from) const {
+Data::ReactionId HistoryItem::lookupUnreadReaction(
+		not_null<UserData*> from) const {
 	if (!_reactions) {
-		return QString();
+		return {};
 	}
 	const auto recent = _reactions->recent();
-	for (const auto &[emoji, list] : _reactions->recent()) {
+	for (const auto &[id, list] : _reactions->recent()) {
 		const auto i = ranges::find(
 			list,
 			from,
 			&Data::RecentReaction::peer);
 		if (i != end(list) && i->unread) {
-			return emoji;
+			return id;
 		}
 	}
-	return QString();
+	return {};
 }
 
 crl::time HistoryItem::lastReactionsRefreshTime() const {

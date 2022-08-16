@@ -113,7 +113,7 @@ private:
 
 		not_null<History*> history;
 		not_null<PeerData*> peer;
-		QString reaction;
+		Data::ReactionId reaction;
 		QString author;
 		HistoryItem *item = nullptr;
 		int forwardedCount = 0;
@@ -208,7 +208,7 @@ public:
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
-		const QString &reaction,
+		const Data::ReactionId &reaction,
 		int forwardedCount,
 		bool fromScheduled,
 		QPoint startPosition,
@@ -284,7 +284,7 @@ private:
 	History *_history = nullptr;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;
-	QString _reaction;
+	Data::ReactionId _reaction;
 	HistoryItem *_item = nullptr;
 	int _forwardedCount = 0;
 	bool _fromScheduled = false;

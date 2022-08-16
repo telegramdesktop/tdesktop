@@ -14,7 +14,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_react_animation.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
-#include "data/data_message_reactions.h"
 #include "data/data_peer.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"
@@ -35,9 +34,21 @@ constexpr auto kMaxNicePerRow = 5;
 
 } // namespace
 
+struct InlineList::Button {
+	QRect geometry;
+	mutable std::unique_ptr<Animation> animation;
+	mutable QImage image;
+	mutable ClickHandlerPtr link;
+	std::unique_ptr<Userpics> userpics;
+	ReactionId id;
+	QString countText;
+	int count = 0;
+	int countTextWidth = 0;
+};
+
 InlineList::InlineList(
 	not_null<::Data::Reactions*> owner,
-	Fn<ClickHandlerPtr(QString)> handlerFactory,
+	Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
 	Data &&data)
 : _owner(owner)
 , _handlerFactory(std::move(handlerFactory))
@@ -85,19 +96,19 @@ void InlineList::layoutButtons() {
 		} else if (p1.second < p2.second) {
 			return false;
 		}
-		return ranges::find(list, p1.first, &::Data::Reaction::emoji)
-			< ranges::find(list, p2.first, &::Data::Reaction::emoji);
+		return ranges::find(list, p1.first, &::Data::Reaction::id)
+			< ranges::find(list, p2.first, &::Data::Reaction::id);
 	});
 
 	auto buttons = std::vector<Button>();
 	buttons.reserve(sorted.size());
-	for (const auto &[emoji, count] : sorted) {
-		const auto i = ranges::find(_buttons, emoji, &Button::emoji);
+	for (const auto &[id, count] : sorted) {
+		const auto i = ranges::find(_buttons, id, &Button::id);
 		buttons.push_back((i != end(_buttons))
 			? std::move(*i)
-			: prepareButtonWithEmoji(emoji));
-		const auto add = (emoji == _data.chosenReaction) ? 1 : 0;
-		const auto j = _data.recent.find(emoji);
+			: prepareButtonWithId(id));
+		const auto add = (id == _data.chosenReaction) ? 1 : 0;
+		const auto j = _data.recent.find(id);
 		if (j != end(_data.recent) && !j->second.empty()) {
 			setButtonUserpics(buttons.back(), j->second);
 		} else {
@@ -107,9 +118,9 @@ void InlineList::layoutButtons() {
 	_buttons = std::move(buttons);
 }
 
-InlineList::Button InlineList::prepareButtonWithEmoji(const QString &emoji) {
-	auto result = Button{ .emoji = emoji };
-	_owner->preloadImageFor(emoji);
+InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
+	auto result = Button{ .id = id };
+	_owner->preloadImageFor(id);
 	return result;
 }
 
@@ -290,7 +301,7 @@ void InlineList::paint(
 		}
 		const auto animating = (button.animation != nullptr);
 		const auto &geometry = button.geometry;
-		const auto mine = (_data.chosenReaction == button.emoji);
+		const auto mine = (_data.chosenReaction == button.id);
 		const auto withoutMine = button.count - (mine ? 1 : 0);
 		const auto skipImage = animating
 			&& (withoutMine < 1 || !button.animation->flying());
@@ -337,7 +348,7 @@ void InlineList::paint(
 		}
 		if (button.image.isNull()) {
 			button.image = _owner->resolveImageFor(
-				button.emoji,
+				button.id,
 				::Data::Reactions::ImageSize::InlineList);
 		}
 		const auto image = QRect(
@@ -414,11 +425,11 @@ bool InlineList::getState(
 	for (const auto &button : _buttons) {
 		if (button.geometry.contains(point)) {
 			if (!button.link) {
-				button.link = _handlerFactory(button.emoji);
+				button.link = _handlerFactory(button.id);
 				button.link->setProperty(
 					kReactionsCountEmojiProperty,
-					button.emoji);
-				_owner->preloadAnimationsFor(button.emoji);
+					QVariant::fromValue(button.id));
+				_owner->preloadAnimationsFor(button.id);
 			}
 			outResult->link = button.link;
 			return true;
@@ -430,7 +441,7 @@ bool InlineList::getState(
 void InlineList::animate(
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	const auto i = ranges::find(_buttons, args.emoji, &Button::emoji);
+	const auto i = ranges::find(_buttons, args.id, &Button::id);
 	if (i == end(_buttons)) {
 		return;
 	}
@@ -471,23 +482,23 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 }
 
 auto InlineList::takeAnimations()
--> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>> {
 	auto result = base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>>();
 	for (auto &button : _buttons) {
 		if (button.animation) {
-			result.emplace(button.emoji, std::move(button.animation));
+			result.emplace(button.id, std::move(button.animation));
 		}
 	}
 	return result;
 }
 
 void InlineList::continueAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations) {
-	for (auto &[emoji, animation] : animations) {
-		const auto i = ranges::find(_buttons, emoji, &Button::emoji);
+	for (auto &[id, animation] : animations) {
+		const auto i = ranges::find(_buttons, id, &Button::id);
 		if (i != end(_buttons)) {
 			i->animation = std::move(animation);
 		}
@@ -519,14 +530,14 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	}();
 	if (showUserpics) {
 		result.recent.reserve(recent.size());
-		for (const auto &[emoji, list] : recent) {
-			result.recent.emplace(emoji).first->second = list
+		for (const auto &[id, list] : recent) {
+			result.recent.emplace(id).first->second = list
 				| ranges::view::transform(&Data::RecentReaction::peer)
 				| ranges::to_vector;
 		}
 	}
 	result.chosenReaction = item->chosenReaction();
-	if (!result.chosenReaction.isEmpty()) {
+	if (!result.chosenReaction.empty()) {
 		--result.reactions[result.chosenReaction];
 	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())

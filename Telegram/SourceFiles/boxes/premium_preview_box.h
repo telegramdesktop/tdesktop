@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Ui {
 class BoxContent;
 class GenericBox;
@@ -56,7 +60,12 @@ enum class ReactionDisableType {
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	const base::flat_map<QString, ReactionDisableType> &disabled = {},
+	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
+
+void ShowPremiumPreviewBox(
+	not_null<Window::SessionController*> controller,
+	PremiumPreview section,
+	const base::flat_map<Data::ReactionId, ReactionDisableType> &disabled,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 
 void ShowPremiumPreviewToBuy(

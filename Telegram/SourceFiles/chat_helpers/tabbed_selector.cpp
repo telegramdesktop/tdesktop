@@ -862,10 +862,7 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 void TabbedSelector::showPromoForPremiumEmoji() {
 	premiumEmojiChosen(
 	) | rpl::start_with_next([=] {
-		ShowPremiumPreviewBox(
-			_controller,
-			PremiumPreview::AnimatedEmoji,
-			{});
+		ShowPremiumPreviewBox(_controller, PremiumPreview::AnimatedEmoji);
 	}, lifetime());
 }
 

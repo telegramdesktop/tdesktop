@@ -905,23 +905,23 @@ void SetupMessages(
 	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
 
 	const auto &reactions = controller->session().data().reactions();
-	auto emojiValue = rpl::single(
+	auto idValue = rpl::single(
 		reactions.favorite()
 	) | rpl::then(
 		reactions.updates() | rpl::map([=] {
 			return controller->session().data().reactions().favorite();
 		})
-	) | rpl::filter([](const QString &emoji) {
-		return !emoji.isEmpty();
+	) | rpl::filter([](const Data::ReactionId &id) {
+		return !id.empty();
 	});
-	auto selectedEmoji = rpl::duplicate(emojiValue);
+	auto selected = rpl::duplicate(idValue);
 	std::move(
-		selectedEmoji
-	) | rpl::start_with_next([=, emojiValue = std::move(emojiValue)](
-			const QString &emoji) {
+		selected
+	) | rpl::start_with_next([=, idValue = std::move(idValue)](
+			const Data::ReactionId &id) {
 		const auto &reactions = controller->session().data().reactions();
 		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
-			if (emoji != r.emoji) {
+			if (id != r.id) {
 				continue;
 			}
 			const auto index = state->icons.flag ? 1 : 0;
@@ -941,7 +941,7 @@ void SetupMessages(
 				) | rpl::filter([=](not_null<QEvent*> event) {
 					return event->type() == QEvent::Enter;
 				}) | rpl::to_empty,
-				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
+				rpl::duplicate(idValue) | rpl::skip(1) | rpl::to_empty,
 				&state->icons.lifetimes[index]);
 			state->icons.flag = !state->icons.flag;
 			toggleButtonRight(true);

@@ -407,9 +407,9 @@ Manager::Manager(
 		applyListFilters();
 	}, _lifetime);
 
-	_createChooseCallback = [=](QString emoji) {
+	_createChooseCallback = [=](ReactionId id) {
 		return [=] {
-			if (auto chosen = lookupChosen(emoji)) {
+			if (auto chosen = lookupChosen(id)) {
 				updateButton({});
 				_chosen.fire(std::move(chosen));
 			}
@@ -417,13 +417,13 @@ Manager::Manager(
 	};
 }
 
-Manager::Chosen Manager::lookupChosen(const QString &emoji) const {
+Manager::Chosen Manager::lookupChosen(const ReactionId &id) const {
 	auto result = Chosen{
 		.context = _buttonContext,
-		.emoji = emoji,
+		.id = id,
 	};
 	const auto button = _button.get();
-	const auto i = ranges::find(_icons, emoji, &ReactionIcons::emoji);
+	const auto i = ranges::find(_icons, id, &ReactionIcons::id);
 	if (i == end(_icons) || !button) {
 		return result;
 	}
@@ -471,14 +471,15 @@ void Manager::applyListFilters() {
 	auto showPremiumLock = (ReactionIcons*)nullptr;
 	auto favoriteIndex = -1;
 	for (auto &icon : _list) {
-		const auto &emoji = icon.emoji;
+		const auto &id = icon.id;
 		const auto add = applyUniqueLimit
-			? _buttonAlreadyList.contains(emoji)
-			: (!_filter || _filter->contains(emoji));
+			? _buttonAlreadyList.contains(id)
+			: (!_filter
+				|| (!id.emoji().isEmpty() && _filter->contains(id.emoji())));
 		if (add) {
 			if (icon.premium
 				&& !_allowSendingPremium
-				&& !_buttonAlreadyList.contains(emoji)) {
+				&& !_buttonAlreadyList.contains(id)) {
 				if (_premiumPossible) {
 					showPremiumLock = &icon;
 				} else {
@@ -486,7 +487,7 @@ void Manager::applyListFilters() {
 				}
 			} else {
 				icon.premiumLock = false;
-				if (emoji == _favorite) {
+				if (id == _favorite) {
 					favoriteIndex = int(icons.size());
 				}
 				icons.push_back(&icon);
@@ -576,13 +577,13 @@ void Manager::showButtonDelayed() {
 
 void Manager::applyList(
 		const std::vector<Data::Reaction> &list,
-		const QString &favorite,
+		const ReactionId &favorite,
 		bool premiumPossible) {
 	const auto possibleChanged = (_premiumPossible != premiumPossible);
 	_premiumPossible = premiumPossible;
 	const auto proj = [](const auto &obj) {
 		return std::tie(
-			obj.emoji,
+			obj.id,
 			obj.appearAnimation,
 			obj.selectAnimation,
 			obj.premium);
@@ -603,7 +604,7 @@ void Manager::applyList(
 	_list.clear();
 	for (const auto &reaction : list) {
 		_list.push_back({
-			.emoji = reaction.emoji,
+			.id = reaction.id,
 			.appearAnimation = reaction.appearAnimation,
 			.selectAnimation = reaction.selectAnimation,
 			.premium = reaction.premium,
@@ -639,12 +640,12 @@ void Manager::updateUniqueLimit(not_null<HistoryItem*> item) {
 	}
 	const auto &all = item->reactions();
 	const auto my = item->chosenReaction();
-	auto list = base::flat_set<QString>();
+	auto list = base::flat_set<Data::ReactionId>();
 	list.reserve(all.size());
 	auto myIsUnique = false;
-	for (const auto &[emoji, count] : all) {
-		list.emplace(emoji);
-		if (count == 1 && emoji == my) {
+	for (const auto &[id, count] : all) {
+		list.emplace(id);
+		if (count == 1 && id == my) {
 			myIsUnique = true;
 		}
 	}
@@ -780,7 +781,7 @@ void Manager::loadIcons() {
 	if (all && !_icons.empty()) {
 		auto &data = _icons.front()->appearAnimation->owner().reactions();
 		for (const auto &icon : _icons) {
-			data.preloadAnimationsFor(icon->emoji);
+			data.preloadAnimationsFor(icon->id);
 		}
 	}
 }
@@ -886,15 +887,17 @@ void Manager::setSelectedIcon(int index) const {
 
 ClickHandlerPtr Manager::resolveButtonLink(
 		const ReactionIcons &reaction) const {
-	const auto emoji = reaction.emoji;
-	const auto i = _reactionsLinks.find(emoji);
+	const auto id = reaction.id;
+	const auto i = _reactionsLinks.find(id);
 	if (i != end(_reactionsLinks)) {
 		return i->second;
 	}
 	auto handler = std::make_shared<LambdaClickHandler>(
-		crl::guard(this, _createChooseCallback(emoji)));
-	handler->setProperty(kSendReactionEmojiProperty, emoji);
-	return _reactionsLinks.emplace(emoji, std::move(handler)).first->second;
+		crl::guard(this, _createChooseCallback(id)));
+	handler->setProperty(
+		kSendReactionEmojiProperty,
+		QVariant::fromValue(id));
+	return _reactionsLinks.emplace(id, std::move(handler)).first->second;
 }
 
 TextState Manager::buttonTextState(QPoint position) const {
@@ -1625,23 +1628,23 @@ void Manager::recordCurrentReactionEffect(FullMsgId itemId, QPoint origin) {
 bool Manager::showContextMenu(
 		QWidget *parent,
 		QContextMenuEvent *e,
-		const QString &favorite) {
+		const ReactionId &favorite) {
 	if (_icons.empty() || _selectedIcon < 0) {
 		return false;
 	}
-	const auto lookupSelectedEmoji = [&] {
+	const auto lookupSelectedId = [&] {
 		const auto i = ranges::find(_icons, true, &ReactionIcons::selected);
-		return (i != end(_icons)) ? (*i)->emoji : QString();
+		return (i != end(_icons)) ? (*i)->id : ReactionId();
 	};
-	if (!favorite.isEmpty() && lookupSelectedEmoji() == favorite) {
+	if (!favorite.empty() && lookupSelectedId() == favorite) {
 		return true;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
 	const auto callback = [=] {
-		if (const auto emoji = lookupSelectedEmoji(); !emoji.isEmpty()) {
-			_faveRequests.fire_copy(emoji);
+		if (const auto id = lookupSelectedId(); !id.empty()) {
+			_faveRequests.fire_copy(id);
 		}
 	};
 	_menu->addAction(
@@ -1652,7 +1655,7 @@ bool Manager::showContextMenu(
 	return true;
 }
 
-rpl::producer<QString> Manager::faveRequests() const {
+auto Manager::faveRequests() const -> rpl::producer<ReactionId> {
 	return _faveRequests.events();
 }
 
@@ -1677,8 +1680,8 @@ void SetupManagerList(
 	}, manager->lifetime());
 
 	manager->faveRequests(
-	) | rpl::start_with_next([=](const QString &emoji) {
-		reactions->setFavorite(emoji);
+	) | rpl::start_with_next([=](const Data::ReactionId &id) {
+		reactions->setFavorite(id);
 		manager->updateButton({});
 	}, manager->lifetime());
 

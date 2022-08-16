@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -213,6 +217,6 @@ private:
 [[nodiscard]] bool ShowReactPremiumError(
 	not_null<SessionController*> controller,
 	not_null<HistoryItem*> item,
-	const QString &emoji);
+	const Data::ReactionId &id);
 
 } // namespace Window

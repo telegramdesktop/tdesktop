@@ -29,6 +29,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
+ReactionAnimationArgs ReactionAnimationArgs::translated(
+		QPoint point) const {
+	return {
+		.id = id,
+		.flyIcon = flyIcon,
+		.flyFrom = flyFrom.translated(point),
+	};
+}
+
 BottomInfo::BottomInfo(
 	not_null<::Data::Reactions*> reactionsOwner,
 	Data &&data)
@@ -150,7 +159,7 @@ ClickHandlerPtr BottomInfo::revokeReactionLink(
 	auto y = top;
 	auto widthLeft = available;
 	for (const auto &reaction : _reactions) {
-		const auto chosen = (reaction.emoji == _data.chosenReaction);
+		const auto chosen = (reaction.id == _data.chosenReaction);
 		const auto add = (reaction.countTextWidth > 0)
 			? st::reactionInfoDigitSkip
 			: st::reactionInfoBetween;
@@ -192,7 +201,7 @@ ClickHandlerPtr BottomInfo::revokeReactionLink(
 				auto &owner = controller->session().data();
 				if (const auto item = owner.message(itemId)) {
 					const auto chosen = item->chosenReaction();
-					if (!chosen.isEmpty()) {
+					if (!chosen.empty()) {
 						item->toggleReaction(chosen);
 					}
 				}
@@ -348,7 +357,7 @@ void BottomInfo::paintReactions(
 		}
 		if (reaction.image.isNull()) {
 			reaction.image = _reactionsOwner->resolveImageFor(
-				reaction.emoji,
+				reaction.id,
 				::Data::Reactions::ImageSize::BottomInfo);
 		}
 		const auto image = QRect(
@@ -476,15 +485,18 @@ void BottomInfo::layoutReactionsText() {
 	) | ranges::view::transform([](const auto &pair) {
 		return std::make_pair(pair.first, pair.second);
 	}) | ranges::to_vector;
-	ranges::sort(sorted, std::greater<>(), &std::pair<QString, int>::second);
+	ranges::sort(
+		sorted,
+		std::greater<>(),
+		&std::pair<ReactionId, int>::second);
 
 	auto reactions = std::vector<Reaction>();
 	reactions.reserve(sorted.size());
-	for (const auto &[emoji, count] : sorted) {
-		const auto i = ranges::find(_reactions, emoji, &Reaction::emoji);
+	for (const auto &[id, count] : sorted) {
+		const auto i = ranges::find(_reactions, id, &Reaction::id);
 		reactions.push_back((i != end(_reactions))
 			? std::move(*i)
-			: prepareReactionWithEmoji(emoji));
+			: prepareReactionWithId(id));
 		setReactionCount(reactions.back(), count);
 	}
 	_reactions = std::move(reactions);
@@ -514,10 +526,10 @@ QSize BottomInfo::countOptimalSize() {
 	return QSize(width, st::msgDateFont->height);
 }
 
-BottomInfo::Reaction BottomInfo::prepareReactionWithEmoji(
-		const QString &emoji) {
-	auto result = Reaction{ .emoji = emoji };
-	_reactionsOwner->preloadImageFor(emoji);
+BottomInfo::Reaction BottomInfo::prepareReactionWithId(
+		const ReactionId &id) {
+	auto result = Reaction{ .id = id };
+	_reactionsOwner->preloadImageFor(id);
 	return result;
 }
 
@@ -537,7 +549,7 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 void BottomInfo::animateReaction(
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint) {
-	const auto i = ranges::find(_reactions, args.emoji, &Reaction::emoji);
+	const auto i = ranges::find(_reactions, args.id, &Reaction::id);
 	if (i == end(_reactions)) {
 		return;
 	}
@@ -549,23 +561,23 @@ void BottomInfo::animateReaction(
 }
 
 auto BottomInfo::takeReactionAnimations()
--> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>> {
 	auto result = base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>>();
 	for (auto &reaction : _reactions) {
 		if (reaction.animation) {
-			result.emplace(reaction.emoji, std::move(reaction.animation));
+			result.emplace(reaction.id, std::move(reaction.animation));
 		}
 	}
 	return result;
 }
 
 void BottomInfo::continueReactionAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations) {
-	for (auto &[emoji, animation] : animations) {
-		const auto i = ranges::find(_reactions, emoji, &Reaction::emoji);
+	for (auto &[id, animation] : animations) {
+		const auto i = ranges::find(_reactions, id, &Reaction::id);
 		if (i != end(_reactions)) {
 			i->animation = std::move(animation);
 		}

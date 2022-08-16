@@ -346,15 +346,16 @@ bool ShowSendPremiumError(
 [[nodiscard]] auto ExtractDisabledReactions(
 	not_null<PeerData*> peer,
 	const std::vector<Data::Reaction> &list)
--> base::flat_map<QString, ReactionDisableType> {
-	auto result = base::flat_map<QString, ReactionDisableType>();
+-> base::flat_map<Data::ReactionId, ReactionDisableType> {
+	auto result = base::flat_map<Data::ReactionId, ReactionDisableType>();
 	const auto type = peer->isBroadcast()
 		? ReactionDisableType::Channel
 		: ReactionDisableType::Group;
 	if (const auto allowed = Data::PeerAllowedReactions(peer)) {
 		for (const auto &reaction : list) {
-			if (reaction.premium && !allowed->contains(reaction.emoji)) {
-				result.emplace(reaction.emoji, type);
+			if (reaction.premium
+				&& !allowed->contains(reaction.id.emoji())) {
+				result.emplace(reaction.id, type);
 			}
 		}
 	}
@@ -364,13 +365,13 @@ bool ShowSendPremiumError(
 bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
-		const QString &emoji) {
-	if (item->chosenReaction() == emoji || controller->session().premium()) {
+		const Data::ReactionId &id) {
+	if (item->chosenReaction() == id || controller->session().premium()) {
 		return false;
 	}
 	const auto &list = controller->session().data().reactions().list(
 		Data::Reactions::Type::Active);
-	const auto i = ranges::find(list, emoji, &Data::Reaction::emoji);
+	const auto i = ranges::find(list, id, &Data::Reaction::id);
 	if (i == end(list) || !i->premium) {
 		return false;
 	}

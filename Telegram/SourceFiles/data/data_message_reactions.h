@@ -18,8 +18,36 @@ namespace Data {
 class DocumentMedia;
 class Session;
 
+struct ReactionId {
+	std::variant<QString, DocumentId> data;
+
+	[[nodiscard]] bool empty() const {
+		const auto emoji = std::get_if<QString>(&data);
+		return emoji && emoji->isEmpty();
+	}
+	[[nodiscard]] QString emoji() const {
+		const auto emoji = std::get_if<QString>(&data);
+		return emoji ? *emoji : QString();
+	}
+	[[nodiscard]] DocumentId custom() const {
+		const auto custom = std::get_if<DocumentId>(&data);
+		return custom ? *custom : DocumentId();
+	}
+};
+Q_DECLARE_METATYPE(ReactionId);
+
+inline bool operator<(const ReactionId &a, const ReactionId &b) {
+	return a.data < b.data;
+}
+inline bool operator==(const ReactionId &a, const ReactionId &b) {
+	return a.data == b.data;
+}
+
+[[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
+[[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
+
 struct Reaction {
-	QString emoji;
+	ReactionId id;
 	QString title;
 	not_null<DocumentData*> staticIcon;
 	not_null<DocumentData*> appearAnimation;
@@ -44,8 +72,8 @@ public:
 		All,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
-	[[nodiscard]] QString favorite() const;
-	void setFavorite(const QString &emoji);
+	[[nodiscard]] ReactionId favorite() const;
+	void setFavorite(const ReactionId &emoji);
 
 	[[nodiscard]] static base::flat_set<QString> ParseAllowed(
 		const MTPVector<MTPstring> *list);
@@ -56,13 +84,13 @@ public:
 		BottomInfo,
 		InlineList,
 	};
-	void preloadImageFor(const QString &emoji);
-	void preloadAnimationsFor(const QString &emoji);
+	void preloadImageFor(const ReactionId &emoji);
+	void preloadAnimationsFor(const ReactionId &emoji);
 	[[nodiscard]] QImage resolveImageFor(
-		const QString &emoji,
+		const ReactionId &emoji,
 		ImageSize size);
 
-	void send(not_null<HistoryItem*> item, const QString &chosen);
+	void send(not_null<HistoryItem*> item, const ReactionId &chosen);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
@@ -104,7 +132,7 @@ private:
 
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
-	QString _favorite;
+	ReactionId _favorite;
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::shared_ptr<Data::DocumentMedia>> _iconsCache;
@@ -113,7 +141,7 @@ private:
 	mtpRequestId _requestId = 0;
 	int32 _hash = 0;
 
-	base::flat_map<QString, ImageSet> _images;
+	base::flat_map<ReactionId, ImageSet> _images;
 	rpl::lifetime _imagesLoadLifetime;
 	bool _waitingForList = false;
 
@@ -149,7 +177,7 @@ class MessageReactions final {
 public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
-	void add(const QString &reaction);
+	void add(const ReactionId &reaction);
 	void remove();
 	bool change(
 		const QVector<MTPReactionCount> &list,
@@ -158,10 +186,10 @@ public:
 	[[nodiscard]] bool checkIfChanged(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent) const;
-	[[nodiscard]] const base::flat_map<QString, int> &list() const;
+	[[nodiscard]] const base::flat_map<ReactionId, int> &list() const;
 	[[nodiscard]] auto recent() const
-		-> const base::flat_map<QString, std::vector<RecentReaction>> &;
-	[[nodiscard]] QString chosen() const;
+		-> const base::flat_map<ReactionId, std::vector<RecentReaction>> &;
+	[[nodiscard]] ReactionId chosen() const;
 	[[nodiscard]] bool empty() const;
 
 	[[nodiscard]] bool hasUnread() const;
@@ -170,9 +198,9 @@ public:
 private:
 	const not_null<HistoryItem*> _item;
 
-	QString _chosen;
-	base::flat_map<QString, int> _list;
-	base::flat_map<QString, std::vector<RecentReaction>> _recent;
+	ReactionId _chosen;
+	base::flat_map<ReactionId, int> _list;
+	base::flat_map<ReactionId, std::vector<RecentReaction>> _recent;
 
 };
 

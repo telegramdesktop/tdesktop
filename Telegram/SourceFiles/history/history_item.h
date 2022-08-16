@@ -42,6 +42,7 @@ struct RippleAnimation;
 namespace Data {
 struct MessagePosition;
 struct RecentReaction;
+struct ReactionId;
 class Media;
 class MessageReactions;
 } // namespace Data
@@ -372,18 +373,19 @@ public:
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 
 	[[nodiscard]] bool canReact() const;
-	void addReaction(const QString &reaction);
-	void toggleReaction(const QString &reaction);
+	void addReaction(const Data::ReactionId &reaction);
+	void toggleReaction(const Data::ReactionId &reaction);
 	void updateReactions(const MTPMessageReactions *reactions);
 	void updateReactionsUnknown();
-	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
+	[[nodiscard]] auto reactions() const
+		-> const base::flat_map<Data::ReactionId, int> &;
 	[[nodiscard]] auto recentReactions() const
-	-> const base::flat_map<
-		QString,
-		std::vector<Data::RecentReaction>> &;
+		-> const base::flat_map<
+			Data::ReactionId,
+			std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
-	[[nodiscard]] QString chosenReaction() const;
-	[[nodiscard]] QString lookupUnreadReaction(
+	[[nodiscard]] Data::ReactionId chosenReaction() const;
+	[[nodiscard]] Data::ReactionId lookupUnreadReaction(
 		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 

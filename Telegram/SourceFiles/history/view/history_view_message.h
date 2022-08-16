@@ -16,6 +16,10 @@ class HistoryMessage;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace HistoryView {
 
 class ViewButton;
@@ -136,7 +140,9 @@ public:
 
 	void animateReaction(ReactionAnimationArgs &&args) override;
 	auto takeReactionAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> override;
+	-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Reactions::Animation>> override;
 
 	QRect innerGeometry() const override;
 

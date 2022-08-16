@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_react_animation.h"
 
 #include "history/view/history_view_element.h"
+#include "history/view/history_view_bottom_info.h"
 #include "lottie/lottie_icon.h"
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
@@ -30,7 +31,7 @@ Animation::Animation(
 , _repaint(std::move(repaint))
 , _flyFrom(args.flyFrom) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
-	const auto i = ranges::find(list, args.emoji, &::Data::Reaction::emoji);
+	const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
 	if (i == end(list) || !i->centerIcon) {
 		return;
 	}

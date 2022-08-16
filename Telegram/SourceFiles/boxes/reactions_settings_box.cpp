@@ -222,9 +222,10 @@ void AddMessage(
 		emojiValue = std::move(emojiValue),
 		iconSize = st::settingsReactionMessageSize
 	](const QString &emoji) {
+		const auto id = Data::ReactionId{ emoji };
 		const auto &reactions = controller->session().data().reactions();
 		for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
-			if (emoji != r.emoji) {
+			if (r.id != id) {
 				continue;
 			}
 			const auto index = state->icons.flag ? 1 : 0;
@@ -392,7 +393,9 @@ void ReactionsSettingsBox(
 
 	const auto &reactions = controller->session().data().reactions();
 	const auto state = box->lifetime().make_state<State>();
-	state->selectedEmoji = reactions.favorite();
+	state->selectedEmoji = v::is<QString>(reactions.favorite().data)
+		? v::get<QString>(reactions.favorite().data)
+		: QString();
 
 	const auto pinnedToTop = box->setPinnedToTopContent(
 		object_ptr<Ui::VerticalLayout>(box));
@@ -451,7 +454,7 @@ void ReactionsSettingsBox(
 			rpl::never<>(),
 			&button->lifetime());
 
-		button->setClickedCallback([=, emoji = r.emoji] {
+		button->setClickedCallback([=, id = r.id] {
 			if (premium && !controller->session().premium()) {
 				ShowPremiumPreviewBox(
 					controller,
@@ -459,9 +462,11 @@ void ReactionsSettingsBox(
 				return;
 			}
 			checkButton(button);
-			state->selectedEmoji = emoji;
+			state->selectedEmoji = v::is<QString>(id.data)
+				? v::get<QString>(id.data)
+				: QString();
 		});
-		if (r.emoji == state->selectedEmoji.current()) {
+		if (r.id == Data::ReactionId{ state->selectedEmoji.current() }) {
 			firstCheckedButton = button;
 		}
 	}
@@ -479,9 +484,9 @@ void ReactionsSettingsBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto &data = controller->session().data();
-		const auto selectedEmoji = state->selectedEmoji.current();
-		if (data.reactions().favorite() != selectedEmoji) {
-			data.reactions().setFavorite(selectedEmoji);
+		const auto selected = state->selectedEmoji.current();
+		if (data.reactions().favorite() != Data::ReactionId{ selected }) {
+			data.reactions().setFavorite(Data::ReactionId{ selected });
 		}
 		box->closeBox();
 	});

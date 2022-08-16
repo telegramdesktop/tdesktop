@@ -10,16 +10,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "data/data_message_reactions.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
 namespace {
 
+using ::Data::ReactionId;
+
 not_null<Ui::AbstractButton*> CreateTab(
 		not_null<QWidget*> parent,
 		const style::MultiSelect &st,
-		const QString &reaction,
+		const ReactionId &reaction,
 		Ui::WhoReadType whoReadType,
 		int count,
 		rpl::producer<bool> selected) {
@@ -67,14 +70,14 @@ not_null<Ui::AbstractButton*> CreateTab(
 			}
 			const auto skip = st::reactionsTabIconSkip;
 			const auto icon = QRect(skip, 0, height, height);
-			if (const auto emoji = Ui::Emoji::Find(reaction)) {
-				// #TODO reactions
+			// #TODO reactions
+			if (const auto emoji = Ui::Emoji::Find(reaction.emoji())) {
 				const auto size = Ui::Emoji::GetSizeNormal();
 				const auto shift = (height - (size / factor)) / 2;
 				Ui::Emoji::Draw(p, emoji, size, icon.x() + shift, shift);
 			} else {
 				using Type = Ui::WhoReadType;
-				(reaction.isEmpty()
+				(reaction.emoji().isEmpty()
 					? (state->selected
 						? st::reactionsTabAllSelected
 						: st::reactionsTabAll)
@@ -102,20 +105,20 @@ not_null<Ui::AbstractButton*> CreateTab(
 
 not_null<Selector*> CreateReactionSelector(
 		not_null<QWidget*> parent,
-		const base::flat_map<QString, int> &items,
-		const QString &selected,
+		const base::flat_map<ReactionId, int> &items,
+		const ReactionId &selected,
 		Ui::WhoReadType whoReadType) {
 	struct State {
-		rpl::variable<QString> selected;
+		rpl::variable<ReactionId> selected;
 		std::vector<not_null<Ui::AbstractButton*>> tabs;
 	};
 	const auto result = Ui::CreateChild<Selector>(parent.get());
-	using Entry = std::pair<int, QString>;
+	using Entry = std::pair<int, ReactionId>;
 	auto tabs = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	const auto st = &st::reactionsTabs;
 	const auto state = tabs->lifetime().make_state<State>();
 	state->selected = selected;
-	const auto append = [&](const QString &reaction, int count) {
+	const auto append = [&](const ReactionId &reaction, int count) {
 		using namespace rpl::mappers;
 		const auto tab = CreateTab(
 			tabs,
@@ -131,7 +134,7 @@ not_null<Selector*> CreateReactionSelector(
 	};
 	auto sorted = std::vector<Entry>();
 	for (const auto &[reaction, count] : items) {
-		if (reaction == u"read"_q) {
+		if (reaction.emoji() == u"read"_q) {
 			append(reaction, count);
 		} else {
 			sorted.emplace_back(count, reaction);
@@ -143,7 +146,7 @@ not_null<Selector*> CreateReactionSelector(
 		0,
 		std::plus<>(),
 		&Entry::first);
-	append(QString(), count);
+	append(ReactionId(), count);
 	for (const auto &[count, reaction] : sorted) {
 		append(reaction, count);
 	}

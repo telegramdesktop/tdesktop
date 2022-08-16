@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
+#include "data/data_message_reactions.h"
 #include "ui/chat/chat_style.h"
 
 namespace Ui {
@@ -143,11 +144,12 @@ public:
 		IconFactory iconFactory);
 	~Manager();
 
+	using ReactionId = ::Data::ReactionId;
 	using AllowedSublist = std::optional<base::flat_set<QString>>;
 
 	void applyList(
 		const std::vector<Data::Reaction> &list,
-		const QString &favorite,
+		const ReactionId &favorite,
 		bool premiumPossible);
 	void updateAllowedSublist(AllowedSublist filter);
 	void updateAllowSendingPremium(bool allow);
@@ -163,12 +165,12 @@ public:
 
 	struct Chosen {
 		FullMsgId context;
-		QString emoji;
+		ReactionId id;
 		std::shared_ptr<Lottie::Icon> icon;
 		QRect geometry;
 
 		explicit operator bool() const {
-			return context && !emoji.isNull();
+			return context && !id.empty();
 		}
 	};
 	[[nodiscard]] rpl::producer<Chosen> chosen() const {
@@ -185,8 +187,8 @@ public:
 	bool showContextMenu(
 		QWidget *parent,
 		QContextMenuEvent *e,
-		const QString &favorite);
-	[[nodiscard]] rpl::producer<QString> faveRequests() const;
+		const ReactionId &favorite);
+	[[nodiscard]] rpl::producer<ReactionId> faveRequests() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
@@ -198,7 +200,7 @@ private:
 		std::shared_ptr<Lottie::Icon> icon;
 	};
 	struct ReactionIcons {
-		QString emoji;
+		ReactionId id;
 		not_null<DocumentData*> appearAnimation;
 		not_null<DocumentData*> selectAnimation;
 		std::shared_ptr<Lottie::Icon> appear;
@@ -221,7 +223,7 @@ private:
 	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
 
-	[[nodiscard]] Chosen lookupChosen(const QString &emoji) const;
+	[[nodiscard]] Chosen lookupChosen(const ReactionId &id) const;
 	[[nodiscard]] bool overCurrentButton(QPoint position) const;
 
 	void removeStaleButtons();
@@ -314,7 +316,7 @@ private:
 	const IconFactory _iconFactory;
 	rpl::event_stream<Chosen> _chosen;
 	std::vector<ReactionIcons> _list;
-	QString _favorite;
+	ReactionId _favorite;
 	AllowedSublist _filter;
 	QSize _outer;
 	QRect _inner;
@@ -358,10 +360,10 @@ private:
 	std::unique_ptr<Button> _button;
 	std::vector<std::unique_ptr<Button>> _buttonHiding;
 	FullMsgId _buttonContext;
-	base::flat_set<QString> _buttonAlreadyList;
+	base::flat_set<ReactionId> _buttonAlreadyList;
 	int _buttonAlreadyNotMineCount = 0;
-	mutable base::flat_map<QString, ClickHandlerPtr> _reactionsLinks;
-	Fn<Fn<void()>(QString)> _createChooseCallback;
+	mutable base::flat_map<ReactionId, ClickHandlerPtr> _reactionsLinks;
+	Fn<Fn<void()>(ReactionId)> _createChooseCallback;
 
 	base::flat_map<FullMsgId, QRect> _activeEffectAreas;
 
@@ -369,7 +371,7 @@ private:
 	base::flat_map<FullMsgId, Ui::ReactionPaintInfo> _collectedEffects;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
-	rpl::event_stream<QString> _faveRequests;
+	rpl::event_stream<ReactionId> _faveRequests;
 
 	rpl::lifetime _lifetime;
 

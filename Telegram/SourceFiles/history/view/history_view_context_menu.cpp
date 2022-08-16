@@ -1153,7 +1153,7 @@ void AddWhoReactedAction(
 			controller->window().show(ReactionsListBox(
 				controller,
 				item,
-				QString(),
+				{},
 				whoReadIds));
 		}
 	};
@@ -1172,7 +1172,7 @@ void ShowWhoReactedMenu(
 		QPoint position,
 		not_null<QWidget*> context,
 		not_null<HistoryItem*> item,
-		const QString &emoji,
+		const Data::ReactionId &id,
 		not_null<Window::SessionController*> controller,
 		rpl::lifetime &lifetime) {
 	const auto participantChosen = [=](uint64 id) {
@@ -1183,20 +1183,20 @@ void ShowWhoReactedMenu(
 			controller->window().show(ReactionsListBox(
 				controller,
 				item,
-				emoji));
+				id));
 		}
 	};
 	const auto reactions = &controller->session().data().reactions();
 	const auto &list = reactions->list(
 		Data::Reactions::Type::Active);
-	const auto activeNonQuick = (emoji != reactions->favorite())
-		&& ranges::contains(list, emoji, &Data::Reaction::emoji);
+	const auto activeNonQuick = (id != reactions->favorite())
+		&& ranges::contains(list, id, &Data::Reaction::id);
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
 		participantChosen,
 		showAllChosen);
 	Api::WhoReacted(
 		item,
-		emoji,
+		id,
 		context,
 		st::defaultWhoRead
 	) | rpl::filter([=](const Ui::WhoReadContent &content) {
@@ -1206,7 +1206,7 @@ void ShowWhoReactedMenu(
 		const auto refill = [=] {
 			if (activeNonQuick) {
 				(*menu)->addAction(tr::lng_context_set_as_quick(tr::now), [=] {
-					reactions->setFavorite(emoji);
+					reactions->setFavorite(id);
 				}, &st::menuIconFave);
 				(*menu)->addSeparator();
 			}

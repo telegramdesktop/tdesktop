@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
+#include "data/data_message_reactions.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
@@ -31,6 +32,8 @@ namespace {
 
 constexpr auto kContextReactionsLimit = 50;
 
+using Data::ReactionId;
+
 struct Peers {
 	std::vector<PeerId> list;
 	bool unknown = false;
@@ -41,7 +44,7 @@ inline bool operator==(const Peers &a, const Peers &b) noexcept {
 
 struct PeerWithReaction {
 	PeerId peer = 0;
-	QString reaction;
+	ReactionId reaction;
 };
 inline bool operator==(
 		const PeerWithReaction &a,
@@ -84,7 +87,7 @@ struct Context {
 	base::flat_map<not_null<HistoryItem*>, CachedRead> cachedRead;
 	base::flat_map<
 		not_null<HistoryItem*>,
-		base::flat_map<QString, CachedReacted>> cachedReacted;
+		base::flat_map<ReactionId, CachedReacted>> cachedReacted;
 	base::flat_map<not_null<Main::Session*>, rpl::lifetime> subscriptions;
 
 	[[nodiscard]] CachedRead &cacheRead(not_null<HistoryItem*> item) {
@@ -97,7 +100,7 @@ struct Context {
 
 	[[nodiscard]] CachedReacted &cacheReacted(
 			not_null<HistoryItem*> item,
-			const QString &reaction) {
+			const ReactionId &reaction) {
 		auto &map = cachedReacted[item];
 		const auto i = map.find(reaction);
 		if (i != end(map)) {
@@ -249,7 +252,7 @@ struct State {
 		Peers &&peers) {
 	auto result = PeersWithReactions{
 		.list = peers.list | ranges::views::transform([](PeerId peer) {
-			return PeerWithReaction{.peer = peer };
+			return PeerWithReaction{ .peer = peer };
 		}) | ranges::to_vector,
 		.unknown = peers.unknown,
 	};
@@ -259,7 +262,7 @@ struct State {
 
 [[nodiscard]] rpl::producer<PeersWithReactions> WhoReactedIds(
 		not_null<HistoryItem*> item,
-		const QString &reaction,
+		const ReactionId &reaction,
 		not_null<QWidget*> context) {
 	auto weak = QPointer<QWidget>(context.get());
 	const auto session = &item->history()->session();
@@ -273,12 +276,12 @@ struct State {
 			using Flag = MTPmessages_GetMessageReactionsList::Flag;
 			entry.requestId = session->api().request(
 				MTPmessages_GetMessageReactionsList(
-					MTP_flags(reaction.isEmpty()
+					MTP_flags(reaction.empty()
 						? Flag(0)
 						: Flag::f_reaction),
 					item->history()->peer->input,
 					MTP_int(item->id),
-					MTP_string(reaction),
+					ReactionToMTP(reaction),
 					MTPstring(), // offset
 					MTP_int(kContextReactionsLimit)
 				)
@@ -299,7 +302,8 @@ struct State {
 						vote.match([&](const auto &data) {
 							parsed.list.push_back(PeerWithReaction{
 								.peer = peerFromMTP(data.vpeer_id()),
-								.reaction = qs(data.vreaction()),
+								.reaction = Data::ReactionFromMTP(
+									data.vreaction()),
 							});
 						});
 					}
@@ -322,7 +326,7 @@ struct State {
 	not_null<QWidget*> context)
 -> rpl::producer<PeersWithReactions> {
 	return rpl::combine(
-		WhoReactedIds(item, QString(), context),
+		WhoReactedIds(item, {}, context),
 		WhoReadIds(item, context)
 	) | rpl::map([=](PeersWithReactions &&reacted, Peers &&read) {
 		if (reacted.unknown || read.unknown) {
@@ -347,7 +351,7 @@ bool UpdateUserpics(
 
 	struct ResolvedPeer {
 		PeerData *peer = nullptr;
-		QString reaction;
+		ReactionId reaction;
 	};
 	const auto peers = ranges::views::all(
 		ids
@@ -383,7 +387,7 @@ bool UpdateUserpics(
 		}
 		now.push_back(Userpic{
 			.peer = peer,
-			.reaction = resolved.reaction,
+			.reaction = resolved.reaction.emoji(), // #TODO reactions
 		});
 		auto &userpic = now.back();
 		userpic.uniqueKey = peer->userpicUniqueKey(userpic.view);
@@ -446,7 +450,7 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 
 rpl::producer<Ui::WhoReadContent> WhoReacted(
 		not_null<HistoryItem*> item,
-		const QString &reaction,
+		const ReactionId &reaction,
 		not_null<QWidget*> context,
 		const style::WhoRead &st,
 		std::shared_ptr<WhoReadList> whoReadIds) {
@@ -455,7 +459,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 	return [=](auto consumer) {
 		auto lifetime = rpl::lifetime();
 
-		const auto resolveWhoRead = reaction.isEmpty()
+		const auto resolveWhoRead = reaction.empty()
 			&& WhoReadExists(item);
 
 		const auto state = lifetime.make_state<State>();
@@ -463,7 +467,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			consumer.put_next_copy(state->current);
 		};
 
-		const auto resolveWhoReacted = !reaction.isEmpty()
+		const auto resolveWhoReacted = !reaction.empty()
 			|| item->canViewReactions();
 		auto idsWithReactions = (resolveWhoRead && resolveWhoReacted)
 			? WhoReadOrReactedIds(item, context)
@@ -475,7 +479,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			: Ui::WhoReadType::Reacted;
 		if (resolveWhoReacted) {
 			const auto &list = item->reactions();
-			state->current.fullReactionsCount = reaction.isEmpty()
+			state->current.fullReactionsCount = reaction.empty()
 				? ranges::accumulate(
 					list,
 					0,
@@ -486,11 +490,11 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 				: 0;
 
 			// #TODO reactions
-			state->current.singleReaction = !reaction.isEmpty()
+			state->current.singleReaction = (!reaction.empty()
 				? reaction
 				: (list.size() == 1)
 				? list.front().first
-				: QString();
+				: ReactionId()).emoji();
 		}
 		std::move(
 			idsWithReactions
@@ -510,7 +514,7 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			if (whoReadIds) {
 				const auto reacted = peers.list.size() - ranges::count(
 					peers.list,
-					QString(),
+					ReactionId(),
 					&PeerWithReaction::reaction);
 				whoReadIds->list = (peers.read.size() > reacted)
 					? std::move(peers.read)
@@ -592,12 +596,12 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 		not_null<QWidget*> context,
 		const style::WhoRead &st,
 		std::shared_ptr<WhoReadList> whoReadIds) {
-	return WhoReacted(item, QString(), context, st, std::move(whoReadIds));
+	return WhoReacted(item, {}, context, st, std::move(whoReadIds));
 }
 
 rpl::producer<Ui::WhoReadContent> WhoReacted(
 		not_null<HistoryItem*> item,
-		const QString &reaction,
+		const Data::ReactionId &reaction,
 		not_null<QWidget*> context,
 		const style::WhoRead &st) {
 	return WhoReacted(item, reaction, context, st, nullptr);

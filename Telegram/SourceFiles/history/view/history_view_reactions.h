@@ -8,9 +8,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
+#include "data/data_message_reactions.h"
 
 namespace Data {
-class Reactions;
 class CloudImageView;
 } // namespace Data
 
@@ -22,12 +22,13 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
-struct ReactionAnimationArgs;
 struct UserpicInRow;
+struct ReactionAnimationArgs;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
+using ::Data::ReactionId;
 class Animation;
 
 struct InlineListData {
@@ -39,9 +40,9 @@ struct InlineListData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	base::flat_map<QString, int> reactions;
-	base::flat_map<QString, std::vector<not_null<PeerData*>>> recent;
-	QString chosenReaction;
+	base::flat_map<ReactionId, int> reactions;
+	base::flat_map<ReactionId, std::vector<not_null<PeerData*>>> recent;
+	ReactionId chosenReaction;
 	Flags flags = {};
 };
 
@@ -50,7 +51,7 @@ public:
 	using Data = InlineListData;
 	InlineList(
 		not_null<::Data::Reactions*> owner,
-		Fn<ClickHandlerPtr(QString)> handlerFactory,
+		Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
 		Data &&data);
 	~InlineList();
 
@@ -76,9 +77,9 @@ public:
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
 	void continueAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
@@ -87,17 +88,7 @@ private:
 		std::vector<UserpicInRow> list;
 		bool someNotLoaded = false;
 	};
-	struct Button {
-		QRect geometry;
-		mutable std::unique_ptr<Animation> animation;
-		mutable QImage image;
-		mutable ClickHandlerPtr link;
-		std::unique_ptr<Userpics> userpics;
-		QString emoji;
-		QString countText;
-		int count = 0;
-		int countTextWidth = 0;
-	};
+	struct Button;
 
 	void layout();
 	void layoutButtons();
@@ -106,13 +97,13 @@ private:
 	void setButtonUserpics(
 		Button &button,
 		const std::vector<not_null<PeerData*>> &peers);
-	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
+	[[nodiscard]] Button prepareButtonWithId(const ReactionId &id);
 	void resolveUserpicsImage(const Button &button) const;
 
 	QSize countOptimalSize() override;
 
 	const not_null<::Data::Reactions*> _owner;
-	const Fn<ClickHandlerPtr(QString)> _handlerFactory;
+	const Fn<ClickHandlerPtr(ReactionId)> _handlerFactory;
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;

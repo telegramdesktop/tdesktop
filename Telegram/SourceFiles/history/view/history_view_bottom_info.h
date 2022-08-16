@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
+#include "data/data_message_reactions.h"
 #include "ui/text/text.h"
 #include "base/flags.h"
 
@@ -15,23 +16,27 @@ namespace Ui {
 struct ChatPaintContext;
 } // namespace Ui
 
-namespace Data {
-class Reactions;
-} // namespace Data
-
 namespace HistoryView {
 namespace Reactions {
 class Animation;
 } // namespace Reactions
 
+struct ReactionAnimationArgs {
+	::Data::ReactionId id;
+	std::shared_ptr<Lottie::Icon> flyIcon;
+	QRect flyFrom;
+
+	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;
+};
+
 using PaintContext = Ui::ChatPaintContext;
 
 class Message;
 struct TextState;
-struct ReactionAnimationArgs;
 
 class BottomInfo final : public Object {
 public:
+	using ReactionId = ::Data::ReactionId;
 	struct Data {
 		enum class Flag : uchar {
 			Edited         = 0x01,
@@ -49,8 +54,8 @@ public:
 
 		QDateTime date;
 		QString author;
-		base::flat_map<QString, int> reactions;
-		QString chosenReaction;
+		base::flat_map<ReactionId, int> reactions;
+		ReactionId chosenReaction;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
@@ -79,16 +84,16 @@ public:
 		ReactionAnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeReactionAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
 	void continueReactionAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
 	struct Reaction {
 		mutable std::unique_ptr<Reactions::Animation> animation;
 		mutable QImage image;
-		QString emoji;
+		ReactionId id;
 		QString countText;
 		int count = 0;
 		int countTextWidth = 0;
@@ -114,7 +119,8 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	void setReactionCount(Reaction &reaction, int count);
-	[[nodiscard]] Reaction prepareReactionWithEmoji(const QString &emoji);
+	[[nodiscard]] Reaction prepareReactionWithId(
+		const ReactionId &id);
 	[[nodiscard]] ClickHandlerPtr revokeReactionLink(
 		not_null<const HistoryItem*> item,
 		QPoint position) const;

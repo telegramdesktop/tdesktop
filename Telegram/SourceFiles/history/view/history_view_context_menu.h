@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -75,7 +79,7 @@ void ShowWhoReactedMenu(
 	QPoint position,
 	not_null<QWidget*> context,
 	not_null<HistoryItem*> item,
-	const QString &emoji,
+	const Data::ReactionId &id,
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
 

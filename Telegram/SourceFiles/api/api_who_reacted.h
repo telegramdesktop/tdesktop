@@ -18,6 +18,10 @@ struct WhoReadContent;
 enum class WhoReadType;
 } // namespace Ui
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Api {
 
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
@@ -36,7 +40,7 @@ struct WhoReadList {
 	std::shared_ptr<WhoReadList> whoReadIds = nullptr);
 [[nodiscard]] rpl::producer<Ui::WhoReadContent> WhoReacted(
 	not_null<HistoryItem*> item,
-	const QString &reaction,
+	const Data::ReactionId &reaction,
 	not_null<QWidget*> context, // Cache results for this lifetime.
 	const style::WhoRead &st);
 

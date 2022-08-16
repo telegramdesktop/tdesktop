@@ -20,6 +20,7 @@ struct HistoryMessageReply;
 
 namespace Data {
 struct Reaction;
+struct ReactionId;
 } // namespace Data
 
 namespace Window {
@@ -41,6 +42,7 @@ namespace HistoryView {
 
 enum class PointState : char;
 enum class InfoDisplayType : char;
+struct ReactionAnimationArgs;
 struct StateRequest;
 struct TextState;
 class Media;
@@ -236,14 +238,6 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 	QString text;
 	int width = 0;
 
-};
-
-struct ReactionAnimationArgs {
-	QString emoji;
-	std::shared_ptr<Lottie::Icon> flyIcon;
-	QRect flyFrom;
-
-	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;
 };
 
 class Element
@@ -442,7 +436,9 @@ public:
 	virtual void animateReaction(ReactionAnimationArgs &&args);
 	void animateUnreadReactions();
 	[[nodiscard]] virtual auto takeReactionAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+	-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Reactions::Animation>>;
 
 	virtual ~Element();
 

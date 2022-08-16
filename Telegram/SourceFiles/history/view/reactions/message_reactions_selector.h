@@ -11,19 +11,23 @@ namespace Ui {
 enum class WhoReadType;
 } // namespace Ui
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace HistoryView {
 
 struct Selector {
 	Fn<void(int, int)> move;
 	Fn<void(int)> resizeToWidth;
-	Fn<rpl::producer<QString>()> changes;
+	Fn<rpl::producer<Data::ReactionId>()> changes;
 	Fn<rpl::producer<int>()> heightValue;
 };
 
 not_null<Selector*> CreateReactionSelector(
 	not_null<QWidget*> parent,
-	const base::flat_map<QString, int> &items,
-	const QString &selected,
+	const base::flat_map<Data::ReactionId, int> &items,
+	const Data::ReactionId &selected,
 	Ui::WhoReadType whoReadType);
 
 } // namespace HistoryView

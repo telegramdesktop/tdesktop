@@ -353,15 +353,6 @@ void DateBadge::paint(
 	ServiceMessagePainter::PaintDate(p, st, text, width, y, w, chatWide);
 }
 
-ReactionAnimationArgs ReactionAnimationArgs::translated(
-		QPoint point) const {
-	return {
-		.emoji = emoji,
-		.flyIcon = flyIcon,
-		.flyFrom = flyFrom.translated(point),
-	};
-}
-
 Element::Element(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryItem*> data,
@@ -1115,15 +1106,15 @@ void Element::animateReaction(ReactionAnimationArgs &&args) {
 
 void Element::animateUnreadReactions() {
 	const auto &recent = data()->recentReactions();
-	for (const auto &[emoji, list] : recent) {
+	for (const auto &[id, list] : recent) {
 		if (ranges::contains(list, true, &Data::RecentReaction::unread)) {
-			animateReaction({ .emoji = emoji });
+			animateReaction({ .id = id });
 		}
 	}
 }
 
 auto Element::takeReactionAnimations()
--> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<Data::ReactionId, std::unique_ptr<Reactions::Animation>> {
 	return {};
 }
 

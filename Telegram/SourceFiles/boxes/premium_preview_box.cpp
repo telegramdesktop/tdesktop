@@ -58,10 +58,12 @@ constexpr auto kStarOpacityOff = 0.1;
 constexpr auto kStarOpacityOn = 1.;
 constexpr auto kStarPeriod = 3 * crl::time(1000);
 
+using Data::ReactionId;
+
 struct Descriptor {
 	PremiumPreview section = PremiumPreview::Stickers;
 	DocumentData *requestedSticker = nullptr;
-	base::flat_map<QString, ReactionDisableType> disabled;
+	base::flat_map<ReactionId, ReactionDisableType> disabled;
 	bool fromSettings = false;
 	Fn<void()> hiddenCallback;
 	Fn<void(not_null<Ui::BoxContent*>)> shownCallback;
@@ -968,7 +970,7 @@ void ReactionPreview::paintEffect(QPainter &p) {
 [[nodiscard]] not_null<Ui::RpWidget*> ReactionsPreview(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		const base::flat_map<QString, ReactionDisableType> &disabled,
+		const base::flat_map<ReactionId, ReactionDisableType> &disabled,
 		Fn<void()> readyCallback) {
 	struct State {
 		std::vector<std::unique_ptr<ReactionPreview>> entries;
@@ -1015,7 +1017,7 @@ void ReactionPreview::paintEffect(QPainter &p) {
 		if (!reaction.centerIcon || !reaction.aroundAnimation) {
 			continue;
 		}
-		const auto i = disabled.find(reaction.emoji);
+		const auto i = disabled.find(reaction.id);
 		const auto disable = (i != end(disabled))
 			? i->second
 			: ReactionDisableType::None;
@@ -1623,7 +1625,14 @@ void ShowStickerPreviewBox(
 void ShowPremiumPreviewBox(
 		not_null<Window::SessionController*> controller,
 		PremiumPreview section,
-		const base::flat_map<QString, ReactionDisableType> &disabled,
+		Fn<void(not_null<Ui::BoxContent*>)> shown) {
+	ShowPremiumPreviewBox(controller, section, {}, std::move(shown));
+}
+
+void ShowPremiumPreviewBox(
+		not_null<Window::SessionController*> controller,
+		PremiumPreview section,
+		const base::flat_map<ReactionId, ReactionDisableType> &disabled,
 		Fn<void(not_null<Ui::BoxContent*>)> shown) {
 	Show(controller, Descriptor{
 		.section = section,

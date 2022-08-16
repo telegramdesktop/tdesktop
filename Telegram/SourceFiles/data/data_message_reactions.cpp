@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_icon.h"
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
+#include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -32,7 +33,34 @@ constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
 constexpr auto kSizeForDownscale = 64;
 
+[[nodiscard]] QString ReactionIdToLog(const ReactionId &id) {
+	if (const auto custom = id.custom()) {
+		return "custom:" + QString::number(custom);
+	}
+	return id.emoji();
+}
+
 } // namespace
+
+ReactionId ReactionFromMTP(const MTPReaction &reaction) {
+	return reaction.match([](MTPDreactionEmpty) {
+		return ReactionId{ QString() };
+	}, [](const MTPDreactionEmoji &data) {
+		return ReactionId{ qs(data.vemoticon()) };
+	}, [](const MTPDreactionCustomEmoji &data) {
+		return ReactionId{ DocumentId(data.vdocument_id().v) };
+	});
+}
+
+MTPReaction ReactionToMTP(ReactionId id) {
+	if (const auto custom = id.custom()) {
+		return MTP_reactionCustomEmoji(MTP_long(custom));
+	}
+	const auto emoji = id.emoji();
+	return emoji.isEmpty()
+		? MTP_reactionEmpty()
+		: MTP_reactionEmoji(MTP_string(emoji));
+}
 
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
@@ -54,16 +82,18 @@ Reactions::Reactions(not_null<Session*> owner)
 		_repaintItems.remove(item);
 	}, _lifetime);
 
-	const auto appConfig = &_owner->session().account().appConfig();
-	appConfig->value(
-	) | rpl::start_with_next([=] {
-		const auto favorite = appConfig->get<QString>(
-			u"reactions_default"_q,
-			QString::fromUtf8("\xf0\x9f\x91\x8d"));
-		if (_favorite != favorite && !_saveFaveRequestId) {
-			_favorite = favorite;
-			_updated.fire({});
-		}
+	rpl::single(rpl::empty) | rpl::then(
+		_owner->session().mtp().config().updates()
+	) | rpl::map([=] {
+		const auto &config = _owner->session().mtp().configValues();
+		return config.reactionDefaultCustom
+			? ReactionId{ DocumentId(config.reactionDefaultCustom) }
+			: ReactionId{ config.reactionDefaultEmoji };
+	}) | rpl::filter([=](const ReactionId &id) {
+		return (_favorite != id) && !_saveFaveRequestId;
+	}) | rpl::start_with_next([=](ReactionId &&id) {
+		_favorite = std::move(id);
+		_updated.fire({});
 	}, _lifetime);
 }
 
@@ -81,17 +111,17 @@ const std::vector<Reaction> &Reactions::list(Type type) const {
 	Unexpected("Type in Reactions::list.");
 }
 
-QString Reactions::favorite() const {
+ReactionId Reactions::favorite() const {
 	return _favorite;
 }
 
-void Reactions::setFavorite(const QString &emoji) {
+void Reactions::setFavorite(const ReactionId &emoji) {
 	const auto api = &_owner->session().api();
 	if (_saveFaveRequestId) {
 		api->request(_saveFaveRequestId).cancel();
 	}
 	_saveFaveRequestId = api->request(MTPmessages_SetDefaultReaction(
-		MTP_string(emoji)
+		ReactionToMTP(emoji)
 	)).done([=] {
 		_saveFaveRequestId = 0;
 	}).fail([=] {
@@ -108,12 +138,12 @@ rpl::producer<> Reactions::updates() const {
 	return _updated.events();
 }
 
-void Reactions::preloadImageFor(const QString &emoji) {
-	if (_images.contains(emoji)) {
+void Reactions::preloadImageFor(const ReactionId &id) {
+	if (_images.contains(id)) {
 		return;
 	}
-	auto &set = _images.emplace(emoji).first->second;
-	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+	auto &set = _images.emplace(id).first->second;
+	const auto i = ranges::find(_available, id, &Reaction::id);
 	const auto document = (i == end(_available))
 		? nullptr
 		: i->centerIcon
@@ -127,8 +157,8 @@ void Reactions::preloadImageFor(const QString &emoji) {
 	}
 }
 
-void Reactions::preloadAnimationsFor(const QString &emoji) {
-	const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+void Reactions::preloadAnimationsFor(const ReactionId &id) {
+	const auto i = ranges::find(_available, id, &Reaction::id);
 	if (i == end(_available)) {
 		return;
 	}
@@ -146,7 +176,7 @@ void Reactions::preloadAnimationsFor(const QString &emoji) {
 }
 
 QImage Reactions::resolveImageFor(
-		const QString &emoji,
+		const ReactionId &emoji,
 		ImageSize size) {
 	const auto i = _images.find(emoji);
 	if (i == end(_images)) {
@@ -194,11 +224,11 @@ QImage Reactions::resolveImageFor(
 }
 
 void Reactions::resolveImages() {
-	for (auto &[emoji, set] : _images) {
+	for (auto &[id, set] : _images) {
 		if (!set.bottomInfo.isNull() || set.icon || set.media) {
 			continue;
 		}
-		const auto i = ranges::find(_available, emoji, &Reaction::emoji);
+		const auto i = ranges::find(_available, id, &Reaction::id);
 		const auto document = (i == end(_available))
 			? nullptr
 			: i->centerIcon
@@ -207,8 +237,8 @@ void Reactions::resolveImages() {
 		if (document) {
 			loadImage(set, document, !i->centerIcon);
 		} else {
-			LOG(("API Error: Reaction for emoji '%1' not found!"
-				).arg(emoji));
+			LOG(("API Error: Reaction '%1' not found!"
+				).arg(ReactionIdToLog(id)));
 		}
 	}
 }
@@ -338,7 +368,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 			data.vselect_animation());
 		return known
 			? std::make_optional(Reaction{
-				.emoji = emoji,
+				.id = ReactionId{ emoji },
 				.title = qs(data.vtitle()),
 				.staticIcon = _owner->processDocument(data.vstatic_icon()),
 				.appearAnimation = _owner->processDocument(
@@ -362,7 +392,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 	});
 }
 
-void Reactions::send(not_null<HistoryItem*> item, const QString &chosen) {
+void Reactions::send(not_null<HistoryItem*> item, const ReactionId &chosen) {
 	const auto id = item->fullId();
 	auto &api = _owner->session().api();
 	auto i = _sentRequests.find(id);
@@ -371,14 +401,14 @@ void Reactions::send(not_null<HistoryItem*> item, const QString &chosen) {
 	} else {
 		i = _sentRequests.emplace(id).first;
 	}
-	const auto flags = chosen.isEmpty()
+	const auto flags = chosen.empty()
 		? MTPmessages_SendReaction::Flag(0)
 		: MTPmessages_SendReaction::Flag::f_reaction;
 	i->second = api.request(MTPmessages_SendReaction(
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		MTP_string(chosen)
+		ReactionToMTP(chosen)
 	)).done([=](const MTPUpdates &result) {
 		_sentRequests.remove(id);
 		_owner->session().api().applyUpdates(result);
@@ -509,13 +539,13 @@ MessageReactions::MessageReactions(not_null<HistoryItem*> item)
 : _item(item) {
 }
 
-void MessageReactions::add(const QString &reaction) {
+void MessageReactions::add(const ReactionId &reaction) {
 	if (_chosen == reaction) {
 		return;
 	}
 	const auto history = _item->history();
 	const auto self = history->session().user();
-	if (!_chosen.isEmpty()) {
+	if (!_chosen.empty()) {
 		const auto i = _list.find(_chosen);
 		Assert(i != end(_list));
 		--i->second;
@@ -534,7 +564,7 @@ void MessageReactions::add(const QString &reaction) {
 		}
 	}
 	_chosen = reaction;
-	if (!reaction.isEmpty()) {
+	if (!reaction.empty()) {
 		if (_item->canViewReactions()) {
 			auto &list = _recent[reaction];
 			list.insert(begin(list), RecentReaction{ self });
@@ -547,7 +577,7 @@ void MessageReactions::add(const QString &reaction) {
 }
 
 void MessageReactions::remove() {
-	add(QString());
+	add(ReactionId());
 }
 
 bool MessageReactions::checkIfChanged(
@@ -558,10 +588,10 @@ bool MessageReactions::checkIfChanged(
 		// We'll apply non-stale data from the request response.
 		return false;
 	}
-	auto existing = base::flat_set<QString>();
+	auto existing = base::flat_set<ReactionId>();
 	for (const auto &count : list) {
 		const auto changed = count.match([&](const MTPDreactionCount &data) {
-			const auto reaction = qs(data.vreaction());
+			const auto reaction = ReactionFromMTP(data.vreaction());
 			const auto nowCount = data.vcount().v;
 			const auto i = _list.find(reaction);
 			const auto wasCount = (i != end(_list)) ? i->second : 0;
@@ -580,10 +610,10 @@ bool MessageReactions::checkIfChanged(
 			return true;
 		}
 	}
-	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
-			const auto emoji = qs(data.vreaction());
+			const auto emoji = ReactionFromMTP(data.vreaction());
 			if (_list.contains(emoji)) {
 				parsed[emoji].push_back(RecentReaction{
 					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
@@ -614,16 +644,16 @@ bool MessageReactions::change(
 		return false;
 	}
 	auto changed = false;
-	auto existing = base::flat_set<QString>();
+	auto existing = base::flat_set<ReactionId>();
 	for (const auto &count : list) {
 		count.match([&](const MTPDreactionCount &data) {
-			const auto reaction = qs(data.vreaction());
+			const auto reaction = ReactionFromMTP(data.vreaction());
 			if (!ignoreChosen) {
 				if (data.is_chosen() && _chosen != reaction) {
 					_chosen = reaction;
 					changed = true;
 				} else if (!data.is_chosen() && _chosen == reaction) {
-					_chosen = QString();
+					_chosen = ReactionId();
 					changed = true;
 				}
 			}
@@ -645,14 +675,14 @@ bool MessageReactions::change(
 				++i;
 			}
 		}
-		if (!_chosen.isEmpty() && !_list.contains(_chosen)) {
-			_chosen = QString();
+		if (!_chosen.empty() && !_list.contains(_chosen)) {
+			_chosen = ReactionId();
 		}
 	}
-	auto parsed = base::flat_map<QString, std::vector<RecentReaction>>();
+	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
-			const auto emoji = qs(data.vreaction());
+			const auto emoji = ReactionFromMTP(data.vreaction());
 			if (_list.contains(emoji)) {
 				parsed[emoji].push_back(RecentReaction{
 					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
@@ -669,12 +699,12 @@ bool MessageReactions::change(
 	return changed;
 }
 
-const base::flat_map<QString, int> &MessageReactions::list() const {
+const base::flat_map<ReactionId, int> &MessageReactions::list() const {
 	return _list;
 }
 
 auto MessageReactions::recent() const
--> const base::flat_map<QString, std::vector<RecentReaction>> & {
+-> const base::flat_map<ReactionId, std::vector<RecentReaction>> & {
 	return _recent;
 }
 
@@ -699,7 +729,7 @@ void MessageReactions::markRead() {
 	}
 }
 
-QString MessageReactions::chosen() const {
+ReactionId MessageReactions::chosen() const {
 	return _chosen;
 }
 

@@ -91,9 +91,12 @@ void EditAllowedReactionsBox(
 		tr::lng_manage_peer_reactions_available());
 
 	const auto active = [&](const Data::Reaction &entry) {
-		return selected.contains(entry.emoji);
+		return selected.contains(entry.id.emoji());
 	};
 	const auto add = [&](const Data::Reaction &entry) {
+		if (entry.id.emoji().isEmpty()) {
+			return;
+		}
 		const auto button = Settings::AddButton(
 			container,
 			rpl::single(entry.title),
@@ -114,7 +117,7 @@ void EditAllowedReactionsBox(
 			}) | rpl::to_empty,
 			rpl::never<>(),
 			&button->lifetime());
-		state->toggles.emplace(entry.emoji, button);
+		state->toggles.emplace(entry.id.emoji(), button);
 		button->toggleOn(rpl::single(
 			active(entry)
 		) | rpl::then(
