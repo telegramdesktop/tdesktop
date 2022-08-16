@@ -1047,6 +1047,7 @@ depends:patches/breakpad.diff
     git apply ../patches/breakpad.diff
     git clone -b release-1.11.0 https://github.com/google/googletest src/testing
 win:
+    SET "PYTHONUTF8=1"
     if "%X8664%" equ "x64" (
         SET "FolderPostfix=_x64"
     ) else (
