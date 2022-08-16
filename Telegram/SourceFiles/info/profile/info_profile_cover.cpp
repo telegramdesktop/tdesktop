@@ -245,7 +245,7 @@ void EmojiStatusPanel::show(
 		}, _panel->lifetime());
 	}
 	const auto parent = _panel->parentWidget();
-	const auto global = button->mapToGlobal({ 0, 0 });
+	const auto global = button->mapToGlobal(QPoint());
 	const auto local = parent->mapFromGlobal(global);
 	_panel->moveTopRight(
 		local.y() + button->height(),
