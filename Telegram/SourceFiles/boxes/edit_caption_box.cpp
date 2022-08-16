@@ -128,8 +128,7 @@ EditCaptionBox::EditCaptionBox(
 	this,
 	st::confirmCaptionArea,
 	Ui::InputField::Mode::MultiLine,
-	tr::lng_photo_caption(),
-	PrepareEditText(item)))
+	tr::lng_photo_caption()))
 , _emojiToggle(base::make_unique_q<Ui::EmojiButton>(
 	this,
 	st::boxAttachEmoji)) {
@@ -280,6 +279,9 @@ void EditCaptionBox::setupField() {
 		}
 		Unexpected("Action in MimeData hook.");
 	});
+	_field->setTextWithTags(
+		PrepareEditText(_historyItem),
+		Ui::InputField::HistoryAction::Clear);
 
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
