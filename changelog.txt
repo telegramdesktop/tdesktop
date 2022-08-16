@@ -1,3 +1,11 @@
+4.1.1 (16.08.22)
+
+- Fix editing media captions with animated emoji.
+- Fix viewing animated emoji sets used in a message.
+- Fix premium sticker tooltip auto-show in channel comments.
+- Fix main window position and size restoring after relaunch.
+- Other bug fixes and minor improvements.
+
 4.1 (12.08.22)
 
 - Include animated emoji in messages and captions.
