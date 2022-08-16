@@ -16,7 +16,7 @@ namespace {
 using namespace Media::Streaming;
 
 constexpr auto kPartSize = Loader::kPartSize;
-constexpr auto kRequestPartsCount = 8;
+constexpr auto kRequestPartsCount = 32;
 
 } // namespace
 
