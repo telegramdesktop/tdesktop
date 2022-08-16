@@ -130,9 +130,7 @@ public:
 	}
 
 	void showMenuWithType(SendMenu::Type type);
-	void setDropDown(bool dropDown) {
-		_dropDown = dropDown;
-	}
+	void setDropDown(bool dropDown);
 
 	// Float player interface.
 	bool floatPlayerHandleWheelEvent(QEvent *e);
@@ -204,6 +202,8 @@ private:
 	void checkRestrictedPeer();
 	bool isRestrictedView();
 	void updateRestrictedLabelGeometry();
+	void updateScrollGeometry(QSize oldSize);
+	void updateFooterGeometry();
 	void handleScroll();
 
 	QImage grabForAnimation();

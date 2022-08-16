@@ -36,10 +36,12 @@ namespace Data {
 struct Group;
 class CloudImageView;
 struct Reaction;
+struct ReactionsFilter;
 } // namespace Data
 
 namespace HistoryView::Reactions {
 class Manager;
+struct ChosenReaction;
 struct ButtonParameters;
 } // namespace HistoryView::Reactions
 
@@ -118,7 +120,7 @@ public:
 	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
-		-> rpl::producer<std::optional<base::flat_set<QString>>> = 0;
+		-> rpl::producer<Data::ReactionsFilter> = 0;
 	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
 };
 
@@ -379,6 +381,7 @@ private:
 	using ScrollTopState = ListMemento::ScrollTopState;
 	using PointState = HistoryView::PointState;
 	using CursorState = HistoryView::CursorState;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 
 	void refreshViewer();
 	void updateAroundPositionFromNearest(int nearestIndex);

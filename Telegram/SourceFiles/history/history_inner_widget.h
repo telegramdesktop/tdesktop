@@ -36,6 +36,9 @@ class Element;
 
 namespace HistoryView::Reactions {
 class Manager;
+class Selector;
+struct ChosenReaction;
+struct ExpandRequest;
 struct ButtonParameters;
 } // namespace HistoryView::Reactions
 
@@ -225,6 +228,8 @@ private:
 	void onTouchScrollTimer();
 
 	class BotAbout;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
+	using ReactionExpandRequest = HistoryView::Reactions::ExpandRequest;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	enum class MouseAction {
@@ -396,6 +401,7 @@ private:
 		const HistoryView::TextState &reactionState) const
 	-> HistoryView::Reactions::ButtonParameters;
 	void toggleFavoriteReaction(not_null<Element*> view) const;
+	void reactionChosen(const ChosenReaction &reaction);
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -458,6 +464,7 @@ private:
 		std::unique_ptr<VideoUserpic>> _videoUserpics;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+	std::unique_ptr<HistoryView::Reactions::Selector> _reactionsSelector;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;

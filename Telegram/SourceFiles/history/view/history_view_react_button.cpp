@@ -95,17 +95,23 @@ constexpr auto kMaxReactionsScrollAtOnce = 2;
 Button::Button(
 	Fn<void(QRect)> update,
 	ButtonParameters parameters,
-	Fn<void()> hideMe)
+	Fn<void(bool expanded)> toggleExpanded,
+	Fn<void()> hide)
 : _update(std::move(update))
+, _toggleExpanded(std::move(toggleExpanded))
 , _finalScale(ScaleForState(_state))
 , _collapsed(QPoint(), CountOuterSize())
 , _finalHeight(_collapsed.height())
-, _expandTimer([=] { applyState(State::Inside, _update); })
-, _hideTimer(hideMe) {
+, _expandTimer([=] { _toggleExpanded(true); })
+, _hideTimer(hide) {
 	applyParameters(parameters, nullptr);
 }
 
 Button::~Button() = default;
+
+void Button::expandWithoutCustom() {
+	applyState(State::Inside, _update);
+}
 
 bool Button::isHidden() const {
 	return (_state == State::Hidden) && !_opacityAnimation.animating();
@@ -316,6 +322,7 @@ void Button::applyState(State state, Fn<void(QRect)> update) {
 		_finalScale = finalScale;
 	}
 	_state = state;
+	_toggleExpanded(false);
 }
 
 float64 Button::ScaleForState(State state) {
@@ -410,15 +417,14 @@ Manager::Manager(
 	_createChooseCallback = [=](ReactionId id) {
 		return [=] {
 			if (auto chosen = lookupChosen(id)) {
-				updateButton({});
 				_chosen.fire(std::move(chosen));
 			}
 		};
 	};
 }
 
-Manager::Chosen Manager::lookupChosen(const ReactionId &id) const {
-	auto result = Chosen{
+ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
+	auto result = ChosenReaction{
 		.context = _buttonContext,
 		.id = id,
 	};
@@ -461,21 +467,26 @@ Manager::Chosen Manager::lookupChosen(const ReactionId &id) const {
 	return result;
 }
 
-void Manager::applyListFilters() {
+bool Manager::applyUniqueLimit() const {
 	const auto limit = _uniqueLimit.current();
-	const auto applyUniqueLimit = _buttonContext
+	return _buttonContext
 		&& (limit > 0)
 		&& (_buttonAlreadyNotMineCount >= limit);
+}
+
+void Manager::applyListFilters() {
+	const auto limited = applyUniqueLimit();
 	auto icons = std::vector<not_null<ReactionIcons*>>();
 	icons.reserve(_list.size());
 	auto showPremiumLock = (ReactionIcons*)nullptr;
 	auto favoriteIndex = -1;
 	for (auto &icon : _list) {
 		const auto &id = icon.id;
-		const auto add = applyUniqueLimit
+		const auto add = limited
 			? _buttonAlreadyList.contains(id)
-			: (!_filter
-				|| (!id.emoji().isEmpty() && _filter->contains(id.emoji())));
+			: id.emoji().isEmpty()
+			? _filter.customAllowed
+			: (!_filter.allowed || _filter.allowed->contains(id.emoji()));
 		if (add) {
 			if (icon.premium
 				&& !_allowSendingPremium
@@ -504,6 +515,9 @@ void Manager::applyListFilters() {
 		const auto first = begin(icons);
 		std::rotate(first, first + favoriteIndex, first + favoriteIndex + 1);
 	}
+	if (!limited && _filter.customAllowed && icons.size() > 1) {
+		icons.erase(begin(icons) + 1, end(icons));
+	}
 	if (_icons == icons) {
 		return;
 	}
@@ -528,8 +542,13 @@ void Manager::stealWheelEvents(not_null<QWidget*> target) {
 Manager::~Manager() = default;
 
 void Manager::updateButton(ButtonParameters parameters) {
-	if (parameters.cursorLeft && _menu) {
-		return;
+	if (parameters.cursorLeft) {
+		if (_menu) {
+			return;
+		} else if (_externalSelectorShown) {
+			setSelectedIcon(-1);
+			return;
+		}
 	}
 	const auto contextChanged = (_buttonContext != parameters.context);
 	if (contextChanged) {
@@ -537,6 +556,7 @@ void Manager::updateButton(ButtonParameters parameters) {
 		if (_button) {
 			_button->applyState(ButtonState::Hidden);
 			_buttonHiding.push_back(std::move(_button));
+			_expandSelectorRequests.fire({ .expanded = false });
 		}
 		_buttonShowTimer.cancel();
 		_scheduledParameters = std::nullopt;
@@ -567,11 +587,32 @@ void Manager::updateButton(ButtonParameters parameters) {
 	}
 }
 
+void Manager::toggleExpanded(bool expanded) {
+	if (!_button || !_buttonContext) {
+	} else if (!expanded || (_filter.customAllowed && !applyUniqueLimit())) {
+		_expandSelectorRequests.fire({
+			.context = _buttonContext,
+			.button = _button->geometry().marginsRemoved(
+				st::reactionCornerShadow),
+			.expanded = expanded,
+		});
+	} else {
+		_button->expandWithoutCustom();
+	}
+}
+
+void Manager::setExternalSelectorShown(rpl::producer<bool> shown) {
+	std::move(shown) | rpl::start_with_next([=](bool shown) {
+		_externalSelectorShown = shown;
+	}, _lifetime);
+}
+
 void Manager::showButtonDelayed() {
 	clearAppearAnimations();
 	_button = std::make_unique<Button>(
 		_buttonUpdate,
 		*_scheduledParameters,
+		[=](bool expanded) { toggleExpanded(expanded); },
 		[=]{ updateButton({}); });
 }
 
@@ -614,7 +655,7 @@ void Manager::applyList(
 	setSelectedIcon((selected < _icons.size()) ? selected : -1);
 }
 
-void Manager::updateAllowedSublist(AllowedSublist filter) {
+void Manager::updateFilter(Data::ReactionsFilter filter) {
 	if (_filter == filter) {
 		return;
 	}
@@ -630,7 +671,7 @@ void Manager::updateAllowSendingPremium(bool allow) {
 	applyListFilters();
 }
 
-const Manager::AllowedSublist &Manager::allowedSublist() const {
+const Data::ReactionsFilter &Manager::filter() const {
 	return _filter;
 }
 
@@ -1662,7 +1703,7 @@ auto Manager::faveRequests() const -> rpl::producer<ReactionId> {
 void SetupManagerList(
 		not_null<Manager*> manager,
 		not_null<Main::Session*> session,
-		rpl::producer<Manager::AllowedSublist> filter) {
+		rpl::producer<Data::ReactionsFilter> filter) {
 	const auto reactions = &session->data().reactions();
 	rpl::single(rpl::empty) | rpl::then(
 		reactions->updates()
@@ -1675,8 +1716,8 @@ void SetupManagerList(
 
 	std::move(
 		filter
-	) | rpl::start_with_next([=](Manager::AllowedSublist &&list) {
-		manager->updateAllowedSublist(std::move(list));
+	) | rpl::start_with_next([=](Data::ReactionsFilter &&list) {
+		manager->updateFilter(std::move(list));
 	}, manager->lifetime());
 
 	manager->faveRequests(

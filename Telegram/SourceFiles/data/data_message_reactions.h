@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/timer.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Lottie {
 class Icon;
@@ -17,34 +18,6 @@ namespace Data {
 
 class DocumentMedia;
 class Session;
-
-struct ReactionId {
-	std::variant<QString, DocumentId> data;
-
-	[[nodiscard]] bool empty() const {
-		const auto emoji = std::get_if<QString>(&data);
-		return emoji && emoji->isEmpty();
-	}
-	[[nodiscard]] QString emoji() const {
-		const auto emoji = std::get_if<QString>(&data);
-		return emoji ? *emoji : QString();
-	}
-	[[nodiscard]] DocumentId custom() const {
-		const auto custom = std::get_if<DocumentId>(&data);
-		return custom ? *custom : DocumentId();
-	}
-};
-Q_DECLARE_METATYPE(ReactionId);
-
-inline bool operator<(const ReactionId &a, const ReactionId &b) {
-	return a.data < b.data;
-}
-inline bool operator==(const ReactionId &a, const ReactionId &b) {
-	return a.data == b.data;
-}
-
-[[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
-[[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
 
 struct Reaction {
 	ReactionId id;

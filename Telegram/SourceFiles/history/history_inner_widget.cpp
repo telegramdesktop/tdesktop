@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_quick_action.h"
 #include "history/view/history_view_react_button.h"
+#include "history/view/history_view_react_selector.h"
 #include "history/view/history_view_emoji_interactions.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -345,6 +346,7 @@ HistoryInner::HistoryInner(
 		Data::UniqueReactionsLimitValue(&controller->session()),
 		[=](QRect updated) { update(updated); },
 		controller->cachedReactionIconFactory().createMethod()))
+, _reactionsSelector(std::make_unique<HistoryView::Reactions::Selector>())
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
@@ -393,28 +395,25 @@ HistoryInner::HistoryInner(
 		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
 	}, lifetime());
 
-	using ChosenReaction = HistoryView::Reactions::Manager::Chosen;
-	_reactionsManager->chosen(
+	rpl::merge(
+		_reactionsManager->chosen(),
+		_reactionsSelector->chosen()
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
-		const auto item = session().data().message(reaction.context);
-		if (!item
-			|| Window::ShowReactPremiumError(
+		_reactionsManager->updateButton({});
+		reactionChosen(reaction);
+	}, lifetime());
+
+	_reactionsManager->setExternalSelectorShown(_reactionsSelector->shown());
+	_reactionsManager->expandSelectorRequests(
+	) | rpl::start_with_next([=](ReactionExpandRequest request) {
+		if (request.expanded) {
+			_reactionsSelector->show(
 				_controller,
-				item,
-				reaction.id)) {
-			return;
-		}
-		item->toggleReaction(reaction.id);
-		if (item->chosenReaction() != reaction.id) {
-			return;
-		} else if (const auto view = item->mainView()) {
-			if (const auto top = itemTop(view); top >= 0) {
-				view->animateReaction({
-					.id = reaction.id,
-					.flyIcon = reaction.icon,
-					.flyFrom = reaction.geometry.translated(0, -top),
-				});
-			}
+				this,
+				request.context,
+				request.button);
+		} else {
+			_reactionsSelector->hide();
 		}
 	}, lifetime());
 
@@ -463,7 +462,7 @@ HistoryInner::HistoryInner(
 	HistoryView::Reactions::SetupManagerList(
 		_reactionsManager.get(),
 		&session(),
-		Data::PeerAllowedReactionsValue(_peer));
+		Data::PeerReactionsFilterValue(_peer));
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -476,6 +475,31 @@ HistoryInner::HistoryInner(
 	}, _scroll->lifetime());
 
 	setupSharingDisallowed();
+}
+
+void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
+	const auto guard = gsl::finally([&] { _reactionsSelector->hide(); });
+
+	const auto item = session().data().message(reaction.context);
+	if (!item
+		|| Window::ShowReactPremiumError(
+			_controller,
+			item,
+			reaction.id)) {
+		return;
+	}
+	item->toggleReaction(reaction.id);
+	if (item->chosenReaction() != reaction.id) {
+		return;
+	} else if (const auto view = item->mainView()) {
+		if (const auto top = itemTop(view); top >= 0) {
+			view->animateReaction({
+				.id = reaction.id,
+				.flyIcon = reaction.icon,
+				.flyFrom = reaction.geometry.translated(0, -top),
+			});
+		}
+	}
 }
 
 Main::Session &HistoryInner::session() const {
@@ -1925,10 +1949,11 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto favorite = session().data().reactions().favorite();
-	const auto allowed = _reactionsManager->allowedSublist();
-	if (allowed
-		&& (favorite.emoji().isEmpty()
-			|| !allowed->contains(favorite.emoji()))) {
+	const auto &filter = _reactionsManager->filter();
+	if (favorite.emoji().isEmpty() && !filter.customAllowed) {
+		return;
+	} else if (filter.allowed
+		&& !filter.allowed->contains(favorite.emoji())) {
 		return;
 	}
 	const auto item = view->data();

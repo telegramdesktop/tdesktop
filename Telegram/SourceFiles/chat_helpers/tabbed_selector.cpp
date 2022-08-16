@@ -566,45 +566,50 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 			_tabsSlider->width(),
 			st::lineWidth);
 	}
+	updateScrollGeometry(e->oldSize());
+	updateRestrictedLabelGeometry();
+	updateFooterGeometry();
+	update();
+}
 
+void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 	auto scrollWidth = width() - st::roundRadiusSmall;
 	auto scrollHeight = height() - scrollTop() - scrollBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
-	auto updateScrollGeometry = [&] {
+	auto setScrollGeometry = [&] {
 		_scroll->setGeometryToLeft(
 			st::roundRadiusSmall,
 			scrollTop(),
 			scrollWidth,
 			scrollHeight);
 	};
-	auto updateInnerGeometry = [&] {
+	auto setInnerGeometry = [&] {
 		auto scrollTop = _scroll->scrollTop();
 		auto scrollBottom = scrollTop + scrollHeight;
 		inner->setMinimalHeight(innerWidth, scrollHeight);
 		inner->setVisibleTopBottom(scrollTop, scrollBottom);
 	};
-	if (e->oldSize().height() > height()) {
-		updateScrollGeometry();
-		updateInnerGeometry();
+	if (oldSize.height() > height()) {
+		setScrollGeometry();
+		setInnerGeometry();
 	} else {
-		updateInnerGeometry();
-		updateScrollGeometry();
+		setInnerGeometry();
+		setScrollGeometry();
 	}
 	_bottomShadow->setGeometry(
 		0,
 		_scroll->y() + _scroll->height() - st::lineWidth,
 		width(),
 		st::lineWidth);
-	updateRestrictedLabelGeometry();
+}
 
+void TabbedSelector::updateFooterGeometry() {
 	_footerTop = _dropDown ? 0 : (height() - st::emojiFooterHeight);
 	for (auto &tab : _tabs) {
 		tab.footer()->resizeToWidth(width());
 		tab.footer()->moveToLeft(0, _footerTop);
 	}
-
-	update();
 }
 
 void TabbedSelector::updateRestrictedLabelGeometry() {
@@ -1137,6 +1142,15 @@ void TabbedSelector::showMenuWithType(SendMenu::Type type) {
 	if (!_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+void TabbedSelector::setDropDown(bool dropDown) {
+	if (_dropDown == dropDown) {
+		return;
+	}
+	_dropDown = dropDown;
+	updateFooterGeometry();
+	updateScrollGeometry(size());
 }
 
 rpl::producer<> TabbedSelector::contextMenuRequested() const {

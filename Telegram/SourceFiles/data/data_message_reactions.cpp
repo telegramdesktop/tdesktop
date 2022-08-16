@@ -42,26 +42,6 @@ constexpr auto kSizeForDownscale = 64;
 
 } // namespace
 
-ReactionId ReactionFromMTP(const MTPReaction &reaction) {
-	return reaction.match([](MTPDreactionEmpty) {
-		return ReactionId{ QString() };
-	}, [](const MTPDreactionEmoji &data) {
-		return ReactionId{ qs(data.vemoticon()) };
-	}, [](const MTPDreactionCustomEmoji &data) {
-		return ReactionId{ DocumentId(data.vdocument_id().v) };
-	});
-}
-
-MTPReaction ReactionToMTP(ReactionId id) {
-	if (const auto custom = id.custom()) {
-		return MTP_reactionCustomEmoji(MTP_long(custom));
-	}
-	const auto emoji = id.emoji();
-	return emoji.isEmpty()
-		? MTP_reactionEmpty()
-		: MTP_reactionEmoji(MTP_string(emoji));
-}
-
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
 , _repaintTimer([=] { repaintCollected(); }) {

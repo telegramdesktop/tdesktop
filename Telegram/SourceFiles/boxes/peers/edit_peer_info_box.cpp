@@ -1015,7 +1015,7 @@ void Controller::fillManageSection() {
 					!_peer->isBroadcast(),
 					session->data().reactions().list(
 						Data::Reactions::Type::Active),
-					*Data::PeerAllowedReactions(_peer),
+					*Data::PeerReactionsFilter(_peer).allowed,
 					done));
 			},
 			{ &st::infoRoundedIconReactions, Settings::kIconRed });

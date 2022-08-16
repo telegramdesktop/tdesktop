@@ -513,25 +513,23 @@ rpl::producer<QImage> PeerUserpicImageValue(
 	};
 }
 
-std::optional<base::flat_set<QString>> PeerAllowedReactions(
-		not_null<PeerData*> peer) {
+ReactionsFilter PeerReactionsFilter(not_null<PeerData*> peer) {
 	if (const auto chat = peer->asChat()) {
-		return chat->allowedReactions();
+		return { .allowed = chat->allowedReactions() };
 	} else if (const auto channel = peer->asChannel()) {
-		return channel->allowedReactions();
+		return { .allowed = channel->allowedReactions() };
 	} else {
-		return std::nullopt;
+		return { .customAllowed = true };
 	}
 }
 
- auto PeerAllowedReactionsValue(
-	not_null<PeerData*> peer)
--> rpl::producer<std::optional<base::flat_set<QString>>> {
+ rpl::producer<ReactionsFilter> PeerReactionsFilterValue(
+		not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::Reactions
 	) | rpl::map([=]{
-		return PeerAllowedReactions(peer);
+		return PeerReactionsFilter(peer);
 	});
 }
 

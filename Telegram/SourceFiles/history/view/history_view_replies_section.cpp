@@ -2041,8 +2041,8 @@ CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 }
 
 auto RepliesWidget::listAllowedReactionsValue()
--> rpl::producer<std::optional<base::flat_set<QString>>> {
-	return Data::PeerAllowedReactionsValue(_history->peer);
+-> rpl::producer<Data::ReactionsFilter> {
+	return Data::PeerReactionsFilterValue(_history->peer);
 }
 
 void RepliesWidget::listShowPremiumToast(not_null<DocumentData*> document) {

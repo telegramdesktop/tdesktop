@@ -351,7 +351,7 @@ bool ShowSendPremiumError(
 	const auto type = peer->isBroadcast()
 		? ReactionDisableType::Channel
 		: ReactionDisableType::Group;
-	if (const auto allowed = Data::PeerAllowedReactions(peer)) {
+	if (const auto allowed = Data::PeerReactionsFilter(peer).allowed) {
 		for (const auto &reaction : list) {
 			if (reaction.premium
 				&& !allowed->contains(reaction.id.emoji())) {

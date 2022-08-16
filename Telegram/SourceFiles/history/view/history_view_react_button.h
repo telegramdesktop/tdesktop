@@ -73,10 +73,12 @@ public:
 	Button(
 		Fn<void(QRect)> update,
 		ButtonParameters parameters,
-		Fn<void()> hideMe);
+		Fn<void(bool)> toggleExpanded,
+		Fn<void()> hide);
 	~Button();
 
 	void applyParameters(ButtonParameters parameters);
+	void expandWithoutCustom();
 
 	using State = ButtonState;
 	void applyState(State state);
@@ -110,6 +112,8 @@ private:
 	void updateExpandDirection(const ButtonParameters &parameters);
 
 	const Fn<void(QRect)> _update;
+	const Fn<void(bool)> _toggleExpanded;
+
 	State _state = State::Hidden;
 	float64 _finalScale = 0.;
 	Ui::Animations::Simple _scaleAnimation;
@@ -131,6 +135,23 @@ private:
 
 };
 
+struct ChosenReaction {
+	FullMsgId context;
+	Data::ReactionId id;
+	std::shared_ptr<Lottie::Icon> icon;
+	QRect geometry;
+
+	explicit operator bool() const {
+		return context && !id.empty();
+	}
+};
+
+struct ExpandRequest {
+	FullMsgId context;
+	QRect button;
+	bool expanded = false;
+};
+
 using IconFactory = Fn<std::shared_ptr<Lottie::Icon>(
 	not_null<Data::DocumentMedia*>,
 	int)>;
@@ -145,15 +166,14 @@ public:
 	~Manager();
 
 	using ReactionId = ::Data::ReactionId;
-	using AllowedSublist = std::optional<base::flat_set<QString>>;
 
 	void applyList(
 		const std::vector<Data::Reaction> &list,
 		const ReactionId &favorite,
 		bool premiumPossible);
-	void updateAllowedSublist(AllowedSublist filter);
+	void updateFilter(Data::ReactionsFilter filter);
 	void updateAllowSendingPremium(bool allow);
-	[[nodiscard]] const AllowedSublist &allowedSublist() const;
+	[[nodiscard]] const Data::ReactionsFilter &filter() const;
 	void updateUniqueLimit(not_null<HistoryItem*> item);
 
 	void updateButton(ButtonParameters parameters);
@@ -163,19 +183,14 @@ public:
 
 	[[nodiscard]] bool consumeWheelEvent(not_null<QWheelEvent*> e);
 
-	struct Chosen {
-		FullMsgId context;
-		ReactionId id;
-		std::shared_ptr<Lottie::Icon> icon;
-		QRect geometry;
-
-		explicit operator bool() const {
-			return context && !id.empty();
-		}
-	};
-	[[nodiscard]] rpl::producer<Chosen> chosen() const {
+	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
 		return _chosen.events();
 	}
+	[[nodiscard]] auto expandSelectorRequests() const
+	-> rpl::producer<ExpandRequest> {
+		return _expandSelectorRequests.events();
+	}
+	void setExternalSelectorShown(rpl::producer<bool> shown);
 
 	[[nodiscard]] std::optional<QRect> lookupEffectArea(
 		FullMsgId itemId) const;
@@ -223,8 +238,10 @@ private:
 	void showButtonDelayed();
 	void stealWheelEvents(not_null<QWidget*> target);
 
-	[[nodiscard]] Chosen lookupChosen(const ReactionId &id) const;
+	[[nodiscard]] ChosenReaction lookupChosen(const ReactionId &id) const;
 	[[nodiscard]] bool overCurrentButton(QPoint position) const;
+	[[nodiscard]] bool applyUniqueLimit() const;
+	void toggleExpanded(bool expanded);
 
 	void removeStaleButtons();
 	void paintButton(
@@ -314,10 +331,11 @@ private:
 	void checkIcons();
 
 	const IconFactory _iconFactory;
-	rpl::event_stream<Chosen> _chosen;
+	rpl::event_stream<ChosenReaction> _chosen;
+	rpl::event_stream<ExpandRequest> _expandSelectorRequests;
 	std::vector<ReactionIcons> _list;
 	ReactionId _favorite;
-	AllowedSublist _filter;
+	Data::ReactionsFilter _filter;
 	QSize _outer;
 	QRect _inner;
 	QSize _overlayFull;
@@ -372,6 +390,7 @@ private:
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 	rpl::event_stream<ReactionId> _faveRequests;
+	bool _externalSelectorShown = false;
 
 	rpl::lifetime _lifetime;
 
@@ -395,7 +414,7 @@ private:
 void SetupManagerList(
 	not_null<Manager*> manager,
 	not_null<Main::Session*> session,
-	rpl::producer<Manager::AllowedSublist> filter);
+	rpl::producer<Data::ReactionsFilter> filter);
 
 [[nodiscard]] std::shared_ptr<Lottie::Icon> DefaultIconFactory(
 	not_null<Data::DocumentMedia*> media,

@@ -353,9 +353,10 @@ ListWidget::ListWidget(
 		}
 	}, lifetime());
 
-	using ChosenReaction = Reactions::Manager::Chosen;
 	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
+		_reactionsManager->updateButton({});
+
 		const auto item = session().data().message(reaction.context);
 		if (!item
 			|| Window::ShowReactPremiumError(
@@ -2115,10 +2116,11 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto favorite = session().data().reactions().favorite();
-	const auto allowed = _reactionsManager->allowedSublist();
-	if (allowed
-		&& (favorite.emoji().isEmpty()
-			|| !allowed->contains(favorite.emoji()))) {
+	const auto &filter = _reactionsManager->filter();
+	if (favorite.emoji().isEmpty() && !filter.customAllowed) {
+		return;
+	} else if (filter.allowed
+		&& !filter.allowed->contains(favorite.emoji())) {
 		return;
 	}
 	const auto item = view->data();
