@@ -73,7 +73,7 @@ TextWithTagOffset<kTag> ReplaceTag<TextWithTagOffset<kTag>>::Call(
 namespace Dialogs::Ui {
 
 TextWithEntities DialogsPreviewText(TextWithEntities text) {
-	return Ui::Text::Filtered(
+	auto result = Ui::Text::Filtered(
 		std::move(text),
 		{
 			EntityType::Pre,
@@ -85,6 +85,15 @@ TextWithEntities DialogsPreviewText(TextWithEntities text) {
 			EntityType::CustomEmoji,
 			EntityType::PlainLink,
 		});
+	for (auto &entity : result.entities) {
+		if (entity.type() == EntityType::Pre) {
+			entity = EntityInText(
+				EntityType::Code,
+				entity.offset(),
+				entity.length());
+		}
+	}
+	return result;
 }
 
 struct MessageView::LoadingContext {
