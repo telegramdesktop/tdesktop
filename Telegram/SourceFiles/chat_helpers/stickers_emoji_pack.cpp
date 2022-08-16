@@ -439,6 +439,7 @@ void EmojiPack::refreshAll() {
 	for (const auto &[emoji, list] : _items) {
 		refreshItems(list);
 	}
+	refreshItems(_onlyCustomItems);
 }
 
 void EmojiPack::refreshItems(EmojiPtr emoji) {
