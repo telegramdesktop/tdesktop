@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "data/data_message_reaction_id.h"
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Lottie {
 class Icon;
 } // namespace Lottie
@@ -60,6 +64,9 @@ public:
 	void preloadImageFor(const ReactionId &emoji);
 	void preloadAnimationsFor(const ReactionId &emoji);
 	[[nodiscard]] QImage resolveImageFor(
+		const ReactionId &emoji,
+		ImageSize size);
+	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> resolveCustomFor(
 		const ReactionId &emoji,
 		ImageSize size);
 

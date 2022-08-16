@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "api/api_who_reacted.h"
 #include "ui/controls/who_reacted_context_action.h"
-#include "data/data_message_reactions.h"
+#include "data/data_message_reaction_id.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"

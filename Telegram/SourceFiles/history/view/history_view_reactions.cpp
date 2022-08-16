@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_react_animation.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
+#include "data/data_message_reactions.h"
 #include "data/data_peer.h"
 #include "lang/lang_tag.h"
 #include "ui/chat/chat_style.h"

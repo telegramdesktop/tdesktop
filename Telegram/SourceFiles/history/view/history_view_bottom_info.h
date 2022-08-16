@@ -8,13 +8,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
-#include "data/data_message_reactions.h"
+#include "data/data_message_reaction_id.h"
 #include "ui/text/text.h"
 #include "base/flags.h"
 
 namespace Ui {
 struct ChatPaintContext;
 } // namespace Ui
+
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
+namespace Data {
+class Reactions;
+} // namespace Data
+
+namespace Lottie {
+class Icon;
+} // namespace Lottie
 
 namespace HistoryView {
 namespace Reactions {
@@ -93,6 +105,7 @@ private:
 	struct Reaction {
 		mutable std::unique_ptr<Reactions::Animation> animation;
 		mutable QImage image;
+		mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
 		ReactionId id;
 		QString countText;
 		int count = 0;

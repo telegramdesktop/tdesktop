@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 #include "ui/widgets/scroll_area.h"
-#include "data/data_message_reactions.h"
+#include "data/data_message_reaction_id.h"
 #include "ui/chat/chat_style.h"
 
 namespace Ui {

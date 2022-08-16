@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "data/data_message_reactions.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"

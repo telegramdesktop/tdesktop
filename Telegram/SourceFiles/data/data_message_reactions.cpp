@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "lottie/lottie_icon.h"
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
@@ -201,6 +202,16 @@ QImage Reactions::resolveImageFor(
 	case ImageSize::InlineList: return set.inlineList;
 	}
 	Unexpected("ImageSize in Reactions::resolveImageFor.");
+}
+
+std::unique_ptr<Ui::Text::CustomEmoji> Reactions::resolveCustomFor(
+		const ReactionId &emoji,
+		ImageSize size) {
+	const auto custom = std::get_if<DocumentId>(&emoji.data);
+	if (!custom) {
+		return nullptr;
+	}
+	return _owner->customEmojiManager().create(*custom, [] {});
 }
 
 void Reactions::resolveImages() {

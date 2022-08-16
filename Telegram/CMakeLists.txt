@@ -488,6 +488,8 @@ PRIVATE
     data/data_media_types.h
     # data/data_messages.cpp
     # data/data_messages.h
+    data/data_message_reaction_id.cpp
+    data/data_message_reaction_id.h
     data/data_message_reactions.cpp
     data/data_message_reactions.h
     data/data_msg_id.h
@@ -697,6 +699,8 @@ PRIVATE
     history/view/history_view_react_animation.h
     history/view/history_view_react_button.cpp
     history/view/history_view_react_button.h
+    history/view/history_view_react_selector.cpp
+    history/view/history_view_react_selector.h
     history/view/history_view_reactions.cpp
     history/view/history_view_reactions.h
     history/view/history_view_replies_section.cpp

@@ -34,10 +34,6 @@ struct ChatPaintContext;
 class ChatStyle;
 } // namespace Ui
 
-namespace Lottie {
-class Icon;
-} // namespace Lottie
-
 namespace HistoryView {
 
 enum class PointState : char;

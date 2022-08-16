@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
-#include "data/data_message_reactions.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Data {
 class CloudImageView;
+class Reactions;
 } // namespace Data
 
 namespace Ui {

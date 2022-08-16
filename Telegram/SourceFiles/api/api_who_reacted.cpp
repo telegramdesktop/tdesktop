@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
-#include "data/data_message_reactions.h"
+#include "data/data_message_reaction_id.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "main/main_account.h"

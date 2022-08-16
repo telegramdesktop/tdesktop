@@ -556,7 +556,6 @@ void Manager::updateButton(ButtonParameters parameters) {
 		if (_button) {
 			_button->applyState(ButtonState::Hidden);
 			_buttonHiding.push_back(std::move(_button));
-			_expandSelectorRequests.fire({ .expanded = false });
 		}
 		_buttonShowTimer.cancel();
 		_scheduledParameters = std::nullopt;
