@@ -994,7 +994,7 @@ void Reader::checkForDownloaderChange(int checkItemsCount) {
 	const auto changed = std::adjacent_find(
 		end - checkItemsCount,
 		end,
-		[](int first, int second) { return (second <= first); });
+		[](uint32 first, uint32 second) { return (second <= first); });
 	if (changed != end) {
 		_offsetsForDownloader.erase(
 			begin(_offsetsForDownloader),
