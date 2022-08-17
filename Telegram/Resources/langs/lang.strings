@@ -267,7 +267,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_proxy_unsupported" = "Your Telegram Desktop version doesn't support this proxy type or the proxy link is invalid. Please update Telegram Desktop to the latest version.";
 
 "lng_edit_deleted" = "This message was deleted";
-"lng_edit_too_long" = "Your message text is too long";
+"lng_edit_limit_reached#one" = "You've reached the message text limit. Please make the text shorter by {count} character.";
+"lng_edit_limit_reached#other" = "You've reached the message text limit. Please make the text shorter by {count} characters.";
 "lng_edit_message" = "Edit message";
 "lng_edit_message_text" = "New message text...";
 "lng_deleted" = "Deleted Account";
