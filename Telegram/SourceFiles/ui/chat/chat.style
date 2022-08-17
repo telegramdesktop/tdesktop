@@ -936,10 +936,13 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+expandedMenuSeparator: MenuSeparator(defaultMenuSeparator) {
+	padding: margins(0px, 4px, 0px, 4px);
+	width: 6px;
+}
 popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
 	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 4px, 0px, 4px);
-		separatorWidth: 6px;
+		separator: expandedMenuSeparator;
 	}
 }
 

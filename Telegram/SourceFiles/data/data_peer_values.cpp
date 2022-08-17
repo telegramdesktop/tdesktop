@@ -533,12 +533,20 @@ ReactionsFilter PeerReactionsFilter(not_null<PeerData*> peer) {
 	});
 }
 
+int UniqueReactionsLimit(not_null<Main::AppConfig*> config) {
+	return config->get<int>("reactions_uniq_max", 11);
+}
+
+int UniqueReactionsLimit(not_null<PeerData*> peer) {
+	return UniqueReactionsLimit(&peer->session().account().appConfig());
+}
+
 rpl::producer<int> UniqueReactionsLimitValue(
 		not_null<Main::Session*> session) {
 	const auto config = &session->account().appConfig();
 	return config->value(
 	) | rpl::map([=] {
-		return config->get<int>("reactions_uniq_max", 11);
+		return UniqueReactionsLimit(config);
 	}) | rpl::distinct_until_changed();
 }
 

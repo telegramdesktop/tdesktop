@@ -148,7 +148,9 @@ mediaviewMenu: Menu(menuWithIcons) {
 	itemFgShortcutOver: mediaviewMenuFg;
 	itemFgShortcutDisabled: mediaviewMenuFg;
 
-	separatorFg: mediaviewMenuFg;
+	separator: MenuSeparator(defaultMenuSeparator) {
+		fg: mediaviewMenuFg;
+	}
 
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: mediaviewMenuBgRipple;
@@ -186,7 +188,9 @@ mediaviewControlsMenu: Menu(defaultMenu) {
 	itemFgShortcutOver: mediaviewPlaybackProgressFg;
 	itemFgShortcutDisabled: mediaviewPlaybackProgressFg;
 
-	separatorFg: mediaviewPlaybackIconRipple;
+	separator: MenuSeparator(defaultMenuSeparator) {
+		fg: mediaviewPlaybackIconRipple;
+	}
 
 	arrow: icon {{ "dropdown_submenu_arrow", mediaviewPlaybackProgressFg }};
 

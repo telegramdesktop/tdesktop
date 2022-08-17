@@ -2040,11 +2040,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		e->accept();
 		return;
 	}
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		(hasWhoReactedItem
-			? st::popupMenuExpandedSeparator
-			: st::popupMenuWithIcons));
+	_menu = base::make_unique_q<Ui::PopupMenu>(this, st::popupMenuWithIcons);
 	const auto session = &this->session();
 	const auto controller = _controller;
 	const auto groupLeaderOrSelf = [](HistoryItem *item) -> HistoryItem* {
@@ -2451,10 +2447,25 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	if (_menu->empty()) {
 		_menu = nullptr;
-	} else {
-		_menu->popup(e->globalPos());
-		e->accept();
+		return;
 	}
+	using namespace HistoryView::Reactions;
+	const auto desiredPosition = e->globalPos();
+	const auto reactItem = Element::Hovered()
+		? Element::Hovered()->data().get()
+		: nullptr;
+	const auto attached = reactItem
+		? AttachSelectorToMenu(_menu.get(), desiredPosition, reactItem)
+		: AttachSelectorResult::Skipped;
+	if (attached == AttachSelectorResult::Failed) {
+		_menu = nullptr;
+		return;
+	} else if (attached == AttachSelectorResult::Attached) {
+		_menu->popupPrepared();
+	} else {
+		_menu->popup(desiredPosition);
+	}
+	e->accept();
 }
 
 bool HistoryInner::hasCopyRestriction(HistoryItem *item) const {

@@ -138,6 +138,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] rpl::producer<ReactionsFilter> PeerReactionsFilterValue(
 	not_null<PeerData*> peer);
 
+[[nodiscard]] int UniqueReactionsLimit(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> UniqueReactionsLimitValue(
 	not_null<Main::Session*> session);
 

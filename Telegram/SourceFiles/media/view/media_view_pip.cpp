@@ -857,8 +857,7 @@ void PipPanel::updateDecorations() {
 		}
 	});
 	const auto position = countPosition();
-	const auto center = position.geometry.center();
-	const auto use = Ui::Platform::TranslucentWindowsSupported(center);
+	const auto use = Ui::Platform::TranslucentWindowsSupported();
 	const auto full = use ? st::callShadow.extend : style::margins();
 	const auto padding = style::margins(
 		(position.attached & RectPart::Left) ? 0 : full.left(),

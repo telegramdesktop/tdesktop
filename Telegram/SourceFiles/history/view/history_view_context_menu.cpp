@@ -952,9 +952,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 
 	auto result = base::make_unique_q<Ui::PopupMenu>(
 		list,
-		(hasWhoReactedItem
-			? st::popupMenuExpandedSeparator
-			: st::popupMenuWithIcons));
+		st::popupMenuWithIcons);
 
 	if (request.overSelection && !list->hasCopyRestrictionForSelected()) {
 		const auto text = request.selectedItems.empty()
@@ -1158,7 +1156,7 @@ void AddWhoReactedAction(
 		}
 	};
 	if (!menu->empty()) {
-		menu->addSeparator();
+		menu->addSeparator(&st::expandedMenuSeparator);
 	}
 	menu->addAction(Ui::WhoReactedContextAction(
 		menu.get(),
