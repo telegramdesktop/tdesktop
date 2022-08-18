@@ -1333,7 +1333,7 @@ void AddEmojiPacksAction(
 		menu->addSeparator();
 	}
 	auto button = base::make_unique_q<Item>(
-		menu,
+		menu->menu(),
 		menu->st().menu,
 		(name.text.isEmpty()
 			? tr::lng_context_animated_emoji_many(

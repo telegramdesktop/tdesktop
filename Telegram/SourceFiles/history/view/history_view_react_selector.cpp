@@ -138,7 +138,7 @@ int PopupSelector::countWidth(int desiredWidth, int maxWidth) {
 		int(_reactions.recent.size()) + (added ? 1 : 0));
 	_small = (possibleColumns - _columns > 1);
 	_recentRows = (_reactions.recent.size() + _columns - 1) / _columns;
-	return 2 * _skipx + _columns * _size;
+	return std::max(2 * _skipx + _columns * _size, desiredWidth);
 }
 
 QMargins PopupSelector::extentsForShadow() const {
@@ -291,7 +291,7 @@ bool AdjustMenuGeometryForSelector(
 		not_null<PopupSelector*> selector) {
 	const auto extend = st::reactStripExtend;
 	const auto added = extend.left() + extend.right();
-	const auto desiredWidth = menu->width() + added;
+	const auto desiredWidth = menu->menu()->width() + added;
 	const auto maxWidth = menu->st().menu.widthMax + added;
 	const auto width = selector->countWidth(desiredWidth, maxWidth);
 	const auto extents = selector->extentsForShadow();
