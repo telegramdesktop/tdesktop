@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "ui/effects/round_area_with_shadow.h"
 #include "ui/widgets/scroll_area.h"
 #include "data/data_message_reaction_id.h"
 #include "ui/chat/chat_style.h"
@@ -228,11 +229,7 @@ private:
 		mutable bool selected = false;
 		mutable bool selectAnimated = false;
 	};
-	struct OverlayImage {
-		not_null<QImage*> cache;
-		QRect source;
-	};
-	static constexpr auto kFramesCount = 32;
+	static constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
 
 	void applyListFilters();
 	void showButtonDelayed();
@@ -268,49 +265,12 @@ private:
 		not_null<Button*> button,
 		int scroll,
 		float64 expandRatio);
-	void overlayExpandedBorder(
-		Painter &p,
-		QSize size,
-		float64 expandRatio,
-		float64 scale,
-		const QColor &shadow);
-	void paintLongImage(
-		QPainter &p,
-		QRect geometry,
-		const QImage &image,
-		QRect source);
 
 	void resolveMainReactionIcon();
 	void setMainReactionIcon();
 	void clearAppearAnimations();
 	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
-	[[nodiscard]] QRect overlayCacheRect(
-		int frameIndex,
-		int columnIndex) const;
-	QRect validateShadow(
-		int frameIndex,
-		float64 scale,
-		const QColor &shadow);
 	QRect validateEmoji(int frameIndex, float64 scale);
-	QRect validateFrame(
-		int frameIndex,
-		float64 scale,
-		const QColor &background,
-		const QColor &shadow);
-	OverlayImage validateOverlayMask(
-		int frameIndex,
-		QSize innerSize,
-		float64 radius,
-		float64 scale);
-	OverlayImage validateOverlayShadow(
-		int frameIndex,
-		QSize innerSize,
-		float64 radius,
-		float64 scale,
-		const QColor &shadow,
-		const OverlayImage &mask);
-	void setBackgroundColor(const QColor &background);
-	void setShadowColor(const QColor &shadow);
 
 	void setSelectedIcon(int index) const;
 	void clearStateForHidden(ReactionIcons &icon);
@@ -338,24 +298,14 @@ private:
 	Data::ReactionsFilter _filter;
 	QSize _outer;
 	QRect _inner;
-	QSize _overlayFull;
-	QImage _cacheBg;
-	QImage _cacheParts;
-	QImage _overlayCacheParts;
-	QImage _overlayMaskScaled;
-	QImage _overlayShadowScaled;
-	QImage _shadowBuffer;
+	Ui::RoundAreaWithShadow _cachedRound;
+	QImage _emojiParts;
 	QImage _expandedBuffer;
+	QColor _gradientBackground;
 	QImage _topGradient;
 	QImage _bottomGradient;
-	std::array<bool, kFramesCount> _validBg = { { false } };
-	std::array<bool, kFramesCount> _validShadow = { { false } };
 	std::array<bool, kFramesCount> _validEmoji = { { false } };
-	std::array<bool, kFramesCount> _validOverlayMask = { { false } };
-	std::array<bool, kFramesCount> _validOverlayShadow = { { false } };
-	QColor _background;
 	QColor _gradient;
-	QColor _shadow;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
 	std::shared_ptr<Lottie::Icon> _mainReactionIcon;

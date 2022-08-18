@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 #include "ui/effects/animation_value.h"
+#include "ui/effects/round_area_with_shadow.h"
 #include "ui/rp_widget.h"
 
 namespace Data {
@@ -69,12 +70,38 @@ public:
 	[[nodiscard]] QMargins extentsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int desiredHeight() const;
+	void initGeometry(int innerTop);
 
-protected:
-	void paintEvent(QPaintEvent *e);
+	void updateShowState(
+		float64 progress,
+		float64 opacity,
+		bool appearing,
+		bool toggling);
 
 private:
+	static constexpr int kFramesCount = 32;
+
+	void paintEvent(QPaintEvent *e);
+
+	void paintAppearing(QPainter &p);
+	void paintBg(QPainter &p);
+
+	PossibleReactions _reactions;
+	QImage _appearBuffer;
+	Ui::RoundAreaWithShadow _cachedRound;
+	float64 _appearProgress = 0.;
+	float64 _appearOpacity = 0.;
+	QRect _inner;
+	QMargins _padding;
+	int _size = 0;
+	int _recentRows = 0;
 	int _columns = 0;
+	int _skipx = 0;
+	int _skipy = 0;
+	int _skipBottom = 0;
+	bool _appearing = false;
+	bool _toggling = false;
+	bool _small = false;
 
 };
 
