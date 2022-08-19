@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_element.h"
-#include "history/view/history_view_react_button.h" // DefaultIconFactory
+#include "history/view/reactions/history_view_reactions_button.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "boxes/premium_preview_box.h"

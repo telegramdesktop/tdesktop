@@ -27,12 +27,12 @@ namespace Ui {
 class BoxContent;
 } // namespace Ui
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 
-object_ptr<Ui::BoxContent> ReactionsListBox(
+object_ptr<Ui::BoxContent> FullListBox(
 	not_null<Window::SessionController*> window,
 	not_null<HistoryItem*> item,
 	Data::ReactionId selected,
 	std::shared_ptr<Api::WhoReadList> whoReadIds = nullptr);
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

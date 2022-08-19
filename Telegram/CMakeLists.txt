@@ -661,10 +661,18 @@ PRIVATE
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_web_page.h
     history/view/media/history_view_web_page.cpp
-    history/view/reactions/message_reactions_list.cpp
-    history/view/reactions/message_reactions_list.h
-    history/view/reactions/message_reactions_selector.cpp
-    history/view/reactions/message_reactions_selector.h
+    history/view/reactions/history_view_reactions.cpp
+    history/view/reactions/history_view_reactions.h
+    history/view/reactions/history_view_reactions_animation.cpp
+    history/view/reactions/history_view_reactions_animation.h
+    history/view/reactions/history_view_reactions_button.cpp
+    history/view/reactions/history_view_reactions_button.h
+    history/view/reactions/history_view_reactions_list.cpp
+    history/view/reactions/history_view_reactions_list.h
+    history/view/reactions/history_view_reactions_selector.cpp
+    history/view/reactions/history_view_reactions_selector.h
+    history/view/reactions/history_view_reactions_tabs.cpp
+    history/view/reactions/history_view_reactions_tabs.h
     history/view/history_view_bottom_info.cpp
     history/view/history_view_bottom_info.h
     history/view/history_view_contact_status.cpp
@@ -695,14 +703,6 @@ PRIVATE
     history/view/history_view_pinned_tracker.h
     history/view/history_view_quick_action.cpp
     history/view/history_view_quick_action.h
-    history/view/history_view_react_animation.cpp
-    history/view/history_view_react_animation.h
-    history/view/history_view_react_button.cpp
-    history/view/history_view_react_button.h
-    history/view/history_view_react_selector.cpp
-    history/view/history_view_react_selector.h
-    history/view/history_view_reactions.cpp
-    history/view/history_view_reactions.h
     history/view/history_view_replies_section.cpp
     history/view/history_view_replies_section.h
     history/view/history_view_requests_bar.cpp

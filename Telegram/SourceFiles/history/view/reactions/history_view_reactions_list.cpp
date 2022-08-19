@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/message_reactions_list.h"
+#include "history/view/reactions/history_view_reactions_list.h"
 
-#include "history/view/reactions/message_reactions_selector.h"
+#include "history/view/reactions/history_view_reactions_tabs.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "window/window_session_controller.h"
@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 namespace {
 
 constexpr auto kPerPageFirst = 20;
@@ -308,7 +308,7 @@ std::unique_ptr<PeerListRow> Controller::createRow(
 
 } // namespace
 
-object_ptr<Ui::BoxContent> ReactionsListBox(
+object_ptr<Ui::BoxContent> FullListBox(
 		not_null<Window::SessionController*> window,
 		not_null<HistoryItem*> item,
 		Data::ReactionId selected,
@@ -332,20 +332,20 @@ object_ptr<Ui::BoxContent> ReactionsListBox(
 				Data::ReactionId{ u"read"_q },
 				int(whoReadIds->list.size()));
 		}
-		const auto selector = CreateReactionSelector(
+		const auto tabs = CreateTabs(
 			box,
 			map,
 			selected,
 			whoReadIds ? whoReadIds->type : Ui::WhoReadType::Reacted);
-		selector->changes(
+		tabs->changes(
 		) | rpl::start_to_stream(*tabRequests, box->lifetime());
 
 		box->widthValue(
 		) | rpl::start_with_next([=](int width) {
-			selector->resizeToWidth(width);
-			selector->move(0, 0);
+			tabs->resizeToWidth(width);
+			tabs->move(0, 0);
 		}, box->lifetime());
-		selector->heightValue(
+		tabs->heightValue(
 		) | rpl::start_with_next([=](int height) {
 			box->setAddedTopScrollSkip(height);
 		}, box->lifetime());
@@ -363,4 +363,4 @@ object_ptr<Ui::BoxContent> ReactionsListBox(
 		initBox);
 }
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

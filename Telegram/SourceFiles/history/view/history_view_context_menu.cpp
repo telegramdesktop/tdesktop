@@ -24,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
-#include "history/view/reactions/message_reactions_list.h"
+#include "history/view/reactions/history_view_reactions_list.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/image/image.h"
@@ -1148,7 +1148,7 @@ void AddWhoReactedAction(
 			strong->hideMenu();
 		}
 		if (const auto item = controller->session().data().message(itemId)) {
-			controller->window().show(ReactionsListBox(
+			controller->window().show(Reactions::FullListBox(
 				controller,
 				item,
 				{},
@@ -1178,7 +1178,7 @@ void ShowWhoReactedMenu(
 	};
 	const auto showAllChosen = [=, itemId = item->fullId()]{
 		if (const auto item = controller->session().data().message(itemId)) {
-			controller->window().show(ReactionsListBox(
+			controller->window().show(Reactions::FullListBox(
 				controller,
 				item,
 				id));

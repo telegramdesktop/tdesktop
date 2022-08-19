@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/message_reactions_selector.h"
+#include "history/view/reactions/history_view_reactions_tabs.h"
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
@@ -14,7 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 namespace {
 
 using ::Data::ReactionId;
@@ -103,7 +103,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 
 } // namespace
 
-not_null<Selector*> CreateReactionSelector(
+not_null<Tabs*> CreateTabs(
 		not_null<QWidget*> parent,
 		const base::flat_map<ReactionId, int> &items,
 		const ReactionId &selected,
@@ -112,7 +112,7 @@ not_null<Selector*> CreateReactionSelector(
 		rpl::variable<ReactionId> selected;
 		std::vector<not_null<Ui::AbstractButton*>> tabs;
 	};
-	const auto result = Ui::CreateChild<Selector>(parent.get());
+	const auto result = Ui::CreateChild<Tabs>(parent.get());
 	using Entry = std::pair<int, ReactionId>;
 	auto tabs = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	const auto st = &st::reactionsTabs;
@@ -184,4 +184,4 @@ not_null<Selector*> CreateReactionSelector(
 	return result;
 }
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions
