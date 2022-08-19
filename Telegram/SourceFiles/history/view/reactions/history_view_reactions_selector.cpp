@@ -67,13 +67,17 @@ QMargins Selector::extentsForShadow() const {
 }
 
 int Selector::extendTopForCategories() const {
-	return st::emojiFooterHeight;
+	return _reactions.customAllowed ? st::emojiFooterHeight : 0;
 }
 
 int Selector::desiredHeight() const {
 	return _reactions.customAllowed
 		? st::emojiPanMaxHeight
 		: (_skipy + _recentRows * _size + _skipBottom);
+}
+
+void Selector::setSpecialExpandTopSkip(int skip) {
+	_specialExpandTopSkip = skip;
 }
 
 void Selector::initGeometry(int innerTop) {
@@ -84,10 +88,14 @@ void Selector::initGeometry(int innerTop) {
 	const auto width = innerWidth + extents.left() + extents.right();
 	const auto height = innerHeight + extents.top() + extents.bottom();
 	const auto left = style::RightToLeft() ? 0 : (parent.width() - width);
-	const auto top = innerTop - extents.top();
+	_collapsedTopSkip = extendTopForCategories() + _specialExpandTopSkip;
+	const auto top = innerTop - extents.top() - _collapsedTopSkip;
 	const auto add = st::reactStripBubble.height() - extents.bottom();
-	_outer = QRect(0, 0, width, height);
-	setGeometry(_outer.marginsAdded({ 0, 0, 0, add }).translated(left, top));
+	_outer = QRect(0, _collapsedTopSkip, width, height);
+	_outerWithBubble = _outer.marginsAdded({ 0, 0, 0, add });
+	setGeometry(_outerWithBubble.marginsAdded(
+		{ 0, _collapsedTopSkip, 0, 0 }
+	).translated(left, top));
 	_inner = _outer.marginsRemoved(extents);
 }
 
@@ -120,8 +128,8 @@ void Selector::paintAppearing(QPainter &p) {
 	p.setOpacity(_appearOpacity);
 
 	const auto factor = style::DevicePixelRatio();
-	if (_paintBuffer.size() != size() * factor) {
-		_paintBuffer = _cachedRound.PrepareImage(size());
+	if (_paintBuffer.size() != _outerWithBubble.size() * factor) {
+		_paintBuffer = _cachedRound.PrepareImage(_outerWithBubble.size());
 	}
 	_paintBuffer.fill(st::defaultPopupMenu.menu.itemBg->c);
 	auto q = QPainter(&_paintBuffer);
@@ -133,16 +141,18 @@ void Selector::paintAppearing(QPainter &p) {
 	const auto fullWidth = _inner.x() + appearedWidth + extents.right();
 	const auto size = QSize(fullWidth, _outer.height());
 
+	q.translate(_inner.topLeft() - QPoint(0, _collapsedTopSkip));
 	_strip.paint(
 		q,
-		{ _inner.x() + _skipx, _inner.y() + _skipy },
+		{ _skipx, _skipy },
 		{ _size, 0 },
-		{ _inner.x(), _inner.y(), appearedWidth, _inner.height() },
+		{ 0, 0, appearedWidth, _inner.height() },
 		1.,
 		false);
 
 	_cachedRound.setBackgroundColor(st::defaultPopupMenu.menu.itemBg->c);
 	_cachedRound.setShadowColor(st::shadowFg->c);
+	q.translate(QPoint(0, _collapsedTopSkip) - _inner.topLeft());
 	const auto radius = st::reactStripHeight / 2;
 	_cachedRound.overlayExpandedBorder(q, size, _appearProgress, radius, 1.);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
@@ -154,36 +164,112 @@ void Selector::paintAppearing(QPainter &p) {
 	q.end();
 
 	p.drawImage(
-		QPoint(),
+		_outer.topLeft(),
 		_paintBuffer,
 		QRect(QPoint(), QSize(fullWidth, height()) * factor));
 }
 
 void Selector::paintBackgroundToBuffer() {
-	if (_paintBuffer.size() != size() * style::DevicePixelRatio()) {
-		_paintBuffer = _cachedRound.PrepareImage(size());
+	const auto factor = style::DevicePixelRatio();
+	if (_paintBuffer.size() != _outerWithBubble.size() * factor) {
+		_paintBuffer = _cachedRound.PrepareImage(_outerWithBubble.size());
 	}
 	_paintBuffer.fill(Qt::transparent);
 
 	auto p = QPainter(&_paintBuffer);
-	_cachedRound.FillWithImage(p, _outer, _cachedRound.validateFrame(0, 1.));
+	const auto radius = _inner.height() / 2.;
+	const auto frame = _cachedRound.validateFrame(0, 1., radius);
+	const auto outer = _outer.translated(0, -_collapsedTopSkip);
+	_cachedRound.FillWithImage(p, outer, frame);
 	paintBubble(p, _inner.width());
 }
 
-void Selector::paintHorizontal(QPainter &p) {
+void Selector::paintCollapsed(QPainter &p) {
 	if (_paintBuffer.isNull()) {
 		paintBackgroundToBuffer();
 	}
-	p.drawImage(0, 0, _paintBuffer);
-
-	const auto extents = extentsForShadow();
+	p.drawImage(_outer.topLeft(), _paintBuffer);
 	_strip.paint(
 		p,
-		{ _inner.x() + _skipx, _inner.y() + _skipy },
+		_inner.topLeft() + QPoint(_skipx, _skipy),
 		{ _size, 0 },
 		_inner,
 		1.,
 		false);
+}
+
+void Selector::paintExpanding(QPainter &p, float64 progress) {
+	paintExpandingBg(p, progress);
+	paintStripWithoutExpand(p);
+	paintFadingExpandIcon(p, progress);
+}
+
+void Selector::paintExpandingBg(QPainter &p, float64 progress) {
+	constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
+	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
+	const auto radiusStart = st::reactStripHeight / 2.;
+	const auto radiusEnd = st::roundRadiusSmall;
+	const auto radius = radiusStart + progress * (radiusEnd - radiusStart);
+	const auto extents = extentsForShadow();
+	const auto expanding = anim::easeOutCirc(1., progress);
+	const auto expandUp = anim::interpolate(0, _collapsedTopSkip, expanding);
+	const auto expandDown = anim::interpolate(
+		0,
+		(height() - _outer.y() - _outer.height()),
+		expanding);
+	const auto outer = _outer.marginsAdded({ 0, expandUp, 0, expandDown });
+	const auto pattern = _cachedRound.validateFrame(frame, 1., radius);
+	const auto fill = _cachedRound.FillWithImage(p, outer, pattern);
+	if (!fill.isEmpty()) {
+		p.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+	}
+}
+
+void Selector::paintStripWithoutExpand(QPainter &p) {
+	_strip.paint(
+		p,
+		_inner.topLeft() + QPoint(_skipx, _skipy),
+		{ _size, 0 },
+		_inner.marginsRemoved({ 0, 0, _skipx + _size, 0 }),
+		1.,
+		false);
+}
+
+void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
+	if (progress >= 1.) {
+		return;
+	}
+	p.setOpacity(1. - progress);
+	const auto sub = anim::interpolate(0, _size / 3, progress);
+	const auto expandIconPosition = _inner.topLeft()
+		+ QPoint(_inner.width() - _size - _skipx, _skipy);
+	const auto expandIconRect = QRect(
+		expandIconPosition,
+		QSize(_size, _size)
+	).marginsRemoved({ sub, sub, sub, sub });
+	p.drawImage(expandIconRect, _expandIconCache);
+}
+
+void Selector::paintExpanded(QPainter &p) {
+	paintExpandedBg(p);
+	paintStripWithoutExpand(p);
+}
+
+void Selector::paintExpandedBg(QPainter &p) {
+	if (!_expandedBgReady) {
+		_expandedBgReady = true;
+		auto q = QPainter(&_paintBuffer);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		const auto pattern = _cachedRound.validateFrame(
+			kFramesCount - 1,
+			1.,
+			st::roundRadiusSmall);
+		const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
+		if (!fill.isEmpty()) {
+			q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+		}
+	}
+	p.drawImage(0, 0, _paintBuffer);
 }
 
 void Selector::paintBubble(QPainter &p, int innerWidth) {
@@ -194,7 +280,7 @@ void Selector::paintBubble(QPainter &p, int innerWidth) {
 	bubble.paint(
 		p,
 		_inner.x() + innerWidth - bubbleRight - bubble.width(),
-		_inner.y() + _inner.height(),
+		_inner.y() + _inner.height() - _collapsedTopSkip,
 		width());
 }
 
@@ -202,8 +288,12 @@ void Selector::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 	if (_appearing) {
 		paintAppearing(p);
+	} else if (!_expanded) {
+		paintCollapsed(p);
+	} else if (const auto progress = _expanding.value(1.); progress < 1.) {
+		paintExpanding(p, progress);
 	} else {
-		paintHorizontal(p);
+		paintExpanded(p);
 	}
 }
 
@@ -252,12 +342,40 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 	if (selected == Strip::AddedButton::Premium) {
 		_premiumPromoChosen.fire({});
 	} else if (selected == Strip::AddedButton::Expand) {
+		expand();
 	} else {
 		const auto id = std::get_if<Data::ReactionId>(&selected);
 		if (id && !id->empty()) {
 			_chosen.fire({ .id = *id });
 		}
 	}
+}
+
+void Selector::expand() {
+	const auto parent = parentWidget()->geometry();
+	const auto additionalBottom = parent.height() - y() - height();
+	const auto additional = _specialExpandTopSkip + additionalBottom;
+	if (additionalBottom < 0 || additional <= 0) {
+		return;
+	}
+	if (additionalBottom > 0) {
+		resize(width(), height() + additionalBottom);
+		raise();
+	}
+	_expandIconCache = _cachedRound.PrepareImage({ _size, _size });
+	_expandIconCache.fill(Qt::transparent);
+	auto q = QPainter(&_expandIconCache);
+	const auto count = _strip.count();
+	_strip.paint(
+		q,
+		QPoint(-(count - 1) * _size, 0),
+		{ _size, 0 },
+		QRect(-(count - 1) * _size, 0, count * _size, _size),
+		1.,
+		false);
+	_paintBuffer = _cachedRound.PrepareImage(size());
+	_expanded = true;
+	_expanding.start([=] { update(); }, 0., 1., st::slideDuration);
 }
 
 bool AdjustMenuGeometryForSelector(
@@ -317,6 +435,7 @@ bool AdjustMenuGeometryForSelector(
 		extents.right(),
 		0
 	));
+	selector->setSpecialExpandTopSkip(additionalPaddingBottom);
 	return menu->prepareGeometryFor(desiredPosition);
 }
 

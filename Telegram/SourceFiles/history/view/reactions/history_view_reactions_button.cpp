@@ -633,7 +633,11 @@ void Manager::paintButton(
 	if (expanded) {
 		q->fillRect(QRect(QPoint(), size), context.st->windowBg());
 	} else {
-		const auto frame = _cachedRound.validateFrame(frameIndex, scale);
+		const auto radius = _inner.height() / 2.;
+		const auto frame = _cachedRound.validateFrame(
+			frameIndex,
+			scale,
+			radius);
 		p.drawImage(position, *frame.image, frame.rect);
 	}
 

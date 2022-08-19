@@ -43,6 +43,7 @@ public:
 	[[nodiscard]] QMargins extentsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
 	[[nodiscard]] int desiredHeight() const;
+	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
 
 	[[nodiscard]] rpl::producer<ChosenReaction> chosen() const {
@@ -68,12 +69,20 @@ private:
 	void mouseReleaseEvent(QMouseEvent *e) override;
 
 	void paintAppearing(QPainter &p);
-	void paintHorizontal(QPainter &p);
+	void paintCollapsed(QPainter &p);
+	void paintExpanding(QPainter &p, float64 progress);
+	void paintExpandingBg(QPainter &p, float64 progress);
+	void paintStripWithoutExpand(QPainter &p);
+	void paintFadingExpandIcon(QPainter &p, float64 progress);
+	void paintExpanded(QPainter &p);
+	void paintExpandedBg(QPainter &p);
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
 
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
+
+	void expand();
 
 	const Data::PossibleItemReactions _reactions;
 	Ui::RoundAreaWithShadow _cachedRound;
@@ -83,11 +92,16 @@ private:
 	rpl::event_stream<> _premiumPromoChosen;
 
 	QImage _paintBuffer;
+	Ui::Animations::Simple _expanding;
 	float64 _appearProgress = 0.;
 	float64 _appearOpacity = 0.;
 	QRect _inner;
 	QRect _outer;
+	QRect _outerWithBubble;
+	QImage _expandIconCache;
 	QMargins _padding;
+	int _specialExpandTopSkip = 0;
+	int _collapsedTopSkip = 0;
 	int _size = 0;
 	int _recentRows = 0;
 	int _columns = 0;
@@ -97,6 +111,8 @@ private:
 	int _pressed = -1;
 	bool _appearing = false;
 	bool _toggling = false;
+	bool _expanded = false;
+	bool _expandedBgReady = false;
 	bool _small = false;
 	bool _over = false;
 	bool _low = false;
