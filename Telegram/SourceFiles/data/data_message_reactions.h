@@ -37,6 +37,15 @@ struct Reaction {
 	bool premium = false;
 };
 
+struct PossibleItemReactions {
+	std::vector<not_null<const Reaction*>> recent;
+	bool morePremiumAvailable = false;
+	bool customAllowed = false;
+};
+
+[[nodiscard]] PossibleItemReactions LookupPossibleReactions(
+	not_null<HistoryItem*> item);
+
 class Reactions final {
 public:
 	explicit Reactions(not_null<Session*> owner);
@@ -115,7 +124,7 @@ private:
 	ReactionId _favorite;
 	base::flat_map<
 		not_null<DocumentData*>,
-		std::shared_ptr<Data::DocumentMedia>> _iconsCache;
+		std::shared_ptr<DocumentMedia>> _iconsCache;
 	rpl::event_stream<> _updated;
 
 	mtpRequestId _requestId = 0;

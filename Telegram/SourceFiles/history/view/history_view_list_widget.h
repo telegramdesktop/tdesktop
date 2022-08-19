@@ -586,6 +586,7 @@ private:
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+	rpl::variable<HistoryItem*> _reactionsItem;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

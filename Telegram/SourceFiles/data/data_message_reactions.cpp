@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "data/data_peer_values.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "lottie/lottie_icon.h"
 #include "storage/localimageloader.h"
@@ -42,6 +43,67 @@ constexpr auto kSizeForDownscale = 64;
 }
 
 } // namespace
+
+PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
+	if (!item->canReact()) {
+		return {};
+	}
+	auto result = PossibleItemReactions();
+	const auto peer = item->history()->peer;
+	const auto session = &peer->session();
+	const auto reactions = &session->data().reactions();
+	const auto &full = reactions->list(Reactions::Type::Active);
+	const auto &all = item->reactions();
+	const auto my = item->chosenReaction();
+	auto myIsUnique = false;
+	for (const auto &[id, count] : all) {
+		if (count == 1 && id == my) {
+			myIsUnique = true;
+		}
+	}
+	const auto notMineCount = int(all.size()) - (myIsUnique ? 1 : 0);
+	const auto limit = UniqueReactionsLimit(peer);
+	if (limit > 0 && notMineCount >= limit) {
+		result.recent.reserve(all.size());
+		for (const auto &reaction : full) {
+			const auto id = reaction.id;
+			if (all.contains(id)) {
+				result.recent.push_back(&reaction);
+			}
+		}
+	} else {
+		const auto filter = PeerReactionsFilter(peer);
+		result.recent.reserve(filter.allowed
+			? filter.allowed->size()
+			: full.size());
+		for (const auto &reaction : full) {
+			const auto id = reaction.id;
+			const auto emoji = filter.allowed ? id.emoji() : QString();
+			if (filter.allowed
+				&& (emoji.isEmpty() || !filter.allowed->contains(emoji))) {
+				continue;
+			} else if (reaction.premium
+				&& !session->premium()
+				&& !all.contains(id)) {
+				if (session->premiumPossible()) {
+					result.morePremiumAvailable = true;
+				}
+				continue;
+			} else {
+				result.recent.push_back(&reaction);
+			}
+		}
+		result.customAllowed = session->premium() && peer->isUser();
+	}
+	const auto i = ranges::find(
+		result.recent,
+		reactions->favorite(),
+		&Reaction::id);
+	if (i != end(result.recent) && i != begin(result.recent)) {
+		std::rotate(begin(result.recent), i, i + 1);
+	}
+	return result;
+}
 
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)

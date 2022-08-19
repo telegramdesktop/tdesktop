@@ -316,3 +316,8 @@ reactStripExtend: margins(21px, 49px, 39px, 0px);
 reactStripHeight: 40px;
 reactStripSize: 32px;
 reactStripSkip: 7px;
+reactStripBubble: icon{
+	{ "chat/reactions_bubble_shadow", windowShadowFg },
+	{ "chat/reactions_bubble", windowBg },
+};
+reactStripBubbleRight: 20px;

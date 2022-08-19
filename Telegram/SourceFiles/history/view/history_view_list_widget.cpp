@@ -277,7 +277,6 @@ ListWidget::ListWidget(
 , _reactionsManager(
 	std::make_unique<Reactions::Manager>(
 		this,
-		Data::UniqueReactionsLimitValue(&controller->session()),
 		[=](QRect updated) { update(updated); },
 		controller->cachedReactionIconFactory().createMethod()))
 , _scrollDateCheck([this] { scrollDateCheck(); })
@@ -379,10 +378,17 @@ ListWidget::ListWidget(
 		}
 	}, lifetime());
 
+	_reactionsManager->premiumPromoChosen(
+	) | rpl::start_with_next([=] {
+		_reactionsManager->updateButton({});
+		if (const auto item = _reactionsItem.current()) {
+			ShowPremiumPromoBox(_controller, item);
+		}
+	}, lifetime());
+
 	Reactions::SetupManagerList(
 		_reactionsManager.get(),
-		&session(),
-		_delegate->listAllowedReactionsValue());
+		_reactionsItem.value());
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -2115,16 +2121,13 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
-	const auto favorite = session().data().reactions().favorite();
-	const auto &filter = _reactionsManager->filter();
-	if (favorite.emoji().isEmpty() && !filter.customAllowed) {
-		return;
-	} else if (filter.allowed
-		&& !filter.allowed->contains(favorite.emoji())) {
-		return;
-	}
 	const auto item = view->data();
-	if (Window::ShowReactPremiumError(_controller, item, favorite)) {
+	const auto favorite = session().data().reactions().favorite();
+	if (!ranges::contains(
+			Data::LookupPossibleReactions(item).recent,
+			favorite,
+			&Data::Reaction::id)
+		|| Window::ShowReactPremiumError(_controller, item, favorite)) {
 		return;
 	} else if (item->chosenReaction() != favorite) {
 		if (const auto top = itemTop(view); top >= 0) {
@@ -2727,7 +2730,7 @@ void ListWidget::mouseActionUpdate() {
 			reactionState)
 		: Reactions::ButtonParameters());
 	if (viewChanged && view) {
-		_reactionsManager->updateUniqueLimit(item);
+		_reactionsItem = item;
 	}
 
 	TextState dragState;
@@ -3161,6 +3164,9 @@ void ListWidget::viewReplaced(not_null<const Element*> was, Element *now) {
 }
 
 void ListWidget::itemRemoved(not_null<const HistoryItem*> item) {
+	if (_reactionsItem.current() == item) {
+		_reactionsItem = nullptr;
+	}
 	if (_selectedTextItem == item) {
 		clearTextSelection();
 	}

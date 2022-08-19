@@ -542,8 +542,8 @@ int UniqueReactionsLimit(not_null<PeerData*> peer) {
 }
 
 rpl::producer<int> UniqueReactionsLimitValue(
-		not_null<Main::Session*> session) {
-	const auto config = &session->account().appConfig();
+		not_null<PeerData*> peer) {
+	const auto config = &peer->session().account().appConfig();
 	return config->value(
 	) | rpl::map([=] {
 		return UniqueReactionsLimit(config);

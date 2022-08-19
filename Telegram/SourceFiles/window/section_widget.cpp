@@ -382,4 +382,15 @@ bool ShowReactPremiumError(
 	return true;
 }
 
+void ShowPremiumPromoBox(
+		not_null<SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto &list = controller->session().data().reactions().list(
+		Data::Reactions::Type::Active);
+	ShowPremiumPreviewBox(
+		controller,
+		PremiumPreview::Reactions,
+		ExtractDisabledReactions(item->history()->peer, list));
+}
+
 } // namespace Window

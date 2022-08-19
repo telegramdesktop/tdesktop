@@ -140,6 +140,6 @@ inline auto PeerFullFlagValue(
 
 [[nodiscard]] int UniqueReactionsLimit(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> UniqueReactionsLimitValue(
-	not_null<Main::Session*> session);
+	not_null<PeerData*> peer);
 
 } // namespace Data

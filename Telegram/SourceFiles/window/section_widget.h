@@ -219,4 +219,8 @@ private:
 	not_null<HistoryItem*> item,
 	const Data::ReactionId &id);
 
+void ShowPremiumPromoBox(
+	not_null<SessionController*> controller,
+	not_null<HistoryItem*> item);
+
 } // namespace Window

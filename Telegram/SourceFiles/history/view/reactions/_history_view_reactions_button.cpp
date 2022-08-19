@@ -5,20 +5,21 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/history_view_reactions_button.h"
+#include "history/view/history_view_react_button.h"
 
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item.h"
-#include "history/history.h"
 #include "ui/chat/chat_style.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/widgets/popup_menu.h"
-#include "data/data_session.h"
-#include "data/data_changes.h"
-#include "data/data_peer_values.h"
-#include "data/data_peer.h"
 #include "data/data_message_reactions.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
+#include "data/data_peer_values.h"
 #include "lang/lang_keys.h"
 #include "core/click_handler_types.h"
+#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "base/event_filter.h"
 #include "styles/style_chat.h"
@@ -32,10 +33,14 @@ constexpr auto kToggleDuration = crl::time(120);
 constexpr auto kActivateDuration = crl::time(150);
 constexpr auto kExpandDuration = crl::time(300);
 constexpr auto kCollapseDuration = crl::time(250);
+constexpr auto kEmojiCacheIndex = 0;
 constexpr auto kButtonShowDelay = crl::time(300);
 constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
+constexpr auto kSizeForDownscale = 96;
+constexpr auto kHoverScaleDuration = crl::time(200);
+constexpr auto kHoverScale = 1.24;
 constexpr auto kMaxReactionsScrollAtOnce = 2;
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
@@ -57,22 +62,50 @@ constexpr auto kMaxReactionsScrollAtOnce = 2;
 	return CountMaxSizeWithMargins(st::reactionCornerShadow);
 }
 
+[[nodiscard]] int CornerImageSize(float64 scale) {
+	return int(base::SafeRound(st::reactionCornerImage * scale));
+}
+
+[[nodiscard]] int MainReactionSize() {
+	return style::ConvertScale(kSizeForDownscale);
+}
+
+[[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
+		not_null<Data::DocumentMedia*> media,
+		int size,
+		int frame) {
+	Expects(media->loaded());
+
+	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
+		.path = media->owner()->filepath(true),
+		.json = media->bytes(),
+		.sizeOverride = QSize(size, size),
+		.frame = frame,
+	});
+}
+
 } // namespace
 
 Button::Button(
 	Fn<void(QRect)> update,
 	ButtonParameters parameters,
+	Fn<void(bool expanded)> toggleExpanded,
 	Fn<void()> hide)
 : _update(std::move(update))
+, _toggleExpanded(std::move(toggleExpanded))
 , _finalScale(ScaleForState(_state))
 , _collapsed(QPoint(), CountOuterSize())
 , _finalHeight(_collapsed.height())
-, _expandTimer([=] { applyState(State::Inside, _update); })
+, _expandTimer([=] { _toggleExpanded(true); })
 , _hideTimer(hide) {
 	applyParameters(parameters, nullptr);
 }
 
 Button::~Button() = default;
+
+void Button::expandWithoutCustom() {
+	applyState(State::Inside, _update);
+}
 
 bool Button::isHidden() const {
 	return (_state == State::Hidden) && !_opacityAnimation.animating();
@@ -283,6 +316,7 @@ void Button::applyState(State state, Fn<void(QRect)> update) {
 		_finalScale = finalScale;
 	}
 	_state = state;
+	_toggleExpanded(false);
 }
 
 float64 Button::ScaleForState(State state) {
@@ -312,22 +346,22 @@ float64 Button::currentOpacity() const {
 
 Manager::Manager(
 	QWidget *wheelEventsTarget,
+	rpl::producer<int> uniqueLimitValue,
 	Fn<void(QRect)> buttonUpdate,
 	IconFactory iconFactory)
-: _outer(CountOuterSize())
+: _iconFactory(std::move(iconFactory))
+, _outer(CountOuterSize())
 , _inner(QRect({}, st::reactionCornerSize))
-, _strip(
-	_inner,
-	crl::guard(this, [=] { updateCurrentButton(); }),
-	std::move(iconFactory))
 , _cachedRound(
 	st::reactionCornerSize,
 	st::reactionCornerShadow,
 	_inner.width())
+, _uniqueLimit(std::move(uniqueLimitValue))
 , _buttonShowTimer([=] { showButtonDelayed(); })
 , _buttonUpdate(std::move(buttonUpdate)) {
 	_inner.translate(QRect({}, _outer).center() - _inner.center());
 
+	_emojiParts = _cachedRound.PrepareFramesCache(_outer);
 	_expandedBuffer = _cachedRound.PrepareImage(QSize(
 		_outer.width(),
 		_outer.height() + st::reactionCornerAddedHeightMax));
@@ -335,17 +369,19 @@ Manager::Manager(
 		stealWheelEvents(wheelEventsTarget);
 	}
 
+	_uniqueLimit.changes(
+	) | rpl::start_with_next([=] {
+		applyListFilters();
+	}, _lifetime);
+
 	_createChooseCallback = [=](ReactionId id) {
 		return [=] {
 			if (auto chosen = lookupChosen(id)) {
-				updateButton({});
 				_chosen.fire(std::move(chosen));
 			}
 		};
 	};
 }
-
-Manager::~Manager() = default;
 
 ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 	auto result = ChosenReaction{
@@ -353,16 +389,26 @@ ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 		.id = id,
 	};
 	const auto button = _button.get();
-	if (!button) {
+	const auto i = ranges::find(_icons, id, &ReactionIcons::id);
+	if (i == end(_icons) || !button) {
 		return result;
 	}
-	const auto index = _strip.fillChosenIconGetIndex(result);
-	if (!result.icon) {
-		return result;
+	const auto &icon = *i;
+	if (const auto &appear = icon->appear; appear && appear->animating()) {
+		result.icon = CreateIcon(
+			icon->appearAnimation->activeMediaView().get(),
+			appear->width(),
+			appear->frameIndex());
+	} else if (const auto &select = icon->select) {
+		result.icon = CreateIcon(
+			icon->selectAnimation->activeMediaView().get(),
+			select->width(),
+			select->frameIndex());
 	}
+	const auto index = (i - begin(_icons));
 	const auto between = st::reactionCornerSkip;
 	const auto oneHeight = (st::reactionCornerSize.height() + between);
-	const auto expanded = (_strip.count() > 1);
+	const auto expanded = (_icons.size() > 1);
 	const auto skip = (expanded ? st::reactionExpandedSkip : 0);
 	const auto scroll = button->scroll();
 	const auto local = skip + index * oneHeight - scroll;
@@ -371,13 +417,75 @@ ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 		? (geometry.height() - local - _outer.height())
 		: local;
 	const auto rect = QRect(geometry.topLeft() + QPoint(0, top), _outer);
-	const auto imageSize = _strip.computeOverSize();
+	const auto imageSize = int(base::SafeRound(
+		st::reactionCornerImage * kHoverScale));
 	result.geometry = QRect(
 		rect.x() + (rect.width() - imageSize) / 2,
 		rect.y() + (rect.height() - imageSize) / 2,
 		imageSize,
 		imageSize);
 	return result;
+}
+
+bool Manager::applyUniqueLimit() const {
+	const auto limit = _uniqueLimit.current();
+	return _buttonContext
+		&& (limit > 0)
+		&& (_buttonAlreadyNotMineCount >= limit);
+}
+
+void Manager::applyListFilters() {
+	const auto limited = applyUniqueLimit();
+	auto icons = std::vector<not_null<ReactionIcons*>>();
+	icons.reserve(_list.size());
+	auto showPremiumLock = (ReactionIcons*)nullptr;
+	auto favoriteIndex = -1;
+	for (auto &icon : _list) {
+		const auto &id = icon.id;
+		const auto add = limited
+			? _buttonAlreadyList.contains(id)
+			: id.emoji().isEmpty()
+			? _filter.customAllowed
+			: (!_filter.allowed || _filter.allowed->contains(id.emoji()));
+		if (add) {
+			if (icon.premium
+				&& !_allowSendingPremium
+				&& !_buttonAlreadyList.contains(id)) {
+				if (_premiumPossible) {
+					showPremiumLock = &icon;
+				} else {
+					clearStateForHidden(icon);
+				}
+			} else {
+				icon.premiumLock = false;
+				if (id == _favorite) {
+					favoriteIndex = int(icons.size());
+				}
+				icons.push_back(&icon);
+			}
+		} else {
+			clearStateForHidden(icon);
+		}
+	}
+	if (showPremiumLock) {
+		showPremiumLock->premiumLock = true;
+		icons.push_back(showPremiumLock);
+	}
+	if (favoriteIndex > 0) {
+		const auto first = begin(icons);
+		std::rotate(first, first + favoriteIndex, first + favoriteIndex + 1);
+	}
+	if (!limited && _filter.customAllowed && icons.size() > 1) {
+		icons.erase(begin(icons) + 1, end(icons));
+	}
+	if (_icons == icons) {
+		return;
+	}
+	const auto selected = _selectedIcon;
+	setSelectedIcon(-1);
+	_icons = std::move(icons);
+	setSelectedIcon((selected < _icons.size()) ? selected : -1);
+	resolveMainReactionIcon();
 }
 
 void Manager::stealWheelEvents(not_null<QWidget*> target) {
@@ -391,13 +499,20 @@ void Manager::stealWheelEvents(not_null<QWidget*> target) {
 	});
 }
 
+Manager::~Manager() = default;
+
 void Manager::updateButton(ButtonParameters parameters) {
-	if (parameters.cursorLeft && _menu) {
-		return;
+	if (parameters.cursorLeft) {
+		if (_menu) {
+			return;
+		} else if (_externalSelectorShown) {
+			setSelectedIcon(-1);
+			return;
+		}
 	}
 	const auto contextChanged = (_buttonContext != parameters.context);
 	if (contextChanged) {
-		_strip.setSelected(-1);
+		setSelectedIcon(-1);
 		if (_button) {
 			_button->applyState(ButtonState::Hidden);
 			_buttonHiding.push_back(std::move(_button));
@@ -406,7 +521,7 @@ void Manager::updateButton(ButtonParameters parameters) {
 		_scheduledParameters = std::nullopt;
 	}
 	_buttonContext = parameters.context;
-	parameters.reactionsCount = _strip.count();
+	parameters.reactionsCount = _icons.size();
 	if (!_buttonContext || !parameters.reactionsCount) {
 		return;
 	} else if (_button) {
@@ -431,23 +546,170 @@ void Manager::updateButton(ButtonParameters parameters) {
 	}
 }
 
+void Manager::toggleExpanded(bool expanded) {
+	if (!_button || !_buttonContext) {
+	} else if (!expanded || (_filter.customAllowed && !applyUniqueLimit())) {
+		_expandSelectorRequests.fire({
+			.context = _buttonContext,
+			.button = _button->geometry().marginsRemoved(
+				st::reactionCornerShadow),
+			.expanded = expanded,
+		});
+	} else {
+		_button->expandWithoutCustom();
+	}
+}
+
+void Manager::setExternalSelectorShown(rpl::producer<bool> shown) {
+	std::move(shown) | rpl::start_with_next([=](bool shown) {
+		_externalSelectorShown = shown;
+	}, _lifetime);
+}
+
 void Manager::showButtonDelayed() {
 	clearAppearAnimations();
 	_button = std::make_unique<Button>(
 		_buttonUpdate,
 		*_scheduledParameters,
+		[=](bool expanded) { toggleExpanded(expanded); },
 		[=]{ updateButton({}); });
 }
 
-void Manager::applyList(Data::PossibleItemReactions &&reactions) {
-	using Button = Strip::AddedButton;
-	_strip.applyList(
-		reactions.recent,
-		(reactions.customAllowed
-			? Button::Expand
-			: reactions.morePremiumAvailable
-			? Button::Premium
-			: Button::None));
+void Manager::applyList(
+		const std::vector<Data::Reaction> &list,
+		const ReactionId &favorite,
+		bool premiumPossible) {
+	const auto possibleChanged = (_premiumPossible != premiumPossible);
+	_premiumPossible = premiumPossible;
+	const auto proj = [](const auto &obj) {
+		return std::tie(
+			obj.id,
+			obj.appearAnimation,
+			obj.selectAnimation,
+			obj.premium);
+	};
+	const auto favoriteChanged = (_favorite != favorite);
+	if (favoriteChanged) {
+		_favorite = favorite;
+	}
+	if (ranges::equal(_list, list, ranges::equal_to(), proj, proj)) {
+		if (favoriteChanged || possibleChanged) {
+			applyListFilters();
+		}
+		return;
+	}
+	const auto selected = _selectedIcon;
+	setSelectedIcon(-1);
+	_icons.clear();
+	_list.clear();
+	for (const auto &reaction : list) {
+		_list.push_back({
+			.id = reaction.id,
+			.appearAnimation = reaction.appearAnimation,
+			.selectAnimation = reaction.selectAnimation,
+			.premium = reaction.premium,
+		});
+	}
+	applyListFilters();
+	setSelectedIcon((selected < _icons.size()) ? selected : -1);
+}
+
+void Manager::updateFilter(Data::ReactionsFilter filter) {
+	if (_filter == filter) {
+		return;
+	}
+	_filter = std::move(filter);
+	applyListFilters();
+}
+
+void Manager::updateAllowSendingPremium(bool allow) {
+	if (_allowSendingPremium == allow) {
+		return;
+	}
+	_allowSendingPremium = allow;
+	applyListFilters();
+}
+
+const Data::ReactionsFilter &Manager::filter() const {
+	return _filter;
+}
+
+void Manager::updateUniqueLimit(not_null<HistoryItem*> item) {
+	if (item->fullId() != _buttonContext) {
+		return;
+	}
+	const auto &all = item->reactions();
+	const auto my = item->chosenReaction();
+	auto list = base::flat_set<Data::ReactionId>();
+	list.reserve(all.size());
+	auto myIsUnique = false;
+	for (const auto &[id, count] : all) {
+		list.emplace(id);
+		if (count == 1 && id == my) {
+			myIsUnique = true;
+		}
+	}
+	const auto notMineCount = int(list.size()) - (myIsUnique ? 1 : 0);
+
+	auto changed = false;
+	if (_buttonAlreadyList != list) {
+		_buttonAlreadyList = std::move(list);
+		changed = true;
+	}
+	if (_buttonAlreadyNotMineCount != notMineCount) {
+		_buttonAlreadyNotMineCount = notMineCount;
+		changed = true;
+	}
+	if (changed) {
+		applyListFilters();
+	}
+}
+
+void Manager::resolveMainReactionIcon() {
+	if (_icons.empty()) {
+		_mainReactionMedia = nullptr;
+		_mainReactionLifetime.destroy();
+		return;
+	}
+	const auto main = _icons.front()->selectAnimation;
+	_icons.front()->appearAnimated = true;
+	if (_mainReactionMedia && _mainReactionMedia->owner() == main) {
+		if (!_mainReactionLifetime) {
+			loadIcons();
+		}
+		return;
+	}
+	_mainReactionMedia = main->createMediaView();
+	_mainReactionMedia->checkStickerLarge();
+	if (_mainReactionMedia->loaded()) {
+		_mainReactionLifetime.destroy();
+		setMainReactionIcon();
+	} else if (!_mainReactionLifetime) {
+		main->session().downloaderTaskFinished(
+		) | rpl::filter([=] {
+			return _mainReactionMedia->loaded();
+		}) | rpl::take(1) | rpl::start_with_next([=] {
+			setMainReactionIcon();
+		}, _mainReactionLifetime);
+	}
+}
+
+void Manager::setMainReactionIcon() {
+	_mainReactionLifetime.destroy();
+	ranges::fill(_validEmoji, false);
+	loadIcons();
+	const auto i = _loadCache.find(_mainReactionMedia->owner());
+	if (i != end(_loadCache) && i->second.icon) {
+		const auto &icon = i->second.icon;
+		if (!icon->frameIndex() && icon->width() == MainReactionSize()) {
+			_mainReactionImage = i->second.icon->frame();
+			return;
+		}
+	}
+	_mainReactionImage = QImage();
+	_mainReactionIcon = DefaultIconFactory(
+		_mainReactionMedia.get(),
+		MainReactionSize());
 }
 
 QMargins Manager::innerMargins() const {
@@ -467,9 +729,72 @@ QRect Manager::buttonInner(not_null<Button*> button) const {
 	return button->geometry().marginsRemoved(innerMargins());
 }
 
+bool Manager::checkIconLoaded(ReactionDocument &entry) const {
+	if (!entry.media) {
+		return true;
+	} else if (!entry.media->loaded()) {
+		return false;
+	}
+	const auto size = (entry.media == _mainReactionMedia)
+		? MainReactionSize()
+		: CornerImageSize(1.);
+	entry.icon = _iconFactory(entry.media.get(), size);
+	entry.media = nullptr;
+	return true;
+}
+
 void Manager::updateCurrentButton() const {
 	if (const auto button = _button.get()) {
 		_buttonUpdate(button->geometry());
+	}
+}
+
+void Manager::loadIcons() {
+	const auto load = [&](not_null<DocumentData*> document) {
+		if (const auto i = _loadCache.find(document); i != end(_loadCache)) {
+			return i->second.icon;
+		}
+		auto &entry = _loadCache.emplace(document).first->second;
+		entry.media = document->createMediaView();
+		entry.media->checkStickerLarge();
+		if (!checkIconLoaded(entry) && !_loadCacheLifetime) {
+			document->session().downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				checkIcons();
+			}, _loadCacheLifetime);
+		}
+		return entry.icon;
+	};
+	auto all = true;
+	for (const auto &icon : _icons) {
+		if (!icon->appear) {
+			icon->appear = load(icon->appearAnimation);
+		}
+		if (!icon->select) {
+			icon->select = load(icon->selectAnimation);
+		}
+		if (!icon->appear || !icon->select) {
+			all = false;
+		}
+	}
+	if (all && !_icons.empty()) {
+		auto &data = _icons.front()->appearAnimation->owner().reactions();
+		for (const auto &icon : _icons) {
+			data.preloadAnimationsFor(icon->id);
+		}
+	}
+}
+
+void Manager::checkIcons() {
+	auto all = true;
+	for (auto &[document, entry] : _loadCache) {
+		if (!checkIconLoaded(entry)) {
+			all = false;
+		}
+	}
+	if (all) {
+		_loadCacheLifetime.destroy();
+		loadIcons();
 	}
 }
 
@@ -498,8 +823,8 @@ void Manager::paint(Painter &p, const PaintContext &context) {
 }
 
 ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
-	if (_strip.empty()) {
-		_strip.setSelected(-1);
+	if (_icons.empty()) {
+		setSelectedIcon(-1);
 		return nullptr;
 	}
 	const auto inner = buttonInner();
@@ -512,36 +837,56 @@ ClickHandlerPtr Manager::computeButtonLink(QPoint position) const {
 	const auto index = std::clamp(
 		int(base::SafeRound(shifted + between / 2.)) / oneHeight,
 		0,
-		int(_strip.count() - 1));
-	_strip.setSelected(index);
-	const auto selected = _strip.selected();
-	if (selected == Strip::AddedButton::Premium) {
-		if (!_premiumPromoLink) {
-			_premiumPromoLink = std::make_shared<LambdaClickHandler>([=] {
-				_premiumPromoChosen.fire_copy(_buttonContext);
-			});
-		}
-		return _premiumPromoLink;
-	} else if (selected == Strip::AddedButton::Expand) {
-		if (!_expandLink) {
-			_expandLink = std::make_shared<LambdaClickHandler>([=] {
-				_expandChosen.fire_copy(_buttonContext);
-			});
-		}
-		return _expandLink;
-	}
-	const auto id = std::get_if<ReactionId>(&selected);
-	if (!id || id->empty()) {
-		return nullptr;
-	}
-	auto &result = _links[*id];
+		int(_icons.size() - 1));
+	auto &result = _icons[index]->link;
 	if (!result) {
-		result = resolveButtonLink(*id);
+		result = resolveButtonLink(*_icons[index]);
 	}
+	setSelectedIcon(index);
 	return result;
 }
 
-ClickHandlerPtr Manager::resolveButtonLink(const ReactionId &id) const {
+void Manager::setSelectedIcon(int index) const {
+	const auto setSelected = [&](int index, bool selected) {
+		if (index < 0 || index >= _icons.size()) {
+			return;
+		}
+		const auto &icon = _icons[index];
+		if (icon->selected == selected) {
+			return;
+		}
+		icon->selected = selected;
+		icon->selectedScale.start(
+			[=] { updateCurrentButton(); },
+			selected ? 1. : kHoverScale,
+			selected ? kHoverScale : 1.,
+			kHoverScaleDuration,
+			anim::sineInOut);
+		if (selected) {
+			const auto skipAnimation = icon->selectAnimated
+				|| !icon->appearAnimated
+				|| (icon->select && icon->select->animating())
+				|| (icon->appear && icon->appear->animating());
+			const auto select = skipAnimation ? nullptr : icon->select.get();
+			if (select && !icon->selectAnimated) {
+				icon->selectAnimated = true;
+				select->animate(
+					crl::guard(this, [=] { updateCurrentButton(); }),
+					0,
+					select->framesCount() - 1);
+			}
+		}
+	};
+	if (_selectedIcon != index) {
+		setSelected(_selectedIcon, false);
+		_selectedIcon = index;
+	}
+	setSelected(index, true);
+}
+
+ClickHandlerPtr Manager::resolveButtonLink(
+		const ReactionIcons &reaction) const {
+	const auto id = reaction.id;
 	const auto i = _reactionsLinks.find(id);
 	if (i != end(_reactionsLinks)) {
 		return i->second;
@@ -560,7 +905,7 @@ TextState Manager::buttonTextState(QPoint position) const {
 		result.itemId = _buttonContext;
 		return result;
 	} else {
-		_strip.setSelected(-1);
+		setSelectedIcon(-1);
 	}
 	return {};
 }
@@ -592,7 +937,6 @@ void Manager::paintButton(
 	if (!context.clip.intersects(geometry)) {
 		return;
 	}
-	constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
 	const auto scale = button->currentScale();
 	const auto scaleMin = Button::ScaleForState(ButtonState::Hidden);
 	const auto scaleMax = Button::ScaleForState(ButtonState::Active);
@@ -646,31 +990,22 @@ void Manager::paintButton(
 		: 0.;
 	const auto expandedSkip = int(base::SafeRound(
 		expandRatio * st::reactionExpandedSkip));
-	const auto mainEmojiPosition = _inner.topLeft() + (!expanded
+	const auto mainEmojiPosition = !expanded
 		? position
 		: button->expandUp()
 		? QPoint(0, expanded - expandedSkip)
-		: QPoint(0, expandedSkip));
-	const auto mainEmoji = _strip.validateEmoji(frameIndex, scale);
+		: QPoint(0, expandedSkip);
+	const auto source = validateEmoji(frameIndex, scale);
 	if (expanded
-		|| (current && !_strip.onlyMainEmojiVisible())
-		|| _strip.onlyAddedButton()) {
+		|| (current && !onlyMainEmojiVisible())
+		|| (_icons.size() == 1 && _icons.front()->premiumLock)) {
+		const auto origin = expanded ? QPoint() : position;
+		const auto scroll = button->expandAnimationScroll(expandRatio);
 		const auto opacity = button->expandAnimationOpacity(expandRatio);
 		if (opacity != 1.) {
 			q->setOpacity(opacity);
 		}
-		const auto clip = QRect(
-			expanded ? QPoint() : position,
-			button->geometry().size()
-		).marginsRemoved(innerMargins());
-		const auto between = st::reactionCornerSkip;
-		const auto oneHeight = st::reactionCornerSize.height() + between;
-		const auto expandUp = button->expandUp();
-		const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
-		const auto scroll = button->expandAnimationScroll(expandRatio);
-		const auto startEmojiPosition = mainEmojiPosition
-			+ QPoint(0, scroll * (expandUp ? 1 : -1));
-		_strip.paint(*q, startEmojiPosition, shift, clip, scale, !current);
+		paintAllEmoji(*q, button, scroll, scale, origin, mainEmojiPosition);
 		if (opacity != 1.) {
 			q->setOpacity(1.);
 		}
@@ -688,14 +1023,11 @@ void Manager::paintButton(
 				? QPoint(0, expanded - appearShift)
 				: QPoint(0, appearShift);
 			q->setOpacity(1. - opacity);
-			q->drawImage(
-				appearPosition + _inner.topLeft(),
-				*mainEmoji.image,
-				mainEmoji.rect);
+			q->drawImage(appearPosition, _emojiParts, source);
 			q->setOpacity(1.);
 		}
 	} else {
-		p.drawImage(mainEmojiPosition, *mainEmoji.image, mainEmoji.rect);
+		p.drawImage(mainEmojiPosition, _emojiParts, source);
 	}
 	if (current && !expanded) {
 		clearAppearAnimations();
@@ -765,12 +1097,214 @@ void Manager::paintInnerGradients(
 	p.setOpacity(1.);
 }
 
+bool Manager::onlyMainEmojiVisible() const {
+	if (_icons.empty()) {
+		return true;
+	}
+	const auto &icon = _icons.front();
+	if (icon->selected
+		|| icon->selectedScale.animating()
+		|| (icon->select && icon->select->animating())) {
+		return false;
+	}
+	icon->selectAnimated = false;
+	return true;
+}
+
 void Manager::clearAppearAnimations() {
 	if (!_showingAll) {
 		return;
 	}
 	_showingAll = false;
-	_strip.clearAppearAnimations();
+	auto main = true;
+	for (auto &icon : _icons) {
+		if (!main) {
+			if (icon->selected) {
+				setSelectedIcon(-1);
+			}
+			icon->selectedScale.stop();
+			if (const auto select = icon->select.get()) {
+				select->jumpTo(0, nullptr);
+			}
+			icon->selectAnimated = false;
+		}
+		if (icon->appearAnimated != main) {
+			if (const auto appear = icon->appear.get()) {
+				appear->jumpTo(0, nullptr);
+			}
+			icon->appearAnimated = main;
+		}
+		main = false;
+	}
+}
+
+void Manager::paintAllEmoji(
+		Painter &p,
+		not_null<Button*> button,
+		int scroll,
+		float64 scale,
+		QPoint position,
+		QPoint mainEmojiPosition) {
+	const auto current = (button == _button.get());
+
+	const auto clip = QRect(
+		position,
+		button->geometry().size()).marginsRemoved(innerMargins());
+	const auto skip = st::reactionAppearStartSkip;
+	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
+
+	PainterHighQualityEnabler hq(p);
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = st::reactionCornerSize.height() + between;
+	const auto finalSize = CornerImageSize(1.);
+	const auto hoveredSize = int(base::SafeRound(finalSize * kHoverScale));
+	const auto basicTargetForScale = [&](int size, float64 scale) {
+		const auto remove = size * (1. - scale) / 2.;
+		return QRectF(QRect(
+			_inner.x() + (_inner.width() - size) / 2,
+			_inner.y() + (_inner.height() - size) / 2,
+			size,
+			size
+		)).marginsRemoved({ remove, remove, remove, remove });
+	};
+	const auto basicTarget = basicTargetForScale(finalSize, scale);
+	const auto countTarget = [&](const ReactionIcons &icon) {
+		const auto selectScale = icon.selectedScale.value(
+			icon.selected ? kHoverScale : 1.);
+		if (selectScale == 1.) {
+			return basicTarget;
+		}
+		const auto finalScale = scale * selectScale;
+		return (finalScale <= 1.)
+			? basicTargetForScale(finalSize, finalScale)
+			: basicTargetForScale(hoveredSize, finalScale / kHoverScale);
+	};
+	const auto expandUp = button->expandUp();
+	const auto shift = QPoint(0, oneHeight * (expandUp ? -1 : 1));
+	auto emojiPosition = mainEmojiPosition
+		+ QPoint(0, scroll * (expandUp ? 1 : -1));
+	const auto update = crl::guard(this, [=] {
+		updateCurrentButton();
+	});
+	for (const auto &icon : _icons) {
+		const auto target = countTarget(*icon).translated(emojiPosition);
+		emojiPosition += shift;
+
+		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
+			const auto size = int(std::floor(target.width() + 0.01));
+			const auto frame = animation->frame({ size, size }, update);
+			p.drawImage(target, frame.image);
+		};
+
+		if (!target.intersects(clip)) {
+			if (current) {
+				clearStateForHidden(*icon);
+			}
+		} else if (icon->premiumLock) {
+			paintPremiumIcon(p, emojiPosition - shift, target);
+		} else {
+			const auto appear = icon->appear.get();
+			if (current
+				&& appear
+				&& !icon->appearAnimated
+				&& target.intersects(animationRect)) {
+				icon->appearAnimated = true;
+				appear->animate(update, 0, appear->framesCount() - 1);
+			}
+			if (appear && appear->animating()) {
+				paintFrame(appear);
+			} else if (const auto select = icon->select.get()) {
+				paintFrame(select);
+			}
+		}
+		if (current) {
+			clearStateForSelectFinished(*icon);
+		}
+	}
+}
+
+void Manager::paintPremiumIcon(
+		QPainter &p,
+		QPoint position,
+		QRectF target) const {
+	const auto finalSize = CornerImageSize(1.);
+	const auto to = QRect(
+		_inner.x() + (_inner.width() - finalSize) / 2,
+		_inner.y() + (_inner.height() - finalSize) / 2,
+		finalSize,
+		finalSize).translated(position);
+	const auto scale = target.width() / to.width();
+	if (scale != 1.) {
+		p.save();
+		p.translate(target.center());
+		p.scale(scale, scale);
+		p.translate(-target.center());
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	st::reactionPremiumLocked.paintInCenter(p, to);
+	if (scale != 1.) {
+		p.restore();
+	}
+}
+
+void Manager::clearStateForHidden(ReactionIcons &icon) {
+	if (const auto appear = icon.appear.get()) {
+		appear->jumpTo(0, nullptr);
+	}
+	if (icon.selected) {
+		setSelectedIcon(-1);
+	}
+	icon.appearAnimated = false;
+	icon.selectAnimated = false;
+	if (const auto select = icon.select.get()) {
+		select->jumpTo(0, nullptr);
+	}
+	icon.selectedScale.stop();
+}
+
+void Manager::clearStateForSelectFinished(ReactionIcons &icon) {
+	if (icon.selectAnimated
+		&& !icon.select->animating()
+		&& !icon.selected) {
+		icon.selectAnimated = false;
+	}
+}
+
+QRect Manager::validateEmoji(int frameIndex, float64 scale) {
+	const auto result = _cachedRound.FrameCacheRect(
+		frameIndex,
+		kEmojiCacheIndex,
+		_outer);
+	if (_validEmoji[frameIndex]) {
+		return result;
+	}
+
+	auto p = QPainter(&_emojiParts);
+	const auto ratio = style::DevicePixelRatio();
+	const auto position = result.topLeft() / ratio;
+	p.setCompositionMode(QPainter::CompositionMode_Source);
+	p.fillRect(QRect(position, result.size() / ratio), Qt::transparent);
+	if (_mainReactionImage.isNull()
+		&& _mainReactionIcon) {
+		_mainReactionImage = base::take(_mainReactionIcon)->frame();
+	}
+	if (!_mainReactionImage.isNull()) {
+		const auto size = CornerImageSize(scale);
+		const auto inner = _inner.translated(position);
+		const auto target = QRect(
+			inner.x() + (inner.width() - size) / 2,
+			inner.y() + (inner.height() - size) / 2,
+			size,
+			size);
+
+		p.drawImage(target, _mainReactionImage.scaled(
+			target.size() * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation));
+	}
+
+	_validEmoji[frameIndex] = true;
+	return result;
 }
 
 std::optional<QRect> Manager::lookupEffectArea(FullMsgId itemId) const {
@@ -804,19 +1338,27 @@ bool Manager::showContextMenu(
 		QWidget *parent,
 		QContextMenuEvent *e,
 		const ReactionId &favorite) {
-	const auto selected = _strip.selected();
-	const auto id = std::get_if<ReactionId>(&selected);
-	if (!id || id->empty()) {
+	if (_icons.empty() || _selectedIcon < 0) {
 		return false;
-	} else if (*id == favorite) {
+	}
+	const auto lookupSelectedId = [&] {
+		const auto i = ranges::find(_icons, true, &ReactionIcons::selected);
+		return (i != end(_icons)) ? (*i)->id : ReactionId();
+	};
+	if (!favorite.empty() && lookupSelectedId() == favorite) {
 		return true;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		parent,
 		st::popupMenuWithIcons);
+	const auto callback = [=] {
+		if (const auto id = lookupSelectedId(); !id.empty()) {
+			_faveRequests.fire_copy(id);
+		}
+	};
 	_menu->addAction(
 		tr::lng_context_set_as_quick(tr::now),
-		[=, id = *id] { _faveRequests.fire_copy(id); },
+		callback,
 		&st::menuIconFave);
 	_menu->popup(e->globalPos());
 	return true;
@@ -828,77 +1370,53 @@ auto Manager::faveRequests() const -> rpl::producer<ReactionId> {
 
 void SetupManagerList(
 		not_null<Manager*> manager,
-		rpl::producer<HistoryItem*> items) {
-	struct State {
-		PeerData *peer = nullptr;
-		HistoryItem *item = nullptr;
-		Main::Session *session = nullptr;
-		rpl::lifetime sessionLifetime;
-		rpl::lifetime peerLifetime;
-	};
-	const auto state = manager->lifetime().make_state<State>();
+		not_null<Main::Session*> session,
+		rpl::producer<Data::ReactionsFilter> filter) {
+	const auto reactions = &session->data().reactions();
+	rpl::single(rpl::empty) | rpl::then(
+		reactions->updates()
+	) | rpl::start_with_next([=] {
+		manager->applyList(
+			reactions->list(Data::Reactions::Type::Active),
+			reactions->favorite(),
+			session->premiumPossible());
+	}, manager->lifetime());
 
 	std::move(
-		items
-	) | rpl::filter([=](HistoryItem *item) {
-		return (item != state->item);
-	}) | rpl::start_with_next([=](HistoryItem *item) {
-		state->item = item;
-		if (!item) {
-			return;
-		}
-		const auto peer = item->history()->peer;
-		const auto session = &peer->session();
-		const auto peerChanged = (state->peer != peer);
-		const auto sessionChanged = (state->session != session);
-		const auto push = [=] {
-			if (const auto item = state->item) {
-				manager->applyList(Data::LookupPossibleReactions(item));
-			}
-		};
-		if (sessionChanged) {
-			state->sessionLifetime.destroy();
-			state->session = session;
-			Data::AmPremiumValue(
-				session
-			) | rpl::skip(
-				1
-			) | rpl::start_with_next(push, state->sessionLifetime);
-
-			session->changes().messageUpdates(
-				Data::MessageUpdate::Flag::Destroyed
-			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-				if (update.item == state->item) {
-					state->item = nullptr;
-				}
-			}, state->sessionLifetime);
-
-			session->data().itemDataChanges(
-			) | rpl::filter([=](not_null<HistoryItem*> item) {
-				return (item == state->item);
-			}) | rpl::start_with_next(push, state->sessionLifetime);
-
-			session->data().reactions().updates(
-			) | rpl::start_with_next(push, state->sessionLifetime);
-		}
-		if (peerChanged) {
-			state->peer = peer;
-			state->peerLifetime = rpl::combine(
-				Data::PeerReactionsFilterValue(peer),
-				Data::UniqueReactionsLimitValue(peer)
-			) | rpl::start_with_next(push);
-		} else {
-			push();
-		}
+		filter
+	) | rpl::start_with_next([=](Data::ReactionsFilter &&list) {
+		manager->updateFilter(std::move(list));
 	}, manager->lifetime());
 
 	manager->faveRequests(
-	) | rpl::filter([=] {
-		return (state->session != nullptr);
-	}) | rpl::start_with_next([=](const Data::ReactionId &id) {
-		state->session->data().reactions().setFavorite(id);
+	) | rpl::start_with_next([=](const Data::ReactionId &id) {
+		reactions->setFavorite(id);
 		manager->updateButton({});
 	}, manager->lifetime());
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		manager->updateAllowSendingPremium(premium);
+	}, manager->lifetime());
+}
+
+IconFactory CachedIconFactory::createMethod() {
+	return [=](not_null<Data::DocumentMedia*> media, int size) {
+		const auto owned = media->owner()->createMediaView();
+		const auto i = _cache.find(owned);
+		return (i != end(_cache))
+			? i->second
+			: _cache.emplace(
+				owned,
+				DefaultIconFactory(media, size)).first->second;
+	};
+}
+
+std::shared_ptr<Lottie::Icon> DefaultIconFactory(
+		not_null<Data::DocumentMedia*> media,
+		int size) {
+	return CreateIcon(media, size, 0);
 }
 
 } // namespace HistoryView

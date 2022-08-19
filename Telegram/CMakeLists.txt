@@ -671,6 +671,8 @@ PRIVATE
     history/view/reactions/history_view_reactions_list.h
     history/view/reactions/history_view_reactions_selector.cpp
     history/view/reactions/history_view_reactions_selector.h
+    history/view/reactions/history_view_reactions_strip.cpp
+    history/view/reactions/history_view_reactions_strip.h
     history/view/reactions/history_view_reactions_tabs.cpp
     history/view/reactions/history_view_reactions_tabs.h
     history/view/history_view_bottom_info.cpp

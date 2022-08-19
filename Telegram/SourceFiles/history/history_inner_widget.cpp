@@ -342,10 +342,8 @@ HistoryInner::HistoryInner(
 , _reactionsManager(
 	std::make_unique<HistoryView::Reactions::Manager>(
 		this,
-		Data::UniqueReactionsLimitValue(&controller->session()),
 		[=](QRect updated) { update(updated); },
 		controller->cachedReactionIconFactory().createMethod()))
-, _reactionsSelector(std::make_unique<HistoryView::Reactions::Selector>())
 , _touchSelectTimer([=] { onTouchSelect(); })
 , _touchScrollTimer([=] { onTouchScrollTimer(); })
 , _scrollDateCheck([this] { scrollDateCheck(); })
@@ -394,26 +392,16 @@ HistoryInner::HistoryInner(
 		_controller->emojiInteractions().playStarted(_peer, std::move(emoji));
 	}, lifetime());
 
-	rpl::merge(
-		_reactionsManager->chosen(),
-		_reactionsSelector->chosen()
+	_reactionsManager->chosen(
 	) | rpl::start_with_next([=](ChosenReaction reaction) {
 		_reactionsManager->updateButton({});
 		reactionChosen(reaction);
 	}, lifetime());
 
-	_reactionsManager->setExternalSelectorShown(_reactionsSelector->shown());
-	_reactionsManager->expandSelectorRequests(
-	) | rpl::start_with_next([=](ReactionExpandRequest request) {
-		if (request.expanded) {
-			_reactionsSelector->show(
-				_controller,
-				this,
-				request.context,
-				request.button);
-		} else {
-			_reactionsSelector->hide();
-		}
+	_reactionsManager->premiumPromoChosen(
+	) | rpl::start_with_next([=](FullMsgId context) {
+		_reactionsManager->updateButton({});
+		premiumPromoChosen(context);
 	}, lifetime());
 
 	session().data().itemRemoved(
@@ -448,7 +436,6 @@ HistoryInner::HistoryInner(
 		return item->mainView() != nullptr;
 	}) | rpl::start_with_next([=](not_null<HistoryItem*> item) {
 		item->mainView()->itemDataChanged();
-		_reactionsManager->updateUniqueLimit(item);
 	}, lifetime());
 
 	session().changes().historyUpdates(
@@ -460,8 +447,7 @@ HistoryInner::HistoryInner(
 
 	HistoryView::Reactions::SetupManagerList(
 		_reactionsManager.get(),
-		&session(),
-		Data::PeerReactionsFilterValue(_peer));
+		_reactionsItem.value());
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -477,8 +463,6 @@ HistoryInner::HistoryInner(
 }
 
 void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
-	const auto guard = gsl::finally([&] { _reactionsSelector->hide(); });
-
 	const auto item = session().data().message(reaction.context);
 	if (!item
 		|| Window::ShowReactPremiumError(
@@ -498,6 +482,12 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 				.flyFrom = reaction.geometry.translated(0, -top),
 			});
 		}
+	}
+}
+
+void HistoryInner::premiumPromoChosen(FullMsgId context) {
+	if (const auto item = session().data().message(context)) {
+		ShowPremiumPromoBox(_controller, item);
 	}
 }
 
@@ -1740,6 +1730,9 @@ void HistoryInner::itemRemoved(not_null<const HistoryItem*> item) {
 		return;
 	}
 
+	if (_reactionsItem.current() == item) {
+		_reactionsItem = nullptr;
+	}
 	_animatedStickersPlayed.remove(item);
 	_reactionsManager->remove(item->fullId());
 
@@ -1947,16 +1940,13 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 }
 
 void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
-	const auto favorite = session().data().reactions().favorite();
-	const auto &filter = _reactionsManager->filter();
-	if (favorite.emoji().isEmpty() && !filter.customAllowed) {
-		return;
-	} else if (filter.allowed
-		&& !filter.allowed->contains(favorite.emoji())) {
-		return;
-	}
 	const auto item = view->data();
-	if (Window::ShowReactPremiumError(_controller, item, favorite)) {
+	const auto favorite = session().data().reactions().favorite();
+	if (!ranges::contains(
+		Data::LookupPossibleReactions(item).recent,
+		favorite,
+		&Data::Reaction::id)
+		|| Window::ShowReactPremiumError(_controller, item, favorite)) {
 		return;
 	} else if (item->chosenReaction() != favorite) {
 		if (const auto top = itemTop(view); top >= 0) {
@@ -2454,7 +2444,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		? Element::Hovered()->data().get()
 		: nullptr;
 	const auto attached = reactItem
-		? AttachSelectorToMenu(_menu.get(), desiredPosition, reactItem)
+		? AttachSelectorToMenu(
+			_menu.get(),
+			desiredPosition,
+			reactItem,
+			[=](ChosenReaction reaction) { reactionChosen(reaction); },
+			[=](FullMsgId context) { premiumPromoChosen(context); },
+			_controller->cachedReactionIconFactory().createMethod())
 		: AttachSelectorResult::Skipped;
 	if (attached == AttachSelectorResult::Failed) {
 		_menu = nullptr;
@@ -3417,7 +3413,7 @@ void HistoryInner::mouseActionUpdate() {
 			m,
 			reactionState));
 		if (changed) {
-			_reactionsManager->updateUniqueLimit(item);
+			_reactionsItem = item;
 		}
 		if (view->pointState(m) != PointState::Outside) {
 			if (Element::Hovered() != view) {
