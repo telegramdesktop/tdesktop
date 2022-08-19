@@ -64,6 +64,7 @@ public:
 
 	UserData(not_null<Data::Session*> owner, PeerId id);
 	void setPhoto(const MTPUserProfilePhoto &photo);
+	void setEmojiStatus(const MTPEmojiStatus &status);
 
 	void setName(
 		const QString &newFirstName,

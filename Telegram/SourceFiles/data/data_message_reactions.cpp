@@ -399,7 +399,7 @@ void Reactions::send(not_null<HistoryItem*> item, const ReactionId &chosen) {
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		ReactionToMTP(chosen)
+		MTP_vector<MTPReaction>(1, ReactionToMTP(chosen))
 	)).done([=](const MTPUpdates &result) {
 		_sentRequests.remove(id);
 		_owner->session().api().applyUpdates(result);
@@ -640,10 +640,10 @@ bool MessageReactions::change(
 		count.match([&](const MTPDreactionCount &data) {
 			const auto reaction = ReactionFromMTP(data.vreaction());
 			if (!ignoreChosen) {
-				if (data.is_chosen() && _chosen != reaction) {
+				if (data.vchosen_order() && _chosen != reaction) {
 					_chosen = reaction;
 					changed = true;
-				} else if (!data.is_chosen() && _chosen == reaction) {
+				} else if (!data.vchosen_order() && _chosen == reaction) {
 					_chosen = ReactionId();
 					changed = true;
 				}

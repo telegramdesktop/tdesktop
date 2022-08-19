@@ -555,12 +555,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 			status = data.vstatus();
 		}
 		if (const auto &status = data.vemoji_status()) {
-			result->setEmojiStatus(status->match([&](
-					const MTPDemojiStatus &data) {
-				return DocumentId(data.vdocument_id().v);
-			}, [&](const MTPDemojiStatusEmpty &) {
-				return DocumentId();
-			}));
+			result->setEmojiStatus(*status);
 		} else {
 			result->setEmojiStatus(0);
 		}

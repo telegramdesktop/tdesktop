@@ -57,6 +57,14 @@ void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	});
 }
 
+void UserData::setEmojiStatus(const MTPEmojiStatus &status) {
+	setEmojiStatus(status.match([&](const MTPDemojiStatus &data) {
+		return DocumentId(data.vdocument_id().v);
+	}, [&](const MTPDemojiStatusEmpty &) {
+		return DocumentId();
+	}));
+}
+
 void UserData::setEmojiStatus(DocumentId emojiStatusId) {
 	if (_emojiStatusId != emojiStatusId) {
 		_emojiStatusId = emojiStatusId;

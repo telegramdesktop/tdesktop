@@ -2345,11 +2345,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateStickerSets: {
-		// Can't determine is it masks or stickers, so update both.
-		session().data().stickers().setLastUpdate(0);
-		session().api().updateStickers();
-		session().data().stickers().setLastMasksUpdate(0);
-		session().api().updateMasks();
+		const auto &d = update.c_updateStickerSets();
+		if (d.is_emojis()) {
+			session().data().stickers().setLastEmojiUpdate(0);
+			session().api().updateCustomEmoji();
+		} else if (d.is_masks()) {
+			session().data().stickers().setLastMasksUpdate(0);
+			session().api().updateMasks();
+		} else {
+			session().data().stickers().setLastUpdate(0);
+			session().api().updateStickers();
+		}
 	} break;
 
 	case mtpc_updateRecentStickers: {
@@ -2368,6 +2374,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		// request all of them once again.
 		session().data().stickers().setLastFeaturedUpdate(0);
 		session().api().updateStickers();
+	} break;
+
+	case mtpc_updateReadFeaturedEmojiStickers: {
+		// We don't track read status of them for now.
+	} break;
+
+	case mtpc_updateUserEmojiStatus: {
+		const auto &d = update.c_updateUserEmojiStatus();
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			user->setEmojiStatus(d.vemoji_status());
+		}
 	} break;
 
 	////// Cloud saved GIFs

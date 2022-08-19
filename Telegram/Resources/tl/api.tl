@@ -324,7 +324,7 @@ updateChannelMessageViews#f226ac08 channel_id:long id:int views:int = Update;
 updateChatParticipantAdmin#d7ca61a2 chat_id:long user_id:long is_admin:Bool version:int = Update;
 updateNewStickerSet#688a30aa stickerset:messages.StickerSet = Update;
 updateStickerSetsOrder#bb2d201 flags:# masks:flags.0?true emojis:flags.1?true order:Vector<long> = Update;
-updateStickerSets#43ae3dec = Update;
+updateStickerSets#31c24808 flags:# masks:flags.0?true emojis:flags.1?true = Update;
 updateSavedGifs#9375341e = Update;
 updateBotInlineQuery#496f379c flags:# query_id:long user_id:long query:string geo:flags.0?GeoPoint peer_type:flags.1?InlineQueryPeerType offset:string = Update;
 updateBotInlineSend#12f12a07 flags:# user_id:long query:string geo:flags.0?GeoPoint id:string msg_id:flags.1?InputBotInlineMessageID = Update;
@@ -393,6 +393,7 @@ updateBotMenuButton#14b85813 bot_id:long button:BotMenuButton = Update;
 updateSavedRingtones#74d8be99 = Update;
 updateTranscribedAudio#84cd5a flags:# pending:flags.0?true peer:Peer msg_id:int transcription_id:long text:string = Update;
 updateReadFeaturedEmojiStickers#fb4c496c = Update;
+updateUserEmojiStatus#28373599 user_id:long emoji_status:EmojiStatus = Update;
 updateRecentEmojiStatuses#30f443db = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
@@ -1330,7 +1331,7 @@ messages.peerSettings#6880b94d settings:PeerSettings chats:Vector<Chat> users:Ve
 
 auth.loggedOut#c3a2835f flags:# future_auth_token:flags.0?bytes = auth.LoggedOut;
 
-reactionCount#2454adf0 flags:# chosen:flags.0?true reaction:Reaction count:int = ReactionCount;
+reactionCount#a3d1cb80 flags:# chosen_order:flags.0?int reaction:Reaction count:int = ReactionCount;
 
 messageReactions#4f2b9479 flags:# min:flags.0?true can_see_list:flags.2?true results:Vector<ReactionCount> recent_reactions:flags.1?Vector<MessagePeerReaction> = MessageReactions;
 
@@ -1712,7 +1713,7 @@ messages.hideChatJoinRequest#7fe7e815 flags:# approved:flags.0?true peer:InputPe
 messages.hideAllChatJoinRequests#e085f4ea flags:# approved:flags.0?true peer:InputPeer link:flags.1?string = Updates;
 messages.toggleNoForwards#b11eafa2 peer:InputPeer enabled:Bool = Updates;
 messages.saveDefaultSendAs#ccfddf96 peer:InputPeer send_as:InputPeer = Bool;
-messages.sendReaction#5afe99b5 flags:# big:flags.1?true peer:InputPeer msg_id:int reaction:flags.0?Reaction = Updates;
+messages.sendReaction#d30d78d4 flags:# big:flags.1?true peer:InputPeer msg_id:int reaction:flags.0?Vector<Reaction> = Updates;
 messages.getMessagesReactions#8bba90e6 peer:InputPeer id:Vector<int> = Updates;
 messages.getMessageReactionsList#461b3f48 flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = messages.MessageReactionsList;
 messages.setChatAvailableReactions#14050ea6 peer:InputPeer available_reactions:Vector<string> = Updates;
@@ -1735,6 +1736,7 @@ messages.rateTranscribedAudio#7f1d072f peer:InputPeer msg_id:int transcription_i
 messages.getCustomEmojiDocuments#d9ab0f54 document_id:Vector<long> = Vector<Document>;
 messages.getEmojiStickers#fbfca18f hash:long = messages.AllStickers;
 messages.getFeaturedEmojiStickers#ecf6736 hash:long = messages.FeaturedStickers;
+messages.reportReaction#61422a48 peer:InputPeer id:int user_id:InputUser = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
@@ -1841,7 +1843,6 @@ payments.exportInvoice#f91b065 invoice_media:InputMedia = payments.ExportedInvoi
 payments.assignAppStoreTransaction#80ed747d receipt:bytes purpose:InputStorePaymentPurpose = Updates;
 payments.assignPlayMarketTransaction#dffd50d3 receipt:DataJSON purpose:InputStorePaymentPurpose = Updates;
 payments.canPurchasePremium#9fc19eb6 purpose:InputStorePaymentPurpose = Bool;
-payments.requestRecurringPayment#146e958d user_id:InputUser recurring_init_charge:string invoice_media:InputMedia = Updates;
 
 stickers.createStickerSet#9021ab67 flags:# masks:flags.0?true animated:flags.1?true videos:flags.4?true user_id:InputUser title:string short_name:string thumb:flags.2?InputDocument stickers:Vector<InputStickerSetItem> software:flags.3?string = messages.StickerSet;
 stickers.removeStickerFromSet#f7760f51 sticker:InputDocument = messages.StickerSet;
