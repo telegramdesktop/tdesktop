@@ -33,6 +33,7 @@ apps:
       - hardware-observe
       - home
       - network
+      - network-status
       - opengl
       - removable-media
       - unity7
