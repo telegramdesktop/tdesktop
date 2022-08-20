@@ -366,14 +366,26 @@ EmojiListWidget::EmojiListWidget(
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level,
 	Mode mode)
-: Inner(parent, controller, level)
-, _mode(mode)
+: EmojiListWidget(parent, {
+	.session = &controller->session(),
+	.mode = mode,
+	.controller = controller,
+	.paused = Window::PausedIn(controller, level),
+}) {
+}
+
+EmojiListWidget::EmojiListWidget(
+	QWidget *parent,
+	EmojiListDescriptor &&descriptor)
+: Inner(parent, descriptor.session, std::move(descriptor.paused))
+, _controller(descriptor.controller)
+, _mode(descriptor.mode)
 , _staticCount(_mode == Mode::Full ? kEmojiSectionCount : 1)
 , _premiumIcon(_mode == Mode::EmojiStatus
 	? std::make_unique<GradientPremiumStar>()
 	: nullptr)
 , _localSetsManager(
-	std::make_unique<LocalStickersManager>(&controller->session()))
+	std::make_unique<LocalStickersManager>(&session()))
 , _collapsedBg(st::emojiPanExpand.height / 2, st::emojiPanHeaderFg)
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); }) {
@@ -397,7 +409,7 @@ EmojiListWidget::EmojiListWidget(
 		pickerHidden();
 	}, lifetime());
 
-	controller->session().data().stickers().updated(
+	session().data().stickers().updated(
 		Data::StickersType::Emoji
 	) | rpl::start_with_next([=] {
 		refreshCustom();
@@ -405,8 +417,8 @@ EmojiListWidget::EmojiListWidget(
 	}, lifetime());
 
 	rpl::combine(
-		Data::AmPremiumValue(&controller->session()),
-		controller->session().premiumPossibleValue()
+		Data::AmPremiumValue(&session()),
+		session().premiumPossibleValue()
 	) | rpl::skip(1) | rpl::start_with_next([=] {
 		refreshCustom();
 		resizeToWidth(width());
@@ -520,8 +532,8 @@ object_ptr<TabbedSelector::InnerFooter> EmojiListWidget::createFooter() {
 
 	using FooterDescriptor = StickersListFooter::Descriptor;
 	auto result = object_ptr<StickersListFooter>(FooterDescriptor{
-		.controller = controller(),
-		.level = level(),
+		.session = &session(),
+		.paused = pausedMethod(),
 		.parent = this,
 	});
 	_footer = result;
@@ -685,7 +697,7 @@ void EmojiListWidget::fillRecent() {
 		const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
 		_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
 	}
-	const auto test = controller()->session().isTestMode();
+	const auto test = session().isTestMode();
 	for (const auto &one : list) {
 		const auto document = std::get_if<RecentEmojiDocument>(&one.id.data);
 		if (_mode == Mode::EmojiStatus && !document) {
@@ -725,7 +737,7 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		toColumn = _columnCount - toColumn;
 	}
 
-	const auto paused = controller()->isGifPausedAtLeastFor(level());
+	const auto paused = this->paused();
 	const auto now = crl::now();
 	auto selectedButton = std::get_if<OverButton>(!v::is_null(_pressed)
 		? &_pressed
@@ -1020,8 +1032,8 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			removeSet(id);
 		} else if (hasAddButton(button->section)) {
 			_localSetsManager->install(id);
-		} else {
-			Settings::ShowPremium(controller(), u"animated_emoji"_q);
+		} else if (_controller) {
+			Settings::ShowPremium(_controller, u"animated_emoji"_q);
 		}
 	}
 }
@@ -1029,18 +1041,20 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 void EmojiListWidget::displaySet(uint64 setId) {
 	const auto &sets = session().data().stickers().sets();
 	auto it = sets.find(setId);
-	if (it != sets.cend()) {
-		checkHideWithBox(controller()->show(
-			Box<StickerSetBox>(controller(), it->second.get()),
+	if (it != sets.cend() && _controller) {
+		checkHideWithBox(_controller->show(
+			Box<StickerSetBox>(_controller, it->second.get()),
 			Ui::LayerOption::KeepOther).data());
 	}
 }
 
 void EmojiListWidget::removeSet(uint64 setId) {
 	if (auto box = MakeConfirmRemoveSetBox(&session(), setId)) {
-		checkHideWithBox(controller()->show(
-			std::move(box),
-			Ui::LayerOption::KeepOther));
+		if (_controller) {
+			checkHideWithBox(_controller->show(
+				std::move(box),
+				Ui::LayerOption::KeepOther));
+		}
 	}
 }
 
@@ -1315,7 +1329,7 @@ void EmojiListWidget::refreshRecent() {
 
 void EmojiListWidget::refreshCustom() {
 	auto old = base::take(_custom);
-	const auto session = &controller()->session();
+	const auto session = &this->session();
 	const auto premiumPossible = session->premiumPossible();
 	const auto premiumMayBeBought = premiumPossible
 		&& !session->premium()

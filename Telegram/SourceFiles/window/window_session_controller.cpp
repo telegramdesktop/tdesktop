@@ -144,6 +144,18 @@ void ActivateWindow(not_null<SessionController*> controller) {
 	Ui::ActivateWindowDelayed(window);
 }
 
+bool IsPaused(
+		not_null<SessionController*> controller,
+		GifPauseReason level) {
+	return controller->isGifPausedAtLeastFor(level);
+}
+
+Fn<bool()> PausedIn(
+		not_null<SessionController*> controller,
+		GifPauseReason level) {
+	return [=] { return IsPaused(controller, level); };
+}
+
 bool operator==(const PeerThemeOverride &a, const PeerThemeOverride &b) {
 	return (a.peer == b.peer) && (a.theme == b.theme);
 }

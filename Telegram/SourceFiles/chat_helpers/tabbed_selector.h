@@ -276,14 +276,20 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Window::GifPauseReason level);
+	Inner(
+		QWidget *parent,
+		not_null<Main::Session*> session,
+		Fn<bool()> paused);
 
-	[[nodiscard]] not_null<Window::SessionController*> controller() const {
-		return _controller;
+	[[nodiscard]] Main::Session &session() const {
+		return *_session;
 	}
-	[[nodiscard]] Window::GifPauseReason level() const {
-		return _level;
+	[[nodiscard]] Fn<bool()> pausedMethod() const {
+		return _paused;
 	}
-	[[nodiscard]] Main::Session &session() const;
+	[[nodiscard]] bool paused() const {
+		return _paused();
+	}
 
 	[[nodiscard]] int getVisibleTop() const {
 		return _visibleTop;
@@ -341,8 +347,8 @@ protected:
 	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 
 private:
-	const not_null<Window::SessionController*> _controller;
-	const Window::GifPauseReason _level = {};
+	const not_null<Main::Session*> _session;
+	const Fn<bool()> _paused;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

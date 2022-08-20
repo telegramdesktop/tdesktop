@@ -53,19 +53,30 @@ class StickersListFooter;
 class GradientPremiumStar;
 class LocalStickersManager;
 
+enum class EmojiListMode {
+	Full,
+	EmojiStatus,
+	Reactions,
+};
+
+struct EmojiListDescriptor {
+	not_null<Main::Session*> session;
+	EmojiListMode mode = EmojiListMode::Full;
+	Window::SessionController *controller = nullptr;
+	Fn<bool()> paused;
+};
+
 class EmojiListWidget
 	: public TabbedSelector::Inner
 	, public Ui::AbstractTooltipShower {
 public:
-	enum class Mode {
-		Full,
-		EmojiStatus,
-	};
+	using Mode = EmojiListMode;
 	EmojiListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Window::GifPauseReason level,
 		Mode mode);
+	EmojiListWidget(QWidget *parent, EmojiListDescriptor &&descriptor);
 	~EmojiListWidget();
 
 	using Section = Ui::Emoji::Section;
@@ -272,6 +283,7 @@ private:
 		DocumentId documentId,
 		uint64 setId);
 
+	Window::SessionController *_controller = nullptr;
 	Mode _mode = Mode::Full;
 	const int _staticCount = 0;
 	StickersListFooter *_footer = nullptr;

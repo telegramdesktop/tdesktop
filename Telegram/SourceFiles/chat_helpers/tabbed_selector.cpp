@@ -1198,13 +1198,19 @@ TabbedSelector::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level)
-: RpWidget(parent)
-, _controller(controller)
-, _level(level) {
+: Inner(
+	parent,
+	&controller->session(),
+	Window::PausedIn(controller, level)) {
 }
 
-Main::Session &TabbedSelector::Inner::session() const {
-	return controller()->session();
+TabbedSelector::Inner::Inner(
+	QWidget *parent,
+	not_null<Main::Session*> session,
+	Fn<bool()> paused)
+: RpWidget(parent)
+, _session(session)
+, _paused(paused) {
 }
 
 rpl::producer<int> TabbedSelector::Inner::scrollToRequests() const {

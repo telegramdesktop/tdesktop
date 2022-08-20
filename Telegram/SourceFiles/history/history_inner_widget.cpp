@@ -2446,6 +2446,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto attached = reactItem
 		? AttachSelectorToMenu(
 			_menu.get(),
+			controller,
 			desiredPosition,
 			reactItem,
 			[=](ChosenReaction reaction) { reactionChosen(reaction); },

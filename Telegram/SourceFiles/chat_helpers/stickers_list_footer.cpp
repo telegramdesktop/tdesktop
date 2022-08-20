@@ -21,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
-#include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -183,8 +182,8 @@ void GradientPremiumStar::renderOnDemand() const {
 
 StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 : InnerFooter(descriptor.parent)
-, _controller(descriptor.controller)
-, _level(descriptor.level)
+, _session(descriptor.session)
+, _paused(descriptor.paused)
 , _searchButtonVisible(descriptor.searchButtonVisible)
 , _settingsButtonVisible(descriptor.settingsButtonVisible)
 , _iconState([=] { update(); })
@@ -201,7 +200,7 @@ StickersListFooter::StickersListFooter(Descriptor &&descriptor)
 		? st::stickerIconWidth
 		: 0);
 
-	_controller->session().downloaderTaskFinished(
+	_session->downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
 	}, lifetime());
@@ -564,7 +563,7 @@ void StickersListFooter::paintEvent(QPaintEvent *e) {
 	}
 
 	const auto now = crl::now();
-	const auto paused = _controller->isGifPausedAtLeastFor(_level);
+	const auto paused = _paused();
 	enumerateVisibleIcons([&](const IconInfo &info) {
 		paintSetIcon(p, info, now, paused);
 	});
@@ -1280,8 +1279,8 @@ void StickersListFooter::paintSetIcon(
 		} else {
 			paintOne(left, [&] {
 				if (icon.setId == Data::Stickers::FeaturedSetId) {
-					const auto session = &_controller->session();
-					return session->data().stickers().featuredSetsUnreadCount()
+					const auto &stickers = _session->data().stickers();
+					return stickers.featuredSetsUnreadCount()
 						? &st::stickersTrendingUnread
 						: &st::stickersTrending;
 					//} else if (setId == Stickers::FavedSetId) {

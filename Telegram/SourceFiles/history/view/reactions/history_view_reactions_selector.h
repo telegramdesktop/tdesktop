@@ -36,6 +36,7 @@ class Selector final : public Ui::RpWidget {
 public:
 	Selector(
 		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> parentController,
 		Data::PossibleItemReactions &&reactions,
 		IconFactory iconFactory);
 
@@ -75,15 +76,16 @@ private:
 	void paintStripWithoutExpand(QPainter &p);
 	void paintFadingExpandIcon(QPainter &p, float64 progress);
 	void paintExpanded(QPainter &p);
-	void paintExpandedBg(QPainter &p);
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
+	void finishExpand();
 
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
 
 	void expand();
 
+	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;
 	Ui::RoundAreaWithShadow _cachedRound;
 	Strip _strip;
@@ -112,7 +114,7 @@ private:
 	bool _appearing = false;
 	bool _toggling = false;
 	bool _expanded = false;
-	bool _expandedBgReady = false;
+	bool _expandFinished = false;
 	bool _small = false;
 	bool _over = false;
 	bool _low = false;
@@ -126,6 +128,7 @@ enum class AttachSelectorResult {
 };
 AttachSelectorResult AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,
+	not_null<Window::SessionController*> controller,
 	QPoint desiredPosition,
 	not_null<HistoryItem*> item,
 	Fn<void(ChosenReaction)> chosen,

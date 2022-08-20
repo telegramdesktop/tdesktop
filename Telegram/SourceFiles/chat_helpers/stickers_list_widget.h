@@ -328,6 +328,7 @@ private:
 		int index,
 		not_null<DocumentData*> document);
 
+	not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;

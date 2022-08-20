@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/popup_menu.h"
 #include "history/history_item.h"
+#include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 
@@ -16,9 +17,11 @@ namespace HistoryView::Reactions {
 
 Selector::Selector(
 	not_null<QWidget*> parent,
+	not_null<Window::SessionController*> parentController,
 	Data::PossibleItemReactions &&reactions,
 	IconFactory iconFactory)
 : RpWidget(parent)
+, _parentController(parentController.get())
 , _reactions(std::move(reactions))
 , _cachedRound(
 	QSize(st::reactStripSkip * 2 + st::reactStripSize, st::reactStripHeight),
@@ -251,25 +254,27 @@ void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
 }
 
 void Selector::paintExpanded(QPainter &p) {
-	paintExpandedBg(p);
+	if (!_expandFinished) {
+		finishExpand();
+	}
+	p.drawImage(0, 0, _paintBuffer);
 	paintStripWithoutExpand(p);
 }
 
-void Selector::paintExpandedBg(QPainter &p) {
-	if (!_expandedBgReady) {
-		_expandedBgReady = true;
-		auto q = QPainter(&_paintBuffer);
-		q.setCompositionMode(QPainter::CompositionMode_Source);
-		const auto pattern = _cachedRound.validateFrame(
-			kFramesCount - 1,
-			1.,
-			st::roundRadiusSmall);
-		const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
-		if (!fill.isEmpty()) {
-			q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
-		}
+void Selector::finishExpand() {
+	Expects(!_expandFinished);
+
+	_expandFinished = true;
+	auto q = QPainter(&_paintBuffer);
+	q.setCompositionMode(QPainter::CompositionMode_Source);
+	const auto pattern = _cachedRound.validateFrame(
+		kFramesCount - 1,
+		1.,
+		st::roundRadiusSmall);
+	const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
+	if (!fill.isEmpty()) {
+		q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
 	}
-	p.drawImage(0, 0, _paintBuffer);
 }
 
 void Selector::paintBubble(QPainter &p, int innerWidth) {
@@ -441,6 +446,7 @@ bool AdjustMenuGeometryForSelector(
 
 AttachSelectorResult AttachSelectorToMenu(
 		not_null<Ui::PopupMenu*> menu,
+		not_null<Window::SessionController*> controller,
 		QPoint desiredPosition,
 		not_null<HistoryItem*> item,
 		Fn<void(ChosenReaction)> chosen,
@@ -452,6 +458,7 @@ AttachSelectorResult AttachSelectorToMenu(
 	}
 	const auto selector = Ui::CreateChild<Selector>(
 		menu.get(),
+		controller,
 		std::move(reactions),
 		std::move(iconFactory));
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
