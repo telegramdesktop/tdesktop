@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 
-struct StickerSetIdentifier;
-
 namespace Main {
 class Session;
 } // namespace Main

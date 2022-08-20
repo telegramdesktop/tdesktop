@@ -140,7 +140,7 @@ void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
 				: SizeTag::Normal;
 			_emojiStatus = _peer->owner().customEmojiManager().create(
 				_emojiStatusId,
-				[raw = _view.data()]{ raw->update(); },
+				[raw = _view.data()] { raw->update(); },
 				tag);
 			const auto emoji = Data::FrameSizeFromTag(tag)
 				/ style::DevicePixelRatio();
@@ -347,9 +347,7 @@ Cover::Cover(
 		if (_peer->isSelf()) {
 			_emojiStatusPanel.show(_controller, _badge.widget());
 		} else {
-			::Settings::ShowPremium(
-				_controller,
-				u"profile__%1"_q.arg(peerToUser(_peer->id).bare));
+			::Settings::ShowEmojiStatusPremium(_controller, _peer);
 		}
 	});
 	_badge.updated() | rpl::start_with_next([=] {

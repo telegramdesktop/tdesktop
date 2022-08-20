@@ -54,13 +54,20 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAdditionalScale = 0.15;
 
-struct GiftRef {
+namespace Ref {
+namespace Gift {
+
+struct Data {
 	PeerId peerId;
 	int months;
 	bool me;
+
+	explicit operator bool() const {
+		return peerId != 0;
+	}
 };
 
-[[nodiscard]] QString SerializeRef(const GiftRef &gift) {
+[[nodiscard]] QString Serialize(const Data &gift) {
 	return QString::number(gift.peerId.value)
 		+ ':'
 		+ QString::number(gift.months)
@@ -68,7 +75,7 @@ struct GiftRef {
 		+ QString::number(gift.me ? 1 : 0);
 }
 
-[[nodiscard]] GiftRef ParseGiftRef(QStringView data) {
+[[nodiscard]] Data Parse(QStringView data) {
 	const auto components = data.split(':');
 	if (components.size() != 3) {
 		return {};
@@ -79,6 +86,38 @@ struct GiftRef {
 		.me = (components[2].toInt() == 1),
 	};
 }
+
+} // namespace Gift
+
+namespace EmojiStatus {
+
+struct Data {
+	PeerId peerId;
+
+	explicit operator bool() const {
+		return peerId != 0;
+	}
+};
+
+[[nodiscard]] QString Serialize(const Data &gift) {
+	return QString("profile_:%1").arg(QString::number(gift.peerId.value));
+}
+
+[[nodiscard]] Data Parse(QStringView data) {
+	if (data.startsWith(u"profile_:"_q)) {
+		const auto components = data.split(':');
+		if (components.size() != 2) {
+			return {};
+		}
+		return {
+			.peerId = PeerId(components[1].toULongLong()),
+		};
+	}
+	return {};
+}
+
+} // namespace EmojiStatus
+} // namespace Ref
 
 struct Entry {
 	const style::icon *icon;
@@ -760,8 +799,8 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 			tr::lng_premium_summary_title_subscribed(),
 			tr::lng_premium_summary_title());
 	auto about = [&]() -> rpl::producer<TextWithEntities> {
-		const auto gift = ParseGiftRef(_ref);
-		if (gift.peerId) {
+		const auto gift = Ref::Gift::Parse(_ref);
+		if (gift) {
 			auto &data = _controller->session().data();
 			if (const auto peer = data.peer(gift.peerId)) {
 				return (gift.me
@@ -856,7 +895,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	if (ParseGiftRef(_ref).peerId) {
+	if (Ref::Gift::Parse(_ref)) {
 		return nullptr;
 	}
 
@@ -938,7 +977,13 @@ void ShowGiftPremium(
 		not_null<PeerData*> peer,
 		int months,
 		bool me) {
-	ShowPremium(controller, SerializeRef({ peer->id, months, me }));
+	ShowPremium(controller, Ref::Gift::Serialize({ peer->id, months, me }));
+}
+
+void ShowEmojiStatusPremium(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer) {
+	ShowPremium(controller, Ref::EmojiStatus::Serialize({ peer->id }));
 }
 
 void StartPremiumPayment(

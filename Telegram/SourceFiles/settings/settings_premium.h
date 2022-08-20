@@ -37,6 +37,9 @@ void ShowGiftPremium(
 	not_null<PeerData*> peer,
 	int months,
 	bool me);
+void ShowEmojiStatusPremium(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer);
 
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,
