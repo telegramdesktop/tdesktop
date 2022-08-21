@@ -197,7 +197,7 @@ QByteArray SerializeText(
 		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
 			: (part.type == Type::Pre || part.type == Type::TextUrl
-			|| part.type == Type::CustomEmoji)
+				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
 			: QByteArray();
 		return SerializeObject(context, {
