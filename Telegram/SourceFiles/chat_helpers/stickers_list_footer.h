@@ -33,6 +33,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace ChatHelpers {
 
 enum class ValidateIconAnimations {
@@ -98,6 +102,7 @@ public:
 		bool searchButtonVisible = false;
 		bool settingsButtonVisible = false;
 		bool barSelection = false;
+		const style::EmojiPan *st = nullptr;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 

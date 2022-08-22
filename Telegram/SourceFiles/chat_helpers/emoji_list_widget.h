@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/timer.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace Core {
 struct RecentEmojiId;
 } // namespace Core
@@ -56,7 +60,8 @@ class LocalStickersManager;
 enum class EmojiListMode {
 	Full,
 	EmojiStatus,
-	Reactions,
+	FullReactions,
+	RecentReactions,
 };
 
 struct EmojiListDescriptor {
@@ -64,6 +69,11 @@ struct EmojiListDescriptor {
 	EmojiListMode mode = EmojiListMode::Full;
 	Window::SessionController *controller = nullptr;
 	Fn<bool()> paused;
+	std::vector<DocumentId> customRecentList;
+	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
+		DocumentId,
+		Fn<void()>)> customRecentFactory;
+	const style::EmojiPan *st = nullptr;
 };
 
 class EmojiListWidget
@@ -120,6 +130,7 @@ protected:
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countDesiredHeight(int newWidth) override;
+	int defaultMinimalHeight() const override;
 
 private:
 	struct SectionInfo {
@@ -272,6 +283,7 @@ private:
 	void repaintCustom(uint64 setId);
 
 	void fillRecent();
+	void fillRecentFrom(const std::vector<DocumentId> &list);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document,
 		uint64 setId);
@@ -289,6 +301,9 @@ private:
 	StickersListFooter *_footer = nullptr;
 	std::unique_ptr<GradientPremiumStar> _premiumIcon;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
+	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
+		DocumentId,
+		Fn<void()>)> _customRecentFactory;
 
 	int _counts[kEmojiSectionCount];
 	std::vector<RecentOne> _recent;
@@ -299,6 +314,7 @@ private:
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
 	bool _allowWithoutPremium = false;
+	Ui::RoundRect _overBg;
 
 	int _rowsLeft = 0;
 	int _columnCount = 1;

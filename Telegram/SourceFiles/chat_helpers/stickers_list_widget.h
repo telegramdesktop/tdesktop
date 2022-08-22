@@ -46,6 +46,10 @@ class ReaderPointer;
 enum class Notification;
 } // namespace Media::Clip
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -320,8 +324,6 @@ private:
 	void addSearchRow(not_null<Data::StickersSet*> set);
 
 	void showPreview();
-	void validatePremiumLock(Set &set, int index, const QImage &frame);
-	void validatePremiumStar();
 
 	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
 		int section,

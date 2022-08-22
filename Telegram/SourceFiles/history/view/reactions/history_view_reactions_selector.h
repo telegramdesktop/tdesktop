@@ -20,6 +20,8 @@ struct ReactionId;
 
 namespace ChatHelpers {
 class TabbedPanel;
+class EmojiListWidget;
+class StickersListFooter;
 } // namespace ChatHelpers
 
 namespace Window {
@@ -28,6 +30,7 @@ class SessionController;
 
 namespace Ui {
 class PopupMenu;
+class ScrollArea;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
@@ -78,12 +81,14 @@ private:
 	void paintExpanded(QPainter &p);
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
-	void finishExpand();
 
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
 
 	void expand();
+	void cacheExpandIcon();
+	void createList(not_null<Window::SessionController*> controller);
+	void finishExpand();
 
 	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;
@@ -92,6 +97,10 @@ private:
 
 	rpl::event_stream<ChosenReaction> _chosen;
 	rpl::event_stream<> _premiumPromoChosen;
+
+	Ui::ScrollArea *_scroll = nullptr;
+	ChatHelpers::EmojiListWidget *_list = nullptr;
+	ChatHelpers::StickersListFooter *_footer = nullptr;
 
 	QImage _paintBuffer;
 	Ui::Animations::Simple _expanding;

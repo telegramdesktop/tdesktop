@@ -84,6 +84,7 @@ notifySendReply: IconButton {
 	iconOver: historySendIconOver;
 	iconPosition: point(6px, 6px);
 }
+notifyFadeRight: icon {{ "fade_horizontal", notificationBg }};
 
 titleUnreadCounterTop: 6px;
 titleUnreadCounterRight: 35px;

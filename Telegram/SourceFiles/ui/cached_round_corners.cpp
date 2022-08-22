@@ -80,7 +80,6 @@ void CreatePaletteCorners() {
 	PrepareCorners(OverviewVideoSelectedCorners, st::overviewVideoStatusRadius, st::msgDateImgBgSelected);
 	PrepareCorners(ForwardCorners, st::historyMessageRadius, st::historyForwardChooseBg);
 	PrepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
-	PrepareCorners(EmojiHoverCorners, st::emojiPanRadius, st::emojiPanHover);
 	PrepareCorners(StickerHoverCorners, st::roundRadiusSmall, st::emojiPanHover);
 	PrepareCorners(BotKeyboardCorners, st::roundRadiusSmall, st::botKbBg);
 

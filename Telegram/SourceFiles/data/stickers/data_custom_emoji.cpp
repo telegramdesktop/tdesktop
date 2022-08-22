@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
+#include "styles/style_chat_helpers.h"
 
 #include "data/stickers/data_stickers.h"
 #include "ui/widgets/input_fields.h"
@@ -41,6 +42,7 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	case SizeTag::Normal: return LottieSize::EmojiInteraction;
 	case SizeTag::Large: return LottieSize::EmojiInteractionReserved1;
 	case SizeTag::Isolated: return LottieSize::EmojiInteractionReserved2;
+	case SizeTag::ReactionFake: return LottieSize::EmojiInteractionReserved3;
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
@@ -52,6 +54,8 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	case SizeTag::Isolated:
 		return (st::largeEmojiSize + 2 * st::largeEmojiOutline)
 			* style::DevicePixelRatio();
+	case SizeTag::ReactionFake:
+		return st::reactStripImage * style::DevicePixelRatio();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
 }
@@ -663,6 +667,9 @@ Session &CustomEmojiManager::owner() const {
 
 int FrameSizeFromTag(SizeTag tag) {
 	const auto emoji = EmojiSizeFromTag(tag);
+	if (tag == SizeTag::ReactionFake) {
+		return emoji;
+	}
 	const auto factor = style::DevicePixelRatio();
 	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }

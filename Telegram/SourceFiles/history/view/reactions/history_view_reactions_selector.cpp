@@ -7,13 +7,78 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/reactions/history_view_reactions_selector.h"
 
+#include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/shadow.h"
 #include "history/history_item.h"
+#include "data/data_document.h"
+#include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "main/main_session.h"
+#include "chat_helpers/emoji_list_widget.h"
+#include "chat_helpers/stickers_list_footer.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
+namespace {
+
+class ShiftedEmoji final : public Ui::Text::CustomEmoji {
+public:
+	ShiftedEmoji(
+		not_null<Data::CustomEmojiManager*> manager,
+		DocumentId id,
+		Fn<void()> repaint,
+		QPoint shift);
+
+	QString entityData() override;
+	void paint(
+		QPainter &p,
+		int x,
+		int y,
+		crl::time now,
+		const QColor &preview,
+		bool paused) override;
+	void unload() override;
+
+private:
+	std::unique_ptr<Ui::Text::CustomEmoji> _real;
+	QPoint _shift;
+
+};
+
+ShiftedEmoji::ShiftedEmoji(
+	not_null<Data::CustomEmojiManager*> manager,
+	DocumentId id,
+	Fn<void()> repaint,
+	QPoint shift)
+: _real(manager->create(
+	id,
+	std::move(repaint),
+	Data::CustomEmojiManager::SizeTag::ReactionFake))
+, _shift(shift) {
+}
+
+QString ShiftedEmoji::entityData() {
+	return _real->entityData();
+}
+
+void ShiftedEmoji::paint(
+		QPainter &p,
+		int x,
+		int y,
+		crl::time now,
+		const QColor &preview,
+		bool paused) {
+	_real->paint(p, x + _shift.x(), y + _shift.y(), now, preview, paused);
+}
+
+void ShiftedEmoji::unload() {
+	_real->unload();
+}
+
+} // namespace
 
 Selector::Selector(
 	not_null<QWidget*> parent,
@@ -29,6 +94,7 @@ Selector::Selector(
 	st::reactStripHeight)
 , _strip(
 	QRect(0, 0, st::reactStripSize, st::reactStripSize),
+	st::reactStripImage,
 	crl::guard(this, [=] { update(_inner); }),
 	std::move(iconFactory))
 , _size(st::reactStripSize)
@@ -70,7 +136,7 @@ QMargins Selector::extentsForShadow() const {
 }
 
 int Selector::extendTopForCategories() const {
-	return _reactions.customAllowed ? st::emojiFooterHeight : 0;
+	return _reactions.customAllowed ? st::reactPanelEmojiPan.footer : 0;
 }
 
 int Selector::desiredHeight() const {
@@ -275,6 +341,10 @@ void Selector::finishExpand() {
 	if (!fill.isEmpty()) {
 		q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
 	}
+	if (_footer) {
+		_footer->show();
+	}
+	_scroll->show();
 }
 
 void Selector::paintBubble(QPainter &p, int innerWidth) {
@@ -348,9 +418,8 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 		_premiumPromoChosen.fire({});
 	} else if (selected == Strip::AddedButton::Expand) {
 		expand();
-	} else {
-		const auto id = std::get_if<Data::ReactionId>(&selected);
-		if (id && !id->empty()) {
+	} else if (const auto id = std::get_if<Data::ReactionId>(&selected)) {
+		if (!id->empty()) {
 			_chosen.fire({ .id = *id });
 		}
 	}
@@ -360,13 +429,23 @@ void Selector::expand() {
 	const auto parent = parentWidget()->geometry();
 	const auto additionalBottom = parent.height() - y() - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
-	if (additionalBottom < 0 || additional <= 0) {
+	const auto strong = _parentController.get();
+	if (additionalBottom < 0 || additional <= 0 || !strong) {
 		return;
-	}
-	if (additionalBottom > 0) {
+	} else if (additionalBottom > 0) {
 		resize(width(), height() + additionalBottom);
 		raise();
 	}
+
+	createList(strong);
+	cacheExpandIcon();
+
+	_paintBuffer = _cachedRound.PrepareImage(size());
+	_expanded = true;
+	_expanding.start([=] { update(); }, 0., 1., st::slideDuration);
+}
+
+void Selector::cacheExpandIcon() {
 	_expandIconCache = _cachedRound.PrepareImage({ _size, _size });
 	_expandIconCache.fill(Qt::transparent);
 	auto q = QPainter(&_expandIconCache);
@@ -378,9 +457,130 @@ void Selector::expand() {
 		QRect(-(count - 1) * _size, 0, count * _size, _size),
 		1.,
 		false);
-	_paintBuffer = _cachedRound.PrepareImage(size());
-	_expanded = true;
-	_expanding.start([=] { update(); }, 0., 1., st::slideDuration);
+}
+
+void Selector::createList(not_null<Window::SessionController*> controller) {
+	using namespace ChatHelpers;
+	auto recent = std::vector<DocumentId>();
+	auto defaultReactionIds = base::flat_map<DocumentId, QString>();
+	recent.reserve(_reactions.recent.size());
+	for (const auto &reaction : _reactions.recent) {
+		if (const auto id = reaction->id.custom()) {
+			recent.push_back(id);
+		} else {
+			recent.push_back(reaction->selectAnimation->id);
+			defaultReactionIds.emplace(recent.back(), reaction->id.emoji());
+		}
+	};
+	const auto manager = &controller->session().data().customEmojiManager();
+	const auto shift = [&] {
+		// See EmojiListWidget custom emoji position resolving.
+		const auto area = st::emojiPanArea;
+		const auto areaPosition = QPoint(
+			(_size - area.width()) / 2,
+			(_size - area.height()) / 2);
+		const auto esize = Ui::Emoji::GetSizeLarge() / style::DevicePixelRatio();
+		const auto innerPosition = QPoint(
+			(area.width() - esize) / 2,
+			(area.height() - esize) / 2);
+		const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
+		const auto customSkip = (esize - customSize) / 2;
+		const auto customPosition = QPoint(customSkip, customSkip);
+		return QPoint(
+			(_size - st::reactStripImage) / 2,
+			(_size - st::reactStripImage) / 2
+		) - areaPosition - innerPosition - customPosition;
+	}();
+	auto factory = [=](DocumentId id, Fn<void()> repaint) {
+		return defaultReactionIds.contains(id)
+			? std::make_unique<ShiftedEmoji>(
+				manager,
+				id,
+				std::move(repaint),
+				shift)
+			: nullptr;
+	};
+	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, st::reactPanelScroll);
+	_scroll->hide();
+
+	const auto st = lifetime().make_state<style::EmojiPan>(
+		st::reactPanelEmojiPan);
+	st->padding.setTop(_skipy);
+	_list = _scroll->setOwnedWidget(
+		object_ptr<EmojiListWidget>(_scroll, EmojiListDescriptor{
+			.session = &controller->session(),
+			.mode = (_reactions.customAllowed
+				? EmojiListMode::FullReactions
+				: EmojiListMode::RecentReactions),
+			.controller = controller,
+			.paused = [] { return false; },
+			.customRecentList = std::move(recent),
+			.customRecentFactory = std::move(factory),
+			.st = st,
+		})
+	).data();
+
+	_list->customChosen(
+	) | rpl::start_with_next([=](const TabbedSelector::FileChosen &chosen) {
+		const auto id = DocumentId{ chosen.document->id };
+		const auto i = defaultReactionIds.find(id);
+		if (i != end(defaultReactionIds)) {
+			_chosen.fire({ .id = { i->second } });
+		} else {
+			_chosen.fire({ .id = { id } });
+		}
+	}, _list->lifetime());
+
+	const auto inner = rect().marginsRemoved(extentsForShadow());
+	const auto footer = _reactions.customAllowed
+		? _list->createFooter().data()
+		: nullptr;
+	if ((_footer = static_cast<StickersListFooter*>(footer))) {
+		_footer->setParent(this);
+		_footer->hide();
+		_footer->setGeometry(
+			inner.x(),
+			inner.y(),
+			inner.width(),
+			_footer->height());
+		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+		_footer->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+			shadow->setGeometry(
+				geometry.x(),
+				geometry.y() + geometry.height(),
+				geometry.width(),
+				st::lineWidth);
+		}, shadow->lifetime());
+		shadow->show();
+	}
+	const auto geometry = inner.marginsRemoved(
+		st::reactPanelEmojiPan.margin);
+	_list->move(0, 0);
+	_list->refreshEmoji();
+	_list->resizeToWidth(geometry.width());
+	_list->show();
+
+	const auto updateVisibleTopBottom = [=] {
+		const auto scrollTop = _scroll->scrollTop();
+		const auto scrollBottom = scrollTop + _scroll->height();
+		_list->setVisibleTopBottom(scrollTop, scrollBottom);
+	};
+	_scroll->scrollTopChanges(
+	) | rpl::start_with_next(updateVisibleTopBottom, _list->lifetime());
+
+	_list->scrollToRequests(
+	) | rpl::start_with_next([=](int y) {
+		_scroll->scrollToY(y);
+	}, _list->lifetime());
+
+	_scroll->setGeometry(inner.marginsRemoved({
+		st::reactPanelEmojiPan.margin.left(),
+		_footer ? _footer->height() : 0,
+		0,
+		0,
+	}));
+
+	updateVisibleTopBottom();
 }
 
 bool AdjustMenuGeometryForSelector(

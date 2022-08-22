@@ -33,6 +33,7 @@ public:
 		Normal,
 		Large,
 		Isolated,
+		ReactionFake,
 
 		kCount,
 	};

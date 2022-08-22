@@ -107,7 +107,7 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 	_painterInnerBottom = _innerBottom / cIntRetinaFactor();
 	_painterInnerWidth = _innerWidth / cIntRetinaFactor();
 	_painterInnerHeight = _innerHeight / cIntRetinaFactor();
-	_painterCategoriesTop = _painterInnerBottom - st::emojiFooterHeight;
+	_painterCategoriesTop = _painterInnerBottom - st::defaultEmojiPan.footer;
 
 	_wasSectionIcons = wasSectionIcons;
 }
@@ -294,6 +294,7 @@ TabbedSelector::TabbedSelector(
 	Window::GifPauseReason level,
 	Mode mode)
 : RpWidget(parent)
+, _st(st::defaultEmojiPan)
 , _controller(controller)
 , _level(level)
 , _mode(mode)
@@ -605,7 +606,7 @@ void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 }
 
 void TabbedSelector::updateFooterGeometry() {
-	_footerTop = _dropDown ? 0 : (height() - st::emojiFooterHeight);
+	_footerTop = _dropDown ? 0 : (height() - _st.footer);
 	for (auto &tab : _tabs) {
 		tab.footer()->resizeToWidth(width());
 		tab.footer()->moveToLeft(0, _footerTop);
@@ -684,7 +685,7 @@ void TabbedSelector::paintContent(Painter &p) {
 			0,
 			_footerTop - (_dropDown ? 0 : _roundRadius),
 			width(),
-			st::emojiFooterHeight + _roundRadius);
+			_st.footer + _roundRadius);
 		Ui::FillRoundRect(
 			p,
 			footerPart,
@@ -696,7 +697,7 @@ void TabbedSelector::paintContent(Painter &p) {
 		if (_tabsSlider) {
 			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 		}
-		p.fillRect(0, _footerTop, width(), st::emojiFooterHeight, footerBg);
+		p.fillRect(0, _footerTop, width(), _st.footer, footerBg);
 	}
 
 	auto sidesTop = marginTop();
@@ -719,18 +720,18 @@ void TabbedSelector::paintContent(Painter &p) {
 
 int TabbedSelector::marginTop() const {
 	return _dropDown
-		? st::emojiFooterHeight
+		? _st.footer
 		: _tabsSlider
 		? (_tabsSlider->height() - st::lineWidth)
 		: _roundRadius;
 }
 
 int TabbedSelector::scrollTop() const {
-	return tabbed() ? marginTop() : _dropDown ? st::emojiFooterHeight : 0;
+	return tabbed() ? marginTop() : _dropDown ? _st.footer : 0;
 }
 
 int TabbedSelector::marginBottom() const {
-	return _dropDown ? _roundRadius : st::emojiFooterHeight;
+	return _dropDown ? _roundRadius : _st.footer;
 }
 
 int TabbedSelector::scrollBottom() const {
@@ -1200,15 +1201,18 @@ TabbedSelector::Inner::Inner(
 	Window::GifPauseReason level)
 : Inner(
 	parent,
+	st::defaultEmojiPan,
 	&controller->session(),
 	Window::PausedIn(controller, level)) {
 }
 
 TabbedSelector::Inner::Inner(
 	QWidget *parent,
+	const style::EmojiPan &st,
 	not_null<Main::Session*> session,
 	Fn<bool()> paused)
 : RpWidget(parent)
+, _st(st)
 , _session(session)
 , _paused(paused) {
 }
@@ -1271,7 +1275,11 @@ int TabbedSelector::Inner::resizeGetHeight(int newWidth) {
 int TabbedSelector::Inner::minimalHeight() const {
 	return (_minimalHeight > 0)
 		? _minimalHeight
-		: (st::emojiPanMaxHeight - st::emojiFooterHeight);
+		: defaultMinimalHeight();
+}
+
+int TabbedSelector::Inner::defaultMinimalHeight() const {
+	return st::emojiPanMaxHeight - _st.footer;
 }
 
 void TabbedSelector::Inner::hideFinished() {
@@ -1289,9 +1297,16 @@ void TabbedSelector::Inner::panelHideFinished() {
 	}
 }
 
-TabbedSelector::InnerFooter::InnerFooter(QWidget *parent)
-: RpWidget(parent) {
-	resize(st::emojiPanWidth, st::emojiFooterHeight);
+TabbedSelector::InnerFooter::InnerFooter(
+	QWidget *parent,
+	const style::EmojiPan &st)
+: RpWidget(parent)
+, _st(st) {
+	resize(st::emojiPanWidth, _st.footer);
+}
+
+const style::EmojiPan &TabbedSelector::InnerFooter::st() const {
+	return _st;
 }
 
 } // namespace ChatHelpers

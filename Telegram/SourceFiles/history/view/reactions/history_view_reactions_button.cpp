@@ -318,6 +318,7 @@ Manager::Manager(
 , _inner(QRect({}, st::reactionCornerSize))
 , _strip(
 	_inner,
+	st::reactionCornerImage,
 	crl::guard(this, [=] { updateCurrentButton(); }),
 	std::move(iconFactory))
 , _cachedRound(

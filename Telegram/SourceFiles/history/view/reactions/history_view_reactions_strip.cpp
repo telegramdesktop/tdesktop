@@ -45,11 +45,12 @@ constexpr auto kHoverScale = 1.24;
 
 Strip::Strip(
 	QRect inner,
+	int size,
 	Fn<void()> update,
 	IconFactory iconFactory)
 : _iconFactory(std::move(iconFactory))
 , _inner(inner)
-, _finalSize(st::reactionCornerImage)
+, _finalSize(size)
 , _update(std::move(update)) {
 }
 
@@ -98,8 +99,7 @@ void Strip::paint(
 	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
 
 	PainterHighQualityEnabler hq(p);
-	const auto finalSize = st::reactionCornerImage;
-	const auto hoveredSize = int(base::SafeRound(finalSize * kHoverScale));
+	const auto hoveredSize = int(base::SafeRound(_finalSize * kHoverScale));
 	const auto basicTargetForScale = [&](int size, float64 scale) {
 		const auto remove = size * (1. - scale) / 2.;
 		return QRectF(QRect(
@@ -109,7 +109,7 @@ void Strip::paint(
 			size
 		)).marginsRemoved({ remove, remove, remove, remove });
 	};
-	const auto basicTarget = basicTargetForScale(finalSize, scale);
+	const auto basicTarget = basicTargetForScale(_finalSize, scale);
 	const auto countTarget = [&](const ReactionIcons &icon) {
 		const auto selectScale = icon.selectedScale.value(
 			icon.selected ? kHoverScale : 1.);
@@ -118,7 +118,7 @@ void Strip::paint(
 		}
 		const auto finalScale = scale * selectScale;
 		return (finalScale <= 1.)
-			? basicTargetForScale(finalSize, finalScale)
+			? basicTargetForScale(_finalSize, finalScale)
 			: basicTargetForScale(hoveredSize, finalScale / kHoverScale);
 	};
 	for (auto &icon : _icons) {
@@ -288,7 +288,7 @@ auto Strip::selected() const -> std::variant<AddedButton, ReactionId> {
 }
 
 int Strip::computeOverSize() const {
-	return int(base::SafeRound(st::reactionCornerImage * kHoverScale));
+	return int(base::SafeRound(_finalSize * kHoverScale));
 }
 
 void Strip::clearAppearAnimations(bool mainAppeared) {

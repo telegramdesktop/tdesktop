@@ -41,6 +41,10 @@ namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace ChatHelpers {
 
 enum class SelectorTab {
@@ -233,6 +237,7 @@ private:
 	not_null<GifsListWidget*> gifs() const;
 	not_null<StickersListWidget*> masks() const;
 
+	const style::EmojiPan &_st;
 	const not_null<Window::SessionController*> _controller;
 	const Window::GifPauseReason _level = {};
 
@@ -278,11 +283,15 @@ public:
 		Window::GifPauseReason level);
 	Inner(
 		QWidget *parent,
+		const style::EmojiPan &st,
 		not_null<Main::Session*> session,
 		Fn<bool()> paused);
 
 	[[nodiscard]] Main::Session &session() const {
 		return *_session;
+	}
+	[[nodiscard]] const style::EmojiPan &st() const {
+		return _st;
 	}
 	[[nodiscard]] Fn<bool()> pausedMethod() const {
 		return _paused;
@@ -332,6 +341,7 @@ protected:
 		int visibleTop,
 		int visibleBottom) override;
 	int minimalHeight() const;
+	virtual int defaultMinimalHeight() const;
 	int resizeGetHeight(int newWidth) override final;
 
 	virtual int countDesiredHeight(int newWidth) = 0;
@@ -347,6 +357,7 @@ protected:
 	void checkHideWithBox(QPointer<Ui::BoxContent> box);
 
 private:
+	const style::EmojiPan &_st;
 	const not_null<Main::Session*> _session;
 	const Fn<bool()> _paused;
 
@@ -364,7 +375,9 @@ private:
 
 class TabbedSelector::InnerFooter : public Ui::RpWidget {
 public:
-	InnerFooter(QWidget *parent);
+	InnerFooter(QWidget *parent, const style::EmojiPan &st);
+
+	[[nodiscard]] const style::EmojiPan &st() const;
 
 protected:
 	virtual void processHideFinished() {
@@ -372,6 +385,9 @@ protected:
 	virtual void processPanelHideFinished() {
 	}
 	friend class Inner;
+
+private:
+	const style::EmojiPan &_st;
 
 };
 

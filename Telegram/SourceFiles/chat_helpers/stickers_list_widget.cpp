@@ -164,7 +164,11 @@ StickersListWidget::StickersListWidget(
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level,
 	bool masks)
-: Inner(parent, &controller->session(), Window::PausedIn(controller, level))
+: Inner(
+	parent,
+	st::defaultEmojiPan,
+	&controller->session(),
+	Window::PausedIn(controller, level))
 , _controller(controller)
 , _api(&session().mtp())
 , _localSetsManager(std::make_unique<LocalStickersManager>(&session()))
@@ -176,7 +180,7 @@ StickersListWidget::StickersListWidget(
 	st::windowBgRipple,
 	st::windowBgOver,
 	[=] { update(); }))
-, _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st::emojiPanHeaderLeft)
+, _megagroupSetAbout(st::columnMinimalWidthThird - st::emojiScroll.width - st().headerLeft)
 , _addText(tr::lng_stickers_featured_add(tr::now).toUpper())
 , _addWidth(st::stickersTrendingAdd.font->width(_addText))
 , _settings(this, tr::lng_stickers_you_have(tr::now))
@@ -411,7 +415,7 @@ bool StickersListWidget::enumerateSections(Callback callback) const {
 		const auto titleSkip = set.externalLayout
 			? st::stickersTrendingHeader
 			: setHasTitle(set)
-			? st::emojiPanHeader
+			? st().header
 			: st::stickerPanPadding;
 		info.rowsTop = info.top + titleSkip;
 		if (set.externalLayout) {
@@ -462,16 +466,16 @@ int StickersListWidget::countDesiredHeight(int newWidth) {
 	if (newWidth <= st::stickerPanWidthMin) {
 		return 0;
 	}
-	auto availableWidth = newWidth - (st::stickerPanPadding - st::roundRadiusSmall);
+	auto availableWidth = newWidth - (st::stickerPanPadding - st().margin.left());
 	auto columnCount = availableWidth / st::stickerPanWidthMin;
 	auto singleWidth = availableWidth / columnCount;
-	auto fullWidth = (st::roundRadiusSmall + newWidth + st::emojiScroll.width);
+	auto fullWidth = (st().margin.left() + newWidth + st::emojiScroll.width);
 	auto rowsRight = (fullWidth - columnCount * singleWidth) / 2;
 	accumulate_max(rowsRight, st::emojiScroll.width);
 	_rowsLeft = fullWidth
 		- columnCount * singleWidth
 		- rowsRight
-		- st::roundRadiusSmall;
+		- st().margin.left();
 	_singleSize = QSize(singleWidth, singleWidth);
 	setColumnCount(columnCount);
 
@@ -831,7 +835,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 				? set.count
 				: loadedCount;
 
-			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::roundRadiusSmall);
+			auto widthForTitle = stickersRight() - (st().headerLeft - st().margin.left());
 			if (featuredHasAddButton(info.section)) {
 				auto add = featuredAddRect(info);
 				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
@@ -867,7 +871,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			}
 			p.setFont(st::stickersTrendingHeaderFont);
 			p.setPen(st::stickersTrendingHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::roundRadiusSmall, info.top + st::stickersTrendingHeaderTop, width(), titleText, titleWidth);
+			p.drawTextLeft(st().headerLeft - st().margin.left(), info.top + st::stickersTrendingHeaderTop, width(), titleText, titleWidth);
 
 			if (set.flags & SetFlag::Unread) {
 				p.setPen(Qt::NoPen);
@@ -875,14 +879,14 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 
 				{
 					PainterHighQualityEnabler hq(p);
-					p.drawEllipse(style::rtlrect(st::emojiPanHeaderLeft - st::roundRadiusSmall + titleWidth + st::stickersFeaturedUnreadSkip, info.top + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
+					p.drawEllipse(style::rtlrect(st().headerLeft - st().margin.left() + titleWidth + st::stickersFeaturedUnreadSkip, info.top + st::stickersTrendingHeaderTop + st::stickersFeaturedUnreadTop, st::stickersFeaturedUnreadSize, st::stickersFeaturedUnreadSize, width()));
 				}
 			}
 
 			auto statusText = (count > 0) ? tr::lng_stickers_count(tr::now, lt_count, count) : tr::lng_contacts_loading(tr::now);
 			p.setFont(st::stickersTrendingSubheaderFont);
 			p.setPen(st::stickersTrendingSubheaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::roundRadiusSmall, info.top + st::stickersTrendingSubheaderTop, width(), statusText);
+			p.drawTextLeft(st().headerLeft - st().margin.left(), info.top + st::stickersTrendingSubheaderTop, width(), statusText);
 
 			if (info.rowsTop >= clip.y() + clip.height()) {
 				return true;
@@ -904,7 +908,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 		if (setHasTitle(set) && clip.top() < info.rowsTop) {
 			auto titleText = set.title;
 			auto titleWidth = st::stickersTrendingHeaderFont->width(titleText);
-			auto widthForTitle = stickersRight() - (st::emojiPanHeaderLeft - st::roundRadiusSmall);
+			auto widthForTitle = stickersRight() - (st().headerLeft - st().margin.left());
 			if (hasRemoveButton(info.section)) {
 				auto remove = removeButtonRect(info);
 				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
@@ -924,7 +928,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			}
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(st::emojiPanHeaderLeft - st::roundRadiusSmall, info.top + st::emojiPanHeaderTop, width(), titleText, titleWidth);
+			p.drawTextLeft(st().headerLeft - st().margin.left(), info.top + st().headerTop, width(), titleText, titleWidth);
 		}
 		if (clip.top() + clip.height() <= info.rowsTop) {
 			return true;
@@ -1054,7 +1058,7 @@ void StickersListWidget::paintEmptySearchResults(Painter &p) {
 }
 
 int StickersListWidget::megagroupSetInfoLeft() const {
-	return st::emojiPanHeaderLeft - st::roundRadiusSmall;
+	return st().headerLeft - st().margin.left();
 }
 
 void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSelected) {
@@ -1440,7 +1444,7 @@ QRect StickersListWidget::removeButtonRect(const SectionInfo &info) const {
 	auto buttonw = st::stickerPanRemoveSet.width;
 	auto buttonh = st::stickerPanRemoveSet.height;
 	auto buttonx = stickersRight() - buttonw;
-	auto buttony = info.top + (st::emojiPanHeader - buttonh) / 2;
+	auto buttony = info.top + (st().header - buttonh) / 2;
 	return QRect(buttonx, buttony, buttonw, buttonh);
 }
 
@@ -2322,7 +2326,7 @@ std::vector<StickerIcon> StickersListWidget::fillIcons() {
 		Assert(set != nullptr);
 		const auto s = _mySets[i].thumbnailDocument;
 		const auto availw = st::stickerIconWidth - 2 * st::stickerIconPadding;
-		const auto availh = st::emojiFooterHeight - 2 * st::stickerIconPadding;
+		const auto availh = st().footer - 2 * st::stickerIconPadding;
 		const auto size = set->hasThumbnail()
 			? QSize(
 				set->thumbnailLocation().width(),

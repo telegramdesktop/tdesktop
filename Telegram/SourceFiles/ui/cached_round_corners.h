@@ -27,7 +27,6 @@ enum CachedRoundCorners : int {
 	OverviewVideoSelectedCorners,
 	ForwardCorners,
 	MediaviewSaveCorners,
-	EmojiHoverCorners,
 	StickerHoverCorners,
 	BotKeyboardCorners,
 

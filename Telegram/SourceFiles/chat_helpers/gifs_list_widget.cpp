@@ -105,7 +105,8 @@ private:
 
 };
 
-GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent) : InnerFooter(parent)
+GifsListWidget::Footer::Footer(not_null<GifsListWidget*> parent)
+: InnerFooter(parent, st::defaultEmojiPan)
 , _pan(parent)
 , _field(this, st::gifsSearchField, tr::lng_gifs_search())
 , _cancel(this, st::gifsSearchCancel) {
@@ -170,7 +171,11 @@ GifsListWidget::GifsListWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level)
-: Inner(parent, &controller->session(), Window::PausedIn(controller, level))
+: Inner(
+	parent,
+	st::defaultEmojiPan,
+	&controller->session(),
+	Window::PausedIn(controller, level))
 , _controller(controller)
 , _api(&session().mtp())
 , _section(Section::Gifs)

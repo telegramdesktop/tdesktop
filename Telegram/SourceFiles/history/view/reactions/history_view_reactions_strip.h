@@ -43,7 +43,7 @@ class Strip final {
 public:
 	using ReactionId = Data::ReactionId;
 
-	Strip(QRect inner, Fn<void()> update, IconFactory iconFactory);
+	Strip(QRect inner, int size, Fn<void()> update, IconFactory iconFactory);
 
 	enum class AddedButton : uchar {
 		None,
