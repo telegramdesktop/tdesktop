@@ -21,7 +21,6 @@ class Session;
 namespace Data {
 
 struct Reaction;
-struct ReactionsFilter;
 
 template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
@@ -134,8 +133,9 @@ inline auto PeerFullFlagValue(
 	int size,
 	ImageRoundRadius radius);
 
-[[nodiscard]] ReactionsFilter PeerReactionsFilter(not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<ReactionsFilter> PeerReactionsFilterValue(
+[[nodiscard]] const AllowedReactions &PeerAllowedReactions(
+	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<AllowedReactions> PeerAllowedReactionsValue(
 	not_null<PeerData*> peer);
 
 [[nodiscard]] int UniqueReactionsLimit(not_null<PeerData*> peer);

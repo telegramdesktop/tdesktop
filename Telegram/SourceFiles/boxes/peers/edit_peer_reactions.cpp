@@ -26,8 +26,8 @@ void EditAllowedReactionsBox(
 		not_null<Ui::GenericBox*> box,
 		bool isGroup,
 		const std::vector<Data::Reaction> &list,
-		const base::flat_set<QString> &selected,
-		Fn<void(const std::vector<QString> &)> callback) {
+		const Data::AllowedReactions &allowed,
+		Fn<void(const std::vector<QString> &, bool all)> callback) {
 	const auto iconHeight = st::editPeerReactionsPreview;
 	box->setTitle(tr::lng_manage_peer_reactions());
 
@@ -37,7 +37,7 @@ void EditAllowedReactionsBox(
 		rpl::event_stream<bool> forceToggleAll;
 	};
 	const auto state = box->lifetime().make_state<State>(State{
-		.anyToggled = !selected.empty(),
+		.anyToggled = (allowed.type != Data::AllowedReactionsType::Some),
 	});
 
 	const auto collect = [=] {
@@ -91,7 +91,7 @@ void EditAllowedReactionsBox(
 		tr::lng_manage_peer_reactions_available());
 
 	const auto active = [&](const Data::Reaction &entry) {
-		return selected.contains(entry.id.emoji());
+		return ranges::contains(allowed.some, entry.id);
 	};
 	const auto add = [&](const Data::Reaction &entry) {
 		if (entry.id.emoji().isEmpty()) {
@@ -139,7 +139,7 @@ void EditAllowedReactionsBox(
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto ids = collect();
 		box->closeBox();
-		callback(ids);
+		callback(ids, false);
 	});
 	box->addButton(tr::lng_cancel(), [=] {
 		box->closeBox();
@@ -148,20 +148,26 @@ void EditAllowedReactionsBox(
 
 void SaveAllowedReactions(
 		not_null<PeerData*> peer,
-		const std::vector<QString> &allowed) {
+		const std::vector<QString> &allowed,
+		bool all) {
 	auto ids = allowed | ranges::views::transform([=](QString value) {
-		return MTP_string(value);
-	}) | ranges::to<QVector<MTPstring>>;
+		return MTP_reactionEmoji(MTP_string(value));
+	}) | ranges::to<QVector<MTPReaction>>;
 
+	const auto updated = all
+		? MTP_chatReactionsAll(MTP_flags(peer->isBroadcast()
+			? MTPDchatReactionsAll::Flag(0)
+			: MTPDchatReactionsAll::Flag::f_allow_custom))
+		: MTP_chatReactionsSome(MTP_vector<MTPReaction>(ids));
 	peer->session().api().request(MTPmessages_SetChatAvailableReactions(
 		peer->input,
-		MTP_vector<MTPstring>(ids)
+		updated
 	)).done([=](const MTPUpdates &result) {
 		peer->session().api().applyUpdates(result);
 		if (const auto chat = peer->asChat()) {
-			chat->setAllowedReactions({ begin(allowed), end(allowed) });
+			chat->setAllowedReactions(Data::Parse(updated));
 		} else if (const auto channel = peer->asChannel()) {
-			channel->setAllowedReactions({ begin(allowed), end(allowed) });
+			channel->setAllowedReactions(Data::Parse(updated));
 		} else {
 			Unexpected("Invalid peer type in SaveAllowedReactions.");
 		}

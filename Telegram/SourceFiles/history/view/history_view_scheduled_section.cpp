@@ -1357,9 +1357,8 @@ CopyRestrictionType ScheduledWidget::listSelectRestrictionType() {
 }
 
 auto ScheduledWidget::listAllowedReactionsValue()
--> rpl::producer<Data::ReactionsFilter> {
-	const auto empty = base::flat_set<QString>();
-	return rpl::single(Data::ReactionsFilter{ .allowed = empty });
+-> rpl::producer<Data::AllowedReactions> {
+	return rpl::single(Data::AllowedReactions());
 }
 
 void ScheduledWidget::listShowPremiumToast(

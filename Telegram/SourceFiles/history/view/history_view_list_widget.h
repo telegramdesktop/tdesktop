@@ -36,7 +36,7 @@ namespace Data {
 struct Group;
 class CloudImageView;
 struct Reaction;
-struct ReactionsFilter;
+struct AllowedReactions;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -120,7 +120,7 @@ public:
 	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
-		-> rpl::producer<Data::ReactionsFilter> = 0;
+		-> rpl::producer<Data::AllowedReactions> = 0;
 	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
 };
 

@@ -72,15 +72,14 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 			}
 		}
 	} else {
-		const auto filter = PeerReactionsFilter(peer);
-		result.recent.reserve(filter.allowed
-			? filter.allowed->size()
+		const auto &allowed = PeerAllowedReactions(peer);
+		result.recent.reserve((allowed.type == AllowedReactionsType::Some)
+			? allowed.some.size()
 			: full.size());
 		for (const auto &reaction : full) {
 			const auto id = reaction.id;
-			const auto emoji = filter.allowed ? id.emoji() : QString();
-			if (filter.allowed
-				&& (emoji.isEmpty() || !filter.allowed->contains(emoji))) {
+			if ((allowed.type == AllowedReactionsType::Some)
+				&& !ranges::contains(allowed.some, id)) {
 				continue;
 			} else if (reaction.premium
 				&& !session->premium()
@@ -93,7 +92,7 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 				result.recent.push_back(&reaction);
 			}
 		}
-		result.customAllowed = session->premium() && peer->isUser();
+		result.customAllowed = (allowed.type == AllowedReactionsType::All);
 	}
 	const auto i = ranges::find(
 		result.recent,
@@ -342,19 +341,6 @@ void Reactions::downloadTaskFinished() {
 	if (!hasOne) {
 		_imagesLoadLifetime.destroy();
 	}
-}
-
-base::flat_set<QString> Reactions::ParseAllowed(
-		const MTPVector<MTPstring> *list) {
-	if (!list) {
-		return {};
-	}
-	const auto parsed = ranges::views::all(
-		list->v
-	) | ranges::views::transform([](const MTPstring &string) {
-		return qs(string);
-	}) | ranges::to_vector;
-	return { begin(parsed), end(parsed) };
 }
 
 void Reactions::request() {

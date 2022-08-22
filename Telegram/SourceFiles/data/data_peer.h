@@ -35,6 +35,7 @@ namespace Data {
 class Session;
 class GroupCall;
 class CloudImageView;
+struct ReactionId;
 
 int PeerColorIndex(PeerId peerId);
 int PeerColorIndex(BareId bareId);
@@ -99,6 +100,22 @@ struct UnavailableReason {
 bool ApplyBotMenuButton(
 	not_null<BotInfo*> info,
 	const MTPBotMenuButton *button);
+
+enum class AllowedReactionsType {
+	All,
+	Default,
+	Some,
+};
+
+struct AllowedReactions {
+	std::vector<ReactionId> some;
+	AllowedReactionsType type = AllowedReactionsType::Some;
+};
+
+bool operator<(const AllowedReactions &a, const AllowedReactions &b);
+bool operator==(const AllowedReactions &a, const AllowedReactions &b);
+
+[[nodiscard]] AllowedReactions Parse(const MTPChatReactions &value);
 
 } // namespace Data
 

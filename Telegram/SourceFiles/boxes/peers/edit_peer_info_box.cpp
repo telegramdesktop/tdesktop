@@ -1002,8 +1002,8 @@ void Controller::fillManageSection() {
 				? QString::number(allowed) + " / " + QString::number(total)
 				: tr::lng_manage_peer_reactions_off(tr::now);
 		});
-		const auto done = [=](const std::vector<QString> &chosen) {
-			SaveAllowedReactions(_peer, chosen);
+		const auto done = [=](const std::vector<QString> &chosen, bool all) {
+			SaveAllowedReactions(_peer, chosen, all);
 		};
 		AddButtonWithCount(
 			_controls.buttonsLayout,
@@ -1015,7 +1015,7 @@ void Controller::fillManageSection() {
 					!_peer->isBroadcast(),
 					session->data().reactions().list(
 						Data::Reactions::Type::Active),
-					*Data::PeerReactionsFilter(_peer).allowed,
+					Data::PeerAllowedReactions(_peer),
 					done));
 			},
 			{ &st::infoRoundedIconReactions, Settings::kIconRed });

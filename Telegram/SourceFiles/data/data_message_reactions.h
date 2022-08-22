@@ -61,9 +61,6 @@ public:
 	[[nodiscard]] ReactionId favorite() const;
 	void setFavorite(const ReactionId &emoji);
 
-	[[nodiscard]] static base::flat_set<QString> ParseAllowed(
-		const MTPVector<MTPstring> *list);
-
 	[[nodiscard]] rpl::producer<> updates() const;
 
 	enum class ImageSize {

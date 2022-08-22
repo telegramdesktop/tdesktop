@@ -684,8 +684,8 @@ CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
 }
 
 auto PinnedWidget::listAllowedReactionsValue()
--> rpl::producer<Data::ReactionsFilter> {
-	return Data::PeerReactionsFilterValue(_history->peer);
+-> rpl::producer<Data::AllowedReactions> {
+	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 
 void PinnedWidget::listShowPremiumToast(not_null<DocumentData*> document) {

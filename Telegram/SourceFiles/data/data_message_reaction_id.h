@@ -37,13 +37,4 @@ inline bool operator==(const ReactionId &a, const ReactionId &b) {
 [[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
 [[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
 
-struct ReactionsFilter {
-	std::optional<base::flat_set<QString>> allowed;
-	bool customAllowed = false;
-
-	friend inline auto operator<=>(
-		const ReactionsFilter &,
-		const ReactionsFilter &) = default;
-};
-
 } // namespace Data

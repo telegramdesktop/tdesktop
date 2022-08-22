@@ -888,7 +888,7 @@ void SetupManagerList(
 		if (peerChanged) {
 			state->peer = peer;
 			state->peerLifetime = rpl::combine(
-				Data::PeerReactionsFilterValue(peer),
+				Data::PeerAllowedReactionsValue(peer),
 				Data::UniqueReactionsLimitValue(peer)
 			) | rpl::start_with_next(push);
 		} else {

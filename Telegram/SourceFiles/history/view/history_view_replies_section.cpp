@@ -2043,8 +2043,8 @@ CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 }
 
 auto RepliesWidget::listAllowedReactionsValue()
--> rpl::producer<Data::ReactionsFilter> {
-	return Data::PeerReactionsFilterValue(_history->peer);
+-> rpl::producer<Data::AllowedReactions> {
+	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 
 void RepliesWidget::listShowPremiumToast(not_null<DocumentData*> document) {

@@ -11,6 +11,7 @@ class PeerData;
 
 namespace Data {
 struct Reaction;
+struct AllowedReactions;
 } // namespace Data
 
 namespace Ui {
@@ -21,9 +22,10 @@ void EditAllowedReactionsBox(
 	not_null<Ui::GenericBox*> box,
 	bool isGroup,
 	const std::vector<Data::Reaction> &list,
-	const base::flat_set<QString> &selected,
-	Fn<void(const std::vector<QString> &)> callback);
+	const Data::AllowedReactions &allowed,
+	Fn<void(const std::vector<QString> &, bool all)> callback);
 
 void SaveAllowedReactions(
 	not_null<PeerData*> peer,
-	const std::vector<QString> &allowed);
+	const std::vector<QString> &allowed,
+	bool all);
