@@ -38,6 +38,7 @@ constexpr auto kHoverScale = 1.24;
 		.json = media->bytes(),
 		.sizeOverride = QSize(size, size),
 		.frame = frame,
+		.limitFps = true,
 	});
 }
 

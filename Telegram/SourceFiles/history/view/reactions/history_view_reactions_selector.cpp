@@ -181,7 +181,9 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 		(maxWidth - 2 * _skipx) / _size);
 	_columns = std::min(possibleColumns, max);
 	_small = (possibleColumns - _columns > 1);
-	_recentRows = (_strip.count() + _columns - 1) / _columns;
+	_recentRows = (_reactions.recent.size()
+		+ (_reactions.morePremiumAvailable ? 1 : 0)
+		+ _columns - 1) / _columns;
 	const auto added = (_columns < max || _reactions.customAllowed)
 		? Strip::AddedButton::Expand
 		: _reactions.morePremiumAvailable
@@ -207,10 +209,11 @@ int Selector::extendTopForCategories() const {
 	return _reactions.customAllowed ? st::reactPanelEmojiPan.footer : 0;
 }
 
-int Selector::desiredHeight() const {
-	return _reactions.customAllowed
-		? st::emojiPanMaxHeight
-		: (_skipy + _recentRows * _size + _skipBottom);
+int Selector::minimalHeight() const {
+	return _skipy
+		+ (_recentRows * _size)
+		+ st::roundRadiusSmall
+		+ st::reactPanelEmojiPan.padding.bottom();
 }
 
 void Selector::setSpecialExpandTopSkip(int skip) {
@@ -363,7 +366,9 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
 	const auto radiusStart = st::reactStripHeight / 2.;
 	const auto radiusEnd = st::roundRadiusSmall;
-	const auto radius = radiusStart + progress * (radiusEnd - radiusStart);
+	const auto radius = _reactions.customAllowed
+		? (radiusStart + progress * (radiusEnd - radiusStart))
+		: radiusStart;
 	const auto extents = extentsForShadow();
 	const auto expanding = anim::easeOutCirc(1., progress);
 	const auto expandUp = anim::interpolate(0, _collapsedTopSkip, expanding);
@@ -624,6 +629,9 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	const auto st = lifetime().make_state<style::EmojiPan>(
 		st::reactPanelEmojiPan);
 	st->padding.setTop(_skipy);
+	if (!_reactions.customAllowed) {
+		st->bg = st::transparent;
+	}
 	_list = _scroll->setOwnedWidget(
 		object_ptr<EmojiListWidget>(_scroll, EmojiListDescriptor{
 			.session = &controller->session(),
@@ -722,9 +730,7 @@ bool AdjustMenuGeometryForSelector(
 	const auto height = menu->height();
 	const auto fullTop = extents.top() + categoriesTop + extend.top();
 	const auto minimalHeight = extents.top()
-		+ std::min(
-			selector->desiredHeight(),
-			categoriesTop + st::emojiPanMinHeight / 2)
+		+ selector->minimalHeight()
 		+ extents.bottom();
 	const auto willBeHeightWithoutBottomPadding = fullTop
 		+ height

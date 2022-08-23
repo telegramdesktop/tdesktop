@@ -46,7 +46,7 @@ public:
 	int countWidth(int desiredWidth, int maxWidth);
 	[[nodiscard]] QMargins extentsForShadow() const;
 	[[nodiscard]] int extendTopForCategories() const;
-	[[nodiscard]] int desiredHeight() const;
+	[[nodiscard]] int minimalHeight() const;
 	void setSpecialExpandTopSkip(int skip);
 	void initGeometry(int innerTop);
 

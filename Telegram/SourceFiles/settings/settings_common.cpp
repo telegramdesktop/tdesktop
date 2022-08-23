@@ -268,6 +268,10 @@ LottieIcon CreateLottieIcon(
 		not_null<QWidget*> parent,
 		Lottie::IconDescriptor &&descriptor,
 		style::margins padding) {
+	Expects(!descriptor.frame); // I'm not sure it considers limitFps.
+
+	descriptor.limitFps = true;
+
 	auto object = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = object.data();
 

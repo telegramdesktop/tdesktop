@@ -24,6 +24,7 @@ EmojiPan {
 	iconSkip: pixels;
 	iconWidth: pixels;
 	iconArea: pixels;
+	bg: color;
 	overBg: color;
 	fadeLeft: icon;
 	fadeRight: icon;
@@ -198,6 +199,7 @@ defaultEmojiPan: EmojiPan {
 	iconSkip: 4px;
 	iconWidth: 35px;
 	iconArea: 32px;
+	bg: emojiPanBg;
 	overBg: emojiPanHover;
 	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
 	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};

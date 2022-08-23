@@ -395,7 +395,9 @@ EmojiListWidget::EmojiListWidget(
 , _picker(this)
 , _showPickerTimer([=] { showPicker(); }) {
 	setMouseTracking(true);
-	setAttribute(Qt::WA_OpaquePaintEvent);
+	if (st().bg->c.alpha() > 0) {
+		setAttribute(Qt::WA_OpaquePaintEvent);
+	}
 
 	_customSingleSize = Data::FrameSizeFromTag(
 		Data::CustomEmojiManager::SizeTag::Large
@@ -778,7 +780,9 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 	_repaintsScheduled.clear();
 
 	const auto clip = e ? e->rect() : rect();
-	p.fillRect(clip, st::emojiPanBg);
+	if (st().bg->c.alpha() > 0) {
+		p.fillRect(clip, st().bg);
+	}
 
 	paint(p, {}, clip);
 }
