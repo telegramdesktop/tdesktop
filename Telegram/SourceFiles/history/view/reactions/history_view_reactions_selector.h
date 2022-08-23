@@ -41,7 +41,8 @@ public:
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> parentController,
 		Data::PossibleItemReactions &&reactions,
-		IconFactory iconFactory);
+		IconFactory iconFactory,
+		Fn<void(bool fast)> close);
 
 	int countWidth(int desiredWidth, int maxWidth);
 	[[nodiscard]] QMargins extentsForShadow() const;
@@ -99,6 +100,7 @@ private:
 
 	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;
+	Fn<void()> _jumpedToPremium;
 	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 	Ui::RoundAreaWithShadow _cachedRound;
 	QPoint _defaultReactionShift;

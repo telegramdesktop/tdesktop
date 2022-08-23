@@ -490,6 +490,10 @@ auto EmojiListWidget::premiumChosen() const
 	return _premiumChosen.events();
 }
 
+rpl::producer<> EmojiListWidget::jumpedToPremium() const {
+	return _jumpedToPremium.events();
+}
+
 void EmojiListWidget::paintExpanding(
 		QPainter &p,
 		QRect clip,
@@ -1134,6 +1138,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 		} else if (hasAddButton(button->section)) {
 			_localSetsManager->install(id);
 		} else if (_controller) {
+			_jumpedToPremium.fire({});
 			Settings::ShowPremium(_controller, u"animated_emoji"_q);
 		}
 	}

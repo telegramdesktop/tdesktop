@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_premium.h"
+#include "mainwidget.h"
 #include "base/call_delayed.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
@@ -142,10 +144,12 @@ Selector::Selector(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> parentController,
 	Data::PossibleItemReactions &&reactions,
-	IconFactory iconFactory)
+	IconFactory iconFactory,
+	Fn<void(bool fast)> close)
 : RpWidget(parent)
 , _parentController(parentController.get())
 , _reactions(std::move(reactions))
+, _jumpedToPremium([=] { close(false); })
 , _cachedRound(
 	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
 	st::reactionCornerShadow,
@@ -160,6 +164,11 @@ Selector::Selector(
 , _skipy((st::reactStripHeight - st::reactStripSize) / 2)
 , _skipBottom(st::reactStripHeight - st::reactStripSize - _skipy) {
 	setMouseTracking(true);
+
+	parentController->content()->alive(
+	) | rpl::start_with_done([=] {
+		close(true);
+	}, lifetime());
 }
 
 int Selector::countSkipLeft() const {
@@ -657,6 +666,15 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 		}
 	}, _list->lifetime());
 
+	_list->premiumChosen(
+	) | rpl::start_with_next([=] {
+		_jumpedToPremium();
+		Settings::ShowPremium(controller, u"animated_emoji"_q);
+	}, _list->lifetime());
+
+	_list->jumpedToPremium(
+	) | rpl::start_with_next(_jumpedToPremium, _list->lifetime());
+
 	const auto inner = rect().marginsRemoved(extentsForShadow());
 	const auto footer = _reactions.customAllowed
 		? _list->createFooter().data()
@@ -790,7 +808,8 @@ AttachSelectorResult AttachSelectorToMenu(
 		menu.get(),
 		controller,
 		std::move(reactions),
-		std::move(iconFactory));
+		std::move(iconFactory),
+		[=](bool fast) { menu->hideMenu(fast); });
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return AttachSelectorResult::Failed;
 	}

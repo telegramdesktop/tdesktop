@@ -111,6 +111,7 @@ public:
 		-> rpl::producer<TabbedSelector::FileChosen>;
 	[[nodiscard]] auto premiumChosen() const
 		-> rpl::producer<not_null<DocumentData*>>;
+	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
 
 	void paintExpanding(
 		QPainter &p,
@@ -356,6 +357,7 @@ private:
 	rpl::event_stream<EmojiPtr> _chosen;
 	rpl::event_stream<TabbedSelector::FileChosen> _customChosen;
 	rpl::event_stream<not_null<DocumentData*>> _premiumChosen;
+	rpl::event_stream<> _jumpedToPremium;
 
 };
 
