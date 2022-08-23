@@ -83,7 +83,6 @@ private:
 	void paintCollapsed(QPainter &p);
 	void paintExpanding(Painter &p, float64 progress);
 	ExpandingRects paintExpandingBg(QPainter &p, float64 progress);
-	void paintStripWithoutExpand(QPainter &p);
 	void paintFadingExpandIcon(QPainter &p, float64 progress);
 	void paintExpanded(QPainter &p);
 	void paintBubble(QPainter &p, int innerWidth);
@@ -100,7 +99,10 @@ private:
 
 	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;
+	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 	Ui::RoundAreaWithShadow _cachedRound;
+	QPoint _defaultReactionShift;
+	QPoint _stripPaintOneShift;
 	Strip _strip;
 
 	rpl::event_stream<ChosenReaction> _chosen;
@@ -133,6 +135,7 @@ private:
 	bool _appearing = false;
 	bool _toggling = false;
 	bool _expanded = false;
+	bool _expandScheduled = false;
 	bool _expandFinished = false;
 	bool _small = false;
 	bool _over = false;

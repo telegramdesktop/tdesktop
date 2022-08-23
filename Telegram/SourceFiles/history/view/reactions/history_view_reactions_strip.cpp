@@ -99,6 +99,28 @@ void Strip::paint(
 	const auto animationRect = clip.marginsRemoved({ 0, skip, 0, skip });
 
 	PainterHighQualityEnabler hq(p);
+	const auto countTarget = resolveCountTargetMethod(scale);
+	for (auto &icon : _icons) {
+		const auto target = countTarget(icon).translated(position);
+		position += shift;
+		if (target.intersects(clip)) {
+			paintOne(
+				p,
+				icon,
+				position - shift,
+				target,
+				!hiding && target.intersects(animationRect));
+		} else if (!hiding) {
+			clearStateForHidden(icon);
+		}
+		if (!hiding) {
+			clearStateForSelectFinished(icon);
+		}
+	}
+}
+
+auto Strip::resolveCountTargetMethod(float64 scale) const
+-> Fn<QRectF(const ReactionIcons&)> {
 	const auto hoveredSize = int(base::SafeRound(_finalSize * kHoverScale));
 	const auto basicTargetForScale = [&](int size, float64 scale) {
 		const auto remove = size * (1. - scale) / 2.;
@@ -110,7 +132,7 @@ void Strip::paint(
 		)).marginsRemoved({ remove, remove, remove, remove });
 	};
 	const auto basicTarget = basicTargetForScale(_finalSize, scale);
-	const auto countTarget = [&](const ReactionIcons &icon) {
+	return [=](const ReactionIcons &icon) {
 		const auto selectScale = icon.selectedScale.value(
 			icon.selected ? kHoverScale : 1.);
 		if (selectScale == 1.) {
@@ -121,43 +143,60 @@ void Strip::paint(
 			? basicTargetForScale(_finalSize, finalScale)
 			: basicTargetForScale(hoveredSize, finalScale / kHoverScale);
 	};
-	for (auto &icon : _icons) {
-		const auto target = countTarget(icon).translated(position);
-		position += shift;
+}
 
+void Strip::paintOne(
+		QPainter &p,
+		ReactionIcons &icon,
+		QPoint position,
+		QRectF target,
+		bool allowAppearStart) {
+	if (icon.added == AddedButton::Premium) {
+		paintPremiumIcon(p, position, target);
+	} else if (icon.added == AddedButton::Expand) {
+		paintExpandIcon(p, position, target);
+	} else {
 		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
 			const auto size = int(std::floor(target.width() + 0.01));
 			const auto frame = animation->frame({ size, size }, _update);
 			p.drawImage(target, frame.image);
 		};
 
-		if (!target.intersects(clip)) {
-			if (!hiding) {
-				clearStateForHidden(icon);
-			}
-		} else if (icon.added == AddedButton::Premium) {
-			paintPremiumIcon(p, position - shift, target);
-		} else if (icon.added == AddedButton::Expand) {
-			paintExpandIcon(p, position - shift, target);
-		} else {
-			const auto appear = icon.appear.get();
-			if (!hiding
-				&& appear
-				&& !icon.appearAnimated
-				&& target.intersects(animationRect)) {
-				icon.appearAnimated = true;
-				appear->animate(_update, 0, appear->framesCount() - 1);
-			}
-			if (appear && appear->animating()) {
-				paintFrame(appear);
-			} else if (const auto select = icon.select.get()) {
-				paintFrame(select);
-			}
+		const auto appear = icon.appear.get();
+		if (appear && !icon.appearAnimated && allowAppearStart) {
+			icon.appearAnimated = true;
+			appear->animate(_update, 0, appear->framesCount() - 1);
 		}
-		if (!hiding) {
-			clearStateForSelectFinished(icon);
+		if (appear && appear->animating()) {
+			paintFrame(appear);
+		} else if (const auto select = icon.select.get()) {
+			paintFrame(select);
 		}
 	}
+}
+
+void Strip::paintOne(
+		QPainter &p,
+		int index,
+		QPoint position,
+		float64 scale) {
+	Expects(index >= 0 && index < _icons.size());
+
+	auto &icon = _icons[index];
+	const auto countTarget = resolveCountTargetMethod(scale);
+	const auto target = countTarget(icon).translated(position);
+	paintOne(p, icon, position, target, false);
+}
+
+bool Strip::inDefaultState(int index) const {
+	Expects(index >= 0 && index < _icons.size());
+
+	const auto &icon = _icons[index];
+	return !icon.selected
+		&& !icon.selectedScale.animating()
+		&& icon.select
+		&& !icon.select->animating()
+		&& (!icon.appear || !icon.appear->animating());
 }
 
 bool Strip::empty() const {

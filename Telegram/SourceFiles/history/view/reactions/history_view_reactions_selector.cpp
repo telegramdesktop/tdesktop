@@ -41,10 +41,33 @@ public:
 	QString entityData() override;
 	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
+	bool ready() override;
 
 private:
-	std::unique_ptr<Ui::Text::CustomEmoji> _real;
-	QPoint _shift;
+	const std::unique_ptr<Ui::Text::CustomEmoji> _real;
+	const QPoint _shift;
+
+};
+
+class StripEmoji final : public Ui::Text::CustomEmoji {
+public:
+	StripEmoji(
+		std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+		not_null<Strip*> strip,
+		QPoint shift,
+		int index);
+
+	QString entityData() override;
+	void paint(QPainter &p, const Context &context) override;
+	void unload() override;
+	bool ready() override;
+
+private:
+	const std::unique_ptr<Ui::Text::CustomEmoji> _wrapped;
+	const not_null<Strip*> _strip;
+	const QPoint _shift;
+	const int _index = 0;
+	bool _switched = false;
 
 };
 
@@ -72,6 +95,45 @@ void ShiftedEmoji::paint(QPainter &p, const Context &context) {
 
 void ShiftedEmoji::unload() {
 	_real->unload();
+}
+
+bool ShiftedEmoji::ready() {
+	return _real->ready();
+}
+
+StripEmoji::StripEmoji(
+	std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
+	not_null<Strip*> strip,
+	QPoint shift,
+	int index)
+: _wrapped(std::move(wrapped))
+, _strip(strip)
+, _shift(shift)
+, _index(index) {
+}
+
+QString StripEmoji::entityData() {
+	return _wrapped->entityData();
+}
+
+void StripEmoji::paint(QPainter &p, const Context &context) {
+	if (_switched) {
+		_wrapped->paint(p, context);
+	} else if (_wrapped->ready() && _strip->inDefaultState(_index)) {
+		_switched = true;
+		_wrapped->paint(p, context);
+	} else {
+		_strip->paintOne(p, _index, context.position + _shift, 1.);
+	}
+}
+
+void StripEmoji::unload() {
+	_wrapped->unload();
+	_switched = true;
+}
+
+bool StripEmoji::ready() {
+	return _wrapped->ready();
 }
 
 } // namespace
@@ -275,7 +337,6 @@ void Selector::paintCollapsed(QPainter &p) {
 
 void Selector::paintExpanding(Painter &p, float64 progress) {
 	const auto rects = paintExpandingBg(p, progress);
-	//paintStripWithoutExpand(p);
 	progress /= kFullDuration;
 	if (_footer) {
 		_footer->paintExpanding(
@@ -334,16 +395,6 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 	};
 }
 
-void Selector::paintStripWithoutExpand(QPainter &p) {
-	_strip.paint(
-		p,
-		_inner.topLeft() + QPoint(_skipx, _skipy),
-		{ _size, 0 },
-		_inner.marginsRemoved({ 0, 0, _skipx + _size, 0 }),
-		1.,
-		false);
-}
-
 void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
 	if (progress >= 1.) {
 		return;
@@ -365,7 +416,6 @@ void Selector::paintExpanded(QPainter &p) {
 		finishExpand();
 	}
 	p.drawImage(0, 0, _paintBuffer);
-	paintStripWithoutExpand(p);
 }
 
 void Selector::finishExpand() {
@@ -429,6 +479,9 @@ int Selector::lookupSelectedIndex(QPoint position) const {
 }
 
 void Selector::setSelected(int index) {
+	if (index >= 0 && _expandScheduled) {
+		return;
+	}
 	_strip.setSelected(index);
 	const auto over = (index >= 0);
 	if (_over != over) {
@@ -468,6 +521,10 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 }
 
 void Selector::expand() {
+	if (_expandScheduled) {
+		return;
+	}
+	_expandScheduled = true;
 	const auto parent = parentWidget()->geometry();
 	const auto additionalBottom = parent.height() - y() - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
@@ -483,11 +540,12 @@ void Selector::expand() {
 	cacheExpandIcon();
 
 	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll);
+	setSelected(-1);
 
-	base::call_delayed(kExpandDelay, this, [=] {
-		_paintBuffer = _cachedRound.PrepareImage(size());
-		_expanded = true;
+	base::call_delayed(kExpandDelay, this, [this] {
 		const auto full = kExpandDuration + kScaleDuration;
+		_expanded = true;
+		_paintBuffer = _cachedRound.PrepareImage(size());
 		_expanding.start([=] { update(); }, 0., full, full);
 	});
 }
@@ -496,14 +554,7 @@ void Selector::cacheExpandIcon() {
 	_expandIconCache = _cachedRound.PrepareImage({ _size, _size });
 	_expandIconCache.fill(Qt::transparent);
 	auto q = QPainter(&_expandIconCache);
-	const auto count = _strip.count();
-	_strip.paint(
-		q,
-		QPoint(-(count - 1) * _size, 0),
-		{ _size, 0 },
-		QRect(-(count - 1) * _size, 0, count * _size, _size),
-		1.,
-		false);
+	_strip.paintOne(q, _strip.count() - 1, { 0, 0 }, 1.);
 }
 
 void Selector::createList(not_null<Window::SessionController*> controller) {
@@ -511,6 +562,8 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	auto recent = std::vector<DocumentId>();
 	auto defaultReactionIds = base::flat_map<DocumentId, QString>();
 	recent.reserve(_reactions.recent.size());
+	auto index = 0;
+	const auto inStrip = _strip.count();
 	for (const auto &reaction : _reactions.recent) {
 		if (const auto id = reaction->id.custom()) {
 			recent.push_back(id);
@@ -518,9 +571,12 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 			recent.push_back(reaction->selectAnimation->id);
 			defaultReactionIds.emplace(recent.back(), reaction->id.emoji());
 		}
+		if (index + 1 < inStrip) {
+			_defaultReactionInStripMap.emplace(recent.back(), index++);
+		}
 	};
 	const auto manager = &controller->session().data().customEmojiManager();
-	const auto shift = [&] {
+	_stripPaintOneShift = [&] {
 		// See EmojiListWidget custom emoji position resolving.
 		const auto area = st::emojiPanArea;
 		const auto areaPosition = QPoint(
@@ -533,19 +589,34 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 		const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
 		const auto customSkip = (esize - customSize) / 2;
 		const auto customPosition = QPoint(customSkip, customSkip);
-		return QPoint(
-			(_size - st::reactStripImage) / 2,
-			(_size - st::reactStripImage) / 2
-		) - areaPosition - innerPosition - customPosition;
+		return areaPosition + innerPosition + customPosition;
 	}();
-	auto factory = [=](DocumentId id, Fn<void()> repaint) {
-		return defaultReactionIds.contains(id)
+	_defaultReactionShift = QPoint(
+		(_size - st::reactStripImage) / 2,
+		(_size - st::reactStripImage) / 2
+	) - _stripPaintOneShift;
+	auto factory = [=](DocumentId id, Fn<void()> repaint)
+	-> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto isDefaultReaction = defaultReactionIds.contains(id);
+		auto result = isDefaultReaction
 			? std::make_unique<ShiftedEmoji>(
 				manager,
 				id,
 				std::move(repaint),
-				shift)
-			: nullptr;
+				_defaultReactionShift)
+			: manager->create(
+				id,
+				std::move(repaint),
+				Data::CustomEmojiManager::SizeTag::Large);
+		const auto i = _defaultReactionInStripMap.find(id);
+		if (i != end(_defaultReactionInStripMap)) {
+			return std::make_unique<StripEmoji>(
+				std::move(result),
+				&_strip,
+				-_stripPaintOneShift,
+				i->second);
+		}
+		return result;
 	};
 	_scroll = Ui::CreateChild<Ui::ScrollArea>(this, st::reactPanelScroll);
 	_scroll->hide();
@@ -631,6 +702,7 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 		0,
 		0,
 	}));
+	_list->setMinimalHeight(geometry.width(), _scroll->height());
 
 	updateVisibleTopBottom();
 }

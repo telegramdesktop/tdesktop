@@ -520,6 +520,10 @@ std::unique_ptr<Loader> Renderer::cancel() {
 	return _loader();
 }
 
+bool Renderer::canMakePreview() const {
+	return _cache.frames() > 0;
+}
+
 Preview Renderer::makePreview() const {
 	return _cache.makePreview();
 }
@@ -567,7 +571,7 @@ void Loading::paint(QPainter &p, const Context &context) {
 }
 
 bool Loading::hasImagePreview() const {
-return _preview.isImage();
+	return _preview.isImage();
 }
 
 Preview Loading::imagePreview() const {
@@ -599,84 +603,99 @@ Instance::Instance(
 }
 
 QString Instance::entityData() const {
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		return loading->entityData();
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		return caching->entityData;
-	} else if (const auto cached = std::get_if<Cached>(&_state)) {
-		return cached->entityData();
-	}
-	Unexpected("State in Instance::entityData.");
+	return v::match(_state, [](const Loading &state) {
+		return state.entityData();
+	}, [](const Caching &state) {
+		return state.entityData;
+	}, [](const Cached &state) {
+		return state.entityData();
+	});
 }
 
 void Instance::paint(QPainter &p, const Context &context) {
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		loading->paint(p, context);
-		loading->load([=](Loader::LoadResult result) {
-			if (auto caching = std::get_if<Caching>(&result)) {
-				caching->renderer->setRepaintCallback([=] { repaint(); });
-				_state = std::move(*caching);
-			} else if (auto cached = std::get_if<Cached>(&result)) {
-				_state = std::move(*cached);
-				repaint();
-			} else {
-				Unexpected("Value in Loader::LoadResult.");
-			}
-		});
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		auto result = caching->renderer->paint(p, context);
+	v::match(_state, [&](Loading &state) {
+		state.paint(p, context);
+		load(state);
+	}, [&](Caching &state) {
+		auto result = state.renderer->paint(p, context);
 		if (!result.painted) {
-			caching->preview.paint(p, context);
+			state.preview.paint(p, context);
 		} else {
-			if (!caching->preview.isExactImage()) {
-				caching->preview = caching->renderer->makePreview();
+			if (!state.preview.isExactImage()) {
+				state.preview = state.renderer->makePreview();
 			}
 			if (result.next > context.now) {
 				_repaintLater(this, { result.next, result.duration });
 			}
 		}
-		if (auto cached = caching->renderer->ready(caching->entityData)) {
+		if (auto cached = state.renderer->ready(state.entityData)) {
 			_state = std::move(*cached);
 		}
-	} else if (const auto cached = std::get_if<Cached>(&_state)) {
-		const auto result = cached->paint(p, context);
+	}, [&](Cached &state) {
+		const auto result = state.paint(p, context);
 		if (result.next > context.now) {
 			_repaintLater(this, { result.next, result.duration });
 		}
-	}
+	});
+}
+
+bool Instance::ready() {
+	return v::match(_state, [&](Loading &state) {
+		if (state.hasImagePreview()) {
+			return true;
+		}
+		load(state);
+		return false;
+	}, [](Caching &state) {
+		return state.renderer->canMakePreview();
+	}, [](Cached &state) {
+		return true;
+	});
+}
+
+void Instance::load(Loading &state) {
+	state.load([=](Loader::LoadResult result) {
+		if (auto caching = std::get_if<Caching>(&result)) {
+			caching->renderer->setRepaintCallback([=] { repaint(); });
+			_state = std::move(*caching);
+		} else if (auto cached = std::get_if<Cached>(&result)) {
+			_state = std::move(*cached);
+			repaint();
+		} else {
+			Unexpected("Value in Loader::LoadResult.");
+		}
+	});
 }
 
 bool Instance::hasImagePreview() const {
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		return loading->hasImagePreview();
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		return caching->preview.isImage();
-	} else if (const auto cached = std::get_if<Cached>(&_state)) {
+	return v::match(_state, [](const Loading &state) {
+		return state.hasImagePreview();
+	}, [](const Caching &state) {
+		return state.preview.isImage();
+	}, [](const Cached &state) {
 		return true;
-	}
-	return false;
+	});
 }
 
 Preview Instance::imagePreview() const {
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		return loading->imagePreview();
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		return caching->preview.isImage() ? caching->preview : Preview();
-	} else if (const auto cached = std::get_if<Cached>(&_state)) {
-		return cached->makePreview();
-	}
-	return {};
+	return v::match(_state, [](const Loading &state) {
+		return state.imagePreview();
+	}, [](const Caching &state) {
+		return state.preview.isImage() ? state.preview : Preview();
+	}, [](const Cached &state) {
+		return state.makePreview();
+	});
 }
 
 void Instance::updatePreview(Preview preview) {
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		loading->updatePreview(std::move(preview));
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		if ((!caching->preview.isImage() && preview.isImage())
-			|| (!caching->preview && preview)) {
-			caching->preview = std::move(preview);
+	v::match(_state, [&](Loading &state) {
+		state.updatePreview(std::move(preview));
+	}, [&](Caching &state) {
+		if ((!state.preview.isImage() && preview.isImage())
+			|| (!state.preview && preview)) {
+			state.preview = std::move(preview);
 		}
-	}
+	}, [](const Cached &) {});
 }
 
 void Instance::repaint() {
@@ -694,16 +713,16 @@ void Instance::decrementUsage(not_null<Object*> object) {
 	if (!_usage.empty()) {
 		return;
 	}
-	if (const auto loading = std::get_if<Loading>(&_state)) {
-		loading->cancel();
-	} else if (const auto caching = std::get_if<Caching>(&_state)) {
+	v::match(_state, [](Loading &state) {
+		state.cancel();
+	}, [&](Caching &state) {
 		_state = Loading{
-			caching->renderer->cancel(),
-			std::move(caching->preview),
+			state.renderer->cancel(),
+			std::move(state.preview),
 		};
-	} else if (const auto cached = std::get_if<Cached>(&_state)) {
-		_state = cached->unload();
-	}
+	}, [&](Cached &state) {
+		_state = state.unload();
+	});
 	_repaintLater(this, RepaintRequest());
 }
 
@@ -733,6 +752,14 @@ void Object::unload() {
 		_using = false;
 		_instance->decrementUsage(this);
 	}
+}
+
+bool Object::ready() {
+	if (!_using) {
+		_using = true;
+		_instance->incrementUsage(this);
+	}
+	return _instance->ready();
 }
 
 void Object::repaint() {

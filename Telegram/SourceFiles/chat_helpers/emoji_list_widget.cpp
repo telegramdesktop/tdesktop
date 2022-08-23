@@ -695,9 +695,7 @@ int EmojiListWidget::countDesiredHeight(int newWidth) {
 }
 
 int EmojiListWidget::defaultMinimalHeight() const {
-	return (_mode != Mode::Full)
-		? st::emojiPanArea.height()
-		: Inner::defaultMinimalHeight();
+	return Inner::defaultMinimalHeight();
 }
 
 void EmojiListWidget::ensureLoaded(int section) {
@@ -961,10 +959,9 @@ void EmojiListWidget::drawRecent(
 		} else {
 			drawEmoji(p, context, position, *emoji);
 		}
-	} else {
-		Assert(_recent[index].custom != nullptr);
+	} else if (const auto custom = _recent[index].custom) {
 		position += _innerPosition + _customPosition;
-		_recent[index].custom->paint(p, {
+		const auto paintContext = Ui::Text::CustomEmoji::Context{
 			.preview = st::windowBgRipple->c,
 			.size = QSize(_customSingleSize, _customSingleSize),
 			.now = now,
@@ -972,7 +969,10 @@ void EmojiListWidget::drawRecent(
 			.position = position,
 			.paused = paused,
 			.scaled = context.expanding,
-		});
+		};
+		custom->paint(p, paintContext);
+	} else {
+		Unexpected("Empty custom emoji in EmojiListWidget::drawRecent.");
 	}
 }
 
@@ -1597,14 +1597,11 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 	}
 	auto repaint = repaintCallback(documentId, RecentEmojiSectionSetId());
 	auto custom = _customRecentFactory
-		? _customRecentFactory(documentId, repaint)
-		: nullptr;
-	if (!custom) {
-		custom = session().data().customEmojiManager().create(
+		? _customRecentFactory(documentId, std::move(repaint))
+		: session().data().customEmojiManager().create(
 			documentId,
 			std::move(repaint),
 			Data::CustomEmojiManager::SizeTag::Large);
-	}
 	return _customEmoji.emplace(
 		documentId,
 		CustomEmojiInstance{ .emoji = std::move(custom), .recentOnly = true }
@@ -1857,7 +1854,6 @@ QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 void EmojiListWidget::refreshEmoji() {
 	refreshRecent();
 	refreshCustom();
-	resizeToWidth(width());
 }
 
 void EmojiListWidget::showSet(uint64 setId) {

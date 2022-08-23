@@ -145,6 +145,7 @@ public:
 	[[nodiscard]] std::optional<Cached> ready(const QString &entityData);
 	[[nodiscard]] std::unique_ptr<Loader> cancel();
 
+	[[nodiscard]] bool canMakePreview() const;
 	[[nodiscard]] Preview makePreview() const;
 
 	void setRepaintCallback(Fn<void()> repaint);
@@ -223,6 +224,7 @@ public:
 
 	[[nodiscard]] QString entityData() const;
 	void paint(QPainter &p, const Context &context);
+	[[nodiscard]] bool ready();
 	[[nodiscard]] bool hasImagePreview() const;
 	[[nodiscard]] Preview imagePreview() const;
 	void updatePreview(Preview preview);
@@ -233,6 +235,8 @@ public:
 	void repaint();
 
 private:
+	void load(Loading &state);
+
 	std::variant<Loading, Caching, Cached> _state;
 	base::flat_set<not_null<Object*>> _usage;
 	Fn<void(not_null<Instance*> that, RepaintRequest)> _repaintLater;
@@ -253,6 +257,7 @@ public:
 	QString entityData() override;
 	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
+	bool ready() override;
 
 	void repaint();
 

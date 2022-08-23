@@ -61,6 +61,8 @@ public:
 		QRect clip,
 		float64 scale,
 		bool hiding);
+	void paintOne(QPainter &p, int index, QPoint position, float64 scale);
+	[[nodiscard]] bool inDefaultState(int index) const;
 
 	[[nodiscard]] bool empty() const;
 	[[nodiscard]] int count() const;
@@ -107,6 +109,14 @@ private:
 	[[nodiscard]] bool checkIconLoaded(ReactionDocument &entry) const;
 	void loadIcons();
 	void checkIcons();
+	void paintOne(
+		QPainter &p,
+		ReactionIcons &icon,
+		QPoint position,
+		QRectF target,
+		bool allowAppearStart);
+	[[nodiscard]] Fn<QRectF(const ReactionIcons&)> resolveCountTargetMethod(
+		float64 scale) const;
 
 	void resolveMainReactionIcon();
 	void setMainReactionIcon();
