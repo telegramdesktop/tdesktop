@@ -1702,6 +1702,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_unlock_stickers" = "Unlock Premium Stickers";
 "lng_premium_unlock_emoji" = "Unlock Animated Emoji";
 
+"lng_premium_emoji_status_title" = "{user} set this emoji from {link} as their current status.";
+"lng_premium_emoji_status_about" = "Emoji status is a premium feature. Other features included in **Telegram Premium**:";
+"lng_premium_emoji_status_button" = "Unlock Emoji Status";
+
+"lng_premium_summary_user_title" = "{user} is a subscriber of Telegram Premium.";
+"lng_premium_summary_user_about" = "Owners of Telegram Premium accounts have exclusive access to multiple additional features.";
+"lng_premium_summary_user_button" = "Learn More";
+
 "lng_premium_summary_title" = "Telegram Premium";
 "lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
 "lng_premium_summary_title_subscribed" = "You are all set!";

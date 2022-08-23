@@ -428,8 +428,8 @@ notifyPreviewBottomSkip: 9px;
 settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
 settingsPremiumTopBarBackIcon: icon {{ "info/info_back", premiumButtonFg }};
 settingsPremiumTopBarBackIconOver: icon {{ "info/info_back", premiumButtonFg }};
-settingsPremiumStarSize: size(77px, 73px);
-settingsPremiumStarTopSkip: 42px;
+settingsPremiumStarSize: size(84px, 81px);
+settingsPremiumStarTopSkip: 37px;
 settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
@@ -469,13 +469,14 @@ settingsPremiumPreviewAboutPadding: margins(24px, 0px, 24px, 11px);
 settingsPremiumPreviewLinePadding: margins(18px, 0px, 18px, 8px);
 
 settingsPremiumTitlePadding: margins(0px, 20px, 0px, 16px);
+settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+	lineHeight: 18px;
+}
 settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkFont: font(12px underline);
-		linkFontOver: font(12px underline);
-		lineHeight: 18px;
-	}
+	style: settingsPremiumAboutTextStyle;
 	palette: TextPalette(defaultTextPalette) {
 		linkFg: premiumButtonFg;
 	}
@@ -484,6 +485,26 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 190px;
 }
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
+
+settingsPremiumUserHeight: 223px;
+settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
+settingsPremiumUserTitle: FlatLabel(boxTitle) {
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: font(16px semibold underline);
+		lineHeight: 14px;
+	}
+	minWidth: 300px;
+	maxHeight: 0px;
+	align: align(top);
+}
+settingsPremiumUserAbout: FlatLabel(boxDividerLabel) {
+	style: settingsPremiumAboutTextStyle;
+	minWidth: 315px;
+	maxHeight: 0px;
+	align: align(top);
+}
 
 settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
 settingsPremiumLockSkip: 3px;
