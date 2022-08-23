@@ -434,21 +434,21 @@ settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumLayerTopBarBack: IconButton(infoLayerTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 	icon: icon {{ "info/info_close", premiumButtonFg }};
 	iconOver: icon {{ "info/info_close", premiumButtonFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumMoveLeft: IconButton(settingsPremiumLayerTopBarBack) {
