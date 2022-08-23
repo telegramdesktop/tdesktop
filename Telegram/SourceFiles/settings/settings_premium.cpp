@@ -299,7 +299,60 @@ void SendScreenAccept(not_null<Window::SessionController*> controller) {
 		MTP_jsonNull());
 }
 
-class TopBar final : public Ui::RpWidget {
+class TopBarAbstract : public Ui::RpWidget {
+public:
+	using Ui::RpWidget::RpWidget;
+
+	void setRoundEdges(bool value);
+
+	virtual void setPaused(bool paused) = 0;
+	virtual void setTextPosition(int x, int y) = 0;
+
+protected:
+	void paintEdges(QPainter &p, const QBrush &brush) const;
+
+	[[nodiscard]] QRectF starRect(
+		float64 topProgress,
+		float64 sizeProgress) const;
+
+private:
+	bool _roundEdges = true;
+
+};
+
+void TopBarAbstract::setRoundEdges(bool value) {
+	_roundEdges = value;
+	update();
+}
+
+void TopBarAbstract::paintEdges(QPainter &p, const QBrush &brush) const {
+	const auto r = rect();
+	if (_roundEdges) {
+		PainterHighQualityEnabler hq(p);
+		const auto radius = st::boxRadius;
+		p.setPen(Qt::NoPen);
+		p.setBrush(brush);
+		p.drawRoundedRect(
+			r + QMargins{ 0, 0, 0, radius + 1 },
+			radius,
+			radius);
+	} else {
+		p.fillRect(r, brush);
+	}
+}
+
+QRectF TopBarAbstract::starRect(
+		float64 topProgress,
+		float64 sizeProgress) const {
+	const auto starSize = st::settingsPremiumStarSize * sizeProgress;
+	return QRectF(
+		QPointF(
+			(width() - starSize.width()) / 2,
+			st::settingsPremiumStarTopSkip * topProgress),
+		starSize);
+};
+
+class TopBar final : public TopBarAbstract {
 public:
 	TopBar(
 		not_null<QWidget*> parent,
@@ -307,19 +360,14 @@ public:
 		rpl::producer<QString> title,
 		rpl::producer<TextWithEntities> about);
 
-	void setPaused(bool paused);
-	void setRoundEdges(bool value);
-	void setTextPosition(int x, int y);
+	void setPaused(bool paused) override;
+	void setTextPosition(int x, int y) override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	[[nodiscard]] QRectF starRect(
-		float64 topProgress,
-		float64 sizeProgress) const;
-
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	object_ptr<Ui::FlatLabel> _about;
@@ -338,7 +386,6 @@ private:
 
 	QPoint _titlePosition;
 	QPainterPath _titlePath;
-	bool _roundEdges = true;
 
 };
 
@@ -347,7 +394,7 @@ TopBar::TopBar(
 	not_null<Window::SessionController*> controller,
 	rpl::producer<QString> title,
 	rpl::producer<TextWithEntities> about)
-: Ui::RpWidget(parent)
+: TopBarAbstract(parent)
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::settingsPremiumTitlePadding)
 , _about(this, std::move(about), st::settingsPremiumAbout)
@@ -379,23 +426,9 @@ void TopBar::setPaused(bool paused) {
 	_ministars.setPaused(paused);
 }
 
-void TopBar::setRoundEdges(bool value) {
-	_roundEdges = value;
-	update();
-}
-
 void TopBar::setTextPosition(int x, int y) {
 	_titlePosition = { x, y };
 }
-
-QRectF TopBar::starRect(float64 topProgress, float64 sizeProgress) const {
-	const auto starSize = st::settingsPremiumStarSize * sizeProgress;
-	return QRectF(
-		QPointF(
-			(width() - starSize.width()) / 2,
-			st::settingsPremiumStarTopSkip * topProgress),
-		starSize);
-};
 
 void TopBar::resizeEvent(QResizeEvent *e) {
 	const auto progress = (e->size().height() - minimumHeight())
@@ -443,18 +476,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	gradient.setColorAt(.6, st::premiumButtonBg2->c);
 	gradient.setColorAt(1., st::premiumButtonBg3->c);
 
-	PainterHighQualityEnabler hq(p);
-	if (_roundEdges) {
-		const auto radius = st::boxRadius;
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawRoundedRect(
-			r + QMargins{ 0, 0, 0, radius + 1 },
-			radius,
-			radius);
-	} else {
-		p.fillRect(r, gradient);
-	}
+	TopBarAbstract::paintEdges(p, gradient);
 
 	p.setOpacity(_progress.body);
 	p.translate(_starRect.center());
