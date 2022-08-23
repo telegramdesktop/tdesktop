@@ -234,6 +234,8 @@ PRIVATE
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp
     ui/effects/premium_stars.h
+    ui/effects/premium_stars_colored.cpp
+    ui/effects/premium_stars_colored.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp

@@ -20,7 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/effects/premium_graphics.h"
-#include "ui/effects/premium_stars.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/layers/generic_box.h"
 #include "ui/special_buttons.h"
 #include "ui/text/format_values.h"
@@ -90,76 +90,6 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	return result;
 }
 
-class ColoredMiniStars final {
-public:
-	ColoredMiniStars(not_null<Ui::RpWidget*> parent);
-
-	void setSize(const QSize &size);
-	void setPosition(QPoint position);
-	void paint(Painter &p);
-
-private:
-	Ui::Premium::MiniStars _ministars;
-	QRectF _ministarsRect;
-	QImage _frame;
-	QImage _mask;
-	QSize _size;
-	QPoint _position;
-
-};
-
-ColoredMiniStars::ColoredMiniStars(not_null<Ui::RpWidget*> parent)
-: _ministars([=](const QRect &r) {
-	parent->update(r.translated(_position));
-}, true) {
-}
-
-void ColoredMiniStars::setSize(const QSize &size) {
-	_frame = QImage(
-		size * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	_frame.setDevicePixelRatio(style::DevicePixelRatio());
-
-	_mask = _frame;
-	_mask.fill(Qt::transparent);
-	{
-		Painter p(&_mask);
-		auto gradient = QLinearGradient(0, 0, size.width(), 0);
-		gradient.setStops(Ui::Premium::GiftGradientStops());
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawRect(0, 0, size.width(), size.height());
-	}
-
-	_size = size;
-
-	{
-		const auto s = _size / Ui::Premium::MiniStars::kSizeFactor;
-		const auto margins = QMarginsF(
-			s.width() / 2.,
-			s.height() / 2.,
-			s.width() / 2.,
-			s.height() / 2.);
-		_ministarsRect = QRectF(QPointF(), _size) - margins;
-	}
-}
-
-void ColoredMiniStars::setPosition(QPoint position) {
-	_position = std::move(position);
-}
-
-void ColoredMiniStars::paint(Painter &p) {
-	_frame.fill(Qt::transparent);
-	{
-		Painter q(&_frame);
-		_ministars.paint(q, _ministarsRect);
-		q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		q.drawImage(0, 0, _mask);
-	}
-
-	p.drawImage(_position, _frame);
-}
-
 void GiftBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::SessionController*> controller,
@@ -182,6 +112,7 @@ void GiftBox(
 			+ userpicPadding.bottom()
 			+ st::defaultUserpicButton.size.height()));
 
+	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
 	const auto stars = box->lifetime().make_state<ColoredMiniStars>(top);
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
