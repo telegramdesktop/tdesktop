@@ -132,7 +132,6 @@ private:
 	int _columns = 0;
 	int _skipx = 0;
 	int _skipy = 0;
-	int _skipBottom = 0;
 	int _pressed = -1;
 	bool _appearing = false;
 	bool _toggling = false;

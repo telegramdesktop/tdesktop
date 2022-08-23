@@ -25,7 +25,6 @@ struct ReactionId {
 		return custom ? *custom : DocumentId();
 	}
 };
-Q_DECLARE_METATYPE(ReactionId);
 
 inline bool operator<(const ReactionId &a, const ReactionId &b) {
 	return a.data < b.data;
@@ -38,3 +37,5 @@ inline bool operator==(const ReactionId &a, const ReactionId &b) {
 [[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
 
 } // namespace Data
+
+Q_DECLARE_METATYPE(Data::ReactionId);

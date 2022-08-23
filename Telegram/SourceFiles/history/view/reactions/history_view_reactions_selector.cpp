@@ -161,8 +161,7 @@ Selector::Selector(
 	std::move(iconFactory))
 , _size(st::reactStripSize)
 , _skipx(countSkipLeft())
-, _skipy((st::reactStripHeight - st::reactStripSize) / 2)
-, _skipBottom(st::reactStripHeight - st::reactStripSize - _skipy) {
+, _skipy((st::reactStripHeight - st::reactStripSize) / 2) {
 	setMouseTracking(true);
 
 	parentController->content()->alive(

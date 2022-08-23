@@ -82,8 +82,6 @@ private:
 	static constexpr auto kFramesCount
 		= Ui::RoundAreaWithShadow::kFramesCount;
 
-	using ReactionId = ::Data::ReactionId;
-
 	struct ReactionDocument {
 		std::shared_ptr<Data::DocumentMedia> media;
 		std::shared_ptr<Lottie::Icon> icon;
