@@ -148,13 +148,11 @@ void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
 			_view->paintRequest(
 			) | rpl::start_with_next([=, check = _view.data()]{
 				Painter p(check);
-				_emojiStatus->paint(
-					p,
-					0,
-					0,
-					crl::now(),
-					st::windowBgOver->c,
-					_animationPaused && _animationPaused());
+				_emojiStatus->paint(p, {
+					.preview = st::windowBgOver->c,
+					.now = crl::now(),
+					.paused = _animationPaused && _animationPaused(),
+				});
 			}, _view->lifetime());
 		} else {
 			const auto icon = (_badge == Badge::Verified)

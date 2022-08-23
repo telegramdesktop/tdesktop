@@ -21,13 +21,15 @@ class FrameGenerator;
 
 namespace Ui::CustomEmoji {
 
+using Context = Ui::Text::CustomEmoji::Context;
+
 class Preview final {
 public:
 	Preview() = default;
 	Preview(QImage image, bool exact);
 	Preview(QPainterPath path, float64 scale);
 
-	void paint(QPainter &p, int x, int y, const QColor &preview);
+	void paint(QPainter &p, const Context &context);
 	[[nodiscard]] bool isImage() const;
 	[[nodiscard]] bool isExactImage() const;
 	[[nodiscard]] QImage image() const;
@@ -48,9 +50,7 @@ private:
 
 	void paintPath(
 		QPainter &p,
-		int x,
-		int y,
-		const QColor &preview,
+		const Context &context,
 		const ScaledPath &path);
 
 	std::variant<v::null_t, ScaledPath, Image> _data;
@@ -86,11 +86,7 @@ public:
 
 	[[nodiscard]] Preview makePreview() const;
 
-	PaintFrameResult paintCurrentFrame(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now);
+	PaintFrameResult paintCurrentFrame(QPainter &p, const Context &context);
 	[[nodiscard]] int currentFrame() const;
 
 private:
@@ -123,7 +119,7 @@ public:
 
 	[[nodiscard]] QString entityData() const;
 	[[nodiscard]] Preview makePreview() const;
-	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
+	PaintFrameResult paint(QPainter &p, const Context &context);
 	[[nodiscard]] Loading unload();
 
 private:
@@ -145,7 +141,7 @@ public:
 	explicit Renderer(RendererDescriptor &&descriptor);
 	virtual ~Renderer();
 
-	PaintFrameResult paint(QPainter &p, int x, int y, crl::time now);
+	PaintFrameResult paint(QPainter &p, const Context &context);
 	[[nodiscard]] std::optional<Cached> ready(const QString &entityData);
 	[[nodiscard]] std::unique_ptr<Loader> cancel();
 
@@ -199,7 +195,7 @@ public:
 
 	void load(Fn<void(Loader::LoadResult)> done);
 	[[nodiscard]] bool loading() const;
-	void paint(QPainter &p, int x, int y, const QColor &preview);
+	void paint(QPainter &p, const Context &context);
 	[[nodiscard]] bool hasImagePreview() const;
 	[[nodiscard]] Preview imagePreview() const;
 	void updatePreview(Preview preview);
@@ -226,13 +222,7 @@ public:
 	Instance &operator=(const Instance&) = delete;
 
 	[[nodiscard]] QString entityData() const;
-	void paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused);
+	void paint(QPainter &p, const Context &context);
 	[[nodiscard]] bool hasImagePreview() const;
 	[[nodiscard]] Preview imagePreview() const;
 	void updatePreview(Preview preview);
@@ -261,13 +251,7 @@ public:
 	~Object();
 
 	QString entityData() override;
-	void paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused) override;
+	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
 
 	void repaint();

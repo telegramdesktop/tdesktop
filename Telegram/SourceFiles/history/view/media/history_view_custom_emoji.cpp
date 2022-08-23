@@ -277,7 +277,11 @@ void CustomEmoji::paintCustom(
 		}
 		_selectedFrame.fill(Qt::transparent);
 		auto q = QPainter(&_selectedFrame);
-		emoji->paint(q, 0, 0, context.now, preview, paused);
+		emoji->paint(q, {
+			.preview = preview,
+			.now = context.now,
+			.paused = paused,
+		});
 		q.end();
 
 		_selectedFrame = Images::Colored(
@@ -285,7 +289,12 @@ void CustomEmoji::paintCustom(
 			context.st->msgStickerOverlay()->c);
 		p.drawImage(x, y, _selectedFrame);
 	} else {
-		emoji->paint(p, x, y, context.now, preview, paused);
+		emoji->paint(p, {
+			.preview = preview,
+			.now = context.now,
+			.position = { x, y },
+			.paused = paused,
+		});
 	}
 }
 

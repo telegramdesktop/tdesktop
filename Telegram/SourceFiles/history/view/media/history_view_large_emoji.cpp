@@ -148,7 +148,11 @@ void LargeEmoji::paintCustom(
 		}
 		_selectedFrame.fill(Qt::transparent);
 		auto q = QPainter(&_selectedFrame);
-		emoji->paint(q, 0, 0, context.now, preview, paused);
+		emoji->paint(q, {
+			.preview = preview,
+			.now = context.now,
+			.paused = paused,
+		});
 		q.end();
 
 		_selectedFrame = Images::Colored(
@@ -156,7 +160,12 @@ void LargeEmoji::paintCustom(
 			context.st->msgStickerOverlay()->c);
 		p.drawImage(x + skip, y + skip, _selectedFrame);
 	} else {
-		emoji->paint(p, x + skip, y + skip, context.now, preview, paused);
+		emoji->paint(p, {
+			.preview = preview,
+			.now = context.now,
+			.position = { x + skip, y + skip },
+			.paused = paused,
+		});
 	}
 }
 

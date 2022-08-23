@@ -30,6 +30,32 @@ struct CacheHeader {
 	int length = 0;
 };
 
+void PaintScaledImage(
+		QPainter &p,
+		const QRect &target,
+		const Cache::Frame &frame,
+		const Context &context) {
+	if (context.scaled) {
+		const auto sx = anim::interpolate(
+			target.width() / 2,
+			0,
+			context.scale);
+		const auto sy = (target.height() == target.width())
+			? sx
+			: anim::interpolate(target.height() / 2, 0, context.scale);
+		const auto scaled = target.marginsRemoved({ sx, sy, sx, sy });
+		if (frame.source.isNull()) {
+			p.drawImage(scaled, *frame.image);
+		} else {
+			p.drawImage(scaled, *frame.image, frame.source);
+		}
+	} else if (frame.source.isNull()) {
+		p.drawImage(target, *frame.image);
+	} else {
+		p.drawImage(target, *frame.image, frame.source);
+	}
+}
+
 } // namespace
 
 Preview::Preview(QPainterPath path, float64 scale)
@@ -40,15 +66,14 @@ Preview::Preview(QImage image, bool exact)
 : _data(Image{ .data = std::move(image), .exact = exact }) {
 }
 
-void Preview::paint(QPainter &p, int x, int y, const QColor &preview) {
+void Preview::paint(QPainter &p, const Context &context) {
 	if (const auto path = std::get_if<ScaledPath>(&_data)) {
-		paintPath(p, x, y, preview, *path);
+		paintPath(p, context, *path);
 	} else if (const auto image = std::get_if<Image>(&_data)) {
 		const auto &data = image->data;
 		const auto factor = style::DevicePixelRatio();
-		const auto width = data.width() / factor;
-		const auto height = data.height() / factor;
-		p.drawImage(QRect(x, y, width, height), data);
+		const auto rect = QRect(context.position, data.size() / factor);
+		PaintScaledImage(p, rect, { .image = &data }, context);
 	}
 }
 
@@ -72,27 +97,33 @@ QImage Preview::image() const {
 
 void Preview::paintPath(
 		QPainter &p,
-		int x,
-		int y,
-		const QColor &preview,
+		const Context &context,
 		const ScaledPath &path) {
 	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(preview);
+	p.setBrush(context.preview);
 	p.setPen(Qt::NoPen);
 	const auto scale = path.scale;
-	const auto required = (scale != 1.);
+	const auto required = (scale != 1.) || context.scaled;
 	if (required) {
 		p.save();
 	}
-	p.translate(x, y);
+	p.translate(context.position);
 	if (required) {
 		p.scale(scale, scale);
+		const auto center = QPoint(
+			context.size.width() / 2,
+			context.size.height() / 2);
+		if (context.scaled) {
+			p.translate(center);
+			p.scale(context.scale, context.scale);
+			p.translate(-center);
+		}
 	}
 	p.drawPath(path.path);
 	if (required) {
 		p.restore();
 	} else {
-		p.translate(-x, -y);
+		p.translate(-context.position);
 	}
 }
 
@@ -306,12 +337,11 @@ void Cache::finish() {
 
 PaintFrameResult Cache::paintCurrentFrame(
 		QPainter &p,
-		int x,
-		int y,
-		crl::time now) {
+		const Context &context) {
 	if (!_frames) {
 		return {};
 	}
+	const auto now = context.paused ? 0 : context.now;
 	const auto finishes = now ? currentFrameFinishes() : 0;
 	if (finishes && now >= finishes) {
 		++_frame;
@@ -324,7 +354,8 @@ PaintFrameResult Cache::paintCurrentFrame(
 	}
 	const auto info = frame(std::min(_frame, _frames - 1));
 	const auto size = _size / style::DevicePixelRatio();
-	p.drawImage(QRect(x, y, size, size), *info.image, info.source);
+	const auto rect = QRect(context.position, QSize(size, size));
+	PaintScaledImage(p, rect, info, context);
 	const auto next = currentFrameFinishes();
 	const auto duration = next ? (next - _shown) : 0;
 	return {
@@ -360,8 +391,8 @@ QString Cached::entityData() const {
 	return _entityData;
 }
 
-PaintFrameResult Cached::paint(QPainter &p, int x, int y, crl::time now) {
-	return _cache.paintCurrentFrame(p, x, y, now);
+PaintFrameResult Cached::paint(QPainter &p, const Context &context) {
+	return _cache.paintCurrentFrame(p, context);
 }
 
 Preview Cached::makePreview() const {
@@ -469,8 +500,8 @@ void Renderer::finish() {
 	}
 }
 
-PaintFrameResult Renderer::paint(QPainter &p, int x, int y, crl::time now) {
-	const auto result = _cache.paintCurrentFrame(p, x, y, now);
+PaintFrameResult Renderer::paint(QPainter &p, const Context &context) {
+	const auto result = _cache.paintCurrentFrame(p, context);
 	if (_generator
 		&& (!result.painted
 			|| _cache.currentFrame() + kPreloadFrames >= _cache.frames())) {
@@ -526,13 +557,13 @@ bool Loading::loading() const {
 	return _loader->loading();
 }
 
-void Loading::paint(QPainter &p, int x, int y, const QColor &preview) {
+void Loading::paint(QPainter &p, const Context &context) {
 	if (!_preview) {
 		if (auto preview = _loader->preview()) {
 			_preview = std::move(preview);
 		}
 	}
-	_preview.paint(p, x, y, preview);
+	_preview.paint(p, context);
 }
 
 bool Loading::hasImagePreview() const {
@@ -578,15 +609,9 @@ QString Instance::entityData() const {
 	Unexpected("State in Instance::entityData.");
 }
 
-void Instance::paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused) {
+void Instance::paint(QPainter &p, const Context &context) {
 	if (const auto loading = std::get_if<Loading>(&_state)) {
-		loading->paint(p, x, y, preview);
+		loading->paint(p, context);
 		loading->load([=](Loader::LoadResult result) {
 			if (auto caching = std::get_if<Caching>(&result)) {
 				caching->renderer->setRepaintCallback([=] { repaint(); });
@@ -599,14 +624,14 @@ void Instance::paint(
 			}
 		});
 	} else if (const auto caching = std::get_if<Caching>(&_state)) {
-		auto result = caching->renderer->paint(p, x, y, paused ? 0 : now);
+		auto result = caching->renderer->paint(p, context);
 		if (!result.painted) {
-			caching->preview.paint(p, x, y, preview);
+			caching->preview.paint(p, context);
 		} else {
 			if (!caching->preview.isExactImage()) {
 				caching->preview = caching->renderer->makePreview();
 			}
-			if (result.next > now) {
+			if (result.next > context.now) {
 				_repaintLater(this, { result.next, result.duration });
 			}
 		}
@@ -614,8 +639,8 @@ void Instance::paint(
 			_state = std::move(*cached);
 		}
 	} else if (const auto cached = std::get_if<Cached>(&_state)) {
-		const auto result = cached->paint(p, x, y, paused ? 0 : now);
-		if (result.next > now) {
+		const auto result = cached->paint(p, context);
+		if (result.next > context.now) {
 			_repaintLater(this, { result.next, result.duration });
 		}
 	}
@@ -695,18 +720,12 @@ QString Object::entityData() {
 	return _instance->entityData();
 }
 
-void Object::paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused) {
+void Object::paint(QPainter &p, const Context &context) {
 	if (!_using) {
 		_using = true;
 		_instance->incrementUsage(this);
 	}
-	_instance->paint(p, x, y, now, preview, paused);
+	_instance->paint(p, context);
 }
 
 void Object::unload() {

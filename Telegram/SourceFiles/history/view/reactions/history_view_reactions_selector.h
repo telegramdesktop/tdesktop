@@ -70,6 +70,7 @@ private:
 		QRect categories;
 		QRect list;
 		float64 radius = 0.;
+		int finalBottom = 0;
 	};
 
 	void paintEvent(QPaintEvent *e) override;

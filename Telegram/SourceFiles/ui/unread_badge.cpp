@@ -180,13 +180,14 @@ int PeerBadge::drawGetWidth(
 				id,
 				descriptor.customEmojiRepaint);
 		}
-		_emojiStatus->emoji->paint(
-			p,
-			iconx - 2 * _emojiStatus->skip,
-			icony + _emojiStatus->skip,
-			descriptor.now,
-			descriptor.preview,
-			descriptor.paused);
+		_emojiStatus->emoji->paint(p, {
+			.preview = descriptor.preview,
+			.now = descriptor.now,
+			.position = QPoint(
+				iconx - 2 * _emojiStatus->skip,
+				icony + _emojiStatus->skip),
+			.paused = descriptor.paused,
+		});
 		return iconw - 4 * _emojiStatus->skip;
 	}
 	return 0;

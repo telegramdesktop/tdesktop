@@ -16,10 +16,6 @@ namespace Ui {
 struct ChatPaintContext;
 } // namespace Ui
 
-namespace Ui::Text {
-class CustomEmoji;
-} // namespace Ui::Text
-
 namespace Data {
 class Reactions;
 } // namespace Data
@@ -105,7 +101,6 @@ private:
 	struct Reaction {
 		mutable std::unique_ptr<Reactions::Animation> animation;
 		mutable QImage image;
-		mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
 		ReactionId id;
 		QString countText;
 		int count = 0;

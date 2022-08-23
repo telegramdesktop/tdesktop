@@ -18,11 +18,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "window/window_session_controller.h"
+#include "base/call_delayed.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
 namespace {
+
+constexpr auto kExpandDuration = crl::time(300);
+constexpr auto kScaleDuration = crl::time(120);
+constexpr auto kFullDuration = kExpandDuration + kScaleDuration;
+constexpr auto kExpandDelay = crl::time(40);
 
 class ShiftedEmoji final : public Ui::Text::CustomEmoji {
 public:
@@ -33,13 +39,7 @@ public:
 		QPoint shift);
 
 	QString entityData() override;
-	void paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused) override;
+	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
 
 private:
@@ -64,14 +64,10 @@ QString ShiftedEmoji::entityData() {
 	return _real->entityData();
 }
 
-void ShiftedEmoji::paint(
-		QPainter &p,
-		int x,
-		int y,
-		crl::time now,
-		const QColor &preview,
-		bool paused) {
-	_real->paint(p, x + _shift.x(), y + _shift.y(), now, preview, paused);
+void ShiftedEmoji::paint(QPainter &p, const Context &context) {
+	auto copy = context;
+	copy.position += _shift;
+	_real->paint(p, copy);
 }
 
 void ShiftedEmoji::unload() {
@@ -270,6 +266,7 @@ void Selector::paintCollapsed(QPainter &p) {
 void Selector::paintExpanding(Painter &p, float64 progress) {
 	const auto rects = paintExpandingBg(p, progress);
 	//paintStripWithoutExpand(p);
+	progress /= kFullDuration;
 	paintFadingExpandIcon(p, progress);
 	if (_footer) {
 		_footer->paintExpanding(
@@ -281,11 +278,16 @@ void Selector::paintExpanding(Painter &p, float64 progress) {
 	_list->paintExpanding(
 		p,
 		rects.list.marginsRemoved(st::reactPanelEmojiPan.margin),
+		rects.finalBottom,
+		progress,
 		RectPart::TopRight);
 }
 
 auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 -> ExpandingRects {
+	progress = (progress >= kExpandDuration)
+		? 1.
+		: (progress / kExpandDuration);
 	constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
 	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
 	const auto radiusStart = st::reactStripHeight / 2.;
@@ -318,6 +320,7 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 		.categories = QRect(inner.x(), inner.y(), inner.width(), categories),
 		.list = inner.marginsRemoved({ 0, categories, 0, 0 }),
 		.radius = radius,
+		.finalBottom = height() - extents.bottom(),
 	};
 }
 
@@ -393,7 +396,8 @@ void Selector::paintEvent(QPaintEvent *e) {
 		paintAppearing(p);
 	} else if (!_expanded) {
 		paintCollapsed(p);
-	} else if (const auto progress = _expanding.value(1.); progress < 1.) {
+	} else if (const auto progress = _expanding.value(kFullDuration)
+		; progress < kFullDuration) {
 		paintExpanding(p, progress);
 	} else {
 		paintExpanded(p);
@@ -468,9 +472,14 @@ void Selector::expand() {
 	createList(strong);
 	cacheExpandIcon();
 
-	_paintBuffer = _cachedRound.PrepareImage(size());
-	_expanded = true;
-	_expanding.start([=] { update(); }, 0., 1., st::slideDuration);
+	[[maybe_unused]] const auto grabbed = Ui::GrabWidget(_scroll);
+
+	base::call_delayed(kExpandDelay, this, [=] {
+		_paintBuffer = _cachedRound.PrepareImage(size());
+		_expanded = true;
+		const auto full = kExpandDuration + kScaleDuration;
+		_expanding.start([=] { update(); }, 0., full, full);
+	});
 }
 
 void Selector::cacheExpandIcon() {

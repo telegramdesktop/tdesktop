@@ -356,12 +356,7 @@ void BottomInfo::paintReactions(
 			y += st::msgDateFont->height;
 			widthLeft = availableWidth;
 		}
-		if (!reaction.custom && reaction.image.isNull()) {
-			reaction.custom = _reactionsOwner->resolveCustomFor(
-				reaction.id,
-				::Data::Reactions::ImageSize::BottomInfo);
-		}
-		if (!reaction.custom && reaction.image.isNull()) {
+		if (reaction.image.isNull()) {
 			reaction.image = _reactionsOwner->resolveImageFor(
 				reaction.id,
 				::Data::Reactions::ImageSize::BottomInfo);
@@ -375,9 +370,6 @@ void BottomInfo::paintReactions(
 			&& (reaction.count < 2 || !reaction.animation->flying());
 		if (!reaction.image.isNull() && !skipImage) {
 			p.drawImage(image.topLeft(), reaction.image);
-		} else if (reaction.custom && !skipImage) {
-			const auto size = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
-			reaction.custom->paint(p, x + (st::reactionInfoSize - size) / 2, y + (st::msgDateFont->height - size) / 2, crl::now(), Qt::white, false);
 		}
 		if (animating) {
 			animations.push_back({

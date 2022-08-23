@@ -1217,19 +1217,29 @@ void StickersListFooter::paintSetIcon(
 		crl::time now,
 		bool paused) const {
 	const auto &icon = _icons[info.index];
-	if (context.expanding) {
-		p.save();
-		const auto center = QPoint(
-			info.adjustedLeft + _singleWidth / 2,
-			_iconsTop + st().footer / 2);
-		const auto shift = QPoint(0, anim::interpolate(height() / 2, 0, context.progress));
-		p.translate(shift + center);
-		p.scale(context.progress, context.progress);
-		p.translate(-center);
-	}
+	const auto expandingShift = context.expanding
+		? QPoint(
+			0,
+			anim::interpolate(height() / 2, 0, context.progress))
+		: QPoint();
 	if (icon.sticker) {
 		icon.ensureMediaCreated();
 		const_cast<StickersListFooter*>(this)->validateIconAnimation(icon);
+	}
+	if (context.expanding) {
+		if (icon.custom) {
+			p.translate(expandingShift);
+		} else {
+			p.save();
+			const auto center = QPoint(
+				info.adjustedLeft + _singleWidth / 2,
+				_iconsTop + st().footer / 2);
+			p.translate(expandingShift + center);
+			p.scale(context.progress, context.progress);
+			p.translate(-center);
+		}
+	}
+	if (icon.sticker) {
 		const auto origin = icon.sticker->stickerSetOrigin();
 		const auto thumb = icon.thumbnailMedia
 			? icon.thumbnailMedia->image()
@@ -1239,7 +1249,15 @@ void StickersListFooter::paintSetIcon(
 		const auto x = info.adjustedLeft + (_singleWidth - icon.pixw) / 2;
 		const auto y = _iconsTop + (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
-			icon.custom->paint(p, x, y, now, st::emojiIconFg->c, paused);
+			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
+				.preview = st::emojiIconFg->c,
+				.size = QSize(icon.pixw, icon.pixh),
+				.now = now,
+				.scale = context.progress,
+				.position = { x, y },
+				.paused = paused,
+				.scaled = context.expanding,
+			});
 		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
 			const auto size = frame.size() / cIntRetinaFactor();
@@ -1368,7 +1386,11 @@ void StickersListFooter::paintSetIcon(
 		}
 	}
 	if (context.expanding) {
-		p.restore();
+		if (icon.custom) {
+			p.translate(-expandingShift);
+		} else {
+			p.restore();
+		}
 	}
 }
 
