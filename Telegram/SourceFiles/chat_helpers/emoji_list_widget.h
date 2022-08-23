@@ -329,6 +329,7 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
+	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;
 

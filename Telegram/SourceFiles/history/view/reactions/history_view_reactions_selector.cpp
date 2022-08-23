@@ -85,7 +85,7 @@ Selector::Selector(
 , _parentController(parentController.get())
 , _reactions(std::move(reactions))
 , _cachedRound(
-	QSize(st::reactStripSkip * 2 + st::reactStripSize, st::reactStripHeight),
+	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
 	st::reactionCornerShadow,
 	st::reactStripHeight)
 , _strip(
@@ -94,10 +94,20 @@ Selector::Selector(
 	crl::guard(this, [=] { update(_inner); }),
 	std::move(iconFactory))
 , _size(st::reactStripSize)
-, _skipx(st::reactStripSkip)
+, _skipx(countSkipLeft())
 , _skipy((st::reactStripHeight - st::reactStripSize) / 2)
 , _skipBottom(st::reactStripHeight - st::reactStripSize - _skipy) {
 	setMouseTracking(true);
+}
+
+int Selector::countSkipLeft() const {
+	const auto addedToMax = _reactions.customAllowed
+		|| _reactions.morePremiumAvailable;
+	const auto max = int(_reactions.recent.size()) + (addedToMax ? 1 : 0);
+	const auto width = max * _size;
+	return std::max(
+		(st::reactStripMinWidth - (max * _size)) / 2,
+		st::reactStripSkip);
 }
 
 int Selector::countWidth(int desiredWidth, int maxWidth) {
@@ -267,7 +277,6 @@ void Selector::paintExpanding(Painter &p, float64 progress) {
 	const auto rects = paintExpandingBg(p, progress);
 	//paintStripWithoutExpand(p);
 	progress /= kFullDuration;
-	paintFadingExpandIcon(p, progress);
 	if (_footer) {
 		_footer->paintExpanding(
 			p,
@@ -281,6 +290,7 @@ void Selector::paintExpanding(Painter &p, float64 progress) {
 		rects.finalBottom,
 		progress,
 		RectPart::TopRight);
+	paintFadingExpandIcon(p, progress);
 }
 
 auto Selector::paintExpandingBg(QPainter &p, float64 progress)
@@ -409,7 +419,7 @@ void Selector::mouseMoveEvent(QMouseEvent *e) {
 }
 
 int Selector::lookupSelectedIndex(QPoint position) const {
-	const auto p = position - _inner.topLeft();
+	const auto p = position - _inner.topLeft() - QPoint(_skipx, _skipy);
 	const auto max = _strip.count();
 	const auto index = p.x() / _size;
 	if (p.x() >= 0 && p.y() >= 0 && p.y() < _inner.height() && index < max) {

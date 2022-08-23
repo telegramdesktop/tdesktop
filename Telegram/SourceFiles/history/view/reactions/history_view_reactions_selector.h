@@ -89,6 +89,7 @@ private:
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
 
+	[[nodiscard]] int countSkipLeft() const;
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
 

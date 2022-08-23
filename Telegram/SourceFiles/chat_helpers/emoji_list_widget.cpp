@@ -397,6 +397,10 @@ EmojiListWidget::EmojiListWidget(
 	setMouseTracking(true);
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
+	_customSingleSize = Data::FrameSizeFromTag(
+		Data::CustomEmojiManager::SizeTag::Large
+	) / style::DevicePixelRatio();
+
 	_picker->hide();
 
 	for (auto i = 1; i != _staticCount; ++i) {
@@ -962,6 +966,7 @@ void EmojiListWidget::drawRecent(
 		position += _innerPosition + _customPosition;
 		_recent[index].custom->paint(p, {
 			.preview = st::windowBgRipple->c,
+			.size = QSize(_customSingleSize, _customSingleSize),
 			.now = now,
 			.scale = context.progress,
 			.position = position,
@@ -997,6 +1002,7 @@ void EmojiListWidget::drawCustom(
 	_custom[set].painted = true;
 	_custom[set].list[index].custom->paint(p, {
 		.preview = st::windowBgRipple->c,
+		.size = QSize(_customSingleSize, _customSingleSize),
 		.now = now,
 		.scale = context.progress,
 		.position = position,
@@ -1619,9 +1625,7 @@ std::vector<StickerIcon> EmojiListWidget::fillIcons() {
 	} else {
 		result.emplace_back(AllEmojiSectionSetId());
 	}
-	const auto esize = Data::FrameSizeFromTag(
-		Data::CustomEmojiManager::SizeTag::Large
-	) / style::DevicePixelRatio();
+	const auto esize = _customSingleSize;
 	for (const auto &custom : _custom) {
 		const auto set = custom.set;
 		result.emplace_back(set, custom.thumbnailDocument, esize, esize);
