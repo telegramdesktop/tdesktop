@@ -194,10 +194,11 @@ QByteArray SerializeText(
 			: (part.type == Type::TextUrl)
 			? "href"
 			: "none";
-		const auto additionalValue = (part.type == Type::MentionName
-			|| part.type == Type::CustomEmoji)
+		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
-			: (part.type == Type::Pre || part.type == Type::TextUrl)
+			: (part.type == Type::Pre
+				|| part.type == Type::TextUrl
+				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
 			: QByteArray();
 		return SerializeObject(context, {
