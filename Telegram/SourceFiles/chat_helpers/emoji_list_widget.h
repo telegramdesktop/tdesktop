@@ -112,6 +112,8 @@ public:
 	[[nodiscard]] auto premiumChosen() const
 		-> rpl::producer<not_null<DocumentData*>>;
 
+	void paintExpanding(QPainter &p, QRect clip, RectPart origin);
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -205,6 +207,9 @@ private:
 		OverEmoji,
 		OverSet,
 		OverButton>;
+	struct ExpandingContext {
+		bool expanding = false;
+	};
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -230,6 +235,7 @@ private:
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
 	void selectEmoji(EmojiPtr emoji);
 	void selectCustom(not_null<DocumentData*> document);
+	void paint(QPainter &p, const ExpandingContext &context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
 		QPainter &p,

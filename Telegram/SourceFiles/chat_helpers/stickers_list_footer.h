@@ -134,6 +134,12 @@ public:
 	};
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
 
+	void paintExpanding(
+		Painter &p,
+		QRect clip,
+		float64 radius,
+		RectPart origin);
+
 protected:
 	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
@@ -182,6 +188,12 @@ private:
 		crl::time animationStart = 0;
 		Ui::Animations::Basic animation;
 	};
+	struct ExpandingContext {
+		QRect clip;
+		float64 progress = 0.;
+		int radius = 0;
+		bool expanding = false;
+	};
 
 	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback) const;
 	void enumerateIcons(Fn<bool(const IconInfo &)> callback) const;
@@ -212,16 +224,23 @@ private:
 	void checkDragging(ScrollState &state);
 	bool finishDragging(ScrollState &state);
 	bool finishDragging();
-	void paintStickerSettingsIcon(Painter &p) const;
-	void paintSearchIcon(Painter &p) const;
+
+	void paint(Painter &p, const ExpandingContext &context) const;
+	void paintStickerSettingsIcon(QPainter &p) const;
+	void paintSearchIcon(QPainter &p) const;
 	void paintSetIcon(
 		Painter &p,
+		const ExpandingContext &context,
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const;
-	void paintSelectionBg(Painter &p) const;
-	void paintSelectionBar(Painter &p) const;
-	void paintLeftRightFading(Painter &p) const;
+	void paintSelectionBg(
+		QPainter &p,
+		const ExpandingContext &context) const;
+	void paintSelectionBar(QPainter &p) const;
+	void paintLeftRightFading(
+		QPainter &p,
+		const ExpandingContext &context) const;
 
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();

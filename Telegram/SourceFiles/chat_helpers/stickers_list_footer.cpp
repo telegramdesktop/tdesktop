@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
+#include "ui/rect_part.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -220,6 +221,27 @@ void StickersListFooter::clearHeavyData() {
 		}
 		return true;
 	});
+}
+
+void StickersListFooter::paintExpanding(
+		Painter &p,
+		QRect clip,
+		float64 radius,
+		RectPart origin) {
+	const auto delta = ((origin | RectPart::None) & RectPart::FullBottom)
+		? (height() - clip.height())
+		: 0;
+	const auto shift = QPoint(clip.x(), clip.y() - delta);
+	p.translate(shift);
+	const auto context = ExpandingContext{
+		.clip = clip.translated(-shift),
+		.progress = clip.height() / float64(height()),
+		.radius = int(std::ceil(radius)),
+		.expanding = true,
+	};
+	paint(p, context);
+	p.translate(-shift);
+	p.setClipping(false);
 }
 
 void StickersListFooter::initSearch() {
@@ -536,9 +558,15 @@ void StickersListFooter::setLoading(bool loading) {
 }
 
 void StickersListFooter::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = Painter(this);
 
 	_repaintScheduled = false;
+	paint(p, {});
+}
+
+void StickersListFooter::paint(
+		Painter &p,
+		const ExpandingContext &context) const {
 	if (_searchButtonVisible) {
 		paintSearchIcon(p);
 	}
@@ -558,25 +586,37 @@ void StickersListFooter::paintEvent(QPaintEvent *e) {
 	if (rtl()) {
 		clip.moveLeft(width() - _iconsLeft - clip.width());
 	}
-	p.setClipRect(clip);
+	if (context.expanding) {
+		const auto both = clip.intersected(
+			context.clip.marginsRemoved(
+				{ context.radius, 0, context.radius, 0 }));
+		if (both.isEmpty()) {
+			return;
+		}
+		p.setClipRect(both);
+	} else {
+		p.setClipRect(clip);
+	}
 
 	if (!_barSelection) {
-		paintSelectionBg(p);
+		paintSelectionBg(p, context);
 	}
 
 	const auto now = crl::now();
 	const auto paused = _paused();
 	enumerateVisibleIcons([&](const IconInfo &info) {
-		paintSetIcon(p, info, now, paused);
+		paintSetIcon(p, context, info, now, paused);
 	});
 
 	if (_barSelection) {
 		paintSelectionBar(p);
 	}
-	paintLeftRightFading(p);
+	paintLeftRightFading(p, context);
 }
 
-void StickersListFooter::paintSelectionBg(Painter &p) const {
+void StickersListFooter::paintSelectionBg(
+		QPainter &p,
+		const ExpandingContext &context) const {
 	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
 	auto selx = selxrel - qRound(_iconState.x.current());
 	const auto selw = qRound(_iconState.selectionWidth.current());
@@ -585,9 +625,18 @@ void StickersListFooter::paintSelectionBg(Painter &p) const {
 	}
 	const auto sely = _iconsTop;
 	const auto area = st().iconArea;
-	const auto rect = QRect(
+	auto rect = QRect(
 		QPoint(selx, sely) + _areaPosition,
 		QSize(selw - 2 * _areaPosition.x(), area));
+	if (context.expanding) {
+		const auto recthalf = rect.height() / 2;
+		const auto myhalf = height() / 2;
+		const auto sub = anim::interpolate(recthalf, 0, context.progress);
+		const auto shift = anim::interpolate(myhalf, 0, context.progress);
+		rect = rect.marginsRemoved(
+			{ sub, sub, sub, sub }
+		).translated(0, shift);
+	}
 	if (rect.width() == rect.height() || _subiconsWidth <= _singleWidth) {
 		_selectionBg.paint(p, rect);
 	} else if (selw == _subiconsWidth) {
@@ -606,7 +655,7 @@ void StickersListFooter::paintSelectionBg(Painter &p) const {
 	}
 }
 
-void StickersListFooter::paintSelectionBar(Painter &p) const {
+void StickersListFooter::paintSelectionBar(QPainter &p) const {
 	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
 	auto selx = selxrel - qRound(_iconState.x.current());
 	const auto selw = qRound(_iconState.selectionWidth.current());
@@ -621,26 +670,37 @@ void StickersListFooter::paintSelectionBar(Painter &p) const {
 		st::stickerIconSelColor);
 }
 
-void StickersListFooter::paintLeftRightFading(Painter &p) const {
-	auto o_left = std::clamp(
+void StickersListFooter::paintLeftRightFading(
+		QPainter &p,
+		const ExpandingContext &context) const {
+	const auto o_left_normal = std::clamp(
 		_iconState.x.current() / st().fadeLeft.width(),
 		0.,
 		1.);
+	const auto o_left = context.expanding
+		? (1. - context.progress * (1. - o_left_normal))
+		: o_left_normal;
+	const auto radiusSkip = context.expanding
+		? std::max(context.radius - st::roundRadiusSmall, 0)
+		: 0;
 	if (o_left > 0) {
 		p.setOpacity(o_left);
-		st().fadeLeft.fill(p, style::rtlrect(_iconsLeft, _iconsTop, st().fadeLeft.width(), st().footer, width()));
+		st().fadeLeft.fill(p, style::rtlrect(std::max(_iconsLeft, radiusSkip), _iconsTop, st().fadeLeft.width(), st().footer, width()));
 		p.setOpacity(1.);
 	}
-	auto o_right = std::clamp(
+	const auto o_right_normal = std::clamp(
 		(_iconState.max - _iconState.x.current()) / st().fadeRight.width(),
 		0.,
 		1.);
+	const auto o_right = context.expanding
+		? (1. - context.progress * (1. - o_right_normal))
+		: o_right_normal;
 	if (o_right > 0) {
 		p.setOpacity(o_right);
 		st().fadeRight.fill(
 			p,
 			style::rtlrect(
-				width() - _iconsRight - st().fadeRight.width(),
+				width() - std::max(_iconsRight, radiusSkip) - st().fadeRight.width(),
 				_iconsTop,
 				st().fadeRight.width(),
 				st().footer, width()));
@@ -1043,7 +1103,7 @@ bool StickersListFooter::hasOnlyFeaturedSets() const {
 		&& (_icons[0].setId == Data::Stickers::FeaturedSetId);
 }
 
-void StickersListFooter::paintStickerSettingsIcon(Painter &p) const {
+void StickersListFooter::paintStickerSettingsIcon(QPainter &p) const {
 	const auto settingsLeft = width() - _iconsRight;
 	st::stickersSettings.paint(
 		p,
@@ -1053,7 +1113,7 @@ void StickersListFooter::paintStickerSettingsIcon(Painter &p) const {
 		width());
 }
 
-void StickersListFooter::paintSearchIcon(Painter &p) const {
+void StickersListFooter::paintSearchIcon(QPainter &p) const {
 	const auto searchLeft = _iconsLeft - _singleWidth;
 	st::stickersSearch.paint(
 		p,
@@ -1152,10 +1212,21 @@ void StickersListFooter::updateSetIconAt(int left) {
 
 void StickersListFooter::paintSetIcon(
 		Painter &p,
+		const ExpandingContext &context,
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const {
 	const auto &icon = _icons[info.index];
+	if (context.expanding) {
+		p.save();
+		const auto center = QPoint(
+			info.adjustedLeft + _singleWidth / 2,
+			_iconsTop + st().footer / 2);
+		const auto shift = QPoint(0, anim::interpolate(height() / 2, 0, context.progress));
+		p.translate(shift + center);
+		p.scale(context.progress, context.progress);
+		p.translate(-center);
+	}
 	if (icon.sticker) {
 		icon.ensureMediaCreated();
 		const_cast<StickersListFooter*>(this)->validateIconAnimation(icon);
@@ -1295,6 +1366,9 @@ void StickersListFooter::paintSetIcon(
 				return &st::emojiRecent;
 			}());
 		}
+	}
+	if (context.expanding) {
+		p.restore();
 	}
 }
 

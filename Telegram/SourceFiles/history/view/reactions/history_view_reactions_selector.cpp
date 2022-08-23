@@ -267,13 +267,25 @@ void Selector::paintCollapsed(QPainter &p) {
 		false);
 }
 
-void Selector::paintExpanding(QPainter &p, float64 progress) {
-	paintExpandingBg(p, progress);
-	paintStripWithoutExpand(p);
+void Selector::paintExpanding(Painter &p, float64 progress) {
+	const auto rects = paintExpandingBg(p, progress);
+	//paintStripWithoutExpand(p);
 	paintFadingExpandIcon(p, progress);
+	if (_footer) {
+		_footer->paintExpanding(
+			p,
+			rects.categories,
+			rects.radius,
+			RectPart::BottomRight);
+	}
+	_list->paintExpanding(
+		p,
+		rects.list.marginsRemoved(st::reactPanelEmojiPan.margin),
+		RectPart::TopRight);
 }
 
-void Selector::paintExpandingBg(QPainter &p, float64 progress) {
+auto Selector::paintExpandingBg(QPainter &p, float64 progress)
+-> ExpandingRects {
 	constexpr auto kFramesCount = Ui::RoundAreaWithShadow::kFramesCount;
 	const auto frame = int(base::SafeRound(progress * (kFramesCount - 1)));
 	const auto radiusStart = st::reactStripHeight / 2.;
@@ -292,6 +304,21 @@ void Selector::paintExpandingBg(QPainter &p, float64 progress) {
 	if (!fill.isEmpty()) {
 		p.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
 	}
+	const auto categories = anim::interpolate(
+		0,
+		extendTopForCategories(),
+		expanding);
+	const auto inner = outer.marginsRemoved(extents);
+	_shadowTop = inner.y() + categories;
+	_shadowSkip = (categories < radius)
+		? int(base::SafeRound(
+			radius - sqrt(categories * (2 * radius - categories))))
+		: 0;
+	return {
+		.categories = QRect(inner.x(), inner.y(), inner.width(), categories),
+		.list = inner.marginsRemoved({ 0, categories, 0, 0 }),
+		.radius = radius,
+	};
 }
 
 void Selector::paintStripWithoutExpand(QPainter &p) {
@@ -317,6 +344,7 @@ void Selector::paintFadingExpandIcon(QPainter &p, float64 progress) {
 		QSize(_size, _size)
 	).marginsRemoved({ sub, sub, sub, sub });
 	p.drawImage(expandIconRect, _expandIconCache);
+	p.setOpacity(1.);
 }
 
 void Selector::paintExpanded(QPainter &p) {
@@ -360,7 +388,7 @@ void Selector::paintBubble(QPainter &p, int innerWidth) {
 }
 
 void Selector::paintEvent(QPaintEvent *e) {
-	auto p = QPainter(this);
+	auto p = Painter(this);
 	if (_appearing) {
 		paintAppearing(p);
 	} else if (!_expanded) {
@@ -543,12 +571,17 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 			inner.y(),
 			inner.width(),
 			_footer->height());
+		_shadowTop = _outer.y();
+		_shadowSkip = (st::reactStripHeight / 2);
 		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
-		_footer->geometryValue() | rpl::start_with_next([=](QRect geometry) {
+		rpl::combine(
+			_shadowTop.value(),
+			_shadowSkip.value()
+		) | rpl::start_with_next([=](int top, int skip) {
 			shadow->setGeometry(
-				geometry.x(),
-				geometry.y() + geometry.height(),
-				geometry.width(),
+				inner.x() + skip,
+				top,
+				inner.width() - 2 * skip,
 				st::lineWidth);
 		}, shadow->lifetime());
 		shadow->show();
@@ -556,8 +589,8 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	const auto geometry = inner.marginsRemoved(
 		st::reactPanelEmojiPan.margin);
 	_list->move(0, 0);
-	_list->refreshEmoji();
 	_list->resizeToWidth(geometry.width());
+	_list->refreshEmoji();
 	_list->show();
 
 	const auto updateVisibleTopBottom = [=] {

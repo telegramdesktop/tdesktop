@@ -483,6 +483,21 @@ auto EmojiListWidget::premiumChosen() const
 	return _premiumChosen.events();
 }
 
+void EmojiListWidget::paintExpanding(
+		QPainter &p,
+		QRect clip,
+		RectPart origin) {
+	const auto shift = clip.topLeft();
+	const auto adjusted = clip.translated(-shift);
+	p.translate(shift);
+	p.setClipRect(adjusted);
+	const auto context = ExpandingContext{
+		.expanding = true,
+	};
+	paint(p, context, adjusted);
+	p.translate(-shift);
+}
+
 void EmojiListWidget::visibleTopBottomUpdated(
 		int visibleTop,
 		int visibleBottom) {
@@ -755,14 +770,26 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 
 	_repaintsScheduled.clear();
 
-	const auto r = e ? e->rect() : rect();
-	if (r != rect()) {
-		p.setClipRect(r);
-	}
-	p.fillRect(r, st::emojiPanBg);
+	const auto clip = e ? e->rect() : rect();
+	p.fillRect(clip, st::emojiPanBg);
 
-	auto fromColumn = floorclamp(r.x() - _rowsLeft, _singleSize.width(), 0, _columnCount);
-	auto toColumn = ceilclamp(r.x() + r.width() - _rowsLeft, _singleSize.width(), 0, _columnCount);
+	paint(p, {}, clip);
+}
+
+void EmojiListWidget::paint(
+		QPainter &p,
+		const ExpandingContext &context,
+		QRect clip) {
+	auto fromColumn = floorclamp(
+		clip.x() - _rowsLeft,
+		_singleSize.width(),
+		0,
+		_columnCount);
+	auto toColumn = ceilclamp(
+		clip.x() + clip.width() - _rowsLeft,
+		_singleSize.width(),
+		0,
+		_columnCount);
 	if (rtl()) {
 		qSwap(fromColumn, toColumn);
 		fromColumn = _columnCount - fromColumn;
@@ -775,9 +802,9 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 		? &_pressed
 		: &_selected);
 	enumerateSections([&](const SectionInfo &info) {
-		if (r.top() >= info.rowsBottom) {
+		if (clip.top() >= info.rowsBottom) {
 			return true;
-		} else if (r.top() + r.height() <= info.top) {
+		} else if (clip.top() + clip.height() <= info.top) {
 			return false;
 		}
 		const auto buttonSelected = selectedButton
@@ -785,8 +812,8 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 			: false;
 		const auto widthForTitle = emojiRight()
 			- (st().headerLeft - st().margin.left())
-			- paintButtonGetWidth(p, info, buttonSelected, r);
-		if (info.section > 0 && r.top() < info.rowsTop) {
+			- paintButtonGetWidth(p, info, buttonSelected, clip);
+		if (info.section > 0 && clip.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
 			auto titleText = (info.section < _staticCount)
@@ -808,14 +835,23 @@ void EmojiListWidget::paintEvent(QPaintEvent *e) {
 					top,
 					width());
 			}
+			const auto textTop = top + st::emojiPanHeaderFont->ascent;
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawTextLeft(left, top, width(), titleText, titleWidth);
+			p.drawText(left, textTop, titleText);
 		}
-		if (r.top() + r.height() > info.rowsTop) {
+		if (clip.top() + clip.height() > info.rowsTop) {
 			ensureLoaded(info.section);
-			auto fromRow = floorclamp(r.y() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
-			auto toRow = ceilclamp(r.y() + r.height() - info.rowsTop, _singleSize.height(), 0, info.rowsCount);
+			auto fromRow = floorclamp(
+				clip.y() - info.rowsTop,
+				_singleSize.height(),
+				0,
+				info.rowsCount);
+			auto toRow = ceilclamp(
+				clip.y() + clip.height() - info.rowsTop,
+				_singleSize.height(),
+				0,
+				info.rowsCount);
 			for (auto i = fromRow; i < toRow; ++i) {
 				for (auto j = fromColumn; j < toColumn; ++j) {
 					const auto index = i * _columnCount + j;
@@ -1790,6 +1826,7 @@ QPoint EmojiListWidget::buttonRippleTopLeft(int section) const {
 void EmojiListWidget::refreshEmoji() {
 	refreshRecent();
 	refreshCustom();
+	resizeToWidth(width());
 }
 
 void EmojiListWidget::showSet(uint64 setId) {

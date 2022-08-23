@@ -66,6 +66,12 @@ public:
 private:
 	static constexpr int kFramesCount = 32;
 
+	struct ExpandingRects {
+		QRect categories;
+		QRect list;
+		float64 radius = 0.;
+	};
+
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -74,8 +80,8 @@ private:
 
 	void paintAppearing(QPainter &p);
 	void paintCollapsed(QPainter &p);
-	void paintExpanding(QPainter &p, float64 progress);
-	void paintExpandingBg(QPainter &p, float64 progress);
+	void paintExpanding(Painter &p, float64 progress);
+	ExpandingRects paintExpandingBg(QPainter &p, float64 progress);
 	void paintStripWithoutExpand(QPainter &p);
 	void paintFadingExpandIcon(QPainter &p, float64 progress);
 	void paintExpanded(QPainter &p);
@@ -101,6 +107,8 @@ private:
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;
 	ChatHelpers::StickersListFooter *_footer = nullptr;
+	rpl::variable<int> _shadowTop = 0;
+	rpl::variable<int> _shadowSkip = 0;
 
 	QImage _paintBuffer;
 	Ui::Animations::Simple _expanding;
