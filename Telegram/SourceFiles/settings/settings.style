@@ -462,13 +462,13 @@ settingsPremiumMoveRight: IconButton(settingsPremiumMoveLeft) {
 	icon: settingsPremiumMoveRightIcon;
 	iconOver: settingsPremiumMoveRightIconOver;
 }
-settingsPremiumRowTitlePadding: margins(60px, 5px, 46px, 3px);
-settingsPremiumRowAboutPadding: margins(60px, 0px, 46px, 6px);
+settingsPremiumRowTitlePadding: margins(59px, 5px, 46px, 1px);
+settingsPremiumRowAboutPadding: margins(59px, 0px, 46px, 6px);
 settingsPremiumPreviewTitlePadding: margins(24px, 13px, 24px, 3px);
 settingsPremiumPreviewAboutPadding: margins(24px, 0px, 24px, 11px);
 settingsPremiumPreviewLinePadding: margins(18px, 0px, 18px, 8px);
 
-settingsPremiumTitlePadding: margins(0px, 20px, 0px, 16px);
+settingsPremiumTitlePadding: margins(0px, 18px, 0px, 11px);
 settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
 	font: font(12px);
 	linkFont: font(12px underline);
@@ -484,8 +484,12 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	minWidth: 190px;
 }
+settingsPremiumArrowShift: point(-4px, -1px);
+settingsPremiumArrow: icon{{ "fast_to_original", menuIconFg }};
+settingsPremiumArrowOver: icon{{ "fast_to_original", menuIconFgOver }};
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
 
+settingsPremiumTopHeight: 220px;
 settingsPremiumUserHeight: 223px;
 settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
 settingsPremiumUserTitle: FlatLabel(boxTitle) {

@@ -898,6 +898,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 	const auto titlePathRect = _titlePath.boundingRect();
 
 	// Title.
+	PainterHighQualityEnabler hq(p);
 	p.setOpacity(1.);
 	p.setFont(_titleFont);
 	const auto fullStarRect = starRect(1., 1.);
@@ -1064,12 +1065,15 @@ void Premium::setupContent() {
 			button,
 			st::backButton);
 		arrow->setIconOverride(
-			&st::menuIconSubmenuArrow,
-			&st::menuIconSubmenuArrow);
+			&st::settingsPremiumArrow,
+			&st::settingsPremiumArrowOver);
 		arrow->setAttribute(Qt::WA_TransparentForMouseEvents);
 		button->sizeValue(
 		) | rpl::start_with_next([=](const QSize &s) {
-			arrow->moveToRight(0, (s.height() - arrow->height()) / 2);
+			const auto &point = st::settingsPremiumArrowShift;
+			arrow->moveToRight(
+				-point.x(),
+				point.y() + (s.height() - arrow->height()) / 2);
 		}, arrow->lifetime());
 
 		const auto section = entry.section;
@@ -1285,7 +1289,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 
 	content->setMaximumHeight(isEmojiStatus
 		? st::settingsPremiumUserHeight
-		: st::introQrStepsTop);
+		: st::settingsPremiumTopHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
 
 	content->resize(content->width(), content->maximumHeight());
