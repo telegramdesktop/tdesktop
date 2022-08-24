@@ -444,11 +444,11 @@ void Manager::applyList(Data::PossibleItemReactions &&reactions) {
 	using Button = Strip::AddedButton;
 	_strip.applyList(
 		reactions.recent,
-		(reactions.customAllowed
+		(/*reactions.customAllowed
 			? Button::Expand
 			: reactions.morePremiumAvailable
 			? Button::Premium
-			: Button::None));
+			: */Button::None));
 }
 
 QMargins Manager::innerMargins() const {
