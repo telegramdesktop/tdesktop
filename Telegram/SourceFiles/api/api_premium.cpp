@@ -88,8 +88,14 @@ void Premium::reloadPromo() {
 		_promoRequestId = 0;
 		result.match([&](const MTPDhelp_premiumPromo &data) {
 			_session->data().processUsers(data.vusers());
-			_monthlyAmount = data.vmonthly_amount().v;
-			_monthlyCurrency = qs(data.vcurrency());
+			for (const auto &option : data.vperiod_options().v) {
+				option.match([&](const MTPDpremiumSubscriptionOption &data) {
+					if (data.vmonths().v == 1) {
+						_monthlyAmount = data.vamount().v;
+						_monthlyCurrency = qs(data.vcurrency());
+					}
+				});
+			}
 			auto text = TextWithEntities{
 				qs(data.vstatus_text()),
 				EntitiesFromMTP(_session, data.vstatus_entities().v),

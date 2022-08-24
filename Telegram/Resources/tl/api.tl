@@ -395,6 +395,7 @@ updateTranscribedAudio#84cd5a flags:# pending:flags.0?true peer:Peer msg_id:int 
 updateReadFeaturedEmojiStickers#fb4c496c = Update;
 updateUserEmojiStatus#28373599 user_id:long emoji_status:EmojiStatus = Update;
 updateRecentEmojiStatuses#30f443db = Update;
+updateRecentReactions#6f7863f4 = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1398,7 +1399,7 @@ payments.exportedInvoice#aed0cbd9 url:string = payments.ExportedInvoice;
 
 messages.transcribedAudio#93752c52 flags:# pending:flags.0?true transcription_id:long text:string = messages.TranscribedAudio;
 
-help.premiumPromo#8a4f3c29 status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> currency:string monthly_amount:long users:Vector<User> = help.PremiumPromo;
+help.premiumPromo#5334759c status_text:string status_entities:Vector<MessageEntity> video_sections:Vector<string> videos:Vector<Document> period_options:Vector<PremiumSubscriptionOption> users:Vector<User> = help.PremiumPromo;
 
 inputStorePaymentPremiumSubscription#a6751e66 flags:# restore:flags.0?true = InputStorePaymentPurpose;
 inputStorePaymentGiftPremium#616f7fe8 user_id:InputUser currency:string amount:long = InputStorePaymentPurpose;
@@ -1421,6 +1422,9 @@ chatReactionsNone#eafc32bc = ChatReactions;
 chatReactionsAll#52928bca flags:# allow_custom:flags.0?true = ChatReactions;
 chatReactionsSome#661d4037 reactions:Vector<Reaction> = ChatReactions;
 
+messages.reactionsNotModified#b06fdbdf = messages.Reactions;
+messages.reactions#eafdf716 hash:long reactions:Vector<Reaction> = messages.Reactions;
+
 emailVerifyPurposeLoginSetup#4345be73 phone_number:string phone_code_hash:string = EmailVerifyPurpose;
 emailVerifyPurposeLoginChange#527d22eb = EmailVerifyPurpose;
 emailVerifyPurposePassport#bbf51685 = EmailVerifyPurpose;
@@ -1431,6 +1435,8 @@ emailVerificationApple#96d074fd token:string = EmailVerification;
 
 account.emailVerified#2b96cd1b email:string = account.EmailVerified;
 account.emailVerifiedLogin#e1bb0d61 email:string sent_code:auth.SentCode = account.EmailVerified;
+
+premiumSubscriptionOption#b6f11ebe flags:# months:int currency:string amount:long bot_url:string store_product:flags.0?string = PremiumSubscriptionOption;
 
 ---functions---
 
@@ -1539,7 +1545,8 @@ account.getSavedRingtones#e1902288 hash:long = account.SavedRingtones;
 account.saveRingtone#3dea5b03 id:InputDocument unsave:Bool = account.SavedRingtone;
 account.uploadRingtone#831a83a2 file:InputFile file_name:string mime_type:string = Document;
 account.updateEmojiStatus#fbd3de6b emoji_status:EmojiStatus = Bool;
-account.getEmojiStatuses#266dca30 flags:# default:flags.0?true recent:flags.1?true hash:long = account.EmojiStatuses;
+account.getDefaultEmojiStatuses#d6753386 hash:long = account.EmojiStatuses;
+account.getRecentEmojiStatuses#f578105 hash:long = account.EmojiStatuses;
 account.clearRecentEmojiStatuses#18201aae = Bool;
 
 users.getUsers#d91a548 id:Vector<InputUser> = Vector<User>;
@@ -1717,7 +1724,7 @@ messages.hideChatJoinRequest#7fe7e815 flags:# approved:flags.0?true peer:InputPe
 messages.hideAllChatJoinRequests#e085f4ea flags:# approved:flags.0?true peer:InputPeer link:flags.1?string = Updates;
 messages.toggleNoForwards#b11eafa2 peer:InputPeer enabled:Bool = Updates;
 messages.saveDefaultSendAs#ccfddf96 peer:InputPeer send_as:InputPeer = Bool;
-messages.sendReaction#d30d78d4 flags:# big:flags.1?true peer:InputPeer msg_id:int reaction:flags.0?Vector<Reaction> = Updates;
+messages.sendReaction#d30d78d4 flags:# big:flags.1?true add_to_recent:flags.2?true peer:InputPeer msg_id:int reaction:flags.0?Vector<Reaction> = Updates;
 messages.getMessagesReactions#8bba90e6 peer:InputPeer id:Vector<int> = Updates;
 messages.getMessageReactionsList#461b3f48 flags:# peer:InputPeer id:int reaction:flags.0?Reaction offset:flags.1?string limit:int = messages.MessageReactionsList;
 messages.setChatAvailableReactions#feb16771 peer:InputPeer available_reactions:ChatReactions = Updates;
@@ -1740,7 +1747,10 @@ messages.rateTranscribedAudio#7f1d072f peer:InputPeer msg_id:int transcription_i
 messages.getCustomEmojiDocuments#d9ab0f54 document_id:Vector<long> = Vector<Document>;
 messages.getEmojiStickers#fbfca18f hash:long = messages.AllStickers;
 messages.getFeaturedEmojiStickers#ecf6736 hash:long = messages.FeaturedStickers;
-messages.reportReaction#61422a48 peer:InputPeer id:int user_id:InputUser = Bool;
+messages.reportReaction#3f64c076 peer:InputPeer id:int reaction_peer:InputPeer = Bool;
+messages.getTopReactions#bb8125ba limit:int hash:long = messages.Reactions;
+messages.getRecentReactions#39461db2 limit:int hash:long = messages.Reactions;
+messages.clearRecentReactions#9dfeefb4 = Bool;
 
 updates.getState#edd4882a = updates.State;
 updates.getDifference#25939651 flags:# pts:int pts_total_limit:flags.0?int date:int qts:int = updates.Difference;
