@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image_location_factory.h"
 #include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
+#include "base/call_delayed.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -34,12 +35,32 @@ namespace {
 constexpr auto kRefreshFullListEach = 60 * 60 * crl::time(1000);
 constexpr auto kPollEach = 20 * crl::time(1000);
 constexpr auto kSizeForDownscale = 64;
+constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
+constexpr auto kRecentReactionsLimit = 40;
+constexpr auto kTopRequestDelay = 60 * crl::time(1000);
+constexpr auto kTopReactionsLimit = 10;
 
 [[nodiscard]] QString ReactionIdToLog(const ReactionId &id) {
 	if (const auto custom = id.custom()) {
 		return "custom:" + QString::number(custom);
 	}
 	return id.emoji();
+}
+
+[[nodiscard]] std::vector<ReactionId> ListFromMTP(
+		const MTPDmessages_reactions &data) {
+	const auto &list = data.vreactions().v;
+	auto result = std::vector<ReactionId>();
+	result.reserve(list.size());
+	for (const auto &reaction : list) {
+		const auto id = ReactionFromMTP(reaction);
+		if (id.empty()) {
+			LOG(("API Error: reactionEmpty in messages.reactions."));
+		} else {
+			result.push_back(id);
+		}
+	}
+	return result;
 }
 
 } // namespace
@@ -96,7 +117,7 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 	}
 	const auto i = ranges::find(
 		result.recent,
-		reactions->favorite(),
+		reactions->favoriteId(),
 		&Reaction::id);
 	if (i != end(result.recent) && i != begin(result.recent)) {
 		std::rotate(begin(result.recent), i, i + 1);
@@ -106,13 +127,14 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
+, _topRefreshTimer([=] { refreshTop(); })
 , _repaintTimer([=] { repaintCollected(); }) {
-	refresh();
+	refreshDefault();
 
 	base::timer_each(
 		kRefreshFullListEach
 	) | rpl::start_with_next([=] {
-		refresh();
+		refreshDefault();
 	}, _lifetime);
 
 	_owner->session().changes().messageUpdates(
@@ -132,56 +154,102 @@ Reactions::Reactions(not_null<Session*> owner)
 			? ReactionId{ DocumentId(config.reactionDefaultCustom) }
 			: ReactionId{ config.reactionDefaultEmoji };
 	}) | rpl::filter([=](const ReactionId &id) {
-		return (_favorite != id) && !_saveFaveRequestId;
+		return !_saveFaveRequestId;
 	}) | rpl::start_with_next([=](ReactionId &&id) {
-		_favorite = std::move(id);
-		_updated.fire({});
+		applyFavorite(id);
 	}, _lifetime);
 }
 
 Reactions::~Reactions() = default;
 
-void Reactions::refresh() {
-	request();
+void Reactions::refreshTop() {
+	requestTop();
+}
+
+void Reactions::refreshRecent() {
+	requestRecent();
+}
+
+void Reactions::refreshRecentDelayed() {
+	if (_recentRequestId || _recentRequestScheduled) {
+		return;
+	}
+	_recentRequestScheduled = true;
+	base::call_delayed(kRecentRequestTimeout, &_owner->session(), [=] {
+		if (_recentRequestScheduled) {
+			requestRecent();
+		}
+	});
+}
+
+void Reactions::refreshDefault() {
+	requestDefault();
 }
 
 const std::vector<Reaction> &Reactions::list(Type type) const {
 	switch (type) {
 	case Type::Active: return _active;
+	case Type::Recent: return _recent;
+	case Type::Top: return _top;
 	case Type::All: return _available;
 	}
 	Unexpected("Type in Reactions::list.");
 }
 
-ReactionId Reactions::favorite() const {
-	return _favorite;
+ReactionId Reactions::favoriteId() const {
+	return _favoriteId;
 }
 
-void Reactions::setFavorite(const ReactionId &emoji) {
+const Reaction *Reactions::favorite() const {
+	return _favorite ? &*_favorite : nullptr;
+}
+
+void Reactions::setFavorite(const ReactionId &id) {
 	const auto api = &_owner->session().api();
 	if (_saveFaveRequestId) {
 		api->request(_saveFaveRequestId).cancel();
 	}
 	_saveFaveRequestId = api->request(MTPmessages_SetDefaultReaction(
-		ReactionToMTP(emoji)
+		ReactionToMTP(id)
 	)).done([=] {
 		_saveFaveRequestId = 0;
 	}).fail([=] {
 		_saveFaveRequestId = 0;
 	}).send();
 
-	if (_favorite != emoji) {
-		_favorite = emoji;
-		_updated.fire({});
+	applyFavorite(id);
+}
+
+void Reactions::applyFavorite(const ReactionId &id) {
+	if (_favoriteId != id) {
+		_favoriteId = id;
+		_favorite = resolveById(_favoriteId);
+		if (!_favorite && _unresolvedFavoriteId != _favoriteId) {
+			_unresolvedFavoriteId = _favoriteId;
+			resolve(_favoriteId);
+		}
+		_favoriteUpdated.fire({});
 	}
 }
 
-rpl::producer<> Reactions::updates() const {
-	return _updated.events();
+rpl::producer<> Reactions::topUpdates() const {
+	return _topUpdated.events();
+}
+
+rpl::producer<> Reactions::recentUpdates() const {
+	return _recentUpdated.events();
+}
+
+rpl::producer<> Reactions::defaultUpdates() const {
+	return _defaultUpdated.events();
+}
+
+rpl::producer<> Reactions::favoriteUpdates() const {
+	return _favoriteUpdated.events();
 }
 
 void Reactions::preloadImageFor(const ReactionId &id) {
-	if (_images.contains(id)) {
+	if (_images.contains(id) || id.emoji().isEmpty()) {
 		return;
 	}
 	auto &set = _images.emplace(id).first->second;
@@ -195,7 +263,7 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
 		_waitingForList = true;
-		refresh();
+		refreshRecent();
 	}
 }
 
@@ -263,16 +331,6 @@ QImage Reactions::resolveImageFor(
 	case ImageSize::InlineList: return set.inlineList;
 	}
 	Unexpected("ImageSize in Reactions::resolveImageFor.");
-}
-
-std::unique_ptr<Ui::Text::CustomEmoji> Reactions::resolveCustomFor(
-		const ReactionId &emoji,
-		ImageSize size) {
-	const auto custom = std::get_if<DocumentId>(&emoji.data);
-	if (!custom) {
-		return nullptr;
-	}
-	return _owner->customEmojiManager().create(*custom, [] {});
 }
 
 void Reactions::resolveImages() {
@@ -343,27 +401,83 @@ void Reactions::downloadTaskFinished() {
 	}
 }
 
-void Reactions::request() {
-	auto &api = _owner->session().api();
-	if (_requestId) {
+void Reactions::requestTop() {
+	if (_topRequestId) {
 		return;
 	}
-	_requestId = api.request(MTPmessages_GetAvailableReactions(
-		MTP_int(_hash)
-	)).done([=](const MTPmessages_AvailableReactions &result) {
-		_requestId = 0;
-		result.match([&](const MTPDmessages_availableReactions &data) {
-			updateFromData(data);
-		}, [&](const MTPDmessages_availableReactionsNotModified &) {
+	auto &api = _owner->session().api();
+	_topRefreshTimer.cancel();
+	_topRequestId = api.request(MTPmessages_GetTopReactions(
+		MTP_int(kTopReactionsLimit),
+		MTP_long(_topHash)
+	)).done([=](const MTPmessages_Reactions &result) {
+		_topRequestId = 0;
+		result.match([&](const MTPDmessages_reactions &data) {
+			updateTop(data);
+		}, [](const MTPDmessages_reactionsNotModified&) {
 		});
 	}).fail([=] {
-		_requestId = 0;
-		_hash = 0;
+		_topRequestId = 0;
+		_topHash = 0;
 	}).send();
 }
 
-void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
-	_hash = data.vhash().v;
+void Reactions::requestRecent() {
+	if (_recentRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_recentRequestScheduled = false;
+	_recentRequestId = api.request(MTPmessages_GetRecentReactions(
+		MTP_int(kRecentReactionsLimit),
+		MTP_long(_recentHash)
+	)).done([=](const MTPmessages_Reactions &result) {
+		_recentRequestId = 0;
+		result.match([&](const MTPDmessages_reactions &data) {
+			updateRecent(data);
+		}, [](const MTPDmessages_reactionsNotModified&) {
+		});
+	}).fail([=] {
+		_recentRequestId = 0;
+		_recentHash = 0;
+	}).send();
+}
+
+void Reactions::requestDefault() {
+	if (_defaultRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_defaultRequestId = api.request(MTPmessages_GetAvailableReactions(
+		MTP_int(_defaultHash)
+	)).done([=](const MTPmessages_AvailableReactions &result) {
+		_defaultRequestId = 0;
+		result.match([&](const MTPDmessages_availableReactions &data) {
+			updateDefault(data);
+		}, [&](const MTPDmessages_availableReactionsNotModified &) {
+		});
+	}).fail([=] {
+		_defaultRequestId = 0;
+		_defaultHash = 0;
+	}).send();
+}
+
+void Reactions::updateTop(const MTPDmessages_reactions &data) {
+	_topHash = data.vhash().v;
+	_topIds = ListFromMTP(data);
+	_top = resolveByIds(_topIds, _unresolvedTop);
+	_topUpdated.fire({});
+}
+
+void Reactions::updateRecent(const MTPDmessages_reactions &data) {
+	_recentHash = data.vhash().v;
+	_recentIds = ListFromMTP(data);
+	_recent = resolveByIds(_recentIds, _unresolvedRecent);
+	recentUpdated();
+}
+
+void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
+	_defaultHash = data.vhash().v;
 
 	const auto &list = data.vreactions().v;
 	const auto oldCache = base::take(_iconsCache);
@@ -393,7 +507,99 @@ void Reactions::updateFromData(const MTPDmessages_availableReactions &data) {
 		_waitingForList = false;
 		resolveImages();
 	}
-	_updated.fire({});
+	defaultUpdated();
+}
+
+void Reactions::recentUpdated() {
+	_topRefreshTimer.callOnce(kTopRequestDelay);
+	_recentUpdated.fire({});
+}
+
+void Reactions::defaultUpdated() {
+	refreshTop();
+	refreshRecent();
+	_defaultUpdated.fire({});
+}
+
+not_null<CustomEmojiManager::Listener*> Reactions::resolveListener() {
+	return static_cast<CustomEmojiManager::Listener*>(this);
+}
+
+void Reactions::customEmojiResolveDone(not_null<DocumentData*> document) {
+	const auto id = ReactionId{ { document->id } };
+	const auto favorite = (_unresolvedFavoriteId == id);
+	const auto i = _unresolvedTop.find(id);
+	const auto top = (i != end(_unresolvedTop));
+	const auto j = _unresolvedRecent.find(id);
+	const auto recent = (j != end(_unresolvedRecent));
+	if (favorite) {
+		_unresolvedFavoriteId = ReactionId();
+		_favorite = resolveById(_favoriteId);
+	}
+	if (top) {
+		_unresolvedTop.erase(i);
+		_top = resolveByIds(_topIds, _unresolvedTop);
+	}
+	if (recent) {
+		_unresolvedRecent.erase(j);
+		_recent = resolveByIds(_recentIds, _unresolvedRecent);
+	}
+	if (favorite) {
+		_favoriteUpdated.fire({});
+	}
+	if (top) {
+		_topUpdated.fire({});
+	}
+	if (recent) {
+		_recentUpdated.fire({});
+	}
+}
+
+std::optional<Reaction> Reactions::resolveById(const ReactionId &id) {
+	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+		const auto i = ranges::find(_available, id, &Reaction::id);
+		if (i != end(_available)) {
+			return *i;
+		}
+	} else if (const auto customId = id.custom()) {
+		const auto document = _owner->document(customId);
+		if (document->sticker()) {
+			return Reaction{
+				.id = id,
+				.title = "Custom reaction",
+				.appearAnimation = document,
+				.selectAnimation = document,
+				.centerIcon = document,
+				.active = true,
+			};
+		}
+	}
+	return {};
+}
+
+std::vector<Reaction> Reactions::resolveByIds(
+		const std::vector<ReactionId> &ids,
+		base::flat_set<ReactionId> &unresolved) {
+	auto result = std::vector<Reaction>();
+	result.reserve(ids.size());
+	for (const auto &id : ids) {
+		if (const auto resolved = resolveById(id)) {
+			result.push_back(*resolved);
+		} else if (unresolved.emplace(id).second) {
+			resolve(id);
+		}
+	}
+	return result;
+}
+
+void Reactions::resolve(const ReactionId &id) {
+	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+		refreshDefault();
+	} else if (const auto customId = id.custom()) {
+		_owner->customEmojiManager().resolve(
+			customId,
+			resolveListener());
+	}
 }
 
 std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
@@ -409,7 +615,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 			? std::make_optional(Reaction{
 				.id = ReactionId{ emoji },
 				.title = qs(data.vtitle()),
-				.staticIcon = _owner->processDocument(data.vstatic_icon()),
+				//.staticIcon = _owner->processDocument(data.vstatic_icon()),
 				.appearAnimation = _owner->processDocument(
 					data.vappear_animation()),
 				.selectAnimation = selectAnimation,

@@ -2387,6 +2387,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateRecentEmojiStatuses: {
+		// #TODO emoji_status
+	} break;
+
+	case mtpc_updateRecentReactions: {
+		session().data().reactions().refreshRecentDelayed();
+	} break;
+
 	////// Cloud saved GIFs
 	case mtpc_updateSavedGifs: {
 		session().data().stickers().setLastSavedGifsUpdate(0);

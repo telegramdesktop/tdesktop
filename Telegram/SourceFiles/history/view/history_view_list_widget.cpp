@@ -2122,7 +2122,7 @@ void ListWidget::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto item = view->data();
-	const auto favorite = session().data().reactions().favorite();
+	const auto favorite = session().data().reactions().favoriteId();
 	if (!ranges::contains(
 			Data::LookupPossibleReactions(item).recent,
 			favorite,
@@ -2199,7 +2199,7 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		&& _reactionsManager->showContextMenu(
 			this,
 			e,
-			session().data().reactions().favorite())) {
+			session().data().reactions().favoriteId())) {
 		return;
 	}
 	const auto overItem = _overItemExact

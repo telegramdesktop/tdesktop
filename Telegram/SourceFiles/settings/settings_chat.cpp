@@ -906,10 +906,10 @@ void SetupMessages(
 
 	const auto &reactions = controller->session().data().reactions();
 	auto idValue = rpl::single(
-		reactions.favorite()
+		reactions.favoriteId()
 	) | rpl::then(
-		reactions.updates() | rpl::map([=] {
-			return controller->session().data().reactions().favorite();
+		reactions.favoriteUpdates() | rpl::map([=] {
+			return controller->session().data().reactions().favoriteId();
 		})
 	) | rpl::filter([](const Data::ReactionId &id) {
 		return !id.empty();

@@ -37,6 +37,7 @@ constexpr auto kButtonExpandDelay = crl::time(25);
 constexpr auto kButtonHideDelay = crl::time(300);
 constexpr auto kButtonExpandedHideDelay = crl::time(0);
 constexpr auto kMaxReactionsScrollAtOnce = 2;
+constexpr auto kRefreshListDelay = crl::time(100);
 
 [[nodiscard]] QPoint LocalPosition(not_null<QWheelEvent*> e) {
 #if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
@@ -840,6 +841,7 @@ void SetupManagerList(
 		Main::Session *session = nullptr;
 		rpl::lifetime sessionLifetime;
 		rpl::lifetime peerLifetime;
+		base::Timer timer;
 	};
 	const auto state = manager->lifetime().make_state<State>();
 
@@ -857,10 +859,12 @@ void SetupManagerList(
 		const auto peerChanged = (state->peer != peer);
 		const auto sessionChanged = (state->session != session);
 		const auto push = [=] {
+			state->timer.cancel();
 			if (const auto item = state->item) {
 				manager->applyList(Data::LookupPossibleReactions(item));
 			}
 		};
+		state->timer.setCallback(push);
 		if (sessionChanged) {
 			state->sessionLifetime.destroy();
 			state->session = session;
@@ -875,6 +879,7 @@ void SetupManagerList(
 			) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
 				if (update.item == state->item) {
 					state->item = nullptr;
+					state->timer.cancel();
 				}
 			}, state->sessionLifetime);
 
@@ -883,8 +888,17 @@ void SetupManagerList(
 				return (item == state->item);
 			}) | rpl::start_with_next(push, state->sessionLifetime);
 
-			session->data().reactions().updates(
-			) | rpl::start_with_next(push, state->sessionLifetime);
+			const auto &reactions = session->data().reactions();
+			rpl::merge(
+				reactions.topUpdates(),
+				reactions.recentUpdates(),
+				reactions.defaultUpdates(),
+				reactions.favoriteUpdates()
+			) | rpl::start_with_next([=] {
+				if (!state->timer.isActive()) {
+					state->timer.callOnce(kRefreshListDelay);
+				}
+			}, state->sessionLifetime);
 		}
 		if (peerChanged) {
 			state->peer = peer;

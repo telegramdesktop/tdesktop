@@ -449,7 +449,7 @@ rpl::producer<int> FullReactionsCountValue(
 		not_null<Main::Session*> session) {
 	const auto reactions = &session->data().reactions();
 	return rpl::single(rpl::empty) | rpl::then(
-		reactions->updates()
+		reactions->defaultUpdates()
 	) | rpl::map([=] {
 		return int(reactions->list(Data::Reactions::Type::Active).size());
 	}) | rpl::distinct_until_changed();

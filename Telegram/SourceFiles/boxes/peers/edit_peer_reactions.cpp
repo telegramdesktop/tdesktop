@@ -174,7 +174,7 @@ void SaveAllowedReactions(
 	}).fail([=](const MTP::Error &error) {
 		if (error.type() == qstr("REACTION_INVALID")) {
 			peer->updateFullForced();
-			peer->owner().reactions().refresh();
+			peer->owner().reactions().refreshDefault();
 		}
 	}).send();
 }

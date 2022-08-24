@@ -393,8 +393,8 @@ void ReactionsSettingsBox(
 
 	const auto &reactions = controller->session().data().reactions();
 	const auto state = box->lifetime().make_state<State>();
-	state->selectedEmoji = v::is<QString>(reactions.favorite().data)
-		? v::get<QString>(reactions.favorite().data)
+	state->selectedEmoji = v::is<QString>(reactions.favoriteId().data)
+		? v::get<QString>(reactions.favoriteId().data)
 		: QString();
 
 	const auto pinnedToTop = box->setPinnedToTopContent(
@@ -485,7 +485,7 @@ void ReactionsSettingsBox(
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto &data = controller->session().data();
 		const auto selected = state->selectedEmoji.current();
-		if (data.reactions().favorite() != Data::ReactionId{ selected }) {
+		if (data.reactions().favoriteId() != Data::ReactionId{ selected }) {
 			data.reactions().setFavorite(Data::ReactionId{ selected });
 		}
 		box->closeBox();

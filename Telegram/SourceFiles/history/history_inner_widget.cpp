@@ -1941,7 +1941,7 @@ void HistoryInner::mouseDoubleClickEvent(QMouseEvent *e) {
 
 void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto item = view->data();
-	const auto favorite = session().data().reactions().favorite();
+	const auto favorite = session().data().reactions().favoriteId();
 	if (!ranges::contains(
 		Data::LookupPossibleReactions(item).recent,
 		favorite,
@@ -1972,7 +1972,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		&& _reactionsManager->showContextMenu(
 			this,
 			e,
-			session().data().reactions().favorite())) {
+			session().data().reactions().favoriteId())) {
 		return;
 	}
 	auto selectedState = getSelectionState();

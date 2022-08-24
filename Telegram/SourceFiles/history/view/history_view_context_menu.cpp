@@ -1187,7 +1187,7 @@ void ShowWhoReactedMenu(
 	const auto reactions = &controller->session().data().reactions();
 	const auto &list = reactions->list(
 		Data::Reactions::Type::Active);
-	const auto activeNonQuick = (id != reactions->favorite())
+	const auto activeNonQuick = (id != reactions->favoriteId())
 		&& ranges::contains(list, id, &Data::Reaction::id);
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
 		participantChosen,

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 #include "data/data_message_reaction_id.h"
+#include "data/stickers/data_custom_emoji.h"
 
 namespace Ui::Text {
 class CustomEmoji;
@@ -26,7 +27,7 @@ class Session;
 struct Reaction {
 	ReactionId id;
 	QString title;
-	not_null<DocumentData*> staticIcon;
+	//not_null<DocumentData*> staticIcon;
 	not_null<DocumentData*> appearAnimation;
 	not_null<DocumentData*> selectAnimation;
 	//not_null<DocumentData*> activateAnimation;
@@ -46,22 +47,31 @@ struct PossibleItemReactions {
 [[nodiscard]] PossibleItemReactions LookupPossibleReactions(
 	not_null<HistoryItem*> item);
 
-class Reactions final {
+class Reactions final : private CustomEmojiManager::Listener {
 public:
 	explicit Reactions(not_null<Session*> owner);
 	~Reactions();
 
-	void refresh();
+	void refreshTop();
+	void refreshRecent();
+	void refreshRecentDelayed();
+	void refreshDefault();
 
 	enum class Type {
 		Active,
+		Recent,
+		Top,
 		All,
 	};
 	[[nodiscard]] const std::vector<Reaction> &list(Type type) const;
-	[[nodiscard]] ReactionId favorite() const;
-	void setFavorite(const ReactionId &emoji);
+	[[nodiscard]] ReactionId favoriteId() const;
+	[[nodiscard]] const Reaction *favorite() const;
+	void setFavorite(const ReactionId &id);
 
-	[[nodiscard]] rpl::producer<> updates() const;
+	[[nodiscard]] rpl::producer<> topUpdates() const;
+	[[nodiscard]] rpl::producer<> recentUpdates() const;
+	[[nodiscard]] rpl::producer<> defaultUpdates() const;
+	[[nodiscard]] rpl::producer<> favoriteUpdates() const;
 
 	enum class ImageSize {
 		BottomInfo,
@@ -70,9 +80,6 @@ public:
 	void preloadImageFor(const ReactionId &emoji);
 	void preloadAnimationsFor(const ReactionId &emoji);
 	[[nodiscard]] QImage resolveImageFor(
-		const ReactionId &emoji,
-		ImageSize size);
-	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> resolveCustomFor(
 		const ReactionId &emoji,
 		ImageSize size);
 
@@ -97,8 +104,26 @@ private:
 		bool fromAppearAnimation = false;
 	};
 
-	void request();
-	void updateFromData(const MTPDmessages_availableReactions &data);
+	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
+	void customEmojiResolveDone(not_null<DocumentData*> document) override;
+
+	void requestTop();
+	void requestRecent();
+	void requestDefault();
+
+	void updateTop(const MTPDmessages_reactions &data);
+	void updateRecent(const MTPDmessages_reactions &data);
+	void updateDefault(const MTPDmessages_availableReactions &data);
+
+	void recentUpdated();
+	void defaultUpdated();
+
+	[[nodiscard]] std::optional<Reaction> resolveById(const ReactionId &id);
+	[[nodiscard]] std::vector<Reaction> resolveByIds(
+		const std::vector<ReactionId> &ids,
+		base::flat_set<ReactionId> &unresolved);
+	void resolve(const ReactionId &id);
+	void applyFavorite(const ReactionId &id);
 
 	[[nodiscard]] std::optional<Reaction> parse(
 		const MTPAvailableReaction &entry);
@@ -118,14 +143,34 @@ private:
 
 	std::vector<Reaction> _active;
 	std::vector<Reaction> _available;
-	ReactionId _favorite;
+	std::vector<Reaction> _recent;
+	std::vector<ReactionId> _recentIds;
+	base::flat_set<ReactionId> _unresolvedRecent;
+	std::vector<Reaction> _top;
+	std::vector<ReactionId> _topIds;
+	base::flat_set<ReactionId> _unresolvedTop;
+	ReactionId _favoriteId;
+	ReactionId _unresolvedFavoriteId;
+	std::optional<Reaction> _favorite;
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::shared_ptr<DocumentMedia>> _iconsCache;
-	rpl::event_stream<> _updated;
+	rpl::event_stream<> _topUpdated;
+	rpl::event_stream<> _recentUpdated;
+	rpl::event_stream<> _defaultUpdated;
+	rpl::event_stream<> _favoriteUpdated;
 
-	mtpRequestId _requestId = 0;
-	int32 _hash = 0;
+	base::Timer _topRefreshTimer;
+	mtpRequestId _topRequestId = 0;
+	bool _topRequestScheduled = false;
+	uint64 _topHash = 0;
+
+	mtpRequestId _recentRequestId = 0;
+	bool _recentRequestScheduled = false;
+	uint64 _recentHash = 0;
+
+	mtpRequestId _defaultRequestId = 0;
+	int32 _defaultHash = 0;
 
 	base::flat_map<ReactionId, ImageSet> _images;
 	rpl::lifetime _imagesLoadLifetime;
