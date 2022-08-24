@@ -375,6 +375,7 @@ public:
 		QSizeF size);
 
 	void setCenter(QPointF position);
+	void setPaused(bool paused);
 	void paint(QPainter &p);
 
 private:
@@ -383,6 +384,7 @@ private:
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	bool _paused = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -430,6 +432,10 @@ void EmojiStatusTopBar::setCenter(QPointF position) {
 	_rect = QRectF(QPointF(position - shift), QPointF(position + shift));
 }
 
+void EmojiStatusTopBar::setPaused(bool paused) {
+	_paused = paused;
+}
+
 QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
 	const auto good = _media->goodThumbnail();
 	if (const auto image = _media->getStickerLarge()) {
@@ -450,7 +456,9 @@ void EmojiStatusTopBar::paint(QPainter &p) {
 			});
 
 			p.drawImage(_rect, info.image);
-			_lottie->markFrameShown();
+			if (!_paused) {
+				_lottie->markFrameShown();
+			}
 		}
 	} else if (_media) {
 		p.drawPixmap(_rect, paintedPixmap(_rect.size().toSize()), _rect);
@@ -475,7 +483,7 @@ private:
 	void updateTitle(
 		DocumentData *document,
 		TextWithEntities name,
-		not_null<Window::SessionController*> controller) const;
+		not_null<Window::SessionController*> controller);
 	void updateAbout(DocumentData *document) const;
 
 	object_ptr<Ui::RpWidget> _content;
@@ -662,7 +670,7 @@ TopBarUser::TopBarUser(
 void TopBarUser::updateTitle(
 		DocumentData *document,
 		TextWithEntities name,
-		not_null<Window::SessionController*> controller) const {
+		not_null<Window::SessionController*> controller) {
 	if (!document) {
 		return _title->setMarkedText(
 			tr::lng_premium_summary_user_title(
@@ -705,12 +713,18 @@ void TopBarUser::updateTitle(
 	_title->setMarkedText(std::move(title), context);
 	auto link = std::make_shared<LambdaClickHandler>([=,
 			stickerSetIdentifier = stickerInfo->set] {
-		controller->show(
+		setPaused(true);
+		const auto box = controller->show(
 			Box<StickerSetBox>(
 				controller,
 				stickerSetIdentifier,
 				Data::StickersType::Emoji),
 			Ui::LayerOption::KeepOther);
+
+		box->boxClosing(
+		) | rpl::start_with_next(crl::guard(this, [=] {
+			setPaused(false);
+		}), box->lifetime());
 	});
 	_title->setLink(linkIndex, std::move(link));
 }
@@ -725,6 +739,9 @@ void TopBarUser::updateAbout(DocumentData *document) const {
 
 void TopBarUser::setPaused(bool paused) {
 	_ministars.setPaused(paused);
+	if (_emojiStatus) {
+		_emojiStatus->setPaused(paused);
+	}
 }
 
 void TopBarUser::setTextPosition(int x, int y) {
