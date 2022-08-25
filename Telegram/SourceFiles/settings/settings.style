@@ -489,6 +489,7 @@ settingsPremiumArrow: icon{{ "fast_to_original", menuIconFg }};
 settingsPremiumArrowOver: icon{{ "fast_to_original", menuIconFgOver }};
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
 
+settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);
 settingsPremiumTopHeight: 220px;
 settingsPremiumUserHeight: 223px;
 settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);

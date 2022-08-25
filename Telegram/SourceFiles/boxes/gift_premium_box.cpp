@@ -10,8 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_premium_option.h"
 #include "base/weak_ptr.h"
-#include "core/click_handler_types.h" // ClickHandlerContext.
-#include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
@@ -167,7 +165,11 @@ void GiftBox(
 			options[value].total);
 		state->buttonText.fire(std::move(text));
 	});
-	Ui::Premium::AddGiftOptions(buttonsParent, group, options);
+	Ui::Premium::AddGiftOptions(
+		buttonsParent,
+		group,
+		options,
+		st::premiumGiftOption);
 
 	// Footer.
 	auto terms = object_ptr<Ui::FlatLabel>(
@@ -198,26 +200,17 @@ void GiftBox(
 		[] { return QString("gift"); },
 		state->buttonText.events(),
 		Ui::Premium::GiftGradientStops(),
+		[=] {
+			const auto value = group->value();
+			return (value < options.size() && value >= 0)
+				? options[value].botUrl
+				: QString();
+		},
 	});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
 	button->resizeToWidth(boxWidth
 		- stButton.buttonPadding.left()
 		- stButton.buttonPadding.right());
-	button->setClickedCallback([=] {
-		const auto value = group->value();
-		Assert(value < options.size() && value >= 0);
-
-		const auto local = Core::TryConvertUrlToLocal(options[value].botUrl);
-		if (local.isEmpty()) {
-			return;
-		}
-		UrlClickHandler::Open(
-			local,
-			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(controller.get()),
-				.botStartAutoSubmit = true,
-			}));
-	});
 	box->setShowFinishedCallback([raw = button.data()]{
 		raw->startGlareAnimation();
 	});

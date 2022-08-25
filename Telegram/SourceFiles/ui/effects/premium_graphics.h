@@ -22,6 +22,7 @@ struct SubscriptionOption;
 
 namespace style {
 struct RoundImageCheckbox;
+struct PremiumOption;
 struct TextStyle;
 } // namespace style
 
@@ -90,7 +91,9 @@ void ShowListBox(
 void AddGiftOptions(
 	not_null<Ui::VerticalLayout*> parent,
 	std::shared_ptr<Ui::RadiobuttonGroup> group,
-	std::vector<Data::SubscriptionOption> gifts);
+	std::vector<Data::SubscriptionOption> gifts,
+	const style::PremiumOption &st,
+	bool topBadges = false);
 
 } // namespace Premium
 } // namespace Ui

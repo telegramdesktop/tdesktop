@@ -1702,6 +1702,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_unlock_stickers" = "Unlock Premium Stickers";
 "lng_premium_unlock_emoji" = "Unlock Animated Emoji";
 
+"lng_premium_subscribe_months_12" = "Annual";
+"lng_premium_subscribe_months_6" = "Semiannual";
+"lng_premium_subscribe_months_1" = "Monthly";
+"lng_premium_subscribe_total" = "{cost} per year";
+"lng_premium_subscribe_button" = "Subscribe for {cost} per month";
+
 "lng_premium_emoji_status_title" = "{user} set this emoji from {link} as their current status.";
 "lng_premium_emoji_status_about" = "Emoji status is a premium feature. Other features included in **Telegram Premium**:";
 "lng_premium_emoji_status_button" = "Unlock Emoji Status";

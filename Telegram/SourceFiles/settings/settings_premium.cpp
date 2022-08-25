@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h" // LottiePlayerFromDocument.
 #include "core/application.h"
 #include "core/click_handler_types.h"
+#include "core/local_url_handlers.h" // Core::TryConvertUrlToLocal.
 #include "core/ui_integration.h" // MarkedTextContext.
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/checkbox.h" // Ui::RadiobuttonGroup.
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
@@ -67,6 +69,33 @@ constexpr auto kTitleAdditionalScale = 0.15;
 
 [[nodiscard]] QString Svg() {
 	return u":/gui/icons/settings/star.svg"_q;
+}
+
+[[nodiscard]] Data::SubscriptionOptions SubscriptionOptionsForRows(
+		Data::SubscriptionOptions result) {
+	for (auto &option : result) {
+		const auto total = option.costTotal;
+		const auto perMonth = option.costPerMonth;
+
+		option.costTotal = tr::lng_premium_gift_per(
+			tr::now,
+			lt_cost,
+			perMonth);
+		option.costPerMonth = tr::lng_premium_subscribe_total(
+			tr::now,
+			lt_cost,
+			total);
+
+		if (option.duration == tr::lng_months(tr::now, lt_count, 1)) {
+			option.costPerMonth = QString();
+			option.duration = tr::lng_premium_subscribe_months_1(tr::now);
+		} else if (option.duration == tr::lng_months(tr::now, lt_count, 6)) {
+			option.duration = tr::lng_premium_subscribe_months_6(tr::now);
+		} else if (option.duration == tr::lng_years(tr::now, lt_count, 1)) {
+			option.duration = tr::lng_premium_subscribe_months_12(tr::now);
+		}
+	}
+	return result;
 }
 
 namespace Ref {
@@ -968,6 +997,9 @@ public:
 
 private:
 	void setupContent();
+	void setupSubscriptionOptions(
+		not_null<Ui::VerticalLayout*> container,
+		int lastSkip);
 
 	const not_null<Window::SessionController*> _controller;
 	const QString _ref;
@@ -979,8 +1011,11 @@ private:
 	rpl::variable<Info::Wrap> _wrap;
 	Fn<void(bool)> _setPaused;
 
+	std::shared_ptr<Ui::RadiobuttonGroup> _radioGroup;
+
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
+	rpl::event_stream<QString> _buttonText;
 
 };
 
@@ -989,7 +1024,8 @@ Premium::Premium(
 	not_null<Window::SessionController*> controller)
 : Section(parent)
 , _controller(controller)
-, _ref(ResolveRef(controller->premiumRef())) {
+, _ref(ResolveRef(controller->premiumRef()))
+, _radioGroup(std::make_shared<Ui::RadiobuttonGroup>()) {
 	setupContent();
 	_controller->session().api().premium().reload();
 }
@@ -1016,6 +1052,47 @@ void Premium::setStepDataReference(std::any &data) {
 	}
 }
 
+void Premium::setupSubscriptionOptions(
+		not_null<Ui::VerticalLayout*> container,
+		int lastSkip) {
+	const auto options = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto skip = container->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			container,
+			object_ptr<Ui::VerticalLayout>(container)));
+	const auto content = options->entity();
+
+	AddSkip(content, st::settingsPremiumOptionsPadding.top());
+
+	Ui::Premium::AddGiftOptions(
+		content,
+		_radioGroup,
+		SubscriptionOptionsForRows(
+			_controller->session().api().premium().subscriptionOptions()),
+		st::premiumSubscriptionOption,
+		true);
+
+	AddSkip(content, st::settingsPremiumOptionsPadding.bottom());
+	AddDivider(content);
+
+	AddSkip(content, lastSkip - st::settingsSectionSkip);
+	AddSkip(skip->entity(), lastSkip);
+
+	auto toggleOn = rpl::combine(
+		Data::AmPremiumValue(&_controller->session()),
+		rpl::single(!!(Ref::EmojiStatus::Parse(_ref)))
+	) | rpl::map([=](bool premium, bool isEmojiStatus) {
+		return !premium && !isEmojiStatus;
+	});
+	options->toggleOn(rpl::duplicate(toggleOn), anim::type::instant);
+	skip->toggleOn(std::move(
+		toggleOn
+	) | rpl::map([](bool value) { return !value; }), anim::type::instant);
+}
+
 void Premium::setupContent() {
 	const auto content = Ui::CreateChild<Ui::VerticalLayout>(this);
 
@@ -1025,7 +1102,9 @@ void Premium::setupContent() {
 	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
 	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
 
-	AddSkip(content, stDefault.padding.top() + titlePadding.top());
+	setupSubscriptionOptions(
+		content,
+		stDefault.padding.top() + titlePadding.top());
 
 	auto entryMap = EntryMap();
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
@@ -1385,10 +1464,11 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 	}
 
 	const auto emojiStatusData = Ref::EmojiStatus::Parse(_ref);
+	const auto session = &_controller->session();
 
 	auto buttonText = [&]() -> std::optional<rpl::producer<QString>> {
 		if (emojiStatusData) {
-			auto &data = _controller->session().data();
+			auto &data = session->data();
 			if (const auto peer = data.peer(emojiStatusData.peerId)) {
 				return Info::Profile::EmojiStatusIdValue(
 					peer
@@ -1399,7 +1479,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 				}) | rpl::flatten_latest();
 			}
 		}
-		return std::nullopt;
+		return _buttonText.events();
 	}();
 
 	_subscribe = CreateSubscribeButton({
@@ -1407,6 +1487,13 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		content,
 		[ref = _ref] { return ref; },
 		std::move(buttonText),
+		std::nullopt,
+		[=, options = session->api().premium().subscriptionOptions()] {
+			const auto value = _radioGroup->value();
+			return (value < options.size() && value >= 0)
+				? options[value].botUrl
+				: QString();
+		},
 	});
 	if (emojiStatusData) {
 		// "Learn More" should open the general Premium Settings
@@ -1419,6 +1506,18 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			ShowPremium(controller, QString());
 			controller->setPremiumRef(ref);
 		});
+	} else {
+		_radioGroup->setChangedCallback([=](int value) {
+			const auto options =
+				_controller->session().api().premium().subscriptionOptions();
+			Expects(value < options.size() && value >= 0);
+			auto text = tr::lng_premium_subscribe_button(
+				tr::now,
+				lt_cost,
+				options[value].costPerMonth);
+			_buttonText.fire(std::move(text));
+		});
+		_radioGroup->setValue(0);
 	}
 
 	_showFinished.events(
@@ -1432,7 +1531,6 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		_subscribe->resizeToWidth(width - padding.left() - padding.right());
 	}, _subscribe->lifetime());
 
-	const auto session = &_controller->session();
 	rpl::combine(
 		_subscribe->heightValue(),
 		Data::AmPremiumValue(session),
@@ -1543,9 +1641,24 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 
 	result->setClickedCallback([
 			controller = args.controller,
-			computeRef = args.computeRef] {
-		SendScreenAccept(controller);
-		StartPremiumPayment(controller, computeRef());
+			computeRef = args.computeRef,
+			computeBotUrl = args.computeBotUrl] {
+		const auto url = computeBotUrl ? QString() : computeBotUrl();
+		if (!url.isEmpty()) {
+			const auto local = Core::TryConvertUrlToLocal(url);
+			if (local.isEmpty()) {
+				return;
+			}
+			UrlClickHandler::Open(
+				local,
+				QVariant::fromValue(ClickHandlerContext{
+					.sessionWindow = base::make_weak(controller.get()),
+					.botStartAutoSubmit = true,
+				}));
+		} else {
+			SendScreenAccept(controller);
+			StartPremiumPayment(controller, computeRef());
+		}
 	});
 
 	const auto &st = st::premiumPreviewBox.button;

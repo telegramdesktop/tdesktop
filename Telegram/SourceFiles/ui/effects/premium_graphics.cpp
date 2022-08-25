@@ -938,7 +938,9 @@ void ShowListBox(
 void AddGiftOptions(
 		not_null<Ui::VerticalLayout*> parent,
 		std::shared_ptr<Ui::RadiobuttonGroup> group,
-		std::vector<Data::SubscriptionOption> gifts) {
+		std::vector<Data::SubscriptionOption> gifts,
+		const style::PremiumOption &st,
+		bool topBadges) {
 
 	struct Edges {
 		Ui::RpWidget *top = nullptr;
@@ -956,8 +958,8 @@ void AddGiftOptions(
 	const auto addRow = [&](const Data::SubscriptionOption &info, int index) {
 		const auto row = parent->add(
 			object_ptr<Ui::AbstractButton>(parent),
-			st::premiumGiftRowPaddings);
-		row->resize(row->width(), st::premiumGiftRowHeight);
+			st.rowPadding);
+		row->resize(row->width(), st.rowHeight);
 		{
 			if (!index) {
 				edges->top = row;
@@ -981,7 +983,7 @@ void AddGiftOptions(
 				- margins.top()
 				- margins.bottom();
 			radio->moveToLeft(
-				st::premiumGiftRowMargins.left(),
+				st.rowMargins.left(),
 				(s.height() - radioHeight) / 2);
 		}, radio->lifetime());
 
@@ -992,30 +994,45 @@ void AddGiftOptions(
 
 			p.fillRect(r, Qt::transparent);
 
-			const auto left = st::premiumGiftRowTextLeft;
-			const auto borderWidth = st::premiumGiftRowBorderWidth;
+			const auto left = st.textLeft;
 			const auto halfHeight = row->height() / 2;
 
 			const auto titleFont = st::semiboldFont;
 			p.setFont(titleFont);
 			p.setPen(st::boxTextFg);
-			p.drawText(
-				left,
-				st::premiumGiftRowSubtitleTop + titleFont->ascent,
-				info.duration);
+			if (info.costPerMonth.isEmpty() && info.discount.isEmpty()) {
+				const auto r = row->rect().translated(
+					-row->rect().left() + left,
+					0);
+				p.drawText(r, info.duration, style::al_left);
+			} else {
+				p.drawText(
+					left,
+					st.subtitleTop + titleFont->ascent,
+					info.duration);
+			}
 
 			const auto discountFont = st::windowFiltersButton.badgeStyle.font;
 			const auto discountWidth = discountFont->width(info.discount);
 			const auto &discountMargins = discountWidth
-				? st::premiumGiftRowBadgeMargins
+				? st.badgeMargins
 				: style::margins();
-			const auto discountRect = QRect(
+
+			const auto bottomLeftRect = QRect(
 				left,
 				halfHeight + discountMargins.top(),
 				discountWidth
 					+ discountMargins.left()
 					+ discountMargins.right(),
-				st::premiumGiftRowBadgeHeight);
+				st.badgeHeight);
+			const auto discountRect = topBadges
+				? bottomLeftRect.translated(
+					titleFont->width(info.duration) + st.badgeShift.x(),
+					-bottomLeftRect.top()
+						+ st.badgeShift.y()
+						+ st.subtitleTop
+						+ (titleFont->height - bottomLeftRect.height()) / 2)
+				: bottomLeftRect;
 			{
 				const auto from = edges->top->y();
 				const auto to = edges->bottom->y() + edges->bottom->height();
@@ -1023,17 +1040,17 @@ void AddGiftOptions(
 
 				p.setPen(Qt::NoPen);
 				p.setBrush(partialGradient.compute(row->y(), row->height()));
-				const auto round = st::premiumGiftRowBadgeRadius;
+				const auto round = st.badgeRadius;
 				p.drawRoundedRect(discountRect, round, round);
 			}
 
-			if (animation->nowIndex == index) {
+			if (st.borderWidth && (animation->nowIndex == index)) {
 				const auto progress = animation->animation.value(1.);
 				const auto w = row->width();
 				auto gradient = QLinearGradient(w - w * progress, 0, w * 2, 0);
 				gradient.setSpread(QGradient::Spread::RepeatSpread);
 				gradient.setStops(stops);
-				const auto pen = QPen(QBrush(gradient), borderWidth);
+				const auto pen = QPen(QBrush(gradient), st.borderWidth);
 				p.setPen(pen);
 				p.setBrush(Qt::NoBrush);
 				const auto borderRect = row->rect()
@@ -1042,7 +1059,7 @@ void AddGiftOptions(
 						pen.width() / 2,
 						pen.width() / 2,
 						pen.width() / 2);
-				const auto round = st::premiumGiftRowBorderRadius;
+				const auto round = st.borderRadius;
 				p.drawRoundedRect(borderRect, round, round);
 			}
 
@@ -1051,15 +1068,17 @@ void AddGiftOptions(
 			p.drawText(discountRect, info.discount, style::al_center);
 
 			const auto perRect = QMargins(0, 0, row->width(), 0)
-				+ discountRect.translated(
-					discountRect.width() + discountMargins.left(),
+				+ bottomLeftRect.translated(
+					topBadges
+						? 0
+						: bottomLeftRect.width() + discountMargins.left(),
 					0);
 			p.setPen(st::windowSubTextFg);
 			p.setFont(st::shareBoxListItem.nameStyle.font);
 			p.drawText(perRect, info.costPerMonth, style::al_left);
 
 			const auto totalRect = row->rect()
-				- QMargins(0, 0, st::premiumGiftRowMargins.right(), 0);
+				- QMargins(0, 0, st.rowMargins.right(), 0);
 			p.setFont(st::normalFont);
 			p.drawText(totalRect, info.costTotal, style::al_right);
 		}, row->lifetime());

@@ -53,6 +53,7 @@ struct SubscribeButtonArgs final {
 	Fn<QString()> computeRef;
 	std::optional<rpl::producer<QString>> text;
 	std::optional<QGradientStops> gradientStops;
+	Fn<QString()> computeBotUrl; // nullable
 };
 
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
