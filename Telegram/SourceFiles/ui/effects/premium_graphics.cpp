@@ -1056,12 +1056,12 @@ void AddGiftOptions(
 					0);
 			p.setPen(st::windowSubTextFg);
 			p.setFont(st::shareBoxListItem.nameStyle.font);
-			p.drawText(perRect, info.perMonth, style::al_left);
+			p.drawText(perRect, info.costPerMonth, style::al_left);
 
 			const auto totalRect = row->rect()
 				- QMargins(0, 0, st::premiumGiftRowMargins.right(), 0);
 			p.setFont(st::normalFont);
-			p.drawText(totalRect, info.total, style::al_right);
+			p.drawText(totalRect, info.costTotal, style::al_right);
 		}, row->lifetime());
 
 		row->setClickedCallback([=, duration = st::defaultCheck.duration] {

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h"
 
 #include "apiwrap.h"
+#include "api/api_premium_option.h"
 #include "base/weak_ptr.h"
 #include "core/click_handler_types.h" // ClickHandlerContext.
 #include "core/local_url_handlers.h" // TryConvertUrlToLocal.
@@ -49,41 +50,12 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	if (!gifts) {
 		return result;
 	}
-	const auto monthlyAmount = [&] {
-		const auto &min = ranges::min_element(
-			gifts->v,
-			ranges::less(),
-			[](const MTPPremiumGiftOption &o) { return o.data().vamount().v; }
-		)->data();
-		return min.vamount().v / float64(min.vmonths().v);
-	}();
-	result.reserve(gifts->v.size());
-	for (const auto &gift : gifts->v) {
-		const auto &option = gift.data();
-		const auto botUrl = qs(option.vbot_url());
-		const auto months = option.vmonths().v;
-		const auto amount = option.vamount().v;
-		const auto currency = qs(option.vcurrency());
-		const auto discount = [&] {
-			const auto percent = monthlyAmount * months / float64(amount)
-				- 1.;
-			return std::round(percent * 100. / kDiscountDivider)
-				* kDiscountDivider;
-		}();
-		result.push_back({
-			.duration = Ui::FormatTTL(months * 86400 * 31),
-			.discount = discount
-				? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
-				: QString(),
-			.perMonth = tr::lng_premium_gift_per(
-				tr::now,
-				lt_cost,
-				Ui::FillAmountAndCurrency(
-					amount / float64(months),
-					currency)),
-			.total = Ui::FillAmountAndCurrency(amount, currency),
-			.botUrl = botUrl,
-		});
+	result = Api::SubscriptionOptionsFromTL(gifts->v);
+	for (auto &option : result) {
+		option.costPerMonth = tr::lng_premium_gift_per(
+			tr::now,
+			lt_cost,
+			option.costPerMonth);
 	}
 	return result;
 }

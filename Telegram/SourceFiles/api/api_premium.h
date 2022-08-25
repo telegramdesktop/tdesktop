@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_subscription_option.h"
 #include "mtproto/sender.h"
 
 class ApiWrap;
@@ -39,6 +40,9 @@ public:
 	[[nodiscard]] int64 monthlyAmount() const;
 	[[nodiscard]] QString monthlyCurrency() const;
 
+	[[nodiscard]] auto subscriptionOptions() const
+		-> const Data::SubscriptionOptions &;
+
 private:
 	void reloadPromo();
 	void reloadStickers();
@@ -66,6 +70,8 @@ private:
 
 	int64 _monthlyAmount = 0;
 	QString _monthlyCurrency;
+
+	Data::SubscriptionOptions _subscriptionOptions;
 
 };
 

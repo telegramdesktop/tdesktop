@@ -12,7 +12,8 @@ namespace Data {
 struct SubscriptionOption {
 	QString duration;
 	QString discount;
-	QString perMonth;
+	QString costPerMonth;
+	QString costTotal;
 	QString total;
 	QString botUrl;
 };

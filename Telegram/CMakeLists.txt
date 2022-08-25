@@ -140,6 +140,8 @@ PRIVATE
     api/api_polls.h
     api/api_premium.cpp
     api/api_premium.h
+    api/api_premium_option.cpp
+    api/api_premium_option.h
     api/api_report.cpp
     api/api_report.h
     api/api_ringtones.cpp
