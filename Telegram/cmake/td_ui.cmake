@@ -67,6 +67,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_subscription_option.h
+
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp

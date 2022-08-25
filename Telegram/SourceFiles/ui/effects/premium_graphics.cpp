@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_graphics.h"
 
+#include "data/data_subscription_option.h"
 #include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
@@ -937,7 +938,7 @@ void ShowListBox(
 void AddGiftOptions(
 		not_null<Ui::VerticalLayout*> parent,
 		std::shared_ptr<Ui::RadiobuttonGroup> group,
-		std::vector<GiftInfo> gifts) {
+		std::vector<Data::SubscriptionOption> gifts) {
 
 	struct Edges {
 		Ui::RpWidget *top = nullptr;
@@ -952,7 +953,7 @@ void AddGiftOptions(
 
 	const auto stops = GiftGradientStops();
 
-	const auto addRow = [&](const GiftInfo &info, int index) {
+	const auto addRow = [&](const Data::SubscriptionOption &info, int index) {
 		const auto row = parent->add(
 			object_ptr<Ui::AbstractButton>(parent),
 			st::premiumGiftRowPaddings);

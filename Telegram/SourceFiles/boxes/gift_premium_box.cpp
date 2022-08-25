@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
+#include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -39,11 +40,8 @@ namespace {
 
 constexpr auto kDiscountDivider = 5.;
 
-struct GiftOption final {
-	QString url;
-	Ui::Premium::GiftInfo info;
-};
-using GiftOptions = std::vector<GiftOption>;
+using GiftOption = Data::SubscriptionOption;
+using GiftOptions = Data::SubscriptionOptions;
 
 GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	auto result = GiftOptions();
@@ -72,7 +70,7 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 			return std::round(percent * 100. / kDiscountDivider)
 				* kDiscountDivider;
 		}();
-		auto info = Ui::Premium::GiftInfo{
+		result.push_back({
 			.duration = Ui::FormatTTL(months * 86400 * 31),
 			.discount = discount
 				? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
@@ -84,8 +82,8 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 					amount / float64(months),
 					currency)),
 			.total = Ui::FillAmountAndCurrency(amount, currency),
-		};
-		result.push_back({ .url = botUrl, .info = std::move(info) });
+			.botUrl = botUrl,
+		});
 	}
 	return result;
 }
@@ -194,17 +192,10 @@ void GiftBox(
 		auto text = tr::lng_premium_gift_button(
 			tr::now,
 			lt_cost,
-			options[value].info.total);
+			options[value].total);
 		state->buttonText.fire(std::move(text));
 	});
-	Ui::Premium::AddGiftOptions(
-		buttonsParent,
-		group,
-		ranges::views::all(
-			options
-		) | ranges::views::transform([](const GiftOption &option) {
-			return option.info;
-		}) | ranges::to_vector);
+	Ui::Premium::AddGiftOptions(buttonsParent, group, options);
 
 	// Footer.
 	auto terms = object_ptr<Ui::FlatLabel>(
@@ -244,7 +235,7 @@ void GiftBox(
 		const auto value = group->value();
 		Assert(value < options.size() && value >= 0);
 
-		const auto local = Core::TryConvertUrlToLocal(options[value].url);
+		const auto local = Core::TryConvertUrlToLocal(options[value].botUrl);
 		if (local.isEmpty()) {
 			return;
 		}
