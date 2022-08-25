@@ -650,6 +650,9 @@ TopBarUser::TopBarUser(
 		_content->resize(size.width(), maximumHeight());
 	}, lifetime());
 
+	const auto smallTopShadow = Ui::CreateChild<Ui::FadeShadow>(
+		_smallTop.widget.data());
+	smallTopShadow->setDuration(st::infoTopBarDuration);
 	rpl::combine(
 		rpl::single(
 			false
@@ -660,17 +663,23 @@ TopBarUser::TopBarUser(
 		_content->moveToLeft(0, -(_content->height() - size.height()));
 
 		_smallTop.widget->resize(size.width(), minimumHeight());
+		smallTopShadow->resizeToWidth(size.width());
+		smallTopShadow->moveToLeft(
+			0,
+			_smallTop.widget->height() - smallTopShadow->height());
 		const auto shown = (minimumHeight() * 2 > size.height());
 		if (_smallTop.shown != shown) {
 			_smallTop.shown = shown;
 			if (!showFinished) {
 				_smallTop.widget->update();
+				smallTopShadow->toggle(_smallTop.shown, anim::type::instant);
 			} else {
 				_smallTop.animation.start(
 					[=] { _smallTop.widget->update(); },
 					_smallTop.shown ? 0. : 1.,
 					_smallTop.shown ? 1. : 0.,
 					st::infoTopBarDuration);
+				smallTopShadow->toggle(_smallTop.shown, anim::type::normal);
 			}
 		}
 	}, lifetime());
