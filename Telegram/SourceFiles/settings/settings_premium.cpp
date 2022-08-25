@@ -470,7 +470,8 @@ public:
 	TopBarUser(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		rpl::producer<> showFinished);
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
@@ -510,7 +511,8 @@ private:
 TopBarUser::TopBarUser(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer)
+	not_null<PeerData*> peer,
+	rpl::producer<> showFinished)
 : TopBarAbstract(parent)
 , _content(this)
 , _title(_content, st::settingsPremiumUserTitle)
@@ -619,8 +621,12 @@ TopBarUser::TopBarUser(
 		_content->resize(size.width(), maximumHeight());
 	}, lifetime());
 
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
+	rpl::combine(
+		rpl::single(
+			false
+		) | rpl::then(std::move(showFinished) | rpl::map_to(true)),
+		sizeValue()
+	) | rpl::start_with_next([=](bool showFinished, const QSize &size) {
 		_content->resize(size.width(), maximumHeight());
 		_content->moveToLeft(0, -(_content->height() - size.height()));
 
@@ -628,11 +634,15 @@ TopBarUser::TopBarUser(
 		const auto shown = (minimumHeight() * 2 > size.height());
 		if (_smallTop.shown != shown) {
 			_smallTop.shown = shown;
-			_smallTop.animation.start(
-				[=] { _smallTop.widget->update(); },
-				_smallTop.shown ? 0. : 1.,
-				_smallTop.shown ? 1. : 0.,
-				st::infoTopBarDuration);
+			if (!showFinished) {
+				_smallTop.widget->update();
+			} else {
+				_smallTop.animation.start(
+					[=] { _smallTop.widget->update(); },
+					_smallTop.shown ? 0. : 1.,
+					_smallTop.shown ? 1. : 0.,
+					st::infoTopBarDuration);
+			}
 		}
 	}, lifetime());
 
@@ -1284,7 +1294,8 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 			return Ui::CreateChild<TopBarUser>(
 				parent.get(),
 				_controller,
-				peerWithPremium);
+				peerWithPremium,
+				_showFinished.events());
 		}
 		return Ui::CreateChild<TopBar>(
 			parent.get(),
@@ -1373,10 +1384,12 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		return nullptr;
 	}
 
+	const auto emojiStatusData = Ref::EmojiStatus::Parse(_ref);
+
 	auto buttonText = [&]() -> std::optional<rpl::producer<QString>> {
-		if (const auto emojiData = Ref::EmojiStatus::Parse(_ref)) {
+		if (emojiStatusData) {
 			auto &data = _controller->session().data();
-			if (const auto peer = data.peer(emojiData.peerId)) {
+			if (const auto peer = data.peer(emojiStatusData.peerId)) {
 				return Info::Profile::EmojiStatusIdValue(
 					peer
 				) | rpl::map([](DocumentId id) {
@@ -1395,6 +1408,18 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		[ref = _ref] { return ref; },
 		std::move(buttonText),
 	});
+	if (emojiStatusData) {
+		// "Learn More" should open the general Premium Settings
+		// so we override the button callback.
+		// To have ability to jump back to the User Premium Settings
+		// we should replace the ref explicitly.
+		_subscribe->setClickedCallback([=] {
+			const auto ref = _ref;
+			const auto controller = _controller;
+			ShowPremium(controller, QString());
+			controller->setPremiumRef(ref);
+		});
+	}
 
 	_showFinished.events(
 	) | rpl::take(1) | rpl::start_with_next([=] {
