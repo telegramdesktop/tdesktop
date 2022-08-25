@@ -364,8 +364,10 @@ ListWidget::ListWidget(
 				reaction.id)) {
 			return;
 		}
-		item->toggleReaction(reaction.id);
-		if (item->chosenReaction() != reaction.id) {
+		item->toggleReaction(
+			reaction.id,
+			HistoryItem::ReactionSource::Selector);
+		if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 			return;
 		} else if (const auto view = viewForItem(item)) {
 			if (const auto top = itemTop(view); top >= 0) {
@@ -2129,12 +2131,12 @@ void ListWidget::toggleFavoriteReaction(not_null<Element*> view) const {
 			&Data::Reaction::id)
 		|| Window::ShowReactPremiumError(_controller, item, favorite)) {
 		return;
-	} else if (item->chosenReaction() != favorite) {
+	} else if (!ranges::contains(item->chosenReactions(), favorite)) {
 		if (const auto top = itemTop(view); top >= 0) {
 			view->animateReaction({ .id = favorite });
 		}
 	}
-	item->toggleReaction(favorite);
+	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
 }
 
 void ListWidget::trySwitchToWordSelection() {

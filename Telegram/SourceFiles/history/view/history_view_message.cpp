@@ -2188,9 +2188,12 @@ void Message::refreshReactions() {
 			const auto weak = base::make_weak(this);
 			return std::make_shared<LambdaClickHandler>([=] {
 				if (const auto strong = weak.get()) {
-					strong->data()->toggleReaction(id);
+					strong->data()->toggleReaction(
+						id,
+						HistoryItem::ReactionSource::Existing);
 					if (const auto now = weak.get()) {
-						if (now->data()->chosenReaction() == id) {
+						const auto chosen = now->data()->chosenReactions();
+						if (ranges::contains(chosen, id)) {
 							now->animateReaction({
 								.id = id,
 							});

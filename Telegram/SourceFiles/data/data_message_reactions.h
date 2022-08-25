@@ -83,12 +83,15 @@ public:
 		const ReactionId &emoji,
 		ImageSize size);
 
-	void send(not_null<HistoryItem*> item, const ReactionId &chosen);
+	void send(not_null<HistoryItem*> item, bool addToRecent);
 	[[nodiscard]] bool sending(not_null<HistoryItem*> item) const;
 
 	void poll(not_null<HistoryItem*> item, crl::time now);
 
 	void updateAllInHistory(not_null<PeerData*> peer, bool enabled);
+
+	void clearTemporary();
+	[[nodiscard]] Reaction *lookupTemporary(const ReactionId &id);
 
 	[[nodiscard]] static bool HasUnread(const MTPMessageReactions &data);
 	static void CheckUnknownForUnread(
@@ -160,6 +163,11 @@ private:
 	rpl::event_stream<> _defaultUpdated;
 	rpl::event_stream<> _favoriteUpdated;
 
+	// We need &i->second stay valid while inserting new items.
+	// So we use std::map instead of base::flat_map here.
+	// Otherwise we could use flat_map<DocumentId, unique_ptr<Reaction>>.
+	std::map<DocumentId, Reaction> _temporary;
+
 	base::Timer _topRefreshTimer;
 	mtpRequestId _topRequestId = 0;
 	bool _topRequestScheduled = false;
@@ -208,8 +216,8 @@ class MessageReactions final {
 public:
 	explicit MessageReactions(not_null<HistoryItem*> item);
 
-	void add(const ReactionId &reaction);
-	void remove();
+	void add(const ReactionId &id, bool addToRecent);
+	void remove(const ReactionId &id);
 	bool change(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent,
@@ -217,10 +225,10 @@ public:
 	[[nodiscard]] bool checkIfChanged(
 		const QVector<MTPReactionCount> &list,
 		const QVector<MTPMessagePeerReaction> &recent) const;
-	[[nodiscard]] const base::flat_map<ReactionId, int> &list() const;
+	[[nodiscard]] const std::vector<MessageReaction> &list() const;
 	[[nodiscard]] auto recent() const
 		-> const base::flat_map<ReactionId, std::vector<RecentReaction>> &;
-	[[nodiscard]] ReactionId chosen() const;
+	[[nodiscard]] std::vector<ReactionId> chosen() const;
 	[[nodiscard]] bool empty() const;
 
 	[[nodiscard]] bool hasUnread() const;
@@ -229,8 +237,7 @@ public:
 private:
 	const not_null<HistoryItem*> _item;
 
-	ReactionId _chosen;
-	base::flat_map<ReactionId, int> _list;
+	std::vector<MessageReaction> _list;
 	base::flat_map<ReactionId, std::vector<RecentReaction>> _recent;
 
 };

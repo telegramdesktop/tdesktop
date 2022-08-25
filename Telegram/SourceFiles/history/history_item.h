@@ -44,6 +44,7 @@ struct MessagePosition;
 struct RecentReaction;
 struct ReactionId;
 class Media;
+struct MessageReaction;
 class MessageReactions;
 } // namespace Data
 
@@ -373,18 +374,24 @@ public:
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 
 	[[nodiscard]] bool canReact() const;
-	void addReaction(const Data::ReactionId &reaction);
-	void toggleReaction(const Data::ReactionId &reaction);
+	enum class ReactionSource {
+		Selector,
+		Quick,
+		Existing,
+	};
+	void toggleReaction(
+		const Data::ReactionId &reaction,
+		ReactionSource source);
 	void updateReactions(const MTPMessageReactions *reactions);
 	void updateReactionsUnknown();
 	[[nodiscard]] auto reactions() const
-		-> const base::flat_map<Data::ReactionId, int> &;
+		-> const std::vector<Data::MessageReaction> &;
 	[[nodiscard]] auto recentReactions() const
 		-> const base::flat_map<
 			Data::ReactionId,
 			std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
-	[[nodiscard]] Data::ReactionId chosenReaction() const;
+	[[nodiscard]] std::vector<Data::ReactionId> chosenReactions() const;
 	[[nodiscard]] Data::ReactionId lookupUnreadReaction(
 		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;

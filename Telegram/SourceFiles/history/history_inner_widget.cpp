@@ -471,8 +471,8 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 			reaction.id)) {
 		return;
 	}
-	item->toggleReaction(reaction.id);
-	if (item->chosenReaction() != reaction.id) {
+	item->toggleReaction(reaction.id, HistoryItem::ReactionSource::Selector);
+	if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 		return;
 	} else if (const auto view = item->mainView()) {
 		if (const auto top = itemTop(view); top >= 0) {
@@ -1948,12 +1948,12 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 		&Data::Reaction::id)
 		|| Window::ShowReactPremiumError(_controller, item, favorite)) {
 		return;
-	} else if (item->chosenReaction() != favorite) {
+	} else if (!ranges::contains(item->chosenReactions(), favorite)) {
 		if (const auto top = itemTop(view); top >= 0) {
 			view->animateReaction({ .id = favorite });
 		}
 	}
-	item->toggleReaction(favorite);
+	item->toggleReaction(favorite, HistoryItem::ReactionSource::Quick);
 }
 
 void HistoryInner::contextMenuEvent(QContextMenuEvent *e) {

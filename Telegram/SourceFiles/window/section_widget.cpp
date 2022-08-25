@@ -367,7 +367,8 @@ bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &id) {
-	if (item->chosenReaction() == id || controller->session().premium()) {
+	if (controller->session().premium()
+		|| ranges::contains(item->chosenReactions(), id)) {
 		return false;
 	}
 	const auto &list = controller->session().data().reactions().list(

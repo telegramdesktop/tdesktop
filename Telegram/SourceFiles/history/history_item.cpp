@@ -883,15 +883,9 @@ bool HistoryItem::canReact() const {
 	return true;
 }
 
-void HistoryItem::addReaction(const Data::ReactionId &reaction) {
-	if (!_reactions) {
-		_reactions = std::make_unique<Data::MessageReactions>(this);
-	}
-	_reactions->add(reaction);
-	history()->owner().notifyItemDataChange(this);
-}
-
-void HistoryItem::toggleReaction(const Data::ReactionId &reaction) {
+void HistoryItem::toggleReaction(
+		const Data::ReactionId &reaction,
+		ReactionSource source) {
 	if (!_reactions) {
 		_reactions = std::make_unique<Data::MessageReactions>(this);
 		const auto canViewReactions = !isDiscussionPost()
@@ -899,16 +893,16 @@ void HistoryItem::toggleReaction(const Data::ReactionId &reaction) {
 		if (canViewReactions) {
 			_flags |= MessageFlag::CanViewReactions;
 		}
-		_reactions->add(reaction);
-	} else if (_reactions->chosen() == reaction) {
-		_reactions->remove();
+		_reactions->add(reaction, (source == ReactionSource::Selector));
+	} else if (ranges::contains(_reactions->chosen(), reaction)) {
+		_reactions->remove(reaction);
 		if (_reactions->empty()) {
 			_reactions = nullptr;
 			_flags &= ~MessageFlag::CanViewReactions;
 			history()->owner().notifyItemDataChange(this);
 		}
 	} else {
-		_reactions->add(reaction);
+		_reactions->add(reaction, (source == ReactionSource::Selector));
 	}
 	history()->owner().notifyItemDataChange(this);
 }
@@ -977,8 +971,8 @@ void HistoryItem::updateReactionsUnknown() {
 	_reactionsLastRefreshed = 1;
 }
 
-const base::flat_map<Data::ReactionId, int> &HistoryItem::reactions() const {
-	static const auto kEmpty = base::flat_map<Data::ReactionId, int>();
+const std::vector<Data::MessageReaction> &HistoryItem::reactions() const {
+	static const auto kEmpty = std::vector<Data::MessageReaction>();
 	return _reactions ? _reactions->list() : kEmpty;
 }
 
@@ -998,8 +992,10 @@ bool HistoryItem::canViewReactions() const {
 		&& !_reactions->list().empty();
 }
 
-Data::ReactionId HistoryItem::chosenReaction() const {
-	return _reactions ? _reactions->chosen() : Data::ReactionId();
+std::vector<Data::ReactionId> HistoryItem::chosenReactions() const {
+	return _reactions
+		? _reactions->chosen()
+		: std::vector<Data::ReactionId>();
 }
 
 Data::ReactionId HistoryItem::lookupUnreadReaction(

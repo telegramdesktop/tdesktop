@@ -45,6 +45,7 @@ struct TextState;
 class BottomInfo final : public Object {
 public:
 	using ReactionId = ::Data::ReactionId;
+	using MessageReaction = ::Data::MessageReaction;
 	struct Data {
 		enum class Flag : uchar {
 			Edited         = 0x01,
@@ -62,8 +63,7 @@ public:
 
 		QDateTime date;
 		QString author;
-		base::flat_map<ReactionId, int> reactions;
-		ReactionId chosenReaction;
+		std::vector<MessageReaction> reactions;
 		std::optional<int> views;
 		std::optional<int> replies;
 		Flags flags;
@@ -105,6 +105,7 @@ private:
 		QString countText;
 		int count = 0;
 		int countTextWidth = 0;
+		bool chosen = false;
 	};
 
 	void layout();

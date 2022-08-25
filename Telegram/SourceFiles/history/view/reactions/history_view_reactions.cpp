@@ -45,6 +45,7 @@ struct InlineList::Button {
 	QString countText;
 	int count = 0;
 	int countTextWidth = 0;
+	bool chosen = false;
 };
 
 InlineList::InlineList(
@@ -87,34 +88,39 @@ void InlineList::layoutButtons() {
 	}
 	auto sorted = ranges::view::all(
 		_data.reactions
-	) | ranges::view::transform([](const auto &pair) {
-		return std::make_pair(pair.first, pair.second);
+	) | ranges::view::transform([](const MessageReaction &reaction) {
+		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	const auto &list = _owner->list(::Data::Reactions::Type::All);
-	ranges::sort(sorted, [&](const auto &p1, const auto &p2) {
-		if (p1.second > p2.second) {
+	ranges::sort(sorted, [&](
+			not_null<const MessageReaction*> a,
+			not_null<const MessageReaction*> b) {
+		const auto acount = a->count - (a->my ? 1 : 0);
+		const auto bcount = b->count - (b->my ? 1 : 0);
+		if (acount > bcount) {
 			return true;
-		} else if (p1.second < p2.second) {
+		} else if (acount < bcount) {
 			return false;
 		}
-		return ranges::find(list, p1.first, &::Data::Reaction::id)
-			< ranges::find(list, p2.first, &::Data::Reaction::id);
+		return ranges::find(list, a->id, &::Data::Reaction::id)
+			< ranges::find(list, b->id, &::Data::Reaction::id);
 	});
 
 	auto buttons = std::vector<Button>();
 	buttons.reserve(sorted.size());
-	for (const auto &[id, count] : sorted) {
+	for (const auto &reaction : sorted) {
+		const auto &id = reaction->id;
 		const auto i = ranges::find(_buttons, id, &Button::id);
 		buttons.push_back((i != end(_buttons))
 			? std::move(*i)
 			: prepareButtonWithId(id));
-		const auto add = (id == _data.chosenReaction) ? 1 : 0;
 		const auto j = _data.recent.find(id);
 		if (j != end(_data.recent) && !j->second.empty()) {
 			setButtonUserpics(buttons.back(), j->second);
 		} else {
-			setButtonCount(buttons.back(), count + add);
+			setButtonCount(buttons.back(), reaction->count);
 		}
+		buttons.back().chosen = reaction->my;
 	}
 	_buttons = std::move(buttons);
 }
@@ -302,7 +308,7 @@ void InlineList::paint(
 		}
 		const auto animating = (button.animation != nullptr);
 		const auto &geometry = button.geometry;
-		const auto mine = (_data.chosenReaction == button.id);
+		const auto mine = button.chosen;
 		const auto withoutMine = button.count - (mine ? 1 : 0);
 		const auto skipImage = animating
 			&& (withoutMine < 1 || !button.animation->flying());
@@ -518,10 +524,10 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 		}
 		auto b = begin(recent);
 		auto sum = 0;
-		for (const auto &[emoji, count] : result.reactions) {
-			sum += count;
-			if (emoji != b->first
-				|| count != b->second.size()
+		for (const auto &reaction : result.reactions) {
+			sum += reaction.count;
+			if (reaction.id != b->first
+				|| reaction.count != b->second.size()
 				|| sum > kMaxRecentUserpics) {
 				return false;
 			}
@@ -536,10 +542,6 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 				| ranges::view::transform(&Data::RecentReaction::peer)
 				| ranges::to_vector;
 		}
-	}
-	result.chosenReaction = item->chosenReaction();
-	if (!result.chosenReaction.empty()) {
-		--result.reactions[result.chosenReaction];
 	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
 		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag());

@@ -13,6 +13,7 @@ enum class WhoReadType;
 
 namespace Data {
 struct ReactionId;
+struct MessageReaction;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -26,7 +27,7 @@ struct Tabs {
 
 not_null<Tabs*> CreateTabs(
 	not_null<QWidget*> parent,
-	const base::flat_map<Data::ReactionId, int> &items,
+	const std::vector<Data::MessageReaction> &items,
 	const Data::ReactionId &selected,
 	Ui::WhoReadType whoReadType);
 

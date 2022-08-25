@@ -1068,8 +1068,12 @@ reactionPremiumLocked: icon{
 	{ "chat/reactions_premium_star", historyPeerUserpicFg },
 };
 reactionExpandPanel: icon{
-	{ "chat/reactions_expand_bg", historyPeerArchiveUserpicBg },
-	{ "chat/reactions_expand_panel", historyPeerUserpicFg },
+	{ "chat/reactions_round_big", windowSubTextFg },
+	{ "chat/reactions_expand_panel", windowBg },
+};
+reactionsExpandDropdown: icon{
+	{ "chat/reactions_round_small", windowSubTextFg },
+	{ "chat/reactions_expand_panel", windowBg },
 };
 
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {

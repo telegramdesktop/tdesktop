@@ -105,7 +105,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 
 not_null<Tabs*> CreateTabs(
 		not_null<QWidget*> parent,
-		const base::flat_map<ReactionId, int> &items,
+		const std::vector<Data::MessageReaction> &items,
 		const ReactionId &selected,
 		Ui::WhoReadType whoReadType) {
 	struct State {
@@ -133,11 +133,11 @@ not_null<Tabs*> CreateTabs(
 		state->tabs.push_back(tab);
 	};
 	auto sorted = std::vector<Entry>();
-	for (const auto &[reaction, count] : items) {
-		if (reaction.emoji() == u"read"_q) {
-			append(reaction, count);
+	for (const auto &reaction : items) {
+		if (reaction.id.emoji() == u"read"_q) {
+			append(reaction.id, reaction.count);
 		} else {
-			sorted.emplace_back(count, reaction);
+			sorted.emplace_back(reaction.count, reaction.id);
 		}
 	}
 	ranges::sort(sorted, std::greater<>(), &Entry::first);

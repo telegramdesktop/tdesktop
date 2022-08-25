@@ -63,6 +63,18 @@ constexpr auto kTopReactionsLimit = 10;
 	return result;
 }
 
+[[nodiscard]] Reaction CustomReaction(not_null<DocumentData*> document) {
+	return Reaction{
+		.id = { { document->id } },
+		.title = "Custom reaction",
+		.appearAnimation = document,
+		.selectAnimation = document,
+		.centerIcon = document,
+		.active = true,
+	};
+
+}
+
 } // namespace
 
 PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
@@ -74,22 +86,43 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 	const auto session = &peer->session();
 	const auto reactions = &session->data().reactions();
 	const auto &full = reactions->list(Reactions::Type::Active);
+	const auto &top = reactions->list(Reactions::Type::Top);
+	const auto &recent = reactions->list(Reactions::Type::Recent);
 	const auto &all = item->reactions();
-	const auto my = item->chosenReaction();
-	auto myIsUnique = false;
-	for (const auto &[id, count] : all) {
-		if (count == 1 && id == my) {
-			myIsUnique = true;
-		}
-	}
-	const auto notMineCount = int(all.size()) - (myIsUnique ? 1 : 0);
 	const auto limit = UniqueReactionsLimit(peer);
-	if (limit > 0 && notMineCount >= limit) {
+	const auto limited = (all.size() >= limit) && [&] {
+		const auto my = item->chosenReactions();
+		if (my.empty()) {
+			return true;
+		}
+		return true; // #TODO reactions
+	}();
+	auto added = base::flat_set<ReactionId>();
+	const auto addOne = [&](const Reaction &reaction) {
+		if (added.emplace(reaction.id).second) {
+			result.recent.push_back(&reaction);
+		}
+	};
+	const auto add = [&](auto predicate) {
+		auto &&all = ranges::views::concat(top, recent, full);
+		for (const auto &reaction : all) {
+			if (predicate(reaction)) {
+				addOne(reaction);
+			}
+		}
+	};
+	reactions->clearTemporary();
+	if (limited) {
 		result.recent.reserve(all.size());
-		for (const auto &reaction : full) {
+		add([&](const Reaction &reaction) {
+			return ranges::contains(all, reaction.id, &MessageReaction::id);
+		});
+		for (const auto &reaction : all) {
 			const auto id = reaction.id;
-			if (all.contains(id)) {
-				result.recent.push_back(&reaction);
+			if (!added.contains(id)) {
+				if (const auto temp = reactions->lookupTemporary(id)) {
+					result.recent.push_back(temp);
+				}
 			}
 		}
 	} else {
@@ -97,22 +130,21 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 		result.recent.reserve((allowed.type == AllowedReactionsType::Some)
 			? allowed.some.size()
 			: full.size());
-		for (const auto &reaction : full) {
+		add([&](const Reaction &reaction) {
 			const auto id = reaction.id;
 			if ((allowed.type == AllowedReactionsType::Some)
 				&& !ranges::contains(allowed.some, id)) {
-				continue;
+				return false;
 			} else if (reaction.premium
 				&& !session->premium()
-				&& !all.contains(id)) {
+				&& !ranges::contains(all, id, &MessageReaction::id)) {
 				if (session->premiumPossible()) {
 					result.morePremiumAvailable = true;
 				}
-				continue;
-			} else {
-				result.recent.push_back(&reaction);
+				return false;
 			}
-		}
+			return true;
+		});
 		result.customAllowed = (allowed.type == AllowedReactionsType::All);
 	}
 	const auto i = ranges::find(
@@ -564,14 +596,7 @@ std::optional<Reaction> Reactions::resolveById(const ReactionId &id) {
 	} else if (const auto customId = id.custom()) {
 		const auto document = _owner->document(customId);
 		if (document->sticker()) {
-			return Reaction{
-				.id = id,
-				.title = "Custom reaction",
-				.appearAnimation = document,
-				.selectAnimation = document,
-				.centerIcon = document,
-				.active = true,
-			};
+			return CustomReaction(document);
 		}
 	}
 	return {};
@@ -637,7 +662,7 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 	});
 }
 
-void Reactions::send(not_null<HistoryItem*> item, const ReactionId &chosen) {
+void Reactions::send(not_null<HistoryItem*> item, bool addToRecent) {
 	const auto id = item->fullId();
 	auto &api = _owner->session().api();
 	auto i = _sentRequests.find(id);
@@ -646,14 +671,17 @@ void Reactions::send(not_null<HistoryItem*> item, const ReactionId &chosen) {
 	} else {
 		i = _sentRequests.emplace(id).first;
 	}
-	const auto flags = chosen.empty()
-		? MTPmessages_SendReaction::Flag(0)
-		: MTPmessages_SendReaction::Flag::f_reaction;
+	const auto chosen = item->chosenReactions();
+	using Flag = MTPmessages_SendReaction::Flag;
+	const auto flags = (chosen.empty() ? Flag(0) : Flag::f_reaction)
+		| (addToRecent ? Flag::f_add_to_recent : Flag(0));
 	i->second = api.request(MTPmessages_SendReaction(
 		MTP_flags(flags),
 		item->history()->peer->input,
 		MTP_int(id.msg),
-		MTP_vector<MTPReaction>(1, ReactionToMTP(chosen))
+		MTP_vector<MTPReaction>(chosen | ranges::views::transform(
+			ReactionToMTP
+		) | ranges::to<QVector<MTPReaction>>())
 	)).done([=](const MTPUpdates &result) {
 		_sentRequests.remove(id);
 		_owner->session().api().applyUpdates(result);
@@ -691,6 +719,32 @@ void Reactions::updateAllInHistory(not_null<PeerData*> peer, bool enabled) {
 	if (const auto history = _owner->historyLoaded(peer)) {
 		history->reactionsEnabledChanged(enabled);
 	}
+}
+
+void Reactions::clearTemporary() {
+	_temporary.clear();
+}
+
+Reaction *Reactions::lookupTemporary(const ReactionId &id) {
+	if (const auto emoji = id.emoji(); !emoji.isEmpty()) {
+		const auto i = ranges::find(_available, id, &Reaction::id);
+		return (i != end(_available)) ? &*i : nullptr;
+	} else if (const auto customId = id.custom()) {
+		if (const auto i = _temporary.find(customId); i != end(_temporary)) {
+			return &i->second;
+		}
+		const auto document = _owner->document(customId);
+		if (document->sticker()) {
+			return &_temporary.emplace(
+				customId,
+				CustomReaction(document)).first->second;
+		}
+		_owner->customEmojiManager().resolve(
+			customId,
+			resolveListener());
+		return nullptr;
+	}
+	return nullptr;
 }
 
 void Reactions::repaintCollected() {
@@ -784,45 +838,84 @@ MessageReactions::MessageReactions(not_null<HistoryItem*> item)
 : _item(item) {
 }
 
-void MessageReactions::add(const ReactionId &reaction) {
-	if (_chosen == reaction) {
-		return;
-	}
+void MessageReactions::add(const ReactionId &id, bool addToRecent) {
+	Expects(!id.empty());
+
 	const auto history = _item->history();
 	const auto self = history->session().user();
-	if (!_chosen.empty()) {
-		const auto i = _list.find(_chosen);
-		Assert(i != end(_list));
-		--i->second;
-		const auto removed = !i->second;
-		if (removed) {
-			_list.erase(i);
+	const auto myLimit = self->isPremium() ? 5 : 1; // #TODO reactions
+	if (ranges::contains(chosen(), id)) {
+		return;
+	}
+	auto my = 0;
+	_list.erase(ranges::remove_if(_list, [&](MessageReaction &one) {
+		const auto removing = one.my && (my == myLimit || ++my == myLimit);
+		if (!removing) {
+			return false;
 		}
-		const auto j = _recent.find(_chosen);
+		one.my = false;
+		const auto removed = !--one.count;
+		const auto j = _recent.find(one.id);
 		if (j != end(_recent)) {
 			j->second.erase(
 				ranges::remove(j->second, self, &RecentReaction::peer),
 				end(j->second));
-			if (j->second.empty() || removed) {
+			if (j->second.empty()) {
 				_recent.erase(j);
+			} else {
+				Assert(!removed);
 			}
 		}
+		return removed;
+	}), end(_list));
+	if (_item->canViewReactions()) {
+		auto &list = _recent[id];
+		list.insert(begin(list), RecentReaction{ self });
 	}
-	_chosen = reaction;
-	if (!reaction.empty()) {
-		if (_item->canViewReactions()) {
-			auto &list = _recent[reaction];
-			list.insert(begin(list), RecentReaction{ self });
-		}
-		++_list[reaction];
+	const auto i = ranges::find(_list, id, &MessageReaction::id);
+	if (i != end(_list)) {
+		i->my = true;
+		++i->count;
+		std::rotate(i, i + 1, end(_list));
+	} else {
+		_list.push_back({ .id = id, .count = 1, .my = true });
 	}
 	auto &owner = history->owner();
-	owner.reactions().send(_item, _chosen);
+	owner.reactions().send(_item, addToRecent);
 	owner.notifyItemDataChange(_item);
 }
 
-void MessageReactions::remove() {
-	add(ReactionId());
+void MessageReactions::remove(const ReactionId &id) {
+	const auto history = _item->history();
+	const auto self = history->session().user();
+	const auto i = ranges::find(_list, id, &MessageReaction::id);
+	const auto j = _recent.find(id);
+	if (i == end(_list)) {
+		Assert(j == end(_recent));
+		return;
+	} else if (!i->my) {
+		Assert(j == end(_recent)
+			|| !ranges::contains(j->second, self, &RecentReaction::peer));
+		return;
+	}
+	i->my = false;
+	const auto removed = !--i->count;
+	if (removed) {
+		_list.erase(i);
+	}
+	if (j != end(_recent)) {
+		j->second.erase(
+			ranges::remove(j->second, self, &RecentReaction::peer),
+			end(j->second));
+		if (j->second.empty()) {
+			_recent.erase(j);
+		} else {
+			Assert(!removed);
+		}
+	}
+	auto &owner = history->owner();
+	owner.reactions().send(_item, false);
+	owner.notifyItemDataChange(_item);
 }
 
 bool MessageReactions::checkIfChanged(
@@ -836,31 +929,31 @@ bool MessageReactions::checkIfChanged(
 	auto existing = base::flat_set<ReactionId>();
 	for (const auto &count : list) {
 		const auto changed = count.match([&](const MTPDreactionCount &data) {
-			const auto reaction = ReactionFromMTP(data.vreaction());
+			const auto id = ReactionFromMTP(data.vreaction());
 			const auto nowCount = data.vcount().v;
-			const auto i = _list.find(reaction);
-			const auto wasCount = (i != end(_list)) ? i->second : 0;
+			const auto i = ranges::find(_list, id, &MessageReaction::id);
+			const auto wasCount = (i != end(_list)) ? i->count : 0;
 			if (wasCount != nowCount) {
 				return true;
 			}
-			existing.emplace(reaction);
+			existing.emplace(id);
 			return false;
 		});
 		if (changed) {
 			return true;
 		}
 	}
-	for (const auto &[reaction, count] : _list) {
-		if (!existing.contains(reaction)) {
+	for (const auto &reaction : _list) {
+		if (!existing.contains(reaction.id)) {
 			return true;
 		}
 	}
 	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
-			const auto emoji = ReactionFromMTP(data.vreaction());
-			if (_list.contains(emoji)) {
-				parsed[emoji].push_back(RecentReaction{
+			const auto id = ReactionFromMTP(data.vreaction());
+			if (ranges::contains(_list, id, &MessageReaction::id)) {
+				parsed[id].push_back(RecentReaction{
 					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
 					.unread = data.is_unread(),
 					.big = data.is_big(),
@@ -890,50 +983,79 @@ bool MessageReactions::change(
 	}
 	auto changed = false;
 	auto existing = base::flat_set<ReactionId>();
+	auto order = base::flat_map<ReactionId, int>();
 	for (const auto &count : list) {
 		count.match([&](const MTPDreactionCount &data) {
-			const auto reaction = ReactionFromMTP(data.vreaction());
-			if (!ignoreChosen) {
-				if (data.vchosen_order() && _chosen != reaction) {
-					_chosen = reaction;
-					changed = true;
-				} else if (!data.vchosen_order() && _chosen == reaction) {
-					_chosen = ReactionId();
+			const auto id = ReactionFromMTP(data.vreaction());
+			const auto &chosen = data.vchosen_order();
+			if (!ignoreChosen && chosen) {
+				order[id] = chosen->v;
+			}
+			const auto i = ranges::find(_list, id, &MessageReaction::id);
+			const auto nowCount = data.vcount().v;
+			if (i == end(_list)) {
+				changed = true;
+				_list.push_back({
+					.id = id,
+					.count = nowCount,
+					.my = (!ignoreChosen && chosen)
+				});
+			} else {
+				const auto nowMy = ignoreChosen ? i->my : chosen.has_value();
+				if (i->count != nowCount || i->my != nowMy) {
+					i->count = nowCount;
+					i->my = nowMy;
 					changed = true;
 				}
 			}
-			const auto nowCount = data.vcount().v;
-			auto &wasCount = _list[reaction];
-			if (wasCount != nowCount) {
-				wasCount = nowCount;
-				changed = true;
-			}
-			existing.emplace(reaction);
+			existing.emplace(id);
 		});
+	}
+	if (!ignoreChosen && !order.empty()) {
+		const auto min = std::numeric_limits<int>::min();
+		const auto proj = [&](const MessageReaction &reaction) {
+			return reaction.my ? order[reaction.id] : min;
+		};
+		const auto correctOrder = [&] {
+			auto previousOrder = min;
+			for (const auto &reaction : _list) {
+				const auto nowOrder = proj(reaction);
+				if (nowOrder < previousOrder) {
+					return false;
+				}
+				previousOrder = nowOrder;
+			}
+			return true;
+		}();
+		if (!correctOrder) {
+			changed = true;
+			ranges::sort(_list, std::less(), proj);
+		}
 	}
 	if (_list.size() != existing.size()) {
 		changed = true;
 		for (auto i = begin(_list); i != end(_list);) {
-			if (!existing.contains(i->first)) {
+			if (!existing.contains(i->id)) {
 				i = _list.erase(i);
 			} else {
 				++i;
 			}
 		}
-		if (!_chosen.empty() && !_list.contains(_chosen)) {
-			_chosen = ReactionId();
-		}
 	}
 	auto parsed = base::flat_map<ReactionId, std::vector<RecentReaction>>();
 	for (const auto &reaction : recent) {
 		reaction.match([&](const MTPDmessagePeerReaction &data) {
-			const auto emoji = ReactionFromMTP(data.vreaction());
-			if (_list.contains(emoji)) {
-				parsed[emoji].push_back(RecentReaction{
-					.peer = owner.peer(peerFromMTP(data.vpeer_id())),
-					.unread = data.is_unread(),
-					.big = data.is_big(),
-				});
+			const auto id = ReactionFromMTP(data.vreaction());
+			const auto i = ranges::find(_list, id, &MessageReaction::id);
+			if (i != end(_list)) {
+				auto &list = parsed[id];
+				if (list.size() < i->count) {
+					list.push_back(RecentReaction{
+						.peer = owner.peer(peerFromMTP(data.vpeer_id())),
+						.unread = data.is_unread(),
+						.big = data.is_big(),
+					});
+				}
 			}
 		});
 	}
@@ -944,7 +1066,7 @@ bool MessageReactions::change(
 	return changed;
 }
 
-const base::flat_map<ReactionId, int> &MessageReactions::list() const {
+const std::vector<MessageReaction> &MessageReactions::list() const {
 	return _list;
 }
 
@@ -974,8 +1096,11 @@ void MessageReactions::markRead() {
 	}
 }
 
-ReactionId MessageReactions::chosen() const {
-	return _chosen;
+std::vector<ReactionId> MessageReactions::chosen() const {
+	return _list
+		| ranges::views::filter(&MessageReaction::my)
+		| ranges::views::transform(&MessageReaction::id)
+		| ranges::to_vector;
 }
 
 } // namespace Data

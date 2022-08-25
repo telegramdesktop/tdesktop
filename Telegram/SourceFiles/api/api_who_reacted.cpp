@@ -479,21 +479,26 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 			: Ui::WhoReadType::Reacted;
 		if (resolveWhoReacted) {
 			const auto &list = item->reactions();
-			state->current.fullReactionsCount = reaction.empty()
-				? ranges::accumulate(
+			state->current.fullReactionsCount = [&] {
+				if (reaction.empty()) {
+					return ranges::accumulate(
+						list,
+						0,
+						ranges::plus{},
+						&Data::MessageReaction::count);
+				}
+				const auto i = ranges::find(
 					list,
-					0,
-					ranges::plus{},
-					[](const auto &pair) { return pair.second; })
-				: list.contains(reaction)
-				? list.find(reaction)->second
-				: 0;
+					reaction,
+					&Data::MessageReaction::id);
+				return (i != end(list)) ? i->count : 0;
+			}();
 
 			// #TODO reactions
 			state->current.singleReaction = (!reaction.empty()
 				? reaction
 				: (list.size() == 1)
-				? list.front().first
+				? list.front().id
 				: ReactionId()).emoji();
 		}
 		std::move(

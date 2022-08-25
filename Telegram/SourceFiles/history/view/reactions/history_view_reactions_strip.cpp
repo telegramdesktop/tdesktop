@@ -275,7 +275,9 @@ void Strip::paintExpandIcon(
 		p.translate(-target.center());
 	}
 	auto hq = PainterHighQualityEnabler(p);
-	st::reactionExpandPanel.paintInCenter(p, to);
+	((_finalSize == st::reactionCornerImage)
+		? st::reactionsExpandDropdown
+		: st::reactionExpandPanel).paintInCenter(p, to);
 	if (scale != 1.) {
 		p.restore();
 	}

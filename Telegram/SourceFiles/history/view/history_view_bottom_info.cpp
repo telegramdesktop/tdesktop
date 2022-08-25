@@ -160,7 +160,7 @@ ClickHandlerPtr BottomInfo::revokeReactionLink(
 	auto y = top;
 	auto widthLeft = available;
 	for (const auto &reaction : _reactions) {
-		const auto chosen = (reaction.id == _data.chosenReaction);
+		const auto chosen = reaction.chosen;
 		const auto add = (reaction.countTextWidth > 0)
 			? st::reactionInfoDigitSkip
 			: st::reactionInfoBetween;
@@ -201,9 +201,11 @@ ClickHandlerPtr BottomInfo::revokeReactionLink(
 			if (controller->session().uniqueId() == sessionId) {
 				auto &owner = controller->session().data();
 				if (const auto item = owner.message(itemId)) {
-					const auto chosen = item->chosenReaction();
+					const auto chosen = item->chosenReactions();
 					if (!chosen.empty()) {
-						item->toggleReaction(chosen);
+						item->toggleReaction(
+							chosen.front(),
+							HistoryItem::ReactionSource::Existing);
 					}
 				}
 			}
@@ -483,22 +485,23 @@ void BottomInfo::layoutReactionsText() {
 	}
 	auto sorted = ranges::view::all(
 		_data.reactions
-	) | ranges::view::transform([](const auto &pair) {
-		return std::make_pair(pair.first, pair.second);
+	) | ranges::view::transform([](const MessageReaction &reaction) {
+		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	ranges::sort(
 		sorted,
 		std::greater<>(),
-		&std::pair<ReactionId, int>::second);
+		&MessageReaction::count);
 
 	auto reactions = std::vector<Reaction>();
 	reactions.reserve(sorted.size());
-	for (const auto &[id, count] : sorted) {
+	for (const auto &reaction : sorted) {
+		const auto &id = reaction->id;
 		const auto i = ranges::find(_reactions, id, &Reaction::id);
 		reactions.push_back((i != end(_reactions))
 			? std::move(*i)
 			: prepareReactionWithId(id));
-		setReactionCount(reactions.back(), count);
+		setReactionCount(reactions.back(), reaction->count);
 	}
 	_reactions = std::move(reactions);
 }
@@ -593,7 +596,6 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	result.date = message->dateTime();
 	if (message->embedReactionsInBottomInfo()) {
 		result.reactions = item->reactions();
-		result.chosenReaction = item->chosenReaction();
 	}
 	if (message->hasOutLayout()) {
 		result.flags |= Flag::OutLayout;

@@ -315,7 +315,10 @@ object_ptr<Ui::BoxContent> FullListBox(
 		std::shared_ptr<Api::WhoReadList> whoReadIds) {
 	Expects(IsServerMsgId(item->id));
 
-	if (!item->reactions().contains(selected)) {
+	if (!ranges::contains(
+			item->reactions(),
+			selected,
+			&Data::MessageReaction::id)) {
 		selected = {};
 	}
 	if (selected.empty() && whoReadIds && !whoReadIds->list.empty()) {
@@ -328,9 +331,10 @@ object_ptr<Ui::BoxContent> FullListBox(
 
 		auto map = item->reactions();
 		if (whoReadIds && !whoReadIds->list.empty()) {
-			map.emplace(
-				Data::ReactionId{ u"read"_q },
-				int(whoReadIds->list.size()));
+			map.push_back({
+				.id = Data::ReactionId{ u"read"_q },
+				.count = int(whoReadIds->list.size()),
+			});
 		}
 		const auto tabs = CreateTabs(
 			box,

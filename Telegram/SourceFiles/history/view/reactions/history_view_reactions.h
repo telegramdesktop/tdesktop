@@ -30,6 +30,7 @@ struct ReactionAnimationArgs;
 namespace HistoryView::Reactions {
 
 using ::Data::ReactionId;
+using ::Data::MessageReaction;
 class Animation;
 
 struct InlineListData {
@@ -41,9 +42,8 @@ struct InlineListData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	base::flat_map<ReactionId, int> reactions;
+	std::vector<MessageReaction> reactions;
 	base::flat_map<ReactionId, std::vector<not_null<PeerData*>>> recent;
-	ReactionId chosenReaction;
 	Flags flags = {};
 };
 

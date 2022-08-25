@@ -26,6 +26,12 @@ struct ReactionId {
 	}
 };
 
+struct MessageReaction {
+	ReactionId id;
+	int count = 0;
+	bool my = false;
+};
+
 inline bool operator<(const ReactionId &a, const ReactionId &b) {
 	return a.data < b.data;
 }
