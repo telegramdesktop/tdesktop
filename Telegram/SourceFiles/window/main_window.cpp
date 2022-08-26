@@ -1000,6 +1000,7 @@ void MainWindow::launchDrag(
 	// Qt destroys this QDrag automatically after the drag is finished
 	// We must not delete this at the end of this function, as this breaks DnD on Linux
 	auto drag = new QDrag(this);
+	KUrlMimeData::exportUrlsToPortal(data.get());
 	drag->setMimeData(data.release());
 	drag->exec(Qt::CopyAction);
 

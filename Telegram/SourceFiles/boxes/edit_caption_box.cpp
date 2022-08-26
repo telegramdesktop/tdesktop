@@ -67,7 +67,7 @@ auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			// When we edit media, we need only 1 file.
-			data->urls().mid(0, 1),
+			base::GetMimeUrls(data).mid(0, 1),
 			st::sendMediaPreviewSize,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
