@@ -29,11 +29,10 @@ struct CustomEmojiId {
 
 class CustomEmojiManager final : public base::has_weak_ptr {
 public:
-	enum class SizeTag {
+	enum class SizeTag : uchar {
 		Normal,
 		Large,
 		Isolated,
-		ReactionFake,
 
 		kCount,
 	};
@@ -44,15 +43,18 @@ public:
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		QStringView data,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		DocumentId documentId,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		not_null<DocumentData*> document,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 
 	class Listener {
 	public:
@@ -65,10 +67,12 @@ public:
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
-		SizeTag tag);
+		SizeTag tag,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		DocumentId documentId,
-		SizeTag tag);
+		SizeTag tag,
+		int sizeOverride = 0);
 
 	[[nodiscard]] QString lookupSetName(uint64 setId);
 
@@ -94,12 +98,14 @@ private:
 
 	[[nodiscard]] Ui::CustomEmoji::Preview prepareNonExactPreview(
 		DocumentId documentId,
-		SizeTag tag) const;
+		SizeTag tag,
+		int sizeOverride) const;
 	template <typename LoaderFactory>
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		DocumentId documentId,
 		Fn<void()> update,
 		SizeTag tag,
+		int sizeOverride,
 		LoaderFactory factory);
 	[[nodiscard]] static int SizeIndex(SizeTag tag);
 
@@ -144,5 +150,8 @@ private:
 void InsertCustomEmoji(
 	not_null<Ui::InputField*> field,
 	not_null<DocumentData*> document);
+
+[[nodiscard]] Ui::Text::CustomEmojiFactory ReactedMenuFactory(
+	not_null<Main::Session*> session);
 
 } // namespace Data

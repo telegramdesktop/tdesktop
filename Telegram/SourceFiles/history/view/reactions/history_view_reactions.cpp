@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "lang/lang_tag.h"
-#include "ui/text/text_block.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
 
@@ -95,6 +95,7 @@ void InlineList::unloadCustomEmoji() {
 			custom->unload();
 		}
 	}
+	_customCache = QImage();
 }
 
 void InlineList::layout() {
@@ -406,19 +407,13 @@ void InlineList::paint(
 			inner.topLeft() + QPoint(skip, skip),
 			QSize(st::reactionInlineImage, st::reactionInlineImage));
 		if (!skipImage) {
-			if (button.custom) {
-				if (!_customSkip) {
-					using namespace Ui::Text;
-					const auto size = st::emojiSize;
-					_customSkip = (size - AdjustCustomEmojiSize(size)) / 2;
-				}
-				button.custom->paint(p, {
-					.preview = textFg.color(),
-					.now = context.now,
-					.position = (inner.topLeft()
-						+ QPoint(_customSkip, _customSkip)),
-					.paused = p.inactive(),
-				});
+			if (const auto custom = button.custom.get()) {
+				paintCustomFrame(
+					p,
+					custom,
+					inner.topLeft(),
+					context.now,
+					textFg.color());
 			} else if (!button.image.isNull()) {
 				p.drawImage(image.topLeft(), button.image);
 			}
@@ -533,6 +528,42 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 		userpics->list,
 		st::reactionInlineUserpics,
 		kMaxRecentUserpics);
+}
+
+void InlineList::paintCustomFrame(
+		Painter &p,
+		not_null<Ui::Text::CustomEmoji*> emoji,
+		QPoint innerTopLeft,
+		crl::time now,
+		const QColor &preview) const {
+	if (_customCache.isNull()) {
+		using namespace Ui::Text;
+		const auto size = st::emojiSize;
+		const auto factor = style::DevicePixelRatio();
+		const auto adjusted = AdjustCustomEmojiSize(size);
+		_customCache = QImage(
+			QSize(adjusted, adjusted) * factor,
+			QImage::Format_ARGB32_Premultiplied);
+		_customCache.setDevicePixelRatio(factor);
+		_customSkip = (size - adjusted) / 2;
+	}
+	_customCache.fill(Qt::transparent);
+	auto q = QPainter(&_customCache);
+	emoji->paint(q, {
+		.preview = preview,
+		.now = now,
+		.paused = p.inactive(),
+	});
+	q.end();
+	_customCache = Images::Round(
+		std::move(_customCache),
+		(Images::Option::RoundLarge
+			| Images::Option::RoundSkipTopRight
+			| Images::Option::RoundSkipBottomRight));
+
+	p.drawImage(
+		innerTopLeft + QPoint(_customSkip, _customSkip),
+		_customCache);
 }
 
 auto InlineList::takeAnimations()

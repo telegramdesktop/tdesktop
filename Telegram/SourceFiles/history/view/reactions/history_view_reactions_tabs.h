@@ -27,6 +27,8 @@ struct Tabs {
 
 not_null<Tabs*> CreateTabs(
 	not_null<QWidget*> parent,
+	Ui::Text::CustomEmojiFactory factory,
+	Fn<bool()> paused,
 	const std::vector<Data::MessageReaction> &items,
 	const Data::ReactionId &selected,
 	Ui::WhoReadType whoReadType);

@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "api/api_who_reacted.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/text/text_custom_emoji.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reaction_id.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
@@ -31,7 +33,13 @@ using ::Data::ReactionId;
 
 class Row final : public PeerListRow {
 public:
-	Row(not_null<PeerData*> peer, const ReactionId &id);
+	Row(
+		uint64 id,
+		not_null<PeerData*> peer,
+		const Ui::Text::CustomEmojiFactory &factory,
+		QStringView reactionEntityData,
+		Fn<void(Row*)> repaint,
+		Fn<bool()> paused);
 
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
@@ -45,7 +53,8 @@ public:
 		bool actionSelected) override;
 
 private:
-	EmojiPtr _emoji = nullptr;
+	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
+	Fn<bool()> _paused;
 
 };
 
@@ -74,13 +83,21 @@ private:
 		ReactionId reaction) const;
 	void showReaction(const ReactionId &reaction);
 
+	[[nodiscard]] uint64 id(
+		not_null<PeerData*> peer,
+		const ReactionId &reaction) const;
+
 	const not_null<Window::SessionController*> _window;
 	const not_null<HistoryItem*> _item;
+	const Ui::Text::CustomEmojiFactory _factory;
 	MTP::Sender _api;
 
 	ReactionId _shownReaction;
 	std::shared_ptr<Api::WhoReadList> _whoReadIds;
 	std::vector<not_null<PeerData*>> _whoRead;
+
+	mutable base::flat_map<std::pair<PeerId, ReactionId>, uint64> _idsMap;
+	mutable uint64 _idsCounter = 0;
 
 	std::vector<AllEntry> _all;
 	QString _allOffset;
@@ -92,18 +109,27 @@ private:
 
 };
 
-Row::Row(not_null<PeerData*> peer, const ReactionId &id)
-: PeerListRow(peer)
-, _emoji(Ui::Emoji::Find(id.emoji())) { // #TODO reaction
+Row::Row(
+	uint64 id,
+	not_null<PeerData*> peer,
+	const Ui::Text::CustomEmojiFactory &factory,
+	QStringView reactionEntityData,
+	Fn<void(Row*)> repaint,
+	Fn<bool()> paused)
+: PeerListRow(peer, id)
+, _custom(reactionEntityData.isEmpty()
+	? nullptr
+	: factory(reactionEntityData, [=] { repaint(this); }))
+, _paused(std::move(paused)) {
 }
 
 QSize Row::rightActionSize() const {
 	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
-	return _emoji ? QSize(size, size) : QSize();
+	return _custom ? QSize(size, size) : QSize();
 }
 
 QMargins Row::rightActionMargins() const {
-	if (!_emoji) {
+	if (!_custom) {
 		return QMargins();
 	}
 	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
@@ -125,12 +151,19 @@ void Row::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	if (!_emoji) {
+	if (!_custom) {
 		return;
 	}
-	// #TODO reactions
-	Ui::Emoji::Draw(p, _emoji, Ui::Emoji::GetSizeNormal(), x, y);
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	const auto skip = (size - Ui::Text::AdjustCustomEmojiSize(size)) / 2;
+	_custom->paint(p, {
+		.preview = st::windowBgRipple->c,
+		.now = crl::now(),
+		.position = { x + skip, y + skip },
+		.paused = _paused(),
+	});
 }
+
 
 Controller::Controller(
 	not_null<Window::SessionController*> window,
@@ -140,6 +173,7 @@ Controller::Controller(
 	std::shared_ptr<Api::WhoReadList> whoReadIds)
 : _window(window)
 , _item(item)
+, _factory(Data::ReactedMenuFactory(&window->session()))
 , _api(&window->session().mtp())
 , _shownReaction(selected)
 , _whoReadIds(whoReadIds) {
@@ -201,6 +235,16 @@ void Controller::showReaction(const ReactionId &reaction) {
 		? QString()
 		: tr::lng_contacts_loading(tr::now));
 	delegate()->peerListRefreshRows();
+}
+
+uint64 Controller::id(
+		not_null<PeerData*> peer,
+		const ReactionId &reaction) const {
+	const auto key = std::pair{ peer->id, reaction };
+	const auto i = _idsMap.find(key);
+	return (i != end(_idsMap)
+		? i
+		: _idsMap.emplace(key, ++_idsCounter).first)->second;
 }
 
 void Controller::fillWhoRead() {
@@ -293,7 +337,7 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 bool Controller::appendRow(not_null<PeerData*> peer, ReactionId reaction) {
-	if (delegate()->peerListFindRow(peer->id.value)) {
+	if (delegate()->peerListFindRow(id(peer, reaction))) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(peer, reaction));
@@ -303,7 +347,14 @@ bool Controller::appendRow(not_null<PeerData*> peer, ReactionId reaction) {
 std::unique_ptr<PeerListRow> Controller::createRow(
 		not_null<PeerData*> peer,
 		ReactionId reaction) const {
-	return std::make_unique<Row>(peer, reaction);
+	return std::make_unique<Row>(
+		id(peer, reaction),
+		peer,
+		_factory,
+		Data::ReactionEntityData(reaction),
+		[=](Row *row) { delegate()->peerListUpdateRow(row); },
+		[=] { return _window->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer); });
 }
 
 } // namespace
@@ -338,6 +389,9 @@ object_ptr<Ui::BoxContent> FullListBox(
 		}
 		const auto tabs = CreateTabs(
 			box,
+			Data::ReactedMenuFactory(&item->history()->session()),
+			[=] { return window->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer); },
 			map,
 			selected,
 			whoReadIds ? whoReadIds->type : Ui::WhoReadType::Reacted);

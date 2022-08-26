@@ -72,7 +72,6 @@ constexpr auto kTopReactionsLimit = 10;
 		.centerIcon = document,
 		.active = true,
 	};
-
 }
 
 } // namespace
@@ -99,16 +98,13 @@ PossibleItemReactionsRef LookupPossibleReactions(
 		return true; // #TODO reactions
 	}();
 	auto added = base::flat_set<ReactionId>();
-	const auto addOne = [&](const Reaction &reaction) {
-		if (added.emplace(reaction.id).second) {
-			result.recent.push_back(&reaction);
-		}
-	};
 	const auto add = [&](auto predicate) {
-		auto &&all = ranges::views::concat(top, recent, full);
+		auto &&all = ranges::views::concat(recent, top, full);
 		for (const auto &reaction : all) {
 			if (predicate(reaction)) {
-				addOne(reaction);
+				if (added.emplace(reaction.id).second) {
+					result.recent.push_back(&reaction);
+				}
 			}
 		}
 	};

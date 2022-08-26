@@ -7,7 +7,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_message_reaction_id.h"
 
+#include "data/stickers/data_custom_emoji.h"
+
 namespace Data {
+
+QString ReactionEntityData(const ReactionId &id) {
+	if (id.empty()) {
+		return {};
+	} else if (const auto custom = id.custom()) {
+		return SerializeCustomEmojiId({
+			.id = custom,
+			});
+	}
+	return u"default:"_q + id.emoji();
+}
 
 ReactionId ReactionFromMTP(const MTPReaction &reaction) {
 	return reaction.match([](MTPDreactionEmpty) {

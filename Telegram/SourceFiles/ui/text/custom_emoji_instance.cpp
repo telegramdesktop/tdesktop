@@ -134,6 +134,7 @@ std::optional<Cache> Cache::FromSerialized(
 		const QByteArray &serialized,
 		int requestedSize) {
 	Expects(requestedSize > 0 && requestedSize <= kMaxSize);
+
 	if (serialized.size() <= sizeof(CacheHeader)) {
 		return {};
 	}
@@ -341,27 +342,30 @@ PaintFrameResult Cache::paintCurrentFrame(
 	if (!_frames) {
 		return {};
 	}
-	const auto now = context.paused ? 0 : context.now;
-	const auto finishes = now ? currentFrameFinishes() : 0;
-	if (finishes && now >= finishes) {
-		++_frame;
-		if (_finished && _frame == _frames) {
-			_frame = 0;
+	const auto first = context.firstFrameOnly;
+	if (!first) {
+		const auto now = context.paused ? 0 : context.now;
+		const auto finishes = now ? currentFrameFinishes() : 0;
+		if (finishes && now >= finishes) {
+			++_frame;
+			if (_finished && _frame == _frames) {
+				_frame = 0;
+			}
+			_shown = now;
+		} else if (!_shown) {
+			_shown = now;
 		}
-		_shown = now;
-	} else if (!_shown) {
-		_shown = now;
 	}
-	const auto info = frame(std::min(_frame, _frames - 1));
+	const auto index = first ? 0 : std::min(_frame, _frames - 1);
+	const auto info = frame(index);
 	const auto size = _size / style::DevicePixelRatio();
 	const auto rect = QRect(context.position, QSize(size, size));
 	PaintScaledImage(p, rect, info, context);
-	const auto next = currentFrameFinishes();
-	const auto duration = next ? (next - _shown) : 0;
+	const auto next = first ? 0 : currentFrameFinishes();
 	return {
 		.painted = true,
-		.next = currentFrameFinishes(),
-		.duration = duration,
+		.next = next,
+		.duration = next ? (next - _shown) : 0,
 	};
 }
 

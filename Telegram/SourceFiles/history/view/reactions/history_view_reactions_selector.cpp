@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
+#include "ui/text/text_custom_emoji.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -33,25 +34,6 @@ constexpr auto kScaleDuration = crl::time(120);
 constexpr auto kFullDuration = kExpandDuration + kScaleDuration;
 constexpr auto kExpandDelay = crl::time(40);
 
-class ShiftedEmoji final : public Ui::Text::CustomEmoji {
-public:
-	ShiftedEmoji(
-		not_null<Data::CustomEmojiManager*> manager,
-		DocumentId id,
-		Fn<void()> repaint,
-		QPoint shift);
-
-	QString entityData() override;
-	void paint(QPainter &p, const Context &context) override;
-	void unload() override;
-	bool ready() override;
-
-private:
-	const std::unique_ptr<Ui::Text::CustomEmoji> _real;
-	const QPoint _shift;
-
-};
-
 class StripEmoji final : public Ui::Text::CustomEmoji {
 public:
 	StripEmoji(
@@ -73,36 +55,6 @@ private:
 	bool _switched = false;
 
 };
-
-ShiftedEmoji::ShiftedEmoji(
-	not_null<Data::CustomEmojiManager*> manager,
-	DocumentId id,
-	Fn<void()> repaint,
-	QPoint shift)
-: _real(manager->create(
-	id,
-	std::move(repaint),
-	Data::CustomEmojiManager::SizeTag::ReactionFake))
-, _shift(shift) {
-}
-
-QString ShiftedEmoji::entityData() {
-	return _real->entityData();
-}
-
-void ShiftedEmoji::paint(QPainter &p, const Context &context) {
-	auto copy = context;
-	copy.position += _shift;
-	_real->paint(p, copy);
-}
-
-void ShiftedEmoji::unload() {
-	_real->unload();
-}
-
-bool ShiftedEmoji::ready() {
-	return _real->ready();
-}
 
 StripEmoji::StripEmoji(
 	std::unique_ptr<Ui::Text::CustomEmoji> wrapped,
@@ -310,7 +262,13 @@ void Selector::paintAppearing(QPainter &p) {
 	_cachedRound.setShadowColor(st::shadowFg->c);
 	q.translate(QPoint(0, _collapsedTopSkip) - _inner.topLeft());
 	const auto radius = st::reactStripHeight / 2;
-	_cachedRound.overlayExpandedBorder(q, size, _appearProgress, radius, 1.);
+	_cachedRound.overlayExpandedBorder(
+		q,
+		size,
+		_appearProgress,
+		radius,
+		radius,
+		1.);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 	q.fillRect(
 		QRect{ 0, size.height(), width(), height() - size.height() },
@@ -622,17 +580,14 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	) - _stripPaintOneShift;
 	auto factory = [=](DocumentId id, Fn<void()> repaint)
 	-> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
+		const auto sizeOverride = st::reactStripImage;
 		const auto isDefaultReaction = defaultReactionIds.contains(id);
 		auto result = isDefaultReaction
-			? std::make_unique<ShiftedEmoji>(
-				manager,
-				id,
-				std::move(repaint),
+			? std::make_unique<Ui::Text::ShiftedEmoji>(
+				manager->create(id, std::move(repaint), tag, sizeOverride),
 				_defaultReactionShift)
-			: manager->create(
-				id,
-				std::move(repaint),
-				Data::CustomEmojiManager::SizeTag::Large);
+			: manager->create(id, std::move(repaint), tag);
 		const auto i = _defaultReactionInStripMap.find(id);
 		if (i != end(_defaultReactionInStripMap)) {
 			return std::make_unique<StripEmoji>(
@@ -861,6 +816,16 @@ AttachSelectorResult AttachSelectorToMenu(
 			state.appearing,
 			state.toggling);
 	}, selector->lifetime());
+
+	const auto weak = base::make_weak(controller.get());
+	controller->enableGifPauseReason(
+		Window::GifPauseReason::MediaPreview);
+	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
+		if (const auto strong = weak.get()) {
+			strong->disableGifPauseReason(
+				Window::GifPauseReason::MediaPreview);
+		}
+	});
 
 	return AttachSelectorResult::Attached;
 }

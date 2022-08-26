@@ -2418,14 +2418,11 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 	}
 
-	auto emojiPackIds = _dragStateItem
-		? HistoryView::CollectEmojiPacks(_dragStateItem)
-		: std::vector<StickerSetIdentifier>();
-	if (!emojiPackIds.empty()) {
+	if (_dragStateItem) {
 		HistoryView::AddEmojiPacksAction(
 			_menu,
-			this,
-			std::move(emojiPackIds),
+			_dragStateItem,
+			HistoryView::EmojiPacksSource::Message,
 			_controller);
 	}
 	if (hasWhoReactedItem) {

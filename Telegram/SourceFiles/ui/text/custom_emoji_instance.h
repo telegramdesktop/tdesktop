@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/text/text_block.h"
+#include "ui/text/text_custom_emoji.h"
 #include "base/weak_ptr.h"
 #include "base/bytes.h"
 #include "base/timer.h"

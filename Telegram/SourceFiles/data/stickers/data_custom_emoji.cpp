@@ -14,19 +14,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_message_reactions.h"
+#include "data/stickers/data_stickers.h"
 #include "lottie/lottie_common.h"
 #include "lottie/lottie_emoji.h"
 #include "ffmpeg/ffmpeg_emoji.h"
 #include "chat_helpers/stickers_lottie.h"
-#include "ui/text/text_block.h"
+#include "ui/widgets/input_fields.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
-
-#include "data/stickers/data_stickers.h"
-#include "ui/widgets/input_fields.h"
-#include "ui/text/text_block.h"
 
 namespace Data {
 namespace {
@@ -42,7 +41,6 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	case SizeTag::Normal: return LottieSize::EmojiInteraction;
 	case SizeTag::Large: return LottieSize::EmojiInteractionReserved1;
 	case SizeTag::Isolated: return LottieSize::EmojiInteractionReserved2;
-	case SizeTag::ReactionFake: return LottieSize::EmojiInteractionReserved3;
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-LottieSizeFromTag.");
 }
@@ -54,10 +52,14 @@ using SizeTag = CustomEmojiManager::SizeTag;
 	case SizeTag::Isolated:
 		return (st::largeEmojiSize + 2 * st::largeEmojiOutline)
 			* style::DevicePixelRatio();
-	case SizeTag::ReactionFake:
-		return st::reactStripImage * style::DevicePixelRatio();
 	}
 	Unexpected("SizeTag value in CustomEmojiManager-SizeFromTag.");
+}
+
+[[nodiscard]] int FrameSizeFromTag(SizeTag tag, int sizeOverride) {
+	return sizeOverride
+		? (sizeOverride * style::DevicePixelRatio())
+		: FrameSizeFromTag(tag);
 }
 
 } // namespace
@@ -69,8 +71,12 @@ public:
 	CustomEmojiLoader(
 		not_null<Session*> owner,
 		const CustomEmojiId id,
-		SizeTag tag);
-	CustomEmojiLoader(not_null<DocumentData*> document, SizeTag tag);
+		SizeTag tag,
+		int sizeOverride);
+	CustomEmojiLoader(
+		not_null<DocumentData*> document,
+		SizeTag tag,
+		int sizeOverride);
 
 	[[nodiscard]] bool resolving() const;
 	void resolved(not_null<DocumentData*> document);
@@ -120,6 +126,7 @@ private:
 		const CustomEmojiId &id);
 
 	std::variant<Resolve, Lookup, Load> _state;
+	ushort _sizeOverride = 0;
 	SizeTag _tag = SizeTag::Normal;
 
 };
@@ -127,16 +134,24 @@ private:
 CustomEmojiLoader::CustomEmojiLoader(
 	not_null<Session*> owner,
 	const CustomEmojiId id,
-	SizeTag tag)
+	SizeTag tag,
+	int sizeOverride)
 : _state(InitialState(owner, id))
+, _sizeOverride(sizeOverride)
 , _tag(tag) {
+	Expects(sizeOverride >= 0
+		&& sizeOverride <= std::numeric_limits<ushort>::max());
 }
 
 CustomEmojiLoader::CustomEmojiLoader(
 	not_null<DocumentData*> document,
-	SizeTag tag)
+	SizeTag tag,
+	int sizeOverride)
 : _state(Lookup{ document })
+, _sizeOverride(sizeOverride)
 , _tag(tag) {
+	Expects(sizeOverride >= 0
+		&& sizeOverride <= std::numeric_limits<ushort>::max());
 }
 
 bool CustomEmojiLoader::resolving() const {
@@ -232,7 +247,7 @@ void CustomEmojiLoader::startCacheLookup(
 	lookup->process = std::make_unique<Process>(Process{
 		.loaded = std::move(loaded),
 	});
-	const auto size = FrameSizeFromTag(_tag);
+	const auto size = FrameSizeFromTag(_tag, _sizeOverride);
 	const auto weak = base::make_weak(&lookup->process->guard);
 	document->owner().cacheBigFile().get(key, [=](QByteArray value) {
 		auto cache = Ui::CustomEmoji::Cache::FromSerialized(value, size);
@@ -251,8 +266,12 @@ void CustomEmojiLoader::lookupDone(
 		return;
 	}
 	const auto tag = _tag;
+	const auto sizeOverride = int(_sizeOverride);
 	auto loader = [=] {
-		return std::make_unique<CustomEmojiLoader>(document, tag);
+		return std::make_unique<CustomEmojiLoader>(
+			document,
+			tag,
+			sizeOverride);
 	};
 	auto done = std::move(lookup->process->loaded);
 	done(Ui::CustomEmoji::Cached(
@@ -285,10 +304,14 @@ void CustomEmojiLoader::check() {
 	load->process->lifetime.destroy();
 
 	const auto tag = _tag;
-	const auto size = FrameSizeFromTag(_tag);
+	const auto sizeOverride = int(_sizeOverride);
+	const auto size = FrameSizeFromTag(_tag, _sizeOverride);
 	auto bytes = Lottie::ReadContent(data, filepath);
 	auto loader = [=] {
-		return std::make_unique<CustomEmojiLoader>(document, tag);
+		return std::make_unique<CustomEmojiLoader>(
+			document,
+			tag,
+			sizeOverride);
 	};
 	auto put = [=, key = cacheKey(document)](QByteArray value) {
 		document->owner().cacheBigFile().put(key, std::move(value));
@@ -347,7 +370,7 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 			|| !dimensions.width()) {
 			return {};
 		}
-		const auto scale = (FrameSizeFromTag(_tag) * 1.)
+		const auto scale = (FrameSizeFromTag(_tag, _sizeOverride) * 1.)
 			/ (style::DevicePixelRatio() * dimensions.width());
 		return { document->createMediaView()->thumbnailPath(), scale };
 	};
@@ -371,6 +394,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		DocumentId documentId,
 		Fn<void()> update,
 		SizeTag tag,
+		int sizeOverride,
 		LoaderFactory factory) {
 	auto &instances = _instances[SizeIndex(tag)];
 	auto i = instances.find(documentId);
@@ -385,10 +409,10 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 			documentId,
 			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
 				factory(),
-				prepareNonExactPreview(documentId, tag)
+				prepareNonExactPreview(documentId, tag, sizeOverride)
 			}, std::move(repaint))).first;
 	} else if (!i->second->hasImagePreview()) {
-		auto preview = prepareNonExactPreview(documentId, tag);
+		auto preview = prepareNonExactPreview(documentId, tag, sizeOverride);
 		if (preview.isImage()) {
 			i->second->updatePreview(std::move(preview));
 		}
@@ -400,7 +424,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 
 Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 		DocumentId documentId,
-		SizeTag tag) const {
+		SizeTag tag,
+		int sizeOverride) const {
 	for (auto i = _instances.size(); i != 0;) {
 		if (SizeIndex(tag) == --i) {
 			continue;
@@ -410,7 +435,7 @@ Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 		if (j == end(other)) {
 			continue;
 		} else if (const auto nonExact = j->second->imagePreview()) {
-			const auto size = FrameSizeFromTag(tag);
+			const auto size = FrameSizeFromTag(tag, sizeOverride);
 			return {
 				nonExact.image().scaled(
 					size,
@@ -427,26 +452,31 @@ Ui::CustomEmoji::Preview CustomEmojiManager::prepareNonExactPreview(
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		QStringView data,
 		Fn<void()> update,
-		SizeTag tag) {
+		SizeTag tag,
+		int sizeOverride) {
 	const auto parsed = ParseCustomEmojiData(data);
-	return parsed.id ? create(parsed.id, std::move(update), tag) : nullptr;
+	return parsed.id
+		? create(parsed.id, std::move(update), tag, sizeOverride)
+		: nullptr;
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		DocumentId documentId,
 		Fn<void()> update,
-		SizeTag tag) {
-	return create(documentId, std::move(update), tag, [&] {
-		return createLoader(documentId, tag);
+		SizeTag tag,
+		int sizeOverride) {
+	return create(documentId, std::move(update), tag, sizeOverride, [&] {
+		return createLoader(documentId, tag, sizeOverride);
 	});
 }
 
 std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		not_null<DocumentData*> document,
 		Fn<void()> update,
-		SizeTag tag) {
-	return create(document->id, std::move(update), tag, [&] {
-		return createLoader(document, tag);
+		SizeTag tag,
+		int sizeOverride) {
+	return create(document->id, std::move(update), tag, sizeOverride, [&] {
+		return createLoader(document, tag, sizeOverride);
 	});
 }
 
@@ -485,17 +515,20 @@ void CustomEmojiManager::unregisterListener(not_null<Listener*> listener) {
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 		not_null<DocumentData*> document,
-		SizeTag tag) {
-	return std::make_unique<CustomEmojiLoader>(document, tag);
+		SizeTag tag,
+		int sizeOverride) {
+	return std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride);
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 		DocumentId documentId,
-		SizeTag tag) {
+		SizeTag tag,
+		int sizeOverride) {
 	auto result = std::make_unique<CustomEmojiLoader>(
 		_owner,
 		CustomEmojiId{ .id = documentId },
-		tag);
+		tag,
+		sizeOverride);
 	if (result->resolving()) {
 		const auto i = SizeIndex(tag);
 		_loaders[i][documentId].push_back(base::make_weak(result.get()));
@@ -667,9 +700,6 @@ Session &CustomEmojiManager::owner() const {
 
 int FrameSizeFromTag(SizeTag tag) {
 	const auto emoji = EmojiSizeFromTag(tag);
-	if (tag == SizeTag::ReactionFake) {
-		return emoji;
-	}
 	const auto factor = style::DevicePixelRatio();
 	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
@@ -703,6 +733,39 @@ void InsertCustomEmoji(
 		field->textCursor(),
 		sticker->alt,
 		Ui::InputField::CustomEmojiLink(SerializeCustomEmojiId(document)));
+}
+
+Ui::Text::CustomEmojiFactory ReactedMenuFactory(
+		not_null<Main::Session*> session) {
+	return [owner = &session->data()](
+			QStringView data,
+			Fn<void()> repaint) -> std::unique_ptr<Ui::Text::CustomEmoji> {
+		const auto prefix = u"default:"_q;
+		if (data.startsWith(prefix)) {
+			const auto &list = owner->reactions().list(
+				Data::Reactions::Type::All);
+			const auto emoji = data.mid(prefix.size()).toString();
+			const auto id = Data::ReactionId{ { emoji } };
+			const auto i = ranges::find(list, id, &Data::Reaction::id);
+			if (i != end(list)) {
+				const auto document = i->centerIcon
+					? not_null(i->centerIcon)
+					: i->selectAnimation;
+				const auto size = st::emojiSize * (i->centerIcon ? 2 : 1);
+				const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
+				const auto skip = (Data::FrameSizeFromTag(tag) - size) / 2;
+				return std::make_unique<Ui::Text::FirstFrameEmoji>(
+					std::make_unique<Ui::Text::ShiftedEmoji>(
+						owner->customEmojiManager().create(
+							document,
+							std::move(repaint),
+							tag,
+							size),
+						QPoint(skip, skip)));
+			}
+		}
+		return owner->customEmojiManager().create(data, std::move(repaint));
+	};
 }
 
 } // namespace Data

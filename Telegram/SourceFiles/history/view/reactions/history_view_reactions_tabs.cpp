@@ -22,13 +22,16 @@ using ::Data::ReactionId;
 not_null<Ui::AbstractButton*> CreateTab(
 		not_null<QWidget*> parent,
 		const style::MultiSelect &st,
+		const Ui::Text::CustomEmojiFactory &factory,
+		Fn<bool()> paused,
 		const ReactionId &reaction,
 		Ui::WhoReadType whoReadType,
 		int count,
 		rpl::producer<bool> selected) {
 	struct State {
-		bool selected = false;
+		std::unique_ptr<Ui::Text::CustomEmoji> custom;
 		QImage cache;
+		bool selected = false;
 	};
 	const auto stm = &st.item;
 	const auto text = QString("%L1").arg(count);
@@ -49,10 +52,19 @@ not_null<Ui::AbstractButton*> CreateTab(
 		result->update();
 	}, result->lifetime());
 
+	state->custom = reaction.empty()
+		? nullptr
+		: factory(
+			Data::ReactionEntityData(reaction),
+			[=] { result->update(); });
+
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
+		const auto factor = style::DevicePixelRatio();
+		const auto height = stm->height;
+		const auto skip = st::reactionsTabIconSkip;
+		const auto icon = QRect(skip, 0, height, height);
 		if (state->cache.isNull()) {
-			const auto factor = style::DevicePixelRatio();
 			state->cache = QImage(
 				result->size() * factor,
 				QImage::Format_ARGB32_Premultiplied);
@@ -70,12 +82,7 @@ not_null<Ui::AbstractButton*> CreateTab(
 			}
 			const auto skip = st::reactionsTabIconSkip;
 			const auto icon = QRect(skip, 0, height, height);
-			// #TODO reactions
-			if (const auto emoji = Ui::Emoji::Find(reaction.emoji())) {
-				const auto size = Ui::Emoji::GetSizeNormal();
-				const auto shift = (height - (size / factor)) / 2;
-				Ui::Emoji::Draw(p, emoji, size, icon.x() + shift, shift);
-			} else {
+			if (!state->custom) {
 				using Type = Ui::WhoReadType;
 				(reaction.emoji().isEmpty()
 					? (state->selected
@@ -96,7 +103,25 @@ not_null<Ui::AbstractButton*> CreateTab(
 			p.setFont(font);
 			p.drawText(textLeft, stm->padding.top() + font->ascent, text);
 		}
-		QPainter(result).drawImage(0, 0, state->cache);
+		auto p = QPainter(result);
+		p.drawImage(0, 0, state->cache);
+		if (const auto custom = state->custom.get()) {
+			using namespace Ui::Text;
+			const auto size = Ui::Emoji::GetSizeNormal();
+			const auto shift = (height - (size / factor)) / 2;
+			const auto skip = (size - AdjustCustomEmojiSize(size)) / 2;
+			custom->paint(p, {
+				.preview = (state->selected
+					? QColor(
+						st::activeButtonFg->c.red(),
+						st::activeButtonFg->c.green(),
+						st::activeButtonFg->c.blue(),
+						st::activeButtonFg->c.alpha() / 3)
+					: st::windowBgRipple->c),
+				.now = crl::now(),
+				.position = { icon.x() + shift + skip, shift + skip },
+			});
+		}
 	}, result->lifetime());
 	return result;
 }
@@ -105,8 +130,10 @@ not_null<Ui::AbstractButton*> CreateTab(
 
 not_null<Tabs*> CreateTabs(
 		not_null<QWidget*> parent,
+		Ui::Text::CustomEmojiFactory factory,
+		Fn<bool()> paused,
 		const std::vector<Data::MessageReaction> &items,
-		const ReactionId &selected,
+		const Data::ReactionId &selected,
 		Ui::WhoReadType whoReadType) {
 	struct State {
 		rpl::variable<ReactionId> selected;
@@ -123,6 +150,8 @@ not_null<Tabs*> CreateTabs(
 		const auto tab = CreateTab(
 			tabs,
 			*st,
+			factory,
+			paused,
 			reaction,
 			whoReadType,
 			count,

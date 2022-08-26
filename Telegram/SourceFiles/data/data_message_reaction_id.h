@@ -39,6 +39,8 @@ inline bool operator==(const ReactionId &a, const ReactionId &b) {
 	return a.data == b.data;
 }
 
+[[nodiscard]] QString ReactionEntityData(const ReactionId &id);
+
 [[nodiscard]] ReactionId ReactionFromMTP(const MTPReaction &reaction);
 [[nodiscard]] MTPReaction ReactionToMTP(ReactionId id);
 

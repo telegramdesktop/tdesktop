@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "history/history.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_peer.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -112,7 +113,7 @@ struct Context {
 
 struct Userpic {
 	not_null<PeerData*> peer;
-	QString reaction;
+	QString customEntityData;
 	mutable std::shared_ptr<Data::CloudImageView> view;
 	mutable InMemoryKey uniqueKey;
 };
@@ -377,17 +378,16 @@ bool UpdateUserpics(
 	auto now = std::vector<Userpic>();
 	for (const auto &resolved : peers) {
 		const auto peer = not_null{ resolved.peer };
-		if (ranges::contains(now, peer, &Userpic::peer)) {
-			continue;
-		}
+		const auto &data = ReactionEntityData(resolved.reaction);
 		const auto i = ranges::find(was, peer, &Userpic::peer);
-		if (i != end(was)) {
+		if (i != end(was) && i->view) {
 			now.push_back(std::move(*i));
+			now.back().customEntityData = data;
 			continue;
 		}
 		now.push_back(Userpic{
 			.peer = peer,
-			.reaction = resolved.reaction.emoji(), // #TODO reactions
+			.customEntityData = data,
 		});
 		auto &userpic = now.back();
 		userpic.uniqueKey = peer->userpicUniqueKey(userpic.view);
@@ -436,7 +436,7 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 		}
 		now.push_back({
 			.name = peer->name(),
-			.reaction = userpic.reaction,
+			.customEntityData = userpic.customEntityData,
 			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,
 			.id = id,
@@ -493,13 +493,12 @@ rpl::producer<Ui::WhoReadContent> WhoReacted(
 					&Data::MessageReaction::id);
 				return (i != end(list)) ? i->count : 0;
 			}();
-
-			// #TODO reactions
-			state->current.singleReaction = (!reaction.empty()
+			state->current.singleCustomEntityData = ReactionEntityData(
+				!reaction.empty()
 				? reaction
 				: (list.size() == 1)
 				? list.front().id
-				: ReactionId()).emoji();
+				: ReactionId());
 		}
 		std::move(
 			idsWithReactions

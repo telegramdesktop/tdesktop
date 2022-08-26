@@ -104,6 +104,12 @@ private:
 		const std::vector<not_null<PeerData*>> &peers);
 	[[nodiscard]] Button prepareButtonWithId(const ReactionId &id);
 	void resolveUserpicsImage(const Button &button) const;
+	void paintCustomFrame(
+		Painter &p,
+		not_null<Ui::Text::CustomEmoji*> emoji,
+		QPoint innerTopLeft,
+		crl::time now,
+		const QColor &preview) const;
 
 	QSize countOptimalSize() override;
 
@@ -113,6 +119,7 @@ private:
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
+	mutable QImage _customCache;
 	mutable int _customSkip = 0;
 	bool _hasCustomEmoji = false;
 

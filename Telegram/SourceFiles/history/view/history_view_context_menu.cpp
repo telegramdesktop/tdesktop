@@ -1004,14 +1004,11 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	AddCopyLinkAction(result, link);
 	AddMessageActions(result, request, list);
 
-	auto emojiPackIds = item
-		? CollectEmojiPacks(item)
-		: std::vector<StickerSetIdentifier>();
-	if (!emojiPackIds.empty()) {
+	if (item) {
 		AddEmojiPacksAction(
 			result,
-			list,
-			std::move(emojiPackIds),
+			item,
+			HistoryView::EmojiPacksSource::Message,
 			list->controller());
 	}
 	if (hasWhoReactedItem) {
@@ -1162,6 +1159,7 @@ void AddWhoReactedAction(
 	menu->addAction(Ui::WhoReactedContextAction(
 		menu.get(),
 		Api::WhoReacted(item, context, st::defaultWhoRead, whoReadIds),
+		Data::ReactedMenuFactory(&controller->session()),
 		participantChosen,
 		showAllChosen));
 }
@@ -1185,12 +1183,15 @@ void ShowWhoReactedMenu(
 				id));
 		}
 	};
-	const auto reactions = &controller->session().data().reactions();
+	const auto owner = &controller->session().data();
+	const auto reactions = &owner->reactions();
 	const auto &list = reactions->list(
 		Data::Reactions::Type::Active);
 	const auto activeNonQuick = (id != reactions->favoriteId())
-		&& ranges::contains(list, id, &Data::Reaction::id);
+		&& (ranges::contains(list, id, &Data::Reaction::id)
+			|| (controller->session().premium() && id.custom()));
 	const auto filler = lifetime.make_state<Ui::WhoReactedListMenu>(
+		Data::ReactedMenuFactory(&controller->session()),
 		participantChosen,
 		showAllChosen);
 	Api::WhoReacted(
@@ -1219,6 +1220,17 @@ void ShowWhoReactedMenu(
 		}
 		filler->populate(menu->get(), content);
 
+		if (const auto custom = id.custom()) {
+			if (const auto set = owner->document(custom)->sticker()) {
+				if (set->set.id) {
+					AddEmojiPacksAction(
+						menu->get(),
+						{ set->set },
+						EmojiPacksSource::Reaction,
+						controller);
+				}
+			}
+		}
 		if (creating) {
 			(*menu)->popup(position);
 		}
@@ -1226,31 +1238,51 @@ void ShowWhoReactedMenu(
 }
 
 std::vector<StickerSetIdentifier> CollectEmojiPacks(
-		not_null<HistoryItem*> item) {
+		not_null<HistoryItem*> item,
+		EmojiPacksSource source) {
 	auto result = std::vector<StickerSetIdentifier>();
 	const auto owner = &item->history()->owner();
-	for (const auto &entity : item->originalText().entities) {
-		if (entity.type() == EntityType::CustomEmoji) {
-			const auto data = Data::ParseCustomEmojiData(entity.data());
-			if (const auto set = owner->document(data.id)->sticker()) {
-				if (set->set.id
-					&& !ranges::contains(
-						result,
-						set->set.id,
-						&StickerSetIdentifier::id)) {
-					result.push_back(set->set);
-				}
+	const auto push = [&](DocumentId id) {
+		if (const auto set = owner->document(id)->sticker()) {
+			if (set->set.id
+				&& !ranges::contains(
+					result,
+					set->set.id,
+					&StickerSetIdentifier::id)) {
+				result.push_back(set->set);
 			}
 		}
+	};
+	switch (source) {
+	case EmojiPacksSource::Message:
+		for (const auto &entity : item->originalText().entities) {
+			if (entity.type() == EntityType::CustomEmoji) {
+				const auto data = Data::ParseCustomEmojiData(entity.data());
+				push(data.id);
+			}
+		}
+		break;
+	case EmojiPacksSource::Reactions:
+		for (const auto &reaction : item->reactions()) {
+			if (const auto customId = reaction.id.custom()) {
+				push(customId);
+			}
+		}
+		break;
+	default: Unexpected("Source in CollectEmojiPacks.");
 	}
 	return result;
 }
 
 void AddEmojiPacksAction(
 		not_null<Ui::PopupMenu*> menu,
-		not_null<QWidget*> context,
 		std::vector<StickerSetIdentifier> packIds,
+		EmojiPacksSource source,
 		not_null<Window::SessionController*> controller) {
+	if (packIds.empty()) {
+		return;
+	}
+
 	class Item final : public Ui::Menu::ItemBase {
 	public:
 		Item(
@@ -1333,20 +1365,48 @@ void AddEmojiPacksAction(
 	if (!menu->empty()) {
 		menu->addSeparator();
 	}
+	auto text = [&] {
+		switch (source) {
+		case EmojiPacksSource::Message:
+			return name.text.isEmpty()
+				? tr::lng_context_animated_emoji_many(
+					tr::now,
+					lt_count,
+					count,
+					Ui::Text::RichLangValue)
+				: tr::lng_context_animated_emoji(
+					tr::now,
+					lt_name,
+					TextWithEntities{ name },
+					Ui::Text::RichLangValue);
+		case EmojiPacksSource::Reaction:
+			if (!name.text.isEmpty()) {
+				return tr::lng_context_animated_reaction(
+					tr::now,
+					lt_name,
+					TextWithEntities{ name },
+					Ui::Text::RichLangValue);
+			}
+			[[fallthrough]];
+		case EmojiPacksSource::Reactions:
+			return name.text.isEmpty()
+				? tr::lng_context_animated_reactions_many(
+					tr::now,
+					lt_count,
+					count,
+					Ui::Text::RichLangValue)
+				: tr::lng_context_animated_reactions(
+					tr::now,
+					lt_name,
+					TextWithEntities{ name },
+					Ui::Text::RichLangValue);
+		}
+		Unexpected("Source in AddEmojiPacksAction.");
+	}();
 	auto button = base::make_unique_q<Item>(
 		menu->menu(),
 		menu->st().menu,
-		(name.text.isEmpty()
-			? tr::lng_context_animated_emoji_many(
-				tr::now,
-				lt_count,
-				count,
-				Ui::Text::RichLangValue)
-			: tr::lng_context_animated_emoji(
-				tr::now,
-				lt_name,
-				TextWithEntities{ name },
-				Ui::Text::RichLangValue)));
+		std::move(text));
 	const auto weak = base::make_weak(controller.get());
 	button->setClickedCallback([=] {
 		const auto strong = weak.get();
@@ -1366,6 +1426,18 @@ void AddEmojiPacksAction(
 
 	});
 	menu->addAction(std::move(button));
+}
+
+void AddEmojiPacksAction(
+		not_null<Ui::PopupMenu*> menu,
+		not_null<HistoryItem*> item,
+		EmojiPacksSource source,
+		not_null<Window::SessionController*> controller) {
+	AddEmojiPacksAction(
+		menu,
+		CollectEmojiPacks(item, source),
+		source,
+		controller);
 }
 
 } // namespace HistoryView

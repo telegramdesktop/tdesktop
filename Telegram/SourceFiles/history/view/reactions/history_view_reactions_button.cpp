@@ -714,7 +714,8 @@ void Manager::paintButton(
 			*q,
 			size,
 			expandRatio,
-			radiusMin + expandRatio * (radiusMax - radiusMin),
+			radiusMin,
+			radiusMax,
 			scale);
 		layeredPainter.reset();
 		p.drawImage(
