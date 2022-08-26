@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_premium.h"
 #include "mainwidget.h"
+#include "apiwrap.h"
 #include "base/call_delayed.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_chat.h"
@@ -449,6 +450,10 @@ void Selector::finishExpand() {
 		_footer->show();
 	}
 	_scroll->show();
+
+	if (const auto controller = _parentController.get()) {
+		controller->session().api().updateCustomEmoji();
+	}
 }
 
 void Selector::paintBubble(QPainter &p, int innerWidth) {
