@@ -2167,7 +2167,34 @@ bool Message::isSignedAuthorElided() const {
 }
 
 bool Message::embedReactionsInBottomInfo() const {
-	return data()->history()->peer->isUser();
+	const auto item = data();
+	const auto user = item->history()->peer->asUser();
+	if (!user || user->isPremium() || user->session().premium()) {
+		// Only in messages of a non premium user with a non premium user.
+		return false;
+	}
+	auto seenMy = false;
+	auto seenHis = false;
+	for (const auto &reaction : item->reactions()) {
+		if (reaction.id.custom()) {
+			// Only in messages without any custom emoji reactions.
+			return false;
+		}
+		// Only in messages without two reactions from the same person.
+		if (reaction.my) {
+			if (seenMy) {
+				return false;
+			}
+			seenMy = true;
+		}
+		if (!reaction.my || (reaction.count > 1)) {
+			if (seenHis) {
+				return false;
+			}
+			seenHis = true;
+		}
+	}
+	return true;
 }
 
 bool Message::embedReactionsInBubble() const {
