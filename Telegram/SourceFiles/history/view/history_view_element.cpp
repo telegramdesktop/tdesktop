@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_custom_emoji.h"
 #include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/reactions/history_view_reactions_button.h"
+#include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "base/unixtime.h"
@@ -420,6 +421,20 @@ void Element::prepareCustomEmojiPaint(
 		Painter &p,
 		const Ui::Text::String &text) const {
 	if (!text.hasCustomEmoji()) {
+		return;
+	}
+	clearCustomEmojiRepaint();
+	p.setInactive(delegate()->elementIsGifPaused());
+	if (!_heavyCustomEmoji) {
+		_heavyCustomEmoji = true;
+		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
+	}
+}
+
+void Element::prepareCustomEmojiPaint(
+		Painter &p,
+		const Reactions::InlineList &reactions) const {
+	if (!reactions.hasCustomEmoji()) {
 		return;
 	}
 	clearCustomEmojiRepaint();

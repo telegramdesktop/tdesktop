@@ -1027,14 +1027,14 @@ sendAsButton: SendAsButton {
 }
 
 reactionInlinePadding: margins(5px, 2px, 7px, 2px);
-reactionInlineSize: 16px;
-reactionInlineImage: 28px;
+reactionInlineSize: 18px;
+reactionInlineImage: 32px;
 reactionInlineSkip: 3px;
 reactionInlineBetween: 4px;
 reactionInlineInBubbleLeft: -3px;
 reactionInlineUserpicsPadding: margins(1px, 1px, 1px, 1px);
 reactionInlineUserpics: GroupCallUserpics {
-	size: 18px;
+	size: 20px;
 	shift: 7px;
 	stroke: 1px;
 	align: align(left);

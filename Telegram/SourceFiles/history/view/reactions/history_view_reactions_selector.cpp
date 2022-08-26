@@ -144,12 +144,12 @@ bool StripEmoji::ready() {
 Selector::Selector(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> parentController,
-	Data::PossibleItemReactions &&reactions,
+	const Data::PossibleItemReactionsRef &reactions,
 	IconFactory iconFactory,
 	Fn<void(bool fast)> close)
 : RpWidget(parent)
 , _parentController(parentController.get())
-, _reactions(std::move(reactions))
+, _reactions(reactions)
 , _jumpedToPremium([=] { close(false); })
 , _cachedRound(
 	QSize(2 * st::reactStripSkip + st::reactStripSize, st::reactStripHeight),
@@ -198,14 +198,21 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 		: _reactions.morePremiumAvailable
 		? Strip::AddedButton::Premium
 		: Strip::AddedButton::None;
+	const auto &real = _reactions.recent;
+	auto list = std::vector<not_null<const Data::Reaction*>>();
+	list.reserve(_columns);
 	if (const auto cut = max - _columns) {
-		_strip.applyList(ranges::make_subrange(
-			begin(_reactions.recent),
-			end(_reactions.recent) - (cut + (addedToMax ? 0 : 1))
-		) | ranges::to_vector, added);
+		const auto from = begin(real);
+		const auto till = end(real) - (cut + (addedToMax ? 0 : 1));
+		for (auto i = from; i != till; ++i) {
+			list.push_back(&*i);
+		}
 	} else {
-		_strip.applyList(_reactions.recent, added);
+		for (const auto &reaction : real) {
+			list.push_back(&reaction);
+		}
 	}
+	_strip.applyList(list, added);
 	_strip.clearAppearAnimations(false);
 	return std::max(2 * _skipx + _columns * _size, desiredWidth);
 }
@@ -583,11 +590,11 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	auto index = 0;
 	const auto inStrip = _strip.count();
 	for (const auto &reaction : _reactions.recent) {
-		if (const auto id = reaction->id.custom()) {
+		if (const auto id = reaction.id.custom()) {
 			recent.push_back(id);
 		} else {
-			recent.push_back(reaction->selectAnimation->id);
-			defaultReactionIds.emplace(recent.back(), reaction->id.emoji());
+			recent.push_back(reaction.selectAnimation->id);
+			defaultReactionIds.emplace(recent.back(), reaction.id.emoji());
 		}
 		if (index + 1 < inStrip) {
 			_defaultReactionInStripMap.emplace(recent.back(), index++);

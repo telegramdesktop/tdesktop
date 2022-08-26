@@ -38,19 +38,33 @@ struct Reaction {
 	bool premium = false;
 };
 
-struct PossibleItemReactions {
+struct PossibleItemReactionsRef {
 	std::vector<not_null<const Reaction*>> recent;
 	bool morePremiumAvailable = false;
 	bool customAllowed = false;
 };
 
-[[nodiscard]] PossibleItemReactions LookupPossibleReactions(
+struct PossibleItemReactions {
+	PossibleItemReactions() = default;
+	explicit PossibleItemReactions(const PossibleItemReactionsRef &other);
+
+	std::vector<Reaction> recent;
+	bool morePremiumAvailable = false;
+	bool customAllowed = false;
+};
+
+[[nodiscard]] PossibleItemReactionsRef LookupPossibleReactions(
 	not_null<HistoryItem*> item);
 
 class Reactions final : private CustomEmojiManager::Listener {
 public:
 	explicit Reactions(not_null<Session*> owner);
 	~Reactions();
+
+	[[nodiscard]] Session &owner() const {
+		return *_owner;
+	}
+	[[nodiscard]] Main::Session &session() const;
 
 	void refreshTop();
 	void refreshRecent();

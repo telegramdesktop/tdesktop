@@ -592,8 +592,13 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	return true;
 }
 
-bool WhoReactedExists(not_null<HistoryItem*> item) {
-	return item->canViewReactions() || WhoReadExists(item);
+bool WhoReactedExists(
+		not_null<HistoryItem*> item,
+		WhoReactedList list) {
+	if (item->canViewReactions() || WhoReadExists(item)) {
+		return true;
+	}
+	return (list == WhoReactedList::One) && item->history()->peer->isUser();
 }
 
 rpl::producer<Ui::WhoReadContent> WhoReacted(

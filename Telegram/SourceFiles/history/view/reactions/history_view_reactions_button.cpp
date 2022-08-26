@@ -441,7 +441,7 @@ void Manager::showButtonDelayed() {
 		[=]{ updateButton({}); });
 }
 
-void Manager::applyList(Data::PossibleItemReactions &&reactions) {
+void Manager::applyList(const Data::PossibleItemReactionsRef &reactions) {
 	using Button = Strip::AddedButton;
 	_strip.applyList(
 		reactions.recent,

@@ -53,6 +53,7 @@ public:
 	InlineList(
 		not_null<::Data::Reactions*> owner,
 		Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
+		Fn<void()> customEmojiRepaint,
 		Data &&data);
 	~InlineList();
 
@@ -64,6 +65,9 @@ public:
 
 	void updateSkipBlock(int width, int height);
 	void removeSkipBlock();
+
+	[[nodiscard]] bool hasCustomEmoji() const;
+	void unloadCustomEmoji();
 
 	void paint(
 		Painter &p,
@@ -105,9 +109,12 @@ private:
 
 	const not_null<::Data::Reactions*> _owner;
 	const Fn<ClickHandlerPtr(ReactionId)> _handlerFactory;
+	const Fn<void()> _customEmojiRepaint;
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
+	mutable int _customSkip = 0;
+	bool _hasCustomEmoji = false;
 
 };
 

@@ -14,9 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "lang/lang_tag.h"
+#include "ui/text/text_block.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
 
@@ -40,6 +43,7 @@ struct InlineList::Button {
 	mutable std::unique_ptr<Animation> animation;
 	mutable QImage image;
 	mutable ClickHandlerPtr link;
+	mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
 	std::unique_ptr<Userpics> userpics;
 	ReactionId id;
 	QString countText;
@@ -51,9 +55,11 @@ struct InlineList::Button {
 InlineList::InlineList(
 	not_null<::Data::Reactions*> owner,
 	Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
+	Fn<void()> customEmojiRepaint,
 	Data &&data)
 : _owner(owner)
 , _handlerFactory(std::move(handlerFactory))
+, _customEmojiRepaint(std::move(customEmojiRepaint))
 , _data(std::move(data)) {
 	layout();
 }
@@ -74,6 +80,21 @@ void InlineList::updateSkipBlock(int width, int height) {
 
 void InlineList::removeSkipBlock() {
 	_skipBlock = {};
+}
+
+bool InlineList::hasCustomEmoji() const {
+	return _hasCustomEmoji;
+}
+
+void InlineList::unloadCustomEmoji() {
+	if (!hasCustomEmoji()) {
+		return;
+	}
+	for (const auto &button : _buttons) {
+		if (const auto custom = button.custom.get()) {
+			custom->unload();
+		}
+	}
 }
 
 void InlineList::layout() {
@@ -106,6 +127,7 @@ void InlineList::layoutButtons() {
 			< ranges::find(list, b->id, &::Data::Reaction::id);
 	});
 
+	_hasCustomEmoji = false;
 	auto buttons = std::vector<Button>();
 	buttons.reserve(sorted.size());
 	for (const auto &reaction : sorted) {
@@ -121,13 +143,22 @@ void InlineList::layoutButtons() {
 			setButtonCount(buttons.back(), reaction->count);
 		}
 		buttons.back().chosen = reaction->my;
+		if (id.custom()) {
+			_hasCustomEmoji = true;
+		}
 	}
 	_buttons = std::move(buttons);
 }
 
 InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
 	auto result = Button{ .id = id };
-	_owner->preloadImageFor(id);
+	if (const auto customId = id.custom()) {
+		result.custom = _owner->owner().customEmojiManager().create(
+			customId,
+			_customEmojiRepaint);
+	} else {
+		_owner->preloadImageFor(id);
+	}
 	return result;
 }
 
@@ -353,16 +384,44 @@ void InlineList::paint(
 				p.setOpacity(bubbleProgress);
 			}
 		}
-		if (button.image.isNull()) {
+		if (!button.custom && button.image.isNull()) {
 			button.image = _owner->resolveImageFor(
 				button.id,
 				::Data::Reactions::ImageSize::InlineList);
 		}
+		const auto textFg = !inbubble
+			? (chosen
+				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
+				: st->msgServiceFg())
+			: !chosen
+			? stm->msgServiceFg
+			: context.outbg
+			? (context.selected()
+				? st->historyFileOutIconFgSelected()
+				: st->historyFileOutIconFg())
+			: (context.selected()
+				? st->historyFileInIconFgSelected()
+				: st->historyFileInIconFg());
 		const auto image = QRect(
 			inner.topLeft() + QPoint(skip, skip),
 			QSize(st::reactionInlineImage, st::reactionInlineImage));
-		if (!button.image.isNull() && !skipImage) {
-			p.drawImage(image.topLeft(), button.image);
+		if (!skipImage) {
+			if (button.custom) {
+				if (!_customSkip) {
+					using namespace Ui::Text;
+					const auto size = st::emojiSize;
+					_customSkip = (size - AdjustCustomEmojiSize(size)) / 2;
+				}
+				button.custom->paint(p, {
+					.preview = textFg.color(),
+					.now = context.now,
+					.position = (inner.topLeft()
+						+ QPoint(_customSkip, _customSkip)),
+					.paused = p.inactive(),
+				});
+			} else if (!button.image.isNull()) {
+				p.drawImage(image.topLeft(), button.image);
+			}
 		}
 		if (animating) {
 			animations.push_back({
@@ -381,19 +440,7 @@ void InlineList::paint(
 				geometry.y() + st::reactionInlineUserpicsPadding.top(),
 				button.userpics->image);
 		} else {
-			p.setPen(!inbubble
-				? (chosen
-					? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
-					: st->msgServiceFg())
-				: !chosen
-				? stm->msgServiceFg
-				: context.outbg
-				? (context.selected()
-					? st->historyFileOutIconFgSelected()
-					: st->historyFileOutIconFg())
-				: (context.selected()
-					? st->historyFileInIconFgSelected()
-					: st->historyFileInIconFg()));
+			p.setPen(textFg);
 			const auto textTop = geometry.y()
 				+ ((geometry.height() - st::semiboldFont->height) / 2);
 			p.drawText(

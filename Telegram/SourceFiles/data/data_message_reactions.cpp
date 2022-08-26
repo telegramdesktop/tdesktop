@@ -77,11 +77,12 @@ constexpr auto kTopReactionsLimit = 10;
 
 } // namespace
 
-PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
+PossibleItemReactionsRef LookupPossibleReactions(
+		not_null<HistoryItem*> item) {
 	if (!item->canReact()) {
 		return {};
 	}
-	auto result = PossibleItemReactions();
+	auto result = PossibleItemReactionsRef();
 	const auto peer = item->history()->peer;
 	const auto session = &peer->session();
 	const auto reactions = &session->data().reactions();
@@ -157,6 +158,15 @@ PossibleItemReactions LookupPossibleReactions(not_null<HistoryItem*> item) {
 	return result;
 }
 
+PossibleItemReactions::PossibleItemReactions(
+	const PossibleItemReactionsRef &other)
+	: recent(other.recent | ranges::views::transform([](const auto &value) {
+	return *value;
+}) | ranges::to_vector)
+, morePremiumAvailable(other.morePremiumAvailable)
+, customAllowed(other.customAllowed) {
+}
+
 Reactions::Reactions(not_null<Session*> owner)
 : _owner(owner)
 , _topRefreshTimer([=] { refreshTop(); })
@@ -193,6 +203,10 @@ Reactions::Reactions(not_null<Session*> owner)
 }
 
 Reactions::~Reactions() = default;
+
+Main::Session &Reactions::session() const {
+	return _owner->session();
+}
 
 void Reactions::refreshTop() {
 	requestTop();
@@ -868,7 +882,7 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 		}
 		return removed;
 	}), end(_list));
-	if (_item->canViewReactions()) {
+	if (_item->canViewReactions() || history->peer->isUser()) {
 		auto &list = _recent[id];
 		list.insert(begin(list), RecentReaction{ self });
 	}

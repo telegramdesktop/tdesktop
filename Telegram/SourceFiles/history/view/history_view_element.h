@@ -49,6 +49,7 @@ using PaintContext = Ui::ChatPaintContext;
 namespace Reactions {
 struct ButtonParameters;
 class Animation;
+class InlineList;
 } // namespace Reactions
 
 enum class Context : char {
@@ -421,6 +422,9 @@ public:
 	void prepareCustomEmojiPaint(
 		Painter &p,
 		const Ui::Text::String &text) const;
+	void prepareCustomEmojiPaint(
+		Painter &p,
+		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {

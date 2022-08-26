@@ -2210,13 +2210,15 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		? _overElement->data().get()
 		: nullptr;
 	const auto hasWhoReactedItem = overItem
-		&& Api::WhoReactedExists(overItem);
+		&& Api::WhoReactedExists(overItem, Api::WhoReactedList::All);
 	const auto clickedReaction = link
 		? link->property(
 			kReactionsCountEmojiProperty).value<Data::ReactionId>()
 		: Data::ReactionId();
 	_whoReactedMenuLifetime.destroy();
-	if (hasWhoReactedItem && !clickedReaction.empty()) {
+	if (!clickedReaction.empty()
+		&& overItem
+		&& Api::WhoReactedExists(overItem, Api::WhoReactedList::One)) {
 		HistoryView::ShowWhoReactedMenu(
 			&_menu,
 			e->globalPos(),

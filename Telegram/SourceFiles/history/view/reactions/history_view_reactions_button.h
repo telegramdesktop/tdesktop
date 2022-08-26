@@ -23,7 +23,7 @@ class PopupMenu;
 namespace Data {
 struct ReactionId;
 struct Reaction;
-struct PossibleItemReactions;
+struct PossibleItemReactionsRef;
 class DocumentMedia;
 } // namespace Data
 
@@ -143,7 +143,7 @@ public:
 
 	using ReactionId = ::Data::ReactionId;
 
-	void applyList(Data::PossibleItemReactions &&reactions);
+	void applyList(const Data::PossibleItemReactionsRef &reactions);
 
 	void updateButton(ButtonParameters parameters);
 	void paint(Painter &p, const PaintContext &context);

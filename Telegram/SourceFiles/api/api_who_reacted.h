@@ -24,8 +24,15 @@ struct ReactionId;
 
 namespace Api {
 
+enum class WhoReactedList {
+	All,
+	One,
+};
+
 [[nodiscard]] bool WhoReadExists(not_null<HistoryItem*> item);
-[[nodiscard]] bool WhoReactedExists(not_null<HistoryItem*> item);
+[[nodiscard]] bool WhoReactedExists(
+	not_null<HistoryItem*> item,
+	WhoReactedList list);
 
 struct WhoReadList {
 	std::vector<PeerId> list;

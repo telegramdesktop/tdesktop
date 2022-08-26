@@ -40,7 +40,7 @@ public:
 	Selector(
 		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> parentController,
-		Data::PossibleItemReactions &&reactions,
+		const Data::PossibleItemReactionsRef &reactions,
 		IconFactory iconFactory,
 		Fn<void(bool fast)> close);
 

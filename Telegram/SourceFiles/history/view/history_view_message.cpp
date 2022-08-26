@@ -739,6 +739,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 		g.setHeight(g.height() - reactionsHeight);
 		const auto reactionsPosition = QPoint(reactionsLeft + g.left(), g.top() + g.height() + st::mediaInBubbleSkip);
 		p.translate(reactionsPosition);
+		prepareCustomEmojiPaint(p, *_reactions);
 		_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
 		if (context.reactionInfo) {
 			context.reactionInfo->position = reactionsPosition;
@@ -794,6 +795,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setHeight(trect.height() - reactionsHeight);
 			const auto reactionsPosition = QPoint(trect.left(), trect.top() + trect.height() + reactionsTop);
 			p.translate(reactionsPosition);
+			prepareCustomEmojiPaint(p, *_reactions);
 			_reactions->paint(p, context, g.width(), context.clip.translated(-reactionsPosition));
 			if (context.reactionInfo) {
 				context.reactionInfo->position = reactionsPosition;
@@ -1385,6 +1387,9 @@ bool Message::hasHeavyPart() const {
 
 void Message::unloadHeavyPart() {
 	Element::unloadHeavyPart();
+	if (_reactions) {
+		_reactions->unloadCustomEmoji();
+	}
 	_comments = nullptr;
 }
 
@@ -2232,6 +2237,7 @@ void Message::refreshReactions() {
 		_reactions = std::make_unique<InlineList>(
 			&item->history()->owner().reactions(),
 			handlerFactory,
+			[=] { customEmojiRepaint(); },
 			std::move(reactionsData));
 	} else {
 		_reactions->update(std::move(reactionsData), width());
