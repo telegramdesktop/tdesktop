@@ -154,6 +154,7 @@ parts:
     after:
       - desktop-qt
       - ffmpeg
+      - kcoreaddons
       - mozjpeg
       - openal
       - openssl
@@ -196,6 +197,17 @@ parts:
       - mozjpeg
       - qt
 
+  extra-cmake-modules:
+    source: https://github.com/KDE/extra-cmake-modules.git
+    source-depth: 1
+    source-tag: v5.97.0
+    plugin: cmake
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_TESTING=OFF
+    prime: [-./*]
+
   ffmpeg:
     plugin: nil
     build-packages:
@@ -214,6 +226,28 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
+
+  kcoreaddons:
+    source: https://github.com/KDE/kcoreaddons.git
+    source-depth: 1
+    source-tag: v5.97.0
+    plugin: cmake
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_TESTING=OFF
+      - -DBUILD_WITH_QT6=ON
+      - -DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.78.0
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/mkspecs
+    after:
+      - extra-cmake-modules
+      - desktop-qt
+      - qttools
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
@@ -406,6 +440,22 @@ parts:
       - mozjpeg
       - openssl
       - patches
+
+  qttools:
+    source: git://code.qt.io/qt/qttools.git
+    source-depth: 1
+    source-tag: v6.3.1
+    plugin: cmake
+    build-packages:
+      - clang
+      - libclang-dev
+      - llvm-dev
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+    prime: [-./*]
+    after:
+      - qt
 
   rnnoise:
     source: https://gitlab.xiph.org/xiph/rnnoise.git

@@ -70,7 +70,7 @@ namespace {
 bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
 		return true;
-	} else if (const auto urls = data->urls(); !urls.empty()) {
+	} else if (const auto urls = base::GetMimeUrls(data); !urls.empty()) {
 		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
 			return true;
 		}
@@ -363,7 +363,7 @@ bool ScheduledWidget::confirmSendingFiles(
 	const auto hasImage = data->hasImage();
 	const auto premium = controller()->session().user()->isPremium();
 
-	if (const auto urls = data->urls(); !urls.empty()) {
+	if (const auto urls = base::GetMimeUrls(data); !urls.empty()) {
 		auto list = Storage::PrepareMediaList(
 			urls,
 			st::sendMediaPreviewSize,
