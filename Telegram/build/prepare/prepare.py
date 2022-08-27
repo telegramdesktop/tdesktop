@@ -418,6 +418,19 @@ win:
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
+stage('NuGet', """
+win:
+    mkdir NuGet
+    powershell -Command "Invoke-WebRequest -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+""", 'ThirdParty')
+
+stage('jom', """
+win:
+    powershell -Command "Invoke-WebRequest -OutFile ./jom.zip http://download.qt.io/official_releases/jom/jom.zip"
+    powershell -Command "Expand-Archive ./jom.zip"
+    del jom.zip
+""", 'ThirdParty')
+
 stage('depot_tools', """
 mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
