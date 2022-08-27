@@ -81,16 +81,12 @@ jobs:
 
       - name: Choco installs.
         run: |
-          choco install --no-progress -y nasm strawberryperl yasm jom ninja
+          choco install --no-progress -y jom
           py -m pip install pywin32
 
       - name: Set up environment paths.
         shell: bash
         run: |
-          echo "C:\\Strawberry\\perl\\bin\\" >> $GITHUB_PATH
-          echo "C:\\Program Files\\NASM\\" >> $GITHUB_PATH
-          echo "C:\\ProgramData\\chocolatey\\lib\\ninja\\tools\\" >> $GITHUB_PATH
-
           echo "CACHE_KEY=$(sha256sum $TBUILD/$REPO_NAME/$PREPARE_PATH | awk '{ print $1 }')" >> $GITHUB_ENV
 
           echo "Configurate git for cherry-picks."
