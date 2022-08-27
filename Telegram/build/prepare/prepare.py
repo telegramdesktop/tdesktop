@@ -1097,6 +1097,10 @@ win:
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
     cd ..\\..\\..
+    del /S tg_angle\*.cpp
+    del /S tg_angle\*.h
+    del /S tg_angle\*.pdb
+    del /S tg_angle\*.obj
 """)
 
 if buildQt5:
@@ -1154,6 +1158,7 @@ win:
 
     cd ..
     del /S qt_5_15_3\*.cpp
+    del /S qt_5_15_3\*.h
     del /S qt_5_15_3\*.pdb
     del /S qt_5_15_3\*.obj
 mac:
