@@ -61,6 +61,7 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
     pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
+    'ThirdParty\\msys64\\usr\\bin',
     'ThirdParty\\Strawberry\\perl\\bin',
     'ThirdParty\\Python39',
     'ThirdParty\\NASM',
@@ -401,6 +402,13 @@ stage('patches', """
     cd patches
     git checkout 38af8ef4c6
 """)
+
+stage('msys64', """
+win:
+    powershell.exe -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20220603.sfx.exe"
+    msys64.exe
+    del msys64.exe
+""", 'ThirdParty')
 
 stage('depot_tools', """
 mac:
