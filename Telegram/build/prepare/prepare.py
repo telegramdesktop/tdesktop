@@ -61,14 +61,11 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
     pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
-    'ThirdParty\\msys64\\usr\\bin',
-    'ThirdParty\\Strawberry\\perl\\bin',
+    'ThirdParty\\msys64\\mingw64\\bin',
     'ThirdParty\\Python39',
-    'ThirdParty\\NASM',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
-    'ThirdParty\\Ninja',
 ] if win else [
     'ThirdParty/gyp',
     'ThirdParty/yasm',
@@ -405,9 +402,20 @@ stage('patches', """
 
 stage('msys64', """
 win:
-    powershell.exe -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20220603.sfx.exe"
+    SET PATH_BACKUP_=%PATH%
+    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
+
+    SET CHERE_INVOKING=enabled_from_arguments
+    SET MSYS2_PATH_TYPE=inherit
+
+    powershell -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20220603.sfx.exe"
     msys64.exe
     del msys64.exe
+
+    bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
+    pacman -S --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+
+    SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
 stage('depot_tools', """
