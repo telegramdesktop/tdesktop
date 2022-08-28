@@ -1679,14 +1679,14 @@ void DoubledLimitsPreviewBox(
 		});
 	}
 	{
-		const auto premium = limits.dialogsFolderPinnedPremium();
+		const auto premium = limits.dialogsPinnedPremium();
 		entries.push_back(Ui::Premium::ListEntry{
 			tr::lng_premium_double_limits_subtitle_pins(),
 			tr::lng_premium_double_limits_about_pins(
 				lt_count,
 				rpl::single(float64(premium)),
 				Ui::Text::RichLangValue),
-			limits.dialogsFolderPinnedDefault(),
+			limits.dialogsPinnedDefault(),
 			premium,
 		});
 	}

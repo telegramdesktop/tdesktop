@@ -184,7 +184,6 @@ private:
 
 	base::Timer _topRefreshTimer;
 	mtpRequestId _topRequestId = 0;
-	bool _topRequestScheduled = false;
 	uint64 _topHash = 0;
 
 	mtpRequestId _recentRequestId = 0;

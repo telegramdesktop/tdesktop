@@ -615,7 +615,7 @@ void Line::recache(const QSize &s) {
 		halfRect.setLeft(r.center().x());
 		pathRect.addRect(halfRect);
 
-		p.fillPath(pathRound + pathRect, st::windowShadowFgFallback);
+		p.fillPath(pathRound + pathRect, st::windowBgOver);
 
 		_leftPixmap = std::move(leftPixmap);
 	}
