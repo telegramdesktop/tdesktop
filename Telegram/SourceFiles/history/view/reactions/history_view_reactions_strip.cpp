@@ -231,9 +231,9 @@ int Strip::fillChosenIconGetIndex(ChosenReaction &chosen) const {
 	}
 	const auto &icon = *i;
 	if (const auto &appear = icon.appear; appear && appear->animating()) {
-		chosen.icon = CreateIconSnapshot(icon.appearAnimation, appear.get());
-	} else if (const auto &select = icon.select) {
-		chosen.icon = CreateIconSnapshot(icon.selectAnimation, select.get());
+		chosen.icon = appear->frame();
+	} else if (const auto &select = icon.select; select && select->valid()) {
+		chosen.icon = select->frame();
 	}
 	return (i - begin(_icons));
 }

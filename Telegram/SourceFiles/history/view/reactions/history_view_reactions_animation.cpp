@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_bottom_info.h"
 #include "ui/animated_icon.h"
 #include "data/data_message_reactions.h"
+#include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "styles/style_chat.h"
@@ -31,9 +32,20 @@ Animation::Animation(
 , _repaint(std::move(repaint))
 , _flyFrom(args.flyFrom) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
-	const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
-	if (i == end(list) || !i->centerIcon) {
-		return;
+	auto centerIcon = (DocumentData*)nullptr;
+	auto aroundAnimation = (DocumentData*)nullptr;
+	if (const auto customId = args.id.custom()) {
+		const auto document = owner->owner().document(customId);
+		if (document->sticker()) {
+			centerIcon = document;
+		}
+	} else {
+		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
+		if (i == end(list) || !i->centerIcon) {
+			return;
+		}
+		centerIcon = i->centerIcon;
+		aroundAnimation = i->aroundAnimation;
 	}
 	const auto resolve = [&](
 			std::unique_ptr<Ui::AnimatedIcon> &icon,
@@ -53,11 +65,11 @@ Animation::Animation(
 		return true;
 	};
 	_flyIcon = std::move(args.flyIcon);
-	if (!resolve(_center, i->centerIcon, size)
-		|| !resolve(_effect, i->aroundAnimation, size * 2)) {
+	if (!resolve(_center, centerIcon, size)) {
 		return;
 	}
-	if (_flyIcon) {
+	resolve(_effect, aroundAnimation, size * 2);
+	if (!_flyIcon.isNull()) {
 		_fly.start([=] { flyCallback(); }, 0., 1., kFlyDuration);
 	} else {
 		startAnimations();
@@ -71,12 +83,14 @@ QRect Animation::paintGetArea(
 		QPainter &p,
 		QPoint origin,
 		QRect target) const {
-	if (!_flyIcon) {
+	if (_flyIcon.isNull()) {
 		p.drawImage(target, _center->frame());
 		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
 			target.size() * 2);
-		p.drawImage(wide, _effect->frame());
+		if (const auto effect = _effect.get()) {
+			p.drawImage(wide, effect->frame());
+		}
 		return wide;
 	}
 	const auto from = _flyFrom.translated(origin);
@@ -94,7 +108,7 @@ QRect Animation::paintGetArea(
 	auto hq = PainterHighQualityEnabler(p);
 	if (progress < 1.) {
 		p.setOpacity(1. - progress);
-		p.drawImage(rect, _flyIcon->frame());
+		p.drawImage(rect, _flyIcon);
 	}
 	if (progress > 0.) {
 		p.setOpacity(progress);
@@ -142,12 +156,14 @@ int Animation::computeParabolicTop(
 
 void Animation::startAnimations() {
 	_center->animate([=] { callback(); });
-	_effect->animate([=] { callback(); });
+	if (const auto effect = _effect.get()) {
+		_effect->animate([=] { callback(); });
+	}
 }
 
 void Animation::flyCallback() {
 	if (!_fly.animating()) {
-		_flyIcon = nullptr;
+		_flyIcon = QImage();
 		startAnimations();
 	}
 	callback();
@@ -164,7 +180,7 @@ void Animation::setRepaintCallback(Fn<void()> repaint) {
 }
 
 bool Animation::flying() const {
-	return (_flyIcon != nullptr);
+	return !_flyIcon.isNull();
 }
 
 float64 Animation::flyingProgress() const {
@@ -173,7 +189,9 @@ float64 Animation::flyingProgress() const {
 
 bool Animation::finished() const {
 	return !_valid
-		|| (!_flyIcon && !_center->animating() && !_effect->animating());
+		|| (_flyIcon.isNull()
+			&& !_center->animating()
+			&& (!_effect || !_effect->animating()));
 }
 
 } // namespace HistoryView::Reactions

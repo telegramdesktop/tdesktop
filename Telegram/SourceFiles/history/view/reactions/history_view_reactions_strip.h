@@ -27,7 +27,7 @@ namespace HistoryView::Reactions {
 struct ChosenReaction {
 	FullMsgId context;
 	Data::ReactionId id;
-	std::shared_ptr<Ui::AnimatedIcon> icon;
+	QImage icon;
 	QRect geometry;
 
 	explicit operator bool() const {

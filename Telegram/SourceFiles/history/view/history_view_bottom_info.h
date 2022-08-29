@@ -28,7 +28,7 @@ class Animation;
 
 struct ReactionAnimationArgs {
 	::Data::ReactionId id;
-	std::shared_ptr<Ui::AnimatedIcon> flyIcon;
+	QImage flyIcon;
 	QRect flyFrom;
 
 	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;

@@ -359,7 +359,7 @@ ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 		return result;
 	}
 	const auto index = _strip.fillChosenIconGetIndex(result);
-	if (!result.icon) {
+	if (result.icon.isNull()) {
 		return result;
 	}
 	const auto between = st::reactionCornerSkip;

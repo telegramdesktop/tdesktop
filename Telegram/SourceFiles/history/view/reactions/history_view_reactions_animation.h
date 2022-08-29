@@ -47,7 +47,7 @@ private:
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
-	std::shared_ptr<Ui::AnimatedIcon> _flyIcon;
+	QImage _flyIcon;
 	std::unique_ptr<Ui::AnimatedIcon> _center;
 	std::unique_ptr<Ui::AnimatedIcon> _effect;
 	Ui::Animations::Simple _fly;
