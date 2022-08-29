@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/color_contrast.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
@@ -66,9 +67,37 @@ using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 
 constexpr auto kBodyAnimationPart = 0.90;
 constexpr auto kTitleAdditionalScale = 0.15;
+constexpr auto kMinAcceptableContrast = 4.5; // 1.14;
 
 [[nodiscard]] QString Svg() {
 	return u":/gui/icons/settings/star.svg"_q;
+}
+
+[[nodiscard]] QByteArray ColorizedSvg() {
+	auto f = QFile(Svg());
+	if (!f.open(QIODevice::ReadOnly)) {
+		return QByteArray();
+	}
+	auto content = qs(f.readAll());
+	auto stops = [] {
+		auto s = QString();
+		for (const auto &stop : Ui::Premium::ButtonGradientStops()) {
+			s += QString("<stop offset='%1' stop-color='%2'/>")
+				.arg(QString::number(stop.first), stop.second.name());
+		}
+		return s;
+	}();
+	const auto color = QString("<linearGradient id='Gradient2' "
+		"x1='%1' x2='%2' y1='%3' y2='%4'>%5</linearGradient>")
+		.arg(0)
+		.arg(1)
+		.arg(1)
+		.arg(0)
+		.arg(std::move(stops));
+	content.replace(u"gradientPlaceholder"_q, color);
+	content.replace(u"#fff"_q, u"url(#Gradient2)"_q);
+	f.close();
+	return content.toUtf8();
 }
 
 [[nodiscard]] Data::SubscriptionOptions SubscriptionOptionsForRows(
@@ -532,7 +561,6 @@ private:
 	std::unique_ptr<EmojiStatusTopBar> _emojiStatus;
 	QImage _imageStar;
 
-	QRectF _ministarsRect;
 	QRectF _starRect;
 
 };
@@ -805,16 +833,7 @@ void TopBarUser::paintEvent(QPaintEvent *e) {
 void TopBarUser::resizeEvent(QResizeEvent *e) {
 	_starRect = TopBarAbstract::starRect(1., 1.);
 
-	const auto &rect = _starRect;
-	const auto center = rect.center();
-	const auto size = QSize(
-		rect.width() * Ui::Premium::MiniStars::kSizeFactor,
-		rect.height());
-	const auto ministarsRect = QRect(
-		QPoint(center.x() - size.width(), center.y() - size.height()),
-		QPoint(center.x() + size.width(), center.y() + size.height()));
-	_ministars.setPosition(ministarsRect.topLeft());
-	_ministars.setSize(ministarsRect.size());
+	_ministars.setCenter(_starRect.toRect());
 
 	if (_emojiStatus) {
 		_emojiStatus->setCenter(_starRect.center());
@@ -840,7 +859,7 @@ private:
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	object_ptr<Ui::FlatLabel> _about;
-	Ui::Premium::MiniStars _ministars;
+	Ui::Premium::ColoredMiniStars _ministars;
 	QSvgRenderer _star;
 
 	struct {
@@ -850,7 +869,8 @@ private:
 		float64 scaleTitle = 0.;
 	} _progress;
 
-	QRectF _ministarsRect;
+	bool _isDark = false;
+
 	QRectF _starRect;
 
 	QPoint _titlePosition;
@@ -867,8 +887,7 @@ TopBar::TopBar(
 , _titleFont(st::boxTitle.style.font)
 , _titlePadding(st::settingsPremiumTitlePadding)
 , _about(this, std::move(about), st::settingsPremiumAbout)
-, _ministars([=](const QRect &r) { update(r); })
-, _star(Svg()) {
+, _ministars(this) {
 	std::move(
 		title
 	) | rpl::start_with_next([=](QString text) {
@@ -889,6 +908,27 @@ TopBar::TopBar(
 		});
 		return false;
 	});
+
+	rpl::single(
+		rpl::empty_value()
+	) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		const auto contrast = Ui::CountContrast(
+			st::boxBg->c,
+			st::premiumButtonFg->c);
+		_isDark = (contrast > kMinAcceptableContrast);
+
+		if (!_isDark) {
+			_star.load(Svg());
+			_ministars.setColorOverride(st::premiumButtonFg->c);
+		} else {
+			_star.load(ColorizedSvg());
+			_ministars.setColorOverride(std::nullopt);
+		}
+		auto event = QResizeEvent(size(), size());
+		resizeEvent(&event);
+	}, lifetime());
 }
 
 void TopBar::setPaused(bool paused) {
@@ -911,7 +951,8 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 	_progress.title = 1. - progress;
 	_progress.scaleTitle = 1. + kTitleAdditionalScale * progress;
 
-	_ministarsRect = starRect(_progress.top, 1.);
+	_ministars.setCenter(starRect(_progress.top, 1.).toRect());
+
 	_starRect = starRect(_progress.top, _progress.body);
 
 	const auto &padding = st::boxRowPadding;
@@ -937,22 +978,26 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	const auto r = rect();
 
-	const auto gradientPointTop = r.height() / 3. * 2.;
-	auto gradient = QLinearGradient(
-		QPointF(0, gradientPointTop),
-		QPointF(r.width(), r.height() - gradientPointTop));
-	gradient.setColorAt(0., st::premiumButtonBg1->c);
-	gradient.setColorAt(.6, st::premiumButtonBg2->c);
-	gradient.setColorAt(1., st::premiumButtonBg3->c);
+	if (!_isDark) {
+		const auto gradientPointTop = r.height() / 3. * 2.;
+		auto gradient = QLinearGradient(
+			QPointF(0, gradientPointTop),
+			QPointF(r.width(), r.height() - gradientPointTop));
+		gradient.setStops(Ui::Premium::ButtonGradientStops());
 
-	TopBarAbstract::paintEdges(p, gradient);
+		TopBarAbstract::paintEdges(p, gradient);
+	} else {
+		TopBarAbstract::paintEdges(p, st::boxBg);
+		TopBarAbstract::paintEdges(p, st::shadowFg);
+		TopBarAbstract::paintEdges(p, st::shadowFg);
+	}
 
 	p.setOpacity(_progress.body);
 	p.translate(_starRect.center());
 	p.scale(_progress.body, _progress.body);
 	p.translate(-_starRect.center());
 	if (_progress.top) {
-		_ministars.paint(p, _ministarsRect);
+		_ministars.paint(p);
 	}
 	p.resetTransform();
 

@@ -29,11 +29,15 @@ void ColoredMiniStars::setSize(const QSize &size) {
 	_mask.fill(Qt::transparent);
 	{
 		Painter p(&_mask);
-		auto gradient = QLinearGradient(0, 0, size.width(), 0);
-		gradient.setStops(Ui::Premium::GiftGradientStops());
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawRect(0, 0, size.width(), size.height());
+		if (_colorOverride) {
+			p.fillRect(0, 0, size.width(), size.height(), *_colorOverride);
+		} else {
+			auto gradient = QLinearGradient(0, 0, size.width(), 0);
+			gradient.setStops(Ui::Premium::GiftGradientStops());
+			p.setPen(Qt::NoPen);
+			p.setBrush(gradient);
+			p.drawRect(0, 0, size.width(), size.height());
+		}
 	}
 
 	_size = size;
@@ -53,6 +57,10 @@ void ColoredMiniStars::setPosition(QPoint position) {
 	_position = std::move(position);
 }
 
+void ColoredMiniStars::setColorOverride(std::optional<QColor> color) {
+	_colorOverride = color;
+}
+
 void ColoredMiniStars::paint(Painter &p) {
 	_frame.fill(Qt::transparent);
 	{
@@ -67,6 +75,18 @@ void ColoredMiniStars::paint(Painter &p) {
 
 void ColoredMiniStars::setPaused(bool paused) {
 	_ministars.setPaused(paused);
+}
+
+void ColoredMiniStars::setCenter(const QRect &rect) {
+	const auto center = rect.center();
+	const auto size = QSize(
+		rect.width() * Ui::Premium::MiniStars::kSizeFactor,
+		rect.height());
+	const auto ministarsRect = QRect(
+		QPoint(center.x() - size.width(), center.y() - size.height()),
+		QPoint(center.x() + size.width(), center.y() + size.height()));
+	setPosition(ministarsRect.topLeft());
+	setSize(ministarsRect.size());
 }
 
 } // namespace Premium

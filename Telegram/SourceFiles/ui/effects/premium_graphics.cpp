@@ -1063,7 +1063,7 @@ void AddGiftOptions(
 				p.drawRoundedRect(borderRect, round, round);
 			}
 
-			p.setPen(st::boxBg);
+			p.setPen(st::premiumButtonFg);
 			p.setFont(discountFont);
 			p.drawText(discountRect, info.discount, style::al_center);
 

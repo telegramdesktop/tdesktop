@@ -20,6 +20,8 @@ public:
 
 	void setSize(const QSize &size);
 	void setPosition(QPoint position);
+	void setColorOverride(std::optional<QColor> color);
+	void setCenter(const QRect &rect);
 	void paint(Painter &p);
 
 	void setPaused(bool paused);
@@ -31,6 +33,7 @@ private:
 	QImage _mask;
 	QSize _size;
 	QPoint _position;
+	std::optional<QColor> _colorOverride;
 
 };
 
