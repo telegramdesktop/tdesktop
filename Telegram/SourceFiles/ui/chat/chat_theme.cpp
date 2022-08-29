@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
+#include "ui/color_contrast.h"
 #include "ui/style/style_core_palette.h"
 #include "ui/style/style_palette_colorizer.h"
 
@@ -156,25 +157,6 @@ constexpr auto kMinAcceptableContrast = 1.14;// 4.5;
 	}
 	constexpr auto kSize = 512;
 	return Images::GenerateLinearGradient(QSize(kSize, kSize), data.colors);
-}
-
-// https://stackoverflow.com/a/9733420
-[[nodiscard]] float64 CountContrast(const QColor &a, const QColor &b) {
-	const auto luminance = [](const QColor &c) {
-		const auto map = [](double value) {
-			return (value <= 0.03928)
-				? (value / 12.92)
-				: std::pow((value + 0.055) / 1.055, 2.4);
-		};
-		return map(c.redF()) * 0.2126
-			+ map(c.greenF()) * 0.7152
-			+ map(c.blueF()) * 0.0722;
-	};
-	const auto luminance1 = luminance(a);
-	const auto luminance2 = luminance(b);
-	const auto brightest = std::max(luminance1, luminance2);
-	const auto darkest = std::min(luminance1, luminance2);
-	return (brightest + 0.05) / (darkest + 0.05);
 }
 
 } // namespace
@@ -350,7 +332,7 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 	const auto minimal = [&](const QColor &with) {
 		auto result = kMaxContrastValue;
 		for (const auto &color : colors) {
-			result = std::min(result, CountContrast(color->c, with));
+			result = std::min(result, Ui::CountContrast(color->c, with));
 		}
 		return result;
 	};
@@ -363,7 +345,7 @@ void ChatTheme::adjustPalette(const ChatThemeDescriptor &descriptor) {
 	};
 	//const auto singleWithBg = [&](const QColor &c) {
 	//	return withBg([&](const QColor &with) {
-	//		return CountContrast(c, with);
+	//		return Ui::CountContrast(c, with);
 	//	});
 	//};
 	if (withBg(minimal) < kMinAcceptableContrast) {

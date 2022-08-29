@@ -264,6 +264,8 @@ PRIVATE
 
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
+    ui/color_contrast.cpp
+    ui/color_contrast.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/widgets/fields/special_fields.cpp
