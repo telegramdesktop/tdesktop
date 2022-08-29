@@ -751,7 +751,7 @@ void EmojiListWidget::fillRecent() {
 			continue;
 		}
 		_recent.push_back({
-			.custom = resolveCustomEmoji(one.id),
+			.custom = resolveCustomRecent(one.id),
 			.id = one.id,
 		});
 		if (document) {
@@ -771,7 +771,7 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 	_recent.reserve(list.size());
 	for (const auto &id : list) {
 		_recent.push_back({
-			.custom = resolveCustomEmoji(id),
+			.custom = resolveCustomRecent(id),
 			.id = { RecentEmojiDocument{.id = id, .test = test } },
 		});
 		_recentCustomIds.emplace(id);
@@ -1587,30 +1587,38 @@ not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
 	).first->second.emoji.get();
 }
 
-Ui::Text::CustomEmoji *EmojiListWidget::resolveCustomEmoji(
+Ui::Text::CustomEmoji *EmojiListWidget::resolveCustomRecent(
 		RecentEmojiId customId) {
 	const auto &data = customId.data;
 	if (const auto document = std::get_if<RecentEmojiDocument>(&data)) {
-		return resolveCustomEmoji(document->id);
+		return resolveCustomRecent(document->id);
 	} else if (const auto emoji = std::get_if<EmojiPtr>(&data)) {
 		return nullptr;
 	}
 	Unexpected("Custom recent emoji id.");
 }
 
-not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomEmoji(
+not_null<Ui::Text::CustomEmoji*> EmojiListWidget::resolveCustomRecent(
 		DocumentId documentId) {
-	const auto i = _customEmoji.find(documentId);
-	if (i != end(_customEmoji)) {
-		return i->second.emoji.get();
+	const auto i = _customRecent.find(documentId);
+	if (i != end(_customRecent)) {
+		return i->second.get();
+	}
+	const auto j = _customEmoji.find(documentId);
+	if (j != end(_customEmoji)) {
+		return j->second.emoji.get();
 	}
 	auto repaint = repaintCallback(documentId, RecentEmojiSectionSetId());
-	auto custom = _customRecentFactory
-		? _customRecentFactory(documentId, std::move(repaint))
-		: session().data().customEmojiManager().create(
+	if (_customRecentFactory) {
+		return _customRecent.emplace(
 			documentId,
-			std::move(repaint),
-			Data::CustomEmojiManager::SizeTag::Large);
+			_customRecentFactory(documentId, std::move(repaint))
+		).first->second.get();
+	}
+	auto custom = session().data().customEmojiManager().create(
+		documentId,
+		std::move(repaint),
+		Data::CustomEmojiManager::SizeTag::Large);
 	return _customEmoji.emplace(
 		documentId,
 		CustomEmojiInstance{ .emoji = std::move(custom), .recentOnly = true }

@@ -304,9 +304,9 @@ private:
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document,
 		uint64 setId);
-	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomEmoji(
+	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomRecent(
 		Core::RecentEmojiId customId);
-	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
 		DocumentId documentId);
 	[[nodiscard]] Fn<void()> repaintCallback(
 		DocumentId documentId,
@@ -330,6 +330,9 @@ private:
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
+	base::flat_map<
+		DocumentId,
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;
 	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
 	Ui::RoundRect _overBg;

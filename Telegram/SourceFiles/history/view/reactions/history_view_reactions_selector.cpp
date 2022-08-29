@@ -46,6 +46,7 @@ public:
 	void paint(QPainter &p, const Context &context) override;
 	void unload() override;
 	bool ready() override;
+	bool readyInDefaultState() override;
 
 private:
 	const std::unique_ptr<Ui::Text::CustomEmoji> _wrapped;
@@ -74,7 +75,8 @@ QString StripEmoji::entityData() {
 void StripEmoji::paint(QPainter &p, const Context &context) {
 	if (_switched) {
 		_wrapped->paint(p, context);
-	} else if (_wrapped->ready() && _strip->inDefaultState(_index)) {
+	} else if (_wrapped->readyInDefaultState()
+		&& _strip->inDefaultState(_index)) {
 		_switched = true;
 		_wrapped->paint(p, context);
 	} else {
@@ -89,6 +91,10 @@ void StripEmoji::unload() {
 
 bool StripEmoji::ready() {
 	return _wrapped->ready();
+}
+
+bool StripEmoji::readyInDefaultState() {
+	return _wrapped->readyInDefaultState();
 }
 
 } // namespace
