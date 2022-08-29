@@ -600,16 +600,15 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 		if (recent.size() != result.reactions.size()) {
 			return false;
 		}
-		auto b = begin(recent);
 		auto sum = 0;
 		for (const auto &reaction : result.reactions) {
-			sum += reaction.count;
-			if (reaction.id != b->first
-				|| reaction.count != b->second.size()
-				|| sum > kMaxRecentUserpics) {
+			if ((sum += reaction.count) > kMaxRecentUserpics) {
 				return false;
 			}
-			++b;
+			const auto i = recent.find(reaction.id);
+			if (i == end(recent) || reaction.count != i->second.size()) {
+				return false;
+			}
 		}
 		return true;
 	}();
