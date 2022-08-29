@@ -426,7 +426,7 @@ win:
 
 stage('jom', """
 win:
-    powershell -Command "Invoke-WebRequest -OutFile ./jom.zip http://download.qt.io/official_releases/jom/jom.zip"
+    powershell -Command "Invoke-WebRequest -OutFile ./jom.zip https://master.qt.io/official_releases/jom/jom_1_1_3.zip"
     powershell -Command "Expand-Archive ./jom.zip"
     del jom.zip
 """, 'ThirdParty')
