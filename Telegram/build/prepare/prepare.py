@@ -1162,7 +1162,6 @@ win:
 
     cd ..
     del /S qt_5_15_3\*.cpp
-    del /S qt_5_15_3\*.h
     del /S qt_5_15_3\*.pdb
     del /S qt_5_15_3\*.obj
 mac:
