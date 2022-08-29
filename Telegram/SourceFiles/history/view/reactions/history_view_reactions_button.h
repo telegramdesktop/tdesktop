@@ -262,8 +262,4 @@ void SetupManagerList(
 	not_null<Manager*> manager,
 	rpl::producer<HistoryItem*> items);
 
-[[nodiscard]] std::shared_ptr<Lottie::Icon> DefaultIconFactory(
-	not_null<Data::DocumentMedia*> media,
-	int size);
-
 } // namespace HistoryView

@@ -11,8 +11,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
-#include "lottie/lottie_icon.h"
 #include "main/main_session.h"
+#include "ui/effects/frame_generator.h"
+#include "ui/animated_icon.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
@@ -27,19 +28,29 @@ constexpr auto kHoverScale = 1.24;
 	return style::ConvertScale(kSizeForDownscale);
 }
 
-[[nodiscard]] std::shared_ptr<Lottie::Icon> CreateIcon(
+[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> CreateIcon(
 		not_null<Data::DocumentMedia*> media,
-		int size,
-		int frame) {
+		int size) {
 	Expects(media->loaded());
 
-	return std::make_shared<Lottie::Icon>(Lottie::IconDescriptor{
-		.path = media->owner()->filepath(true),
-		.json = media->bytes(),
+	return std::make_shared<Ui::AnimatedIcon>(Ui::AnimatedIconDescriptor{
+		.generator = DocumentIconFrameGenerator(media),
 		.sizeOverride = QSize(size, size),
-		.frame = frame,
-		.limitFps = true,
 	});
+}
+
+[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> CreateIconSnapshot(
+		not_null<DocumentData*> document,
+		not_null<Ui::AnimatedIcon*> existing) {
+	const auto frame = existing->frame();
+	return frame.isNull()
+		? CreateIcon(
+			document->activeMediaView().get(),
+			existing->width())
+		: std::make_shared<Ui::AnimatedIcon>(Ui::AnimatedIconDescriptor{
+			.generator = [=] { return std::make_unique<Ui::ImageFrameGenerator>(frame); },
+			.sizeOverride = existing->size(),
+		});
 }
 
 } // namespace
@@ -157,7 +168,7 @@ void Strip::paintOne(
 	} else if (icon.added == AddedButton::Expand) {
 		paintExpandIcon(p, position, target);
 	} else {
-		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
+		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
 			const auto size = int(std::floor(target.width() + 0.01));
 			const auto frame = animation->frame({ size, size }, _update);
 			p.drawImage(target, frame.image);
@@ -166,7 +177,7 @@ void Strip::paintOne(
 		const auto appear = icon.appear.get();
 		if (appear && !icon.appearAnimated && allowAppearStart) {
 			icon.appearAnimated = true;
-			appear->animate(_update, 0, appear->framesCount() - 1);
+			appear->animate(_update);
 		}
 		if (appear && appear->animating()) {
 			paintFrame(appear);
@@ -220,15 +231,9 @@ int Strip::fillChosenIconGetIndex(ChosenReaction &chosen) const {
 	}
 	const auto &icon = *i;
 	if (const auto &appear = icon.appear; appear && appear->animating()) {
-		chosen.icon = CreateIcon(
-			icon.appearAnimation->activeMediaView().get(),
-			appear->width(),
-			appear->frameIndex());
+		chosen.icon = CreateIconSnapshot(icon.appearAnimation, appear.get());
 	} else if (const auto &select = icon.select) {
-		chosen.icon = CreateIcon(
-			icon.selectAnimation->activeMediaView().get(),
-			select->width(),
-			select->frameIndex());
+		chosen.icon = CreateIconSnapshot(icon.selectAnimation, select.get());
 	}
 	return (i - begin(_icons));
 }
@@ -307,7 +312,7 @@ void Strip::setSelected(int index) const {
 			const auto select = skipAnimation ? nullptr : icon.select.get();
 			if (select && !icon.selectAnimated) {
 				icon.selectAnimated = true;
-				select->animate(_update, 0, select->framesCount() - 1);
+				select->animate(_update);
 			}
 		}
 	};
@@ -342,13 +347,13 @@ void Strip::clearAppearAnimations(bool mainAppeared) {
 			}
 			icon.selectedScale.stop();
 			if (const auto select = icon.select.get()) {
-				select->jumpTo(0, nullptr);
+				select->jumpToStart(nullptr);
 			}
 			icon.selectAnimated = false;
 		}
 		if (icon.appearAnimated != main) {
 			if (const auto appear = icon.appear.get()) {
-				appear->jumpTo(0, nullptr);
+				appear->jumpToStart(nullptr);
 			}
 			icon.appearAnimated = main;
 		}
@@ -358,7 +363,7 @@ void Strip::clearAppearAnimations(bool mainAppeared) {
 
 void Strip::clearStateForHidden(ReactionIcons &icon) {
 	if (const auto appear = icon.appear.get()) {
-		appear->jumpTo(0, nullptr);
+		appear->jumpToStart(nullptr);
 	}
 	if (icon.selected) {
 		setSelected(-1);
@@ -366,7 +371,7 @@ void Strip::clearStateForHidden(ReactionIcons &icon) {
 	icon.appearAnimated = false;
 	icon.selectAnimated = false;
 	if (const auto select = icon.select.get()) {
-		select->jumpTo(0, nullptr);
+		select->jumpToStart(nullptr);
 	}
 	icon.selectedScale.stop();
 }
@@ -424,8 +429,8 @@ void Strip::loadIcons() {
 			}
 		}
 	}
-	if (all && !_icons.empty() && _icons.front().appearAnimation) {
-		auto &data = _icons.front().appearAnimation->owner().reactions();
+	if (all && !_icons.empty() && _icons.front().selectAnimation) {
+		auto &data = _icons.front().selectAnimation->owner().reactions();
 		for (const auto &icon : _icons) {
 			data.preloadAnimationsFor(icon.id);
 		}
@@ -562,10 +567,10 @@ IconFactory CachedIconFactory::createMethod() {
 	};
 }
 
-std::shared_ptr<Lottie::Icon> DefaultIconFactory(
+std::shared_ptr<Ui::AnimatedIcon> DefaultIconFactory(
 		not_null<Data::DocumentMedia*> media,
 		int size) {
-	return CreateIcon(media, size, 0);
+	return CreateIcon(media, size);
 }
 
 } // namespace HistoryView::Reactions

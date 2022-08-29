@@ -242,8 +242,6 @@ PRIVATE
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
-    ui/text/custom_emoji_instance.cpp
-    ui/text/custom_emoji_instance.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

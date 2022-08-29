@@ -20,7 +20,7 @@ namespace Data {
 struct Reaction;
 } // namespace Data
 
-void AddReactionLottieIcon(
+void AddReactionAnimatedIcon(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<QPoint> iconPositionValue,
 	int iconSize,

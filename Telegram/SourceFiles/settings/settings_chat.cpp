@@ -927,7 +927,7 @@ void SetupMessages(
 			const auto index = state->icons.flag ? 1 : 0;
 			state->icons.lifetimes[index] = rpl::lifetime();
 			const auto iconSize = st::settingsReactionRightIcon;
-			AddReactionLottieIcon(
+			AddReactionAnimatedIcon(
 				inner,
 				buttonRight->geometryValue(
 				) | rpl::map([=](const QRect &r) {

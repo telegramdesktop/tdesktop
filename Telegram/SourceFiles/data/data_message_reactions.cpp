@@ -20,9 +20,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_peer_values.h"
 #include "data/stickers/data_custom_emoji.h"
-#include "lottie/lottie_icon.h"
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
+#include "ui/animated_icon.h"
 #include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
@@ -300,7 +300,7 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 		? nullptr
 		: i->centerIcon
 		? i->centerIcon
-		: i->appearAnimation.get();
+		: i->selectAnimation.get();
 	if (document) {
 		loadImage(set, document, !i->centerIcon);
 	} else if (!_waitingForList) {
@@ -337,7 +337,7 @@ QImage Reactions::resolveImageFor(
 	auto &set = (i != end(_images)) ? i->second : _images[emoji];
 	const auto resolve = [&](QImage &image, int size) {
 		const auto factor = style::DevicePixelRatio();
-		const auto frameSize = set.fromAppearAnimation
+		const auto frameSize = set.fromSelectAnimation
 			? (size / 2)
 			: size;
 		image = set.icon->frame().scaled(
@@ -345,7 +345,7 @@ QImage Reactions::resolveImageFor(
 			frameSize * factor,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
-		if (set.fromAppearAnimation) {
+		if (set.fromSelectAnimation) {
 			auto result = QImage(
 				size * factor,
 				size * factor,
@@ -385,7 +385,7 @@ void Reactions::resolveImages() {
 			? nullptr
 			: i->centerIcon
 			? i->centerIcon
-			: i->appearAnimation.get();
+			: i->selectAnimation.get();
 		if (document) {
 			loadImage(set, document, !i->centerIcon);
 		} else {
@@ -398,16 +398,16 @@ void Reactions::resolveImages() {
 void Reactions::loadImage(
 		ImageSet &set,
 		not_null<DocumentData*> document,
-		bool fromAppearAnimation) {
+		bool fromSelectAnimation) {
 	if (!set.bottomInfo.isNull() || set.icon) {
 		return;
 	} else if (!set.media) {
-		set.fromAppearAnimation = fromAppearAnimation;
+		set.fromSelectAnimation = fromSelectAnimation;
 		set.media = document->createMediaView();
 		set.media->checkStickerLarge();
 	}
 	if (set.media->loaded()) {
-		setLottie(set);
+		setAnimatedIcon(set);
 	} else if (!_imagesLoadLifetime) {
 		document->session().downloaderTaskFinished(
 		) | rpl::start_with_next([=] {
@@ -416,13 +416,11 @@ void Reactions::loadImage(
 	}
 }
 
-void Reactions::setLottie(ImageSet &set) {
+void Reactions::setAnimatedIcon(ImageSet &set) {
 	const auto size = style::ConvertScale(kSizeForDownscale);
-	set.icon = Lottie::MakeIcon({
-		.path = set.media->owner()->filepath(true),
-		.json = set.media->bytes(),
+	set.icon = Ui::MakeAnimatedIcon({
+		.generator = DocumentIconFrameGenerator(set.media),
 		.sizeOverride = QSize(size, size),
-		.frame = -1,
 	});
 	set.media = nullptr;
 }
@@ -433,7 +431,7 @@ void Reactions::downloadTaskFinished() {
 		if (!set.media) {
 			continue;
 		} else if (set.media->loaded()) {
-			setLottie(set);
+			setAnimatedIcon(set);
 		} else {
 			hasOne = true;
 		}
@@ -644,8 +642,6 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 		if (!known) {
 			LOG(("API Error: Unknown emoji in reactions: %1").arg(emoji));
 		}
-		const auto selectAnimation = _owner->processDocument(
-			data.vselect_animation());
 		return known
 			? std::make_optional(Reaction{
 				.id = ReactionId{ emoji },
@@ -653,7 +649,8 @@ std::optional<Reaction> Reactions::parse(const MTPAvailableReaction &entry) {
 				//.staticIcon = _owner->processDocument(data.vstatic_icon()),
 				.appearAnimation = _owner->processDocument(
 					data.vappear_animation()),
-				.selectAnimation = selectAnimation,
+				.selectAnimation = _owner->processDocument(
+					data.vselect_animation()),
 				//.activateAnimation = _owner->processDocument(
 				//	data.vactivate_animation()),
 				//.activateEffects = _owner->processDocument(

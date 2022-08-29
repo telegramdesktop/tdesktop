@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "lottie/lottie_animation.h"
+#include "lottie/lottie_frame_generator.h"
+#include "ffmpeg/ffmpeg_frame_generator.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "window/themes/window_theme_preview.h"
@@ -503,6 +505,49 @@ void DocumentMedia::ReadOrGenerateThumbnail(
 		}
 	};
 	document->owner().cache().get(document->goodThumbnailCacheKey(), got);
+}
+
+auto DocumentIconFrameGenerator(not_null<DocumentMedia*> media)
+-> FnMut<std::unique_ptr<Ui::FrameGenerator>()> {
+	if (!media->loaded()) {
+		return nullptr;
+	}
+	using Type = StickerType;
+	const auto document = media->owner();
+	const auto content = media->bytes();
+	const auto fromFile = content.isEmpty();
+	const auto type = document->sticker()
+		? document->sticker()->type
+		: (document->isVideoFile() || document->isAnimation())
+		? Type::Webm
+		: Type::Webp;
+	const auto &location = media->owner()->location(true);
+	if (fromFile && !location.accessEnable()) {
+		return nullptr;
+	}
+	return [=]() -> std::unique_ptr<Ui::FrameGenerator> {
+		const auto bytes = Lottie::ReadContent(content, location.name());
+		if (fromFile) {
+			location.accessDisable();
+		}
+		if (bytes.isEmpty()) {
+			return nullptr;
+		}
+		switch (type) {
+		case Type::Tgs:
+			return std::make_unique<Lottie::FrameGenerator>(bytes);
+		case Type::Webm:
+			return std::make_unique<FFmpeg::FrameGenerator>(bytes);
+		case Type::Webp:
+			return std::make_unique<Ui::ImageFrameGenerator>(bytes);
+		}
+		Unexpected("Document type in DocumentIconFrameGenerator.");
+	};
+}
+
+auto DocumentIconFrameGenerator(const std::shared_ptr<DocumentMedia> &media)
+-> FnMut<std::unique_ptr<Ui::FrameGenerator>()> {
+	return DocumentIconFrameGenerator(media.get());
 }
 
 } // namespace Data

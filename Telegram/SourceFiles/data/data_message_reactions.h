@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 #include "data/stickers/data_custom_emoji.h"
 
+namespace Ui {
+class AnimatedIcon;
+} // namespace Ui
+
 namespace Ui::Text {
 class CustomEmoji;
 } // namespace Ui::Text
-
-namespace Lottie {
-class Icon;
-} // namespace Lottie
 
 namespace Data {
 
@@ -117,8 +117,8 @@ private:
 		QImage bottomInfo;
 		QImage inlineList;
 		std::shared_ptr<DocumentMedia> media;
-		std::unique_ptr<Lottie::Icon> icon;
-		bool fromAppearAnimation = false;
+		std::unique_ptr<Ui::AnimatedIcon> icon;
+		bool fromSelectAnimation = false;
 	};
 
 	[[nodiscard]] not_null<CustomEmojiManager::Listener*> resolveListener();
@@ -148,8 +148,8 @@ private:
 	void loadImage(
 		ImageSet &set,
 		not_null<DocumentData*> document,
-		bool fromAppearAnimation);
-	void setLottie(ImageSet &set);
+		bool fromSelectAnimation);
+	void setAnimatedIcon(ImageSet &set);
 	void resolveImages();
 	void downloadTaskFinished();
 

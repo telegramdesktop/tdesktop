@@ -14,15 +14,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 struct ChatPaintContext;
+class AnimatedIcon;
 } // namespace Ui
 
 namespace Data {
 class Reactions;
 } // namespace Data
-
-namespace Lottie {
-class Icon;
-} // namespace Lottie
 
 namespace HistoryView {
 namespace Reactions {
@@ -31,7 +28,7 @@ class Animation;
 
 struct ReactionAnimationArgs {
 	::Data::ReactionId id;
-	std::shared_ptr<Lottie::Icon> flyIcon;
+	std::shared_ptr<Ui::AnimatedIcon> flyIcon;
 	QRect flyFrom;
 
 	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;

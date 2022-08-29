@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_bottom_info.h"
-#include "lottie/lottie_icon.h"
+#include "ui/animated_icon.h"
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -36,7 +36,7 @@ Animation::Animation(
 		return;
 	}
 	const auto resolve = [&](
-			std::unique_ptr<Lottie::Icon> &icon,
+			std::unique_ptr<Ui::AnimatedIcon> &icon,
 			DocumentData *document,
 			int size) {
 		if (!document) {
@@ -46,9 +46,8 @@ Animation::Animation(
 		if (!media || !media->loaded()) {
 			return false;
 		}
-		icon = Lottie::MakeIcon({
-			.path = document->filepath(true),
-			.json = media->bytes(),
+		icon = Ui::MakeAnimatedIcon({
+			.generator = DocumentIconFrameGenerator(media),
 			.sizeOverride = QSize(size, size),
 		});
 		return true;
@@ -142,8 +141,8 @@ int Animation::computeParabolicTop(
 }
 
 void Animation::startAnimations() {
-	_center->animate([=] { callback(); }, 0, _center->framesCount() - 1);
-	_effect->animate([=] { callback(); }, 0, _effect->framesCount() - 1);
+	_center->animate([=] { callback(); });
+	_effect->animate([=] { callback(); });
 }
 
 void Animation::flyCallback() {

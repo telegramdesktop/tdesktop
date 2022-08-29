@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/peers/edit_peer_reactions.h"
 
-#include "boxes/reactions_settings_box.h" // AddReactionLottieIcon
+#include "boxes/reactions_settings_box.h" // AddReactionAnimatedIcon
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
 #include "data/data_chat.h"
@@ -58,7 +58,7 @@ void EditAllowedReactionsBox(
 		tr::lng_manage_peer_reactions_enable(),
 		st::manageGroupButton.button);
 	if (!list.empty()) {
-		AddReactionLottieIcon(
+		AddReactionAnimatedIcon(
 			enabled,
 			enabled->sizeValue(
 			) | rpl::map([=](const QSize &size) {
@@ -101,7 +101,7 @@ void EditAllowedReactionsBox(
 			container,
 			rpl::single(entry.title),
 			st::manageGroupButton.button);
-		AddReactionLottieIcon(
+		AddReactionAnimatedIcon(
 			button,
 			button->sizeValue(
 			) | rpl::map([=](const QSize &size) {

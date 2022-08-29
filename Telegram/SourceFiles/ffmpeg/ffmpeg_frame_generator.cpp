@@ -5,7 +5,7 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "ffmpeg/ffmpeg_emoji.h"
+#include "ffmpeg/ffmpeg_frame_generator.h"
 
 #include "ffmpeg/ffmpeg_utility.h"
 #include "base/debug_log.h"
@@ -17,7 +17,7 @@ constexpr auto kMaxArea = 1920 * 1080 * 4;
 
 } // namespace
 
-class EmojiGenerator::Impl final {
+class FrameGenerator::Impl final {
 public:
 	explicit Impl(const QByteArray &bytes);
 
@@ -25,6 +25,11 @@ public:
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode);
+	[[nodiscard]] Frame renderCurrent(
+		QImage storage,
+		QSize size,
+		Qt::AspectRatioMode mode);
+	void jumpToStart();
 
 private:
 	struct ReadFrame {
@@ -35,10 +40,6 @@ private:
 
 	void readNextFrame();
 	void resolveNextFrameTiming();
-	[[nodiscard]] Frame renderCurrent(
-		QImage storage,
-		QSize size,
-		Qt::AspectRatioMode mode);
 
 	[[nodiscard]] QString wrapError(int result) const;
 
@@ -76,13 +77,13 @@ private:
 
 };
 
-EmojiGenerator::Impl::Impl(const QByteArray &bytes)
+FrameGenerator::Impl::Impl(const QByteArray &bytes)
 : _bytes(bytes) {
 	_format = MakeFormatPointer(
 		static_cast<void*>(this),
-		&EmojiGenerator::Impl::Read,
+		&FrameGenerator::Impl::Read,
 		nullptr,
-		&EmojiGenerator::Impl::Seek);
+		&FrameGenerator::Impl::Seek);
 
 	auto error = 0;
 	if ((error = avformat_find_stream_info(_format.get(), nullptr))) {
@@ -105,11 +106,11 @@ EmojiGenerator::Impl::Impl(const QByteArray &bytes)
 	_codec = MakeCodecPointer({ .stream = info });
 }
 
-int EmojiGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
+int FrameGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
 	return static_cast<Impl*>(opaque)->read(buf, buf_size);
 }
 
-int EmojiGenerator::Impl::read(uint8_t *buf, int buf_size) {
+int FrameGenerator::Impl::read(uint8_t *buf, int buf_size) {
 	const auto available = _bytes.size() - _deviceOffset;
 	if (available <= 0) {
 		return -1;
@@ -120,14 +121,14 @@ int EmojiGenerator::Impl::read(uint8_t *buf, int buf_size) {
 	return fill;
 }
 
-int64_t EmojiGenerator::Impl::Seek(
+int64_t FrameGenerator::Impl::Seek(
 		void *opaque,
 		int64_t offset,
 		int whence) {
 	return static_cast<Impl*>(opaque)->seek(offset, whence);
 }
 
-int64_t EmojiGenerator::Impl::seek(int64_t offset, int whence) {
+int64_t FrameGenerator::Impl::seek(int64_t offset, int whence) {
 	if (whence == AVSEEK_SIZE) {
 		return _bytes.size();
 	}
@@ -146,7 +147,7 @@ int64_t EmojiGenerator::Impl::seek(int64_t offset, int whence) {
 	return now;
 }
 
-EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
+FrameGenerator::Frame FrameGenerator::Impl::renderCurrent(
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode) {
@@ -238,18 +239,18 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderCurrent(
 		transform.rotate(_rotation);
 		storage = storage.transformed(transform);
 	}
-	ClearFrameMemory(_current.frame.get());
 
 	const auto duration = _next.frame
 		? (_next.position - _current.position)
 		: _current.duration;
 	return {
-		.image = std::move(storage),
 		.duration = duration,
+		.image = std::move(storage),
+		.last = !_next.frame,
 	};
 }
 
-EmojiGenerator::Frame EmojiGenerator::Impl::renderNext(
+FrameGenerator::Frame FrameGenerator::Impl::renderNext(
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode) {
@@ -264,7 +265,27 @@ EmojiGenerator::Frame EmojiGenerator::Impl::renderNext(
 	return renderCurrent(std::move(storage), size, mode);
 }
 
-void EmojiGenerator::Impl::resolveNextFrameTiming() {
+void FrameGenerator::Impl::jumpToStart() {
+	auto result = 0;
+	if ((result = avformat_seek_file(_format.get(), _streamId, std::numeric_limits<int64_t>::min(), 0, std::numeric_limits<int64_t>::max(), 0)) < 0) {
+		if ((result = av_seek_frame(_format.get(), _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
+			if ((result = av_seek_frame(_format.get(), _streamId, 0, AVSEEK_FLAG_FRAME)) < 0) {
+				if ((result = av_seek_frame(_format.get(), _streamId, 0, 0)) < 0) {
+					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
+					LOG(("Webm Error: Unable to av_seek_frame() to the start, ") + wrapError(result));
+					return;
+				}
+			}
+		}
+	}
+	avcodec_flush_buffers(_codec.get());
+	_current = ReadFrame();
+	_next = ReadFrame();
+	_currentFrameDelay = _nextFrameDelay = 0;
+	_framePosition = 0;
+}
+
+void FrameGenerator::Impl::resolveNextFrameTiming() {
 	const auto base = _format->streams[_streamId]->time_base;
 	const auto duration = _next.frame->pkt_duration;
 	const auto framePts = _next.frame->pts;
@@ -287,7 +308,7 @@ void EmojiGenerator::Impl::resolveNextFrameTiming() {
 	_next.duration = _nextFrameDelay;
 }
 
-void EmojiGenerator::Impl::readNextFrame() {
+void FrameGenerator::Impl::readNextFrame() {
 	auto frame = _next.frame ? base::take(_next.frame) : MakeFramePointer();
 	while (true) {
 		auto result = avcodec_receive_frame(_codec.get(), frame.get());
@@ -347,28 +368,43 @@ void EmojiGenerator::Impl::readNextFrame() {
 	}
 }
 
-QString EmojiGenerator::Impl::wrapError(int result) const {
+QString FrameGenerator::Impl::wrapError(int result) const {
 	auto error = std::array<char, AV_ERROR_MAX_STRING_SIZE>{};
 	return u"error %1, %2"_q
 		.arg(result)
 		.arg(av_make_error_string(error.data(), error.size(), result));
 }
 
-EmojiGenerator::EmojiGenerator(const QByteArray &bytes)
+FrameGenerator::FrameGenerator(const QByteArray &bytes)
 : _impl(std::make_unique<Impl>(bytes)) {
 }
 
-EmojiGenerator::~EmojiGenerator() = default;
+FrameGenerator::~FrameGenerator() = default;
 
-int EmojiGenerator::count() {
+int FrameGenerator::count() {
 	return 0;
 }
 
-EmojiGenerator::Frame EmojiGenerator::renderNext(
+double FrameGenerator::rate() {
+	return 0.;
+}
+
+FrameGenerator::Frame FrameGenerator::renderNext(
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode) {
 	return _impl->renderNext(std::move(storage), size, mode);
+}
+
+FrameGenerator::Frame FrameGenerator::renderCurrent(
+		QImage storage,
+		QSize size,
+		Qt::AspectRatioMode mode) {
+	return _impl->renderCurrent(std::move(storage), size, mode);
+}
+
+void FrameGenerator::jumpToStart() {
+	_impl->jumpToStart();
 }
 
 } // namespace FFmpeg

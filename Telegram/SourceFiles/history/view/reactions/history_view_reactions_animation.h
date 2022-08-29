@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/animations.h"
 
-namespace Lottie {
-class Icon;
+namespace Ui {
+class AnimatedIcon;
 } // namespace Lottie
 
 namespace Data {
@@ -47,9 +47,9 @@ private:
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
-	std::shared_ptr<Lottie::Icon> _flyIcon;
-	std::unique_ptr<Lottie::Icon> _center;
-	std::unique_ptr<Lottie::Icon> _effect;
+	std::shared_ptr<Ui::AnimatedIcon> _flyIcon;
+	std::unique_ptr<Ui::AnimatedIcon> _center;
+	std::unique_ptr<Ui::AnimatedIcon> _effect;
 	Ui::Animations::Simple _fly;
 	QRect _flyFrom;
 	bool _valid = false;

@@ -82,7 +82,6 @@ PRIVATE
     desktop-app::lib_webview
     desktop-app::lib_ffmpeg
     desktop-app::lib_stripe
-    desktop-app::external_lz4
     desktop-app::external_rlottie
     desktop-app::external_zlib
     desktop-app::external_kcoreaddons

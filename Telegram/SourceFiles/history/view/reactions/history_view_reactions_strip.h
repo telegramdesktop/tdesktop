@@ -18,16 +18,16 @@ struct Reaction;
 class DocumentMedia;
 } // namespace Data
 
-namespace Lottie {
-class Icon;
-} // namespace Lottie
+namespace Ui {
+class AnimatedIcon;
+} // namespace Ui
 
 namespace HistoryView::Reactions {
 
 struct ChosenReaction {
 	FullMsgId context;
 	Data::ReactionId id;
-	std::shared_ptr<Lottie::Icon> icon;
+	std::shared_ptr<Ui::AnimatedIcon> icon;
 	QRect geometry;
 
 	explicit operator bool() const {
@@ -35,7 +35,7 @@ struct ChosenReaction {
 	}
 };
 
-using IconFactory = Fn<std::shared_ptr<Lottie::Icon>(
+using IconFactory = Fn<std::shared_ptr<Ui::AnimatedIcon>(
 	not_null<Data::DocumentMedia*>,
 	int)>;
 
@@ -84,14 +84,14 @@ private:
 
 	struct ReactionDocument {
 		std::shared_ptr<Data::DocumentMedia> media;
-		std::shared_ptr<Lottie::Icon> icon;
+		std::shared_ptr<Ui::AnimatedIcon> icon;
 	};
 	struct ReactionIcons {
 		ReactionId id;
 		DocumentData *appearAnimation = nullptr;
 		DocumentData *selectAnimation = nullptr;
-		std::shared_ptr<Lottie::Icon> appear;
-		std::shared_ptr<Lottie::Icon> select;
+		std::shared_ptr<Ui::AnimatedIcon> appear;
+		std::shared_ptr<Ui::AnimatedIcon> select;
 		mutable Ui::Animations::Simple selectedScale;
 		AddedButton added = AddedButton::None;
 		bool appearAnimated = false;
@@ -133,7 +133,7 @@ private:
 	mutable int _selectedIcon = -1;
 
 	std::shared_ptr<Data::DocumentMedia> _mainReactionMedia;
-	std::shared_ptr<Lottie::Icon> _mainReactionIcon;
+	std::shared_ptr<Ui::AnimatedIcon> _mainReactionIcon;
 	QImage _mainReactionImage;
 	rpl::lifetime _mainReactionLifetime;
 
@@ -153,11 +153,11 @@ public:
 private:
 	base::flat_map<
 		std::shared_ptr<Data::DocumentMedia>,
-		std::shared_ptr<Lottie::Icon>> _cache;
+		std::shared_ptr<Ui::AnimatedIcon>> _cache;
 
 };
 
-[[nodiscard]] std::shared_ptr<Lottie::Icon> DefaultIconFactory(
+[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> DefaultIconFactory(
 	not_null<Data::DocumentMedia*> media,
 	int size);
 

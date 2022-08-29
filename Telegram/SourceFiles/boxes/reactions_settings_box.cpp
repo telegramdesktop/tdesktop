@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/reactions/history_view_reactions_strip.h"
 #include "lang/lang_keys.h"
-#include "lottie/lottie_icon.h"
 #include "boxes/premium_preview_box.h"
 #include "main/main_session.h"
 #include "settings/settings_common.h"
@@ -33,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/animated_icon.h"
 #include "window/section_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
@@ -230,7 +230,7 @@ void AddMessage(
 			}
 			const auto index = state->icons.flag ? 1 : 0;
 			state->icons.lifetimes[index] = rpl::lifetime();
-			AddReactionLottieIcon(
+			AddReactionAnimatedIcon(
 				container,
 				widget->geometryValue(
 				) | rpl::map([=](const QRect &r) {
@@ -253,7 +253,7 @@ void AddMessage(
 
 } // namespace
 
-void AddReactionLottieIcon(
+void AddReactionAnimatedIcon(
 		not_null<Ui::RpWidget*> parent,
 		rpl::producer<QPoint> iconPositionValue,
 		int iconSize,
@@ -261,11 +261,10 @@ void AddReactionLottieIcon(
 		rpl::producer<> &&selects,
 		rpl::producer<> &&destroys,
 		not_null<rpl::lifetime*> stateLifetime) {
-
 	struct State {
 		struct Entry {
 			std::shared_ptr<Data::DocumentMedia> media;
-			std::shared_ptr<Lottie::Icon> icon;
+			std::shared_ptr<Ui::AnimatedIcon> icon;
 		};
 		Entry appear;
 		Entry select;
@@ -332,7 +331,7 @@ void AddReactionLottieIcon(
 			p.scale(progress, progress);
 		}
 
-		const auto paintFrame = [&](not_null<Lottie::Icon*> animation) {
+		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
 			const auto frame = animation->frame();
 			p.drawImage(
 				QRect(
@@ -346,7 +345,7 @@ void AddReactionLottieIcon(
 		const auto appear = state->appear.icon.get();
 		if (appear && !state->appearAnimated) {
 			state->appearAnimated = true;
-			appear->animate(update, 0, appear->framesCount() - 1);
+			appear->animate(update);
 		}
 		if (appear && appear->animating()) {
 			paintFrame(appear);
@@ -360,7 +359,7 @@ void AddReactionLottieIcon(
 	) | rpl::start_with_next([=] {
 		const auto select = state->select.icon.get();
 		if (select && !select->animating()) {
-			select->animate(update, 0, select->framesCount() - 1);
+			select->animate(update);
 		}
 	}, widget->lifetime());
 
@@ -437,7 +436,7 @@ void ReactionsSettingsBox(
 		}
 
 		const auto iconSize = st::settingsReactionSize;
-		AddReactionLottieIcon(
+		AddReactionAnimatedIcon(
 			button,
 			button->sizeValue(
 			) | rpl::map([=, left = button->st().iconLeft](const QSize &s) {
