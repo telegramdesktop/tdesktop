@@ -267,6 +267,9 @@ public:
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,
 		ItemNotificationType type) const;
+	[[nodiscard]] static TextWithEntities ComposeReactionEmoji(
+		not_null<Main::Session*> session,
+		const Data::ReactionId &reaction);
 	[[nodiscard]] static TextWithEntities ComposeReactionNotification(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &reaction,

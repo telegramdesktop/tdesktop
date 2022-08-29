@@ -3010,6 +3010,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_messages_ttl_removed" = "{from} disabled messages auto-deletion after {duration}";
 "lng_admin_log_reactions_disabled" = "{from} disabled reactions";
 "lng_admin_log_reactions_updated" = "{from} updated the list of allowed reactions to: {emoji}";
+"lng_admin_log_reactions_allowed_all" = "{from} allowed all reactions";
+"lng_admin_log_reactions_allowed_official" = "{from} allowed all official reactions";
 "lng_admin_log_edited_invite_link" = "edited invite link {link}";
 "lng_admin_log_invite_link_expire_date" = "Expire date: {previous} -> {limit}";
 "lng_admin_log_invite_link_usage_limit" = "Usage limit: {previous} -> {limit}";

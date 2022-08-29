@@ -780,30 +780,36 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	return result;
 }
 
+TextWithEntities Manager::ComposeReactionEmoji(
+		not_null<Main::Session*> session,
+		const Data::ReactionId &reaction) {
+	if (const auto emoji = std::get_if<QString>(&reaction.data)) {
+		return TextWithEntities{ *emoji };
+	}
+	const auto id = v::get<DocumentId>(reaction.data);
+	auto entities = EntitiesInText();
+	const auto document = session->data().document(id);
+	const auto sticker = document->sticker();
+	const auto text = sticker ? sticker->alt : PlaceholderReactionText();
+	return TextWithEntities{
+		text,
+		{
+			EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				text.size(),
+				Data::SerializeCustomEmojiId(Data::CustomEmojiId{ id }))
+		}
+	};
+}
+
 TextWithEntities Manager::ComposeReactionNotification(
 		not_null<HistoryItem*> item,
 		const Data::ReactionId &reaction,
 		bool hideContent) {
-	const auto reactionWithEntities = [&] {
-		if (const auto emoji = std::get_if<QString>(&reaction.data)) {
-			return TextWithEntities{ *emoji };
-		}
-		const auto id = v::get<DocumentId>(reaction.data);
-		auto entities = EntitiesInText();
-		const auto document = item->history()->owner().document(id);
-		const auto sticker = document->sticker();
-		const auto text = sticker ? sticker->alt : PlaceholderReactionText();
-		return TextWithEntities{
-			text,
-			{
-				EntityInText(
-					EntityType::CustomEmoji,
-					0,
-					text.size(),
-					Data::SerializeCustomEmojiId(Data::CustomEmojiId{ id }))
-			}
-		};
-	}();
+	const auto reactionWithEntities = ComposeReactionEmoji(
+		&item->history()->session(),
+		reaction);
 	const auto simple = [&](const auto &phrase) {
 		return phrase(
 			tr::now,
