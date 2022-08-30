@@ -44,6 +44,7 @@ private:
 	void startAnimations();
 	void callback();
 	int computeParabolicTop(int from, int to, float64 progress) const;
+	void paintCenterFrame(QPainter &p, QRect target) const;
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
@@ -52,6 +53,7 @@ private:
 	std::unique_ptr<Ui::AnimatedIcon> _effect;
 	Ui::Animations::Simple _fly;
 	QRect _flyFrom;
+	float64 _centerSizeMultiplier = 0.;
 	bool _valid = false;
 
 	mutable std::optional<int> _cachedKey;

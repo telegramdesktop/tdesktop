@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_bottom_info.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/animated_icon.h"
 #include "data/data_message_reactions.h"
 #include "data/data_session.h"
@@ -33,11 +34,13 @@ Animation::Animation(
 , _flyFrom(args.flyFrom) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
 	auto centerIcon = (DocumentData*)nullptr;
+	auto centerIconSize = size;
 	auto aroundAnimation = (DocumentData*)nullptr;
 	if (const auto customId = args.id.custom()) {
 		const auto document = owner->owner().document(customId);
 		if (document->sticker()) {
 			centerIcon = document;
+			centerIconSize = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
 		}
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
@@ -65,7 +68,8 @@ Animation::Animation(
 		return true;
 	};
 	_flyIcon = std::move(args.flyIcon);
-	if (!resolve(_center, centerIcon, size)) {
+	_centerSizeMultiplier = centerIconSize / float64(size);
+	if (!resolve(_center, centerIcon, centerIconSize)) {
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
@@ -84,7 +88,7 @@ QRect Animation::paintGetArea(
 		QPoint origin,
 		QRect target) const {
 	if (_flyIcon.isNull()) {
-		p.drawImage(target, _center->frame());
+		paintCenterFrame(p, target);
 		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
 			target.size() * 2);
@@ -105,17 +109,29 @@ QRect Animation::paintGetArea(
 		anim::interpolate(from.width(), target.width(), progress),
 		anim::interpolate(from.height(), target.height(), progress));
 	const auto wide = rect.marginsAdded(margins);
-	auto hq = PainterHighQualityEnabler(p);
 	if (progress < 1.) {
 		p.setOpacity(1. - progress);
 		p.drawImage(rect, _flyIcon);
 	}
 	if (progress > 0.) {
 		p.setOpacity(progress);
-		p.drawImage(wide, _center->frame());
+		paintCenterFrame(p, wide);
 	}
 	p.setOpacity(1.);
 	return wide;
+}
+
+void Animation::paintCenterFrame(QPainter &p, QRect target) const {
+	const auto size = QSize(
+		int(base::SafeRound(target.width() * _centerSizeMultiplier)),
+		int(base::SafeRound(target.height() * _centerSizeMultiplier)));
+	p.drawImage(
+		QRect(
+			target.x() + (target.width() - size.width()) / 2,
+			target.y() + (target.height() - size.height()) / 2,
+			size.width(),
+			size.height()),
+		_center->frame());
 }
 
 int Animation::computeParabolicTop(
