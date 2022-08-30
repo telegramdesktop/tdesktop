@@ -1102,7 +1102,6 @@ win:
     ninja
     cd ..\\..\\..
     del /S tg_angle\*.cpp
-    del /S tg_angle\*.h
     del /S tg_angle\*.pdb
     del /S tg_angle\*.obj
 """)
