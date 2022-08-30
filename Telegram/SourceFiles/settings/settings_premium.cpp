@@ -1121,11 +1121,11 @@ void Premium::setupSubscriptionOptions(
 
 	AddSkip(content, st::settingsPremiumOptionsPadding.top());
 
+	const auto apiPremium = &_controller->session().api().premium();
 	Ui::Premium::AddGiftOptions(
 		content,
 		_radioGroup,
-		SubscriptionOptionsForRows(
-			_controller->session().api().premium().subscriptionOptions()),
+		SubscriptionOptionsForRows(apiPremium->subscriptionOptions()),
 		st::premiumSubscriptionOption,
 		true);
 
@@ -1137,9 +1137,13 @@ void Premium::setupSubscriptionOptions(
 
 	auto toggleOn = rpl::combine(
 		Data::AmPremiumValue(&_controller->session()),
-		rpl::single(!!(Ref::EmojiStatus::Parse(_ref)))
-	) | rpl::map([=](bool premium, bool isEmojiStatus) {
-		return !premium && !isEmojiStatus;
+		rpl::single(!!(Ref::EmojiStatus::Parse(_ref))),
+		apiPremium->statusTextValue(
+		) | rpl::map([=] {
+			return apiPremium->subscriptionOptions().size() < 2;
+		})
+	) | rpl::map([=](bool premium, bool isEmojiStatus, bool noOptions) {
+		return !premium && !isEmojiStatus && !noOptions;
 	});
 	options->toggleOn(rpl::duplicate(toggleOn), anim::type::instant);
 	skip->toggleOn(std::move(

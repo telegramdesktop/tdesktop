@@ -162,7 +162,7 @@ void GiftBox(
 		auto text = tr::lng_premium_gift_button(
 			tr::now,
 			lt_cost,
-			options[value].total);
+			options[value].costTotal);
 		state->buttonText.fire(std::move(text));
 	});
 	Ui::Premium::AddGiftOptions(
