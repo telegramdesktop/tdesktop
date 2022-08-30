@@ -89,8 +89,6 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(
 	not_null<Main::Session*> peer);
-[[nodiscard]] rpl::producer<int> AllowedReactionsCountValue(
-	not_null<PeerData*> peer);
 
 enum class Badge;
 [[nodiscard]] rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);

@@ -140,6 +140,9 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			if ((allowed.type == AllowedReactionsType::Some)
 				&& !ranges::contains(allowed.some, id)) {
 				return false;
+			} else if (id.custom()
+				&& allowed.type == AllowedReactionsType::Default) {
+				return false;
 			} else if (reaction.premium
 				&& !session->premium()
 				&& !ranges::contains(all, id, &MessageReaction::id)) {

@@ -1195,13 +1195,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_permissions" = "Permissions";
 "lng_manage_peer_invite_links" = "Invite links";
 "lng_manage_peer_reactions" = "Reactions";
+"lng_manage_peer_reactions_on" = "All";
 "lng_manage_peer_reactions_off" = "Off";
 "lng_manage_peer_requests" = "Member Requests";
 "lng_manage_peer_requests_channel" = "Subscriber Requests";
 
-"lng_manage_peer_reactions_enable" = "Enable Reactions";
-"lng_manage_peer_reactions_about" = "Allow members to react to group messages.";
-"lng_manage_peer_reactions_about_channel" = "Allow subscribers to react to channel posts.";
+"lng_manage_peer_reactions_all" = "All reactions";
+"lng_manage_peer_reactions_all_about" = "Members of the group can use any emoji as reactions to messages.";
+"lng_manage_peer_reactions_all_about_channel" = "Subscribers of this channel can use any emoji as reactions to messages.";
+"lng_manage_peer_reactions_some" = "Some reactions";
+"lng_manage_peer_reactions_some_about" = "You can select emoji that will allow members of your group to react to messages.";
+"lng_manage_peer_reactions_some_about_channel" = "You can select emoji that will allow subscribers of this channel to react to messages.";
+"lng_manage_peer_reactions_none" = "No reactions";
+"lng_manage_peer_reactions_none_about" = "Members of the group can't add any reactions to messages.";
+"lng_manage_peer_reactions_none_about_channel" = "Subscribers of this channel can't add any reactions to messages.";
+"lng_manage_peer_reactions_some_title" = "Only allow these reactions";
 "lng_manage_peer_reactions_available" = "Available reactions";
 
 "lng_manage_peer_group_type" = "Group type";

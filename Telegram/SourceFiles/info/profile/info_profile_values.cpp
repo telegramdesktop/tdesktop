@@ -455,23 +455,6 @@ rpl::producer<int> FullReactionsCountValue(
 	}) | rpl::distinct_until_changed();
 }
 
-rpl::producer<int> AllowedReactionsCountValue(not_null<PeerData*> peer) {
-	if (peer->isUser()) {
-		return FullReactionsCountValue(&peer->session());
-	}
-	return rpl::combine(
-		FullReactionsCountValue(&peer->session()),
-		peer->session().changes().peerFlagsValue(
-			peer,
-			UpdateFlag::Reactions)
-	) | rpl::map([=](int full, const auto&) {
-		const auto &allowed = Data::PeerAllowedReactions(peer);
-		return (allowed.type == Data::AllowedReactionsType::Some)
-			? int(allowed.some.size())
-			: full;
-	});
-}
-
 template <typename Flag, typename Peer>
 rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 	return rpl::combine(

@@ -28,6 +28,14 @@ void AddReactionAnimatedIcon(
 	rpl::producer<> &&selects,
 	rpl::producer<> &&destroys,
 	not_null<rpl::lifetime*> stateLifetime);
+void AddReactionCustomIcon(
+	not_null<Ui::RpWidget*> parent,
+	rpl::producer<QPoint> iconPositionValue,
+	int iconSize,
+	not_null<Window::SessionController*> controller,
+	DocumentId customId,
+	rpl::producer<> &&destroys,
+	not_null<rpl::lifetime*> stateLifetime);
 
 void ReactionsSettingsBox(
 	not_null<Ui::GenericBox*> box,

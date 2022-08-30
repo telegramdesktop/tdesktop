@@ -251,6 +251,73 @@ void AddMessage(
 	}, widget->lifetime());
 }
 
+not_null<Ui::RpWidget*> AddReactionIconWrap(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QPoint> iconPositionValue,
+		int iconSize,
+		Fn<void(not_null<QWidget*>, QPainter&)> paintCallback,
+		rpl::producer<> &&destroys,
+		not_null<rpl::lifetime*> stateLifetime) {
+	struct State {
+		base::unique_qptr<Ui::RpWidget> widget;
+		Ui::Animations::Simple finalAnimation;
+	};
+
+	const auto state = stateLifetime->make_state<State>();
+	state->widget = base::make_unique_q<Ui::RpWidget>(parent);
+
+	const auto widget = state->widget.get();
+	widget->resize(iconSize, iconSize);
+	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+	std::move(
+		iconPositionValue
+	) | rpl::start_with_next([=](const QPoint &point) {
+		widget->moveToLeft(point.x(), point.y());
+	}, widget->lifetime());
+
+	const auto update = crl::guard(widget, [=] { widget->update(); });
+
+	widget->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(widget);
+
+		if (state->finalAnimation.animating()) {
+			const auto progress = 1. - state->finalAnimation.value(0.);
+			const auto size = widget->size();
+			const auto scaledSize = size * progress;
+			const auto scaledCenter = QPoint(
+				(size.width() - scaledSize.width()) / 2.,
+				(size.height() - scaledSize.height()) / 2.);
+			p.setOpacity(progress);
+			p.translate(scaledCenter);
+			p.scale(progress, progress);
+		}
+
+		paintCallback(widget, p);
+	}, widget->lifetime());
+
+	std::move(
+		destroys
+	) | rpl::take(1) | rpl::start_with_next([=, from = 0., to = 1.] {
+		state->finalAnimation.start(
+			[=](float64 value) {
+				update();
+				if (value == to) {
+					stateLifetime->destroy();
+				}
+			},
+			from,
+			to,
+			st::defaultPopupMenu.showDuration);
+	}, widget->lifetime());
+
+	widget->raise();
+	widget->show();
+
+	return widget;
+}
+
 } // namespace
 
 void AddReactionAnimatedIcon(
@@ -270,14 +337,8 @@ void AddReactionAnimatedIcon(
 		Entry select;
 		bool appearAnimated = false;
 		rpl::lifetime loadingLifetime;
-
-		base::unique_qptr<Ui::RpWidget> widget;
-
-		Ui::Animations::Simple finalAnimation;
 	};
-
 	const auto state = stateLifetime->make_state<State>();
-	state->widget = base::make_unique_q<Ui::RpWidget>(parent);
 
 	state->appear.media = reaction.appearAnimation->createMediaView();
 	state->select.media = reaction.selectAnimation->createMediaView();
@@ -303,34 +364,7 @@ void AddReactionAnimatedIcon(
 		}
 	}, state->loadingLifetime);
 
-	const auto widget = state->widget.get();
-	widget->resize(iconSize, iconSize);
-	widget->setAttribute(Qt::WA_TransparentForMouseEvents);
-
-	std::move(
-		iconPositionValue
-	) | rpl::start_with_next([=](const QPoint &point) {
-		widget->moveToLeft(point.x(), point.y());
-	}, widget->lifetime());
-
-	const auto update = crl::guard(widget, [=] { widget->update(); });
-
-	widget->paintRequest(
-	) | rpl::start_with_next([=] {
-		Painter p(widget);
-
-		if (state->finalAnimation.animating()) {
-			const auto progress = 1. - state->finalAnimation.value(0.);
-			const auto size = widget->size();
-			const auto scaledSize = size * progress;
-			const auto scaledCenter = QPoint(
-				(size.width() - scaledSize.width()) / 2.,
-				(size.height() - scaledSize.height()) / 2.);
-			p.setOpacity(progress);
-			p.translate(scaledCenter);
-			p.scale(progress, progress);
-		}
-
+	const auto paintCallback = [=](not_null<QWidget*> widget, QPainter &p) {
 		const auto paintFrame = [&](not_null<Ui::AnimatedIcon*> animation) {
 			const auto frame = animation->frame();
 			p.drawImage(
@@ -345,41 +379,72 @@ void AddReactionAnimatedIcon(
 		const auto appear = state->appear.icon.get();
 		if (appear && !state->appearAnimated) {
 			state->appearAnimated = true;
-			appear->animate(update);
+			appear->animate(crl::guard(widget, [=] { widget->update(); }));
 		}
 		if (appear && appear->animating()) {
 			paintFrame(appear);
 		} else if (const auto select = state->select.icon.get()) {
 			paintFrame(select);
 		}
-	}, widget->lifetime());
+
+	};
+	const auto widget = AddReactionIconWrap(
+		parent,
+		std::move(iconPositionValue),
+		iconSize,
+		paintCallback,
+		std::move(destroys),
+		stateLifetime);
 
 	std::move(
 		selects
 	) | rpl::start_with_next([=] {
 		const auto select = state->select.icon.get();
 		if (select && !select->animating()) {
-			select->animate(update);
+			select->animate(crl::guard(widget, [=] { widget->update(); }));
 		}
 	}, widget->lifetime());
+}
 
-	std::move(
-		destroys
-	) | rpl::take(1) | rpl::start_with_next([=, from = 0., to = 1.] {
-		state->finalAnimation.start(
-			[=](float64 value) {
-				update();
-				if (value == to) {
-					stateLifetime->destroy();
-				}
-			},
-			from,
-			to,
-			st::defaultPopupMenu.showDuration);
-	}, widget->lifetime());
+void AddReactionCustomIcon(
+		not_null<Ui::RpWidget*> parent,
+		rpl::producer<QPoint> iconPositionValue,
+		int iconSize,
+		not_null<Window::SessionController*> controller,
+		DocumentId customId,
+		rpl::producer<> &&destroys,
+		not_null<rpl::lifetime*> stateLifetime) {
+	struct State {
+		std::unique_ptr<Ui::Text::CustomEmoji> custom;
+		Fn<void()> repaint;
+	};
+	const auto state = stateLifetime->make_state<State>();
+	static constexpr auto tag = Data::CustomEmojiManager::SizeTag::Large;
+	state->custom = controller->session().data().customEmojiManager().create(
+		customId,
+		[=] { state->repaint(); },
+		tag);
 
-	widget->raise();
-	widget->show();
+	const auto paintCallback = [=](not_null<QWidget*> widget, QPainter &p) {
+		const auto ratio = style::DevicePixelRatio();
+		const auto size = Data::FrameSizeFromTag(tag) / ratio;
+		state->custom->paint(p, {
+			.preview = st::windowBgRipple->c,
+			.now = crl::now(),
+			.position = QPoint(
+				(widget->width() - size) / 2,
+				(widget->height() - size) / 2),
+			.paused = controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer),
+		});
+	};
+	const auto widget = AddReactionIconWrap(
+		parent,
+		std::move(iconPositionValue),
+		iconSize,
+		paintCallback,
+		std::move(destroys),
+		stateLifetime);
 }
 
 void ReactionsSettingsBox(
