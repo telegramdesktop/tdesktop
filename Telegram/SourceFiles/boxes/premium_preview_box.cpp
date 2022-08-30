@@ -996,7 +996,7 @@ void ReactionPreview::paintEffect(QPainter &p) {
 		Data::Reactions::Type::Active);
 	const auto count = ranges::count(list, true, &Data::Reaction::premium);
 	const auto rows = (count + kReactionsPerRow - 1) / kReactionsPerRow;
-	const auto inrowmax = (count + rows - 1) / rows;
+	const auto inrowmax = rows ? ((count + rows - 1) / rows) : 1;
 	const auto inrowless = (inrowmax * rows - count);
 	const auto inrowmore = rows - inrowless;
 	const auto inmaxrows = inrowmore * inrowmax;

@@ -357,11 +357,15 @@ ListWidget::ListWidget(
 		_reactionsManager->updateButton({});
 
 		const auto item = session().data().message(reaction.context);
-		if (!item
-			|| Window::ShowReactPremiumError(
-				_controller,
-				item,
-				reaction.id)) {
+		if (!item) {
+			return;
+		} else if (Window::ShowReactPremiumError(
+			_controller,
+			item,
+			reaction.id)) {
+			if (_menu) {
+				_menu->hideMenu();
+			}
 			return;
 		}
 		item->toggleReaction(

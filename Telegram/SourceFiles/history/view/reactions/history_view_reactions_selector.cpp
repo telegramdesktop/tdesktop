@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_list_widget.h"
 #include "chat_helpers/stickers_list_footer.h"
 #include "window/window_session_controller.h"
-#include "settings/settings_premium.h"
+#include "boxes/premium_preview_box.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "base/call_delayed.h"
@@ -515,7 +515,14 @@ void Selector::expand() {
 	}
 	_expandScheduled = true;
 	const auto parent = parentWidget()->geometry();
-	const auto additionalBottom = parent.height() - y() - height();
+	const auto extents = extentsForShadow();
+	const auto heightLimit = _reactions.customAllowed
+		? st::emojiPanMaxHeight
+		: minimalHeight();
+	const auto willBeHeight = std::min(
+		parent.height() - y(),
+		extents.top() + heightLimit + extents.bottom());
+	const auto additionalBottom = willBeHeight - height();
 	const auto additional = _specialExpandTopSkip + additionalBottom;
 	const auto strong = _parentController.get();
 	if (additionalBottom < 0 || additional <= 0 || !strong) {
@@ -627,21 +634,20 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 		})
 	).data();
 
-	_list->customChosen(
-	) | rpl::start_with_next([=](const TabbedSelector::FileChosen &chosen) {
-		const auto id = DocumentId{ chosen.document->id };
+	rpl::merge(
+		_list->customChosen(
+		) | rpl::map([=](const TabbedSelector::FileChosen &chosen) {
+			return chosen.document;
+		}),
+		_list->premiumChosen()
+	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+		const auto id = DocumentId{ document->id };
 		const auto i = defaultReactionIds.find(id);
 		if (i != end(defaultReactionIds)) {
 			_chosen.fire({ .id = { i->second } });
 		} else {
 			_chosen.fire({ .id = { id } });
 		}
-	}, _list->lifetime());
-
-	_list->premiumChosen(
-	) | rpl::start_with_next([=] {
-		_jumpedToPremium();
-		Settings::ShowPremium(controller, u"animated_emoji"_q);
 	}, _list->lifetime());
 
 	_list->jumpedToPremium(

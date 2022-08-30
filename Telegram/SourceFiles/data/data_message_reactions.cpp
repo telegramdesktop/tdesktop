@@ -184,18 +184,21 @@ Reactions::Reactions(not_null<Session*> owner)
 		_repaintItems.remove(item);
 	}, _lifetime);
 
-	rpl::single(rpl::empty) | rpl::then(
-		_owner->session().mtp().config().updates()
-	) | rpl::map([=] {
-		const auto &config = _owner->session().mtp().configValues();
-		return config.reactionDefaultCustom
-			? ReactionId{ DocumentId(config.reactionDefaultCustom) }
-			: ReactionId{ config.reactionDefaultEmoji };
-	}) | rpl::filter([=](const ReactionId &id) {
-		return !_saveFaveRequestId;
-	}) | rpl::start_with_next([=](ReactionId &&id) {
-		applyFavorite(id);
-	}, _lifetime);
+	crl::on_main(&owner->session(), [=] {
+		// applyFavorite accesses not yet constructed parts of session.
+		rpl::single(rpl::empty) | rpl::then(
+			_owner->session().mtp().config().updates()
+		) | rpl::map([=] {
+			const auto &config = _owner->session().mtp().configValues();
+			return config.reactionDefaultCustom
+				? ReactionId{ DocumentId(config.reactionDefaultCustom) }
+				: ReactionId{ config.reactionDefaultEmoji };
+		}) | rpl::filter([=](const ReactionId &id) {
+			return !_saveFaveRequestId;
+		}) | rpl::start_with_next([=](ReactionId &&id) {
+			applyFavorite(id);
+		}, _lifetime);
+	});
 }
 
 Reactions::~Reactions() = default;

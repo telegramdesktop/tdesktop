@@ -464,11 +464,15 @@ HistoryInner::HistoryInner(
 
 void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 	const auto item = session().data().message(reaction.context);
-	if (!item
-		|| Window::ShowReactPremiumError(
+	if (!item) {
+		return;
+	} else if (Window::ShowReactPremiumError(
 			_controller,
 			item,
 			reaction.id)) {
+		if (_menu) {
+			_menu->hideMenu();
+		}
 		return;
 	}
 	item->toggleReaction(reaction.id, HistoryItem::ReactionSource::Selector);
@@ -1943,9 +1947,9 @@ void HistoryInner::toggleFavoriteReaction(not_null<Element*> view) const {
 	const auto item = view->data();
 	const auto favorite = session().data().reactions().favoriteId();
 	if (!ranges::contains(
-		Data::LookupPossibleReactions(item).recent,
-		favorite,
-		&Data::Reaction::id)
+			Data::LookupPossibleReactions(item).recent,
+			favorite,
+			&Data::Reaction::id)
 		|| Window::ShowReactPremiumError(_controller, item, favorite)) {
 		return;
 	} else if (!ranges::contains(item->chosenReactions(), favorite)) {

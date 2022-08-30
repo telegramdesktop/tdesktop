@@ -375,7 +375,9 @@ bool ShowReactPremiumError(
 		Data::Reactions::Type::Active);
 	const auto i = ranges::find(list, id, &Data::Reaction::id);
 	if (i == end(list) || !i->premium) {
-		return false;
+		if (!id.custom()) {
+			return false;
+		}
 	}
 	ShowPremiumPreviewBox(
 		controller,

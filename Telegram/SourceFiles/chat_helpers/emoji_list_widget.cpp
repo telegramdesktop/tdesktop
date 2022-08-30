@@ -826,8 +826,11 @@ void EmojiListWidget::paint(
 		const auto buttonSelected = selectedButton
 			? (selectedButton->section == info.section)
 			: false;
+		const auto titleLeft = (info.premiumRequired
+			? st().headerLockedLeft
+			: st().headerLeft) - st().margin.left();
 		const auto widthForTitle = emojiRight()
-			- (st().headerLeft - st().margin.left())
+			- titleLeft
 			- paintButtonGetWidth(p, info, buttonSelected, clip);
 		if (info.section > 0 && clip.top() < info.rowsTop) {
 			p.setFont(st::emojiPanHeaderFont);
@@ -840,9 +843,6 @@ void EmojiListWidget::paint(
 				titleText = st::emojiPanHeaderFont->elided(titleText, widthForTitle);
 				titleWidth = st::emojiPanHeaderFont->width(titleText);
 			}
-			const auto left = (info.premiumRequired
-				? st().headerLockedLeft
-				: st().headerLeft) - st().margin.left();
 			const auto top = info.top + st().headerTop;
 			if (info.premiumRequired) {
 				st::emojiPremiumRequired.paint(
@@ -851,10 +851,10 @@ void EmojiListWidget::paint(
 					top,
 					width());
 			}
-			const auto textTop = top + st::emojiPanHeaderFont->ascent;
+			const auto textBaseline = top + st::emojiPanHeaderFont->ascent;
 			p.setFont(st::emojiPanHeaderFont);
 			p.setPen(st::emojiPanHeaderFg);
-			p.drawText(left, textTop, titleText);
+			p.drawText(titleLeft, textBaseline, titleText);
 		}
 		if (clip.top() + clip.height() > info.rowsTop) {
 			ensureLoaded(info.section);
@@ -1139,7 +1139,18 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			_localSetsManager->install(id);
 		} else if (_controller) {
 			_jumpedToPremium.fire({});
-			Settings::ShowPremium(_controller, u"animated_emoji"_q);
+			switch (_mode) {
+			case Mode::Full:
+				Settings::ShowPremium(_controller, u"animated_emoji"_q);
+				break;
+			case Mode::FullReactions:
+			case Mode::RecentReactions:
+				Settings::ShowPremium(_controller, u"unique_reactions"_q);
+				break;
+			case Mode::EmojiStatus:
+				Settings::ShowPremium(_controller, u"emoji_status"_q);
+				break;
+			}
 		}
 	}
 }
@@ -1679,7 +1690,7 @@ int EmojiListWidget::paintButtonGetWidth(
 					remove.topLeft() + st::stickerPanRemoveSet.iconPosition,
 					width());
 		}
-		return remove.width();
+		return emojiRight() - remove.x();
 	}
 	const auto canAdd = hasAddButton(info.section);
 	const auto &button = rightButton(info.section);
@@ -1704,7 +1715,7 @@ int EmojiListWidget::paintButtonGetWidth(
 			+ st::emojiPanButton.textTop
 			+ st::emojiPanButton.font->ascent),
 		button.text);
-	return rect.width();
+	return emojiRight() - rect.x();
 }
 
 bool EmojiListWidget::eventHook(QEvent *e) {
