@@ -38,7 +38,7 @@ constexpr auto kSizeForDownscale = 64;
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
 constexpr auto kRecentReactionsLimit = 40;
 constexpr auto kTopRequestDelay = 60 * crl::time(1000);
-constexpr auto kTopReactionsLimit = 10;
+constexpr auto kTopReactionsLimit = 14;
 
 [[nodiscard]] QString ReactionIdToLog(const ReactionId &id) {
 	if (const auto custom = id.custom()) {
@@ -107,7 +107,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 	}();
 	auto added = base::flat_set<ReactionId>();
 	const auto add = [&](auto predicate) {
-		auto &&all = ranges::views::concat(recent, top, full);
+		auto &&all = ranges::views::concat(top, recent, full);
 		for (const auto &reaction : all) {
 			if (predicate(reaction)) {
 				if (added.emplace(reaction.id).second) {

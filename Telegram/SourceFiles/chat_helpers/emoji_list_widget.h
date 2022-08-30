@@ -113,6 +113,8 @@ public:
 		-> rpl::producer<not_null<DocumentData*>>;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
 
+	void provideRecent(const std::vector<DocumentId> &customRecentList);
+
 	void paintExpanding(
 		QPainter &p,
 		QRect clip,

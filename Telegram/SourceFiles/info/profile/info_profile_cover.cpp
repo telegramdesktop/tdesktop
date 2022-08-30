@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_emoji_statuses.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "info/profile/info_profile_values.h"
@@ -231,6 +232,20 @@ void BadgeView::move(int left, int top, int bottom) {
 void EmojiStatusPanel::show(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button) {
+	const auto self = controller->session().user();
+	const auto &statuses = controller->session().data().emojiStatuses();
+	const auto &other = statuses.list(Data::EmojiStatuses::Type::Default);
+	auto list = statuses.list(Data::EmojiStatuses::Type::Recent);
+	list.insert(begin(list), 0);
+	list.reserve(list.size() + other.size() + 1);
+	for (const auto &otherId : other) {
+		if (!ranges::contains(list, otherId)) {
+			list.push_back(otherId);
+		}
+	}
+	if (!ranges::contains(list, self->emojiStatusId())) {
+		list.push_back(self->emojiStatusId());
+	}
 	if (!_panel) {
 		create(controller);
 
@@ -242,6 +257,7 @@ void EmojiStatusPanel::show(
 			button->removeEventFilter(_panel.get());
 		}, _panel->lifetime());
 	}
+	_panel->selector()->provideRecentEmoji(list);
 	const auto parent = _panel->parentWidget();
 	const auto global = button->mapToGlobal(QPoint());
 	const auto local = parent->mapFromGlobal(global);
@@ -280,10 +296,7 @@ void EmojiStatusPanel::create(
 		std::move(statusChosen),
 		_panel->selector()->emojiChosen() | rpl::map_to(DocumentId())
 	) | rpl::start_with_next([=](DocumentId id) {
-		controller->session().user()->setEmojiStatus(id);
-		controller->session().api().request(MTPaccount_UpdateEmojiStatus(
-			id ? MTP_emojiStatus(MTP_long(id)) : MTP_emojiStatusEmpty()
-		)).send();
+		controller->session().data().emojiStatuses().set(id);
 		_panel->hideAnimated();
 	}, _panel->lifetime());
 

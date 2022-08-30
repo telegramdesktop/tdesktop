@@ -22,6 +22,7 @@ namespace ChatHelpers {
 class TabbedPanel;
 class EmojiListWidget;
 class StickersListFooter;
+enum class EmojiListMode;
 } // namespace ChatHelpers
 
 namespace Window {
@@ -42,6 +43,12 @@ public:
 		not_null<Window::SessionController*> parentController,
 		const Data::PossibleItemReactionsRef &reactions,
 		IconFactory iconFactory,
+		Fn<void(bool fast)> close);
+	Selector(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> parentController,
+		ChatHelpers::EmojiListMode mode,
+		std::vector<DocumentId> recent,
 		Fn<void(bool fast)> close);
 
 	int countWidth(int desiredWidth, int maxWidth);
@@ -74,6 +81,15 @@ private:
 		int finalBottom = 0;
 	};
 
+	Selector(
+		not_null<QWidget*> parent,
+		not_null<Window::SessionController*> parentController,
+		const Data::PossibleItemReactionsRef &reactions,
+		ChatHelpers::EmojiListMode mode,
+		std::vector<DocumentId> recent,
+		IconFactory iconFactory,
+		Fn<void(bool fast)> close);
+
 	void paintEvent(QPaintEvent *e) override;
 	void mouseMoveEvent(QMouseEvent *e) override;
 	void leaveEventHook(QEvent *e) override;
@@ -89,6 +105,7 @@ private:
 	void paintBubble(QPainter &p, int innerWidth);
 	void paintBackgroundToBuffer();
 
+	[[nodiscard]] int recentCount() const;
 	[[nodiscard]] int countSkipLeft() const;
 	[[nodiscard]] int lookupSelectedIndex(QPoint position) const;
 	void setSelected(int index);
@@ -100,12 +117,14 @@ private:
 
 	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;
+	const std::vector<DocumentId> _recent;
+	const ChatHelpers::EmojiListMode _listMode;
 	Fn<void()> _jumpedToPremium;
 	base::flat_map<DocumentId, int> _defaultReactionInStripMap;
 	Ui::RoundAreaWithShadow _cachedRound;
 	QPoint _defaultReactionShift;
 	QPoint _stripPaintOneShift;
-	Strip _strip;
+	std::unique_ptr<Strip> _strip;
 
 	rpl::event_stream<ChosenReaction> _chosen;
 	rpl::event_stream<> _premiumPromoChosen;
@@ -149,6 +168,15 @@ enum class AttachSelectorResult {
 	Failed,
 	Attached,
 };
+
+AttachSelectorResult MakeJustSelectorMenu(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<Window::SessionController*> controller,
+	QPoint desiredPosition,
+	ChatHelpers::EmojiListMode mode,
+	std::vector<DocumentId> recent,
+	Fn<void(ChosenReaction)> chosen);
+
 AttachSelectorResult AttachSelectorToMenu(
 	not_null<Ui::PopupMenu*> menu,
 	not_null<Window::SessionController*> controller,

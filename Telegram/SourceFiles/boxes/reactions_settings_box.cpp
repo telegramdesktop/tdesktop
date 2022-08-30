@@ -419,7 +419,7 @@ void AddReactionCustomIcon(
 		Fn<void()> repaint;
 	};
 	const auto state = stateLifetime->make_state<State>();
-	static constexpr auto tag = Data::CustomEmojiManager::SizeTag::Large;
+	static constexpr auto tag = Data::CustomEmojiManager::SizeTag::Normal;
 	state->custom = controller->session().data().customEmojiManager().create(
 		customId,
 		[=] { state->repaint(); },
@@ -445,6 +445,7 @@ void AddReactionCustomIcon(
 		paintCallback,
 		std::move(destroys),
 		stateLifetime);
+	state->repaint = crl::guard(widget, [=] { widget->update(); });
 }
 
 void ReactionsSettingsBox(

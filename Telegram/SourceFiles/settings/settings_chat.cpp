@@ -919,14 +919,13 @@ void SetupMessages(
 		selected
 	) | rpl::start_with_next([=, idValue = std::move(idValue)](
 			const Data::ReactionId &id) {
+		const auto index = state->icons.flag ? 1 : 0;
+		const auto iconSize = st::settingsReactionRightIcon;
 		const auto &reactions = controller->session().data().reactions();
-		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
-			if (id != r.id) {
-				continue;
-			}
-			const auto index = state->icons.flag ? 1 : 0;
-			state->icons.lifetimes[index] = rpl::lifetime();
-			const auto iconSize = st::settingsReactionRightIcon;
+		const auto &list = reactions.list(Data::Reactions::Type::All);
+		const auto i = ranges::find(list, id, &Data::Reaction::id);
+		state->icons.lifetimes[index] = rpl::lifetime();
+		if (i != end(list)) {
 			AddReactionAnimatedIcon(
 				inner,
 				buttonRight->geometryValue(
@@ -936,17 +935,30 @@ void SetupMessages(
 						r.top() + (r.height() - iconSize) / 2);
 				}),
 				iconSize,
-				r,
+				*i,
 				buttonRight->events(
 				) | rpl::filter([=](not_null<QEvent*> event) {
 					return event->type() == QEvent::Enter;
 				}) | rpl::to_empty,
 				rpl::duplicate(idValue) | rpl::skip(1) | rpl::to_empty,
 				&state->icons.lifetimes[index]);
-			state->icons.flag = !state->icons.flag;
-			toggleButtonRight(true);
-			break;
+		} else if (const auto customId = id.custom()) {
+			AddReactionCustomIcon(
+				inner,
+				buttonRight->geometryValue(
+				) | rpl::map([=](const QRect &r) {
+					return QPoint(
+						r.left() + (r.width() - iconSize) / 2,
+						r.top() + (r.height() - iconSize) / 2);
+				}),
+				iconSize,
+				controller,
+				customId,
+				rpl::duplicate(idValue) | rpl::skip(1) | rpl::to_empty,
+				&state->icons.lifetimes[index]);
 		}
+		state->icons.flag = !state->icons.flag;
+		toggleButtonRight(true);
 	}, buttonRight->lifetime());
 
 	react->geometryValue(

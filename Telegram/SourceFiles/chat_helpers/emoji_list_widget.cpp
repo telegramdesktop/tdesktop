@@ -454,6 +454,13 @@ EmojiListWidget::~EmojiListWidget() {
 	base::take(_customEmoji);
 }
 
+void EmojiListWidget::provideRecent(
+		const std::vector<DocumentId> &customRecentList) {
+	clearSelection();
+	fillRecentFrom(customRecentList);
+	resizeToWidth(width());
+}
+
 void EmojiListWidget::repaintCustom(uint64 setId) {
 	if (!_repaintsScheduled.emplace(setId).second) {
 		return;
@@ -730,24 +737,18 @@ void EmojiListWidget::ensureLoaded(int section) {
 }
 
 void EmojiListWidget::fillRecent() {
-	if (_mode != Mode::Full && _mode != Mode::EmojiStatus) {
-		return; // #TODO emoji_status
+	if (_mode != Mode::Full) {
+		return;
 	}
 	_recent.clear();
 	_recentCustomIds.clear();
 
 	const auto &list = Core::App().settings().recentEmoji();
 	_recent.reserve(std::min(int(list.size()), Core::kRecentEmojiLimit) + 1);
-	if (_mode == Mode::EmojiStatus) {
-		const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
-		_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
-	}
 	const auto test = session().isTestMode();
 	for (const auto &one : list) {
 		const auto document = std::get_if<RecentEmojiDocument>(&one.id.data);
-		if (_mode == Mode::EmojiStatus && !document) {
-			continue;
-		} else if (document && document->test != test) {
+		if (document && document->test != test) {
 			continue;
 		}
 		_recent.push_back({
@@ -770,11 +771,16 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 
 	_recent.reserve(list.size());
 	for (const auto &id : list) {
-		_recent.push_back({
-			.custom = resolveCustomRecent(id),
-			.id = { RecentEmojiDocument{.id = id, .test = test } },
-		});
-		_recentCustomIds.emplace(id);
+		if (!id && _mode == Mode::EmojiStatus) {
+			const auto star = QString::fromUtf8("\xe2\xad\x90\xef\xb8\x8f");
+			_recent.push_back({ .id = { Ui::Emoji::Find(star) } });
+		} else {
+			_recent.push_back({
+				.custom = resolveCustomRecent(id),
+				.id = { RecentEmojiDocument{.id = id, .test = test } },
+			});
+			_recentCustomIds.emplace(id);
+		}
 	}
 }
 
@@ -1445,8 +1451,8 @@ void EmojiListWidget::processPanelHideFinished() {
 }
 
 void EmojiListWidget::refreshRecent() {
-	if (_mode != Mode::Full && _mode != Mode::EmojiStatus) {
-		return; // #TODO emoji_status
+	if (_mode != Mode::Full) {
+		return;
 	}
 	clearSelection();
 	fillRecent();

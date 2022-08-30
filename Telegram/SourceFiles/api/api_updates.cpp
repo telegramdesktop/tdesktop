@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_group_call.h"
 #include "data/data_drafts.h"
 #include "data/data_histories.h"
@@ -2388,7 +2389,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateRecentEmojiStatuses: {
-		// #TODO emoji_status
+		session().data().emojiStatuses().refreshRecentDelayed();
 	} break;
 
 	case mtpc_updateRecentReactions: {

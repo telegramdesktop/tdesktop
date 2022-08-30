@@ -109,6 +109,7 @@ public:
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
 	void showPromoForPremiumEmoji();
+	void provideRecentEmoji(const std::vector<DocumentId> &customRecentList);
 
 	void hideFinished();
 	void showStarted();
