@@ -74,6 +74,14 @@ constexpr auto kTopReactionsLimit = 10;
 	};
 }
 
+[[nodiscard]] int SentReactionsLimit(not_null<HistoryItem*> item) {
+	const auto session = &item->history()->session();
+	const auto config = &session->account().appConfig();
+	return session->premium()
+		? config->get<int>("reactions_user_max_premium", 3)
+		: config->get<int>("reactions_user_max_default", 1);
+}
+
 } // namespace
 
 PossibleItemReactionsRef LookupPossibleReactions(
@@ -853,7 +861,7 @@ void MessageReactions::add(const ReactionId &id, bool addToRecent) {
 
 	const auto history = _item->history();
 	const auto self = history->session().user();
-	const auto myLimit = self->isPremium() ? 5 : 1; // #TODO reactions
+	const auto myLimit = SentReactionsLimit(_item);
 	if (ranges::contains(chosen(), id)) {
 		return;
 	}
