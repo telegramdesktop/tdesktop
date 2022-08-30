@@ -42,6 +42,74 @@ constexpr auto kStepBeforeDeflection = 0.75;
 constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	+ (1. - kStepBeforeDeflection) / 2.;
 
+class GradientRadioView : public Ui::RadioView {
+public:
+	GradientRadioView(
+		const style::Radio &st,
+		bool checked,
+		Fn<void()> updateCallback = nullptr);
+
+	void setBrush(std::optional<QBrush> brush);
+
+	void paint(Painter &p, int left, int top, int outerWidth) override;
+
+private:
+
+	not_null<const style::Radio*> _st;
+	std::optional<QBrush> _brushOverride;
+
+};
+
+GradientRadioView::GradientRadioView(
+	const style::Radio &st,
+	bool checked,
+	Fn<void()> updateCallback)
+: Ui::RadioView(st, checked, updateCallback)
+, _st(&st) {
+}
+
+void GradientRadioView::paint(Painter &p, int left, int top, int outerWidth) {
+	PainterHighQualityEnabler hq(p);
+
+	const auto toggled = currentAnimationValue();
+	const auto toggledFg = _brushOverride
+		? (*_brushOverride)
+		: QBrush(_st->toggledFg);
+
+	{
+		const auto skip = (_st->outerSkip / 10.) + (_st->thickness / 2);
+		const auto rect = QRectF(left, top, _st->diameter, _st->diameter)
+			- QMarginsF(skip, skip, skip, skip);
+
+		p.setBrush(_st->bg);
+		if (toggled < 1) {
+			p.setPen(QPen(_st->untoggledFg, _st->thickness));
+			p.drawEllipse(style::rtlrect(rect, outerWidth));
+		}
+		if (toggled > 0) {
+			p.setOpacity(toggled);
+			p.setPen(QPen(toggledFg, _st->thickness));
+			p.drawEllipse(style::rtlrect(rect, outerWidth));
+		}
+	}
+
+	if (toggled > 0) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(toggledFg);
+
+		const auto skip0 = _st->diameter / 2.;
+		const auto skip1 = _st->skip / 10.;
+		const auto checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
+		const auto rect = QRectF(left, top, _st->diameter, _st->diameter)
+			- QMarginsF(checkSkip, checkSkip, checkSkip, checkSkip);
+		p.drawEllipse(style::rtlrect(rect, outerWidth));
+	}
+}
+
+void GradientRadioView::setBrush(std::optional<QBrush> brush) {
+	_brushOverride = brush;
+}
+
 [[nodiscard]] TextFactory ProcessTextFactory(
 		std::optional<tr::phrase<lngtag_count>> phrase) {
 	return phrase
@@ -968,12 +1036,17 @@ void AddGiftOptions(
 		}
 
 		const auto &stCheckbox = st::defaultBoxCheckbox;
+		auto radioView = std::make_unique<GradientRadioView>(
+			st::defaultRadio,
+			(group->hasValue() && group->value() == index));
+		const auto radioViewRaw = radioView.get();
 		const auto radio = Ui::CreateChild<Ui::Radiobutton>(
 			row,
 			group,
 			index,
 			QString(),
-			stCheckbox);
+			stCheckbox,
+			std::move(radioView));
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 		row->sizeValue(
@@ -986,6 +1059,24 @@ void AddGiftOptions(
 				st.rowMargins.left(),
 				(s.height() - radioHeight) / 2);
 		}, radio->lifetime());
+
+		{
+			auto onceLifetime = std::make_shared<rpl::lifetime>();
+			row->paintRequest(
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=]() mutable {
+				const auto from = edges->top->y();
+				const auto to = edges->bottom->y() + edges->bottom->height();
+				auto partialGradient = PartialGradient(from, to, stops);
+
+				radioViewRaw->setBrush(
+					partialGradient.compute(row->y(), row->height()));
+				if (onceLifetime) {
+					base::take(onceLifetime)->destroy();
+				}
+			}, *onceLifetime);
+		}
 
 		row->paintRequest(
 		) | rpl::start_with_next([=](const QRect &r) {
@@ -1033,13 +1124,15 @@ void AddGiftOptions(
 						+ st.subtitleTop
 						+ (titleFont->height - bottomLeftRect.height()) / 2)
 				: bottomLeftRect;
+			const auto from = edges->top->y();
+			const auto to = edges->bottom->y() + edges->bottom->height();
+			auto partialGradient = PartialGradient(from, to, stops);
+			const auto partialGradientBrush = partialGradient.compute(
+				row->y(),
+				row->height());
 			{
-				const auto from = edges->top->y();
-				const auto to = edges->bottom->y() + edges->bottom->height();
-				auto partialGradient = PartialGradient(from, to, stops);
-
 				p.setPen(Qt::NoPen);
-				p.setBrush(partialGradient.compute(row->y(), row->height()));
+				p.setBrush(partialGradientBrush);
 				const auto round = st.badgeRadius;
 				p.drawRoundedRect(discountRect, round, round);
 			}
@@ -1050,7 +1143,9 @@ void AddGiftOptions(
 				auto gradient = QLinearGradient(w - w * progress, 0, w * 2, 0);
 				gradient.setSpread(QGradient::Spread::RepeatSpread);
 				gradient.setStops(stops);
-				const auto pen = QPen(QBrush(gradient), st.borderWidth);
+				const auto pen = QPen(
+					QBrush(partialGradientBrush),
+					st.borderWidth);
 				p.setPen(pen);
 				p.setBrush(Qt::NoBrush);
 				const auto borderRect = row->rect()
