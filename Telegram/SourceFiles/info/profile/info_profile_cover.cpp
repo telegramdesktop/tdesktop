@@ -87,10 +87,12 @@ BadgeView::BadgeView(
 	const style::InfoPeerBadge &st,
 	not_null<PeerData*> peer,
 	Fn<bool()> animationPaused,
+	int customStatusLoopsLimit,
 	base::flags<Badge> allowed)
 : _parent(parent)
 , _st(st)
 , _peer(peer)
+, _customStatusLoopsLimit(customStatusLoopsLimit)
 , _allowed(allowed)
 , _animationPaused(std::move(animationPaused)) {
 	rpl::combine(
@@ -144,6 +146,11 @@ void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
 				_emojiStatusId,
 				[raw = _view.data()] { raw->update(); },
 				tag);
+			if (_customStatusLoopsLimit > 0) {
+				_emojiStatus = std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+					std::move(_emojiStatus),
+					_customStatusLoopsLimit);
+			}
 			_emojiStatusColored = std::make_unique<
 				Ui::Text::CustomEmojiColored
 			>();

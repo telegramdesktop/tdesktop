@@ -114,6 +114,7 @@ Cover::Cover(
 		return controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	},
+	0, // customStatusLoopsLimit
 	Info::Profile::Badge::Premium)
 , _userpic(
 	this,

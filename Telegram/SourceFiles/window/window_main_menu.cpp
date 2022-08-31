@@ -73,6 +73,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
+constexpr auto kPlayStatusLimit = 2;
+
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	auto controller = std::make_unique<Calls::BoxController>(window);
 	const auto initBox = [
@@ -341,6 +343,7 @@ MainMenu::MainMenu(
 	st::settingsInfoPeerBadge,
 	controller->session().user(),
 	[=] { return controller->isGifPausedAtLeastFor(GifPauseReason::Layer); },
+	kPlayStatusLimit,
 	Info::Profile::Badge::Premium))
 , _emojiStatusPanel(std::make_unique<Info::Profile::EmojiStatusPanel>())
 , _scroll(this, st::defaultSolidScroll)

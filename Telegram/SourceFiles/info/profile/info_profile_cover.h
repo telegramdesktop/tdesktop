@@ -61,6 +61,7 @@ public:
 		const style::InfoPeerBadge &st,
 		not_null<PeerData*> peer,
 		Fn<bool()> animationPaused,
+		int customStatusLoopsLimit = 0,
 		base::flags<Badge> allowed = base::flags<Badge>::from_raw(-1));
 
 	[[nodiscard]] Ui::RpWidget *widget() const;
@@ -75,6 +76,7 @@ private:
 	const not_null<QWidget*> _parent;
 	const style::InfoPeerBadge &_st;
 	const not_null<PeerData*> _peer;
+	const int _customStatusLoopsLimit = 0;
 	DocumentId _emojiStatusId = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emojiStatus;
 	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColored;

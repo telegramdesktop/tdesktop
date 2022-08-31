@@ -64,6 +64,7 @@ namespace Settings {
 namespace {
 
 constexpr auto kSaveBioTimeout = 1000;
+constexpr auto kPlayStatusLimit = 2;
 
 class ComposedBadge final : public Ui::RpWidget {
 public:
@@ -99,6 +100,7 @@ ComposedBadge::ComposedBadge(
 		st::settingsInfoPeerBadge,
 		session->user(),
 		std::move(animationPaused),
+		kPlayStatusLimit,
 		Info::Profile::Badge::Premium) {
 	if (hasUnread) {
 		_unread = CreateUnread(this, rpl::single(
