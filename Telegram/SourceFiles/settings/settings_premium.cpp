@@ -21,11 +21,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h" // SerializeCustomEmojiId.
 #include "data/stickers/data_stickers.h"
 #include "history/view/media/history_view_sticker.h" // EmojiSize.
+#include "history/view/media/history_view_sticker_player.h"
 #include "info/info_wrap_widget.h" // Info::Wrap.
 #include "info/profile/info_profile_values.h"
 #include "info/settings/info_settings_widget.h" // SectionCustomTopBarData.
 #include "lang/lang_keys.h"
-#include "lottie/lottie_single_player.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
 #include "main/main_session.h"
@@ -441,7 +441,7 @@ private:
 
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
-	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	bool _paused = false;
 	rpl::lifetime _lifetime;
 
@@ -466,20 +466,22 @@ EmojiStatusTopBar::EmojiStatusTopBar(
 		}
 		_lifetime.destroy();
 		if (sticker->isLottie()) {
-			_lottie = ChatHelpers::LottiePlayerFromDocument(
+			_player = std::make_unique<HistoryView::LottiePlayer>(
+				ChatHelpers::LottiePlayerFromDocument(
 				_media.get(),
 				ChatHelpers::StickerLottieSize::EmojiInteractionReserved7, //
 				size.toSize(),
-				Lottie::Quality::High);
-
-			_lifetime = _lottie->updates(
-			) | rpl::start_with_next([=](Lottie::Update update) {
-				v::match(update.data, [&](const Lottie::Information &) {
-					callback(_rect.toRect());
-				}, [&](const Lottie::DisplayFrameRequest &) {
-					callback(_rect.toRect());
-				});
-			});
+				Lottie::Quality::High));
+		} else if (sticker->isWebm()) {
+			_player = std::make_unique<HistoryView::WebmPlayer>(
+				_media->owner()->location(),
+				_media->bytes(),
+				size.toSize());
+		}
+		if (_player) {
+			_player->setRepaintCallback([=] { callback(_rect.toRect()); });
+		} else {
+			callback(_rect.toRect());
 		}
 	}, _lifetime);
 }
@@ -507,19 +509,22 @@ QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
 }
 
 void EmojiStatusTopBar::paint(QPainter &p) {
-	if (_lottie) {
-		if (_lottie->ready()) {
-			const auto info = _lottie->frameInfo({
-				.box = (_rect.size() * style::DevicePixelRatio()).toSize(),
-			});
+	if (_player) {
+		if (_player->ready()) {
+			const auto frame = _player->frame(
+				_rect.size().toSize(),
+				Qt::transparent,
+				false,
+				crl::now(),
+				_paused);
 
-			p.drawImage(_rect, info.image);
+			p.drawImage(_rect, frame.image);
 			if (!_paused) {
-				_lottie->markFrameShown();
+				_player->markFrameShown();
 			}
 		}
 	} else if (_media) {
-		p.drawPixmap(_rect, paintedPixmap(_rect.size().toSize()), _rect);
+		p.drawPixmap(_rect.topLeft(), paintedPixmap(_rect.size().toSize()));
 	}
 }
 
@@ -641,6 +646,10 @@ TopBarUser::TopBarUser(
 
 		updateTitle(document, name, controller);
 		updateAbout(document);
+
+		auto event = QResizeEvent(size(), size());
+		resizeEvent(&event);
+		update();
 	}, lifetime());
 
 	rpl::combine(
@@ -909,9 +918,7 @@ TopBar::TopBar(
 		return false;
 	});
 
-	rpl::single(
-		rpl::empty_value()
-	) | rpl::then(
+	rpl::single() | rpl::then(
 		style::PaletteChanged()
 	) | rpl::start_with_next([=] {
 		const auto contrast = Ui::CountContrast(
