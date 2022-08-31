@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "ui/image/image.h"
 #include "ui/chat/chat_style.h"
 #include "ui/effects/path_shift_gradient.h"
@@ -27,8 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_media.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
-#include "lottie/lottie_single_player.h"
-#include "media/clip/media_clip_reader.h"
 #include "chat_helpers/stickers_lottie.h"
 #include "styles/style_chat.h"
 
@@ -39,8 +38,6 @@ constexpr auto kMaxSizeFixed = 512;
 constexpr auto kMaxEmojiSizeFixed = 256;
 constexpr auto kPremiumMultiplier = (1 + 0.245 * 2);
 constexpr auto kEmojiMultiplier = 3;
-
-using ClipNotification = ::Media::Clip::Notification;
 
 [[nodiscard]] QImage CacheDiceImage(
 		const QString &emoji,
@@ -54,154 +51,6 @@ using ClipNotification = ::Media::Clip::Notification;
 	}
 	Cache[key] = image;
 	return image;
-}
-
-class LottiePlayer final : public StickerPlayer {
-public:
-	explicit LottiePlayer(std::unique_ptr<Lottie::SinglePlayer> lottie);
-
-	void setRepaintCallback(Fn<void()> callback) override;
-	bool ready() override;
-	int framesCount() override;
-	FrameInfo frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) override;
-	bool markFrameShown() override;
-
-private:
-	std::unique_ptr<Lottie::SinglePlayer> _lottie;
-	rpl::lifetime _repaintLifetime;
-
-};
-
-LottiePlayer::LottiePlayer(std::unique_ptr<Lottie::SinglePlayer> lottie)
-: _lottie(std::move(lottie)) {
-}
-
-void LottiePlayer::setRepaintCallback(Fn<void()> callback) {
-	_repaintLifetime = _lottie->updates(
-	) | rpl::start_with_next([=](Lottie::Update update) {
-		v::match(update.data, [&](const Lottie::Information &information) {
-			callback();
-			//markFramesTillExternal();
-		}, [&](const Lottie::DisplayFrameRequest &request) {
-			callback();
-		});
-	});
-}
-
-bool LottiePlayer::ready() {
-	return _lottie->ready();
-}
-
-int LottiePlayer::framesCount() {
-	return _lottie->information().framesCount;
-}
-
-LottiePlayer::FrameInfo LottiePlayer::frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) {
-	auto request = Lottie::FrameRequest();
-	request.box = size * style::DevicePixelRatio();
-	request.colored = colored;
-	request.mirrorHorizontal = mirrorHorizontal;
-	const auto info = _lottie->frameInfo(request);
-	return { .image = info.image, .index = info.index };
-}
-
-bool LottiePlayer::markFrameShown() {
-	return _lottie->markFrameShown();
-}
-
-class WebmPlayer final : public StickerPlayer {
-public:
-	WebmPlayer(
-		const Core::FileLocation &location,
-		const QByteArray &data,
-		QSize size);
-
-	void setRepaintCallback(Fn<void()> callback) override;
-	bool ready() override;
-	int framesCount() override;
-	FrameInfo frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) override;
-	bool markFrameShown() override;
-
-private:
-	void clipCallback(ClipNotification notification);
-
-	::Media::Clip::ReaderPointer _reader;
-	Fn<void()> _repaintCallback;
-	QSize _size;
-
-};
-
-WebmPlayer::WebmPlayer(
-	const Core::FileLocation &location,
-	const QByteArray &data,
-	QSize size)
-: _reader(
-	::Media::Clip::MakeReader(location, data, [=](ClipNotification update) {
-	clipCallback(update);
-}))
-, _size(size) {
-}
-
-void WebmPlayer::clipCallback(ClipNotification notification) {
-	switch (notification) {
-	case ClipNotification::Reinit: {
-		if (_reader->state() == ::Media::Clip::State::Error) {
-			_reader.setBad();
-		} else if (_reader->ready() && !_reader->started()) {
-			_reader->start({ .frame = _size, .keepAlpha = true });
-		}
-	} break;
-
-	case ClipNotification::Repaint: break;
-	}
-
-	_repaintCallback();
-}
-
-void WebmPlayer::setRepaintCallback(Fn<void()> callback) {
-	_repaintCallback = std::move(callback);
-}
-
-bool WebmPlayer::ready() {
-	return _reader && _reader->started();
-}
-
-int WebmPlayer::framesCount() {
-	return -1;
-}
-
-WebmPlayer::FrameInfo WebmPlayer::frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) {
-	auto request = ::Media::Clip::FrameRequest();
-	request.frame = size;
-	request.factor = style::DevicePixelRatio();
-	request.keepAlpha = true;
-	request.colored = colored;
-	const auto info = _reader->frameInfo(request, paused ? 0 : now);
-	return { .image = info.image, .index = info.index };
-}
-
-bool WebmPlayer::markFrameShown() {
-	return _reader->moveToNextFrame();
 }
 
 } // namespace

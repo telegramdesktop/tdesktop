@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media_unwrapped.h"
+#include "history/view/media/history_view_sticker_player_abstract.h"
 #include "base/weak_ptr.h"
 
 namespace Main {
@@ -20,7 +21,6 @@ class DocumentMedia;
 } // namespace Data
 
 namespace Lottie {
-class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
@@ -29,26 +29,6 @@ enum class StickerLottieSize : uint8;
 } // namespace ChatHelpers
 
 namespace HistoryView {
-
-class StickerPlayer {
-public:
-	virtual ~StickerPlayer() = default;
-
-	struct FrameInfo {
-		QImage image;
-		int index = 0;
-	};
-	virtual void setRepaintCallback(Fn<void()> callback) = 0;
-	[[nodiscard]] virtual bool ready() = 0;
-	[[nodiscard]] virtual int framesCount() = 0;
-	[[nodiscard]] virtual FrameInfo frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) = 0;
-	virtual bool markFrameShown() = 0;
-};
 
 class Sticker final
 	: public UnwrappedMedia::Content

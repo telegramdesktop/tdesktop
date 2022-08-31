@@ -660,6 +660,9 @@ PRIVATE
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_sticker.h
     history/view/media/history_view_sticker.cpp
+    history/view/media/history_view_sticker_player.cpp
+    history/view/media/history_view_sticker_player.h
+    history/view/media/history_view_sticker_player_abstract.h
     history/view/media/history_view_theme_document.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_web_page.h
