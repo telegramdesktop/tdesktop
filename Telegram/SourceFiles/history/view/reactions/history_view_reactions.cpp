@@ -17,7 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_session.h"
+#include "main/main_session.h"
 #include "lang/lang_tag.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/chat/chat_style.h"
@@ -595,29 +597,45 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	const auto item = message->message();
 	auto result = InlineListData();
 	result.reactions = item->reactions();
-	const auto &recent = item->recentReactions();
-	const auto showUserpics = [&] {
-		if (recent.size() != result.reactions.size()) {
-			return false;
-		}
-		auto sum = 0;
+	if (const auto user = item->history()->peer->asUser()) {
+		// Always show userpics, we have all information.
+		result.recent.reserve(result.reactions.size());
+		const auto self = user->session().user();
 		for (const auto &reaction : result.reactions) {
-			if ((sum += reaction.count) > kMaxRecentUserpics) {
-				return false;
+			auto &list = result.recent[reaction.id];
+			list.reserve(reaction.count);
+			if (!reaction.my || reaction.count > 1) {
+				list.push_back(user);
 			}
-			const auto i = recent.find(reaction.id);
-			if (i == end(recent) || reaction.count != i->second.size()) {
-				return false;
+			if (reaction.my) {
+				list.push_back(self);
 			}
 		}
-		return true;
-	}();
-	if (showUserpics) {
-		result.recent.reserve(recent.size());
-		for (const auto &[id, list] : recent) {
-			result.recent.emplace(id).first->second = list
-				| ranges::view::transform(&Data::RecentReaction::peer)
-				| ranges::to_vector;
+	} else {
+		const auto &recent = item->recentReactions();
+		const auto showUserpics = [&] {
+			if (recent.size() != result.reactions.size()) {
+				return false;
+			}
+			auto sum = 0;
+			for (const auto &reaction : result.reactions) {
+				if ((sum += reaction.count) > kMaxRecentUserpics) {
+					return false;
+				}
+				const auto i = recent.find(reaction.id);
+				if (i == end(recent) || reaction.count != i->second.size()) {
+					return false;
+				}
+			}
+			return true;
+		}();
+		if (showUserpics) {
+			result.recent.reserve(recent.size());
+			for (const auto &[id, list] : recent) {
+				result.recent.emplace(id).first->second = list
+					| ranges::view::transform(&Data::RecentReaction::peer)
+					| ranges::to_vector;
+			}
 		}
 	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
