@@ -435,6 +435,9 @@ EmojiListWidget::EmojiListWidget(
 		resizeToWidth(width());
 	}, lifetime());
 
+	if (_mode == Mode::EmojiStatus) {
+		_emojiStatusColor = std::make_unique<Ui::Text::CustomEmojiColored>();
+	}
 	rpl::single(
 		rpl::empty
 	) | rpl::then(
@@ -443,6 +446,12 @@ EmojiListWidget::EmojiListWidget(
 		initButton(_add, tr::lng_stickers_featured_add(tr::now), false);
 		initButton(_unlock, tr::lng_emoji_featured_unlock(tr::now), true);
 		initButton(_restore, tr::lng_emoji_premium_restore(tr::now), true);
+		if (const auto status = _emojiStatusColor.get()) {
+			status->color = anim::color(
+				st::stickerPanPremium1,
+				st::stickerPanPremium2,
+				0.5);
+		}
 	}, lifetime());
 
 	if (!descriptor.customRecentList.empty()) {
@@ -765,10 +774,11 @@ void EmojiListWidget::fillRecent() {
 }
 
 void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
-	Expects(_recent.empty());
-
 	const auto test = session().isTestMode();
-
+	const auto owner = &session().data();
+	const auto statuses = &owner->emojiStatuses();
+	const auto manager = &owner->customEmojiManager();
+	_recent.clear();
 	_recent.reserve(list.size());
 	for (const auto &id : list) {
 		if (!id && _mode == Mode::EmojiStatus) {
@@ -777,7 +787,7 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 		} else {
 			_recent.push_back({
 				.custom = resolveCustomRecent(id),
-				.id = { RecentEmojiDocument{.id = id, .test = test } },
+				.id = { RecentEmojiDocument{ .id = id, .test = test } },
 			});
 			_recentCustomIds.emplace(id);
 		}
@@ -963,7 +973,21 @@ void EmojiListWidget::drawRecent(
 		bool paused,
 		int index) {
 	_recentPainted = true;
-	if (const auto emoji = std::get_if<EmojiPtr>(&_recent[index].id.data)) {
+	auto &recent = _recent[index];
+	if (const auto custom = recent.custom) {
+		position += _innerPosition + _customPosition;
+		const auto paintContext = Ui::Text::CustomEmoji::Context{
+			.preview = st::windowBgRipple->c,
+			.colored = _emojiStatusColor.get(),
+			.size = QSize(_customSingleSize, _customSingleSize),
+			.now = now,
+			.scale = context.progress,
+			.position = position,
+			.paused = paused,
+			.scaled = context.expanding,
+		};
+		custom->paint(p, paintContext);
+	} else if (const auto emoji = std::get_if<EmojiPtr>(&recent.id.data)) {
 		if (_mode == Mode::EmojiStatus) {
 			position += QPoint(
 				(_singleSize.width() - st::stickersPremium.width()) / 2,
@@ -973,18 +997,6 @@ void EmojiListWidget::drawRecent(
 		} else {
 			drawEmoji(p, context, position, *emoji);
 		}
-	} else if (const auto custom = _recent[index].custom) {
-		position += _innerPosition + _customPosition;
-		const auto paintContext = Ui::Text::CustomEmoji::Context{
-			.preview = st::windowBgRipple->c,
-			.size = QSize(_customSingleSize, _customSingleSize),
-			.now = now,
-			.scale = context.progress,
-			.position = position,
-			.paused = paused,
-			.scaled = context.expanding,
-		};
-		custom->paint(p, paintContext);
 	} else {
 		Unexpected("Empty custom emoji in EmojiListWidget::drawRecent.");
 	}
@@ -1013,9 +1025,12 @@ void EmojiListWidget::drawCustom(
 		int set,
 		int index) {
 	position += _innerPosition + _customPosition;
-	_custom[set].painted = true;
-	_custom[set].list[index].custom->paint(p, {
+	auto &custom = _custom[set];
+	custom.painted = true;
+	auto &entry = custom.list[index];
+	entry.custom->paint(p, {
 		.preview = st::windowBgRipple->c,
+		.colored = _emojiStatusColor.get(),
 		.size = QSize(_customSingleSize, _customSingleSize),
 		.now = now,
 		.scale = context.progress,

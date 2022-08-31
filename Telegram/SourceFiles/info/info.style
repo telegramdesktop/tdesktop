@@ -23,6 +23,7 @@ InfoToggle {
 InfoPeerBadge {
 	verified: icon;
 	premium: icon;
+	premiumFg: color;
 	position: point;
 	sizeTag: int;
 }
@@ -316,6 +317,7 @@ infoPremiumStar: icon {{ "profile_premium", profileVerifiedCheckBg }};
 infoPeerBadge: InfoPeerBadge {
 	verified: infoVerifiedCheck;
 	premium: infoPremiumStar;
+	premiumFg: profileVerifiedCheckBg;
 	position: infoVerifiedCheckPosition;
 	sizeTag: 1; // Large
 }

@@ -466,6 +466,8 @@ PRIVATE
     data/data_download_manager.h
     data/data_drafts.cpp
     data/data_drafts.h
+    data/data_emoji_statuses.cpp
+    data/data_emoji_statuses.h
     data/data_folder.cpp
     data/data_folder.h
     data/data_file_click_handler.cpp

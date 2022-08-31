@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui::Text {
 class CustomEmoji;
+struct CustomEmojiColored;
 } // namespace Ui::Text
 
 namespace Ui {
@@ -41,6 +42,7 @@ public:
 		const style::icon *verified = nullptr;
 		const style::icon *premium = nullptr;
 		const style::color *scam = nullptr;
+		const style::color *premiumFg = nullptr;
 		QColor preview;
 		Fn<void()> customEmojiRepaint;
 		crl::time now = 0;
@@ -58,6 +60,7 @@ private:
 	struct EmojiStatus {
 		DocumentId id = 0;
 		std::unique_ptr<Ui::Text::CustomEmoji> emoji;
+		std::unique_ptr<Ui::Text::CustomEmojiColored> colored;
 		int skip = 0;
 	};
 	std::unique_ptr<EmojiStatus> _emojiStatus;

@@ -828,6 +828,11 @@ void InnerWidget::paintPeerSearchResult(
 				: selected
 				? &st::dialogsScamFgOver
 				: &st::dialogsScamFg),
+			.premiumFg = (active
+				? &st::dialogsVerifiedIconBgActive
+				: selected
+				? &st::dialogsVerifiedIconBgOver
+				: &st::dialogsVerifiedIconBg),
 			.preview = (active
 				? st::dialogsScamFgActive
 				: selected

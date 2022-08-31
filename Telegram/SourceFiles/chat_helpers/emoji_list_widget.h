@@ -37,6 +37,10 @@ namespace Ui::Emoji {
 enum class Section;
 } // namespace Ui::Emoji
 
+namespace Ui::Text {
+struct CustomEmojiColored;
+} // namespace Ui::Text
+
 namespace Ui::CustomEmoji {
 class Loader;
 class Instance;
@@ -294,6 +298,7 @@ private:
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);
 
+	void refreshColoredStatuses();
 	void initButton(RightButton &button, const QString &text, bool gradient);
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
@@ -328,6 +333,7 @@ private:
 	std::vector<RecentOne> _recent;
 	base::flat_set<DocumentId> _recentCustomIds;
 	base::flat_set<uint64> _repaintsScheduled;
+	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColor;
 	bool _recentPainted = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;

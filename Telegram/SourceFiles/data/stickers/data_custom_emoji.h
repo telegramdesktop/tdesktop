@@ -84,6 +84,19 @@ private:
 		crl::time when = 0;
 		std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>> instances;
 	};
+	struct LoaderWithSetId {
+		std::unique_ptr<Ui::CustomEmoji::Loader> loader;
+		uint64 setId = 0;
+	};
+
+	[[nodiscard]] LoaderWithSetId createLoaderWithSetId(
+		not_null<DocumentData*> document,
+		SizeTag tag,
+		int sizeOverride = 0);
+	[[nodiscard]] LoaderWithSetId createLoaderWithSetId(
+		DocumentId documentId,
+		SizeTag tag,
+		int sizeOverride = 0);
 
 	void request();
 	void requestFinished();
@@ -92,6 +105,9 @@ private:
 		Ui::CustomEmoji::RepaintRequest request);
 	void scheduleRepaintTimer();
 	void invokeRepaints();
+	void fillColoredFlags(not_null<DocumentData*> document);
+	void processLoaders(not_null<DocumentData*> document);
+	void processListeners(not_null<DocumentData*> document);
 	void requestSetFor(not_null<DocumentData*> document);
 
 	[[nodiscard]] Ui::CustomEmoji::Preview prepareNonExactPreview(
@@ -126,13 +142,22 @@ private:
 		not_null<Listener*>,
 		base::flat_set<DocumentId>> _listeners;
 	base::flat_set<DocumentId> _pendingForRequest;
+	base::flat_map<
+		uint64,
+		base::flat_set<
+			not_null<Ui::CustomEmoji::Instance*>>> _coloredSetPending;
+
 	mtpRequestId _requestId = 0;
+
+	uint64 _coloredSetId = 0;
 
 	base::flat_map<crl::time, RepaintBunch> _repaints;
 	crl::time _repaintNext = 0;
 	base::Timer _repaintTimer;
 	bool _repaintTimerScheduled = false;
 	bool _requestSetsScheduled = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

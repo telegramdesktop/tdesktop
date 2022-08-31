@@ -8,6 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 
 #include "chat_helpers/stickers_emoji_pack.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -78,7 +80,7 @@ public:
 		SizeTag tag,
 		int sizeOverride);
 
-	[[nodiscard]] bool resolving() const;
+	[[nodiscard]] DocumentData *document() const;
 	void resolved(not_null<DocumentData*> document);
 
 	QString entityData() override;
@@ -154,12 +156,16 @@ CustomEmojiLoader::CustomEmojiLoader(
 		&& sizeOverride <= std::numeric_limits<ushort>::max());
 }
 
-bool CustomEmojiLoader::resolving() const {
-	return v::is<Resolve>(_state);
+DocumentData *CustomEmojiLoader::document() const {
+	return v::match(_state, [](const Resolve &) {
+		return (DocumentData*)nullptr;
+	}, [](const auto &data) {
+		return data.document.get();
+	});
 }
 
 void CustomEmojiLoader::resolved(not_null<DocumentData*> document) {
-	Expects(resolving());
+	Expects(v::is<Resolve>(_state));
 
 	auto requested = std::move(v::get<Resolve>(_state).requested);
 	_state = Lookup{ document };
@@ -385,6 +391,22 @@ Ui::CustomEmoji::Preview CustomEmojiLoader::preview() {
 CustomEmojiManager::CustomEmojiManager(not_null<Session*> owner)
 : _owner(owner)
 , _repaintTimer([=] { invokeRepaints(); }) {
+	const auto appConfig = &owner->session().account().appConfig();
+	appConfig->value(
+	) | rpl::take_while([=] {
+		return !_coloredSetId;
+	}) | rpl::start_with_next([=] {
+		const auto setId = appConfig->get<QString>(
+			"default_emoji_statuses_stickerset_id",
+			QString()).toULongLong();
+		if (setId) {
+			_coloredSetId = setId;
+			auto pending = base::take(_coloredSetPending);
+			for (const auto &instance : pending[setId]) {
+				instance->setColored();
+			}
+		}
+	}, _lifetime);
 }
 
 CustomEmojiManager::~CustomEmojiManager() = default;
@@ -405,12 +427,20 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 				Ui::CustomEmoji::RepaintRequest request) {
 			repaintLater(instance, request);
 		};
+		auto [loader, setId] = factory();
 		i = instances.emplace(
 			documentId,
 			std::make_unique<Ui::CustomEmoji::Instance>(Loading{
-				factory(),
+				std::move(loader),
 				prepareNonExactPreview(documentId, tag, sizeOverride)
 			}, std::move(repaint))).first;
+		if (_coloredSetId) {
+			if (_coloredSetId == setId) {
+				i->second->setColored();
+			}
+		} else if (setId) {
+			_coloredSetPending[setId].emplace(i->second.get());
+		}
 	} else if (!i->second->hasImagePreview()) {
 		auto preview = prepareNonExactPreview(documentId, tag, sizeOverride);
 		if (preview.isImage()) {
@@ -466,7 +496,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		SizeTag tag,
 		int sizeOverride) {
 	return create(documentId, std::move(update), tag, sizeOverride, [&] {
-		return createLoader(documentId, tag, sizeOverride);
+		return createLoaderWithSetId(documentId, tag, sizeOverride);
 	});
 }
 
@@ -476,7 +506,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		SizeTag tag,
 		int sizeOverride) {
 	return create(document->id, std::move(update), tag, sizeOverride, [&] {
-		return createLoader(document, tag, sizeOverride);
+		return createLoaderWithSetId(document, tag, sizeOverride);
 	});
 }
 
@@ -517,19 +547,43 @@ std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 		not_null<DocumentData*> document,
 		SizeTag tag,
 		int sizeOverride) {
-	return std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride);
+	return createLoaderWithSetId(document, tag, sizeOverride).loader;
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 		DocumentId documentId,
 		SizeTag tag,
 		int sizeOverride) {
+	return createLoaderWithSetId(documentId, tag, sizeOverride).loader;
+}
+
+auto CustomEmojiManager::createLoaderWithSetId(
+	not_null<DocumentData*> document,
+	SizeTag tag,
+	int sizeOverride
+) -> LoaderWithSetId {
+	const auto sticker = document->sticker();
+	return {
+		std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride),
+		sticker ? sticker->set.id : uint64()
+	};
+}
+
+auto CustomEmojiManager::createLoaderWithSetId(
+	DocumentId documentId,
+	SizeTag tag,
+	int sizeOverride
+) -> LoaderWithSetId {
 	auto result = std::make_unique<CustomEmojiLoader>(
 		_owner,
 		CustomEmojiId{ .id = documentId },
 		tag,
 		sizeOverride);
-	if (result->resolving()) {
+	if (const auto document = result->document()) {
+		if (const auto sticker = document->sticker()) {
+			return { std::move(result), sticker->set.id };
+		}
+	} else {
 		const auto i = SizeIndex(tag);
 		_loaders[i][documentId].push_back(base::make_weak(result.get()));
 		_pendingForRequest.emplace(documentId);
@@ -537,8 +591,7 @@ std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
 			crl::on_main(this, [=] { request(); });
 		}
 	}
-
-	return result;
+	return { std::move(result), uint64() };
 }
 
 QString CustomEmojiManager::lookupSetName(uint64 setId) {
@@ -564,27 +617,9 @@ void CustomEmojiManager::request() {
 	)).done([=](const MTPVector<MTPDocument> &result) {
 		for (const auto &entry : result.v) {
 			const auto document = _owner->processDocument(entry);
-			const auto id = document->id;
-			for (auto &loaders : _loaders) {
-				if (const auto list = loaders.take(id)) {
-					for (const auto &weak : *list) {
-						if (const auto strong = weak.get()) {
-							strong->resolved(document);
-						}
-					}
-				}
-			}
-			if (const auto listeners = _resolvers.take(id)) {
-				for (const auto &listener : *listeners) {
-					const auto i = _listeners.find(listener);
-					if (i != end(_listeners) && i->second.remove(id)) {
-						if (i->second.empty()) {
-							_listeners.erase(i);
-						}
-						listener->customEmojiResolveDone(document);
-					}
-				}
-			}
+			fillColoredFlags(document);
+			processLoaders(document);
+			processListeners(document);
 			requestSetFor(document);
 		}
 		requestFinished();
@@ -592,6 +627,53 @@ void CustomEmojiManager::request() {
 		LOG(("API Error: Failed to get documents for emoji."));
 		requestFinished();
 	}).send();
+}
+
+void CustomEmojiManager::fillColoredFlags(not_null<DocumentData*> document) {
+	const auto id = document->id;
+	const auto sticker = document->sticker();
+	const auto setId = sticker ? sticker->set.id : uint64();
+	if (!setId || (_coloredSetId && setId != _coloredSetId)) {
+		return;
+	}
+	for (auto &instances : _instances) {
+		const auto i = instances.find(id);
+		if (i != end(instances)) {
+			if (setId == _coloredSetId) {
+				i->second->setColored();
+			} else {
+				_coloredSetPending[setId].emplace(i->second.get());
+			}
+		}
+	}
+}
+
+void CustomEmojiManager::processLoaders(not_null<DocumentData*> document) {
+	const auto id = document->id;
+	for (auto &loaders : _loaders) {
+		if (const auto list = loaders.take(id)) {
+			for (const auto &weak : *list) {
+				if (const auto strong = weak.get()) {
+					strong->resolved(document);
+				}
+			}
+		}
+	}
+}
+
+void CustomEmojiManager::processListeners(not_null<DocumentData*> document) {
+	const auto id = document->id;
+	if (const auto listeners = _resolvers.take(id)) {
+		for (const auto &listener : *listeners) {
+			const auto i = _listeners.find(listener);
+			if (i != end(_listeners) && i->second.remove(id)) {
+				if (i->second.empty()) {
+					_listeners.erase(i);
+				}
+				listener->customEmojiResolveDone(document);
+			}
+		}
+	}
 }
 
 void CustomEmojiManager::requestSetFor(not_null<DocumentData*> document) {

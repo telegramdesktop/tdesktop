@@ -33,6 +33,10 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Ui::Text {
+struct CustomEmojiColored;
+} // namespace Ui::Text
+
 namespace Info {
 class Controller;
 class Section;
@@ -73,6 +77,7 @@ private:
 	const not_null<PeerData*> _peer;
 	DocumentId _emojiStatusId = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> _emojiStatus;
+	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColored;
 	base::flags<Badge> _allowed;
 	Badge _badge = Badge();
 	Fn<void()> _premiumClickCallback;

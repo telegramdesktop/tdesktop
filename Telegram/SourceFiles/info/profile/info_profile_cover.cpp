@@ -122,6 +122,7 @@ void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
 	_badge = badge;
 	_emojiStatusId = emojiStatusId;
 	_emojiStatus = nullptr;
+	_emojiStatusColored = nullptr;
 	_view.destroy();
 	if (_badge == Badge::None) {
 		_updated.fire({});
@@ -143,14 +144,19 @@ void BadgeView::setBadge(Badge badge, DocumentId emojiStatusId) {
 				_emojiStatusId,
 				[raw = _view.data()] { raw->update(); },
 				tag);
+			_emojiStatusColored = std::make_unique<
+				Ui::Text::CustomEmojiColored
+			>();
 			const auto emoji = Data::FrameSizeFromTag(tag)
 				/ style::DevicePixelRatio();
 			_view->resize(emoji, emoji);
 			_view->paintRequest(
 			) | rpl::start_with_next([=, check = _view.data()]{
 				Painter p(check);
+				_emojiStatusColored->color = _st.premiumFg->c;
 				_emojiStatus->paint(p, {
 					.preview = st::windowBgOver->c,
+					.colored = _emojiStatusColored.get(),
 					.now = crl::now(),
 					.paused = _animationPaused && _animationPaused(),
 				});

@@ -186,6 +186,7 @@ settingsInfoNameSkip: -1px;
 settingsInfoUploadLeft: 6px;
 settingsInfoPeerBadge: InfoPeerBadge {
 	premium: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
+	premiumFg: dialogsVerifiedIconBg;
 	sizeTag: 0; // Normal
 }
 

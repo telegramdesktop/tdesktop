@@ -169,9 +169,12 @@ int PeerBadge::drawGetWidth(
 		}
 		if (!_emojiStatus) {
 			_emojiStatus = std::make_unique<EmojiStatus>();
-			const auto size = st::emojiSize * 1.;
-			const auto emoji = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
-			_emojiStatus->skip = (st::emojiSize - emoji) / 2;
+			const auto size = st::emojiSize;
+			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
+			_emojiStatus->skip = (size - emoji) / 2;
+			_emojiStatus->colored = std::make_unique<
+				Ui::Text::CustomEmojiColored
+			>();
 		}
 		if (_emojiStatus->id != id) {
 			auto &manager = peer->session().data().customEmojiManager();
@@ -180,8 +183,10 @@ int PeerBadge::drawGetWidth(
 				id,
 				descriptor.customEmojiRepaint);
 		}
+		_emojiStatus->colored->color = (*descriptor.premiumFg)->c;
 		_emojiStatus->emoji->paint(p, {
 			.preview = descriptor.preview,
+			.colored = _emojiStatus->colored.get(),
 			.now = descriptor.now,
 			.position = QPoint(
 				iconx - 2 * _emojiStatus->skip,
