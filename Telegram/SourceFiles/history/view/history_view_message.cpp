@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+constexpr auto kPlayStatusLimit = 2;
 const auto kPsaTooltipPrefix = "cloud_lng_tooltip_psa_";
 
 std::optional<Window::SessionController*> ExtractController(
@@ -234,6 +235,13 @@ struct Message::CommentsButton {
 	int rightActionCountWidth = 0;
 };
 
+struct Message::FromNameStatus {
+	DocumentId id = 0;
+	std::unique_ptr<Ui::Text::CustomEmoji> custom;
+	Ui::Text::CustomEmojiColored colored;
+	int skip = 0;
+};
+
 LogEntryOriginal::LogEntryOriginal() = default;
 
 LogEntryOriginal::LogEntryOriginal(LogEntryOriginal &&other)
@@ -277,8 +285,9 @@ Message::Message(
 }
 
 Message::~Message() {
-	if (_comments) {
+	if (_comments || (_fromNameStatus && _fromNameStatus->custom)) {
 		_comments = nullptr;
+		_fromNameStatus = nullptr;
 		checkHeavyPart();
 	}
 }
@@ -547,6 +556,9 @@ QSize Message::performCountOptimalSize() {
 					: item->hiddenSenderInfo()->nameText();
 				auto namew = st::msgPadding.left()
 					+ name.maxWidth()
+					+ (_fromNameStatus
+						? st::dialogsPremiumIcon.width()
+						: 0)
 					+ st::msgPadding.right();
 				if (via && !displayForwardedFrom()) {
 					namew += st::msgServiceFont->spacew + via->maxWidth;
@@ -1087,32 +1099,71 @@ void Message::paintFromName(
 		availableWidth -= st::msgPadding.right() + rightWidth;
 	}
 
-	p.setFont(st::msgNameFont);
 	const auto stm = context.messageStyle();
-
-	const auto nameText = [&]() -> const Ui::Text::String * {
-		const auto from = item->displayFrom();
-		const auto service = (context.outbg || item->isPost());
-		const auto st = context.st;
+	const auto from = item->displayFrom();
+	const auto info = from ? nullptr : item->hiddenSenderInfo();
+	Assert(from || info);
+	const auto service = (context.outbg || item->isPost());
+	const auto st = context.st;
+	const auto nameFg = !service
+		? FromNameFg(context, from ? from->id : info->colorPeerId)
+		: item->isSponsored()
+		? st->boxTextFgGood()
+		: stm->msgServiceFg;
+	const auto nameText = [&] {
 		if (from) {
-			p.setPen(!service
-				? FromNameFg(context, from->id)
-				: item->isSponsored()
-				? st->boxTextFgGood()
-				: stm->msgServiceFg);
 			validateFromNameText(from);
-			return &_fromName;
-		} else if (const auto info = item->hiddenSenderInfo()) {
-			p.setPen(!service
-				? FromNameFg(context, info->colorPeerId)
-				: item->isSponsored()
-				? st->boxTextFgGood()
-				: stm->msgServiceFg);
-			return &info->nameText();
-		} else {
-			Unexpected("Corrupt sender information in message.");
+			return static_cast<const Ui::Text::String*>(&_fromName);
 		}
+		return &info->nameText();
 	}();
+	const auto statusWidth = _fromNameStatus ? st::dialogsPremiumIcon.width() : 0;
+	if (statusWidth && availableWidth > statusWidth) {
+		const auto x = availableLeft
+			+ std::min(availableWidth - statusWidth, nameText->maxWidth());
+		const auto y = trect.top();
+		const auto color = QColor(
+			nameFg->c.red(),
+			nameFg->c.green(),
+			nameFg->c.blue(),
+			nameFg->c.alpha() * 115 / 255);
+		const auto user = from->asUser();
+		const auto id = user ? user->emojiStatusId() : 0;
+		if (_fromNameStatus->id != id) {
+			const auto that = const_cast<Message*>(this);
+			_fromNameStatus->custom = id
+				? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+					user->owner().customEmojiManager().create(
+						id,
+						[=] { that->customEmojiRepaint(); }),
+					kPlayStatusLimit)
+				: nullptr;
+			if (id && !_fromNameStatus->id) {
+				history()->owner().registerHeavyViewPart(that);
+			} else if (!id && _fromNameStatus->id) {
+				that->checkHeavyPart();
+			}
+			_fromNameStatus->id = id;
+		}
+		if (_fromNameStatus->custom) {
+			clearCustomEmojiRepaint();
+			_fromNameStatus->colored.color = color;
+			_fromNameStatus->custom->paint(p, {
+				.preview = color,
+				.colored = &_fromNameStatus->colored,
+				.now = context.now,
+				.position = QPoint(
+					x - 2 * _fromNameStatus->skip,
+					y + _fromNameStatus->skip),
+				.paused = delegate()->elementIsGifPaused(),
+			});
+		} else {
+			st::dialogsPremiumIcon.paint(p, x, y, width(), color);
+		}
+		availableWidth -= statusWidth;
+	}
+	p.setFont(st::msgNameFont);
+	p.setPen(nameFg);
 	nameText->drawElided(p, availableLeft, trect.top(), availableWidth);
 	const auto skipWidth = nameText->maxWidth() + st::msgServiceFont->spacew;
 	availableLeft += skipWidth;
@@ -1382,7 +1433,9 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 }
 
 bool Message::hasHeavyPart() const {
-	return _comments || Element::hasHeavyPart();
+	return _comments
+		|| (_fromNameStatus && _fromNameStatus->custom)
+		|| Element::hasHeavyPart();
 }
 
 void Message::unloadHeavyPart() {
@@ -1391,6 +1444,9 @@ void Message::unloadHeavyPart() {
 		_reactions->unloadCustomEmoji();
 	}
 	_comments = nullptr;
+	if (_fromNameStatus) {
+		_fromNameStatus->custom = nullptr;
+	}
 }
 
 bool Message::showForwardsFromSender(
@@ -2245,13 +2301,29 @@ void Message::refreshReactions() {
 }
 
 void Message::validateFromNameText(PeerData *from) const {
-	const auto version = from ? from->nameVersion() : 0;
+	if (!from) {
+		if (_fromNameStatus) {
+			_fromNameStatus = nullptr;
+		}
+		return;
+	}
+	const auto version = from->nameVersion();
 	if (_fromNameVersion < version) {
 		_fromNameVersion = version;
 		_fromName.setText(
 			st::msgNameStyle,
 			from->name(),
 			Ui::NameTextOptions());
+	}
+	if (from->isPremium()) {
+		if (!_fromNameStatus) {
+			_fromNameStatus = std::make_unique<FromNameStatus>();
+			const auto size = st::emojiSize;
+			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
+			_fromNameStatus->skip = (size - emoji) / 2;
+		}
+	} else if (_fromNameStatus) {
+		_fromNameStatus = nullptr;
 	}
 }
 

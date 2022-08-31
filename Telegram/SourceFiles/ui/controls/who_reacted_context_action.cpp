@@ -636,7 +636,9 @@ void WhoReactedListMenu::clear() {
 void WhoReactedListMenu::populate(
 		not_null<PopupMenu*> menu,
 		const WhoReadContent &content,
-		Fn<void()> refillTopActions) {
+		Fn<void()> refillTopActions,
+		int addedToBottom,
+		Fn<void()> appendBottomActions) {
 	const auto reactions = ranges::count_if(
 		content.participants,
 		[](const auto &p) { return !p.customEntityData.isEmpty(); });
@@ -649,6 +651,7 @@ void WhoReactedListMenu::populate(
 		if (refillTopActions) {
 			refillTopActions();
 		}
+		addedToBottom = 0;
 	}
 	auto index = 0;
 	const auto append = [&](EntryData &&data) {
@@ -661,7 +664,12 @@ void WhoReactedListMenu::populate(
 				menu->menu()->st(),
 				std::move(data));
 			_actions.push_back(item.get());
-			menu->addAction(std::move(item));
+			const auto count = int(menu->actions().size());
+			if (addedToBottom > 0 && addedToBottom <= count) {
+				menu->insertAction(count - addedToBottom, std::move(item));
+			} else {
+				menu->addAction(std::move(item));
+			}
 		}
 		++index;
 	};
@@ -682,7 +690,9 @@ void WhoReactedListMenu::populate(
 			.callback = _showAllChosen,
 		});
 	}
-
+	if (!addedToBottom && appendBottomActions) {
+		appendBottomActions();
+	}
 }
 
 } // namespace Ui

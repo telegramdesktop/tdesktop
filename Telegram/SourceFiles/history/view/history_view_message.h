@@ -151,6 +151,7 @@ protected:
 
 private:
 	struct CommentsButton;
+	struct FromNameStatus;
 
 	void initLogEntryOriginal();
 	void initPsa();
@@ -258,6 +259,7 @@ private:
 	mutable std::unique_ptr<CommentsButton> _comments;
 
 	mutable Ui::Text::String _fromName;
+	mutable std::unique_ptr<FromNameStatus> _fromNameStatus;
 	Ui::Text::String _rightBadge;
 	mutable int _fromNameVersion = 0;
 	int _bubbleWidthLimit = 0;

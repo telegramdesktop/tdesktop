@@ -65,7 +65,9 @@ public:
 	void populate(
 		not_null<PopupMenu*> menu,
 		const WhoReadContent &content,
-		Fn<void()> refillTopActions = nullptr);
+		Fn<void()> refillTopActions = nullptr,
+		int addedToBottom = 0,
+		Fn<void()> appendBottomActions = nullptr);
 
 private:
 	class EntryAction;

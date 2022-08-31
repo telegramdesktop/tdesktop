@@ -1172,6 +1172,9 @@ void ShowWhoReactedMenu(
 		const Data::ReactionId &id,
 		not_null<Window::SessionController*> controller,
 		rpl::lifetime &lifetime) {
+	struct State {
+		int addedToBottom = 0;
+	};
 	const auto participantChosen = [=](uint64 id) {
 		controller->showPeerInfo(PeerId(id));
 	};
@@ -1194,6 +1197,7 @@ void ShowWhoReactedMenu(
 		Data::ReactedMenuFactory(&controller->session()),
 		participantChosen,
 		showAllChosen);
+	const auto state = lifetime.make_state<State>();
 	Api::WhoReacted(
 		item,
 		id,
@@ -1203,7 +1207,7 @@ void ShowWhoReactedMenu(
 		return !content.unknown;
 	}) | rpl::start_with_next([=, &lifetime](Ui::WhoReadContent &&content) {
 		const auto creating = !*menu;
-		const auto refill = [=] {
+		const auto refillTop = [=] {
 			if (activeNonQuick) {
 				(*menu)->addAction(tr::lng_context_set_as_quick(tr::now), [=] {
 					reactions->setFavorite(id);
@@ -1211,26 +1215,34 @@ void ShowWhoReactedMenu(
 				(*menu)->addSeparator();
 			}
 		};
+		const auto appendBottom = [=] {
+			state->addedToBottom = 0;
+			if (const auto custom = id.custom()) {
+				if (const auto set = owner->document(custom)->sticker()) {
+					if (set->set.id) {
+						state->addedToBottom = 2;
+						AddEmojiPacksAction(
+							menu->get(),
+							{ set->set },
+							EmojiPacksSource::Reaction,
+							controller);
+					}
+				}
+			}
+		};
 		if (creating) {
 			*menu = base::make_unique_q<Ui::PopupMenu>(
 				context,
 				st::whoReadMenu);
 			(*menu)->lifetime().add(base::take(lifetime));
-			refill();
+			refillTop();
 		}
-		filler->populate(menu->get(), content);
-
-		if (const auto custom = id.custom()) {
-			if (const auto set = owner->document(custom)->sticker()) {
-				if (set->set.id) {
-					AddEmojiPacksAction(
-						menu->get(),
-						{ set->set },
-						EmojiPacksSource::Reaction,
-						controller);
-				}
-			}
-		}
+		filler->populate(
+			menu->get(),
+			content,
+			refillTop,
+			state->addedToBottom,
+			appendBottom);
 		if (creating) {
 			(*menu)->popup(position);
 		}

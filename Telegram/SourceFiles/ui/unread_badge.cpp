@@ -17,6 +17,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 namespace Ui {
+namespace {
+
+constexpr auto kPlayStatusLimit = 2;
+
+} // namespace
 
 void UnreadBadge::setText(const QString &text, bool active) {
 	_text = text;
@@ -177,11 +182,14 @@ int PeerBadge::drawGetWidth(
 			>();
 		}
 		if (_emojiStatus->id != id) {
+			using namespace Ui::Text;
 			auto &manager = peer->session().data().customEmojiManager();
 			_emojiStatus->id = id;
-			_emojiStatus->emoji = manager.create(
-				id,
-				descriptor.customEmojiRepaint);
+			_emojiStatus->emoji = std::make_unique<LimitedLoopsEmoji>(
+				manager.create(
+					id,
+					descriptor.customEmojiRepaint),
+				kPlayStatusLimit);
 		}
 		_emojiStatus->colored->color = (*descriptor.premiumFg)->c;
 		_emojiStatus->emoji->paint(p, {
