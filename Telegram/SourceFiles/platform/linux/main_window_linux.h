@@ -22,8 +22,6 @@ class MainWindow : public Window::MainWindow {
 public:
 	explicit MainWindow(not_null<Window::Controller*> controller);
 
-	bool isActiveForTrayMenu() override;
-
 	~MainWindow();
 
 protected:
