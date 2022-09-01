@@ -48,8 +48,6 @@ void psSendToMenu(bool send, bool silent = false);
 int psCleanup();
 int psFixPrevious();
 
-void psNewVersion();
-
 inline QByteArray psDownloadPathBookmark(const QString &path) {
 	return QByteArray();
 }
