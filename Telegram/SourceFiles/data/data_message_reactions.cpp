@@ -276,6 +276,39 @@ void Reactions::setFavorite(const ReactionId &id) {
 	applyFavorite(id);
 }
 
+DocumentData *Reactions::chooseGenericAnimation(
+		not_null<DocumentData*> custom) const {
+	const auto sticker = custom->sticker();
+	const auto i = sticker
+		? ranges::find(
+			_available,
+			::Data::ReactionId{ { sticker->alt } },
+			&::Data::Reaction::id)
+		: end(_available);
+	if (i != end(_available) && i->aroundAnimation) {
+		const auto view = i->aroundAnimation->createMediaView();
+		view->checkStickerLarge();
+		if (view->loaded()) {
+			return i->aroundAnimation;
+		}
+	}
+	if (_genericAnimations.empty()) {
+		return nullptr;
+	}
+	auto copy = _genericAnimations;
+	ranges::shuffle(copy);
+	const auto first = copy.front();
+	const auto view = first->createMediaView();
+	view->checkStickerLarge();
+	if (view->loaded()) {
+		return first;
+	}
+	const auto k = ranges::find_if(copy, [&](not_null<DocumentData*> value) {
+		return value->createMediaView()->loaded();
+	});
+	return (k != end(copy)) ? (*k) : first;
+}
+
 void Reactions::applyFavorite(const ReactionId &id) {
 	if (_favoriteId != id) {
 		_favoriteId = id;
@@ -324,11 +357,16 @@ void Reactions::preloadImageFor(const ReactionId &id) {
 }
 
 void Reactions::preloadAnimationsFor(const ReactionId &id) {
-	const auto i = ranges::find(_available, id, &Reaction::id);
+	const auto custom = id.custom();
+	const auto document = custom ? _owner->document(custom).get() : nullptr;
+	const auto customSticker = document ? document->sticker() : nullptr;
+	const auto findId = custom
+		? ReactionId{ { customSticker ? customSticker->alt : QString() } }
+		: id;
+	const auto i = ranges::find(_available, findId, &Reaction::id);
 	if (i == end(_available)) {
 		return;
 	}
-
 	const auto preload = [&](DocumentData *document) {
 		const auto view = document
 			? document->activeMediaView()
@@ -337,7 +375,10 @@ void Reactions::preloadAnimationsFor(const ReactionId &id) {
 			view->checkStickerLarge();
 		}
 	};
-	preload(i->centerIcon);
+
+	if (!custom) {
+		preload(i->centerIcon);
+	}
 	preload(i->aroundAnimation);
 }
 
@@ -516,6 +557,26 @@ void Reactions::requestDefault() {
 	}).send();
 }
 
+void Reactions::requestGeneric() {
+	if (_genericRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_genericRequestId = api.request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetEmojiGenericAnimations(),
+		MTP_int(0) // hash
+	)).done([=](const MTPmessages_StickerSet &result) {
+		_genericRequestId = 0;
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			updateGeneric(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+	}).fail([=] {
+		_genericRequestId = 0;
+	}).send();
+}
+
 void Reactions::updateTop(const MTPDmessages_reactions &data) {
 	_topHash = data.vhash().v;
 	_topIds = ListFromMTP(data);
@@ -564,6 +625,26 @@ void Reactions::updateDefault(const MTPDmessages_availableReactions &data) {
 	defaultUpdated();
 }
 
+void Reactions::updateGeneric(const MTPDmessages_stickerSet &data) {
+	const auto oldCache = base::take(_genericCache);
+	const auto toCache = [&](not_null<DocumentData*> document) {
+		if (document->sticker()) {
+			_genericAnimations.push_back(document);
+			_genericCache.emplace(document, document->createMediaView());
+		}
+	};
+	const auto &list = data.vdocuments().v;
+	_genericAnimations.clear();
+	_genericAnimations.reserve(list.size());
+	_genericCache.reserve(list.size());
+	for (const auto &sticker : data.vdocuments().v) {
+		toCache(_owner->processDocument(sticker));
+	}
+	if (!_genericCache.empty()) {
+		_genericCache.front().second->checkStickerLarge();
+	}
+}
+
 void Reactions::recentUpdated() {
 	_topRefreshTimer.callOnce(kTopRequestDelay);
 	_recentUpdated.fire({});
@@ -572,6 +653,9 @@ void Reactions::recentUpdated() {
 void Reactions::defaultUpdated() {
 	refreshTop();
 	refreshRecent();
+	if (_genericAnimations.empty()) {
+		requestGeneric();
+	}
 	_defaultUpdated.fire({});
 }
 

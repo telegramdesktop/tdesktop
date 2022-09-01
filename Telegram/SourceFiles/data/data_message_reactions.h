@@ -81,6 +81,8 @@ public:
 	[[nodiscard]] ReactionId favoriteId() const;
 	[[nodiscard]] const Reaction *favorite() const;
 	void setFavorite(const ReactionId &id);
+	[[nodiscard]] DocumentData *chooseGenericAnimation(
+		not_null<DocumentData*> custom) const;
 
 	[[nodiscard]] rpl::producer<> topUpdates() const;
 	[[nodiscard]] rpl::producer<> recentUpdates() const;
@@ -127,10 +129,12 @@ private:
 	void requestTop();
 	void requestRecent();
 	void requestDefault();
+	void requestGeneric();
 
 	void updateTop(const MTPDmessages_reactions &data);
 	void updateRecent(const MTPDmessages_reactions &data);
 	void updateDefault(const MTPDmessages_availableReactions &data);
+	void updateGeneric(const MTPDmessages_stickerSet &data);
 
 	void recentUpdated();
 	void defaultUpdated();
@@ -166,12 +170,16 @@ private:
 	std::vector<Reaction> _top;
 	std::vector<ReactionId> _topIds;
 	base::flat_set<ReactionId> _unresolvedTop;
+	std::vector<not_null<DocumentData*>> _genericAnimations;
 	ReactionId _favoriteId;
 	ReactionId _unresolvedFavoriteId;
 	std::optional<Reaction> _favorite;
 	base::flat_map<
 		not_null<DocumentData*>,
 		std::shared_ptr<DocumentMedia>> _iconsCache;
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::shared_ptr<DocumentMedia>> _genericCache;
 	rpl::event_stream<> _topUpdated;
 	rpl::event_stream<> _recentUpdated;
 	rpl::event_stream<> _defaultUpdated;
@@ -192,6 +200,8 @@ private:
 
 	mtpRequestId _defaultRequestId = 0;
 	int32 _defaultHash = 0;
+
+	mtpRequestId _genericRequestId = 0;
 
 	base::flat_map<ReactionId, ImageSet> _images;
 	rpl::lifetime _imagesLoadLifetime;

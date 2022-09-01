@@ -326,6 +326,7 @@ void InlineList::paint(
 	};
 	std::vector<SingleAnimation> animations;
 
+	auto finished = std::vector<std::unique_ptr<Animation>>();
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto padding = st::reactionInlinePadding;
@@ -338,7 +339,8 @@ void InlineList::paint(
 		if (context.reactionInfo
 			&& button.animation
 			&& button.animation->finished()) {
-			button.animation = nullptr;
+			// Let the animation (and its custom emoji) live while painting.
+			finished.push_back(std::move(button.animation));
 		}
 		const auto animating = (button.animation != nullptr);
 		const auto &geometry = button.geometry;

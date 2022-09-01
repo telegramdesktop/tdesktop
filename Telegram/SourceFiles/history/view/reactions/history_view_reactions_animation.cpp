@@ -24,6 +24,26 @@ constexpr auto kFlyDuration = crl::time(300);
 
 } // namespace
 
+auto Animation::flyCallback() {
+	return [=] {
+		if (!_fly.animating()) {
+			_flyIcon = QImage();
+			startAnimations();
+		}
+		if (_repaint) {
+			_repaint();
+		}
+	};
+}
+
+auto Animation::callback() {
+	return [=] {
+		if (_repaint) {
+			_repaint();
+		}
+	};
+}
+
 Animation::Animation(
 	not_null<::Data::Reactions*> owner,
 	ReactionAnimationArgs &&args,
@@ -37,11 +57,11 @@ Animation::Animation(
 	auto centerIconSize = size;
 	auto aroundAnimation = (DocumentData*)nullptr;
 	if (const auto customId = args.id.custom()) {
-		const auto document = owner->owner().document(customId);
-		if (document->sticker()) {
-			centerIcon = document;
-			centerIconSize = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
-		}
+		centerIconSize = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+		const auto data = &owner->owner();
+		const auto document = data->document(customId);
+		_custom = data->customEmojiManager().create(document, callback());
+		aroundAnimation = owner->chooseGenericAnimation(document);
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
 		if (i == end(list) || !i->centerIcon) {
@@ -67,17 +87,19 @@ Animation::Animation(
 		});
 		return true;
 	};
-	_flyIcon = std::move(args.flyIcon);
-	_centerSizeMultiplier = centerIconSize / float64(size);
-	if (!resolve(_center, centerIcon, centerIconSize)) {
+	if (!_custom && !resolve(_center, centerIcon, centerIconSize)) {
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
-	if (!_flyIcon.isNull()) {
-		_fly.start([=] { flyCallback(); }, 0., 1., kFlyDuration);
+	if (!args.flyIcon.isNull()) {
+		_flyIcon = std::move(args.flyIcon);
+		_fly.start(flyCallback(), 0., 1., kFlyDuration);
+	} else if (!_center && !_effect) {
+		return;
 	} else {
 		startAnimations();
 	}
+	_centerSizeMultiplier = centerIconSize / float64(size);
 	_valid = true;
 }
 
@@ -122,16 +144,32 @@ QRect Animation::paintGetArea(
 }
 
 void Animation::paintCenterFrame(QPainter &p, QRect target) const {
+	Expects(_center || _custom);
+
 	const auto size = QSize(
 		int(base::SafeRound(target.width() * _centerSizeMultiplier)),
 		int(base::SafeRound(target.height() * _centerSizeMultiplier)));
-	p.drawImage(
-		QRect(
+	if (_center) {
+		const auto rect = QRect(
 			target.x() + (target.width() - size.width()) / 2,
 			target.y() + (target.height() - size.height()) / 2,
 			size.width(),
-			size.height()),
-		_center->frame());
+			size.height());
+		p.drawImage(rect, _center->frame());
+	} else {
+		const auto side = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+		const auto scaled = (size.width() != side);
+		_custom->paint(p, {
+			.preview = Qt::transparent,
+			.size = { side, side },
+			.now = crl::now(),
+			.scale = (scaled ? (size.width() / float64(side)) : 1.),
+			.position = QPoint(
+				target.x() + (target.width() - side) / 2,
+				target.y() + (target.height() - side) / 2),
+			.scaled = scaled,
+		});
+	}
 }
 
 int Animation::computeParabolicTop(
@@ -171,23 +209,11 @@ int Animation::computeParabolicTop(
 }
 
 void Animation::startAnimations() {
-	_center->animate([=] { callback(); });
+	if (const auto center = _center.get()) {
+		_center->animate(callback());
+	}
 	if (const auto effect = _effect.get()) {
-		_effect->animate([=] { callback(); });
-	}
-}
-
-void Animation::flyCallback() {
-	if (!_fly.animating()) {
-		_flyIcon = QImage();
-		startAnimations();
-	}
-	callback();
-}
-
-void Animation::callback() {
-	if (_repaint) {
-		_repaint();
+		_effect->animate(callback());
 	}
 }
 
@@ -206,7 +232,7 @@ float64 Animation::flyingProgress() const {
 bool Animation::finished() const {
 	return !_valid
 		|| (_flyIcon.isNull()
-			&& !_center->animating()
+			&& (!_center || !_center->animating())
 			&& (!_effect || !_effect->animating()));
 }
 

@@ -562,11 +562,13 @@ auto CustomEmojiManager::createLoaderWithSetId(
 	SizeTag tag,
 	int sizeOverride
 ) -> LoaderWithSetId {
-	const auto sticker = document->sticker();
-	return {
-		std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride),
-		sticker ? sticker->set.id : uint64()
-	};
+	if (const auto sticker = document->sticker()) {
+		return {
+			std::make_unique<CustomEmojiLoader>(document, tag, sizeOverride),
+			sticker->set.id,
+		};
+	}
+	return createLoaderWithSetId(document->id, tag, sizeOverride);
 }
 
 auto CustomEmojiManager::createLoaderWithSetId(

@@ -13,6 +13,10 @@ namespace Ui {
 class AnimatedIcon;
 } // namespace Lottie
 
+namespace Ui::Text {
+class CustomEmoji;
+} // namespace Ui::Text
+
 namespace Data {
 class Reactions;
 } // namespace Data
@@ -40,15 +44,16 @@ public:
 	[[nodiscard]] bool finished() const;
 
 private:
-	void flyCallback();
+	[[nodiscard]] auto flyCallback();
+	[[nodiscard]] auto callback();
 	void startAnimations();
-	void callback();
 	int computeParabolicTop(int from, int to, float64 progress) const;
 	void paintCenterFrame(QPainter &p, QRect target) const;
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
 	QImage _flyIcon;
+	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
 	std::unique_ptr<Ui::AnimatedIcon> _center;
 	std::unique_ptr<Ui::AnimatedIcon> _effect;
 	Ui::Animations::Simple _fly;
