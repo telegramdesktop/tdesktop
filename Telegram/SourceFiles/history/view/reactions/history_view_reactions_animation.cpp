@@ -15,12 +15,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
+#include "base/random.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {
 namespace {
 
 constexpr auto kFlyDuration = crl::time(300);
+constexpr auto kMiniCopies = 7;
+constexpr auto kMiniCopiesDurationMax = crl::time(1400);
+constexpr auto kMiniCopiesDurationMin = crl::time(700);
+constexpr auto kMiniCopiesScaleInDuration = crl::time(200);
+constexpr auto kMiniCopiesScaleOutDuration = crl::time(200);
+constexpr auto kMiniCopiesMaxScaleMin = 0.6;
+constexpr auto kMiniCopiesMaxScaleMax = 0.9;
 
 } // namespace
 
@@ -61,6 +69,7 @@ Animation::Animation(
 		const auto data = &owner->owner();
 		const auto document = data->document(customId);
 		_custom = data->customEmojiManager().create(document, callback());
+		_customSize = centerIconSize;
 		aroundAnimation = owner->chooseGenericAnimation(document);
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
@@ -91,10 +100,11 @@ Animation::Animation(
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
+	generateMiniCopies(size + size / 2);
 	if (!args.flyIcon.isNull()) {
 		_flyIcon = std::move(args.flyIcon);
 		_fly.start(flyCallback(), 0., 1., kFlyDuration);
-	} else if (!_center && !_effect) {
+	} else if (!_center && !_effect && _miniCopies.empty()) {
 		return;
 	} else {
 		startAnimations();
@@ -108,16 +118,22 @@ Animation::~Animation() = default;
 QRect Animation::paintGetArea(
 		QPainter &p,
 		QPoint origin,
-		QRect target) const {
+		QRect target,
+		crl::time now) const {
 	if (_flyIcon.isNull()) {
-		paintCenterFrame(p, target);
+		paintCenterFrame(p, target, now);
 		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
 			target.size() * 2);
 		if (const auto effect = _effect.get()) {
 			p.drawImage(wide, effect->frame());
 		}
-		return wide;
+		paintMiniCopies(p, target.center(), now);
+		return _miniCopies.empty()
+			? wide
+			: QRect(
+				target.topLeft() - QPoint(target.width(), target.height()),
+				target.size() * 3);
 	}
 	const auto from = _flyFrom.translated(origin);
 	const auto lshift = target.width() / 4;
@@ -127,7 +143,12 @@ QRect Animation::paintGetArea(
 	const auto progress = _fly.value(1.);
 	const auto rect = QRect(
 		anim::interpolate(from.x(), target.x(), progress),
-		computeParabolicTop(from.y(), target.y(), progress),
+		computeParabolicTop(
+			_cached,
+			from.y(),
+			target.y(),
+			st::reactionFlyUp,
+			progress),
 		anim::interpolate(from.width(), target.width(), progress),
 		anim::interpolate(from.height(), target.height(), progress));
 	const auto wide = rect.marginsAdded(margins);
@@ -137,13 +158,16 @@ QRect Animation::paintGetArea(
 	}
 	if (progress > 0.) {
 		p.setOpacity(progress);
-		paintCenterFrame(p, wide);
+		paintCenterFrame(p, wide, now);
 	}
 	p.setOpacity(1.);
 	return wide;
 }
 
-void Animation::paintCenterFrame(QPainter &p, QRect target) const {
+void Animation::paintCenterFrame(
+		QPainter &p,
+		QRect target,
+		crl::time now) const {
 	Expects(_center || _custom);
 
 	const auto size = QSize(
@@ -157,24 +181,103 @@ void Animation::paintCenterFrame(QPainter &p, QRect target) const {
 			size.height());
 		p.drawImage(rect, _center->frame());
 	} else {
-		const auto side = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
-		const auto scaled = (size.width() != side);
+		const auto scaled = (size.width() != _customSize);
 		_custom->paint(p, {
-			.preview = Qt::transparent,
-			.size = { side, side },
-			.now = crl::now(),
-			.scale = (scaled ? (size.width() / float64(side)) : 1.),
+			.preview = QColor(0, 0, 0, 0),
+			.size = { _customSize, _customSize },
+			.now = now,
+			.scale = (scaled ? (size.width() / float64(_customSize)) : 1.),
 			.position = QPoint(
-				target.x() + (target.width() - side) / 2,
-				target.y() + (target.height() - side) / 2),
+				target.x() + (target.width() - _customSize) / 2,
+				target.y() + (target.height() - _customSize) / 2),
 			.scaled = scaled,
 		});
 	}
 }
 
+void Animation::paintMiniCopies(
+		QPainter &p,
+		QPoint center,
+		crl::time now) const {
+	Expects(_miniCopies.empty() || _custom != nullptr);
+
+	if (!_minis.animating()) {
+		return;
+	}
+	auto hq = PainterHighQualityEnabler(p);
+	const auto size = QSize(_customSize, _customSize);
+	const auto preview = QColor(0, 0, 0, 0);
+	const auto progress = _minis.value(1.);
+	const auto middle = center - QPoint(_customSize / 2, _customSize / 2);
+	const auto scaleIn = kMiniCopiesScaleInDuration
+		/ float64(kMiniCopiesDurationMax);
+	const auto scaleOut = kMiniCopiesScaleOutDuration
+		/ float64(kMiniCopiesDurationMax);
+	auto context = Ui::Text::CustomEmoji::Context{
+		.preview = preview,
+		.size = size,
+		.now = now,
+		.scaled = true,
+	};
+	for (const auto &mini : _miniCopies) {
+		if (progress >= mini.duration) {
+			continue;
+		}
+		const auto value = progress / mini.duration;
+		context.scale = (progress < scaleIn)
+			? (mini.maxScale * progress / scaleIn)
+			: (progress <= mini.duration - scaleOut)
+			? mini.maxScale
+			: (mini.maxScale * (mini.duration - progress) / scaleOut);
+		context.position = middle + QPoint(
+			anim::interpolate(0, mini.finalX, value),
+			computeParabolicTop(
+				mini.cached,
+				0,
+				mini.finalY,
+				mini.flyUp,
+				value));
+		_custom->paint(p, context);
+	}
+}
+
+void Animation::generateMiniCopies(int size) {
+	if (!_custom) {
+		return;
+	}
+	const auto random = [] {
+		constexpr auto count = 16384;
+		return base::RandomIndex(count) / float64(count - 1);
+	};
+	const auto between = [](int a, int b) {
+		return (a > b)
+			? (b + base::RandomIndex(a - b + 1))
+			: (a + base::RandomIndex(b - a + 1));
+	};
+	_miniCopies.reserve(kMiniCopies);
+	for (auto i = 0; i != kMiniCopies; ++i) {
+		const auto maxScale = kMiniCopiesMaxScaleMin
+			+ (kMiniCopiesMaxScaleMax - kMiniCopiesMaxScaleMin) * random();
+		const auto duration = between(
+			kMiniCopiesDurationMin,
+			kMiniCopiesDurationMax);
+		const auto maxSize = int(std::ceil(maxScale * _customSize));
+		const auto maxHalf = (maxSize + 1) / 2;
+		_miniCopies.push_back({
+			.maxScale = maxScale,
+			.duration = duration / float64(kMiniCopiesDurationMax),
+			.flyUp = between(size / 4, size - maxHalf),
+			.finalX = between(-size, size),
+			.finalY = between(size - (size / 4), size),
+		});
+	}
+}
+
 int Animation::computeParabolicTop(
+		Parabolic &cache,
 		int from,
 		int to,
+		int top,
 		float64 progress) const {
 	const auto t = progress;
 
@@ -189,8 +292,8 @@ int Animation::computeParabolicTop(
 	// b = 2 * t_0 * y_1 / (2 * t_0 - 1)
 	// t_0 = (y_0 / y_1) +- sqrt((y_0 / y_1) * (y_0 / y_1 - 1))
 	const auto y_1 = to - from;
-	if (_cachedKey != y_1) {
-		const auto y_0 = std::min(0, y_1) - st::reactionFlyUp;
+	if (cache.key != y_1) {
+		const auto y_0 = std::min(0, y_1) - top;
 		const auto ratio = y_1 ? (float64(y_0) / y_1) : 0.;
 		const auto root = y_1 ? sqrt(ratio * (ratio - 1)) : 0.;
 		const auto t_0 = !y_1
@@ -200,12 +303,12 @@ int Animation::computeParabolicTop(
 			: (ratio - root);
 		const auto a = y_1 ? (y_1 / (1 - 2 * t_0)) : (-4 * y_0);
 		const auto b = y_1 - a;
-		_cachedKey = y_1;
-		_cachedA = a;
-		_cachedB = b;
+		cache.key = y_1;
+		cache.a = a;
+		cache.b = b;
 	}
 
-	return int(base::SafeRound(_cachedA * t * t + _cachedB * t + from));
+	return int(base::SafeRound(cache.a * t * t + cache.b * t + from));
 }
 
 void Animation::startAnimations() {
@@ -214,6 +317,9 @@ void Animation::startAnimations() {
 	}
 	if (const auto effect = _effect.get()) {
 		_effect->animate(callback());
+	}
+	if (!_miniCopies.empty()) {
+		_minis.start(callback(), 0., 1., kMiniCopiesDurationMax);
 	}
 }
 
@@ -233,7 +339,8 @@ bool Animation::finished() const {
 	return !_valid
 		|| (_flyIcon.isNull()
 			&& (!_center || !_center->animating())
-			&& (!_effect || !_effect->animating()));
+			&& (!_effect || !_effect->animating())
+			&& !_minis.animating());
 }
 
 } // namespace HistoryView::Reactions

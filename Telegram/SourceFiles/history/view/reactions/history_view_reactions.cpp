@@ -452,13 +452,15 @@ void InlineList::paint(
 		}
 	}
 	if (!animations.empty()) {
+		const auto now = context.now;
 		context.reactionInfo->effectPaint = [=](QPainter &p) {
 			auto result = QRect();
 			for (const auto &single : animations) {
 				const auto area = single.animation->paintGetArea(
 					p,
 					QPoint(),
-					single.target);
+					single.target,
+					now);
 				result = result.isEmpty() ? area : result.united(area);
 			}
 			return result;
