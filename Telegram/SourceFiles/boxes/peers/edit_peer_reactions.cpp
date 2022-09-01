@@ -45,7 +45,9 @@ void EditAllowedReactionsBox(
 	};
 	struct State {
 		base::flat_map<ReactionId, not_null<Ui::SettingsButton*>> toggles;
-		rpl::variable<Option> option;
+		rpl::variable<Option> option; // For groups.
+		rpl::variable<bool> anyToggled; // For channels.
+		rpl::event_stream<bool> forceToggleAll; // For channels.
 	};
 	const auto state = box->lifetime().make_state<State>(State{
 		.option = (allowed.type != AllowedReactionsType::Some
@@ -53,17 +55,12 @@ void EditAllowedReactionsBox(
 			: allowed.some.empty()
 			? Option::None
 			: Option::Some),
+		.anyToggled = (allowed.type != Data::AllowedReactionsType::Some),
 	});
 
 	const auto collect = [=] {
-		auto result = AllowedReactions{
-			.type = (state->option.current() != Option::All
-				? AllowedReactionsType::Some
-				: isGroup
-				? AllowedReactionsType::All
-				: AllowedReactionsType::Default),
-		};
-		if (state->option.current() == Option::Some) {
+		auto result = AllowedReactions();
+		if (!isGroup || state->option.current() == Option::Some) {
 			result.some.reserve(state->toggles.size());
 			for (const auto &[id, button] : state->toggles) {
 				if (button->toggled()) {
@@ -71,17 +68,54 @@ void EditAllowedReactionsBox(
 				}
 			}
 		}
+		result.type = isGroup
+			? (state->option.current() != Option::All
+				? AllowedReactionsType::Some
+				: AllowedReactionsType::All)
+			: (result.some.size() == state->toggles.size())
+			? AllowedReactionsType::Default
+			: AllowedReactionsType::Some;
 		return result;
 	};
 
 	const auto container = box->verticalLayout();
 
+	const auto enabled = isGroup ? nullptr : Settings::AddButton(
+		container,
+		tr::lng_manage_peer_reactions_enable(),
+		st::manageGroupButton.button
+	).get();
+	if (enabled && !list.empty()) {
+		AddReactionAnimatedIcon(
+			enabled,
+			enabled->sizeValue(
+			) | rpl::map([=](const QSize &size) {
+				return QPoint(
+					st::manageGroupButton.iconPosition.x(),
+					(size.height() - iconHeight) / 2);
+			}),
+			iconHeight,
+			list.front(),
+			rpl::never<>(),
+			rpl::never<>(),
+			&enabled->lifetime());
+	}
+	if (enabled) {
+		enabled->toggleOn(state->anyToggled.value());
+		enabled->toggledChanges(
+		) | rpl::filter([=](bool value) {
+			return (value != state->anyToggled.current());
+		}) | rpl::start_to_stream(state->forceToggleAll, enabled->lifetime());
+	}
 	const auto group = std::make_shared<Ui::RadioenumGroup<Option>>(
 		state->option.current());
 	group->setChangedCallback([=](Option value) {
 		state->option = value;
 	});
 	const auto addOption = [&](Option option, const QString &text) {
+		if (!isGroup) {
+			return;
+		}
 		container->add(
 			object_ptr<Ui::Radioenum<Option>>(
 				container,
@@ -95,37 +129,39 @@ void EditAllowedReactionsBox(
 	addOption(Option::Some, tr::lng_manage_peer_reactions_some(tr::now));
 	addOption(Option::None, tr::lng_manage_peer_reactions_none(tr::now));
 
-	const auto about = [isGroup](Option option) {
+	const auto about = [](Option option) {
 		switch (option) {
-		case Option::All: return isGroup
-			? tr::lng_manage_peer_reactions_all_about()
-			: tr::lng_manage_peer_reactions_all_about_channel();
-		case Option::Some: return isGroup
-			? tr::lng_manage_peer_reactions_some_about()
-			: tr::lng_manage_peer_reactions_some_about_channel();
-		case Option::None: return isGroup
-			? tr::lng_manage_peer_reactions_none_about()
-			: tr::lng_manage_peer_reactions_none_about_channel();
+		case Option::All: return tr::lng_manage_peer_reactions_all_about();
+		case Option::Some: return tr::lng_manage_peer_reactions_some_about();
+		case Option::None: return tr::lng_manage_peer_reactions_none_about();
 		}
 		Unexpected("Option value in EditAllowedReactionsBox.");
 	};
 	Settings::AddSkip(container);
 	Settings::AddDividerText(
 		container,
-		state->option.value() | rpl::map(about) | rpl::flatten_latest());
+		(isGroup
+			? (state->option.value()
+				| rpl::map(about)
+				| rpl::flatten_latest())
+			: tr::lng_manage_peer_reactions_about_channel()));
 
-	const auto wrap = container->add(
+	const auto wrap = enabled ? nullptr : container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
 			object_ptr<Ui::VerticalLayout>(container)));
-	wrap->toggleOn(state->option.value() | rpl::map(_1 == Option::Some));
-	wrap->finishAnimating();
-	const auto reactions = wrap->entity();
+	if (wrap) {
+		wrap->toggleOn(state->option.value() | rpl::map(_1 == Option::Some));
+		wrap->finishAnimating();
+	}
+	const auto reactions = wrap ? wrap->entity() : container.get();
 
 	Settings::AddSkip(reactions);
 	Settings::AddSubsectionTitle(
 		reactions,
-		tr::lng_manage_peer_reactions_some_title());
+		(enabled
+			? tr::lng_manage_peer_reactions_available()
+			: tr::lng_manage_peer_reactions_some_title()));
 
 	const auto active = [&](const ReactionId &id) {
 		return (allowed.type != AllowedReactionsType::Some)
@@ -153,7 +189,20 @@ void EditAllowedReactionsBox(
 			rpl::never<>(),
 			&button->lifetime());
 		state->toggles.emplace(entry.id, button);
-		button->toggleOn(rpl::single(active(entry.id)));
+		button->toggleOn(rpl::single(active(entry.id)) | rpl::then(enabled
+			? (state->forceToggleAll.events() | rpl::type_erased())
+			: rpl::never<bool>()
+		));
+		if (enabled) {
+			button->toggledChanges(
+			) | rpl::start_with_next([=](bool toggled) {
+				if (toggled) {
+					state->anyToggled = true;
+				} else if (collect().some.empty()) {
+					state->anyToggled = false;
+				}
+			}, button->lifetime());
+		}
 	};
 	for (const auto &entry : list) {
 		add(entry);
