@@ -48,7 +48,7 @@ public:
 	[[nodiscard]] rpl::producer<> defaultUpdates() const;
 	[[nodiscard]] rpl::producer<> coloredUpdates() const;
 
-	void set(DocumentId id);
+	void set(DocumentId id, TimeId until = 0);
 	[[nodiscard]] bool setting() const;
 
 	void registerAutomaticClear(not_null<UserData*> user, TimeId until);

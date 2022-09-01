@@ -171,24 +171,7 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
-	const auto seconds = std::vector<TimeId>{
-		(60 * 15),
-		(60 * 30),
-		(3600 * 1),
-		(3600 * 2),
-		(3600 * 3),
-		(3600 * 4),
-		(3600 * 8),
-		(3600 * 12),
-		(86400 * 1),
-		(86400 * 2),
-		(86400 * 3),
-		(86400 * 7 * 1),
-		(86400 * 7 * 2),
-		(86400 * 31 * 1),
-		(86400 * 31 * 2),
-		(86400 * 31 * 3),
-	};
+	const auto seconds = Ui::DefaultTimePickerValues();
 	const auto phrases = ranges::views::all(
 		seconds
 	) | ranges::views::transform(Ui::FormatMuteFor) | ranges::to_vector;

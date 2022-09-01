@@ -22,10 +22,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "lang/lang_keys.h"
+#include "menu/menu_send.h" // SendMenu::Type.
+#include "ui/boxes/confirm_box.h"
+#include "ui/boxes/time_picker_box.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/effects/ripple_animation.h"
-#include "ui/text/text_block.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
@@ -79,6 +82,26 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 		? tr::lng_group_status(tr::now)
 		: tr::lng_channel_status(tr::now);
 };
+
+void PickUntilBox(not_null<Ui::GenericBox*> box, Fn<void(TimeId)> callback) {
+	box->setTitle(tr::lng_emoji_status_for_title());
+
+	const auto seconds = Ui::DefaultTimePickerValues();
+	const auto phrases = ranges::views::all(
+		seconds
+	) | ranges::views::transform(Ui::FormatMuteFor) | ranges::to_vector;
+
+	const auto pickerCallback = Ui::TimePickerBox(box, seconds, phrases, 0);
+
+	Ui::ConfirmBox(box, {
+		.confirmed = [=] {
+			callback(pickerCallback());
+			box->closeBox();
+		},
+		.confirmText = tr::lng_emoji_status_for_submit(),
+		.cancelText = tr::lng_cancel(),
+	});
+}
 
 } // namespace
 
@@ -301,17 +324,37 @@ void EmojiStatusPanel::create(
 	_panel->hide();
 	_panel->selector()->setAllowEmojiWithoutPremium(false);
 
+	struct Chosen {
+		DocumentId id = 0;
+		TimeId until = 0;
+	};
+
+	_panel->selector()->contextMenuRequested(
+	) | rpl::start_with_next([=] {
+		_panel->selector()->showMenuWithType(SendMenu::Type::Scheduled);
+	}, _panel->lifetime());
+
 	auto statusChosen = _panel->selector()->customEmojiChosen(
 	) | rpl::map([=](Selector::FileChosen data) {
-		return data.document->id;
+		return Chosen{ data.document->id, data.options.scheduled };
 	});
 
 	rpl::merge(
 		std::move(statusChosen),
-		_panel->selector()->emojiChosen() | rpl::map_to(DocumentId())
-	) | rpl::start_with_next([=](DocumentId id) {
-		controller->session().data().emojiStatuses().set(id);
-		_panel->hideAnimated();
+		_panel->selector()->emojiChosen() | rpl::map_to(Chosen())
+	) | rpl::start_with_next([=](const Chosen chosen) {
+		if (chosen.until == ChatHelpers::TabbedSelector::kPickCustomTimeId) {
+			controller->show(Box(PickUntilBox, [=](TimeId seconds) {
+				controller->session().data().emojiStatuses().set(
+					chosen.id,
+					base::unixtime::now() + seconds);
+			}));
+		} else {
+			controller->session().data().emojiStatuses().set(
+				chosen.id,
+				chosen.until);
+			_panel->hideAnimated();
+		}
 	}, _panel->lifetime());
 
 	_panel->selector()->showPromoForPremiumEmoji();

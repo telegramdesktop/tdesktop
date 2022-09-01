@@ -239,14 +239,18 @@ void EmojiStatuses::updateColored(const MTPDmessages_stickerSet &data) {
 	_coloredUpdated.fire({});
 }
 
-void EmojiStatuses::set(DocumentId id) {
+void EmojiStatuses::set(DocumentId id, TimeId until) {
 	auto &api = _owner->session().api();
 	if (_sentRequestId) {
 		api.request(base::take(_sentRequestId)).cancel();
 	}
-	_owner->session().user()->setEmojiStatus(id);
+	_owner->session().user()->setEmojiStatus(id, until);
 	_sentRequestId = api.request(MTPaccount_UpdateEmojiStatus(
-		id ? MTP_emojiStatus(MTP_long(id)) : MTP_emojiStatusEmpty()
+		!id
+		? MTP_emojiStatusEmpty()
+		: !until
+		? MTP_emojiStatus(MTP_long(id))
+		: MTP_emojiStatusUntil(MTP_long(id), MTP_int(until))
 	)).done([=] {
 		_sentRequestId = 0;
 	}).fail([=] {

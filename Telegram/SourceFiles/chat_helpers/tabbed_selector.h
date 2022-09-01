@@ -60,6 +60,7 @@ class GifsListWidget;
 
 class TabbedSelector : public Ui::RpWidget {
 public:
+	static constexpr auto kPickCustomTimeId = -1;
 	struct FileChosen {
 		not_null<DocumentData*> document;
 		Api::SendOptions options;

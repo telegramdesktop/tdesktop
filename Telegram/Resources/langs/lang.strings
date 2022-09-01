@@ -1811,6 +1811,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";
 "lng_accounts_limit2" = "You can free one space by subscribing to **Telegram Premium** with one of these connected accounts:";
 
+"lng_emoji_status_for_title" = "Set Status for...";
+"lng_emoji_status_for_submit" = "Set Status";
+"lng_emoji_status_menu_duration_any" = "Set Status for {duration}";
+
 "lng_group_about_header" = "You have created a group.";
 "lng_group_about_text" = "Groups can have:";
 "lng_group_about1" = "Up to 100,000 members";

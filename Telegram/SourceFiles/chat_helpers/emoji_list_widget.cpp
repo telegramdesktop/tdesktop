@@ -7,8 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "chat_helpers/emoji_list_widget.h"
 
+#include "base/unixtime.h"
+#include "ui/text/format_values.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/effects/ripple_animation.h"
@@ -33,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "settings/settings_premium.h"
 #include "window/window_session_controller.h"
-#include "facades.h"
 #include "styles/style_chat_helpers.h"
 
 namespace ChatHelpers {
@@ -794,6 +796,45 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 	}
 }
 
+void EmojiListWidget::fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) {
+	if (v::is_null(_selected)) {
+		return;
+	}
+	const auto over = std::get_if<OverEmoji>(&_selected);
+	if (!over) {
+		return;
+	}
+	const auto section = over->section;
+	const auto index = over->index;
+	// Ignore the default status.
+	if (!index && (section == int(Section::Recent))) {
+		return;
+	}
+	const auto chosen = lookupCustomEmoji(index, section);
+	if (!chosen) {
+		return;
+	}
+	for (const auto &value : { 3600, 3600 * 8, 3600 * 24, 3600 * 24 * 7 }) {
+		const auto text = tr::lng_emoji_status_menu_duration_any(
+			tr::now,
+			lt_duration,
+			Ui::FormatMuteFor(value));
+		menu->addAction(text, crl::guard(this, [=] {
+			selectCustom(
+				chosen,
+				{ .scheduled = base::unixtime::now() + value } );
+		}));
+	}
+	const auto options = Api::SendOptions{
+		.scheduled = TabbedSelector::kPickCustomTimeId,
+	};
+	menu->addAction(
+		tr::lng_manage_messages_ttl_after_custom(tr::now),
+		crl::guard(this, [=] { selectCustom(chosen, options); }));
+}
+
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
@@ -1050,6 +1091,27 @@ bool EmojiListWidget::checkPickerHide() {
 	return false;
 }
 
+DocumentData *EmojiListWidget::lookupCustomEmoji(
+		int index,
+		int section) const {
+	if (section == int(Section::Recent)
+		&& index < _recent.size()) {
+		const auto document = std::get_if<RecentEmojiDocument>(
+			&_recent[index].id.data);
+		const auto custom = document
+			? session().data().document(document->id).get()
+			: nullptr;
+		if (custom && custom->sticker()) {
+			return custom;
+		}
+	} else if (section >= _staticCount
+		&& index < _custom[section - _staticCount].list.size()) {
+		auto &set = _custom[section - _staticCount];
+		return set.list[index].document;
+	}
+	return nullptr;
+}
+
 EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 	const auto section = over ? over->section : -1;
 	const auto index = over ? over->index : -1;
@@ -1131,20 +1193,8 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				return;
 			}
 			selectEmoji(emoji);
-		} else if (section == int(Section::Recent)
-			&& index < _recent.size()) {
-			const auto document = std::get_if<RecentEmojiDocument>(
-				&_recent[index].id.data);
-			const auto custom = document
-				? session().data().document(document->id).get()
-				: nullptr;
-			if (custom && custom->sticker()) {
-				selectCustom(custom);
-			}
-		} else if (section >= _staticCount
-			&& index < _custom[section - _staticCount].list.size()) {
-			auto &set = _custom[section - _staticCount];
-			selectCustom(set.list[index].document);
+		} else if (const auto custom = lookupCustomEmoji(index, section)) {
+			selectCustom(custom);
 		}
 	} else if (const auto set = std::get_if<OverSet>(&pressed)) {
 		Assert(set->section >= _staticCount
@@ -1201,7 +1251,9 @@ void EmojiListWidget::selectEmoji(EmojiPtr emoji) {
 	_chosen.fire_copy(emoji);
 }
 
-void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
+void EmojiListWidget::selectCustom(
+		not_null<DocumentData*> document,
+		Api::SendOptions options) {
 	if (document->isPremiumEmoji()
 		&& !document->session().premium()
 		&& !_allowWithoutPremium) {
@@ -1215,7 +1267,7 @@ void EmojiListWidget::selectCustom(not_null<DocumentData*> document) {
 			document->session().isTestMode(),
 		} });
 	}
-	_customChosen.fire({ .document = document });
+	_customChosen.fire({ .document = document, .options = options });
 }
 
 void EmojiListWidget::showPicker() {

@@ -126,6 +126,10 @@ public:
 		float64 progress,
 		RectPart origin);
 
+	void fillContextMenu(
+		not_null<Ui::PopupMenu*> menu,
+		SendMenu::Type type) override;
+
 protected:
 	void visibleTopBottomUpdated(
 		int visibleTop,
@@ -247,8 +251,13 @@ private:
 	void setPressed(OverState newPressed);
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
+	[[nodiscard]] DocumentData *lookupCustomEmoji(
+		int index,
+		int section) const;
 	void selectEmoji(EmojiPtr emoji);
-	void selectCustom(not_null<DocumentData*> document);
+	void selectCustom(
+		not_null<DocumentData*> document,
+		Api::SendOptions options = Api::SendOptions());
 	void paint(QPainter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
