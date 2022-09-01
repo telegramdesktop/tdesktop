@@ -485,9 +485,9 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	minWidth: 190px;
 }
-settingsPremiumArrowShift: point(-4px, -1px);
-settingsPremiumArrow: icon{{ "fast_to_original", menuIconFg }};
-settingsPremiumArrowOver: icon{{ "fast_to_original", menuIconFgOver }};
+settingsPremiumArrowShift: point(-5px, -1px);
+settingsPremiumArrow: icon{{ "settings/premium/arrow", menuIconFg }};
+settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
 
 settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);

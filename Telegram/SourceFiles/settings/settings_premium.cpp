@@ -383,13 +383,18 @@ public:
 
 protected:
 	void paintEdges(QPainter &p, const QBrush &brush) const;
+	void paintEdges(QPainter &p) const;
 
 	[[nodiscard]] QRectF starRect(
 		float64 topProgress,
 		float64 sizeProgress) const;
 
+	[[nodiscard]] bool isDark() const;
+	void computeIsDark();
+
 private:
 	bool _roundEdges = true;
+	bool _isDark = false;
 
 };
 
@@ -414,6 +419,14 @@ void TopBarAbstract::paintEdges(QPainter &p, const QBrush &brush) const {
 	}
 }
 
+void TopBarAbstract::paintEdges(QPainter &p) const {
+	paintEdges(p, st::boxBg);
+	if (isDark()) {
+		paintEdges(p, st::shadowFg);
+		paintEdges(p, st::shadowFg);
+	}
+}
+
 QRectF TopBarAbstract::starRect(
 		float64 topProgress,
 		float64 sizeProgress) const {
@@ -424,6 +437,17 @@ QRectF TopBarAbstract::starRect(
 			st::settingsPremiumStarTopSkip * topProgress),
 		starSize);
 };
+
+bool TopBarAbstract::isDark() const {
+	return _isDark;
+}
+
+void TopBarAbstract::computeIsDark() {
+	const auto contrast = Ui::CountContrast(
+		st::boxBg->c,
+		st::premiumButtonFg->c);
+	_isDark = (contrast > kMinAcceptableContrast);
+}
 
 class EmojiStatusTopBar final {
 public:
@@ -611,6 +635,13 @@ TopBarUser::TopBarUser(
 }) {
 	_starRect = TopBarAbstract::starRect(1., 1.);
 
+	rpl::single() | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		TopBarAbstract::computeIsDark();
+		update();
+	}, lifetime());
+
 	auto documentValue = Info::Profile::EmojiStatusIdValue(
 		peer
 	) | rpl::map([=](DocumentId id) -> DocumentData* {
@@ -749,7 +780,7 @@ TopBarUser::TopBarUser(
 		Painter p(_smallTop.widget);
 
 		p.setOpacity(_smallTop.animation.value(_smallTop.shown ? 1. : 0.));
-		paintEdges(p, st::boxBg);
+		TopBarAbstract::paintEdges(p);
 
 		p.setPen(st::boxTitleFg);
 		_smallTop.text.drawLeft(
@@ -859,7 +890,7 @@ void TopBarUser::setTextPosition(int x, int y) {
 void TopBarUser::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
-	TopBarAbstract::paintEdges(p, st::boxBg);
+	TopBarAbstract::paintEdges(p);
 }
 
 void TopBarUser::resizeEvent(QResizeEvent *e) {
@@ -900,8 +931,6 @@ private:
 		float64 title = 0.;
 		float64 scaleTitle = 0.;
 	} _progress;
-
-	bool _isDark = false;
 
 	QRectF _starRect;
 
@@ -944,12 +973,9 @@ TopBar::TopBar(
 	rpl::single() | rpl::then(
 		style::PaletteChanged()
 	) | rpl::start_with_next([=] {
-		const auto contrast = Ui::CountContrast(
-			st::boxBg->c,
-			st::premiumButtonFg->c);
-		_isDark = (contrast > kMinAcceptableContrast);
+		TopBarAbstract::computeIsDark();
 
-		if (!_isDark) {
+		if (!TopBarAbstract::isDark()) {
 			_star.load(Svg());
 			_ministars.setColorOverride(st::premiumButtonFg->c);
 		} else {
@@ -1008,7 +1034,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 	const auto r = rect();
 
-	if (!_isDark) {
+	if (!TopBarAbstract::isDark()) {
 		const auto gradientPointTop = r.height() / 3. * 2.;
 		auto gradient = QLinearGradient(
 			QPointF(0, gradientPointTop),
@@ -1017,9 +1043,7 @@ void TopBar::paintEvent(QPaintEvent *e) {
 
 		TopBarAbstract::paintEdges(p, gradient);
 	} else {
-		TopBarAbstract::paintEdges(p, st::boxBg);
-		TopBarAbstract::paintEdges(p, st::shadowFg);
-		TopBarAbstract::paintEdges(p, st::shadowFg);
+		TopBarAbstract::paintEdges(p);
 	}
 
 	p.setOpacity(_progress.body);
@@ -1099,7 +1123,7 @@ private:
 
 	rpl::event_stream<> _showBack;
 	rpl::event_stream<> _showFinished;
-	rpl::event_stream<QString> _buttonText;
+	rpl::variable<QString> _buttonText;
 
 };
 
@@ -1560,14 +1584,15 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			if (const auto peer = data.peer(emojiStatusData.peerId)) {
 				return Info::Profile::EmojiStatusIdValue(
 					peer
-				) | rpl::map([](DocumentId id) {
+				) | rpl::map([=](DocumentId id) {
 					return id
 						? tr::lng_premium_emoji_status_button()
-						: tr::lng_premium_summary_user_button();
+						: _buttonText.value();
+						// : tr::lng_premium_summary_user_button();
 				}) | rpl::flatten_latest();
 			}
 		}
-		return _buttonText.events();
+		return _buttonText.value();
 	}();
 
 	_subscribe = CreateSubscribeButton({
@@ -1583,6 +1608,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 				: QString();
 		},
 	});
+#if 0
 	if (emojiStatusData) {
 		// "Learn More" should open the general Premium Settings
 		// so we override the button callback.
@@ -1595,6 +1621,8 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 			controller->setPremiumRef(ref);
 		});
 	} else {
+#endif
+	{
 		_radioGroup->setChangedCallback([=](int value) {
 			const auto options =
 				_controller->session().api().premium().subscriptionOptions();
@@ -1603,7 +1631,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 				tr::now,
 				lt_cost,
 				options[value].costPerMonth);
-			_buttonText.fire(std::move(text));
+			_buttonText = std::move(text);
 		});
 		_radioGroup->setValue(0);
 	}
