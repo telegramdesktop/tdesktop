@@ -184,7 +184,7 @@
 - Bring your custom animated stickers from other apps.
 - See smaller, compact animations when reacting to messages.
 - See real-time animations in chat when a user reacts to your message.
-- React with additional emoji expressing love, appreciation, anger or surprise. 
+- React with additional emoji expressing love, appreciation, anger or surprise.
 - Tap the new button in chats to jump to your messages that have unseen reactions.
 - Watch the animations for unseen reactions play when you hit the button.
 - The app will warn you before closing if you are uploading photos or files to a chat.
@@ -257,7 +257,7 @@
 - Clear messages in one-on-one chats from a specific day or date range.
 - Comment as one of your channels in public groups and channel comments.
 - When you request to join a community and its admin or bot-admin contacts you with a message, you will see which chat they are from at the top of the chat.
-- Bot-admins can now ask users to complete tasks before they are allowed to join - like accepting community rules, passing a test, or making a donation to the content creators. 
+- Bot-admins can now ask users to complete tasks before they are allowed to join - like accepting community rules, passing a test, or making a donation to the content creators.
 
 3.2.8 beta (01.12.21)
 
@@ -283,7 +283,7 @@
 3.2.4 (13.11.21)
 
 - Fix editing of scheduled messages on macOS.
-- Fix launching on Chrome OS in Crostini container. 
+- Fix launching on Chrome OS in Crostini container.
 
 3.2.3 (08.11.21)
 
