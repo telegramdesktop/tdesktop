@@ -72,7 +72,7 @@ public:
 		const QString &newPhoneName,
 		const QString &newUsername);
 
-	void setEmojiStatus(DocumentId emojiStatusId);
+	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
 
 	void setPhone(const QString &newPhone);

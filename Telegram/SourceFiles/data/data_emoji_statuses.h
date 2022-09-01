@@ -48,12 +48,16 @@ public:
 	void set(DocumentId id);
 	[[nodiscard]] bool setting() const;
 
+	void registerAutomaticClear(not_null<UserData*> user, TimeId until);
+
 private:
 	void requestRecent();
 	void requestDefault();
 
 	void updateRecent(const MTPDaccount_emojiStatuses &data);
 	void updateDefault(const MTPDaccount_emojiStatuses &data);
+
+	void processClearing();
 
 	const not_null<Session*> _owner;
 
@@ -72,8 +76,17 @@ private:
 
 	mtpRequestId _sentRequestId = 0;
 
+	base::flat_map<not_null<UserData*>, crl::time> _clearing;
+	base::Timer _clearingTimer;
+
 	rpl::lifetime _lifetime;
 
 };
+
+struct EmojiStatusData {
+	DocumentId id = 0;
+	TimeId until = 0;
+};
+[[nodiscard]] EmojiStatusData ParseEmojiStatus(const MTPEmojiStatus &status);
 
 } // namespace Data

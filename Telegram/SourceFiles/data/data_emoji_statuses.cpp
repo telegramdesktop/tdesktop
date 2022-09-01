@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/stickers/data_stickers.h"
+#include "base/unixtime.h"
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
 #include "apiwrap.h"
@@ -21,14 +22,7 @@ namespace {
 
 constexpr auto kRefreshDefaultListEach = 60 * 60 * crl::time(1000);
 constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
-
-[[nodiscard]] DocumentId Parse(const MTPEmojiStatus &status) {
-	return status.match([&](const MTPDemojiStatus &data) {
-		return DocumentId(data.vdocument_id().v);
-	}, [](const MTPDemojiStatusEmpty &) {
-		return DocumentId();
-	});
-}
+constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 
 [[nodiscard]] std::vector<DocumentId> ListFromMTP(
 		const MTPDaccount_emojiStatuses &data) {
@@ -36,11 +30,11 @@ constexpr auto kRecentRequestTimeout = 10 * crl::time(1000);
 	auto result = std::vector<DocumentId>();
 	result.reserve(list.size());
 	for (const auto &status : list) {
-		const auto id = Parse(status);
-		if (!id) {
+		const auto parsed = ParseEmojiStatus(status);
+		if (!parsed.id) {
 			LOG(("API Error: emojiStatusEmpty in account.emojiStatuses."));
 		} else {
-			result.push_back(id);
+			result.push_back(parsed.id);
 		}
 	}
 	return result;
@@ -100,6 +94,62 @@ rpl::producer<> EmojiStatuses::recentUpdates() const {
 
 rpl::producer<> EmojiStatuses::defaultUpdates() const {
 	return _defaultUpdated.events();
+}
+
+void EmojiStatuses::registerAutomaticClear(
+		not_null<UserData*> user,
+		TimeId until) {
+	if (!until) {
+		_clearing.remove(user);
+		if (_clearing.empty()) {
+			_clearingTimer.cancel();
+		}
+	} else if (auto &already = _clearing[user]; already != until) {
+		already = until;
+		const auto i = ranges::min_element(_clearing, {}, [](auto &&pair) {
+			return pair.second;
+		});
+		if (i->first == user) {
+			const auto now = base::unixtime::now();
+			if (now < until) {
+				const auto waitms = (until - now) * crl::time(1000);
+				_clearingTimer.callOnce(std::min(waitms, kMaxTimeout));
+			} else {
+				processClearing();
+			}
+		}
+	}
+}
+
+void EmojiStatuses::processClearing() {
+	auto minWait = TimeId(0);
+	const auto now = base::unixtime::now();
+	auto clearing = base::take(_clearing);
+	for (auto i = begin(clearing); i != end(clearing);) {
+		const auto until = i->second;
+		if (now < until) {
+			const auto wait = (until - now);
+			if (!minWait || minWait > wait) {
+				minWait = wait;
+			}
+			++i;
+		} else {
+			i->first->setEmojiStatus(0, 0);
+			i = clearing.erase(i);
+		}
+	}
+	if (_clearing.empty()) {
+		_clearing = std::move(clearing);
+	} else {
+		for (const auto &[user, until] : clearing) {
+			_clearing.emplace(user, until);
+		}
+	}
+	if (minWait) {
+		_clearingTimer.callOnce(minWait * crl::time(1000));
+	} else {
+		_clearingTimer.cancel();
+	}
 }
 
 void EmojiStatuses::requestRecent() {
@@ -170,6 +220,16 @@ void EmojiStatuses::set(DocumentId id) {
 
 bool EmojiStatuses::setting() const {
 	return _sentRequestId != 0;;
+}
+
+EmojiStatusData ParseEmojiStatus(const MTPEmojiStatus &status) {
+	return status.match([](const MTPDemojiStatus &data) {
+		return EmojiStatusData{ data.vdocument_id().v };
+	}, [](const MTPDemojiStatusUntil &data) {
+		return EmojiStatusData{ data.vdocument_id().v, data.vuntil().v };
+	}, [](const MTPDemojiStatusEmpty &) {
+		return EmojiStatusData();
+	});
 }
 
 } // namespace Data

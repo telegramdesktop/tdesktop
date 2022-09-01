@@ -2345,6 +2345,36 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateMoveStickerSetToTop: {
+		const auto &d = update.c_updateMoveStickerSetToTop();
+		auto &stickers = session().data().stickers();
+		const auto isEmoji = d.is_emojis();
+		const auto setId = d.vstickerset().v;
+		auto &order = isEmoji
+			? stickers.emojiSetsOrderRef()
+			: stickers.setsOrderRef();
+		const auto i = ranges::find(order, setId);
+		if (i == order.end()) {
+			if (isEmoji) {
+				stickers.setLastEmojiUpdate(0);
+				session().api().updateCustomEmoji();
+			} else {
+				stickers.setLastUpdate(0);
+				session().api().updateStickers();
+			}
+		} else if (i != order.begin()) {
+			std::rotate(order.begin(), i, i + 1);
+			if (isEmoji) {
+				session().local().writeInstalledCustomEmoji();
+			} else {
+				session().local().writeInstalledStickers();
+			}
+			stickers.notifyUpdated(isEmoji
+				? Data::StickersType::Emoji
+				: Data::StickersType::Stickers);
+		}
+	} break;
+
 	case mtpc_updateStickerSets: {
 		const auto &d = update.c_updateStickerSets();
 		if (d.is_emojis()) {
