@@ -48,7 +48,7 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix a memory leak in RTMP livestreams.\n"
 
 		"- Fix some bot webview bugs on macOS.\n"
-		
+
 		"- Fix forwarding of voice messages.\n"
 	}
 	};

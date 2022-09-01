@@ -34,7 +34,7 @@ jobs:
           cd Telegram/build/docker/centos_env
           poetry install
           DEBUG= poetry run gen_dockerfile | docker buildx build -t $IMAGE_TAG -
-      
+
       - name: Push the Docker image.
         if: ${{ github.ref_name == github.event.repository.default_branch }}
         run: |
