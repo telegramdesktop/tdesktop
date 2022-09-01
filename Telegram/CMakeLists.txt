@@ -18,9 +18,6 @@ endif()
 add_subdirectory(lib_storage)
 add_subdirectory(lib_lottie)
 add_subdirectory(lib_qr)
-if (LINUX AND NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-    add_subdirectory(lib_waylandshells)
-endif()
 add_subdirectory(lib_webrtc)
 add_subdirectory(lib_webview)
 add_subdirectory(codegen)
@@ -1472,7 +1469,6 @@ else()
 
         target_link_libraries(Telegram
         PRIVATE
-            desktop-app::lib_waylandshells
             desktop-app::external_wayland_client
         )
     endif()
