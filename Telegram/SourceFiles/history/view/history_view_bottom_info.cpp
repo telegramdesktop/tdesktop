@@ -501,6 +501,7 @@ void BottomInfo::layoutReactionsText() {
 		reactions.push_back((i != end(_reactions))
 			? std::move(*i)
 			: prepareReactionWithId(id));
+		reactions.back().chosen = reaction->my;
 		setReactionCount(reactions.back(), reaction->count);
 	}
 	_reactions = std::move(reactions);
