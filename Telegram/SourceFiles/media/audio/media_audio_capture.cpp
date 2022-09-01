@@ -181,7 +181,7 @@ struct Instance::Inner::Private {
 
 		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(buf_size));
 		if (nbytes <= 0) {
-			return 0;
+			return AVERROR_EOF;
 		}
 
 		memcpy(buf, l->data.constData() + l->dataPos, nbytes);

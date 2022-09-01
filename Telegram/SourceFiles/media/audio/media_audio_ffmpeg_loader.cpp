@@ -105,7 +105,7 @@ int AbstractFFMpegLoader::_read_data(void *opaque, uint8_t *buf, int buf_size) {
 
 	auto nbytes = qMin(l->_data.size() - l->_dataPos, int32(buf_size));
 	if (nbytes <= 0) {
-		return 0;
+		return AVERROR_EOF;
 	}
 
 	memcpy(buf, l->_data.constData() + l->_dataPos, nbytes);
@@ -138,7 +138,7 @@ int AbstractFFMpegLoader::_read_bytes(void *opaque, uint8_t *buf, int buf_size) 
 
 	auto nbytes = qMin(static_cast<int>(l->_bytes.size()) - l->_dataPos, buf_size);
 	if (nbytes <= 0) {
-		return 0;
+		return AVERROR_EOF;
 	}
 
 	memcpy(buf, l->_bytes.data() + l->_dataPos, nbytes);
@@ -169,7 +169,12 @@ int64_t AbstractFFMpegLoader::_seek_bytes(void *opaque, int64_t offset, int when
 
 int AbstractFFMpegLoader::_read_file(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
-	return int(l->_f.read((char *)(buf), buf_size));
+	int ret = l->_f.read((char *)(buf), buf_size);
+	switch (ret) {
+	case -1: return AVERROR_EXTERNAL;
+	case 0: return AVERROR_EOF;
+	default: return ret;
+	}
 }
 
 int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whence) {

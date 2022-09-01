@@ -44,12 +44,12 @@ File::Context::Context(
 
 File::Context::~Context() = default;
 
-int File::Context::Read(void *opaque, uint8_t *buffer, int bufferSize) {
+int File::Context::_read(void *opaque, uint8_t *buffer, int bufferSize) {
 	return static_cast<Context*>(opaque)->read(
 		bytes::make_span(buffer, bufferSize));
 }
 
-int64_t File::Context::Seek(void *opaque, int64_t offset, int whence) {
+int64_t File::Context::_seek(void *opaque, int64_t offset, int whence) {
 	return static_cast<Context*>(opaque)->seek(offset, whence);
 }
 
@@ -59,13 +59,13 @@ int File::Context::read(bytes::span buffer) {
 	const auto amount = std::min(_size - _offset, int64(buffer.size()));
 
 	if (unroll()) {
-		return -1;
+		return AVERROR_EXTERNAL;
 	} else if (amount > kMaxSingleReadAmount) {
 		LOG(("Streaming Error: Read callback asked for too much data: %1"
 			).arg(amount));
-		return -1;
+		return AVERROR_EXTERNAL;
 	} else if (!amount) {
-		return amount;
+		return AVERROR_EOF;
 	}
 
 	buffer = buffer.subspan(0, amount);
@@ -87,10 +87,10 @@ int File::Context::read(bytes::span buffer) {
 		}
 		_semaphore.acquire();
 		if (_interrupted) {
-			return -1;
+			return AVERROR_EXTERNAL;
 		} else if (const auto error = _reader->streamingError()) {
 			fail(*error);
-			return -1;
+			return AVERROR_EXTERNAL;
 		}
 	}
 
@@ -276,9 +276,9 @@ void File::Context::start(crl::time position, bool hwAllow) {
 	}
 	auto format = FFmpeg::MakeFormatPointer(
 		static_cast<void *>(this),
-		&Context::Read,
+		&Context::_read,
 		nullptr,
-		&Context::Seek);
+		&Context::_seek);
 	if (!format) {
 		return fail(Error::OpenFailed);
 	}

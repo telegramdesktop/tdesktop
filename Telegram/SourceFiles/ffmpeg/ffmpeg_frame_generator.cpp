@@ -47,11 +47,11 @@ private:
 		return (_rotation == 90) || (_rotation == 270);
 	}
 
-	[[nodiscard]] static int Read(
+	[[nodiscard]] static int _read(
 		void *opaque,
 		uint8_t *buf,
 		int buf_size);
-	[[nodiscard]] static int64_t Seek(
+	[[nodiscard]] static int64_t _seek(
 		void *opaque,
 		int64_t offset,
 		int whence);
@@ -113,7 +113,7 @@ int FrameGenerator::Impl::Read(void *opaque, uint8_t *buf, int buf_size) {
 int FrameGenerator::Impl::read(uint8_t *buf, int buf_size) {
 	const auto available = _bytes.size() - _deviceOffset;
 	if (available <= 0) {
-		return -1;
+		return AVERROR_EOF;
 	}
 	const auto fill = std::min(int(available), buf_size);
 	memcpy(buf, _bytes.data() + _deviceOffset, fill);
