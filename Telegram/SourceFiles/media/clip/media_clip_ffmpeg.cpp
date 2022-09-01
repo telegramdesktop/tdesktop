@@ -482,7 +482,13 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProc
 
 int FFMpegReaderImplementation::_read(void *opaque, uint8_t *buf, int buf_size) {
 	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
-	return int(l->_device->read((char*)(buf), buf_size));
+	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
+	int ret = l->_device->read((char*)(buf), buf_size);
+	switch (ret) {
+	case -1: return AVERROR_EXTERNAL;
+	case 0: return AVERROR_EOF;
+	default: return ret;
+	}
 }
 
 int64_t FFMpegReaderImplementation::_seek(void *opaque, int64_t offset, int whence) {
