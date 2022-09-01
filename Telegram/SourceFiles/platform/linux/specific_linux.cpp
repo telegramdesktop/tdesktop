@@ -636,6 +636,9 @@ void NewVersionLaunched(int oldVersion) {
 			Core::Restart(); // restart with X backend
 		}
 	}
+	if (oldVersion <= 4001001 && cAutoStart()) {
+		AutostartToggle(true);
+	}
 }
 
 namespace ThirdParty {
