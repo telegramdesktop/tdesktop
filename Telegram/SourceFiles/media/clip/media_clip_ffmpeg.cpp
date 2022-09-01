@@ -482,7 +482,6 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProc
 
 int FFMpegReaderImplementation::_read(void *opaque, uint8_t *buf, int buf_size) {
 	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
-	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
 	int ret = l->_device->read((char*)(buf), buf_size);
 	switch (ret) {
 	case -1: return AVERROR_EXTERNAL;
