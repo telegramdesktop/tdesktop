@@ -242,11 +242,6 @@ void MainWindow::initHook() {
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 }
 
-bool MainWindow::isActiveForTrayMenu() {
-	updateIsActive();
-	return Platform::IsWayland() ? isVisible() : isActive();
-}
-
 void MainWindow::workmodeUpdated(Core::Settings::WorkMode mode) {
 	if (!TrayIconSupported()) {
 		return;
