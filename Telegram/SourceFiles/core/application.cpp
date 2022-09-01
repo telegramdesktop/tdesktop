@@ -233,9 +233,9 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (Local::oldSettingsVersion() < AppVersion) {
+	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		RegisterUrlScheme();
-		psNewVersion();
+		Platform::NewVersionLaunched(old);
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {

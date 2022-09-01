@@ -567,14 +567,11 @@ bool OpenSystemSettings(SystemSettingsType type) {
 	return true;
 }
 
-} // namespace Platform
-
-void psNewVersion() {
-	if (Local::oldSettingsVersion() < 8051) {
+void NewVersionLaunched(int oldVersion) {
+	if (oldVersion < 8051) {
 		AppUserModelId::checkPinned();
 	}
-	if (Local::oldSettingsVersion() > 0
-		&& Local::oldSettingsVersion() < 2008012) {
+	if (oldVersion > 0 && oldVersion < 2008012) {
 		// Reset icons cache, because we've changed the application icon.
 		if (Dlls::SHChangeNotify) {
 			Dlls::SHChangeNotify(
@@ -585,6 +582,8 @@ void psNewVersion() {
 		}
 	}
 }
+
+} // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
 	ManageAppLink(send, silent, CSIDL_SENDTO, L"-sendpath", L"Telegram send to link.\nYou can disable send to menu item in Telegram settings.");
