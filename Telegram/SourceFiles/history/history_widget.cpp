@@ -6417,31 +6417,39 @@ void HistoryWidget::checkPinnedBarState() {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
 	});
+	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
+		_peer,
+		nullptr,
+		Storage::SharedMediaType::Pinned
+	) | rpl::distinct_until_changed(
+	) | rpl::map([=](int count) {
+		if (_pinnedClickedId) {
+			_pinnedClickedId = FullMsgId();
+			_minPinnedId = std::nullopt;
+			updatePinnedViewer();
+		}
+		return (count > 1);
+	}) | rpl::distinct_until_changed();
+	auto markupRefreshed = HistoryView::PinnedBarItemWithReplyMarkup(
+		&session(),
+		_pinnedTracker->shownMessageId());
 	rpl::combine(
-		Info::Profile::SharedMediaCountValue(
-			_peer,
-			nullptr,
-			Storage::SharedMediaType::Pinned
-		) | rpl::distinct_until_changed(
-		) | rpl::map([=](int count) {
-			if (_pinnedClickedId) {
-				_pinnedClickedId = FullMsgId();
-				_minPinnedId = std::nullopt;
-				updatePinnedViewer();
-			}
-			return (count > 1);
-		}) | rpl::distinct_until_changed(),
-		HistoryView::PinnedBarItemWithReplyMarkup(
-			&session(),
-			_pinnedTracker->shownMessageId())
+		rpl::duplicate(pinnedRefreshed),
+		rpl::duplicate(markupRefreshed)
 	) | rpl::start_with_next([=](bool many, HistoryItem *item) {
 		refreshPinnedBarButton(many, item);
 	}, _pinnedBar->lifetime());
 
-	_pinnedBar->setContent(HistoryView::PinnedBarContent(
-		&session(),
-		_pinnedTracker->shownMessageId(),
-		[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }));
+	_pinnedBar->setContent(rpl::combine(
+		HistoryView::PinnedBarContent(
+			&session(),
+			_pinnedTracker->shownMessageId(),
+			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
+		std::move(pinnedRefreshed),
+		std::move(markupRefreshed)
+	) | rpl::map([](Ui::MessageBarContent &&content, bool, HistoryItem*) {
+		return std::move(content);
+	}));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
