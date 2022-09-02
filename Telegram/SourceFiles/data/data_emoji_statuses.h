@@ -35,15 +35,18 @@ public:
 	void refreshRecent();
 	void refreshRecentDelayed();
 	void refreshDefault();
+	void refreshColored();
 
 	enum class Type {
 		Recent,
 		Default,
+		Colored,
 	};
 	[[nodiscard]] const std::vector<DocumentId> &list(Type type) const;
 
 	[[nodiscard]] rpl::producer<> recentUpdates() const;
 	[[nodiscard]] rpl::producer<> defaultUpdates() const;
+	[[nodiscard]] rpl::producer<> coloredUpdates() const;
 
 	void set(DocumentId id);
 	[[nodiscard]] bool setting() const;
@@ -53,9 +56,11 @@ public:
 private:
 	void requestRecent();
 	void requestDefault();
+	void requestColored();
 
 	void updateRecent(const MTPDaccount_emojiStatuses &data);
 	void updateDefault(const MTPDaccount_emojiStatuses &data);
+	void updateColored(const MTPDmessages_stickerSet &data);
 
 	void processClearing();
 
@@ -63,8 +68,10 @@ private:
 
 	std::vector<DocumentId> _recent;
 	std::vector<DocumentId> _default;
+	std::vector<DocumentId> _colored;
 	rpl::event_stream<> _recentUpdated;
 	rpl::event_stream<> _defaultUpdated;
+	rpl::event_stream<> _coloredUpdated;
 
 	mtpRequestId _recentRequestId = 0;
 	bool _recentRequestScheduled = false;
@@ -73,6 +80,8 @@ private:
 	base::Timer _defaultRefreshTimer;
 	mtpRequestId _defaultRequestId = 0;
 	uint64 _defaultHash = 0;
+
+	mtpRequestId _coloredRequestId = 0;
 
 	mtpRequestId _sentRequestId = 0;
 

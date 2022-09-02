@@ -247,13 +247,14 @@ void EmojiStatusPanel::show(
 		not_null<QWidget*> button) {
 	const auto self = controller->session().user();
 	const auto &statuses = controller->session().data().emojiStatuses();
+	const auto &recent = statuses.list(Data::EmojiStatuses::Type::Recent);
 	const auto &other = statuses.list(Data::EmojiStatuses::Type::Default);
-	auto list = statuses.list(Data::EmojiStatuses::Type::Recent);
+	auto list = statuses.list(Data::EmojiStatuses::Type::Colored);
 	list.insert(begin(list), 0);
-	list.reserve(list.size() + other.size() + 1);
-	for (const auto &otherId : other) {
-		if (!ranges::contains(list, otherId)) {
-			list.push_back(otherId);
+	list.reserve(list.size() + recent.size() + other.size() + 1);
+	for (const auto &id : ranges::views::concat(recent, other)) {
+		if (!ranges::contains(list, id)) {
+			list.push_back(id);
 		}
 	}
 	if (!ranges::contains(list, self->emojiStatusId())) {

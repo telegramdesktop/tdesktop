@@ -46,6 +46,7 @@ EmojiStatuses::EmojiStatuses(not_null<Session*> owner)
 : _owner(owner)
 , _defaultRefreshTimer([=] { refreshDefault(); }) {
 	refreshDefault();
+	refreshColored();
 
 	base::timer_each(
 		kRefreshDefaultListEach
@@ -68,6 +69,10 @@ void EmojiStatuses::refreshDefault() {
 	requestDefault();
 }
 
+void EmojiStatuses::refreshColored() {
+	requestColored();
+}
+
 void EmojiStatuses::refreshRecentDelayed() {
 	if (_recentRequestId || _recentRequestScheduled) {
 		return;
@@ -84,6 +89,7 @@ const std::vector<DocumentId> &EmojiStatuses::list(Type type) const {
 	switch (type) {
 	case Type::Recent: return _recent;
 	case Type::Default: return _default;
+	case Type::Colored: return _colored;
 	}
 	Unexpected("Type in EmojiStatuses::list.");
 }
@@ -191,6 +197,26 @@ void EmojiStatuses::requestDefault() {
 	}).send();
 }
 
+void EmojiStatuses::requestColored() {
+	if (_coloredRequestId) {
+		return;
+	}
+	auto &api = _owner->session().api();
+	_coloredRequestId = api.request(MTPmessages_GetStickerSet(
+		MTP_inputStickerSetEmojiDefaultStatuses(),
+		MTP_int(0) // hash
+	)).done([=](const MTPmessages_StickerSet &result) {
+		_coloredRequestId = 0;
+		result.match([&](const MTPDmessages_stickerSet &data) {
+			updateColored(data);
+		}, [](const MTPDmessages_stickerSetNotModified &) {
+			LOG(("API Error: Unexpected messages.stickerSetNotModified."));
+		});
+	}).fail([=] {
+		_coloredRequestId = 0;
+	}).send();
+}
+
 void EmojiStatuses::updateRecent(const MTPDaccount_emojiStatuses &data) {
 	_recentHash = data.vhash().v;
 	_recent = ListFromMTP(data);
@@ -201,6 +227,16 @@ void EmojiStatuses::updateDefault(const MTPDaccount_emojiStatuses &data) {
 	_defaultHash = data.vhash().v;
 	_default = ListFromMTP(data);
 	_defaultUpdated.fire({});
+}
+
+void EmojiStatuses::updateColored(const MTPDmessages_stickerSet &data) {
+	const auto &list = data.vdocuments().v;
+	_colored.clear();
+	_colored.reserve(list.size());
+	for (const auto &sticker : data.vdocuments().v) {
+		_colored.push_back(_owner->processDocument(sticker)->id);
+	}
+	_coloredUpdated.fire({});
 }
 
 void EmojiStatuses::set(DocumentId id) {
