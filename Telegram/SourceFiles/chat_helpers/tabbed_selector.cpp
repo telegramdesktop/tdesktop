@@ -1145,12 +1145,8 @@ void TabbedSelector::scrollToY(int y) {
 }
 
 void TabbedSelector::showMenuWithType(SendMenu::Type type) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-	currentTab()->widget()->fillContextMenu(_menu, type);
-
-	if (!_menu->empty()) {
+	_menu = currentTab()->widget()->fillContextMenu(type);
+	if (_menu && !_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
 }

@@ -126,8 +126,7 @@ public:
 		float64 progress,
 		RectPart origin);
 
-	void fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
+	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 		SendMenu::Type type) override;
 
 protected:

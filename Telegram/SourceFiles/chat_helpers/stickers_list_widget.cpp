@@ -1542,65 +1542,71 @@ void StickersListWidget::showStickerSetBox(not_null<DocumentData*> document) {
 	}
 }
 
-void StickersListWidget::fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
+base::unique_qptr<Ui::PopupMenu> StickersListWidget::fillContextMenu(
 		SendMenu::Type type) {
 	auto selected = _selected;
 	auto &sets = shownSets();
 	if (v::is_null(selected) || !v::is_null(_pressed)) {
-		return;
+		return nullptr;
 	}
-	if (auto sticker = std::get_if<OverSticker>(&selected)) {
-		const auto section = sticker->section;
-		const auto index = sticker->index;
-		Assert(section >= 0 && section < sets.size());
-		auto &set = sets[section];
-		Assert(index >= 0 && index < set.stickers.size());
+	const auto sticker = std::get_if<OverSticker>(&selected);
+	if (!sticker) {
+		return nullptr;
+	}
+	const auto section = sticker->section;
+	const auto index = sticker->index;
+	Assert(section >= 0 && section < sets.size());
+	auto &set = sets[section];
+	Assert(index >= 0 && index < set.stickers.size());
 
-		const auto document = set.stickers[sticker->index].document;
-		const auto send = [=](Api::SendOptions options) {
-			_chosen.fire({
-				.document = document,
-				.options = options,
-				.messageSendingFrom = options.scheduled
-					? Ui::MessageSendingAnimationFrom()
-					: messageSentAnimationInfo(section, index, document),
-			});
-		};
-		SendMenu::FillSendMenu(
-			menu,
-			type,
-			SendMenu::DefaultSilentCallback(send),
-			SendMenu::DefaultScheduleCallback(this, type, send));
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 
-		const auto window = _controller;
-		const auto toggleFavedSticker = [=] {
-			Api::ToggleFavedSticker(
-				window,
+	const auto document = set.stickers[sticker->index].document;
+	const auto send = [=](Api::SendOptions options) {
+		_chosen.fire({
+			.document = document,
+			.options = options,
+			.messageSendingFrom = options.scheduled
+				? Ui::MessageSendingAnimationFrom()
+				: messageSentAnimationInfo(section, index, document),
+		});
+	};
+	SendMenu::FillSendMenu(
+		menu,
+		type,
+		SendMenu::DefaultSilentCallback(send),
+		SendMenu::DefaultScheduleCallback(this, type, send));
+
+	const auto window = _controller;
+	const auto toggleFavedSticker = [=] {
+		Api::ToggleFavedSticker(
+			window,
+			document,
+			Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
+	};
+	const auto isFaved = document->owner().stickers().isFaved(document);
+	menu->addAction(
+		(isFaved
+			? tr::lng_faved_stickers_remove
+			: tr::lng_faved_stickers_add)(tr::now),
+		toggleFavedSticker,
+		isFaved ? &st::menuIconUnfave : &st::menuIconFave);
+
+	menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
+		showStickerSetBox(document);
+	}, &st::menuIconStickers);
+
+	if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
+		menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
+			Api::ToggleRecentSticker(
 				document,
-				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
-		};
-		const auto isFaved = document->owner().stickers().isFaved(document);
-		menu->addAction(
-			(isFaved
-				? tr::lng_faved_stickers_remove
-				: tr::lng_faved_stickers_add)(tr::now),
-			toggleFavedSticker,
-			isFaved ? &st::menuIconUnfave : &st::menuIconFave);
-
-		menu->addAction(tr::lng_context_pack_info(tr::now), [=] {
-			showStickerSetBox(document);
-		}, &st::menuIconStickers);
-
-		if (const auto id = set.id; id == Data::Stickers::RecentSetId) {
-			menu->addAction(tr::lng_recent_stickers_remove(tr::now), [=] {
-				Api::ToggleRecentSticker(
-					document,
-					Data::FileOriginStickerSet(id, 0),
-					false);
-			}, &st::menuIconDelete);
-		}
+				Data::FileOriginStickerSet(id, 0),
+				false);
+		}, &st::menuIconDelete);
 	}
+	return menu;
 }
 
 Ui::MessageSendingAnimationFrom StickersListWidget::messageSentAnimationInfo(

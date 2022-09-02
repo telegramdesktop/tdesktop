@@ -376,13 +376,15 @@ void GifsListWidget::mousePressEvent(QMouseEvent *e) {
 	_previewTimer.callOnce(QApplication::startDragTime());
 }
 
-void GifsListWidget::fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
+base::unique_qptr<Ui::PopupMenu> GifsListWidget::fillContextMenu(
 		SendMenu::Type type) {
 	if (_selected < 0 || _pressed >= 0) {
-		return;
+		return nullptr;
 	}
 
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
 	const auto send = [=, selected = _selected](Api::SendOptions options) {
 		selectInlineResult(selected, options, true);
 	};
@@ -405,7 +407,8 @@ void GifsListWidget::fillContextMenu(
 			};
 			AddGifAction(std::move(callback), _controller, document);
 		}
-	};
+	}
+	return menu;
 }
 
 void GifsListWidget::mouseReleaseEvent(QMouseEvent *e) {

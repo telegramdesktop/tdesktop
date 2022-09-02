@@ -796,26 +796,24 @@ void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 	}
 }
 
-void EmojiListWidget::fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
+base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 		SendMenu::Type type) {
-	if (v::is_null(_selected)) {
-		return;
+	if (_mode != Mode::EmojiStatus || v::is_null(_selected)) {
+		return nullptr;
 	}
 	const auto over = std::get_if<OverEmoji>(&_selected);
 	if (!over) {
-		return;
+		return nullptr;
 	}
 	const auto section = over->section;
 	const auto index = over->index;
-	// Ignore the default status.
-	if (!index && (section == int(Section::Recent))) {
-		return;
-	}
 	const auto chosen = lookupCustomEmoji(index, section);
 	if (!chosen) {
-		return;
+		return nullptr;
 	}
+	auto menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::defaultPopupMenu);
 	for (const auto &value : { 3600, 3600 * 8, 3600 * 24, 3600 * 24 * 7 }) {
 		const auto text = tr::lng_emoji_status_menu_duration_any(
 			tr::now,
@@ -833,6 +831,7 @@ void EmojiListWidget::fillContextMenu(
 	menu->addAction(
 		tr::lng_manage_messages_ttl_after_custom(tr::now),
 		crl::guard(this, [=] { selectCustom(chosen, options); }));
+	return menu;
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
@@ -1094,8 +1093,7 @@ bool EmojiListWidget::checkPickerHide() {
 DocumentData *EmojiListWidget::lookupCustomEmoji(
 		int index,
 		int section) const {
-	if (section == int(Section::Recent)
-		&& index < _recent.size()) {
+	if (section == int(Section::Recent) && index < _recent.size()) {
 		const auto document = std::get_if<RecentEmojiDocument>(
 			&_recent[index].id.data);
 		const auto custom = document

@@ -328,9 +328,9 @@ public:
 	}
 	virtual void beforeHiding() {
 	}
-	virtual void fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
-		SendMenu::Type type) {
+	[[nodiscard]] virtual base::unique_qptr<Ui::PopupMenu> fillContextMenu(
+			SendMenu::Type type) {
+		return nullptr;
 	}
 
 	rpl::producer<int> scrollToRequests() const;
