@@ -663,10 +663,7 @@ int PeerListRow::paintNameIconGetWidth(
 		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (special()
-		|| _isSavedMessagesChat
-		|| _isRepliesMessagesChat
-		|| !_peer->isUser()) {
+	if (special() || _isSavedMessagesChat || _isRepliesMessagesChat) {
 		return 0;
 	}
 	return _bagde.drawGetWidth(
