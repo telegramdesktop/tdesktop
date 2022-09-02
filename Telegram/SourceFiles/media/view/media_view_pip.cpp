@@ -39,8 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
-#include <qpa/qplatformwindow.h>
-#include <qpa/qwindowsysteminterface.h>
 
 namespace Media {
 namespace View {
@@ -630,14 +628,8 @@ void PipPanel::handleWaylandResize(QSize size) {
 			size.height() * scaled.width() / scaled.height(),
 			size.height())
 		: scaled;
-	const auto newGeometry = QRect(widget()->geometry().topLeft(), normalized);
 
-	QWindowSystemInterface::handleGeometryChange<QWindowSystemInterface::SynchronousDelivery>(
-		widget()->windowHandle(),
-		newGeometry);
-	setGeometry(newGeometry);
-	widget()->windowHandle()->handle()->setGeometry(newGeometry);
-
+	widget()->resize(normalized);
 	_inHandleWaylandResize = false;
 }
 
