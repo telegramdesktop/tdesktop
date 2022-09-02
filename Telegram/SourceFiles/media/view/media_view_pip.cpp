@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
+#include "base/event_filter.h"
 #include "ui/platform/ui_platform_utility.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/fade_wrap.h"
@@ -38,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtGui/QWindow>
 #include <QtGui/QScreen>
 #include <QtWidgets/QApplication>
+#include <qpa/qplatformwindow.h>
+#include <qpa/qwindowsysteminterface.h>
 
 namespace Media {
 namespace View {
@@ -359,17 +362,40 @@ void PipPanel::init() {
 		Ui::Platform::ClearTransientParent(widget());
 	}, rp()->lifetime());
 
-	rp()->sizeValue(
-	) | rpl::start_with_next([=](QSize size) {
-		handleResize(size);
-	}, rp()->lifetime());
-
 	QObject::connect(
 		widget()->windowHandle(),
 		&QWindow::screenChanged,
 		[=](QScreen *screen) {
 			handleScreenChanged(screen);
 		});
+
+	if (Platform::IsWayland()) {
+		rp()->sizeValue(
+		) | rpl::start_with_next([=](QSize size) {
+			handleWaylandResize(size);
+		}, rp()->lifetime());
+
+		base::install_event_filter(widget(), [=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Resize && _inHandleWaylandResize) {
+				return base::EventFilterResult::Cancel;
+			}
+			return base::EventFilterResult::Continue;
+		});
+
+		base::install_event_filter(widget()->windowHandle(), [=](not_null<QEvent*> event) {
+			if (event->type() == QEvent::Resize) {
+				if (_inHandleWaylandResize) {
+					return base::EventFilterResult::Cancel;
+				}
+				const auto newSize = static_cast<QResizeEvent*>(event.get())->size();
+				if (_suggestedWaylandSize == newSize) {
+					handleWaylandResize(newSize);
+					return base::EventFilterResult::Cancel;
+				}
+			}
+			return base::EventFilterResult::Continue;
+		});
+	}
 }
 
 not_null<QWidget*> PipPanel::widget() const {
@@ -584,10 +610,9 @@ void PipPanel::setGeometry(QRect geometry) {
 	widget()->setGeometry(geometry);
 }
 
-void PipPanel::handleResize(QSize size) {
-	if (!Platform::IsWayland()) {
-		return;
-	}
+void PipPanel::handleWaylandResize(QSize size) {
+	_inHandleWaylandResize = true;
+	_suggestedWaylandSize = size;
 
 	// Apply aspect ratio.
 	const auto max = std::max(size.width(), size.height());
@@ -605,8 +630,15 @@ void PipPanel::handleResize(QSize size) {
 			size.height() * scaled.width() / scaled.height(),
 			size.height())
 		: scaled;
+	const auto newGeometry = QRect(widget()->geometry().topLeft(), normalized);
 
-	setGeometry(QRect(widget()->geometry().topLeft(), normalized));
+	QWindowSystemInterface::handleGeometryChange<QWindowSystemInterface::SynchronousDelivery>(
+		widget()->windowHandle(),
+		newGeometry);
+	setGeometry(newGeometry);
+	widget()->windowHandle()->handle()->setGeometry(newGeometry);
+
+	_inHandleWaylandResize = false;
 }
 
 void PipPanel::handleScreenChanged(QScreen *screen) {
