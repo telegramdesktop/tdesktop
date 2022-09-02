@@ -21,17 +21,13 @@ Tray::Tray() {
 void Tray::create() {
 	rebuildMenu();
 	using WorkMode = Settings::WorkMode;
-	if (Platform::TrayIconSupported()
-		&& (Core::App().settings().workMode() != WorkMode::WindowOnly)) {
+	if (Core::App().settings().workMode() != WorkMode::WindowOnly) {
 		_tray.createIcon();
 	}
 
 	Core::App().settings().workModeValue(
 	) | rpl::combine_previous(
 	) | rpl::start_with_next([=](WorkMode previous, WorkMode state) {
-		if (!Platform::TrayIconSupported()) {
-			return;
-		}
 		const auto wasHasIcon = (previous != WorkMode::WindowOnly);
 		const auto nowHasIcon = (state != WorkMode::WindowOnly);
 		if (wasHasIcon != nowHasIcon) {
@@ -182,7 +178,7 @@ void Tray::toggleSoundNotifications() {
 }
 
 bool Tray::has() const {
-	return _tray.hasIcon();
+	return _tray.hasIcon() && Platform::TrayIconSupported();
 }
 
 } // namespace Core
