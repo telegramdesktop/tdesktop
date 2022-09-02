@@ -32,6 +32,7 @@ class SessionController;
 namespace Ui {
 class PopupMenu;
 class ScrollArea;
+class PlainShadow;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
@@ -50,6 +51,8 @@ public:
 		ChatHelpers::EmojiListMode mode,
 		std::vector<DocumentId> recent,
 		Fn<void(bool fast)> close);
+
+	[[nodiscard]] bool useTransparency() const;
 
 	int countWidth(int desiredWidth, int maxWidth);
 	[[nodiscard]] QMargins extentsForShadow() const;
@@ -132,6 +135,7 @@ private:
 	Ui::ScrollArea *_scroll = nullptr;
 	ChatHelpers::EmojiListWidget *_list = nullptr;
 	ChatHelpers::StickersListFooter *_footer = nullptr;
+	Ui::PlainShadow *_shadow = nullptr;
 	rpl::variable<int> _shadowTop = 0;
 	rpl::variable<int> _shadowSkip = 0;
 
@@ -152,6 +156,7 @@ private:
 	int _skipx = 0;
 	int _skipy = 0;
 	int _pressed = -1;
+	bool _useTransparency = false;
 	bool _appearing = false;
 	bool _toggling = false;
 	bool _expanded = false;

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/shadow.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/platform/ui_platform_utility.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_session.h"
@@ -34,6 +35,7 @@ constexpr auto kScaleDuration = crl::time(120);
 constexpr auto kFullDuration = kExpandDuration + kScaleDuration;
 constexpr auto kExpandDelay = crl::time(40);
 constexpr auto kDefaultColumns = 8;
+constexpr auto kMinNonTransparentColumns = 7;
 
 class StripEmoji final : public Ui::Text::CustomEmoji {
 public:
@@ -164,10 +166,16 @@ Selector::Selector(
 , _skipy((st::reactStripHeight - st::reactStripSize) / 2) {
 	setMouseTracking(true);
 
+	_useTransparency = Ui::Platform::TranslucentWindowsSupported();
+
 	parentController->content()->alive(
 	) | rpl::start_with_done([=] {
 		close(true);
 	}, lifetime());
+}
+
+bool Selector::useTransparency() const {
+	return _useTransparency;
 }
 
 int Selector::recentCount() const {
@@ -188,8 +196,11 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 	const auto addedToMax = _reactions.customAllowed
 		|| _reactions.morePremiumAvailable;
 	const auto max = recentCount() + (addedToMax ? 1 : 0);
-	const auto possibleColumns = std::min(
+	const auto desiredColumns = std::max(
 		(desiredWidth - 2 * _skipx + _size - 1) / _size,
+		kMinNonTransparentColumns);
+	const auto possibleColumns = std::min(
+		desiredColumns,
 		(maxWidth - 2 * _skipx) / _size);
 	_columns = _strip ? std::min(possibleColumns, max) : kDefaultColumns;
 	_small = (possibleColumns - _columns > 1);
@@ -223,7 +234,10 @@ int Selector::countWidth(int desiredWidth, int maxWidth) {
 }
 
 QMargins Selector::extentsForShadow() const {
-	return st::reactionCornerShadow;
+	const auto line = st::lineWidth;
+	return useTransparency()
+		? st::reactionCornerShadow
+		: QMargins(line, line, line, line);
 }
 
 int Selector::extendTopForCategories() const {
@@ -246,10 +260,14 @@ void Selector::initGeometry(int innerTop) {
 	const auto parent = parentWidget()->rect();
 	const auto innerWidth = 2 * _skipx + _columns * _size;
 	const auto innerHeight = st::reactStripHeight;
-	const auto width = innerWidth + extents.left() + extents.right();
+	const auto width = _useTransparency
+		? (innerWidth + extents.left() + extents.right())
+		: parent.width();
 	const auto height = innerHeight + extents.top() + extents.bottom();
 	const auto left = style::RightToLeft() ? 0 : (parent.width() - width);
-	_collapsedTopSkip = extendTopForCategories() + _specialExpandTopSkip;
+	_collapsedTopSkip = _useTransparency
+		? (extendTopForCategories() + _specialExpandTopSkip)
+		: 0;
 	const auto top = innerTop - extents.top() - _collapsedTopSkip;
 	const auto add = st::reactStripBubble.height() - extents.bottom();
 	_outer = QRect(0, _collapsedTopSkip, width, height);
@@ -269,7 +287,10 @@ void Selector::updateShowState(
 		float64 opacity,
 		bool appearing,
 		bool toggling) {
-	if (_appearing && !appearing && !_paintBuffer.isNull()) {
+	if (_useTransparency
+		&& _appearing
+		&& !appearing
+		&& !_paintBuffer.isNull()) {
 		paintBackgroundToBuffer();
 	}
 	_appearing = appearing;
@@ -343,11 +364,17 @@ void Selector::paintAppearing(QPainter &p) {
 }
 
 void Selector::paintBackgroundToBuffer() {
+	if (!_useTransparency) {
+		return;
+	}
 	const auto factor = style::DevicePixelRatio();
 	if (_paintBuffer.size() != _outerWithBubble.size() * factor) {
 		_paintBuffer = _cachedRound.PrepareImage(_outerWithBubble.size());
 	}
 	_paintBuffer.fill(Qt::transparent);
+
+	_cachedRound.setBackgroundColor(st::defaultPopupMenu.menu.itemBg->c);
+	_cachedRound.setShadowColor(st::shadowFg->c);
 
 	auto p = QPainter(&_paintBuffer);
 	const auto radius = _inner.height() / 2.;
@@ -360,10 +387,14 @@ void Selector::paintBackgroundToBuffer() {
 void Selector::paintCollapsed(QPainter &p) {
 	Expects(_strip != nullptr);
 
-	if (_paintBuffer.isNull()) {
-		paintBackgroundToBuffer();
+	if (_useTransparency) {
+		if (_paintBuffer.isNull()) {
+			paintBackgroundToBuffer();
+		}
+		p.drawImage(_outer.topLeft(), _paintBuffer);
+	} else {
+		p.fillRect(_inner, st::defaultPopupMenu.menu.itemBg);
 	}
-	p.drawImage(_outer.topLeft(), _paintBuffer);
 	_strip->paint(
 		p,
 		_inner.topLeft() + QPoint(_skipx, _skipy),
@@ -412,10 +443,21 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 		(height() - _outer.y() - _outer.height()),
 		expanding);
 	const auto outer = _outer.marginsAdded({ 0, expandUp, 0, expandDown });
-	const auto pattern = _cachedRound.validateFrame(frame, 1., radius);
-	const auto fill = _cachedRound.FillWithImage(p, outer, pattern);
-	if (!fill.isEmpty()) {
-		p.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+	if (_useTransparency) {
+		const auto pattern = _cachedRound.validateFrame(frame, 1., radius);
+		const auto fill = _cachedRound.FillWithImage(p, outer, pattern);
+		if (!fill.isEmpty()) {
+			p.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+		}
+	} else {
+		const auto inner = outer.marginsRemoved(extentsForShadow());
+		p.fillRect(inner, st::defaultPopupMenu.menu.itemBg);
+		p.fillRect(
+			inner.x(),
+			inner.y() + inner.height(),
+			inner.width(),
+			st::lineWidth,
+			st::defaultPopupMenu.shadow.fallback);
 	}
 	const auto categories = anim::interpolate(
 		0,
@@ -423,7 +465,7 @@ auto Selector::paintExpandingBg(QPainter &p, float64 progress)
 		expanding);
 	const auto inner = outer.marginsRemoved(extents);
 	_shadowTop = inner.y() + categories;
-	_shadowSkip = (categories < radius)
+	_shadowSkip = (_useTransparency && categories < radius)
 		? int(base::SafeRound(
 			radius - sqrt(categories * (2 * radius - categories))))
 		: 0;
@@ -455,22 +497,35 @@ void Selector::paintExpanded(QPainter &p) {
 	if (!_expandFinished) {
 		finishExpand();
 	}
-	p.drawImage(0, 0, _paintBuffer);
+	if (_useTransparency) {
+		p.drawImage(0, 0, _paintBuffer);
+	} else {
+		const auto inner = rect().marginsRemoved(extentsForShadow());
+		p.fillRect(inner, st::defaultPopupMenu.menu.itemBg);
+		p.fillRect(
+			inner.x(),
+			inner.y() + inner.height(),
+			inner.width(),
+			st::lineWidth,
+			st::defaultPopupMenu.shadow.fallback);
+	}
 }
 
 void Selector::finishExpand() {
 	Expects(!_expandFinished);
 
 	_expandFinished = true;
-	auto q = QPainter(&_paintBuffer);
-	q.setCompositionMode(QPainter::CompositionMode_Source);
-	const auto pattern = _cachedRound.validateFrame(
-		kFramesCount - 1,
-		1.,
-		st::roundRadiusSmall);
-	const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
-	if (!fill.isEmpty()) {
-		q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+	if (_useTransparency) {
+		auto q = QPainter(&_paintBuffer);
+		q.setCompositionMode(QPainter::CompositionMode_Source);
+		const auto pattern = _cachedRound.validateFrame(
+			kFramesCount - 1,
+			1.,
+			st::roundRadiusSmall);
+		const auto fill = _cachedRound.FillWithImage(q, rect(), pattern);
+		if (!fill.isEmpty()) {
+			q.fillRect(fill, st::defaultPopupMenu.menu.itemBg);
+		}
 	}
 	if (_footer) {
 		_footer->show();
@@ -496,7 +551,7 @@ void Selector::paintBubble(QPainter &p, int innerWidth) {
 
 void Selector::paintEvent(QPaintEvent *e) {
 	auto p = Painter(this);
-	if (_strip && _appearing) {
+	if (_strip && _appearing && _useTransparency) {
 		paintAppearing(p);
 	} else if (_strip && !_expanded) {
 		paintCollapsed(p);
@@ -736,19 +791,19 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 			inner.width(),
 			_footer->height());
 		_shadowTop = _outer.y();
-		_shadowSkip = (st::reactStripHeight / 2);
-		const auto shadow = Ui::CreateChild<Ui::PlainShadow>(this);
+		_shadowSkip = _useTransparency ? (st::reactStripHeight / 2) : 0;
+		_shadow = Ui::CreateChild<Ui::PlainShadow>(this);
 		rpl::combine(
 			_shadowTop.value(),
 			_shadowSkip.value()
 		) | rpl::start_with_next([=](int top, int skip) {
-			shadow->setGeometry(
+			_shadow->setGeometry(
 				inner.x() + skip,
 				top,
 				inner.width() - 2 * skip,
 				st::lineWidth);
-		}, shadow->lifetime());
-		shadow->show();
+		}, _shadow->lifetime());
+		_shadow->show();
 	}
 	const auto geometry = inner.marginsRemoved(
 		st::reactPanelEmojiPan.margin);
@@ -768,6 +823,7 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	_list->scrollToRequests(
 	) | rpl::start_with_next([=](int y) {
 		_scroll->scrollToY(y);
+		_shadow->update();
 	}, _list->lifetime());
 
 	_scroll->setGeometry(inner.marginsRemoved({
@@ -785,13 +841,18 @@ bool AdjustMenuGeometryForSelector(
 		not_null<Ui::PopupMenu*> menu,
 		QPoint desiredPosition,
 		not_null<Selector*> selector) {
-	const auto extend = st::reactStripExtend;
+	const auto useTransparency = selector->useTransparency();
+	const auto extend = useTransparency
+		? st::reactStripExtend
+		: QMargins(0, st::lineWidth + st::reactStripHeight, 0, 0);
 	const auto added = extend.left() + extend.right();
 	const auto desiredWidth = menu->menu()->width() + added;
 	const auto maxWidth = menu->st().menu.widthMax + added;
 	const auto width = selector->countWidth(desiredWidth, maxWidth);
 	const auto extents = selector->extentsForShadow();
-	const auto categoriesTop = selector->extendTopForCategories();
+	const auto categoriesTop = selector->useTransparency()
+		? selector->extendTopForCategories()
+		: 0;
 	menu->setForceWidth(width - added);
 	const auto height = menu->height();
 	const auto fullTop = extents.top() + categoriesTop + extend.top();
@@ -802,7 +863,9 @@ bool AdjustMenuGeometryForSelector(
 		+ height
 		- menu->st().shadow.extend.top();
 	const auto additionalPaddingBottom
-		= (willBeHeightWithoutBottomPadding < minimalHeight
+		= (willBeHeightWithoutBottomPadding >= minimalHeight
+			? 0
+			: useTransparency
 			? (minimalHeight - willBeHeightWithoutBottomPadding)
 			: 0);
 	menu->setAdditionalMenuPadding(QMargins(
@@ -920,8 +983,9 @@ AttachSelectorResult AttachSelectorToMenu(
 	if (!AdjustMenuGeometryForSelector(menu, desiredPosition, selector)) {
 		return AttachSelectorResult::Failed;
 	}
-	const auto selectorInnerTop = menu->preparedPadding().top()
-		- st::reactStripExtend.top();
+	const auto selectorInnerTop = selector->useTransparency()
+		? (menu->preparedPadding().top() - st::reactStripExtend.top())
+		: st::lineWidth;
 	selector->initGeometry(selectorInnerTop);
 	selector->show();
 
