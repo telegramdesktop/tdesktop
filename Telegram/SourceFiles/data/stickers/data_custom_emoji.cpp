@@ -782,6 +782,10 @@ Session &CustomEmojiManager::owner() const {
 	return *_owner;
 }
 
+uint64 CustomEmojiManager::coloredSetId() const {
+	return _coloredSetId;
+}
+
 int FrameSizeFromTag(SizeTag tag) {
 	const auto emoji = EmojiSizeFromTag(tag);
 	const auto factor = style::DevicePixelRatio();

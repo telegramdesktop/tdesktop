@@ -77,6 +77,8 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;
 
+	[[nodiscard]] uint64 coloredSetId() const;
+
 private:
 	static constexpr auto kSizeCount = int(SizeTag::kCount);
 

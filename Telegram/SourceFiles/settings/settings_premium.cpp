@@ -437,12 +437,16 @@ public:
 	void paint(QPainter &p);
 
 private:
-	QPixmap paintedPixmap(const QSize &size) const;
+	[[nodiscard]] QPixmap paintedPixmap(const QSize &size) const;
+
+	void resolveIsColored();
 
 	QRectF _rect;
 	std::shared_ptr<Data::DocumentMedia> _media;
 	std::unique_ptr<HistoryView::StickerPlayer> _player;
 	bool _paused = false;
+	bool _isColored = false;
+	bool _isColoredResolved = false;
 	rpl::lifetime _lifetime;
 
 };
@@ -508,12 +512,31 @@ QPixmap EmojiStatusTopBar::paintedPixmap(const QSize &size) const {
 	return QPixmap();
 }
 
+void EmojiStatusTopBar::resolveIsColored() {
+	if (_isColoredResolved) {
+		return;
+	}
+	const auto document = _media->owner();
+	const auto manager = &document->owner().customEmojiManager();
+	const auto coloredSetId = manager->coloredSetId();
+	if (!coloredSetId) {
+		return;
+	}
+	_isColoredResolved = true;
+	const auto sticker = document->sticker();
+	const auto setId = sticker ? sticker->set.id : 0;
+	_isColored = sticker && (sticker->set.id == coloredSetId);
+}
+
 void EmojiStatusTopBar::paint(QPainter &p) {
 	if (_player) {
 		if (_player->ready()) {
+			resolveIsColored();
 			const auto frame = _player->frame(
 				_rect.size().toSize(),
-				Qt::transparent,
+				(_isColored
+					? st::profileVerifiedCheckBg->c
+					: QColor(0, 0, 0, 0)),
 				false,
 				crl::now(),
 				_paused);
