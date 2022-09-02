@@ -455,8 +455,7 @@ void SetupSystemIntegrationContent(
 	const auto closeToTaskbarShown = std::make_shared<rpl::variable<bool>>(false);
 	Core::App().settings().workModeValue(
 	) | rpl::start_with_next([=](WorkMode workMode) {
-		*closeToTaskbarShown = (workMode == WorkMode::WindowOnly)
-			|| !Platform::TrayIconSupported();
+		*closeToTaskbarShown = !Core::App().tray().has();
 	}, closeToTaskbar->lifetime());
 
 	closeToTaskbar->toggleOn(closeToTaskbarShown->value());
