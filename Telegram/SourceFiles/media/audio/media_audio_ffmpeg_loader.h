@@ -70,12 +70,12 @@ protected:
 	bool _opened = false;
 
 private:
-	static int _read_data(void *opaque, uint8_t *buf, int buf_size);
-	static int64_t _seek_data(void *opaque, int64_t offset, int whence);
-	static int _read_bytes(void *opaque, uint8_t *buf, int buf_size);
-	static int64_t _seek_bytes(void *opaque, int64_t offset, int whence);
-	static int _read_file(void *opaque, uint8_t *buf, int buf_size);
-	static int64_t _seek_file(void *opaque, int64_t offset, int whence);
+	static int ReadData(void *opaque, uint8_t *buf, int buf_size);
+	static int64_t SeekData(void *opaque, int64_t offset, int whence);
+	static int ReadBytes(void *opaque, uint8_t *buf, int buf_size);
+	static int64_t SeekBytes(void *opaque, int64_t offset, int whence);
+	static int ReadFile(void *opaque, uint8_t *buf, int buf_size);
+	static int64_t SeekFile(void *opaque, int64_t offset, int whence);
 
 };
 

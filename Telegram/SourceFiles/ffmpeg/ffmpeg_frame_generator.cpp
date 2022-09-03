@@ -47,11 +47,11 @@ private:
 		return (_rotation == 90) || (_rotation == 270);
 	}
 
-	[[nodiscard]] static int _read(
+	[[nodiscard]] static int Read(
 		void *opaque,
 		uint8_t *buf,
 		int buf_size);
-	[[nodiscard]] static int64_t _seek(
+	[[nodiscard]] static int64_t Seek(
 		void *opaque,
 		int64_t offset,
 		int whence);

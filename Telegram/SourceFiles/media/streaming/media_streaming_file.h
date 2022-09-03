@@ -62,8 +62,8 @@ private:
 			Allowed,
 			Disallowed,
 		};
-		static int _read(void *opaque, uint8_t *buffer, int bufferSize);
-		static int64_t _seek(void *opaque, int64_t offset, int whence);
+		static int Read(void *opaque, uint8_t *buffer, int bufferSize);
+		static int64_t Seek(void *opaque, int64_t offset, int whence);
 
 		[[nodiscard]] int read(bytes::span buffer);
 		[[nodiscard]] int64_t seek(int64_t offset, int whence);

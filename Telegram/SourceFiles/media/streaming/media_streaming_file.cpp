@@ -44,12 +44,12 @@ File::Context::Context(
 
 File::Context::~Context() = default;
 
-int File::Context::_read(void *opaque, uint8_t *buffer, int bufferSize) {
+int File::Context::Read(void *opaque, uint8_t *buffer, int bufferSize) {
 	return static_cast<Context*>(opaque)->read(
 		bytes::make_span(buffer, bufferSize));
 }
 
-int64_t File::Context::_seek(void *opaque, int64_t offset, int whence) {
+int64_t File::Context::Seek(void *opaque, int64_t offset, int whence) {
 	return static_cast<Context*>(opaque)->seek(offset, whence);
 }
 
@@ -276,9 +276,9 @@ void File::Context::start(crl::time position, bool hwAllow) {
 	}
 	auto format = FFmpeg::MakeFormatPointer(
 		static_cast<void *>(this),
-		&Context::_read,
+		&Context::Read,
 		nullptr,
-		&Context::_seek);
+		&Context::Seek);
 	if (!format) {
 		return fail(Error::OpenFailed);
 	}

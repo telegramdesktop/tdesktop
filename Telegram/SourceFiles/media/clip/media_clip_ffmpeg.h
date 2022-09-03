@@ -76,8 +76,8 @@ private:
 		return (_rotation == Rotation::Degrees90) || (_rotation == Rotation::Degrees270);
 	}
 
-	static int _read(void *opaque, uint8_t *buf, int buf_size);
-	static int64_t _seek(void *opaque, int64_t offset, int whence);
+	static int Read(void *opaque, uint8_t *buf, int buf_size);
+	static int64_t Seek(void *opaque, int64_t offset, int whence);
 
 	Mode _mode = Mode::Silent;
 
