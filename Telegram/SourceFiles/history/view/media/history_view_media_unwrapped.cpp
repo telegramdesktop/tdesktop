@@ -404,8 +404,6 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		}
 	}
 
-	auto pixLeft = usex + (usew - _contentSize.width()) / 2;
-	auto pixTop = (minHeight() - _contentSize.height()) / 2;
 	// Link of content can be nullptr (e.g. sticker without stickerpack).
 	// So we have to process it to avoid overriding the previous result.
 	if (_content->link() && inner.contains(point)) {

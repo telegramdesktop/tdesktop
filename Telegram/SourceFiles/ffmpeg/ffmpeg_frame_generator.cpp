@@ -271,7 +271,6 @@ void FrameGenerator::Impl::jumpToStart() {
 		if ((result = av_seek_frame(_format.get(), _streamId, 0, AVSEEK_FLAG_BYTE)) < 0) {
 			if ((result = av_seek_frame(_format.get(), _streamId, 0, AVSEEK_FLAG_FRAME)) < 0) {
 				if ((result = av_seek_frame(_format.get(), _streamId, 0, 0)) < 0) {
-					char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 					LOG(("Webm Error: Unable to av_seek_frame() to the start, ") + wrapError(result));
 					return;
 				}

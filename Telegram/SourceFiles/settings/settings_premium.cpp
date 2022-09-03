@@ -548,7 +548,6 @@ void EmojiStatusTopBar::resolveIsColored() {
 	}
 	_isColoredResolved = true;
 	const auto sticker = document->sticker();
-	const auto setId = sticker ? sticker->set.id : 0;
 	_isColored = sticker && (sticker->set.id == coloredSetId);
 }
 

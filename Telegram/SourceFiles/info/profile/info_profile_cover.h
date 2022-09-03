@@ -67,7 +67,7 @@ public:
 	[[nodiscard]] Ui::RpWidget *widget() const;
 
 	void setPremiumClickCallback(Fn<void()> callback);
-	[[nodiscrd]] rpl::producer<> updated() const;
+	[[nodiscard]] rpl::producer<> updated() const;
 	void move(int left, int top, int bottom);
 
 private:

@@ -186,7 +186,6 @@ int Selector::countSkipLeft() const {
 	const auto addedToMax = _reactions.customAllowed
 		|| _reactions.morePremiumAvailable;
 	const auto max = recentCount() + (addedToMax ? 1 : 0);
-	const auto width = max * _size;
 	return std::max(
 		(st::reactStripMinWidth - (max * _size)) / 2,
 		st::reactStripSkip);

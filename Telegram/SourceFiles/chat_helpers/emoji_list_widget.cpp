@@ -778,8 +778,6 @@ void EmojiListWidget::fillRecent() {
 void EmojiListWidget::fillRecentFrom(const std::vector<DocumentId> &list) {
 	const auto test = session().isTestMode();
 	const auto owner = &session().data();
-	const auto statuses = &owner->emojiStatuses();
-	const auto manager = &owner->customEmojiManager();
 	_recent.clear();
 	_recent.reserve(list.size());
 	for (const auto &id : list) {

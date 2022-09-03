@@ -39,20 +39,6 @@ constexpr auto kHoverScale = 1.24;
 	});
 }
 
-[[nodiscard]] std::shared_ptr<Ui::AnimatedIcon> CreateIconSnapshot(
-		not_null<DocumentData*> document,
-		not_null<Ui::AnimatedIcon*> existing) {
-	const auto frame = existing->frame();
-	return frame.isNull()
-		? CreateIcon(
-			document->activeMediaView().get(),
-			existing->width())
-		: std::make_shared<Ui::AnimatedIcon>(Ui::AnimatedIconDescriptor{
-			.generator = [=] { return std::make_unique<Ui::ImageFrameGenerator>(frame); },
-			.sizeOverride = existing->size(),
-		});
-}
-
 } // namespace
 
 Strip::Strip(
