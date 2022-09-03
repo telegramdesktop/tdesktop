@@ -283,7 +283,7 @@ bool FFMpegReaderImplementation::start(Mode mode, crl::time &positionMs) {
 		return false;
 	}
 	_ioBuffer = (uchar*)av_malloc(FFmpeg::kAVBlockSize);
-	_ioContext = avio_alloc_context(_ioBuffer, FFmpeg::kAVBlockSize, 0, static_cast<void*>(this), &FFMpegReaderImplementation::_read, nullptr, &FFMpegReaderImplementation::_seek);
+	_ioContext = avio_alloc_context(_ioBuffer, FFmpeg::kAVBlockSize, 0, static_cast<void*>(this), &FFMpegReaderImplementation::Read, nullptr, &FFMpegReaderImplementation::Seek);
 	_fmtContext = avformat_alloc_context();
 	if (!_fmtContext) {
 		LOG(("Gif Error: Unable to avformat_alloc_context %1").arg(logData()));
@@ -480,7 +480,7 @@ FFMpegReaderImplementation::PacketResult FFMpegReaderImplementation::readAndProc
 	return result;
 }
 
-int FFMpegReaderImplementation::_read(void *opaque, uint8_t *buf, int buf_size) {
+int FFMpegReaderImplementation::Read(void *opaque, uint8_t *buf, int buf_size) {
 	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
 	int ret = l->_device->read((char*)(buf), buf_size);
 	switch (ret) {
@@ -490,7 +490,7 @@ int FFMpegReaderImplementation::_read(void *opaque, uint8_t *buf, int buf_size) 
 	}
 }
 
-int64_t FFMpegReaderImplementation::_seek(void *opaque, int64_t offset, int whence) {
+int64_t FFMpegReaderImplementation::Seek(void *opaque, int64_t offset, int whence) {
 	FFMpegReaderImplementation *l = reinterpret_cast<FFMpegReaderImplementation*>(opaque);
 
 	switch (whence) {
