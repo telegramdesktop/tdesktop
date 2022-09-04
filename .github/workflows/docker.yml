@@ -25,9 +25,7 @@ jobs:
           submodules: recursive
 
       - name: First set up.
-        run: |
-          curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python -
-          echo $HOME/.poetry/bin >> $GITHUB_PATH
+        run: curl -sSL https://install.python-poetry.org | python3 -
 
       - name: Docker image build.
         run: |
