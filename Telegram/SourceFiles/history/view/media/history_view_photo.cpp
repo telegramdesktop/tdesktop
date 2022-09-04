@@ -133,6 +133,7 @@ bool Photo::hasHeavyPart() const {
 void Photo::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	_imageCache = QImage();
 	_caption.unloadCustomEmoji();
 }
 
@@ -173,8 +174,10 @@ QSize Photo::countOptimalSize() {
 	maxWidth = qMax(maxActualWidth, th);
 	minHeight = qMax(th, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
-		auto captionw = maxActualWidth - st::msgPadding.left() - st::msgPadding.right();
-		minHeight += st::mediaCaptionSkip + _caption.countHeight(captionw);
+		maxWidth = qMax(maxWidth, st::msgPadding.left()
+			+ _caption.maxWidth()
+			+ st::msgPadding.right());
+		minHeight += st::mediaCaptionSkip + _caption.minHeight();
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
 		}
@@ -215,6 +218,12 @@ QSize Photo::countCurrentSize(int newWidth) {
 	newWidth = qMax(_pixw, minWidth);
 	auto newHeight = qMax(_pixh, st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
+		const auto maxWithCaption = qMin(
+			st::msgMaxWidth,
+			(st::msgPadding.left()
+				+ _caption.maxWidth()
+				+ st::msgPadding.right()));
+		newWidth = qMin(maxWidth(), maxWithCaption);
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
@@ -272,27 +281,8 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 			: ImageRoundRadius::Large;
 		const auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
 			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
-		const auto pix = [&] {
-			const auto size = QSize(_pixw, _pixh);
-			const auto args = Images::PrepareArgs{
-				.options = Images::RoundOptions(roundRadius, roundCorners),
-				.outer = QSize(paintw, painth),
-			};
-			if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-				return large->pixSingle(size, args);
-			} else if (const auto thumbnail = _dataMedia->image(
-					PhotoSize::Thumbnail)) {
-				return thumbnail->pixSingle(size, args.blurred());
-			} else if (const auto small = _dataMedia->image(
-					PhotoSize::Small)) {
-				return small->pixSingle(size, args.blurred());
-			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-				return blurred->pixSingle(size, args.blurred());
-			} else {
-				return QPixmap();
-			}
-		}();
-		p.drawPixmap(rthumb.topLeft(), pix);
+		validateImageCache(rthumb.size(), roundRadius, roundCorners);
+		p.drawImage(rthumb.topLeft(), _imageCache);
 		if (context.selected()) {
 			Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 		}
@@ -358,6 +348,112 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 }
 
+void Photo::validateImageCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const {
+	const auto intRadius = static_cast<int>(radius);
+	const auto intCorners = static_cast<int>(corners);
+	const auto large = _dataMedia->image(PhotoSize::Large);
+	const auto ratio = style::DevicePixelRatio();
+	const auto shouldBeBlurred = (large != nullptr) ? 0 : 1;
+	if (_imageCache.size() == (outer * ratio)
+		&& _imageCacheRoundRadius == intRadius
+		&& _imageCacheRoundCorners == intCorners
+		&& _imageCacheBlurred == shouldBeBlurred) {
+		return;
+	}
+	_imageCache = prepareImageCache(outer, radius, corners);
+	_imageCacheRoundRadius = intRadius;
+	_imageCacheRoundCorners = intCorners;
+	_imageCacheBlurred = shouldBeBlurred;
+}
+
+QImage Photo::prepareImageCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const {
+	return Images::Round(prepareImageCache(outer), radius, corners);
+}
+
+QImage Photo::prepareImageCache(QSize outer) const {
+	using Size = PhotoSize;
+	const auto large = _dataMedia->image(Size::Large);
+	const auto ratio = style::DevicePixelRatio();
+	auto blurred = (Image*)nullptr;
+	if (const auto embedded = _dataMedia->thumbnailInline()) {
+		blurred = embedded;
+	} else if (const auto thumbnail = _dataMedia->image(Size::Thumbnail)) {
+		blurred = thumbnail;
+	} else if (const auto small = _dataMedia->image(Size::Small)) {
+		blurred = small;
+	} else {
+		blurred = large;
+	}
+	if (large) {
+		const auto from = large->size();
+		// If we cut out no more than 0.25 of the original, let's expand.
+		const auto big = from.scaled(outer, Qt::KeepAspectRatioByExpanding);
+		if ((big.width() * 3 <= outer.width() * 4)
+			&& (big.height() * 3 <= outer.height() * 4)) {
+			return Images::Prepare(large->original(), big * ratio, {
+				.outer = outer,
+			});
+		}
+	}
+	auto background = QImage(
+		outer * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	background.setDevicePixelRatio(ratio);
+	if (!blurred) {
+		background.fill(Qt::black);
+		return background;
+	}
+	const auto bsize = blurred->size();
+	const auto copyw = std::min(
+		bsize.width(),
+		outer.width() * bsize.height() / outer.height());
+	const auto copyh = std::min(
+		bsize.height(),
+		outer.height() * bsize.width() / outer.width());
+	auto copy = (bsize == QSize(copyw, copyh))
+		? blurred->original()
+		: blurred->original().copy(
+			(bsize.width() - copyw) / 2,
+			(bsize.height() - copyh) / 2,
+			copyw,
+			copyh);
+	auto scaled = Images::Blur((outer.width() < 10
+		|| outer.height() < 10
+		|| (copy.width() * 5 < background.width()
+			&& copy.height() * 5 < background.height()))
+		? std::move(copy)
+		: copy.scaled(
+			std::min(copy.width(), background.width() / 5),
+			std::min(copy.height(), background.height() / 5),
+			Qt::KeepAspectRatio,
+			Qt::FastTransformation));
+	auto p = QPainter(&background);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawImage(QRect(QPoint(), outer), scaled);
+	}
+	if (large) {
+		auto image = large->original().scaled(
+			background.size(),
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation);
+		image.setDevicePixelRatio(ratio);
+		const auto size = image.size() / ratio;
+		p.drawImage(
+			(outer.width() - size.width()) / 2,
+			(outer.height() - size.height()) / 2,
+			image);
+	}
+	p.end();
+	return background;
+}
+
 void Photo::paintUserpicFrame(
 		Painter &p,
 		const PaintContext &context,
@@ -370,7 +466,7 @@ void Photo::paintUserpicFrame(
 		checkStreamedIsStarted();
 	}
 
-	const auto size = QSize{ _pixw, _pixh };
+	const auto size = QSize(_pixw, _pixh);
 	const auto rect = QRect(photoPosition, size);
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
@@ -398,7 +494,6 @@ void Photo::paintUserpicFrame(
 		return;
 	}
 	const auto pix = [&] {
-		const auto size = QSize(_pixw, _pixh);
 		const auto args = Images::PrepareArgs{
 			.options = Images::Option::RoundCircle,
 		};
