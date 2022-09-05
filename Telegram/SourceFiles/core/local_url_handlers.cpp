@@ -880,7 +880,14 @@ QString TryConvertUrlToLocal(QString url) {
 	if (subdomainMatch) {
 		const auto name = subdomainMatch->captured(2);
 		if (name.size() > 1 && name != "www") {
-			url = subdomainMatch->captured(1) + "t.me/" + name + subdomainMatch->captured(3);
+			const auto result = TryConvertUrlToLocal(
+				subdomainMatch->captured(1)
+				+ "t.me/"
+				+ name
+				+ subdomainMatch->captured(3));
+			return result.startsWith("tg://resolve?domain=")
+				? result
+				: url;
 		}
 	}
 	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
