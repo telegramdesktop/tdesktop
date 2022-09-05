@@ -142,6 +142,28 @@ void PaintWaveform(
 	}
 }
 
+[[nodiscard]] int MaxStatusWidth(not_null<DocumentData*> document) {
+	using namespace Ui;
+	auto result = 0;
+	const auto add = [&](const QString &text) {
+		accumulate_max(result, st::normalFont->width(text));
+	};
+	add(FormatDownloadText(document->size, document->size));
+	const auto duration = document->getDuration();
+	if (const auto song = document->song()) {
+		add(FormatPlayedText(duration, duration));
+		add(FormatDurationAndSizeText(duration, document->size));
+	} else if (const auto voice = document->voice()) {
+		add(FormatPlayedText(duration, duration));
+		add(FormatDurationAndSizeText(duration, document->size));
+	} else if (document->isVideoFile()) {
+		add(FormatDurationAndSizeText(duration, document->size));
+	} else {
+		add(FormatSizeText(document->size));
+	}
+	return result;
+}
+
 } // namespace
 
 Document::Document(
@@ -317,10 +339,10 @@ QSize Document::countOptimalSize() {
 	const auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
 	const auto tright = st.padding.left();
 	if (thumbed) {
-		accumulate_max(maxWidth, tleft + documentMaxStatusWidth(_data) + tright);
+		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + tright);
 	} else {
 		auto unread = _data->isVoiceMessage() ? (st::mediaUnreadSkip + st::mediaUnreadSize) : 0;
-		accumulate_max(maxWidth, tleft + documentMaxStatusWidth(_data) + unread + _parent->skipBlockWidth() + st::msgPadding.right());
+		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + unread + _parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
 	if (auto named = Get<HistoryDocumentNamed>()) {

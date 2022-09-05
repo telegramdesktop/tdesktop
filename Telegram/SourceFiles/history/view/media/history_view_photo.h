@@ -116,6 +116,7 @@ private:
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] QSize pixmapSizeFromData(int newWidth) const;
 
 	bool needInfoDisplay() const;
 	void validateGroupedCache(
@@ -152,8 +153,6 @@ private:
 	mutable std::unique_ptr<Streamed> _streamed;
 	mutable QImage _imageCache;
 	int _serviceWidth = 0;
-	int _pixw = 1;
-	int _pixh = 1;
 	mutable int _imageCacheRoundRadius : 4 = 0;
 	mutable int _imageCacheRoundCorners : 12 = 0;
 	mutable int _imageCacheBlurred : 1 = 0;

@@ -106,7 +106,7 @@ QSize WebPage::countOptimalSize() {
 		_title = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 		_description = Ui::Text::String(st::msgMinWidth - st::webPageLeft);
 	}
-	auto lineHeight = unitedLineHeight();
+	auto lineHeight = UnitedLineHeight();
 
 	if (!_openl && !_data->url.isEmpty()) {
 		const auto previewOfHiddenUrl = [&] {
@@ -328,7 +328,7 @@ QSize WebPage::countCurrentSize(int newWidth) {
 	auto innerWidth = newWidth - st::msgPadding.left() - st::webPageLeft - st::msgPadding.right();
 	auto newHeight = 0;
 
-	auto lineHeight = unitedLineHeight();
+	auto lineHeight = UnitedLineHeight();
 	auto linesMax = isLogEntryOriginal() ? kMaxOriginalEntryLines : 5;
 	auto siteNameHeight = _siteNameLines ? lineHeight : 0;
 	if (asArticle()) {
@@ -498,7 +498,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 	QRect bar(style::rtlrect(st::msgPadding.left(), tshift, st::webPageBar, height() - tshift - bshift, width()));
 	p.fillRect(bar, barfg);
 
-	auto lineHeight = unitedLineHeight();
+	auto lineHeight = UnitedLineHeight();
 	if (asArticle()) {
 		ensurePhotoMediaCreated();
 
@@ -650,7 +650,7 @@ TextState WebPage::textState(QPoint point, StateRequest request) const {
 	}
 	paintw -= padding.left() + padding.right();
 
-	auto lineHeight = unitedLineHeight();
+	auto lineHeight = UnitedLineHeight();
 	auto inThumb = false;
 	if (asArticle()) {
 		auto pw = qMax(_pixw, lineHeight);

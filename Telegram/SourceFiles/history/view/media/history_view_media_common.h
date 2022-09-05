@@ -7,6 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class DocumentData;
+class PhotoData;
+class Image;
+
 namespace HistoryView {
 class Element;
 } // namespace HistoryView
@@ -15,14 +19,13 @@ namespace Data {
 class Media;
 } // namespace Data
 
-class DocumentData;
-class PhotoData;
+namespace Media::Streaming {
+struct ExpandDecision;
+} // namespace Media::Streaming
 
 namespace HistoryView {
 
 class Media;
-
-int documentMaxStatusWidth(DocumentData *document);
 
 void PaintInterpolatedIcon(
 	Painter &p,
@@ -41,7 +44,7 @@ void PaintInterpolatedIcon(
 	PhotoData *photo,
 	const std::vector<std::unique_ptr<Data::Media>> &collage,
 	const QString &webpageUrl);
-int unitedLineHeight();
+[[nodiscard]] int UnitedLineHeight();
 
 [[nodiscard]] inline QSize NonEmptySize(QSize size) {
 	return QSize(std::max(size.width(), 1), std::max(size.height(), 1));
@@ -53,5 +56,11 @@ int unitedLineHeight();
 			? size.scaled(box, Qt::KeepAspectRatio)
 			: size));
 }
+
+[[nodiscard]] QImage PrepareWithBlurredBackground(
+	QSize outer,
+	::Media::Streaming::ExpandDecision resize,
+	Image *large,
+	Image *blurred);
 
 } // namespace HistoryView

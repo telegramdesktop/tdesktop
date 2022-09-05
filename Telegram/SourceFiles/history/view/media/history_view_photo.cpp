@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
 #include "media/streaming/media_streaming_document.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/image/image.h"
@@ -185,7 +186,7 @@ QSize Photo::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
-QSize Photo::countCurrentSize(int newWidth) {
+QSize Photo::pixmapSizeFromData(int newWidth) const {
 	auto tw = style::ConvertScale(_data->width());
 	auto th = style::ConvertScale(_data->height());
 	if (tw > st::maxMediaSize) {
@@ -197,33 +198,38 @@ QSize Photo::countCurrentSize(int newWidth) {
 		th = st::maxMediaSize;
 	}
 
-	_pixw = qMin(newWidth, maxWidth());
-	_pixh = th;
-	if (tw > _pixw) {
-		_pixh = (_pixw * _pixh / tw);
+	auto pixw = qMin(newWidth, maxWidth());
+	auto pixh = th;
+	if (tw > pixw) {
+		pixh = (pixw * pixh / tw);
 	} else {
-		_pixw = tw;
+		pixw = tw;
 	}
-	if (_pixh > newWidth) {
-		_pixw = (_pixw * newWidth) / _pixh;
-		_pixh = newWidth;
+	if (pixh > newWidth) {
+		pixw = (pixw * newWidth) / pixh;
+		pixh = newWidth;
 	}
-	if (_pixw < 1) _pixw = 1;
-	if (_pixh < 1) _pixh = 1;
+	return { pixw, pixh };
+}
 
+QSize Photo::countCurrentSize(int newWidth) {
+	if (_serviceWidth) {
+		return { _serviceWidth, _serviceWidth };
+	}
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
 		std::min(newWidth, st::maxMediaSize));
-	newWidth = qMax(_pixw, minWidth);
-	auto newHeight = qMax(_pixh, st::minPhotoSize);
+	auto pix = pixmapSizeFromData(newWidth);
+	newWidth = qMax(pix.width(), minWidth);
+	auto newHeight = qMax(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
 		const auto maxWithCaption = qMin(
 			st::msgMaxWidth,
 			(st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
-		newWidth = qMin(maxWidth(), maxWithCaption);
+		newWidth = qMax(newWidth, maxWithCaption);
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
@@ -390,68 +396,10 @@ QImage Photo::prepareImageCache(QSize outer) const {
 	} else {
 		blurred = large;
 	}
-	if (large) {
-		const auto from = large->size();
-		// If we cut out no more than 0.25 of the original, let's expand.
-		const auto big = from.scaled(outer, Qt::KeepAspectRatioByExpanding);
-		if ((big.width() * 3 <= outer.width() * 4)
-			&& (big.height() * 3 <= outer.height() * 4)) {
-			return Images::Prepare(large->original(), big * ratio, {
-				.outer = outer,
-			});
-		}
-	}
-	auto background = QImage(
-		outer * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	background.setDevicePixelRatio(ratio);
-	if (!blurred) {
-		background.fill(Qt::black);
-		return background;
-	}
-	const auto bsize = blurred->size();
-	const auto copyw = std::min(
-		bsize.width(),
-		outer.width() * bsize.height() / outer.height());
-	const auto copyh = std::min(
-		bsize.height(),
-		outer.height() * bsize.width() / outer.width());
-	auto copy = (bsize == QSize(copyw, copyh))
-		? blurred->original()
-		: blurred->original().copy(
-			(bsize.width() - copyw) / 2,
-			(bsize.height() - copyh) / 2,
-			copyw,
-			copyh);
-	auto scaled = Images::Blur((outer.width() < 10
-		|| outer.height() < 10
-		|| (copy.width() * 5 < background.width()
-			&& copy.height() * 5 < background.height()))
-		? std::move(copy)
-		: copy.scaled(
-			std::min(copy.width(), background.width() / 5),
-			std::min(copy.height(), background.height() / 5),
-			Qt::KeepAspectRatio,
-			Qt::FastTransformation));
-	auto p = QPainter(&background);
-	{
-		auto hq = PainterHighQualityEnabler(p);
-		p.drawImage(QRect(QPoint(), outer), scaled);
-	}
-	if (large) {
-		auto image = large->original().scaled(
-			background.size(),
-			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
-		image.setDevicePixelRatio(ratio);
-		const auto size = image.size() / ratio;
-		p.drawImage(
-			(outer.width() - size.width()) / 2,
-			(outer.height() - size.height()) / 2,
-			image);
-	}
-	p.end();
-	return background;
+	const auto resize = large
+		? ::Media::Streaming::DecideFrameResize(outer, large->size())
+		: ::Media::Streaming::ExpandDecision();
+	return PrepareWithBlurredBackground(outer, resize, large, blurred);
 }
 
 void Photo::paintUserpicFrame(
@@ -466,7 +414,7 @@ void Photo::paintUserpicFrame(
 		checkStreamedIsStarted();
 	}
 
-	const auto size = QSize(_pixw, _pixh);
+	const auto size = QSize(width(), height());
 	const auto rect = QRect(photoPosition, size);
 	const auto st = context.st;
 	const auto sti = context.imageStyle();

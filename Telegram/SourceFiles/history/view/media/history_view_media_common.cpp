@@ -18,26 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_theme_document.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
-
-int documentMaxStatusWidth(DocumentData *document) {
-	auto result = st::normalFont->width(Ui::FormatDownloadText(document->size, document->size));
-	const auto duration = document->getDuration();
-	if (const auto song = document->song()) {
-		accumulate_max(result, st::normalFont->width(Ui::FormatPlayedText(duration, duration)));
-		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
-	} else if (const auto voice = document->voice()) {
-		accumulate_max(result, st::normalFont->width(Ui::FormatPlayedText(duration, duration)));
-		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
-	} else if (document->isVideoFile()) {
-		accumulate_max(result, st::normalFont->width(Ui::FormatDurationAndSizeText(duration, document->size)));
-	} else {
-		accumulate_max(result, st::normalFont->width(Ui::FormatSizeText(document->size)));
-	}
-	return result;
-}
 
 void PaintInterpolatedIcon(
 		Painter &p,
@@ -105,8 +89,49 @@ std::unique_ptr<Media> CreateAttach(
 	return nullptr;
 }
 
-int unitedLineHeight() {
-	return qMax(st::webPageTitleFont->height, st::webPageDescriptionFont->height);
+int UnitedLineHeight() {
+	return std::max(st::semiboldFont->height, st::normalFont->height);
+}
+
+QImage PrepareWithBlurredBackground(
+		QSize outer,
+		::Media::Streaming::ExpandDecision resize,
+		Image *large,
+		Image *blurred) {
+	const auto ratio = style::DevicePixelRatio();
+	if (resize.expanding) {
+		return Images::Prepare(large->original(), resize.result * ratio, {
+			.outer = outer,
+		});
+	}
+	auto background = QImage(
+		outer * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	background.setDevicePixelRatio(ratio);
+	if (!blurred) {
+		background.fill(Qt::black);
+		if (!large) {
+			return background;
+		}
+	}
+	auto p = QPainter(&background);
+	if (blurred) {
+		using namespace ::Media::Streaming;
+		FillBlurredBackground(p, outer, blurred->original());
+	}
+	if (large) {
+		auto image = large->original().scaled(
+			resize.result * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		image.setDevicePixelRatio(ratio);
+		p.drawImage(
+			(outer.width() - resize.result.width()) / 2,
+			(outer.height() - resize.result.height()) / 2,
+			image);
+	}
+	p.end();
+	return background;
 }
 
 } // namespace HistoryView

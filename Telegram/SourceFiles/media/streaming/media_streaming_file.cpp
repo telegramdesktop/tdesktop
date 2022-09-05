@@ -177,7 +177,8 @@ Stream File::Context::initStream(
 			return result;
 		}
 		result.rotation = FFmpeg::ReadRotationFromMetadata(info);
-		result.aspect = FFmpeg::ValidateAspectRatio(info->sample_aspect_ratio);
+		result.aspect = FFmpeg::ValidateAspectRatio(
+			info->sample_aspect_ratio);
 	} else if (type == AVMEDIA_TYPE_AUDIO) {
 		result.frequency = info->codecpar->sample_rate;
 		if (!result.frequency) {
