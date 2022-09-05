@@ -48,7 +48,7 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout d939423196 \
+	&& git checkout 88c251102f \
 	&& rm -rf .git
 
 FROM builder AS extra-cmake-modules
