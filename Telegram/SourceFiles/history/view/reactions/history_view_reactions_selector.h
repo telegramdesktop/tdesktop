@@ -117,6 +117,7 @@ private:
 	void cacheExpandIcon();
 	void createList(not_null<Window::SessionController*> controller);
 	void finishExpand();
+	ChosenReaction lookupChosen(const Data::ReactionId &id) const;
 
 	const base::weak_ptr<Window::SessionController> _parentController;
 	const Data::PossibleItemReactions _reactions;

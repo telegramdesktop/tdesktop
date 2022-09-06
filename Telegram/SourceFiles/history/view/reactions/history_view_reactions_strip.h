@@ -28,7 +28,8 @@ struct ChosenReaction {
 	FullMsgId context;
 	Data::ReactionId id;
 	QImage icon;
-	QRect geometry;
+	QRect localGeometry;
+	QRect globalGeometry;
 
 	explicit operator bool() const {
 		return context && !id.empty();

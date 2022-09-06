@@ -85,6 +85,9 @@ class EmojiListWidget
 	, public Ui::AbstractTooltipShower {
 public:
 	using Mode = EmojiListMode;
+	using EmojiChosen = TabbedSelector::EmojiChosen;
+	using FileChosen = TabbedSelector::FileChosen;
+
 	EmojiListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
@@ -110,11 +113,9 @@ public:
 
 	void refreshEmoji();
 
-	[[nodiscard]] rpl::producer<EmojiPtr> chosen() const;
-	[[nodiscard]] auto customChosen() const
-		-> rpl::producer<TabbedSelector::FileChosen>;
-	[[nodiscard]] auto premiumChosen() const
-		-> rpl::producer<not_null<DocumentData*>>;
+	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> premiumChosen() const;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
@@ -237,7 +238,7 @@ private:
 
 	void showPicker();
 	void pickerHidden();
-	void colorChosen(EmojiPtr emoji);
+	void colorChosen(EmojiChosen data);
 	bool checkPickerHide();
 	void refreshCustom();
 	void unloadNotSeenCustom(int visibleTop, int visibleBottom);
@@ -253,10 +254,15 @@ private:
 	[[nodiscard]] DocumentData *lookupCustomEmoji(
 		int index,
 		int section) const;
-	void selectEmoji(EmojiPtr emoji);
-	void selectCustom(
-		not_null<DocumentData*> document,
+	[[nodiscard]] EmojiChosen lookupChosen(
+		EmojiPtr emoji,
+		not_null<const OverEmoji*> over);
+	[[nodiscard]] FileChosen lookupChosen(
+		not_null<DocumentData*> custom,
+		const OverEmoji *over,
 		Api::SendOptions options = Api::SendOptions());
+	void selectEmoji(EmojiChosen data);
+	void selectCustom(FileChosen data);
 	void paint(QPainter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
@@ -343,6 +349,7 @@ private:
 	base::flat_set<uint64> _repaintsScheduled;
 	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColor;
 	bool _recentPainted = false;
+	bool _grabbingChosen = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
@@ -373,9 +380,9 @@ private:
 	object_ptr<EmojiColorPicker> _picker;
 	base::Timer _showPickerTimer;
 
-	rpl::event_stream<EmojiPtr> _chosen;
-	rpl::event_stream<TabbedSelector::FileChosen> _customChosen;
-	rpl::event_stream<not_null<DocumentData*>> _premiumChosen;
+	rpl::event_stream<EmojiChosen> _chosen;
+	rpl::event_stream<FileChosen> _customChosen;
+	rpl::event_stream<FileChosen> _premiumChosen;
 	rpl::event_stream<> _jumpedToPremium;
 
 };

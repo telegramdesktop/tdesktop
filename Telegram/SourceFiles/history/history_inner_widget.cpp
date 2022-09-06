@@ -480,10 +480,13 @@ void HistoryInner::reactionChosen(const ChosenReaction &reaction) {
 		return;
 	} else if (const auto view = item->mainView()) {
 		if (const auto top = itemTop(view); top >= 0) {
+			const auto geometry = reaction.localGeometry.isEmpty()
+				? mapFromGlobal(reaction.globalGeometry)
+				: reaction.localGeometry;
 			view->animateReaction({
 				.id = reaction.id,
 				.flyIcon = reaction.icon,
-				.flyFrom = reaction.geometry.translated(0, -top),
+				.flyFrom = geometry.translated(0, -top),
 			});
 		}
 	}

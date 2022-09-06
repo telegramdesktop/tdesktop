@@ -374,7 +374,7 @@ ChosenReaction Manager::lookupChosen(const ReactionId &id) const {
 		: local;
 	const auto rect = QRect(geometry.topLeft() + QPoint(0, top), _outer);
 	const auto imageSize = _strip.computeOverSize();
-	result.geometry = QRect(
+	result.localGeometry = QRect(
 		rect.x() + (rect.width() - imageSize) / 2,
 		rect.y() + (rect.height() - imageSize) / 2,
 		imageSize,

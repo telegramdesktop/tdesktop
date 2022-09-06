@@ -744,8 +744,8 @@ void SendFilesBox::setupEmojiPanel() {
 	_emojiPanel->selector()->setAllowEmojiWithoutPremium(
 		_allowEmojiWithoutPremium);
 	_emojiPanel->selector()->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
-		Ui::InsertEmojiAtCursor(_caption->textCursor(), emoji);
+	) | rpl::start_with_next([=](Selector::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(_caption->textCursor(), data.emoji);
 	}, lifetime());
 	_emojiPanel->selector()->customEmojiChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen data) {

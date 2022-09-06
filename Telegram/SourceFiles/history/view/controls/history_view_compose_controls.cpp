@@ -1857,9 +1857,10 @@ void ComposeControls::initTabbedSelector() {
 		return base::EventFilterResult::Continue;
 	});
 
+	using EmojiChosen = ChatHelpers::TabbedSelector::EmojiChosen;
 	selector->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
-		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	) | rpl::start_with_next([=](EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, wrap->lifetime());
 
 	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
@@ -1869,9 +1870,9 @@ void ComposeControls::initTabbedSelector() {
 	}, wrap->lifetime());
 
 	selector->premiumEmojiChosen(
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
+	) | rpl::start_with_next([=](FileChosen data) {
 		if (_unavailableEmojiPasted) {
-			_unavailableEmojiPasted(document);
+			_unavailableEmojiPasted(data.document);
 		}
 	}, wrap->lifetime());
 

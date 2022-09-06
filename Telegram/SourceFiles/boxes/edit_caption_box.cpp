@@ -502,8 +502,8 @@ void EditCaptionBox::setupEmojiPanel() {
 	_emojiPanel->hide();
 	_emojiPanel->selector()->setCurrentPeer(_historyItem->history()->peer);
 	_emojiPanel->selector()->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
-		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	) | rpl::start_with_next([=](Selector::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, lifetime());
 	_emojiPanel->selector()->customEmojiChosen(
 	) | rpl::start_with_next([=](Selector::FileChosen data) {

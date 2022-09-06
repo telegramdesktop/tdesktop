@@ -374,11 +374,14 @@ ListWidget::ListWidget(
 		if (!ranges::contains(item->chosenReactions(), reaction.id)) {
 			return;
 		} else if (const auto view = viewForItem(item)) {
+			const auto geometry = reaction.localGeometry.isEmpty()
+				? mapFromGlobal(reaction.globalGeometry)
+				: reaction.localGeometry;
 			if (const auto top = itemTop(view); top >= 0) {
 				view->animateReaction({
 					.id = reaction.id,
 					.flyIcon = reaction.icon,
-					.flyFrom = reaction.geometry.translated(0, -top),
+					.flyFrom = geometry.translated(0, -top),
 				});
 			}
 		}

@@ -1067,8 +1067,8 @@ void HistoryWidget::initTabbedSelector() {
 	selector->emojiChosen(
 	) | rpl::filter([=] {
 		return !isHidden() && !_field->isHidden();
-	}) | rpl::start_with_next([=](EmojiPtr emoji) {
-		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	}) | rpl::start_with_next([=](Selector::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, lifetime());
 
 	selector->customEmojiChosen(
@@ -1081,8 +1081,8 @@ void HistoryWidget::initTabbedSelector() {
 	selector->premiumEmojiChosen(
 	) | rpl::filter([=] {
 		return !isHidden() && !_field->isHidden();
-	}) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		showPremiumToast(document);
+	}) | rpl::start_with_next([=](Selector::FileChosen data) {
+		showPremiumToast(data.document);
 	}, lifetime());
 
 	selector->fileChosen(

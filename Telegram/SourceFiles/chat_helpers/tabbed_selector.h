@@ -70,6 +70,10 @@ public:
 		not_null<PhotoData*> photo;
 		Api::SendOptions options;
 	};
+	struct EmojiChosen {
+		EmojiPtr emoji;
+		Ui::MessageSendingAnimationFrom messageSendingFrom;
+	};
 	using InlineChosen = InlineBots::ResultSelected;
 	enum class Mode {
 		Full,
@@ -92,9 +96,9 @@ public:
 	Main::Session &session() const;
 	Window::GifPauseReason level() const;
 
-	rpl::producer<EmojiPtr> emojiChosen() const;
+	rpl::producer<EmojiChosen> emojiChosen() const;
 	rpl::producer<FileChosen> customEmojiChosen() const;
-	rpl::producer<not_null<DocumentData*>> premiumEmojiChosen() const;
+	rpl::producer<FileChosen> premiumEmojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;

@@ -492,7 +492,7 @@ bool TabbedSelector::hasMasksTab() const {
 	return _hasMasksTab;
 }
 
-rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
+auto TabbedSelector::emojiChosen() const -> rpl::producer<EmojiChosen> {
 	return emoji()->chosen();
 }
 
@@ -501,7 +501,7 @@ auto TabbedSelector::customEmojiChosen() const -> rpl::producer<FileChosen> {
 }
 
 auto TabbedSelector::premiumEmojiChosen() const
--> rpl::producer<not_null<DocumentData*>> {
+-> rpl::producer<FileChosen> {
 	return emoji()->premiumChosen();
 }
 

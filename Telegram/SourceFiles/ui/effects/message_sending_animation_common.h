@@ -14,10 +14,12 @@ struct MessageSendingAnimationFrom {
 		None,
 		Sticker,
 		Gif,
+		Emoji,
 	};
 	Type type = Type::None;
 	std::optional<MsgId> localId;
 	QRect globalStartGeometry;
+	QImage frame;
 	bool crop = false;
 };
 

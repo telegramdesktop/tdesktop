@@ -327,6 +327,7 @@ void EmojiStatusPanel::create(
 	struct Chosen {
 		DocumentId id = 0;
 		TimeId until = 0;
+		Ui::MessageSendingAnimationFrom animation;
 	};
 
 	_panel->selector()->contextMenuRequested(
@@ -336,12 +337,21 @@ void EmojiStatusPanel::create(
 
 	auto statusChosen = _panel->selector()->customEmojiChosen(
 	) | rpl::map([=](Selector::FileChosen data) {
-		return Chosen{ data.document->id, data.options.scheduled };
+		return Chosen{
+			.id = data.document->id,
+			.until = data.options.scheduled,
+			.animation = data.messageSendingFrom,
+		};
+	});
+
+	auto emojiChosen = _panel->selector()->emojiChosen(
+	) | rpl::map([=](Selector::EmojiChosen data) {
+		return Chosen{ .animation = data.messageSendingFrom };
 	});
 
 	rpl::merge(
 		std::move(statusChosen),
-		_panel->selector()->emojiChosen() | rpl::map_to(Chosen())
+		std::move(emojiChosen)
 	) | rpl::start_with_next([=](const Chosen chosen) {
 		if (chosen.until == ChatHelpers::TabbedSelector::kPickCustomTimeId) {
 			controller->show(Box(PickUntilBox, [=](TimeId seconds) {

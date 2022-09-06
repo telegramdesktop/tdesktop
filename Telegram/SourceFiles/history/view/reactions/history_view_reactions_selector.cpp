@@ -624,9 +624,31 @@ void Selector::mouseReleaseEvent(QMouseEvent *e) {
 		expand();
 	} else if (const auto id = std::get_if<Data::ReactionId>(&selected)) {
 		if (!id->empty()) {
-			_chosen.fire({ .id = *id });
+			_chosen.fire(lookupChosen(*id));
 		}
 	}
+}
+
+ChosenReaction Selector::lookupChosen(const Data::ReactionId &id) const {
+	Expects(_strip != nullptr);
+
+	auto result = ChosenReaction{
+		.id = id,
+	};
+	const auto index = _strip->fillChosenIconGetIndex(result);
+	if (result.icon.isNull()) {
+		return result;
+	}
+	const auto between = st::reactionCornerSkip;
+	const auto oneHeight = (st::reactionCornerSize.height() + between);
+	const auto rect = QRect(_skipx + index * _size, _skipy, _size, _size);
+	const auto imageSize = _strip->computeOverSize();
+	result.globalGeometry = mapToGlobal(QRect(
+		_inner.x() + rect.x() + (rect.width() - imageSize) / 2,
+		_inner.y() + rect.y() + (rect.height() - imageSize) / 2,
+		imageSize,
+		imageSize));
+	return result;
 }
 
 void Selector::expand() {
@@ -759,19 +781,19 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 	).data();
 
 	rpl::merge(
-		_list->customChosen(
-		) | rpl::map([=](const TabbedSelector::FileChosen &chosen) {
-			return chosen.document;
-		}),
+		_list->customChosen(),
 		_list->premiumChosen()
-	) | rpl::start_with_next([=](not_null<DocumentData*> document) {
-		const auto id = DocumentId{ document->id };
+	) | rpl::start_with_next([=](TabbedSelector::FileChosen data) {
+		const auto id = DocumentId{ data.document->id };
 		const auto i = defaultReactionIds.find(id);
-		if (i != end(defaultReactionIds)) {
-			_chosen.fire({ .id = { i->second } });
-		} else {
-			_chosen.fire({ .id = { id } });
-		}
+		const auto reactionId = (i != end(defaultReactionIds))
+			? Data::ReactionId{ i->second }
+			: Data::ReactionId{ id };
+		_chosen.fire({
+			.id = reactionId,
+			.icon = data.messageSendingFrom.frame,
+			.globalGeometry = data.messageSendingFrom.globalStartGeometry,
+		});
 	}, _list->lifetime());
 
 	_list->jumpedToPremium(
