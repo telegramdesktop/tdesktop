@@ -34,23 +34,22 @@ struct ChatPaintContext;
 class ChatStyle;
 } // namespace Ui
 
+namespace HistoryView::Reactions {
+struct ButtonParameters;
+struct AnimationArgs;
+class Animation;
+class InlineList;
+} // namespace HistoryView::Reactions
+
 namespace HistoryView {
 
+using PaintContext = Ui::ChatPaintContext;
 enum class PointState : char;
 enum class InfoDisplayType : char;
-struct ReactionAnimationArgs;
 struct StateRequest;
 struct TextState;
 class Media;
 //struct ExternalLottieInfo;
-
-using PaintContext = Ui::ChatPaintContext;
-
-namespace Reactions {
-struct ButtonParameters;
-class Animation;
-class InlineList;
-} // namespace Reactions
 
 enum class Context : char {
 	History,
@@ -433,7 +432,7 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
-	virtual void animateReaction(ReactionAnimationArgs &&args);
+	virtual void animateReaction(Reactions::AnimationArgs &&args);
 	void animateUnreadReactions();
 	[[nodiscard]] virtual auto takeReactionAnimations()
 	-> base::flat_map<

@@ -138,7 +138,7 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void animateReaction(ReactionAnimationArgs &&args) override;
+	void animateReaction(Reactions::AnimationArgs &&args) override;
 	auto takeReactionAnimations()
 	-> base::flat_map<
 		Data::ReactionId,

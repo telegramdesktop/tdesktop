@@ -24,13 +24,13 @@ using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
 struct UserpicInRow;
-struct ReactionAnimationArgs;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
 using ::Data::ReactionId;
 using ::Data::MessageReaction;
+struct AnimationArgs;
 class Animation;
 
 struct InlineListData {
@@ -79,7 +79,7 @@ public:
 		not_null<TextState*> outResult) const;
 
 	void animate(
-		ReactionAnimationArgs &&args,
+		AnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeAnimations()
 		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;

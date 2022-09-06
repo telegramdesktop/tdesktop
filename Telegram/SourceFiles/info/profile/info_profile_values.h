@@ -90,8 +90,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(
 	not_null<Main::Session*> peer);
 
-enum class Badge;
-[[nodiscard]] rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
+enum class BadgeType;
+[[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
 

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
-#include "data/data_message_reaction_id.h"
 #include "ui/text/text.h"
 #include "base/flags.h"
 
@@ -19,20 +18,15 @@ class AnimatedIcon;
 
 namespace Data {
 class Reactions;
+struct ReactionId;
+struct MessageReaction;
 } // namespace Data
 
 namespace HistoryView {
 namespace Reactions {
 class Animation;
+struct AnimationArgs;
 } // namespace Reactions
-
-struct ReactionAnimationArgs {
-	::Data::ReactionId id;
-	QImage flyIcon;
-	QRect flyFrom;
-
-	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;
-};
 
 using PaintContext = Ui::ChatPaintContext;
 
@@ -86,7 +80,7 @@ public:
 		const PaintContext &context) const;
 
 	void animateReaction(
-		ReactionAnimationArgs &&args,
+		Reactions::AnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeReactionAnimations()
 		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
@@ -95,15 +89,7 @@ public:
 		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
-	struct Reaction {
-		mutable std::unique_ptr<Reactions::Animation> animation;
-		mutable QImage image;
-		ReactionId id;
-		QString countText;
-		int count = 0;
-		int countTextWidth = 0;
-		bool chosen = false;
-	};
+	struct Reaction;
 
 	void layout();
 	void layoutDateText();

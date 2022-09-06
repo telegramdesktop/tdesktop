@@ -29,14 +29,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace HistoryView {
 
-ReactionAnimationArgs ReactionAnimationArgs::translated(
-		QPoint point) const {
-	return {
-		.id = id,
-		.flyIcon = flyIcon,
-		.flyFrom = flyFrom.translated(point),
-	};
-}
+struct BottomInfo::Reaction {
+	mutable std::unique_ptr<Reactions::Animation> animation;
+	mutable QImage image;
+	ReactionId id;
+	QString countText;
+	int count = 0;
+	int countTextWidth = 0;
+	bool chosen = false;
+};
 
 BottomInfo::BottomInfo(
 	not_null<::Data::Reactions*> reactionsOwner,
@@ -389,13 +390,19 @@ void BottomInfo::paintReactions(
 	}
 	if (!animations.empty()) {
 		const auto now = context.now;
-		context.reactionInfo->effectPaint = [=](QPainter &p) {
+		context.reactionInfo->effectPaint = [
+			now,
+			origin,
+			list = std::move(animations)
+		](QPainter &p) {
 			auto result = QRect();
-			for (const auto &single : animations) {
+			for (const auto &single : list) {
 				const auto area = single.animation->paintGetArea(
 					p,
 					origin,
 					single.target,
+					QColor(255, 255, 255, 0), // Colored, for emoji status.
+					QRect(), // Clip, for emoji status.
 					now);
 				result = result.isEmpty() ? area : result.united(area);
 			}
@@ -553,7 +560,7 @@ void BottomInfo::setReactionCount(Reaction &reaction, int count) {
 }
 
 void BottomInfo::animateReaction(
-		ReactionAnimationArgs &&args,
+		Reactions::AnimationArgs &&args,
 		Fn<void()> repaint) {
 	const auto i = ranges::find(_reactions, args.id, &Reaction::id);
 	if (i == end(_reactions)) {

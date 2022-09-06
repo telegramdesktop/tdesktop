@@ -30,7 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_emoji_status_panel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
@@ -85,8 +86,8 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _user;
-	Info::Profile::BadgeView _badge;
 	Info::Profile::EmojiStatusPanel _emojiStatusPanel;
+	Info::Profile::Badge _badge;
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
@@ -110,12 +111,13 @@ Cover::Cover(
 	this,
 	st::infoPeerBadge,
 	user,
+	&_emojiStatusPanel,
 	[=] {
 		return controller->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Layer);
 	},
 	0, // customStatusLoopsLimit
-	Info::Profile::Badge::Premium)
+	Info::Profile::BadgeType::Premium)
 , _userpic(
 	this,
 	controller,
@@ -145,7 +147,10 @@ Cover::Cover(
 	}, _userpic->lifetime());
 
 	_badge.setPremiumClickCallback([=] {
-		_emojiStatusPanel.show(_controller, _badge.widget());
+		_emojiStatusPanel.show(
+			_controller,
+			_badge.widget(),
+			_badge.sizeTag());
 	});
 	_badge.updated() | rpl::start_with_next([=] {
 		refreshNameGeometry(width());

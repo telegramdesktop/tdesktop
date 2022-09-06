@@ -1116,7 +1116,7 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateReaction(ReactionAnimationArgs &&args) {
+void Element::animateReaction(Reactions::AnimationArgs &&args) {
 }
 
 void Element::animateUnreadReactions() {

@@ -32,6 +32,14 @@ constexpr auto kMiniCopiesMaxScaleMax = 0.9;
 
 } // namespace
 
+AnimationArgs AnimationArgs::translated(QPoint point) const {
+	return {
+		.id = id,
+		.flyIcon = flyIcon,
+		.flyFrom = flyFrom.translated(point),
+	};
+}
+
 auto Animation::flyCallback() {
 	return [=] {
 		if (!_fly.animating()) {
@@ -54,22 +62,28 @@ auto Animation::callback() {
 
 Animation::Animation(
 	not_null<::Data::Reactions*> owner,
-	ReactionAnimationArgs &&args,
+	AnimationArgs &&args,
 	Fn<void()> repaint,
-	int size)
+	int size,
+	Data::CustomEmojiSizeTag customSizeTag)
 : _owner(owner)
 , _repaint(std::move(repaint))
 , _flyFrom(args.flyFrom) {
 	const auto &list = owner->list(::Data::Reactions::Type::All);
 	auto centerIcon = (DocumentData*)nullptr;
-	auto centerIconSize = size;
 	auto aroundAnimation = (DocumentData*)nullptr;
 	if (const auto customId = args.id.custom()) {
-		centerIconSize = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
+		const auto esize = Data::FrameSizeFromTag(customSizeTag)
+			/ style::DevicePixelRatio();
 		const auto data = &owner->owner();
 		const auto document = data->document(customId);
-		_custom = data->customEmojiManager().create(document, callback());
-		_customSize = centerIconSize;
+		_custom = data->customEmojiManager().create(
+			document,
+			callback(),
+			customSizeTag);
+		_colored = std::make_unique<Ui::Text::CustomEmojiColored>();
+		_customSize = esize;
+		_centerSizeMultiplier = _customSize / float64(size);
 		aroundAnimation = owner->chooseGenericAnimation(document);
 	} else {
 		const auto i = ranges::find(list, args.id, &::Data::Reaction::id);
@@ -78,6 +92,7 @@ Animation::Animation(
 		}
 		centerIcon = i->centerIcon;
 		aroundAnimation = i->aroundAnimation;
+		_centerSizeMultiplier = 1.;
 	}
 	const auto resolve = [&](
 			std::unique_ptr<Ui::AnimatedIcon> &icon,
@@ -96,7 +111,7 @@ Animation::Animation(
 		});
 		return true;
 	};
-	if (!_custom && !resolve(_center, centerIcon, centerIconSize)) {
+	if (!_custom && !resolve(_center, centerIcon, size)) {
 		return;
 	}
 	resolve(_effect, aroundAnimation, size * 2);
@@ -109,7 +124,6 @@ Animation::Animation(
 	} else {
 		startAnimations();
 	}
-	_centerSizeMultiplier = centerIconSize / float64(size);
 	_valid = true;
 }
 
@@ -119,21 +133,26 @@ QRect Animation::paintGetArea(
 		QPainter &p,
 		QPoint origin,
 		QRect target,
+		const QColor &colored,
+		QRect clip,
 		crl::time now) const {
 	if (_flyIcon.isNull()) {
-		paintCenterFrame(p, target, now);
 		const auto wide = QRect(
 			target.topLeft() - QPoint(target.width(), target.height()) / 2,
 			target.size() * 2);
-		if (const auto effect = _effect.get()) {
-			p.drawImage(wide, effect->frame());
-		}
-		paintMiniCopies(p, target.center(), now);
-		return _miniCopies.empty()
+		const auto area = _miniCopies.empty()
 			? wide
 			: QRect(
 				target.topLeft() - QPoint(target.width(), target.height()),
 				target.size() * 3);
+		if (clip.isEmpty() || area.intersects(clip)) {
+			paintCenterFrame(p, target, colored, now);
+			if (const auto effect = _effect.get()) {
+				p.drawImage(wide, effect->frame());
+			}
+			paintMiniCopies(p, target.center(), colored, now);
+		}
+		return area;
 	}
 	const auto from = _flyFrom.translated(origin);
 	const auto lshift = target.width() / 4;
@@ -152,21 +171,24 @@ QRect Animation::paintGetArea(
 		anim::interpolate(from.width(), target.width(), progress),
 		anim::interpolate(from.height(), target.height(), progress));
 	const auto wide = rect.marginsAdded(margins);
-	if (progress < 1.) {
-		p.setOpacity(1. - progress);
-		p.drawImage(rect, _flyIcon);
+	if (clip.isEmpty() || wide.intersects(clip)) {
+		if (progress < 1.) {
+			p.setOpacity(1. - progress);
+			p.drawImage(rect, _flyIcon);
+		}
+		if (progress > 0.) {
+			p.setOpacity(progress);
+			paintCenterFrame(p, wide, colored, now);
+		}
+		p.setOpacity(1.);
 	}
-	if (progress > 0.) {
-		p.setOpacity(progress);
-		paintCenterFrame(p, wide, now);
-	}
-	p.setOpacity(1.);
 	return wide;
 }
 
 void Animation::paintCenterFrame(
 		QPainter &p,
 		QRect target,
+		const QColor &colored,
 		crl::time now) const {
 	Expects(_center || _custom);
 
@@ -182,8 +204,10 @@ void Animation::paintCenterFrame(
 		p.drawImage(rect, _center->frame());
 	} else {
 		const auto scaled = (size.width() != _customSize);
+		_colored->color = colored;
 		_custom->paint(p, {
 			.preview = QColor(0, 0, 0, 0),
+			.colored = _colored.get(),
 			.size = { _customSize, _customSize },
 			.now = now,
 			.scale = (scaled ? (size.width() / float64(_customSize)) : 1.),
@@ -198,6 +222,7 @@ void Animation::paintCenterFrame(
 void Animation::paintMiniCopies(
 		QPainter &p,
 		QPoint center,
+		const QColor &colored,
 		crl::time now) const {
 	Expects(_miniCopies.empty() || _custom != nullptr);
 
@@ -213,8 +238,10 @@ void Animation::paintMiniCopies(
 		/ float64(kMiniCopiesDurationMax);
 	const auto scaleOut = kMiniCopiesScaleOutDuration
 		/ float64(kMiniCopiesDurationMax);
+	_colored->color = colored;
 	auto context = Ui::Text::CustomEmoji::Context{
 		.preview = preview,
+		.colored = _colored.get(),
 		.size = size,
 		.now = now,
 		.scaled = true,

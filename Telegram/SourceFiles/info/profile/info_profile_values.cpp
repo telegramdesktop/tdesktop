@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "countries/countries_instance.h"
@@ -456,7 +456,7 @@ rpl::producer<int> FullReactionsCountValue(
 }
 
 template <typename Flag, typename Peer>
-rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
+rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 	return rpl::combine(
 		Data::PeerFlagsValue(
 			peer,
@@ -464,24 +464,24 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 		Data::PeerPremiumValue(peer)
 	) | rpl::map([=](base::flags<Flag> value, bool premium) {
 		return (value & Flag::Scam)
-			? Badge::Scam
+			? BadgeType::Scam
 			: (value & Flag::Fake)
-			? Badge::Fake
+			? BadgeType::Fake
 			: (value & Flag::Verified)
-			? Badge::Verified
+			? BadgeType::Verified
 			: premium
-			? Badge::Premium
-			: Badge::None;
+			? BadgeType::Premium
+			: BadgeType::None;
 	});
 }
 
-rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
+rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		return BadgeValueFromFlags<UserDataFlag>(user);
 	} else if (const auto channel = peer->asChannel()) {
 		return BadgeValueFromFlags<ChannelDataFlag>(channel);
 	}
-	return rpl::single(Badge::None);
+	return rpl::single(BadgeType::None);
 }
 
 rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {

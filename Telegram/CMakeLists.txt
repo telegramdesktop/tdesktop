@@ -807,8 +807,12 @@ PRIVATE
     info/polls/info_polls_results_widget.h
     info/profile/info_profile_actions.cpp
     info/profile/info_profile_actions.h
+    info/profile/info_profile_badge.cpp
+    info/profile/info_profile_badge.h
     info/profile/info_profile_cover.cpp
     info/profile/info_profile_cover.h
+    info/profile/info_profile_emoji_status_panel.cpp
+    info/profile/info_profile_emoji_status_panel.h
     info/profile/info_profile_icon.cpp
     info/profile/info_profile_icon.h
     info/profile/info_profile_inner_widget.cpp

@@ -687,8 +687,7 @@ void EmojiListWidget::setSingleSize(QSize size) {
 	_innerPosition = QPoint(
 		(area.width() - esize) / 2,
 		(area.height() - esize) / 2);
-	const auto customSize = Ui::Text::AdjustCustomEmojiSize(esize);
-	const auto customSkip = (esize - customSize) / 2;
+	const auto customSkip = (esize - _customSingleSize) / 2;
 	_customPosition = QPoint(customSkip, customSkip);
 	_picker->setSingleSize(_singleSize);
 }
@@ -964,7 +963,9 @@ void EmojiListWidget::paint(
 						drawCollapsedBadge(p, w - _areaPosition, info.count);
 						continue;
 					}
-					if (selected && st().overBg->c.alpha() > 0) {
+					if (!_grabbingChosen
+						&& selected
+						&& st().overBg->c.alpha() > 0) {
 						auto tl = w;
 						if (rtl()) {
 							tl.setX(width() - tl.x() - st::emojiPanArea.width());
@@ -1128,12 +1129,17 @@ EmojiPtr EmojiListWidget::lookupOverEmoji(const OverEmoji *over) const {
 EmojiChosen EmojiListWidget::lookupChosen(
 		EmojiPtr emoji,
 		not_null<const OverEmoji*> over) {
+	const auto rect = emojiRect(over->section, over->index);
+	const auto icon = QRect(
+		rect.x() + (_singleSize.width() - st::stickersPremium.width()) / 2,
+		rect.y() + (_singleSize.height() - st::stickersPremium.height()) / 2,
+		rect.width(),
+		rect.height());
 	return {
 		.emoji = emoji,
 		.messageSendingFrom = {
 			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
-			.globalStartGeometry = mapToGlobal(
-				emojiRect(over->section, over->index)),
+			.globalStartGeometry = mapToGlobal(icon),
 		},
 	};
 }
@@ -1144,14 +1150,19 @@ FileChosen EmojiListWidget::lookupChosen(
 		Api::SendOptions options) {
 	_grabbingChosen = true;
 	const auto guard = gsl::finally([&] { _grabbingChosen = false; });
-	const auto rect = emojiRect(over->section, over->index);
+	const auto rect = over ? emojiRect(over->section, over->index) : QRect();
+	const auto emoji = over ? QRect(
+		rect.topLeft() + _areaPosition + _innerPosition + _customPosition,
+		QSize(_customSingleSize, _customSingleSize)
+	) : QRect();
+
 	return {
 		.document = custom,
 		.options = options,
 		.messageSendingFrom = {
 			.type = Ui::MessageSendingAnimationFrom::Type::Emoji,
-			.globalStartGeometry = over ? mapToGlobal(rect) : QRect(),
-			.frame = over ? Ui::GrabWidgetToImage(this, rect) : QImage(),
+			.globalStartGeometry = over ? mapToGlobal(emoji) : QRect(),
+			.frame = over ? Ui::GrabWidgetToImage(this, emoji) : QImage(),
 		},
 	};
 }
@@ -1246,7 +1257,7 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				break;
 			case Mode::FullReactions:
 			case Mode::RecentReactions:
-				Settings::ShowPremium(_controller, u"unique_reactions"_q);
+				Settings::ShowPremium(_controller, u"infinite_reactions"_q);
 				break;
 			case Mode::EmojiStatus:
 				Settings::ShowPremium(_controller, u"emoji_status"_q);

@@ -521,7 +521,9 @@ void ReactionsSettingsBox(
 
 		button->setClickedCallback([=, id = r.id] {
 			if (premium && !controller->session().premium()) {
-				ShowPremiumPreviewBox(controller, PremiumPreview::Reactions);
+				ShowPremiumPreviewBox(
+					controller,
+					PremiumPreview::InfiniteReactions);
 				return;
 			}
 			checkButton(button);

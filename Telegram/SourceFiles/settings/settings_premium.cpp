@@ -208,7 +208,8 @@ using Order = std::vector<QString>;
 		u"faster_download"_q,
 		u"voice_to_text"_q,
 		u"no_ads"_q,
-		u"unique_reactions"_q,
+		u"emoji_status"_q,
+		u"infinite_reactions"_q,
 		u"premium_stickers"_q,
 		u"animated_emoji"_q,
 		u"advanced_chat_management"_q,
@@ -264,12 +265,21 @@ using Order = std::vector<QString>;
 			},
 		},
 		{
-			u"unique_reactions"_q,
+			u"emoji_status"_q,
 			Entry{
 				&st::settingsPremiumIconLike,
-				tr::lng_premium_summary_subtitle_unique_reactions(),
-				tr::lng_premium_summary_about_unique_reactions(),
-				PremiumPreview::Reactions,
+				tr::lng_premium_summary_subtitle_emoji_status(),
+				tr::lng_premium_summary_about_emoji_status(),
+				PremiumPreview::EmojiStatus,
+			},
+		},
+		{
+			u"infinite_reactions"_q,
+			Entry{
+				&st::settingsPremiumIconLike,
+				tr::lng_premium_summary_subtitle_infinite_reactions(),
+				tr::lng_premium_summary_about_infinite_reactions(),
+				PremiumPreview::InfiniteReactions,
 			},
 		},
 		{

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_text.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
+#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_context_menu.h"
 #include "history/view/history_view_element.h"
@@ -44,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "lang/lang_keys.h"
 #include "boxes/delete_messages_box.h"
+#include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
@@ -390,9 +392,9 @@ ListWidget::ListWidget(
 	_reactionsManager->premiumPromoChosen(
 	) | rpl::start_with_next([=] {
 		_reactionsManager->updateButton({});
-		if (const auto item = _reactionsItem.current()) {
-			ShowPremiumPromoBox(_controller, item);
-		}
+		ShowPremiumPreviewBox(
+			_controller,
+			PremiumPreview::InfiniteReactions);
 	}, lifetime());
 
 	Reactions::SetupManagerList(

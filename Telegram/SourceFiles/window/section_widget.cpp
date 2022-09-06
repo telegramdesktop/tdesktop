@@ -343,26 +343,6 @@ bool ShowSendPremiumError(
 	return true;
 }
 
-[[nodiscard]] auto ExtractDisabledReactions(
-	not_null<PeerData*> peer,
-	const std::vector<Data::Reaction> &list)
--> base::flat_map<Data::ReactionId, ReactionDisableType> {
-	auto result = base::flat_map<Data::ReactionId, ReactionDisableType>();
-	const auto type = peer->isBroadcast()
-		? ReactionDisableType::Channel
-		: ReactionDisableType::Group;
-	const auto &allowed = Data::PeerAllowedReactions(peer);
-	if (!allowed.some.empty()) {
-		for (const auto &reaction : list) {
-			if (reaction.premium
-				&& !ranges::contains(allowed.some, reaction.id)) {
-				result.emplace(reaction.id, type);
-			}
-		}
-	}
-	return result;
-}
-
 bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
@@ -379,22 +359,8 @@ bool ShowReactPremiumError(
 			return false;
 		}
 	}
-	ShowPremiumPreviewBox(
-		controller,
-		PremiumPreview::Reactions,
-		ExtractDisabledReactions(item->history()->peer, list));
+	ShowPremiumPreviewBox(controller, PremiumPreview::InfiniteReactions);
 	return true;
-}
-
-void ShowPremiumPromoBox(
-		not_null<SessionController*> controller,
-		not_null<HistoryItem*> item) {
-	const auto &list = controller->session().data().reactions().list(
-		Data::Reactions::Type::Active);
-	ShowPremiumPreviewBox(
-		controller,
-		PremiumPreview::Reactions,
-		ExtractDisabledReactions(item->history()->peer, list));
 }
 
 } // namespace Window

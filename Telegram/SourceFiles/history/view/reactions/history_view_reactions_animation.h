@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animations.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Ui {
 class AnimatedIcon;
@@ -19,21 +20,27 @@ class CustomEmoji;
 
 namespace Data {
 class Reactions;
+enum class CustomEmojiSizeTag : uchar;
 } // namespace Data
 
-namespace HistoryView {
-struct ReactionAnimationArgs;
-} // namespace HistoryView
-
 namespace HistoryView::Reactions {
+
+struct AnimationArgs {
+	::Data::ReactionId id;
+	QImage flyIcon;
+	QRect flyFrom;
+
+	[[nodiscard]] AnimationArgs translated(QPoint point) const;
+};
 
 class Animation final {
 public:
 	Animation(
 		not_null<::Data::Reactions*> owner,
-		ReactionAnimationArgs &&args,
+		AnimationArgs &&args,
 		Fn<void()> repaint,
-		int size);
+		int size,
+		Data::CustomEmojiSizeTag customSizeTag = {});
 	~Animation();
 
 	void setRepaintCallback(Fn<void()> repaint);
@@ -41,6 +48,8 @@ public:
 		QPainter &p,
 		QPoint origin,
 		QRect target,
+		const QColor &colored,
+		QRect clip,
 		crl::time now) const;
 
 	[[nodiscard]] bool flying() const;
@@ -71,14 +80,23 @@ private:
 		int to,
 		int top,
 		float64 progress) const;
-	void paintCenterFrame(QPainter &p, QRect target, crl::time now) const;
-	void paintMiniCopies(QPainter &p, QPoint center, crl::time now) const;
+	void paintCenterFrame(
+		QPainter &p,
+		QRect target,
+		const QColor &colored,
+		crl::time now) const;
+	void paintMiniCopies(
+		QPainter &p,
+		QPoint center,
+		const QColor &colored,
+		crl::time now) const;
 	void generateMiniCopies(int size);
 
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
 	QImage _flyIcon;
 	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
+	std::unique_ptr<Ui::Text::CustomEmojiColored> _colored;
 	std::unique_ptr<Ui::AnimatedIcon> _center;
 	std::unique_ptr<Ui::AnimatedIcon> _effect;
 	std::vector<MiniCopy> _miniCopies;

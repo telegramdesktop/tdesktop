@@ -29,7 +29,7 @@ class SlideWrap;
 } // namespace Ui
 
 namespace Info::Profile {
-class BadgeView;
+class Badge;
 class EmojiStatusPanel;
 } // namespace Info::Profile
 
@@ -77,8 +77,8 @@ private:
 	Ui::Text::String _name;
 	int _nameVersion = 0;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
-	std::unique_ptr<Info::Profile::BadgeView> _badge;
 	std::unique_ptr<Info::Profile::EmojiStatusPanel> _emojiStatusPanel;
+	std::unique_ptr<Info::Profile::Badge> _badge;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
 	object_ptr<Ui::ScrollArea> _scroll;
 	not_null<Ui::VerticalLayout*> _inner;

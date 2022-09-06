@@ -36,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "info/profile/info_profile_values.h"
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -82,7 +82,7 @@ private:
 	rpl::event_stream<int> _premiumWidth;
 
 	QPointer<Ui::RpWidget> _unread;
-	Info::Profile::BadgeView _badge;
+	Info::Profile::Badge _badge;
 
 };
 
@@ -99,9 +99,10 @@ ComposedBadge::ComposedBadge(
 		this,
 		st::settingsInfoPeerBadge,
 		session->user(),
+		nullptr,
 		std::move(animationPaused),
 		kPlayStatusLimit,
-		Info::Profile::Badge::Premium) {
+		Info::Profile::BadgeType::Premium) {
 	if (hasUnread) {
 		_unread = CreateUnread(this, rpl::single(
 			rpl::empty

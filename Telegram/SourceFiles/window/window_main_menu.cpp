@@ -34,7 +34,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "settings/settings_calls.h"
 #include "settings/settings_information.h"
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_emoji_status_panel.h"
 #include "base/qt_signal_producer.h"
 #include "boxes/about_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -338,14 +339,15 @@ MainMenu::MainMenu(
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
-, _badge(std::make_unique<Info::Profile::BadgeView>(
+, _emojiStatusPanel(std::make_unique<Info::Profile::EmojiStatusPanel>())
+, _badge(std::make_unique<Info::Profile::Badge>(
 	this,
 	st::settingsInfoPeerBadge,
 	controller->session().user(),
+	_emojiStatusPanel.get(),
 	[=] { return controller->isGifPausedAtLeastFor(GifPauseReason::Layer); },
 	kPlayStatusLimit,
-	Info::Profile::Badge::Premium))
-, _emojiStatusPanel(std::make_unique<Info::Profile::EmojiStatusPanel>())
+	Info::Profile::BadgeType::Premium))
 , _scroll(this, st::defaultSolidScroll)
 , _inner(_scroll->setOwnedWidget(
 	object_ptr<Ui::VerticalLayout>(_scroll.data())))
@@ -438,7 +440,10 @@ MainMenu::MainMenu(
 		moveBadge();
 	}, lifetime());
 	_badge->setPremiumClickCallback([=] {
-		_emojiStatusPanel->show(_controller, _badge->widget());
+		_emojiStatusPanel->show(
+			_controller,
+			_badge->widget(),
+			_badge->sizeTag());
 	});
 
 	_controller->session().downloaderTaskFinished(

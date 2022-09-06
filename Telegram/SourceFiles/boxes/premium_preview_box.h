@@ -42,7 +42,8 @@ enum class PremiumPreview {
 	FasterDownload,
 	VoiceToText,
 	NoAds,
-	Reactions,
+	EmojiStatus,
+	InfiniteReactions,
 	Stickers,
 	AnimatedEmoji,
 	AdvancedChatManagement,
@@ -51,21 +52,10 @@ enum class PremiumPreview {
 
 	kCount,
 };
-enum class ReactionDisableType {
-	None,
-	Group,
-	Channel,
-};
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
-
-void ShowPremiumPreviewBox(
-	not_null<Window::SessionController*> controller,
-	PremiumPreview section,
-	const base::flat_map<Data::ReactionId, ReactionDisableType> &disabled,
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 
 void ShowPremiumPreviewToBuy(

@@ -453,13 +453,18 @@ void InlineList::paint(
 	}
 	if (!animations.empty()) {
 		const auto now = context.now;
-		context.reactionInfo->effectPaint = [=](QPainter &p) {
+		context.reactionInfo->effectPaint = [
+			now,
+			list = std::move(animations)
+		](QPainter &p) {
 			auto result = QRect();
-			for (const auto &single : animations) {
+			for (const auto &single : list) {
 				const auto area = single.animation->paintGetArea(
 					p,
 					QPoint(),
 					single.target,
+					QColor(255, 255, 255, 0), // Colored, for emoji status.
+					QRect(), // Clip, for emoji status.
 					now);
 				result = result.isEmpty() ? area : result.united(area);
 			}
@@ -494,7 +499,7 @@ bool InlineList::getState(
 }
 
 void InlineList::animate(
-		ReactionAnimationArgs &&args,
+		AnimationArgs &&args,
 		Fn<void()> repaint) {
 	const auto i = ranges::find(_buttons, args.id, &Button::id);
 	if (i == end(_buttons)) {

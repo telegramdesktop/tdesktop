@@ -25,15 +25,17 @@ struct CustomEmojiId {
 	DocumentId id = 0;
 };
 
+enum class CustomEmojiSizeTag : uchar {
+	Normal,
+	Large,
+	Isolated,
+
+	kCount,
+};
+
 class CustomEmojiManager final : public base::has_weak_ptr {
 public:
-	enum class SizeTag : uchar {
-		Normal,
-		Large,
-		Isolated,
-
-		kCount,
-	};
+	using SizeTag = CustomEmojiSizeTag;
 
 	CustomEmojiManager(not_null<Session*> owner);
 	~CustomEmojiManager();

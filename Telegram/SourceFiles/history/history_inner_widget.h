@@ -399,7 +399,6 @@ private:
 	-> HistoryView::Reactions::ButtonParameters;
 	void toggleFavoriteReaction(not_null<Element*> view) const;
 	void reactionChosen(const ChosenReaction &reaction);
-	void premiumPromoChosen(FullMsgId context);
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;

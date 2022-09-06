@@ -345,7 +345,7 @@ void Message::applyGroupAdminChanges(
 	}
 }
 
-void Message::animateReaction(ReactionAnimationArgs &&args) {
+void Message::animateReaction(Reactions::AnimationArgs &&args) {
 	const auto item = message();
 	const auto media = this->media();
 
