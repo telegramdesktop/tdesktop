@@ -1716,6 +1716,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_subscribe_button" = "Subscribe for {cost} per month";
 
 "lng_premium_emoji_status_title" = "{user} set this emoji from {link} as their current status.";
+"lng_premium_emoji_status_title_colored" = "{user} set this emoji as their current status.";
 "lng_premium_emoji_status_about" = "Emoji status is a premium feature. Other features included in **Telegram Premium**:";
 "lng_premium_emoji_status_button" = "Unlock Emoji Status";
 
