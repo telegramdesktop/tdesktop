@@ -354,7 +354,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			std::move(linkText),
 			QString());
 		const auto controller = _controller->parentController();
-		link->setClickHandlerFilter([=, peer = _peer](auto&&...) {
+		link->overrideLinkClickHandler([=, peer = _peer] {
 			const auto link = peer->session().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
@@ -363,7 +363,6 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					Window::Show(controller).toastParent(),
 					tr::lng_username_copied(tr::now));
 			}
-			return false;
 		});
 
 		if (const auto channel = _peer->asChannel()) {

@@ -192,7 +192,7 @@ void Cover::initViewers() {
 		refreshUsernameGeometry(width());
 	}, lifetime());
 
-	_username->setClickHandlerFilter([=](auto&&...) {
+	_username->overrideLinkClickHandler([=] {
 		const auto username = _user->userName();
 		if (username.isEmpty()) {
 			_controller->show(Box<UsernameBox>(&_user->session()));
@@ -203,7 +203,6 @@ void Cover::initViewers() {
 				Window::Show(_controller).toastParent(),
 				tr::lng_username_copied(tr::now));
 		}
-		return false;
 	});
 }
 

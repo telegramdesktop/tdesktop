@@ -758,17 +758,26 @@ void CustomEmojiManager::scheduleRepaintTimer() {
 void CustomEmojiManager::invokeRepaints() {
 	_repaintNext = 0;
 	const auto now = crl::now();
+	auto repaint = std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>>();
 	for (auto i = begin(_repaints); i != end(_repaints);) {
 		if (i->second.when > now) {
 			++i;
 			continue;
 		}
-		auto bunch = std::move(i->second);
+		auto &list = i->second.instances;
+		if (repaint.empty()) {
+			repaint = std::move(list);
+		} else {
+			repaint.insert(
+				end(repaint),
+				std::make_move_iterator(begin(list)),
+				std::make_move_iterator(end(list)));
+		}
 		i = _repaints.erase(i);
-		for (const auto &weak : bunch.instances) {
-			if (const auto strong = weak.get()) {
-				strong->repaint();
-			}
+	}
+	for (const auto &weak : repaint) {
+		if (const auto strong = weak.get()) {
+			strong->repaint();
 		}
 	}
 	scheduleRepaintTimer();

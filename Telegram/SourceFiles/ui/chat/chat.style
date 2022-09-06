@@ -305,6 +305,10 @@ historyContactStatusBlock: FlatButton(historyContactStatusButton) {
 historyContactStatusLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
 }
+historyEmojiStatusInfoLabel: FlatLabel(historyContactStatusLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
+}
 historyContactStatusMinSkip: 16px;
 
 historySendIcon: icon {{ "chat/input_send", historySendIconFg }};

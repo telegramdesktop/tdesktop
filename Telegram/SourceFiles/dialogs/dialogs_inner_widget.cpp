@@ -2367,13 +2367,12 @@ void InnerWidget::refreshEmptyLabel() {
 	});
 	_empty.create(this, std::move(full), st::dialogsEmptyLabel);
 	resizeEmptyLabel();
-	_empty->setClickHandlerFilter([=](const auto &...) {
+	_empty->overrideLinkClickHandler([=] {
 		if (_emptyState == EmptyState::NoContacts) {
 			_controller->showAddContact();
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
 		}
-		return false;
 	});
 	_empty->setVisible(_state == WidgetState::Default);
 }
