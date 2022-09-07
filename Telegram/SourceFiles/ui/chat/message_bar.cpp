@@ -41,9 +41,13 @@ namespace {
 
 } // namespace
 
-MessageBar::MessageBar(not_null<QWidget*> parent, const style::MessageBar &st)
+MessageBar::MessageBar(
+	not_null<QWidget*> parent,
+	const style::MessageBar &st,
+	Fn<bool()> customEmojiPaused)
 : _st(st)
-, _widget(parent) {
+, _widget(parent)
+, _customEmojiPaused(std::move(customEmojiPaused)) {
 	setup();
 
 	style::PaletteChanged(
@@ -52,11 +56,21 @@ MessageBar::MessageBar(not_null<QWidget*> parent, const style::MessageBar &st)
 	}, _widget.lifetime());
 }
 
+void MessageBar::customEmojiRepaint() {
+	if (_customEmojiRepaintScheduled) {
+		return;
+	}
+	_customEmojiRepaintScheduled = true;
+	_widget.update();
+}
+
 void MessageBar::setup() {
 	_widget.resize(0, st::historyReplyHeight);
 	_widget.paintRequest(
 	) | rpl::start_with_next([=](QRect rect) {
 		auto p = Painter(&_widget);
+		p.setInactive(_customEmojiPaused());
+		_customEmojiRepaintScheduled = false;
 		paint(p);
 	}, _widget.lifetime());
 }
@@ -187,7 +201,11 @@ void MessageBar::tweenTo(MessageBarContent &&content) {
 void MessageBar::updateFromContent(MessageBarContent &&content) {
 	_content = std::move(content);
 	_title.setText(_st.title, _content.title);
-	_text.setMarkedText(_st.text, _content.text, Ui::DialogTextOptions());
+	_text.setMarkedText(
+		_st.text,
+		_content.text,
+		Ui::DialogTextOptions(),
+		_content.context);
 	_image = prepareImage(_content.preview);
 }
 

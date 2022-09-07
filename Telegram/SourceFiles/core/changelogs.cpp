@@ -23,121 +23,33 @@ namespace {
 std::map<int, const char*> BetaLogs() {
 	return {
 	{
-		3002006,
-		"- Try out the new audio player with playlist shuffle and repeat.\n"
+		4000003,
+		"- Animated emoji for messages.\n"
 
-		"- Give a custom name to your desktop session "
-		"to distinguish it in the sessions list.\n"
+		"- Premium: Privacy settings for voice messages.\n"
+
+		"- Premium: Gifting Telegram Premium "
+		"to any user from their profile page.\n"
 	},
 	{
-		3002007,
-		"- Active sessions list redesign.\n"
+		4000004,
+		"- Allow sending animated emoji to Saved Messages "
+		"even without Telegram Premium.\n"
 
-		"- Fix disappearing emoji selector button.\n"
+		"- Premium: Suggest animated emoji by regular emoji "
+		"(can be disabled in Settings).\n"
 
-		"- Fix a crash in archived stickers loading.\n"
+		"- Premium: Show all suggested premium stickers "
+		"in a special section of the stickers panel.\n"
+
+		"- Premium: Allow hiding premium stickers special section "
+		"of the stickers panel.\n"
+
+		"- Fix a memory leak in RTMP livestreams.\n"
+
+		"- Fix some bot webview bugs on macOS.\n"
 		
-		"- Fix a crash in calls to old Telegram versions.\n"
-	},
-	{
-		3003001,
-		"- Switch between contacts list sorting modes.\n"
-
-		"- Sort contacts list by last seen time by default.\n"
-
-		"- Fix disappearing Send As Channel button after message editing.\n"
-
-		"- Fix file upload cancelling.\n"
-
-		"- Fix crash in video capture on macOS.\n"
-
-		"- Fix labels in the About box.\n"
-
-		"- Use Qt 6.2.2 for macOS and Linux builds.\n"
-
-		"- Allow installing x64 Windows version on Windows ARM.\n"
-	},
-	{
-		3003002,
-		"- Select text when typing and choose 'Formatting > Spoiler' in the "
-		"context menu to hide some or all of the contents of a message.\n"
-
-		"- Click on the spoiler in chat to reveal its hidden text.\n"
-
-		"- Spoiler formatting hides text in chat, "
-		"as well as in the chat list and notifications.\n"
-	},
-	{
-		3004005,
-		"- Fix crash in monospace blocks processing.\n"
-
-		"- Fix reaction animations stopping after an hour uptime.\n"
-	},
-	{
-		3004006,
-		"- Add snap layouts support on Windows 11.\n"
-		
-		"- Fix crash in drafts after accounts switching.\n"
-	},
-	{
-		3005003,
-		"- Check the status of media and file downloads by clicking "
-		"on the new panel in the bottom of the chats list.\n"
-
-		"- View recently downloaded files "
-		"from the new Settings > Advanced > Downloads section.\n"
-
-		"- Manage Live Streams in your groups and channels "
-		"using external software like OBS Studio or XSplit Broadcaster.\n"
-	},
-	{
-		3005005,
-		"- Support stereo audio output in RTMP streams.\n"
-
-		"- Improve RTMP stream full screen mode.\n"
-
-		"- Fix a couple of crashes.\n"
-	},
-	{
-		3005006,
-		"- Show viewers count in RTMP streams.\n"
-
-		"- Send GIFs search results without \"via @bot\".\n"
-
-		"- Display the file thumbnail in downloads bar.\n"
-
-		"- Always try to save original photo bytes to disk.\n"
-
-		"- Fix crash when deleting a user from your contacts list.\n"
-	},
-	{
-		3006003,
-		"- Allow sending the default reaction by a double click.\n"
-
-		"- Select a custom sound for message notifications.\n"
-
-		"- Add chats to folders from a chat context menu.\n"
-
-		"- Fix group and channel photo upload.\n"
-
-		"- Test hardware video decoding.\n"
-	},
-	{
-		3007004,
-		"- More icons for chat folders.\n"
-
-		"- Improve some more sections design.\n"
-		
-		"- Update the OpenAL library to 1.22.0.\n"
-	},
-	{
-		3007006,
-		"- Settings > Advanced > Experimental adds an option "
-		"to open chats in separate windows.\n"
-
-		"- Fix possible crash in video chat reconnection.\n"
-
-		"- Fix possible crash after account switch.\n"
+		"- Fix forwarding of voice messages.\n"
 	}
 	};
 };

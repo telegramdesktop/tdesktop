@@ -809,7 +809,7 @@ void Controller::processRequest(
 					: tr::lng_group_requests_was_added)(
 						tr::now,
 						lt_user,
-						Ui::Text::Bold(user->name),
+						Ui::Text::Bold(user->name()),
 						Ui::Text::WithEntities)
 			});
 		}
@@ -1164,7 +1164,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name)
+					Ui::Text::Bold(error.second->name())
 				).append("\n\n");
 			}
 			text.append(error.first);

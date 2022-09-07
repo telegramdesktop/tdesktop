@@ -135,6 +135,10 @@ void Folder::unregisterOne(not_null<History*> history) {
 	reorderLastHistories();
 }
 
+int Folder::chatListNameVersion() const {
+	return 1;
+}
+
 void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
 	if (!applyChatListMessage(to) && _chatListMessage == from) {
 		computeChatListMessage();

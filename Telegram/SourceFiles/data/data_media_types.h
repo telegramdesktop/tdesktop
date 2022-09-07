@@ -63,7 +63,7 @@ struct Invoice {
 	uint64 amount = 0;
 	QString currency;
 	QString title;
-	QString description;
+	TextWithEntities description;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
 };
@@ -472,6 +472,41 @@ public:
 private:
 	QString _emoji;
 	int _value = 0;
+
+};
+
+class MediaGiftBox final : public Media {
+public:
+	MediaGiftBox(
+		not_null<HistoryItem*> parent,
+		not_null<PeerData*> from,
+		int months);
+
+	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
+
+	[[nodiscard]] not_null<PeerData*> from() const;
+	[[nodiscard]] int months() const;
+
+	[[nodiscard]] bool activated() const;
+	void setActivated(bool activated);
+
+	bool allowsRevoke(TimeId now) const override;
+	TextWithEntities notificationText() const override;
+	QString pinnedTextSubstring() const override;
+	TextForMimeData clipboardText() const override;
+	bool forceForwardedInfo() const override;
+
+	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
+	bool updateSentMedia(const MTPMessageMedia &media) override;
+	std::unique_ptr<HistoryView::Media> createView(
+		not_null<HistoryView::Element*> message,
+		not_null<HistoryItem*> realParent,
+		HistoryView::Element *replacing = nullptr) override;
+
+private:
+	not_null<PeerData*> _from;
+	int _months = 0;
+	bool _activated = false;
 
 };
 

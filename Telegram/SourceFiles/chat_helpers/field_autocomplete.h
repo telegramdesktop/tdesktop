@@ -135,6 +135,7 @@ private:
 
 	struct MentionRow {
 		not_null<UserData*> user;
+		Ui::Text::String name;
 		std::shared_ptr<Data::CloudImageView> userpic;
 	};
 

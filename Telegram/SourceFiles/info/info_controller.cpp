@@ -184,13 +184,17 @@ void Controller::setupMigrationViewer() {
 	}) | rpl::start_with_next([=] {
 		const auto window = parentController();
 		const auto section = _section;
+		auto params = Window::SectionShow(
+			Window::SectionShow::Way::Backward,
+			anim::type::instant,
+			anim::activation::background);
+		if (wrap() == Wrap::Side) {
+			params.thirdColumn = true;
+		}
 		InvokeQueued(_widget, [=] {
 			window->showSection(
 				std::make_shared<Memento>(peer, section),
-				Window::SectionShow(
-					Window::SectionShow::Way::Backward,
-					anim::type::instant,
-					anim::activation::background));
+				params);
 		});
 	}, lifetime());
 }

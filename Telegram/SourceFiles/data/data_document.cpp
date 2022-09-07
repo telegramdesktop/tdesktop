@@ -37,7 +37,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_gif.h"
 #include "window/window_session_controller.h"
 #include "storage/cache/storage_cache_database.h"
-#include "storage/storage_cloud_song_cover.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
@@ -52,6 +51,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QMimeDatabase>
 
 namespace {
+
+constexpr auto kDefaultCoverThumbnailSize = 100;
 
 const auto kLottieStickerDimensions = QSize(
 	kStickerSideSize,
@@ -74,6 +75,19 @@ QString JoinStringList(const QStringList &list, const QString &separator) {
 		result.append(separator).append(list[i]);
 	}
 	return result;
+}
+
+void UpdateStickerSetIdentifier(
+		StickerSetIdentifier &now,
+		const MTPInputStickerSet &from) {
+	now = from.match([&](const MTPDinputStickerSetID &data) {
+		return StickerSetIdentifier{
+			.id = data.vid().v,
+			.accessHash = data.vaccess_hash().v,
+		};
+	}, [](const auto &) {
+		return StickerSetIdentifier();
+	});
 }
 
 } // namespace
@@ -334,26 +348,33 @@ void DocumentData::setattributes(
 				_additional = std::make_unique<StickerData>();
 			}
 			if (const auto info = sticker()) {
+				info->setType = data.is_mask()
+					? Data::StickersType::Masks
+					: Data::StickersType::Stickers;
 				if (was == VideoDocument) {
 					info->type = StickerType::Webm;
 				}
 				info->alt = qs(data.valt());
-				if (!info->set.id
-					|| data.vstickerset().type() == mtpc_inputStickerSetID) {
-					info->set = data.vstickerset().match([&](
-							const MTPDinputStickerSetID &data) {
-						return StickerSetIdentifier{
-							.id = data.vid().v,
-							.accessHash = data.vaccess_hash().v,
-						};
-					}, [&](const MTPDinputStickerSetShortName &data) {
-						return StickerSetIdentifier{
-							.shortName = qs(data.vshort_name()),
-						};
-					}, [](const auto &) {
-						return StickerSetIdentifier();
-					});
+				UpdateStickerSetIdentifier(info->set, data.vstickerset());
+			}
+		}, [&](const MTPDdocumentAttributeCustomEmoji &data) {
+			const auto was = type;
+			if (type == FileDocument || type == VideoDocument) {
+				type = StickerDocument;
+				_additional = std::make_unique<StickerData>();
+			}
+			if (const auto info = sticker()) {
+				info->setType = Data::StickersType::Emoji;
+				if (was == VideoDocument) {
+					info->type = StickerType::Webm;
 				}
+				info->alt = qs(data.valt());
+				if (data.is_free()) {
+					_flags &= ~Flag::PremiumSticker;
+				} else {
+					_flags |= Flag::PremiumSticker;
+				}
+				UpdateStickerSetIdentifier(info->set, data.vstickerset());
 			}
 		}, [&](const MTPDdocumentAttributeVideo &data) {
 			if (type == FileDocument) {
@@ -387,13 +408,7 @@ void DocumentData::setattributes(
 				songData->duration = data.vduration().v;
 				songData->title = qs(data.vtitle().value_or_empty());
 				songData->performer = qs(data.vperformer().value_or_empty());
-
-				if (!hasThumbnail()
-					&& !songData->title.isEmpty()
-					&& !songData->performer.isEmpty()) {
-
-					Storage::CloudSongCover::LoadThumbnailFromExternal(this);
-				}
+				refreshPossibleCoverThumbnail();
 			}
 		}, [&](const MTPDdocumentAttributeFilename &data) {
 			setFileName(qs(data.vfile_name()));
@@ -476,10 +491,12 @@ void DocumentData::updateThumbnails(
 			_flags &= ~Flag::InlineThumbnailIsPath;
 		}
 	}
-	if (isPremiumSticker) {
-		_flags |= Flag::PremiumSticker;
-	} else {
-		_flags &= ~Flag::PremiumSticker;
+	if (!sticker() || sticker()->setType != Data::StickersType::Emoji) {
+		if (isPremiumSticker) {
+			_flags |= Flag::PremiumSticker;
+		} else {
+			_flags &= ~Flag::PremiumSticker;
+		}
 	}
 	Data::UpdateCloudFile(
 		_thumbnail,
@@ -518,11 +535,25 @@ bool DocumentData::isPatternWallPaperSVG() const {
 }
 
 bool DocumentData::isPremiumSticker() const {
-	return (_flags & Flag::PremiumSticker);
+	if (!(_flags & Flag::PremiumSticker)) {
+		return false;
+	}
+	const auto info = sticker();
+	return info && info->setType == Data::StickersType::Stickers;
+}
+
+bool DocumentData::isPremiumEmoji() const {
+	if (!(_flags & Flag::PremiumSticker)) {
+		return false;
+	}
+	const auto info = sticker();
+	return info && info->setType == Data::StickersType::Emoji;
 }
 
 bool DocumentData::hasThumbnail() const {
-	return _thumbnail.location.valid();
+	return _thumbnail.location.valid()
+		&& !thumbnailFailed()
+		&& !(_flags & Flag::PossibleCoverThumbnail);
 }
 
 bool DocumentData::thumbnailLoading() const {
@@ -542,6 +573,7 @@ void DocumentData::loadThumbnail(Data::FileOrigin origin) {
 		return true;
 	};
 	const auto done = [=](QImage result, QByteArray) {
+		_flags &= ~Flag::PossibleCoverThumbnail;
 		if (const auto active = activeMediaView()) {
 			active->setThumbnail(std::move(result));
 		}
@@ -708,7 +740,7 @@ void DocumentData::automaticLoadSettingsChanged() {
 		return;
 	}
 	_loader = nullptr;
-	_flags &= ~Flag::DownloadCancelled;
+	resetCancelled();
 }
 
 void DocumentData::finishLoad() {
@@ -867,7 +899,7 @@ void DocumentData::save(
 			cancel();
 		}
 	}
-	_flags &= ~Flag::DownloadCancelled;
+	resetCancelled();
 
 	if (_loader) {
 		if (fromCloud == LoadFromCloudOrLocal) {
@@ -992,6 +1024,10 @@ bool DocumentData::cancelled() const {
 	return (_flags & Flag::DownloadCancelled);
 }
 
+void DocumentData::resetCancelled() {
+	_flags &= ~Flag::DownloadCancelled;
+}
+
 VoiceWaveform documentWaveformDecode(const QByteArray &encoded5bit) {
 	auto bitsCount = static_cast<int>(encoded5bit.size() * 8);
 	auto valuesCount = bitsCount / 5;
@@ -1105,6 +1141,31 @@ bool DocumentData::saveFromDataChecked() {
 	return true;
 }
 
+void DocumentData::refreshPossibleCoverThumbnail() {
+	Expects(isSong());
+
+	if (_thumbnail.location.valid()) {
+		return;
+	}
+	const auto songData = song();
+	if (songData->performer.isEmpty()
+		|| songData->title.isEmpty()
+		// Ignore cover for voice chat records.
+		|| hasMimeType(qstr("audio/ogg"))) {
+		return;
+	}
+	const auto size = kDefaultCoverThumbnailSize;
+	const auto location = ImageWithLocation{
+		.location = ImageLocation(
+			{ AudioAlbumThumbLocation{ id } },
+			size,
+			size)
+	};
+	_flags |= Flag::PossibleCoverThumbnail;
+	updateThumbnails({}, location, {}, false);
+	loadThumbnail({});
+}
+
 bool DocumentData::isStickerSetInstalled() const {
 	Expects(sticker() != nullptr);
 
@@ -1116,15 +1177,6 @@ bool DocumentData::isStickerSetInstalled() const {
 		return (i != sets.cend())
 			&& !(i->second->flags & SetFlag::Archived)
 			&& (i->second->flags & SetFlag::Installed);
-	} else if (!sticker()->set.shortName.isEmpty()) {
-		const auto name = sticker()->set.shortName.toLower();
-		for (const auto &[id, set] : sets) {
-			if (set->shortName.toLower() == name) {
-				return !(set->flags & SetFlag::Archived)
-					&& (set->flags & SetFlag::Installed);
-			}
-		}
-		return false;
 	} else {
 		return false;
 	}

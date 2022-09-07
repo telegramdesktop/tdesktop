@@ -64,16 +64,10 @@ TabbedPanel::TabbedPanel(
 	_selector->setParent(this);
 	_selector->setRoundRadius(st::roundRadiusSmall);
 	_selector->setAfterShownCallback([=](SelectorTab tab) {
-		if (tab == SelectorTab::Gifs || tab == SelectorTab::Stickers) {
-			_controller->enableGifPauseReason(
-				Window::GifPauseReason::SavedGifs);
-		}
+		_controller->enableGifPauseReason(_selector->level());
 	});
 	_selector->setBeforeHidingCallback([=](SelectorTab tab) {
-		if (tab == SelectorTab::Gifs || tab == SelectorTab::Stickers) {
-			_controller->disableGifPauseReason(
-				Window::GifPauseReason::SavedGifs);
-		}
+		_controller->disableGifPauseReason(_selector->level());
 	});
 	_selector->showRequests(
 	) | rpl::start_with_next([=] {
@@ -280,8 +274,9 @@ void TabbedPanel::opacityAnimationCallback() {
 }
 
 void TabbedPanel::hideByTimerOrLeave() {
-	if (isHidden() || preventAutoHide()) return;
-
+	if (isHidden() || preventAutoHide()) {
+		return;
+	}
 	hideAnimated();
 }
 

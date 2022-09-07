@@ -250,6 +250,7 @@ void BotAction::validateIcon() {
 			_mask = QImage(
 				size * style::DevicePixelRatio(),
 				QImage::Format_ARGB32_Premultiplied);
+			_mask.setDevicePixelRatio(style::DevicePixelRatio());
 			_mask.fill(Qt::transparent);
 			{
 				auto p = QPainter(&_mask);
@@ -743,7 +744,7 @@ void AttachWebView::confirmOpen(
 		.text = tr::lng_allow_bot_webview(
 			tr::now,
 			lt_bot_name,
-			Ui::Text::Bold(_bot->name),
+			Ui::Text::Bold(_bot->name()),
 			Ui::Text::RichLangValue),
 		.confirmed = callback,
 		.confirmText = tr::lng_box_ok(),
@@ -778,7 +779,7 @@ void AttachWebView::show(
 		)).done([=](const MTPUpdates &result) {
 			_session->api().applyUpdates(result);
 		}).send();
-		cancel();
+		crl::on_main(this, [=] { cancel(); });
 	});
 	const auto handleLocalUri = [close](QString uri) {
 		const auto local = Core::TryConvertUrlToLocal(uri);
@@ -827,7 +828,7 @@ void AttachWebView::show(
 		&AttachWebViewBot::user);
 	const auto name = (attached != end(_attachBots))
 		? attached->name
-		: _bot->name;
+		: _bot->name();
 	const auto hasSettings = (attached != end(_attachBots))
 		&& !attached->inactive
 		&& attached->hasSettings;
@@ -883,6 +884,7 @@ void AttachWebView::show(
 		.handleInvoice = handleInvoice,
 		.sendData = sendData,
 		.close = close,
+		.phone = _session->user()->phone(),
 		.menuButtons = buttons,
 		.handleMenuButton = handleMenuButton,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },

@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "centos_env"
+version = "0.1.0"
+description = ""
+authors = []
+
+[tool.poetry.dependencies]
+python = "^3.7"
+Jinja2 = "^3.1.2"
+
+[tool.poetry.dev-dependencies]
+
+[tool.poetry.scripts]
+gen_dockerfile = "gen_dockerfile:main"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

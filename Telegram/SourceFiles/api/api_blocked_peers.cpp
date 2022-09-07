@@ -98,8 +98,11 @@ void BlockedPeers::block(not_null<PeerData*> peer) {
 	}
 }
 
-void BlockedPeers::unblock(not_null<PeerData*> peer, Fn<void()> onDone) {
-	if (!peer->isBlocked()) {
+void BlockedPeers::unblock(
+		not_null<PeerData*> peer,
+		Fn<void()> onDone,
+		bool force) {
+	if (!force && !peer->isBlocked()) {
 		_session->changes().peerUpdated(
 			peer,
 			Data::PeerUpdate::Flag::IsBlocked);

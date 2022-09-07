@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "apiwrap.h"
 #include "mainwidget.h"
+#include "api/api_bot.h"
 #include "api/api_text_entities.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -65,6 +66,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
@@ -104,9 +106,13 @@ void CheckForSwitchInlineButton(not_null<HistoryItem*> item) {
 				for (const auto &button : row) {
 					using ButtonType = HistoryMessageMarkupButton::Type;
 					if (button.type == ButtonType::SwitchInline) {
-						Notify::switchInlineBotButtonReceived(
-							&item->history()->session(),
-							QString::fromUtf8(button.data));
+						const auto session = &item->history()->session();
+						const auto &windows = session->windows();
+						if (!windows.empty()) {
+							Api::SwitchInlineBotButtonReceived(
+								windows.front(),
+								QString::fromUtf8(button.data));
+						}
 						return;
 					}
 				}
@@ -246,7 +252,8 @@ Session::Session(not_null<Main::Session*> session)
 , _stickers(std::make_unique<Stickers>(this))
 , _sponsoredMessages(std::make_unique<SponsoredMessages>(this))
 , _reactions(std::make_unique<Reactions>(this))
-, _notifySettings(std::make_unique<NotifySettings>(this)) {
+, _notifySettings(std::make_unique<NotifySettings>(this))
+, _customEmojiManager(std::make_unique<CustomEmojiManager>(this)) {
 	_cache->open(_session->local().cacheKey());
 	_bigFileCache->open(_session->local().cacheBigFileKey());
 

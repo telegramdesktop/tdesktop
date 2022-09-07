@@ -37,6 +37,7 @@ class Session;
 
 namespace Data {
 class DocumentMedia;
+enum class StickersType : uchar;
 } // namespace Data
 
 namespace Lottie {
@@ -69,7 +70,11 @@ public:
 	StickersBox(
 		QWidget*,
 		not_null<Window::SessionController*> controller,
-		const MTPVector<MTPStickerSetCovered> &attachedSets);
+		const QVector<MTPStickerSetCovered> &attachedSets);
+	StickersBox(
+		QWidget*,
+		not_null<Window::SessionController*> controller,
+		const std::vector<StickerSetIdentifier> &emojiSets);
 	~StickersBox();
 
 	[[nodiscard]] Main::Session &session() const;
@@ -149,6 +154,7 @@ private:
 
 	Section _section;
 	const bool _isMasks;
+	const bool _isEmoji;
 
 	Tab _installed;
 	Tab _masks;
@@ -157,7 +163,9 @@ private:
 	Tab _attached;
 	Tab *_tab = nullptr;
 
-	const MTPVector<MTPStickerSetCovered> _attachedSets;
+	const Data::StickersType _attachedType = {};
+	const QVector<MTPStickerSetCovered> _attachedSets;
+	const std::vector<StickerSetIdentifier> _emojiSets;
 
 	ChannelData *_megagroupSet = nullptr;
 

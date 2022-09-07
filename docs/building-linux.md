@@ -10,22 +10,21 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Prepare libraries
 
-Go to the `tdesktop` directory and run
+Install [poetry](https://python-poetry.org), go to the `tdesktop/Telegram/build/docker/centos_env` directory and run
 
-    docker build -t tdesktop:centos_env Telegram/build/docker/centos_env/
+    poetry install
+    poetry run gen_dockerfile | docker buildx build -t tdesktop:centos_env -
 
 ### Building the project
 
-Make sure that you're still in the `tdesktop` directory and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
+Go up to the `tdesktop` directory and run (using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
     docker run --rm -it \
         -v $PWD:/usr/src/tdesktop \
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
         -D TDESKTOP_API_ID=YOUR_API_ID \
-        -D TDESKTOP_API_HASH=YOUR_API_HASH \
-        -D DESKTOP_APP_USE_PACKAGED=OFF \
-        -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+        -D TDESKTOP_API_HASH=YOUR_API_HASH
 
 Or, to create a debug build, run (also using [your **api_id** and **api_hash**](#obtain-your-api-credentials))
 
@@ -35,9 +34,7 @@ Or, to create a debug build, run (also using [your **api_id** and **api_hash**](
         tdesktop:centos_env \
         /usr/src/tdesktop/Telegram/build/docker/centos_env/build.sh \
         -D TDESKTOP_API_ID=YOUR_API_ID \
-        -D TDESKTOP_API_HASH=YOUR_API_HASH \
-        -D DESKTOP_APP_USE_PACKAGED=OFF \
-        -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF
+        -D TDESKTOP_API_HASH=YOUR_API_HASH
 
 The built files will be in the `out` directory.
 

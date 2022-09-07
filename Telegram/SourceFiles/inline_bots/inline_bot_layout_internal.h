@@ -126,7 +126,7 @@ private:
 
 	Media::Clip::ReaderPointer _gif;
 	ClickHandlerPtr _delete;
-	mutable QPixmap _thumb;
+	mutable QImage _thumb;
 	mutable bool _thumbGood = false;
 
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
@@ -419,7 +419,7 @@ private:
 	Media::Clip::ReaderPointer _gif;
 	mutable std::shared_ptr<Data::PhotoMedia> _photoMedia;
 	mutable std::shared_ptr<Data::DocumentMedia> _documentMedia;
-	mutable QPixmap _thumb;
+	mutable QImage _thumb;
 	mutable bool _thumbGood = false;
 	mutable std::unique_ptr<Ui::RadialAnimation> _radial;
 	Ui::Text::String _title, _description;

@@ -156,7 +156,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name)
+					Ui::Text::Bold(error.second->name())
 				).append("\n\n");
 			}
 			text.append(error.first);
@@ -733,18 +733,10 @@ void SettingsBox(
 			return true;
 		});
 
-
 		StartRtmpProcess::FillRtmpRows(
 			layout,
 			false,
-			[=](object_ptr<Ui::BoxContent> &&object) {
-				box->getDelegate()->show(std::move(object));
-			},
-			[=](QString text) {
-				Ui::Toast::Show(
-					box->getDelegate()->outerContainer(),
-					text);
-			},
+			std::make_shared<Ui::BoxShow>(box),
 			state->data.events(),
 			&st::groupCallBoxLabel,
 			&st::groupCallSettingsRtmpShowButton,

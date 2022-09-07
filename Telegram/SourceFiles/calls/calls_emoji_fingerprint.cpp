@@ -188,7 +188,7 @@ object_ptr<Ui::RpWidget> CreateFingerprintAndSignalBars(
 		tr::lng_call_fingerprint_tooltip(
 			tr::now,
 			lt_user,
-			call->user()->name));
+			call->user()->name()));
 	raw->setMouseTracking(true);
 	raw->events(
 	) | rpl::start_with_next([=](not_null<QEvent*> e) {

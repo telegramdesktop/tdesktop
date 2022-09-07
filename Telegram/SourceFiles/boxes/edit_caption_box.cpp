@@ -25,9 +25,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_premium_limits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -126,8 +128,7 @@ EditCaptionBox::EditCaptionBox(
 	this,
 	st::confirmCaptionArea,
 	Ui::InputField::Mode::MultiLine,
-	tr::lng_photo_caption(),
-	PrepareEditText(item)))
+	tr::lng_photo_caption()))
 , _emojiToggle(base::make_unique_q<Ui::EmojiButton>(
 	this,
 	st::boxAttachEmoji)) {
@@ -151,6 +152,7 @@ void EditCaptionBox::prepare() {
 
 	setupField();
 	setupEmojiPanel();
+	setInitialText();
 
 	rebuildPreview();
 	setupEditEventHandler();
@@ -241,19 +243,24 @@ void EditCaptionBox::rebuildPreview() {
 }
 
 void EditCaptionBox::setupField() {
-	const auto show = std::make_shared<Window::Show>(_controller);
-	const auto session = &_controller->session();
+	const auto peer = _historyItem->history()->peer;
+	const auto allow = [=](const auto&) {
+		return Data::AllowEmojiWithoutPremium(peer);
+	};
+	InitMessageFieldHandlers(
+		_controller,
+		_field.get(),
+		Window::GifPauseReason::Layer,
+		allow);
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_field,
+		&_controller->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
+
 	_field->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
-	_field->setInstantReplaces(Ui::InstantReplaces::Default());
-	_field->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	_field->setMarkdownReplacesEnabled(rpl::single(true));
-	_field->setEditLinkCallback(
-		DefaultEditLinkCallback(show, session, _field));
 	_field->setMaxHeight(st::confirmCaptionArea.heightMax);
-
-	InitSpellchecker(show, session, _field);
 
 	connect(_field, &Ui::InputField::submitted, [=] { save(); });
 	connect(_field, &Ui::InputField::cancelled, [=] { closeBox(); });
@@ -273,11 +280,12 @@ void EditCaptionBox::setupField() {
 		}
 		Unexpected("Action in MimeData hook.");
 	});
-	Ui::Emoji::SuggestionsController::Init(
-		getDelegate()->outerContainer(),
-		_field,
-		&_controller->session());
+}
 
+void EditCaptionBox::setInitialText() {
+	_field->setTextWithTags(
+		PrepareEditText(_historyItem),
+		Ui::InputField::HistoryAction::Clear);
 	auto cursor = _field->textCursor();
 	cursor.movePosition(QTextCursor::End);
 	_field->setTextCursor(cursor);
@@ -478,22 +486,30 @@ void EditCaptionBox::setupDragArea() {
 
 void EditCaptionBox::setupEmojiPanel() {
 	const auto container = getDelegate()->outerContainer();
+	using Selector = ChatHelpers::TabbedSelector;
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
 		_controller,
-		object_ptr<ChatHelpers::TabbedSelector>(
+		object_ptr<Selector>(
 			nullptr,
 			_controller,
-			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+			Window::GifPauseReason::Layer,
+			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_emojiPanel->hide();
+	_emojiPanel->selector()->setCurrentPeer(_historyItem->history()->peer);
 	_emojiPanel->selector()->emojiChosen(
 	) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
 	}, lifetime());
+	_emojiPanel->selector()->customEmojiChosen(
+	) | rpl::start_with_next([=](Selector::FileChosen data) {
+		Data::InsertCustomEmoji(_field.get(), data.document);
+	}, lifetime());
+	_emojiPanel->selector()->showPromoForPremiumEmoji();
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);
@@ -712,20 +728,19 @@ void EditCaptionBox::save() {
 		return;
 	}
 
-	const auto done = crl::guard(this, [=](const MTPUpdates &updates) {
+	const auto done = crl::guard(this, [=] {
 		_saveRequestId = 0;
 		closeBox();
 	});
 
-	const auto fail = crl::guard(this, [=](const MTP::Error &error) {
+	const auto fail = crl::guard(this, [=](const QString &error) {
 		_saveRequestId = 0;
-		const auto &type = error.type();
-		if (ranges::contains(Api::kDefaultEditMessagesErrors, type)) {
+		if (ranges::contains(Api::kDefaultEditMessagesErrors, error)) {
 			_error = tr::lng_edit_error(tr::now);
 			update();
-		} else if (type == u"MESSAGE_NOT_MODIFIED"_q) {
+		} else if (error == u"MESSAGE_NOT_MODIFIED"_q) {
 			closeBox();
-		} else if (type == u"MESSAGE_EMPTY"_q) {
+		} else if (error == u"MESSAGE_EMPTY"_q) {
 			_field->setFocus();
 			_field->showError();
 			update();

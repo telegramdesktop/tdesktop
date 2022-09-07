@@ -99,8 +99,8 @@ private:
 [[nodiscard]] int Limit(
 		not_null<Main::Session*> session,
 		const QString &key,
-		double fallback) {
-	return session->account().appConfig().get<double>(key, fallback);
+		int fallback) {
+	return session->account().appConfig().get<int>(key, fallback);
 }
 
 [[nodiscard]] int Limit(not_null<Main::Session*> session) {

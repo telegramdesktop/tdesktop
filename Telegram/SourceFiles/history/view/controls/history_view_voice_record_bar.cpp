@@ -1673,7 +1673,7 @@ void VoiceRecordBar::installListenStateFilter() {
 void VoiceRecordBar::showDiscardBox(
 		Fn<void()> &&callback,
 		anim::type animated) {
-	if (!isActive()) {
+	if (!isActive() || _showAnimation.animating()) {
 		return;
 	}
 	auto sure = [=, callback = std::move(callback)](Fn<void()> &&close) {

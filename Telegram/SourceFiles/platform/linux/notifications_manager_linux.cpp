@@ -46,9 +46,25 @@ struct ServerInformation {
 };
 
 bool ServiceRegistered = false;
-bool InhibitionSupported = false;
 std::optional<ServerInformation> CurrentServerInformation;
 QStringList CurrentCapabilities;
+
+void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
+	try {
+		callback();
+		return;
+	} catch (const Glib::Error &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	} catch (const std::exception &e) {
+		LOG(("Native Notification Error: %1").arg(
+			QString::fromStdString(e.what())));
+	}
+
+	if (failed) {
+		failed();
+	}
+}
 
 std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	try {
@@ -99,24 +115,22 @@ void StartServiceAsync(Fn<void()> callback) {
 			connection,
 			std::string(kService),
 			[=](Fn<DBus::StartReply()> result) {
-				try {
-					result(); // get the error if any
-				} catch (const Glib::Error &e) {
-					static const auto NotSupportedErrors = {
-						"org.freedesktop.DBus.Error.ServiceUnknown",
-					};
+				Noexcept([&] {
+					try {
+						result(); // get the error if any
+					} catch (const Glib::Error &e) {
+						static const auto NotSupportedErrors = {
+							"org.freedesktop.DBus.Error.ServiceUnknown",
+						};
 
-					const auto errorName =
-						Gio::DBus::ErrorUtils::get_remote_error(e);
+						const auto errorName =
+							Gio::DBus::ErrorUtils::get_remote_error(e);
 
-					if (!ranges::contains(NotSupportedErrors, errorName)) {
-						LOG(("Native Notification Error: %1").arg(
-							QString::fromStdString(e.what())));
+						if (!ranges::contains(NotSupportedErrors, errorName)) {
+							throw e;
+						}
 					}
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
+				});
 
 				crl::on_main(callback);
 			});
@@ -162,7 +176,7 @@ bool GetServiceRegistered() {
 
 void GetServerInformation(
 		Fn<void(const std::optional<ServerInformation> &)> callback) {
-	try {
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -172,7 +186,7 @@ void GetServerInformation(
 			"GetServerInformation",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 
 					const auto name = GlibVariantCast<Glib::ustring>(
@@ -197,31 +211,18 @@ void GetServerInformation(
 								QString::fromStdString(specVersion)),
 						});
 					});
-
-					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
-
-				crl::on_main([=] { callback(std::nullopt); });
+				}, [&] {
+					crl::on_main([=] { callback(std::nullopt); });
+				});
 			},
 			std::string(kService));
-
-			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	crl::on_main([=] { callback(std::nullopt); });
+	}, [&] {
+		crl::on_main([=] { callback(std::nullopt); });
+	});
 }
 
 void GetCapabilities(Fn<void(const QStringList &)> callback) {
-	try {
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -231,7 +232,7 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 			"GetCapabilities",
 			{},
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 
 					QStringList value;
@@ -244,31 +245,23 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 					crl::on_main([=] {
 						callback(value);
 					});
-
-					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
-
-				crl::on_main([=] { callback({}); });
+				}, [&] {
+					crl::on_main([=] { callback({}); });
+				});
 			},
 			std::string(kService));
-
-			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	crl::on_main([=] { callback({}); });
+	}, [&] {
+		crl::on_main([=] { callback({}); });
+	});
 }
 
-void GetInhibitionSupported(Fn<void(bool)> callback) {
-	try {
+void GetInhibited(Fn<void(bool)> callback) {
+	if (!CurrentCapabilities.contains(qsl("inhibitions"))) {
+		crl::on_main([=] { callback(false); });
+		return;
+	}
+
+	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
 
@@ -281,99 +274,24 @@ void GetInhibitionSupported(Fn<void(bool)> callback) {
 				Glib::ustring("Inhibited"),
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
-					connection->call_finish(result);
+				Noexcept([&] {
+					auto reply = connection->call_finish(result);
+
+					const auto value = GlibVariantCast<bool>(
+						GlibVariantCast<Glib::VariantBase>(
+							reply.get_child(0)));
 
 					crl::on_main([=] {
-						callback(true);
+						callback(value);
 					});
-
-					return;
-				} catch (const Glib::Error &e) {
-					static const auto DontLogErrors = {
-						"org.freedesktop.DBus.Error.InvalidArgs",
-						"org.freedesktop.DBus.Error.UnknownMethod",
-					};
-
-					const auto errorName = Gio::DBus::ErrorUtils::get_remote_error(e);
-					if (!ranges::contains(DontLogErrors, errorName)) {
-						LOG(("Native Notification Error: %1").arg(
-							QString::fromStdString(e.what())));
-					}
-				}
-
-				crl::on_main([=] { callback(false); });
+				}, [&] {
+					crl::on_main([=] { callback(false); });
+				});
 			},
 			std::string(kService));
-
-			return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	crl::on_main([=] { callback(false); });
-}
-
-bool Inhibited() {
-	if (!Supported()
-		|| !CurrentCapabilities.contains(qsl("inhibitions"))
-		|| !InhibitionSupported) {
-		return false;
-	}
-
-	try {
-		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-
-		// a hack for snap's activation restriction
-		DBus::StartServiceByName(
-			connection,
-			std::string(kService));
-
-		auto reply = connection->call_sync(
-			std::string(kObjectPath),
-			std::string(kPropertiesInterface),
-			"Get",
-			MakeGlibVariant(std::tuple{
-				Glib::ustring(std::string(kInterface)),
-				Glib::ustring("Inhibited"),
-			}),
-			std::string(kService));
-
-		return GlibVariantCast<bool>(
-			GlibVariantCast<Glib::VariantBase>(reply.get_child(0)));
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	} catch (const std::exception &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
-	}
-
-	return false;
-}
-
-bool IsQualifiedDaemon() {
-	// A list of capabilities that offer feature parity
-	// with custom notifications
-	static const auto NeededCapabilities = {
-		// To show message content
-		qsl("body"),
-		// To make the sender name bold
-		qsl("body-markup"),
-		// To have buttons on notifications
-		qsl("actions"),
-		// To have quick reply
-		qsl("inline-reply"),
-		// To not to play sound with Don't Disturb activated
-		// (no, using sound capability is not a way)
-		qsl("inhibitions"),
-	};
-
-	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
-		return CurrentCapabilities.contains(capability);
-	}) && InhibitionSupported;
+	}, [&] {
+		crl::on_main([=] { callback(false); });
+	});
 }
 
 ServerInformation CurrentServerInformationValue() {
@@ -460,12 +378,12 @@ bool NotificationData::init(
 		const QString &subtitle,
 		const QString &msg,
 		Window::Notifications::Manager::DisplayOptions options) {
-	try {
+	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
+	});
+
+	if (!_dbusConnection) {
 		return false;
 	}
 
@@ -479,7 +397,7 @@ bool NotificationData::init(
 			const Glib::ustring &interface_name,
 			const Glib::ustring &signal_name,
 			Glib::VariantContainerBase parameters) {
-		try {
+		Noexcept([&] {
 			if (signal_name == "ActionInvoked") {
 				const auto id = GlibVariantCast<uint>(
 					parameters.get_child(0));
@@ -513,10 +431,7 @@ bool NotificationData::init(
 
 				crl::on_main(weak, [=] { notificationClosed(id, reason); });
 			}
-		} catch (const std::exception &e) {
-			LOG(("Native Notification Error: %1").arg(
-				QString::fromStdString(e.what())));
-		}
+		});
 	};
 
 	_title = title.toStdString();
@@ -657,23 +572,17 @@ void NotificationData::show() {
 				-1,
 			}),
 			[=](const Glib::RefPtr<Gio::AsyncResult> &result) {
-				try {
+				Noexcept([&] {
 					auto reply = connection->call_finish(result);
 					const auto notificationId = GlibVariantCast<uint>(
 						reply.get_child(0));
 					crl::on_main(weak, [=] {
 						_notificationId = notificationId;
 					});
-					return;
-				} catch (const Glib::Error &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				} catch (const std::exception &e) {
-					LOG(("Native Notification Error: %1").arg(
-						QString::fromStdString(e.what())));
-				}
-				crl::on_main(weak, [=] {
-					_manager->clearNotification(_id);
+				}, [&] {
+					crl::on_main(weak, [=] {
+						_manager->clearNotification(_id);
+					});
 				});
 			},
 			std::string(kService));
@@ -800,7 +709,25 @@ bool Enforced() {
 }
 
 bool ByDefault() {
-	return IsQualifiedDaemon();
+	// A list of capabilities that offer feature parity
+	// with custom notifications
+	static const auto NeededCapabilities = {
+		// To show message content
+		qsl("body"),
+		// To make the sender name bold
+		qsl("body-markup"),
+		// To have buttons on notifications
+		qsl("actions"),
+		// To have quick reply
+		qsl("inline-reply"),
+		// To not to play sound with Don't Disturb activated
+		// (no, using sound capability is not a way)
+		qsl("inhibitions"),
+	};
+
+	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
+		return CurrentCapabilities.contains(capability);
+	});
 }
 
 void Create(Window::Notifications::System *system) {
@@ -808,32 +735,35 @@ void Create(Window::Notifications::System *system) {
 
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
-		if ((Core::App().settings().nativeNotifications() && Supported())
-			|| Enforced()) {
-			if (!system->managerType().has_value()
-				|| *system->managerType() != ManagerType::Native) {
+		if ((Core::App().settings().nativeNotifications() || Enforced())
+			&& Supported()) {
+			if (system->managerType() != ManagerType::Native) {
 				system->setManager(std::make_unique<Manager>(system));
 			}
-		} else if (!system->managerType().has_value()
-			|| *system->managerType() != ManagerType::Default) {
+		} else if (Enforced()) {
+			if (system->managerType() != ManagerType::Dummy) {
+				using DummyManager = Window::Notifications::DummyManager;
+				system->setManager(std::make_unique<DummyManager>(system));
+			}
+		} else if (system->managerType() != ManagerType::Default) {
 			system->setManager(nullptr);
 		}
 	};
 
-	const auto counter = std::make_shared<int>(3);
+	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
 		if (!--*counter) {
 			managerSetter();
 		}
 	};
 
-	const auto serviceActivated = [=] {
+	// snap doesn't allow access when the daemon is not running :(
+	StartServiceAsync([=] {
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
 			CurrentServerInformation = std::nullopt;
 			CurrentCapabilities = QStringList{};
-			InhibitionSupported = false;
 			managerSetter();
 			return;
 		}
@@ -847,25 +777,10 @@ void Create(Window::Notifications::System *system) {
 			CurrentCapabilities = result;
 			oneReady();
 		});
-
-		GetInhibitionSupported([=](bool result) {
-			InhibitionSupported = result;
-			oneReady();
-		});
-	};
-
-	// There are some asserts that manager is not nullptr,
-	// avoid crashes until some real manager is created
-	if (!system->managerType().has_value()) {
-		using DummyManager = Window::Notifications::DummyManager;
-		system->setManager(std::make_unique<DummyManager>(system));
-	}
-
-	// snap doesn't allow access when the daemon is not running :(
-	StartServiceAsync(serviceActivated);
+	});
 }
 
-class Manager::Private {
+class Manager::Private : public base::has_weak_ptr {
 public:
 	using Type = Window::Notifications::CachedUserpics::Type;
 	explicit Private(not_null<Manager*> manager, Type type);
@@ -884,6 +799,10 @@ public:
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
 
+	bool inhibited() {
+		return _inhibited;
+	}
+
 	~Private();
 
 private:
@@ -895,15 +814,15 @@ private:
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
 
+	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
+	bool _inhibited = false;
+	uint _inhibitedSignalId = 0;
+
 };
 
 Manager::Private::Private(not_null<Manager*> manager, Type type)
 : _manager(manager)
 , _cachedUserpics(type) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto serverInformation = CurrentServerInformation;
 	const auto capabilities = CurrentCapabilities;
 
@@ -925,6 +844,51 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 		LOG(("Notification daemon capabilities: %1")
 			.arg(capabilities.join(", ")));
 	}
+
+	Noexcept([&] {
+		_dbusConnection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::BUS_TYPE_SESSION);
+	});
+
+	if (!_dbusConnection) {
+		return;
+	}
+
+	const auto weak = base::make_weak(this);
+	GetInhibited(crl::guard(weak, [=](bool result) {
+		_inhibited = result;
+	}));
+
+	_inhibitedSignalId = _dbusConnection->signal_subscribe(
+		[=](
+				const Glib::RefPtr<Gio::DBus::Connection> &connection,
+				const Glib::ustring &sender_name,
+				const Glib::ustring &object_path,
+				const Glib::ustring &interface_name,
+				const Glib::ustring &signal_name,
+				Glib::VariantContainerBase parameters) {
+			Noexcept([&] {
+				const auto interface = GlibVariantCast<Glib::ustring>(
+					parameters.get_child(0));
+
+				if (interface != std::string(kInterface)) {
+					return;
+				}
+
+				const auto inhibited = GlibVariantCast<bool>(
+					GlibVariantCast<
+						std::map<Glib::ustring, Glib::VariantBase>
+				>(parameters.get_child(1)).at("Inhibited"));
+
+				crl::on_main(weak, [=] {
+					_inhibited = inhibited;
+				});
+			});
+		},
+		std::string(kService),
+		std::string(kPropertiesInterface),
+		"PropertiesChanged",
+		std::string(kObjectPath));
 }
 
 void Manager::Private::showNotification(
@@ -935,10 +899,6 @@ void Manager::Private::showNotification(
 		const QString &subtitle,
 		const QString &msg,
 		DisplayOptions options) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto key = FullPeer{
 		.sessionId = peer->session().uniqueId(),
 		.peerId = peer->id
@@ -984,10 +944,6 @@ void Manager::Private::showNotification(
 }
 
 void Manager::Private::clearAll() {
-	if (!Supported()) {
-		return;
-	}
-
 	for (const auto &[key, notifications] : base::take(_notifications)) {
 		for (const auto &[msgId, notification] : notifications) {
 			notification->close();
@@ -996,9 +952,6 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	if (!Supported()) {
-		return;
-	}
 	const auto key = FullPeer{
 		.sessionId = item->history()->session().uniqueId(),
 		.peerId = item->history()->peer->id
@@ -1020,10 +973,6 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 }
 
 void Manager::Private::clearFromHistory(not_null<History*> history) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto key = FullPeer{
 		.sessionId = history->session().uniqueId(),
 		.peerId = history->peer->id
@@ -1040,10 +989,6 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 }
 
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
-	if (!Supported()) {
-		return;
-	}
-
 	const auto sessionId = session->uniqueId();
 	for (auto i = _notifications.begin(); i != _notifications.end();) {
 		if (i->first.sessionId != sessionId) {
@@ -1060,10 +1005,6 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	if (!Supported()) {
-		return;
-	}
-
 	auto i = _notifications.find(id.full);
 	if (i != _notifications.cend()) {
 		if (i->second.remove(id.msgId) && i->second.empty()) {
@@ -1074,6 +1015,12 @@ void Manager::Private::clearNotification(NotificationId id) {
 
 Manager::Private::~Private() {
 	clearAll();
+
+	if (_dbusConnection) {
+		if (_inhibitedSignalId != 0) {
+			_dbusConnection->signal_unsubscribe(_inhibitedSignalId);
+		}
+	}
 }
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
@@ -1122,7 +1069,7 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 }
 
 bool Manager::doSkipAudio() const {
-	return Inhibited();
+	return _private->inhibited();
 }
 
 bool Manager::doSkipToast() const {
@@ -1130,7 +1077,7 @@ bool Manager::doSkipToast() const {
 }
 
 bool Manager::doSkipFlashBounce() const {
-	return Inhibited();
+	return _private->inhibited();
 }
 
 } // namespace Notifications

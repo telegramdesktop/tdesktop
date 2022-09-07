@@ -80,7 +80,7 @@ bool SingleMediaPreview::tryPaintAnimation(Painter &p) {
 		const auto frame = _gifPreview->current({
 			.frame = QSize(previewWidth(), previewHeight()),
 		}, paused ? 0 : crl::now());
-		p.drawPixmap(previewLeft(), previewTop(), frame);
+		p.drawImage(previewLeft(), previewTop(), frame);
 		return true;
 	} else if (_lottiePreview && _lottiePreview->ready()) {
 		const auto frame = _lottiePreview->frame();

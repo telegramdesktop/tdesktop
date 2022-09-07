@@ -1,0 +1,18 @@
+name: Publish to WinGet
+on:
+  release:
+    types: [released, prereleased]
+jobs:
+  publish:
+    runs-on: windows-latest # action can only be run on windows
+    steps:
+      - if: github.event.action == 'released'
+        uses: telegramdesktop/winget-releaser@main
+        with:
+          identifier: Telegram.TelegramDesktop
+          token: ${{ secrets.WINGET_TOKEN }}
+      - if: github.event.action == 'prereleased'
+        uses: telegramdesktop/winget-releaser@main
+        with:
+          identifier: Telegram.TelegramDesktop.Beta
+          token: ${{ secrets.WINGET_TOKEN }}

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/notifications_manager.h"
 #include "ui/effects/animations.h"
+#include "ui/text/text.h"
 #include "ui/rp_widget.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
@@ -260,15 +261,21 @@ private:
 	void changeHeight(int newHeight);
 	void updateGeometry(int x, int y, int width, int height) override;
 	void actionsOpacityCallback();
+	void repaintText();
+	void paintText(Painter &p);
+	void customEmojiCallback();
 
 	[[nodiscard]] Notifications::Manager::NotificationId myId() const;
 
 	const not_null<PeerData*> _peer;
 
-	QPixmap _cache;
+	QImage _cache;
+	Ui::Text::String _textCache;
+	QRect _textRect;
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
+	bool _textRepaintScheduled = false;
 	Ui::Animations::Simple a_actionsOpacity;
 	QPixmap _buttonsCache;
 

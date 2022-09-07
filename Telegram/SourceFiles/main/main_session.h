@@ -51,6 +51,7 @@ struct TermsLock;
 namespace Stickers {
 class EmojiPack;
 class DicePacks;
+class GiftBoxPack;
 } // namespace Stickers;
 
 namespace InlineBots {
@@ -85,6 +86,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> premiumPossibleValue() const;
 	[[nodiscard]] bool premiumBadgesShown() const;
 
+	[[nodiscard]] bool isTestMode() const;
 	[[nodiscard]] uint64 uniqueId() const; // userId() with TestDC shift.
 	[[nodiscard]] UserId userId() const;
 	[[nodiscard]] PeerId userPeerId() const;
@@ -116,6 +118,9 @@ public:
 	}
 	[[nodiscard]] Stickers::DicePacks &diceStickersPacks() const {
 		return *_diceStickersPacks;
+	}
+	[[nodiscard]] Stickers::GiftBoxPack &giftBoxStickersPacks() const {
+		return *_giftBoxStickersPacks;
 	}
 	[[nodiscard]] Data::Session &data() const {
 		return *_data;
@@ -205,6 +210,7 @@ private:
 	// _emojiStickersPack depends on _data.
 	const std::unique_ptr<Stickers::EmojiPack> _emojiStickersPack;
 	const std::unique_ptr<Stickers::DicePacks> _diceStickersPacks;
+	const std::unique_ptr<Stickers::GiftBoxPack> _giftBoxStickersPacks;
 	const std::unique_ptr<SendAsPeers> _sendAsPeers;
 	const std::unique_ptr<InlineBots::AttachWebView> _attachWebView;
 

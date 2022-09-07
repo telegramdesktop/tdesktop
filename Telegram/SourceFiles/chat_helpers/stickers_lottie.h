@@ -49,7 +49,7 @@ using StickersSetFlags = base::flags<StickersSetFlag>;
 
 namespace ChatHelpers {
 
-enum class StickerLottieSize : uchar {
+enum class StickerLottieSize : uint8 {
 	MessageHistory,
 	StickerSet,
 	StickersPanel,
@@ -66,6 +66,9 @@ enum class StickerLottieSize : uchar {
 	EmojiInteractionReserved7,
 	PremiumReactionPreview,
 };
+[[nodiscard]] uint8 LottieCacheKeyShift(
+	uint8 replacementsTag,
+	StickerLottieSize sizeTag);
 
 [[nodiscard]] std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 	not_null<Data::DocumentMedia*> media,

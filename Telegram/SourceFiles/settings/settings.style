@@ -480,3 +480,6 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 190px;
 }
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
+
+settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
+settingsPremiumLockSkip: 3px;

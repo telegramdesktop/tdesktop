@@ -25,7 +25,6 @@ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 } // namespace Storage
 
 namespace Lottie {
-class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
@@ -41,6 +40,7 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
+class StickerPlayer;
 class Element;
 
 using PaintContext = Ui::ChatPaintContext;
@@ -172,7 +172,7 @@ public:
 	}
 	virtual void stickerClearLoopPlayed() {
 	}
-	virtual std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+	virtual std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements);
 	virtual void checkAnimation() {

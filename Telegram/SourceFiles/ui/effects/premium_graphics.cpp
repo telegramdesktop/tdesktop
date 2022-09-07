@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/premium_graphics.h"
 
 #include "lang/lang_keys.h"
+#include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/numbers_animation.h"
@@ -17,10 +18,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "styles/style_premium.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
 #include "styles/style_layers.h"
 #include "styles/style_widgets.h"
+#include "styles/style_window.h"
 
 #include <QtGui/QBrush>
 
@@ -66,6 +69,45 @@ constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 		anim::gradient_color_at(fullGradient, (left + width) / fullFinal));
 
 	return gradient;
+}
+
+class PartialGradient final {
+public:
+	PartialGradient(int from, int to, QGradientStops stops);
+
+	[[nodiscard]] QLinearGradient compute(int position, int size) const;
+
+private:
+	const int _from;
+	const int _to;
+	QLinearGradient _gradient;
+
+};
+
+PartialGradient::PartialGradient(int from, int to, QGradientStops stops)
+: _from(from)
+, _to(to)
+, _gradient(0, 0, 0, to - from) {
+	_gradient.setStops(std::move(stops));
+}
+
+QLinearGradient PartialGradient::compute(int position, int size) const {
+	const auto pointTop = position - _from;
+	const auto pointBottom = pointTop + size;
+	const auto ratioTop = pointTop / float64(_to - _from);
+	const auto ratioBottom = pointBottom / float64(_to - _from);
+
+	auto resultGradient = QLinearGradient(
+		QPointF(),
+		QPointF(0, pointBottom - pointTop));
+
+	resultGradient.setColorAt(
+		.0,
+		anim::gradient_color_at(_gradient, ratioTop));
+	resultGradient.setColorAt(
+		.1,
+		anim::gradient_color_at(_gradient, ratioBottom));
+	return resultGradient;
 }
 
 class Bubble final {
@@ -813,6 +855,13 @@ QGradientStops FullHeightGradientStops() {
 	};
 }
 
+QGradientStops GiftGradientStops() {
+	return {
+		{ 0., st::premiumButtonBg1->c },
+		{ 1., st::premiumButtonBg2->c },
+	};
+}
+
 void ShowListBox(
 		not_null<Ui::GenericBox*> box,
 		std::vector<ListEntry> entries) {
@@ -862,42 +911,176 @@ void ShowListBox(
 	Assert(lines.size() > 2);
 	const auto from = lines.front()->y();
 	const auto to = lines.back()->y() + lines.back()->height();
-	auto gradient = QLinearGradient(0, 0, 0, to - from);
 
-	{
+	const auto partialGradient = [&] {
 		auto stops = Ui::Premium::FullHeightGradientStops();
+		// Reverse.
 		for (auto &stop : stops) {
 			stop.first = std::abs(stop.first - 1.);
 		}
-		gradient.setStops(std::move(stops));
-	}
+		return PartialGradient(from, to, std::move(stops));
+	}();
 
 	for (auto i = 0; i < int(lines.size()); i++) {
 		const auto &line = lines[i];
 
-		const auto pointTop = line->y() - from;
-		const auto pointBottom = pointTop + line->height();
-		const auto ratioTop = pointTop / float64(to - from);
-		const auto ratioBottom = pointBottom / float64(to - from);
-
-		auto resultGradient = QLinearGradient(
-			QPointF(),
-			QPointF(0, pointBottom - pointTop));
-
-		resultGradient.setColorAt(
-			.0,
-			anim::gradient_color_at(gradient, ratioTop));
-		resultGradient.setColorAt(
-			.1,
-			anim::gradient_color_at(gradient, ratioBottom));
-
-		const auto brush = QBrush(resultGradient);
+		const auto brush = QBrush(
+			partialGradient.compute(line->y(), line->height()));
 		line->setColorOverride(brush);
 	}
 	box->addSkip(st::settingsPremiumPreviewLinePadding.bottom());
 
 	box->setTitle(tr::lng_premium_summary_subtitle_double_limits());
 	box->setWidth(st::boxWideWidth);
+}
+
+void AddGiftOptions(
+		not_null<Ui::VerticalLayout*> parent,
+		std::shared_ptr<Ui::RadiobuttonGroup> group,
+		std::vector<GiftInfo> gifts) {
+
+	struct Edges {
+		Ui::RpWidget *top = nullptr;
+		Ui::RpWidget *bottom = nullptr;
+	};
+	const auto edges = parent->lifetime().make_state<Edges>();
+	struct Animation {
+		int nowIndex = 0;
+		Ui::Animations::Simple animation;
+	};
+	const auto animation = parent->lifetime().make_state<Animation>();
+
+	const auto stops = GiftGradientStops();
+
+	const auto addRow = [&](const GiftInfo &info, int index) {
+		const auto row = parent->add(
+			object_ptr<Ui::AbstractButton>(parent),
+			st::premiumGiftRowPaddings);
+		row->resize(row->width(), st::premiumGiftRowHeight);
+		{
+			if (!index) {
+				edges->top = row;
+			}
+			edges->bottom = row;
+		}
+
+		const auto &stCheckbox = st::defaultBoxCheckbox;
+		const auto radio = Ui::CreateChild<Ui::Radiobutton>(
+			row,
+			group,
+			index,
+			QString(),
+			stCheckbox);
+		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
+
+		row->sizeValue(
+		) | rpl::start_with_next([=, margins = stCheckbox.margin](
+				const QSize &s) {
+			const auto radioHeight = radio->height()
+				- margins.top()
+				- margins.bottom();
+			radio->moveToLeft(
+				st::premiumGiftRowMargins.left(),
+				(s.height() - radioHeight) / 2);
+		}, radio->lifetime());
+
+		row->paintRequest(
+		) | rpl::start_with_next([=](const QRect &r) {
+			Painter p(row);
+			PainterHighQualityEnabler hq(p);
+
+			p.fillRect(r, Qt::transparent);
+
+			const auto left = st::premiumGiftRowTextLeft;
+			const auto borderWidth = st::premiumGiftRowBorderWidth;
+			const auto halfHeight = row->height() / 2;
+
+			const auto titleFont = st::semiboldFont;
+			p.setFont(titleFont);
+			p.setPen(st::boxTextFg);
+			p.drawText(
+				left,
+				st::premiumGiftRowSubtitleTop + titleFont->ascent,
+				info.duration);
+
+			const auto discountFont = st::windowFiltersButton.badgeStyle.font;
+			const auto discountWidth = discountFont->width(info.discount);
+			const auto &discountMargins = discountWidth
+				? st::premiumGiftRowBadgeMargins
+				: style::margins();
+			const auto discountRect = QRect(
+				left,
+				halfHeight + discountMargins.top(),
+				discountWidth
+					+ discountMargins.left()
+					+ discountMargins.right(),
+				st::premiumGiftRowBadgeHeight);
+			{
+				const auto from = edges->top->y();
+				const auto to = edges->bottom->y() + edges->bottom->height();
+				auto partialGradient = PartialGradient(from, to, stops);
+
+				p.setPen(Qt::NoPen);
+				p.setBrush(partialGradient.compute(row->y(), row->height()));
+				const auto round = st::premiumGiftRowBadgeRadius;
+				p.drawRoundedRect(discountRect, round, round);
+			}
+
+			if (animation->nowIndex == index) {
+				const auto progress = animation->animation.value(1.);
+				const auto w = row->width();
+				auto gradient = QLinearGradient(w - w * progress, 0, w * 2, 0);
+				gradient.setSpread(QGradient::Spread::RepeatSpread);
+				gradient.setStops(stops);
+				const auto pen = QPen(QBrush(gradient), borderWidth);
+				p.setPen(pen);
+				p.setBrush(Qt::NoBrush);
+				const auto borderRect = row->rect()
+					- QMargins(
+						pen.width() / 2,
+						pen.width() / 2,
+						pen.width() / 2,
+						pen.width() / 2);
+				const auto round = st::premiumGiftRowBorderRadius;
+				p.drawRoundedRect(borderRect, round, round);
+			}
+
+			p.setPen(st::boxBg);
+			p.setFont(discountFont);
+			p.drawText(discountRect, info.discount, style::al_center);
+
+			const auto perRect = QMargins(0, 0, row->width(), 0)
+				+ discountRect.translated(
+					discountRect.width() + discountMargins.left(),
+					0);
+			p.setPen(st::windowSubTextFg);
+			p.setFont(st::shareBoxListItem.nameStyle.font);
+			p.drawText(perRect, info.perMonth, style::al_left);
+
+			const auto totalRect = row->rect()
+				- QMargins(0, 0, st::premiumGiftRowMargins.right(), 0);
+			p.setFont(st::normalFont);
+			p.drawText(totalRect, info.total, style::al_right);
+		}, row->lifetime());
+
+		row->setClickedCallback([=, duration = st::defaultCheck.duration] {
+			group->setValue(index);
+			animation->nowIndex = group->value();
+			animation->animation.stop();
+			animation->animation.start(
+				[=] { parent->update(); },
+				0.,
+				1.,
+				duration);
+		});
+
+	};
+	for (auto i = 0; i < gifts.size(); i++) {
+		addRow(gifts[i], i);
+	}
+
+	parent->resizeToWidth(parent->height());
+	parent->update();
 }
 
 } // namespace Premium

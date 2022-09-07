@@ -54,7 +54,7 @@ void Toasts::setupJoinAsChanged() {
 			: tr::lng_group_call_join_as_changed)(
 			tr::now,
 			lt_name,
-			Ui::Text::Bold(_call->joinAs()->name),
+			Ui::Text::Bold(_call->joinAs()->name()),
 			Ui::Text::WithEntities));
 	}, _lifetime);
 }
@@ -66,7 +66,7 @@ void Toasts::setupTitleChanged() {
 	}) | rpl::map([=] {
 		const auto peer = _call->peer();
 		return peer->groupCall()->title().isEmpty()
-			? peer->name
+			? peer->name()
 			: peer->groupCall()->title();
 	}) | rpl::start_with_next([=](const QString &title) {
 		_panel->showToast((_call->peer()->isBroadcast()
@@ -90,7 +90,7 @@ void Toasts::setupAllowedToSpeak() {
 			const auto real = _call->lookupReal();
 			const auto name = (real && !real->title().isEmpty())
 				? real->title()
-				: _call->peer()->name;
+				: _call->peer()->name();
 			Ui::ShowMultilineToast({
 				.text = tr::lng_group_call_can_speak(
 					tr::now,

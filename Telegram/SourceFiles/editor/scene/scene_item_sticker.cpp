@@ -34,7 +34,7 @@ ItemSticker::ItemSticker(
 	}
 	const auto updateThumbnail = [=] {
 		const auto guard = gsl::finally([&] {
-			if (_pixmap.isNull()) {
+			if (_image.isNull()) {
 				setAspectRatio(1.);
 			}
 		});
@@ -47,8 +47,7 @@ ItemSticker::ItemSticker(
 				Lottie::Quality::High);
 			_lottie.player->updates(
 			) | rpl::start_with_next([=] {
-				updatePixmap(Ui::PixmapFromImage(
-					_lottie.player->frame()));
+				updatePixmap(_lottie.player->frame());
 				_lottie.player = nullptr;
 				_lottie.lifetime.destroy();
 				update();
@@ -81,7 +80,7 @@ ItemSticker::ItemSticker(
 		const auto ratio = style::DevicePixelRatio();
 		auto pixmap = sticker->pixNoCache(sticker->size() * ratio);
 		pixmap.setDevicePixelRatio(ratio);
-		updatePixmap(std::move(pixmap));
+		updatePixmap(pixmap.toImage());
 		return true;
 	};
 	if (!updateThumbnail()) {
@@ -95,15 +94,15 @@ ItemSticker::ItemSticker(
 	}
 }
 
-void ItemSticker::updatePixmap(QPixmap &&pixmap) {
-	_pixmap = std::move(pixmap);
+void ItemSticker::updatePixmap(QImage &&image) {
+	_image = std::move(image);
 	if (flipped()) {
 		performFlip();
 	} else {
 		update();
 	}
-	if (!_pixmap.isNull()) {
-		setAspectRatio(_pixmap.height() / float64(_pixmap.width()));
+	if (!_image.isNull()) {
+		setAspectRatio(_image.height() / float64(_image.width()));
 	}
 }
 
@@ -111,7 +110,7 @@ void ItemSticker::paint(
 		QPainter *p,
 		const QStyleOptionGraphicsItem *option,
 		QWidget *w) {
-	p->drawPixmap(contentRect().toRect(), _pixmap);
+	p->drawImage(contentRect().toRect(), _image);
 	ItemBase::paint(p, option, w);
 }
 
@@ -124,7 +123,7 @@ int ItemSticker::type() const {
 }
 
 void ItemSticker::performFlip() {
-	_pixmap = _pixmap.transformed(QTransform().scale(-1, 1));
+	_image = _image.transformed(QTransform().scale(-1, 1));
 	update();
 }
 

@@ -30,7 +30,8 @@ Blocked::Blocked(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
 : Section(parent)
-, _controller(controller) {
+, _controller(controller)
+, _container(Ui::CreateChild<Ui::VerticalLayout>(this)) {
 
 	setupContent();
 
@@ -117,12 +118,11 @@ QPointer<Ui::RpWidget> Blocked::createPinnedToTop(not_null<QWidget*> parent) {
 
 void Blocked::setupContent() {
 	using namespace rpl::mappers;
-	const auto container = Ui::CreateChild<Ui::VerticalLayout>(this);
 
-	const auto listWrap = container->add(
+	const auto listWrap = _container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
+			_container,
+			object_ptr<Ui::VerticalLayout>(_container)));
 	listWrap->toggleOn(
 		_emptinessChanges.events_starting_with(true) | rpl::map(!_1),
 		anim::type::instant);
@@ -152,10 +152,10 @@ void Blocked::setupContent() {
 		_countBlocked = content->fullRowsCount();
 	}
 
-	const auto emptyWrap = container->add(
+	const auto emptyWrap = _container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
-			container,
-			object_ptr<Ui::VerticalLayout>(container)));
+			_container,
+			object_ptr<Ui::VerticalLayout>(_container)));
 	emptyWrap->toggleOn(
 		_emptinessChanges.events_starting_with(false),
 		anim::type::instant);
@@ -200,12 +200,16 @@ void Blocked::setupContent() {
 		AddSkip(content, st::blockedUsersListIconPadding.top());
 	}
 
-	Ui::ResizeFitChild(this, container);
+	Ui::ResizeFitChild(this, _container);
 }
 
 void Blocked::checkTotal(int total) {
 	_loading = nullptr;
 	_emptinessChanges.fire(total <= 0);
+}
+
+void Blocked::visibleTopBottomUpdated(int visibleTop, int visibleBottom) {
+	setChildVisibleTopBottom(_container, visibleTop, visibleBottom);
 }
 
 void Blocked::showFinished() {

@@ -27,6 +27,9 @@ Premium::Premium(not_null<ApiWrap*> api)
 			_session
 		) | rpl::start_with_next([=] {
 			reload();
+			if (_session->premium()) {
+				reloadCloudSet();
+			}
 		}, _session->lifetime());
 	});
 }
@@ -52,6 +55,15 @@ auto Premium::stickers() const
 
 rpl::producer<> Premium::stickersUpdated() const {
 	return _stickersUpdated.events();
+}
+
+auto Premium::cloudSet() const
+-> const std::vector<not_null<DocumentData*>> & {
+	return _cloudSet;
+}
+
+rpl::producer<> Premium::cloudSetUpdated() const {
+	return _cloudSetUpdated.events();
 }
 
 int64 Premium::monthlyAmount() const {
@@ -134,6 +146,33 @@ void Premium::reloadStickers() {
 		});
 	}).fail([=] {
 		_stickersRequestId = 0;
+	}).send();
+}
+
+void Premium::reloadCloudSet() {
+	if (_cloudSetRequestId) {
+		return;
+	}
+	_cloudSetRequestId = _api.request(MTPmessages_GetStickers(
+		MTP_string("\xf0\x9f\x93\x82\xe2\xad\x90\xef\xb8\x8f"),
+		MTP_long(_cloudSetHash)
+	)).done([=](const MTPmessages_Stickers &result) {
+		_cloudSetRequestId = 0;
+		result.match([&](const MTPDmessages_stickersNotModified &) {
+		}, [&](const MTPDmessages_stickers &data) {
+			_cloudSetHash = data.vhash().v;
+			const auto owner = &_session->data();
+			_cloudSet.clear();
+			for (const auto &sticker : data.vstickers().v) {
+				const auto document = owner->processDocument(sticker);
+				if (document->isPremiumSticker()) {
+					_cloudSet.push_back(document);
+				}
+			}
+			_cloudSetUpdated.fire({});
+		});
+	}).fail([=] {
+		_cloudSetRequestId = 0;
 	}).send();
 }
 

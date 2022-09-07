@@ -116,7 +116,7 @@ bool ChatData::anyoneCanAddMembers() const {
 }
 
 void ChatData::setName(const QString &newName) {
-	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), QString());
+	updateNameDelayed(newName.isEmpty() ? name() : newName, {}, {});
 }
 
 void ChatData::applyEditAdmin(not_null<UserData*> user, bool isAdmin) {

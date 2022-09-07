@@ -72,7 +72,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _delegateMixin(HistoryInner::DelegateMixin())
 , _mute(owner->notifySettings().isMuted(peer))
-, _chatListNameSortKey(owner->nameSortKey(peer->name))
+, _chatListNameSortKey(owner->nameSortKey(peer->name()))
 , _sendActionPainter(this) {
 	if (const auto user = peer->asUser()) {
 		if (user->isBot()) {
@@ -1823,6 +1823,10 @@ void History::setFolderPointer(Data::Folder *folder) {
 	session().changes().historyUpdated(this, UpdateFlag::Folder);
 }
 
+int History::chatListNameVersion() const {
+	return peer->nameVersion();
+}
+
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	const auto folderId = data.vfolder_id().value_or_empty();
 	if (!folderKnown()) {
@@ -2034,7 +2038,7 @@ bool History::chatListMessageKnown() const {
 }
 
 const QString &History::chatListName() const {
-	return peer->name;
+	return peer->name();
 }
 
 const QString &History::chatListNameSortKey() const {
@@ -2042,7 +2046,7 @@ const QString &History::chatListNameSortKey() const {
 }
 
 void History::refreshChatListNameSortKey() {
-	_chatListNameSortKey = owner().nameSortKey(peer->name);
+	_chatListNameSortKey = owner().nameSortKey(peer->name());
 }
 
 const base::flat_set<QString> &History::chatListNameWords() const {

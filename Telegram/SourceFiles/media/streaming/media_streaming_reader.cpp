@@ -127,7 +127,7 @@ bytes::const_span ParseCachedMap(
 		if (size > maxSize) {
 			return {};
 		}
-		for (auto offset = 0; offset < size; offset += kPartSize) {
+		for (auto offset = int64(); offset < size; offset += kPartSize) {
 			const auto part = data.subspan(
 				offset,
 				std::min(kPartSize, size - offset));
@@ -994,7 +994,7 @@ void Reader::checkForDownloaderChange(int checkItemsCount) {
 	const auto changed = std::adjacent_find(
 		end - checkItemsCount,
 		end,
-		[](int first, int second) { return (second <= first); });
+		[](uint32 first, uint32 second) { return (second <= first); });
 	if (changed != end) {
 		_offsetsForDownloader.erase(
 			begin(_offsetsForDownloader),

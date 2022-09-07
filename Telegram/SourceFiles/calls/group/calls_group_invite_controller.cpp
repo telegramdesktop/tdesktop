@@ -225,6 +225,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		peer->session().api().chatParticipants().add(
 			peer,
 			nonMembers,
+			true,
 			[=](bool) { invite(users); finish(); });
 	};
 	const auto inviteWithConfirmation = [=](
@@ -237,7 +238,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 			finish();
 			return;
 		}
-		const auto name = peer->name;
+		const auto name = peer->name();
 		const auto text = (nonMembers.size() == 1)
 			? tr::lng_group_call_add_to_group_one(
 				tr::now,

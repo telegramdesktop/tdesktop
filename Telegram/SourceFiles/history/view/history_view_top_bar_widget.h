@@ -159,6 +159,9 @@ private:
 	std::unique_ptr<EmojiInteractionSeenAnimation> _emojiInteractionSeen;
 	rpl::lifetime _activeChatLifetime;
 
+	Ui::Text::String _title;
+	int _titleNameVersion = 0;
+
 	int _selectedCount = 0;
 	bool _canDelete = false;
 	bool _canForward = false;

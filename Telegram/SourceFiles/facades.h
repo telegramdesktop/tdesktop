@@ -34,13 +34,6 @@ template <typename Guard, typename Lambda>
 	};
 }
 
-bool insertBotCommand(const QString &cmd);
-void activateBotCommand(
-	not_null<Window::SessionController*> sessionController,
-	not_null<const HistoryItem*> msg,
-	int row,
-	int column);
-
 } // namespace App
 
 namespace Ui {
@@ -50,23 +43,7 @@ namespace Ui {
 void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
 void showPeerHistory(not_null<const History*> history, MsgId msgId);
 void showChatsList(not_null<Main::Session*> session);
-PeerData *getPeerForMouseAction();
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event);
 
 } // namespace Ui
-
-enum ClipStopperType {
-	ClipStopperMediaview,
-	ClipStopperSavedGifsPanel,
-};
-
-namespace Notify {
-
-bool switchInlineBotButtonReceived(
-	not_null<Main::Session*> session,
-	const QString &query,
-	UserData *samePeerBot = nullptr,
-	MsgId samePeerReplyTo = 0);
-
-} // namespace Notify

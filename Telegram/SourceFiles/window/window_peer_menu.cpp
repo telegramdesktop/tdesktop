@@ -210,6 +210,7 @@ private:
 	void addNewMembers();
 	void addDeleteContact();
 	void addTTLSubmenu(bool addSeparator);
+	void addGiftPremium();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -410,9 +411,12 @@ void Filler::addInfo() {
 	if (_peer->isSelf() || (Core::App().domain().local().IsFake() && _peer->isRepliesChat())) {
 		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
-		if (Core::App().settings().thirdSectionInfoEnabled()
-			|| Core::App().settings().tabbedReplacedWithInfo()) {
-			return;
+		const auto history = _controller->activeChatCurrent().history();
+		if (history && history->peer == _peer) {
+			if (Core::App().settings().thirdSectionInfoEnabled()
+				|| Core::App().settings().tabbedReplacedWithInfo()) {
+				return;
+			}
 		}
 	}
 	const auto controller = _controller;
@@ -828,6 +832,24 @@ void Filler::addTTLSubmenu(bool addSeparator) {
 	}
 }
 
+void Filler::addGiftPremium() {
+	const auto user = _peer->asUser();
+	if (!user
+		|| user->isInaccessible()
+		|| user->isSelf()
+		|| user->isBot()
+		|| user->isNotificationsUser()
+		|| !user->canReceiveGifts()
+		|| user->isRepliesChat()) {
+		return;
+	}
+
+	const auto navigation = _controller;
+	_addAction(tr::lng_profile_gift_premium(tr::now), [=] {
+		navigation->showGiftPremiumBox(user);
+	}, &st::menuIconGiftPremium);
+}
+
 void Filler::fill() {
 	if (_folder) {
 		fillArchiveActions();
@@ -901,6 +923,7 @@ void Filler::fillProfileActions() {
 	addNewContact();
 	addShareContact();
 	addEditContact();
+	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
 	addManageChat();
@@ -981,7 +1004,7 @@ void PeerMenuDeleteContact(
 	const auto text = tr::lng_sure_delete_contact(
 		tr::now,
 		lt_contact,
-		user->name);
+		user->name());
 	const auto deleteSure = [=](Fn<void()> &&close) {
 		close();
 		user->session().api().request(MTPcontacts_DeleteContacts(
@@ -1023,8 +1046,8 @@ void PeerMenuShareContactBox(
 			return;
 		}
 		auto recipient = peer->isUser()
-			? peer->name
-			: '\xAB' + peer->name + '\xBB';
+			? peer->name()
+			: '\xAB' + peer->name() + '\xBB';
 		navigation->parentController()->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_forward_share_contact(
@@ -1095,7 +1118,7 @@ void PeerMenuCreatePoll(
 		const auto api = &peer->session().api();
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {
 			weak->closeBox();
-		}), crl::guard(weak, [=](const MTP::Error &error) {
+		}), crl::guard(weak, [=] {
 			*lock = false;
 			weak->submitFailed(tr::lng_attach_failed(tr::now));
 		}));
@@ -1115,7 +1138,7 @@ void PeerMenuBlockUserBox(
 		: v::get<bool>(suggestReport);
 
 	const auto user = peer->asUser();
-	const auto name = user ? user->shortName() : peer->name;
+	const auto name = user ? user->shortName() : peer->name();
 	if (user) {
 		box->addRow(object_ptr<Ui::FlatLabel>(
 			box,
@@ -1161,7 +1184,7 @@ void PeerMenuBlockUserBox(
 			tr::lng_delete_all_from_user(
 				tr::now,
 				lt_user,
-				Ui::Text::Bold(peer->name),
+				Ui::Text::Bold(peer->name()),
 				Ui::Text::WithEntities),
 			true,
 			st::defaultBoxCheckbox))

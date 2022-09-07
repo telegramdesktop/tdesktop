@@ -31,6 +31,20 @@ stickersTrendingSubheaderFont: normalFont;
 stickersTrendingSubheaderFg: windowSubTextFg;
 stickersTrendingSubheaderTop: 31px;
 
+emojiPanButtonRight: 7px;
+emojiPanButtonTop: 10px;
+emojiPanButton: RoundButton(defaultActiveButton) {
+	width: -24px;
+	height: 23px;
+	textTop: 2px;
+}
+emojiPanExpand: RoundButton(defaultActiveButton) {
+	font: font(12px bold);
+	width: -8px;
+	height: 19px;
+	textTop: 1px;
+}
+
 stickersTrendingAddTop: 14px;
 stickersTrendingAdd: RoundButton(defaultActiveButton) {
 	width: -16px;
@@ -79,6 +93,9 @@ stickersFeaturedInstalled: icon {{ "chat/input_save", lightButtonFg }};
 stickersMaxHeight: 320px;
 stickersPadding: margins(19px, 13px, 19px, 13px);
 stickersSize: size(64px, 64px);
+emojiSetPadding: margins(12px, 0px, 12px, 0px);
+emojiSetMaxHeight: 197px;
+emojiSetSize: size(42px, 39px);
 stickersScroll: ScrollArea(boxScroll) {
 	deltat: 19px;
 	deltab: 9px;
@@ -114,21 +131,21 @@ emojiTabs: SettingsSlider(defaultTabsSlider) {
 }
 emojiScroll: defaultSolidScroll;
 emojiRecent: icon {{ "emoji/emoji_recent", emojiIconFg }};
-emojiRecentActive: icon {{ "emoji/emoji_recent", emojiIconFgActive }};
+emojiRecentActive: icon {{ "emoji/emoji_recent", emojiSubIconFgActive }};
 emojiPeople: icon {{ "emoji/emoji_people", emojiIconFg }};
-emojiPeopleActive: icon {{ "emoji/emoji_people", emojiIconFgActive }};
+emojiPeopleActive: icon {{ "emoji/emoji_people", emojiSubIconFgActive }};
 emojiNature: icon {{ "emoji/emoji_nature", emojiIconFg }};
-emojiNatureActive: icon {{ "emoji/emoji_nature", emojiIconFgActive }};
+emojiNatureActive: icon {{ "emoji/emoji_nature", emojiSubIconFgActive }};
 emojiFood: icon {{ "emoji/emoji_food", emojiIconFg }};
-emojiFoodActive: icon {{ "emoji/emoji_food", emojiIconFgActive }};
+emojiFoodActive: icon {{ "emoji/emoji_food", emojiSubIconFgActive }};
 emojiActivity: icon {{ "emoji/emoji_activity", emojiIconFg }};
-emojiActivityActive: icon {{ "emoji/emoji_activity", emojiIconFgActive }};
+emojiActivityActive: icon {{ "emoji/emoji_activity", emojiSubIconFgActive }};
 emojiTravel: icon {{ "emoji/emoji_travel", emojiIconFg }};
-emojiTravelActive: icon {{ "emoji/emoji_travel", emojiIconFgActive }};
+emojiTravelActive: icon {{ "emoji/emoji_travel", emojiSubIconFgActive }};
 emojiObjects: icon {{ "emoji/emoji_objects", emojiIconFg }};
-emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiIconFgActive }};
+emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
 emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
-emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiIconFgActive }};
+emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiSubIconFgActive }};
 
 emojiFooterHeight: 46px;
 emojiCategorySkip: 4px;
@@ -159,15 +176,22 @@ emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
-emojiPanDesiredSize: 45px;
+emojiPanDesiredSize: 39px;
+emojiPanArea: size(34px, 32px);
+emojiPanLeft: 13px;
+emojiPanRight: 17px;
+emojiPanRadius: 8px;
 
 inlineResultsMinHeight: 278px;
 inlineResultsMaxHeight: 640px;
 
-emojiPanHeader: 42px;
+emojiPanHeader: 40px;
 emojiPanHeaderFont: semiboldFont;
-emojiPanHeaderLeft: 22px;
+emojiPanHeaderLeft: 23px;
+emojiPanHeaderLockLeft: 17px;
+emojiPanHeaderLockedLeft: 36px;
 emojiPanHeaderTop: 12px;
+emojiPanRemoveSkip: 10px;
 
 emojiColorsPadding: 5px;
 emojiColorsSep: 1px;
@@ -178,6 +202,10 @@ emojiSwitchImgSkip: 21px;
 emojiSwitchColor: windowActiveTextFg;
 emojiSwitchStickers: icon {{ "emoji/emoji_switch", emojiSwitchColor }};
 emojiSwitchEmoji: icon {{ "emoji/emoji_switch-flip_horizontal", emojiSwitchColor }};
+
+emojiIconPadding: 7px;
+emojiIconSelectSkip: 3px;
+emojiPremiumRequired: icon{{ "emoji/premium_lock", windowSubTextFg }};
 
 hashtagClose: IconButton {
 	width: 30px;
@@ -213,6 +241,9 @@ stickerIconSelColor: emojiIconFgActive;
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
+
+emojiIconWidth: 35px;
+emojiIconArea: 32px;
 
 stickerGroupCategorySize: 28px;
 stickerGroupCategoryAbout: defaultTextStyle;
@@ -279,55 +310,4 @@ manageEmojiStatusTop: 25px;
 inlineRadialSize: 44px;
 inlineFileSize: 44px;
 
-premiumPreviewBox: Box(defaultBox) {
-	buttonPadding: margins(18px, 18px, 18px, 18px);
-	buttonHeight: 44px;
-	button: RoundButton(defaultActiveButton) {
-		height: 44px;
-		textTop: 12px;
-		font: font(13px semibold);
-	}
-}
-premiumPreviewDoubledLimitsBox: Box(premiumPreviewBox) {
-	buttonPadding: margins(12px, 12px, 12px, 12px);
-}
-premiumPreviewAboutTitlePadding: margins(18px, 19px, 18px, 0px);
-premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
-	minWidth: 240px;
-	textFg: windowBoldFg;
-	align: align(top);
-	style: TextStyle(defaultTextStyle) {
-		font: font(17px semibold);
-		linkFont: font(17px semibold);
-		linkFontOver: font(17px semibold);
-	}
-}
-premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
-	minWidth: 240px;
-	textFg: membersAboutLimitFg;
-	align: align(top);
-}
-premiumPreviewAboutPadding: margins(18px, 8px, 18px, 8px);
-premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
-	textFg: premiumButtonFg;
-	style: semiboldTextStyle;
-}
-premiumSlideDuration: 200;
-premiumVideoStarSize: size(77px, 73px);
-
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
-
-premiumPreviewHeight: 312px;
-
-premiumReactionWidthSkip: 64px;
-premiumReactionHeightSkip: 75px;
-premiumReactionSize: 108px;
-premiumReactionAround: 164px;
-premiumReactionsMiddle: 148px;
-premiumReactionScale: 0.70;
-premiumReactionInfoTop: 260px;
-
-premiumDot: 6px;
-premiumDotPadding: margins(4px, 4px, 4px, 4px);
-premiumDotsMargin: margins(0px, 5px, 0px, 6px);
-premiumVideoWidth: 182px;

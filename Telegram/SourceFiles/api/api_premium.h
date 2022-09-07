@@ -32,12 +32,17 @@ public:
 		-> const std::vector<not_null<DocumentData*>> &;
 	[[nodiscard]] rpl::producer<> stickersUpdated() const;
 
+	[[nodiscard]] auto cloudSet() const
+		-> const std::vector<not_null<DocumentData*>> &;
+	[[nodiscard]] rpl::producer<> cloudSetUpdated() const;
+
 	[[nodiscard]] int64 monthlyAmount() const;
 	[[nodiscard]] QString monthlyCurrency() const;
 
 private:
 	void reloadPromo();
 	void reloadStickers();
+	void reloadCloudSet();
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
@@ -53,6 +58,11 @@ private:
 	uint64 _stickersHash = 0;
 	std::vector<not_null<DocumentData*>> _stickers;
 	rpl::event_stream<> _stickersUpdated;
+
+	mtpRequestId _cloudSetRequestId = 0;
+	uint64 _cloudSetHash = 0;
+	std::vector<not_null<DocumentData*>> _cloudSet;
+	rpl::event_stream<> _cloudSetUpdated;
 
 	int64 _monthlyAmount = 0;
 	QString _monthlyCurrency;

@@ -45,7 +45,7 @@ public:
 	uint64 objId() const override;
 	Data::FileOrigin fileOrigin() const override;
 
-	QByteArray readLoadedPart(int offset);
+	QByteArray readLoadedPart(int64 offset);
 
 private:
 	void startLoading() override;

@@ -800,6 +800,19 @@ void Advanced::setupContent(not_null<Window::SessionController*> controller) {
 	if (cAutoUpdate()) {
 		addUpdate();
 	}
+	if (!HasUpdate()) {
+		AddSkip(content);
+		AddDivider(content);
+		AddSkip(content);
+		content->add(
+			CreateButton(
+				content,
+				tr::lng_settings_experimental(),
+				st::settingsButtonNoIcon)
+		)->setClickedCallback([=] {
+			_showOther.fire_copy(Experimental::Id());
+		});
+	}
 
 	AddSkip(content);
 	AddDivider(content);

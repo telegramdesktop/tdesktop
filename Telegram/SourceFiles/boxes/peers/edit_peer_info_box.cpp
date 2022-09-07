@@ -473,7 +473,7 @@ object_ptr<Ui::RpWidget> Controller::createTitleEdit() {
 			(_isGroup
 				? tr::lng_dlg_new_group_name
 				: tr::lng_dlg_new_channel_name)(),
-			_peer->name),
+			_peer->name()),
 		st::editPeerTitleMargins);
 	result->entity()->setMaxLength(Ui::EditPeer::kMaxGroupChannelTitle);
 	result->entity()->setInstantReplaces(Ui::InstantReplaces::Default());
@@ -769,15 +769,13 @@ void Controller::fillLinkedChatButton() {
 	auto label = isGroup
 		? _linkedChatUpdates.events(
 		) | rpl::map([](ChannelData *chat) {
-			return chat ? chat->name : QString();
+			return chat ? chat->name() : QString();
 		}) | rpl::type_erased()
 		: rpl::combine(
 			tr::lng_manage_discussion_group_add(),
 			_linkedChatUpdates.events()
 		) | rpl::map([=](const QString &add, ChannelData *chat) {
-			return chat
-				? chat->name
-				: add;
+			return chat ? chat->name() : add;
 		}) | rpl::type_erased();
 	AddButtonWithText(
 		_controls.buttonsLayout,
@@ -1388,14 +1386,14 @@ void Controller::saveUsername() {
 		MTP_string(*_savingData.username)
 	)).done([=] {
 		channel->setName(
-			TextUtilities::SingleLine(channel->name),
+			TextUtilities::SingleLine(channel->name()),
 			*_savingData.username);
 		continueSave();
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		if (type == qstr("USERNAME_NOT_MODIFIED")) {
 			channel->setName(
-				TextUtilities::SingleLine(channel->name),
+				TextUtilities::SingleLine(channel->name()),
 				TextUtilities::SingleLine(*_savingData.username));
 			continueSave();
 			return;
@@ -1450,7 +1448,7 @@ void Controller::saveLinkedChat() {
 }
 
 void Controller::saveTitle() {
-	if (!_savingData.title || *_savingData.title == _peer->name) {
+	if (!_savingData.title || *_savingData.title == _peer->name()) {
 		return continueSave();
 	}
 

@@ -18,9 +18,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Ui {
 
-PinnedBar::PinnedBar(not_null<QWidget*> parent)
+PinnedBar::PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused)
 : _wrap(parent, object_ptr<RpWidget>(parent))
-, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget())) {
+, _shadow(std::make_unique<PlainShadow>(_wrap.parentWidget()))
+, _customEmojiPaused(std::move(customEmojiPaused)) {
 	_wrap.hide(anim::type::instant);
 	_shadow->hide();
 
@@ -81,6 +82,7 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 }
 
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
+	const auto hasPrevious = (_right.button != nullptr);
 	if (auto previous = _right.button.release()) {
 		_right.previousButtonLifetime.make_state<RightButton>(
 			RightButton::fromRaw(std::move(previous)));
@@ -93,8 +95,13 @@ void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 	_right.button.create(_wrap.entity(), std::move(button));
 	if (_right.button) {
 		_right.button->setParent(_wrap.entity());
-		_right.button->setDuration(st::defaultMessageBar.duration);
-		_right.button->show(anim::type::normal);
+		if (hasPrevious) {
+			_right.button->setDuration(st::defaultMessageBar.duration);
+			_right.button->show(anim::type::normal);
+		} else {
+			_right.button->setDuration(0);
+			_right.button->show(anim::type::instant);
+		}
 	}
 	if (_bar) {
 		updateControlsGeometry(_wrap.geometry());
@@ -133,7 +140,8 @@ void PinnedBar::createControls() {
 
 	_bar = std::make_unique<MessageBar>(
 		_wrap.entity(),
-		st::defaultMessageBar);
+		st::defaultMessageBar,
+		_customEmojiPaused);
 	if (_right.button) {
 		_right.button->raise();
 	}
@@ -203,6 +211,12 @@ void PinnedBar::hide() {
 void PinnedBar::raise() {
 	_wrap.raise();
 	_shadow->raise();
+}
+
+void PinnedBar::customEmojiRepaint() {
+	if (_bar) {
+		_bar->customEmojiRepaint();
+	}
 }
 
 void PinnedBar::finishAnimating() {

@@ -232,7 +232,7 @@ void Controller::createContent() {
 					tr::lng_manage_peer_send_only_members(),
 					rpl::single(QString()),
 					[=] {},
-					st::manageGroupTopButtonWithText,
+					st::peerPermissionsButton,
 					{}
 				));
 				_controls.joinToWrite->toggleOn(

@@ -53,6 +53,30 @@ struct WindowPosition {
 	int h = 0;
 };
 
+constexpr auto kRecentEmojiLimit = 42;
+
+struct RecentEmojiDocument {
+	DocumentId id = 0;
+	bool test = false;
+
+	friend inline auto operator<=>(
+		RecentEmojiDocument,
+		RecentEmojiDocument) = default;
+};
+
+struct RecentEmojiId {
+	std::variant<EmojiPtr, RecentEmojiDocument> data;
+
+	friend inline bool operator==(
+		RecentEmojiId,
+		RecentEmojiId) = default;
+};
+
+struct RecentEmoji {
+	RecentEmojiId id;
+	ushort rating = 0;
+};
+
 class Settings final {
 public:
 	enum class ScreenCorner {
@@ -380,6 +404,12 @@ public:
 	void setSuggestStickersByEmoji(bool value) {
 		_suggestStickersByEmoji = value;
 	}
+	[[nodiscard]] bool suggestAnimatedEmoji() const {
+		return _suggestAnimatedEmoji;
+	}
+	void setSuggestAnimatedEmoji(bool value) {
+		_suggestAnimatedEmoji = value;
+	}
 
 	void setSpellcheckerEnabled(bool value) {
 		_spellcheckerEnabled = value;
@@ -573,13 +603,8 @@ public:
 		return _workMode.changes();
 	}
 
-	struct RecentEmoji {
-		EmojiPtr emoji = nullptr;
-		ushort rating = 0;
-	};
 	[[nodiscard]] const std::vector<RecentEmoji> &recentEmoji() const;
-	[[nodiscard]] EmojiPack recentEmojiSection() const;
-	void incrementRecentEmoji(EmojiPtr emoji);
+	void incrementRecentEmoji(RecentEmojiId id);
 	void setLegacyRecentEmojiPreload(QVector<QPair<QString, ushort>> data);
 	[[nodiscard]] rpl::producer<> recentEmojiUpdated() const {
 		return _recentEmojiUpdated.events();
@@ -708,7 +733,7 @@ private:
 	static constexpr auto kDefaultDialogsWidthRatio = 5. / 14;
 	static constexpr auto kDefaultBigDialogsWidthRatio = 0.275;
 
-	struct RecentEmojiId {
+	struct RecentEmojiPreload {
 		QString emoji;
 		ushort rating = 0;
 	};
@@ -756,6 +781,7 @@ private:
 	rpl::variable<bool> _replaceEmoji = true;
 	bool _suggestEmoji = true;
 	bool _suggestStickersByEmoji = true;
+	bool _suggestAnimatedEmoji = true;
 	rpl::variable<bool> _spellcheckerEnabled = true;
 	rpl::variable<float64> _videoPlaybackSpeed = 1.;
 	float64 _voicePlaybackSpeed = 2.;
@@ -764,7 +790,7 @@ private:
 	rpl::variable<std::vector<int>> _dictionariesEnabled;
 	rpl::variable<bool> _autoDownloadDictionaries = true;
 	rpl::variable<bool> _mainMenuAccountsShown = true;
-	mutable std::vector<RecentEmojiId> _recentEmojiPreload;
+	mutable std::vector<RecentEmojiPreload> _recentEmojiPreload;
 	mutable std::vector<RecentEmoji> _recentEmoji;
 	base::flat_map<QString, uint8> _emojiVariants;
 	rpl::event_stream<> _recentEmojiUpdated;

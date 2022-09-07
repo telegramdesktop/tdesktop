@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/widgets/tooltip.h"
 #include "info/media/info_media_widget.h"
 #include "info/media/info_media_common.h"
 #include "overview/overview_layout_delegate.h"
@@ -53,7 +54,8 @@ class ListProvider;
 
 class ListWidget final
 	: public Ui::RpWidget
-	, public Overview::Layout::Delegate {
+	, public Overview::Layout::Delegate
+	, public Ui::AbstractTooltipShower {
 public:
 	ListWidget(
 		QWidget *parent,
@@ -82,6 +84,11 @@ public:
 	void unregisterHeavyItem(not_null<const BaseLayout*> item) override;
 	void repaintItem(not_null<const BaseLayout*> item) override;
 	bool itemVisible(not_null<const BaseLayout*> item) override;
+
+	// AbstractTooltipShower interface
+	QString tooltipText() const override;
+	QPoint tooltipPos() const override;
+	bool tooltipWindowActive() const override;
 
 	void openPhoto(not_null<PhotoData*> photo, FullMsgId id) override;
 	void openDocument(

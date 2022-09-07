@@ -97,6 +97,7 @@ public:
 	ComposeControls(
 		not_null<Ui::RpWidget*> parent,
 		not_null<Window::SessionController*> window,
+		Fn<void(not_null<DocumentData*>)> unavailableEmojiPasted,
 		Mode mode,
 		SendMenu::Type sendMenuType);
 	~ComposeControls();
@@ -309,6 +310,7 @@ private:
 	const std::unique_ptr<Controls::VoiceRecordBar> _voiceRecordBar;
 
 	const SendMenu::Type _sendMenuType;
+	const Fn<void(not_null<DocumentData*>)> _unavailableEmojiPasted;
 
 	rpl::event_stream<Api::SendOptions> _sendCustomRequests;
 	rpl::event_stream<> _cancelRequests;

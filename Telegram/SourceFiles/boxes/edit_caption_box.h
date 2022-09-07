@@ -52,6 +52,7 @@ private:
 	void setupPhotoEditorEventHandler();
 	void setupField();
 	void setupControls();
+	void setInitialText();
 
 	void updateBoxSize();
 	void captionResized();

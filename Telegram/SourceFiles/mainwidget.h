@@ -183,7 +183,6 @@ public:
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
-	bool insertBotCommand(const QString &cmd);
 
 	void searchMessages(const QString &query, Dialogs::Key inChat);
 

@@ -152,6 +152,7 @@ private:
 
 		bool isRecentSet() const;
 		bool isMasksSet() const;
+		bool isEmojiSet() const;
 		bool isWebm() const;
 		bool isInstalled() const;
 		bool isUnread() const;
@@ -387,6 +388,7 @@ StickersBox::StickersBox(
 	controller->session().data().stickers().featuredSetsUnreadCountValue())
 , _section(section)
 , _isMasks(masks)
+, _isEmoji(false)
 , _installed(_isMasks ? Tab() : Tab(0, this, controller, Section::Installed))
 , _masks(_isMasks ? Tab(0, this, controller, Section::Masks) : Tab())
 , _featured(_isMasks ? Tab() : Tab(1, this, controller, Section::Featured))
@@ -402,6 +404,7 @@ StickersBox::StickersBox(
 , _api(&controller->session().mtp())
 , _section(Section::Installed)
 , _isMasks(false)
+, _isEmoji(false)
 , _installed(0, this, controller, megagroup)
 , _megagroupSet(megagroup) {
 	_installed.widget()->scrollsToY(
@@ -413,13 +416,29 @@ StickersBox::StickersBox(
 StickersBox::StickersBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	const MTPVector<MTPStickerSetCovered> &attachedSets)
+	const QVector<MTPStickerSetCovered> &attachedSets)
 : _controller(controller)
 , _api(&controller->session().mtp())
 , _section(Section::Attached)
 , _isMasks(false)
+, _isEmoji(false)
 , _attached(0, this, controller, Section::Attached)
+, _attachedType(Data::StickersType::Stickers)
 , _attachedSets(attachedSets) {
+}
+
+StickersBox::StickersBox(
+	QWidget*,
+	not_null<Window::SessionController*> controller,
+	const std::vector<StickerSetIdentifier> &emojiSets)
+: _controller(controller)
+, _api(&controller->session().mtp())
+, _section(Section::Attached)
+, _isMasks(false)
+, _isEmoji(true)
+, _attached(0, this, controller, Section::Attached)
+, _attachedType(Data::StickersType::Emoji)
+, _emojiSets(emojiSets) {
 }
 
 Main::Session &StickersBox::session() const {
@@ -427,24 +446,27 @@ Main::Session &StickersBox::session() const {
 }
 
 void StickersBox::showAttachedStickers() {
-	auto addedSet = false;
-	for (const auto &stickerSet : _attachedSets.v) {
-		const auto setData = stickerSet.match([&](const auto &data) {
-			return data.vset().match([&](const MTPDstickerSet &data) {
-				return &data;
-			});
-		});
+	const auto stickers = &session().data().stickers();
 
-		if (const auto set = session().data().stickers().feedSet(*setData)) {
-			if (_attached.widget()->appendSet(set)) {
-				addedSet = true;
-				if (set->stickers.isEmpty()
-					|| (set->flags & SetFlag::NotLoaded)) {
-					session().api().scheduleStickerSetRequest(
-						set->id,
-						set->accessHash);
-				}
+	auto addedSet = false;
+	const auto add = [&](not_null<StickersSet*> set) {
+		if (_attached.widget()->appendSet(set)) {
+			addedSet = true;
+			if (set->stickers.isEmpty()
+				|| (set->flags & SetFlag::NotLoaded)) {
+				session().api().scheduleStickerSetRequest(
+					set->id,
+					set->accessHash);
 			}
+		}
+	};
+	for (const auto &set : _attachedSets) {
+		add(stickers->feedSet(set));
+	}
+	for (const auto &setId : _emojiSets) {
+		const auto i = stickers->sets().find(setId.id);
+		if (i != end(stickers->sets())) {
+			add(i->second.get());
 		}
 	}
 	if (addedSet) {
@@ -478,41 +500,22 @@ void StickersBox::getArchivedDone(
 
 	auto addedSet = false;
 	auto changedSets = false;
-	for (const auto &stickerSet : stickers.vsets().v) {
-		const MTPDstickerSet *setData = nullptr;
-		switch (stickerSet.type()) {
-		case mtpc_stickerSetCovered: {
-			auto &d = stickerSet.c_stickerSetCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
+	for (const auto &data : stickers.vsets().v) {
+		const auto set = session().data().stickers().feedSet(data);
+		const auto index = archived.indexOf(set->id);
+		if (archived.isEmpty() || index != archived.size() - 1) {
+			changedSets = true;
+			if (index >= 0 && index < archived.size() - 1) {
+				archived.removeAt(index);
 			}
-		} break;
-		case mtpc_stickerSetMultiCovered: {
-			auto &d = stickerSet.c_stickerSetMultiCovered();
-			if (d.vset().type() == mtpc_stickerSet) {
-				setData = &d.vset().c_stickerSet();
-			}
-		} break;
+			archived.push_back(set->id);
 		}
-		if (!setData) continue;
-
-		if (const auto set = session().data().stickers().feedSet(*setData)) {
-			const auto index = archived.indexOf(set->id);
-			if (archived.isEmpty() || index != archived.size() - 1) {
-				changedSets = true;
-				if (index >= 0 && index < archived.size() - 1) {
-					archived.removeAt(index);
-				}
-				archived.push_back(set->id);
-			}
-			if (_archived.widget()->appendSet(set)) {
-				addedSet = true;
-				if (set->stickers.isEmpty()
-					|| (set->flags & SetFlag::NotLoaded)) {
-					session().api().scheduleStickerSetRequest(
-						set->id,
-						set->accessHash);
-				}
+		if (_archived.widget()->appendSet(set)) {
+			addedSet = true;
+			if (set->flags & SetFlag::NotLoaded) {
+				session().api().scheduleStickerSetRequest(
+					set->id,
+					set->accessHash);
 			}
 		}
 	}
@@ -547,7 +550,9 @@ void StickersBox::prepare() {
 	} else if (_section == Section::Archived) {
 		requestArchivedSets();
 	} else if (_section == Section::Attached) {
-		setTitle(tr::lng_stickers_attached_sets());
+		setTitle(_attachedType == Data::StickersType::Emoji
+			? tr::lng_custom_emoji_used_sets()
+			: tr::lng_stickers_attached_sets());
 	}
 	if (_tabs) {
 		if (archivedSetsOrder().isEmpty()) {
@@ -617,12 +622,22 @@ void StickersBox::prepare() {
 	setInnerWidget(_tab->takeWidget(), getTopSkip());
 	setDimensions(st::boxWideWidth, st::boxMaxListHeight);
 
-	session().data().stickers().updated(
-	) | rpl::start_with_next(
-		[this] { handleStickersUpdated(); },
-		lifetime());
-	session().api().updateStickers();
-	session().api().updateMasks();
+	session().data().stickers().updated(_isEmoji
+		? Data::StickersType::Emoji
+		: _isMasks
+		? Data::StickersType::Masks
+		: Data::StickersType::Stickers
+	) | rpl::start_with_next([=] {
+		handleStickersUpdated();
+	}, lifetime());
+
+	if (_isEmoji) {
+		session().api().updateCustomEmoji();
+	} else if (_isMasks) {
+		session().api().updateMasks();
+	} else {
+		session().api().updateStickers();
+	}
 
 	for (const auto &widget : { _installed.widget(), _masks.widget() }) {
 		if (widget) {
@@ -870,7 +885,8 @@ void StickersBox::installSet(uint64 setId) {
 	}
 }
 
-void StickersBox::installDone(const MTPmessages_StickerSetInstallResult &result) {
+void StickersBox::installDone(
+		const MTPmessages_StickerSetInstallResult &result) {
 	if (result.type() == mtpc_messages_stickerSetInstallResultArchive) {
 		session().data().stickers().applyArchivedResult(
 			result.c_messages_stickerSetInstallResultArchive());
@@ -1001,19 +1017,21 @@ void StickersBox::saveChanges() {
 		session().api().saveStickerSets(
 			installed->getOrder(),
 			installed->getRemovedSets(),
-			false);
+			Data::StickersType::Stickers);
 	}
 	if (masks) {
 		session().api().saveStickerSets(
 			masks->getOrder(),
 			masks->getRemovedSets(),
-			true);
+			Data::StickersType::Masks);
 	}
 }
 
 void StickersBox::setInnerFocus() {
 	if (_megagroupSet) {
 		_installed.widget()->setInnerFocus();
+	} else {
+		BoxContent::setInnerFocus();
 	}
 }
 
@@ -1050,9 +1068,24 @@ StickersBox::Inner::Row::Row(
 , removed(removed)
 , pixw(pixw)
 , pixh(pixh) {
+	++set->locked;
 }
 
-StickersBox::Inner::Row::~Row() = default;
+StickersBox::Inner::Row::~Row() {
+	if (!--set->locked) {
+		const auto installed = !!(set->flags & SetFlag::Installed);
+		const auto featured = !!(set->flags & SetFlag::Featured);
+		const auto special = !!(set->flags & SetFlag::Special);
+		const auto archived = !!(set->flags & SetFlag::Archived);
+		const auto emoji = !!(set->flags & SetFlag::Emoji);
+		if (!installed && !featured && !special && !archived && !emoji) {
+			auto &sets = set->owner().stickers().setsRef();
+			if (const auto i = sets.find(set->id); i != end(sets)) {
+				sets.erase(i);
+			}
+		}
+	}
+}
 
 bool StickersBox::Inner::Row::isRecentSet() const {
 	return (set->id == Data::Stickers::CloudRecentSetId)
@@ -1060,7 +1093,11 @@ bool StickersBox::Inner::Row::isRecentSet() const {
 }
 
 bool StickersBox::Inner::Row::isMasksSet() const {
-	return (set->flags & SetFlag::Masks);
+	return (set->type() == Data::StickersType::Masks);
+}
+
+bool StickersBox::Inner::Row::isEmojiSet() const {
+	return (set->type() == Data::StickersType::Emoji);
 }
 
 bool StickersBox::Inner::Row::isWebm() const {
@@ -1331,6 +1368,8 @@ void StickersBox::Inner::paintRow(Painter &p, not_null<Row*> row, int index) {
 
 	const auto statusText = (row->count == 0)
 		? tr::lng_contacts_loading(tr::now)
+		: row->isEmojiSet()
+		? tr::lng_custom_emoji_count(tr::now, lt_count, row->count)
 		: row->isMasksSet()
 		? tr::lng_masks_count(tr::now, lt_count, row->count)
 		: tr::lng_stickers_count(tr::now, lt_count, row->count);
@@ -1385,10 +1424,9 @@ void StickersBox::Inner::paintRowThumbnail(
 			row->lottie->markFrameShown();
 		}
 	} else if (row->webm && row->webm->started()) {
-		p.drawPixmapLeft(
+		p.drawImage(
 			x,
 			y,
-			width(),
 			row->webm->current(
 				{ .frame = { row->pixw, row->pixh }, .keepAlpha = true },
 				paused ? 0 : crl::now()));
@@ -1799,7 +1837,7 @@ void StickersBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 		const auto showSetByRow = [&](const Row &row) {
 			setSelected(SelectedRow());
 			_controller->show(
-				Box<StickerSetBox>(_controller, row.set->identifier()),
+				Box<StickerSetBox>(_controller, row.set),
 				Ui::LayerOption::KeepOther);
 		};
 		if (selectedIndex >= 0 && !_inDragArea) {

@@ -305,9 +305,8 @@ std::vector<ListSection> Provider::fillSections(
 		return {};
 	}
 
-	auto result = std::vector<ListSection>(
-		1,
-		ListSection(Type::File, sectionDelegate()));
+	auto result = std::vector<ListSection>();
+	result.emplace_back(Type::File, sectionDelegate());
 	auto &section = result.back();
 	for (const auto &element : ranges::views::reverse(_elements)) {
 		if (search && !element.found) {

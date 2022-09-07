@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_auth_key.h"
 #include "mtproto/mtproto_response.h"
 #include "main/main_session.h"
+#include "data/data_session.h"
+#include "data/data_document.h"
 #include "apiwrap.h"
 #include "base/openssl_help.h"
 
@@ -550,6 +552,22 @@ mtpRequestId DownloadMtprotoTask::sendRequest(
 				MTP_int(location.height),
 				MTP_int(location.zoom),
 				MTP_int(location.scale)),
+			MTP_int(offset),
+			MTP_int(limit)
+		)).done([=](const MTPupload_WebFile &result, mtpRequestId id) {
+			webPartLoaded(result, id);
+		}).fail([=](const MTP::Error &error, mtpRequestId id) {
+			partFailed(error, id);
+		}).toDC(shiftedDcId).send();
+	}, [&](const AudioAlbumThumbLocation &location) {
+		using Flag = MTPDinputWebFileAudioAlbumThumbLocation::Flag;
+		const auto owner = &api().session().data();
+		return api().request(MTPupload_GetWebFile(
+			MTP_inputWebFileAudioAlbumThumbLocation(
+				MTP_flags(Flag::f_document | Flag::f_small),
+				owner->document(location.documentId)->mtpInput(),
+				MTPstring(),
+				MTPstring()),
 			MTP_int(offset),
 			MTP_int(limit)
 		)).done([=](const MTPupload_WebFile &result, mtpRequestId id) {

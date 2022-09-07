@@ -168,7 +168,9 @@ void PanelController::activatePanel() {
 
 void PanelController::createPanel() {
 	const auto singlePeer = _settings->onlySinglePeer();
-	_panel = base::make_unique_q<Ui::SeparatePanel>();
+	_panel = base::make_unique_q<Ui::SeparatePanel>(Ui::SeparatePanelArgs{
+		.onAllSpaces = true,
+	});
 	_panel->setTitle((singlePeer
 		? tr::lng_export_header_chats
 		: tr::lng_export_title)());

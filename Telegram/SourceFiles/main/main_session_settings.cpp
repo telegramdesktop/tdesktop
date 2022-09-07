@@ -34,13 +34,17 @@ SessionSettings::SessionSettings()
 
 QByteArray SessionSettings::serialize() const {
 	const auto autoDownload = _autoDownload.serialize();
-	auto size = sizeof(qint32) * 38;
-	size += _groupStickersSectionHidden.size() * sizeof(quint64);
-	size += _mediaLastPlaybackPosition.size() * 2 * sizeof(quint64);
-	size += Serialize::bytearraySize(autoDownload);
-	size += sizeof(qint32)
+	auto size = sizeof(qint32) * 4
+		+ _groupStickersSectionHidden.size() * sizeof(quint64)
+		+ sizeof(qint32) * 4
+		+ Serialize::bytearraySize(autoDownload)
+		+ sizeof(qint32) * 5
+		+ _mediaLastPlaybackPosition.size() * 2 * sizeof(quint64)
+		+ sizeof(qint32) * 5
 		+ _hiddenPinnedMessages.size() * (sizeof(quint64) + sizeof(qint32))
-		+ (_mutePeriods.size() * sizeof(quint64));
+		+ sizeof(qint32)
+		+ (_mutePeriods.size() * sizeof(quint64))
+		+ sizeof(qint32);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -78,6 +82,7 @@ QByteArray SessionSettings::serialize() const {
 		for (const auto &period : _mutePeriods) {
 			stream << quint64(period);
 		}
+		stream << qint32(_skipPremiumStickersSet ? 1 : 0);
 	}
 	return result;
 }
@@ -139,6 +144,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	qint32 supportAllSilent = _supportAllSilent ? 1 : 0;
 	qint32 photoEditorHintShowsCount = _photoEditorHintShowsCount;
 	std::vector<TimeId> mutePeriods;
+	qint32 skipPremiumStickersSet = _skipPremiumStickersSet ? 1 : 0;
 
 	stream >> versionTag;
 	if (versionTag == kVersionTag) {
@@ -369,6 +375,9 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 			}
 		}
 	}
+	if (!stream.atEnd()) {
+		stream >> skipPremiumStickersSet;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for SessionSettings::addFromSerialized()"));
@@ -413,6 +422,7 @@ void SessionSettings::addFromSerialized(const QByteArray &serialized) {
 	_supportAllSilent = (supportAllSilent == 1);
 	_photoEditorHintShowsCount = std::move(photoEditorHintShowsCount);
 	_mutePeriods = std::move(mutePeriods);
+	_skipPremiumStickersSet = (skipPremiumStickersSet == 1);
 
 	if (version < 2) {
 		app.setLastSeenWarningSeen(appLastSeenWarningSeen == 1);

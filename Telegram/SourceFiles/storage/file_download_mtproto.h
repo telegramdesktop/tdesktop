@@ -42,6 +42,14 @@ public:
 		LoadFromCloudSetting fromCloud,
 		bool autoLoading,
 		uint8 cacheTag);
+	mtpFileLoader(
+		not_null<Main::Session*> session,
+		const AudioAlbumThumbLocation &location,
+		int64 loadSize,
+		int64 fullSize,
+		LoadFromCloudSetting fromCloud,
+		bool autoLoading,
+		uint8 cacheTag);
 	~mtpFileLoader();
 
 	Data::FileOrigin fileOrigin() const override;

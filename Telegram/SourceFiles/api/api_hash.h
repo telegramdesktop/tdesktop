@@ -19,11 +19,17 @@ namespace Api {
 [[nodiscard]] uint64 CountMasksHash(
 	not_null<Main::Session*> session,
 	bool checkOutdatedInfo = false);
+[[nodiscard]] uint64 CountCustomEmojiHash(
+	not_null<Main::Session*> session,
+	bool checkOutdatedInfo = false);
 [[nodiscard]] uint64 CountRecentStickersHash(
 	not_null<Main::Session*> session,
 	bool attached = false);
-[[nodiscard]] uint64 CountFavedStickersHash(not_null<Main::Session*> session);
+[[nodiscard]] uint64 CountFavedStickersHash(
+	not_null<Main::Session*> session);
 [[nodiscard]] uint64 CountFeaturedStickersHash(
+	not_null<Main::Session*> session);
+[[nodiscard]] uint64 CountFeaturedEmojiHash(
 	not_null<Main::Session*> session);
 [[nodiscard]] uint64 CountSavedGifsHash(not_null<Main::Session*> session);
 

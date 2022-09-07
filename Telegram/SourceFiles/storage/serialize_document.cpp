@@ -24,6 +24,8 @@ enum StickerSetType {
 	StickerSetTypeEmpty = 0,
 	StickerSetTypeID = 1,
 	StickerSetTypeShortName = 2,
+	StickerSetTypeEmoji = 3,
+	StickerSetTypeMasks = 4,
 };
 
 } // namespace
@@ -45,18 +47,22 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		<< qint32(document->dimensions.height())
 		<< qint32(document->type);
 	if (const auto sticker = document->sticker()) {
-		stream << document->sticker()->alt;
-		if (document->sticker()->set.id) {
+		stream << sticker->alt;
+		if (sticker->setType == Data::StickersType::Emoji) {
+			stream << qint32(StickerSetTypeEmoji);
+		} else if (sticker->setType == Data::StickersType::Masks) {
+			stream << qint32(StickerSetTypeMasks);
+		} else if (sticker->set.id) {
 			stream << qint32(StickerSetTypeID);
-		} else if (!document->sticker()->set.shortName.isEmpty()) {
-			stream << qint32(StickerSetTypeShortName);
 		} else {
 			stream << qint32(StickerSetTypeEmpty);
 		}
 	}
 	stream << qint32(document->getDuration());
 	if (document->type == StickerDocument) {
-		stream << qint32(document->isPremiumSticker() ? 1 : 0);
+		const auto premium = document->isPremiumSticker()
+			|| document->isPremiumEmoji();
+		stream << qint32(premium ? 1 : 0);
 	}
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
@@ -109,6 +115,12 @@ DocumentData *Document::readFromStreamHelper(
 		QString alt;
 		qint32 typeOfSet;
 		stream >> alt >> typeOfSet;
+		if (version >= 3) {
+			stream >> duration;
+			if (version >= 4) {
+				stream >> isPremiumSticker;
+			}
+		}
 		if (typeOfSet == StickerSetTypeEmpty) {
 			attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 		} else if (info) {
@@ -124,19 +136,22 @@ DocumentData *Document::readFromStreamHelper(
 			case StickerSetTypeID: {
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
 			} break;
-			case StickerSetTypeShortName: {
-				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetShortName(MTP_string(info->shortName)), MTPMaskCoords()));
+			case StickerSetTypeMasks: {
+				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(MTPDdocumentAttributeSticker::Flag::f_mask), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
+			} break;
+			case StickerSetTypeEmoji: {
+				using Flag = MTPDdocumentAttributeCustomEmoji::Flag;
+				attributes.push_back(MTP_documentAttributeCustomEmoji(
+					MTP_flags(isPremiumSticker ? Flag(0) : Flag::f_free),
+					MTP_string(alt),
+					MTP_inputStickerSetID(
+						MTP_long(info->setId),
+						MTP_long(info->accessHash))));
 			} break;
 			case StickerSetTypeEmpty:
 			default: {
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(0), MTP_string(alt), MTP_inputStickerSetEmpty(), MTPMaskCoords()));
 			} break;
-			}
-		}
-		if (version >= 3) {
-			stream >> duration;
-			if (version >= 4) {
-				stream >> isPremiumSticker;
 			}
 		}
 	} else {

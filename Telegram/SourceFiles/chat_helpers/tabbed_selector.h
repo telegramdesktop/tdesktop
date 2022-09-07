@@ -29,10 +29,12 @@ class PopupMenu;
 class ScrollArea;
 class SettingsSlider;
 class FlatLabel;
+class BoxContent;
 } // namespace Ui
 
 namespace Window {
 class SessionController;
+enum class GifPauseReason;
 } // namespace Window
 
 namespace SendMenu {
@@ -77,12 +79,16 @@ public:
 	TabbedSelector(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level,
 		Mode mode = Mode::Full);
 	~TabbedSelector();
 
 	Main::Session &session() const;
+	Window::GifPauseReason level() const;
 
 	rpl::producer<EmojiPtr> emojiChosen() const;
+	rpl::producer<FileChosen> customEmojiChosen() const;
+	rpl::producer<not_null<DocumentData*>> premiumEmojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
@@ -93,9 +99,11 @@ public:
 	rpl::producer<> contextMenuRequested() const;
 	rpl::producer<Action> choosingStickerUpdated() const;
 
+	void setAllowEmojiWithoutPremium(bool allow);
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
+	void showPromoForPremiumEmoji();
 
 	void hideFinished();
 	void showStarted();
@@ -220,6 +228,7 @@ private:
 	not_null<StickersListWidget*> masks() const;
 
 	const not_null<Window::SessionController*> _controller;
+	const Window::GifPauseReason _level = {};
 
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
@@ -256,19 +265,33 @@ private:
 
 class TabbedSelector::Inner : public Ui::RpWidget {
 public:
-	Inner(QWidget *parent, not_null<Window::SessionController*> controller);
+	Inner(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level);
 
-	not_null<Window::SessionController*> controller() const {
+	[[nodiscard]] not_null<Window::SessionController*> controller() const {
 		return _controller;
 	}
+	[[nodiscard]] Window::GifPauseReason level() const {
+		return _level;
+	}
+	[[nodiscard]] Main::Session &session() const;
 
-	int getVisibleTop() const {
+	[[nodiscard]] int getVisibleTop() const {
 		return _visibleTop;
 	}
-	int getVisibleBottom() const {
+	[[nodiscard]] int getVisibleBottom() const {
 		return _visibleBottom;
 	}
 	void setMinimalHeight(int newWidth, int newMinimalHeight);
+
+	[[nodiscard]] rpl::producer<> checkForHide() const {
+		return _checkForHide.events();
+	}
+	[[nodiscard]] bool preventAutoHide() const {
+		return _preventHideWithBox;
+	}
 
 	virtual void refreshRecent() = 0;
 	virtual void preloadImages() {
@@ -308,8 +331,11 @@ protected:
 	void scrollTo(int y);
 	void disableScroll(bool disabled);
 
+	void checkHideWithBox(QPointer<Ui::BoxContent> box);
+
 private:
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
+	const Window::GifPauseReason _level = {};
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -317,6 +343,9 @@ private:
 
 	rpl::event_stream<int> _scrollToRequests;
 	rpl::event_stream<bool> _disableScrollRequests;
+	rpl::event_stream<> _checkForHide;
+
+	bool _preventHideWithBox = false;
 
 };
 

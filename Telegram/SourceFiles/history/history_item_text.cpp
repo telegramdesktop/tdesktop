@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 TextForMimeData WrapAsReply(
 		TextForMimeData &&text,
 		not_null<HistoryItem*> to) {
-	const auto name = to->author()->name;
+	const auto name = to->author()->name();
 	auto result = TextForMimeData();
 	result.reserve(
 		tr::lng_in_reply_to(tr::now).size()
@@ -148,7 +148,7 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		auto result = (*first)->clipboardText();
 		return (++first == end) ? result : TextForMimeData();
 	}();
-	return WrapAsItem(group->items.back(), Data::WithCaptionClipboardText(
+	return WrapAsItem(group->items.front(), Data::WithCaptionClipboardText(
 		tr::lng_in_dlg_album(tr::now),
 		std::move(caption)));
 }

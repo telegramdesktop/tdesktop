@@ -79,4 +79,12 @@ void ShowWhoReactedMenu(
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
 
+[[nodiscard]] std::vector<StickerSetIdentifier> CollectEmojiPacks(
+	not_null<HistoryItem*> item);
+void AddEmojiPacksAction(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<QWidget*> context,
+	std::vector<StickerSetIdentifier> packIds,
+	not_null<Window::SessionController*> controller);
+
 } // namespace HistoryView

@@ -51,7 +51,10 @@ class GifsListWidget
 public:
 	using InlineChosen = TabbedSelector::InlineChosen;
 
-	GifsListWidget(QWidget *parent, not_null<Window::SessionController*> controller);
+	GifsListWidget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Window::GifPauseReason level);
 
 	rpl::producer<TabbedSelector::FileChosen> fileChosen() const;
 	rpl::producer<TabbedSelector::PhotoChosen> photoChosen() const;

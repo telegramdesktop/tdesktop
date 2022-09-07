@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "settings/settings_premium.h"
 
-#include "base/random.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "data/data_peer_values.h"
@@ -19,9 +18,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "ui/abstract_button.h"
 #include "ui/basic_click_handlers.h"
-#include "ui/effects/animation_value_f.h"
 #include "ui/effects/gradient.h"
 #include "ui/effects/premium_graphics.h"
+#include "ui/effects/premium_stars.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/format_values.h"
 #include "ui/layers/generic_box.h"
@@ -32,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "window/window_controller.h"
+#include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
 #include "main/main_app_config.h"
@@ -40,13 +40,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_premium.h"
 #include "styles/style_boxes.h"
-#include "styles/style_chat_helpers.h"
+#include "styles/style_premium.h"
 #include "styles/style_info.h"
 #include "styles/style_intro.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
-
-#include <QSvgRenderer>
 
 namespace Settings {
 namespace {
@@ -54,11 +52,33 @@ namespace {
 using SectionCustomTopBarData = Info::Settings::SectionCustomTopBarData;
 
 constexpr auto kBodyAnimationPart = 0.90;
-constexpr auto kTitleAnimationPart = 0.15;
-
 constexpr auto kTitleAdditionalScale = 0.15;
 
-constexpr auto kDeformationMax = 0.1;
+struct GiftRef {
+	PeerId peerId;
+	int months;
+	bool me;
+};
+
+[[nodiscard]] QString SerializeRef(const GiftRef &gift) {
+	return QString::number(gift.peerId.value)
+		+ ':'
+		+ QString::number(gift.months)
+		+ ':'
+		+ QString::number(gift.me ? 1 : 0);
+}
+
+[[nodiscard]] GiftRef ParseGiftRef(QStringView data) {
+	const auto components = data.split(':');
+	if (components.size() != 3) {
+		return {};
+	}
+	return {
+		.peerId = PeerId(components[0].toULongLong()),
+		.months = components[1].toInt(),
+		.me = (components[2].toInt() == 1),
+	};
+}
 
 struct Entry {
 	const style::icon *icon;
@@ -78,6 +98,7 @@ using Order = std::vector<QString>;
 		u"no_ads"_q,
 		u"unique_reactions"_q,
 		u"premium_stickers"_q,
+		u"animated_emoji"_q,
 		u"advanced_chat_management"_q,
 		u"profile_badge"_q,
 		u"animated_userpics"_q,
@@ -146,6 +167,15 @@ using Order = std::vector<QString>;
 				tr::lng_premium_summary_subtitle_premium_stickers(),
 				tr::lng_premium_summary_about_premium_stickers(),
 				PremiumPreview::Stickers,
+			},
+		},
+		{
+			u"animated_emoji"_q,
+			Entry{
+				&st::settingsIconEmoji,
+				tr::lng_premium_summary_subtitle_animated_emoji(),
+				tr::lng_premium_summary_about_animated_emoji(),
+				PremiumPreview::AnimatedEmoji,
 			},
 		},
 		{
@@ -230,187 +260,6 @@ void SendScreenAccept(not_null<Window::SessionController*> controller) {
 		MTP_jsonNull());
 }
 
-class MiniStars final {
-public:
-	MiniStars(Fn<void(const QRect &r)> updateCallback);
-
-	void paint(Painter &p, const QRectF &rect);
-	void setPaused(bool paused);
-
-private:
-	struct MiniStar {
-		crl::time birthTime = 0;
-		crl::time deathTime = 0;
-		int angle = 0;
-		float64 size = 0.;
-		float64 alpha = 0.;
-		float64 sinFactor = 0.;
-	};
-
-	struct Interval {
-		int from = 0;
-		int length = 0;
-	};
-
-	void createStar(crl::time now);
-	[[nodiscard]] int angle() const;
-	[[nodiscard]] crl::time timeNow() const;
-	[[nodiscard]] int randomInterval(const Interval &interval) const;
-
-	const std::vector<Interval> _availableAngles;
-	const Interval _lifeLength;
-	const Interval _deathTime;
-	const Interval _size;
-	const Interval _alpha;
-	const Interval _sinFactor;
-
-	const float64 _appearProgressTill;
-	const float64 _disappearProgressAfter;
-	const float64 _distanceProgressStart;
-
-	QSvgRenderer _sprite;
-
-	Ui::Animations::Basic _animation;
-
-	std::vector<MiniStar> _ministars;
-
-	crl::time _nextBirthTime = 0;
-	bool _paused = false;
-
-	QRect _rectToUpdate;
-
-};
-
-MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback)
-: _availableAngles({
-	Interval{ -10, 40 },
-	Interval{ 180 + 10 - 40, 40 },
-	Interval{ 180 + 15, 50 },
-	Interval{ -15 - 50, 50 },
-})
-, _lifeLength({ 150, 200 })
-, _deathTime({ 1500, 2000 })
-, _size({ 10, 20 })
-, _alpha({ 40, 60 })
-, _sinFactor({ 10, 190 })
-, _appearProgressTill(0.2)
-, _disappearProgressAfter(0.8)
-, _distanceProgressStart(0.5)
-, _sprite(u":/gui/icons/settings/starmini.svg"_q)
-, _animation([=](crl::time now) {
-	if (now > _nextBirthTime && !_paused) {
-		createStar(now);
-		_nextBirthTime = now + randomInterval(_lifeLength);
-	}
-	if (_rectToUpdate.isValid()) {
-		updateCallback(base::take(_rectToUpdate));
-	}
-}) {
-	if (anim::Disabled()) {
-		const auto from = _deathTime.from + _deathTime.length;
-		for (auto i = -from; i < 0; i += randomInterval(_lifeLength)) {
-			createStar(i);
-		}
-		updateCallback(_rectToUpdate);
-	} else {
-		_animation.start();
-	}
-}
-
-int MiniStars::randomInterval(const Interval &interval) const {
-	return interval.from + base::RandomIndex(interval.length);
-}
-
-crl::time MiniStars::timeNow() const {
-	return anim::Disabled() ? 0 : crl::now();
-}
-
-void MiniStars::paint(Painter &p, const QRectF &rect) {
-	const auto center = rect.center();
-	const auto opacity = p.opacity();
-	for (const auto &ministar : _ministars) {
-		const auto progress = (timeNow() - ministar.birthTime)
-			/ float64(ministar.deathTime - ministar.birthTime);
-		if (progress > 1.) {
-			continue;
-		}
-		const auto appearProgress = std::clamp(
-			progress / _appearProgressTill,
-			0.,
-			1.);
-		const auto rsin = float(std::sin(ministar.angle * M_PI / 180.));
-		const auto rcos = float(std::cos(ministar.angle * M_PI / 180.));
-		const auto end = QPointF(
-			rect.width() / 1.5 * rcos,
-			rect.height() / 1.5 * rsin);
-
-		const auto alphaProgress = 1.
-			- (std::clamp(progress - _disappearProgressAfter, 0., 1.)
-				/ (1. - _disappearProgressAfter));
-		p.setOpacity(ministar.alpha
-			* alphaProgress
-			* appearProgress
-			* opacity);
-
-		const auto deformResult = progress * 360;
-		const auto rsinDeform = float(
-			std::sin(ministar.sinFactor * deformResult * M_PI / 180.));
-		const auto deformH = 1. + kDeformationMax * rsinDeform;
-		const auto deformW = 1. / deformH;
-
-		const auto distanceProgress = _distanceProgressStart + progress;
-		const auto starSide = ministar.size * appearProgress;
-		const auto widthFade = (std::abs(rcos) >= std::abs(rsin));
-		const auto starWidth = starSide
-			* (widthFade ? alphaProgress : 1.)
-			* deformW;
-		const auto starHeight = starSide
-			* (!widthFade ? alphaProgress : 1.)
-			* deformH;
-		const auto renderRect = QRectF(
-			center.x()
-				+ anim::interpolateF(0, end.x(), distanceProgress)
-				- starWidth / 2.,
-			center.y()
-				+ anim::interpolateF(0, end.y(), distanceProgress)
-				- starHeight / 2.,
-			starWidth,
-			starHeight);
-		_sprite.render(&p, renderRect);
-		_rectToUpdate |= renderRect.toRect();
-	}
-	p.setOpacity(opacity);
-}
-
-void MiniStars::setPaused(bool paused) {
-	_paused = paused;
-}
-
-int MiniStars::angle() const {
-	const auto &interval = _availableAngles[
-		base::RandomIndex(_availableAngles.size())];
-	return base::RandomIndex(interval.length) + interval.from;
-}
-
-void MiniStars::createStar(crl::time now) {
-	auto ministar = MiniStar{
-		.birthTime = now,
-		.deathTime = now + randomInterval(_deathTime),
-		.angle = angle(),
-		.size = float64(randomInterval(_size)),
-		.alpha = float64(randomInterval(_alpha)) / 100.,
-		.sinFactor = randomInterval(_sinFactor) / 100.
-			* (base::RandomIndex(2) == 1 ? 1. : -1.),
-	};
-	for (auto i = 0; i < _ministars.size(); i++) {
-		if (ministar.birthTime > _ministars[i].deathTime) {
-			_ministars[i] = ministar;
-			return;
-		}
-	}
-	_ministars.push_back(ministar);
-}
-
 class TopBar final : public Ui::RpWidget {
 public:
 	TopBar(
@@ -435,7 +284,7 @@ private:
 	const style::font &_titleFont;
 	const style::margins &_titlePadding;
 	object_ptr<Ui::FlatLabel> _about;
-	MiniStars _ministars;
+	Ui::Premium::MiniStars _ministars;
 	QSvgRenderer _star;
 
 	struct {
@@ -787,10 +636,11 @@ void Premium::setupContent() {
 						box->closeBox();
 					});
 				} else {
-					const auto button = CreateSubscribeButton(
+					const auto button = CreateSubscribeButton({
 						controller,
 						box,
-						[] { return u"double_limits"_q; });
+						[] { return u"double_limits"_q; }
+					});
 
 					box->boxClosing(
 					) | rpl::start_with_next(hidden, box->lifetime());
@@ -909,10 +759,26 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 			Data::AmPremiumValue(&_controller->session()),
 			tr::lng_premium_summary_title_subscribed(),
 			tr::lng_premium_summary_title());
-	auto about = rpl::conditional(
-		Data::AmPremiumValue(&_controller->session()),
-		_controller->session().api().premium().statusTextValue(),
-		tr::lng_premium_summary_top_about(Ui::Text::RichLangValue));
+	auto about = [&]() -> rpl::producer<TextWithEntities> {
+		const auto gift = ParseGiftRef(_ref);
+		if (gift.peerId) {
+			auto &data = _controller->session().data();
+			if (const auto peer = data.peer(gift.peerId)) {
+				return (gift.me
+					? tr::lng_premium_summary_subtitle_gift_me
+					: tr::lng_premium_summary_subtitle_gift)(
+						lt_count,
+						rpl::single(float64(gift.months)),
+						lt_user,
+						rpl::single(Ui::Text::Bold(peer->name())),
+						Ui::Text::RichLangValue);
+			}
+		}
+		return rpl::conditional(
+			Data::AmPremiumValue(&_controller->session()),
+			_controller->session().api().premium().statusTextValue(),
+			tr::lng_premium_summary_top_about(Ui::Text::RichLangValue));
+	}();
 
 	const auto content = Ui::CreateChild<TopBar>(
 		parent.get(),
@@ -921,7 +787,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		std::move(about));
 	_setPaused = [=](bool paused) {
 		content->setPaused(paused);
-		_subscribe->setGlarePaused(paused);
+		if (_subscribe) {
+			_subscribe->setGlarePaused(paused);
+		}
 	};
 
 	_wrap.value(
@@ -946,7 +814,9 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 					: st::settingsPremiumTopBarBack),
 			st::infoTopBarScale);
 		_back->setDuration(0);
-		_back->toggleOn(_backToggles.value());
+		_back->toggleOn(isLayer
+			? _backToggles.value() | rpl::type_erased()
+			: rpl::single(true));
 		_back->entity()->addClickHandler([=] {
 			_showBack.fire({});
 		});
@@ -986,8 +856,14 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		not_null<Ui::RpWidget*> parent) {
 	const auto content = Ui::CreateChild<Ui::RpWidget>(parent.get());
 
-	_subscribe = CreateSubscribeButton(_controller, content, [=] {
-		return _ref;
+	if (ParseGiftRef(_ref).peerId) {
+		return nullptr;
+	}
+
+	_subscribe = CreateSubscribeButton({
+		_controller,
+		content,
+		[=] { return _ref; }
 	});
 
 	_showFinished.events(
@@ -1057,6 +933,14 @@ void ShowPremium(
 	controller->showSettings(Settings::PremiumId());
 }
 
+void ShowGiftPremium(
+		not_null<Window::SessionController*> controller,
+		not_null<PeerData*> peer,
+		int months,
+		bool me) {
+	ShowPremium(controller, SerializeRef({ peer->id, months, me }));
+}
+
 void StartPremiumPayment(
 		not_null<Window::SessionController*> controller,
 		const QString &ref) {
@@ -1089,22 +973,24 @@ QString LookupPremiumRef(PremiumPreview section) {
 }
 
 not_null<Ui::GradientButton*> CreateSubscribeButton(
-		not_null<Window::SessionController*> controller,
-		not_null<Ui::RpWidget*> parent,
-		Fn<QString()> computeRef) {
+		SubscribeButtonArgs &&args) {
 	const auto result = Ui::CreateChild<Ui::GradientButton>(
-		parent.get(),
-		Ui::Premium::ButtonGradientStops());
+		args.parent.get(),
+		args.gradientStops
+			? base::take(*args.gradientStops)
+			: Ui::Premium::ButtonGradientStops());
 
-	result->setClickedCallback([=] {
+	result->setClickedCallback([
+			controller = args.controller,
+			computeRef = args.computeRef] {
 		SendScreenAccept(controller);
 		StartPremiumPayment(controller, computeRef());
 	});
 
 	const auto &st = st::premiumPreviewBox.button;
-	result->resize(parent->width(), st.height);
+	result->resize(args.parent->width(), st.height);
 
-	const auto premium = &controller->session().api().premium();
+	const auto premium = &args.controller->session().api().premium();
 	premium->reload();
 	const auto computeCost = [=] {
 		const auto amount = premium->monthlyAmount();
@@ -1117,9 +1003,11 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 
 	const auto label = Ui::CreateChild<Ui::FlatLabel>(
 		result,
-		tr::lng_premium_summary_button(
-			lt_cost,
-			premium->statusTextValue() | rpl::map(computeCost)),
+		args.text
+			? base::take(*args.text)
+			: tr::lng_premium_summary_button(
+				lt_cost,
+				premium->statusTextValue() | rpl::map(computeCost)),
 		st::premiumPreviewButtonLabel);
 	label->setAttribute(Qt::WA_TransparentForMouseEvents);
 	rpl::combine(

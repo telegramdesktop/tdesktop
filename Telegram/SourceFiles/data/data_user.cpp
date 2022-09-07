@@ -165,13 +165,7 @@ void UserData::setBotInfo(const MTPBotInfo &info) {
 }
 
 void UserData::setNameOrPhone(const QString &newNameOrPhone) {
-	if (nameOrPhone != newNameOrPhone) {
-		nameOrPhone = newNameOrPhone;
-		phoneText.setText(
-			st::msgNameStyle,
-			nameOrPhone,
-			Ui::NameTextOptions());
-	}
+	nameOrPhone = newNameOrPhone;
 }
 
 void UserData::madeAction(TimeId when) {
@@ -253,6 +247,14 @@ bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }
 
+bool UserData::canReceiveGifts() const {
+	return flags() & UserDataFlag::CanReceiveGifts;
+}
+
+bool UserData::canReceiveVoices() const {
+	return !(flags() & UserDataFlag::VoiceMessagesForbidden);
+}
+
 bool UserData::canShareThisContactFast() const {
 	return !_phone.isEmpty();
 }
@@ -309,16 +311,25 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto pinned = update.vpinned_msg_id()) {
 		SetTopPinnedMessageId(user, pinned->v);
 	}
+	const auto canReceiveGifts = (update.vflags().v
+			& MTPDuserFull::Flag::f_premium_gifts)
+		&& update.vpremium_gifts();
 	using Flag = UserDataFlag;
 	const auto mask = Flag::Blocked
 		| Flag::HasPhoneCalls
 		| Flag::PhoneCallsPrivate
-		| Flag::CanPinMessages;
+		| Flag::CanReceiveGifts
+		| Flag::CanPinMessages
+		| Flag::VoiceMessagesForbidden;
 	user->setFlags((user->flags() & ~mask)
 		| (update.is_phone_calls_private() ? Flag::PhoneCallsPrivate : Flag())
 		| (update.is_phone_calls_available() ? Flag::HasPhoneCalls : Flag())
+		| (canReceiveGifts ? Flag::CanReceiveGifts : Flag())
 		| (update.is_can_pin_message() ? Flag::CanPinMessages : Flag())
-		| (update.is_blocked() ? Flag::Blocked : Flag()));
+		| (update.is_blocked() ? Flag::Blocked : Flag())
+		| (update.is_voice_messages_forbidden()
+			? Flag::VoiceMessagesForbidden
+			: Flag()));
 	user->setIsBlocked(update.is_blocked());
 	user->setCallsStatus(update.is_phone_calls_private()
 		? UserData::CallsStatus::Private

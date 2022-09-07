@@ -89,6 +89,30 @@ mtpFileLoader::mtpFileLoader(
 	{ location }) {
 }
 
+mtpFileLoader::mtpFileLoader(
+	not_null<Main::Session*> session,
+	const AudioAlbumThumbLocation &location,
+	int64 loadSize,
+	int64 fullSize,
+	LoadFromCloudSetting fromCloud,
+	bool autoLoading,
+	uint8 cacheTag)
+: FileLoader(
+	session,
+	QString(),
+	loadSize,
+	fullSize,
+	UnknownFileLocation,
+	LoadToCacheAsWell,
+	fromCloud,
+	autoLoading,
+	cacheTag)
+, DownloadMtprotoTask(
+	&session->downloader(),
+	session->serverConfig().webFileDcId,
+	{ location }) {
+}
+
 mtpFileLoader::~mtpFileLoader() {
 	if (!_finished) {
 		cancel();
@@ -184,6 +208,8 @@ Storage::Cache::Key mtpFileLoader::cacheKey() const {
 		return Data::GeoPointCacheKey(location);
 	}, [&](const StorageFileLocation &location) {
 		return location.cacheKey();
+	}, [&](const AudioAlbumThumbLocation &location) {
+		return Data::AudioAlbumThumbCacheKey(location);
 	});
 }
 

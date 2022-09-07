@@ -175,17 +175,28 @@ ConfirmInviteBox::ConfirmInviteBox(
 	const MTPDchatInvite &data,
 	ChannelData *invitePeekChannel,
 	Fn<void()> submit)
+: ConfirmInviteBox(
+	session,
+	Parse(session, data),
+	invitePeekChannel,
+	std::move(submit)) {
+}
+
+ConfirmInviteBox::ConfirmInviteBox(
+	not_null<Main::Session*> session,
+	ChatInvite &&invite,
+	ChannelData *invitePeekChannel,
+	Fn<void()> submit)
 : _session(session)
 , _submit(std::move(submit))
 , _title(this, st::confirmInviteTitle)
 , _status(this, st::confirmInviteStatus)
 , _about(this, st::confirmInviteAbout)
 , _aboutRequests(this, st::confirmInviteStatus)
-, _participants(GetParticipants(_session, data))
-, _isChannel(data.is_channel() && !data.is_megagroup())
-, _requestApprove(data.is_request_needed()) {
-	const auto title = qs(data.vtitle());
-	const auto count = data.vparticipants_count().v;
+, _participants(std::move(invite.participants))
+, _isChannel(invite.isChannel && !invite.isMegagroup)
+, _requestApprove(invite.isRequestNeeded) {
+	const auto count = invite.participantsCount;
 	const auto status = [&] {
 		return invitePeekChannel
 			? tr::lng_channel_invite_private(tr::now)
@@ -202,10 +213,10 @@ ConfirmInviteBox::ConfirmInviteBox(
 			? tr::lng_channel_status(tr::now)
 			: tr::lng_group_status(tr::now);
 	}();
-	_title->setText(title);
+	_title->setText(invite.title);
 	_status->setText(status);
-	if (const auto v = qs(data.vabout().value_or_empty()); !v.isEmpty()) {
-		_about->setText(v);
+	if (!invite.about.isEmpty()) {
+		_about->setText(invite.about);
 	} else {
 		_about.destroy();
 	}
@@ -217,9 +228,8 @@ ConfirmInviteBox::ConfirmInviteBox(
 		_aboutRequests.destroy();
 	}
 
-	const auto photo = _session->data().processPhoto(data.vphoto());
-	if (!photo->isNull()) {
-		_photo = photo->createMediaView();
+	if (invite.photo) {
+		_photo = invite.photo->createMediaView();
 		_photo->wanted(Data::PhotoSize::Small, Data::FileOrigin());
 		if (!_photo->image(Data::PhotoSize::Small)) {
 			_session->downloaderTaskFinished(
@@ -230,29 +240,37 @@ ConfirmInviteBox::ConfirmInviteBox(
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
 			Data::PeerUserpicColor(0),
-			title);
+			invite.title);
 	}
 }
 
 ConfirmInviteBox::~ConfirmInviteBox() = default;
 
-auto ConfirmInviteBox::GetParticipants(
-	not_null<Main::Session*> session,
-	const MTPDchatInvite &data)
--> std::vector<Participant> {
-	const auto participants = data.vparticipants();
-	if (!participants) {
-		return {};
-	}
-	const auto &v = participants->v;
-	auto result = std::vector<Participant>();
-	result.reserve(v.size());
-	for (const auto &participant : v) {
-		if (const auto user = session->data().processUser(participant)) {
-			result.push_back(Participant{ user });
+ConfirmInviteBox::ChatInvite ConfirmInviteBox::Parse(
+		not_null<Main::Session*> session,
+		const MTPDchatInvite &data) {
+	auto participants = std::vector<Participant>();
+	if (const auto list = data.vparticipants()) {
+		participants.reserve(list->v.size());
+		for (const auto &participant : list->v) {
+			if (const auto user = session->data().processUser(participant)) {
+				participants.push_back(Participant{ user });
+			}
 		}
 	}
-	return result;
+	const auto photo = session->data().processPhoto(data.vphoto());
+	return {
+		.title = qs(data.vtitle()),
+		.about = data.vabout().value_or_empty(),
+		.photo = (photo->isNull() ? nullptr : photo.get()),
+		.participantsCount = data.vparticipants_count().v,
+		.participants = std::move(participants),
+		.isPublic = data.is_public(),
+		.isChannel = data.is_channel(),
+		.isMegagroup = data.is_megagroup(),
+		.isBroadcast = data.is_broadcast(),
+		.isRequestNeeded = data.is_request_needed(),
+	};
 }
 
 void ConfirmInviteBox::prepare() {
@@ -280,7 +298,7 @@ void ConfirmInviteBox::prepare() {
 			auto name = new Ui::FlatLabel(this, st::confirmInviteUserName);
 			name->resizeToWidth(st::confirmInviteUserPhotoSize + padding);
 			name->setText(participant.user->firstName.isEmpty()
-				? participant.user->name
+				? participant.user->name()
 				: participant.user->firstName);
 			name->moveToLeft(left + (padding / 2), st::confirmInviteUserNameTop);
 			left += _userWidth;

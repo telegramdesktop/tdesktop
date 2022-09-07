@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "ui/text/text_options.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "styles/style_dialogs.h" // st::dialogsTextWidthMin
@@ -161,6 +162,18 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 	for (const auto &[filterId, links] : _chatListLinks) {
 		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);
 	}
+}
+
+const Ui::Text::String &Entry::chatListNameText() const {
+	const auto version = chatListNameVersion();
+	if (_chatListNameVersion < version) {
+		_chatListNameVersion = version;
+		_chatListNameText.setText(
+			st::msgNameStyle,
+			chatListName(),
+			Ui::NameTextOptions());
+	}
+	return _chatListNameText;
 }
 
 void Entry::setChatListExistence(bool exists) {

@@ -69,7 +69,7 @@ void ChangeFilterById(
 			MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
 			MTP_int(filter.id()),
 			filter.tl()
-		)).done([=, chat = history->peer->name, filterName = filter.title()] {
+		)).done([=, chat = history->peer->name(), name = filter.title()]{
 			// Since only the primary window has dialogs list,
 			// We can safely show toast there.
 			if (const auto controller = Core::App().primaryWindow()) {
@@ -80,7 +80,7 @@ void ChangeFilterById(
 						lt_chat,
 						Ui::Text::Bold(chat),
 						lt_folder,
-						Ui::Text::Bold(filterName),
+						Ui::Text::Bold(name),
 						Ui::Text::WithEntities);
 				Ui::Toast::Show(
 					Window::Show(controller).toastParent(),

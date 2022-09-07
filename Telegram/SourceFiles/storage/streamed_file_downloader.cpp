@@ -16,7 +16,7 @@ namespace {
 using namespace Media::Streaming;
 
 constexpr auto kPartSize = Loader::kPartSize;
-constexpr auto kRequestPartsCount = 8;
+constexpr auto kRequestPartsCount = 32;
 
 } // namespace
 
@@ -107,7 +107,7 @@ void StreamedFileDownloader::requestPart() {
 	++_partsRequested;
 }
 
-QByteArray StreamedFileDownloader::readLoadedPart(int offset) {
+QByteArray StreamedFileDownloader::readLoadedPart(int64 offset) {
 	Expects(offset >= 0 && offset < _fullSize);
 	Expects(!(offset % kPartSize));
 

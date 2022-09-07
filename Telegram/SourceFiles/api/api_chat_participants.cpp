@@ -462,13 +462,14 @@ void ChatParticipants::requestCountDelayed(
 void ChatParticipants::add(
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
+		bool passGroupHistory,
 		Fn<void(bool)> done) {
 	if (const auto chat = peer->asChat()) {
 		for (const auto &user : users) {
 			_api.request(MTPmessages_AddChatUser(
 				chat->inputChat,
 				user->inputUser,
-				MTP_int(kForwardMessagesOnAdd)
+				MTP_int(passGroupHistory ? kForwardMessagesOnAdd : 0)
 			)).done([=](const MTPUpdates &result) {
 				chat->session().api().applyUpdates(result);
 				if (done) done(true);

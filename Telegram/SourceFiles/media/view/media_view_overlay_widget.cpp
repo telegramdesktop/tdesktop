@@ -2233,12 +2233,14 @@ void OverlayWidget::refreshFromLabel() {
 			_fromName = info->name;
 		} else {
 			Assert(_from != nullptr);
-			const auto from = _from->migrateTo() ? _from->migrateTo() : _from;
-			_fromName = from->name;
+			const auto from = _from->migrateTo()
+				? _from->migrateTo()
+				: _from;
+			_fromName = from->name();
 		}
 	} else {
 		_from = _user;
-		_fromName = _user ? _user->name : QString();
+		_fromName = _user ? _user->name() : QString();
 	}
 }
 
@@ -2264,8 +2266,15 @@ void OverlayWidget::refreshCaption() {
 	const auto base = duration
 		? TimestampLinkBase(_document, _message->fullId())
 		: QString();
+	const auto captionRepaint = [=] {
+		if (_fullScreenVideo || !_controlsOpacity.current()) {
+			return;
+		}
+		update(captionGeometry());
+	};
 	const auto context = Core::MarkedTextContext{
-		.session = &_message->history()->session()
+		.session = &_message->history()->session(),
+		.customEmojiRepaint = captionRepaint,
 	};
 	_caption.setMarkedText(
 		st::mediaviewCaptionStyle,

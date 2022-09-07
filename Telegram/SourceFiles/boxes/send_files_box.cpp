@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_user.h"
 #include "data/data_premium_limits.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "media/clip/media_clip_reader.h"
 #include "api/api_common.h"
 #include "window/window_session_controller.h"
@@ -249,21 +250,18 @@ SendFilesBox::SendFilesBox(
 	not_null<Window::SessionController*> controller,
 	Ui::PreparedList &&list,
 	const TextWithTags &caption,
-	SendLimit limit,
+	not_null<PeerData*> peer,
 	Api::SendType sendType,
 	SendMenu::Type sendMenuType)
 : _controller(controller)
 , _sendType(sendType)
 , _titleHeight(st::boxTitleHeight)
 , _list(std::move(list))
-, _sendLimit(limit)
+, _sendLimit(peer->slowmodeApplied() ? SendLimit::One : SendLimit::Many)
 , _sendMenuType(sendMenuType)
-, _caption(
-	this,
-	st::confirmCaptionArea,
-	Ui::InputField::Mode::MultiLine,
-	nullptr,
-	caption)
+, _allowEmojiWithoutPremium(Data::AllowEmojiWithoutPremium(peer))
+, _caption(this, st::confirmCaptionArea, Ui::InputField::Mode::MultiLine)
+, _prefilledCaptionText(std::move(caption))
 , _scroll(this, st::boxScroll)
 , _inner(
 	_scroll->setOwnedWidget(
@@ -673,9 +671,33 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 }
 
 void SendFilesBox::setupCaption() {
-	_caption->setMaxLength(kMaxMessageLength);
+	const auto allow = [=](const auto&) {
+		return _allowEmojiWithoutPremium;
+	};
+	InitMessageFieldHandlers(
+		_controller,
+		_caption.data(),
+		Window::GifPauseReason::Layer,
+		allow);
+	Ui::Emoji::SuggestionsController::Init(
+		getDelegate()->outerContainer(),
+		_caption,
+		&_controller->session(),
+		{ .suggestCustomEmoji = true, .allowCustomWithoutPremium = allow });
+
+	if (!_prefilledCaptionText.text.isEmpty()) {
+		_caption->setTextWithTags(
+			_prefilledCaptionText,
+			Ui::InputField::HistoryAction::Clear);
+
+		auto cursor = _caption->textCursor();
+		cursor.movePosition(QTextCursor::End);
+		_caption->setTextCursor(cursor);
+	}
 	_caption->setSubmitSettings(
 		Core::App().settings().sendSubmitWay());
+	_caption->setMaxLength(kMaxMessageLength);
+
 	connect(_caption, &Ui::InputField::resized, [=] {
 		captionResized();
 	});
@@ -697,21 +719,6 @@ void SendFilesBox::setupCaption() {
 		}
 		Unexpected("action in MimeData hook.");
 	});
-	const auto show = std::make_shared<Window::Show>(_controller);
-	const auto session = &_controller->session();
-
-	_caption->setInstantReplaces(Ui::InstantReplaces::Default());
-	_caption->setInstantReplacesEnabled(
-		Core::App().settings().replaceEmojiValue());
-	_caption->setMarkdownReplacesEnabled(rpl::single(true));
-	_caption->setEditLinkCallback(
-		DefaultEditLinkCallback(show, session, _caption));
-	Ui::Emoji::SuggestionsController::Init(
-		getDelegate()->outerContainer(),
-		_caption,
-		session);
-
-	InitSpellchecker(show, session, _caption);
 
 	updateCaptionPlaceholder();
 	setupEmojiPanel();
@@ -721,22 +728,31 @@ void SendFilesBox::setupEmojiPanel() {
 	Expects(_caption != nullptr);
 
 	const auto container = getDelegate()->outerContainer();
+	using Selector = ChatHelpers::TabbedSelector;
 	_emojiPanel = base::make_unique_q<ChatHelpers::TabbedPanel>(
 		container,
 		_controller,
-		object_ptr<ChatHelpers::TabbedSelector>(
+		object_ptr<Selector>(
 			nullptr,
 			_controller,
-			ChatHelpers::TabbedSelector::Mode::EmojiOnly));
+			Window::GifPauseReason::Layer,
+			Selector::Mode::EmojiOnly));
 	_emojiPanel->setDesiredHeightValues(
 		1.,
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_emojiPanel->hide();
+	_emojiPanel->selector()->setAllowEmojiWithoutPremium(
+		_allowEmojiWithoutPremium);
 	_emojiPanel->selector()->emojiChosen(
 	) | rpl::start_with_next([=](EmojiPtr emoji) {
 		Ui::InsertEmojiAtCursor(_caption->textCursor(), emoji);
 	}, lifetime());
+	_emojiPanel->selector()->customEmojiChosen(
+	) | rpl::start_with_next([=](Selector::FileChosen data) {
+		Data::InsertCustomEmoji(_caption.data(), data.document);
+	}, lifetime());
+	_emojiPanel->selector()->showPromoForPremiumEmoji();
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);
@@ -962,10 +978,10 @@ void SendFilesBox::updateControlsGeometry() {
 }
 
 void SendFilesBox::setInnerFocus() {
-	if (!_caption || _caption->isHidden()) {
-		setFocus();
-	} else {
+	if (_caption && !_caption->isHidden()) {
 		_caption->setFocusFast();
+	} else {
+		BoxContent::setInnerFocus();
 	}
 }
 

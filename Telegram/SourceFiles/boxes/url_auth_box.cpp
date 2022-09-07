@@ -277,7 +277,7 @@ not_null<Ui::RpWidget*> UrlAuthBox::setupContent(
 			lt_domain,
 			Ui::Text::Bold(domain),
 			lt_user,
-			Ui::Text::Bold(session->user()->name),
+			Ui::Text::Bold(session->user()->name()),
 			Ui::Text::WithEntities));
 	const auto allow = bot
 		? addCheckbox(tr::lng_url_auth_allow_messages(

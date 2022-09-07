@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_xdp_utilities.h"
+#include "base/platform/linux/base_linux_wayland_integration.h"
 #include "core/application.h"
 #include "window/window_controller.h"
 #include "base/random.h"
@@ -77,6 +78,17 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
 
+		const auto activationToken = []() -> Glib::ustring {
+			using base::Platform::WaylandIntegration;
+			if (const auto integration = WaylandIntegration::Instance()) {
+				if (const auto token = integration->activationToken()
+					; !token.isNull()) {
+					return token.toStdString();
+				}
+			}
+			return {};
+		}();
+
 		auto uniqueName = connection->get_unique_name();
 		uniqueName.erase(0, 1);
 		uniqueName.replace(uniqueName.find('.'), 1, 1, '_');
@@ -128,6 +140,10 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 					{
 						"handle_token",
 						Glib::Variant<Glib::ustring>::create(handleToken)
+					},
+					{
+						"activation_token",
+						Glib::Variant<Glib::ustring>::create(activationToken)
 					},
 					{
 						"ask",

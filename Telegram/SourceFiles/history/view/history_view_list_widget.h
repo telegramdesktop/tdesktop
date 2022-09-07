@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "history/view/history_view_element.h"
 #include "history/history_view_highlight_manager.h"
+#include "history/history_view_top_toast.h"
 
 namespace Main {
 class Session;
@@ -118,6 +119,7 @@ public:
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
 		-> rpl::producer<std::optional<base::flat_set<QString>>> = 0;
+	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
 };
 
 struct SelectionData {
@@ -515,6 +517,8 @@ private:
 	void revealItemsCallback();
 
 	void startMessageSendingAnimation(not_null<HistoryItem*> item);
+	void showPremiumStickerTooltip(
+		not_null<const HistoryView::Element*> view);
 
 	// This function finds all history items that are displayed and calls template method
 	// for each found message (in given direction) in the passed history with passed top offset.
@@ -640,6 +644,8 @@ private:
 	Ui::Animations::Simple _spoilerOpacity;
 
 	Ui::DraggingScrollManager _selectScroll;
+
+	InfoTooltip _topToast;
 
 	rpl::event_stream<FullMsgId> _requestedToEditMessage;
 	rpl::event_stream<FullMsgId> _requestedToReplyToMessage;

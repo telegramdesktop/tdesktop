@@ -59,4 +59,6 @@ if officialTarget != '':
                 arguments.append('-DTDESKTOP_API_HASH=' + apiHashMatch.group(1))
     if arch != '':
         arguments.append(arch)
+
+os.environ["QT"] = "5.15.4" if sys.platform == 'win32' else "6.3.1"
 finish(run_cmake.run(scriptName, arguments))

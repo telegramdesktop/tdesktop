@@ -136,6 +136,10 @@ void MainWindow::finishFirstShow() {
 	}, lifetime());
 
 	setAttribute(Qt::WA_NoSystemBackground);
+
+	if (!_passcodeLock && _main) {
+		_main->activate();
+	}
 }
 
 void MainWindow::clearWidgetsHook() {

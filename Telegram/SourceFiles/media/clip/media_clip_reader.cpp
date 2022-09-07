@@ -35,11 +35,21 @@ constexpr auto kClipThreadsCount = 8;
 constexpr auto kAverageGifSize = 320 * 240;
 constexpr auto kWaitBeforeGifPause = crl::time(200);
 
-QImage PrepareFrameImage(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
+QImage PrepareFrame(
+		const FrameRequest &request,
+		const QImage &original,
+		bool hasAlpha,
+		QImage &cache) {
 	const auto needResize = (original.size() != request.frame);
-	const auto needOuterFill = request.outer.isValid() && (request.outer != request.frame);
+	const auto needOuterFill = request.outer.isValid()
+		&& (request.outer != request.frame);
 	const auto needRounding = (request.radius != ImageRoundRadius::None);
-	if (!needResize && !needOuterFill && !hasAlpha && !needRounding) {
+	const auto colorizing = (request.colored.alpha() != 0);
+	if (!needResize
+		&& !needOuterFill
+		&& !hasAlpha
+		&& !needRounding
+		&& !colorizing) {
 		return original;
 	}
 
@@ -89,11 +99,10 @@ QImage PrepareFrameImage(const FrameRequest &request, const QImage &original, bo
 			request.radius,
 			request.corners);
 	}
+	if (colorizing) {
+		cache = Images::Colored(std::move(cache), request.colored);
+	}
 	return cache;
-}
-
-QPixmap PrepareFrame(const FrameRequest &request, const QImage &original, bool hasAlpha, QImage &cache) {
-	return QPixmap::fromImage(PrepareFrameImage(request, original, hasAlpha, cache), Qt::ColorOnly);
 }
 
 } // namespace
@@ -254,15 +263,18 @@ Reader::Frame *Reader::frameToWriteNext(bool checkNotWriting, int32 *index) cons
 	return _frames + i;
 }
 
-void Reader::moveToNextShow() const {
-	int32 step = _step.loadAcquire();
+bool Reader::moveToNextShow() const {
+	const auto step = _step.loadAcquire();
 	if (step == kWaitingForDimensionsStep) {
 	} else if (step == kWaitingForRequestStep) {
 		_step.storeRelease(kWaitingForFirstFrameStep);
+		return true;
 	} else if (step == kWaitingForFirstFrameStep) {
 	} else if (!(step % 2)) {
 		_step.storeRelease(step + 1);
+		return true;
 	}
+	return false;
 }
 
 void Reader::moveToNextWrite() const {
@@ -311,7 +323,7 @@ void Reader::start(FrameRequest request) {
 	Workers[_threadIndex]->manager.start(this);
 }
 
-QPixmap Reader::current(FrameRequest request, crl::time now) {
+Reader::FrameInfo Reader::frameInfo(FrameRequest request, crl::time now) {
 	Expects(!(request.outer.isValid()
 		? request.outer
 		: request.frame).isEmpty());
@@ -346,31 +358,32 @@ QPixmap Reader::current(FrameRequest request, crl::time now) {
 	Assert(frame->request.radius == request.radius
 		&& frame->request.corners == request.corners
 		&& frame->request.keepAlpha == request.keepAlpha);
-	if (frame->pix.size() == size) {
-		moveToNextShow();
-		return frame->pix;
+	if (frame->prepared.size() != size
+		|| frame->preparedColored != request.colored) {
+		frame->request.frame = request.frame;
+		frame->request.outer = request.outer;
+		frame->request.colored = request.colored;
+
+		QImage cacheForResize;
+		frame->original.setDevicePixelRatio(factor);
+		frame->prepared = QImage();
+		frame->prepared = PrepareFrame(
+			frame->request,
+			frame->original,
+			true,
+			cacheForResize);
+		frame->preparedColored = request.colored;
+
+		auto other = frameToWriteNext(true);
+		if (other) other->request = frame->request;
+
+		if (Workers.size() <= _threadIndex) {
+			error();
+		} else if (_state != State::Error) {
+			Workers[_threadIndex]->manager.update(this);
+		}
 	}
-
-	frame->request.frame = request.frame;
-	frame->request.outer = request.outer;
-
-	QImage cacheForResize;
-	frame->original.setDevicePixelRatio(factor);
-	frame->pix = QPixmap();
-	frame->pix = PrepareFrame(frame->request, frame->original, true, cacheForResize);
-
-	auto other = frameToWriteNext(true);
-	if (other) other->request = frame->request;
-
-	moveToNextShow();
-
-	if (Workers.size() <= _threadIndex) {
-		error();
-	} else if (_state != State::Error) {
-		Workers[_threadIndex]->manager.update(this);
-	}
-
-	return frame->pix;
+	return { frame->prepared, frame->index };
 }
 
 bool Reader::ready() const {
@@ -478,7 +491,7 @@ public:
 				if (reader->start(internal::ReaderImplementation::Mode::Silent, firstFramePositionMs)) {
 					auto firstFrameReadResult = reader->readFramesTill(-1, ms);
 					if (firstFrameReadResult == internal::ReaderImplementation::ReadResult::Success) {
-						if (reader->renderFrame(frame()->original, frame()->alpha, QSize())) {
+						if (reader->renderFrame(frame()->original, frame()->alpha, frame()->index, QSize())) {
 							frame()->original.fill(QColor(0, 0, 0));
 
 							frame()->positionMs = _seekPositionMs;
@@ -495,7 +508,7 @@ public:
 			} else if (readResult != internal::ReaderImplementation::ReadResult::Success) { // Read the first frame.
 				return error();
 			}
-			if (!_implementation->renderFrame(frame()->original, frame()->alpha, QSize())) {
+			if (!_implementation->renderFrame(frame()->original, frame()->alpha, frame()->index, QSize())) {
 				return error();
 			}
 			frame()->positionMs = _implementation->frameRealTime();
@@ -555,12 +568,17 @@ public:
 	bool renderFrame() {
 		Expects(_request.valid());
 
-		if (!_implementation->renderFrame(frame()->original, frame()->alpha, _request.frame)) {
+		if (!_implementation->renderFrame(frame()->original, frame()->alpha, frame()->index, _request.frame)) {
 			return false;
 		}
 		frame()->original.setDevicePixelRatio(_request.factor);
-		frame()->pix = QPixmap();
-		frame()->pix = PrepareFrame(_request, frame()->original, frame()->alpha, frame()->cache);
+		frame()->prepared = QImage();
+		frame()->prepared = PrepareFrame(
+			_request,
+			frame()->original,
+			frame()->alpha,
+			frame()->cache);
+		frame()->preparedColored = _request.colored;
 		frame()->when = _nextFrameWhen;
 		frame()->positionMs = _nextFramePositionMs;
 		return true;
@@ -638,8 +656,11 @@ private:
 
 	FrameRequest _request;
 	struct Frame {
-		QPixmap pix;
-		QImage original, cache;
+		QImage prepared;
+		QColor preparedColored = QColor(0, 0, 0, 0);
+		QImage original;
+		QImage cache;
+		int index = 0;
 		bool alpha = true;
 		crl::time when = 0;
 
@@ -780,8 +801,10 @@ bool Manager::handleProcessResult(ReaderPrivate *reader, ProcessResult result, c
 		Assert(reader->_frame >= 0);
 		auto frame = it.key()->_frames + reader->_frame;
 		frame->clear();
-		frame->pix = reader->frame()->pix;
+		frame->prepared = reader->frame()->prepared;
+		frame->preparedColored = reader->frame()->preparedColored;
 		frame->original = reader->frame()->original;
+		frame->index = reader->frame()->index;
 		frame->displayed.storeRelease(0);
 		frame->positionMs = reader->frame()->positionMs;
 		if (result == ProcessResult::Started) {
@@ -959,10 +982,11 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 			//		return result;
 			//	}
 			//}
+			auto index = 0;
 			auto hasAlpha = false;
 			auto readResult = reader->readFramesTill(-1, crl::now());
 			auto readFrame = (readResult == internal::ReaderImplementation::ReadResult::Success);
-			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, QSize())) {
+			if (readFrame && reader->renderFrame(result.thumbnail, hasAlpha, index, QSize())) {
 				if (hasAlpha && !result.isWebmSticker) {
 					result.thumbnail = Images::Opaque(std::move(result.thumbnail));
 				}

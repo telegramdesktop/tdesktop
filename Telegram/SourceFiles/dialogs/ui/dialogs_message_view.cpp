@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
+#include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
 
@@ -70,9 +71,21 @@ TextWithTagOffset<kTag> ReplaceTag<TextWithTagOffset<kTag>>::Call(
 } // namespace Lang
 
 namespace Dialogs::Ui {
-namespace {
 
-} // namespace
+TextWithEntities DialogsPreviewText(TextWithEntities text) {
+	return Ui::Text::Filtered(
+		std::move(text),
+		{
+			EntityType::Pre,
+			EntityType::Code,
+			EntityType::Spoiler,
+			EntityType::StrikeOut,
+			EntityType::Underline,
+			EntityType::Italic,
+			EntityType::CustomEmoji,
+			EntityType::PlainLink,
+		});
+}
 
 struct MessageView::LoadingContext {
 	std::any context;
@@ -126,10 +139,18 @@ void MessageView::paint(
 			_senderCache = { st::dialogsTextWidthMin };
 		}
 		TextUtilities::Trim(preview.text);
+		const auto history = item->history();
+		const auto context = Core::MarkedTextContext{
+			.session = &history->session(),
+			.customEmojiRepaint = [=] {
+				history->updateChatListEntry();
+			},
+		};
 		_textCache.setMarkedText(
 			st::dialogsTextStyle,
-			preview.text,
-			DialogTextOptions());
+			DialogsPreviewText(std::move(preview.text)),
+			DialogTextOptions(),
+			context);
 		_textCachedFor = item;
 		_imagesCache = std::move(preview.images);
 		if (preview.loadingContext.has_value()) {

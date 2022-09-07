@@ -613,7 +613,7 @@ void PeerListRow::elementsPaint(
 }
 
 QString PeerListRow::generateName() {
-	return peer()->name;
+	return peer()->name();
 }
 
 QString PeerListRow::generateShortName() {

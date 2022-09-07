@@ -68,13 +68,10 @@ void Invoice::fillFromData(not_null<Data::Invoice*> invoice) {
 	_receiptMsgId = invoice->receiptMsgId;
 
 	// init strings
-	if (!invoice->description.isEmpty()) {
-		auto marked = TextWithEntities { invoice->description };
-		auto parseFlags = TextParseLinks | TextParseMultiline;
-		TextUtilities::ParseEntities(marked, parseFlags);
+	if (!invoice->description.empty()) {
 		_description.setMarkedText(
 			st::webPageDescriptionStyle,
-			marked,
+			invoice->description,
 			Ui::WebpageTextDescriptionOptions());
 	}
 	if (!invoice->title.isEmpty()) {
