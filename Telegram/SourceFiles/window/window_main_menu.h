@@ -64,19 +64,21 @@ private:
 	void setupUserpicButton();
 	void setupAccounts();
 	void setupAccountsToggle();
+	void setupSetEmojiStatus();
 	void setupArchive();
 	void setupMenu();
 	void updateControlsGeometry();
 	void updateInnerControlsGeometry();
-	void updatePhone();
 	void initResetScaleButton();
 	void toggleAccounts();
+	void chooseEmojiStatus();
 
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
 	Ui::Text::String _name;
 	int _nameVersion = 0;
 	object_ptr<ToggleAccountsButton> _toggleAccounts;
+	object_ptr<Ui::FlatLabel> _setEmojiStatus;
 	std::unique_ptr<Info::Profile::EmojiStatusPanel> _emojiStatusPanel;
 	std::unique_ptr<Info::Profile::Badge> _badge;
 	object_ptr<ResetScaleButton> _resetScaleButton = { nullptr };
@@ -93,8 +95,6 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
-
-	QString _phoneText;
 
 };
 

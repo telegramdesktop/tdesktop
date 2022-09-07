@@ -114,7 +114,7 @@ mainMenuResetScaleTop: 2px;
 mainMenuResetScaleIconLeft: 5px;
 mainMenuCoverNameLeft: 26px;
 mainMenuCoverNameTop: 84px;
-mainMenuCoverStatusLeft: 24px;
+mainMenuCoverStatusLeft: mainMenuCoverNameLeft;
 mainMenuCoverStatusTop: 103px;
 mainMenuPhoneFont: font(12px);
 mainMenuSkip: 6px;

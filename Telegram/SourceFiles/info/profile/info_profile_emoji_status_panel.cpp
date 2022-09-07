@@ -213,7 +213,7 @@ void EmojiStatusPanel::show(
 	const auto global = button->mapToGlobal(QPoint());
 	const auto local = parent->mapFromGlobal(global);
 	_panel->moveTopRight(
-		local.y() + button->height(),
+		local.y() + button->height() - (st::normalFont->height / 2),
 		local.x() + button->width() * 3);
 	_panel->toggleAnimated();
 }
