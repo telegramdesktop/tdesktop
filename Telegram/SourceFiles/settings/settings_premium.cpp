@@ -267,7 +267,7 @@ using Order = std::vector<QString>;
 		{
 			u"emoji_status"_q,
 			Entry{
-				&st::settingsPremiumIconLike,
+				&st::settingsPremiumIconStatus,
 				tr::lng_premium_summary_subtitle_emoji_status(),
 				tr::lng_premium_summary_about_emoji_status(),
 				PremiumPreview::EmojiStatus,

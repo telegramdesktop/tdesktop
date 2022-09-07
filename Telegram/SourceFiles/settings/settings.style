@@ -95,6 +95,7 @@ settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
+settingsPremiumIconStatus: icon {{ "settings/premium/status", settingsIconFg }};
 settingsPremiumIconLike: icon {{ "settings/premium/like", settingsIconFg }};
 settingsPremiumIconPlay: icon {{ "settings/premium/play", settingsIconFg }};
 settingsPremiumIconSpeed: icon {{ "settings/premium/speed", settingsIconFg }};
