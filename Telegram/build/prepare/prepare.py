@@ -1097,6 +1097,9 @@ win:
         -DTG_ANGLE_ZLIB_INCLUDE_PATH=%LIBS_DIR%/zlib ../..
     ninja
     cd ..\\..\\..
+    del /S tg_angle\*.cpp
+    del /S tg_angle\*.pdb
+    del /S tg_angle\*.obj
 """)
 
 if buildQt5:
@@ -1135,7 +1138,7 @@ win:
         QMAKE_LIBS_OPENGL_ES2_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
         QMAKE_LIBS_OPENGL_ES2_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib" ^
         -egl ^
-        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib %ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
+        QMAKE_LIBS_EGL_DEBUG="%ANGLE_LIBS_DIR%\\Debug\\tg_angle.lib  %ZLIB_LIBS_DIR%\ZlibStatDebug\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         QMAKE_LIBS_EGL_RELEASE="%ANGLE_LIBS_DIR%\\Release\\tg_angle.lib %ZLIB_LIBS_DIR%\ZlibStatReleaseWithoutAsm\zlibstat.lib d3d9.lib dxgi.lib dxguid.lib Gdi32.lib User32.lib" ^
         -openssl-linked ^
         -I "%OPENSSL_DIR%\include" ^
@@ -1153,9 +1156,9 @@ win:
     jom -j16 install
 
     cd ..
-    del /S qt_5_15_3\*.cpp
-    del /S qt_5_15_3\*.pdb
-    del /S qt_5_15_3\*.obj
+    del /S qt_5_15_4\*.cpp
+    del /S qt_5_15_4\*.pdb
+    del /S qt_5_15_4\*.obj
 mac:
     find ../../patches/qtbase_5_15_4 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
