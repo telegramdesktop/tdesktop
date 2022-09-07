@@ -146,10 +146,7 @@ void SponsoredMessages::append(
 		not_null<History*> history,
 		List &list,
 		const MTPSponsoredMessage &message) {
-	const auto &data = message.match([](
-			const auto &data) -> const MTPDsponsoredMessage& {
-		return data;
-	});
+	const auto &data = message.data();
 	const auto randomId = data.vrandom_id().v;
 	const auto hash = qs(data.vchat_invite_hash().value_or_empty());
 	const auto makeFrom = [&](
@@ -158,7 +155,7 @@ void SponsoredMessages::append(
 		const auto channel = peer->asChannel();
 		return SponsoredFrom{
 			.peer = peer,
-			.title = peer->name,
+			.title = peer->name(),
 			.isBroadcast = (channel && channel->isBroadcast()),
 			.isMegagroup = (channel && channel->isMegagroup()),
 			.isChannel = (channel != nullptr),

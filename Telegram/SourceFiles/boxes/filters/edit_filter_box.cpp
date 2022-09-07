@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/panel_animation.h"
@@ -82,6 +83,7 @@ private:
 	struct PeerButton {
 		not_null<History*> history;
 		std::shared_ptr<Data::CloudImageView> userpic;
+		Ui::Text::String name;
 		Button button;
 	};
 
@@ -208,7 +210,7 @@ int FilterChatsPreview::resizeGetHeight(int newWidth) {
 	for (const auto &[flag, button] : _removeFlag) {
 		moveNextButton(button.get());
 	}
-	for (const auto &[history, userpic, button] : _removePeer) {
+	for (const auto &[history, userpic, name, button] : _removePeer) {
 		moveNextButton(button.get());
 	}
 	return top;
@@ -240,7 +242,7 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 			FilterChatsTypeName(flag));
 		top += st.height;
 	}
-	for (auto &[history, userpic, button] : _removePeer) {
+	for (auto &[history, userpic, name, button] : _removePeer) {
 		const auto savedMessages = history->peer->isSelf();
 		const auto repliesMessages = history->peer->isRepliesChat();
 		if (savedMessages || repliesMessages) {
@@ -276,7 +278,13 @@ void FilterChatsPreview::paintEvent(QPaintEvent *e) {
 				width(),
 				st.photoSize);
 			p.setPen(st::contactsNameFg);
-			history->peer->nameText().drawLeftElided(
+			if (name.isEmpty()) {
+				name.setText(
+					st::msgNameStyle,
+					history->peer->name(),
+					Ui::NameTextOptions());
+			}
+			name.drawLeftElided(
 				p,
 				nameLeft,
 				top + nameTop,

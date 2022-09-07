@@ -240,6 +240,8 @@ PRIVATE
     boxes/edit_color_box.h
     boxes/edit_privacy_box.cpp
     boxes/edit_privacy_box.h
+    boxes/gift_premium_box.cpp
+    boxes/gift_premium_box.h
     boxes/language_box.cpp
     boxes/language_box.h
     boxes/local_storage_box.cpp
@@ -366,8 +368,12 @@ PRIVATE
     chat_helpers/stickers_emoji_image_loader.h
     chat_helpers/stickers_emoji_pack.cpp
     chat_helpers/stickers_emoji_pack.h
+    chat_helpers/stickers_gift_box_pack.cpp
+    chat_helpers/stickers_gift_box_pack.h
     chat_helpers/stickers_dice_pack.cpp
     chat_helpers/stickers_dice_pack.h
+    chat_helpers/stickers_list_footer.cpp
+    chat_helpers/stickers_list_footer.h
     chat_helpers/stickers_list_widget.cpp
     chat_helpers/stickers_list_widget.h
     chat_helpers/stickers_lottie.cpp
@@ -419,6 +425,8 @@ PRIVATE
     data/notify/data_notify_settings.h
     data/notify/data_peer_notify_settings.cpp
     data/notify/data_peer_notify_settings.h
+    data/stickers/data_custom_emoji.cpp
+    data/stickers/data_custom_emoji.h
     data/stickers/data_stickers_set.cpp
     data/stickers/data_stickers_set.h
     data/stickers/data_stickers.cpp
@@ -646,6 +654,8 @@ PRIVATE
     history/view/media/history_view_call.cpp
     history/view/media/history_view_contact.h
     history/view/media/history_view_contact.cpp
+    history/view/media/history_view_custom_emoji.h
+    history/view/media/history_view_custom_emoji.cpp
     history/view/media/history_view_dice.h
     history/view/media/history_view_dice.cpp
     history/view/media/history_view_document.h
@@ -674,6 +684,8 @@ PRIVATE
     history/view/media/history_view_photo.cpp
     history/view/media/history_view_poll.h
     history/view/media/history_view_poll.cpp
+    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_service_media_gift.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_sticker.h
@@ -1203,8 +1215,6 @@ PRIVATE
     storage/storage_account.h
     storage/storage_cloud_blob.cpp
     storage/storage_cloud_blob.h
-    storage/storage_cloud_song_cover.cpp
-    storage/storage_cloud_song_cover.h
     storage/storage_domain.cpp
     storage/storage_domain.h
     storage/storage_facade.cpp
@@ -1478,14 +1488,10 @@ else()
     endif()
 
     if (NOT DESKTOP_APP_DISABLE_WAYLAND_INTEGRATION)
-        if (DESKTOP_APP_QT6)
-            qt6_generate_wayland_protocol_client_sources(Telegram
-            FILES
-                ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
-            )
-        else()
-            message(FATAL_ERROR "This piece of cmake code is not ported to Qt 5")
-        endif()
+        qt_generate_wayland_protocol_client_sources(Telegram
+        FILES
+            ${third_party_loc}/plasma-wayland-protocols/src/protocols/plasma-shell.xml
+        )
 
         target_link_libraries(Telegram
         PRIVATE

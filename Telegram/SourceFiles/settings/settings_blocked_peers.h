@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "settings/settings_common.h"
 
+namespace Ui {
+class VerticalLayout;
+} // namespace Ui
+
 namespace Window {
 class Controller;
 } // namespace Window
@@ -32,7 +36,10 @@ private:
 	void setupContent();
 	void checkTotal(int total);
 
+	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
+
 	const not_null<Window::SessionController*> _controller;
+	const not_null<Ui::VerticalLayout*> _container;
 
 	base::unique_qptr<Ui::RpWidget> _loading;
 

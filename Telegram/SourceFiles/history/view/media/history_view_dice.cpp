@@ -23,7 +23,7 @@ namespace {
 		not_null<Element*> view,
 		const QString &emoji,
 		int value) {
-	const auto &session = view->data()->history()->session();
+	const auto &session = view->history()->session();
 	return session.diceStickersPacks().lookup(emoji, value);
 }
 
@@ -46,8 +46,8 @@ Dice::Dice(not_null<Element*> parent, not_null<Data::MediaDice*> dice)
 
 Dice::~Dice() = default;
 
-QSize Dice::size() {
-	return _start ? _start->size() : Sticker::EmojiSize();
+QSize Dice::countOptimalSize() {
+	return _start ? _start->countOptimalSize() : Sticker::EmojiSize();
 }
 
 ClickHandlerPtr Dice::link() {
@@ -78,7 +78,9 @@ void Dice::draw(Painter &p, const PaintContext &context, const QRect &r) {
 		_end->draw(p, context, r);
 	} else if (_start) {
 		_start->draw(p, context, r);
-		if (_end && _end->readyToDrawLottie() && _start->atTheEnd()) {
+		if (_end
+			&& _end->readyToDrawAnimationFrame()
+			&& _start->atTheEnd()) {
 			_drawingEnd = true;
 		}
 	}

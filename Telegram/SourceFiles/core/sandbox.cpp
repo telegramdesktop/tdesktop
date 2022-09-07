@@ -274,6 +274,9 @@ void Sandbox::socketConnected() {
 	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
 		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
 	}
+	if (qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")) {
+		commands += qsl("XDG_ACTIVATION_TOKEN:") + _escapeTo7bit(qEnvironmentVariable("XDG_ACTIVATION_TOKEN")) + ';';
+	}
 	if (!cStartUrl().isEmpty()) {
 		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
 	} else if (cQuit()) {
@@ -438,6 +441,8 @@ void Sandbox::readClients() {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
 					}
+				} else if (cmd.startsWith(qsl("XDG_ACTIVATION_TOKEN:"))) {
+					qputenv("XDG_ACTIVATION_TOKEN", _escapeFrom7bit(cmds.mid(from + 21, to - from - 21)).toUtf8());
 				} else if (cmd.startsWith(qsl("OPEN:"))) {
 					startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
 					auto activateRequired = StartUrlRequiresActivate(startUrl);

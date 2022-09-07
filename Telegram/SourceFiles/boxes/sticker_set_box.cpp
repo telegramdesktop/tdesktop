@@ -11,19 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_document_media.h"
+#include "data/data_peer_values.h"
 #include "data/stickers/data_stickers.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "menu/menu_send.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
+#include "boxes/premium_preview_box.h"
 #include "core/application.h"
 #include "mtproto/sender.h"
 #include "storage/storage_account.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/gradient_round_button.h"
 #include "ui/image/image.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/custom_emoji_instance.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
 #include "ui/toast/toast.h"
@@ -32,9 +37,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_multi_player.h"
 #include "lottie/lottie_animation.h"
 #include "chat_helpers/stickers_lottie.h"
+#include "chat_helpers/stickers_list_widget.h"
 #include "media/clip/media_clip_reader.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -46,13 +53,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat_helpers.h"
 #include "styles/style_info.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_premium.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
+#include <QtSvg/QSvgRenderer>
 
 namespace {
 
-constexpr auto kStickersPanelPerRow = 5;
+constexpr auto kStickersPerRow = 5;
+constexpr auto kEmojiPerRow = 8;
 constexpr auto kMinRepaintDelay = crl::time(33);
 constexpr auto kMinAfterScrollDelay = crl::time(33);
 constexpr auto kGrayLockOpacity = 0.3;
@@ -103,20 +113,115 @@ using SetFlag = Data::StickersSetFlag;
 	return ComputeImageColor(frame).value_or(st::windowSubTextFg->c);
 }
 
+void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
+	if (!image.isNull()) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::stickersPremiumLock.size();
+	image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	auto p = QPainter(&image);
+	const auto color = ComputeLockColor(frame);
+	p.fillRect(
+		QRect(QPoint(), size),
+		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
+	p.end();
+
+	image = Images::Circle(std::move(image));
+}
+
+void ValidatePremiumStarFg(QImage &image) {
+	if (!image.isNull()) {
+		return;
+	}
+	const auto factor = style::DevicePixelRatio();
+	const auto size = st::stickersPremiumLock.size();
+	image = QImage(
+		size * factor,
+		QImage::Format_ARGB32_Premultiplied);
+	image.setDevicePixelRatio(factor);
+	image.fill(Qt::transparent);
+	auto p = QPainter(&image);
+	auto star = QSvgRenderer(u":/gui/icons/settings/star.svg"_q);
+	const auto skip = size.width() / 5.;
+	const auto outer = QRectF(QPointF(), size).marginsRemoved(
+		{ skip, skip, skip, skip });
+	p.setBrush(st::premiumButtonFg);
+	p.setPen(Qt::NoPen);
+	star.render(&p, outer);
+}
+
 } // namespace
+
+StickerPremiumMark::StickerPremiumMark(not_null<Main::Session*> session) {
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_lockGray = QImage();
+		_star = QImage();
+	}, _lifetime);
+
+	Data::AmPremiumValue(
+		session
+	) | rpl::start_with_next([=](bool premium) {
+		_premium = premium;
+	}, _lifetime);
+}
+
+void StickerPremiumMark::paint(
+		QPainter &p,
+		const QImage &frame,
+		QImage &backCache,
+		QPoint position,
+		QSize singleSize,
+		int outerWidth) {
+	validateLock(frame, backCache);
+	const auto &bg = frame.isNull() ? _lockGray : backCache;
+	const auto factor = style::DevicePixelRatio();
+	const auto radius = st::roundRadiusSmall;
+	const auto point = position + QPoint(
+		(_premium
+			? (singleSize.width() - (bg.width() / factor) - radius)
+			: (singleSize.width() - (bg.width() / factor)) / 2),
+		singleSize.height() - (bg.height() / factor) - radius);
+	p.drawImage(point, bg);
+	if (_premium) {
+		validateStar();
+		p.drawImage(point, _star);
+	} else {
+		st::stickersPremiumLock.paint(p, point, outerWidth);
+	}
+}
+
+void StickerPremiumMark::validateLock(
+		const QImage &frame,
+		QImage &backCache) {
+	auto &image = frame.isNull() ? _lockGray : backCache;
+	ValidatePremiumLockBg(image, frame);
+}
+
+void StickerPremiumMark::validateStar() {
+	ValidatePremiumStarFg(_star);
+}
 
 class StickerSetBox::Inner final : public Ui::RpWidget {
 public:
 	Inner(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		const StickerSetIdentifier &set);
+		const StickerSetIdentifier &set,
+		Data::StickersType type);
 
-	bool loaded() const;
-	bool notInstalled() const;
-	bool official() const;
+	[[nodiscard]] bool loaded() const;
+	[[nodiscard]] bool notInstalled() const;
+	[[nodiscard]] bool premiumEmojiSet() const;
+	[[nodiscard]] bool official() const;
 	[[nodiscard]] rpl::producer<TextWithEntities> title() const;
 	[[nodiscard]] QString shortName() const;
+	[[nodiscard]] bool isEmojiSet() const;
+	[[nodiscard]] uint64 setId() const;
 
 	void install();
 	[[nodiscard]] rpl::producer<uint64> setInstalled() const;
@@ -127,8 +232,12 @@ public:
 
 	void archiveStickers();
 
-	bool isMasksSet() const {
-		return (_setFlags & SetFlag::Masks);
+	[[nodiscard]] Data::StickersType setType() const {
+		return (_setFlags & SetFlag::Emoji)
+			? Data::StickersType::Emoji
+			: (_setFlags & SetFlag::Masks)
+			? Data::StickersType::Masks
+			: Data::StickersType::Stickers;
 	}
 
 	~Inner();
@@ -147,13 +256,15 @@ private:
 		std::shared_ptr<Data::DocumentMedia> documentMedia;
 		Lottie::Animation *lottie = nullptr;
 		Media::Clip::ReaderPointer webm;
+		Ui::Text::CustomEmoji *emoji = nullptr;
 		Ui::Animations::Simple overAnimation;
+
 		mutable QImage premiumLock;
 	};
 
 	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
 
-	QSize boundingBoxSize() const;
+	[[nodiscard]] QSize boundingBoxSize() const;
 
 	void paintSticker(
 		Painter &p,
@@ -167,6 +278,10 @@ private:
 		Media::Clip::Notification notification,
 		not_null<DocumentData*> document,
 		int index);
+	void setupEmoji(int index);
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
+		not_null<DocumentData*> document);
+	void customEmojiRepaint();
 
 	void updateSelected();
 	void setSelected(int selected);
@@ -181,28 +296,38 @@ private:
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
 	void showPreview();
-	const QImage &validatePremiumLock(int index, const QImage &frame) const;
+
 	void updateItems();
 	void repaintItems(crl::time now = 0);
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 	std::vector<Element> _elements;
 	std::unique_ptr<Lottie::MultiPlayer> _lottiePlayer;
+
+	base::flat_map<
+		not_null<DocumentData*>,
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customEmoji;
+	bool _repaintScheduled = false;
+
 	StickersPack _pack;
 	StickersByEmojiMap _emoji;
 	bool _loaded = false;
 	uint64 _setId = 0;
 	uint64 _setAccessHash = 0;
 	uint64 _setHash = 0;
+	DocumentId _setThumbnailDocumentId = 0;
 	QString _setTitle, _setShortName;
 	int _setCount = 0;
 	Data::StickersSetFlags _setFlags;
+	int _rowsCount = 0;
+	int _perRow = 0;
+	QSize _singleSize;
 	TimeId _setInstallDate = TimeId(0);
 	ImageWithLocation _setThumbnail;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
-	mutable QImage _premiumLockGray;
+	mutable StickerPremiumMark _premiumMark;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -211,6 +336,7 @@ private:
 	base::Timer _updateItemsTimer;
 
 	StickerSetIdentifier _input;
+	QMargins _padding;
 
 	mtpRequestId _installRequest = 0;
 
@@ -231,9 +357,18 @@ private:
 StickerSetBox::StickerSetBox(
 	QWidget*,
 	not_null<Window::SessionController*> controller,
-	const StickerSetIdentifier &set)
+	const StickerSetIdentifier &set,
+	Data::StickersType type)
 : _controller(controller)
-, _set(set) {
+, _set(set)
+, _type(type) {
+}
+
+StickerSetBox::StickerSetBox(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Data::StickersSet*> set)
+: StickerSetBox(parent, controller, set->identifier(), set->type()) {
 }
 
 QPointer<Ui::BoxContent> StickerSetBox::Show(
@@ -242,7 +377,10 @@ QPointer<Ui::BoxContent> StickerSetBox::Show(
 	if (const auto sticker = document->sticker()) {
 		if (sticker->set) {
 			return controller->show(
-				Box<StickerSetBox>(controller, sticker->set),
+				Box<StickerSetBox>(
+					controller,
+					sticker->set,
+					sticker->setType),
 				Ui::LayerOption::KeepOther).data();
 		}
 	}
@@ -253,14 +391,19 @@ void StickerSetBox::prepare() {
 	setTitle(tr::lng_contacts_loading());
 
 	_inner = setInnerWidget(
-		object_ptr<Inner>(this, _controller, _set),
+		object_ptr<Inner>(this, _controller, _set, _type),
 		st::stickersScroll);
 	_controller->session().data().stickers().updated(
+		_type
 	) | rpl::start_with_next([=] {
 		updateButtons();
 	}, lifetime());
 
-	setDimensions(st::boxWideWidth, st::stickersMaxHeight);
+	setDimensions(
+		st::boxWideWidth,
+		(_type == Data::StickersType::Emoji
+			? st::emojiSetMaxHeight
+			: st::stickersMaxHeight));
 
 	updateTitleAndButtons();
 
@@ -271,11 +414,14 @@ void StickerSetBox::prepare() {
 
 	_inner->setInstalled(
 	) | rpl::start_with_next([=](uint64 setId) {
-		if (_inner->isMasksSet()) {
+		if (_inner->setType() == Data::StickersType::Masks) {
 			Ui::Toast::Show(
 				Ui::BoxShow(this).toastParent(),
 				tr::lng_masks_installed(tr::now));
-		} else {
+		} else if (_inner->setType() == Data::StickersType::Emoji) {
+			auto &stickers = _controller->session().data().stickers();
+			stickers.notifyEmojiSetInstalled(setId);
+		} else if (_inner->setType() == Data::StickersType::Stickers) {
 			auto &stickers = _controller->session().data().stickers();
 			stickers.notifyStickerSetInstalled(setId);
 		}
@@ -289,15 +435,18 @@ void StickerSetBox::prepare() {
 
 	_inner->setArchived(
 	) | rpl::start_with_next([=](uint64 setId) {
-		const auto isMasks = _inner->isMasksSet();
+		const auto type = _inner->setType();
+		if (type == Data::StickersType::Emoji) {
+			return;
+		}
 
 		Ui::Toast::Show(
 			Ui::BoxShow(this).toastParent(),
-			isMasks
+			(type == Data::StickersType::Masks)
 				? tr::lng_masks_has_been_archived(tr::now)
 				: tr::lng_stickers_has_been_archived(tr::now));
 
-		auto &order = isMasks
+		auto &order = (type == Data::StickersType::Masks)
 			? _controller->session().data().stickers().maskSetsOrderRef()
 			: _controller->session().data().stickers().setsOrderRef();
 		const auto index = order.indexOf(setId);
@@ -305,7 +454,7 @@ void StickerSetBox::prepare() {
 			order.removeAt(index);
 
 			auto &local = _controller->session().local();
-			if (isMasks) {
+			if (type == Data::StickersType::Masks) {
 				local.writeInstalledMasks();
 				local.writeArchivedMasks();
 			} else {
@@ -314,7 +463,7 @@ void StickerSetBox::prepare() {
 			}
 		}
 
-		_controller->session().data().stickers().notifyUpdated();
+		_controller->session().data().stickers().notifyUpdated(type);
 
 		closeBox();
 	}, lifetime());
@@ -325,8 +474,9 @@ void StickerSetBox::addStickers() {
 }
 
 void StickerSetBox::copyStickersLink() {
+	const auto part = _inner->isEmojiSet() ? u"addemoji"_q : "addstickers";
 	const auto url = _controller->session().createInternalLinkFull(
-		qsl("addstickers/") + _inner->shortName());
+		part + '/' + _inner->shortName());
 	QGuiApplication::clipboard()->setText(url);
 }
 
@@ -352,23 +502,43 @@ void StickerSetBox::updateTitleAndButtons() {
 void StickerSetBox::updateButtons() {
 	clearButtons();
 	if (_inner->loaded()) {
-		const auto isMasks = _inner->isMasksSet();
+		const auto type = _inner->setType();
+		const auto share = [=] {
+			copyStickersLink();
+			Ui::Toast::Show(
+				Ui::BoxShow(this).toastParent(),
+				(type == Data::StickersType::Emoji
+					? tr::lng_stickers_copied_emoji(tr::now)
+					: tr::lng_stickers_copied(tr::now)));
+		};
 		if (_inner->notInstalled()) {
-			auto addText = isMasks
-				? tr::lng_stickers_add_masks()
-				: tr::lng_stickers_add_pack();
-			addButton(std::move(addText), [=] { addStickers(); });
-			addButton(tr::lng_cancel(), [=] { closeBox(); });
+			if (!_controller->session().premium()
+				&& _controller->session().premiumPossible()
+				&& _inner->premiumEmojiSet()) {
+				const auto &st = st::premiumPreviewDoubledLimitsBox;
+				setStyle(st);
+				auto button = CreateUnlockButton(
+					this,
+					tr::lng_premium_unlock_emoji());
+				button->resizeToWidth(st::boxWideWidth
+					- st.buttonPadding.left()
+					- st.buttonPadding.left());
+				button->setClickedCallback([=] {
+					Settings::ShowPremium(_controller, u"animated_emoji"_q);
+				});
+				addButton(std::move(button));
+			} else {
+				auto addText = (type == Data::StickersType::Emoji)
+					? tr::lng_stickers_add_emoji()
+					: (type == Data::StickersType::Masks)
+					? tr::lng_stickers_add_masks()
+					: tr::lng_stickers_add_pack();
+				addButton(std::move(addText), [=] { addStickers(); });
+				addButton(tr::lng_cancel(), [=] { closeBox(); });
+			}
 
 			if (!_inner->shortName().isEmpty()) {
 				const auto top = addTopButton(st::infoTopBarMenu);
-				const auto share = [=] {
-					copyStickersLink();
-					Ui::Toast::Show(
-						Ui::BoxShow(this).toastParent(),
-						tr::lng_stickers_copied(tr::now));
-					closeBox();
-				};
 				const auto menu =
 					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
@@ -376,10 +546,12 @@ void StickerSetBox::updateButtons() {
 						top,
 						st::popupMenuWithIcons);
 					(*menu)->addAction(
-						(isMasks
+						((type == Data::StickersType::Emoji)
+							? tr::lng_stickers_share_emoji
+							: (type == Data::StickersType::Masks)
 							? tr::lng_stickers_share_masks
 							: tr::lng_stickers_share_pack)(tr::now),
-						share,
+						[=] { share(); closeBox(); },
 						&st::menuIconShare);
 					(*menu)->popup(QCursor::pos());
 					return true;
@@ -388,13 +560,9 @@ void StickerSetBox::updateButtons() {
 		} else if (_inner->official()) {
 			addButton(tr::lng_about_done(), [=] { closeBox(); });
 		} else {
-			auto share = [=] {
-				copyStickersLink();
-				Ui::Toast::Show(
-					Ui::BoxShow(this).toastParent(),
-					tr::lng_stickers_copied(tr::now));
-			};
-			auto shareText = isMasks
+			auto shareText = (type == Data::StickersType::Emoji)
+				? tr::lng_stickers_share_emoji()
+				: (type == Data::StickersType::Masks)
 				? tr::lng_stickers_share_masks()
 				: tr::lng_stickers_share_pack();
 			addButton(std::move(shareText), std::move(share));
@@ -405,18 +573,36 @@ void StickerSetBox::updateButtons() {
 				const auto archive = [=] {
 					_inner->archiveStickers();
 				};
+				const auto remove = [=] {
+					const auto session = &_controller->session();
+					auto box = ChatHelpers::MakeConfirmRemoveSetBox(
+						session,
+						_inner->setId());
+					if (box) {
+						_controller->show(
+							std::move(box),
+							Ui::LayerOption::KeepOther);
+					}
+				};
 				const auto menu =
 					std::make_shared<base::unique_qptr<Ui::PopupMenu>>();
 				top->setClickedCallback([=] {
 					*menu = base::make_unique_q<Ui::PopupMenu>(
 						top,
 						st::popupMenuWithIcons);
-					(*menu)->addAction(
-						isMasks
-							? tr::lng_masks_archive_pack(tr::now)
-							: tr::lng_stickers_archive_pack(tr::now),
-						archive,
-						&st::menuIconArchive);
+					if (type == Data::StickersType::Emoji) {
+						(*menu)->addAction(
+							tr::lng_custom_emoji_remove_pack_button(tr::now),
+							remove,
+							&st::menuIconRemove);
+					} else {
+						(*menu)->addAction(
+							(type == Data::StickersType::Masks
+								? tr::lng_masks_archive_pack(tr::now)
+								: tr::lng_stickers_archive_pack(tr::now)),
+							archive,
+							&st::menuIconArchive);
+					}
 					(*menu)->popup(QCursor::pos());
 					return true;
 				});
@@ -436,7 +622,8 @@ void StickerSetBox::resizeEvent(QResizeEvent *e) {
 StickerSetBox::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	const StickerSetIdentifier &set)
+	const StickerSetIdentifier &set,
+	Data::StickersType type)
 : RpWidget(parent)
 , _controller(controller)
 , _api(&_controller->session().mtp())
@@ -447,8 +634,12 @@ StickerSetBox::Inner::Inner(
 	st::windowBgRipple,
 	st::windowBgOver,
 	[=] { repaintItems(); }))
+, _premiumMark(&controller->session())
 , _updateItemsTimer([=] { updateItems(); })
 , _input(set)
+, _padding((type == Data::StickersType::Emoji)
+	? st::emojiSetPadding
+	: st::stickersPadding)
 , _previewTimer([=] { showPreview(); }) {
 	setAttribute(Qt::WA_OpaquePaintEvent);
 
@@ -467,11 +658,6 @@ StickerSetBox::Inner::Inner(
 	_controller->session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		updateItems();
-	}, lifetime());
-
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		_premiumLockGray = QImage();
 	}, lifetime());
 
 	setMouseTracking(true);
@@ -531,6 +717,7 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 			_setCount = set.vcount().v;
 			_setFlags = Data::ParseStickersSetFlags(set);
 			_setInstallDate = set.vinstalled_date().value_or(0);
+			_setThumbnailDocumentId = set.vthumb_document_id().value_or_empty();
 			_setThumbnail = [&] {
 				if (const auto thumbs = set.vthumbs()) {
 					for (const auto &thumb : thumbs->v) {
@@ -569,12 +756,16 @@ void StickerSetBox::Inner::gotSet(const MTPmessages_StickerSet &set) {
 	if (_pack.isEmpty()) {
 		_errors.fire(Error::NotFound);
 		return;
-	} else {
-		int32 rows = _pack.size() / kStickersPanelPerRow + ((_pack.size() % kStickersPanelPerRow) ? 1 : 0);
-		resize(st::stickersPadding.left() + kStickersPanelPerRow * st::stickersSize.width(), st::stickersPadding.top() + rows * st::stickersSize.height() + st::stickersPadding.bottom());
 	}
-	_loaded = true;
+	_perRow = isEmojiSet() ? kEmojiPerRow : kStickersPerRow;
+	_rowsCount = (_pack.size() + _perRow - 1) / _perRow;
+	_singleSize = isEmojiSet() ? st::emojiSetSize : st::stickersSize;
 
+	resize(
+		_padding.left() + _perRow * _singleSize.width(),
+		_padding.top() + _rowsCount * _singleSize.height() + _padding.bottom());
+
+	_loaded = true;
 	updateSelected();
 	_updateControls.fire({});
 }
@@ -599,15 +790,15 @@ void StickerSetBox::Inner::installDone(
 		const MTPmessages_StickerSetInstallResult &result) {
 	auto &stickers = _controller->session().data().stickers();
 	auto &sets = stickers.setsRef();
-	const auto isMasks = isMasksSet();
+	const auto type = setType();
 
 	const bool wasArchived = (_setFlags & SetFlag::Archived);
-	if (wasArchived) {
-		const auto index = (isMasks
+	if (wasArchived && type != Data::StickersType::Emoji) {
+		const auto index = ((type == Data::StickersType::Masks)
 			? stickers.archivedMaskSetsOrderRef()
 			: stickers.archivedSetsOrderRef()).indexOf(_setId);
 		if (index >= 0) {
-			(isMasks
+			((type == Data::StickersType::Masks)
 				? stickers.archivedMaskSetsOrderRef()
 				: stickers.archivedSetsOrderRef()).removeAt(index);
 		}
@@ -634,11 +825,14 @@ void StickerSetBox::Inner::installDone(
 		it->second->installDate = _setInstallDate;
 	}
 	const auto set = it->second.get();
+	set->thumbnailDocumentId = _setThumbnailDocumentId;
 	set->setThumbnail(_setThumbnail);
 	set->stickers = _pack;
 	set->emoji = _emoji;
 
-	auto &order = isMasks
+	auto &order = (type == Data::StickersType::Emoji)
+		? stickers.emojiSetsOrderRef()
+		: (type == Data::StickersType::Masks)
 		? stickers.maskSetsOrderRef()
 		: stickers.setsOrderRef();
 	const auto insertAtIndex = 0, currentIndex = int(order.indexOf(_setId));
@@ -668,19 +862,21 @@ void StickerSetBox::Inner::installDone(
 			result.c_messages_stickerSetInstallResultArchive());
 	} else {
 		auto &storage = _controller->session().local();
-		if (wasArchived) {
-			if (isMasks) {
+		if (wasArchived && type != Data::StickersType::Emoji) {
+			if (type == Data::StickersType::Masks) {
 				storage.writeArchivedMasks();
 			} else {
 				storage.writeArchivedStickers();
 			}
 		}
-		if (isMasks) {
+		if (type == Data::StickersType::Emoji) {
+			storage.writeInstalledCustomEmoji();
+		} else if (type == Data::StickersType::Masks) {
 			storage.writeInstalledMasks();
 		} else {
 			storage.writeInstalledStickers();
 		}
-		stickers.notifyUpdated();
+		stickers.notifyUpdated(type);
 	}
 	_setInstalled.fire_copy(_setId);
 }
@@ -723,7 +919,9 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	_previewTimer.cancel();
 	const auto index = stickerFromGlobalPos(e->globalPos());
-	if (index < 0 || index >= _pack.size() || isMasksSet()) {
+	if (index < 0
+		|| index >= _pack.size()
+		|| setType() != Data::StickersType::Stickers) {
 		return;
 	}
 	send(_pack[index], {});
@@ -742,7 +940,9 @@ void StickerSetBox::Inner::send(
 
 void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	const auto index = stickerFromGlobalPos(e->globalPos());
-	if (index < 0 || index >= _pack.size()) {
+	if (index < 0
+		|| index >= _pack.size()
+		|| setType() != Data::StickersType::Stickers) {
 		return;
 	}
 	const auto type = _controller->content()->sendMenuType();
@@ -787,7 +987,7 @@ void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 
 void StickerSetBox::Inner::updateSelected() {
 	auto selected = stickerFromGlobalPos(QCursor::pos());
-	setSelected(isMasksSet() ? -1 : selected);
+	setSelected(setType() != Data::StickersType::Stickers ? -1 : selected);
 }
 
 void StickerSetBox::Inner::setSelected(int selected) {
@@ -804,11 +1004,11 @@ void StickerSetBox::Inner::startOverAnimation(int index, float64 from, float64 t
 		return;
 	}
 	_elements[index].overAnimation.start([=] {
-		const auto row = index / kStickersPanelPerRow;
-		const auto column = index % kStickersPanelPerRow;
-		const auto left = st::stickersPadding.left() + column * st::stickersSize.width();
-		const auto top = st::stickersPadding.top() + row * st::stickersSize.height();
-		rtlupdate(left, top, st::stickersSize.width(), st::stickersSize.height());
+		const auto row = index / _perRow;
+		const auto column = index % _perRow;
+		const auto left = _padding.left() + column * _singleSize.width();
+		const auto top = _padding.top() + row * _singleSize.height();
+		rtlupdate(left, top, _singleSize.width(), _singleSize.height());
 	}, from, to, st::emojiPanDuration);
 }
 
@@ -820,15 +1020,6 @@ void StickerSetBox::Inner::showPreview() {
 			Data::FileOriginStickerSet(_setId, _setAccessHash),
 			_pack[_previewShown]);
 	}
-}
-
-const QImage &StickerSetBox::Inner::validatePremiumLock(
-		int index,
-		const QImage &frame) const {
-	auto &element = _elements[index];
-	auto &image = frame.isNull() ? _premiumLockGray : element.premiumLock;
-	ValidatePremiumLockBg(image, frame);
-	return image;
 }
 
 not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
@@ -847,10 +1038,10 @@ not_null<Lottie::MultiPlayer*> StickerSetBox::Inner::getLottiePlayer() {
 int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 	QPoint l(mapFromGlobal(p));
 	if (rtl()) l.setX(width() - l.x());
-	int32 row = (l.y() >= st::stickersPadding.top()) ? qFloor((l.y() - st::stickersPadding.top()) / st::stickersSize.height()) : -1;
-	int32 col = (l.x() >= st::stickersPadding.left()) ? qFloor((l.x() - st::stickersPadding.left()) / st::stickersSize.width()) : -1;
-	if (row >= 0 && col >= 0 && col < kStickersPanelPerRow) {
-		int32 result = row * kStickersPanelPerRow + col;
+	int32 row = (l.y() >= _padding.top()) ? qFloor((l.y() - _padding.top()) / _singleSize.height()) : -1;
+	int32 col = (l.x() >= _padding.left()) ? qFloor((l.x() - _padding.left()) / _singleSize.width()) : -1;
+	if (row >= 0 && col >= 0 && col < _perRow) {
+		int32 result = row * _perRow + col;
 		return (result < _pack.size()) ? result : -1;
 	}
 	return -1;
@@ -859,12 +1050,14 @@ int32 StickerSetBox::Inner::stickerFromGlobalPos(const QPoint &p) const {
 void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
+	_repaintScheduled = false;
+
 	p.fillRect(e->rect(), st::boxBg);
 	if (_elements.empty()) {
 		return;
 	}
 
-	int32 from = qFloor(e->rect().top() / st::stickersSize.height()), to = qFloor(e->rect().bottom() / st::stickersSize.height()) + 1;
+	int32 from = qFloor(e->rect().top() / _singleSize.height()), to = qFloor(e->rect().bottom() / _singleSize.height()) + 1;
 
 	_pathGradient->startFrame(0, width(), width() / 2);
 
@@ -872,12 +1065,14 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	const auto paused = _controller->isGifPausedAtLeastFor(
 		Window::GifPauseReason::Layer);
 	for (int32 i = from; i < to; ++i) {
-		for (int32 j = 0; j < kStickersPanelPerRow; ++j) {
-			int32 index = i * kStickersPanelPerRow + j;
+		for (int32 j = 0; j < _perRow; ++j) {
+			int32 index = i * _perRow + j;
 			if (index >= _elements.size()) {
 				break;
 			}
-			const auto pos = QPoint(st::stickersPadding.left() + j * st::stickersSize.width(), st::stickersPadding.top() + i * st::stickersSize.height());
+			const auto pos = QPoint(
+				_padding.left() + j * _singleSize.width(),
+				_padding.top() + i * _singleSize.height());
 			paintSticker(p, index, pos, paused, now);
 		}
 	}
@@ -887,10 +1082,23 @@ void StickerSetBox::Inner::paintEvent(QPaintEvent *e) {
 	}
 }
 
+bool StickerSetBox::Inner::isEmojiSet() const {
+	return (_setFlags & Data::StickersSetFlag::Emoji);
+}
+
+uint64 StickerSetBox::Inner::setId() const {
+	return _setId;
+}
+
 QSize StickerSetBox::Inner::boundingBoxSize() const {
+	if (isEmojiSet()) {
+		const auto factor = style::DevicePixelRatio();
+		const auto large = Ui::Emoji::GetSizeLarge() / factor;
+		return QSize(large, large);
+	}
 	return QSize(
-		st::stickersSize.width() - st::roundRadiusSmall * 2,
-		st::stickersSize.height() - st::roundRadiusSmall * 2);
+		_singleSize.width() - st::roundRadiusSmall * 2,
+		_singleSize.height() - st::roundRadiusSmall * 2);
 }
 
 void StickerSetBox::Inner::visibleTopBottomUpdated(
@@ -906,8 +1114,8 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 		Expects(fromRow <= tillRow);
 
 		for (auto i = fromRow; i != tillRow; ++i) {
-			for (auto j = 0; j != kStickersPanelPerRow; ++j) {
-				const auto index = i * kStickersPanelPerRow + j;
+			for (auto j = 0; j != _perRow; ++j) {
+				const auto index = i * _perRow + j;
 				if (index >= _elements.size()) {
 					break;
 				}
@@ -919,17 +1127,14 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 			}
 		}
 	};
-	const auto count = int(_elements.size());
-	const auto rowsCount = (count / kStickersPanelPerRow)
-		+ ((count % kStickersPanelPerRow) ? 1 : 0);
-	const auto rowsTop = st::stickersPadding.top();
-	const auto singleHeight = st::stickersSize.height();
-	const auto rowsBottom = rowsTop + rowsCount * singleHeight;
+	const auto rowsTop = _padding.top();
+	const auto singleHeight = _singleSize.height();
+	const auto rowsBottom = rowsTop + _rowsCount * singleHeight;
 	if (visibleTop >= rowsTop + singleHeight && visibleTop < rowsBottom) {
 		const auto pauseHeight = (visibleTop - rowsTop);
 		const auto pauseRows = std::min(
 			pauseHeight / singleHeight,
-			rowsCount);
+			_rowsCount);
 		pauseInRows(0, pauseRows);
 	}
 	if (visibleBottom > rowsTop
@@ -937,8 +1142,8 @@ void StickerSetBox::Inner::visibleTopBottomUpdated(
 		const auto pauseHeight = (rowsBottom - visibleBottom);
 		const auto pauseRows = std::min(
 			pauseHeight / singleHeight,
-			rowsCount);
-		pauseInRows(rowsCount - pauseRows, rowsCount);
+			_rowsCount);
+		pauseInRows(_rowsCount - pauseRows, _rowsCount);
 	}
 }
 
@@ -996,6 +1201,35 @@ void StickerSetBox::Inner::clipCallback(
 	updateItems();
 }
 
+void StickerSetBox::Inner::setupEmoji(int index) {
+	auto &element = _elements[index];
+	element.emoji = resolveCustomEmoji(element.document);
+}
+
+not_null<Ui::Text::CustomEmoji*> StickerSetBox::Inner::resolveCustomEmoji(
+		not_null<DocumentData*> document) {
+	const auto i = _customEmoji.find(document);
+	if (i != end(_customEmoji)) {
+		return i->second.get();
+	}
+	auto emoji = document->session().data().customEmojiManager().create(
+		document,
+		[=] { customEmojiRepaint(); },
+		Data::CustomEmojiManager::SizeTag::Large);
+	return _customEmoji.emplace(
+		document,
+		std::move(emoji)
+	).first->second.get();
+}
+
+void StickerSetBox::Inner::customEmojiRepaint() {
+	if (_repaintScheduled) {
+		return;
+	}
+	_repaintScheduled = true;
+	update();
+}
+
 void StickerSetBox::Inner::paintSticker(
 		Painter &p,
 		int index,
@@ -1005,8 +1239,8 @@ void StickerSetBox::Inner::paintSticker(
 	if (const auto over = _elements[index].overAnimation.value((index == _selected) ? 1. : 0.)) {
 		p.setOpacity(over);
 		auto tl = position;
-		if (rtl()) tl.setX(width() - tl.x() - st::stickersSize.width());
-		Ui::FillRoundRect(p, QRect(tl, st::stickersSize), st::emojiPanHover, Ui::StickerHoverCorners);
+		if (rtl()) tl.setX(width() - tl.x() - _singleSize.width());
+		Ui::FillRoundRect(p, QRect(tl, _singleSize), st::emojiPanHover, Ui::StickerHoverCorners);
 		p.setOpacity(1);
 	}
 
@@ -1014,11 +1248,11 @@ void StickerSetBox::Inner::paintSticker(
 	const auto document = element.document;
 	const auto &media = element.documentMedia;
 	const auto sticker = document->sticker();
-	const auto locked = document->isPremiumSticker()
-		&& !_controller->session().premium();
 	media->checkStickerSmall();
 
-	if (media->loaded()) {
+	if (sticker->setType == Data::StickersType::Emoji) {
+		const_cast<Inner*>(this)->setupEmoji(index);
+	} else if (media->loaded()) {
 		if (sticker->isLottie() && !element.lottie) {
 			const_cast<Inner*>(this)->setupLottie(index);
 		} else if (sticker->isWebm() && !element.webm) {
@@ -1026,14 +1260,23 @@ void StickerSetBox::Inner::paintSticker(
 		}
 	}
 
+	const auto premium = document->isPremiumSticker();
 	const auto size = ChatHelpers::ComputeStickerSize(
 		document,
 		boundingBoxSize());
 	const auto ppos = position + QPoint(
-		(st::stickersSize.width() - size.width()) / 2,
-		(st::stickersSize.height() - size.height()) / 2);
+		(_singleSize.width() - size.width()) / 2,
+		(_singleSize.height() - size.height()) / 2);
 	auto lottieFrame = QImage();
-	if (element.lottie && element.lottie->ready()) {
+	if (element.emoji) {
+		element.emoji->paint(
+			p,
+			ppos.x(),
+			ppos.y(),
+			now,
+			st::windowBgOver->c,
+			paused);
+	} else if (element.lottie && element.lottie->ready()) {
 		lottieFrame = element.lottie->frame();
 		p.drawImage(
 			QRect(ppos, lottieFrame.size() / cIntRetinaFactor()),
@@ -1041,15 +1284,17 @@ void StickerSetBox::Inner::paintSticker(
 
 		_lottiePlayer->unpause(element.lottie);
 	} else if (element.webm && element.webm->started()) {
-		p.drawPixmap(ppos, element.webm->current({
+		p.drawImage(ppos, element.webm->current({
 			.frame = size,
 			.keepAlpha = true,
 		}, paused ? 0 : now));
 	} else if (const auto image = media->getStickerSmall()) {
-		p.drawPixmapLeft(
-			ppos,
-			width(),
-			image->pix(size));
+		const auto pixmap = image->pix(size);
+		p.drawPixmapLeft(ppos, width(), pixmap);
+		if (premium) {
+			lottieFrame = pixmap.toImage().convertToFormat(
+				QImage::Format_ARGB32_Premultiplied);
+		}
 	} else {
 		ChatHelpers::PaintStickerThumbnailPath(
 			p,
@@ -1057,24 +1302,25 @@ void StickerSetBox::Inner::paintSticker(
 			QRect(ppos, size),
 			_pathGradient.get());
 	}
-	if (locked) {
-		validatePremiumLock(index, lottieFrame);
-		const auto &bg = lottieFrame.isNull()
-			? _premiumLockGray
-			: element.premiumLock;
-		const auto factor = style::DevicePixelRatio();
-		const auto radius = st::roundRadiusSmall;
-		const auto point = position + QPoint(
-			(st::stickersSize.width() - (bg.width() / factor)) / 2,
-			st::stickersSize.height() - (bg.height() / factor) - radius);
-		p.drawImage(point, bg);
-
-		st::stickersPremiumLock.paint(p, point, width());
+	if (premium) {
+		_premiumMark.paint(
+			p,
+			lottieFrame,
+			element.premiumLock,
+			position,
+			_singleSize,
+			width());
 	}
 }
 
 bool StickerSetBox::Inner::loaded() const {
 	return _loaded && !_pack.isEmpty();
+}
+
+bool StickerSetBox::Inner::premiumEmojiSet() const {
+	return (_setFlags & SetFlag::Emoji)
+		&& !_pack.empty()
+		&& _pack.front()->isPremiumEmoji();
 }
 
 bool StickerSetBox::Inner::notInstalled() const {
@@ -1157,23 +1403,3 @@ void StickerSetBox::Inner::repaintItems(crl::time now) {
 }
 
 StickerSetBox::Inner::~Inner() = default;
-
-void ValidatePremiumLockBg(QImage &image, const QImage &frame) {
-	if (!image.isNull()) {
-		return;
-	}
-	const auto factor = style::DevicePixelRatio();
-	const auto size = st::stickersPremiumLock.size();
-	image = QImage(
-		size * factor,
-		QImage::Format_ARGB32_Premultiplied);
-	image.setDevicePixelRatio(factor);
-	auto p = QPainter(&image);
-	const auto color = ComputeLockColor(frame);
-	p.fillRect(
-		QRect(QPoint(), size),
-		anim::color(color, st::windowSubTextFg, kGrayLockOpacity));
-	p.end();
-
-	image = Images::Circle(std::move(image));
-}

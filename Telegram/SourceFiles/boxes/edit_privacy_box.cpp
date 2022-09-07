@@ -112,7 +112,7 @@ std::unique_ptr<PrivacyExceptionsBoxController::Row> PrivacyExceptionsBoxControl
 
 } // namespace
 
-QString EditPrivacyController::optionLabel(Option option) {
+QString EditPrivacyController::optionLabel(Option option) const {
 	switch (option) {
 	case Option::Everyone: return tr::lng_edit_privacy_everyone(tr::now);
 	case Option::Contacts: return tr::lng_edit_privacy_contacts(tr::now);

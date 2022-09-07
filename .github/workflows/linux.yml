@@ -81,7 +81,7 @@ jobs:
       - name: First set up.
         run: |
           gcc --version
-          ln -s $LibrariesPath Libraries
+          ln -s /usr/src/Libraries
 
       - name: Telegram Desktop build.
         run: |
@@ -101,7 +101,6 @@ jobs:
           -D TDESKTOP_API_TEST=OFF \
           -D TDESKTOP_API_ID=${{ secrets.API_ID }} \
           -D TDESKTOP_API_HASH=${{ secrets.API_HASH }} \
-          -D DESKTOP_APP_USE_PACKAGED=OFF \
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF \
           $DEFINE
 

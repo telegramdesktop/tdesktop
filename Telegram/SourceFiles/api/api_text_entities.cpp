@@ -8,13 +8,56 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 
 #include "main/main_session.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/stickers/data_stickers_set.h"
 #include "data/data_session.h"
+#include "data/data_document.h"
 #include "data/data_user.h"
 
 namespace Api {
 namespace {
 
 using namespace TextUtilities;
+
+[[nodiscard]] QString CustomEmojiEntityData(
+		const MTPDmessageEntityCustomEmoji &data) {
+	return Data::SerializeCustomEmojiId({
+		.id = data.vdocument_id().v,
+	});
+}
+
+[[nodiscard]] std::optional<MTPMessageEntity> CustomEmojiEntity(
+		MTPint offset,
+		MTPint length,
+		const QString &data) {
+	const auto parsed = Data::ParseCustomEmojiData(data);
+	if (!parsed.id) {
+		return {};
+	}
+	return MTP_messageEntityCustomEmoji(
+		offset,
+		length,
+		MTP_long(parsed.id));
+}
+
+[[nodiscard]] std::optional<MTPMessageEntity> MentionNameEntity(
+		not_null<Main::Session*> session,
+		MTPint offset,
+		MTPint length,
+		const QString &data) {
+	const auto parsed = MentionNameDataToFields(data);
+	if (!parsed.userId || parsed.selfId != session->userId().bare) {
+		return {};
+	}
+	return MTP_inputMessageEntityMentionName(
+		offset,
+		length,
+		(parsed.userId == parsed.selfId
+			? MTP_inputUserSelf()
+			: MTP_inputUser(
+				MTP_long(parsed.userId),
+				MTP_long(parsed.accessHash))));
+}
 
 } // namespace
 
@@ -33,34 +76,35 @@ EntitiesInText EntitiesFromMTP(
 			case mtpc_messageEntityCashtag: { auto &d = entity.c_messageEntityCashtag(); result.push_back({ EntityType::Cashtag, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityPhone: break; // Skipping phones.
 			case mtpc_messageEntityMention: { auto &d = entity.c_messageEntityMention(); result.push_back({ EntityType::Mention, d.voffset().v, d.vlength().v }); } break;
-			case mtpc_messageEntityMentionName: {
+			case mtpc_messageEntityMentionName: if (session) {
 				const auto &d = entity.c_messageEntityMentionName();
 				const auto userId = UserId(d.vuser_id());
-				const auto data = [&] {
-					if (session) {
-						if (const auto user = session->data().userLoaded(userId)) {
-							return MentionNameDataFromFields({
-								userId.bare,
-								user->accessHash()
-							});
-						}
-					}
-					return MentionNameDataFromFields(userId.bare);
-				}();
+				const auto user = session->data().userLoaded(userId);
+				const auto data = MentionNameDataFromFields({
+					.selfId = session->userId().bare,
+					.userId = userId.bare,
+					.accessHash = user ? user->accessHash() : 0,
+				});
 				result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
 			} break;
-			case mtpc_inputMessageEntityMentionName: {
+			case mtpc_inputMessageEntityMentionName: if (session) {
 				const auto &d = entity.c_inputMessageEntityMentionName();
-				const auto data = [&] {
-					if (session && d.vuser_id().type() == mtpc_inputUserSelf) {
-						return MentionNameDataFromFields(session->userId().bare);
-					} else if (d.vuser_id().type() == mtpc_inputUser) {
-						auto &user = d.vuser_id().c_inputUser();
-						const auto userId = UserId(user.vuser_id());
-						return MentionNameDataFromFields({ userId.bare, user.vaccess_hash().v });
-					}
+				const auto data = d.vuser_id().match([&](
+						const MTPDinputUserSelf &) {
+					return MentionNameDataFromFields({
+						.selfId = session->userId().bare,
+						.userId = session->userId().bare,
+						.accessHash = session->user()->accessHash(),
+					});
+				}, [&](const MTPDinputUser &data) {
+					return MentionNameDataFromFields({
+						.selfId = session->userId().bare,
+						.userId = UserId(data.vuser_id()).bare,
+						.accessHash = data.vaccess_hash().v,
+					});
+				}, [&](const auto &) {
 					return QString();
-				}();
+				});
 				if (!data.isEmpty()) {
 					result.push_back({ EntityType::MentionName, d.voffset().v, d.vlength().v, data });
 				}
@@ -72,9 +116,12 @@ EntitiesInText EntitiesFromMTP(
 			case mtpc_messageEntityStrike: { auto &d = entity.c_messageEntityStrike(); result.push_back({ EntityType::StrikeOut, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityCode: { auto &d = entity.c_messageEntityCode(); result.push_back({ EntityType::Code, d.voffset().v, d.vlength().v }); } break;
 			case mtpc_messageEntityPre: { auto &d = entity.c_messageEntityPre(); result.push_back({ EntityType::Pre, d.voffset().v, d.vlength().v, qs(d.vlanguage()) }); } break;
-			case mtpc_messageEntityBankCard: break; // Skipping cards.
+			case mtpc_messageEntityBankCard: break; // Skipping cards. // #TODO entities
 			case mtpc_messageEntitySpoiler: { auto &d = entity.c_messageEntitySpoiler(); result.push_back({ EntityType::Spoiler, d.voffset().v, d.vlength().v }); } break;
-				// #TODO entities
+			case mtpc_messageEntityCustomEmoji: {
+				const auto &d = entity.c_messageEntityCustomEmoji();
+				result.push_back({ EntityType::CustomEmoji, d.voffset().v, d.vlength().v, CustomEmojiEntityData(d) });
+			} break;
 			}
 		}
 	}
@@ -99,7 +146,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 			&& entity.type() != EntityType::Pre
 			&& entity.type() != EntityType::Spoiler
 			&& entity.type() != EntityType::MentionName
-			&& entity.type() != EntityType::CustomUrl) {
+			&& entity.type() != EntityType::CustomUrl
+			&& entity.type() != EntityType::CustomEmoji) {
 			continue;
 		}
 
@@ -113,17 +161,8 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::Cashtag: v.push_back(MTP_messageEntityCashtag(offset, length)); break;
 		case EntityType::Mention: v.push_back(MTP_messageEntityMention(offset, length)); break;
 		case EntityType::MentionName: {
-			auto inputUser = [&](const QString &data) -> MTPInputUser {
-				auto fields = MentionNameDataToFields(data);
-				if (session && fields.userId == session->userId().bare) {
-					return MTP_inputUserSelf();
-				} else if (fields.userId) {
-					return MTP_inputUser(MTP_long(fields.userId), MTP_long(fields.accessHash));
-				}
-				return MTP_inputUserEmpty();
-			}(entity.data());
-			if (inputUser.type() != mtpc_inputUserEmpty) {
-				v.push_back(MTP_inputMessageEntityMentionName(offset, length, inputUser));
+			if (const auto valid = MentionNameEntity(session, offset, length, entity.data())) {
+				v.push_back(*valid);
 			}
 		} break;
 		case EntityType::BotCommand: v.push_back(MTP_messageEntityBotCommand(offset, length)); break;
@@ -134,6 +173,11 @@ MTPVector<MTPMessageEntity> EntitiesToMTP(
 		case EntityType::Code: v.push_back(MTP_messageEntityCode(offset, length)); break; // #TODO entities
 		case EntityType::Pre: v.push_back(MTP_messageEntityPre(offset, length, MTP_string(entity.data()))); break;
 		case EntityType::Spoiler: v.push_back(MTP_messageEntitySpoiler(offset, length)); break;
+		case EntityType::CustomEmoji: {
+			if (const auto valid = CustomEmojiEntity(offset, length, entity.data())) {
+				v.push_back(*valid);
+			}
+		} break;
 		}
 	}
 	return MTP_vector<MTPMessageEntity>(std::move(v));

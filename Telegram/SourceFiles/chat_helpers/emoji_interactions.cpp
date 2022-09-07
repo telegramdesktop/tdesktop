@@ -69,46 +69,12 @@ EmojiInteractions::~EmojiInteractions() = default;
 void EmojiInteractions::checkEdition(
 		not_null<HistoryItem*> item,
 		base::flat_map<not_null<HistoryItem*>, std::vector<Animation>> &map) {
+	const auto &pack = _session->emojiStickersPack();
 	const auto i = map.find(item);
 	if (i != end(map)
-		&& (i->second.front().emoji != chooseInteractionEmoji(item))) {
+		&& (i->second.front().emoji != pack.chooseInteractionEmoji(item))) {
 		map.erase(i);
 	}
-}
-
-EmojiPtr EmojiInteractions::chooseInteractionEmoji(
-		not_null<HistoryItem*> item) const {
-	return chooseInteractionEmoji(item->originalText().text);
-}
-
-EmojiPtr EmojiInteractions::chooseInteractionEmoji(
-		const QString &emoticon) const {
-	const auto emoji = Ui::Emoji::Find(emoticon);
-	if (!emoji) {
-		return nullptr;
-	}
-	const auto &pack = _session->emojiStickersPack();
-	if (!pack.animationsForEmoji(emoji).empty()) {
-		return emoji;
-	}
-	if (const auto original = emoji->original(); original != emoji) {
-		if (!pack.animationsForEmoji(original).empty()) {
-			return original;
-		}
-	}
-	static const auto kHearts = {
-		QString::fromUtf8("\xf0\x9f\x92\x9b"),
-		QString::fromUtf8("\xf0\x9f\x92\x99"),
-		QString::fromUtf8("\xf0\x9f\x92\x9a"),
-		QString::fromUtf8("\xf0\x9f\x92\x9c"),
-		QString::fromUtf8("\xf0\x9f\xa7\xa1"),
-		QString::fromUtf8("\xf0\x9f\x96\xa4"),
-		QString::fromUtf8("\xf0\x9f\xa4\x8e"),
-		QString::fromUtf8("\xf0\x9f\xa4\x8d"),
-	};
-	return ranges::contains(kHearts, emoji->id())
-		? Ui::Emoji::Find(QString::fromUtf8("\xe2\x9d\xa4"))
-		: emoji;
 }
 
 void EmojiInteractions::startOutgoing(
@@ -117,12 +83,12 @@ void EmojiInteractions::startOutgoing(
 	if (!item->isRegular() || !item->history()->peer->isUser()) {
 		return;
 	}
+	const auto &pack = _session->emojiStickersPack();
 	const auto emoticon = item->originalText().text;
-	const auto emoji = chooseInteractionEmoji(emoticon);
+	const auto emoji = pack.chooseInteractionEmoji(emoticon);
 	if (!emoji) {
 		return;
 	}
-	const auto &pack = _session->emojiStickersPack();
 	const auto &list = pack.animationsForEmoji(emoji);
 	if (list.empty()) {
 		return;
@@ -168,11 +134,11 @@ void EmojiInteractions::startIncoming(
 	if (!item || !item->isRegular()) {
 		return;
 	}
-	const auto emoji = chooseInteractionEmoji(item);
-	if (!emoji || emoji != chooseInteractionEmoji(emoticon)) {
+	const auto &pack = _session->emojiStickersPack();
+	const auto emoji = pack.chooseInteractionEmoji(item);
+	if (!emoji || emoji != pack.chooseInteractionEmoji(emoticon)) {
 		return;
 	}
-	const auto &pack = _session->emojiStickersPack();
 	const auto &list = pack.animationsForEmoji(emoji);
 	if (list.empty()) {
 		return;
@@ -215,8 +181,9 @@ void EmojiInteractions::startIncoming(
 void EmojiInteractions::seenOutgoing(
 		not_null<PeerData*> peer,
 		const QString &emoticon) {
+	const auto &pack = _session->emojiStickersPack();
 	if (const auto i = _playsSent.find(peer); i != end(_playsSent)) {
-		if (const auto emoji = chooseInteractionEmoji(emoticon)) {
+		if (const auto emoji = pack.chooseInteractionEmoji(emoticon)) {
 			if (const auto j = i->second.find(emoji); j != end(i->second)) {
 				const auto last = j->second.lastDoneReceivedAt;
 				if (!last || last + kAcceptSeenSinceRequest > crl::now()) {

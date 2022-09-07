@@ -29,7 +29,7 @@ public:
 		const PollData &data,
 		const SendAction &action,
 		Fn<void()> done,
-		Fn<void(const MTP::Error &error)> fail);
+		Fn<void()> fail);
 	void sendVotes(
 		FullMsgId itemId,
 		const std::vector<QByteArray> &options);

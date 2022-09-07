@@ -49,6 +49,7 @@ public:
 		Fn<void(QString)> handleInvoice,
 		Fn<void(QByteArray)> sendData,
 		Fn<void()> close,
+		QString phone,
 		MenuButtons menuButtons,
 		Fn<void(MenuButton)> handleMenuButton,
 		Fn<Webview::ThemeParams()> themeParams);
@@ -85,13 +86,18 @@ private:
 	void showWebviewProgress();
 	void hideWebviewProgress();
 	void setTitle(rpl::producer<QString> title);
-	void sendDataMessage(const QJsonValue &value);
-	void processMainButtonMessage(const QJsonValue &value);
-	void processBackButtonMessage(const QJsonValue &value);
-	void openTgLink(const QJsonValue &value);
-	void openExternalLink(const QJsonValue &value);
-	void openInvoice(const QJsonValue &value);
+	void sendDataMessage(const QJsonObject &args);
+	void processMainButtonMessage(const QJsonObject &args);
+	void processBackButtonMessage(const QJsonObject &args);
+	void openTgLink(const QJsonObject &args);
+	void openExternalLink(const QJsonObject &args);
+	void openInvoice(const QJsonObject &args);
+	void openPopup(const QJsonObject &args);
+	void requestPhone();
+	void setupClosingBehaviour(const QJsonObject &args);
 	void createMainButton();
+	void scheduleCloseWithConfirmation();
+	void closeWithConfirmation();
 
 	void postEvent(const QString &event, const QString &data = {});
 
@@ -104,6 +110,8 @@ private:
 	Fn<void(QString)> _handleInvoice;
 	Fn<void(QByteArray)> _sendData;
 	Fn<void()> _close;
+	QString _phone;
+	bool _closeNeedConfirmation = false;
 	MenuButtons _menuButtons = {};
 	Fn<void(MenuButton)> _handleMenuButton;
 	std::unique_ptr<SeparatePanel> _widget;
@@ -119,6 +127,7 @@ private:
 	bool _webviewProgress = false;
 	bool _themeUpdateScheduled = false;
 	bool _hiddenForPayment = false;
+	bool _closeWithConfirmationScheduled = false;
 
 };
 
@@ -131,6 +140,7 @@ struct Args {
 	Fn<void(QString)> handleInvoice;
 	Fn<void(QByteArray)> sendData;
 	Fn<void()> close;
+	QString phone;
 	MenuButtons menuButtons;
 	Fn<void(MenuButton)> handleMenuButton;
 	Fn<Webview::ThemeParams()> themeParams;

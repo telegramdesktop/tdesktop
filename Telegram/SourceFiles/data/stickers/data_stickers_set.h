@@ -24,6 +24,8 @@ using SavedGifs = QVector<DocumentData*>;
 using StickersPack = QVector<DocumentData*>;
 using StickersByEmojiMap = QMap<EmojiPtr, StickersPack>;
 
+enum class StickersType : uchar;
+
 class StickersSet;
 using StickersSets = base::flat_map<uint64, std::unique_ptr<StickersSet>>;
 
@@ -55,6 +57,7 @@ enum class StickersSetFlag {
 	Unread = (1 << 6),
 	Special = (1 << 7),
 	Webm = (1 << 8),
+	Emoji = (1 << 9),
 };
 inline constexpr bool is_flag_type(StickersSetFlag) { return true; };
 using StickersSetFlags = base::flags<StickersSetFlag>;
@@ -80,6 +83,7 @@ public:
 
 	[[nodiscard]] MTPInputStickerSet mtpInput() const;
 	[[nodiscard]] StickerSetIdentifier identifier() const;
+	[[nodiscard]] StickersType type() const;
 
 	void setThumbnail(const ImageWithLocation &data);
 
@@ -90,6 +94,7 @@ public:
 	[[nodiscard]] const ImageLocation &thumbnailLocation() const;
 	[[nodiscard]] Storage::Cache::Key thumbnailBigFileBaseCacheKey() const;
 	[[nodiscard]] int thumbnailByteSize() const;
+	[[nodiscard]] DocumentData *lookupThumbnailDocument() const;
 
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> createThumbnailView();
 	[[nodiscard]] std::shared_ptr<StickersSetThumbnailView> activeThumbnailView();
@@ -97,8 +102,10 @@ public:
 	uint64 id = 0;
 	uint64 accessHash = 0;
 	uint64 hash = 0;
+	DocumentId thumbnailDocumentId = 0;
 	QString title, shortName;
 	int count = 0;
+	int locked = 0;
 	StickersSetFlags flags;
 	TimeId installDate = 0;
 	StickersPack covers;

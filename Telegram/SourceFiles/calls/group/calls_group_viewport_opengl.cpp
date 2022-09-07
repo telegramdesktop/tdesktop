@@ -1230,9 +1230,9 @@ void Viewport::RendererGL::validateDatas() {
 			const auto index = (j - begin(_tileData));
 			_tileDataIndices[i] = index;
 			const auto peer = tiles[i]->row()->peer();
-			if (peer != j->peer
-				|| peer->nameVersion != j->nameVersion
-				|| width != j->nameRect.width()) {
+			if ((j->peer != peer)
+				|| (j->nameVersion != peer->nameVersion())
+				|| (j->nameRect.width() != width)) {
 				const auto nameTop = pausedBottom + index * nameHeight;
 				j->nameRect = QRect(0, nameTop, width, nameHeight);
 				requests.push_back({ .index = i, .updating = true });
@@ -1279,7 +1279,7 @@ void Viewport::RendererGL::validateDatas() {
 			});
 		}
 		const auto nameTop = pausedBottom + index * nameHeight;
-		_tileData[index].nameVersion = peer->nameVersion;
+		_tileData[index].nameVersion = peer->nameVersion();
 		_tileData[index].nameRect = QRect(
 			0,
 			nameTop,

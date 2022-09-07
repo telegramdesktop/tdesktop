@@ -127,7 +127,8 @@ public:
 		std::variant<
 			StorageFileLocation,
 			WebFileLocation,
-			GeoPointLocation> data;
+			GeoPointLocation,
+			AudioAlbumThumbLocation> data;
 	};
 
 	DownloadMtprotoTask(

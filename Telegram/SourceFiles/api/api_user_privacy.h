@@ -28,6 +28,7 @@ public:
 		CallsPeer2Peer,
 		Forwards,
 		ProfilePhoto,
+		Voices,
 	};
 	enum class Option {
 		Everyone,

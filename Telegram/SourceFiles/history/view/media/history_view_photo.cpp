@@ -133,6 +133,7 @@ bool Photo::hasHeavyPart() const {
 void Photo::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	_caption.unloadCustomEmoji();
 }
 
 QSize Photo::countOptimalSize() {
@@ -335,6 +336,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	// date
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
+		_parent->prepareCustomEmojiPaint(p, _caption);
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;

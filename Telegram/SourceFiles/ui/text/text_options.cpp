@@ -40,7 +40,8 @@ TextParseOptions HistoryServiceOptions = {
 	TextParseLinks
 		| TextParseMentions
 		//| TextParseMultiline
-		| TextParseHashtags, // flags
+		| TextParseHashtags
+		| TextParseMarkdown, // flags
 	0, // maxw
 	0, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent
@@ -75,7 +76,7 @@ TextParseOptions TextNameOptions = {
 };
 
 TextParseOptions TextDialogOptions = {
-	TextParsePlainLinks, // flags
+	TextParsePlainLinks | TextParseMarkdown, // flags
 	0, // maxw is style-dependent
 	1, // maxh
 	Qt::LayoutDirectionAuto, // lang-dependent

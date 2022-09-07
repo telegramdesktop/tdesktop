@@ -24,7 +24,31 @@ class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
+namespace ChatHelpers {
+enum class StickerLottieSize : uint8;
+} // namespace ChatHelpers
+
 namespace HistoryView {
+
+class StickerPlayer {
+public:
+	virtual ~StickerPlayer() = default;
+
+	struct FrameInfo {
+		QImage image;
+		int index = 0;
+	};
+	virtual void setRepaintCallback(Fn<void()> callback) = 0;
+	[[nodiscard]] virtual bool ready() = 0;
+	[[nodiscard]] virtual int framesCount() = 0;
+	[[nodiscard]] virtual FrameInfo frame(
+		QSize size,
+		QColor colored,
+		bool mirrorHorizontal,
+		crl::time now,
+		bool paused) = 0;
+	virtual bool markFrameShown() = 0;
+};
 
 class Sticker final
 	: public UnwrappedMedia::Content
@@ -39,16 +63,17 @@ public:
 	~Sticker();
 
 	void initSize();
-	QSize size() override;
+	QSize countOptimalSize() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
 		const QRect &r) override;
 	ClickHandlerPtr link() override;
 
+	[[nodiscard]] bool ready() const;
 	DocumentData *document() override;
 	void stickerClearLoopPlayed() override;
-	std::unique_ptr<Lottie::SinglePlayer> stickerTakeLottie(
+	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
 
@@ -60,8 +85,13 @@ public:
 	void unloadHeavyPart() override;
 
 	void refreshLink() override;
+	bool hasTextForCopy() const override {
+		return isEmojiSticker();
+	}
 
 	void setDiceIndex(const QString &emoji, int index);
+	void setCustomEmojiPart(int size, ChatHelpers::StickerLottieSize tag);
+	void setGiftBoxSticker(bool giftBoxSticker);
 	[[nodiscard]] bool atTheEnd() const {
 		return 	(_frameIndex >= 0) && (_frameIndex + 1 == _framesCount);
 	}
@@ -75,7 +105,7 @@ public:
 			? std::make_optional(_framesCount)
 			: std::nullopt;
 	}
-	[[nodiscard]] bool readyToDrawLottie();
+	[[nodiscard]] bool readyToDrawAnimationFrame();
 
 	[[nodiscard]] static QSize Size();
 	[[nodiscard]] static QSize Size(not_null<DocumentData*> document);
@@ -89,8 +119,12 @@ public:
 
 private:
 	[[nodiscard]] bool hasPremiumEffect() const;
+	[[nodiscard]] bool customEmojiPart() const;
 	[[nodiscard]] bool isEmojiSticker() const;
-	void paintLottie(Painter &p, const PaintContext &context, const QRect &r);
+	void paintAnimationFrame(
+		Painter &p,
+		const PaintContext &context,
+		const QRect &r);
 	bool paintPixmap(Painter &p, const PaintContext &context, const QRect &r);
 	void paintPath(Painter &p, const PaintContext &context, const QRect &r);
 	[[nodiscard]] QPixmap paintedPixmap(const PaintContext &context) const;
@@ -99,9 +133,9 @@ private:
 	void ensureDataMediaCreated() const;
 	void dataMediaCreated() const;
 
-	void setupLottie();
-	void lottieCreated();
-	void unloadLottie();
+	void setupPlayer();
+	void playerCreated();
+	void unloadPlayer();
 	void emojiStickerClicked();
 	void premiumStickerClicked();
 	void checkPremiumEffectStart();
@@ -110,7 +144,7 @@ private:
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _data;
 	const Lottie::ColorReplacements *_replacements = nullptr;
-	std::unique_ptr<Lottie::SinglePlayer> _lottie;
+	std::unique_ptr<StickerPlayer> _player;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	ClickHandlerPtr _link;
 	QSize _size;
@@ -120,12 +154,12 @@ private:
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;
-	mutable bool _lottieOncePlayed = false;
-	mutable bool _premiumEffectPlayed = false;
-	mutable bool _nextLastDiceFrame = false;
-	bool _skipPremiumEffect = false;
-
-	rpl::lifetime _lifetime;
+	ChatHelpers::StickerLottieSize _cachingTag = {};
+	mutable bool _oncePlayed : 1;
+	mutable bool _premiumEffectPlayed : 1;
+	mutable bool _nextLastDiceFrame : 1;
+	bool _skipPremiumEffect : 1;
+	bool _giftBoxSticker : 1;
 
 };
 

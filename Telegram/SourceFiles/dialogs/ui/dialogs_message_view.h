@@ -26,6 +26,8 @@ namespace Dialogs::Ui {
 
 using namespace ::Ui;
 
+[[nodiscard]] TextWithEntities DialogsPreviewText(TextWithEntities text);
+
 class MessageView final {
 public:
 	MessageView();

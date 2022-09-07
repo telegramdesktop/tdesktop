@@ -426,12 +426,12 @@ void RegenerateParticipants(not_null<State*> state, int small, int large) {
 		const auto id = peer->id.value;
 		const auto was = ranges::find(old, id, &Ui::WhoReadParticipant::id);
 		if (was != end(old)) {
-			was->name = peer->name;
+			was->name = peer->name();
 			now.push_back(std::move(*was));
 			continue;
 		}
 		now.push_back({
-			.name = peer->name,
+			.name = peer->name(),
 			.reaction = userpic.reaction,
 			.userpicLarge = GenerateUserpic(userpic, large),
 			.userpicKey = userpic.uniqueKey,
@@ -567,15 +567,15 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 		return false;
 	}
 	const auto &appConfig = peer->session().account().appConfig();
-	const auto expirePeriod = TimeId(appConfig.get<double>(
+	const auto expirePeriod = appConfig.get<int>(
 		"chat_read_mark_expire_period",
-		7 * 86400.));
-	if (item->date() + expirePeriod <= base::unixtime::now()) {
+		7 * 86400);
+	if (item->date() + int64(expirePeriod) <= int64(base::unixtime::now())) {
 		return false;
 	}
-	const auto maxCount = int(appConfig.get<double>(
+	const auto maxCount = appConfig.get<int>(
 		"chat_read_mark_size_threshold",
-		50));
+		50);
 	const auto count = megagroup ? megagroup->membersCount() : chat->count;
 	if (count <= 0 || count > maxCount) {
 		return false;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
@@ -62,6 +63,7 @@ private:
 
 	const not_null<UserData*> _user;
 	std::shared_ptr<Data::CloudImageView> _userpic;
+	Ui::Text::String _name;
 	QString _statusText;
 	bool _statusOnline = false;
 
@@ -113,11 +115,14 @@ void UserCheckbox::paintEvent(QPaintEvent *e) {
 	auto userpicTop = 0;
 	_user->paintUserpicLeft(p, _userpic, userpicLeft, userpicTop, width(), st::contactsPhotoSize);
 
+	if (_name.isEmpty()) {
+		_name.setText(st::msgNameStyle, _user->name(), Ui::NameTextOptions());
+	}
 	auto nameLeft = userpicLeft + st::contactsPhotoSize + st::contactsPadding.left();
 	auto nameTop = userpicTop + st::contactsNameTop;
 	auto nameWidth = width() - nameLeft - st::contactsPadding.right();
 	p.setPen(st::contactsNameFg);
-	_user->nameText().drawLeftElided(p, nameLeft, nameTop, nameWidth, width());
+	_name.drawLeftElided(p, nameLeft, nameTop, nameWidth, width());
 
 	auto statusLeft = nameLeft;
 	auto statusTop = userpicTop + st::contactsStatusTop;

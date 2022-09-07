@@ -29,6 +29,9 @@ using mtpPingId = uint64;
 using mtpBuffer = QVector<mtpPrime>;
 using mtpTypeId = uint32;
 
+struct NotSingleDataTypePlaceholder {
+};
+
 namespace MTP {
 
 // type DcId represents actual data center id, while in most cases

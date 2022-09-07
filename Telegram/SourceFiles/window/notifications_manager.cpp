@@ -91,7 +91,8 @@ System::NotificationInHistoryKey::NotificationInHistoryKey(
 
 System::System()
 : _waitTimer([=] { showNext(); })
-, _waitForAllGroupedTimer([=] { showGrouped(); }) {
+, _waitForAllGroupedTimer([=] { showGrouped(); })
+, _manager(std::make_unique<DummyManager>(this)) {
 	settingsChanged(
 	) | rpl::start_with_next([=](ChangeType type) {
 		if (type == ChangeType::DesktopEnabled) {
@@ -116,11 +117,9 @@ void System::setManager(std::unique_ptr<Manager> manager) {
 	}
 }
 
-std::optional<ManagerType> System::managerType() const {
-	if (_manager) {
-		return _manager->type();
-	}
-	return std::nullopt;
+ManagerType System::managerType() const {
+	Expects(_manager != nullptr);
+	return _manager->type();
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {
@@ -875,7 +874,7 @@ QString Manager::addTargetAccountName(
 		? (title
 			+ accountNameSeparator()
 			+ (session->user()->username.isEmpty()
-				? session->user()->name
+				? session->user()->name()
 				: session->user()->username))
 		: title;
 }
@@ -995,10 +994,10 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		? AppName.utf16()
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
-		: peer->name;
+		: peer->name();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
 	const auto subtitle = reactionFrom
-		? (reactionFrom != peer ? reactionFrom->name : QString())
+		? (reactionFrom != peer ? reactionFrom->name() : QString())
 		: options.hideNameAndPhoto
 		? QString()
 		: item->notificationHeader();

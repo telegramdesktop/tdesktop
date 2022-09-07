@@ -97,14 +97,20 @@ void ChannelData::setPhoto(const MTPChatPhoto &photo) {
 	});
 }
 
-void ChannelData::setName(const QString &newName, const QString &newUsername) {
-	updateNameDelayed(newName.isEmpty() ? name : newName, QString(), newUsername);
+void ChannelData::setName(
+		const QString &newName,
+		const QString &newUsername) {
+	updateNameDelayed(newName.isEmpty() ? name() : newName, {}, newUsername);
 }
 
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
-	input = MTP_inputPeerChannel(MTP_long(peerToChannel(id).bare), MTP_long(accessHash));
-	inputChannel = MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(accessHash));
+	input = MTP_inputPeerChannel(
+		MTP_long(peerToChannel(id).bare),
+		MTP_long(accessHash));
+	inputChannel = MTP_inputChannel(
+		MTP_long(peerToChannel(id).bare),
+		MTP_long(accessHash));
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {
@@ -377,7 +383,7 @@ void ChannelData::markForbidden() {
 			: MTPDchannelForbidden::Flag::f_broadcast),
 		MTP_long(peerToChannel(id).bare),
 		MTP_long(access),
-		MTP_string(name),
+		MTP_string(name()),
 		MTPint()));
 }
 

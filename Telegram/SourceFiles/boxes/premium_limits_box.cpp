@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h"
 #include "base/unixtime.h"
 #include "apiwrap.h"
+#include "styles/style_premium.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
@@ -355,7 +356,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		lt_link,
 		peer->session().createInternalLink(peer->userName()),
 		lt_group,
-		peer->name);
+		peer->name());
 	const auto confirmText = tr::lng_channels_too_much_public_revoke(
 		tr::now);
 	const auto closeBox = _closeBox;
@@ -928,7 +929,7 @@ void AccountsLimitBox(
 			&& account->session().premiumPossible();
 	}) | ranges::views::transform([&](not_null<Main::Account*> account) {
 		const auto user = account->session().user();
-		return Args::Entry{ user->name, PaintUserpicCallback(user, false) };
+		return Args::Entry{ user->name(), PaintUserpicCallback(user, false)};
 	}) | ranges::views::take(defaultLimit) | ranges::to_vector;
 
 	const auto premiumPossible = !promotePossible.empty();

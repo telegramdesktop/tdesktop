@@ -95,6 +95,7 @@ public:
 	void add(
 		not_null<PeerData*> peer,
 		const std::vector<not_null<UserData*>> &users,
+		bool passGroupHistory = true,
 		Fn<void(bool)> done = nullptr);
 
 	void requestSelf(not_null<ChannelData*> channel);

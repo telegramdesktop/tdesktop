@@ -14,6 +14,7 @@ namespace Export {
 namespace Data {
 struct File;
 struct Chat;
+struct Document;
 struct FileLocation;
 struct PersonalInfo;
 struct UserpicsInfo;
@@ -156,12 +157,17 @@ private:
 		int addOffset,
 		int limit,
 		FnMut<void(MTPmessages_Messages&&)> done);
+	void collectMessagesCustomEmoji(const Data::MessagesSlice &slice);
+	void resolveCustomEmoji();
 	void loadMessagesFiles(Data::MessagesSlice &&slice);
 	void loadNextMessageFile();
+	bool messageCustomEmojiReady(Data::Message &message);
 	bool loadMessageFileProgress(FileProgress value);
 	void loadMessageFileDone(const QString &relativePath);
 	bool loadMessageThumbProgress(FileProgress value);
 	void loadMessageThumbDone(const QString &relativePath);
+	bool loadMessageEmojiProgress(FileProgress progress);
+	void loadMessageEmojiDone(uint64 id, const QString &relativePath);
 	void finishMessagesSlice();
 	void finishMessages();
 
@@ -227,6 +233,8 @@ private:
 	std::unique_ptr<LeftChannelsProcess> _leftChannelsProcess;
 	std::unique_ptr<DialogsProcess> _dialogsProcess;
 	std::unique_ptr<ChatProcess> _chatProcess;
+	base::flat_set<uint64> _unresolvedCustomEmoji;
+	base::flat_map<uint64, Data::Document> _resolvedCustomEmoji;
 	QVector<MTPMessageRange> _splits;
 
 	rpl::event_stream<MTP::Error> _errors;

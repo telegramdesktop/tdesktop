@@ -187,6 +187,8 @@ public:
 		return _timeId;
 	}
 
+	[[nodiscard]] const Ui::Text::String &chatListNameText() const;
+
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);
 	auto unreadStateChangeNotifier(bool required) {
@@ -208,6 +210,8 @@ private:
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
 
+	[[nodiscard]] virtual int chatListNameVersion() const = 0;
+
 	void setChatListExistence(bool exists);
 	not_null<Row*> mainChatListLink(FilterId filterId) const;
 	Row *maybeMainChatListLink(FilterId filterId) const;
@@ -217,6 +221,8 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
+	mutable Ui::Text::String _chatListNameText;
+	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;
 	bool _isTopPromoted = false;
 	const bool _isFolder = false;

@@ -107,6 +107,7 @@ public:
 	CopyRestrictionType listSelectRestrictionType() override;
 	auto listAllowedReactionsValue()
 		-> rpl::producer<std::optional<base::flat_set<QString>>> override;
+	void listShowPremiumToast(not_null<DocumentData*> document) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;

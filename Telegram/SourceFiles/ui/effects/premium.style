@@ -1,0 +1,126 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+using "ui/basic.style";
+using "ui/widgets/widgets.style";
+using "settings/settings.style";
+
+// Preview.
+premiumPreviewBox: Box(defaultBox) {
+	buttonPadding: margins(18px, 18px, 18px, 18px);
+	buttonHeight: 44px;
+	button: RoundButton(defaultActiveButton) {
+		height: 44px;
+		textTop: 12px;
+		font: font(13px semibold);
+	}
+}
+premiumPreviewDoubledLimitsBox: Box(premiumPreviewBox) {
+	buttonPadding: margins(12px, 12px, 12px, 12px);
+}
+premiumPreviewAboutTitlePadding: margins(18px, 19px, 18px, 0px);
+premiumPreviewAboutTitle: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: windowBoldFg;
+	align: align(top);
+	style: TextStyle(defaultTextStyle) {
+		font: font(17px semibold);
+		linkFont: font(17px semibold);
+		linkFontOver: font(17px semibold);
+	}
+}
+premiumPreviewAbout: FlatLabel(defaultFlatLabel) {
+	minWidth: 240px;
+	textFg: membersAboutLimitFg;
+	align: align(top);
+}
+premiumPreviewAboutPadding: margins(18px, 8px, 18px, 8px);
+premiumPreviewButtonLabel: FlatLabel(defaultFlatLabel) {
+	textFg: premiumButtonFg;
+	style: semiboldTextStyle;
+}
+premiumSlideDuration: 200;
+premiumVideoStarSize: size(77px, 73px);
+
+premiumPreviewHeight: 312px;
+
+premiumReactionWidthSkip: 64px;
+premiumReactionHeightSkip: 75px;
+premiumReactionSize: 108px;
+premiumReactionAround: 164px;
+premiumReactionsMiddle: 148px;
+premiumReactionScale: 0.70;
+premiumReactionInfoTop: 260px;
+
+premiumDot: 6px;
+premiumDotPadding: margins(4px, 4px, 4px, 4px);
+premiumDotsMargin: margins(0px, 5px, 0px, 6px);
+premiumVideoWidth: 182px;
+
+// Graphics.
+
+premiumBubblePadding: margins(14px, 0px, 14px, 0px);
+premiumBubblePenWidth: 6;
+premiumBubbleHeight: 40px;
+premiumBubbleSkip: 8px;
+premiumBubbleWidthLimit: 80px;
+premiumBubbleTextSkip: 3px;
+premiumBubbleSlideDuration: 1000;
+premiumBubbleTailSize: size(21px, 7px);
+premiumBubbleFont: font(19px);
+premiumLineTextSkip: 11px;
+premiumInfographicPadding: margins(0px, 10px, 0px, 15px);
+
+premiumIconChats: icon {{ "limits/chats", settingsIconFg }};
+premiumIconFiles: icon {{ "limits/files", settingsIconFg }};
+premiumIconFolders: icon {{ "limits/folders", settingsIconFg }};
+premiumIconGroups: icon {{ "limits/groups", settingsIconFg }};
+premiumIconLinks: icon {{ "limits/links", settingsIconFg }};
+premiumIconPins: icon {{ "limits/pins", settingsIconFg }};
+premiumIconAccounts: icon {{ "limits/accounts", settingsIconFg }};
+
+premiumAccountsCheckbox: RoundImageCheckbox(defaultPeerListCheckbox) {
+	imageRadius: 27px;
+	imageSmallRadius: 23px;
+	check: RoundCheckbox(defaultRoundCheckbox) {
+		size: 0px;
+	}
+}
+premiumAccountsLabelSize: size(22px, 15px);
+premiumAccountsLabelPadding: margins(2px, 2px, 2px, 2px);
+premiumAccountsLabelRadius: 6;
+premiumAccountsNameTop: 13px;
+premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
+premiumAccountsHeight: 105px;
+
+// Gift.
+premiumGiftRowHeight: 56px;
+premiumGiftRowBorderWidth: 2px;
+premiumGiftRowBorderRadius: 9px;
+premiumGiftRowPaddings: margins(19px, 2px, 17px, 2px);
+premiumGiftRowMargins: margins(14px, 0px, 15px, 0px);
+premiumGiftRowSubtitleTop: 7px;
+premiumGiftRowTextLeft: 53px;
+premiumGiftRowBadgeHeight: 18px;
+premiumGiftRowBadgeRadius: 4px;
+premiumGiftRowBadgeMargins: margins(5px, 1px, 5px, 0px);
+
+premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
+premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);
+premiumGiftAboutPadding: margins(18px, 5px, 18px, 23px);
+premiumGiftTermsPadding: margins(18px, 27px, 18px, 0px);
+
+premiumGiftTerms: FlatLabel(settingLocalPasscodeDescription) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px);
+		linkFontOver: font(11px underline);
+	}
+}
+premiumGiftBox: Box(premiumPreviewBox) {
+	buttonPadding: margins(12px, 12px, 12px, 12px);
+}

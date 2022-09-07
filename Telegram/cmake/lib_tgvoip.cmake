@@ -17,11 +17,13 @@ if (DESKTOP_APP_USE_PACKAGED)
     endif()
 endif()
 
+include(CMakeDependentOption)
+
 add_library(lib_tgvoip_bundled STATIC)
 init_target(lib_tgvoip_bundled)
 
-option(LIBTGVOIP_DISABLE_ALSA "Disable libtgvoip's ALSA backend (Linux only)." OFF)
-option(LIBTGVOIP_DISABLE_PULSEAUDIO "Disable libtgvoip's PulseAudio backend (Linux only)." OFF)
+cmake_dependent_option(LIBTGVOIP_DISABLE_ALSA "Disable libtgvoip's ALSA backend." OFF LINUX ON)
+cmake_dependent_option(LIBTGVOIP_DISABLE_PULSEAUDIO "Disable libtgvoip's PulseAudio backend." OFF LINUX ON)
 
 set(tgvoip_loc ${third_party_loc}/libtgvoip)
 

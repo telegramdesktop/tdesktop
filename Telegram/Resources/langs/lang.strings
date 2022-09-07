@@ -167,8 +167,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
 "lng_channels_limit1#other" = "You are a member of **{count}** groups and channels.";
-"lng_channels_limit2#one" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
-"lng_channels_limit2#other" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to doulbe the limit to **{count}** groups and channels.";
+"lng_channels_limit2#one" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to double the limit to **{count}** groups and channels.";
+"lng_channels_limit2#other" = "Please leave some before joining a new one - or upgrade to **Telegram Premium** to double the limit to **{count}** groups and channels.";
 "lng_channels_limit2_final" = "Please leave some before joining a new one.";
 "lng_channels_leave_title" = "Least active communities";
 "lng_channels_leave_status" = "{type}, inactive {time}";
@@ -232,6 +232,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_sticker_premium_text" = "This pack contains premium stickers like this one.";
 "lng_sticker_premium_view" = "View";
+"lng_animated_emoji_text" = "Subscribe to **Telegram Premium** to unlock this emoji.";
+"lng_animated_emoji_saved" = "Try sending these emoji in **Saved Messages** for free to test.";
+"lng_animated_emoji_saved_open" = "Open";
 "lng_reaction_premium_info" = "Click on the reaction to preview the animation.";
 "lng_reaction_premium_no_group" = "Some reactions are restricted in this group.";
 "lng_reaction_premium_no_channel" = "Some reactions are restricted in this channel.";
@@ -498,6 +501,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_section_chat_settings" = "Chat Settings";
 "lng_settings_replace_emojis" = "Replace emoji";
 "lng_settings_suggest_emoji" = "Suggest emoji replacements";
+"lng_settings_suggest_animated_emoji" = "Suggest animated emoji";
 "lng_settings_suggest_by_emoji" = "Suggest popular stickers by emoji";
 "lng_settings_loop_stickers" = "Loop animated stickers";
 "lng_settings_large_emoji" = "Large emoji";
@@ -557,6 +561,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_phone_number_privacy" = "Phone number";
 "lng_settings_forwards_privacy" = "Forwarded messages";
 "lng_settings_profile_photo_privacy" = "Profile photo";
+"lng_settings_voices_privacy" = "Voice messages";
+"lng_settings_privacy_premium" = "Only subscribers of {link} can restrict receiving voice messages.";
+"lng_settings_privacy_premium_link" = "Telegram Premium";
 "lng_settings_sessions_about" = "Control your sessions on other devices.";
 "lng_settings_passcode_disable" = "Disable Passcode";
 "lng_settings_passcode_disable_sure" = "Are you sure you want to disable passcode?";
@@ -987,6 +994,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_profile_photo_always_title" = "Always allow";
 "lng_edit_privacy_profile_photo_never_title" = "Never allow";
 
+"lng_edit_privacy_voices_title" = "Voice messages settings";
+"lng_edit_privacy_voices_header" = "Who can send me voice messages";
+"lng_edit_privacy_voices_always_empty" = "Always allow";
+"lng_edit_privacy_voices_never_empty" = "Never allow";
+"lng_edit_privacy_voices_exceptions" = "These users will or will not be able to send voice and video messages to you regardless of the settings above.";
+"lng_edit_privacy_voices_always_title" = "Always allow";
+"lng_edit_privacy_voices_never_title" = "Never allow";
+
 "lng_self_destruct_title" = "Account self-destruction";
 "lng_self_destruct_description" = "If you don't come online at least once within this period, your account will be deleted along with all groups, messages and contacts.";
 "lng_self_destruct_sessions_title" = "Session termination";
@@ -1141,6 +1156,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_unblock_user" = "Unblock user";
 "lng_profile_export_chat" = "Export history";
 "lng_profile_export_channel" = "Export history";
+"lng_profile_gift_premium" = "Gift Premium";
 "lng_media_selected_photo#one" = "{count} Photo";
 "lng_media_selected_photo#other" = "{count} Photos";
 "lng_media_selected_gif#one" = "{count} GIF";
@@ -1299,8 +1315,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_participant_filter" = "Search";
 "lng_participant_invite" = "Invite";
+"lng_participant_invite_history" = "Show the last 100 messages";
+"lng_participant_invite_sure" = "Are you sure you want to add **{user}** to **{group}**?";
+"lng_participant_invite_sure_many#one" = "Are you sure you want to add {count} member to **{group}**?";
+"lng_participant_invite_sure_many#other" = "Are you sure you want to add {count} members to **{group}**?";
 "lng_participant_invite_sorry#one" = "Sorry, you can only add the first {count} member to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
 "lng_participant_invite_sorry#other" = "Sorry, you can only add the first {count} members to a channel personally.\n\nFrom now on, people will need to join via your invite link.";
+
 "lng_create_group_back" = "Back";
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
@@ -1447,10 +1468,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_you_theme_disabled" = "You disabled chat theme";
 "lng_action_theme_disabled" = "{from} disabled chat theme";
 "lng_action_proximity_distance_m#one" = "{count} meter";
-"lng_action_proximity_distance_m#other" = "{count} metres";
+"lng_action_proximity_distance_m#other" = "{count} meters";
 "lng_action_proximity_distance_km#one" = "{count} km";
 "lng_action_proximity_distance_km#other" = "{count} km";
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
+"lng_action_gift_received" = "{user} sent you a gift for {cost}";
+"lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
+
+"lng_premium_gift_duration_months#one" = "for {count} month";
+"lng_premium_gift_duration_months#other" = "for {count} months";
+"lng_premium_gift_duration_years#one" = "for {count} year";
+"lng_premium_gift_duration_years#other" = "for {count} years";
 
 "lng_ttl_photo_received" = "{from} sent you a self-destructing photo. Please view it on your mobile.";
 "lng_ttl_photo_sent" = "You sent a self-destructing photo.";
@@ -1672,14 +1700,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_more_about" = "More About Telegram Premium";
 "lng_premium_unlock_reactions" = "Unlock Premium Reactions";
 "lng_premium_unlock_stickers" = "Unlock Premium Stickers";
+"lng_premium_unlock_emoji" = "Unlock Animated Emoji";
 
 "lng_premium_summary_title" = "Telegram Premium";
 "lng_premium_summary_top_about" = "Go **beyond the limits**, get **exclusive features** and support us by subscribing to **Telegram Premium**.";
 "lng_premium_summary_title_subscribed" = "You are all set!";
+"lng_premium_summary_subtitle_gift#one" = "{user} has gifted you a {count}-month subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_gift#other" = "{user} has gifted you a {count}-months subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_gift_me#one" = "You gifted {user} a {count}-month subscription for Telegram Premium.";
+"lng_premium_summary_subtitle_gift_me#other" = "You gifted {user} a {count}-months subscription for Telegram Premium.";
 "lng_premium_summary_subtitle_double_limits" = "Doubled Limits";
 "lng_premium_summary_about_double_limits" = "Up to 1000 channels, 20 folders, 10 pins, 20 public links, 4 accounts and more.";
 "lng_premium_summary_subtitle_more_upload" = "4Gb Upload Size";
-"lng_premium_summary_about_more_upload" = "Increased upload size from 2Gb to 4Gb to per document, unlimited storage overall.";
+"lng_premium_summary_about_more_upload" = "Increased upload size from 2Gb to 4Gb per document, unlimited storage overall.";
 "lng_premium_summary_subtitle_faster_download" = "Faster Download Speed";
 "lng_premium_summary_about_faster_download" = "No more limits on the speed with which media and documents are downloaded.";
 "lng_premium_summary_subtitle_voice_to_text" = "Voice-to-Text Conversion";
@@ -1690,6 +1723,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_summary_about_unique_reactions" = "Additional animated reactions on messages available only to the Premium subscribers.";
 "lng_premium_summary_subtitle_premium_stickers" = "Premium Stickers";
 "lng_premium_summary_about_premium_stickers" = "Exclusive enlarged stickers featuring additional effects, updated monthly.";
+"lng_premium_summary_subtitle_animated_emoji" = "Animated Emoji";
+"lng_premium_summary_about_animated_emoji" = "Include animated emoji from different emoji sets in any message you send.";
 "lng_premium_summary_subtitle_advanced_chat_management" = "Advanced Chat Management";
 "lng_premium_summary_about_advanced_chat_management" = "Tools to set default folder, auto-archive and hide new chats from non-contacts.";
 "lng_premium_summary_subtitle_profile_badge" = "Profile Badge";
@@ -1743,6 +1778,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_premium_double_limits_about_accounts#other" = "Connect {count} accounts with different mobile numbers";
 //
 
+"lng_premium_gift_title" = "Gift Telegram Premium";
+"lng_premium_gift_about" = "Let **{user}** enjoy exclusive features of Telegram with **Telegram Premium**.";
+"lng_premium_gift_button" = "Gift Subscription for {cost}";
+"lng_premium_gift_per" = "{cost} / month";
+"lng_premium_gift_terms" = "You can review the list of features and terms of use for Telegram Premium {link}.";
+"lng_premium_gift_terms_link" = "here";
+
 "lng_accounts_limit_title" = "Limit Reached";
 "lng_accounts_limit1#one" = "You have reached the limit of **{count}** connected accounts.";
 "lng_accounts_limit1#other" = "You have reached the limit of **{count}** connected accounts.";
@@ -1760,6 +1802,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_switch_gifs" = "GIFs";
 "lng_switch_masks" = "Masks";
 "lng_stickers_featured_add" = "Add";
+"lng_emoji_featured_unlock" = "Unlock";
+"lng_emoji_premium_restore" = "Restore";
 "lng_gifs_search" = "Search GIFs";
 "lng_gifs_no_saved" = "You have no saved GIFs yet.";
 
@@ -1775,11 +1819,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_remove_pack" = "Remove «{sticker_pack}»?";
 "lng_stickers_add_pack" = "Add stickers";
 "lng_stickers_add_masks" = "Add masks";
+"lng_stickers_add_emoji" = "Add emoji";
 "lng_stickers_share_pack" = "Share Stickers";
 "lng_stickers_share_masks" = "Share Masks";
+"lng_stickers_share_emoji" = "Share Emoji";
 "lng_stickers_not_found" = "Sticker pack not found.";
 "lng_stickers_packs_archived" = "Some of your unused stickers have been archived to make room for the sets you've activated.";
 "lng_stickers_copied" = "Sticker pack link copied to clipboard.";
+"lng_stickers_copied_emoji" = "Emoji pack link copied to clipboard.";
 "lng_stickers_default_set" = "Great Minds";
 "lng_stickers_you_have" = "Manage sticker packs";
 "lng_stickers_return" = "Undo";
@@ -1787,7 +1834,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_count#other" = "{count} stickers";
 "lng_masks_count#one" = "{count} mask";
 "lng_masks_count#other" = "{count} masks";
+"lng_custom_emoji_count#one" = "{count} emoji";
+"lng_custom_emoji_count#other" = "{count} emoji";
 "lng_stickers_attached_sets" = "Sets of attached stickers";
+"lng_custom_emoji_used_sets" = "Sets of used emoji";
+"lng_custom_emoji_remove_pack_button" = "Remove Emoji";
 "lng_stickers_group_set" = "Group sticker set";
 "lng_stickers_remove_group_set" = "Remove group sticker set?";
 "lng_stickers_group_from_your" = "Choose from your stickers";
@@ -1796,8 +1847,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_stickers_nothing_found" = "No stickers found";
 "lng_stickers_remove_pack_confirm" = "Remove";
 "lng_stickers_archive_pack" = "Archive Stickers";
+"lng_stickers_remove_pack_button" = "Remove Stickers";
 "lng_stickers_has_been_archived" = "Sticker pack has been archived.";
 "lng_masks_archive_pack" = "Archive Masks";
+"lng_masks_remove_pack_button" = "Remove Masks";
 "lng_masks_has_been_archived" = "Mask pack has been archived.";
 "lng_masks_installed" = "Mask pack has been installed.";
 
@@ -1971,6 +2024,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_bot_menu_not_supported" = "This bot isn't supported in the attach menu.";
 "lng_bot_menu_already_added" = "This bot is already added in your attach menu.";
 "lng_bot_menu_button" = "Menu";
+"lng_bot_close_warning_title" = "Warning";
+"lng_bot_close_warning" = "Changes that you made may not be saved.";
+"lng_bot_close_warning_sure" = "Close anyway";
 
 "lng_typing" = "typing";
 "lng_user_typing" = "{user} is typing";
@@ -2109,6 +2165,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
 "lng_context_save_custom_sound" = "Save for notifications";
+
+"lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
+"lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";
+"lng_context_animated_emoji_many#other" = "This message contains emoji from **{count} packs**.";
 
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
@@ -2346,7 +2406,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_theme_editor_menu_show" = "Show palette file";
 
 "lng_payments_not_supported" = "Sorry, Telegram Desktop doesn't support payments yet. Please use one of our mobile apps to do this.";
-"lng_payments_webview_no_card" = "Unfortunately, you can't add a new card with current system configuration.";
 "lng_payments_webview_no_use" = "Unfortunately, you can't use payments with current system configuration.";
 "lng_payments_webview_install_edge" = "Please install {link}.";
 "lng_payments_webview_install_webkit" = "Please install WebKitGTK (webkit2gtk-5.0/webkit2gtk-4.1/webkit2gtk-4.0) using your package manager.";
@@ -2812,6 +2871,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_restricted_send_polls_all" = "Posting polls isn't allowed in this group.";
 
 "lng_restricted_send_public_polls" = "Sorry, public polls can't be forwarded to channels.";
+
+"lng_restricted_send_voice_messages" = "{user} restricted sending of voice messages to them.";
+"lng_restricted_send_video_messages" = "{user} restricted sending of video messages to them.";
 
 "lng_exceptions_list_title" = "Exceptions";
 "lng_removed_list_title" = "Removed users";

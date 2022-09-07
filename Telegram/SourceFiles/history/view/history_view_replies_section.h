@@ -62,6 +62,7 @@ class TopBarWidget;
 class RepliesMemento;
 class ComposeControls;
 class SendActionPainter;
+class StickerToast;
 
 class RepliesWidget final
 	: public Window::SectionWidget
@@ -143,6 +144,7 @@ public:
 	CopyRestrictionType listSelectRestrictionType() override;
 	auto listAllowedReactionsValue()
 		-> rpl::producer<std::optional<base::flat_set<QString>>> override;
+	void listShowPremiumToast(not_null<DocumentData*> document) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -284,6 +286,7 @@ private:
 	rpl::variable<bool> _rootVisible = false;
 
 	std::unique_ptr<Ui::ScrollArea> _scroll;
+	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
 	std::vector<MsgId> _replyReturns;
 	HistoryItem *_replyReturn = nullptr;

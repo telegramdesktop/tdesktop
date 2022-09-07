@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_options.h"
 #include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
 #include "dialogs/ui/dialogs_layout.h"
@@ -765,7 +766,15 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 
 		p.setFont(st::semiboldFont);
 		p.setPen(st::windowBoldFg);
-		_controller->session().user()->nameText().drawLeftElided(
+		const auto user = _controller->session().user();
+		if (_nameVersion < user->nameVersion()) {
+			_nameVersion = user->nameVersion();
+			_name.setText(
+				st::msgNameStyle,
+				user->name(),
+				Ui::NameTextOptions());
+		}
+		_name.drawLeftElided(
 			p,
 			st::mainMenuCoverNameLeft,
 			st::mainMenuCoverNameTop,

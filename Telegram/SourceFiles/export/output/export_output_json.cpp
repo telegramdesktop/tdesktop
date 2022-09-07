@@ -181,17 +181,21 @@ QByteArray SerializeText(
 			case Type::Blockquote: return "blockquote";
 			case Type::BankCard: return "bank_card";
 			case Type::Spoiler: return "spoiler";
+			case Type::CustomEmoji: return "custom_emoji";
 			}
 			Unexpected("Type in SerializeText.");
 		}();
 		const auto additionalName = (part.type == Type::MentionName)
 			? "user_id"
+			: (part.type == Type::CustomEmoji)
+			? "document_id"
 			: (part.type == Type::Pre)
 			? "language"
 			: (part.type == Type::TextUrl)
 			? "href"
 			: "none";
-		const auto additionalValue = (part.type == Type::MentionName)
+		const auto additionalValue = (part.type == Type::MentionName
+			|| part.type == Type::CustomEmoji)
 			? part.additional
 			: (part.type == Type::Pre || part.type == Type::TextUrl)
 			? SerializeString(part.additional)
@@ -542,6 +546,15 @@ QByteArray SerializeMessage(
 	}, [&](const ActionWebViewDataSent &data) {
 		pushAction("send_webview_data");
 		push("text", data.text);
+	}, [&](const ActionGiftPremium &data) {
+		pushActor();
+		pushAction("send_premium_gift");
+		if (!data.cost.isEmpty()) {
+			push("cost", data.cost);
+		}
+		if (data.months) {
+			push("months", data.months);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

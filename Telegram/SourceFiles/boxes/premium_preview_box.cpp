@@ -42,7 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_premium.h"
 #include "apiwrap.h"
 #include "styles/style_layers.h"
-#include "styles/style_chat_helpers.h"
+#include "styles/style_premium.h"
 #include "styles/style_settings.h"
 
 #include <QSvgRenderer>
@@ -50,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 constexpr auto kPremiumShift = 21. / 240;
-constexpr auto kShiftDuration = crl::time(200);
 constexpr auto kReactionsPerRow = 5;
 constexpr auto kDisabledOpacity = 0.5;
 constexpr auto kPreviewsCount = int(PremiumPreview::kCount);
@@ -65,6 +64,7 @@ struct Descriptor {
 	base::flat_map<QString, ReactionDisableType> disabled;
 	bool fromSettings = false;
 	Fn<void()> hiddenCallback;
+	Fn<void(not_null<Ui::BoxContent*>)> shownCallback;
 };
 
 bool operator==(const Descriptor &a, const Descriptor &b) {
@@ -122,6 +122,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_subtitle_unique_reactions();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_subtitle_premium_stickers();
+	case PremiumPreview::AnimatedEmoji:
+		return tr::lng_premium_summary_subtitle_animated_emoji();
 	case PremiumPreview::AdvancedChatManagement:
 		return tr::lng_premium_summary_subtitle_advanced_chat_management();
 	case PremiumPreview::ProfileBadge:
@@ -146,6 +148,8 @@ void PreloadSticker(const std::shared_ptr<Data::DocumentMedia> &media) {
 		return tr::lng_premium_summary_about_unique_reactions();
 	case PremiumPreview::Stickers:
 		return tr::lng_premium_summary_about_premium_stickers();
+	case PremiumPreview::AnimatedEmoji:
+		return tr::lng_premium_summary_about_animated_emoji();
 	case PremiumPreview::AdvancedChatManagement:
 		return tr::lng_premium_summary_about_advanced_chat_management();
 	case PremiumPreview::ProfileBadge:
@@ -443,7 +447,8 @@ struct VideoPreviewDocument {
 
 [[nodiscard]] bool VideoAlignToTop(PremiumPreview section) {
 	return (section == PremiumPreview::MoreUpload)
-		|| (section == PremiumPreview::NoAds);
+		|| (section == PremiumPreview::NoAds)
+		|| (section == PremiumPreview::AnimatedEmoji);
 }
 
 [[nodiscard]] DocumentData *LookupVideo(
@@ -455,6 +460,7 @@ struct VideoPreviewDocument {
 		case PremiumPreview::FasterDownload: return "faster_download";
 		case PremiumPreview::VoiceToText: return "voice_to_text";
 		case PremiumPreview::NoAds: return "no_ads";
+		case PremiumPreview::AnimatedEmoji: return "animated_emoji";
 		case PremiumPreview::AdvancedChatManagement:
 			return "advanced_chat_management";
 		case PremiumPreview::ProfileBadge: return "profile_badge";
@@ -1153,31 +1159,6 @@ void ReactionPreview::paintEffect(QPainter &p) {
 	return CreateGradientButton(parent, Ui::Premium::ButtonGradientStops());
 }
 
-[[nodiscard]] object_ptr<Ui::GradientButton> CreateUnlockButton(
-		QWidget *parent,
-		rpl::producer<QString> text) {
-	auto result = CreatePremiumButton(parent);
-	const auto &st = st::premiumPreviewBox.button;
-	result->resize(result->width(), st.height);
-
-	const auto label = Ui::CreateChild<Ui::FlatLabel>(
-		result.data(),
-		std::move(text),
-		st::premiumPreviewButtonLabel);
-	label->setAttribute(Qt::WA_TransparentForMouseEvents);
-	rpl::combine(
-		result->widthValue(),
-		label->widthValue()
-	) | rpl::start_with_next([=](int outer, int width) {
-		label->moveToLeft(
-			(outer - width) / 2,
-			st::premiumPreviewBox.button.textTop,
-			outer);
-	}, label->lifetime());
-
-	return result;
-}
-
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateSwitch(
 		not_null<Ui::RpWidget*> parent,
 		not_null<rpl::variable<PremiumPreview>*> selected) {
@@ -1478,11 +1459,17 @@ void PreviewBox(
 				? tr::lng_premium_unlock_reactions()
 				: (section == PremiumPreview::Stickers)
 				? tr::lng_premium_unlock_stickers()
+				: (section == PremiumPreview::AnimatedEmoji)
+				? tr::lng_premium_unlock_emoji()
 				: tr::lng_premium_more_about();
 		}) | rpl::flatten_latest();
 		auto button = descriptor.fromSettings
 			? object_ptr<Ui::GradientButton>::fromRaw(
-				Settings::CreateSubscribeButton(controller, box, computeRef))
+				Settings::CreateSubscribeButton({
+					controller,
+					box,
+					computeRef,
+				}))
 			: CreateUnlockButton(box, std::move(unlock));
 		button->resizeToWidth(width);
 		if (!descriptor.fromSettings) {
@@ -1529,7 +1516,11 @@ void Show(
 		const Descriptor &descriptor,
 		const std::shared_ptr<Data::DocumentMedia> &media,
 		QImage back) {
-	controller->show(Box(PreviewBox, controller, descriptor, media, back));
+	const auto box = controller->show(
+		Box(PreviewBox, controller, descriptor, media, back));
+	if (descriptor.shownCallback) {
+		descriptor.shownCallback(box);
+	}
 }
 
 void Show(not_null<Window::SessionController*> controller, QImage back) {
@@ -1552,7 +1543,10 @@ void Show(
 		not_null<Window::SessionController*> controller,
 		Descriptor &&descriptor) {
 	if (!controller->session().premiumPossible()) {
-		controller->show(Box(PremiumUnavailableBox));
+		const auto box = controller->show(Box(PremiumUnavailableBox));
+		if (descriptor.shownCallback) {
+			descriptor.shownCallback(box);
+		}
 		return;
 	}
 	auto &list = Preloads();
@@ -1629,10 +1623,12 @@ void ShowStickerPreviewBox(
 void ShowPremiumPreviewBox(
 		not_null<Window::SessionController*> controller,
 		PremiumPreview section,
-		const base::flat_map<QString, ReactionDisableType> &disabled) {
+		const base::flat_map<QString, ReactionDisableType> &disabled,
+		Fn<void(not_null<Ui::BoxContent*>)> shown) {
 	Show(controller, Descriptor{
 		.section = section,
 		.disabled = disabled,
+		.shownCallback = std::move(shown),
 	});
 }
 
@@ -1780,4 +1776,29 @@ void DoubledLimitsPreviewBox(
 		till,
 	});
 	Ui::Premium::ShowListBox(box, std::move(entries));
+}
+
+object_ptr<Ui::GradientButton> CreateUnlockButton(
+		QWidget *parent,
+		rpl::producer<QString> text) {
+	auto result = CreatePremiumButton(parent);
+	const auto &st = st::premiumPreviewBox.button;
+	result->resize(result->width(), st.height);
+
+	const auto label = Ui::CreateChild<Ui::FlatLabel>(
+		result.data(),
+		std::move(text),
+		st::premiumPreviewButtonLabel);
+	label->setAttribute(Qt::WA_TransparentForMouseEvents);
+	rpl::combine(
+		result->widthValue(),
+		label->widthValue()
+	) | rpl::start_with_next([=](int outer, int width) {
+		label->moveToLeft(
+			(outer - width) / 2,
+			st::premiumPreviewBox.button.textTop,
+			outer);
+	}, label->lifetime());
+
+	return result;
 }

@@ -46,6 +46,10 @@ class Media;
 class MessageReactions;
 } // namespace Data
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -63,7 +67,7 @@ enum class Context : char;
 class ElementDelegate;
 } // namespace HistoryView
 
-struct HiddenSenderInfo;
+class HiddenSenderInfo;
 class History;
 
 [[nodiscard]] MessageFlags FlagsFromMTP(
@@ -190,7 +194,12 @@ public:
 		return isGroupEssential() && isEmpty();
 	}
 	[[nodiscard]] bool isIsolatedEmoji() const {
-		return _flags & MessageFlag::IsolatedEmoji;
+		return (_flags & MessageFlag::SpecialOnlyEmoji)
+			&& _text.isIsolatedEmoji();
+	}
+	[[nodiscard]] bool isOnlyCustomEmoji() const {
+		return (_flags & MessageFlag::SpecialOnlyEmoji)
+			&& _text.isOnlyCustomEmoji();
 	}
 	[[nodiscard]] bool hasViews() const {
 		return _flags & MessageFlag::HasViews;
@@ -309,6 +318,7 @@ public:
 		ToPreviewOptions options) const;
 	[[nodiscard]] virtual TextWithEntities inReplyText() const;
 	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
+	[[nodiscard]] virtual Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}
@@ -389,6 +399,7 @@ public:
 	[[nodiscard]] Data::Media *media() const {
 		return _media.get();
 	}
+	[[nodiscard]] bool computeDropForwardedInfo() const;
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
 	[[nodiscard]] virtual bool textHasLinks() const {
@@ -431,6 +442,7 @@ public:
 
 	void updateDate(TimeId newDate);
 	[[nodiscard]] bool canUpdateDate() const;
+	void customEmojiRepaint();
 
 	[[nodiscard]] TimeId ttlDestroyAt() const {
 		return _ttlDestroyAt;
@@ -473,6 +485,7 @@ protected:
 	Ui::Text::String _text = { st::msgMinWidth };
 	int _textWidth = -1;
 	int _textHeight = 0;
+	bool _customEmojiRepaintScheduled = false;
 
 	struct SavedMediaData {
 		TextWithEntities text;

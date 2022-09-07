@@ -456,16 +456,19 @@ auto GenerateParticipantString(
 		PeerId participantId) {
 	// User name in "User name (@username)" format with entities.
 	const auto peer = session->data().peer(participantId);
-	auto name = TextWithEntities { peer->name };
+	auto name = TextWithEntities { peer->name()};
 	if (const auto user = peer->asUser()) {
-		auto entityData = QString::number(user->id.value)
-			+ '.'
-			+ QString::number(user->accessHash());
+		const auto data = TextUtilities::MentionNameDataFromFields({
+			.selfId = session->userId().bare,
+			.userId = peerToUser(user->id).bare,
+			.accessHash = user->accessHash(),
+		});
 		name.entities.push_back({
 			EntityType::MentionName,
 			0,
 			int(name.text.size()),
-			entityData });
+			data,
+		});
 	}
 	const auto username = peer->userName();
 	if (username.isEmpty()) {
@@ -706,7 +709,7 @@ void GenerateItems(
 		return callback(OwnedItem(delegate, item), sentDate);
 	};
 
-	const auto fromName = from->name;
+	const auto fromName = from->name();
 	const auto fromLink = from->createOpenLink();
 	const auto fromLinkText = Ui::Text::Link(fromName, QString());
 
@@ -1043,7 +1046,8 @@ void GenerateItems(
 					controller->show(
 						Box<StickerSetBox>(
 							controller,
-							Data::FromInputSet(set)),
+							Data::FromInputSet(set),
+							Data::StickersType::Stickers),
 						Ui::LayerOption::CloseOther);
 				}
 			});
@@ -1119,7 +1123,7 @@ void GenerateItems(
 					lt_from,
 					fromLinkText,
 					lt_chat,
-					Ui::Text::Link(now->name, QString()),
+					Ui::Text::Link(now->name(), QString()),
 					Ui::Text::WithEntities);
 			const auto chatLink = std::make_shared<LambdaClickHandler>([=] {
 				Ui::showPeerHistory(now, ShowAtUnreadMsgId);
@@ -1236,7 +1240,7 @@ void GenerateItems(
 			data.vparticipant());
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
-			participantPeer->name,
+			participantPeer->name(),
 			QString());
 		const auto text = (broadcast
 			? tr::lng_admin_log_muted_participant_channel
@@ -1255,7 +1259,7 @@ void GenerateItems(
 			data.vparticipant());
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
-			participantPeer->name,
+			participantPeer->name(),
 			QString());
 		const auto text = (broadcast
 			? tr::lng_admin_log_unmuted_participant_channel
@@ -1359,7 +1363,7 @@ void GenerateItems(
 			data.vparticipant());
 		const auto participantPeerLink = participantPeer->createOpenLink();
 		const auto participantPeerLinkText = Ui::Text::Link(
-			participantPeer->name,
+			participantPeer->name(),
 			QString());
 		const auto volume = data.vparticipant().match([&](
 				const MTPDgroupCallParticipant &data) {
@@ -1432,7 +1436,7 @@ void GenerateItems(
 				lt_link,
 				linkText,
 				lt_user,
-				Ui::Text::Link(user->name, QString()),
+				Ui::Text::Link(user->name(), QString()),
 				Ui::Text::WithEntities),
 			data.vinvite(),
 			user->createOpenLink());

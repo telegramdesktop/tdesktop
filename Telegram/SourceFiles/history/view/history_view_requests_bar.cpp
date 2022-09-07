@@ -160,7 +160,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 				if (count == 1 && !state->users.empty()) {
 					const auto user = state->users.front();
 					state->current.nameShort = user->shortName();
-					state->current.nameFull = user->name;
+					state->current.nameFull = user->name();
 				} else {
 					state->current.nameShort
 						= state->current.nameFull

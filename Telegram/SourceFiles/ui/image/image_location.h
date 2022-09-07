@@ -408,6 +408,14 @@ inline bool operator>=(
 	return !(a < b);
 }
 
+struct AudioAlbumThumbLocation {
+	uint64 documentId = 0;
+
+	friend inline auto operator<=>(
+		AudioAlbumThumbLocation,
+		AudioAlbumThumbLocation) = default;
+};
+
 struct InMemoryLocation {
 	QByteArray bytes;
 
@@ -454,6 +462,7 @@ public:
 		WebFileLocation,
 		GeoPointLocation,
 		PlainUrlLocation,
+		AudioAlbumThumbLocation,
 		InMemoryLocation> data;
 
 	[[nodiscard]] QByteArray serialize() const;

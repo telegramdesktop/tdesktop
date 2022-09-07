@@ -483,7 +483,7 @@ public:
 private:
 	friend class HistoryBlock;
 
-	enum class Flag {
+	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
 		UnreadThingsKnown = (1 << 1),
 	};
@@ -596,6 +596,8 @@ private:
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
 	void setFolderPointer(Data::Folder *folder);
+
+	int chatListNameVersion() const override;
 
 	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 

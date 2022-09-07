@@ -27,14 +27,16 @@ enum class State {
 };
 
 struct FrameRequest {
-	bool valid() const {
+	[[nodiscard]] bool valid() const {
 		return factor > 0;
 	}
+
 	QSize frame;
 	QSize outer;
 	int factor = 0;
 	ImageRoundRadius radius = ImageRoundRadius::None;
 	RectParts corners = RectPart::AllCorners;
+	QColor colored = QColor(0, 0, 0, 0);
 	bool keepAlpha = false;
 };
 
@@ -74,14 +76,27 @@ public:
 		Notification notification);
 
 	void start(FrameRequest request);
-	[[nodiscard]] QPixmap current(FrameRequest request, crl::time now);
-	[[nodiscard]] QPixmap frameOriginal() const {
+
+	struct FrameInfo {
+		QImage image;
+		int index = 0;
+	};
+	[[nodiscard]] FrameInfo frameInfo(FrameRequest request, crl::time now);
+	[[nodiscard]] QImage current(FrameRequest request, crl::time now) {
+		auto result = frameInfo(request, now).image;
+		moveToNextFrame();
+		return result;
+	}
+	[[nodiscard]] QImage frameOriginal() const {
 		if (const auto frame = frameToShow()) {
-			auto result = QPixmap::fromImage(frame->original);
+			auto result = frame->original;
 			result.detach();
 			return result;
 		}
-		return QPixmap();
+		return QImage();
+	}
+	bool moveToNextFrame() {
+		return moveToNextShow();
 	}
 	[[nodiscard]] bool currentDisplayed() const {
 		const auto frame = frameToShow();
@@ -130,13 +145,17 @@ private:
 	mutable QAtomicInt _step = kWaitingForDimensionsStep;
 	struct Frame {
 		void clear() {
-			pix = QPixmap();
+			prepared = QImage();
+			preparedColored = QColor(0, 0, 0, 0);
 			original = QImage();
 		}
-		QPixmap pix;
+
+		QImage prepared;
+		QColor preparedColored = QColor(0, 0, 0, 0);
 		QImage original;
 		FrameRequest request;
 		QAtomicInt displayed = 0;
+		int index = 0;
 
 		// Should be counted from the end,
 		// so that positionMs <= _durationMs.
@@ -146,7 +165,7 @@ private:
 	Frame *frameToShow(int *index = nullptr) const; // 0 means not ready
 	Frame *frameToWrite(int *index = nullptr) const; // 0 means not ready
 	Frame *frameToWriteNext(bool check, int *index = nullptr) const;
-	void moveToNextShow() const;
+	bool moveToNextShow() const;
 	void moveToNextWrite() const;
 
 	QAtomicInt _autoPausedGif = 0;

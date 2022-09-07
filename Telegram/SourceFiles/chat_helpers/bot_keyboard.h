@@ -29,7 +29,7 @@ public:
 		not_null<Window::SessionController*> controller,
 		QWidget *parent);
 
-	bool moderateKeyActivate(int index);
+	bool moderateKeyActivate(int index, Fn<ClickContext(FullMsgId)> context);
 
 	// With force=true the markup is updated even if it is
 	// already shown for the passed history item.

@@ -193,8 +193,10 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 	if (user->callsStatus() == UserData::CallsStatus::Private) {
 		// Request full user once more to refresh the setting in case it was changed.
 		user->session().api().requestFullPeer(user);
-		Ui::show(Ui::MakeInformBox(
-			tr::lng_call_error_not_available(tr::now, lt_user, user->name)));
+		Ui::show(Ui::MakeInformBox(tr::lng_call_error_not_available(
+			tr::now,
+			lt_user,
+			user->name())));
 		return;
 	}
 	requestPermissionsOrFail(crl::guard(this, [=] {
@@ -205,40 +207,87 @@ void Instance::startOutgoingCall(not_null<UserData*> user, bool video) {
 void Instance::startOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		const StartGroupCallArgs &args) {
-	using JoinConfirm = StartGroupCallArgs::JoinConfirm;
-	if (args.rtmpNeeded) {
-		_startWithRtmp->start(peer, [=](object_ptr<Ui::BoxContent> box) {
-			show->showBox(std::move(box), Ui::LayerOption::KeepOther);
-		}, [=](QString text) {
-			Ui::Toast::Show(show->toastParent(), text);
-		}, [=](Group::JoinInfo info) {
+		StartGroupCallArgs args) {
+	confirmLeaveCurrent(show, peer, args, [=](StartGroupCallArgs args) {
+		using JoinConfirm = Calls::StartGroupCallArgs::JoinConfirm;
+		const auto context = (args.confirm == JoinConfirm::Always)
+			? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
+			: peer->groupCall()
+			? Group::ChooseJoinAsProcess::Context::Join
+			: args.scheduleNeeded
+			? Group::ChooseJoinAsProcess::Context::CreateScheduled
+			: Group::ChooseJoinAsProcess::Context::Create;
+		_chooseJoinAs->start(peer, context, show, [=](Group::JoinInfo info) {
+			const auto call = info.peer->groupCall();
+			info.joinHash = args.joinHash;
+			if (call) {
+				info.rtmp = call->rtmp();
+			}
 			createGroupCall(
 				std::move(info),
-				MTP_inputGroupCall(MTPlong(), MTPlong()));
+				call ? call->input() : MTP_inputGroupCall({}, {}));
 		});
-		return;
-	}
-	const auto context = (args.confirm == JoinConfirm::Always)
-		? Group::ChooseJoinAsProcess::Context::JoinWithConfirm
-		: peer->groupCall()
-		? Group::ChooseJoinAsProcess::Context::Join
-		: args.scheduleNeeded
-		? Group::ChooseJoinAsProcess::Context::CreateScheduled
-		: Group::ChooseJoinAsProcess::Context::Create;
-	_chooseJoinAs->start(peer, context, [=](object_ptr<Ui::BoxContent> box) {
-		show->showBox(std::move(box), Ui::LayerOption::KeepOther);
-	}, [=](QString text) {
-		Ui::Toast::Show(show->toastParent(), text);
-	}, [=](Group::JoinInfo info) {
-		const auto call = info.peer->groupCall();
-		info.joinHash = args.joinHash;
-		if (call) {
-			info.rtmp = call->rtmp();
+	});
+}
+
+void Instance::confirmLeaveCurrent(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		StartGroupCallArgs args,
+		Fn<void(StartGroupCallArgs)> confirmed) {
+	using JoinConfirm = Calls::StartGroupCallArgs::JoinConfirm;
+
+	auto confirmedArgs = args;
+	confirmedArgs.confirm = JoinConfirm::None;
+
+	const auto askConfirmation = [&](QString text, QString button) {
+		show->showBox(Ui::MakeConfirmBox({
+			.text = text,
+			.confirmed = [=] {
+				show->hideLayer();
+				confirmed(confirmedArgs);
+			},
+			.confirmText = button,
+		}));
+	};
+	if (args.confirm != JoinConfirm::None && inCall()) {
+		// Do you want to leave your active voice chat
+		// to join a voice chat in this group?
+		askConfirmation(
+			(peer->isBroadcast()
+				? tr::lng_call_leave_to_other_sure_channel
+				: tr::lng_call_leave_to_other_sure)(tr::now),
+			tr::lng_call_bar_hangup(tr::now));
+	} else if (args.confirm != JoinConfirm::None && inGroupCall()) {
+		const auto now = currentGroupCall()->peer();
+		if (now == peer) {
+			activateCurrentCall(args.joinHash);
+		} else if (currentGroupCall()->scheduleDate()) {
+			confirmed(confirmedArgs);
+		} else {
+			askConfirmation(
+				((peer->isBroadcast() && now->isBroadcast())
+					? tr::lng_group_call_leave_channel_to_other_sure_channel
+					: now->isBroadcast()
+					? tr::lng_group_call_leave_channel_to_other_sure
+					: peer->isBroadcast()
+					? tr::lng_group_call_leave_to_other_sure_channel
+					: tr::lng_group_call_leave_to_other_sure)(tr::now),
+				tr::lng_group_call_leave(tr::now));
 		}
-		createGroupCall(
-			std::move(info),
-			call ? call->input() : MTP_inputGroupCall(MTPlong(), MTPlong()));
+	} else {
+		confirmed(args);
+	}
+}
+
+void Instance::showStartWithRtmp(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer) {
+	_startWithRtmp->start(peer, show, [=](Group::JoinInfo info) {
+		confirmLeaveCurrent(show, peer, {}, [=](auto) {
+			_startWithRtmp->close();
+			createGroupCall(std::move(info), MTP_inputGroupCall({}, {}));
+		});
 	});
 }
 

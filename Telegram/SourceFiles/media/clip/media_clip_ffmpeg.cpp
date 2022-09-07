@@ -91,6 +91,7 @@ ReaderImplementation::ReadResult FFMpegReaderImplementation::readNextFrame() {
 			_frameMs = 0;
 			_lastReadVideoMs = _lastReadAudioMs = 0;
 			_skippedInvalidDataPackets = 0;
+			_frameIndex = -1;
 
 			continue;
 		} else if (res != AVERROR(EAGAIN)) {
@@ -162,6 +163,7 @@ void FFMpegReaderImplementation::processReadFrame() {
 
 	_hadFrame = _frameRead = true;
 	_frameTime += _currentFrameDelay;
+	++_frameIndex;
 }
 
 ReaderImplementation::ReadResult FFMpegReaderImplementation::readFramesTill(crl::time frameMs, crl::time systemMs) {
@@ -200,10 +202,15 @@ crl::time FFMpegReaderImplementation::durationMs() const {
 	return 0;
 }
 
-bool FFMpegReaderImplementation::renderFrame(QImage &to, bool &hasAlpha, const QSize &size) {
+bool FFMpegReaderImplementation::renderFrame(
+		QImage &to,
+		bool &hasAlpha,
+		int &index,
+		const QSize &size) {
 	Expects(_frameRead);
-	_frameRead = false;
 
+	_frameRead = false;
+	index = _frameIndex;
 	if (!_width || !_height) {
 		_width = _frame->width;
 		_height = _frame->height;

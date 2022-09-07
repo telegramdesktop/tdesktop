@@ -18,6 +18,7 @@ constexpr auto kDocumentCacheTag = 0x0000000000000100ULL;
 constexpr auto kDocumentCacheMask = 0x00000000000000FFULL;
 constexpr auto kDocumentThumbCacheTag = 0x0000000000000200ULL;
 constexpr auto kDocumentThumbCacheMask = 0x00000000000000FFULL;
+constexpr auto kAudioAlbumThumbCacheTag = 0x0000000000000300ULL;
 constexpr auto kWebDocumentCacheTag = 0x0000020000000000ULL;
 constexpr auto kUrlCacheTag = 0x0000030000000000ULL;
 constexpr auto kGeoPointCacheTag = 0x0000040000000000ULL;
@@ -83,6 +84,14 @@ Storage::Cache::Key GeoPointCacheKey(const GeoPointLocation &location) {
 		(uint64(base::SafeRound(
 			std::abs(location.lat + 360.) * 1000000)) << 32)
 		| uint64(base::SafeRound(std::abs(location.lon + 360.) * 1000000))
+	};
+}
+
+Storage::Cache::Key AudioAlbumThumbCacheKey(
+		const AudioAlbumThumbLocation &location) {
+	return Storage::Cache::Key{
+		Data::kAudioAlbumThumbCacheTag,
+		location.documentId,
 	};
 }
 

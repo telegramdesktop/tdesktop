@@ -7,11 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/ui_integration.h"
 
+#include "api/api_text_entities.h"
 #include "core/local_url_handlers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "core/sandbox.h"
 #include "core/click_handler_types.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_session.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
@@ -237,20 +240,22 @@ bool UiIntegration::handleUrlClick(
 		File::OpenUrl(UrlWithAutoLoginToken(url, std::move(parsed), domain));
 	}
 	return true;
+}
 
+std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
+		const QString &data,
+		const std::any &context) {
+	const auto my = std::any_cast<MarkedTextContext>(&context);
+	if (!my || !my->session) {
+		return nullptr;
+	}
+	return my->session->data().customEmojiManager().create(
+		data,
+		my->customEmojiRepaint);
 }
 
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return Core::App().passcodeLockChanges() | rpl::to_empty;
-}
-
-QString UiIntegration::convertTagToMimeTag(const QString &tagId) {
-	if (TextUtilities::IsMentionLink(tagId)) {
-		if (const auto session = Core::App().activeAccount().maybeSession()) {
-			return tagId + ':' + QString::number(session->userId().bare);
-		}
-	}
-	return tagId;
 }
 
 const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
@@ -264,7 +269,7 @@ const Ui::Emoji::One *UiIntegration::defaultEmojiVariant(
 	const auto result = (i != end(variants))
 		? emoji->variant(i->second)
 		: emoji;
-	Core::App().settings().incrementRecentEmoji(result);
+	Core::App().settings().incrementRecentEmoji({ result });
 	return result;
 }
 
@@ -328,9 +333,39 @@ QString UiIntegration::phraseButtonOk() {
 	return tr::lng_box_ok(tr::now);
 }
 
+QString UiIntegration::phraseButtonClose() {
+	return tr::lng_close(tr::now);
+}
+
 QString UiIntegration::phraseButtonCancel() {
 	return tr::lng_cancel(tr::now);
 }
+
+QString UiIntegration::phrasePanelCloseWarning() {
+	return tr::lng_bot_close_warning_title(tr::now);
+}
+
+QString UiIntegration::phrasePanelCloseUnsaved() {
+	return tr::lng_bot_close_warning(tr::now);
+}
+
+QString UiIntegration::phrasePanelCloseAnyway() {
+	return tr::lng_bot_close_warning_sure(tr::now);
+}
+
+#if 0 // disabled for now
+QString UiIntegration::phraseBotSharePhone() {
+	return tr::lng_bot_share_phone(tr::now);
+}
+
+QString UiIntegration::phraseBotSharePhoneTitle() {
+	return tr::lng_settings_phone_label(tr::now);
+}
+
+QString UiIntegration::phraseBotSharePhoneConfirm() {
+	return tr::lng_bot_share_phone_confirm(tr::now);
+}
+#endif
 
 bool OpenGLLastCheckFailed() {
 	return QFile::exists(OpenGLCheckFilePath());

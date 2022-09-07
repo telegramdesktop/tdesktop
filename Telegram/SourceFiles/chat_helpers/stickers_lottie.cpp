@@ -27,6 +27,10 @@ constexpr auto kDontCacheLottieAfterArea = 512 * 512;
 
 } // namespace
 
+uint8 LottieCacheKeyShift(uint8 replacementsTag, StickerLottieSize sizeTag) {
+	return ((replacementsTag << 4) & 0xF0) | (uint8(sizeTag) & 0x0F);
+}
+
 template <typename Method>
 auto LottieCachedFromContent(
 		Method &&method,
@@ -115,8 +119,9 @@ std::unique_ptr<Lottie::SinglePlayer> LottiePlayerFromDocument(
 			replacements,
 			std::move(renderer));
 	};
-	const auto tag = replacements ? replacements->tag : uint8(0);
-	const auto keyShift = ((tag << 4) & 0xF0) | (uint8(sizeTag) & 0x0F);
+	const auto keyShift = LottieCacheKeyShift(
+		replacements ? replacements->tag : uint8(0),
+		sizeTag);
 	return LottieFromDocument(method, media, uint8(keyShift), box);
 }
 

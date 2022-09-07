@@ -82,7 +82,10 @@ bool ShowStickerSet(
 	Core::App().hideMediaView();
 	controller->show(Box<StickerSetBox>(
 		controller,
-		StickerSetIdentifier{ .shortName = match->captured(1) }));
+		StickerSetIdentifier{ .shortName = match->captured(2) },
+		(match->captured(1) == "addemoji"
+			? Data::StickersType::Emoji
+			: Data::StickersType::Stickers)));
 	controller->window().activate();
 	return true;
 }
@@ -488,25 +491,21 @@ bool HandleUnknown(
 		return false;
 	}
 	const auto request = match->captured(1);
-	const auto callback = crl::guard(controller, [=](const MTPDhelp_deepLinkInfo &result) {
-		const auto text = TextWithEntities{
-			qs(result.vmessage()),
-			Api::EntitiesFromMTP(
-				&controller->session(),
-				result.ventities().value_or_empty())
-		};
-		if (result.is_update_app()) {
+	const auto callback = crl::guard(controller, [=](
+			TextWithEntities message,
+			bool updateRequired) {
+		if (updateRequired) {
 			const auto callback = [=](Fn<void()> &&close) {
 				Core::UpdateApplication();
 				close();
 			};
 			controller->show(Ui::MakeConfirmBox({
-				.text = text,
+				.text = message,
 				.confirmed = callback,
 				.confirmText = tr::lng_menu_update(),
 			}));
 		} else {
-			controller->show(Ui::MakeInformBox(text));
+			controller->show(Ui::MakeInformBox(message));
 		}
 	});
 	controller->session().api().requestDeepLinkInfo(request, callback);
@@ -781,7 +780,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			JoinGroupByHash
 		},
 		{
-			qsl("^addstickers/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"),
+			qsl("^(addstickers|addemoji)/?\\?set=([a-zA-Z0-9\\.\\_]+)(&|$)"),
 			ShowStickerSet
 		},
 		{
@@ -885,8 +884,8 @@ QString TryConvertUrlToLocal(QString url) {
 			return qsl("tg://resolve?phone=") + phoneMatch->captured(1) + (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto joinChatMatch = regex_match(qsl("^(joinchat/|\\+|\\%20)([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://join?invite=") + url_encode(joinChatMatch->captured(2));
-		} else if (auto stickerSetMatch = regex_match(qsl("^addstickers/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
-			return qsl("tg://addstickers?set=") + url_encode(stickerSetMatch->captured(1));
+		} else if (auto stickerSetMatch = regex_match(qsl("^(addstickers|addemoji)/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
+			return qsl("tg://") + stickerSetMatch->captured(1) + "?set=" + url_encode(stickerSetMatch->captured(2));
 		} else if (auto themeMatch = regex_match(qsl("^addtheme/([a-zA-Z0-9\\.\\_]+)(\\?|$)"), query, matchOptions)) {
 			return qsl("tg://addtheme?slug=") + url_encode(themeMatch->captured(1));
 		} else if (auto languageMatch = regex_match(qsl("^setlanguage/([a-zA-Z0-9\\.\\_\\-]+)(\\?|$)"), query, matchOptions)) {

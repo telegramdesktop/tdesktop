@@ -1,3 +1,36 @@
+4.1.1 (16.08.22)
+
+- Fix editing media captions with animated emoji.
+- Fix viewing animated emoji sets used in a message.
+- Fix premium sticker tooltip auto-show in channel comments.
+- Fix main window position and size restoring after relaunch.
+- Other bug fixes and minor improvements.
+
+4.1 (12.08.22)
+
+- Include animated emoji in messages and captions.
+- Premium users unlock over 500 new emoji, including custom packs with unique characters.
+- All users can view any emoji – and try them out in the Saved Messages chat.
+- Control who can send you voice and video messages with Telegram Premium.
+- Send a Premium subscription to any user from their profile.
+- Choose 3, 6, or 12 months – at a discount.
+
+4.0.4 beta (04.08.22)
+
+- Allow sending animated emoji to Saved Messages even without Telegram Premium.
+- Premium: Suggest animated emoji by regular emoji (can be disabled in Settings).
+- Premium: Show all suggested premium stickers in a special section of the stickers panel.
+- Premium: Allow hiding premium stickers special section of the stickers panel.
+- Fix a memory leak in RTMP livestreams.
+- Fix some bot webview bugs on macOS.
+- Fix forwarding of voice messages.
+
+4.0.3 beta (28.07.22)
+
+- Animated emoji for messages.
+- Premium: Privacy settings for voice messages.
+- Premium: Gifting Telegram Premium to any user from their profile page.
+
 4.0.2 (24.06.22)
 
 - Fix window title on Windows 7. (again)

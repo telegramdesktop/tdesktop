@@ -32,6 +32,11 @@ void ShowPremium(not_null<::Main::Session*> session, const QString &ref);
 void ShowPremium(
 	not_null<Window::SessionController*> controller,
 	const QString &ref);
+void ShowGiftPremium(
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	int months,
+	bool me);
 
 void StartPremiumPayment(
 	not_null<Window::SessionController*> controller,
@@ -39,10 +44,16 @@ void StartPremiumPayment(
 
 [[nodiscard]] QString LookupPremiumRef(PremiumPreview section);
 
+struct SubscribeButtonArgs final {
+	not_null<Window::SessionController*> controller;
+	not_null<Ui::RpWidget*> parent;
+	Fn<QString()> computeRef;
+	std::optional<rpl::producer<QString>> text;
+	std::optional<QGradientStops> gradientStops;
+};
+
 [[nodiscard]] not_null<Ui::GradientButton*> CreateSubscribeButton(
-	not_null<Window::SessionController*> controller,
-	not_null<Ui::RpWidget*> parent,
-	Fn<QString()> computeRef);
+	SubscribeButtonArgs &&args);
 
 
 } // namespace Settings

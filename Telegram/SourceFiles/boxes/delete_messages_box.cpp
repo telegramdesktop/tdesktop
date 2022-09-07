@@ -120,20 +120,29 @@ void DeleteMessagesBox::prepare() {
 				: peer->isSelf()
 				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
-				? tr::lng_sure_delete_history(tr::now, lt_contact, peer->name)
+				? tr::lng_sure_delete_history(
+					tr::now,
+					lt_contact,
+					peer->name())
 				: tr::lng_sure_delete_group_history(
 					tr::now,
 					lt_group,
-					peer->name);
+					peer->name());
 			details = Ui::Text::RichLangValue(details.text);
 			deleteStyle = &st::attentionBoxButton;
 		} else {
 			details.text = peer->isSelf()
 				? tr::lng_sure_delete_saved_messages(tr::now)
 				: peer->isUser()
-				? tr::lng_sure_delete_history(tr::now, lt_contact, peer->name)
+				? tr::lng_sure_delete_history(
+					tr::now,
+					lt_contact,
+					peer->name())
 				: peer->isChat()
-				? tr::lng_sure_delete_and_exit(tr::now, lt_group, peer->name)
+				? tr::lng_sure_delete_and_exit(
+					tr::now,
+					lt_group,
+					peer->name())
 				: peer->isMegagroup()
 				? tr::lng_sure_leave_group(tr::now)
 				: tr::lng_sure_leave_channel(tr::now);
@@ -189,7 +198,7 @@ void DeleteMessagesBox::prepare() {
 				tr::lng_delete_all_from_user(
 					tr::now,
 					lt_user,
-					Ui::Text::Bold(_moderateFrom->name),
+					Ui::Text::Bold(_moderateFrom->name()),
 					Ui::Text::WithEntities),
 				false,
 				st::defaultBoxCheckbox);

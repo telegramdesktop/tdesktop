@@ -16,6 +16,7 @@ set(style_files
     ui/filter_icons.style
     ui/menu_icons.style
     ui/chat/chat.style
+    ui/effects/premium.style
     boxes/boxes.style
     dialogs/dialogs.style
     chat_helpers/chat_helpers.style
@@ -83,6 +84,9 @@ PRIVATE
     editor/scene/scene_item_image.h
     editor/scene/scene_item_line.cpp
     editor/scene/scene_item_line.h
+
+    history/history_view_top_toast.cpp
+    history/history_view_top_toast.h
 
     layout/abstract_layout_item.cpp
     layout/abstract_layout_item.h
@@ -228,10 +232,14 @@ PRIVATE
     ui/effects/fireworks_animation.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
+    ui/effects/premium_stars.cpp
+    ui/effects/premium_stars.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
+    ui/text/custom_emoji_instance.cpp
+    ui/text/custom_emoji_instance.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp

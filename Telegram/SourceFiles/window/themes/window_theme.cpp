@@ -1520,6 +1520,7 @@ bool ReadPaletteValues(const QByteArray &content, Fn<bool(QLatin1String name, QL
 [[nodiscard]] Webview::ThemeParams WebViewParams() {
 	const auto colors = std::vector<std::pair<QString, const style::color&>>{
 		{ "bg_color", st::windowBg },
+		{ "secondary_bg_color", st::boxDividerBg },
 		{ "text_color", st::windowFg },
 		{ "hint_color", st::windowSubTextFg },
 		{ "link_color", st::windowActiveTextFg },

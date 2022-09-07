@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/text/text_entity.h"
+
 namespace Payments::Ui {
 
 struct LabeledPrice {
@@ -16,7 +18,7 @@ struct LabeledPrice {
 
 struct Cover {
 	QString title;
-	QString description;
+	TextWithEntities description;
 	QString seller;
 	QImage thumbnail;
 };
@@ -160,12 +162,23 @@ struct NativeMethodDetails {
 	bool canSaveInformation = false;
 };
 
-struct PaymentMethodDetails {
+struct PaymentMethodAdditional {
 	QString title;
+	QString url;
+};
+
+struct PaymentMethodSaved {
+	QString id;
+	QString title;
+};
+
+struct PaymentMethodDetails {
 	NativeMethodDetails native;
+	std::vector<PaymentMethodSaved> savedMethods;
+	std::vector<PaymentMethodAdditional> additionalMethods;
 	QString url;
 	QString provider;
-	bool ready = false;
+	int savedMethodIndex = 0;
 	bool canSaveInformation = false;
 };
 

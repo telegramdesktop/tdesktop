@@ -340,6 +340,12 @@ struct ParseMediaContext {
 	UserId botId = 0;
 };
 
+Document ParseDocument(
+	ParseMediaContext &context,
+	const MTPDocument &data,
+	const QString &suggestedFolder,
+	TimeId date);
+
 Media ParseMedia(
 	ParseMediaContext &context,
 	const MTPMessageMedia &data,
@@ -488,6 +494,11 @@ struct ActionWebViewDataSent {
 	Utf8String text;
 };
 
+struct ActionGiftPremium {
+	Utf8String cost;
+	int months;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -519,7 +530,8 @@ struct ServiceAction {
 		ActionGroupCallScheduled,
 		ActionSetChatTheme,
 		ActionChatJoinedByRequest,
-		ActionWebViewDataSent> content;
+		ActionWebViewDataSent,
+		ActionGiftPremium> content;
 };
 
 ServiceAction ParseServiceAction(
@@ -549,10 +561,15 @@ struct TextPart {
 		Blockquote,
 		BankCard,
 		Spoiler,
+		CustomEmoji,
 	};
 	Type type = Type::Text;
 	Utf8String text;
 	Utf8String additional;
+
+	[[nodiscard]] static Utf8String UnavailableEmoji() {
+		return "(unavailable)";
+	}
 };
 
 struct MessageId {
@@ -612,6 +629,7 @@ struct FileOrigin {
 	int split = 0;
 	MTPInputPeer peer;
 	int32 messageId = 0;
+	uint64 customEmojiId = 0;
 };
 
 Message ParseMessage(

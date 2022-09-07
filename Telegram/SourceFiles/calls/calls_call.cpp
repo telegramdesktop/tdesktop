@@ -1277,11 +1277,13 @@ void Call::setFailedQueued(const QString &error) {
 
 void Call::handleRequestError(const QString &error) {
 	const auto inform = (error == u"USER_PRIVACY_RESTRICTED"_q)
-		? tr::lng_call_error_not_available(tr::now, lt_user, _user->name)
+		? tr::lng_call_error_not_available(tr::now, lt_user, _user->name())
 		: (error == u"PARTICIPANT_VERSION_OUTDATED"_q)
-		? tr::lng_call_error_outdated(tr::now, lt_user, _user->name)
+		? tr::lng_call_error_outdated(tr::now, lt_user, _user->name())
 		: (error == u"CALL_PROTOCOL_LAYER_INVALID"_q)
-		? Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)
+		? Lang::Hard::CallErrorIncompatible().replace(
+			"{user}",
+			_user->name())
 		: QString();
 	if (!inform.isEmpty()) {
 		Ui::show(Ui::MakeInformBox(inform));
@@ -1291,7 +1293,9 @@ void Call::handleRequestError(const QString &error) {
 
 void Call::handleControllerError(const QString &error) {
 	const auto inform = (error == u"ERROR_INCOMPATIBLE"_q)
-		? Lang::Hard::CallErrorIncompatible().replace("{user}", _user->name)
+		? Lang::Hard::CallErrorIncompatible().replace(
+			"{user}",
+			_user->name())
 		: (error == u"ERROR_AUDIO_IO"_q)
 		? tr::lng_call_error_audio_io(tr::now)
 		: QString();

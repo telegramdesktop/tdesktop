@@ -239,6 +239,16 @@ QString GetErrorTextForSending(
 	return GetErrorTextForSending(peer, items, {}, ignoreSlowmodeCountdown);
 }
 
+TextWithEntities DropCustomEmoji(TextWithEntities text) {
+	text.entities.erase(
+		ranges::remove(
+			text.entities,
+			EntityType::CustomEmoji,
+			&EntityInText::type),
+		text.entities.end());
+	return text;
+}
+
 struct HistoryMessage::CreateConfig {
 	PeerId replyToPeer = 0;
 	MsgId replyTo = 0;
@@ -329,7 +339,7 @@ HistoryMessage::HistoryMessage(
 	if (const auto media = data.vmedia()) {
 		setMedia(*media);
 	}
-	const auto textWithEntities = TextWithEntities{
+	auto textWithEntities = TextWithEntities{
 		qs(data.vmessage()),
 		Api::EntitiesFromMTP(
 			&history->session(),
@@ -401,12 +411,7 @@ HistoryMessage::HistoryMessage(
 	auto config = CreateConfig();
 
 	const auto originalMedia = original->media();
-	const auto dropForwardInfo = (originalMedia
-		&& originalMedia->dropForwardedInfo())
-		|| (original->history()->peer->isSelf()
-			&& !history->peer->isSelf()
-			&& !original->Has<HistoryMessageForwarded>()
-			&& (!originalMedia || !originalMedia->forceForwardedInfo()));
+	const auto dropForwardInfo = original->computeDropForwardedInfo();
 	if (!dropForwardInfo) {
 		config.originalDate = original->dateOriginal();
 		if (const auto info = original->hiddenSenderInfo()) {
@@ -474,7 +479,13 @@ HistoryMessage::HistoryMessage(
 	if (mediaOriginal && !ignoreMedia()) {
 		_media = mediaOriginal->clone(this);
 	}
-	setText(original->originalText());
+
+	const auto dropCustomEmoji = dropForwardInfo
+		&& !history->session().premium()
+		&& !history->peer->isSelf();
+	setText(dropCustomEmoji
+		? DropCustomEmoji(original->originalText())
+		: original->originalText());
 }
 
 HistoryMessage::HistoryMessage(
@@ -1011,8 +1022,6 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 	} else {
 		_flags &= ~MessageFlag::HasReplyMarkup;
 	}
-	const auto from = displayFrom();
-	_fromNameVersion = from ? from->nameVersion : 1;
 }
 
 bool HistoryMessage::checkRepliesPts(
@@ -1492,9 +1501,10 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 		return;
 	}
 
-	clearIsolatedEmoji();
+	clearSpecialOnlyEmoji();
 	const auto context = Core::MarkedTextContext{
-		.session = &history()->session()
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
 	};
 	_text.setMarkedText(
 		st::messageTextStyle,
@@ -1510,7 +1520,7 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			EnsureNonEmpty(),
 			Ui::ItemTextOptions(this));
 	} else if (!_media) {
-		checkIsolatedEmoji();
+		checkSpecialOnlyEmoji();
 	}
 
 	_textWidth = -1;
@@ -1523,7 +1533,7 @@ void HistoryMessage::reapplyText() {
 }
 
 void HistoryMessage::setEmptyText() {
-	clearIsolatedEmoji();
+	clearSpecialOnlyEmoji();
 	_text.setMarkedText(
 		st::messageTextStyle,
 		{ QString(), EntitiesInText() },
@@ -1533,17 +1543,17 @@ void HistoryMessage::setEmptyText() {
 	_textHeight = 0;
 }
 
-void HistoryMessage::clearIsolatedEmoji() {
-	if (!(_flags & MessageFlag::IsolatedEmoji)) {
+void HistoryMessage::clearSpecialOnlyEmoji() {
+	if (!(_flags & MessageFlag::SpecialOnlyEmoji)) {
 		return;
 	}
 	history()->session().emojiStickersPack().remove(this);
-	_flags &= ~MessageFlag::IsolatedEmoji;
+	_flags &= ~MessageFlag::SpecialOnlyEmoji;
 }
 
-void HistoryMessage::checkIsolatedEmoji() {
+void HistoryMessage::checkSpecialOnlyEmoji() {
 	if (history()->session().emojiStickersPack().add(this)) {
-		_flags |= MessageFlag::IsolatedEmoji;
+		_flags |= MessageFlag::SpecialOnlyEmoji;
 	}
 }
 
@@ -1594,6 +1604,10 @@ void HistoryMessage::setReplyMarkup(HistoryMessageMarkupData &&markup) {
 
 Ui::Text::IsolatedEmoji HistoryMessage::isolatedEmoji() const {
 	return _text.toIsolatedEmoji();
+}
+
+Ui::Text::OnlyCustomEmoji HistoryMessage::onlyCustomEmoji() const {
+	return _text.toOnlyCustomEmoji();
 }
 
 TextWithEntities HistoryMessage::originalText() const {
@@ -1898,7 +1912,7 @@ QString HistoryMessage::notificationHeader() const {
 	if (out() && isFromScheduled() && !_history->peer->isSelf()) {
 		return tr::lng_from_you(tr::now);
 	} else if (!_history->peer->isUser() && !isPost()) {
-		return from()->name;
+		return from()->name();
 	}
 	return QString();
 }

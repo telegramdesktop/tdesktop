@@ -644,14 +644,14 @@ void TopBar::updateInfoLabels() {
 void TopBar::setInfoLabels() {
 	if (const auto call = _call.get()) {
 		const auto user = call->user();
-		const auto fullName = user->name;
+		const auto fullName = user->name();
 		const auto shortName = user->firstName;
 		_fullInfoLabel->setText(fullName);
 		_shortInfoLabel->setText(shortName);
 	} else if (const auto group = _groupCall.get()) {
 		const auto peer = group->peer();
 		const auto real = peer->groupCall();
-		const auto name = peer->name;
+		const auto name = peer->name();
 		const auto text = _isGroupConnecting.current()
 			? tr::lng_group_call_connecting(tr::now)
 			: (real && real->id() == group->id() && !real->title().isEmpty())

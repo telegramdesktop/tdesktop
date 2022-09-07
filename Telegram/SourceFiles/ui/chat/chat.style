@@ -1077,3 +1077,23 @@ searchInChatPeerListItem: PeerListItem(defaultPeerListItem) {
 searchInChatPeerList: PeerList(defaultPeerList) {
 	item: searchInChatPeerListItem;
 }
+
+msgServiceGiftBoxSize: size(206px, 231px); // Plus msgServiceGiftBoxTopSkip.
+msgServiceGiftBoxRadius: 12px;
+msgServiceGiftBoxTopSkip: 4px;
+msgServiceGiftBoxButtonHeight: 32px;
+msgServiceGiftBoxButtonMargins: margins(2px, 0px, 2px, 0px);
+msgServiceGiftBoxButtonPadding: margins(0px, 17px, 0px, 17px);
+msgServiceGiftBoxTitlePadding: margins(0px, 126px, 0px, 2px);
+msgServiceGiftBoxStickerTop: -19px;
+msgServiceGiftBoxStickerSize: size(140px, 140px);
+
+historyHasCustomEmoji: FlatLabel(defaultFlatLabel) {
+	style: TextStyle(defaultTextStyle) {
+		font: font(11px);
+		linkFont: font(11px underline);
+		linkFontOver: font(11px underline);
+	}
+	minWidth: 80px;
+}
+historyHasCustomEmojiPosition: point(12px, 4px);

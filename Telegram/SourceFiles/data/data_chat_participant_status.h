@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+enum class UserRestriction {
+	SendVoiceMessages,
+	SendVideoMessages,
+};
+
 enum class ChatAdminRight {
 	ChangeInfo = (1 << 0),
 	PostMessages = (1 << 1),

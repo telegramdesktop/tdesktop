@@ -57,8 +57,6 @@ struct StartGroupCallArgs {
 	QString joinHash;
 	JoinConfirm confirm = JoinConfirm::IfNowInAnother;
 	bool scheduleNeeded = false;
-	bool rtmpNeeded = false;
-	bool useRtmp = false;
 };
 
 class Instance final : public base::has_weak_ptr {
@@ -70,7 +68,10 @@ public:
 	void startOrJoinGroupCall(
 		std::shared_ptr<Ui::Show> show,
 		not_null<PeerData*> peer,
-		const StartGroupCallArgs &args);
+		StartGroupCallArgs args);
+	void showStartWithRtmp(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer);
 	void handleUpdate(
 		not_null<Main::Session*> session,
 		const MTPUpdate &update);
@@ -119,6 +120,11 @@ private:
 		Group::JoinInfo info,
 		const MTPInputGroupCall &inputCall);
 	void destroyGroupCall(not_null<GroupCall*> call);
+	void confirmLeaveCurrent(
+		std::shared_ptr<Ui::Show> show,
+		not_null<PeerData*> peer,
+		StartGroupCallArgs args,
+		Fn<void(StartGroupCallArgs)> confirmed);
 
 	void requestPermissionOrFail(
 		Platform::PermissionType type,

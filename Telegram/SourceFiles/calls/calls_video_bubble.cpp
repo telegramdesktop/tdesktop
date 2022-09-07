@@ -160,14 +160,14 @@ void VideoBubble::prepareFrame() {
 	}
 	Assert(_frame.width() >= frame.width()
 		&& _frame.height() >= frame.height());
-	const auto toPerLine = _frame.bytesPerLine();
-	const auto fromPerLine = frame.bytesPerLine();
+	const auto dstPerLine = _frame.bytesPerLine();
+	const auto srcPerLine = frame.bytesPerLine();
 	const auto lineSize = frame.width() * 4;
-	auto to = _frame.bits();
-	auto from = frame.bits();
-	const auto till = from + frame.height() * fromPerLine;
-	for (; from != till; from += fromPerLine, to += toPerLine) {
-		memcpy(to, from, lineSize);
+	auto dst = _frame.bits();
+	auto src = frame.bits();
+	const auto till = src + frame.height() * srcPerLine;
+	for (; src != till; src += srcPerLine, dst += dstPerLine) {
+		memcpy(dst, src, lineSize);
 	}
 	_frame = Images::Round(
 		std::move(_frame),

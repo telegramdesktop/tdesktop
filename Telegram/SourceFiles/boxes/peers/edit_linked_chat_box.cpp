@@ -134,9 +134,9 @@ void Controller::choose(not_null<ChannelData*> chat) {
 	auto text = tr::lng_manage_discussion_group_sure(
 		tr::now,
 		lt_group,
-		Ui::Text::Bold(chat->name),
+		Ui::Text::Bold(chat->name()),
 		lt_channel,
-		Ui::Text::Bold(_channel->name),
+		Ui::Text::Bold(_channel->name()),
 		Ui::Text::WithEntities);
 	if (!_channel->isPublic()) {
 		text.append(
@@ -170,9 +170,9 @@ void Controller::choose(not_null<ChatData*> chat) {
 	auto text = tr::lng_manage_discussion_group_sure(
 		tr::now,
 		lt_group,
-		Ui::Text::Bold(chat->name),
+		Ui::Text::Bold(chat->name()),
 		lt_channel,
-		Ui::Text::Bold(_channel->name),
+		Ui::Text::Bold(_channel->name()),
 		Ui::Text::WithEntities);
 	if (!_channel->isPublic()) {
 		text.append("\n\n" + tr::lng_manage_linked_channel_private(tr::now));
@@ -212,13 +212,13 @@ object_ptr<Ui::RpWidget> SetupAbout(
 			return tr::lng_manage_linked_channel_about(
 				tr::now,
 				lt_channel,
-				Ui::Text::Bold(chat->name),
+				Ui::Text::Bold(chat->name()),
 				Ui::Text::WithEntities);
 		} else if (chat != nullptr) {
 			return tr::lng_manage_discussion_group_about_chosen(
 				tr::now,
 				lt_group,
-				Ui::Text::Bold(chat->name),
+				Ui::Text::Bold(chat->name()),
 				Ui::Text::WithEntities);
 		}
 		return tr::lng_manage_discussion_group_about(
@@ -257,7 +257,7 @@ object_ptr<Ui::RpWidget> SetupCreateGroup(
 			Box<GroupInfoBox>(
 				navigation,
 				GroupInfoBox::Type::Megagroup,
-				channel->name + " Chat",
+				channel->name() + " Chat",
 				guarded),
 			Ui::LayerOption::KeepOther);
 	});

@@ -249,8 +249,8 @@ void AnimatedLabel::setText(const QString &text) {
 	if (_text.toString() == text) {
 		return;
 	}
-	_previousText = _text;
-	_text.setText(_st.style, text, _options);
+	_previousText = std::move(_text);
+	_text = Ui::Text::String(_st.style, text, _options);
 
 	const auto width = std::max(
 		_st.style.font->width(_text.toString()),

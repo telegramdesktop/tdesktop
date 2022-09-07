@@ -126,6 +126,13 @@ public:
 	[[nodiscard]] std::vector<TimeId> mutePeriods() const;
 	void addMutePeriod(TimeId period);
 
+	[[nodiscard]] bool skipPremiumStickersSet() const {
+		return _skipPremiumStickersSet;
+	}
+	void setSkipPremiumStickersSet(bool value) {
+		_skipPremiumStickersSet = value;
+	}
+
 private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
@@ -142,6 +149,7 @@ private:
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;
+	bool _skipPremiumStickersSet = false;
 
 	Support::SwitchSettings _supportSwitch;
 	bool _supportFixChatsOrder = true;

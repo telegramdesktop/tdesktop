@@ -525,6 +525,15 @@ std::unique_ptr<FileLoader> CreateFileLoader(
 			fromCloud,
 			autoLoading,
 			cacheTag);
+	}, [&](const AudioAlbumThumbLocation &data) {
+		result = std::make_unique<mtpFileLoader>(
+			session,
+			data,
+			loadSize,
+			fullSize,
+			fromCloud,
+			autoLoading,
+			cacheTag);
 	}, [&](const InMemoryLocation &data) {
 		result = std::make_unique<FromMemoryLoader>(
 			session,

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 
 namespace Ui {
+class Show;
 class BoxContent;
 class VerticalLayout;
 } // namespace Ui
@@ -36,15 +37,14 @@ public:
 
 	void start(
 		not_null<PeerData*> peer,
-		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-		Fn<void(QString)> showToast,
+		std::shared_ptr<Ui::Show> show,
 		Fn<void(JoinInfo)> done);
+	void close();
 
 	static void FillRtmpRows(
 		not_null<Ui::VerticalLayout*> container,
 		bool divider,
-		Fn<void(object_ptr<Ui::BoxContent>)> showBox,
-		Fn<void(QString)> showToast,
+		std::shared_ptr<Ui::Show> show,
 		rpl::producer<RtmpInfo> &&data,
 		const style::FlatLabel *labelStyle,
 		const style::IconButton *showButtonStyle,
@@ -61,8 +61,7 @@ private:
 	struct RtmpRequest {
 		not_null<PeerData*> peer;
 		rpl::variable<RtmpInfo> data;
-		Fn<void(object_ptr<Ui::BoxContent>)> showBox;
-		Fn<void(QString)> showToast;
+		std::shared_ptr<Ui::Show> show;
 		Fn<void(JoinInfo)> done;
 		base::has_weak_ptr guard;
 		QPointer<Ui::BoxContent> box;

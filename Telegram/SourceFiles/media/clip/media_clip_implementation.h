@@ -42,7 +42,11 @@ public:
 	virtual crl::time framePresentationTime() const = 0;
 
 	// Render current frame to an image with specific size.
-	virtual bool renderFrame(QImage &to, bool &hasAlpha, const QSize &size) = 0;
+	virtual bool renderFrame(
+		QImage &to,
+		bool &hasAlpha,
+		int &index,
+		const QSize &size) = 0;
 
 	virtual crl::time durationMs() const = 0;
 

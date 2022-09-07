@@ -158,6 +158,7 @@ public:
 	[[nodiscard]] Ui::MessageView &itemView() const {
 		return _itemView;
 	}
+	[[nodiscard]] const Ui::Text::String &name() const;
 
 private:
 	friend class Ui::RowPainter;
@@ -165,6 +166,7 @@ private:
 	Key _searchInChat;
 	not_null<HistoryItem*> _item;
 	mutable Ui::MessageView _itemView;
+	mutable Ui::Text::String _name;
 
 };
 

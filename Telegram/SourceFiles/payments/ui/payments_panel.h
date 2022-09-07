@@ -36,6 +36,7 @@ class FormSummary;
 class EditInformation;
 class EditCard;
 struct PaymentMethodDetails;
+struct PaymentMethodAdditional;
 struct NativeMethodDetails;
 
 class Panel final {
@@ -61,12 +62,16 @@ public:
 		const RequestedInformation &current,
 		InformationField field);
 	void showEditPaymentMethod(const PaymentMethodDetails &method);
-	void showEditCard(
-		const NativeMethodDetails &native,
-		CardField field);
-	void showCardError(
-		const NativeMethodDetails &native,
-		CardField field);
+	void showAdditionalMethod(
+		const PaymentMethodAdditional &method,
+		const QString &provider,
+		bool canSaveInformation);
+	void showEditCard(const NativeMethodDetails &native, CardField field);
+	void showEditCardByUrl(
+		const QString &url,
+		const QString &provider,
+		bool canSaveInformation);
+	void showCardError(const NativeMethodDetails &native, CardField field);
 	void chooseShippingOption(const ShippingOptions &options);
 	void chooseTips(const Invoice &invoice);
 	void choosePaymentMethod(const PaymentMethodDetails &method);
@@ -82,6 +87,7 @@ public:
 	void updateThemeParams(const Webview::ThemeParams &params);
 
 	[[nodiscard]] rpl::producer<> backRequests() const;
+	[[nodiscard]] rpl::producer<QString> savedMethodChosen() const;
 
 	void showBox(object_ptr<Ui::BoxContent> box);
 	void showToast(const TextWithEntities &text);
@@ -116,6 +122,7 @@ private:
 	rpl::variable<int> _formScrollTop;
 	QPointer<EditInformation> _weakEditInformation;
 	QPointer<EditCard> _weakEditCard;
+	rpl::event_stream<QString> _savedMethodChosen;
 	bool _webviewProgress = false;
 	bool _testMode = false;
 

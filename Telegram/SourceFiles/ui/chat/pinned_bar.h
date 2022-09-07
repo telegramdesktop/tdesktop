@@ -22,12 +22,13 @@ class RpWidget;
 
 class PinnedBar final {
 public:
-	PinnedBar(not_null<QWidget*> parent);
+	PinnedBar(not_null<QWidget*> parent, Fn<bool()> customEmojiPaused);
 	~PinnedBar();
 
 	void show();
 	void hide();
 	void raise();
+	void customEmojiRepaint();
 	void finishAnimating();
 
 	void setShadowGeometryPostprocess(Fn<QRect(QRect)> postprocess);
@@ -60,6 +61,7 @@ private:
 	} _right;
 
 	std::unique_ptr<Ui::PlainShadow> _shadow;
+	Fn<bool()> _customEmojiPaused;
 	rpl::event_stream<> _barClicks;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;
