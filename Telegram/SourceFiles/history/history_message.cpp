@@ -1741,8 +1741,14 @@ void HistoryMessage::refreshRepliesText(
 		views->repliesSmall.text = (views->replies.count > 0)
 			? Lang::FormatCountToShort(views->replies.count).string
 			: QString();
-		views->repliesSmall.textWidth = st::semiboldFont->width(
-			views->repliesSmall.text);
+		const auto hadText = (views->repliesSmall.textWidth > 0);
+		views->repliesSmall.textWidth = (views->replies.count > 0)
+			? st::semiboldFont->width(views->repliesSmall.text)
+			: 0;
+		const auto hasText = (views->repliesSmall.textWidth > 0);
+		if (hasText != hadText) {
+			forceResize = true;
+		}
 	}
 	if (forceResize) {
 		history()->owner().requestItemResize(this);
