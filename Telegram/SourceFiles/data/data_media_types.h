@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class History;
 class HistoryItem;
+class HistoryMessage;
 
 namespace base {
 template <typename Enum>
@@ -58,12 +59,22 @@ struct Call {
 	bool video = false;
 };
 
+struct ExtendedPreview {
+	QByteArray inlineThumbnailBytes;
+	QSize dimensions;
+	TimeId videoDuration = -1;
+};
+
+class Media;
+
 struct Invoice {
 	MsgId receiptMsgId = 0;
 	uint64 amount = 0;
 	QString currency;
 	QString title;
 	TextWithEntities description;
+	ExtendedPreview extendedPreview;
+	std::unique_ptr<Media> extendedMedia;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
 };
@@ -515,7 +526,7 @@ private:
 	TextForMimeData &&caption);
 
 [[nodiscard]] Invoice ComputeInvoiceData(
-	not_null<HistoryItem*> item,
+	not_null<HistoryMessage*> item,
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);

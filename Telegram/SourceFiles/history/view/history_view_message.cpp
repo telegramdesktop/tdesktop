@@ -229,10 +229,6 @@ struct Message::CommentsButton {
 	QImage cachedUserpics;
 	ClickHandlerPtr link;
 	QPoint lastPoint;
-
-	QString rightActionCountString;
-	int rightActionCount = 0;
-	int rightActionCountWidth = 0;
 };
 
 struct Message::FromNameStatus {

@@ -116,7 +116,6 @@ private:
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
-	[[nodiscard]] QSize pixmapSizeFromData(int newWidth) const;
 
 	bool needInfoDisplay() const;
 	void validateGroupedCache(

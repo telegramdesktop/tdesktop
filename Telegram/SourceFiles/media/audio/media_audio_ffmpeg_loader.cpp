@@ -590,8 +590,8 @@ bool FFMpegLoader::seekTo(crl::time positionMs) {
 }
 
 AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
-	QByteArray & result,
-	int64 & samplesAdded) {
+		QByteArray &result,
+		int64 &samplesAdded) {
 	const auto readResult = readFromReadyContext(
 		_codecContext,
 		result,

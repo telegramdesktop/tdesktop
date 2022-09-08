@@ -1063,6 +1063,11 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 	const auto was = (_media != nullptr);
+	if (const auto invoice = was ? _media->invoice() : nullptr) {
+		if (invoice->extendedMedia) {
+			return;
+		}
+	}
 	_media = nullptr;
 	if (media) {
 		setMedia(*media);

@@ -22,6 +22,7 @@ namespace HistoryView {
 bool File::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
 	return p == _openl || p == _savel || p == _cancell;
 }
+
 bool File::dragItemByHandler(const ClickHandlerPtr &p) const {
 	return p == _openl || p == _savel || p == _cancell;
 }

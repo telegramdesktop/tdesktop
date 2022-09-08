@@ -139,6 +139,10 @@ void Photo::unloadHeavyPart() {
 }
 
 QSize Photo::countOptimalSize() {
+	if (_serviceWidth > 0) {
+		return { _serviceWidth, _serviceWidth };
+	}
+
 	if (_parent->media() != this) {
 		_caption = Ui::Text::String();
 	} else if (_caption.hasSkipBlock()) {
@@ -147,33 +151,15 @@ QSize Photo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	auto maxWidth = 0;
-	auto minHeight = 0;
-
-	auto tw = style::ConvertScale(_data->width());
-	auto th = style::ConvertScale(_data->height());
-	if (!tw || !th) {
-		tw = th = 1;
-	}
-	if (tw > st::maxMediaSize) {
-		th = (st::maxMediaSize * th) / tw;
-		tw = st::maxMediaSize;
-	}
-	if (th > st::maxMediaSize) {
-		tw = (st::maxMediaSize * tw) / th;
-		th = st::maxMediaSize;
-	}
-
-	if (_serviceWidth > 0) {
-		return { _serviceWidth, _serviceWidth };
-	}
+	const auto scaled = CountDesiredMediaSize(
+		{ _data->width(), _data->height() });
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
 		st::maxMediaSize);
-	const auto maxActualWidth = qMax(tw, minWidth);
-	maxWidth = qMax(maxActualWidth, th);
-	minHeight = qMax(th, st::minPhotoSize);
+	const auto maxActualWidth = qMax(scaled.width(), minWidth);
+	auto maxWidth = qMax(maxActualWidth, scaled.height());
+	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
 		maxWidth = qMax(maxWidth, st::msgPadding.left()
 			+ _caption.maxWidth()
@@ -186,32 +172,6 @@ QSize Photo::countOptimalSize() {
 	return { maxWidth, minHeight };
 }
 
-QSize Photo::pixmapSizeFromData(int newWidth) const {
-	auto tw = style::ConvertScale(_data->width());
-	auto th = style::ConvertScale(_data->height());
-	if (tw > st::maxMediaSize) {
-		th = (st::maxMediaSize * th) / tw;
-		tw = st::maxMediaSize;
-	}
-	if (th > st::maxMediaSize) {
-		tw = (st::maxMediaSize * tw) / th;
-		th = st::maxMediaSize;
-	}
-
-	auto pixw = qMin(newWidth, maxWidth());
-	auto pixh = th;
-	if (tw > pixw) {
-		pixh = (pixw * pixh / tw);
-	} else {
-		pixw = tw;
-	}
-	if (pixh > newWidth) {
-		pixw = (pixw * newWidth) / pixh;
-		pixh = newWidth;
-	}
-	return { pixw, pixh };
-}
-
 QSize Photo::countCurrentSize(int newWidth) {
 	if (_serviceWidth) {
 		return { _serviceWidth, _serviceWidth };
@@ -220,7 +180,10 @@ QSize Photo::countCurrentSize(int newWidth) {
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
 		std::min(newWidth, st::maxMediaSize));
-	auto pix = pixmapSizeFromData(newWidth);
+	auto pix = CountPhotoMediaSize(
+		CountDesiredMediaSize({ _data->width(), _data->height() }),
+		newWidth,
+		maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
 	auto newHeight = qMax(pix.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {

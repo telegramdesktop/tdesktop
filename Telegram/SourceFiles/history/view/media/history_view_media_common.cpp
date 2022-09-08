@@ -98,9 +98,21 @@ QImage PrepareWithBlurredBackground(
 		::Media::Streaming::ExpandDecision resize,
 		Image *large,
 		Image *blurred) {
+	return PrepareWithBlurredBackground(
+		outer,
+		resize,
+		large ? large->original() : QImage(),
+		blurred ? blurred->original() : QImage());
+}
+
+QImage PrepareWithBlurredBackground(
+		QSize outer,
+		::Media::Streaming::ExpandDecision resize,
+		QImage large,
+		QImage blurred) {
 	const auto ratio = style::DevicePixelRatio();
 	if (resize.expanding) {
-		return Images::Prepare(large->original(), resize.result * ratio, {
+		return Images::Prepare(std::move(large), resize.result * ratio, {
 			.outer = outer,
 		});
 	}
@@ -108,19 +120,19 @@ QImage PrepareWithBlurredBackground(
 		outer * ratio,
 		QImage::Format_ARGB32_Premultiplied);
 	background.setDevicePixelRatio(ratio);
-	if (!blurred) {
+	if (blurred.isNull()) {
 		background.fill(Qt::black);
-		if (!large) {
+		if (large.isNull()) {
 			return background;
 		}
 	}
 	auto p = QPainter(&background);
-	if (blurred) {
+	if (!blurred.isNull()) {
 		using namespace ::Media::Streaming;
-		FillBlurredBackground(p, outer, blurred->original());
+		FillBlurredBackground(p, outer, std::move(blurred));
 	}
-	if (large) {
-		auto image = large->original().scaled(
+	if (!large.isNull()) {
+		auto image = large.scaled(
 			resize.result * ratio,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation);
@@ -132,6 +144,32 @@ QImage PrepareWithBlurredBackground(
 	}
 	p.end();
 	return background;
+}
+
+QSize CountDesiredMediaSize(QSize original) {
+	return DownscaledSize(
+		style::ConvertScale(original),
+		{ st::maxMediaSize, st::maxMediaSize });
+}
+
+QSize CountMediaSize(QSize desired, int newWidth) {
+	Expects(!desired.isEmpty());
+
+	return (desired.width() <= newWidth)
+		? desired
+		: NonEmptySize(
+			desired.scaled(newWidth, desired.height(), Qt::KeepAspectRatio));
+}
+
+QSize CountPhotoMediaSize(
+		QSize desired,
+		int newWidth,
+		int maxWidth) {
+	const auto media = CountMediaSize(desired, qMin(newWidth, maxWidth));
+	return (media.height() <= newWidth)
+		? media
+		: NonEmptySize(
+			media.scaled(media.width(), newWidth, Qt::KeepAspectRatio));
 }
 
 } // namespace HistoryView

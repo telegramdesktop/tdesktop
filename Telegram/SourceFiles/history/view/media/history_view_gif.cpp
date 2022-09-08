@@ -131,10 +131,9 @@ QSize Gif::countThumbSize(int &inOutWidthMax) const {
 		: _data->isVideoMessage()
 		? st::maxVideoMessageSize
 		: st::maxGifSize;
-	const auto useMaxSize = std::max(maxSize, st::minPhotoSize);
 	const auto size = style::ConvertScale(videoSize());
-	accumulate_min(inOutWidthMax, useMaxSize);
-	return DownscaledSize(size, { inOutWidthMax, useMaxSize });
+	accumulate_min(inOutWidthMax, maxSize);
+	return DownscaledSize(size, { inOutWidthMax, maxSize });
 }
 
 QSize Gif::countOptimalSize() {
@@ -146,20 +145,22 @@ QSize Gif::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
+	const auto minWidth = std::clamp(
+		_parent->minWidthForMedia(),
+		(_parent->hasBubble()
+			? st::historyPhotoBubbleMinWidth
+			: st::minPhotoSize),
+		st::maxMediaSize);
 	auto thumbMaxWidth = st::msgMaxWidth;
 	const auto scaled = countThumbSize(thumbMaxWidth);
-	const auto minWidthByInfo = _parent->infoWidth()
-		+ 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x());
-	auto maxWidth = std::clamp(
-		std::max(scaled.width(), minWidthByInfo),
-		st::minPhotoSize,
+	auto maxWidth = std::min(
+		std::max(scaled.width(), minWidth),
 		thumbMaxWidth);
 	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
 	if (!activeCurrentStreamed()) {
 		accumulate_max(maxWidth, gifMaxStatusWidth(_data) + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x()));
 	}
 	if (_parent->hasBubble()) {
-		accumulate_max(maxWidth, _parent->minWidthForMedia());
 		if (!_caption.isEmpty()) {
 			maxWidth = qMax(maxWidth, st::msgPadding.left()
 				+ _caption.maxWidth()

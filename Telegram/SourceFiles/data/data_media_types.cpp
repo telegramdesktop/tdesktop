@@ -9,9 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_message.h" // CreateMedia.
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
+#include "history/view/media/history_view_extended_preview.h"
 #include "history/view/media/history_view_photo.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_gif.h"
@@ -245,10 +247,10 @@ TextForMimeData WithCaptionClipboardText(
 }
 
 Invoice ComputeInvoiceData(
-		not_null<HistoryItem*> item,
+		not_null<HistoryMessage*> item,
 		const MTPDmessageMediaInvoice &data) {
 	auto description = qs(data.vdescription());
-	return {
+	auto result = Invoice{
 		.receiptMsgId = data.vreceipt_msg_id().value_or_empty(),
 		.amount = data.vtotal_amount().v,
 		.currency = qs(data.vcurrency()),
@@ -263,6 +265,31 @@ Invoice ComputeInvoiceData(
 			: nullptr),
 		.isTest = data.is_test(),
 	};
+	if (const auto &media = data.vextended_media()) {
+		media->match([&](const MTPDmessageExtendedMediaPreview &data) {
+			auto &preview = result.extendedPreview;
+			if (const auto &w = data.vw()) {
+				const auto &h = data.vh();
+				Assert(h.has_value());
+				preview.dimensions = QSize(w->v, h->v);
+			}
+			if (const auto &thumb = data.vthumb()) {
+				if (thumb->type() == mtpc_photoStrippedSize) {
+					preview.inlineThumbnailBytes
+						= thumb->c_photoStrippedSize().vbytes().v;
+				}
+			}
+			if (const auto &duration = data.vvideo_duration()) {
+				preview.videoDuration = duration->v;
+			}
+		}, [&](const MTPDmessageExtendedMedia &data) {
+			result.extendedMedia = HistoryMessage::CreateMedia(
+				item,
+				data.vmedia());
+		});
+	}
+
+	return result;
 }
 
 Call ComputeCallData(const MTPDmessageActionPhoneCall &call) {
@@ -1479,7 +1506,19 @@ MediaInvoice::MediaInvoice(
 	not_null<HistoryItem*> parent,
 	const Invoice &data)
 : Media(parent)
-, _invoice(data) {
+, _invoice{
+	.receiptMsgId = data.receiptMsgId,
+	.amount = data.amount,
+	.currency = data.currency,
+	.title = data.title,
+	.description = data.description,
+	.extendedPreview = data.extendedPreview,
+	.extendedMedia = (data.extendedMedia
+		? data.extendedMedia->clone(parent)
+		: nullptr),
+	.photo = data.photo,
+	.isTest = data.isTest,
+} {
 }
 
 std::unique_ptr<Media> MediaInvoice::clone(not_null<HistoryItem*> parent) {
@@ -1537,6 +1576,16 @@ std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
+	if (_invoice.extendedMedia) {
+		return _invoice.extendedMedia->createView(
+			message,
+			realParent,
+			replacing);
+	} else if (!_invoice.extendedPreview.dimensions.isEmpty()) {
+		return std::make_unique<HistoryView::ExtendedPreview>(
+			message,
+			&_invoice);
+	}
 	return std::make_unique<HistoryView::Invoice>(message, &_invoice);
 }
 

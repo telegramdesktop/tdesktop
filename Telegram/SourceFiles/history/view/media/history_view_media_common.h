@@ -62,5 +62,17 @@ void PaintInterpolatedIcon(
 	::Media::Streaming::ExpandDecision resize,
 	Image *large,
 	Image *blurred);
+[[nodiscard]] QImage PrepareWithBlurredBackground(
+	QSize outer,
+	::Media::Streaming::ExpandDecision resize,
+	QImage large,
+	QImage blurred);
+
+[[nodiscard]] QSize CountDesiredMediaSize(QSize original);
+[[nodiscard]] QSize CountMediaSize(QSize desired, int newWidth);
+[[nodiscard]] QSize CountPhotoMediaSize(
+	QSize desired,
+	int newWidth,
+	int maxWidth);
 
 } // namespace HistoryView
