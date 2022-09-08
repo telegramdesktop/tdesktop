@@ -617,53 +617,53 @@ PRIVATE
     history/view/controls/history_view_voice_record_bar.h
     history/view/controls/history_view_voice_record_button.cpp
     history/view/controls/history_view_voice_record_button.h
-    history/view/media/history_view_call.h
     history/view/media/history_view_call.cpp
-    history/view/media/history_view_contact.h
+    history/view/media/history_view_call.h
     history/view/media/history_view_contact.cpp
-    history/view/media/history_view_custom_emoji.h
+    history/view/media/history_view_contact.h
     history/view/media/history_view_custom_emoji.cpp
-    history/view/media/history_view_dice.h
+    history/view/media/history_view_custom_emoji.h
     history/view/media/history_view_dice.cpp
-    history/view/media/history_view_document.h
+    history/view/media/history_view_dice.h
     history/view/media/history_view_document.cpp
-    history/view/media/history_view_file.h
+    history/view/media/history_view_document.h
     history/view/media/history_view_file.cpp
-    history/view/media/history_view_game.h
+    history/view/media/history_view_file.h
     history/view/media/history_view_game.cpp
-    history/view/media/history_view_gif.h
+    history/view/media/history_view_game.h
     history/view/media/history_view_gif.cpp
-    history/view/media/history_view_invoice.h
+    history/view/media/history_view_gif.h
     history/view/media/history_view_invoice.cpp
-    history/view/media/history_view_large_emoji.h
+    history/view/media/history_view_invoice.h
     history/view/media/history_view_large_emoji.cpp
-    history/view/media/history_view_location.h
+    history/view/media/history_view_large_emoji.h
     history/view/media/history_view_location.cpp
-    history/view/media/history_view_media.h
+    history/view/media/history_view_location.h
     history/view/media/history_view_media.cpp
-    history/view/media/history_view_media_common.h
+    history/view/media/history_view_media.h
     history/view/media/history_view_media_common.cpp
-    history/view/media/history_view_media_grouped.h
+    history/view/media/history_view_media_common.h
     history/view/media/history_view_media_grouped.cpp
-    history/view/media/history_view_media_unwrapped.h
+    history/view/media/history_view_media_grouped.h
     history/view/media/history_view_media_unwrapped.cpp
-    history/view/media/history_view_photo.h
+    history/view/media/history_view_media_unwrapped.h
     history/view/media/history_view_photo.cpp
-    history/view/media/history_view_poll.h
+    history/view/media/history_view_photo.h
     history/view/media/history_view_poll.cpp
-    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_poll.h
     history/view/media/history_view_service_media_gift.cpp
-    history/view/media/history_view_slot_machine.h
+    history/view/media/history_view_service_media_gift.h
     history/view/media/history_view_slot_machine.cpp
-    history/view/media/history_view_sticker.h
+    history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
+    history/view/media/history_view_sticker.h
     history/view/media/history_view_sticker_player.cpp
     history/view/media/history_view_sticker_player.h
     history/view/media/history_view_sticker_player_abstract.h
-    history/view/media/history_view_theme_document.h
     history/view/media/history_view_theme_document.cpp
-    history/view/media/history_view_web_page.h
+    history/view/media/history_view_theme_document.h
     history/view/media/history_view_web_page.cpp
+    history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp
     history/view/reactions/history_view_reactions.h
     history/view/reactions/history_view_reactions_animation.cpp
