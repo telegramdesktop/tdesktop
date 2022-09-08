@@ -343,22 +343,22 @@ void FrameGenerator::Impl::readNextFrame() {
 				return;
 			}
 		} while (packet.fields().stream_index != _streamId);
+
 		if (finished) {
-			continue;
+			result = avcodec_send_packet(_codec.get(), nullptr); // Drain.
+		} else {
+			const auto native = &packet.fields();
+			const auto guard = gsl::finally([
+				&,
+				size = native->size,
+				data = native->data
+			] {
+				native->size = size;
+				native->data = data;
+				packet = Packet();
+			});
+			result = avcodec_send_packet(_codec.get(), native);
 		}
-
-		const auto native = &packet.fields();
-		const auto guard = gsl::finally([
-			&,
-			size = native->size,
-			data = native->data
-		] {
-			native->size = size;
-			native->data = data;
-			packet = Packet();
-		});
-
-		result = avcodec_send_packet(_codec.get(), native);
 		if (result < 0) {
 			LOG(("Webm Error: Unable to avcodec_send_packet(), ")
 				+ wrapError(result));
