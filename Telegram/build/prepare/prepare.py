@@ -402,6 +402,33 @@ stage('patches', """
     git checkout 38af8ef4c6
 """)
 
+stage('msys64', """
+win:
+    SET PATH_BACKUP_=%PATH%
+    SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
+    SET CHERE_INVOKING=enabled_from_arguments
+    SET MSYS2_PATH_TYPE=inherit
+    powershell -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20220603.sfx.exe"
+    msys64.exe
+    del msys64.exe
+    bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
+    pacman -S --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
+    SET PATH=%PATH_BACKUP_%
+""", 'ThirdParty')
+
+stage('NuGet', """
+win:
+    mkdir NuGet
+    powershell -Command "Invoke-WebRequest -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+""", 'ThirdParty')
+
+stage('jom', """
+win:
+    powershell -Command "Invoke-WebRequest -OutFile ./jom.zip https://master.qt.io/official_releases/jom/jom_1_1_3.zip"
+    powershell -Command "Expand-Archive ./jom.zip"
+    del jom.zip
+""", 'ThirdParty')
+
 stage('depot_tools', """
 mac:
     git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git
