@@ -459,8 +459,10 @@ void ChatTheme::finishCreateOnMain() {
 ChatPaintContext ChatTheme::preparePaintContext(
 		not_null<const ChatStyle*> st,
 		QRect viewport,
-		QRect clip) {
+		QRect clip,
+		bool paused) {
 	const auto area = viewport.size();
+	const auto now = crl::now();
 	if (!_bubblesBackgroundPrepared.isNull()
 		&& _bubblesBackground.area != area) {
 		if (!_cacheBubblesTimer) {
@@ -470,7 +472,7 @@ ChatPaintContext ChatTheme::preparePaintContext(
 			|| (!_cacheBubblesTimer->isActive()
 				&& !_bubblesCachingRequest)) {
 			_cacheBubblesArea = area;
-			_lastBubblesAreaChangeTime = crl::now();
+			_lastBubblesAreaChangeTime = now;
 			_cacheBubblesTimer->callOnce(kCacheBackgroundFastTimeout);
 		}
 	}
@@ -479,7 +481,8 @@ ChatPaintContext ChatTheme::preparePaintContext(
 		.bubblesPattern = _bubblesBackgroundPattern.get(),
 		.viewport = viewport,
 		.clip = clip,
-		.now = crl::now(),
+		.paused = paused,
+		.now = now,
 	};
 }
 

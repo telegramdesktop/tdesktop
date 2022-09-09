@@ -1471,7 +1471,7 @@ void ListWidget::elementShowTooltip(
 	_topToast.show(parentWidget(), text, hiddenCallback);
 }
 
-bool ListWidget::elementIsGifPaused() {
+bool ListWidget::elementAnimationsPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 

@@ -22,7 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
-#include "window/window_session_controller.h" // isGifPausedAtLeastFor.
+#include "window/window_session_controller.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
@@ -81,7 +81,6 @@ Sticker::Sticker(
 	if (const auto media = replacing ? replacing->media() : nullptr) {
 		_player = media->stickerTakePlayer(_data, _replacements);
 		if (_player) {
-			//_externalInfo = media->externalLottieInfo();
 			if (hasPremiumEffect() && !_premiumEffectPlayed) {
 				_premiumEffectPlayed = true;
 				_parent->delegate()->elementStartPremium(_parent, replacing);
@@ -227,16 +226,13 @@ void Sticker::paintAnimationFrame(
 	const auto colored = (context.selected() && !_nextLastDiceFrame)
 		? context.st->msgStickerOverlay()->c
 		: QColor(0, 0, 0, 0);
-	const auto paused = /*(_externalInfo.frame >= 0)
-		? (_frameIndex % _externalInfo.count >= _externalInfo.frame)
-		: */_parent->delegate()->elementIsGifPaused();
 	const auto frame = _player
 		? _player->frame(
 			_size,
 			colored,
 			mirrorHorizontal(),
 			context.now,
-			paused)
+			context.paused)
 		: StickerPlayer::FrameInfo();
 	if (_nextLastDiceFrame) {
 		_nextLastDiceFrame = false;
@@ -265,7 +261,7 @@ void Sticker::paintAnimationFrame(
 	const auto count = _player->framesCount();
 	_frameIndex = frame.index;
 	_framesCount = count;
-	_nextLastDiceFrame = !paused
+	_nextLastDiceFrame = !context.paused
 		&& (_diceIndex > 0)
 		&& (_frameIndex + 2 == count);
 	const auto playOnce = (_diceIndex > 0)
@@ -275,10 +271,9 @@ void Sticker::paintAnimationFrame(
 		: ((!customEmojiPart() && isEmojiSticker())
 			|| !Core::App().settings().loopAnimatedStickers());
 	const auto lastDiceFrame = (_diceIndex > 0) && atTheEnd();
-	const auto switchToNext = /*(_externalInfo.frame >= 0)
-		|| */!playOnce
+	const auto switchToNext = !playOnce
 		|| (!lastDiceFrame && (_frameIndex != 0 || !_oncePlayed));
-	if (!paused
+	if (!context.paused
 		&& switchToNext
 		&& _player->markFrameShown()
 		&& playOnce
@@ -538,39 +533,5 @@ std::unique_ptr<StickerPlayer> Sticker::stickerTakePlayer(
 		? std::move(_player)
 		: nullptr;
 }
-
-//void Sticker::externalLottieProgressing(bool external) {
-//	_externalInfo = !external
-//		? ExternalLottieInfo{}
-//		: (_externalInfo.frame > 0)
-//		? _externalInfo
-//		: ExternalLottieInfo{ 0, 2 };
-//}
-//
-//bool Sticker::externalLottieTill(ExternalLottieInfo info) {
-//	if (_externalInfo.frame >= 0) {
-//		_externalInfo = info;
-//	}
-//	return markFramesTillExternal();
-//}
-//
-//ExternalLottieInfo Sticker::externalLottieInfo() const {
-//	return _externalInfo;
-//}
-//
-//bool Sticker::markFramesTillExternal() {
-//	if (_externalInfo.frame < 0 || !_lottie) {
-//		return true;
-//	} else if (!_lottie->ready()) {
-//		return false;
-//	}
-//	const auto till = _externalInfo.frame % _lottie->framesCount();
-//	while (_lottie->frameIndex() < till) {
-//		if (!_lottie->markFrameShown()) {
-//			return false;
-//		}
-//	}
-//	return true;
-//}
 
 } // namespace HistoryView

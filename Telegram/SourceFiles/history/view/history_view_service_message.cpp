@@ -538,7 +538,7 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setBrush(Qt::NoBrush);
 	p.setPen(st->msgServiceFg());
 	p.setFont(st::msgServiceFont);
-	prepareCustomEmojiPaint(p, item->_text);
+	prepareCustomEmojiPaint(p, context, item->_text);
 	item->_text.draw(
 		p,
 		trect.x(),

@@ -171,7 +171,8 @@ public:
 	[[nodiscard]] ChatPaintContext preparePaintContext(
 		not_null<const ChatStyle*> st,
 		QRect viewport,
-		QRect clip);
+		QRect clip,
+		bool paused);
 	[[nodiscard]] const BackgroundState &backgroundState(QSize area);
 	void clearBackgroundState();
 	[[nodiscard]] rpl::producer<> repaintBackgroundRequests() const;

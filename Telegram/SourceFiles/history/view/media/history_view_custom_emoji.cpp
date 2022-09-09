@@ -211,7 +211,6 @@ void CustomEmoji::draw(
 	auto x = r.x();
 	auto y = r.y();
 	const auto perRow = std::max(r.width() / _singleSize, 1);
-	const auto paused = _parent->delegate()->elementIsGifPaused();
 	for (auto &line : _lines) {
 		const auto count = int(line.size());
 		const auto rows = std::max((count + perRow - 1) / perRow, 1);
@@ -221,7 +220,7 @@ void CustomEmoji::draw(
 				if (index >= count) {
 					break;
 				}
-				paintElement(p, x, y, line[index], context, paused);
+				paintElement(p, x, y, line[index], context);
 				x += _singleSize;
 			}
 			x = r.x();
@@ -235,12 +234,11 @@ void CustomEmoji::paintElement(
 		int x,
 		int y,
 		LargeCustomEmoji &element,
-		const PaintContext &context,
-		bool paused) {
+		const PaintContext &context) {
 	if (const auto sticker = std::get_if<StickerPtr>(&element)) {
-		paintSticker(p, x, y, sticker->get(), context, paused);
+		paintSticker(p, x, y, sticker->get(), context);
 	} else if (const auto custom = std::get_if<CustomPtr>(&element)) {
-		paintCustom(p, x, y, custom->get(), context, paused);
+		paintCustom(p, x, y, custom->get(), context);
 	}
 }
 
@@ -249,8 +247,7 @@ void CustomEmoji::paintSticker(
 		int x,
 		int y,
 		not_null<Sticker*> sticker,
-		const PaintContext &context,
-		bool paused) {
+		const PaintContext &context) {
 	sticker->draw(p, context, { QPoint(x, y), sticker->countOptimalSize() });
 }
 
@@ -259,8 +256,7 @@ void CustomEmoji::paintCustom(
 		int x,
 		int y,
 		not_null<Ui::Text::CustomEmoji*> emoji,
-		const PaintContext &context,
-		bool paused) {
+		const PaintContext &context) {
 	if (!_hasHeavyPart) {
 		_hasHeavyPart = true;
 		_parent->history()->owner().registerHeavyViewPart(_parent);
@@ -280,7 +276,7 @@ void CustomEmoji::paintCustom(
 		emoji->paint(q, {
 			.preview = preview,
 			.now = context.now,
-			.paused = paused,
+			.paused = context.paused,
 		});
 		q.end();
 
@@ -293,7 +289,7 @@ void CustomEmoji::paintCustom(
 			.preview = preview,
 			.now = context.now,
 			.position = { x, y },
-			.paused = paused,
+			.paused = context.paused,
 		});
 	}
 }

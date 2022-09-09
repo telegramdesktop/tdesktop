@@ -990,7 +990,9 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		auto context = theme->preparePaintContext(
 			_chatStyle.get(),
 			widget->rect(),
-			widget->rect());
+			widget->rect(),
+			_controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer));
 		p.translate(padding / 2, padding + view->marginBottom());
 		context.outbg = view->hasOutLayout();
 		view->draw(p, context);

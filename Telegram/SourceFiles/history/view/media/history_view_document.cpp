@@ -694,7 +694,7 @@ void Document::draw(
 	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, captioned->_caption);
+		_parent->prepareCustomEmojiPaint(p, context, captioned->_caption);
 		captioned->_caption.draw(p, st::msgPadding.left(), captiontop, captionw, style::al_left, 0, -1, selection);
 	}
 }

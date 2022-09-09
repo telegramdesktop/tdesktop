@@ -7,27 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_extended_preview.h"
 
-//#include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
-//#include "main/main_session.h"
-//#include "main/main_session_settings.h"
 #include "media/streaming/media_streaming_utility.h"
 #include "ui/effects/spoiler_mess.h"
 #include "ui/image/image.h"
+#include "ui/image/image_prepare.h"
 #include "ui/chat/chat_style.h"
-//#include "ui/cached_round_corners.h"
 #include "data/data_session.h"
-//#include "data/data_streaming.h"
-//#include "data/data_photo.h"
-//#include "data/data_photo_media.h"
-//#include "data/data_file_click_handler.h"
-//#include "data/data_file_origin.h"
-//#include "data/data_auto_download.h"
-//#include "core/application.h"
 #include "payments/payments_checkout_process.h"
 #include "window/window_session_controller.h"
 #include "mainwindow.h"
@@ -88,7 +78,10 @@ bool ExtendedPreview::hasHeavyPart() const {
 }
 
 void ExtendedPreview::unloadHeavyPart() {
-	_inlineThumbnail = _imageCache = QImage();
+	_inlineThumbnail
+		= _imageCache
+		= _cornerCache
+		= _buttonBackground = QImage();
 	_animation = nullptr;
 	_caption.unloadCustomEmoji();
 }
@@ -193,29 +186,16 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 		| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	validateImageCache(rthumb.size(), roundRadius, roundCorners);
 	p.drawImage(rthumb.topLeft(), _imageCache);
-	fillSpoilerMess(p, context.now, rthumb, roundRadius, roundCorners);
+	fillSpoilerMess(p, rthumb, roundRadius, roundCorners, context);
+	paintButtonBackground(p, rthumb, context);
 	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
-	}
-
-	const auto innerSize = st::msgFileLayout.thumbSize;
-	QRect inner(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
-	p.setPen(Qt::NoPen);
-	if (context.selected()) {
-		p.setBrush(st->msgDateImgBgSelected());
-	} else {
-		const auto over = ClickHandler::showAsActive(_link);
-		p.setBrush(over ? st->msgDateImgBgOver() : st->msgDateImgBg());
-	}
-	{
-		PainterHighQualityEnabler hq(p);
-		p.drawEllipse(inner);
 	}
 
 	// date
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, _caption);
+		_parent->prepareCustomEmojiPaint(p, context, _caption);
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;
@@ -268,10 +248,10 @@ QImage ExtendedPreview::prepareImageCache(QSize outer) const {
 
 void ExtendedPreview::fillSpoilerMess(
 		QPainter &p,
-		crl::time now,
 		QRect rect,
 		ImageRoundRadius radius,
-		RectParts corners) const {
+		RectParts corners,
+		const PaintContext &context) const {
 	if (!_animation) {
 		_animation = std::make_unique<Ui::SpoilerAnimation>([=] {
 			_parent->customEmojiRepaint();
@@ -280,23 +260,47 @@ void ExtendedPreview::fillSpoilerMess(
 	}
 	_parent->clearCustomEmojiRepaint();
 	const auto &spoiler = Ui::DefaultImageSpoiler();
-	const auto size = spoiler.canvasSize() / style::DevicePixelRatio();
-	const auto frame = spoiler.frame(
-		_animation->index(now, _parent->delegate()->elementIsGifPaused()));
-	const auto columns = (rect.width() + size - 1) / size;
-	const auto rows = (rect.height() + size - 1) / size;
-	p.setClipRect(rect);
-	p.translate(rect.topLeft());
-	for (auto y = 0; y != rows; ++y) {
-		for (auto x = 0; x != columns; ++x) {
-			p.drawImage(
-				QRect(x * size, y * size, size, size),
-				*frame.image,
-				frame.source);
+	const auto index = _animation->index(context.now, context.paused);
+	Ui::FillSpoilerRect(
+		p,
+		rect,
+		radius,
+		corners,
+		spoiler.frame(index),
+		_cornerCache);
+}
+
+void ExtendedPreview::paintButtonBackground(
+		QPainter &p,
+		QRect outer,
+		const PaintContext &context) const {
+	const auto st = context.st;
+	const auto height = st::msgFileLayout.thumbSize;
+	const auto width = height * 4;
+	const auto overlay = st->msgDateImgBg()->c;
+	if (_buttonBackground.isNull() || _buttonBackgroundOverlay != overlay) {
+		const auto ratio = style::DevicePixelRatio();
+		if (_imageCache.width() < width * ratio
+			|| _imageCache.height() < height * ratio) {
+			return;
 		}
+		_buttonBackground = _imageCache.copy(QRect(
+			(_imageCache.width() - width * ratio) / 2,
+			(_imageCache.height() - height * ratio) / 2,
+			width * ratio,
+			height * ratio));
+		_buttonBackground.setDevicePixelRatio(ratio);
+		auto p = QPainter(&_buttonBackground);
+		p.fillRect(0, 0, width, height, overlay);
+		p.end();
+		_buttonBackground = Images::Round(
+			std::move(_buttonBackground),
+			Images::CornersMask(height / 2));
 	}
-	p.translate(-rect.topLeft());
-	p.setClipping(false);
+	p.drawImage(
+		outer.x() + (outer.width() - width) / 2,
+		outer.y() + (outer.height() - height) / 2,
+		_buttonBackground);
 }
 
 TextState ExtendedPreview::textState(QPoint point, StateRequest request) const {

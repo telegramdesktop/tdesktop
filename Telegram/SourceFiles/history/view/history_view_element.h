@@ -49,7 +49,6 @@ enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
-//struct ExternalLottieInfo;
 
 enum class Context : char {
 	History,
@@ -92,7 +91,7 @@ public:
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
-	virtual bool elementIsGifPaused() = 0;
+	virtual bool elementAnimationsPaused() = 0;
 	virtual bool elementHideReply(not_null<const Element*> view) = 0;
 	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
 	virtual void elementSendBotCommand(
@@ -154,7 +153,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
-	bool elementIsGifPaused() override;
+	bool elementAnimationsPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
@@ -261,9 +260,6 @@ public:
 	Media *media() const;
 	Context context() const;
 	void refreshDataId();
-
-	//void externalLottieProgressing(bool external) const;
-	//bool externalLottieTill(ExternalLottieInfo info) const;
 
 	QDateTime dateTime() const;
 
@@ -420,9 +416,11 @@ public:
 	void customEmojiRepaint();
 	void prepareCustomEmojiPaint(
 		Painter &p,
+		const PaintContext &context,
 		const Ui::Text::String &text) const;
 	void prepareCustomEmojiPaint(
 		Painter &p,
+		const PaintContext &context,
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 

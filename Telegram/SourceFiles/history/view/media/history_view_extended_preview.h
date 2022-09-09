@@ -85,13 +85,17 @@ private:
 		ImageRoundRadius radius,
 		RectParts corners) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
+	void paintButtonBackground(
+		QPainter &p,
+		QRect outer,
+		const PaintContext &context) const;
 
 	void fillSpoilerMess(
 		QPainter &p,
-		crl::time now,
 		QRect rect,
 		ImageRoundRadius radius,
-		RectParts corners) const;
+		RectParts corners,
+		const PaintContext &context) const;
 
 	const not_null<Data::Invoice*> _invoice;
 	ClickHandlerPtr _link;
@@ -99,6 +103,9 @@ private:
 	mutable std::unique_ptr<Ui::SpoilerAnimation> _animation;
 	mutable QImage _inlineThumbnail;
 	mutable QImage _imageCache;
+	mutable QImage _cornerCache;
+	mutable QImage _buttonBackground;
+	mutable QColor _buttonBackgroundOverlay;
 	mutable int _imageCacheRoundRadius : 4 = 0;
 	mutable int _imageCacheRoundCorners : 12 = 0;
 	mutable int _imageCacheInvalid : 1 = 0;

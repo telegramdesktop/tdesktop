@@ -145,7 +145,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
-	bool elementIsGifPaused();
+	bool elementAnimationsPaused();
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);

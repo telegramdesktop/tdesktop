@@ -1909,7 +1909,8 @@ HistoryView::PaintContext SessionController::preparePaintContext(
 	return args.theme->preparePaintContext(
 		_chatStyle.get(),
 		viewport,
-		args.clip);
+		args.clip,
+		isGifPausedAtLeastFor(GifPauseReason::Any));
 }
 
 void SessionController::setPremiumRef(const QString &ref) {

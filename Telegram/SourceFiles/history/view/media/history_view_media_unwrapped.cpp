@@ -466,18 +466,6 @@ std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 	return _content->stickerTakePlayer(data, replacements);
 }
 
-//void UnwrappedMedia::externalLottieProgressing(bool external) {
-//	_content->externalLottieProgressing(external);
-//}
-//
-//bool UnwrappedMedia::externalLottieTill(ExternalLottieInfo info) {
-//	return _content->externalLottieTill(info);
-//}
-//
-//ExternalLottieInfo UnwrappedMedia::externalLottieInfo() const {
-//	return _content->externalLottieInfo();
-//}
-
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	const auto rightAligned = _parent->hasOutLayout()
 		&& !_parent->delegate()->elementIsChatWide();

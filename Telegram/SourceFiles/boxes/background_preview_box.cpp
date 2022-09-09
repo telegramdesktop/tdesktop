@@ -357,7 +357,8 @@ void BackgroundPreviewBox::paintTexts(Painter &p, crl::time ms) {
 	auto context = _controller->defaultChatTheme()->preparePaintContext(
 		_chatStyle.get(),
 		rect(),
-		rect());
+		rect(),
+		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Layer));
 	p.translate(0, textsTop());
 	paintDate(p);
 

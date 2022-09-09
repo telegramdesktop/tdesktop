@@ -95,7 +95,6 @@ void LargeEmoji::draw(
 	const auto y = r.y() + (r.height() - _size.height()) / 2 + padding.top();
 	const auto skip = st::largeEmojiSkip - 2 * st::largeEmojiOutline;
 	const auto size = LargeEmojiImage::Size() / cIntRetinaFactor();
-	const auto paused = _parent->delegate()->elementIsGifPaused();
 	const auto selected = context.selected();
 	if (!selected) {
 		_selectedFrame = QImage();
@@ -114,7 +113,7 @@ void LargeEmoji::draw(
 				(*image)->load();
 			}
 		} else if (const auto custom = std::get_if<CustomPtr>(&media)) {
-			paintCustom(p, x, y, custom->get(), context, paused);
+			paintCustom(p, x, y, custom->get(), context);
 		} else {
 			continue;
 		}
@@ -127,8 +126,7 @@ void LargeEmoji::paintCustom(
 		int x,
 		int y,
 		not_null<Ui::Text::CustomEmoji*> emoji,
-		const PaintContext &context,
-		bool paused) {
+		const PaintContext &context) {
 	if (!_hasHeavyPart) {
 		_hasHeavyPart = true;
 		_parent->history()->owner().registerHeavyViewPart(_parent);
@@ -151,7 +149,7 @@ void LargeEmoji::paintCustom(
 		emoji->paint(q, {
 			.preview = preview,
 			.now = context.now,
-			.paused = paused,
+			.paused = context.paused,
 		});
 		q.end();
 
@@ -164,7 +162,7 @@ void LargeEmoji::paintCustom(
 			.preview = preview,
 			.now = context.now,
 			.position = { x + skip, y + skip },
-			.paused = paused,
+			.paused = context.paused,
 		});
 	}
 }

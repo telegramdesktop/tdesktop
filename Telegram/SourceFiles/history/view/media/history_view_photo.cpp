@@ -295,7 +295,7 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	// date
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, _caption);
+		_parent->prepareCustomEmojiPaint(p, context, _caption);
 		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;
@@ -384,7 +384,6 @@ void Photo::paintUserpicFrame(
 	if (_streamed
 		&& _streamed->instance.player().ready()
 		&& !_streamed->instance.player().videoSize().isEmpty()) {
-		const auto paused = _parent->delegate()->elementIsGifPaused();
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
@@ -397,7 +396,7 @@ void Photo::paintUserpicFrame(
 		} else {
 			_streamed->frozenFrame = QImage();
 			p.drawImage(rect, _streamed->instance.frame(request));
-			if (!paused) {
+			if (!context.paused) {
 				_streamed->instance.markFrameShown();
 			}
 		}
@@ -768,7 +767,7 @@ void Photo::handleStreamingError(::Media::Streaming::Error &&error) {
 void Photo::repaintStreamedContent() {
 	if (_streamed && !_streamed->frozenFrame.isNull()) {
 		return;
-	} else if (_parent->delegate()->elementIsGifPaused()) {
+	} else if (_parent->delegate()->elementAnimationsPaused()) {
 		return;
 	}
 	repaint();

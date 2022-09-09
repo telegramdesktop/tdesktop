@@ -170,7 +170,7 @@ void SimpleElementDelegate::elementShowTooltip(
 	Fn<void()> hiddenCallback) {
 }
 
-bool SimpleElementDelegate::elementIsGifPaused() {
+bool SimpleElementDelegate::elementAnimationsPaused() {
 	return _controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any);
 }
 
@@ -419,12 +419,13 @@ void Element::clearCustomEmojiRepaint() const {
 
 void Element::prepareCustomEmojiPaint(
 		Painter &p,
+		const PaintContext &context,
 		const Ui::Text::String &text) const {
 	if (!text.hasCustomEmoji()) {
 		return;
 	}
 	clearCustomEmojiRepaint();
-	p.setInactive(delegate()->elementIsGifPaused());
+	p.setInactive(context.paused);
 	if (!_heavyCustomEmoji) {
 		_heavyCustomEmoji = true;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
@@ -433,30 +434,18 @@ void Element::prepareCustomEmojiPaint(
 
 void Element::prepareCustomEmojiPaint(
 		Painter &p,
+		const PaintContext &context,
 		const Reactions::InlineList &reactions) const {
 	if (!reactions.hasCustomEmoji()) {
 		return;
 	}
 	clearCustomEmojiRepaint();
-	p.setInactive(delegate()->elementIsGifPaused());
+	p.setInactive(context.paused);
 	if (!_heavyCustomEmoji) {
 		_heavyCustomEmoji = true;
 		history()->owner().registerHeavyViewPart(const_cast<Element*>(this));
 	}
 }
-
-//void Element::externalLottieProgressing(bool external) const {
-//	if (const auto media = _media.get()) {
-//		media->externalLottieProgressing(external);
-//	}
-//}
-//
-//bool Element::externalLottieTill(ExternalLottieInfo info) const {
-//	if (const auto media = _media.get()) {
-//		return media->externalLottieTill(info);
-//	}
-//	return true;
-//}
 
 void Element::repaint() const {
 	history()->owner().requestViewRepaint(this);

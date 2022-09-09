@@ -566,7 +566,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 		if (_description.hasSkipBlock()) {
 			endskip = _parent->skipBlockWidth();
 		}
-		_parent->prepareCustomEmojiPaint(p, _description);
+		_parent->prepareCustomEmojiPaint(p, context, _description);
 		if (_descriptionLines > 0) {
 			_description.drawLeftElided(p, padding.left(), tshift, paintw, width(), _descriptionLines, style::al_left, 0, -1, endskip, false, toDescriptionSelection(context.selection));
 			tshift += _descriptionLines * lineHeight;
