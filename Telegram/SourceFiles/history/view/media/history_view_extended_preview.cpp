@@ -84,11 +84,12 @@ void ExtendedPreview::ensureThumbnailRead() const {
 }
 
 bool ExtendedPreview::hasHeavyPart() const {
-	return !_inlineThumbnail.isNull();
+	return _animation || !_inlineThumbnail.isNull();
 }
 
 void ExtendedPreview::unloadHeavyPart() {
 	_inlineThumbnail = _imageCache = QImage();
+	_animation = nullptr;
 	_caption.unloadCustomEmoji();
 }
 
@@ -192,7 +193,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 		| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
 	validateImageCache(rthumb.size(), roundRadius, roundCorners);
 	p.drawImage(rthumb.topLeft(), _imageCache);
-	fillSpoilerMess(p, rthumb, roundRadius, roundCorners);
+	fillSpoilerMess(p, context.now, rthumb, roundRadius, roundCorners);
 	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
@@ -267,25 +268,21 @@ QImage ExtendedPreview::prepareImageCache(QSize outer) const {
 
 void ExtendedPreview::fillSpoilerMess(
 		QPainter &p,
+		crl::time now,
 		QRect rect,
 		ImageRoundRadius radius,
 		RectParts corners) const {
-	const auto size = style::ConvertScale(100);
-	static const auto test = [&] {
-		const auto ratio = style::DevicePixelRatio();
-		return Ui::GenerateSpoilerMess({
-			.particleFadeInDuration = 200,
-			.particleFadeOutDuration = 200,
-			.particleSizeMin = style::ConvertScaleExact(1.5) * ratio,
-			.particleSizeMax = style::ConvertScaleExact(2.) * ratio,
-			.particleSpritesCount = 5,
-			.particlesCount = 2000,
-			.canvasSize = size * ratio,
-			.framesCount = 60,
-			.frameDuration = 33,
+	if (!_animation) {
+		_animation = std::make_unique<Ui::SpoilerAnimation>([=] {
+			_parent->customEmojiRepaint();
 		});
-	}();
-	const auto frame = test.frame();
+		history()->owner().registerHeavyViewPart(_parent);
+	}
+	_parent->clearCustomEmojiRepaint();
+	const auto &spoiler = Ui::DefaultImageSpoiler();
+	const auto size = spoiler.canvasSize() / style::DevicePixelRatio();
+	const auto frame = spoiler.frame(
+		_animation->index(now, _parent->delegate()->elementIsGifPaused()));
 	const auto columns = (rect.width() + size - 1) / size;
 	const auto rows = (rect.height() + size - 1) / size;
 	p.setClipRect(rect);

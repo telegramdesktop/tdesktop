@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 enum class ImageRoundRadius;
 
+namespace Ui {
+class SpoilerAnimation;
+} // namespace Ui
+
 namespace Data {
 struct Invoice;
 } // namespace Data
@@ -84,6 +88,7 @@ private:
 
 	void fillSpoilerMess(
 		QPainter &p,
+		crl::time now,
 		QRect rect,
 		ImageRoundRadius radius,
 		RectParts corners) const;
@@ -91,6 +96,7 @@ private:
 	const not_null<Data::Invoice*> _invoice;
 	ClickHandlerPtr _link;
 	Ui::Text::String _caption;
+	mutable std::unique_ptr<Ui::SpoilerAnimation> _animation;
 	mutable QImage _inlineThumbnail;
 	mutable QImage _imageCache;
 	mutable int _imageCacheRoundRadius : 4 = 0;
