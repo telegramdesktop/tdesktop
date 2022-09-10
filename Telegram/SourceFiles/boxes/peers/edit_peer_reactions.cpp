@@ -49,13 +49,14 @@ void EditAllowedReactionsBox(
 		rpl::variable<bool> anyToggled; // For channels.
 		rpl::event_stream<bool> forceToggleAll; // For channels.
 	};
+	const auto optionInitial = (allowed.type != AllowedReactionsType::Some)
+		? Option::All
+		: allowed.some.empty()
+		? Option::None
+		: Option::Some;
 	const auto state = box->lifetime().make_state<State>(State{
-		.option = (allowed.type != AllowedReactionsType::Some
-			? Option::All
-			: allowed.some.empty()
-			? Option::None
-			: Option::Some),
-		.anyToggled = (allowed.type != Data::AllowedReactionsType::Some),
+		.option = optionInitial,
+		.anyToggled = (optionInitial != Option::None),
 	});
 
 	const auto collect = [=] {
@@ -163,9 +164,18 @@ void EditAllowedReactionsBox(
 			? tr::lng_manage_peer_reactions_available()
 			: tr::lng_manage_peer_reactions_some_title()));
 
-	const auto active = [&](const ReactionId &id) {
+	const auto like = QString::fromUtf8("\xf0\x9f\x91\x8d");
+	const auto dislike = QString::fromUtf8("\xf0\x9f\x91\x8e");
+	const auto activeOnStart = [&](const ReactionId &id) {
+		const auto inSome = ranges::contains(allowed.some, id);
+		if (!isGroup) {
+			return inSome || (allowed.type != AllowedReactionsType::Some);
+		}
+		const auto emoji = id.emoji();
+		const auto isDefault = (emoji == like) || (emoji == dislike);
 		return (allowed.type != AllowedReactionsType::Some)
-			|| ranges::contains(allowed.some, id);
+			? isDefault
+			: (inSome || (isDefault && allowed.some.empty()));
 	};
 	const auto add = [&](const Reaction &entry) {
 		const auto button = Settings::AddButton(
@@ -189,7 +199,9 @@ void EditAllowedReactionsBox(
 			rpl::never<>(),
 			&button->lifetime());
 		state->toggles.emplace(entry.id, button);
-		button->toggleOn(rpl::single(active(entry.id)) | rpl::then(enabled
+		button->toggleOn(rpl::single(
+			activeOnStart(entry.id)
+		) | rpl::then(enabled
 			? (state->forceToggleAll.events() | rpl::type_erased())
 			: rpl::never<bool>()
 		));
