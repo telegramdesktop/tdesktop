@@ -1250,7 +1250,7 @@ void StickersListFooter::paintSetIcon(
 		const auto y = _iconsTop + (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
 			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
-				.preview = st::emojiIconFg->c,
+				.preview = st::windowBgRipple->c,
 				.size = QSize(icon.pixw, icon.pixh),
 				.now = now,
 				.scale = context.progress,
