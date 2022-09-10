@@ -75,6 +75,11 @@ const auto kColorizeIgnoredKeys = base::flat_set<QLatin1String>{ {
 	qstr("settingsIconBg6"),
 	qstr("settingsIconBg8"),
 	qstr("settingsIconBgArchive"),
+	qstr("premiumButtonBg1"),
+	qstr("premiumButtonBg2"),
+	qstr("premiumButtonBg3"),
+	qstr("premiumIconBg1"),
+	qstr("premiumIconBg2"),
 } };
 
 style::colorizer::Color cColor(std::string_view hex) {
