@@ -73,23 +73,6 @@ bool operator==(const Descriptor &a, const Descriptor &b) {
 		&& (a.fromSettings == b.fromSettings);
 }
 
-[[nodiscard]] int ComputeX(int column, int columns) {
-	const auto skip = st::premiumReactionWidthSkip;
-	const auto fullWidth = columns * skip;
-	const auto left = (st::boxWideWidth - fullWidth) / 2;
-	return left + column * skip + (skip / 2);
-}
-
-[[nodiscard]] int ComputeY(int row, int rows) {
-	const auto middle = (rows > 3)
-		? (st::premiumReactionInfoTop / 2)
-		: st::premiumReactionsMiddle;
-	const auto skip = st::premiumReactionHeightSkip;
-	const auto fullHeight = rows * skip;
-	const auto top = middle - (fullHeight / 2);
-	return top + row * skip + (skip / 2);
-}
-
 struct Preload {
 	Descriptor descriptor;
 	std::shared_ptr<Data::DocumentMedia> media;

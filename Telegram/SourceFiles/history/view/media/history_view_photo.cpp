@@ -385,7 +385,6 @@ QImage Photo::prepareImageCache(
 QImage Photo::prepareImageCache(QSize outer) const {
 	using Size = PhotoSize;
 	const auto large = _dataMedia->image(Size::Large);
-	const auto ratio = style::DevicePixelRatio();
 	auto blurred = (Image*)nullptr;
 	if (const auto embedded = _dataMedia->thumbnailInline()) {
 		blurred = embedded;

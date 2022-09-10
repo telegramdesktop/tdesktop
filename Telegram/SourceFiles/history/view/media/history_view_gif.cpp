@@ -701,7 +701,6 @@ QImage Gif::prepareThumbCache(QSize outer) const {
 	const auto good = _dataMedia->goodThumbnail();
 	const auto normal = good ? good : _dataMedia->thumbnail();
 	const auto videothumb = normal ? nullptr : _videoThumbnailFrame.get();
-	const auto ratio = style::DevicePixelRatio();
 	auto blurred = (!good
 		&& normal
 		&& (normal->width() < kUseNonBlurredThreshold)

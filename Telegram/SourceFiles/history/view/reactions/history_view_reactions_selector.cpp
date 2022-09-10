@@ -639,8 +639,6 @@ ChosenReaction Selector::lookupChosen(const Data::ReactionId &id) const {
 	if (result.icon.isNull()) {
 		return result;
 	}
-	const auto between = st::reactionCornerSkip;
-	const auto oneHeight = (st::reactionCornerSize.height() + between);
 	const auto rect = QRect(_skipx + index * _size, _skipy, _size, _size);
 	const auto imageSize = _strip->computeOverSize();
 	result.globalGeometry = mapToGlobal(QRect(
