@@ -841,7 +841,7 @@ bool RepliesWidget::showSlowmodeError() {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				Ui::FormatDurationWords(left));
+				Ui::FormatDurationWordsSlowmode(left));
 		} else if (_history->peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
 				showAtPositionNow(item->position(), nullptr);
@@ -938,7 +938,7 @@ bool RepliesWidget::showSendingFilesError(
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				Ui::FormatDurationWords(left));
+				Ui::FormatDurationWordsSlowmode(left));
 		}
 		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
