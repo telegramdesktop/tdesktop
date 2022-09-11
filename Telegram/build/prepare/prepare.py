@@ -61,13 +61,11 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
     pathlib.Path(os.path.join(thirdPartyDir, keysLoc)).mkdir(parents=True, exist_ok=True)
 
 pathPrefixes = [
-    'ThirdParty\\Strawberry\\perl\\bin',
+    'ThirdParty\\msys64\\mingw64\\bin',
     'ThirdParty\\Python39',
-    'ThirdParty\\NASM',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
-    'ThirdParty\\Ninja',
 ] if win else [
     'ThirdParty/gyp',
     'ThirdParty/yasm',
