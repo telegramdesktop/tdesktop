@@ -850,7 +850,8 @@ Ui::Text::CustomEmojiFactory ReactedMenuFactory(
 					: i->selectAnimation;
 				const auto size = st::emojiSize * (i->centerIcon ? 2 : 1);
 				const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
-				const auto skip = (Data::FrameSizeFromTag(tag) - size) / 2;
+				const auto ratio = style::DevicePixelRatio();
+				const auto skip = (Data::FrameSizeFromTag(tag) / ratio - size) / 2;
 				return std::make_unique<Ui::Text::FirstFrameEmoji>(
 					std::make_unique<Ui::Text::ShiftedEmoji>(
 						owner->customEmojiManager().create(

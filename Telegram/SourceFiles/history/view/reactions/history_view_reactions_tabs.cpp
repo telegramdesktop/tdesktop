@@ -107,8 +107,8 @@ not_null<Ui::AbstractButton*> CreateTab(
 		p.drawImage(0, 0, state->cache);
 		if (const auto custom = state->custom.get()) {
 			using namespace Ui::Text;
-			const auto size = Ui::Emoji::GetSizeNormal();
-			const auto shift = (height - (size / factor)) / 2;
+			const auto size = Ui::Emoji::GetSizeNormal() / factor;
+			const auto shift = (height - size) / 2;
 			const auto skip = (size - AdjustCustomEmojiSize(size)) / 2;
 			custom->paint(p, {
 				.preview = (state->selected
