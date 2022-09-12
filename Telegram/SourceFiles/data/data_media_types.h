@@ -63,6 +63,13 @@ struct ExtendedPreview {
 	QByteArray inlineThumbnailBytes;
 	QSize dimensions;
 	TimeId videoDuration = -1;
+
+	[[nodiscard]] bool empty() const {
+		return dimensions.isEmpty();
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
 };
 
 class Media;

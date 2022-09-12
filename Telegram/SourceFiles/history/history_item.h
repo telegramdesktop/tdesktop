@@ -239,6 +239,7 @@ public:
 	[[nodiscard]] virtual bool externalReply() const {
 		return false;
 	}
+	[[nodiscard]] bool hasExtendedMediaPreview() const;
 
 	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
 		return MsgId(0);

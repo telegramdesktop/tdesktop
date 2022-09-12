@@ -917,7 +917,7 @@ void HistoryMessageReplyMarkup::updateData(
 bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
 	if (media && (data.flags & ReplyMarkupFlag::OnlyBuyButton)) {
 		if (const auto invoice = media->invoice()) {
-			if (!invoice->extendedPreview.dimensions.isEmpty()
+			if (invoice->extendedPreview
 				&& (!invoice->extendedMedia || !invoice->receiptMsgId)) {
 				return true;
 			}

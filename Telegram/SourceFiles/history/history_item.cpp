@@ -1169,6 +1169,15 @@ bool HistoryItem::isRegular() const {
 	return isHistoryEntry() && !isLocal();
 }
 
+bool HistoryItem::hasExtendedMediaPreview() const {
+	if (const auto media = _media.get()) {
+		if (const auto invoice = media->invoice()) {
+			return (invoice->extendedPreview && !invoice->extendedMedia);
+		}
+	}
+	return false;
+}
+
 void HistoryItem::sendFailed() {
 	Expects(_flags & MessageFlag::BeingSent);
 	Expects(!(_flags & MessageFlag::SendingFailed));

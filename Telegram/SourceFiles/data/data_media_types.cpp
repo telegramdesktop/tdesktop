@@ -1611,7 +1611,7 @@ std::unique_ptr<HistoryView::Media> MediaInvoice::createView(
 			message,
 			realParent,
 			replacing);
-	} else if (!_invoice.extendedPreview.dimensions.isEmpty()) {
+	} else if (_invoice.extendedPreview) {
 		return std::make_unique<HistoryView::ExtendedPreview>(
 			message,
 			&_invoice);
