@@ -281,6 +281,8 @@ public:
 	}
 	virtual void applyEdition(const MTPDmessageService &message) {
 	}
+	virtual void applyEdition(const MTPMessageExtendedMedia &media) {
+	}
 	void applyEditionToHistoryCleared();
 	virtual void updateSentContent(
 		const TextWithEntities &textWithEntities,

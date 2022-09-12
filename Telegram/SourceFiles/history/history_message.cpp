@@ -1325,6 +1325,15 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 	}
 }
 
+void HistoryMessage::applyEdition(const MTPMessageExtendedMedia &media) {
+	if (const auto existing = this->media()) {
+		if (existing->updateExtendedMedia(this, media)) {
+			checkBuyButton();
+			finishEdition(-1);
+		}
+	}
+}
+
 void HistoryMessage::updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) {

@@ -55,7 +55,12 @@ ExtendedPreview::ExtendedPreview(
 	_link = MakeInvoiceLink(item);
 }
 
-ExtendedPreview::~ExtendedPreview() = default;
+ExtendedPreview::~ExtendedPreview() {
+	if (hasHeavyPart()) {
+		unloadHeavyPart();
+		_parent->checkHeavyPart();
+	}
+}
 
 void ExtendedPreview::ensureThumbnailRead() const {
 	if (!_inlineThumbnail.isNull() || _imageCacheInvalid) {

@@ -232,6 +232,49 @@ template <typename MediaType>
 	return (i != end(*existing)) ? *i : ItemPreviewImage();
 }
 
+bool UpdateExtendedMedia(
+		Invoice &invoice,
+		not_null<HistoryMessage*> item,
+		const MTPMessageExtendedMedia &media) {
+	return media.match([&](const MTPDmessageExtendedMediaPreview &data) {
+		if (invoice.extendedMedia) {
+			return false;
+		}
+		auto changed = false;
+		auto &preview = invoice.extendedPreview;
+		if (const auto &w = data.vw()) {
+			const auto &h = data.vh();
+			Assert(h.has_value());
+			const auto dimensions = QSize(w->v, h->v);
+			if (preview.dimensions != dimensions) {
+				preview.dimensions = dimensions;
+				changed = true;
+			}
+		}
+		if (const auto &thumb = data.vthumb()) {
+			if (thumb->type() == mtpc_photoStrippedSize) {
+				const auto bytes = thumb->c_photoStrippedSize().vbytes().v;
+				if (preview.inlineThumbnailBytes != bytes) {
+					preview.inlineThumbnailBytes = bytes;
+					changed = true;
+				}
+			}
+		}
+		if (const auto &duration = data.vvideo_duration()) {
+			if (preview.videoDuration != duration->v) {
+				preview.videoDuration = duration->v;
+				changed = true;
+			}
+		}
+		return changed;
+	}, [&](const MTPDmessageExtendedMedia &data) {
+		invoice.extendedMedia = HistoryMessage::CreateMedia(
+			item,
+			data.vmedia());
+		return true;
+	});
+}
+
 } // namespace
 
 TextForMimeData WithCaptionClipboardText(
@@ -266,29 +309,8 @@ Invoice ComputeInvoiceData(
 		.isTest = data.is_test(),
 	};
 	if (const auto &media = data.vextended_media()) {
-		media->match([&](const MTPDmessageExtendedMediaPreview &data) {
-			auto &preview = result.extendedPreview;
-			if (const auto &w = data.vw()) {
-				const auto &h = data.vh();
-				Assert(h.has_value());
-				preview.dimensions = QSize(w->v, h->v);
-			}
-			if (const auto &thumb = data.vthumb()) {
-				if (thumb->type() == mtpc_photoStrippedSize) {
-					preview.inlineThumbnailBytes
-						= thumb->c_photoStrippedSize().vbytes().v;
-				}
-			}
-			if (const auto &duration = data.vvideo_duration()) {
-				preview.videoDuration = duration->v;
-			}
-		}, [&](const MTPDmessageExtendedMedia &data) {
-			result.extendedMedia = HistoryMessage::CreateMedia(
-				item,
-				data.vmedia());
-		});
+		UpdateExtendedMedia(result, item, *media);
 	}
-
 	return result;
 }
 
@@ -1570,6 +1592,14 @@ bool MediaInvoice::updateInlineResultMedia(const MTPMessageMedia &media) {
 
 bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 	return true;
+}
+
+bool MediaInvoice::updateExtendedMedia(
+		not_null<HistoryMessage*> item,
+		const MTPMessageExtendedMedia &media) {
+	Expects(item == parent());
+
+	return UpdateExtendedMedia(_invoice, item, media);
 }
 
 std::unique_ptr<HistoryView::Media> MediaInvoice::createView(

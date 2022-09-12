@@ -604,7 +604,7 @@ QSize Message::performCountOptimalSize() {
 		minHeight = 0;
 	}
 	if (const auto markup = item->inlineReplyMarkup()) {
-		if (!markup->inlineKeyboard) {
+		if (!markup->inlineKeyboard && !markup->hiddenBy(item->media())) {
 			markup->inlineKeyboard = std::make_unique<ReplyKeyboard>(
 				item,
 				std::make_unique<KeyboardStyle>(st::msgBotKbButton));
@@ -612,7 +612,7 @@ QSize Message::performCountOptimalSize() {
 
 		// if we have a text bubble we can resize it to fit the keyboard
 		// but if we have only media we don't do that
-		if (hasVisibleText()) {
+		if (hasVisibleText() && markup->inlineKeyboard) {
 			accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
 		}
 	}

@@ -1650,6 +1650,15 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateMessageExtendedMedia: {
+		const auto &d = update.c_updateMessageExtendedMedia();
+		const auto peerId = peerFromMTP(d.vpeer());
+		const auto msgId = d.vmsg_id().v;
+		if (const auto item = session().data().message(peerId, msgId)) {
+			item->applyEdition(d.vextended_media());
+		}
+	} break;
+
 	// Messages being read.
 	case mtpc_updateReadHistoryInbox: {
 		auto &d = update.c_updateReadHistoryInbox();

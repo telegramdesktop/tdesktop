@@ -914,6 +914,18 @@ void HistoryMessageReplyMarkup::updateData(
 	inlineKeyboard = nullptr;
 }
 
+bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
+	if (media && (data.flags & ReplyMarkupFlag::OnlyBuyButton)) {
+		if (const auto invoice = media->invoice()) {
+			if (!invoice->extendedPreview.dimensions.isEmpty()
+				&& (!invoice->extendedMedia || !invoice->receiptMsgId)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal(
