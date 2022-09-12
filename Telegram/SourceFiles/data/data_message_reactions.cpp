@@ -98,6 +98,7 @@ PossibleItemReactionsRef LookupPossibleReactions(
 	const auto &recent = reactions->list(Reactions::Type::Recent);
 	const auto &all = item->reactions();
 	const auto limit = UniqueReactionsLimit(peer);
+	const auto premiumPossible = session->premiumPossible();
 	const auto limited = (all.size() >= limit) && [&] {
 		const auto my = item->chosenReactions();
 		if (my.empty()) {
@@ -137,7 +138,9 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			: full.size());
 		add([&](const Reaction &reaction) {
 			const auto id = reaction.id;
-			if ((allowed.type == AllowedReactionsType::Some)
+			if (id.custom() && !premiumPossible) {
+				return false;
+			} else if ((allowed.type == AllowedReactionsType::Some)
 				&& !ranges::contains(allowed.some, id)) {
 				return false;
 			} else if (id.custom()
@@ -146,14 +149,15 @@ PossibleItemReactionsRef LookupPossibleReactions(
 			} else if (reaction.premium
 				&& !session->premium()
 				&& !ranges::contains(all, id, &MessageReaction::id)) {
-				if (session->premiumPossible()) {
+				if (premiumPossible) {
 					result.morePremiumAvailable = true;
 				}
 				return false;
 			}
 			return true;
 		});
-		result.customAllowed = (allowed.type == AllowedReactionsType::All);
+		result.customAllowed = (allowed.type == AllowedReactionsType::All)
+			&& premiumPossible;
 	}
 	const auto i = ranges::find(
 		result.recent,
