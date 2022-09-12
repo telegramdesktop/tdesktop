@@ -176,10 +176,11 @@ QSize Photo::countCurrentSize(int newWidth) {
 	if (_serviceWidth) {
 		return { _serviceWidth, _serviceWidth };
 	}
+	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
-		std::min(newWidth, st::maxMediaSize));
+		thumbMaxWidth);
 	auto pix = CountPhotoMediaSize(
 		CountDesiredMediaSize({ _data->width(), _data->height() }),
 		newWidth,
@@ -192,7 +193,7 @@ QSize Photo::countCurrentSize(int newWidth) {
 			(st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
-		newWidth = qMax(newWidth, maxWithCaption);
+		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();

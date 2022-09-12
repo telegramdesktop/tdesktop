@@ -207,7 +207,7 @@ QSize Gif::countCurrentSize(int newWidth) {
 				(st::msgPadding.left()
 					+ _caption.maxWidth()
 					+ st::msgPadding.right()));
-			newWidth = qMax(newWidth, maxWithCaption);
+			newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
 			const auto captionw = newWidth
 				- st::msgPadding.left()
 				- st::msgPadding.right();

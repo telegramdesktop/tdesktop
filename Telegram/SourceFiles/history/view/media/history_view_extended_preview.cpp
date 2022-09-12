@@ -123,12 +123,13 @@ QSize ExtendedPreview::countOptimalSize() {
 QSize ExtendedPreview::countCurrentSize(int newWidth) {
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;
+	const auto thumbMaxWidth = std::min(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
 		(_parent->hasBubble()
 			? st::historyPhotoBubbleMinWidth
 			: st::minPhotoSize),
-		std::min(newWidth, st::maxMediaSize));
+		thumbMaxWidth);
 	const auto scaled = (preview.videoDuration >= 0)
 		? CountMediaSize(
 			CountDesiredMediaSize(dimensions),
@@ -145,7 +146,7 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 			(st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
-		newWidth = qMax(newWidth, maxWithCaption);
+		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
