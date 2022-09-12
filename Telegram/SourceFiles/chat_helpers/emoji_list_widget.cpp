@@ -1515,6 +1515,9 @@ void EmojiListWidget::setAllowWithoutPremium(bool allow) {
 }
 
 QString EmojiListWidget::tooltipText() const {
+	if (_mode != Mode::Full) {
+		return {};
+	}
 	const auto &replacements = Ui::Emoji::internal::GetAllReplacements();
 	const auto over = std::get_if<OverEmoji>(&_selected);
 	if (const auto emoji = lookupOverEmoji(over)) {
