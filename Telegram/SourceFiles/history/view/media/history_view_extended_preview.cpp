@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_item.h"
 #include "history/history.h"
+#include "history/history_item_components.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_media_common.h"
@@ -53,6 +54,22 @@ ExtendedPreview::ExtendedPreview(
 	const auto item = parent->data();
 	_caption = createCaption(item);
 	_link = MakeInvoiceLink(item);
+	resolveButtonText();
+}
+
+void ExtendedPreview::resolveButtonText() {
+	if (const auto markup = _parent->data()->inlineReplyMarkup()) {
+		for (const auto &row : markup->data.rows) {
+			for (const auto &button : row) {
+				if (button.type == HistoryMessageMarkupButton::Type::Buy) {
+					_buttonText.setText(
+						st::semiboldTextStyle,
+						TextUtilities::SingleLine(button.text));
+					return;
+				}
+			}
+		}
+	}
 }
 
 ExtendedPreview::~ExtendedPreview() {
@@ -101,11 +118,14 @@ QSize ExtendedPreview::countOptimalSize() {
 	}
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;
-	const auto minWidth = std::clamp(
-		_parent->minWidthForMedia(),
-		(_parent->hasBubble()
-			? st::historyPhotoBubbleMinWidth
-			: st::minPhotoSize),
+	const auto minWidth = std::min(
+		std::max({
+			_parent->minWidthForMedia(),
+			(_parent->hasBubble()
+				? st::historyPhotoBubbleMinWidth
+				: st::minPhotoSize),
+			minWidthForButton(),
+		}),
 		st::maxMediaSize);
 	const auto scaled = CountDesiredMediaSize(dimensions);
 	auto maxWidth = qMax(scaled.width(), minWidth);
@@ -129,11 +149,14 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 	const auto &preview = _invoice->extendedPreview;
 	const auto dimensions = preview.dimensions;
 	const auto thumbMaxWidth = std::min(newWidth, st::maxMediaSize);
-	const auto minWidth = std::clamp(
-		_parent->minWidthForMedia(),
-		(_parent->hasBubble()
-			? st::historyPhotoBubbleMinWidth
-			: st::minPhotoSize),
+		const auto minWidth = std::min(
+		std::max({
+			_parent->minWidthForMedia(),
+			(_parent->hasBubble()
+				? st::historyPhotoBubbleMinWidth
+				: st::minPhotoSize),
+			minWidthForButton(),
+		}),
 		thumbMaxWidth);
 	const auto scaled = (preview.videoDuration >= 0)
 		? CountMediaSize(
@@ -161,6 +184,11 @@ QSize ExtendedPreview::countCurrentSize(int newWidth) {
 		}
 	}
 	return { newWidth, newHeight };
+}
+
+int ExtendedPreview::minWidthForButton() const {
+	return (st::msgBotKbButton.margin + st::msgBotKbButton.padding) * 2
+		+ _buttonText.maxWidth();
 }
 
 void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
@@ -193,7 +221,7 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 	validateImageCache(rthumb.size(), roundRadius, roundCorners);
 	p.drawImage(rthumb.topLeft(), _imageCache);
 	fillSpoilerMess(p, rthumb, roundRadius, roundCorners, context);
-	paintButtonBackground(p, rthumb, context);
+	paintButton(p, rthumb, context);
 	if (context.selected()) {
 		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
 	}
@@ -276,16 +304,24 @@ void ExtendedPreview::fillSpoilerMess(
 		_cornerCache);
 }
 
-void ExtendedPreview::paintButtonBackground(
-		QPainter &p,
+void ExtendedPreview::paintButton(
+		Painter &p,
 		QRect outer,
 		const PaintContext &context) const {
 	const auto st = context.st;
-	const auto height = st::msgFileLayout.thumbSize;
-	const auto width = height * 4;
+	const auto &padding = st::extendedPreviewButtonPadding;
+	const auto margin = st::extendedPreviewButtonMargin;
+	const auto width = std::min(
+		_buttonText.maxWidth() + padding.left() + padding.right(),
+		outer.width() - 2 * margin);
+	const auto height = padding.top()
+		+ st::semiboldFont->height
+		+ padding.bottom();
 	const auto overlay = st->msgDateImgBg()->c;
-	if (_buttonBackground.isNull() || _buttonBackgroundOverlay != overlay) {
-		const auto ratio = style::DevicePixelRatio();
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = QSize(width, height);
+	if (_buttonBackground.size() != size * ratio
+		|| _buttonBackgroundOverlay != overlay) {
 		if (_imageCache.width() < width * ratio
 			|| _imageCache.height() < height * ratio) {
 			return;
@@ -303,10 +339,16 @@ void ExtendedPreview::paintButtonBackground(
 			std::move(_buttonBackground),
 			Images::CornersMask(height / 2));
 	}
-	p.drawImage(
-		outer.x() + (outer.width() - width) / 2,
-		outer.y() + (outer.height() - height) / 2,
-		_buttonBackground);
+	const auto left = outer.x() + (outer.width() - width) / 2;
+	const auto top = outer.y() + (outer.height() - height) / 2;
+	p.drawImage(left, top, _buttonBackground);
+	p.setPen(st->msgDateImgFg()->c);
+	_buttonText.drawLeftElided(
+		p,
+		left + padding.left(),
+		top + padding.top(),
+		width - padding.left() - padding.right(),
+		outer.width());
 }
 
 TextState ExtendedPreview::textState(QPoint point, StateRequest request) const {

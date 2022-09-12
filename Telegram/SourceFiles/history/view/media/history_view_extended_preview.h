@@ -70,6 +70,8 @@ public:
 	void unloadHeavyPart() override;
 
 private:
+	int minWidthForButton() const;
+	void resolveButtonText();
 	void ensureThumbnailRead() const;
 
 	QSize countOptimalSize() override;
@@ -85,8 +87,8 @@ private:
 		ImageRoundRadius radius,
 		RectParts corners) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
-	void paintButtonBackground(
-		QPainter &p,
+	void paintButton(
+		Painter &p,
 		QRect outer,
 		const PaintContext &context) const;
 
@@ -106,6 +108,7 @@ private:
 	mutable QImage _cornerCache;
 	mutable QImage _buttonBackground;
 	mutable QColor _buttonBackgroundOverlay;
+	mutable Ui::Text::String _buttonText;
 	mutable int _imageCacheRoundRadius : 4 = 0;
 	mutable int _imageCacheRoundCorners : 12 = 0;
 	mutable int _imageCacheInvalid : 1 = 0;

@@ -47,6 +47,9 @@ maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
 historyThemeSize: size(272px, 176px);
 
+extendedPreviewButtonPadding: margins(20px, 10px, 20px, 10px);
+extendedPreviewButtonMargin: 20px;
+
 historyMinimalWidth: 380px;
 
 reactionMenu: PopupMenu(defaultPopupMenu) {
