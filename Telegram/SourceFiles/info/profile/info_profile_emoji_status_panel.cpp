@@ -286,6 +286,7 @@ void EmojiStatusPanel::create(
 		std::move(emojiChosen)
 	) | rpl::start_with_next([=](const Chosen chosen) {
 		if (chosen.until == Selector::kPickCustomTimeId) {
+			_panel->hideAnimated();
 			controller->show(Box(PickUntilBox, [=](TimeId seconds) {
 				set({ chosen.id, base::unixtime::now() + seconds });
 			}));
