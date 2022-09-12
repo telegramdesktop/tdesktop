@@ -135,7 +135,9 @@ ComposedBadge::ComposedBadge(
 
 	rpl::combine(
 		_unreadWidth.events_starting_with(_unread ? _unread->width() : 0),
-		_premiumWidth.events_starting_with(0),
+		_premiumWidth.events_starting_with(_badge.widget()
+			? _badge.widget()->width()
+			: 0),
 		_text.value(),
 		button->sizeValue()
 	) | rpl::start_with_next([=](
