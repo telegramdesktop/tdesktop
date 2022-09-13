@@ -48,7 +48,12 @@ if (WIN32)
 endif()
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
-target_prepare_qrc(Telegram)
+if (LINUX)
+    # Do not repeat app name in path of a resource archive.
+    target_prepare_qrc(Telegram tresources.rcc)
+else()
+    target_prepare_qrc(Telegram)
+endif()
 
 target_link_libraries(Telegram
 PRIVATE
@@ -1657,7 +1662,11 @@ if (LINUX AND DESKTOP_APP_USE_PACKAGED)
     include(GNUInstallDirs)
     configure_file("../lib/xdg/telegramdesktop.metainfo.xml.in" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.metainfo.xml" @ONLY)
     generate_appdata_changelog(Telegram "${CMAKE_SOURCE_DIR}/changelog.txt" "${CMAKE_CURRENT_BINARY_DIR}/telegramdesktop.metainfo.xml")
-    install(TARGETS Telegram RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}" BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}")
+    install(TARGETS Telegram
+        RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        BUNDLE DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        RESOURCE DESTINATION "${CMAKE_INSTALL_DATADIR}/TelegramDesktop"
+    )
     install(FILES "Resources/art/icon16.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/16x16/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon32.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/32x32/apps" RENAME "telegram.png")
     install(FILES "Resources/art/icon48.png" DESTINATION "${CMAKE_INSTALL_DATAROOTDIR}/icons/hicolor/48x48/apps" RENAME "telegram.png")

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/launcher_linux.h"
 
+#include "base/base_file_utilities.h"
 #include "core/crash_reports.h"
 #include "core/update_checker.h"
 #include "webview/platform/linux/webview_linux_webkit2gtk.h"
@@ -64,6 +65,7 @@ int Launcher::exec() {
 
 void Launcher::initHook() {
 	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
+	base::RegisterResourceArchive(u"tresources.rcc"_q);
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {
