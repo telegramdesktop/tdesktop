@@ -153,7 +153,7 @@ QByteArray Settings::serialize() const {
 		+ Serialize::stringSize(_customDeviceModel.current())
 		+ sizeof(qint32) * 4
 		+ (_accountsOrder.size() * sizeof(quint64))
-		+ sizeof(qint32) * 4;
+		+ sizeof(qint32) * 5;
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -266,7 +266,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(0) // old hardwareAcceleratedVideo
 			<< qint32(_chatQuickAction)
 			<< qint32(_hardwareAcceleratedVideo ? 1 : 0)
-			<< qint32(_suggestAnimatedEmoji ? 1 : 0);
+			<< qint32(_suggestAnimatedEmoji ? 1 : 0)
+			<< qint32(_cornerReaction.current() ? 1 : 0);
 	}
 	return result;
 }
@@ -359,6 +360,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 hardwareAcceleratedVideo = _hardwareAcceleratedVideo ? 1 : 0;
 	qint32 chatQuickAction = static_cast<qint32>(_chatQuickAction);
 	qint32 suggestAnimatedEmoji = _suggestAnimatedEmoji ? 1 : 0;
+	qint32 cornerReaction = _cornerReaction.current() ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -553,6 +555,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> suggestAnimatedEmoji;
 	}
+	if (!stream.atEnd()) {
+		stream >> cornerReaction;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -721,6 +726,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		}
 	}
 	_suggestAnimatedEmoji = (suggestAnimatedEmoji == 1);
+	_cornerReaction = (cornerReaction == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {

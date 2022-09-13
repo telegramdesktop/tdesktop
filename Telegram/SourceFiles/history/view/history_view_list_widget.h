@@ -587,6 +587,7 @@ private:
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
 	rpl::variable<HistoryItem*> _reactionsItem;
+	bool _useCornerReaction = false;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

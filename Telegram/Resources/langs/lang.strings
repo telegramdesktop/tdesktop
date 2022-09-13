@@ -513,6 +513,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_send_cmdenter" = "Send by Cmd+Enter";
 "lng_settings_chat_quick_action_reply" = "Reply with double click";
 "lng_settings_chat_quick_action_react" = "Send reaction with double click";
+"lng_settings_chat_corner_reaction" = "Reaction button on messages";
 
 "lng_settings_chat_reactions_title" = "Quick Reaction";
 "lng_settings_chat_reactions_subtitle" = "Choose your favorite reaction";

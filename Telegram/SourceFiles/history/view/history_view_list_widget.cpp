@@ -27,6 +27,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/click_handler_types.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "apiwrap.h"
 #include "api/api_who_reacted.h"
 #include "layout/layout_selection.h"
@@ -400,6 +402,14 @@ ListWidget::ListWidget(
 	Reactions::SetupManagerList(
 		_reactionsManager.get(),
 		_reactionsItem.value());
+
+	Core::App().settings().cornerReactionValue(
+	) | rpl::start_with_next([=](bool value) {
+		_useCornerReaction = value;
+		if (!value) {
+			_reactionsManager->updateButton({});
+		}
+	}, lifetime());
 
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
@@ -2583,6 +2593,9 @@ Reactions::ButtonParameters ListWidget::reactionButtonParameters(
 		not_null<const Element*> view,
 		QPoint position,
 		const TextState &reactionState) const {
+	if (!_useCornerReaction) {
+		return {};
+	}
 	const auto top = itemTop(view);
 	if (top < 0
 		|| !view->data()->canReact()

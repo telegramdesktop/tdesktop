@@ -453,6 +453,14 @@ HistoryInner::HistoryInner(
 		_reactionsManager.get(),
 		_reactionsItem.value());
 
+	Core::App().settings().cornerReactionValue(
+	) | rpl::start_with_next([=](bool value) {
+		_useCornerReaction = value;
+		if (!value) {
+			_reactionsManager->updateButton({});
+		}
+	}, lifetime());
+
 	controller->adaptive().chatWideValue(
 	) | rpl::start_with_next([=](bool wide) {
 		_isChatWide = wide;
@@ -3369,6 +3377,9 @@ auto HistoryInner::reactionButtonParameters(
 	QPoint position,
 	const HistoryView::TextState &reactionState) const
 -> HistoryView::Reactions::ButtonParameters {
+	if (!_useCornerReaction) {
+		return {};
+	}
 	const auto top = itemTop(view);
 	if (top < 0
 		|| !view->data()->canReact()

@@ -978,6 +978,21 @@ void SetupMessages(
 		show.showBox(Box(ReactionsSettingsBox, controller));
 	});
 
+	AddSkip(inner, st::settingsSendTypeSkip);
+
+	inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_settings_chat_corner_reaction(tr::now),
+			Core::App().settings().cornerReaction(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding
+	)->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setCornerReaction(checked);
+		Core::App().saveSettingsDelayed();
+	}, inner->lifetime());
+
 	AddSkip(inner, st::settingsCheckboxesSkip);
 }
 
