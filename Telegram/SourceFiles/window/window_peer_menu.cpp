@@ -142,7 +142,7 @@ void PeerMenuAddMuteSubmenuAction(
 			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
 				- base::unixtime::now());
 		addAction(text, [=] {
-			peer->owner().notifySettings().update(peer, 0);
+			peer->owner().notifySettings().update(peer, { .unmute = true });
 		}, &st::menuIconUnmute);
 	} else {
 		const auto show = std::make_shared<Window::Show>(controller);
@@ -1479,7 +1479,7 @@ void PeerMenuAddMuteAction(
 				Box<MuteSettingsBox>(peer),
 				Ui::LayerOption::CloseOther);
 		} else {
-			peer->owner().notifySettings().update(peer, 0);
+			peer->owner().notifySettings().update(peer, { .unmute = true });
 		}
 	}, (peer->owner().notifySettings().isMuted(peer)
 		? &st::menuIconUnmute

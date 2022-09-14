@@ -201,7 +201,7 @@ public:
 		return _notify.change(settings);
 	}
 	bool notifyChange(
-			std::optional<int> muteForSeconds,
+			Data::MuteValue muteForSeconds,
 			std::optional<bool> silentPosts,
 			std::optional<Data::NotifySound> sound) {
 		return _notify.change(muteForSeconds, silentPosts, sound);

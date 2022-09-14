@@ -419,7 +419,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 				return true;
 			}
 			if (peer->owner().notifySettings().isMuted(peer)) {
-				peer->owner().notifySettings().update(peer, 0);
+				peer->owner().notifySettings().update(
+					peer,
+					{ .unmute = true });
 				return false;
 			} else {
 				return true;
