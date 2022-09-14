@@ -127,6 +127,11 @@ constexpr auto kMinAcceptableContrast = 4.5; // 1.14;
 	return result;
 }
 
+[[nodiscard]] int TopTransitionSkip() {
+	return (st::settingsButton.padding.top()
+		+ st::settingsPremiumRowTitlePadding.top()) / 2;
+}
+
 namespace Ref {
 namespace Gift {
 
@@ -760,7 +765,8 @@ TopBarUser::TopBarUser(
 		sizeValue()
 	) | rpl::start_with_next([=](bool showFinished, const QSize &size) {
 		_content->resize(size.width(), maximumHeight());
-		_content->moveToLeft(0, -(_content->height() - size.height()));
+		const auto skip = TopTransitionSkip();
+		_content->moveToLeft(0, size.height() - _content->height() - skip);
 
 		_smallTop.widget->resize(size.width(), minimumHeight());
 		smallTopShadow->resizeToWidth(size.width());
@@ -1123,9 +1129,7 @@ public:
 
 private:
 	void setupContent();
-	void setupSubscriptionOptions(
-		not_null<Ui::VerticalLayout*> container,
-		int lastSkip);
+	void setupSubscriptionOptions(not_null<Ui::VerticalLayout*> container);
 
 	const not_null<Window::SessionController*> _controller;
 	const QString _ref;
@@ -1179,8 +1183,9 @@ void Premium::setStepDataReference(std::any &data) {
 }
 
 void Premium::setupSubscriptionOptions(
-		not_null<Ui::VerticalLayout*> container,
-		int lastSkip) {
+		not_null<Ui::VerticalLayout*> container) {
+	const auto isEmojiStatus = (!!Ref::EmojiStatus::Parse(_ref));
+
 	const auto options = container->add(
 		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 			container,
@@ -1204,12 +1209,14 @@ void Premium::setupSubscriptionOptions(
 	AddSkip(content, st::settingsPremiumOptionsPadding.bottom());
 	AddDivider(content);
 
+	const auto lastSkip = TopTransitionSkip() * (isEmojiStatus ? 1 : 2);
+
 	AddSkip(content, lastSkip - st::settingsSectionSkip);
 	AddSkip(skip->entity(), lastSkip);
 
 	auto toggleOn = rpl::combine(
 		Data::AmPremiumValue(&_controller->session()),
-		rpl::single(!!(Ref::EmojiStatus::Parse(_ref))),
+		rpl::single(isEmojiStatus),
 		apiPremium->statusTextValue(
 		) | rpl::map([=] {
 			return apiPremium->subscriptionOptions().size() < 2;
@@ -1232,9 +1239,7 @@ void Premium::setupContent() {
 	const auto &titlePadding = st::settingsPremiumRowTitlePadding;
 	const auto &descriptionPadding = st::settingsPremiumRowAboutPadding;
 
-	setupSubscriptionOptions(
-		content,
-		stDefault.padding.top() + titlePadding.top());
+	setupSubscriptionOptions(content);
 
 	auto entryMap = EntryMap();
 	auto iconContainers = std::vector<Ui::AbstractButton*>();
@@ -1525,7 +1530,7 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 	}, content->lifetime());
 
 	content->setMaximumHeight(isEmojiStatus
-		? st::settingsPremiumUserHeight
+		? st::settingsPremiumUserHeight + TopTransitionSkip()
 		: st::settingsPremiumTopHeight);
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
 
