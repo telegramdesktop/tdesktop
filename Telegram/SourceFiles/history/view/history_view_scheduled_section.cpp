@@ -261,8 +261,6 @@ void ScheduledWidget::setupComposeControls() {
 			[=] { _choosingAttach = false; chooseAttach(); });
 	}, lifetime());
 
-	using Selector = ChatHelpers::TabbedSelector;
-
 	_composeControls->fileChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		controller()->hideLayer(anim::type::normal);
