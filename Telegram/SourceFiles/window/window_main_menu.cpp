@@ -118,6 +118,24 @@ void ShowCallsBox(not_null<Window::SessionController*> window) {
 	window->show(Box<PeerListBox>(std::move(controller), initBox));
 }
 
+[[nodiscard]] rpl::producer<TextWithEntities> SetStatusLabel(
+		not_null<Main::Session*> session) {
+	const auto self = session->user();
+	return session->changes().peerFlagsValue(
+		self,
+		Data::PeerUpdate::Flag::EmojiStatus
+	) | rpl::map([=] {
+		return (self->emojiStatusId() != 0);
+	}) | rpl::distinct_until_changed() | rpl::map([](bool has) {
+		const auto makeLink = [](const QString &text) {
+			return Ui::Text::Link(text);
+		};
+		return (has
+			? tr::lng_menu_change_status
+			: tr::lng_menu_set_status)(makeLink);
+	}) | rpl::flatten_latest();
+}
+
 } // namespace
 
 class MainMenu::ToggleAccountsButton final : public Ui::AbstractButton {
@@ -340,9 +358,7 @@ MainMenu::MainMenu(
 	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
-, _setEmojiStatus(this, tr::lng_menu_set_status([](const QString &text) {
-	return Ui::Text::Link(text);
-}))
+, _setEmojiStatus(this, SetStatusLabel(&controller->session()))
 , _emojiStatusPanel(std::make_unique<Info::Profile::EmojiStatusPanel>())
 , _badge(std::make_unique<Info::Profile::Badge>(
 	this,
