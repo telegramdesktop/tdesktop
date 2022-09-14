@@ -85,8 +85,6 @@ class EmojiListWidget
 	, public Ui::AbstractTooltipShower {
 public:
 	using Mode = EmojiListMode;
-	using EmojiChosen = TabbedSelector::EmojiChosen;
-	using FileChosen = TabbedSelector::FileChosen;
 
 	EmojiListWidget(
 		QWidget *parent,
@@ -115,7 +113,6 @@ public:
 
 	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
 	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
-	[[nodiscard]] rpl::producer<FileChosen> premiumChosen() const;
 	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
 
 	void provideRecent(const std::vector<DocumentId> &customRecentList);
@@ -382,7 +379,6 @@ private:
 
 	rpl::event_stream<EmojiChosen> _chosen;
 	rpl::event_stream<FileChosen> _customChosen;
-	rpl::event_stream<FileChosen> _premiumChosen;
 	rpl::event_stream<> _jumpedToPremium;
 
 };

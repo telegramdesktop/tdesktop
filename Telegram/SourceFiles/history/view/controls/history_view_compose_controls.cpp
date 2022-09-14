@@ -1072,7 +1072,7 @@ rpl::producer<PhotoChosen> ComposeControls::photoChosen() const {
 }
 
 auto ComposeControls::inlineResultChosen() const
-->rpl::producer<ChatHelpers::TabbedSelector::InlineChosen> {
+-> rpl::producer<InlineChosen> {
 	return _inlineResultChosen.events();
 }
 
@@ -1525,11 +1525,7 @@ void ComposeControls::initAutocomplete() {
 		//_saveDraftStart = crl::now();
 		//saveDraft();
 		//saveCloudDraft(); // won't be needed if SendInlineBotResult will clear the cloud draft
-		_fileChosen.fire(FileChosen{
-			.document = data.sticker,
-			.options = data.options,
-			.messageSendingFrom = base::take(data.messageSendingFrom),
-		});
+		_fileChosen.fire(std::move(data));
 	}, _autocomplete->lifetime());
 
 	_autocomplete->choosingProcesses(
@@ -1857,27 +1853,32 @@ void ComposeControls::initTabbedSelector() {
 		return base::EventFilterResult::Continue;
 	});
 
-	using EmojiChosen = ChatHelpers::TabbedSelector::EmojiChosen;
 	selector->emojiChosen(
-	) | rpl::start_with_next([=](EmojiChosen data) {
+	) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, wrap->lifetime());
 
-	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
-	selector->customEmojiChosen(
-	) | rpl::start_with_next([=](FileChosen data) {
-		Data::InsertCustomEmoji(_field, data.document);
-	}, wrap->lifetime());
-
-	selector->premiumEmojiChosen(
-	) | rpl::start_with_next([=](FileChosen data) {
-		if (_unavailableEmojiPasted) {
-			_unavailableEmojiPasted(data.document);
+	rpl::merge(
+		selector->fileChosen(),
+		selector->customEmojiChosen(),
+		_window->stickerOrEmojiChosen()
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen &&data) {
+		if (const auto info = data.document->sticker()
+			; info && info->setType == Data::StickersType::Emoji) {
+			if (data.document->isPremiumEmoji()
+				&& !session().premium()
+				&& (!_history
+					|| !Data::AllowEmojiWithoutPremium(_history->peer))) {
+				if (_unavailableEmojiPasted) {
+					_unavailableEmojiPasted(data.document);
+				}
+			} else {
+				Data::InsertCustomEmoji(_field, data.document);
+			}
+		} else {
+			_fileChosen.fire(std::move(data));
 		}
 	}, wrap->lifetime());
-
-	selector->fileChosen(
-	) | rpl::start_to_stream(_fileChosen, wrap->lifetime());
 
 	selector->photoChosen(
 	) | rpl::start_to_stream(_photoChosen, wrap->lifetime());

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/time_picker_box.h"
 #include "ui/text/format_values.h"
 #include "base/unixtime.h"
+#include "boxes/premium_preview_box.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "main/main_session.h"
@@ -246,7 +247,6 @@ void EmojiStatusPanel::create(
 		st::emojiPanMinHeight / 2,
 		st::emojiPanMinHeight);
 	_panel->hide();
-	_panel->selector()->setAllowEmojiWithoutPremium(false);
 
 	struct Chosen {
 		DocumentId id = 0;
@@ -260,7 +260,7 @@ void EmojiStatusPanel::create(
 	}, _panel->lifetime());
 
 	auto statusChosen = _panel->selector()->customEmojiChosen(
-	) | rpl::map([=](Selector::FileChosen data) {
+	) | rpl::map([=](ChatHelpers::FileChosen data) {
 		return Chosen{
 			.id = data.document->id,
 			.until = data.options.scheduled,
@@ -269,7 +269,7 @@ void EmojiStatusPanel::create(
 	});
 
 	auto emojiChosen = _panel->selector()->emojiChosen(
-	) | rpl::map([=](Selector::EmojiChosen data) {
+	) | rpl::map([=](ChatHelpers::EmojiChosen data) {
 		return Chosen{ .animation = data.messageSendingFrom };
 	});
 
@@ -285,7 +285,9 @@ void EmojiStatusPanel::create(
 		std::move(statusChosen),
 		std::move(emojiChosen)
 	) | rpl::start_with_next([=](const Chosen chosen) {
-		if (chosen.until == Selector::kPickCustomTimeId) {
+		if (chosen.id && !controller->session().premium()) {
+			ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
+		} else if (chosen.until == Selector::kPickCustomTimeId) {
 			_panel->hideAnimated();
 			controller->show(Box(PickUntilBox, [=](TimeId seconds) {
 				set({ chosen.id, base::unixtime::now() + seconds });
@@ -295,8 +297,6 @@ void EmojiStatusPanel::create(
 			_panel->hideAnimated();
 		}
 	}, _panel->lifetime());
-
-	_panel->selector()->showPromoForPremiumEmoji();
 }
 
 void EmojiStatusPanel::startAnimation(

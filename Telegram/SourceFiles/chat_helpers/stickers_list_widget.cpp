@@ -232,7 +232,7 @@ StickersListWidget::StickersListWidget(
 	}, lifetime());
 }
 
-rpl::producer<TabbedSelector::FileChosen> StickersListWidget::chosen() const {
+rpl::producer<FileChosen> StickersListWidget::chosen() const {
 	return _chosen.events();
 }
 

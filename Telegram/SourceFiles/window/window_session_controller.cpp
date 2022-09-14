@@ -1611,6 +1611,15 @@ rpl::producer<int> SessionController::connectingBottomSkipValue() const {
 	return _connectingBottomSkip.value();
 }
 
+void SessionController::stickerOrEmojiChosen(FileChosen chosen) {
+	_stickerOrEmojiChosen.fire(std::move(chosen));
+}
+
+auto SessionController::stickerOrEmojiChosen() const
+-> rpl::producer<FileChosen> {
+	return _stickerOrEmojiChosen.events();
+}
+
 QPointer<Ui::BoxContent> SessionController::show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options,

@@ -154,6 +154,25 @@ void ValidatePremiumStarFg(QImage &image) {
 	star.render(&p, outer);
 }
 
+[[nodiscard]] TextForMimeData PrepareTextFromEmoji(
+		not_null<DocumentData*> document) {
+	const auto info = document->sticker();
+	const auto text = info ? info->alt : QString();
+	return {
+		.expanded = text,
+		.rich = {
+			text,
+			{
+				EntityInText(
+					EntityType::CustomEmoji,
+					0,
+					text.size(),
+					Data::SerializeCustomEmojiId(document))
+			},
+		},
+	};
+}
+
 } // namespace
 
 StickerPremiumMark::StickerPremiumMark(not_null<Main::Session*> session) {
@@ -264,6 +283,9 @@ private:
 
 	void visibleTopBottomUpdated(int visibleTop, int visibleBottom) override;
 
+	[[nodiscard]] Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
+		int index,
+		not_null<DocumentData*> document) const;
 	[[nodiscard]] QSize boundingBoxSize() const;
 
 	void paintSticker(
@@ -291,7 +313,10 @@ private:
 	void gotSet(const MTPmessages_StickerSet &set);
 	void installDone(const MTPmessages_StickerSetInstallResult &result);
 
-	void send(not_null<DocumentData*> sticker, Api::SendOptions options);
+	void chosen(
+		int index,
+		not_null<DocumentData*> sticker,
+		Api::SendOptions options);
 
 	not_null<Lottie::MultiPlayer*> getLottiePlayer();
 
@@ -920,74 +945,113 @@ void StickerSetBox::Inner::mouseReleaseEvent(QMouseEvent *e) {
 	}
 	_previewTimer.cancel();
 	const auto index = stickerFromGlobalPos(e->globalPos());
-	if (index < 0
-		|| index >= _pack.size()
-		|| setType() != Data::StickersType::Stickers) {
+	if (index < 0 || index >= _pack.size()) {
 		return;
 	}
-	send(_pack[index], {});
+	chosen(index, _pack[index], {});
 }
 
-void StickerSetBox::Inner::send(
+void StickerSetBox::Inner::chosen(
+		int index,
 		not_null<DocumentData*> sticker,
 		Api::SendOptions options) {
 	const auto controller = _controller;
+	const auto animation = options.scheduled
+		? Ui::MessageSendingAnimationFrom()
+		: messageSentAnimationInfo(index, sticker);
 	Ui::PostponeCall(controller, [=] {
-		if (controller->content()->sendExistingDocument(sticker, options)) {
-			controller->window().hideSettingsAndLayer();
-		}
+		controller->stickerOrEmojiChosen({
+			.document = sticker,
+			.options = options,
+			.messageSendingFrom = animation,
+		});
 	});
+}
+
+auto StickerSetBox::Inner::messageSentAnimationInfo(
+	int index,
+	not_null<DocumentData*> document) const
+-> Ui::MessageSendingAnimationFrom {
+	if (index < 0 || index >= _pack.size() || _pack[index] != document) {
+		return {};
+	}
+	const auto row = index / _perRow;
+	const auto column = index % _perRow;
+	const auto left = _padding.left() + column * _singleSize.width();
+	const auto top = _padding.top() + row * _singleSize.height();
+	const auto rect = QRect(QPoint(left, top), _singleSize);
+	const auto size = ChatHelpers::ComputeStickerSize(
+		document,
+		boundingBoxSize());
+	const auto innerPos = QPoint(
+		(rect.width() - size.width()) / 2,
+		(rect.height() - size.height()) / 2);
+	return {
+		.type = Ui::MessageSendingAnimationFrom::Type::Sticker,
+		.localId = _controller->session().data().nextLocalMessageId(),
+		.globalStartGeometry = mapToGlobal(
+			QRect(rect.topLeft() + innerPos, size)),
+	};
 }
 
 void StickerSetBox::Inner::contextMenuEvent(QContextMenuEvent *e) {
 	const auto index = stickerFromGlobalPos(e->globalPos());
 	if (index < 0
 		|| index >= _pack.size()
-		|| setType() != Data::StickersType::Stickers) {
-		return;
-	}
-	const auto type = _controller->content()->sendMenuType();
-	if (type == SendMenu::Type::Disabled) {
+		|| setType() == Data::StickersType::Masks) {
 		return;
 	}
 	_previewTimer.cancel();
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
 		st::popupMenuWithIcons);
+	const auto type = _controller->content()->sendMenuType();
+	if (setType() == Data::StickersType::Emoji) {
+		if (const auto t = PrepareTextFromEmoji(_pack[index]); !t.empty()) {
+			_menu->addAction(tr::lng_mediaview_copy(tr::now), [=] {
+				if (auto data = TextUtilities::MimeDataFromText(t)) {
+					QGuiApplication::clipboard()->setMimeData(data.release());
+				}
+			}, &st::menuIconCopy);
+		}
+	} else if (type != SendMenu::Type::Disabled) {
+		const auto document = _pack[index];
+		const auto sendSelected = [=](Api::SendOptions options) {
+			chosen(index, document, options);
+		};
+		SendMenu::FillSendMenu(
+			_menu.get(),
+			type,
+			SendMenu::DefaultSilentCallback(sendSelected),
+			SendMenu::DefaultScheduleCallback(this, type, sendSelected));
 
-	const auto document = _pack[index];
-	const auto sendSelected = [=](Api::SendOptions options) {
-		send(document, options);
-	};
-	SendMenu::FillSendMenu(
-		_menu.get(),
-		type,
-		SendMenu::DefaultSilentCallback(sendSelected),
-		SendMenu::DefaultScheduleCallback(this, type, sendSelected));
-
-	const auto controller = _controller;
-	const auto toggleFavedSticker = [=] {
-		Api::ToggleFavedSticker(
-			controller,
-			document,
-			Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
-	};
-	const auto isFaved = document->owner().stickers().isFaved(document);
-	_menu->addAction(
-		(isFaved
-			? tr::lng_faved_stickers_remove
-			: tr::lng_faved_stickers_add)(tr::now),
-		toggleFavedSticker,
-		(isFaved
-			? &st::menuIconUnfave
-			: &st::menuIconFave));
-
-	_menu->popup(QCursor::pos());
+		const auto controller = _controller;
+		const auto toggleFavedSticker = [=] {
+			Api::ToggleFavedSticker(
+				controller,
+				document,
+				Data::FileOriginStickerSet(Data::Stickers::FavedSetId, 0));
+		};
+		const auto isFaved = document->owner().stickers().isFaved(document);
+		_menu->addAction(
+			(isFaved
+				? tr::lng_faved_stickers_remove
+				: tr::lng_faved_stickers_add)(tr::now),
+			toggleFavedSticker,
+			(isFaved
+				? &st::menuIconUnfave
+				: &st::menuIconFave));
+	}
+	if (_menu->empty()) {
+		_menu = nullptr;
+	} else {
+		_menu->popup(QCursor::pos());
+	}
 }
 
 void StickerSetBox::Inner::updateSelected() {
 	auto selected = stickerFromGlobalPos(QCursor::pos());
-	setSelected(setType() != Data::StickersType::Stickers ? -1 : selected);
+	setSelected(setType() == Data::StickersType::Masks ? -1 : selected);
 }
 
 void StickerSetBox::Inner::setSelected(int selected) {
@@ -1092,9 +1156,10 @@ uint64 StickerSetBox::Inner::setId() const {
 
 QSize StickerSetBox::Inner::boundingBoxSize() const {
 	if (isEmojiSet()) {
-		const auto factor = style::DevicePixelRatio();
-		const auto large = Ui::Emoji::GetSizeLarge() / factor;
-		return QSize(large, large);
+		using namespace Data;
+		const auto size = FrameSizeFromTag(CustomEmojiSizeTag::Large)
+			/ style::DevicePixelRatio();
+		return { size, size };
 	}
 	return QSize(
 		_singleSize.width() - st::roundRadiusSmall * 2,

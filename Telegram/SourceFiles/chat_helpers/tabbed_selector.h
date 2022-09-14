@@ -47,6 +47,10 @@ struct EmojiPan;
 
 namespace ChatHelpers {
 
+class EmojiListWidget;
+class StickersListWidget;
+class GifsListWidget;
+
 enum class SelectorTab {
 	Emoji,
 	Stickers,
@@ -54,27 +58,27 @@ enum class SelectorTab {
 	Masks,
 };
 
-class EmojiListWidget;
-class StickersListWidget;
-class GifsListWidget;
+struct FileChosen {
+	not_null<DocumentData*> document;
+	Api::SendOptions options;
+	Ui::MessageSendingAnimationFrom messageSendingFrom;
+};
+
+struct PhotoChosen {
+	not_null<PhotoData*> photo;
+	Api::SendOptions options;
+};
+
+struct EmojiChosen {
+	EmojiPtr emoji;
+	Ui::MessageSendingAnimationFrom messageSendingFrom;
+};
+
+using InlineChosen = InlineBots::ResultSelected;
 
 class TabbedSelector : public Ui::RpWidget {
 public:
 	static constexpr auto kPickCustomTimeId = -1;
-	struct FileChosen {
-		not_null<DocumentData*> document;
-		Api::SendOptions options;
-		Ui::MessageSendingAnimationFrom messageSendingFrom;
-	};
-	struct PhotoChosen {
-		not_null<PhotoData*> photo;
-		Api::SendOptions options;
-	};
-	struct EmojiChosen {
-		EmojiPtr emoji;
-		Ui::MessageSendingAnimationFrom messageSendingFrom;
-	};
-	using InlineChosen = InlineBots::ResultSelected;
 	enum class Mode {
 		Full,
 		EmojiOnly,
@@ -98,7 +102,6 @@ public:
 
 	rpl::producer<EmojiChosen> emojiChosen() const;
 	rpl::producer<FileChosen> customEmojiChosen() const;
-	rpl::producer<FileChosen> premiumEmojiChosen() const;
 	rpl::producer<FileChosen> fileChosen() const;
 	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
@@ -113,7 +116,6 @@ public:
 	void setRoundRadius(int radius);
 	void refreshStickers();
 	void setCurrentPeer(PeerData *peer);
-	void showPromoForPremiumEmoji();
 	void provideRecentEmoji(const std::vector<DocumentId> &customRecentList);
 
 	void hideFinished();

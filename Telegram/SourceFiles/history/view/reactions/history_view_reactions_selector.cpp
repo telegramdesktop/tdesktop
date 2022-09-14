@@ -778,10 +778,8 @@ void Selector::createList(not_null<Window::SessionController*> controller) {
 		})
 	).data();
 
-	rpl::merge(
-		_list->customChosen(),
-		_list->premiumChosen()
-	) | rpl::start_with_next([=](TabbedSelector::FileChosen data) {
+	_list->customChosen(
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		const auto id = DocumentId{ data.document->id };
 		const auto i = defaultReactionIds.find(id);
 		const auto reactionId = (i != end(defaultReactionIds))

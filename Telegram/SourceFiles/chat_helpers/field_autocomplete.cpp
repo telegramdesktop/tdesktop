@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_send.h" // SendMenu::FillSendMenu
 #include "chat_helpers/stickers_lottie.h"
 #include "chat_helpers/message_field.h" // PrepareMentionTag.
+#include "chat_helpers/tabbed_selector.h" // ChatHelpers::FileChosen.
 #include "mainwindow.h"
 #include "apiwrap.h"
 #include "api/api_chat_participants.h"
@@ -1127,7 +1128,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 				};
 			};
 
-			_stickerChosen.fire({ document, options, method, from() });
+			_stickerChosen.fire({ document, options, from() });
 			return true;
 		}
 	} else if (!_mrows->empty()) {

@@ -423,14 +423,6 @@ HistoryWidget::HistoryWidget(
 		insertHashtagOrBotCommand(data.command, data.method);
 	}, lifetime());
 
-	_fieldAutocomplete->stickerChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::StickerChosen data) {
-		controller->sendingAnimation().appendSending(
-			data.messageSendingFrom);
-		const auto localId = data.messageSendingFrom.localId;
-		sendExistingDocument(data.sticker, data.options, localId);
-	}, lifetime());
-
 	_fieldAutocomplete->setModerateKeyActivateCallback([=](int key) {
 		const auto context = [=](FullMsgId itemId) {
 			return _list->prepareClickContext(Qt::LeftButton, itemId);
@@ -1067,48 +1059,48 @@ void HistoryWidget::initTabbedSelector() {
 	selector->emojiChosen(
 	) | rpl::filter([=] {
 		return !isHidden() && !_field->isHidden();
-	}) | rpl::start_with_next([=](Selector::EmojiChosen data) {
+	}) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
 		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, lifetime());
 
-	selector->customEmojiChosen(
-	) | rpl::filter([=] {
-		return !isHidden() && !_field->isHidden();
-	}) | rpl::start_with_next([=](Selector::FileChosen data) {
-		Data::InsertCustomEmoji(_field.data(), data.document);
-	}, lifetime());
-
-	selector->premiumEmojiChosen(
-	) | rpl::filter([=] {
-		return !isHidden() && !_field->isHidden();
-	}) | rpl::start_with_next([=](Selector::FileChosen data) {
-		showPremiumToast(data.document);
-	}, lifetime());
-
-	selector->fileChosen(
-	) | filter | rpl::start_with_next([=](Selector::FileChosen data) {
-		controller()->sendingAnimation().appendSending(
-			data.messageSendingFrom);
-		sendExistingDocument(
-			data.document,
-			data.options,
-			data.messageSendingFrom.localId);
+	rpl::merge(
+		selector->fileChosen() | filter,
+		_fieldAutocomplete->stickerChosen(),
+		selector->customEmojiChosen() | filter,
+		controller()->stickerOrEmojiChosen() | filter
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+		controller()->hideLayer(anim::type::normal);
+		if (const auto info = data.document->sticker()
+			; info && info->setType == Data::StickersType::Emoji) {
+			if (data.document->isPremiumEmoji()
+				&& !session().premium()
+				&& (!_peer || !Data::AllowEmojiWithoutPremium(_peer))) {
+				showPremiumToast(data.document);
+			} else if (!_field->isHidden()) {
+				Data::InsertCustomEmoji(_field.data(), data.document);
+			}
+		} else {
+			controller()->sendingAnimation().appendSending(
+				data.messageSendingFrom);
+			const auto localId = data.messageSendingFrom.localId;
+			sendExistingDocument(data.document, data.options, localId);
+		}
 	}, lifetime());
 
 	selector->photoChosen(
-	) | filter | rpl::start_with_next([=](Selector::PhotoChosen data) {
+	) | filter | rpl::start_with_next([=](ChatHelpers::PhotoChosen data) {
 		sendExistingPhoto(data.photo, data.options);
 	}, lifetime());
 
 	selector->inlineResultChosen(
-	) | filter | rpl::filter([=](const Selector::InlineChosen &data) {
+	) | filter | rpl::filter([=](const ChatHelpers::InlineChosen &data) {
 		if (!data.recipientOverride) {
 			return true;
 		} else if (data.recipientOverride != _peer) {
 			showHistory(data.recipientOverride->id, ShowAtTheEndMsgId);
 		}
 		return (data.recipientOverride == _peer);
-	}) | rpl::start_with_next([=](Selector::InlineChosen data) {
+	}) | rpl::start_with_next([=](ChatHelpers::InlineChosen data) {
 		sendInlineResult(data);
 	}, lifetime());
 

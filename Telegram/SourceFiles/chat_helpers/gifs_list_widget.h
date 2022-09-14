@@ -49,15 +49,13 @@ class GifsListWidget
 	: public TabbedSelector::Inner
 	, public InlineBots::Layout::Context {
 public:
-	using InlineChosen = TabbedSelector::InlineChosen;
-
 	GifsListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		Window::GifPauseReason level);
 
-	rpl::producer<TabbedSelector::FileChosen> fileChosen() const;
-	rpl::producer<TabbedSelector::PhotoChosen> photoChosen() const;
+	rpl::producer<FileChosen> fileChosen() const;
+	rpl::producer<PhotoChosen> photoChosen() const;
 	rpl::producer<InlineChosen> inlineResultChosen() const;
 
 	void refreshRecent() override;
@@ -190,8 +188,8 @@ private:
 	QString _inlineQuery, _inlineNextQuery, _inlineNextOffset;
 	mtpRequestId _inlineRequestId = 0;
 
-	rpl::event_stream<TabbedSelector::FileChosen> _fileChosen;
-	rpl::event_stream<TabbedSelector::PhotoChosen> _photoChosen;
+	rpl::event_stream<FileChosen> _fileChosen;
+	rpl::event_stream<PhotoChosen> _photoChosen;
 	rpl::event_stream<InlineChosen> _inlineResultChosen;
 	rpl::event_stream<> _cancelled;
 

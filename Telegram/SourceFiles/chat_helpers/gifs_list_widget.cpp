@@ -220,12 +220,11 @@ GifsListWidget::GifsListWidget(
 	_mosaic.setRightSkip(st::inlineResultsSkip);
 }
 
-rpl::producer<TabbedSelector::FileChosen> GifsListWidget::fileChosen() const {
+rpl::producer<FileChosen> GifsListWidget::fileChosen() const {
 	return _fileChosen.events();
 }
 
-auto GifsListWidget::photoChosen() const
--> rpl::producer<TabbedSelector::PhotoChosen> {
+rpl::producer<PhotoChosen> GifsListWidget::photoChosen() const {
 	return _photoChosen.events();
 }
 

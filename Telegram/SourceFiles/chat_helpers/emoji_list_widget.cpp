@@ -46,8 +46,6 @@ constexpr auto kAppearDuration = 0.3;
 
 using Core::RecentEmojiId;
 using Core::RecentEmojiDocument;
-using EmojiChosen = TabbedSelector::EmojiChosen;
-using FileChosen = TabbedSelector::FileChosen;
 
 } // namespace
 
@@ -502,10 +500,6 @@ rpl::producer<EmojiChosen> EmojiListWidget::chosen() const {
 
 rpl::producer<FileChosen> EmojiListWidget::customChosen() const {
 	return _customChosen.events();
-}
-
-rpl::producer<FileChosen> EmojiListWidget::premiumChosen() const {
-	return _premiumChosen.events();
 }
 
 rpl::producer<> EmojiListWidget::jumpedToPremium() const {
@@ -1294,14 +1288,9 @@ void EmojiListWidget::selectEmoji(EmojiChosen data) {
 
 void EmojiListWidget::selectCustom(FileChosen data) {
 	const auto document = data.document;
-	if (document->isPremiumEmoji()
-		&& !document->session().premium()
-		&& !_allowWithoutPremium) {
-		_premiumChosen.fire(std::move(data));
-		return;
-	}
-	auto &settings = Core::App().settings();
-	if (_mode == Mode::Full) {
+	const auto skip = (document->isPremiumEmoji() && !session().premium());
+	if (!skip && _mode == Mode::Full) {
+		auto &settings = Core::App().settings();
 		settings.incrementRecentEmoji({ RecentEmojiDocument{
 			document->id,
 			document->session().isTestMode(),

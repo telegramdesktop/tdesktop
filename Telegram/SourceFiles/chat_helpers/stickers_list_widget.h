@@ -65,7 +65,7 @@ public:
 		Window::GifPauseReason level,
 		bool masks = false);
 
-	rpl::producer<TabbedSelector::FileChosen> chosen() const;
+	rpl::producer<FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
@@ -389,7 +389,7 @@ private:
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
 
-	rpl::event_stream<TabbedSelector::FileChosen> _chosen;
+	rpl::event_stream<FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 

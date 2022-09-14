@@ -492,21 +492,16 @@ bool TabbedSelector::hasMasksTab() const {
 	return _hasMasksTab;
 }
 
-auto TabbedSelector::emojiChosen() const -> rpl::producer<EmojiChosen> {
+rpl::producer<EmojiChosen> TabbedSelector::emojiChosen() const {
 	return emoji()->chosen();
 }
 
-auto TabbedSelector::customEmojiChosen() const -> rpl::producer<FileChosen> {
+rpl::producer<FileChosen> TabbedSelector::customEmojiChosen() const {
 	return emoji()->customChosen();
 }
 
-auto TabbedSelector::premiumEmojiChosen() const
--> rpl::producer<FileChosen> {
-	return emoji()->premiumChosen();
-}
-
-auto TabbedSelector::fileChosen() const -> rpl::producer<FileChosen> {
-	auto never = rpl::never<TabbedSelector::FileChosen>(
+rpl::producer<FileChosen> TabbedSelector::fileChosen() const {
+	auto never = rpl::never<FileChosen>(
 	) | rpl::type_erased();
 	return rpl::merge(
 		hasStickersTab() ? stickers()->chosen() : never,
@@ -514,8 +509,7 @@ auto TabbedSelector::fileChosen() const -> rpl::producer<FileChosen> {
 		hasMasksTab() ? masks()->chosen() : never);
 }
 
-auto TabbedSelector::photoChosen() const
--> rpl::producer<TabbedSelector::PhotoChosen>{
+rpl::producer<PhotoChosen> TabbedSelector::photoChosen() const {
 	return hasGifsTab() ? gifs()->photoChosen() : nullptr;
 }
 
@@ -863,13 +857,6 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 	}
 	setAllowEmojiWithoutPremium(
 		peer && Data::AllowEmojiWithoutPremium(peer));
-}
-
-void TabbedSelector::showPromoForPremiumEmoji() {
-	premiumEmojiChosen(
-	) | rpl::start_with_next([=] {
-		ShowPremiumPreviewBox(_controller, PremiumPreview::AnimatedEmoji);
-	}, lifetime());
 }
 
 void TabbedSelector::provideRecentEmoji(
