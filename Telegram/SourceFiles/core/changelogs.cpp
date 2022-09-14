@@ -50,6 +50,16 @@ std::map<int, const char*> BetaLogs() {
 		"- Fix some bot webview bugs on macOS.\n"
 
 		"- Fix forwarding of voice messages.\n"
+	},
+	{
+		4001002,
+		"- New reaction selector above the right click menu.\n"
+
+		"- Premium: Set any custom emoji reactions in private chats.\n"
+
+		"- Premium: Set any custom emoji as your profile status.\n"
+
+		"- Insert or copy custom emoji from pack preview.\n"
 	}
 	};
 };

@@ -1,3 +1,10 @@
+4.1.2 beta (14.09.22)
+
+- New reaction selector above the right click menu.
+- Premium: Set any custom emoji reactions in private chats.
+- Premium: Set any custom emoji as your profile status.
+- Insert or copy custom emoji from pack preview.
+
 4.1.1 (16.08.22)
 
 - Fix editing media captions with animated emoji.
