@@ -200,7 +200,7 @@ parts:
   extra-cmake-modules:
     source: https://github.com/KDE/extra-cmake-modules.git
     source-depth: 1
-    source-tag: v5.97.0
+    source-tag: v5.98.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -230,7 +230,7 @@ parts:
   kcoreaddons:
     source: https://github.com/KDE/kcoreaddons.git
     source-depth: 1
-    source-tag: v5.97.0
+    source-tag: v5.98.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
@@ -238,6 +238,9 @@ parts:
       - -DBUILD_TESTING=OFF
       - -DBUILD_WITH_QT6=ON
       - -DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.78.0
+    override-pull: |
+      snapcraftctl pull
+      curl -sSL https://invent.kde.org/frameworks/kcoreaddons/-/merge_requests/258.patch | git apply
     prime:
       - -./usr/bin
       - -./usr/include

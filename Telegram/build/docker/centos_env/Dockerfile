@@ -52,7 +52,7 @@ RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& rm -rf .git
 
 FROM builder AS extra-cmake-modules
-RUN git clone -b v5.97.0 --depth=1 {{ GIT }}/KDE/extra-cmake-modules.git \
+RUN git clone -b v5.98.0 --depth=1 {{ GIT }}/KDE/extra-cmake-modules.git \
 	&& cd extra-cmake-modules \
 	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
 	&& cmake --build build --parallel \
@@ -605,8 +605,9 @@ COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 
-RUN git clone -b v5.97.0 --depth=1 {{ GIT }}/KDE/kcoreaddons.git \
+RUN git clone -b v5.98.0 --depth=1 {{ GIT }}/KDE/kcoreaddons.git \
 	&& cd kcoreaddons \
+	&& curl -sSL https://invent.kde.org/frameworks/kcoreaddons/-/merge_requests/258.patch | git apply \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_PREFIX_PATH={{ QT_PREFIX }} \
