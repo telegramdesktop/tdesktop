@@ -632,9 +632,7 @@ void ChatStyle::make(
 	make(my.selectLinkFg, original.selectLinkFg);
 	make(my.selectMonoFg, original.selectMonoFg);
 	make(my.selectOverlay, original.selectOverlay);
-	make(my.spoilerBg, original.spoilerBg);
-	make(my.spoilerActiveBg, original.spoilerActiveBg);
-	make(my.spoilerActiveFg, original.spoilerActiveFg);
+	make(my.spoilerFg, original.spoilerFg);
 }
 
 void ChatStyle::make(

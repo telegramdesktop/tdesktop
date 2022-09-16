@@ -55,49 +55,62 @@ dialogsTextWidthMin: 150px;
 dialogsTextPalette: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgService;
 	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
 }
 dialogsTextPaletteOver: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgServiceOver;
 	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
 }
 dialogsTextPaletteActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgServiceActive;
 	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
 }
 dialogsTextPaletteDraft: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFg;
 	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
 }
 dialogsTextPaletteDraftOver: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgOver;
 	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
 }
 dialogsTextPaletteDraftActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgActive;
 	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
 }
 dialogsTextPaletteTaken: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
 }
 dialogsTextPaletteTakenOver: TextPalette(defaultTextPalette) {
 	linkFg: boxTextFgGood;
 	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
 }
 dialogsTextPaletteTakenActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsDraftFgActive;
 	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
 }
 dialogsTextPaletteArchive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsArchiveFg;
 	monoFg: dialogsArchiveFg;
+	spoilerFg: dialogsArchiveFg;
 }
 dialogsTextPaletteArchiveOver: TextPalette(defaultTextPalette) {
 	linkFg: dialogsArchiveFgOver;
 	monoFg: dialogsArchiveFgOver;
+	spoilerFg: dialogsArchiveFgOver;
 }
 dialogsTextPaletteArchiveActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgActive;
 	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
 }
 
 dialogsEmptyHeight: 160px;
