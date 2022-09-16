@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "ui/special_buttons.h"
 #include "core/application.h"
 #include "core/core_settings.h"

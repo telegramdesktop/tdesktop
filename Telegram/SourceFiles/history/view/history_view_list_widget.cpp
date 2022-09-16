@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/premium_preview_box.h"

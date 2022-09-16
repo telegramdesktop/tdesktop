@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
@@ -689,7 +690,7 @@ TopBarUser::TopBarUser(
 			auto mask = frame;
 			mask.fill(Qt::transparent);
 			{
-				Painter p(&mask);
+				auto p = QPainter(&mask);
 				auto gradient = QLinearGradient(
 					0,
 					size.height(),
@@ -702,7 +703,7 @@ TopBarUser::TopBarUser(
 			}
 			frame.fill(Qt::transparent);
 			{
-				Painter q(&frame);
+				auto q = QPainter(&frame);
 				svg.render(&q, QRect(QPoint(), size));
 				q.setCompositionMode(QPainter::CompositionMode_SourceIn);
 				q.drawImage(0, 0, mask);
@@ -808,7 +809,7 @@ TopBarUser::TopBarUser(
 
 	_content->paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(_content);
+		auto p = QPainter(_content);
 
 		_ministars.paint(p);
 
@@ -912,7 +913,7 @@ void TopBarUser::setTextPosition(int x, int y) {
 }
 
 void TopBarUser::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	TopBarAbstract::paintEdges(p);
 }
@@ -1052,7 +1053,7 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	p.fillRect(e->rect(), Qt::transparent);
 

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 

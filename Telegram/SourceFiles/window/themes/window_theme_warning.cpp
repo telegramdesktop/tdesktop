@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "window/themes/window_theme.h"

@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "ui/round_rect.h"
 #include "ui/special_buttons.h"
 #include "info/profile/info_profile_values.h" // Info::Profile::Value.
@@ -2528,7 +2529,7 @@ void Panel::refreshTitleColors() {
 }
 
 void Panel::paint(QRect clip) {
-	Painter p(widget());
+	auto p = QPainter(widget());
 
 	auto region = QRegion(clip);
 	for (const auto &rect : region) {

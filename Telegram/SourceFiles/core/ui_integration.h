@@ -59,6 +59,7 @@ public:
 	std::unique_ptr<Ui::Text::CustomEmoji> createCustomEmoji(
 		const QString &data,
 		const std::any &context) override;
+	Fn<void()> createSpoilerRepaint(const std::any &context) override;
 
 	QString phraseContextCopyText() override;
 	QString phraseContextCopyEmail() override;

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "mainwidget.h"
 #include "menu/menu_ttl_validator.h"
@@ -539,17 +540,15 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 	p.setPen(st->msgServiceFg());
 	p.setFont(st::msgServiceFont);
 	prepareCustomEmojiPaint(p, context, item->_text);
-	item->_text.draw(
-		p,
-		trect.x(),
-		trect.y(),
-		trect.width(),
-		Qt::AlignCenter,
-		0,
-		-1,
-		context.selection, false);
-
-	p.restoreTextPalette();
+	item->_text.draw(p, {
+		.position = trect.topLeft(),
+		.availableWidth = trect.width(),
+		.align = style::al_top,
+		.palette = &st->serviceTextPalette(),
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.selection = context.selection,
+		.fullWidthSelection = false,
+	});
 
 	if (media) {
 		const auto left = margin.left() + (g.width() - media->maxWidth()) / 2;

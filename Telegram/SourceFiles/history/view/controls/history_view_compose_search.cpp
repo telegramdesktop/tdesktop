@@ -238,8 +238,7 @@ List CreateList(
 	list.container->paintRequest(
 	) | rpl::start_with_next([weak = Ui::MakeWeak(list.container.get())](
 			const QRect &r) {
-		Painter p(weak);
-
+		auto p = QPainter(weak);
 		p.fillRect(r, st::dialogsBg);
 	}, list.container->lifetime());
 
@@ -312,8 +311,7 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 
@@ -516,8 +514,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 

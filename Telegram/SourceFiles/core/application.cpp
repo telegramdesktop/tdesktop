@@ -256,7 +256,7 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
-	Ui::PrepareDefaultSpoilerMess();
+	Ui::PrepareTextSpoilerMask();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());

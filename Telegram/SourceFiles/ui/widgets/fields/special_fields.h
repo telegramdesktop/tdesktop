@@ -65,7 +65,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
 	QVector<int> _pattern;
@@ -92,7 +92,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
 	QString _linkPlaceholder;
@@ -121,7 +121,7 @@ protected:
 		int wasCursor,
 		QString &now,
 		int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
 	QString _defaultValue;

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_who_reacted.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/painter.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reaction_id.h"
 #include "main/main_session.h"
@@ -163,7 +164,6 @@ void Row::rightActionPaint(
 		.paused = _paused(),
 	});
 }
-
 
 Controller::Controller(
 	not_null<Window::SessionController*> window,

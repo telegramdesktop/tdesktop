@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -421,7 +422,7 @@ void Element::prepareCustomEmojiPaint(
 		Painter &p,
 		const PaintContext &context,
 		const Ui::Text::String &text) const {
-	if (!text.hasCustomEmoji()) {
+	if (!text.hasPersistentAnimation()) {
 		return;
 	}
 	clearCustomEmojiRepaint();
@@ -947,9 +948,9 @@ void Element::unloadHeavyPart() {
 	}
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
-		data()->_text.unloadCustomEmoji();
+		data()->_text.unloadPersistentAnimation();
 		if (const auto reply = data()->Get<HistoryMessageReply>()) {
-			reply->replyToText.unloadCustomEmoji();
+			reply->replyToText.unloadPersistentAnimation();
 		}
 	}
 }
@@ -1127,7 +1128,7 @@ Element::~Element() {
 	base::take(_media);
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
-		data()->_text.unloadCustomEmoji();
+		data()->_text.unloadPersistentAnimation();
 		checkHeavyPart();
 	}
 	if (_data->mainView() == this) {

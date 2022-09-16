@@ -61,7 +61,7 @@ crl::time MiniStars::timeNow() const {
 	return anim::Disabled() ? 0 : crl::now();
 }
 
-void MiniStars::paint(Painter &p, const QRectF &rect) {
+void MiniStars::paint(QPainter &p, const QRectF &rect) {
 	const auto center = rect.center();
 	const auto opacity = p.opacity();
 	for (const auto &ministar : _ministars) {

@@ -196,7 +196,7 @@ void TabbedPanel::updateContentHeight() {
 }
 
 void TabbedPanel::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	// This call can finish _a_show animation and destroy _showAnimation.
 	auto opacityAnimating = _a_opacity.animating();

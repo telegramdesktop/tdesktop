@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/text/format_values.h"
 #include "ui/gl/gl_surface.h"
+#include "ui/painter.h"
 #include "window/window_controller.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"

@@ -25,16 +25,16 @@ public:
 
 	void setState(State state);
 	void finishTransform();
-	void paint(Painter &p, const QBrush &brush);
+	void paint(QPainter &p, const QBrush &brush);
 
 private:
 	void animationCallback();
 	void startTransform(float64 from, float64 to);
 
-	void paintPlay(Painter &p, const QBrush &brush);
-	void paintPlayToPause(Painter &p, const QBrush &brush, float64 progress);
-	void paintPlayToCancel(Painter &p, const QBrush &brush, float64 progress);
-	void paintPauseToCancel(Painter &p, const QBrush &brush, float64 progress);
+	void paintPlay(QPainter &p, const QBrush &brush);
+	void paintPlayToPause(QPainter &p, const QBrush &brush, float64 progress);
+	void paintPlayToCancel(QPainter &p, const QBrush &brush, float64 progress);
+	void paintPauseToCancel(QPainter &p, const QBrush &brush, float64 progress);
 
 	const style::MediaPlayerButton &_st;
 

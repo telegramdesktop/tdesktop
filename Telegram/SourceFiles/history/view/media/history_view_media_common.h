@@ -28,7 +28,7 @@ namespace HistoryView {
 class Media;
 
 void PaintInterpolatedIcon(
-	Painter &p,
+	QPainter &p,
 	const style::icon &a,
 	const style::icon &b,
 	float64 b_ratio,

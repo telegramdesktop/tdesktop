@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "ui/image/image.h"
 #include "ui/chat/chat_style.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/stickers/data_custom_emoji.h"

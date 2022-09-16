@@ -37,9 +37,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -66,25 +66,25 @@ public:
 	int buttonRadius() const override;
 
 	void startPaint(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st) const override;
 	const style::TextStyle &textStyle() const override;
 	void repaint(not_null<const HistoryItem*> item) const override;
 
 protected:
 	void paintButtonBg(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const override;
 	void paintButtonIcon(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
 		int outerWidth,
 		HistoryMessageMarkupButton::Type type) const override;
 	void paintButtonLoading(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect) const override;
 	int minButtonWidth(HistoryMessageMarkupButton::Type type) const override;
@@ -92,7 +92,7 @@ protected:
 };
 
 void KeyboardStyle::startPaint(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st) const {
 	Expects(st != nullptr);
 
@@ -112,7 +112,7 @@ int KeyboardStyle::buttonRadius() const {
 }
 
 void KeyboardStyle::paintButtonBg(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
 		float64 howMuchOver) const {
@@ -129,7 +129,7 @@ void KeyboardStyle::paintButtonBg(
 }
 
 void KeyboardStyle::paintButtonIcon(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
 		int outerWidth,
@@ -155,7 +155,7 @@ void KeyboardStyle::paintButtonIcon(
 }
 
 void KeyboardStyle::paintButtonLoading(
-		Painter &p,
+		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect) const {
 	Expects(st != nullptr);
@@ -1299,15 +1299,13 @@ void Message::paintText(
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
 	prepareCustomEmojiPaint(p, context, item->_text);
-	item->_text.draw(
-		p,
-		trect.x(),
-		trect.y(),
-		trect.width(),
-		style::al_left,
-		0,
-		-1,
-		context.selection);
+	item->_text.draw(p, {
+		.position = trect.topLeft(),
+		.availableWidth = trect.width(),
+		.palette = &stm->textPalette,
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.selection = context.selection,
+	});
 }
 
 PointState Message::pointState(QPoint point) const {

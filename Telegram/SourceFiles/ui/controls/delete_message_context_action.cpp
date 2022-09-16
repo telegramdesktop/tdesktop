@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"

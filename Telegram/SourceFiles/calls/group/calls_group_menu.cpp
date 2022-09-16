@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"

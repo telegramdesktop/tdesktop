@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "base/platform/base_platform_info.h"
 #include "styles/style_boxes.h"
@@ -72,7 +73,7 @@ QCursor EditColorBox::Picker::generateCursor() {
 	cursor.setDevicePixelRatio(cRetinaFactor());
 	cursor.fill(Qt::transparent);
 	{
-		Painter p(&cursor);
+		auto p = QPainter(&cursor);
 		PainterHighQualityEnabler hq(p);
 
 		p.setBrush(Qt::NoBrush);
@@ -102,7 +103,7 @@ EditColorBox::Picker::Picker(QWidget *parent, Mode mode, QColor color)
 }
 
 void EditColorBox::Picker::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	preparePalette();
 
@@ -360,7 +361,7 @@ void EditColorBox::Slider::prepareMinSize() {
 }
 
 void EditColorBox::Slider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	auto to = rect().marginsRemoved(QMargins(st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip, st::colorSliderSkip));
 	Ui::Shadow::paint(p, to, width(), st::defaultRoundShadow);
 	if (_type == Type::Opacity) {
@@ -573,7 +574,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 	void wheelEvent(QWheelEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
@@ -632,7 +633,7 @@ void EditColorBox::Field::correctValue(const QString &was, int wasCursor, QStrin
 	}
 }
 
-void EditColorBox::Field::paintAdditionalPlaceholder(Painter &p) {
+void EditColorBox::Field::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	auto inner = QRect(_st.textMargins.right(), _st.textMargins.top(), width() - 2 * _st.textMargins.right(), height() - _st.textMargins.top() - _st.textMargins.bottom());
@@ -696,7 +697,7 @@ public:
 
 protected:
 	void correctValue(const QString &was, int wasCursor, QString &now, int &nowCursor) override;
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 };
 
@@ -737,7 +738,7 @@ void EditColorBox::ResultField::correctValue(const QString &was, int wasCursor, 
 	}
 }
 
-void EditColorBox::ResultField::paintAdditionalPlaceholder(Painter &p) {
+void EditColorBox::ResultField::paintAdditionalPlaceholder(QPainter &p) {
 	p.setFont(_st.font);
 	p.setPen(_st.placeholderFg);
 	p.drawText(QRect(_st.textMargins.right(), _st.textMargins.top(), width(), height() - _st.textMargins.top() - _st.textMargins.bottom()), "#", style::al_topleft);

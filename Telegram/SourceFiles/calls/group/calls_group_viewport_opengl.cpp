@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_members_row.h"
 #include "lang/lang_keys.h"
 #include "ui/gl/gl_shader.h"
+#include "ui/painter.h"
 #include "data/data_peer.h"
 #include "styles/style_calls.h"
 

@@ -94,7 +94,7 @@ struct UnreadBadgeStyle {
 	const UnreadBadgeStyle &st,
 	int allowDigits = 0);
 QRect PaintUnreadBadge(
-	Painter &p,
+	QPainter &p,
 	const QString &t,
 	int x,
 	int y,

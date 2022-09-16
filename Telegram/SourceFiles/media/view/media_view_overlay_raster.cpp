@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/view/media_view_overlay_raster.h"
 
+#include "ui/painter.h"
 #include "media/view/media_view_pip.h"
 
 namespace Media::View {

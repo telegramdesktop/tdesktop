@@ -259,7 +259,7 @@ void FixedBar::setAnimatingMode(bool enabled) {
 
 void FixedBar::paintEvent(QPaintEvent *e) {
 	if (!_animatingMode) {
-		Painter p(this);
+		auto p = QPainter(this);
 		p.fillRect(e->rect(), st::topBarBg);
 	}
 }

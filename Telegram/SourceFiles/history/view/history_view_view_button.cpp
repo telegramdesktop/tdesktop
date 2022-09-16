@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/click_handler.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "ui/round_rect.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "window/window_session_controller.h"

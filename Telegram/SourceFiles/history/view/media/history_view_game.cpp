@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
 #include "ui/chat/chat_style.h"
+#include "ui/painter.h"
 #include "core/ui_integration.h"
 #include "data/data_session.h"
 #include "data/data_game.h"
@@ -453,7 +454,7 @@ void Game::unloadHeavyPart() {
 	if (_attach) {
 		_attach->unloadHeavyPart();
 	}
-	_description.unloadCustomEmoji();
+	_description.unloadPersistentAnimation();
 }
 
 Game::~Game() {

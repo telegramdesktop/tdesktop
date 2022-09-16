@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_isolated_emoji.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {

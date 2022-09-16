@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/panel_animation.h"
 #include "ui/ui_utility.h"
 #include "ui/filter_icons.h"
+#include "ui/painter.h"
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "core/application.h"

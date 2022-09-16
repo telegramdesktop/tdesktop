@@ -84,12 +84,10 @@ PhotoEditorContent::PhotoEditorContent(
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		p.fillRect(clip, Qt::transparent);
-
 		p.setTransform(_imageMatrix);
-
 		p.drawPixmap(_imageRect, _photo->pix(_imageRect.size()));
 	}, lifetime());
 

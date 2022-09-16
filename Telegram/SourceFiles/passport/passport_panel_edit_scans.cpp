@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "ui/text/text_options.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "core/file_utilities.h"
 #include "lang/lang_keys.h"
 #include "boxes/abstract_box.h"

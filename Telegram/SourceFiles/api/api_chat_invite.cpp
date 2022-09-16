@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "ui/empty_userpic.h"
+#include "ui/painter.h"
 #include "core/application.h"
 #include "data/data_session.h"
 #include "data/data_photo.h"

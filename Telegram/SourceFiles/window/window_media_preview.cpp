@@ -62,7 +62,7 @@ QRect MediaPreviewWidget::updateArea() const {
 }
 
 void MediaPreviewWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto r = e->rect();
 	const auto factor = cIntRetinaFactor();

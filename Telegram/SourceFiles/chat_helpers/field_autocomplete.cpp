@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/image/image.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "base/unixtime.h"

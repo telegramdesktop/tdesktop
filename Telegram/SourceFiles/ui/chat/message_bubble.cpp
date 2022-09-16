@@ -79,7 +79,7 @@ void PaintBubbleGeneric(
 	fillRounded(rect, parts);
 }
 
-void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
+void PaintPatternBubble(QPainter &p, const SimpleBubble &args) {
 	const auto opacity = args.st->msgOutBg()->c.alphaF();
 	const auto shadowOpacity = opacity * args.st->msgOutShadow()->c.alphaF();
 	const auto pattern = args.pattern;
@@ -217,7 +217,7 @@ void PaintPatternBubble(Painter &p, const SimpleBubble &args) {
 	p.setOpacity(1.);
 }
 
-void PaintSolidBubble(Painter &p, const SimpleBubble &args) {
+void PaintSolidBubble(QPainter &p, const SimpleBubble &args) {
 	const auto &st = args.st->messageStyle(args.outbg, args.selected);
 	const auto &bg = st.msgBg;
 	const auto sh = (args.skip & RectPart::Bottom)
@@ -283,7 +283,7 @@ void FinishBubblePatternOnMain(not_null<BubblePattern*> pattern) {
 		QImage::Format_ARGB32_Premultiplied);
 }
 
-void PaintBubble(Painter &p, const SimpleBubble &args) {
+void PaintBubble(QPainter &p, const SimpleBubble &args) {
 	if (!args.selected
 		&& args.outbg
 		&& args.pattern
@@ -295,7 +295,7 @@ void PaintBubble(Painter &p, const SimpleBubble &args) {
 	}
 }
 
-void PaintBubble(Painter &p, const ComplexBubble &args) {
+void PaintBubble(QPainter &p, const ComplexBubble &args) {
 	if (args.selection.empty()) {
 		PaintBubble(p, args.simple);
 		return;
@@ -409,7 +409,7 @@ void PaintPatternBubblePart(
 		const QRect &viewport,
 		const QPixmap &pixmap,
 		const QRect &target,
-		Fn<void(Painter&)> paintContent,
+		Fn<void(QPainter&)> paintContent,
 		QImage &cache) {
 	Expects(paintContent != nullptr);
 
@@ -422,7 +422,7 @@ void PaintPatternBubblePart(
 		cache.setDevicePixelRatio(style::DevicePixelRatio());
 	}
 	cache.fill(Qt::transparent);
-	auto q = Painter(&cache);
+	auto q = QPainter(&cache);
 	q.translate(-targetOrigin);
 	paintContent(q);
 	q.translate(targetOrigin);

@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/painter.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "data/data_user.h"

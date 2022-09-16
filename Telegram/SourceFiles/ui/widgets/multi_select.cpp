@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 

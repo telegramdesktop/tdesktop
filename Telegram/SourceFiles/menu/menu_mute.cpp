@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/menu/menu_action.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h" // infoTopBarMenu
 #include "styles/style_layers.h"
@@ -58,7 +59,7 @@ void IconWithText::setData(const QString &text, const QPoint &iconPosition) {
 void IconWithText::paintEvent(QPaintEvent *e) {
 	Ui::Menu::Action::paintEvent(e);
 
-	Painter p(this);
+	auto p = QPainter(this);
 	p.setFont(st::menuIconMuteForAnyTextFont);
 	p.setPen(st::menuIconColor);
 	p.drawText(_iconPosition, _text);

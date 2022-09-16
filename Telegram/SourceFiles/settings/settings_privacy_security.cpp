@@ -151,7 +151,7 @@ void AddPremiumPrivacyButton(
 		) | rpl::filter([=]() -> bool {
 			return state->widget.x();
 		}) | rpl::start_with_next([=] {
-			auto p = Painter(&state->widget);
+			auto p = QPainter(&state->widget);
 			st::settingsPremiumLock.paint(p, 0, 0, state->widget.width());
 		}, state->widget.lifetime());
 

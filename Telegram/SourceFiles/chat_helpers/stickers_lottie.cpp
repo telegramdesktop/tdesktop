@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "media/clip/media_clip_reader.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/painter.h"
 #include "main/main_session.h"
 
 namespace ChatHelpers {

@@ -22,7 +22,7 @@ public:
 	void setPosition(QPoint position);
 	void setColorOverride(std::optional<QColor> color);
 	void setCenter(const QRect &rect);
-	void paint(Painter &p);
+	void paint(QPainter &p);
 
 	void setPaused(bool paused);
 

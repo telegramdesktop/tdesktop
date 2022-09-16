@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_as_button.h"
 
 #include "ui/effects/cross_animation.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace Ui {
@@ -36,7 +37,7 @@ void SendAsButton::setActive(bool active) {
 }
 
 void SendAsButton::paintEvent(QPaintEvent *e) {
-	auto p = Painter(this);
+	auto p = QPainter(this);
 
 	const auto left = (width() - _st.size) / 2;
 	const auto top = (height() - _st.size) / 2;

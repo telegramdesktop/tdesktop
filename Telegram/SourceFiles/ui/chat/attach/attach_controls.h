@@ -23,7 +23,7 @@ public:
 
 	AttachControls();
 
-	void paint(Painter &p, int x, int y);
+	void paint(QPainter &p, int x, int y);
 	void setType(Type type);
 
 	[[nodiscard]] int width() const;

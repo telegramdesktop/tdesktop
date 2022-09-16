@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/choose_send_as.h"
 #include "ui/image/image.h"
+#include "ui/painter.h"
 #include "ui/special_buttons.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
@@ -7689,9 +7690,15 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
 				p.setPen(st::historyComposeAreaFg);
-				p.setTextPalette(st::historyComposeAreaPalette);
-				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-				p.restoreTextPalette();
+				_replyEditMsgText.draw(p, {
+					.position = QPoint(
+						replyLeft,
+						backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
+					.availableWidth = width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
+					.palette = &st::historyComposeAreaPalette,
+					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.elisionLines = 1,
+				});
 			} else {
 				p.setFont(st::msgDateFont);
 				p.setPen(st::historyComposeAreaFgService);
@@ -7720,9 +7727,15 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			p.setPen(st::historyReplyNameFg);
 			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			p.setPen(st::historyComposeAreaFg);
-			p.setTextPalette(st::historyComposeAreaPalette);
-			_toForwardText.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.restoreTextPalette();
+			_toForwardText.draw(p, {
+				.position = QPoint(
+					forwardLeft,
+					backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
+				.availableWidth = width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
+				.palette = &st::historyComposeAreaPalette,
+				.spoiler = Ui::Text::DefaultSpoilerCache(),
+				.elisionLines = 1,
+			});
 		}
 	}
 	if (drawWebPagePreview) {

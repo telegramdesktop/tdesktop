@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "main/main_session.h"
 #include "data/data_session.h"

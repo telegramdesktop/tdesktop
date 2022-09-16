@@ -95,7 +95,7 @@ protected:
 	void setDescriptionText(rpl::producer<QString> descriptionText);
 	void setDescriptionText(
 		rpl::producer<TextWithEntities> richDescriptionText);
-	bool paintAnimated(Painter &p, QRect clip);
+	bool paintAnimated(QPainter &p, QRect clip);
 
 	void fillSentCodeData(const MTPDauth_sentCode &type);
 
@@ -158,7 +158,7 @@ private:
 	};
 	void updateLabelsPosition();
 	void paintContentSnapshot(
-		Painter &p,
+		QPainter &p,
 		const QPixmap &snapshot,
 		float64 alpha,
 		float64 howMuchHidden);
@@ -173,7 +173,7 @@ private:
 	void showFinished();
 
 	void prepareCoverMask();
-	void paintCover(Painter &p, int top);
+	void paintCover(QPainter &p, int top);
 
 	const not_null<Main::Account*> _account;
 	const not_null<Data*> _data;

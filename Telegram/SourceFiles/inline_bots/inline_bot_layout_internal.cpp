@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "styles/style_overview.h"

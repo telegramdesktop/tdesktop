@@ -278,7 +278,7 @@ void PeerListsBox::resizeEvent(QResizeEvent *e) {
 }
 
 void PeerListsBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto &bg = (firstController()->listSt()
 		? *firstController()->listSt()

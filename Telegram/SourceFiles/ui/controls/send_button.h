@@ -42,12 +42,12 @@ private:
 	[[nodiscard]] QPixmap grabContent();
 	[[nodiscard]] bool isSlowmode() const;
 
-	void paintRecord(Painter &p, bool over);
-	void paintSave(Painter &p, bool over);
-	void paintCancel(Painter &p, bool over);
-	void paintSend(Painter &p, bool over);
-	void paintSchedule(Painter &p, bool over);
-	void paintSlowmode(Painter &p);
+	void paintRecord(QPainter &p, bool over);
+	void paintSave(QPainter &p, bool over);
+	void paintCancel(QPainter &p, bool over);
+	void paintSend(QPainter &p, bool over);
+	void paintSchedule(QPainter &p, bool over);
+	void paintSlowmode(QPainter &p);
 
 	Type _type = Type::Send;
 	Type _afterSlowmodeType = Type::Send;

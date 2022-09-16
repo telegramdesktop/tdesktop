@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/cached_round_corners.h"
 
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/image/image_prepare.h"
 #include "styles/style_chat.h"
@@ -27,7 +28,7 @@ rpl::lifetime PaletteChangedLifetime;
 	int32 r = radius * style::DevicePixelRatio(), s = st::msgShadow * style::DevicePixelRatio();
 	QImage rect(r * 3, r * 3 + (shadow ? s : 0), QImage::Format_ARGB32_Premultiplied);
 	{
-		Painter p(&rect);
+		auto p = QPainter(&rect);
 		PainterHighQualityEnabler hq(p);
 
 		p.setCompositionMode(QPainter::CompositionMode_Source);
@@ -108,7 +109,7 @@ void FinishCachedCorners() {
 	PaletteChangedLifetime.destroy();
 }
 
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
 	auto cornerWidth = corner.p[0].width() / style::DevicePixelRatio();
 	auto cornerHeight = corner.p[0].height() / style::DevicePixelRatio();
 	if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
@@ -152,15 +153,15 @@ void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color 
 	}
 }
 
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow, RectParts parts) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow, RectParts parts) {
 	FillRoundRect(p, x, y, w, h, bg, Corners[index], shadow, parts);
 }
 
-void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts) {
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts) {
 	FillRoundShadow(p, x, y, w, h, shadow, Corners[index], parts);
 }
 
-void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts) {
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts) {
 	auto cornerWidth = corner.p[0].width() / style::DevicePixelRatio();
 	auto cornerHeight = corner.p[0].height() / style::DevicePixelRatio();
 	if (parts & RectPart::Bottom) {
@@ -196,7 +197,7 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 	Unexpected("Image round radius in PrepareCornerPixmaps.");
 }
 
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
 	if (radius == ImageRoundRadius::None) {
 		p.fillRect(x, y, w, h, bg);
 		return;

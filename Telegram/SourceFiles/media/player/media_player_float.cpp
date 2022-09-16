@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "main/main_account.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "facades.h"
 #include "styles/style_media_player.h"
@@ -166,7 +167,7 @@ void Float::prepareShadow() {
 	shadow.fill(Qt::transparent);
 	shadow.setDevicePixelRatio(cRetinaFactor());
 	{
-		Painter p(&shadow);
+		auto p = QPainter(&shadow);
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::shadowFg);
@@ -182,7 +183,7 @@ QRect Float::getInnerRect() const {
 }
 
 void Float::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	p.setOpacity(_opacity);
 	p.drawPixmap(0, 0, _shadow);
@@ -248,7 +249,7 @@ bool Float::fillFrame() {
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);
 
-			Painter p(&_frame);
+			auto p = QPainter(&_frame);
 			PainterHighQualityEnabler hq(p);
 			p.drawImage(frameInner(), frame);
 			return true;
@@ -257,7 +258,7 @@ bool Float::fillFrame() {
 	if (creating) {
 		_frame.fill(Qt::transparent);
 
-		Painter p(&_frame);
+		auto p = QPainter(&_frame);
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(st::imageBg);

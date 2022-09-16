@@ -66,7 +66,7 @@ Crop::Crop(
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		p.fillPath(_painterPath, st::photoCropFadeBg);
 		paintPoints(p);
@@ -126,7 +126,7 @@ void Crop::applyTransform(
 	}
 }
 
-void Crop::paintPoints(Painter &p) {
+void Crop::paintPoints(QPainter &p) {
 	p.save();
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::photoCropPointFg);

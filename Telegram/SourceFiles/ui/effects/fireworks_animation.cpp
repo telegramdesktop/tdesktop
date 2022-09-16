@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/fireworks_animation.h"
 
 #include "base/random.h"
+#include "ui/painter.h"
 
 namespace Ui {
 namespace {

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/chat_theme.h"
 #include "ui/image/image_prepare.h" // ImageRoundRadius
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -28,7 +29,7 @@ void EnsureCorners(
 }
 
 void RectWithCorners(
-		Painter &p,
+		QPainter &p,
 		QRect rect,
 		const style::color &bg,
 		const CornersPixmaps &corners,
@@ -681,7 +682,7 @@ void ChatStyle::make(
 }
 
 void FillComplexOverlayRect(
-		Painter &p,
+		QPainter &p,
 		not_null<const ChatStyle*> st,
 		QRect rect,
 		ImageRoundRadius radius,
@@ -701,7 +702,7 @@ void FillComplexOverlayRect(
 }
 
 void FillComplexLocationRect(
-		Painter &p,
+		QPainter &p,
 		not_null<const ChatStyle*> st,
 		QRect rect,
 		ImageRoundRadius radius,

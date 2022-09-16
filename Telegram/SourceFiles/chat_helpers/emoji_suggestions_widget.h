@@ -77,7 +77,7 @@ private:
 	void leaveEventHook(QEvent *e) override;
 
 	void scrollByWheelEvent(not_null<QWheelEvent*> e);
-	void paintFadings(Painter &p) const;
+	void paintFadings(QPainter &p) const;
 
 	[[nodiscard]] std::vector<Row> getRowsByQuery(const QString &text) const;
 	[[nodiscard]] base::flat_multi_map<int, Custom> lookupCustom(

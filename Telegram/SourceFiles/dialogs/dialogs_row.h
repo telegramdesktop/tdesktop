@@ -53,7 +53,7 @@ public:
 	void stopLastRipple();
 
 	void paintRipple(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,

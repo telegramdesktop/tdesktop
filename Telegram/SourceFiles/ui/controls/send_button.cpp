@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_button.h"
 
 #include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace Ui {
@@ -64,7 +65,7 @@ void SendButton::finishAnimating() {
 }
 
 void SendButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto over = (isDown() || isOver());
 	auto changed = _a_typeChanged.value(1.);
@@ -91,7 +92,7 @@ void SendButton::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void SendButton::paintRecord(Painter &p, bool over) {
+void SendButton::paintRecord(QPainter &p, bool over) {
 	const auto recordActive = 0.;
 	if (!isDisabled()) {
 		auto rippleColor = anim::color(
@@ -123,14 +124,14 @@ void SendButton::paintRecord(Painter &p, bool over) {
 	}
 }
 
-void SendButton::paintSave(Painter &p, bool over) {
+void SendButton::paintSave(QPainter &p, bool over) {
 	const auto &saveIcon = over
 		? st::historyEditSaveIconOver
 		: st::historyEditSaveIcon;
 	saveIcon.paintInCenter(p, rect());
 }
 
-void SendButton::paintCancel(Painter &p, bool over) {
+void SendButton::paintCancel(QPainter &p, bool over) {
 	paintRipple(p, (width() - st::historyAttachEmoji.rippleAreaSize) / 2, st::historyAttachEmoji.rippleAreaPosition.y());
 
 	const auto &cancelIcon = over
@@ -139,7 +140,7 @@ void SendButton::paintCancel(Painter &p, bool over) {
 	cancelIcon.paintInCenter(p, rect());
 }
 
-void SendButton::paintSend(Painter &p, bool over) {
+void SendButton::paintSend(QPainter &p, bool over) {
 	const auto &sendIcon = over
 		? st::historySendIconOver
 		: st::historySendIcon;
@@ -151,7 +152,7 @@ void SendButton::paintSend(Painter &p, bool over) {
 	}
 }
 
-void SendButton::paintSchedule(Painter &p, bool over) {
+void SendButton::paintSchedule(QPainter &p, bool over) {
 	{
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
@@ -168,7 +169,7 @@ void SendButton::paintSchedule(Painter &p, bool over) {
 		width());
 }
 
-void SendButton::paintSlowmode(Painter &p) {
+void SendButton::paintSlowmode(QPainter &p) {
 	p.setFont(st::normalFont);
 	p.setPen(st::windowSubTextFg);
 	p.drawText(
@@ -188,7 +189,7 @@ QPixmap SendButton::grabContent() {
 	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
+		auto p = QPainter(&result);
 		p.drawPixmap(
 			(kWideScale - 1) / 2 * width(),
 			(kWideScale - 1) / 2 * height(),

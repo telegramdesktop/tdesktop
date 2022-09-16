@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/vertical_drum_picker.h"
 
 #include "ui/effects/animation_value_f.h"
+#include "styles/style_basic.h"
 
 namespace Ui {
 
@@ -73,7 +74,7 @@ VerticalDrumPicker::VerticalDrumPicker(
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		const auto outerWidth = width();
 		const auto centerY = height() / 2.;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "media/player/media_player_button.h"
 
+#include "ui/painter.h"
 #include "styles/style_widgets.h"
 
 namespace Media {
@@ -42,7 +43,7 @@ void PlayButtonLayout::finishTransform() {
 	if (_callback) _callback();
 }
 
-void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
+void PlayButtonLayout::paint(QPainter &p, const QBrush &brush) {
 	if (_transformProgress.animating()) {
 		auto from = _oldState, to = _state;
 		auto backward = _transformBackward;
@@ -74,7 +75,7 @@ void PlayButtonLayout::paint(Painter &p, const QBrush &brush) {
 	}
 }
 
-void PlayButtonLayout::paintPlay(Painter &p, const QBrush &brush) {
+void PlayButtonLayout::paintPlay(QPainter &p, const QBrush &brush) {
 	auto playLeft = 0. + _st.playPosition.x();
 	auto playTop = 0. + _st.playPosition.y();
 	auto playWidth = _st.playOuter.width() - 2 * playLeft;
@@ -92,7 +93,7 @@ void PlayButtonLayout::paintPlay(Painter &p, const QBrush &brush) {
 	p.fillPath(pathPlay, brush);
 }
 
-void PlayButtonLayout::paintPlayToPause(Painter &p, const QBrush &brush, float64 progress) {
+void PlayButtonLayout::paintPlayToPause(QPainter &p, const QBrush &brush, float64 progress) {
 	auto playLeft = 0. + _st.playPosition.x();
 	auto playTop = 0. + _st.playPosition.y();
 	auto playWidth = _st.playOuter.width() - 2 * playLeft;
@@ -136,7 +137,7 @@ void PlayButtonLayout::paintPlayToPause(Painter &p, const QBrush &brush, float64
 	p.fillPath(anim::interpolate(pathRightPlay, pathRightPause, progress), brush);
 }
 
-void PlayButtonLayout::paintPlayToCancel(Painter &p, const QBrush &brush, float64 progress) {
+void PlayButtonLayout::paintPlayToCancel(QPainter &p, const QBrush &brush, float64 progress) {
 	static const auto sqrt2 = sqrt(2.);
 
 	auto playLeft = 0. + _st.playPosition.x();
@@ -184,7 +185,7 @@ void PlayButtonLayout::paintPlayToCancel(Painter &p, const QBrush &brush, float6
 	p.fillPath(anim::interpolate(pathPlay, pathCancel, progress), brush);
 }
 
-void PlayButtonLayout::paintPauseToCancel(Painter &p, const QBrush &brush, float64 progress) {
+void PlayButtonLayout::paintPauseToCancel(QPainter &p, const QBrush &brush, float64 progress) {
 	static const auto sqrt2 = sqrt(2.);
 
 	auto pauseLeft = 0. + _st.pausePosition.x();

@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/scroll_content_shadow.h"
 #include "ui/image/image.h"
 #include "ui/toast/toast.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"

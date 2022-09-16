@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/click_handler.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/painter.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"

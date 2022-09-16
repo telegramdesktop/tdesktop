@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/send_as_button.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"

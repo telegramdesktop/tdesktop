@@ -209,7 +209,7 @@ void Step::createSession(
 }
 
 void Step::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	paintAnimated(p, e->rect());
 }
 
@@ -264,7 +264,7 @@ void Step::showFinished() {
 	activate();
 }
 
-bool Step::paintAnimated(Painter &p, QRect clip) {
+bool Step::paintAnimated(QPainter &p, QRect clip) {
 	if (_slideAnimation) {
 		_slideAnimation->paintFrame(p, (width() - st::introStepWidth) / 2, contentTop(), width());
 		if (!_slideAnimation->animating()) {
@@ -342,7 +342,7 @@ void Step::hideDescription() {
 	_description->hide(anim::type::normal);
 }
 
-void Step::paintContentSnapshot(Painter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
+void Step::paintContentSnapshot(QPainter &p, const QPixmap &snapshot, float64 alpha, float64 howMuchHidden) {
 	if (!snapshot.isNull()) {
 		auto contentTop = anim::interpolate(height() - (snapshot.height() / cIntRetinaFactor()), height(), howMuchHidden);
 		if (contentTop < height()) {
@@ -374,7 +374,7 @@ void Step::prepareCoverMask() {
 	_coverMask = Ui::PixmapFromImage(std::move(mask));
 }
 
-void Step::paintCover(Painter &p, int top) {
+void Step::paintCover(QPainter &p, int top) {
 	auto coverHeight = top + st::introCoverHeight;
 	if (coverHeight > 0) {
 		p.drawPixmap(QRect(0, 0, width(), coverHeight), _coverMask, QRect(0, -top * cIntRetinaFactor(), _coverMask.width(), coverHeight * cIntRetinaFactor()));

@@ -481,7 +481,7 @@ void Manager::removeStaleButtons() {
 		end(_buttonHiding));
 }
 
-void Manager::paint(Painter &p, const PaintContext &context) {
+void Manager::paint(QPainter &p, const PaintContext &context) {
 	removeStaleButtons();
 	for (const auto &button : _buttonHiding) {
 		paintButton(p, context, button.get());
@@ -587,7 +587,7 @@ bool Manager::consumeWheelEvent(not_null<QWheelEvent*> e) {
 }
 
 void Manager::paintButton(
-		Painter &p,
+		QPainter &p,
 		const PaintContext &context,
 		not_null<Button*> button) {
 	const auto geometry = button->geometry();
@@ -606,7 +606,7 @@ void Manager::paintButton(
 }
 
 void Manager::paintButton(
-		Painter &p,
+		QPainter &p,
 		const PaintContext &context,
 		not_null<Button*> button,
 		int frameIndex,
@@ -623,7 +623,7 @@ void Manager::paintButton(
 	if (opacity != 1.) {
 		p.setOpacity(opacity);
 	}
-	auto layeredPainter = std::optional<Painter>();
+	auto layeredPainter = std::optional<QPainter>();
 	if (expanded) {
 		_expandedBuffer.fill(Qt::transparent);
 	}
@@ -729,7 +729,7 @@ void Manager::paintButton(
 }
 
 void Manager::paintInnerGradients(
-		Painter &p,
+		QPainter &p,
 		const QColor &background,
 		not_null<Button*> button,
 		int scroll,

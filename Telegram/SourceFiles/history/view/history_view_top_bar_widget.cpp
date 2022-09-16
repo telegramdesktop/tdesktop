@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/report_box.h" // Ui::ReportReason
 #include "ui/text/text.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "ui/special_buttons.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"

@@ -37,7 +37,7 @@ public:
 
 protected:
 	bool drawBackground() const override;
-	bool tryPaintAnimation(Painter &p) override;
+	bool tryPaintAnimation(QPainter &p) override;
 	bool isAnimatedPreviewReady() const override;
 
 private:

@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
+#include "ui/painter.h"
 #include "core/application.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -771,7 +772,7 @@ void Panel::updateStatusGeometry() {
 }
 
 void Panel::paint(QRect clip) {
-	Painter p(widget());
+	auto p = QPainter(widget());
 
 	auto region = QRegion(clip);
 	if (!_incoming->widget()->isHidden()) {

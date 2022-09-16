@@ -33,7 +33,7 @@ public:
 	void update(
 		const std::vector<GroupCallUser> &users,
 		bool visible);
-	void paint(Painter &p, int x, int y, int size);
+	void paint(QPainter &p, int x, int y, int size);
 
 	[[nodiscard]] int maxWidth() const;
 	[[nodiscard]] rpl::producer<int> widthValue() const;

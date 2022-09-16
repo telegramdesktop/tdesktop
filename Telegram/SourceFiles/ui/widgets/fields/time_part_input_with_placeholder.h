@@ -20,7 +20,7 @@ public:
 	void setPhrase(const tr::phrase<lngtag_count> &phrase);
 
 protected:
-	void paintAdditionalPlaceholder(Painter &p) override;
+	void paintAdditionalPlaceholder(QPainter &p) override;
 
 private:
 	void maybeUpdatePlaceholder();

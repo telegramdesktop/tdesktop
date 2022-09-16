@@ -315,7 +315,7 @@ void SuggestionsWidget::scrollByWheelEvent(not_null<QWheelEvent*> e) {
 }
 
 void SuggestionsWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	_repaintScheduled = false;
 
@@ -363,7 +363,7 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 	paintFadings(p);
 }
 
-void SuggestionsWidget::paintFadings(Painter &p) const {
+void SuggestionsWidget::paintFadings(QPainter &p) const {
 	const auto scroll = scrollCurrent();
 	const auto o_left = std::clamp(
 		scroll / float64(st::emojiSuggestionsFadeAfter),

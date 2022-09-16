@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"

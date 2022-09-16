@@ -140,7 +140,7 @@ MenuSpeedItem::MenuSpeedItem(
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		const auto selected = isSelected();
 		p.fillRect(clip, selected ? st.itemBgOver : st.itemBg);
@@ -568,7 +568,7 @@ void PlaybackControls::updateDownloadProgressPosition() {
 }
 
 void PlaybackControls::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	if (_fadeAnimation->paint(p)) {
 		return;

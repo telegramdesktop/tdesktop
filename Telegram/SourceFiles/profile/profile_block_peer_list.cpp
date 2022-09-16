@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "data/data_peer.h"
 #include "data/data_cloud_file.h"
 #include "main/main_session.h"

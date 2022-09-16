@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "ui/inactive_press.h"
+#include "ui/painter.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"

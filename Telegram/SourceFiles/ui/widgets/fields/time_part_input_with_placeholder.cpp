@@ -16,7 +16,7 @@ void TimePartWithPlaceholder::setPhrase(
 	_phrase = phrase;
 }
 
-void TimePartWithPlaceholder::paintAdditionalPlaceholder(Painter &p) {
+void TimePartWithPlaceholder::paintAdditionalPlaceholder(QPainter &p) {
 	maybeUpdatePlaceholder();
 
 	p.setClipRect(rect());

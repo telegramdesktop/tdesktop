@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "media/view/media_view_playback_progress.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -604,7 +605,15 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (!unwrapped && !_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
+		_caption.draw(p, {
+			.position = QPoint(
+				st::msgPadding.left(),
+				painty + painth + st::mediaCaptionSkip),
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.selection = context.selection,
+		});
 	} else if (!inWebPage && !skipDrawingSurrounding) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
@@ -1446,7 +1455,7 @@ void Gif::unloadHeavyPart() {
 	_dataMedia = nullptr;
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
-	_caption.unloadCustomEmoji();
+	_caption.unloadPersistentAnimation();
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/scene/scene.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 #include "styles/style_editor.h"
 #include "styles/style_menu_icons.h"
 

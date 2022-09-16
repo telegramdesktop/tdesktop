@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/chat/chat_style.h"
 #include "ui/text/format_values.h"
+#include "ui/painter.h"
 #include "layout/layout_selection.h" // FullSelection
 #include "history/history.h"
 #include "history/history_item.h"

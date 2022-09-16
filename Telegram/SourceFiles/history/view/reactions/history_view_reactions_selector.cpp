@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/shadow.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/platform/ui_platform_utility.h"
+#include "ui/painter.h"
 #include "history/history_item.h"
 #include "data/data_document.h"
 #include "data/data_session.h"

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/custom_emoji_instance.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/emoji_config.h"
+#include "ui/painter.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/cached_round_corners.h"

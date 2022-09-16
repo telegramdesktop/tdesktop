@@ -169,8 +169,7 @@ LayerWidget::LayerWidget(
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.fillRect(clip, st::photoEditorBg);
 	}, lifetime());
 

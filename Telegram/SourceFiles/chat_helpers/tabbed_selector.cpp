@@ -163,7 +163,7 @@ void TabbedSelector::SlideAnimation::paintFrame(QPainter &p, float64 dt, float64
 		_frame.fill(Qt::transparent);
 	}
 	{
-		Painter p(&_frame);
+		auto p = QPainter(&_frame);
 		p.setOpacity(opacity);
 		p.fillRect(_painterInnerLeft, _painterInnerTop, _painterInnerWidth, _painterCategoriesTop - _painterInnerTop, st::emojiPanBg);
 		p.fillRect(_painterInnerLeft, _painterCategoriesTop, _painterInnerWidth, _painterInnerBottom - _painterCategoriesTop, _wasSectionIcons ? st::emojiPanCategories : st::emojiPanBg);
@@ -620,7 +620,7 @@ void TabbedSelector::updateRestrictedLabelGeometry() {
 }
 
 void TabbedSelector::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto switching = (_slideAnimation != nullptr);
 	if (switching) {
@@ -635,7 +635,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void TabbedSelector::paintSlideFrame(Painter &p) {
+void TabbedSelector::paintSlideFrame(QPainter &p) {
 	if (_roundRadius > 0) {
 		paintBgRoundedPart(p);
 	} else if (_tabsSlider) {
@@ -645,7 +645,7 @@ void TabbedSelector::paintSlideFrame(Painter &p) {
 	_slideAnimation->paintFrame(p, slideDt, 1.);
 }
 
-void TabbedSelector::paintBgRoundedPart(Painter &p) {
+void TabbedSelector::paintBgRoundedPart(QPainter &p) {
 	const auto threeRadius = 3 * _roundRadius;
 	const auto topOrBottomPart = _dropDown
 		? QRect(0, height() - threeRadius, width(), threeRadius)
@@ -668,7 +668,7 @@ void TabbedSelector::paintBgRoundedPart(Painter &p) {
 			: RectPart::FullTop));
 }
 
-void TabbedSelector::paintContent(Painter &p) {
+void TabbedSelector::paintContent(QPainter &p) {
 	auto &footerBg = hasSectionIcons()
 		? st::emojiPanCategories
 		: st::emojiPanBg;

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/peer_list_dummy.h"
 
+#include "ui/painter.h"
 #include "styles/style_widgets.h"
 
 PeerListDummy::PeerListDummy(

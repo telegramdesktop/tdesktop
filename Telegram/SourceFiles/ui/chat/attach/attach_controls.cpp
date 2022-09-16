@@ -15,7 +15,7 @@ AttachControls::AttachControls()
 : _rect(st::sendBoxAlbumGroupRadius, st::roundedBg) {
 }
 
-void AttachControls::paint(Painter &p, int x, int y) {
+void AttachControls::paint(QPainter &p, int x, int y) {
 	const auto groupWidth = width();
 	const auto groupHeight = height();
 	const auto full = (_type == Type::Full);
@@ -84,7 +84,7 @@ AttachControlsWidget::AttachControlsWidget(
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(this);
+		auto p = QPainter(this);
 		_controls.paint(p, 0, 0);
 	}, lifetime());
 }

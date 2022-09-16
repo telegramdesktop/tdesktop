@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
@@ -135,7 +136,7 @@ void Photo::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
 	_imageCache = QImage();
-	_caption.unloadCustomEmoji();
+	_caption.unloadPersistentAnimation();
 }
 
 QSize Photo::countOptimalSize() {
@@ -297,7 +298,15 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
+		_caption.draw(p, {
+			.position = QPoint(
+				st::msgPadding.left(),
+				painty + painth + st::mediaCaptionSkip),
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.selection = context.selection,
+		});
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
+#include "ui/painter.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "styles/style_dialogs.h"
@@ -179,29 +180,26 @@ void MessageView::paint(
 	if (geometry.isEmpty()) {
 		return;
 	}
-	p.setTextPalette(active
-		? st::dialogsTextPaletteActive
-		: selected
-		? st::dialogsTextPaletteOver
-		: st::dialogsTextPalette);
 	p.setFont(st::dialogsTextFont);
 	p.setPen(active
 		? st::dialogsTextFgActive
 		: selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	const auto guard = gsl::finally([&] {
-		p.restoreTextPalette();
-	});
+	const auto palette = &(active
+		? st::dialogsTextPaletteActive
+		: selected
+		? st::dialogsTextPaletteOver
+		: st::dialogsTextPalette);
 
 	auto rect = geometry;
 	if (!_senderCache.isEmpty()) {
-		_senderCache.drawElided(
-			p,
-			rect.left(),
-			rect.top(),
-			rect.width(),
-			rect.height() / st::dialogsTextFont->height);
+		_senderCache.draw(p, {
+			.position = rect.topLeft(),
+			.availableWidth = rect.width(),
+			.palette = palette,
+			.elisionLines = rect.height() / st::dialogsTextFont->height,
+		});
 		const auto skip = st::dialogsMiniPreviewSkip
 			+ st::dialogsMiniPreviewRight;
 		rect.setLeft(rect.x() + _senderCache.maxWidth() + skip);
@@ -224,12 +222,13 @@ void MessageView::paint(
 	if (rect.isEmpty()) {
 		return;
 	}
-	_textCache.drawElided(
-		p,
-		rect.left(),
-		rect.top(),
-		rect.width(),
-		rect.height() / st::dialogsTextFont->height);
+	_textCache.draw(p, {
+		.position = rect.topLeft(),
+		.availableWidth = rect.width(),
+		.palette = palette,
+		.spoiler = Text::DefaultSpoilerCache(),
+		.elisionLines = rect.height() / st::dialogsTextFont->height,
+	});
 }
 
 HistoryView::ItemPreview PreviewWithSender(

@@ -254,6 +254,11 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 		my->customEmojiRepaint);
 }
 
+Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {
+	const auto my = std::any_cast<MarkedTextContext>(&context);
+	return my ? my->customEmojiRepaint : nullptr;
+}
+
 rpl::producer<> UiIntegration::forcePopupMenuHideRequests() {
 	return Core::App().passcodeLockChanges() | rpl::to_empty;
 }

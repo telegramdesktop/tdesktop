@@ -28,7 +28,7 @@ void ColoredMiniStars::setSize(const QSize &size) {
 	_mask = _frame;
 	_mask.fill(Qt::transparent);
 	{
-		Painter p(&_mask);
+		auto p = QPainter(&_mask);
 		if (_colorOverride) {
 			p.fillRect(0, 0, size.width(), size.height(), *_colorOverride);
 		} else {
@@ -61,10 +61,10 @@ void ColoredMiniStars::setColorOverride(std::optional<QColor> color) {
 	_colorOverride = color;
 }
 
-void ColoredMiniStars::paint(Painter &p) {
+void ColoredMiniStars::paint(QPainter &p) {
 	_frame.fill(Qt::transparent);
 	{
-		Painter q(&_frame);
+		auto q = QPainter(&_frame);
 		_ministars.paint(q, _ministarsRect);
 		q.setCompositionMode(QPainter::CompositionMode_SourceIn);
 		q.drawImage(0, 0, _mask);

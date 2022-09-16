@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/fields/special_fields.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"

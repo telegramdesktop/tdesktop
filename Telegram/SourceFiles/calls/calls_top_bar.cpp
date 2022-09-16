@@ -204,7 +204,7 @@ public:
 protected:
 	bool eventFilter(QObject *object, QEvent *event) {
 		if (event->type() == QEvent::Paint) {
-			Painter p(this);
+			auto p = QPainter(this);
 			paintRipple(
 				p,
 				_st.rippleAreaPosition.x(),
@@ -545,7 +545,7 @@ void TopBar::initBlobsUnder(
 			return;
 		}
 
-		Painter p(_blobs);
+		auto p = QPainter(_blobs);
 		if (hidden > 0.) {
 			p.setOpacity(1. - hidden);
 		}
@@ -751,7 +751,7 @@ void TopBar::updateControlsGeometry() {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	auto brush = _groupCall
 		? _groupBrush
 		: (_muted ? st::callBarBgMuted : st::callBarBg);

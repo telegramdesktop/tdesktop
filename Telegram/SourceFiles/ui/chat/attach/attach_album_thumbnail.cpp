@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/format_values.h"
 #include "ui/widgets/buttons.h"
 #include "ui/ui_utility.h"
+#include "ui/painter.h"
 #include "base/call_delayed.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
@@ -173,7 +174,7 @@ int AlbumThumbnail::photoHeight() const {
 }
 
 void AlbumThumbnail::paintInAlbum(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		float64 shrinkProgress,
@@ -251,7 +252,7 @@ void AlbumThumbnail::prepareCache(QSize size, int shrink) {
 		QRect(QPoint(), size * style::DevicePixelRatio()));
 }
 
-void AlbumThumbnail::drawSimpleFrame(Painter &p, QRect to, QSize size) const {
+void AlbumThumbnail::drawSimpleFrame(QPainter &p, QRect to, QSize size) const {
 	const auto fullWidth = _fullPreview.width();
 	const auto fullHeight = _fullPreview.height();
 	const auto previewSize = GetImageScaleSizeForGeometry(
@@ -495,7 +496,7 @@ void AlbumThumbnail::finishAnimations() {
 }
 
 QRect AlbumThumbnail::paintButtons(
-		Painter &p,
+		QPainter &p,
 		QPoint point,
 		int outerWidth,
 		float64 shrinkProgress) {
