@@ -1,3 +1,17 @@
+4.2 (17.09.22)
+
+- A new expandable reaction menu was added in private chats and groups.
+- All users get access to dozens of new reactions, including reactions previously reserved for Premium users.
+- The reactions you use most frequently will always be displayed at the top.
+- Premium users can react to messages with thousands of custom emoji and add up to 3 reactions to each message.
+- Group admins can control whether custom reactions are allowed in their groups.
+- Premium users can add an animated emoji status next to their name to display their current activity.
+- To set a status, tap your Premium badge in the main menu or Settings.
+- Popular suggestions for working, sleeping, traveling and more will be shown at the top.
+- To set a status for a specific duration like 1 hour or 2 days, right click the emoji.
+- A new format was supported for username links, in addition to "t.me/username." You can now open Telegram accounts, groups or channels using links like "username.t.me" or "https://username.t.me."
+- Improved support for long media captions.
+
 4.1.2 beta (14.09.22)
 
 - New reaction selector above the right click menu.
