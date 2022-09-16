@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6_4_0" -%}
-{%- set QT_TAG = "v6.4.0-beta4" -%}
+{%- set QT_TAG = "v6.4.0-rc1" -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.0" -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
@@ -48,7 +48,7 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 88c251102f \
+	&& git checkout 355c563138 \
 	&& rm -rf .git
 
 FROM builder AS extra-cmake-modules

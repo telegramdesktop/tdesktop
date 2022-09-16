@@ -398,7 +398,7 @@ parts:
     override-pull: |
       QT=6_4_0
 
-      git clone -b v6.4.0-beta4 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.4.0-rc1 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
@@ -446,7 +446,7 @@ parts:
   qttools:
     source: git://code.qt.io/qt/qttools.git
     source-depth: 1
-    source-tag: v6.4.0-beta4
+    source-tag: v6.4.0-rc1
     plugin: cmake
     build-packages:
       - clang
