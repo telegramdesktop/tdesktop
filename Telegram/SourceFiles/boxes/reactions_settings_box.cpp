@@ -94,7 +94,7 @@ AdminLog::OwnedItem GenerateItem(
 void AddMessage(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
-		rpl::producer<QString> &&emojiValue,
+		rpl::producer<Data::ReactionId> &&idValue,
 		int width) {
 
 	const auto widget = container->add(
@@ -216,38 +216,52 @@ void AddMessage(
 		view->draw(p, context);
 	}, widget->lifetime());
 
-	auto selectedEmoji = rpl::duplicate(emojiValue);
+	auto selectedId = rpl::duplicate(idValue);
 	std::move(
-		selectedEmoji
+		selectedId
 	) | rpl::start_with_next([
 		=,
-		emojiValue = std::move(emojiValue),
+		idValue = std::move(idValue),
 		iconSize = st::settingsReactionMessageSize
-	](const QString &emoji) {
-		const auto id = Data::ReactionId{ emoji };
+	](const Data::ReactionId &id) {
+		const auto index = state->icons.flag ? 1 : 0;
+		state->icons.flag = !state->icons.flag;
+		state->icons.lifetimes[index] = rpl::lifetime();
 		const auto &reactions = controller->session().data().reactions();
+		auto iconPositionValue = widget->geometryValue(
+		) | rpl::map([=](const QRect &r) {
+			return widget->pos()
+				+ rightRect().topLeft()
+				+ QPoint(
+					(rightSize.width() - iconSize) / 2,
+					(rightSize.height() - iconSize) / 2);
+		});
+		auto destroys = rpl::duplicate(
+			idValue
+		) | rpl::skip(1) | rpl::to_empty;
+		if (const auto customId = id.custom()) {
+			AddReactionCustomIcon(
+				container,
+				std::move(iconPositionValue),
+				iconSize,
+				controller,
+				customId,
+				std::move(destroys),
+				&state->icons.lifetimes[index]);
+			return;
+		}
 		for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
 			if (r.id != id) {
 				continue;
 			}
-			const auto index = state->icons.flag ? 1 : 0;
-			state->icons.lifetimes[index] = rpl::lifetime();
 			AddReactionAnimatedIcon(
 				container,
-				widget->geometryValue(
-				) | rpl::map([=](const QRect &r) {
-					return widget->pos()
-						+ rightRect().topLeft()
-						+ QPoint(
-							(rightSize.width() - iconSize) / 2,
-							(rightSize.height() - iconSize) / 2);
-				}),
+				std::move(iconPositionValue),
 				iconSize,
 				r,
 				rpl::never<>(),
-				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
+				std::move(destroys),
 				&state->icons.lifetimes[index]);
-			state->icons.flag = !state->icons.flag;
 			return;
 		}
 	}, widget->lifetime());
@@ -455,20 +469,18 @@ void ReactionsSettingsBox(
 		not_null<Window::SessionController*> controller) {
 
 	struct State {
-		rpl::variable<QString> selectedEmoji;
+		rpl::variable<Data::ReactionId> selectedId;
 	};
 
 	const auto &reactions = controller->session().data().reactions();
 	const auto state = box->lifetime().make_state<State>();
-	state->selectedEmoji = v::is<QString>(reactions.favoriteId().data)
-		? v::get<QString>(reactions.favoriteId().data)
-		: QString();
+	state->selectedId = reactions.favoriteId();
 
 	const auto pinnedToTop = box->setPinnedToTopContent(
 		object_ptr<Ui::VerticalLayout>(box));
 
-	auto emojiValue = state->selectedEmoji.value();
-	AddMessage(pinnedToTop, controller, std::move(emojiValue), box->width());
+	auto idValue = state->selectedId.value();
+	AddMessage(pinnedToTop, controller, std::move(idValue), box->width());
 
 	Settings::AddSubsectionTitle(
 		pinnedToTop,
@@ -492,7 +504,13 @@ void ReactionsSettingsBox(
 
 	auto firstCheckedButton = (Ui::RpWidget*)(nullptr);
 	const auto premiumPossible = controller->session().premiumPossible();
-	for (const auto &r : reactions.list(Data::Reactions::Type::Active)) {
+	auto list = reactions.list(Data::Reactions::Type::Active);
+	if (const auto favorite = reactions.favorite()) {
+		if (favorite->id.custom()) {
+			list.insert(begin(list), *favorite);
+		}
+	}
+	for (const auto &r : list) {
 		const auto button = Settings::AddButton(
 			container,
 			rpl::single<QString>(base::duplicate(r.title)),
@@ -504,23 +522,35 @@ void ReactionsSettingsBox(
 		}
 
 		const auto iconSize = st::settingsReactionSize;
-		AddReactionAnimatedIcon(
-			button,
-			button->sizeValue(
-			) | rpl::map([=, left = button->st().iconLeft](const QSize &s) {
-				return QPoint(
-					left + st::settingsReactionRightSkip,
-					(s.height() - iconSize) / 2);
-			}),
-			iconSize,
-			r,
-			button->events(
-			) | rpl::filter([=](not_null<QEvent*> event) {
-				return event->type() == QEvent::Enter;
-			}) | rpl::to_empty,
-			rpl::never<>(),
-			&button->lifetime());
-
+		const auto left = button->st().iconLeft;
+		auto iconPositionValue = button->sizeValue(
+		) | rpl::map([=](const QSize &s) {
+			return QPoint(
+				left + st::settingsReactionRightSkip,
+				(s.height() - iconSize) / 2);
+		});
+		if (const auto customId = r.id.custom()) {
+			AddReactionCustomIcon(
+				button,
+				std::move(iconPositionValue),
+				iconSize,
+				controller,
+				customId,
+				rpl::never<>(),
+				&button->lifetime());
+		} else {
+			AddReactionAnimatedIcon(
+				button,
+				std::move(iconPositionValue),
+				iconSize,
+				r,
+				button->events(
+				) | rpl::filter([=](not_null<QEvent*> event) {
+					return event->type() == QEvent::Enter;
+				}) | rpl::to_empty,
+				rpl::never<>(),
+				&button->lifetime());
+		}
 		button->setClickedCallback([=, id = r.id] {
 			if (premium && !controller->session().premium()) {
 				ShowPremiumPreviewBox(
@@ -529,11 +559,9 @@ void ReactionsSettingsBox(
 				return;
 			}
 			checkButton(button);
-			state->selectedEmoji = v::is<QString>(id.data)
-				? v::get<QString>(id.data)
-				: QString();
+			state->selectedId = id;
 		});
-		if (r.id == Data::ReactionId{ state->selectedEmoji.current() }) {
+		if (r.id == state->selectedId.current()) {
 			firstCheckedButton = button;
 		}
 	}
@@ -551,9 +579,9 @@ void ReactionsSettingsBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_settings_save(), [=] {
 		const auto &data = controller->session().data();
-		const auto selected = state->selectedEmoji.current();
-		if (data.reactions().favoriteId() != Data::ReactionId{ selected }) {
-			data.reactions().setFavorite(Data::ReactionId{ selected });
+		const auto selectedId = state->selectedId.current();
+		if (data.reactions().favoriteId() != selectedId) {
+			data.reactions().setFavorite(selectedId);
 		}
 		box->closeBox();
 	});
