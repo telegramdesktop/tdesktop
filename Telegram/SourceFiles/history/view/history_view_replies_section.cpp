@@ -175,7 +175,7 @@ RepliesWidget::RepliesWidget(
 , _scroll(std::make_unique<Ui::ScrollArea>(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
-	false))
+	true))
 , _scrollDown(
 	_scroll.get(),
 	controller->chatStyle()->value(lifetime(), st::historyToDown))
