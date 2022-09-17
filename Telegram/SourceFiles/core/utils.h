@@ -17,9 +17,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <crl/crl_time.h>
 #include <QtCore/QReadWriteLock>
 #include <QtCore/QRegularExpression>
+#include <QtCore/QMimeData>
 #include <QtNetwork/QNetworkProxy>
 #include <cmath>
 #include <set>
+
+#if __has_include(<KUrlMimeData>)
+#include <KUrlMimeData>
+#endif
 
 #define qsl(s) QStringLiteral(s)
 
@@ -28,6 +33,16 @@ namespace base {
 template <typename Value, typename From, typename Till>
 inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);
+}
+
+inline auto GetMimeUrls(const QMimeData *data) {
+#if __has_include(<KUrlMimeData>)
+	return KUrlMimeData::urlsFromMimeData(
+		data,
+		KUrlMimeData::PreferLocalUrls);
+#else
+	return data->urls();
+#endif
 }
 
 } // namespace base

@@ -176,12 +176,12 @@ struct Instance::Inner::Private {
 	uint16 waveformPeak = 0;
 	QVector<uchar> waveform;
 
-	static int _read_data(void *opaque, uint8_t *buf, int buf_size) {
+	static int ReadData(void *opaque, uint8_t *buf, int buf_size) {
 		auto l = reinterpret_cast<Private*>(opaque);
 
 		int32 nbytes = qMin(l->data.size() - l->dataPos, int32(buf_size));
 		if (nbytes <= 0) {
-			return 0;
+			return AVERROR_EOF;
 		}
 
 		memcpy(buf, l->data.constData() + l->dataPos, nbytes);
@@ -189,7 +189,7 @@ struct Instance::Inner::Private {
 		return nbytes;
 	}
 
-	static int _write_data(void *opaque, uint8_t *buf, int buf_size) {
+	static int WriteData(void *opaque, uint8_t *buf, int buf_size) {
 		auto l = reinterpret_cast<Private*>(opaque);
 
 		if (buf_size <= 0) return 0;
@@ -199,7 +199,7 @@ struct Instance::Inner::Private {
 		return buf_size;
 	}
 
-	static int64_t _seek_data(void *opaque, int64_t offset, int whence) {
+	static int64_t SeekData(void *opaque, int64_t offset, int whence) {
 		auto l = reinterpret_cast<Private*>(opaque);
 
 		int32 newPos = -1;
@@ -260,7 +260,7 @@ void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 
 	d->ioBuffer = (uchar*)av_malloc(FFmpeg::kAVBlockSize);
 
-	d->ioContext = avio_alloc_context(d->ioBuffer, FFmpeg::kAVBlockSize, 1, static_cast<void*>(d.get()), &Private::_read_data, &Private::_write_data, &Private::_seek_data);
+	d->ioContext = avio_alloc_context(d->ioBuffer, FFmpeg::kAVBlockSize, 1, static_cast<void*>(d.get()), &Private::ReadData, &Private::WriteData, &Private::SeekData);
 	int res = 0;
 	char err[AV_ERROR_MAX_STRING_SIZE] = { 0 };
 	const AVOutputFormat *fmt = nullptr;

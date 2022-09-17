@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat_filters.h"
 #include "data/data_cloud_themes.h"
+#include "data/data_emoji_statuses.h"
 #include "data/data_group_call.h"
 #include "data/data_drafts.h"
 #include "data/data_histories.h"
@@ -1653,6 +1654,15 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateMessageExtendedMedia: {
+		const auto &d = update.c_updateMessageExtendedMedia();
+		const auto peerId = peerFromMTP(d.vpeer());
+		const auto msgId = d.vmsg_id().v;
+		if (const auto item = session().data().message(peerId, msgId)) {
+			item->applyEdition(d.vextended_media());
+		}
+	} break;
+
 	// Messages being read.
 	case mtpc_updateReadHistoryInbox: {
 		auto &d = update.c_updateReadHistoryInbox();
@@ -2348,12 +2358,48 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		}
 	} break;
 
+	case mtpc_updateMoveStickerSetToTop: {
+		const auto &d = update.c_updateMoveStickerSetToTop();
+		auto &stickers = session().data().stickers();
+		const auto isEmoji = d.is_emojis();
+		const auto setId = d.vstickerset().v;
+		auto &order = isEmoji
+			? stickers.emojiSetsOrderRef()
+			: stickers.setsOrderRef();
+		const auto i = ranges::find(order, setId);
+		if (i == order.end()) {
+			if (isEmoji) {
+				stickers.setLastEmojiUpdate(0);
+				session().api().updateCustomEmoji();
+			} else {
+				stickers.setLastUpdate(0);
+				session().api().updateStickers();
+			}
+		} else if (i != order.begin()) {
+			std::rotate(order.begin(), i, i + 1);
+			if (isEmoji) {
+				session().local().writeInstalledCustomEmoji();
+			} else {
+				session().local().writeInstalledStickers();
+			}
+			stickers.notifyUpdated(isEmoji
+				? Data::StickersType::Emoji
+				: Data::StickersType::Stickers);
+		}
+	} break;
+
 	case mtpc_updateStickerSets: {
-		// Can't determine is it masks or stickers, so update both.
-		session().data().stickers().setLastUpdate(0);
-		session().api().updateStickers();
-		session().data().stickers().setLastMasksUpdate(0);
-		session().api().updateMasks();
+		const auto &d = update.c_updateStickerSets();
+		if (d.is_emojis()) {
+			session().data().stickers().setLastEmojiUpdate(0);
+			session().api().updateCustomEmoji();
+		} else if (d.is_masks()) {
+			session().data().stickers().setLastMasksUpdate(0);
+			session().api().updateMasks();
+		} else {
+			session().data().stickers().setLastUpdate(0);
+			session().api().updateStickers();
+		}
 	} break;
 
 	case mtpc_updateRecentStickers: {
@@ -2372,6 +2418,25 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		// request all of them once again.
 		session().data().stickers().setLastFeaturedUpdate(0);
 		session().api().updateStickers();
+	} break;
+
+	case mtpc_updateReadFeaturedEmojiStickers: {
+		// We don't track read status of them for now.
+	} break;
+
+	case mtpc_updateUserEmojiStatus: {
+		const auto &d = update.c_updateUserEmojiStatus();
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			user->setEmojiStatus(d.vemoji_status());
+		}
+	} break;
+
+	case mtpc_updateRecentEmojiStatuses: {
+		session().data().emojiStatuses().refreshRecentDelayed();
+	} break;
+
+	case mtpc_updateRecentReactions: {
+		session().data().reactions().refreshRecentDelayed();
 	} break;
 
 	////// Cloud saved GIFs

@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "base/weak_ptr.h"
 
-struct StickerSetIdentifier;
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -27,15 +25,17 @@ struct CustomEmojiId {
 	DocumentId id = 0;
 };
 
+enum class CustomEmojiSizeTag : uchar {
+	Normal,
+	Large,
+	Isolated,
+
+	kCount,
+};
+
 class CustomEmojiManager final : public base::has_weak_ptr {
 public:
-	enum class SizeTag {
-		Normal,
-		Large,
-		Isolated,
-
-		kCount,
-	};
+	using SizeTag = CustomEmojiSizeTag;
 
 	CustomEmojiManager(not_null<Session*> owner);
 	~CustomEmojiManager();
@@ -43,15 +43,18 @@ public:
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		QStringView data,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		DocumentId documentId,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		not_null<DocumentData*> document,
 		Fn<void()> update,
-		SizeTag tag = SizeTag::Normal);
+		SizeTag tag = SizeTag::Normal,
+		int sizeOverride = 0);
 
 	class Listener {
 	public:
@@ -64,15 +67,19 @@ public:
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
-		SizeTag tag);
+		SizeTag tag,
+		int sizeOverride = 0);
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		DocumentId documentId,
-		SizeTag tag);
+		SizeTag tag,
+		int sizeOverride = 0);
 
 	[[nodiscard]] QString lookupSetName(uint64 setId);
 
 	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] Session &owner() const;
+
+	[[nodiscard]] uint64 coloredSetId() const;
 
 private:
 	static constexpr auto kSizeCount = int(SizeTag::kCount);
@@ -81,6 +88,19 @@ private:
 		crl::time when = 0;
 		std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>> instances;
 	};
+	struct LoaderWithSetId {
+		std::unique_ptr<Ui::CustomEmoji::Loader> loader;
+		uint64 setId = 0;
+	};
+
+	[[nodiscard]] LoaderWithSetId createLoaderWithSetId(
+		not_null<DocumentData*> document,
+		SizeTag tag,
+		int sizeOverride = 0);
+	[[nodiscard]] LoaderWithSetId createLoaderWithSetId(
+		DocumentId documentId,
+		SizeTag tag,
+		int sizeOverride = 0);
 
 	void request();
 	void requestFinished();
@@ -89,16 +109,21 @@ private:
 		Ui::CustomEmoji::RepaintRequest request);
 	void scheduleRepaintTimer();
 	void invokeRepaints();
+	void fillColoredFlags(not_null<DocumentData*> document);
+	void processLoaders(not_null<DocumentData*> document);
+	void processListeners(not_null<DocumentData*> document);
 	void requestSetFor(not_null<DocumentData*> document);
 
 	[[nodiscard]] Ui::CustomEmoji::Preview prepareNonExactPreview(
 		DocumentId documentId,
-		SizeTag tag) const;
+		SizeTag tag,
+		int sizeOverride) const;
 	template <typename LoaderFactory>
 	[[nodiscard]] std::unique_ptr<Ui::Text::CustomEmoji> create(
 		DocumentId documentId,
 		Fn<void()> update,
 		SizeTag tag,
+		int sizeOverride,
 		LoaderFactory factory);
 	[[nodiscard]] static int SizeIndex(SizeTag tag);
 
@@ -121,13 +146,22 @@ private:
 		not_null<Listener*>,
 		base::flat_set<DocumentId>> _listeners;
 	base::flat_set<DocumentId> _pendingForRequest;
+	base::flat_map<
+		uint64,
+		base::flat_set<
+			not_null<Ui::CustomEmoji::Instance*>>> _coloredSetPending;
+
 	mtpRequestId _requestId = 0;
+
+	uint64 _coloredSetId = 0;
 
 	base::flat_map<crl::time, RepaintBunch> _repaints;
 	crl::time _repaintNext = 0;
 	base::Timer _repaintTimer;
 	bool _repaintTimerScheduled = false;
 	bool _requestSetsScheduled = false;
+
+	rpl::lifetime _lifetime;
 
 };
 
@@ -143,5 +177,8 @@ private:
 void InsertCustomEmoji(
 	not_null<Ui::InputField*> field,
 	not_null<DocumentData*> document);
+
+[[nodiscard]] Ui::Text::CustomEmojiFactory ReactedMenuFactory(
+	not_null<Main::Session*> session);
 
 } // namespace Data

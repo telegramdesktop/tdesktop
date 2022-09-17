@@ -769,20 +769,23 @@ PeerId ChannelData::groupCallDefaultJoinAs() const {
 	return _callDefaultJoinAs;
 }
 
-void ChannelData::setAllowedReactions(base::flat_set<QString> list) {
-	if (_allowedReactions != list) {
-		const auto toggled = (_allowedReactions.empty() != list.empty());
-		_allowedReactions = std::move(list);
-		if (toggled) {
-			owner().reactions().updateAllInHistory(
-				this,
-				!_allowedReactions.empty());
+void ChannelData::setAllowedReactions(Data::AllowedReactions value) {
+	if (_allowedReactions != value) {
+		const auto enabled = [](const Data::AllowedReactions &allowed) {
+			return (allowed.type != Data::AllowedReactionsType::Some)
+				|| !allowed.some.empty();
+		};
+		const auto was = enabled(_allowedReactions);
+		_allowedReactions = std::move(value);
+		const auto now = enabled(_allowedReactions);
+		if (was != now) {
+			owner().reactions().updateAllInHistory(this, now);
 		}
 		session().changes().peerUpdated(this, UpdateFlag::Reactions);
 	}
 }
 
-const base::flat_set<QString> &ChannelData::allowedReactions() const {
+const Data::AllowedReactions &ChannelData::allowedReactions() const {
 	return _allowedReactions;
 }
 
@@ -935,8 +938,11 @@ void ApplyChannelUpdate(
 		}
 	}
 	channel->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));
-	channel->setAllowedReactions(
-		Data::Reactions::ParseAllowed(update.vavailable_reactions()));
+	if (const auto allowed = update.vavailable_reactions()) {
+		channel->setAllowedReactions(Data::Parse(*allowed));
+	} else {
+		channel->setAllowedReactions({});
+	}
 	channel->fullUpdated();
 	channel->setPendingRequestsCount(
 		update.vrequests_pending().value_or_empty(),

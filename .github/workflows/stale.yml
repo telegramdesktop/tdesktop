@@ -1,0 +1,25 @@
+name: 'Close stale issues and PRs'
+on:
+  schedule:
+    - cron: '30 1 * * *'
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/stale@v5
+        with:
+          stale-issue-message: |
+            Hey there!
+
+            This issue was inactive for a long time and will be automatically closed in 30 days if there isn't any further activity. We therefore assume that the user has lost interest or resolved the problem on their own.
+
+            Don't worry though; if this is an error, let us know with a comment and we'll be happy to reopen the issue.
+
+            Thanks!
+          stale-issue-label: 'stale'
+          exempt-issue-labels: 'enhancement'
+          days-before-stale: 180
+          days-before-close: 30
+          days-before-pr-stale: -1
+          operations-per-run: 1000

@@ -158,6 +158,16 @@ private:
 	[[nodiscard]] int additionalWidth() const;
 	[[nodiscard]] bool isUnwrapped() const;
 
+	void validateThumbCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const;
+	[[nodiscard]] QImage prepareThumbCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const;
+	[[nodiscard]] QImage prepareThumbCache(QSize outer) const;
+
 	void validateGroupedCache(
 		const QRect &geometry,
 		RectParts corners,
@@ -178,13 +188,15 @@ private:
 		QPoint position) const;
 
 	const not_null<DocumentData*> _data;
-	int _thumbw = 1;
-	int _thumbh = 1;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
+	mutable QImage _thumbCache;
+	mutable int _thumbCacheRoundRadius : 4 = 0;
+	mutable int _thumbCacheRoundCorners : 12 = 0;
+	mutable int _thumbCacheBlurred : 1 = 0;
 
 };
 

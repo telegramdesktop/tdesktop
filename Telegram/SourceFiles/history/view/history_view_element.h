@@ -20,6 +20,7 @@ struct HistoryMessageReply;
 
 namespace Data {
 struct Reaction;
+struct ReactionId;
 } // namespace Data
 
 namespace Window {
@@ -33,25 +34,21 @@ struct ChatPaintContext;
 class ChatStyle;
 } // namespace Ui
 
-namespace Lottie {
-class Icon;
-} // namespace Lottie
+namespace HistoryView::Reactions {
+struct ButtonParameters;
+struct AnimationArgs;
+class Animation;
+class InlineList;
+} // namespace HistoryView::Reactions
 
 namespace HistoryView {
 
+using PaintContext = Ui::ChatPaintContext;
 enum class PointState : char;
 enum class InfoDisplayType : char;
 struct StateRequest;
 struct TextState;
 class Media;
-//struct ExternalLottieInfo;
-
-using PaintContext = Ui::ChatPaintContext;
-
-namespace Reactions {
-struct ButtonParameters;
-class Animation;
-} // namespace Reactions
 
 enum class Context : char {
 	History,
@@ -94,7 +91,7 @@ public:
 	virtual void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) = 0;
-	virtual bool elementIsGifPaused() = 0;
+	virtual bool elementAnimationsPaused() = 0;
 	virtual bool elementHideReply(not_null<const Element*> view) = 0;
 	virtual bool elementShownUnread(not_null<const Element*> view) = 0;
 	virtual void elementSendBotCommand(
@@ -156,7 +153,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
-	bool elementIsGifPaused() override;
+	bool elementAnimationsPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
@@ -238,14 +235,6 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
-struct ReactionAnimationArgs {
-	QString emoji;
-	std::shared_ptr<Lottie::Icon> flyIcon;
-	QRect flyFrom;
-
-	[[nodiscard]] ReactionAnimationArgs translated(QPoint point) const;
-};
-
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -271,9 +260,6 @@ public:
 	Media *media() const;
 	Context context() const;
 	void refreshDataId();
-
-	//void externalLottieProgressing(bool external) const;
-	//bool externalLottieTill(ExternalLottieInfo info) const;
 
 	QDateTime dateTime() const;
 
@@ -430,7 +416,12 @@ public:
 	void customEmojiRepaint();
 	void prepareCustomEmojiPaint(
 		Painter &p,
+		const PaintContext &context,
 		const Ui::Text::String &text) const;
+	void prepareCustomEmojiPaint(
+		Painter &p,
+		const PaintContext &context,
+		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
@@ -439,10 +430,12 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
-	virtual void animateReaction(ReactionAnimationArgs &&args);
+	virtual void animateReaction(Reactions::AnimationArgs &&args);
 	void animateUnreadReactions();
 	[[nodiscard]] virtual auto takeReactionAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+	-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Reactions::Animation>>;
 
 	virtual ~Element();
 

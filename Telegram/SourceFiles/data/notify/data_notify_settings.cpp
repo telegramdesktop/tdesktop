@@ -76,7 +76,7 @@ void NotifySettings::apply(
 
 void NotifySettings::update(
 		not_null<PeerData*> peer,
-		std::optional<int> muteForSeconds,
+		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
 	if (peer->notifyChange(muteForSeconds, silentPosts, sound)) {
@@ -130,7 +130,7 @@ const PeerNotifySettings &NotifySettings::defaultSettings(
 
 void NotifySettings::defaultUpdate(
 		DefaultNotify type,
-		std::optional<int> muteForSeconds,
+		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
 	auto &settings = defaultValue(type).settings;

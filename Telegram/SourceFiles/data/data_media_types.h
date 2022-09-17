@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class History;
 class HistoryItem;
+class HistoryMessage;
 
 namespace base {
 template <typename Enum>
@@ -58,12 +59,29 @@ struct Call {
 	bool video = false;
 };
 
+struct ExtendedPreview {
+	QByteArray inlineThumbnailBytes;
+	QSize dimensions;
+	TimeId videoDuration = -1;
+
+	[[nodiscard]] bool empty() const {
+		return dimensions.isEmpty();
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+};
+
+class Media;
+
 struct Invoice {
 	MsgId receiptMsgId = 0;
 	uint64 amount = 0;
 	QString currency;
 	QString title;
 	TextWithEntities description;
+	ExtendedPreview extendedPreview;
+	std::unique_ptr<Media> extendedMedia;
 	PhotoData *photo = nullptr;
 	bool isTest = false;
 };
@@ -121,6 +139,11 @@ public:
 	// the media (all media that was generated on client side, for example).
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
+	virtual bool updateExtendedMedia(
+			not_null<HistoryMessage*> item,
+			const MTPMessageExtendedMedia &media) {
+		return false;
+	}
 	virtual std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -404,6 +427,9 @@ public:
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
+	bool updateExtendedMedia(
+		not_null<HistoryMessage*> item,
+		const MTPMessageExtendedMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
@@ -515,7 +541,7 @@ private:
 	TextForMimeData &&caption);
 
 [[nodiscard]] Invoice ComputeInvoiceData(
-	not_null<HistoryItem*> item,
+	not_null<HistoryMessage*> item,
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);

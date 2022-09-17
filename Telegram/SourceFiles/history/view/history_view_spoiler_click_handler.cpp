@@ -46,10 +46,9 @@ void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
 } // namespace
 
 void FillTextWithAnimatedSpoilers(Ui::Text::String &text) {
+	const auto link = std::make_shared<AnimatedSpoilerClickHandler>();
 	for (auto i = 0; i < text.spoilersCount(); i++) {
-		text.setSpoiler(
-			i + 1,
-			std::make_shared<AnimatedSpoilerClickHandler>());
+		text.setSpoiler(i + 1, link);
 	}
 }
 

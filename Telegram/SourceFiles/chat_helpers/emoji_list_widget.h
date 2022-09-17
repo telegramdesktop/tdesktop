@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/round_rect.h"
 #include "base/timer.h"
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace Core {
 struct RecentEmojiId;
 } // namespace Core
@@ -33,6 +37,10 @@ namespace Ui::Emoji {
 enum class Section;
 } // namespace Ui::Emoji
 
+namespace Ui::Text {
+struct CustomEmojiColored;
+} // namespace Ui::Text
+
 namespace Ui::CustomEmoji {
 class Loader;
 class Instance;
@@ -50,16 +58,40 @@ inline constexpr auto kEmojiSectionCount = 8;
 struct StickerIcon;
 class EmojiColorPicker;
 class StickersListFooter;
+class GradientPremiumStar;
 class LocalStickersManager;
+
+enum class EmojiListMode {
+	Full,
+	EmojiStatus,
+	FullReactions,
+	RecentReactions,
+};
+
+struct EmojiListDescriptor {
+	not_null<Main::Session*> session;
+	EmojiListMode mode = EmojiListMode::Full;
+	Window::SessionController *controller = nullptr;
+	Fn<bool()> paused;
+	std::vector<DocumentId> customRecentList;
+	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
+		DocumentId,
+		Fn<void()>)> customRecentFactory;
+	const style::EmojiPan *st = nullptr;
+};
 
 class EmojiListWidget
 	: public TabbedSelector::Inner
 	, public Ui::AbstractTooltipShower {
 public:
+	using Mode = EmojiListMode;
+
 	EmojiListWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		Window::GifPauseReason level);
+		Window::GifPauseReason level,
+		Mode mode);
+	EmojiListWidget(QWidget *parent, EmojiListDescriptor &&descriptor);
 	~EmojiListWidget();
 
 	using Section = Ui::Emoji::Section;
@@ -79,11 +111,21 @@ public:
 
 	void refreshEmoji();
 
-	[[nodiscard]] rpl::producer<EmojiPtr> chosen() const;
-	[[nodiscard]] auto customChosen() const
-		-> rpl::producer<TabbedSelector::FileChosen>;
-	[[nodiscard]] auto premiumChosen() const
-		-> rpl::producer<not_null<DocumentData*>>;
+	[[nodiscard]] rpl::producer<EmojiChosen> chosen() const;
+	[[nodiscard]] rpl::producer<FileChosen> customChosen() const;
+	[[nodiscard]] rpl::producer<> jumpedToPremium() const;
+
+	void provideRecent(const std::vector<DocumentId> &customRecentList);
+
+	void paintExpanding(
+		QPainter &p,
+		QRect clip,
+		int finalBottom,
+		float64 progress,
+		RectPart origin);
+
+	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
+		SendMenu::Type type) override;
 
 protected:
 	void visibleTopBottomUpdated(
@@ -103,6 +145,7 @@ protected:
 	void processHideFinished() override;
 	void processPanelHideFinished() override;
 	int countDesiredHeight(int newWidth) override;
+	int defaultMinimalHeight() const override;
 
 private:
 	struct SectionInfo {
@@ -177,6 +220,11 @@ private:
 		OverEmoji,
 		OverSet,
 		OverButton>;
+	struct ExpandingContext {
+		float64 progress = 0.;
+		int finalHeight = 0;
+		bool expanding = false;
+	};
 
 	template <typename Callback>
 	bool enumerateSections(Callback callback) const;
@@ -187,7 +235,7 @@ private:
 
 	void showPicker();
 	void pickerHidden();
-	void colorChosen(EmojiPtr emoji);
+	void colorChosen(EmojiChosen data);
 	bool checkPickerHide();
 	void refreshCustom();
 	void unloadNotSeenCustom(int visibleTop, int visibleBottom);
@@ -200,21 +248,35 @@ private:
 	void setPressed(OverState newPressed);
 
 	[[nodiscard]] EmojiPtr lookupOverEmoji(const OverEmoji *over) const;
-	void selectEmoji(EmojiPtr emoji);
-	void selectCustom(not_null<DocumentData*> document);
+	[[nodiscard]] DocumentData *lookupCustomEmoji(
+		int index,
+		int section) const;
+	[[nodiscard]] EmojiChosen lookupChosen(
+		EmojiPtr emoji,
+		not_null<const OverEmoji*> over);
+	[[nodiscard]] FileChosen lookupChosen(
+		not_null<DocumentData*> custom,
+		const OverEmoji *over,
+		Api::SendOptions options = Api::SendOptions());
+	void selectEmoji(EmojiChosen data);
+	void selectCustom(FileChosen data);
+	void paint(QPainter &p, ExpandingContext context, QRect clip);
 	void drawCollapsedBadge(QPainter &p, QPoint position, int count);
 	void drawRecent(
 		QPainter &p,
+		const ExpandingContext &context,
 		QPoint position,
 		crl::time now,
 		bool paused,
 		int index);
 	void drawEmoji(
 		QPainter &p,
+		const ExpandingContext &context,
 		QPoint position,
 		EmojiPtr emoji);
 	void drawCustom(
 		QPainter &p,
+		const ExpandingContext &context,
 		QPoint position,
 		crl::time now,
 		bool paused,
@@ -247,6 +309,7 @@ private:
 	void displaySet(uint64 setId);
 	void removeSet(uint64 setId);
 
+	void refreshColoredStatuses();
 	void initButton(RightButton &button, const QString &text, bool gradient);
 	[[nodiscard]] std::unique_ptr<Ui::RippleAnimation> createButtonRipple(
 		int section);
@@ -255,35 +318,51 @@ private:
 	void repaintCustom(uint64 setId);
 
 	void fillRecent();
+	void fillRecentFrom(const std::vector<DocumentId> &list);
 	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
 		not_null<DocumentData*> document,
 		uint64 setId);
-	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomEmoji(
+	[[nodiscard]] Ui::Text::CustomEmoji *resolveCustomRecent(
 		Core::RecentEmojiId customId);
-	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomEmoji(
+	[[nodiscard]] not_null<Ui::Text::CustomEmoji*> resolveCustomRecent(
 		DocumentId documentId);
 	[[nodiscard]] Fn<void()> repaintCallback(
 		DocumentId documentId,
 		uint64 setId);
 
+	Window::SessionController *_controller = nullptr;
+	Mode _mode = Mode::Full;
+	const int _staticCount = 0;
 	StickersListFooter *_footer = nullptr;
+	std::unique_ptr<GradientPremiumStar> _premiumIcon;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
+	Fn<std::unique_ptr<Ui::Text::CustomEmoji>(
+		DocumentId,
+		Fn<void()>)> _customRecentFactory;
 
 	int _counts[kEmojiSectionCount];
 	std::vector<RecentOne> _recent;
 	base::flat_set<DocumentId> _recentCustomIds;
 	base::flat_set<uint64> _repaintsScheduled;
+	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColor;
 	bool _recentPainted = false;
+	bool _grabbingChosen = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];
 	std::vector<CustomSet> _custom;
 	base::flat_map<DocumentId, CustomEmojiInstance> _customEmoji;
+	base::flat_map<
+		DocumentId,
+		std::unique_ptr<Ui::Text::CustomEmoji>> _customRecent;
+	int _customSingleSize = 0;
 	bool _allowWithoutPremium = false;
+	Ui::RoundRect _overBg;
 
 	int _rowsLeft = 0;
 	int _columnCount = 1;
 	QSize _singleSize;
 	QPoint _areaPosition;
 	QPoint _innerPosition;
+	QPoint _customPosition;
 
 	RightButton _add;
 	RightButton _unlock;
@@ -298,9 +377,9 @@ private:
 	object_ptr<EmojiColorPicker> _picker;
 	base::Timer _showPickerTimer;
 
-	rpl::event_stream<EmojiPtr> _chosen;
-	rpl::event_stream<TabbedSelector::FileChosen> _customChosen;
-	rpl::event_stream<not_null<DocumentData*>> _premiumChosen;
+	rpl::event_stream<EmojiChosen> _chosen;
+	rpl::event_stream<FileChosen> _customChosen;
+	rpl::event_stream<> _jumpedToPremium;
 
 };
 

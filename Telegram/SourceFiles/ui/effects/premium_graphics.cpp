@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/effects/premium_graphics.h"
 
+#include "data/data_subscription_option.h"
 #include "lang/lang_keys.h"
 #include "ui/abstract_button.h"
 #include "ui/effects/animations.h"
@@ -40,6 +41,74 @@ constexpr auto kDeflection = 30.;
 constexpr auto kStepBeforeDeflection = 0.75;
 constexpr auto kStepAfterDeflection = kStepBeforeDeflection
 	+ (1. - kStepBeforeDeflection) / 2.;
+
+class GradientRadioView : public Ui::RadioView {
+public:
+	GradientRadioView(
+		const style::Radio &st,
+		bool checked,
+		Fn<void()> updateCallback = nullptr);
+
+	void setBrush(std::optional<QBrush> brush);
+
+	void paint(Painter &p, int left, int top, int outerWidth) override;
+
+private:
+
+	not_null<const style::Radio*> _st;
+	std::optional<QBrush> _brushOverride;
+
+};
+
+GradientRadioView::GradientRadioView(
+	const style::Radio &st,
+	bool checked,
+	Fn<void()> updateCallback)
+: Ui::RadioView(st, checked, updateCallback)
+, _st(&st) {
+}
+
+void GradientRadioView::paint(Painter &p, int left, int top, int outerWidth) {
+	PainterHighQualityEnabler hq(p);
+
+	const auto toggled = currentAnimationValue();
+	const auto toggledFg = _brushOverride
+		? (*_brushOverride)
+		: QBrush(_st->toggledFg);
+
+	{
+		const auto skip = (_st->outerSkip / 10.) + (_st->thickness / 2);
+		const auto rect = QRectF(left, top, _st->diameter, _st->diameter)
+			- QMarginsF(skip, skip, skip, skip);
+
+		p.setBrush(_st->bg);
+		if (toggled < 1) {
+			p.setPen(QPen(_st->untoggledFg, _st->thickness));
+			p.drawEllipse(style::rtlrect(rect, outerWidth));
+		}
+		if (toggled > 0) {
+			p.setOpacity(toggled);
+			p.setPen(QPen(toggledFg, _st->thickness));
+			p.drawEllipse(style::rtlrect(rect, outerWidth));
+		}
+	}
+
+	if (toggled > 0) {
+		p.setPen(Qt::NoPen);
+		p.setBrush(toggledFg);
+
+		const auto skip0 = _st->diameter / 2.;
+		const auto skip1 = _st->skip / 10.;
+		const auto checkSkip = skip0 * (1. - toggled) + skip1 * toggled;
+		const auto rect = QRectF(left, top, _st->diameter, _st->diameter)
+			- QMarginsF(checkSkip, checkSkip, checkSkip, checkSkip);
+		p.drawEllipse(style::rtlrect(rect, outerWidth));
+	}
+}
+
+void GradientRadioView::setBrush(std::optional<QBrush> brush) {
+	_brushOverride = brush;
+}
 
 [[nodiscard]] TextFactory ProcessTextFactory(
 		std::optional<tr::phrase<lngtag_count>> phrase) {
@@ -614,7 +683,7 @@ void Line::recache(const QSize &s) {
 		halfRect.setLeft(r.center().x());
 		pathRect.addRect(halfRect);
 
-		p.fillPath(pathRound + pathRect, st::windowShadowFgFallback);
+		p.fillPath(pathRound + pathRect, st::windowBgOver);
 
 		_leftPixmap = std::move(leftPixmap);
 	}
@@ -937,7 +1006,9 @@ void ShowListBox(
 void AddGiftOptions(
 		not_null<Ui::VerticalLayout*> parent,
 		std::shared_ptr<Ui::RadiobuttonGroup> group,
-		std::vector<GiftInfo> gifts) {
+		std::vector<Data::SubscriptionOption> gifts,
+		const style::PremiumOption &st,
+		bool topBadges) {
 
 	struct Edges {
 		Ui::RpWidget *top = nullptr;
@@ -952,11 +1023,11 @@ void AddGiftOptions(
 
 	const auto stops = GiftGradientStops();
 
-	const auto addRow = [&](const GiftInfo &info, int index) {
+	const auto addRow = [&](const Data::SubscriptionOption &info, int index) {
 		const auto row = parent->add(
 			object_ptr<Ui::AbstractButton>(parent),
-			st::premiumGiftRowPaddings);
-		row->resize(row->width(), st::premiumGiftRowHeight);
+			st.rowPadding);
+		row->resize(row->width(), st.rowHeight);
 		{
 			if (!index) {
 				edges->top = row;
@@ -965,12 +1036,17 @@ void AddGiftOptions(
 		}
 
 		const auto &stCheckbox = st::defaultBoxCheckbox;
+		auto radioView = std::make_unique<GradientRadioView>(
+			st::defaultRadio,
+			(group->hasValue() && group->value() == index));
+		const auto radioViewRaw = radioView.get();
 		const auto radio = Ui::CreateChild<Ui::Radiobutton>(
 			row,
 			group,
 			index,
 			QString(),
-			stCheckbox);
+			stCheckbox,
+			std::move(radioView));
 		radio->setAttribute(Qt::WA_TransparentForMouseEvents);
 
 		row->sizeValue(
@@ -980,9 +1056,27 @@ void AddGiftOptions(
 				- margins.top()
 				- margins.bottom();
 			radio->moveToLeft(
-				st::premiumGiftRowMargins.left(),
+				st.rowMargins.left(),
 				(s.height() - radioHeight) / 2);
 		}, radio->lifetime());
+
+		{
+			auto onceLifetime = std::make_shared<rpl::lifetime>();
+			row->paintRequest(
+			) | rpl::take(
+				1
+			) | rpl::start_with_next([=]() mutable {
+				const auto from = edges->top->y();
+				const auto to = edges->bottom->y() + edges->bottom->height();
+				auto partialGradient = PartialGradient(from, to, stops);
+
+				radioViewRaw->setBrush(
+					partialGradient.compute(row->y(), row->height()));
+				if (onceLifetime) {
+					base::take(onceLifetime)->destroy();
+				}
+			}, *onceLifetime);
+		}
 
 		row->paintRequest(
 		) | rpl::start_with_next([=](const QRect &r) {
@@ -991,48 +1085,67 @@ void AddGiftOptions(
 
 			p.fillRect(r, Qt::transparent);
 
-			const auto left = st::premiumGiftRowTextLeft;
-			const auto borderWidth = st::premiumGiftRowBorderWidth;
+			const auto left = st.textLeft;
 			const auto halfHeight = row->height() / 2;
 
 			const auto titleFont = st::semiboldFont;
 			p.setFont(titleFont);
 			p.setPen(st::boxTextFg);
-			p.drawText(
-				left,
-				st::premiumGiftRowSubtitleTop + titleFont->ascent,
-				info.duration);
+			if (info.costPerMonth.isEmpty() && info.discount.isEmpty()) {
+				const auto r = row->rect().translated(
+					-row->rect().left() + left,
+					0);
+				p.drawText(r, info.duration, style::al_left);
+			} else {
+				p.drawText(
+					left,
+					st.subtitleTop + titleFont->ascent,
+					info.duration);
+			}
 
 			const auto discountFont = st::windowFiltersButton.badgeStyle.font;
 			const auto discountWidth = discountFont->width(info.discount);
 			const auto &discountMargins = discountWidth
-				? st::premiumGiftRowBadgeMargins
+				? st.badgeMargins
 				: style::margins();
-			const auto discountRect = QRect(
+
+			const auto bottomLeftRect = QRect(
 				left,
 				halfHeight + discountMargins.top(),
 				discountWidth
 					+ discountMargins.left()
 					+ discountMargins.right(),
-				st::premiumGiftRowBadgeHeight);
+				st.badgeHeight);
+			const auto discountRect = topBadges
+				? bottomLeftRect.translated(
+					titleFont->width(info.duration) + st.badgeShift.x(),
+					-bottomLeftRect.top()
+						+ st.badgeShift.y()
+						+ st.subtitleTop
+						+ (titleFont->height - bottomLeftRect.height()) / 2)
+				: bottomLeftRect;
+			const auto from = edges->top->y();
+			const auto to = edges->bottom->y() + edges->bottom->height();
+			auto partialGradient = PartialGradient(from, to, stops);
+			const auto partialGradientBrush = partialGradient.compute(
+				row->y(),
+				row->height());
 			{
-				const auto from = edges->top->y();
-				const auto to = edges->bottom->y() + edges->bottom->height();
-				auto partialGradient = PartialGradient(from, to, stops);
-
 				p.setPen(Qt::NoPen);
-				p.setBrush(partialGradient.compute(row->y(), row->height()));
-				const auto round = st::premiumGiftRowBadgeRadius;
+				p.setBrush(partialGradientBrush);
+				const auto round = st.badgeRadius;
 				p.drawRoundedRect(discountRect, round, round);
 			}
 
-			if (animation->nowIndex == index) {
+			if (st.borderWidth && (animation->nowIndex == index)) {
 				const auto progress = animation->animation.value(1.);
 				const auto w = row->width();
 				auto gradient = QLinearGradient(w - w * progress, 0, w * 2, 0);
 				gradient.setSpread(QGradient::Spread::RepeatSpread);
 				gradient.setStops(stops);
-				const auto pen = QPen(QBrush(gradient), borderWidth);
+				const auto pen = QPen(
+					QBrush(partialGradientBrush),
+					st.borderWidth);
 				p.setPen(pen);
 				p.setBrush(Qt::NoBrush);
 				const auto borderRect = row->rect()
@@ -1041,26 +1154,28 @@ void AddGiftOptions(
 						pen.width() / 2,
 						pen.width() / 2,
 						pen.width() / 2);
-				const auto round = st::premiumGiftRowBorderRadius;
+				const auto round = st.borderRadius;
 				p.drawRoundedRect(borderRect, round, round);
 			}
 
-			p.setPen(st::boxBg);
+			p.setPen(st::premiumButtonFg);
 			p.setFont(discountFont);
 			p.drawText(discountRect, info.discount, style::al_center);
 
 			const auto perRect = QMargins(0, 0, row->width(), 0)
-				+ discountRect.translated(
-					discountRect.width() + discountMargins.left(),
+				+ bottomLeftRect.translated(
+					topBadges
+						? 0
+						: bottomLeftRect.width() + discountMargins.left(),
 					0);
 			p.setPen(st::windowSubTextFg);
 			p.setFont(st::shareBoxListItem.nameStyle.font);
-			p.drawText(perRect, info.perMonth, style::al_left);
+			p.drawText(perRect, info.costPerMonth, style::al_left);
 
 			const auto totalRect = row->rect()
-				- QMargins(0, 0, st::premiumGiftRowMargins.right(), 0);
+				- QMargins(0, 0, st.rowMargins.right(), 0);
 			p.setFont(st::normalFont);
-			p.drawText(totalRect, info.total, style::al_right);
+			p.drawText(totalRect, info.costTotal, style::al_right);
 		}, row->lifetime());
 
 		row->setClickedCallback([=, duration = st::defaultCheck.duration] {

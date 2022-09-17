@@ -64,22 +64,19 @@ private:
 		int x,
 		int y,
 		LargeCustomEmoji &element,
-		const PaintContext &context,
-		bool paused);
+		const PaintContext &context);
 	void paintSticker(
 		Painter &p,
 		int x,
 		int y,
 		not_null<Sticker*> sticker,
-		const PaintContext &context,
-		bool paused);
+		const PaintContext &context);
 	void paintCustom(
 		Painter &p,
 		int x,
 		int y,
 		not_null<Ui::Text::CustomEmoji*> emoji,
-		const PaintContext &context,
-		bool paused);
+		const PaintContext &context);
 
 	[[nodiscard]] not_null<Data::CustomEmojiManager::Listener*> listener() {
 		return this;

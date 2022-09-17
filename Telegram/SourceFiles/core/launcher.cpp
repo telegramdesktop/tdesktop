@@ -530,9 +530,10 @@ void Launcher::processArguments() {
 
 	const auto scaleKey = parseResult.value("-scale", {});
 	if (scaleKey.size() > 0) {
+		using namespace style;
 		const auto value = scaleKey[0].toInt();
-		gConfigScale = ((value < 75) || (value > 300))
-			? style::kScaleAuto
+		gConfigScale = ((value < kScaleMin) || (value > kScaleMax))
+			? kScaleAuto
 			: value;
 	}
 }

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/group_call_userpics.h"
+#include "ui/text/text_custom_emoji.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
@@ -67,9 +68,11 @@ StringWithReacted ReplaceTag<StringWithReacted>::Call(
 namespace Ui {
 namespace {
 
+using Text::CustomEmojiFactory;
+
 struct EntryData {
 	QString text;
-	QString reaction;
+	QString customEntityData;
 	QImage userpic;
 	Fn<void()> callback;
 };
@@ -79,6 +82,7 @@ public:
 	Action(
 		not_null<PopupMenu*> parentMenu,
 		rpl::producer<WhoReadContent> content,
+		CustomEmojiFactory factory,
 		Fn<void(uint64)> participantChosen,
 		Fn<void()> showAllChosen);
 
@@ -108,10 +112,12 @@ private:
 	const Fn<void()> _showAllChosen;
 	const std::unique_ptr<GroupCallUserpics> _userpics;
 	const style::Menu &_st;
+	const CustomEmojiFactory _customEmojiFactory;
 
 	WhoReactedListMenu _submenu;
 
 	Text::String _text;
+	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
 	int _textWidth = 0;
 	const int _height = 0;
 	int _userpicsWidth = 0;
@@ -143,6 +149,7 @@ TextParseOptions MenuTextOptions = {
 Action::Action(
 	not_null<PopupMenu*> parentMenu,
 	rpl::producer<WhoReadContent> content,
+	Text::CustomEmojiFactory factory,
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen)
 : ItemBase(parentMenu->menu(), parentMenu->menu()->st())
@@ -155,7 +162,8 @@ Action::Action(
 	rpl::never<bool>(),
 	[=] { update(); }))
 , _st(parentMenu->menu()->st())
-, _submenu(_participantChosen, _showAllChosen)
+, _customEmojiFactory(std::move(factory))
+, _submenu(_customEmojiFactory, _participantChosen, _showAllChosen)
 , _height(st::defaultWhoRead.itemPadding.top()
 		+ _st.itemStyle.font->height
 		+ st::defaultWhoRead.itemPadding.bottom()) {
@@ -300,18 +308,28 @@ void Action::paint(Painter &p) {
 	if (selected && _st.itemBgOver->c.alpha() < 255) {
 		p.fillRect(0, 0, width(), _height, _st.itemBg);
 	}
-	p.fillRect(0, 0, width(), _height, selected ? _st.itemBgOver : _st.itemBg);
+	const auto &bg = selected ? _st.itemBgOver : _st.itemBg;
+	p.fillRect(0, 0, width(), _height, bg);
 	if (enabled) {
 		paintRipple(p, 0, 0);
 	}
-	if (const auto emoji = Emoji::Find(_content.singleReaction)) {
-		// #TODO reactions
+	if (!_custom && !_content.singleCustomEntityData.isEmpty()) {
+		_custom = _customEmojiFactory(
+			_content.singleCustomEntityData,
+			[=] { update(); });
+	}
+	if (_custom) {
 		const auto ratio = style::DevicePixelRatio();
-		const auto size = Emoji::GetSizeNormal();
+		const auto size = Emoji::GetSizeNormal() / ratio;
+		const auto adjusted = Text::AdjustCustomEmojiSize(size);
 		const auto x = st::defaultWhoRead.iconPosition.x()
-			+ (st::whoReadChecks.width() - (size / ratio)) / 2;
-		const auto y = (_height - (size / ratio)) / 2;
-		Emoji::Draw(p, emoji, size, x, y);
+			+ (st::whoReadChecks.width() - adjusted) / 2;
+		const auto y = (_height - adjusted) / 2;
+		_custom->paint(p, {
+			.preview = _st.ripple.color->c,
+			.now = crl::now(),
+			.position = { x, y },
+		});
 	} else {
 		const auto &icon = (_content.fullReactionsCount)
 			? (!enabled
@@ -357,7 +375,7 @@ void Action::refreshText() {
 	const auto onlySeenCount = ranges::count(
 		_content.participants,
 		QString(),
-		&WhoReadParticipant::reaction);
+		&WhoReadParticipant::customEntityData);
 	const auto count = std::max(_content.fullReactionsCount, usersCount);
 	_text.setMarkedText(
 		_st.itemStyle,
@@ -448,6 +466,7 @@ class WhoReactedListMenu::EntryAction final : public Menu::ItemBase {
 public:
 	EntryAction(
 		not_null<RpWidget*> parent,
+		CustomEmojiFactory factory,
 		const style::Menu &st,
 		EntryData &&data);
 
@@ -462,22 +481,26 @@ private:
 	void paint(Painter &&p);
 
 	const not_null<QAction*> _dummyAction;
+	const CustomEmojiFactory _customEmojiFactory;
 	const style::Menu &_st;
 	const int _height = 0;
 
 	Text::String _text;
-	EmojiPtr _emoji = nullptr;
-	int _textWidth = 0;
+	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
 	QImage _userpic;
+	int _textWidth = 0;
+	int _customSize = 0;
 
 };
 
 WhoReactedListMenu::EntryAction::EntryAction(
 	not_null<RpWidget*> parent,
+	CustomEmojiFactory customEmojiFactory,
 	const style::Menu &st,
 	EntryData &&data)
 : ItemBase(parent, st)
 , _dummyAction(CreateChild<QAction>(parent.get()))
+, _customEmojiFactory(std::move(customEmojiFactory))
 , _st(st)
 , _height(st::defaultWhoRead.photoSkip * 2 + st::defaultWhoRead.photoSize) {
 	setAcceptBoth(true);
@@ -509,14 +532,14 @@ void WhoReactedListMenu::EntryAction::setData(EntryData &&data) {
 	setClickedCallback(std::move(data.callback));
 	_userpic = std::move(data.userpic);
 	_text.setMarkedText(_st.itemStyle, { data.text }, MenuTextOptions);
-	_emoji = Emoji::Find(data.reaction);
+	_custom = _customEmojiFactory(data.customEntityData, [=] { update(); });
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = Emoji::GetSizeNormal() / ratio;
+	_customSize = Text::AdjustCustomEmojiSize(size);
 	const auto textWidth = _text.maxWidth();
 	const auto &padding = _st.itemPadding;
 	const auto rightSkip = padding.right()
-		+ (_emoji
-			? ((Emoji::GetSizeNormal() / style::DevicePixelRatio())
-				+ padding.right())
-			: 0);
+		+ (_custom ? (size + padding.right()) : 0);
 	const auto goodWidth = st::defaultWhoRead.nameLeft
 		+ textWidth
 		+ rightSkip;
@@ -541,7 +564,7 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 	const auto photoTop = (height() - photoSize) / 2;
 	if (!_userpic.isNull()) {
 		p.drawImage(photoLeft, photoTop, _userpic);
-	} else if (!_emoji) {
+	} else if (!_custom) {
 		st::menuIconReactions.paintInCenter(
 			p,
 			QRect(photoLeft, photoTop, photoSize, photoSize));
@@ -559,16 +582,17 @@ void WhoReactedListMenu::EntryAction::paint(Painter &&p) {
 		_textWidth,
 		width());
 
-	if (_emoji) {
-		// #TODO reactions
-		const auto size = Emoji::GetSizeNormal();
+	if (_custom) {
 		const auto ratio = style::DevicePixelRatio();
-		Emoji::Draw(
-			p,
-			_emoji,
-			size,
-			width() - _st.itemPadding.right() - (size / ratio),
-			(height() - (size / ratio)) / 2);
+		const auto size = Emoji::GetSizeNormal() / ratio;
+		const auto skip = (size - _customSize) / 2;
+		_custom->paint(p, {
+			.preview = _st.ripple.color->c,
+			.now = crl::now(),
+			.position = QPoint(
+				width() - _st.itemPadding.right() - (size / ratio) + skip,
+				(height() - _customSize) / 2),
+		});
 	}
 }
 
@@ -585,19 +609,23 @@ bool operator!=(const WhoReadParticipant &a, const WhoReadParticipant &b) {
 base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 		not_null<PopupMenu*> menu,
 		rpl::producer<WhoReadContent> content,
+		CustomEmojiFactory factory,
 		Fn<void(uint64)> participantChosen,
 		Fn<void()> showAllChosen) {
 	return base::make_unique_q<Action>(
 		menu,
 		std::move(content),
+		std::move(factory),
 		std::move(participantChosen),
 		std::move(showAllChosen));
 }
 
 WhoReactedListMenu::WhoReactedListMenu(
+	CustomEmojiFactory factory,
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen)
-: _participantChosen(std::move(participantChosen))
+: _customEmojiFactory(std::move(factory))
+, _participantChosen(std::move(participantChosen))
 , _showAllChosen(std::move(showAllChosen)) {
 }
 
@@ -608,10 +636,12 @@ void WhoReactedListMenu::clear() {
 void WhoReactedListMenu::populate(
 		not_null<PopupMenu*> menu,
 		const WhoReadContent &content,
-		Fn<void()> refillTopActions) {
+		Fn<void()> refillTopActions,
+		int addedToBottom,
+		Fn<void()> appendBottomActions) {
 	const auto reactions = ranges::count_if(
 		content.participants,
-		[](const auto &p) { return !p.reaction.isEmpty(); });
+		[](const auto &p) { return !p.customEntityData.isEmpty(); });
 	const auto addShowAll = (content.fullReactionsCount > reactions);
 	const auto actionsCount = int(content.participants.size())
 		+ (addShowAll ? 1 : 0);
@@ -621,6 +651,7 @@ void WhoReactedListMenu::populate(
 		if (refillTopActions) {
 			refillTopActions();
 		}
+		addedToBottom = 0;
 	}
 	auto index = 0;
 	const auto append = [&](EntryData &&data) {
@@ -629,10 +660,16 @@ void WhoReactedListMenu::populate(
 		} else {
 			auto item = base::make_unique_q<EntryAction>(
 				menu->menu(),
+				_customEmojiFactory,
 				menu->menu()->st(),
 				std::move(data));
 			_actions.push_back(item.get());
-			menu->addAction(std::move(item));
+			const auto count = int(menu->actions().size());
+			if (addedToBottom > 0 && addedToBottom <= count) {
+				menu->insertAction(count - addedToBottom, std::move(item));
+			} else {
+				menu->addAction(std::move(item));
+			}
 		}
 		++index;
 	};
@@ -642,7 +679,7 @@ void WhoReactedListMenu::populate(
 		};
 		append({
 			.text = participant.name,
-			.reaction = participant.reaction,
+			.customEntityData = participant.customEntityData,
 			.userpic = participant.userpicLarge,
 			.callback = chosen,
 		});
@@ -653,7 +690,9 @@ void WhoReactedListMenu::populate(
 			.callback = _showAllChosen,
 		});
 	}
-
+	if (!addedToBottom && appendBottomActions) {
+		appendBottomActions();
+	}
 }
 
 } // namespace Ui

@@ -142,8 +142,10 @@ Widget::Widget(
 				- _pinnedToTop->minimumHeight();
 		};
 
-		_inner->heightValue(
-		) | rpl::start_with_next([=](int h) {
+		rpl::combine(
+			_pinnedToTop->heightValue(),
+			_inner->heightValue()
+		) | rpl::start_with_next([=](int, int h) {
 			_flexibleScroll.contentHeightValue.fire(h + heightDiff());
 		}, _pinnedToTop->lifetime());
 

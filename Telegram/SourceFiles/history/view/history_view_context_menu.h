@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unique_qptr.h"
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -75,16 +79,27 @@ void ShowWhoReactedMenu(
 	QPoint position,
 	not_null<QWidget*> context,
 	not_null<HistoryItem*> item,
-	const QString &emoji,
+	const Data::ReactionId &id,
 	not_null<Window::SessionController*> controller,
 	rpl::lifetime &lifetime);
 
+enum class EmojiPacksSource {
+	Message,
+	Reaction,
+	Reactions,
+};
 [[nodiscard]] std::vector<StickerSetIdentifier> CollectEmojiPacks(
-	not_null<HistoryItem*> item);
+	not_null<HistoryItem*> item,
+	EmojiPacksSource source);
 void AddEmojiPacksAction(
 	not_null<Ui::PopupMenu*> menu,
-	not_null<QWidget*> context,
 	std::vector<StickerSetIdentifier> packIds,
+	EmojiPacksSource source,
+	not_null<Window::SessionController*> controller);
+void AddEmojiPacksAction(
+	not_null<Ui::PopupMenu*> menu,
+	not_null<HistoryItem*> item,
+	EmojiPacksSource source,
 	not_null<Window::SessionController*> controller);
 
 } // namespace HistoryView

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flat_map.h"
 
 #include "dialogs/dialogs_key.h"
+#include "ui/unread_badge.h"
 
 namespace Main {
 class Session;
@@ -188,6 +189,9 @@ public:
 	}
 
 	[[nodiscard]] const Ui::Text::String &chatListNameText() const;
+	[[nodiscard]] Ui::PeerBadge &chatListBadge() const {
+		return _chatListBadge;
+	}
 
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);
@@ -221,6 +225,7 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
+	mutable Ui::PeerBadge _chatListBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;

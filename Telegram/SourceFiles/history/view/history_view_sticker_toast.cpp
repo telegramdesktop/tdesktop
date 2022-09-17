@@ -298,16 +298,15 @@ void StickerToast::setupEmojiPreview(
 	widget->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(widget);
-		const auto paused = false;
 		const auto size = Ui::Emoji::GetSizeLarge()
 			/ style::DevicePixelRatio();
-		instance->object.paint(
-			p,
-			(widget->width() - size) / 2,
-			(widget->height() - size) / 2,
-			crl::now(),
-			st::toastBg->c,
-			paused);
+		instance->object.paint(p, Ui::Text::CustomEmoji::Context{
+			.preview = st::toastBg->c,
+			.now = crl::now(),
+			.position = QPoint(
+				(widget->width() - size) / 2,
+				(widget->height() - size) / 2),
+		});
 	}, widget->lifetime());
 }
 

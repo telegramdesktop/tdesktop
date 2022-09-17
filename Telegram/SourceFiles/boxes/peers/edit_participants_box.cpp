@@ -1932,18 +1932,6 @@ auto ParticipantsBoxController::computeType(
 		? Rights::Admin
 		: Rights::Normal;
 	result.adminRank = user ? _additional.adminRank(user) : QString();
-	using Badge = Info::Profile::Badge;
-	result.badge = !user
-		? Badge::None
-		: user->isScam()
-		? Badge::Scam
-		: user->isFake()
-		? Badge::Fake
-		: user->isVerified()
-		? Badge::Verified
-		: (user->isPremium() && participant->session().premiumBadgesShown())
-		? Badge::Premium
-		: Badge::None;
 	return result;
 }
 
@@ -1952,7 +1940,8 @@ void ParticipantsBoxController::recomputeTypeFor(
 	if (_role != Role::Profile) {
 		return;
 	}
-	if (const auto row = delegate()->peerListFindRow(participant->id.value)) {
+	const auto row = delegate()->peerListFindRow(participant->id.value);
+	if (row) {
 		static_cast<Row*>(row)->setType(computeType(participant));
 	}
 }

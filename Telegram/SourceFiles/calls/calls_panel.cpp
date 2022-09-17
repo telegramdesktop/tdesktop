@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/base_platform_info.h"
 #include "base/power_save_blocker.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "window/main_window.h"
 #include "webrtc/webrtc_video_track.h"
 #include "webrtc/webrtc_media_devices.h"
@@ -335,16 +336,10 @@ void Panel::refreshIncomingGeometry() {
 		return;
 	}
 	const auto to = widget()->size();
-	const auto small = _incomingFrameSize.scaled(to, Qt::KeepAspectRatio);
-	const auto big = _incomingFrameSize.scaled(
+	const auto use = ::Media::Streaming::DecideFrameResize(
 		to,
-		Qt::KeepAspectRatioByExpanding);
-
-	// If we cut out no more than 0.25 of the original, let's use expanding.
-	const auto use = ((big.width() * 3 <= to.width() * 4)
-		&& (big.height() * 3 <= to.height() * 4))
-		? big
-		: small;
+		_incomingFrameSize
+	).result;
 	const auto pos = QPoint(
 		(to.width() - use.width()) / 2,
 		(to.height() - use.height()) / 2);

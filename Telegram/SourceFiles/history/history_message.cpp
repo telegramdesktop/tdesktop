@@ -166,7 +166,7 @@ QString GetErrorTextForSending(
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				Ui::FormatDurationWords(left));
+				Ui::FormatDurationWordsSlowmode(left));
 		}
 	}
 
@@ -1063,6 +1063,11 @@ void HistoryMessage::setupForwardedComponent(const CreateConfig &config) {
 
 void HistoryMessage::refreshMedia(const MTPMessageMedia *media) {
 	const auto was = (_media != nullptr);
+	if (const auto invoice = was ? _media->invoice() : nullptr) {
+		if (invoice->extendedMedia) {
+			return;
+		}
+	}
 	_media = nullptr;
 	if (media) {
 		setMedia(*media);
@@ -1317,6 +1322,15 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 			history()->owner().groups().unregisterMessage(this);
 		}
 		finishEditionToEmpty();
+	}
+}
+
+void HistoryMessage::applyEdition(const MTPMessageExtendedMedia &media) {
+	if (const auto existing = this->media()) {
+		if (existing->updateExtendedMedia(this, media)) {
+			checkBuyButton();
+			finishEdition(-1);
+		}
 	}
 }
 
@@ -1741,8 +1755,14 @@ void HistoryMessage::refreshRepliesText(
 		views->repliesSmall.text = (views->replies.count > 0)
 			? Lang::FormatCountToShort(views->replies.count).string
 			: QString();
-		views->repliesSmall.textWidth = st::semiboldFont->width(
-			views->repliesSmall.text);
+		const auto hadText = (views->repliesSmall.textWidth > 0);
+		views->repliesSmall.textWidth = (views->replies.count > 0)
+			? st::semiboldFont->width(views->repliesSmall.text)
+			: 0;
+		const auto hasText = (views->repliesSmall.textWidth > 0);
+		if (hasText != hadText) {
+			forceResize = true;
+		}
 	}
 	if (forceResize) {
 		history()->owner().requestItemResize(this);

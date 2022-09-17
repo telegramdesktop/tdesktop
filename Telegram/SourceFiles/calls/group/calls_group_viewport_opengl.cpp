@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/group/calls_group_viewport_tile.h"
 #include "webrtc/webrtc_video_track.h"
 #include "media/view/media_view_pip.h"
+#include "media/streaming/media_streaming_utility.h"
 #include "calls/group/calls_group_members_row.h"
 #include "lang/lang_keys.h"
 #include "ui/gl/gl_shader.h"
@@ -31,7 +32,6 @@ constexpr auto kNoiseTextureSize = 256;
 constexpr auto kBlurTextureSizeFactor = 4.;
 constexpr auto kBlurOpacity = 0.65;
 constexpr auto kDitherNoiseAmount = 0.002;
-constexpr auto kMinCameraVisiblePart = 0.75;
 
 constexpr auto kQuads = 9;
 constexpr auto kQuadVertices = kQuads * 4;
@@ -224,13 +224,8 @@ vec4 background() {
 }
 
 [[nodiscard]] bool UseExpandForCamera(QSize original, QSize viewport) {
-	const auto big = original.scaled(
-		viewport,
-		Qt::KeepAspectRatioByExpanding);
-
-	// If we cut out no more than 0.25 of the original, let's use expanding.
-	return (big.width() * kMinCameraVisiblePart <= viewport.width())
-		&& (big.height() * kMinCameraVisiblePart <= viewport.height());
+	using namespace ::Media::Streaming;
+	return DecideFrameResize(viewport, original).expanding;
 }
 
 [[nodiscard]] QSize NonEmpty(QSize size) {

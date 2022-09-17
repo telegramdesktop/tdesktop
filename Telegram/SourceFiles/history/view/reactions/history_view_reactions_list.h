@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class HistoryItem;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Api {
 struct WhoReadList;
 } // namespace Api
@@ -23,12 +27,12 @@ namespace Ui {
 class BoxContent;
 } // namespace Ui
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 
-object_ptr<Ui::BoxContent> ReactionsListBox(
+object_ptr<Ui::BoxContent> FullListBox(
 	not_null<Window::SessionController*> window,
 	not_null<HistoryItem*> item,
-	QString selected,
+	Data::ReactionId selected,
 	std::shared_ptr<Api::WhoReadList> whoReadIds = nullptr);
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

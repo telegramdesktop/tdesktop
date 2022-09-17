@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
+#include "data/data_message_reaction_id.h"
 #include "lang/lang_keys.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "window/notifications_manager.h"
 #include "window/window_session_controller.h"
 #include "facades.h"
 
@@ -1474,23 +1476,40 @@ void GenerateItems(
 
 	const auto createChangeAvailableReactions = [&](
 			const LogEventActionChangeAvailableReactions &data) {
-		auto list = QStringList();
-		for (const auto &emoji : data.vnew_value().v) {
-			list.append(qs(emoji));
-		}
-		const auto text = list.isEmpty()
-			? tr::lng_admin_log_reactions_disabled(
+		const auto text = data.vnew_value().match([&](
+				const MTPDchatReactionsNone&) {
+			return tr::lng_admin_log_reactions_disabled(
 				tr::now,
 				lt_from,
 				fromLinkText,
-				Ui::Text::WithEntities)
-			: tr::lng_admin_log_reactions_updated(
+				Ui::Text::WithEntities);
+		}, [&](const MTPDchatReactionsSome &data) {
+			using namespace Window::Notifications;
+			auto list = TextWithEntities();
+			for (const auto &one : data.vreactions().v) {
+				if (!list.empty()) {
+					list.append(", ");
+				}
+				list.append(Manager::ComposeReactionEmoji(
+					session,
+					Data::ReactionFromMTP(one)));
+			}
+			return tr::lng_admin_log_reactions_updated(
 				tr::now,
 				lt_from,
 				fromLinkText,
 				lt_emoji,
-				{ .text = list.join(", ") },
+				list,
 				Ui::Text::WithEntities);
+		}, [&](const MTPDchatReactionsAll &data) {
+			return (data.is_allow_custom()
+				? tr::lng_admin_log_reactions_allowed_all
+				: tr::lng_admin_log_reactions_allowed_official)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					Ui::Text::WithEntities);
+		});
 		addSimpleServiceMessage(text);
 	};
 

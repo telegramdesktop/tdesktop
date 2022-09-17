@@ -35,6 +35,10 @@ void ConfirmPhone::resolve(
 		_sendRequestId = 0;
 
 		result.match([&](const MTPDauth_sentCode &data) {
+			const auto bad = [](const char *type) {
+				LOG(("API Error: Should not be '%1'.").arg(type));
+				return 0;
+			};
 			const auto sentCodeLength = data.vtype().match([&](
 					const MTPDauth_sentCodeTypeApp &data) {
 				LOG(("Error: should not be in-app code!"));
@@ -43,12 +47,14 @@ void ConfirmPhone::resolve(
 				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeCall &data) {
 				return data.vlength().v;
-			}, [&](const MTPDauth_sentCodeTypeFlashCall &data) {
-				LOG(("Error: should not be flashcall!"));
-				return 0;
-			}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
-				LOG(("Error: should not be missedcall!"));
-				return 0;
+			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+				return bad("FlashCall");
+			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
+				return bad("MissedCall");
+			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
+				return bad("EmailCode");
+			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
+				return bad("SetUpEmailRequired");
 			});
 			const auto phoneHash = qs(data.vphone_code_hash());
 			const auto timeout = [&]() -> std::optional<int> {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "data/data_message_reaction_id.h"
 #include "base/observer.h"
 #include "base/timer.h"
 
@@ -224,7 +225,7 @@ public:
 		not_null<HistoryItem*> item;
 		int forwardedCount = 0;
 		PeerData *reactionFrom = nullptr;
-		QString reactionEmoji;
+		Data::ReactionId reactionId;
 	};
 
 	explicit Manager(not_null<System*> system) : _system(system) {
@@ -266,9 +267,12 @@ public:
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,
 		ItemNotificationType type) const;
+	[[nodiscard]] static TextWithEntities ComposeReactionEmoji(
+		not_null<Main::Session*> session,
+		const Data::ReactionId &reaction);
 	[[nodiscard]] static TextWithEntities ComposeReactionNotification(
 		not_null<HistoryItem*> item,
-		const QString &reaction,
+		const Data::ReactionId &reaction,
 		bool hideContent);
 
 	[[nodiscard]] QString addTargetAccountName(

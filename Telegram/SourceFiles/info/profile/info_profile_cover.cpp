@@ -7,25 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_cover.h"
 
-#include "data/data_photo.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_peer.h"
 #include "data/data_changes.h"
-#include "editor/photo_editor_layer_widget.h"
 #include "info/profile/info_profile_values.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_controller.h"
-#include "info/info_memento.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
-#include "ui/widgets/buttons.h"
-#include "ui/effects/ripple_animation.h"
 #include "ui/text/text_utilities.h"
 #include "ui/special_buttons.h"
-#include "ui/unread_badge.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
-#include "core/application.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "apiwrap.h"
@@ -33,8 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 namespace {
 
 auto MembersStatusText(int count) {
@@ -94,6 +89,19 @@ Cover::Cover(
 		+ st::infoProfilePhotoBottom)
 , _controller(controller)
 , _peer(peer)
+, _emojiStatusPanel(peer->isSelf()
+	? std::make_unique<EmojiStatusPanel>()
+	: nullptr)
+, _badge(
+	std::make_unique<Badge>(
+		this,
+		st::infoPeerBadge,
+		peer,
+		_emojiStatusPanel.get(),
+		[=] {
+			return controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer);
+		}))
 , _userpic(
 	this,
 	controller,
@@ -115,6 +123,17 @@ Cover::Cover(
 	if (!_peer->isMegagroup()) {
 		_status->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
+
+	_badge->setPremiumClickCallback([=] {
+		if (const auto panel = _emojiStatusPanel.get()) {
+			panel->show(_controller, _badge->widget(), _badge->sizeTag());
+		} else {
+			::Settings::ShowEmojiStatusPremium(_controller, _peer);
+		}
+	});
+	_badge->updated() | rpl::start_with_next([=] {
+		refreshNameGeometry(width());
+	}, _name->lifetime());
 
 	initViewers(std::move(title));
 	setupChildGeometry();
@@ -174,15 +193,6 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	} else if (_peer->isSelf()) {
 		refreshUploadPhotoOverlay();
 	}
-	BadgeValue(
-		_peer
-	) | rpl::start_with_next([=](Badge badge) {
-		if (badge == Badge::Premium
-			&& !_peer->session().premiumBadgesShown()) {
-			badge = Badge::None;
-		}
-		setBadge(badge);
-	}, lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
@@ -194,63 +204,6 @@ void Cover::refreshUploadPhotoOverlay() {
 		}
 		return _peer->isSelf();
 	}());
-}
-
-void Cover::setBadge(Badge badge) {
-	if (_badge == badge) {
-		return;
-	}
-	_badge = badge;
-	_verifiedCheck.destroy();
-	_scamFakeBadge.destroy();
-	switch (_badge) {
-	case Badge::Verified:
-	case Badge::Premium: {
-		const auto icon = (_badge == Badge::Verified)
-			? &st::infoVerifiedCheck
-			: &st::infoPremiumStar;
-		_verifiedCheck.create(this);
-		_verifiedCheck->show();
-		_verifiedCheck->resize(icon->size());
-		_verifiedCheck->paintRequest(
-		) | rpl::start_with_next([icon, check = _verifiedCheck.data()] {
-			Painter p(check);
-			icon->paint(p, 0, 0, check->width());
-		}, _verifiedCheck->lifetime());
-		if (_badge == Badge::Premium) {
-			const auto userId = peerToUser(_peer->id).bare;
-			_verifiedCheck->setClickedCallback([=] {
-				::Settings::ShowPremium(
-					_controller,
-					u"profile__%1"_q.arg(userId));
-			});
-		} else {
-			_verifiedCheck->setAttribute(Qt::WA_TransparentForMouseEvents);
-		}
-	} break;
-	case Badge::Scam:
-	case Badge::Fake: {
-		const auto fake = (_badge == Badge::Fake);
-		const auto size = Ui::ScamBadgeSize(fake);
-		const auto skip = st::infoVerifiedCheckPosition.x();
-		_scamFakeBadge.create(this);
-		_scamFakeBadge->show();
-		_scamFakeBadge->resize(
-			size.width() + 2 * skip,
-			size.height() + 2 * skip);
-		_scamFakeBadge->paintRequest(
-		) | rpl::start_with_next([=, badge = _scamFakeBadge.data()]{
-			Painter p(badge);
-			Ui::DrawScamBadge(
-				fake,
-				p,
-				badge->rect().marginsRemoved({ skip, skip, skip, skip }),
-				badge->width(),
-				st::attentionButtonFg);
-			}, _scamFakeBadge->lifetime());
-	} break;
-	}
-	refreshNameGeometry(width());
 }
 
 void Cover::refreshStatusText() {
@@ -311,32 +264,15 @@ void Cover::refreshNameGeometry(int newWidth) {
 	auto nameWidth = newWidth
 		- nameLeft
 		- st::infoProfileNameRight;
-	if (_verifiedCheck) {
-		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ _verifiedCheck->width();
-	} else if (_scamFakeBadge) {
-		nameWidth -= st::infoVerifiedCheckPosition.x()
-			+ _scamFakeBadge->width();
+	if (const auto widget = _badge->widget()) {
+		nameWidth -= st::infoVerifiedCheckPosition.x() + widget->width();
 	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
-	if (_verifiedCheck) {
-		const auto checkLeft = nameLeft
-			+ _name->width()
-			+ st::infoVerifiedCheckPosition.x();
-		const auto checkTop = nameTop
-			+ st::infoVerifiedCheckPosition.y();
-		_verifiedCheck->moveToLeft(checkLeft, checkTop, newWidth);
-	} else if (_scamFakeBadge) {
-		const auto skip = st::infoVerifiedCheckPosition.x();
-		const auto badgeLeft = nameLeft
-			+ _name->width()
-			+ st::infoVerifiedCheckPosition.x()
-			- skip;
-		const auto badgeTop = nameTop
-			+ (_name->height() - _scamFakeBadge->height()) / 2;
-		_scamFakeBadge->moveToLeft(badgeLeft, badgeTop, newWidth);
-	}
+	const auto badgeLeft = nameLeft + _name->width();
+	const auto badgeTop = nameTop;
+	const auto badgeBottom = nameTop + _name->height();
+	_badge->move(badgeLeft, badgeTop, badgeBottom);
 }
 
 void Cover::refreshStatusGeometry(int newWidth) {
@@ -350,5 +286,4 @@ void Cover::refreshStatusGeometry(int newWidth) {
 		newWidth);
 }
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

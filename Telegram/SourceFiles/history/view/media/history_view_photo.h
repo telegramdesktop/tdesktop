@@ -9,6 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/media/history_view_file.h"
 
+enum class ImageRoundRadius;
+
 namespace Data {
 class PhotoMedia;
 } // namespace Data
@@ -121,6 +123,15 @@ private:
 		RectParts corners,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
+	void validateImageCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const;
+	[[nodiscard]] QImage prepareImageCache(
+		QSize outer,
+		ImageRoundRadius radius,
+		RectParts corners) const;
+	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
 
 	bool videoAutoplayEnabled() const;
 	void setStreamed(std::unique_ptr<Streamed> value);
@@ -136,12 +147,14 @@ private:
 		QPoint photoPosition) const;
 
 	const not_null<PhotoData*> _data;
-	int _serviceWidth = 0;
-	int _pixw = 1;
-	int _pixh = 1;
 	Ui::Text::String _caption;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
+	mutable QImage _imageCache;
+	int _serviceWidth = 0;
+	mutable int _imageCacheRoundRadius : 4 = 0;
+	mutable int _imageCacheRoundCorners : 12 = 0;
+	mutable int _imageCacheBlurred : 1 = 0;
 
 };
 

@@ -16,7 +16,13 @@ namespace {
 
 constexpr auto kVersion = 1;
 
+} // namespace
+
+QString ConfigDefaultReactionEmoji() {
+	static const auto result = QString::fromUtf8("\xf0\x9f\x91\x8d");
+	return result;
 }
+
 Config::Config(Environment environment) : _dcOptions(environment) {
 	_fields.webFileDcId = _dcOptions.isTestMode() ? 2 : 4;
 	_fields.txtDomainString = _dcOptions.isTestMode()
@@ -31,11 +37,15 @@ Config::Config(const Config &other)
 
 QByteArray Config::serialize() const {
 	auto options = _dcOptions.serialize();
-	auto size = sizeof(qint32) * 2; // version + environment
-	size += Serialize::bytearraySize(options);
-	size += 28 * sizeof(qint32);
-	size += Serialize::stringSize(_fields.internalLinksDomain);
-	size += Serialize::stringSize(_fields.txtDomainString);
+	auto size = sizeof(qint32) * 2 // version + environment
+		+ Serialize::bytearraySize(options)
+		+ 19 * sizeof(qint32)
+		+ Serialize::stringSize(_fields.internalLinksDomain)
+		+ 6 * sizeof(qint32)
+		+ Serialize::stringSize(_fields.txtDomainString)
+		+ 3 * sizeof(qint32)
+		+ Serialize::stringSize(_fields.reactionDefaultEmoji)
+		+ sizeof(quint64);
 
 	auto result = QByteArray();
 	result.reserve(size);
@@ -77,7 +87,9 @@ QByteArray Config::serialize() const {
 			<< _fields.txtDomainString
 			<< qint32(1) // legacy phoneCallsEnabled
 			<< qint32(_fields.blockedMode ? 1 : 0)
-			<< qint32(_fields.captionLengthMax);
+			<< qint32(_fields.captionLengthMax)
+			<< _fields.reactionDefaultEmoji
+			<< quint64(_fields.reactionDefaultCustom);
 	}
 	return result;
 }
@@ -115,6 +127,10 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 		if constexpr (std::is_same_v<Type, int>
 			|| std::is_same_v<Type, rpl::variable<int>>) {
 			auto value = qint32();
+			stream >> value;
+			field = value;
+		} else if constexpr (std::is_same_v<Type, uint64>) {
+			auto value = quint64();
 			stream >> value;
 			field = value;
 		} else if constexpr (std::is_same_v<Type, bool>
@@ -161,6 +177,10 @@ std::unique_ptr<Config> Config::FromSerialized(const QByteArray &serialized) {
 	read(legacyPhoneCallsEnabled);
 	read(raw->_fields.blockedMode);
 	read(raw->_fields.captionLengthMax);
+	if (!stream.atEnd()) {
+		read(raw->_fields.reactionDefaultEmoji);
+		read(raw->_fields.reactionDefaultCustom);
+	}
 
 	if (stream.status() != QDataStream::Ok
 		|| !raw->_dcOptions.constructFromSerialized(dcOptionsSerialized)) {
@@ -220,6 +240,16 @@ void Config::apply(const MTPDconfig &data) {
 	_fields.callPacketTimeoutMs = data.vcall_packet_timeout_ms().v;
 	_fields.blockedMode = data.is_blocked_mode();
 	_fields.captionLengthMax = data.vcaption_length_max().v;
+	_fields.reactionDefaultEmoji = ConfigDefaultReactionEmoji();
+	_fields.reactionDefaultCustom = 0;
+	if (const auto reaction = data.vreactions_default()) {
+		reaction->match([&](const MTPDreactionEmpty &) {
+		}, [&](const MTPDreactionEmoji &data) {
+			_fields.reactionDefaultEmoji = qs(data.vemoticon());
+		}, [&](const MTPDreactionCustomEmoji &data) {
+			_fields.reactionDefaultCustom = data.vdocument_id().v;
+		});
+	}
 
 	if (data.vdc_options().v.empty()) {
 		LOG(("MTP Error: config with empty dc_options received!"));

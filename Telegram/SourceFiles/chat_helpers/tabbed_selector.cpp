@@ -107,7 +107,7 @@ void TabbedSelector::SlideAnimation::setFinalImages(Direction direction, QImage 
 	_painterInnerBottom = _innerBottom / cIntRetinaFactor();
 	_painterInnerWidth = _innerWidth / cIntRetinaFactor();
 	_painterInnerHeight = _innerHeight / cIntRetinaFactor();
-	_painterCategoriesTop = _painterInnerBottom - st::emojiFooterHeight;
+	_painterCategoriesTop = _painterInnerBottom - st::defaultEmojiPan.footer;
 
 	_wasSectionIcons = wasSectionIcons;
 }
@@ -294,6 +294,7 @@ TabbedSelector::TabbedSelector(
 	Window::GifPauseReason level,
 	Mode mode)
 : RpWidget(parent)
+, _st(st::defaultEmojiPan)
 , _controller(controller)
 , _level(level)
 , _mode(mode)
@@ -439,7 +440,14 @@ TabbedSelector::Tab TabbedSelector::createTab(SelectorTab type, int index) {
 	auto createWidget = [&]() -> object_ptr<Inner> {
 		switch (type) {
 		case SelectorTab::Emoji:
-			return object_ptr<EmojiListWidget>(this, _controller, _level);
+			using EmojiMode = EmojiListWidget::Mode;
+			return object_ptr<EmojiListWidget>(
+				this,
+				_controller,
+				_level,
+				(_mode == Mode::EmojiStatus
+					? EmojiMode::EmojiStatus
+					: EmojiMode::Full));
 		case SelectorTab::Stickers:
 			return object_ptr<StickersListWidget>(this, _controller, _level);
 		case SelectorTab::Gifs:
@@ -484,21 +492,16 @@ bool TabbedSelector::hasMasksTab() const {
 	return _hasMasksTab;
 }
 
-rpl::producer<EmojiPtr> TabbedSelector::emojiChosen() const {
+rpl::producer<EmojiChosen> TabbedSelector::emojiChosen() const {
 	return emoji()->chosen();
 }
 
-auto TabbedSelector::customEmojiChosen() const -> rpl::producer<FileChosen> {
+rpl::producer<FileChosen> TabbedSelector::customEmojiChosen() const {
 	return emoji()->customChosen();
 }
 
-auto TabbedSelector::premiumEmojiChosen() const
--> rpl::producer<not_null<DocumentData*>> {
-	return emoji()->premiumChosen();
-}
-
-auto TabbedSelector::fileChosen() const -> rpl::producer<FileChosen> {
-	auto never = rpl::never<TabbedSelector::FileChosen>(
+rpl::producer<FileChosen> TabbedSelector::fileChosen() const {
+	auto never = rpl::never<FileChosen>(
 	) | rpl::type_erased();
 	return rpl::merge(
 		hasStickersTab() ? stickers()->chosen() : never,
@@ -506,8 +509,7 @@ auto TabbedSelector::fileChosen() const -> rpl::producer<FileChosen> {
 		hasMasksTab() ? masks()->chosen() : never);
 }
 
-auto TabbedSelector::photoChosen() const
--> rpl::producer<TabbedSelector::PhotoChosen>{
+rpl::producer<PhotoChosen> TabbedSelector::photoChosen() const {
 	return hasGifsTab() ? gifs()->photoChosen() : nullptr;
 }
 
@@ -559,45 +561,50 @@ void TabbedSelector::resizeEvent(QResizeEvent *e) {
 			_tabsSlider->width(),
 			st::lineWidth);
 	}
+	updateScrollGeometry(e->oldSize());
+	updateRestrictedLabelGeometry();
+	updateFooterGeometry();
+	update();
+}
 
+void TabbedSelector::updateScrollGeometry(QSize oldSize) {
 	auto scrollWidth = width() - st::roundRadiusSmall;
-	auto scrollHeight = height() - scrollTop() - marginBottom();
+	auto scrollHeight = height() - scrollTop() - scrollBottom();
 	auto inner = currentTab()->widget();
 	auto innerWidth = scrollWidth - st::emojiScroll.width;
-	auto updateScrollGeometry = [&] {
+	auto setScrollGeometry = [&] {
 		_scroll->setGeometryToLeft(
 			st::roundRadiusSmall,
 			scrollTop(),
 			scrollWidth,
 			scrollHeight);
 	};
-	auto updateInnerGeometry = [&] {
+	auto setInnerGeometry = [&] {
 		auto scrollTop = _scroll->scrollTop();
 		auto scrollBottom = scrollTop + scrollHeight;
 		inner->setMinimalHeight(innerWidth, scrollHeight);
 		inner->setVisibleTopBottom(scrollTop, scrollBottom);
 	};
-	if (e->oldSize().height() > height()) {
-		updateScrollGeometry();
-		updateInnerGeometry();
+	if (oldSize.height() > height()) {
+		setScrollGeometry();
+		setInnerGeometry();
 	} else {
-		updateInnerGeometry();
-		updateScrollGeometry();
+		setInnerGeometry();
+		setScrollGeometry();
 	}
 	_bottomShadow->setGeometry(
 		0,
 		_scroll->y() + _scroll->height() - st::lineWidth,
 		width(),
 		st::lineWidth);
-	updateRestrictedLabelGeometry();
+}
 
-	_footerTop = height() - st::emojiFooterHeight;
+void TabbedSelector::updateFooterGeometry() {
+	_footerTop = _dropDown ? 0 : (height() - _st.footer);
 	for (auto &tab : _tabs) {
 		tab.footer()->resizeToWidth(width());
 		tab.footer()->moveToLeft(0, _footerTop);
 	}
-
-	update();
 }
 
 void TabbedSelector::updateRestrictedLabelGeometry() {
@@ -630,21 +637,7 @@ void TabbedSelector::paintEvent(QPaintEvent *e) {
 
 void TabbedSelector::paintSlideFrame(Painter &p) {
 	if (_roundRadius > 0) {
-		const auto topPart = QRect(
-			0,
-			0,
-			width(),
-			_tabsSlider
-				? _tabsSlider->height() + _roundRadius
-				: 3 * _roundRadius);
-		Ui::FillRoundRect(
-			p,
-			topPart,
-			st::emojiPanBg,
-			ImageRoundRadius::Small,
-			tabbed()
-				? RectPart::FullTop | RectPart::NoTopBottom
-				: RectPart::FullTop);
+		paintBgRoundedPart(p);
 	} else if (_tabsSlider) {
 		p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 	}
@@ -652,43 +645,53 @@ void TabbedSelector::paintSlideFrame(Painter &p) {
 	_slideAnimation->paintFrame(p, slideDt, 1.);
 }
 
+void TabbedSelector::paintBgRoundedPart(Painter &p) {
+	const auto threeRadius = 3 * _roundRadius;
+	const auto topOrBottomPart = _dropDown
+		? QRect(0, height() - threeRadius, width(), threeRadius)
+		: QRect(
+			0,
+			0,
+			width(),
+			(_tabsSlider
+				? _tabsSlider->height() + _roundRadius
+				: threeRadius));
+	Ui::FillRoundRect(
+		p,
+		topOrBottomPart,
+		st::emojiPanBg,
+		ImageRoundRadius::Small,
+		(_dropDown
+			? RectPart::FullBottom
+			: tabbed()
+			? (RectPart::FullTop | RectPart::NoTopBottom)
+			: RectPart::FullTop));
+}
+
 void TabbedSelector::paintContent(Painter &p) {
-	auto &bottomBg = hasSectionIcons()
+	auto &footerBg = hasSectionIcons()
 		? st::emojiPanCategories
 		: st::emojiPanBg;
 	if (_roundRadius > 0) {
-		const auto topPart = QRect(
-			0,
-			0,
-			width(),
-			_tabsSlider
-				? _tabsSlider->height() + _roundRadius
-				: 3 * _roundRadius);
-		Ui::FillRoundRect(
-			p,
-			topPart,
-			st::emojiPanBg,
-			ImageRoundRadius::Small,
-			tabbed()
-				? RectPart::FullTop | RectPart::NoTopBottom
-				: RectPart::FullTop);
+		paintBgRoundedPart(p);
 
-		const auto bottomPart = QRect(
+		const auto footerPart = QRect(
 			0,
-			_footerTop - _roundRadius,
+			_footerTop - (_dropDown ? 0 : _roundRadius),
 			width(),
-			st::emojiFooterHeight + _roundRadius);
+			_st.footer + _roundRadius);
 		Ui::FillRoundRect(
 			p,
-			bottomPart,
-			bottomBg,
+			footerPart,
+			footerBg,
 			ImageRoundRadius::Small,
-			RectPart::NoTopBottom | RectPart::FullBottom);
+			(RectPart::NoTopBottom
+				| (_dropDown ? RectPart::FullTop : RectPart::FullBottom)));
 	} else {
 		if (_tabsSlider) {
 			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);
 		}
-		p.fillRect(0, _footerTop, width(), st::emojiFooterHeight, bottomBg);
+		p.fillRect(0, _footerTop, width(), _st.footer, footerBg);
 	}
 
 	auto sidesTop = marginTop();
@@ -710,17 +713,23 @@ void TabbedSelector::paintContent(Painter &p) {
 }
 
 int TabbedSelector::marginTop() const {
-	return _tabsSlider
+	return _dropDown
+		? _st.footer
+		: _tabsSlider
 		? (_tabsSlider->height() - st::lineWidth)
 		: _roundRadius;
 }
 
 int TabbedSelector::scrollTop() const {
-	return tabbed() ? marginTop() : 0;
+	return tabbed() ? marginTop() : _dropDown ? _st.footer : 0;
 }
 
 int TabbedSelector::marginBottom() const {
-	return st::emojiFooterHeight;
+	return _dropDown ? _roundRadius : _st.footer;
+}
+
+int TabbedSelector::scrollBottom() const {
+	return _dropDown ? 0 : marginBottom();
 }
 
 void TabbedSelector::refreshStickers() {
@@ -850,14 +859,14 @@ void TabbedSelector::setCurrentPeer(PeerData *peer) {
 		peer && Data::AllowEmojiWithoutPremium(peer));
 }
 
-void TabbedSelector::showPromoForPremiumEmoji() {
-	premiumEmojiChosen(
-	) | rpl::start_with_next([=] {
-		ShowPremiumPreviewBox(
-			_controller,
-			PremiumPreview::AnimatedEmoji,
-			{});
-	}, lifetime());
+void TabbedSelector::provideRecentEmoji(
+		const std::vector<DocumentId> &customRecentList) {
+	for (const auto &tab : _tabs) {
+		if (tab.type() == SelectorTab::Emoji) {
+			const auto emoji = static_cast<EmojiListWidget*>(tab.widget());
+			emoji->provideRecent(customRecentList);
+		}
+	}
 }
 
 void TabbedSelector::checkRestrictedPeer() {
@@ -1123,14 +1132,19 @@ void TabbedSelector::scrollToY(int y) {
 }
 
 void TabbedSelector::showMenuWithType(SendMenu::Type type) {
-	_menu = base::make_unique_q<Ui::PopupMenu>(
-		this,
-		st::popupMenuWithIcons);
-	currentTab()->widget()->fillContextMenu(_menu, type);
-
-	if (!_menu->empty()) {
+	_menu = currentTab()->widget()->fillContextMenu(type);
+	if (_menu && !_menu->empty()) {
 		_menu->popup(QCursor::pos());
 	}
+}
+
+void TabbedSelector::setDropDown(bool dropDown) {
+	if (_dropDown == dropDown) {
+		return;
+	}
+	_dropDown = dropDown;
+	updateFooterGeometry();
+	updateScrollGeometry(size());
 }
 
 rpl::producer<> TabbedSelector::contextMenuRequested() const {
@@ -1178,13 +1192,22 @@ TabbedSelector::Inner::Inner(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	Window::GifPauseReason level)
-: RpWidget(parent)
-, _controller(controller)
-, _level(level) {
+: Inner(
+	parent,
+	st::defaultEmojiPan,
+	&controller->session(),
+	Window::PausedIn(controller, level)) {
 }
 
-Main::Session &TabbedSelector::Inner::session() const {
-	return controller()->session();
+TabbedSelector::Inner::Inner(
+	QWidget *parent,
+	const style::EmojiPan &st,
+	not_null<Main::Session*> session,
+	Fn<bool()> paused)
+: RpWidget(parent)
+, _st(st)
+, _session(session)
+, _paused(paused) {
 }
 
 rpl::producer<int> TabbedSelector::Inner::scrollToRequests() const {
@@ -1245,7 +1268,11 @@ int TabbedSelector::Inner::resizeGetHeight(int newWidth) {
 int TabbedSelector::Inner::minimalHeight() const {
 	return (_minimalHeight > 0)
 		? _minimalHeight
-		: (st::emojiPanMaxHeight - st::emojiFooterHeight);
+		: defaultMinimalHeight();
+}
+
+int TabbedSelector::Inner::defaultMinimalHeight() const {
+	return st::emojiPanMaxHeight - _st.footer;
 }
 
 void TabbedSelector::Inner::hideFinished() {
@@ -1263,9 +1290,16 @@ void TabbedSelector::Inner::panelHideFinished() {
 	}
 }
 
-TabbedSelector::InnerFooter::InnerFooter(QWidget *parent)
-: RpWidget(parent) {
-	resize(st::emojiPanWidth, st::emojiFooterHeight);
+TabbedSelector::InnerFooter::InnerFooter(
+	QWidget *parent,
+	const style::EmojiPan &st)
+: RpWidget(parent)
+, _st(st) {
+	resize(st::emojiPanWidth, _st.footer);
+}
+
+const style::EmojiPan &TabbedSelector::InnerFooter::st() const {
+	return _st;
 }
 
 } // namespace ChatHelpers

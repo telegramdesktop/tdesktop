@@ -22,6 +22,7 @@ inline constexpr auto FileStatusSizeFailed = 0xFFFFFFF2LL;
 	QString timeFormat);
 [[nodiscard]] QString FormatDurationText(qint64 duration);
 [[nodiscard]] QString FormatDurationWords(qint64 duration);
+[[nodiscard]] QString FormatDurationWordsSlowmode(qint64 duration);
 [[nodiscard]] QString FormatDurationAndSizeText(qint64 duration, qint64 size);
 [[nodiscard]] QString FormatGifAndSizeText(qint64 size);
 [[nodiscard]] QString FormatPlayedText(qint64 played, qint64 duration);

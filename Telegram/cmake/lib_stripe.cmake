@@ -43,7 +43,7 @@ PRIVATE
     smartglocal/smartglocal_error.h
     smartglocal/smartglocal_token.cpp
     smartglocal/smartglocal_token.h
-    
+
     stripe/stripe_pch.h
 )
 

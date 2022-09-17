@@ -38,6 +38,9 @@ namespace SendMenu {
 enum class Type;
 } // namespace SendMenu
 
+namespace ChatHelpers {
+struct FileChosen;
+} // namespace ChatHelpers
 
 class FieldAutocomplete final : public Ui::RpWidget {
 public:
@@ -73,22 +76,17 @@ public:
 	};
 	struct MentionChosen {
 		not_null<UserData*> user;
-		ChooseMethod method;
+		ChooseMethod method = ChooseMethod::ByEnter;
 	};
 	struct HashtagChosen {
 		QString hashtag;
-		ChooseMethod method;
+		ChooseMethod method = ChooseMethod::ByEnter;
 	};
 	struct BotCommandChosen {
 		QString command;
-		ChooseMethod method;
+		ChooseMethod method = ChooseMethod::ByEnter;
 	};
-	struct StickerChosen {
-		not_null<DocumentData*> sticker;
-		Api::SendOptions options;
-		ChooseMethod method;
-		Ui::MessageSendingAnimationFrom messageSendingFrom;
-	};
+	using StickerChosen = ChatHelpers::FileChosen;
 	enum class Type {
 		Mentions,
 		Hashtags,

@@ -82,7 +82,7 @@ Manager::Manager(System *system)
 Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 : history(fields.item->history())
 , peer(history->peer)
-, reaction(fields.reactionEmoji)
+, reaction(fields.reactionId)
 , author(!fields.reactionFrom
 	? fields.item->notificationHeader()
 	: (fields.reactionFrom != peer)
@@ -90,7 +90,7 @@ Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 	: QString())
 , item((fields.forwardedCount < 2) ? fields.item.get() : nullptr)
 , forwardedCount(fields.forwardedCount)
-, fromScheduled(reaction.isEmpty() && (fields.item->out() || peer->isSelf())
+, fromScheduled(reaction.empty() && (fields.item->out() || peer->isSelf())
 	&& fields.item->isFromScheduled()) {
 }
 
@@ -603,7 +603,7 @@ Notification::Notification(
 	not_null<PeerData*> peer,
 	const QString &author,
 	HistoryItem *item,
-	const QString &reaction,
+	const Data::ReactionId &reaction,
 	int forwardedCount,
 	bool fromScheduled,
 	QPoint startPosition,
@@ -799,7 +799,7 @@ void Notification::updateNotifyDisplay() {
 
 	const auto options = manager()->getNotificationOptions(
 		_item,
-		(_reaction.isEmpty()
+		(_reaction.empty()
 			? ItemNotificationType::Message
 			: ItemNotificationType::Reaction));
 	_hideReplyButton = options.hideReplyButton;
@@ -852,7 +852,7 @@ void Notification::updateNotifyDisplay() {
 		}
 
 		const auto composeText = !options.hideMessageText
-			|| (!_reaction.isEmpty() && !options.hideNameAndPhoto);
+			|| (!_reaction.empty() && !options.hideNameAndPhoto);
 		if (composeText) {
 			auto old = base::take(_textCache);
 			_textCache = Ui::Text::String(itemWidth);
@@ -861,7 +861,7 @@ void Notification::updateNotifyDisplay() {
 				st::notifyItemTop + st::msgNameFont->height,
 				itemWidth,
 				2 * st::dialogsTextFont->height);
-			const auto text = !_reaction.isEmpty()
+			const auto text = !_reaction.empty()
 				? (!_author.isEmpty()
 					? Ui::Text::PlainLink(_author).append(' ')
 					: TextWithEntities()

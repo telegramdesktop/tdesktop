@@ -26,8 +26,22 @@ public:
 	void scheduleIncrement(not_null<HistoryItem*> item);
 	void removeIncremented(not_null<PeerData*> peer);
 
+	void pollExtendedMedia(not_null<HistoryItem*> item);
+
 private:
+	struct PollExtendedMediaRequest {
+		crl::time when = 0;
+		mtpRequestId id = 0;
+		base::flat_set<MsgId> ids;
+		base::flat_set<MsgId> sent;
+	};
+
 	void viewsIncrement();
+	void sendPollRequests();
+	void sendPollRequests(
+		const base::flat_map<
+			not_null<PeerData*>,
+			QVector<MTPint>> &prepared);
 
 	void done(
 		QVector<MTPint> ids,
@@ -43,6 +57,11 @@ private:
 	base::flat_map<not_null<PeerData*>, mtpRequestId> _incrementRequests;
 	base::flat_map<mtpRequestId, not_null<PeerData*>> _incrementByRequest;
 	base::Timer _incrementTimer;
+
+	base::flat_map<
+		not_null<PeerData*>,
+		PollExtendedMediaRequest> _pollRequests;
+	base::Timer _pollTimer;
 
 };
 

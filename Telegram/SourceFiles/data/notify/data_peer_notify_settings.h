@@ -18,6 +18,17 @@ struct NotifySound {
 	bool none = false;
 };
 
+struct MuteValue {
+	bool unmute = false;
+	bool forever = false;
+	int period = 0;
+
+	[[nodiscard]] explicit operator bool() const {
+		return unmute || forever || period;
+	}
+	[[nodiscard]] int until() const;
+};
+
 inline bool operator==(const NotifySound &a, const NotifySound &b) {
 	return (a.id == b.id)
 		&& (a.none == b.none)
@@ -29,11 +40,9 @@ class PeerNotifySettings {
 public:
 	PeerNotifySettings();
 
-	static constexpr auto kDefaultMutePeriod = 86400 * 365;
-
 	bool change(const MTPPeerNotifySettings &settings);
 	bool change(
-		std::optional<int> muteForSeconds,
+		MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound);
 

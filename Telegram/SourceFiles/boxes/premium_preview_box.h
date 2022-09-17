@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class DocumentData;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace Ui {
 class BoxContent;
 class GenericBox;
@@ -38,7 +42,8 @@ enum class PremiumPreview {
 	FasterDownload,
 	VoiceToText,
 	NoAds,
-	Reactions,
+	EmojiStatus,
+	InfiniteReactions,
 	Stickers,
 	AnimatedEmoji,
 	AdvancedChatManagement,
@@ -47,16 +52,10 @@ enum class PremiumPreview {
 
 	kCount,
 };
-enum class ReactionDisableType {
-	None,
-	Group,
-	Channel,
-};
 
 void ShowPremiumPreviewBox(
 	not_null<Window::SessionController*> controller,
 	PremiumPreview section,
-	const base::flat_map<QString, ReactionDisableType> &disabled = {},
 	Fn<void(not_null<Ui::BoxContent*>)> shown = nullptr);
 
 void ShowPremiumPreviewToBuy(

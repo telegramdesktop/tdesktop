@@ -72,11 +72,14 @@ private:
 	void setupReportHandler(not_null<PeerData*> peer);
 	void setupCloseHandler(not_null<PeerData*> peer);
 	void setupRequestInfoHandler(not_null<PeerData*> peer);
+	void setupEmojiStatusHandler(not_null<PeerData*> peer);
 
 	static rpl::producer<State> PeerState(not_null<PeerData*> peer);
 
 	const not_null<Window::SessionController*> _controller;
 	State _state;
+	TextWithEntities _status;
+	Fn<std::any(Fn<void()> customEmojiRepaint)> _context;
 	Ui::SlideWrap<Bar> _bar;
 	Ui::PlainShadow _shadow;
 	bool _shown = false;

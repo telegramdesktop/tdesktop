@@ -10,8 +10,8 @@ init_target(lib_ffmpeg)
 
 nice_target_sources(lib_ffmpeg ${src_loc}
 PRIVATE
-    ffmpeg/ffmpeg_emoji.cpp
-    ffmpeg/ffmpeg_emoji.h
+    ffmpeg/ffmpeg_frame_generator.cpp
+    ffmpeg/ffmpeg_frame_generator.h
     ffmpeg/ffmpeg_utility.cpp
     ffmpeg/ffmpeg_utility.h
 )

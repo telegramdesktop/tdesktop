@@ -34,7 +34,7 @@ public:
 		const MTPPeerNotifySettings &settings);
 	void update(
 		not_null<PeerData*> peer,
-		std::optional<int> muteForSeconds,
+		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
@@ -53,7 +53,7 @@ public:
 
 	void defaultUpdate(
 		DefaultNotify type,
-		std::optional<int> muteForSeconds,
+		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
 

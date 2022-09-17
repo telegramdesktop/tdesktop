@@ -8,19 +8,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/gift_premium_box.h"
 
 #include "apiwrap.h"
+#include "api/api_premium_option.h"
 #include "base/weak_ptr.h"
-#include "core/click_handler_types.h" // ClickHandlerContext.
-#include "core/local_url_handlers.h" // TryConvertUrlToLocal.
 #include "data/data_changes.h"
 #include "data/data_peer_values.h" // Data::PeerPremiumValue.
 #include "data/data_session.h"
+#include "data/data_subscription_option.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
 #include "ui/effects/premium_graphics.h"
-#include "ui/effects/premium_stars.h"
+#include "ui/effects/premium_stars_colored.h"
 #include "ui/layers/generic_box.h"
 #include "ui/special_buttons.h"
 #include "ui/text/format_values.h"
@@ -39,11 +39,8 @@ namespace {
 
 constexpr auto kDiscountDivider = 5.;
 
-struct GiftOption final {
-	QString url;
-	Ui::Premium::GiftInfo info;
-};
-using GiftOptions = std::vector<GiftOption>;
+using GiftOption = Data::SubscriptionOption;
+using GiftOptions = Data::SubscriptionOptions;
 
 GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	auto result = GiftOptions();
@@ -51,113 +48,14 @@ GiftOptions GiftOptionFromTL(const MTPDuserFull &data) {
 	if (!gifts) {
 		return result;
 	}
-	const auto monthlyAmount = [&] {
-		const auto &min = ranges::min_element(
-			gifts->v,
-			ranges::less(),
-			[](const MTPPremiumGiftOption &o) { return o.data().vamount().v; }
-		)->data();
-		return min.vamount().v / float64(min.vmonths().v);
-	}();
-	result.reserve(gifts->v.size());
-	for (const auto &gift : gifts->v) {
-		const auto &option = gift.data();
-		const auto botUrl = qs(option.vbot_url());
-		const auto months = option.vmonths().v;
-		const auto amount = option.vamount().v;
-		const auto currency = qs(option.vcurrency());
-		const auto discount = [&] {
-			const auto percent = monthlyAmount * months / float64(amount)
-				- 1.;
-			return std::round(percent * 100. / kDiscountDivider)
-				* kDiscountDivider;
-		}();
-		auto info = Ui::Premium::GiftInfo{
-			.duration = Ui::FormatTTL(months * 86400 * 31),
-			.discount = discount
-				? QString::fromUtf8("\xe2\x88\x92%1%").arg(discount)
-				: QString(),
-			.perMonth = tr::lng_premium_gift_per(
-				tr::now,
-				lt_cost,
-				Ui::FillAmountAndCurrency(
-					amount / float64(months),
-					currency)),
-			.total = Ui::FillAmountAndCurrency(amount, currency),
-		};
-		result.push_back({ .url = botUrl, .info = std::move(info) });
+	result = Api::SubscriptionOptionsFromTL(gifts->v);
+	for (auto &option : result) {
+		option.costPerMonth = tr::lng_premium_gift_per(
+			tr::now,
+			lt_cost,
+			option.costPerMonth);
 	}
 	return result;
-}
-
-class ColoredMiniStars final {
-public:
-	ColoredMiniStars(not_null<Ui::RpWidget*> parent);
-
-	void setSize(const QSize &size);
-	void setPosition(QPoint position);
-	void paint(Painter &p);
-
-private:
-	Ui::Premium::MiniStars _ministars;
-	QRectF _ministarsRect;
-	QImage _frame;
-	QImage _mask;
-	QSize _size;
-	QPoint _position;
-
-};
-
-ColoredMiniStars::ColoredMiniStars(not_null<Ui::RpWidget*> parent)
-: _ministars([=](const QRect &r) {
-	parent->update(r.translated(_position));
-}, true) {
-}
-
-void ColoredMiniStars::setSize(const QSize &size) {
-	_frame = QImage(
-		size * style::DevicePixelRatio(),
-		QImage::Format_ARGB32_Premultiplied);
-	_frame.setDevicePixelRatio(style::DevicePixelRatio());
-
-	_mask = _frame;
-	_mask.fill(Qt::transparent);
-	{
-		Painter p(&_mask);
-		auto gradient = QLinearGradient(0, 0, size.width(), 0);
-		gradient.setStops(Ui::Premium::GiftGradientStops());
-		p.setPen(Qt::NoPen);
-		p.setBrush(gradient);
-		p.drawRect(0, 0, size.width(), size.height());
-	}
-
-	_size = size;
-
-	{
-		const auto s = _size / Ui::Premium::MiniStars::kSizeFactor;
-		const auto margins = QMarginsF(
-			s.width() / 2.,
-			s.height() / 2.,
-			s.width() / 2.,
-			s.height() / 2.);
-		_ministarsRect = QRectF(QPointF(), _size) - margins;
-	}
-}
-
-void ColoredMiniStars::setPosition(QPoint position) {
-	_position = std::move(position);
-}
-
-void ColoredMiniStars::paint(Painter &p) {
-	_frame.fill(Qt::transparent);
-	{
-		Painter q(&_frame);
-		_ministars.paint(q, _ministarsRect);
-		q.setCompositionMode(QPainter::CompositionMode_SourceIn);
-		q.drawImage(0, 0, _mask);
-	}
-
-	p.drawImage(_position, _frame);
 }
 
 void GiftBox(
@@ -182,6 +80,7 @@ void GiftBox(
 			+ userpicPadding.bottom()
 			+ st::defaultUserpicButton.size.height()));
 
+	using ColoredMiniStars = Ui::Premium::ColoredMiniStars;
 	const auto stars = box->lifetime().make_state<ColoredMiniStars>(top);
 
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
@@ -263,17 +162,14 @@ void GiftBox(
 		auto text = tr::lng_premium_gift_button(
 			tr::now,
 			lt_cost,
-			options[value].info.total);
+			options[value].costTotal);
 		state->buttonText.fire(std::move(text));
 	});
 	Ui::Premium::AddGiftOptions(
 		buttonsParent,
 		group,
-		ranges::views::all(
-			options
-		) | ranges::views::transform([](const GiftOption &option) {
-			return option.info;
-		}) | ranges::to_vector);
+		options,
+		st::premiumGiftOption);
 
 	// Footer.
 	auto terms = object_ptr<Ui::FlatLabel>(
@@ -304,26 +200,17 @@ void GiftBox(
 		[] { return QString("gift"); },
 		state->buttonText.events(),
 		Ui::Premium::GiftGradientStops(),
+		[=] {
+			const auto value = group->value();
+			return (value < options.size() && value >= 0)
+				? options[value].botUrl
+				: QString();
+		},
 	});
 	auto button = object_ptr<Ui::GradientButton>::fromRaw(raw);
 	button->resizeToWidth(boxWidth
 		- stButton.buttonPadding.left()
 		- stButton.buttonPadding.right());
-	button->setClickedCallback([=] {
-		const auto value = group->value();
-		Assert(value < options.size() && value >= 0);
-
-		const auto local = Core::TryConvertUrlToLocal(options[value].url);
-		if (local.isEmpty()) {
-			return;
-		}
-		UrlClickHandler::Open(
-			local,
-			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(controller.get()),
-				.botStartAutoSubmit = true,
-			}));
-	});
 	box->setShowFinishedCallback([raw = button.data()]{
 		raw->startGlareAnimation();
 	});

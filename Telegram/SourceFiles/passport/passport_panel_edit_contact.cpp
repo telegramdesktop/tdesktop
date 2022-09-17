@@ -154,10 +154,7 @@ void VerifyBox::setupControls(
 		) | rpl::start_with_next([=] {
 			_content->resizeToWidth(st::boxWidth);
 		}, _content->lifetime());
-		label->setClickHandlerFilter([=](auto&&...) {
-			resend();
-			return false;
-		});
+		label->overrideLinkClickHandler(resend);
 	}
 	std::move(
 		error

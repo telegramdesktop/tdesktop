@@ -133,7 +133,7 @@ private:
 	[[nodiscard]] ReadEnoughState readEnoughFrames(crl::time trackTime);
 	[[nodiscard]] FrameResult readFrame(not_null<Frame*> frame);
 	void fillRequests(not_null<Frame*> frame) const;
-	[[nodiscard]] QSize chooseOriginalResize() const;
+	[[nodiscard]] QSize chooseOriginalResize(QSize encoded) const;
 	void presentFrameIfNeeded();
 	void callReady();
 	[[nodiscard]] bool loopAround();
@@ -402,16 +402,22 @@ void VideoTrackObject::fillRequests(not_null<Frame*> frame) const {
 	}
 }
 
-QSize VideoTrackObject::chooseOriginalResize() const {
+QSize VideoTrackObject::chooseOriginalResize(QSize encoded) const {
 	auto chosen = QSize();
+	if (FFmpeg::RotationSwapWidthHeight(_stream.rotation)) {
+		encoded.transpose();
+	}
 	for (const auto &[_, request] : _requests) {
-		if (request.resize.isEmpty()) {
+		const auto resize = request.blurredBackground
+			? CalculateResizeFromOuter(request.outer, encoded)
+			: request.resize;
+		if (resize.isEmpty()) {
 			return QSize();
 		}
-		const auto byWidth = (request.resize.width() >= chosen.width());
-		const auto byHeight = (request.resize.height() >= chosen.height());
+		const auto byWidth = (resize.width() >= chosen.width());
+		const auto byHeight = (resize.height() >= chosen.height());
 		if (byWidth && byHeight) {
-			chosen = request.resize;
+			chosen = resize;
 		} else if (byWidth || byHeight) {
 			return QSize();
 		}
@@ -483,7 +489,8 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 		frame->original = ConvertFrame(
 			_stream,
 			frameWithData,
-			chooseOriginalResize(),
+			chooseOriginalResize(
+				{ frameWithData->width, frameWithData->height }),
 			std::move(frame->original));
 		if (frame->original.isNull()) {
 			frame->prepared.clear();
@@ -493,7 +500,10 @@ void VideoTrackObject::rasterizeFrame(not_null<Frame*> frame) {
 		frame->format = FrameFormat::ARGB32;
 	}
 
-	VideoTrack::PrepareFrameByRequests(frame, _stream.rotation);
+	VideoTrack::PrepareFrameByRequests(
+		frame,
+		_stream.aspect,
+		_stream.rotation);
 
 	Ensures(VideoTrack::IsRasterized(frame));
 }
@@ -706,22 +716,21 @@ void VideoTrackObject::callReady() {
 	const auto frame = _shared->frameForPaint();
 	++_frameIndex;
 
-	auto data = VideoInformation();
-	data.size = FFmpeg::CorrectByAspect(
-		frame->original.size(),
-		_stream.aspect);
-	if (FFmpeg::RotationSwapWidthHeight(_stream.rotation)) {
-		data.size.transpose();
-	}
-	data.cover = frame->original;
-	data.rotation = _stream.rotation;
-	data.alpha = frame->alpha;
-	data.state.duration = _stream.duration;
-	data.state.position = _syncTimePoint.trackTime;
-	data.state.receivedTill = _readTillEnd
-		? _stream.duration
-		: _syncTimePoint.trackTime;
-	base::take(_ready)({ data });
+	base::take(_ready)({ VideoInformation{
+		.state = {
+			.position = _syncTimePoint.trackTime,
+			.receivedTill = (_readTillEnd
+				? _stream.duration
+				: _syncTimePoint.trackTime),
+			.duration = _stream.duration,
+		},
+		.size = FFmpeg::TransposeSizeByRotation(
+			FFmpeg::CorrectByAspect(frame->original.size(), _stream.aspect),
+			_stream.rotation),
+		.cover = frame->original,
+		.rotation = _stream.rotation,
+		.alpha = frame->alpha,
+	} });
 }
 
 TimePoint VideoTrackObject::trackTime() const {
@@ -1060,7 +1069,7 @@ VideoTrack::VideoTrack(
 , _streamTimeBase(stream.timeBase)
 , _streamDuration(stream.duration)
 , _streamRotation(stream.rotation)
-//, _streamAspect(stream.aspect)
+, _streamAspect(stream.aspect)
 , _shared(std::make_unique<Shared>())
 , _wrapped(
 	options,
@@ -1232,6 +1241,7 @@ QImage VideoTrack::frameImage(
 		j->second.image = PrepareByRequest(
 			frame->original,
 			frame->alpha,
+			_streamAspect,
 			_streamRotation,
 			useRequest,
 			std::move(j->second.image));
@@ -1258,6 +1268,7 @@ void VideoTrack::unregisterInstance(not_null<const Instance*> instance) {
 
 void VideoTrack::PrepareFrameByRequests(
 		not_null<Frame*> frame,
+		const AVRational &aspect,
 		int rotation) {
 	Expects(frame->format != FrameFormat::ARGB32
 		|| !frame->original.isNull());
@@ -1286,6 +1297,7 @@ void VideoTrack::PrepareFrameByRequests(
 				prepared.image = PrepareByRequest(
 					frame->original,
 					frame->alpha,
+					aspect,
 					rotation,
 					prepared.request,
 					std::move(prepared.image));
