@@ -2625,19 +2625,21 @@ void StickersListWidget::removeMegagroupSet(bool locally) {
 	const auto cancelled = [](Fn<void()> &&close) {
 		close();
 	};
-	checkHideWithBox(_controller->show(Ui::MakeConfirmBox({
-		.text = tr::lng_stickers_remove_group_set(),
-		.confirmed = crl::guard(this, [this, group = _megagroupSet](
-				Fn<void()> &&close) {
-			Expects(group->mgInfo != nullptr);
+	const auto confirmed = crl::guard(this, [this, group = _megagroupSet](
+			Fn<void()> &&close) {
+		Expects(group->mgInfo != nullptr);
 
-			if (group->mgInfo->stickerSet) {
-				session().api().setGroupStickerSet(group, {});
-			}
-			close();
-		}),
+		if (group->mgInfo->stickerSet) {
+			session().api().setGroupStickerSet(group, {});
+		}
+		close();
+	});
+	auto confirmation_box = Ui::MakeConfirmBox({
+		.text = tr::lng_stickers_remove_group_set(),
+		.confirmed = std::move(confirmed),
 		.cancelled = cancelled,
-	})));
+	});
+	checkHideWithBox(_controller->show(std::move(confirmation_box)));
 }
 
 void StickersListWidget::removeSet(uint64 setId) {
