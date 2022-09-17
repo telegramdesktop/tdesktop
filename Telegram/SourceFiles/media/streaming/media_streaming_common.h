@@ -123,6 +123,7 @@ struct FrameRequest {
 	ImageRoundRadius radius = ImageRoundRadius();
 	RectParts corners = RectPart::AllCorners;
 	QColor colored = QColor(0, 0, 0, 0);
+	bool blurredBackground = false;
 	bool requireARGB32 = true;
 	bool keepAlpha = false;
 	bool strict = true;
@@ -134,7 +135,7 @@ struct FrameRequest {
 	}
 
 	[[nodiscard]] bool empty() const {
-		return resize.isEmpty();
+		return blurredBackground ? outer.isEmpty() : resize.isEmpty();
 	}
 
 	[[nodiscard]] bool operator==(const FrameRequest &other) const {
@@ -144,14 +145,16 @@ struct FrameRequest {
 			&& (corners == other.corners)
 			&& (colored == other.colored)
 			&& (keepAlpha == other.keepAlpha)
-			&& (requireARGB32 == other.requireARGB32);
+			&& (requireARGB32 == other.requireARGB32)
+			&& (blurredBackground == other.blurredBackground);
 	}
 	[[nodiscard]] bool operator!=(const FrameRequest &other) const {
 		return !(*this == other);
 	}
 
 	[[nodiscard]] bool goodFor(const FrameRequest &other) const {
-		return (requireARGB32 == other.requireARGB32)
+		return (blurredBackground == other.blurredBackground)
+			&& (requireARGB32 == other.requireARGB32)
 			&& (keepAlpha == other.keepAlpha)
 			&& (colored == other.colored)
 			&& ((strict && !other.strict) || (*this == other));

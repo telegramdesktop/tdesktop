@@ -36,10 +36,12 @@ namespace Data {
 struct Group;
 class CloudImageView;
 struct Reaction;
+struct AllowedReactions;
 } // namespace Data
 
 namespace HistoryView::Reactions {
 class Manager;
+struct ChosenReaction;
 struct ButtonParameters;
 } // namespace HistoryView::Reactions
 
@@ -118,7 +120,7 @@ public:
 	}
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
-		-> rpl::producer<std::optional<base::flat_set<QString>>> = 0;
+		-> rpl::producer<Data::AllowedReactions> = 0;
 	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
 };
 
@@ -285,7 +287,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) override;
-	bool elementIsGifPaused() override;
+	bool elementAnimationsPaused() override;
 	bool elementHideReply(not_null<const Element*> view) override;
 	bool elementShownUnread(not_null<const Element*> view) override;
 	void elementSendBotCommand(
@@ -379,6 +381,7 @@ private:
 	using ScrollTopState = ListMemento::ScrollTopState;
 	using PointState = HistoryView::PointState;
 	using CursorState = HistoryView::CursorState;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 
 	void refreshViewer();
 	void updateAroundPositionFromNearest(int nearestIndex);
@@ -414,6 +417,7 @@ private:
 	QPoint mapPointToItem(QPoint point, const Element *view) const;
 
 	void showContextMenu(QContextMenuEvent *e, bool showFromTouch = false);
+	void reactionChosen(ChosenReaction reaction);
 
 	[[nodiscard]] int findItemIndexByY(int y) const;
 	[[nodiscard]] not_null<Element*> findItemByY(int y) const;
@@ -583,6 +587,8 @@ private:
 	base::unique_qptr<Ui::RpWidget> _emptyInfo = nullptr;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+	rpl::variable<HistoryItem*> _reactionsItem;
+	bool _useCornerReaction = false;
 
 	int _minHeight = 0;
 	int _visibleTop = 0;

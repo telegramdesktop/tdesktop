@@ -167,8 +167,8 @@ public:
 		int count,
 		std::vector<UserId> recentRequesters);
 
-	void setAllowedReactions(base::flat_set<QString> list);
-	[[nodiscard]] const base::flat_set<QString> &allowedReactions() const;
+	void setAllowedReactions(Data::AllowedReactions value);
+	[[nodiscard]] const Data::AllowedReactions &allowedReactions() const;
 
 	// Still public data members.
 	const MTPlong inputChat;
@@ -194,7 +194,7 @@ private:
 	int _pendingRequestsCount = 0;
 	std::vector<UserId> _recentRequesters;
 
-	base::flat_set<QString> _allowedReactions;
+	Data::AllowedReactions _allowedReactions;
 
 	std::unique_ptr<Data::GroupCall> _call;
 	PeerId _callDefaultJoinAs = 0;

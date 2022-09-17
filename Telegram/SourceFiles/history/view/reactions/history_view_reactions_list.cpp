@@ -5,9 +5,9 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/message_reactions_list.h"
+#include "history/view/reactions/history_view_reactions_list.h"
 
-#include "history/view/reactions/message_reactions_selector.h"
+#include "history/view/reactions/history_view_reactions_tabs.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peers/prepare_short_info_box.h"
 #include "window/window_session_controller.h"
@@ -15,20 +15,31 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "api/api_who_reacted.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/text/text_custom_emoji.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "data/data_message_reaction_id.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 namespace {
 
 constexpr auto kPerPageFirst = 20;
 constexpr auto kPerPage = 100;
 
+using ::Data::ReactionId;
+
 class Row final : public PeerListRow {
 public:
-	Row(not_null<PeerData*> peer, const QString &reaction);
+	Row(
+		uint64 id,
+		not_null<PeerData*> peer,
+		const Ui::Text::CustomEmojiFactory &factory,
+		QStringView reactionEntityData,
+		Fn<void(Row*)> repaint,
+		Fn<bool()> paused);
 
 	QSize rightActionSize() const override;
 	QMargins rightActionMargins() const override;
@@ -42,7 +53,8 @@ public:
 		bool actionSelected) override;
 
 private:
-	EmojiPtr _emoji = nullptr;
+	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
+	Fn<bool()> _paused;
 
 };
 
@@ -51,8 +63,8 @@ public:
 	Controller(
 		not_null<Window::SessionController*> window,
 		not_null<HistoryItem*> item,
-		const QString &selected,
-		rpl::producer<QString> switches,
+		const ReactionId &selected,
+		rpl::producer<ReactionId> switches,
 		std::shared_ptr<Api::WhoReadList> whoReadIds);
 
 	Main::Session &session() const override;
@@ -61,23 +73,31 @@ public:
 	void loadMoreRows() override;
 
 private:
-	using AllEntry = std::pair<not_null<PeerData*>, QString>;
+	using AllEntry = std::pair<not_null<PeerData*>, Data::ReactionId>;
 
 	void fillWhoRead();
-	void loadMore(const QString &reaction);
-	bool appendRow(not_null<PeerData*> peer, QString reaction);
+	void loadMore(const ReactionId &reaction);
+	bool appendRow(not_null<PeerData*> peer, ReactionId reaction);
 	std::unique_ptr<PeerListRow> createRow(
 		not_null<PeerData*> peer,
-		QString reaction) const;
-	void showReaction(const QString &reaction);
+		ReactionId reaction) const;
+	void showReaction(const ReactionId &reaction);
+
+	[[nodiscard]] uint64 id(
+		not_null<PeerData*> peer,
+		const ReactionId &reaction) const;
 
 	const not_null<Window::SessionController*> _window;
 	const not_null<HistoryItem*> _item;
+	const Ui::Text::CustomEmojiFactory _factory;
 	MTP::Sender _api;
 
-	QString _shownReaction;
+	ReactionId _shownReaction;
 	std::shared_ptr<Api::WhoReadList> _whoReadIds;
 	std::vector<not_null<PeerData*>> _whoRead;
+
+	mutable base::flat_map<std::pair<PeerId, ReactionId>, uint64> _idsMap;
+	mutable uint64 _idsCounter = 0;
 
 	std::vector<AllEntry> _all;
 	QString _allOffset;
@@ -89,18 +109,27 @@ private:
 
 };
 
-Row::Row(not_null<PeerData*> peer, const QString &reaction)
-: PeerListRow(peer)
-, _emoji(Ui::Emoji::Find(reaction)) {
+Row::Row(
+	uint64 id,
+	not_null<PeerData*> peer,
+	const Ui::Text::CustomEmojiFactory &factory,
+	QStringView reactionEntityData,
+	Fn<void(Row*)> repaint,
+	Fn<bool()> paused)
+: PeerListRow(peer, id)
+, _custom(reactionEntityData.isEmpty()
+	? nullptr
+	: factory(reactionEntityData, [=] { repaint(this); }))
+, _paused(std::move(paused)) {
 }
 
 QSize Row::rightActionSize() const {
 	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
-	return _emoji ? QSize(size, size) : QSize();
+	return _custom ? QSize(size, size) : QSize();
 }
 
 QMargins Row::rightActionMargins() const {
-	if (!_emoji) {
+	if (!_custom) {
 		return QMargins();
 	}
 	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
@@ -122,29 +151,37 @@ void Row::rightActionPaint(
 		int outerWidth,
 		bool selected,
 		bool actionSelected) {
-	if (!_emoji) {
+	if (!_custom) {
 		return;
 	}
-	// #TODO reactions
-	Ui::Emoji::Draw(p, _emoji, Ui::Emoji::GetSizeNormal(), x, y);
+	const auto size = Ui::Emoji::GetSizeNormal() / style::DevicePixelRatio();
+	const auto skip = (size - Ui::Text::AdjustCustomEmojiSize(size)) / 2;
+	_custom->paint(p, {
+		.preview = st::windowBgRipple->c,
+		.now = crl::now(),
+		.position = { x + skip, y + skip },
+		.paused = _paused(),
+	});
 }
+
 
 Controller::Controller(
 	not_null<Window::SessionController*> window,
 	not_null<HistoryItem*> item,
-	const QString &selected,
-	rpl::producer<QString> switches,
+	const ReactionId &selected,
+	rpl::producer<ReactionId> switches,
 	std::shared_ptr<Api::WhoReadList> whoReadIds)
 : _window(window)
 , _item(item)
+, _factory(Data::ReactedMenuFactory(&window->session()))
 , _api(&window->session().mtp())
 , _shownReaction(selected)
 , _whoReadIds(whoReadIds) {
 	std::move(
 		switches
-	) | rpl::filter([=](const QString &reaction) {
+	) | rpl::filter([=](const ReactionId &reaction) {
 		return (_shownReaction != reaction);
-	}) | rpl::start_with_next([=](const QString &reaction) {
+	}) | rpl::start_with_next([=](const ReactionId &reaction) {
 		showReaction(reaction);
 	}, lifetime());
 }
@@ -154,7 +191,7 @@ Main::Session &Controller::session() const {
 }
 
 void Controller::prepare() {
-	if (_shownReaction == u"read"_q) {
+	if (_shownReaction.emoji() == u"read"_q) {
 		fillWhoRead();
 		setDescriptionText(QString());
 	} else {
@@ -164,7 +201,7 @@ void Controller::prepare() {
 	loadMore(_shownReaction);
 }
 
-void Controller::showReaction(const QString &reaction) {
+void Controller::showReaction(const ReactionId &reaction) {
 	if (_shownReaction == reaction) {
 		return;
 	}
@@ -175,9 +212,9 @@ void Controller::showReaction(const QString &reaction) {
 	}
 
 	_shownReaction = reaction;
-	if (_shownReaction == u"read"_q) {
+	if (_shownReaction.emoji() == u"read"_q) {
 		fillWhoRead();
-	} else if (_shownReaction.isEmpty()) {
+	} else if (_shownReaction.empty()) {
 		_filtered.clear();
 		for (const auto &[peer, reaction] : _all) {
 			appendRow(peer, reaction);
@@ -200,6 +237,16 @@ void Controller::showReaction(const QString &reaction) {
 	delegate()->peerListRefreshRows();
 }
 
+uint64 Controller::id(
+		not_null<PeerData*> peer,
+		const ReactionId &reaction) const {
+	const auto key = std::pair{ peer->id, reaction };
+	const auto i = _idsMap.find(key);
+	return (i != end(_idsMap)
+		? i
+		: _idsMap.emplace(key, ++_idsCounter).first)->second;
+}
+
 void Controller::fillWhoRead() {
 	if (_whoReadIds && !_whoReadIds->list.empty() && _whoRead.empty()) {
 		auto &owner = _window->session().data();
@@ -210,12 +257,12 @@ void Controller::fillWhoRead() {
 		}
 	}
 	for (const auto &peer : _whoRead) {
-		appendRow(peer, QString());
+		appendRow(peer, ReactionId());
 	}
 }
 
 void Controller::loadMoreRows() {
-	const auto &offset = _shownReaction.isEmpty()
+	const auto &offset = _shownReaction.empty()
 		? _allOffset
 		: _filteredOffset;
 	if (_loadRequestId || offset.isEmpty()) {
@@ -224,33 +271,33 @@ void Controller::loadMoreRows() {
 	loadMore(_shownReaction);
 }
 
-void Controller::loadMore(const QString &reaction) {
-	if (reaction == u"read"_q) {
-		loadMore(QString());
+void Controller::loadMore(const ReactionId &reaction) {
+	if (reaction.emoji() == u"read"_q) {
+		loadMore(ReactionId());
 		return;
-	} else if (reaction.isEmpty() && _allOffset.isEmpty() && !_all.empty()) {
+	} else if (reaction.empty() && _allOffset.isEmpty() && !_all.empty()) {
 		return;
 	}
 	_api.request(_loadRequestId).cancel();
 
-	const auto &offset = reaction.isEmpty()
+	const auto &offset = reaction.empty()
 		? _allOffset
 		: _filteredOffset;
 
 	using Flag = MTPmessages_GetMessageReactionsList::Flag;
 	const auto flags = Flag(0)
 		| (offset.isEmpty() ? Flag(0) : Flag::f_offset)
-		| (reaction.isEmpty() ? Flag(0) : Flag::f_reaction);
+		| (reaction.empty() ? Flag(0) : Flag::f_reaction);
 	_loadRequestId = _api.request(MTPmessages_GetMessageReactionsList(
 		MTP_flags(flags),
 		_item->history()->peer->input,
 		MTP_int(_item->id),
-		MTP_string(reaction),
+		Data::ReactionToMTP(reaction),
 		MTP_string(offset),
 		MTP_int(offset.isEmpty() ? kPerPageFirst : kPerPage)
 	)).done([=](const MTPmessages_MessageReactionsList &result) {
 		_loadRequestId = 0;
-		const auto filtered = !reaction.isEmpty();
+		const auto filtered = !reaction.empty();
 		const auto shown = (reaction == _shownReaction);
 		result.match([&](const MTPDmessages_messageReactionsList &data) {
 			const auto sessionData = &session().data();
@@ -262,7 +309,8 @@ void Controller::loadMore(const QString &reaction) {
 				reaction.match([&](const MTPDmessagePeerReaction &data) {
 					const auto peer = sessionData->peerLoaded(
 						peerFromMTP(data.vpeer_id()));
-					const auto reaction = qs(data.vreaction());
+					const auto reaction = Data::ReactionFromMTP(
+						data.vreaction());
 					if (peer && (!shown || appendRow(peer, reaction))) {
 						if (filtered) {
 							_filtered.emplace_back(peer);
@@ -288,8 +336,8 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 	});
 }
 
-bool Controller::appendRow(not_null<PeerData*> peer, QString reaction) {
-	if (delegate()->peerListFindRow(peer->id.value)) {
+bool Controller::appendRow(not_null<PeerData*> peer, ReactionId reaction) {
+	if (delegate()->peerListFindRow(id(peer, reaction))) {
 		return false;
 	}
 	delegate()->peerListAppendRow(createRow(peer, reaction));
@@ -298,47 +346,64 @@ bool Controller::appendRow(not_null<PeerData*> peer, QString reaction) {
 
 std::unique_ptr<PeerListRow> Controller::createRow(
 		not_null<PeerData*> peer,
-		QString reaction) const {
-	return std::make_unique<Row>(peer, reaction);
+		ReactionId reaction) const {
+	return std::make_unique<Row>(
+		id(peer, reaction),
+		peer,
+		_factory,
+		Data::ReactionEntityData(reaction),
+		[=](Row *row) { delegate()->peerListUpdateRow(row); },
+		[=] { return _window->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer); });
 }
 
 } // namespace
 
-object_ptr<Ui::BoxContent> ReactionsListBox(
+object_ptr<Ui::BoxContent> FullListBox(
 		not_null<Window::SessionController*> window,
 		not_null<HistoryItem*> item,
-		QString selected,
+		Data::ReactionId selected,
 		std::shared_ptr<Api::WhoReadList> whoReadIds) {
 	Expects(IsServerMsgId(item->id));
 
-	if (!item->reactions().contains(selected)) {
-		selected = QString();
+	if (!ranges::contains(
+			item->reactions(),
+			selected,
+			&Data::MessageReaction::id)) {
+		selected = {};
 	}
-	if (selected.isEmpty() && whoReadIds && !whoReadIds->list.empty()) {
-		selected = u"read"_q;
+	if (selected.empty() && whoReadIds && !whoReadIds->list.empty()) {
+		selected = Data::ReactionId{ u"read"_q };
 	}
-	const auto tabRequests = std::make_shared<rpl::event_stream<QString>>();
+	const auto tabRequests = std::make_shared<
+		rpl::event_stream<Data::ReactionId>>();
 	const auto initBox = [=](not_null<PeerListBox*> box) {
 		box->setNoContentMargin(true);
 
 		auto map = item->reactions();
 		if (whoReadIds && !whoReadIds->list.empty()) {
-			map.emplace(u"read"_q, int(whoReadIds->list.size()));
+			map.push_back({
+				.id = Data::ReactionId{ u"read"_q },
+				.count = int(whoReadIds->list.size()),
+			});
 		}
-		const auto selector = CreateReactionSelector(
+		const auto tabs = CreateTabs(
 			box,
+			Data::ReactedMenuFactory(&item->history()->session()),
+			[=] { return window->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer); },
 			map,
 			selected,
 			whoReadIds ? whoReadIds->type : Ui::WhoReadType::Reacted);
-		selector->changes(
+		tabs->changes(
 		) | rpl::start_to_stream(*tabRequests, box->lifetime());
 
 		box->widthValue(
 		) | rpl::start_with_next([=](int width) {
-			selector->resizeToWidth(width);
-			selector->move(0, 0);
+			tabs->resizeToWidth(width);
+			tabs->move(0, 0);
 		}, box->lifetime());
-		selector->heightValue(
+		tabs->heightValue(
 		) | rpl::start_with_next([=](int height) {
 			box->setAddedTopScrollSkip(height);
 		}, box->lifetime());
@@ -356,4 +421,4 @@ object_ptr<Ui::BoxContent> ReactionsListBox(
 		initBox);
 }
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

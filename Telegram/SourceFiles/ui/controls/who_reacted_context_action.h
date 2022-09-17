@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/unique_qptr.h"
+#include "ui/text/text_block.h"
 
 namespace Ui {
 namespace Menu {
@@ -18,7 +19,7 @@ class PopupMenu;
 
 struct WhoReadParticipant {
 	QString name;
-	QString reaction;
+	QString customEntityData;
 	QImage userpicSmall;
 	QImage userpicLarge;
 	std::pair<uint64, uint64> userpicKey = {};
@@ -40,7 +41,7 @@ enum class WhoReadType {
 struct WhoReadContent {
 	std::vector<WhoReadParticipant> participants;
 	WhoReadType type = WhoReadType::Seen;
-	QString singleReaction;
+	QString singleCustomEntityData;
 	int fullReactionsCount = 0;
 	int fullReadCount = 0;
 	bool unknown = false;
@@ -49,12 +50,14 @@ struct WhoReadContent {
 [[nodiscard]] base::unique_qptr<Menu::ItemBase> WhoReactedContextAction(
 	not_null<PopupMenu*> menu,
 	rpl::producer<WhoReadContent> content,
+	Text::CustomEmojiFactory factory,
 	Fn<void(uint64)> participantChosen,
 	Fn<void()> showAllChosen);
 
 class WhoReactedListMenu final {
 public:
 	WhoReactedListMenu(
+		Text::CustomEmojiFactory factory,
 		Fn<void(uint64)> participantChosen,
 		Fn<void()> showAllChosen);
 
@@ -62,11 +65,14 @@ public:
 	void populate(
 		not_null<PopupMenu*> menu,
 		const WhoReadContent &content,
-		Fn<void()> refillTopActions = nullptr);
+		Fn<void()> refillTopActions = nullptr,
+		int addedToBottom = 0,
+		Fn<void()> appendBottomActions = nullptr);
 
 private:
 	class EntryAction;
 
+	const Text::CustomEmojiFactory _customEmojiFactory;
 	const Fn<void(uint64)> _participantChosen;
 	const Fn<void()> _showAllChosen;
 

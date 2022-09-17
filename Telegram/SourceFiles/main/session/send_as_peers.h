@@ -13,13 +13,20 @@ namespace Main {
 
 class Session;
 
+struct SendAsPeer {
+	not_null<PeerData*> peer;
+	bool premiumRequired = false;
+
+	friend inline auto operator<=>(SendAsPeer, SendAsPeer) = default;
+};
+
 class SendAsPeers final {
 public:
 	explicit SendAsPeers(not_null<Session*> session);
 
 	bool shouldChoose(not_null<PeerData*> peer);
 	void refresh(not_null<PeerData*> peer, bool force = false);
-	[[nodiscard]] const std::vector<not_null<PeerData*>> &list(
+	[[nodiscard]] const std::vector<SendAsPeer> &list(
 		not_null<PeerData*> peer) const;
 	[[nodiscard]] rpl::producer<not_null<PeerData*>> updated() const;
 
@@ -33,18 +40,16 @@ public:
 
 	[[nodiscard]] static not_null<PeerData*> ResolveChosen(
 		not_null<PeerData*> peer,
-		const std::vector<not_null<PeerData*>> &list,
+		const std::vector<SendAsPeer> &list,
 		PeerId chosen);
 
 private:
 	void request(not_null<PeerData*> peer);
 
 	const not_null<Session*> _session;
-	const std::vector<not_null<PeerData*>> _onlyMe;
+	const std::vector<SendAsPeer> _onlyMe;
 
-	base::flat_map<
-		not_null<PeerData*>,
-		std::vector<not_null<PeerData*>>> _lists;
+	base::flat_map<not_null<PeerData*>, std::vector<SendAsPeer>> _lists;
 	base::flat_map<not_null<PeerData*>, crl::time> _lastRequestTime;
 	base::flat_map<not_null<PeerData*>, PeerId> _chosen;
 

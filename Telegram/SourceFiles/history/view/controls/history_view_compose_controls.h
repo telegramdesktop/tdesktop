@@ -16,7 +16,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/input_fields.h"
-#include "chat_helpers/tabbed_selector.h"
 
 class History;
 class FieldAutocomplete;
@@ -28,6 +27,8 @@ enum class Type;
 namespace ChatHelpers {
 class TabbedPanel;
 class TabbedSelector;
+struct FileChosen;
+struct PhotoChosen;
 } // namespace ChatHelpers
 
 namespace Data {
@@ -43,6 +44,7 @@ class ItemBase;
 class Widget;
 } // namespace Layout
 class Result;
+struct ResultSelected;
 } // namespace InlineBots
 
 namespace Ui {
@@ -78,9 +80,9 @@ class WebpageProcessor;
 
 class ComposeControls final {
 public:
-	using FileChosen = ChatHelpers::TabbedSelector::FileChosen;
-	using PhotoChosen = ChatHelpers::TabbedSelector::PhotoChosen;
-	using InlineChosen = ChatHelpers::TabbedSelector::InlineChosen;
+	using FileChosen = ChatHelpers::FileChosen;
+	using PhotoChosen = ChatHelpers::PhotoChosen;
+	using InlineChosen = InlineBots::ResultSelected;
 
 	using MessageToEdit = Controls::MessageToEdit;
 	using VoiceToSend = Controls::VoiceToSend;

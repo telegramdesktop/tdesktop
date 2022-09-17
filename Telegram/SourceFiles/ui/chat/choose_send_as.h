@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Main {
+struct SendAsPeer;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -22,9 +26,9 @@ class SendAsButton;
 
 void ChooseSendAsBox(
 	not_null<GenericBox*> box,
-	std::vector<not_null<PeerData*>> list,
+	std::vector<Main::SendAsPeer> list,
 	not_null<PeerData*> chosen,
-	Fn<void(not_null<PeerData*>)> done);
+	Fn<bool(not_null<PeerData*>)> done);
 
 void SetupSendAsButton(
 	not_null<SendAsButton*> button,

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "api/api_premium.h"
 
+#include "api/api_premium_option.h"
 #include "api/api_text_entities.h"
 #include "main/main_session.h"
 #include "data/data_peer_values.h"
@@ -86,37 +87,43 @@ void Premium::reloadPromo() {
 	_promoRequestId = _api.request(MTPhelp_GetPremiumPromo(
 	)).done([=](const MTPhelp_PremiumPromo &result) {
 		_promoRequestId = 0;
-		result.match([&](const MTPDhelp_premiumPromo &data) {
-			_session->data().processUsers(data.vusers());
-			_monthlyAmount = data.vmonthly_amount().v;
-			_monthlyCurrency = qs(data.vcurrency());
-			auto text = TextWithEntities{
-				qs(data.vstatus_text()),
-				EntitiesFromMTP(_session, data.vstatus_entities().v),
-			};
-			_statusText = text;
-			_statusTextUpdates.fire(std::move(text));
-			auto videos = base::flat_map<QString, not_null<DocumentData*>>();
-			const auto count = int(std::min(
-				data.vvideo_sections().v.size(),
-				data.vvideos().v.size()));
-			videos.reserve(count);
-			for (auto i = 0; i != count; ++i) {
-				const auto document = _session->data().processDocument(
-					data.vvideos().v[i]);
-				if ((!document->isVideoFile() && !document->isGifv())
-					|| !document->supportsStreaming()) {
-					document->forceIsStreamedAnimation();
-				}
-				videos.emplace(
-					qs(data.vvideo_sections().v[i]),
-					document);
+		const auto &data = result.data();
+		_session->data().processUsers(data.vusers());
+
+		_subscriptionOptions = SubscriptionOptionsFromTL(
+			data.vperiod_options().v);
+		for (const auto &option : data.vperiod_options().v) {
+			if (option.data().vmonths().v == 1) {
+				_monthlyAmount = option.data().vamount().v;
+				_monthlyCurrency = qs(option.data().vcurrency());
 			}
-			if (_videos != videos) {
-				_videos = std::move(videos);
-				_videosUpdated.fire({});
+		}
+		auto text = TextWithEntities{
+			qs(data.vstatus_text()),
+			EntitiesFromMTP(_session, data.vstatus_entities().v),
+		};
+		_statusText = text;
+		_statusTextUpdates.fire(std::move(text));
+		auto videos = base::flat_map<QString, not_null<DocumentData*>>();
+		const auto count = int(std::min(
+			data.vvideo_sections().v.size(),
+			data.vvideos().v.size()));
+		videos.reserve(count);
+		for (auto i = 0; i != count; ++i) {
+			const auto document = _session->data().processDocument(
+				data.vvideos().v[i]);
+			if ((!document->isVideoFile() && !document->isGifv())
+				|| !document->supportsStreaming()) {
+				document->forceIsStreamedAnimation();
 			}
-		});
+			videos.emplace(
+				qs(data.vvideo_sections().v[i]),
+				document);
+		}
+		if (_videos != videos) {
+			_videos = std::move(videos);
+			_videosUpdated.fire({});
+		}
 	}).fail([=] {
 		_promoRequestId = 0;
 	}).send();
@@ -174,6 +181,10 @@ void Premium::reloadCloudSet() {
 	}).fail([=] {
 		_cloudSetRequestId = 0;
 	}).send();
+}
+
+const Data::SubscriptionOptions &Premium::subscriptionOptions() const {
+	return _subscriptionOptions;
 }
 
 } // namespace Api

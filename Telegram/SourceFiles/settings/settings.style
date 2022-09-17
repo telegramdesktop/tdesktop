@@ -95,6 +95,7 @@ settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
+settingsPremiumIconStatus: icon {{ "settings/premium/status", settingsIconFg }};
 settingsPremiumIconLike: icon {{ "settings/premium/like", settingsIconFg }};
 settingsPremiumIconPlay: icon {{ "settings/premium/play", settingsIconFg }};
 settingsPremiumIconSpeed: icon {{ "settings/premium/speed", settingsIconFg }};
@@ -184,6 +185,11 @@ settingsInfoPhotoTop: 0px;
 settingsInfoPhotoSkip: 7px;
 settingsInfoNameSkip: -1px;
 settingsInfoUploadLeft: 6px;
+settingsInfoPeerBadge: InfoPeerBadge {
+	premium: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
+	premiumFg: dialogsVerifiedIconBg;
+	sizeTag: 0; // Normal
+}
 
 settingsBio: InputField(defaultInputField) {
 	textBg: transparent;
@@ -424,27 +430,27 @@ notifyPreviewBottomSkip: 9px;
 settingsPremiumButtonPadding: margins(11px, 11px, 11px, 3px);
 settingsPremiumTopBarBackIcon: icon {{ "info/info_back", premiumButtonFg }};
 settingsPremiumTopBarBackIconOver: icon {{ "info/info_back", premiumButtonFg }};
-settingsPremiumStarSize: size(77px, 73px);
-settingsPremiumStarTopSkip: 42px;
+settingsPremiumStarSize: size(84px, 81px);
+settingsPremiumStarTopSkip: 37px;
 settingsPremiumTopBarBack: IconButton(infoTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumLayerTopBarBack: IconButton(infoLayerTopBarBack) {
 	icon: settingsPremiumTopBarBackIcon;
 	iconOver: settingsPremiumTopBarBackIconOver;
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumTopBarClose: IconButton(infoTopBarClose) {
 	icon: icon {{ "info/info_close", premiumButtonFg }};
 	iconOver: icon {{ "info/info_close", premiumButtonFg }};
 	ripple: RippleAnimation(defaultRippleAnimation) {
-		color: shadowFg;
+		color: callMuteRipple;
 	}
 }
 settingsPremiumMoveLeft: IconButton(settingsPremiumLayerTopBarBack) {
@@ -458,20 +464,21 @@ settingsPremiumMoveRight: IconButton(settingsPremiumMoveLeft) {
 	icon: settingsPremiumMoveRightIcon;
 	iconOver: settingsPremiumMoveRightIconOver;
 }
-settingsPremiumRowTitlePadding: margins(60px, 5px, 46px, 3px);
-settingsPremiumRowAboutPadding: margins(60px, 0px, 46px, 6px);
+settingsPremiumRowTitlePadding: margins(59px, 5px, 46px, 1px);
+settingsPremiumRowAboutPadding: margins(59px, 0px, 46px, 6px);
 settingsPremiumPreviewTitlePadding: margins(24px, 13px, 24px, 3px);
 settingsPremiumPreviewAboutPadding: margins(24px, 0px, 24px, 11px);
 settingsPremiumPreviewLinePadding: margins(18px, 0px, 18px, 8px);
 
-settingsPremiumTitlePadding: margins(0px, 20px, 0px, 16px);
+settingsPremiumTitlePadding: margins(0px, 18px, 0px, 11px);
+settingsPremiumAboutTextStyle: TextStyle(defaultTextStyle) {
+	font: font(12px);
+	linkFont: font(12px underline);
+	linkFontOver: font(12px underline);
+	lineHeight: 18px;
+}
 settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
-	style: TextStyle(defaultTextStyle) {
-		font: font(12px);
-		linkFont: font(12px underline);
-		linkFontOver: font(12px underline);
-		lineHeight: 18px;
-	}
+	style: settingsPremiumAboutTextStyle;
 	palette: TextPalette(defaultTextPalette) {
 		linkFg: premiumButtonFg;
 	}
@@ -479,7 +486,32 @@ settingsPremiumAbout: FlatLabel(defaultFlatLabel) {
 	textFg: premiumButtonFg;
 	minWidth: 190px;
 }
+settingsPremiumArrowShift: point(-5px, -1px);
+settingsPremiumArrow: icon{{ "settings/premium/arrow", menuIconFg }};
+settingsPremiumArrowOver: icon{{ "settings/premium/arrow", menuIconFgOver }};
 settingsPremiumStatusPadding: margins(22px, 8px, 22px, 2px);
+
+settingsPremiumOptionsPadding: margins(0px, 9px, 0px, 2px);
+settingsPremiumTopHeight: 220px;
+settingsPremiumUserHeight: 223px;
+settingsPremiumUserTitlePadding: margins(0px, 16px, 0px, 6px);
+settingsPremiumUserTitle: FlatLabel(boxTitle) {
+	style: TextStyle(defaultTextStyle) {
+		font: boxTitleFont;
+		linkFont: boxTitleFont;
+		linkFontOver: font(16px semibold underline);
+		lineHeight: 14px;
+	}
+	minWidth: 300px;
+	maxHeight: 0px;
+	align: align(top);
+}
+settingsPremiumUserAbout: FlatLabel(boxDividerLabel) {
+	style: settingsPremiumAboutTextStyle;
+	minWidth: 315px;
+	maxHeight: 0px;
+	align: align(top);
+}
 
 settingsPremiumLock: icon{{ "emoji/premium_lock", windowActiveTextFg, point(0px, 1px) }};
 settingsPremiumLockSkip: 3px;

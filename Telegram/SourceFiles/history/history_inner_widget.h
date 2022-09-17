@@ -36,6 +36,7 @@ class Element;
 
 namespace HistoryView::Reactions {
 class Manager;
+struct ChosenReaction;
 struct ButtonParameters;
 } // namespace HistoryView::Reactions
 
@@ -144,7 +145,7 @@ public:
 	void elementShowTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
-	bool elementIsGifPaused();
+	bool elementAnimationsPaused();
 	void elementSendBotCommand(
 		const QString &command,
 		const FullMsgId &context);
@@ -225,6 +226,7 @@ private:
 	void onTouchScrollTimer();
 
 	class BotAbout;
+	using ChosenReaction = HistoryView::Reactions::ChosenReaction;
 	using VideoUserpic = Dialogs::Ui::VideoUserpic;
 	using SelectedItems = std::map<HistoryItem*, TextSelection, std::less<>>;
 	enum class MouseAction {
@@ -396,6 +398,7 @@ private:
 		const HistoryView::TextState &reactionState) const
 	-> HistoryView::Reactions::ButtonParameters;
 	void toggleFavoriteReaction(not_null<Element*> view) const;
+	void reactionChosen(const ChosenReaction &reaction);
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
@@ -458,6 +461,7 @@ private:
 		std::unique_ptr<VideoUserpic>> _videoUserpics;
 
 	std::unique_ptr<HistoryView::Reactions::Manager> _reactionsManager;
+	rpl::variable<HistoryItem*> _reactionsItem;
 
 	MouseAction _mouseAction = MouseAction::None;
 	TextSelectType _mouseSelectType = TextSelectType::Letters;
@@ -469,6 +473,7 @@ private:
 	uint16 _mouseTextSymbol = 0;
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
+	bool _useCornerReaction = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

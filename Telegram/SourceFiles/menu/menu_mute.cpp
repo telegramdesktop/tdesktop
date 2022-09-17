@@ -115,7 +115,7 @@ MuteItem::MuteItem(
 	setClickedCallback([=] {
 		peer->owner().notifySettings().update(
 			peer,
-			_isMuted ? 0 : Data::PeerNotifySettings::kDefaultMutePeriod);
+			{ .unmute = _isMuted, .forever = !_isMuted });
 	});
 }
 
@@ -159,7 +159,9 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	}) | rpl::flatten_latest();
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
-			peer->owner().notifySettings().update(peer, state->lastSeconds);
+			peer->owner().notifySettings().update(
+				peer,
+				{ .period = state->lastSeconds });
 			box->getDelegate()->hideLayer();
 		},
 		.confirmText = std::move(confirmText),
@@ -171,24 +173,7 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
 	};
-	const auto seconds = std::vector<TimeId>{
-		(60 * 15),
-		(60 * 30),
-		(3600 * 1),
-		(3600 * 2),
-		(3600 * 3),
-		(3600 * 4),
-		(3600 * 8),
-		(3600 * 12),
-		(86400 * 1),
-		(86400 * 2),
-		(86400 * 3),
-		(86400 * 7 * 1),
-		(86400 * 7 * 2),
-		(86400 * 31 * 1),
-		(86400 * 31 * 2),
-		(86400 * 31 * 3),
-	};
+	const auto seconds = Ui::DefaultTimePickerValues();
 	const auto phrases = ranges::views::all(
 		seconds
 	) | ranges::views::transform(Ui::FormatMuteFor) | ranges::to_vector;
@@ -200,7 +185,9 @@ void PickMuteBox(not_null<Ui::GenericBox*> box, not_null<PeerData*> peer) {
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
 			const auto muteFor = pickerCallback();
-			peer->owner().notifySettings().update(peer, muteFor);
+			peer->owner().notifySettings().update(
+				peer,
+				{ .period = muteFor });
 			peer->session().settings().addMutePeriod(muteFor);
 			peer->session().saveSettings();
 			box->closeBox();
@@ -263,7 +250,9 @@ void FillMuteMenu(
 		+ st::menuIconMuteForAnyTextPosition;
 	for (const auto &muteFor : peer->session().settings().mutePeriods()) {
 		const auto callback = [=] {
-			peer->owner().notifySettings().update(peer, muteFor);
+			peer->owner().notifySettings().update(
+				peer,
+				{ .period = muteFor });
 		};
 
 		auto item = base::make_unique_q<IconWithText>(

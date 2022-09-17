@@ -359,10 +359,9 @@ void FormSummary::setupPrices(not_null<VerticalLayout*> layout) {
 		const auto text = formatAmount(_invoice.tipsSelected);
 		const auto label = addRow(
 			tr::lng_payments_tips_label(tr::now),
-			Ui::Text::Link(text, "internal:edit_tips"));
-		label->setClickHandlerFilter([=](auto&&...) {
+			Ui::Text::Link(text));
+		label->overrideLinkClickHandler([=] {
 			_delegate->panelChooseTips();
-			return false;
 		});
 		setupSuggestedTips(layout);
 	}

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media_unwrapped.h"
+#include "history/view/media/history_view_sticker_player_abstract.h"
 #include "base/weak_ptr.h"
 
 namespace Main {
@@ -20,7 +21,6 @@ class DocumentMedia;
 } // namespace Data
 
 namespace Lottie {
-class SinglePlayer;
 struct ColorReplacements;
 } // namespace Lottie
 
@@ -29,26 +29,6 @@ enum class StickerLottieSize : uint8;
 } // namespace ChatHelpers
 
 namespace HistoryView {
-
-class StickerPlayer {
-public:
-	virtual ~StickerPlayer() = default;
-
-	struct FrameInfo {
-		QImage image;
-		int index = 0;
-	};
-	virtual void setRepaintCallback(Fn<void()> callback) = 0;
-	[[nodiscard]] virtual bool ready() = 0;
-	[[nodiscard]] virtual int framesCount() = 0;
-	[[nodiscard]] virtual FrameInfo frame(
-		QSize size,
-		QColor colored,
-		bool mirrorHorizontal,
-		crl::time now,
-		bool paused) = 0;
-	virtual bool markFrameShown() = 0;
-};
 
 class Sticker final
 	: public UnwrappedMedia::Content
@@ -76,10 +56,6 @@ public:
 	std::unique_ptr<StickerPlayer> stickerTakePlayer(
 		not_null<DocumentData*> data,
 		const Lottie::ColorReplacements *replacements) override;
-
-	//void externalLottieProgressing(bool external) override;
-	//bool externalLottieTill(ExternalLottieInfo info) override;
-	//ExternalLottieInfo externalLottieInfo() const override;
 
 	bool hasHeavyPart() const override;
 	void unloadHeavyPart() override;
@@ -139,7 +115,6 @@ private:
 	void emojiStickerClicked();
 	void premiumStickerClicked();
 	void checkPremiumEffectStart();
-	//bool markFramesTillExternal();
 
 	const not_null<Element*> _parent;
 	const not_null<DocumentData*> _data;
@@ -150,7 +125,6 @@ private:
 	QSize _size;
 	QImage _lastDiceFrame;
 	QString _diceEmoji;
-	//ExternalLottieInfo _externalInfo;
 	int _diceIndex = -1;
 	mutable int _frameIndex = -1;
 	mutable int _framesCount = -1;

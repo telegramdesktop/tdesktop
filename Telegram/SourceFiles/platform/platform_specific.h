@@ -41,6 +41,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done = nullptr);
 bool TrayIconSupported();
 bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();
+void NewVersionLaunched(int oldVersion);
 
 [[nodiscard]] std::optional<bool> IsDarkMode();
 [[nodiscard]] inline bool IsDarkModeSupported() {

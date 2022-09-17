@@ -344,7 +344,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			- _caption.countHeight(captionw);
 		const auto stm = context.messageStyle();
 		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, _caption);
+		_parent->prepareCustomEmojiPaint(p, context, _caption);
 		_caption.draw(p, st::msgPadding.left(), captiony, captionw, style::al_left, 0, -1, selection);
 	} else if (_parent->media() == this) {
 		auto fullRight = width();

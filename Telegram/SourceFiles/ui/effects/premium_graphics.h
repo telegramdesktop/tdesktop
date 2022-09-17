@@ -16,8 +16,13 @@ struct phrase;
 
 enum lngtag_count : int;
 
+namespace Data {
+struct SubscriptionOption;
+} // namespace Data
+
 namespace style {
 struct RoundImageCheckbox;
+struct PremiumOption;
 struct TextStyle;
 } // namespace style
 
@@ -28,13 +33,6 @@ class RadiobuttonGroup;
 class VerticalLayout;
 
 namespace Premium {
-
-struct GiftInfo {
-	QString duration;
-	QString discount;
-	QString perMonth;
-	QString total;
-};
 
 void AddBubbleRow(
 	not_null<Ui::VerticalLayout*> parent,
@@ -93,7 +91,9 @@ void ShowListBox(
 void AddGiftOptions(
 	not_null<Ui::VerticalLayout*> parent,
 	std::shared_ptr<Ui::RadiobuttonGroup> group,
-	std::vector<GiftInfo> gifts);
+	std::vector<Data::SubscriptionOption> gifts,
+	const style::PremiumOption &st,
+	bool topBadges = false);
 
 } // namespace Premium
 } // namespace Ui

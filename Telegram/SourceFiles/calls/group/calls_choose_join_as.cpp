@@ -247,12 +247,11 @@ void ChooseJoinAsBox(
 					: tr::lng_group_call_schedule)(makeLink),
 				Ui::Text::WithEntities),
 			labelSt));
-		label->setClickHandlerFilter([=](const auto&...) {
+		label->overrideLinkClickHandler([=] {
 			auto withJoinAs = info;
 			withJoinAs.joinAs = controller->selected();
 			box->getDelegate()->show(
 				Box(ScheduleGroupCallBox, withJoinAs, done));
-			return false;
 		});
 	}
 	auto next = (context == Context::Switch)

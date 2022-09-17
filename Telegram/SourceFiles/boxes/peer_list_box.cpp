@@ -653,27 +653,45 @@ void PeerListRow::invalidatePixmapsCache() {
 	}
 }
 
-int PeerListRow::nameIconWidth() const {
-	return special()
-		? 0
-		: _peer->isVerified()
-		? st::dialogsVerifiedIcon.width()
-		: (_peer->isPremium() && !_peer->isSelf())
-		? st::dialogsPremiumIcon.width()
-		: 0;
-}
-
-void PeerListRow::paintNameIcon(
+int PeerListRow::paintNameIconGetWidth(
 		Painter &p,
-		int x,
-		int y,
+		Fn<void()> repaint,
+		crl::time now,
+		int nameLeft,
+		int nameTop,
+		int nameWidth,
+		int availableWidth,
 		int outerWidth,
 		bool selected) {
-	if (_peer->isVerified()) {
-		st::dialogsVerifiedIcon.paint(p, x, y, outerWidth);
-	} else if (_peer->isPremium() && !_peer->isSelf()) {
-		st::dialogsPremiumIcon.paint(p, x, y, outerWidth);
+	if (special() || _isSavedMessagesChat || _isRepliesMessagesChat) {
+		return 0;
 	}
+	return _bagde.drawGetWidth(
+		p,
+		QRect(
+			nameLeft,
+			nameTop,
+			availableWidth,
+			st::msgNameStyle.font->height),
+		nameWidth,
+		outerWidth,
+		{
+			.peer = _peer,
+			.verified = &(selected
+				? st::dialogsVerifiedIconOver
+				: st::dialogsVerifiedIcon),
+			.premium = &(selected
+				? st::dialogsPremiumIconOver
+				: st::dialogsPremiumIcon),
+			.scam = &(selected ? st::dialogsScamFgOver : st::dialogsScamFg),
+			.premiumFg = &(selected
+				? st::dialogsVerifiedIconBgOver
+				: st::dialogsVerifiedIconBg),
+			.preview = st::windowBgOver->c,
+			.customEmojiRepaint = repaint,
+			.now = now,
+			.paused = false,
+		});
 }
 
 void PeerListRow::paintStatusText(
@@ -829,7 +847,7 @@ PeerListContent::PeerListContent(
 
 	using UpdateFlag = Data::PeerUpdate::Flag;
 	_controller->session().changes().peerUpdates(
-		UpdateFlag::Name | UpdateFlag::Photo
+		UpdateFlag::Name | UpdateFlag::Photo | UpdateFlag::EmojiStatus
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
 		if (update.flags & UpdateFlag::Name) {
 			handleNameChanged(update.peer);
@@ -1549,33 +1567,49 @@ crl::time PeerListContent::paintRow(
 
 	p.setPen(st::contactsNameFg);
 
-	auto skipRight = _st.item.photoPosition.x();
-	auto rightActionSize = row->rightActionSize();
-	auto rightActionMargins = rightActionSize.isEmpty()
+	const auto skipRight = _st.item.photoPosition.x();
+	const auto rightActionSize = row->rightActionSize();
+	const auto rightActionMargins = rightActionSize.isEmpty()
 		? QMargins()
 		: row->rightActionMargins();
-	auto &name = row->name();
-	auto namex = _st.item.namePosition.x();
+	const auto &name = row->name();
+	const auto namex = _st.item.namePosition.x();
+	const auto namey = _st.item.namePosition.y();
 	auto namew = outerWidth - namex - skipRight;
-	if (!rightActionSize.isEmpty()) {
+	if (!rightActionSize.isEmpty()
+		&& (namey < rightActionMargins.top() + rightActionSize.height())
+		&& (namey + _st.item.nameStyle.font->height
+			> rightActionMargins.top())) {
 		namew -= rightActionMargins.left()
 			+ rightActionSize.width()
 			+ rightActionMargins.right()
 			- skipRight;
 	}
-	auto statusw = namew;
-	if (auto iconWidth = row->nameIconWidth()) {
-		namew -= iconWidth;
-		row->paintNameIcon(
-			p,
-			namex + qMin(name.maxWidth(), namew),
-			_st.item.namePosition.y(),
-			width(),
-			selected);
+	const auto statusx = _st.item.statusPosition.x();
+	const auto statusy = _st.item.statusPosition.y();
+	auto statusw = outerWidth - statusx - skipRight;
+	if (!rightActionSize.isEmpty()
+		&& (statusy < rightActionMargins.top() + rightActionSize.height())
+		&& (statusy + st::contactsStatusFont->height
+			> rightActionMargins.top())) {
+		statusw -= rightActionMargins.left()
+			+ rightActionSize.width()
+			+ rightActionMargins.right()
+			- skipRight;
 	}
+	namew -= row->paintNameIconGetWidth(
+		p,
+		[=] { updateRow(row); },
+		now,
+		namex,
+		namey,
+		name.maxWidth(),
+		namew,
+		width(),
+		selected);
 	auto nameCheckedRatio = row->disabled() ? 0. : row->checkedRatio();
 	p.setPen(anim::pen(_st.item.nameFg, _st.item.nameFgChecked, nameCheckedRatio));
-	name.drawLeftElided(p, namex, _st.item.namePosition.y(), namew, width());
+	name.drawLeftElided(p, namex, namey, namew, width());
 
 	p.setFont(st::contactsStatusFont);
 	if (row->isSearchResult()
@@ -1594,16 +1628,16 @@ crl::time PeerListContent::paintRow(
 				highlightedPart = st::contactsStatusFont->elided(highlightedPart, availableWidth);
 			}
 			p.setPen(_st.item.statusFgActive);
-			p.drawTextLeft(_st.item.statusPosition.x(), _st.item.statusPosition.y(), width(), highlightedPart);
+			p.drawTextLeft(statusx, statusy, width(), highlightedPart);
 		} else {
 			grayedPart = st::contactsStatusFont->elided(grayedPart, availableWidth - highlightedWidth);
 			p.setPen(_st.item.statusFgActive);
-			p.drawTextLeft(_st.item.statusPosition.x(), _st.item.statusPosition.y(), width(), highlightedPart);
+			p.drawTextLeft(statusx, statusy, width(), highlightedPart);
 			p.setPen(selected ? _st.item.statusFgOver : _st.item.statusFg);
-			p.drawTextLeft(_st.item.statusPosition.x() + highlightedWidth, _st.item.statusPosition.y(), width(), grayedPart);
+			p.drawTextLeft(statusx + highlightedWidth, statusy, width(), grayedPart);
 		}
 	} else {
-		row->paintStatusText(p, _st.item, _st.item.statusPosition.x(), _st.item.statusPosition.y(), statusw, width(), selected);
+		row->paintStatusText(p, _st.item, statusx, statusy, statusw, width(), selected);
 	}
 
 	row->elementsPaint(

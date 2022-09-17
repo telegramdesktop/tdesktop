@@ -5,27 +5,33 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/message_reactions_selector.h"
+#include "history/view/reactions/history_view_reactions_tabs.h"
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "data/data_message_reaction_id.h"
 #include "styles/style_widgets.h"
 #include "styles/style_chat.h"
 
-namespace HistoryView {
+namespace HistoryView::Reactions {
 namespace {
+
+using ::Data::ReactionId;
 
 not_null<Ui::AbstractButton*> CreateTab(
 		not_null<QWidget*> parent,
 		const style::MultiSelect &st,
-		const QString &reaction,
+		const Ui::Text::CustomEmojiFactory &factory,
+		Fn<bool()> paused,
+		const ReactionId &reaction,
 		Ui::WhoReadType whoReadType,
 		int count,
 		rpl::producer<bool> selected) {
 	struct State {
-		bool selected = false;
+		std::unique_ptr<Ui::Text::CustomEmoji> custom;
 		QImage cache;
+		bool selected = false;
 	};
 	const auto stm = &st.item;
 	const auto text = QString("%L1").arg(count);
@@ -46,10 +52,19 @@ not_null<Ui::AbstractButton*> CreateTab(
 		result->update();
 	}, result->lifetime());
 
+	state->custom = reaction.empty()
+		? nullptr
+		: factory(
+			Data::ReactionEntityData(reaction),
+			[=] { result->update(); });
+
 	result->paintRequest(
 	) | rpl::start_with_next([=] {
+		const auto factor = style::DevicePixelRatio();
+		const auto height = stm->height;
+		const auto skip = st::reactionsTabIconSkip;
+		const auto icon = QRect(skip, 0, height, height);
 		if (state->cache.isNull()) {
-			const auto factor = style::DevicePixelRatio();
 			state->cache = QImage(
 				result->size() * factor,
 				QImage::Format_ARGB32_Premultiplied);
@@ -67,14 +82,9 @@ not_null<Ui::AbstractButton*> CreateTab(
 			}
 			const auto skip = st::reactionsTabIconSkip;
 			const auto icon = QRect(skip, 0, height, height);
-			if (const auto emoji = Ui::Emoji::Find(reaction)) {
-				// #TODO reactions
-				const auto size = Ui::Emoji::GetSizeNormal();
-				const auto shift = (height - (size / factor)) / 2;
-				Ui::Emoji::Draw(p, emoji, size, icon.x() + shift, shift);
-			} else {
+			if (!state->custom) {
 				using Type = Ui::WhoReadType;
-				(reaction.isEmpty()
+				(reaction.emoji().isEmpty()
 					? (state->selected
 						? st::reactionsTabAllSelected
 						: st::reactionsTabAll)
@@ -93,33 +103,55 @@ not_null<Ui::AbstractButton*> CreateTab(
 			p.setFont(font);
 			p.drawText(textLeft, stm->padding.top() + font->ascent, text);
 		}
-		QPainter(result).drawImage(0, 0, state->cache);
+		auto p = QPainter(result);
+		p.drawImage(0, 0, state->cache);
+		if (const auto custom = state->custom.get()) {
+			using namespace Ui::Text;
+			const auto size = Ui::Emoji::GetSizeNormal() / factor;
+			const auto shift = (height - size) / 2;
+			const auto skip = (size - AdjustCustomEmojiSize(size)) / 2;
+			custom->paint(p, {
+				.preview = (state->selected
+					? QColor(
+						st::activeButtonFg->c.red(),
+						st::activeButtonFg->c.green(),
+						st::activeButtonFg->c.blue(),
+						st::activeButtonFg->c.alpha() / 3)
+					: st::windowBgRipple->c),
+				.now = crl::now(),
+				.position = { icon.x() + shift + skip, shift + skip },
+			});
+		}
 	}, result->lifetime());
 	return result;
 }
 
 } // namespace
 
-not_null<Selector*> CreateReactionSelector(
+not_null<Tabs*> CreateTabs(
 		not_null<QWidget*> parent,
-		const base::flat_map<QString, int> &items,
-		const QString &selected,
+		Ui::Text::CustomEmojiFactory factory,
+		Fn<bool()> paused,
+		const std::vector<Data::MessageReaction> &items,
+		const Data::ReactionId &selected,
 		Ui::WhoReadType whoReadType) {
 	struct State {
-		rpl::variable<QString> selected;
+		rpl::variable<ReactionId> selected;
 		std::vector<not_null<Ui::AbstractButton*>> tabs;
 	};
-	const auto result = Ui::CreateChild<Selector>(parent.get());
-	using Entry = std::pair<int, QString>;
+	const auto result = Ui::CreateChild<Tabs>(parent.get());
+	using Entry = std::pair<int, ReactionId>;
 	auto tabs = Ui::CreateChild<Ui::RpWidget>(parent.get());
 	const auto st = &st::reactionsTabs;
 	const auto state = tabs->lifetime().make_state<State>();
 	state->selected = selected;
-	const auto append = [&](const QString &reaction, int count) {
+	const auto append = [&](const ReactionId &reaction, int count) {
 		using namespace rpl::mappers;
 		const auto tab = CreateTab(
 			tabs,
 			*st,
+			factory,
+			paused,
 			reaction,
 			whoReadType,
 			count,
@@ -130,11 +162,11 @@ not_null<Selector*> CreateReactionSelector(
 		state->tabs.push_back(tab);
 	};
 	auto sorted = std::vector<Entry>();
-	for (const auto &[reaction, count] : items) {
-		if (reaction == u"read"_q) {
-			append(reaction, count);
+	for (const auto &reaction : items) {
+		if (reaction.id.emoji() == u"read"_q) {
+			append(reaction.id, reaction.count);
 		} else {
-			sorted.emplace_back(count, reaction);
+			sorted.emplace_back(reaction.count, reaction.id);
 		}
 	}
 	ranges::sort(sorted, std::greater<>(), &Entry::first);
@@ -143,7 +175,7 @@ not_null<Selector*> CreateReactionSelector(
 		0,
 		std::plus<>(),
 		&Entry::first);
-	append(QString(), count);
+	append(ReactionId(), count);
 	for (const auto &[count, reaction] : sorted) {
 		append(reaction, count);
 	}
@@ -181,4 +213,4 @@ not_null<Selector*> CreateReactionSelector(
 	return result;
 }
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

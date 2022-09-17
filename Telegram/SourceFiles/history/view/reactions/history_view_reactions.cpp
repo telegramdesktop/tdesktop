@@ -5,18 +5,23 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/history_view_reactions.h"
+#include "history/view/reactions/history_view_reactions.h"
 
 #include "history/history_message.h"
 #include "history/history.h"
+#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
-#include "history/view/history_view_react_animation.h"
 #include "history/view/history_view_group_call_bar.h"
 #include "core/click_handler_types.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
+#include "data/data_session.h"
+#include "main/main_session.h"
 #include "lang/lang_tag.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/chat/chat_style.h"
 #include "styles/style_chat.h"
 
@@ -35,12 +40,28 @@ constexpr auto kMaxNicePerRow = 5;
 
 } // namespace
 
+struct InlineList::Button {
+	QRect geometry;
+	mutable std::unique_ptr<Animation> animation;
+	mutable QImage image;
+	mutable ClickHandlerPtr link;
+	mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
+	std::unique_ptr<Userpics> userpics;
+	ReactionId id;
+	QString countText;
+	int count = 0;
+	int countTextWidth = 0;
+	bool chosen = false;
+};
+
 InlineList::InlineList(
 	not_null<::Data::Reactions*> owner,
-	Fn<ClickHandlerPtr(QString)> handlerFactory,
+	Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
+	Fn<void()> customEmojiRepaint,
 	Data &&data)
 : _owner(owner)
 , _handlerFactory(std::move(handlerFactory))
+, _customEmojiRepaint(std::move(customEmojiRepaint))
 , _data(std::move(data)) {
 	layout();
 }
@@ -63,6 +84,22 @@ void InlineList::removeSkipBlock() {
 	_skipBlock = {};
 }
 
+bool InlineList::hasCustomEmoji() const {
+	return _hasCustomEmoji;
+}
+
+void InlineList::unloadCustomEmoji() {
+	if (!hasCustomEmoji()) {
+		return;
+	}
+	for (const auto &button : _buttons) {
+		if (const auto custom = button.custom.get()) {
+			custom->unload();
+		}
+	}
+	_customCache = QImage();
+}
+
 void InlineList::layout() {
 	layoutButtons();
 	initDimensions();
@@ -75,41 +112,56 @@ void InlineList::layoutButtons() {
 	}
 	auto sorted = ranges::view::all(
 		_data.reactions
-	) | ranges::view::transform([](const auto &pair) {
-		return std::make_pair(pair.first, pair.second);
+	) | ranges::view::transform([](const MessageReaction &reaction) {
+		return not_null{ &reaction };
 	}) | ranges::to_vector;
 	const auto &list = _owner->list(::Data::Reactions::Type::All);
-	ranges::sort(sorted, [&](const auto &p1, const auto &p2) {
-		if (p1.second > p2.second) {
+	ranges::sort(sorted, [&](
+			not_null<const MessageReaction*> a,
+			not_null<const MessageReaction*> b) {
+		const auto acount = a->count - (a->my ? 1 : 0);
+		const auto bcount = b->count - (b->my ? 1 : 0);
+		if (acount > bcount) {
 			return true;
-		} else if (p1.second < p2.second) {
+		} else if (acount < bcount) {
 			return false;
 		}
-		return ranges::find(list, p1.first, &::Data::Reaction::emoji)
-			< ranges::find(list, p2.first, &::Data::Reaction::emoji);
+		return ranges::find(list, a->id, &::Data::Reaction::id)
+			< ranges::find(list, b->id, &::Data::Reaction::id);
 	});
 
+	_hasCustomEmoji = false;
 	auto buttons = std::vector<Button>();
 	buttons.reserve(sorted.size());
-	for (const auto &[emoji, count] : sorted) {
-		const auto i = ranges::find(_buttons, emoji, &Button::emoji);
+	for (const auto &reaction : sorted) {
+		const auto &id = reaction->id;
+		const auto i = ranges::find(_buttons, id, &Button::id);
 		buttons.push_back((i != end(_buttons))
 			? std::move(*i)
-			: prepareButtonWithEmoji(emoji));
-		const auto add = (emoji == _data.chosenReaction) ? 1 : 0;
-		const auto j = _data.recent.find(emoji);
+			: prepareButtonWithId(id));
+		const auto j = _data.recent.find(id);
 		if (j != end(_data.recent) && !j->second.empty()) {
 			setButtonUserpics(buttons.back(), j->second);
 		} else {
-			setButtonCount(buttons.back(), count + add);
+			setButtonCount(buttons.back(), reaction->count);
+		}
+		buttons.back().chosen = reaction->my;
+		if (id.custom()) {
+			_hasCustomEmoji = true;
 		}
 	}
 	_buttons = std::move(buttons);
 }
 
-InlineList::Button InlineList::prepareButtonWithEmoji(const QString &emoji) {
-	auto result = Button{ .emoji = emoji };
-	_owner->preloadImageFor(emoji);
+InlineList::Button InlineList::prepareButtonWithId(const ReactionId &id) {
+	auto result = Button{ .id = id };
+	if (const auto customId = id.custom()) {
+		result.custom = _owner->owner().customEmojiManager().create(
+			customId,
+			_customEmojiRepaint);
+	} else {
+		_owner->preloadImageFor(id);
+	}
 	return result;
 }
 
@@ -274,6 +326,7 @@ void InlineList::paint(
 	};
 	std::vector<SingleAnimation> animations;
 
+	auto finished = std::vector<std::unique_ptr<Animation>>();
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto padding = st::reactionInlinePadding;
@@ -286,11 +339,12 @@ void InlineList::paint(
 		if (context.reactionInfo
 			&& button.animation
 			&& button.animation->finished()) {
-			button.animation = nullptr;
+			// Let the animation (and its custom emoji) live while painting.
+			finished.push_back(std::move(button.animation));
 		}
 		const auto animating = (button.animation != nullptr);
 		const auto &geometry = button.geometry;
-		const auto mine = (_data.chosenReaction == button.emoji);
+		const auto mine = button.chosen;
 		const auto withoutMine = button.count - (mine ? 1 : 0);
 		const auto skipImage = animating
 			&& (withoutMine < 1 || !button.animation->flying());
@@ -335,16 +389,38 @@ void InlineList::paint(
 				p.setOpacity(bubbleProgress);
 			}
 		}
-		if (button.image.isNull()) {
+		if (!button.custom && button.image.isNull()) {
 			button.image = _owner->resolveImageFor(
-				button.emoji,
+				button.id,
 				::Data::Reactions::ImageSize::InlineList);
 		}
+		const auto textFg = !inbubble
+			? (chosen
+				? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
+				: st->msgServiceFg())
+			: !chosen
+			? stm->msgServiceFg
+			: context.outbg
+			? (context.selected()
+				? st->historyFileOutIconFgSelected()
+				: st->historyFileOutIconFg())
+			: (context.selected()
+				? st->historyFileInIconFgSelected()
+				: st->historyFileInIconFg());
 		const auto image = QRect(
 			inner.topLeft() + QPoint(skip, skip),
 			QSize(st::reactionInlineImage, st::reactionInlineImage));
-		if (!button.image.isNull() && !skipImage) {
-			p.drawImage(image.topLeft(), button.image);
+		if (!skipImage) {
+			if (const auto custom = button.custom.get()) {
+				paintCustomFrame(
+					p,
+					custom,
+					inner.topLeft(),
+					context.now,
+					textFg.color());
+			} else if (!button.image.isNull()) {
+				p.drawImage(image.topLeft(), button.image);
+			}
 		}
 		if (animating) {
 			animations.push_back({
@@ -363,19 +439,7 @@ void InlineList::paint(
 				geometry.y() + st::reactionInlineUserpicsPadding.top(),
 				button.userpics->image);
 		} else {
-			p.setPen(!inbubble
-				? (chosen
-					? QPen(AdaptChosenServiceFg(st->msgServiceBg()->c))
-					: st->msgServiceFg())
-				: !chosen
-				? stm->msgServiceFg
-				: context.outbg
-				? (context.selected()
-					? st->historyFileOutIconFgSelected()
-					: st->historyFileOutIconFg())
-				: (context.selected()
-					? st->historyFileInIconFgSelected()
-					: st->historyFileInIconFg()));
+			p.setPen(textFg);
 			const auto textTop = geometry.y()
 				+ ((geometry.height() - st::semiboldFont->height) / 2);
 			p.drawText(
@@ -388,13 +452,20 @@ void InlineList::paint(
 		}
 	}
 	if (!animations.empty()) {
-		context.reactionInfo->effectPaint = [=](QPainter &p) {
+		const auto now = context.now;
+		context.reactionInfo->effectPaint = [
+			now,
+			list = std::move(animations)
+		](QPainter &p) {
 			auto result = QRect();
-			for (const auto &single : animations) {
+			for (const auto &single : list) {
 				const auto area = single.animation->paintGetArea(
 					p,
 					QPoint(),
-					single.target);
+					single.target,
+					QColor(255, 255, 255, 0), // Colored, for emoji status.
+					QRect(), // Clip, for emoji status.
+					now);
 				result = result.isEmpty() ? area : result.united(area);
 			}
 			return result;
@@ -414,11 +485,11 @@ bool InlineList::getState(
 	for (const auto &button : _buttons) {
 		if (button.geometry.contains(point)) {
 			if (!button.link) {
-				button.link = _handlerFactory(button.emoji);
+				button.link = _handlerFactory(button.id);
 				button.link->setProperty(
 					kReactionsCountEmojiProperty,
-					button.emoji);
-				_owner->preloadAnimationsFor(button.emoji);
+					QVariant::fromValue(button.id));
+				_owner->preloadAnimationsFor(button.id);
 			}
 			outResult->link = button.link;
 			return true;
@@ -428,9 +499,9 @@ bool InlineList::getState(
 }
 
 void InlineList::animate(
-		ReactionAnimationArgs &&args,
+		AnimationArgs &&args,
 		Fn<void()> repaint) {
-	const auto i = ranges::find(_buttons, args.emoji, &Button::emoji);
+	const auto i = ranges::find(_buttons, args.id, &Button::id);
 	if (i == end(_buttons)) {
 		return;
 	}
@@ -470,24 +541,60 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 		kMaxRecentUserpics);
 }
 
+void InlineList::paintCustomFrame(
+		Painter &p,
+		not_null<Ui::Text::CustomEmoji*> emoji,
+		QPoint innerTopLeft,
+		crl::time now,
+		const QColor &preview) const {
+	if (_customCache.isNull()) {
+		using namespace Ui::Text;
+		const auto size = st::emojiSize;
+		const auto factor = style::DevicePixelRatio();
+		const auto adjusted = AdjustCustomEmojiSize(size);
+		_customCache = QImage(
+			QSize(adjusted, adjusted) * factor,
+			QImage::Format_ARGB32_Premultiplied);
+		_customCache.setDevicePixelRatio(factor);
+		_customSkip = (size - adjusted) / 2;
+	}
+	_customCache.fill(Qt::transparent);
+	auto q = QPainter(&_customCache);
+	emoji->paint(q, {
+		.preview = preview,
+		.now = now,
+		.paused = p.inactive(),
+	});
+	q.end();
+	_customCache = Images::Round(
+		std::move(_customCache),
+		(Images::Option::RoundLarge
+			| Images::Option::RoundSkipTopRight
+			| Images::Option::RoundSkipBottomRight));
+
+	p.drawImage(
+		innerTopLeft + QPoint(_customSkip, _customSkip),
+		_customCache);
+}
+
 auto InlineList::takeAnimations()
--> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>> {
 	auto result = base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>>();
 	for (auto &button : _buttons) {
 		if (button.animation) {
-			result.emplace(button.emoji, std::move(button.animation));
+			result.emplace(button.id, std::move(button.animation));
 		}
 	}
 	return result;
 }
 
 void InlineList::continueAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations) {
-	for (auto &[emoji, animation] : animations) {
-		const auto i = ranges::find(_buttons, emoji, &Button::emoji);
+	for (auto &[id, animation] : animations) {
+		const auto i = ranges::find(_buttons, id, &Button::id);
 		if (i != end(_buttons)) {
 			i->animation = std::move(animation);
 		}
@@ -499,35 +606,46 @@ InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	const auto item = message->message();
 	auto result = InlineListData();
 	result.reactions = item->reactions();
-	const auto &recent = item->recentReactions();
-	const auto showUserpics = [&] {
-		if (recent.size() != result.reactions.size()) {
-			return false;
+	if (const auto user = item->history()->peer->asUser()) {
+		// Always show userpics, we have all information.
+		result.recent.reserve(result.reactions.size());
+		const auto self = user->session().user();
+		for (const auto &reaction : result.reactions) {
+			auto &list = result.recent[reaction.id];
+			list.reserve(reaction.count);
+			if (!reaction.my || reaction.count > 1) {
+				list.push_back(user);
+			}
+			if (reaction.my) {
+				list.push_back(self);
+			}
 		}
-		auto b = begin(recent);
-		auto sum = 0;
-		for (const auto &[emoji, count] : result.reactions) {
-			sum += count;
-			if (emoji != b->first
-				|| count != b->second.size()
-				|| sum > kMaxRecentUserpics) {
+	} else {
+		const auto &recent = item->recentReactions();
+		const auto showUserpics = [&] {
+			if (recent.size() != result.reactions.size()) {
 				return false;
 			}
-			++b;
+			auto sum = 0;
+			for (const auto &reaction : result.reactions) {
+				if ((sum += reaction.count) > kMaxRecentUserpics) {
+					return false;
+				}
+				const auto i = recent.find(reaction.id);
+				if (i == end(recent) || reaction.count != i->second.size()) {
+					return false;
+				}
+			}
+			return true;
+		}();
+		if (showUserpics) {
+			result.recent.reserve(recent.size());
+			for (const auto &[id, list] : recent) {
+				result.recent.emplace(id).first->second = list
+					| ranges::view::transform(&Data::RecentReaction::peer)
+					| ranges::to_vector;
+			}
 		}
-		return true;
-	}();
-	if (showUserpics) {
-		result.recent.reserve(recent.size());
-		for (const auto &[emoji, list] : recent) {
-			result.recent.emplace(emoji).first->second = list
-				| ranges::view::transform(&Data::RecentReaction::peer)
-				| ranges::to_vector;
-		}
-	}
-	result.chosenReaction = item->chosenReaction();
-	if (!result.chosenReaction.isEmpty()) {
-		--result.reactions[result.chosenReaction];
 	}
 	result.flags = (message->hasOutLayout() ? Flag::OutLayout : Flag())
 		| (message->embedReactionsInBubble() ? Flag::InBubble : Flag());

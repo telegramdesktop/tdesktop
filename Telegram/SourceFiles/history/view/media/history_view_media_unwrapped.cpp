@@ -404,12 +404,9 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 		}
 	}
 
-	auto pixLeft = usex + (usew - _contentSize.width()) / 2;
-	auto pixTop = (minHeight() - _contentSize.height()) / 2;
 	// Link of content can be nullptr (e.g. sticker without stickerpack).
 	// So we have to process it to avoid overriding the previous result.
-	if (_content->link()
-		&& QRect({ pixLeft, pixTop }, _contentSize).contains(point)) {
+	if (_content->link() && inner.contains(point)) {
 		result.link = _content->link();
 		return result;
 	}
@@ -468,18 +465,6 @@ std::unique_ptr<StickerPlayer> UnwrappedMedia::stickerTakePlayer(
 		const Lottie::ColorReplacements *replacements) {
 	return _content->stickerTakePlayer(data, replacements);
 }
-
-//void UnwrappedMedia::externalLottieProgressing(bool external) {
-//	_content->externalLottieProgressing(external);
-//}
-//
-//bool UnwrappedMedia::externalLottieTill(ExternalLottieInfo info) {
-//	return _content->externalLottieTill(info);
-//}
-//
-//ExternalLottieInfo UnwrappedMedia::externalLottieInfo() const {
-//	return _content->externalLottieInfo();
-//}
 
 int UnwrappedMedia::calculateFullRight(const QRect &inner) const {
 	const auto rightAligned = _parent->hasOutLayout()

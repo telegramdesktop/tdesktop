@@ -1,8 +1,8 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
-{%- set QT = "6_3_1" -%}
-{%- set QT_TAG = "v6.3.1" -%}
-{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.3.1" -%}
+{%- set QT = "6_4_0" -%}
+{%- set QT_TAG = "v6.4.0-rc1" -%}
+{%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.0" -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
 {%- set CMAKE_VER = "3.21.3" -%}
@@ -19,15 +19,18 @@ ENV PKG_CONFIG_PATH /usr/local/lib64/pkgconfig:/usr/local/lib/pkgconfig:/usr/loc
 RUN yum -y install https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
 	&& yum -y install https://packages.endpointdev.com/rhel/7/os/x86_64/endpoint-repo.x86_64.rpm \
 	&& yum -y install centos-release-scl \
-	&& yum -y install git meson ninja-build autoconf automake libtool patch \
+	&& yum -y install git python3-pip autoconf automake libtool patch \
 		fontconfig-devel freetype-devel libX11-devel at-spi2-core-devel alsa-lib-devel \
 		pulseaudio-libs-devel mesa-libGL-devel mesa-libEGL-devel mesa-libgbm-devel \
-		libdrm-devel gtk3-devel \
+		libdrm-devel vulkan-devel gtk3-devel \
 		perl-XML-Parser pkgconfig bison yasm file which xorg-x11-util-macros \
 		devtoolset-10-make devtoolset-10-gcc devtoolset-10-gcc-c++ \
 		devtoolset-10-binutils llvm-toolset-7.0 llvm-toolset-7.0-clang-devel \
 		llvm-toolset-7.0-llvm-devel \
 	&& yum clean all
+
+RUN python3 -m pip install meson
+RUN python3 -m pip install ninja
 
 # Fix a bug with argument naming in CentOS 7 glibc
 RUN sed -i 's/char \*__block/char */' /usr/include/unistd.h
@@ -45,8 +48,17 @@ RUN mkdir /opt/cmake \
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 4a5c759f8f \
+	&& git checkout 355c563138 \
 	&& rm -rf .git
+
+FROM builder AS extra-cmake-modules
+RUN git clone -b v5.97.0 --depth=1 {{ GIT }}/KDE/extra-cmake-modules.git \
+	&& cd extra-cmake-modules \
+	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/extra-cmake-modules-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf extra-cmake-modules
 
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 {{ GIT }}/libffi/libffi.git \
@@ -274,7 +286,7 @@ RUN git clone -b libXcomposite-0.4.5 --depth=1 {{ GIT_FREEDESKTOP }}/libxcomposi
 FROM builder AS wayland
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 
-RUN git clone -b 1.20.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
+RUN git clone -b 1.21.0 --depth=1 {{ GIT_FREEDESKTOP }}/wayland.git \
 	&& cd wayland \
 	&& meson build \
 		--buildtype=release \
@@ -546,6 +558,7 @@ ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} \
 	&& cd qt_{{ QT }} \
 	&& git submodule update --init --recursive --depth=1 qtbase qtwayland qtimageformats qtsvg qt5compat \
+	&& git submodule update --init --recursive qttools \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
@@ -574,6 +587,37 @@ RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} 
 	&& DESTDIR="{{ LibrariesPath }}/qt-cache" cmake --install . \
 	&& cd .. \
 	&& rm -rf qt_{{ QT }}
+
+FROM patches AS kcoreaddons
+COPY --link --from=extra-cmake-modules {{ LibrariesPath }}/extra-cmake-modules-cache /
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
+COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
+COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
+COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
+COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
+COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
+COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
+COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
+COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
+COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
+COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
+COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
+COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
+COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
+
+RUN git clone -b v5.97.0 --depth=1 {{ GIT }}/KDE/kcoreaddons.git \
+	&& cd kcoreaddons \
+	&& cmake -GNinja -B build . \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DCMAKE_PREFIX_PATH={{ QT_PREFIX }} \
+		-DBUILD_SHARED_LIBS=OFF \
+		-DBUILD_TESTING=OFF \
+		-DBUILD_WITH_QT6=ON \
+		-DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.78.0 \
+	&& cmake --build build --parallel \
+	&& DESTDIR="{{ LibrariesPath }}/kcoreaddons-cache" cmake --install build \
+	&& cd .. \
+	&& rm -rf kcoreaddons
 
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git \
@@ -662,6 +706,7 @@ COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
+COPY --link --from=kcoreaddons {{ LibrariesPath }}/kcoreaddons-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
 COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release

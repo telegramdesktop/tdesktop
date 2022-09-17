@@ -905,29 +905,28 @@ void SetupMessages(
 	state->icons.lifetimes = std::vector<rpl::lifetime>(2);
 
 	const auto &reactions = controller->session().data().reactions();
-	auto emojiValue = rpl::single(
-		reactions.favorite()
+	auto idValue = rpl::single(
+		reactions.favoriteId()
 	) | rpl::then(
-		reactions.updates() | rpl::map([=] {
-			return controller->session().data().reactions().favorite();
+		reactions.favoriteUpdates() | rpl::map([=] {
+			return controller->session().data().reactions().favoriteId();
 		})
-	) | rpl::filter([](const QString &emoji) {
-		return !emoji.isEmpty();
+	) | rpl::filter([](const Data::ReactionId &id) {
+		return !id.empty();
 	});
-	auto selectedEmoji = rpl::duplicate(emojiValue);
+	auto selected = rpl::duplicate(idValue);
 	std::move(
-		selectedEmoji
-	) | rpl::start_with_next([=, emojiValue = std::move(emojiValue)](
-			const QString &emoji) {
+		selected
+	) | rpl::start_with_next([=, idValue = std::move(idValue)](
+			const Data::ReactionId &id) {
+		const auto index = state->icons.flag ? 1 : 0;
+		const auto iconSize = st::settingsReactionRightIcon;
 		const auto &reactions = controller->session().data().reactions();
-		for (const auto &r : reactions.list(Data::Reactions::Type::All)) {
-			if (emoji != r.emoji) {
-				continue;
-			}
-			const auto index = state->icons.flag ? 1 : 0;
-			state->icons.lifetimes[index] = rpl::lifetime();
-			const auto iconSize = st::settingsReactionRightIcon;
-			AddReactionLottieIcon(
+		const auto &list = reactions.list(Data::Reactions::Type::All);
+		const auto i = ranges::find(list, id, &Data::Reaction::id);
+		state->icons.lifetimes[index] = rpl::lifetime();
+		if (i != end(list)) {
+			AddReactionAnimatedIcon(
 				inner,
 				buttonRight->geometryValue(
 				) | rpl::map([=](const QRect &r) {
@@ -936,17 +935,30 @@ void SetupMessages(
 						r.top() + (r.height() - iconSize) / 2);
 				}),
 				iconSize,
-				r,
+				*i,
 				buttonRight->events(
 				) | rpl::filter([=](not_null<QEvent*> event) {
 					return event->type() == QEvent::Enter;
 				}) | rpl::to_empty,
-				rpl::duplicate(emojiValue) | rpl::skip(1) | rpl::to_empty,
+				rpl::duplicate(idValue) | rpl::skip(1) | rpl::to_empty,
 				&state->icons.lifetimes[index]);
-			state->icons.flag = !state->icons.flag;
-			toggleButtonRight(true);
-			break;
+		} else if (const auto customId = id.custom()) {
+			AddReactionCustomIcon(
+				inner,
+				buttonRight->geometryValue(
+				) | rpl::map([=](const QRect &r) {
+					return QPoint(
+						r.left() + (r.width() - iconSize) / 2,
+						r.top() + (r.height() - iconSize) / 2);
+				}),
+				iconSize,
+				controller,
+				customId,
+				rpl::duplicate(idValue) | rpl::skip(1) | rpl::to_empty,
+				&state->icons.lifetimes[index]);
 		}
+		state->icons.flag = !state->icons.flag;
+		toggleButtonRight(true);
 	}, buttonRight->lifetime());
 
 	react->geometryValue(
@@ -965,6 +977,21 @@ void SetupMessages(
 	buttonRight->setClickedCallback([=, show = Window::Show(controller)] {
 		show.showBox(Box(ReactionsSettingsBox, controller));
 	});
+
+	AddSkip(inner, st::settingsSendTypeSkip);
+
+	inner->add(
+		object_ptr<Ui::Checkbox>(
+			inner,
+			tr::lng_settings_chat_corner_reaction(tr::now),
+			Core::App().settings().cornerReaction(),
+			st::settingsCheckbox),
+		st::settingsCheckboxPadding
+	)->checkedChanges(
+	) | rpl::start_with_next([=](bool checked) {
+		Core::App().settings().setCornerReaction(checked);
+		Core::App().saveSettingsDelayed();
+	}, inner->lifetime());
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
 }

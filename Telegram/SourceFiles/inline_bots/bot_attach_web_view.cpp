@@ -463,6 +463,7 @@ void AttachWebView::request(const WebViewButton &button) {
 		MTP_bytes(button.url),
 		MTP_string(_startCommand),
 		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
+		MTP_string("tdesktop"),
 		MTPint(), // reply_to_msg_id
 		MTPInputPeer() // send_as
 	)).done([=](const MTPWebViewResult &result) {
@@ -678,7 +679,8 @@ void AttachWebView::requestSimple(const WebViewButton &button) {
 		MTP_flags(Flag::f_theme_params),
 		_bot->inputUser,
 		MTP_bytes(button.url),
-		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json))
+		MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
+		MTP_string("tdesktop")
 	)).done([=](const MTPSimpleWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDsimpleWebViewResultUrl &data) {
@@ -709,6 +711,7 @@ void AttachWebView::requestMenu(
 			MTP_string(url),
 			MTPstring(), // url
 			MTP_dataJSON(MTP_bytes(Window::Theme::WebViewParams().json)),
+			MTP_string("tdesktop"),
 			MTPint(), // reply_to_msg_id
 			MTPInputPeer() // send_as
 		)).done([=](const MTPWebViewResult &result) {

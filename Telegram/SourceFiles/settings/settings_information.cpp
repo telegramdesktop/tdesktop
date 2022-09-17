@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "info/profile/info_profile_values.h"
+#include "info/profile/info_profile_badge.h"
 #include "lang/lang_keys.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -63,6 +64,7 @@ namespace Settings {
 namespace {
 
 constexpr auto kSaveBioTimeout = 1000;
+constexpr auto kPlayStatusLimit = 2;
 
 class ComposedBadge final : public Ui::RpWidget {
 public:
@@ -71,7 +73,8 @@ public:
 		not_null<Ui::SettingsButton*> button,
 		not_null<Main::Session*> session,
 		rpl::producer<QString> &&text,
-		bool hasUnread);
+		bool hasUnread,
+		Fn<bool()> animationPaused);
 
 private:
 	rpl::variable<QString> _text;
@@ -79,7 +82,7 @@ private:
 	rpl::event_stream<int> _premiumWidth;
 
 	QPointer<Ui::RpWidget> _unread;
-	QPointer<Ui::RpWidget> _premium;
+	Info::Profile::Badge _badge;
 
 };
 
@@ -88,9 +91,18 @@ ComposedBadge::ComposedBadge(
 	not_null<Ui::SettingsButton*> button,
 	not_null<Main::Session*> session,
 	rpl::producer<QString> &&text,
-	bool hasUnread)
+	bool hasUnread,
+	Fn<bool()> animationPaused)
 : Ui::RpWidget(parent)
-, _text(std::move(text)) {
+, _text(std::move(text))
+, _badge(
+		this,
+		st::settingsInfoPeerBadge,
+		session->user(),
+		nullptr,
+		std::move(animationPaused),
+		kPlayStatusLimit,
+		Info::Profile::BadgeType::Premium) {
 	if (hasUnread) {
 		_unread = CreateUnread(this, rpl::single(
 			rpl::empty
@@ -111,35 +123,21 @@ ComposedBadge::ComposedBadge(
 		}) | rpl::start_to_stream(_unreadWidth, _unread->lifetime());
 	}
 
-	Data::AmPremiumValue(
-		session
-	) | rpl::start_with_next([=](bool hasPremium) {
-		if (hasPremium && !_premium) {
-			_premium = Ui::CreateChild<Ui::RpWidget>(this);
-			const auto offset = st::dialogsPremiumIconOffset;
-			_premium->resize(
-				st::dialogsPremiumIcon.width() - offset.x(),
-				st::dialogsPremiumIcon.height() - offset.y());
-			_premium->paintRequest(
-			) | rpl::start_with_next([=](const QRect &r) {
-				Painter p(_premium);
-				st::dialogsPremiumIcon.paint(
-					p,
-					-offset.x(),
-					-offset.y(),
-					_premium->width());
-			}, _premium->lifetime());
-			_premium->widthValue(
-			) | rpl::start_to_stream(_premiumWidth, _premium->lifetime());
-		} else if (!hasPremium && _premium) {
-			_premium = nullptr;
+	_badge.updated(
+	) | rpl::start_with_next([=] {
+		if (const auto button = _badge.widget()) {
+			button->widthValue(
+			) | rpl::start_to_stream(_premiumWidth, button->lifetime());
+		} else {
 			_premiumWidth.fire(0);
 		}
 	}, lifetime());
 
 	rpl::combine(
 		_unreadWidth.events_starting_with(_unread ? _unread->width() : 0),
-		_premiumWidth.events_starting_with(_premium ? _premium->width() : 0),
+		_premiumWidth.events_starting_with(_badge.widget()
+			? _badge.widget()->width()
+			: 0),
 		_text.value(),
 		button->sizeValue()
 	) | rpl::start_with_next([=](
@@ -151,7 +149,7 @@ ComposedBadge::ComposedBadge(
 		const auto skip = st.style.font->spacew;
 		const auto textRightPosition = st.padding.left()
 			+ st.style.font->width(text)
-			+ skip * 2;
+			+ skip;
 		const auto minWidth = unreadWidth + premiumWidth + skip;
 		const auto maxTextWidth = buttonSize.width()
 			- minWidth
@@ -163,9 +161,10 @@ ComposedBadge::ComposedBadge(
 			buttonSize.width() - st.padding.right() - finalTextRight,
 			buttonSize.height());
 
-		if (_premium) {
-			_premium->moveToLeft(0, st.padding.top());
-		}
+		_badge.move(
+			0,
+			st.padding.top(),
+			buttonSize.height() - st.padding.top());
 		if (_unread) {
 			_unread->moveToRight(
 				0,
@@ -618,7 +617,9 @@ void SetupAccountsWrap(
 			raw,
 			session,
 			std::move(text),
-			!active);
+			!active,
+			[=] { return window->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer); });
 		composedBadge->sizeValue(
 		) | rpl::start_with_next([=](const QSize &s) {
 			container->resize(s);
@@ -986,9 +987,7 @@ not_null<Ui::RpWidget*> AddRight(
 				padding.right(),
 				(outer.height() - inner.height()) / 2,
 				outer.width());
-			padding.setRight(padding.right()
-				+ inner.width()
-				+ button->st().style.font->spacew);
+			padding.setRight(padding.right() + inner.width());
 		}
 		button->setPaddingOverride(padding);
 		button->update();

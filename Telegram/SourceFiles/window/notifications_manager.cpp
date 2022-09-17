@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
@@ -53,6 +54,11 @@ constexpr auto kSystemAlertDuration = crl::time(1000);
 #else // !Q_OS_MAC
 constexpr auto kSystemAlertDuration = crl::time(0);
 #endif // Q_OS_MAC
+
+[[nodiscard]] QString PlaceholderReactionText() {
+	static const auto result = QString::fromUtf8("\xf0\x9f\x92\xad");
+	return result;
+}
 
 QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 	auto text = textWithEntities.text;
@@ -676,13 +682,13 @@ void System::showNext() {
 				= (notify->type == ItemNotificationType::Reaction);
 			const auto reaction = reactionNotification
 				? notify->item->lookupUnreadReaction(notify->reactionSender)
-				: QString();
-			if (!reactionNotification || !reaction.isEmpty()) {
+				: Data::ReactionId();
+			if (!reactionNotification || !reaction.empty()) {
 				_manager->showNotification({
 					.item = notify->item,
 					.forwardedCount = forwardedCount,
 					.reactionFrom = notify->reactionSender,
-					.reactionEmoji = reaction,
+					.reactionId = reaction,
 				});
 			}
 		}
@@ -774,12 +780,42 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	return result;
 }
 
+TextWithEntities Manager::ComposeReactionEmoji(
+		not_null<Main::Session*> session,
+		const Data::ReactionId &reaction) {
+	if (const auto emoji = std::get_if<QString>(&reaction.data)) {
+		return TextWithEntities{ *emoji };
+	}
+	const auto id = v::get<DocumentId>(reaction.data);
+	auto entities = EntitiesInText();
+	const auto document = session->data().document(id);
+	const auto sticker = document->sticker();
+	const auto text = sticker ? sticker->alt : PlaceholderReactionText();
+	return TextWithEntities{
+		text,
+		{
+			EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				text.size(),
+				Data::SerializeCustomEmojiId(Data::CustomEmojiId{ id }))
+		}
+	};
+}
+
 TextWithEntities Manager::ComposeReactionNotification(
 		not_null<HistoryItem*> item,
-		const QString &reaction,
+		const Data::ReactionId &reaction,
 		bool hideContent) {
+	const auto reactionWithEntities = ComposeReactionEmoji(
+		&item->history()->session(),
+		reaction);
 	const auto simple = [&](const auto &phrase) {
-		return TextWithEntities{ phrase(tr::now, lt_reaction, reaction) };
+		return phrase(
+			tr::now,
+			lt_reaction,
+			reactionWithEntities,
+			Ui::Text::WithEntities);
 	};
 	if (hideContent) {
 		return simple(tr::lng_reaction_notext);
@@ -789,7 +825,7 @@ TextWithEntities Manager::ComposeReactionNotification(
 		return tr::lng_reaction_text(
 			tr::now,
 			lt_reaction,
-			Ui::Text::WithEntities(reaction),
+			reactionWithEntities,
 			lt_text,
 			item->notificationText(),
 			Ui::Text::WithEntities);
@@ -808,14 +844,13 @@ TextWithEntities Manager::ComposeReactionNotification(
 		} else if (document->isVideoFile()) {
 			return simple(tr::lng_reaction_video);
 		} else if (const auto sticker = document->sticker()) {
-			return {
-				tr::lng_reaction_sticker(
-					tr::now,
-					lt_reaction,
-					reaction,
-					lt_emoji,
-					sticker->alt)
-			};
+			return tr::lng_reaction_sticker(
+				tr::now,
+				lt_reaction,
+				reactionWithEntities,
+				lt_emoji,
+				Ui::Text::WithEntities(sticker->alt),
+				Ui::Text::WithEntities);
 		}
 		return simple(tr::lng_reaction_document);
 	} else if (const auto contact = media->sharedContact()) {
@@ -829,26 +864,26 @@ TextWithEntities Manager::ComposeReactionNotification(
 				contact->firstName,
 				lt_last_name,
 				contact->lastName);
-		return {
-			tr::lng_reaction_contact(
-				tr::now,
-				lt_reaction,
-				reaction,
-				lt_name,
-				name)
-		};
+		return tr::lng_reaction_contact(
+			tr::now,
+			lt_reaction,
+			reactionWithEntities,
+			lt_name,
+			Ui::Text::WithEntities(name),
+			Ui::Text::WithEntities);
 	} else if (media->location()) {
 		return simple(tr::lng_reaction_location);
 		// lng_reaction_live_location not used right now :(
 	} else if (const auto poll = media->poll()) {
-		return {
-			(poll->quiz() ? tr::lng_reaction_quiz : tr::lng_reaction_poll)(
+		return (poll->quiz()
+			? tr::lng_reaction_quiz
+			: tr::lng_reaction_poll)(
 				tr::now,
 				lt_reaction,
-				reaction,
+				reactionWithEntities,
 				lt_title,
-				poll->question)
-		};
+				Ui::Text::WithEntities(poll->question),
+				Ui::Text::WithEntities);
 	} else if (media->game()) {
 		return simple(tr::lng_reaction_game);
 	} else if (media->invoice()) {
@@ -1004,7 +1039,7 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	const auto text = reactionFrom
 		? TextWithPermanentSpoiler(ComposeReactionNotification(
 			item,
-			fields.reactionEmoji,
+			fields.reactionId,
 			options.hideMessageText))
 		: options.hideMessageText
 		? tr::lng_notification_preview(tr::now)

@@ -460,7 +460,7 @@ void HistoryMessageReply::paint(
 				p.setTextPalette(inBubble
 					? stm->replyTextPalette
 					: st->imgReplyTextPalette());
-				holder->prepareCustomEmojiPaint(p, replyToText);
+				holder->prepareCustomEmojiPaint(p, context, replyToText);
 				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				p.setTextPalette(stm->textPalette);
 			}
@@ -912,6 +912,18 @@ void HistoryMessageReplyMarkup::updateData(
 		HistoryMessageMarkupData &&markup) {
 	data = std::move(markup);
 	inlineKeyboard = nullptr;
+}
+
+bool HistoryMessageReplyMarkup::hiddenBy(Data::Media *media) const {
+	if (media && (data.flags & ReplyMarkupFlag::OnlyBuyButton)) {
+		if (const auto invoice = media->invoice()) {
+			if (invoice->extendedPreview
+				&& (!invoice->extendedMedia || !invoice->receiptMsgId)) {
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 HistoryMessageLogEntryOriginal::HistoryMessageLogEntryOriginal() = default;

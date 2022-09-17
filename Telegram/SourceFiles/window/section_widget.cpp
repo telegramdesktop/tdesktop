@@ -343,41 +343,23 @@ bool ShowSendPremiumError(
 	return true;
 }
 
-[[nodiscard]] auto ExtractDisabledReactions(
-	not_null<PeerData*> peer,
-	const std::vector<Data::Reaction> &list)
--> base::flat_map<QString, ReactionDisableType> {
-	auto result = base::flat_map<QString, ReactionDisableType>();
-	const auto type = peer->isBroadcast()
-		? ReactionDisableType::Channel
-		: ReactionDisableType::Group;
-	if (const auto allowed = Data::PeerAllowedReactions(peer)) {
-		for (const auto &reaction : list) {
-			if (reaction.premium && !allowed->contains(reaction.emoji)) {
-				result.emplace(reaction.emoji, type);
-			}
-		}
-	}
-	return result;
-}
-
 bool ShowReactPremiumError(
 		not_null<SessionController*> controller,
 		not_null<HistoryItem*> item,
-		const QString &emoji) {
-	if (item->chosenReaction() == emoji || controller->session().premium()) {
+		const Data::ReactionId &id) {
+	if (controller->session().premium()
+		|| ranges::contains(item->chosenReactions(), id)) {
 		return false;
 	}
 	const auto &list = controller->session().data().reactions().list(
 		Data::Reactions::Type::Active);
-	const auto i = ranges::find(list, emoji, &Data::Reaction::emoji);
+	const auto i = ranges::find(list, id, &Data::Reaction::id);
 	if (i == end(list) || !i->premium) {
-		return false;
+		if (!id.custom()) {
+			return false;
+		}
 	}
-	ShowPremiumPreviewBox(
-		controller,
-		PremiumPreview::Reactions,
-		ExtractDisabledReactions(item->history()->peer, list));
+	ShowPremiumPreviewBox(controller, PremiumPreview::InfiniteReactions);
 	return true;
 }
 

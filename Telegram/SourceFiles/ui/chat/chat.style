@@ -47,6 +47,9 @@ maxWallPaperWidth: 160px;
 maxWallPaperHeight: 240px;
 historyThemeSize: size(272px, 176px);
 
+extendedPreviewButtonPadding: margins(20px, 10px, 20px, 10px);
+extendedPreviewButtonMargin: 20px;
+
 historyMinimalWidth: 380px;
 
 reactionMenu: PopupMenu(defaultPopupMenu) {
@@ -304,6 +307,10 @@ historyContactStatusBlock: FlatButton(historyContactStatusButton) {
 }
 historyContactStatusLabel: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
+}
+historyEmojiStatusInfoLabel: FlatLabel(historyContactStatusLabel) {
+	align: align(top);
+	textFg: windowSubTextFg;
 }
 historyContactStatusMinSkip: 16px;
 
@@ -936,10 +943,13 @@ ttlDividerLabelPadding: margins(22px, 10px, 22px, 19px);
 ttlItemPadding: margins(0px, 4px, 0px, 4px);
 ttlItemTimerFont: font(12px);
 
+expandedMenuSeparator: MenuSeparator(defaultMenuSeparator) {
+	padding: margins(0px, 4px, 0px, 4px);
+	width: 6px;
+}
 popupMenuExpandedSeparator: PopupMenu(popupMenuWithIcons) {
 	menu: Menu(menuWithIcons) {
-		separatorPadding: margins(0px, 4px, 0px, 4px);
-		separatorWidth: 6px;
+		separator: expandedMenuSeparator;
 	}
 }
 
@@ -1024,14 +1034,14 @@ sendAsButton: SendAsButton {
 }
 
 reactionInlinePadding: margins(5px, 2px, 7px, 2px);
-reactionInlineSize: 16px;
-reactionInlineImage: 28px;
+reactionInlineSize: 18px;
+reactionInlineImage: 32px;
 reactionInlineSkip: 3px;
 reactionInlineBetween: 4px;
 reactionInlineInBubbleLeft: -3px;
 reactionInlineUserpicsPadding: margins(1px, 1px, 1px, 1px);
 reactionInlineUserpics: GroupCallUserpics {
-	size: 18px;
+	size: 20px;
 	shift: 7px;
 	stroke: 1px;
 	align: align(left);
@@ -1063,6 +1073,14 @@ reactionFlyUp: 50px;
 reactionPremiumLocked: icon{
 	{ "chat/reactions_premium_bg", historyPeerArchiveUserpicBg },
 	{ "chat/reactions_premium_star", historyPeerUserpicFg },
+};
+reactionExpandPanel: icon{
+	{ "chat/reactions_round_big", windowSubTextFg },
+	{ "chat/reactions_expand_panel", windowBg },
+};
+reactionsExpandDropdown: icon{
+	{ "chat/reactions_round_small", windowSubTextFg },
+	{ "chat/reactions_expand_panel", windowBg },
 };
 
 searchInChatMultiSelectItem: MultiSelectItem(defaultMultiSelectItem) {

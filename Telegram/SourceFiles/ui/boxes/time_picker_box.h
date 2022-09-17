@@ -11,7 +11,9 @@ namespace Ui {
 
 class GenericBox;
 
-Fn<TimeId()> TimePickerBox(
+[[nodiscard]] std::vector<TimeId> DefaultTimePickerValues();
+
+[[nodiscard]] Fn<TimeId()> TimePickerBox(
 	not_null<GenericBox*> box,
 	std::vector<TimeId> values,
 	std::vector<QString> phrases,

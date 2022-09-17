@@ -11,18 +11,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/padding_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
+#include "core/ui_integration.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_changes.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
+#include "settings/settings_premium.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -38,7 +44,23 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-bool BarCurrentlyHidden(not_null<PeerData*> peer) {
+class Listener final : public Data::CustomEmojiManager::Listener {
+public:
+	explicit Listener(Fn<void(not_null<DocumentData*>)> check)
+	: _check(std::move(check)) {
+	}
+
+	void customEmojiResolveDone(
+		not_null<DocumentData*> document) override {
+		_check(document);
+	}
+
+private:
+	Fn<void(not_null<DocumentData*>)> _check;
+
+};
+
+[[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->settings();
 	if (!settings) {
 		return false;
@@ -56,6 +78,66 @@ bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 		return true;
 	}
 	return false;
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> ResolveIsCustom(
+		not_null<Data::Session*> owner,
+		DocumentId id) {
+	return [=](auto consumer) {
+		const auto document = owner->document(id);
+		const auto manager = &owner->customEmojiManager();
+		const auto check = [=](not_null<DocumentData*> document) {
+			if (const auto sticker = document->sticker()) {
+				const auto setId = manager->coloredSetId();
+				const auto text = (setId == sticker->set.id)
+					? QString()
+					: sticker->alt;
+				if (text.isEmpty()) {
+					consumer.put_next({});
+				} else {
+					consumer.put_next({
+						.text = text,
+						.entities = { EntityInText(
+							EntityType::CustomEmoji,
+							0,
+							text.size(),
+							Data::SerializeCustomEmojiId(document)) },
+					});
+				}
+				return true;
+			}
+			return false;
+		};
+		auto lifetime = rpl::lifetime();
+		if (!check(document)) {
+			const auto manager = &owner->customEmojiManager();
+			const auto listener = new Listener(check);
+			lifetime.add([=] {
+				manager->unregisterListener(listener);
+				delete listener;
+			});
+			manager->resolve(id, listener);
+		}
+		return lifetime;
+	};
+}
+
+[[nodiscard]] rpl::producer<TextWithEntities> PeerCustomStatus(
+		not_null<PeerData*> peer) {
+	const auto user = peer->asUser();
+	if (!user) {
+		return rpl::single(TextWithEntities());
+	}
+	const auto owner = &user->owner();
+	return user->session().changes().peerFlagsValue(
+		user,
+		Data::PeerUpdate::Flag::EmojiStatus
+	) | rpl::map([=] {
+		const auto id = user->emojiStatusId();
+		return id
+			? ResolveIsCustom(owner, id)
+			: rpl::single(TextWithEntities());
+	}) | rpl::flatten_latest() | rpl::distinct_until_changed();
 }
 
 } // namespace
@@ -78,7 +160,10 @@ class ContactStatus::Bar final : public Ui::RpWidget {
 public:
 	Bar(QWidget *parent, const QString &name);
 
-	void showState(State state);
+	void showState(
+		State state,
+		TextWithEntities status,
+		Fn<std::any(Fn<void()> customEmojiRepaint)> context);
 
 	[[nodiscard]] rpl::producer<> unarchiveClicks() const;
 	[[nodiscard]] rpl::producer<> addClicks() const;
@@ -87,9 +172,12 @@ public:
 	[[nodiscard]] rpl::producer<> reportClicks() const;
 	[[nodiscard]] rpl::producer<> closeClicks() const;
 	[[nodiscard]] rpl::producer<> requestInfoClicks() const;
+	[[nodiscard]] rpl::producer<> emojiStatusClicks() const;
 
 private:
 	int resizeGetHeight(int newWidth) override;
+
+	void emojiStatusRepaint();
 
 	QString _name;
 	object_ptr<Ui::FlatButton> _add;
@@ -100,6 +188,10 @@ private:
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<BgButton> _requestChatBg;
 	object_ptr<Ui::FlatLabel> _requestChatInfo;
+	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _emojiStatusInfo;
+	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
+	bool _emojiStatusRepaintScheduled = false;
+	rpl::event_stream<> _emojiStatusClicks;
 
 };
 
@@ -152,13 +244,30 @@ ContactStatus::Bar::Bar(
 , _close(this, st::historyReplyCancel)
 , _requestChatBg(this, st::historyContactStatusButton)
 , _requestChatInfo(
-		this,
-		QString(),
-		st::historyContactStatusLabel) {
+	this,
+	QString(),
+	st::historyContactStatusLabel)
+, _emojiStatusInfo(
+	this,
+	object_ptr<Ui::FlatLabel>(this, u""_q, st::historyEmojiStatusInfoLabel),
+	QMargins(
+		st::historyContactStatusMinSkip,
+		st::topBarArrowPadding.top(),
+		st::historyContactStatusMinSkip,
+		st::topBarArrowPadding.top()))
+, _emojiStatusShadow(this) {
 	_requestChatInfo->setAttribute(Qt::WA_TransparentForMouseEvents);
+	_emojiStatusInfo->paintRequest(
+	) | rpl::start_with_next([=, raw = _emojiStatusInfo.data()](QRect clip) {
+		_emojiStatusRepaintScheduled = false;
+		QPainter(raw).fillRect(clip, st::historyComposeButtonBg);
+	}, lifetime());
 }
 
-void ContactStatus::Bar::showState(State state) {
+void ContactStatus::Bar::showState(
+		State state,
+		TextWithEntities status,
+		Fn<std::any(Fn<void()> customEmojiRepaint)> context) {
 	using Type = State::Type;
 	const auto type = state.type;
 	_add->setVisible(type == Type::AddOrBlock || type == Type::Add);
@@ -172,6 +281,25 @@ void ContactStatus::Bar::showState(State state) {
 		|| type == Type::UnarchiveOrReport);
 	_requestChatInfo->setVisible(type == Type::RequestChatInfo);
 	_requestChatBg->setVisible(type == Type::RequestChatInfo);
+	const auto has = !status.empty();
+	_emojiStatusShadow->setVisible(
+		has && (type == Type::AddOrBlock || type == Type::UnarchiveOrBlock));
+	if (has) {
+		_emojiStatusInfo->entity()->setMarkedText(
+			tr::lng_new_contact_about_status(
+				tr::now,
+				lt_emoji,
+				status,
+				lt_link,
+				Ui::Text::Link(
+					tr::lng_new_contact_about_status_link(tr::now)),
+				Ui::Text::WithEntities),
+			context([=] { emojiStatusRepaint(); }));
+		_emojiStatusInfo->entity()->overrideLinkClickHandler([=] {
+			_emojiStatusClicks.fire({});
+		});
+	}
+	_emojiStatusInfo->setVisible(has);
 	_add->setText((type == Type::Add)
 		? tr::lng_new_contact_add_name(tr::now, lt_user, _name).toUpper()
 		: tr::lng_new_contact_add(tr::now).toUpper());
@@ -219,14 +347,19 @@ rpl::producer<> ContactStatus::Bar::requestInfoClicks() const {
 	return _requestChatBg->clicks() | rpl::to_empty;
 }
 
+rpl::producer<> ContactStatus::Bar::emojiStatusClicks() const {
+	return _emojiStatusClicks.events();
+}
+
 int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 	_close->moveToRight(0, 0);
 
 	const auto closeWidth = _close->width();
+	const auto closeHeight = _close->height();
 	const auto available = newWidth - closeWidth;
 	const auto skip = st::historyContactStatusMinSkip;
 	if (available <= 2 * skip) {
-		return _close->height();
+		return closeHeight;
 	}
 	const auto buttonWidth = [&](const object_ptr<Ui::FlatButton> &button) {
 		return button->textWidth() + 2 * skip;
@@ -237,7 +370,7 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 			const object_ptr<Ui::FlatButton> &button,
 			int buttonWidth,
 			int rightTextMargin = 0) {
-		button->setGeometry(accumulatedLeft, 0, buttonWidth, height());
+		button->setGeometry(accumulatedLeft, 0, buttonWidth, closeHeight);
 		button->setTextMargins({ 0, 0, rightTextMargin, 0 });
 		accumulatedLeft += buttonWidth;
 	};
@@ -287,7 +420,17 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 		placeOne(_report);
 	}
 	if (_requestChatInfo->isHidden()) {
-		return _close->height();
+		_emojiStatusInfo->resizeToWidth(newWidth);
+		_emojiStatusInfo->move(0, _close->height());
+		_emojiStatusShadow->setGeometry(
+			0,
+			closeHeight,
+			newWidth,
+			st::lineWidth);
+		_emojiStatusShadow->move(0, _close->height());
+		return closeHeight + (_emojiStatusInfo->isHidden()
+			? 0
+			: _emojiStatusInfo->height());
 	}
 	const auto vskip = st::topBarArrowPadding.top();
 	_requestChatInfo->resizeToWidth(available - 2 * skip);
@@ -295,6 +438,14 @@ int ContactStatus::Bar::resizeGetHeight(int newWidth) {
 	const auto newHeight = _requestChatInfo->height() + 2 * vskip;
 	_requestChatBg->setGeometry(0, 0, newWidth, newHeight);
 	return newHeight;
+}
+
+void ContactStatus::Bar::emojiStatusRepaint() {
+	if (_emojiStatusRepaintScheduled) {
+		return;
+	}
+	_emojiStatusRepaintScheduled = true;
+	_emojiStatusInfo->entity()->update();
 }
 
 ContactStatus::ContactStatus(
@@ -393,15 +544,23 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 		peer->session().api().requestPeerSettings(peer);
 	}
 
-	_bar.entity()->showState(State());
-	PeerState(
-		peer
-	) | rpl::start_with_next([=](State state) {
+	_context = [=](Fn<void()> customEmojiRepaint) {
+		return Core::MarkedTextContext{
+			.session = &peer->session(),
+			.customEmojiRepaint = customEmojiRepaint,
+		};
+	};
+	_bar.entity()->showState({}, {}, _context);
+	rpl::combine(
+		PeerState(peer),
+		PeerCustomStatus(peer)
+	) | rpl::start_with_next([=](State state, TextWithEntities status) {
 		_state = state;
+		_status = status;
 		if (state.type == State::Type::None) {
 			_bar.hide(anim::type::normal);
 		} else {
-			_bar.entity()->showState(state);
+			_bar.entity()->showState(state, std::move(status), _context);
 			_bar.show(anim::type::normal);
 		}
 	}, _bar.lifetime());
@@ -417,6 +576,7 @@ void ContactStatus::setupHandlers(not_null<PeerData*> peer) {
 	setupReportHandler(peer);
 	setupCloseHandler(peer);
 	setupRequestInfoHandler(peer);
+	setupEmojiStatusHandler(peer);
 }
 
 void ContactStatus::setupAddHandler(not_null<UserData*> user) {
@@ -583,12 +743,19 @@ void ContactStatus::setupRequestInfoHandler(not_null<PeerData*> peer) {
 	}, _bar.lifetime());
 }
 
+void ContactStatus::setupEmojiStatusHandler(not_null<PeerData*> peer) {
+	_bar.entity()->emojiStatusClicks(
+	) | rpl::start_with_next([=] {
+		Settings::ShowEmojiStatusPremium(_controller, peer);
+	}, _bar.lifetime());
+}
+
 void ContactStatus::show() {
 	const auto visible = (_state.type != State::Type::None);
 	if (!_shown) {
 		_shown = true;
 		if (visible) {
-			_bar.entity()->showState(_state);
+			_bar.entity()->showState(_state, _status, _context);
 		}
 	}
 	_bar.toggle(visible, anim::type::instant);

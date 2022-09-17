@@ -351,7 +351,11 @@ void SuggestionsWidget::paintEvent(QPaintEvent *e) {
 		const auto x = i * _oneWidth + (_oneWidth - size) / 2;
 		const auto y = (_oneWidth - size) / 2;
 		if (row.custom) {
-			row.custom->paint(p, x, y, now, preview, false);
+			row.custom->paint(p, {
+				.preview = preview,
+				.now = now,
+				.position = { x, y },
+			});
 		} else {
 			Ui::Emoji::Draw(p, emoji, esize, x, y);
 		}

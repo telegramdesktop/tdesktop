@@ -311,6 +311,8 @@ void paintRow(
 		VideoUserpic *videoUserpic,
 		FilterId filterId,
 		PeerData *from,
+		Ui::PeerBadge &fromBadge,
+		Fn<void()> customEmojiRepaint,
 		const Ui::Text::String &fromName,
 		const HiddenSenderInfo *hiddenSenderInfo,
 		HistoryItem *item,
@@ -474,9 +476,7 @@ void paintRow(
 						Text::WithEntities);
 				const auto context = Core::MarkedTextContext{
 					.session = &history->session(),
-					.customEmojiRepaint = [=] {
-						history->updateChatListEntry();
-					},
+					.customEmojiRepaint = customEmojiRepaint,
 				};
 				history->cloudDraftTextCache.setMarkedText(
 					st::dialogsTextStyle,
@@ -570,30 +570,43 @@ void paintRow(
 			: st::dialogsNameFg);
 		p.drawTextLeft(rectForName.left(), rectForName.top(), fullWidth, text);
 	} else if (from) {
-		if (!(flags & Flag::SearchResult)) {
-			const auto badgeStyle = PeerBadgeStyle{
-				(active
-					? &st::dialogsVerifiedIconActive
-					: selected
-					? &st::dialogsVerifiedIconOver
-					: &st::dialogsVerifiedIcon),
-				(active
-					? &st::dialogsPremiumIconActive
-					: selected
-					? &st::dialogsPremiumIconOver
-					: &st::dialogsPremiumIcon),
-				(active
-					? &st::dialogsScamFgActive
-					: selected
-					? &st::dialogsScamFgOver
-					: &st::dialogsScamFg) };
-			const auto badgeWidth = DrawPeerBadgeGetWidth(
-				from,
+		if (history && !(flags & Flag::SearchResult)) {
+			const auto badgeWidth = fromBadge.drawGetWidth(
 				p,
 				rectForName,
 				fromName.maxWidth(),
 				fullWidth,
-				badgeStyle);
+				{
+					.peer = from,
+					.verified = (active
+						? &st::dialogsVerifiedIconActive
+						: selected
+						? &st::dialogsVerifiedIconOver
+						: &st::dialogsVerifiedIcon),
+					.premium = (active
+						? &st::dialogsPremiumIconActive
+						: selected
+						? &st::dialogsPremiumIconOver
+						: &st::dialogsPremiumIcon),
+					.scam = (active
+						? &st::dialogsScamFgActive
+						: selected
+						? &st::dialogsScamFgOver
+						: &st::dialogsScamFg),
+					.premiumFg = (active
+						? &st::dialogsVerifiedIconBgActive
+						: selected
+						? &st::dialogsVerifiedIconBgOver
+						: &st::dialogsVerifiedIconBg),
+					.preview = (active
+						? st::dialogsScamFgActive
+						: selected
+						? st::windowBgRipple
+						: st::windowBgOver)->c,
+					.customEmojiRepaint = customEmojiRepaint,
+					.now = ms,
+					.paused = bool(flags & Flag::VideoPaused),
+				});
 			rectForName.setWidth(rectForName.width() - badgeWidth);
 		}
 		p.setPen(active
@@ -911,7 +924,7 @@ void RowPainter::paint(
 			: (selected
 				? st::dialogsTextFgServiceOver
 				: st::dialogsTextFgService);
-		const auto itemRect = QRect(
+		const auto rect = QRect(
 			nameleft,
 			texttop,
 			availableWidth,
@@ -919,23 +932,23 @@ void RowPainter::paint(
 		const auto actionWasPainted = ShowSendActionInDialogs(history)
 			? history->sendActionPainter()->paint(
 				p,
-				itemRect.x(),
-				itemRect.y(),
-				itemRect.width(),
+				rect.x(),
+				rect.y(),
+				rect.width(),
 				fullWidth,
 				color,
 				ms)
 			: false;
 		if (const auto folder = row->folder()) {
-			PaintListEntryText(p, itemRect, active, selected, row);
+			PaintListEntryText(p, rect, active, selected, row);
 		} else if (history && !actionWasPainted) {
-			history->lastItemDialogsView.paint(
-				p,
-				item,
-				itemRect,
-				active,
-				selected,
-				{});
+			if (!history->lastItemDialogsView.prepared(item)) {
+				history->lastItemDialogsView.prepare(
+					item,
+					[=] { history->updateChatListEntry(); },
+					{});
+			}
+			history->lastItemDialogsView.paint(p, rect, active, selected);
 		}
 	};
 	const auto paintCounterCallback = [&] {
@@ -959,6 +972,8 @@ void RowPainter::paint(
 		videoUserpic,
 		filterId,
 		from,
+		entry->chatListBadge(),
+		[=] { history->updateChatListEntry(); },
 		entry->chatListNameText(),
 		nullptr,
 		item,
@@ -1056,13 +1071,11 @@ void RowPainter::paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		row->itemView().paint(
-			p,
-			item,
-			itemRect,
-			active,
-			selected,
-			previewOptions);
+		auto &view = row->itemView();
+		if (!view.prepared(item)) {
+			view.prepare(item, row->repaint(), previewOptions);
+		}
+		row->itemView().paint(p, itemRect, active, selected);
 	};
 	const auto paintCounterCallback = [&] {
 		PaintNarrowCounter(
@@ -1094,6 +1107,8 @@ void RowPainter::paint(
 		nullptr,
 		FilterId(),
 		from,
+		row->badge(),
+		row->repaint(),
 		row->name(),
 		hiddenSenderInfo,
 		item,

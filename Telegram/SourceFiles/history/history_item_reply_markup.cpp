@@ -49,13 +49,13 @@ void HistoryMessageMarkupData::fillRows(
 		return;
 	}
 
+	using Type = Button::Type;
 	rows.reserve(list.size());
 	for (const auto &row : list) {
 		row.match([&](const MTPDkeyboardButtonRow &data) {
 			auto row = std::vector<Button>();
 			row.reserve(data.vbuttons().v.size());
 			for (const auto &button : data.vbuttons().v) {
-				using Type = Button::Type;
 				button.match([&](const MTPDkeyboardButton &data) {
 					row.emplace_back(Type::Default, qs(data.vtext()));
 				}, [&](const MTPDkeyboardButtonCallback &data) {
@@ -138,6 +138,11 @@ void HistoryMessageMarkupData::fillRows(
 			}
 		});
 	}
+	if (rows.size() == 1
+		&& rows.front().size() == 1
+		&& rows.front().front().type == Type::Buy) {
+		flags |= ReplyMarkupFlag::OnlyBuyButton;
+	}
 }
 
 HistoryMessageMarkupData::HistoryMessageMarkupData(
@@ -157,7 +162,8 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 		placeholder = QString();
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyKeyboardHide &data) {
-		flags = Flag::None | (data.is_selective() ? Flag::Selective : Flag());
+		flags = Flag::None
+			| (data.is_selective() ? Flag::Selective : Flag());
 		placeholder = QString();
 	}, [&](const MTPDreplyKeyboardForceReply &data) {
 		flags = Flag::ForceReply

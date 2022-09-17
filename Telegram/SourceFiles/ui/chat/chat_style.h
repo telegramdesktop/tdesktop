@@ -107,6 +107,7 @@ struct ChatPaintContext {
 	QRect clip;
 	TextSelection selection;
 	bool outbg = false;
+	bool paused = false;
 	crl::time now = 0;
 
 	void translate(int x, int y) {
@@ -132,7 +133,7 @@ struct ChatPaintContext {
 		return translated(point.x(), point.y());
 	}
 	[[nodiscard]] ChatPaintContext withSelection(
-		TextSelection selection) const {
+			TextSelection selection) const {
 		auto result = *this;
 		result.selection = selection;
 		return result;

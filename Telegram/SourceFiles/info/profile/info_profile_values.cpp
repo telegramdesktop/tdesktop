@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_values.h"
 
+#include "info/profile/info_profile_badge.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "countries/countries_instance.h"
@@ -448,31 +449,14 @@ rpl::producer<int> FullReactionsCountValue(
 		not_null<Main::Session*> session) {
 	const auto reactions = &session->data().reactions();
 	return rpl::single(rpl::empty) | rpl::then(
-		reactions->updates()
+		reactions->defaultUpdates()
 	) | rpl::map([=] {
 		return int(reactions->list(Data::Reactions::Type::Active).size());
 	}) | rpl::distinct_until_changed();
 }
 
-rpl::producer<int> AllowedReactionsCountValue(not_null<PeerData*> peer) {
-	if (peer->isUser()) {
-		return FullReactionsCountValue(&peer->session());
-	}
-	return peer->session().changes().peerFlagsValue(
-		peer,
-		UpdateFlag::Reactions
-	) | rpl::map([=] {
-		if (const auto chat = peer->asChat()) {
-			return int(chat->allowedReactions().size());
-		} else if (const auto channel = peer->asChannel()) {
-			return int(channel->allowedReactions().size());
-		}
-		Unexpected("Peer type in AllowedReactionsCountValue.");
-	});
-}
-
 template <typename Flag, typename Peer>
-rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
+rpl::producer<BadgeType> BadgeValueFromFlags(Peer peer) {
 	return rpl::combine(
 		Data::PeerFlagsValue(
 			peer,
@@ -480,25 +464,36 @@ rpl::producer<Badge> BadgeValueFromFlags(Peer peer) {
 		Data::PeerPremiumValue(peer)
 	) | rpl::map([=](base::flags<Flag> value, bool premium) {
 		return (value & Flag::Scam)
-			? Badge::Scam
+			? BadgeType::Scam
 			: (value & Flag::Fake)
-			? Badge::Fake
+			? BadgeType::Fake
 			: (value & Flag::Verified)
-			? Badge::Verified
+			? BadgeType::Verified
 			: premium
-			? Badge::Premium
-			: Badge::None;
+			? BadgeType::Premium
+			: BadgeType::None;
 	});
 }
 
-rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer) {
+rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer) {
 	if (const auto user = peer->asUser()) {
 		return BadgeValueFromFlags<UserDataFlag>(user);
 	} else if (const auto channel = peer->asChannel()) {
 		return BadgeValueFromFlags<ChannelDataFlag>(channel);
 	}
-	return rpl::single(Badge::None);
+	return rpl::single(BadgeType::None);
 }
+
+rpl::producer<DocumentId> EmojiStatusIdValue(not_null<PeerData*> peer) {
+	if (const auto user = peer->asUser()) {
+		return user->session().changes().peerFlagsValue(
+			peer,
+			Data::PeerUpdate::Flag::EmojiStatus
+		) | rpl::map([=] { return user->emojiStatusId(); });
+	}
+	return rpl::single(DocumentId(0));
+}
+
 
 } // namespace Profile
 } // namespace Info

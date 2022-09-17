@@ -10,6 +10,26 @@ using "ui/basic.style";
 using "boxes/boxes.style";
 using "ui/widgets/widgets.style";
 
+EmojiPan {
+	margin: margins;
+	padding: margins;
+	desiredSize: pixels;
+	verticalSizeSub: pixels;
+	header: pixels;
+	headerLeft: pixels;
+	headerLockLeft: pixels;
+	headerLockedLeft: pixels;
+	headerTop: pixels;
+	footer: pixels;
+	iconSkip: pixels;
+	iconWidth: pixels;
+	iconArea: pixels;
+	bg: color;
+	overBg: color;
+	fadeLeft: icon;
+	fadeRight: icon;
+}
+
 switchPmButton: RoundButton(defaultBoxButton) {
 	width: 320px;
 	height: 34px;
@@ -147,23 +167,7 @@ emojiObjectsActive: icon {{ "emoji/emoji_objects", emojiSubIconFgActive }};
 emojiSymbols: icon {{ "emoji/emoji_symbols", emojiIconFg }};
 emojiSymbolsActive: icon {{ "emoji/emoji_symbols", emojiSubIconFgActive }};
 
-emojiFooterHeight: 46px;
-emojiCategorySkip: 4px;
-emojiCategory: IconButton {
-	width: 42px;
-	height: emojiFooterHeight;
-
-	iconPosition: point(-1px, 6px);
-}
-emojiCategoryRecent: IconButton(emojiCategory) { icon: emojiRecent; }
-emojiCategoryPeople: IconButton(emojiCategory) { icon: emojiPeople; }
-emojiCategoryNature: IconButton(emojiCategory) { icon: emojiNature; }
-emojiCategoryFood: IconButton(emojiCategory) { icon: emojiFood; }
-emojiCategoryActivity: IconButton(emojiCategory) { icon: emojiActivity; }
-emojiCategoryTravel: IconButton(emojiCategory) { icon: emojiTravel; }
-emojiCategoryObjects: IconButton(emojiCategory) { icon: emojiObjects; }
-emojiCategorySymbols: IconButton(emojiCategory) { icon: emojiSymbols; }
-
+emojiCategoryIconTop: 6px;
 emojiPanAnimation: PanelAnimation(defaultPanelAnimation) {
 	fadeBg: emojiPanBg;
 }
@@ -176,21 +180,35 @@ emojiPanShowDuration: 200;
 emojiPanDuration: 200;
 emojiPanHover: windowBgOver;
 emojiPanSlideDuration: 200;
-emojiPanDesiredSize: 39px;
 emojiPanArea: size(34px, 32px);
 emojiPanLeft: 13px;
 emojiPanRight: 17px;
 emojiPanRadius: 8px;
 
+defaultEmojiPan: EmojiPan {
+	margin: margins(roundRadiusSmall, 0px, 14px, 0px);
+	padding: margins(13px, 12px, 17px, 12px);
+	desiredSize: 39px;
+	verticalSizeSub: 2px;
+	header: 40px;
+	headerLeft: 23px;
+	headerLockLeft: 17px;
+	headerLockedLeft: 36px;
+	headerTop: 12px;
+	footer: 46px;
+	iconSkip: 4px;
+	iconWidth: 35px;
+	iconArea: 32px;
+	bg: emojiPanBg;
+	overBg: emojiPanHover;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", emojiPanCategories }};
+	fadeRight: icon {{ "fade_horizontal", emojiPanCategories }};
+}
+
 inlineResultsMinHeight: 278px;
 inlineResultsMaxHeight: 640px;
 
-emojiPanHeader: 40px;
 emojiPanHeaderFont: semiboldFont;
-emojiPanHeaderLeft: 23px;
-emojiPanHeaderLockLeft: 17px;
-emojiPanHeaderLockedLeft: 36px;
-emojiPanHeaderTop: 12px;
 emojiPanRemoveSkip: 10px;
 
 emojiColorsPadding: 5px;
@@ -233,7 +251,6 @@ stickerPanDeleteOpacityFg: 0.8;
 stickerPanDeleteOpacityFgOver: 1.;
 stickerPanRemoveSet: hashtagClose;
 stickerIconWidth: 42px;
-stickerIconHeight: emojiFooterHeight;
 stickerIconPadding: 5px;
 stickerIconOpacity: 0.7;
 stickerIconSel: 2px;
@@ -241,9 +258,6 @@ stickerIconSelColor: emojiIconFgActive;
 stickerIconMove: 400;
 stickerPreviewDuration: 150;
 stickerPreviewMin: 0.1;
-
-emojiIconWidth: 35px;
-emojiIconArea: 32px;
 
 stickerGroupCategorySize: 28px;
 stickerGroupCategoryAbout: defaultTextStyle;
@@ -311,3 +325,43 @@ inlineRadialSize: 44px;
 inlineFileSize: 44px;
 
 stickersPremiumLock: icon{{ "emoji/premium_lock", premiumButtonFg }};
+
+reactStripExtend: margins(21px, 49px, 39px, 0px);
+reactStripHeight: 40px;
+reactStripSize: 32px;
+reactStripMinWidth: 60px;
+reactStripImage: 26px;
+reactStripSkip: 7px;
+reactStripBubble: icon{
+	{ "chat/reactions_bubble_shadow", windowShadowFg },
+	{ "chat/reactions_bubble", windowBg },
+};
+reactStripBubbleRight: 20px;
+reactPanelEmojiPan: EmojiPan(defaultEmojiPan) {
+	margin: margins(reactStripSkip, 0px, reactStripSkip, 0px);
+	padding: margins(reactStripSkip, 0px, reactStripSkip, reactStripSkip);
+	desiredSize: reactStripSize;
+	verticalSizeSub: 0px;
+	headerLeft: 13px;
+	headerLockLeft: 7px;
+	headerLockedLeft: 26px;
+	footer: 42px;
+	iconSkip: 6px;
+	iconWidth: 33px;
+	iconArea: 30px;
+	overBg: transparent;
+	fadeLeft: icon {{ "fade_horizontal-flip_horizontal", windowBg }};
+	fadeRight: icon {{ "fade_horizontal", windowBg }};
+}
+reactPanelScroll: ScrollArea(defaultSolidScroll) {
+	deltat: 3px;
+	deltab: 3px;
+	round: 1px;
+	width: 7px;
+	deltax: 2px;
+	hiding: 0;
+}
+
+emojiSuggestionsFadeLeft: icon {{ "fade_horizontal-flip_horizontal", boxBg }};
+emojiSuggestionsFadeRight: icon {{ "fade_horizontal", boxBg }};
+

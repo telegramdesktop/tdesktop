@@ -243,7 +243,7 @@ void Sandbox::setupScreenScale() {
 			LOG(("Environmental variables: QT_AUTO_SCREEN_SCALE_FACTOR='%1'").arg(qEnvironmentVariable("QT_AUTO_SCREEN_SCALE_FACTOR")));
 			LOG(("Environmental variables: QT_SCREEN_SCALE_FACTORS='%1'").arg(qEnvironmentVariable("QT_SCREEN_SCALE_FACTORS")));
 		}
-		style::SetDevicePixelRatio(int(ratio));
+		style::SetDevicePixelRatio(std::ceil(ratio));
 		if (Platform::IsMac() && ratio == 2.) {
 			cSetScreenScale(110); // 110% for Retina screens by default.
 		} else {

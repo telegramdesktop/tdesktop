@@ -37,7 +37,7 @@ StickersPanelController::StickersPanelController(
 auto StickersPanelController::stickerChosen() const
 -> rpl::producer<not_null<DocumentData*>> {
 	return _stickersPanel->selector()->fileChosen(
-	) | rpl::map([](const ChatHelpers::TabbedSelector::FileChosen &data) {
+	) | rpl::map([](const ChatHelpers::FileChosen &data) {
 		return data.document;
 	});
 }

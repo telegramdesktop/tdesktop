@@ -76,7 +76,9 @@ void MuteSettingsBox::prepare() {
 
 	_save = [=] {
 		const auto muteForSeconds = group->value() * 3600;
-		_peer->owner().notifySettings().update(_peer, muteForSeconds);
+		_peer->owner().notifySettings().update(
+			_peer,
+			{ .period = muteForSeconds });
 		closeBox();
 	};
 	addButton(tr::lng_box_ok(), _save);

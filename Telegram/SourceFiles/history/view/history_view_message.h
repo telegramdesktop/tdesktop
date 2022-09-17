@@ -16,6 +16,10 @@ class HistoryMessage;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
 
+namespace Data {
+struct ReactionId;
+} // namespace Data
+
 namespace HistoryView {
 
 class ViewButton;
@@ -134,9 +138,11 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void animateReaction(ReactionAnimationArgs &&args) override;
+	void animateReaction(Reactions::AnimationArgs &&args) override;
 	auto takeReactionAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>> override;
+	-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Reactions::Animation>> override;
 
 	QRect innerGeometry() const override;
 
@@ -145,6 +151,7 @@ protected:
 
 private:
 	struct CommentsButton;
+	struct FromNameStatus;
 
 	void initLogEntryOriginal();
 	void initPsa();
@@ -252,6 +259,7 @@ private:
 	mutable std::unique_ptr<CommentsButton> _comments;
 
 	mutable Ui::Text::String _fromName;
+	mutable std::unique_ptr<FromNameStatus> _fromNameStatus;
 	Ui::Text::String _rightBadge;
 	mutable int _fromNameVersion = 0;
 	int _bubbleWidthLimit = 0;

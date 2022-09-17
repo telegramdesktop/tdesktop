@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_common.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/widgets/labels.h"
+#include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_utilities.h"

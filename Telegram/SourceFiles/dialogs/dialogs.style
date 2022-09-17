@@ -246,7 +246,6 @@ dialogsVerifiedIconActive: icon {
 dialogsPremiumIcon: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBg }};
 dialogsPremiumIconOver: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgOver }};
 dialogsPremiumIconActive: icon {{ "dialogs/dialogs_premium", dialogsVerifiedIconBgActive }};
-dialogsPremiumIconOffset: point(5px, 0px);
 
 historySendingIcon: icon {{ "dialogs/dialogs_sending", historySendingOutIconFg, point(5px, 5px) }};
 historySendingInvertedIcon: icon {{ "dialogs/dialogs_sending", historySendingInvertedIconFg, point(5px, 5px) }};

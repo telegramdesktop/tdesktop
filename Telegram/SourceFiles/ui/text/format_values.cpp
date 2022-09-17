@@ -120,6 +120,17 @@ QString FormatDurationWords(qint64 duration) {
 	return tr::lng_seconds(tr::now, lt_count, duration);
 }
 
+QString FormatDurationWordsSlowmode(qint64 duration) {
+	if (duration > 59) {
+		auto minutes = (duration / 60);
+		auto minutesCount = tr::lng_duration_minsec_minutes(tr::now, lt_count, minutes);
+		auto seconds = (duration % 60);
+		auto secondsCount = tr::lng_duration_minsec_seconds(tr::now, lt_count, seconds);
+		return tr::lng_duration_minutes_seconds(tr::now, lt_minutes_count, minutesCount, lt_seconds_count, secondsCount);
+	}
+	return tr::lng_slowmode_seconds(tr::now, lt_count, duration);
+}
+
 QString FormatDurationAndSizeText(qint64 duration, qint64 size) {
 	return tr::lng_duration_and_size(tr::now, lt_duration, FormatDurationText(duration), lt_size, FormatSizeText(size));
 }

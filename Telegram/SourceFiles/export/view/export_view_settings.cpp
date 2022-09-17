@@ -300,9 +300,8 @@ void SettingsWidget::addLocationLabel(
 				Ui::Text::WithEntities),
 			st::exportLocationLabel),
 		st::exportLocationPadding);
-	label->setClickHandlerFilter([=](auto&&...) {
+	label->overrideLinkClickHandler([=] {
 		chooseFolder();
-		return false;
 	});
 #endif // OS_MAC_STORE
 }
@@ -357,10 +356,7 @@ void SettingsWidget::addFormatAndLocationLabel(
 				Ui::Text::WithEntities),
 			st::exportLocationLabel),
 		st::exportLocationPadding);
-	label->setClickHandlerFilter([=](
-		const ClickHandlerPtr &handler,
-		Qt::MouseButton) {
-		const auto url = handler->dragText();
+	label->overrideLinkClickHandler([=](const QString &url) {
 		if (url == qstr("internal:edit_export_path")) {
 			chooseFolder();
 		} else if (url == qstr("internal:edit_format")) {
@@ -368,7 +364,6 @@ void SettingsWidget::addFormatAndLocationLabel(
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
 		}
-		return false;
 	});
 #endif // OS_MAC_STORE
 }
@@ -413,10 +408,7 @@ void SettingsWidget::addLimitsLabel(
 			std::move(datesText),
 			st::exportLocationLabel),
 		st::exportLimitsPadding);
-	label->setClickHandlerFilter([=](
-			const ClickHandlerPtr &handler,
-			Qt::MouseButton) {
-		const auto url = handler->dragText();
+	label->overrideLinkClickHandler([=](const QString &url) {
 		if (url == qstr("internal:edit_from")) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
@@ -444,7 +436,6 @@ void SettingsWidget::addLimitsLabel(
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
 		}
-		return false;
 	});
 }
 
