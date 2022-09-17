@@ -93,8 +93,10 @@ parts:
       - clang
       - python3
       - libasound2-dev
+      - libavif-dev
       - libglib2.0-dev
       - libglibmm-2.4-dev
+      - libheif-dev
       - libopus-dev
       - libpulse-dev
       - libwayland-dev
@@ -105,8 +107,10 @@ parts:
       - zlib1g-dev
     stage-packages:
       - libasound2
+      - libavif13
       - libglib2.0-0
       - libglibmm-2.4-1v5
+      - libheif1
       - libopus0
       - libpulse0
       - libwayland-client0
@@ -155,6 +159,7 @@ parts:
       - desktop-qt
       - ffmpeg
       - kcoreaddons
+      - libjxl
       - mozjpeg
       - openal
       - openssl
@@ -251,6 +256,40 @@ parts:
     after:
       - extra-cmake-modules
       - desktop-qt
+
+  libjxl:
+    source: https://github.com/libjxl/libjxl.git
+    source-depth: 1
+    source-tag: v0.7rc
+    plugin: cmake
+    build-packages:
+      - libbrotli-dev
+      - libhwy-dev
+      - liblcms2-dev
+    stage-packages:
+      - libbrotli1
+      - libhwy0
+      - liblcms2-2
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_TESTING=OFF
+      - -DJPEGXL_ENABLE_DEVTOOLS=OFF
+      - -DJPEGXL_ENABLE_TOOLS=OFF
+      - -DJPEGXL_ENABLE_DOXYGEN=OFF
+      - -DJPEGXL_ENABLE_MANPAGES=OFF
+      - -DJPEGXL_ENABLE_BENCHMARK=OFF
+      - -DJPEGXL_ENABLE_EXAMPLES=OFF
+      - -DJPEGXL_ENABLE_JNI=OFF
+      - -DJPEGXL_ENABLE_SJPEG=OFF
+      - -DJPEGXL_ENABLE_OPENEXR=OFF
+      - -DJPEGXL_ENABLE_SKCMS=OFF
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgocnfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
+      - -./usr/share
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
