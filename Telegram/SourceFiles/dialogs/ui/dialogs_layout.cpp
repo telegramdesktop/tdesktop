@@ -259,7 +259,9 @@ void PaintListEntryText(
 		QRect rect,
 		bool active,
 		bool selected,
-		not_null<const Row*> row) {
+		not_null<const Row*> row,
+		crl::time now,
+		bool paused) {
 	if (rect.isEmpty()) {
 		return;
 	}
@@ -285,6 +287,8 @@ void PaintListEntryText(
 				? st::dialogsTextPaletteOver
 				: st::dialogsTextPalette)),
 		.spoiler = Text::DefaultSpoilerCache(),
+		.now = now,
+		.paused = paused,
 		.elisionLines = rect.height() / st::dialogsTextFont->height,
 	});
 }
@@ -436,6 +440,8 @@ void paintRow(
 			.position = { nameleft, texttop },
 			.availableWidth = availableWidth,
 			.spoiler = Text::DefaultSpoilerCache(),
+			.now = ms,
+			.paused = bool(flags & Flag::VideoPaused),
 			.elisionLines = 1,
 		});
 	} else if (draft
@@ -503,6 +509,8 @@ void paintRow(
 						? st::dialogsTextPaletteDraftOver
 						: st::dialogsTextPaletteDraft)),
 				.spoiler = Text::DefaultSpoilerCache(),
+				.now = ms,
+				.paused = bool(flags & Flag::VideoPaused),
 				.elisionLines = 1,
 			});
 		}
@@ -953,7 +961,7 @@ void RowPainter::paint(
 				ms)
 			: false;
 		if (const auto folder = row->folder()) {
-			PaintListEntryText(p, rect, active, selected, row);
+			PaintListEntryText(p, rect, active, selected, row, ms, paused);
 		} else if (history && !actionWasPainted) {
 			if (!history->lastItemDialogsView.prepared(item)) {
 				history->lastItemDialogsView.prepare(
@@ -961,7 +969,13 @@ void RowPainter::paint(
 					[=] { history->updateChatListEntry(); },
 					{});
 			}
-			history->lastItemDialogsView.paint(p, rect, active, selected);
+			history->lastItemDialogsView.paint(
+				p,
+				rect,
+				active,
+				selected,
+				ms,
+				paused);
 		}
 	};
 	const auto paintCounterCallback = [&] {
@@ -1006,6 +1020,7 @@ void RowPainter::paint(
 		bool active,
 		bool selected,
 		crl::time ms,
+		bool paused,
 		bool displayUnreadInfo) {
 	auto item = row->item();
 	auto history = item->history();
@@ -1088,7 +1103,7 @@ void RowPainter::paint(
 		if (!view.prepared(item)) {
 			view.prepare(item, row->repaint(), previewOptions);
 		}
-		row->itemView().paint(p, itemRect, active, selected);
+		row->itemView().paint(p, itemRect, active, selected, ms, paused);
 	};
 	const auto paintCounterCallback = [&] {
 		PaintNarrowCounter(
@@ -1111,7 +1126,8 @@ void RowPainter::paint(
 		| (selected ? Flag::Selected : Flag(0))
 		| Flag::SearchResult
 		| (showSavedMessages ? Flag::SavedMessages : Flag(0))
-		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0));
+		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0))
+		| (paused ? Flag::VideoPaused : Flag(0));
 	paintRow(
 		p,
 		row,

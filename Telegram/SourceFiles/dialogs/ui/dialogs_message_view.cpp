@@ -176,7 +176,9 @@ void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
 		bool active,
-		bool selected) const {
+		bool selected,
+		crl::time now,
+		bool paused) const {
 	if (geometry.isEmpty()) {
 		return;
 	}
@@ -227,6 +229,8 @@ void MessageView::paint(
 		.availableWidth = rect.width(),
 		.palette = palette,
 		.spoiler = Text::DefaultSpoilerCache(),
+		.now = now,
+		.paused = paused,
 		.elisionLines = rect.height() / st::dialogsTextFont->height,
 	});
 }

@@ -46,6 +46,7 @@ public:
 		bool active,
 		bool selected,
 		crl::time ms,
+		bool paused,
 		bool displayUnreadInfo);
 	static QRect sendActionAnimationRect(
 		int animationLeft,

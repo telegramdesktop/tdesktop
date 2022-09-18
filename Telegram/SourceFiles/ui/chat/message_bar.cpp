@@ -409,6 +409,8 @@ void MessageBar::paint(Painter &p) {
 				.availableWidth = body.width(),
 				.palette = &_st.textPalette,
 				.spoiler = Ui::Text::DefaultSpoilerCache(),
+				.now = crl::now(),
+				.paused = p.inactive(),
 				.elisionLines = 1,
 			});
 		}

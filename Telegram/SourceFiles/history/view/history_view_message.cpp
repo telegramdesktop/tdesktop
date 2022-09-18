@@ -1304,6 +1304,8 @@ void Message::paintText(
 		.availableWidth = trect.width(),
 		.palette = &stm->textPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = context.now,
+		.paused = context.paused,
 		.selection = context.selection,
 	});
 }

@@ -546,6 +546,8 @@ void Service::draw(Painter &p, const PaintContext &context) const {
 		.align = style::al_top,
 		.palette = &st->serviceTextPalette(),
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = context.now,
+		.paused = context.paused,
 		.selection = context.selection,
 		.fullWidthSelection = false,
 	});

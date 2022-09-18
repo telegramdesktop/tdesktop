@@ -627,12 +627,13 @@ void ChatStyle::make(
 	my.linkAlwaysActive = original.linkAlwaysActive;
 	make(my.linkFg, original.linkFg);
 	make(my.monoFg, original.monoFg);
+	make(my.spoilerFg, original.spoilerFg);
 	make(my.selectBg, original.selectBg);
 	make(my.selectFg, original.selectFg);
 	make(my.selectLinkFg, original.selectLinkFg);
 	make(my.selectMonoFg, original.selectMonoFg);
+	make(my.selectSpoilerFg, original.selectSpoilerFg);
 	make(my.selectOverlay, original.selectOverlay);
-	make(my.spoilerFg, original.spoilerFg);
 }
 
 void ChatStyle::make(

@@ -701,6 +701,8 @@ void Document::draw(
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
 			.selection = selection,
 		});
 	}

@@ -688,6 +688,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						active,
 						selected,
 						ms,
+						videoPaused,
 						showUnreadInSearchResults);
 					p.translate(0, st::dialogsRowHeight);
 				}

@@ -49,7 +49,9 @@ public:
 		Painter &p,
 		const QRect &geometry,
 		bool active,
-		bool selected) const;
+		bool selected,
+		crl::time now,
+		bool paused) const;
 
 private:
 	struct LoadingContext;

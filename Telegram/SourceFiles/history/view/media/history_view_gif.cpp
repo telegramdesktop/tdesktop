@@ -612,6 +612,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
 			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
 			.selection = context.selection,
 		});
 	} else if (!inWebPage && !skipDrawingSurrounding) {
