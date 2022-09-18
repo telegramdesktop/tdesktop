@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
+#include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 
