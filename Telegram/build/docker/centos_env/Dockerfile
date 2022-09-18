@@ -558,7 +558,6 @@ ENV OPENSSL_ROOT_DIR {{ OPENSSL_PREFIX }}
 RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} \
 	&& cd qt_{{ QT }} \
 	&& git submodule update --init --recursive --depth=1 qtbase qtwayland qtimageformats qtsvg qt5compat \
-	&& git submodule update --init --recursive qttools \
 	&& cd qtbase \
 	&& find ../../patches/qtbase_{{ QT }} -type f -print0 | sort -z | xargs -r0 git apply \
 	&& cd .. \
@@ -608,6 +607,7 @@ COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 RUN git clone -b v5.98.0 --depth=1 {{ GIT }}/KDE/kcoreaddons.git \
 	&& cd kcoreaddons \
 	&& curl -sSL https://invent.kde.org/frameworks/kcoreaddons/-/merge_requests/258.patch | git apply \
+	&& rm -rf po \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DCMAKE_PREFIX_PATH={{ QT_PREFIX }} \
