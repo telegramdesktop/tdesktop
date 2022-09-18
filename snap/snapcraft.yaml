@@ -241,6 +241,7 @@ parts:
     override-pull: |
       snapcraftctl pull
       curl -sSL https://invent.kde.org/frameworks/kcoreaddons/-/merge_requests/258.patch | git apply
+      rm -rf po
     prime:
       - -./usr/bin
       - -./usr/include
@@ -250,7 +251,6 @@ parts:
     after:
       - extra-cmake-modules
       - desktop-qt
-      - qttools
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
@@ -445,22 +445,6 @@ parts:
       - mozjpeg
       - openssl
       - patches
-
-  qttools:
-    source: git://code.qt.io/qt/qttools.git
-    source-depth: 1
-    source-tag: v6.4.0-rc1
-    plugin: cmake
-    build-packages:
-      - clang
-      - libclang-dev
-      - llvm-dev
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-    prime: [-./*]
-    after:
-      - qt
 
   rnnoise:
     source: https://gitlab.xiph.org/xiph/rnnoise.git
