@@ -303,8 +303,6 @@ public:
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
 
-	void elementShowSpoilerAnimation() override;
-
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 
 	~ListWidget();
@@ -646,8 +644,6 @@ private:
 	crl::time _trippleClickStartTime = 0;
 
 	ElementHighlighter _highlighter;
-
-	Ui::Animations::Simple _spoilerOpacity;
 
 	Ui::DraggingScrollManager _selectScroll;
 

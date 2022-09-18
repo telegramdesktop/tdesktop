@@ -1506,11 +1506,6 @@ void ListWidget::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
 }
 
-void ListWidget::elementShowSpoilerAnimation() {
-	_spoilerOpacity.stop();
-	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
-}
-
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();

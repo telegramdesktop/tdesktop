@@ -12,16 +12,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
-#include "ui/spoiler_click_handler.h"
 
 namespace HistoryView {
 namespace {
 
-class AnimatedSpoilerClickHandler final : public SpoilerClickHandler {
+class AnimatedSpoilerClickHandler final : public ClickHandler {
 public:
-	AnimatedSpoilerClickHandler() = default;
+	explicit AnimatedSpoilerClickHandler(Ui::Text::String &text)
+	: _text(text) {
+	}
 
 	void onClick(ClickContext context) const override;
+
+private:
+	Ui::Text::String &_text;
 
 };
 
@@ -32,11 +36,7 @@ void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
 	}
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto d = my.elementDelegate ? my.elementDelegate() : nullptr) {
-		d->elementShowSpoilerAnimation();
-		const auto nonconst = const_cast<AnimatedSpoilerClickHandler*>(this);
-		nonconst->setStartMs(crl::now());
-		SpoilerClickHandler::onClick({});
-
+		_text.setSpoilerRevealed(true, anim::type::normal);
 		if (const auto controller = my.sessionWindow.get()) {
 			controller->session().data().registerShownSpoiler(my.itemId);
 		}
@@ -46,15 +46,15 @@ void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
 } // namespace
 
 void FillTextWithAnimatedSpoilers(Ui::Text::String &text) {
-	const auto link = std::make_shared<AnimatedSpoilerClickHandler>();
-	for (auto i = 0; i < text.spoilersCount(); i++) {
-		text.setSpoiler(i + 1, link);
+	if (text.hasSpoilers()) {
+		text.setSpoilerLink(
+			std::make_shared<AnimatedSpoilerClickHandler>(text));
 	}
 }
 
 void HideSpoilers(Ui::Text::String &text) {
-	for (auto i = 0; i < text.spoilersCount(); i++) {
-		text.setSpoilerShown(i + 1, false);
+	if (text.hasSpoilers()) {
+		text.setSpoilerRevealed(false, anim::type::instant);
 	}
 }
 

@@ -273,12 +273,6 @@ public:
 		}
 	}
 
-	void elementShowSpoilerAnimation() override {
-		if (_widget) {
-			_widget->elementShowSpoilerAnimation();
-		}
-	}
-
 	not_null<HistoryView::ElementDelegate*> delegate() override {
 		return this;
 	}
@@ -3305,11 +3299,6 @@ void HistoryInner::elementStartPremium(
 
 void HistoryInner::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
-}
-
-void HistoryInner::elementShowSpoilerAnimation() {
-	_spoilerOpacity.stop();
-	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
 }
 
 auto HistoryInner::getSelectionState() const
