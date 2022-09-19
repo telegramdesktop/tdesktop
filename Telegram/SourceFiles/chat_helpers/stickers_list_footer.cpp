@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
-#include "window/window_session_controller.h"
+#include "ui/rect_part.h"
 #include "styles/style_chat_helpers.h"
 
 #include <QtWidgets/QApplication>
@@ -145,50 +145,30 @@ bool StickersListFooter::ScrollState::animationCallback(crl::time now) {
 	return true;
 }
 
-StickersListFooter::StickersListFooter(Descriptor &&descriptor)
-: InnerFooter(descriptor.parent)
-, _controller(descriptor.controller)
-, _level(descriptor.level)
-, _searchButtonVisible(descriptor.searchButtonVisible)
-, _settingsButtonVisible(descriptor.settingsButtonVisible)
-, _iconState([=] { update(); })
-, _subiconState([=] { update(); })
-, _selectionBg(st::roundRadiusLarge, st::windowBgRipple)
-, _subselectionBg(st::emojiIconArea / 2, st::windowBgRipple)
-, _barSelection(descriptor.barSelection) {
-	setMouseTracking(true);
-
-	_iconsLeft = st::emojiCategorySkip + (_searchButtonVisible
-		? st::stickerIconWidth
-		: 0);
-	_iconsRight = st::emojiCategorySkip + (_settingsButtonVisible
-		? st::stickerIconWidth
-		: 0);
-
-	_controller->session().downloaderTaskFinished(
-	) | rpl::start_with_next([=] {
-		update();
-	}, lifetime());
-
+GradientPremiumStar::GradientPremiumStar() {
 	style::PaletteChanged(
 	) | rpl::start_with_next([=] {
-		_premiumIcon = QImage();
-	}, lifetime());
+		_image = QImage();
+	}, _lifetime);
 }
 
-void StickersListFooter::validatePremiumIcon() const {
-	if (!_premiumIcon.isNull()) {
-		return;
+QImage GradientPremiumStar::image() const {
+	if (_image.isNull()) {
+		renderOnDemand();
 	}
+	return _image;
+}
+
+void GradientPremiumStar::renderOnDemand() const {
 	const auto size = st::stickersPremium.size();
 	const auto mask = st::stickersPremium.instance(Qt::white);
 	const auto factor = style::DevicePixelRatio();
-	_premiumIcon = QImage(
+	_image = QImage(
 		size * factor,
 		QImage::Format_ARGB32_Premultiplied);
-	_premiumIcon.setDevicePixelRatio(factor);
+	_image.setDevicePixelRatio(factor);
 
-	QPainter p(&_premiumIcon);
+	QPainter p(&_image);
 	auto gradient = QLinearGradient(
 		QPoint(0, size.height()),
 		QPoint(size.width(), 0));
@@ -199,6 +179,34 @@ void StickersListFooter::validatePremiumIcon() const {
 	p.fillRect(QRect(QPoint(), size), gradient);
 	p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 	p.drawImage(QRect(QPoint(), size), mask);
+}
+
+StickersListFooter::StickersListFooter(Descriptor &&descriptor)
+: InnerFooter(
+	descriptor.parent,
+	descriptor.st ? *descriptor.st : st::defaultEmojiPan)
+, _session(descriptor.session)
+, _paused(descriptor.paused)
+, _searchButtonVisible(descriptor.searchButtonVisible)
+, _settingsButtonVisible(descriptor.settingsButtonVisible)
+, _iconState([=] { update(); })
+, _subiconState([=] { update(); })
+, _selectionBg(st::roundRadiusLarge, st::windowBgRipple)
+, _subselectionBg(st().iconArea / 2, st::windowBgRipple)
+, _barSelection(descriptor.barSelection) {
+	setMouseTracking(true);
+
+	_iconsLeft = st().iconSkip + (_searchButtonVisible
+		? st::stickerIconWidth
+		: 0);
+	_iconsRight = st().iconSkip + (_settingsButtonVisible
+		? st::stickerIconWidth
+		: 0);
+
+	_session->downloaderTaskFinished(
+	) | rpl::start_with_next([=] {
+		update();
+	}, lifetime());
 }
 
 void StickersListFooter::clearHeavyData() {
@@ -213,6 +221,27 @@ void StickersListFooter::clearHeavyData() {
 		}
 		return true;
 	});
+}
+
+void StickersListFooter::paintExpanding(
+		Painter &p,
+		QRect clip,
+		float64 radius,
+		RectPart origin) {
+	const auto delta = ((origin | RectPart::None) & RectPart::FullBottom)
+		? (height() - clip.height())
+		: 0;
+	const auto shift = QPoint(clip.x(), clip.y() - delta);
+	p.translate(shift);
+	const auto context = ExpandingContext{
+		.clip = clip.translated(-shift),
+		.progress = clip.height() / float64(height()),
+		.radius = int(std::ceil(radius)),
+		.expanding = true,
+	};
+	paint(p, context);
+	p.translate(-shift);
+	p.setClipping(false);
 }
 
 void StickersListFooter::initSearch() {
@@ -529,9 +558,15 @@ void StickersListFooter::setLoading(bool loading) {
 }
 
 void StickersListFooter::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = Painter(this);
 
 	_repaintScheduled = false;
+	paint(p, {});
+}
+
+void StickersListFooter::paint(
+		Painter &p,
+		const ExpandingContext &context) const {
 	if (_searchButtonVisible) {
 		paintSearchIcon(p);
 	}
@@ -547,29 +582,41 @@ void StickersListFooter::paintEvent(QPaintEvent *e) {
 		_iconsLeft,
 		_iconsTop,
 		width() - _iconsLeft - _iconsRight,
-		st::emojiFooterHeight);
+		st().footer);
 	if (rtl()) {
 		clip.moveLeft(width() - _iconsLeft - clip.width());
 	}
-	p.setClipRect(clip);
+	if (context.expanding) {
+		const auto both = clip.intersected(
+			context.clip.marginsRemoved(
+				{ context.radius, 0, context.radius, 0 }));
+		if (both.isEmpty()) {
+			return;
+		}
+		p.setClipRect(both);
+	} else {
+		p.setClipRect(clip);
+	}
 
 	if (!_barSelection) {
-		paintSelectionBg(p);
+		paintSelectionBg(p, context);
 	}
 
 	const auto now = crl::now();
-	const auto paused = _controller->isGifPausedAtLeastFor(_level);
+	const auto paused = _paused();
 	enumerateVisibleIcons([&](const IconInfo &info) {
-		paintSetIcon(p, info, now, paused);
+		paintSetIcon(p, context, info, now, paused);
 	});
 
 	if (_barSelection) {
 		paintSelectionBar(p);
 	}
-	paintLeftRightFading(p);
+	paintLeftRightFading(p, context);
 }
 
-void StickersListFooter::paintSelectionBg(Painter &p) const {
+void StickersListFooter::paintSelectionBg(
+		QPainter &p,
+		const ExpandingContext &context) const {
 	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
 	auto selx = selxrel - qRound(_iconState.x.current());
 	const auto selw = qRound(_iconState.selectionWidth.current());
@@ -577,10 +624,19 @@ void StickersListFooter::paintSelectionBg(Painter &p) const {
 		selx = width() - selx - selw;
 	}
 	const auto sely = _iconsTop;
-	const auto area = st::emojiIconArea;
-	const auto rect = QRect(
+	const auto area = st().iconArea;
+	auto rect = QRect(
 		QPoint(selx, sely) + _areaPosition,
 		QSize(selw - 2 * _areaPosition.x(), area));
+	if (context.expanding) {
+		const auto recthalf = rect.height() / 2;
+		const auto myhalf = height() / 2;
+		const auto sub = anim::interpolate(recthalf, 0, context.progress);
+		const auto shift = anim::interpolate(myhalf, 0, context.progress);
+		rect = rect.marginsRemoved(
+			{ sub, sub, sub, sub }
+		).translated(0, shift);
+	}
 	if (rect.width() == rect.height() || _subiconsWidth <= _singleWidth) {
 		_selectionBg.paint(p, rect);
 	} else if (selw == _subiconsWidth) {
@@ -599,7 +655,7 @@ void StickersListFooter::paintSelectionBg(Painter &p) const {
 	}
 }
 
-void StickersListFooter::paintSelectionBar(Painter &p) const {
+void StickersListFooter::paintSelectionBar(QPainter &p) const {
 	auto selxrel = _iconsLeft + qRound(_iconState.selectionX.current());
 	auto selx = selxrel - qRound(_iconState.x.current());
 	const auto selw = qRound(_iconState.selectionWidth.current());
@@ -608,35 +664,46 @@ void StickersListFooter::paintSelectionBar(Painter &p) const {
 	}
 	p.fillRect(
 		selx,
-		_iconsTop + st::emojiFooterHeight - st::stickerIconPadding,
+		_iconsTop + st().footer - st::stickerIconPadding,
 		selw,
 		st::stickerIconSel,
 		st::stickerIconSelColor);
 }
 
-void StickersListFooter::paintLeftRightFading(Painter &p) const {
-	auto o_left = std::clamp(
-		_iconState.x.current() / st::stickerIconLeft.width(),
+void StickersListFooter::paintLeftRightFading(
+		QPainter &p,
+		const ExpandingContext &context) const {
+	const auto o_left_normal = std::clamp(
+		_iconState.x.current() / st().fadeLeft.width(),
 		0.,
 		1.);
+	const auto o_left = context.expanding
+		? (1. - context.progress * (1. - o_left_normal))
+		: o_left_normal;
+	const auto radiusSkip = context.expanding
+		? std::max(context.radius - st::roundRadiusSmall, 0)
+		: 0;
 	if (o_left > 0) {
 		p.setOpacity(o_left);
-		st::stickerIconLeft.fill(p, style::rtlrect(_iconsLeft, _iconsTop, st::stickerIconLeft.width(), st::emojiFooterHeight, width()));
+		st().fadeLeft.fill(p, style::rtlrect(std::max(_iconsLeft, radiusSkip), _iconsTop, st().fadeLeft.width(), st().footer, width()));
 		p.setOpacity(1.);
 	}
-	auto o_right = std::clamp(
-		(_iconState.max - _iconState.x.current()) / st::stickerIconRight.width(),
+	const auto o_right_normal = std::clamp(
+		(_iconState.max - _iconState.x.current()) / st().fadeRight.width(),
 		0.,
 		1.);
+	const auto o_right = context.expanding
+		? (1. - context.progress * (1. - o_right_normal))
+		: o_right_normal;
 	if (o_right > 0) {
 		p.setOpacity(o_right);
-		st::stickerIconRight.fill(
+		st().fadeRight.fill(
 			p,
 			style::rtlrect(
-				width() - _iconsRight - st::stickerIconRight.width(),
+				width() - std::max(_iconsRight, radiusSkip) - st().fadeRight.width(),
 				_iconsTop,
-				st::stickerIconRight.width(),
-				st::emojiFooterHeight, width()));
+				st().fadeRight.width(),
+				st().footer, width()));
 		p.setOpacity(1.);
 	}
 }
@@ -875,19 +942,19 @@ void StickersListFooter::updateSelected() {
 		&& x >= searchLeft
 		&& x < searchLeft + _singleWidth
 		&& y >= _iconsTop
-		&& y < _iconsTop + st::emojiFooterHeight) {
+		&& y < _iconsTop + st().footer) {
 		newOver = SpecialOver::Search;
 	} else if (_settingsButtonVisible
 		&& x >= settingsLeft
 		&& x < settingsLeft + _singleWidth
 		&& y >= _iconsTop
-		&& y < _iconsTop + st::emojiFooterHeight) {
+		&& y < _iconsTop + st().footer) {
 		if (!_icons.empty() && !hasOnlyFeaturedSets()) {
 			newOver = SpecialOver::Settings;
 		}
 	} else if (!_icons.empty()) {
 		if (y >= _iconsTop
-			&& y < _iconsTop + st::emojiFooterHeight
+			&& y < _iconsTop + st().footer
 			&& x >= _iconsLeft
 			&& x < width() - _iconsRight) {
 			enumerateIcons([&](const IconInfo &info) {
@@ -989,11 +1056,11 @@ void StickersListFooter::refreshIconsGeometry(
 		&& _icons[1].setId == EmojiSectionSetId(EmojiSection::People)) {
 		_singleWidth = (width() - _iconsLeft - _iconsRight) / _icons.size();
 	} else {
-		_singleWidth = st::emojiIconWidth;
+		_singleWidth = st().iconWidth;
 	}
 	_areaPosition = QPoint(
-		(_singleWidth - st::emojiIconArea) / 2,
-		(st::emojiFooterHeight - st::emojiIconArea) / 2);
+		(_singleWidth - st().iconArea) / 2,
+		(st().footer - st().iconArea) / 2);
 	refreshScrollableDimensions();
 	refreshSubiconsGeometry();
 	_iconState.selected = _subiconState.selected = -1;
@@ -1036,22 +1103,22 @@ bool StickersListFooter::hasOnlyFeaturedSets() const {
 		&& (_icons[0].setId == Data::Stickers::FeaturedSetId);
 }
 
-void StickersListFooter::paintStickerSettingsIcon(Painter &p) const {
+void StickersListFooter::paintStickerSettingsIcon(QPainter &p) const {
 	const auto settingsLeft = width() - _iconsRight;
 	st::stickersSettings.paint(
 		p,
 		settingsLeft
 			+ (_singleWidth - st::stickersSettings.width()) / 2,
-		_iconsTop + st::emojiCategory.iconPosition.y(),
+		_iconsTop + st::emojiCategoryIconTop,
 		width());
 }
 
-void StickersListFooter::paintSearchIcon(Painter &p) const {
+void StickersListFooter::paintSearchIcon(QPainter &p) const {
 	const auto searchLeft = _iconsLeft - _singleWidth;
 	st::stickersSearch.paint(
 		p,
 		searchLeft + (_singleWidth - st::stickersSearch.width()) / 2,
-		_iconsTop + st::emojiCategory.iconPosition.y(),
+		_iconsTop + st::emojiCategoryIconTop,
 		width());
 }
 
@@ -1140,18 +1207,39 @@ void StickersListFooter::updateSetIcon(uint64 setId) {
 }
 
 void StickersListFooter::updateSetIconAt(int left) {
-	update(left, _iconsTop, _singleWidth, st::emojiFooterHeight);
+	update(left, _iconsTop, _singleWidth, st().footer);
 }
 
 void StickersListFooter::paintSetIcon(
 		Painter &p,
+		const ExpandingContext &context,
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const {
 	const auto &icon = _icons[info.index];
+	const auto expandingShift = context.expanding
+		? QPoint(
+			0,
+			anim::interpolate(height() / 2, 0, context.progress))
+		: QPoint();
 	if (icon.sticker) {
 		icon.ensureMediaCreated();
 		const_cast<StickersListFooter*>(this)->validateIconAnimation(icon);
+	}
+	if (context.expanding) {
+		if (icon.custom) {
+			p.translate(expandingShift);
+		} else {
+			p.save();
+			const auto center = QPoint(
+				info.adjustedLeft + _singleWidth / 2,
+				_iconsTop + st().footer / 2);
+			p.translate(expandingShift + center);
+			p.scale(context.progress, context.progress);
+			p.translate(-center);
+		}
+	}
+	if (icon.sticker) {
 		const auto origin = icon.sticker->stickerSetOrigin();
 		const auto thumb = icon.thumbnailMedia
 			? icon.thumbnailMedia->image()
@@ -1159,9 +1247,17 @@ void StickersListFooter::paintSetIcon(
 			? icon.stickerMedia->thumbnail()
 			: nullptr;
 		const auto x = info.adjustedLeft + (_singleWidth - icon.pixw) / 2;
-		const auto y = _iconsTop + (st::emojiFooterHeight - icon.pixh) / 2;
+		const auto y = _iconsTop + (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
-			icon.custom->paint(p, x, y, now, st::emojiIconFg->c, paused);
+			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
+				.preview = st::windowBgRipple->c,
+				.size = QSize(icon.pixw, icon.pixh),
+				.now = now,
+				.scale = context.progress,
+				.position = { x, y },
+				.paused = paused,
+				.scaled = context.expanding,
+			});
 		} else if (icon.lottie && icon.lottie->ready()) {
 			const auto frame = icon.lottie->frame();
 			const auto size = frame.size() / cIntRetinaFactor();
@@ -1172,7 +1268,7 @@ void StickersListFooter::paintSetIcon(
 			p.drawImage(
 				QRect(
 					(info.adjustedLeft + (_singleWidth - size.width()) / 2),
-					_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
+					_iconsTop + (st().footer - size.height()) / 2,
 					size.width(),
 					size.height()),
 				frame);
@@ -1207,16 +1303,15 @@ void StickersListFooter::paintSetIcon(
 			p,
 			icon.megagroupUserpic,
 			info.adjustedLeft + (_singleWidth - size) / 2,
-			_iconsTop + (st::emojiFooterHeight - size) / 2,
+			_iconsTop + (st().footer - size) / 2,
 			width(),
 			st::stickerGroupCategorySize);
 	} else if (icon.setId == Data::Stickers::PremiumSetId) {
-		validatePremiumIcon();
 		const auto size = st::stickersPremium.size();
 		p.drawImage(
 			info.adjustedLeft + (_singleWidth - size.width()) / 2,
-			_iconsTop + (st::emojiFooterHeight - size.height()) / 2,
-			_premiumIcon);
+			_iconsTop + (st().footer - size.height()) / 2,
+			_premiumIcon.image());
 	} else {
 		using Section = Ui::Emoji::Section;
 		const auto sectionIcon = [&](Section section, bool active) {
@@ -1248,7 +1343,7 @@ void StickersListFooter::paintSetIcon(
 			icon->paint(
 				p,
 				left + (_singleWidth - icon->width()) / 2,
-				_iconsTop + (st::emojiFooterHeight - icon->height()) / 2,
+				_iconsTop + (st().footer - icon->height()) / 2,
 				width());
 		};
 		if (_icons[info.index].setId == AllEmojiSectionSetId()
@@ -1259,7 +1354,7 @@ void StickersListFooter::paintSetIcon(
 				left + skip,
 				_iconsTop,
 				info.width - 2 * skip,
-				st::emojiFooterHeight,
+				st().footer,
 				Qt::IntersectClip);
 			enumerateSubicons([&](const IconInfo &info) {
 				if (info.visible) {
@@ -1275,8 +1370,8 @@ void StickersListFooter::paintSetIcon(
 		} else {
 			paintOne(left, [&] {
 				if (icon.setId == Data::Stickers::FeaturedSetId) {
-					const auto session = &_controller->session();
-					return session->data().stickers().featuredSetsUnreadCount()
+					const auto &stickers = _session->data().stickers();
+					return stickers.featuredSetsUnreadCount()
 						? &st::stickersTrendingUnread
 						: &st::stickersTrending;
 					//} else if (setId == Stickers::FavedSetId) {
@@ -1288,6 +1383,13 @@ void StickersListFooter::paintSetIcon(
 				}
 				return &st::emojiRecent;
 			}());
+		}
+	}
+	if (context.expanding) {
+		if (icon.custom) {
+			p.translate(-expandingShift);
+		} else {
+			p.restore();
 		}
 	}
 }

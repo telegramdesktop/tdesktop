@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "menu/menu_send.h" // SendMenu::Type.
+#include "ui/chat/attach/attach_prepare.h"
+#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/pinned_bar.h"
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/scroll_area.h"
@@ -28,8 +30,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
-#include "ui/chat/attach/attach_prepare.h"
-#include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/effects/message_sending_animation_controller.h"
 #include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_sending.h"
 #include "apiwrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "chat_helpers/tabbed_selector.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/edit_caption_box.h"
 #include "boxes/send_files_box.h"
@@ -81,7 +82,7 @@ constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 bool CanSendFiles(not_null<const QMimeData*> data) {
 	if (data->hasImage()) {
 		return true;
-	} else if (const auto urls = data->urls(); !urls.empty()) {
+	} else if (const auto urls = base::GetMimeUrls(data); !urls.empty()) {
 		if (ranges::all_of(urls, &QUrl::isLocalFile)) {
 			return true;
 		}
@@ -570,25 +571,22 @@ void RepliesWidget::setupComposeControls() {
 			[=] { _choosingAttach = false; chooseAttach(); });
 	}, lifetime());
 
-	using Selector = ChatHelpers::TabbedSelector;
-
 	_composeControls->fileChosen(
-	) | rpl::start_with_next([=](Selector::FileChosen chosen) {
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+		controller()->hideLayer(anim::type::normal);
 		controller()->sendingAnimation().appendSending(
-			chosen.messageSendingFrom);
-		sendExistingDocument(
-			chosen.document,
-			chosen.options,
-			chosen.messageSendingFrom.localId);
+			data.messageSendingFrom);
+		const auto localId = data.messageSendingFrom.localId;
+		sendExistingDocument(data.document, data.options, localId);
 	}, lifetime());
 
 	_composeControls->photoChosen(
-	) | rpl::start_with_next([=](Selector::PhotoChosen chosen) {
+	) | rpl::start_with_next([=](ChatHelpers::PhotoChosen chosen) {
 		sendExistingPhoto(chosen.photo, chosen.options);
 	}, lifetime());
 
 	_composeControls->inlineResultChosen(
-	) | rpl::start_with_next([=](Selector::InlineChosen chosen) {
+	) | rpl::start_with_next([=](ChatHelpers::InlineChosen chosen) {
 		controller()->sendingAnimation().appendSending(
 			chosen.messageSendingFrom);
 		const auto localId = chosen.messageSendingFrom.localId;
@@ -707,7 +705,7 @@ bool RepliesWidget::confirmSendingFiles(
 	const auto hasImage = data->hasImage();
 	const auto premium = controller()->session().user()->isPremium();
 
-	if (const auto urls = data->urls(); !urls.empty()) {
+	if (const auto urls = base::GetMimeUrls(data); !urls.empty()) {
 		auto list = Storage::PrepareMediaList(
 			urls,
 			st::sendMediaPreviewSize,
@@ -841,7 +839,7 @@ bool RepliesWidget::showSlowmodeError() {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				Ui::FormatDurationWords(left));
+				Ui::FormatDurationWordsSlowmode(left));
 		} else if (_history->peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
 				showAtPositionNow(item->position(), nullptr);
@@ -938,7 +936,7 @@ bool RepliesWidget::showSendingFilesError(
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
-				Ui::FormatDurationWords(left));
+				Ui::FormatDurationWordsSlowmode(left));
 		}
 		using Error = Ui::PreparedList::Error;
 		switch (list.error) {
@@ -1065,7 +1063,9 @@ void RepliesWidget::edit(
 		}
 		return;
 	} else if (!left.text.isEmpty()) {
-		controller()->show(Ui::MakeInformBox(tr::lng_edit_too_long()));
+		const auto remove = left.text.size();
+		controller()->show(Ui::MakeInformBox(
+			tr::lng_edit_limit_reached(tr::now, lt_count, remove)));
 		return;
 	}
 
@@ -2041,7 +2041,7 @@ CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 }
 
 auto RepliesWidget::listAllowedReactionsValue()
--> rpl::producer<std::optional<base::flat_set<QString>>> {
+-> rpl::producer<Data::AllowedReactions> {
 	return Data::PeerAllowedReactionsValue(_history->peer);
 }
 

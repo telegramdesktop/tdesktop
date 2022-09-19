@@ -498,17 +498,11 @@ auto PhoneNumberPrivacyController::warning() const
 
 void PhoneNumberPrivacyController::prepareWarningLabel(
 		not_null<Ui::FlatLabel*> warning) const {
-	warning->setClickHandlerFilter([=](
-			const ClickHandlerPtr &link,
-			Qt::MouseButton button) {
-		if (button == Qt::LeftButton) {
-			QGuiApplication::clipboard()->setText(PublicLinkByPhone(
-				_controller->session().user()));
-			_controller->window().showToast(
-				tr::lng_username_copied(tr::now));
-			return false;
-		}
-		return true;
+	warning->overrideLinkClickHandler([=] {
+		QGuiApplication::clipboard()->setText(PublicLinkByPhone(
+			_controller->session().user()));
+		_controller->window().showToast(
+			tr::lng_username_copied(tr::now));
 	});
 }
 
@@ -996,7 +990,9 @@ object_ptr<Ui::RpWidget> ForwardsPrivacyController::setupAboveWidget(
 		auto context = theme->preparePaintContext(
 			_chatStyle.get(),
 			widget->rect(),
-			widget->rect());
+			widget->rect(),
+			_controller->isGifPausedAtLeastFor(
+				Window::GifPauseReason::Layer));
 		p.translate(padding / 2, padding + view->marginBottom());
 		context.outbg = view->hasOutLayout();
 		view->draw(p, context);

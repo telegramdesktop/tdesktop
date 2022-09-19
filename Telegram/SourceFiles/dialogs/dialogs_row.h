@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
+#include "ui/unread_badge.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/ui/dialogs_message_view.h"
 
@@ -147,7 +148,10 @@ private:
 
 class FakeRow : public BasicRow {
 public:
-	FakeRow(Key searchInChat, not_null<HistoryItem*> item);
+	FakeRow(
+		Key searchInChat,
+		not_null<HistoryItem*> item,
+		Fn<void()> repaint);
 
 	[[nodiscard]] Key searchInChat() const {
 		return _searchInChat;
@@ -158,14 +162,22 @@ public:
 	[[nodiscard]] Ui::MessageView &itemView() const {
 		return _itemView;
 	}
+	[[nodiscard]] Fn<void()> repaint() const {
+		return _repaint;
+	}
+	[[nodiscard]] Ui::PeerBadge &badge() const {
+		return _badge;
+	}
 	[[nodiscard]] const Ui::Text::String &name() const;
 
 private:
 	friend class Ui::RowPainter;
 
-	Key _searchInChat;
-	not_null<HistoryItem*> _item;
+	const Key _searchInChat;
+	const not_null<HistoryItem*> _item;
+	const Fn<void()> _repaint;
 	mutable Ui::MessageView _itemView;
+	mutable Ui::PeerBadge _badge;
 	mutable Ui::Text::String _name;
 
 };

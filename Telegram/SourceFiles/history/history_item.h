@@ -42,7 +42,9 @@ struct RippleAnimation;
 namespace Data {
 struct MessagePosition;
 struct RecentReaction;
+struct ReactionId;
 class Media;
+struct MessageReaction;
 class MessageReactions;
 } // namespace Data
 
@@ -237,6 +239,7 @@ public:
 	[[nodiscard]] virtual bool externalReply() const {
 		return false;
 	}
+	[[nodiscard]] bool hasExtendedMediaPreview() const;
 
 	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
 		return MsgId(0);
@@ -278,6 +281,8 @@ public:
 	virtual void applyEdition(HistoryMessageEdition &&edition) {
 	}
 	virtual void applyEdition(const MTPDmessageService &message) {
+	}
+	virtual void applyEdition(const MTPMessageExtendedMedia &media) {
 	}
 	void applyEditionToHistoryCleared();
 	virtual void updateSentContent(
@@ -372,18 +377,25 @@ public:
 	[[nodiscard]] bool suggestDeleteAllReport() const;
 
 	[[nodiscard]] bool canReact() const;
-	void addReaction(const QString &reaction);
-	void toggleReaction(const QString &reaction);
+	enum class ReactionSource {
+		Selector,
+		Quick,
+		Existing,
+	};
+	void toggleReaction(
+		const Data::ReactionId &reaction,
+		ReactionSource source);
 	void updateReactions(const MTPMessageReactions *reactions);
 	void updateReactionsUnknown();
-	[[nodiscard]] const base::flat_map<QString, int> &reactions() const;
+	[[nodiscard]] auto reactions() const
+		-> const std::vector<Data::MessageReaction> &;
 	[[nodiscard]] auto recentReactions() const
-	-> const base::flat_map<
-		QString,
-		std::vector<Data::RecentReaction>> &;
+		-> const base::flat_map<
+			Data::ReactionId,
+			std::vector<Data::RecentReaction>> &;
 	[[nodiscard]] bool canViewReactions() const;
-	[[nodiscard]] QString chosenReaction() const;
-	[[nodiscard]] QString lookupUnreadReaction(
+	[[nodiscard]] std::vector<Data::ReactionId> chosenReactions() const;
+	[[nodiscard]] Data::ReactionId lookupUnreadReaction(
 		not_null<UserData*> from) const;
 	[[nodiscard]] crl::time lastReactionsRefreshTime() const;
 

@@ -64,25 +64,6 @@ int Launcher::exec() {
 
 void Launcher::initHook() {
 	QApplication::setAttribute(Qt::AA_DisableSessionManager, true);
-	QApplication::setDesktopFileName([] {
-		if (!Core::UpdaterDisabled() && !cExeName().isEmpty()) {
-			const auto appimagePath = qsl("file://%1%2").arg(
-				cExeDir(),
-				cExeName()).toUtf8();
-
-			char md5Hash[33] = { 0 };
-			hashMd5Hex(
-				appimagePath.constData(),
-				appimagePath.size(),
-				md5Hash);
-
-			return qsl("appimagekit_%1-%2.desktop").arg(
-				md5Hash,
-				AppName.utf16().replace(' ', '_'));
-		}
-
-		return qsl(QT_STRINGIFY(TDESKTOP_LAUNCHER_BASENAME) ".desktop");
-	}());
 }
 
 bool Launcher::launchUpdater(UpdaterLaunch action) {

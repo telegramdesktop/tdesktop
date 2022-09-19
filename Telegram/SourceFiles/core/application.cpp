@@ -74,6 +74,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animations.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/cached_round_corners.h"
 #include "storage/serialize_common.h"
 #include "storage/storage_domain.h"
@@ -241,9 +242,9 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
-	if (Local::oldSettingsVersion() < AppVersion) {
+	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
 		RegisterUrlScheme();
-		psNewVersion();
+		Platform::NewVersionLaunched(old);
 	}
 
 	if (cAutoStart() && !Platform::AutostartSupported()) {
@@ -263,6 +264,7 @@ void Application::run() {
 	Ui::InitTextOptions();
 	Ui::StartCachedCorners();
 	Ui::Emoji::Init();
+	Ui::PrepareDefaultSpoilerMess();
 	startEmojiImageLoader();
 	startSystemDarkModeViewer();
 	Media::Player::start(_audio.get());

@@ -876,6 +876,20 @@ QString TryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
+	auto subdomainMatch = regex_match(qsl("^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me/?(\\?.+)?"), url, matchOptions);
+	if (subdomainMatch) {
+		const auto name = subdomainMatch->captured(2);
+		if (name.size() > 1 && name != "www") {
+			const auto result = TryConvertUrlToLocal(
+				subdomainMatch->captured(1)
+				+ "t.me/"
+				+ name
+				+ subdomainMatch->captured(3));
+			return result.startsWith("tg://resolve?domain=")
+				? result
+				: url;
+		}
+	}
 	auto telegramMeMatch = regex_match(qsl("^(https?://)?(www\\.)?(telegram\\.(me|dog)|t\\.me)/(.+)$"), url, matchOptions);
 	if (telegramMeMatch) {
 		auto query = telegramMeMatch->capturedView(5);

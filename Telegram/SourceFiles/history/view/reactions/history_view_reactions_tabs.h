@@ -11,19 +11,26 @@ namespace Ui {
 enum class WhoReadType;
 } // namespace Ui
 
-namespace HistoryView {
+namespace Data {
+struct ReactionId;
+struct MessageReaction;
+} // namespace Data
 
-struct Selector {
+namespace HistoryView::Reactions {
+
+struct Tabs {
 	Fn<void(int, int)> move;
 	Fn<void(int)> resizeToWidth;
-	Fn<rpl::producer<QString>()> changes;
+	Fn<rpl::producer<Data::ReactionId>()> changes;
 	Fn<rpl::producer<int>()> heightValue;
 };
 
-not_null<Selector*> CreateReactionSelector(
+not_null<Tabs*> CreateTabs(
 	not_null<QWidget*> parent,
-	const base::flat_map<QString, int> &items,
-	const QString &selected,
+	Ui::Text::CustomEmojiFactory factory,
+	Fn<bool()> paused,
+	const std::vector<Data::MessageReaction> &items,
+	const Data::ReactionId &selected,
 	Ui::WhoReadType whoReadType);
 
-} // namespace HistoryView
+} // namespace HistoryView::Reactions

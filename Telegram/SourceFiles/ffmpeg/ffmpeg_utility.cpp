@@ -482,6 +482,10 @@ bool RotationSwapWidthHeight(int rotation) {
 	return (rotation == 90 || rotation == 270);
 }
 
+QSize TransposeSizeByRotation(QSize size, int rotation) {
+	return RotationSwapWidthHeight(rotation) ? size.transposed() : size;
+}
+
 bool GoodStorageForFrame(const QImage &storage, QSize size) {
 	return !storage.isNull()
 		&& (storage.format() == kImageFormat)

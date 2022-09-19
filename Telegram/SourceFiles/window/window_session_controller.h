@@ -32,6 +32,7 @@ enum class WindowLayout;
 namespace ChatHelpers {
 class TabbedSelector;
 class EmojiInteractions;
+struct FileChosen;
 } // namespace ChatHelpers
 
 namespace Main {
@@ -317,6 +318,10 @@ public:
 	void setConnectingBottomSkip(int skip);
 	rpl::producer<int> connectingBottomSkipValue() const;
 
+	using FileChosen = ChatHelpers::FileChosen;
+	void stickerOrEmojiChosen(FileChosen chosen);
+	[[nodiscard]] rpl::producer<FileChosen> stickerOrEmojiChosen() const;
+
 	QPointer<Ui::BoxContent> show(
 		object_ptr<Ui::BoxContent> content,
 		Ui::LayerOptions options = Ui::LayerOption::KeepOther,
@@ -585,6 +590,8 @@ private:
 
 	rpl::variable<int> _connectingBottomSkip;
 
+	rpl::event_stream<ChatHelpers::FileChosen> _stickerOrEmojiChosen;
+
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
 
@@ -610,6 +617,13 @@ private:
 };
 
 void ActivateWindow(not_null<SessionController*> controller);
+
+[[nodiscard]] bool IsPaused(
+	not_null<SessionController*> controller,
+	GifPauseReason level);
+[[nodiscard]] Fn<bool()> PausedIn(
+	not_null<SessionController*> controller,
+	GifPauseReason level);
 
 class Show : public Ui::Show {
 public:

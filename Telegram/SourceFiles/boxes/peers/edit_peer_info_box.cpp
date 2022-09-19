@@ -988,21 +988,30 @@ void Controller::fillManageSection() {
 
 	if (canEditReactions()) {
 		const auto session = &_peer->session();
-		auto reactionsCount = Info::Profile::MigratedOrMeValue(
+		auto allowedReactions = Info::Profile::MigratedOrMeValue(
 			_peer
-		) | rpl::map(
-			Info::Profile::AllowedReactionsCountValue
-		) | rpl::flatten_latest();
-		auto fullCount = Info::Profile::FullReactionsCountValue(session);
+		) | rpl::map([=](not_null<PeerData*> peer) {
+			return peer->session().changes().peerFlagsValue(
+				peer,
+				Data::PeerUpdate::Flag::Reactions
+			) | rpl::map([=] {
+				return Data::PeerAllowedReactions(peer);
+			});
+		}) | rpl::flatten_latest();
 		auto label = rpl::combine(
-			std::move(reactionsCount),
-			std::move(fullCount)
-		) | rpl::map([=](int allowed, int total) {
-			return allowed
-				? QString::number(allowed) + " / " + QString::number(total)
+			std::move(allowedReactions),
+			Info::Profile::FullReactionsCountValue(session)
+		) | rpl::map([=](const Data::AllowedReactions &allowed, int total) {
+			const auto some = int(allowed.some.size());
+			return (allowed.type != Data::AllowedReactionsType::Some)
+				? tr::lng_manage_peer_reactions_on(tr::now)
+				: some
+				? (QString::number(some)
+					+ " / "
+					+ QString::number(std::max(some, total)))
 				: tr::lng_manage_peer_reactions_off(tr::now);
 		});
-		const auto done = [=](const std::vector<QString> &chosen) {
+		const auto done = [=](const Data::AllowedReactions &chosen) {
 			SaveAllowedReactions(_peer, chosen);
 		};
 		AddButtonWithCount(
@@ -1012,10 +1021,11 @@ void Controller::fillManageSection() {
 			[=] {
 				_navigation->parentController()->show(Box(
 					EditAllowedReactionsBox,
+					_navigation,
 					!_peer->isBroadcast(),
 					session->data().reactions().list(
 						Data::Reactions::Type::Active),
-					*Data::PeerAllowedReactions(_peer),
+					Data::PeerAllowedReactions(_peer),
 					done));
 			},
 			{ &st::infoRoundedIconReactions, Settings::kIconRed });

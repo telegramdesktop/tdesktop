@@ -1,3 +1,24 @@
+4.2 (17.09.22)
+
+- A new expandable reaction menu was added in private chats and groups.
+- All users get access to dozens of new reactions, including reactions previously reserved for Premium users.
+- The reactions you use most frequently will always be displayed at the top.
+- Premium users can react to messages with thousands of custom emoji and add up to 3 reactions to each message.
+- Group admins can control whether custom reactions are allowed in their groups.
+- Premium users can add an animated emoji status next to their name to display their current activity.
+- To set a status, tap your Premium badge in the main menu or Settings.
+- Popular suggestions for working, sleeping, traveling and more will be shown at the top.
+- To set a status for a specific duration like 1 hour or 2 days, right click the emoji.
+- A new format was supported for username links, in addition to "t.me/username." You can now open Telegram accounts, groups or channels using links like "username.t.me" or "https://username.t.me."
+- Improved support for long media captions.
+
+4.1.2 beta (14.09.22)
+
+- New reaction selector above the right click menu.
+- Premium: Set any custom emoji reactions in private chats.
+- Premium: Set any custom emoji as your profile status.
+- Insert or copy custom emoji from pack preview.
+
 4.1.1 (16.08.22)
 
 - Fix editing media captions with animated emoji.
@@ -184,7 +205,7 @@
 - Bring your custom animated stickers from other apps.
 - See smaller, compact animations when reacting to messages.
 - See real-time animations in chat when a user reacts to your message.
-- React with additional emoji expressing love, appreciation, anger or surprise. 
+- React with additional emoji expressing love, appreciation, anger or surprise.
 - Tap the new button in chats to jump to your messages that have unseen reactions.
 - Watch the animations for unseen reactions play when you hit the button.
 - The app will warn you before closing if you are uploading photos or files to a chat.
@@ -257,7 +278,7 @@
 - Clear messages in one-on-one chats from a specific day or date range.
 - Comment as one of your channels in public groups and channel comments.
 - When you request to join a community and its admin or bot-admin contacts you with a message, you will see which chat they are from at the top of the chat.
-- Bot-admins can now ask users to complete tasks before they are allowed to join - like accepting community rules, passing a test, or making a donation to the content creators. 
+- Bot-admins can now ask users to complete tasks before they are allowed to join - like accepting community rules, passing a test, or making a donation to the content creators.
 
 3.2.8 beta (01.12.21)
 
@@ -283,7 +304,7 @@
 3.2.4 (13.11.21)
 
 - Fix editing of scheduled messages on macOS.
-- Fix launching on Chrome OS in Crostini container. 
+- Fix launching on Chrome OS in Crostini container.
 
 3.2.3 (08.11.21)
 

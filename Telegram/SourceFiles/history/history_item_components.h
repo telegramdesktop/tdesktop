@@ -224,6 +224,8 @@ struct HistoryMessageReplyMarkup
 	void createForwarded(const HistoryMessageReplyMarkup &original);
 	void updateData(HistoryMessageMarkupData &&markup);
 
+	[[nodiscard]] bool hiddenBy(Data::Media *media) const;
+
 	HistoryMessageMarkupData data;
 	std::unique_ptr<ReplyKeyboard> inlineKeyboard;
 

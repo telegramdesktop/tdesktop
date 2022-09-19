@@ -8,36 +8,34 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/wrap/padding_wrap.h"
-#include "ui/widgets/checkbox.h"
 #include "base/timer.h"
 
 namespace Window {
 class SessionController;
 } // namespace Window
 
-namespace style {
-struct InfoToggle;
-} // namespace style
-
 namespace Ui {
-class AbstractButton;
 class UserpicButton;
 class FlatLabel;
 template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
+namespace Ui::Text {
+struct CustomEmojiColored;
+} // namespace Ui::Text
+
 namespace Info {
 class Controller;
 class Section;
 } // namespace Info
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 
-enum class Badge;
+class EmojiStatusPanel;
+class Badge;
 
-class Cover : public Ui::FixedHeightWidget {
+class Cover final : public Ui::FixedHeightWidget {
 public:
 	Cover(
 		QWidget *parent,
@@ -48,14 +46,13 @@ public:
 		not_null<PeerData*> peer,
 		not_null<Window::SessionController*> controller,
 		rpl::producer<QString> title);
+	~Cover();
 
 	Cover *setOnlineCount(rpl::producer<int> &&count);
 
-	rpl::producer<Section> showSection() const {
+	[[nodiscard]] rpl::producer<Section> showSection() const {
 		return _showSection.events();
 	}
-
-	~Cover();
 
 private:
 	void setupChildGeometry();
@@ -64,17 +61,15 @@ private:
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
-	void setBadge(Badge badge);
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
+	const std::unique_ptr<EmojiStatusPanel> _emojiStatusPanel;
+	const std::unique_ptr<Badge> _badge;
 	int _onlineCount = 0;
-	Badge _badge = Badge();
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
-	object_ptr<Ui::AbstractButton> _verifiedCheck = { nullptr };
-	object_ptr<Ui::RpWidget> _scamFakeBadge = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
 	base::Timer _refreshStatusTimer;
@@ -83,5 +78,4 @@ private:
 
 };
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

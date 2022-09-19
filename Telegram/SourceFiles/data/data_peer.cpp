@@ -109,6 +109,39 @@ bool ApplyBotMenuButton(
 	return changed;
 }
 
+bool operator<(
+		const AllowedReactions &a,
+		const AllowedReactions &b) {
+	return (a.type < b.type) || ((a.type == b.type) && (a.some < b.some));
+}
+
+bool operator==(
+		const AllowedReactions &a,
+		const AllowedReactions &b) {
+	return (a.type == b.type) && (a.some == b.some);
+}
+
+AllowedReactions Parse(const MTPChatReactions &value) {
+	return value.match([&](const MTPDchatReactionsNone &) {
+		return AllowedReactions();
+	}, [&](const MTPDchatReactionsAll &data) {
+		return AllowedReactions{
+			.type = (data.is_allow_custom()
+				? AllowedReactionsType::All
+				: AllowedReactionsType::Default),
+		};
+	}, [&](const MTPDchatReactionsSome &data) {
+		return AllowedReactions{
+			.some = ranges::views::all(
+				data.vreactions().v
+			) | ranges::views::transform(
+				ReactionFromMTP
+			) | ranges::to_vector,
+			.type = AllowedReactionsType::Some,
+		};
+	});
+}
+
 } // namespace Data
 
 PeerClickHandler::PeerClickHandler(not_null<PeerData*> peer)

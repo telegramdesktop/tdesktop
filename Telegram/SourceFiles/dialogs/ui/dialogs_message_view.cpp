@@ -73,7 +73,7 @@ TextWithTagOffset<kTag> ReplaceTag<TextWithTagOffset<kTag>>::Call(
 namespace Dialogs::Ui {
 
 TextWithEntities DialogsPreviewText(TextWithEntities text) {
-	return Ui::Text::Filtered(
+	auto result = Ui::Text::Filtered(
 		std::move(text),
 		{
 			EntityType::Pre,
@@ -85,6 +85,15 @@ TextWithEntities DialogsPreviewText(TextWithEntities text) {
 			EntityType::CustomEmoji,
 			EntityType::PlainLink,
 		});
+	for (auto &entity : result.entities) {
+		if (entity.type() == EntityType::Pre) {
+			entity = EntityInText(
+				EntityType::Code,
+				entity.offset(),
+				entity.length());
+		}
+	}
+	return result;
 }
 
 struct MessageView::LoadingContext {
@@ -109,62 +118,66 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 	return (_textCachedFor == item.get());
 }
 
+bool MessageView::prepared(not_null<const HistoryItem*> item) const {
+	return (_textCachedFor == item.get());
+}
+
+void MessageView::prepare(
+		not_null<const HistoryItem*> item,
+		Fn<void()> customEmojiRepaint,
+		ToPreviewOptions options) {
+	options.existing = &_imagesCache;
+	auto preview = item->toPreview(options);
+	if (!preview.images.empty() && preview.imagesInTextPosition > 0) {
+		auto sender = ::Ui::Text::Mid(
+			preview.text,
+			0,
+			preview.imagesInTextPosition);
+		TextUtilities::Trim(sender);
+		_senderCache.setMarkedText(
+			st::dialogsTextStyle,
+			std::move(sender),
+			DialogTextOptions());
+		preview.text = ::Ui::Text::Mid(
+			preview.text,
+			preview.imagesInTextPosition);
+	} else {
+		_senderCache = { st::dialogsTextWidthMin };
+	}
+	TextUtilities::Trim(preview.text);
+	const auto history = item->history();
+	const auto context = Core::MarkedTextContext{
+		.session = &history->session(),
+		.customEmojiRepaint = customEmojiRepaint,
+	};
+	_textCache.setMarkedText(
+		st::dialogsTextStyle,
+		DialogsPreviewText(std::move(preview.text)),
+		DialogTextOptions(),
+		context);
+	_textCachedFor = item;
+	_imagesCache = std::move(preview.images);
+	if (preview.loadingContext.has_value()) {
+		if (!_loadingContext) {
+			_loadingContext = std::make_unique<LoadingContext>();
+			item->history()->session().downloaderTaskFinished(
+			) | rpl::start_with_next([=] {
+				_textCachedFor = nullptr;
+			}, _loadingContext->lifetime);
+		}
+		_loadingContext->context = std::move(preview.loadingContext);
+	} else {
+		_loadingContext = nullptr;
+	}
+}
+
 void MessageView::paint(
 		Painter &p,
-		not_null<const HistoryItem*> item,
 		const QRect &geometry,
 		bool active,
-		bool selected,
-		ToPreviewOptions options) const {
+		bool selected) const {
 	if (geometry.isEmpty()) {
 		return;
-	}
-	if (_textCachedFor != item.get()) {
-		options.existing = &_imagesCache;
-		auto preview = item->toPreview(options);
-		if (!preview.images.empty() && preview.imagesInTextPosition > 0) {
-			auto sender = ::Ui::Text::Mid(
-				preview.text,
-				0,
-				preview.imagesInTextPosition);
-			TextUtilities::Trim(sender);
-			_senderCache.setMarkedText(
-				st::dialogsTextStyle,
-				std::move(sender),
-				DialogTextOptions());
-			preview.text = ::Ui::Text::Mid(
-				preview.text,
-				preview.imagesInTextPosition);
-		} else {
-			_senderCache = { st::dialogsTextWidthMin };
-		}
-		TextUtilities::Trim(preview.text);
-		const auto history = item->history();
-		const auto context = Core::MarkedTextContext{
-			.session = &history->session(),
-			.customEmojiRepaint = [=] {
-				history->updateChatListEntry();
-			},
-		};
-		_textCache.setMarkedText(
-			st::dialogsTextStyle,
-			DialogsPreviewText(std::move(preview.text)),
-			DialogTextOptions(),
-			context);
-		_textCachedFor = item;
-		_imagesCache = std::move(preview.images);
-		if (preview.loadingContext.has_value()) {
-			if (!_loadingContext) {
-				_loadingContext = std::make_unique<LoadingContext>();
-				item->history()->session().downloaderTaskFinished(
-				) | rpl::start_with_next([=] {
-					_textCachedFor = nullptr;
-				}, _loadingContext->lifetime);
-			}
-			_loadingContext->context = std::move(preview.loadingContext);
-		} else {
-			_loadingContext = nullptr;
-		}
 	}
 	p.setTextPalette(active
 		? st::dialogsTextPaletteActive

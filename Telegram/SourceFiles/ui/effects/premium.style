@@ -97,17 +97,56 @@ premiumAccountsNameTop: 13px;
 premiumAccountsPadding: margins(0px, 20px, 0px, 14px);
 premiumAccountsHeight: 105px;
 
+PremiumOption {
+	rowPadding: margins;
+	rowMargins: margins;
+	rowHeight: pixels;
+
+	borderWidth: pixels;
+	borderRadius: pixels;
+
+	subtitleTop: pixels;
+	textLeft: pixels;
+
+	badgeHeight: pixels;
+	badgeRadius: pixels;
+	badgeMargins: margins;
+	badgeShift: point;
+}
+
+premiumSubscriptionOption: PremiumOption {
+	rowPadding: margins(9px, 2px, 17px, 3px);
+	rowMargins: margins(14px, 0px, 5px, 0px);
+	rowHeight: 39px;
+
+	borderWidth: 0px;
+	borderRadius: 0px;
+
+	subtitleTop: 1px;
+	textLeft: 51px;
+
+	badgeHeight: 15px;
+	badgeRadius: 4px;
+	badgeMargins: margins(3px, 1px, 3px, 0px);
+	badgeShift: point(9px, 0px);
+}
+
 // Gift.
-premiumGiftRowHeight: 56px;
-premiumGiftRowBorderWidth: 2px;
-premiumGiftRowBorderRadius: 9px;
-premiumGiftRowPaddings: margins(19px, 2px, 17px, 2px);
-premiumGiftRowMargins: margins(14px, 0px, 15px, 0px);
-premiumGiftRowSubtitleTop: 7px;
-premiumGiftRowTextLeft: 53px;
-premiumGiftRowBadgeHeight: 18px;
-premiumGiftRowBadgeRadius: 4px;
-premiumGiftRowBadgeMargins: margins(5px, 1px, 5px, 0px);
+premiumGiftOption: PremiumOption {
+	rowPadding: margins(19px, 2px, 17px, 2px);
+	rowMargins: margins(14px, 0px, 15px, 0px);
+	rowHeight: 56px;
+
+	borderWidth: 2px;
+	borderRadius: 9px;
+
+	subtitleTop: 7px;
+	textLeft: 53px;
+
+	badgeHeight: 18px;
+	badgeRadius: 4px;
+	badgeMargins: margins(5px, 1px, 5px, 0px);
+}
 
 premiumGiftUserpicPadding: margins(10px, 27px, 18px, 13px);
 premiumGiftTitlePadding: margins(18px, 0px, 18px, 0px);

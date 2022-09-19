@@ -1719,9 +1719,9 @@ void FormController::verify(
 			}).send();
 		case Value::Type::Email:
 			return _api.request(MTPaccount_VerifyEmail(
-				MTP_string(getEmailFromValue(nonconst)),
-				MTP_string(prepared)
-			)).done([=](const MTPBool &result) {
+				MTP_emailVerifyPurposePassport(),
+				MTP_emailVerificationCode(MTP_string(prepared))
+			)).done([=](const MTPaccount_EmailVerified &result) {
 				savePlainTextValue(nonconst);
 				clearValueVerification(nonconst);
 			}).fail([=](const MTP::Error &error) {
@@ -2174,14 +2174,12 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 			const auto timeout = data.vtimeout();
 			value->verification.requestId = 0;
 			value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+			const auto bad = [](const char *type) {
+				LOG(("API Error: Should not be '%1' "
+					"in FormController::startPhoneVerification.").arg(type));
+			};
 			data.vtype().match([&](const MTPDauth_sentCodeTypeApp &) {
 				LOG(("API Error: sentCodeTypeApp not expected "
-					"in FormController::startPhoneVerification."));
-			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
-				LOG(("API Error: sentCodeTypeFlashCall not expected "
-					"in FormController::startPhoneVerification."));
-			}, [&](const MTPDauth_sentCodeTypeMissedCall &data) {
-				LOG(("API Error: sentCodeTypeMissedCall not expected "
 					"in FormController::startPhoneVerification."));
 			}, [&](const MTPDauth_sentCodeTypeCall &data) {
 				value->verification.codeLength = (data.vlength().v > 0)
@@ -2208,6 +2206,14 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 						timeout.value_or(60),
 					});
 				}
+			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
+				bad("FlashCall");
+			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
+				bad("MissedCall");
+			}, [&](const MTPDauth_sentCodeTypeEmailCode &) {
+				bad("EmailCode");
+			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
+				bad("SetUpEmailRequired");
 			});
 			_verificationNeeded.fire_copy(value);
 		});
@@ -2218,9 +2224,11 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 }
 
 void FormController::startEmailVerification(not_null<Value*> value) {
-	value->verification.requestId = _api.request(MTPaccount_SendVerifyEmailCode(
-		MTP_string(getEmailFromValue(value))
-	)).done([=](const MTPaccount_SentEmailCode &result) {
+	value->verification.requestId = _api.request(
+		MTPaccount_SendVerifyEmailCode(
+			MTP_emailVerifyPurposePassport(),
+			MTP_string(getEmailFromValue(value)))
+	).done([=](const MTPaccount_SentEmailCode &result) {
 		Expects(result.type() == mtpc_account_sentEmailCode);
 
 		value->verification.requestId = 0;

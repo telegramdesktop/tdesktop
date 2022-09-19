@@ -14,16 +14,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace FFmpeg {
 
-class EmojiGenerator final : public Ui::FrameGenerator {
+class FrameGenerator final : public Ui::FrameGenerator {
 public:
-	explicit EmojiGenerator(const QByteArray &bytes);
-	~EmojiGenerator();
+	explicit FrameGenerator(const QByteArray &bytes);
+	~FrameGenerator();
 
 	int count() override;
+	double rate() override;
 	Frame renderNext(
 		QImage storage,
 		QSize size,
 		Qt::AspectRatioMode mode = Qt::IgnoreAspectRatio) override;
+	Frame renderCurrent(
+		QImage storage,
+		QSize size,
+		Qt::AspectRatioMode mode = Qt::IgnoreAspectRatio) override;
+	void jumpToStart() override;
 
 private:
 	class Impl;

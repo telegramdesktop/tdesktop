@@ -206,7 +206,7 @@ void Paint::handleMimeData(const QMimeData *data) {
 	const auto premium = false; // Don't support > 2GB files here.
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
-			data->urls().mid(0, 1),
+			base::GetMimeUrls(data).mid(0, 1),
 			_imageSize.width() / 2,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());

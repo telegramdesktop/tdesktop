@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "base/event_filter.h"
 #include "boxes/premium_limits_box.h"
+#include "boxes/premium_preview_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/tabbed_panel.h"
@@ -25,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_premium_limits.h"
+#include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
@@ -67,7 +69,7 @@ auto ListFromMimeData(not_null<const QMimeData*> data, bool premium) {
 	auto result = data->hasUrls()
 		? Storage::PrepareMediaList(
 			// When we edit media, we need only 1 file.
-			data->urls().mid(0, 1),
+			base::GetMimeUrls(data).mid(0, 1),
 			st::sendMediaPreviewSize,
 			premium)
 		: Ui::PreparedList(Error::EmptyFile, QString());
@@ -502,14 +504,22 @@ void EditCaptionBox::setupEmojiPanel() {
 	_emojiPanel->hide();
 	_emojiPanel->selector()->setCurrentPeer(_historyItem->history()->peer);
 	_emojiPanel->selector()->emojiChosen(
-	) | rpl::start_with_next([=](EmojiPtr emoji) {
-		Ui::InsertEmojiAtCursor(_field->textCursor(), emoji);
+	) | rpl::start_with_next([=](ChatHelpers::EmojiChosen data) {
+		Ui::InsertEmojiAtCursor(_field->textCursor(), data.emoji);
 	}, lifetime());
 	_emojiPanel->selector()->customEmojiChosen(
-	) | rpl::start_with_next([=](Selector::FileChosen data) {
-		Data::InsertCustomEmoji(_field.get(), data.document);
+	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
+		const auto info = data.document->sticker();
+		if (info
+			&& info->setType == Data::StickersType::Emoji
+			&& !_controller->session().premium()) {
+			ShowPremiumPreviewBox(
+				_controller,
+				PremiumPreview::AnimatedEmoji);
+		} else {
+			Data::InsertCustomEmoji(_field.get(), data.document);
+		}
 	}, lifetime());
-	_emojiPanel->selector()->showPromoForPremiumEmoji();
 
 	const auto filterCallback = [=](not_null<QEvent*> event) {
 		emojiFilterForGeometry(event);

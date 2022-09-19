@@ -50,8 +50,7 @@ private:
 		int x,
 		int y,
 		not_null<Ui::Text::CustomEmoji*> emoji,
-		const PaintContext &context,
-		bool paused);
+		const PaintContext &context);
 
 	const not_null<Element*> _parent;
 	const std::array<LargeEmojiMedia, Ui::Text::kIsolatedEmojiLimit> _images;

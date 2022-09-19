@@ -133,12 +133,13 @@ inline auto PeerFullFlagValue(
 	int size,
 	ImageRoundRadius radius);
 
-[[nodiscard]] std::optional<base::flat_set<QString>> PeerAllowedReactions(
+[[nodiscard]] const AllowedReactions &PeerAllowedReactions(
 	not_null<PeerData*> peer);
-[[nodiscard]] auto PeerAllowedReactionsValue(not_null<PeerData*> peer)
--> rpl::producer<std::optional<base::flat_set<QString>>>;
+[[nodiscard]] rpl::producer<AllowedReactions> PeerAllowedReactionsValue(
+	not_null<PeerData*> peer);
 
+[[nodiscard]] int UniqueReactionsLimit(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> UniqueReactionsLimitValue(
-	not_null<Main::Session*> session);
+	not_null<PeerData*> peer);
 
 } // namespace Data

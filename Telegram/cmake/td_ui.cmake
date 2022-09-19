@@ -67,6 +67,8 @@ PRIVATE
     countries/countries_instance.cpp
     countries/countries_instance.h
 
+    data/data_subscription_option.h
+
     editor/controllers/undo_controller.cpp
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp
@@ -234,12 +236,12 @@ PRIVATE
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp
     ui/effects/premium_stars.h
+    ui/effects/premium_stars_colored.cpp
+    ui/effects/premium_stars_colored.h
     ui/effects/round_checkbox.cpp
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
-    ui/text/custom_emoji_instance.cpp
-    ui/text/custom_emoji_instance.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp
@@ -262,6 +264,8 @@ PRIVATE
 
     ui/cached_round_corners.cpp
     ui/cached_round_corners.h
+    ui/color_contrast.cpp
+    ui/color_contrast.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/widgets/fields/special_fields.cpp

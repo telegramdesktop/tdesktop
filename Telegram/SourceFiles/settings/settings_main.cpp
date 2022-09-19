@@ -30,7 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/special_buttons.h"
-#include "info/profile/info_profile_cover.h"
+#include "info/profile/info_profile_badge.h"
+#include "info/profile/info_profile_emoji_status_panel.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_cloud_themes.h"
@@ -85,12 +86,13 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<UserData*> _user;
+	Info::Profile::EmojiStatusPanel _emojiStatusPanel;
+	Info::Profile::Badge _badge;
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _phone = { nullptr };
 	object_ptr<Ui::FlatLabel> _username = { nullptr };
-	object_ptr<Ui::RpWidget> _badge = { nullptr };
 
 };
 
@@ -105,6 +107,17 @@ Cover::Cover(
 		+ st::settingsPhotoBottom)
 , _controller(controller)
 , _user(user)
+, _badge(
+	this,
+	st::infoPeerBadge,
+	user,
+	&_emojiStatusPanel,
+	[=] {
+		return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer);
+	},
+	0, // customStatusLoopsLimit
+	Info::Profile::BadgeType::Premium)
 , _userpic(
 	this,
 	controller,
@@ -133,23 +146,15 @@ Cover::Cover(
 			_userpic->takeResultImage());
 	}, _userpic->lifetime());
 
-	Data::AmPremiumValue(
-		&controller->session()
-	) | rpl::start_with_next([=](bool hasPremium) {
-		if (hasPremium && !_badge) {
-			const auto icon = &st::infoPremiumStar;
-			_badge.create(this);
-			_badge->show();
-			_badge->resize(icon->size());
-			_badge->paintRequest(
-			) | rpl::start_with_next([icon, check = _badge.data()] {
-				Painter p(check);
-				icon->paint(p, 0, 0, check->width());
-			}, _badge->lifetime());
-		} else if (!hasPremium && _badge) {
-			_badge.destroy();
-		}
-	}, lifetime());
+	_badge.setPremiumClickCallback([=] {
+		_emojiStatusPanel.show(
+			_controller,
+			_badge.widget(),
+			_badge.sizeTag());
+	});
+	_badge.updated() | rpl::start_with_next([=] {
+		refreshNameGeometry(width());
+	}, _name->lifetime());
 }
 
 Cover::~Cover() = default;
@@ -192,7 +197,7 @@ void Cover::initViewers() {
 		refreshUsernameGeometry(width());
 	}, lifetime());
 
-	_username->setClickHandlerFilter([=](auto&&...) {
+	_username->overrideLinkClickHandler([=] {
 		const auto username = _user->userName();
 		if (username.isEmpty()) {
 			_controller->show(Box<UsernameBox>(&_user->session()));
@@ -203,26 +208,24 @@ void Cover::initViewers() {
 				Window::Show(_controller).toastParent(),
 				tr::lng_username_copied(tr::now));
 		}
-		return false;
 	});
 }
 
 void Cover::refreshNameGeometry(int newWidth) {
 	const auto nameLeft = st::settingsNameLeft;
 	const auto nameTop = st::settingsNameTop;
-	const auto nameWidth = newWidth
+	auto nameWidth = newWidth
 		- nameLeft
-		- st::infoProfileNameRight
-		- (!_badge ? 0 : _badge->width() + st::infoVerifiedCheckPosition.x());
+		- st::infoProfileNameRight;
+	if (const auto width = _badge.widget() ? _badge.widget()->width() : 0) {
+		nameWidth -= st::infoVerifiedCheckPosition.x() + width;
+	}
 	_name->resizeToNaturalWidth(nameWidth);
 	_name->moveToLeft(nameLeft, nameTop, newWidth);
-
-	if (_badge) {
-		const auto &pos = st::infoVerifiedCheckPosition;
-		const auto badgeLeft = nameLeft + _name->width() + pos.x();
-		const auto badgeTop = nameTop + pos.y();
-		_badge->moveToLeft(badgeLeft, badgeTop, newWidth);
-	}
+	const auto badgeLeft = nameLeft + _name->width();
+	const auto badgeTop = nameTop;
+	const auto badgeBottom = nameTop + _name->height();
+	_badge.move(badgeLeft, badgeTop, badgeBottom);
 }
 
 void Cover::refreshPhoneGeometry(int newWidth) {

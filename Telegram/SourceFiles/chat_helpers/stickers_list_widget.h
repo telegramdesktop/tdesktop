@@ -46,6 +46,10 @@ class ReaderPointer;
 enum class Notification;
 } // namespace Media::Clip
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace ChatHelpers {
 
 struct StickerIcon;
@@ -61,7 +65,7 @@ public:
 		Window::GifPauseReason level,
 		bool masks = false);
 
-	rpl::producer<TabbedSelector::FileChosen> chosen() const;
+	rpl::producer<FileChosen> chosen() const;
 	rpl::producer<> scrollUpdated() const;
 	rpl::producer<TabbedSelector::Action> choosingUpdated() const;
 
@@ -87,8 +91,7 @@ public:
 
 	std::shared_ptr<Lottie::FrameRenderer> getLottieRenderer();
 
-	void fillContextMenu(
-		not_null<Ui::PopupMenu*> menu,
+	base::unique_qptr<Ui::PopupMenu> fillContextMenu(
 		SendMenu::Type type) override;
 
 	bool mySetsEmpty() const;
@@ -320,14 +323,13 @@ private:
 	void addSearchRow(not_null<Data::StickersSet*> set);
 
 	void showPreview();
-	void validatePremiumLock(Set &set, int index, const QImage &frame);
-	void validatePremiumStar();
 
 	Ui::MessageSendingAnimationFrom messageSentAnimationInfo(
 		int section,
 		int index,
 		not_null<DocumentData*> document);
 
+	not_null<Window::SessionController*> _controller;
 	MTP::Sender _api;
 	std::unique_ptr<LocalStickersManager> _localSetsManager;
 	ChannelData *_megagroupSet = nullptr;
@@ -387,7 +389,7 @@ private:
 	QString _searchQuery, _searchNextQuery;
 	mtpRequestId _searchRequestId = 0;
 
-	rpl::event_stream<TabbedSelector::FileChosen> _chosen;
+	rpl::event_stream<FileChosen> _chosen;
 	rpl::event_stream<> _scrollUpdated;
 	rpl::event_stream<TabbedSelector::Action> _choosingUpdated;
 

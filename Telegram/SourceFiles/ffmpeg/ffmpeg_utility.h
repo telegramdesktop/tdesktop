@@ -180,6 +180,7 @@ void LogError(QLatin1String method, FFmpeg::AvErrorWrap error);
 [[nodiscard]] int ReadRotationFromMetadata(not_null<AVStream*> stream);
 [[nodiscard]] AVRational ValidateAspectRatio(AVRational aspect);
 [[nodiscard]] bool RotationSwapWidthHeight(int rotation);
+[[nodiscard]] QSize TransposeSizeByRotation(QSize size, int rotation);
 [[nodiscard]] QSize CorrectByAspect(QSize size, AVRational aspect);
 
 [[nodiscard]] bool GoodStorageForFrame(const QImage &storage, QSize size);

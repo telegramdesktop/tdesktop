@@ -38,11 +38,11 @@ bool AbstractFFMpegLoader::open(crl::time positionMs) {
 
 	ioBuffer = (uchar *)av_malloc(FFmpeg::kAVBlockSize);
 	if (!_data.isEmpty()) {
-		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_data, 0, &AbstractFFMpegLoader::_seek_data);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::ReadData, 0, &AbstractFFMpegLoader::SeekData);
 	} else if (!_bytes.empty()) {
-		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_bytes, 0, &AbstractFFMpegLoader::_seek_bytes);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::ReadBytes, 0, &AbstractFFMpegLoader::SeekBytes);
 	} else {
-		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::_read_file, 0, &AbstractFFMpegLoader::_seek_file);
+		ioContext = avio_alloc_context(ioBuffer, FFmpeg::kAVBlockSize, 0, reinterpret_cast<void *>(this), &AbstractFFMpegLoader::ReadFile, 0, &AbstractFFMpegLoader::SeekFile);
 	}
 	fmtContext = avformat_alloc_context();
 	if (!fmtContext) {
@@ -100,12 +100,12 @@ AbstractFFMpegLoader::~AbstractFFMpegLoader() {
 	if (fmtContext) avformat_free_context(fmtContext);
 }
 
-int AbstractFFMpegLoader::_read_data(void *opaque, uint8_t *buf, int buf_size) {
+int AbstractFFMpegLoader::ReadData(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	auto nbytes = qMin(l->_data.size() - l->_dataPos, int32(buf_size));
 	if (nbytes <= 0) {
-		return 0;
+		return AVERROR_EOF;
 	}
 
 	memcpy(buf, l->_data.constData() + l->_dataPos, nbytes);
@@ -113,7 +113,7 @@ int AbstractFFMpegLoader::_read_data(void *opaque, uint8_t *buf, int buf_size) {
 	return nbytes;
 }
 
-int64_t AbstractFFMpegLoader::_seek_data(void *opaque, int64_t offset, int whence) {
+int64_t AbstractFFMpegLoader::SeekData(void *opaque, int64_t offset, int whence) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	int32 newPos = -1;
@@ -133,12 +133,12 @@ int64_t AbstractFFMpegLoader::_seek_data(void *opaque, int64_t offset, int whenc
 	return l->_dataPos;
 }
 
-int AbstractFFMpegLoader::_read_bytes(void *opaque, uint8_t *buf, int buf_size) {
+int AbstractFFMpegLoader::ReadBytes(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	auto nbytes = qMin(static_cast<int>(l->_bytes.size()) - l->_dataPos, buf_size);
 	if (nbytes <= 0) {
-		return 0;
+		return AVERROR_EOF;
 	}
 
 	memcpy(buf, l->_bytes.data() + l->_dataPos, nbytes);
@@ -146,7 +146,7 @@ int AbstractFFMpegLoader::_read_bytes(void *opaque, uint8_t *buf, int buf_size) 
 	return nbytes;
 }
 
-int64_t AbstractFFMpegLoader::_seek_bytes(void *opaque, int64_t offset, int whence) {
+int64_t AbstractFFMpegLoader::SeekBytes(void *opaque, int64_t offset, int whence) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	int32 newPos = -1;
@@ -167,12 +167,17 @@ int64_t AbstractFFMpegLoader::_seek_bytes(void *opaque, int64_t offset, int when
 	return l->_dataPos;
 }
 
-int AbstractFFMpegLoader::_read_file(void *opaque, uint8_t *buf, int buf_size) {
+int AbstractFFMpegLoader::ReadFile(void *opaque, uint8_t *buf, int buf_size) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
-	return int(l->_f.read((char *)(buf), buf_size));
+	int ret = l->_f.read((char *)(buf), buf_size);
+	switch (ret) {
+	case -1: return AVERROR_EXTERNAL;
+	case 0: return AVERROR_EOF;
+	default: return ret;
+	}
 }
 
-int64_t AbstractFFMpegLoader::_seek_file(void *opaque, int64_t offset, int whence) {
+int64_t AbstractFFMpegLoader::SeekFile(void *opaque, int64_t offset, int whence) {
 	auto l = reinterpret_cast<AbstractFFMpegLoader *>(opaque);
 
 	switch (whence) {
@@ -585,8 +590,8 @@ bool FFMpegLoader::seekTo(crl::time positionMs) {
 }
 
 AudioPlayerLoader::ReadResult FFMpegLoader::readMore(
-	QByteArray & result,
-	int64 & samplesAdded) {
+		QByteArray &result,
+		int64 &samplesAdded) {
 	const auto readResult = readFromReadyContext(
 		_codecContext,
 		result,

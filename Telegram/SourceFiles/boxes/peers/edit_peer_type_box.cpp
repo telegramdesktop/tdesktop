@@ -241,6 +241,10 @@ void Controller::createContent() {
 				) | rpl::start_with_next([=](bool toggled) {
 					_dataSavedValue->joinToWrite = toggled;
 				}, wrap->lifetime());
+			} else {
+				_controls.whoSendWrap->toggle(
+					(_controls.privacy->value() == Privacy::HasUsername),
+					anim::type::instant);
 			}
 			auto joinToWrite = _controls.joinToWrite
 				? _controls.joinToWrite->toggledValue()

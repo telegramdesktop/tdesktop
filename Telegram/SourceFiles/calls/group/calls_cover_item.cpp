@@ -50,7 +50,7 @@ bool CoverItem::isEnabled() const {
 }
 
 int CoverItem::contentHeight() const {
-	return _st.size + st::groupCallMenu.separatorPadding.bottom();
+	return _st.size + st::groupCallMenu.separator.padding.bottom();
 }
 
 AboutItem::AboutItem(

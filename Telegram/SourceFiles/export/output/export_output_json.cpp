@@ -145,11 +145,12 @@ QByteArray SerializeArray(
 
 QByteArray SerializeText(
 		Context &context,
-		const std::vector<Data::TextPart> &data) {
+		const std::vector<Data::TextPart> &data,
+		bool serializeToObjects = false) {
 	using Type = Data::TextPart::Type;
 
 	if (data.empty()) {
-		return SerializeString("");
+		return serializeToObjects ? QByteArray("[]") : SerializeString("");
 	}
 
 	context.nesting.push_back(Context::kArray);
@@ -157,7 +158,7 @@ QByteArray SerializeText(
 	const auto text = ranges::views::all(
 		data
 	) | ranges::views::transform([&](const Data::TextPart &part) {
-		if (part.type == Type::Text) {
+		if ((part.type == Type::Text) && !serializeToObjects) {
 			return SerializeString(part.text);
 		}
 		const auto typeString = [&] {
@@ -172,6 +173,7 @@ QByteArray SerializeText(
 			case Type::Italic: return "italic";
 			case Type::Code: return "code";
 			case Type::Pre: return "pre";
+			case Type::Text: return "plain";
 			case Type::TextUrl: return "text_link";
 			case Type::MentionName: return "mention_name";
 			case Type::Phone: return "phone";
@@ -194,10 +196,11 @@ QByteArray SerializeText(
 			: (part.type == Type::TextUrl)
 			? "href"
 			: "none";
-		const auto additionalValue = (part.type == Type::MentionName
-			|| part.type == Type::CustomEmoji)
+		const auto additionalValue = (part.type == Type::MentionName)
 			? part.additional
-			: (part.type == Type::Pre || part.type == Type::TextUrl)
+			: (part.type == Type::Pre
+				|| part.type == Type::TextUrl
+				|| part.type == Type::CustomEmoji)
 			? SerializeString(part.additional)
 			: QByteArray();
 		return SerializeObject(context, {
@@ -209,8 +212,10 @@ QByteArray SerializeText(
 
 	context.nesting.pop_back();
 
-	if (data.size() == 1 && data[0].type == Data::TextPart::Type::Text) {
-		return text[0];
+	if (!serializeToObjects) {
+		if (data.size() == 1 && data[0].type == Data::TextPart::Type::Text) {
+			return text[0];
+		}
 	}
 	return SerializeArray(context, text);
 }
@@ -699,6 +704,7 @@ QByteArray SerializeMessage(
 	}, [](v::null_t) {});
 
 	pushBare("text", SerializeText(context, message.text));
+	pushBare("text_entities", SerializeText(context, message.text, true));
 
 	return serialized();
 }

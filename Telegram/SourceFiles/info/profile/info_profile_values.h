@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/flags.h"
+
 #include <rpl/producer.h>
 #include <rpl/map.h>
 
@@ -87,17 +89,11 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(
 	not_null<Main::Session*> peer);
-[[nodiscard]] rpl::producer<int> AllowedReactionsCountValue(
-	not_null<PeerData*> peer);
 
-enum class Badge {
-	None,
-	Verified,
-	Premium,
-	Scam,
-	Fake,
-};
-[[nodiscard]] rpl::producer<Badge> BadgeValue(not_null<PeerData*> peer);
+enum class BadgeType;
+[[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
+	not_null<PeerData*> peer);
 
 } // namespace Profile
 } // namespace Info

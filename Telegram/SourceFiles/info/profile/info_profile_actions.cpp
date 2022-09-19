@@ -354,7 +354,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			std::move(linkText),
 			QString());
 		const auto controller = _controller->parentController();
-		link->setClickHandlerFilter([=, peer = _peer](auto&&...) {
+		link->overrideLinkClickHandler([=, peer = _peer] {
 			const auto link = peer->session().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
@@ -363,7 +363,6 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					Window::Show(controller).toastParent(),
 					tr::lng_username_copied(tr::now));
 			}
-			return false;
 		});
 
 		if (const auto channel = _peer->asChannel()) {
@@ -420,7 +419,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 				return true;
 			}
 			if (peer->owner().notifySettings().isMuted(peer)) {
-				peer->owner().notifySettings().update(peer, 0);
+				peer->owner().notifySettings().update(
+					peer,
+					{ .unmute = true });
 				return false;
 			} else {
 				return true;

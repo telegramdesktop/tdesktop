@@ -256,7 +256,8 @@ std::unique_ptr<Result> Result::Create(
 			MTPint(), // receipt_msg_id
 			data.vcurrency(),
 			data.vtotal_amount(),
-			MTP_string(QString())); // start_param
+			MTP_string(QString()), // start_param
+			MTPMessageExtendedMedia());
 		result->sendData = std::make_unique<internal::SendInvoice>(
 			session,
 			media);

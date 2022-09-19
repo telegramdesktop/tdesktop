@@ -33,6 +33,10 @@ namespace Window {
 class SessionController;
 } // namespace Window
 
+namespace style {
+struct EmojiPan;
+} // namespace style
+
 namespace ChatHelpers {
 
 enum class ValidateIconAnimations {
@@ -75,15 +79,30 @@ struct StickerIcon {
 	mutable rpl::lifetime lifetime;
 };
 
+class GradientPremiumStar {
+public:
+	GradientPremiumStar();
+
+	[[nodiscard]] QImage image() const;
+
+private:
+	void renderOnDemand() const;
+
+	mutable QImage _image;
+	rpl::lifetime _lifetime;
+
+};
+
 class StickersListFooter final : public TabbedSelector::InnerFooter {
 public:
 	struct Descriptor {
-		not_null<Window::SessionController*> controller;
-		Window::GifPauseReason level = {};
+		not_null<Main::Session*> session;
+		Fn<bool()> paused;
 		not_null<RpWidget*> parent;
 		bool searchButtonVisible = false;
 		bool settingsButtonVisible = false;
 		bool barSelection = false;
+		const style::EmojiPan *st = nullptr;
 	};
 	explicit StickersListFooter(Descriptor &&descriptor);
 
@@ -114,6 +133,12 @@ public:
 		bool forced = false;
 	};
 	[[nodiscard]] rpl::producer<SearchRequest> searchRequests() const;
+
+	void paintExpanding(
+		Painter &p,
+		QRect clip,
+		float64 radius,
+		RectPart origin);
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -163,6 +188,12 @@ private:
 		crl::time animationStart = 0;
 		Ui::Animations::Basic animation;
 	};
+	struct ExpandingContext {
+		QRect clip;
+		float64 progress = 0.;
+		int radius = 0;
+		bool expanding = false;
+	};
 
 	void enumerateVisibleIcons(Fn<void(const IconInfo &)> callback) const;
 	void enumerateIcons(Fn<bool(const IconInfo &)> callback) const;
@@ -193,17 +224,23 @@ private:
 	void checkDragging(ScrollState &state);
 	bool finishDragging(ScrollState &state);
 	bool finishDragging();
-	void paintStickerSettingsIcon(Painter &p) const;
-	void paintSearchIcon(Painter &p) const;
+
+	void paint(Painter &p, const ExpandingContext &context) const;
+	void paintStickerSettingsIcon(QPainter &p) const;
+	void paintSearchIcon(QPainter &p) const;
 	void paintSetIcon(
 		Painter &p,
+		const ExpandingContext &context,
 		const IconInfo &info,
 		crl::time now,
 		bool paused) const;
-	void paintSelectionBg(Painter &p) const;
-	void paintSelectionBar(Painter &p) const;
-	void paintLeftRightFading(Painter &p) const;
-	void validatePremiumIcon() const;
+	void paintSelectionBg(
+		QPainter &p,
+		const ExpandingContext &context) const;
+	void paintSelectionBar(QPainter &p) const;
+	void paintLeftRightFading(
+		QPainter &p,
+		const ExpandingContext &context) const;
 
 	void updateEmojiSectionWidth();
 	void updateEmojiWidthCallback();
@@ -215,8 +252,8 @@ private:
 
 	void clipCallback(Media::Clip::Notification notification, uint64 setId);
 
-	const not_null<Window::SessionController*> _controller;
-	const Window::GifPauseReason _level = {};
+	const not_null<Main::Session*> _session;
+	const Fn<bool()> _paused;
 	const bool _searchButtonVisible = false;
 	const bool _settingsButtonVisible = false;
 
@@ -230,7 +267,7 @@ private:
 	OverState _pressed = SpecialOver::None;
 
 	QPoint _iconsMousePos, _iconsMouseDown;
-	mutable QImage _premiumIcon;
+	GradientPremiumStar _premiumIcon;
 	int _iconsLeft = 0;
 	int _iconsRight = 0;
 	int _iconsTop = 0;

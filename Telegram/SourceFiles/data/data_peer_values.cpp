@@ -513,20 +513,21 @@ rpl::producer<QImage> PeerUserpicImageValue(
 	};
 }
 
-std::optional<base::flat_set<QString>> PeerAllowedReactions(
-		not_null<PeerData*> peer) {
+const AllowedReactions &PeerAllowedReactions(not_null<PeerData*> peer) {
 	if (const auto chat = peer->asChat()) {
 		return chat->allowedReactions();
 	} else if (const auto channel = peer->asChannel()) {
 		return channel->allowedReactions();
 	} else {
-		return std::nullopt;
+		static const auto result = AllowedReactions{
+			.type = AllowedReactionsType::All,
+		};
+		return result;
 	}
 }
 
- auto PeerAllowedReactionsValue(
-	not_null<PeerData*> peer)
--> rpl::producer<std::optional<base::flat_set<QString>>> {
+ rpl::producer<AllowedReactions> PeerAllowedReactionsValue(
+		not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		Data::PeerUpdate::Flag::Reactions
@@ -535,12 +536,20 @@ std::optional<base::flat_set<QString>> PeerAllowedReactions(
 	});
 }
 
+int UniqueReactionsLimit(not_null<Main::AppConfig*> config) {
+	return config->get<int>("reactions_uniq_max", 11);
+}
+
+int UniqueReactionsLimit(not_null<PeerData*> peer) {
+	return UniqueReactionsLimit(&peer->session().account().appConfig());
+}
+
 rpl::producer<int> UniqueReactionsLimitValue(
-		not_null<Main::Session*> session) {
-	const auto config = &session->account().appConfig();
+		not_null<PeerData*> peer) {
+	const auto config = &peer->session().account().appConfig();
 	return config->value(
 	) | rpl::map([=] {
-		return config->get<int>("reactions_uniq_max", 11);
+		return UniqueReactionsLimit(config);
 	}) | rpl::distinct_until_changed();
 }
 

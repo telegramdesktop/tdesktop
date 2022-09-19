@@ -93,12 +93,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 			auto min = (request.ymin < 0)
 				? request.ymin
-				: mapFromGlobal(_members->mapToGlobal({ 0, request.ymin })).y();
+				: MapFrom(this, _members, QPoint(0, request.ymin)).y();
 			auto max = (request.ymin < 0)
-				? mapFromGlobal(_members->mapToGlobal({ 0, 0 })).y()
+				? MapFrom(this, _members, QPoint()).y()
 				: (request.ymax < 0)
 				? request.ymax
-				: mapFromGlobal(_members->mapToGlobal({ 0, request.ymax })).y();
+				: MapFrom(this, _members, QPoint(0, request.ymax)).y();
 			_scrollToRequests.fire({ min, max });
 		}, _members->lifetime());
 		_cover->setOnlineCount(_members->onlineCountValue());

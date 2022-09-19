@@ -168,6 +168,7 @@ public:
 	void applyEdition(HistoryMessageEdition &&edition) override;
 
 	void applyEdition(const MTPDmessageService &message) override;
+	void applyEdition(const MTPMessageExtendedMedia &media) override;
 	void updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) override;

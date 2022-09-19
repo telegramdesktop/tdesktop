@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "boxes/peer_list_controllers.h"
+#include "ui/unread_badge.h"
 
 namespace Window {
 class SessionNavigation;
@@ -15,8 +16,6 @@ class SessionNavigation;
 
 namespace Info {
 namespace Profile {
-
-enum class Badge;
 
 class MemberListRow final : public PeerListRowWithLink {
 public:
@@ -26,7 +25,6 @@ public:
 		Creator,
 	};
 	struct Type {
-		Badge badge;
 		Rights rights;
 		QString adminRank;
 	};
@@ -36,20 +34,12 @@ public:
 	void setType(Type type);
 	bool rightActionDisabled() const override;
 	QMargins rightActionMargins() const override;
-	int nameIconWidth() const override;
-	void paintNameIcon(
-		Painter &p,
-		int x,
-		int y,
-		int outerWidth,
-		bool selected) override;
 	void refreshStatus() override;
 
 	not_null<UserData*> user() const;
 
 private:
 	Type _type;
-	QSize _fakeScamSize;
 
 };
 

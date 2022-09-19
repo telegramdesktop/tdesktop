@@ -40,13 +40,16 @@ public:
 	void itemInvalidated(not_null<const HistoryItem*> item);
 	[[nodiscard]] bool dependsOn(not_null<const HistoryItem*> item) const;
 
+	[[nodiscard]] bool prepared(not_null<const HistoryItem*> item) const;
+	void prepare(
+		not_null<const HistoryItem*> item,
+		Fn<void()> customEmojiRepaint,
+		ToPreviewOptions options);
 	void paint(
 		Painter &p,
-		not_null<const HistoryItem*> item,
 		const QRect &geometry,
 		bool active,
-		bool selected,
-		ToPreviewOptions options) const;
+		bool selected) const;
 
 private:
 	struct LoadingContext;

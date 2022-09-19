@@ -65,9 +65,26 @@ struct Stream {
 	QSize resize,
 	QImage storage);
 [[nodiscard]] FrameYUV ExtractYUV(Stream &stream, AVFrame *frame);
+
+struct ExpandDecision {
+	QSize result;
+	bool expanding = false;
+};
+[[nodiscard]] ExpandDecision DecideFrameResize(
+	QSize outer,
+	QSize original,
+	int minVisibleNominator = 3, // If we cut out no more than 0.25 of
+	int minVisibleDenominator = 4); // the original, let's expand.
+[[nodiscard]] ExpandDecision DecideVideoFrameResize(
+	QSize outer,
+	QSize original);
+[[nodiscard]] QSize CalculateResizeFromOuter(QSize outer, QSize original);
+[[nodiscard]] QImage PrepareBlurredBackground(QSize outer, QImage frame);
+void FillBlurredBackground(QPainter &p, QSize outer, QImage bg);
 [[nodiscard]] QImage PrepareByRequest(
 	const QImage &original,
-	bool alpha,
+	bool hasAlpha,
+	const AVRational &aspect,
 	int rotation,
 	const FrameRequest &request,
 	QImage storage);

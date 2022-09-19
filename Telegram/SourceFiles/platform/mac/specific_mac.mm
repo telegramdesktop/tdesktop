@@ -191,10 +191,10 @@ bool AutostartSkip() {
 	return !cAutoStart();
 }
 
-} // namespace Platform
-
-void psNewVersion() {
+void NewVersionLaunched(int oldVersion) {
 }
+
+} // namespace Platform
 
 void psSendToMenu(bool send, bool silent) {
 }

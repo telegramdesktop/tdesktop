@@ -8,10 +8,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
+#include "data/data_message_reaction_id.h"
 
 namespace Data {
-class Reactions;
 class CloudImageView;
+class Reactions;
 } // namespace Data
 
 namespace Ui {
@@ -22,12 +23,14 @@ namespace HistoryView {
 using PaintContext = Ui::ChatPaintContext;
 class Message;
 struct TextState;
-struct ReactionAnimationArgs;
 struct UserpicInRow;
 } // namespace HistoryView
 
 namespace HistoryView::Reactions {
 
+using ::Data::ReactionId;
+using ::Data::MessageReaction;
+struct AnimationArgs;
 class Animation;
 
 struct InlineListData {
@@ -39,9 +42,8 @@ struct InlineListData {
 	friend inline constexpr bool is_flag_type(Flag) { return true; };
 	using Flags = base::flags<Flag>;
 
-	base::flat_map<QString, int> reactions;
-	base::flat_map<QString, std::vector<not_null<PeerData*>>> recent;
-	QString chosenReaction;
+	std::vector<MessageReaction> reactions;
+	base::flat_map<ReactionId, std::vector<not_null<PeerData*>>> recent;
 	Flags flags = {};
 };
 
@@ -50,7 +52,8 @@ public:
 	using Data = InlineListData;
 	InlineList(
 		not_null<::Data::Reactions*> owner,
-		Fn<ClickHandlerPtr(QString)> handlerFactory,
+		Fn<ClickHandlerPtr(ReactionId)> handlerFactory,
+		Fn<void()> customEmojiRepaint,
 		Data &&data);
 	~InlineList();
 
@@ -63,6 +66,9 @@ public:
 	void updateSkipBlock(int width, int height);
 	void removeSkipBlock();
 
+	[[nodiscard]] bool hasCustomEmoji() const;
+	void unloadCustomEmoji();
+
 	void paint(
 		Painter &p,
 		const PaintContext &context,
@@ -73,12 +79,12 @@ public:
 		not_null<TextState*> outResult) const;
 
 	void animate(
-		ReactionAnimationArgs &&args,
+		AnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeAnimations()
-		-> base::flat_map<QString, std::unique_ptr<Reactions::Animation>>;
+		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
 	void continueAnimations(base::flat_map<
-		QString,
+		ReactionId,
 		std::unique_ptr<Reactions::Animation>> animations);
 
 private:
@@ -87,17 +93,7 @@ private:
 		std::vector<UserpicInRow> list;
 		bool someNotLoaded = false;
 	};
-	struct Button {
-		QRect geometry;
-		mutable std::unique_ptr<Animation> animation;
-		mutable QImage image;
-		mutable ClickHandlerPtr link;
-		std::unique_ptr<Userpics> userpics;
-		QString emoji;
-		QString countText;
-		int count = 0;
-		int countTextWidth = 0;
-	};
+	struct Button;
 
 	void layout();
 	void layoutButtons();
@@ -106,16 +102,26 @@ private:
 	void setButtonUserpics(
 		Button &button,
 		const std::vector<not_null<PeerData*>> &peers);
-	[[nodiscard]] Button prepareButtonWithEmoji(const QString &emoji);
+	[[nodiscard]] Button prepareButtonWithId(const ReactionId &id);
 	void resolveUserpicsImage(const Button &button) const;
+	void paintCustomFrame(
+		Painter &p,
+		not_null<Ui::Text::CustomEmoji*> emoji,
+		QPoint innerTopLeft,
+		crl::time now,
+		const QColor &preview) const;
 
 	QSize countOptimalSize() override;
 
 	const not_null<::Data::Reactions*> _owner;
-	const Fn<ClickHandlerPtr(QString)> _handlerFactory;
+	const Fn<ClickHandlerPtr(ReactionId)> _handlerFactory;
+	const Fn<void()> _customEmojiRepaint;
 	Data _data;
 	std::vector<Button> _buttons;
 	QSize _skipBlock;
+	mutable QImage _customCache;
+	mutable int _customSkip = 0;
+	bool _hasCustomEmoji = false;
 
 };
 
