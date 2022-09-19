@@ -246,12 +246,6 @@ bool GenerateDesktopFile(
 	}
 }
 
-} // namespace
-
-void SetApplicationIcon(const QIcon &icon) {
-	QApplication::setWindowIcon(icon);
-}
-
 QString AppRuntimeDirectory() {
 	static const auto Result = [&] {
 		auto runtimeDir = QStandardPaths::writableLocation(
@@ -273,6 +267,12 @@ QString AppRuntimeDirectory() {
 	}();
 
 	return Result;
+}
+
+} // namespace
+
+void SetApplicationIcon(const QIcon &icon) {
+	QApplication::setWindowIcon(icon);
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {

@@ -15,8 +15,6 @@ class LocationPoint;
 
 namespace Platform {
 
-QString AppRuntimeDirectory();
-
 void InstallLauncher(bool force = false);
 
 inline void IgnoreApplicationActivationRightNow() {
