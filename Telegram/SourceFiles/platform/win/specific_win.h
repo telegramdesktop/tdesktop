@@ -27,6 +27,9 @@ inline bool SkipTaskbarSupported() {
 	return true;
 }
 
+inline void InstallLauncher(bool force) {
+}
+
 namespace ThirdParty {
 
 void start();

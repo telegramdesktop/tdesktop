@@ -179,6 +179,10 @@ auto GenerateCodes() {
 		Core::Application::RegisterUrlScheme();
 		Ui::Toast::Show("Forced custom scheme register.");
 	});
+	codes.emplace(qsl("installlauncher"), [](SessionController *window) {
+		Platform::InstallLauncher(true);
+		Ui::Toast::Show("Forced launcher installation.");
+	});
 
 #if defined Q_OS_WIN || defined Q_OS_MAC
 	codes.emplace(qsl("freetype"), [](SessionController *window) {
@@ -195,13 +199,6 @@ auto GenerateCodes() {
 		} }));
 	});
 #endif // Q_OS_WIN || Q_OS_MAC
-
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
-	codes.emplace(qsl("installlauncher"), [](SessionController *window) {
-		Platform::InstallLauncher(true);
-		Ui::Toast::Show("Forced launcher installation.");
-	});
-#endif // Q_OS_UNIX && !Q_OS_MAC
 
 	auto audioFilters = qsl("Audio files (*.wav *.mp3);;") + FileDialog::AllFilesFilter();
 	auto audioKeys = {
