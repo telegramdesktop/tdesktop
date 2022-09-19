@@ -2776,7 +2776,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_botMenuButton->show();
 		}
 		if (_silent) {
-			_silent->show();
+			_silent->setVisible(!_editMsgId);
 		}
 		if (_scheduled) {
 			_scheduled->show();
@@ -4836,7 +4836,7 @@ void HistoryWidget::updateFieldSize() {
 	if (_sendAs) fieldWidth -= _sendAs->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
-	if (_silent) fieldWidth -= _silent->width();
+	if (_silent && !_silent->isHidden()) fieldWidth -= _silent->width();
 	if (_scheduled) fieldWidth -= _scheduled->width();
 	if (_ttlInfo) fieldWidth -= _ttlInfo->width();
 
