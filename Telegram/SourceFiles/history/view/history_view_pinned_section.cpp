@@ -517,12 +517,14 @@ Context PinnedWidget::listContext() {
 	return Context::Pinned;
 }
 
-void PinnedWidget::listScrollTo(int top) {
-	if (_scroll->scrollTop() != top) {
-		_scroll->scrollToY(top);
-	} else {
+bool PinnedWidget::listScrollTo(int top) {
+	top = std::clamp(top, 0, _scroll->scrollTopMax());
+	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
+		return false;
 	}
+	_scroll->scrollToY(top);
+	return true;
 }
 
 void PinnedWidget::listCancelRequest() {

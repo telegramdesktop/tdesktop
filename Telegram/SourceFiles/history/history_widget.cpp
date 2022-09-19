@@ -7938,10 +7938,12 @@ QPoint HistoryWidget::clampMousePosition(QPoint point) {
 }
 
 bool HistoryWidget::touchScroll(const QPoint &delta) {
-	int32 scTop = _scroll->scrollTop(), scMax = _scroll->scrollTopMax();
+	const auto scTop = _scroll->scrollTop();
+	const auto scMax = _scroll->scrollTopMax();
 	const auto scNew = std::clamp(scTop - delta.y(), 0, scMax);
-	if (scNew == scTop) return false;
-
+	if (scNew == scTop) {
+		return false;
+	}
 	_scroll->scrollToY(scNew);
 	return true;
 }

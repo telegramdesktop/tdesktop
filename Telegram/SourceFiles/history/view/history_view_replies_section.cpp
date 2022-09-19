@@ -1425,11 +1425,7 @@ bool RepliesWidget::showAtPositionNow(
 			: (std::abs(fullDelta) > limit)
 			? AnimatedScroll::Part
 			: AnimatedScroll::Full;
-		_inner->scrollTo(
-			wanted,
-			use,
-			scrollDelta,
-			type);
+		_inner->scrollTo(wanted, use, scrollDelta, type);
 		if (use != Data::MaxMessagePosition
 			&& use != Data::UnreadMessagePosition) {
 			_inner->highlightMessage(use.fullId);
@@ -1839,12 +1835,14 @@ Context RepliesWidget::listContext() {
 	return Context::Replies;
 }
 
-void RepliesWidget::listScrollTo(int top) {
-	if (_scroll->scrollTop() != top) {
-		_scroll->scrollToY(top);
-	} else {
+bool RepliesWidget::listScrollTo(int top) {
+	top = std::clamp(top, 0, _scroll->scrollTopMax());
+	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
+		return false;
 	}
+	_scroll->scrollToY(top);
+	return true;
 }
 
 void RepliesWidget::listCancelRequest() {
