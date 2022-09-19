@@ -120,6 +120,9 @@ private:
 
 	void validateVideoThumbnail() const;
 	[[nodiscard]] QSize countThumbSize(int &inOutWidthMax) const;
+	[[nodiscard]] int adjustHeightForLessCrop(
+		QSize dimensions,
+		QSize current) const;
 
 	float64 dataProgress() const override;
 	bool dataFinished() const override;

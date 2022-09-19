@@ -166,6 +166,9 @@ QSize Gif::countOptimalSize() {
 			maxWidth = qMax(maxWidth, st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right());
+			minHeight = adjustHeightForLessCrop(
+				scaled,
+				{ maxWidth, minHeight });
 			minHeight += st::mediaCaptionSkip + _caption.minHeight();
 			if (isBubbleBottom()) {
 				minHeight += st::msgPadding.bottom();
@@ -209,6 +212,9 @@ QSize Gif::countCurrentSize(int newWidth) {
 					+ _caption.maxWidth()
 					+ st::msgPadding.right()));
 			newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
+			newHeight = adjustHeightForLessCrop(
+				scaled,
+				{ newWidth, newHeight });
 			const auto captionw = newWidth
 				- st::msgPadding.left()
 				- st::msgPadding.right();
@@ -240,6 +246,19 @@ QSize Gif::countCurrentSize(int newWidth) {
 	}
 
 	return { newWidth, newHeight };
+}
+
+int Gif::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
+	if (dimensions.isEmpty()) {
+		return current.height();
+	}
+	// Allow some more vertical space for less cropping,
+	// but not more than 1.33 * existing height.
+	return qMax(
+		current.height(),
+		qMin(
+			current.width() * dimensions.height() / dimensions.width(),
+			current.height() * 4 / 3));
 }
 
 QSize Gif::videoSize() const {

@@ -169,14 +169,9 @@ QSize Photo::countOptimalSize() {
 			(st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
-		if (!dimensions.isEmpty()
-			&& ::Media::Streaming::FrameResizeMayExpand(
-				{ maxWidth, minHeight },
-				dimensions)) {
-			minHeight = qMax(
-				minHeight,
-				maxWidth * dimensions.height() / dimensions.width());
-		}
+		minHeight = adjustHeightForLessCrop(
+			dimensions,
+			{ maxWidth, minHeight });
 		minHeight += st::mediaCaptionSkip + _caption.minHeight();
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
@@ -210,14 +205,9 @@ QSize Photo::countCurrentSize(int newWidth) {
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
-		if (!dimensions.isEmpty()
-			&& ::Media::Streaming::FrameResizeMayExpand(
-				{ newWidth, newHeight },
-				dimensions)) {
-			newHeight = qMax(
-				newHeight,
-				newWidth * dimensions.height() / dimensions.width());
-		}
+		newHeight = adjustHeightForLessCrop(
+			dimensions,
+			{ newWidth, newHeight });
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
@@ -227,6 +217,16 @@ QSize Photo::countCurrentSize(int newWidth) {
 		}
 	}
 	return { newWidth, newHeight };
+}
+
+int Photo::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
+	if (dimensions.isEmpty()
+		|| !::Media::Streaming::FrameResizeMayExpand(current, dimensions)) {
+		return current.height();
+	}
+	return qMax(
+		current.height(),
+		current.width() * dimensions.height() / dimensions.width());
 }
 
 void Photo::draw(Painter &p, const PaintContext &context) const {
