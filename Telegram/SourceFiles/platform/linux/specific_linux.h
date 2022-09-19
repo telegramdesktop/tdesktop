@@ -16,7 +16,6 @@ class LocationPoint;
 namespace Platform {
 
 QString AppRuntimeDirectory();
-QString GetIconName();
 
 void InstallLauncher(bool force = false);
 

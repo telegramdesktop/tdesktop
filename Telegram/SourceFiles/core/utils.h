@@ -26,6 +26,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <KUrlMimeData>
 #endif
 
+#if __has_include(<KSandbox>)
+#include <KSandbox>
+#endif
+
 #define qsl(s) QStringLiteral(s)
 
 namespace base {
@@ -44,6 +48,27 @@ inline auto GetMimeUrls(const QMimeData *data) {
 	return data->urls();
 #endif
 }
+
+#if __has_include(<KSandbox>) && defined DeclareReadSetting
+inline QString FlatpakID() {
+	static const auto Result = [] {
+		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
+			return qEnvironmentVariable("FLATPAK_ID");
+		} else {
+			return cExeName();
+		}
+	}();
+
+	return Result;
+}
+
+inline QString IconName() {
+	static const auto Result = KSandbox::isFlatpak()
+		? FlatpakID()
+		: qsl("telegram");
+	return Result;
+}
+#endif
 
 } // namespace base
 

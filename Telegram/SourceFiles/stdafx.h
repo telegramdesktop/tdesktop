@@ -119,6 +119,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/basic_types.h"
 #include "logs.h"
+#include "settings.h"
 #include "core/utils.h"
 #include "config.h"
 
