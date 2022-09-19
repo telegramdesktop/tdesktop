@@ -152,19 +152,31 @@ QSize Photo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	const auto scaled = CountDesiredMediaSize(
-		{ _data->width(), _data->height() });
+	const auto dimensions = QSize(_data->width(), _data->height());
+	const auto scaled = CountDesiredMediaSize(dimensions);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		(_parent->hasBubble()
+			? st::historyPhotoBubbleMinWidth
+			: st::minPhotoSize),
 		st::maxMediaSize);
 	const auto maxActualWidth = qMax(scaled.width(), minWidth);
 	auto maxWidth = qMax(maxActualWidth, scaled.height());
 	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
-		maxWidth = qMax(maxWidth, st::msgPadding.left()
-			+ _caption.maxWidth()
-			+ st::msgPadding.right());
+		maxWidth = qMax(
+			maxWidth,
+			(st::msgPadding.left()
+				+ _caption.maxWidth()
+				+ st::msgPadding.right()));
+		if (!dimensions.isEmpty()
+			&& ::Media::Streaming::FrameResizeMayExpand(
+				{ maxWidth, minHeight },
+				dimensions)) {
+			minHeight = qMax(
+				minHeight,
+				maxWidth * dimensions.height() / dimensions.width());
+		}
 		minHeight += st::mediaCaptionSkip + _caption.minHeight();
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
@@ -180,10 +192,13 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		(_parent->hasBubble()
+			? st::historyPhotoBubbleMinWidth
+			: st::minPhotoSize),
 		thumbMaxWidth);
+	const auto dimensions = QSize(_data->width(), _data->height());
 	auto pix = CountPhotoMediaSize(
-		CountDesiredMediaSize({ _data->width(), _data->height() }),
+		CountDesiredMediaSize(dimensions),
 		newWidth,
 		maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
@@ -195,6 +210,14 @@ QSize Photo::countCurrentSize(int newWidth) {
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
+		if (!dimensions.isEmpty()
+			&& ::Media::Streaming::FrameResizeMayExpand(
+				{ newWidth, newHeight },
+				dimensions)) {
+			newHeight = qMax(
+				newHeight,
+				newWidth * dimensions.height() / dimensions.width());
+		}
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
