@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtWidgets/QSystemTrayIcon>
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
+#include <KShell>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
@@ -172,36 +173,6 @@ void PortalAutostart(bool start, bool silent) {
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-QByteArray EscapeShell(const QByteArray &content) {
-	auto result = QByteArray();
-
-	auto b = content.constData(), e = content.constEnd();
-	for (auto ch = b; ch != e; ++ch) {
-		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
-			if (result.isEmpty()) {
-				result.reserve(content.size() * 2);
-			}
-			if (ch > b) {
-				result.append(b, ch - b);
-			}
-			result.append('\\');
-			b = ch;
-		}
-	}
-	if (result.isEmpty()) {
-		return content;
-	}
-
-	if (e > b) {
-		result.append(b, e - b);
-	}
-	return result;
-}
-
-QString EscapeShellInLauncher(const QString &content) {
-	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
-}
-
 QString FlatpakID() {
 	static const auto Result = [] {
 		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
@@ -255,9 +226,12 @@ bool GenerateDesktopFile(
 			QRegularExpression(
 				qsl("^Exec=telegram-desktop(.*)$"),
 				QRegularExpression::MultilineOption),
-			qsl("Exec=%1 -workdir %2\\1").arg(
-				EscapeShellInLauncher(cExeDir() + cExeName()),
-				EscapeShellInLauncher(cWorkingDir())));
+			qsl("Exec=%1\\1").arg(
+				KShell::joinArgs({
+					cExeDir() + cExeName(),
+					"-workdir",
+					cWorkingDir(),
+				}).replace('\\', "\\\\")));
 
 		fileText = fileText.replace(
 			QRegularExpression(
