@@ -60,7 +60,6 @@ namespace Platform {
 namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
-constexpr auto kIconName = "telegram"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -174,18 +173,6 @@ void PortalAutostart(bool start, bool silent) {
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-QString FlatpakID() {
-	static const auto Result = [] {
-		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
-			return qEnvironmentVariable("FLATPAK_ID");
-		} else {
-			return cExeName();
-		}
-	}();
-
-	return Result;
-}
-
 bool GenerateDesktopFile(
 		const QString &targetPath,
 		const QString &args,
@@ -271,7 +258,7 @@ QString AppRuntimeDirectory() {
 			QStandardPaths::RuntimeLocation);
 
 		if (KSandbox::isFlatpak()) {
-			runtimeDir += qsl("/app/") + FlatpakID();
+			runtimeDir += qsl("/app/") + base::FlatpakID();
 		}
 
 		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
@@ -299,13 +286,6 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 	} else {
 		return idealSocketPath;
 	}
-}
-
-QString GetIconName() {
-	static const auto Result = KSandbox::isFlatpak()
-		? FlatpakID()
-		: kIconName.utf16();
-	return Result;
 }
 
 std::optional<bool> IsDarkMode() {
@@ -476,7 +456,7 @@ void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
-	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
+	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::init();
@@ -532,7 +512,7 @@ void InstallLauncher(bool force) {
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
-	const auto icon = icons + kIconName.utf16() + qsl(".png");
+	const auto icon = icons + base::IconName() + qsl(".png");
 	auto iconExists = QFile::exists(icon);
 	if (Local::oldSettingsVersion() < 2008012 && iconExists) {
 		// Icon was changed.
