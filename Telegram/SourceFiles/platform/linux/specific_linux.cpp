@@ -36,6 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 #include <KShell>
+#include <KSandbox>
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
@@ -264,22 +265,12 @@ void SetApplicationIcon(const QIcon &icon) {
 	QApplication::setWindowIcon(icon);
 }
 
-bool InFlatpak() {
-	static const auto Result = QFileInfo::exists(qsl("/.flatpak-info"));
-	return Result;
-}
-
-bool InSnap() {
-	static const auto Result = qEnvironmentVariableIsSet("SNAP");
-	return Result;
-}
-
 QString AppRuntimeDirectory() {
 	static const auto Result = [&] {
 		auto runtimeDir = QStandardPaths::writableLocation(
 			QStandardPaths::RuntimeLocation);
 
-		if (InFlatpak()) {
+		if (KSandbox::isFlatpak()) {
 			runtimeDir += qsl("/app/") + FlatpakID();
 		}
 
@@ -311,7 +302,7 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 }
 
 QString GetIconName() {
-	static const auto Result = InFlatpak()
+	static const auto Result = KSandbox::isFlatpak()
 		? FlatpakID()
 		: kIconName.utf16();
 	return Result;
@@ -363,7 +354,7 @@ bool AutostartSupported() {
 	// in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
 	// thus, autostart isn't supported in snap
-	return !InSnap();
+	return !KSandbox::isSnap();
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
@@ -374,7 +365,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 	});
 
 	const auto silent = !done;
-	if (InFlatpak()) {
+	if (KSandbox::isFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(enabled, silent);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION

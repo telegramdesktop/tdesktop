@@ -15,9 +15,6 @@ class LocationPoint;
 
 namespace Platform {
 
-bool InFlatpak();
-bool InSnap();
-
 QString AppRuntimeDirectory();
 QString GetIconName();
 
