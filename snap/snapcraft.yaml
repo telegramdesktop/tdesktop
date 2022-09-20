@@ -235,6 +235,8 @@ parts:
     source-depth: 1
     source-tag: v5.98.0
     plugin: cmake
+    build-packages:
+      - curl
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
