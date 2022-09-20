@@ -394,15 +394,22 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 		return;
 	}
 	stopReorderPinned();
-	//const auto mouseSelection = _mouseSelection;
-	//const auto lastMousePosition = _lastMousePosition;
 	clearSelection();
 	_openedFolder = folder;
 	refreshWithCollapsedRows(true);
-	// This doesn't work, because we clear selection in leaveEvent on hide.
-	//if (mouseSelection && lastMousePosition) {
-	//	selectByMouse(*lastMousePosition);
-	//}
+	if (_loadMoreCallback) {
+		_loadMoreCallback();
+	}
+}
+
+void InnerWidget::changeOpenedForum(ChannelData *forum) {
+	if (_openedForum == forum) {
+		return;
+	}
+	stopReorderPinned();
+	clearSelection();
+	_openedForum = forum;
+	refreshWithCollapsedRows(true);
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
 	}
@@ -1160,6 +1167,8 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	} else if (qAbs(localPosition.y() - _dragStart.y())
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
+	} else if (_openedForum) {
+		return; // #TODO forum
 	}
 	_dragging = _pressed;
 	if (updateReorderIndexGetCount() < 2) {
@@ -1311,7 +1320,7 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	const auto delta = [&] {
 		if (localPosition.y() < _visibleTop) {
 			return localPosition.y() - _visibleTop;
-		} else if ((_openedFolder || _filterId)
+		} else if ((_openedFolder || _openedForum || _filterId)
 			&& localPosition.y() > _visibleBottom) {
 			return localPosition.y() - _visibleBottom;
 		}
@@ -2271,6 +2280,10 @@ void InnerWidget::peerSearchReceived(
 
 Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;
+}
+
+ChannelData *InnerWidget::shownForum() const {
+	return _openedForum;
 }
 
 bool InnerWidget::needCollapsedRowsRefresh() const {

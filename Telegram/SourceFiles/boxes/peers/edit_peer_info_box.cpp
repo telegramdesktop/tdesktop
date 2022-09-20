@@ -266,6 +266,7 @@ private:
 		std::optional<QString> title;
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
+		std::optional<bool> forum;
 		std::optional<bool> signatures;
 		std::optional<bool> noForwards;
 		std::optional<bool> joinToWrite;
@@ -289,6 +290,7 @@ private:
 	void fillPrivacyTypeButton();
 	void fillLinkedChatButton();
 	//void fillInviteLinkButton();
+	void fillForumButton();
 	void fillSignaturesButton();
 	void fillHistoryVisibilityButton();
 	void fillManageSection();
@@ -305,6 +307,7 @@ private:
 	[[nodiscard]] bool validateTitle(Saving &to) const;
 	[[nodiscard]] bool validateDescription(Saving &to) const;
 	[[nodiscard]] bool validateHistoryVisibility(Saving &to) const;
+	[[nodiscard]] bool validateForum(Saving &to) const;
 	[[nodiscard]] bool validateSignatures(Saving &to) const;
 	[[nodiscard]] bool validateForwards(Saving &to) const;
 	[[nodiscard]] bool validateJoinToWrite(Saving &to) const;
@@ -316,6 +319,7 @@ private:
 	void saveTitle();
 	void saveDescription();
 	void saveHistoryVisibility();
+	void saveForum();
 	void saveSignatures();
 	void saveForwards();
 	void saveJoinToWrite();
@@ -339,6 +343,7 @@ private:
 	bool _channelHasLocationOriginalValue = false;
 	std::optional<HistoryVisibility> _historyVisibilitySavedValue;
 	std::optional<EditPeerTypeData> _typeDataSavedValue;
+	std::optional<bool> _forumSavedValue;
 	std::optional<bool> _signaturesSavedValue;
 
 	const not_null<Window::SessionNavigation*> _navigation;
@@ -800,6 +805,27 @@ void Controller::fillLinkedChatButton() {
 //		buttonCallback);
 //}
 
+void Controller::fillForumButton() {
+	Expects(_controls.buttonsLayout != nullptr);
+
+	const auto channel = _peer->asChannel();
+	if (!channel) {
+		return;
+	}
+
+	AddButtonWithText(
+		_controls.buttonsLayout,
+		rpl::single(u"Forum"_q), // #TODO forum
+		rpl::single(QString()),
+		[] {},
+		{ &st::settingsIconGroup, Settings::kIconPurple }
+	)->toggleOn(rpl::single(channel->isForum())
+	)->toggledValue(
+	) | rpl::start_with_next([=](bool toggled) {
+		_forumSavedValue = toggled;
+	}, _controls.buttonsLayout->lifetime());
+}
+
 void Controller::fillSignaturesButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
@@ -907,6 +933,9 @@ void Controller::fillManageSection() {
 			? channel->canEditPreHistoryHidden()
 			: chat->canEditPreHistoryHidden();
 	}();
+	const auto canEditForum = isChannel
+		&& channel->isMegagroup()
+		&& channel->canEditInformation();
 
 	const auto canEditPermissions = [&] {
 		return isChannel
@@ -972,10 +1001,14 @@ void Controller::fillManageSection() {
 	if (canEditPreHistoryHidden) {
 		fillHistoryVisibilityButton();
 	}
+	if (canEditForum) {
+		fillForumButton();
+	}
 	if (canEditSignatures) {
 		fillSignaturesButton();
 	}
 	if (canEditPreHistoryHidden
+		|| canEditForum
 		|| canEditSignatures
 		//|| canEditInviteLinks
 		|| canViewOrEditLinkedChat
@@ -1235,6 +1268,7 @@ std::optional<Controller::Saving> Controller::validate() const {
 		&& validateTitle(result)
 		&& validateDescription(result)
 		&& validateHistoryVisibility(result)
+		&& validateForum(result)
 		&& validateSignatures(result)
 		&& validateForwards(result)
 		&& validateJoinToWrite(result)
@@ -1302,6 +1336,14 @@ bool Controller::validateHistoryVisibility(Saving &to) const {
 	return true;
 }
 
+bool Controller::validateForum(Saving &to) const {
+	if (!_forumSavedValue.has_value()) {
+		return true;
+	}
+	to.forum = _forumSavedValue;
+	return true;
+}
+
 bool Controller::validateSignatures(Saving &to) const {
 	if (!_signaturesSavedValue.has_value()) {
 		return true;
@@ -1347,6 +1389,7 @@ void Controller::save() {
 		pushSaveStage([=] { saveTitle(); });
 		pushSaveStage([=] { saveDescription(); });
 		pushSaveStage([=] { saveHistoryVisibility(); });
+		pushSaveStage([=] { saveForum(); });
 		pushSaveStage([=] { saveSignatures(); });
 		pushSaveStage([=] { saveForwards(); });
 		pushSaveStage([=] { saveJoinToWrite(); });
@@ -1581,6 +1624,28 @@ void Controller::togglePreHistoryHidden(
 			apply();
 		} else {
 			fail();
+		}
+	}).send();
+}
+
+void Controller::saveForum() {
+	const auto channel = _peer->asChannel();
+	if (!_savingData.forum
+		|| !channel
+		|| *_savingData.forum == channel->isForum()) {
+		return continueSave();
+	}
+	_api.request(MTPchannels_ToggleForum(
+		channel->inputChannel,
+		MTP_bool(*_savingData.forum)
+	)).done([=](const MTPUpdates &result) {
+		channel->session().api().applyUpdates(result);
+		continueSave();
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() == qstr("CHAT_NOT_MODIFIED")) {
+			continueSave();
+		} else {
+			cancelSave();
 		}
 	}).send();
 }

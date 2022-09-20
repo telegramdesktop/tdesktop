@@ -1152,6 +1152,10 @@ ServiceAction ParseServiceAction(
 			qs(data.vcurrency())).toUtf8();
 		content.months = data.vmonths().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionTopicCreate &data) {
+		auto content = ActionTopicCreated();
+		content.title = ParseString(data.vtitle());
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

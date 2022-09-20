@@ -13,6 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "data/data_peer_bot_commands.h"
 
+namespace Data {
+class Forum;
+} // namespace Data
+
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;
@@ -55,12 +59,16 @@ enum class ChannelDataFlag {
 	NoForwards = (1 << 20),
 	JoinToWrite = (1 << 21),
 	RequestToJoin = (1 << 22),
+	Forum = (1 << 23),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
 
 class MegagroupInfo {
 public:
+	MegagroupInfo();
+	~MegagroupInfo();
+
 	struct Admin {
 		explicit Admin(ChatAdminRightsInfo rights)
 		: rights(rights) {
@@ -92,6 +100,9 @@ public:
 		return _botCommands;
 	}
 
+	void setIsForum(bool is);
+	[[nodiscard]] Data::Forum *forum() const;
+
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
@@ -119,10 +130,11 @@ private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
 	Data::ChatBotCommands _botCommands;
+	std::unique_ptr<Data::Forum> _forum;
 
 };
 
-class ChannelData : public PeerData {
+class ChannelData final : public PeerData {
 public:
 	using Flag = ChannelDataFlag;
 	using Flags = Data::Flags<ChannelDataFlags>;
@@ -242,6 +254,9 @@ public:
 	}
 	[[nodiscard]] bool isGigagroup() const {
 		return flags() & Flag::Gigagroup;
+	}
+	[[nodiscard]] bool isForum() const {
+		return flags() & Flag::Forum;
 	}
 	[[nodiscard]] bool hasUsername() const {
 		return flags() & Flag::Username;
@@ -419,6 +434,10 @@ public:
 
 	void setAllowedReactions(Data::AllowedReactions value);
 	[[nodiscard]] const Data::AllowedReactions &allowedReactions() const;
+
+	[[nodiscard]] Data::Forum *forum() const {
+		return mgInfo ? mgInfo->forum() : nullptr;
+	}
 
 	// Still public data members.
 	uint64 access = 0;

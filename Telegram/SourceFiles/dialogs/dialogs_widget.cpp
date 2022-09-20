@@ -260,7 +260,10 @@ Widget::Widget(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
-		if (const auto history = row.key.history()) {
+		const auto history = row.key.history();
+		if (history && history->peer->isForum()) {
+			controller->openForum(history->peer->asChannel());
+		} else if (history) {
 			const auto peer = history->peer;
 			const auto showAtMsgId = controller->uniqueChatsInSearchResults()
 				? ShowAtUnreadMsgId
@@ -397,6 +400,15 @@ Widget::Widget(
 	controller->openedFolder().changes(
 	) | rpl::start_with_next([=](Data::Folder *folder) {
 		changeOpenedFolder(folder, anim::type::normal);
+	}, lifetime());
+
+	changeOpenedForum(
+		controller->openedForum().current(),
+		anim::type::instant);
+
+	controller->openedForum().changes(
+	) | rpl::start_with_next([=](ChannelData *forum) {
+		changeOpenedForum(forum, anim::type::normal);
 	}, lifetime());
 
 	setupDownloadBar();
@@ -597,14 +609,14 @@ void Widget::updateControlsVisibility(bool fast) {
 	if (_forwardCancel) {
 		_forwardCancel->show();
 	}
-	if (_openedFolder && _filter->hasFocus()) {
+	if ((_openedFolder || _openedForum) && _filter->hasFocus()) {
 		setFocus();
 	}
 	if (_updateTelegram) {
 		_updateTelegram->show();
 	}
-	_searchControls->setVisible(!_openedFolder);
-	if (_openedFolder) {
+	_searchControls->setVisible(!_openedFolder && !_openedForum);
+	if (_openedFolder || _openedForum) {
 		_folderTopBar->show();
 	} else {
 		if (hasFocus()) {
@@ -618,24 +630,26 @@ void Widget::updateControlsVisibility(bool fast) {
 	_connecting->setForceHidden(false);
 }
 
-void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
+void Widget::changeOpenedSubsection(
+		FnMut<void()> change,
+		bool fromRight,
+		anim::type animated) {
 	_a_show.stop();
 
 	if (isHidden()) {
 		animated = anim::type::instant;
 	}
 	if (animated == anim::type::normal) {
-		_showDirection = folder
+		_showDirection = fromRight
 			? Window::SlideDirection::FromRight
 			: Window::SlideDirection::FromLeft;
 		_showAnimationType = ShowAnimation::Internal;
 		_connecting->setForceHidden(true);
 		_cacheUnder = grabForFolderSlideAnimation();
 	}
-	_openedFolder = folder;
+	change();
 	refreshFolderTopBar();
 	updateControlsVisibility(true);
-	_inner->changeOpenedFolder(folder);
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
 		_cacheOver = grabForFolderSlideAnimation();
@@ -644,15 +658,31 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 	}
 }
 
+void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
+	changeOpenedSubsection([&] {
+		_openedFolder = folder;
+		_inner->changeOpenedFolder(folder);
+	}, (folder != nullptr), animated);
+}
+
+void Widget::changeOpenedForum(ChannelData *forum, anim::type animated) {
+	changeOpenedSubsection([&] {
+		_openedForum = forum;
+		_inner->changeOpenedForum(forum);
+	}, (forum != nullptr), animated);
+}
+
 void Widget::refreshFolderTopBar() {
-	if (_openedFolder) {
+	if (_openedFolder || _openedForum) {
 		if (!_folderTopBar) {
 			_folderTopBar.create(this, controller());
 			updateControlsGeometry();
 		}
 		_folderTopBar->setActiveChat(
 			HistoryView::TopBarWidget::ActiveChat{
-				.key = _openedFolder,
+				.key = (_openedFolder
+					? Dialogs::Key(_openedFolder)
+					: Dialogs::Key(session().data().history(_openedForum))),
 				.section = Dialogs::EntryState::Section::ChatsList,
 			},
 			nullptr);
@@ -713,7 +743,7 @@ void Widget::checkUpdateStatus() {
 }
 
 void Widget::setInnerFocus() {
-	if (_openedFolder) {
+	if (_openedFolder || _openedForum) {
 		setFocus();
 	} else {
 		_filter->setFocus();
@@ -853,6 +883,8 @@ void Widget::animationCallback() {
 void Widget::escape() {
 	if (controller()->openedFolder().current()) {
 		controller()->closeFolder();
+	} else if (controller()->openedForum().current()) {
+		controller()->closeForum();
 	} else if (!cancelSearch()) {
 		if (controller()->activeChatEntryCurrent().key) {
 			controller()->content()->dialogsCancelled();
@@ -1633,6 +1665,7 @@ void Widget::updateLoadMoreChatsVisibility() {
 		return;
 	}
 	const auto hidden = (_openedFolder != nullptr)
+		|| (_openedForum != nullptr)
 		|| !_filter->getLastText().isEmpty();
 	if (_loadMoreChats->isHidden() != hidden) {
 		_loadMoreChats->setVisible(!hidden);
@@ -1778,6 +1811,8 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
 		if (_openedFolder) {
 			controller()->closeFolder();
+		} else if (_openedForum) {
+			controller()->closeForum();
 		} else {
 			e->ignore();
 		}

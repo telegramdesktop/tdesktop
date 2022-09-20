@@ -633,6 +633,12 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
+		auto result = PreparedText{};
+		result.text = { "topic created" };
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -702,6 +708,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareWebViewDataSent(data);
 	}, [&](const MTPDmessageActionGiftPremium &data) {
 		return prepareGiftPremium(data);
+	}, [&](const MTPDmessageActionTopicCreate &data) {
+		return prepareTopicCreate(data);
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
 		return PreparedText{

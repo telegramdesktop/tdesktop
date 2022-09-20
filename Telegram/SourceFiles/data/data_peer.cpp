@@ -844,15 +844,31 @@ bool PeerData::isFake() const {
 }
 
 bool PeerData::isMegagroup() const {
-	return isChannel() && asChannel()->isMegagroup();
+	if (const auto channel = asChannel()) {
+		return channel->isMegagroup();
+	}
+	return false;
 }
 
 bool PeerData::isBroadcast() const {
-	return isChannel() && asChannel()->isBroadcast();
+	if (const auto channel = asChannel()) {
+		return channel->isBroadcast();
+	}
+	return false;
+}
+
+bool PeerData::isForum() const {
+	if (const auto channel = asChannel()) {
+		return channel->isForum();
+	}
+	return false;
 }
 
 bool PeerData::isGigagroup() const {
-	return isChannel() && asChannel()->isGigagroup();
+	if (const auto channel = asChannel()) {
+		return channel->isGigagroup();
+	}
+	return false;
 }
 
 bool PeerData::isRepliesChat() const {

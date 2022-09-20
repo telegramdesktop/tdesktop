@@ -94,6 +94,7 @@ public:
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
+	void changeOpenedForum(ChannelData *forum);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -109,6 +110,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	Data::Folder *shownFolder() const;
+	ChannelData *shownForum() const;
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -179,6 +181,7 @@ private:
 		Loading,
 		NoContacts,
 		EmptyFolder,
+		EmptyForum,
 	};
 
 	Main::Session &session() const;
@@ -348,6 +351,7 @@ private:
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;
+	ChannelData *_openedForum = nullptr;
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
 	int _collapsedSelected = -1;

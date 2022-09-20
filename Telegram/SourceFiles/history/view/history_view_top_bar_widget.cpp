@@ -477,8 +477,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	if (folder
 		|| history->peer->sharedMediaInfo()
 		|| (_activeChat.section == Section::Scheduled)
-		|| (_activeChat.section == Section::Pinned)) {
-		// #TODO feed name emoji.
+		|| (_activeChat.section == Section::Pinned)
+		|| (_activeChat.section == Section::ChatsList)) {
+		// #TODO forum name emoji.
 		auto text = (_activeChat.section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
@@ -489,7 +490,9 @@ void TopBarWidget::paintTopBar(Painter &p) {
 			? folder->chatListName()
 			: history->peer->isSelf()
 			? tr::lng_saved_messages(tr::now)
-			: tr::lng_replies_messages(tr::now);
+			: history->peer->isRepliesChat()
+			? tr::lng_replies_messages(tr::now)
+			: history->peer->name();
 		const auto textWidth = st::historySavedFont->width(text);
 		if (availableWidth < textWidth) {
 			text = st::historySavedFont->elided(text, availableWidth);
@@ -686,6 +689,10 @@ void TopBarWidget::infoClicked() {
 void TopBarWidget::backClicked() {
 	if (_activeChat.key.folder()) {
 		_controller->closeFolder();
+	} else if (_activeChat.section == Section::ChatsList
+		&& _activeChat.key.history()
+		&& _activeChat.key.history()->peer->isForum()) {
+		_controller->closeForum();
 	} else {
 		_controller->showBackFromStack();
 	}
@@ -933,7 +940,7 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto isOneColumn = _controller->adaptive().isOneColumn();
 	auto backVisible = isOneColumn
 		|| !_controller->content()->stackIsEmpty()
-		|| _activeChat.key.folder();
+		|| (_activeChat.section == Section::ChatsList);
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {

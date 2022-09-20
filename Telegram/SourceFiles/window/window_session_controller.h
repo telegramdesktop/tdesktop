@@ -340,9 +340,14 @@ public:
 	// is changed in the Dialogs::Widget of the current window.
 	rpl::variable<Dialogs::Key> searchInChat;
 	bool uniqueChatsInSearchResults() const;
+
 	void openFolder(not_null<Data::Folder*> folder);
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
+
+	void openForum(not_null<ChannelData*> forum);
+	void closeForum();
+	const rpl::variable<ChannelData*> &openedForum() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -594,6 +599,7 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
+	rpl::variable<ChannelData*> _openedForum;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

@@ -777,7 +777,8 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
 			| Flag::NoForwards
 			| Flag::JoinToWrite
-			| Flag::RequestToJoin;
+			| Flag::RequestToJoin
+			| Flag::Forum;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
@@ -800,7 +801,10 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				: Flag())
 			| (data.is_noforwards() ? Flag::NoForwards : Flag())
 			| (data.is_join_to_send() ? Flag::JoinToWrite : Flag())
-			| (data.is_join_request() ? Flag::RequestToJoin : Flag());
+			| (data.is_join_request() ? Flag::RequestToJoin : Flag())
+			| ((data.is_forum() && data.is_megagroup())
+				? Flag::Forum
+				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
 
 		channel->setName(

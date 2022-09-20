@@ -27,7 +27,7 @@ enum class ChatDataFlag {
 inline constexpr bool is_flag_type(ChatDataFlag) { return true; };
 using ChatDataFlags = base::flags<ChatDataFlag>;
 
-class ChatData : public PeerData {
+class ChatData final : public PeerData {
 public:
 	using Flag = ChatDataFlag;
 	using Flags = Data::Flags<ChatDataFlags>;

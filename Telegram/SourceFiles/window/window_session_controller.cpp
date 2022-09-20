@@ -676,6 +676,19 @@ SessionController::SessionController(
 		closeFolder();
 	}, lifetime());
 
+	_openedForum.changes(
+	) | rpl::filter([](ChannelData *forum) {
+		return (forum != nullptr);
+	}) | rpl::map([](ChannelData *forum) {
+		return forum->flagsValue(
+		) | rpl::filter([](ChannelData::Flags::Change change) {
+			return (change.diff & ChannelData::Flag::Forum)
+				&& !(change.value & ChannelData::Flag::Forum);
+		});
+	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
+		closeForum();
+	}, lifetime());
+
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
 		checkOpenedFilter();
@@ -853,11 +866,27 @@ void SessionController::openFolder(not_null<Data::Folder*> folder) {
 		resetFakeUnreadWhileOpened();
 	}
 	setActiveChatsFilter(0);
+	closeForum();
 	_openedFolder = folder.get();
 }
 
 void SessionController::closeFolder() {
 	_openedFolder = nullptr;
+}
+
+void SessionController::openForum(not_null<ChannelData*> forum) {
+	Expects(forum->isForum());
+
+	if (_openedForum.current() != forum) {
+		resetFakeUnreadWhileOpened();
+	}
+	setActiveChatsFilter(0);
+	closeFolder();
+	_openedForum = forum.get();
+}
+
+void SessionController::closeForum() {
+	_openedForum = nullptr;
 }
 
 void SessionController::setupPremiumToast() {
@@ -887,6 +916,10 @@ void SessionController::setupPremiumToast() {
 
 const rpl::variable<Data::Folder*> &SessionController::openedFolder() const {
 	return _openedFolder;
+}
+
+const rpl::variable<ChannelData*> &SessionController::openedForum() const {
+	return _openedForum;
 }
 
 void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {

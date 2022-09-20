@@ -153,7 +153,12 @@ private:
 	void updateControlsGeometry();
 	void refreshFolderTopBar();
 	void checkUpdateStatus();
+	void changeOpenedSubsection(
+		FnMut<void()> change,
+		bool fromRight,
+		anim::type animated);
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
+	void changeOpenedForum(ChannelData *forum, anim::type animated);
 	QPixmap grabForFolderSlideAnimation();
 	void startSlideAnimation();
 
@@ -209,6 +214,7 @@ private:
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
 
 	Data::Folder *_openedFolder = nullptr;
+	ChannelData *_openedForum = nullptr;
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;

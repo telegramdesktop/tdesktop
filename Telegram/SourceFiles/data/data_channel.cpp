@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_location.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
@@ -34,6 +35,10 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
 
+MegagroupInfo::MegagroupInfo() = default;
+
+MegagroupInfo::~MegagroupInfo() = default;
+
 ChatData *MegagroupInfo::getMigrateFromChat() const {
 	return _migratedFrom;
 }
@@ -53,6 +58,20 @@ void MegagroupInfo::setLocation(const ChannelLocation &location) {
 Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
 		const std::vector<Data::BotCommands> &list) {
 	return _botCommands.update(list);
+}
+
+void MegagroupInfo::setIsForum(bool is) {
+	if (is == (_forum != nullptr)) {
+		return;
+	} else if (is) {
+		_forum = std::make_unique<Data::Forum>();
+	} else {
+		_forum = nullptr;
+	}
+}
+
+Data::Forum *MegagroupInfo::forum() const {
+	return _forum.get();
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
@@ -77,6 +96,10 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 			} else if (mgInfo) {
 				mgInfo = nullptr;
 			}
+		}
+		if (change.diff & Flag::Forum) {
+			Assert(mgInfo != nullptr);
+			mgInfo->setIsForum(change.value & Flag::Forum);
 		}
 		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {

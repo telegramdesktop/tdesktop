@@ -560,6 +560,10 @@ QByteArray SerializeMessage(
 		if (data.months) {
 			push("months", data.months);
 		}
+	}, [&](const ActionTopicCreated &data) {
+		pushActor();
+		pushAction("topic_created");
+		push("title", data.title);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
