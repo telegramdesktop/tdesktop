@@ -469,6 +469,8 @@ PRIVATE
     data/data_folder.h
     data/data_forum.cpp
     data/data_forum.h
+    data/data_forum_topic.cpp
+    data/data_forum_topic.h
     data/data_file_click_handler.cpp
     data/data_file_click_handler.h
     data/data_file_origin.cpp

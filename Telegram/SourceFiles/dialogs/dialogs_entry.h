@@ -19,6 +19,7 @@ class Session;
 namespace Data {
 class Session;
 class Folder;
+class ForumTopic;
 class CloudImageView;
 } // namespace Data
 
@@ -91,9 +92,10 @@ inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
 
 class Entry {
 public:
-	enum class Type {
+	enum class Type : uchar {
 		History,
 		Folder,
+		ForumTopic,
 	};
 	Entry(not_null<Data::Session*> owner, Type type);
 	Entry(const Entry &other) = delete;
@@ -105,6 +107,7 @@ public:
 
 	History *asHistory();
 	Data::Folder *asFolder();
+	Data::ForumTopic *asForumTopic();
 
 	PositionChange adjustByPosInChatList(
 		FilterId filterId,
@@ -230,7 +233,7 @@ private:
 	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;
 	bool _isTopPromoted = false;
-	const bool _isFolder = false;
+	const Type _type;
 
 };
 

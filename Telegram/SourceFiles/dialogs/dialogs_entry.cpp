@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -45,7 +46,7 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 Entry::Entry(not_null<Data::Session*> owner, Type type)
 : _owner(owner)
-, _isFolder(type == Type::Folder) {
+, _type(type) {
 }
 
 Data::Session &Entry::owner() const {
@@ -57,11 +58,19 @@ Main::Session &Entry::session() const {
 }
 
 History *Entry::asHistory() {
-	return _isFolder ? nullptr : static_cast<History*>(this);
+	return (_type == Type::History) ? static_cast<History*>(this) : nullptr;
 }
 
 Data::Folder *Entry::asFolder() {
-	return _isFolder ? static_cast<Data::Folder*>(this) : nullptr;
+	return (_type == Type::Folder)
+		? static_cast<Data::Folder*>(this)
+		: nullptr;
+}
+
+Data::ForumTopic *Entry::asForumTopic() {
+	return (_type == Type::ForumTopic)
+		? static_cast<Data::ForumTopic*>(this)
+		: nullptr;
 }
 
 void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {
@@ -177,6 +186,9 @@ const Ui::Text::String &Entry::chatListNameText() const {
 }
 
 void Entry::setChatListExistence(bool exists) {
+	if (asForumTopic()) {
+		return;
+	}
 	if (exists && _sortKeyInChatList) {
 		owner().refreshChatListEntry(this);
 		updateChatListEntry();
@@ -251,7 +263,7 @@ not_null<Row*> Entry::addToChatList(
 void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
-	if (isPinnedDialog(filterId)) {
+	if (!asForumTopic() && isPinnedDialog(filterId)) {
 		owner().setChatPinned(this, filterId, false);
 	}
 

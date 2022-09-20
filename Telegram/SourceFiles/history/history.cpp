@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_sponsored_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -1123,6 +1124,11 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
+	if (item->isTopicStart() && peer->isForum()) {
+		if (const auto forum = peer->asChannel()->forum()) {
+			forum->topicAdded(item);
+		}
+	}
 }
 
 void History::registerClientSideMessage(not_null<HistoryItem*> item) {
@@ -2019,12 +2025,13 @@ Dialogs::UnreadState History::chatListUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
 	const auto mark = !count && _unreadMark;
+	const auto muted = mute();
 	result.messages = count;
-	result.messagesMuted = mute() ? count : 0;
+	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;
-	result.chatsMuted = (count && mute()) ? 1 : 0;
+	result.chatsMuted = (count && muted) ? 1 : 0;
 	result.marks = mark ? 1 : 0;
-	result.marksMuted = (mark && mute()) ? 1 : 0;
+	result.marksMuted = (mark && muted) ? 1 : 0;
 	result.known = _unreadCount.has_value();
 	return result;
 }

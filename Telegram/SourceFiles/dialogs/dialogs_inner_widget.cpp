@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_drafts.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -409,6 +410,17 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	stopReorderPinned();
 	clearSelection();
 	_openedForum = forum;
+
+	_openedForumLifetime.destroy();
+	if (forum) {
+		rpl::merge(
+			forum->forum()->chatsListChanges(),
+			forum->forum()->chatsListLoadedEvents()
+		) | rpl::start_with_next([=] {
+			refresh();
+		}, _openedForumLifetime);
+	}
+
 	refreshWithCollapsedRows(true);
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
@@ -1778,6 +1790,8 @@ void InnerWidget::updateSelectedRow(Key key) {
 not_null<IndexedList*> InnerWidget::shownDialogs() const {
 	return _filterId
 		? session().data().chatsFilters().chatsList(_filterId)->indexed()
+		: _openedForum
+		? _openedForum->forum()->topicsList()->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
 }
 
@@ -2346,6 +2360,8 @@ void InnerWidget::refreshEmptyLabel() {
 	const auto data = &session().data();
 	const auto state = !shownDialogs()->empty()
 		? EmptyState::None
+		: _openedForum
+		? EmptyState::EmptyForum
 		: (!_filterId && data->contactsLoaded().current())
 		? EmptyState::NoContacts
 		: (_filterId > 0) && data->chatsList()->loaded()
@@ -2364,11 +2380,17 @@ void InnerWidget::refreshEmptyLabel() {
 		? tr::lng_no_chats()
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_no_chats_filter()
+		: (state == EmptyState::EmptyForum)
+		// #TODO forum
+		? rpl::single(u"No chats currently created in this forum."_q)
 		: tr::lng_contacts_loading();
 	auto link = (state == EmptyState::NoContacts)
 		? tr::lng_add_contact_button()
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_filters_context_edit()
+		: (state == EmptyState::EmptyForum)
+		// #TODO forum
+		? rpl::single(u"Create topic"_q)
 		: rpl::single(QString());
 	auto full = rpl::combine(
 		std::move(phrase),
@@ -2387,6 +2409,8 @@ void InnerWidget::refreshEmptyLabel() {
 			_controller->showAddContact();
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
+		} else if (_emptyState == EmptyState::EmptyForum) {
+			Data::ShowAddForumTopic(_controller, _openedForum);
 		}
 	});
 	_empty->setVisible(_state == WidgetState::Default);
@@ -3261,9 +3285,13 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			_controller->content()->choosePeer(
-				session().userPeerId(),
-				ShowAtUnreadMsgId);
+			if (_openedForum) {
+				Data::ShowAddForumTopic(_controller, _openedForum);
+			} else {
+				_controller->content()->choosePeer(
+					session().userPeerId(),
+					ShowAtUnreadMsgId);
+			}
 			return true;
 		});
 		request->check(Command::ShowArchive) && request->handle([=] {

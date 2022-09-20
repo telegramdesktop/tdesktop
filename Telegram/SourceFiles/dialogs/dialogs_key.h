@@ -14,6 +14,7 @@ class PeerData;
 
 namespace Data {
 class Folder;
+class ForumTopic;
 } // namespace Data
 
 namespace Dialogs {
@@ -27,10 +28,12 @@ public:
 	}
 	Key(History *history);
 	Key(Data::Folder *folder);
+	Key(Data::ForumTopic *forumTopic);
 	Key(not_null<Entry*> entry) : _value(entry) {
 	}
 	Key(not_null<History*> history);
 	Key(not_null<Data::Folder*> folder);
+	Key(not_null<Data::ForumTopic*> forumTopic);
 
 	explicit operator bool() const {
 		return (_value != nullptr);
@@ -38,6 +41,7 @@ public:
 	not_null<Entry*> entry() const;
 	History *history() const;
 	Data::Folder *folder() const;
+	Data::ForumTopic *forumTopic() const;
 	PeerData *peer() const;
 
 	inline bool operator<(const Key &other) const {

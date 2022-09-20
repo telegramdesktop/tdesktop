@@ -331,7 +331,7 @@ private:
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
 
-	not_null<IndexedList*> shownDialogs() const;
+	[[nodiscard]] not_null<IndexedList*> shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
 	int updateReorderIndexGetCount();
@@ -343,7 +343,7 @@ private:
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatListEntryRefreshes();
 
-	not_null<Window::SessionController*> _controller;
+	const not_null<Window::SessionController*> _controller;
 
 	FilterId _filterId = 0;
 	bool _mouseSelection = false;
@@ -352,6 +352,7 @@ private:
 
 	Data::Folder *_openedFolder = nullptr;
 	ChannelData *_openedForum = nullptr;
+	rpl::lifetime _openedForumLifetime;
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
 	int _collapsedSelected = -1;

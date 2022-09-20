@@ -21,7 +21,6 @@ class Session;
 namespace Data {
 
 class Session;
-class Folder;
 
 class Folder final : public Dialogs::Entry, public base::has_weak_ptr {
 public:
@@ -31,12 +30,12 @@ public:
 	Folder(const Folder &) = delete;
 	Folder &operator=(const Folder &) = delete;
 
-	FolderId id() const;
+	[[nodiscard]] FolderId id() const;
 	void registerOne(not_null<History*> history);
 	void unregisterOne(not_null<History*> history);
 	void oneListMessageChanged(HistoryItem *from, HistoryItem *to);
 
-	not_null<Dialogs::MainList*> chatsList();
+	[[nodiscard]] not_null<Dialogs::MainList*> chatsList();
 
 	void applyDialog(const MTPDdialogFolder &data);
 	void applyPinnedUpdate(const MTPDupdateDialogPinned &data);
@@ -94,13 +93,12 @@ private:
 		const style::color *overrideBg,
 		const style::color *overrideFg) const;
 
-	FolderId _id = 0;
+	const FolderId _id = 0;
 	Dialogs::MainList _chatsList;
 
 	QString _name;
 	base::flat_set<QString> _nameWords;
 	base::flat_set<QChar> _nameFirstLetters;
-	QString _chatListNameSortKey;
 
 	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;

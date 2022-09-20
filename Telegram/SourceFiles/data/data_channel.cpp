@@ -60,11 +60,11 @@ Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
 	return _botCommands.update(list);
 }
 
-void MegagroupInfo::setIsForum(bool is) {
+void MegagroupInfo::setIsForum(not_null<ChannelData*> that, bool is) {
 	if (is == (_forum != nullptr)) {
 		return;
 	} else if (is) {
-		_forum = std::make_unique<Data::Forum>();
+		_forum = std::make_unique<Data::Forum>(that->owner().history(that));
 	} else {
 		_forum = nullptr;
 	}
@@ -96,10 +96,6 @@ ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 			} else if (mgInfo) {
 				mgInfo = nullptr;
 			}
-		}
-		if (change.diff & Flag::Forum) {
-			Assert(mgInfo != nullptr);
-			mgInfo->setIsForum(change.value & Flag::Forum);
 		}
 		if (change.diff & Flag::CallNotEmpty) {
 			if (const auto history = this->owner().historyLoaded(this)) {

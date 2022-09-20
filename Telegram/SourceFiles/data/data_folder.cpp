@@ -41,8 +41,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	&owner->session(),
 	FilterId(),
 	owner->maxPinnedChatsLimitValue(this, FilterId()))
-, _name(tr::lng_archived_name(tr::now))
-, _chatListNameSortKey(owner->nameSortKey(_name)) {
+, _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
 	session().changes().peerUpdates(
@@ -374,7 +373,8 @@ const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 }
 
 const QString &Folder::chatListNameSortKey() const {
-	return _chatListNameSortKey;
+	static const auto empty = QString();
+	return empty;
 }
 
 } // namespace Data

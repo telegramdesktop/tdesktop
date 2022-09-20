@@ -100,7 +100,7 @@ public:
 		return _botCommands;
 	}
 
-	void setIsForum(bool is);
+	void setIsForum(not_null<ChannelData*> that, bool is);
 	[[nodiscard]] Data::Forum *forum() const;
 
 	std::deque<not_null<UserData*>> lastParticipants;

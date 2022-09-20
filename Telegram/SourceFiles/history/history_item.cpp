@@ -1424,7 +1424,8 @@ MessageFlags FlagsFromMTP(
 		| ((flags & MTP::f_reply_markup) ? Flag::HasReplyMarkup : Flag())
 		| ((flags & MTP::f_from_scheduled) ? Flag::IsOrWasScheduled : Flag())
 		| ((flags & MTP::f_views) ? Flag::HasViews : Flag())
-		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag());
+		| ((flags & MTP::f_noforwards) ? Flag::NoForwards : Flag())
+		| ((flags & MTP::f_topic_start) ? Flag::TopicStart : Flag());
 }
 
 MessageFlags FlagsFromMTP(

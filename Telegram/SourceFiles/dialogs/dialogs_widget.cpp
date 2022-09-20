@@ -46,6 +46,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "data/data_download_manager.h"
@@ -261,7 +263,11 @@ Widget::Widget(
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		const auto history = row.key.history();
-		if (history && history->peer->isForum()) {
+		if (const auto forumTopic = row.key.forumTopic()) {
+			controller->showRepliesForMessage(
+				forumTopic->forum(),
+				forumTopic->rootId());
+		} else if (history && history->peer->isForum()) {
 			controller->openForum(history->peer->asChannel());
 		} else if (history) {
 			const auto peer = history->peer;
@@ -372,6 +378,8 @@ Widget::Widget(
 					&& _searchFull
 					&& !_searchFullMigrated))) {
 			searchMore();
+		} else if (_openedForum) {
+			_openedForum->forum()->requestTopics();
 		} else {
 			const auto folder = _inner->shownFolder();
 			if (!folder || !folder->chatsList()->loaded()) {
