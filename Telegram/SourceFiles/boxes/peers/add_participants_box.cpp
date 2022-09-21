@@ -1141,7 +1141,7 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 					return PeerId();
 				});
 			if (const auto peer = _peer->owner().peerLoaded(peerId)) {
-				bool isBroadcastMasqueradable = false;
+				auto isBroadcastMasqueradable = false;
 				if (const auto broadcast = peer->asBroadcast()) {
 					// to reduce clutter, only allow exact username matches.
 					if (broadcast->hasUsername() &&
