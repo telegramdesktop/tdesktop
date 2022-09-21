@@ -1529,11 +1529,10 @@ rpl::producer<not_null<HistoryItem*>> Session::itemDataChanges() const {
 
 void Session::requestItemTextRefresh(not_null<HistoryItem*> item) {
 	if (const auto i = _views.find(item); i != _views.end()) {
-		for (const auto view : i->second) {
-			if (const auto media = view->media()) {
-				media->parentTextUpdated();
-			}
+		for (const auto &view : i->second) {
+			view->itemTextUpdated();
 		}
+		requestItemResize(item);
 	}
 }
 
@@ -1573,6 +1572,7 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved(
 }
 
 void Session::notifyViewRemoved(not_null<const ViewElement*> view) {
+	_shownSpoilers.remove(view);
 	_viewRemoved.fire_copy(view);
 }
 
@@ -1672,24 +1672,15 @@ void Session::unloadHeavyViewParts(
 	}
 }
 
-void Session::registerShownSpoiler(FullMsgId id) {
-	if (const auto item = message(id)) {
-		_shownSpoilers.emplace(item);
-	}
-}
-
-void Session::unregisterShownSpoiler(FullMsgId id) {
-	if (const auto item = message(id)) {
-		_shownSpoilers.remove(item);
-	}
+void Session::registerShownSpoiler(not_null<ViewElement*> view) {
+	_shownSpoilers.emplace(view);
 }
 
 void Session::hideShownSpoilers() {
-	for (const auto &item : _shownSpoilers) {
-		item->hideSpoilers();
-		requestItemTextRefresh(item);
+	for (const auto &view : base::take(_shownSpoilers)) {
+		view->hideSpoilers();
+		requestViewRepaint(view);
 	}
-	_shownSpoilers = base::flat_set<not_null<HistoryItem*>>();
 }
 
 void Session::removeMegagroupParticipant(
@@ -2156,7 +2147,6 @@ void Session::removeDependencyMessage(not_null<HistoryItem*> item) {
 void Session::unregisterMessage(not_null<HistoryItem*> item) {
 	const auto peerId = item->history()->peer->id;
 	const auto itemId = item->id;
-	_shownSpoilers.remove(item);
 	_itemRemoved.fire_copy(item);
 	session().changes().messageUpdated(
 		item,

@@ -220,68 +220,71 @@ struct StickerSetIdentifier {
 	}
 };
 
-enum class MessageFlag : uint32 {
-	HideEdited            = (1U << 0),
-	Legacy                = (1U << 1),
-	HasReplyMarkup        = (1U << 2),
-	HasFromId             = (1U << 3),
-	HasPostAuthor         = (1U << 4),
-	HasViews              = (1U << 5),
-	HasReplyInfo          = (1U << 6),
-	CanViewReactions      = (1U << 7),
-	AdminLogEntry         = (1U << 8),
-	Post                  = (1U << 9),
-	Silent                = (1U << 10),
-	Outgoing              = (1U << 11),
-	Pinned                = (1U << 12),
-	MediaIsUnread         = (1U << 13),
-	HasUnreadReaction     = (1U << 14),
-	MentionsMe            = (1U << 15),
-	IsOrWasScheduled      = (1U << 16),
-	NoForwards            = (1U << 17),
+enum class MessageFlag : uint64 {
+	HideEdited            = (1ULL << 0),
+	Legacy                = (1ULL << 1),
+	HasReplyMarkup        = (1ULL << 2),
+	HasFromId             = (1ULL << 3),
+	HasPostAuthor         = (1ULL << 4),
+	HasViews              = (1ULL << 5),
+	HasReplyInfo          = (1ULL << 6),
+	CanViewReactions      = (1ULL << 7),
+	AdminLogEntry         = (1ULL << 8),
+	Post                  = (1ULL << 9),
+	Silent                = (1ULL << 10),
+	Outgoing              = (1ULL << 11),
+	Pinned                = (1ULL << 12),
+	MediaIsUnread         = (1ULL << 13),
+	HasUnreadReaction     = (1ULL << 14),
+	MentionsMe            = (1ULL << 15),
+	IsOrWasScheduled      = (1ULL << 16),
+	NoForwards            = (1ULL << 17),
 
 	// Needs to return back to inline mode.
-	HasSwitchInlineButton = (1U << 18),
+	HasSwitchInlineButton = (1ULL << 18),
 
 	// For "shared links" indexing.
-	HasTextLinks          = (1U << 19),
+	HasTextLinks          = (1ULL << 19),
 
 	// Group / channel create or migrate service message.
-	IsGroupEssential      = (1U << 20),
+	IsGroupEssential      = (1ULL << 20),
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1U << 21),
+	IsLocalUpdateMedia    = (1ULL << 21),
 
 	// Sent from inline bot, need to re-set media when sent.
-	FromInlineBot         = (1U << 22),
+	FromInlineBot         = (1ULL << 22),
 
 	// Generated on the client side and should be unread.
-	ClientSideUnread      = (1U << 23),
+	ClientSideUnread      = (1ULL << 23),
 
 	// In a supergroup.
-	HasAdminBadge         = (1U << 24),
+	HasAdminBadge         = (1ULL << 24),
 
 	// Outgoing message that is being sent.
-	BeingSent             = (1U << 25),
+	BeingSent             = (1ULL << 25),
 
 	// Outgoing message and failed to be sent.
-	SendingFailed         = (1U << 26),
+	SendingFailed         = (1ULL << 26),
 
 	// No media and only a several emoji or an only custom emoji text.
-	SpecialOnlyEmoji      = (1U << 27),
+	SpecialOnlyEmoji      = (1ULL << 27),
 
 	// Message existing in the message history.
-	HistoryEntry          = (1U << 28),
+	HistoryEntry          = (1ULL << 28),
 
 	// Local message, not existing on the server.
-	Local                 = (1U << 29),
+	Local                 = (1ULL << 29),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1U << 30),
+	FakeHistoryItem       = (1ULL << 30),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1U << 31),
+	IsContactSignUp       = (1ULL << 31),
+
+	// Optimization for item text custom emoji repainting.
+	CustomEmojiRepainting = (1ULL << 32),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

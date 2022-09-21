@@ -724,7 +724,7 @@ void GenerateItems(
 			history->nextNonHistoryEntryId(),
 			MessageFlag::AdminLogEntry,
 			date,
-			message,
+			std::move(message),
 			peerToUser(from->id),
 			photo));
 	};
@@ -1060,7 +1060,7 @@ void GenerateItems(
 				history->nextNonHistoryEntryId(),
 				MessageFlag::AdminLogEntry,
 				date,
-				message,
+				std::move(message),
 				peerToUser(from->id)));
 		}
 	};
@@ -1137,7 +1137,7 @@ void GenerateItems(
 				history->nextNonHistoryEntryId(),
 				MessageFlag::AdminLogEntry,
 				date,
-				message,
+				std::move(message),
 				peerToUser(from->id)));
 		}
 	};
@@ -1233,7 +1233,7 @@ void GenerateItems(
 			history->nextNonHistoryEntryId(),
 			MessageFlag::AdminLogEntry,
 			date,
-			message,
+			std::move(message),
 			peerToUser(from->id)));
 	};
 
@@ -1308,7 +1308,7 @@ void GenerateItems(
 			history->nextNonHistoryEntryId(),
 			MessageFlag::AdminLogEntry,
 			date,
-			message,
+			std::move(message),
 			peerToUser(from->id),
 			nullptr));
 	};

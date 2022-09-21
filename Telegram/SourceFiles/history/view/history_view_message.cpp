@@ -255,7 +255,7 @@ Message::Message(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryMessage*> data,
 	Element *replacing)
-: Element(delegate, data, replacing)
+: Element(delegate, data, replacing, Flag(0))
 , _bottomInfo(
 		&data->history()->owner().reactions(),
 		BottomInfoDataFromMessage(this)) {
@@ -447,16 +447,17 @@ auto Message::takeReactionAnimations()
 }
 
 QSize Message::performCountOptimalSize() {
+	validateText();
+	updateViewButtonExistence();
+	updateMediaInBubbleState();
+	refreshRightBadge();
+	refreshInfoSkipBlock();
+
 	const auto item = message();
 	const auto media = this->media();
 
 	auto maxWidth = 0;
 	auto minHeight = 0;
-
-	updateViewButtonExistence();
-	updateMediaInBubbleState();
-	refreshRightBadge();
-	refreshInfoSkipBlock();
 
 	const auto reactionsInBubble = _reactions && embedReactionsInBubble();
 	if (_reactions) {
@@ -490,7 +491,7 @@ QSize Message::performCountOptimalSize() {
 		if (context() == Context::Replies && item->isDiscussionPost()) {
 			maxWidth = std::max(maxWidth, st::msgMaxWidth);
 		}
-		minHeight = hasVisibleText() ? item->_text.minHeight() : 0;
+		minHeight = hasVisibleText() ? text().minHeight() : 0;
 		if (reactionsInBubble) {
 			const auto reactionsMaxWidth = st::msgPadding.left()
 				+ _reactions->maxWidth()
@@ -529,8 +530,8 @@ QSize Message::performCountOptimalSize() {
 					- st::msgPadding.left()
 					- st::msgPadding.right();
 				if (hasVisibleText() && maxWidth < plainMaxWidth()) {
-					minHeight -= item->_text.minHeight();
-					minHeight += item->_text.countHeight(innerWidth);
+					minHeight -= text().minHeight();
+					minHeight += text().countHeight(innerWidth);
 				}
 				if (reactionsInBubble) {
 					minHeight -= _reactions->minHeight();
@@ -1298,8 +1299,8 @@ void Message::paintText(
 	const auto stm = context.messageStyle();
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
-	prepareCustomEmojiPaint(p, context, item->_text);
-	item->_text.draw(p, {
+	prepareCustomEmojiPaint(p, context, text());
+	text().draw(p, {
 		.position = trect.topLeft(),
 		.availableWidth = trect.width(),
 		.palette = &stm->textPalette,
@@ -1606,7 +1607,7 @@ TextState Message::textState(
 				result = entry->textState(
 					point - QPoint(entryLeft, entryTop),
 					request);
-				result.symbol += item->_text.length() + (mediaDisplayed ? media->fullSelectionLength() : 0);
+				result.symbol += text().length() + (mediaDisplayed ? media->fullSelectionLength() : 0);
 			}
 		}
 
@@ -1632,18 +1633,18 @@ TextState Message::textState(
 
 				if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
 					result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
-					result.symbol += item->_text.length();
+					result.symbol += text().length();
 				} else if (getStateText(point, trect, &result, request)) {
 					checkBottomInfoState();
 					return result;
 				} else if (point.y() >= trect.y() + trect.height()) {
-					result.symbol = item->_text.length();
+					result.symbol = text().length();
 				}
 			} else if (getStateText(point, trect, &result, request)) {
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
-				result.symbol = item->_text.length();
+				result.symbol = text().length();
 			}
 		}
 		checkBottomInfoState();
@@ -1665,7 +1666,7 @@ TextState Message::textState(
 		}
 	} else if (media && media->isDisplayed()) {
 		result = media->textState(point - g.topLeft(), request);
-		result.symbol += item->_text.length();
+		result.symbol += text().length();
 	}
 
 	if (keyboard && item->isHistoryEntry()) {
@@ -1938,7 +1939,7 @@ bool Message::getStateText(
 	}
 	const auto item = message();
 	if (base::in_range(point.y(), trect.y(), trect.y() + trect.height())) {
-		*outResult = TextState(item, item->_text.getState(
+		*outResult = TextState(item, text().getState(
 			point - trect.topLeft(),
 			trect.width(),
 			request.forText()));
@@ -2004,7 +2005,7 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 
 	auto logEntryOriginalResult = TextForMimeData();
-	auto textResult = item->_text.toTextForMimeData(selection);
+	auto textResult = text().toTextForMimeData(selection);
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (media && media->isDisplayed());
 	auto mediaResult = (mediaDisplayed || isHiddenByGroup())
@@ -2036,8 +2037,8 @@ TextSelection Message::adjustSelection(
 	const auto item = message();
 	const auto media = this->media();
 
-	auto result = item->_text.adjustSelection(selection, type);
-	auto beforeMediaLength = item->_text.length();
+	auto result = text().adjustSelection(selection, type);
+	auto beforeMediaLength = text().length();
 	if (selection.to <= beforeMediaLength) {
 		return result;
 	}
@@ -2370,13 +2371,13 @@ void Message::refreshDataIdHook() {
 
 int Message::plainMaxWidth() const {
 	return st::msgPadding.left()
-		+ (hasVisibleText() ? message()->_text.maxWidth() : 0)
+		+ (hasVisibleText() ? text().maxWidth() : 0)
 		+ st::msgPadding.right();
 }
 
 int Message::monospaceMaxWidth() const {
 	return st::msgPadding.left()
-		+ (hasVisibleText() ? message()->_text.countMaxMonospaceWidth() : 0)
+		+ (hasVisibleText() ? text().countMaxMonospaceWidth() : 0)
 		+ st::msgPadding.right();
 }
 
@@ -2893,11 +2894,11 @@ TextSelection Message::skipTextSelection(TextSelection selection) const {
 	if (selection.from == 0xFFFF) {
 		return selection;
 	}
-	return HistoryView::UnshiftItemSelection(selection, message()->_text);
+	return HistoryView::UnshiftItemSelection(selection, text());
 }
 
 TextSelection Message::unskipTextSelection(TextSelection selection) const {
-	return HistoryView::ShiftItemSelection(selection, message()->_text);
+	return HistoryView::ShiftItemSelection(selection, text());
 }
 
 QRect Message::innerGeometry() const {
@@ -3058,15 +3059,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 				entry->resizeGetHeight(contentWidth);
 			}
 		} else {
-			if (hasVisibleText()) {
-				if (textWidth != item->_textWidth) {
-					item->_textWidth = textWidth;
-					item->_textHeight = item->_text.countHeight(textWidth);
-				}
-				newHeight = item->_textHeight;
-			} else {
-				newHeight = 0;
-			}
+			newHeight = hasVisibleText() ? textHeightFor(textWidth) : 0;
 			if (!mediaOnBottom && (!_viewButton || !reactionsInBubble)) {
 				newHeight += st::msgPadding.bottom();
 				if (mediaDisplayed) {
@@ -3181,7 +3174,7 @@ void Message::refreshInfoSkipBlock() {
 	const auto item = message();
 	const auto media = this->media();
 	const auto hasTextSkipBlock = [&] {
-		if (item->_text.isEmpty()) {
+		if (item->_text.empty()) {
 			return false;
 		} else if (item->Has<HistoryMessageLogEntryOriginal>()) {
 			return false;
@@ -3201,15 +3194,7 @@ void Message::refreshInfoSkipBlock() {
 			_reactions->removeSkipBlock();
 		}
 	}
-	if (!hasTextSkipBlock) {
-		if (item->_text.removeSkipBlock()) {
-			item->_textWidth = -1;
-			item->_textHeight = 0;
-		}
-	} else if (item->_text.updateSkipBlock(skipWidth, skipHeight)) {
-		item->_textWidth = -1;
-		item->_textHeight = 0;
-	}
+	validateTextSkipBlock(hasTextSkipBlock, skipWidth, skipHeight);
 }
 
 TimeId Message::displayedEditDate() const {

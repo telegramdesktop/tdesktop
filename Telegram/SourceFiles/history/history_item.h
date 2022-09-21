@@ -195,14 +195,6 @@ public:
 	[[nodiscard]] bool isGroupMigrate() const {
 		return isGroupEssential() && isEmpty();
 	}
-	[[nodiscard]] bool isIsolatedEmoji() const {
-		return (_flags & MessageFlag::SpecialOnlyEmoji)
-			&& _text.isIsolatedEmoji();
-	}
-	[[nodiscard]] bool isOnlyCustomEmoji() const {
-		return (_flags & MessageFlag::SpecialOnlyEmoji)
-			&& _text.isOnlyCustomEmoji();
-	}
 	[[nodiscard]] bool hasViews() const {
 		return _flags & MessageFlag::HasViews;
 	}
@@ -322,8 +314,6 @@ public:
 	[[nodiscard]] virtual ItemPreview toPreview(
 		ToPreviewOptions options) const;
 	[[nodiscard]] virtual TextWithEntities inReplyText() const;
-	[[nodiscard]] virtual Ui::Text::IsolatedEmoji isolatedEmoji() const;
-	[[nodiscard]] virtual Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 	[[nodiscard]] virtual TextWithEntities originalText() const {
 		return TextWithEntities();
 	}
@@ -331,6 +321,8 @@ public:
 	-> TextWithEntities {
 		return TextWithEntities();
 	}
+	[[nodiscard]] virtual auto customTextLinks() const
+		-> const std::vector<ClickHandlerPtr> &;
 	[[nodiscard]] virtual TextForMimeData clipboardText() const {
 		return TextForMimeData();
 	}
@@ -356,11 +348,9 @@ public:
 	virtual void setRealId(MsgId newId);
 	virtual void incrementReplyToTopCounter() {
 	}
-	virtual void hideSpoilers() {
-	}
 
 	[[nodiscard]] bool emptyText() const {
-		return _text.isEmpty();
+		return _text.empty();
 	}
 
 	[[nodiscard]] bool canPin() const;
@@ -413,9 +403,6 @@ public:
 	}
 	[[nodiscard]] bool computeDropForwardedInfo() const;
 	virtual void setText(const TextWithEntities &textWithEntities) {
-	}
-	[[nodiscard]] virtual bool textHasLinks() const {
-		return false;
 	}
 
 	[[nodiscard]] MsgId replyToId() const;
@@ -494,10 +481,7 @@ protected:
 	void applyTTL(const MTPDmessageService &data);
 	void applyTTL(TimeId destroyAt);
 
-	Ui::Text::String _text = { st::msgMinWidth };
-	int _textWidth = -1;
-	int _textHeight = 0;
-	bool _customEmojiRepaintScheduled = false;
+	TextWithEntities _text;
 
 	struct SavedMediaData {
 		TextWithEntities text;

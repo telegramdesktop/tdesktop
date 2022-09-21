@@ -15,7 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
-#include "history/view/history_view_spoiler_click_handler.h"
 #include "history/view/media/history_view_media.h" // AddTimestampLinks.
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "main/main_session.h"
@@ -24,8 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/share_box.h"
 #include "ui/text/text_isolated_emoji.h"
 #include "ui/text/format_values.h"
-#include "ui/item_text_options.h"
-#include "core/ui_integration.h"
 #include "storage/storage_shared_media.h"
 #include "mtproto/mtproto_config.h"
 #include "data/notify/data_notify_settings.h"
@@ -100,10 +97,7 @@ namespace {
 
 [[nodiscard]] TextWithEntities EnsureNonEmpty(
 		const TextWithEntities &text = TextWithEntities()) {
-	if (!text.text.isEmpty()) {
-		return text;
-	}
-	return { QString::fromUtf8(":-("), EntitiesInText() };
+	return !text.text.isEmpty() ? text : TextWithEntities{ u":-("_q };
 }
 
 } // namespace
@@ -384,7 +378,7 @@ HistoryMessage::HistoryMessage(
 		_media = std::make_unique<Data::MediaCall>(
 			this,
 			Data::ComputeCallData(data));
-		setEmptyText();
+		setTextValue({});
 	}, [](const auto &) {
 		Unexpected("Service message action type in HistoryMessage.");
 	});
@@ -607,7 +601,7 @@ HistoryMessage::HistoryMessage(
 		std::move(markup));
 
 	_media = std::make_unique<Data::MediaGame>(this, game);
-	setEmptyText();
+	setTextValue({});
 }
 
 HistoryMessage::HistoryMessage(
@@ -863,10 +857,6 @@ void HistoryMessage::setCommentsItemId(FullMsgId id) {
 	}
 }
 
-void HistoryMessage::hideSpoilers() {
-	HistoryView::HideSpoilers(_text);
-}
-
 bool HistoryMessage::updateDependencyItem() {
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		const auto documentId = reply->replyToDocumentId;
@@ -875,7 +865,7 @@ bool HistoryMessage::updateDependencyItem() {
 		const auto mediaIdChanged = (documentId != reply->replyToDocumentId)
 			|| (webpageId != reply->replyToWebPageId);
 		if (mediaIdChanged && generateLocalEntitiesByReply()) {
-			reapplyText();
+			history()->owner().requestItemTextRefresh(this);
 		}
 		return result;
 	}
@@ -1315,7 +1305,7 @@ void HistoryMessage::applyEdition(const MTPDmessageService &message) {
 		const auto wasGrouped = history()->owner().groups().isGrouped(this);
 		setReplyMarkup({});
 		refreshMedia(nullptr);
-		setEmptyText();
+		setTextValue({});
 		changeViewsCount(-1);
 		setForwardsCount(-1);
 		if (wasGrouped) {
@@ -1337,14 +1327,13 @@ void HistoryMessage::applyEdition(const MTPMessageExtendedMedia &media) {
 void HistoryMessage::updateSentContent(
 		const TextWithEntities &textWithEntities,
 		const MTPMessageMedia *media) {
-	const auto isolated = isolatedEmoji();
 	setText(textWithEntities);
 	if (_flags & MessageFlag::FromInlineBot) {
 		if (!media || !_media || !_media->updateInlineResultMedia(*media)) {
 			refreshSentMedia(media);
 		}
 		_flags &= ~MessageFlag::FromInlineBot;
-	} else if (media || _media || !isolated || isolated != isolatedEmoji()) {
+	} else if (media || _media) {
 		if (!media || !_media || !_media->updateSentMedia(*media)) {
 			refreshSentMedia(media);
 		}
@@ -1509,65 +1498,16 @@ void HistoryMessage::setText(const TextWithEntities &textWithEntities) {
 			break;
 		}
 	}
-
-	if (_media && _media->consumeMessageText(textWithEntities)) {
-		setEmptyText();
-		return;
-	}
-
-	clearSpecialOnlyEmoji();
-	const auto context = Core::MarkedTextContext{
-		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
-	_text.setMarkedText(
-		st::messageTextStyle,
-		withLocalEntities(textWithEntities),
-		Ui::ItemTextOptions(this),
-		context);
-	HistoryView::FillTextWithAnimatedSpoilers(_text);
-	if (!textWithEntities.text.isEmpty() && _text.isEmpty()) {
-		// If server has allowed some text that we've trim-ed entirely,
-		// just replace it with something so that UI won't look buggy.
-		_text.setMarkedText(
-			st::messageTextStyle,
-			EnsureNonEmpty(),
-			Ui::ItemTextOptions(this));
-	} else if (!_media) {
-		checkSpecialOnlyEmoji();
-	}
-
-	_textWidth = -1;
-	_textHeight = 0;
+	setTextValue((_media && _media->consumeMessageText(textWithEntities))
+		? TextWithEntities()
+		: std::move(textWithEntities));
 }
 
-void HistoryMessage::reapplyText() {
-	setText(originalText());
-	history()->owner().requestItemResize(this);
-}
-
-void HistoryMessage::setEmptyText() {
-	clearSpecialOnlyEmoji();
-	_text.setMarkedText(
-		st::messageTextStyle,
-		{ QString(), EntitiesInText() },
-		Ui::ItemTextOptions(this));
-
-	_textWidth = -1;
-	_textHeight = 0;
-}
-
-void HistoryMessage::clearSpecialOnlyEmoji() {
-	if (!(_flags & MessageFlag::SpecialOnlyEmoji)) {
-		return;
-	}
-	history()->session().emojiStickersPack().remove(this);
-	_flags &= ~MessageFlag::SpecialOnlyEmoji;
-}
-
-void HistoryMessage::checkSpecialOnlyEmoji() {
-	if (history()->session().emojiStickersPack().add(this)) {
-		_flags |= MessageFlag::SpecialOnlyEmoji;
+void HistoryMessage::setTextValue(TextWithEntities text) {
+	const auto had = !_text.empty();
+	_text = std::move(text);
+	if (had) {
+		history()->owner().requestItemTextRefresh(this);
 	}
 }
 
@@ -1616,19 +1556,8 @@ void HistoryMessage::setReplyMarkup(HistoryMessageMarkupData &&markup) {
 	}
 }
 
-Ui::Text::IsolatedEmoji HistoryMessage::isolatedEmoji() const {
-	return _text.toIsolatedEmoji();
-}
-
-Ui::Text::OnlyCustomEmoji HistoryMessage::onlyCustomEmoji() const {
-	return _text.toOnlyCustomEmoji();
-}
-
 TextWithEntities HistoryMessage::originalText() const {
-	if (emptyText()) {
-		return { QString(), EntitiesInText() };
-	}
-	return _text.toTextWithEntities();
+	return _text;
 }
 
 TextWithEntities HistoryMessage::originalTextWithLocalEntities() const {
@@ -1636,14 +1565,7 @@ TextWithEntities HistoryMessage::originalTextWithLocalEntities() const {
 }
 
 TextForMimeData HistoryMessage::clipboardText() const {
-	if (emptyText()) {
-		return TextForMimeData();
-	}
-	return _text.toTextForMimeData();
-}
-
-bool HistoryMessage::textHasLinks() const {
-	return emptyText() ? false : _text.hasLinks();
+	return TextForMimeData::WithExpandedLinks(_text);
 }
 
 bool HistoryMessage::changeViewsCount(int count) {
@@ -1923,7 +1845,7 @@ void HistoryMessage::dependencyItemRemoved(HistoryItem *dependency) {
 		reply->itemRemoved(this, dependency);
 		if (documentId != reply->replyToDocumentId
 			&& generateLocalEntitiesByReply()) {
-			reapplyText();
+			history()->owner().requestItemTextRefresh(this);
 		}
 	}
 }
