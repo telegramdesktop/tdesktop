@@ -415,8 +415,7 @@ std::unique_ptr<PeerListRow> AddSpecialBoxController::createSearchRow(
 	if (_excludeSelf && peer->isSelf()) {
 		return nullptr;
 	}
-	if (_excludeBroadcasts && peer->isBroadcast())
-	{
+	if (_excludeBroadcasts && peer->isBroadcast()) {
 		return nullptr;
 	}
 
