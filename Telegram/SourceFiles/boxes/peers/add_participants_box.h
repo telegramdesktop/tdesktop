@@ -147,6 +147,7 @@ private:
 
 protected:
 	bool _excludeSelf = true;
+	bool _excludeBroadcasts = true;
 
 };
 
