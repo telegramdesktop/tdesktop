@@ -1133,7 +1133,7 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 			return;
 		}
 		for (const auto &mtpChat : list.v) {
-			const auto peerId = mtpChat.match([](const MTPDchannel& data) {
+			const auto peerId = mtpChat.match([](const MTPDchannel &data) {
 					return peerFromChannel(data.vid().v);
 				}, [](const MTPDchat& data) {
 					return peerFromChat(data.vid().v);
