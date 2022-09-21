@@ -1135,7 +1135,7 @@ void AddSpecialBoxSearchController::searchGlobalDone(
 		for (const auto &mtpChat : list.v) {
 			const auto peerId = mtpChat.match([](const MTPDchannel &data) {
 					return peerFromChannel(data.vid().v);
-				}, [](const MTPDchat& data) {
+				}, [](const MTPDchat &data) {
 					return peerFromChat(data.vid().v);
 				}, [](auto&&) {
 					return PeerId();
