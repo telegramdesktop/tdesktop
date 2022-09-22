@@ -1295,7 +1295,6 @@ void Message::paintText(
 	if (!hasVisibleText()) {
 		return;
 	}
-	const auto item = message();
 	const auto stm = context.messageStyle();
 	p.setPen(stm->historyTextFg);
 	p.setFont(st::msgFont);
@@ -2001,9 +2000,7 @@ void Message::updatePressed(QPoint point) {
 }
 
 TextForMimeData Message::selectedText(TextSelection selection) const {
-	const auto item = message();
 	const auto media = this->media();
-
 	auto logEntryOriginalResult = TextForMimeData();
 	auto textResult = text().toTextForMimeData(selection);
 	auto skipped = skipTextSelection(selection);
@@ -2034,7 +2031,6 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 TextSelection Message::adjustSelection(
 		TextSelection selection,
 		TextSelectType type) const {
-	const auto item = message();
 	const auto media = this->media();
 
 	auto result = text().adjustSelection(selection, type);

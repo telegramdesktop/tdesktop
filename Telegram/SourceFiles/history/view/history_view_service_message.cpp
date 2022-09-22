@@ -417,9 +417,6 @@ QSize Service::performCountCurrentSize(int newWidth) {
 		return { newWidth, newHeight };
 	}
 
-	const auto item = message();
-	const auto media = this->media();
-
 	if (!text().isEmpty()) {
 		auto contentWidth = newWidth;
 		if (delegate()->elementIsChatWide()) {
@@ -435,7 +432,7 @@ QSize Service::performCountCurrentSize(int newWidth) {
 			? minHeight()
 			: textHeightFor(nwidth);
 		newHeight += st::msgServicePadding.top() + st::msgServicePadding.bottom() + st::msgServiceMargin.top() + st::msgServiceMargin.bottom();
-		if (media) {
+		if (const auto media = this->media()) {
 			newHeight += st::msgServiceMargin.top() + media->resizeGetHeight(media->maxWidth());
 		}
 	}
@@ -444,13 +441,11 @@ QSize Service::performCountCurrentSize(int newWidth) {
 }
 
 QSize Service::performCountOptimalSize() {
-	const auto item = message();
-	const auto media = this->media();
 	validateText();
 
 	auto maxWidth = text().maxWidth() + st::msgServicePadding.left() + st::msgServicePadding.right();
 	auto minHeight = text().minHeight();
-	if (media) {
+	if (const auto media = this->media()) {
 		media->initDimensions();
 	}
 	return { maxWidth, minHeight };
@@ -469,7 +464,6 @@ int Service::marginBottom() const {
 }
 
 void Service::draw(Painter &p, const PaintContext &context) const {
-	const auto item = message();
 	auto g = countGeometry();
 	if (g.width() < 1) {
 		return;
