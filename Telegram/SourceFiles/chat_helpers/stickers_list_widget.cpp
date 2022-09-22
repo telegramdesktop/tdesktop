@@ -2042,8 +2042,12 @@ bool StickersListWidget::appendSet(
 		for (const auto &sticker : to.back().stickers) {
 			const auto document = sticker.document;
 			if (document->isPremiumSticker()) {
-				to[_premiumsIndex].stickers.push_back(Sticker{ document });
-				++to[_premiumsIndex].count;
+				auto &set = to[_premiumsIndex];
+				auto &list = set.stickers;
+				if (!ranges::contains(list, document, &Sticker::document)) {
+					list.push_back(Sticker{ document });
+					++set.count;
+				}
 			}
 		}
 	}
