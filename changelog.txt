@@ -1,3 +1,9 @@
+4.2.1 beta (22.09.22)
+
+- Improve scaling / cropping for photos / video files.
+- Improve touch support in channel comments.
+- Nice animation for spoilers.
+
 4.2 (17.09.22)
 
 - A new expandable reaction menu was added in private chats and groups.
