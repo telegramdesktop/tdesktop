@@ -20,13 +20,13 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ## Install third party software
 
-* Download **Python 3.9** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install to ***BuildPath*\\ThirdParty\\Python39** with adding to PATH
+* Download **Python 3.10** installer from [https://www.python.org/downloads/](https://www.python.org/downloads/) and install to ***BuildPath*\\ThirdParty\\Python39** with adding to PATH
 * Download **CMake 3.21 or later** installer from [https://cmake.org/download/](https://cmake.org/download/) and install to ***BuildPath*\\ThirdParty\\cmake**
 * Download **Git** installer from [https://git-scm.com/download/win](https://git-scm.com/download/win) and install it.
 
 Open **x86 Native Tools Command Prompt for VS 2022.bat**, go to ***BuildPath*** and run
 
-    python -m pip install pywin32
+    python -m pip install pywin32 six
 
 ## Clone source code and prepare libraries
 

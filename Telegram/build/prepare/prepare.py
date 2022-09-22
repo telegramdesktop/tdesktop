@@ -62,7 +62,6 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
 
 pathPrefixes = [
     'ThirdParty\\msys64\\mingw64\\bin',
-    'ThirdParty\\Python39',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
@@ -397,7 +396,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 38af8ef4c6
+    git checkout b14854c6f6
 """)
 
 stage('msys64', """
@@ -443,7 +442,7 @@ if not mac or 'build-stackwalk' in options:
 win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout d6c5dd51dc
+    git checkout 9d09418933
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
