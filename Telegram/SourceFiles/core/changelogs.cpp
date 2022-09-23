@@ -68,6 +68,14 @@ std::map<int, const char*> BetaLogs() {
 		"- Improve touch support in channel comments.\n"
 
 		"- Nice animation for spoilers.\n"
+	},
+	{
+		4002002,
+		"- Fix crash in spoiler revealing in media captions.\n"
+
+		"- Fix spoiler revealing in media viewer captions.\n"
+		
+		"- Fix crash in folder editing on Linux.\n"
 	}
 	};
 };

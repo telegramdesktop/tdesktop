@@ -1,3 +1,9 @@
+4.2.2 beta (23.09.22)
+
+- Fix crash in spoiler revealing in media captions.
+- Fix spoiler revealing in media viewer captions.
+- Fix crash in folder editing on Linux.
+
 4.2.1 beta (22.09.22)
 
 - Improve scaling / cropping for photos / video files.
