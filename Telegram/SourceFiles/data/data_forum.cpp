@@ -69,22 +69,26 @@ void Forum::requestTopics() {
 		const auto &list = data.vtopics().v;
 		for (const auto &topic : list) {
 			const auto rootId = MsgId(topic.data().vid().v);
-			if (const auto i = _topics.find(rootId); i != end(_topics)) {
-				i->second->applyTopic(topic);
-			} else {
-				const auto raw = _topics.emplace(
+			const auto i = _topics.find(rootId);
+			const auto creating = (i == end(_topics));
+			const auto raw = creating
+				? _topics.emplace(
 					rootId,
 					std::make_unique<ForumTopic>(forum, rootId)
-				).first->second.get();
-				raw->applyTopic(topic);
+				).first->second.get()
+				: i->second.get();
+			raw->applyTopic(topic);
+			if (creating) {
 				raw->addToChatList(FilterId(), topicsList());
 			}
+			if (const auto last = raw->lastServerMessage()) {
+				_offsetDate = last->date();
+				_offsetId = last->id;
+			}
+			_offsetTopicId = rootId;
 		}
 		if (list.isEmpty() || list.size() == data.vcount().v) {
 			_allLoaded = true;
-		}
-		if (const auto date = data.vnext_date()) {
-			_offsetDate = date->v;
 		}
 		_requestId = 0;
 		_chatsListChanges.fire({});
@@ -97,19 +101,33 @@ void Forum::requestTopics() {
 	}).send();
 }
 
-void Forum::topicAdded(not_null<HistoryItem*> root) {
-	const auto rootId = root->id;
+void Forum::applyTopicAdded(MsgId rootId, const QString &title) {
 	if (const auto i = _topics.find(rootId); i != end(_topics)) {
-		//i->second->applyTopic(topic);
+		i->second->applyTitle(title);
 	} else {
 		const auto raw = _topics.emplace(
 			rootId,
 			std::make_unique<ForumTopic>(_forum, rootId)
 		).first->second.get();
-		//raw->applyTopic(topic);
+		raw->applyTitle(title);
 		raw->addToChatList(FilterId(), topicsList());
 		_chatsListChanges.fire({});
 	}
+}
+
+void Forum::applyTopicRemoved(MsgId rootId) {
+	//if (const auto i = _topics.find(rootId)) {
+	//	_topics.erase(i);
+	//}
+}
+
+ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {
+	if (const auto rootId = item->replyToTop()) {
+		if (const auto i = _topics.find(rootId); i != end(_topics)) {
+			return i->second.get();
+		}
+	}
+	return nullptr;
 }
 
 rpl::producer<> Forum::chatsListChanges() const {

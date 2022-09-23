@@ -13,10 +13,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_participant_status.h"
 #include "data/data_peer_bot_commands.h"
 
-namespace Data {
-class Forum;
-} // namespace Data
-
 struct ChannelLocation {
 	QString address;
 	Data::LocationPoint point;

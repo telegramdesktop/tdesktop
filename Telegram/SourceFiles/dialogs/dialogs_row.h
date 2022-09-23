@@ -98,6 +98,9 @@ public:
 	[[nodiscard]] Data::Folder *folder() const {
 		return _id.folder();
 	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _id.topic();
+	}
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}

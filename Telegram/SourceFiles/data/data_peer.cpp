@@ -882,6 +882,13 @@ bool PeerData::isRepliesChat() const {
 		: kTestId) == id;
 }
 
+Data::Forum *PeerData::forum() const {
+	if (const auto channel = asChannel()) {
+		return channel->forum();
+	}
+	return nullptr;
+}
+
 bool PeerData::canWrite() const {
 	if (const auto user = asUser()) {
 		return user->canWrite();

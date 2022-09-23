@@ -29,7 +29,9 @@ public:
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
 
-	void topicAdded(not_null<HistoryItem*> root);
+	void applyTopicAdded(MsgId rootId, const QString &title);
+	void applyTopicRemoved(MsgId rootId);
+	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
 
 private:
 	const not_null<History*> _forum;

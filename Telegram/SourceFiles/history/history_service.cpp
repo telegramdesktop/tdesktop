@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_item_preview.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_game.h"
@@ -771,6 +772,10 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			this,
 			_from,
 			data.vmonths().v);
+	}, [&](const MTPDmessageActionTopicCreate &data) {
+		if (const auto forum = history()->peer->forum()) {
+			forum->applyTopicAdded(id, qs(data.vtitle()));
+		}
 	}, [](const auto &) {
 	});
 }

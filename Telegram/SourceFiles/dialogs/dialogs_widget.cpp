@@ -263,10 +263,10 @@ Widget::Widget(
 		const auto openSearchResult = !controller->selectingPeer()
 			&& row.filteredRow;
 		const auto history = row.key.history();
-		if (const auto forumTopic = row.key.forumTopic()) {
+		if (const auto topic = row.key.topic()) {
 			controller->showRepliesForMessage(
-				forumTopic->forum(),
-				forumTopic->rootId());
+				topic->forum(),
+				topic->rootId());
 		} else if (history && history->peer->isForum()) {
 			controller->openForum(history->peer->asChannel());
 		} else if (history) {

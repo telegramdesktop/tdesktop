@@ -67,7 +67,7 @@ Data::Folder *Entry::asFolder() {
 		: nullptr;
 }
 
-Data::ForumTopic *Entry::asForumTopic() {
+Data::ForumTopic *Entry::asTopic() {
 	return (_type == Type::ForumTopic)
 		? static_cast<Data::ForumTopic*>(this)
 		: nullptr;
@@ -186,9 +186,6 @@ const Ui::Text::String &Entry::chatListNameText() const {
 }
 
 void Entry::setChatListExistence(bool exists) {
-	if (asForumTopic()) {
-		return;
-	}
 	if (exists && _sortKeyInChatList) {
 		owner().refreshChatListEntry(this);
 		updateChatListEntry();
@@ -263,7 +260,7 @@ not_null<Row*> Entry::addToChatList(
 void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
-	if (!asForumTopic() && isPinnedDialog(filterId)) {
+	if (!asTopic() && isPinnedDialog(filterId)) {
 		owner().setChatPinned(this, filterId, false);
 	}
 

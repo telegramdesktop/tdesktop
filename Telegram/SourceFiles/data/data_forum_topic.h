@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "dialogs/dialogs_entry.h"
+#include "dialogs/ui/dialogs_message_view.h"
 
 class ChannelData;
 
@@ -56,6 +57,10 @@ public:
 	[[nodiscard]] bool lastMessageKnown() const;
 	[[nodiscard]] bool lastServerMessageKnown() const;
 
+	void applyTitle(const QString &title);
+	void applyItemAdded(not_null<HistoryItem*> item);
+	void applyItemRemoved(MsgId id);
+
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
@@ -72,6 +77,9 @@ public:
 	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
+
+	Ui::Text::String cloudDraftTextCache;
+	Dialogs::Ui::MessageView lastItemDialogsView;
 
 private:
 	void indexTitleParts();

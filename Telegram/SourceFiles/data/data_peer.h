@@ -32,6 +32,7 @@ class Session;
 
 namespace Data {
 
+class Forum;
 class Session;
 class GroupCall;
 class CloudImageView;
@@ -194,6 +195,8 @@ public:
 	[[nodiscard]] bool isServiceUser() const {
 		return isUser() && !(id.value % 1000);
 	}
+
+	[[nodiscard]] Data::Forum *forum() const;
 
 	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
 		return _notify.muteUntil();

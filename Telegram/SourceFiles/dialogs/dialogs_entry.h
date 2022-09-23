@@ -107,7 +107,7 @@ public:
 
 	History *asHistory();
 	Data::Folder *asFolder();
-	Data::ForumTopic *asForumTopic();
+	Data::ForumTopic *asTopic();
 
 	PositionChange adjustByPosInChatList(
 		FilterId filterId,

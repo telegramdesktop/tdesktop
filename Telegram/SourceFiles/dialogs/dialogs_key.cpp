@@ -25,7 +25,7 @@ Key::Key(History *history) : _value(history) {
 Key::Key(Data::Folder *folder) : _value(folder) {
 }
 
-Key::Key(Data::ForumTopic *forumTopic) : _value(forumTopic) {
+Key::Key(Data::ForumTopic *topic) : _value(topic) {
 }
 
 Key::Key(not_null<History*> history) : _value(history) {
@@ -34,7 +34,7 @@ Key::Key(not_null<History*> history) : _value(history) {
 Key::Key(not_null<Data::Folder*> folder) : _value(folder) {
 }
 
-Key::Key(not_null<Data::ForumTopic*> forumTopic) : _value(forumTopic) {
+Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
 }
 
 not_null<Entry*> Key::entry() const {
@@ -51,8 +51,8 @@ Folder *Key::folder() const {
 	return _value ? _value->asFolder() : nullptr;
 }
 
-ForumTopic *Key::forumTopic() const {
-	return _value ? _value->asForumTopic() : nullptr;
+ForumTopic *Key::topic() const {
+	return _value ? _value->asTopic() : nullptr;
 }
 
 PeerData *Key::peer() const {

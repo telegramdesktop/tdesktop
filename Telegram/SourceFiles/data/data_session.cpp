@@ -67,6 +67,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
@@ -3793,7 +3795,9 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 
 	const auto entry = key.entry();
 	const auto history = key.history();
-	const auto mainList = chatsList(entry->folder());
+	const auto mainList = entry->asTopic()
+		? entry->asTopic()->forum()->peer->forum()->topicsList()
+		: chatsList(entry->folder());
 	auto event = ChatListEntryRefresh{ .key = key };
 	const auto creating = event.existenceChanged = !entry->inChatList();
 	if (event.existenceChanged) {
@@ -3848,6 +3852,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		return;
 	}
 	Assert(entry->folderKnown());
+
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		if (id && entry->inChatList(id)) {
@@ -3859,7 +3864,9 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 			});
 		}
 	}
-	const auto mainList = chatsList(entry->folder());
+	const auto mainList = entry->asTopic()
+		? entry->asTopic()->forum()->peer->forum()->topicsList()
+		: chatsList(entry->folder());
 	entry->removeFromChatList(0, mainList);
 	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
 		.key = key,

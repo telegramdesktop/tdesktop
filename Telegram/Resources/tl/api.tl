@@ -1453,7 +1453,7 @@ stickerKeyword#fcfeb29c document_id:long keyword:Vector<string> = StickerKeyword
 
 forumTopic#4a0005d9 flags:# pinned:flags.2?true id:int date:int title:string top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int = ForumTopic;
 
-messages.forumTopics#ed93d3e flags:# count:int topics:Vector<ForumTopic> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int next_date:flags.0?int = messages.ForumTopics;
+messages.forumTopics#367617d3 flags:# order_by_create_date:flags.0?true count:int topics:Vector<ForumTopic> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int = messages.ForumTopics;
 
 ---functions---
 
@@ -1856,6 +1856,7 @@ channels.toggleJoinRequest#4c2985b6 channel:InputChannel enabled:Bool = Updates;
 channels.toggleForum#a4298b29 channel:InputChannel enabled:Bool = Updates;
 channels.createForumTopic#22cf4868 flags:# no_webpage:flags.3?true channel:InputChannel title:string media:flags.0?InputMedia message:string random_id:long entities:flags.1?Vector<MessageEntity> send_as:flags.2?InputPeer = Updates;
 channels.getForumTopics#de560d1 flags:# channel:InputChannel q:flags.0?string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
+channels.getForumTopicsByID#b0831eb9 channel:InputChannel topics:Vector<int> = messages.ForumTopics;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;

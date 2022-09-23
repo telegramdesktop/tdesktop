@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_send_action.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_photo.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -158,6 +159,15 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 	itemVanished(item);
 	if (IsClientMsgId(item->id)) {
 		unregisterClientSideMessage(item);
+	}
+	if (const auto forum = peer->forum()) {
+		if (const auto topic = forum->topicFor(item)) {
+			if (topic->rootId() == item->id) {
+				forum->applyTopicRemoved(item->id);
+			} else {
+				topic->applyItemRemoved(item->id);
+			}
+		}
 	}
 	if (const auto chat = peer->asChat()) {
 		if (const auto to = chat->getMigrateToChannel()) {
@@ -1124,9 +1134,13 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
-	if (item->isTopicStart() && peer->isForum()) {
+	if (peer->isForum()) {
 		if (const auto forum = peer->asChannel()->forum()) {
-			forum->topicAdded(item);
+			/*if (item->isTopicStart()) { // #TODO forum isTopicStart legacy?
+				forum->topicAdded(item);
+			} else */if (const auto topic = forum->topicFor(item)) {
+				topic->applyItemAdded(item);
+			}
 		}
 	}
 }

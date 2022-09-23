@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_message_view.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 
 namespace Data {
 namespace {
@@ -145,6 +147,11 @@ void Groups::refreshViews(const HistoryItemsList &items) {
 	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
 		history->lastItemDialogsView.itemInvalidated(item);
+		if (const auto forum = history->peer->forum()) {
+			if (const auto topic = forum->topicFor(item)) {
+				topic->lastItemDialogsView.itemInvalidated(item);
+			}
+		}
 	}
 }
 

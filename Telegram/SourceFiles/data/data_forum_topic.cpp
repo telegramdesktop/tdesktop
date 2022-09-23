@@ -37,13 +37,7 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 	Expects(_rootId == topic.data().vid().v);
 
 	const auto &data = topic.data();
-	const auto title = qs(data.vtitle());
-	if (_title != title) {
-		_title = title;
-		++_titleVersion;
-		indexTitleParts();
-		updateChatListEntry();
-	}
+	applyTitle(qs(data.vtitle()));
 
 	const auto pinned = _list->pinned();
 	if (data.is_pinned()) {
@@ -216,7 +210,7 @@ TimeId ForumTopic::adjustedChatListTimeId() const {
 }
 
 int ForumTopic::fixedOnTopIndex() const {
-	return kArchiveFixOnTopIndex;
+	return 0;
 }
 
 bool ForumTopic::shouldBeInChatList() const {
@@ -239,6 +233,38 @@ HistoryItem *ForumTopic::lastServerMessage() const {
 
 bool ForumTopic::lastServerMessageKnown() const {
 	return _lastServerMessage.has_value();
+}
+
+void ForumTopic::applyTitle(const QString &title) {
+	if (_title == title) {
+		return;
+	}
+	_title = title;
+	++_titleVersion;
+	indexTitleParts();
+	updateChatListEntry();
+}
+
+void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {
+	setLastMessage(item);
+}
+
+void ForumTopic::applyItemRemoved(MsgId id) {
+	if (const auto lastItem = lastMessage()) {
+		if (lastItem->id == id) {
+			_lastMessage = std::nullopt;
+		}
+	}
+	if (const auto lastServerItem = lastServerMessage()) {
+		if (lastServerItem->id == id) {
+			_lastServerMessage = std::nullopt;
+		}
+	}
+	if (const auto chatListItem = _chatListMessage.value_or(nullptr)) {
+		if (chatListItem->id == id) {
+			_chatListMessage = std::nullopt;
+		}
+	}
 }
 
 int ForumTopic::unreadCount() const {

@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 
 namespace Dialogs::Ui {
@@ -852,6 +853,7 @@ void RowPainter::paint(
 		bool paused) {
 	const auto entry = row->entry();
 	const auto history = row->history();
+	const auto topic = row->topic();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMark = entry->chatListUnreadMark();
@@ -960,22 +962,23 @@ void RowPainter::paint(
 				color,
 				ms)
 			: false;
+		const auto view = actionWasPainted
+			? nullptr
+			: history
+			? &history->lastItemDialogsView
+			: topic
+			? &topic->lastItemDialogsView
+			: nullptr;
 		if (const auto folder = row->folder()) {
 			PaintListEntryText(p, rect, active, selected, row, ms, paused);
-		} else if (history && !actionWasPainted) {
-			if (!history->lastItemDialogsView.prepared(item)) {
-				history->lastItemDialogsView.prepare(
+		} else if (view) {
+			if (!view->prepared(item)) {
+				view->prepare(
 					item,
-					[=] { history->updateChatListEntry(); },
+					[=] { entry->updateChatListEntry(); },
 					{});
 			}
-			history->lastItemDialogsView.paint(
-				p,
-				rect,
-				active,
-				selected,
-				ms,
-				paused);
+			view->paint(p, rect, active, selected, ms, paused);
 		}
 	};
 	const auto paintCounterCallback = [&] {

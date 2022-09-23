@@ -28,12 +28,12 @@ public:
 	}
 	Key(History *history);
 	Key(Data::Folder *folder);
-	Key(Data::ForumTopic *forumTopic);
+	Key(Data::ForumTopic *topic);
 	Key(not_null<Entry*> entry) : _value(entry) {
 	}
 	Key(not_null<History*> history);
 	Key(not_null<Data::Folder*> folder);
-	Key(not_null<Data::ForumTopic*> forumTopic);
+	Key(not_null<Data::ForumTopic*> topic);
 
 	explicit operator bool() const {
 		return (_value != nullptr);
@@ -41,7 +41,7 @@ public:
 	not_null<Entry*> entry() const;
 	History *history() const;
 	Data::Folder *folder() const;
-	Data::ForumTopic *forumTopic() const;
+	Data::ForumTopic *topic() const;
 	PeerData *peer() const;
 
 	inline bool operator<(const Key &other) const {
