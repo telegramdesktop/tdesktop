@@ -1783,7 +1783,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			controller = args.controller,
 			computeRef = args.computeRef,
 			computeBotUrl = args.computeBotUrl] {
-		const auto url = computeBotUrl ? QString() : computeBotUrl();
+		const auto url = computeBotUrl ? computeBotUrl() : QString();
 		if (!url.isEmpty()) {
 			const auto local = Core::TryConvertUrlToLocal(url);
 			if (local.isEmpty()) {
