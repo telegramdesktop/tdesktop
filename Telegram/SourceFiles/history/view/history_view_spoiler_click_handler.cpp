@@ -15,52 +15,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 
 namespace HistoryView {
-namespace {
-
-class AnimatedSpoilerClickHandler final : public ClickHandler {
-public:
-	AnimatedSpoilerClickHandler(
-		not_null<Element*> view,
-		Ui::Text::String &text);
-
-	void onClick(ClickContext context) const override;
-
-private:
-	base::weak_ptr<Element> _weak;
-	Ui::Text::String &_text;
-
-};
-
-AnimatedSpoilerClickHandler::AnimatedSpoilerClickHandler(
-	not_null<Element*> view,
-	Ui::Text::String &text)
-: _weak(view)
-, _text(text) {
-}
-
-void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
-	const auto button = context.button;
-	const auto view = _weak.get();
-	if (button != Qt::LeftButton || !view) {
-		return;
-	}
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto d = my.elementDelegate ? my.elementDelegate() : nullptr) {
-		_text.setSpoilerRevealed(true, anim::type::normal);
-		if (const auto controller = my.sessionWindow.get()) {
-			controller->session().data().registerShownSpoiler(view);
-		}
-	}
-}
-
-} // namespace
 
 void FillTextWithAnimatedSpoilers(
 		not_null<Element*> view,
 		Ui::Text::String &text) {
 	if (text.hasSpoilers()) {
-		text.setSpoilerLink(
-			std::make_shared<AnimatedSpoilerClickHandler>(view, text));
+		text.setSpoilerLinkFilter([weak = base::make_weak(view.get())](
+				const ClickContext &context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto button = context.button;
+			const auto view = weak.get();
+			if (button != Qt::LeftButton || !view || !my.elementDelegate) {
+				return false;
+			} else if (const auto d = my.elementDelegate()) {
+				if (const auto controller = my.sessionWindow.get()) {
+					controller->session().data().registerShownSpoiler(view);
+				}
+				return true;
+			}
+			return false;
+		});
 	}
 }
 
