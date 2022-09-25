@@ -88,14 +88,15 @@ void PrepareDetailsInParallel(PreparedList &result, int previewWidth) {
 } // namespace
 
 bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
-	if (base::GetMimeUrls(data).size() > 1) {
+	const auto urls = base::GetMimeUrls(data);
+	if (urls.size() > 1) {
 		return false;
 	} else if (data->hasImage()) {
 		return true;
 	}
 
-	if (data->hasUrls()) {
-		const auto url = base::GetMimeUrls(data).front();
+	if (!urls.isEmpty()) {
+		const auto url = urls.front();
 		if (url.isLocalFile()) {
 			using namespace Core;
 			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
@@ -111,14 +112,15 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 bool ValidateEditMediaDragData(
 		not_null<const QMimeData*> data,
 		Ui::AlbumType albumType) {
-	if (base::GetMimeUrls(data).size() > 1) {
+	const auto urls = base::GetMimeUrls(data);
+	if (urls.size() > 1) {
 		return false;
 	} else if (data->hasImage()) {
 		return (albumType != Ui::AlbumType::Music);
 	}
 
-	if (albumType == Ui::AlbumType::PhotoVideo && data->hasUrls()) {
-		const auto url = base::GetMimeUrls(data).front();
+	if (albumType == Ui::AlbumType::PhotoVideo && !urls.isEmpty()) {
+		const auto url = urls.front();
 		if (url.isLocalFile()) {
 			using namespace Core;
 			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
@@ -138,12 +140,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::Image;
 	}
 
-	const auto uriListFormat = qsl("text/uri-list");
-	if (!data->hasFormat(uriListFormat)) {
-		return MimeDataState::None;
-	}
-
-	const auto &urls = base::GetMimeUrls(data);
+	const auto urls = base::GetMimeUrls(data);
 	if (urls.isEmpty()) {
 		return MimeDataState::None;
 	}
