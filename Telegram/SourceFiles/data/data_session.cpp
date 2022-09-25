@@ -1572,7 +1572,6 @@ rpl::producer<not_null<const HistoryItem*>> Session::itemRemoved(
 }
 
 void Session::notifyViewRemoved(not_null<const ViewElement*> view) {
-	_shownSpoilers.remove(view);
 	_viewRemoved.fire_copy(view);
 }
 
@@ -3706,6 +3705,8 @@ void Session::registerItemView(not_null<ViewElement*> view) {
 
 void Session::unregisterItemView(not_null<ViewElement*> view) {
 	Expects(!_heavyViewParts.contains(view));
+
+	_shownSpoilers.remove(view);
 
 	const auto i = _views.find(view->data());
 	if (i != end(_views)) {
