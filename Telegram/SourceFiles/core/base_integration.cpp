@@ -33,6 +33,12 @@ void BaseIntegration::logMessage(const QString &message) {
 	Logs::writeMain(message);
 }
 
+void BaseIntegration::setCrashAnnotation(
+		const std::string &key,
+		const QString &value) {
+	CrashReports::SetAnnotation(key, value);
+}
+
 void BaseIntegration::logAssertionViolation(const QString &info) {
 	Logs::writeMain("Assertion Failed! " + info);
 	CrashReports::SetAnnotation("Assertion", info);
