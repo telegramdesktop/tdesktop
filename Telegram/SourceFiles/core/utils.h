@@ -39,15 +39,17 @@ inline bool in_range(Value &&value, From &&from, Till &&till) {
 	return (value >= from) && (value < till);
 }
 
-inline auto GetMimeUrls(const QMimeData *data) {
 #if __has_include(<KUrlMimeData>)
+inline QList<QUrl> GetMimeUrls(const QMimeData *data) {
+	if (!data->hasUrls()) {
+		return {};
+	}
+
 	return KUrlMimeData::urlsFromMimeData(
 		data,
 		KUrlMimeData::PreferLocalUrls);
-#else
-	return data->urls();
-#endif
 }
+#endif
 
 #if __has_include(<KSandbox>) && defined DeclareReadSetting
 inline QString FlatpakID() {
