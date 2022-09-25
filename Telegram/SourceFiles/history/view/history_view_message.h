@@ -226,6 +226,8 @@ private:
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
+	[[nodiscard]] int visibleTextLength() const;
+	[[nodiscard]] int visibleMediaTextLength() const;
 	[[nodiscard]] bool needInfoDisplay() const;
 
 	[[nodiscard]] bool isPinnedContext() const;

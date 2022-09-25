@@ -1606,7 +1606,8 @@ TextState Message::textState(
 				result = entry->textState(
 					point - QPoint(entryLeft, entryTop),
 					request);
-				result.symbol += text().length() + (mediaDisplayed ? media->fullSelectionLength() : 0);
+				result.symbol += visibleTextLength()
+					+ visibleMediaTextLength();
 			}
 		}
 
@@ -1624,7 +1625,7 @@ TextState Message::textState(
 				result = bottomInfoResult;
 			}
 		};
-		if (inBubble) {
+		if (!result.symbol && inBubble) {
 			if (mediaDisplayed) {
 				auto mediaHeight = media->height();
 				auto mediaLeft = trect.x() - st::msgPadding.left();
@@ -1632,18 +1633,18 @@ TextState Message::textState(
 
 				if (point.y() >= mediaTop && point.y() < mediaTop + mediaHeight) {
 					result = media->textState(point - QPoint(mediaLeft, mediaTop), request);
-					result.symbol += text().length();
+					result.symbol += visibleTextLength();
 				} else if (getStateText(point, trect, &result, request)) {
 					checkBottomInfoState();
 					return result;
 				} else if (point.y() >= trect.y() + trect.height()) {
-					result.symbol = text().length();
+					result.symbol = visibleTextLength();
 				}
 			} else if (getStateText(point, trect, &result, request)) {
 				checkBottomInfoState();
 				return result;
 			} else if (point.y() >= trect.y() + trect.height()) {
-				result.symbol = text().length();
+				result.symbol = visibleTextLength();
 			}
 		}
 		checkBottomInfoState();
@@ -1665,7 +1666,7 @@ TextState Message::textState(
 		}
 	} else if (media && media->isDisplayed()) {
 		result = media->textState(point - g.topLeft(), request);
-		result.symbol += text().length();
+		result.symbol += visibleTextLength();
 	}
 
 	if (keyboard && item->isHistoryEntry()) {
@@ -2002,7 +2003,9 @@ void Message::updatePressed(QPoint point) {
 TextForMimeData Message::selectedText(TextSelection selection) const {
 	const auto media = this->media();
 	auto logEntryOriginalResult = TextForMimeData();
-	auto textResult = text().toTextForMimeData(selection);
+	auto textResult = hasVisibleText()
+		? text().toTextForMimeData(selection)
+		: TextForMimeData();
 	auto skipped = skipTextSelection(selection);
 	auto mediaDisplayed = (media && media->isDisplayed());
 	auto mediaResult = (mediaDisplayed || isHiddenByGroup())
@@ -2033,8 +2036,10 @@ TextSelection Message::adjustSelection(
 		TextSelectType type) const {
 	const auto media = this->media();
 
-	auto result = text().adjustSelection(selection, type);
-	auto beforeMediaLength = text().length();
+	auto result = hasVisibleText()
+		? text().adjustSelection(selection, type)
+		: selection;
+	auto beforeMediaLength = visibleTextLength();
 	if (selection.to <= beforeMediaLength) {
 		return result;
 	}
@@ -2048,8 +2053,7 @@ TextSelection Message::adjustSelection(
 			result.to = mediaSelection.to;
 		}
 	}
-	auto beforeEntryLength = beforeMediaLength
-		+ (mediaDisplayed ? media->fullSelectionLength() : 0);
+	auto beforeEntryLength = beforeMediaLength + visibleMediaTextLength();
 	if (selection.to <= beforeEntryLength) {
 		return result;
 	}
@@ -2887,13 +2891,16 @@ void Message::fromNameUpdated(int width) const {
 }
 
 TextSelection Message::skipTextSelection(TextSelection selection) const {
-	if (selection.from == 0xFFFF) {
+	if (selection.from == 0xFFFF || !hasVisibleText()) {
 		return selection;
 	}
 	return HistoryView::UnshiftItemSelection(selection, text());
 }
 
 TextSelection Message::unskipTextSelection(TextSelection selection) const {
+	if (!hasVisibleText()) {
+		return selection;
+	}
 	return HistoryView::ShiftItemSelection(selection, text());
 }
 
@@ -3158,6 +3165,17 @@ bool Message::hasVisibleText() const {
 	}
 	const auto media = this->media();
 	return !media || !media->hideMessageText();
+}
+
+int Message::visibleTextLength() const {
+	return hasVisibleText() ? text().length() : 0;
+}
+
+int Message::visibleMediaTextLength() const {
+	const auto media = this->media();
+	return (media && media->isDisplayed())
+		? media->fullSelectionLength()
+		: 0;
 }
 
 QSize Message::performCountCurrentSize(int newWidth) {
