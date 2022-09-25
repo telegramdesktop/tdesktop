@@ -227,7 +227,7 @@ void LocalPasscodeEnter::setupContent() {
 			} else {
 				if (isChange) {
 					const auto &domain = _controller->session().domain();
-					if (domain.local().checkPasscode(newText.toUtf8())) {
+					if (domain.local().checkRealOrFakePasscode(newText.toUtf8())) {
 						newPasscode->setFocus();
 						newPasscode->showError();
 						newPasscode->selectAll();
@@ -252,7 +252,7 @@ void LocalPasscodeEnter::setupContent() {
 				return;
 			}
 			const auto &domain = _controller->session().domain();
-			if (domain.local().checkPasscode(newText.toUtf8())) {
+			if (domain.local().checkRealOrFakePasscode(newText.toUtf8())) {
 				cSetPasscodeBadTries(0);
 				_showOther.fire(LocalPasscodeManageId());
 			} else {
