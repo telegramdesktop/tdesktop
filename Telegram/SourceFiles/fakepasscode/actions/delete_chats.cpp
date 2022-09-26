@@ -56,37 +56,35 @@ void DeleteChatsAction::ExecuteAccountAction(int index, Main::Account* account, 
                 never.remove(history);
             }
         }
-        auto computed = Data::ChatFilter(
-                rules.id(),
-                rules.title(),
-                rules.iconEmoji(),
-                rules.flags(),
-                std::move(always),
-                std::move(pinned),
-                std::move(never));
-        const auto tl = computed.tl();
-        data_session.chatsFilters().apply(MTP_updateDialogFilter(
-                MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
-                MTP_int(computed.id()),
-                tl));
-        FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
-                MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
-                MTP_int(computed.id()),
-                tl
-        )).send();
-        data_session.chatsFilters().set(std::move(computed));
-
-        if ((always.size() + pinned.size() + never.size()) == 0) {
-//            data_session.chatsFilters().remove(rules.id());
-//            // We don't have any chats in filters after action, clear
-//            data_session.chatsFilters().apply(MTP_updateDialogFilter(
-//                    MTP_flags(MTPDupdateDialogFilter::Flag(0)),
-//                    MTP_int(rules.id()),
-//                    MTPDialogFilter()));
+        if ((always.size() + pinned.size() + never.size()) == 0 && rules.id() > 0) {
+            // We don't have any chats in filters after action, clear
+            data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                    MTP_flags(MTPDupdateDialogFilter::Flag(0)),
+                    MTP_int(rules.id()),
+                    MTPDialogFilter()));
             FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
                     MTP_flags(MTPmessages_UpdateDialogFilter::Flag(0)),
                     MTP_int(rules.id()),
                     MTPDialogFilter()
+            )).send();
+        } else {
+            auto computed = Data::ChatFilter(
+                    rules.id(),
+                    rules.title(),
+                    rules.iconEmoji(),
+                    rules.flags(),
+                    std::move(always),
+                    std::move(pinned),
+                    std::move(never));
+            const auto tl = computed.tl();
+            data_session.chatsFilters().apply(MTP_updateDialogFilter(
+                    MTP_flags(MTPDupdateDialogFilter::Flag::f_filter),
+                    MTP_int(computed.id()),
+                    tl));
+            FAKE_CRITICAL_REQUEST(account) api.request(MTPmessages_UpdateDialogFilter(
+                    MTP_flags(MTPmessages_UpdateDialogFilter::Flag::f_filter),
+                    MTP_int(computed.id()),
+                    tl
             )).send();
         }
     }
