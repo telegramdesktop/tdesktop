@@ -132,29 +132,55 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 	bool recommended = false;
 };
 
-struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
+class ReplyToMessagePointer final {
+public:
+	ReplyToMessagePointer(HistoryItem *item = nullptr) : _data(item) {
+	}
+	ReplyToMessagePointer(ReplyToMessagePointer &&other)
+	: _data(base::take(other._data)) {
+	}
+	ReplyToMessagePointer &operator=(ReplyToMessagePointer &&other) {
+		_data = base::take(other._data);
+		return *this;
+	}
+	ReplyToMessagePointer &operator=(HistoryItem *item) {
+		_data = item;
+		return *this;
+	}
+
+	[[nodiscard]] bool empty() const {
+		return !_data;
+	}
+	[[nodiscard]] HistoryItem *get() const {
+		return _data;
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	[[nodiscard]] HistoryItem *operator->() const {
+		return _data;
+	}
+	[[nodiscard]] HistoryItem &operator*() const {
+		return *_data;
+	}
+
+private:
+	HistoryItem *_data = nullptr;
+
+};
+
+struct HistoryMessageReply
+	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
-	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
-	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
-		replyToPeerId = other.replyToPeerId;
-		replyToMsgId = other.replyToMsgId;
-		replyToMsgTop = other.replyToMsgTop;
-		replyToDocumentId = other.replyToDocumentId;
-		replyToWebPageId = other.replyToWebPageId;
-		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std::move(other.replyToLnk);
-		replyToName = std::move(other.replyToName);
-		replyToText = std::move(other.replyToText);
-		replyToVersion = other.replyToVersion;
-		maxReplyWidth = other.maxReplyWidth;
-		replyToVia = std::move(other.replyToVia);
-		return *this;
-	}
+	HistoryMessageReply &operator=(
+		const HistoryMessageReply &other) = delete;
+	HistoryMessageReply &operator=(HistoryMessageReply &&other) = default;
 	~HistoryMessageReply() {
 		// clearData() should be called by holder.
-		Expects(replyToMsg == nullptr);
+		Expects(replyToMsg.empty());
 		Expects(replyToVia == nullptr);
 	}
 
@@ -205,15 +231,16 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
-	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
 	WebPageId replyToWebPageId = 0;
+	ReplyToMessagePointer replyToMsg;
+	std::unique_ptr<HistoryMessageVia> replyToVia;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int maxReplyWidth = 0;
-	std::unique_ptr<HistoryMessageVia> replyToVia;
 	int toWidth = 0;
+	bool topicPost = false;
 
 };
 

@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -1056,6 +1057,21 @@ MsgId HistoryItem::replyToTop() const {
 		return reply->replyToTop();
 	}
 	return 0;
+}
+
+MsgId HistoryItem::topicRootId() const {
+	if (const auto reply = Get<HistoryMessageReply>()
+		; reply && reply->topicPost) {
+		return reply->replyToTop();
+	}
+	return Data::ForumTopic::kGeneralId;
+}
+
+MsgId HistoryItem::inThread(MsgId rootId) const {
+	const auto checkId = (rootId == Data::ForumTopic::kGeneralId)
+		? topicRootId()
+		: replyToTop();
+	return (checkId == rootId);
 }
 
 not_null<PeerData*> HistoryItem::author() const {

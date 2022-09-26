@@ -248,6 +248,7 @@ public:
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<Ui::BoxContent*> box,
 		not_null<PeerData*> peer);
+	~Controller();
 
 	[[nodiscard]] object_ptr<Ui::VerticalLayout> createContent();
 	void setFocus();
@@ -387,6 +388,8 @@ Controller::Controller(
 	subscribeToMigration();
 	_peer->updateFull();
 }
+
+Controller::~Controller() = default;
 
 void Controller::subscribeToMigration() {
 	SubscribeToMigration(
@@ -815,7 +818,7 @@ void Controller::fillForumButton() {
 
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		rpl::single(u"Forum"_q), // #TODO forum
+		rpl::single(u"Forum"_q), // #TODO forum lang
 		rpl::single(QString()),
 		[] {},
 		{ &st::settingsIconGroup, Settings::kIconPurple }

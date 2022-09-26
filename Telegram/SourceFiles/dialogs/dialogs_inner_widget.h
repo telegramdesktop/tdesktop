@@ -36,6 +36,8 @@ class SessionController;
 
 namespace Data {
 class CloudImageView;
+class Folder;
+class Forum;
 } // namespace Data
 
 namespace Dialogs::Ui {
@@ -110,7 +112,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	Data::Folder *shownFolder() const;
-	ChannelData *shownForum() const;
+	Data::Forum *shownForum() const;
 	int32 lastSearchDate() const;
 	PeerData *lastSearchPeer() const;
 	MsgId lastSearchId() const;
@@ -351,7 +353,7 @@ private:
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;
-	ChannelData *_openedForum = nullptr;
+	Data::Forum *_openedForum = nullptr;
 	rpl::lifetime _openedForumLifetime;
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;

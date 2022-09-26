@@ -52,7 +52,7 @@ TextForMimeData WrapAsItem(
 		not_null<HistoryItem*> item,
 		TextForMimeData &&result) {
 	if (const auto reply = item->Get<HistoryMessageReply>()) {
-		if (const auto message = reply->replyToMsg) {
+		if (const auto message = reply->replyToMsg.get()) {
 			result = WrapAsReply(std::move(result), message);
 		}
 	}

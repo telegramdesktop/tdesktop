@@ -49,6 +49,7 @@ class Result;
 
 namespace Data {
 class RepliesList;
+class ForumTopic;
 } // namespace Data
 
 namespace HistoryView {
@@ -208,6 +209,7 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
+	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
 	[[nodiscard]] std::optional<int> computeUnreadCount() const;
 	void orderWidgets();
@@ -270,6 +272,8 @@ private:
 	const MsgId _rootId = 0;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	HistoryItem *_root = nullptr;
+	Data::ForumTopic *_topic = nullptr;
+
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;
 	std::shared_ptr<SendActionPainter> _sendAction;
@@ -300,6 +304,8 @@ private:
 	base::Timer _readRequestTimer;
 	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
+
+	mtpRequestId _resolveTopicRequestId = 0;
 
 	mtpRequestId _reloadUnreadCountRequestId = 0;
 	bool _loaded = false;

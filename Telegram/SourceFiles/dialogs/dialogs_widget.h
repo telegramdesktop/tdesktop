@@ -116,6 +116,7 @@ private:
 		Internal,
 	};
 
+	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
 	void filterCursorMoved(int from = -1, int to = -1);

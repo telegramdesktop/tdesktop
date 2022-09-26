@@ -404,12 +404,13 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 }
 
 void InnerWidget::changeOpenedForum(ChannelData *forum) {
-	if (_openedForum == forum) {
+	const auto now = _openedForum ? _openedForum->channel().get() : nullptr;
+	if (now == forum) {
 		return;
 	}
 	stopReorderPinned();
 	clearSelection();
-	_openedForum = forum;
+	_openedForum = forum ? forum->forum() : nullptr;
 
 	_openedForumLifetime.destroy();
 	if (forum) {
@@ -1791,7 +1792,7 @@ not_null<IndexedList*> InnerWidget::shownDialogs() const {
 	return _filterId
 		? session().data().chatsFilters().chatsList(_filterId)->indexed()
 		: _openedForum
-		? _openedForum->forum()->topicsList()->indexed()
+		? _openedForum->topicsList()->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
 }
 
@@ -2296,7 +2297,7 @@ Data::Folder *InnerWidget::shownFolder() const {
 	return _openedFolder;
 }
 
-ChannelData *InnerWidget::shownForum() const {
+Data::Forum *InnerWidget::shownForum() const {
 	return _openedForum;
 }
 
@@ -2410,7 +2411,7 @@ void InnerWidget::refreshEmptyLabel() {
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
 		} else if (_emptyState == EmptyState::EmptyForum) {
-			Data::ShowAddForumTopic(_controller, _openedForum);
+			Data::ShowAddForumTopic(_controller, _openedForum->channel());
 		}
 	});
 	_empty->setVisible(_state == WidgetState::Default);
@@ -3286,7 +3287,9 @@ void InnerWidget::setupShortcuts() {
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
 			if (_openedForum) {
-				Data::ShowAddForumTopic(_controller, _openedForum);
+				Data::ShowAddForumTopic(
+					_controller,
+					_openedForum->channel());
 			} else {
 				_controller->content()->choosePeer(
 					session().userPeerId(),

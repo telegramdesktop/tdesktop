@@ -26,6 +26,8 @@ class Session;
 
 class ForumTopic final : public Dialogs::Entry {
 public:
+	static constexpr auto kGeneralId = 1;
+
 	ForumTopic(not_null<History*> forum, MsgId rootId);
 
 	ForumTopic(const ForumTopic &) = delete;
@@ -33,6 +35,9 @@ public:
 
 	[[nodiscard]] not_null<History*> forum() const;
 	[[nodiscard]] MsgId rootId() const;
+	[[nodiscard]] bool isGeneral() const {
+		return (_rootId == kGeneralId);
+	}
 
 	void applyTopic(const MTPForumTopic &topic);
 
@@ -88,7 +93,6 @@ private:
 		int unreadCount,
 		MsgId maxInboxRead,
 		MsgId maxOutboxRead);
-	void applyChatListMessage(HistoryItem *item);
 
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);

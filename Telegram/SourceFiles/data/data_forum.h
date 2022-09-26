@@ -20,9 +20,11 @@ namespace Data {
 
 class Forum final {
 public:
-	explicit Forum(not_null<History*> forum);
+	explicit Forum(not_null<History*> history);
 	~Forum();
 
+	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<Dialogs::MainList*> topicsList();
 
 	void requestTopics();
@@ -32,9 +34,10 @@ public:
 	void applyTopicAdded(MsgId rootId, const QString &title);
 	void applyTopicRemoved(MsgId rootId);
 	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
+	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 
 private:
-	const not_null<History*> _forum;
+	const not_null<History*> _history;
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;
 	Dialogs::MainList _topicsList;

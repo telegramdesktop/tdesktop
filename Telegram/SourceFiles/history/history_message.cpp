@@ -247,6 +247,7 @@ struct HistoryMessage::CreateConfig {
 	PeerId replyToPeer = 0;
 	MsgId replyTo = 0;
 	MsgId replyToTop = 0;
+	bool replyIsTopicPost = false;
 	UserId viaBotId = 0;
 	int viewsCount = -1;
 	QString author;
@@ -963,6 +964,7 @@ void HistoryMessage::createComponents(CreateConfig &&config) {
 		reply->replyToPeerId = config.replyToPeer;
 		reply->replyToMsgId = config.replyTo;
 		reply->replyToMsgTop = isScheduled() ? 0 : config.replyToTop;
+		reply->topicPost = config.replyIsTopicPost;
 		if (!reply->updateData(this)) {
 			RequestDependentMessageData(
 				this,

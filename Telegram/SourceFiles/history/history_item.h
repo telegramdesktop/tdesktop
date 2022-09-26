@@ -410,6 +410,8 @@ public:
 
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] MsgId replyToTop() const;
+	[[nodiscard]] MsgId topicRootId() const;
+	[[nodiscard]] MsgId inThread(MsgId rootId) const;
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 

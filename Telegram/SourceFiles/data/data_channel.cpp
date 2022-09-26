@@ -60,13 +60,9 @@ Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
 	return _botCommands.update(list);
 }
 
-void MegagroupInfo::setIsForum(not_null<ChannelData*> that, bool is) {
-	if (is == (_forum != nullptr)) {
-		return;
-	} else if (is) {
+void MegagroupInfo::ensureForum(not_null<ChannelData*> that) {
+	if (!_forum) {
 		_forum = std::make_unique<Data::Forum>(that->owner().history(that));
-	} else {
-		_forum = nullptr;
 	}
 }
 
@@ -74,35 +70,15 @@ Data::Forum *MegagroupInfo::forum() const {
 	return _forum.get();
 }
 
+std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
+	return std::move(_forum);
+}
+
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(
 	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
-	_flags.changes(
-	) | rpl::start_with_next([=](const Flags::Change &change) {
-		if (change.diff
-			& (Flag::Left | Flag::Forbidden)) {
-			if (const auto chat = getMigrateFromChat()) {
-				session().changes().peerUpdated(chat, UpdateFlag::Migration);
-				session().changes().peerUpdated(this, UpdateFlag::Migration);
-			}
-		}
-		if (change.diff & Flag::Megagroup) {
-			if (change.value & Flag::Megagroup) {
-				if (!mgInfo) {
-					mgInfo = std::make_unique<MegagroupInfo>();
-				}
-			} else if (mgInfo) {
-				mgInfo = nullptr;
-			}
-		}
-		if (change.diff & Flag::CallNotEmpty) {
-			if (const auto history = this->owner().historyLoaded(this)) {
-				history->updateChatListEntry();
-			}
-		}
-	}, _lifetime);
 }
 
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
@@ -130,6 +106,44 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 	inputChannel = MTP_inputChannel(
 		MTP_long(peerToChannel(id).bare),
 		MTP_long(accessHash));
+}
+
+void ChannelData::setFlags(ChannelDataFlags which) {
+	const auto diff = flags() ^ which;
+	if ((which & Flag::Megagroup) && !mgInfo) {
+		mgInfo = std::make_unique<MegagroupInfo>();
+	}
+
+	// Let Data::Forum live till the end of _flags.set.
+	// That way the data can be used in changes handler.
+	// Example: render frame for forum auto-closing animation.
+	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
+		? mgInfo->takeForumData()
+		: nullptr;
+
+	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+		mgInfo->ensureForum(this);
+	}
+	_flags.set(which);
+	if (diff & (Flag::Left | Flag::Forbidden)) {
+		if (const auto chat = getMigrateFromChat()) {
+			session().changes().peerUpdated(chat, UpdateFlag::Migration);
+			session().changes().peerUpdated(this, UpdateFlag::Migration);
+		}
+	}
+	if (diff & Flag::CallNotEmpty) {
+		if (const auto history = this->owner().historyLoaded(this)) {
+			history->updateChatListEntry();
+		}
+	}
+}
+
+void ChannelData::addFlags(ChannelDataFlags which) {
+	setFlags(flags() | which);
+}
+
+void ChannelData::removeFlags(ChannelDataFlags which) {
+	setFlags(flags() & ~which);
 }
 
 void ChannelData::setInviteLink(const QString &newInviteLink) {

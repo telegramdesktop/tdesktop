@@ -676,19 +676,6 @@ SessionController::SessionController(
 		closeFolder();
 	}, lifetime());
 
-	_openedForum.changes(
-	) | rpl::filter([](ChannelData *forum) {
-		return (forum != nullptr);
-	}) | rpl::map([](ChannelData *forum) {
-		return forum->flagsValue(
-		) | rpl::filter([](ChannelData::Flags::Change change) {
-			return (change.diff & ChannelData::Flag::Forum)
-				&& !(change.value & ChannelData::Flag::Forum);
-		});
-	}) | rpl::flatten_latest() | rpl::start_with_next([=] {
-		closeForum();
-	}, lifetime());
-
 	session->data().chatsFilters().changed(
 	) | rpl::start_with_next([=] {
 		checkOpenedFilter();
@@ -842,7 +829,9 @@ void SessionController::checkOpenedFilter() {
 		const auto &list = session().data().chatsFilters().list();
 		const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 		if (i == end(list)) {
-			setActiveChatsFilter(0);
+			setActiveChatsFilter(
+				0,
+				{ anim::type::normal, anim::activation::background });
 		}
 	}
 }
@@ -874,18 +863,35 @@ void SessionController::closeFolder() {
 	_openedFolder = nullptr;
 }
 
-void SessionController::openForum(not_null<ChannelData*> forum) {
+void SessionController::openForum(
+		not_null<ChannelData*> forum,
+		const SectionShow &params) {
 	Expects(forum->isForum());
 
+	_openedForumLifetime.destroy();
 	if (_openedForum.current() != forum) {
 		resetFakeUnreadWhileOpened();
 	}
-	setActiveChatsFilter(0);
+	setActiveChatsFilter(0, params);
 	closeFolder();
 	_openedForum = forum.get();
+	if (_openedForum.current() == forum) {
+		forum->flagsValue(
+		) | rpl::filter([=](const ChannelData::Flags::Change &update) {
+			using Flag = ChannelData::Flag;
+			return (update.diff & Flag::Forum)
+				&& !(update.value & Flag::Forum);
+		}) | rpl::start_with_next([=] {
+			closeForum();
+			showPeerHistory(
+				forum,
+				{ anim::type::normal, anim::activation::background });
+		}, _openedForumLifetime);
+	}
 }
 
 void SessionController::closeForum() {
+	_openedForumLifetime.destroy();
 	_openedForum = nullptr;
 }
 
@@ -926,12 +932,27 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 	const auto was = _activeChatEntry.current().key.history();
 	const auto now = row.key.history();
 	if (was && was != now) {
+		_activeHistoryLifetime.destroy();
 		was->setFakeUnreadWhileOpened(false);
 		_invitePeekTimer.cancel();
 	}
 	_activeChatEntry = row;
 	if (now) {
 		now->setFakeUnreadWhileOpened(true);
+		if (const auto channel = now->peer->asChannel()
+			; channel && !channel->isForum()) {
+			channel->flagsValue(
+			) | rpl::filter([=](const ChannelData::Flags::Change &update) {
+				using Flag = ChannelData::Flag;
+				return (update.diff & Flag::Forum)
+					&& (update.value & Flag::Forum);
+			}) | rpl::start_with_next([=] {
+				clearSectionStack(
+					{ anim::type::normal, anim::activation::background });
+				openForum(channel,
+					{ anim::type::normal, anim::activation::background });
+			}, _openedForumLifetime);
+		}
 	}
 	if (session().supportMode()) {
 		pushToChatEntryHistory(row);
@@ -1601,7 +1622,9 @@ FilterId SessionController::activeChatsFilterCurrent() const {
 	return _activeChatsFilter.current();
 }
 
-void SessionController::setActiveChatsFilter(FilterId id) {
+void SessionController::setActiveChatsFilter(
+		FilterId id,
+		const SectionShow &params) {
 	if (activeChatsFilterCurrent() != id) {
 		resetFakeUnreadWhileOpened();
 	}
@@ -1610,7 +1633,7 @@ void SessionController::setActiveChatsFilter(FilterId id) {
 		closeFolder();
 	}
 	if (adaptive().isOneColumn()) {
-		Ui::showChatsList(&session());
+		clearSectionStack(params);
 	}
 }
 

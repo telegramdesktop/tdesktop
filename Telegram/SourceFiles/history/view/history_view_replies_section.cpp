@@ -57,6 +57,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
@@ -160,6 +162,7 @@ RepliesWidget::RepliesWidget(
 , _history(history)
 , _rootId(rootId)
 , _root(lookupRoot())
+, _topic(lookupTopic())
 , _areComments(computeAreComments())
 , _sendAction(history->owner().sendActionManager().repliesPainter(
 	history,
@@ -332,6 +335,7 @@ RepliesWidget::~RepliesWidget() {
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
+	_history->session().api().request(_resolveTopicRequestId).cancel();
 	base::take(_sendAction);
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
@@ -435,6 +439,58 @@ void RepliesWidget::setupRootView() {
 
 HistoryItem *RepliesWidget::lookupRoot() const {
 	return _history->owner().message(_history->peer, _rootId);
+}
+
+Data::ForumTopic *RepliesWidget::lookupTopic() {
+	if (const auto forum = _history->peer->forum()) {
+		const auto result = forum->topicFor(_rootId);
+		if (!result && !_resolveTopicRequestId) {
+			const auto api = &_history->session().api();
+			_resolveTopicRequestId = api->request(
+				MTPchannels_GetForumTopicsByID(
+					forum->channel()->inputChannel,
+					MTP_vector<MTPint>(1, MTP_int(_rootId.bare)))
+			).done([=](const MTPmessages_ForumTopics &result) {
+				const auto &data = result.data();
+				const auto owner = &_history->owner();
+				owner->processUsers(data.vusers());
+				owner->processChats(data.vchats());
+				owner->processMessages(data.vmessages(), NewMessageType::Existing);
+				channel()->ptsReceived(data.vpts().v);
+				const auto &list = data.vtopics().v;
+				for (const auto &topic : list) {
+					const auto rootId = MsgId(topic.data().vid().v);
+					const auto i = _topics.find(rootId);
+					const auto creating = (i == end(_topics));
+					const auto raw = creating
+						? _topics.emplace(
+							rootId,
+							std::make_unique<ForumTopic>(_history, rootId)
+						).first->second.get()
+						: i->second.get();
+					raw->applyTopic(topic);
+					if (creating) {
+						raw->addToChatList(FilterId(), topicsList());
+					}
+					if (const auto last = raw->lastServerMessage()) {
+						_offsetDate = last->date();
+						_offsetId = last->id;
+					}
+					_offsetTopicId = rootId;
+				}
+				if (list.isEmpty() || list.size() == data.vcount().v) {
+					_allLoaded = true;
+				}
+				_requestId = 0;
+				_chatsListChanges.fire({});
+				if (_allLoaded) {
+					_chatsListLoadedEvents.fire({});
+				}
+			}).send();
+		}
+		return result;
+	}
+	return nullptr;
 }
 
 bool RepliesWidget::computeAreComments() const {
@@ -1294,7 +1350,11 @@ void RepliesWidget::refreshTopBarActiveChat() {
 
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
-	return custom ? custom : _rootId;
+	return custom
+		? custom
+		: (_rootId == Data::ForumTopic::kGeneralId)
+		? MsgId(0)
+		: _rootId;
 }
 
 void RepliesWidget::setupScrollDownButton() {
@@ -1578,23 +1638,34 @@ bool RepliesWidget::showMessage(
 	}
 	const auto id = FullMsgId(_history->peer->id, messageId);
 	const auto message = _history->owner().message(id);
-	if (!message || message->replyToTop() != _rootId) {
+	if (!message) {
 		return false;
 	}
-
-	const auto originItem = [&]() -> HistoryItem* {
+	auto originFound = false;
+	const auto general = (_rootId == Data::ForumTopic::kGeneralId);
+	const auto originMessage = [&]() -> HistoryItem* {
 		using OriginMessage = Window::SectionShow::OriginMessage;
 		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
 			if (const auto returnTo = session().data().message(origin->id)) {
-				if (returnTo->history() == _history
-					&& returnTo->replyToTop() == _rootId
-					&& _replyReturn != returnTo) {
+				if (returnTo->history() != _history) {
+					return nullptr;
+				} else if (general
+					&& _inner->viewByPosition(returnTo->position())
+					&& returnTo->replyToId() == messageId) {
+					return returnTo;
+				} else if (!general && (returnTo->replyToTop() == _rootId)) {
 					return returnTo;
 				}
 			}
 		}
 		return nullptr;
 	}();
+	if (!originMessage) {
+		return false;
+	}
+	const auto originItem = (!originMessage || _replyReturn == originMessage)
+		? nullptr
+		: originMessage;
 	showAtPosition(message->position(), originItem);
 	return true;
 }
@@ -1756,8 +1827,8 @@ void RepliesWidget::updateInnerVisibleArea() {
 void RepliesWidget::updatePinnedVisibility() {
 	if (!_loaded) {
 		return;
-	} else if (!_root) {
-		setPinnedVisibility(true);
+	} else if (!_root || _root->isEmpty()) {
+		setPinnedVisibility(!_root);
 		return;
 	}
 	const auto item = [&] {

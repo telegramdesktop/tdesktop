@@ -96,8 +96,9 @@ public:
 		return _botCommands;
 	}
 
-	void setIsForum(not_null<ChannelData*> that, bool is);
+	void ensureForum(not_null<ChannelData*> that);
 	[[nodiscard]] Data::Forum *forum() const;
+	[[nodiscard]] std::unique_ptr<Data::Forum> takeForumData();
 
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
@@ -148,15 +149,9 @@ public:
 	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(ChannelDataFlags which) {
-		_flags.set(which);
-	}
-	void addFlags(ChannelDataFlags which) {
-		_flags.add(which);
-	}
-	void removeFlags(ChannelDataFlags which) {
-		_flags.remove(which);
-	}
+	void setFlags(ChannelDataFlags which);
+	void addFlags(ChannelDataFlags which);
+	void removeFlags(ChannelDataFlags which);
 	[[nodiscard]] auto flags() const {
 		return _flags.current();
 	}
@@ -489,8 +484,6 @@ private:
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;
-
-	rpl::lifetime _lifetime;
 
 };
 

@@ -807,12 +807,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| ((data.is_forum() && data.is_megagroup())
 				? Flag::Forum
 				: Flag());
-		const auto wasForum = channel->isForum();
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
-		if (const auto nowForum = channel->isForum(); nowForum != wasForum) {
-			Assert(channel->mgInfo != nullptr);
-			channel->mgInfo->setIsForum(channel, nowForum);
-		}
 
 		channel->setName(
 			qs(data.vtitle()),

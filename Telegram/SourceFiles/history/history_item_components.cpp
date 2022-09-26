@@ -259,7 +259,7 @@ bool HistoryMessageReply::updateData(
 			} else {
 				holder->history()->owner().registerDependentMessage(
 					holder,
-					replyToMsg);
+					replyToMsg.get());
 			}
 		}
 	}
@@ -298,7 +298,7 @@ bool HistoryMessageReply::updateData(
 void HistoryMessageReply::setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder) {
 	replyToLnk = replyToMsg
-		? goToMessageClickHandler(replyToMsg, holder->fullId())
+		? goToMessageClickHandler(replyToMsg.get(), holder->fullId())
 		: nullptr;
 }
 
@@ -307,7 +307,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	if (replyToMsg) {
 		holder->history()->owner().unregisterDependentMessage(
 			holder,
-			replyToMsg);
+			replyToMsg.get());
 		replyToMsg = nullptr;
 	}
 	replyToMsgId = 0;
@@ -399,7 +399,7 @@ void HistoryMessageReply::resize(int width) const {
 void HistoryMessageReply::itemRemoved(
 		HistoryMessage *holder,
 		HistoryItem *removed) {
-	if (replyToMsg == removed) {
+	if (replyToMsg.get() == removed) {
 		clearData(holder);
 		holder->history()->owner().requestItemResize(holder);
 	}

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_messages.h"
+#include "data/data_forum_topic.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 
@@ -125,7 +126,10 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 		}
 		slice.ids.reserve(messages.size());
 		for (const auto &item : messages) {
-			if (item->replyToTop() != _rootId) {
+			const auto checkId = (_rootId == ForumTopic::kGeneralId)
+				? item->topicRootId()
+				: item->replyToTop();
+			if (!item->inThread(_rootId)) {
 				continue;
 			}
 			slice.ids.push_back(item->fullId());
@@ -143,7 +147,7 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 		dates.push_back(message->date());
 	}
 	for (const auto &item : messages) {
-		if (item->replyToTop() != _rootId) {
+		if (!item->inThread(_rootId)) {
 			continue;
 		}
 		const auto date = item->date();
@@ -341,12 +345,15 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	auto nearestToAround = std::optional<MsgId>();
 	slice->ids.reserve(useAfter + useBefore);
 	for (auto j = i - useAfter, e = i + useBefore; j != e; ++j) {
-		if (!nearestToAround && *j < around) {
+		const auto id = *j;
+		if (id == _rootId) {
+			continue;
+		} else if (!nearestToAround && id < around) {
 			nearestToAround = (j == i - useAfter)
-				? *j
+				? id
 				: *(j - 1);
 		}
-		slice->ids.emplace_back(peerId, *j);
+		slice->ids.emplace_back(peerId, id);
 	}
 	slice->nearestToAround = FullMsgId(
 		peerId,
@@ -380,7 +387,7 @@ bool RepliesList::applyUpdate(
 			}
 		}
 	}
-	if (update.item->replyToTop() != _rootId) {
+	if (!update.item->inThread(_rootId)) {
 		return false;
 	}
 	const auto id = update.item->id;
@@ -613,7 +620,7 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	auto skipped = 0;
 	for (const auto &message : list) {
 		if (const auto item = owner.addNewMessage(message, localFlags, type)) {
-			if (item->replyToTop() == _rootId) {
+			if (item->inThread(_rootId)) {
 				if (toFront && item->id > _list.front()) {
 					refreshed.push_back(item->id);
 				} else if (_list.empty() || item->id < _list.back()) {

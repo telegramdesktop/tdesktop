@@ -345,7 +345,9 @@ public:
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
 
-	void openForum(not_null<ChannelData*> forum);
+	void openForum(
+		not_null<ChannelData*> forum,
+		const SectionShow &params = SectionShow::Way::ClearStack);
 	void closeForum();
 	const rpl::variable<ChannelData*> &openedForum() const;
 
@@ -474,7 +476,9 @@ public:
 	[[nodiscard]] int filtersWidth() const;
 	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
 	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
-	void setActiveChatsFilter(FilterId id);
+	void setActiveChatsFilter(
+		FilterId id,
+		const SectionShow &params = SectionShow::Way::ClearStack);
 
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
@@ -582,6 +586,7 @@ private:
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
+	rpl::lifetime _activeHistoryLifetime;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
@@ -600,6 +605,7 @@ private:
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
 	rpl::variable<ChannelData*> _openedForum;
+	rpl::lifetime _openedForumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

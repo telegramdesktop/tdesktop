@@ -260,50 +260,7 @@ Widget::Widget(
 	}, lifetime());
 	_inner->chosenRow(
 	) | rpl::start_with_next([=](const ChosenRow &row) {
-		const auto openSearchResult = !controller->selectingPeer()
-			&& row.filteredRow;
-		const auto history = row.key.history();
-		if (const auto topic = row.key.topic()) {
-			controller->showRepliesForMessage(
-				topic->forum(),
-				topic->rootId());
-		} else if (history && history->peer->isForum()) {
-			controller->openForum(history->peer->asChannel());
-		} else if (history) {
-			const auto peer = history->peer;
-			const auto showAtMsgId = controller->uniqueChatsInSearchResults()
-				? ShowAtUnreadMsgId
-				: row.message.fullId.msg;
-			if (row.newWindow && controller->canShowSeparateWindow(peer)) {
-				const auto active = controller->activeChatCurrent();
-				const auto fromActive = active.history()
-					? (active.history()->peer == peer)
-					: false;
-				const auto toSeparate = [=] {
-					Core::App().ensureSeparateWindowForPeer(
-						peer,
-						showAtMsgId);
-				};
-				if (fromActive) {
-					controller->window().preventOrInvoke([=] {
-						controller->content()->ui_showPeerHistory(
-							0,
-							Window::SectionShow::Way::ClearStack,
-							0);
-						toSeparate();
-					});
-				} else {
-					toSeparate();
-				}
-			} else {
-				controller->content()->choosePeer(peer->id, showAtMsgId);
-			}
-		} else if (const auto folder = row.key.folder()) {
-			controller->openFolder(folder);
-		}
-		if (openSearchResult && !session().supportMode()) {
-			escape();
-		}
+		chosenRow(row);
 	}, lifetime());
 
 	_scroll->geometryChanged(
@@ -420,6 +377,53 @@ Widget::Widget(
 	}, lifetime());
 
 	setupDownloadBar();
+}
+
+void Widget::chosenRow(const ChosenRow &row) {
+	const auto openSearchResult = !controller()->selectingPeer()
+		&& row.filteredRow;
+	const auto history = row.key.history();
+	if (const auto topic = row.key.topic()) {
+		controller()->showRepliesForMessage(
+			topic->forum(),
+			topic->rootId());
+	} else if (history && history->peer->isForum()) {
+		controller()->openForum(history->peer->asChannel());
+	} else if (history) {
+		const auto peer = history->peer;
+		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
+			? ShowAtUnreadMsgId
+			: row.message.fullId.msg;
+		if (row.newWindow && controller()->canShowSeparateWindow(peer)) {
+			const auto active = controller()->activeChatCurrent();
+			const auto fromActive = active.history()
+				? (active.history()->peer == peer)
+				: false;
+			const auto toSeparate = [=] {
+				Core::App().ensureSeparateWindowForPeer(
+					peer,
+					showAtMsgId);
+			};
+			if (fromActive) {
+				controller()->window().preventOrInvoke([=] {
+					controller()->content()->ui_showPeerHistory(
+						0,
+						Window::SectionShow::Way::ClearStack,
+						0);
+					toSeparate();
+				});
+			} else {
+				toSeparate();
+			}
+		} else {
+			controller()->content()->choosePeer(peer->id, showAtMsgId);
+		}
+	} else if (const auto folder = row.key.folder()) {
+		controller()->openFolder(folder);
+	}
+	if (openSearchResult && !session().supportMode()) {
+		escape();
+	}
 }
 
 void Widget::setGeometryWithTopMoved(
