@@ -24,7 +24,7 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 	Interval{ 180 + 15, 50 },
 	Interval{ -15 - 50, 50 },
 })
-, _lifeLength({ 150, 200 })
+, _lifeLength({ 150 / 5, 200 / 5 })
 , _deathTime({ 1500, 2000 })
 , _size({ 5, 10 })
 , _alpha({ opaque ? 100 : 40, opaque ? 100 : 60 })
