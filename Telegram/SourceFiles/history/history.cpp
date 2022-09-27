@@ -1134,13 +1134,9 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
-	if (peer->isForum()) {
-		if (const auto forum = peer->asChannel()->forum()) {
-			/*if (item->isTopicStart()) { // #TODO forum isTopicStart legacy?
-				forum->topicAdded(item);
-			} else */if (const auto topic = forum->topicFor(item)) {
-				topic->applyItemAdded(item);
-			}
+	if (const auto forum = peer->forum()) {
+		if (const auto topic = forum->topicFor(item)) {
+			topic->applyItemAdded(item);
 		}
 	}
 }

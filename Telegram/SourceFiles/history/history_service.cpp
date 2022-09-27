@@ -809,13 +809,13 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 		}
 	}, [&](const MTPDmessageActionTopicEditTitle &data) {
 		if (const auto forum = history()->peer->forum()) {
-			if (const auto topic = forum->topicFor(replyToTop())) {
+			if (const auto topic = forum->topicFor(this)) {
 				topic->applyTitle(qs(data.vtitle()));
 			}
 		}
 	}, [&](const MTPDmessageActionTopicEditIcon &data) {
 		if (const auto forum = history()->peer->forum()) {
-			if (const auto topic = forum->topicFor(replyToTop())) {
+			if (const auto topic = forum->topicFor(this)) {
 				topic->applyIconId(data.vemoji_document_id().v);
 			}
 		}

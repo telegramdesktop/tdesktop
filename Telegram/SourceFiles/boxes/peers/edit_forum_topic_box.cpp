@@ -189,47 +189,47 @@ void EditForumTopicBox(
 				title->showError();
 				return;
 			}
+			const auto done = [=] {
+				state->titleRequestId = 0;
+				if (!state->iconRequestId) {
+					box->closeBox();
+				}
+			};
 			state->titleRequestId = api->request(MTPchannels_EditForumTitle(
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed())
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
-				state->titleRequestId = 0;
-				if (!state->iconRequestId) {
-					box->closeBox();
-				}
+				done();
 			}).fail([=](const MTP::Error &error) {
 				if (error.type() == u"TOPIC_NOT_MODIFIED") {
-					state->titleRequestId = 0;
-					if (!state->iconRequestId) {
-						box->closeBox();
-					}
-					return;
+					done();
+				} else {
+					state->titleRequestId = -1;
 				}
-				state->titleRequestId = -1;
 			}).send();
 		}
 		if (state->iconRequestId <= 0) {
+			const auto done = [=] {
+				state->iconRequestId = 0;
+				if (!state->titleRequestId) {
+					box->closeBox();
+				}
+			};
 			state->iconRequestId = api->request(MTPchannels_EditForumIcon(
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
 				MTP_long(state->iconId)
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
-				state->iconRequestId = 0;
-				if (!state->titleRequestId) {
-					box->closeBox();
-				}
+				done();
 			}).fail([=](const MTP::Error &error) {
 				if (error.type() == u"TOPIC_NOT_MODIFIED") {
-					state->iconRequestId = 0;
-					if (!state->titleRequestId) {
-						box->closeBox();
-					}
-					return;
+					done();
+				} else {
+					state->iconRequestId = -1;
 				}
-				state->iconRequestId = -1;
 			}).send();
 		}
 	};

@@ -172,7 +172,8 @@ bool Forum::creating(MsgId rootId) const {
 }
 
 ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {
-	return topicFor(item->topicRootId());
+	const auto maybe = topicFor(item->replyToTop());
+	return maybe ? maybe : topicFor(item->topicRootId());
 }
 
 ForumTopic *Forum::topicFor(MsgId rootId) {
