@@ -1001,7 +1001,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 		}
 	}
 
-	AddCopyLinkAction(result, link);
+	if (!list->hasCopyRestriction(view->data())) {
+		AddCopyLinkAction(result, link);
+	}
 	AddMessageActions(result, request, list);
 
 	if (item) {
