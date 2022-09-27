@@ -70,11 +70,7 @@ Cover::Cover(
 	QWidget *parent,
 	not_null<PeerData*> peer,
 	not_null<Window::SessionController*> controller)
-: Cover(parent, peer, controller, NameValue(
-	peer
-) | rpl::map([=](const TextWithEntities &name) {
-	return name.text;
-})) {
+: Cover(parent, peer, controller, NameValue(peer)) {
 }
 
 Cover::Cover(

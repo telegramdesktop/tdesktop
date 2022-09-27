@@ -17,8 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
@@ -30,6 +29,10 @@ Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
 : ContentMemento(peer, migratedPeerId) {
 }
 
+Memento::Memento(not_null<Data::ForumTopic*> topic)
+: ContentMemento(topic) {
+}
+
 Section Memento::section() const {
 	return Section(Section::Type::Profile);
 }
@@ -38,9 +41,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(
-		parent,
-		controller);
+	auto result = object_ptr<Widget>(parent, controller);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -55,9 +56,7 @@ std::unique_ptr<MembersState> Memento::membersState() {
 
 Memento::~Memento() = default;
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller)
+Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
 	controller->setSearchEnabledByContent(false);
 
@@ -81,6 +80,9 @@ void Widget::setInnerFocus() {
 }
 
 rpl::producer<QString> Widget::title() {
+	if (const auto topic = controller()->key().topic()) {
+		return rpl::single(u"Topic Info"_q); // #TODO forum lang
+	}
 	const auto peer = controller()->key().peer();
 	if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
@@ -132,5 +134,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

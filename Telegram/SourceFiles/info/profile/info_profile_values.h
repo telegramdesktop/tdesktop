@@ -14,6 +14,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct ChannelLocation;
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -28,8 +32,7 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 
 inline auto ToSingleLine() {
 	return rpl::map([](const QString &text) {
@@ -40,8 +43,9 @@ inline auto ToSingleLine() {
 rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 
-[[nodiscard]] rpl::producer<TextWithEntities> NameValue(
-	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> NameValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> TitleValue(
+	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
@@ -95,5 +99,4 @@ enum class BadgeType;
 [[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

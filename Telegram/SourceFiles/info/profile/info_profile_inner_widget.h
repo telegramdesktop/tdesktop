@@ -10,7 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "base/object_ptr.h"
 
-#include <rpl/variable.h>
+namespace Data {
+class ForumTopic;
+} // namespace Data
 
 namespace Window {
 class SessionController;
@@ -65,6 +67,7 @@ private:
 	const not_null<Controller*> _controller;
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
+	Data::ForumTopic * const _topic = nullptr;
 
 	Members *_members = nullptr;
 	Cover *_cover = nullptr;

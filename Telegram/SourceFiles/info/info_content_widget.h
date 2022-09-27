@@ -148,6 +148,7 @@ public:
 	: _peer(peer)
 	, _migratedPeerId(migratedPeerId) {
 	}
+	explicit ContentMemento(not_null<Data::ForumTopic*> topic);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
@@ -165,6 +166,9 @@ public:
 	}
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
+	}
+	Data::ForumTopic *topic() const {
+		return _topic;
 	}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
@@ -209,6 +213,7 @@ public:
 private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
+	Data::ForumTopic * const _topic = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;

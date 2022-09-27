@@ -33,6 +33,7 @@ public:
 	ForumTopic(const ForumTopic &) = delete;
 	ForumTopic &operator=(const ForumTopic &) = delete;
 
+	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<History*> forum() const;
 	[[nodiscard]] MsgId rootId() const;
 	[[nodiscard]] bool isGeneral() const {
@@ -62,7 +63,10 @@ public:
 	[[nodiscard]] bool lastMessageKnown() const;
 	[[nodiscard]] bool lastServerMessageKnown() const;
 
+	[[nodiscard]] QString title() const;
 	void applyTitle(const QString &title);
+	[[nodiscard]] DocumentId iconId() const;
+	void applyIconId(DocumentId iconId);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 
@@ -108,6 +112,7 @@ private:
 	const MsgId _rootId = 0;
 
 	QString _title;
+	DocumentId _iconId = 0;
 	base::flat_set<QString> _titleWords;
 	base::flat_set<QChar> _titleFirstLetters;
 	int _titleVersion = 0;

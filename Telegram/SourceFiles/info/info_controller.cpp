@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_controller.h"
 
-#include <rpl/range.h>
-#include <rpl/then.h>
 #include "ui/search_field_controller.h"
 #include "data/data_shared_media.h"
 #include "info/info_content_widget.h"
@@ -19,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
@@ -30,6 +29,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info {
 
 Key::Key(not_null<PeerData*> peer) : _value(peer) {
+}
+
+Key::Key(not_null<Data::ForumTopic*> topic) : _value(topic) {
 }
 
 Key::Key(Settings::Tag settings) : _value(settings) {
@@ -45,6 +47,16 @@ Key::Key(not_null<PollData*> poll, FullMsgId contextId)
 PeerData *Key::peer() const {
 	if (const auto peer = std::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
+	} else if (const auto topic = this->topic()) {
+		return topic->forum()->peer;
+	}
+	return nullptr;
+}
+
+Data::ForumTopic *Key::topic() const {
+	if (const auto topic = std::get_if<not_null<Data::ForumTopic*>>(
+			&_value)) {
+		return *topic;
 	}
 	return nullptr;
 }

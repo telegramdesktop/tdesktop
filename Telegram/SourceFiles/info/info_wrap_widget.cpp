@@ -541,10 +541,13 @@ void WrapWidget::showTopBarMenu(bool check) {
 			[=] { deleteAllDownloads(); },
 			&st::menuIconDelete);
 	} else if (const auto peer = key().peer()) {
+		const auto topic = key().topic();
 		Window::FillDialogsEntryMenu(
 			_controller->parentController(),
 			Dialogs::EntryState{
-				.key = peer->owner().history(peer),
+				.key = (topic
+					? Dialogs::Key{ topic }
+					: Dialogs::Key{ peer->owner().history(peer) }),
 				.section = Dialogs::EntryState::Section::Profile,
 			},
 			addAction);

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_premium_limits.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -74,13 +75,15 @@ void StripExternalLinks(TextWithEntities &text) {
 
 } // namespace
 
-rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
+rpl::producer<QString> NameValue(not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		UpdateFlag::Name
-	) | rpl::map([=] {
-		return peer->name();
-	}) | Ui::Text::ToWithEntities();
+	) | rpl::map([=] { return peer->name(); });
+}
+
+rpl::producer<QString> TitleValue(not_null<Data::ForumTopic*> topic) {
+	return rpl::single(topic->title()); // #TODO forum title changes
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {

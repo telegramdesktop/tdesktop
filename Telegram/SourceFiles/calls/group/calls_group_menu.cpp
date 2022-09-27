@@ -182,10 +182,10 @@ void JoinAsAction::prepare() {
 	rpl::combine(
 		tr::lng_group_call_display_as_header(),
 		Info::Profile::NameValue(_peer)
-	) | rpl::start_with_next([=](QString text, TextWithEntities name) {
+	) | rpl::start_with_next([=](QString text, QString name) {
 		const auto &padding = st::groupCallJoinAsPadding;
 		_text.setMarkedText(_st.itemStyle, { text }, MenuTextOptions);
-		_name.setMarkedText(_st.itemStyle, name, MenuTextOptions);
+		_name.setMarkedText(_st.itemStyle, { name }, MenuTextOptions);
 		const auto textWidth = _text.maxWidth();
 		const auto nameWidth = _name.maxWidth();
 		const auto textLeft = padding.left()

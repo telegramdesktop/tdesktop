@@ -1258,9 +1258,7 @@ base::unique_qptr<Ui::PopupMenu> Members::Controller::createRowContextMenu(
 			result->menu(),
 			st::groupCallPopupCoverMenu,
 			st::groupCallMenuCover,
-			Info::Profile::NameValue(
-				participantPeer
-			) | rpl::map([](const auto &text) { return text.text; }),
+			Info::Profile::NameValue(participantPeer),
 			PrepareShortInfoStatus(participantPeer),
 			PrepareShortInfoUserpic(
 				participantPeer,

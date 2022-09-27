@@ -17,6 +17,10 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
 namespace Ui {
 class ScrollArea;
 struct ScrollToRequest;
@@ -38,6 +42,8 @@ class Memento final : public Window::SectionMemento {
 public:
 	explicit Memento(not_null<PeerData*> peer);
 	Memento(not_null<PeerData*> peer, Section section);
+	explicit Memento(not_null<Data::ForumTopic*> topic);
+	Memento(not_null<Data::ForumTopic*> topic, Section section);
 	Memento(Settings::Tag settings, Section section);
 	Memento(not_null<PollData*> poll, FullMsgId contextId);
 	explicit Memento(std::vector<std::shared_ptr<ContentMemento>> stack);
@@ -73,6 +79,9 @@ private:
 		not_null<PeerData*> peer,
 		Section section);
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
+		not_null<Data::ForumTopic*> topic,
+		Section section);
+	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
 		Settings::Tag settings,
 		Section section);
 	static std::vector<std::shared_ptr<ContentMemento>> DefaultStack(
@@ -81,6 +90,9 @@ private:
 
 	static std::shared_ptr<ContentMemento> DefaultContent(
 		not_null<PeerData*> peer,
+		Section section);
+	static std::shared_ptr<ContentMemento> DefaultContent(
+		not_null<Data::ForumTopic*> topic,
 		Section section);
 
 	std::vector<std::shared_ptr<ContentMemento>> _stack;

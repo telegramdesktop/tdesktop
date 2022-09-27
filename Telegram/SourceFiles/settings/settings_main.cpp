@@ -176,8 +176,8 @@ void Cover::setupChildGeometry() {
 void Cover::initViewers() {
 	Info::Profile::NameValue(
 		_user
-	) | rpl::start_with_next([=](const TextWithEntities &value) {
-		_name->setText(value.text);
+	) | rpl::start_with_next([=](const QString &name) {
+		_name->setText(name);
 		refreshNameGeometry(width());
 	}, lifetime());
 

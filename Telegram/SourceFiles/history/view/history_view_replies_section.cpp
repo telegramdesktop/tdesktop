@@ -453,7 +453,9 @@ Data::ForumTopic *RepliesWidget::lookupTopic() {
 			).done([=](const MTPmessages_ForumTopics &result) {
 				if (const auto forum = _history->peer->forum()) {
 					forum->applyReceivedTopics(result);
-					_topic = forum->topicFor(_rootId);
+					if ((_topic = forum->topicFor(_rootId))) {
+						refreshTopBarActiveChat();
+					}
 				}
 				_resolveTopicRequestId = 0;
 			}).fail([=] {
@@ -1310,9 +1312,10 @@ SendMenu::Type RepliesWidget::sendMenuType() const {
 }
 
 void RepliesWidget::refreshTopBarActiveChat() {
-	const auto state = Dialogs::EntryState{
-		.key = _history,
-		.section = Dialogs::EntryState::Section::Replies,
+	using namespace Dialogs;
+	const auto state = EntryState{
+		.key = (_topic ? Key{ _topic } : Key{ _history }),
+		.section = EntryState::Section::Replies,
 		.rootId = _rootId,
 		.currentReplyToId = _composeControls->replyingToMessage().msg,
 	};

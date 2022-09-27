@@ -55,8 +55,17 @@ ForumTopic *Key::topic() const {
 	return _value ? _value->asTopic() : nullptr;
 }
 
+History *Key::parentHistory() const {
+	if (const auto result = history()) {
+		return result;
+	} else if (const auto child = topic()) {
+		return child->forum();
+	}
+	return nullptr;
+}
+
 PeerData *Key::peer() const {
-	if (const auto history = this->history()) {
+	if (const auto history = parentHistory()) {
 		return history->peer;
 	}
 	return nullptr;

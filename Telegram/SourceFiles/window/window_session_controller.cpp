@@ -478,17 +478,6 @@ void SessionNavigation::showRepliesForMessage(
 	_api.request(base::take(_showingRepliesRequestId)).cancel();
 
 	const auto postPeer = history->peer;
-	//const auto item = _session->data().message(postPeer, rootId);
-	//if (!commentId && (!item || !item->repliesAreComments())) {
-	//	showSection(std::make_shared<HistoryView::RepliesMemento>(history, rootId));
-	//	return;
-	//} else if (const auto id = item ? item->commentsItemId() : FullMsgId()) {
-	//	if (const auto commentsItem = _session->data().message(id)) {
-	//		showSection(
-	//			std::make_shared<HistoryView::RepliesMemento>(commentsItem));
-	//		return;
-	//	}
-	//}
 	_showingRepliesHistory = history;
 	_showingRepliesRootId = rootId;
 	_showingRepliesRequestId = _api.request(
@@ -537,9 +526,11 @@ void SessionNavigation::showRepliesForMessage(
 					post->setRepliesOutboxReadTill(
 						data.vread_outbox_max_id().value_or_empty());
 				}
-				showSection(std::make_shared<HistoryView::RepliesMemento>(
-					item,
-					commentId));
+				showSection(
+					std::make_shared<HistoryView::RepliesMemento>(
+						item,
+						commentId),
+					params);
 			}
 		});
 	}).fail([=](const MTP::Error &error) {
@@ -1577,9 +1568,8 @@ void SessionController::cancelUploadLayer(not_null<HistoryItem*> item) {
 void SessionController::showSection(
 		std::shared_ptr<SectionMemento> memento,
 		const SectionShow &params) {
-	if (!params.thirdColumn && widget()->showSectionInExistingLayer(
-			memento.get(),
-			params)) {
+	if (!params.thirdColumn
+		&& widget()->showSectionInExistingLayer(memento.get(), params)) {
 		return;
 	}
 	content()->showSection(std::move(memento), params);

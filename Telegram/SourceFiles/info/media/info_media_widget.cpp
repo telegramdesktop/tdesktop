@@ -18,8 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Media {
+namespace Info::Media {
 
 std::optional<int> TypeToTabIndex(Type type) {
 	switch (type) {
@@ -57,6 +56,17 @@ Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type)
 	_searchState.query.peerId = peer->id;
 	_searchState.query.migratedPeerId = migratedPeerId;
 	if (migratedPeerId) {
+		_searchState.migratedList = Storage::SparseIdsList();
+	}
+}
+
+Memento::Memento(not_null<Data::ForumTopic*> topic, Type type)
+: ContentMemento(topic)
+, _type(type) {
+	_searchState.query.type = type; // #TODO forum search
+	_searchState.query.peerId = peer()->id;
+	_searchState.query.migratedPeerId = migratedPeerId();
+	if (migratedPeerId()) {
 		_searchState.migratedList = Storage::SparseIdsList();
 	}
 }
@@ -162,5 +172,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
 }
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

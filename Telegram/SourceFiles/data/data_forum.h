@@ -59,8 +59,4 @@ private:
 
 };
 
-void ShowAddForumTopic(
-	not_null<Window::SessionController*> controller,
-	not_null<ChannelData*> forum);
-
 } // namespace Data

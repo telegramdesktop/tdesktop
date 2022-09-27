@@ -2409,6 +2409,8 @@ auto MainWidget::thirdSectionForCurrentMainSection(
 -> std::shared_ptr<Window::SectionMemento> {
 	if (_thirdSectionFromStack) {
 		return std::move(_thirdSectionFromStack);
+	} else if (const auto topic = key.topic()) {
+		return std::make_shared<Info::Memento>(topic);
 	} else if (const auto peer = key.peer()) {
 		return std::make_shared<Info::Memento>(
 			peer,

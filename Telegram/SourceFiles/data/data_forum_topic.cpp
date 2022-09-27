@@ -25,6 +25,10 @@ ForumTopic::ForumTopic(not_null<History*> forum, MsgId rootId)
 , _rootId(rootId) {
 }
 
+not_null<ChannelData*> ForumTopic::channel() const {
+	return _forum->peer->asChannel();
+}
+
 not_null<History*> ForumTopic::forum() const {
 	return _forum;
 }
@@ -38,6 +42,11 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 
 	const auto &data = topic.data();
 	applyTitle(qs(data.vtitle()));
+	if (const auto iconId = data.vicon_emoji_id()) {
+		applyIconId(iconId->v);
+	} else {
+		applyIconId(0);
+	}
 
 	const auto pinned = _list->pinned();
 #if 0 // #TODO forum pinned
@@ -242,6 +251,10 @@ bool ForumTopic::lastServerMessageKnown() const {
 	return _lastServerMessage.has_value();
 }
 
+QString ForumTopic::title() const {
+	return _title;
+}
+
 void ForumTopic::applyTitle(const QString &title) {
 	if (_title == title || (isGeneral() && !_title.isEmpty())) {
 		return;
@@ -249,6 +262,15 @@ void ForumTopic::applyTitle(const QString &title) {
 	_title = isGeneral() ? "General! Topic." : title; // #TODO forum lang
 	++_titleVersion;
 	indexTitleParts();
+	updateChatListEntry();
+}
+
+DocumentId ForumTopic::iconId() const {
+	return _iconId;
+}
+
+void ForumTopic::applyIconId(DocumentId iconId) {
+	_iconId = iconId;
 	updateChatListEntry();
 }
 

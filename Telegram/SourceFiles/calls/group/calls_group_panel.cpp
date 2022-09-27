@@ -221,8 +221,8 @@ void Panel::migrate(not_null<ChannelData*> channel) {
 void Panel::subscribeToPeerChanges() {
 	Info::Profile::NameValue(
 		_peer
-	) | rpl::start_with_next([=](const TextWithEntities &name) {
-		window()->setTitle(name.text);
+	) | rpl::start_with_next([=](const QString &name) {
+		window()->setTitle(name);
 	}, _peerLifetime);
 }
 
@@ -2336,10 +2336,8 @@ void Panel::refreshTitle() {
 			) | rpl::map([=](not_null<Data::GroupCall*> real) {
 				return real->titleValue();
 			}) | rpl::flatten_latest())
-		) | rpl::map([=](
-				const TextWithEntities &name,
-				const QString &title) {
-			return title.isEmpty() ? name.text : title;
+		) | rpl::map([=](const QString &name, const QString &title) {
+			return title.isEmpty() ? name : title;
 		}) | rpl::after_next([=] {
 			refreshTitleGeometry();
 		});

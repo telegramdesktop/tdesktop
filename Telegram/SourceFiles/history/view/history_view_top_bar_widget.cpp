@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_top_bar_widget.h"
 
-#include <rpl/combine.h>
-#include <rpl/combine_previous.h>
 #include "history/history.h"
 #include "history/view/history_view_send_action.h"
 #include "boxes/add_contact_box.h"
@@ -48,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_forum_topic.h"
 #include "data/data_send_action.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "base/unixtime.h"
@@ -474,7 +473,27 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	const auto now = crl::now();
 	const auto history = _activeChat.key.history();
 	const auto folder = _activeChat.key.folder();
-	if (folder
+	if (const auto topic = _activeChat.key.topic()) {
+		p.setPen(st::dialogsNameFg);
+		topic->chatListNameText().drawElided(
+			p,
+			nameleft,
+			nametop,
+			availableWidth);
+
+		p.setFont(st::dialogsTextFont);
+		if (!paintConnectingState(p, nameleft, statustop, width())
+			&& !paintSendAction(
+				p,
+				nameleft,
+				statustop,
+				availableWidth,
+				width(),
+				st::historyStatusFgTyping,
+				now)) {
+			paintStatus(p, nameleft, statustop, availableWidth, width());
+		}
+	} else if (folder
 		|| history->peer->sharedMediaInfo()
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)
@@ -673,6 +692,8 @@ void TopBarWidget::infoClicked() {
 		return;
 	} else if (key.folder()) {
 		_controller->closeFolder();
+	} else if (const auto topic = key.topic()) {
+		_controller->showSection(std::make_shared<Info::Memento>(topic));
 	} else if (key.peer()->isSelf()) {
 		_controller->showSection(std::make_shared<Info::Memento>(
 			key.peer(),
@@ -706,6 +727,8 @@ void TopBarWidget::setActiveChat(
 		_activeChat = activeChat;
 		return;
 	}
+	const auto topicChanged = (_activeChat.key.topic()
+		!= activeChat.key.topic());
 	const auto peerChanged = (_activeChat.key.history()
 		!= activeChat.key.history());
 
@@ -715,12 +738,12 @@ void TopBarWidget::setActiveChat(
 	_back->clearState();
 	update();
 
-	if (peerChanged) {
+	if (peerChanged || topicChanged) {
 		_titleBadge.unload();
 		_titleNameVersion = 0;
 		_emojiInteractionSeen = nullptr;
 		_activeChatLifetime.destroy();
-		if (const auto history = _activeChat.key.history()) {
+		if (const auto history = _activeChat.key.parentHistory()) {
 			session().changes().peerFlagsValue(
 				history->peer,
 				Data::PeerUpdate::Flag::GroupCall
@@ -737,7 +760,9 @@ void TopBarWidget::setActiveChat(
 				updateControlsVisibility();
 				updateControlsGeometry();
 			}, _activeChatLifetime);
+		}
 
+		if (const auto history = _activeChat.key.history()) {
 			using InteractionSeen = ChatHelpers::EmojiInteractionSeen;
 			_controller->emojiInteractions().seen(
 			) | rpl::filter([=](const InteractionSeen &seen) {

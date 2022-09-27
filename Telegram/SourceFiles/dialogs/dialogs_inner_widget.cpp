@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
 #include "boxes/filters/edit_filter_box.h"
+#include "boxes/peers/edit_forum_topic_box.h"
 #include "api/api_chat_filters.h"
 #include "base/qt/qt_common_adapters.h"
 #include "styles/style_dialogs.h"
@@ -2411,7 +2412,8 @@ void InnerWidget::refreshEmptyLabel() {
 		} else if (_emptyState == EmptyState::EmptyFolder) {
 			editOpenedFilter();
 		} else if (_emptyState == EmptyState::EmptyForum) {
-			Data::ShowAddForumTopic(_controller, _openedForum->channel());
+			_controller->show(
+				Box(NewForumTopicBox, _controller, _openedForum->history()));
 		}
 	});
 	_empty->setVisible(_state == WidgetState::Default);
@@ -3287,9 +3289,10 @@ void InnerWidget::setupShortcuts() {
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
 			if (_openedForum) {
-				Data::ShowAddForumTopic(
+				_controller->show(Box(
+					NewForumTopicBox,
 					_controller,
-					_openedForum->channel());
+					_openedForum->history()));
 			} else {
 				_controller->content()->choosePeer(
 					session().userPeerId(),

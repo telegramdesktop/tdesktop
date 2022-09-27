@@ -33,6 +33,14 @@ Memento::Memento(not_null<PeerData*> peer, Section section)
 : Memento(DefaultStack(peer, section)) {
 }
 
+Memento::Memento(not_null<Data::ForumTopic*> topic)
+: Memento(topic, Section::Type::Profile) {
+}
+
+Memento::Memento(not_null<Data::ForumTopic*> topic, Section section)
+: Memento(DefaultStack(topic, section)) {
+}
+
 Memento::Memento(Settings::Tag settings, Section section)
 : Memento(DefaultStack(settings, section)) {
 }
@@ -50,6 +58,14 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		Section section) {
 	auto result = std::vector<std::shared_ptr<ContentMemento>>();
 	result.push_back(DefaultContent(peer, section));
+	return result;
+}
+
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<Data::ForumTopic*> topic,
+		Section section) {
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(DefaultContent(topic, section));
 	return result;
 }
 
@@ -107,6 +123,18 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<Members::Memento>(
 			peer,
 			migratedPeerId);
+	}
+	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
+}
+
+std::shared_ptr<ContentMemento> Memento::DefaultContent(
+		not_null<Data::ForumTopic*> topic,
+		Section section) {
+	switch (section.type()) {
+	case Section::Type::Profile:
+		return std::make_shared<Profile::Memento>(topic);
+	case Section::Type::Media:
+		return std::make_shared<Media::Memento>(topic, section.mediaType());
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }

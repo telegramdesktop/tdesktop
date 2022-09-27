@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/add_participants_box.h"
+#include "boxes/peers/edit_forum_topic_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "ui/boxes/report_box.h"
 #include "ui/toast/toast.h"
@@ -63,6 +64,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_drafts.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_histories.h"
@@ -188,6 +190,7 @@ private:
 	void addClearHistory();
 	void addDeleteChat();
 	void addLeaveChat();
+	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
 	void addThemeEdit();
@@ -207,6 +210,7 @@ private:
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
 	PeerData *_peer = nullptr;
+	Data::ForumTopic *_topic = nullptr;
 	Data::Folder *_folder = nullptr;
 	const PeerMenuCallback &_addAction;
 
@@ -326,12 +330,13 @@ Filler::Filler(
 : _controller(controller)
 , _request(request)
 , _peer(request.key.peer())
+, _topic(request.key.topic())
 , _folder(request.key.folder())
 , _addAction(addAction) {
 }
 
 void Filler::addHidePromotion() {
-	const auto history = _peer->owner().historyLoaded(_peer);
+	const auto history = _request.key.history();
 	if (!history
 		|| !history->useTopPromotion()
 		|| history->topPromotionType().isEmpty()) {
@@ -346,6 +351,10 @@ void Filler::addHidePromotion() {
 }
 
 void Filler::addTogglePin() {
+	if (!_peer) {
+		// #TODO forum pin
+		return;
+	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
 	const auto peer = _peer;
@@ -400,11 +409,12 @@ void Filler::addSupportInfo() {
 }
 
 void Filler::addInfo() {
-	if (_peer->isSelf() || _peer->isRepliesChat()) {
+	if (_peer && (_peer->isSelf() || _peer->isRepliesChat())) {
 		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
-		const auto history = _controller->activeChatCurrent().history();
-		if (history && history->peer == _peer) {
+		const auto peer = _controller->activeChatCurrent().peer();
+		const auto topic = _controller->activeChatCurrent().topic();
+		if ((peer && peer == _peer) || (topic && topic == _topic)) {
 			if (Core::App().settings().thirdSectionInfoEnabled()
 				|| Core::App().settings().tabbedReplacedWithInfo()) {
 				return;
@@ -412,6 +422,7 @@ void Filler::addInfo() {
 		}
 	}
 	const auto controller = _controller;
+	const auto id = _topic ? _topic->rootId() : 0;
 	const auto peer = _peer;
 	const auto text = (peer->isChat() || peer->isMegagroup())
 		? tr::lng_context_view_group(tr::now)
@@ -468,6 +479,9 @@ void Filler::addToggleUnreadMark() {
 }
 
 void Filler::addToggleArchive() {
+	if (!_peer) {
+		return;
+	}
 	const auto peer = _peer;
 	const auto history = peer->owner().historyLoaded(peer);
 	if (history && history->useTopPromotion()) {
@@ -533,7 +547,7 @@ void Filler::addDeleteChat() {
 
 void Filler::addLeaveChat() {
 	const auto channel = _peer->asChannel();
-	if (!channel || !channel->amIn()) {
+	if (_topic || !channel || !channel->amIn()) {
 		return;
 	}
 	_addAction({
@@ -618,7 +632,7 @@ void Filler::addViewDiscussion() {
 }
 
 void Filler::addExportChat() {
-	if (!_peer->canExportChatHistory()) {
+	if (_topic || !_peer->canExportChatHistory()) {
 		return;
 	}
 	const auto peer = _peer;
@@ -733,6 +747,19 @@ void Filler::addDeleteContact() {
 	});
 }
 
+void Filler::addManageTopic() {
+	if (!_topic) {
+		return;
+	}
+	// #TODO forum lang
+	const auto history = _topic->forum();
+	const auto rootId = _topic->rootId();
+	const auto navigation = _controller;
+	_addAction(u"Edit topic"_q, [=] {
+		navigation->show(Box(EditForumTopicBox, navigation, history, rootId));
+	}, &st::menuIconEdit);
+}
+
 void Filler::addManageChat() {
 	if (!EditPeerInfoBox::Available(_peer)) {
 		return;
@@ -794,6 +821,9 @@ void Filler::addThemeEdit() {
 }
 
 void Filler::addTTLSubmenu(bool addSeparator) {
+	if (_topic) {
+		return; // #TODO later forum
+	}
 	const auto validator = TTLMenu::TTLValidator(
 		std::make_shared<Window::Show>(_controller),
 		_peer);
@@ -887,6 +917,7 @@ void Filler::fillProfileActions() {
 	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
+	addManageTopic();
 	addManageChat();
 	addViewDiscussion();
 	addExportChat();
@@ -897,6 +928,11 @@ void Filler::fillProfileActions() {
 }
 
 void Filler::fillRepliesActions() {
+	if (_topic) {
+		addInfo();
+		addManageTopic();
+		addManageChat();
+	}
 	addCreatePoll();
 }
 

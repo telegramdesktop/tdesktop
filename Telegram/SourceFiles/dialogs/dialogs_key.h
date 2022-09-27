@@ -42,6 +42,7 @@ public:
 	History *history() const;
 	Data::Folder *folder() const;
 	Data::ForumTopic *topic() const;
+	History *parentHistory() const;
 	PeerData *peer() const;
 
 	inline bool operator<(const Key &other) const {

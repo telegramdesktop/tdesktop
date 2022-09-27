@@ -178,6 +178,8 @@ PRIVATE
     boxes/peers/add_participants_box.h
     boxes/peers/edit_contact_box.cpp
     boxes/peers/edit_contact_box.h
+    boxes/peers/edit_forum_topic_box.cpp
+    boxes/peers/edit_forum_topic_box.h
     boxes/peers/edit_linked_chat_box.cpp
     boxes/peers/edit_linked_chat_box.h
     boxes/peers/edit_participant_box.cpp

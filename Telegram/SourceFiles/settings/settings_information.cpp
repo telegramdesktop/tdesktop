@@ -313,7 +313,7 @@ void SetupPhoto(
 	) | rpl::start_with_next([=](
 			int max,
 			int photoWidth,
-			const TextWithEntities&,
+			const QString&,
 			int statusWidth) {
 		photo->moveToLeft(
 			(max - photoWidth) / 2,
@@ -398,7 +398,7 @@ void SetupRows(
 	AddRow(
 		container,
 		tr::lng_settings_name_label(),
-		Info::Profile::NameValue(self),
+		Info::Profile::NameValue(self) | Ui::Text::ToWithEntities(),
 		tr::lng_profile_copy_fullname(tr::now),
 		[=] { controller->show(Box<EditNameBox>(self)); },
 		{ &st::settingsIconUser, kIconLightBlue });

@@ -818,11 +818,7 @@ void AttachWebView::show(
 		}
 		Payments::CheckoutProcess::Start(session, slug, reactivate);
 	};
-	auto title = Info::Profile::NameValue(
-		_bot
-	) | rpl::map([](const TextWithEntities &value) {
-		return value.text;
-	});
+	auto title = Info::Profile::NameValue(_bot);
 	ActiveWebViews().emplace(this);
 
 	using Button = Ui::BotWebView::MenuButton;

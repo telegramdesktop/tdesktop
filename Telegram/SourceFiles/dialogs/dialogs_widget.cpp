@@ -386,7 +386,9 @@ void Widget::chosenRow(const ChosenRow &row) {
 	if (const auto topic = row.key.topic()) {
 		controller()->showRepliesForMessage(
 			topic->forum(),
-			topic->rootId());
+			topic->rootId(),
+			ShowAtUnreadMsgId,
+			Window::SectionShow::Way::ClearStack);
 	} else if (history && history->peer->isForum()) {
 		controller()->openForum(history->peer->asChannel());
 	} else if (history) {

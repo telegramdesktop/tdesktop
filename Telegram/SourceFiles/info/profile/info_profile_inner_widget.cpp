@@ -51,6 +51,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
+, _topic(_controller->key().topic())
 , _content(setupContent(this)) {
 	_content->heightValue(
 	) | rpl::start_with_next([this](int height) {
@@ -67,15 +68,21 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = result->add(object_ptr<Cover>(
 		result,
 		_peer,
-		_controller->parentController()));
+		_controller->parentController(),
+		_topic ? TitleValue(_topic) : NameValue(_peer)));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
 		_controller->showSection(
 			std::make_shared<Info::Memento>(_peer, section));
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
-	auto details = SetupDetails(_controller, parent, _peer);
-	result->add(std::move(details));
+	if (_topic) {
+		// #TODO forum
+		//result->add(setupSharedMedia(result.data()));
+		return result;
+	}
+
+	result->add(SetupDetails(_controller, parent, _peer));
 	result->add(setupSharedMedia(result.data()));
 	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
 		result->add(std::move(members));

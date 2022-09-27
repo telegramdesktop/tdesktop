@@ -171,6 +171,14 @@ EmojiStatusPanel::EmojiStatusPanel() = default;
 
 EmojiStatusPanel::~EmojiStatusPanel() = default;
 
+void EmojiStatusPanel::setChooseFilter(Fn<bool(DocumentId)> filter) {
+	_chooseFilter = std::move(filter);
+}
+
+void EmojiStatusPanel::setChooseCallback(Fn<void(DocumentId)> callback) {
+	_chooseCallback = std::move(callback);
+}
+
 void EmojiStatusPanel::show(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> button,
@@ -278,30 +286,46 @@ void EmojiStatusPanel::create(
 		return Chosen{ .animation = data.messageSendingFrom };
 	});
 
-	const auto set = [=](Chosen chosen) {
+	const auto accept = [=](Chosen chosen) {
 		Expects(chosen.until != Selector::kPickCustomTimeId);
 
 		const auto owner = &controller->session().data();
 		startAnimation(owner, body, chosen.id, chosen.animation);
-		owner->emojiStatuses().set(chosen.id, chosen.until);
+		if (_chooseCallback) {
+			_chooseCallback(chosen.id);
+		} else {
+			owner->emojiStatuses().set(chosen.id, chosen.until);
+		}
 	};
 
 	rpl::merge(
 		std::move(statusChosen),
 		std::move(emojiChosen)
-	) | rpl::start_with_next([=](const Chosen chosen) {
-		if (chosen.id && !controller->session().premium()) {
-			ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
-		} else if (chosen.until == Selector::kPickCustomTimeId) {
+	) | rpl::filter([=](const Chosen &chosen) {
+		return filter(controller, chosen.id);
+	}) | rpl::start_with_next([=](const Chosen &chosen) {
+		if (chosen.until == Selector::kPickCustomTimeId) {
 			_panel->hideAnimated();
 			controller->show(Box(PickUntilBox, [=](TimeId seconds) {
-				set({ chosen.id, base::unixtime::now() + seconds });
+				accept({ chosen.id, base::unixtime::now() + seconds });
 			}));
 		} else {
-			set(chosen);
+			accept(chosen);
 			_panel->hideAnimated();
 		}
 	}, _panel->lifetime());
+}
+
+bool EmojiStatusPanel::filter(
+		not_null<Window::SessionController*> controller,
+		DocumentId chosenId) const {
+	if (_chooseFilter) {
+		return _chooseFilter(chosenId);
+	} else if (chosenId && !controller->session().premium()) {
+		ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
+		return false;
+	}
+	return true;
 }
 
 void EmojiStatusPanel::startAnimation(
