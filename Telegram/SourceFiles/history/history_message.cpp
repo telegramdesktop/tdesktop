@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_text_entities.h"
 #include "history/history.h"
+#include "history/history_service.h"
 #include "history/history_item_components.h"
 #include "history/history_unread_things.h"
 #include "history/view/history_view_service_message.h"
@@ -201,19 +202,30 @@ bool ShouldSendSilent(
 			&& peer->session().settings().supportAllSilent());
 }
 
-MsgId LookupReplyToTop(not_null<History*> history, MsgId replyToId) {
+HistoryItem *LookupReplyTo(not_null<History*> history, MsgId replyToId) {
 	const auto &owner = history->owner();
-	if (const auto item = owner.message(history->peer, replyToId)) {
-		return item->replyToTop();
-	}
-	return 0;
+	return owner.message(history->peer, replyToId);
+}
+
+MsgId LookupReplyToTop(HistoryItem *replyTo) {
+	return replyTo ? replyTo->replyToTop() : 0;
+}
+
+bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
+	return replyTo
+		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
 }
 
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 	if (const auto id = action.replyTo) {
-		if (const auto replyToTop = LookupReplyToTop(action.history, id)) {
+		const auto to = LookupReplyTo(action.history, id);
+		if (const auto replyToTop = LookupReplyToTop(to)) {
+			using Flag = MTPDmessageReplyHeader::Flag;
 			return MTP_messageReplyHeader(
-				MTP_flags(MTPDmessageReplyHeader::Flag::f_reply_to_top_id),
+				MTP_flags(Flag::f_reply_to_top_id
+					| (LookupReplyIsTopicPost(to)
+						? Flag::f_forum_topic
+						: Flag(0))),
 				MTP_int(id),
 				MTPPeer(),
 				MTP_int(replyToTop));
@@ -639,8 +651,11 @@ void HistoryMessage::createComponentsHelper(
 	config.viaBotId = viaBotId;
 	if (flags & MessageFlag::HasReplyInfo) {
 		config.replyTo = replyTo;
-		const auto replyToTop = LookupReplyToTop(history(), replyTo);
+		const auto to = LookupReplyTo(history(), replyTo);
+		const auto replyToTop = LookupReplyToTop(to);
 		config.replyToTop = replyToTop ? replyToTop : replyTo;
+		config.replyIsTopicPost = LookupReplyIsTopicPost(to)
+			|| to->Has<HistoryServiceTopicInfo>();
 	}
 	config.markup = std::move(markup);
 	if (flags & MessageFlag::HasPostAuthor) config.author = postAuthor;

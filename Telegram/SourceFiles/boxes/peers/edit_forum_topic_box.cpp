@@ -200,6 +200,13 @@ void EditForumTopicBox(
 					box->closeBox();
 				}
 			}).fail([=](const MTP::Error &error) {
+				if (error.type() == u"TOPIC_NOT_MODIFIED") {
+					state->titleRequestId = 0;
+					if (!state->iconRequestId) {
+						box->closeBox();
+					}
+					return;
+				}
 				state->titleRequestId = -1;
 			}).send();
 		}
@@ -215,6 +222,13 @@ void EditForumTopicBox(
 					box->closeBox();
 				}
 			}).fail([=](const MTP::Error &error) {
+				if (error.type() == u"TOPIC_NOT_MODIFIED") {
+					state->iconRequestId = 0;
+					if (!state->titleRequestId) {
+						box->closeBox();
+					}
+					return;
+				}
 				state->iconRequestId = -1;
 			}).send();
 		}
