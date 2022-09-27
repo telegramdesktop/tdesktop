@@ -841,6 +841,39 @@ int Histories::sendRequest(
 	return id;
 }
 
+int Histories::sendPreparedMessage(
+		not_null<History*> history,
+		MsgId replyTo,
+		uint64 randomId,
+		PreparedMessage message,
+		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
+		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
+	return v::match(message, [&](const auto &request) {
+		const auto type = RequestType::Send;
+		return sendRequest(history, type, [=](Fn<void()> finish) {
+			const auto session = &_owner->session();
+			const auto api = &session->api();
+			history->sendRequestId = api->request(
+				base::duplicate(request)
+			).done([=](
+					const MTPUpdates &result,
+					const MTP::Response &response) {
+				api->applyUpdates(result, randomId);
+				done(result, response);
+				finish();
+			}).fail([=](
+					const MTP::Error &error,
+					const MTP::Response &response) {
+				fail(error, response);
+				finish();
+			}).afterRequest(
+				history->sendRequestId
+			).send();
+			return history->sendRequestId;
+		});
+	});
+}
+
 void Histories::checkPostponed(not_null<History*> history, int id) {
 	if (const auto state = lookup(history)) {
 		finishSentRequest(history, state, id);

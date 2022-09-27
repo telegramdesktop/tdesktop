@@ -15,13 +15,20 @@ class Service;
 
 struct HistoryServiceDependentData {
 	PeerId peerId = 0;
-	MsgId msgId = 0;
 	HistoryItem *msg = nullptr;
 	ClickHandlerPtr lnk;
+	MsgId msgId = 0;
+	MsgId topId = 0;
+	bool topicPost = false;
 };
 
 struct HistoryServicePinned
 : public RuntimeComponent<HistoryServicePinned, HistoryItem>
+, public HistoryServiceDependentData {
+};
+
+struct HistoryServiceTopicInfo
+: public RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
 , public HistoryServiceDependentData {
 };
 
@@ -129,6 +136,11 @@ public:
 	ItemPreview toPreview(ToPreviewOptions options) const override;
 	TextWithEntities inReplyText() const override;
 
+	MsgId replyToId() const override;
+	MsgId replyToTop() const override;
+	MsgId topicRootId() const override;
+	void setReplyToTop(MsgId replyToTop) override;
+
 	std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing = nullptr) override;
@@ -149,12 +161,14 @@ protected:
 
 private:
 	HistoryServiceDependentData *GetDependentData() {
-		if (auto pinned = Get<HistoryServicePinned>()) {
+		if (const auto pinned = Get<HistoryServicePinned>()) {
 			return pinned;
-		} else if (auto gamescore = Get<HistoryServiceGameScore>()) {
+		} else if (const auto gamescore = Get<HistoryServiceGameScore>()) {
 			return gamescore;
-		} else if (auto payment = Get<HistoryServicePayment>()) {
+		} else if (const auto payment = Get<HistoryServicePayment>()) {
 			return payment;
+		} else if (const auto info = Get<HistoryServiceTopicInfo>()) {
+			return info;
 		}
 		return nullptr;
 	}

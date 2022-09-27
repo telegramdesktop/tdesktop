@@ -31,12 +31,21 @@ public:
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
 
-	void applyTopicAdded(MsgId rootId, const QString &title);
+	void applyTopicAdded(
+		MsgId rootId,
+		const QString &title,
+		DocumentId iconId);
 	void applyTopicRemoved(MsgId rootId);
 	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 
 	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
+
+	[[nodiscard]] MsgId reserveCreatingId(
+		const QString &title,
+		DocumentId iconId);
+	void discardCreatingId(MsgId rootId);
+	[[nodiscard]] bool creating(MsgId rootId) const;
 
 private:
 	void applyReceivedTopics(
@@ -53,6 +62,8 @@ private:
 	MsgId _offsetId = 0;
 	MsgId _offsetTopicId = 0;
 	bool _allLoaded = false;
+
+	base::flat_set<MsgId> _creatingRootIds;
 
 	rpl::event_stream<> _chatsListChanges;
 	rpl::event_stream<> _chatsListLoadedEvents;

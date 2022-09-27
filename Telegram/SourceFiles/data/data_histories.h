@@ -16,6 +16,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace MTP {
+class Error;
+struct Response;
+} // namespace MTP
+
 namespace Data {
 
 class Session;
@@ -89,6 +94,19 @@ public:
 		RequestType type,
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(int id);
+
+	using PreparedMessage = std::variant<
+		MTPmessages_SendMessage,
+		MTPmessages_SendMedia,
+		MTPmessages_SendInlineBotResult,
+		MTPmessages_SendMultiMedia>;
+	int sendPreparedMessage(
+		not_null<History*> history,
+		MsgId replyTo,
+		uint64 randomId,
+		PreparedMessage message,
+		Fn<void(const MTPUpdates&, const MTP::Response &)> done,
+		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
 
 private:
 	struct PostponedHistoryRequest {

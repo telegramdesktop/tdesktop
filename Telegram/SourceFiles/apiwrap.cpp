@@ -3479,53 +3479,47 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
 		}
 		const auto viaBotId = UserId();
+		const auto replyTo = action.replyTo;
 		lastMessage = history->addNewLocalMessage(
 			newId.msg,
 			flags,
 			viaBotId,
-			action.replyTo,
+			replyTo,
 			HistoryItem::NewMessageDate(action.options.scheduled),
 			messageFromId,
 			messagePostAuthor,
 			sending,
 			media,
 			HistoryMessageMarkupData());
-		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-			history->sendRequestId = request(MTPmessages_SendMessage(
+		histories.sendPreparedMessage(
+			history,
+			replyTo,
+			randomId,
+			MTPmessages_SendMessage(
 				MTP_flags(sendFlags),
 				peer->input,
-				MTP_int(action.replyTo),
+				MTP_int(replyTo),
 				msgText,
 				MTP_long(randomId),
 				MTPReplyMarkup(),
 				sentEntities,
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-			)).done([=](
-					const MTPUpdates &result,
-					const MTP::Response &response) {
-				applyUpdates(result, randomId);
-				if (clearCloudDraft) {
-					history->finishSavingCloudDraft(
-						UnixtimeFromMsgId(response.outerMsgId));
-				}
-				finish();
-			}).fail([=](
-					const MTP::Error &error,
-					const MTP::Response &response) {
-				if (error.type() == qstr("MESSAGE_EMPTY")) {
-					lastMessage->destroy();
-				} else {
-					sendMessageFail(error, peer, randomId, newId);
-				}
-				if (clearCloudDraft) {
-					history->finishSavingCloudDraft(
-						UnixtimeFromMsgId(response.outerMsgId));
-				}
-				finish();
-			}).afterRequest(history->sendRequestId
-			).send();
-			return history->sendRequestId;
+			), [=](const MTPUpdates &result, const MTP::Response &response) {
+			if (clearCloudDraft) {
+				history->finishSavingCloudDraft(
+					UnixtimeFromMsgId(response.outerMsgId));
+			}
+		}, [=](const MTP::Error &error, const MTP::Response &response) {
+			if (error.type() == qstr("MESSAGE_EMPTY")) {
+				lastMessage->destroy();
+			} else {
+				sendMessageFail(error, peer, randomId, newId);
+			}
+			if (clearCloudDraft) {
+				history->finishSavingCloudDraft(
+					UnixtimeFromMsgId(response.outerMsgId));
+			}
 		});
 	}
 
@@ -3639,34 +3633,27 @@ void ApiWrap::sendInlineResult(
 	history->startSavingCloudDraft();
 
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		history->sendRequestId = request(MTPmessages_SendInlineBotResult(
+	const auto replyTo = action.replyTo;
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		MTPmessages_SendInlineBotResult(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(action.replyTo),
+			MTP_int(replyTo),
 			MTP_long(randomId),
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](
-				const MTPUpdates &result,
-				const MTP::Response &response) {
-			applyUpdates(result, randomId);
-			history->finishSavingCloudDraft(
-				UnixtimeFromMsgId(response.outerMsgId));
-			finish();
-		}).fail([=](
-				const MTP::Error &error,
-				const MTP::Response &response) {
-			sendMessageFail(error, peer, randomId, newId);
-			history->finishSavingCloudDraft(
-				UnixtimeFromMsgId(response.outerMsgId));
-			finish();
-		}).afterRequest(history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		history->finishSavingCloudDraft(
+			UnixtimeFromMsgId(response.outerMsgId));
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		sendMessageFail(error, peer, randomId, newId);
+		history->finishSavingCloudDraft(
+			UnixtimeFromMsgId(response.outerMsgId));
 	});
 	finishForwarding(action);
 }
@@ -3792,11 +3779,13 @@ void ApiWrap::sendMediaWithRandomId(
 			: MTPmessages_SendMedia::Flag(0));
 
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto peer = history->peer;
-		const auto itemId = item->fullId();
-		history->sendRequestId = request(MTPmessages_SendMedia(
+	const auto peer = history->peer;
+	const auto itemId = item->fullId();
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		MTPmessages_SendMedia(
 			MTP_flags(flags),
 			peer->input,
 			MTP_int(replyTo),
@@ -3807,20 +3796,12 @@ void ApiWrap::sendMediaWithRandomId(
 			sentEntities,
 			MTP_int(options.scheduled),
 			(options.sendAs ? options.sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](const MTPUpdates &result) {
-			applyUpdates(result);
-			finish();
-
-			if (updateRecentStickers) {
-				requestRecentStickersForce(true);
-			}
-		}).fail([=](const MTP::Error &error) {
-			sendMessageFail(error, peer, randomId, itemId);
-			finish();
-		}).afterRequest(
-			history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (updateRecentStickers) {
+			requestRecentStickersForce(true);
+		}
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		sendMessageFail(error, peer, randomId, itemId);
 	});
 }
 
@@ -3904,33 +3885,28 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 			? MTPmessages_SendMultiMedia::Flag::f_send_as
 			: MTPmessages_SendMultiMedia::Flag(0));
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto peer = history->peer;
-		history->sendRequestId = request(MTPmessages_SendMultiMedia(
+	const auto peer = history->peer;
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		uint64(0), // randomId
+		MTPmessages_SendMultiMedia(
 			MTP_flags(flags),
 			peer->input,
 			MTP_int(replyTo),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](const MTPUpdates &result) {
-			_sendingAlbums.remove(groupId);
-			applyUpdates(result);
-			finish();
-		}).fail([=](const MTP::Error &error) {
-			if (const auto album = _sendingAlbums.take(groupId)) {
-				for (const auto &item : (*album)->items) {
-					sendMessageFail(error, peer, item.randomId, item.msgId);
-				}
-			} else {
-				sendMessageFail(error, peer);
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		_sendingAlbums.remove(groupId);
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (const auto album = _sendingAlbums.take(groupId)) {
+			for (const auto &item : (*album)->items) {
+				sendMessageFail(error, peer, item.randomId, item.msgId);
 			}
-			finish();
-		}).afterRequest(
-			history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		} else {
+			sendMessageFail(error, peer);
+		}
 	});
 }
 

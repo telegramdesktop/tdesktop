@@ -341,8 +341,7 @@ public:
 		PeerId replier,
 		std::optional<bool> unread) {
 	}
-	virtual void setReplyToTop(MsgId replyToTop) {
-	}
+	virtual void setReplyToTop(MsgId replyToTop) = 0;
 	virtual void setPostAuthor(const QString &author) {
 	}
 	virtual void setRealId(MsgId newId);
@@ -405,10 +404,10 @@ public:
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
 
-	[[nodiscard]] MsgId replyToId() const;
-	[[nodiscard]] MsgId replyToTop() const;
-	[[nodiscard]] MsgId topicRootId() const;
-	[[nodiscard]] MsgId inThread(MsgId rootId) const;
+	[[nodiscard]] virtual MsgId replyToId() const = 0;
+	[[nodiscard]] virtual MsgId replyToTop() const = 0;
+	[[nodiscard]] virtual MsgId topicRootId() const = 0;
+	[[nodiscard]] bool inThread(MsgId rootId) const;
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 

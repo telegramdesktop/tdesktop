@@ -120,17 +120,24 @@ void Forum::applyReceivedTopics(
 	}
 }
 
-void Forum::applyTopicAdded(MsgId rootId, const QString &title) {
+void Forum::applyTopicAdded(
+		MsgId rootId,
+		const QString &title,
+		DocumentId iconId) {
 	if (const auto i = _topics.find(rootId); i != end(_topics)) {
 		i->second->applyTitle(title);
+		i->second->applyIconId(iconId);
 	} else {
 		const auto raw = _topics.emplace(
 			rootId,
 			std::make_unique<ForumTopic>(_history, rootId)
 		).first->second.get();
 		raw->applyTitle(title);
-		raw->addToChatList(FilterId(), topicsList());
-		_chatsListChanges.fire({});
+		raw->applyIconId(iconId);
+		if (!creating(rootId)) {
+			raw->addToChatList(FilterId(), topicsList());
+			_chatsListChanges.fire({});
+		}
 	}
 }
 
@@ -138,6 +145,30 @@ void Forum::applyTopicRemoved(MsgId rootId) {
 	//if (const auto i = _topics.find(rootId)) {
 	//	_topics.erase(i);
 	//}
+}
+
+MsgId Forum::reserveCreatingId(
+		const QString &title,
+		DocumentId iconId) {
+	const auto result = _history->owner().nextLocalMessageId();
+	_creatingRootIds.emplace(result);
+	applyTopicAdded(result, title, iconId);
+	return result;
+}
+
+void Forum::discardCreatingId(MsgId rootId) {
+	Expects(creating(rootId));
+
+	const auto i = _topics.find(rootId);
+	if (i != end(_topics)) {
+		Assert(!i->second->inChatList());
+		_topics.erase(i);
+	}
+	_creatingRootIds.remove(rootId);
+}
+
+bool Forum::creating(MsgId rootId) const {
+	return _creatingRootIds.contains(rootId);
 }
 
 ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {
@@ -151,7 +182,7 @@ ForumTopic *Forum::topicFor(MsgId rootId) {
 		}
 	} else {
 		// #TODO forum lang
-		applyTopicAdded(rootId, "General! Created.");
+		applyTopicAdded(rootId, "General! Created.", DocumentId(0));
 		return _topics.find(rootId)->second.get();
 	}
 	return nullptr;

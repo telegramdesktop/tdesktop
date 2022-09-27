@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
 #include "history/history.h"
+#include "history/view/history_view_replies_section.h"
 #include "lang/lang_keys.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "window/window_session_controller.h"
@@ -142,9 +143,16 @@ void EditForumTopicBox(
 			box->closeBox();
 			return;
 		} else if (title->getLastText().trimmed().isEmpty()) {
-			title->setFocus();
+			title->showError();
 			return;
 		}
+		controller->showSection(
+			std::make_shared<HistoryView::RepliesMemento>(
+				forum,
+				forum->peer->forum()->reserveCreatingId(
+					title->getLastText().trimmed(),
+					state->iconId)),
+			Window::SectionShow::Way::ClearStack);
 #if 0 // #TODO forum create
 		const auto randomId = base::RandomValue<uint64>();
 		const auto api = &forum->session().api();
@@ -178,7 +186,7 @@ void EditForumTopicBox(
 		const auto api = &forum->session().api();
 		if (state->titleRequestId <= 0) {
 			if (title->getLastText().trimmed().isEmpty()) {
-				title->setFocus();
+				title->showError();
 				return;
 			}
 			state->titleRequestId = api->request(MTPchannels_EditForumTitle(

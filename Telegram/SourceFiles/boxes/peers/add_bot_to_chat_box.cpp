@@ -63,11 +63,13 @@ void ShareBotGame(
 		const QString &shortName) {
 	const auto history = chat->owner().history(chat);
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto randomId = base::RandomValue<uint64>();
-		const auto api = &chat->session().api();
-		history->sendRequestId = api->request(MTPmessages_SendMedia(
+	const auto randomId = base::RandomValue<uint64>();
+	const auto replyTo = 0;
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		MTPmessages_SendMedia(
 			MTP_flags(0),
 			chat->input,
 			MTP_int(0),
@@ -81,16 +83,9 @@ void ShareBotGame(
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(0), // schedule_date
 			MTPInputPeer() // send_as
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result, randomId);
-			finish();
-		}).fail([=](const MTP::Error &error) {
-			api->sendMessageFail(error, chat);
-			finish();
-		}).afterRequest(
-			history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		chat->session().api().sendMessageFail(error, chat);
 	});
 }
 

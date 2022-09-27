@@ -180,6 +180,10 @@ public:
 	void destroyHistoryEntry() override;
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
+	[[nodiscard]] MsgId replyToId() const override;
+	[[nodiscard]] MsgId replyToTop() const override;
+	[[nodiscard]] MsgId topicRootId() const override;
+
 	void setText(const TextWithEntities &textWithEntities) override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] auto originalTextWithLocalEntities() const

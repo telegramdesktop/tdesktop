@@ -1244,7 +1244,21 @@ void Session::setupUserIsContactViewer() {
 	}, _lifetime);
 }
 
-Session::~Session() = default;
+Session::~Session() {
+	// We must clear all forums before clearing customEmojiManager.
+	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
+	auto forums = base::flat_set<not_null<ChannelData*>>();
+	for (const auto &[peerId, peer] : _peers) {
+		if (const auto channel = peer->asChannel()) {
+			if (channel->isForum()) {
+				forums.emplace(channel);
+			}
+		}
+	}
+	for (const auto &channel : forums) {
+		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
+	}
+}
 
 template <typename Method>
 void Session::enumerateItemViews(
@@ -3789,13 +3803,16 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	const auto history = key.history();
-	const auto mainList = entry->asTopic()
-		? entry->asTopic()->forum()->peer->forum()->topicsList()
+	const auto history = entry->asHistory();
+	const auto topic = entry->asTopic();
+	const auto mainList = topic
+		? topic->forum()->topicsList()
 		: chatsList(entry->folder());
 	auto event = ChatListEntryRefresh{ .key = key };
 	const auto creating = event.existenceChanged = !entry->inChatList();
-	if (event.existenceChanged) {
+	if (creating && topic && topic->forum()->creating(topic->rootId())) {
+		return;
+	} else if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
@@ -3860,7 +3877,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		}
 	}
 	const auto mainList = entry->asTopic()
-		? entry->asTopic()->forum()->peer->forum()->topicsList()
+		? entry->asTopic()->forum()->topicsList()
 		: chatsList(entry->folder());
 	entry->removeFromChatList(0, mainList);
 	_chatListEntryRefreshes.fire(ChatListEntryRefresh{

@@ -72,6 +72,7 @@ private:
 	std::optional<MsgId> _loadingAround;
 	HistoryService *_divider = nullptr;
 	bool _dividerWithComments = false;
+	bool _creating = false;
 	int _beforeId = 0;
 	int _afterId = 0;
 

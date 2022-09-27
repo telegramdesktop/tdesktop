@@ -10,27 +10,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_forum.h"
 #include "data/data_session.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_main_list.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "ui/painter.h"
 
 namespace Data {
 
-ForumTopic::ForumTopic(not_null<History*> forum, MsgId rootId)
-: Entry(&forum->owner(), Type::ForumTopic)
-, _forum(forum)
-, _list(forum->peer->asChannel()->forum()->topicsList())
+ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
+: Entry(&history->owner(), Type::ForumTopic)
+, _history(history)
+, _list(forum()->topicsList())
 , _rootId(rootId) {
 }
 
 not_null<ChannelData*> ForumTopic::channel() const {
-	return _forum->peer->asChannel();
+	return _history->peer->asChannel();
 }
 
-not_null<History*> ForumTopic::forum() const {
-	return _forum;
+not_null<History*> ForumTopic::history() const {
+	return _history;
+}
+
+not_null<Forum*> ForumTopic::forum() const {
+	return channel()->forum();
 }
 
 MsgId ForumTopic::rootId() const {
@@ -110,7 +116,7 @@ void ForumTopic::applyTopicFields(
 
 void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
-		const auto itemId = FullMsgId(_forum->peer->id, topMessageId);
+		const auto itemId = FullMsgId(_history->peer->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
 		} else {
@@ -193,6 +199,9 @@ void ForumTopic::setOutboxReadTill(MsgId upTo) {
 }
 
 void ForumTopic::loadUserpic() {
+	if (_icon) {
+		[[maybe_unused]] const auto preload = _icon->ready();
+	}
 }
 
 void ForumTopic::paintUserpic(
@@ -201,7 +210,19 @@ void ForumTopic::paintUserpic(
 		int x,
 		int y,
 		int size) const {
-	// #TODO forum
+	if (_icon) {
+		const auto emoji = Data::FrameSizeFromTag(
+			Data::CustomEmojiManager::SizeTag::Isolated
+		) / style::DevicePixelRatio();
+		_icon->paint(p, {
+			.preview = st::windowBgOver->c,
+			.now = crl::now(),
+			.position = QPoint(
+				x + (size - emoji) / 2,
+				y + (size - emoji) / 2),
+			.paused = false,
+		});
+	}
 }
 
 void ForumTopic::requestChatListMessage() {
@@ -270,7 +291,15 @@ DocumentId ForumTopic::iconId() const {
 }
 
 void ForumTopic::applyIconId(DocumentId iconId) {
-	_iconId = iconId;
+	if (_iconId != iconId) {
+		_iconId = iconId;
+		_icon = iconId
+			? _history->owner().customEmojiManager().create(
+				_iconId,
+				[=] { updateChatListEntry(); },
+				Data::CustomEmojiManager::SizeTag::Isolated)
+			: nullptr;
+	}
 	updateChatListEntry();
 }
 
@@ -348,7 +377,7 @@ Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
 	const auto mark = !count && _unreadMark;
-	const auto muted = _forum->mute();
+	const auto muted = _history->mute();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;

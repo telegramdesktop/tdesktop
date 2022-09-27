@@ -269,10 +269,11 @@ private:
 	[[nodiscard]] std::optional<QString> writeRestriction() const;
 
 	const not_null<History*> _history;
-	const MsgId _rootId = 0;
+	MsgId _rootId = 0;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	HistoryItem *_root = nullptr;
 	Data::ForumTopic *_topic = nullptr;
+	mutable bool _newTopicDiscarded = false;
 
 	std::shared_ptr<Data::RepliesList> _replies;
 	rpl::variable<bool> _areComments = false;

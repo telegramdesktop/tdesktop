@@ -22,7 +22,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
 #include "history/history_item.h"
-#include "history/history.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 
@@ -48,7 +47,7 @@ PeerData *Key::peer() const {
 	if (const auto peer = std::get_if<not_null<PeerData*>>(&_value)) {
 		return *peer;
 	} else if (const auto topic = this->topic()) {
-		return topic->forum()->peer;
+		return topic->channel();
 	}
 	return nullptr;
 }

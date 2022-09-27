@@ -192,7 +192,7 @@ messageActionChatJoinedByRequest#ebbca3cb = MessageAction;
 messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
 messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
 messageActionGiftPremium#aba0f5c6 currency:string amount:long months:int = MessageAction;
-messageActionTopicCreate#4619708d title:string = MessageAction;
+messageActionTopicCreate#6fa796ac flags:# title:string icon_emoji_id:flags.0?long = MessageAction;
 messageActionTopicEditTitle#ce0b23cd title:string = MessageAction;
 messageActionTopicEditIcon#820a6e2b emoji_document_id:long = MessageAction;
 
@@ -1856,7 +1856,7 @@ channels.deleteParticipantHistory#367544db channel:InputChannel participant:Inpu
 channels.toggleJoinToSend#e4cb9580 channel:InputChannel enabled:Bool = Updates;
 channels.toggleJoinRequest#4c2985b6 channel:InputChannel enabled:Bool = Updates;
 channels.toggleForum#a4298b29 channel:InputChannel enabled:Bool = Updates;
-channels.createForumTopic#21289f15 flags:# no_webpage:flags.3?true channel:InputChannel title:string icon_emoji_id:flags.3?long media:flags.0?InputMedia message:string random_id:long entities:flags.1?Vector<MessageEntity> send_as:flags.2?InputPeer = Updates;
+channels.createForumTopic#60bf3bc9 flags:# channel:InputChannel title:string icon_emoji_id:flags.3?long random_id:long send_as:flags.2?InputPeer = Updates;
 channels.getForumTopics#de560d1 flags:# channel:InputChannel q:flags.0?string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
 channels.getForumTopicsByID#b0831eb9 channel:InputChannel topics:Vector<int> = messages.ForumTopics;
 channels.editForumTitle#8881b9b1 channel:InputChannel topic_id:int title:string = Updates;

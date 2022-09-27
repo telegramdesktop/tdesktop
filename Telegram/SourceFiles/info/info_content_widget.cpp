@@ -21,9 +21,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_controller.h"
 #include "boxes/peer_list_box.h"
 #include "data/data_chat.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
-#include "history/history.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
@@ -337,7 +337,7 @@ Key ContentMemento::key() const {
 }
 
 ContentMemento::ContentMemento(not_null<Data::ForumTopic*> topic)
-: _peer(topic->forum()->peer)
+: _peer(topic->channel())
 , _migratedPeerId(_peer->migrateFrom() ? _peer->migrateFrom()->id : 0)
 , _topic(topic) {
 }

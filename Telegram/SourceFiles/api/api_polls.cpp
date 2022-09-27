@@ -65,47 +65,40 @@ void Polls::create(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto replyTo = action.replyTo;
-		history->sendRequestId = _api.request(MTPmessages_SendMedia(
+	const auto replyTo = action.replyTo;
+	const auto randomId = base::RandomValue<uint64>();
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
 			peer->input,
 			MTP_int(replyTo),
 			PollDataToInputMedia(&data),
 			MTP_string(),
-			MTP_long(base::RandomValue<uint64>()),
+			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](
-				const MTPUpdates &result,
-				const MTP::Response &response) mutable {
-			_session->updates().applyUpdates(result);
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(
-					UnixtimeFromMsgId(response.outerMsgId));
-			}
-			_session->changes().historyUpdated(
-				history,
-				(action.options.scheduled
-					? Data::HistoryUpdate::Flag::ScheduledSent
-					: Data::HistoryUpdate::Flag::MessageSent));
-			done();
-			finish();
-		}).fail([=](
-				const MTP::Error &error,
-				const MTP::Response &response) mutable {
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(
-					UnixtimeFromMsgId(response.outerMsgId));
-			}
-			fail();
-			finish();
-		}).afterRequest(history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		_session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+		done();
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		fail();
 	});
 }
 

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_channel.h"
 #include "data/data_messages.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
@@ -36,6 +37,13 @@ constexpr auto kMessagesPerPage = 50;
 		HistoryService::PreparedText{ { .text = text } });
 }
 
+[[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {
+	if (const auto forum = history->peer->forum()) {
+		return forum->creating(rootId);
+	}
+	return false;
+}
+
 } // namespace
 
 struct RepliesList::Viewer {
@@ -50,7 +58,8 @@ struct RepliesList::Viewer {
 
 RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 : _history(history)
-, _rootId(rootId) {
+, _rootId(rootId)
+, _creating(IsCreating(history, rootId)) {
 }
 
 RepliesList::~RepliesList() {
@@ -104,7 +113,9 @@ rpl::producer<MessagesSlice> RepliesList::source(
 
 		_history->owner().channelDifferenceTooLong(
 		) | rpl::filter([=](not_null<ChannelData*> channel) {
-			if (_history->peer != channel || !_skippedAfter.has_value()) {
+			if (_creating
+				|| _history->peer != channel
+				|| !_skippedAfter.has_value()) {
 				return false;
 			}
 			_skippedAfter = std::nullopt;
@@ -297,7 +308,8 @@ void RepliesList::injectRootDivider(
 }
 
 bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
-	if (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0) {
+	if (_creating
+		|| (_list.empty() && _skippedBefore == 0 && _skippedAfter == 0)) {
 		viewer->slice.ids.clear();
 		viewer->slice.nearestToAround = FullMsgId();
 		viewer->slice.fullCount
@@ -429,6 +441,8 @@ HistoryItem *RepliesList::lookupRoot() {
 }
 
 void RepliesList::loadAround(MsgId id) {
+	Expects(!_creating);
+
 	if (_loadingAround && *_loadingAround == id) {
 		return;
 	}

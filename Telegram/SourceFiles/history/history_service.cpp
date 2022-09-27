@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_game.h"
@@ -30,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h" // Data::GroupCall::id().
+#include "data/stickers/data_custom_emoji.h"
 #include "core/application.h"
 #include "core/click_handler_types.h"
 #include "base/unixtime.h"
@@ -652,13 +654,15 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		auto result = PreparedText{};
 		result.text = { "topic icon: " }; // #TODO forum lang
 		result.text.append(TextWithEntities{
-			" ",
+			"@",
 			{ EntityInText(
 				EntityType::CustomEmoji,
 				0,
 				1,
-				QString::number(+action.vemoji_document_id().v)) },
+				Data::SerializeCustomEmojiId({
+					.id = action.vemoji_document_id().v })) },
 		});
+
 		return result;
 	};
 
@@ -800,7 +804,20 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			data.vmonths().v);
 	}, [&](const MTPDmessageActionTopicCreate &data) {
 		if (const auto forum = history()->peer->forum()) {
-			forum->applyTopicAdded(id, qs(data.vtitle()));
+			const auto iconId = DocumentId(0); // #TODO forum icon
+			forum->applyTopicAdded(id, qs(data.vtitle()), iconId);
+		}
+	}, [&](const MTPDmessageActionTopicEditTitle &data) {
+		if (const auto forum = history()->peer->forum()) {
+			if (const auto topic = forum->topicFor(replyToTop())) {
+				topic->applyTitle(qs(data.vtitle()));
+			}
+		}
+	}, [&](const MTPDmessageActionTopicEditIcon &data) {
+		if (const auto forum = history()->peer->forum()) {
+			if (const auto topic = forum->topicFor(replyToTop())) {
+				topic->applyIconId(data.vemoji_document_id().v);
+			}
 		}
 	}, [](const auto &) {
 	});
@@ -1299,6 +1316,36 @@ TextWithEntities HistoryService::inReplyText() const {
 	return Ui::Text::Wrapped(result, EntityType::PlainLink);
 }
 
+MsgId HistoryService::replyToId() const {
+	return 0; // Don't render replies info in service, only handle threads.
+}
+
+MsgId HistoryService::replyToTop() const {
+	if (const auto data = GetDependentData()) {
+		return data->topId;
+	}
+	return 0;
+}
+
+MsgId HistoryService::topicRootId() const {
+	if (const auto data = GetDependentData()
+		; data && data->topicPost) {
+		return data->topId;
+	}
+	return Data::ForumTopic::kGeneralId;
+}
+
+void HistoryService::setReplyToTop(MsgId replyToTop) {
+	const auto data = GetDependentData();
+	if (!data
+		|| (data->topId == replyToTop)
+		|| (data->topId != 0)
+		|| isScheduled()) {
+		return;
+	}
+	data->topId = replyToTop;
+}
+
 std::unique_ptr<HistoryView::Element> HistoryService::createView(
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing) {
@@ -1422,7 +1469,13 @@ void HistoryService::createFromMtp(const MTPDmessage &message) {
 
 void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	const auto type = message.vaction().type();
-	if (type == mtpc_messageActionSetChatTheme) {
+	if (type == mtpc_messageActionPinMessage) {
+		UpdateComponents(HistoryServicePinned::Bit());
+	} else if (type == mtpc_messageActionTopicCreate
+		|| type == mtpc_messageActionTopicEditTitle
+		|| type == mtpc_messageActionTopicEditIcon) {
+		UpdateComponents(HistoryServiceTopicInfo::Bit());
+	} else if (type == mtpc_messageActionSetChatTheme) {
 		setupChatThemeChange();
 	} else if (type == mtpc_messageActionSetMessagesTTL) {
 		setupTTLChange();
@@ -1505,14 +1558,13 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 			const auto peerId = data.vreply_to_peer_id()
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: history()->peer->id;
-			if (message.vaction().type() == mtpc_messageActionPinMessage) {
-				UpdateComponents(HistoryServicePinned::Bit());
-			}
 			if (const auto dependent = GetDependentData()) {
 				dependent->peerId = (peerId != history()->peer->id)
 					? peerId
 					: 0;
 				dependent->msgId = data.vreply_to_msg_id().v;
+				dependent->topId = data.vreply_to_top_id().value_or(
+					data.vreply_to_msg_id().v);
 				if (!updateDependent()) {
 					RequestDependentMessageData(
 						this,

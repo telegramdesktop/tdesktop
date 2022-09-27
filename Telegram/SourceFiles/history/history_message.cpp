@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "data/data_sponsored_messages.h"
@@ -1488,6 +1489,28 @@ TextWithEntities HistoryMessage::withLocalEntities(
 		}
 	}
 	return textWithEntities;
+}
+
+MsgId HistoryMessage::replyToId() const {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		return reply->replyToId();
+	}
+	return 0;
+}
+
+MsgId HistoryMessage::replyToTop() const {
+	if (const auto reply = Get<HistoryMessageReply>()) {
+		return reply->replyToTop();
+	}
+	return 0;
+}
+
+MsgId HistoryMessage::topicRootId() const {
+	if (const auto reply = Get<HistoryMessageReply>()
+		; reply && reply->topicPost) {
+		return reply->replyToTop();
+	}
+	return Data::ForumTopic::kGeneralId;
 }
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {

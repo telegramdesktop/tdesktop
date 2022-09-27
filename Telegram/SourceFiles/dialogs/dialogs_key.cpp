@@ -59,7 +59,7 @@ History *Key::parentHistory() const {
 	if (const auto result = history()) {
 		return result;
 	} else if (const auto child = topic()) {
-		return child->forum();
+		return child->history();
 	}
 	return nullptr;
 }

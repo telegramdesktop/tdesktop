@@ -1045,29 +1045,7 @@ bool HistoryItem::computeDropForwardedInfo() const {
 			&& (!media || !media->forceForwardedInfo()));
 }
 
-MsgId HistoryItem::replyToId() const {
-	if (const auto reply = Get<HistoryMessageReply>()) {
-		return reply->replyToId();
-	}
-	return 0;
-}
-
-MsgId HistoryItem::replyToTop() const {
-	if (const auto reply = Get<HistoryMessageReply>()) {
-		return reply->replyToTop();
-	}
-	return 0;
-}
-
-MsgId HistoryItem::topicRootId() const {
-	if (const auto reply = Get<HistoryMessageReply>()
-		; reply && reply->topicPost) {
-		return reply->replyToTop();
-	}
-	return Data::ForumTopic::kGeneralId;
-}
-
-MsgId HistoryItem::inThread(MsgId rootId) const {
+bool HistoryItem::inThread(MsgId rootId) const {
 	const auto checkId = (rootId == Data::ForumTopic::kGeneralId)
 		? topicRootId()
 		: replyToTop();

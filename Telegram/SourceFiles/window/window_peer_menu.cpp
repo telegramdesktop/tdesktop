@@ -752,7 +752,7 @@ void Filler::addManageTopic() {
 		return;
 	}
 	// #TODO forum lang
-	const auto history = _topic->forum();
+	const auto history = _topic->history();
 	const auto rootId = _topic->rootId();
 	const auto navigation = _controller;
 	_addAction(u"Edit topic"_q, [=] {

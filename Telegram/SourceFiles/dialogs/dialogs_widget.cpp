@@ -385,7 +385,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 	const auto history = row.key.history();
 	if (const auto topic = row.key.topic()) {
 		controller()->showRepliesForMessage(
-			topic->forum(),
+			topic->history(),
 			topic->rootId(),
 			ShowAtUnreadMsgId,
 			Window::SectionShow::Way::ClearStack);

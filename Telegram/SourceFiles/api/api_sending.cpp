@@ -141,12 +141,14 @@ void SendExistingMedia(
 		caption,
 		HistoryMessageMarkupData());
 
-	auto performRequest = [=](const auto &repeatRequest) -> void {
+	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
-		const auto requestType = Data::Histories::RequestType::Send;
-		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-			const auto usedFileReference = media->fileReference();
-			history->sendRequestId = api->request(MTPmessages_SendMedia(
+		const auto usedFileReference = media->fileReference();
+		histories.sendPreparedMessage(
+			history,
+			replyTo,
+			randomId,
+			MTPmessages_SendMedia(
 				MTP_flags(sendFlags),
 				peer->input,
 				MTP_int(replyTo),
@@ -157,26 +159,20 @@ void SendExistingMedia(
 				sentEntities,
 				MTP_int(message.action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-			)).done([=](const MTPUpdates &result) {
-				api->applyUpdates(result, randomId);
-				finish();
-			}).fail([=](const MTP::Error &error) {
-				if (error.code() == 400
-					&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-					api->refreshFileReference(origin, [=](const auto &result) {
-						if (media->fileReference() != usedFileReference) {
-							repeatRequest(repeatRequest);
-						} else {
-							api->sendMessageFail(error, peer, randomId, newId);
-						}
-					});
-				} else {
-					api->sendMessageFail(error, peer, randomId, newId);
-				}
-				finish();
-			}).afterRequest(history->sendRequestId
-			).send();
-			return history->sendRequestId;
+			), [=](const MTPUpdates &result, const MTP::Response &response) {
+		}, [=](const MTP::Error &error, const MTP::Response &response) {
+			if (error.code() == 400
+				&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+				api->refreshFileReference(origin, [=](const auto &result) {
+					if (media->fileReference() != usedFileReference) {
+						repeatRequest(repeatRequest);
+					} else {
+						api->sendMessageFail(error, peer, randomId, newId);
+					}
+				});
+			} else {
+				api->sendMessageFail(error, peer, randomId, newId);
+			}
 		});
 	};
 	performRequest(performRequest);
@@ -314,10 +310,11 @@ bool SendDice(MessageToSend &message) {
 		TextWithEntities(),
 		MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
 		HistoryMessageMarkupData());
-
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		history->sendRequestId = api->request(MTPmessages_SendMedia(
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		randomId,
+		MTPmessages_SendMedia(
 			MTP_flags(sendFlags),
 			peer->input,
 			MTP_int(replyTo),
@@ -328,15 +325,9 @@ bool SendDice(MessageToSend &message) {
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(message.action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result, randomId);
-			finish();
-		}).fail([=](const MTP::Error &error) {
-			api->sendMessageFail(error, peer, randomId, newId);
-			finish();
-		}).afterRequest(history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		api->sendMessageFail(error, peer, randomId, newId);
 	});
 	api->finishForwarding(message.action);
 	return true;

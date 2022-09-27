@@ -23,18 +23,20 @@ class Session;
 namespace Data {
 
 class Session;
+class Forum;
 
 class ForumTopic final : public Dialogs::Entry {
 public:
 	static constexpr auto kGeneralId = 1;
 
-	ForumTopic(not_null<History*> forum, MsgId rootId);
+	ForumTopic(not_null<History*> history, MsgId rootId);
 
 	ForumTopic(const ForumTopic &) = delete;
 	ForumTopic &operator=(const ForumTopic &) = delete;
 
 	[[nodiscard]] not_null<ChannelData*> channel() const;
-	[[nodiscard]] not_null<History*> forum() const;
+	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] not_null<Forum*> forum() const;
 	[[nodiscard]] MsgId rootId() const;
 	[[nodiscard]] bool isGeneral() const {
 		return (_rootId == kGeneralId);
@@ -107,7 +109,7 @@ private:
 
 	int chatListNameVersion() const override;
 
-	const not_null<History*> _forum;
+	const not_null<History*> _history;
 	const not_null<Dialogs::MainList*> _list;
 	const MsgId _rootId = 0;
 
@@ -116,6 +118,8 @@ private:
 	base::flat_set<QString> _titleWords;
 	base::flat_set<QChar> _titleFirstLetters;
 	int _titleVersion = 0;
+
+	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;

@@ -72,6 +72,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
+#include "styles/style_layers.h"
 
 #include <QtCore/QMimeData>
 
@@ -332,6 +333,10 @@ RepliesWidget::RepliesWidget(
 }
 
 RepliesWidget::~RepliesWidget() {
+	if (_topic && _topic->forum()->creating(_rootId)) {
+		_topic->forum()->discardCreatingId(_rootId);
+		_topic = nullptr;
+	}
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
@@ -895,7 +900,7 @@ std::optional<QString> RepliesWidget::writeRestriction() const {
 }
 
 void RepliesWidget::pushReplyReturn(not_null<HistoryItem*> item) {
-	if (item->history() == _history && item->replyToTop() == _rootId) {
+	if (item->history() == _history && item->inThread(_rootId)) {
 		_replyReturns.push_back(item->id);
 	} else {
 		return;
@@ -1542,7 +1547,30 @@ Dialogs::RowDescriptor RepliesWidget::activeChat() const {
 }
 
 bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
-	return _composeControls->preventsClose(std::move(continueCallback));
+	if (_composeControls->preventsClose(base::duplicate(continueCallback))) {
+		return true;
+	} else if (!_newTopicDiscarded
+		&& _topic
+		&& _topic->forum()->creating(_rootId)) {
+		const auto weak = Ui::MakeWeak(this);
+		auto sure = [=](Fn<void()> &&close) {
+			if (const auto strong = weak.data()) {
+				strong->_newTopicDiscarded = true;
+			}
+			close();
+			if (continueCallback) {
+				continueCallback();
+			}
+		};
+		controller()->show(Ui::MakeConfirmBox({
+			.text = rpl::single(u"Sure discard?"_q), // #TODO forum lang
+			.confirmed = std::move(sure),
+			.confirmText = tr::lng_record_lock_discard(),
+			.confirmStyle = &st::attentionBoxButton,
+		}));
+		return true;
+	}
+	return false;
 }
 
 QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &params) {
@@ -1628,7 +1656,7 @@ bool RepliesWidget::showMessage(
 					&& _inner->viewByPosition(returnTo->position())
 					&& returnTo->replyToId() == messageId) {
 					return returnTo;
-				} else if (!general && (returnTo->replyToTop() == _rootId)) {
+				} else if (!general && returnTo->inThread(_rootId)) {
 					return returnTo;
 				}
 			}
@@ -1655,7 +1683,6 @@ Window::SectionActionResult RepliesWidget::sendBotCommand(
 }
 
 void RepliesWidget::replyToMessage(FullMsgId itemId) {
-	// if (item->history() != _history || item->replyToTop() != _rootId) {
 	_composeControls->replyToMessage(itemId);
 	refreshTopBarActiveChat();
 }
