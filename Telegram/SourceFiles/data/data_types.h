@@ -239,53 +239,52 @@ enum class MessageFlag : uint64 {
 	MentionsMe            = (1ULL << 15),
 	IsOrWasScheduled      = (1ULL << 16),
 	NoForwards            = (1ULL << 17),
-	TopicStart            = (1ULL << 18),
 
 	// Needs to return back to inline mode.
-	HasSwitchInlineButton = (1ULL << 19),
+	HasSwitchInlineButton = (1ULL << 18),
 
 	// For "shared links" indexing.
-	HasTextLinks          = (1ULL << 20),
+	HasTextLinks          = (1ULL << 19),
 
 	// Group / channel create or migrate service message.
-	IsGroupEssential      = (1ULL << 21),
+	IsGroupEssential      = (1ULL << 20),
 
 	// Edited media is generated on the client
 	// and should not update media from server.
-	IsLocalUpdateMedia    = (1ULL << 22),
+	IsLocalUpdateMedia    = (1ULL << 21),
 
 	// Sent from inline bot, need to re-set media when sent.
-	FromInlineBot         = (1ULL << 23),
+	FromInlineBot         = (1ULL << 22),
 
 	// Generated on the client side and should be unread.
-	ClientSideUnread      = (1ULL << 24),
+	ClientSideUnread      = (1ULL << 23),
 
 	// In a supergroup.
-	HasAdminBadge         = (1ULL << 25),
+	HasAdminBadge         = (1ULL << 24),
 
 	// Outgoing message that is being sent.
-	BeingSent             = (1ULL << 26),
+	BeingSent             = (1ULL << 25),
 
 	// Outgoing message and failed to be sent.
-	SendingFailed         = (1ULL << 27),
+	SendingFailed         = (1ULL << 26),
 
 	// No media and only a several emoji or an only custom emoji text.
-	SpecialOnlyEmoji      = (1ULL << 28),
+	SpecialOnlyEmoji      = (1ULL << 27),
 
 	// Message existing in the message history.
-	HistoryEntry          = (1ULL << 29),
+	HistoryEntry          = (1ULL << 28),
 
 	// Local message, not existing on the server.
-	Local                 = (1ULL << 30),
+	Local                 = (1ULL << 29),
 
 	// Fake message for some UI element.
-	FakeHistoryItem       = (1ULL << 31),
+	FakeHistoryItem       = (1ULL << 30),
 
 	// Contact sign-up message, notification should be skipped for Silent.
-	IsContactSignUp       = (1ULL << 32),
+	IsContactSignUp       = (1ULL << 31),
 
 	// Optimization for item text custom emoji repainting.
-	CustomEmojiRepainting = (1ULL << 33),
+	CustomEmojiRepainting = (1ULL << 32),
 };
 inline constexpr bool is_flag_type(MessageFlag) { return true; }
 using MessageFlags = base::flags<MessageFlag>;

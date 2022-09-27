@@ -145,9 +145,6 @@ public:
 	[[nodiscard]] bool isPinned() const {
 		return _flags & MessageFlag::Pinned;
 	}
-	[[nodiscard]] bool isTopicStart() const {
-		return _flags & MessageFlag::TopicStart;
-	}
 	[[nodiscard]] bool unread() const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();

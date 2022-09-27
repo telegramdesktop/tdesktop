@@ -636,7 +636,29 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
-		result.text = { "topic created" };
+		// #TODO forum lang
+		result.text = { "topic created: " + qs(action.vtitle()) };
+		return result;
+	};
+
+	auto prepareTopicEditTitle = [&](const MTPDmessageActionTopicEditTitle &action) {
+		auto result = PreparedText{};
+		// #TODO forum lang
+		result.text = { "topic edited: " + qs(action.vtitle()) };
+		return result;
+	};
+
+	auto prepareTopicEditIcon = [&](const MTPDmessageActionTopicEditIcon &action) {
+		auto result = PreparedText{};
+		result.text = { "topic icon: " }; // #TODO forum lang
+		result.text.append(TextWithEntities{
+			" ",
+			{ EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				1,
+				QString::number(+action.vemoji_document_id().v)) },
+		});
 		return result;
 	};
 
@@ -711,6 +733,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareGiftPremium(data);
 	}, [&](const MTPDmessageActionTopicCreate &data) {
 		return prepareTopicCreate(data);
+	}, [&](const MTPDmessageActionTopicEditTitle &data) {
+		return prepareTopicEditTitle(data);
+	}, [&](const MTPDmessageActionTopicEditIcon &data) {
+		return prepareTopicEditIcon(data);
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
 		return PreparedText{

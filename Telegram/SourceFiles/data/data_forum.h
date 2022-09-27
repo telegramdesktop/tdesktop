@@ -36,7 +36,13 @@ public:
 	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 
+	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
+
 private:
+	void applyReceivedTopics(
+		const MTPmessages_ForumTopics &topics,
+		bool updateOffset);
+
 	const not_null<History*> _history;
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;

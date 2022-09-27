@@ -560,10 +560,18 @@ QByteArray SerializeMessage(
 		if (data.months) {
 			push("months", data.months);
 		}
-	}, [&](const ActionTopicCreated &data) {
+	}, [&](const ActionTopicCreate &data) {
 		pushActor();
 		pushAction("topic_created");
 		push("title", data.title);
+	}, [&](const ActionTopicEditTitle &data) {
+		pushActor();
+		pushAction("topic_title_edit");
+		push("title", data.title);
+	}, [&](const ActionTopicEditIcon &data) {
+		pushActor();
+		pushAction("topic_icon_edit");
+		push("emoji_document_id", data.emojiDocumentId);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

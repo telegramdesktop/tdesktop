@@ -69,36 +69,7 @@ void Forum::requestTopics() {
 		MTP_int(_offsetTopicId),
 		MTP_int(loadCount)
 	)).done([=](const MTPmessages_ForumTopics &result) {
-		const auto &data = result.data();
-		const auto owner = &channel()->owner();
-		owner->processUsers(data.vusers());
-		owner->processChats(data.vchats());
-		owner->processMessages(data.vmessages(), NewMessageType::Existing);
-		channel()->ptsReceived(data.vpts().v);
-		const auto &list = data.vtopics().v;
-		for (const auto &topic : list) {
-			const auto rootId = MsgId(topic.data().vid().v);
-			const auto i = _topics.find(rootId);
-			const auto creating = (i == end(_topics));
-			const auto raw = creating
-				? _topics.emplace(
-					rootId,
-					std::make_unique<ForumTopic>(_history, rootId)
-				).first->second.get()
-				: i->second.get();
-			raw->applyTopic(topic);
-			if (creating) {
-				raw->addToChatList(FilterId(), topicsList());
-			}
-			if (const auto last = raw->lastServerMessage()) {
-				_offsetDate = last->date();
-				_offsetId = last->id;
-			}
-			_offsetTopicId = rootId;
-		}
-		if (list.isEmpty() || list.size() == data.vcount().v) {
-			_allLoaded = true;
-		}
+		applyReceivedTopics(result, true);
 		_requestId = 0;
 		_chatsListChanges.fire({});
 		if (_allLoaded) {
@@ -108,6 +79,45 @@ void Forum::requestTopics() {
 		_allLoaded = true;
 		_requestId = 0;
 	}).send();
+}
+
+void Forum::applyReceivedTopics(const MTPmessages_ForumTopics &result) {
+	applyReceivedTopics(result, false);
+}
+
+void Forum::applyReceivedTopics(
+		const MTPmessages_ForumTopics &topics,
+		bool updateOffset) {
+	const auto &data = topics.data();
+	const auto owner = &channel()->owner();
+	owner->processUsers(data.vusers());
+	owner->processChats(data.vchats());
+	owner->processMessages(data.vmessages(), NewMessageType::Existing);
+	channel()->ptsReceived(data.vpts().v);
+	const auto &list = data.vtopics().v;
+	for (const auto &topic : list) {
+		const auto rootId = MsgId(topic.data().vid().v);
+		const auto i = _topics.find(rootId);
+		const auto creating = (i == end(_topics));
+		const auto raw = creating
+			? _topics.emplace(
+				rootId,
+				std::make_unique<ForumTopic>(_history, rootId)
+			).first->second.get()
+			: i->second.get();
+		raw->applyTopic(topic);
+		if (updateOffset) {
+			if (const auto last = raw->lastServerMessage()) {
+				_offsetDate = last->date();
+				_offsetId = last->id;
+			}
+			_offsetTopicId = rootId;
+		}
+	}
+	if (updateOffset
+		&& (list.isEmpty() || list.size() == data.vcount().v)) {
+		_allLoaded = true;
+	}
 }
 
 void Forum::applyTopicAdded(MsgId rootId, const QString &title) {
@@ -192,6 +202,7 @@ void ShowAddForumTopic(
 				MTP_flags(0),
 				forum->inputChannel,
 				MTP_string(title->getLastText().trimmed()),
+				MTPlong(), // icon_emoji_id
 				MTPInputMedia(),
 				MTP_string(message->getLastText().trimmed()),
 				MTP_long(randomId),

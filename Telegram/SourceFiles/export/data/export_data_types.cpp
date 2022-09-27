@@ -1153,8 +1153,16 @@ ServiceAction ParseServiceAction(
 		content.months = data.vmonths().v;
 		result.content = content;
 	}, [&](const MTPDmessageActionTopicCreate &data) {
-		auto content = ActionTopicCreated();
+		auto content = ActionTopicCreate();
 		content.title = ParseString(data.vtitle());
+		result.content = content;
+	}, [&](const MTPDmessageActionTopicEditTitle &data) {
+		auto content = ActionTopicEditTitle();
+		content.title = ParseString(data.vtitle());
+		result.content = content;
+	}, [&](const MTPDmessageActionTopicEditIcon &data) {
+		auto content = ActionTopicEditIcon();
+		content.emojiDocumentId = data.vemoji_document_id().v;
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

@@ -451,41 +451,13 @@ Data::ForumTopic *RepliesWidget::lookupTopic() {
 					forum->channel()->inputChannel,
 					MTP_vector<MTPint>(1, MTP_int(_rootId.bare)))
 			).done([=](const MTPmessages_ForumTopics &result) {
-				const auto &data = result.data();
-				const auto owner = &_history->owner();
-				owner->processUsers(data.vusers());
-				owner->processChats(data.vchats());
-				owner->processMessages(data.vmessages(), NewMessageType::Existing);
-				channel()->ptsReceived(data.vpts().v);
-				const auto &list = data.vtopics().v;
-				for (const auto &topic : list) {
-					const auto rootId = MsgId(topic.data().vid().v);
-					const auto i = _topics.find(rootId);
-					const auto creating = (i == end(_topics));
-					const auto raw = creating
-						? _topics.emplace(
-							rootId,
-							std::make_unique<ForumTopic>(_history, rootId)
-						).first->second.get()
-						: i->second.get();
-					raw->applyTopic(topic);
-					if (creating) {
-						raw->addToChatList(FilterId(), topicsList());
-					}
-					if (const auto last = raw->lastServerMessage()) {
-						_offsetDate = last->date();
-						_offsetId = last->id;
-					}
-					_offsetTopicId = rootId;
+				if (const auto forum = _history->peer->forum()) {
+					forum->applyReceivedTopics(result);
+					_topic = forum->topicFor(_rootId);
 				}
-				if (list.isEmpty() || list.size() == data.vcount().v) {
-					_allLoaded = true;
-				}
-				_requestId = 0;
-				_chatsListChanges.fire({});
-				if (_allLoaded) {
-					_chatsListLoadedEvents.fire({});
-				}
+				_resolveTopicRequestId = 0;
+			}).fail([=] {
+				_resolveTopicRequestId = 0;
 			}).send();
 		}
 		return result;

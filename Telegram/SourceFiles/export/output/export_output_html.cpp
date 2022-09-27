@@ -1145,10 +1145,20 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ ": Telegram Premium for "
 			+ QString::number(data.months).toUtf8()
 			+ " months.";
-	}, [&](const ActionTopicCreated &data) {
+	}, [&](const ActionTopicCreate &data) {
 		return serviceFrom
 			+ " created topic &laquo;"
 			+ SerializeString(data.title)
+			+ "&raquo;";
+	}, [&](const ActionTopicEditTitle &data) {
+		return serviceFrom
+			+ " changed topic title to &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo;";
+	}, [&](const ActionTopicEditIcon &data) {
+		return serviceFrom
+			+ " changed topic icon to &laquo;"
+			+ QString::number(data.emojiDocumentId).toUtf8()
 			+ "&raquo;";
 	}, [](v::null_t) { return QByteArray(); });
 

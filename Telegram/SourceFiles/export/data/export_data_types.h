@@ -499,8 +499,16 @@ struct ActionGiftPremium {
 	int months;
 };
 
-struct ActionTopicCreated {
+struct ActionTopicCreate {
 	Utf8String title;
+};
+
+struct ActionTopicEditTitle {
+	Utf8String title;
+};
+
+struct ActionTopicEditIcon {
+	uint64 emojiDocumentId = 0;
 };
 
 struct ServiceAction {
@@ -536,7 +544,9 @@ struct ServiceAction {
 		ActionChatJoinedByRequest,
 		ActionWebViewDataSent,
 		ActionGiftPremium,
-		ActionTopicCreated> content;
+		ActionTopicCreate,
+		ActionTopicEditTitle,
+		ActionTopicEditIcon> content;
 };
 
 ServiceAction ParseServiceAction(

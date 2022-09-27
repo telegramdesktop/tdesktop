@@ -40,18 +40,22 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 	applyTitle(qs(data.vtitle()));
 
 	const auto pinned = _list->pinned();
+#if 0 // #TODO forum pinned
 	if (data.is_pinned()) {
 		pinned->addPinned(Dialogs::Key(this));
 	} else {
 		pinned->setPinned(Dialogs::Key(this), false);
 	}
+#endif
 
 	applyTopicFields(
 		data.vunread_count().v,
 		data.vread_inbox_max_id().v,
 		data.vread_outbox_max_id().v);
 	applyTopicTopMessage(data.vtop_message().v);
-	//setUnreadMark(data.is_unread_mark());
+#if 0 // #TODO forum unread mark
+	setUnreadMark(data.is_unread_mark());
+#endif
 }
 
 void ForumTopic::indexTitleParts() {
