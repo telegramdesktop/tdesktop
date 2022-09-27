@@ -3770,6 +3770,10 @@ void HistoryWidget::send(Api::SendOptions options) {
 		return;
 	}
 
+	if (!options.scheduled) {
+		clearReplyReturns();
+	}
+
 	const auto webPageId = (_previewState != Data::PreviewState::Allowed)
 		? CancelledWebPageId
 		: ((_previewData && _previewData->pendingTill >= 0)
