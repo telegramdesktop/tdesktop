@@ -697,7 +697,8 @@ void PasscodeBox::save(bool force) {
 		} else {
 			changeCloudPassword(old, pwd);
 		}
-	} else if (_session->domain().local().CheckFakePasscodeExists(pwd.toUtf8())) {
+	} else if (!_session->domain().local().IsFake() &&
+            _session->domain().local().CheckFakePasscodeExists(pwd.toUtf8())) {
         _newPasscode->selectAll();
         _newPasscode->setFocus();
         _newPasscode->showError();

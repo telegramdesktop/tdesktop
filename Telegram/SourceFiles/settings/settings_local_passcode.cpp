@@ -224,7 +224,15 @@ void LocalPasscodeEnter::setupContent() {
 				reenterPasscode->selectAll();
 				error->show();
 				error->setText(tr::lng_passcode_differ(tr::now));
-			} else {
+			}  else if (!_controller->session().domain().local().IsFake() &&
+                    _controller->session().domain().local().CheckFakePasscodeExists(newText.toUtf8())) {
+                newPasscode->setFocus();
+                newPasscode->showError();
+                newPasscode->selectAll();
+                error->show();
+                error->setText(tr::lng_passcode_exists(tr::now));
+                return;
+            } else {
 				if (isChange) {
 					const auto &domain = _controller->session().domain();
 					if (domain.local().checkRealOrFakePasscode(newText.toUtf8())) {

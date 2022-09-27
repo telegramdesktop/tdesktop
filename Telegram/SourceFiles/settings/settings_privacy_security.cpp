@@ -392,7 +392,8 @@ void SetupLocalPasscode(
 		}
 	});
 
-    if (!controller->session().domain().local().IsFake()) {
+    auto& local_domain = controller->session().domain().local();
+    if (!local_domain.IsFake() && local_domain.hasLocalPasscode()) {
         AddButton(
             container,
             tr::lng_show_fakes(),
