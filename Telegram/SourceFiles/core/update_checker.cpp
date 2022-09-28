@@ -31,7 +31,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
-#include <KSandbox>
+
+#include <ksandbox.h>
 
 extern "C" {
 #include <openssl/rsa.h>

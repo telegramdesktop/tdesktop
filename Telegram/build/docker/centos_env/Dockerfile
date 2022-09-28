@@ -62,15 +62,6 @@ RUN git clone -b nasm-2.15.05 --depth=1 {{ GIT }}/netwide-assembler/nasm.git \
 	&& cd .. \
 	&& rm -rf nasm
 
-FROM builder AS extra-cmake-modules
-RUN git clone -b v5.98.0 --depth=1 {{ GIT }}/KDE/extra-cmake-modules.git \
-	&& cd extra-cmake-modules \
-	&& cmake -GNinja -B build . -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/extra-cmake-modules-cache" cmake --install build \
-	&& cd .. \
-	&& rm -rf extra-cmake-modules
-
 FROM builder AS libffi
 RUN git clone -b v3.4.2 --depth=1 {{ GIT }}/libffi/libffi.git \
 	&& cd libffi \
@@ -718,39 +709,6 @@ RUN git clone -b {{ QT_TAG }} --depth=1 git://code.qt.io/qt/qt5.git qt_{{ QT }} 
 	&& cd .. \
 	&& rm -rf qt_{{ QT }}
 
-FROM patches AS kcoreaddons
-COPY --link --from=extra-cmake-modules {{ LibrariesPath }}/extra-cmake-modules-cache /
-COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
-COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
-COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
-COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
-COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
-COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
-COPY --link --from=xcb-util {{ LibrariesPath }}/xcb-util-cache /
-COPY --link --from=xcb-image {{ LibrariesPath }}/xcb-image-cache /
-COPY --link --from=xcb-keysyms {{ LibrariesPath }}/xcb-keysyms-cache /
-COPY --link --from=xcb-render-util {{ LibrariesPath }}/xcb-render-util-cache /
-COPY --link --from=wayland {{ LibrariesPath }}/wayland-cache /
-COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
-COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
-
-RUN git clone -b v5.98.0 --depth=1 {{ GIT }}/KDE/kcoreaddons.git \
-	&& cd kcoreaddons \
-	&& curl -sSL https://invent.kde.org/frameworks/kcoreaddons/-/merge_requests/258.patch | git apply \
-	&& rm -rf po \
-	&& cmake -GNinja -B build . \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_PREFIX_PATH={{ QT_PREFIX }} \
-		-DBUILD_SHARED_LIBS=OFF \
-		-DBUILD_TESTING=OFF \
-		-DBUILD_WITH_QT6=ON \
-		-DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.78.0 \
-	&& cmake --build build --parallel \
-	&& DESTDIR="{{ LibrariesPath }}/kcoreaddons-cache" cmake --install build \
-	&& cd .. \
-	&& rm -rf kcoreaddons
-
 FROM patches AS breakpad
 RUN git clone https://chromium.googlesource.com/breakpad/breakpad.git \
 	&& cd breakpad \
@@ -846,7 +804,6 @@ COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
 COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
-COPY --link --from=kcoreaddons {{ LibrariesPath }}/kcoreaddons-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /
 COPY --link --from=webrtc {{ LibrariesPath }}/tg_owt tg_owt
 COPY --link --from=webrtc_release {{ LibrariesPath }}/tg_owt/out/Release tg_owt/out/Release
