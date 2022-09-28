@@ -1650,7 +1650,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		_radioGroup->setChangedCallback([=](int value) {
 			const auto options =
 				_controller->session().api().premium().subscriptionOptions();
-			Expects(value < options.size() && value >= 0);
+			if (options.empty()) {
+				return;
+			}
+			Assert(value < options.size() && value >= 0);
 			auto text = tr::lng_premium_subscribe_button(
 				tr::now,
 				lt_cost,
