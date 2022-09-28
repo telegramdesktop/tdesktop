@@ -80,7 +80,7 @@ jobs:
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: Python installs.
-        run: py -m pip install pywin32 six
+        run: pip3 install --upgrade pywin32 six
 
       - name: Set up environment paths.
         shell: bash
