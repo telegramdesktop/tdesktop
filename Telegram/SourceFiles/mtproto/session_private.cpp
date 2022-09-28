@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/platform/base_platform_info.h"
 
-#include <KSandbox>
+#include <ksandbox.h>
 #include <zlib.h>
 
 namespace MTP {

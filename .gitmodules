@@ -94,3 +94,6 @@
 [submodule "Telegram/ThirdParty/kimageformats"]
 	path = Telegram/ThirdParty/kimageformats
 	url = https://github.com/KDE/kimageformats.git
+[submodule "Telegram/ThirdParty/kcoreaddons"]
+	path = Telegram/ThirdParty/kcoreaddons
+	url = https://github.com/KDE/kcoreaddons.git
