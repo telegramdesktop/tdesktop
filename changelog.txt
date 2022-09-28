@@ -1,3 +1,9 @@
+4.2.3 (28.09.22)
+
+- Improve scaling / cropping for photos / video files.
+- Improve touch support in channel comments.
+- Nice animation for spoilers.
+
 4.2.2 beta (23.09.22)
 
 - Fix crash in spoiler revealing in media captions.
