@@ -41,6 +41,8 @@ optionsList = [
     'build-qt6',
     'skip-qt6',
     'build-stackwalk',
+    'skip-mac-x86',
+    'skip-mac-arm64',
 ]
 options = []
 runCommand = []
@@ -54,6 +56,12 @@ for arg in sys.argv[1:]:
         customRunCommand = True
 buildQt5 = not 'skip-qt5' in options if win else 'build-qt5' in options
 buildQt6 = 'build-qt6' in options if win else not 'skip-qt6' in options
+
+skipMacX86 = 'skip-mac-x86' in options if mac else False
+skipMacArm64 = 'skip-mac-arm64' in options if mac else False
+macCmakeArchs = (''
+    + ('' if skipMacX86 else 'x86_64;')
+    + ('' if skipMacArm64 else 'arm64;'))[:-1]
 
 if not os.path.isdir(os.path.join(libsDir, keysLoc)):
     pathlib.Path(os.path.join(libsDir, keysLoc)).mkdir(parents=True, exist_ok=True)
@@ -77,6 +85,9 @@ for singlePrefix in pathPrefixes:
 environment = {
     'MAKE_THREADS_CNT': '-j8',
     'MACOSX_DEPLOYMENT_TARGET': '10.12',
+    'MACOSX_CMAKE_ARCH': macCmakeArchs,
+    'MACOSX_ARCH_X86': ('' if skipMacX86 else '1'),
+    'MACOSX_ARCH_ARM64': ('' if skipMacArm64 else '1'),
     'UNGUARDED': '-Werror=unguarded-availability-new',
     'MIN_VER': '-mmacosx-version-min=10.12',
     'USED_PREFIX': usedPrefix,
@@ -111,6 +122,25 @@ for key in environment:
     modifiedEnv[key] = environment[key]
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
+
+macosLipo = """
+safeLipo () {
+    FILE_NAME=$1
+    OUT_X86=$2
+    OUT_ARM=$3
+    OUT=$4
+    mkdir -p $OUT
+    if test -f "$OUT_ARM/$FILE_NAME" && test -f "$OUT_X86/$FILE_NAME"; then
+        lipo \\
+            -create $OUT_ARM/$FILE_NAME $OUT_X86/$FILE_NAME \\
+            -output $OUT/$FILE_NAME
+    elif test -f "$OUT_ARM/$FILE_NAME"; then
+        mv $OUT_ARM/$FILE_NAME $OUT/$FILE_NAME
+    elif test -f "$OUT_X86/$FILE_NAME"; then
+        mv $OUT_X86/$FILE_NAME $OUT/$FILE_NAME
+    fi
+}
+"""
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()
@@ -478,7 +508,7 @@ stage('xz', """
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
+        -D CMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
@@ -497,10 +527,13 @@ win:
 release:
     cmake --build . --config Release
 mac:
+    ARCHS=""
+    if [ $MACOSX_ARCH_X86 ] ; then ARCHS="-arch x86_64 $ARCHS" ; fi;
+    if [ $MACOSX_ARCH_ARM64 ] ; then ARCHS="-arch arm64 $ARCHS" ; fi;
     CFLAGS="$MIN_VER $UNGUARDED" LDFLAGS="$MIN_VER" ./configure \\
         --static \\
         --prefix=$USED_PREFIX \\
-        --archs="-arch x86_64 -arch arm64"
+        --archs="$ARCHS"
     make $MAKE_THREADS_CNT
     make install
 """)
@@ -517,29 +550,35 @@ win:
 release:
     cmake --build . --config Release
 mac:
-    CFLAGS="-arch arm64" cmake -B build.arm64 . \\
-        -D CMAKE_SYSTEM_NAME=Darwin \\
-        -D CMAKE_SYSTEM_PROCESSOR=arm64 \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D WITH_JPEG8=ON \\
-        -D ENABLE_SHARED=OFF \\
-        -D PNG_SUPPORTED=OFF
-    cmake --build build.arm64 $MAKE_THREADS_CNT
-    CFLAGS="-arch x86_64" cmake -B build . \\
-        -D CMAKE_SYSTEM_NAME=Darwin \\
-        -D CMAKE_SYSTEM_PROCESSOR=x86_64 \\
-        -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
-        -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D WITH_JPEG8=ON \\
-        -D ENABLE_SHARED=OFF \\
-        -D PNG_SUPPORTED=OFF
-    cmake --build build $MAKE_THREADS_CNT
-    lipo -create build.arm64/libjpeg.a build/libjpeg.a -output build/libjpeg.a
-    lipo -create build.arm64/libturbojpeg.a build/libturbojpeg.a -output build/libturbojpeg.a
-    cmake --install build
+    OUT_ARM="build.arm64"
+    OUT_X86="build.x86_64"
+    OUT=""
+    """ + macosLipo + """
+    build () {
+        arch=$1
+        dir=$2
+        CFLAGS="-arch $arch" cmake -B $dir . \\
+            -D CMAKE_SYSTEM_NAME=Darwin \\
+            -D CMAKE_SYSTEM_PROCESSOR=$arch \\
+            -D CMAKE_BUILD_TYPE=Release \\
+            -D CMAKE_INSTALL_PREFIX=$USED_PREFIX \\
+            -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
+            -D WITH_JPEG8=ON \\
+            -D ENABLE_SHARED=OFF \\
+            -D PNG_SUPPORTED=OFF
+        cmake --build $dir $MAKE_THREADS_CNT
+    }
+    if [ $MACOSX_ARCH_ARM64 ] ; then
+        OUT=$OUT_ARM
+        build arm64 $OUT_ARM
+    fi
+    if [ $MACOSX_ARCH_X86 ] ; then
+        OUT=$OUT_X86
+        build x86_64 $OUT_X86
+    fi
+    safeLipo libjpeg.a $OUT_X86 $OUT_ARM $OUT
+    safeLipo libturbojpeg.a $OUT_X86 $OUT_ARM $OUT
+    cmake --install $OUT
 """)
 
 stage('openssl', """
@@ -570,19 +609,24 @@ win:
     move libssl.lib out
     move ossl_static.pdb out
 mac:
-    ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-arm64-cc $MIN_VER
-    make build_libs $MAKE_THREADS_CNT
-    mkdir out.arm64
-    mv libssl.a out.arm64
-    mv libcrypto.a out.arm64
-    make clean
-    ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-x86_64-cc $MIN_VER
-    make build_libs $MAKE_THREADS_CNT
-    mkdir out.x86_64
-    mv libssl.a out.x86_64
-    mv libcrypto.a out.x86_64
-    lipo -create out.arm64/libcrypto.a out.x86_64/libcrypto.a -output libcrypto.a
-    lipo -create out.arm64/libssl.a out.x86_64/libssl.a -output libssl.a
+    build () {
+        arch=$1
+        ./Configure --prefix=$USED_PREFIX no-shared no-tests darwin64-$arch-cc $MIN_VER
+        make build_libs $MAKE_THREADS_CNT
+        mkdir out.$arch
+        mv libssl.a out.$arch
+        mv libcrypto.a out.$arch
+    }
+    """ + macosLipo + """
+    if [ $MACOSX_ARCH_ARM64 ] ; then
+        build arm64
+    fi
+    if [ $MACOSX_ARCH_X86 ] ; then
+        make clean || true
+        build x86_64
+    fi
+    safeLipo libcrypto.a out.x86_64 out.arm64 .
+    safeLipo libssl.a out.x86_64 out.arm64 .
 """)
 
 stage('opus', """
@@ -601,7 +645,7 @@ win:
 mac:
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64" \\
+        -D CMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH" \\
         -D CMAKE_INSTALL_PREFIX:STRING=$USED_PREFIX
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
@@ -622,7 +666,7 @@ release:
     cd Debug
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Debug \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        -D CMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH"
     ninja
 release:
     cd ..
@@ -630,30 +674,40 @@ release:
     cd Release
     cmake -G Ninja ../.. \\
         -D CMAKE_BUILD_TYPE=Release \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        -D CMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH"
     ninja
 """)
 
 stage('libiconv', """
 mac:
-    VERSION=1.16
+    VERSION=1.17
     rm -f libiconv.tar.gz
-    wget -O libiconv.tar.gz https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$VERSION.tar.gz
+    wget -O libiconv.tar.gz ftp://ftp.gnu.org/gnu/libiconv/libiconv-$VERSION.tar.gz
     rm -rf libiconv-$VERSION
     tar -xvzf libiconv.tar.gz
     rm libiconv.tar.gz
     mv libiconv-$VERSION libiconv
     cd libiconv
-    CFLAGS="$MIN_VER $UNGUARDED -arch arm64" CPPFLAGS="$MIN_VER $UNGUARDED -arch arm64" LDFLAGS="$MIN_VER" ./configure --enable-static --host=arm --prefix=$USED_PREFIX
-    make $MAKE_THREADS_CNT
-    mkdir out.arm64
-    mv lib/.libs/libiconv.a out.arm64
-    make clean
-    CFLAGS="$MIN_VER $UNGUARDED -arch x86_64" CPPFLAGS="$MIN_VER $UNGUARDED -arch x86_64" LDFLAGS="$MIN_VER" ./configure --enable-static --host=x86_64 --prefix=$USED_PREFIX
-    make $MAKE_THREADS_CNT
-    mkdir out.x86_64
-    mv lib/.libs/libiconv.a out.x86_64
-    lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
+    """ + macosLipo + """
+    build () {
+        arch=$1
+        host=$2
+        CFLAGS="$MIN_VER $UNGUARDED -arch $arch" \\
+            CPPFLAGS="$MIN_VER $UNGUARDED -arch $arch" \\
+            LDFLAGS="$MIN_VER" \\
+            ./configure --enable-static --host=$host --prefix=$USED_PREFIX
+        make $MAKE_THREADS_CNT
+        mkdir out.$arch
+        mv lib/.libs/libiconv.a out.$arch
+    }
+    if [ $MACOSX_ARCH_ARM64 ] ; then
+        build arm64 arm
+    fi
+    if [ $MACOSX_ARCH_X86 ] ; then
+        make clean || true
+        build x86_64 x86_64
+    fi
+    safeLipo libiconv.a out.x86_64 out.arm64 lib/.libs
     make install
 """)
 
@@ -685,39 +739,33 @@ mac:
     find ../patches/libvpx -type f -print0 | sort -z | xargs -0 git apply
 
 depends:yasm/yasm
-    ./configure --prefix=$USED_PREFIX \
-    --target=arm64-darwin20-gcc \
-    --disable-examples \
-    --disable-unit-tests \
-    --disable-tools \
-    --disable-docs \
-    --enable-vp8 \
-    --enable-vp9 \
-    --enable-webm-io
+    """ + macosLipo + """
+    build () {
+        arch=$1
+        ./configure --prefix=$USED_PREFIX \
+        --target=$arch-darwin20-gcc \
+        --disable-examples \
+        --disable-unit-tests \
+        --disable-tools \
+        --disable-docs \
+        --enable-vp8 \
+        --enable-vp9 \
+        --enable-webm-io
 
-    make $MAKE_THREADS_CNT
+        make $MAKE_THREADS_CNT
 
-    mkdir out.arm64
-    mv libvpx.a out.arm64
+        mkdir out.$arch
+        mv libvpx.a out.$arch
+    }
+    if [ $MACOSX_ARCH_ARM64 ] ; then
+        build arm64
+    fi
+    if [ $MACOSX_ARCH_X86 ] ; then
+        make clean || true
+        build x86_64
+    fi
 
-    make clean
-
-    ./configure --prefix=$USED_PREFIX \
-    --target=x86_64-darwin20-gcc \
-    --disable-examples \
-    --disable-unit-tests \
-    --disable-tools \
-    --disable-docs \
-    --enable-vp8 \
-    --enable-vp9 \
-    --enable-webm-io
-
-    make $MAKE_THREADS_CNT
-
-    mkdir out.x86_64
-    mv libvpx.a out.x86_64
-
-    lipo -create out.arm64/libvpx.a out.x86_64/libvpx.a -output libvpx.a
+    safeLipo libvpx.a out.x86_64 out.arm64 .
 
     make install
 """)
@@ -747,251 +795,146 @@ depends:patches/build_ffmpeg_win.sh
 mac:
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 depends:yasm/yasm
-    ./configure --prefix=$USED_PREFIX \
-    --enable-cross-compile \
-    --target-os=darwin \
-    --arch="arm64" \
-    --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
-    --disable-programs \
-    --disable-doc \
-    --disable-network \
-    --disable-everything \
-    --enable-protocol=file \
-    --enable-libopus \
-    --enable-libvpx \
-    --enable-hwaccel=h264_videotoolbox \
-    --enable-hwaccel=hevc_videotoolbox \
-    --enable-hwaccel=mpeg1_videotoolbox \
-    --enable-hwaccel=mpeg2_videotoolbox \
-    --enable-hwaccel=mpeg4_videotoolbox \
-    --enable-decoder=aac \
-    --enable-decoder=aac_at \
-    --enable-decoder=aac_fixed \
-    --enable-decoder=aac_latm \
-    --enable-decoder=aasc \
-    --enable-decoder=ac3 \
-    --enable-decoder=alac \
-    --enable-decoder=alac_at \
-    --enable-decoder=av1 \
-    --enable-decoder=eac3 \
-    --enable-decoder=flac \
-    --enable-decoder=gif \
-    --enable-decoder=h264 \
-    --enable-decoder=hevc \
-    --enable-decoder=libvpx_vp8 \
-    --enable-decoder=libvpx_vp9 \
-    --enable-decoder=mp1 \
-    --enable-decoder=mp1float \
-    --enable-decoder=mp2 \
-    --enable-decoder=mp2float \
-    --enable-decoder=mp3 \
-    --enable-decoder=mp3adu \
-    --enable-decoder=mp3adufloat \
-    --enable-decoder=mp3float \
-    --enable-decoder=mp3on4 \
-    --enable-decoder=mp3on4float \
-    --enable-decoder=mpeg4 \
-    --enable-decoder=msmpeg4v2 \
-    --enable-decoder=msmpeg4v3 \
-    --enable-decoder=opus \
-    --enable-decoder=pcm_alaw \
-    --enable-decoder=pcm_alaw_at \
-    --enable-decoder=pcm_f32be \
-    --enable-decoder=pcm_f32le \
-    --enable-decoder=pcm_f64be \
-    --enable-decoder=pcm_f64le \
-    --enable-decoder=pcm_lxf \
-    --enable-decoder=pcm_mulaw \
-    --enable-decoder=pcm_mulaw_at \
-    --enable-decoder=pcm_s16be \
-    --enable-decoder=pcm_s16be_planar \
-    --enable-decoder=pcm_s16le \
-    --enable-decoder=pcm_s16le_planar \
-    --enable-decoder=pcm_s24be \
-    --enable-decoder=pcm_s24daud \
-    --enable-decoder=pcm_s24le \
-    --enable-decoder=pcm_s24le_planar \
-    --enable-decoder=pcm_s32be \
-    --enable-decoder=pcm_s32le \
-    --enable-decoder=pcm_s32le_planar \
-    --enable-decoder=pcm_s64be \
-    --enable-decoder=pcm_s64le \
-    --enable-decoder=pcm_s8 \
-    --enable-decoder=pcm_s8_planar \
-    --enable-decoder=pcm_u16be \
-    --enable-decoder=pcm_u16le \
-    --enable-decoder=pcm_u24be \
-    --enable-decoder=pcm_u24le \
-    --enable-decoder=pcm_u32be \
-    --enable-decoder=pcm_u32le \
-    --enable-decoder=pcm_u8 \
-    --enable-decoder=vorbis \
-    --enable-decoder=vp8 \
-    --enable-decoder=wavpack \
-    --enable-decoder=wmalossless \
-    --enable-decoder=wmapro \
-    --enable-decoder=wmav1 \
-    --enable-decoder=wmav2 \
-    --enable-decoder=wmavoice \
-    --enable-encoder=libopus \
-    --enable-parser=aac \
-    --enable-parser=aac_latm \
-    --enable-parser=flac \
-    --enable-parser=h264 \
-    --enable-parser=hevc \
-    --enable-parser=mpeg4video \
-    --enable-parser=mpegaudio \
-    --enable-parser=opus \
-    --enable-parser=vorbis \
-    --enable-demuxer=aac \
-    --enable-demuxer=flac \
-    --enable-demuxer=gif \
-    --enable-demuxer=h264 \
-    --enable-demuxer=hevc \
-    --enable-demuxer=matroska \
-    --enable-demuxer=m4v \
-    --enable-demuxer=mov \
-    --enable-demuxer=mp3 \
-    --enable-demuxer=ogg \
-    --enable-demuxer=wav \
-    --enable-muxer=ogg \
-    --enable-muxer=opus
 
-    make $MAKE_THREADS_CNT
+    build () {
+        arch=$1
 
-    mkdir out.arm64
-    mv libavformat/libavformat.a out.arm64
-    mv libavcodec/libavcodec.a out.arm64
-    mv libswresample/libswresample.a out.arm64
-    mv libswscale/libswscale.a out.arm64
-    mv libavutil/libavutil.a out.arm64
+        ./configure --prefix=$USED_PREFIX \
+        --enable-cross-compile \
+        --target-os=darwin \
+        --arch="$arch" \
+        --extra-cflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+        --extra-cxxflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+        --extra-ldflags="$MIN_VER -arch $arch $USED_PREFIX/lib/libopus.a" \
+        --disable-programs \
+        --disable-doc \
+        --disable-network \
+        --disable-everything \
+        --enable-protocol=file \
+        --enable-libopus \
+        --enable-libvpx \
+        --enable-hwaccel=h264_videotoolbox \
+        --enable-hwaccel=hevc_videotoolbox \
+        --enable-hwaccel=mpeg1_videotoolbox \
+        --enable-hwaccel=mpeg2_videotoolbox \
+        --enable-hwaccel=mpeg4_videotoolbox \
+        --enable-decoder=aac \
+        --enable-decoder=aac_at \
+        --enable-decoder=aac_fixed \
+        --enable-decoder=aac_latm \
+        --enable-decoder=aasc \
+        --enable-decoder=ac3 \
+        --enable-decoder=alac \
+        --enable-decoder=alac_at \
+        --enable-decoder=av1 \
+        --enable-decoder=eac3 \
+        --enable-decoder=flac \
+        --enable-decoder=gif \
+        --enable-decoder=h264 \
+        --enable-decoder=hevc \
+        --enable-decoder=libvpx_vp8 \
+        --enable-decoder=libvpx_vp9 \
+        --enable-decoder=mp1 \
+        --enable-decoder=mp1float \
+        --enable-decoder=mp2 \
+        --enable-decoder=mp2float \
+        --enable-decoder=mp3 \
+        --enable-decoder=mp3adu \
+        --enable-decoder=mp3adufloat \
+        --enable-decoder=mp3float \
+        --enable-decoder=mp3on4 \
+        --enable-decoder=mp3on4float \
+        --enable-decoder=mpeg4 \
+        --enable-decoder=msmpeg4v2 \
+        --enable-decoder=msmpeg4v3 \
+        --enable-decoder=opus \
+        --enable-decoder=pcm_alaw \
+        --enable-decoder=pcm_alaw_at \
+        --enable-decoder=pcm_f32be \
+        --enable-decoder=pcm_f32le \
+        --enable-decoder=pcm_f64be \
+        --enable-decoder=pcm_f64le \
+        --enable-decoder=pcm_lxf \
+        --enable-decoder=pcm_mulaw \
+        --enable-decoder=pcm_mulaw_at \
+        --enable-decoder=pcm_s16be \
+        --enable-decoder=pcm_s16be_planar \
+        --enable-decoder=pcm_s16le \
+        --enable-decoder=pcm_s16le_planar \
+        --enable-decoder=pcm_s24be \
+        --enable-decoder=pcm_s24daud \
+        --enable-decoder=pcm_s24le \
+        --enable-decoder=pcm_s24le_planar \
+        --enable-decoder=pcm_s32be \
+        --enable-decoder=pcm_s32le \
+        --enable-decoder=pcm_s32le_planar \
+        --enable-decoder=pcm_s64be \
+        --enable-decoder=pcm_s64le \
+        --enable-decoder=pcm_s8 \
+        --enable-decoder=pcm_s8_planar \
+        --enable-decoder=pcm_u16be \
+        --enable-decoder=pcm_u16le \
+        --enable-decoder=pcm_u24be \
+        --enable-decoder=pcm_u24le \
+        --enable-decoder=pcm_u32be \
+        --enable-decoder=pcm_u32le \
+        --enable-decoder=pcm_u8 \
+        --enable-decoder=vorbis \
+        --enable-decoder=vp8 \
+        --enable-decoder=wavpack \
+        --enable-decoder=wmalossless \
+        --enable-decoder=wmapro \
+        --enable-decoder=wmav1 \
+        --enable-decoder=wmav2 \
+        --enable-decoder=wmavoice \
+        --enable-encoder=libopus \
+        --enable-parser=aac \
+        --enable-parser=aac_latm \
+        --enable-parser=flac \
+        --enable-parser=h264 \
+        --enable-parser=hevc \
+        --enable-parser=mpeg4video \
+        --enable-parser=mpegaudio \
+        --enable-parser=opus \
+        --enable-parser=vorbis \
+        --enable-demuxer=aac \
+        --enable-demuxer=flac \
+        --enable-demuxer=gif \
+        --enable-demuxer=h264 \
+        --enable-demuxer=hevc \
+        --enable-demuxer=matroska \
+        --enable-demuxer=m4v \
+        --enable-demuxer=mov \
+        --enable-demuxer=mp3 \
+        --enable-demuxer=ogg \
+        --enable-demuxer=wav \
+        --enable-muxer=ogg \
+        --enable-muxer=opus
 
-    make clean
+        make $MAKE_THREADS_CNT
 
-    ./configure --prefix=$USED_PREFIX \
-    --enable-cross-compile \
-    --target-os=darwin \
-    --arch="x86_64" \
-    --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
-    --disable-programs \
-    --disable-doc \
-    --disable-network \
-    --disable-everything \
-    --enable-protocol=file \
-    --enable-libopus \
-    --enable-libvpx \
-    --enable-hwaccel=h264_videotoolbox \
-    --enable-hwaccel=hevc_videotoolbox \
-    --enable-hwaccel=mpeg1_videotoolbox \
-    --enable-hwaccel=mpeg2_videotoolbox \
-    --enable-hwaccel=mpeg4_videotoolbox \
-    --enable-decoder=aac \
-    --enable-decoder=aac_at \
-    --enable-decoder=aac_fixed \
-    --enable-decoder=aac_latm \
-    --enable-decoder=aasc \
-    --enable-decoder=alac \
-    --enable-decoder=alac_at \
-    --enable-decoder=flac \
-    --enable-decoder=gif \
-    --enable-decoder=h264 \
-    --enable-decoder=hevc \
-    --enable-decoder=libvpx_vp8 \
-    --enable-decoder=libvpx_vp9 \
-    --enable-decoder=mp1 \
-    --enable-decoder=mp1float \
-    --enable-decoder=mp2 \
-    --enable-decoder=mp2float \
-    --enable-decoder=mp3 \
-    --enable-decoder=mp3adu \
-    --enable-decoder=mp3adufloat \
-    --enable-decoder=mp3float \
-    --enable-decoder=mp3on4 \
-    --enable-decoder=mp3on4float \
-    --enable-decoder=mpeg4 \
-    --enable-decoder=msmpeg4v2 \
-    --enable-decoder=msmpeg4v3 \
-    --enable-decoder=opus \
-    --enable-decoder=pcm_alaw \
-    --enable-decoder=pcm_alaw_at \
-    --enable-decoder=pcm_f32be \
-    --enable-decoder=pcm_f32le \
-    --enable-decoder=pcm_f64be \
-    --enable-decoder=pcm_f64le \
-    --enable-decoder=pcm_lxf \
-    --enable-decoder=pcm_mulaw \
-    --enable-decoder=pcm_mulaw_at \
-    --enable-decoder=pcm_s16be \
-    --enable-decoder=pcm_s16be_planar \
-    --enable-decoder=pcm_s16le \
-    --enable-decoder=pcm_s16le_planar \
-    --enable-decoder=pcm_s24be \
-    --enable-decoder=pcm_s24daud \
-    --enable-decoder=pcm_s24le \
-    --enable-decoder=pcm_s24le_planar \
-    --enable-decoder=pcm_s32be \
-    --enable-decoder=pcm_s32le \
-    --enable-decoder=pcm_s32le_planar \
-    --enable-decoder=pcm_s64be \
-    --enable-decoder=pcm_s64le \
-    --enable-decoder=pcm_s8 \
-    --enable-decoder=pcm_s8_planar \
-    --enable-decoder=pcm_u16be \
-    --enable-decoder=pcm_u16le \
-    --enable-decoder=pcm_u24be \
-    --enable-decoder=pcm_u24le \
-    --enable-decoder=pcm_u32be \
-    --enable-decoder=pcm_u32le \
-    --enable-decoder=pcm_u8 \
-    --enable-decoder=vorbis \
-    --enable-decoder=wavpack \
-    --enable-decoder=wmalossless \
-    --enable-decoder=wmapro \
-    --enable-decoder=wmav1 \
-    --enable-decoder=wmav2 \
-    --enable-decoder=wmavoice \
-    --enable-encoder=libopus \
-    --enable-parser=aac \
-    --enable-parser=aac_latm \
-    --enable-parser=flac \
-    --enable-parser=h264 \
-    --enable-parser=hevc \
-    --enable-demuxer=matroska \
-    --enable-parser=mpeg4video \
-    --enable-parser=mpegaudio \
-    --enable-parser=opus \
-    --enable-parser=vorbis \
-    --enable-demuxer=aac \
-    --enable-demuxer=flac \
-    --enable-demuxer=gif \
-    --enable-demuxer=h264 \
-    --enable-demuxer=hevc \
-    --enable-demuxer=m4v \
-    --enable-demuxer=mov \
-    --enable-demuxer=mp3 \
-    --enable-demuxer=ogg \
-    --enable-demuxer=wav \
-    --enable-muxer=ogg \
-    --enable-muxer=opus
+        mkdir out.$arch
+        mv libavformat/libavformat.a out.$arch
+        mv libavcodec/libavcodec.a out.$arch
+        mv libswresample/libswresample.a out.$arch
+        mv libswscale/libswscale.a out.$arch
+        mv libavutil/libavutil.a out.$arch
+    }
+    if [ $MACOSX_ARCH_ARM64 ] ; then
+        build arm64
+    fi
+    if [ $MACOSX_ARCH_X86 ] ; then
+        make clean || true
+        build x86_64
+    fi
 
-    make $MAKE_THREADS_CNT
+    """ + macosLipo + """
 
-    mkdir out.x86_64
-    mv libavformat/libavformat.a out.x86_64
-    mv libavcodec/libavcodec.a out.x86_64
-    mv libswresample/libswresample.a out.x86_64
-    mv libswscale/libswscale.a out.x86_64
-    mv libavutil/libavutil.a out.x86_64
-
-    lipo -create out.arm64/libavformat.a out.x86_64/libavformat.a -output libavformat/libavformat.a
-    lipo -create out.arm64/libavcodec.a out.x86_64/libavcodec.a -output libavcodec/libavcodec.a
-    lipo -create out.arm64/libswresample.a out.x86_64/libswresample.a -output libswresample/libswresample.a
-    lipo -create out.arm64/libswscale.a out.x86_64/libswscale.a -output libswscale/libswscale.a
-    lipo -create out.arm64/libavutil.a out.x86_64/libavutil.a -output libavutil/libavutil.a
+    safeLipo libavformat.a out.x86_64 out.arm64 libavformat
+    safeLipo libavcodec.a out.x86_64 out.arm64 libavcodec
+    safeLipo libswresample.a out.x86_64 out.arm64 libswresample
+    safeLipo libswscale.a out.x86_64 out.arm64 libswscale
+    safeLipo libavutil.a out.x86_64 out.arm64 libavutil
 
     make install
 """)
@@ -1018,7 +961,7 @@ mac:
         -D ALSOFT_UTILS=OFF \\
         -D LIBTYPE:STRING=STATIC \\
         -D CMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \\
-        -D CMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        -D CMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH"
     cmake --build build $MAKE_THREADS_CNT
     cmake --install build
 """)
@@ -1090,53 +1033,38 @@ mac:
     ZLIB_LIB=$USED_PREFIX/lib/libz.a
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/crashpad_handler Debug.x86_64/crashpad_handler -output Debug/crashpad_handler
-    lipo -create Debug.arm64/libcrashpad_client.a Debug.x86_64/libcrashpad_client.a -output Debug/libcrashpad_client.a
+
+    """ + macosLipo + """
+
+    buildTarget () {
+        target=$1
+        build () {
+            arch=$1
+
+            mkdir $target.$arch
+            cd $target.$arch
+            cmake -G Ninja \
+                -DCMAKE_BUILD_TYPE=$target \
+                -DCMAKE_OSX_ARCHITECTURES=$arch \
+                -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
+                -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
+                -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
+            ninja
+            cd ..
+        }
+        if [ $MACOSX_ARCH_ARM64 ] ; then
+            build arm64
+        fi
+        if [ $MACOSX_ARCH_X86 ] ; then
+            build x86_64
+        fi
+        mkdir $target
+        safeLipo crashpad_handler $target.x86_64 $target.arm64 $target
+        safeLipo libcrashpad_client.a $target.x86_64 $target.arm64 $target
+    }
+    buildTarget Debug
 release:
-    mkdir Release.x86_64
-    cd Release.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Release.arm64
-    cd Release.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DCRASHPAD_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DCRASHPAD_ZLIB_INCLUDE_PATH=$ZLIB_PATH \
-        -DCRASHPAD_ZLIB_LIB_PATH=$ZLIB_LIB ../..
-    ninja
-    cd ..
-    mkdir Release
-    lipo -create Release.arm64/crashpad_handler Release.x86_64/crashpad_handler -output Release/crashpad_handler
-    lipo -create Release.arm64/libcrashpad_client.a Release.x86_64/libcrashpad_client.a -output Release/libcrashpad_client.a
+    buildTarget Release
 """)
 
 stage('tg_angle', """
@@ -1276,7 +1204,7 @@ mac:
         -no-feature-futimens \
         -nomake examples \
         -nomake tests \
-        -platform macx-clang -- -DCMAKE_OSX_ARCHITECTURES="x86_64;arm64"
+        -platform macx-clang -- -DCMAKE_OSX_ARCHITECTURES="$MACOSX_CMAKE_ARCH"
 
     ninja
     ninja install
@@ -1329,65 +1257,41 @@ mac:
     FFMPEG_PATH=$USED_PREFIX/include
     mkdir out
     cd out
-    mkdir Debug.x86_64
-    cd Debug.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug.arm64
-    cd Debug.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Debug
-    lipo -create Debug.arm64/libtg_owt.a Debug.x86_64/libtg_owt.a -output Debug/libtg_owt.a
+
+    """ + macosLipo + """
+
+    buildTarget () {
+        target=$1
+        build () {
+            arch=$1
+
+            mkdir $target.$arch
+            cd $target.$arch
+            cmake -G Ninja \
+                -DCMAKE_BUILD_TYPE=$target \
+                -DCMAKE_OSX_ARCHITECTURES=$arch \
+                -DTG_OWT_BUILD_AUDIO_BACKENDS=OFF \
+                -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
+                -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
+                -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
+                -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
+                -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
+                -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
+            ninja
+            cd ..
+        }
+        if [ $MACOSX_ARCH_ARM64 ] ; then
+            build arm64
+        fi
+        if [ $MACOSX_ARCH_X86 ] ; then
+            build x86_64
+        fi
+        mkdir $target
+        safeLipo libtg_owt.a $target.x86_64 $target.arm64 $target
+    }
+    buildTarget Debug
 release:
-    mkdir Release.x86_64
-    cd Release.x86_64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_ARCHITECTURES=x86_64 \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Release.arm64
-    cd Release.arm64
-    cmake -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_ARCHITECTURES=arm64 \
-        -DTG_OWT_SPECIAL_TARGET=$SPECIAL_TARGET \
-        -DTG_OWT_LIBJPEG_INCLUDE_PATH=$MOZJPEG_PATH \
-        -DTG_OWT_OPENSSL_INCLUDE_PATH=$LIBS_DIR/openssl/include \
-        -DTG_OWT_OPUS_INCLUDE_PATH=$OPUS_PATH \
-        -DTG_OWT_LIBVPX_INCLUDE_PATH=$LIBVPX_PATH \
-        -DTG_OWT_FFMPEG_INCLUDE_PATH=$FFMPEG_PATH ../..
-    ninja
-    cd ..
-    mkdir Release
-    lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
+    buildTarget Release
 """)
 
 runStages()
