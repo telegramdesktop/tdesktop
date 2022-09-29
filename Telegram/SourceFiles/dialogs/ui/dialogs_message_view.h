@@ -26,6 +26,8 @@ namespace Dialogs::Ui {
 
 using namespace ::Ui;
 
+struct PaintContext;
+
 [[nodiscard]] TextWithEntities DialogsPreviewText(TextWithEntities text);
 
 class MessageView final {
@@ -48,10 +50,7 @@ public:
 	void paint(
 		Painter &p,
 		const QRect &geometry,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused) const;
+		const PaintContext &context) const;
 
 private:
 	struct LoadingContext;

@@ -99,7 +99,7 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 		? QString()
 		: QString::number(count);
 	Dialogs::Ui::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeInTouchBar;
+	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeSize::TouchBar;
 	unreadSt.muted = history->mute();
 	// Use constant values to draw badge regardless of cConfigScale().
 	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();

@@ -99,16 +99,12 @@ void Row::elementsPaint(
 		bool selected,
 		int selectedElement) {
 	_outerWidth = outerWidth;
-	using Row = Dialogs::Ui::RowPainter;
-	Row::paint(
-		p,
-		_fakeRow.get(),
-		outerWidth,
-		false,
-		selected,
-		crl::now(),
-		p.inactive(),
-		false);
+	Dialogs::Ui::RowPainter::Paint(p, _fakeRow.get(), {
+		.now = crl::now(),
+		.width = outerWidth,
+		.selected = selected,
+		.paused = p.inactive(),
+	});
 }
 
 class ListController final : public PeerListController {

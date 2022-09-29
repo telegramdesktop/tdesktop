@@ -176,7 +176,7 @@ InnerWidget::InnerWidget(
 	session().data().sendActionManager().animationUpdated(
 	) | rpl::start_with_next([=](
 			const Data::SendActionManager::AnimationUpdate &update) {
-		const auto updateRect = Ui::RowPainter::sendActionAnimationRect(
+		const auto updateRect = Ui::RowPainter::SendActionAnimationRect(
 			update.left,
 			update.width,
 			update.height,
@@ -481,16 +481,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				const auto key = row->key();
 				const auto isActive = (key == active);
 				const auto isSelected = (key == selected);
-				Ui::RowPainter::paint(
-					p,
-					row,
-					validateVideoUserpic(row),
-					_filterId,
-					fullWidth,
-					isActive,
-					isSelected,
-					ms,
-					videoPaused);
+				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
+					.folder = _openedFolder,
+					.forum = _openedForum,
+					.filter = _filterId,
+					.now = ms,
+					.width = fullWidth,
+					.active = isActive,
+					.selected = isSelected,
+					.paused = videoPaused,
+					.narrow = (fullWidth < st::columnMinimalWidthLeft),
+				});
 				if (xadd || yadd) {
 					p.translate(-xadd, -yadd);
 				}
@@ -601,16 +602,17 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						: (from == (isPressed()
 							? _filteredPressed
 							: _filteredSelected));
-					Ui::RowPainter::paint(
-						p,
-						_filterResults[from],
-						validateVideoUserpic(row),
-						_filterId,
-						fullWidth,
-						active,
-						selected,
-						ms,
-						videoPaused);
+					Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
+						.folder = _openedFolder,
+						.forum = _openedForum,
+						.filter = _filterId,
+						.now = ms,
+						.width = fullWidth,
+						.active = active,
+						.selected = selected,
+						.paused = videoPaused,
+						.narrow = (fullWidth < st::columnMinimalWidthLeft),
+					});
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -639,14 +641,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					const auto selected = (from == (isPressed()
 						? _peerSearchPressed
 						: _peerSearchSelected));
-					paintPeerSearchResult(
-						p,
-						result.get(),
-						fullWidth,
-						active,
-						selected,
-						ms,
-						videoPaused);
+					paintPeerSearchResult(p, result.get(), {
+						.now = ms,
+						.width = fullWidth,
+						.active = active,
+						.selected = selected,
+						.paused = videoPaused,
+					});
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -702,15 +703,19 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						: (from == (isPressed()
 							? _searchedPressed
 							: _searchedSelected));
-					Ui::RowPainter::paint(
-						p,
-						result.get(),
-						fullWidth,
-						active,
-						selected,
-						ms,
-						videoPaused,
-						showUnreadInSearchResults);
+					Ui::RowPainter::Paint(p, result.get(), {
+						.folder = _openedFolder,
+						.forum = _openedForum,
+						.filter = _filterId,
+						.now = ms,
+						.width = fullWidth,
+						.active = active,
+						.selected = selected,
+						.paused = videoPaused,
+						.search = true,
+						.narrow = (fullWidth < st::columnMinimalWidthLeft),
+						.displayUnreadInfo = showUnreadInSearchResults,
+					});
 					p.translate(0, st::dialogsRowHeight);
 				}
 			}
@@ -798,15 +803,17 @@ bool InnerWidget::isSearchResultActive(
 void InnerWidget::paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
-		int fullWidth,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused) {
-	QRect fullRect(0, 0, fullWidth, st::dialogsRowHeight);
-	p.fillRect(fullRect, active ? st::dialogsBgActive : (selected ? st::dialogsBgOver : st::dialogsBg));
-	if (!active) {
-		result->row.paintRipple(p, 0, 0, fullWidth);
+		const Ui::PaintContext &context) {
+	QRect fullRect(0, 0, context.width, st::dialogsRowHeight);
+	p.fillRect(
+		fullRect,
+		(context.active
+			? st::dialogsBgActive
+			: context.selected
+			? st::dialogsBgOver
+			: st::dialogsBg));
+	if (!context.active) {
+		result->row.paintRipple(p, 0, 0, context.width);
 	}
 
 	auto peer = result->peer;
@@ -814,7 +821,7 @@ void InnerWidget::paintPeerSearchResult(
 	userpicPeer->paintUserpicLeft(p, result->row.userpicView(), st::dialogsPadding.x(), st::dialogsPadding.y(), width(), st::dialogsPhotoSize);
 
 	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
-	auto namewidth = fullWidth - nameleft - st::dialogsPadding.x();
+	auto namewidth = context.width - nameleft - st::dialogsPadding.x();
 	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
 
 	if (result->name.isEmpty()) {
@@ -825,52 +832,52 @@ void InnerWidget::paintPeerSearchResult(
 	}
 
 	// draw chat icon
-	if (auto chatTypeIcon = Ui::ChatTypeIcon(peer, active, selected)) {
-		chatTypeIcon->paint(p, rectForName.topLeft(), fullWidth);
+	if (const auto chatTypeIcon = Ui::ChatTypeIcon(peer, context)) {
+		chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 	const auto badgeWidth = result->badge.drawGetWidth(
 		p,
 		rectForName,
 		result->name.maxWidth(),
-		fullWidth,
+		context.width,
 		{
 			.peer = peer,
-			.verified = (active
+			.verified = (context.active
 				? &st::dialogsVerifiedIconActive
-				: selected
+				: context.selected
 				? &st::dialogsVerifiedIconOver
 				: &st::dialogsVerifiedIcon),
-			.premium = (active
+			.premium = (context.active
 				? &st::dialogsPremiumIconActive
-				: selected
+				: context.selected
 				? &st::dialogsPremiumIconOver
 				: &st::dialogsPremiumIcon),
-			.scam = (active
+			.scam = (context.active
 				? &st::dialogsScamFgActive
-				: selected
+				: context.selected
 				? &st::dialogsScamFgOver
 				: &st::dialogsScamFg),
-			.premiumFg = (active
+			.premiumFg = (context.active
 				? &st::dialogsVerifiedIconBgActive
-				: selected
+				: context.selected
 				? &st::dialogsVerifiedIconBgOver
 				: &st::dialogsVerifiedIconBg),
-			.preview = (active
+			.preview = (context.active
 				? st::dialogsScamFgActive
-				: selected
+				: context.selected
 				? st::windowBgRipple
 				: st::windowBgOver)->c,
 			.customEmojiRepaint = [=] { updateSearchResult(peer); },
-			.now = now,
-			.paused = paused,
+			.now = context.now,
+			.paused = context.paused,
 		});
 	rectForName.setWidth(rectForName.width() - badgeWidth);
 
 	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
 	p.setFont(st::dialogsTextFont);
 	QString username = peer->userName();
-	if (!active && username.startsWith(_peerSearchQuery, Qt::CaseInsensitive)) {
+	if (!context.active && username.startsWith(_peerSearchQuery, Qt::CaseInsensitive)) {
 		auto first = '@' + username.mid(0, _peerSearchQuery.size());
 		auto second = username.mid(_peerSearchQuery.size());
 		auto w = st::dialogsTextFont->width(first);
@@ -884,11 +891,11 @@ void InnerWidget::paintPeerSearchResult(
 			p.drawText(tr.left() + w, tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided(second, tr.width() - w));
 		}
 	} else {
-		p.setPen(active ? st::dialogsTextFgActive : st::dialogsTextFgService);
+		p.setPen(context.active ? st::dialogsTextFgActive : st::dialogsTextFgService);
 		p.drawText(tr.left(), tr.top() + st::dialogsTextFont->ascent, st::dialogsTextFont->elided('@' + username, tr.width()));
 	}
 
-	p.setPen(active ? st::dialogsTextFgActive : st::dialogsNameFg);
+	p.setPen(context.active ? st::dialogsTextFgActive : st::dialogsNameFg);
 	result->name.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
@@ -974,7 +981,7 @@ void InnerWidget::paintSearchInPeer(
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		peer->paintUserpicLeft(p, userpic, x, y, width(), size);
 	};
-	const auto icon = Ui::ChatTypeIcon(peer, false, false);
+	const auto icon = Ui::ChatTypeIcon(peer);
 	paintSearchInFilter(p, paintUserpic, top, icon, text);
 }
 

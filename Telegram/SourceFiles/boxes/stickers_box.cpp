@@ -314,7 +314,7 @@ StickersBox::CounterWidget::CounterWidget(
 : RpWidget(parent) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_st.sizeId = Dialogs::Ui::UnreadBadgeInStickersBox;
+	_st.sizeId = Dialogs::Ui::UnreadBadgeSize::StickersBox;
 	_st.textTop = st::stickersFeaturedBadgeTextTop;
 	_st.size = st::stickersFeaturedBadgeSize;
 	_st.padding = st::stickersFeaturedBadgePadding;

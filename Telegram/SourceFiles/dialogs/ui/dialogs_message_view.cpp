@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
@@ -175,22 +176,19 @@ void MessageView::prepare(
 void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused) const {
+		const PaintContext &context) const {
 	if (geometry.isEmpty()) {
 		return;
 	}
 	p.setFont(st::dialogsTextFont);
-	p.setPen(active
+	p.setPen(context.active
 		? st::dialogsTextFgActive
-		: selected
+		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	const auto palette = &(active
+	const auto palette = &(context.active
 		? st::dialogsTextPaletteActive
-		: selected
+		: context.selected
 		? st::dialogsTextPaletteOver
 		: st::dialogsTextPalette);
 
@@ -229,8 +227,8 @@ void MessageView::paint(
 		.availableWidth = rect.width(),
 		.palette = palette,
 		.spoiler = Text::DefaultSpoilerCache(),
-		.now = now,
-		.paused = paused,
+		.now = context.now,
+		.paused = context.paused,
 		.elisionLines = rect.height() / st::dialogsTextFont->height,
 	});
 }

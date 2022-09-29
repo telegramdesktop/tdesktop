@@ -969,7 +969,7 @@ Dialogs::Ui::UnreadBadgeStyle Style() {
 	auto result = Dialogs::Ui::UnreadBadgeStyle();
 	result.font = st::mainMenuBadgeFont;
 	result.size = st::mainMenuBadgeSize;
-	result.sizeId = Dialogs::Ui::UnreadBadgeInMainMenu;
+	result.sizeId = Dialogs::Ui::UnreadBadgeSize::MainMenu;
 	return result;
 }
 

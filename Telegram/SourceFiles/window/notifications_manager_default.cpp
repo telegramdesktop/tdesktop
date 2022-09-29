@@ -845,7 +845,7 @@ void Notification::updateNotifyDisplay() {
 				Ui::Emoji::Draw(p, emoji, Ui::Emoji::GetSizeNormal(), rectForName.left(), top);
 				rectForName.setLeft(rectForName.left() + size + st::msgNameFont->spacew);
 			}
-			if (const auto chatTypeIcon = Dialogs::Ui::ChatTypeIcon(_history->peer, false, false)) {
+			if (const auto chatTypeIcon = Dialogs::Ui::ChatTypeIcon(_history->peer)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 			}

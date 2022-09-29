@@ -149,7 +149,7 @@ void HistoryDownButton::paintEvent(QPaintEvent *e) {
 		st.align = style::al_center;
 		st.font = st::historyToDownBadgeFont;
 		st.size = st::historyToDownBadgeSize;
-		st.sizeId = Dialogs::Ui::UnreadBadgeInHistoryToDown;
+		st.sizeId = Dialogs::Ui::UnreadBadgeSize::HistoryToDown;
 		Dialogs::Ui::PaintUnreadBadge(p, unreadString, width(), 0, st, 4);
 	}
 }

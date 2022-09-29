@@ -43,6 +43,7 @@ class Forum;
 namespace Dialogs::Ui {
 using namespace ::Ui;
 class VideoUserpic;
+struct PaintContext;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -297,11 +298,7 @@ private:
 	void paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
-		int fullWidth,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused);
+		const Ui::PaintContext &context);
 	void paintSearchInChat(Painter &p) const;
 	void paintSearchInPeer(
 		Painter &p,
