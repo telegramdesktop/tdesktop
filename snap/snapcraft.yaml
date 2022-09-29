@@ -221,16 +221,8 @@ parts:
   libjxl:
     source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v0.7rc
+    source-tag: v0.7.0
     plugin: cmake
-    build-packages:
-      - libbrotli-dev
-      - libhwy-dev
-      - liblcms2-dev
-    stage-packages:
-      - libbrotli1
-      - libhwy0
-      - liblcms2-2
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
@@ -245,10 +237,13 @@ parts:
       - -DJPEGXL_ENABLE_SJPEG=OFF
       - -DJPEGXL_ENABLE_OPENEXR=OFF
       - -DJPEGXL_ENABLE_SKCMS=OFF
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libbrotli*
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgocnfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
@@ -401,7 +396,7 @@ parts:
     override-pull: |
       QT=6_4_0
 
-      git clone -b v6.4.0-rc1 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.4.0 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
