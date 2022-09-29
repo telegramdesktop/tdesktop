@@ -1617,7 +1617,8 @@ if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT
         endif()
     endif()
 
-    if (DESKTOP_APP_SPECIAL_TARGET)
+    get_filename_component(desktopprivate_loc "../DesktopPrivate" REALPATH)
+    if (EXISTS ${desktopprivate_loc})
         add_executable(Packer)
         init_target(Packer)
 
