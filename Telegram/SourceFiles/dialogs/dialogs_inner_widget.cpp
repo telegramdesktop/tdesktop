@@ -121,7 +121,7 @@ struct InnerWidget::HashtagResult {
 };
 
 struct InnerWidget::PeerSearchResult {
-	PeerSearchResult(not_null<PeerData*> peer) : peer(peer) {
+	explicit PeerSearchResult(not_null<PeerData*> peer) : peer(peer) {
 	}
 	not_null<PeerData*> peer;
 	mutable Ui::Text::String name;
@@ -134,6 +134,7 @@ InnerWidget::InnerWidget(
 	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
 , _controller(controller)
+, _st(&st::defaultDialogRow)
 , _pinnedShiftAnimation([=](crl::time now) {
 	return pinnedShiftAnimationCallback(now);
 })
@@ -177,6 +178,7 @@ InnerWidget::InnerWidget(
 	) | rpl::start_with_next([=](
 			const Data::SendActionManager::AnimationUpdate &update) {
 		const auto updateRect = Ui::RowPainter::SendActionAnimationRect(
+			_st,
 			update.left,
 			update.width,
 			update.height,
@@ -348,7 +350,7 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 
 int InnerWidget::dialogsOffset() const {
 	return _collapsedRows.size() * st::dialogsImportantBarHeight
-		- _skipTopDialogs * st::dialogsRowHeight;
+		- _skipTopDialogs * _st->height;
 }
 
 int InnerWidget::fixedOnTopCount() const {
@@ -364,7 +366,7 @@ int InnerWidget::fixedOnTopCount() const {
 }
 
 int InnerWidget::pinnedOffset() const {
-	return dialogsOffset() + fixedOnTopCount() * st::dialogsRowHeight;
+	return dialogsOffset() + fixedOnTopCount() * _st->height;
 }
 
 int InnerWidget::filteredOffset() const {
@@ -372,11 +374,17 @@ int InnerWidget::filteredOffset() const {
 }
 
 int InnerWidget::peerSearchOffset() const {
-	return filteredOffset() + (_filterResults.size() * st::dialogsRowHeight) + st::searchedBarHeight;
+	return filteredOffset()
+		+ (_filterResults.size() * _st->height)
+		+ st::searchedBarHeight;
 }
 
 int InnerWidget::searchedOffset() const {
-	auto result = peerSearchOffset() + (_peerSearchResults.empty() ? 0 : ((_peerSearchResults.size() * st::dialogsRowHeight) + st::searchedBarHeight));
+	auto result = peerSearchOffset();
+	if (!_peerSearchResults.empty()) {
+		result += (_peerSearchResults.size() * st::dialogsRowHeight)
+			+ st::searchedBarHeight;
+	}
 	if (_searchInChat) {
 		result += searchInChatSkip();
 	}
@@ -412,6 +420,7 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	stopReorderPinned();
 	clearSelection();
 	_openedForum = forum ? forum->forum() : nullptr;
+	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
 
 	_openedForumLifetime.destroy();
 	if (forum) {
@@ -449,7 +458,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 		const auto rows = shownDialogs();
 		const auto &list = rows->all();
-		const auto otherStart = std::max(int(rows->size()) - _skipTopDialogs, 0) * st::dialogsRowHeight;
+		const auto shownCount = int(rows->size()) - _skipTopDialogs;
+		const auto otherStart = std::max(shownCount, 0) * _st->height;
 		const auto active = activeEntry.key;
 		const auto selected = _menuRow.key
 			? _menuRow.key
@@ -464,7 +474,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			const auto skip = dialogsOffset();
 			auto reorderingPinned = (_aboveIndex >= 0 && !_pinnedRows.empty());
 			if (reorderingPinned) {
-				dialogsClip = dialogsClip.marginsAdded(QMargins(0, st::dialogsRowHeight, 0, st::dialogsRowHeight));
+				dialogsClip = dialogsClip.marginsAdded(QMargins(0, _st->height, 0, _st->height));
 			}
 
 			const auto promoted = fixedOnTopCount();
@@ -482,6 +492,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				const auto isActive = (key == active);
 				const auto isSelected = (key == selected);
 				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
+					.st = _st,
 					.folder = _openedFolder,
 					.forum = _openedForum,
 					.filter = _filterId,
@@ -497,7 +508,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			};
 
-			auto i = list.cfind(dialogsClip.top() - skip, st::dialogsRowHeight);
+			auto i = list.cfind(dialogsClip.top() - skip, _st->height);
 			while (i != list.cend() && (*i)->pos() < _skipTopDialogs) {
 				++i;
 			}
@@ -506,13 +517,13 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 				// If we're reordering pinned chats we need to fill this area background first.
 				if (reorderingPinned) {
-					p.fillRect(0, (promoted - _skipTopDialogs) * st::dialogsRowHeight, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
+					p.fillRect(0, (promoted - _skipTopDialogs) * _st->height, fullWidth, st::dialogsRowHeight * _pinnedRows.size(), st::dialogsBg);
 				}
 
-				p.translate(0, (lastPaintedPos - _skipTopDialogs) * st::dialogsRowHeight);
+				p.translate(0, (lastPaintedPos - _skipTopDialogs) * _st->height);
 				for (auto e = list.cend(); i != e; ++i) {
 					auto row = (*i);
-					if ((lastPaintedPos - _skipTopDialogs) * st::dialogsRowHeight >= dialogsClip.top() - skip + dialogsClip.height()) {
+					if ((lastPaintedPos - _skipTopDialogs) * _st->height >= dialogsClip.top() - skip + dialogsClip.height()) {
 						break;
 					}
 
@@ -522,7 +533,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						paintDialog(row);
 					}
 
-					p.translate(0, st::dialogsRowHeight);
+					p.translate(0, _st->height);
 					++lastPaintedPos;
 				}
 
@@ -531,9 +542,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					auto i = list.cfind(promoted + _aboveIndex, 1);
 					auto pos = (i == list.cend()) ? -1 : (*i)->pos();
 					if (pos == promoted + _aboveIndex) {
-						p.translate(0, (pos - lastPaintedPos) * st::dialogsRowHeight);
+						p.translate(0, (pos - lastPaintedPos) * _st->height);
 						paintDialog(*i);
-						p.translate(0, (lastPaintedPos - pos) * st::dialogsRowHeight);
+						p.translate(0, (lastPaintedPos - pos) * _st->height);
 					}
 				}
 			}
@@ -547,7 +558,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			auto to = ceilclamp(r.y() + r.height(), st::mentionHeight, 0, _hashtagResults.size());
 			p.translate(0, from * st::mentionHeight);
 			if (from < _hashtagResults.size()) {
-				auto htagwidth = fullWidth - st::dialogsPadding.x() * 2;
+				const auto htagleft = st::defaultDialogRow.padding.left();
+				auto htagwidth = fullWidth
+					- htagleft
+					- st::defaultDialogRow.padding.right();
 
 				p.setFont(st::mentionFont);
 				for (; from < to; ++from) {
@@ -576,11 +590,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					p.setFont(st::mentionFont);
 					if (!first.isEmpty()) {
 						p.setPen(selected ? st::mentionFgOverActive : st::mentionFgActive);
-						p.drawText(st::dialogsPadding.x(), st::mentionTop + st::mentionFont->ascent, first);
+						p.drawText(htagleft, st::mentionTop + st::mentionFont->ascent, first);
 					}
 					if (!second.isEmpty()) {
 						p.setPen(selected ? st::mentionFgOver : st::mentionFg);
-						p.drawText(st::dialogsPadding.x() + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
+						p.drawText(htagleft + firstwidth, st::mentionTop + st::mentionFont->ascent, second);
 					}
 					p.translate(0, st::mentionHeight);
 				}
@@ -588,9 +602,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 		if (!_filterResults.empty()) {
 			auto skip = filteredOffset();
-			auto from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _filterResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _filterResults.size());
-			p.translate(0, from * st::dialogsRowHeight);
+			auto from = floorclamp(r.y() - skip, _st->height, 0, _filterResults.size());
+			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _filterResults.size());
+			p.translate(0, from * _st->height);
 			if (from < _filterResults.size()) {
 				for (; from < to; ++from) {
 					const auto row = _filterResults[from];
@@ -603,6 +617,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 							? _filteredPressed
 							: _filteredSelected));
 					Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
+						.st = _st,
 						.folder = _openedFolder,
 						.forum = _openedForum,
 						.filter = _filterId,
@@ -613,7 +628,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.paused = videoPaused,
 						.narrow = (fullWidth < st::columnMinimalWidthLeft),
 					});
-					p.translate(0, st::dialogsRowHeight);
+					p.translate(0, _st->height);
 				}
 			}
 		}
@@ -642,6 +657,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						? _peerSearchPressed
 						: _peerSearchSelected));
 					paintPeerSearchResult(p, result.get(), {
+						.st = &st::defaultDialogRow,
 						.now = ms,
 						.width = fullWidth,
 						.active = active,
@@ -704,6 +720,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 							? _searchedPressed
 							: _searchedSelected));
 					Ui::RowPainter::Paint(p, result.get(), {
+						.st = &st::defaultDialogRow,
 						.folder = _openedFolder,
 						.forum = _openedForum,
 						.filter = _filterId,
@@ -778,14 +795,11 @@ void InnerWidget::paintCollapsedRow(
 
 	const auto text = row->folder->chatListName();
 	const auto unread = row->folder->chatListUnreadCount();
-	Ui::PaintCollapsedRow(
-		p,
-		row->row,
-		row->folder,
-		text,
-		unread,
-		width(),
-		selected);
+	Ui::PaintCollapsedRow(p, row->row, row->folder, text, unread, {
+		.st = _st,
+		.width = width(),
+		.selected = selected,
+	});
 }
 
 bool InnerWidget::isSearchResultActive(
@@ -818,11 +832,17 @@ void InnerWidget::paintPeerSearchResult(
 
 	auto peer = result->peer;
 	auto userpicPeer = (peer->migrateTo() ? peer->migrateTo() : peer);
-	userpicPeer->paintUserpicLeft(p, result->row.userpicView(), st::dialogsPadding.x(), st::dialogsPadding.y(), width(), st::dialogsPhotoSize);
+	userpicPeer->paintUserpicLeft(
+		p,
+		result->row.userpicView(),
+		context.st->padding.left(),
+		context.st->padding.top(),
+		width(),
+		context.st->photoSize);
 
-	auto nameleft = st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
-	auto namewidth = context.width - nameleft - st::dialogsPadding.x();
-	QRect rectForName(nameleft, st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
+	auto nameleft = context.st->nameLeft;
+	auto namewidth = context.width - nameleft - context.st->padding.right();
+	QRect rectForName(nameleft, context.st->nameTop, namewidth, st::msgNameFont->height);
 
 	if (result->name.isEmpty()) {
 		result->name.setText(
@@ -874,7 +894,7 @@ void InnerWidget::paintPeerSearchResult(
 		});
 	rectForName.setWidth(rectForName.width() - badgeWidth);
 
-	QRect tr(nameleft, st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip, namewidth, st::dialogsTextFont->height);
+	QRect tr(context.st->textLeft, context.st->textTop, namewidth, st::dialogsTextFont->height);
 	p.setFont(st::dialogsTextFont);
 	QString username = peer->userName();
 	if (!context.active && username.startsWith(_peerSearchQuery, Qt::CaseInsensitive)) {
@@ -942,17 +962,18 @@ void InnerWidget::paintSearchInFilter(
 		const style::icon *icon,
 		const Ui::Text::String &text) const {
 	const auto savedPen = p.pen();
-	const auto userpicLeft = st::dialogsPadding.x();
+	const auto userpicLeft = st::defaultDialogRow.padding.left();
 	const auto userpicTop = top
 		+ (st::dialogsSearchInHeight - st::dialogsSearchInPhotoSize) / 2;
 	paintUserpic(p, userpicLeft, userpicTop, st::dialogsSearchInPhotoSize);
 
-	const auto nameleft = st::dialogsPadding.x()
+	const auto nameleft = st::defaultDialogRow.padding.left()
 		+ st::dialogsSearchInPhotoSize
 		+ st::dialogsSearchInPhotoPadding;
 	const auto namewidth = width()
 		- nameleft
-		- st::dialogsPadding.x() * 2
+		- st::defaultDialogRow.padding.left()
+		- st::defaultDialogRow.padding.right()
 		- st::dialogsCancelSearch.width;
 	auto rectForName = QRect(
 		nameleft,
@@ -1056,9 +1077,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 		const auto selected = (collapsedSelected >= 0)
 			? nullptr
 			: (mouseY >= offset)
-			? shownDialogs()->rowAtY(
-				mouseY - offset,
-				st::dialogsRowHeight)
+			? shownDialogs()->rowAtY(mouseY - offset, _st->height)
 			: nullptr;
 		if (_selected != selected || _collapsedSelected != collapsedSelected) {
 			updateSelectedRow();
@@ -1089,7 +1108,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 		}
 		if (!_filterResults.empty()) {
 			auto skip = filteredOffset();
-			auto filteredSelected = (mouseY >= skip) ? ((mouseY - skip) / st::dialogsRowHeight) : -1;
+			auto filteredSelected = (mouseY >= skip) ? ((mouseY - skip) / _st->height) : -1;
 			if (filteredSelected < 0 || filteredSelected >= _filterResults.size()) {
 				filteredSelected = -1;
 			}
@@ -1147,11 +1166,14 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (_pressed) {
 		auto row = _pressed;
-		row->addRipple(e->pos() - QPoint(0, dialogsOffset() + _pressed->pos() * st::dialogsRowHeight), QSize(width(), st::dialogsRowHeight), [this, row] {
-			if (!_pinnedShiftAnimation.animating()) {
-				row->entry()->updateChatListEntry();
-			}
-		});
+		row->addRipple(
+			e->pos() - QPoint(0, dialogsOffset() + _pressed->pos() * _st->height),
+			QSize(width(), _st->height),
+			[this, row] {
+				if (!_pinnedShiftAnimation.animating()) {
+					row->entry()->updateChatListEntry();
+				}
+			});
 		_dragStart = e->pos();
 	} else if (base::in_range(_hashtagPressed, 0, _hashtagResults.size()) && !_hashtagDeletePressed) {
 		auto row = &_hashtagResults[_hashtagPressed]->row;
@@ -1162,8 +1184,8 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto row = _filterResults[_filteredPressed];
 		const auto filterId = _filterId;
 		row->addRipple(
-			e->pos() - QPoint(0, filteredOffset() + _filteredPressed * st::dialogsRowHeight),
-			QSize(width(), st::dialogsRowHeight),
+			e->pos() - QPoint(0, filteredOffset() + _filteredPressed * _st->height),
+			QSize(width(), _st->height),
 			[=] { repaintDialogRow(filterId, row); });
 	} else if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
 		auto &result = _peerSearchResults[_peerSearchPressed];
@@ -1303,36 +1325,35 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 	auto yaddWas = _pinnedRows[_draggingIndex].yadd.current();
 	auto shift = 0;
 	auto now = crl::now();
-	auto rowHeight = st::dialogsRowHeight;
 	if (_dragStart.y() > localPosition.y() && _draggingIndex > 0) {
-		shift = -floorclamp(_dragStart.y() - localPosition.y() + (rowHeight / 2), rowHeight, 0, _draggingIndex);
+		shift = -floorclamp(_dragStart.y() - localPosition.y() + (_st->height / 2), _st->height, 0, _draggingIndex);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
 			list->movePinned(_dragging, -1);
 			std::swap(_pinnedRows[from], _pinnedRows[from - 1]);
-			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - rowHeight, 0);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - _st->height, 0);
 			_pinnedRows[from].animStartTime = now;
 		}
 	} else if (_dragStart.y() < localPosition.y() && _draggingIndex + 1 < pinnedCount) {
-		shift = floorclamp(localPosition.y() - _dragStart.y() + (rowHeight / 2), rowHeight, 0, pinnedCount - _draggingIndex - 1);
+		shift = floorclamp(localPosition.y() - _dragStart.y() + (_st->height / 2), _st->height, 0, pinnedCount - _draggingIndex - 1);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
 			list->movePinned(_dragging, 1);
 			std::swap(_pinnedRows[from], _pinnedRows[from + 1]);
-			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + rowHeight, 0);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + _st->height, 0);
 			_pinnedRows[from].animStartTime = now;
 		}
 	}
 	if (shift) {
 		_draggingIndex += shift;
 		_aboveIndex = _draggingIndex;
-		_dragStart.setY(_dragStart.y() + shift * rowHeight);
+		_dragStart.setY(_dragStart.y() + shift * _st->height);
 		if (!_pinnedShiftAnimation.animating()) {
 			_pinnedShiftAnimation.start();
 		}
 	}
 	_aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
-	_pinnedRows[_draggingIndex].yadd = anim::value(yaddWas - shift * rowHeight, localPosition.y() - _dragStart.y());
+	_pinnedRows[_draggingIndex].yadd = anim::value(yaddWas - shift * _st->height, localPosition.y() - _dragStart.y());
 	if (!_pinnedRows[_draggingIndex].animStartTime) {
 		_pinnedRows[_draggingIndex].yadd.finish();
 	}
@@ -1383,11 +1404,11 @@ bool InnerWidget::pinnedShiftAnimationCallback(crl::time now) {
 	}
 	if (updateMin >= 0) {
 		auto top = pinnedOffset();
-		auto updateFrom = top + st::dialogsRowHeight * (updateMin - 1);
-		auto updateHeight = st::dialogsRowHeight * (updateMax - updateMin + 3);
+		auto updateFrom = top + _st->height * (updateMin - 1);
+		auto updateHeight = _st->height * (updateMax - updateMin + 3);
 		if (base::in_range(_aboveIndex, 0, _pinnedRows.size())) {
 			// Always include currently dragged chat in its current and old positions.
-			auto aboveRowBottom = top + (_aboveIndex + 1) * st::dialogsRowHeight;
+			auto aboveRowBottom = top + (_aboveIndex + 1) * _st->height;
 			auto aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + _aboveTopShift);
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + aboveTopShift);
@@ -1549,9 +1570,9 @@ void InnerWidget::handleChatListEntryRefreshes() {
 	) | rpl::filter([=](const Event &event) {
 		return (event.filterId == _filterId);
 	}) | rpl::start_with_next([=](const Event &event) {
-		const auto rowHeight = st::dialogsRowHeight;
-		const auto from = dialogsOffset() + event.moved.from * rowHeight;
-		const auto to = dialogsOffset() + event.moved.to * rowHeight;
+		const auto offset = dialogsOffset();
+		const auto from = offset + event.moved.from * _st->height;
+		const auto to = offset + event.moved.to * _st->height;
 		const auto &key = event.key;
 		const auto entry = key.entry();
 
@@ -1590,7 +1611,7 @@ void InnerWidget::handleChatListEntryRefreshes() {
 				0,
 				std::min(from, to),
 				width(),
-				std::abs(from - to) + rowHeight);
+				std::abs(from - to) + _st->height);
 		}
 	}, lifetime());
 }
@@ -1610,7 +1631,7 @@ int InnerWidget::defaultRowTop(not_null<Row*> row) const {
 	if (base::in_range(position, 0, _pinnedRows.size())) {
 		top += qRound(_pinnedRows[position].yadd.current());
 	}
-	return top + position * st::dialogsRowHeight;
+	return top + position * _st->height;
 }
 
 void InnerWidget::repaintDialogRow(
@@ -1621,7 +1642,7 @@ void InnerWidget::repaintDialogRow(
 			if (const auto folder = row->folder()) {
 				repaintCollapsedFolderRow(folder);
 			}
-			update(0, defaultRowTop(row), width(), st::dialogsRowHeight);
+			update(0, defaultRowTop(row), width(), _st->height);
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (!filterId) {
@@ -1629,9 +1650,9 @@ void InnerWidget::repaintDialogRow(
 				if (_filterResults[i]->key() == row->key()) {
 					update(
 						0,
-						filteredOffset() + i * st::dialogsRowHeight,
+						filteredOffset() + i * _st->height,
 						width(),
-						st::dialogsRowHeight);
+						_st->height);
 					break;
 				}
 			}
@@ -1677,7 +1698,7 @@ void InnerWidget::updateDialogRow(
 		QRect updateRect,
 		UpdateRowSections sections) {
 	if (updateRect.isEmpty()) {
-		updateRect = QRect(0, 0, width(), st::dialogsRowHeight);
+		updateRect = QRect(0, 0, width(), _st->height);
 	}
 	if (IsServerMsgId(-row.fullId.msg)) {
 		if (const auto peer = row.key.peer()) {
@@ -1691,12 +1712,12 @@ void InnerWidget::updateDialogRow(
 		}
 	}
 
-	const auto updateRow = [&](int rowTop) {
+	const auto updateRow = [&](int rowTop, int rowHeight = 0) {
 		rtlupdate(
 			updateRect.x(),
 			rowTop + updateRect.y(),
 			updateRect.width(),
-			updateRect.height());
+			rowHeight ? rowHeight : updateRect.height());
 	};
 	if (_state == WidgetState::Default) {
 		if (sections & UpdateRowSection::Default) {
@@ -1709,7 +1730,7 @@ void InnerWidget::updateDialogRow(
 				if (base::in_range(position, 0, _pinnedRows.size())) {
 					top += qRound(_pinnedRows[position].yadd.current());
 				}
-				updateRow(top + position * st::dialogsRowHeight);
+				updateRow(top + position * _st->height);
 			}
 		}
 	} else if (_state == WidgetState::Filtered) {
@@ -1719,7 +1740,7 @@ void InnerWidget::updateDialogRow(
 			auto index = 0;
 			for (const auto result : _filterResults) {
 				if (result->key() == row.key) {
-					updateRow(add + index * st::dialogsRowHeight);
+					updateRow(add + index * _st->height);
 					break;
 				}
 				++index;
@@ -1732,7 +1753,9 @@ void InnerWidget::updateDialogRow(
 				auto index = 0;
 				for (const auto &result : _peerSearchResults) {
 					if (result->peer == peer) {
-						updateRow(add + index * st::dialogsRowHeight);
+						updateRow(
+							add + index * st::dialogsRowHeight,
+							st::dialogsRowHeight);
 						break;
 					}
 					++index;
@@ -1745,7 +1768,9 @@ void InnerWidget::updateDialogRow(
 			auto index = 0;
 			for (const auto &result : _searchResults) {
 				if (isSearchResultActive(result.get(), row)) {
-					updateRow(add + index * st::dialogsRowHeight);
+					updateRow(
+						add + index * st::dialogsRowHeight,
+						st::dialogsRowHeight);
 					break;
 				}
 				++index;
@@ -1770,9 +1795,9 @@ void InnerWidget::updateSelectedRow(Key key) {
 			if (base::in_range(position, 0, _pinnedRows.size())) {
 				top += qRound(_pinnedRows[position].yadd.current());
 			}
-			update(0, top + position * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+			update(0, top + position * _st->height, width(), _st->height);
 		} else if (_selected) {
-			update(0, dialogsOffset() + _selected->pos() * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+			update(0, dialogsOffset() + _selected->pos() * _st->height, width(), _st->height);
 		} else if (_collapsedSelected >= 0) {
 			update(0, _collapsedSelected * st::dialogsImportantBarHeight, width(), st::dialogsImportantBarHeight);
 		}
@@ -1780,14 +1805,14 @@ void InnerWidget::updateSelectedRow(Key key) {
 		if (key) {
 			for (auto i = 0, l = int(_filterResults.size()); i != l; ++i) {
 				if (_filterResults[i]->key() == key) {
-					update(0, filteredOffset() + i * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+					update(0, filteredOffset() + i * _st->height, width(), _st->height);
 					break;
 				}
 			}
 		} else if (_hashtagSelected >= 0) {
 			update(0, _hashtagSelected * st::mentionHeight, width(), st::mentionHeight);
 		} else if (_filteredSelected >= 0) {
-			update(0, filteredOffset() + _filteredSelected * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+			update(0, filteredOffset() + _filteredSelected * _st->height, width(), _st->height);
 		} else if (_peerSearchSelected >= 0) {
 			update(0, peerSearchOffset() + _peerSearchSelected * st::dialogsRowHeight, width(), st::dialogsRowHeight);
 		} else if (_searchedSelected >= 0) {
@@ -2344,7 +2369,7 @@ void InnerWidget::refresh(bool toTop) {
 		if (list->empty()) {
 			h = st::dialogsEmptyHeight;
 		} else {
-			h = dialogsOffset() + list->size() * st::dialogsRowHeight;
+			h = dialogsOffset() + list->size() * _st->height;
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (_waitingForSearch) {
@@ -2537,8 +2562,8 @@ void InnerWidget::repaintSearchResult(int index) {
 	rtlupdate(
 		0,
 		searchedOffset() + index * st::dialogsRowHeight,
-
-		width(), st::dialogsRowHeight);
+		width(),
+		st::dialogsRowHeight);
 }
 
 void InnerWidget::clearFilter() {
@@ -2598,8 +2623,8 @@ void InnerWidget::selectSkip(int32 direction) {
 		if (_collapsedSelected >= 0 || _selected) {
 			const auto fromY = (_collapsedSelected >= 0)
 				? (_collapsedSelected * st::dialogsImportantBarHeight)
-				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
-			_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
+				: (dialogsOffset() + _selected->pos() * _st->height);
+			_mustScrollTo.fire({ fromY, fromY + _st->height });
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (_hashtagResults.empty() && _filterResults.empty() && _peerSearchResults.empty() && _searchResults.empty()) {
@@ -2654,9 +2679,9 @@ void InnerWidget::selectSkip(int32 direction) {
 			});
 		} else if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
 			_mustScrollTo.fire({
-				filteredOffset() + _filteredSelected * st::dialogsRowHeight,
+				filteredOffset() + _filteredSelected * _st->height,
 				filteredOffset()
-					+ (_filteredSelected + 1) * st::dialogsRowHeight,
+					+ (_filteredSelected + 1) * _st->height,
 			});
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
 			_mustScrollTo.fire({
@@ -2680,36 +2705,38 @@ void InnerWidget::selectSkip(int32 direction) {
 }
 
 void InnerWidget::scrollToEntry(const RowDescriptor &entry) {
-	int32 fromY = -1;
+	auto fromY = -1;
+	auto rowHeight = _st->height;
 	if (_state == WidgetState::Default) {
 		if (auto row = shownDialogs()->getRow(entry.key)) {
-			fromY = dialogsOffset() + row->pos() * st::dialogsRowHeight;
+			fromY = dialogsOffset() + row->pos() * _st->height;
 		}
 	} else if (_state == WidgetState::Filtered) {
 		for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
 			if (isSearchResultActive(_searchResults[i].get(), entry)) {
 				fromY = searchedOffset() + i * st::dialogsRowHeight;
+				rowHeight = st::dialogsRowHeight;
 				break;
 			}
 		}
 		if (fromY < 0) {
 			for (auto i = 0, c = int(_filterResults.size()); i != c; ++i) {
 				if (_filterResults[i]->key() == entry.key) {
-					fromY = filteredOffset() + (i * st::dialogsRowHeight);
+					fromY = filteredOffset() + (i * _st->height);
 					break;
 				}
 			}
 		}
 	}
 	if (fromY >= 0) {
-		_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
+		_mustScrollTo.fire({ fromY, fromY + rowHeight });
 	}
 }
 
 void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 	clearMouseSelection();
 	const auto list = shownDialogs();
-	int toSkip = pixels / int(st::dialogsRowHeight);
+	int toSkip = pixels / _st->height;
 	if (_state == WidgetState::Default) {
 		if (!_selected) {
 			if (direction > 0 && list->size() > _skipTopDialogs) {
@@ -2735,8 +2762,8 @@ void InnerWidget::selectSkipPage(int32 pixels, int32 direction) {
 		if (_collapsedSelected >= 0 || _selected) {
 			const auto fromY = (_collapsedSelected >= 0)
 				? (_collapsedSelected * st::dialogsImportantBarHeight)
-				: (dialogsOffset() + _selected->pos() * st::dialogsRowHeight);
-			_mustScrollTo.fire({ fromY, fromY + st::dialogsRowHeight });
+				: (dialogsOffset() + _selected->pos() * _st->height);
+			_mustScrollTo.fire({ fromY, fromY + _st->height });
 		}
 	} else {
 		return selectSkip(direction * toSkip);
@@ -2751,10 +2778,10 @@ void InnerWidget::loadPeerPhotos() {
 	auto yFrom = _visibleTop;
 	auto yTo = _visibleTop + (_visibleBottom - _visibleTop) * (PreloadHeightsCount + 1);
 	if (_state == WidgetState::Default) {
-		auto otherStart = list->size() * st::dialogsRowHeight;
+		auto otherStart = list->size() * _st->height;
 		if (yFrom < otherStart) {
-			for (auto i = list->cfind(yFrom, st::dialogsRowHeight), end = list->cend(); i != end; ++i) {
-				if (((*i)->pos() * st::dialogsRowHeight) >= yTo) {
+			for (auto i = list->cfind(yFrom, _st->height), end = list->cend(); i != end; ++i) {
+				if (((*i)->pos() * _st->height) >= yTo) {
 					break;
 				}
 				(*i)->entry()->loadUserpic();
@@ -2765,10 +2792,10 @@ void InnerWidget::loadPeerPhotos() {
 		}
 		yTo -= otherStart;
 	} else if (_state == WidgetState::Filtered) {
-		int32 from = (yFrom - filteredOffset()) / st::dialogsRowHeight;
+		int32 from = (yFrom - filteredOffset()) / _st->height;
 		if (from < 0) from = 0;
 		if (from < _filterResults.size()) {
-			int32 to = (yTo / int32(st::dialogsRowHeight)) + 1;
+			int32 to = (yTo / _st->height) + 1;
 			if (to > _filterResults.size()) to = _filterResults.size();
 
 			for (; from < to; ++from) {
@@ -2776,20 +2803,20 @@ void InnerWidget::loadPeerPhotos() {
 			}
 		}
 
-		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size();
+		from = (yFrom > filteredOffset() + st::searchedBarHeight ? ((yFrom - filteredOffset() - st::searchedBarHeight) / st::dialogsRowHeight) : 0) - _filterResults.size();
 		if (from < 0) from = 0;
 		if (from < _peerSearchResults.size()) {
-			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() + 1;
+			int32 to = (yTo > filteredOffset() + st::searchedBarHeight ? ((yTo - filteredOffset() - st::searchedBarHeight) / st::dialogsRowHeight) : 0) - _filterResults.size() + 1;
 			if (to > _peerSearchResults.size()) to = _peerSearchResults.size();
 
 			for (; from < to; ++from) {
 				_peerSearchResults[from]->peer->loadUserpic();
 			}
 		}
-		from = (yFrom > filteredOffset() + ((_peerSearchResults.empty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() - _peerSearchResults.size();
+		from = (yFrom > filteredOffset() + ((_peerSearchResults.empty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight) ? ((yFrom - filteredOffset() - (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / st::dialogsRowHeight) : 0) - _filterResults.size() - _peerSearchResults.size();
 		if (from < 0) from = 0;
 		if (from < _searchResults.size()) {
-			int32 to = (yTo > filteredOffset() + (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / int32(st::dialogsRowHeight)) : 0) - _filterResults.size() - _peerSearchResults.size() + 1;
+			int32 to = (yTo > filteredOffset() + (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) + st::searchedBarHeight ? ((yTo - filteredOffset() - (_peerSearchResults.empty() ? 0 : st::searchedBarHeight) - st::searchedBarHeight) / st::dialogsRowHeight) : 0) - _filterResults.size() - _peerSearchResults.size() + 1;
 			if (to > _searchResults.size()) to = _searchResults.size();
 
 			for (; from < to; ++from) {
@@ -3156,14 +3183,15 @@ void InnerWidget::updateDialogRowCornerStatus(not_null<History*> history) {
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
 	const auto updateRect = QRect(
-		st::dialogsPhotoSize - skip.x() - size,
-		st::dialogsPhotoSize - skip.y() - size,
+		_st->photoSize - skip.x() - size,
+		_st->photoSize - skip.y() - size,
 		size,
 		size
 	).marginsAdded(
 		{ stroke, stroke, stroke, stroke }
 	).translated(
-		st::dialogsPadding
+		st::defaultDialogRow.padding.left(),
+		st::defaultDialogRow.padding.top()
 	);
 	updateDialogRow(
 		RowDescriptor(
@@ -3217,11 +3245,11 @@ void InnerWidget::updateRowCornerStatusShown(
 			[](not_null<Row*> row) { return row->history(); });
 		const auto index = (i - begin(_filterResults));
 		const auto row = (i == end(_filterResults)) ? nullptr : i->get();
-		return { row, filteredOffset() + index * st::dialogsRowHeight };
+		return { row, filteredOffset() + index * _st->height };
 	};
 	if (const auto &[row, top] = findRow(history); row != nullptr) {
 		const auto visible = (top < _visibleBottom)
-			&& (top + st::dialogsRowHeight > _visibleTop);
+			&& (top + _st->height > _visibleTop);
 		row->updateCornerBadgeShown(
 			history->peer,
 			visible ? Fn<void()>(crl::guard(this, repaint)) : nullptr);

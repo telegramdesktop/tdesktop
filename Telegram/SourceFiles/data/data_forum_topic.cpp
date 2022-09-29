@@ -12,11 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_main_list.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
+#include "styles/style_dialogs.h"
 
 namespace Data {
 
@@ -207,20 +209,14 @@ void ForumTopic::loadUserpic() {
 void ForumTopic::paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
+		const Dialogs::Ui::PaintContext &context) const {
 	if (_icon) {
-		const auto emoji = Data::FrameSizeFromTag(
-			Data::CustomEmojiManager::SizeTag::Isolated
-		) / style::DevicePixelRatio();
+		const auto &st = context.st;
 		_icon->paint(p, {
 			.preview = st::windowBgOver->c,
-			.now = crl::now(),
-			.position = QPoint(
-				x + (size - emoji) / 2,
-				y + (size - emoji) / 2),
-			.paused = false,
+			.now = context.now,
+			.position = QPoint(st->padding.left(), st->padding.top()),
+			.paused = context.paused,
 		});
 	}
 }
@@ -297,7 +293,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 			? _history->owner().customEmojiManager().create(
 				_iconId,
 				[=] { updateChatListEntry(); },
-				Data::CustomEmojiManager::SizeTag::Isolated)
+				Data::CustomEmojiManager::SizeTag::Normal)
 			: nullptr;
 	}
 	updateChatListEntry();

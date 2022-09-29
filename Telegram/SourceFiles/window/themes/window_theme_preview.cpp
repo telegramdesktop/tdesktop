@@ -214,7 +214,7 @@ void Generator::prepare() {
 	_inner = extended() ? _rect.marginsRemoved(st::themePreviewMargin) : _rect;
 	_body = extended() ? _inner.marginsRemoved(QMargins(0, Platform::PreviewTitleHeight(), 0, 0)) : _inner;
 	_dialogs = QRect(_body.x(), _body.y(), st::themePreviewDialogsWidth, _body.height());
-	_dialogsList = _dialogs.marginsRemoved(QMargins(0, st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y(), 0, st::dialogsPadding.y()));
+	_dialogsList = _dialogs.marginsRemoved(QMargins(0, st::dialogsFilterPadding.y() + st::dialogsMenuToggle.height + st::dialogsFilterPadding.y(), 0, st::defaultDialogRow.padding.bottom()));
 	_topBar = QRect(_dialogs.x() + _dialogs.width(), _dialogs.y(), _body.width() - _dialogs.width(), st::topBarHeight);
 	_composeArea = QRect(_topBar.x(), _body.y() + _body.height() - st::historySendSize.height(), _topBar.width(), st::historySendSize.height());
 	_history = QRect(_topBar.x(), _topBar.y() + _topBar.height(), _topBar.width(), _body.height() - _topBar.height() - _composeArea.height());
@@ -666,11 +666,17 @@ void Generator::paintRow(const Row &row) {
 	if (row.active || row.selected) {
 		_p->fillRect(fullRect, row.active ? st::dialogsBgActive[_palette] : st::dialogsBgOver[_palette]);
 	}
-	paintUserpic(x + st::dialogsPadding.x(), y + st::dialogsPadding.y(), row.type, row.peerIndex, row.letters);
+	const auto &st = st::defaultDialogRow;
+	paintUserpic(
+		x + st.padding.left(),
+		y + st.padding.top(),
+		row.type,
+		row.peerIndex,
+		row.letters);
 
-	auto nameleft = x + st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPhotoPadding;
-	auto namewidth = x + fullWidth - nameleft - st::dialogsPadding.x();
-	auto rectForName = QRect(nameleft, y + st::dialogsPadding.y() + st::dialogsNameTop, namewidth, st::msgNameFont->height);
+	auto nameleft = x + st.nameLeft;
+	auto namewidth = x + fullWidth - nameleft - st.padding.right();
+	auto rectForName = QRect(nameleft, y + st.nameTop, namewidth, st::msgNameFont->height);
 
 	auto chatTypeIcon = ([&row]() -> const style::icon * {
 		if (row.type == Row::Type::Group) {
@@ -685,7 +691,7 @@ void Generator::paintRow(const Row &row) {
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 
-	auto texttop = y + st::dialogsPadding.y() + st::msgNameFont->height + st::dialogsSkip;
+	auto texttop = st.textTop;
 
 	auto dateWidth = st::dialogsDateFont->width(row.date);
 	rectForName.setWidth(rectForName.width() - dateWidth - st::dialogsDateSkip);
@@ -696,7 +702,7 @@ void Generator::paintRow(const Row &row) {
 	auto availableWidth = namewidth;
 	if (row.unreadCounter) {
 		auto counter = QString::number(row.unreadCounter);
-		auto unreadRight = x + fullWidth - st::dialogsPadding.x();
+		auto unreadRight = x + fullWidth - st.padding.right();
 		auto unreadTop = texttop + st::dialogsTextFont->ascent - st::dialogsUnreadFont->ascent - (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
 
 		auto unreadWidth = st::dialogsUnreadFont->width(counter);
@@ -728,7 +734,7 @@ void Generator::paintRow(const Row &row) {
 		_p->drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + textTop + st::dialogsUnreadFont->ascent, counter);
 	} else if (row.pinned) {
 		auto icon = (row.active ? st::dialogsPinnedIconActive[_palette] : (row.selected ? st::dialogsPinnedIconOver[_palette] : st::dialogsPinnedIcon[_palette]));
-		icon.paint(*_p, x + fullWidth - st::dialogsPadding.x() - icon.width(), texttop, fullWidth);
+		icon.paint(*_p, x + fullWidth - st.padding.right() - icon.width(), texttop, fullWidth);
 		availableWidth -= icon.width() + st::dialogsUnreadPadding;
 	}
 	auto textRect = QRect(nameleft, texttop, availableWidth, st::dialogsTextFont->height);
@@ -955,22 +961,25 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 	};
 	auto color = colors[index % base::array_size(colors)];
 
-	auto image = QImage(st::dialogsPhotoSize * cIntRetinaFactor(), st::dialogsPhotoSize * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
+	const auto size = st::defaultDialogRow.photoSize;
+	auto image = QImage(
+		QSize(size, size) * cIntRetinaFactor(),
+		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
 	image.fill(color[_palette]->c);
 	{
 		Painter p(&image);
-		auto fontsize = (st::dialogsPhotoSize * 13) / 33;
+		auto fontsize = (size * 13) / 33;
 		auto font = st::historyPeerUserpicFont->f;
 		font.setPixelSize(fontsize);
 
 		p.setFont(font);
 		p.setBrush(Qt::NoBrush);
 		p.setPen(st::historyPeerUserpicFg[_palette]);
-		p.drawText(QRect(0, 0, st::dialogsPhotoSize, st::dialogsPhotoSize), letters, QTextOption(style::al_center));
+		p.drawText(QRect(0, 0, size, size), letters, QTextOption(style::al_center));
 	}
 	image = Images::Circle(std::move(image));
-	_p->drawImage(rtl() ? (_rect.width() - x - st::dialogsPhotoSize) : x, y, image);
+	_p->drawImage(rtl() ? (_rect.width() - x - size) : x, y, image);
 }
 
 void Generator::paintHistoryShadows() {

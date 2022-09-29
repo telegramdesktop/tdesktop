@@ -140,7 +140,7 @@ void PaintRepliesMessagesInner(
 		x,
 		y,
 		size,
-		st::dialogsPhotoSize,
+		st::defaultDialogRow.photoSize,
 		st::dialogsRepliesUserpic,
 		fg);
 }

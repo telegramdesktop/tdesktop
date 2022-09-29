@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -76,7 +80,6 @@ enum class WidgetState {
 };
 
 class InnerWidget final : public Ui::RpWidget {
-
 public:
 	InnerWidget(
 		QWidget *parent,
@@ -112,18 +115,21 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	Data::Folder *shownFolder() const;
-	Data::Forum *shownForum() const;
-	int32 lastSearchDate() const;
-	PeerData *lastSearchPeer() const;
-	MsgId lastSearchId() const;
-	MsgId lastSearchMigratedId() const;
+	[[nodiscard]] Data::Folder *shownFolder() const;
+	[[nodiscard]] Data::Forum *shownForum() const;
+	[[nodiscard]] int32 lastSearchDate() const;
+	[[nodiscard]] PeerData *lastSearchPeer() const;
+	[[nodiscard]] MsgId lastSearchId() const;
+	[[nodiscard]] MsgId lastSearchMigratedId() const;
 
-	WidgetState state() const;
-	bool waitingForSearch() const {
+	[[nodiscard]] WidgetState state() const;
+	[[nodiscard]] const style::DialogRow *st() const {
+		return _st;
+	}
+	[[nodiscard]] bool waitingForSearch() const {
 		return _waitingForSearch;
 	}
-	bool hasFilteredResults() const;
+	[[nodiscard]] bool hasFilteredResults() const;
 
 	void searchInChat(Key key, PeerData *from);
 
@@ -354,6 +360,7 @@ private:
 	rpl::lifetime _openedForumLifetime;
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
+	not_null<const style::DialogRow*> _st;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
 	int _skipTopDialogs = 0;

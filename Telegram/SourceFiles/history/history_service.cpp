@@ -802,23 +802,6 @@ void HistoryService::applyAction(const MTPMessageAction &action) {
 			this,
 			_from,
 			data.vmonths().v);
-	}, [&](const MTPDmessageActionTopicCreate &data) {
-		if (const auto forum = history()->peer->forum()) {
-			const auto iconId = DocumentId(0); // #TODO forum icon
-			forum->applyTopicAdded(id, qs(data.vtitle()), iconId);
-		}
-	}, [&](const MTPDmessageActionTopicEditTitle &data) {
-		if (const auto forum = history()->peer->forum()) {
-			if (const auto topic = forum->topicFor(this)) {
-				topic->applyTitle(qs(data.vtitle()));
-			}
-		}
-	}, [&](const MTPDmessageActionTopicEditIcon &data) {
-		if (const auto forum = history()->peer->forum()) {
-			if (const auto topic = forum->topicFor(this)) {
-				topic->applyIconId(data.vemoji_document_id().v);
-			}
-		}
 	}, [](const auto &) {
 	});
 }

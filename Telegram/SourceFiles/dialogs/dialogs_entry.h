@@ -23,6 +23,14 @@ class ForumTopic;
 class CloudImageView;
 } // namespace Data
 
+namespace Ui {
+} // namespace Ui
+
+namespace Dialogs::Ui {
+using namespace ::Ui;
+struct PaintContext;
+} // namespace Dialogs::Ui
+
 namespace Dialogs {
 
 class Row;
@@ -174,18 +182,7 @@ public:
 	virtual void paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const = 0;
-	void paintUserpicLeft(
-			Painter &p,
-			std::shared_ptr<Data::CloudImageView> &view,
-			int x,
-			int y,
-			int w,
-			int size) const {
-		paintUserpic(p, view, rtl() ? (w - x - size) : x, y, size);
-	}
+		const Ui::PaintContext &context) const = 0;
 
 	[[nodiscard]] TimeId chatListTimeId() const {
 		return _timeId;

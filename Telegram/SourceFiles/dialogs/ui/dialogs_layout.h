@@ -7,6 +7,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
+namespace st {
+extern const style::DialogRow &defaultDialogRow;
+} // namespace st
+
 namespace Ui {
 } // namespace Ui
 
@@ -28,6 +36,7 @@ using namespace ::Ui;
 class VideoUserpic;
 
 struct PaintContext {
+	not_null<const style::DialogRow*> st;
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
 	FilterId filter = 0;
@@ -43,7 +52,7 @@ struct PaintContext {
 
 const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
-	const PaintContext &context = {});
+	const PaintContext &context = { .st = &st::defaultDialogRow });
 
 class RowPainter {
 public:
@@ -57,6 +66,7 @@ public:
 		not_null<const FakeRow*> row,
 		const PaintContext &context);
 	static QRect SendActionAnimationRect(
+		not_null<const style::DialogRow*> st,
 		int animationLeft,
 		int animationWidth,
 		int animationHeight,
@@ -70,8 +80,7 @@ void PaintCollapsedRow(
 	Data::Folder *folder,
 	const QString &text,
 	int unread,
-	int fullWidth,
-	bool selected);
+	const PaintContext &context);
 
 enum class UnreadBadgeSize {
 	Dialogs,

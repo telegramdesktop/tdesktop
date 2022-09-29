@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_inner_widget.h"
 #include "history/history_unread_things.h"
 #include "dialogs/dialogs_indexed_list.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -1074,6 +1075,25 @@ void History::applyServiceChanges(
 		peer->setThemeEmoji(qs(data.vemoticon()));
 	}, [&](const MTPDmessageActionChatJoinedByRequest &data) {
 		processJoinedPeer(item->from());
+	}, [&](const MTPDmessageActionTopicCreate &data) {
+		if (const auto forum = peer->forum()) {
+			forum->applyTopicAdded(
+				item->id,
+				qs(data.vtitle()),
+				data.vicon_emoji_id().value_or(DocumentId()));
+		}
+	}, [&](const MTPDmessageActionTopicEditTitle &data) {
+		if (const auto forum = peer->forum()) {
+			if (const auto topic = forum->topicFor(item)) {
+				topic->applyTitle(qs(data.vtitle()));
+			}
+		}
+	}, [&](const MTPDmessageActionTopicEditIcon &data) {
+		if (const auto forum = peer->forum()) {
+			if (const auto topic = forum->topicFor(item)) {
+				topic->applyIconId(data.vemoji_document_id().v);
+			}
+		}
 	}, [](const auto &) {
 	});
 }
@@ -2081,10 +2101,13 @@ void History::loadUserpic() {
 void History::paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
-	peer->paintUserpic(p, view, x, y, size);
+		const Dialogs::Ui::PaintContext &context) const {
+	peer->paintUserpic(
+		p,
+		view,
+		context.st->padding.left(),
+		context.st->padding.top(),
+		context.st->photoSize);
 }
 
 void History::startBuildingFrontBlock(int expectedItemsCount) {

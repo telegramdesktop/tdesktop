@@ -60,10 +60,8 @@ public:
 	void paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const override;
-
+		const Dialogs::Ui::PaintContext &context) const override;
+	void paintUserpic(Painter &p, int x, int y, int size) const;
 	void paintUserpic(
 		Painter &p,
 		int x,

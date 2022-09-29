@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
@@ -225,9 +226,15 @@ void Folder::loadUserpic() {
 void Folder::paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
+		const Dialogs::Ui::PaintContext &context) const {
+	paintUserpic(
+		p,
+		context.st->padding.left(),
+		context.st->padding.top(),
+		context.st->photoSize);
+}
+
+void Folder::paintUserpic(Painter &p, int x, int y, int size) const {
 	paintUserpic(p, x, y, size, nullptr, nullptr);
 }
 
@@ -254,7 +261,7 @@ void Folder::paintUserpic(
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 	}
-	if (size == st::dialogsPhotoSize) {
+	if (size == st::defaultDialogRow.photoSize) {
 		const auto rect = QRect{ x, y, size, size };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(
@@ -266,10 +273,10 @@ void Folder::paintUserpic(
 		}
 	} else {
 		p.save();
-		const auto ratio = size / float64(st::dialogsPhotoSize);
+		const auto ratio = size / float64(st::defaultDialogRow.photoSize);
 		p.translate(x + size / 2., y + size / 2.);
 		p.scale(ratio, ratio);
-		const auto skip = st::dialogsPhotoSize;
+		const auto skip = st::defaultDialogRow.photoSize;
 		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(

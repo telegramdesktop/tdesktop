@@ -1092,7 +1092,9 @@ void SessionController::floatPlayerAreaUpdated() {
 }
 
 int SessionController::dialogsSmallColumnWidth() const {
-	return st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x();
+	return st::defaultDialogRow.padding.left()
+		+ st::defaultDialogRow.photoSize
+		+ st::defaultDialogRow.padding.left();
 }
 
 int SessionController::minimalThreeColumnWidth() const {

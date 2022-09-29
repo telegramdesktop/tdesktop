@@ -9,6 +9,16 @@ using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
 
+DialogRow {
+	height: pixels;
+	padding: margins;
+	photoSize: pixels;
+	nameLeft: pixels;
+	nameTop: pixels;
+	textLeft: pixels;
+	textTop: pixels;
+}
+
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
@@ -25,14 +35,20 @@ dialogsTextStyle: TextStyle(defaultTextStyle) {
 }
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;
-dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;
 dialogsFilterPadding: point(7px, 7px);
 dialogsFilterSkip: 4px;
-dialogsPhotoSize: 46px;
-dialogsPhotoPadding: 12px;
-dialogsPadding: point(10px, 8px);
+
+defaultDialogRow: DialogRow {
+	height: dialogsRowHeight;
+	padding: margins(10px, 8px, 10px, 8px);
+	photoSize: 46px;
+	nameLeft: 68px;
+	nameTop: 10px;
+	textLeft: 68px;
+	textTop: 35px;
+}
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
@@ -46,8 +62,6 @@ dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
-
-dialogsSkip: 8px;
 
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
@@ -371,3 +385,13 @@ downloadLoadedSize: 30px;
 downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
 downloadIconSize: 16px;
 downloadIconSizeDone: 20px;
+
+forumTopicRow: DialogRow(defaultDialogRow) {
+	height: 54px;
+	padding: margins(8px, 7px, 8px, 7px);
+	photoSize: 20px;
+	nameLeft: 39px;
+	nameTop: 7px;
+	textLeft: 68px;
+	textTop: 29px;
+}

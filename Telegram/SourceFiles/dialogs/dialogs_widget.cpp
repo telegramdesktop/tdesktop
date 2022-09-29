@@ -232,9 +232,9 @@ Widget::Widget(
 	) | rpl::start_with_next([=](const Ui::ScrollToRequest &data) {
 		const auto movedFrom = data.ymin;
 		const auto movedTo = data.ymax;
-		const auto st = int32(_scroll->scrollTop());
+		const auto st = _scroll->scrollTop();
 		if (st > movedTo && st < movedFrom) {
-			_scroll->scrollToY(st + st::dialogsRowHeight);
+			_scroll->scrollToY(st + _inner->st()->height);
 		}
 	}, lifetime());
 	_inner->searchMessages(
@@ -1723,7 +1723,7 @@ void Widget::updateControlsGeometry() {
 		_forwardCancel->moveToLeft(0, filterAreaTop);
 		filterAreaTop += st::dialogsForwardHeight;
 	}
-	auto smallLayoutWidth = (st::dialogsPadding.x() + st::dialogsPhotoSize + st::dialogsPadding.x());
+	auto smallLayoutWidth = (st::defaultDialogRow.padding.left() + st::defaultDialogRow.photoSize + st::defaultDialogRow.padding.left());
 	auto smallLayoutRatio = (width() < st::columnMinimalWidthLeft) ? (st::columnMinimalWidthLeft - width()) / float64(st::columnMinimalWidthLeft - smallLayoutWidth) : 0.;
 	auto filterLeft = (controller()->filtersWidth() ? st::dialogsFilterSkip : st::dialogsFilterPadding.x() + _mainMenuToggle->width()) + st::dialogsFilterPadding.x();
 	auto filterRight = (session().domain().local().hasLocalPasscode() ? (st::dialogsFilterPadding.x() + _lockUnlock->width()) : st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
