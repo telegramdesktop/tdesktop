@@ -46,6 +46,9 @@ jobs:
       matrix:
         defines:
           - ""
+        archs:
+          - "x86_64"
+          - "both"
     env:
       UPLOAD_ARTIFACT: "false"
       ONLY_CACHE: "false"
@@ -89,7 +92,13 @@ jobs:
 
       - name: Libraries.
         run: |
-          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent
+          archArg=""
+          if [[ "${{ matrix.archs }}" == "x86_64" ]]; then
+            archArg="skip-mac-arm64"
+          elif [[ "${{ matrix.archs }}" == "arm64" ]]; then
+            archArg="skip-mac-x86"
+          fi
+          ./$REPO_NAME/Telegram/build/prepare/mac.sh skip-release silent $archArg
 
       - name: Free up some disk space.
         run: |
@@ -119,7 +128,13 @@ jobs:
 
           cd ../out
 
-          xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=x86_64" -configuration Debug'
+          xcoderun=''
+          if [[ "${{ matrix.archs }}" == "both" ]]; then
+            xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=x86_64;arm64" -configuration Debug'
+          else
+            xcoderun='xcodebuild build -project Telegram.xcodeproj -scheme Telegram -destination "platform=macOS,arch=${{ matrix.archs }}" -configuration Debug'
+          fi
+
           bash -c "$xcoderun" || bash -c "$xcoderun" || bash -c "$xcoderun"
 
       - name: Move artifact.
