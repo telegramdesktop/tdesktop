@@ -1,7 +1,7 @@
 {%- set GIT = "https://github.com" -%}
 {%- set GIT_FREEDESKTOP = GIT ~ "/gitlab-freedesktop-mirrors" -%}
 {%- set QT = "6_4_0" -%}
-{%- set QT_TAG = "v6.4.0-rc1" -%}
+{%- set QT_TAG = "v6.4.0" -%}
 {%- set QT_PREFIX = "/usr/local/desktop-app/Qt-6.4.0" -%}
 {%- set OPENSSL_VER = "1_1_1" -%}
 {%- set OPENSSL_PREFIX = "/usr/local/desktop-app/openssl-1.1.1" -%}
@@ -242,7 +242,7 @@ COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=brotli {{ LibrariesPath }}/brotli-cache /
 COPY --link --from=highway {{ LibrariesPath }}/highway-cache /
 
-RUN git clone -b v0.7rc --depth=1 {{ GIT }}/libjxl/libjxl.git \
+RUN git clone -b v0.7.0 --depth=1 {{ GIT }}/libjxl/libjxl.git \
 	&& cd libjxl \
 	&& cmake -GNinja -B build . \
 		-DCMAKE_BUILD_TYPE=Release \
