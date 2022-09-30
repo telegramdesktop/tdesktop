@@ -80,7 +80,14 @@ jobs:
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: Python installs.
-        run: pip3 install --upgrade pywin32 six
+        shell: bash
+        run: |
+          cat <<EOF > python.cmake
+          find_package(Python REQUIRED QUIET)
+          execute_process(COMMAND \${CMAKE_COMMAND} -E echo \${Python_EXECUTABLE})
+          EOF
+          $(cmake -P python.cmake) -m pip install --upgrade pywin32
+          pip3 install --upgrade six
 
       - name: Set up environment paths.
         shell: bash
