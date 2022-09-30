@@ -337,8 +337,8 @@ QSize Document::countOptimalSize() {
 
 	auto maxWidth = st::msgFileMinWidth;
 
-	const auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
-	const auto tright = st.padding.left();
+	const auto tleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+	const auto tright = st.padding.right();
 	if (thumbed) {
 		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + tright);
 	} else {
@@ -458,9 +458,9 @@ void Document::draw(
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
 		: (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
-	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
-	const auto nameright = st.padding.left();
+	const auto nameright = st.padding.right();
 	const auto statustop = st.statusTop - topMinus;
 	const auto linktop = st.linkTop - topMinus;
 	const auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
@@ -852,9 +852,9 @@ TextState Document::textState(
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
 		: (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
-	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
-	const auto nameright = st.padding.left();
+	const auto nameright = st.padding.right();
 	const auto linktop = st.linkTop - topMinus;
 	auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
@@ -975,8 +975,8 @@ void Document::updatePressed(QPoint point) {
 		if (voice->seeking()) {
 			const auto thumbed = Get<HistoryDocumentThumbed>();
 			const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
-			const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
-			const auto nameright = st.padding.left();
+			const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+			const auto nameright = st.padding.right();
 			voice->setSeekingCurrent(std::clamp(
 				(point.x() - nameleft)
 					/ float64(width() - nameleft - nameright),
@@ -1170,7 +1170,7 @@ QMargins Document::bubbleMargins() const {
 		return st::msgPadding;
 	}
 	const auto padding = st::msgFileThumbLayout.padding;
-	return QMargins(padding.left(), padding.top(), padding.left(), padding.bottom());
+	return QMargins(padding.left(), padding.top(), padding.right(), padding.bottom());
 }
 
 QSize Document::sizeForGroupingOptimal(int maxWidth) const {

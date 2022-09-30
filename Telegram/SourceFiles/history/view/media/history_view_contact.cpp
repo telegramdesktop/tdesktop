@@ -138,8 +138,8 @@ QSize Contact::countOptimalSize() {
 
 	const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
 
-	const auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
-	const auto tright = st.padding.left();
+	const auto tleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+	const auto tright = st.padding.right();
 	if (_userId) {
 		accumulate_max(maxWidth, tleft + _phonew + tright);
 	} else {
@@ -168,9 +168,9 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 
 	const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
 	const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
-	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
-	const auto nameright = st.padding.left();
+	const auto nameright = st.padding.right();
 	const auto statustop = st.statusTop - topMinus;
 	const auto linkshift = st::msgDateFont->height / 2;
 	const auto linktop = st.linkTop - topMinus - linkshift;
@@ -216,7 +216,7 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 	if (_userId) {
 		const auto &st = _userId ? st::msgFileThumbLayout : st::msgFileLayout;
 		const auto topMinus = isBubbleTop() ? 0 : st::msgFileTopMinus;
-		const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+		const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 		const auto linkshift = st::msgDateFont->height / 2;
 		const auto linktop = st.linkTop - topMinus - linkshift;
 		if (style::rtlrect(nameleft, linktop, _linkw, st::semiboldFont->height, width()).contains(point)) {

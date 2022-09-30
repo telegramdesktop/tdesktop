@@ -259,7 +259,7 @@ void Generator::addAudioBubble(QVector<int> waveform, int waveactive, QString wa
 
 	auto width = st::msgFileMinWidth;
 	const auto &st = st::msgFileLayout;
-	auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
+	auto tleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	accumulate_max(width, tleft + st::normalFont->width(wavestatus) + skipBlock.width() + st::msgPadding.right());
 	accumulate_min(width, st::msgMaxWidth);
 
@@ -839,8 +839,8 @@ void Generator::paintBubble(const Bubble &bubble) {
 		bubble.text.draw(*_p, trect.x(), trect.y(), trect.width());
 	} else if (!bubble.waveform.isEmpty()) {
 		const auto &st = st::msgFileLayout;
-		auto nameleft = x + st.padding.left() + st.thumbSize + st.padding.right();
-		auto nameright = st.padding.left();
+		auto nameleft = x + st.padding.left() + st.thumbSize + st.thumbSkip;
+		auto nameright = st.padding.right();
 		auto statustop = y + st.statusTop;
 
 		auto inner = style::rtlrect(x + st.padding.left(), y + st.padding.top(), st.thumbSize, st.thumbSize, _rect.width());

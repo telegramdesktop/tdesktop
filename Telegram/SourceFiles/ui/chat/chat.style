@@ -768,20 +768,23 @@ HistoryFileLayout {
 	statusTop: pixels;
 	linkTop: pixels;
 	thumbSize: pixels;
+	thumbSkip: pixels;
 }
 
 msgFileLayout: HistoryFileLayout {
-	padding: margins(14px, 10px, 11px, 10px);
+	padding: margins(12px, 8px, 10px, 8px);
 	nameTop: 16px;
 	statusTop: 37px;
 	thumbSize: 44px;
+	thumbSkip: 11px;
 }
 msgFileThumbLayout: HistoryFileLayout {
-	padding: margins(10px, 10px, 14px, 10px);
+	padding: margins(10px, 10px, 10px, 10px);
 	nameTop: 12px;
 	statusTop: 32px;
 	linkTop: 60px;
 	thumbSize: 72px;
+	thumbSkip: 14px;
 }
 msgFileLayoutGrouped: HistoryFileLayout(msgFileLayout) {
 	padding: margins(14px, 7px, 11px, 7px);
@@ -795,16 +798,18 @@ msgFileThumbLayoutGrouped: HistoryFileLayout(msgFileThumbLayout) {
 	linkTop: 57px;
 }
 attachPreviewLayout: HistoryFileLayout {
-	padding: margins(0px, 0px, 11px, 0px);
+	padding: margins(0px, 0px, 0px, 0px);
 	nameTop: 6px;
 	statusTop: 27px;
 	thumbSize: 44px;
+	thumbSkip: 11px;
 }
 attachPreviewThumbLayout: HistoryFileLayout {
-	padding: margins(0px, 0px, 10px, 0px);
+	padding: margins(0px, 0px, 0px, 0px);
 	nameTop: 7px;
 	statusTop: 37px;
 	thumbSize: 64px;
+	thumbSkip: 10px;
 }
 
 msgFileMenuSize: size(36px, 36px);
