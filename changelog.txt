@@ -1,3 +1,7 @@
+4.2.4 (30.09.22)
+
+- Fix crash in emoji statuses clearing.
+
 4.2.3 (28.09.22)
 
 - Improve scaling / cropping for photos / video files.
