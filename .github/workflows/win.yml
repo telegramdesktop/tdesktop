@@ -136,7 +136,7 @@ jobs:
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
-          ${{ matrix.arch }} ^
+          %Platform% ^
           -D TDESKTOP_API_TEST=ON ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           -D DESKTOP_APP_NO_PDB=ON ^
