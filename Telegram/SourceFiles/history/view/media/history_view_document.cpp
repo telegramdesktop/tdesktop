@@ -424,7 +424,7 @@ void Document::draw(Painter &p, const PaintContext &context) const {
 	const auto corners = (isBubbleTop()
 		? (RectPart::TopLeft | RectPart::TopRight)
 		: RectParts())
-		| ((isBubbleBottom() && !Has<HistoryDocumentCaptioned>())
+		| ((isRoundedInBubbleBottom() && !Has<HistoryDocumentCaptioned>())
 			? (RectPart::BottomLeft | RectPart::BottomRight)
 			: RectParts());
 	draw(p, context, width(), LayoutMode::Full, corners);
@@ -767,21 +767,19 @@ void Document::fillThumbnailOverlay(
 		Ui::BubbleRounding rounding,
 		const PaintContext &context) const {
 	using Corner = Ui::BubbleCornerRounding;
+	using Radius = Ui::CachedCornerRadius;
 	auto corners = Ui::CornersPixmaps();
 	const auto &st = context.st;
-	const auto set = [&](int index, const Ui::CornersPixmaps &from) {
-		corners.p[index] = from.p[index];
-	};
-	const auto lookup = [&](Corner corner) -> const Ui::CornersPixmaps & {
+	const auto lookup = [&](Corner corner) {
 		switch (corner) {
-		case Corner::None: return st->msgSelectOverlayCornersSmall();
-		case Corner::Small: return st->msgSelectOverlayCornersThumbSmall();
-		case Corner::Large: return st->msgSelectOverlayCornersThumbLarge();
+		case Corner::None: return Radius::Small;
+		case Corner::Small: return Radius::ThumbSmall;
+		case Corner::Large: return Radius::ThumbLarge;
 		}
 		Unexpected("Corner value in Document::fillThumbnailOverlay.");
 	};
 	for (auto i = 0; i != 4; ++i) {
-		corners.p[i] = lookup(rounding[i]).p[i];
+		corners.p[i] = st->msgSelectOverlayCorners(lookup(rounding[i])).p[i];
 	}
 	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
 }

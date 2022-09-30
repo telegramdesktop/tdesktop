@@ -32,7 +32,12 @@ struct ColorReplacements;
 namespace Ui {
 struct BubbleSelectionInterval;
 struct ChatPaintContext;
+struct CornersMaskRef;
 } // namespace Ui
+
+namespace Images {
+struct CornersMaskRef;
+} // namespace Images
 
 namespace HistoryView {
 
@@ -246,6 +251,10 @@ public:
 	[[nodiscard]] Ui::BubbleRounding bubbleRounding() const {
 		return _bubbleRounding;
 	}
+	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRounding(
+		RectParts square = {}) const;
+	[[nodiscard]] Ui::BubbleRounding adjustedBubbleRoundingWithCaption(
+		const Ui::Text::String &caption) const;
 	[[nodiscard]] bool isBubbleTop() const {
 		return (_inBubbleState == MediaInBubbleState::Top)
 			|| (_inBubbleState == MediaInBubbleState::None);
@@ -321,6 +330,17 @@ protected:
 
 	[[nodiscard]] bool usesBubblePattern(const PaintContext &context) const;
 
+	void fillImageShadow(
+		QPainter &p,
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		const PaintContext &context) const;
+	void fillImageOverlay(
+		QPainter &p,
+		QRect rect,
+		std::optional<Ui::BubbleRounding> rounding, // nullopt if in WebPage.
+		const PaintContext &context) const;
+
 	void repaint() const;
 
 	const not_null<Element*> _parent;
@@ -328,5 +348,8 @@ protected:
 	Ui::BubbleRounding _bubbleRounding;
 
 };
+
+[[nodiscard]] Images::CornersMaskRef MediaRoundingMask(
+	std::optional<Ui::BubbleRounding> rounding);
 
 } // namespace HistoryView

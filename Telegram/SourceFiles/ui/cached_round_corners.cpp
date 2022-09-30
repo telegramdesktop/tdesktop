@@ -161,24 +161,35 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 	FillRoundRect(p, x, y, w, h, bg, Corners[index], shadow, parts);
 }
 
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts) {
-	FillRoundShadow(p, x, y, w, h, shadow, Corners[index], parts);
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index) {
+	FillRoundShadow(p, x, y, w, h, shadow, Corners[index]);
 }
 
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts) {
-	auto cornerWidth = corner.p[0].width() / style::DevicePixelRatio();
-	auto cornerHeight = corner.p[0].height() / style::DevicePixelRatio();
-	if (parts & RectPart::Bottom) {
-		p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, shadow);
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corners) {
+	constexpr auto kLeft = 2;
+	constexpr auto kRight = 3;
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto size = [&](int index) {
+		const auto &pix = corners.p[index];
+		return pix.isNull() ? 0 : (pix.width() / ratio);
+	};
+	const auto fillCorner = [&](int left, int bottom, int index) {
+		const auto &pix = corners.p[index];
+		if (pix.isNull()) {
+			return;
+		}
+		const auto size = pix.width() / ratio;
+		p.drawPixmap(left, bottom - size, pix);
+	};
+	const auto left = size(kLeft);
+	const auto right = size(kRight);
+	const auto from = x + left;
+	fillCorner(x, y + h + st::msgShadow, kLeft);
+	if (const auto width = w - left - right; width > 0) {
+		p.fillRect(from, y + h, width, st::msgShadow, shadow);
 	}
-	if (parts & RectPart::BottomLeft) {
-		p.fillRect(x, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
-		p.drawPixmap(x, y + h - cornerHeight + st::msgShadow, corner.p[2]);
-	}
-	if (parts & RectPart::BottomRight) {
-		p.fillRect(x + w - cornerWidth, y + h - cornerHeight, cornerWidth, st::msgShadow, shadow);
-		p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight + st::msgShadow, corner.p[3]);
-	}
+	fillCorner(x + w - right, y + h + st::msgShadow, kRight);
 }
 
 CornersPixmaps PrepareCornerPixmaps(int32 radius, style::color bg, const style::color *sh) {
@@ -219,21 +230,26 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 	FillRoundRect(p, x, y, w, h, bg, i->second, nullptr, parts);
 }
 
+[[nodiscard]] int CachedCornerRadiusValue(CachedCornerRadius tag) {
+	using Radius = CachedCornerRadius;
+	switch (tag) {
+	case Radius::Small: return st::roundRadiusSmall;
+	case Radius::ThumbSmall: return st::msgFileThumbRadiusSmall;
+	case Radius::ThumbLarge: return st::msgFileThumbRadiusLarge;
+	case Radius::BubbleSmall: return st::bubbleRadiusSmall;
+	case Radius::BubbleLarge: return st::bubbleRadiusLarge;
+	}
+	Unexpected("Radius tag in CachedCornerRadiusValue.");
+}
+
 [[nodiscard]] const std::array<QImage, 4> &CachedCornersMasks(
 		CachedCornerRadius radius) {
 	const auto index = static_cast<int>(radius);
 	Assert(index >= 0 && index < kCachedCornerRadiusCount);
 
 	if (CachedMasks[index][0].isNull()) {
-		using Radius = CachedCornerRadius;
-		const auto set = [](Radius key, int radius) {
-			CachedMasks[static_cast<int>(key)] = Images::CornersMask(radius);
-		};
-		set(Radius::Small, st::roundRadiusSmall);
-		set(Radius::ThumbSmall, st::msgFileThumbRadiusSmall);
-		set(Radius::ThumbLarge, st::msgFileThumbRadiusLarge);
-		set(Radius::BubbleSmall, st::bubbleRadiusSmall);
-		set(Radius::BubbleLarge, st::bubbleRadiusLarge);
+		CachedMasks[index] = Images::CornersMask(
+			CachedCornerRadiusValue(CachedCornerRadius(index)));
 	}
 	return CachedMasks[index];
 }

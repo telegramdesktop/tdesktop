@@ -128,12 +128,7 @@ private:
 		not_null<QPixmap*> cache) const;
 	void validateImageCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
-	[[nodiscard]] QImage prepareImageCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
+		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
 
 	bool videoAutoplayEnabled() const;
@@ -155,9 +150,8 @@ private:
 	mutable std::unique_ptr<Streamed> _streamed;
 	mutable QImage _imageCache;
 	int _serviceWidth = 0;
-	mutable int _imageCacheRoundRadius : 4 = 0;
-	mutable int _imageCacheRoundCorners : 12 = 0;
-	mutable int _imageCacheBlurred : 1 = 0;
+	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
+	mutable bool _imageCacheBlurred = false;
 
 };
 

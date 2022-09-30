@@ -258,6 +258,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (_serviceWidth > 0) {
 		paintUserpicFrame(p, context, rthumb.topLeft());
 	} else {
+		const auto rounding = inWebPage
+			? std::optional<Ui::BubbleRounding>()
+			: adjustedBubbleRoundingWithCaption(_caption);
 		if (bubble) {
 			if (!_caption.isEmpty()) {
 				painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
@@ -267,19 +270,13 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 				rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 			}
 		} else {
-			// #TODO rounding
-			Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCornersSmall);
+			Assert(rounding.has_value());
+			fillImageShadow(p, rthumb, *rounding, context);
 		}
-		const auto inWebPage = (_parent->media() != this);
-		const auto roundRadius = inWebPage
-			? ImageRoundRadius::Small
-			: ImageRoundRadius::Large;
-		const auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
-		validateImageCache(rthumb.size(), roundRadius, roundCorners);
+		validateImageCache(rthumb.size(), rounding);
 		p.drawImage(rthumb.topLeft(), _imageCache);
 		if (context.selected()) {
-			Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+			fillImageOverlay(p, rthumb, rounding, context);
 		}
 	}
 	if (radial || (!loaded && !_data->loading())) {
@@ -355,30 +352,20 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 
 void Photo::validateImageCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	const auto intRadius = static_cast<int>(radius);
-	const auto intCorners = static_cast<int>(corners);
+		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto large = _dataMedia->image(PhotoSize::Large);
 	const auto ratio = style::DevicePixelRatio();
-	const auto shouldBeBlurred = (large != nullptr) ? 0 : 1;
+	const auto shouldBeBlurred = !large;
 	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRoundRadius == intRadius
-		&& _imageCacheRoundCorners == intCorners
+		&& _imageCacheRounding == rounding
 		&& _imageCacheBlurred == shouldBeBlurred) {
 		return;
 	}
-	_imageCache = prepareImageCache(outer, radius, corners);
-	_imageCacheRoundRadius = intRadius;
-	_imageCacheRoundCorners = intCorners;
+	_imageCache = Images::Round(
+		prepareImageCache(outer),
+		MediaRoundingMask(rounding));
+	_imageCacheRounding = rounding;
 	_imageCacheBlurred = shouldBeBlurred;
-}
-
-QImage Photo::prepareImageCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	return Images::Round(prepareImageCache(outer), radius, corners);
 }
 
 QImage Photo::prepareImageCache(QSize outer) const {

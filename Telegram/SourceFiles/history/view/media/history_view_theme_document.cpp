@@ -185,7 +185,7 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 			p,
 			rthumb,
 			st->msgSelectOverlay(),
-			st->msgSelectOverlayCornersSmall());
+			st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 	}
 
 	if (_data) {

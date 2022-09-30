@@ -536,7 +536,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 				p,
 				style::rtlrect(padding.left() + paintw - pw, tshift, pw, _pixh, width()),
 				st->msgSelectOverlay(),
-				st->msgSelectOverlayCornersSmall());
+				st->msgSelectOverlayCorners(Ui::CachedCornerRadius::Small));
 		}
 		paintw -= pw + st::webPagePhotoDelta;
 	}

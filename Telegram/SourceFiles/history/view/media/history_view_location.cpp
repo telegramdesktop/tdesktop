@@ -163,8 +163,11 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
+	const auto hasText = !_title.isEmpty() || !_description.isEmpty();
+	const auto rounding = adjustedBubbleRounding(
+		hasText ? RectPart::FullTop : RectPart());
 	if (bubble) {
-		if (!_title.isEmpty() || !_description.isEmpty()) {
+		if (hasText) {
 			if (isBubbleTop()) {
 				painty += st::msgPadding.top();
 			}
@@ -185,26 +188,34 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			painty += st::mediaInBubbleSkip;
 		}
 		painth -= painty;
-	} else {
-		// #TODO rounding
-		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCornersSmall);
+	}
+	auto rthumb = QRect(paintx, painty, paintw, painth);
+	if (!bubble) {
+		fillImageShadow(p, rthumb, rounding, context);
 	}
 
-	auto roundRadius = ImageRoundRadius::Large;
-	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-		| (isRoundedInBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
-	auto rthumb = QRect(paintx, painty, paintw, painth);
 	ensureMediaCreated();
-	if (const auto thumbnail = _media->image()) {
-		p.drawPixmap(rthumb.topLeft(), thumbnail->pixSingle(
-			rthumb.size(),
-			{
-				.options = Images::RoundOptions(roundRadius, roundCorners),
-				.outer = rthumb.size(),
-			}));
-	} else {
-		Ui::FillComplexLocationRect(p, st, rthumb, roundRadius, roundCorners);
-	}
+	//if (const auto thumbnail = _media->image()) {
+	//	p.drawPixmap(rthumb.topLeft(), thumbnail->pixSingle(
+	//		rthumb.size(),
+	//		{
+	//			.options = Images::RoundOptions(roundRadius, roundCorners),
+	//			.outer = rthumb.size(),
+	//		}));
+	//} else if (!bubble) {
+		Ui::PaintBubble(
+			p,
+			Ui::SimpleBubble{
+				.st = context.st,
+				.geometry = rthumb,
+				.pattern = context.bubblesPattern,
+				.patternViewport = context.viewport,
+				.outerWidth = width(),
+				.selected = context.selected(),
+				.outbg = context.outbg,
+				.rounding = rounding,
+			});
+	//}
 	const auto paintMarker = [&](const style::icon &icon) {
 		icon.paint(
 			p,
@@ -215,7 +226,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	paintMarker(st->historyMapPoint());
 	paintMarker(st->historyMapPointInner());
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+		fillImageOverlay(p, rthumb, rounding, context);
 	}
 
 	if (_parent->media() == this) {

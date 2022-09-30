@@ -492,7 +492,9 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
 	_msgBotKbOverBgAddCorners = {};
-	_msgSelectOverlayCornersSmall = {};
+	for (auto &corners : _msgSelectOverlayCorners) {
+		corners = {};
+	}
 
 	for (auto &stm : _messageStyles) {
 		const auto same = (stm.textPalette.linkFg->c == stm.historyTextFg->c);
@@ -550,7 +552,7 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 	auto &result = imageStyleRaw(selected);
 	EnsureCorners(
 		result.msgDateImgBgCorners,
-		st::dateRadius,
+		(st::msgDateImgPadding.y() * 2 + st::normalFont->height) / 2,
 		result.msgDateImgBg);
 	EnsureCorners(
 		result.msgServiceBgCorners,
@@ -575,28 +577,16 @@ const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
 	return _msgBotKbOverBgAddCorners;
 }
 
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersSmall() const {
-	EnsureCorners(
-		_msgSelectOverlayCornersSmall,
-		st::roundRadiusSmall,
-		msgSelectOverlay());
-	return _msgSelectOverlayCornersSmall;
-}
+const CornersPixmaps &ChatStyle::msgSelectOverlayCorners(
+		CachedCornerRadius radius) const {
+	const auto index = static_cast<int>(radius);
+	Assert(index >= 0 && index < int(CachedCornerRadius::kCount));
 
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersThumbSmall() const {
 	EnsureCorners(
-		_msgSelectOverlayCornersThumbSmall,
-		st::msgFileThumbRadiusSmall,
+		_msgSelectOverlayCorners[index],
+		CachedCornerRadiusValue(radius),
 		msgSelectOverlay());
-	return _msgSelectOverlayCornersThumbSmall;
-}
-
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersThumbLarge() const {
-	EnsureCorners(
-		_msgSelectOverlayCornersThumbLarge,
-		st::msgFileThumbRadiusLarge,
-		msgSelectOverlay());
-	return _msgSelectOverlayCornersThumbLarge;
+	return _msgSelectOverlayCorners[index];
 }
 
 MessageStyle &ChatStyle::messageStyleRaw(bool outbg, bool selected) const {

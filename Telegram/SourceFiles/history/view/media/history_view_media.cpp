@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/item_text_options.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/image/image_prepare.h"
 #include "core/ui_integration.h"
 #include "styles/style_chat.h"
 
@@ -187,6 +188,60 @@ QSize Media::countCurrentSize(int newWidth) {
 	return QSize(qMin(newWidth, maxWidth()), minHeight());
 }
 
+void Media::fillImageShadow(
+		QPainter &p,
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		const PaintContext &context) const {
+	const auto sti = context.imageStyle();
+	auto corners = Ui::CornersPixmaps();
+	const auto choose = [&](int index) -> QPixmap {
+		using Corner = Ui::BubbleCornerRounding;
+		switch (rounding[index]) {
+		case Corner::Large: return sti->msgShadowCornersLarge.p[index];
+		case Corner::Small: return sti->msgShadowCornersSmall.p[index];
+		}
+		return QPixmap();
+	};
+	corners.p[2] = choose(2);
+	corners.p[3] = choose(3);
+	Ui::FillRoundShadow(p, rect, sti->msgShadow, corners);
+}
+
+void Media::fillImageOverlay(
+		QPainter &p,
+		QRect rect,
+		std::optional<Ui::BubbleRounding> rounding,
+		const PaintContext &context) const {
+	using Radius = Ui::CachedCornerRadius;
+	const auto &st = context.st;
+	if (!rounding) {
+		Ui::FillComplexOverlayRect(
+			p,
+			rect,
+			st->msgSelectOverlay(),
+			st->msgSelectOverlayCorners(Radius::Small));
+		return;
+	}
+	using Corner = Ui::BubbleCornerRounding;
+	auto corners = Ui::CornersPixmaps();
+	const auto lookup = [&](Corner corner) {
+		switch (corner) {
+		case Corner::None: return Radius::kCount;
+		case Corner::Small: return Radius::BubbleSmall;
+		case Corner::Large: return Radius::BubbleLarge;
+		}
+		Unexpected("Corner value in Document::fillThumbnailOverlay.");
+	};
+	for (auto i = 0; i != 4; ++i) {
+		const auto radius = lookup((*rounding)[i]);
+		corners.p[i] = (radius == Radius::kCount)
+			? QPixmap()
+			: st->msgSelectOverlayCorners(radius).p[i];
+	}
+	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
+}
+
 void Media::repaint() const {
 	history()->owner().requestViewRepaint(_parent);
 }
@@ -257,10 +312,59 @@ TextState Media::getStateGrouped(
 	Unexpected("Grouping method call.");
 }
 
+Ui::BubbleRounding Media::adjustedBubbleRounding(RectParts square) const {
+	auto result = bubbleRounding();
+	using Corner = Ui::BubbleCornerRounding;
+	const auto adjust = [&](bool round, Corner already, RectPart corner) {
+		return (already == Corner::Tail || !round || (square & corner))
+			? Corner::None
+			: already;
+	};
+	const auto top = isBubbleTop();
+	const auto bottom = isRoundedInBubbleBottom();
+	result.topLeft = adjust(top, result.topLeft, RectPart::TopLeft);
+	result.topRight = adjust(top, result.topRight, RectPart::TopRight);
+	result.bottomLeft = adjust(
+		bottom,
+		result.bottomLeft,
+		RectPart::BottomLeft);
+	result.bottomRight = adjust(
+		bottom,
+		result.bottomRight,
+		RectPart::BottomRight);
+	return result;
+}
+
+Ui::BubbleRounding Media::adjustedBubbleRoundingWithCaption(
+		const Ui::Text::String &caption) const {
+	return adjustedBubbleRounding(
+		caption.isEmpty() ? RectParts() : RectPart::FullBottom);
+}
+
 bool Media::isRoundedInBubbleBottom() const {
 	return isBubbleBottom()
 		&& !_parent->data()->repliesAreComments()
 		&& !_parent->data()->externalReply();
+}
+
+Images::CornersMaskRef MediaRoundingMask(
+		std::optional<Ui::BubbleRounding> rounding) {
+	using Radius = Ui::CachedCornerRadius;
+	if (!rounding) {
+		return Images::CornersMaskRef(Ui::CachedCornersMasks(Radius::Small));
+	}
+	using Corner = Ui::BubbleCornerRounding;
+	auto result = Images::CornersMaskRef();
+	const auto &small = Ui::CachedCornersMasks(Radius::BubbleSmall);
+	const auto &large = Ui::CachedCornersMasks(Radius::BubbleLarge);
+	for (auto i = 0; i != 4; ++i) {
+		switch ((*rounding)[i]) {
+		case Corner::Small: result.p[i] = &small[i]; break;
+		case Corner::Large: result.p[i] = &large[i]; break;
+		}
+	}
+	return result;
+
 }
 
 } // namespace HistoryView

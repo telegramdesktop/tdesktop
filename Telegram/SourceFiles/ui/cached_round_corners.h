@@ -40,9 +40,9 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 }
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full);
-inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full) {
-	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index, parts);
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index);
+inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, CachedRoundCorners index) {
+	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index);
 }
 void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
@@ -61,9 +61,9 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	return FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, corner, shadow, parts);
 }
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full);
-inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full) {
-	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corner, parts);
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corners);
+inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corners) {
+	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corners);
 }
 
 enum class CachedCornerRadius {
@@ -75,6 +75,7 @@ enum class CachedCornerRadius {
 
 	kCount,
 };
+[[nodiscard]] int CachedCornerRadiusValue(CachedCornerRadius tag);
 
 [[nodiscard]] const std::array<QImage, 4> &CachedCornersMasks(
 	CachedCornerRadius radius);
