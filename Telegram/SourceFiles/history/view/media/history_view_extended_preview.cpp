@@ -211,7 +211,8 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 			rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 		}
 	} else {
-		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
+		// #TODO rounding
+		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCornersSmall);
 	}
 	const auto inWebPage = (_parent->media() != this);
 	const auto roundRadius = inWebPage

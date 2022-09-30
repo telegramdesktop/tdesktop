@@ -1569,7 +1569,8 @@ void Poll::toggleLinkRipple(bool pressed) {
 		const auto linkHeight = bottomButtonHeight();
 		if (!_linkRipple) {
 			const auto drawMask = [&](QPainter &p) {
-				const auto radius = st::historyMessageRadius;
+				// #TODO rounding
+				const auto radius = st::bubbleRadiusSmall;
 				p.drawRoundedRect(
 					0,
 					0,

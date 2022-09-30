@@ -480,12 +480,14 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
 	style::internal::resetIcons();
 	for (auto &style : _messageStyles) {
-		style.msgBgCorners = {};
+		style.msgBgCornersSmall = {};
+		style.msgBgCornersLarge = {};
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
 		style.msgServiceBgCorners = {};
-		style.msgShadowCorners = {};
+		style.msgShadowCornersSmall = {};
+		style.msgShadowCornersLarge = {};
 	}
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
@@ -533,8 +535,13 @@ const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	auto &result = messageStyleRaw(outbg, selected);
 	EnsureCorners(
-		result.msgBgCorners,
-		st::historyMessageRadius,
+		result.msgBgCornersSmall,
+		st::bubbleRadiusSmall,
+		result.msgBg,
+		&result.msgShadow);
+	EnsureCorners(
+		result.msgBgCornersLarge,
+		st::bubbleRadiusLarge,
 		result.msgBg,
 		&result.msgShadow);
 	return result;
@@ -551,8 +558,12 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 		st::dateRadius,
 		result.msgServiceBg);
 	EnsureCorners(
-		result.msgShadowCorners,
-		st::historyMessageRadius,
+		result.msgShadowCornersSmall,
+		st::bubbleRadiusSmall,
+		result.msgShadow);
+	EnsureCorners(
+		result.msgShadowCornersLarge,
+		st::bubbleRadiusLarge,
 		result.msgShadow);
 	return result;
 }
@@ -576,7 +587,7 @@ const CornersPixmaps &ChatStyle::msgSelectOverlayCornersSmall() const {
 const CornersPixmaps &ChatStyle::msgSelectOverlayCornersLarge() const {
 	EnsureCorners(
 		_msgSelectOverlayCornersLarge,
-		st::historyMessageRadius,
+		st::roundRadiusLarge,
 		msgSelectOverlay());
 	return _msgSelectOverlayCornersLarge;
 }
@@ -707,7 +718,8 @@ void FillComplexLocationRect(
 		ImageRoundRadius radius,
 		RectParts roundCorners) {
 	const auto stm = &st->messageStyle(false, false);
-	RectWithCorners(p, rect, stm->msgBg, stm->msgBgCorners, roundCorners);
+	// #TODO rounding
+	RectWithCorners(p, rect, stm->msgBg, stm->msgBgCornersSmall, roundCorners);
 }
 
 } // namespace Ui

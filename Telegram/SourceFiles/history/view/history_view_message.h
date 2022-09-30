@@ -19,6 +19,10 @@ namespace Data {
 struct ReactionId;
 } // namespace Data
 
+namespace Ui {
+struct BubbleRounding;
+} // namespace Ui
+
 namespace HistoryView {
 
 class ViewButton;
@@ -221,6 +225,7 @@ private:
 
 	void updateMediaInBubbleState();
 	QRect countGeometry() const;
+	[[nodiscard]] Ui::BubbleRounding countBubbleRounding() const;
 
 	int resizeContentGetHeight(int newWidth);
 	QSize performCountOptimalSize() override;

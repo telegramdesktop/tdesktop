@@ -922,7 +922,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		const auto stm = &st->messageStyle(false, false);
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
 			p.setTextPalette(stm->textPalette);
-			Ui::FillRoundRect(p, _botAbout->rect, stm->msgBg, stm->msgBgCorners, &stm->msgShadow);
+			Ui::FillRoundRect(p, _botAbout->rect, stm->msgBg, stm->msgBgCornersLarge, &stm->msgShadow);
 
 			auto top = _botAbout->rect.top() + st::msgPadding.top();
 			if (!_history->peer->isRepliesChat()) {

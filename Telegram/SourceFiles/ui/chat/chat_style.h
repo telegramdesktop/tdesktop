@@ -26,7 +26,8 @@ class ChatStyle;
 struct BubblePattern;
 
 struct MessageStyle {
-	CornersPixmaps msgBgCorners;
+	CornersPixmaps msgBgCornersSmall;
+	CornersPixmaps msgBgCornersLarge;
 	style::color msgBg;
 	style::color msgShadow;
 	style::color msgServiceFg;
@@ -79,7 +80,8 @@ struct MessageStyle {
 struct MessageImageStyle {
 	CornersPixmaps msgDateImgBgCorners;
 	CornersPixmaps msgServiceBgCorners;
-	CornersPixmaps msgShadowCorners;
+	CornersPixmaps msgShadowCornersSmall;
+	CornersPixmaps msgShadowCornersLarge;
 	style::color msgServiceBg;
 	style::color msgDateImgBg;
 	style::color msgShadow;

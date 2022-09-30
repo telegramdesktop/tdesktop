@@ -761,17 +761,6 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			&& (_fromNameVersion < item->displayFrom()->nameVersion())) {
 			fromNameUpdated(g.width());
 		}
-
-		const auto skipTail = isAttachedToNext()
-			|| (media && media->skipBubbleTail())
-			|| (keyboard != nullptr)
-			|| (this->context() == Context::Replies
-				&& data()->isDiscussionPost());
-		const auto displayTail = skipTail
-			? RectPart::None
-			: (context.outbg && !delegate()->elementIsChatWide())
-			? RectPart::Right
-			: RectPart::Left;
 		Ui::PaintBubble(
 			p,
 			Ui::ComplexBubble{
@@ -783,7 +772,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 					.outerWidth = width(),
 					.selected = context.selected(),
 					.outbg = context.outbg,
-					.tailSide = displayTail,
+					.rounding = countBubbleRounding(),
 				},
 				.selection = mediaSelectionIntervals,
 			});
@@ -1408,7 +1397,8 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 		const auto linkHeight = st::historyCommentsButtonHeight;
 		if (!_comments->ripple) {
 			const auto drawMask = [&](QPainter &p) {
-				const auto radius = st::historyMessageRadius;
+				// #TODO rounding
+				const auto radius = st::bubbleRadiusSmall;
 				p.drawRoundedRect(
 					0,
 					0,
@@ -2990,6 +2980,33 @@ QRect Message::countGeometry() const {
 		contentTop,
 		contentWidth,
 		height() - contentTop - marginBottom());
+}
+
+Ui::BubbleRounding Message::countBubbleRounding() const {
+	const auto smallTop = isAttachedToPrevious();
+	const auto smallBottom = isAttachedToNext();
+	const auto media = this->media();
+	const auto keyboard = data()->inlineReplyKeyboard();
+	const auto skipTail = smallBottom
+		|| (media && media->skipBubbleTail())
+		|| (keyboard != nullptr)
+		|| (context() == Context::Replies && data()->isDiscussionPost());
+	const auto right = !delegate()->elementIsChatWide() && hasOutLayout();
+	using Corner = Ui::BubbleCornerRounding;
+	return {
+		.topLeft = (smallTop && !right) ? Corner::Small : Corner::Large,
+		.topRight = (smallTop && right) ? Corner::Small : Corner::Large,
+		.bottomLeft = ((smallBottom && !right)
+			? Corner::Small
+			: (!skipTail && !right)
+			? Corner::Tail
+			: Corner::Large),
+		.bottomRight = ((smallBottom && right)
+			? Corner::Small
+			: (!skipTail && right)
+			? Corner::Tail
+			: Corner::Large),
+	};
 }
 
 int Message::resizeContentGetHeight(int newWidth) {

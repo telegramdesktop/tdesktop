@@ -771,9 +771,9 @@ void Generator::paintBubble(const Bubble &bubble) {
 	auto y = _historyBottom - st::msgMargin.bottom() - height;
 	auto bubbleTop = y;
 	auto bubbleHeight = height;
-	if (isPhoto) {
-		bubbleTop -= st::historyMessageRadius + 1;
-		bubbleHeight += st::historyMessageRadius + 1;
+	if (isPhoto) { // #TODO rounding
+		bubbleTop -= st::bubbleRadiusSmall + 1;
+		bubbleHeight += st::bubbleRadiusSmall + 1;
 	}
 
 	auto left = bubble.outbg ? st::msgMargin.right() : st::msgMargin.left();
@@ -783,20 +783,20 @@ void Generator::paintBubble(const Bubble &bubble) {
 	x += left;
 
 	_p->setPen(Qt::NoPen);
-	auto tailclip = st::historyMessageRadius + 1;
+	auto tailclip = st::bubbleRadiusSmall +1;
 	if (bubble.tail) {
 		if (bubble.outbg) {
-			_p->setClipRegion(QRegion(_history) - QRect(x + bubble.width - tailclip, bubbleTop + bubbleHeight - tailclip, tailclip + st::historyMessageRadius, tailclip + st::historyMessageRadius));
+			_p->setClipRegion(QRegion(_history) - QRect(x + bubble.width - tailclip, bubbleTop + bubbleHeight - tailclip, tailclip + st::bubbleRadiusSmall, tailclip + st::bubbleRadiusSmall));
 		} else {
-			_p->setClipRegion(QRegion(_history) - QRect(x - st::historyMessageRadius, bubbleTop + bubbleHeight - tailclip, tailclip + st::historyMessageRadius, tailclip + st::historyMessageRadius));
+			_p->setClipRegion(QRegion(_history) - QRect(x - st::bubbleRadiusSmall, bubbleTop + bubbleHeight - tailclip, tailclip + st::bubbleRadiusSmall, tailclip + st::bubbleRadiusSmall));
 		}
 	}
 	auto sh = bubble.outbg ? st::msgOutShadow[_palette] : st::msgInShadow[_palette];
 	_p->setBrush(sh);
-	_p->drawRoundedRect(x, bubbleTop + st::msgShadow, bubble.width, bubbleHeight, st::historyMessageRadius, st::historyMessageRadius);
+	_p->drawRoundedRect(x, bubbleTop + st::msgShadow, bubble.width, bubbleHeight, st::bubbleRadiusSmall, st::bubbleRadiusSmall);
 	auto bg = bubble.outbg ? st::msgOutBg[_palette] : st::msgInBg[_palette];
 	_p->setBrush(bg);
-	_p->drawRoundedRect(x, bubbleTop, bubble.width, bubbleHeight, st::historyMessageRadius, st::historyMessageRadius);
+	_p->drawRoundedRect(x, bubbleTop, bubble.width, bubbleHeight, st::bubbleRadiusSmall, st::bubbleRadiusSmall);
 	if (bubble.tail) {
 		_p->setClipRect(_history);
 		if (bubble.outbg) {

@@ -66,7 +66,7 @@ void CreateMaskCorners() {
 		CornersMaskSmall[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		CornersMaskSmall[i].setDevicePixelRatio(style::DevicePixelRatio());
 	}
-	mask = PrepareCorners(st::historyMessageRadius, QColor(255, 255, 255), nullptr);
+	mask = PrepareCorners(st::roundRadiusLarge, QColor(255, 255, 255), nullptr);
 	for (int i = 0; i < 4; ++i) {
 		CornersMaskLarge[i] = mask[i].convertToFormat(QImage::Format_ARGB32_Premultiplied);
 		CornersMaskLarge[i].setDevicePixelRatio(style::DevicePixelRatio());
@@ -79,7 +79,7 @@ void CreatePaletteCorners() {
 	PrepareCorners(DateCorners, st::dateRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoCorners, st::overviewVideoStatusRadius, st::msgDateImgBg);
 	PrepareCorners(OverviewVideoSelectedCorners, st::overviewVideoStatusRadius, st::msgDateImgBgSelected);
-	PrepareCorners(ForwardCorners, st::historyMessageRadius, st::historyForwardChooseBg);
+	PrepareCorners(ForwardCorners, st::roundRadiusLarge, st::historyForwardChooseBg);
 	PrepareCorners(MediaviewSaveCorners, st::mediaviewControllerRadius, st::mediaviewSaveMsgBg);
 	PrepareCorners(StickerHoverCorners, st::roundRadiusSmall, st::emojiPanHover);
 	PrepareCorners(BotKeyboardCorners, st::roundRadiusSmall, st::botKbBg);
@@ -192,7 +192,7 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 	case ImageRoundRadius::Small:
 		return PrepareCornerPixmaps(st::roundRadiusSmall, bg, sh);
 	case ImageRoundRadius::Large:
-		return PrepareCornerPixmaps(st::historyMessageRadius, bg, sh);
+		return PrepareCornerPixmaps(st::roundRadiusLarge, bg, sh);
 	}
 	Unexpected("Image round radius in PrepareCornerPixmaps.");
 }

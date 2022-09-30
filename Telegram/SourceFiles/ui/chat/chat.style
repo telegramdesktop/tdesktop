@@ -562,9 +562,11 @@ historyInfoToast: Toast(defaultToast) {
 	iconPosition: point(13px, 13px);
 }
 
+bubbleRadiusSmall: roundRadiusLarge;
+bubbleRadiusLarge: 16px;
+
 historyPhotoLeft: 14px;
 historyPhotoBubbleMinWidth: 200px;
-historyMessageRadius: roundRadiusLarge;
 historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
 historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
 historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};

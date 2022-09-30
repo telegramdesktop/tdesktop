@@ -357,7 +357,8 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			}
 		}
 	} else if (!unwrapped) {
-		Ui::FillRoundShadow(p, 0, 0, paintw, height(), sti->msgShadow, sti->msgShadowCorners);
+		// #TODO rounding
+		Ui::FillRoundShadow(p, 0, 0, paintw, height(), sti->msgShadow, sti->msgShadowCornersSmall);
 	}
 
 	auto usex = 0, usew = paintw;

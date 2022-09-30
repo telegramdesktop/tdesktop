@@ -186,7 +186,8 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 		}
 		painth -= painty;
 	} else {
-		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
+		// #TODO rounding
+		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCornersSmall);
 	}
 
 	auto roundRadius = ImageRoundRadius::Large;

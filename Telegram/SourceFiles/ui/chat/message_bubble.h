@@ -16,6 +16,20 @@ namespace Ui {
 class ChatTheme;
 class ChatStyle;
 
+enum class BubbleCornerRounding : uchar {
+	Large,
+	Small,
+	None,
+	Tail,
+};
+
+struct BubbleRounding {
+	BubbleCornerRounding topLeft = BubbleCornerRounding();
+	BubbleCornerRounding topRight = BubbleCornerRounding();
+	BubbleCornerRounding bottomLeft = BubbleCornerRounding();
+	BubbleCornerRounding bottomRight = BubbleCornerRounding();
+};
+
 struct BubbleSelectionInterval {
 	int top = 0;
 	int height = 0;
@@ -23,11 +37,14 @@ struct BubbleSelectionInterval {
 
 struct BubblePattern {
 	QPixmap pixmap;
-	std::array<QImage, 4> corners;
+	std::array<QImage, 4> cornersSmall;
+	std::array<QImage, 4> cornersLarge;
 	QImage tailLeft;
 	QImage tailRight;
-	mutable QImage cornerTopCache;
-	mutable QImage cornerBottomCache;
+	mutable QImage cornerTopSmallCache;
+	mutable QImage cornerTopLargeCache;
+	mutable QImage cornerBottomSmallCache;
+	mutable QImage cornerBottomLargeCache;
 	mutable QImage tailCache;
 };
 
@@ -42,9 +59,9 @@ struct SimpleBubble {
 	QRect patternViewport;
 	int outerWidth = 0;
 	bool selected = false;
+	bool shadowed = true;
 	bool outbg = false;
-	RectPart tailSide = RectPart::None;
-	RectParts skip = RectPart::None;
+	BubbleRounding rounding;
 };
 
 struct ComplexBubble {
