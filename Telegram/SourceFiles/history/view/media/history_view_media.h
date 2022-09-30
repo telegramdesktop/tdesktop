@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/history_view_object.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/rect_part.h"
 
 class History;
@@ -45,7 +46,7 @@ class Element;
 
 using PaintContext = Ui::ChatPaintContext;
 
-enum class MediaInBubbleState {
+enum class MediaInBubbleState : uchar {
 	None,
 	Top,
 	Middle,
@@ -239,6 +240,12 @@ public:
 	[[nodiscard]] MediaInBubbleState inBubbleState() const {
 		return _inBubbleState;
 	}
+	void setBubbleRounding(Ui::BubbleRounding rounding) {
+		_bubbleRounding = rounding;
+	}
+	[[nodiscard]] Ui::BubbleRounding bubbleRounding() const {
+		return _bubbleRounding;
+	}
 	[[nodiscard]] bool isBubbleTop() const {
 		return (_inBubbleState == MediaInBubbleState::Top)
 			|| (_inBubbleState == MediaInBubbleState::None);
@@ -318,6 +325,7 @@ protected:
 
 	const not_null<Element*> _parent;
 	MediaInBubbleState _inBubbleState = MediaInBubbleState::None;
+	Ui::BubbleRounding _bubbleRounding;
 
 };
 

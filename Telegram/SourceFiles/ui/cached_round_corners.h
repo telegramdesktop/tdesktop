@@ -66,6 +66,19 @@ inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow,
 	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corner, parts);
 }
 
+enum class CachedCornerRadius {
+	Small,
+	ThumbSmall,
+	ThumbLarge,
+	BubbleSmall,
+	BubbleLarge,
+
+	kCount,
+};
+
+[[nodiscard]] const std::array<QImage, 4> &CachedCornersMasks(
+	CachedCornerRadius radius);
+
 void StartCachedCorners();
 void FinishCachedCorners();
 

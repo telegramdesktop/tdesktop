@@ -19,10 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+constexpr auto kCachedCornerRadiusCount = int(CachedCornerRadius::kCount);
+
 std::vector<CornersPixmaps> Corners;
 base::flat_map<uint32, CornersPixmaps> CornersMap;
 QImage CornersMaskLarge[4], CornersMaskSmall[4];
 rpl::lifetime PaletteChangedLifetime;
+
+std::array<std::array<QImage, 4>, kCachedCornerRadiusCount> CachedMasks;
 
 [[nodiscard]] std::array<QImage, 4> PrepareCorners(int32 radius, const QBrush &brush, const style::color *shadow = nullptr) {
 	int32 r = radius * style::DevicePixelRatio(), s = st::msgShadow * style::DevicePixelRatio();
@@ -213,6 +217,25 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 			PrepareCornerPixmaps(radius, bg, nullptr)).first;
 	}
 	FillRoundRect(p, x, y, w, h, bg, i->second, nullptr, parts);
+}
+
+[[nodiscard]] const std::array<QImage, 4> &CachedCornersMasks(
+		CachedCornerRadius radius) {
+	const auto index = static_cast<int>(radius);
+	Assert(index >= 0 && index < kCachedCornerRadiusCount);
+
+	if (CachedMasks[index][0].isNull()) {
+		using Radius = CachedCornerRadius;
+		const auto set = [](Radius key, int radius) {
+			CachedMasks[static_cast<int>(key)] = Images::CornersMask(radius);
+		};
+		set(Radius::Small, st::roundRadiusSmall);
+		set(Radius::ThumbSmall, st::msgFileThumbRadiusSmall);
+		set(Radius::ThumbLarge, st::msgFileThumbRadiusLarge);
+		set(Radius::BubbleSmall, st::bubbleRadiusSmall);
+		set(Radius::BubbleLarge, st::bubbleRadiusLarge);
+	}
+	return CachedMasks[index];
 }
 
 } // namespace Ui

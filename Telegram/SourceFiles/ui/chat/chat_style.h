@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/cached_round_corners.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/style/style_core_palette.h"
 #include "layout/layout_selection.h"
 #include "styles/style_basic.h"
@@ -192,7 +193,10 @@ public:
 
 	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCorners() const;
 	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersSmall() const;
-	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersLarge() const;
+	[[nodiscard]] auto msgSelectOverlayCornersThumbSmall() const
+		-> const CornersPixmaps &;
+	[[nodiscard]] auto msgSelectOverlayCornersThumbLarge() const
+		-> const CornersPixmaps &;
 
 	[[nodiscard]] const style::TextPalette &historyPsaForwardPalette() const {
 		return _historyPsaForwardPalette;
@@ -319,7 +323,8 @@ private:
 
 	mutable CornersPixmaps _msgBotKbOverBgAddCorners;
 	mutable CornersPixmaps _msgSelectOverlayCornersSmall;
-	mutable CornersPixmaps _msgSelectOverlayCornersLarge;
+	mutable CornersPixmaps _msgSelectOverlayCornersThumbSmall;
+	mutable CornersPixmaps _msgSelectOverlayCornersThumbLarge;
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;
@@ -352,6 +357,12 @@ private:
 	rpl::lifetime _defaultPaletteChangeLifetime;
 
 };
+
+void FillComplexOverlayRect(
+	QPainter &p,
+	QRect rect,
+	const style::color &color,
+	const CornersPixmaps &corners);
 
 void FillComplexOverlayRect(
 	QPainter &p,

@@ -950,7 +950,7 @@ HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
 HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
-: _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
+: caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
@@ -964,14 +964,14 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
 
 void HistoryDocumentVoice::ensurePlayback(
 		const HistoryView::Document *that) const {
-	if (!_playback) {
-		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
+	if (!playback) {
+		playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
 void HistoryDocumentVoice::checkPlaybackFinished() const {
-	if (_playback && !_playback->progressAnimation.animating()) {
-		_playback.reset();
+	if (playback && !playback->progressAnimation.animating()) {
+		playback.reset();
 	}
 }
 

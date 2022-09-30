@@ -493,7 +493,6 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	_serviceBgCornersInverted = {};
 	_msgBotKbOverBgAddCorners = {};
 	_msgSelectOverlayCornersSmall = {};
-	_msgSelectOverlayCornersLarge = {};
 
 	for (auto &stm : _messageStyles) {
 		const auto same = (stm.textPalette.linkFg->c == stm.historyTextFg->c);
@@ -584,12 +583,20 @@ const CornersPixmaps &ChatStyle::msgSelectOverlayCornersSmall() const {
 	return _msgSelectOverlayCornersSmall;
 }
 
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersLarge() const {
+const CornersPixmaps &ChatStyle::msgSelectOverlayCornersThumbSmall() const {
 	EnsureCorners(
-		_msgSelectOverlayCornersLarge,
-		st::roundRadiusLarge,
+		_msgSelectOverlayCornersThumbSmall,
+		st::msgFileThumbRadiusSmall,
 		msgSelectOverlay());
-	return _msgSelectOverlayCornersLarge;
+	return _msgSelectOverlayCornersThumbSmall;
+}
+
+const CornersPixmaps &ChatStyle::msgSelectOverlayCornersThumbLarge() const {
+	EnsureCorners(
+		_msgSelectOverlayCornersThumbLarge,
+		st::msgFileThumbRadiusLarge,
+		msgSelectOverlay());
+	return _msgSelectOverlayCornersThumbLarge;
 }
 
 MessageStyle &ChatStyle::messageStyleRaw(bool outbg, bool selected) const {
@@ -693,6 +700,113 @@ void ChatStyle::make(
 
 void FillComplexOverlayRect(
 		QPainter &p,
+		QRect rect,
+		const style::color &color,
+		const CornersPixmaps &corners) {
+	constexpr auto kTopLeft = 0;
+	constexpr auto kTopRight = 1;
+	constexpr auto kBottomLeft = 2;
+	constexpr auto kBottomRight = 3;
+
+	const auto pix = corners.p;
+	const auto fillRect = [&](QRect rect) {
+		p.fillRect(rect, color);
+	};
+	if (pix[kTopLeft].isNull()
+		&& pix[kTopRight].isNull()
+		&& pix[kBottomLeft].isNull()
+		&& pix[kBottomRight].isNull()) {
+		fillRect(rect);
+		return;
+	}
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto fillCorner = [&](int left, int top, int index) {
+		p.drawPixmap(left, top, pix[index]);
+	};
+	const auto cornerSize = [&](int index) {
+		const auto &p = pix[index];
+		return p.isNull() ? 0 : p.width() / ratio;
+	};
+	const auto verticalSkip = [&](int left, int right) {
+		return std::max(cornerSize(left), cornerSize(right));
+	};
+	const auto top = verticalSkip(kTopLeft, kTopRight);
+	const auto bottom = verticalSkip(kBottomLeft, kBottomRight);
+	if (top) {
+		const auto left = cornerSize(kTopLeft);
+		const auto right = cornerSize(kTopRight);
+		if (left) {
+			fillCorner(rect.left(), rect.top(), kTopLeft);
+			if (const auto add = top - left) {
+				fillRect({ rect.left(), rect.top() + left, left, add });
+			}
+		}
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillRect({ rect.left() + left, rect.top(), fill, top });
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top(),
+				kTopRight);
+			if (const auto add = top - right) {
+				fillRect({
+					rect.left() + rect.width() - right,
+					rect.top() + right,
+					right,
+					add,
+				});
+			}
+		}
+	}
+	if (const auto h = rect.height() - top - bottom; h > 0) {
+		fillRect({ rect.left(), rect.top() + top, rect.width(), h });
+	}
+	if (bottom) {
+		const auto left = cornerSize(kBottomLeft);
+		const auto right = cornerSize(kBottomRight);
+		if (left) {
+			fillCorner(
+				rect.left(),
+				rect.top() + rect.height() - left,
+				kBottomLeft);
+			if (const auto add = bottom - left) {
+				fillRect({
+					rect.left(),
+					rect.top() + rect.height() - bottom,
+					left,
+					add,
+				});
+			}
+		}
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillRect({
+				rect.left() + left,
+				rect.top() + rect.height() - bottom,
+				fill,
+				bottom,
+			});
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top() + rect.height() - right,
+				kBottomRight);
+			if (const auto add = bottom - right) {
+				fillRect({
+					rect.left() + rect.width() - right,
+					rect.top() + rect.height() - bottom,
+					right,
+					add,
+				});
+			}
+		}
+	}
+}
+
+void FillComplexOverlayRect(
+		QPainter &p,
 		not_null<const ChatStyle*> st,
 		QRect rect,
 		ImageRoundRadius radius,
@@ -704,10 +818,11 @@ void FillComplexOverlayRect(
 		p.setBrush(bg);
 		p.drawEllipse(rect);
 	} else {
-		const auto &corners = (radius == ImageRoundRadius::Small)
-			? st->msgSelectOverlayCornersSmall()
-			: st->msgSelectOverlayCornersLarge();
-		RectWithCorners(p, rect, bg, corners, roundCorners);
+		// #TODO rounding
+		//const auto &corners = (radius == ImageRoundRadius::Small)
+		//	? st->msgSelectOverlayCornersSmall()
+		//	: st->msgSelectOverlayCornersLarge();
+		//RectWithCorners(p, rect, bg, corners, roundCorners);
 	}
 }
 

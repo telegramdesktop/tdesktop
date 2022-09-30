@@ -181,7 +181,11 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+		Ui::FillComplexOverlayRect(
+			p,
+			rthumb,
+			st->msgSelectOverlay(),
+			st->msgSelectOverlayCornersSmall());
 	}
 
 	if (_data) {

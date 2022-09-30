@@ -771,31 +771,33 @@ HistoryFileLayout {
 	thumbSkip: pixels;
 }
 
+msgFileThumbRadiusSmall: 4px;
+msgFileThumbRadiusLarge: 12px;
 msgFileLayout: HistoryFileLayout {
 	padding: margins(12px, 8px, 10px, 8px);
-	nameTop: 16px;
-	statusTop: 37px;
+	nameTop: 12px;
+	statusTop: 34px;
 	thumbSize: 44px;
 	thumbSkip: 11px;
 }
 msgFileThumbLayout: HistoryFileLayout {
-	padding: margins(10px, 10px, 10px, 10px);
-	nameTop: 12px;
-	statusTop: 32px;
-	linkTop: 60px;
+	padding: margins(6px, 6px, 10px, 6px);
+	nameTop: 11px;
+	statusTop: 31px;
+	linkTop: 55px;
 	thumbSize: 72px;
 	thumbSkip: 14px;
 }
 msgFileLayoutGrouped: HistoryFileLayout(msgFileLayout) {
-	padding: margins(14px, 7px, 11px, 7px);
-	nameTop: 13px;
-	statusTop: 34px;
+	padding: margins(12px, 5px, 10px, 5px);
+	nameTop: 9px;
+	statusTop: 31px;
 }
 msgFileThumbLayoutGrouped: HistoryFileLayout(msgFileThumbLayout) {
-	padding: margins(10px, 7px, 14px, 7px);
-	nameTop: 9px;
-	statusTop: 29px;
-	linkTop: 57px;
+	padding: margins(6px, 3px, 10px, 3px);
+	nameTop: 8px;
+	statusTop: 28px;
+	linkTop: 52px;
 }
 attachPreviewLayout: HistoryFileLayout {
 	padding: margins(0px, 0px, 0px, 0px);

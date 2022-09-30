@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
+#include "ui/chat/message_bubble.h"
 
 struct WebPageData;
 class VoiceSeekClickHandler;
@@ -441,24 +442,26 @@ struct HistoryMessageLogEntryOriginal
 
 class FileClickHandler;
 struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryView::Document> {
-	std::shared_ptr<FileClickHandler> _linksavel;
-	std::shared_ptr<FileClickHandler> _linkopenwithl;
-	std::shared_ptr<FileClickHandler> _linkcancell;
-	int _thumbw = 0;
-
-	mutable int _linkw = 0;
-	mutable QString _link;
+	std::shared_ptr<FileClickHandler> linksavel;
+	std::shared_ptr<FileClickHandler> linkopenwithl;
+	std::shared_ptr<FileClickHandler> linkcancell;
+	mutable QImage thumbnail;
+	mutable QString link;
+	int thumbw = 0;
+	mutable int linkw = 0;
+	mutable Ui::BubbleRounding rounding;
+	mutable bool blurred : 1 = false;
 };
 
 struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryView::Document> {
 	HistoryDocumentCaptioned();
 
-	Ui::Text::String _caption;
+	Ui::Text::String caption;
 };
 
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
-	QString _name;
-	int _namew = 0;
+	QString name;
+	int namew = 0;
 };
 
 struct HistoryDocumentVoicePlayback {
@@ -477,9 +480,9 @@ public:
 	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 
-	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
-	std::shared_ptr<VoiceSeekClickHandler> _seekl;
-	mutable int _lastDurationMs = 0;
+	mutable std::unique_ptr<HistoryDocumentVoicePlayback> playback;
+	std::shared_ptr<VoiceSeekClickHandler> seekl;
+	mutable int lastDurationMs = 0;
 
 	[[nodiscard]] bool seeking() const;
 	void startSeeking();

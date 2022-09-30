@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/runtime_composer.h"
 
 struct HistoryDocumentNamed;
+struct HistoryDocumentThumbed;
 
 namespace Data {
 class DocumentMedia;
@@ -108,7 +109,8 @@ private:
 		Painter &p,
 		const PaintContext &context,
 		int width,
-		LayoutMode mode) const;
+		LayoutMode mode,
+		RectParts corners) const;
 	[[nodiscard]] TextState textState(
 		QPoint point,
 		QSize layout,
@@ -122,7 +124,20 @@ private:
 	QSize countCurrentSize(int newWidth) override;
 
 	void createComponents(bool caption);
-	void fillNamedFromData(HistoryDocumentNamed *named);
+	void fillNamedFromData(not_null<HistoryDocumentNamed*> named);
+
+	[[nodiscard]] Ui::BubbleRounding thumbRounding(
+		LayoutMode mode,
+		RectParts corners) const;
+	void validateThumbnail(
+		not_null<const HistoryDocumentThumbed*> thumbed,
+		int size,
+		Ui::BubbleRounding rounding) const;
+	void fillThumbnailOverlay(
+		QPainter &p,
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		const PaintContext &context) const;
 
 	void setStatusSize(int64 newSize, TimeId realDuration = 0) const;
 	bool updateStatusText() const; // returns showPause

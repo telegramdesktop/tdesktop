@@ -7,27 +7,74 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/rect_part.h"
-
-class Painter;
-
 namespace Ui {
 
 class ChatTheme;
 class ChatStyle;
 
 enum class BubbleCornerRounding : uchar {
-	Large,
-	Small,
 	None,
 	Tail,
+	Small,
+	Large,
 };
 
 struct BubbleRounding {
-	BubbleCornerRounding topLeft = BubbleCornerRounding();
-	BubbleCornerRounding topRight = BubbleCornerRounding();
-	BubbleCornerRounding bottomLeft = BubbleCornerRounding();
-	BubbleCornerRounding bottomRight = BubbleCornerRounding();
+	BubbleCornerRounding topLeft : 2 = BubbleCornerRounding();
+	BubbleCornerRounding topRight : 2 = BubbleCornerRounding();
+	BubbleCornerRounding bottomLeft : 2 = BubbleCornerRounding();
+	BubbleCornerRounding bottomRight : 2 = BubbleCornerRounding();
+
+	struct ConstProxy {
+		constexpr ConstProxy(
+			not_null<const BubbleRounding*> that,
+			int index) noexcept
+		: that(that)
+		, index(index) {
+			Expects(index >= 0 && index < 4);
+		}
+
+		constexpr operator BubbleCornerRounding() const noexcept {
+			switch (index) {
+			case 0: return that->topLeft;
+			case 1: return that->topRight;
+			case 2: return that->bottomLeft;
+			case 3: return that->bottomRight;
+			}
+			Unexpected("Index value in BubbleRounding::ConstProxy.");
+		}
+
+		not_null<const BubbleRounding*> that;
+		int index = 0;
+	};
+	struct Proxy : ConstProxy {
+		constexpr Proxy(not_null<BubbleRounding*> that, int index) noexcept
+		: ConstProxy(that, index) {
+		}
+
+		using ConstProxy::operator BubbleCornerRounding;
+
+		constexpr Proxy &operator=(BubbleCornerRounding value) noexcept {
+			const auto nonconst = const_cast<BubbleRounding*>(that.get());
+			switch (index) {
+			case 0: nonconst->topLeft = value; break;
+			case 1: nonconst->topRight = value; break;
+			case 2: nonconst->bottomLeft = value; break;
+			case 3: nonconst->bottomRight = value; break;
+			}
+			return *this;
+		}
+	};
+	[[nodiscard]] constexpr ConstProxy operator[](int index) const {
+		return { this, index };
+	}
+	[[nodiscard]] constexpr Proxy operator[](int index) {
+		return { this, index };
+	}
+
+	inline friend constexpr auto operator<=>(
+		BubbleRounding,
+		BubbleRounding) = default;
 };
 
 struct BubbleSelectionInterval {

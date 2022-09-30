@@ -2813,11 +2813,17 @@ void Message::updateMediaInBubbleState() {
 			? MediaInBubbleState::Bottom
 			: MediaInBubbleState::None;
 		entry->setInBubbleState(entryState);
-	}
-	if (!media) {
+		if (!media) {
+			entry->setBubbleRounding(countBubbleRounding());
+			return;
+		}
+	} else if (!media) {
 		return;
 	}
 
+	const auto guard = gsl::finally([&] {
+		media->setBubbleRounding(countBubbleRounding());
+	});
 	if (!drawBubble()) {
 		media->setInBubbleState(MediaInBubbleState::None);
 		return;
@@ -2985,7 +2991,7 @@ QRect Message::countGeometry() const {
 Ui::BubbleRounding Message::countBubbleRounding() const {
 	const auto smallTop = isAttachedToPrevious();
 	const auto smallBottom = isAttachedToNext();
-	const auto media = this->media();
+	const auto media = smallBottom ? nullptr : this->media();
 	const auto keyboard = data()->inlineReplyKeyboard();
 	const auto skipTail = smallBottom
 		|| (media && media->skipBubbleTail())

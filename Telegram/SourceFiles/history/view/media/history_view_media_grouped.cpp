@@ -117,6 +117,7 @@ QSize GroupedMedia::countOptimalSize() {
 	if (_mode == Mode::Column) {
 		for (const auto &part : _parts) {
 			const auto &media = part.content;
+			media->setBubbleRounding(bubbleRounding());
 			media->initDimensions();
 			accumulate_max(maxWidth, media->maxWidth());
 		}
