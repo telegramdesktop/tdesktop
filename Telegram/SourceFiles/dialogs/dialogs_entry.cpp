@@ -178,7 +178,7 @@ const Ui::Text::String &Entry::chatListNameText() const {
 	if (_chatListNameVersion < version) {
 		_chatListNameVersion = version;
 		_chatListNameText.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			chatListName(),
 			Ui::NameTextOptions());
 	}

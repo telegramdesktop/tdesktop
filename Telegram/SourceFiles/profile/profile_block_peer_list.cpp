@@ -99,7 +99,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 
 	if (item->name.isEmpty()) {
 		item->name.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			item->peer->name(),
 			Ui::NameTextOptions());
 	}

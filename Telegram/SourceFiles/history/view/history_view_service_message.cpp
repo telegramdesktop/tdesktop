@@ -648,7 +648,10 @@ TextSelection Service::adjustSelection(
 	return text().adjustSelection(selection, type);
 }
 
-EmptyPainter::EmptyPainter(not_null<History*> history) : _history(history) {
+EmptyPainter::EmptyPainter(not_null<History*> history)
+: _history(history)
+, _header(st::msgMinWidth)
+, _text(st::msgMinWidth) {
 	if (NeedAboutGroup(_history)) {
 		fillAboutGroup();
 	}

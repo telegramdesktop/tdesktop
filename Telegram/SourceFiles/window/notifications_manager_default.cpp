@@ -678,7 +678,7 @@ void Notification::refreshLang() {
 void Notification::prepareActionsCache() {
 	auto replyCache = Ui::GrabWidget(_reply);
 	auto fadeWidth = st::notifyFadeRight.width();
-	auto actionsTop = st::notifyTextTop + st::msgNameFont->height;
+	auto actionsTop = st::notifyTextTop + st::semiboldFont->height;
 	auto replyRight = _replyPadding - st::notifyBorderWidth;
 	auto actionsCacheWidth = _reply->width() + replyRight + fadeWidth;
 	auto actionsCacheHeight = height() - actionsTop - st::notifyBorderWidth;
@@ -739,7 +739,7 @@ void Notification::paintEvent(QPaintEvent *e) {
 	p.setClipRect(e->rect());
 	p.drawImage(0, 0, _cache);
 
-	auto buttonsTop = st::notifyTextTop + st::msgNameFont->height;
+	auto buttonsTop = st::notifyTextTop + st::semiboldFont->height;
 	if (a_actionsOpacity.animating()) {
 		p.setOpacity(a_actionsOpacity.value(1.));
 		p.drawPixmapRight(st::notifyBorderWidth, buttonsTop, width(), _buttonsCache);
@@ -835,15 +835,15 @@ void Notification::updateNotifyDisplay() {
 
 		int32 itemWidth = w - st::notifyPhotoPos.x() - st::notifyPhotoSize - st::notifyTextLeft - st::notifyClosePos.x() - st::notifyClose.width;
 
-		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::msgNameFont->height);
+		QRect rectForName(st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft, st::notifyTextTop, itemWidth, st::semiboldFont->height);
 		const auto reminder = _fromScheduled && _history->peer->isSelf();
 		if (!options.hideNameAndPhoto) {
 			if (_fromScheduled) {
 				static const auto emoji = Ui::Emoji::Find(QString::fromUtf8("\xF0\x9F\x93\x85"));
 				const auto size = Ui::Emoji::GetSizeNormal() / cIntRetinaFactor();
-				const auto top = rectForName.top() + (st::msgNameFont->height - size) / 2;
+				const auto top = rectForName.top() + (st::semiboldFont->height - size) / 2;
 				Ui::Emoji::Draw(p, emoji, Ui::Emoji::GetSizeNormal(), rectForName.left(), top);
-				rectForName.setLeft(rectForName.left() + size + st::msgNameFont->spacew);
+				rectForName.setLeft(rectForName.left() + size + st::semiboldFont->spacew);
 			}
 			if (const auto chatTypeIcon = Dialogs::Ui::ChatTypeIcon(_history->peer)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
@@ -858,7 +858,7 @@ void Notification::updateNotifyDisplay() {
 			_textCache = Ui::Text::String(itemWidth);
 			auto r = QRect(
 				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
-				st::notifyItemTop + st::msgNameFont->height,
+				st::notifyItemTop + st::semiboldFont->height,
 				itemWidth,
 				2 * st::dialogsTextFont->height);
 			const auto text = !_reaction.empty()
@@ -910,7 +910,7 @@ void Notification::updateNotifyDisplay() {
 			p.setPen(st::dialogsTextFgService);
 			p.drawText(
 				st::notifyPhotoPos.x() + st::notifyPhotoSize + st::notifyTextLeft,
-				st::notifyItemTop + st::msgNameFont->height + st::dialogsTextFont->ascent,
+				st::notifyItemTop + st::semiboldFont->height + st::dialogsTextFont->ascent,
 				st::dialogsTextFont->elided(
 					tr::lng_notification_preview(tr::now),
 					itemWidth));
@@ -926,7 +926,7 @@ void Notification::updateNotifyDisplay() {
 		const auto fullTitle = manager()->addTargetAccountName(
 			title,
 			&_history->session());
-		titleText.setText(st::msgNameStyle, fullTitle, Ui::NameTextOptions());
+		titleText.setText(st::semiboldTextStyle, fullTitle, Ui::NameTextOptions());
 		titleText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 	}
 

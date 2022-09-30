@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "styles/style_chat.h"
 
 namespace {
 
@@ -25,6 +26,9 @@ constexpr auto kSetOnlineAfterActivity = TimeId(30);
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
+
+BotInfo::BotInfo() : text(st::msgMinWidth) {
+}
 
 UserData::UserData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)

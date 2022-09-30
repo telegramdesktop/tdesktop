@@ -16,6 +16,8 @@ struct BotCommand;
 } // namespace Data
 
 struct BotInfo {
+	BotInfo();
+
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
@@ -23,7 +25,7 @@ struct BotInfo {
 	int version = 0;
 	QString description, inlinePlaceholder;
 	std::vector<Data::BotCommand> commands;
-	Ui::Text::String text = { int(st::msgMinWidth) }; // description
+	Ui::Text::String text;
 
 	QString botMenuButtonText;
 	QString botMenuButtonUrl;

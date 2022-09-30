@@ -842,11 +842,11 @@ void InnerWidget::paintPeerSearchResult(
 
 	auto nameleft = context.st->nameLeft;
 	auto namewidth = context.width - nameleft - context.st->padding.right();
-	QRect rectForName(nameleft, context.st->nameTop, namewidth, st::msgNameFont->height);
+	QRect rectForName(nameleft, context.st->nameTop, namewidth, st::semiboldFont->height);
 
 	if (result->name.isEmpty()) {
 		result->name.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			peer->name(),
 			Ui::NameTextOptions());
 	}
@@ -977,9 +977,9 @@ void InnerWidget::paintSearchInFilter(
 		- st::dialogsCancelSearch.width;
 	auto rectForName = QRect(
 		nameleft,
-		top + (st::dialogsSearchInHeight - st::msgNameFont->height) / 2,
+		top + (st::dialogsSearchInHeight - st::semiboldFont->height) / 2,
 		namewidth,
-		st::msgNameFont->height);
+		st::semiboldFont->height);
 	if (icon) {
 		icon->paint(p, rectForName.topLeft(), width());
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
@@ -2540,7 +2540,7 @@ void InnerWidget::refreshSearchInChatLabel() {
 	}();
 	if (!dialog.isEmpty()) {
 		_searchInChatText.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			dialog,
 			Ui::DialogTextOptions());
 	}

@@ -70,7 +70,7 @@ void PaintRowTopRight(
 		: st::dialogsDateFg);
 	p.drawText(
 		rectForName.left() + rectForName.width() + st::dialogsDateSkip,
-		rectForName.top() + st::msgNameFont->height - st::msgDateFont->descent,
+		rectForName.top() + st::semiboldFont->height - st::normalFont->descent,
 		text);
 }
 
@@ -392,7 +392,7 @@ void PaintRow(
 		nameleft,
 		context.st->nameTop,
 		namewidth,
-		st::msgNameFont->height);
+		st::semiboldFont->height);
 
 	const auto promoted = (history && history->useTopPromotion())
 		&& !context.search;
@@ -612,14 +612,14 @@ void PaintRow(
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), context.width);
 	}
 
-	p.setFont(st::msgNameFont);
+	p.setFont(st::semiboldFont);
 	if (flags & (Flag::SavedMessages | Flag::RepliesMessages)) {
 		auto text = (flags & Flag::SavedMessages)
 			? tr::lng_saved_messages(tr::now)
 			: tr::lng_replies_messages(tr::now);
-		const auto textWidth = st::msgNameFont->width(text);
+		const auto textWidth = st::semiboldFont->width(text);
 		if (textWidth > rectForName.width()) {
-			text = st::msgNameFont->elided(text, rectForName.width());
+			text = st::semiboldFont->elided(text, rectForName.width());
 		}
 		p.setPen(context.active
 			? st::dialogsNameFgActive
@@ -687,9 +687,9 @@ void PaintRow(
 			? st::dialogsArchiveFgOver
 			: st::dialogsArchiveFg);
 		auto text = entry->chatListName(); // TODO feed name with emoji
-		auto textWidth = st::msgNameFont->width(text);
+		auto textWidth = st::semiboldFont->width(text);
 		if (textWidth > rectForName.width()) {
-			text = st::msgNameFont->elided(text, rectForName.width());
+			text = st::semiboldFont->elided(text, rectForName.width());
 		}
 		p.drawTextLeft(rectForName.left(), rectForName.top(), context.width, text);
 	}

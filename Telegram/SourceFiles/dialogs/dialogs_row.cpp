@@ -352,7 +352,10 @@ const Ui::Text::String &FakeRow::name() const {
 			? _item->displayFrom()
 			: nullptr;
 		const auto peer = from ? from : _item->history()->peer.get();
-		_name.setText(st::msgNameStyle, peer->name(), Ui::NameTextOptions());
+		_name.setText(
+			st::semiboldTextStyle,
+			peer->name(),
+			Ui::NameTextOptions());
 	}
 	return _name;
 }

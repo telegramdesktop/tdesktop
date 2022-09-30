@@ -127,8 +127,8 @@ private:
 	void fillAboutGroup();
 
 	not_null<History*> _history;
-	Ui::Text::String _header = { st::msgMinWidth };
-	Ui::Text::String _text = { st::msgMinWidth };
+	Ui::Text::String _header;
+	Ui::Text::String _text;
 	std::vector<Ui::Text::String> _phrases;
 
 };

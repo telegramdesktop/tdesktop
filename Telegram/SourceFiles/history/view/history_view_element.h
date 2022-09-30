@@ -516,7 +516,7 @@ private:
 	mutable ClickHandlerPtr _fromLink;
 	const QDateTime _dateTime;
 
-	mutable Ui::Text::String _text = { st::msgMinWidth };
+	mutable Ui::Text::String _text;
 	mutable int _textWidth = -1;
 	mutable int _textHeight = 0;
 

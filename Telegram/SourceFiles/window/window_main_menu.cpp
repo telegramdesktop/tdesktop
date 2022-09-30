@@ -488,7 +488,7 @@ void MainMenu::moveBadge() {
 	_badge->move(
 		left,
 		st::mainMenuCoverNameTop,
-		st::mainMenuCoverNameTop + st::msgNameStyle.font->height);
+		st::mainMenuCoverNameTop + st::semiboldFont->height);
 }
 
 void MainMenu::setupArchive() {
@@ -830,7 +830,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		if (_nameVersion < user->nameVersion()) {
 			_nameVersion = user->nameVersion();
 			_name.setText(
-				st::msgNameStyle,
+				st::semiboldTextStyle,
 				user->name(),
 				Ui::NameTextOptions());
 			moveBadge();

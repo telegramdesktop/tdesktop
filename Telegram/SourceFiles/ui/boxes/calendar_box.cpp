@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {

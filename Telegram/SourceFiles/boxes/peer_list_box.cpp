@@ -673,7 +673,7 @@ int PeerListRow::paintNameIconGetWidth(
 			nameLeft,
 			nameTop,
 			availableWidth,
-			st::msgNameStyle.font->height),
+			st::semiboldFont->height),
 		nameWidth,
 		outerWidth,
 		{
