@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/format_values.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "data/data_media_types.h"
 #include "styles/style_chat.h"
 
@@ -227,7 +228,16 @@ void Invoice::draw(Painter &p, const PaintContext &context) const {
 	}
 	if (_descriptionHeight) {
 		p.setPen(stm->historyTextFg);
-		_description.drawLeft(p, padding.left(), tshift, paintw, width(), style::al_left, 0, -1, toDescriptionSelection(context.selection));
+		_parent->prepareCustomEmojiPaint(p, context, _description);
+		_description.draw(p, {
+			.position = { padding.left(), tshift },
+			.outerWidth = width(),
+			.availableWidth = paintw,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = toDescriptionSelection(context.selection),
+		});
 		tshift += _descriptionHeight;
 	}
 	if (_attach) {
@@ -350,6 +360,17 @@ void Invoice::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed)
 	if (_attach) {
 		_attach->clickHandlerPressedChanged(p, pressed);
 	}
+}
+
+bool Invoice::hasHeavyPart() const {
+	return _attach ? _attach->hasHeavyPart() : false;
+}
+
+void Invoice::unloadHeavyPart() {
+	if (_attach) {
+		_attach->unloadHeavyPart();
+	}
+	_description.unloadPersistentAnimation();
 }
 
 TextForMimeData Invoice::selectedText(TextSelection selection) const {

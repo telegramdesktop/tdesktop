@@ -44,6 +44,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_send_files_way.h"
 #include "ui/chat/choose_send_as.h"
 #include "ui/image/image.h"
+#include "ui/painter.h"
 #include "ui/special_buttons.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
@@ -2776,7 +2777,7 @@ void HistoryWidget::updateControlsVisibility() {
 			_botMenuButton->show();
 		}
 		if (_silent) {
-			_silent->show();
+			_silent->setVisible(!_editMsgId);
 		}
 		if (_scheduled) {
 			_scheduled->show();
@@ -3768,6 +3769,10 @@ void HistoryWidget::send(Api::SendOptions options) {
 	if (_voiceRecordBar->isListenState()) {
 		_voiceRecordBar->requestToSendWithOptions(options);
 		return;
+	}
+
+	if (!options.scheduled) {
+		clearReplyReturns();
 	}
 
 	const auto webPageId = (_previewState != Data::PreviewState::Allowed)
@@ -4845,7 +4850,7 @@ void HistoryWidget::updateFieldSize() {
 	if (_sendAs) fieldWidth -= _sendAs->width();
 	if (kbShowShown) fieldWidth -= _botKeyboardShow->width();
 	if (_cmdStartShown) fieldWidth -= _botCommandStart->width();
-	if (_silent) fieldWidth -= _silent->width();
+	if (_silent && !_silent->isHidden()) fieldWidth -= _silent->width();
 	if (_scheduled) fieldWidth -= _scheduled->width();
 	if (_ttlInfo) fieldWidth -= _ttlInfo->width();
 
@@ -7699,9 +7704,15 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					_replyToName.drawElided(p, replyLeft, backy + st::msgReplyPadding.top(), width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 				}
 				p.setPen(st::historyComposeAreaFg);
-				p.setTextPalette(st::historyComposeAreaPalette);
-				_replyEditMsgText.drawElided(p, replyLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-				p.restoreTextPalette();
+				_replyEditMsgText.draw(p, {
+					.position = QPoint(
+						replyLeft,
+						backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
+					.availableWidth = width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
+					.palette = &st::historyComposeAreaPalette,
+					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.elisionLines = 1,
+				});
 			} else {
 				p.setFont(st::msgDateFont);
 				p.setPen(st::historyComposeAreaFgService);
@@ -7730,9 +7741,15 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			p.setPen(st::historyReplyNameFg);
 			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
 			p.setPen(st::historyComposeAreaFg);
-			p.setTextPalette(st::historyComposeAreaPalette);
-			_toForwardText.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height, width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.restoreTextPalette();
+			_toForwardText.draw(p, {
+				.position = QPoint(
+					forwardLeft,
+					backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
+				.availableWidth = width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
+				.palette = &st::historyComposeAreaPalette,
+				.spoiler = Ui::Text::DefaultSpoilerCache(),
+				.elisionLines = 1,
+			});
 		}
 	}
 	if (drawWebPagePreview) {
@@ -7935,10 +7952,12 @@ QPoint HistoryWidget::clampMousePosition(QPoint point) {
 }
 
 bool HistoryWidget::touchScroll(const QPoint &delta) {
-	int32 scTop = _scroll->scrollTop(), scMax = _scroll->scrollTopMax();
+	const auto scTop = _scroll->scrollTop();
+	const auto scMax = _scroll->scrollTopMax();
 	const auto scNew = std::clamp(scTop - delta.y(), 0, scMax);
-	if (scNew == scTop) return false;
-
+	if (scNew == scTop) {
+		return false;
+	}
 	_scroll->scrollToY(scNew);
 	return true;
 }

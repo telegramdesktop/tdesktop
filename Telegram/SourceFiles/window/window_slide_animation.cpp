@@ -12,7 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-void SlideAnimation::paintContents(Painter &p) const {
+void SlideAnimation::paintContents(QPainter &p) const {
 	const auto retina = style::DevicePixelRatio();
 
 	const auto slideLeft = (_direction == SlideDirection::FromLeft);

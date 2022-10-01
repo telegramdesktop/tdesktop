@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toasts/common_toasts.h"
 #include "ui/text/text_utilities.h"
 #include "ui/boxes/edit_invite_link.h"
+#include "ui/painter.h"
 #include "boxes/share_box.h"
 #include "history/view/history_view_group_call_bar.h" // GenerateUserpics...
 #include "history/history_message.h" // GetErrorTextForSending.

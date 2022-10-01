@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/multi_select.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
@@ -40,7 +41,7 @@ using SearchRequest = Api::MessagesSearchMerged::Request;
 
 class Row final : public PeerListRow {
 public:
-	Row(std::unique_ptr<Dialogs::FakeRow> fakeRow);
+	explicit Row(std::unique_ptr<Dialogs::FakeRow> fakeRow);
 
 	[[nodiscard]] FullMsgId fullId() const;
 
@@ -99,7 +100,15 @@ void Row::elementsPaint(
 		int selectedElement) {
 	_outerWidth = outerWidth;
 	using Row = Dialogs::Ui::RowPainter;
-	Row::paint(p, _fakeRow.get(), outerWidth, false, selected, 0, false);
+	Row::paint(
+		p,
+		_fakeRow.get(),
+		outerWidth,
+		false,
+		selected,
+		crl::now(),
+		p.inactive(),
+		false);
 }
 
 class ListController final : public PeerListController {
@@ -238,8 +247,7 @@ List CreateList(
 	list.container->paintRequest(
 	) | rpl::start_with_next([weak = Ui::MakeWeak(list.container.get())](
 			const QRect &r) {
-		Painter p(weak);
-
+		auto p = QPainter(weak);
 		p.fillRect(r, st::dialogsBg);
 	}, list.container->lifetime());
 
@@ -312,8 +320,7 @@ TopBar::TopBar(not_null<Ui::RpWidget*> parent)
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 
@@ -516,8 +523,7 @@ BottomBar::BottomBar(not_null<Ui::RpWidget*> parent, bool fastShowChooseFrom)
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.fillRect(r, st::dialogsBg);
 	}, lifetime());
 

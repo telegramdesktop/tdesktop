@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/controls/invite_link_label.h"
 
+#include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"

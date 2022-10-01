@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
-#include "platform/linux/specific_linux.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "history/history.h"
@@ -553,7 +552,7 @@ void NotificationData::show() {
 	StartServiceAsync(crl::guard(weak, [=] {
 		const auto iconName = _imageKey.empty()
 			|| _hints.find(_imageKey) == end(_hints)
-				? Glib::ustring(GetIconName().toStdString())
+				? Glib::ustring(base::IconName().toStdString())
 				: Glib::ustring();
 		const auto connection = _dbusConnection;
 

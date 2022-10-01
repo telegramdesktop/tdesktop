@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
+#include "ui/painter.h"
 #include "ui/controls/who_reacted_context_action.h"
 #include "data/data_message_reaction_id.h"
 #include "styles/style_widgets.h"

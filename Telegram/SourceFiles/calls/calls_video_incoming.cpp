@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/gl/gl_shader.h"
 #include "ui/gl/gl_image.h"
 #include "ui/gl/gl_primitives.h"
+#include "ui/painter.h"
 #include "media/view/media_view_pip.h"
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_calls.h"

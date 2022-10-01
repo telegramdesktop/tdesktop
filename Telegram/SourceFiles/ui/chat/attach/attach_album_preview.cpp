@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/chat/attach/attach_album_thumbnail.h"
 #include "ui/chat/attach/attach_prepare.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"

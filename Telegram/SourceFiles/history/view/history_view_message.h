@@ -10,7 +10,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_bottom_info.h"
 #include "ui/effects/animations.h"
-#include "base/weak_ptr.h"
 
 class HistoryMessage;
 struct HistoryMessageEdited;
@@ -47,7 +46,7 @@ struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	mutable bool buttonVisible = true;
 };
 
-class Message : public Element, public base::has_weak_ptr {
+class Message final : public Element {
 public:
 	Message(
 		not_null<ElementDelegate*> delegate,
@@ -227,6 +226,8 @@ private:
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;
 	bool hasVisibleText() const override;
+	[[nodiscard]] int visibleTextLength() const;
+	[[nodiscard]] int visibleMediaTextLength() const;
 	[[nodiscard]] bool needInfoDisplay() const;
 
 	[[nodiscard]] bool isPinnedContext() const;

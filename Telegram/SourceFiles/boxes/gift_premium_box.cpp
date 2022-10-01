@@ -108,7 +108,7 @@ void GiftBox(
 
 	top->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(top);
+		auto p = QPainter(top);
 
 		p.fillRect(r, Qt::transparent);
 		stars->paint(p);

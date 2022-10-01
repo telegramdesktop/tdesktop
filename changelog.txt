@@ -1,3 +1,25 @@
+4.2.4 (30.09.22)
+
+- Fix crash in emoji statuses clearing.
+
+4.2.3 (28.09.22)
+
+- Improve scaling / cropping for photos / video files.
+- Improve touch support in channel comments.
+- Nice animation for spoilers.
+
+4.2.2 beta (23.09.22)
+
+- Fix crash in spoiler revealing in media captions.
+- Fix spoiler revealing in media viewer captions.
+- Fix crash in folder editing on Linux.
+
+4.2.1 beta (22.09.22)
+
+- Improve scaling / cropping for photos / video files.
+- Improve touch support in channel comments.
+- Nice animation for spoilers.
+
 4.2 (17.09.22)
 
 - A new expandable reaction menu was added in private chats and groups.

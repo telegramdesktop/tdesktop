@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/basic_click_handlers.h"
+#include "ui/painter.h"
 #include "boxes/abstract_box.h" // Ui::show().
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"

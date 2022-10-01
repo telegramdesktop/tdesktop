@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h" // GifPauseReason.
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -2042,8 +2043,12 @@ bool StickersListWidget::appendSet(
 		for (const auto &sticker : to.back().stickers) {
 			const auto document = sticker.document;
 			if (document->isPremiumSticker()) {
-				to[_premiumsIndex].stickers.push_back(Sticker{ document });
-				++to[_premiumsIndex].count;
+				auto &set = to[_premiumsIndex];
+				auto &list = set.stickers;
+				if (!ranges::contains(list, document, &Sticker::document)) {
+					list.push_back(Sticker{ document });
+					++set.count;
+				}
 			}
 		}
 	}

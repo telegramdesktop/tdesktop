@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_object.h"
 #include "base/runtime_composer.h"
 #include "base/flags.h"
+#include "base/weak_ptr.h"
 
 class History;
 class HistoryBlock;
@@ -106,7 +107,6 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) = 0;
 	virtual void elementCancelPremium(not_null<const Element*> view) = 0;
-	virtual void elementShowSpoilerAnimation() = 0;
 
 	virtual ~ElementDelegate() {
 	}
@@ -168,7 +168,6 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
-	void elementShowSpoilerAnimation() override;
 
 protected:
 	[[nodiscard]] not_null<Window::SessionController*> controller() const {
@@ -238,54 +237,71 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
-	, public ClickHandlerHost {
+	, public ClickHandlerHost
+	, public base::has_weak_ptr {
 public:
-	Element(
-		not_null<ElementDelegate*> delegate,
-		not_null<HistoryItem*> data,
-		Element *replacing);
-
 	enum class Flag : uchar {
-		NeedsResize        = 0x01,
-		AttachedToPrevious = 0x02,
-		AttachedToNext     = 0x04,
-		HiddenByGroup      = 0x08,
+		ServiceMessage = 0x01,
+		NeedsResize = 0x02,
+		AttachedToPrevious = 0x04,
+		AttachedToNext = 0x08,
+		HiddenByGroup = 0x10,
+		SpecialOnlyEmoji = 0x20,
+		CustomEmojiRepainting = 0x40,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
 
-	not_null<ElementDelegate*> delegate() const;
-	not_null<HistoryItem*> data() const;
-	not_null<History*> history() const;
-	Media *media() const;
-	Context context() const;
+	Element(
+		not_null<ElementDelegate*> delegate,
+		not_null<HistoryItem*> data,
+		Element *replacing,
+		Flag serviceFlag);
+
+	[[nodiscard]] not_null<ElementDelegate*> delegate() const;
+	[[nodiscard]] not_null<HistoryItem*> data() const;
+	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] Media *media() const;
+	[[nodiscard]] Context context() const;
 	void refreshDataId();
 
-	QDateTime dateTime() const;
+	[[nodiscard]] QDateTime dateTime() const;
 
-	int y() const;
+	[[nodiscard]] int y() const;
 	void setY(int y);
 
-	virtual int marginTop() const = 0;
-	virtual int marginBottom() const = 0;
+	[[nodiscard]] virtual int marginTop() const = 0;
+	[[nodiscard]] virtual int marginBottom() const = 0;
 
 	void setPendingResize();
-	bool pendingResize() const;
-	bool isUnderCursor() const;
+	[[nodiscard]] bool pendingResize() const;
+	[[nodiscard]] bool isUnderCursor() const;
 
-	bool isLastAndSelfMessage() const;
+	[[nodiscard]] bool isLastAndSelfMessage() const;
 
-	bool isAttachedToPrevious() const;
-	bool isAttachedToNext() const;
+	[[nodiscard]] bool isAttachedToPrevious() const;
+	[[nodiscard]] bool isAttachedToNext() const;
 
-	int skipBlockWidth() const;
-	int skipBlockHeight() const;
-	virtual int infoWidth() const;
-	virtual int bottomInfoFirstLineWidth() const;
-	virtual bool bottomInfoIsWide() const;
+	[[nodiscard]] int skipBlockWidth() const;
+	[[nodiscard]] int skipBlockHeight() const;
+	[[nodiscard]] virtual int infoWidth() const;
+	[[nodiscard]] virtual int bottomInfoFirstLineWidth() const;
+	[[nodiscard]] virtual bool bottomInfoIsWide() const;
 
-	bool isHiddenByGroup() const;
-	virtual bool isHidden() const;
+	[[nodiscard]] bool isHiddenByGroup() const;
+	[[nodiscard]] virtual bool isHidden() const;
+
+	[[nodiscard]] bool isIsolatedEmoji() const {
+		return (_flags & Flag::SpecialOnlyEmoji)
+			&& _text.isIsolatedEmoji();
+	}
+	[[nodiscard]] bool isOnlyCustomEmoji() const {
+		return (_flags & Flag::SpecialOnlyEmoji)
+			&& _text.isOnlyCustomEmoji();
+	}
+
+	[[nodiscard]] Ui::Text::IsolatedEmoji isolatedEmoji() const;
+	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
 	void setAttachToPrevious(bool attachToNext);
@@ -302,9 +318,9 @@ public:
 	void createUnreadBar(rpl::producer<QString> text);
 	void destroyUnreadBar();
 
-	int displayedDateHeight() const;
-	bool displayDate() const;
-	bool isInOneDayWithPrevious() const;
+	[[nodiscard]] int displayedDateHeight() const;
+	[[nodiscard]] bool displayDate() const;
+	[[nodiscard]] bool isInOneDayWithPrevious() const;
 
 	virtual void draw(Painter &p, const PaintContext &context) const = 0;
 	[[nodiscard]] virtual PointState pointState(QPoint point) const = 0;
@@ -384,8 +400,9 @@ public:
 	[[nodiscard]] virtual bool isSignedAuthorElided() const;
 
 	virtual void itemDataChanged();
+	void itemTextUpdated();
 
-	virtual bool hasHeavyPart() const;
+	[[nodiscard]] virtual bool hasHeavyPart() const;
 	virtual void unloadHeavyPart();
 	void checkHeavyPart();
 
@@ -397,21 +414,21 @@ public:
 		not_null<const HistoryItem*> item) const;
 
 	// Legacy blocks structure.
-	HistoryBlock *block();
-	const HistoryBlock *block() const;
+	[[nodiscard]] HistoryBlock *block();
+	[[nodiscard]] const HistoryBlock *block() const;
 	void attachToBlock(not_null<HistoryBlock*> block, int index);
 	void removeFromBlock();
 	void refreshInBlock();
 	void setIndexInBlock(int index);
-	int indexInBlock() const;
-	Element *previousInBlocks() const;
-	Element *previousDisplayedInBlocks() const;
-	Element *nextInBlocks() const;
-	Element *nextDisplayedInBlocks() const;
+	[[nodiscard]] int indexInBlock() const;
+	[[nodiscard]] Element *previousInBlocks() const;
+	[[nodiscard]] Element *previousDisplayedInBlocks() const;
+	[[nodiscard]] Element *nextInBlocks() const;
+	[[nodiscard]] Element *nextDisplayedInBlocks() const;
 	void previousInBlocksChanged();
 	void nextInBlocksRemoved();
 
-	virtual QRect innerGeometry() const = 0;
+	[[nodiscard]] virtual QRect innerGeometry() const = 0;
 
 	void customEmojiRepaint();
 	void prepareCustomEmojiPaint(
@@ -423,6 +440,7 @@ public:
 		const PaintContext &context,
 		const Reactions::InlineList &reactions) const;
 	void clearCustomEmojiRepaint() const;
+	void hideSpoilers();
 
 	[[nodiscard]] ClickHandlerPtr fromPhotoLink() const {
 		return fromLink();
@@ -463,6 +481,14 @@ protected:
 
 	virtual void refreshDataIdHook();
 
+	[[nodiscard]] const Ui::Text::String &text() const;
+	[[nodiscard]] int textHeightFor(int textWidth);
+	void validateText();
+	void validateTextSkipBlock(bool has, int width, int height);
+
+	void clearSpecialOnlyEmoji();
+	void checkSpecialOnlyEmoji();
+
 private:
 	// This should be called only from previousInBlocksChanged()
 	// to add required bits to the Composer mask
@@ -485,21 +511,22 @@ private:
 
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
+	HistoryBlock *_block = nullptr;
 	std::unique_ptr<Media> _media;
 	mutable ClickHandlerPtr _fromLink;
-	bool _isScheduledUntilOnline = false;
-	mutable bool _heavyCustomEmoji = false;
-	mutable bool _customEmojiRepaintScheduled = false;
-
 	const QDateTime _dateTime;
 
+	mutable Ui::Text::String _text = { st::msgMinWidth };
+	mutable int _textWidth = -1;
+	mutable int _textHeight = 0;
+
 	int _y = 0;
-	Context _context = Context();
-
-	Flags _flags = Flag::NeedsResize;
-
-	HistoryBlock *_block = nullptr;
 	int _indexInBlock = -1;
+
+	bool _isScheduledUntilOnline = false;
+	mutable bool _heavyCustomEmoji = false;
+	mutable Flags _flags = Flag(0);
+	Context _context = Context();
 
 };
 

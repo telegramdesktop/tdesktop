@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_item_base.h"
 #include "ui/text/text_utilities.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "window/themes/window_theme.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"

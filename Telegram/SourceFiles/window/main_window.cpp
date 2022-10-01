@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/widgets/shadow.h"
 #include "ui/controls/window_outdated_bar.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "mainwindow.h"
@@ -124,9 +125,12 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 
 	auto result = QIcon(Ui::PixmapFromImage(base::duplicate(Logo())));
 
-#if defined Q_OS_UNIX && !defined Q_OS_MAC
+	if constexpr (!Platform::IsLinux()) {
+		return result;
+	}
+
 	const auto iconFromTheme = QIcon::fromTheme(
-		Platform::GetIconName(),
+		base::IconName(),
 		result);
 
 	result = QIcon();
@@ -162,7 +166,6 @@ QIcon CreateIcon(Main::Session *session, bool returnNullIfDefault) {
 
 		result.addPixmap(iconPixmap);
 	}
-#endif
 
 	return result;
 }

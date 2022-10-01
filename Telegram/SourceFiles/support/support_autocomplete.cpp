@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
 #include "ui/wrap/padding_wrap.h"
+#include "ui/painter.h"
 #include "support/support_templates.h"
 #include "support/support_common.h"
 #include "history/view/history_view_message.h"

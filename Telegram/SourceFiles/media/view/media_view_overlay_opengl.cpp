@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_overlay_opengl.h"
 
 #include "ui/gl/gl_shader.h"
+#include "ui/painter.h"
 #include "media/streaming/media_streaming_common.h"
 #include "base/platform/base_platform_info.h"
 #include "core/crash_reports.h"

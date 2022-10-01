@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "main/main_app_config.h"
 #include "main/main_account.h"
 #include "main/main_session.h"
@@ -125,7 +126,7 @@ QString TypeRow::generateShortName() {
 
 PaintRoundImageCallback TypeRow::generatePaintUserpicCallback() {
 	const auto flag = this->flag();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) {
+	return [=](QPainter &p, int x, int y, int outerWidth, int size) {
 		PaintFilterChatsTypeIcon(p, flag, x, y, outerWidth, size);
 	};
 }
@@ -241,7 +242,7 @@ auto TypeController::rowSelectionChanges() const
 }
 
 void PaintFilterChatsTypeIcon(
-		Painter &p,
+		QPainter &p,
 		Data::ChatFilter::Flag flag,
 		int x,
 		int y,

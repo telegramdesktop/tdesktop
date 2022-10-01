@@ -208,7 +208,7 @@ Ui::Text::String Media::createCaption(not_null<HistoryItem*> item) const {
 		item->originalTextWithLocalEntities(),
 		Ui::ItemTextOptions(item),
 		context);
-	FillTextWithAnimatedSpoilers(result);
+	FillTextWithAnimatedSpoilers(_parent, result);
 	if (const auto width = _parent->skipBlockWidth()) {
 		result.updateSkipBlock(width, _parent->skipBlockHeight());
 	}

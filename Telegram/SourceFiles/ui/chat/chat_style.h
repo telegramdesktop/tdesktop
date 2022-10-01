@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "ui/style/style_core_palette.h"
 #include "layout/layout_selection.h"
+#include "styles/style_basic.h"
 
 enum class ImageRoundRadius;
 
@@ -351,13 +352,13 @@ private:
 };
 
 void FillComplexOverlayRect(
-	Painter &p,
+	QPainter &p,
 	not_null<const ChatStyle*> st,
 	QRect rect,
 	ImageRoundRadius radius,
 	RectParts roundCorners);
 void FillComplexLocationRect(
-	Painter &p,
+	QPainter &p,
 	not_null<const ChatStyle*> st,
 	QRect rect,
 	ImageRoundRadius radius,

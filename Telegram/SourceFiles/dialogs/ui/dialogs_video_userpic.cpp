@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_video_userpic.h"
 
+#include "ui/painter.h"
 #include "core/file_location.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"

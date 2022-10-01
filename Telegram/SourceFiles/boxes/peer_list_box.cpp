@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
 #include "data/data_peer_values.h"
@@ -37,11 +38,11 @@ PaintRoundImageCallback PaintUserpicCallback(
 		bool respectSavedMessagesChat) {
 	if (respectSavedMessagesChat) {
 		if (peer->isSelf()) {
-			return [](Painter &p, int x, int y, int outerWidth, int size) {
+			return [](QPainter &p, int x, int y, int outerWidth, int size) {
 				Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
 			};
 		} else if (peer->isRepliesChat()) {
-			return [](Painter &p, int x, int y, int outerWidth, int size) {
+			return [](QPainter &p, int x, int y, int outerWidth, int size) {
 				Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, outerWidth, size);
 			};
 		}
@@ -206,7 +207,7 @@ void PeerListBox::resizeEvent(QResizeEvent *e) {
 }
 
 void PeerListBox::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto &bg = (_controller->listSt()
 		? *_controller->listSt()

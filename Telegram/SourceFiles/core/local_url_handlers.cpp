@@ -876,7 +876,7 @@ QString TryConvertUrlToLocal(QString url) {
 
 	using namespace qthelp;
 	auto matchOptions = RegExOption::CaseInsensitive;
-	auto subdomainMatch = regex_match(qsl("^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me/?(\\?.+)?"), url, matchOptions);
+	auto subdomainMatch = regex_match(qsl("^(https?://)?([a-zA-Z0-9\\_]+)\\.t\\.me(/\\d+)?/?(\\?.+)?"), url, matchOptions);
 	if (subdomainMatch) {
 		const auto name = subdomainMatch->captured(2);
 		if (name.size() > 1 && name != "www") {
@@ -884,7 +884,8 @@ QString TryConvertUrlToLocal(QString url) {
 				subdomainMatch->captured(1)
 				+ "t.me/"
 				+ name
-				+ subdomainMatch->captured(3));
+				+ subdomainMatch->captured(3)
+				+ subdomainMatch->captured(4));
 			return result.startsWith("tg://resolve?domain=")
 				? result
 				: url;

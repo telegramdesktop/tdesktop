@@ -40,7 +40,7 @@ public:
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
-	virtual void paintContent(Painter &p);
+	virtual void paintContent(QPainter &p);
 
 private:
 	void animationCallback();
@@ -62,7 +62,7 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
-	void paintContent(Painter &p) override;
+	void paintContent(QPainter &p) override;
 	void changed();
 	void submit();
 	void error();

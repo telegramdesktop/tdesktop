@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"

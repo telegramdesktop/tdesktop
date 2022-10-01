@@ -52,8 +52,8 @@ struct ComplexBubble {
 	const std::vector<BubbleSelectionInterval> &selection;
 };
 
-void PaintBubble(Painter &p, const SimpleBubble &args);
-void PaintBubble(Painter &p, const ComplexBubble &args);
+void PaintBubble(QPainter &p, const SimpleBubble &args);
+void PaintBubble(QPainter &p, const ComplexBubble &args);
 
 void PaintPatternBubblePart(
 	QPainter &p,
@@ -74,7 +74,7 @@ void PaintPatternBubblePart(
 	const QRect &viewport,
 	const QPixmap &pixmap,
 	const QRect &target,
-	Fn<void(Painter&)> paintContent,
+	Fn<void(QPainter&)> paintContent,
 	QImage &cache);
 
 } // namespace Ui

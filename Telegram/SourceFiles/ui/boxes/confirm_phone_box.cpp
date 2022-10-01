@@ -96,7 +96,7 @@ void ConfirmPhoneBox::showError(const QString &error) {
 void ConfirmPhoneBox::paintEvent(QPaintEvent *e) {
 	BoxContent::paintEvent(e);
 
-	Painter p(this);
+	auto p = QPainter(this);
 
 	p.setFont(st::boxTextFont);
 	const auto callText = _call.getText();

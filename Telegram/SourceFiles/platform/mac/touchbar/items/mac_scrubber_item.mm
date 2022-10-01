@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "chat_helpers/emoji_list_widget.h"
 #include "core/sandbox.h"
 #include "core/application.h"

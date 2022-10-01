@@ -47,11 +47,11 @@ public:
 	virtual void rowScheduleRaisedHandStatusRemove(
 		not_null<MembersRow*> row) = 0;
 	virtual void rowPaintIcon(
-		Painter &p,
+		QPainter &p,
 		QRect rect,
 		const IconState &state) = 0;
 	virtual int rowPaintStatusIcon(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -150,7 +150,7 @@ public:
 		bool selected,
 		MembersRowStyle style);
 	void paintMuteIcon(
-		Painter &p,
+		QPainter &p,
 		QRect iconRect,
 		MembersRowStyle style = MembersRowStyle::Default);
 	[[nodiscard]] MembersRowDelegate::IconState computeIconState(

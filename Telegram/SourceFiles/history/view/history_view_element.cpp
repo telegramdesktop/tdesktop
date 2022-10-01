@@ -21,11 +21,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_spoiler_click_handler.h"
 #include "history/history.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/click_handler_types.h"
+#include "core/ui_integration.h"
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "chat_helpers/stickers_emoji_pack.h"
@@ -34,6 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/text/text_options.h"
+#include "ui/item_text_options.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_media_types.h"
@@ -216,9 +221,6 @@ void SimpleElementDelegate::elementCancelPremium(
 	not_null<const Element*> view) {
 }
 
-void SimpleElementDelegate::elementShowSpoilerAnimation() {
-}
-
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -357,11 +359,16 @@ void DateBadge::paint(
 Element::Element(
 	not_null<ElementDelegate*> delegate,
 	not_null<HistoryItem*> data,
-	Element *replacing)
+	Element *replacing,
+	Flag serviceFlag)
 : _delegate(delegate)
 , _data(data)
+, _dateTime(IsItemScheduledUntilOnline(data)
+	? QDateTime()
+	: ItemDateTime(data))
+, _text(st::msgMinWidth)
 , _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
-, _dateTime(_isScheduledUntilOnline ? QDateTime() : ItemDateTime(data))
+, _flags(serviceFlag | Flag::NeedsResize)
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -405,23 +412,43 @@ void Element::setY(int y) {
 void Element::refreshDataIdHook() {
 }
 
+void Element::clearSpecialOnlyEmoji() {
+	if (!(_flags & Flag::SpecialOnlyEmoji)) {
+		return;
+	}
+	history()->session().emojiStickersPack().remove(this);
+	_flags &= ~Flag::SpecialOnlyEmoji;
+}
+
+void Element::checkSpecialOnlyEmoji() {
+	if (history()->session().emojiStickersPack().add(this)) {
+		_flags |= Flag::SpecialOnlyEmoji;
+	}
+}
+
+void Element::hideSpoilers() {
+	if (_text.hasSpoilers()) {
+		_text.setSpoilerRevealed(false, anim::type::instant);
+	}
+}
+
 void Element::customEmojiRepaint() {
-	if (!_customEmojiRepaintScheduled) {
-		_customEmojiRepaintScheduled = true;
+	if (!(_flags & Flag::CustomEmojiRepainting)) {
+		_flags |= Flag::CustomEmojiRepainting;
 		history()->owner().requestViewRepaint(this);
 	}
 }
 
 void Element::clearCustomEmojiRepaint() const {
-	_customEmojiRepaintScheduled = false;
-	data()->_customEmojiRepaintScheduled = false;
+	_flags &= ~Flag::CustomEmojiRepainting;
+	data()->_flags &= ~MessageFlag::CustomEmojiRepainting;
 }
 
 void Element::prepareCustomEmojiPaint(
 		Painter &p,
 		const PaintContext &context,
 		const Ui::Text::String &text) const {
-	if (!text.hasCustomEmoji()) {
+	if (!text.hasPersistentAnimation()) {
 		return;
 	}
 	clearCustomEmojiRepaint();
@@ -550,35 +577,33 @@ void Element::refreshMedia(Element *replacing) {
 	_flags &= ~Flag::HiddenByGroup;
 
 	const auto item = data();
-	const auto media = item->media();
-	if (media && media->canBeGrouped()) {
-		if (const auto group = history()->owner().groups().find(item)) {
-			if (group->items.front() != item) {
-				_media = nullptr;
-				_flags |= Flag::HiddenByGroup;
-			} else {
-				_media = std::make_unique<GroupedMedia>(
-					this,
-					group->items);
-				if (!pendingResize()) {
-					history()->owner().requestViewResize(this);
+	if (const auto media = item->media()) {
+		if (media->canBeGrouped()) {
+			if (const auto group = history()->owner().groups().find(item)) {
+				if (group->items.front() != item) {
+					_media = nullptr;
+					_flags |= Flag::HiddenByGroup;
+				} else {
+					_media = std::make_unique<GroupedMedia>(
+						this,
+						group->items);
+					if (!pendingResize()) {
+						history()->owner().requestViewResize(this);
+					}
 				}
+				return;
 			}
-			return;
 		}
-	}
-	const auto session = &history()->session();
-	if (const auto media = _data->media()) {
 		_media = media->createView(this, replacing);
-	} else if (_data->isOnlyCustomEmoji()
+	} else if (isOnlyCustomEmoji()
 		&& Core::App().settings().largeEmoji()) {
 		_media = std::make_unique<UnwrappedMedia>(
 			this,
-			std::make_unique<CustomEmoji>(this, _data->onlyCustomEmoji()));
-	} else if (_data->isIsolatedEmoji()
+			std::make_unique<CustomEmoji>(this, onlyCustomEmoji()));
+	} else if (isIsolatedEmoji()
 		&& Core::App().settings().largeEmoji()) {
-		const auto emoji = _data->isolatedEmoji();
-		const auto emojiStickers = &session->emojiStickersPack();
+		const auto emoji = isolatedEmoji();
+		const auto emojiStickers = &history()->session().emojiStickersPack();
 		const auto skipPremiumEffect = false;
 		if (const auto sticker = emojiStickers->stickerForEmoji(emoji)) {
 			_media = std::make_unique<UnwrappedMedia>(
@@ -596,6 +621,90 @@ void Element::refreshMedia(Element *replacing) {
 		}
 	} else {
 		_media = nullptr;
+	}
+}
+
+Ui::Text::IsolatedEmoji Element::isolatedEmoji() const {
+	return _text.toIsolatedEmoji();
+}
+
+Ui::Text::OnlyCustomEmoji Element::onlyCustomEmoji() const {
+	return _text.toOnlyCustomEmoji();
+}
+
+const Ui::Text::String &Element::text() const {
+	return _text;
+}
+
+int Element::textHeightFor(int textWidth) {
+	validateText();
+	if (_textWidth != textWidth) {
+		_textWidth = textWidth;
+		_textHeight = _text.countHeight(textWidth);
+	}
+	return _textHeight;
+}
+
+void Element::validateText() {
+	const auto item = data();
+	const auto &text = item->_text;
+	if (_text.isEmpty() == text.empty()) {
+		return;
+	}
+	const auto context = Core::MarkedTextContext{
+		.session = &history()->session(),
+		.customEmojiRepaint = [=] { customEmojiRepaint(); },
+	};
+	if (_flags & Flag::ServiceMessage) {
+		_text.setMarkedText(
+			st::serviceTextStyle,
+			text,
+			Ui::ItemTextServiceOptions(),
+			context);
+		auto linkIndex = 0;
+		for (const auto &link : item->customTextLinks()) {
+			// Link indices start with 1.
+			_text.setLink(++linkIndex, link);
+		}
+	} else {
+		clearSpecialOnlyEmoji();
+		const auto context = Core::MarkedTextContext{
+			.session = &history()->session(),
+			.customEmojiRepaint = [=] { customEmojiRepaint(); },
+		};
+		_text.setMarkedText(
+			st::messageTextStyle,
+			item->originalTextWithLocalEntities(),
+			Ui::ItemTextOptions(item),
+			context);
+		if (!text.empty() && _text.isEmpty()) {
+			// If server has allowed some text that we've trim-ed entirely,
+			// just replace it with something so that UI won't look buggy.
+			_text.setMarkedText(
+				st::messageTextStyle,
+				{ u":-("_q },
+				Ui::ItemTextOptions(item));
+		}
+		if (!item->media()) {
+			checkSpecialOnlyEmoji();
+			refreshMedia(nullptr);
+		}
+	}
+	FillTextWithAnimatedSpoilers(this, _text);
+	_textWidth = -1;
+	_textHeight = 0;
+}
+
+void Element::validateTextSkipBlock(bool has, int width, int height) {
+	validateText();
+	if (!has) {
+		if (_text.removeSkipBlock()) {
+			_textWidth = -1;
+			_textHeight = 0;
+		}
+	} else if (_text.updateSkipBlock(width, height)) {
+		_textWidth = -1;
+		_textHeight = 0;
 	}
 }
 
@@ -940,6 +1049,19 @@ bool Element::isSignedAuthorElided() const {
 void Element::itemDataChanged() {
 }
 
+void Element::itemTextUpdated() {
+	if (const auto media = _media.get()) {
+		media->parentTextUpdated();
+	}
+	clearSpecialOnlyEmoji();
+	_text = Ui::Text::String(st::msgMinWidth);
+	_textWidth = -1;
+	_textHeight = 0;
+	if (_media && !data()->media()) {
+		refreshMedia(nullptr);
+	}
+}
+
 void Element::unloadHeavyPart() {
 	history()->owner().unregisterHeavyViewPart(this);
 	if (_media) {
@@ -947,9 +1069,9 @@ void Element::unloadHeavyPart() {
 	}
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
-		data()->_text.unloadCustomEmoji();
+		_text.unloadPersistentAnimation();
 		if (const auto reply = data()->Get<HistoryMessageReply>()) {
-			reply->replyToText.unloadCustomEmoji();
+			reply->replyToText.unloadPersistentAnimation();
 		}
 	}
 }
@@ -1127,7 +1249,7 @@ Element::~Element() {
 	base::take(_media);
 	if (_heavyCustomEmoji) {
 		_heavyCustomEmoji = false;
-		data()->_text.unloadCustomEmoji();
+		_text.unloadPersistentAnimation();
 		checkHeavyPart();
 	}
 	if (_data->mainView() == this) {

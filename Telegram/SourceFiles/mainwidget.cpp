@@ -2006,7 +2006,7 @@ void MainWidget::paintEvent(QPaintEvent *e) {
 		checkChatBackground();
 	}
 
-	Painter p(this);
+	auto p = QPainter(this);
 	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
 		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);

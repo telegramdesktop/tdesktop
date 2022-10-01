@@ -62,7 +62,7 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	auto fill = e->rect().intersected(
 		QRect(0, 0, width(), st::mediaPlayerHeight));
 	if (!fill.isEmpty()) {

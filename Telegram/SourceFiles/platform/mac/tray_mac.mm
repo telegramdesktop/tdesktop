@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/sandbox.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/painter.h"
 #include "styles/style_window.h"
 
 #include <QtWidgets/QMenu>

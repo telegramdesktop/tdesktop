@@ -18,7 +18,7 @@ struct CornersPixmaps;
 
 namespace HistoryView {
 
-class Service : public Element {
+class Service final : public Element {
 public:
 	Service(
 		not_null<ElementDelegate*> delegate,

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "history/history.h"
 #include "history/history_message.h"

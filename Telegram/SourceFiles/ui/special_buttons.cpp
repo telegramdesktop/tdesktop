@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
@@ -134,7 +135,7 @@ QPoint HistoryDownButton::prepareRippleStartPosition() const {
 }
 
 void HistoryDownButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto over = isOver();
 	const auto down = isDown();
@@ -787,7 +788,7 @@ void UserpicButton::prepareUserpicPixmap() {
 		return;
 	}
 	auto size = _st.photoSize;
-	auto paintButton = [&](Painter &p, const style::color &color) {
+	auto paintButton = [&](QPainter &p, const style::color &color) {
 		PainterHighQualityEnabler hq(p);
 		p.setBrush(color);
 		p.setPen(Qt::NoPen);
@@ -819,7 +820,7 @@ SilentToggle::SilentToggle(QWidget *parent, not_null<ChannelData*> channel)
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 		paintRipple(p, _st.rippleAreaPosition, nullptr);
 
 		//const auto checked = _crossLineAnimation.value(_checked ? 1. : 0.);

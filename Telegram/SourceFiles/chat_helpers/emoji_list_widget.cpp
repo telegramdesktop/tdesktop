@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/emoji_config.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "boxes/sticker_set_box.h"
@@ -77,7 +78,7 @@ private:
 	void animationCallback();
 	void updateSize();
 
-	void drawVariant(Painter &p, int variant);
+	void drawVariant(QPainter &p, int variant);
 
 	void updateSelected();
 	void setSelected(int newSelected);
@@ -152,7 +153,7 @@ void EmojiColorPicker::updateSize() {
 }
 
 void EmojiColorPicker::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity < 1.) {
@@ -336,7 +337,7 @@ void EmojiColorPicker::setSelected(int newSelected) {
 	setCursor((_selected >= 0) ? style::cur_pointer : style::cur_default);
 }
 
-void EmojiColorPicker::drawVariant(Painter &p, int variant) {
+void EmojiColorPicker::drawVariant(QPainter &p, int variant) {
 	const auto w = QPoint(
 		st::emojiPanMargins.left(),
 		st::emojiPanMargins.top()
@@ -825,7 +826,7 @@ base::unique_qptr<Ui::PopupMenu> EmojiListWidget::fillContextMenu(
 }
 
 void EmojiListWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto clip = e ? e->rect() : rect();
 

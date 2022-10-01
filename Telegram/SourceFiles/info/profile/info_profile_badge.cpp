@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/buttons.h"
+#include "ui/painter.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 

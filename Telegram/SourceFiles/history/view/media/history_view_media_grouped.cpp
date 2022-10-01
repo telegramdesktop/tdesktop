@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "layout/layout_selection.h"
 #include "styles/style_chat.h"
 
@@ -345,7 +346,17 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 		const auto stm = context.messageStyle();
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, st::msgPadding.left(), captiony, captionw, style::al_left, 0, -1, selection);
+		_caption.draw(p, {
+			.position = QPoint(
+				st::msgPadding.left(),
+				captiony),
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = context.selection,
+		});
 	} else if (_parent->media() == this) {
 		auto fullRight = width();
 		auto fullBottom = height();
@@ -721,7 +732,7 @@ void GroupedMedia::unloadHeavyPart() {
 		part.cacheKey = 0;
 		part.cache = QPixmap();
 	}
-	_caption.unloadCustomEmoji();
+	_caption.unloadPersistentAnimation();
 }
 
 void GroupedMedia::parentTextUpdated() {

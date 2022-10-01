@@ -27,7 +27,7 @@ public:
 	int width() const;
 	int widthNoMargins() const;
 	void paint(
-		Painter &p,
+		QPainter &p,
 		style::color color,
 		int x,
 		int y,
@@ -39,7 +39,7 @@ public:
 	}
 
 	static void PaintSpeakingIdle(
-		Painter &p,
+		QPainter &p,
 		style::color color,
 		int x,
 		int y,

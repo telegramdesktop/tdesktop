@@ -53,7 +53,7 @@ void GradientButton::paintGlare(QPainter &p) {
 		frame.fill(Qt::transparent);
 
 		{
-			Painter q(&frame);
+			auto q = QPainter(&frame);
 			q.drawTiledPixmap(0, 0, _glare.width, h, _glare.pixmap, 0, 0);
 			q.setCompositionMode(QPainter::CompositionMode_DestinationIn);
 			q.drawImage(-x, 0, _bg, 0, 0);
@@ -110,7 +110,7 @@ void GradientButton::validateGlare() {
 		pixmap.setDevicePixelRatio(style::DevicePixelRatio());
 		pixmap.fill(Qt::transparent);
 		{
-			Painter p(&pixmap);
+			auto p = QPainter(&pixmap);
 			auto gradient = QLinearGradient(
 				QPointF(0, 0),
 				QPointF(_glare.width, 0));

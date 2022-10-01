@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lottie/lottie_single_player.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/buttons.h"
+#include "ui/painter.h"
 #include "ui/rect_part.h"
 #include "styles/style_chat_helpers.h"
 

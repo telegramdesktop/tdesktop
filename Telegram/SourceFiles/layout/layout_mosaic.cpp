@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "layout/layout_mosaic.h"
 
+#include "styles/style_basic.h"
+
 namespace Mosaic::Layout {
 
 AbstractMosaicLayout::AbstractMosaicLayout(int bigWidth)

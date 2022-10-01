@@ -46,6 +46,7 @@ public:
 		bool active,
 		bool selected,
 		crl::time ms,
+		bool paused,
 		bool displayUnreadInfo);
 	static QRect sendActionAnimationRect(
 		int animationLeft,
@@ -94,7 +95,7 @@ struct UnreadBadgeStyle {
 	const UnreadBadgeStyle &st,
 	int allowDigits = 0);
 QRect PaintUnreadBadge(
-	Painter &p,
+	QPainter &p,
 	const QString &t,
 	int x,
 	int y,

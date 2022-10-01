@@ -62,6 +62,7 @@ private:
 	void updateDefault(const MTPDaccount_emojiStatuses &data);
 	void updateColored(const MTPDmessages_stickerSet &data);
 
+	void processClearingIn(TimeId wait);
 	void processClearing();
 
 	const not_null<Session*> _owner;
@@ -85,7 +86,7 @@ private:
 
 	mtpRequestId _sentRequestId = 0;
 
-	base::flat_map<not_null<UserData*>, crl::time> _clearing;
+	base::flat_map<not_null<UserData*>, TimeId> _clearing;
 	base::Timer _clearingTimer;
 
 	rpl::lifetime _lifetime;

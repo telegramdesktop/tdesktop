@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/layers/generic_box.h"
+#include "ui/painter.h"
 #include "lottie/lottie_icon.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -521,7 +522,7 @@ QString Row::generateShortName() {
 
 PaintRoundImageCallback Row::generatePaintUserpicCallback() {
 	return [=](
-			Painter &p,
+			QPainter &p,
 			int x,
 			int y,
 			int outerWidth,

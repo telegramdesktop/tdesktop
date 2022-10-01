@@ -46,7 +46,7 @@ void OneEdgeBoxContentDivider::skipEdge(Qt::Edge edge, bool skip) {
 }
 
 void OneEdgeBoxContentDivider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	p.fillRect(e->rect(), Ui::BoxContentDivider::color());
 	if (!(_skipEdges & Qt::TopEdge)) {
 		Ui::BoxContentDivider::paintTop(p);

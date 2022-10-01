@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_photo.h"
@@ -135,7 +136,7 @@ void Photo::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
 	_imageCache = QImage();
-	_caption.unloadCustomEmoji();
+	_caption.unloadPersistentAnimation();
 }
 
 QSize Photo::countOptimalSize() {
@@ -151,19 +152,26 @@ QSize Photo::countOptimalSize() {
 			_parent->skipBlockHeight());
 	}
 
-	const auto scaled = CountDesiredMediaSize(
-		{ _data->width(), _data->height() });
+	const auto dimensions = QSize(_data->width(), _data->height());
+	const auto scaled = CountDesiredMediaSize(dimensions);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		(_parent->hasBubble()
+			? st::historyPhotoBubbleMinWidth
+			: st::minPhotoSize),
 		st::maxMediaSize);
 	const auto maxActualWidth = qMax(scaled.width(), minWidth);
 	auto maxWidth = qMax(maxActualWidth, scaled.height());
 	auto minHeight = qMax(scaled.height(), st::minPhotoSize);
 	if (_parent->hasBubble() && !_caption.isEmpty()) {
-		maxWidth = qMax(maxWidth, st::msgPadding.left()
-			+ _caption.maxWidth()
-			+ st::msgPadding.right());
+		maxWidth = qMax(
+			maxWidth,
+			(st::msgPadding.left()
+				+ _caption.maxWidth()
+				+ st::msgPadding.right()));
+		minHeight = adjustHeightForLessCrop(
+			dimensions,
+			{ maxWidth, minHeight });
 		minHeight += st::mediaCaptionSkip + _caption.minHeight();
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
@@ -179,10 +187,13 @@ QSize Photo::countCurrentSize(int newWidth) {
 	const auto thumbMaxWidth = qMin(newWidth, st::maxMediaSize);
 	const auto minWidth = std::clamp(
 		_parent->minWidthForMedia(),
-		(_parent->hasBubble() ? st::historyPhotoBubbleMinWidth : st::minPhotoSize),
+		(_parent->hasBubble()
+			? st::historyPhotoBubbleMinWidth
+			: st::minPhotoSize),
 		thumbMaxWidth);
+	const auto dimensions = QSize(_data->width(), _data->height());
 	auto pix = CountPhotoMediaSize(
-		CountDesiredMediaSize({ _data->width(), _data->height() }),
+		CountDesiredMediaSize(dimensions),
 		newWidth,
 		maxWidth());
 	newWidth = qMax(pix.width(), minWidth);
@@ -194,6 +205,9 @@ QSize Photo::countCurrentSize(int newWidth) {
 				+ _caption.maxWidth()
 				+ st::msgPadding.right()));
 		newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
+		newHeight = adjustHeightForLessCrop(
+			dimensions,
+			{ newWidth, newHeight });
 		const auto captionw = newWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
@@ -203,6 +217,16 @@ QSize Photo::countCurrentSize(int newWidth) {
 		}
 	}
 	return { newWidth, newHeight };
+}
+
+int Photo::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
+	if (dimensions.isEmpty()
+		|| !::Media::Streaming::FrameResizeMayExpand(current, dimensions)) {
+		return current.height();
+	}
+	return qMax(
+		current.height(),
+		current.width() * dimensions.height() / dimensions.width());
 }
 
 void Photo::draw(Painter &p, const PaintContext &context) const {
@@ -297,7 +321,17 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (!_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
+		_caption.draw(p, {
+			.position = QPoint(
+				st::msgPadding.left(),
+				painty + painth + st::mediaCaptionSkip),
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = context.selection,
+		});
 	} else if (!inWebPage) {
 		auto fullRight = paintx + paintw;
 		auto fullBottom = painty + painth;

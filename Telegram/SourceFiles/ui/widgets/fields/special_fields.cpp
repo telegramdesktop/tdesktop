@@ -104,7 +104,7 @@ PhonePartInput::PhonePartInput(
 , _groupsCallback(std::move(groupsCallback)) {
 }
 
-void PhonePartInput::paintAdditionalPlaceholder(Painter &p) {
+void PhonePartInput::paintAdditionalPlaceholder(QPainter &p) {
 	if (!_pattern.isEmpty()) {
 		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());
@@ -257,7 +257,7 @@ void UsernameInput::setLinkPlaceholder(const QString &placeholder) {
 	}
 }
 
-void UsernameInput::paintAdditionalPlaceholder(Painter &p) {
+void UsernameInput::paintAdditionalPlaceholder(QPainter &p) {
 	if (!_linkPlaceholder.isEmpty()) {
 		p.setFont(_st.font);
 		p.setPen(_st.placeholderFg);
@@ -322,7 +322,7 @@ void PhoneInput::clearText() {
 	correctValue(QString(), 0, value, pos);
 }
 
-void PhoneInput::paintAdditionalPlaceholder(Painter &p) {
+void PhoneInput::paintAdditionalPlaceholder(QPainter &p) {
 	if (!_pattern.isEmpty()) {
 		auto t = getDisplayedText();
 		auto ph = _additionalPlaceholder.mid(t.size());

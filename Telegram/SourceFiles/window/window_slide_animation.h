@@ -18,7 +18,7 @@ enum class SlideDirection {
 
 class SlideAnimation {
 public:
-	void paintContents(Painter &p) const;
+	void paintContents(QPainter &p) const;
 
 	void setDirection(SlideDirection direction);
 	void setPixmaps(

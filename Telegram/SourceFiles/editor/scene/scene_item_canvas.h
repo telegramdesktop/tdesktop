@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "ui/painter.h"
+
 #include <QGraphicsItem>
 
 class QGraphicsSceneMouseEvent;

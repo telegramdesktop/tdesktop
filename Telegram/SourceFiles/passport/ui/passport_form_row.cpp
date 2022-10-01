@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "passport/ui/passport_form_row.h"
 
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "styles/style_passport.h"
 #include "styles/style_layers.h"
 

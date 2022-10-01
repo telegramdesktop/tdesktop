@@ -62,7 +62,6 @@ if not os.path.isdir(os.path.join(thirdPartyDir, keysLoc)):
 
 pathPrefixes = [
     'ThirdParty\\msys64\\mingw64\\bin',
-    'ThirdParty\\Python39',
     'ThirdParty\\jom',
     'ThirdParty\\cmake\\bin',
     'ThirdParty\\gyp',
@@ -83,6 +82,7 @@ environment = {
     'USED_PREFIX': usedPrefix,
     'ROOT_DIR': rootDir,
     'LIBS_DIR': libsDir,
+    'THIRDPARTY_DIR': thirdPartyDir,
     'SPECIAL_TARGET': 'win' if win32 else 'win64' if win64 else 'mac',
     'X8664': 'x86' if win32 else 'x64',
     'WIN32X64': 'Win32' if win32 else 'x64',
@@ -397,7 +397,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout 38af8ef4c6
+    git checkout b14854c6f6
 """)
 
 stage('msys64', """
@@ -439,12 +439,14 @@ if not mac or 'build-stackwalk' in options:
 win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
-    git checkout d6c5dd51dc
+    git checkout 9d09418933
 depends:patches/gyp.diff
     git apply $LIBS_DIR/patches/gyp.diff
 mac:
-    python3 -m pip install --ignore-installed git+https://github.com/desktop-app/gyp-next@main
-    mkdir gyp
+    python3 -m pip install ^
+        --ignore-installed ^
+        --target=$THIRDPARTY_DIR/gyp ^
+        git+https://chromium.googlesource.com/external/gyp@master
 """, 'ThirdParty')
 
 stage('yasm', """
@@ -1030,6 +1032,7 @@ depends:patches/breakpad.diff
     cd src/third_party/lss
     git checkout e1e7b0ad8e
     cd ../../build
+    PYTHONPATH=$THIRDPARTY_DIR/gyp
     python3 gyp_breakpad
     cd ../processor
     xcodebuild -project processor.xcodeproj -target minidump_stackwalk -configuration Release build

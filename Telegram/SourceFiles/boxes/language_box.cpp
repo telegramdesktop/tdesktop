@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "storage/localstorage.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"

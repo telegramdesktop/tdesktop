@@ -322,7 +322,7 @@ void LayerWidget::doSetInnerFocus() {
 }
 
 void LayerWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto clip = e->rect();
 	const auto radius = st::boxRadius;

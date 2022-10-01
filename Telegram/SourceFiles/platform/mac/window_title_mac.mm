@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_window_title.h"
 
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "core/application.h"
 #include "styles/style_window.h"
 #include "styles/style_media_view.h"

@@ -77,7 +77,7 @@ class HistoryService : public HistoryItem {
 public:
 	struct PreparedText {
 		TextWithEntities text;
-		QList<ClickHandlerPtr> links;
+		std::vector<ClickHandlerPtr> links;
 	};
 
 	HistoryService(
@@ -95,7 +95,7 @@ public:
 		MsgId id,
 		MessageFlags flags,
 		TimeId date,
-		const PreparedText &message,
+		PreparedText &&message,
 		PeerId from = 0,
 		PhotoData *photo = nullptr);
 
@@ -112,6 +112,8 @@ public:
 		}
 		return true;
 	}
+
+	const std::vector<ClickHandlerPtr> &customTextLinks() const override;
 
 	void applyEdition(const MTPDmessageService &message) override;
 	crl::time getSelfDestructIn(crl::time now) override;
@@ -131,9 +133,7 @@ public:
 		not_null<HistoryView::ElementDelegate*> delegate,
 		HistoryView::Element *replacing = nullptr) override;
 
-	void setServiceText(const PreparedText &prepared);
-
-	void hideSpoilers() override;
+	void setServiceText(PreparedText &&prepared);
 
 	~HistoryService();
 
@@ -186,6 +186,8 @@ private:
 		TimeId scheduleDate);
 
 	friend class HistoryView::Service;
+
+	std::vector<ClickHandlerPtr> _textLinks;
 
 };
 

@@ -37,7 +37,7 @@ private:
 class VerticalDrumPicker final : public Ui::RpWidget {
 public:
 	using PaintItemCallback = Fn<void(
-		Painter &p,
+		QPainter &p,
 		int index,
 		float y,
 		float64 distanceFromCenter,

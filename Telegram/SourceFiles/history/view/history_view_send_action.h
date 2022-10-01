@@ -36,7 +36,7 @@ public:
 		style::color color,
 		crl::time now);
 	void paintSpeaking(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,

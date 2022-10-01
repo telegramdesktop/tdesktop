@@ -16,19 +16,19 @@ public:
 	EmptyUserpic(const style::color &color, const QString &name);
 
 	void paint(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size) const;
 	void paintRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size) const;
 	void paintSquare(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -37,19 +37,19 @@ public:
 	InMemoryKey uniqueKey() const;
 
 	static void PaintSavedMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size);
 	static void PaintSavedMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size);
 	static void PaintSavedMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -57,7 +57,7 @@ public:
 		const style::color &bg,
 		const style::color &fg);
 	static void PaintSavedMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -68,19 +68,19 @@ public:
 	static QPixmap GenerateSavedMessagesRounded(int size);
 
 	static void PaintRepliesMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size);
 	static void PaintRepliesMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size);
 	static void PaintRepliesMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -88,7 +88,7 @@ public:
 		const style::color &bg,
 		const style::color &fg);
 	static void PaintRepliesMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -103,7 +103,7 @@ public:
 private:
 	template <typename Callback>
 	void paint(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,

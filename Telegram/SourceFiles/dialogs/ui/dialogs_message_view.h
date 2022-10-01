@@ -49,14 +49,16 @@ public:
 		Painter &p,
 		const QRect &geometry,
 		bool active,
-		bool selected) const;
+		bool selected,
+		crl::time now,
+		bool paused) const;
 
 private:
 	struct LoadingContext;
 
 	mutable const HistoryItem *_textCachedFor = nullptr;
-	mutable Ui::Text::String _senderCache;
-	mutable Ui::Text::String _textCache;
+	mutable Text::String _senderCache;
+	mutable Text::String _textCache;
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
 

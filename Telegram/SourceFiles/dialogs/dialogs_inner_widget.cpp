@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "data/data_drafts.h"
 #include "data/data_folder.h"
@@ -687,6 +688,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						active,
 						selected,
 						ms,
+						videoPaused,
 						showUnreadInSearchResults);
 					p.translate(0, st::dialogsRowHeight);
 				}

@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 
 namespace Overview {
@@ -1234,7 +1235,7 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 	paintCheckbox(p, { checkLeft, checkTop }, selected, context);
 }
 
-void Document::drawCornerDownload(Painter &p, bool selected, const PaintContext *context) const {
+void Document::drawCornerDownload(QPainter &p, bool selected, const PaintContext *context) const {
 	if (dataLoaded()
 		|| _data->loadedInMediaCache()
 		|| !downloadInCorner()) {

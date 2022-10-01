@@ -245,7 +245,7 @@ private:
 	void setTabbedPanel(std::unique_ptr<ChatHelpers::TabbedPanel> panel);
 
 	bool showRecordButton() const;
-	void drawRestrictedWrite(Painter &p, const QString &error);
+	void drawRestrictedWrite(QPainter &p, const QString &error);
 	bool updateBotCommandShown();
 
 	void cancelInlineBot();

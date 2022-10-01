@@ -7,8 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/color_picker.h"
 
+#include "ui/painter.h"
 #include "ui/rp_widget.h"
-
 #include "styles/style_editor.h"
 
 #include <QtGui/QLinearGradient>
@@ -114,7 +114,7 @@ ColorPicker::ColorPicker(
 
 	_colorLine->paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(_colorLine);
+		auto p = QPainter(_colorLine);
 		PainterHighQualityEnabler hq(p);
 
 		p.setPen(Qt::NoPen);
@@ -126,7 +126,7 @@ ColorPicker::ColorPicker(
 
 	_canvasForCircle->paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(_canvasForCircle);
+		auto p = QPainter(_canvasForCircle);
 		paintCircle(p);
 	}, _canvasForCircle->lifetime());
 
@@ -226,7 +226,7 @@ QColor ColorPicker::positionToColor(int x) const {
 	return QColor();
 }
 
-void ColorPicker::paintCircle(Painter &p) {
+void ColorPicker::paintCircle(QPainter &p) {
 	PainterHighQualityEnabler hq(p);
 
 	p.setPen(Qt::NoPen);
@@ -263,7 +263,7 @@ void ColorPicker::paintCircle(Painter &p) {
 	p.drawEllipse(innerRect);
 }
 
-void ColorPicker::paintOutline(Painter &p, const QRectF &rect) {
+void ColorPicker::paintOutline(QPainter &p, const QRectF &rect) {
 	const auto &s = _outlinedStop;
 	if (!s.stopPos) {
 		return;

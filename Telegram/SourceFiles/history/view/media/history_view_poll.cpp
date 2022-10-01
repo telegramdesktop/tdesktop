@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/fireworks_animation.h"
 #include "ui/toast/toast.h"
+#include "ui/painter.h"
 #include "data/data_media_types.h"
 #include "data/data_poll.h"
 #include "data/data_user.h"
@@ -890,7 +891,7 @@ void Poll::paintRecentVoters(
 		if (!was && recent.userpic) {
 			created = true;
 		}
-		const auto paintContent = [&](Painter &p) {
+		const auto paintContent = [&](QPainter &p) {
 			p.setPen(pen);
 			p.setBrush(Qt::NoBrush);
 			PainterHighQualityEnabler hq(p);
@@ -1250,7 +1251,7 @@ void Poll::paintFilling(
 		const auto ctop = ftop - (icon.height() - thickness) / 2;
 		p.drawEllipse(cleft, ctop, icon.width(), icon.height());
 
-		const auto paintContent = [&](Painter &p) {
+		const auto paintContent = [&](QPainter &p) {
 			icon.paint(p, cleft, ctop, width);
 		};
 		if (style == Style::Default && usesBubblePattern(context)) {

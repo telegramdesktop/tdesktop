@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_premium.h" // Settings::ShowGiftPremium
 #include "ui/chat/chat_style.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
 #include "styles/style_premium.h"

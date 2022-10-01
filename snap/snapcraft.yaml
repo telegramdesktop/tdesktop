@@ -93,8 +93,10 @@ parts:
       - clang
       - python3
       - libasound2-dev
+      - libavif-dev
       - libglib2.0-dev
       - libglibmm-2.4-dev
+      - libheif-dev
       - libopus-dev
       - libpulse-dev
       - libwayland-dev
@@ -105,8 +107,10 @@ parts:
       - zlib1g-dev
     stage-packages:
       - libasound2
+      - libavif13
       - libglib2.0-0
       - libglibmm-2.4-1v5
+      - libheif1
       - libopus0
       - libpulse0
       - libwayland-client0
@@ -154,7 +158,7 @@ parts:
     after:
       - desktop-qt
       - ffmpeg
-      - kcoreaddons
+      - libjxl
       - mozjpeg
       - openal
       - openssl
@@ -197,17 +201,6 @@ parts:
       - mozjpeg
       - qt
 
-  extra-cmake-modules:
-    source: https://github.com/KDE/extra-cmake-modules.git
-    source-depth: 1
-    source-tag: v5.97.0
-    plugin: cmake
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DBUILD_TESTING=OFF
-    prime: [-./*]
-
   ffmpeg:
     plugin: nil
     build-packages:
@@ -227,27 +220,37 @@ parts:
     after:
       - mozjpeg
 
-  kcoreaddons:
-    source: https://github.com/KDE/kcoreaddons.git
+  libjxl:
+    source: https://github.com/libjxl/libjxl.git
     source-depth: 1
-    source-tag: v5.97.0
+    source-tag: v0.7.0
     plugin: cmake
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DBUILD_TESTING=OFF
-      - -DBUILD_WITH_QT6=ON
-      - -DEXCLUDE_DEPRECATED_BEFORE_AND_AT=5.78.0
+      - -DJPEGXL_ENABLE_DEVTOOLS=OFF
+      - -DJPEGXL_ENABLE_TOOLS=OFF
+      - -DJPEGXL_ENABLE_DOXYGEN=OFF
+      - -DJPEGXL_ENABLE_MANPAGES=OFF
+      - -DJPEGXL_ENABLE_BENCHMARK=OFF
+      - -DJPEGXL_ENABLE_EXAMPLES=OFF
+      - -DJPEGXL_ENABLE_JNI=OFF
+      - -DJPEGXL_ENABLE_SJPEG=OFF
+      - -DJPEGXL_ENABLE_OPENEXR=OFF
+      - -DJPEGXL_ENABLE_SKCMS=OFF
+    override-pull: |
+      craftctl default
+      sed -i 's/NOT JPEGXL_ENABLE_SKCMS/0/' lib/jxl.cmake
+    stage:
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/libbrotli*
     prime:
       - -./usr/bin
       - -./usr/include
-      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$SNAPCRAFT_ARCH_TRIPLET/*.so
-      - -./usr/mkspecs
-    after:
-      - extra-cmake-modules
-      - desktop-qt
-      - qttools
+      - -./usr/share
 
   mozjpeg:
     source: https://github.com/mozilla/mozjpeg.git
@@ -398,7 +401,7 @@ parts:
     override-pull: |
       QT=6_4_0
 
-      git clone -b v6.4.0-rc1 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.4.0 --depth=1 git://code.qt.io/qt/qt5.git .
       perl init-repository --module-subset=qtbase,qtwayland,qtimageformats,qtsvg,qt5compat
 
       cd qtbase
@@ -442,22 +445,6 @@ parts:
       - mozjpeg
       - openssl
       - patches
-
-  qttools:
-    source: git://code.qt.io/qt/qttools.git
-    source-depth: 1
-    source-tag: v6.4.0-rc1
-    plugin: cmake
-    build-packages:
-      - clang
-      - libclang-dev
-      - llvm-dev
-    cmake-parameters:
-      - -DCMAKE_BUILD_TYPE=Release
-      - -DCMAKE_INSTALL_PREFIX=/usr
-    prime: [-./*]
-    after:
-      - qt
 
   rnnoise:
     source: https://gitlab.xiph.org/xiph/rnnoise.git
@@ -523,8 +510,6 @@ parts:
     cmake-parameters:
       - -DCMAKE_BUILD_TYPE=Release
       - -DCMAKE_INSTALL_PREFIX=/usr
-      - -DCMAKE_LIBRARY_PATH=$CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET
-      - -DCMAKE_INCLUDE_PATH=$CRAFT_STAGE/usr/include
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake

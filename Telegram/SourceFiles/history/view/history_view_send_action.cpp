@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/effects/animations.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
 namespace HistoryView {
@@ -168,7 +169,7 @@ bool SendActionPainter::paint(
 }
 
 void SendActionPainter::paintSpeaking(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,

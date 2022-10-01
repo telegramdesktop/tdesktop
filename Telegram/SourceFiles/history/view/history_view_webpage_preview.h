@@ -16,7 +16,7 @@ struct WebPageText {
 
 WebPageText TitleAndDescriptionFromWebPage(not_null<WebPageData*> d);
 bool DrawWebPageDataPreview(
-	Painter &p,
+	QPainter &p,
 	not_null<WebPageData*> webpage,
 	not_null<PeerData*> context,
 	QRect to);

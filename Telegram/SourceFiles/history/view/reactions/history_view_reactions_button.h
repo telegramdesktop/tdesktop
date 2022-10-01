@@ -146,7 +146,7 @@ public:
 	void applyList(const Data::PossibleItemReactionsRef &reactions);
 
 	void updateButton(ButtonParameters parameters);
-	void paint(Painter &p, const PaintContext &context);
+	void paint(QPainter &p, const PaintContext &context);
 	[[nodiscard]] TextState buttonTextState(QPoint position) const;
 	void remove(FullMsgId context);
 
@@ -188,24 +188,23 @@ private:
 
 	void removeStaleButtons();
 	void paintButton(
-		Painter &p,
+		QPainter &p,
 		const PaintContext &context,
 		not_null<Button*> button);
 	void paintButton(
-		Painter &p,
+		QPainter &p,
 		const PaintContext &context,
 		not_null<Button*> button,
 		int frame,
 		float64 scale);
 	void paintInnerGradients(
-		Painter &p,
+		QPainter &p,
 		const QColor &background,
 		not_null<Button*> button,
 		int scroll,
 		float64 expandRatio);
 
 	void clearAppearAnimations();
-	[[nodiscard]] QRect cacheRect(int frameIndex, int columnIndex) const;
 
 	[[nodiscard]] QMargins innerMargins() const;
 	[[nodiscard]] QRect buttonInner() const;

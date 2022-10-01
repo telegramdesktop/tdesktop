@@ -47,7 +47,7 @@ void HistoryHider::refreshLang() {
 }
 
 void HistoryHider::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	auto opacity = _a_opacity.value(_hiding ? 0. : 1.);
 	if (opacity == 0.) {
 		if (_hiding) {

@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_service_media_gift.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/image/image.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_entity.h"
@@ -1541,6 +1542,9 @@ MediaInvoice::MediaInvoice(
 	.photo = data.photo,
 	.isTest = data.isTest,
 } {
+	if (_invoice.extendedPreview && !_invoice.extendedMedia) {
+		Ui::PrepareImageSpoiler();
+	}
 }
 
 std::unique_ptr<Media> MediaInvoice::clone(not_null<HistoryItem*> parent) {

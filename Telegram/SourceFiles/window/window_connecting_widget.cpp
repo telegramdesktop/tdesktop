@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/buttons.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "mtproto/mtp_instance.h"
 #include "mtproto/facade.h"
@@ -53,7 +54,7 @@ Progress::Progress(QWidget *parent)
 }
 
 void Progress::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	p.fillRect(e->rect(), st::windowBg);
 	const auto &st = st::connectingRadial;
@@ -156,7 +157,7 @@ void ConnectionState::Widget::ProxyIcon::refreshCacheImages() {
 		image.setDevicePixelRatio(cRetinaFactor());
 		image.fill(st::windowBg->c);
 		{
-			Painter p(&image);
+			auto p = QPainter(&image);
 			icon.paint(
 				p,
 				(width() - icon.width()) / 2,
@@ -187,7 +188,7 @@ void ConnectionState::Widget::ProxyIcon::setOpacity(float64 opacity) {
 }
 
 void ConnectionState::Widget::ProxyIcon::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	p.setOpacity(_opacity);
 	p.drawPixmap(0, 0, _toggled ? _cacheOn : _cacheOff);
 }

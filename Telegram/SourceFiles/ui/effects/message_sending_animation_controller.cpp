@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/effects/animation_value_f.h"
 #include "ui/effects/animations.h"
+#include "ui/painter.h"
 #include "ui/rp_widget.h"
 #include "window/window_session_controller.h"
 #include "styles/style_chat.h"
@@ -215,7 +216,7 @@ void Content::paintEvent(QPaintEvent *e) {
 				Qt::black);
 		}
 
-		Painter p(this);
+		auto p = QPainter(this);
 		p.drawImage(QPoint(), std::move(image));
 	}
 }

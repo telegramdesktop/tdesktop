@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
+#include "ui/painter.h"
 #include "styles/style_dialogs.h"
 
 namespace Ui {
@@ -43,7 +44,7 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	Painter p(this);
+	auto p = QPainter(this);
 
 	Dialogs::Ui::UnreadBadgeStyle unreadSt;
 	unreadSt.muted = !_active;

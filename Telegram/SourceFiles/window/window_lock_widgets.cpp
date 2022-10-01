@@ -86,7 +86,7 @@ void LockWidget::showFinished() {
 }
 
 void LockWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto progress = _a_show.value(1.);
 	if (_a_show.animating()) {
@@ -107,7 +107,7 @@ void LockWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void LockWidget::paintContent(Painter &p) {
+void LockWidget::paintContent(QPainter &p) {
 	p.fillRect(rect(), st::windowBg);
 }
 
@@ -127,7 +127,7 @@ PasscodeLockWidget::PasscodeLockWidget(
 	});
 }
 
-void PasscodeLockWidget::paintContent(Painter &p) {
+void PasscodeLockWidget::paintContent(QPainter &p) {
 	LockWidget::paintContent(p);
 
 	p.setFont(st::passcodeHeaderFont);

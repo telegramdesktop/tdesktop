@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/group_call_userpics.h"
 
 #include "ui/paint/blobs.h"
+#include "ui/painter.h"
 #include "base/random.h"
 #include "styles/style_chat.h"
 
@@ -138,7 +139,7 @@ GroupCallUserpics::GroupCallUserpics(
 
 GroupCallUserpics::~GroupCallUserpics() = default;
 
-void GroupCallUserpics::paint(Painter &p, int x, int y, int size) {
+void GroupCallUserpics::paint(QPainter &p, int x, int y, int size) {
 	const auto factor = style::DevicePixelRatio();
 	const auto &minScale = kUserpicMinScale;
 	for (auto &userpic : ranges::views::reverse(_list)) {
@@ -259,7 +260,7 @@ void GroupCallUserpics::validateCache(Userpic &userpic) {
 	userpic.cacheMasked = !userpic.topMost;
 	userpic.cache.fill(Qt::transparent);
 	{
-		Painter p(&userpic.cache);
+		auto p = QPainter(&userpic.cache);
 		const auto skip = (kWideScale - 1) / 2 * size;
 		p.drawImage(skip, skip, userpic.data.userpic);
 

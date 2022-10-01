@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/panel_animation.h"
 #include "ui/filter_icons.h"
 #include "ui/filter_icon_panel.h"
+#include "ui/painter.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.

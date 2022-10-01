@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/menu/menu_add_action_callback.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/integration.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "webview/webview_embed.h"
 #include "webview/webview_dialog.h"
