@@ -629,7 +629,7 @@ rpl::producer<size_t> Domain::GetFakePasscodesSize() {
 
 bool Domain::CheckFakePasscodeExists(const QByteArray& passcode) const {
     for (const auto& existed_passcode: _fakePasscodes) {
-        if (existed_passcode.GetPasscode() == passcode) {
+        if (existed_passcode.CheckPasscode(passcode)) {
             return true;
         }
     }
