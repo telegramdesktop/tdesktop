@@ -149,8 +149,8 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	mutable QImage _imageCache;
-	int _serviceWidth = 0;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
+	int _serviceWidth = 0;
 	mutable bool _imageCacheBlurred = false;
 
 };

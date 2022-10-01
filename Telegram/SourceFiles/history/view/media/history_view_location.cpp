@@ -195,14 +195,10 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	}
 
 	ensureMediaCreated();
-	//if (const auto thumbnail = _media->image()) {
-	//	p.drawPixmap(rthumb.topLeft(), thumbnail->pixSingle(
-	//		rthumb.size(),
-	//		{
-	//			.options = Images::RoundOptions(roundRadius, roundCorners),
-	//			.outer = rthumb.size(),
-	//		}));
-	//} else if (!bubble) {
+	validateImageCache(rthumb.size(), rounding);
+	if (!_imageCache.isNull()) {
+		p.drawImage(rthumb.topLeft(), _imageCache);
+	} else if (!bubble) {
 		Ui::PaintBubble(
 			p,
 			Ui::SimpleBubble{
@@ -215,7 +211,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 				.outbg = context.outbg,
 				.rounding = rounding,
 			});
-	//}
+	}
 	const auto paintMarker = [&](const style::icon &icon) {
 		icon.paint(
 			p,
@@ -245,6 +241,28 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void Location::validateImageCache(
+		QSize outer,
+		Ui::BubbleRounding rounding) const {
+	const auto ratio = style::DevicePixelRatio();
+	if (_imageCache.size() == (outer * ratio)
+		&& _imageCacheRounding == rounding) {
+		return;
+	}
+	const auto thumbnail = _media->image();
+	if (!thumbnail) {
+		return;
+	}
+	_imageCache = Images::Round(
+		thumbnail->original().scaled(
+			outer * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation),
+		MediaRoundingMask(rounding));
+	_imageCache.setDevicePixelRatio(ratio);
+	_imageCacheRounding = rounding;
 }
 
 TextState Location::textState(QPoint point, StateRequest request) const {
