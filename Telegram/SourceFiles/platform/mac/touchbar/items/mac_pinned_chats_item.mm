@@ -85,7 +85,7 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	Painter paint(&result);
 
 	auto view = std::shared_ptr<Data::CloudImageView>();
-	folder->paintUserpic(paint, view, 0, 0, result.width());
+	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
 
