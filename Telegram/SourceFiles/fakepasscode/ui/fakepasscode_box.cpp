@@ -17,6 +17,7 @@
 #include "ui/widgets/labels.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/painter.h"
 #include "passport/passport_encryption.h"
 #include "passport/passport_panel_edit_contact.h"
 #include "settings/settings_privacy_security.h"
