@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtGui/QDesktopServices>
 
+#include <ksandbox.h>
+
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
 		QString &file,
@@ -171,6 +173,24 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
+	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
+		QStringList files;
+		QByteArray remoteContent;
+		const auto success = Platform::FileDialog::Get(
+			nullptr,
+			files,
+			remoteContent,
+			tr::lng_download_path_choose(tr::now),
+			QString(),
+			FileDialog::internal::Type::ReadFolder,
+			QString());
+		if (success && !files.isEmpty() && !files[0].isEmpty()) {
+			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
+			Core::App().settings().setDownloadPath(result);
+			Core::App().saveSettings();
+			return result;
+		}
+	}
 	return QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
