@@ -168,6 +168,12 @@ EditScans::List::List(
 }
 
 EditScans::List::List(
+	not_null<PanelController*> controller)
+: List(controller, std::nullopt)
+{
+}
+
+EditScans::List::List(
 	not_null<PanelController*> controller,
 	std::optional<ScanListData> &&data)
 : controller(controller)
