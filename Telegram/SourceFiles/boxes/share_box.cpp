@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "chat_helpers/message_field.h"
 #include "menu/menu_check_item.h"
 #include "menu/menu_send.h"

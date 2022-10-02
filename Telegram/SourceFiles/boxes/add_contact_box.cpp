@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
 #include "ui/ui_utility.h"
+#include "ui/painter.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
@@ -269,7 +270,7 @@ void AddContactBox::setInnerFocus() {
 void AddContactBox::paintEvent(QPaintEvent *e) {
 	BoxContent::paintEvent(e);
 
-	Painter p(this);
+	auto p = QPainter(this);
 	if (_retrying) {
 		p.setPen(st::boxTextFg);
 		p.setFont(st::boxTextFont);

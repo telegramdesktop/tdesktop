@@ -83,7 +83,7 @@ void EmptyWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto iconLeft = (width() - _icon->width()) / 2;
 	auto iconTop = height() - st::infoEmptyIconTop;

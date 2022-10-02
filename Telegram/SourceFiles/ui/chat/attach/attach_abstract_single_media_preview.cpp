@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_controls.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
+#include "ui/painter.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
@@ -124,7 +125,7 @@ void AbstractSingleMediaPreview::resizeEvent(QResizeEvent *e) {
 }
 
 void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	if (drawBackground()) {
 		const auto &padding = st::boxPhotoPadding;

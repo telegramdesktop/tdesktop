@@ -51,7 +51,7 @@ private:
 		} borders;
 	};
 
-	void paintPoints(Painter &p);
+	void paintPoints(QPainter &p);
 
 	void updateEdges();
 	[[nodiscard]] QPoint pointOfEdge(Qt::Edges e) const;

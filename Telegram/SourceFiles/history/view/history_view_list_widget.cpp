@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
+#include "base/qt/qt_common_adapters.h"
 #include "history/history_message.h"
 #include "history/history_item_components.h"
 #include "history/history_item_text.h"
@@ -39,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "main/main_session.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/widgets/scroll_area.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/inactive_press.h"
@@ -46,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/path_shift_gradient.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/chat_style.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/premium_preview_box.h"
@@ -290,7 +293,10 @@ ListWidget::ListWidget(
 , _highlighter(
 	&session().data(),
 	[=](const HistoryItem *item) { return viewForItem(item); },
-	[=](const Element *view) { repaintItem(view); }) {
+	[=](const Element *view) { repaintItem(view); })
+, _touchSelectTimer([=] { onTouchSelect(); })
+, _touchScrollTimer([=] { onTouchScrollTimer(); }) {
+	setAttribute(Qt::WA_AcceptTouchEvents);
 	setMouseTracking(true);
 	_scrollDateHideTimer.setCallback([this] { scrollDateHideByTimer(); });
 	session().data().viewRepaintRequest(
@@ -1505,11 +1511,6 @@ void ListWidget::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
 }
 
-void ListWidget::elementShowSpoilerAnimation() {
-	_spoilerOpacity.stop();
-	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
-}
-
 void ListWidget::saveState(not_null<ListMemento*> memento) {
 	memento->setAroundPosition(_aroundPosition);
 	auto state = countScrollState();
@@ -1908,6 +1909,20 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	}
 }
 
+bool ListWidget::eventHook(QEvent *e) {
+	if (e->type() == QEvent::TouchBegin
+		|| e->type() == QEvent::TouchUpdate
+		|| e->type() == QEvent::TouchEnd
+		|| e->type() == QEvent::TouchCancel) {
+		QTouchEvent *ev = static_cast<QTouchEvent*>(e);
+		if (ev->device()->type() == base::TouchDevice::TouchScreen) {
+			touchEvent(ev);
+			return true;
+		}
+	}
+	return RpWidget::eventHook(e);
+}
+
 void ListWidget::applyDragSelection() {
 	if (!hasSelectRestriction()) {
 		applyDragSelection(_selected);
@@ -2228,11 +2243,14 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	request.pointState = _overState.pointState;
 	request.selectedText = _selectedText;
 	request.selectedItems = collectSelectedItems();
-	request.overSelection = showFromTouch
-		|| (_overElement && isInsideSelection(
-			_overElement,
-			_overItemExact ? _overItemExact : _overElement->data().get(),
-			_overState));
+	const auto hasSelection = !request.selectedItems.empty()
+		|| !request.selectedText.empty();
+	request.overSelection = (showFromTouch && hasSelection)
+		|| (_overElement
+			&& isInsideSelection(
+				_overElement,
+				_overItemExact ? _overItemExact : _overElement->data().get(),
+				_overState));
 
 	_menu = FillContextMenu(this, request);
 
@@ -2305,6 +2323,188 @@ void ListWidget::mousePressEvent(QMouseEvent *e) {
 	mouseActionStart(e->globalPos(), e->button());
 }
 
+void ListWidget::onTouchScrollTimer() {
+	auto nowTime = crl::now();
+	if (_touchScrollState == Ui::TouchScrollState::Acceleration && _touchWaitingAcceleration && (nowTime - _touchAccelerationTime) > 40) {
+		_touchScrollState = Ui::TouchScrollState::Manual;
+		touchResetSpeed();
+	} else if (_touchScrollState == Ui::TouchScrollState::Auto || _touchScrollState == Ui::TouchScrollState::Acceleration) {
+		const auto elapsed = int(nowTime - _touchTime);
+		const auto delta = _touchSpeed * elapsed / 1000;
+		const auto hasScrolled = _delegate->listScrollTo(
+			_visibleTop - delta.y());
+		if (_touchSpeed.isNull() || !hasScrolled) {
+			_touchScrollState = Ui::TouchScrollState::Manual;
+			_touchScroll = false;
+			_touchScrollTimer.cancel();
+		} else {
+			_touchTime = nowTime;
+		}
+		touchDeaccelerate(elapsed);
+	}
+}
+
+void ListWidget::touchUpdateSpeed() {
+	const auto nowTime = crl::now();
+	if (_touchPrevPosValid) {
+		const int elapsed = nowTime - _touchSpeedTime;
+		if (elapsed) {
+			const QPoint newPixelDiff = (_touchPos - _touchPrevPos);
+			const QPoint pixelsPerSecond = newPixelDiff * (1000 / elapsed);
+
+			// fingers are inacurates, we ignore small changes to avoid stopping the autoscroll because
+			// of a small horizontal offset when scrolling vertically
+			const int newSpeedY = (qAbs(pixelsPerSecond.y()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.y() : 0;
+			const int newSpeedX = (qAbs(pixelsPerSecond.x()) > Ui::kFingerAccuracyThreshold) ? pixelsPerSecond.x() : 0;
+			if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				const int oldSpeedY = _touchSpeed.y();
+				const int oldSpeedX = _touchSpeed.x();
+				if ((oldSpeedY <= 0 && newSpeedY <= 0) || ((oldSpeedY >= 0 && newSpeedY >= 0)
+					&& (oldSpeedX <= 0 && newSpeedX <= 0)) || (oldSpeedX >= 0 && newSpeedX >= 0)) {
+					_touchSpeed.setY(std::clamp(
+						(oldSpeedY + (newSpeedY / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
+					_touchSpeed.setX(std::clamp(
+						(oldSpeedX + (newSpeedX / 4)),
+						-Ui::kMaxScrollAccelerated,
+						+Ui::kMaxScrollAccelerated));
+				} else {
+					_touchSpeed = QPoint();
+				}
+			} else {
+				// we average the speed to avoid strange effects with the last delta
+				if (!_touchSpeed.isNull()) {
+					_touchSpeed.setX(std::clamp(
+						(_touchSpeed.x() / 4) + (newSpeedX * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
+					_touchSpeed.setY(std::clamp(
+						(_touchSpeed.y() / 4) + (newSpeedY * 3 / 4),
+						-Ui::kMaxScrollFlick,
+						+Ui::kMaxScrollFlick));
+				} else {
+					_touchSpeed = QPoint(newSpeedX, newSpeedY);
+				}
+			}
+		}
+	} else {
+		_touchPrevPosValid = true;
+	}
+	_touchSpeedTime = nowTime;
+	_touchPrevPos = _touchPos;
+}
+
+void ListWidget::touchResetSpeed() {
+	_touchSpeed = QPoint();
+	_touchPrevPosValid = false;
+}
+
+void ListWidget::touchDeaccelerate(int32 elapsed) {
+	int32 x = _touchSpeed.x();
+	int32 y = _touchSpeed.y();
+	_touchSpeed.setX((x == 0) ? x : (x > 0) ? qMax(0, x - elapsed) : qMin(0, x + elapsed));
+	_touchSpeed.setY((y == 0) ? y : (y > 0) ? qMax(0, y - elapsed) : qMin(0, y + elapsed));
+}
+
+void ListWidget::touchEvent(QTouchEvent *e) {
+	if (e->type() == QEvent::TouchCancel) { // cancel
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		_touchSelectTimer.cancel();
+		_touchScroll = _touchSelect = false;
+		_touchScrollState = Ui::TouchScrollState::Manual;
+		mouseActionCancel();
+		return;
+	}
+
+	if (!e->touchPoints().isEmpty()) {
+		_touchPrevPos = _touchPos;
+		_touchPos = e->touchPoints().cbegin()->screenPos().toPoint();
+	}
+
+	switch (e->type()) {
+	case QEvent::TouchBegin: {
+		if (_menu) {
+			e->accept();
+			return; // ignore mouse press, that was hiding context menu
+		}
+		if (_touchInProgress) return;
+		if (e->touchPoints().isEmpty()) return;
+
+		_touchInProgress = true;
+		if (_touchScrollState == Ui::TouchScrollState::Auto) {
+			_touchScrollState = Ui::TouchScrollState::Acceleration;
+			_touchWaitingAcceleration = true;
+			_touchAccelerationTime = crl::now();
+			touchUpdateSpeed();
+			_touchStart = _touchPos;
+		} else {
+			_touchScroll = false;
+			_touchSelectTimer.callOnce(QApplication::startDragTime());
+		}
+		_touchSelect = false;
+		_touchStart = _touchPrevPos = _touchPos;
+	} break;
+
+	case QEvent::TouchUpdate: {
+		if (!_touchInProgress) return;
+		if (_touchSelect) {
+			mouseActionUpdate(_touchPos);
+		} else if (!_touchScroll && (_touchPos - _touchStart).manhattanLength() >= QApplication::startDragDistance()) {
+			_touchSelectTimer.cancel();
+			_touchScroll = true;
+			touchUpdateSpeed();
+		}
+		if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				touchScrollUpdated(_touchPos);
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				touchUpdateSpeed();
+				_touchAccelerationTime = crl::now();
+				if (_touchSpeed.isNull()) {
+					_touchScrollState = Ui::TouchScrollState::Manual;
+				}
+			}
+		}
+	} break;
+
+	case QEvent::TouchEnd: {
+		if (!_touchInProgress) return;
+		_touchInProgress = false;
+		auto weak = Ui::MakeWeak(this);
+		if (_touchSelect) {
+			mouseActionFinish(_touchPos, Qt::RightButton);
+			QContextMenuEvent contextMenu(QContextMenuEvent::Mouse, mapFromGlobal(_touchPos), _touchPos);
+			showContextMenu(&contextMenu, true);
+			_touchScroll = false;
+		} else if (_touchScroll) {
+			if (_touchScrollState == Ui::TouchScrollState::Manual) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchPrevPosValid = false;
+				_touchScrollTimer.callEach(15);
+				_touchTime = crl::now();
+			} else if (_touchScrollState == Ui::TouchScrollState::Auto) {
+				_touchScrollState = Ui::TouchScrollState::Manual;
+				_touchScroll = false;
+				touchResetSpeed();
+			} else if (_touchScrollState == Ui::TouchScrollState::Acceleration) {
+				_touchScrollState = Ui::TouchScrollState::Auto;
+				_touchWaitingAcceleration = false;
+				_touchPrevPosValid = false;
+			}
+		} else { // One short tap is like left mouse click.
+			mouseActionStart(_touchPos, Qt::LeftButton);
+			mouseActionFinish(_touchPos, Qt::LeftButton);
+		}
+		if (weak) {
+			_touchSelectTimer.cancel();
+			_touchSelect = false;
+		}
+	} break;
+	}
+}
+
 void ListWidget::mouseMoveEvent(QMouseEvent *e) {
 	static auto lastGlobalPosition = e->globalPos();
 	auto reallyMoved = (lastGlobalPosition != e->globalPos());
@@ -2328,6 +2528,12 @@ void ListWidget::mouseReleaseEvent(QMouseEvent *e) {
 	if (!rect().contains(e->pos())) {
 		leaveEvent(e);
 	}
+}
+
+void ListWidget::touchScrollUpdated(const QPoint &screenPos) {
+	_touchPos = screenPos;
+	_delegate->listScrollTo(_visibleTop - (_touchPos - _touchPrevPos).y());
+	touchUpdateSpeed();
 }
 
 void ListWidget::enterEventHook(QEnterEvent *e) {
@@ -2380,6 +2586,11 @@ void ListWidget::updateDragSelection() {
 	const auto fromState = selectingUp ? _overState : _pressState;
 	const auto tillState = selectingUp ? _pressState : _overState;
 	updateDragSelection(fromView, fromState, tillView, tillState);
+}
+
+void ListWidget::onTouchSelect() {
+	_touchSelect = true;
+	mouseActionStart(_touchPos, Qt::LeftButton);
 }
 
 void ListWidget::updateDragSelection(

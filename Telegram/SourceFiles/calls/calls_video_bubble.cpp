@@ -119,7 +119,7 @@ void VideoBubble::applySizeConstraints(QSize min, QSize max) {
 }
 
 void VideoBubble::paint() {
-	Painter p(&_content);
+	auto p = QPainter(&_content);
 
 	prepareFrame();
 	if (!_frame.isNull()) {

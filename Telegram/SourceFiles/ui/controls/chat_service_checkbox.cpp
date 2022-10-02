@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/chat_service_checkbox.h"
 
 #include "ui/widgets/checkbox.h"
+#include "ui/painter.h"
 #include "styles/style_layers.h"
 
 #include <QCoreApplication>
@@ -23,7 +24,7 @@ public:
 
 	QSize getSize() const override;
 	void paint(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		int outerWidth) override;
@@ -36,7 +37,7 @@ private:
 		Generator();
 
 		void paintFrame(
-			Painter &p,
+			QPainter &p,
 			int left,
 			int top,
 			not_null<const style::ServiceCheck*> st,
@@ -57,11 +58,11 @@ private:
 			int index,
 			int count);
 		static void PaintFillingFrame(
-			Painter &p,
+			QPainter &p,
 			not_null<const style::ServiceCheck*> st,
 			float64 progress);
 		static void PaintCheckingFrame(
-			Painter &p,
+			QPainter &p,
 			not_null<const style::ServiceCheck*> st,
 			float64 progress);
 
@@ -107,7 +108,7 @@ void ServiceCheck::Generator::FillFrame(
 	Expects(count > 1);
 	Expects(index >= 0 && index < count);
 
-	Painter p(&image);
+	auto p = QPainter(&image);
 	PainterHighQualityEnabler hq(p);
 
 	p.translate(index * st->diameter, 0);
@@ -120,7 +121,7 @@ void ServiceCheck::Generator::FillFrame(
 }
 
 void ServiceCheck::Generator::PaintFillingFrame(
-		Painter &p,
+		QPainter &p,
 		not_null<const style::ServiceCheck*> st,
 		float64 progress) {
 	const auto shift = progress * st->shift;
@@ -145,7 +146,7 @@ void ServiceCheck::Generator::PaintFillingFrame(
 }
 
 void ServiceCheck::Generator::PaintCheckingFrame(
-		Painter &p,
+		QPainter &p,
 		not_null<const style::ServiceCheck*> st,
 		float64 progress) {
 	const auto shift = (1. - progress) * st->shift;
@@ -177,7 +178,7 @@ void ServiceCheck::Generator::PaintCheckingFrame(
 }
 
 void ServiceCheck::Generator::paintFrame(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		not_null<const style::ServiceCheck*> st,
@@ -222,7 +223,7 @@ QSize ServiceCheck::getSize() const {
 }
 
 void ServiceCheck::paint(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		int outerWidth) {
@@ -249,7 +250,7 @@ void SetupBackground(not_null<Checkbox*> checkbox, Fn<QColor()> bg) {
 	) | rpl::filter([=](const QColor &color) {
 		return color.alpha() > 0;
 	}) | rpl::start_with_next([=](const QColor &color) {
-		Painter p(checkbox);
+		auto p = QPainter(checkbox);
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(color);

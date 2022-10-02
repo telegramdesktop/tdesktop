@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/chat/group_call_userpics.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"

@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "styles/style_chat.h"
 #include "styles/style_dialogs.h"
@@ -26,7 +27,7 @@ namespace {
 }
 
 void PaintSavedMessagesInner(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int size,
@@ -100,7 +101,7 @@ void PaintSavedMessagesInner(
 }
 
 void PaintIconInner(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int size,
@@ -129,7 +130,7 @@ void PaintIconInner(
 }
 
 void PaintRepliesMessagesInner(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int size,
@@ -145,7 +146,7 @@ void PaintRepliesMessagesInner(
 }
 
 void PaintExternalMessagesInner(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int size,
@@ -187,7 +188,7 @@ QString EmptyUserpic::ExternalName() {
 
 template <typename Callback>
 void EmptyUserpic::paint(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -218,7 +219,7 @@ void EmptyUserpic::paint(
 }
 
 void EmptyUserpic::paint(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -228,20 +229,20 @@ void EmptyUserpic::paint(
 	});
 }
 
-void EmptyUserpic::paintRounded(Painter &p, int x, int y, int outerWidth, int size) const {
+void EmptyUserpic::paintRounded(QPainter &p, int x, int y, int outerWidth, int size) const {
 	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
 		p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
 	});
 }
 
-void EmptyUserpic::paintSquare(Painter &p, int x, int y, int outerWidth, int size) const {
+void EmptyUserpic::paintSquare(QPainter &p, int x, int y, int outerWidth, int size) const {
 	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
 		p.fillRect(x, y, size, size, p.brush());
 	});
 }
 
 void EmptyUserpic::PaintSavedMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -252,7 +253,7 @@ void EmptyUserpic::PaintSavedMessages(
 }
 
 void EmptyUserpic::PaintSavedMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -263,7 +264,7 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 }
 
 void EmptyUserpic::PaintSavedMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -281,7 +282,7 @@ void EmptyUserpic::PaintSavedMessages(
 }
 
 void EmptyUserpic::PaintSavedMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -299,19 +300,19 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 }
 
 QPixmap EmptyUserpic::GenerateSavedMessages(int size) {
-	return Generate(size, [&](Painter &p) {
+	return Generate(size, [&](QPainter &p) {
 		PaintSavedMessages(p, 0, 0, size, size);
 	});
 }
 
 QPixmap EmptyUserpic::GenerateSavedMessagesRounded(int size) {
-	return Generate(size, [&](Painter &p) {
+	return Generate(size, [&](QPainter &p) {
 		PaintSavedMessagesRounded(p, 0, 0, size, size);
 	});
 }
 
 void EmptyUserpic::PaintRepliesMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -322,7 +323,7 @@ void EmptyUserpic::PaintRepliesMessages(
 }
 
 void EmptyUserpic::PaintRepliesMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -333,7 +334,7 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 }
 
 void EmptyUserpic::PaintRepliesMessages(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -351,7 +352,7 @@ void EmptyUserpic::PaintRepliesMessages(
 }
 
 void EmptyUserpic::PaintRepliesMessagesRounded(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -369,13 +370,13 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 }
 
 QPixmap EmptyUserpic::GenerateRepliesMessages(int size) {
-	return Generate(size, [&](Painter &p) {
+	return Generate(size, [&](QPainter &p) {
 		PaintRepliesMessages(p, 0, 0, size, size);
 	});
 }
 
 QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
-	return Generate(size, [&](Painter &p) {
+	return Generate(size, [&](QPainter &p) {
 		PaintRepliesMessagesRounded(p, 0, 0, size, size);
 	});
 }
@@ -393,7 +394,7 @@ QPixmap EmptyUserpic::generate(int size) {
 	result.setDevicePixelRatio(cRetinaFactor());
 	result.fill(Qt::transparent);
 	{
-		Painter p(&result);
+		auto p = QPainter(&result);
 		paint(p, 0, 0, size, size);
 	}
 	return Ui::PixmapFromImage(std::move(result));

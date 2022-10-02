@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/layers/box_content.h"
 #include "ui/boxes/country_select_box.h"
+#include "ui/painter.h"
 #include "countries/countries_instance.h"
 #include "styles/style_layers.h"
 #include "styles/style_passport.h"

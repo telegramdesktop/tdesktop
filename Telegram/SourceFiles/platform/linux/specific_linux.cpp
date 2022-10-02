@@ -36,6 +36,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtCore/QProcess>
 
+#include <kshell.h>
+#include <ksandbox.h>
+
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include <glibmm.h>
 #include <giomm.h>
@@ -58,7 +61,6 @@ namespace Platform {
 namespace {
 
 constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
-constexpr auto kIconName = "telegram"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -172,48 +174,6 @@ void PortalAutostart(bool start, bool silent) {
 }
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
-QByteArray EscapeShell(const QByteArray &content) {
-	auto result = QByteArray();
-
-	auto b = content.constData(), e = content.constEnd();
-	for (auto ch = b; ch != e; ++ch) {
-		if (*ch == ' ' || *ch == '"' || *ch == '\'' || *ch == '\\') {
-			if (result.isEmpty()) {
-				result.reserve(content.size() * 2);
-			}
-			if (ch > b) {
-				result.append(b, ch - b);
-			}
-			result.append('\\');
-			b = ch;
-		}
-	}
-	if (result.isEmpty()) {
-		return content;
-	}
-
-	if (e > b) {
-		result.append(b, e - b);
-	}
-	return result;
-}
-
-QString EscapeShellInLauncher(const QString &content) {
-	return EscapeShell(content.toUtf8()).replace('\\', "\\\\");
-}
-
-QString FlatpakID() {
-	static const auto Result = [] {
-		if (!qEnvironmentVariableIsEmpty("FLATPAK_ID")) {
-			return qEnvironmentVariable("FLATPAK_ID");
-		} else {
-			return cExeName();
-		}
-	}();
-
-	return Result;
-}
-
 bool GenerateDesktopFile(
 		const QString &targetPath,
 		const QString &args,
@@ -255,9 +215,12 @@ bool GenerateDesktopFile(
 			QRegularExpression(
 				qsl("^Exec=telegram-desktop(.*)$"),
 				QRegularExpression::MultilineOption),
-			qsl("Exec=%1 -workdir %2\\1").arg(
-				EscapeShellInLauncher(cExeDir() + cExeName()),
-				EscapeShellInLauncher(cWorkingDir())));
+			qsl("Exec=%1\\1").arg(
+				KShell::joinArgs({
+					cExeDir() + cExeName(),
+					"-workdir",
+					cWorkingDir(),
+				}).replace('\\', "\\\\")));
 
 		fileText = fileText.replace(
 			QRegularExpression(
@@ -284,29 +247,13 @@ bool GenerateDesktopFile(
 	}
 }
 
-} // namespace
-
-void SetApplicationIcon(const QIcon &icon) {
-	QApplication::setWindowIcon(icon);
-}
-
-bool InFlatpak() {
-	static const auto Result = QFileInfo::exists(qsl("/.flatpak-info"));
-	return Result;
-}
-
-bool InSnap() {
-	static const auto Result = qEnvironmentVariableIsSet("SNAP");
-	return Result;
-}
-
 QString AppRuntimeDirectory() {
 	static const auto Result = [&] {
 		auto runtimeDir = QStandardPaths::writableLocation(
 			QStandardPaths::RuntimeLocation);
 
-		if (InFlatpak()) {
-			runtimeDir += qsl("/app/") + FlatpakID();
+		if (KSandbox::isFlatpak()) {
+			runtimeDir += qsl("/app/") + base::FlatpakID();
 		}
 
 		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
@@ -323,6 +270,12 @@ QString AppRuntimeDirectory() {
 	return Result;
 }
 
+} // namespace
+
+void SetApplicationIcon(const QIcon &icon) {
+	QApplication::setWindowIcon(icon);
+}
+
 QString SingleInstanceLocalServerName(const QString &hash) {
 	const auto idealSocketPath = AppRuntimeDirectory()
 		+ hash
@@ -334,13 +287,6 @@ QString SingleInstanceLocalServerName(const QString &hash) {
 	} else {
 		return idealSocketPath;
 	}
-}
-
-QString GetIconName() {
-	static const auto Result = InFlatpak()
-		? FlatpakID()
-		: kIconName.utf16();
-	return Result;
 }
 
 std::optional<bool> IsDarkMode() {
@@ -389,7 +335,7 @@ bool AutostartSupported() {
 	// in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
 	// thus, autostart isn't supported in snap
-	return !InSnap();
+	return !KSandbox::isSnap();
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
@@ -400,7 +346,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 	});
 
 	const auto silent = !done;
-	if (InFlatpak()) {
+	if (KSandbox::isFlatpak()) {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(enabled, silent);
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -511,7 +457,7 @@ void start() {
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
-	qputenv("PULSE_PROP_application.icon_name", GetIconName().toLatin1());
+	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	Glib::init();
@@ -567,7 +513,7 @@ void InstallLauncher(bool force) {
 
 	if (!QDir(icons).exists()) QDir().mkpath(icons);
 
-	const auto icon = icons + kIconName.utf16() + qsl(".png");
+	const auto icon = icons + base::IconName() + qsl(".png");
 	auto iconExists = QFile::exists(icon);
 	if (Local::oldSettingsVersion() < 2008012 && iconExists) {
 		// Icon was changed.

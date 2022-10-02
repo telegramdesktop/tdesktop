@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animation_value.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/format_values.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 
 namespace HistoryView::Controls {
@@ -115,7 +116,7 @@ enum class FilterType {
 }
 
 void PaintWaveform(
-		Painter &p,
+		QPainter &p,
 		not_null<const VoiceData*> voiceData,
 		int availableWidth,
 		const QColor &active,
@@ -314,7 +315,7 @@ void ListenWrap::init() {
 
 	_parent->paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(_parent);
+		auto p = QPainter(_parent);
 		PainterHighQualityEnabler hq(p);
 		const auto progress = _showProgress.current();
 		p.setOpacity(progress);
@@ -418,7 +419,7 @@ void ListenWrap::initPlayButton() {
 
 	_playPauseButton->paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(_playPauseButton);
+		auto p = QPainter(_playPauseButton);
 
 		const auto progress = _showProgress.current();
 		p.translate(width / 2, width / 2);

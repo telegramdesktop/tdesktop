@@ -363,7 +363,7 @@ void TopBar::updateSelectionControlsGeometry(int newWidth) {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto highlight = _a_highlight.value(_highlight ? 1. : 0.);
 	if (_highlight && !_a_highlight.animating()) {

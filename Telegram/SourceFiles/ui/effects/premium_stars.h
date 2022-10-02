@@ -18,7 +18,7 @@ class MiniStars final {
 public:
 	MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque = false);
 
-	void paint(Painter &p, const QRectF &rect);
+	void paint(QPainter &p, const QRectF &rect);
 	void setPaused(bool paused);
 
 	static constexpr auto kSizeFactor = 1.5;

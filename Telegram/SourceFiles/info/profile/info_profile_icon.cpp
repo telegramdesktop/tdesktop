@@ -36,7 +36,7 @@ FloatingIcon::FloatingIcon(
 }
 
 void FloatingIcon::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	_icon->paint(p, _point, width());
 }
 

@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/image/image_prepare.h"
 #include "ui/widgets/buttons.h"
-
+#include "ui/painter.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -156,8 +156,7 @@ ButtonBar::ButtonBar(
 
 	paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(this);
-
+		auto p = QPainter(this);
 		p.drawImage(QPoint(), _roundedBg);
 	}, lifetime());
 }

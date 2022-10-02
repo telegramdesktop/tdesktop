@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 
 #include "chat_helpers/stickers_emoji_image_loader.h"
+#include "history/view/history_view_element.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "lottie/lottie_common.h"
@@ -101,10 +102,10 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 : _session(session) {
 	refresh();
 
-	session->data().itemRemoved(
-	) | rpl::filter([](not_null<const HistoryItem*> item) {
-		return item->isIsolatedEmoji();
-	}) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+	session->data().viewRemoved(
+	) | rpl::filter([](not_null<const ViewElement*> view) {
+		return view->isIsolatedEmoji() || view->isOnlyCustomEmoji();
+	}) | rpl::start_with_next([=](not_null<const ViewElement*> item) {
 		remove(item);
 	}, _lifetime);
 
@@ -122,26 +123,26 @@ EmojiPack::EmojiPack(not_null<Main::Session*> session)
 
 EmojiPack::~EmojiPack() = default;
 
-bool EmojiPack::add(not_null<HistoryItem*> item) {
-	if (const auto custom = item->onlyCustomEmoji()) {
-		_onlyCustomItems.emplace(item);
+bool EmojiPack::add(not_null<ViewElement*> view) {
+	if (const auto custom = view->onlyCustomEmoji()) {
+		_onlyCustomItems.emplace(view);
 		return true;
-	} else if (const auto emoji = item->isolatedEmoji()) {
-		_items[emoji].emplace(item);
+	} else if (const auto emoji = view->isolatedEmoji()) {
+		_items[emoji].emplace(view);
 		return true;
 	}
 	return false;
 }
 
-void EmojiPack::remove(not_null<const HistoryItem*> item) {
-	Expects(item->isIsolatedEmoji() || item->isOnlyCustomEmoji());
+void EmojiPack::remove(not_null<const ViewElement*> view) {
+	Expects(view->isIsolatedEmoji() || view->isOnlyCustomEmoji());
 
-	if (item->isOnlyCustomEmoji()) {
-		_onlyCustomItems.remove(item);
-	} else if (const auto emoji = item->isolatedEmoji()) {
+	if (view->isOnlyCustomEmoji()) {
+		_onlyCustomItems.remove(view);
+	} else if (const auto emoji = view->isolatedEmoji()) {
 		const auto i = _items.find(emoji);
 		Assert(i != end(_items));
-		const auto j = i->second.find(item);
+		const auto j = i->second.find(view);
 		Assert(j != end(i->second));
 		i->second.erase(j);
 		if (i->second.empty()) {
@@ -436,9 +437,20 @@ auto EmojiPack::collectAnimationsIndices(
 }
 
 void EmojiPack::refreshAll() {
+	auto items = base::flat_set<not_null<HistoryItem*>>();
+	auto count = 0;
 	for (const auto &[emoji, list] : _items) {
-		refreshItems(list);
+		// refreshItems(list); // This call changes _items!
+		count += int(list.size());
 	}
+	items.reserve(count);
+	for (const auto &[emoji, list] : _items) {
+		// refreshItems(list); // This call changes _items!
+		for (const auto &view : list) {
+			items.emplace(view->data());
+		}
+	}
+	refreshItems(items);
 	refreshItems(_onlyCustomItems);
 }
 
@@ -458,8 +470,18 @@ void EmojiPack::refreshItems(EmojiPtr emoji) {
 }
 
 void EmojiPack::refreshItems(
-		const base::flat_set<not_null<HistoryItem*>> &list) {
-	for (const auto &item : list) {
+		const base::flat_set<not_null<ViewElement*>> &list) {
+	auto items = base::flat_set<not_null<HistoryItem*>>();
+	items.reserve(list.size());
+	for (const auto &view : list) {
+		items.emplace(view->data());
+	}
+	refreshItems(items);
+}
+
+void EmojiPack::refreshItems(
+		const base::flat_set<not_null<HistoryItem*>> &items) {
+	for (const auto &item : items) {
 		_session->data().requestItemViewRefresh(item);
 	}
 }

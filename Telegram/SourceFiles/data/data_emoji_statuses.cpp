@@ -44,7 +44,8 @@ constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 
 EmojiStatuses::EmojiStatuses(not_null<Session*> owner)
 : _owner(owner)
-, _defaultRefreshTimer([=] { refreshDefault(); }) {
+, _defaultRefreshTimer([=] { refreshDefault(); })
+, _clearingTimer([=] { processClearing(); }) {
 	refreshDefault();
 	refreshColored();
 
@@ -118,8 +119,7 @@ void EmojiStatuses::registerAutomaticClear(
 		if (i->first == user) {
 			const auto now = base::unixtime::now();
 			if (now < until) {
-				const auto waitms = (until - now) * crl::time(1000);
-				_clearingTimer.callOnce(std::min(waitms, kMaxTimeout));
+				processClearingIn(until - now);
 			} else {
 				processClearing();
 			}
@@ -152,10 +152,15 @@ void EmojiStatuses::processClearing() {
 		}
 	}
 	if (minWait) {
-		_clearingTimer.callOnce(minWait * crl::time(1000));
+		processClearingIn(minWait);
 	} else {
 		_clearingTimer.cancel();
 	}
+}
+
+void EmojiStatuses::processClearingIn(TimeId wait) {
+	const auto waitms = wait * crl::time(1000);
+	_clearingTimer.callOnce(std::min(waitms, kMaxTimeout));
 }
 
 void EmojiStatuses::requestRecent() {

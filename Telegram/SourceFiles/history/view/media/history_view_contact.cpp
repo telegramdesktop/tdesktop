@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/text/format_values.h" // Ui::FormatPhone
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_media_types.h"

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/text/format_song_name.h"
 #include "ui/text/format_values.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace Ui {

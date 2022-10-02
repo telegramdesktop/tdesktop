@@ -86,7 +86,7 @@ protected:
 
 private:
 	void moveByBottom();
-	void paintContent(Painter &p);
+	void paintContent(QPainter &p);
 
 	style::margins innerPadding() const;
 

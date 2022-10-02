@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/widgets/buttons.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "base/timer_rpl.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"

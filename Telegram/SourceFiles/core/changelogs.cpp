@@ -60,6 +60,22 @@ std::map<int, const char*> BetaLogs() {
 		"- Premium: Set any custom emoji as your profile status.\n"
 
 		"- Insert or copy custom emoji from pack preview.\n"
+	},
+	{
+		4002001,
+		"- Improve scaling / cropping for photos / video files.\n"
+
+		"- Improve touch support in channel comments.\n"
+
+		"- Nice animation for spoilers.\n"
+	},
+	{
+		4002002,
+		"- Fix crash in spoiler revealing in media captions.\n"
+
+		"- Fix spoiler revealing in media viewer captions.\n"
+		
+		"- Fix crash in folder editing on Linux.\n"
 	}
 	};
 };

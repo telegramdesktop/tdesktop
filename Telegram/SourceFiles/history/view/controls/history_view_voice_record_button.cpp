@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_voice_record_button.h"
 
 #include "ui/paint/blobs.h"
-
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 
@@ -97,7 +97,7 @@ void VoiceRecordButton::init() {
 		- mainRadiusMin;
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		const auto hideProgress = _blobsHideLastTime
 			? 1. - std::clamp(

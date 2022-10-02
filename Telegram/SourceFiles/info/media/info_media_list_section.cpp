@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_shared_media.h"
 #include "layout/layout_selection.h"
+#include "ui/painter.h"
 #include "styles/style_info.h"
 
 namespace Info::Media {

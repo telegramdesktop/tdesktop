@@ -15,13 +15,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_response.h"
 #include "mtproto/mtproto_dc_options.h"
 #include "mtproto/connection_abstract.h"
-#include "platform/platform_specific.h"
 #include "base/random.h"
 #include "base/qthelp_url.h"
 #include "base/openssl_help.h"
 #include "base/unixtime.h"
 #include "base/platform/base_platform_info.h"
 
+#include <ksandbox.h>
 #include <zlib.h>
 
 namespace MTP {
@@ -86,15 +86,13 @@ using namespace details;
 		return u" Mac App Store"_q;
 #elif defined OS_WIN_STORE // OS_MAC_STORE
 		return u" Microsoft Store"_q;
-#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_MAC_STORE || OS_WIN_STORE
-		return Platform::InFlatpak()
+#else // OS_MAC_STORE || OS_WIN_STORE
+		return KSandbox::isFlatpak()
 			? u" Flatpak"_q
-			: Platform::InSnap()
+			: KSandbox::isSnap()
 			? u" Snap"_q
 			: QString();
-#else // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
-		return QString();
-#endif // OS_MAC_STORE || OS_WIN_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+#endif // OS_MAC_STORE || OS_WIN_STORE
 	})();
 }
 

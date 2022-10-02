@@ -207,9 +207,9 @@ private:
 	bool hasMasksTab() const;
 	Tab createTab(SelectorTab type, int index);
 
-	void paintSlideFrame(Painter &p);
-	void paintBgRoundedPart(Painter &p);
-	void paintContent(Painter &p);
+	void paintSlideFrame(QPainter &p);
+	void paintBgRoundedPart(QPainter &p);
+	void paintContent(QPainter &p);
 
 	void checkRestrictedPeer();
 	bool isRestrictedView();

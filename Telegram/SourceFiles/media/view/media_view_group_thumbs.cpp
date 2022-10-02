@@ -200,7 +200,7 @@ public:
 	State state() const;
 	bool removed() const;
 
-	void paint(Painter &p, int x, int y, int outerWidth, float64 progress);
+	void paint(QPainter &p, int x, int y, int outerWidth, float64 progress);
 	ClickHandlerPtr getState(QPoint point) const;
 
 private:
@@ -405,7 +405,7 @@ bool GroupThumbs::Thumb::removed() const {
 }
 
 void GroupThumbs::Thumb::paint(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -813,7 +813,7 @@ void GroupThumbs::update() {
 	_updateRequests.fire_copy(_updatedRect);
 }
 
-void GroupThumbs::paint(Painter &p, int x, int y, int outerWidth) {
+void GroupThumbs::paint(QPainter &p, int x, int y, int outerWidth) {
 	const auto progress = _waitingForAnimationStart
 		? 0.
 		: _animation.value(1.);

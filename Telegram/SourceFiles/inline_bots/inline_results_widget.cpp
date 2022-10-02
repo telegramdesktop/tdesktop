@@ -119,7 +119,7 @@ void Widget::updateContentHeight() {
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto opacityAnimating = _a_opacity.animating();
 
@@ -148,7 +148,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 }
 
-void Widget::paintContent(Painter &p) {
+void Widget::paintContent(QPainter &p) {
 	auto inner = innerRect();
 	Ui::FillRoundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::FullBottom);
 

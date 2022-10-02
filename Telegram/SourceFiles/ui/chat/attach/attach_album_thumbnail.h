@@ -35,7 +35,7 @@ public:
 	int photoHeight() const;
 
 	void paintInAlbum(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		float64 shrinkProgress,
@@ -61,9 +61,9 @@ private:
 	QRect countRealGeometry() const;
 	QRect countCurrentGeometry(float64 progress) const;
 	void prepareCache(QSize size, int shrink);
-	void drawSimpleFrame(Painter &p, QRect to, QSize size) const;
+	void drawSimpleFrame(QPainter &p, QRect to, QSize size) const;
 	QRect paintButtons(
-		Painter &p,
+		QPainter &p,
 		QPoint point,
 		int outerWidth,
 		float64 shrinkProgress);

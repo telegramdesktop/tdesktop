@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/streaming/media_streaming_common.h"
 #include "ui/image/image_prepare.h"
+#include "ui/painter.h"
 #include "ffmpeg/ffmpeg_utility.h"
 
 namespace Media {
@@ -367,13 +368,36 @@ ExpandDecision DecideFrameResize(
 		return { .result = original, .expanding = true };
 	}
 	const auto big = original.scaled(outer, Qt::KeepAspectRatioByExpanding);
-	if ((big.width() * minVisibleNominator
-		<= outer.width() * minVisibleDenominator)
+	if ((big.width() <= outer.width())
 		&& (big.height() * minVisibleNominator
 			<= outer.height() * minVisibleDenominator)) {
 		return { .result = big, .expanding = true };
 	}
 	return { .result = original.scaled(outer, Qt::KeepAspectRatio) };
+}
+
+bool FrameResizeMayExpand(
+		QSize outer,
+		QSize original,
+		int minVisibleNominator,
+		int minVisibleDenominator) {
+	const auto min = std::min({
+		outer.width(),
+		outer.height(),
+		original.width(),
+		original.height(),
+	});
+	// Count for: (nominator / denominator) - (1 / min).
+	// In case the result is less than 1 / 2, just return.
+	if (2 * minVisibleNominator * min
+		< 2 * minVisibleDenominator + minVisibleDenominator * min) {
+		return false;
+	}
+	return DecideFrameResize(
+		outer,
+		original,
+		minVisibleNominator * min - minVisibleDenominator,
+		minVisibleDenominator * min).expanding;
 }
 
 ExpandDecision DecideVideoFrameResize(QSize outer, QSize original) {

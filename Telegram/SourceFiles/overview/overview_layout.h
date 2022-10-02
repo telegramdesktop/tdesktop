@@ -369,7 +369,7 @@ protected:
 
 private:
 	[[nodiscard]] bool downloadInCorner() const;
-	void drawCornerDownload(Painter &p, bool selected, const PaintContext *context) const;
+	void drawCornerDownload(QPainter &p, bool selected, const PaintContext *context) const;
 	[[nodiscard]] TextState cornerDownloadTextState(
 		QPoint point,
 		StateRequest request) const;

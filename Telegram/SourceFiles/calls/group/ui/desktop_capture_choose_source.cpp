@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/ripple_animation.h"
 #include "ui/image/image.h"
 #include "ui/platform/ui_platform_window_title.h"
+#include "ui/painter.h"
 #include "base/platform/base_platform_info.h"
 #include "webrtc/webrtc_video_track.h"
 #include "lang/lang_keys.h"

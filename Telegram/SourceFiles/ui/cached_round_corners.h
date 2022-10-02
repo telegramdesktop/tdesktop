@@ -9,8 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rect_part.h"
 
-class Painter;
-
 enum class ImageRoundRadius;
 
 namespace Ui {
@@ -38,16 +36,16 @@ enum CachedRoundCorners : int {
 	RoundCornersCount
 };
 
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
-inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
+inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 }
-void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full);
-inline void FillRoundShadow(Painter &p, const QRect &rect, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full) {
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full);
+inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, CachedRoundCorners index, RectParts parts = RectPart::Full) {
 	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index, parts);
 }
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
-inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
+inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);
 }
 
@@ -59,12 +57,12 @@ inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, ImageR
 	ImageRoundRadius radius,
 	style::color bg,
 	const style::color *sh);
-void FillRoundRect(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
-inline void FillRoundRect(Painter &p, const QRect &rect, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full);
+inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, const CornersPixmaps &corner, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	return FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, corner, shadow, parts);
 }
-void FillRoundShadow(Painter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full);
-inline void FillRoundShadow(Painter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full) {
+void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full);
+inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, const CornersPixmaps &corner, RectParts parts = RectPart::Full) {
 	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, corner, parts);
 }
 

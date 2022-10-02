@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
 #include "ui/controls/download_bar.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
@@ -137,7 +138,7 @@ void Widget::BottomButton::onStateChanged(State was, StateChangeSource source) {
 }
 
 void Widget::BottomButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto over = isOver() && !isDisabled();
 

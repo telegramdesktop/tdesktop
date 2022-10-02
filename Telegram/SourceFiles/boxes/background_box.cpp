@@ -111,7 +111,7 @@ private:
 	void requestPapers();
 	void sortPapers();
 	void paintPaper(
-		Painter &p,
+		QPainter &p,
 		const Paper &paper,
 		int column,
 		int row) const;
@@ -289,7 +289,7 @@ void BackgroundBox::Inner::resizeToContentAndPreload() {
 
 void BackgroundBox::Inner::paintEvent(QPaintEvent *e) {
 	QRect r(e->rect());
-	Painter p(this);
+	auto p = QPainter(this);
 
 	if (_papers.empty()) {
 		p.setFont(st::noContactsFont);
@@ -361,7 +361,7 @@ void BackgroundBox::Inner::validatePaperThumbnail(
 }
 
 void BackgroundBox::Inner::paintPaper(
-		Painter &p,
+		QPainter &p,
 		const Paper &paper,
 		int column,
 		int row) const {

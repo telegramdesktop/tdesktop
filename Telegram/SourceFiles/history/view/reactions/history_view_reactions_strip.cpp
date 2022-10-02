@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "ui/effects/frame_generator.h"
 #include "ui/animated_icon.h"
+#include "ui/painter.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView::Reactions {

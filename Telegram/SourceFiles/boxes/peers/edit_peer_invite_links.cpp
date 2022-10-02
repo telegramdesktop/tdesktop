@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_controllers.h"
@@ -328,7 +329,7 @@ QString Row::generateShortName() {
 
 PaintRoundImageCallback Row::generatePaintUserpicCallback() {
 	return [=](
-			Painter &p,
+			QPainter &p,
 			int x,
 			int y,
 			int outerWidth,

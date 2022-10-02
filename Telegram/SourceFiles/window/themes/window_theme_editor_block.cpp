@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_window.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/widgets/shadow.h"
+#include "ui/painter.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
 #include "base/call_delayed.h"

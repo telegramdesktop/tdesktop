@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "window/themes/window_theme.h"

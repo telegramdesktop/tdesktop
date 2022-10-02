@@ -288,7 +288,7 @@ public:
 		}
 
 		virtual void startPaint(
-			Painter &p,
+			QPainter &p,
 			const Ui::ChatStyle *st) const = 0;
 		virtual const style::TextStyle &textStyle() const = 0;
 
@@ -303,18 +303,18 @@ public:
 
 	protected:
 		virtual void paintButtonBg(
-			Painter &p,
+			QPainter &p,
 			const Ui::ChatStyle *st,
 			const QRect &rect,
 			float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(
-			Painter &p,
+			QPainter &p,
 			const Ui::ChatStyle *st,
 			const QRect &rect,
 			int outerWidth,
 			HistoryMessageMarkupButton::Type type) const = 0;
 		virtual void paintButtonLoading(
-			Painter &p,
+			QPainter &p,
 			const Ui::ChatStyle *st,
 			const QRect &rect) const = 0;
 		virtual int minButtonWidth(

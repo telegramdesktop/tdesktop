@@ -33,6 +33,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Info::Profile {
 namespace {
 
+constexpr auto kLimitFirstRow = 8;
+
 void PickUntilBox(not_null<Ui::GenericBox*> box, Fn<void(TimeId)> callback) {
 	box->setTitle(tr::lng_emoji_status_for_title());
 
@@ -179,6 +181,9 @@ void EmojiStatusPanel::show(
 	const auto &other = statuses.list(Data::EmojiStatuses::Type::Default);
 	auto list = statuses.list(Data::EmojiStatuses::Type::Colored);
 	list.insert(begin(list), 0);
+	if (list.size() > kLimitFirstRow) {
+		list.erase(begin(list) + kLimitFirstRow, end(list));
+	}
 	list.reserve(list.size() + recent.size() + other.size() + 1);
 	for (const auto &id : ranges::views::concat(recent, other)) {
 		if (!ranges::contains(list, id)) {

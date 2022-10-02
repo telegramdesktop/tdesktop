@@ -38,6 +38,8 @@ get_filename_component(cmake_helpers_loc "cmake" REALPATH)
 
 include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
+include(cmake/target_compile_options_if_exists.cmake)
+include(cmake/target_link_options_if_exists.cmake)
 include(cmake/target_link_static_libraries.cmake)
 include(cmake/target_link_frameworks.cmake)
 include(cmake/init_target.cmake)

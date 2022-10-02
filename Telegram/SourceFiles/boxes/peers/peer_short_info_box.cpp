@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/wrap.h"
 #include "ui/image/image_prepare.h"
 #include "ui/text/text_utilities.h"
+#include "ui/painter.h"
 #include "info/profile/info_profile_text.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"

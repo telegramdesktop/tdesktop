@@ -217,7 +217,7 @@ IntroWidget::IntroWidget(
 	_wrap->setAttribute(Qt::WA_OpaquePaintEvent);
 	_wrap->paintRequest(
 	) | rpl::start_with_next([=](QRect clip) {
-		Painter p(_wrap.data());
+		auto p = QPainter(_wrap.data());
 		p.fillRect(clip, st::boxBg);
 	}, _wrap->lifetime());
 
@@ -510,7 +510,7 @@ void LayerWidget::doSetInnerFocus() {
 }
 
 void LayerWidget::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	auto clip = e->rect();
 	auto r = st::boxRadius;

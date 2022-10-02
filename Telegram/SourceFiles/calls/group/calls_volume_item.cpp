@@ -88,7 +88,7 @@ MenuVolumeItem::MenuVolumeItem(
 
 	paintRequest(
 	) | rpl::start_with_next([=](const QRect &clip) {
-		Painter p(this);
+		auto p = QPainter(this);
 
 		const auto volume = _localMuted
 			? 0

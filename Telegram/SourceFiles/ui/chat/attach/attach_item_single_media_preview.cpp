@@ -194,7 +194,7 @@ bool ItemSingleMediaPreview::drawBackground() const {
 	return true; // A sticker can't be here.
 }
 
-bool ItemSingleMediaPreview::tryPaintAnimation(Painter &p) {
+bool ItemSingleMediaPreview::tryPaintAnimation(QPainter &p) {
 	checkStreamedIsStarted();
 	if (_streamed
 		&& _streamed->player().ready()

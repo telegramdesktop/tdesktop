@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/inactive_press.h"
 #include "lang/lang_keys.h"

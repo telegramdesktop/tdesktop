@@ -116,6 +116,9 @@ private:
 
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
+	[[nodiscard]] int adjustHeightForLessCrop(
+		QSize dimensions,
+		QSize current) const;
 
 	bool needInfoDisplay() const;
 	void validateGroupedCache(

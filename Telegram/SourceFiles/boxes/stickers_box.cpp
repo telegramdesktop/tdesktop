@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/input_fields.h"
 #include "ui/image/image.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "window/window_session_controller.h"
 #include "media/clip/media_clip_reader.h"
 #include "main/main_session.h"
@@ -330,7 +331,7 @@ StickersBox::CounterWidget::CounterWidget(
 void StickersBox::CounterWidget::setCounter(int counter) {
 	_text = (counter > 0) ? QString::number(counter) : QString();
 	auto dummy = QImage(1, 1, QImage::Format_ARGB32_Premultiplied);
-	Painter p(&dummy);
+	auto p = QPainter(&dummy);
 
 	const auto badge = Dialogs::Ui::PaintUnreadBadge(p, _text, 0, 0, _st);
 

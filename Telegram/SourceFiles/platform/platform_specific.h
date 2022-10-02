@@ -42,6 +42,7 @@ bool TrayIconSupported();
 bool SkipTaskbarSupported();
 void WriteCrashDumpDetails();
 void NewVersionLaunched(int oldVersion);
+void InstallLauncher(bool force = false);
 
 [[nodiscard]] std::optional<bool> IsDarkMode();
 [[nodiscard]] inline bool IsDarkModeSupported() {

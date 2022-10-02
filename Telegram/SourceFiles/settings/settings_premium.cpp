@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "base/unixtime.h"
@@ -579,7 +580,7 @@ void EmojiStatusTopBar::paint(QPainter &p) {
 				crl::now(),
 				_paused);
 
-			p.drawImage(_rect, frame.image);
+			p.drawImage(_rect.toRect(), frame.image);
 			if (!_paused) {
 				_player->markFrameShown();
 			}
@@ -674,7 +675,7 @@ TopBarUser::TopBarUser(
 		if (document) {
 			_emojiStatus = std::make_unique<EmojiStatusTopBar>(
 				document,
-				[=](QRect r) { update(std::move(r)); },
+				[=](QRect r) { _content->update(std::move(r)); },
 				HistoryView::Sticker::EmojiSize());
 			_imageStar = QImage();
 		} else {
@@ -689,7 +690,7 @@ TopBarUser::TopBarUser(
 			auto mask = frame;
 			mask.fill(Qt::transparent);
 			{
-				Painter p(&mask);
+				auto p = QPainter(&mask);
 				auto gradient = QLinearGradient(
 					0,
 					size.height(),
@@ -702,7 +703,7 @@ TopBarUser::TopBarUser(
 			}
 			frame.fill(Qt::transparent);
 			{
-				Painter q(&frame);
+				auto q = QPainter(&frame);
 				svg.render(&q, QRect(QPoint(), size));
 				q.setCompositionMode(QPainter::CompositionMode_SourceIn);
 				q.drawImage(0, 0, mask);
@@ -808,7 +809,7 @@ TopBarUser::TopBarUser(
 
 	_content->paintRequest(
 	) | rpl::start_with_next([=] {
-		Painter p(_content);
+		auto p = QPainter(_content);
 
 		_ministars.paint(p);
 
@@ -912,7 +913,7 @@ void TopBarUser::setTextPosition(int x, int y) {
 }
 
 void TopBarUser::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	TopBarAbstract::paintEdges(p);
 }
@@ -1052,7 +1053,7 @@ void TopBar::resizeEvent(QResizeEvent *e) {
 }
 
 void TopBar::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	p.fillRect(e->rect(), Qt::transparent);
 
@@ -1649,7 +1650,10 @@ QPointer<Ui::RpWidget> Premium::createPinnedToBottom(
 		_radioGroup->setChangedCallback([=](int value) {
 			const auto options =
 				_controller->session().api().premium().subscriptionOptions();
-			Expects(value < options.size() && value >= 0);
+			if (options.empty()) {
+				return;
+			}
+			Assert(value < options.size() && value >= 0);
 			auto text = tr::lng_premium_subscribe_button(
 				tr::now,
 				lt_cost,
@@ -1782,7 +1786,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			controller = args.controller,
 			computeRef = args.computeRef,
 			computeBotUrl = args.computeBotUrl] {
-		const auto url = computeBotUrl ? QString() : computeBotUrl();
+		const auto url = computeBotUrl ? computeBotUrl() : QString();
 		if (!url.isEmpty()) {
 			const auto local = Core::TryConvertUrlToLocal(url);
 			if (local.isEmpty()) {

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/popup_menu.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/effects/cross_line.h"
+#include "ui/painter.h"
 #include "core/application.h" // Core::App().domain, .activeWindow.
 #include "main/main_domain.h" // Core::App().domain().activate.
 #include "main/main_session.h"
@@ -86,11 +87,11 @@ public:
 	void rowUpdateRow(not_null<Row*> row) override;
 	void rowScheduleRaisedHandStatusRemove(not_null<Row*> row) override;
 	void rowPaintIcon(
-		Painter &p,
+		QPainter &p,
 		QRect rect,
 		const IconState &state) override;
 	int rowPaintStatusIcon(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
@@ -962,7 +963,7 @@ void Members::Controller::scheduleRaisedHandStatusRemove() {
 }
 
 void Members::Controller::rowPaintIcon(
-		Painter &p,
+		QPainter &p,
 		QRect rect,
 		const IconState &state) {
 	if (_mode == PanelMode::Wide
@@ -1074,7 +1075,7 @@ void Members::Controller::rowPaintIcon(
 }
 
 int Members::Controller::rowPaintStatusIcon(
-		Painter &p,
+		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,

@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/sender.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"

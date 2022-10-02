@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/gradient_round_button.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "settings/settings_premium.h"
 #include "lottie/lottie_single_player.h"
 #include "history/view/media/history_view_sticker.h"

@@ -51,7 +51,7 @@ public:
 
 	QSize getSize() const override;
 	void paint(
-		Painter &p,
+		QPainter &p,
 		int left,
 		int top,
 		int outerWidth) override;
@@ -61,8 +61,8 @@ public:
 	void setColors(const Colors &colors);
 
 private:
-	void paintNotSupported(Painter &p, int left, int top, int outerWidth);
-	void paintWithColors(Painter &p, int left, int top, int outerWidth);
+	void paintNotSupported(QPainter &p, int left, int top, int outerWidth);
+	void paintWithColors(QPainter &p, int left, int top, int outerWidth);
 	void checkedChangedHook(anim::type animated) override;
 	void validateBackgroundCache(int width);
 	void ensureContrast();

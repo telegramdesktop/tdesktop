@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/controls/delete_message_context_action.h"
 #include "ui/controls/who_reacted_context_action.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/cached_round_corners.h"
 #include "ui/inactive_press.h"
@@ -269,12 +270,6 @@ public:
 	void elementCancelPremium(not_null<const Element*> view) override {
 		if (_widget) {
 			_widget->elementCancelPremium(view);
-		}
-	}
-
-	void elementShowSpoilerAnimation() override {
-		if (_widget) {
-			_widget->elementShowSpoilerAnimation();
 		}
 	}
 
@@ -2317,7 +2312,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				const auto media = (view ? view->media() : nullptr);
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 				if (const auto document = media ? media->getDocument() : nullptr) {
-					if (!item->isIsolatedEmoji() && document->sticker()) {
+					if (!view->isIsolatedEmoji() && document->sticker()) {
 						if (document->sticker()->set) {
 							_menu->addAction(document->isStickerSetInstalled() ? tr::lng_context_pack_info(tr::now) : tr::lng_context_pack_add(tr::now), [=] {
 								showStickerPackInfo(document);
@@ -2369,7 +2364,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				}
 			}
 		}
-		if (!actionText.isEmpty()) {
+		if (!actionText.isEmpty() && !hasCopyRestriction(item)) {
 			_menu->addAction(
 				actionText,
 				[text = link->copyToClipboardText()] {
@@ -3304,11 +3299,6 @@ void HistoryInner::elementStartPremium(
 
 void HistoryInner::elementCancelPremium(not_null<const Element*> view) {
 	_emojiInteractions->cancelPremiumEffect(view);
-}
-
-void HistoryInner::elementShowSpoilerAnimation() {
-	_spoilerOpacity.stop();
-	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
 }
 
 auto HistoryInner::getSelectionState() const

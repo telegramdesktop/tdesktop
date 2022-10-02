@@ -34,8 +34,8 @@ public:
 	rpl::producer<Brush> saveBrushRequests() const;
 
 private:
-	void paintCircle(Painter &p);
-	void paintOutline(Painter &p, const QRectF &rect);
+	void paintCircle(QPainter &p);
+	void paintOutline(QPainter &p, const QRectF &rect);
 	QColor positionToColor(int x) const;
 	int colorToPosition(const QColor &color) const;
 	int circleHeight(float64 progress = 0.) const;

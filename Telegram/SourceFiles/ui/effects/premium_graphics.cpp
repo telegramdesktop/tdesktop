@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "ui/painter.h"
 #include "styles/style_premium.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -51,7 +52,7 @@ public:
 
 	void setBrush(std::optional<QBrush> brush);
 
-	void paint(Painter &p, int left, int top, int outerWidth) override;
+	void paint(QPainter &p, int left, int top, int outerWidth) override;
 
 private:
 
@@ -68,7 +69,7 @@ GradientRadioView::GradientRadioView(
 , _st(&st) {
 }
 
-void GradientRadioView::paint(Painter &p, int left, int top, int outerWidth) {
+void GradientRadioView::paint(QPainter &p, int left, int top, int outerWidth) {
 	PainterHighQualityEnabler hq(p);
 
 	const auto toggled = currentAnimationValue();
@@ -197,7 +198,7 @@ public:
 
 	void setCounter(int value);
 	void setTailEdge(EdgeProgress edge);
-	void paintBubble(Painter &p, const QRect &r, const QBrush &brush);
+	void paintBubble(QPainter &p, const QRect &r, const QBrush &brush);
 
 	[[nodiscard]] rpl::producer<> widthChanges() const;
 
@@ -290,7 +291,7 @@ void Bubble::setTailEdge(EdgeProgress edge) {
 	_tailEdge = std::clamp(edge, 0., 1.);
 }
 
-void Bubble::paintBubble(Painter &p, const QRect &r, const QBrush &brush) {
+void Bubble::paintBubble(QPainter &p, const QRect &r, const QBrush &brush) {
 	if (_counter < 0) {
 		return;
 	}
@@ -504,7 +505,7 @@ void BubbleWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto padding = QMargins(
 		0,
@@ -676,7 +677,7 @@ void Line::recache(const QSize &s) {
 
 	{
 		auto leftPixmap = pixmap;
-		Painter p(&leftPixmap);
+		auto p = QPainter(&leftPixmap);
 		PainterHighQualityEnabler hq(p);
 		auto pathRect = QPainterPath();
 		auto halfRect = r;
@@ -689,7 +690,7 @@ void Line::recache(const QSize &s) {
 	}
 	{
 		auto rightPixmap = pixmap;
-		Painter p(&rightPixmap);
+		auto p = QPainter(&rightPixmap);
 		PainterHighQualityEnabler hq(p);
 		auto pathRect = QPainterPath();
 		auto halfRect = r;
@@ -791,7 +792,7 @@ void AddAccountsRow(
 		badge.setDevicePixelRatio(style::DevicePixelRatio());
 		badge.fill(Qt::transparent);
 
-		Painter p(&badge);
+		auto p = QPainter(&badge);
 		PainterHighQualityEnabler hq(p);
 
 		p.setPen(Qt::NoPen);
@@ -1080,7 +1081,7 @@ void AddGiftOptions(
 
 		row->paintRequest(
 		) | rpl::start_with_next([=](const QRect &r) {
-			Painter p(row);
+			auto p = QPainter(row);
 			PainterHighQualityEnabler hq(p);
 
 			p.fillRect(r, Qt::transparent);

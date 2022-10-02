@@ -10,13 +10,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "styles/style_widgets.h"
 
+class Painter;
+
 namespace Ui {
 
 class RoundCheckbox {
 public:
 	RoundCheckbox(const style::RoundCheckbox &st, Fn<void()> updateCallback);
 
-	void paint(Painter &p, int x, int y, int outerWidth, float64 masterScale = 1.) const;
+	void paint(QPainter &p, int x, int y, int outerWidth, float64 masterScale = 1.) const;
 
 	void setDisplayInactive(bool displayInactive);
 	bool checked() const {

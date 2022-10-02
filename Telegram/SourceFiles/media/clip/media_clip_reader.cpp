@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
+#include "ui/painter.h"
 #include "core/file_location.h"
 #include "base/random.h"
 #include "base/invoke_queued.h"
@@ -64,7 +65,7 @@ QImage PrepareFrame(
 		cache.fill(Qt::transparent);
 	}
 	{
-		Painter p(&cache);
+		auto p = QPainter(&cache);
 		const auto framew = request.frame.width();
 		const auto outerw = size.width();
 		const auto frameh = request.frame.height();

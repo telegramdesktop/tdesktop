@@ -65,7 +65,7 @@ private:
 	void paintUsingRaster(
 		Ui::GL::Image &image,
 		QRect rect,
-		Fn<void(Painter&&)> method,
+		Fn<void(QPainter&&)> method,
 		int bufferOffset,
 		bool transparent = false);
 

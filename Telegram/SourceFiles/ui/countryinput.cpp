@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/multi_select.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/boxes/country_select_box.h"
+#include "ui/painter.h"
 #include "countries/countries_instance.h"
 #include "window/window_session_controller.h"
 #include "styles/style_layers.h"
@@ -42,7 +43,7 @@ CountryInput::CountryInput(
 }
 
 void CountryInput::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	QRect r(rect().intersected(e->rect()));
 	if (_st.textBg->c.alphaF() > 0.) {

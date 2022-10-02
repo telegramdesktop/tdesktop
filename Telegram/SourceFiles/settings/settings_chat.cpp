@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/style/style_palette_colorizer.h"
 #include "ui/toast/toast.h"
 #include "ui/image/image.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "history/view/history_view_quick_action.h"
 #include "lang/lang_keys.h"
@@ -124,7 +125,7 @@ private:
 
 };
 
-void PaintColorButton(Painter &p, QColor color, float64 selected) {
+void PaintColorButton(QPainter &p, QColor color, float64 selected) {
 	const auto size = st::settingsAccentColorSize;
 	const auto rect = QRect(0, 0, size, size);
 
@@ -145,7 +146,7 @@ void PaintColorButton(Painter &p, QColor color, float64 selected) {
 	}
 }
 
-void PaintCustomButton(Painter &p, const std::vector<QColor> &colors) {
+void PaintCustomButton(QPainter &p, const std::vector<QColor> &colors) {
 	Expects(colors.size() >= kCustomColorButtonParts);
 
 	p.setPen(Qt::NoPen);
@@ -225,7 +226,7 @@ QColor ColorsPalette::Button::color() const {
 }
 
 void ColorsPalette::Button::paint() {
-	Painter p(&_widget);
+	auto p = QPainter(&_widget);
 	PainterHighQualityEnabler hq(p);
 
 	if (_colors.size() == 1) {
@@ -445,7 +446,7 @@ BackgroundRow::BackgroundRow(
 }
 
 void BackgroundRow::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	const auto radial = _radial.animating();
 	const auto radialOpacity = radial ? _radial.opacity() : 0.;
@@ -606,7 +607,7 @@ void BackgroundRow::updateImage() {
 			result.fill(Qt::transparent);
 			return result;
 		}
-		Painter p(&result);
+		auto p = QPainter(&result);
 		PainterHighQualityEnabler hq(p);
 		const auto w = prepared.width();
 		const auto h = prepared.height();
@@ -880,7 +881,7 @@ void SetupMessages(
 		}
 	protected:
 		void paintEvent(QPaintEvent *e) override {
-			Painter p(this);
+			auto p = QPainter(this);
 
 			paintRipple(p, _rippleAreaPosition, nullptr);
 		}

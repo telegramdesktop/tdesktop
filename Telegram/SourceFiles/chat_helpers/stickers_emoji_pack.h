@@ -35,6 +35,10 @@ class UniversalImages;
 } // namespace Emoji
 } // namespace Ui
 
+namespace HistoryView {
+class Element;
+} // namespace HistoryView
+
 namespace Stickers {
 
 using IsolatedEmoji = Ui::Text::IsolatedEmoji;
@@ -48,6 +52,8 @@ struct LargeEmojiImage {
 
 class EmojiPack final {
 public:
+	using ViewElement = HistoryView::Element;
+
 	struct Sticker {
 		DocumentData *document = nullptr;
 		const Lottie::ColorReplacements *replacements = nullptr;
@@ -63,8 +69,8 @@ public:
 	explicit EmojiPack(not_null<Main::Session*> session);
 	~EmojiPack();
 
-	bool add(not_null<HistoryItem*> item);
-	void remove(not_null<const HistoryItem*> item);
+	bool add(not_null<ViewElement*> view);
+	void remove(not_null<const ViewElement*> view);
 
 	[[nodiscard]] Sticker stickerForEmoji(EmojiPtr emoji);
 	[[nodiscard]] Sticker stickerForEmoji(const IsolatedEmoji &emoji);
@@ -106,17 +112,18 @@ private:
 		-> base::flat_map<uint64, base::flat_set<int>>;
 	void refreshAll();
 	void refreshItems(EmojiPtr emoji);
-	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &list);
+	void refreshItems(const base::flat_set<not_null<ViewElement*>> &list);
+	void refreshItems(const base::flat_set<not_null<HistoryItem*>> &items);
 
-	not_null<Main::Session*> _session;
+	const not_null<Main::Session*> _session;
 	base::flat_map<EmojiPtr, not_null<DocumentData*>> _map;
 	base::flat_map<
 		IsolatedEmoji,
-		base::flat_set<not_null<HistoryItem*>>> _items;
+		base::flat_set<not_null<HistoryView::Element*>>> _items;
 	base::flat_map<EmojiPtr, std::weak_ptr<LargeEmojiImage>> _images;
 	mtpRequestId _requestId = 0;
 
-	base::flat_set<not_null<HistoryItem*>> _onlyCustomItems;
+	base::flat_set<not_null<HistoryView::Element*>> _onlyCustomItems;
 
 	int _animationsVersion = 0;
 	base::flat_map<

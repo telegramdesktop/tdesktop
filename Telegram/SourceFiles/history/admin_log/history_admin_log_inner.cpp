@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "ui/text/text_utilities.h"
 #include "ui/inactive_press.h"
+#include "ui/painter.h"
 #include "ui/effects/path_shift_gradient.h"
 #include "core/click_handler_types.h"
 #include "core/file_utilities.h"
@@ -679,11 +680,6 @@ void InnerWidget::elementStartPremium(
 }
 
 void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
-}
-
-void InnerWidget::elementShowSpoilerAnimation() {
-	_spoilerOpacity.stop();
-	_spoilerOpacity.start([=] { update(); }, 0., 1., st::fadeWrapDuration);
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {

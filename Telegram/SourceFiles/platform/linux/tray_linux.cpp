@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/qt_signal_producer.h"
 #include "core/application.h"
 #include "core/sandbox.h"
-#include "platform/linux/specific_linux.h"
+#include "platform/platform_specific.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/popup_menu.h"
 #include "window/window_controller.h"
@@ -87,7 +87,7 @@ QString IconGraphic::panelIconName(int counter, bool muted) const {
 }
 
 QString IconGraphic::trayIconName(int counter, bool muted) const {
-	const auto iconName = GetIconName();
+	const auto iconName = base::IconName();
 	const auto panelName = panelIconName(counter, muted);
 
 	if (QIcon::hasThemeIcon(panelName)) {

@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_utility.h"
 #include "media/view/media_view_playback_progress.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "history/history_item_components.h"
 #include "history/history_item.h"
 #include "history/history.h"
@@ -165,6 +166,9 @@ QSize Gif::countOptimalSize() {
 			maxWidth = qMax(maxWidth, st::msgPadding.left()
 				+ _caption.maxWidth()
 				+ st::msgPadding.right());
+			minHeight = adjustHeightForLessCrop(
+				scaled,
+				{ maxWidth, minHeight });
 			minHeight += st::mediaCaptionSkip + _caption.minHeight();
 			if (isBubbleBottom()) {
 				minHeight += st::msgPadding.bottom();
@@ -208,6 +212,9 @@ QSize Gif::countCurrentSize(int newWidth) {
 					+ _caption.maxWidth()
 					+ st::msgPadding.right()));
 			newWidth = qMin(qMax(newWidth, maxWithCaption), thumbMaxWidth);
+			newHeight = adjustHeightForLessCrop(
+				scaled,
+				{ newWidth, newHeight });
 			const auto captionw = newWidth
 				- st::msgPadding.left()
 				- st::msgPadding.right();
@@ -239,6 +246,19 @@ QSize Gif::countCurrentSize(int newWidth) {
 	}
 
 	return { newWidth, newHeight };
+}
+
+int Gif::adjustHeightForLessCrop(QSize dimensions, QSize current) const {
+	if (dimensions.isEmpty()) {
+		return current.height();
+	}
+	// Allow some more vertical space for less cropping,
+	// but not more than 1.33 * existing height.
+	return qMax(
+		current.height(),
+		qMin(
+			current.width() * dimensions.height() / dimensions.width(),
+			current.height() * 4 / 3));
 }
 
 QSize Gif::videoSize() const {
@@ -604,7 +624,17 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	if (!unwrapped && !_caption.isEmpty()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, _caption);
-		_caption.draw(p, st::msgPadding.left(), painty + painth + st::mediaCaptionSkip, captionw, style::al_left, 0, -1, context.selection);
+		_caption.draw(p, {
+			.position = QPoint(
+				st::msgPadding.left(),
+				painty + painth + st::mediaCaptionSkip),
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = context.selection,
+		});
 	} else if (!inWebPage && !skipDrawingSurrounding) {
 		auto fullRight = paintx + usex + usew;
 		auto fullBottom = painty + painth;
@@ -1446,7 +1476,7 @@ void Gif::unloadHeavyPart() {
 	_dataMedia = nullptr;
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
-	_caption.unloadCustomEmoji();
+	_caption.unloadPersistentAnimation();
 }
 
 void Gif::refreshParentId(not_null<HistoryItem*> realParent) {

@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/toast/toast.h"
 #include "ui/controls/emoji_button.h"
+#include "ui/painter.h"
 #include "lottie/lottie_single_player.h"
 #include "data/data_document.h"
 #include "data/data_user.h"
@@ -805,13 +806,13 @@ void SendFilesBox::captionResized() {
 }
 
 bool SendFilesBox::canAddFiles(not_null<const QMimeData*> data) const {
-	return (data->hasUrls() && CanAddUrls(base::GetMimeUrls(data))) || data->hasImage();
+	return CanAddUrls(base::GetMimeUrls(data)) || data->hasImage();
 }
 
 bool SendFilesBox::addFiles(not_null<const QMimeData*> data) {
 	const auto premium = _controller->session().premium();
 	auto list = [&] {
-		const auto urls = data->hasUrls() ? base::GetMimeUrls(data) : QList<QUrl>();
+		const auto urls = base::GetMimeUrls(data);
 		auto result = CanAddUrls(urls)
 			? Storage::PrepareMediaList(
 				urls,

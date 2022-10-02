@@ -49,7 +49,7 @@ bool Dropdown::overlaps(const QRect &globalRect) {
 }
 
 void Dropdown::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 
 	if (!_cache.isNull()) {
 		bool animating = _a_appearance.animating();

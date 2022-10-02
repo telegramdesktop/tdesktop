@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/cached_round_corners.h"
+#include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
@@ -580,7 +581,7 @@ void Document::draw(
 			? &stm->historyFileCancel
 			: nullptr;
 
-		const auto paintContent = [&](Painter &q) {
+		const auto paintContent = [&](QPainter &q) {
 			if (previous && radialOpacity > 0. && radialOpacity < 1.) {
 				PaintInterpolatedIcon(q, icon, *previous, radialOpacity, inner);
 			} else {
@@ -695,7 +696,15 @@ void Document::draw(
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(stm->historyTextFg);
 		_parent->prepareCustomEmojiPaint(p, context, captioned->_caption);
-		captioned->_caption.draw(p, st::msgPadding.left(), captiontop, captionw, style::al_left, 0, -1, selection);
+		captioned->_caption.draw(p, {
+			.position = { st::msgPadding.left(), captiontop },
+			.availableWidth = captionw,
+			.palette = &stm->textPalette,
+			.spoiler = Ui::Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.selection = selection,
+		});
 	}
 }
 
@@ -706,7 +715,7 @@ bool Document::hasHeavyPart() const {
 void Document::unloadHeavyPart() {
 	_dataMedia = nullptr;
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		captioned->_caption.unloadCustomEmoji();
+		captioned->_caption.unloadPersistentAnimation();
 	}
 }
 
@@ -762,7 +771,7 @@ void Document::drawCornerDownload(
 	const auto &icon = _data->loading()
 		? stm->historyAudioCancel
 		: stm->historyAudioDownload;
-	const auto paintContent = [&](Painter &q) {
+	const auto paintContent = [&](QPainter &q) {
 		if (bubblePattern) {
 			auto hq = PainterHighQualityEnabler(q);
 			auto pen = stm->msgBg->p;

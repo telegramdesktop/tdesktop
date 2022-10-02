@@ -82,7 +82,7 @@ Fn<TimeId()> TimePickerBox(
 	}();
 	const auto itemHeight = st::historyMessagesTTLPickerItemHeight;
 	auto paintCallback = [=](
-			Painter &p,
+			QPainter &p,
 			int index,
 			float64 y,
 			float64 distanceFromCenter,
@@ -118,7 +118,7 @@ Fn<TimeId()> TimePickerBox(
 
 	content->paintRequest(
 	) | rpl::start_with_next([=](const QRect &r) {
-		Painter p(content);
+		auto p = QPainter(content);
 
 		p.fillRect(r, Qt::transparent);
 

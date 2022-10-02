@@ -74,7 +74,7 @@ bool SingleMediaPreview::drawBackground() const {
 	return !_sticker;
 }
 
-bool SingleMediaPreview::tryPaintAnimation(Painter &p) {
+bool SingleMediaPreview::tryPaintAnimation(QPainter &p) {
 	if (_gifPreview && _gifPreview->started()) {
 		const auto paused = _gifPaused();
 		const auto frame = _gifPreview->current({

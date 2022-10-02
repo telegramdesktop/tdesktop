@@ -26,7 +26,7 @@ public:
 
 protected:
 	virtual bool drawBackground() const = 0;
-	virtual bool tryPaintAnimation(Painter &p) = 0;
+	virtual bool tryPaintAnimation(QPainter &p) = 0;
 	virtual bool isAnimatedPreviewReady() const = 0;
 
 	void updatePhotoEditorButton();

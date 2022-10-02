@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/view/history_view_service_message.h"
 #include "history/view/history_view_item_preview.h"
-#include "history/view/history_view_spoiler_click_handler.h"
 #include "data/data_folder.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
@@ -32,7 +31,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h" // Data::GroupCall::id().
 #include "core/application.h"
 #include "core/click_handler_types.h"
-#include "core/ui_integration.h"
 #include "base/unixtime.h"
 #include "base/timer_rpl.h"
 #include "calls/calls_instance.h" // Core::App().calls().joinGroupCall.
@@ -42,7 +40,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "payments/payments_checkout_process.h" // CheckoutProcess::Start.
 #include "ui/text/format_values.h"
-#include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 
 namespace {
@@ -636,8 +633,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	const auto messageText = action.match([&](
-		const MTPDmessageActionChatAddUser &data) {
+	setServiceText(action.match([&](
+			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
 	}, [&](const MTPDmessageActionChatJoinedByLink &data) {
 		return prepareChatJoinedByLink(data);
@@ -714,9 +711,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return PreparedText{
 			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
 		};
-	});
-
-	setServiceText(messageText);
+	}));
 
 	// Additional information.
 	applyAction(action);
@@ -1219,11 +1214,11 @@ HistoryService::HistoryService(
 	MsgId id,
 	MessageFlags flags,
 	TimeId date,
-	const PreparedText &message,
+	PreparedText &&message,
 	PeerId from,
 	PhotoData *photo)
 : HistoryItem(history, id, flags, date, from) {
-	setServiceText(message);
+	setServiceText(std::move(message));
 	if (photo) {
 		_media = std::make_unique<Data::MediaPhoto>(
 			this,
@@ -1279,28 +1274,13 @@ ClickHandlerPtr HistoryService::fromLink() const {
 	return _from->createOpenLink();
 }
 
-void HistoryService::setServiceText(const PreparedText &prepared) {
-	const auto context = Core::MarkedTextContext{
-		.session = &history()->session(),
-		.customEmojiRepaint = [=] { customEmojiRepaint(); },
-	};
-	_text.setMarkedText(
-		st::serviceTextStyle,
-		prepared.text,
-		Ui::ItemTextServiceOptions(),
-		context);
-	HistoryView::FillTextWithAnimatedSpoilers(_text);
-	auto linkIndex = 0;
-	for (const auto &link : prepared.links) {
-		// Link indices start with 1.
-		_text.setLink(++linkIndex, link);
+void HistoryService::setServiceText(PreparedText &&prepared) {
+	const auto had = !_text.empty();
+	_text = std::move(prepared.text);
+	_textLinks = std::move(prepared.links);
+	if (had) {
+		history()->owner().requestItemTextRefresh(this);
 	}
-	_textWidth = -1;
-	_textHeight = 0;
-}
-
-void HistoryService::hideSpoilers() {
-	HistoryView::HideSpoilers(_text);
 }
 
 void HistoryService::markMediaAsReadHook() {
@@ -1506,6 +1486,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	setMessageByAction(message.vaction());
 }
 
+const std::vector<ClickHandlerPtr> &HistoryService::customTextLinks() const {
+	return _textLinks;
+}
+
 void HistoryService::applyEdition(const MTPDmessageService &message) {
 	clearDependency();
 	UpdateComponents(0);
@@ -1525,8 +1509,6 @@ void HistoryService::removeMedia() {
 	if (!_media) return;
 
 	_media.reset();
-	_textWidth = -1;
-	_textHeight = 0;
 	history()->owner().requestItemResize(this);
 }
 
@@ -1552,7 +1534,7 @@ void HistoryService::updateDependentText() {
 }
 
 void HistoryService::updateText(PreparedText &&text) {
-	setServiceText(text);
+	setServiceText(std::move(text));
 	history()->owner().requestItemResize(this);
 	invalidateChatListEntry();
 	history()->owner().updateDependentMessages(this);

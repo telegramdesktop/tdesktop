@@ -70,7 +70,7 @@ auto SearchFieldController::createRowView(
 	}, wrap->lifetime());
 	wrap->paintRequest(
 	) | rpl::start_with_next([=, &st] {
-		Painter p(wrap);
+		auto p = QPainter(wrap);
 		st.fieldIcon.paint(
 			p,
 			st.padding.left(),

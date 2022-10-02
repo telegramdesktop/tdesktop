@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 
+#include <ksandbox.h>
+
 extern "C" {
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
@@ -1634,16 +1636,14 @@ void UpdateApplication() {
 			return "https://www.microsoft.com/en-us/store/p/telegram-desktop/9nztwsqntd0s";
 #elif defined OS_MAC_STORE // OS_WIN_STORE
 			return "https://itunes.apple.com/ae/app/telegram-desktop/id946399090";
-#elif defined Q_OS_UNIX && !defined Q_OS_MAC // OS_WIN_STORE || OS_MAC_STORE
-			if (Platform::InFlatpak()) {
+#else // OS_WIN_STORE || OS_MAC_STORE
+			if (KSandbox::isFlatpak()) {
 				return "https://flathub.org/apps/details/org.telegram.desktop";
-			} else if (Platform::InSnap()) {
+			} else if (KSandbox::isSnap()) {
 				return "https://snapcraft.io/telegram-desktop";
 			}
 			return "https://desktop.telegram.org";
-#else // OS_WIN_STORE || OS_MAC_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
-			return "https://desktop.telegram.org";
-#endif // OS_WIN_STORE || OS_MAC_STORE || (defined Q_OS_UNIX && !defined Q_OS_MAC)
+#endif // OS_WIN_STORE || OS_MAC_STORE
 		}();
 		UrlClickHandler::Open(url);
 	} else {

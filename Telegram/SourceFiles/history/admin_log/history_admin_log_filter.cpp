@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/text/text_options.h"
+#include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "data/data_peer_values.h"
 #include "data/data_channel.h"

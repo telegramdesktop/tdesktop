@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/chat/chat_style.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/painter.h"
 #include "history/history.h"
 #include "history/history_message.h"
 #include "history/view/history_view_service_message.h"
@@ -457,11 +458,18 @@ void HistoryMessageReply::paint(
 				p.setPen(inBubble
 					? stm->historyTextFg
 					: st->msgImgReplyBarColor());
-				p.setTextPalette(inBubble
-					? stm->replyTextPalette
-					: st->imgReplyTextPalette());
 				holder->prepareCustomEmojiPaint(p, context, replyToText);
-				replyToText.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top() + st::msgServiceNameFont->height, w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
+				replyToText.draw(p, {
+					.position = QPoint(
+						x + st::msgReplyBarSkip + previewSkip,
+						y + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
+					.availableWidth = w - st::msgReplyBarSkip - previewSkip,
+					.palette = &(inBubble
+						? stm->replyTextPalette
+						: st->imgReplyTextPalette()),
+					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.elisionLines = 1,
+				});
 				p.setTextPalette(stm->textPalette);
 			}
 		} else {

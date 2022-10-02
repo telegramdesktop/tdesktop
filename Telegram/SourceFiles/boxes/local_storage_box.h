@@ -45,8 +45,6 @@ public:
 protected:
 	void prepare() override;
 
-	void paintEvent(QPaintEvent *e) override;
-
 private:
 	class Row;
 

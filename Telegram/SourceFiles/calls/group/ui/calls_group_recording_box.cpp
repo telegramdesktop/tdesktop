@@ -107,7 +107,7 @@ void GraphicButton::setToggled(bool value) {
 }
 
 void GraphicButton::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = QPainter(this);
 	const auto progress = _animation.value(_toggled ? 1. : 0.);
 	p.setOpacity(progress);
 	_roundRectSelect.paint(p, rect());

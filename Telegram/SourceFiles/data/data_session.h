@@ -296,8 +296,7 @@ public:
 		int from,
 		int till);
 
-	void registerShownSpoiler(FullMsgId id);
-	void unregisterShownSpoiler(FullMsgId id);
+	void registerShownSpoiler(not_null<ViewElement*> view);
 	void hideShownSpoilers();
 
 	using MegagroupParticipant = std::tuple<
@@ -960,7 +959,7 @@ private:
 	rpl::event_stream<InviteToCall> _invitesToCalls;
 	base::flat_map<uint64, base::flat_set<not_null<UserData*>>> _invitedToCallUsers;
 
-	base::flat_set<not_null<HistoryItem*>> _shownSpoilers;
+	base::flat_set<not_null<ViewElement*>> _shownSpoilers;
 
 	History *_topPromoted = nullptr;
 

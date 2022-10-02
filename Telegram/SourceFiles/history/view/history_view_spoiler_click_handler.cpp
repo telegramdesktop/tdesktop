@@ -12,49 +12,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
-#include "ui/spoiler_click_handler.h"
+#include "base/weak_ptr.h"
 
 namespace HistoryView {
-namespace {
 
-class AnimatedSpoilerClickHandler final : public SpoilerClickHandler {
-public:
-	AnimatedSpoilerClickHandler() = default;
-
-	void onClick(ClickContext context) const override;
-
-};
-
-void AnimatedSpoilerClickHandler::onClick(ClickContext context) const {
-	const auto button = context.button;
-	if (button != Qt::LeftButton) {
-		return;
-	}
-	const auto my = context.other.value<ClickHandlerContext>();
-	if (const auto d = my.elementDelegate ? my.elementDelegate() : nullptr) {
-		d->elementShowSpoilerAnimation();
-		const auto nonconst = const_cast<AnimatedSpoilerClickHandler*>(this);
-		nonconst->setStartMs(crl::now());
-		SpoilerClickHandler::onClick({});
-
-		if (const auto controller = my.sessionWindow.get()) {
-			controller->session().data().registerShownSpoiler(my.itemId);
-		}
-	}
-}
-
-} // namespace
-
-void FillTextWithAnimatedSpoilers(Ui::Text::String &text) {
-	const auto link = std::make_shared<AnimatedSpoilerClickHandler>();
-	for (auto i = 0; i < text.spoilersCount(); i++) {
-		text.setSpoiler(i + 1, link);
-	}
-}
-
-void HideSpoilers(Ui::Text::String &text) {
-	for (auto i = 0; i < text.spoilersCount(); i++) {
-		text.setSpoilerShown(i + 1, false);
+void FillTextWithAnimatedSpoilers(
+		not_null<Element*> view,
+		Ui::Text::String &text) {
+	if (text.hasSpoilers()) {
+		text.setSpoilerLinkFilter([weak = base::make_weak(view.get())](
+				const ClickContext &context) {
+			const auto my = context.other.value<ClickHandlerContext>();
+			const auto button = context.button;
+			const auto view = weak.get();
+			if (button != Qt::LeftButton || !view || !my.elementDelegate) {
+				return false;
+			} else if (const auto d = my.elementDelegate()) {
+				if (const auto controller = my.sessionWindow.get()) {
+					controller->session().data().registerShownSpoiler(view);
+				}
+				return true;
+			}
+			return false;
+		});
 	}
 }
 
