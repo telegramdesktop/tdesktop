@@ -168,6 +168,7 @@ private:
 		TextSelection selection) const;
 
 	void toggleCommentsButtonRipple(bool pressed);
+	void createCommentsRipple();
 
 	void paintCommentsButton(
 		Painter &p,

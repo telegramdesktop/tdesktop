@@ -259,6 +259,7 @@ style::color FromNameFg(
 
 struct Message::CommentsButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
+	int rippleShift = 0;
 	std::vector<UserpicInRow> userpics;
 	QImage cachedUserpics;
 	ClickHandlerPtr link;
@@ -1004,7 +1005,12 @@ void Message::paintCommentsButton(
 	if (_comments->ripple) {
 		p.setOpacity(st::historyPollRippleOpacity);
 		const auto colorOverride = &stm->msgWaveformInactive->c;
-		_comments->ripple->paint(p, left, top, width, colorOverride);
+		_comments->ripple->paint(
+			p,
+			left - _comments->rippleShift,
+			top,
+			width,
+			colorOverride);
 		if (_comments->ripple->empty()) {
 			_comments->ripple.reset();
 		}
@@ -1439,35 +1445,84 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 	if (!drawBubble()) {
 		return;
 	} else if (pressed) {
-		const auto g = countGeometry();
-		const auto linkWidth = g.width();
-		const auto linkHeight = st::historyCommentsButtonHeight;
 		if (!_comments->ripple) {
-			const auto drawMask = [&](QPainter &p) {
-				// #TODO rounding
-				const auto radius = st::bubbleRadiusSmall;
-				p.drawRoundedRect(
-					0,
-					0,
-					linkWidth,
-					linkHeight,
-					radius,
-					radius);
-				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
-			};
-			auto mask = Ui::RippleAnimation::MaskByDrawer(
-				QSize(linkWidth, linkHeight),
-				false,
-				drawMask);
-			_comments->ripple = std::make_unique<Ui::RippleAnimation>(
-				st::defaultRippleAnimation,
-				std::move(mask),
-				[=] { repaint(); });
+			createCommentsRipple();
 		}
 		_comments->ripple->add(_comments->lastPoint);
 	} else if (_comments->ripple) {
 		_comments->ripple->lastStop();
 	}
+}
+
+void Message::createCommentsRipple() {
+	using namespace Ui;
+	using namespace Images;
+	using Radius = CachedCornerRadius;
+	using Corner = BubbleCornerRounding;
+	const auto g = countGeometry();
+	const auto linkWidth = g.width();
+	const auto linkHeight = st::historyCommentsButtonHeight;
+	const auto &large = CachedCornersMasks(Radius::BubbleLarge);
+	const auto &small = CachedCornersMasks(Radius::BubbleSmall);
+	const auto rounding = countBubbleRounding();
+	const auto icon = (rounding.bottomLeft == Corner::Tail)
+		? &st::historyBubbleTailInLeft
+		: (rounding.bottomRight == Corner::Tail)
+		? &st::historyBubbleTailInRight
+		: nullptr;
+	const auto shift = (rounding.bottomLeft == Corner::Tail)
+		? icon->width()
+		: 0;
+	const auto added = shift ? shift : icon ? icon->width() : 0;
+	auto corners = CornersMaskRef();
+	const auto set = [&](int index) {
+		corners.p[index] = (rounding[index] == Corner::Large)
+			? &large[index]
+			: (rounding[index] == Corner::Small)
+			? &small[index]
+			: nullptr;
+	};
+	set(kBottomLeft);
+	set(kBottomRight);
+	const auto drawer = [&](QPainter &p) {
+		p.setCompositionMode(QPainter::CompositionMode_Source);
+		const auto ratio = style::DevicePixelRatio();
+		const auto corner = [&](int index, bool right) {
+			if (const auto image = corners.p[index]) {
+				const auto width = image->width() / ratio;
+				const auto height = image->height() / ratio;
+				p.drawImage(
+					QRect(
+						shift + (right ? (linkWidth - width) : 0),
+						linkHeight - height,
+						width,
+						height),
+					*image);
+			}
+		};
+		corner(kBottomLeft, false);
+		corner(kBottomRight, true);
+		if (icon) {
+			const auto left = shift ? 0 : linkWidth;
+			p.fillRect(
+				QRect{ left, 0, added, linkHeight },
+				Qt::transparent);
+			icon->paint(
+				p,
+				left,
+				linkHeight - icon->height(),
+				linkWidth + shift,
+				Qt::white);
+		}
+	};
+	_comments->ripple = std::make_unique<RippleAnimation>(
+		st::defaultRippleAnimation,
+		RippleAnimation::MaskByDrawer(
+			QSize(linkWidth + added, linkHeight),
+			true,
+			drawer),
+		[=] { repaint(); });
+	_comments->rippleShift = shift;
 }
 
 bool Message::hasHeavyPart() const {
