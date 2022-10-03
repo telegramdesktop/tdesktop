@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_chat.h"
 #include "settings/settings_main.h"
 #include "settings/settings_premium.h"
-#include "ui/effects/ripple_animation.h" // maskByDrawer.
+#include "ui/effects/ripple_animation.h" // MaskByDrawer.
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/shadow.h"
@@ -986,7 +986,7 @@ void WrapWidget::showNewContent(
 			const auto s = QSize(
 				newContent->width(),
 				animationParams.topSkip);
-			auto image = Ui::RippleAnimation::maskByDrawer(s, false, [&](
+			auto image = Ui::RippleAnimation::MaskByDrawer(s, false, [&](
 					QPainter &p) {
 				const auto r = QRect(0, 0, s.width(), s.height() * 2);
 				p.drawRoundedRect(r, st::boxRadius, st::boxRadius);

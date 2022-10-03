@@ -1966,7 +1966,7 @@ std::unique_ptr<Ui::RippleAnimation> EmojiListWidget::createButtonRipple(
 		? st::stickerPanRemoveSet.ripple
 		: st::emojiPanButton.ripple;
 	auto mask = remove
-		? Ui::RippleAnimation::ellipseMask(QSize(
+		? Ui::RippleAnimation::EllipseMask(QSize(
 			st::stickerPanRemoveSet.rippleAreaSize,
 			st::stickerPanRemoveSet.rippleAreaSize))
 		: rightButton(section).rippleMask;

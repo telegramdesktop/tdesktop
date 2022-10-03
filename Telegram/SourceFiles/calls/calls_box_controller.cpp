@@ -258,7 +258,7 @@ BoxController::Row::CallType BoxController::Row::ComputeCallType(
 
 void BoxController::Row::rightActionAddRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
-		auto mask = Ui::RippleAnimation::ellipseMask(
+		auto mask = Ui::RippleAnimation::EllipseMask(
 			QSize(_st->rippleAreaSize, _st->rippleAreaSize));
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(
 			_st->ripple,

@@ -265,19 +265,32 @@ void SettingsSlider::startRipple(int sectionIndex) {
 	});
 }
 
-QImage SettingsSlider::prepareRippleMask(int sectionIndex, const Section &section) {
+QImage SettingsSlider::prepareRippleMask(
+		int sectionIndex,
+		const Section &section) {
 	auto size = QSize(section.width, height() - _st.rippleBottomSkip);
-	if (!_rippleTopRoundRadius || (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
-		return RippleAnimation::rectMask(size);
+	if (!_rippleTopRoundRadius
+		|| (sectionIndex > 0 && sectionIndex + 1 < getSectionsCount())) {
+		return RippleAnimation::RectMask(size);
 	}
-	return RippleAnimation::maskByDrawer(size, false, [this, sectionIndex, width = section.width](QPainter &p) {
+	return RippleAnimation::MaskByDrawer(size, false, [&](QPainter &p) {
 		auto plusRadius = _rippleTopRoundRadius + 1;
-		p.drawRoundedRect(0, 0, width, height() + plusRadius, _rippleTopRoundRadius, _rippleTopRoundRadius);
+		p.drawRoundedRect(
+			0,
+			0,
+			section.width,
+			height() + plusRadius,
+			_rippleTopRoundRadius,
+			_rippleTopRoundRadius);
 		if (sectionIndex > 0) {
 			p.fillRect(0, 0, plusRadius, plusRadius, p.brush());
 		}
 		if (sectionIndex + 1 < getSectionsCount()) {
-			p.fillRect(width - plusRadius, 0, plusRadius, plusRadius, p.brush());
+			p.fillRect(
+				section.width - plusRadius,
+				0,
+				plusRadius,
+				plusRadius, p.brush());
 		}
 	});
 }

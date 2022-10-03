@@ -217,7 +217,7 @@ QPoint JoinAsAction::prepareRippleStartPosition() const {
 }
 
 QImage JoinAsAction::prepareRippleMask() const {
-	return Ui::RippleAnimation::rectMask(size());
+	return Ui::RippleAnimation::RectMask(size());
 }
 
 int JoinAsAction::contentHeight() const {
@@ -365,7 +365,7 @@ QPoint RecordingAction::prepareRippleStartPosition() const {
 }
 
 QImage RecordingAction::prepareRippleMask() const {
-	return Ui::RippleAnimation::rectMask(size());
+	return Ui::RippleAnimation::RectMask(size());
 }
 
 int RecordingAction::contentHeight() const {

@@ -60,7 +60,7 @@ constexpr auto kSortByOnlineThrottle = 3 * crl::time(1000);
 //}
 //
 //QImage MembersAddButton::prepareRippleMask() const {
-//	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+//	return Ui::RippleAnimation::EllipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 //}
 //
 //QPoint MembersAddButton::prepareRippleStartPosition() const {

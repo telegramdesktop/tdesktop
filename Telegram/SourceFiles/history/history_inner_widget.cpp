@@ -922,7 +922,23 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		const auto stm = &st->messageStyle(false, false);
 		if (clip.y() < _botAbout->rect.y() + _botAbout->rect.height() && clip.y() + clip.height() > _botAbout->rect.y()) {
 			p.setTextPalette(stm->textPalette);
-			Ui::FillRoundRect(p, _botAbout->rect, stm->msgBg, stm->msgBgCornersLarge, &stm->msgShadow);
+			using Corner = Ui::BubbleCornerRounding;
+			const auto rounding = Ui::BubbleRounding{
+				Corner::Large,
+				Corner::Large,
+				Corner::Large,
+				Corner::Large,
+			};
+			Ui::PaintBubble(p, Ui::SimpleBubble{
+				.st = st,
+				.geometry = _botAbout->rect,
+				.pattern = context.bubblesPattern,
+				.patternViewport = context.viewport,
+				.outerWidth = width(),
+				.selected = false,
+				.outbg = false,
+				.rounding = rounding,
+			});
 
 			auto top = _botAbout->rect.top() + st::msgPadding.top();
 			if (!_history->peer->isRepliesChat()) {

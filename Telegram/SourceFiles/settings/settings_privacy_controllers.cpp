@@ -277,14 +277,13 @@ struct ForwardedTooltip {
 		{ line, line, line, line + arrowSize });
 	const auto origin = full.topLeft();
 
+	const auto rounded = std::make_shared<Ui::RoundRect>(
+		ImageRoundRadius::Large,
+		st::toastBg);
 	const auto paint = [=](QPainter &p) {
 		p.translate(-origin);
 
-		Ui::FillRoundRect(
-			p,
-			geometry,
-			st::toastBg,
-			ImageRoundRadius::Large);
+		rounded->paint(p, geometry);
 
 		p.setFont(font);
 		p.setPen(st::toastFg);

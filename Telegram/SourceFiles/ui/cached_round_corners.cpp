@@ -22,7 +22,6 @@ namespace {
 constexpr auto kCachedCornerRadiusCount = int(CachedCornerRadius::kCount);
 
 std::vector<CornersPixmaps> Corners;
-base::flat_map<uint32, CornersPixmaps> CornersMap;
 QImage CornersMaskLarge[4], CornersMaskSmall[4];
 rpl::lifetime PaletteChangedLifetime;
 
@@ -109,56 +108,84 @@ void StartCachedCorners() {
 
 void FinishCachedCorners() {
 	Corners.clear();
-	CornersMap.clear();
 	PaletteChangedLifetime.destroy();
 }
 
-void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corner, const style::color *shadow, RectParts parts) {
-	auto cornerWidth = corner.p[0].width() / style::DevicePixelRatio();
-	auto cornerHeight = corner.p[0].height() / style::DevicePixelRatio();
-	if (w < 2 * cornerWidth || h < 2 * cornerHeight) return;
-	if (w > 2 * cornerWidth) {
-		if (parts & RectPart::Top) {
-			p.fillRect(x + cornerWidth, y, w - 2 * cornerWidth, cornerHeight, bg);
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, const CornersPixmaps &corners) {
+	using namespace Images;
+
+	const auto fillBg = [&](QRect rect) {
+		p.fillRect(rect, bg);
+	};
+	const auto fillCorner = [&](int x, int y, int index) {
+		if (const auto &pix = corners.p[index]; !pix.isNull()) {
+			p.drawPixmap(x, y, pix);
 		}
-		if (parts & RectPart::Bottom) {
-			p.fillRect(x + cornerWidth, y + h - cornerHeight, w - 2 * cornerWidth, cornerHeight, bg);
-			if (shadow) {
-				p.fillRect(x + cornerWidth, y + h, w - 2 * cornerWidth, st::msgShadow, *shadow);
+	};
+
+	if (corners.p[kTopLeft].isNull()
+		&& corners.p[kTopRight].isNull()
+		&& corners.p[kBottomLeft].isNull()
+		&& corners.p[kBottomRight].isNull()) {
+		p.fillRect(x, y, w, h, bg);
+		return;
+	}
+	const auto ratio = style::DevicePixelRatio();
+	const auto cornerSize = [&](int index) {
+		return corners.p[index].isNull()
+			? 0
+			: (corners.p[index].width() / ratio);
+	};
+	const auto verticalSkip = [&](int left, int right) {
+		return std::max(cornerSize(left), cornerSize(right));
+	};
+	const auto top = verticalSkip(kTopLeft, kTopRight);
+	const auto bottom = verticalSkip(kBottomLeft, kBottomRight);
+	if (top) {
+		const auto left = cornerSize(kTopLeft);
+		const auto right = cornerSize(kTopRight);
+		if (left) {
+			fillCorner(x, y, kTopLeft);
+			if (const auto add = top - left) {
+				fillBg({ x, y + left, left, add });
+			}
+		}
+		if (const auto fill = w - left - right; fill > 0) {
+			fillBg({ x + left, y, fill, top });
+		}
+		if (right) {
+			fillCorner(x + w - right, y, kTopRight);
+			if (const auto add = top - right) {
+				fillBg({ x + w - right, y + right, right, add });
 			}
 		}
 	}
-	if (h > 2 * cornerHeight) {
-		if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom) {
-			p.fillRect(x, y + cornerHeight, w, h - 2 * cornerHeight, bg);
-		} else {
-			if (parts & RectPart::Left) {
-				p.fillRect(x, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
-			}
-			if ((parts & RectPart::Center) && w > 2 * cornerWidth) {
-				p.fillRect(x + cornerWidth, y + cornerHeight, w - 2 * cornerWidth, h - 2 * cornerHeight, bg);
-			}
-			if (parts & RectPart::Right) {
-				p.fillRect(x + w - cornerWidth, y + cornerHeight, cornerWidth, h - 2 * cornerHeight, bg);
+	if (const auto fill = h - top - bottom; fill > 0) {
+		fillBg({ x, y + top, w, fill });
+	}
+	if (bottom) {
+		const auto left = cornerSize(kBottomLeft);
+		const auto right = cornerSize(kBottomRight);
+		if (left) {
+			fillCorner(x, y + h - left, kBottomLeft);
+			if (const auto add = bottom - left) {
+				fillBg({ x, y + h - bottom, left, add });
 			}
 		}
-	}
-	if (parts & RectPart::TopLeft) {
-		p.drawPixmap(x, y, corner.p[0]);
-	}
-	if (parts & RectPart::TopRight) {
-		p.drawPixmap(x + w - cornerWidth, y, corner.p[1]);
-	}
-	if (parts & RectPart::BottomLeft) {
-		p.drawPixmap(x, y + h - cornerHeight, corner.p[2]);
-	}
-	if (parts & RectPart::BottomRight) {
-		p.drawPixmap(x + w - cornerWidth, y + h - cornerHeight, corner.p[3]);
+		if (const auto fill = w - left - right; fill > 0) {
+			fillBg({ x + left, y + h - bottom, fill, bottom });
+		}
+		if (right) {
+			fillCorner(x + w - right, y + h - right, kBottomRight);
+			if (const auto add = bottom - right) {
+				fillBg({ x + w - right, y + h - bottom, right, add });
+			}
+		}
 	}
 }
 
-void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index, const style::color *shadow, RectParts parts) {
-	FillRoundRect(p, x, y, w, h, bg, Corners[index], shadow, parts);
+void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, CachedRoundCorners index) {
+	FillRoundRect(p, x, y, w, h, bg, CachedCornerPixmaps(index));
 }
 
 void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corners) {
@@ -188,6 +215,12 @@ void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::col
 	fillCorner(x + w - right, y + h + st::msgShadow, kRight);
 }
 
+const CornersPixmaps &CachedCornerPixmaps(CachedRoundCorners index) {
+	Expects(index >= 0 && index < RoundCornersCount);
+
+	return Corners[index];
+}
+
 CornersPixmaps PrepareCornerPixmaps(int32 radius, style::color bg, const style::color *sh) {
 	auto images = PrepareCorners(radius, bg, sh);
 	auto result = CornersPixmaps();
@@ -206,24 +239,6 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 		return PrepareCornerPixmaps(st::roundRadiusLarge, bg, sh);
 	}
 	Unexpected("Image round radius in PrepareCornerPixmaps.");
-}
-
-void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts) {
-	if (radius == ImageRoundRadius::None) {
-		p.fillRect(x, y, w, h, bg);
-		return;
-	}
-	const auto colorKey = ((uint32(bg->c.alpha()) & 0xFF) << 24)
-		| ((uint32(bg->c.red()) & 0xFF) << 16)
-		| ((uint32(bg->c.green()) & 0xFF) << 8)
-		| ((uint32(bg->c.blue()) & 0xFF));
-	auto i = CornersMap.find(colorKey);
-	if (i == end(CornersMap)) {
-		i = CornersMap.emplace(
-			colorKey,
-			PrepareCornerPixmaps(radius, bg, nullptr)).first;
-	}
-	FillRoundRect(p, x, y, w, h, bg, i->second, nullptr, parts);
 }
 
 [[nodiscard]] int CachedCornerRadiusValue(CachedCornerRadius tag) {

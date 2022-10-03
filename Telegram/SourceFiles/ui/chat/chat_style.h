@@ -80,7 +80,8 @@ struct MessageStyle {
 
 struct MessageImageStyle {
 	CornersPixmaps msgDateImgBgCorners;
-	CornersPixmaps msgServiceBgCorners;
+	CornersPixmaps msgServiceBgCornersSmall;
+	CornersPixmaps msgServiceBgCornersLarge;
 	CornersPixmaps msgShadowCornersSmall;
 	CornersPixmaps msgShadowCornersLarge;
 	style::color msgServiceBg;
@@ -191,7 +192,8 @@ public:
 		bool selected) const;
 	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
 
-	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCorners() const;
+	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersSmall() const;
+	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersLarge() const;
 	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCorners(
 		CachedCornerRadius radius) const;
 
@@ -318,7 +320,8 @@ private:
 	mutable std::array<MessageStyle, 4> _messageStyles;
 	mutable std::array<MessageImageStyle, 2> _imageStyles;
 
-	mutable CornersPixmaps _msgBotKbOverBgAddCorners;
+	mutable CornersPixmaps _msgBotKbOverBgAddCornersSmall;
+	mutable CornersPixmaps _msgBotKbOverBgAddCornersLarge;
 	mutable CornersPixmaps _msgSelectOverlayCorners[
 		int(CachedCornerRadius::kCount)];
 

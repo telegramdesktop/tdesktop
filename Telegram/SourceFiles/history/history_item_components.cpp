@@ -724,14 +724,16 @@ int ReplyKeyboard::naturalHeight() const {
 void ReplyKeyboard::paint(
 		Painter &p,
 		const Ui::ChatStyle *st,
+		Ui::BubbleRounding rounding,
 		int outerWidth,
 		const QRect &clip) const {
 	Assert(_st != nullptr);
 	Assert(_width > 0);
 
 	_st->startPaint(p, st);
-	for (const auto &row : _rows) {
-		for (const auto &button : row) {
+	for (auto y = 0, rowsCount = int(_rows.size()); y != rowsCount; ++y) {
+		for (auto x = 0, count = int(_rows[y].size()); x != count; ++x) {
+			const auto &button = _rows[y][x];
 			const auto rect = button.rect;
 			if (rect.y() >= clip.y() + clip.height()) return;
 			if (rect.y() + rect.height() < clip.y()) continue;
@@ -739,7 +741,20 @@ void ReplyKeyboard::paint(
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, st, outerWidth, button);
+			auto buttonRounding = Ui::BubbleRounding();
+			using Corner = Ui::BubbleCornerRounding;
+			buttonRounding.topLeft = buttonRounding.topRight = Corner::Small;
+			buttonRounding.bottomLeft = ((y + 1 == rowsCount)
+				&& !x
+				&& (rounding.bottomLeft == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			buttonRounding.bottomRight = ((y + 1 == rowsCount)
+				&& (x + 1 == count)
+				&& (rounding.bottomRight == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			_st->paintButton(p, st, outerWidth, button, buttonRounding);
 		}
 	}
 }
@@ -787,7 +802,8 @@ ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const 
 
 void ReplyKeyboard::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
-		bool pressed) {
+		bool pressed,
+		Ui::BubbleRounding rounding) {
 	if (!handler) return;
 
 	_savedPressed = pressed ? handler : ClickHandlerPtr();
@@ -796,13 +812,22 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 		auto &button = _rows[coords.i][coords.j];
 		if (pressed) {
 			if (!button.ripple) {
-				auto mask = Ui::RippleAnimation::roundRectMask(
+				const auto sides = RectPart()
+					| (!coords.i ? RectPart::Top : RectPart())
+					| (!coords.j ? RectPart::Left : RectPart())
+					| ((coords.i + 1 == _rows.size())
+						? RectPart::Bottom
+						: RectPart())
+					| ((coords.j + 1 == _rows[coords.i].size())
+						? RectPart::Right
+						: RectPart());
+				auto mask = Ui::RippleAnimation::RoundRectMask(
 					button.rect.size(),
-					_st->buttonRadius());
+					_st->buttonRounding(rounding, sides));
 				button.ripple = std::make_unique<Ui::RippleAnimation>(
 					_st->_st->ripple,
 					std::move(mask),
-					[this] { _st->repaint(_item); });
+					[=] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {
@@ -877,9 +902,10 @@ void ReplyKeyboard::Style::paintButton(
 		Painter &p,
 		const Ui::ChatStyle *st,
 		int outerWidth,
-		const ReplyKeyboard::Button &button) const {
+		const ReplyKeyboard::Button &button,
+		Ui::BubbleRounding rounding) const {
 	const QRect &rect = button.rect;
-	paintButtonBg(p, st, rect, button.howMuchOver);
+	paintButtonBg(p, st, rect, rounding, button.howMuchOver);
 	if (button.ripple) {
 		const auto color = st ? &st->msgBotKbRippleBg()->c : nullptr;
 		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, color);

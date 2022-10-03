@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "chat_helpers/tabbed_selector.h"
 #include "data/stickers/data_stickers.h"
+#include "ui/round_rect.h"
 #include "base/variant.h"
 #include "base/timer.h"
 
@@ -364,6 +365,9 @@ private:
 	OverState _selected;
 	OverState _pressed;
 	QPoint _lastMousePosition;
+
+	Ui::RoundRect _trendingAddBgOver, _trendingAddBg;
+	Ui::RoundRect _groupCategoryAddBgOver, _groupCategoryAddBg;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 

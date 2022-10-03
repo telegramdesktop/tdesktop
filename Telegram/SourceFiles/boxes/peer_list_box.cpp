@@ -1410,7 +1410,7 @@ void PeerListContent::mousePressEvent(QMouseEvent *e) {
 				row->addRipple(_st.item, _controller->customRowRippleMaskGenerator(), point, std::move(updateCallback));
 			} else {
 				const auto maskGenerator = [&] {
-					return Ui::RippleAnimation::rectMask(
+					return Ui::RippleAnimation::RectMask(
 						QSize(width(), _rowHeight));
 				};
 				row->addRipple(_st.item, maskGenerator, point, std::move(updateCallback));

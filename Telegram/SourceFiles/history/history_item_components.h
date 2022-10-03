@@ -25,6 +25,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Images {
+struct CornersMaskRef;
+} // namespace Images
+
 namespace HistoryView {
 class Element;
 class Document;
@@ -323,7 +327,9 @@ public:
 		int buttonSkip() const;
 		int buttonPadding() const;
 		int buttonHeight() const;
-		virtual int buttonRadius() const = 0;
+		[[nodiscard]] virtual Images::CornersMaskRef buttonRounding(
+			Ui::BubbleRounding outer,
+			RectParts sides) const = 0;
 
 		virtual void repaint(not_null<const HistoryItem*> item) const = 0;
 		virtual ~Style() {
@@ -334,6 +340,7 @@ public:
 			QPainter &p,
 			const Ui::ChatStyle *st,
 			const QRect &rect,
+			Ui::BubbleRounding rounding,
 			float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(
 			QPainter &p,
@@ -355,7 +362,8 @@ public:
 			Painter &p,
 			const Ui::ChatStyle *st,
 			int outerWidth,
-			const ReplyKeyboard::Button &button) const;
+			const ReplyKeyboard::Button &button,
+			Ui::BubbleRounding rounding) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -377,12 +385,18 @@ public:
 	void paint(
 		Painter &p,
 		const Ui::ChatStyle *st,
+		Ui::BubbleRounding rounding,
 		int outerWidth,
 		const QRect &clip) const;
 	ClickHandlerPtr getLink(QPoint point) const;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active);
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed,
+		Ui::BubbleRounding rounding);
 
 	void clearSelection();
 	void updateMessageId();

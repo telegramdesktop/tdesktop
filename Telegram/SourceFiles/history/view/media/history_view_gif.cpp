@@ -564,7 +564,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			if (mediaUnread) {
 				statusW += st::mediaUnreadSkip + st::mediaUnreadSize;
 			}
-			Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgServiceBg, sti->msgServiceBgCorners);
+			Ui::FillRoundRect(p, style::rtlrect(statusX - st::msgDateImgPadding.x(), statusY - st::msgDateImgPadding.y(), statusW, statusH, width()), sti->msgServiceBg, sti->msgServiceBgCornersSmall);
 			p.setFont(st::normalFont);
 			p.setPen(st->msgServiceFg());
 			p.drawTextLeft(statusX, statusY, width(), _statusText, statusW - 2 * st::msgDateImgPadding.x());
@@ -596,7 +596,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			int recty = painty;
 			if (rtl()) rectx = width() - rectx - rectw;
 
-			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
+			Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCornersSmall);
 			p.setPen(st->msgServiceFg());
 			rectx += st::msgReplyPadding.left();
 			rectw = innerw;

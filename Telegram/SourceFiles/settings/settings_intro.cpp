@@ -515,20 +515,16 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 	auto clip = e->rect();
 	auto r = st::boxRadius;
 	auto parts = RectPart::None | 0;
+	const auto &pixmaps = Ui::CachedCornerPixmaps(Ui::BoxCorners);
 	if (!_tillTop && clip.intersects({ 0, 0, width(), r })) {
-		parts |= RectPart::FullTop;
+		Ui::FillRoundRect(p, 0, 0, width(), r, st::boxBg, {
+			.p = { pixmaps.p[0], pixmaps.p[1], QPixmap(), QPixmap() },
+		});
 	}
 	if (!_tillBottom && clip.intersects({ 0, height() - r, width(), r })) {
-		parts |= RectPart::FullBottom;
-	}
-	if (parts) {
-		Ui::FillRoundRect(
-			p,
-			rect(),
-			st::boxBg,
-			Ui::BoxCorners,
-			nullptr,
-			parts);
+		Ui::FillRoundRect(p, 0, height() - r, width(), r, st::boxBg, {
+			.p = { QPixmap(), QPixmap(), pixmaps.p[2], pixmaps.p[3] },
+		});
 	}
 	if (_tillTop) {
 		p.fillRect(0, 0, width(), r, st::boxBg);

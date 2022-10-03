@@ -307,13 +307,12 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 }
 
 QImage Panel::Button::prepareRippleMask() const {
-	const auto drawMask = [&](QPainter &p) {
+	return RippleAnimation::MaskByDrawer(size(), false, [&](QPainter &p) {
 		p.drawRoundedRect(
 			rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
 			st::callRadius,
 			st::callRadius);
-	};
-	return RippleAnimation::maskByDrawer(size(), false, drawMask);
+	});
 }
 
 QPoint Panel::Button::prepareRippleStartPosition() const {

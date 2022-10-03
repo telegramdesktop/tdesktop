@@ -777,8 +777,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			if (_dateBadge->corners.p[0].isNull()) {
 				_dateBadge->corners = Ui::PrepareCornerPixmaps(
 					Ui::HistoryServiceMsgRadius(),
-					st::roundedBg,
-					nullptr);
+					st::roundedBg);
 			}
 			HistoryView::ServiceMessagePainter::PaintDate(
 				p,

@@ -93,7 +93,7 @@ void BasicRow::addRipple(
 		QSize size,
 		Fn<void()> updateCallback) {
 	if (!_ripple) {
-		auto mask = Ui::RippleAnimation::rectMask(size);
+		auto mask = Ui::RippleAnimation::RectMask(size);
 		_ripple = std::make_unique<Ui::RippleAnimation>(
 			st::dialogsRipple,
 			std::move(mask),

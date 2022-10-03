@@ -122,7 +122,7 @@ QPoint EmojiButton::prepareRippleStartPosition() const {
 }
 
 QImage EmojiButton::prepareRippleMask() const {
-	return RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+	return RippleAnimation::EllipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 
 } // namespace Ui

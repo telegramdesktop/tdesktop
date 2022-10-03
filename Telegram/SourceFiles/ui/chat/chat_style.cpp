@@ -28,49 +28,6 @@ void EnsureCorners(
 	}
 }
 
-void RectWithCorners(
-		QPainter &p,
-		QRect rect,
-		const style::color &bg,
-		const CornersPixmaps &corners,
-		RectParts roundCorners) {
-	const auto parts = RectPart::Top
-		| RectPart::NoTopBottom
-		| RectPart::Bottom
-		| roundCorners;
-	FillRoundRect(p, rect, bg, corners, nullptr, parts);
-	if ((roundCorners & RectPart::AllCorners) != RectPart::AllCorners) {
-		const auto size = corners.p[0].width() / style::DevicePixelRatio();
-		if (!(roundCorners & RectPart::TopLeft)) {
-			p.fillRect(rect.x(), rect.y(), size, size, bg);
-		}
-		if (!(roundCorners & RectPart::TopRight)) {
-			p.fillRect(
-				rect.x() + rect.width() - size,
-				rect.y(),
-				size,
-				size,
-				bg);
-		}
-		if (!(roundCorners & RectPart::BottomLeft)) {
-			p.fillRect(
-				rect.x(),
-				rect.y() + rect.height() - size,
-				size,
-				size,
-				bg);
-		}
-		if (!(roundCorners & RectPart::BottomRight)) {
-			p.fillRect(
-				rect.x() + rect.width() - size,
-				rect.y() + rect.height() - size,
-				size,
-				size,
-				bg);
-		}
-	}
-}
-
 } // namespace
 
 not_null<const MessageStyle*> ChatPaintContext::messageStyle() const {
@@ -485,13 +442,15 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
-		style.msgServiceBgCorners = {};
+		style.msgServiceBgCornersSmall = {};
+		style.msgServiceBgCornersLarge = {};
 		style.msgShadowCornersSmall = {};
 		style.msgShadowCornersLarge = {};
 	}
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
-	_msgBotKbOverBgAddCorners = {};
+	_msgBotKbOverBgAddCornersSmall = {};
+	_msgBotKbOverBgAddCornersLarge = {};
 	for (auto &corners : _msgSelectOverlayCorners) {
 		corners = {};
 	}
@@ -555,8 +514,12 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 		(st::msgDateImgPadding.y() * 2 + st::normalFont->height) / 2,
 		result.msgDateImgBg);
 	EnsureCorners(
-		result.msgServiceBgCorners,
-		st::dateRadius,
+		result.msgServiceBgCornersSmall,
+		st::bubbleRadiusSmall,
+		result.msgServiceBg);
+	EnsureCorners(
+		result.msgServiceBgCornersLarge,
+		st::bubbleRadiusLarge,
 		result.msgServiceBg);
 	EnsureCorners(
 		result.msgShadowCornersSmall,
@@ -569,12 +532,20 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 	return result;
 }
 
-const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
+const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
 	EnsureCorners(
-		_msgBotKbOverBgAddCorners,
-		st::dateRadius,
+		_msgBotKbOverBgAddCornersSmall,
+		st::bubbleRadiusSmall,
 		msgBotKbOverBgAdd());
-	return _msgBotKbOverBgAddCorners;
+	return _msgBotKbOverBgAddCornersSmall;
+}
+
+const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersLarge() const {
+	EnsureCorners(
+		_msgBotKbOverBgAddCornersLarge,
+		st::bubbleRadiusLarge,
+		msgBotKbOverBgAdd());
+	return _msgBotKbOverBgAddCornersLarge;
 }
 
 const CornersPixmaps &ChatStyle::msgSelectOverlayCorners(

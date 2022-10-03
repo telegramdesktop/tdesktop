@@ -227,7 +227,7 @@ void UnwrappedMedia::drawSurrounding(
 		int recty = 0;
 		if (rtl()) rectx = width() - rectx - rectw;
 
-		Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCorners);
+		Ui::FillRoundRect(p, rectx, recty, rectw, recth, sti->msgServiceBg, sti->msgServiceBgCornersSmall);
 		p.setPen(st->msgServiceFg());
 		rectx += st::msgReplyPadding.left();
 		rectw -= st::msgReplyPadding.left() + st::msgReplyPadding.right();

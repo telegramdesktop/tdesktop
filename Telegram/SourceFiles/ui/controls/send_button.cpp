@@ -202,7 +202,7 @@ QImage SendButton::prepareRippleMask() const {
 	auto size = (_type == Type::Record)
 		? st::historyAttachEmoji.rippleAreaSize
 		: st::historyReplyCancel.rippleAreaSize;
-	return RippleAnimation::ellipseMask(QSize(size, size));
+	return RippleAnimation::EllipseMask(QSize(size, size));
 }
 
 QPoint SendButton::prepareRippleStartPosition() const {

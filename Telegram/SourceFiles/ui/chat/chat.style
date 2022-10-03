@@ -657,7 +657,7 @@ msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
 msgBotKbWebviewIcon: icon {{ "inline_button_web", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
-	margin: 5px;
+	margin: 2px;
 	padding: 10px;
 	height: 36px;
 	textTop: 8px;

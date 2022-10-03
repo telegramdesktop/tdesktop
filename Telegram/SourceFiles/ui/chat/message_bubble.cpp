@@ -28,6 +28,8 @@ void PaintBubbleGeneric(
 		FillSh &&fillSh,
 		FillCorner &&fillCorner,
 		PaintTail &&paintTail) {
+	using namespace Images;
+
 	const auto topLeft = args.rounding.topLeft;
 	const auto topRight = args.rounding.topRight;
 	const auto bottomWithTailLeft = args.rounding.bottomLeft;
@@ -64,7 +66,7 @@ void PaintBubbleGeneric(
 		const auto left = cornerSize(topLeft);
 		const auto right = cornerSize(topRight);
 		if (left) {
-			fillCorner(rect.left(), rect.top(), 0, topLeft);
+			fillCorner(rect.left(), rect.top(), kTopLeft, topLeft);
 			if (const auto add = top - left) {
 				fillBg({ rect.left(), rect.top() + left, left, add });
 			}
@@ -76,7 +78,7 @@ void PaintBubbleGeneric(
 			fillCorner(
 				rect.left() + rect.width() - right,
 				rect.top(),
-				1,
+				kTopRight,
 				topRight);
 			if (const auto add = top - right) {
 				fillBg({
@@ -88,8 +90,8 @@ void PaintBubbleGeneric(
 			}
 		}
 	}
-	if (const auto h = rect.height() - top - bottom; h > 0) {
-		fillBg({ rect.left(), rect.top() + top, rect.width(), h });
+	if (const auto fill = rect.height() - top - bottom; fill > 0) {
+		fillBg({ rect.left(), rect.top() + top, rect.width(), fill });
 	}
 	if (bottom) {
 		const auto left = cornerSize(bottomLeft);
@@ -98,7 +100,7 @@ void PaintBubbleGeneric(
 			fillCorner(
 				rect.left(),
 				rect.top() + rect.height() - left,
-				2,
+				kBottomLeft,
 				bottomLeft);
 			if (const auto add = bottom - left) {
 				fillBg({
@@ -121,7 +123,7 @@ void PaintBubbleGeneric(
 			fillCorner(
 				rect.left() + rect.width() - right,
 				rect.top() + rect.height() - right,
-				3,
+				kBottomRight,
 				bottomRight);
 			if (const auto add = bottom - right) {
 				fillBg({

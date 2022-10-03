@@ -169,7 +169,7 @@ ViewButton::Inner::Inner(
 void ViewButton::Inner::updateMask(int height) {
 	ripple = std::make_unique<Ui::RippleAnimation>(
 		st::defaultRippleAnimation,
-		Ui::RippleAnimation::roundRectMask(
+		Ui::RippleAnimation::RoundRectMask(
 			QSize(lastWidth, height - margins.top() - margins.bottom()),
 			st::roundRadiusLarge),
 		updateCallback);

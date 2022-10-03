@@ -127,7 +127,7 @@ HistoryDownButton::HistoryDownButton(QWidget *parent, const style::TwoIconButton
 }
 
 QImage HistoryDownButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
+	return Ui::RippleAnimation::EllipseMask(QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 
 QPoint HistoryDownButton::prepareRippleStartPosition() const {
@@ -502,7 +502,7 @@ QPoint UserpicButton::countPhotoPosition() const {
 }
 
 QImage UserpicButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(QSize(
+	return Ui::RippleAnimation::EllipseMask(QSize(
 		_st.photoSize,
 		_st.photoSize));
 }
@@ -896,7 +896,7 @@ QPoint SilentToggle::prepareRippleStartPosition() const {
 }
 
 QImage SilentToggle::prepareRippleMask() const {
-	return RippleAnimation::ellipseMask(
+	return RippleAnimation::EllipseMask(
 		QSize(_st.rippleAreaSize, _st.rippleAreaSize));
 }
 

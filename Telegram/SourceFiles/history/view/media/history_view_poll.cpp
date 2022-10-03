@@ -1519,7 +1519,7 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 			- st::msgPadding.left()
 			- st::msgPadding.right();
 		if (!answer.ripple) {
-			auto mask = Ui::RippleAnimation::rectMask(QSize(
+			auto mask = Ui::RippleAnimation::RectMask(QSize(
 				outerWidth,
 				countAnswerHeight(answer, innerWidth)));
 			answer.ripple = std::make_unique<Ui::RippleAnimation>(
@@ -1581,11 +1581,11 @@ void Poll::toggleLinkRipple(bool pressed) {
 				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
 			};
 			auto mask = isRoundedInBubbleBottom()
-				? Ui::RippleAnimation::maskByDrawer(
+				? Ui::RippleAnimation::MaskByDrawer(
 					QSize(linkWidth, linkHeight),
 					false,
 					drawMask)
-				: Ui::RippleAnimation::rectMask({ linkWidth, linkHeight });
+				: Ui::RippleAnimation::RectMask({ linkWidth, linkHeight });
 			_linkRipple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
 				std::move(mask),

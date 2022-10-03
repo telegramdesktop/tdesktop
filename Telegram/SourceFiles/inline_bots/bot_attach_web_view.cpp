@@ -336,7 +336,7 @@ QPoint BotAction::prepareRippleStartPosition() const {
 }
 
 QImage BotAction::prepareRippleMask() const {
-	return Ui::RippleAnimation::rectMask(size());
+	return Ui::RippleAnimation::RectMask(size());
 }
 
 int BotAction::contentHeight() const {

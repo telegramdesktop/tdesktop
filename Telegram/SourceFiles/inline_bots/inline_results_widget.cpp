@@ -36,6 +36,9 @@ Widget::Widget(
 , _contentMaxHeight(st::emojiPanMaxHeight)
 , _contentHeight(_contentMaxHeight)
 , _scroll(this, st::inlineBotsScroll)
+, _innerRounding(Ui::PrepareCornerPixmaps(
+	ImageRoundRadius::Small,
+	st::emojiPanBg))
 , _inlineRequestTimer([=] { onInlineRequest(); }) {
 	resize(QRect(0, 0, st::emojiPanWidth, _contentHeight).marginsAdded(innerPadding()).size());
 	_width = width();
@@ -57,6 +60,13 @@ Widget::Widget(
 	) | rpl::start_with_next([=] {
 		hideAnimated();
 		_inner->clearInlineRowsPanel();
+	}, lifetime());
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_innerRounding = Ui::PrepareCornerPixmaps(
+			ImageRoundRadius::Small,
+			st::emojiPanBg);
 	}, lifetime());
 
 	macWindowDeactivateEvents(
@@ -150,7 +160,17 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 void Widget::paintContent(QPainter &p) {
 	auto inner = innerRect();
-	Ui::FillRoundRect(p, inner, st::emojiPanBg, ImageRoundRadius::Small, RectPart::FullTop | RectPart::FullBottom);
+	const auto radius = st::roundRadiusSmall;
+
+	const auto top = Ui::CornersPixmaps{
+		.p = { _innerRounding.p[0], _innerRounding.p[1], QPixmap(), QPixmap() },
+	};
+	Ui::FillRoundRect(p, inner.x(), inner.y(), inner.width(), radius, st::emojiPanBg, top);
+
+	const auto bottom = Ui::CornersPixmaps{
+		.p = { QPixmap(), QPixmap(), _innerRounding.p[2], _innerRounding.p[3] },
+	};
+	Ui::FillRoundRect(p, inner.x(), inner.y() + inner.height() - radius, inner.width(), radius, st::emojiPanBg, bottom);
 
 	auto horizontal = horizontalRect();
 	auto sidesTop = horizontal.y();

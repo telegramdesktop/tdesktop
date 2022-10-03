@@ -225,6 +225,9 @@ private:
 
 	void updateMediaInBubbleState();
 	QRect countGeometry() const;
+	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
+	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(
+		Ui::BubbleRounding messageRounding) const;
 	[[nodiscard]] Ui::BubbleRounding countBubbleRounding() const;
 
 	int resizeContentGetHeight(int newWidth);

@@ -1216,11 +1216,6 @@ void Element::clickHandlerActiveChanged(
 void Element::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	if (const auto markup = _data->Get<HistoryMessageReplyMarkup>()) {
-		if (const auto keyboard = markup->inlineKeyboard.get()) {
-			keyboard->clickHandlerPressedChanged(handler, pressed);
-		}
-	}
 	PressedLink(pressed ? this : nullptr);
 	repaint();
 	if (const auto media = this->media()) {
