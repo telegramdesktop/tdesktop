@@ -48,7 +48,6 @@ if (WIN32)
 endif()
 
 set_target_properties(Telegram PROPERTIES AUTOMOC ON)
-target_prepare_qrc(Telegram)
 
 target_link_libraries(Telegram
 PRIVATE
@@ -1599,6 +1598,8 @@ if (WIN32)
         /DELAYLOAD:propsys.dll
     )
 endif()
+
+target_prepare_qrc(Telegram)
 
 if ((NOT DESKTOP_APP_DISABLE_AUTOUPDATE OR APPLE) AND NOT build_macstore AND NOT build_winstore)
     add_executable(Updater WIN32)
