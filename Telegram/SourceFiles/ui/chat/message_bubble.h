@@ -72,6 +72,11 @@ struct BubbleRounding {
 		return { this, index };
 	}
 
+	[[nodiscard]] uchar key() const {
+		static_assert(sizeof(*this) == sizeof(uchar));
+		return uchar(*reinterpret_cast<const std::byte*>(this));
+	}
+
 	inline friend constexpr auto operator<=>(
 		BubbleRounding,
 		BubbleRounding) = default;

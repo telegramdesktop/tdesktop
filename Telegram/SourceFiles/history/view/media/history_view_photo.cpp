@@ -543,14 +543,14 @@ void Photo::drawGrouped(
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 
-	validateGroupedCache(geometry, corners, cacheKey, cache);
+	validateGroupedCache(geometry, rounding, cacheKey, cache);
 
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
@@ -573,11 +573,10 @@ void Photo::drawGrouped(
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
 		const auto roundRadius = ImageRoundRadius::Large;
-		// #TODO rounding
-		//Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		//if (!context.selected()) {
-		//	Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		//}
+		fillImageOverlay(p, geometry, rounding, context);
+		if (!context.selected()) {
+			fillImageOverlay(p, geometry, rounding, context);
+		}
 		p.setOpacity(1.);
 	}
 
@@ -680,7 +679,7 @@ bool Photo::needInfoDisplay() const {
 
 void Photo::validateGroupedCache(
 		const QRect &geometry,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
@@ -697,18 +696,11 @@ void Photo::validateGroupedCache(
 		: 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto corner = [&](RectPart part, Option skip) {
-		return !(corners & part) ? skip : Option();
-	};
-	const auto options = Option::RoundLarge
-		| (loaded ? Option() : Option::Blur)
-		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
-		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
-		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
-		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
+	const auto options = (loaded ? Option() : Option::Blur);
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
+		| (uint64(rounding.key()) << 8)
 		| (uint64(loadLevel));
 	if (*cacheKey == key) {
 		return;
@@ -731,9 +723,14 @@ void Photo::validateGroupedCache(
 		: Image::BlankMedia().get();
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(
+	auto scaled = Images::Prepare(
+		image->original(),
 		pixSize * ratio,
 		{ .options = options, .outer = { width, height } });
+	auto rounded = Images::Round(
+		std::move(scaled),
+		MediaRoundingMask(rounding));
+	*cache = Ui::PixmapFromImage(std::move(rounded));
 }
 
 bool Photo::createStreamingObjects() {

@@ -141,7 +141,9 @@ private:
 
 	void refreshCaption();
 
-	[[nodiscard]] RectParts cornersFromSides(RectParts sides) const;
+	[[nodiscard]] Ui::BubbleRounding applyRoundingSides(
+		Ui::BubbleRounding already,
+		RectParts sides) const;
 	[[nodiscard]] QMargins groupedPadding() const;
 
 	Ui::Text::String _caption;

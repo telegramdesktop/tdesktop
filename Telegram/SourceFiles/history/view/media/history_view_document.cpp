@@ -421,13 +421,7 @@ QSize Document::countCurrentSize(int newWidth) {
 }
 
 void Document::draw(Painter &p, const PaintContext &context) const {
-	const auto corners = (isBubbleTop()
-		? (RectPart::TopLeft | RectPart::TopRight)
-		: RectParts())
-		| ((isRoundedInBubbleBottom() && !Has<HistoryDocumentCaptioned>())
-			? (RectPart::BottomLeft | RectPart::BottomRight)
-			: RectParts());
-	draw(p, context, width(), LayoutMode::Full, corners);
+	draw(p, context, width(), LayoutMode::Full, adjustedBubbleRounding());
 }
 
 void Document::draw(
@@ -435,7 +429,7 @@ void Document::draw(
 		const PaintContext &context,
 		int width,
 		LayoutMode mode,
-		RectParts corners) const {
+		Ui::BubbleRounding outsideRounding) const {
 	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	ensureDataMediaCreated();
@@ -476,7 +470,7 @@ void Document::draw(
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 	const auto radialOpacity = radial ? _animation->radial.opacity() : 1.;
 	if (thumbed) {
-		const auto rounding = thumbRounding(mode, corners);
+		const auto rounding = thumbRounding(mode, outsideRounding);
 		validateThumbnail(thumbed, st.thumbSize, rounding);
 		p.drawImage(rthumb, thumbed->thumbnail);
 		if (context.selected()) {
@@ -703,19 +697,20 @@ void Document::draw(
 
 Ui::BubbleRounding Document::thumbRounding(
 		LayoutMode mode,
-		RectParts corners) const {
-	auto result = bubbleRounding();
+		Ui::BubbleRounding outsideRounding) const {
 	using Corner = Ui::BubbleCornerRounding;
 	if (mode != LayoutMode::Grouped && _parent->media() != this) {
 		return {}; // In a WebPage preview.
 	}
-	const auto adjust = [&](RectPart corner, Corner already) {
-		return (already == Corner::Large && (corners & corner))
+	const auto hasCaption = Has<HistoryDocumentCaptioned>();
+	const auto adjust = [&](Corner already, bool skip = false) {
+		return (already == Corner::Large && !skip)
 			? Corner::Large
 			: Corner::Small;
 	};
-	result.topLeft = adjust(RectPart::TopLeft, result.topLeft);
-	result.bottomLeft = adjust(RectPart::BottomLeft, result.bottomLeft);
+	auto result = Ui::BubbleRounding();
+	result.topLeft = adjust(outsideRounding.topLeft);
+	result.bottomLeft = adjust(outsideRounding.bottomLeft, hasCaption);
 	result.topRight = result.bottomRight = Corner::Small;
 	return result;
 }
@@ -1280,7 +1275,7 @@ void Document::drawGrouped(
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
@@ -1290,7 +1285,7 @@ void Document::drawGrouped(
 		context.translated(-geometry.topLeft()),
 		geometry.width(),
 		LayoutMode::Grouped,
-		corners);
+		rounding);
 	p.translate(-geometry.topLeft());
 }
 

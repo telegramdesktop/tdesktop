@@ -189,7 +189,7 @@ public:
 			const PaintContext &context,
 			const QRect &geometry,
 			RectParts sides,
-			RectParts corners,
+			Ui::BubbleRounding rounding,
 			float64 highlightOpacity,
 			not_null<uint64*> cacheKey,
 			not_null<QPixmap*> cache) const {

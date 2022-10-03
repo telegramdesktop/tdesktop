@@ -69,7 +69,7 @@ public:
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
@@ -110,7 +110,7 @@ private:
 		const PaintContext &context,
 		int width,
 		LayoutMode mode,
-		RectParts corners) const;
+		Ui::BubbleRounding outsideRounding) const;
 	[[nodiscard]] TextState textState(
 		QPoint point,
 		QSize layout,
@@ -128,7 +128,7 @@ private:
 
 	[[nodiscard]] Ui::BubbleRounding thumbRounding(
 		LayoutMode mode,
-		RectParts corners) const;
+		Ui::BubbleRounding outsideRounding) const;
 	void validateThumbnail(
 		not_null<const HistoryDocumentThumbed*> thumbed,
 		int size,

@@ -76,7 +76,7 @@ public:
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
@@ -169,7 +169,7 @@ private:
 
 	void validateGroupedCache(
 		const QRect &geometry,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
 	void setStatusSize(int64 newSize) const;
@@ -177,8 +177,6 @@ private:
 	[[nodiscard]] QSize sizeForAspectRatio() const;
 
 	void validateRoundingMask(QSize size) const;
-	[[nodiscard]] Images::CornersMaskRef prepareRoundingRef(
-		std::optional<Ui::BubbleRounding> rounding) const;
 
 	[[nodiscard]] bool downloadInCorner() const;
 	void drawCornerStatus(

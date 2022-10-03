@@ -281,25 +281,6 @@ void Gif::validateRoundingMask(QSize size) const {
 	}
 }
 
-Images::CornersMaskRef Gif::prepareRoundingRef(
-		std::optional<Ui::BubbleRounding> rounding) const {
-	using namespace Ui;
-	using namespace Images;
-	if (!rounding) {
-		return CornersMaskRef(CachedCornersMasks(CachedCornerRadius::Small));
-	}
-	auto result = CornersMaskRef();
-	for (auto i = 0; i != 4; ++i) {
-		const auto corner = (*rounding)[i];
-		result.p[i] = (corner == BubbleCornerRounding::Large)
-			? &CachedCornersMasks(CachedCornerRadius::BubbleLarge)[i]
-			: (corner == BubbleCornerRounding::Small)
-			? &CachedCornersMasks(CachedCornerRadius::BubbleSmall)[i]
-			: nullptr;
-	}
-	return result;
-}
-
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
@@ -429,7 +410,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 			validateRoundingMask(request.outer);
 			request.mask = _roundingMask;
 		} else {
-			request.rounding = prepareRoundingRef(rounding);
+			request.rounding = MediaRoundingMask(rounding);
 		}
 		if (!activeRoundPlaying && activeOwnPlaying->instance.playerLocked()) {
 			if (activeOwnPlaying->frozenFrame.isNull()) {
@@ -1020,7 +1001,7 @@ void Gif::drawGrouped(
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
@@ -1081,8 +1062,7 @@ void Gif::drawGrouped(
 		auto request = ::Media::Streaming::FrameRequest{
 			.resize = pixSize * cIntRetinaFactor(),
 			.outer = geometry.size() * cIntRetinaFactor(),
-			//.radius = roundRadius, // #TODO rounding
-			//.corners = corners,
+			.rounding = MediaRoundingMask(rounding),
 		};
 		if (activeOwnPlaying->instance.playerLocked()) {
 			if (activeOwnPlaying->frozenFrame.isNull()) {
@@ -1105,7 +1085,7 @@ void Gif::drawGrouped(
 			}
 		}
 	} else {
-		validateGroupedCache(geometry, corners, cacheKey, cache);
+		validateGroupedCache(geometry, rounding, cacheKey, cache);
 		p.drawPixmap(geometry, *cache);
 	}
 
@@ -1114,11 +1094,10 @@ void Gif::drawGrouped(
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
-		// #TODO rounding
-		//Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		//if (!context.selected()) {
-		//	Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		//}
+		fillImageOverlay(p, geometry, rounding, context);
+		if (!context.selected()) {
+			fillImageOverlay(p, geometry, rounding, context);
+		}
 		p.setOpacity(1.);
 	}
 
@@ -1355,7 +1334,7 @@ bool Gif::isUnwrapped() const {
 
 void Gif::validateGroupedCache(
 		const QRect &geometry,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
@@ -1377,18 +1356,11 @@ void Gif::validateGroupedCache(
 	const auto loadLevel = good ? 3 : thumb ? 2 : image ? 1 : 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto corner = [&](RectPart part, Option skip) {
-		return !(corners & part) ? skip : Option();
-	};
-	const auto options = Option::RoundLarge
-		| (blur ? Option::Blur : Option(0))
-		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
-		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
-		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
-		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
+	const auto options = (blur ? Option::Blur : Option(0));
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
+		| (uint64(rounding.key()) << 8)
 		| (uint64(loadLevel));
 	if (*cacheKey == key) {
 		return;
@@ -1403,9 +1375,14 @@ void Gif::validateGroupedCache(
 	const auto ratio = style::DevicePixelRatio();
 
 	*cacheKey = key;
-	*cache = (image ? image : Image::BlankMedia().get())->pixNoCache(
+	auto scaled = Images::Prepare(
+		(image ? image : Image::BlankMedia().get())->original(),
 		pixSize * ratio,
 		{ .options = options, .outer = { width, height } });
+	auto rounded = Images::Round(
+		std::move(scaled),
+		MediaRoundingMask(rounding));
+	*cache = Ui::PixmapFromImage(std::move(rounded));
 }
 
 void Gif::setStatusSize(int64 newSize) const {
