@@ -693,10 +693,7 @@ void FillComplexOverlayRect(
 		QRect rect,
 		const style::color &color,
 		const CornersPixmaps &corners) {
-	constexpr auto kTopLeft = 0;
-	constexpr auto kTopRight = 1;
-	constexpr auto kBottomLeft = 2;
-	constexpr auto kBottomRight = 3;
+	using namespace Images;
 
 	const auto pix = corners.p;
 	const auto fillRect = [&](QRect rect) {
@@ -795,36 +792,14 @@ void FillComplexOverlayRect(
 	}
 }
 
-void FillComplexOverlayRect(
+void FillComplexEllipse(
 		QPainter &p,
 		not_null<const ChatStyle*> st,
-		QRect rect,
-		ImageRoundRadius radius,
-		RectParts roundCorners) {
-	const auto bg = st->msgSelectOverlay();
-	if (radius == ImageRoundRadius::Ellipse) {
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(bg);
-		p.drawEllipse(rect);
-	} else {
-		// #TODO rounding
-		//const auto &corners = (radius == ImageRoundRadius::Small)
-		//	? st->msgSelectOverlayCornersSmall()
-		//	: st->msgSelectOverlayCornersLarge();
-		//RectWithCorners(p, rect, bg, corners, roundCorners);
-	}
-}
-
-void FillComplexLocationRect(
-		QPainter &p,
-		not_null<const ChatStyle*> st,
-		QRect rect,
-		ImageRoundRadius radius,
-		RectParts roundCorners) {
-	const auto stm = &st->messageStyle(false, false);
-	// #TODO rounding
-	RectWithCorners(p, rect, stm->msgBg, stm->msgBgCornersSmall, roundCorners);
+		QRect rect) {
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st->msgSelectOverlay());
+	p.drawEllipse(rect);
 }
 
 } // namespace Ui

@@ -163,12 +163,8 @@ private:
 
 	void validateThumbCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
-	[[nodiscard]] QImage prepareThumbCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
+		bool isEllipse,
+		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareThumbCache(QSize outer) const;
 
 	void validateGroupedCache(
@@ -179,6 +175,10 @@ private:
 	void setStatusSize(int64 newSize) const;
 	void updateStatusText() const;
 	[[nodiscard]] QSize sizeForAspectRatio() const;
+
+	void validateRoundingMask(QSize size) const;
+	[[nodiscard]] Images::CornersMaskRef prepareRoundingRef(
+		std::optional<Ui::BubbleRounding> rounding) const;
 
 	[[nodiscard]] bool downloadInCorner() const;
 	void drawCornerStatus(
@@ -197,9 +197,10 @@ private:
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
 	mutable QImage _thumbCache;
-	mutable int _thumbCacheRoundRadius : 4 = 0;
-	mutable int _thumbCacheRoundCorners : 12 = 0;
-	mutable int _thumbCacheBlurred : 1 = 0;
+	mutable QImage _roundingMask;
+	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
+	mutable bool _thumbCacheBlurred = false;
+	mutable bool _thumbIsEllipse = false;
 
 };
 

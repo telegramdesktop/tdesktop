@@ -360,17 +360,9 @@ void FillComplexOverlayRect(
 	const style::color &color,
 	const CornersPixmaps &corners);
 
-void FillComplexOverlayRect(
+void FillComplexEllipse(
 	QPainter &p,
 	not_null<const ChatStyle*> st,
-	QRect rect,
-	ImageRoundRadius radius,
-	RectParts roundCorners);
-void FillComplexLocationRect(
-	QPainter &p,
-	not_null<const ChatStyle*> st,
-	QRect rect,
-	ImageRoundRadius radius,
-	RectParts roundCorners);
+	QRect rect);
 
 } // namespace Ui

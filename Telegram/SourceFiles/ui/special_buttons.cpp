@@ -478,7 +478,10 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 		auto size = QSize{ _st.photoSize, _st.photoSize };
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
-		request.radius = ImageRoundRadius::Ellipse;
+		if (_ellipseMask.size() != request.outer) {
+			_ellipseMask = Images::EllipseMask(size);
+		}
+		request.mask = _ellipseMask;
 		p.drawImage(QRect(photoPosition, size), _streamed->frame(request));
 		if (!paused) {
 			_streamed->markFrameShown();

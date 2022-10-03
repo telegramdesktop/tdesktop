@@ -40,10 +40,6 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, CachedRoundCorners index, const style::color *shadow = nullptr, RectParts parts = RectPart::Full) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, index, shadow, parts);
 }
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index);
-inline void FillRoundShadow(QPainter &p, const QRect &rect, style::color shadow, CachedRoundCorners index) {
-	FillRoundShadow(p, rect.x(), rect.y(), rect.width(), rect.height(), shadow, index);
-}
 void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full);
 inline void FillRoundRect(QPainter &p, const QRect &rect, style::color bg, ImageRoundRadius radius, RectParts parts = RectPart::Full) {
 	FillRoundRect(p, rect.x(), rect.y(), rect.width(), rect.height(), bg, radius, parts);

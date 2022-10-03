@@ -8,9 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_audio_msg_id.h"
+#include "ui/image/image_prepare.h"
 #include "ui/rect_part.h"
-
-enum class ImageRoundRadius;
 
 namespace Media {
 
@@ -120,8 +119,8 @@ enum class Error {
 struct FrameRequest {
 	QSize resize;
 	QSize outer;
-	ImageRoundRadius radius = ImageRoundRadius();
-	RectParts corners = RectPart::AllCorners;
+	Images::CornersMaskRef rounding;
+	QImage mask;
 	QColor colored = QColor(0, 0, 0, 0);
 	bool blurredBackground = false;
 	bool requireARGB32 = true;
@@ -141,8 +140,8 @@ struct FrameRequest {
 	[[nodiscard]] bool operator==(const FrameRequest &other) const {
 		return (resize == other.resize)
 			&& (outer == other.outer)
-			&& (radius == other.radius)
-			&& (corners == other.corners)
+			&& (rounding == other.rounding)
+			&& (mask.constBits() == other.mask.constBits())
 			&& (colored == other.colored)
 			&& (keepAlpha == other.keepAlpha)
 			&& (requireARGB32 == other.requireARGB32)

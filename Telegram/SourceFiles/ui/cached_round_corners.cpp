@@ -161,10 +161,6 @@ void FillRoundRect(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color
 	FillRoundRect(p, x, y, w, h, bg, Corners[index], shadow, parts);
 }
 
-void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, CachedRoundCorners index) {
-	FillRoundShadow(p, x, y, w, h, shadow, Corners[index]);
-}
-
 void FillRoundShadow(QPainter &p, int32 x, int32 y, int32 w, int32 h, style::color shadow, const CornersPixmaps &corners) {
 	constexpr auto kLeft = 2;
 	constexpr auto kRight = 3;

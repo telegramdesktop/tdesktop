@@ -170,6 +170,7 @@ private:
 	InMemoryKey _userpicUniqueKey;
 	Ui::Animations::Simple _a_appearance;
 	QImage _result;
+	QImage _ellipseMask;
 	std::unique_ptr<Media::Streaming::Instance> _streamed;
 	PhotoData *_streamedPhoto = nullptr;
 

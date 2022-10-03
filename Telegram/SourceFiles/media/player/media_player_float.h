@@ -96,6 +96,7 @@ private:
 	float64 _opacity = 1.;
 
 	QPixmap _shadow;
+	QImage _roundingMask;
 	QImage _frame;
 	bool _down = false;
 	QPoint _downPoint;

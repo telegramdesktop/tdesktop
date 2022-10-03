@@ -274,6 +274,32 @@ QSize Gif::videoSize() const {
 	}
 }
 
+void Gif::validateRoundingMask(QSize size) const {
+	if (_roundingMask.size() != size) {
+		const auto ratio = style::DevicePixelRatio();
+		_roundingMask = Images::EllipseMask(size / ratio);
+	}
+}
+
+Images::CornersMaskRef Gif::prepareRoundingRef(
+		std::optional<Ui::BubbleRounding> rounding) const {
+	using namespace Ui;
+	using namespace Images;
+	if (!rounding) {
+		return CornersMaskRef(CachedCornersMasks(CachedCornerRadius::Small));
+	}
+	auto result = CornersMaskRef();
+	for (auto i = 0; i != 4; ++i) {
+		const auto corner = (*rounding)[i];
+		result.p[i] = (corner == BubbleCornerRounding::Large)
+			? &CachedCornersMasks(CachedCornerRadius::BubbleLarge)[i]
+			: (corner == BubbleCornerRounding::Small)
+			? &CachedCornersMasks(CachedCornerRadius::BubbleSmall)[i]
+			: nullptr;
+	}
+	return result;
+}
+
 bool Gif::downloadInCorner() const {
 	return _data->isVideoFile()
 		&& (_data->loading() || !autoplayEnabled())
@@ -349,6 +375,9 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 	const auto radial = isRadialAnimation()
 		|| (streamedForWaiting && streamedForWaiting->waitingShown());
 
+	const auto rounding = inWebPage
+		? std::optional<Ui::BubbleRounding>()
+		: adjustedBubbleRoundingWithCaption(_caption);
 	if (bubble) {
 		if (!_caption.isEmpty()) {
 			painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
@@ -356,9 +385,6 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				painth -= st::msgPadding.bottom();
 			}
 		}
-	} else if (!unwrapped) {
-		// #TODO rounding
-		Ui::FillRoundShadow(p, 0, 0, paintw, height(), sti->msgShadow, sti->msgShadowCornersSmall);
 	}
 
 	auto usex = 0, usew = paintw;
@@ -381,42 +407,30 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 
 	QRect rthumb(style::rtlrect(usex + paintx, painty, usew, painth, width()));
 
-	const auto roundRadius = isRound
-		? ImageRoundRadius::Ellipse
-		: unwrapped
-		? ImageRoundRadius::None
-		: inWebPage
-		? ImageRoundRadius::Small
-		: ImageRoundRadius::Large;
-	const auto roundCorners = isRound
-		? RectPart::AllCorners
-		: unwrapped
-		? RectPart::None
-		: inWebPage
-		? RectPart::AllCorners
-		: ((isBubbleTop()
-			? (RectPart::TopLeft | RectPart::TopRight)
-			: RectPart::None)
-			| ((isRoundedInBubbleBottom() && _caption.isEmpty())
-				? (RectPart::BottomLeft | RectPart::BottomRight)
-				: RectPart::None));
+	if (!bubble && !unwrapped) {
+		Assert(rounding.has_value());
+		fillImageShadow(p, rthumb, *rounding, context);
+	}
+
 	const auto skipDrawingContent = context.skipDrawingParts
 		== PaintContext::SkipDrawingParts::Content;
 	if (streamed && !skipDrawingContent) {
 		auto paused = context.paused;
+		auto request = ::Media::Streaming::FrameRequest{
+			.outer = QSize(usew, painth) * cIntRetinaFactor(),
+			.blurredBackground = true,
+		};
 		if (isRound) {
 			if (activeRoundStreamed()) {
 				paused = false;
 			} else {
 				displayMute = true;
 			}
+			validateRoundingMask(request.outer);
+			request.mask = _roundingMask;
+		} else {
+			request.rounding = prepareRoundingRef(rounding);
 		}
-		auto request = ::Media::Streaming::FrameRequest{
-			.outer = QSize(usew, painth) * cIntRetinaFactor(),
-			.radius = roundRadius,
-			.corners = roundCorners,
-			.blurredBackground = true,
-		};
 		if (!activeRoundPlaying && activeOwnPlaying->instance.playerLocked()) {
 			if (activeOwnPlaying->frozenFrame.isNull()) {
 				activeOwnPlaying->frozenRequest = request;
@@ -465,12 +479,16 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		}
 	} else if (!skipDrawingContent) {
 		ensureDataMediaCreated();
-		validateThumbCache({ usew, painth }, roundRadius, roundCorners);
+		validateThumbCache({ usew, painth }, isRound, rounding);
 		p.drawImage(rthumb, _thumbCache);
 	}
 
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+		if (isRound) {
+			Ui::FillComplexEllipse(p, st, rthumb);
+		} else {
+			fillImageOverlay(p, rthumb, rounding, context);
+		}
 	}
 
 	if (radial
@@ -691,10 +709,8 @@ void Gif::validateVideoThumbnail() const {
 
 void Gif::validateThumbCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	const auto intRadius = static_cast<int>(radius);
-	const auto intCorners = static_cast<int>(corners);
+		bool isEllipse,
+		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto good = _dataMedia->goodThumbnail();
 	const auto normal = good ? good : _dataMedia->thumbnail();
 	if (!normal) {
@@ -708,24 +724,18 @@ void Gif::validateThumbCache(
 			&& (normal->height() < kUseNonBlurredThreshold))
 		: !videothumb;
 	const auto ratio = style::DevicePixelRatio();
-	const auto shouldBeBlurred = blurred ? 1 : 0;
 	if (_thumbCache.size() == (outer * ratio)
-		&& _thumbCacheRoundRadius == intRadius
-		&& _thumbCacheRoundCorners == intCorners
-		&& _thumbCacheBlurred == shouldBeBlurred) {
+		&& _thumbCacheRounding == rounding
+		&& _thumbCacheBlurred == blurred
+		&& _thumbIsEllipse == isEllipse) {
 		return;
 	}
-	_thumbCache = prepareThumbCache(outer, radius, corners);
-	_thumbCacheRoundRadius = intRadius;
-	_thumbCacheRoundCorners = intCorners;
-	_thumbCacheBlurred = shouldBeBlurred;
-}
-
-QImage Gif::prepareThumbCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	return Images::Round(prepareThumbCache(outer), radius, corners);
+	auto cache = prepareThumbCache(outer);
+	_thumbCache = isEllipse
+		? Images::Circle(std::move(cache))
+		: Images::Round(std::move(cache), MediaRoundingMask(rounding));
+	_thumbCacheRounding = rounding;
+	_thumbCacheBlurred = blurred;
 }
 
 QImage Gif::prepareThumbCache(QSize outer) const {
@@ -1071,8 +1081,8 @@ void Gif::drawGrouped(
 		auto request = ::Media::Streaming::FrameRequest{
 			.resize = pixSize * cIntRetinaFactor(),
 			.outer = geometry.size() * cIntRetinaFactor(),
-			.radius = roundRadius,
-			.corners = corners,
+			//.radius = roundRadius, // #TODO rounding
+			//.corners = corners,
 		};
 		if (activeOwnPlaying->instance.playerLocked()) {
 			if (activeOwnPlaying->frozenFrame.isNull()) {
@@ -1104,10 +1114,11 @@ void Gif::drawGrouped(
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
-		Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		if (!context.selected()) {
-			Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		}
+		// #TODO rounding
+		//Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+		//if (!context.selected()) {
+		//	Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+		//}
 		p.setOpacity(1.);
 	}
 

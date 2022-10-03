@@ -244,7 +244,10 @@ bool Float::fillFrame() {
 	if (const auto streamed = getStreamed()) {
 		auto request = Streaming::FrameRequest::NonStrict();
 		request.outer = request.resize = _frame.size();
-		request.radius = ImageRoundRadius::Ellipse;
+		if (_roundingMask.size() != request.outer) {
+			_roundingMask = Images::EllipseMask(frameInner().size());
+		}
+		request.mask = _roundingMask;
 		auto frame = streamed->frame(request);
 		if (!frame.isNull()) {
 			_frame.fill(Qt::transparent);

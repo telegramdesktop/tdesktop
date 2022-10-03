@@ -44,6 +44,7 @@ using Data::PhotoSize;
 struct Photo::Streamed {
 	explicit Streamed(std::shared_ptr<::Media::Streaming::Document> shared);
 	::Media::Streaming::Instance instance;
+	QImage roundingMask;
 	QImage frozenFrame;
 };
 
@@ -410,7 +411,10 @@ void Photo::paintUserpicFrame(
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
-		request.radius = ImageRoundRadius::Ellipse;
+		if (_streamed->roundingMask.size() != request.outer) {
+			_streamed->roundingMask = Images::EllipseMask(size);
+		}
+		request.mask = _streamed->roundingMask;
 		if (_streamed->instance.playerLocked()) {
 			if (_streamed->frozenFrame.isNull()) {
 				_streamed->frozenFrame = _streamed->instance.frame(request);
@@ -569,10 +573,11 @@ void Photo::drawGrouped(
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
 		const auto roundRadius = ImageRoundRadius::Large;
-		Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		if (!context.selected()) {
-			Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
-		}
+		// #TODO rounding
+		//Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+		//if (!context.selected()) {
+		//	Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+		//}
 		p.setOpacity(1.);
 	}
 

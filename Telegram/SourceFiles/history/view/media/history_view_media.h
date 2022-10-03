@@ -32,7 +32,6 @@ struct ColorReplacements;
 namespace Ui {
 struct BubbleSelectionInterval;
 struct ChatPaintContext;
-struct CornersMaskRef;
 } // namespace Ui
 
 namespace Images {
