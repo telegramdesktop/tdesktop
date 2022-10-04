@@ -967,7 +967,8 @@ void DocumentData::save(
 	if (loading()) {
 		_loader->start();
 	}
-	_owner->notifyDocumentLayoutChanged(this);
+	// This affects a display of tooltips.
+	// _owner->notifyDocumentLayoutChanged(this);
 }
 
 void DocumentData::handleLoaderUpdates() {
