@@ -1448,20 +1448,20 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 		if (!_comments->ripple) {
 			createCommentsRipple();
 		}
-		_comments->ripple->add(_comments->lastPoint);
+		_comments->ripple->add(_comments->lastPoint
+			+ QPoint(_comments->rippleShift, 0));
 	} else if (_comments->ripple) {
 		_comments->ripple->lastStop();
 	}
 }
 
-void Message::createCommentsRipple() {
+BottomRippleMask Message::bottomRippleMask(int buttonHeight) const {
 	using namespace Ui;
 	using namespace Images;
 	using Radius = CachedCornerRadius;
 	using Corner = BubbleCornerRounding;
 	const auto g = countGeometry();
-	const auto linkWidth = g.width();
-	const auto linkHeight = st::historyCommentsButtonHeight;
+	const auto buttonWidth = g.width();
 	const auto &large = CachedCornersMasks(Radius::BubbleLarge);
 	const auto &small = CachedCornersMasks(Radius::BubbleSmall);
 	const auto rounding = countBubbleRounding();
@@ -1493,8 +1493,8 @@ void Message::createCommentsRipple() {
 				const auto height = image->height() / ratio;
 				p.drawImage(
 					QRect(
-						shift + (right ? (linkWidth - width) : 0),
-						linkHeight - height,
+						shift + (right ? (buttonWidth - width) : 0),
+						buttonHeight - height,
 						width,
 						height),
 					*image);
@@ -1503,26 +1503,34 @@ void Message::createCommentsRipple() {
 		corner(kBottomLeft, false);
 		corner(kBottomRight, true);
 		if (icon) {
-			const auto left = shift ? 0 : linkWidth;
+			const auto left = shift ? 0 : buttonWidth;
 			p.fillRect(
-				QRect{ left, 0, added, linkHeight },
+				QRect{ left, 0, added, buttonHeight },
 				Qt::transparent);
 			icon->paint(
 				p,
 				left,
-				linkHeight - icon->height(),
-				linkWidth + shift,
+				buttonHeight - icon->height(),
+				buttonWidth + shift,
 				Qt::white);
 		}
 	};
-	_comments->ripple = std::make_unique<RippleAnimation>(
-		st::defaultRippleAnimation,
+	return {
 		RippleAnimation::MaskByDrawer(
-			QSize(linkWidth + added, linkHeight),
+			QSize(buttonWidth + added, buttonHeight),
 			true,
 			drawer),
+		shift,
+	};
+}
+
+void Message::createCommentsRipple() {
+	auto mask = bottomRippleMask(st::historyCommentsButtonHeight);
+	_comments->ripple = std::make_unique<Ui::RippleAnimation>(
+		st::defaultRippleAnimation,
+		std::move(mask.image),
 		[=] { repaint(); });
-	_comments->rippleShift = shift;
+	_comments->rippleShift = mask.shift;
 }
 
 bool Message::hasHeavyPart() const {

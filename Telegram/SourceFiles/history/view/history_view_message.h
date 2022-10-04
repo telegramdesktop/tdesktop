@@ -50,6 +50,11 @@ struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	mutable bool buttonVisible = true;
 };
 
+struct BottomRippleMask {
+	QImage image;
+	int shift = 0;
+};
+
 class Message final : public Element {
 public:
 	Message(
@@ -148,6 +153,7 @@ public:
 		std::unique_ptr<Reactions::Animation>> override;
 
 	QRect innerGeometry() const override;
+	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;
 
 protected:
 	void refreshDataIdHook() override;
