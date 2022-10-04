@@ -889,8 +889,8 @@ void InnerWidget::itemsAdded(Direction direction, int addedCount) {
 				const auto previous = _items[i].get();
 				view->setDisplayDate(view->dateTime().date() != previous->dateTime().date());
 				const auto attach = view->computeIsAttachToPrevious(previous);
-				view->setAttachToPrevious(attach);
-				previous->setAttachToNext(attach);
+				view->setAttachToPrevious(attach, previous);
+				previous->setAttachToNext(attach, view);
 			} else {
 				view->setDisplayDate(true);
 			}

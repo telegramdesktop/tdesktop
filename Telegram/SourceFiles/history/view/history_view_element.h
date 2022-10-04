@@ -240,14 +240,17 @@ class Element
 	, public ClickHandlerHost
 	, public base::has_weak_ptr {
 public:
-	enum class Flag : uchar {
-		ServiceMessage = 0x01,
-		NeedsResize = 0x02,
-		AttachedToPrevious = 0x04,
-		AttachedToNext = 0x08,
-		HiddenByGroup = 0x10,
-		SpecialOnlyEmoji = 0x20,
-		CustomEmojiRepainting = 0x40,
+	enum class Flag : uint16 {
+		ServiceMessage = 0x0001,
+		NeedsResize = 0x0002,
+		AttachedToPrevious = 0x0004,
+		AttachedToNext = 0x0008,
+		BubbleAttachedToPrevious = 0x0010,
+		BubbleAttachedToNext = 0x0020,
+		HiddenByGroup = 0x0040,
+		SpecialOnlyEmoji = 0x0080,
+		CustomEmojiRepainting = 0x0100,
+		ScheduledUntilOnline = 0x0200,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -281,6 +284,8 @@ public:
 
 	[[nodiscard]] bool isAttachedToPrevious() const;
 	[[nodiscard]] bool isAttachedToNext() const;
+	[[nodiscard]] bool isBubbleAttachedToPrevious() const;
+	[[nodiscard]] bool isBubbleAttachedToNext() const;
 
 	[[nodiscard]] int skipBlockWidth() const;
 	[[nodiscard]] int skipBlockHeight() const;
@@ -304,11 +309,11 @@ public:
 	[[nodiscard]] Ui::Text::OnlyCustomEmoji onlyCustomEmoji() const;
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks().
-	void setAttachToPrevious(bool attachToNext);
+	void setAttachToPrevious(bool attachToNext, Element *previous = nullptr);
 
 	// For blocks context this should be called only from recountAttachToPreviousInBlocks()
 	// of the next item or when the next item is removed through nextInBlocksRemoved() call.
-	void setAttachToNext(bool attachToNext);
+	void setAttachToNext(bool attachToNext, Element *next = nullptr);
 
 	// For blocks context this should be called only from recountDisplayDate().
 	void setDisplayDate(bool displayDate);
@@ -369,6 +374,7 @@ public:
 	[[nodiscard]] virtual bool hasOutLayout() const;
 	[[nodiscard]] virtual bool drawBubble() const;
 	[[nodiscard]] virtual bool hasBubble() const;
+	[[nodiscard]] virtual bool unwrapped() const;
 	[[nodiscard]] virtual int minWidthForMedia() const {
 		return 0;
 	}
@@ -523,9 +529,8 @@ private:
 	int _y = 0;
 	int _indexInBlock = -1;
 
-	bool _isScheduledUntilOnline = false;
-	mutable bool _heavyCustomEmoji = false;
 	mutable Flags _flags = Flag(0);
+	mutable bool _heavyCustomEmoji = false;
 	Context _context = Context();
 
 };

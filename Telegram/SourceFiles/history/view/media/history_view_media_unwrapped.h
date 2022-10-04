@@ -85,6 +85,9 @@ public:
 	bool needsBubble() const override {
 		return false;
 	}
+	bool unwrapped() const override {
+		return true;
+	}
 	bool customInfoLayout() const override {
 		return true;
 	}

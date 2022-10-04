@@ -1252,6 +1252,10 @@ bool Gif::needsBubble() const {
 	return false;
 }
 
+bool Gif::unwrapped() const {
+	return isUnwrapped();
+}
+
 QRect Gif::contentRectForReactions() const {
 	if (!isUnwrapped()) {
 		return QRect(0, 0, width(), height());

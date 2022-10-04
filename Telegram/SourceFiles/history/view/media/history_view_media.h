@@ -209,6 +209,9 @@ public:
 		return TextWithEntities();
 	}
 	[[nodiscard]] virtual bool needsBubble() const = 0;
+	[[nodiscard]] virtual bool unwrapped() const {
+		return false;
+	}
 	[[nodiscard]] virtual bool customInfoLayout() const = 0;
 	[[nodiscard]] virtual QRect contentRectForReactions() const {
 		return QRect(0, 0, width(), height());

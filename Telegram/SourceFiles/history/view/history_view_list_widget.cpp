@@ -3358,8 +3358,8 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 			const auto nextDate = next->dateTime();
 			next->setDisplayDate(nextDate.date() != viewDate.date());
 			auto attached = next->computeIsAttachToPrevious(view);
-			next->setAttachToPrevious(attached);
-			view->setAttachToNext(attached);
+			next->setAttachToPrevious(attached, view);
+			view->setAttachToNext(attached, next);
 			view = next;
 		}
 	}

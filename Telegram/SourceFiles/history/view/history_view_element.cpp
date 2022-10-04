@@ -368,8 +368,11 @@ Element::Element(
 	? QDateTime()
 	: ItemDateTime(data))
 , _text(st::msgMinWidth)
-, _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
-, _flags(serviceFlag | Flag::NeedsResize)
+, _flags(serviceFlag
+	| Flag::NeedsResize
+	| (IsItemScheduledUntilOnline(data)
+		? Flag::ScheduledUntilOnline
+		: Flag()))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -544,6 +547,14 @@ bool Element::isAttachedToPrevious() const {
 
 bool Element::isAttachedToNext() const {
 	return _flags & Flag::AttachedToNext;
+}
+
+bool Element::isBubbleAttachedToPrevious() const {
+	return _flags & Flag::BubbleAttachedToPrevious;
+}
+
+bool Element::isBubbleAttachedToNext() const {
+	return _flags & Flag::BubbleAttachedToNext;
 }
 
 int Element::skipBlockWidth() const {
@@ -883,11 +894,12 @@ void Element::recountAttachToPreviousInBlocks() {
 		return;
 	}
 	auto attachToPrevious = false;
-	if (const auto previous = previousDisplayedInBlocks()) {
+	const auto previous = previousDisplayedInBlocks();
+	if (previous) {
 		attachToPrevious = computeIsAttachToPrevious(previous);
-		previous->setAttachToNext(attachToPrevious);
+		previous->setAttachToNext(attachToPrevious, this);
 	}
-	setAttachToPrevious(attachToPrevious);
+	setAttachToPrevious(attachToPrevious, previous);
 }
 
 void Element::recountDisplayDateInBlocks() {
@@ -925,7 +937,8 @@ void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(ItemDateText(item, _isScheduledUntilOnline));
+		Get<DateBadge>()->init(
+			ItemDateText(item, (_flags & Flag::ScheduledUntilOnline)));
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
@@ -933,22 +946,50 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
-void Element::setAttachToNext(bool attachToNext) {
+void Element::setAttachToNext(bool attachToNext, Element *next) {
+	Expects(next || !attachToNext);
+
+	auto pending = false;
 	if (attachToNext && !(_flags & Flag::AttachedToNext)) {
 		_flags |= Flag::AttachedToNext;
-		setPendingResize();
+		pending = true;
 	} else if (!attachToNext && (_flags & Flag::AttachedToNext)) {
 		_flags &= ~Flag::AttachedToNext;
+		pending = true;
+	}
+	const auto bubble = attachToNext && !next->unwrapped();
+	if (bubble && !(_flags & Flag::BubbleAttachedToNext)) {
+		_flags |= Flag::BubbleAttachedToNext;
+		pending = true;
+	} else if (!bubble && (_flags & Flag::BubbleAttachedToNext)) {
+		_flags &= ~Flag::BubbleAttachedToNext;
+		pending = true;
+	}
+	if (pending) {
 		setPendingResize();
 	}
 }
 
-void Element::setAttachToPrevious(bool attachToPrevious) {
+void Element::setAttachToPrevious(bool attachToPrevious, Element *previous) {
+	Expects(previous || !attachToPrevious);
+
+	auto pending = false;
 	if (attachToPrevious && !(_flags & Flag::AttachedToPrevious)) {
 		_flags |= Flag::AttachedToPrevious;
-		setPendingResize();
+		pending = true;
 	} else if (!attachToPrevious && (_flags & Flag::AttachedToPrevious)) {
 		_flags &= ~Flag::AttachedToPrevious;
+		pending = true;
+	}
+	const auto bubble = attachToPrevious && !previous->unwrapped();
+	if (bubble && !(_flags & Flag::BubbleAttachedToPrevious)) {
+		_flags |= Flag::BubbleAttachedToPrevious;
+		pending = true;
+	} else if (!bubble && (_flags & Flag::BubbleAttachedToPrevious)) {
+		_flags &= ~Flag::BubbleAttachedToPrevious;
+		pending = true;
+	}
+	if (pending) {
 		setPendingResize();
 	}
 }
@@ -983,6 +1024,10 @@ bool Element::drawBubble() const {
 
 bool Element::hasBubble() const {
 	return false;
+}
+
+bool Element::unwrapped() const {
+	return true;
 }
 
 bool Element::hasFastReply() const {

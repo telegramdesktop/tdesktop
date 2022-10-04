@@ -2635,6 +2635,19 @@ bool Message::hasBubble() const {
 	return drawBubble();
 }
 
+bool Message::unwrapped() const {
+	const auto item = message();
+	if (isHidden()) {
+		return true;
+	} else if (logEntryOriginal()) {
+		return false;
+	}
+	const auto media = this->media();
+	return media
+		? (!hasVisibleText() && media->unwrapped())
+		: item->isEmpty();
+}
+
 int Message::minWidthForMedia() const {
 	auto result = infoWidth() + 2 * (st::msgDateImgDelta + st::msgDateImgPadding.x());
 	const auto views = data()->Get<HistoryMessageViews>();
@@ -3099,8 +3112,8 @@ QRect Message::countGeometry() const {
 }
 
 Ui::BubbleRounding Message::countMessageRounding() const {
-	const auto smallTop = isAttachedToPrevious();
-	const auto smallBottom = isAttachedToNext();
+	const auto smallTop = isBubbleAttachedToPrevious();
+	const auto smallBottom = isBubbleAttachedToNext();
 	const auto media = smallBottom ? nullptr : this->media();
 	const auto keyboard = data()->inlineReplyKeyboard();
 	const auto skipTail = smallBottom

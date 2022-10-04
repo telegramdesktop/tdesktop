@@ -93,6 +93,7 @@ public:
 		return _caption.toTextWithEntities();
 	}
 	bool needsBubble() const override;
+	bool unwrapped() const override;
 	bool customInfoLayout() const override {
 		return _caption.isEmpty();
 	}
