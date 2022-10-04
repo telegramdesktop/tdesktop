@@ -219,7 +219,9 @@ RepliesWidget::RepliesWidget(
 	_topBar->resizeToWidth(width());
 	_topBar->show();
 
-	_rootView->move(0, _topBar->height());
+	if (_rootView) {
+		_rootView->move(0, _topBar->height());
+	}
 
 	_topBar->deleteSelectionRequest(
 	) | rpl::start_with_next([=] {
@@ -234,7 +236,9 @@ RepliesWidget::RepliesWidget(
 		clearSelected();
 	}, _topBar->lifetime());
 
-	_rootView->raise();
+	if (_rootView) {
+		_rootView->raise();
+	}
 	_topBarShadow->raise();
 
 	controller->adaptive().value(
@@ -414,6 +418,9 @@ void RepliesWidget::setupRoot() {
 }
 
 void RepliesWidget::setupRootView() {
+	if (_topic) {
+		return;
+	}
 	_rootView = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
@@ -471,6 +478,11 @@ void RepliesWidget::setupTopicViewer() {
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
 	if ((_topic = topic)) {
 		refreshTopBarActiveChat();
+		if (_rootView) {
+			_rootView = nullptr;
+			_rootViewHeight = 0;
+			updateControlsGeometry();
+		}
 	}
 }
 
@@ -1618,8 +1630,12 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 		_composeControls->showForGrab();
 	}
 	auto result = Ui::GrabWidget(this);
-	if (params.withTopBarShadow) _topBarShadow->show();
-	_rootView->hide();
+	if (params.withTopBarShadow) {
+		_topBarShadow->show();
+	}
+	if (_rootView) {
+		_rootView->hide();
+	}
 	return result;
 }
 
@@ -1808,7 +1824,6 @@ void RepliesWidget::updateControlsGeometry() {
 	if (_rootView) {
 		_rootView->resizeToWidth(contentWidth);
 	}
-	_rootView->resizeToWidth(contentWidth);
 
 	const auto bottom = height();
 	const auto controlsHeight = _joinGroup
@@ -1894,7 +1909,7 @@ void RepliesWidget::updatePinnedVisibility() {
 }
 
 void RepliesWidget::setPinnedVisibility(bool shown) {
-	if (animatingShow()) {
+	if (animatingShow() || _topic) {
 		return;
 	} else if (!_rootViewInited) {
 		const auto height = shown ? st::historyReplyHeight : 0;
@@ -1935,7 +1950,9 @@ void RepliesWidget::showFinishedHook() {
 	} else {
 		_composeControls->showFinished();
 	}
-	_rootView->show();
+	if (_rootView) {
+		_rootView->show();
+	}
 
 	// We should setup the drag area only after
 	// the section animation is finished,
