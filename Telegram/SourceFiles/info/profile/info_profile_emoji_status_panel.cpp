@@ -333,7 +333,7 @@ void EmojiStatusPanel::startAnimation(
 		not_null<Ui::RpWidget*> body,
 		DocumentId statusId,
 		Ui::MessageSendingAnimationFrom from) {
-	if (!_panelButton) {
+	if (!_panelButton || !statusId) {
 		return;
 	}
 	auto args = HistoryView::Reactions::AnimationArgs{
