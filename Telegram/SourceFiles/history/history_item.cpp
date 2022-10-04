@@ -660,9 +660,11 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 	setForwardsCount(data.vforwards().value_or(-1));
 	if (const auto reply = data.vreply_to()) {
 		reply->match([&](const MTPDmessageReplyHeader &data) {
-			setReplyToTop(
+			setReplyFields(
+				data.vreply_to_msg_id().v,
 				data.vreply_to_top_id().value_or(
-					data.vreply_to_msg_id().v));
+					data.vreply_to_msg_id().v),
+				data.is_forum_topic());
 		});
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
@@ -715,7 +717,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	if (isRegular()) {
 		_history->unregisterClientSideMessage(this);
 	}
-	_history->owner().notifyItemIdChange({ this, oldId });
+	_history->owner().notifyItemIdChange({ fullId(), oldId });
 
 	// We don't fire MessageUpdate::Flag::ReplyMarkup and update keyboard
 	// in history widget, because it can't exist for an outgoing message.

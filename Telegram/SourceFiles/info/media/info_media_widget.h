@@ -28,7 +28,7 @@ class Memento final : public ContentMemento {
 public:
 	explicit Memento(not_null<Controller*> controller);
 	Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type);
-	Memento(not_null<Data::ForumTopic*> peer, Type type);
+	Memento(not_null<Data::ForumTopic*> topic, Type type);
 
 	using SearchState = Api::DelayedSearchController::SavedState;
 

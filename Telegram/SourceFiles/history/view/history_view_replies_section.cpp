@@ -154,6 +154,16 @@ object_ptr<Window::SectionWidget> RepliesMemento::createWidget(
 	return result;
 }
 
+void RepliesMemento::setupTopicViewer() {
+	_history->owner().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		if (_rootId == change.oldId) {
+			_rootId = change.newId.msg;
+			_replies = nullptr;
+		}
+	}, _lifetime);
+}
+
 RepliesWidget::RepliesWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
@@ -199,6 +209,7 @@ RepliesWidget::RepliesWidget(
 
 	setupRoot();
 	setupRootView();
+	setupTopicViewer();
 
 	session().api().requestFullPeer(_history->peer);
 
@@ -442,6 +453,27 @@ void RepliesWidget::setupRootView() {
 	}, _rootView->lifetime());
 }
 
+void RepliesWidget::setupTopicViewer() {
+	_history->owner().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		if (_rootId == change.oldId) {
+			_rootId = change.newId.msg;
+			_root = lookupRoot();
+			createReplies();
+			if (_topic && _topic->rootId() == change.oldId) {
+				setTopic(_topic->forum()->topicFor(change.newId.msg));
+			}
+			_inner->update();
+		}
+	}, lifetime());
+}
+
+void RepliesWidget::setTopic(Data::ForumTopic *topic) {
+	if ((_topic = topic)) {
+		refreshTopBarActiveChat();
+	}
+}
+
 HistoryItem *RepliesWidget::lookupRoot() const {
 	return _history->owner().message(_history->peer, _rootId);
 }
@@ -458,9 +490,7 @@ Data::ForumTopic *RepliesWidget::lookupTopic() {
 			).done([=](const MTPmessages_ForumTopics &result) {
 				if (const auto forum = _history->peer->forum()) {
 					forum->applyReceivedTopics(result);
-					if ((_topic = forum->topicFor(_rootId))) {
-						refreshTopBarActiveChat();
-					}
+					setTopic(forum->topicFor(_rootId));
 				}
 				_resolveTopicRequestId = 0;
 			}).fail([=] {
@@ -1699,32 +1729,44 @@ void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	_inner->saveState(memento->list());
 }
 
-void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
-	const auto setReplies = [&](std::shared_ptr<Data::RepliesList> replies) {
-		_replies = std::move(replies);
+void RepliesWidget::createReplies() {
+	auto old = base::take(_replies);
+	setReplies(std::make_shared<Data::RepliesList>(_history, _rootId));
+	if (old) {
+		_inner->showAroundPosition(Data::UnreadMessagePosition, nullptr);
+	}
+}
 
-		rpl::combine(
-			rpl::single(0) | rpl::then(_replies->fullCount()),
-			_areComments.value()
-		) | rpl::map([=](int count, bool areComments) {
-			return count
-				? (areComments
-					? tr::lng_comments_header
-					: tr::lng_replies_header)(
-						lt_count_decimal,
-						rpl::single(count) | tr::to_count())
-				: (areComments
-					? tr::lng_comments_header_none
-					: tr::lng_replies_header_none)();
-		}) | rpl::flatten_latest(
-		) | rpl::start_with_next([=](const QString &text) {
-			_topBar->setCustomTitle(text);
-		}, lifetime());
-	};
+void RepliesWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
+	_replies = std::move(replies);
+	_repliesLifetime.destroy();
+	if (_topic) {
+		return;
+	}
+	rpl::combine(
+		rpl::single(0) | rpl::then(_replies->fullCount()),
+		_areComments.value()
+	) | rpl::map([=](int count, bool areComments) {
+		return count
+			? (areComments
+				? tr::lng_comments_header
+				: tr::lng_replies_header)(
+					lt_count_decimal,
+					rpl::single(count) | tr::to_count())
+			: (areComments
+				? tr::lng_comments_header_none
+				: tr::lng_replies_header_none)();
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](const QString &text) {
+		_topBar->setCustomTitle(text);
+	}, _repliesLifetime);
+}
+
+void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));
 	} else if (!_replies) {
-		setReplies(std::make_shared<Data::RepliesList>(_history, _rootId));
+		createReplies();
 	}
 	restoreReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());

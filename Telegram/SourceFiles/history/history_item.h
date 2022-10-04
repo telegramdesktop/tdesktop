@@ -341,7 +341,10 @@ public:
 		PeerId replier,
 		std::optional<bool> unread) {
 	}
-	virtual void setReplyToTop(MsgId replyToTop) = 0;
+	virtual void setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) = 0;
 	virtual void setPostAuthor(const QString &author) {
 	}
 	virtual void setRealId(MsgId newId);

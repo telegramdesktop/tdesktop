@@ -29,6 +29,8 @@ ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 , _rootId(rootId) {
 }
 
+ForumTopic::~ForumTopic() = default;
+
 not_null<ChannelData*> ForumTopic::channel() const {
 	return _history->peer->asChannel();
 }
@@ -43,6 +45,10 @@ not_null<Forum*> ForumTopic::forum() const {
 
 MsgId ForumTopic::rootId() const {
 	return _rootId;
+}
+
+void ForumTopic::setRealRootId(MsgId realId) {
+	_rootId = realId;
 }
 
 void ForumTopic::applyTopic(const MTPForumTopic &topic) {

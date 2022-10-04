@@ -330,7 +330,7 @@ private:
 	void updateThemePreviewGeometry();
 
 	void documentUpdated(not_null<DocumentData*> document);
-	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
+	void changingMsgId(FullMsgId newId, MsgId oldId);
 
 	[[nodiscard]] int finalContentRotation() const;
 	[[nodiscard]] QRect finalContentRect() const;

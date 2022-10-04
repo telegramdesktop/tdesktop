@@ -1318,12 +1318,12 @@ MsgId HistoryService::topicRootId() const {
 	return Data::ForumTopic::kGeneralId;
 }
 
-void HistoryService::setReplyToTop(MsgId replyToTop) {
+void HistoryService::setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) {
 	const auto data = GetDependentData();
-	if (!data
-		|| (data->topId == replyToTop)
-		|| (data->topId != 0)
-		|| isScheduled()) {
+	if (!data || IsServerMsgId(data->topId) || isScheduled()) {
 		return;
 	}
 	data->topId = replyToTop;

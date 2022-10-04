@@ -235,6 +235,7 @@ private:
 	void updateSearchControllers(not_null<ContentMemento*> memento);
 	SearchQuery produceSearchQuery(const QString &query) const;
 	void setupMigrationViewer();
+	void setupTopicViewer();
 
 	not_null<WrapWidget*> _widget;
 	Key _key;

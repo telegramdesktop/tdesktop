@@ -30,6 +30,7 @@ public:
 	static constexpr auto kGeneralId = 1;
 
 	ForumTopic(not_null<History*> history, MsgId rootId);
+	~ForumTopic();
 
 	ForumTopic(const ForumTopic &) = delete;
 	ForumTopic &operator=(const ForumTopic &) = delete;
@@ -41,6 +42,8 @@ public:
 	[[nodiscard]] bool isGeneral() const {
 		return (_rootId == kGeneralId);
 	}
+
+	void setRealRootId(MsgId realId);
 
 	void applyTopic(const MTPForumTopic &topic);
 
@@ -109,7 +112,7 @@ private:
 
 	const not_null<History*> _history;
 	const not_null<Dialogs::MainList*> _list;
-	const MsgId _rootId = 0;
+	MsgId _rootId = 0;
 
 	QString _title;
 	DocumentId _iconId = 0;

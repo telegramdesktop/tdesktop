@@ -139,7 +139,10 @@ public:
 	MsgId replyToId() const override;
 	MsgId replyToTop() const override;
 	MsgId topicRootId() const override;
-	void setReplyToTop(MsgId replyToTop) override;
+	void setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) override;
 
 	std::unique_ptr<HistoryView::Element> createView(
 		not_null<HistoryView::ElementDelegate*> delegate,

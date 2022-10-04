@@ -71,10 +71,10 @@ void Polls::create(
 		history,
 		replyTo,
 		randomId,
-		MTPmessages_SendMedia(
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
 			PollDataToInputMedia(&data),
 			MTP_string(),
 			MTP_long(randomId),

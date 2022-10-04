@@ -146,7 +146,10 @@ public:
 		int delta,
 		PeerId replier,
 		std::optional<bool> unread) override;
-	void setReplyToTop(MsgId replyToTop) override;
+	void setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) override;
 	void setPostAuthor(const QString &author) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;

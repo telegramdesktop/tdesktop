@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_forum_topic.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_media_types.h"
 #include "data/data_download_manager.h"
@@ -180,6 +181,7 @@ Controller::Controller(
 , _section(memento->section()) {
 	updateSearchControllers(memento);
 	setupMigrationViewer();
+	setupTopicViewer();
 }
 
 void Controller::setupMigrationViewer() {
@@ -208,6 +210,17 @@ void Controller::setupMigrationViewer() {
 				params);
 		});
 	}, lifetime());
+}
+
+void Controller::setupTopicViewer() {
+	session().data().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		if (const auto topic = _key.topic()) {
+			if (topic->rootId() == change.oldId) {
+				_key = Key(topic->forum()->topicFor(change.newId.msg));
+			}
+		}
+	}, _lifetime);
 }
 
 Wrap Controller::wrap() const {

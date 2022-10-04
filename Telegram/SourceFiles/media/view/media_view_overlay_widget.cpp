@@ -702,8 +702,8 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 	}
 }
 
-void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId oldId) {
-	if (row == _message) {
+void OverlayWidget::changingMsgId(FullMsgId newId, MsgId oldId) {
+	if (_message && _message->fullId() == newId) {
 		refreshMediaViewer();
 	}
 }
@@ -4181,7 +4181,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 
 	session->data().itemIdChanged(
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
-		changingMsgId(change.item, change.oldId);
+		changingMsgId(change.newId, change.oldId);
 	}, _sessionLifetime);
 
 	session->data().itemRemoved(

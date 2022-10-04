@@ -69,10 +69,10 @@ void ShareBotGame(
 		history,
 		replyTo,
 		randomId,
-		MTPmessages_SendMedia(
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(0),
 			chat->input,
-			MTP_int(0),
+			Data::Histories::ReplyToPlaceholder(),
 			MTP_inputMediaGame(
 				MTP_inputGameShortName(
 					bot->inputUser,

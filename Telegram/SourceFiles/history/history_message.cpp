@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
+#include "data/data_forum.h"
 #include "data/data_user.h"
 #include "data/data_web_page.h"
 #include "data/data_sponsored_messages.h"
@@ -173,6 +174,9 @@ void RequestDependentMessageData(
 		not_null<HistoryItem*> item,
 		PeerId peerId,
 		MsgId msgId) {
+	if (!IsServerMsgId(msgId)) {
+		return;
+	}
 	const auto fullId = item->fullId();
 	const auto history = item->history();
 	const auto session = &history->session();
@@ -332,6 +336,7 @@ HistoryMessage::HistoryMessage(
 				: id;
 			config.replyToTop = data.vreply_to_top_id().value_or(
 				data.vreply_to_msg_id().v);
+			config.replyIsTopicPost = data.is_forum_topic();
 		});
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
@@ -654,8 +659,10 @@ void HistoryMessage::createComponentsHelper(
 		const auto to = LookupReplyTo(history(), replyTo);
 		const auto replyToTop = LookupReplyToTop(to);
 		config.replyToTop = replyToTop ? replyToTop : replyTo;
+		const auto forum = history()->peer->forum();
 		config.replyIsTopicPost = LookupReplyIsTopicPost(to)
-			|| to->Has<HistoryServiceTopicInfo>();
+			|| (to && to->Has<HistoryServiceTopicInfo>())
+			|| (forum && forum->creating(replyToTop));
 	}
 	config.markup = std::move(markup);
 	if (flags & MessageFlag::HasPostAuthor) config.author = postAuthor;
@@ -1811,16 +1818,30 @@ void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
 		: Type::Group;
 }
 
-void HistoryMessage::setReplyToTop(MsgId replyToTop) {
+void HistoryMessage::setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) {
 	const auto reply = Get<HistoryMessageReply>();
-	if (!reply
-		|| (reply->replyToMsgTop == replyToTop)
-		|| (reply->replyToMsgTop != 0)
-		|| isScheduled()) {
+	if (!reply || isScheduled()) {
 		return;
 	}
-	reply->replyToMsgTop = replyToTop;
-	changeReplyToTopCounter(reply, 1);
+	reply->topicPost = isForumPost;
+	if ((reply->replyToMsgId != replyTo)
+		&& !IsServerMsgId(reply->replyToMsgId)) {
+		reply->replyToMsgId = replyTo;
+		if (!reply->updateData(this)) {
+			RequestDependentMessageData(
+				this,
+				reply->replyToPeerId,
+				reply->replyToMsgId);
+		}
+	}
+	if ((reply->replyToMsgTop != replyToTop)
+		&& !IsServerMsgId(reply->replyToMsgTop)) {
+		reply->replyToMsgTop = replyToTop;
+		changeReplyToTopCounter(reply, 1);
+	}
 }
 
 void HistoryMessage::setRealId(MsgId newId) {

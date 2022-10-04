@@ -3494,10 +3494,10 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			history,
 			replyTo,
 			randomId,
-			MTPmessages_SendMessage(
+			Data::Histories::PrepareMessage<MTPmessages_SendMessage>(
 				MTP_flags(sendFlags),
 				peer->input,
-				MTP_int(replyTo),
+				Data::Histories::ReplyToPlaceholder(),
 				msgText,
 				MTP_long(randomId),
 				MTPReplyMarkup(),
@@ -3637,10 +3637,10 @@ void ApiWrap::sendInlineResult(
 		history,
 		replyTo,
 		randomId,
-		MTPmessages_SendInlineBotResult(
+		Data::Histories::PrepareMessage<MTPmessages_SendInlineBotResult>(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
 			MTP_long(randomId),
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
@@ -3784,10 +3784,10 @@ void ApiWrap::sendMediaWithRandomId(
 		history,
 		replyTo,
 		randomId,
-		MTPmessages_SendMedia(
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(flags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
 			media,
 			MTP_string(caption.text),
 			MTP_long(randomId),
@@ -3889,10 +3889,10 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 		history,
 		replyTo,
 		uint64(0), // randomId
-		MTPmessages_SendMultiMedia(
+		Data::Histories::PrepareMessage<MTPmessages_SendMultiMedia>(
 			MTP_flags(flags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())

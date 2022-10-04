@@ -163,6 +163,8 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
+	void setReplies(std::shared_ptr<Data::RepliesList> replies);
+	void createReplies();
 	void showAtStart();
 	void showAtEnd();
 	void showAtPosition(
@@ -178,6 +180,8 @@ private:
 
 	void setupRoot();
 	void setupRootView();
+	void setupTopicViewer();
+	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
@@ -276,6 +280,7 @@ private:
 	mutable bool _newTopicDiscarded = false;
 
 	std::shared_ptr<Data::RepliesList> _replies;
+	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
 	std::shared_ptr<SendActionPainter> _sendAction;
 	QPointer<ListWidget> _inner;
@@ -363,12 +368,16 @@ public:
 	}
 
 private:
+	void setupTopicViewer();
+
 	const not_null<History*> _history;
-	const MsgId _rootId = 0;
+	MsgId _rootId = 0;
 	const MsgId _highlightId = 0;
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
 	std::vector<MsgId> _replyReturns;
+
+	rpl::lifetime _lifetime;
 
 };
 

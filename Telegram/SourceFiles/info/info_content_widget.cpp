@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "data/data_forum.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
@@ -340,6 +341,12 @@ ContentMemento::ContentMemento(not_null<Data::ForumTopic*> topic)
 : _peer(topic->channel())
 , _migratedPeerId(_peer->migrateFrom() ? _peer->migrateFrom()->id : 0)
 , _topic(topic) {
+	_peer->owner().itemIdChanged(
+	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+		if (_topic->rootId() == change.oldId) {
+			_topic = _topic->forum()->topicFor(change.newId.msg);
+		}
+	}, _lifetime);
 }
 
 ContentMemento::ContentMemento(Settings::Tag settings)

@@ -148,10 +148,10 @@ void SendExistingMedia(
 			history,
 			replyTo,
 			randomId,
-			MTPmessages_SendMedia(
+			Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 				MTP_flags(sendFlags),
 				peer->input,
-				MTP_int(replyTo),
+				Data::Histories::ReplyToPlaceholder(),
 				inputMedia(),
 				MTP_string(captionText),
 				MTP_long(randomId),
@@ -314,10 +314,10 @@ bool SendDice(MessageToSend &message) {
 		history,
 		replyTo,
 		randomId,
-		MTPmessages_SendMedia(
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
 			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
@@ -347,9 +347,9 @@ void SendConfirmedFile(
 		&& (file->to.replaceMediaOf != 0);
 	const auto newId = FullMsgId(
 		file->to.peer,
-		isEditing
+		(isEditing
 			? file->to.replaceMediaOf
-			: session->data().nextLocalMessageId());
+			: session->data().nextLocalMessageId()));
 	const auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
@@ -360,14 +360,20 @@ void SendConfirmedFile(
 
 		it->msgId = newId;
 	}
-	session->uploader().upload(newId, file);
 
 	const auto itemToEdit = isEditing
 		? session->data().message(newId)
 		: nullptr;
-
 	const auto history = session->data().history(file->to.peer);
 	const auto peer = history->peer;
+
+	if (!isEditing) {
+		file->to.replyTo = session->data().histories().convertTopicReplyTo(
+			history,
+			file->to.replyTo);
+	}
+
+	session->uploader().upload(newId, file);
 
 	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;

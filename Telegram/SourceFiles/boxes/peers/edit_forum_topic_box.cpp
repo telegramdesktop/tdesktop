@@ -139,7 +139,8 @@ void EditForumTopicBox(
 
 	const auto requestId = std::make_shared<mtpRequestId>();
 	const auto create = [=] {
-		if (!forum->peer->isForum()) {
+		const auto channel = forum->peer->asChannel();
+		if (!channel || !channel->isForum()) {
 			box->closeBox();
 			return;
 		} else if (title->getLastText().trimmed().isEmpty()) {
@@ -149,30 +150,10 @@ void EditForumTopicBox(
 		controller->showSection(
 			std::make_shared<HistoryView::RepliesMemento>(
 				forum,
-				forum->peer->forum()->reserveCreatingId(
+				channel->forum()->reserveCreatingId(
 					title->getLastText().trimmed(),
 					state->iconId)),
 			Window::SectionShow::Way::ClearStack);
-#if 0 // #TODO forum create
-		const auto randomId = base::RandomValue<uint64>();
-		const auto api = &forum->session().api();
-		api->request(MTPchannels_CreateForumTopic(
-			MTP_flags(0),
-			forum->inputChannel,
-			MTP_string(title->getLastText().trimmed()),
-			MTPlong(), // icon_emoji_id
-			MTPInputMedia(),
-			MTP_string(message->getLastText().trimmed()),
-			MTP_long(randomId),
-			MTPVector<MTPMessageEntity>(),
-			MTPInputPeer() // send_as
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result, randomId);
-			box->closeBox();
-		}).fail([=](const MTP::Error &error) {
-			api->sendMessageFail(error, forum, randomId);
-		}).send();
-#endif
 	};
 
 	const auto save = [=] {

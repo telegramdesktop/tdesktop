@@ -39,6 +39,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document_resolver.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
 #include "data/data_peer_values.h"
 #include "passport/passport_form_controller.h"
@@ -672,6 +674,27 @@ SessionController::SessionController(
 		crl::on_main(this, [=] {
 			refreshFiltersMenu();
 		});
+	}, lifetime());
+
+	session->data().itemIdChanged(
+	) | rpl::start_with_next([=](Data::Session::IdChange change) {
+		const auto current = _activeChatEntry.current();
+		if (const auto topic = current.key.topic()) {
+			if (topic->rootId() == change.oldId) {
+				setActiveChatEntry({
+					Dialogs::Key(topic->forum()->topicFor(change.newId.msg)),
+					current.fullId,
+				});
+			}
+		}
+		for (auto &entry : _chatEntryHistory) {
+			if (const auto topic = entry.key.topic()) {
+				if (topic->rootId() == change.oldId) {
+					entry.key = Dialogs::Key(
+						topic->forum()->topicFor(change.newId.msg));
+				}
+			}
+		}
 	}, lifetime());
 
 	session->api().globalPrivacy().suggestArchiveAndMute(

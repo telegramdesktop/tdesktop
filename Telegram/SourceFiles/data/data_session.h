@@ -243,7 +243,7 @@ public:
 	void itemVisibilitiesUpdated();
 
 	struct IdChange {
-		not_null<HistoryItem*> item;
+		FullMsgId newId;
 		MsgId oldId = 0;
 	};
 	void notifyItemIdChange(IdChange event);
@@ -728,7 +728,7 @@ private:
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
 	not_null<HistoryItem*> registerMessage(
 		std::unique_ptr<HistoryItem> item);
-	void changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
+	HistoryItem *changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
 	void removeDependencyMessage(not_null<HistoryItem*> item);
 
 	void photoApplyFields(

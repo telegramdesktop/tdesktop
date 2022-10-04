@@ -36,6 +36,7 @@ public:
 		const QString &title,
 		DocumentId iconId);
 	void applyTopicRemoved(MsgId rootId);
+	void applyTopicCreated(MsgId rootId, MsgId realId);
 	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 
@@ -46,6 +47,7 @@ public:
 		DocumentId iconId);
 	void discardCreatingId(MsgId rootId);
 	[[nodiscard]] bool creating(MsgId rootId) const;
+	void created(MsgId rootId, MsgId realId);
 
 private:
 	void applyReceivedTopics(

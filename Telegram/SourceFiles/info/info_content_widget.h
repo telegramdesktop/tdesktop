@@ -213,7 +213,7 @@ public:
 private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
-	Data::ForumTopic * const _topic = nullptr;
+	Data::ForumTopic *_topic = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;
@@ -222,6 +222,8 @@ private:
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;
 	bool _searchStartsFocused = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

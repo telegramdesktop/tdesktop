@@ -11,8 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_scheduled_messages.h"
 #include "base/unixtime.h"
+#include "base/random.h"
 #include "main/main_session.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
@@ -841,14 +844,74 @@ int Histories::sendRequest(
 	return id;
 }
 
+void Histories::sendCreateTopicRequest(
+		not_null<History*> history,
+		MsgId rootId) {
+	Expects(history->peer->isChannel());
+
+	const auto forum = history->peer->forum();
+	Assert(forum != nullptr);
+	const auto topic = forum->topicFor(rootId);
+	Assert(topic != nullptr);
+	const auto randomId = base::RandomValue<uint64>();
+	session().data().registerMessageRandomId(
+		randomId,
+		{ history->peer->id, rootId });
+	const auto api = &session().api();
+	using Flag = MTPchannels_CreateForumTopic::Flag;
+	api->request(MTPchannels_CreateForumTopic(
+		MTP_flags(topic->iconId() ? Flag::f_icon_emoji_id : Flag(0)),
+		history->peer->asChannel()->inputChannel,
+		MTP_string(topic->title()),
+		MTP_long(topic->iconId()),
+		MTP_long(randomId),
+		MTPInputPeer() // send_as
+	)).done([=](const MTPUpdates &result) {
+		//AssertIsDebug();
+		//const auto id = result.c_updates().vupdates().v.front().c_updateMessageID().vrandom_id().v;
+		//session().data().registerMessageRandomId(
+		//	id,
+		//	{ history->peer->id, rootId });
+		api->applyUpdates(result, randomId);
+	}).fail([=](const MTP::Error &error) {
+		api->sendMessageFail(error, history->peer, randomId);
+	}).send();
+}
+
+bool Histories::isCreatingTopic(
+		not_null<History*> history,
+		MsgId rootId) const {
+	const auto forum = history->peer->forum();
+	return forum && forum->creating(rootId);
+}
+
 int Histories::sendPreparedMessage(
 		not_null<History*> history,
 		MsgId replyTo,
 		uint64 randomId,
-		PreparedMessage message,
+		Fn<PreparedMessage(MsgId replyTo)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
-	return v::match(message, [&](const auto &request) {
+	if (isCreatingTopic(history, replyTo)) {
+		const auto id = ++_requestAutoincrement;
+		const auto creatingId = FullMsgId(history->peer->id, replyTo);
+		auto i = _creatingTopics.find(creatingId);
+		if (i == end(_creatingTopics)) {
+			sendCreateTopicRequest(history, replyTo);
+			i = _creatingTopics.emplace(creatingId).first;
+		}
+		i->second.push_back({
+			.randomId = randomId,
+			.message = std::move(message),
+			.done = std::move(done),
+			.fail = std::move(fail),
+			.requestId = id,
+		});
+		_creatingTopicRequests.emplace(id);
+		return id;
+	}
+	const auto realTo = convertTopicReplyTo(history, replyTo);
+	return v::match(message(realTo), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
 			const auto session = &_owner->session();
@@ -874,6 +937,54 @@ int Histories::sendPreparedMessage(
 	});
 }
 
+void Histories::checkTopicCreated(FullMsgId rootId, MsgId realId) {
+	const auto i = _creatingTopics.find(rootId);
+	if (i != end(_creatingTopics)) {
+		auto scheduled = base::take(i->second);
+		_creatingTopics.erase(i);
+
+		_createdTopicIds.emplace(rootId, realId);
+
+		if (const auto forum = _owner->peer(rootId.peer)->forum()) {
+			forum->created(rootId.msg, realId);
+		}
+
+		const auto history = _owner->history(rootId.peer);
+		for (auto &entry : scheduled) {
+			_creatingTopicRequests.erase(entry.requestId);
+			//AssertIsDebug();
+			sendPreparedMessage(
+				history,
+				realId,
+				entry.randomId,
+				std::move(entry.message),
+				std::move(entry.done),
+				std::move(entry.fail));
+		}
+		for (const auto &item : history->clientSideMessages()) {
+			const auto replace = [&](MsgId nowId) {
+				return (nowId == rootId.msg) ? realId : nowId;
+			};
+			if (item->replyToTop() == rootId.msg) {
+				item->setReplyFields(
+					replace(item->replyToId()),
+					realId,
+					true);
+			}
+		}
+	}
+}
+
+MsgId Histories::convertTopicReplyTo(
+		not_null<History*> history,
+		MsgId replyTo) const {
+	if (!replyTo) {
+		return {};
+	}
+	const auto i = _createdTopicIds.find({ history->peer->id, replyTo });
+	return (i != end(_createdTopicIds)) ? i->second : replyTo;
+}
+
 void Histories::checkPostponed(not_null<History*> history, int id) {
 	if (const auto state = lookup(history)) {
 		finishSentRequest(history, state, id);
@@ -882,6 +993,9 @@ void Histories::checkPostponed(not_null<History*> history, int id) {
 
 void Histories::cancelRequest(int id) {
 	if (!id) {
+		return;
+	} else if (_creatingTopicRequests.contains(id)) {
+		cancelDelayedByTopicRequest(id);
 		return;
 	}
 	const auto history = _historyByRequest.take(id);
@@ -894,6 +1008,15 @@ void Histories::cancelRequest(int id) {
 	}
 	state->postponed.remove(id);
 	finishSentRequest(*history, state, id);
+}
+
+void Histories::cancelDelayedByTopicRequest(int id) {
+	for (auto &[rootId, messages] : _creatingTopics) {
+		messages.erase(
+			ranges::remove(messages, id, &DelayedByTopicMessage::requestId),
+			end(messages));
+	}
+	_creatingTopicRequests.remove(id);
 }
 
 void Histories::finishSentRequest(

@@ -137,9 +137,6 @@ void RepliesList::appendClientSideMessages(MessagesSlice &slice) {
 		}
 		slice.ids.reserve(messages.size());
 		for (const auto &item : messages) {
-			const auto checkId = (_rootId == ForumTopic::kGeneralId)
-				? item->topicRootId()
-				: item->replyToTop();
 			if (!item->inThread(_rootId)) {
 				continue;
 			}

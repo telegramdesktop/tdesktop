@@ -124,20 +124,18 @@ void Forum::applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
 		DocumentId iconId) {
-	if (const auto i = _topics.find(rootId); i != end(_topics)) {
-		i->second->applyTitle(title);
-		i->second->applyIconId(iconId);
-	} else {
-		const auto raw = _topics.emplace(
+	const auto i = _topics.find(rootId);
+	const auto raw = (i != end(_topics))
+		? i->second.get()
+		: _topics.emplace(
 			rootId,
 			std::make_unique<ForumTopic>(_history, rootId)
 		).first->second.get();
-		raw->applyTitle(title);
-		raw->applyIconId(iconId);
-		if (!creating(rootId)) {
-			raw->addToChatList(FilterId(), topicsList());
-			_chatsListChanges.fire({});
-		}
+	raw->applyTitle(title);
+	raw->applyIconId(iconId);
+	if (!creating(rootId)) {
+		raw->addToChatList(FilterId(), topicsList());
+		_chatsListChanges.fire({});
 	}
 }
 
@@ -169,6 +167,25 @@ void Forum::discardCreatingId(MsgId rootId) {
 
 bool Forum::creating(MsgId rootId) const {
 	return _creatingRootIds.contains(rootId);
+}
+
+void Forum::created(MsgId rootId, MsgId realId) {
+	if (rootId == realId) {
+		return;
+	}
+	_creatingRootIds.remove(rootId);
+	const auto i = _topics.find(rootId);
+	Assert(i != end(_topics));
+	auto topic = std::move(i->second);
+	_topics.erase(i);
+	const auto id = FullMsgId(_history->peer->id, realId);
+	if (!_topics.contains(realId)) {
+		_topics.emplace(
+			realId,
+			std::move(topic)
+		).first->second->setRealRootId(realId);
+	}
+	_history->owner().notifyItemIdChange({ id, rootId });
 }
 
 ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {

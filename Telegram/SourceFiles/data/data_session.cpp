@@ -1407,10 +1407,12 @@ rpl::producer<not_null<HistoryItem*>> Session::newItemAdded() const {
 	return _newItemAdded.events();
 }
 
-void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
+HistoryItem *Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	const auto list = messagesListForInsert(peerId);
-	auto i = list->find(wasId);
-	Assert(i != list->end());
+	const auto i = list->find(wasId);
+	if (i == list->end()) {
+		return nullptr;
+	}
 	const auto item = i->second;
 	list->erase(i);
 	const auto [j, ok] = list->emplace(nowId, item);
@@ -1427,6 +1429,7 @@ void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	}
 
 	Ensures(ok);
+	return item;
 }
 
 bool Session::queryItemVisibility(not_null<HistoryItem*> item) const {
@@ -1448,19 +1451,23 @@ void Session::itemVisibilitiesUpdated() {
 }
 
 void Session::notifyItemIdChange(IdChange event) {
-	const auto item = event.item;
-	changeMessageId(item->history()->peer->id, event.oldId, item->id);
+	const auto item = changeMessageId(
+		event.newId.peer,
+		event.oldId,
+		event.newId.msg);
 
 	_itemIdChanges.fire_copy(event);
 
-	const auto refreshViewDataId = [](not_null<ViewElement*> view) {
-		view->refreshDataId();
-	};
-	enumerateItemViews(item, refreshViewDataId);
-	if (const auto group = groups().find(item)) {
-		const auto leader = group->items.front();
-		if (leader != item) {
-			enumerateItemViews(leader, refreshViewDataId);
+	if (item) {
+		const auto refreshViewDataId = [](not_null<ViewElement*> view) {
+			view->refreshDataId();
+		};
+		enumerateItemViews(item, refreshViewDataId);
+		if (const auto group = groups().find(item)) {
+			const auto leader = group->items.front();
+			if (leader != item) {
+				enumerateItemViews(leader, refreshViewDataId);
+			}
 		}
 	}
 }

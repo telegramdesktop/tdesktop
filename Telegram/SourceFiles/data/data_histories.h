@@ -104,9 +104,24 @@ public:
 		not_null<History*> history,
 		MsgId replyTo,
 		uint64 randomId,
-		PreparedMessage message,
-		Fn<void(const MTPUpdates&, const MTP::Response &)> done,
+		Fn<PreparedMessage(MsgId replyTo)> message,
+		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
+
+	struct ReplyToPlaceholder {
+	};
+	template <typename RequestType, typename ...Args>
+	static Fn<Histories::PreparedMessage(MsgId)> PrepareMessage(
+			const Args &...args) {
+		return [=](MsgId replyTo) {
+			return RequestType(ReplaceReplyTo(args, replyTo)...);
+		};
+	}
+
+	void checkTopicCreated(FullMsgId rootId, MsgId realId);
+	[[nodiscard]] MsgId convertTopicReplyTo(
+		not_null<History*> history,
+		MsgId replyTo) const;
 
 private:
 	struct PostponedHistoryRequest {
@@ -130,6 +145,22 @@ private:
 		MsgId aroundId = 0;
 		mtpRequestId requestId = 0;
 	};
+	struct DelayedByTopicMessage {
+		uint64 randomId = 0;
+		Fn<PreparedMessage(MsgId replyTo)> message;
+		Fn<void(const MTPUpdates&, const MTP::Response&)> done;
+		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
+		int requestId = 0;
+	};
+
+	template <typename Arg>
+	static auto ReplaceReplyTo(Arg arg, MsgId replyTo) {
+		return arg;
+	}
+	template <>
+	static auto ReplaceReplyTo(ReplyToPlaceholder, MsgId replyTo) {
+		return MTP_int(replyTo);
+	}
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
@@ -146,6 +177,12 @@ private:
 	void postponeRequestDialogEntries();
 
 	void sendDialogRequests();
+
+	[[nodiscard]] bool isCreatingTopic(
+		not_null<History*> history,
+		MsgId rootId) const;
+	void sendCreateTopicRequest(not_null<History*> history, MsgId rootId);
+	void cancelDelayedByTopicRequest(int id);
 
 	const not_null<Session*> _owner;
 
@@ -168,6 +205,12 @@ private:
 	base::flat_map<
 		not_null<History*>,
 		ChatListGroupRequest> _chatListGroupRequests;
+
+	base::flat_map<
+		FullMsgId,
+		std::vector<DelayedByTopicMessage>> _creatingTopics;
+	base::flat_map<FullMsgId, MsgId> _createdTopicIds;
+	base::flat_set<mtpRequestId> _creatingTopicRequests;
 
 };
 

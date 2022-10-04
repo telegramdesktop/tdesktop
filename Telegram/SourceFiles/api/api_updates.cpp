@@ -1534,7 +1534,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto randomId = d.vrandom_id().v;
 		if (const auto id = session().data().messageIdByRandomId(randomId)) {
 			const auto newId = d.vid().v;
-			if (const auto local = session().data().message(id)) {
+			auto &owner = session().data();
+			if (const auto local = owner.message(id)) {
 				if (local->isScheduled()) {
 					session().data().scheduledMessages().apply(d, local);
 				} else {
@@ -1552,6 +1553,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						local->setRealId(d.vid().v);
 					}
 				}
+			} else {
+				owner.histories().checkTopicCreated(id, newId);
 			}
 			session().data().unregisterMessageRandomId(randomId);
 		}
