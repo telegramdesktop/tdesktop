@@ -188,8 +188,7 @@ void CloudThemes::reloadCurrent() {
 	const auto &fields = Window::Theme::Background()->themeObject().cloud;
 	_session->api().request(MTPaccount_GetTheme(
 		MTP_string(Format()),
-		MTP_inputTheme(MTP_long(fields.id), MTP_long(fields.accessHash)),
-		MTP_long(fields.documentId)
+		MTP_inputTheme(MTP_long(fields.id), MTP_long(fields.accessHash))
 	)).done([=](const MTPTheme &result) {
 		applyUpdate(result);
 	}).fail([=] {
@@ -218,8 +217,7 @@ void CloudThemes::resolve(
 	_session->api().request(_resolveRequestId).cancel();
 	_resolveRequestId = _session->api().request(MTPaccount_GetTheme(
 		MTP_string(Format()),
-		MTP_inputThemeSlug(MTP_string(slug)),
-		MTP_long(0)
+		MTP_inputThemeSlug(MTP_string(slug))
 	)).done([=](const MTPTheme &result) {
 		showPreview(controller, result);
 	}).fail([=](const MTP::Error &error) {

@@ -62,7 +62,8 @@ PeerId GenerateUser(not_null<History*> history, const QString &name) {
 		MTPVector<MTPRestrictionReason>(), // restrictions
 		MTPstring(), // bot placeholder
 		MTPstring(), // lang code
-		MTPEmojiStatus()));
+		MTPEmojiStatus(),
+		MTPVector<MTPUsername>()));
 	return peerId;
 }
 

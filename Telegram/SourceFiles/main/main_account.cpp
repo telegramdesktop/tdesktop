@@ -170,7 +170,8 @@ void Account::createSession(
 			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
-			MTPEmojiStatus()),
+			MTPEmojiStatus(),
+			MTPVector<MTPUsername>()),
 		serialized,
 		streamVersion,
 		std::move(settings));

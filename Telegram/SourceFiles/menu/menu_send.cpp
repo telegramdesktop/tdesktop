@@ -187,10 +187,13 @@ void SetupReadAllMenu(
 void SetupUnreadMentionsMenu(
 		not_null<Ui::RpWidget*> button,
 		Fn<PeerData*()> currentPeer) {
+	const auto topMsgId = 0;
 	const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
 	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
 		peer->session().api().request(MTPmessages_ReadMentions(
-			peer->input
+			MTP_flags(0),
+			peer->input,
+			MTP_int(topMsgId)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
 			done();
 			peer->session().api().applyAffectedHistory(peer, result);

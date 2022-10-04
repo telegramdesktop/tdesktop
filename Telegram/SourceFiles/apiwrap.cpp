@@ -2428,8 +2428,7 @@ void ApiWrap::refreshFileReference(
 			MTP_string(Data::CloudThemes::Format()),
 			MTP_inputTheme(
 				MTP_long(data.themeId),
-				MTP_long(data.accessHash)),
-			MTP_long(0)));
+				MTP_long(data.accessHash))));
 	}, [&](Data::FileOriginRingtones data) {
 		request(MTPaccount_GetSavedRingtones(MTP_long(0)));
 	}, [&](Data::FileOriginPremiumPreviews data) {

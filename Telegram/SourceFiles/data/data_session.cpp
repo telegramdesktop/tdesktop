@@ -3932,7 +3932,8 @@ void Session::serviceNotification(
 			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
-			MTPEmojiStatus()));
+			MTPEmojiStatus(),
+			MTPVector<MTPUsername>()));
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {

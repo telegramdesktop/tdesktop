@@ -85,6 +85,7 @@ void UnreadThings::requestMentions(not_null<History*> history, int loaded) {
 	if (_mentionsRequests.contains(history)) {
 		return;
 	}
+	const auto topMsgId = 0;
 	const auto offsetId = std::max(
 		history->unreadMentions().maxLoaded(),
 		MsgId(1));
@@ -93,7 +94,9 @@ void UnreadThings::requestMentions(not_null<History*> history, int loaded) {
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto requestId = _api->request(MTPmessages_GetUnreadMentions(
+		MTP_flags(0),
 		history->peer->input,
+		MTP_int(topMsgId),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),
@@ -112,6 +115,7 @@ void UnreadThings::requestReactions(not_null<History*> history, int loaded) {
 	if (_reactionsRequests.contains(history)) {
 		return;
 	}
+	const auto topMsgId = 0;
 	const auto offsetId = loaded
 		? std::max(history->unreadReactions().maxLoaded(), MsgId(1))
 		: MsgId(1);
@@ -120,7 +124,9 @@ void UnreadThings::requestReactions(not_null<History*> history, int loaded) {
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
+		MTP_flags(0),
 		history->peer->input,
+		MTP_int(topMsgId),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),
