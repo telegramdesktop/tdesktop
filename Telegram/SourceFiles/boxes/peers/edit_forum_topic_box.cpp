@@ -157,8 +157,9 @@ void EditForumTopicBox(
 	};
 
 	const auto save = [=] {
-		const auto topic = forum->peer->forum()
-			? forum->peer->forum()->topicFor(rootId)
+		const auto parent = forum->peer->forum();
+		const auto topic = parent
+			? parent->topicFor(rootId)
 			: nullptr;
 		if (!topic) {
 			box->closeBox();
@@ -169,29 +170,35 @@ void EditForumTopicBox(
 			if (title->getLastText().trimmed().isEmpty()) {
 				title->showError();
 				return;
-			}
-			const auto done = [=] {
-				state->titleRequestId = 0;
-				if (!state->iconRequestId) {
-					box->closeBox();
-				}
-			};
-			state->titleRequestId = api->request(MTPchannels_EditForumTitle(
-				topic->channel()->inputChannel,
-				MTP_int(rootId),
-				MTP_string(title->getLastText().trimmed())
-			)).done([=](const MTPUpdates &result) {
-				api->applyUpdates(result);
-				done();
-			}).fail([=](const MTP::Error &error) {
-				if (error.type() == u"TOPIC_NOT_MODIFIED") {
+			} else if (parent->creating(rootId)) {
+				topic->applyTitle(title->getLastText().trimmed());
+			} else {
+				const auto done = [=] {
+					state->titleRequestId = 0;
+					if (!state->iconRequestId) {
+						box->closeBox();
+					}
+				};
+				state->titleRequestId = api->request(MTPchannels_EditForumTitle(
+					topic->channel()->inputChannel,
+					MTP_int(rootId),
+					MTP_string(title->getLastText().trimmed())
+				)).done([=](const MTPUpdates &result) {
+					api->applyUpdates(result);
 					done();
-				} else {
-					state->titleRequestId = -1;
-				}
-			}).send();
+				}).fail([=](const MTP::Error &error) {
+					if (error.type() == u"TOPIC_NOT_MODIFIED") {
+						done();
+					} else {
+						state->titleRequestId = -1;
+					}
+				}).send();
+			}
 		}
-		if (state->iconRequestId <= 0) {
+		if (parent->creating(rootId)) {
+			topic->applyIconId(state->iconId);
+			box->closeBox();
+		} else if (state->iconRequestId <= 0) {
 			const auto done = [=] {
 				state->iconRequestId = 0;
 				if (!state->titleRequestId) {
