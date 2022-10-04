@@ -1540,6 +1540,12 @@ not_null<History*> RepliesWidget::history() const {
 }
 
 Dialogs::RowDescriptor RepliesWidget::activeChat() const {
+	if (_topic) {
+		return {
+			_topic,
+			FullMsgId(_history->peer->id, ShowAtUnreadMsgId),
+		};
+	}
 	return {
 		_history,
 		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
