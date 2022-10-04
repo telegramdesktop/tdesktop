@@ -6765,7 +6765,11 @@ bool HistoryWidget::sendExistingPhoto(
 void HistoryWidget::showInfoTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
-	_topToast.show(_scroll.data(), text, std::move(hiddenCallback));
+	_topToast.show(
+		_scroll.data(),
+		&session(),
+		text,
+		std::move(hiddenCallback));
 }
 
 void HistoryWidget::showPremiumStickerTooltip(

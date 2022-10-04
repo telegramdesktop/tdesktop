@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/weak_ptr.h"
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Ui::Toast {
 class Instance;
 } // namespace Ui::Toast
@@ -21,6 +25,7 @@ public:
 
 	void show(
 		not_null<QWidget*> parent,
+		not_null<Main::Session*> session,
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback);
 	void hide(anim::type animated);
