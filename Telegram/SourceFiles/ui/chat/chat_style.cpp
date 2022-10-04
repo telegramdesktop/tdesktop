@@ -418,6 +418,11 @@ ChatStyle::ChatStyle() {
 		st::historyVideoMessageMuteSelected);
 }
 
+ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
+: ChatStyle() {
+	assignPalette(isolated);
+}
+
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
 	const auto themePalette = theme->palette();
 	assignPalette(themePalette

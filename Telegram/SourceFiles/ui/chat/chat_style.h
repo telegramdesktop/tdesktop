@@ -161,6 +161,7 @@ struct ChatPaintContext {
 class ChatStyle final : public style::palette {
 public:
 	ChatStyle();
+	explicit ChatStyle(not_null<const style::palette*> isolated);
 
 	void apply(not_null<ChatTheme*> theme);
 

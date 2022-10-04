@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/chat/chat_style.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/image/image_prepare.h"
 #include "styles/style_widgets.h"
 #include "styles/style_window.h"
@@ -124,7 +126,8 @@ private:
 		bool outbg = false;
 		Status status = Status::None;
 		QString date;
-		bool attached = false;
+		bool attachToTop = false;
+		bool attachToBottom = false;
 		bool tail = true;
 		Ui::Text::String text = { st::msgMinWidth };
 		QVector<int> waveform;
@@ -175,6 +178,7 @@ private:
 	const style::palette &_palette;
 	const CurrentData _current;
 	const PreviewType _type;
+	Ui::ChatStyle _st;
 	Painter *_p = nullptr;
 
 	QRect _rect;
@@ -383,9 +387,10 @@ void Generator::generateData() {
 	addTextBubble("Twenty years from now you will be more disappointed by the things that you didn't do than by the ones you did do. " + QString::fromUtf8("\xf0\x9f\xa7\x90"), "10:00", Status::Received);
 	_bubbles.back().tail = false;
 	_bubbles.back().outbg = true;
+	_bubbles.back().attachToBottom = true;
 	addTextBubble("Mark Twain said that " + QString::fromUtf8("\xe2\x98\x9d\xef\xb8\x8f"), "10:00", Status::Received);
 	_bubbles.back().outbg = true;
-	_bubbles.back().attached = true;
+	_bubbles.back().attachToTop = true;
 	_bubbles.back().tail = true;
 	addTextBubble("We are too smart for this world. " + QString::fromUtf8("\xf0\x9f\xa4\xa3\xf0\x9f\x98\x82"), "11:00", Status::None);
 	_bubbles.back().replyName.setText(st::msgNameStyle, "Alex Cassio", Ui::NameTextOptions());
@@ -399,7 +404,8 @@ Generator::Generator(
 : _theme(theme)
 , _palette(_theme.palette)
 , _current(std::move(current))
-, _type(type) {
+, _type(type)
+, _st(&_palette) {
 }
 
 QImage Generator::generate() {
@@ -589,8 +595,8 @@ void Generator::paintComposeArea() {
 	auto field = QRect(fieldLeft, fieldTop, fieldWidth, fieldHeight);
 	_p->fillRect(field, st::historyComposeField.textBg[_palette]);
 
-	_p->save();
 	_p->setClipRect(field);
+	_p->save();
 	_p->setFont(st::historyComposeField.font);
 	_p->setPen(st::historyComposeField.placeholderFg[_palette]);
 
@@ -691,7 +697,7 @@ void Generator::paintRow(const Row &row) {
 		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
 	}
 
-	auto texttop = st.textTop;
+	auto texttop = y + st.textTop;
 
 	auto dateWidth = st::dialogsDateFont->width(row.date);
 	rectForName.setWidth(rectForName.width() - dateWidth - st::dialogsDateSkip);
@@ -771,9 +777,9 @@ void Generator::paintBubble(const Bubble &bubble) {
 	auto y = _historyBottom - st::msgMargin.bottom() - height;
 	auto bubbleTop = y;
 	auto bubbleHeight = height;
-	if (isPhoto) { // #TODO rounding
-		bubbleTop -= st::bubbleRadiusSmall + 1;
-		bubbleHeight += st::bubbleRadiusSmall + 1;
+	if (isPhoto) {
+		bubbleTop -= st::bubbleRadiusLarge + 1;
+		bubbleHeight += st::bubbleRadiusLarge + 1;
 	}
 
 	auto left = bubble.outbg ? st::msgMargin.right() : st::msgMargin.left();
@@ -782,33 +788,39 @@ void Generator::paintBubble(const Bubble &bubble) {
 	}
 	x += left;
 
-	_p->setPen(Qt::NoPen);
-	auto tailclip = st::bubbleRadiusSmall +1;
-	if (bubble.tail) {
-		if (bubble.outbg) {
-			_p->setClipRegion(QRegion(_history) - QRect(x + bubble.width - tailclip, bubbleTop + bubbleHeight - tailclip, tailclip + st::bubbleRadiusSmall, tailclip + st::bubbleRadiusSmall));
-		} else {
-			_p->setClipRegion(QRegion(_history) - QRect(x - st::bubbleRadiusSmall, bubbleTop + bubbleHeight - tailclip, tailclip + st::bubbleRadiusSmall, tailclip + st::bubbleRadiusSmall));
+	using Corner = Ui::BubbleCornerRounding;
+	auto rounding = Ui::BubbleRounding{
+		Corner::Large,
+		Corner::Large,
+		Corner::Large,
+		Corner::Large,
+	};
+	if (bubble.outbg) {
+		if (bubble.attachToTop) {
+			rounding.topRight = Corner::Small;
+		}
+		if (bubble.attachToBottom) {
+			rounding.bottomRight = Corner::Small;
+		} else if (bubble.tail) {
+			rounding.bottomRight = Corner::Tail;
+		}
+	} else {
+		if (bubble.attachToTop) {
+			rounding.topLeft = Corner::Small;
+		}
+		if (bubble.attachToBottom) {
+			rounding.bottomLeft = Corner::Small;
+		} else if (bubble.tail) {
+			rounding.bottomLeft = Corner::Tail;
 		}
 	}
-	auto sh = bubble.outbg ? st::msgOutShadow[_palette] : st::msgInShadow[_palette];
-	_p->setBrush(sh);
-	_p->drawRoundedRect(x, bubbleTop + st::msgShadow, bubble.width, bubbleHeight, st::bubbleRadiusSmall, st::bubbleRadiusSmall);
-	auto bg = bubble.outbg ? st::msgOutBg[_palette] : st::msgInBg[_palette];
-	_p->setBrush(bg);
-	_p->drawRoundedRect(x, bubbleTop, bubble.width, bubbleHeight, st::bubbleRadiusSmall, st::bubbleRadiusSmall);
-	if (bubble.tail) {
-		_p->setClipRect(_history);
-		if (bubble.outbg) {
-			_p->fillRect(QRect(x + bubble.width - tailclip, bubbleTop + bubbleHeight - tailclip, tailclip, tailclip), bg);
-			_p->fillRect(QRect(x + bubble.width - tailclip, bubbleTop + bubbleHeight, tailclip + st::historyBubbleTailOutRight.width(), st::msgShadow), sh);
-			st::historyBubbleTailOutRight[_palette].paint(*_p, x + bubble.width, bubbleTop + bubbleHeight - st::historyBubbleTailOutRight.height(), _rect.width());
-		} else {
-			_p->fillRect(QRect(x, bubbleTop + bubbleHeight - tailclip, tailclip, tailclip), bg);
-			_p->fillRect(QRect(x - st::historyBubbleTailInLeft.width(), bubbleTop + bubbleHeight, tailclip + st::historyBubbleTailInLeft.width(), st::msgShadow), sh);
-			st::historyBubbleTailInLeft[_palette].paint(*_p, x - st::historyBubbleTailInLeft.width(), bubbleTop + bubbleHeight - st::historyBubbleTailOutRight.height(), _rect.width());
-		}
-	}
+	Ui::PaintBubble(*_p, Ui::SimpleBubble{
+		.st = &_st,
+		.geometry = QRect(x, bubbleTop, bubble.width, bubbleHeight),
+		.outerWidth = _rect.width(),
+		.outbg = bubble.outbg,
+		.rounding = rounding,
+	});
 
 	auto trect = QRect(x, y, bubble.width, bubble.height);
 	if (isPhoto) {
@@ -922,7 +934,7 @@ void Generator::paintBubble(const Bubble &bubble) {
 		(*icon)[_palette].paint(*_p, QPoint(infoRight, infoBottom) + st::historySendStatePosition, _rect.width());
 	}
 
-	_historyBottom = y - (bubble.attached ? st::msgMarginTopAttached : st::msgMargin.top());
+	_historyBottom = y - (bubble.attachToTop ? st::msgMarginTopAttached : st::msgMargin.top());
 
 	if (isPhoto) {
 		auto image = bubble.photo.scaled(bubble.photoWidth * cIntRetinaFactor(), bubble.photoHeight * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
