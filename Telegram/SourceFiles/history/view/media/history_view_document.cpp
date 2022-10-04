@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
+#include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_transcribe_button.h"
@@ -178,6 +179,7 @@ Document::Document(
 	createComponents(!caption.isEmpty());
 	if (const auto named = Get<HistoryDocumentNamed>()) {
 		fillNamedFromData(named);
+		_tooltipFilename.setTooltipText(named->name);
 	}
 
 	setDocumentLinks(_data, realParent);
@@ -647,11 +649,13 @@ void Document::draw(
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
 		p.setPen(stm->historyFileNameFg);
-		if (namewidth < named->namew) {
+		const auto elided = (namewidth < named->namew);
+		if (elided) {
 			p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(named->name, namewidth, Qt::ElideMiddle));
 		} else {
 			p.drawTextLeft(nameleft, nametop, width, named->name, named->namew);
 		}
+		_tooltipFilename.setElided(elided);
 	}
 
 	auto statusText = voiceStatusOverride.isEmpty() ? _statusText : voiceStatusOverride;
@@ -926,11 +930,15 @@ TextState Document::textState(
 	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
 	const auto nameright = st.padding.right();
+	auto namewidth = width - nameleft - nameright;
 	const auto linktop = st.linkTop - topMinus;
 	auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
 	const auto innerSize = st::msgFileLayout.thumbSize;
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
+
+	const auto filenameMoused = QRect(nameleft, nametop, namewidth, st::semiboldFont->height).contains(point);
+	_tooltipFilename.setMoused(filenameMoused);
 	if (const auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if ((_data->loading() || _data->uploading()) && rthumb.contains(point)) {
 			result.link = _cancell;
@@ -958,7 +966,6 @@ TextState Document::textState(
 	}
 
 	const auto voice = Get<HistoryDocumentVoice>();
-	auto namewidth = width - nameleft - nameright;
 	auto transcribeLength = 0;
 	auto transcribeHeight = 0;
 	auto painth = layout.height();
@@ -1035,8 +1042,10 @@ TextState Document::textState(
 		} else {
 			result.link = _savel;
 		}
+		_tooltipFilename.updateTooltipForLink(result.link.get());
 		return result;
 	}
+	_tooltipFilename.updateTooltipForState(result);
 	return result;
 }
 
@@ -1386,6 +1395,48 @@ TextWithEntities Document::getCaption() const {
 
 Ui::Text::String Document::createCaption() {
 	return File::createCaption(_realParent);
+}
+
+void Document::TooltipFilename::setElided(bool value) {
+	if (_elided != value) {
+		_elided = value;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::setMoused(bool value) {
+	if (_moused != value) {
+		_moused = value;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::setTooltipText(QString text) {
+	if (_tooltip != text) {
+		_tooltip = text;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::updateTooltipForLink(ClickHandler *link) {
+	if (_lastLink != link) {
+		_lastLink = link;
+		_stale = true;
+	}
+	if (_stale && link) {
+		_stale = false;
+		link->setProperty(
+			kDocumentFilenameTooltipProperty,
+			(_elided && _moused) ? _tooltip : QString());
+	}
+}
+
+void Document::TooltipFilename::updateTooltipForState(
+		TextState &state) const {
+	if (_elided && _moused) {
+		state.customTooltip = true;
+		state.customTooltipText = _tooltip;
+	}
 }
 
 bool DrawThumbnailAsSongCover(

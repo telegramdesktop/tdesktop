@@ -157,6 +157,23 @@ private:
 	mutable QImage _iconCache;
 	mutable QImage _cornerDownloadCache;
 
+	class TooltipFilename {
+	public:
+		void setElided(bool value);
+		void setMoused(bool value);
+		void setTooltipText(QString text);
+		void updateTooltipForLink(ClickHandler *link);
+		void updateTooltipForState(TextState &state) const;
+	private:
+		ClickHandler *_lastLink = nullptr;
+		bool _elided = false;
+		bool _moused = false;
+		bool _stale = false;
+		QString _tooltip;
+	};
+
+	mutable TooltipFilename _tooltipFilename;
+
 };
 
 bool DrawThumbnailAsSongCover(
