@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "ui/painter.h"
 #include "styles/style_dialogs.h"
+#include "styles/style_chat_helpers.h"
 
 namespace Data {
 
@@ -216,14 +217,20 @@ void ForumTopic::paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const {
+	const auto &st = context.st;
 	if (_icon) {
-		const auto &st = context.st;
 		_icon->paint(p, {
 			.preview = st::windowBgOver->c,
 			.now = context.now,
 			.position = QPoint(st->padding.left(), st->padding.top()),
 			.paused = context.paused,
 		});
+	} else {
+		// #TODO forum
+		st::stickersPremium.paint(
+			p,
+			QPoint(st->padding.left(), st->padding.top()),
+			st->padding.left() * 2 + st::stickersPremium.width());
 	}
 }
 

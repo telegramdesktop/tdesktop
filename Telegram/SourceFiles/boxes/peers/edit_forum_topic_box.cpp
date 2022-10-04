@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 #include "apiwrap.h"
+#include "styles/style_chat_helpers.h"
 
 namespace {
 
@@ -77,7 +78,8 @@ namespace {
 		if (state->chosen) {
 			state->chosen->paint(p, args);
 		} else {
-			p.fillRect(clip, Qt::red);
+			// #TODO forum
+			st::stickersPremium.paint(p, 0, 0, result->width());
 		}
 	}, result->lifetime());
 	result->setClickedCallback([=] {
