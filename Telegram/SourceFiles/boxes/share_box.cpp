@@ -1266,7 +1266,7 @@ void FastShareMessage(
 			if (const auto media = item->media()) {
 				if (const auto game = media->game()) {
 					const auto link = session->createInternalLinkFull(
-						bot->username + qsl("?game=") + game->shortName);
+						bot->username() + qsl("?game=") + game->shortName);
 
 					QGuiApplication::clipboard()->setText(link);
 

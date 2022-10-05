@@ -1497,12 +1497,12 @@ void ComposeControls::initAutocomplete() {
 		}
 	};
 	const auto insertMention = [=](not_null<UserData*> user) {
-		if (user->username.isEmpty()) {
+		if (user->username().isEmpty()) {
 			_field->insertTag(
 				user->firstName.isEmpty() ? user->name() : user->firstName,
 				PrepareMentionTag(user));
 		} else {
-			_field->insertTag('@' + user->username);
+			_field->insertTag('@' + user->username());
 		}
 	};
 
@@ -1604,7 +1604,7 @@ void ComposeControls::updateFieldPlaceholder() {
 	if (!isEditingMessage() && _isInlineBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username.size() + 2);
+			_inlineBot->username().size() + 2);
 		return;
 	}
 

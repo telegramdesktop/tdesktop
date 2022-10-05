@@ -957,9 +957,9 @@ QString Manager::addTargetAccountName(
 	return add
 		? (title
 			+ accountNameSeparator()
-			+ (session->user()->username.isEmpty()
+			+ (session->user()->username().isEmpty()
 				? session->user()->name()
-				: session->user()->username))
+				: session->user()->username()))
 		: title;
 }
 

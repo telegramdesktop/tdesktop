@@ -517,12 +517,24 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		} else {
 			// apply first_name and last_name from minimal user only if we don't have
 			// local values for first name and last name already, otherwise skip
-			bool noLocalName = result->firstName.isEmpty() && result->lastName.isEmpty();
-			QString fname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vfirst_name().value_or_empty())) : result->firstName;
-			QString lname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vlast_name().value_or_empty())) : result->lastName;
+			const auto noLocalName = result->firstName.isEmpty()
+				&& result->lastName.isEmpty();
+			const auto fname = (!minimal || noLocalName)
+				? TextUtilities::SingleLine(
+					qs(data.vfirst_name().value_or_empty()))
+				: result->firstName;
+			const auto lname = (!minimal || noLocalName)
+				? TextUtilities::SingleLine(
+					qs(data.vlast_name().value_or_empty()))
+				: result->lastName;
 
-			QString phone = minimal ? result->phone() : qs(data.vphone().value_or_empty());
-			QString uname = minimal ? result->username : TextUtilities::SingleLine(qs(data.vusername().value_or_empty()));
+			const auto phone = minimal
+				? result->phone()
+				: qs(data.vphone().value_or_empty());
+			const auto uname = minimal
+				? result->username()
+				: TextUtilities::SingleLine(
+					qs(data.vusername().value_or_empty()));
 
 			const auto phoneChanged = (result->phone() != phone);
 			if (phoneChanged) {

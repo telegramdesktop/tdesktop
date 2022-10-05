@@ -148,7 +148,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 	auto text = policyUrl.isEmpty()
 		? tr::lng_passport_allow(
 			lt_bot,
-			rpl::single('@' + bot->username)
+			rpl::single('@' + bot->username())
 		) | Ui::Text::ToWithEntities()
 		: tr::lng_passport_accept_allow(
 			lt_policy,
@@ -157,7 +157,7 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 				rpl::single(bot->name())
 			) | Ui::Text::ToLink(policyUrl),
 			lt_bot,
-			rpl::single('@' + bot->username) | Ui::Text::ToWithEntities(),
+			rpl::single('@' + bot->username()) | Ui::Text::ToWithEntities(),
 			Ui::Text::WithEntities);
 	const auto policy = inner->add(
 		object_ptr<Ui::FlatLabel>(

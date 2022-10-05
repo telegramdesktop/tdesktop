@@ -198,7 +198,7 @@ void PeerData::updateNameDelayed(
 	if (_name == newName && _nameVersion > 1) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone
-				&& asUser()->username == newUsername) {
+				&& asUser()->username() == newUsername) {
 				return;
 			}
 		} else if (isChannel()) {
@@ -220,8 +220,8 @@ void PeerData::updateNameDelayed(
 		flags |= UpdateFlag::Name;
 	}
 	if (isUser()) {
-		if (asUser()->username != newUsername) {
-			asUser()->username = newUsername;
+		if (asUser()->username() != newUsername) {
+			asUser()->setUsername(newUsername);
 			flags |= UpdateFlag::Username;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
@@ -631,7 +631,7 @@ void PeerData::fillNames() {
 		if (user->nameOrPhone != name()) {
 			appendToIndex(user->nameOrPhone);
 		}
-		appendToIndex(user->username);
+		appendToIndex(user->username());
 		if (isSelf()) {
 			const auto english = qsl("Saved messages");
 			const auto localized = tr::lng_saved_messages(tr::now);
@@ -820,7 +820,7 @@ const QString &PeerData::shortName() const {
 
 QString PeerData::userName() const {
 	if (const auto user = asUser()) {
-		return user->username;
+		return user->username();
 	} else if (const auto channel = asChannel()) {
 		return channel->username();
 	}

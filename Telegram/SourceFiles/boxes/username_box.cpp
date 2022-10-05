@@ -34,7 +34,7 @@ UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 	this,
 	st::defaultInputField,
 	rpl::single(qsl("@username")),
-	session->user()->username,
+	session->user()->username(),
 	QString())
 , _about(
 	this,
@@ -45,7 +45,7 @@ UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 }
 
 void UsernameBox::prepare() {
-	_goodText = _session->user()->username.isEmpty()
+	_goodText = _session->user()->username().isEmpty()
 		? QString()
 		: tr::lng_username_available(tr::now);
 
@@ -196,7 +196,7 @@ void UsernameBox::check() {
 		_checkRequestId = 0;
 
 		_errorText = (mtpIsTrue(result)
-				|| _checkUsername == _session->user()->username)
+				|| _checkUsername == _session->user()->username())
 			? QString()
 			: tr::lng_username_occupied(tr::now);
 		_goodText = _errorText.isEmpty()
@@ -263,7 +263,7 @@ void UsernameBox::linkClick() {
 void UsernameBox::updateFail(const QString &error) {
 	const auto self = _session->user();
 	if ((error == qstr("USERNAME_NOT_MODIFIED"))
-		|| (_sentUsername == self->username)) {
+		|| (_sentUsername == self->username())) {
 		self->setName(
 			TextUtilities::SingleLine(self->firstName),
 			TextUtilities::SingleLine(self->lastName),
@@ -291,7 +291,7 @@ void UsernameBox::checkFail(const QString &error) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
 	} else if ((error == qstr("USERNAME_OCCUPIED"))
-		&& (_checkUsername != _session->user()->username)) {
+		&& (_checkUsername != _session->user()->username())) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
 	} else {

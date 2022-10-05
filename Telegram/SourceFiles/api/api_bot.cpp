@@ -418,7 +418,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			}();
 			if (!fastSwitchDone) {
 				controller->content()->inlineSwitchLayer('@'
-					+ bot->username
+					+ bot->username()
 					+ ' '
 					+ QString::fromUtf8(button->data));
 			}

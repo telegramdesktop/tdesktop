@@ -3282,7 +3282,7 @@ void HistoryInner::elementSendBotCommand(
 }
 
 void HistoryInner::elementHandleViaClick(not_null<UserData*> bot) {
-	_widget->insertBotCommand('@' + bot->username);
+	_widget->insertBotCommand('@' + bot->username());
 }
 
 bool HistoryInner::elementIsChatWide() {

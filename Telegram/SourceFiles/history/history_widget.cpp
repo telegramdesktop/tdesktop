@@ -1333,14 +1333,14 @@ void HistoryWidget::start() {
 
 void HistoryWidget::insertMention(UserData *user) {
 	QString replacement, entityTag;
-	if (user->username.isEmpty()) {
+	if (user->username().isEmpty()) {
 		replacement = user->firstName;
 		if (replacement.isEmpty()) {
 			replacement = user->name();
 		}
 		entityTag = PrepareMentionTag(user);
 	} else {
-		replacement = '@' + user->username;
+		replacement = '@' + user->username();
 	}
 	_field->insertTag(replacement, entityTag);
 }
@@ -1759,7 +1759,10 @@ void HistoryWidget::setInnerFocus() {
 bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
 	if (samePeerBot) {
 		if (_history) {
-			TextWithTags textWithTags = { '@' + samePeerBot->username + ' ' + query, TextWithTags::Tags() };
+			const auto textWithTags = TextWithTags{
+				'@' + samePeerBot->username() + ' ' + query,
+				TextWithTags::Tags(),
+			};
 			MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				textWithTags,
@@ -1781,7 +1784,10 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
 		using Section = Dialogs::EntryState::Section;
 
-		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
+		const auto textWithTags = TextWithTags{
+			'@' + bot->username() + ' ' + query,
+			TextWithTags::Tags(),
+		};
 		MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
 		auto draft = std::make_unique<Data::Draft>(
 			textWithTags,
@@ -4182,7 +4188,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 		if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
 			bot = nullptr;
 		}
-		auto username = bot ? bot->asUser()->username : QString();
+		auto username = bot ? bot->asUser()->username() : QString();
 		auto botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 		if (toInsert.indexOf('@') < 0 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 			toInsert += '@' + username;
@@ -4818,7 +4824,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 	if (!_editMsgId && _inlineBot && !_inlineLookingUpBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username.size() + 2);
+			_inlineBot->username().size() + 2);
 		return;
 	}
 

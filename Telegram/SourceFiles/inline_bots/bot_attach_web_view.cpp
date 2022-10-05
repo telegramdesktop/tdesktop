@@ -406,7 +406,7 @@ void AttachWebView::request(
 	if (botUsername.isEmpty()) {
 		return;
 	}
-	const auto username = _bot ? _bot->username : _botUsername;
+	const auto username = _bot ? _bot->username() : _botUsername;
 	if (_peer == peer
 		&& username.toLower() == botUsername.toLower()
 		&& _startCommand == startCommand) {
@@ -879,7 +879,7 @@ void AttachWebView::show(
 		.url = url,
 		.userDataPath = _session->domain().local().webviewDataPath(),
 		.title = std::move(title),
-		.bottom = rpl::single('@' + _bot->username),
+		.bottom = rpl::single('@' + _bot->username()),
 		.handleLocalUri = handleLocalUri,
 		.handleInvoice = handleInvoice,
 		.sendData = sendData,

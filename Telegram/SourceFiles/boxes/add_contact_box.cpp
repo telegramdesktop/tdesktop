@@ -1446,7 +1446,7 @@ void EditNameBox::saveSelfFail(const QString &error) {
 			TextUtilities::SingleLine(_first->getLastText().trimmed()),
 			TextUtilities::SingleLine(_last->getLastText().trimmed()),
 			QString(),
-			TextUtilities::SingleLine(_user->username));
+			TextUtilities::SingleLine(_user->username()));
 		closeBox();
 	} else if (error == "FIRSTNAME_INVALID") {
 		_first->setFocus();

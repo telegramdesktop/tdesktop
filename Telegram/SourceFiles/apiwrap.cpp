@@ -3559,7 +3559,7 @@ void ApiWrap::sendBotStart(
 				: bot.get())));
 		message.textWithTags = { u"/start"_q, TextWithTags::Tags() };
 		if (chat) {
-			message.textWithTags.text += '@' + bot->username;
+			message.textWithTags.text += '@' + bot->username();
 		}
 		sendMessage(std::move(message));
 		return;

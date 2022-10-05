@@ -1953,7 +1953,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						|| user->phone().isEmpty())
 						? QString()
 						: Ui::FormatPhone(user->phone())),
-					user->username);
+					user->username());
 
 				session().changes().peerUpdated(
 					user,

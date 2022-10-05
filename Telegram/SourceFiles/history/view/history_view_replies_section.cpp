@@ -1972,7 +1972,7 @@ void RepliesWidget::listSendBotCommand(
 }
 
 void RepliesWidget::listHandleViaClick(not_null<UserData*> bot) {
-	_composeControls->setText({ '@' + bot->username + ' ' });
+	_composeControls->setText({ '@' + bot->username() + ' ' });
 }
 
 not_null<Ui::ChatTheme*> RepliesWidget::listChatTheme() {

@@ -2537,7 +2537,7 @@ void Account::readRecentHashtagsAndBots() {
 				} else if (peer->isUser()
 					&& peer->asUser()->isBot()
 					&& !peer->asUser()->botInfo->inlinePlaceholder.isEmpty()
-					&& !peer->asUser()->username.isEmpty()) {
+					&& !peer->asUser()->username().isEmpty()) {
 					bots.push_back(peer->asUser());
 				}
 			}

@@ -53,7 +53,10 @@ void HistoryMessageVia::create(
 		UserId userId) {
 	bot = owner->user(userId);
 	maxWidth = st::msgServiceNameFont->width(
-		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
+		tr::lng_inline_bot_via(
+			tr::now,
+			lt_inline_bot,
+			'@' + bot->username()));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
 		ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -83,7 +86,10 @@ void HistoryMessageVia::resize(int32 availw) const {
 		text = QString();
 		width = 0;
 	} else {
-		text = tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username);
+		text = tr::lng_inline_bot_via(
+			tr::now,
+			lt_inline_bot,
+			'@' + bot->username());
 		if (availw < maxWidth) {
 			text = st::msgServiceNameFont->elided(text, availw);
 			width = st::msgServiceNameFont->width(text);
@@ -182,7 +188,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_channel,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username, 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
 				Ui::Text::WithEntities);
 		} else {
 			phrase = tr::lng_forwarded_via(
@@ -190,7 +196,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_user,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username, 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
 				Ui::Text::WithEntities);
 		}
 	} else {

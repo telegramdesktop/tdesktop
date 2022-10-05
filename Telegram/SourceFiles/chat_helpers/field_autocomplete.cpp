@@ -396,8 +396,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		}
 
 		auto filterNotPassedByUsername = [this](UserData *user) -> bool {
-			if (user->username.startsWith(_filter, Qt::CaseInsensitive)) {
-				bool exactUsername = (user->username.size() == _filter.size());
+			if (user->username().startsWith(_filter, Qt::CaseInsensitive)) {
+				const auto exactUsername =
+					(user->username().size() == _filter.size());
 				return exactUsername;
 			}
 			return true;
@@ -405,7 +406,8 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 		auto filterNotPassedByName = [&](UserData *user) -> bool {
 			for (const auto &nameWord : user->nameWords()) {
 				if (nameWord.startsWith(_filter, Qt::CaseInsensitive)) {
-					auto exactUsername = (user->username.compare(_filter, Qt::CaseInsensitive) == 0);
+					const auto exactUsername =
+						(user->username().compare(_filter, Qt::CaseInsensitive) == 0);
 					return exactUsername;
 				}
 			}
@@ -554,7 +556,7 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					for (const auto &command : *i->second) {
 						if (!listAllSuggestions) {
 							auto toFilter = (hasUsername || botStatus == 0 || botStatus == 2)
-								? command.command + '@' + user->username
+								? command.command + '@' + user->username()
 								: command.command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) {
 								continue;
@@ -570,7 +572,11 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 					const auto user = i->first;
 					for (const auto &command : *i->second) {
 						if (!listAllSuggestions) {
-							QString toFilter = (hasUsername || botStatus == 0 || botStatus == 2) ? command.command + '@' + user->username : command.command;
+							const auto toFilter = (hasUsername
+									|| botStatus == 0
+									|| botStatus == 2)
+								? command.command + '@' + user->username()
+								: command.command;
 							if (!toFilter.startsWith(_filter, Qt::CaseInsensitive)/* || toFilter.size() == _filter.size()*/) continue;
 						}
 						brows.push_back(make(user, command));
@@ -934,8 +940,17 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 			if (!_mrows->empty()) {
 				auto &row = _mrows->at(i);
 				const auto user = row.user;
-				auto first = (!filterIsEmpty && user->username.startsWith(filter, Qt::CaseInsensitive)) ? ('@' + user->username.mid(0, filterSize)) : QString();
-				auto second = first.isEmpty() ? (user->username.isEmpty() ? QString() : ('@' + user->username)) : user->username.mid(filterSize);
+				auto first = (!filterIsEmpty
+						&& user->username().startsWith(
+							filter,
+							Qt::CaseInsensitive))
+					? ('@' + user->username().mid(0, filterSize))
+					: QString();
+				auto second = first.isEmpty()
+					? (user->username().isEmpty()
+					   ? QString()
+					   : ('@' + user->username()))
+					: user->username().mid(filterSize);
 				auto firstwidth = st::mentionFont->width(first);
 				auto secondwidth = st::mentionFont->width(second);
 				auto unamewidth = firstwidth + secondwidth;
@@ -1000,7 +1015,7 @@ void FieldAutocomplete::Inner::paintEvent(QPaintEvent *e) {
 				auto toHighlight = row.command;
 				int32 botStatus = _parent->chat() ? _parent->chat()->botStatus : ((_parent->channel() && _parent->channel()->isMegagroup()) ? _parent->channel()->mgInfo->botStatus : -1);
 				if (hasUsername || botStatus == 0 || botStatus == 2) {
-					toHighlight += '@' + user->username;
+					toHighlight += '@' + user->username();
 				}
 				user->loadUserpic();
 				user->paintUserpicLeft(p, row.userpic, st::mentionPadding.left(), i * st::mentionHeight + st::mentionPadding.top(), width(), st::mentionPhotoSize);
@@ -1157,7 +1172,7 @@ bool FieldAutocomplete::Inner::chooseAtIndex(
 				|| _parent->filter().indexOf('@') > 0);
 			const auto commandString = QString("/%1%2").arg(
 				command,
-				insertUsername ? ('@' + user->username) : QString());
+				insertUsername ? ('@' + user->username()) : QString());
 
 			_botCommandChosen.fire({ commandString, method });
 			return true;

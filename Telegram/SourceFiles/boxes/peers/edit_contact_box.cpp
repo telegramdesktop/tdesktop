@@ -57,7 +57,7 @@ void SendRequest(
 			first,
 			last,
 			user->nameOrPhone,
-			user->username);
+			user->username());
 		user->session().api().applyUpdates(result);
 		if (const auto settings = user->settings()) {
 			const auto flags = PeerSetting::AddContact

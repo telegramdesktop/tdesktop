@@ -77,6 +77,7 @@ public:
 	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
 
+	void setUsername(const QString &username);
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int version);
 	void setBotInfo(const MTPBotInfo &info);
@@ -126,8 +127,8 @@ public:
 
 	QString firstName;
 	QString lastName;
-	QString username;
 	[[nodiscard]] const QString &phone() const;
+	[[nodiscard]] const QString &username() const;
 	QString nameOrPhone;
 	TimeId onlineTill = 0;
 
@@ -165,6 +166,7 @@ private:
 	Flags _flags;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
+	QString _username;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;

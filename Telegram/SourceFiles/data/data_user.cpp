@@ -119,6 +119,12 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
 
+void UserData::setUsername(const QString &username) {
+	if (_username != username) {
+		_username = username;
+	}
+}
+
 void UserData::setPhone(const QString &newPhone) {
 	if (_phone != newPhone) {
 		_phone = newPhone;
@@ -279,6 +285,10 @@ bool UserData::canReceiveVoices() const {
 
 bool UserData::canShareThisContactFast() const {
 	return !_phone.isEmpty();
+}
+
+const QString &UserData::username() const {
+	return _username;
 }
 
 const QString &UserData::phone() const {
