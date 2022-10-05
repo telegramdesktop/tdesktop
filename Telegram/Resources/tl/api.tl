@@ -192,9 +192,8 @@ messageActionChatJoinedByRequest#ebbca3cb = MessageAction;
 messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
 messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
 messageActionGiftPremium#aba0f5c6 currency:string amount:long months:int = MessageAction;
-messageActionTopicCreate#6fa796ac flags:# title:string icon_emoji_id:flags.0?long = MessageAction;
-messageActionTopicEditTitle#ce0b23cd title:string = MessageAction;
-messageActionTopicEditIcon#820a6e2b emoji_document_id:long = MessageAction;
+messageActionTopicCreate#d999256 flags:# title:string icon_color:int icon_emoji_id:flags.0?long = MessageAction;
+messageActionTopicEdit#b117a9f5 flags:# title:flags.0?string icon_emoji_id:flags.1?long = MessageAction;
 
 dialog#a8edd0f5 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -1455,7 +1454,7 @@ stickerKeyword#fcfeb29c document_id:long keyword:Vector<string> = StickerKeyword
 
 username#b4073647 flags:# editable:flags.0?true active:flags.1?true username:string = Username;
 
-forumTopic#2f3e1a06 flags:# id:int date:int title:string icon_emoji_id:flags.0?long top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int = ForumTopic;
+forumTopic#18a9a864 flags:# my:flags.1?true id:int date:int title:string icon_color:int icon_emoji_id:flags.0?long top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int from_id:Peer = ForumTopic;
 
 messages.forumTopics#367617d3 flags:# order_by_create_date:flags.0?true count:int topics:Vector<ForumTopic> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int = messages.ForumTopics;
 
@@ -1862,11 +1861,10 @@ channels.toggleJoinRequest#4c2985b6 channel:InputChannel enabled:Bool = Updates;
 channels.reorderUsernames#b45ced1d channel:InputChannel order:Vector<string> = Bool;
 channels.toggleUsername#50f24105 channel:InputChannel username:string active:Bool = Bool;
 channels.toggleForum#a4298b29 channel:InputChannel enabled:Bool = Updates;
-channels.createForumTopic#60bf3bc9 flags:# channel:InputChannel title:string icon_emoji_id:flags.3?long random_id:long send_as:flags.2?InputPeer = Updates;
+channels.createForumTopic#f40c0224 flags:# channel:InputChannel title:string icon_color:flags.0?int icon_emoji_id:flags.3?long random_id:long send_as:flags.2?InputPeer = Updates;
 channels.getForumTopics#de560d1 flags:# channel:InputChannel q:flags.0?string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
 channels.getForumTopicsByID#b0831eb9 channel:InputChannel topics:Vector<int> = messages.ForumTopics;
-channels.editForumTitle#8881b9b1 channel:InputChannel topic_id:int title:string = Updates;
-channels.editForumIcon#55cea2dd channel:InputChannel topic_id:int emoji_document_id:long = Updates;
+channels.editForumTopic#8a7f464b flags:# channel:InputChannel topic_id:int title:flags.0?string icon_emoji_id:flags.1?long = Updates;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
 bots.answerWebhookJSONQuery#e6213f4d query_id:long data:DataJSON = Bool;

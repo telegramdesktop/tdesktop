@@ -1156,13 +1156,14 @@ ServiceAction ParseServiceAction(
 		auto content = ActionTopicCreate();
 		content.title = ParseString(data.vtitle());
 		result.content = content;
-	}, [&](const MTPDmessageActionTopicEditTitle &data) {
-		auto content = ActionTopicEditTitle();
-		content.title = ParseString(data.vtitle());
-		result.content = content;
-	}, [&](const MTPDmessageActionTopicEditIcon &data) {
-		auto content = ActionTopicEditIcon();
-		content.emojiDocumentId = data.vemoji_document_id().v;
+	}, [&](const MTPDmessageActionTopicEdit &data) {
+		auto content = ActionTopicEdit();
+		if (const auto title = data.vtitle()) {
+			content.title = ParseString(*title);
+		}
+		if (const auto icon = data.vicon_emoji_id()) {
+			content.iconEmojiId = icon->v;
+		}
 		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;

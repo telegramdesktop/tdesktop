@@ -1150,16 +1150,19 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ " created topic &laquo;"
 			+ SerializeString(data.title)
 			+ "&raquo;";
-	}, [&](const ActionTopicEditTitle &data) {
-		return serviceFrom
-			+ " changed topic title to &laquo;"
-			+ SerializeString(data.title)
-			+ "&raquo;";
-	}, [&](const ActionTopicEditIcon &data) {
-		return serviceFrom
-			+ " changed topic icon to &laquo;"
-			+ QString::number(data.emojiDocumentId).toUtf8()
-			+ "&raquo;";
+	}, [&](const ActionTopicEdit &data) {
+		auto parts = QList<QByteArray>();
+		if (!data.title.isEmpty()) {
+			parts.push_back("title to &laquo;"
+				+ SerializeString(data.title)
+				+ "&raquo;");
+		}
+		if (data.iconEmojiId) {
+			parts.push_back("icon to &laquo;"
+				+ QString::number(*data.iconEmojiId).toUtf8()
+				+ "&raquo;");
+		}
+		return serviceFrom + " changed topic " + parts.join(',');
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

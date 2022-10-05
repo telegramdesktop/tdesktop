@@ -18,10 +18,109 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
+#include "ui/color_int_conversion.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
+#include <QtSvg/QSvgRenderer>
+
 namespace Data {
+
+const base::flat_map<int32, QString> &ForumTopicIcons() {
+	static const auto Result = base::flat_map<int32, QString>{
+		{ 0x6FB9F0, u"blue"_q },
+		{ 0xFFD67E, u"yellow"_q },
+		{ 0xCB86DB, u"violet"_q },
+		{ 0x8EEE98, u"green"_q },
+		{ 0xFF93B2, u"rose"_q },
+		{ 0xFB6F5F, u"red"_q },
+	};
+	return Result;
+}
+
+const std::vector<int32> &ForumTopicColorIds() {
+	static const auto Result = ForumTopicIcons(
+	) | ranges::views::transform([](const auto &pair) {
+		return pair.first;
+	}) | ranges::to_vector;
+	return Result;
+}
+
+const QString &ForumTopicDefaultIcon() {
+	static const auto Result = u"gray"_q;
+	return Result;
+}
+
+const QString &ForumTopicIcon(int32 colorId) {
+	const auto &icons = ForumTopicIcons();
+	const auto i = icons.find(colorId);
+	return (i != end(icons)) ? i->second : ForumTopicDefaultIcon();
+}
+
+QString ForumTopicIconPath(const QString &name) {
+	return u":/gui/topic_icons/%1.svg"_q.arg(name);
+}
+
+QImage ForumTopicIconBackground(int32 colorId, int size) {
+	const auto ratio = style::DevicePixelRatio();
+	auto svg = QSvgRenderer(ForumTopicIconPath(ForumTopicIcon(colorId)));
+	auto result = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+
+	auto p = QPainter(&result);
+	svg.render(&p, QRect(0, 0, size, size));
+	p.end();
+
+	return result;
+}
+
+QString ExtractNonEmojiLetter(const QString &title) {
+	const auto begin = title.data();
+	const auto end = begin + title.size();
+	for (auto ch = begin; ch != end;) {
+		auto length = 0;
+		if (Ui::Emoji::Find(ch, end, &length)) {
+			ch += length;
+			continue;
+		}
+		uint ucs4 = ch->unicode();
+		length = 1;
+		if (QChar::isHighSurrogate(ucs4) && ch + 1 != end) {
+			ushort low = ch[1].unicode();
+			if (QChar::isLowSurrogate(low)) {
+				ucs4 = QChar::surrogateToUcs4(ucs4, low);
+				length = 2;
+			}
+		}
+		if (!QChar::isLetterOrNumber(ucs4)) {
+			ch += length;
+			continue;
+		}
+		return QString(ch, length);
+	}
+	return QString();
+}
+
+QImage ForumTopicIconFrame(
+		int32 colorId,
+		const QString &title,
+		const style::ForumTopicIcon &st) {
+	auto background = ForumTopicIconBackground(colorId, st.size);
+
+	if (const auto one = ExtractNonEmojiLetter(title); !one.isEmpty()) {
+		auto p = QPainter(&background);
+		p.setPen(Qt::white);
+		p.drawText(
+			QRect(0, st.textTop, st.size, st.font->height * 2),
+			one,
+			style::al_top);
+	}
+
+	return background;
+}
 
 ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 : Entry(&history->owner(), Type::ForumTopic)
@@ -62,6 +161,7 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 	} else {
 		applyIconId(0);
 	}
+	applyColorId(data.vicon_color().v);
 
 	const auto pinned = _list->pinned();
 #if 0 // #TODO forum pinned
@@ -218,19 +318,29 @@ void ForumTopic::paintUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	const auto &st = context.st;
+	const auto position = QPoint(st->padding.left(), st->padding.top());
 	if (_icon) {
 		_icon->paint(p, {
 			.preview = st::windowBgOver->c,
 			.now = context.now,
-			.position = QPoint(st->padding.left(), st->padding.top()),
+			.position = position,
 			.paused = context.paused,
 		});
 	} else {
-		// #TODO forum
-		st::stickersPremium.paint(
-			p,
-			QPoint(st->padding.left(), st->padding.top()),
-			st->padding.left() * 2 + st::stickersPremium.width());
+		validateDefaultIcon();
+		const auto size = st::defaultForumTopicIcon.size;
+		const auto esize = st::emojiSize;
+		const auto shift = (esize - size) / 2;
+		p.drawImage(position + QPoint(shift, shift), _defaultIcon);
+	}
+}
+
+void ForumTopic::validateDefaultIcon() const {
+	if (_defaultIcon.isNull()) {
+		_defaultIcon = ForumTopicIconFrame(
+			_colorId,
+			_title,
+			st::defaultForumTopicIcon);
 	}
 }
 
@@ -291,6 +401,7 @@ void ForumTopic::applyTitle(const QString &title) {
 	}
 	_title = isGeneral() ? "General! Topic." : title; // #TODO forum lang
 	++_titleVersion;
+	_defaultIcon = QImage();
 	indexTitleParts();
 	updateChatListEntry();
 }
@@ -308,8 +419,19 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 				[=] { updateChatListEntry(); },
 				Data::CustomEmojiManager::SizeTag::Normal)
 			: nullptr;
+		if (iconId) {
+			_defaultIcon = QImage();
+		}
 	}
 	updateChatListEntry();
+}
+
+int32 ForumTopic::colorId() const {
+	return _colorId;
+}
+
+void ForumTopic::applyColorId(int32 colorId) {
+	_colorId = colorId;
 }
 
 void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {

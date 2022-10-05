@@ -19,6 +19,23 @@ DialogRow {
 	textTop: pixels;
 }
 
+ForumTopicIcon {
+	size: pixels;
+	font: font;
+	textTop: pixels;
+}
+
+defaultForumTopicIcon: ForumTopicIcon {
+	size: 21px;
+	font: font(bold 12px);
+	textTop: 3px;
+}
+largeForumTopicIcon: ForumTopicIcon {
+	size: 26px;
+	font: font(bold 13px);
+	textTop: 4px;
+}
+
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;

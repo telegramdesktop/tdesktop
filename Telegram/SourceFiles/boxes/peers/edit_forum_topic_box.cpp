@@ -9,11 +9,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/widgets/input_fields.h"
 #include "ui/abstract_button.h"
+#include "ui/color_int_conversion.h"
 #include "data/data_channel.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "base/random.h"
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/view/history_view_replies_section.h"
@@ -22,7 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "settings/settings_common.h"
 #include "apiwrap.h"
-#include "styles/style_chat_helpers.h"
+#include "styles/style_dialogs.h"
 
 namespace {
 
@@ -34,34 +36,39 @@ namespace {
 [[nodiscard]] rpl::producer<DocumentId> EditIconButton(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent,
-		DocumentId id) {
+		int32 colorId,
+		DocumentId iconId) {
 	using namespace Info::Profile;
 	struct State {
-		rpl::variable<DocumentId> id;
+		rpl::variable<DocumentId> iconId;
 		EmojiStatusPanel panel;
 		std::unique_ptr<Ui::Text::CustomEmoji> chosen;
+		QImage empty;
 	};
 	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 	const auto size = EditIconSize();
 	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
 	const auto state = result->lifetime().make_state<State>();
-	state->id.value(
-	) | rpl::start_with_next([=](DocumentId id) {
+	state->empty = Data::ForumTopicIconBackground(
+		colorId,
+		st::largeForumTopicIcon.size);
+	state->iconId.value(
+	) | rpl::start_with_next([=](DocumentId iconId) {
 		const auto owner = &controller->session().data();
-		state->chosen = id
+		state->chosen = iconId
 			? owner->customEmojiManager().create(
-				id,
+				iconId,
 				[=] { result->update(); },
 				tag)
 			: nullptr;
 		result->update();
 	}, result->lifetime());
-	state->id = id;
+	state->iconId = iconId;
 	state->panel.setChooseFilter([=](DocumentId) {
 		return true;
 	});
 	state->panel.setChooseCallback([=](DocumentId id) {
-		state->id = id;
+		state->iconId = id;
 	});
 	result->resize(size, size);
 	result->paintRequest(
@@ -78,14 +85,14 @@ namespace {
 		if (state->chosen) {
 			state->chosen->paint(p, args);
 		} else {
-			// #TODO forum
-			st::stickersPremium.paint(p, 0, 0, result->width());
+			const auto skip = (size - st::largeForumTopicIcon.size) / 2;
+			p.drawImage(skip, skip, state->empty);
 		}
 	}, result->lifetime());
 	result->setClickedCallback([=] {
 		state->panel.show(controller, result, tag);
 	});
-	return state->id.value();
+	return state->iconId.value();
 }
 
 } // namespace
@@ -110,11 +117,16 @@ void EditForumTopicBox(
 	box->setTitle(rpl::single(creating ? u"New topic"_q : u"Edit topic"_q));
 
 	struct State {
+		int32 colorId = 0;
 		DocumentId iconId = 0;
-		mtpRequestId titleRequestId = 0;
-		mtpRequestId iconRequestId = 0;
+		mtpRequestId requestId = 0;
 	};
 	const auto state = box->lifetime().make_state<State>();
+	const auto &colors = Data::ForumTopicColorIds();
+	state->iconId = topic ? topic->iconId() : 0;
+	state->colorId = topic
+		? topic->colorId()
+		: colors[base::RandomIndex(colors.size())];
 	// #TODO forum lang and design
 	Settings::AddSubsectionTitle(
 		box->verticalLayout(),
@@ -124,7 +136,8 @@ void EditForumTopicBox(
 	EditIconButton(
 		controller,
 		badgeWrap,
-		topic ? topic->iconId() : 0
+		state->colorId,
+		state->iconId
 	) | rpl::start_with_next([=](DocumentId id) {
 		state->iconId = id;
 	}, box->lifetime());
@@ -154,6 +167,7 @@ void EditForumTopicBox(
 				forum,
 				channel->forum()->reserveCreatingId(
 					title->getLastText().trimmed(),
+					state->colorId,
 					state->iconId)),
 			Window::SectionShow::Way::ClearStack);
 	};
@@ -166,59 +180,32 @@ void EditForumTopicBox(
 		if (!topic) {
 			box->closeBox();
 			return;
-		}
-		const auto api = &forum->session().api();
-		if (state->titleRequestId <= 0) {
-			if (title->getLastText().trimmed().isEmpty()) {
-				title->showError();
-				return;
-			} else if (parent->creating(rootId)) {
-				topic->applyTitle(title->getLastText().trimmed());
-			} else {
-				const auto done = [=] {
-					state->titleRequestId = 0;
-					if (!state->iconRequestId) {
-						box->closeBox();
-					}
-				};
-				state->titleRequestId = api->request(MTPchannels_EditForumTitle(
-					topic->channel()->inputChannel,
-					MTP_int(rootId),
-					MTP_string(title->getLastText().trimmed())
-				)).done([=](const MTPUpdates &result) {
-					api->applyUpdates(result);
-					done();
-				}).fail([=](const MTP::Error &error) {
-					if (error.type() == u"TOPIC_NOT_MODIFIED") {
-						done();
-					} else {
-						state->titleRequestId = -1;
-					}
-				}).send();
-			}
-		}
-		if (parent->creating(rootId)) {
+		} else if (state->requestId > 0) {
+			return;
+		} else if (title->getLastText().trimmed().isEmpty()) {
+			title->showError();
+			return;
+		} else if (parent->creating(rootId)) {
+			topic->applyTitle(title->getLastText().trimmed());
+			topic->applyColorId(state->colorId);
 			topic->applyIconId(state->iconId);
-			box->closeBox();
-		} else if (state->iconRequestId <= 0) {
-			const auto done = [=] {
-				state->iconRequestId = 0;
-				if (!state->titleRequestId) {
-					box->closeBox();
-				}
-			};
-			state->iconRequestId = api->request(MTPchannels_EditForumIcon(
+		} else {
+			using Flag = MTPchannels_EditForumTopic::Flag;
+			const auto api = &forum->session().api();
+			state->requestId = api->request(MTPchannels_EditForumTopic(
+				MTP_flags(Flag::f_title | Flag::f_icon_emoji_id),
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
+				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId)
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
-				done();
+				box->closeBox();
 			}).fail([=](const MTP::Error &error) {
 				if (error.type() == u"TOPIC_NOT_MODIFIED") {
-					done();
+					box->closeBox();
 				} else {
-					state->iconRequestId = -1;
+					state->requestId = -1;
 				}
 			}).send();
 		}

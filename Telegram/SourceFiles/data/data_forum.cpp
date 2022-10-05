@@ -26,6 +26,7 @@ namespace {
 
 constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kTopicsPerPage = 500;
+constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
 
@@ -123,6 +124,7 @@ void Forum::applyReceivedTopics(
 void Forum::applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
+		int32 colorId,
 		DocumentId iconId) {
 	const auto i = _topics.find(rootId);
 	const auto raw = (i != end(_topics))
@@ -132,6 +134,7 @@ void Forum::applyTopicAdded(
 			std::make_unique<ForumTopic>(_history, rootId)
 		).first->second.get();
 	raw->applyTitle(title);
+	raw->applyColorId(colorId);
 	raw->applyIconId(iconId);
 	if (!creating(rootId)) {
 		raw->addToChatList(FilterId(), topicsList());
@@ -147,10 +150,11 @@ void Forum::applyTopicRemoved(MsgId rootId) {
 
 MsgId Forum::reserveCreatingId(
 		const QString &title,
+		int32 colorId,
 		DocumentId iconId) {
 	const auto result = _history->owner().nextLocalMessageId();
 	_creatingRootIds.emplace(result);
-	applyTopicAdded(result, title, iconId);
+	applyTopicAdded(result, title, colorId, iconId);
 	return result;
 }
 
@@ -200,7 +204,7 @@ ForumTopic *Forum::topicFor(MsgId rootId) {
 		}
 	} else {
 		// #TODO forum lang
-		applyTopicAdded(rootId, "General! Created.", DocumentId(0));
+		applyTopicAdded(rootId, "General! Created.", kGeneralColorId, 0);
 		return _topics.find(rootId)->second.get();
 	}
 	return nullptr;

@@ -643,26 +643,24 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareTopicEditTitle = [&](const MTPDmessageActionTopicEditTitle &action) {
+	auto prepareTopicEdit = [&](const MTPDmessageActionTopicEdit &action) {
 		auto result = PreparedText{};
 		// #TODO forum lang
-		result.text = { "topic edited: " + qs(action.vtitle()) };
-		return result;
-	};
-
-	auto prepareTopicEditIcon = [&](const MTPDmessageActionTopicEditIcon &action) {
-		auto result = PreparedText{};
-		result.text = { "topic icon: " }; // #TODO forum lang
-		result.text.append(TextWithEntities{
-			"@",
-			{ EntityInText(
-				EntityType::CustomEmoji,
-				0,
-				1,
-				Data::SerializeCustomEmojiId({
-					.id = action.vemoji_document_id().v })) },
-		});
-
+		result.text = { "topic edited: " }; // #TODO forum lang
+		if (const auto icon = action.vicon_emoji_id()) {
+			result.text.append(TextWithEntities{
+				"@",
+				{ EntityInText(
+					EntityType::CustomEmoji,
+					0,
+					1,
+					Data::SerializeCustomEmojiId({ .id = icon->v }))
+				},
+			});
+		}
+		if (const auto &title = action.vtitle()) {
+			result.text.append(qs(*title));
+		}
 		return result;
 	};
 
@@ -737,10 +735,8 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareGiftPremium(data);
 	}, [&](const MTPDmessageActionTopicCreate &data) {
 		return prepareTopicCreate(data);
-	}, [&](const MTPDmessageActionTopicEditTitle &data) {
-		return prepareTopicEditTitle(data);
-	}, [&](const MTPDmessageActionTopicEditIcon &data) {
-		return prepareTopicEditIcon(data);
+	}, [&](const MTPDmessageActionTopicEdit &data) {
+		return prepareTopicEdit(data);
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
 		return PreparedText{
@@ -1312,8 +1308,10 @@ MsgId HistoryService::replyToTop() const {
 
 MsgId HistoryService::topicRootId() const {
 	if (const auto data = GetDependentData()
-		; data && data->topicPost) {
+		; data && data->topicPost && data->topId) {
 		return data->topId;
+	} else if (const auto topic = Get<HistoryServiceTopicInfo>()) {
+		return id;
 	}
 	return Data::ForumTopic::kGeneralId;
 }
@@ -1455,9 +1453,9 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 	if (type == mtpc_messageActionPinMessage) {
 		UpdateComponents(HistoryServicePinned::Bit());
 	} else if (type == mtpc_messageActionTopicCreate
-		|| type == mtpc_messageActionTopicEditTitle
-		|| type == mtpc_messageActionTopicEditIcon) {
+		|| type == mtpc_messageActionTopicEdit) {
 		UpdateComponents(HistoryServiceTopicInfo::Bit());
+		Get<HistoryServiceTopicInfo>()->topicPost = true;
 	} else if (type == mtpc_messageActionSetChatTheme) {
 		setupChatThemeChange();
 	} else if (type == mtpc_messageActionSetMessagesTTL) {
@@ -1548,6 +1546,8 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				dependent->msgId = data.vreply_to_msg_id().v;
 				dependent->topId = data.vreply_to_top_id().value_or(
 					data.vreply_to_msg_id().v);
+				dependent->topicPost = data.is_forum_topic()
+					|| Has<HistoryServiceTopicInfo>();
 				if (!updateDependent()) {
 					RequestDependentMessageData(
 						this,

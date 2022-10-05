@@ -34,6 +34,7 @@ public:
 	void applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
+		int32 colorId,
 		DocumentId iconId);
 	void applyTopicRemoved(MsgId rootId);
 	void applyTopicCreated(MsgId rootId, MsgId realId);
@@ -44,6 +45,7 @@ public:
 
 	[[nodiscard]] MsgId reserveCreatingId(
 		const QString &title,
+		int32 colorId,
 		DocumentId iconId);
 	void discardCreatingId(MsgId rootId);
 	[[nodiscard]] bool creating(MsgId rootId) const;

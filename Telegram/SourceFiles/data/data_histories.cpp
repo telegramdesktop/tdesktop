@@ -860,18 +860,15 @@ void Histories::sendCreateTopicRequest(
 	const auto api = &session().api();
 	using Flag = MTPchannels_CreateForumTopic::Flag;
 	api->request(MTPchannels_CreateForumTopic(
-		MTP_flags(topic->iconId() ? Flag::f_icon_emoji_id : Flag(0)),
+		MTP_flags(Flag::f_icon_color
+			| (topic->iconId() ? Flag::f_icon_emoji_id : Flag(0))),
 		history->peer->asChannel()->inputChannel,
 		MTP_string(topic->title()),
+		MTP_int(topic->colorId()),
 		MTP_long(topic->iconId()),
 		MTP_long(randomId),
 		MTPInputPeer() // send_as
 	)).done([=](const MTPUpdates &result) {
-		//AssertIsDebug();
-		//const auto id = result.c_updates().vupdates().v.front().c_updateMessageID().vrandom_id().v;
-		//session().data().registerMessageRandomId(
-		//	id,
-		//	{ history->peer->id, rootId });
 		api->applyUpdates(result, randomId);
 	}).fail([=](const MTP::Error &error) {
 		api->sendMessageFail(error, history->peer, randomId);
@@ -952,14 +949,14 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realId) {
 		const auto history = _owner->history(rootId.peer);
 		for (auto &entry : scheduled) {
 			_creatingTopicRequests.erase(entry.requestId);
-			//AssertIsDebug();
-			sendPreparedMessage(
-				history,
-				realId,
-				entry.randomId,
-				std::move(entry.message),
-				std::move(entry.done),
-				std::move(entry.fail));
+			AssertIsDebug();
+			//sendPreparedMessage(
+			//	history,
+			//	realId,
+			//	entry.randomId,
+			//	std::move(entry.message),
+			//	std::move(entry.done),
+			//	std::move(entry.fail));
 		}
 		for (const auto &item : history->clientSideMessages()) {
 			const auto replace = [&](MsgId nowId) {

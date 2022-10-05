@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class ChannelData;
 
+namespace style {
+struct ForumTopicIcon;
+} // namespace style
+
 namespace Dialogs {
 class MainList;
 } // namespace Dialogs
@@ -24,6 +28,16 @@ namespace Data {
 
 class Session;
 class Forum;
+
+[[nodiscard]] const base::flat_map<int32, QString> &ForumTopicIcons();
+[[nodiscard]] const std::vector<int32> &ForumTopicColorIds();
+[[nodiscard]] const QString &ForumTopicIcon(int32 colorId);
+[[nodiscard]] QString ForumTopicIconPath(const QString &name);
+[[nodiscard]] QImage ForumTopicIconBackground(int32 colorId, int size);
+[[nodiscard]] QImage ForumTopicIconFrame(
+	int32 colorId,
+	const QString &title,
+	const style::ForumTopicIcon &st);
 
 class ForumTopic final : public Dialogs::Entry {
 public:
@@ -72,6 +86,8 @@ public:
 	void applyTitle(const QString &title);
 	[[nodiscard]] DocumentId iconId() const;
 	void applyIconId(DocumentId iconId);
+	[[nodiscard]] int32 colorId() const;
+	void applyColorId(int32 colorId);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 
@@ -95,6 +111,7 @@ public:
 
 private:
 	void indexTitleParts();
+	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
 	void applyTopicFields(
 		int unreadCount,
@@ -119,8 +136,10 @@ private:
 	base::flat_set<QString> _titleWords;
 	base::flat_set<QChar> _titleFirstLetters;
 	int _titleVersion = 0;
+	int32 _colorId = 0;
 
 	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
+	mutable QImage _defaultIcon; // on-demand
 
 	std::optional<MsgId> _inboxReadBefore;
 	std::optional<MsgId> _outboxReadBefore;

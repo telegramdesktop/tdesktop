@@ -503,12 +503,9 @@ struct ActionTopicCreate {
 	Utf8String title;
 };
 
-struct ActionTopicEditTitle {
+struct ActionTopicEdit {
 	Utf8String title;
-};
-
-struct ActionTopicEditIcon {
-	uint64 emojiDocumentId = 0;
+	std::optional<uint64> iconEmojiId = 0;
 };
 
 struct ServiceAction {
@@ -545,8 +542,7 @@ struct ServiceAction {
 		ActionWebViewDataSent,
 		ActionGiftPremium,
 		ActionTopicCreate,
-		ActionTopicEditTitle,
-		ActionTopicEditIcon> content;
+		ActionTopicEdit> content;
 };
 
 ServiceAction ParseServiceAction(

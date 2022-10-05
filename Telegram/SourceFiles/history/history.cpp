@@ -1080,18 +1080,18 @@ void History::applyServiceChanges(
 			forum->applyTopicAdded(
 				item->id,
 				qs(data.vtitle()),
+				data.vicon_color().v,
 				data.vicon_emoji_id().value_or(DocumentId()));
 		}
-	}, [&](const MTPDmessageActionTopicEditTitle &data) {
+	}, [&](const MTPDmessageActionTopicEdit &data) {
 		if (const auto forum = peer->forum()) {
 			if (const auto topic = forum->topicFor(item)) {
-				topic->applyTitle(qs(data.vtitle()));
-			}
-		}
-	}, [&](const MTPDmessageActionTopicEditIcon &data) {
-		if (const auto forum = peer->forum()) {
-			if (const auto topic = forum->topicFor(item)) {
-				topic->applyIconId(data.vemoji_document_id().v);
+				if (const auto &title = data.vtitle()) {
+					topic->applyTitle(qs(*title));
+				}
+				if (const auto icon = data.vicon_emoji_id()) {
+					topic->applyIconId(icon->v);
+				}
 			}
 		}
 	}, [](const auto &) {

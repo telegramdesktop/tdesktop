@@ -564,14 +564,15 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("topic_created");
 		push("title", data.title);
-	}, [&](const ActionTopicEditTitle &data) {
+	}, [&](const ActionTopicEdit &data) {
 		pushActor();
-		pushAction("topic_title_edit");
-		push("title", data.title);
-	}, [&](const ActionTopicEditIcon &data) {
-		pushActor();
-		pushAction("topic_icon_edit");
-		push("emoji_document_id", data.emojiDocumentId);
+		pushAction("topic_edit");
+		if (!data.title.isEmpty()) {
+			push("new_title", data.title);
+		}
+		if (data.iconEmojiId) {
+			push("new_icon_emoji_id", *data.iconEmojiId);
+		}
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

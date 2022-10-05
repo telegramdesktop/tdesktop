@@ -307,6 +307,20 @@ void Session::clear() {
 	// Optimization: clear notifications before destroying items.
 	Core::App().notifications().clearFromSession(_session);
 
+	// We must clear all forums before clearing customEmojiManager.
+	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
+	auto forums = base::flat_set<not_null<ChannelData*>>();
+	for (const auto &[peerId, peer] : _peers) {
+		if (const auto channel = peer->asChannel()) {
+			if (channel->isForum()) {
+				forums.emplace(channel);
+			}
+		}
+	}
+	for (const auto &channel : forums) {
+		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
+	}
+
 	_sendActionManager->clear();
 
 	_histories->unloadAll();
@@ -1244,21 +1258,7 @@ void Session::setupUserIsContactViewer() {
 	}, _lifetime);
 }
 
-Session::~Session() {
-	// We must clear all forums before clearing customEmojiManager.
-	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
-	auto forums = base::flat_set<not_null<ChannelData*>>();
-	for (const auto &[peerId, peer] : _peers) {
-		if (const auto channel = peer->asChannel()) {
-			if (channel->isForum()) {
-				forums.emplace(channel);
-			}
-		}
-	}
-	for (const auto &channel : forums) {
-		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
-	}
-}
+Session::~Session() = default;
 
 template <typename Method>
 void Session::enumerateItemViews(
