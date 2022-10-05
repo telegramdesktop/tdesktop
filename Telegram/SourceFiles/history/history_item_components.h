@@ -62,6 +62,7 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	MsgId commentsRootId = 0;
 	MsgId commentsInboxReadTillId = 0;
 	MsgId commentsMaxId = 0;
+	int forwardsCount = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {

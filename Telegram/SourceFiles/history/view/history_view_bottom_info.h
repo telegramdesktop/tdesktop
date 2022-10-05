@@ -55,6 +55,7 @@ public:
 		std::vector<MessageReaction> reactions;
 		std::optional<int> views;
 		std::optional<int> replies;
+		std::optional<int> forwardsCount;
 		Flags flags;
 	};
 	BottomInfo(not_null<::Data::Reactions*> reactionsOwner, Data &&data);

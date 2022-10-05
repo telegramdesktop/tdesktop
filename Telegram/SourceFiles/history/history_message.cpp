@@ -1585,6 +1585,15 @@ bool HistoryMessage::changeViewsCount(int count) {
 }
 
 void HistoryMessage::setForwardsCount(int count) {
+	const auto views = Get<HistoryMessageViews>();
+	if (!views
+		|| views->forwardsCount == count
+		|| (count >= 0 && views->forwardsCount > count)) {
+		return;
+	}
+
+	views->forwardsCount = count;
+	history()->owner().notifyItemDataChange(this);
 }
 
 void HistoryMessage::setPostAuthor(const QString &author) {

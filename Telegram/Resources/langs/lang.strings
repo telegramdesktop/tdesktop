@@ -1647,6 +1647,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edited" = "edited";
 "lng_edited_date" = "Edited: {date}";
 "lng_sent_date" = "Sent: {date}";
+"lng_views_tooltip#one" = "Views: {count}";
+"lng_views_tooltip#other" = "Views: {count}";
+"lng_forwards_tooltip#one" = "Forwards: {count}";
+"lng_forwards_tooltip#other" = "Forwards: {count}";
 "lng_imported" = "imported";
 "lng_admin_badge" = "admin";
 "lng_owner_badge" = "owner";

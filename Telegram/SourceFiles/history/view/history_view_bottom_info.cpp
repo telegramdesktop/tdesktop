@@ -131,6 +131,35 @@ TextState BottomInfo::textState(
 	if (_data.flags & (Data::Flag::OutLayout | Data::Flag::Sending)) {
 		withTicksWidth += st::historySendStateSpace;
 	}
+	if (!_views.isEmpty()) {
+		const auto viewsWidth = _views.maxWidth();
+		const auto right = width()
+			- withTicksWidth
+			- ((_data.flags & Data::Flag::Pinned) ? st::historyPinWidth : 0)
+			- st::historyViewsSpace
+			- st::historyViewsWidth
+			- viewsWidth;
+		const auto inViews = QRect(
+			right,
+			0,
+			withTicksWidth + st::historyViewsWidth,
+			st::msgDateFont->height
+		).contains(position);
+		if (inViews) {
+			result.customTooltip = true;
+			const auto fullViews = tr::lng_views_tooltip(
+				tr::now,
+				lt_count_decimal,
+				*_data.views);
+			const auto fullForwards = _data.forwardsCount
+				? ('\n' + tr::lng_forwards_tooltip(
+					tr::now,
+					lt_count_decimal,
+					*_data.forwardsCount))
+				: QString();
+			result.customTooltipText = fullViews + fullForwards;
+		}
+	}
 	const auto inTime = QRect(
 		width() - withTicksWidth,
 		0,
@@ -636,6 +665,9 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 		}
 		if (views->replies.count >= 0 && !views->commentsMegagroupId) {
 			result.replies = views->replies.count;
+		}
+		if (views->forwardsCount > 0) {
+			result.forwardsCount = views->forwardsCount;
 		}
 	}
 	if (item->isSending() || item->hasFailed()) {

@@ -1723,7 +1723,8 @@ TextState Message::textState(
 				point,
 				InfoDisplayType::Default);
 			if (bottomInfoResult.link
-				|| bottomInfoResult.cursor != CursorState::None) {
+				|| bottomInfoResult.cursor != CursorState::None
+				|| bottomInfoResult.customTooltip) {
 				result = bottomInfoResult;
 			}
 		};

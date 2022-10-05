@@ -961,7 +961,8 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 					? InfoDisplayType::Background
 					: InfoDisplayType::Image));
 			if (bottomInfoResult.link
-				|| bottomInfoResult.cursor != CursorState::None) {
+				|| bottomInfoResult.cursor != CursorState::None
+				|| bottomInfoResult.customTooltip) {
 				return bottomInfoResult;
 			}
 		}
