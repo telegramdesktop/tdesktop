@@ -173,7 +173,7 @@ Controller::Controller(
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
 , _goodUsername(_dataSavedValue
 	? !_dataSavedValue->username.isEmpty()
-	: (_peer->isChannel() && !_peer->asChannel()->username.isEmpty()))
+	: (_peer->isChannel() && !_peer->asChannel()->username().isEmpty()))
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
 	_peer->updateFull();
@@ -408,7 +408,7 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	const auto channel = _peer->asChannel();
 	const auto username = (!_dataSavedValue || !channel)
 		? QString()
-		: channel->username;
+		: channel->username();
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -535,7 +535,7 @@ void Controller::checkUsernameAvailability() {
 		_api.request(_checkUsernameRequestId).cancel();
 	}
 	const auto channel = _peer->migrateToOrMe()->asChannel();
-	const auto username = channel ? channel->username : QString();
+	const auto username = channel ? channel->username() : QString();
 	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
 		MTP_string(checking)

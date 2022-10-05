@@ -202,7 +202,7 @@ void PeerData::updateNameDelayed(
 				return;
 			}
 		} else if (isChannel()) {
-			if (asChannel()->username == newUsername) {
+			if (asChannel()->username() == newUsername) {
 				return;
 			}
 		} else if (isChat()) {
@@ -226,8 +226,8 @@ void PeerData::updateNameDelayed(
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
-		if (asChannel()->username != newUsername) {
-			asChannel()->username = newUsername;
+		if (asChannel()->username() != newUsername) {
+			asChannel()->setUsername(newUsername);
 			if (newUsername.isEmpty()) {
 				asChannel()->removeFlags(ChannelDataFlag::Username);
 			} else {
@@ -648,7 +648,7 @@ void PeerData::fillNames() {
 			}
 		}
 	} else if (const auto channel = asChannel()) {
-		appendToIndex(channel->username);
+		appendToIndex(channel->username());
 	}
 	auto toIndex = toIndexList.join(' ');
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
@@ -822,7 +822,7 @@ QString PeerData::userName() const {
 	if (const auto user = asUser()) {
 		return user->username;
 	} else if (const auto channel = asChannel()) {
-		return channel->username;
+		return channel->username();
 	}
 	return QString();
 }

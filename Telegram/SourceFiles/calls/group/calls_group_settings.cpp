@@ -608,7 +608,8 @@ void SettingsBox(
 		const auto lookupLink = [=] {
 			if (const auto group = peer->asMegagroup()) {
 				return group->hasUsername()
-					? group->session().createInternalLinkFull(group->username)
+					? group->session().createInternalLinkFull(
+						group->username())
 					: group->inviteLink();
 			} else if (const auto chat = peer->asChat()) {
 				return chat->inviteLink();

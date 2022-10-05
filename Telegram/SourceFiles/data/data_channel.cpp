@@ -101,6 +101,16 @@ void ChannelData::setName(
 	updateNameDelayed(newName.isEmpty() ? name() : newName, {}, newUsername);
 }
 
+void ChannelData::setUsername(const QString &username) {
+	if (_username != username) {
+		_username = username;
+	}
+}
+
+QString ChannelData::username() const {
+	return _username;
+}
+
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
 	input = MTP_inputPeerChannel(

@@ -146,6 +146,7 @@ public:
 	ChannelData(not_null<Data::Session*> owner, PeerId id);
 
 	void setName(const QString &name, const QString &username);
+	void setUsername(const QString &username);
 	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
@@ -158,6 +159,8 @@ public:
 	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
 	}
+
+	[[nodiscard]] QString username() const;
 
 	[[nodiscard]] int membersCount() const {
 		return std::max(_membersCount, 1);
@@ -435,8 +438,6 @@ public:
 
 	MTPinputChannel inputChannel = MTP_inputChannelEmpty();
 
-	QString username;
-
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
 
@@ -458,6 +459,8 @@ private:
 	Flags _flags = ChannelDataFlags(Flag::Forbidden);
 
 	PtsWaiter _ptsWaiter;
+
+	QString _username;
 
 	int _membersCount = -1;
 	int _adminsCount = 1;

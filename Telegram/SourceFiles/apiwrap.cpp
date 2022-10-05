@@ -686,7 +686,7 @@ QString ApiWrap::exportDirectMessageLink(
 			}
 		}
 		const auto base = linkChannel->hasUsername()
-			? linkChannel->username
+			? linkChannel->username()
 			: "c/" + QString::number(peerToChannel(linkChannel->id).bare);
 		const auto query = base
 			+ '/'

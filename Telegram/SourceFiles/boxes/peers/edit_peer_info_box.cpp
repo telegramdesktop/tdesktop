@@ -715,7 +715,7 @@ void Controller::fillPrivacyTypeButton() {
 			? Privacy::HasUsername
 			: Privacy::NoUsername),
 		.username = (_peer->isChannel()
-			? _peer->asChannel()->username
+			? _peer->asChannel()->username()
 			: QString()),
 		.noForwards = !_peer->allowsForwarding(),
 		.joinToWrite = (_peer->isMegagroup()
@@ -1420,7 +1420,7 @@ void Controller::cancelSave() {
 
 void Controller::saveUsername() {
 	const auto channel = _peer->asChannel();
-	const auto username = (channel ? channel->username : QString());
+	const auto username = (channel ? channel->username() : QString());
 	if (!_savingData.username || *_savingData.username == username) {
 		return continueSave();
 	} else if (!channel) {
@@ -1517,7 +1517,7 @@ void Controller::saveTitle() {
 		if (type == qstr("CHAT_NOT_MODIFIED")
 			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
 			if (const auto channel = _peer->asChannel()) {
-				channel->setName(*_savingData.title, channel->username);
+				channel->setName(*_savingData.title, channel->username());
 			} else if (const auto chat = _peer->asChat()) {
 				chat->setName(*_savingData.title);
 			}
