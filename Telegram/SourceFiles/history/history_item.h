@@ -138,6 +138,8 @@ public:
 	void clearMainView();
 	void removeMainView();
 
+	void invalidateChatListEntry();
+
 	void destroy();
 	[[nodiscard]] bool out() const {
 		return _flags & MessageFlag::Outgoing;
@@ -476,8 +478,6 @@ protected:
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
 	MessageFlags _flags = 0;
-
-	void invalidateChatListEntry();
 
 	void setGroupId(MessageGroupId groupId);
 

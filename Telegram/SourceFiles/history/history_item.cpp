@@ -47,6 +47,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_media_types.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -374,6 +375,11 @@ void HistoryItem::invalidateChatListEntry() {
 		this,
 		Data::MessageUpdate::Flag::DialogRowRefresh);
 	history()->lastItemDialogsView.itemInvalidated(this);
+	if (const auto forum = history()->peer->forum()) {
+		if (const auto topic = forum->topicFor(this)) {
+			topic->lastItemDialogsView.itemInvalidated(this);
+		}
+	}
 }
 
 void HistoryItem::customEmojiRepaint() {

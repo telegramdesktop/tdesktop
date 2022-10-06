@@ -81,7 +81,7 @@ void Widget::setInnerFocus() {
 
 rpl::producer<QString> Widget::title() {
 	if (const auto topic = controller()->key().topic()) {
-		return rpl::single(u"Topic Info"_q); // #TODO forum lang
+		return rpl::single(u"Topic Info"_q); // #TODO lang-forum
 	}
 	const auto peer = controller()->key().peer();
 	if (const auto user = peer->asUser()) {

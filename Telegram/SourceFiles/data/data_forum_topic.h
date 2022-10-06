@@ -147,6 +147,7 @@ private:
 	std::optional<HistoryItem*> _lastMessage;
 	std::optional<HistoryItem*> _lastServerMessage;
 	std::optional<HistoryItem*> _chatListMessage;
+	base::flat_set<FullMsgId> _requestedGroups;
 	bool _unreadMark = false;
 
 	rpl::lifetime _lifetime;

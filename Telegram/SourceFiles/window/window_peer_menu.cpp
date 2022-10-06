@@ -751,7 +751,7 @@ void Filler::addManageTopic() {
 	if (!_topic) {
 		return;
 	}
-	// #TODO forum lang
+	// #TODO lang-forum
 	const auto history = _topic->history();
 	const auto rootId = _topic->rootId();
 	const auto navigation = _controller;

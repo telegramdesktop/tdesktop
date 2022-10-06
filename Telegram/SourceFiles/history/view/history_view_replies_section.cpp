@@ -1611,7 +1611,7 @@ bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
 			}
 		};
 		controller()->show(Ui::MakeConfirmBox({
-			.text = rpl::single(u"Sure discard?"_q), // #TODO forum lang
+			.text = rpl::single(u"Sure discard?"_q), // #TODO lang-forum
 			.confirmed = std::move(sure),
 			.confirmText = tr::lng_record_lock_discard(),
 			.confirmStyle = &st::attentionBoxButton,

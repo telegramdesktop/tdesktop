@@ -818,7 +818,7 @@ void Controller::fillForumButton() {
 
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		rpl::single(u"Topics"_q), // #TODO forum lang
+		rpl::single(u"Topics"_q), // #TODO lang-forum
 		rpl::single(QString()),
 		[] {},
 		{ &st::settingsIconGroup, Settings::kIconPurple }

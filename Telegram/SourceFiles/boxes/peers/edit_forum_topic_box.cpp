@@ -337,7 +337,7 @@ void EditForumTopicBox(
 	const auto topic = (!creating && forum->peer->forum())
 		? forum->peer->forum()->topicFor(rootId)
 		: nullptr;
-	// #TODO forum lang
+	// #TODO lang-forum
 	box->setTitle(rpl::single(creating ? u"New topic"_q : u"Edit topic"_q));
 
 	box->setMaxHeight(st::editTopicMaxHeight);
@@ -365,7 +365,7 @@ void EditForumTopicBox(
 		object_ptr<Ui::InputField>(
 			box,
 			st::defaultInputField,
-			rpl::single(u"Topic Title"_q), // #TODO forum lang
+			rpl::single(u"Topic Title"_q), // #TODO lang-forum
 			topic ? topic->title() : QString()),
 		st::editTopicTitleMargin);
 	box->setFocusCallback([=] {

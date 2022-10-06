@@ -445,7 +445,8 @@ void Histories::requestFakeChatListMessage(
 void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 	const auto history = item->history();
 	const auto id = item->id;
-	const auto i = _chatListGroupRequests.find(history);
+	const auto key = GroupRequestKey{ history, item->topicRootId() };
+	const auto i = _chatListGroupRequests.find(key);
 	if (i != end(_chatListGroupRequests)) {
 		if (i->second.aroundId == id) {
 			return;
@@ -470,18 +471,18 @@ void Histories::requestGroupAround(not_null<HistoryItem*> item) {
 			_owner->processExistingMessages(
 				history->peer->asChannel(),
 				result);
-			_chatListGroupRequests.remove(history);
+			_chatListGroupRequests.remove(key);
 			history->migrateToOrMe()->applyChatListGroup(
 				history->peer->id,
 				result);
 			finish();
 		}).fail([=] {
-			_chatListGroupRequests.remove(history);
+			_chatListGroupRequests.remove(key);
 			finish();
 		}).send();
 	});
 	_chatListGroupRequests.emplace(
-		history,
+		key,
 		ChatListGroupRequest{ .aroundId = id, .requestId = requestId });
 }
 

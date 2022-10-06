@@ -22,6 +22,7 @@ public:
 	Groups(not_null<Session*> data);
 
 	[[nodiscard]] bool isGrouped(not_null<const HistoryItem*> item) const;
+	[[nodiscard]] bool isGroupOfOne(not_null<const HistoryItem*> item) const;
 	void registerMessage(not_null<HistoryItem*> item);
 	void unregisterMessage(not_null<const HistoryItem*> item);
 	void refreshMessage(

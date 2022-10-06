@@ -152,6 +152,14 @@ private:
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
 	};
+	struct GroupRequestKey {
+		not_null<History*> history;
+		MsgId rootId = 0;
+
+		friend inline constexpr auto operator<=>(
+			GroupRequestKey,
+			GroupRequestKey) = default;
+	};
 
 	template <typename Arg>
 	static auto ReplaceReplyTo(Arg arg, MsgId replyTo) {
@@ -203,7 +211,7 @@ private:
 	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<
-		not_null<History*>,
+		GroupRequestKey,
 		ChatListGroupRequest> _chatListGroupRequests;
 
 	base::flat_map<

@@ -203,7 +203,7 @@ ForumTopic *Forum::topicFor(MsgId rootId) {
 			return i->second.get();
 		}
 	} else {
-		// #TODO forum lang
+		// #TODO lang-forum
 		applyTopicAdded(rootId, "General! Created.", kGeneralColorId, 0);
 		return _topics.find(rootId)->second.get();
 	}

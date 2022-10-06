@@ -33,6 +33,14 @@ bool Groups::isGrouped(not_null<const HistoryItem*> item) const {
 	return media && media->canBeGrouped();
 }
 
+bool Groups::isGroupOfOne(not_null<const HistoryItem*> item) const {
+	if (const auto groupId = item->groupId()) {
+		const auto i = _groups.find(groupId);
+		return (i != _groups.end()) && (i->second.items.size() == 1);
+	}
+	return false;
+}
+
 void Groups::registerMessage(not_null<HistoryItem*> item) {
 	if (!isGrouped(item)) {
 		return;
@@ -146,12 +154,7 @@ void Groups::refreshViews(const HistoryItemsList &items) {
 	const auto history = items.front()->history();
 	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
-		history->lastItemDialogsView.itemInvalidated(item);
-		if (const auto forum = history->peer->forum()) {
-			if (const auto topic = forum->topicFor(item)) {
-				topic->lastItemDialogsView.itemInvalidated(item);
-			}
-		}
+		item->invalidateChatListEntry();
 	}
 }
 

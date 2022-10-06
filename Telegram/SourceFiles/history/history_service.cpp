@@ -638,15 +638,15 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
-		// #TODO forum lang
+		// #TODO lang-forum
 		result.text = { "topic created: " + qs(action.vtitle()) };
 		return result;
 	};
 
 	auto prepareTopicEdit = [&](const MTPDmessageActionTopicEdit &action) {
 		auto result = PreparedText{};
-		// #TODO forum lang
-		result.text = { "topic edited: " }; // #TODO forum lang
+		// #TODO lang-forum
+		result.text = { "topic edited: " };
 		if (const auto icon = action.vicon_emoji_id()) {
 			result.text.append(TextWithEntities{
 				"@",

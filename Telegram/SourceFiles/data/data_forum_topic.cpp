@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_channel.h"
 #include "data/data_forum.h"
+#include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_main_list.h"
@@ -17,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/view/history_view_item_preview.h"
 #include "ui/painter.h"
 #include "ui/color_int_conversion.h"
 #include "styles/style_dialogs.h"
@@ -229,6 +231,17 @@ void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 		const auto itemId = FullMsgId(_history->peer->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
+
+			// If we set a single album part, request the full album.
+			if (item->groupId() != MessageGroupId()) {
+				if (owner().groups().isGroupOfOne(item)
+					&& !item->toPreview({
+						.hideSender = true,
+						.hideCaption = true }).images.empty()
+					&& _requestedGroups.emplace(item->fullId()).second) {
+					owner().histories().requestGroupAround(item);
+				}
+			}
 		} else {
 			setLastServerMessage(nullptr);
 		}
@@ -276,16 +289,6 @@ void ForumTopic::setChatListMessage(HistoryItem *item) {
 		}
 		_chatListMessage = item;
 		setChatListTimeId(item->date());
-
-#if 0 // #TODO forum
-		// If we have a single message from a group, request the full album.
-		if (hasOrphanMediaGroupPart()
-			&& !item->toPreview({
-				.hideSender = true,
-				.hideCaption = true }).images.empty()) {
-			owner().histories().requestGroupAround(item);
-		}
-#endif
 	} else if (!_chatListMessage || *_chatListMessage) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
@@ -402,7 +405,7 @@ void ForumTopic::applyTitle(const QString &title) {
 	if (_title == title || (isGeneral() && !_title.isEmpty())) {
 		return;
 	}
-	_title = isGeneral() ? "General! Topic." : title; // #TODO forum lang
+	_title = isGeneral() ? "General! Topic." : title; // #TODO lang-forum
 	++_titleVersion;
 	_defaultIcon = QImage();
 	indexTitleParts();
