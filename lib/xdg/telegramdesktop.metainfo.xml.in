@@ -27,7 +27,7 @@
     <developer_name>John Preston</developer_name>
     <url type="homepage">https://desktop.telegram.org/</url>
     <url type="bugtracker">https://github.com/telegramdesktop/tdesktop/issues</url>
-    <url type="help">https://github.com/telegramdesktop/tdesktop/issues</url>
+    <url type="translate">https://translations.telegram.org/</url>
     <screenshots>
       <screenshot type="default">
         <image>https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png</image>
