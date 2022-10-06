@@ -123,7 +123,7 @@ public:
 	[[nodiscard]] MsgId lastSearchMigratedId() const;
 
 	[[nodiscard]] WidgetState state() const;
-	[[nodiscard]] const style::DialogRow *st() const {
+	[[nodiscard]] not_null<const style::DialogRow*> st() const {
 		return _st;
 	}
 	[[nodiscard]] bool waitingForSearch() const {

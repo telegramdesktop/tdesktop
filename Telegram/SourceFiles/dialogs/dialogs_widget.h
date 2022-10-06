@@ -70,7 +70,7 @@ public:
 	void searchInChat(Key chat);
 	void setInnerFocus();
 
-	void jumpToTop();
+	void jumpToTop(bool belowPinned = false);
 
 	void startWidthAnimation();
 	void stopWidthAnimation();

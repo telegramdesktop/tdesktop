@@ -208,8 +208,19 @@ Widget::Widget(
 
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::MessageSent
-	) | rpl::start_with_next([=] {
-		jumpToTop();
+	) | rpl::filter([=](const Data::HistoryUpdate &update) {
+		if (_openedForum) {
+			return (update.history->peer == _openedForum);
+		} else if (_openedFolder) {
+			return (update.history->folder() == _openedFolder)
+				&& !update.history->isPinnedDialog(FilterId());
+		} else {
+			return !update.history->folder()
+				&& !update.history->isPinnedDialog(
+					controller->activeChatsFilterCurrent());
+		}
+	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
+		jumpToTop(true);
 	}, lifetime());
 
 	fullSearchRefreshOn(session().settings().skipArchiveInSearchChanges(
@@ -764,13 +775,31 @@ void Widget::setInnerFocus() {
 	}
 }
 
-void Widget::jumpToTop() {
+void Widget::jumpToTop(bool belowPinned) {
 	if (session().supportMode()) {
 		return;
 	}
 	if ((_filter->getLastText().trimmed().isEmpty() && !_searchInChat)) {
+		auto to = 0;
+		if (belowPinned) {
+			const auto list = _openedForum
+				? _openedForum->forum()->topicsList()
+				: controller()->activeChatsFilterCurrent()
+				? session().data().chatsFilters().chatsList(
+					controller()->activeChatsFilterCurrent())
+				: session().data().chatsList(_openedFolder);
+			const auto count = int(list->pinned()->order().size());
+			const auto now = _scroll->scrollTop();
+			const auto row = _inner->st()->height;
+			const auto min = (row * (count * 2 + 1) - _scroll->height()) / 2;
+			if (_scroll->scrollTop() <= min) {
+				return;
+			}
+			// Don't jump too high up, below the pinned chats.
+			to = std::max(min, to);
+		}
 		_scrollToAnimation.stop();
-		_scroll->scrollToY(0);
+		_scroll->scrollToY(to);
 	}
 }
 
