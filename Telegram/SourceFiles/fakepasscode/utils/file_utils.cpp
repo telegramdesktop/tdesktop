@@ -7,6 +7,8 @@
 #include "storage/storage_domain.h"
 using namespace FakePasscode::FileUtils;
 
+constexpr qint64 kBufferSize = 1024 * 1024; // 1 Mb
+
 FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 	QFile file(path);
 	ushort result = FileResult::Success;
@@ -16,7 +18,6 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 
 		std::random_device rd;
 		std::mt19937 gen(rd());
-		const qint64 kBufferSize = 1024;
 		std::vector<uint8_t> buffer(kBufferSize);
 
 		for (size_t step = 1; step <= 2; step++) {
@@ -28,17 +29,18 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 			}
 			file.seek(0);
 			for (qint64 i = 0; i < fileSize; i += kBufferSize) {
-				file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - kBufferSize));
+				file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - i));
 			}
 		}
 
 		std::uniform_int_distribution<int> byteRange(0, 255);
 		file.seek(0);
 		for (qint64 j = 0; j < fileSize; j += kBufferSize) {
-			for (qint64 i = 0; i < kBufferSize; i++)
-				buffer[i] = byteRange(gen);
+			for (qint64 i = 0; i < kBufferSize; i++) {
+                buffer[i] = byteRange(gen);
+            }
 
-			file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - kBufferSize));
+			file.write(reinterpret_cast<char*>(buffer.data()), std::min(kBufferSize, fileSize - j));
 		}
 
 		std::uniform_int_distribution<int> hourRange(0, 23), minsecRange(0, 59),
@@ -46,8 +48,7 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 		for (size_t i = 0; i < 4; i++) {
 			if (i != 2) {
 				if (!file.setFileTime(QDateTime(QDate(yearRange(gen) + 2010, monthRange(gen), dayRange(gen)),
-					QTime(hourRange(gen), minsecRange(gen), minsecRange(gen))), (QFileDevice::FileTime)i))
-				{
+					QTime(hourRange(gen), minsecRange(gen), minsecRange(gen))), (QFileDevice::FileTime)i)) {
 					result |= FileResult::MetadataNotChanged;
 				}
 			}
