@@ -346,6 +346,7 @@ void PaintRow(
 	row->paintRipple(p, 0, 0, context.width, &ripple->c);
 
 	const auto history = chat.history();
+	const auto topic = chat.topic();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -561,7 +562,7 @@ void PaintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		if (history && !promoted) {
+		if ((history || topic) && !promoted) {
 			PaintRowDate(p, date, rectForName, context);
 		}
 

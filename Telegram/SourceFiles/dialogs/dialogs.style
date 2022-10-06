@@ -405,7 +405,7 @@ downloadIconSizeDone: 20px;
 
 forumTopicRow: DialogRow(defaultDialogRow) {
 	height: 54px;
-	padding: margins(8px, 7px, 8px, 7px);
+	padding: margins(8px, 7px, 10px, 7px);
 	photoSize: 20px;
 	nameLeft: 39px;
 	nameTop: 7px;

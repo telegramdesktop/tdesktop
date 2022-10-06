@@ -77,7 +77,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	if (_topic) {
-		// #TODO forum
+		// #TODO forum shared media
 		//result->add(setupSharedMedia(result.data()));
 		return result;
 	}

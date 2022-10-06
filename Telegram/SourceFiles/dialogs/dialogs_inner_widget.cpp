@@ -1211,7 +1211,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	} else if (_openedForum) {
-		return; // #TODO forum
+		return; // #TODO forum pinned
 	}
 	_dragging = _pressed;
 	if (updateReorderIndexGetCount() < 2) {
@@ -2415,7 +2415,7 @@ void InnerWidget::refreshEmptyLabel() {
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_no_chats_filter()
 		: (state == EmptyState::EmptyForum)
-		// #TODO forum
+		// #TODO lang-forum
 		? rpl::single(u"No chats currently created in this forum."_q)
 		: tr::lng_contacts_loading();
 	auto link = (state == EmptyState::NoContacts)
@@ -2423,7 +2423,7 @@ void InnerWidget::refreshEmptyLabel() {
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_filters_context_edit()
 		: (state == EmptyState::EmptyForum)
-		// #TODO forum
+		// #TODO lang-forum
 		? rpl::single(u"Create topic"_q)
 		: rpl::single(QString());
 	auto full = rpl::combine(

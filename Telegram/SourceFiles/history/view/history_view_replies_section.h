@@ -311,8 +311,6 @@ private:
 	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
 
-	mtpRequestId _resolveTopicRequestId = 0;
-
 	mtpRequestId _reloadUnreadCountRequestId = 0;
 	bool _loaded = false;
 

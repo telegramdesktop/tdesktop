@@ -1961,7 +1961,7 @@ void MainWidget::windowShown() {
 
 void MainWidget::dialogsToUp() {
 	if (_dialogs) {
-		_dialogs->jumpToTop(true);
+		_dialogs->jumpToTop();
 	}
 }
 

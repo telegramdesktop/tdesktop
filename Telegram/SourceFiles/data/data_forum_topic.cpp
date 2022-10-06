@@ -351,8 +351,8 @@ void ForumTopic::validateDefaultIcon() const {
 }
 
 void ForumTopic::requestChatListMessage() {
-	if (!chatListMessageKnown()) {
-		// #TODO forum
+	if (!chatListMessageKnown() && !forum()->creating(_rootId)) {
+		forum()->requestTopic(_rootId);
 	}
 }
 
@@ -361,7 +361,7 @@ TimeId ForumTopic::adjustedChatListTimeId() const {
 		return TimeId(1);
 	}
 	const auto result = chatListTimeId();
-#if 0 // #TODO forum
+#if 0 // #TODO forum draft
 	if (const auto draft = cloudDraft()) {
 		if (!Data::draftIsNull(draft) && !session().supportMode()) {
 			return std::max(result, draft->date);
@@ -458,6 +458,7 @@ void ForumTopic::applyItemRemoved(MsgId id) {
 	if (const auto chatListItem = _chatListMessage.value_or(nullptr)) {
 		if (chatListItem->id == id) {
 			_chatListMessage = std::nullopt;
+			requestChatListMessage();
 		}
 	}
 }

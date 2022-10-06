@@ -352,7 +352,7 @@ void Filler::addHidePromotion() {
 
 void Filler::addTogglePin() {
 	if (!_peer) {
-		// #TODO forum pin
+		// #TODO forum pinned
 		return;
 	}
 	const auto controller = _controller;

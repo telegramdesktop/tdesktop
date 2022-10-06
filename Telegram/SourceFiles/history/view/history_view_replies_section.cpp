@@ -355,7 +355,6 @@ RepliesWidget::~RepliesWidget() {
 	if (_readRequestTimer.isActive()) {
 		sendReadTillRequest();
 	}
-	_history->session().api().request(_resolveTopicRequestId).cancel();
 	base::take(_sendAction);
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
@@ -478,7 +477,7 @@ void RepliesWidget::setupTopicViewer() {
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
 	if ((_topic = topic)) {
 		refreshTopBarActiveChat();
-		if (_rootView) {
+		if (_topic && _rootView) {
 			_rootView = nullptr;
 			_rootViewHeight = 0;
 			updateControlsGeometry();
@@ -492,24 +491,15 @@ HistoryItem *RepliesWidget::lookupRoot() const {
 
 Data::ForumTopic *RepliesWidget::lookupTopic() {
 	if (const auto forum = _history->peer->forum()) {
-		const auto result = forum->topicFor(_rootId);
-		if (!result && !_resolveTopicRequestId) {
-			const auto api = &_history->session().api();
-			_resolveTopicRequestId = api->request(
-				MTPchannels_GetForumTopicsByID(
-					forum->channel()->inputChannel,
-					MTP_vector<MTPint>(1, MTP_int(_rootId.bare)))
-			).done([=](const MTPmessages_ForumTopics &result) {
+		if (const auto result = forum->topicFor(_rootId)) {
+			return result;
+		} else {
+			forum->requestTopic(_rootId, crl::guard(this, [=] {
 				if (const auto forum = _history->peer->forum()) {
-					forum->applyReceivedTopics(result);
 					setTopic(forum->topicFor(_rootId));
 				}
-				_resolveTopicRequestId = 0;
-			}).fail([=] {
-				_resolveTopicRequestId = 0;
-			}).send();
+			}));
 		}
-		return result;
 	}
 	return nullptr;
 }

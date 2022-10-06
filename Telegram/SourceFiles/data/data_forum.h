@@ -12,17 +12,25 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class ChannelData;
 
+namespace Main {
+class Session;
+} // namespace Main
+
 namespace Window {
 class SessionController;
 } // namespace Window;
 
 namespace Data {
 
+class Session;
+
 class Forum final {
 public:
 	explicit Forum(not_null<History*> history);
 	~Forum();
 
+	[[nodiscard]] Session &owner() const;
+	[[nodiscard]] Main::Session &session() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<Dialogs::MainList*> topicsList();
@@ -31,6 +39,7 @@ public:
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
 
+	void requestTopic(MsgId rootId, Fn<void()> done = nullptr);
 	void applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
@@ -52,6 +61,11 @@ public:
 	void created(MsgId rootId, MsgId realId);
 
 private:
+	struct TopicRequest {
+		mtpRequestId id = 0;
+		std::vector<Fn<void()>> callbacks;
+	};
+
 	void applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		bool updateOffset);
@@ -60,6 +74,8 @@ private:
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;
 	Dialogs::MainList _topicsList;
+
+	base::flat_map<MsgId, TopicRequest> _topicRequests;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;

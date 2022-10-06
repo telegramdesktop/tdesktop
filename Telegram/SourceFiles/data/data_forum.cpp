@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 
 #include "data/data_channel.h"
+#include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
 #include "history/history.h"
@@ -32,14 +33,25 @@ constexpr auto kGeneralColorId = 0xA9A9A9;
 
 Forum::Forum(not_null<History*> history)
 : _history(history)
-, _topicsList(&_history->session(), FilterId(0), rpl::single(1)) {
+, _topicsList(&session(), FilterId(0), rpl::single(1)) {
 	Expects(_history->peer->isChannel());
 }
 
 Forum::~Forum() {
 	if (_requestId) {
-		_history->session().api().request(_requestId).cancel();
+		session().api().request(_requestId).cancel();
 	}
+	for (const auto &request : _topicRequests) {
+		owner().histories().cancelRequest(request.second.id);
+	}
+}
+
+Session &Forum::owner() const {
+	return _history->owner();
+}
+
+Main::Session &Forum::session() const {
+	return _history->session();
 }
 
 not_null<History*> Forum::history() const {
@@ -60,8 +72,7 @@ void Forum::requestTopics() {
 	}
 	const auto firstLoad = !_offsetDate;
 	const auto loadCount = firstLoad ? kTopicsFirstLoad : kTopicsPerPage;
-	const auto api = &_history->session().api();
-	_requestId = api->request(MTPchannels_GetForumTopics(
+	_requestId = session().api().request(MTPchannels_GetForumTopics(
 		MTP_flags(0),
 		channel()->inputChannel,
 		MTPstring(), // q
@@ -90,10 +101,9 @@ void Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		bool updateOffset) {
 	const auto &data = topics.data();
-	const auto owner = &channel()->owner();
-	owner->processUsers(data.vusers());
-	owner->processChats(data.vchats());
-	owner->processMessages(data.vmessages(), NewMessageType::Existing);
+	owner().processUsers(data.vusers());
+	owner().processChats(data.vchats());
+	owner().processMessages(data.vmessages(), NewMessageType::Existing);
 	channel()->ptsReceived(data.vpts().v);
 	const auto &list = data.vtopics().v;
 	for (const auto &topic : list) {
@@ -119,6 +129,42 @@ void Forum::applyReceivedTopics(
 		&& (list.isEmpty() || list.size() == data.vcount().v)) {
 		_allLoaded = true;
 	}
+}
+
+void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
+	auto &request = _topicRequests[rootId];
+	if (done) {
+		request.callbacks.push_back(std::move(done));
+	}
+	if (request.id) {
+		return;
+	}
+	const auto call = [=] {
+		if (const auto request = _topicRequests.take(rootId)) {
+			for (const auto &callback : request->callbacks) {
+				callback();
+			}
+		}
+	};
+	const auto type = Histories::RequestType::History;
+	auto &histories = owner().histories();
+	request.id = histories.sendRequest(_history, type, [=](
+			Fn<void()> finish) {
+		return session().api().request(
+			MTPchannels_GetForumTopicsByID(
+				channel()->inputChannel,
+				MTP_vector<MTPint>(1, MTP_int(rootId.bare)))
+		).done([=](const MTPmessages_ForumTopics &result) {
+			if (const auto forum = _history->peer->forum()) {
+				forum->applyReceivedTopics(result);
+				call();
+				finish();
+			}
+		}).fail([=] {
+			call();
+			finish();
+		}).send();
+	});
 }
 
 void Forum::applyTopicAdded(
@@ -152,7 +198,7 @@ MsgId Forum::reserveCreatingId(
 		const QString &title,
 		int32 colorId,
 		DocumentId iconId) {
-	const auto result = _history->owner().nextLocalMessageId();
+	const auto result = owner().nextLocalMessageId();
 	_creatingRootIds.emplace(result);
 	applyTopicAdded(result, title, colorId, iconId);
 	return result;
@@ -189,7 +235,7 @@ void Forum::created(MsgId rootId, MsgId realId) {
 			std::move(topic)
 		).first->second->setRealRootId(realId);
 	}
-	_history->owner().notifyItemIdChange({ id, rootId });
+	owner().notifyItemIdChange({ id, rootId });
 }
 
 ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {
