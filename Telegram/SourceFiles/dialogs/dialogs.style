@@ -27,13 +27,13 @@ ForumTopicIcon {
 
 defaultForumTopicIcon: ForumTopicIcon {
 	size: 21px;
-	font: font(bold 12px);
-	textTop: 3px;
+	font: font(bold 11px);
+	textTop: 2px;
 }
 largeForumTopicIcon: ForumTopicIcon {
 	size: 26px;
 	font: font(bold 13px);
-	textTop: 4px;
+	textTop: 3px;
 }
 
 dialogsUnreadFont: font(12px bold);
@@ -412,3 +412,7 @@ forumTopicRow: DialogRow(defaultDialogRow) {
 	textLeft: 68px;
 	textTop: 29px;
 }
+forumTopicIconPosition: point(2px, 0px);
+editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
+editTopicIconPosition: point(24px, 19px);
+editTopicMaxHeight: 408px;

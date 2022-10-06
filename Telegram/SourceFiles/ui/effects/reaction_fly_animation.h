@@ -10,12 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "data/data_message_reaction_id.h"
 
-namespace Ui {
-class AnimatedIcon;
-} // namespace Lottie
-
 namespace Ui::Text {
 class CustomEmoji;
+struct CustomEmojiColored;
 } // namespace Ui::Text
 
 namespace Data {
@@ -23,25 +20,27 @@ class Reactions;
 enum class CustomEmojiSizeTag : uchar;
 } // namespace Data
 
-namespace HistoryView::Reactions {
+namespace Ui {
 
-struct AnimationArgs {
+class AnimatedIcon;
+
+struct ReactionFlyAnimationArgs {
 	::Data::ReactionId id;
 	QImage flyIcon;
 	QRect flyFrom;
 
-	[[nodiscard]] AnimationArgs translated(QPoint point) const;
+	[[nodiscard]] ReactionFlyAnimationArgs translated(QPoint point) const;
 };
 
-class Animation final {
+class ReactionFlyAnimation final {
 public:
-	Animation(
+	ReactionFlyAnimation(
 		not_null<::Data::Reactions*> owner,
-		AnimationArgs &&args,
+		ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint,
 		int size,
 		Data::CustomEmojiSizeTag customSizeTag = {});
-	~Animation();
+	~ReactionFlyAnimation();
 
 	void setRepaintCallback(Fn<void()> repaint);
 	QRect paintGetArea(
@@ -95,13 +94,13 @@ private:
 	const not_null<::Data::Reactions*> _owner;
 	Fn<void()> _repaint;
 	QImage _flyIcon;
-	std::unique_ptr<Ui::Text::CustomEmoji> _custom;
-	std::unique_ptr<Ui::Text::CustomEmojiColored> _colored;
-	std::unique_ptr<Ui::AnimatedIcon> _center;
-	std::unique_ptr<Ui::AnimatedIcon> _effect;
+	std::unique_ptr<Text::CustomEmoji> _custom;
+	std::unique_ptr<Text::CustomEmojiColored> _colored;
+	std::unique_ptr<AnimatedIcon> _center;
+	std::unique_ptr<AnimatedIcon> _effect;
 	std::vector<MiniCopy> _miniCopies;
-	Ui::Animations::Simple _fly;
-	Ui::Animations::Simple _minis;
+	Animations::Simple _fly;
+	Animations::Simple _minis;
 	QRect _flyFrom;
 	float64 _centerSizeMultiplier = 0.;
 	int _customSize = 0;
@@ -111,4 +110,4 @@ private:
 
 };
 
-} // namespace HistoryView::Reactions
+} // namespace Ui

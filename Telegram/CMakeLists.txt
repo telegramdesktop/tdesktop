@@ -674,8 +674,6 @@ PRIVATE
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp
     history/view/reactions/history_view_reactions.h
-    history/view/reactions/history_view_reactions_animation.cpp
-    history/view/reactions/history_view_reactions_animation.h
     history/view/reactions/history_view_reactions_button.cpp
     history/view/reactions/history_view_reactions_button.h
     history/view/reactions/history_view_reactions_list.cpp
@@ -1233,9 +1231,13 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/effects/emoji_fly_animation.cpp
+    ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h
     ui/effects/message_sending_animation_controller.cpp
     ui/effects/message_sending_animation_controller.h
+    ui/effects/reaction_fly_animation.cpp
+    ui/effects/reaction_fly_animation.h
     ui/effects/send_action_animations.cpp
     ui/effects/send_action_animations.h
     ui/image/image.cpp

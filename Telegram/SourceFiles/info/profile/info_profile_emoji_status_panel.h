@@ -20,6 +20,7 @@ class SessionController;
 
 namespace Ui {
 struct MessageSendingAnimationFrom;
+class EmojiFlyAnimation;
 class RpWidget;
 } // namespace Ui
 
@@ -50,8 +51,6 @@ public:
 	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
 
 private:
-	class Animation;
-
 	void create(not_null<Window::SessionController*> controller);
 	[[nodiscard]] bool filter(
 		not_null<Window::SessionController*> controller,
@@ -67,7 +66,7 @@ private:
 	Fn<bool(DocumentId)> _chooseFilter;
 	Fn<void(DocumentId)> _chooseCallback;
 	QPointer<QWidget> _panelButton;
-	std::unique_ptr<Animation> _animation;
+	std::unique_ptr<Ui::EmojiFlyAnimation> _animation;
 	Data::CustomEmojiSizeTag _animationSizeTag = {};
 
 };

@@ -1093,11 +1093,8 @@ DocumentData *EmojiListWidget::lookupCustomEmoji(
 	if (section == int(Section::Recent) && index < _recent.size()) {
 		const auto document = std::get_if<RecentEmojiDocument>(
 			&_recent[index].id.data);
-		const auto custom = document
-			? session().data().document(document->id).get()
-			: nullptr;
-		if (custom && custom->sticker()) {
-			return custom;
+		if (document) {
+			return session().data().document(document->id);
 		}
 	} else if (section >= _staticCount
 		&& index < _custom[section - _staticCount].list.size()) {

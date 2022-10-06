@@ -11,12 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_document.h"
 #include "data/data_emoji_statuses.h"
-#include "data/stickers/data_custom_emoji.h"
-#include "history/view/reactions/history_view_reactions_animation.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_send.h" // SendMenu::Type.
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/time_picker_box.h"
+#include "ui/effects/emoji_fly_animation.h"
 #include "ui/text/format_values.h"
 #include "base/unixtime.h"
 #include "boxes/premium_preview_box.h"
@@ -27,8 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_panel.h"
 #include "chat_helpers/tabbed_selector.h"
 #include "styles/style_chat_helpers.h"
-#include "styles/style_info.h"
-#include "styles/style_chat.h"
 
 namespace Info::Profile {
 namespace {
@@ -56,116 +53,6 @@ void PickUntilBox(not_null<Ui::GenericBox*> box, Fn<void(TimeId)> callback) {
 }
 
 } // namespace
-
-class EmojiStatusPanel::Animation {
-public:
-	Animation(
-		not_null<Ui::RpWidget*> body,
-		not_null<Data::Reactions*> owner,
-		HistoryView::Reactions::AnimationArgs &&args,
-		Fn<void()> repaint,
-		Data::CustomEmojiSizeTag tag);
-
-	[[nodiscard]] not_null<Ui::RpWidget*> layer();
-	[[nodiscard]] bool finished() const;
-
-	void repaint();
-	bool paintBadgeFrame(not_null<Ui::RpWidget*> widget);
-
-private:
-	const int _flySize = 0;
-	HistoryView::Reactions::Animation _fly;
-	Ui::RpWidget _layer;
-	QRect _area;
-	bool _areaUpdated = false;
-	QPointer<Ui::RpWidget> _target;
-
-};
-
-[[nodiscard]] int ComputeFlySize(Data::CustomEmojiSizeTag tag) {
-	using Tag = Data::CustomEmojiSizeTag;
-	if (tag == Tag::Normal) {
-		return st::reactionInlineImage;
-	}
-	return int(base::SafeRound(
-		(st::reactionInlineImage * Data::FrameSizeFromTag(tag)
-			/ float64(Data::FrameSizeFromTag(Tag::Normal)))));
-}
-
-EmojiStatusPanel::Animation::Animation(
-	not_null<Ui::RpWidget*> body,
-	not_null<Data::Reactions*> owner,
-	HistoryView::Reactions::AnimationArgs &&args,
-	Fn<void()> repaint,
-	Data::CustomEmojiSizeTag tag)
-: _flySize(ComputeFlySize(tag))
-, _fly(
-	owner,
-	std::move(args),
-	std::move(repaint),
-	_flySize,
-	tag)
-, _layer(body) {
-	body->sizeValue() | rpl::start_with_next([=](QSize size) {
-		_layer.setGeometry(QRect(QPoint(), size));
-	}, _layer.lifetime());
-
-	_layer.paintRequest(
-	) | rpl::start_with_next([=](QRect clip) {
-		const auto target = _target.data();
-		if (!target || !target->isVisible()) {
-			return;
-		}
-		auto p = QPainter(&_layer);
-
-		const auto rect = Ui::MapFrom(&_layer, target, target->rect());
-		const auto skipx = (rect.width() - _flySize) / 2;
-		const auto skipy = (rect.height() - _flySize) / 2;
-		const auto area = _fly.paintGetArea(
-			p,
-			QPoint(),
-			QRect(
-				rect.topLeft() + QPoint(skipx, skipy),
-				QSize(_flySize, _flySize)),
-			st::infoPeerBadge.premiumFg->c,
-			clip,
-			crl::now());
-		if (_areaUpdated || _area.isEmpty()) {
-			_area = area;
-		} else {
-			_area = _area.united(area);
-		}
-	}, _layer.lifetime());
-
-	_layer.setAttribute(Qt::WA_TransparentForMouseEvents);
-	_layer.show();
-}
-
-not_null<Ui::RpWidget*> EmojiStatusPanel::Animation::layer() {
-	return &_layer;
-}
-
-bool EmojiStatusPanel::Animation::finished() const {
-	if (const auto target = _target.data()) {
-		return _fly.finished() || !target->isVisible();
-	}
-	return true;
-}
-
-void EmojiStatusPanel::Animation::repaint() {
-	if (_area.isEmpty()) {
-		_layer.update();
-	} else {
-		_layer.update(_area);
-		_areaUpdated = true;
-	}
-}
-
-bool EmojiStatusPanel::Animation::paintBadgeFrame(
-		not_null<Ui::RpWidget*> widget) {
-	_target = widget;
-	return !_fly.finished();
-}
 
 EmojiStatusPanel::EmojiStatusPanel() = default;
 
@@ -336,12 +223,12 @@ void EmojiStatusPanel::startAnimation(
 	if (!_panelButton || !statusId) {
 		return;
 	}
-	auto args = HistoryView::Reactions::AnimationArgs{
+	auto args = Ui::ReactionFlyAnimationArgs{
 		.id = { { statusId } },
 		.flyIcon = from.frame,
 		.flyFrom = body->mapFromGlobal(from.globalStartGeometry),
 	};
-	_animation = std::make_unique<Animation>(
+	_animation = std::make_unique<Ui::EmojiFlyAnimation>(
 		body,
 		&owner->reactions(),
 		std::move(args),

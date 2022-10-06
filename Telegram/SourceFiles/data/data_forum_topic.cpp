@@ -113,6 +113,7 @@ QImage ForumTopicIconFrame(
 	if (const auto one = ExtractNonEmojiLetter(title); !one.isEmpty()) {
 		auto p = QPainter(&background);
 		p.setPen(Qt::white);
+		p.setFont(st.font);
 		p.drawText(
 			QRect(0, st.textTop, st.size, st.font->height * 2),
 			one,
@@ -331,7 +332,9 @@ void ForumTopic::paintUserpic(
 		const auto size = st::defaultForumTopicIcon.size;
 		const auto esize = st::emojiSize;
 		const auto shift = (esize - size) / 2;
-		p.drawImage(position + QPoint(shift, shift), _defaultIcon);
+		p.drawImage(
+			position + st::forumTopicIconPosition + QPoint(shift, 0),
+			_defaultIcon);
 	}
 }
 

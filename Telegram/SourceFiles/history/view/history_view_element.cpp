@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
-#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
@@ -33,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
@@ -1270,7 +1270,7 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateReaction(Reactions::AnimationArgs &&args) {
+void Element::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 }
 
 void Element::animateUnreadReactions() {
@@ -1283,7 +1283,9 @@ void Element::animateUnreadReactions() {
 }
 
 auto Element::takeReactionAnimations()
--> base::flat_map<Data::ReactionId, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>> {
 	return {};
 }
 

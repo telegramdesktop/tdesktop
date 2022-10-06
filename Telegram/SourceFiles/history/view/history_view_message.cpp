@@ -14,20 +14,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_web_page.h"
 #include "history/view/reactions/history_view_reactions.h"
-#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/history_view_group_call_bar.h" // UserpicInRow.
 #include "history/view/history_view_view_button.h" // ViewButton.
 #include "history/history.h"
 #include "boxes/share_box.h"
 #include "ui/effects/ripple_animation.h"
-#include "base/unixtime.h"
+#include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/message_bubble.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_entity.h"
 #include "ui/cached_round_corners.h"
+#include "base/unixtime.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
@@ -301,7 +301,7 @@ Message::Message(
 		? replacing->takeReactionAnimations()
 		: base::flat_map<
 			Data::ReactionId,
-			std::unique_ptr<Reactions::Animation>>();
+			std::unique_ptr<Ui::ReactionFlyAnimation>>();
 	if (!animations.empty()) {
 		const auto repainter = [=] { repaint(); };
 		for (const auto &[id, animation] : animations) {
@@ -376,7 +376,7 @@ void Message::applyGroupAdminChanges(
 	}
 }
 
-void Message::animateReaction(Reactions::AnimationArgs &&args) {
+void Message::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 	const auto item = message();
 	const auto media = this->media();
 
@@ -475,7 +475,9 @@ void Message::animateReaction(Reactions::AnimationArgs &&args) {
 }
 
 auto Message::takeReactionAnimations()
--> base::flat_map<Data::ReactionId, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>> {
 	return _reactions
 		? _reactions->takeAnimations()
 		: _bottomInfo.takeReactionAnimations();

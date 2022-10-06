@@ -147,11 +147,11 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void animateReaction(Reactions::AnimationArgs &&args) override;
+	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
 	auto takeReactionAnimations()
 	-> base::flat_map<
 		Data::ReactionId,
-		std::unique_ptr<Reactions::Animation>> override;
+		std::unique_ptr<Ui::ReactionFlyAnimation>> override;
 
 	QRect innerGeometry() const override;
 	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;

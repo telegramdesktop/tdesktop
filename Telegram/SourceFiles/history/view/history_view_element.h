@@ -33,12 +33,12 @@ class PathShiftGradient;
 struct BubblePattern;
 struct ChatPaintContext;
 class ChatStyle;
+struct ReactionFlyAnimationArgs;
+class ReactionFlyAnimation;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
 struct ButtonParameters;
-struct AnimationArgs;
-class Animation;
 class InlineList;
 } // namespace HistoryView::Reactions
 
@@ -454,12 +454,12 @@ public:
 
 	[[nodiscard]] bool markSponsoredViewed(int shownFromTop) const;
 
-	virtual void animateReaction(Reactions::AnimationArgs &&args);
+	virtual void animateReaction(Ui::ReactionFlyAnimationArgs &&args);
 	void animateUnreadReactions();
 	[[nodiscard]] virtual auto takeReactionAnimations()
 	-> base::flat_map<
 		Data::ReactionId,
-		std::unique_ptr<Reactions::Animation>>;
+		std::unique_ptr<Ui::ReactionFlyAnimation>>;
 
 	virtual ~Element();
 
