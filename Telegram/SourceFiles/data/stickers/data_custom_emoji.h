@@ -108,6 +108,7 @@ private:
 		not_null<Ui::CustomEmoji::Instance*> instance,
 		Ui::CustomEmoji::RepaintRequest request);
 	void scheduleRepaintTimer();
+	bool checkEmptyRepaints();
 	void invokeRepaints();
 	void fillColoredFlags(not_null<DocumentData*> document);
 	void processLoaders(not_null<DocumentData*> document);
@@ -160,6 +161,11 @@ private:
 	base::Timer _repaintTimer;
 	bool _repaintTimerScheduled = false;
 	bool _requestSetsScheduled = false;
+
+#if 0 // inject-to-on_main
+	crl::time _repaintsLastAdded = 0;
+	rpl::lifetime _repaintsLifetime;
+#endif
 
 	rpl::lifetime _lifetime;
 

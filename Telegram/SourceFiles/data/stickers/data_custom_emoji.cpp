@@ -33,6 +33,9 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxPerRequest = 100;
+#if 0 // inject-to-on_main
+constexpr auto kUnsubscribeUpdatesDelay = 3 * crl::time(1000);
+#endif
 
 using SizeTag = CustomEmojiManager::SizeTag;
 
@@ -730,15 +733,40 @@ void CustomEmojiManager::repaintLater(
 			}
 		}
 		bunch.when = request.when;
+#if 0 // inject-to-on_main
+		_repaintsLastAdded = request.when;
+#endif
 	}
 	bunch.instances.emplace_back(instance);
 	scheduleRepaintTimer();
 }
 
+bool CustomEmojiManager::checkEmptyRepaints() {
+	if (!_repaints.empty()) {
+		return false;
+#if 0 // inject-to-on_main
+	} else if (_repaintsLifetime
+		&& crl::now() >= _repaintsLastAdded + kUnsubscribeUpdatesDelay) {
+		_repaintsLifetime.destroy();
+#endif
+	}
+	return true;
+}
+
 void CustomEmojiManager::scheduleRepaintTimer() {
-	if (_repaintTimerScheduled) {
+	if (checkEmptyRepaints() || _repaintTimerScheduled) {
 		return;
 	}
+
+#if 0 // inject-to-on_main
+	if (!_repaintsLifetime) {
+		crl::on_main_update_requests(
+		) | rpl::start_with_next([=] {
+			invokeRepaints();
+		}, _repaintsLifetime);
+	}
+#endif
+
 	_repaintTimerScheduled = true;
 	Ui::PostponeCall(this, [=] {
 		_repaintTimerScheduled = false;
@@ -765,6 +793,9 @@ void CustomEmojiManager::scheduleRepaintTimer() {
 
 void CustomEmojiManager::invokeRepaints() {
 	_repaintNext = 0;
+	if (checkEmptyRepaints()) {
+		return;
+	}
 	const auto now = crl::now();
 	auto repaint = std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>>();
 	for (auto i = begin(_repaints); i != end(_repaints);) {
@@ -783,10 +814,14 @@ void CustomEmojiManager::invokeRepaints() {
 		}
 		i = _repaints.erase(i);
 	}
-	for (const auto &weak : repaint) {
-		if (const auto strong = weak.get()) {
-			strong->repaint();
+	if (!repaint.empty()) {
+		for (const auto &weak : repaint) {
+			if (const auto strong = weak.get()) {
+				strong->repaint();
+			}
 		}
+	} else if (_repaintTimer.isActive()) {
+		return;
 	}
 	scheduleRepaintTimer();
 }
