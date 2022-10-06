@@ -721,6 +721,14 @@ void CustomEmojiManager::repaintLater(
 		Ui::CustomEmoji::RepaintRequest request) {
 	auto &bunch = _repaints[request.duration];
 	if (bunch.when < request.when) {
+		if (bunch.when > 0) {
+			for (const auto &already : bunch.instances) {
+				if (already.get() == instance) {
+					// Still waiting for full bunch repaint, don't bump.
+					return;
+				}
+			}
+		}
 		bunch.when = request.when;
 	}
 	bunch.instances.emplace_back(instance);
