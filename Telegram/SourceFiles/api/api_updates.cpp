@@ -2246,40 +2246,34 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadChannelDiscussionInbox: {
 		const auto &d = update.c_updateReadChannelDiscussionInbox();
-		const auto peerId = peerFromChannel(d.vchannel_id());
-		const auto msgId = d.vtop_msg_id().v;
+		const auto id = FullMsgId(
+			peerFromChannel(d.vchannel_id()),
+			d.vtop_msg_id().v);
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(peerId, msgId);
-		const auto unreadCount = item
-			? session().data().countUnreadRepliesLocally(item, readTillId)
-			: std::nullopt;
+		session().data().updateRepliesReadTill({ id, readTillId, false });
+		const auto item = session().data().message(id);
 		if (item) {
-			item->setRepliesInboxReadTill(readTillId, unreadCount);
+			item->setCommentsInboxReadTill(readTillId);
 			if (const auto post = item->lookupDiscussionPostOriginal()) {
-				post->setRepliesInboxReadTill(readTillId, unreadCount);
+				post->setCommentsInboxReadTill(readTillId);
 			}
 		}
 		if (const auto broadcastId = d.vbroadcast_id()) {
 			if (const auto post = session().data().message(
 					peerFromChannel(*broadcastId),
 					d.vbroadcast_post()->v)) {
-				post->setRepliesInboxReadTill(readTillId, unreadCount);
+				post->setCommentsInboxReadTill(readTillId);
 			}
 		}
 	} break;
 
 	case mtpc_updateReadChannelDiscussionOutbox: {
 		const auto &d = update.c_updateReadChannelDiscussionOutbox();
-		const auto peerId = peerFromChannel(d.vchannel_id());
-		const auto msgId = d.vtop_msg_id().v;
+		const auto id = FullMsgId(
+			peerFromChannel(d.vchannel_id()),
+			d.vtop_msg_id().v);
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(peerId, msgId);
-		if (item) {
-			item->setRepliesOutboxReadTill(readTillId);
-			if (const auto post = item->lookupDiscussionPostOriginal()) {
-				post->setRepliesOutboxReadTill(readTillId);
-			}
-		}
+		session().data().updateRepliesReadTill({ id, readTillId, true });
 	} break;
 
 	case mtpc_updateChannelAvailableMessages: {

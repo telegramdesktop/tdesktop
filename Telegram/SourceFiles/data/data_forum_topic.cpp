@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_forum.h"
 #include "data/data_histories.h"
+#include "data/data_replies_list.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_main_list.h"
@@ -129,10 +130,26 @@ ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 : Entry(&history->owner(), Type::ForumTopic)
 , _history(history)
 , _list(forum()->topicsList())
+, _replies(std::make_shared<RepliesList>(history, rootId))
 , _rootId(rootId) {
+	_replies->unreadCountValue(
+	) | rpl::combine_previous(
+	) | rpl::filter([=] {
+		return inChatList();
+	}) | rpl::start_with_next([=](
+			std::optional<int> previous,
+			std::optional<int> now) {
+		notifyUnreadStateChange(unreadStateFor(
+			previous.value_or(0),
+			previous.has_value()));
+	}, _replies->lifetime());
 }
 
 ForumTopic::~ForumTopic() = default;
+
+std::shared_ptr<Data::RepliesList> ForumTopic::replies() const {
+	return _replies;
+}
 
 not_null<ChannelData*> ForumTopic::channel() const {
 	return _history->peer->asChannel();
@@ -151,7 +168,10 @@ MsgId ForumTopic::rootId() const {
 }
 
 void ForumTopic::setRealRootId(MsgId realId) {
-	_rootId = realId;
+	if (_rootId != realId) {
+		_rootId = realId;
+		_replies = std::make_shared<RepliesList>(_history, _rootId);
+	}
 }
 
 void ForumTopic::applyTopic(const MTPForumTopic &topic) {
@@ -175,10 +195,10 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 	}
 #endif
 
-	applyTopicFields(
-		data.vunread_count().v,
+	_replies->setInboxReadTill(
 		data.vread_inbox_max_id().v,
-		data.vread_outbox_max_id().v);
+		data.vunread_count().v);
+	_replies->setOutboxReadTill(data.vread_outbox_max_id().v);
 	applyTopicTopMessage(data.vtop_message().v);
 #if 0 // #TODO forum unread mark
 	setUnreadMark(data.is_unread_mark());
@@ -213,17 +233,6 @@ void ForumTopic::indexTitleParts() {
 
 int ForumTopic::chatListNameVersion() const {
 	return _titleVersion;
-}
-
-void ForumTopic::applyTopicFields(
-		int unreadCount,
-		MsgId maxInboxRead,
-		MsgId maxOutboxRead) {
-	if (maxInboxRead + 1 >= _inboxReadBefore.value_or(1)) {
-		setUnreadCount(unreadCount);
-		setInboxReadTill(maxInboxRead);
-	}
-	setOutboxReadTill(maxOutboxRead);
 }
 
 void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
@@ -292,22 +301,6 @@ void ForumTopic::setChatListMessage(HistoryItem *item) {
 	} else if (!_chatListMessage || *_chatListMessage) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
-	}
-}
-
-void ForumTopic::setInboxReadTill(MsgId upTo) {
-	if (_inboxReadBefore) {
-		accumulate_max(*_inboxReadBefore, upTo + 1);
-	} else {
-		_inboxReadBefore = upTo + 1;
-	}
-}
-
-void ForumTopic::setOutboxReadTill(MsgId upTo) {
-	if (_outboxReadBefore) {
-		accumulate_max(*_outboxReadBefore, upTo + 1);
-	} else {
-		_outboxReadBefore = upTo + 1;
 	}
 }
 
@@ -464,7 +457,7 @@ void ForumTopic::applyItemRemoved(MsgId id) {
 }
 
 int ForumTopic::unreadCount() const {
-	return _unreadCount ? *_unreadCount : 0;
+	return _replies->unreadCountCurrent();
 }
 
 int ForumTopic::unreadCountForBadge() const {
@@ -473,16 +466,7 @@ int ForumTopic::unreadCountForBadge() const {
 }
 
 bool ForumTopic::unreadCountKnown() const {
-	return _unreadCount.has_value();
-}
-
-void ForumTopic::setUnreadCount(int newUnreadCount) {
-	if (_unreadCount == newUnreadCount) {
-		return;
-	}
-	const auto wasForBadge = (unreadCountForBadge() > 0);
-	const auto notifier = unreadStateChangeNotifier(true);
-	_unreadCount = newUnreadCount;
+	return _replies->unreadCountKnown();
 }
 
 void ForumTopic::setUnreadMark(bool unread) {
@@ -512,8 +496,13 @@ int ForumTopic::chatListUnreadCount() const {
 }
 
 Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
+	return unreadStateFor(unreadCount(), unreadCountKnown());
+}
+
+Dialogs::UnreadState ForumTopic::unreadStateFor(
+		int count,
+		bool known) const {
 	auto result = Dialogs::UnreadState();
-	const auto count = _unreadCount.value_or(0);
 	const auto mark = !count && _unreadMark;
 	const auto muted = _history->mute();
 	result.messages = count;
@@ -522,7 +511,7 @@ Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
 	result.chatsMuted = (count && muted) ? 1 : 0;
 	result.marks = mark ? 1 : 0;
 	result.marksMuted = (mark && muted) ? 1 : 0;
-	result.known = _unreadCount.has_value();
+	result.known = known;
 	return result;
 }
 

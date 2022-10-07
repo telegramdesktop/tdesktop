@@ -26,6 +26,7 @@ class Session;
 
 namespace Data {
 
+class RepliesList;
 class Session;
 class Forum;
 
@@ -49,6 +50,7 @@ public:
 	ForumTopic(const ForumTopic &) = delete;
 	ForumTopic &operator=(const ForumTopic &) = delete;
 
+	[[nodiscard]] std::shared_ptr<RepliesList> replies() const;
 	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<Forum*> forum() const;
@@ -102,7 +104,6 @@ public:
 
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 
-	void setUnreadCount(int newUnreadCount);
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
 
@@ -113,22 +114,20 @@ private:
 	void indexTitleParts();
 	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
-	void applyTopicFields(
-		int unreadCount,
-		MsgId maxInboxRead,
-		MsgId maxOutboxRead);
 
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);
 	void setChatListMessage(HistoryItem *item);
 
-	void setInboxReadTill(MsgId upTo);
-	void setOutboxReadTill(MsgId upTo);
-
 	int chatListNameVersion() const override;
+
+	[[nodiscard]] Dialogs::UnreadState unreadStateFor(
+		int count,
+		bool known) const;
 
 	const not_null<History*> _history;
 	const not_null<Dialogs::MainList*> _list;
+	std::shared_ptr<RepliesList> _replies;
 	MsgId _rootId = 0;
 
 	QString _title;
@@ -141,9 +140,6 @@ private:
 	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 	mutable QImage _defaultIcon; // on-demand
 
-	std::optional<MsgId> _inboxReadBefore;
-	std::optional<MsgId> _outboxReadBefore;
-	std::optional<int> _unreadCount;
 	std::optional<HistoryItem*> _lastMessage;
 	std::optional<HistoryItem*> _lastServerMessage;
 	std::optional<HistoryItem*> _chatListMessage;

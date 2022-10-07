@@ -142,10 +142,7 @@ public:
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
-	void changeRepliesCount(
-		int delta,
-		PeerId replier,
-		std::optional<bool> unread) override;
+	void changeRepliesCount(int delta, PeerId replier) override;
 	void setReplyFields(
 		MsgId replyTo,
 		MsgId replyToTop,
@@ -198,17 +195,10 @@ public:
 	[[nodiscard]] bool repliesAreComments() const override;
 	[[nodiscard]] bool externalReply() const override;
 
-	[[nodiscard]] MsgId repliesInboxReadTill() const override;
-	void setRepliesInboxReadTill(
-		MsgId readTillId,
-		std::optional<int> unreadCount) override;
-	[[nodiscard]] MsgId computeRepliesInboxReadTillFull() const override;
-	[[nodiscard]] MsgId repliesOutboxReadTill() const override;
-	void setRepliesOutboxReadTill(MsgId readTillId) override;
-	[[nodiscard]] MsgId computeRepliesOutboxReadTillFull() const override;
-	void setRepliesMaxId(MsgId maxId) override;
-	void setRepliesPossibleMaxId(MsgId possibleMaxId) override;
-	[[nodiscard]] bool areRepliesUnread() const override;
+	void setCommentsInboxReadTill(MsgId readTillId) override;
+	void setCommentsMaxId(MsgId maxId) override;
+	void setCommentsPossibleMaxId(MsgId possibleMaxId) override;
+	[[nodiscard]] bool areCommentsUnread() const override;
 
 	[[nodiscard]] FullMsgId commentsItemId() const override;
 	void setCommentsItemId(FullMsgId id) override;
@@ -259,9 +249,6 @@ private:
 	void refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize = false);
-	void setUnreadRepliesCount(
-		not_null<HistoryMessageViews*> views,
-		int count);
 	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	static void FillForwardedInfo(

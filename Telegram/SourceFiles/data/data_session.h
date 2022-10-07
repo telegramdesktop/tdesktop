@@ -65,6 +65,12 @@ class GroupCall;
 class NotifySettings;
 class CustomEmojiManager;
 
+struct RepliesReadTillUpdate {
+	FullMsgId id;
+	MsgId readTillId;
+	bool out = false;
+};
+
 class Session final {
 public:
 	using ViewElement = HistoryView::Element;
@@ -459,16 +465,9 @@ public:
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 	void notifyUnreadBadgeChanged();
 
-	[[nodiscard]] std::optional<int> countUnreadRepliesLocally(
-		not_null<HistoryItem*> root,
-		MsgId afterId) const;
-	struct UnreadRepliesCountRequest {
-		not_null<HistoryItem*> root;
-		MsgId afterId = 0;
-		not_null<std::optional<int>*> result;
-	};
-	[[nodiscard]] auto unreadRepliesCountRequests() const
-		-> rpl::producer<UnreadRepliesCountRequest>;
+	void updateRepliesReadTill(RepliesReadTillUpdate update);
+	[[nodiscard]] auto repliesReadTillUpdates() const
+		-> rpl::producer<RepliesReadTillUpdate>;
 
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
@@ -647,6 +646,8 @@ public:
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
 
+	[[nodiscard]] not_null<Dialogs::MainList*> chatsListFor(
+		not_null<Dialogs::Entry*> entry);
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr);
 	[[nodiscard]] not_null<const Dialogs::MainList*> chatsList(
@@ -863,7 +864,7 @@ private:
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 	rpl::event_stream<> _unreadBadgeChanges;
-	rpl::event_stream<UnreadRepliesCountRequest> _unreadRepliesCountRequests;
+	rpl::event_stream<RepliesReadTillUpdate> _repliesReadTillUpdates;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;

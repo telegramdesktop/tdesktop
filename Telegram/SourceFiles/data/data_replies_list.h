@@ -31,10 +31,24 @@ public:
 
 	[[nodiscard]] rpl::producer<int> fullCount() const;
 
-	[[nodiscard]] std::optional<int> fullUnreadCountAfter(
-		MsgId readTillId,
-		MsgId wasReadTillId,
-		std::optional<int> wasUnreadCountAfter) const;
+	[[nodiscard]] bool unreadCountKnown() const;
+	[[nodiscard]] int unreadCountCurrent() const;
+	[[nodiscard]] rpl::producer<std::optional<int>> unreadCountValue() const;
+
+	void setInboxReadTill(MsgId readTillId, std::optional<int> unreadCount);
+	[[nodiscard]] MsgId inboxReadTillId() const;
+	[[nodiscard]] MsgId computeInboxReadTillFull() const;
+
+	void setOutboxReadTill(MsgId readTillId);
+	[[nodiscard]] MsgId computeOutboxReadTillFull() const;
+
+	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
+		MsgId afterId) const;
+	void requestUnreadCount();
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
 
 private:
 	struct Viewer;
@@ -49,9 +63,12 @@ private:
 	void appendClientSideMessages(MessagesSlice &slice);
 
 	[[nodiscard]] bool buildFromData(not_null<Viewer*> viewer);
-	[[nodiscard]] bool applyUpdate(
+	[[nodiscard]] bool applyItemDestroyed(
 		not_null<Viewer*> viewer,
-		const MessageUpdate &update);
+		not_null<HistoryItem*> item);
+	[[nodiscard]] bool applyUpdate(const MessageUpdate &update);
+	[[nodiscard]] bool applyDifferenceTooLong(
+		not_null<ChannelData*> channel);
 	void injectRootMessageAndReverse(not_null<Viewer*> viewer);
 	void injectRootMessage(not_null<Viewer*> viewer);
 	void injectRootDivider(
@@ -62,19 +79,31 @@ private:
 	void loadBefore();
 	void loadAfter();
 
+	void changeUnreadCountByPost(MsgId id, int delta);
+	void setUnreadCount(std::optional<int> count);
+	void checkReadTillEnd();
+
 	const not_null<History*> _history;
 	const MsgId _rootId = 0;
+	const bool _creating = false;
+
 	std::vector<MsgId> _list;
 	std::optional<int> _skippedBefore;
 	std::optional<int> _skippedAfter;
 	rpl::variable<std::optional<int>> _fullCount;
-	rpl::event_stream<> _partLoaded;
+	rpl::event_stream<> _listChanges;
 	std::optional<MsgId> _loadingAround;
+	rpl::variable<std::optional<int>> _unreadCount;
+	MsgId _inboxReadTillId = 0;
+	MsgId _outboxReadTillId = 0;
 	HistoryService *_divider = nullptr;
 	bool _dividerWithComments = false;
-	bool _creating = false;
 	int _beforeId = 0;
 	int _afterId = 0;
+
+	mtpRequestId _reloadUnreadCountRequestId = 0;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -1099,7 +1099,7 @@ void Message::paintCommentsButton(
 		views ? views->replies.text : tr::lng_replies_view_original(tr::now),
 		views ? views->replies.textWidth : -1);
 
-	if (views && data()->areRepliesUnread()) {
+	if (views && data()->areCommentsUnread()) {
 		p.setPen(Qt::NoPen);
 		p.setBrush(stm->msgFileBg);
 

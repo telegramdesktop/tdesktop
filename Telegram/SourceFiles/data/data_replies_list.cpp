@@ -60,6 +60,33 @@ RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 : _history(history)
 , _rootId(rootId)
 , _creating(IsCreating(history, rootId)) {
+	_history->owner().repliesReadTillUpdates(
+	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
+		return (update.id.msg == _rootId)
+			&& (update.id.peer == _history->peer->id);
+	}) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
+		if (update.out) {
+			setOutboxReadTill(update.readTillId);
+		} else if (update.readTillId >= _inboxReadTillId) {
+			setInboxReadTill(
+				update.readTillId,
+				computeUnreadCountLocally(update.readTillId));
+		}
+	}, _lifetime);
+
+	_history->session().changes().messageUpdates(
+		MessageUpdate::Flag::NewAdded
+		| MessageUpdate::Flag::NewMaybeAdded
+		| MessageUpdate::Flag::ReplyToTopAdded
+		| MessageUpdate::Flag::Destroyed
+	) | rpl::filter([=](const MessageUpdate &update) {
+		return applyUpdate(update);
+	}) | rpl::to_empty | rpl::start_to_stream(_listChanges, _lifetime);
+
+	_history->owner().channelDifferenceTooLong(
+	) | rpl::filter([=](not_null<ChannelData*> channel) {
+		return applyDifferenceTooLong(channel);
+	}) | rpl::to_empty | rpl::start_to_stream(_listChanges, _lifetime);
 }
 
 RepliesList::~RepliesList() {
@@ -95,32 +122,19 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		viewer->limitBefore = limitBefore;
 		viewer->limitAfter = limitAfter;
 
-		_history->session().changes().messageUpdates(
-			MessageUpdate::Flag::NewAdded
-			| MessageUpdate::Flag::NewMaybeAdded
-			| MessageUpdate::Flag::Destroyed
-		) | rpl::filter([=](const MessageUpdate &update) {
-			return applyUpdate(viewer, update);
-		}) | rpl::start_with_next(pushDelayed, lifetime);
-
 		_history->session().changes().historyUpdates(
 			_history,
 			Data::HistoryUpdate::Flag::ClientSideMessages
 		) | rpl::start_with_next(pushDelayed, lifetime);
 
-		_partLoaded.events(
-		) | rpl::start_with_next(pushDelayed, lifetime);
-
-		_history->owner().channelDifferenceTooLong(
-		) | rpl::filter([=](not_null<ChannelData*> channel) {
-			if (_creating
-				|| _history->peer != channel
-				|| !_skippedAfter.has_value()) {
-				return false;
-			}
-			_skippedAfter = std::nullopt;
-			return true;
+		_history->session().changes().messageUpdates(
+			MessageUpdate::Flag::Destroyed
+		) | rpl::filter([=](const MessageUpdate &update) {
+			return applyItemDestroyed(viewer, update.item);
 		}) | rpl::start_with_next(pushDelayed, lifetime);
+
+		_listChanges.events(
+		) | rpl::start_with_next(pushDelayed, lifetime);
 
 		push();
 		return lifetime;
@@ -190,62 +204,16 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
-std::optional<int> RepliesList::fullUnreadCountAfter(
-		MsgId readTillId,
-		MsgId wasReadTillId,
-		std::optional<int> wasUnreadCountAfter) const {
-	Expects(readTillId >= wasReadTillId);
+bool RepliesList::unreadCountKnown() const {
+	return _unreadCount.current().has_value();
+}
 
-	readTillId = std::max(readTillId, _rootId);
-	wasReadTillId = std::max(wasReadTillId, _rootId);
-	const auto backLoaded = (_skippedBefore == 0);
-	const auto frontLoaded = (_skippedAfter == 0);
-	const auto fullLoaded = backLoaded && frontLoaded;
-	const auto allUnread = (readTillId == _rootId)
-		|| (fullLoaded && _list.empty());
-	const auto countIncoming = [&](auto from, auto till) {
-		auto &owner = _history->owner();
-		const auto peerId = _history->peer->id;
-		auto count = 0;
-		for (auto i = from; i != till; ++i) {
-			if (!owner.message(peerId, *i)->out()) {
-				++count;
-			}
-		}
-		return count;
-	};
-	if (allUnread && fullLoaded) {
-		// Should not happen too often unless the list is empty.
-		return countIncoming(begin(_list), end(_list));
-	} else if (frontLoaded && !_list.empty() && readTillId >= _list.front()) {
-		// Always "count by local data" if read till the end.
-		return 0;
-	} else if (wasReadTillId == readTillId) {
-		// Otherwise don't recount the same value over and over.
-		return wasUnreadCountAfter;
-	} else if (frontLoaded && !_list.empty() && readTillId >= _list.back()) {
-		// And count by local data if it is available and read-till changed.
-		return countIncoming(
-			begin(_list),
-			ranges::lower_bound(_list, readTillId, std::greater<>()));
-	} else if (_list.empty()) {
-		return std::nullopt;
-	} else if (wasUnreadCountAfter.has_value()
-		&& (frontLoaded || readTillId <= _list.front())
-		&& (backLoaded || wasReadTillId >= _list.back())) {
-		// Count how many were read since previous value.
-		const auto from = ranges::lower_bound(
-			_list,
-			readTillId,
-			std::greater<>());
-		const auto till = ranges::lower_bound(
-			from,
-			end(_list),
-			wasReadTillId,
-			std::greater<>());
-		return std::max(*wasUnreadCountAfter - countIncoming(from, till), 0);
-	}
-	return std::nullopt;
+int RepliesList::unreadCountCurrent() const {
+	return _unreadCount.current().value_or(0);
+}
+
+rpl::producer<std::optional<int>> RepliesList::unreadCountValue() const {
+	return _unreadCount.value();
 }
 
 void RepliesList::injectRootMessageAndReverse(not_null<Viewer*> viewer) {
@@ -321,7 +289,7 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 		if (viewer->around != ShowAtUnreadMsgId) {
 			return viewer->around;
 		} else if (const auto item = lookupRoot()) {
-			return item->computeRepliesInboxReadTillFull();
+			return computeInboxReadTillFull();
 		}
 		return viewer->around;
 	}();
@@ -382,26 +350,36 @@ bool RepliesList::buildFromData(not_null<Viewer*> viewer) {
 	return true;
 }
 
-bool RepliesList::applyUpdate(
+bool RepliesList::applyItemDestroyed(
 		not_null<Viewer*> viewer,
-		const MessageUpdate &update) {
-	if (update.item->history() != _history || !update.item->isRegular()) {
+		not_null<HistoryItem*> item) {
+	if (item->history() != _history || !item->isRegular()) {
 		return false;
 	}
-	if (update.flags & MessageUpdate::Flag::Destroyed) {
-		const auto id = update.item->fullId();
-		for (auto i = 0; i != viewer->injectedForRoot; ++i) {
-			if (viewer->slice.ids[i] == id) {
-				return true;
-			}
+	const auto fullId = item->fullId();
+	for (auto i = 0; i != viewer->injectedForRoot; ++i) {
+		if (viewer->slice.ids[i] == fullId) {
+			return true;
 		}
 	}
-	if (!update.item->inThread(_rootId)) {
+	return false;
+}
+
+bool RepliesList::applyUpdate(const MessageUpdate &update) {
+	using Flag = MessageUpdate::Flag;
+
+	if (update.item->history() != _history
+		|| !update.item->isRegular()
+		|| !update.item->inThread(_rootId)) {
 		return false;
 	}
 	const auto id = update.item->id;
+	const auto added = (update.flags & Flag::ReplyToTopAdded);
 	const auto i = ranges::lower_bound(_list, id, std::greater<>());
-	if (update.flags & MessageUpdate::Flag::Destroyed) {
+	if (update.flags & Flag::Destroyed) {
+		if (!added) {
+			changeUnreadCountByPost(id, -1);
+		}
 		if (i == end(_list) || *i != id) {
 			return false;
 		}
@@ -413,20 +391,43 @@ bool RepliesList::applyUpdate(
 				_fullCount = (*known - 1);
 			}
 		}
-	} else if (_skippedAfter != 0) {
+		return true;
+	}
+	if (added) {
+		changeUnreadCountByPost(id, 1);
+	}
+	if (_skippedAfter != 0
+		|| (i != end(_list) && *i == id)) {
 		return false;
-	} else {
-		if (i != end(_list) && *i == id) {
-			return false;
-		}
-		_list.insert(i, id);
-		if (_skippedBefore && _skippedAfter) {
-			_fullCount = *_skippedBefore + _list.size() + *_skippedAfter;
-		} else if (const auto known = _fullCount.current()) {
-			_fullCount = *known + 1;
-		}
+	}
+	_list.insert(i, id);
+	if (_skippedBefore && _skippedAfter) {
+		_fullCount = *_skippedBefore + _list.size() + *_skippedAfter;
+	} else if (const auto known = _fullCount.current()) {
+		_fullCount = *known + 1;
 	}
 	return true;
+}
+
+bool RepliesList::applyDifferenceTooLong(not_null<ChannelData*> channel) {
+	if (_creating
+		|| _history->peer != channel
+		|| !_skippedAfter.has_value()) {
+		return false;
+	}
+	_skippedAfter = std::nullopt;
+	return true;
+}
+
+void RepliesList::changeUnreadCountByPost(MsgId id, int delta) {
+	if (!_inboxReadTillId) {
+		setUnreadCount(std::nullopt);
+		return;
+	}
+	const auto count = _unreadCount.current();
+	if (count.has_value() && (id > _inboxReadTillId)) {
+		setUnreadCount(std::max(*count + delta, 0));
+	}
 }
 
 Histories &RepliesList::histories() {
@@ -479,6 +480,7 @@ void RepliesList::loadAround(MsgId id) {
 					_skippedBefore = 0;
 				}
 			}
+			checkReadTillEnd();
 		}).fail([=] {
 			_beforeId = 0;
 			_loadingAround = std::nullopt;
@@ -570,6 +572,7 @@ void RepliesList::loadAfter() {
 				if (_skippedBefore == 0) {
 					_fullCount = _list.size();
 				}
+				checkReadTillEnd();
 			}
 		}).fail([=] {
 			_afterId = 0;
@@ -583,7 +586,7 @@ void RepliesList::loadAfter() {
 }
 
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
-	const auto guard = gsl::finally([&] { _partLoaded.fire({}); });
+	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
 	const auto fullCount = result.match([&](
 			const MTPDmessages_messagesNotModified &) {
@@ -674,23 +677,185 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	}
 	_fullCount = checkedCount;
 
+	checkReadTillEnd();
+
 	if (const auto item = lookupRoot()) {
-		if (_skippedAfter == 0 && !_list.empty()) {
-			item->setRepliesMaxId(_list.front());
-		} else {
-			item->setRepliesPossibleMaxId(maxId);
-		}
 		if (const auto original = item->lookupDiscussionPostOriginal()) {
 			if (_skippedAfter == 0 && !_list.empty()) {
-				original->setRepliesMaxId(_list.front());
+				original->setCommentsMaxId(_list.front());
 			} else {
-				original->setRepliesPossibleMaxId(maxId);
+				original->setCommentsPossibleMaxId(maxId);
 			}
 		}
 	}
 
 	Ensures(list.size() >= skipped);
 	return (list.size() == skipped);
+}
+
+void RepliesList::setInboxReadTill(
+		MsgId readTillId,
+		std::optional<int> unreadCount) {
+	const auto newReadTillId = std::max(readTillId.bare, int64(1));
+	const auto ignore = (newReadTillId < _inboxReadTillId);
+	if (ignore) {
+		return;
+	}
+	const auto changed = (newReadTillId > _inboxReadTillId);
+	if (changed) {
+		_inboxReadTillId = newReadTillId;
+	}
+	if (_skippedAfter == 0
+		&& !_list.empty()
+		&& _inboxReadTillId >= _list.front()) {
+		unreadCount = 0;
+	}
+	const auto wasUnreadCount = _unreadCount;
+	if (_unreadCount.current() != unreadCount
+		&& (changed || unreadCount.has_value())) {
+		setUnreadCount(unreadCount);
+	}
+}
+
+MsgId RepliesList::inboxReadTillId() const {
+	return _inboxReadTillId;
+}
+
+MsgId RepliesList::computeInboxReadTillFull() const {
+	const auto local = _inboxReadTillId;
+	if (const auto megagroup = _history->peer->asMegagroup()) {
+		if (!megagroup->isForum() && megagroup->amIn()) {
+			return std::max(local, _history->inboxReadTillId());
+		}
+	}
+	return local;
+}
+
+void RepliesList::setOutboxReadTill(MsgId readTillId) {
+	const auto newReadTillId = std::max(readTillId.bare, int64(1));
+	if (newReadTillId > _outboxReadTillId) {
+		_outboxReadTillId = newReadTillId;
+		_history->session().changes().historyUpdated(
+			_history,
+			Data::HistoryUpdate::Flag::OutboxRead);
+	}
+}
+
+MsgId RepliesList::computeOutboxReadTillFull() const {
+	const auto local = _outboxReadTillId;
+	if (const auto megagroup = _history->peer->asMegagroup()) {
+		if (!megagroup->isForum() && megagroup->amIn()) {
+			return std::max(local, _history->outboxReadTillId());
+		}
+	}
+	return local;
+}
+
+void RepliesList::setUnreadCount(std::optional<int> count) {
+	_unreadCount = count;
+}
+
+void RepliesList::checkReadTillEnd() {
+	if (_unreadCount.current() != 0
+		&& _skippedAfter == 0
+		&& !_list.empty()
+		&& _inboxReadTillId >= _list.front()) {
+		setUnreadCount(0);
+	}
+}
+
+std::optional<int> RepliesList::computeUnreadCountLocally(
+		MsgId afterId) const {
+	Expects(afterId >= _inboxReadTillId);
+
+	const auto wasUnreadCountAfter = _unreadCount.current();
+	const auto readTillId = std::max(afterId, _rootId);
+	const auto wasReadTillId = std::max(_inboxReadTillId, _rootId);
+	const auto backLoaded = (_skippedBefore == 0);
+	const auto frontLoaded = (_skippedAfter == 0);
+	const auto fullLoaded = backLoaded && frontLoaded;
+	const auto allUnread = (readTillId == _rootId)
+		|| (fullLoaded && _list.empty());
+	const auto countIncoming = [&](auto from, auto till) {
+		auto &owner = _history->owner();
+		const auto peerId = _history->peer->id;
+		auto count = 0;
+		for (auto i = from; i != till; ++i) {
+			if (!owner.message(peerId, *i)->out()) {
+				++count;
+			}
+		}
+		return count;
+	};
+	if (allUnread && fullLoaded) {
+		// Should not happen too often unless the list is empty.
+		return countIncoming(begin(_list), end(_list));
+	} else if (frontLoaded && !_list.empty() && readTillId >= _list.front()) {
+		// Always "count by local data" if read till the end.
+		return 0;
+	} else if (wasReadTillId == readTillId) {
+		// Otherwise don't recount the same value over and over.
+		return wasUnreadCountAfter;
+	} else if (frontLoaded && !_list.empty() && readTillId >= _list.back()) {
+		// And count by local data if it is available and read-till changed.
+		return countIncoming(
+			begin(_list),
+			ranges::lower_bound(_list, readTillId, std::greater<>()));
+	} else if (_list.empty()) {
+		return std::nullopt;
+	} else if (wasUnreadCountAfter.has_value()
+		&& (frontLoaded || readTillId <= _list.front())
+		&& (backLoaded || wasReadTillId >= _list.back())) {
+		// Count how many were read since previous value.
+		const auto from = ranges::lower_bound(
+			_list,
+			readTillId,
+			std::greater<>());
+		const auto till = ranges::lower_bound(
+			from,
+			end(_list),
+			wasReadTillId,
+			std::greater<>());
+		return std::max(*wasUnreadCountAfter - countIncoming(from, till), 0);
+	}
+	return std::nullopt;
+}
+
+void RepliesList::requestUnreadCount() {
+	if (_reloadUnreadCountRequestId) {
+		return;
+	}
+	const auto weak = base::make_weak(this);
+	const auto session = &_history->session();
+	const auto fullId = FullMsgId(_history->peer->id, _rootId);
+	const auto apply = [weak, session, fullId](
+			int readTill,
+			int unreadCount) {
+		if (const auto strong = weak.get()) {
+			strong->setInboxReadTill(readTill, unreadCount);
+		}
+		if (const auto root = session->data().message(fullId)) {
+			if (const auto post = root->lookupDiscussionPostOriginal()) {
+				post->setCommentsInboxReadTill(readTill);
+			}
+		}
+	};
+	_reloadUnreadCountRequestId = session->api().request(
+		MTPmessages_GetDiscussionMessage(
+			_history->peer->input,
+			MTP_int(_rootId))
+	).done([=](const MTPmessages_DiscussionMessage &result) {
+		if (weak) {
+			_reloadUnreadCountRequestId = 0;
+		}
+		result.match([&](const MTPDmessages_discussionMessage &data) {
+			session->data().processUsers(data.vusers());
+			session->data().processChats(data.vchats());
+			apply(
+				data.vread_inbox_max_id().value_or_empty(),
+				data.vunread_count().v);
+		});
+	}).send();
 }
 
 } // namespace Data

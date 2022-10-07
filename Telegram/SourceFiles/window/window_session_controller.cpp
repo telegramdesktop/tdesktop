@@ -494,44 +494,48 @@ void SessionNavigation::showRepliesForMessage(
 				data.vmessages(),
 				NewMessageType::Existing);
 			const auto list = data.vmessages().v;
-			if (list.isEmpty()) {
+			const auto deleted = list.isEmpty();
+			const auto comments = history->peer->isBroadcast();
+			if (comments && deleted) {
 				return;
 			}
-			const auto id = IdFromMessage(list.front());
-			const auto peer = PeerFromMessage(list.front());
+			const auto id = deleted ? rootId : IdFromMessage(list.front());
+			const auto peer = deleted
+				? history->peer->id
+				: PeerFromMessage(list.front());
 			if (!peer || !id) {
 				return;
 			}
-			auto item = _session->data().message(peer, id);
-			if (const auto group = _session->data().groups().find(item)) {
+			auto item = deleted
+				? nullptr
+				: _session->data().message(peer, id);
+			if (comments && !item) {
+				return;
+			}
+			auto &groups = _session->data().groups();
+			if (const auto group = item ? groups.find(item) : nullptr) {
 				item = group->items.front();
 			}
-			if (item) {
-				if (const auto maxId = data.vmax_id()) {
-					item->setRepliesMaxId(maxId->v);
-				}
-				item->setRepliesInboxReadTill(
-					data.vread_inbox_max_id().value_or_empty(),
-					data.vunread_count().v);
-				item->setRepliesOutboxReadTill(
-					data.vread_outbox_max_id().value_or_empty());
+			if (comments) {
 				const auto post = _session->data().message(postPeer, rootId);
-				if (post && item->history()->peer != postPeer) {
+				if (post) {
 					post->setCommentsItemId(item->fullId());
 					if (const auto maxId = data.vmax_id()) {
-						post->setRepliesMaxId(maxId->v);
+						post->setCommentsMaxId(maxId->v);
 					}
-					post->setRepliesInboxReadTill(
-						data.vread_inbox_max_id().value_or_empty(),
-						data.vunread_count().v);
-					post->setRepliesOutboxReadTill(
-						data.vread_outbox_max_id().value_or_empty());
+					post->setCommentsInboxReadTill(
+						data.vread_inbox_max_id().value_or_empty());
 				}
-				showSection(
-					std::make_shared<HistoryView::RepliesMemento>(
-						item,
-						commentId),
-					params);
+			}
+			if (deleted || item) {
+				auto memento = std::make_shared<HistoryView::RepliesMemento>(
+					item,
+					commentId);
+				memento->setReadInformation(
+					data.vread_inbox_max_id().value_or_empty(),
+					data.vunread_count().v,
+					data.vread_outbox_max_id().value_or_empty());
+				showSection(std::move(memento), params);
 			}
 		});
 	}).fail([=](const MTP::Error &error) {

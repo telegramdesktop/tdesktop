@@ -129,7 +129,29 @@ RepliesMemento::RepliesMemento(
 				commentId),
 			.date = TimeId(0),
 		});
-	} else if (commentsItem->computeRepliesInboxReadTillFull() == MsgId(1)) {
+	}
+}
+
+void RepliesMemento::setReadInformation(
+		MsgId inboxReadTillId,
+		int unreadCount,
+		MsgId outboxReadTillId) {
+	if (!_replies) {
+		if (const auto forum = _history->peer->forum()) {
+			if (const auto topic = forum->topicFor(_rootId)) {
+				_replies = topic->replies();
+			}
+		}
+		if (!_replies) {
+			_replies = std::make_shared<Data::RepliesList>(
+				_history,
+				_rootId);
+		}
+	}
+	_replies->setInboxReadTill(inboxReadTillId, unreadCount);
+	_replies->setOutboxReadTill(outboxReadTillId);
+	if (!_list.aroundPosition().fullId
+		&& _replies->computeInboxReadTillFull() == MsgId(1)) {
 		_list.setAroundPosition(Data::MinMessagePosition);
 		_list.setScrollTopState(ListMemento::ScrollTopState{
 			Data::MinMessagePosition
@@ -303,24 +325,18 @@ RepliesWidget::RepliesWidget(
 		}
 	}, lifetime());
 
-	using MessageUpdateFlag = Data::MessageUpdate::Flag;
 	_history->session().changes().messageUpdates(
-		MessageUpdateFlag::Destroyed
-		| MessageUpdateFlag::RepliesUnreadCount
+		Data::MessageUpdate::Flag::Destroyed
 	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
-		if (update.flags & MessageUpdateFlag::Destroyed) {
-			if (update.item == _root) {
-				_root = nullptr;
-				updatePinnedVisibility();
+		if (update.item == _root) {
+			_root = nullptr;
+			updatePinnedVisibility();
+			if (!_topic) {
 				controller->showBackFromStack();
 			}
-			while (update.item == _replyReturn) {
-				calculateNextReplyReturn();
-			}
-			return;
-		} else if ((update.item == _root)
-			&& (update.flags & MessageUpdateFlag::RepliesUnreadCount)) {
-			refreshUnreadCountBadge();
+		}
+		while (update.item == _replyReturn) {
+			calculateNextReplyReturn();
 		}
 	}, lifetime());
 
@@ -329,17 +345,6 @@ RepliesWidget::RepliesWidget(
 		Data::HistoryUpdate::Flag::OutboxRead
 	) | rpl::start_with_next([=] {
 		_inner->update();
-	}, lifetime());
-
-	_history->session().data().unreadRepliesCountRequests(
-	) | rpl::filter([=](
-			const Data::Session::UnreadRepliesCountRequest &request) {
-		return (request.root.get() == _root);
-	}) | rpl::start_with_next([=](
-			const Data::Session::UnreadRepliesCountRequest &request) {
-		if (const auto result = computeUnreadCountLocally(request.afterId)) {
-			*request.result = result;
-		}
 	}, lifetime());
 
 	setupScrollDownButton();
@@ -374,21 +379,16 @@ void RepliesWidget::orderWidgets() {
 }
 
 void RepliesWidget::sendReadTillRequest() {
-	if (!_root) {
-		_readRequestPending = true;
-		return;
-	}
 	if (_readRequestTimer.isActive()) {
 		_readRequestTimer.cancel();
 	}
-	_readRequestPending = false;
 	const auto api = &_history->session().api();
 	api->request(base::take(_readRequestId)).cancel();
 
 	_readRequestId = api->request(MTPmessages_ReadDiscussion(
-		_root->history()->peer->input,
-		MTP_int(_root->id),
-		MTP_int(_root->computeRepliesInboxReadTillFull())
+		_history->peer->input,
+		MTP_int(_rootId),
+		MTP_int(_replies->computeInboxReadTillFull())
 	)).done(crl::guard(this, [=] {
 		_readRequestId = 0;
 		reloadUnreadCountIfNeeded();
@@ -401,10 +401,6 @@ void RepliesWidget::setupRoot() {
 			_root = lookupRoot();
 			if (_root) {
 				_areComments = computeAreComments();
-				refreshUnreadCountBadge();
-				if (_readRequestPending) {
-					sendReadTillRequest();
-				}
 				_inner->update();
 			}
 			updatePinnedVisibility();
@@ -465,9 +461,10 @@ void RepliesWidget::setupTopicViewer() {
 		if (_rootId == change.oldId) {
 			_rootId = change.newId.msg;
 			_root = lookupRoot();
-			createReplies();
 			if (_topic && _topic->rootId() == change.oldId) {
 				setTopic(_topic->forum()->topicFor(change.newId.msg));
+			} else {
+				refreshReplies();
 			}
 			_inner->update();
 		}
@@ -475,7 +472,9 @@ void RepliesWidget::setupTopicViewer() {
 }
 
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
-	if ((_topic = topic)) {
+	if (_topic != topic) {
+		_topic = topic;
+		refreshReplies();
 		refreshTopBarActiveChat();
 		if (_topic && _rootView) {
 			_rootView = nullptr;
@@ -506,19 +505,6 @@ Data::ForumTopic *RepliesWidget::lookupTopic() {
 
 bool RepliesWidget::computeAreComments() const {
 	return _root && _root->isDiscussionPost();
-}
-
-std::optional<int> RepliesWidget::computeUnreadCount() const {
-	if (!_root) {
-		return std::nullopt;
-	}
-	const auto views = _root->Get<HistoryMessageViews>();
-	if (!views) {
-		return std::nullopt;
-	}
-	return (views->repliesUnreadCount >= 0)
-		? std::make_optional(views->repliesUnreadCount)
-		: std::nullopt;
 }
 
 void RepliesWidget::setupComposeControls() {
@@ -1373,7 +1359,6 @@ void RepliesWidget::setupScrollDownButton() {
 	_scrollDown->setClickedCallback([=] {
 		scrollDownClicked();
 	});
-	refreshUnreadCountBadge();
 	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
 		if (event->type() != QEvent::Wheel) {
 			return base::EventFilterResult::Continue;
@@ -1385,53 +1370,22 @@ void RepliesWidget::setupScrollDownButton() {
 	updateScrollDownVisibility();
 }
 
-void RepliesWidget::refreshUnreadCountBadge() {
-	if (!_root) {
-		return;
-	} else if (const auto count = computeUnreadCount()) {
+void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
+	if (count.has_value()) {
 		_scrollDown->setUnreadCount(*count);
-	} else if (!_readRequestPending
-		&& !_readRequestTimer.isActive()
-		&& !_readRequestId) {
+	} else if (!_readRequestTimer.isActive() && !_readRequestId) {
 		reloadUnreadCountIfNeeded();
 	}
 }
 
 void RepliesWidget::reloadUnreadCountIfNeeded() {
-	const auto views = _root ? _root->Get<HistoryMessageViews>() : nullptr;
-	if (!views || views->repliesUnreadCount >= 0) {
+	if (_replies->unreadCountKnown()) {
 		return;
-	} else if (views->repliesInboxReadTillId
-		< _root->computeRepliesInboxReadTillFull()) {
+	} else if (_replies->inboxReadTillId()
+		< _replies->computeInboxReadTillFull()) {
 		_readRequestTimer.callOnce(0);
-	} else if (!_reloadUnreadCountRequestId) {
-		const auto session = &_history->session();
-		const auto fullId = _root->fullId();
-		const auto apply = [session, fullId](int readTill, int unreadCount) {
-			if (const auto root = session->data().message(fullId)) {
-				root->setRepliesInboxReadTill(readTill, unreadCount);
-				if (const auto post = root->lookupDiscussionPostOriginal()) {
-					post->setRepliesInboxReadTill(readTill, unreadCount);
-				}
-			}
-		};
-		const auto weak = Ui::MakeWeak(this);
-		_reloadUnreadCountRequestId = session->api().request(
-			MTPmessages_GetDiscussionMessage(
-				_history->peer->input,
-				MTP_int(_rootId))
-		).done([=](const MTPmessages_DiscussionMessage &result) {
-			if (weak) {
-				_reloadUnreadCountRequestId = 0;
-			}
-			result.match([&](const MTPDmessages_discussionMessage &data) {
-				session->data().processUsers(data.vusers());
-				session->data().processChats(data.vchats());
-				apply(
-					data.vread_inbox_max_id().value_or_empty(),
-					data.vunread_count().v);
-			});
-		}).send();
+	} else {
+		_replies->requestUnreadCount();
 	}
 }
 
@@ -1735,9 +1689,11 @@ void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	_inner->saveState(memento->list());
 }
 
-void RepliesWidget::createReplies() {
+void RepliesWidget::refreshReplies() {
 	auto old = base::take(_replies);
-	setReplies(std::make_shared<Data::RepliesList>(_history, _rootId));
+	setReplies(_topic
+		? _topic->replies()
+		: std::make_shared<Data::RepliesList>(_history, _rootId));
 	if (old) {
 		_inner->showAroundPosition(Data::UnreadMessagePosition, nullptr);
 	}
@@ -1746,6 +1702,16 @@ void RepliesWidget::createReplies() {
 void RepliesWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 	_replies = std::move(replies);
 	_repliesLifetime.destroy();
+
+	_replies->unreadCountValue(
+	) | rpl::start_with_next([=](std::optional<int> count) {
+		refreshUnreadCountBadge(count);
+	}, lifetime());
+
+	refreshUnreadCountBadge(_replies->unreadCountKnown()
+		? _replies->unreadCountCurrent()
+		: std::optional<int>());
+
 	if (_topic) {
 		return;
 	}
@@ -1772,7 +1738,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	if (auto replies = memento->getReplies()) {
 		setReplies(std::move(replies));
 	} else if (!_replies) {
-		createReplies();
+		refreshReplies();
 	}
 	restoreReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
@@ -2035,35 +2001,20 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-std::optional<int> RepliesWidget::computeUnreadCountLocally(
-		MsgId afterId) const {
-	const auto views = _root ? _root->Get<HistoryMessageViews>() : nullptr;
-	if (!views) {
-		return std::nullopt;
-	}
-	const auto wasReadTillId = views->repliesInboxReadTillId;
-	const auto wasUnreadCount = views->repliesUnreadCount;
-	return _replies->fullUnreadCountAfter(
-		afterId,
-		wasReadTillId,
-		wasUnreadCount);
-}
-
 void RepliesWidget::readTill(not_null<HistoryItem*> item) {
-	if (!_root) {
-		return;
-	}
-	const auto was = _root->computeRepliesInboxReadTillFull();
+	const auto was = _replies->computeInboxReadTillFull();
 	const auto now = item->id;
 	if (now < was) {
 		return;
 	}
-	const auto unreadCount = computeUnreadCountLocally(now);
+	const auto unreadCount = _replies->computeUnreadCountLocally(now);
 	const auto fast = item->out() || !unreadCount.has_value();
 	if (was < now || (fast && now == was)) {
-		_root->setRepliesInboxReadTill(now, unreadCount);
-		if (const auto post = _root->lookupDiscussionPostOriginal()) {
-			post->setRepliesInboxReadTill(now, unreadCount);
+		_replies->setInboxReadTill(now, unreadCount);
+		if (_root) {
+			if (const auto post = _root->lookupDiscussionPostOriginal()) {
+				post->setCommentsInboxReadTill(now);
+			}
 		}
 		if (!_readRequestTimer.isActive()) {
 			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
@@ -2083,10 +2034,10 @@ void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
 
 MessagesBarData RepliesWidget::listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) {
-	if (!_root || elements.empty()) {
+	if (elements.empty()) {
 		return {};
 	}
-	const auto till = _root->computeRepliesInboxReadTillFull();
+	const auto till = _replies->computeInboxReadTillFull();
 	const auto hidden = (till < 2);
 	for (auto i = 0, count = int(elements.size()); i != count; ++i) {
 		const auto item = elements[i]->data();
@@ -2125,8 +2076,8 @@ bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
 	}
 	const auto item = view->data();
 	const auto till = item->out()
-		? _root->computeRepliesOutboxReadTillFull()
-		: _root->computeRepliesInboxReadTillFull();
+		? _replies->computeOutboxReadTillFull()
+		: _replies->computeInboxReadTillFull();
 	return (item->id > till);
 }
 

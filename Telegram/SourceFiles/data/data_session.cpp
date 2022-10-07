@@ -2364,21 +2364,13 @@ void Session::notifyUnreadBadgeChanged() {
 	_unreadBadgeChanges.fire({});
 }
 
-std::optional<int> Session::countUnreadRepliesLocally(
-		not_null<HistoryItem*> root,
-		MsgId afterId) const {
-	auto result = std::optional<int>();
-	_unreadRepliesCountRequests.fire({
-		.root = root,
-		.afterId = afterId,
-		.result = &result,
-	});
-	return result;
+void Session::updateRepliesReadTill(RepliesReadTillUpdate update) {
+	_repliesReadTillUpdates.fire(std::move(update));
 }
 
-auto Session::unreadRepliesCountRequests() const
--> rpl::producer<UnreadRepliesCountRequest> {
-	return _unreadRepliesCountRequests.events();
+auto Session::repliesReadTillUpdates() const
+-> rpl::producer<RepliesReadTillUpdate> {
+	return _repliesReadTillUpdates.events();
 }
 
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
@@ -3787,6 +3779,14 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 	return folder(data.vid().v);
 }
 
+not_null<Dialogs::MainList*> Session::chatsListFor(
+		not_null<Dialogs::Entry*> entry) {
+	const auto topic = entry->asTopic();
+	return topic
+		? topic->forum()->topicsList()
+		: chatsList(entry->folder());
+}
+
 not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {
 	return folder ? folder->chatsList().get() : &_chatsList;
 }
@@ -3812,9 +3812,7 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	const auto entry = key.entry();
 	const auto history = entry->asHistory();
 	const auto topic = entry->asTopic();
-	const auto mainList = topic
-		? topic->forum()->topicsList()
-		: chatsList(entry->folder());
+	const auto mainList = chatsListFor(entry);
 	auto event = ChatListEntryRefresh{ .key = key };
 	const auto creating = event.existenceChanged = !entry->inChatList();
 	if (creating && topic && topic->forum()->creating(topic->rootId())) {
@@ -3883,9 +3881,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 			});
 		}
 	}
-	const auto mainList = entry->asTopic()
-		? entry->asTopic()->forum()->topicsList()
-		: chatsList(entry->folder());
+	const auto mainList = chatsListFor(entry);
 	entry->removeFromChatList(0, mainList);
 	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
 		.key = key,

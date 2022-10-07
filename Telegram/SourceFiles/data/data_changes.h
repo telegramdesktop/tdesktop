@@ -151,7 +151,7 @@ struct MessageUpdate {
 		ReplyMarkup        = (1U << 5),
 		BotCallbackSent    = (1U << 6),
 		NewMaybeAdded      = (1U << 7),
-		RepliesUnreadCount = (1U << 8),
+		ReplyToTopAdded    = (1U << 8),
 		NewUnreadReaction  = (1U << 9),
 
 		LastUsedBit        = (1U << 9),

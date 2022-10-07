@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
 #include <QtGui/QDesktopServices>
-#include <QtWidgets/QApplication>
 
 namespace Ui::BotWebView {
 namespace {

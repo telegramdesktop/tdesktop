@@ -166,7 +166,7 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 	Expects(inChatList());
 
 	const auto nowState = chatListUnreadState();
-	owner().chatsList(folder())->unreadStateChanged(wasState, nowState);
+	owner().chatsListFor(this)->unreadStateChanged(wasState, nowState);
 	auto &filters = owner().chatsFilters();
 	for (const auto &[filterId, links] : _chatListLinks) {
 		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);

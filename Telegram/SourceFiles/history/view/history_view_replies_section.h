@@ -164,7 +164,7 @@ private:
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
 	void setReplies(std::shared_ptr<Data::RepliesList> replies);
-	void createReplies();
+	void refreshReplies();
 	void showAtStart();
 	void showAtEnd();
 	void showAtPosition(
@@ -185,8 +185,6 @@ private:
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
 
 	void setupScrollDownButton();
 	void scrollDownClicked();
@@ -215,7 +213,6 @@ private:
 	[[nodiscard]] HistoryItem *lookupRoot() const;
 	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
-	[[nodiscard]] std::optional<int> computeUnreadCount() const;
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
@@ -226,7 +223,7 @@ private:
 	void recountChatWidth();
 	void replyToMessage(FullMsgId itemId);
 	void refreshTopBarActiveChat();
-	void refreshUnreadCountBadge();
+	void refreshUnreadCountBadge(std::optional<int> count);
 	void reloadUnreadCountIfNeeded();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
@@ -308,10 +305,8 @@ private:
 	bool _choosingAttach = false;
 
 	base::Timer _readRequestTimer;
-	bool _readRequestPending = false;
 	mtpRequestId _readRequestId = 0;
 
-	mtpRequestId _reloadUnreadCountRequestId = 0;
 	bool _loaded = false;
 
 };
@@ -330,6 +325,11 @@ public:
 	explicit RepliesMemento(
 		not_null<HistoryItem*> commentsItem,
 		MsgId commentId = 0);
+
+	void setReadInformation(
+		MsgId inboxReadTillId,
+		int unreadCount,
+		MsgId outboxReadTillId);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,

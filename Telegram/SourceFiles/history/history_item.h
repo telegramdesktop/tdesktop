@@ -235,29 +235,13 @@ public:
 	}
 	[[nodiscard]] bool hasExtendedMediaPreview() const;
 
-	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
-		return MsgId(0);
+	virtual void setCommentsInboxReadTill(MsgId readTillId) {
 	}
-	virtual void setRepliesInboxReadTill(
-		MsgId readTillId,
-		std::optional<int> unreadCount) {
+	virtual void setCommentsMaxId(MsgId maxId) {
 	}
-	[[nodiscard]] virtual MsgId computeRepliesInboxReadTillFull() const {
-		return MsgId(0);
+	virtual void setCommentsPossibleMaxId(MsgId possibleMaxId) {
 	}
-	[[nodiscard]] virtual MsgId repliesOutboxReadTill() const {
-		return MsgId(0);
-	}
-	virtual void setRepliesOutboxReadTill(MsgId readTillId) {
-	}
-	[[nodiscard]] virtual MsgId computeRepliesOutboxReadTillFull() const {
-		return MsgId(0);
-	}
-	virtual void setRepliesMaxId(MsgId maxId) {
-	}
-	virtual void setRepliesPossibleMaxId(MsgId possibleMaxId) {
-	}
-	[[nodiscard]] virtual bool areRepliesUnread() const {
+	[[nodiscard]] virtual bool areCommentsUnread() const {
 		return false;
 	}
 
@@ -338,10 +322,7 @@ public:
 	}
 	virtual void clearReplies() {
 	}
-	virtual void changeRepliesCount(
-		int delta,
-		PeerId replier,
-		std::optional<bool> unread) {
+	virtual void changeRepliesCount(int delta, PeerId replier) {
 	}
 	virtual void setReplyFields(
 		MsgId replyTo,
