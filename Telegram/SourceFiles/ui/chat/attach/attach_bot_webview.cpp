@@ -303,7 +303,7 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 	const auto textTop = _st.padding.top() + _st.textTop;
 	const auto textLeft = padding + (space - textWidth) / 2;
 	p.setPen(_fg);
-	_text.drawLeftElided(p, textLeft, textTop, space, width());
+	_text.drawLeftElided(p, textLeft, textTop, textWidth, width());
 }
 
 QImage Panel::Button::prepareRippleMask() const {
