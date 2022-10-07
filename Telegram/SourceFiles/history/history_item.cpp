@@ -375,10 +375,8 @@ void HistoryItem::invalidateChatListEntry() {
 		this,
 		Data::MessageUpdate::Flag::DialogRowRefresh);
 	history()->lastItemDialogsView.itemInvalidated(this);
-	if (const auto forum = history()->peer->forum()) {
-		if (const auto topic = forum->topicFor(this)) {
-			topic->lastItemDialogsView.itemInvalidated(this);
-		}
+	if (const auto topic = this->topic()) {
+		topic->lastItemDialogsView.itemInvalidated(this);
 	}
 }
 
@@ -442,8 +440,12 @@ void HistoryItem::markMediaAndMentionRead() {
 	_flags &= ~MessageFlag::MediaIsUnread;
 
 	if (mentionsMe()) {
-		history()->updateChatListEntry();
-		history()->unreadMentions().erase(id);
+		_history->updateChatListEntry();
+		_history->unreadMentions().erase(id);
+		if (const auto topic = this->topic()) {
+			topic->updateChatListEntry();
+			topic->unreadMentions().erase(id);
+		}
 	}
 }
 
@@ -452,8 +454,12 @@ void HistoryItem::markReactionsRead() {
 		_reactions->markRead();
 	}
 	_flags &= ~MessageFlag::HasUnreadReaction;
-	history()->updateChatListEntry();
-	history()->unreadReactions().erase(id);
+	_history->updateChatListEntry();
+	_history->unreadReactions().erase(id);
+	if (const auto topic = this->topic()) {
+		topic->updateChatListEntry();
+		topic->unreadReactions().erase(id);
+	}
 }
 
 bool HistoryItem::markContentsRead(bool fromThisClient) {
@@ -611,6 +617,11 @@ bool HistoryItem::skipNotification() const {
 
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
+}
+
+Data::ForumTopic *HistoryItem::topic() const {
+	const auto forum = _history->peer->forum();
+	return forum ? forum->topicFor(this) : nullptr;
 }
 
 void HistoryItem::refreshMainView() {

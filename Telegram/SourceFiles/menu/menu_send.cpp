@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -186,18 +188,33 @@ void SetupReadAllMenu(
 
 void SetupUnreadMentionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer) {
-	const auto topMsgId = 0;
+		Fn<PeerData*()> currentPeer,
+		MsgId topicRootId) {
 	const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
 	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
+		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
-			MTP_flags(0),
+			MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag()),
 			peer->input,
-			MTP_int(topMsgId)
+			MTP_int(topicRootId)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
 			done();
 			peer->session().api().applyAffectedHistory(peer, result);
-			peer->owner().history(peer)->unreadMentions().clear();
+			const auto forum = peer->forum();
+			const auto history = peer->owner().history(peer);
+			if (!topicRootId) {
+				history->unreadMentions().clear();
+				if (forum) {
+					forum->clearAllUnreadMentions();
+				}
+			} else {
+				if (forum) {
+					if (const auto topic = forum->topicFor(topicRootId)) {
+						topic->unreadMentions().clear();
+					}
+				}
+				history->clearUnreadMentionsFor(topicRootId);
+			}
 		}).fail(done).send();
 	};
 	SetupReadAllMenu(button, currentPeer, text, sendRequest);

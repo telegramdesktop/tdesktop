@@ -27,13 +27,6 @@ class HistoryService;
 struct HistoryMessageMarkupData;
 class HistoryMainElementDelegateMixin;
 
-namespace HistoryUnreadThings {
-enum class AddType;
-struct All;
-class Proxy;
-class ConstProxy;
-} // namespace HistoryUnreadThings
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -337,12 +330,7 @@ public:
 	}
 
 	void clearLastKeyboard();
-
-	void setUnreadThingsKnown();
-	[[nodiscard]] HistoryUnreadThings::Proxy unreadMentions();
-	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;
-	[[nodiscard]] HistoryUnreadThings::Proxy unreadReactions();
-	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
+	void clearUnreadMentionsFor(MsgId topicRootId);
 
 	Data::Draft *draft(Data::DraftKey key) const;
 	void setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft);
@@ -483,7 +471,6 @@ private:
 
 	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
-		UnreadThingsKnown = (1 << 1),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -618,7 +605,6 @@ private:
 	std::optional<HistoryItem*> _lastServerMessage;
 	base::flat_set<not_null<HistoryItem*>> _clientSideMessages;
 	std::unordered_set<std::unique_ptr<HistoryItem>> _messages;
-	std::unique_ptr<HistoryUnreadThings::All> _unreadThings;
 
 	// This almost always is equal to _lastMessage. The only difference is
 	// for a group that migrated to a supergroup. Then _lastMessage can

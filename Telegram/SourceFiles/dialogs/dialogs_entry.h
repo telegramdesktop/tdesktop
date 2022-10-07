@@ -23,6 +23,13 @@ class ForumTopic;
 class CloudImageView;
 } // namespace Data
 
+namespace HistoryUnreadThings {
+enum class AddType;
+struct All;
+class Proxy;
+class ConstProxy;
+} // namespace HistoryUnreadThings
+
 namespace Ui {
 } // namespace Ui
 
@@ -108,7 +115,7 @@ public:
 	Entry(not_null<Data::Session*> owner, Type type);
 	Entry(const Entry &other) = delete;
 	Entry &operator=(const Entry &other) = delete;
-	virtual ~Entry() = default;
+	virtual ~Entry();
 
 	[[nodiscard]] Data::Session &owner() const;
 	[[nodiscard]] Main::Session &session() const;
@@ -153,6 +160,12 @@ public:
 	virtual void updateChatListExistence();
 	bool needUpdateInChatList() const;
 	virtual TimeId adjustedChatListTimeId() const;
+
+	void setUnreadThingsKnown();
+	[[nodiscard]] HistoryUnreadThings::Proxy unreadMentions();
+	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;
+	[[nodiscard]] HistoryUnreadThings::Proxy unreadReactions();
+	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
 
 	virtual int fixedOnTopIndex() const = 0;
 	static constexpr auto kArchiveFixOnTopIndex = 1;
@@ -209,7 +222,15 @@ protected:
 
 	void cacheTopPromoted(bool promoted);
 
+	[[nodiscard]] const base::flat_set<MsgId> &unreadMentionsIds() const;
+
 private:
+	enum class Flag : uchar {
+		IsTopPromoted = 0x01,
+		UnreadThingsKnown = 0x02,
+	};
+	friend inline constexpr bool is_flag_type(Flag) { return true; }
+
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
@@ -225,11 +246,12 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
+	std::unique_ptr<HistoryUnreadThings::All> _unreadThings;
 	mutable Ui::PeerBadge _chatListBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;
-	bool _isTopPromoted = false;
+	base::flags<Flag> _flags;
 	const Type _type;
 
 };

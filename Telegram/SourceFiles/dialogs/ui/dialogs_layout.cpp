@@ -916,11 +916,12 @@ void RowPainter::Paint(
 			? base::unixtime::parse(cloudDraft->date)
 			: QDateTime();
 	}();
-	const auto displayMentionBadge = history
-		&& history->unreadMentions().has();
+	const auto displayMentionBadge = (history
+		&& history->unreadMentions().has())
+		|| (topic && topic->unreadMentions().has());
 	const auto displayReactionBadge = !displayMentionBadge
-		&& history
-		&& history->unreadReactions().has();
+		&& ((history && history->unreadReactions().has())
+			|| (topic && topic->unreadReactions().has()));
 	const auto mentionOrReactionMuted = (entry->folder() != nullptr)
 		|| (!displayMentionBadge && unreadMuted);
 	const auto displayUnreadCounter = [&] {

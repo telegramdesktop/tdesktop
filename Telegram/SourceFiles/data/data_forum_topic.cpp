@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 
 #include "data/data_channel.h"
+#include "data/data_changes.h"
 #include "data/data_forum.h"
 #include "data/data_histories.h"
 #include "data/data_replies_list.h"
@@ -17,9 +18,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_layout.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "apiwrap.h"
+#include "api/api_unread_things.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "history/view/history_view_item_preview.h"
+#include "main/main_session.h"
 #include "ui/painter.h"
 #include "ui/color_int_conversion.h"
 #include "styles/style_dialogs.h"
@@ -28,6 +33,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtSvg/QSvgRenderer>
 
 namespace Data {
+namespace {
+
+using UpdateFlag = TopicUpdate::Flag;
+
+} // namespace
 
 const base::flat_map<int32, QString> &ForumTopicIcons() {
 	static const auto Result = base::flat_map<int32, QString>{
@@ -135,6 +145,7 @@ ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 	_replies->unreadCountValue(
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
+		session().changes().topicUpdated(this, UpdateFlag::UnreadView);
 		return inChatList();
 	}) | rpl::start_with_next([=](
 			std::optional<int> previous,
@@ -145,7 +156,9 @@ ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 	}, _replies->lifetime());
 }
 
-ForumTopic::~ForumTopic() = default;
+ForumTopic::~ForumTopic() {
+	session().api().unreadThings().cancelRequests(this);
+}
 
 std::shared_ptr<Data::RepliesList> ForumTopic::replies() const {
 	return _replies;
@@ -203,6 +216,8 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 #if 0 // #TODO forum unread mark
 	setUnreadMark(data.is_unread_mark());
 #endif
+	unreadMentions().setCount(data.vunread_mentions_count().v);
+	unreadReactions().setCount(data.vunread_reactions_count().v);
 }
 
 void ForumTopic::indexTitleParts() {
@@ -470,7 +485,7 @@ bool ForumTopic::unreadCountKnown() const {
 }
 
 void ForumTopic::setUnreadMark(bool unread) {
-	if (_unreadMark == unread) {
+	if (unreadMark() == unread) {
 		return;
 	}
 	const auto noUnreadMessages = !unreadCount();
@@ -478,13 +493,18 @@ void ForumTopic::setUnreadMark(bool unread) {
 		if (inChatList() && noUnreadMessages) {
 			updateChatListEntry();
 		}
+		session().changes().topicUpdated(this, UpdateFlag::UnreadView);
 	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-	_unreadMark = unread;
+	if (unread) {
+		_flags |= Flag::UnreadMark;
+	} else {
+		_flags &= ~Flag::UnreadMark;
+	}
 }
 
 bool ForumTopic::unreadMark() const {
-	return _unreadMark;
+	return (_flags & Flag::UnreadMark);
 }
 
 int ForumTopic::chatListUnreadCount() const {
@@ -503,7 +523,7 @@ Dialogs::UnreadState ForumTopic::unreadStateFor(
 		int count,
 		bool known) const {
 	auto result = Dialogs::UnreadState();
-	const auto mark = !count && _unreadMark;
+	const auto mark = !count && unreadMark();
 	const auto muted = _history->mute();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;

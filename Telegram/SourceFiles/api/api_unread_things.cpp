@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -23,6 +24,18 @@ constexpr auto kPreloadIfLess = 5;
 constexpr auto kFirstRequestLimit = 10;
 constexpr auto kNextRequestLimit = 100;
 
+
+[[nodiscard]] not_null<History*> ResolveHistory(
+		not_null<Dialogs::Entry*> entry) {
+	if (const auto history = entry->asHistory()) {
+		return history;
+	}
+	const auto topic = entry->asTopic();
+
+	Ensures(topic != nullptr);
+	return topic->history();
+}
+
 } // namespace
 
 UnreadThings::UnreadThings(not_null<ApiWrap*> api) : _api(api) {
@@ -36,10 +49,11 @@ bool UnreadThings::trackReactions(PeerData *peer) const {
 	return trackMentions(peer) || (peer && peer->isUser());
 }
 
-void UnreadThings::preloadEnough(History *history) {
-	if (!history) {
+void UnreadThings::preloadEnough(DialogsEntry *entry) {
+	if (!entry) {
 		return;
 	}
+	const auto history = ResolveHistory(entry);
 	if (trackMentions(history->peer)) {
 		preloadEnoughMentions(history);
 	}
@@ -63,40 +77,53 @@ void UnreadThings::mediaAndMentionsRead(
 	}
 }
 
-void UnreadThings::preloadEnoughMentions(not_null<History*> history) {
-	const auto fullCount = history->unreadMentions().count();
-	const auto loadedCount = history->unreadMentions().loadedCount();
+void UnreadThings::preloadEnoughMentions(not_null<DialogsEntry*> entry) {
+	const auto fullCount = entry->unreadMentions().count();
+	const auto loadedCount = entry->unreadMentions().loadedCount();
 	const auto allLoaded = (fullCount >= 0) && (loadedCount >= fullCount);
 	if (fullCount >= 0 && loadedCount < kPreloadIfLess && !allLoaded) {
-		requestMentions(history, loadedCount);
+		requestMentions(entry, loadedCount);
 	}
 }
 
-void UnreadThings::preloadEnoughReactions(not_null<History*> history) {
-	const auto fullCount = history->unreadReactions().count();
-	const auto loadedCount = history->unreadReactions().loadedCount();
+void UnreadThings::preloadEnoughReactions(not_null<DialogsEntry*> entry) {
+	const auto fullCount = entry->unreadReactions().count();
+	const auto loadedCount = entry->unreadReactions().loadedCount();
 	const auto allLoaded = (fullCount >= 0) && (loadedCount >= fullCount);
 	if (fullCount >= 0 && loadedCount < kPreloadIfLess && !allLoaded) {
-		requestReactions(history, loadedCount);
+		requestReactions(entry, loadedCount);
 	}
 }
 
-void UnreadThings::requestMentions(not_null<History*> history, int loaded) {
-	if (_mentionsRequests.contains(history)) {
+void UnreadThings::cancelRequests(not_null<DialogsEntry*> entry) {
+	if (const auto requestId = _mentionsRequests.take(entry)) {
+		_api->request(*requestId).cancel();
+	}
+	if (const auto requestId = _reactionsRequests.take(entry)) {
+		_api->request(*requestId).cancel();
+	}
+}
+
+void UnreadThings::requestMentions(
+		not_null<DialogsEntry*> entry,
+		int loaded) {
+	if (_mentionsRequests.contains(entry)) {
 		return;
 	}
-	const auto topMsgId = 0;
 	const auto offsetId = std::max(
-		history->unreadMentions().maxLoaded(),
+		entry->unreadMentions().maxLoaded(),
 		MsgId(1));
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 	const auto maxId = 0;
 	const auto minId = 0;
+	const auto history = ResolveHistory(entry);
+	const auto topic = entry->asTopic();
+	using Flag = MTPmessages_GetUnreadMentions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadMentions(
-		MTP_flags(0),
+		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
 		history->peer->input,
-		MTP_int(topMsgId),
+		MTP_int(topic ? topic->rootId() : 0),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),
@@ -111,22 +138,26 @@ void UnreadThings::requestMentions(not_null<History*> history, int loaded) {
 	_mentionsRequests.emplace(history, requestId);
 }
 
-void UnreadThings::requestReactions(not_null<History*> history, int loaded) {
-	if (_reactionsRequests.contains(history)) {
+void UnreadThings::requestReactions(
+		not_null<DialogsEntry*> entry,
+		int loaded) {
+	if (_reactionsRequests.contains(entry)) {
 		return;
 	}
-	const auto topMsgId = 0;
 	const auto offsetId = loaded
-		? std::max(history->unreadReactions().maxLoaded(), MsgId(1))
+		? std::max(entry->unreadReactions().maxLoaded(), MsgId(1))
 		: MsgId(1);
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 	const auto maxId = 0;
 	const auto minId = 0;
+	const auto history = ResolveHistory(entry);
+	const auto topic = entry->asTopic();
+	using Flag = MTPmessages_GetUnreadReactions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
-		MTP_flags(0),
+		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
 		history->peer->input,
-		MTP_int(topMsgId),
+		MTP_int(topic ? topic->rootId() : 0),
 		MTP_int(offsetId),
 		MTP_int(addOffset),
 		MTP_int(limit),

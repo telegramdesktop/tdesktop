@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_message_view.h"
+#include "base/flags.h"
 
 class ChannelData;
 
@@ -111,6 +112,11 @@ public:
 	Dialogs::Ui::MessageView lastItemDialogsView;
 
 private:
+	enum class Flag : uchar {
+		UnreadMark = 0x01,
+	};
+	friend inline constexpr bool is_flag_type(Flag) { return true; }
+
 	void indexTitleParts();
 	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
@@ -144,7 +150,7 @@ private:
 	std::optional<HistoryItem*> _lastServerMessage;
 	std::optional<HistoryItem*> _chatListMessage;
 	base::flat_set<FullMsgId> _requestedGroups;
-	bool _unreadMark = false;
+	base::flags<Flag> _flags;
 
 	rpl::lifetime _lifetime;
 

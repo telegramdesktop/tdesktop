@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "history/history_unread_things.h"
 #include "main/main_session.h"
 #include "base/random.h"
 #include "apiwrap.h"
@@ -188,12 +189,6 @@ void Forum::applyTopicAdded(
 	}
 }
 
-void Forum::applyTopicRemoved(MsgId rootId) {
-	//if (const auto i = _topics.find(rootId)) {
-	//	_topics.erase(i);
-	//}
-}
-
 MsgId Forum::reserveCreatingId(
 		const QString &title,
 		int32 colorId,
@@ -238,7 +233,13 @@ void Forum::created(MsgId rootId, MsgId realId) {
 	owner().notifyItemIdChange({ id, rootId });
 }
 
-ForumTopic *Forum::topicFor(not_null<HistoryItem*> item) {
+void Forum::clearAllUnreadMentions() {
+	for (const auto &[rootId, topic] : _topics) {
+		topic->unreadMentions().clear();
+	}
+}
+
+ForumTopic *Forum::topicFor(not_null<const HistoryItem*> item) {
 	const auto maybe = topicFor(item->replyToTop());
 	return maybe ? maybe : topicFor(item->topicRootId());
 }

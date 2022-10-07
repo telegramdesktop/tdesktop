@@ -156,18 +156,18 @@ private:
 		not_null<History*> history;
 		MsgId rootId = 0;
 
-		friend inline constexpr auto operator<=>(
+		friend inline auto operator<=>(
 			GroupRequestKey,
 			GroupRequestKey) = default;
 	};
 
 	template <typename Arg>
 	static auto ReplaceReplyTo(Arg arg, MsgId replyTo) {
-		return arg;
-	}
-	template <>
-	static auto ReplaceReplyTo(ReplyToPlaceholder, MsgId replyTo) {
-		return MTP_int(replyTo);
+		if constexpr (std::is_same_v<Arg, ReplyToPlaceholder>) {
+			return MTP_int(replyTo);
+		} else {
+			return arg;
+		}
 	}
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);

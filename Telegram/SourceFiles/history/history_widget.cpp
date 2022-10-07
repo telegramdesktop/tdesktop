@@ -390,7 +390,7 @@ HistoryWidget::HistoryWidget(
 	_unreadReactions.widget->installEventFilter(this);
 	SendMenu::SetupUnreadMentionsMenu(_unreadMentions.widget.data(), [=] {
 		return _history ? _history->peer.get() : nullptr;
-	});
+	}, MsgId(0));
 	SendMenu::SetupUnreadReactionsMenu(_unreadReactions.widget.data(), [=] {
 		return _history ? _history->peer.get() : nullptr;
 	});

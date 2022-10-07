@@ -1331,24 +1331,46 @@ void HistoryMessage::addToUnreadThings(HistoryUnreadThings::AddType type) {
 	if (!isRegular()) {
 		return;
 	}
-	if (isUnreadMention()) {
-		if (history()->unreadMentions().add(id, type)) {
-			history()->session().changes().historyUpdated(
-				history(),
+	const auto mention = isUnreadMention();
+	const auto reaction = hasUnreadReaction();
+	if (!mention && !reaction) {
+		return;
+	}
+	const auto topic = this->topic();
+	const auto history = this->history();
+	const auto changes = &history->session().changes();
+	if (mention) {
+		if (history->unreadMentions().add(id, type)) {
+			changes->historyUpdated(
+				history,
 				Data::HistoryUpdate::Flag::UnreadMentions);
 		}
+		if (topic && topic->unreadMentions().add(id, type)) {
+			changes->topicUpdated(
+				topic,
+				Data::TopicUpdate::Flag::UnreadMentions);
+		}
 	}
-	if (hasUnreadReaction()) {
-		if (history()->unreadReactions().add(id, type)) {
+	if (reaction) {
+		const auto toHistory = history->unreadReactions().add(id, type);
+		const auto toTopic = topic && topic->unreadReactions().add(id, type);
+		if (toHistory || toTopic) {
 			if (type == HistoryUnreadThings::AddType::New) {
-				history()->session().changes().messageUpdated(
+				changes->messageUpdated(
 					this,
 					Data::MessageUpdate::Flag::NewUnreadReaction);
 			}
 			if (hasUnreadReaction()) {
-				history()->session().changes().historyUpdated(
-					history(),
-					Data::HistoryUpdate::Flag::UnreadReactions);
+				if (toHistory) {
+					changes->historyUpdated(
+						history,
+						Data::HistoryUpdate::Flag::UnreadReactions);
+				}
+				if (toTopic) {
+					changes->topicUpdated(
+						topic,
+						Data::TopicUpdate::Flag::UnreadReactions);
+				}
 			}
 		}
 	}
@@ -1357,9 +1379,15 @@ void HistoryMessage::addToUnreadThings(HistoryUnreadThings::AddType type) {
 void HistoryMessage::destroyHistoryEntry() {
 	if (isUnreadMention()) {
 		history()->unreadMentions().erase(id);
+		if (const auto topic = this->topic()) {
+			topic->unreadMentions().erase(id);
+		}
 	}
 	if (hasUnreadReaction()) {
 		history()->unreadReactions().erase(id);
+		if (const auto topic = this->topic()) {
+			topic->unreadReactions().erase(id);
+		}
 	}
 	if (const auto reply = Get<HistoryMessageReply>()) {
 		changeReplyToTopCounter(reply, -1);

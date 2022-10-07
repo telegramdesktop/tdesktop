@@ -45,9 +45,8 @@ public:
 		const QString &title,
 		int32 colorId,
 		DocumentId iconId);
-	void applyTopicRemoved(MsgId rootId);
 	void applyTopicCreated(MsgId rootId, MsgId realId);
-	[[nodiscard]] ForumTopic *topicFor(not_null<HistoryItem*> item);
+	[[nodiscard]] ForumTopic *topicFor(not_null<const HistoryItem*> item);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 
 	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
@@ -59,6 +58,8 @@ public:
 	void discardCreatingId(MsgId rootId);
 	[[nodiscard]] bool creating(MsgId rootId) const;
 	void created(MsgId rootId, MsgId realId);
+
+	void clearAllUnreadMentions();
 
 private:
 	struct TopicRequest {

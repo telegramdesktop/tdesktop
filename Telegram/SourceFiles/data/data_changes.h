@@ -21,9 +21,7 @@ namespace Main {
 class Session;
 } // namespace Main
 
-namespace Data {
-
-namespace details {
+namespace Data::details {
 
 template <typename Flag>
 inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
@@ -35,7 +33,11 @@ inline constexpr int CountBit(Flag Last = Flag::LastUsedBit) {
 	return i;
 }
 
-} // namespace details
+} // namespace Data::details
+
+namespace Data {
+
+class ForumTopic;
 
 struct NameUpdate {
 	NameUpdate(
@@ -139,6 +141,24 @@ struct HistoryUpdate {
 
 };
 
+struct TopicUpdate {
+	enum class Flag : uint32 {
+		None = 0,
+
+		UnreadView = (1U << 1),
+		UnreadMentions = (1U << 2),
+		UnreadReactions = (1U << 3),
+
+		LastUsedBit = (1U << 3),
+	};
+	using Flags = base::flags<Flag>;
+	friend inline constexpr auto is_flag_type(Flag) { return true; }
+
+	not_null<ForumTopic*> topic;
+	Flags flags = 0;
+
+};
+
 struct MessageUpdate {
 	enum class Flag : uint32 {
 		None = 0,
@@ -219,6 +239,20 @@ public:
 	[[nodiscard]] rpl::producer<HistoryUpdate> realtimeHistoryUpdates(
 		HistoryUpdate::Flag flag) const;
 
+	void topicUpdated(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags);
+	[[nodiscard]] rpl::producer<TopicUpdate> topicUpdates(
+		TopicUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<TopicUpdate> topicUpdates(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<TopicUpdate> topicFlagsValue(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags) const;
+	[[nodiscard]] rpl::producer<TopicUpdate> realtimeTopicUpdates(
+		TopicUpdate::Flag flag) const;
+
 	void messageUpdated(
 		not_null<HistoryItem*> item,
 		MessageUpdate::Flags flags);
@@ -292,6 +326,7 @@ private:
 	rpl::event_stream<NameUpdate> _nameStream;
 	Manager<PeerData, PeerUpdate> _peerChanges;
 	Manager<History, HistoryUpdate> _historyChanges;
+	Manager<ForumTopic, TopicUpdate> _topicChanges;
 	Manager<HistoryItem, MessageUpdate> _messageChanges;
 	Manager<Dialogs::Entry, EntryUpdate> _entryChanges;
 

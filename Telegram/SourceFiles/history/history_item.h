@@ -46,6 +46,7 @@ struct ReactionId;
 class Media;
 struct MessageReaction;
 class MessageReactions;
+class ForumTopic;
 } // namespace Data
 
 namespace Main {
@@ -122,13 +123,14 @@ public:
 		const QString &label,
 		const TextWithEntities &content);
 
-	not_null<History*> history() const {
+	[[nodiscard]] not_null<History*> history() const {
 		return _history;
 	}
-	not_null<PeerData*> from() const {
+	[[nodiscard]] Data::ForumTopic *topic() const;
+	[[nodiscard]] not_null<PeerData*> from() const {
 		return _from;
 	}
-	HistoryView::Element *mainView() const {
+	[[nodiscard]] HistoryView::Element *mainView() const {
 		return _mainView;
 	}
 	void setMainView(not_null<HistoryView::Element*> view) {

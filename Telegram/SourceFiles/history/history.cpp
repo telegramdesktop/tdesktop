@@ -161,14 +161,8 @@ void History::itemRemoved(not_null<HistoryItem*> item) {
 	if (IsClientMsgId(item->id)) {
 		unregisterClientSideMessage(item);
 	}
-	if (const auto forum = peer->forum()) {
-		if (const auto topic = forum->topicFor(item)) {
-			if (topic->rootId() == item->id) {
-				forum->applyTopicRemoved(item->id);
-			} else {
-				topic->applyItemRemoved(item->id);
-			}
-		}
+	if (const auto topic = item->topic()) {
+		topic->applyItemRemoved(item->id);
 	}
 	if (const auto chat = peer->asChat()) {
 		if (const auto to = chat->getMigrateToChannel()) {
@@ -705,40 +699,25 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		true);
 }
 
-void History::setUnreadThingsKnown() {
-	_flags |= Flag::UnreadThingsKnown;
-}
-
-HistoryUnreadThings::Proxy History::unreadMentions() {
-	return {
-		this,
-		_unreadThings,
-		HistoryUnreadThings::Type::Mentions,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::ConstProxy History::unreadMentions() const {
-	return {
-		_unreadThings ? &_unreadThings->mentions : nullptr,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::Proxy History::unreadReactions() {
-	return {
-		this,
-		_unreadThings,
-		HistoryUnreadThings::Type::Reactions,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::ConstProxy History::unreadReactions() const {
-	return {
-		_unreadThings ? &_unreadThings->reactions : nullptr,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
+void History::clearUnreadMentionsFor(MsgId topicRootId) {
+	const auto &ids = unreadMentionsIds();
+	if (ids.empty()) {
+		return;
+	}
+	const auto owner = &this->owner();
+	const auto peerId = peer->id;
+	auto items = base::flat_set<MsgId>();
+	items.reserve(ids.size());
+	for (const auto &id : ids) {
+		if (const auto item = owner->message(peerId, id)) {
+			if (item->topicRootId() == topicRootId) {
+				items.emplace(id);
+			}
+		}
+	}
+	for (const auto &id : items) {
+		unreadMentions().erase(id);
+	}
 }
 
 not_null<HistoryItem*> History::addNewToBack(
@@ -1084,14 +1063,12 @@ void History::applyServiceChanges(
 				data.vicon_emoji_id().value_or(DocumentId()));
 		}
 	}, [&](const MTPDmessageActionTopicEdit &data) {
-		if (const auto forum = peer->forum()) {
-			if (const auto topic = forum->topicFor(item)) {
-				if (const auto &title = data.vtitle()) {
-					topic->applyTitle(qs(*title));
-				}
-				if (const auto icon = data.vicon_emoji_id()) {
-					topic->applyIconId(icon->v);
-				}
+		if (const auto topic = item->topic()) {
+			if (const auto &title = data.vtitle()) {
+				topic->applyTitle(qs(*title));
+			}
+			if (const auto icon = data.vicon_emoji_id()) {
+				topic->applyIconId(icon->v);
 			}
 		}
 	}, [](const auto &) {
@@ -1154,10 +1131,8 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	if (!folderKnown()) {
 		owner().histories().requestDialogEntry(this);
 	}
-	if (const auto forum = peer->forum()) {
-		if (const auto topic = forum->topicFor(item)) {
-			topic->applyItemAdded(item);
-		}
+	if (const auto topic = item->topic()) {
+		topic->applyItemAdded(item);
 	}
 }
 

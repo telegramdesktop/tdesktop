@@ -51,7 +51,8 @@ void SetupMenuAndShortcuts(
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<PeerData*()> currentPeer);
+	Fn<PeerData*()> currentPeer,
+	MsgId topicRootId);
 
 void SetupUnreadReactionsMenu(
 	not_null<Ui::RpWidget*> button,

@@ -7,37 +7,44 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class History;
 class ApiWrap;
 class PeerData;
 class ChannelData;
+
+namespace Dialogs {
+class Entry;
+} // namespace Dialogs
 
 namespace Api {
 
 class UnreadThings final {
 public:
+	using DialogsEntry = Dialogs::Entry;
+
 	explicit UnreadThings(not_null<ApiWrap*> api);
 
 	[[nodiscard]] bool trackMentions(PeerData *peer) const;
 	[[nodiscard]] bool trackReactions(PeerData *peer) const;
 
-	void preloadEnough(History *history);
+	void preloadEnough(DialogsEntry *entry);
 
 	void mediaAndMentionsRead(
 		const base::flat_set<MsgId> &readIds,
 		ChannelData *channel = nullptr);
 
-private:
-	void preloadEnoughMentions(not_null<History*> history);
-	void preloadEnoughReactions(not_null<History*> history);
+	void cancelRequests(not_null<DialogsEntry*> entry);
 
-	void requestMentions(not_null<History*> history, int loaded);
-	void requestReactions(not_null<History*> history, int loaded);
+private:
+	void preloadEnoughMentions(not_null<DialogsEntry*> entry);
+	void preloadEnoughReactions(not_null<DialogsEntry*> entry);
+
+	void requestMentions(not_null<DialogsEntry*> entry, int loaded);
+	void requestReactions(not_null<DialogsEntry*> entry, int loaded);
 
 	const not_null<ApiWrap*> _api;
 
-	base::flat_map<not_null<History*>, mtpRequestId> _mentionsRequests;
-	base::flat_map<not_null<History*>, mtpRequestId> _reactionsRequests;
+	base::flat_map<not_null<DialogsEntry*>, mtpRequestId> _mentionsRequests;
+	base::flat_map<not_null<DialogsEntry*>, mtpRequestId> _reactionsRequests;
 
 };
 
