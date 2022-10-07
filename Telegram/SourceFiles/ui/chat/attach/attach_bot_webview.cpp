@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
 #include <QtGui/QDesktopServices>
+#include <QtWidgets/QApplication>
 
 namespace Ui::BotWebView {
 namespace {
@@ -273,7 +274,9 @@ void Panel::Button::setupProgressGeometry() {
 
 	_progress->widget.show();
 	_progress->widget.raise();
-	if (_progress->shown) {
+	if (_progress->shown
+		&& Ui::AppInFocus()
+		&& Ui::InFocusChain(_progress->widget.window())) {
 		_progress->widget.setFocus();
 	}
 }
