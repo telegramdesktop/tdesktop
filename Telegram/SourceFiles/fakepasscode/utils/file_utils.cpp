@@ -55,10 +55,11 @@ FileResult FakePasscode::FileUtils::DeleteFileDod(QString path) {
 		}
 		file.close();
 
-		QDir newDir = GetRandomDir();
+        QFileInfo fileInfo(path);
+		QDir newDir = fileInfo.dir();
 		QString newName = GetRandomName(newDir);
 
-		result |= (file.rename(newDir.absolutePath() + "/" + newName) ?
+		result |= (file.rename(newName) ?
 			FileResult::Success : FileResult::NotRenamed);
 
 	}
