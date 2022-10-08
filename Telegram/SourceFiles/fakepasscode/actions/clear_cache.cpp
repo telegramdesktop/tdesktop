@@ -2,27 +2,16 @@
 
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "main/main_session.h"
-#include "main/main_domain.h"
-#include "main/main_account.h"
-#include "data/data_session.h"
-#include "storage/storage_facade.h"
-#include "storage/storage_account.h"
 #include "core/file_utilities.h"
+#include "main/main_session.h"
+#include "storage/storage_account.h"
 #include "data/data_user.h"
 #include "fakepasscode/log/fake_log.h"
 #include "fakepasscode/utils/file_utils.h"
 
 void FakePasscode::ClearCache::Execute() {
     Expects(Core::App().maybePrimarySession() != nullptr);
-    for (const auto &[index, account] : Core::App().domain().accounts()) {
-        if (account->sessionExists()) {
-            FAKE_LOG(qsl("Clear cache for account %1").arg(index));
-            account->session().data().cache().clear();
-            account->session().data().cacheBigFile().clear();
-        }
-    }
-
+    FileUtils::ClearCaches();
     /*QString emojiPath = Ui::Emoji::internal::CacheFileFolder();
     FAKE_LOG(qsl("Clear emoji folder %1").arg(emojiPath));
     FileUtils::DeleteFolderRecursively(emojiPath);*/
@@ -53,5 +42,5 @@ QByteArray FakePasscode::ClearCache::Serialize() const {
 }
 
 FakePasscode::ActionType FakePasscode::ClearCache::GetType() const {
-    return FakePasscode::ActionType::ClearCache;
+    return ActionType::ClearCache;
 }

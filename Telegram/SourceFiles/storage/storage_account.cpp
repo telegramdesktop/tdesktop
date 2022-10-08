@@ -2972,7 +2972,7 @@ void Account::removeAccountSpecificData() {
 				&& !name.endsWith(qstr("map1"))
 				&& !name.endsWith(qstr("maps"))
 				&& !name.endsWith(qstr("configs"))) {
-				FakePasscode::FileUtils::DeleteFileDod(base + name);
+				FakePasscode::FileUtils::DeleteFile(base + name);
 			}
 		}
         for (const auto& dir : { database, temp, LegacyTempDirectory(), base }) {
@@ -3017,7 +3017,7 @@ void Account::removeMtpDataFile() {
 	for (const auto& filename : toTry) {
 		QFile file(filename);
 		if (file.exists()) {
-			FakePasscode::FileUtils::DeleteFileDod(filename);
+			FakePasscode::FileUtils::DeleteFile(filename);
 			break;
 		}
 	}
