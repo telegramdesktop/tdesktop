@@ -320,7 +320,10 @@ void GroupCallBar::paint(Painter &p) {
 				? tr::lng_group_call_starts_channel
 				: tr::lng_group_call_starts)(tr::now, lt_when, when)
 			: _content.count > 0
-			? tr::lng_group_call_members(tr::now, lt_count, _content.count)
+			? tr::lng_group_call_members(
+				tr::now,
+				lt_count_decimal,
+				_content.count)
 			: tr::lng_group_call_no_members(tr::now)));
 
 	const auto size = st::historyGroupCallUserpics.size;

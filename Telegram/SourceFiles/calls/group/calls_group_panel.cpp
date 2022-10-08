@@ -2357,7 +2357,7 @@ void Panel::refreshTitle() {
 			auto countText = _call->real(
 			) | rpl::map([=](not_null<Data::GroupCall*> real) {
 				return tr::lng_group_call_rtmp_viewers(
-					lt_count,
+					lt_count_decimal,
 					real->fullCountValue(
 					) | rpl::map([=](int count) {
 						return std::max(float64(count), 1.);
