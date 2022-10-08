@@ -41,24 +41,22 @@ constexpr auto kNextRequestLimit = 100;
 UnreadThings::UnreadThings(not_null<ApiWrap*> api) : _api(api) {
 }
 
-bool UnreadThings::trackMentions(PeerData *peer) const {
+bool UnreadThings::trackMentions(DialogsEntry *entry) const {
+	const auto peer = entry ? ResolveHistory(entry)->peer.get() : nullptr;
 	return peer && (peer->isChat() || peer->isMegagroup());
 }
 
-bool UnreadThings::trackReactions(PeerData *peer) const {
-	return trackMentions(peer) || (peer && peer->isUser());
+bool UnreadThings::trackReactions(DialogsEntry *entry) const {
+	const auto peer = entry ? ResolveHistory(entry)->peer.get() : nullptr;
+	return peer && (peer->isChat() || peer->isMegagroup());
 }
 
 void UnreadThings::preloadEnough(DialogsEntry *entry) {
-	if (!entry) {
-		return;
+	if (trackMentions(entry)) {
+		preloadEnoughMentions(entry);
 	}
-	const auto history = ResolveHistory(entry);
-	if (trackMentions(history->peer)) {
-		preloadEnoughMentions(history);
-	}
-	if (trackReactions(history->peer)) {
-		preloadEnoughReactions(history);
+	if (trackReactions(entry)) {
+		preloadEnoughReactions(entry);
 	}
 }
 

@@ -239,6 +239,12 @@ void Forum::clearAllUnreadMentions() {
 	}
 }
 
+void Forum::clearAllUnreadReactions() {
+	for (const auto &[rootId, topic] : _topics) {
+		topic->unreadReactions().clear();
+	}
+}
+
 ForumTopic *Forum::topicFor(not_null<const HistoryItem*> item) {
 	const auto maybe = topicFor(item->replyToTop());
 	return maybe ? maybe : topicFor(item->topicRootId());

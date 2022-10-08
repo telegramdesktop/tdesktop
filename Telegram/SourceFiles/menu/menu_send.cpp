@@ -152,27 +152,30 @@ void SetupMenuAndShortcuts(
 
 void SetupReadAllMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer,
+		Fn<Dialogs::Entry*()> currentEntry,
 		const QString &text,
-		Fn<void(not_null<PeerData*>, Fn<void()>)> sendReadRequest) {
+		Fn<void(not_null<Dialogs::Entry*>, Fn<void()>)> sendReadRequest) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
-		base::flat_set<not_null<PeerData*>> sentForPeers;
+		base::flat_set<base::weak_ptr<Dialogs::Entry>> sentForEntries;
 	};
 	const auto state = std::make_shared<State>();
 	const auto showMenu = [=] {
-		const auto peer = currentPeer();
-		if (!peer) {
+		const auto entry = base::make_weak(currentEntry());
+		if (!entry) {
 			return;
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
 		state->menu->addAction(text, [=] {
-			if (!state->sentForPeers.emplace(peer).second) {
+			const auto strong = entry.get();
+			if (!strong || !state->sentForEntries.emplace(entry).second) {
 				return;
 			}
-			sendReadRequest(peer, [=] { state->sentForPeers.remove(peer); });
+			sendReadRequest(strong, [=] {
+				state->sentForEntries.remove(entry);
+			});
 		}, &st::menuIconMarkRead);
 		state->menu->popup(QCursor::pos());
 	};
@@ -188,52 +191,88 @@ void SetupReadAllMenu(
 
 void SetupUnreadMentionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer,
-		MsgId topicRootId) {
+		Fn<Dialogs::Entry*()> currentEntry) {
 	const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
-	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
+	const auto sendOne = [=](
+			base::weak_ptr<Dialogs::Entry> weakEntry,
+			Fn<void()> done,
+			auto resend) -> void {
+		const auto entry = weakEntry.get();
+		if (!entry) {
+			done();
+			return;
+		}
+		const auto history = entry->asHistory();
+		const auto topic = entry->asTopic();
+		Assert(history || topic);
+		const auto peer = (history ? history : topic->history().get())->peer;
+		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
-			MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag()),
+			MTP_flags(rootId ? Flag::f_top_msg_id : Flag()),
 			peer->input,
-			MTP_int(topicRootId)
+			MTP_int(rootId)
 		)).done([=](const MTPmessages_AffectedHistory &result) {
-			done();
-			peer->session().api().applyAffectedHistory(peer, result);
-			const auto forum = peer->forum();
-			const auto history = peer->owner().history(peer);
-			if (!topicRootId) {
-				history->unreadMentions().clear();
-				if (forum) {
-					forum->clearAllUnreadMentions();
-				}
+			const auto offset = peer->session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				resend(weakEntry, done, resend);
 			} else {
-				if (forum) {
-					if (const auto topic = forum->topicFor(topicRootId)) {
-						topic->unreadMentions().clear();
-					}
-				}
-				history->clearUnreadMentionsFor(topicRootId);
+				done();
+				peer->owner().history(peer)->clearUnreadMentionsFor(rootId);
 			}
 		}).fail(done).send();
 	};
-	SetupReadAllMenu(button, currentPeer, text, sendRequest);
+	const auto sendRequest = [=](
+			not_null<Dialogs::Entry*> entry,
+			Fn<void()> done) {
+		sendOne(base::make_weak(entry.get()), std::move(done), sendOne);
+	};
+	SetupReadAllMenu(button, currentEntry, text, sendRequest);
 }
 
 void SetupUnreadReactionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer) {
+		Fn<Dialogs::Entry*()> currentEntry) {
 	const auto text = tr::lng_context_mark_read_reactions_all(tr::now);
-	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
-		peer->session().api().request(MTPmessages_ReadReactions(
-			peer->input
-		)).done([=](const MTPmessages_AffectedHistory &result) {
+	const auto sendOne = [=](
+			base::weak_ptr<Dialogs::Entry> weakEntry,
+			Fn<void()> done,
+			auto resend) -> void {
+		const auto entry = weakEntry.get();
+		if (!entry) {
 			done();
-			peer->session().api().applyAffectedHistory(peer, result);
-			peer->owner().history(peer)->unreadReactions().clear();
+			return;
+		}
+		const auto history = entry->asHistory();
+		const auto topic = entry->asTopic();
+		Assert(history || topic);
+		const auto peer = (history ? history : topic->history().get())->peer;
+		const auto rootId = topic ? topic->rootId() : 0;
+		using Flag = MTPmessages_ReadReactions::Flag;
+		peer->session().api().request(MTPmessages_ReadReactions(
+			MTP_flags(rootId ? Flag::f_top_msg_id : Flag(0)),
+			peer->input,
+			MTP_int(rootId)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = peer->session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				resend(weakEntry, done, resend);
+			} else {
+				done();
+				peer->owner().history(peer)->clearUnreadReactionsFor(rootId);
+			}
 		}).fail(done).send();
 	};
-	SetupReadAllMenu(button, currentPeer, text, sendRequest);
+	const auto sendRequest = [=](
+			not_null<Dialogs::Entry*> entry,
+			Fn<void()> done) {
+		sendOne(base::make_weak(entry.get()), std::move(done), sendOne);
+	};
+	SetupReadAllMenu(button, currentEntry, text, sendRequest);
 }
 
 } // namespace SendMenu

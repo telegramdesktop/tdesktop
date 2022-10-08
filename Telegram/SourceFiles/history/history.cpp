@@ -700,6 +700,18 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 }
 
 void History::clearUnreadMentionsFor(MsgId topicRootId) {
+	const auto forum = peer->forum();
+	if (!topicRootId) {
+		if (forum) {
+			forum->clearAllUnreadMentions();
+		}
+		unreadMentions().clear();
+		return;
+	} else if (forum) {
+		if (const auto topic = forum->topicFor(topicRootId)) {
+			topic->unreadMentions().clear();
+		}
+	}
 	const auto &ids = unreadMentionsIds();
 	if (ids.empty()) {
 		return;
@@ -717,6 +729,39 @@ void History::clearUnreadMentionsFor(MsgId topicRootId) {
 	}
 	for (const auto &id : items) {
 		unreadMentions().erase(id);
+	}
+}
+
+void History::clearUnreadReactionsFor(MsgId topicRootId) {
+	const auto forum = peer->forum();
+	if (!topicRootId) {
+		if (forum) {
+			forum->clearAllUnreadReactions();
+		}
+		unreadReactions().clear();
+		return;
+	} else if (forum) {
+		if (const auto topic = forum->topicFor(topicRootId)) {
+			topic->unreadReactions().clear();
+		}
+	}
+	const auto &ids = unreadReactionsIds();
+	if (ids.empty()) {
+		return;
+	}
+	const auto owner = &this->owner();
+	const auto peerId = peer->id;
+	auto items = base::flat_set<MsgId>();
+	items.reserve(ids.size());
+	for (const auto &id : ids) {
+		if (const auto item = owner->message(peerId, id)) {
+			if (item->topicRootId() == topicRootId) {
+				items.emplace(id);
+			}
+		}
+	}
+	for (const auto &id : items) {
+		unreadReactions().erase(id);
 	}
 }
 

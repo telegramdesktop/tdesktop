@@ -158,7 +158,7 @@ public:
 	StackItemHistory(
 		not_null<History*> history,
 		MsgId msgId,
-		QList<MsgId> replyReturns)
+		QVector<FullMsgId> replyReturns)
 	: StackItem(history->peer)
 	, history(history)
 	, msgId(msgId)
@@ -171,7 +171,7 @@ public:
 
 	not_null<History*> history;
 	MsgId msgId;
-	QList<MsgId> replyReturns;
+	QVector<FullMsgId> replyReturns;
 
 };
 
@@ -1854,7 +1854,9 @@ void MainWidget::showBackFromStack(
 			historyItem->peer()->id,
 			params.withWay(SectionShow::Way::Backward),
 			ShowAtUnreadMsgId);
-		_history->setReplyReturns(historyItem->peer()->id, historyItem->replyReturns);
+		_history->setReplyReturns(
+			historyItem->peer()->id,
+			std::move(historyItem->replyReturns));
 	} else if (item->type() == SectionStackItem) {
 		auto sectionItem = static_cast<StackItemSection*>(item.get());
 		showNewSection(

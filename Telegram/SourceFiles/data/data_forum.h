@@ -60,6 +60,7 @@ public:
 	void created(MsgId rootId, MsgId realId);
 
 	void clearAllUnreadMentions();
+	void clearAllUnreadReactions();
 
 private:
 	struct TopicRequest {

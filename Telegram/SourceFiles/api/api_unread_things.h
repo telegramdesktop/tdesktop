@@ -23,8 +23,8 @@ public:
 
 	explicit UnreadThings(not_null<ApiWrap*> api);
 
-	[[nodiscard]] bool trackMentions(PeerData *peer) const;
-	[[nodiscard]] bool trackReactions(PeerData *peer) const;
+	[[nodiscard]] bool trackMentions(DialogsEntry *entry) const;
+	[[nodiscard]] bool trackReactions(DialogsEntry *entry) const;
 
 	void preloadEnough(DialogsEntry *entry);
 

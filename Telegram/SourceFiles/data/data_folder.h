@@ -22,7 +22,7 @@ namespace Data {
 
 class Session;
 
-class Folder final : public Dialogs::Entry, public base::has_weak_ptr {
+class Folder final : public Dialogs::Entry {
 public:
 	static constexpr auto kId = 1;
 

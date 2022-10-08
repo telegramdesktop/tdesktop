@@ -131,6 +131,14 @@ const base::flat_set<MsgId> &Entry::unreadMentionsIds() const {
 	return _unreadThings->mentions.ids();
 }
 
+const base::flat_set<MsgId> &Entry::unreadReactionsIds() const {
+	if (!_unreadThings) {
+		static const auto Result = base::flat_set<MsgId>();
+		return Result;
+	}
+	return _unreadThings->reactions.ids();
+}
+
 bool Entry::needUpdateInChatList() const {
 	return inChatList() || shouldBeInChatList();
 }

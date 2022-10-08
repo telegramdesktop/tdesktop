@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/value_ordering.h"
-
 class History;
 class PeerData;
 
@@ -45,29 +43,7 @@ public:
 	History *parentHistory() const;
 	PeerData *peer() const;
 
-	inline bool operator<(const Key &other) const {
-		return _value < other._value;
-	}
-	inline bool operator>(const Key &other) const {
-		return (other < *this);
-	}
-	inline bool operator<=(const Key &other) const {
-		return !(other < *this);
-	}
-	inline bool operator>=(const Key &other) const {
-		return !(*this < other);
-	}
-	inline bool operator==(const Key &other) const {
-		return _value == other._value;
-	}
-	inline bool operator!=(const Key &other) const {
-		return !(*this == other);
-	}
-
-	// Not working :(
-	//friend inline auto value_ordering_helper(const Key &key) {
-	//	return key.value;
-	//}
+	friend inline constexpr auto operator<=>(Key, Key) noexcept = default;
 
 private:
 	Entry *_value = nullptr;

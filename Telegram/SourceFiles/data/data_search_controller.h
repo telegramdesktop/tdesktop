@@ -10,8 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_sparse_ids.h"
 #include "storage/storage_sparse_ids_list.h"
 #include "storage/storage_shared_media.h"
-#include "base/value_ordering.h"
 #include "base/timer.h"
+#include "base/qt/qt_compare.h"
 
 namespace Main {
 class Session;
@@ -58,13 +58,9 @@ public:
 		QString query;
 		// from_id, min_date, max_date
 
-		friend inline auto value_ordering_helper(const Query &value) {
-			return std::tie(
-				value.peerId,
-				value.migratedPeerId,
-				value.type,
-				value.query);
-		}
+		friend inline std::strong_ordering operator<=>(
+			const Query &a,
+			const Query &b) noexcept = default;
 
 	};
 	struct SavedState {

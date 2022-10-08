@@ -16,6 +16,10 @@ class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
+namespace Dialogs {
+class Entry;
+} // namespace Dialogs
+
 namespace SendMenu {
 
 enum class Type {
@@ -51,11 +55,10 @@ void SetupMenuAndShortcuts(
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<PeerData*()> currentPeer,
-	MsgId topicRootId);
+	Fn<Dialogs::Entry*()> currentEntry);
 
 void SetupUnreadReactionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<PeerData*()> currentPeer);
+	Fn<Dialogs::Entry*()> currentEntry);
 
 } // namespace SendMenu

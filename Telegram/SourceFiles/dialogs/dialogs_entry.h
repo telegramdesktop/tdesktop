@@ -8,7 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "base/flat_map.h"
-
+#include "base/weak_ptr.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/unread_badge.h"
 
@@ -105,7 +105,7 @@ inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
 	return result;
 }
 
-class Entry {
+class Entry : public base::has_weak_ptr {
 public:
 	enum class Type : uchar {
 		History,
@@ -223,6 +223,7 @@ protected:
 	void cacheTopPromoted(bool promoted);
 
 	[[nodiscard]] const base::flat_set<MsgId> &unreadMentionsIds() const;
+	[[nodiscard]] const base::flat_set<MsgId> &unreadReactionsIds() const;
 
 private:
 	enum class Flag : uchar {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "history/view/history_view_corner_buttons.h"
 #include "history/history_drag_area.h"
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
@@ -107,7 +108,9 @@ class HistoryInner;
 
 extern const char kOptionAutoScrollInactiveChat[];
 
-class HistoryWidget final : public Window::AbstractSectionWidget {
+class HistoryWidget final
+	: public Window::AbstractSectionWidget
+	, private HistoryView::CornerButtonsDelegate {
 public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 	using RecordLock = HistoryView::Controls::RecordLock;
@@ -193,11 +196,9 @@ public:
 	void updateForwarding();
 	void updateForwardingTexts();
 
-	void clearReplyReturns();
 	void pushReplyReturn(not_null<HistoryItem*> item);
-	QList<MsgId> replyReturns();
-	void setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns);
-	void calcNextReplyReturn();
+	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
+	void setReplyReturns(PeerId peer, QVector<FullMsgId> replyReturns);
 
 	void updatePreview();
 	void previewCancel();
@@ -321,15 +322,15 @@ private:
 	};
 	using TextUpdateEvents = base::flags<TextUpdateEvent>;
 	friend inline constexpr bool is_flag_type(TextUpdateEvent) { return true; };
-	struct CornerButton {
-		template <typename ...Args>
-		CornerButton(Args &&...args) : widget(std::forward<Args>(args)...) {
-		}
 
-		Ui::Animations::Simple animation;
-		bool shown = false;
-		object_ptr<Ui::HistoryDownButton> widget;
-	};
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Dialogs::Entry *cornerButtonsEntry() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	bool cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
+
 	void checkSuggestToGigagroup();
 
 	void initTabbedSelector();
@@ -380,9 +381,6 @@ private:
 	void fullInfoUpdated();
 	void toggleTabbedSelectorMode();
 	void recountChatWidth();
-	void historyDownClicked();
-	void showNextUnreadMention();
-	void showNextUnreadReaction();
 	void handlePeerUpdate();
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
@@ -410,15 +408,9 @@ private:
 	void animationCallback();
 	void updateOverStates(QPoint pos);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
-	void cornerButtonsAnimationFinish();
 	void sendButtonClicked();
 	void newItemAdded(not_null<HistoryItem*> item);
 	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
-
-	void updateCornerButtonsPositions();
-	void updateHistoryDownVisibility();
-	void updateUnreadThingsVisibility();
-	void updateCornerButtonVisibility(CornerButton &button, bool shown);
 
 	bool canSendFiles(not_null<const QMimeData*> data) const;
 	bool confirmSendingFiles(
@@ -665,9 +657,6 @@ private:
 
 	bool _replyForwardPressed = false;
 
-	HistoryItem *_replyReturn = nullptr;
-	QList<MsgId> _replyReturns;
-
 	PeerData *_peer = nullptr;
 
 	bool _canSendMessages = false;
@@ -701,9 +690,7 @@ private:
 	bool _synteticScrollEvent = false;
 	Ui::Animations::Simple _scrollToAnimation;
 
-	CornerButton _historyDown;
-	CornerButton _unreadMentions;
-	CornerButton _unreadReactions;
+	HistoryView::CornerButtons _cornerButtons;
 
 	const object_ptr<FieldAutocomplete> _fieldAutocomplete;
 	object_ptr<Support::Autocomplete> _supportAutocomplete;
