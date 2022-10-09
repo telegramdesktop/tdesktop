@@ -162,6 +162,8 @@ PRIVATE
     api/api_unread_things.h
     api/api_updates.cpp
     api/api_updates.h
+    api/api_user_names.cpp
+    api/api_user_names.h
     api/api_user_privacy.cpp
     api/api_user_privacy.h
     api/api_views.cpp
@@ -545,6 +547,7 @@ PRIVATE
     data/data_user.h
     data/data_user_photos.cpp
     data/data_user_photos.h
+    data/data_user_names.h
     data/data_wall_paper.cpp
     data/data_wall_paper.h
     data/data_web_page.cpp

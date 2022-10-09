@@ -30,6 +30,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_ringtones.h"
 #include "api/api_transcribes.h"
 #include "api/api_premium.h"
+#include "api/api_user_names.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_stickers.h"
 #include "data/data_drafts.h"
@@ -169,7 +170,8 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _unreadThings(std::make_unique<Api::UnreadThings>(this))
 , _ringtones(std::make_unique<Api::Ringtones>(this))
 , _transcribes(std::make_unique<Api::Transcribes>(this))
-, _premium(std::make_unique<Api::Premium>(this)) {
+, _premium(std::make_unique<Api::Premium>(this))
+, _usernames(std::make_unique<Api::Usernames>(this)) {
 	crl::on_main(session, [=] {
 		// You can't use _session->lifetime() in the constructor,
 		// only queued, because it is not constructed yet.
@@ -4072,4 +4074,8 @@ Api::Transcribes &ApiWrap::transcribes() {
 
 Api::Premium &ApiWrap::premium() {
 	return *_premium;
+}
+
+Api::Usernames &ApiWrap::usernames() {
+	return *_usernames;
 }
