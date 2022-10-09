@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 struct BotCommand;
+struct Username;
 } // namespace Data
 
 struct BotInfo {
@@ -73,6 +74,7 @@ public:
 		const QString &newLastName,
 		const QString &newPhoneName,
 		const QString &newUsername);
+	void setUsernames(const std::vector<Data::Username> &usernames);
 
 	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
@@ -129,6 +131,7 @@ public:
 	QString lastName;
 	[[nodiscard]] const QString &phone() const;
 	[[nodiscard]] const QString &username() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
 	QString nameOrPhone;
 	TimeId onlineTill = 0;
 
@@ -171,6 +174,8 @@ private:
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
+
+	std::vector<QString> _usernames;
 
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld

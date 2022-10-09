@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "api/api_bot.h"
 #include "api/api_text_entities.h"
+#include "api/api_user_names.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
@@ -583,6 +584,15 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->setAccessHash(accessHash->v);
 			}
 			status = data.vstatus();
+			{
+				const auto newUsername = uname;
+				const auto newUsernames = data.vusernames()
+					? Api::Usernames::FromTL(*data.vusernames())
+					: !newUsername.isEmpty()
+					? Data::Usernames{{ newUsername, true, true }}
+					: Data::Usernames();
+				result->setUsernames(newUsernames);
+			}
 		}
 		if (const auto &status = data.vemoji_status()) {
 			result->setEmojiStatus(*status);

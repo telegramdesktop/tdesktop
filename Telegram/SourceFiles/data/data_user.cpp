@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
 #include "data/data_emoji_statuses.h"
+#include "data/data_user_names.h"
 #include "data/notify/data_notify_settings.h"
 #include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
@@ -117,6 +118,16 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 		newFullName = lastName.isEmpty() ? firstName : tr::lng_full_name(tr::now, lt_first_name, firstName, lt_last_name, lastName);
 	}
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
+}
+
+void UserData::setUsernames(const Data::Usernames &usernames) {
+	_usernames = ranges::views::all(
+		usernames
+	) | ranges::views::filter([&](const Data::Username &username) {
+		return username.active;
+	}) | ranges::views::transform([&](const Data::Username &username) {
+		return username.username;
+	}) | ranges::to_vector;
 }
 
 void UserData::setUsername(const QString &username) {
@@ -289,6 +300,10 @@ bool UserData::canShareThisContactFast() const {
 
 const QString &UserData::username() const {
 	return _username;
+}
+
+const std::vector<QString> &UserData::usernames() const {
+	return _usernames;
 }
 
 const QString &UserData::phone() const {
