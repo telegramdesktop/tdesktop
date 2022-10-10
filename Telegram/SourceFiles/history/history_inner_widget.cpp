@@ -914,7 +914,6 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		width(),
 		std::min(st::msgMaxWidth / 2, width() / 2));
 
-	const auto now = crl::now();
 	const auto historyDisplayedEmpty = _history->isDisplayedEmpty()
 		&& (!_migrated || _migrated->isDisplayedEmpty());
 	if (_botAbout && !_botAbout->info->text.isEmpty() && _botAbout->height > 0) {
@@ -1015,7 +1014,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 				_widget->enqueueMessageHighlight(view);
 			}
 		}
-		session().data().reactions().poll(item, now);
+		session().data().reactions().poll(item, context.now);
 		if (item->hasExtendedMediaPreview()) {
 			session().api().views().pollExtendedMedia(item);
 		}

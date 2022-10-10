@@ -53,7 +53,7 @@ public:
 	[[nodiscard]] virtual Dialogs::Entry *cornerButtonsEntry() = 0;
 	[[nodiscard]] virtual FullMsgId cornerButtonsCurrentId() = 0;
 	[[nodiscard]] virtual bool cornerButtonsIgnoreVisibility() = 0;
-	[[nodiscard]] virtual bool cornerButtonsDownShown() = 0;
+	[[nodiscard]] virtual std::optional<bool> cornerButtonsDownShown() = 0;
 	[[nodiscard]] virtual bool cornerButtonsUnreadMayBeShown() = 0;
 };
 

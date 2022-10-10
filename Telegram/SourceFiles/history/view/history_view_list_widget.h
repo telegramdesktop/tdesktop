@@ -100,7 +100,9 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) = 0;
 	virtual void listSelectionChanged(SelectedItems &&items) = 0;
-	virtual void listVisibleItemsChanged(HistoryItemsList &&items) = 0;
+	virtual void listMarkReadTill(not_null<HistoryItem*> item) = 0;
+	virtual void listMarkContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) = 0;
 	virtual MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
@@ -529,6 +531,7 @@ private:
 	void scrollToAnimationCallback(FullMsgId attachToId, int relativeTo);
 	void startItemRevealAnimations();
 	void revealItemsCallback();
+	void maybeMarkReactionsRead(not_null<HistoryItem*> item);
 
 	void startMessageSendingAnimation(not_null<HistoryItem*> item);
 	void showPremiumStickerTooltip(

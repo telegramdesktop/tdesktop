@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "apiwrap.h"
 #include "api/api_who_reacted.h"
+#include "api/api_views.h"
 #include "layout/layout_selection.h"
 #include "window/section_widget.h"
 #include "window/window_adaptive.h"
@@ -54,6 +55,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "boxes/peers/edit_participant_box.h"
 #include "data/data_session.h"
+#include "data/data_sponsored_messages.h"
+#include "data/data_changes.h"
 #include "data/data_folder.h"
 #include "data/data_media_types.h"
 #include "data/data_document.h"
@@ -348,6 +351,13 @@ ListWidget::ListWidget(
 	session().data().itemRemoved(
 	) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
 		itemRemoved(item);
+	}, lifetime());
+
+	using MessageUpdateFlag = Data::MessageUpdate::Flag;
+	session().changes().realtimeMessageUpdates(
+		MessageUpdateFlag::NewUnreadReaction
+	) | rpl::start_with_next([=](const Data::MessageUpdate &update) {
+		maybeMarkReactionsRead(update.item);
 	}, lifetime());
 
 	session().data().itemVisibilityQueries(
@@ -787,7 +797,6 @@ void ListWidget::visibleTopBottomUpdated(
 
 void ListWidget::applyUpdatedScrollState() {
 	checkMoveToOtherViewer();
-	_delegate->listVisibleItemsChanged(collectVisibleItems());
 }
 
 void ListWidget::updateVisibleTopItem() {
@@ -1764,7 +1773,15 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		return;
 	}
 
+	auto readTill = (HistoryItem*)nullptr;
+	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
+		if (readTill) {
+			_delegate->listMarkReadTill(readTill);
+		}
+		if (!readContents.empty()) {
+			_delegate->listMarkContentsRead(readContents);
+		}
 		_userpicsCache.clear();
 	});
 
@@ -1787,23 +1804,61 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	if (from != end(_items)) {
 		_reactionsManager->startEffectsCollection();
 
+		const auto session = &controller()->session();
 		auto top = itemTop(from->get());
 		auto context = preparePaintContext(clip).translated(0, -top);
 		p.translate(0, top);
 		const auto &sendingAnimation = _controller->sendingAnimation();
 		for (auto i = from; i != to; ++i) {
 			const auto view = *i;
-			if (!sendingAnimation.hasAnimatedMessage(view->data())) {
+			const auto item = view->data();
+			const auto height = view->height();
+			if (!sendingAnimation.hasAnimatedMessage(item)) {
 				context.reactionInfo
 					= _reactionsManager->currentReactionPaintInfo();
 				context.outbg = view->hasOutLayout();
 				context.selection = itemRenderSelection(view);
 				view->draw(p, context);
 			}
+			const auto isSponsored = item->isSponsored();
+			const auto isUnread = _delegate->listElementShownUnread(view)
+				&& item->isRegular();
+			const auto withReaction = item->hasUnreadReaction();
+			const auto yShown = [&](int y) {
+				return (_visibleBottom >= y && _visibleTop <= y);
+			};
+			const auto markShown = isSponsored
+				? view->markSponsoredViewed(_visibleBottom - top)
+				: withReaction
+				? yShown(top + context.reactionInfo->position.y())
+				: isUnread
+				? yShown(top + height)
+				: yShown(top + height / 2);
+			if (markShown) {
+				if (isSponsored) {
+					session->data().sponsoredMessages().view(
+						item->fullId());
+				} else if (isUnread) {
+					readTill = item;
+				}
+				if (item->hasViews()) {
+					session->api().views().scheduleIncrement(item);
+				}
+				if (withReaction) {
+					readContents.insert(item);
+				} else if (item->isUnreadMention()
+					&& !item->isUnreadMedia()) {
+					readContents.insert(item);
+					_highlighter.enqueue(view);
+				}
+			}
+			session->data().reactions().poll(item, context.now);
+			if (item->hasExtendedMediaPreview()) {
+				session->api().views().pollExtendedMedia(item);
+			}
 			_reactionsManager->recordCurrentReactionEffect(
-				view->data()->fullId(),
+				item->fullId(),
 				QPoint(0, top));
-			const auto height = view->height();
 			top += height;
 			context.translate(0, -height);
 			p.translate(0, height);
@@ -1847,7 +1902,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 							auto &v = _sponsoredUserpics[itemId.msg];
 							if (!info->customUserpic.isCurrentView(v)) {
 								v = info->customUserpic.createView();
-								info->customUserpic.load(&session(), itemId);
+								info->customUserpic.load(session, itemId);
 							}
 						}
 					}
@@ -1907,6 +1962,21 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		_reactionsManager->paint(p, context);
 		_emojiInteractions->paint(p);
 	}
+}
+
+void ListWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
+	const auto view = viewForItem(item);
+	if (!view) {
+		return;
+	}
+	const auto top = itemTop(view);
+	const auto reactionCenter
+		= view->reactionButtonParameters({}, {}).center.y();
+	if (top + reactionCenter < _visibleTop
+		|| top + view->height() > _visibleBottom) {
+		return;
+	}
+	_delegate->listMarkContentsRead({ item });
 }
 
 bool ListWidget::eventHook(QEvent *e) {

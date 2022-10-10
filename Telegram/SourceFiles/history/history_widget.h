@@ -328,7 +328,7 @@ private:
 	Dialogs::Entry *cornerButtonsEntry() override;
 	FullMsgId cornerButtonsCurrentId() override;
 	bool cornerButtonsIgnoreVisibility() override;
-	bool cornerButtonsDownShown() override;
+	std::optional<bool> cornerButtonsDownShown() override;
 	bool cornerButtonsUnreadMayBeShown() override;
 
 	void checkSuggestToGigagroup();

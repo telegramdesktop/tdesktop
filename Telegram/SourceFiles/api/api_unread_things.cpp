@@ -128,12 +128,12 @@ void UnreadThings::requestMentions(
 		MTP_int(maxId),
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
-		_mentionsRequests.remove(history);
-		history->unreadMentions().addSlice(result, loaded);
+		_mentionsRequests.remove(entry);
+		entry->unreadMentions().addSlice(result, loaded);
 	}).fail([=] {
-		_mentionsRequests.remove(history);
+		_mentionsRequests.remove(entry);
 	}).send();
-	_mentionsRequests.emplace(history, requestId);
+	_mentionsRequests.emplace(entry, requestId);
 }
 
 void UnreadThings::requestReactions(
@@ -162,12 +162,12 @@ void UnreadThings::requestReactions(
 		MTP_int(maxId),
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
-		_reactionsRequests.remove(history);
-		history->unreadReactions().addSlice(result, loaded);
+		_reactionsRequests.remove(entry);
+		entry->unreadReactions().addSlice(result, loaded);
 	}).fail([=] {
-		_reactionsRequests.remove(history);
+		_reactionsRequests.remove(entry);
 	}).send();
-	_reactionsRequests.emplace(history, requestId);
+	_reactionsRequests.emplace(entry, requestId);
 }
 
 } // namespace UnreadThings

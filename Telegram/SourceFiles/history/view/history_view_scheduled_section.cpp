@@ -1258,7 +1258,11 @@ void ScheduledWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-void ScheduledWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
+void ScheduledWidget::listMarkReadTill(not_null<HistoryItem*> item) {
+}
+
+void ScheduledWidget::listMarkContentsRead(
+	const base::flat_set<not_null<HistoryItem*>> &items) {
 }
 
 MessagesBarData ScheduledWidget::listMessagesBar(

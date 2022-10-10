@@ -251,8 +251,9 @@ void CornerButtons::updateUnreadThingsVisibility() {
 }
 
 void CornerButtons::updateJumpDownVisibility(std::optional<int> counter) {
-	const auto shown = _delegate->cornerButtonsDownShown();
-	updateVisibility(CornerButtonType::Down, shown);
+	if (const auto shown = _delegate->cornerButtonsDownShown()) {
+		updateVisibility(CornerButtonType::Down, *shown);
+	}
 	if (counter) {
 		down.widget->setUnreadCount(*counter);
 	}

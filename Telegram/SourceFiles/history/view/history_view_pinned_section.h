@@ -90,7 +90,9 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
-	void listVisibleItemsChanged(HistoryItemsList &&items) override;
+	void listMarkReadTill(not_null<HistoryItem*> item) override;
+	void listMarkContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) override;
 	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/section_widget.h"
 #include "window/section_memento.h"
+#include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "data/data_messages.h"
 #include "base/timer.h"
@@ -67,7 +68,8 @@ class StickerToast;
 
 class RepliesWidget final
 	: public Window::SectionWidget
-	, private ListDelegate {
+	, private ListDelegate
+	, private CornerButtonsDelegate {
 public:
 	RepliesWidget(
 		QWidget *parent,
@@ -128,7 +130,9 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
-	void listVisibleItemsChanged(HistoryItemsList &&items) override;
+	void listMarkReadTill(not_null<HistoryItem*> item) override;
+	void listMarkContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) override;
 	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
@@ -146,6 +150,15 @@ public:
 	auto listAllowedReactionsValue()
 		->rpl::producer<Data::AllowedReactions> override;
 	void listShowPremiumToast(not_null<DocumentData*> document) override;
+
+	// CornerButtonsDelegate delegate.
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Dialogs::Entry *cornerButtonsEntry() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	std::optional<bool> cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -181,16 +194,13 @@ private:
 	void setupRoot();
 	void setupRootView();
 	void setupTopicViewer();
+	void subscribeToTopic();
 	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
 	void sendReadTillRequest();
 	void readTill(not_null<HistoryItem*> item);
 
-	void setupScrollDownButton();
-	void scrollDownClicked();
 	void scrollDownAnimationFinish();
-	void updateScrollDownVisibility();
-	void updateScrollDownPosition();
 	void updatePinnedVisibility();
 
 	void confirmDeleteSelected();
@@ -216,9 +226,6 @@ private:
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
-	void computeCurrentReplyReturn();
-	void calculateNextReplyReturn();
-	void restoreReplyReturns(const std::vector<MsgId> &list);
 	void checkReplyReturns();
 	void recountChatWidth();
 	void replyToMessage(FullMsgId itemId);
@@ -295,12 +302,9 @@ private:
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
-	std::vector<MsgId> _replyReturns;
-	HistoryItem *_replyReturn = nullptr;
-
-	Ui::Animations::Simple _scrollDownShown;
-	bool _scrollDownIsShown = false;
-	object_ptr<Ui::HistoryDownButton> _scrollDown;
+	FullMsgId _lastShownAt;
+	HistoryView::CornerButtons _cornerButtons;
+	rpl::lifetime _topicLifetime;
 
 	bool _choosingAttach = false;
 
@@ -351,10 +355,10 @@ public:
 		return _replies;
 	}
 
-	void setReplyReturns(const std::vector<MsgId> &list) {
+	void setReplyReturns(const QVector<FullMsgId> &list) {
 		_replyReturns = list;
 	}
-	const std::vector<MsgId> &replyReturns() const {
+	const QVector<FullMsgId> &replyReturns() const {
 		return _replyReturns;
 	}
 
@@ -373,7 +377,7 @@ private:
 	const MsgId _highlightId = 0;
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
-	std::vector<MsgId> _replyReturns;
+	QVector<FullMsgId> _replyReturns;
 
 	rpl::lifetime _lifetime;
 

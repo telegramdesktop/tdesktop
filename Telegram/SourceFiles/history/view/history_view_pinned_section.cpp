@@ -636,7 +636,11 @@ void PinnedWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-void PinnedWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
+void PinnedWidget::listMarkReadTill(not_null<HistoryItem*> item) {
+}
+
+void PinnedWidget::listMarkContentsRead(
+	const base::flat_set<not_null<HistoryItem*>> &items) {
 }
 
 MessagesBarData PinnedWidget::listMessagesBar(

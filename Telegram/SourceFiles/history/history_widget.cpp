@@ -5769,7 +5769,7 @@ bool HistoryWidget::cornerButtonsIgnoreVisibility() {
 	return _a_show.animating();
 }
 
-bool HistoryWidget::cornerButtonsDownShown() {
+std::optional<bool> HistoryWidget::cornerButtonsDownShown() {
 	if (!_list || _firstLoadRequest) {
 		return false;
 	}

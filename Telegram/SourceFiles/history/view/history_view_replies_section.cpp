@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_schedule_box.h"
 #include "history/view/history_view_pinned_bar.h"
 #include "history/view/history_view_sticker_toast.h"
+#include "history/view/history_view_cursor_state.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -212,9 +213,10 @@ RepliesWidget::RepliesWidget(
 	this,
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
 	false))
-, _scrollDown(
+, _cornerButtons(
 	_scroll.get(),
-	controller->chatStyle()->value(lifetime(), st::historyToDown))
+	controller->chatStyle(),
+	static_cast<HistoryView::CornerButtonsDelegate*>(this))
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
@@ -335,8 +337,8 @@ RepliesWidget::RepliesWidget(
 				controller->showBackFromStack();
 			}
 		}
-		while (update.item == _replyReturn) {
-			calculateNextReplyReturn();
+		while (update.item == _cornerButtons.replyReturn()) {
+			_cornerButtons.calculateNextReplyReturn();
 		}
 	}, lifetime());
 
@@ -347,7 +349,6 @@ RepliesWidget::RepliesWidget(
 		_inner->update();
 	}, lifetime());
 
-	setupScrollDownButton();
 	setupComposeControls();
 	orderWidgets();
 }
@@ -469,14 +470,34 @@ void RepliesWidget::setupTopicViewer() {
 			_inner->update();
 		}
 	}, lifetime());
+
+	if (_topic) {
+		subscribeToTopic();
+	}
+}
+
+void RepliesWidget::subscribeToTopic() {
+	using TopicUpdateFlag = Data::TopicUpdate::Flag;
+	session().changes().topicUpdates(
+		_topic,
+		(TopicUpdateFlag::UnreadMentions
+			| TopicUpdateFlag::UnreadReactions)
+	) | rpl::start_with_next([=](const Data::TopicUpdate &update) {
+		_cornerButtons.updateUnreadThingsVisibility();
+	}, _topicLifetime);
 }
 
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
-	if (_topic != topic) {
-		_topic = topic;
-		refreshReplies();
-		refreshTopBarActiveChat();
-		if (_topic && _rootView) {
+	if (_topic == topic) {
+		return;
+	}
+	_topicLifetime.destroy();
+	_topic = topic;
+	refreshReplies();
+	refreshTopBarActiveChat();
+	if (_topic) {
+		subscribeToTopic();
+		if (_rootView) {
 			_rootView = nullptr;
 			_rootViewHeight = 0;
 			updateControlsGeometry();
@@ -684,7 +705,8 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->lockShowStarts(
 	) | rpl::start_with_next([=] {
-		updateScrollDownVisibility();
+		_cornerButtons.updateJumpDownVisibility();
+		_cornerButtons.updateUnreadThingsVisibility();
 	}, lifetime());
 
 	_composeControls->viewportEvents(
@@ -919,48 +941,21 @@ std::optional<QString> RepliesWidget::writeRestriction() const {
 
 void RepliesWidget::pushReplyReturn(not_null<HistoryItem*> item) {
 	if (item->history() == _history && item->inThread(_rootId)) {
-		_replyReturns.push_back(item->id);
-	} else {
-		return;
-	}
-	_replyReturn = item;
-	updateScrollDownVisibility();
-}
-
-void RepliesWidget::restoreReplyReturns(const std::vector<MsgId> &list) {
-	_replyReturns = list;
-	computeCurrentReplyReturn();
-	if (!_replyReturn) {
-		calculateNextReplyReturn();
-	}
-}
-
-void RepliesWidget::computeCurrentReplyReturn() {
-	_replyReturn = _replyReturns.empty()
-		? nullptr
-		: _history->owner().message(_history->peer, _replyReturns.back());
-}
-
-void RepliesWidget::calculateNextReplyReturn() {
-	_replyReturn = nullptr;
-	while (!_replyReturns.empty() && !_replyReturn) {
-		_replyReturns.pop_back();
-		computeCurrentReplyReturn();
-	}
-	if (!_replyReturn) {
-		updateScrollDownVisibility();
+		_cornerButtons.pushReplyReturn(item);
 	}
 }
 
 void RepliesWidget::checkReplyReturns() {
 	const auto currentTop = _scroll->scrollTop();
-	for (; _replyReturn != nullptr; calculateNextReplyReturn()) {
-		const auto position = _replyReturn->position();
+	while (const auto replyReturn = _cornerButtons.replyReturn()) {
+		const auto position = replyReturn->position();
 		const auto scrollTop = _inner->scrollTopForPosition(position);
-		const auto scrolledBelow = scrollTop
+		const auto below = scrollTop
 			? (currentTop >= std::min(*scrollTop, _scroll->scrollTopMax()))
 			: _inner->isBelowPosition(position);
-		if (!scrolledBelow) {
+		if (below) {
+			_cornerButtons.calculateNextReplyReturn();
+		} else {
 			break;
 		}
 	}
@@ -1055,6 +1050,10 @@ void RepliesWidget::sendVoice(ComposeControls::VoiceToSend &&data) {
 void RepliesWidget::send(Api::SendOptions options) {
 	if (!options.scheduled && showSlowmodeError()) {
 		return;
+	}
+
+	if (!options.scheduled) {
+		_cornerButtons.clearReplyReturns();
 	}
 
 	const auto webPageId = _composeControls->webPageId();
@@ -1355,24 +1354,9 @@ MsgId RepliesWidget::replyToId() const {
 		: _rootId;
 }
 
-void RepliesWidget::setupScrollDownButton() {
-	_scrollDown->setClickedCallback([=] {
-		scrollDownClicked();
-	});
-	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
-		if (event->type() != QEvent::Wheel) {
-			return base::EventFilterResult::Continue;
-		}
-		return _scroll->viewportEvent(event)
-			? base::EventFilterResult::Cancel
-			: base::EventFilterResult::Continue;
-	});
-	updateScrollDownVisibility();
-}
-
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
 	if (count.has_value()) {
-		_scrollDown->setUnreadCount(*count);
+		_cornerButtons.updateJumpDownVisibility(count);
 	} else if (!_readRequestTimer.isActive() && !_readRequestId) {
 		reloadUnreadCountIfNeeded();
 	}
@@ -1389,14 +1373,39 @@ void RepliesWidget::reloadUnreadCountIfNeeded() {
 	}
 }
 
-void RepliesWidget::scrollDownClicked() {
-	if (base::IsCtrlPressed()) {
-		showAtEnd();
-	} else if (_replyReturn) {
-		showAtPosition(_replyReturn->position());
-	} else {
-		showAtEnd();
+void RepliesWidget::cornerButtonsShowAtPosition(
+		Data::MessagePosition position) {
+	showAtPosition(position);
+}
+
+Dialogs::Entry *RepliesWidget::cornerButtonsEntry() {
+	return _topic;
+}
+
+FullMsgId RepliesWidget::cornerButtonsCurrentId() {
+	return _lastShownAt;
+}
+
+bool RepliesWidget::cornerButtonsIgnoreVisibility() {
+	return animatingShow();
+}
+
+std::optional<bool> RepliesWidget::cornerButtonsDownShown() {
+	if (_composeControls->isLockPresent()) {
+		return false;
 	}
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
+		return true;
+	} else if (_inner->loadedAtBottomKnown()) {
+		return !_inner->loadedAtBottom();
+	}
+	return std::nullopt;
+}
+
+bool RepliesWidget::cornerButtonsUnreadMayBeShown() {
+	return _inner->loadedAtBottomKnown()
+		&& !_composeControls->isLockPresent();
 }
 
 void RepliesWidget::showAtStart() {
@@ -1435,9 +1444,7 @@ bool RepliesWidget::showAtPositionNow(
 		: nullptr;
 	const auto use = item ? item->position() : position;
 	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
-		while (_replyReturn && use.fullId.msg == _replyReturn->id) {
-			calculateNextReplyReturn();
-		}
+		_cornerButtons.skipReplyReturn(use.fullId);
 		const auto currentScrollTop = _scroll->scrollTop();
 		const auto wanted = std::clamp(
 			*scrollTop,
@@ -1452,6 +1459,7 @@ bool RepliesWidget::showAtPositionNow(
 			? AnimatedScroll::Part
 			: AnimatedScroll::Full;
 		_inner->scrollTo(wanted, use, scrollDelta, type);
+		_lastShownAt = use.fullId;
 		if (use != Data::MaxMessagePosition
 			&& use != Data::UnreadMessagePosition) {
 			_inner->highlightMessage(use.fullId);
@@ -1462,57 +1470,6 @@ bool RepliesWidget::showAtPositionNow(
 		return true;
 	}
 	return false;
-}
-
-void RepliesWidget::updateScrollDownVisibility() {
-	if (animatingShow()) {
-		return;
-	}
-
-	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
-		if (_composeControls->isLockPresent()) {
-			return false;
-		}
-		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-		if (top < _scroll->scrollTopMax() || _replyReturn) {
-			return true;
-		} else if (_inner->loadedAtBottomKnown()) {
-			return !_inner->loadedAtBottom();
-		}
-		return std::nullopt;
-	};
-	const auto scrollDownIsShown = scrollDownIsVisible();
-	if (!scrollDownIsShown) {
-		return;
-	}
-	if (_scrollDownIsShown != *scrollDownIsShown) {
-		_scrollDownIsShown = *scrollDownIsShown;
-		_scrollDownShown.start(
-			[=] { updateScrollDownPosition(); },
-			_scrollDownIsShown ? 0. : 1.,
-			_scrollDownIsShown ? 1. : 0.,
-			st::historyToDownDuration);
-	}
-}
-
-void RepliesWidget::updateScrollDownPosition() {
-	// _scrollDown is a child widget of _scroll, not me.
-	auto top = anim::interpolate(
-		0,
-		_scrollDown->height() + st::historyToDownPosition.y(),
-		_scrollDownShown.value(_scrollDownIsShown ? 1. : 0.));
-	_scrollDown->moveToRight(
-		st::historyToDownPosition.x(),
-		_scroll->height() - top);
-	auto shouldBeHidden = !_scrollDownIsShown && !_scrollDownShown.animating();
-	if (shouldBeHidden != _scrollDown->isHidden()) {
-		_scrollDown->setVisible(!shouldBeHidden);
-	}
-}
-
-void RepliesWidget::scrollDownAnimationFinish() {
-	_scrollDownShown.stop();
-	updateScrollDownPosition();
 }
 
 void RepliesWidget::updateAdaptiveLayout() {
@@ -1662,7 +1619,8 @@ bool RepliesWidget::showMessage(
 	if (!originMessage) {
 		return false;
 	}
-	const auto originItem = (!originMessage || _replyReturn == originMessage)
+	const auto originItem = (!originMessage
+		|| _cornerButtons.replyReturn() == originMessage)
 		? nullptr
 		: originMessage;
 	showAtPosition(message->position(), originItem);
@@ -1685,7 +1643,7 @@ void RepliesWidget::replyToMessage(FullMsgId itemId) {
 
 void RepliesWidget::saveState(not_null<RepliesMemento*> memento) {
 	memento->setReplies(_replies);
-	memento->setReplyReturns(_replyReturns);
+	memento->setReplyReturns(_cornerButtons.replyReturns());
 	_inner->saveState(memento->list());
 }
 
@@ -1740,7 +1698,7 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	} else if (!_replies) {
 		refreshReplies();
 	}
-	restoreReplyReturns(memento->replyReturns());
+	_cornerButtons.setReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
 		const auto position = Data::MessagePosition{
@@ -1811,7 +1769,7 @@ void RepliesWidget::updateControlsGeometry() {
 	_composeControls->move(0, bottom - controlsHeight);
 	_composeControls->setAutocompleteBoundingRect(_scroll->geometry());
 
-	updateScrollDownPosition();
+	_cornerButtons.updatePositions();
 }
 
 void RepliesWidget::paintEvent(QPaintEvent *e) {
@@ -1842,7 +1800,8 @@ void RepliesWidget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updatePinnedVisibility();
-	updateScrollDownVisibility();
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
 }
 
 void RepliesWidget::updatePinnedVisibility() {
@@ -2024,11 +1983,16 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 	}
 }
 
-void RepliesWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
-	const auto reversed = ranges::views::reverse(items);
-	const auto good = ranges::find_if(reversed, &HistoryItem::isRegular);
-	if (good != end(reversed)) {
-		readTill(*good);
+void RepliesWidget::listMarkReadTill(not_null<HistoryItem*> item) {
+	if (true/*doWeReadServerHistory()*/) { // #TODO forum active
+		readTill(item);
+	}
+}
+
+void RepliesWidget::listMarkContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) {
+	if (true/*doWeReadMentions()*/) { // #TODO forum active
+		session().api().markContentsRead(items);
 	}
 }
 

@@ -271,6 +271,7 @@ void Changes::sendNotifications() {
 	_historyChanges.sendNotifications();
 	_messageChanges.sendNotifications();
 	_entryChanges.sendNotifications();
+	_topicChanges.sendNotifications();
 }
 
 } // namespace Data
