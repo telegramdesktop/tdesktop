@@ -236,6 +236,8 @@ PRIVATE
     ui/effects/fireworks_animation.h
     ui/effects/glare.cpp
     ui/effects/glare.h
+    ui/effects/loading_element.cpp
+    ui/effects/loading_element.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp
