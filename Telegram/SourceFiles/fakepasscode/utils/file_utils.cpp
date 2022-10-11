@@ -10,7 +10,7 @@
 #include "storage/storage_account.h"
 #include "data/data_session.h"
 
-constexpr qint64 kBufferSize = 1024 * 1024; // 1 Mb
+constexpr qint64 kBufferSize = 1024;
 
 namespace FakePasscode::FileUtils {
     FileResult DeleteFile(QString path) {
@@ -59,8 +59,7 @@ namespace FakePasscode::FileUtils {
             }
             file.close();
 
-            QFileInfo fileInfo(path);
-            QDir newDir = fileInfo.dir();
+            QDir newDir = GetRandomDir();
             QString newName = GetRandomName(newDir);
 
             result |= (file.rename(newName) ?
