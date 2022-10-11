@@ -234,6 +234,8 @@ PRIVATE
     ui/controls/window_outdated_bar.h
     ui/effects/fireworks_animation.cpp
     ui/effects/fireworks_animation.h
+    ui/effects/glare.cpp
+    ui/effects/glare.h
     ui/effects/premium_graphics.cpp
     ui/effects/premium_graphics.h
     ui/effects/premium_stars.cpp
