@@ -200,7 +200,7 @@ void Cover::initViewers() {
 	_username->overrideLinkClickHandler([=] {
 		const auto username = _user->userName();
 		if (username.isEmpty()) {
-			_controller->show(Box<UsernameBox>(&_user->session()));
+			_controller->show(Box(UsernamesBox, &_user->session()));
 		} else {
 			QGuiApplication::clipboard()->setText(
 				_user->session().createInternalLinkFull(username));

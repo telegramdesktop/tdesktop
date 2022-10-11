@@ -7,28 +7,73 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
+#include "base/timer.h"
 #include "boxes/peers/edit_peer_common.h"
-#include "lang/lang_keys.h"
-#include "ui/widgets/buttons.h"
-#include "ui/widgets/labels.h"
-#include "ui/widgets/fields/special_fields.h"
-#include "ui/toast/toast.h"
-#include "ui/text/text_utilities.h"
-#include "ui/painter.h"
-#include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "lang/lang_keys.h"
+#include "main/main_session.h"
+#include "mtproto/sender.h"
+#include "settings/settings_common.h"
+#include "ui/layers/generic_box.h"
+#include "ui/painter.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
+#include "ui/widgets/buttons.h"
+#include "ui/widgets/fields/special_fields.h"
+#include "ui/widgets/labels.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
+#include "styles/style_settings.h"
 
-#include <QtGui/QGuiApplication>
-#include <QtGui/QClipboard>
+namespace {
 
-UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
+class UsernameEditor final : public Ui::RpWidget {
+public:
+	UsernameEditor(not_null<Ui::RpWidget*>, not_null<Main::Session*> session);
+
+	void setInnerFocus();
+	void save();
+
+	[[nodiscard]] rpl::producer<> closeRequests() const;
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	void updateFail(const QString &error);
+	void checkFail(const QString &error);
+
+
+	void check();
+	void changed();
+
+	QString getName() const;
+
+	const not_null<Main::Session*> _session;
+	const style::font &_font;
+	const style::margins &_padding;
+	MTP::Sender _api;
+
+	object_ptr<Ui::UsernameInput> _username;
+
+	mtpRequestId _saveRequestId = 0;
+	mtpRequestId _checkRequestId = 0;
+	QString _sentUsername, _checkUsername, _errorText, _goodText;
+
+	base::Timer _checkTimer;
+
+	rpl::event_stream<> _closeRequests;
+
+};
+
+UsernameEditor::UsernameEditor(
+	not_null<Ui::RpWidget*>,
+	not_null<Main::Session*> session)
 : _session(session)
 , _font(st::normalFont)
 , _padding(st::usernamePadding)
-, _textCenterTop((_font->height - _font->height) / 2)
 , _api(&_session->mtp())
 , _username(
 	this,
@@ -36,52 +81,30 @@ UsernameBox::UsernameBox(QWidget*, not_null<Main::Session*> session)
 	rpl::single(qsl("@username")),
 	session->user()->username(),
 	QString())
-, _about(
-	this,
-	tr::lng_username_description(Ui::Text::RichLangValue),
-	st::defaultBoxLabel)
-, _link(this, QString(), st::defaultLinkButton)
 , _checkTimer([=] { check(); }) {
-}
-
-void UsernameBox::prepare() {
 	_goodText = _session->user()->username().isEmpty()
 		? QString()
 		: tr::lng_username_available(tr::now);
 
-	setTitle(tr::lng_username_title());
-
-	addButton(tr::lng_settings_save(), [=] { save(); });
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
-
 	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
 	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
-	_link->addClickHandler([=] { linkClick(); });
 
-	_about->resizeToWidth(
-		st::boxWideWidth - _padding.left() - _padding.right());
-	_about->heightValue(
-	) | rpl::start_with_next([=](int height) {
-		setDimensions(
-			st::boxWideWidth,
-			(_padding.top()
-				+ _username->height()
-				+ st::usernameSkip
-				+ height
-				+ 3 * _font->height
-				+ _padding.bottom()));
-	}, lifetime());
-
-	updateLinkText();
+	resize(
+		width(),
+		(_padding.top()
+			+ _username->height()
+			+ st::usernameSkip));
 }
 
-void UsernameBox::setInnerFocus() {
+rpl::producer<> UsernameEditor::closeRequests() const {
+	return _closeRequests.events();
+}
+
+void UsernameEditor::setInnerFocus() {
 	_username->setFocusFast();
 }
 
-void UsernameBox::paintEvent(QPaintEvent *e) {
-	BoxContent::paintEvent(e);
-
+void UsernameEditor::paintEvent(QPaintEvent *e) {
 	Painter p(this);
 
 	const auto textTop = _username->y()
@@ -112,59 +135,16 @@ void UsernameBox::paintEvent(QPaintEvent *e) {
 			tr::lng_username_choose(tr::now));
 	}
 	p.setPen(st::boxTextFg);
-
-	const auto linkTop = _username->y()
-		+ _username->height()
-		+ st::usernameSkip
-		+ _about->height()
-		+ _font->height
-		+ _textCenterTop;
-	if (_link->isHidden()) {
-		p.drawTextLeft(
-			_padding.left(),
-			linkTop,
-			width(),
-			tr::lng_username_link_willbe(tr::now));
-		p.setPen(st::usernameDefaultFg);
-		const auto link = _session->createInternalLinkFull(qsl("username"));
-		p.drawTextLeft(
-			_padding.left(),
-			linkTop
-				+ _font->height
-				+ _textCenterTop,
-			width(),
-			link);
-	} else {
-		p.drawTextLeft(
-			_padding.left(),
-			linkTop,
-			width(),
-			tr::lng_username_link(tr::now));
-	}
 }
 
-void UsernameBox::resizeEvent(QResizeEvent *e) {
-	BoxContent::resizeEvent(e);
-
+void UsernameEditor::resizeEvent(QResizeEvent *e) {
 	_username->resize(
 		width() - _padding.left() - _padding.right(),
 		_username->height());
 	_username->moveToLeft(_padding.left(), _padding.top());
-
-	_about->moveToLeft(
-		_padding.left(),
-		_username->y() + _username->height() + st::usernameSkip);
-
-	const auto linkTop = _about->y()
-		+ _about->height()
-		+ _font->height
-		+ _textCenterTop;
-	_link->moveToLeft(
-		_padding.left(),
-		linkTop + _font->height + _textCenterTop);
 }
 
-void UsernameBox::save() {
+void UsernameEditor::save() {
 	if (_saveRequestId) {
 		return;
 	}
@@ -175,14 +155,14 @@ void UsernameBox::save() {
 	)).done([=](const MTPUser &result) {
 		_saveRequestId = 0;
 		_session->data().processUser(result);
-		closeBox();
+		_closeRequests.fire({});
 	}).fail([=](const MTP::Error &error) {
 		_saveRequestId = 0;
 		updateFail(error.type());
 	}).send();
 }
 
-void UsernameBox::check() {
+void UsernameEditor::check() {
 	_api.request(base::take(_checkRequestId)).cancel();
 
 	const auto name = getName();
@@ -210,8 +190,7 @@ void UsernameBox::check() {
 	}).send();
 }
 
-void UsernameBox::changed() {
-	updateLinkText();
+void UsernameEditor::changed() {
 	const auto name = getName();
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
@@ -252,15 +231,7 @@ void UsernameBox::changed() {
 	}
 }
 
-void UsernameBox::linkClick() {
-	QGuiApplication::clipboard()->setText(
-		_session->createInternalLinkFull(getName()));
-	Ui::Toast::Show(
-		Ui::BoxShow(this).toastParent(),
-		tr::lng_username_copied(tr::now));
-}
-
-void UsernameBox::updateFail(const QString &error) {
+void UsernameEditor::updateFail(const QString &error) {
 	const auto self = _session->user();
 	if ((error == qstr("USERNAME_NOT_MODIFIED"))
 		|| (_sentUsername == self->username())) {
@@ -269,7 +240,7 @@ void UsernameBox::updateFail(const QString &error) {
 			TextUtilities::SingleLine(self->lastName),
 			TextUtilities::SingleLine(self->nameOrPhone),
 			TextUtilities::SingleLine(_sentUsername));
-		closeBox();
+		_closeRequests.fire({});
 	} else if (error == qstr("USERNAME_INVALID")) {
 		_username->setFocus();
 		_username->showError();
@@ -286,7 +257,7 @@ void UsernameBox::updateFail(const QString &error) {
 	}
 }
 
-void UsernameBox::checkFail(const QString &error) {
+void UsernameEditor::checkFail(const QString &error) {
 	if (error == qstr("USERNAME_INVALID")) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
@@ -300,24 +271,35 @@ void UsernameBox::checkFail(const QString &error) {
 	}
 }
 
-QString UsernameBox::getName() const {
+QString UsernameEditor::getName() const {
 	return _username->text().replace('@', QString()).trimmed();
 }
 
-void UsernameBox::updateLinkText() {
-	const auto uname = getName();
-	_link->setText(_font->elided(
-		_session->createInternalLinkFull(uname),
-		st::boxWideWidth - _padding.left() - _padding.right()));
-	if (uname.isEmpty()) {
-		if (!_link->isHidden()) {
-			_link->hide();
-			update();
-		}
-	} else {
-		if (_link->isHidden()) {
-			_link->show();
-			update();
-		}
-	}
+} // namespace
+
+void UsernamesBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Main::Session*> session) {
+	box->setTitle(tr::lng_username_title());
+
+	const auto container = box->verticalLayout();
+
+	const auto editor = box->addRow(
+		object_ptr<UsernameEditor>(box, session),
+		{});
+	editor->closeRequests(
+	) | rpl::start_with_next([=] {
+		box->closeBox();
+	}, editor->lifetime());
+
+	container->add(object_ptr<Ui::DividerLabel>(
+		container,
+		object_ptr<Ui::FlatLabel>(
+			container,
+			tr::lng_username_description(Ui::Text::RichLangValue),
+			st::boxDividerLabel),
+		st::settingsDividerLabelPadding));
+
+	box->addButton(tr::lng_settings_save(), [=] { editor->save(); });
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }

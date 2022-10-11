@@ -450,7 +450,7 @@ void SetupRows(
 		std::move(label),
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
-		[=] { controller->show(Box<UsernameBox>(session)); },
+		[=] { controller->show(Box(UsernamesBox, session)); },
 		{ &st::settingsIconMention, kIconLightOrange });
 
 	AddSkip(container);
