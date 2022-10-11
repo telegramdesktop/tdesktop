@@ -159,6 +159,7 @@ public:
 	bool cornerButtonsIgnoreVisibility() override;
 	std::optional<bool> cornerButtonsDownShown() override;
 	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(CornerButtonType type) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -182,11 +183,7 @@ private:
 	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem = nullptr);
-	bool showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
-		anim::type animated = anim::type::normal);
+		FullMsgId originItemId = {});
 	void finishSending();
 
 	void setupComposeControls();

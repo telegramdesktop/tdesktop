@@ -482,9 +482,18 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 
 std::optional<int> ListWidget::scrollTopForPosition(
 		Data::MessagePosition position) const {
-	if (position == Data::MaxMessagePosition) {
+	if (position == Data::UnreadMessagePosition) {
+		if (_bar.element && !_bar.hidden && _bar.focus) {
+			const auto shift = st::lineWidth + st::historyUnreadBarMargin;
+			return itemTop(_bar.element) + shift;
+		}
+		position = Data::MaxMessagePosition;
+	}
+	if (_visibleTop >= _visibleBottom) {
+		return std::nullopt;
+	} else if (position == Data::MaxMessagePosition) {
 		if (loadedAtBottom()) {
-			return height();
+			return height() - (_visibleBottom - _visibleTop);
 		}
 		return std::nullopt;
 	} else if (_items.empty()
@@ -607,6 +616,101 @@ void ListWidget::showAroundPosition(
 	_aroundIndex = -1;
 	_overrideInitialScroll = std::move(overrideInitialScroll);
 	refreshViewer();
+}
+
+bool ListWidget::jumpToBottomInsteadOfUnread() const {
+	// If we want to jump to unread, but we're at the unread already,
+	// then jump to the end of the list.
+	//
+	// That means there is no read inbox messages below us.
+	const auto firstReadMessage = [&]() -> Element* {
+		for (const auto &view : ranges::views::reverse(_items)) {
+			const auto item = view->data();
+			if (item->isRegular()
+				&& (item->out()
+					|| !_delegate->listElementShownUnread(view))) {
+				return view;
+			}
+		}
+		return nullptr;
+	}();
+	return !firstReadMessage || (itemTop(firstReadMessage) < _visibleBottom);
+}
+
+void ListWidget::showAtPosition(
+		Data::MessagePosition position,
+		anim::type animated,
+		Fn<void(bool found)> done) {
+	const auto showAtUnread = (position == Data::UnreadMessagePosition);
+	const auto showAtStart = (position == Data::MinMessagePosition);
+	const auto showAtEnd = (position == Data::MaxMessagePosition);
+
+	if (showAtUnread && jumpToBottomInsteadOfUnread()) {
+		showAtPosition(Data::MaxMessagePosition, animated, std::move(done));
+		return;
+	}
+
+	if (position.fullId.peer && position.fullId.msg) {
+		if (const auto item = session().data().message(position.fullId)) {
+			position = item->position();
+		}
+	}
+
+	if (showAtUnread) {
+		showAroundPosition(position, [=] {
+			if (_bar.element) {
+				_bar.element->destroyUnreadBar();
+				const auto i = ranges::find(_items, not_null{ _bar.element });
+				Assert(i != end(_items));
+				refreshAttachmentsAtIndex(i - begin(_items));
+				_bar = {};
+			}
+			checkUnreadBarCreation();
+			return showAtPositionNow(position, animated, done);
+		});
+	} else if (!showAtPositionNow(position, animated, done)) {
+		showAroundPosition(position, [=] {
+			return showAtPositionNow(position, animated, done);
+		});
+	}
+}
+
+bool ListWidget::showAtPositionNow(
+		Data::MessagePosition position,
+		anim::type animated,
+		Fn<void(bool found)> done) {
+	if (const auto scrollTop = scrollTopForPosition(position)) {
+		computeScrollTo(*scrollTop, position, animated);
+		if (position != Data::MaxMessagePosition
+			&& position != Data::UnreadMessagePosition) {
+			highlightMessage(position.fullId);
+		}
+		done(!position.fullId.peer
+			|| !position.fullId.msg
+			|| viewForItem(position.fullId));
+		return true;
+	}
+	return false;
+}
+
+void ListWidget::computeScrollTo(
+		int to,
+		Data::MessagePosition position,
+		anim::type animated) {
+	const auto currentScrollHeight = (_visibleBottom - _visibleTop);
+	const auto currentScrollTop = _visibleTop;
+	const auto wanted = std::max(
+		std::min(to, height() - currentScrollHeight),
+		0);
+	const auto fullDelta = (wanted - currentScrollTop);
+	const auto limit = currentScrollHeight;
+	const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
+	const auto type = (animated == anim::type::instant)
+		? AnimatedScroll::None
+		: (std::abs(fullDelta) > limit)
+		? AnimatedScroll::Part
+		: AnimatedScroll::Full;
+	scrollTo(wanted, position, scrollDelta, type);
 }
 
 void ListWidget::checkUnreadBarCreation() {
@@ -1672,7 +1776,7 @@ int ListWidget::resizeGetHeight(int newWidth) {
 
 	const auto resizeAllItems = (_itemsWidth != newWidth);
 	auto newHeight = 0;
-	for (auto &view : _items) {
+	for (const auto &view : _items) {
 		view->setY(newHeight);
 		if (view->pendingResize() || resizeAllItems) {
 			newHeight += view->resizeGetHeight(newWidth);

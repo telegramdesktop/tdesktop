@@ -202,23 +202,16 @@ public:
 		Data::MessagePosition position) const;
 	Element *viewByPosition(Data::MessagePosition position) const;
 	std::optional<int> scrollTopForView(not_null<Element*> view) const;
-	enum class AnimatedScroll {
-		Full,
-		Part,
-		None,
-	};
-	void scrollTo(
-		int scrollTop,
-		Data::MessagePosition attachPosition,
-		int delta,
-		AnimatedScroll type);
 	[[nodiscard]] bool animatedScrolling() const;
 	bool isAbovePosition(Data::MessagePosition position) const;
 	bool isBelowPosition(Data::MessagePosition position) const;
 	void highlightMessage(FullMsgId itemId);
-	void showAroundPosition(
+
+	void showAtPosition(
 		Data::MessagePosition position,
-		Fn<bool()> overrideInitialScroll);
+		anim::type animated = anim::type::normal,
+		Fn<void(bool found)> done = nullptr);
+	void refreshViewer();
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 	[[nodiscard]] MessageIdsList getSelectedIds() const;
@@ -391,12 +384,20 @@ private:
 	void onTouchSelect();
 	void onTouchScrollTimer();
 
-	void refreshViewer();
 	void updateAroundPositionFromNearest(int nearestIndex);
 	void refreshRows(const Data::MessagesSlice &old);
 	ScrollTopState countScrollState() const;
 	void saveScrollState();
 	void restoreScrollState();
+
+	[[nodiscard]] bool jumpToBottomInsteadOfUnread() const;
+	void showAroundPosition(
+		Data::MessagePosition position,
+		Fn<bool()> overrideInitialScroll);
+	bool showAtPositionNow(
+		Data::MessagePosition position,
+		anim::type animated,
+		Fn<void(bool found)> done);
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
@@ -452,6 +453,21 @@ private:
 	void scrollDateCheck();
 	void scrollDateHideByTimer();
 	void keepScrollDateForNow();
+
+	void computeScrollTo(
+		int to,
+		Data::MessagePosition position,
+		anim::type animated);
+	enum class AnimatedScroll {
+		Full,
+		Part,
+		None,
+	};
+	void scrollTo(
+		int scrollTop,
+		Data::MessagePosition attachPosition,
+		int delta,
+		AnimatedScroll type);
 
 	void trySwitchToWordSelection();
 	void switchToWordSelection();

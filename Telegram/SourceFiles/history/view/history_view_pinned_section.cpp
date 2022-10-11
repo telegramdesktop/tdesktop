@@ -102,9 +102,10 @@ PinnedWidget::PinnedWidget(
 	this,
 	QString(),
 	st::historyComposeButton))
-, _scrollDown(
+, _cornerButtons(
 		_scroll.get(),
-		controller->chatStyle()->value(lifetime(), st::historyToDown)) {
+		controller->chatStyle(),
+		static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
@@ -161,25 +162,9 @@ PinnedWidget::PinnedWidget(
 	}, lifetime());
 
 	setupClearButton();
-	setupScrollDownButton();
 }
 
 PinnedWidget::~PinnedWidget() = default;
-
-void PinnedWidget::setupScrollDownButton() {
-	_scrollDown->setClickedCallback([=] {
-		scrollDownClicked();
-	});
-	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
-		if (event->type() != QEvent::Wheel) {
-			return base::EventFilterResult::Continue;
-		}
-		return _scroll->viewportEvent(event)
-			? base::EventFilterResult::Cancel
-			: base::EventFilterResult::Continue;
-	});
-	updateScrollDownVisibility();
-}
 
 void PinnedWidget::setupClearButton() {
 	Data::CanPinMessagesValue(
@@ -203,118 +188,48 @@ void PinnedWidget::setupClearButton() {
 	});
 }
 
-void PinnedWidget::scrollDownClicked() {
-	if (base::IsCtrlPressed()) {
-		showAtEnd();
-	//} else if (_replyReturn) {
-	//	showAtPosition(_replyReturn->position());
-	} else {
-		showAtEnd();
+void PinnedWidget::cornerButtonsShowAtPosition(
+		Data::MessagePosition position) {
+	showAtPosition(position);
+}
+
+Dialogs::Entry *PinnedWidget::cornerButtonsEntry() {
+	return _history;
+}
+
+FullMsgId PinnedWidget::cornerButtonsCurrentId() {
+	return {};
+}
+
+bool PinnedWidget::cornerButtonsIgnoreVisibility() {
+	return animatingShow();
+}
+
+std::optional<bool> PinnedWidget::cornerButtonsDownShown() {
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
+		return true;
+	} else if (_inner->loadedAtBottomKnown()) {
+		return !_inner->loadedAtBottom();
 	}
+	return std::nullopt;
 }
 
-void PinnedWidget::showAtStart() {
-	showAtPosition(Data::MinMessagePosition);
+bool PinnedWidget::cornerButtonsUnreadMayBeShown() {
+	return _inner->loadedAtBottomKnown();
 }
 
-void PinnedWidget::showAtEnd() {
-	showAtPosition(Data::MaxMessagePosition);
+bool PinnedWidget::cornerButtonsHas(CornerButtonType type) {
+	return (type == CornerButtonType::Down);
 }
 
 void PinnedWidget::showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem) {
-	if (!showAtPositionNow(position, originItem)) {
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, originItem);
-		});
-	}
-}
-
-bool PinnedWidget::showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
-		anim::type animated) {
-	using AnimatedScroll = HistoryView::ListWidget::AnimatedScroll;
-
-	const auto item = position.fullId
-		? _history->owner().message(position.fullId)
-		: nullptr;
-	const auto use = item ? item->position() : position;
-	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
-		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = std::clamp(
-			*scrollTop,
-			0,
-			_scroll->scrollTopMax());
-		const auto fullDelta = (wanted - currentScrollTop);
-		const auto limit = _scroll->height();
-		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
-		const auto type = (animated == anim::type::instant)
-			? AnimatedScroll::None
-			: (std::abs(fullDelta) > limit)
-			? AnimatedScroll::Part
-			: AnimatedScroll::Full;
-		_inner->scrollTo(
-			wanted,
-			use,
-			scrollDelta,
-			type);
-		if (use != Data::MaxMessagePosition
-			&& use != Data::UnreadMessagePosition) {
-			_inner->highlightMessage(use.fullId);
-		}
-		return true;
-	}
-	return false;
-}
-
-void PinnedWidget::updateScrollDownVisibility() {
-	if (animatingShow()) {
-		return;
-	}
-
-	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
-		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-		if (top < _scroll->scrollTopMax()) {
-			return true;
-		} else if (_inner->loadedAtBottomKnown()) {
-			return !_inner->loadedAtBottom();
-		}
-		return std::nullopt;
-	};
-	const auto scrollDownIsShown = scrollDownIsVisible();
-	if (!scrollDownIsShown) {
-		return;
-	}
-	if (_scrollDownIsShown != *scrollDownIsShown) {
-		_scrollDownIsShown = *scrollDownIsShown;
-		_scrollDownShown.start(
-			[=] { updateScrollDownPosition(); },
-			_scrollDownIsShown ? 0. : 1.,
-			_scrollDownIsShown ? 1. : 0.,
-			st::historyToDownDuration);
-	}
-}
-
-void PinnedWidget::updateScrollDownPosition() {
-	// _scrollDown is a child widget of _scroll, not me.
-	auto top = anim::interpolate(
-		0,
-		_scrollDown->height() + st::historyToDownPosition.y(),
-		_scrollDownShown.value(_scrollDownIsShown ? 1. : 0.));
-	_scrollDown->moveToRight(
-		st::historyToDownPosition.x(),
-		_scroll->height() - top);
-	auto shouldBeHidden = !_scrollDownIsShown && !_scrollDownShown.animating();
-	if (shouldBeHidden != _scrollDown->isHidden()) {
-		_scrollDown->setVisible(!shouldBeHidden);
-	}
-}
-
-void PinnedWidget::scrollDownAnimationFinish() {
-	_scrollDownShown.stop();
-	updateScrollDownPosition();
+		FullMsgId originId) {
+	_inner->showAtPosition(
+		position,
+		anim::type::normal,
+		_cornerButtons.doneJumpFrom(position.fullId, originId));
 }
 
 void PinnedWidget::updateAdaptiveLayout() {
@@ -387,15 +302,12 @@ void PinnedWidget::saveState(not_null<PinnedMemento*> memento) {
 void PinnedWidget::restoreState(not_null<PinnedMemento*> memento) {
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
-		const auto position = Data::MessagePosition{
+		_inner->showAtPosition(Data::MessagePosition{
 			.fullId = ((highlight > 0 || !_migratedPeer)
 				? FullMsgId(_history->peer->id, highlight)
 				: FullMsgId(_migratedPeer->id, -highlight)),
 			.date = TimeId(0),
-		};
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, nullptr, anim::type::instant);
-		});
+		}, anim::type::instant);
 	}
 }
 
@@ -463,7 +375,8 @@ void PinnedWidget::updateControlsGeometry() {
 		}
 		updateInnerVisibleArea();
 	}
-	updateScrollDownPosition();
+
+	_cornerButtons.updatePositions();
 }
 
 void PinnedWidget::paintEvent(QPaintEvent *e) {
@@ -490,7 +403,8 @@ void PinnedWidget::onScroll() {
 void PinnedWidget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	updateScrollDownVisibility();
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
 }
 
 void PinnedWidget::showAnimatedHook(

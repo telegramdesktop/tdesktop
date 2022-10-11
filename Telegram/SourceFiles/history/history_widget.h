@@ -330,6 +330,7 @@ private:
 	bool cornerButtonsIgnoreVisibility() override;
 	std::optional<bool> cornerButtonsDownShown() override;
 	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(HistoryView::CornerButtonType type) override;
 
 	void checkSuggestToGigagroup();
 

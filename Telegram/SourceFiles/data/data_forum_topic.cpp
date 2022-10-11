@@ -540,7 +540,7 @@ bool ForumTopic::chatListUnreadMark() const {
 }
 
 bool ForumTopic::chatListMutedBadge() const {
-	return true;
+	return history()->mute();
 }
 
 HistoryItem *ForumTopic::chatListMessage() const {

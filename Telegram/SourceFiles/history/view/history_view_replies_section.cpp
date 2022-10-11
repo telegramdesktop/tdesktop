@@ -337,9 +337,6 @@ RepliesWidget::RepliesWidget(
 				controller->showBackFromStack();
 			}
 		}
-		while (update.item == _cornerButtons.replyReturn()) {
-			_cornerButtons.calculateNextReplyReturn();
-		}
 	}, lifetime());
 
 	_history->session().changes().historyUpdates(
@@ -477,6 +474,8 @@ void RepliesWidget::setupTopicViewer() {
 }
 
 void RepliesWidget::subscribeToTopic() {
+	Expects(_topic != nullptr);
+
 	using TopicUpdateFlag = Data::TopicUpdate::Flag;
 	session().changes().topicUpdates(
 		_topic,
@@ -485,6 +484,8 @@ void RepliesWidget::subscribeToTopic() {
 	) | rpl::start_with_next([=](const Data::TopicUpdate &update) {
 		_cornerButtons.updateUnreadThingsVisibility();
 	}, _topicLifetime);
+
+	_cornerButtons.updateUnreadThingsVisibility();
 }
 
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
@@ -917,7 +918,7 @@ bool RepliesWidget::showSlowmodeError() {
 				Ui::FormatDurationWordsSlowmode(left));
 		} else if (_history->peer->slowmodeApplied()) {
 			if (const auto item = _history->latestSendingMessage()) {
-				showAtPositionNow(item->position(), nullptr);
+				showAtPosition(item->position());
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}
@@ -1379,7 +1380,7 @@ void RepliesWidget::cornerButtonsShowAtPosition(
 }
 
 Dialogs::Entry *RepliesWidget::cornerButtonsEntry() {
-	return _topic;
+	return _topic ? static_cast<Dialogs::Entry*>(_topic) : _history;
 }
 
 FullMsgId RepliesWidget::cornerButtonsCurrentId() {
@@ -1408,6 +1409,10 @@ bool RepliesWidget::cornerButtonsUnreadMayBeShown() {
 		&& !_composeControls->isLockPresent();
 }
 
+bool RepliesWidget::cornerButtonsHas(CornerButtonType type) {
+	return _topic || (type == CornerButtonType::Down);
+}
+
 void RepliesWidget::showAtStart() {
 	showAtPosition(Data::MinMessagePosition);
 }
@@ -1426,50 +1431,12 @@ void RepliesWidget::finishSending() {
 
 void RepliesWidget::showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem) {
-	if (!showAtPositionNow(position, originItem)) {
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, originItem);
-		});
-	}
-}
-
-bool RepliesWidget::showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
-		anim::type animated) {
-	using AnimatedScroll = HistoryView::ListWidget::AnimatedScroll;
-	const auto item = position.fullId
-		? _history->owner().message(position.fullId)
-		: nullptr;
-	const auto use = item ? item->position() : position;
-	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
-		_cornerButtons.skipReplyReturn(use.fullId);
-		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = std::clamp(
-			*scrollTop,
-			0,
-			_scroll->scrollTopMax());
-		const auto fullDelta = (wanted - currentScrollTop);
-		const auto limit = _scroll->height();
-		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
-		const auto type = (animated == anim::type::instant)
-			? AnimatedScroll::None
-			: (std::abs(fullDelta) > limit)
-			? AnimatedScroll::Part
-			: AnimatedScroll::Full;
-		_inner->scrollTo(wanted, use, scrollDelta, type);
-		_lastShownAt = use.fullId;
-		if (use != Data::MaxMessagePosition
-			&& use != Data::UnreadMessagePosition) {
-			_inner->highlightMessage(use.fullId);
-		}
-		if (originItem) {
-			pushReplyReturn(originItem);
-		}
-		return true;
-	}
-	return false;
+		FullMsgId originItemId) {
+	_lastShownAt = position.fullId;
+	_inner->showAtPosition(
+		position,
+		anim::type::normal,
+		_cornerButtons.doneJumpFrom(position.fullId, originItemId));
 }
 
 void RepliesWidget::updateAdaptiveLayout() {
@@ -1619,11 +1586,10 @@ bool RepliesWidget::showMessage(
 	if (!originMessage) {
 		return false;
 	}
-	const auto originItem = (!originMessage
-		|| _cornerButtons.replyReturn() == originMessage)
-		? nullptr
-		: originMessage;
-	showAtPosition(message->position(), originItem);
+	const auto originItemId = (_cornerButtons.replyReturn() != originMessage)
+		? originMessage->fullId()
+		: FullMsgId();
+	showAtPosition(message->position(), originItemId);
 	return true;
 }
 
@@ -1653,7 +1619,7 @@ void RepliesWidget::refreshReplies() {
 		? _topic->replies()
 		: std::make_shared<Data::RepliesList>(_history, _rootId));
 	if (old) {
-		_inner->showAroundPosition(Data::UnreadMessagePosition, nullptr);
+		_inner->refreshViewer();
 	}
 }
 
@@ -1701,13 +1667,10 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	_cornerButtons.setReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
-		const auto position = Data::MessagePosition{
+		_inner->showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),
-		};
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, nullptr);
-		});
+		}, anim::type::instant);
 	}
 }
 

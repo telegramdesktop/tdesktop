@@ -5233,9 +5233,6 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (item == _replyEditMsg && _replyToId) {
 		cancelReply();
 	}
-	while (item == _cornerButtons.replyReturn()) {
-		_cornerButtons.calculateNextReplyReturn();
-	}
 	if (_kbReplyTo && item == _kbReplyTo) {
 		toggleKeyboard();
 		_kbReplyTo = nullptr;
@@ -5804,6 +5801,10 @@ std::optional<bool> HistoryWidget::cornerButtonsDownShown() {
 
 bool HistoryWidget::cornerButtonsUnreadMayBeShown() {
 	return !_firstLoadRequest && !_voiceRecordBar->isLockPresent();
+}
+
+bool HistoryWidget::cornerButtonsHas(HistoryView::CornerButtonType type) {
+	return true;
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {

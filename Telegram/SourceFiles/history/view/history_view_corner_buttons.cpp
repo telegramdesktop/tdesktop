@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "lang/lang_keys.h"
+#include "ui/toast/toast.h"
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -31,41 +33,41 @@ CornerButtons::CornerButtons(
 	not_null<Ui::ScrollArea*> parent,
 	not_null<const Ui::ChatStyle*> st,
 	not_null<CornerButtonsDelegate*> delegate)
-: down(
+: _scroll(parent)
+, _delegate(delegate)
+, _down(
 	parent,
 	st->value(parent->lifetime(), st::historyToDown))
-, mentions(
+, _mentions(
 	parent,
 	st->value(parent->lifetime(), st::historyUnreadMentions))
-, reactions(
-	parent,
-	st->value(parent->lifetime(), st::historyUnreadReactions))
-, _scroll(parent)
-, _delegate(delegate) {
-	down.widget->addClickHandler([=] { downClick(); });
-	mentions.widget->addClickHandler([=] { mentionsClick(); });
-	reactions.widget->addClickHandler([=] { reactionsClick(); });
+, _reactions(
+		parent,
+		st->value(parent->lifetime(), st::historyUnreadReactions)) {
+	_down.widget->addClickHandler([=] { downClick(); });
+	_mentions.widget->addClickHandler([=] { mentionsClick(); });
+	_reactions.widget->addClickHandler([=] { reactionsClick(); });
 
 	const auto filterScroll = [&](CornerButton &button) {
 		button.widget->installEventFilter(this);
 	};
-	filterScroll(down);
-	filterScroll(mentions);
-	filterScroll(reactions);
+	filterScroll(_down);
+	filterScroll(_mentions);
+	filterScroll(_reactions);
 
-	SendMenu::SetupUnreadMentionsMenu(mentions.widget.data(), [=] {
+	SendMenu::SetupUnreadMentionsMenu(_mentions.widget.data(), [=] {
 		return _delegate->cornerButtonsEntry();
 	});
-	SendMenu::SetupUnreadReactionsMenu(reactions.widget.data(), [=] {
+	SendMenu::SetupUnreadReactionsMenu(_reactions.widget.data(), [=] {
 		return _delegate->cornerButtonsEntry();
 	});
 }
 
 bool CornerButtons::eventFilter(QObject *o, QEvent *e) {
 	if (e->type() == QEvent::Wheel
-		&& (o == down.widget
-			|| o == mentions.widget
-			|| o == reactions.widget)) {
+		&& (o == _down.widget
+			|| o == _mentions.widget
+			|| o == _reactions.widget)) {
 		return _scroll->viewportEvent(e);
 	}
 	return QObject::eventFilter(o, e);
@@ -164,13 +166,23 @@ void CornerButtons::calculateNextReplyReturn() {
 void CornerButtons::pushReplyReturn(not_null<HistoryItem*> item) {
 	_replyReturns.push_back(item->fullId());
 	_replyReturn = item;
+
+	if (!_replyReturnStarted) {
+		_replyReturnStarted = true;
+		item->history()->owner().itemRemoved(
+		) | rpl::start_with_next([=](not_null<const HistoryItem*> item) {
+			while (item == _replyReturn) {
+				calculateNextReplyReturn();
+			}
+		}, _down.widget->lifetime());
+	}
 }
 
-CornerButton &CornerButtons::buttonByType(CornerButtonType type) {
+CornerButton &CornerButtons::buttonByType(Type type) {
 	switch (type) {
-	case CornerButtonType::Down: return down;
-	case CornerButtonType::Mentions: return mentions;
-	case CornerButtonType::Reactions: return reactions;
+	case Type::Down: return _down;
+	case Type::Mentions: return _mentions;
+	case Type::Reactions: return _reactions;
 	}
 	Unexpected("Type in CornerButtons::buttonByType.");
 }
@@ -215,47 +227,49 @@ void CornerButtons::updateUnreadThingsVisibility() {
 	}
 	const auto entry = _delegate->cornerButtonsEntry();
 	if (!entry) {
-		updateVisibility(CornerButtonType::Mentions, false);
-		updateVisibility(CornerButtonType::Reactions, false);
+		updateVisibility(Type::Mentions, false);
+		updateVisibility(Type::Reactions, false);
 		return;
 	}
 	auto &unreadThings = entry->session().api().unreadThings();
 	unreadThings.preloadEnough(entry);
 
-	const auto updateWithCount = [&](CornerButtonType type, int count) {
+	const auto updateWithCount = [&](Type type, int count) {
 		updateVisibility(
 			type,
 			(count > 0) && _delegate->cornerButtonsUnreadMayBeShown());
 	};
-	if (unreadThings.trackMentions(entry)) {
+	if (_delegate->cornerButtonsHas(Type::Mentions)
+		&& unreadThings.trackMentions(entry)) {
 		if (const auto count = entry->unreadMentions().count(0)) {
-			mentions.widget->setUnreadCount(count);
+			_mentions.widget->setUnreadCount(count);
 		}
 		updateWithCount(
-			CornerButtonType::Mentions,
+			Type::Mentions,
 			entry->unreadMentions().loadedCount());
 	} else {
-		updateVisibility(CornerButtonType::Mentions, false);
+		updateVisibility(Type::Mentions, false);
 	}
 
-	if (unreadThings.trackReactions(entry)) {
+	if (_delegate->cornerButtonsHas(Type::Reactions)
+		&& unreadThings.trackReactions(entry)) {
 		if (const auto count = entry->unreadReactions().count(0)) {
-			reactions.widget->setUnreadCount(count);
+			_reactions.widget->setUnreadCount(count);
 		}
 		updateWithCount(
-			CornerButtonType::Reactions,
+			Type::Reactions,
 			entry->unreadReactions().loadedCount());
 	} else {
-		updateVisibility(CornerButtonType::Reactions, false);
+		updateVisibility(Type::Reactions, false);
 	}
 }
 
 void CornerButtons::updateJumpDownVisibility(std::optional<int> counter) {
 	if (const auto shown = _delegate->cornerButtonsDownShown()) {
-		updateVisibility(CornerButtonType::Down, *shown);
+		updateVisibility(Type::Down, *shown);
 	}
 	if (counter) {
-		down.widget->setUnreadCount(*counter);
+		_down.widget->setUnreadCount(*counter);
 	}
 }
 
@@ -273,64 +287,84 @@ void CornerButtons::updatePositions() {
 
 	// All corner buttons is a child widgets of _scroll, not me.
 
-	const auto historyDownShown = shown(down);
-	const auto unreadMentionsShown = shown(mentions);
-	const auto unreadReactionsShown = shown(reactions);
+	const auto historyDownShown = shown(_down);
+	const auto unreadMentionsShown = shown(_mentions);
+	const auto unreadReactionsShown = shown(_reactions);
 	const auto skip = st::historyUnreadThingsSkip;
 	{
 		const auto top = anim::interpolate(
 			0,
-			down.widget->height() + st::historyToDownPosition.y(),
+			_down.widget->height() + st::historyToDownPosition.y(),
 			historyDownShown);
-		down.widget->moveToRight(
+		_down.widget->moveToRight(
 			st::historyToDownPosition.x(),
 			_scroll->height() - top);
 	}
 	{
 		const auto right = anim::interpolate(
-			-mentions.widget->width(),
+			-_mentions.widget->width(),
 			st::historyToDownPosition.x(),
 			unreadMentionsShown);
 		const auto shift = anim::interpolate(
 			0,
-			down.widget->height() + skip,
+			_down.widget->height() + skip,
 			historyDownShown);
 		const auto top = _scroll->height()
-			- mentions.widget->height()
+			- _mentions.widget->height()
 			- st::historyToDownPosition.y()
 			- shift;
-		mentions.widget->moveToRight(right, top);
+		_mentions.widget->moveToRight(right, top);
 	}
 	{
 		const auto right = anim::interpolate(
-			-reactions.widget->width(),
+			-_reactions.widget->width(),
 			st::historyToDownPosition.x(),
 			unreadReactionsShown);
 		const auto shift = anim::interpolate(
 			0,
-			down.widget->height() + skip,
+			_down.widget->height() + skip,
 			historyDownShown
 		) + anim::interpolate(
 			0,
-			mentions.widget->height() + skip,
+			_mentions.widget->height() + skip,
 			unreadMentionsShown);
 		const auto top = _scroll->height()
-			- reactions.widget->height()
+			- _reactions.widget->height()
 			- st::historyToDownPosition.y()
 			- shift;
-		reactions.widget->moveToRight(right, top);
+		_reactions.widget->moveToRight(right, top);
 	}
 
-	checkVisibility(down);
-	checkVisibility(mentions);
-	checkVisibility(reactions);
+	checkVisibility(_down);
+	checkVisibility(_mentions);
+	checkVisibility(_reactions);
 }
 
 void CornerButtons::finishAnimations() {
-	down.animation.stop();
-	mentions.animation.stop();
-	reactions.animation.stop();
+	_down.animation.stop();
+	_mentions.animation.stop();
+	_reactions.animation.stop();
 	updatePositions();
+}
+
+Fn<void(bool found)> CornerButtons::doneJumpFrom(
+		FullMsgId targetId,
+		FullMsgId originId) {
+	return [=](bool found) {
+		skipReplyReturn(targetId);
+		if (originId) {
+			if (const auto entry = _delegate->cornerButtonsEntry()) {
+				if (const auto item = entry->owner().message(originId)) {
+					pushReplyReturn(item);
+				}
+			}
+		}
+		if (!found) {
+			Ui::Toast::Show(
+				_scroll.get(),
+				tr::lng_message_not_found(tr::now));
+		}
+	};
 }
 
 } // namespace HistoryView

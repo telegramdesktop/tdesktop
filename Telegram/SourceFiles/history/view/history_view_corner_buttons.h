@@ -55,6 +55,7 @@ public:
 	[[nodiscard]] virtual bool cornerButtonsIgnoreVisibility() = 0;
 	[[nodiscard]] virtual std::optional<bool> cornerButtonsDownShown() = 0;
 	[[nodiscard]] virtual bool cornerButtonsUnreadMayBeShown() = 0;
+	[[nodiscard]] virtual bool cornerButtonsHas(CornerButtonType type) = 0;
 };
 
 class CornerButtons final : private QObject {
@@ -63,6 +64,8 @@ public:
 		not_null<Ui::ScrollArea*> parent,
 		not_null<const Ui::ChatStyle*> st,
 		not_null<CornerButtonsDelegate*> delegate);
+
+	using Type = CornerButtonType;
 
 	void downClick();
 	void mentionsClick();
@@ -75,7 +78,7 @@ public:
 	void skipReplyReturn(FullMsgId id);
 	void calculateNextReplyReturn();
 
-	void updateVisibility(CornerButtonType type, bool shown);
+	void updateVisibility(Type type, bool shown);
 	void updateUnreadThingsVisibility();
 	void updateJumpDownVisibility(std::optional<int> counter = {});
 	void updatePositions();
@@ -85,25 +88,30 @@ public:
 	[[nodiscard]] HistoryItem *replyReturn() const {
 		return _replyReturn;
 	}
-
-	CornerButton down;
-	CornerButton mentions;
-	CornerButton reactions;
+	[[nodiscard]] Fn<void(bool found)> doneJumpFrom(
+		FullMsgId targetId,
+		FullMsgId originId);
 
 private:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 	void computeCurrentReplyReturn();
 
-	[[nodiscard]] CornerButton &buttonByType(CornerButtonType type);
+	[[nodiscard]] CornerButton &buttonByType(Type type);
 	[[nodiscard]] History *lookupHistory() const;
 	void showAt(MsgId id);
 
 	const not_null<Ui::ScrollArea*> _scroll;
 	const not_null<CornerButtonsDelegate*> _delegate;
 
+	CornerButton _down;
+	CornerButton _mentions;
+	CornerButton _reactions;
+
 	HistoryItem *_replyReturn = nullptr;
 	QVector<FullMsgId> _replyReturns;
+
+	bool _replyReturnStarted = false;
 
 };
 

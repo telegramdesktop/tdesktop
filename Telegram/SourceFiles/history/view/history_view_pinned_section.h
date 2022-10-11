@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/section_memento.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_corner_buttons.h"
 #include "data/data_messages.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
@@ -35,7 +36,8 @@ class PinnedMemento;
 
 class PinnedWidget final
 	: public Window::SectionWidget
-	, private ListDelegate {
+	, private ListDelegate
+	, private CornerButtonsDelegate {
 public:
 	PinnedWidget(
 		QWidget *parent,
@@ -111,6 +113,16 @@ public:
 		-> rpl::producer<Data::AllowedReactions> override;
 	void listShowPremiumToast(not_null<DocumentData*> document) override;
 
+	// CornerButtonsDelegate delegate.
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Dialogs::Entry *cornerButtonsEntry() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	std::optional<bool> cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(CornerButtonType type) override;
+
 protected:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
@@ -127,22 +139,11 @@ private:
 	void updateAdaptiveLayout();
 	void saveState(not_null<PinnedMemento*> memento);
 	void restoreState(not_null<PinnedMemento*> memento);
-	void showAtStart();
-	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem = nullptr);
-	bool showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
-		anim::type animated = anim::type::normal);
+		FullMsgId originId = {});
 
 	void setupClearButton();
-	void setupScrollDownButton();
-	void scrollDownClicked();
-	void scrollDownAnimationFinish();
-	void updateScrollDownVisibility();
-	void updateScrollDownPosition();
 
 	void confirmDeleteSelected();
 	void confirmForwardSelected();
@@ -163,9 +164,7 @@ private:
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<Ui::FlatButton> _clearButton;
 
-	Ui::Animations::Simple _scrollDownShown;
-	bool _scrollDownIsShown = false;
-	object_ptr<Ui::HistoryDownButton> _scrollDown;
+	CornerButtons _cornerButtons;
 
 	int _messagesCount = -1;
 

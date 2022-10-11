@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/section_widget.h"
 #include "window/section_memento.h"
 #include "history/view/history_view_list_widget.h"
+#include "history/view/history_view_corner_buttons.h"
 #include "data/data_messages.h"
 
 class History;
@@ -52,7 +53,8 @@ class StickerToast;
 
 class ScheduledWidget final
 	: public Window::SectionWidget
-	, private ListDelegate {
+	, private ListDelegate
+	, private CornerButtonsDelegate {
 public:
 	ScheduledWidget(
 		QWidget *parent,
@@ -121,7 +123,8 @@ public:
 	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
 	bool listElementHideReply(not_null<const Element*> view) override;
 	bool listElementShownUnread(not_null<const Element*> view) override;
-	bool listIsGoodForAroundPosition(not_null<const Element *> view) override;
+	bool listIsGoodForAroundPosition(
+		not_null<const Element *> view) override;
 	void listSendBotCommand(
 		const QString &command,
 		const FullMsgId &context) override;
@@ -132,6 +135,16 @@ public:
 	auto listAllowedReactionsValue()
 		-> rpl::producer<Data::AllowedReactions> override;
 	void listShowPremiumToast(not_null<DocumentData*> document) override;
+
+	// CornerButtonsDelegate delegate.
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Dialogs::Entry *cornerButtonsEntry() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	std::optional<bool> cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(CornerButtonType type) override;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -151,21 +164,11 @@ private:
 	void restoreState(not_null<ScheduledMemento*> memento);
 	void showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem = nullptr);
-	bool showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem);
+		FullMsgId originId = {});
 
 	void setupComposeControls();
 
 	void setupDragArea();
-
-	void setupScrollDownButton();
-	void scrollDownClicked();
-	void scrollDownAnimationFinish();
-	void updateScrollDownVisibility();
-	void updateScrollDownPosition();
-	void showAtEnd();
 
 	void confirmSendNowSelected();
 	void confirmDeleteSelected();
@@ -190,8 +193,6 @@ private:
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
-	void computeCurrentReplyReturn();
-	void calculateNextReplyReturn();
 	void checkReplyReturns();
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
@@ -242,16 +243,7 @@ private:
 
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
-	std::vector<MsgId> _replyReturns;
-	HistoryItem *_replyReturn = nullptr;
-
-	FullMsgId _highlightMessageId;
-	std::optional<Data::MessagePosition> _nextAnimatedScrollPosition;
-	int _nextAnimatedScrollDelta = 0;
-
-	Ui::Animations::Simple _scrollDownShown;
-	bool _scrollDownIsShown = false;
-	object_ptr<Ui::HistoryDownButton> _scrollDown;
+	CornerButtons _cornerButtons;
 
 	Data::MessagesSlice _lastSlice;
 	bool _choosingAttach = false;
