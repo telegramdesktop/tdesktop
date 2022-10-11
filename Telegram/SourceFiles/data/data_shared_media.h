@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/storage_shared_media.h"
 #include "base/weak_ptr.h"
+#include "base/qt/qt_compare.h"
 #include "data/data_sparse_ids.h"
 
 namespace Main {

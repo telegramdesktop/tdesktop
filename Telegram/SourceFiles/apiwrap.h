@@ -585,7 +585,7 @@ private:
 		MsgId aroundId = 0;
 		SliceType sliceType = {};
 
-		friend inline constexpr auto operator<=>(
+		friend inline auto operator<=>(
 			const SharedMediaRequest&,
 			const SharedMediaRequest&) = default;
 	};
