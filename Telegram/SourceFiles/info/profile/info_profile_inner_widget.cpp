@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_buttons.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
+#include "data/data_forum_topic.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -77,8 +78,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	if (_topic) {
-		// #TODO forum shared media
-		//result->add(setupSharedMedia(result.data()));
+		result->add(setupSharedMedia(result.data()));
 		return result;
 	}
 
@@ -127,6 +127,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			content,
 			_controller,
 			_peer,
+			_topic ? _topic->rootId() : 0,
 			_migrated,
 			type,
 			tracker);

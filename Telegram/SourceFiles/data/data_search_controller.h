@@ -34,6 +34,7 @@ using SearchRequestResult = MTPmessages_Messages;
 
 std::optional<SearchRequest> PrepareSearchRequest(
 	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	Storage::SharedMediaType type,
 	const QString &query,
 	MsgId messageId,
@@ -53,6 +54,7 @@ public:
 		using MediaType = Storage::SharedMediaType;
 
 		PeerId peerId = 0;
+		MsgId topicRootId = 0;
 		PeerId migratedPeerId = 0;
 		MediaType type = MediaType::kCount;
 		QString query;
@@ -75,6 +77,7 @@ public:
 
 	Query query() const {
 		Expects(_current != _cache.cend());
+
 		return _current->first;
 	}
 
@@ -106,18 +109,11 @@ private:
 		std::optional<Data> migratedData;
 	};
 
-	struct CacheLess {
-		inline bool operator()(const Query &a, const Query &b) const {
-			return (a < b);
-		}
-	};
-	using Cache = base::flat_map<
-		Query,
-		std::unique_ptr<CacheEntry>,
-		CacheLess>;
+	using Cache = base::flat_map<Query, std::unique_ptr<CacheEntry>>;
 
 	rpl::producer<SparseIdsSlice> simpleIdsSlice(
 		PeerId peerId,
+		MsgId topicRootId,
 		MsgId aroundId,
 		const Query &query,
 		int limitBefore,

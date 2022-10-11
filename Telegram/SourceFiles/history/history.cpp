@@ -778,6 +778,7 @@ not_null<HistoryItem*> History::addNewToBack(
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
 			session().storage().add(Storage::SharedMediaAddExisting(
 				peer->id,
+				MsgId(0),
 				sharedMediaTypes,
 				item->id,
 				{ from, till }));
@@ -1047,6 +1048,7 @@ void History::applyServiceChanges(
 				if (item) {
 					session().storage().add(Storage::SharedMediaAddSlice(
 						peer->id,
+						MsgId(0), // topicRootId
 						Storage::SharedMediaType::Pinned,
 						{ id },
 						{ id, ServerMaxMsgId }));
@@ -1268,6 +1270,7 @@ void History::addEdgesToSharedMedia() {
 		const auto type = static_cast<Storage::SharedMediaType>(i);
 		session().storage().add(Storage::SharedMediaAddSlice(
 			peer->id,
+			MsgId(0), // topicRootId
 			type,
 			{},
 			{ from, till }));
@@ -1460,6 +1463,7 @@ void History::addToSharedMedia(
 			const auto type = static_cast<Storage::SharedMediaType>(i);
 			session().storage().add(Storage::SharedMediaAddSlice(
 				peer->id,
+				MsgId(0), // topicRootId
 				type,
 				std::move(medias[i]),
 				{ from, till }));

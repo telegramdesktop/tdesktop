@@ -1443,7 +1443,7 @@ void HidePinnedBar(
 		close();
 		auto &session = peer->session();
 		const auto migrated = peer->migrateFrom();
-		const auto top = Data::ResolveTopPinnedId(peer, migrated);
+		const auto top = Data::ResolveTopPinnedId(peer, MsgId(0), migrated);
 		const auto universal = !top
 			? MsgId(0)
 			: (migrated && !peerIsChannel(top.peer))

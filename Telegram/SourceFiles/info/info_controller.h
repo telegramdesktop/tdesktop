@@ -129,6 +129,9 @@ public:
 
 	PeerData *peer() const;
 	PeerId migratedPeerId() const;
+	Data::ForumTopic *topic() const {
+		return key().topic();
+	}
 	UserData *settingsSelf() const {
 		return key().settingsSelf();
 	}

@@ -189,13 +189,12 @@ void SaveGif(
 	}
 }
 
-void OpenGif(
-		not_null<Window::SessionController*> controller,
-		FullMsgId itemId) {
+void OpenGif(not_null<ListWidget*> list, FullMsgId itemId) {
+	const auto controller = list->controller();
 	if (const auto item = controller->session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				controller->openDocument(document, itemId, true);
+				list->elementOpenDocument(document, itemId, true);
 			}
 		}
 	}
@@ -261,8 +260,11 @@ void AddDocumentActions(
 			item->history()->peer,
 			document);
 		if (notAutoplayedGif) {
+			const auto weak = Ui::MakeWeak(list.get());
 			menu->addAction(tr::lng_context_open_gif(tr::now), [=] {
-				OpenGif(list->controller(), contextId);
+				if (const auto strong = weak.data()) {
+					OpenGif(strong, contextId);
+				}
 			}, &st::menuIconShowInChat);
 		}
 		if (!list->hasCopyRestriction(item)) {

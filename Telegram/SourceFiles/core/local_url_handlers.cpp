@@ -538,6 +538,7 @@ bool OpenMediaTimestamp(
 				controller,
 				document,
 				session->data().message(itemId),
+				MsgId(0), // #TODO forum shared media
 				false,
 				timeMs));
 		} else if (document->isSong() || document->isVoiceMessage()) {

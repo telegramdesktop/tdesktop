@@ -1549,14 +1549,14 @@ void ListWidget::elementShowPollResults(
 void ListWidget::elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	_controller->openPhoto(photo, context);
+	_delegate->listOpenPhoto(photo, context);
 }
 
 void ListWidget::elementOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	_controller->openDocument(document, context, showInMediaView);
+	_delegate->listOpenDocument(document, context, showInMediaView);
 }
 
 void ListWidget::elementCancelUpload(const FullMsgId &context) {

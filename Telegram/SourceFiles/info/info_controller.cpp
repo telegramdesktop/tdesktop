@@ -100,15 +100,21 @@ rpl::producer<SparseIdsMergedSlice> AbstractController::mediaSource(
 		return false;
 	}();
 
-	auto mediaViewer = isScheduled
+	const auto mediaViewer = isScheduled
 		? SharedScheduledMediaViewer
 		: SharedMediaMergedViewer;
+	const auto topicId = isScheduled
+		? SparseIdsMergedSlice::kScheduledTopicId
+		: topic()
+		? topic()->rootId()
+		: MsgId(0);
 
 	return mediaViewer(
 		&session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				peer()->id,
+				topicId,
 				migratedPeerId(),
 				aroundId),
 			section().mediaType()),
@@ -363,6 +369,7 @@ rpl::producer<SparseIdsMergedSlice> Controller::mediaSource(
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				query.peerId,
+				query.topicRootId,
 				query.migratedPeerId,
 				aroundId),
 			query.type),

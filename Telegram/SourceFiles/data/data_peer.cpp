@@ -1203,7 +1203,10 @@ std::optional<QString> RestrictionError(
 	return std::nullopt;
 }
 
-void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
+void SetTopPinnedMessageId(
+		not_null<PeerData*> peer,
+		MsgId topicRootId,
+		MsgId messageId) {
 	if (const auto channel = peer->asChannel()) {
 		if (messageId <= channel->availableMinId()) {
 			return;
@@ -1217,6 +1220,7 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 	}
 	session.storage().add(Storage::SharedMediaAddExisting(
 		peer->id,
+		topicRootId,
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));
@@ -1225,20 +1229,23 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 
 FullMsgId ResolveTopPinnedId(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
+				topicRootId,
 				Storage::SharedMediaType::Pinned,
 				ServerMaxMsgId - 1),
 			1,
 			1));
-	const auto old = migrated
+	const auto old = (!topicRootId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
+					MsgId(0), // topicRootId
 					Storage::SharedMediaType::Pinned,
 					ServerMaxMsgId - 1),
 				1,
@@ -1259,20 +1266,23 @@ FullMsgId ResolveTopPinnedId(
 
 FullMsgId ResolveMinPinnedId(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
+				topicRootId,
 				Storage::SharedMediaType::Pinned,
 				1),
 			1,
 			1));
-	const auto old = migrated
+	const auto old = (!topicRootId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
+					MsgId(0), // topicRootId
 					Storage::SharedMediaType::Pinned,
 					1),
 				1,
@@ -1289,36 +1299,6 @@ FullMsgId ResolveMinPinnedId(
 	} else {
 		return FullMsgId();
 	}
-}
-
-std::optional<int> ResolvePinnedCount(
-		not_null<PeerData*> peer,
-		PeerData *migrated) {
-	const auto slice = peer->session().storage().snapshot(
-		Storage::SharedMediaQuery(
-			Storage::SharedMediaKey(
-				peer->id,
-				Storage::SharedMediaType::Pinned,
-				0),
-			0,
-			0));
-	const auto old = migrated
-		? migrated->session().storage().snapshot(
-			Storage::SharedMediaQuery(
-				Storage::SharedMediaKey(
-					migrated->id,
-					Storage::SharedMediaType::Pinned,
-					0),
-				0,
-				0))
-		: Storage::SharedMediaResult{
-			.count = 0,
-			.skippedBefore = 0,
-			.skippedAfter = 0,
-	};
-	return (slice.count.has_value() && old.count.has_value())
-		? std::make_optional(*slice.count + *old.count)
-		: std::nullopt;
 }
 
 } // namespace Data

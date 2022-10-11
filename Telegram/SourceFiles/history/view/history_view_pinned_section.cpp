@@ -453,28 +453,6 @@ void PinnedWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
-rpl::producer<int> SharedMediaCountValue(
-		not_null<PeerData*> peer,
-		PeerData *migrated,
-		Storage::SharedMediaType type) {
-	auto aroundId = 0;
-	auto limit = 0;
-	auto updated = SharedMediaMergedViewer(
-		&peer->session(),
-		SharedMediaMergedKey(
-			SparseIdsMergedSlice::Key(
-				peer->id,
-				migrated ? migrated->id : 0,
-				aroundId),
-			type),
-		limit,
-		limit
-	) | rpl::map([](const SparseIdsMergedSlice &slice) {
-		return slice.fullCount();
-	}) | rpl::filter_optional();
-	return rpl::single(0) | rpl::then(std::move(updated));
-}
-
 rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -488,6 +466,7 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				_history->peer->id,
+				MsgId(0), // topicRootId
 				_migratedPeer ? _migratedPeer->id : 0,
 				messageId),
 			Storage::SharedMediaType::Pinned),
@@ -609,6 +588,19 @@ auto PinnedWidget::listAllowedReactionsValue()
 }
 
 void PinnedWidget::listShowPremiumToast(not_null<DocumentData*> document) {
+}
+
+void PinnedWidget::listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	controller()->openPhoto(photo, context, MsgId());
+}
+
+void PinnedWidget::listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	controller()->openDocument(document, context, MsgId(), showInMediaView);
 }
 
 void PinnedWidget::confirmDeleteSelected() {

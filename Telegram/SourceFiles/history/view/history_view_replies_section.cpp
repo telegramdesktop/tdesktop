@@ -233,7 +233,6 @@ RepliesWidget::RepliesWidget(
 
 	setupRoot();
 	setupRootView();
-	setupTopicViewer();
 
 	session().api().requestFullPeer(_history->peer);
 
@@ -339,14 +338,17 @@ RepliesWidget::RepliesWidget(
 		}
 	}, lifetime());
 
-	_history->session().changes().historyUpdates(
-		_history,
-		Data::HistoryUpdate::Flag::OutboxRead
-	) | rpl::start_with_next([=] {
-		_inner->update();
-	}, lifetime());
+	if (!_topic) {
+		_history->session().changes().historyUpdates(
+			_history,
+			Data::HistoryUpdate::Flag::OutboxRead
+		) | rpl::start_with_next([=] {
+			_inner->update();
+		}, lifetime());
+	}
 
 	setupComposeControls();
+	setupTopicViewer();
 	orderWidgets();
 }
 
@@ -890,6 +892,7 @@ void RepliesWidget::sendingFilesConfirmed(
 		_composeControls->cancelReplyMessage();
 		refreshTopBarActiveChat();
 	}
+	finishSending();
 }
 
 bool RepliesWidget::confirmSendingFiles(
@@ -2057,6 +2060,19 @@ void RepliesWidget::listShowPremiumToast(not_null<DocumentData*> document) {
 			[=] { _stickerToast = nullptr; });
 	}
 	_stickerToast->showFor(document);
+}
+
+void RepliesWidget::listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	controller()->openPhoto(photo, context, _rootId);
+}
+
+void RepliesWidget::listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	controller()->openDocument(document, context, _rootId, showInMediaView);
 }
 
 void RepliesWidget::confirmDeleteSelected() {

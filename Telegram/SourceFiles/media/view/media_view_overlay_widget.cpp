@@ -244,7 +244,6 @@ struct OverlayWidget::PipWrap {
 	PipWrap(
 		QWidget *parent,
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
@@ -279,7 +278,6 @@ OverlayWidget::Streamed::Streamed(
 OverlayWidget::PipWrap::PipWrap(
 	QWidget *parent,
 	not_null<DocumentData*> document,
-	FullMsgId contextId,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
@@ -287,7 +285,6 @@ OverlayWidget::PipWrap::PipWrap(
 , wrapped(
 	&delegate,
 	document,
-	contextId,
 	std::move(shared),
 	std::move(closeAndContinue),
 	std::move(destroy)) {
@@ -1708,7 +1705,11 @@ void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
 		saveCancel();
 	} else {
-		Data::ResolveDocument(findWindow(), _document, _message);
+		Data::ResolveDocument(
+			findWindow(),
+			_document,
+			_message,
+			_topicRootId);
 		if (_document->loading() && !_radial.animating()) {
 			_radial.start(_documentMedia->progress());
 		}
@@ -1975,8 +1976,9 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 		&& !_user
 		&& _photo
 		&& _peer->userpicPhotoId() == _photo->id) {
-		return SharedMediaKey {
+		return SharedMediaKey{
 			_history->peer->id,
+			MsgId(0), // topicRootId
 			_migrated ? _migrated->peer->id : 0,
 			SharedMediaType::ChatPhoto,
 			_photo
@@ -1989,12 +1991,14 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 	const auto keyForType = [&](SharedMediaType type) -> SharedMediaKey {
 		return {
 			_history->peer->id,
+			(isScheduled
+				? SparseIdsMergedSlice::kScheduledTopicId
+				: _topicRootId),
 			_migrated ? _migrated->peer->id : 0,
 			type,
 			(_message->history() == _history
 				? _message->id
-				: (_message->id - ServerMaxMsgId)),
-			isScheduled
+				: (_message->id - ServerMaxMsgId))
 		};
 	};
 	if (!_message->isRegular() && !isScheduled) {
@@ -2038,8 +2042,8 @@ bool OverlayWidget::validSharedMedia() const {
 		auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.type == b.type)
 				&& (a.peerId == b.peerId)
-				&& (a.migratedPeerId == b.migratedPeerId)
-				&& (a.scheduled == b.scheduled);
+				&& (a.topicRootId == b.topicRootId)
+				&& (a.migratedPeerId == b.migratedPeerId);
 		};
 		auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SharedMediaWithLastSlice &data) {
@@ -2432,6 +2436,7 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto photo = request.photo();
 	const auto contextItem = request.item();
 	const auto contextPeer = request.peer();
+	const auto contextTopicRootId = request.topicRootId();
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
@@ -2441,7 +2446,7 @@ void OverlayWidget::show(OpenRequest request) {
 		if (contextPeer) {
 			setContext(contextPeer);
 		} else if (contextItem) {
-			setContext(contextItem);
+			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
 			setContext(v::null);
 		}
@@ -2457,7 +2462,7 @@ void OverlayWidget::show(OpenRequest request) {
 		setSession(&document->session());
 
 		if (contextItem) {
-			setContext(contextItem);
+			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
 			setContext(v::null);
 		}
@@ -3299,19 +3304,20 @@ void OverlayWidget::switchToPip() {
 
 	const auto document = _document;
 	const auto message = _message;
+	const auto topicRootId = _topicRootId;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
 			findWindow(false),
 			document,
 			message,
+			topicRootId,
 			true));
 	};
 	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
 		_widget,
 		document,
-		message ? message->fullId() : FullMsgId(),
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
@@ -4091,9 +4097,9 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 		return { v::null, nullptr };
 	}
 	if (const auto document = std::get_if<DocumentData*>(&items[index])) {
-		return { *document, _message };
+		return { *document, _message, _topicRootId };
 	} else if (const auto photo = std::get_if<PhotoData*>(&items[index])) {
-		return { *photo, _message };
+		return { *photo, _message, _topicRootId };
 	}
 	return { v::null, nullptr };
 }
@@ -4104,12 +4110,12 @@ OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) co
 	if (const auto item = _session->data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
-				return { photo, item };
+				return { photo, item, _topicRootId };
 			} else if (const auto document = media->document()) {
-				return { document, item };
+				return { document, item, _topicRootId };
 			}
 		}
-		return { v::null, item };
+		return { v::null, item, _topicRootId };
 	}
 	return { v::null, nullptr };
 }
@@ -4128,25 +4134,29 @@ OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
 void OverlayWidget::setContext(
 	std::variant<
 		v::null_t,
-		not_null<HistoryItem*>,
+		ItemContext,
 		not_null<PeerData*>> context) {
-	if (const auto item = std::get_if<not_null<HistoryItem*>>(&context)) {
-		_message = (*item);
+	if (const auto item = std::get_if<ItemContext>(&context)) {
+		_message = item->item;
+		_topicRootId = item->topicRootId;
 		_history = _message->history();
 		_peer = _history->peer;
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
 		_message = nullptr;
+		_topicRootId = MsgId();
 	} else {
 		_message = nullptr;
+		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
 	}
 	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
-			_migrated = _history->owner().history(_history->peer->migrateFrom());
+			_migrated = _history->owner().history(
+				_history->peer->migrateFrom());
 		} else if (_history->peer->migrateTo()) {
 			_migrated = _history;
 			_history = _history->owner().history(_history->peer->migrateTo());
@@ -4211,7 +4221,7 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 		return false;
 	}
 	if (const auto item = entity.item) {
-		setContext(item);
+		setContext(ItemContext{ item, entity.topicRootId });
 	} else if (_peer) {
 		setContext(_peer);
 	} else {

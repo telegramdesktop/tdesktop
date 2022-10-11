@@ -157,6 +157,8 @@ private:
 
 	void setupSelectRestriction();
 
+	[[nodiscard]] MsgId topicRootId() const;
+
 	QMargins padding() const;
 	bool isItemLayout(
 		not_null<const HistoryItem*> item,

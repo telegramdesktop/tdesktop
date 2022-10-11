@@ -474,7 +474,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		chat->session().api().inviteLinks().clearMyPermanent(chat);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		SetTopPinnedMessageId(chat, pinned->v);
+		SetTopPinnedMessageId(chat, MsgId(0), pinned->v);
 	}
 	chat->checkFolder(update.vfolder_id().value_or_empty());
 	chat->setThemeEmoji(qs(update.vtheme_emoticon().value_or_empty()));

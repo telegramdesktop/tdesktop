@@ -150,6 +150,13 @@ public:
 	auto listAllowedReactionsValue()
 		->rpl::producer<Data::AllowedReactions> override;
 	void listShowPremiumToast(not_null<DocumentData*> document) override;
+	void listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
+	void listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(

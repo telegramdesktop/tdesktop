@@ -1707,11 +1707,13 @@ void SessionController::hideLayer(anim::type animated) {
 
 void SessionController::openPhoto(
 		not_null<PhotoData*> photo,
-		FullMsgId contextId) {
+		FullMsgId contextId,
+		MsgId topicRootId) {
 	_window->openInMediaView(Media::View::OpenRequest(
 		this,
 		photo,
-		session().data().message(contextId)));
+		session().data().message(contextId),
+		topicRootId));
 }
 
 void SessionController::openPhoto(
@@ -1723,18 +1725,21 @@ void SessionController::openPhoto(
 void SessionController::openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId contextId,
+		MsgId topicRootId,
 		bool showInMediaView) {
 	if (showInMediaView) {
 		_window->openInMediaView(Media::View::OpenRequest(
 			this,
 			document,
-			session().data().message(contextId)));
+			session().data().message(contextId),
+			topicRootId));
 		return;
 	}
 	Data::ResolveDocument(
 		this,
 		document,
-		session().data().message(contextId));
+		session().data().message(contextId),
+		topicRootId);
 }
 
 auto SessionController::cachedChatThemeValue(

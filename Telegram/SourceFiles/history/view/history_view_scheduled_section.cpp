@@ -1267,6 +1267,19 @@ void ScheduledWidget::listShowPremiumToast(
 	_stickerToast->showFor(document);
 }
 
+void ScheduledWidget::listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	controller()->openPhoto(photo, context, MsgId());
+}
+
+void ScheduledWidget::listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	controller()->openDocument(document, context, MsgId(), showInMediaView);
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

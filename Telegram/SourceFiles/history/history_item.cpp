@@ -482,6 +482,7 @@ void HistoryItem::setIsPinned(bool pinned) {
 		_flags |= MessageFlag::Pinned;
 		history()->session().storage().add(Storage::SharedMediaAddExisting(
 			history()->peer->id,
+			MsgId(0), // topicRootId
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));

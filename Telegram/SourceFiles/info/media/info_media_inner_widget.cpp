@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_empty_widget.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/info_controller.h"
+#include "data/data_forum_topic.h"
 #include "ui/widgets/discrete_sliders.h"
 #include "ui/widgets/shadow.h"
 #include "ui/widgets/buttons.h"
@@ -87,7 +88,11 @@ void InnerWidget::createTypeButtons() {
 		st::infoProfileSkip));
 
 	auto tracker = Ui::MultiSlideTracker();
-	auto addMediaButton = [&](
+	const auto peer = _controller->key().peer();
+	const auto topic = _controller->key().topic();
+	const auto topicRootId = topic ? topic->rootId() : MsgId();
+	const auto migrated = _controller->migrated();
+	const auto addMediaButton = [&](
 			Type buttonType,
 			const style::icon &icon) {
 		if (buttonType == type()) {
@@ -96,8 +101,9 @@ void InnerWidget::createTypeButtons() {
 		auto result = AddButton(
 			content,
 			_controller,
-			_controller->key().peer(),
-			_controller->migrated(),
+			peer,
+			topicRootId,
+			migrated,
 			buttonType,
 			tracker);
 		object_ptr<Profile::FloatingIcon>(

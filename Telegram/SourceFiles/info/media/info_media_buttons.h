@@ -83,12 +83,13 @@ inline auto AddButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
-		Profile::SharedMediaCountValue(peer, migrated, type),
+		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
 		MediaText(type),
 		tracker)->entity();
 	result->addClickHandler([=] {

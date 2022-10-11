@@ -125,6 +125,13 @@ public:
 	virtual auto listAllowedReactionsValue()
 		-> rpl::producer<Data::AllowedReactions> = 0;
 	virtual void listShowPremiumToast(not_null<DocumentData*> document) = 0;
+	virtual void listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) = 0;
+	virtual void listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) = 0;
 };
 
 struct SelectionData {

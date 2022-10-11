@@ -336,10 +336,11 @@ bool Result::onChoose(Layout::ItemBase *layout) {
 }
 
 Media::View::OpenRequest Result::openRequest() {
+	using namespace Media::View;
 	if (_document) {
-		return Media::View::OpenRequest(nullptr, _document, nullptr);
+		return OpenRequest(nullptr, _document, nullptr, MsgId());
 	} else if (_photo) {
-		return Media::View::OpenRequest(nullptr, _photo, nullptr);
+		return OpenRequest(nullptr, _photo, nullptr, MsgId());
 	}
 	return {};
 }

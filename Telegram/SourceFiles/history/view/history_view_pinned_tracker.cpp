@@ -82,6 +82,7 @@ void PinnedTracker::refreshViewer() {
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				_history->peer->id,
+				MsgId(0), // topicRootId
 				_migratedPeer ? _migratedPeer->id : 0,
 				_viewerAroundId),
 			Storage::SharedMediaType::Pinned),

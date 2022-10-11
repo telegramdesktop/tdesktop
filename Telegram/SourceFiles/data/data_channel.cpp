@@ -942,7 +942,7 @@ void ApplyChannelUpdate(
 		}
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		SetTopPinnedMessageId(channel, pinned->v);
+		SetTopPinnedMessageId(channel, MsgId(0), pinned->v);
 	}
 	if (channel->isMegagroup()) {
 		auto commands = ranges::views::all(

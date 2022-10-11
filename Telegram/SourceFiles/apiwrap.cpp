@@ -2913,24 +2913,26 @@ void ApiWrap::resolveJumpToHistoryDate(
 	}
 }
 
-void ApiWrap::requestSharedMediaCount(
-		not_null<PeerData*> peer,
-		Storage::SharedMediaType type) {
-	requestSharedMedia(peer, type, 0, SliceType::Before);
-}
-
 void ApiWrap::requestSharedMedia(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		SharedMediaType type,
 		MsgId messageId,
 		SliceType slice) {
-	const auto key = std::make_tuple(peer, type, messageId, slice);
+	const auto key = SharedMediaRequest{
+		peer,
+		topicRootId,
+		type,
+		messageId,
+		slice,
+	};
 	if (_sharedMediaRequests.contains(key)) {
 		return;
 	}
 
 	const auto prepared = Api::PrepareSearchRequest(
 		peer,
+		topicRootId,
 		type,
 		QString(),
 		messageId,
@@ -2946,7 +2948,6 @@ void ApiWrap::requestSharedMedia(
 		return request(
 			std::move(*prepared)
 		).done([=](const Api::SearchRequestResult &result) {
-			const auto key = std::make_tuple(peer, type, messageId, slice);
 			_sharedMediaRequests.remove(key);
 			auto parsed = Api::ParseSearchResult(
 				peer,
@@ -2954,7 +2955,7 @@ void ApiWrap::requestSharedMedia(
 				messageId,
 				slice,
 				result);
-			sharedMediaDone(peer, type, std::move(parsed));
+			sharedMediaDone(peer, topicRootId, type, std::move(parsed));
 			finish();
 		}).fail([=] {
 			_sharedMediaRequests.remove(key);
@@ -2966,10 +2967,12 @@ void ApiWrap::requestSharedMedia(
 
 void ApiWrap::sharedMediaDone(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed) {
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
+		topicRootId,
 		type,
 		std::move(parsed.messageIds),
 		parsed.noSkipRange,

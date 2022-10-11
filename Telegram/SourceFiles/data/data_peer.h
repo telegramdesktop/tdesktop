@@ -495,15 +495,17 @@ std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	UserRestriction restriction);
 
-void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
+void SetTopPinnedMessageId(
+	not_null<PeerData*> peer,
+	MsgId topicRootId,
+	MsgId messageId);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	PeerData *migrated);
 [[nodiscard]] FullMsgId ResolveMinPinnedId(
 	not_null<PeerData*> peer,
-	PeerData *migrated);
-[[nodiscard]] std::optional<int> ResolvePinnedCount(
-	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	PeerData *migrated);
 
 } // namespace Data

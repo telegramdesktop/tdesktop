@@ -265,12 +265,10 @@ public:
 	using SliceType = Data::LoadDirection;
 	void requestSharedMedia(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		Storage::SharedMediaType type,
 		MsgId messageId,
 		SliceType slice);
-	void requestSharedMediaCount(
-			not_null<PeerData*> peer,
-			Storage::SharedMediaType type);
 
 	void readFeaturedSetDelayed(uint64 setId);
 
@@ -465,6 +463,7 @@ private:
 
 	void sharedMediaDone(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed);
 
@@ -579,11 +578,18 @@ private:
 	mtpRequestId _contactsRequestId = 0;
 	mtpRequestId _contactsStatusesRequestId = 0;
 
-	base::flat_set<std::tuple<
-		not_null<PeerData*>,
-		SharedMediaType,
-		MsgId,
-		SliceType>> _sharedMediaRequests;
+	struct SharedMediaRequest {
+		not_null<PeerData*> peer;
+		MsgId topicRootId = 0;
+		SharedMediaType mediaType = {};
+		MsgId aroundId = 0;
+		SliceType sliceType = {};
+
+		friend inline constexpr auto operator<=>(
+			const SharedMediaRequest&,
+			const SharedMediaRequest&) = default;
+	};
+	base::flat_set<SharedMediaRequest> _sharedMediaRequests;
 
 	std::unique_ptr<DialogsLoadState> _dialogsLoadState;
 	TimeId _dialogsLoadTill = 0;

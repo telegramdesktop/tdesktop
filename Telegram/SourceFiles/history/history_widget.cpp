@@ -1464,9 +1464,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 				if (result.open) {
 					const auto request = result.result->openRequest();
 					if (const auto photo = request.photo()) {
-						controller()->openPhoto(photo, FullMsgId());
+						controller()->openPhoto(photo, {}, {});
 					} else if (const auto document = request.document()) {
-						controller()->openDocument(document, FullMsgId());
+						controller()->openDocument(document, {}, {});
 					}
 				} else {
 					sendInlineResult(result);
@@ -6138,6 +6138,7 @@ void HistoryWidget::updatePinnedViewer() {
 	if (_pinnedClickedId && !_minPinnedId) {
 		_minPinnedId = Data::ResolveMinPinnedId(
 			_peer,
+			MsgId(0), // topicRootId
 			_migrated ? _migrated->peer.get() : nullptr);
 	}
 	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
@@ -6183,6 +6184,7 @@ void HistoryWidget::checkPinnedBarState() {
 		: session().settings().hiddenPinnedMessageId(_peer->id);
 	const auto currentPinnedId = Data::ResolveTopPinnedId(
 		_peer,
+		MsgId(0), // topicRootId
 		_migrated ? _migrated->peer.get() : nullptr);
 	const auto universalPinnedId = !currentPinnedId
 		? int32(0)
@@ -6217,6 +6219,7 @@ void HistoryWidget::checkPinnedBarState() {
 	});
 	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
 		_peer,
+		MsgId(0), // topicRootId
 		nullptr,
 		Storage::SharedMediaType::Pinned
 	) | rpl::distinct_until_changed(
