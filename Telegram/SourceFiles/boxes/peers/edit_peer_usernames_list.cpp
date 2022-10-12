@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_user_names.h"
 #include "apiwrap.h"
+#include "base/event_filter.h"
 #include "data/data_peer.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
@@ -16,15 +17,24 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/show.h"
 #include "ui/painter.h"
+#include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "styles/style_boxes.h" // contactsStatusFont.
 #include "styles/style_info.h"
 #include "styles/style_settings.h"
+#include "styles/style_menu_icons.h"
+
+#include <QtGui/QGuiApplication>
 
 class UsernamesList::Row final : public Ui::SettingsButton {
 public:
-	Row(not_null<Ui::RpWidget*> parent, const Data::Username &data);
+	Row(
+		not_null<Ui::RpWidget*> parent,
+		const Data::Username &data,
+		std::shared_ptr<Ui::Show> show,
+		QString link);
 
 	[[nodiscard]] const Data::Username &username() const;
 
@@ -38,13 +48,17 @@ private:
 	const Data::Username _data;
 	const QString _status;
 	const QRect _iconRect;
+	std::shared_ptr<Ui::Show> _show;
 	Ui::Text::String _title;
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 };
 
 UsernamesList::Row::Row(
 	not_null<Ui::RpWidget*> parent,
-	const Data::Username &data)
+	const Data::Username &data,
+	std::shared_ptr<Ui::Show> show,
+	QString link)
 : Ui::SettingsButton(parent, rpl::never<QString>())
 , _st(st::inviteLinkListItem)
 , _data(data)
@@ -56,7 +70,27 @@ UsernamesList::Row::Row(
 	_st.photoPosition.y() + st::inviteLinkIconSkip,
 	_st.photoSize - st::inviteLinkIconSkip * 2,
 	_st.photoSize - st::inviteLinkIconSkip * 2)
+, _show(show)
 , _title(_st.nameStyle, '@' + data.username) {
+	base::install_event_filter(this, [=](not_null<QEvent*> e) {
+		if (e->type() != QEvent::ContextMenu) {
+			return base::EventFilterResult::Continue;
+		}
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
+		_menu->addAction(
+			tr::lng_group_invite_context_copy(tr::now),
+			[=] {
+				QGuiApplication::clipboard()->setText(link);
+				Ui::Toast::Show(
+					show->toastParent(),
+					tr::lng_create_channel_link_copied(tr::now));
+			},
+			&st::menuIconCopy);
+		_menu->popup(QCursor::pos());
+		return base::EventFilterResult::Cancel;
+	});
 }
 
 const Data::Username &UsernamesList::Row::username() const {
@@ -159,8 +193,10 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	const auto content = _container->add(
 		object_ptr<Ui::VerticalLayout>(_container));
 	for (const auto &username : usernames) {
+		const auto link = _peer->session().createInternalLinkFull(
+			username.username);
 		const auto row = content->add(
-			object_ptr<Row>(content, username));
+			object_ptr<Row>(content, username, _show, link));
 		_rows.push_back(row);
 		row->addClickHandler([=] {
 			if (_reordering || (!_peer->isSelf() && !_peer->isChannel())) {
