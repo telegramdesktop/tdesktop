@@ -853,6 +853,8 @@ inviteLinkQrSkip: 24px;
 inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
 inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
 
+usernamesReorderIcon: icon {{ "stickers_reorder", dialogsMenuIconFg }};
+
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;
 }

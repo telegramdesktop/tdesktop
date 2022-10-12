@@ -28,6 +28,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtGui/QGuiApplication>
 
+namespace {
+
+class RightAction final : public Ui::RpWidget {
+public:
+	RightAction(not_null<Ui::RpWidget*> parent);
+
+protected:
+	void paintEvent(QPaintEvent *e) override;
+	void mousePressEvent(QMouseEvent *e) override;
+
+};
+
+RightAction::RightAction(not_null<Ui::RpWidget*> parent)
+: RpWidget(parent) {
+	setCursor(style::cur_sizeall);
+	const auto &st = st::inviteLinkThreeDots;
+	resize(st.width, st.height);
+}
+
+void RightAction::paintEvent(QPaintEvent *e) {
+	auto p = Painter(this);
+	st::usernamesReorderIcon.paintInCenter(p, rect());
+}
+
+void RightAction::mousePressEvent(QMouseEvent *e) {
+}
+
+} // namespace
+
 class UsernamesList::Row final : public Ui::SettingsButton {
 public:
 	Row(
@@ -37,6 +66,7 @@ public:
 		QString link);
 
 	[[nodiscard]] const Data::Username &username() const;
+	[[nodiscard]] not_null<Ui::RpWidget*> rightAction() const;
 
 	int resizeGetHeight(int newWidth) override;
 
@@ -47,6 +77,7 @@ private:
 	const style::PeerListItem &_st;
 	const Data::Username _data;
 	const QString _status;
+	const not_null<Ui::RpWidget*> _rightAction;
 	const QRect _iconRect;
 	std::shared_ptr<Ui::Show> _show;
 	Ui::Text::String _title;
@@ -65,6 +96,7 @@ UsernamesList::Row::Row(
 , _status(data.active
 	? tr::lng_usernames_active(tr::now)
 	: tr::lng_usernames_non_active(tr::now))
+, _rightAction(Ui::CreateChild<RightAction>(this))
 , _iconRect(
 	_st.photoPosition.x() + st::inviteLinkIconSkip,
 	_st.photoPosition.y() + st::inviteLinkIconSkip,
@@ -91,10 +123,22 @@ UsernamesList::Row::Row(
 		_menu->popup(QCursor::pos());
 		return base::EventFilterResult::Cancel;
 	});
+
+	_rightAction->setVisible(data.active);
+	sizeValue(
+	) | rpl::start_with_next([=](const QSize &s) {
+		_rightAction->moveToLeft(
+			s.width() - _rightAction->width() - st::inviteLinkThreeDotsSkip,
+			(s.height() - _rightAction->height()) / 2);
+	}, _rightAction->lifetime());
 }
 
 const Data::Username &UsernamesList::Row::username() const {
 	return _data;
+}
+
+not_null<Ui::RpWidget*> UsernamesList::Row::rightAction() const {
+	return _rightAction;
 }
 
 int UsernamesList::Row::resizeGetHeight(int newWidth) {
@@ -252,6 +296,9 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 	}
 
 	_reorder = std::make_unique<Ui::VerticalLayoutReorder>(content);
+	_reorder->setMouseEventProxy([=](int i) {
+		return _rows[i]->rightAction();
+	});
 
 	{
 		const auto it = ranges::find_if(usernames, [&](
@@ -262,6 +309,10 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 			const auto from = std::distance(begin(usernames), it);
 			const auto length = std::distance(it, end(usernames));
 			_reorder->addPinnedInterval(from, length);
+			if (from == 1) {
+				// Can't be reordered.
+				_rows[0]->rightAction()->hide();
+			}
 		}
 	}
 	_reorder->start();

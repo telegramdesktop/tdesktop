@@ -38,10 +38,11 @@ private:
 
 	class Row;
 
+	const std::shared_ptr<Ui::Show> _show;
+	const not_null<PeerData*> _peer;
+
 	base::unique_qptr<Ui::VerticalLayout> _container;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;
-	std::shared_ptr<Ui::Show> _show;
-	const not_null<PeerData*> _peer;
 	std::vector<Row*> _rows;
 
 	int _reordering = 0;
