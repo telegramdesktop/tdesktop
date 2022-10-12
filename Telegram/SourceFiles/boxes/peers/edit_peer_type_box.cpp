@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h" // CreateButton.
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
+#include "boxes/peers/edit_peer_usernames_list.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -58,6 +59,7 @@ public:
 
 	void createContent();
 	[[nodiscard]] QString getUsernameInput() const;
+	[[nodiscard]] std::vector<QString> usernamesOrder() const;
 	void setFocusUsername();
 
 	[[nodiscard]] rpl::producer<QString> getTitle() const {
@@ -96,6 +98,7 @@ private:
 		std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
 		Ui::SlideWrap<Ui::RpWidget> *usernameWrap = nullptr;
 		Ui::UsernameInput *usernameInput = nullptr;
+		UsernamesList *usernamesList = nullptr;
 		base::unique_qptr<Ui::FlatLabel> usernameResult;
 		const style::FlatLabel *usernameResultStyle = nullptr;
 
@@ -199,21 +202,6 @@ void Controller::createContent() {
 	}
 
 	using namespace Settings;
-	AddSkip(_wrap.get());
-	_wrap->add(EditPeerInfoBox::CreateButton(
-		_wrap.get(),
-		tr::lng_group_invite_manage(),
-		rpl::single(QString()),
-		[=] {
-			const auto admin = _peer->session().user();
-			_show->showBox(
-				Box(ManageInviteLinksBox, _peer, admin, 0, 0),
-				Ui::LayerOption::KeepOther);
-		},
-		st::manageGroupButton,
-		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange }));
-	AddSkip(_wrap.get());
-	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (!_linkOnly) {
 		if (_peer->isMegagroup()) {
@@ -402,6 +390,10 @@ QString Controller::getUsernameInput() const {
 	return _controls.usernameInput->getLastText().trimmed();
 }
 
+std::vector<QString> Controller::usernamesOrder() const {
+	return _controls.usernamesList->order();
+}
+
 object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	Expects(_wrap != nullptr);
 
@@ -453,6 +445,9 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	AddDividerText(
 		container,
 		tr::lng_create_channel_link_about());
+
+	_controls.usernamesList = container->add(
+		object_ptr<UsernamesList>(container, channel, _show));
 
 	QObject::connect(
 		_controls.usernameInput,
@@ -738,8 +733,11 @@ void EditPeerTypeBox::prepare() {
 		addButton(tr::lng_settings_save(), [=] {
 			const auto v = controller->getPrivacy();
 			if ((v == Privacy::HasUsername) && !controller->goodUsername()) {
-				controller->setFocusUsername();
-				return;
+				if (!controller->getUsernameInput().isEmpty()
+					|| controller->usernamesOrder().empty()) {
+					controller->setFocusUsername();
+					return;
+				}
 			}
 
 			auto local = std::move(*_savedCallback);
@@ -748,6 +746,9 @@ void EditPeerTypeBox::prepare() {
 				.username = (v == Privacy::HasUsername
 					? controller->getUsernameInput()
 					: QString()),
+				.usernamesOrder = (v == Privacy::HasUsername
+					? controller->usernamesOrder()
+					: std::vector<QString>()),
 				.noForwards = controller->noForwards(),
 				.joinToWrite = controller->joinToWrite(),
 				.requestToJoin = controller->requestToJoin(),

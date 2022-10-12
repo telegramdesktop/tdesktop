@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
+#include "api/api_user_names.h"
 #include "main/main_session.h"
 #include "boxes/add_contact_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -264,6 +265,7 @@ private:
 	};
 	struct Saving {
 		std::optional<QString> username;
+		std::optional<std::vector<QString>> usernamesOrder;
 		std::optional<QString> title;
 		std::optional<QString> description;
 		std::optional<bool> hiddenPreHistory;
@@ -303,6 +305,7 @@ private:
 	void deleteChannel();
 
 	[[nodiscard]] std::optional<Saving> validate() const;
+	[[nodiscard]] bool validateUsernamesOrder(Saving &to) const;
 	[[nodiscard]] bool validateUsername(Saving &to) const;
 	[[nodiscard]] bool validateLinkedChat(Saving &to) const;
 	[[nodiscard]] bool validateTitle(Saving &to) const;
@@ -315,6 +318,7 @@ private:
 	[[nodiscard]] bool validateRequestToJoin(Saving &to) const;
 
 	void save();
+	void saveUsernamesOrder();
 	void saveUsername();
 	void saveLinkedChat();
 	void saveTitle();
@@ -1266,7 +1270,8 @@ void Controller::submitDescription() {
 
 std::optional<Controller::Saving> Controller::validate() const {
 	auto result = Saving();
-	if (validateUsername(result)
+	if (validateUsernamesOrder(result)
+		&& validateUsername(result)
 		&& validateLinkedChat(result)
 		&& validateTitle(result)
 		&& validateDescription(result)
@@ -1281,6 +1286,17 @@ std::optional<Controller::Saving> Controller::validate() const {
 	return {};
 }
 
+bool Controller::validateUsernamesOrder(Saving &to) const {
+	if (!_typeDataSavedValue) {
+		return true;
+	} else if (_typeDataSavedValue->privacy != Privacy::HasUsername) {
+		to.usernamesOrder = std::vector<QString>();
+		return true;
+	}
+	to.usernamesOrder = _typeDataSavedValue->usernamesOrder;
+	return true;
+}
+
 bool Controller::validateUsername(Saving &to) const {
 	if (!_typeDataSavedValue) {
 		return true;
@@ -1290,7 +1306,8 @@ bool Controller::validateUsername(Saving &to) const {
 	}
 	const auto username = _typeDataSavedValue->username;
 	if (username.isEmpty()) {
-		return false;
+		to.username = QString();
+		return true;
 	}
 	to.username = username;
 	return true;
@@ -1387,6 +1404,7 @@ void Controller::save() {
 	}
 	if (const auto saving = validate()) {
 		_savingData = *saving;
+		pushSaveStage([=] { saveUsernamesOrder(); });
 		pushSaveStage([=] { saveUsername(); });
 		pushSaveStage([=] { saveLinkedChat(); });
 		pushSaveStage([=] { saveTitle(); });
@@ -1418,6 +1436,46 @@ void Controller::cancelSave() {
 	_saveStagesQueue.clear();
 }
 
+void Controller::saveUsernamesOrder() {
+	const auto channel = _peer->asChannel();
+	if (!_savingData.usernamesOrder || !channel) {
+		return continueSave();
+	}
+	if (_savingData.usernamesOrder->empty()) {
+		_api.request(MTPchannels_DeactivateAllUsernames(
+			channel->inputChannel
+		)).done([=] {
+			channel->setUsernames(channel->username().isEmpty()
+				? Data::Usernames()
+				: Data::Usernames{
+					{ channel->username(), true, true }
+				});
+			continueSave();
+		}).send();
+	} else {
+		const auto lifetime = std::make_shared<rpl::lifetime>();
+		const auto newUsernames = (*_savingData.usernamesOrder);
+		_peer->session().api().usernames().reorder(
+			_peer,
+			newUsernames
+		) | rpl::start_with_done([=] {
+			channel->setUsernames(ranges::views::all(
+				newUsernames
+			) | ranges::views::transform([&](QString username) {
+				const auto editable =
+					(channel->username() == username);
+				return Data::Username{
+					.username = std::move(username),
+					.active = true,
+					.editable = editable,
+				};
+			}) | ranges::to_vector);
+			continueSave();
+			lifetime->destroy();
+		}, *lifetime);
+	}
+}
+
 void Controller::saveUsername() {
 	const auto channel = _peer->asChannel();
 	const auto username = (channel ? channel->username() : QString());
@@ -1437,13 +1495,14 @@ void Controller::saveUsername() {
 		return;
 	}
 
+	const auto newUsername = (*_savingData.username);
 	_api.request(MTPchannels_UpdateUsername(
 		channel->inputChannel,
-		MTP_string(*_savingData.username)
+		MTP_string(newUsername)
 	)).done([=] {
 		channel->setName(
 			TextUtilities::SingleLine(channel->name()),
-			*_savingData.username);
+			newUsername);
 		continueSave();
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();

@@ -36,6 +36,7 @@ enum class UsernameState {
 struct EditPeerTypeData {
 	Privacy privacy = Privacy::NoUsername;
 	QString username;
+	std::vector<QString> usernamesOrder;
 	bool hasLinkedChat = false;
 	bool noForwards = false;
 	bool joinToWrite = false;
