@@ -48,6 +48,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_peer_menu.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
+#include "api/api_user_names.h"
 #include "core/file_utilities.h"
 #include "base/call_delayed.h"
 #include "base/unixtime.h"
@@ -445,12 +446,19 @@ void SetupRows(
 			"internal:edit_username" });
 		return result;
 	});
+	session->api().usernames().requestToCache(session->user());
 	AddRow(
 		container,
 		std::move(label),
 		std::move(value),
 		tr::lng_context_copy_mention(tr::now),
-		[=] { controller->show(Box(UsernamesBox, session)); },
+		[=] {
+			const auto box = controller->show(Box(UsernamesBox, session));
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				session->api().usernames().requestToCache(session->user());
+			}, box->lifetime());
+		},
 		{ &st::settingsIconMention, kIconLightOrange });
 
 	AddSkip(container);

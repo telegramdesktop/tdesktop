@@ -199,5 +199,28 @@ Data::Usernames Usernames::FromTL(const MTPVector<MTPUsername> &usernames) {
 	) | ranges::views::transform(UsernameFromTL) | ranges::to_vector;
 }
 
+void Usernames::requestToCache(not_null<PeerData*> peer) {
+	_tinyCache = {};
+	if (const auto user = peer->asUser()) {
+		if (user->usernames().empty()) {
+			return;
+		}
+	} else if (const auto channel = peer->asChannel()) {
+		if (channel->usernames().empty()) {
+			return;
+		}
+	}
+	const auto lifetime = std::make_shared<rpl::lifetime>();
+	*lifetime = loadUsernames(
+		peer
+	) | rpl::start_with_next([=, id = peer->id](Data::Usernames usernames) {
+		_tinyCache = std::make_pair(id, std::move(usernames));
+		lifetime->destroy();
+	});
+}
+
+Data::Usernames Usernames::cacheFor(PeerId id) {
+	return (_tinyCache.first == id) ? _tinyCache.second : Data::Usernames();
+}
 
 } // namespace Api

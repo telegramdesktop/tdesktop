@@ -635,7 +635,7 @@ void Controller::showEditPeerTypeBox(
 	});
 	_typeDataSavedValue->hasLinkedChat
 		= (_linkedChatSavedValue.value_or(nullptr) != nullptr);
-	_navigation->parentController()->show(
+	const auto box = _navigation->parentController()->show(
 		Box<EditPeerTypeBox>(
 			_navigation,
 			_peer,
@@ -644,6 +644,10 @@ void Controller::showEditPeerTypeBox(
 			_typeDataSavedValue,
 			error),
 		Ui::LayerOption::KeepOther);
+	box->boxClosing(
+	) | rpl::start_with_next([peer = _peer] {
+		peer->session().api().usernames().requestToCache(peer);
+	}, box->lifetime());
 }
 
 void Controller::showEditLinkedChatBox() {
@@ -740,6 +744,9 @@ void Controller::fillPrivacyTypeButton() {
 			: tr::lng_manage_peer_channel_type)(),
 		_privacyTypeUpdates.events(
 		) | rpl::map([=](Privacy flag) {
+			if (flag == Privacy::HasUsername) {
+				_peer->session().api().usernames().requestToCache(_peer);
+			}
 			return (flag == Privacy::HasUsername)
 				? (hasLocation
 					? tr::lng_manage_peer_link_permanent

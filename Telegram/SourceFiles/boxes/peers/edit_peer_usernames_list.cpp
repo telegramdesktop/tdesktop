@@ -113,6 +113,13 @@ UsernamesList::UsernamesList(
 : RpWidget(parent)
 , _show(show)
 , _peer(peer) {
+	{
+		auto &api = _peer->session().api();
+		const auto usernames = api.usernames().cacheFor(_peer->id);
+		if (!usernames.empty()) {
+			rebuild(usernames);
+		}
+	}
 	load();
 }
 

@@ -33,6 +33,9 @@ public:
 		not_null<PeerData*> peer,
 		const std::vector<QString> &usernames);
 
+	void requestToCache(not_null<PeerData*> peer);
+	[[nodiscard]] Data::Usernames cacheFor(PeerId id);
+
 	static Data::Usernames FromTL(const MTPVector<MTPUsername> &usernames);
 
 private:
@@ -47,6 +50,8 @@ private:
 	};
 	base::flat_map<Key, Entry> _toggleRequests;
 	base::flat_map<Key, mtpRequestId> _reorderRequests;
+	// Used for a seamless display of usernames list.
+	std::pair<Key, Data::Usernames> _tinyCache;
 
 };
 
