@@ -389,7 +389,18 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->mentionChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
-		insertMention(data.user);
+		auto replacement = QString();
+		auto entityTag = QString();
+		if (data.mention.isEmpty()) {
+			replacement = data.user->firstName;
+			if (replacement.isEmpty()) {
+				replacement = data.user->name();
+			}
+			entityTag = PrepareMentionTag(data.user);
+		} else {
+			replacement = '@' + data.mention;
+		}
+		_field->insertTag(replacement, entityTag);
 	}, lifetime());
 
 	_fieldAutocomplete->hashtagChosen(
@@ -1329,20 +1340,6 @@ void HistoryWidget::start() {
 		updateStickersByEmoji();
 	}, lifetime());
 	session().data().stickers().notifySavedGifsUpdated();
-}
-
-void HistoryWidget::insertMention(UserData *user) {
-	QString replacement, entityTag;
-	if (user->username().isEmpty()) {
-		replacement = user->firstName;
-		if (replacement.isEmpty()) {
-			replacement = user->name();
-		}
-		entityTag = PrepareMentionTag(user);
-	} else {
-		replacement = '@' + user->username();
-	}
-	_field->insertTag(replacement, entityTag);
 }
 
 void HistoryWidget::insertHashtagOrBotCommand(

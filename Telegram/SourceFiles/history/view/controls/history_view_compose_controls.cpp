@@ -1496,19 +1496,17 @@ void ComposeControls::initAutocomplete() {
 			_field->insertTag(string);
 		}
 	};
-	const auto insertMention = [=](not_null<UserData*> user) {
-		if (user->username().isEmpty()) {
+
+	_autocomplete->mentionChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+		const auto user = data.user;
+		if (data.mention.isEmpty()) {
 			_field->insertTag(
 				user->firstName.isEmpty() ? user->name() : user->firstName,
 				PrepareMentionTag(user));
 		} else {
-			_field->insertTag('@' + user->username());
+			_field->insertTag('@' + data.mention);
 		}
-	};
-
-	_autocomplete->mentionChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
-		insertMention(data.user);
 	}, _autocomplete->lifetime());
 
 	_autocomplete->hashtagChosen(

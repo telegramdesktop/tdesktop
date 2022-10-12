@@ -348,7 +348,6 @@ private:
 	void insertHashtagOrBotCommand(
 		QString str,
 		FieldAutocomplete::ChooseMethod method);
-	void insertMention(UserData *user);
 	void cancelInlineBot();
 	void saveDraft(bool delayed = false);
 	void saveCloudDraft();
