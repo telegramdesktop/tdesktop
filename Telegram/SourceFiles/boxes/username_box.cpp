@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/username_box.h"
 
+#include "boxes/peers/edit_peer_usernames_list.h"
 #include "base/timer.h"
 #include "boxes/peers/edit_peer_common.h"
 #include "data/data_session.h"
@@ -33,9 +34,8 @@ public:
 	UsernameEditor(not_null<Ui::RpWidget*>, not_null<Main::Session*> session);
 
 	void setInnerFocus();
-	void save();
-
-	[[nodiscard]] rpl::producer<> closeRequests() const;
+	rpl::producer<> submitted() const;
+	rpl::producer<> save();
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -64,7 +64,7 @@ private:
 
 	base::Timer _checkTimer;
 
-	rpl::event_stream<> _closeRequests;
+	rpl::event_stream<> _saved;
 
 };
 
@@ -87,7 +87,6 @@ UsernameEditor::UsernameEditor(
 		: tr::lng_username_available(tr::now);
 
 	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
-	connect(_username, &Ui::MaskedInputField::submitted, [=] { save(); });
 
 	resize(
 		width(),
@@ -96,8 +95,15 @@ UsernameEditor::UsernameEditor(
 			+ st::usernameSkip));
 }
 
-rpl::producer<> UsernameEditor::closeRequests() const {
-	return _closeRequests.events();
+rpl::producer<> UsernameEditor::submitted() const {
+	return [=](auto consumer) {
+		auto lifetime = rpl::lifetime();
+		QObject::connect(
+			_username,
+			&Ui::MaskedInputField::submitted,
+			[=] { consumer.put_next({}); });
+		return lifetime;
+	};
 }
 
 void UsernameEditor::setInnerFocus() {
@@ -144,9 +150,9 @@ void UsernameEditor::resizeEvent(QResizeEvent *e) {
 	_username->moveToLeft(_padding.left(), _padding.top());
 }
 
-void UsernameEditor::save() {
+rpl::producer<> UsernameEditor::save() {
 	if (_saveRequestId) {
-		return;
+		return _saved.events();
 	}
 
 	_sentUsername = getName();
@@ -155,11 +161,12 @@ void UsernameEditor::save() {
 	)).done([=](const MTPUser &result) {
 		_saveRequestId = 0;
 		_session->data().processUser(result);
-		_closeRequests.fire({});
+		_saved.fire_done();
 	}).fail([=](const MTP::Error &error) {
 		_saveRequestId = 0;
 		updateFail(error.type());
 	}).send();
+	return _saved.events();
 }
 
 void UsernameEditor::check() {
@@ -240,7 +247,7 @@ void UsernameEditor::updateFail(const QString &error) {
 			TextUtilities::SingleLine(self->lastName),
 			TextUtilities::SingleLine(self->nameOrPhone),
 			TextUtilities::SingleLine(_sentUsername));
-		_closeRequests.fire({});
+		_saved.fire_done();
 	} else if (error == qstr("USERNAME_INVALID")) {
 		_username->setFocus();
 		_username->showError();
@@ -287,10 +294,6 @@ void UsernamesBox(
 	const auto editor = box->addRow(
 		object_ptr<UsernameEditor>(box, session),
 		{});
-	editor->closeRequests(
-	) | rpl::start_with_next([=] {
-		box->closeBox();
-	}, editor->lifetime());
 
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
@@ -300,6 +303,25 @@ void UsernamesBox(
 			st::boxDividerLabel),
 		st::settingsDividerLabelPadding));
 
-	box->addButton(tr::lng_settings_save(), [=] { editor->save(); });
+	const auto list = box->addRow(
+		object_ptr<UsernamesList>(
+			box,
+			session->user(),
+			std::make_shared<Ui::BoxShow>(box)),
+		{});
+
+	const auto finish = [=] {
+		list->save(
+		) | rpl::start_with_done([=] {
+			editor->save(
+			) | rpl::start_with_done([=] {
+				box->closeBox();
+			}, box->lifetime());
+		}, box->lifetime());
+	};
+	editor->submitted(
+	) | rpl::start_with_next(finish, editor->lifetime());
+
+	box->addButton(tr::lng_settings_save(), finish);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
