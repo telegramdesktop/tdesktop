@@ -62,6 +62,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
+	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 	not_null<UserData*> user);

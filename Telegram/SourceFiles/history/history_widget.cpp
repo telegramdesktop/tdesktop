@@ -2448,7 +2448,7 @@ void HistoryWidget::updateNotifyControls() {
 		return;
 	}
 
-	_muteUnmute->setText((_history->mute()
+	_muteUnmute->setText((_history->muted()
 		? tr::lng_channel_unmute(tr::now)
 		: tr::lng_channel_mute(tr::now)).toUpper());
 	if (!session().data().notifySettings().silentPostsUnknown(_peer)) {
@@ -3797,7 +3797,7 @@ void HistoryWidget::joinChannel() {
 }
 
 void HistoryWidget::toggleMuteUnmute() {
-	const auto wasMuted = !!_history->mute();
+	const auto wasMuted = _history->muted();
 	const auto muteForSeconds = Data::MuteValue{
 		.unmute = wasMuted,
 		.forever = !wasMuted,

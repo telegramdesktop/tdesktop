@@ -262,8 +262,8 @@ public:
 	void setFakeUnreadWhileOpened(bool enabled);
 	[[nodiscard]] bool fakeUnreadWhileOpened() const;
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-	[[nodiscard]] bool mute() const;
-	bool changeMute(bool newMute);
+	[[nodiscard]] bool muted() const;
+	bool changeMuted(bool muted);
 	void addUnreadBar();
 	void destroyUnreadBar();
 	[[nodiscard]] Element *unreadBar() const;
@@ -472,6 +472,7 @@ private:
 
 	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
+		Muted = (1 << 1),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -588,7 +589,6 @@ private:
 	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 
 	Flags _flags = 0;
-	bool _mute = false;
 	int _width = 0;
 	int _height = 0;
 	Element *_unreadBarView = nullptr;

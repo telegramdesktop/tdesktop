@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_message_view.h"
+#include "data/notify/data_peer_notify_settings.h"
 #include "base/flags.h"
 
 class ChannelData;
@@ -95,6 +96,13 @@ public:
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 
+	[[nodiscard]] Data::PeerNotifySettings &notify() {
+		return _notify;
+	}
+	[[nodiscard]] const Data::PeerNotifySettings &notify() const {
+		return _notify;
+	}
+
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
@@ -105,6 +113,8 @@ public:
 	[[nodiscard]] bool unreadCountKnown() const;
 
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
+	[[nodiscard]] bool muted() const;
+	bool changeMuted(bool muted);
 
 	void setUnreadMark(bool unread);
 	[[nodiscard]] bool unreadMark() const;
@@ -114,7 +124,8 @@ public:
 
 private:
 	enum class Flag : uchar {
-		UnreadMark = 0x01,
+		UnreadMark = (1 << 0),
+		Muted = (1 << 1),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -137,6 +148,8 @@ private:
 	std::shared_ptr<RepliesList> _replies;
 	MsgId _rootId = 0;
 
+	Data::PeerNotifySettings _notify;
+
 	QString _title;
 	DocumentId _iconId = 0;
 	base::flat_set<QString> _titleWords;
@@ -151,7 +164,7 @@ private:
 	std::optional<HistoryItem*> _lastServerMessage;
 	std::optional<HistoryItem*> _chatListMessage;
 	base::flat_set<FullMsgId> _requestedGroups;
-	base::flags<Flag> _flags;
+	base::flags<Flag> _flags; // Initializer accesses _notify, be careful.
 
 	rpl::lifetime _lifetime;
 

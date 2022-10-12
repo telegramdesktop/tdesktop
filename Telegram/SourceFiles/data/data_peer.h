@@ -202,29 +202,11 @@ public:
 		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
 
-	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
-		return _notify.muteUntil();
+	[[nodiscard]] Data::PeerNotifySettings &notify() {
+		return _notify;
 	}
-	bool notifyChange(const MTPPeerNotifySettings &settings) {
-		return _notify.change(settings);
-	}
-	bool notifyChange(
-			Data::MuteValue muteForSeconds,
-			std::optional<bool> silentPosts,
-			std::optional<Data::NotifySound> sound) {
-		return _notify.change(muteForSeconds, silentPosts, sound);
-	}
-	[[nodiscard]] bool notifySettingsUnknown() const {
-		return _notify.settingsUnknown();
-	}
-	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
-		return _notify.silentPosts();
-	}
-	[[nodiscard]] std::optional<Data::NotifySound> notifySound() const {
-		return _notify.sound();
-	}
-	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
-		return _notify.serialize();
+	[[nodiscard]] const Data::PeerNotifySettings &notify() const {
+		return _notify;
 	}
 
 	[[nodiscard]] bool canWrite() const;

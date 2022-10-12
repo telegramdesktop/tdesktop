@@ -18,6 +18,7 @@ enum class ItemNotificationType;
 namespace Data {
 class Session;
 class CloudImageView;
+class ForumTopic;
 } // namespace Data
 
 namespace Main {
@@ -90,7 +91,9 @@ public:
 
 	void checkDelayed();
 	void schedule(ItemNotification notification);
+	void clearFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearFromHistory(not_null<History*> history);
+	void clearIncomingFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearIncomingFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearFromItem(not_null<HistoryItem*> item);
@@ -202,24 +205,22 @@ private:
 
 class Manager {
 public:
-	struct FullPeer {
+	struct ContextId {
 		uint64 sessionId = 0;
 		PeerId peerId = 0;
+		MsgId topicRootId = 0;
 
-		friend inline bool operator<(const FullPeer &a, const FullPeer &b) {
-			return std::tie(a.sessionId, a.peerId)
-				< std::tie(b.sessionId, b.peerId);
-		}
+		friend inline auto operator<=>(
+			const ContextId&,
+			const ContextId&) = default;
 	};
 	struct NotificationId {
-		FullPeer full;
+		ContextId contextId;
 		MsgId msgId = 0;
 
-		friend inline bool operator<(
-				const NotificationId &a,
-				const NotificationId &b) {
-			return std::tie(a.full, a.msgId) < std::tie(b.full, b.msgId);
-		}
+		friend inline auto operator<=>(
+			const NotificationId&,
+			const NotificationId&) = default;
 	};
 	struct NotificationFields {
 		not_null<HistoryItem*> item;
@@ -245,6 +246,9 @@ public:
 	}
 	void clearFromItem(not_null<HistoryItem*> item) {
 		doClearFromItem(item);
+	}
+	void clearFromTopic(not_null<Data::ForumTopic*> topic) {
+		doClearFromTopic(topic);
 	}
 	void clearFromHistory(not_null<History*> history) {
 		doClearFromHistory(history);
@@ -294,7 +298,7 @@ public:
 	virtual ~Manager() = default;
 
 protected:
-	not_null<System*> system() const {
+	[[nodiscard]] not_null<System*> system() const {
 		return _system;
 	}
 
@@ -303,6 +307,7 @@ protected:
 	virtual void doClearAll() = 0;
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
+	virtual void doClearFromTopic(not_null<Data::ForumTopic*> topic) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
 	virtual bool doSkipAudio() const = 0;
@@ -349,6 +354,7 @@ protected:
 
 	virtual void doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -369,6 +375,7 @@ public:
 protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -379,6 +386,8 @@ protected:
 	void doClearAllFast() override {
 	}
 	void doClearFromItem(not_null<HistoryItem*> item) override {
+	}
+	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override {
 	}
 	void doClearFromHistory(not_null<History*> history) override {
 	}

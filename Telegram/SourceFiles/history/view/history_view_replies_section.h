@@ -320,7 +320,7 @@ private:
 };
 
 
-class RepliesMemento : public Window::SectionMemento {
+class RepliesMemento final : public Window::SectionMemento {
 public:
 	RepliesMemento(
 		not_null<History*> history,

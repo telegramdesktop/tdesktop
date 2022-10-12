@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_web_page.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
@@ -150,7 +151,7 @@ ApiWrap::ApiWrap(not_null<Main::Session*> session)
 , _dialogsLoadState(std::make_unique<DialogsLoadState>())
 , _fileLoader(std::make_unique<TaskQueue>(kFileLoaderQueueStopTimeout))
 , _topPromotionTimer([=] { refreshTopPromotion(); })
-, _updateNotifySettingsTimer([=] { sendNotifySettingsUpdates(); })
+, _updateNotifyTimer([=] { sendNotifySettingsUpdates(); })
 , _authorizations(std::make_unique<Api::Authorizations>(this))
 , _attachedStickers(std::make_unique<Api::AttachedStickers>(this))
 , _blockedPeers(std::make_unique<Api::BlockedPeers>(this))
@@ -1323,27 +1324,25 @@ void ApiWrap::deleteAllFromParticipantSend(
 
 void ApiWrap::scheduleStickerSetRequest(uint64 setId, uint64 access) {
 	if (!_stickerSetRequests.contains(setId)) {
-		_stickerSetRequests.insert(setId, qMakePair(access, 0));
+		_stickerSetRequests.emplace(setId, StickerSetRequest{ access });
 	}
 }
 
 void ApiWrap::requestStickerSets() {
-	for (auto i = _stickerSetRequests.begin(), j = i, e = _stickerSetRequests.end(); i != e; i = j) {
-		++j;
-		if (i.value().second) continue;
-
-		auto waitMs = (j == e) ? 0 : kSmallDelayMs;
-		const auto id = MTP_inputStickerSetID(
-			MTP_long(i.key()),
-			MTP_long(i.value().first));
-		i.value().second = request(MTPmessages_GetStickerSet(
-			id,
+	for (auto &[id, info] : _stickerSetRequests) {
+		if (info.id) {
+			continue;
+		}
+		info.id = request(MTPmessages_GetStickerSet(
+			MTP_inputStickerSetID(
+				MTP_long(id),
+				MTP_long(info.accessHash)),
 			MTP_int(0) // hash
-		)).done([=, setId = i.key()](const MTPmessages_StickerSet &result) {
+		)).done([=, setId = id](const MTPmessages_StickerSet &result) {
 			gotStickerSet(setId, result);
-		}).fail([=, setId = i.key()] {
+		}).fail([=, setId = id] {
 			_stickerSetRequests.remove(setId);
-		}).afterDelay(waitMs).send();
+		}).afterDelay(kSmallDelayMs).send();
 	}
 }
 
@@ -1671,7 +1670,7 @@ void ApiWrap::joinChannel(not_null<ChannelData*> channel) {
 			_channelAmInRequests.remove(channel);
 		}).send();
 
-		_channelAmInRequests.insert(channel, requestId);
+		_channelAmInRequests.emplace(channel, requestId);
 	}
 }
 
@@ -1690,44 +1689,48 @@ void ApiWrap::leaveChannel(not_null<ChannelData*> channel) {
 			_channelAmInRequests.remove(channel);
 		}).send();
 
-		_channelAmInRequests.insert(channel, requestId);
+		_channelAmInRequests.emplace(channel, requestId);
 	}
 }
 
 void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
-	const auto key = [&] {
-		switch (peer.type()) {
-		case mtpc_inputNotifyUsers: return peerFromUser(0);
-		case mtpc_inputNotifyChats: return peerFromChat(0);
-		case mtpc_inputNotifyBroadcasts: return peerFromChannel(0);
-		case mtpc_inputNotifyPeer: {
-			const auto &inner = peer.c_inputNotifyPeer().vpeer();
-			switch (inner.type()) {
-			case mtpc_inputPeerSelf:
-				return _session->userPeerId();
-			case mtpc_inputPeerEmpty:
-				return PeerId(0);
-			case mtpc_inputPeerChannel:
-				return peerFromChannel(
-					inner.c_inputPeerChannel().vchannel_id());
-			case mtpc_inputPeerChat:
-				return peerFromChat(inner.c_inputPeerChat().vchat_id());
-			case mtpc_inputPeerUser:
-				return peerFromUser(inner.c_inputPeerUser().vuser_id());
-			}
+	const auto peerFromInput = [&](const MTPInputPeer &inputPeer) {
+		return inputPeer.match([&](const MTPDinputPeerSelf &) {
+			return _session->userPeerId();
+		}, [](const MTPDinputPeerEmpty &) {
+			return PeerId(0);
+		}, [](const MTPDinputPeerChannel &data) {
+			return peerFromChannel(data.vchannel_id());
+		}, [](const MTPDinputPeerChat &data) {
+			return peerFromChat(data.vchat_id());
+		}, [](const MTPDinputPeerUser &data) {
+			return peerFromUser(data.vuser_id());
+		}, [](const auto &) -> PeerId {
 			Unexpected("Type in ApiRequest::requestNotifySettings peer.");
-		} break;
-		}
-		Unexpected("Type in ApiRequest::requestNotifySettings.");
-	}();
-	if (_notifySettingRequests.find(key) != end(_notifySettingRequests)) {
+		});
+	};
+	const auto key = peer.match([](const MTPDinputNotifyUsers &) {
+		return NotifySettingsKey{ peerFromUser(1) };
+	}, [](const MTPDinputNotifyChats &) {
+		return NotifySettingsKey{ peerFromChat(1) };
+	}, [](const MTPDinputNotifyBroadcasts &) {
+		return NotifySettingsKey{ peerFromChannel(1) };
+	}, [&](const MTPDinputNotifyPeer &data) {
+		return NotifySettingsKey{ peerFromInput(data.vpeer()) };
+	}, [&](const MTPDinputNotifyForumTopic &data) {
+		return NotifySettingsKey{
+			peerFromInput(data.vpeer()),
+			data.vtop_msg_id().v,
+		};
+	});
+	if (_notifySettingRequests.contains(key)) {
 		return;
 	}
 	const auto requestId = request(MTPaccount_GetNotifySettings(
 		peer
 	)).done([=](const MTPPeerNotifySettings &result) {
 		applyNotifySettings(peer, result);
-		_notifySettingRequests.erase(key);
+		_notifySettingRequests.remove(key);
 	}).fail([=] {
 		applyNotifySettings(
 			peer,
@@ -1741,34 +1744,50 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 				MTPNotificationSound()));
 		_notifySettingRequests.erase(key);
 	}).send();
-
 	_notifySettingRequests.emplace(key, requestId);
 }
 
-void ApiWrap::updateNotifySettingsDelayed(not_null<const PeerData*> peer) {
-	_updateNotifySettingsPeers.emplace(peer);
-	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
+void ApiWrap::updateNotifySettingsDelayed(
+		not_null<const Data::ForumTopic*> topic) {
+	if (_updateNotifyTopics.emplace(topic).second) {
+		topic->destroyed(
+		) | rpl::start_with_next([=] {
+			_updateNotifyTopics.remove(topic);
+		}, _updateNotifyQueueLifetime);
+		_updateNotifyTimer.callOnce(kNotifySettingSaveTimeout);
+	}
 }
 
-void ApiWrap::updateDefaultNotifySettingsDelayed(Data::DefaultNotify type) {
-	_updateNotifySettingsDefaults.emplace(type);
-	_updateNotifySettingsTimer.callOnce(kNotifySettingSaveTimeout);
+void ApiWrap::updateNotifySettingsDelayed(not_null<const PeerData*> peer) {
+	if (_updateNotifyPeers.emplace(peer).second) {
+		_updateNotifyTimer.callOnce(kNotifySettingSaveTimeout);
+	}
+}
+
+void ApiWrap::updateNotifySettingsDelayed(Data::DefaultNotify type) {
+	if (_updateNotifyDefaults.emplace(type).second) {
+		_updateNotifyTimer.callOnce(kNotifySettingSaveTimeout);
+	}
 }
 
 void ApiWrap::sendNotifySettingsUpdates() {
-	while (!_updateNotifySettingsPeers.empty()) {
-		const auto peer = *_updateNotifySettingsPeers.begin();
-		_updateNotifySettingsPeers.erase(_updateNotifySettingsPeers.begin());
+	_updateNotifyQueueLifetime.destroy();
+	for (const auto topic : base::take(_updateNotifyTopics)) {
+		request(MTPaccount_UpdateNotifySettings(
+			MTP_inputNotifyForumTopic(
+				topic->channel()->input,
+				MTP_int(topic->rootId())),
+			topic->notify().serialize()
+		)).afterDelay(kSmallDelayMs).send();
+	}
+	for (const auto peer : base::take(_updateNotifyPeers)) {
 		request(MTPaccount_UpdateNotifySettings(
 			MTP_inputNotifyPeer(peer->input),
-			peer->notifySerialize()
-		)).afterDelay(_updateNotifySettingsPeers.empty() ? 0 : 10).send();
+			peer->notify().serialize()
+		)).afterDelay(kSmallDelayMs).send();
 	}
 	const auto &settings = session().data().notifySettings();
-	while (!_updateNotifySettingsDefaults.empty()) {
-		const auto type = *_updateNotifySettingsDefaults.begin();
-		_updateNotifySettingsDefaults.erase(
-			_updateNotifySettingsDefaults.begin());
+	for (const auto type : base::take(_updateNotifyDefaults)) {
 		const auto input = [&] {
 			switch (type) {
 			case Data::DefaultNotify::User: return MTP_inputNotifyUsers();
@@ -1781,8 +1800,9 @@ void ApiWrap::sendNotifySettingsUpdates() {
 		request(MTPaccount_UpdateNotifySettings(
 			input,
 			settings.defaultSettings(type).serialize()
-		)).afterDelay(_updateNotifySettingsDefaults.empty() ? 0 : 10).send();
+		)).afterDelay(kSmallDelayMs).send();
 	}
+	session().mtp().sendAnything();
 }
 
 void ApiWrap::saveDraftToCloudDelayed(not_null<History*> history) {
@@ -2147,7 +2167,9 @@ void ApiWrap::applyNotifySettings(
 	Core::App().notifications().checkDelayed();
 }
 
-void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) {
+void ApiWrap::gotStickerSet(
+		uint64 setId,
+		const MTPmessages_StickerSet &result) {
 	_stickerSetRequests.remove(setId);
 	result.match([&](const MTPDmessages_stickerSet &data) {
 		_session->data().stickers().feedSetFull(data);
@@ -2156,18 +2178,20 @@ void ApiWrap::gotStickerSet(uint64 setId, const MTPmessages_StickerSet &result) 
 	});
 }
 
-void ApiWrap::requestWebPageDelayed(WebPageData *page) {
-	if (page->pendingTill <= 0) return;
-	_webPagesPending.insert(page, 0);
+void ApiWrap::requestWebPageDelayed(not_null<WebPageData*> page) {
+	if (page->pendingTill <= 0) {
+		return;
+	}
+	_webPagesPending.emplace(page, 0);
 	auto left = (page->pendingTill - base::unixtime::now()) * 1000;
 	if (!_webPagesTimer.isActive() || left <= _webPagesTimer.remainingTime()) {
 		_webPagesTimer.callOnce((left < 0 ? 0 : left) + 1);
 	}
 }
 
-void ApiWrap::clearWebPageRequest(WebPageData *page) {
+void ApiWrap::clearWebPageRequest(not_null<WebPageData*> page) {
 	_webPagesPending.remove(page);
-	if (_webPagesPending.isEmpty() && _webPagesTimer.isActive()) {
+	if (_webPagesPending.empty() && _webPagesTimer.isActive()) {
 		_webPagesTimer.cancel();
 	}
 }
@@ -2185,11 +2209,12 @@ void ApiWrap::resolveWebPages() {
 
 	ids.reserve(_webPagesPending.size());
 	int32 t = base::unixtime::now(), m = INT_MAX;
-	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend(); ++i) {
-		if (i.value() > 0) continue;
-		if (i.key()->pendingTill <= t) {
-			const auto item = _session->data().findWebPageItem(i.key());
-			if (item) {
+	for (auto &[page, requestId] : _webPagesPending) {
+		if (requestId > 0) {
+			continue;
+		}
+		if (page->pendingTill <= t) {
+			if (const auto item = _session->data().findWebPageItem(page)) {
 				if (const auto channel = item->history()->peer->asChannel()) {
 					auto channelMap = idsByChannel.find(channel);
 					if (channelMap == idsByChannel.cend()) {
@@ -2204,14 +2229,14 @@ void ApiWrap::resolveWebPages() {
 						channelMap->second.second.push_back(
 							MTP_inputMessageID(MTP_int(item->id)));
 					}
-					i.value() = -channelMap->second.first - 2;
+					requestId = -channelMap->second.first - 2;
 				} else {
 					ids.push_back(MTP_inputMessageID(MTP_int(item->id)));
-					i.value() = -1;
+					requestId = -1;
 				}
 			}
 		} else {
-			m = qMin(m, i.key()->pendingTill - t);
+			m = std::min(m, page->pendingTill - t);
 		}
 	}
 
@@ -2237,9 +2262,10 @@ void ApiWrap::resolveWebPages() {
 		}).afterDelay(kSmallDelayMs).send();
 	}
 	if (requestId || !reqsByIndex.isEmpty()) {
-		for (auto &pendingRequestId : _webPagesPending) {
-			if (pendingRequestId > 0) continue;
-			if (pendingRequestId < 0) {
+		for (auto &[page, pendingRequestId] : _webPagesPending) {
+			if (pendingRequestId > 0) {
+				continue;
+			} else if (pendingRequestId < 0) {
 				if (pendingRequestId == -1) {
 					pendingRequestId = requestId;
 				} else {
@@ -2248,9 +2274,8 @@ void ApiWrap::resolveWebPages() {
 			}
 		}
 	}
-
 	if (m < INT_MAX) {
-		_webPagesTimer.callOnce(m * 1000);
+		_webPagesTimer.callOnce(std::min(m, 86400) * crl::time(1000));
 	}
 }
 
@@ -2441,10 +2466,10 @@ void ApiWrap::refreshFileReference(
 void ApiWrap::gotWebPages(ChannelData *channel, const MTPmessages_Messages &result, mtpRequestId req) {
 	WebPageData::ApplyChanges(_session, channel, result);
 	for (auto i = _webPagesPending.begin(); i != _webPagesPending.cend();) {
-		if (i.value() == req) {
-			if (i.key()->pendingTill > 0) {
-				i.key()->pendingTill = -1;
-				_session->data().notifyWebPageUpdateDelayed(i.key());
+		if (i->second == req) {
+			if (i->first->pendingTill > 0) {
+				i->first->pendingTill = -1;
+				_session->data().notifyWebPageUpdateDelayed(i->first);
 			}
 			i = _webPagesPending.erase(i);
 		} else {

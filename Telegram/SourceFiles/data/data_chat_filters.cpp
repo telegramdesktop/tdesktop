@@ -207,7 +207,7 @@ bool ChatFilter::contains(not_null<History*> history) const {
 	return false
 		|| ((_flags & flag)
 			&& (!(_flags & Flag::NoMuted)
-				|| !history->mute()
+				|| !history->muted()
 				|| (history->unreadMentions().has()
 					&& history->folderKnown()
 					&& !history->folder()))

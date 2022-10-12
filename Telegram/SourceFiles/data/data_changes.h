@@ -148,8 +148,9 @@ struct TopicUpdate {
 		UnreadView = (1U << 1),
 		UnreadMentions = (1U << 2),
 		UnreadReactions = (1U << 3),
+		Notifications = (1U << 4),
 
-		LastUsedBit = (1U << 3),
+		LastUsedBit = (1U << 4),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

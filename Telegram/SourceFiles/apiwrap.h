@@ -32,6 +32,7 @@ class WallPaper;
 struct ResolvedForwardDraft;
 enum class DefaultNotify;
 enum class StickersType : uchar;
+class ForumTopic;
 } // namespace Data
 
 namespace InlineBots {
@@ -219,8 +220,8 @@ public:
 		not_null<ChannelData*> channel,
 		not_null<PeerData*> from);
 
-	void requestWebPageDelayed(WebPageData *page);
-	void clearWebPageRequest(WebPageData *page);
+	void requestWebPageDelayed(not_null<WebPageData*> page);
+	void clearWebPageRequest(not_null<WebPageData*> page);
 	void clearWebPageRequests();
 
 	void scheduleStickerSetRequest(uint64 setId, uint64 access);
@@ -244,8 +245,10 @@ public:
 	void leaveChannel(not_null<ChannelData*> channel);
 
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
+	void updateNotifySettingsDelayed(
+		not_null<const Data::ForumTopic*> topic);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
-	void updateDefaultNotifySettingsDelayed(Data::DefaultNotify type);
+	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<History*> history);
 
 	static int OnlineTillFromStatus(
@@ -523,7 +526,7 @@ private:
 		not_null<ChannelData*> channel);
 	void migrateFail(not_null<PeerData*> peer, const QString &error);
 
-	not_null<Main::Session*> _session;
+	const not_null<Main::Session*> _session;
 
 	base::flat_map<QString, int> _modifyRequests;
 
@@ -541,13 +544,29 @@ private:
 		not_null<History*>,
 		std::pair<mtpRequestId,Fn<void()>>> _historyArchivedRequests;
 
-	QMap<WebPageData*, mtpRequestId> _webPagesPending;
+	base::flat_map<not_null<WebPageData*>, mtpRequestId> _webPagesPending;
 	base::Timer _webPagesTimer;
 
-	QMap<uint64, QPair<uint64, mtpRequestId> > _stickerSetRequests;
+	struct StickerSetRequest {
+		uint64 accessHash = 0;
+		mtpRequestId id = 0;
+	};
+	base::flat_map<uint64, StickerSetRequest> _stickerSetRequests;
 
-	QMap<ChannelData*, mtpRequestId> _channelAmInRequests;
-	base::flat_map<PeerId, mtpRequestId> _notifySettingRequests;
+	base::flat_map<
+		not_null<ChannelData*>,
+		mtpRequestId> _channelAmInRequests;
+
+	struct NotifySettingsKey {
+		PeerId peerId = 0;
+		MsgId topicRootId = 0;
+
+		friend inline constexpr auto operator<=>(
+			NotifySettingsKey,
+			NotifySettingsKey) = default;
+	};
+	base::flat_map<NotifySettingsKey, mtpRequestId> _notifySettingRequests;
+
 	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
@@ -610,9 +629,11 @@ private:
 	TimeId _topPromotionNextRequestTime = TimeId(0);
 	base::Timer _topPromotionTimer;
 
-	base::flat_set<not_null<const PeerData*>> _updateNotifySettingsPeers;
-	base::flat_set<Data::DefaultNotify> _updateNotifySettingsDefaults;
-	base::Timer _updateNotifySettingsTimer;
+	base::flat_set<not_null<const Data::ForumTopic*>> _updateNotifyTopics;
+	base::flat_set<not_null<const PeerData*>> _updateNotifyPeers;
+	base::flat_set<Data::DefaultNotify> _updateNotifyDefaults;
+	base::Timer _updateNotifyTimer;
+	rpl::lifetime _updateNotifyQueueLifetime;
 
 	std::map<
 		Data::FileOrigin,

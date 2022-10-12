@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/linux/base_linux_dbus_utilities.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
@@ -794,11 +795,12 @@ public:
 		DisplayOptions options);
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
+	void clearFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
 
-	bool inhibited() {
+	[[nodiscard]] bool inhibited() const {
 		return _inhibited;
 	}
 
@@ -808,7 +810,7 @@ private:
 	const not_null<Manager*> _manager;
 
 	base::flat_map<
-		FullPeer,
+		ContextId,
 		base::flat_map<MsgId, Notification>> _notifications;
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
@@ -892,17 +894,22 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
 		DisplayOptions options) {
-	const auto key = FullPeer{
+	const auto key = ContextId{
 		.sessionId = peer->session().uniqueId(),
-		.peerId = peer->id
+		.peerId = peer->id,
+		.topicRootId = topicRootId,
 	};
-	const auto notificationId = NotificationId{ .full = key, .msgId = msgId };
+	const auto notificationId = NotificationId{
+		.contextId = key,
+		.msgId = msgId,
+	};
 	auto notification = std::make_unique<NotificationData>(
 		_manager,
 		notificationId);
@@ -951,9 +958,10 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	const auto key = FullPeer{
+	const auto key = ContextId{
 		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id
+		.peerId = item->history()->peer->id,
+		.topicRootId = item->topicRootId(),
 	};
 	const auto i = _notifications.find(key);
 	if (i == _notifications.cend()) {
@@ -971,10 +979,10 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	taken->close();
 }
 
-void Manager::Private::clearFromHistory(not_null<History*> history) {
-	const auto key = FullPeer{
-		.sessionId = history->session().uniqueId(),
-		.peerId = history->peer->id
+void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
+	const auto key = ContextId{
+		.sessionId = topic->session().uniqueId(),
+		.peerId = topic->history()->peer->id
 	};
 	const auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
@@ -987,13 +995,31 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 	}
 }
 
+void Manager::Private::clearFromHistory(not_null<History*> history) {
+	const auto sessionId = history->session().uniqueId();
+	const auto peerId = history->peer->id;
+	auto i = _notifications.lower_bound(ContextId{
+		.sessionId = sessionId,
+		.peerId = peerId,
+	});
+	while (i != _notifications.cend()
+		&& i->first.sessionId == sessionId
+		&& i->first.peerId == peerId) {
+		const auto temp = base::take(i->second);
+		i = _notifications.erase(i);
+
+		for (const auto &[msgId, notification] : temp) {
+			notification->close();
+		}
+	}
+}
+
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	const auto sessionId = session->uniqueId();
-	for (auto i = _notifications.begin(); i != _notifications.end();) {
-		if (i->first.sessionId != sessionId) {
-			++i;
-			continue;
-		}
+	auto i = _notifications.lower_bound(ContextId{
+		.sessionId = sessionId,
+	});
+	while (i != _notifications.cend() && i->first.sessionId == sessionId) {
 		const auto temp = base::take(i->second);
 		i = _notifications.erase(i);
 
@@ -1004,7 +1030,7 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	auto i = _notifications.find(id.full);
+	auto i = _notifications.find(id.contextId);
 	if (i != _notifications.cend()) {
 		if (i->second.remove(id.msgId) && i->second.empty()) {
 			_notifications.erase(i);
@@ -1057,6 +1083,10 @@ void Manager::doClearAllFast() {
 
 void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 	_private->clearFromItem(item);
+}
+
+void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
+	_private->clearFromTopic(topic);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {

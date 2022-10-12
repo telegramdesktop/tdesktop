@@ -14,12 +14,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mtproto/mtproto_config.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
+#include "history/view/history_view_replies_section.h"
 #include "lang/lang_keys.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_document_media.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_poll.h"
@@ -327,6 +329,22 @@ void System::clearAll() {
 	_settingWaiters.clear();
 }
 
+void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
+	if (_manager) {
+		_manager->clearFromTopic(topic);
+	}
+
+	// #TODO forum notifications
+	//topic->clearNotifications();
+	//_whenMaps.remove(topic);
+	//_whenAlerts.remove(topic);
+	//_waiters.remove(topic);
+	//_settingWaiters.remove(topic);
+
+	_waitTimer.cancel();
+	showNext();
+}
+
 void System::clearFromHistory(not_null<History*> history) {
 	if (_manager) {
 		_manager->clearFromHistory(history);
@@ -379,6 +397,15 @@ void System::clearIncomingFromHistory(not_null<History*> history) {
 	}
 	history->clearIncomingNotifications();
 	_whenAlerts.remove(history);
+}
+
+void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
+	if (_manager) {
+		_manager->clearFromTopic(topic);
+	}
+	// #TODO forum notifications
+	//topic->clearIncomingNotifications();
+	//_whenAlerts.remove(topic);
 }
 
 void System::clearFromItem(not_null<HistoryItem*> item) {
@@ -922,14 +949,16 @@ void Manager::notificationActivated(
 		NotificationId id,
 		const TextWithTags &reply) {
 	onBeforeNotificationActivated(id);
-	if (const auto session = system()->findSession(id.full.sessionId)) {
+	if (const auto session = system()->findSession(id.contextId.sessionId)) {
 		if (session->windows().empty()) {
 			Core::App().domain().activate(&session->account());
 		}
 		if (!session->windows().empty()) {
 			const auto window = session->windows().front();
-			const auto history = session->data().history(id.full.peerId);
+			const auto history = session->data().history(
+				id.contextId.peerId);
 			if (!reply.text.isEmpty()) {
+				// #TODO forum notifications
 				const auto replyToId = (id.msgId > 0
 					&& !history->peer->isUser())
 					? id.msgId
@@ -961,45 +990,57 @@ void Manager::notificationActivated(
 void Manager::openNotificationMessage(
 		not_null<History*> history,
 		MsgId messageId) {
-	const auto openExactlyMessage = [&] {
-		const auto peer = history->peer;
-		if (peer->isBroadcast()) {
-			return false;
+	const auto item = history->owner().message(history->peer, messageId);
+	const auto openExactlyMessage = !history->peer->isBroadcast()
+		&& item
+		&& item->isRegular()
+		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
+	const auto topic = item ? history->peer->forumTopicFor(item) : nullptr;
+	const auto separate = Core::App().separateWindowForPeer(history->peer);
+	const auto window = separate
+		? separate->sessionController()
+		: history->session().tryResolveWindow();
+	const auto itemId = openExactlyMessage ? messageId : ShowAtUnreadMsgId;
+	if (window) {
+		if (topic) {
+			window->showSection(
+				std::make_shared<HistoryView::RepliesMemento>(
+					history,
+					topic->rootId(),
+					itemId),
+				SectionShow::Way::Forward);
+		} else {
+			window->showPeerHistory(
+				history->peer->id,
+				SectionShow::Way::Forward,
+				itemId);
 		}
-		const auto item = history->owner().message(history->peer, messageId);
-		if (!item
-			|| !item->isRegular()
-			|| (!item->out() && (!item->mentionsMe() || peer->isUser()))) {
-			return false;
-		}
-		return true;
-	}();
-	if (openExactlyMessage) {
-		Ui::showPeerHistory(history, messageId);
-	} else {
-		Ui::showPeerHistory(history, ShowAtUnreadMsgId);
 	}
-	system()->clearFromHistory(history);
+	if (topic) {
+		system()->clearFromTopic(topic);
+	} else {
+		system()->clearFromHistory(history);
+	}
 }
 
 void Manager::notificationReplied(
 		NotificationId id,
 		const TextWithTags &reply) {
-	if (!id.full.sessionId || !id.full.peerId) {
+	if (!id.contextId.sessionId || !id.contextId.peerId) {
 		return;
 	}
 
-	const auto session = system()->findSession(id.full.sessionId);
+	const auto session = system()->findSession(id.contextId.sessionId);
 	if (!session) {
 		return;
 	}
-	const auto history = session->data().history(id.full.peerId);
+	const auto history = session->data().history(id.contextId.peerId);
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
 	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
 		? id.msgId
-		: 0;
+		: id.contextId.topicRootId;
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
@@ -1053,6 +1094,7 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	auto userpicView = item->history()->peer->createUserpicView();
 	doShowNativeNotification(
 		item->history()->peer,
+		item->topicRootId(),
 		userpicView,
 		item->id,
 		scheduled ? WrapFromScheduled(fullTitle) : fullTitle,

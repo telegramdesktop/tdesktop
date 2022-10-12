@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "data/data_session.h"
+#include "data/data_forum_topic.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "window/window_controller.h"
@@ -82,6 +83,7 @@ Manager::Manager(System *system)
 
 Manager::QueuedNotification::QueuedNotification(NotificationFields &&fields)
 : history(fields.item->history())
+, topicRootId(fields.item->topicRootId())
 , peer(history->peer)
 , reaction(fields.reactionId)
 , author(!fields.reactionFrom
@@ -236,6 +238,7 @@ void Manager::showNextFromQueue() {
 		_notifications.push_back(std::make_unique<Notification>(
 			this,
 			queued.history,
+			queued.topicRootId,
 			queued.peer,
 			queued.author,
 			queued.item,
@@ -370,6 +373,24 @@ void Manager::doClearAllFast() {
 	_queuedNotifications.clear();
 	base::take(_notifications);
 	base::take(_hideAll);
+}
+
+void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
+	const auto history = topic->history();
+	const auto topicRootId = topic->rootId();
+	for (auto i = _queuedNotifications.begin(); i != _queuedNotifications.cend();) {
+		if (i->history == history && i->topicRootId == topicRootId) {
+			i = _queuedNotifications.erase(i);
+		} else {
+			++i;
+		}
+	}
+	for (const auto &notification : _notifications) {
+		if (notification->unlinkHistory(history, topicRootId)) {
+			_positionsOutdated = true;
+		}
+	}
+	showNextFromQueue();
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {
@@ -601,6 +622,7 @@ void Background::paintEvent(QPaintEvent *e) {
 Notification::Notification(
 	not_null<Manager*> manager,
 	not_null<History*> history,
+	MsgId topicRootId,
 	not_null<PeerData*> peer,
 	const QString &author,
 	HistoryItem *item,
@@ -614,6 +636,7 @@ Notification::Notification(
 , _peer(peer)
 , _started(crl::now())
 , _history(history)
+, _topicRootId(topicRootId)
 , _userpicView(_peer->createUserpicView())
 , _author(author)
 , _reaction(reaction)
@@ -1061,9 +1084,10 @@ Notifications::Manager::NotificationId Notification::myId() const {
 	if (!_history) {
 		return {};
 	}
-	return { .full = {
+	return { .contextId = {
 		.sessionId = _history->session().uniqueId(),
-		.peerId = _history->peer->id
+		.peerId = _history->peer->id,
+		.topicRootId = _topicRootId,
 	}, .msgId = _item ? _item->id : ShowAtUnreadMsgId };
 }
 
@@ -1071,8 +1095,10 @@ void Notification::changeHeight(int newHeight) {
 	manager()->changeNotificationHeight(this, newHeight);
 }
 
-bool Notification::unlinkHistory(History *history) {
-	const auto unlink = _history && (history == _history || !history);
+bool Notification::unlinkHistory(History *history, MsgId topicRootId) {
+	const auto unlink = _history
+		&& (history == _history || !history)
+		&& (topicRootId == _topicRootId || !topicRootId);
 	if (unlink) {
 		hideFast();
 		_history = nullptr;

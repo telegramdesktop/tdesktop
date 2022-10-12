@@ -71,7 +71,7 @@ void SharedMedia::add(SharedMediaAddSlice &&query) {
 }
 
 void SharedMedia::remove(SharedMediaRemoveOne &&query) {
-	auto peerIt = _lists.find({ query.peerId, MsgId(0) });
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
 	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
@@ -85,7 +85,7 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 }
 
 void SharedMedia::remove(SharedMediaRemoveAll &&query) {
-	auto peerIt = _lists.find({ query.peerId, MsgId(0) });
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
 	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
@@ -99,7 +99,7 @@ void SharedMedia::remove(SharedMediaRemoveAll &&query) {
 }
 
 void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
-	auto peerIt = _lists.find({ query.peerId, MsgId(0) });
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
 	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			peerIt->second[index].invalidateBottom();

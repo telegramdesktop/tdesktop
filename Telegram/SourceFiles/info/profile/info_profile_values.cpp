@@ -180,6 +180,23 @@ rpl::producer<const ChannelLocation*> LocationValue(
 	});
 }
 
+rpl::producer<bool> NotificationsEnabledValue(
+		not_null<Data::ForumTopic*> topic) {
+	return rpl::merge(
+		topic->session().changes().topicFlagsValue(
+			topic,
+			Data::TopicUpdate::Flag::Notifications
+		) | rpl::to_empty,
+		topic->session().changes().peerUpdates(
+			topic->channel(),
+			UpdateFlag::Notifications
+		) | rpl::to_empty,
+		topic->owner().notifySettings().defaultUpdates(topic->channel())
+	) | rpl::map([=] {
+		return !topic->owner().notifySettings().isMuted(topic);
+	}) | rpl::distinct_until_changed();
+}
+
 rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
 	return rpl::merge(
 		peer->session().changes().peerFlagsValue(

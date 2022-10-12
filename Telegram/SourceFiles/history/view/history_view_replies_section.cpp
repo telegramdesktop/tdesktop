@@ -53,6 +53,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -69,6 +70,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
+#include "window/notifications_manager.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -1953,6 +1955,9 @@ void RepliesWidget::readTill(not_null<HistoryItem*> item) {
 		} else if (fast && _readRequestTimer.remainingTime() > 0) {
 			_readRequestTimer.callOnce(0);
 		}
+	}
+	if (_topic) {
+		Core::App().notifications().clearIncomingFromTopic(_topic);
 	}
 }
 

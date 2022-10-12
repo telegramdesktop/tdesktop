@@ -72,6 +72,7 @@ private:
 	void doShowNotification(NotificationFields &&fields) override;
 	void doClearAll() override;
 	void doClearAllFast() override;
+	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
@@ -112,6 +113,7 @@ private:
 		QueuedNotification(NotificationFields &&fields);
 
 		not_null<History*> history;
+		MsgId topicRootId = 0;
 		not_null<PeerData*> peer;
 		Data::ReactionId reaction;
 		QString author;
@@ -205,6 +207,7 @@ public:
 	Notification(
 		not_null<Manager*> manager,
 		not_null<History*> history,
+		MsgId topicRootId,
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
@@ -233,7 +236,7 @@ public:
 
 	// Called only by Manager.
 	bool unlinkItem(HistoryItem *del);
-	bool unlinkHistory(History *history = nullptr);
+	bool unlinkHistory(History *history = nullptr, MsgId topicRootId = 0);
 	bool unlinkSession(not_null<Main::Session*> session);
 	bool checkLastInput(
 		bool hasReplyingNotifications,
@@ -282,6 +285,7 @@ private:
 	crl::time _started;
 
 	History *_history = nullptr;
+	MsgId _topicRootId = 0;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;
 	Data::ReactionId _reaction;

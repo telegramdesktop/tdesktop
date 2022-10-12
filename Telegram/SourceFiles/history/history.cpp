@@ -74,7 +74,7 @@ History::History(not_null<Data::Session*> owner, PeerId peerId)
 , peer(owner->peer(peerId))
 , cloudDraftTextCache(st::dialogsTextWidthMin)
 , _delegateMixin(HistoryInner::DelegateMixin())
-, _mute(owner->notifySettings().isMuted(peer))
+, _flags(owner->notifySettings().isMuted(peer) ? Flag::Muted : Flag(0))
 , _chatListNameSortKey(owner->nameSortKey(peer->name()))
 , _sendActionPainter(this) {
 	if (const auto user = peer->asUser()) {
@@ -1768,12 +1768,12 @@ void History::setFakeUnreadWhileOpened(bool enabled) {
 	return _fakeUnreadWhileOpened;
 }
 
-bool History::mute() const {
-	return _mute;
+bool History::muted() const {
+	return (_flags & Flag::Muted);
 }
 
-bool History::changeMute(bool newMute) {
-	if (_mute == newMute) {
+bool History::changeMuted(bool muted) {
+	if (this->muted() == muted) {
 		return false;
 	}
 	const auto refresher = gsl::finally([&] {
@@ -1787,7 +1787,11 @@ bool History::changeMute(bool newMute) {
 	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
-	_mute = newMute;
+	if (muted) {
+		_flags |= Flag::Muted;
+	} else {
+		_flags &= ~Flag::Muted;
+	}
 	return true;
 }
 
@@ -2072,14 +2076,14 @@ bool History::chatListUnreadMark() const {
 }
 
 bool History::chatListMutedBadge() const {
-	return mute();
+	return muted();
 }
 
 Dialogs::UnreadState History::chatListUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
 	const auto mark = !count && _unreadMark;
-	const auto muted = mute();
+	const auto muted = this->muted();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;

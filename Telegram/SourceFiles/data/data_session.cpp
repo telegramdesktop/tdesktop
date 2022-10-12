@@ -3892,7 +3892,9 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 			_contactsNoChatsList.addByName(key);
 		}
 	}
-	if (const auto history = key.history()) {
+	if (const auto topic = key.topic()) {
+		Core::App().notifications().clearFromTopic(topic);
+	} else if (const auto history = key.history()) {
 		Core::App().notifications().clearFromHistory(history);
 	}
 }

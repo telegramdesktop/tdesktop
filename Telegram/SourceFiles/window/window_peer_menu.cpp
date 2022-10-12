@@ -141,7 +141,7 @@ void PeerMenuAddMuteSubmenuAction(
 	if (isMuted) {
 		const auto text = tr::lng_context_unmute(tr::now)
 			+ '\t'
-			+ Ui::FormatMuteForTiny(peer->notifyMuteUntil().value_or(0)
+			+ Ui::FormatMuteForTiny(peer->notify().muteUntil().value_or(0)
 				- base::unixtime::now());
 		addAction(text, [=] {
 			peer->owner().notifySettings().update(peer, { .unmute = true });

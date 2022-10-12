@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_histories.h"
 #include "data/data_replies_list.h"
+#include "data/notify/data_notify_settings.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "dialogs/dialogs_main_list.h"
@@ -141,7 +142,8 @@ ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 , _forum(history->peer->forum())
 , _list(_forum->topicsList())
 , _replies(std::make_shared<RepliesList>(history, rootId))
-, _rootId(rootId) {
+, _rootId(rootId)
+, _flags(owner().notifySettings().isMuted(this) ? Flag::Muted : Flag(0)) {
 	_replies->unreadCountValue(
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
@@ -487,6 +489,32 @@ int ForumTopic::unreadCountForBadge() const {
 	return (!result && unreadMark()) ? 1 : result;
 }
 
+bool ForumTopic::muted() const {
+	return (_flags & Flag::Muted);
+}
+
+bool ForumTopic::changeMuted(bool muted) {
+	if (this->muted() == muted) {
+		return false;
+	}
+	const auto refresher = gsl::finally([&] {
+		if (inChatList()) {
+			updateChatListEntry();
+		}
+		session().changes().topicUpdated(
+			this,
+			Data::TopicUpdate::Flag::Notifications);
+	});
+	const auto notify = (unreadCountForBadge() > 0);
+	const auto notifier = unreadStateChangeNotifier(notify);
+	if (muted) {
+		_flags |= Flag::Muted;
+	} else {
+		_flags &= ~Flag::Muted;
+	}
+	return true;
+}
+
 bool ForumTopic::unreadCountKnown() const {
 	return _replies->unreadCountKnown();
 }
@@ -531,7 +559,7 @@ Dialogs::UnreadState ForumTopic::unreadStateFor(
 		bool known) const {
 	auto result = Dialogs::UnreadState();
 	const auto mark = !count && unreadMark();
-	const auto muted = history()->mute();
+	const auto muted = this->muted();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;
@@ -547,7 +575,7 @@ bool ForumTopic::chatListUnreadMark() const {
 }
 
 bool ForumTopic::chatListMutedBadge() const {
-	return history()->mute();
+	return muted();
 }
 
 HistoryItem *ForumTopic::chatListMessage() const {
