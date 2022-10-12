@@ -103,6 +103,10 @@ void Forum::requestTopics() {
 	}).fail([=](const MTP::Error &error) {
 		_allLoaded = true;
 		_requestId = 0;
+		if (error.type() == u"CHANNEL_FORUM_MISSING"_q) {
+			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
+			channel()->setFlags(flags);
+		}
 	}).send();
 }
 

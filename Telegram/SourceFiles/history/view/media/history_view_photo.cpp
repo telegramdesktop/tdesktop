@@ -44,8 +44,9 @@ using Data::PhotoSize;
 struct Photo::Streamed {
 	explicit Streamed(std::shared_ptr<::Media::Streaming::Document> shared);
 	::Media::Streaming::Instance instance;
-	QImage roundingMask;
+	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
+	QImage roundingMask;
 };
 
 Photo::Streamed::Streamed(
@@ -411,12 +412,20 @@ void Photo::paintUserpicFrame(
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
-		if (_streamed->roundingMask.size() != request.outer) {
-			_streamed->roundingMask = Images::EllipseMask(size);
+		const auto forum = _parent->data()->history()->peer->isForum();
+		if (forum) {
+			request.rounding = Images::CornersMaskRef(
+				Images::CornersMask(ImageRoundRadius::Large));
+		} else {
+			if (_streamed->roundingMask.size() != request.outer) {
+				_streamed->roundingMask = Images::EllipseMask(size);
+			}
+			request.mask = _streamed->roundingMask;
 		}
-		request.mask = _streamed->roundingMask;
 		if (_streamed->instance.playerLocked()) {
-			if (_streamed->frozenFrame.isNull()) {
+			if (_streamed->frozenFrame.isNull()
+				|| _streamed->frozenRequest != request) {
+				_streamed->frozenRequest = request;
 				_streamed->frozenFrame = _streamed->instance.frame(request);
 			}
 			p.drawImage(rect, _streamed->frozenFrame);

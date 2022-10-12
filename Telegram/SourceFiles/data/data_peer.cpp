@@ -307,11 +307,13 @@ void PeerData::paintUserpic(
 		int y,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		const auto circled = Images::Option::RoundCircle;
+		const auto rounding = isForum()
+			? Images::Option::RoundLarge
+			: Images::Option::RoundCircle;
 		p.drawPixmap(
 			x,
 			y,
-			userpic->pix(size, size, { .options = circled }));
+			userpic->pix(size, size, { .options = rounding }));
 	} else {
 		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
 	}
@@ -371,8 +373,10 @@ QPixmap PeerData::genUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		const auto circle = Images::Option::RoundCircle;
-		return userpic->pix(size, size, { .options = circle });
+		const auto rounding = isForum()
+			? Images::Option::RoundLarge
+			: Images::Option::RoundCircle;
+		return userpic->pix(size, size, { .options = rounding });
 	}
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
@@ -390,7 +394,10 @@ QPixmap PeerData::genUserpic(
 QImage PeerData::generateUserpicImage(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
-	return generateUserpicImage(view, size, ImageRoundRadius::Ellipse);
+	return generateUserpicImage(
+		view,
+		size,
+		isForum() ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse);
 }
 
 QImage PeerData::generateUserpicImage(
@@ -400,9 +407,11 @@ QImage PeerData::generateUserpicImage(
 	if (const auto userpic = currentUserpic(view)) {
 		const auto options = (radius == ImageRoundRadius::Ellipse)
 			? Images::Option::RoundCircle
-			: (radius == ImageRoundRadius::None)
-			? Images::Option()
-			: Images::Option::RoundSmall;
+			: (radius == ImageRoundRadius::Large)
+			? Images::Option::RoundLarge
+			: (radius == ImageRoundRadius::Small)
+			? Images::Option::RoundSmall
+			: Images::Option();
 		return userpic->pixNoCache(
 			{ size, size },
 			{ .options = options }).toImage();
