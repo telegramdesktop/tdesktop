@@ -54,13 +54,18 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
-	not_null<UserData*> user);
+	not_null<UserData*> user,
+	bool primary = false);
+[[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
+	not_null<PeerData*> peer);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);
 [[nodiscard]] rpl::producer<TextWithEntities> AboutValue(
 	not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> LinkValue(
+	not_null<PeerData*> peer,
+	bool primary = false);
 [[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(

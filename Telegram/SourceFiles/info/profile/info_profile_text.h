@@ -28,6 +28,7 @@ namespace Profile {
 struct TextWithLabel {
 	object_ptr<Ui::SlideWrap<Ui::VerticalLayout>> wrap;
 	not_null<Ui::FlatLabel*> text;
+	not_null<Ui::FlatLabel*> subtext;
 };
 
 TextWithLabel CreateTextWithLabel(

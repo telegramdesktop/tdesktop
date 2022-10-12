@@ -67,6 +67,7 @@ struct PeerUpdate {
 		IsBlocked         = (1ULL << 8),
 		MessagesTTL       = (1ULL << 9),
 		FullInfo          = (1ULL << 10),
+		Usernames         = (1ULL << 11),
 
 		// For users
 		CanShareContact   = (1ULL << 11),

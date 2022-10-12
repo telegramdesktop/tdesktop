@@ -109,13 +109,18 @@ void ChannelData::setUsername(const QString &username) {
 }
 
 void ChannelData::setUsernames(const Data::Usernames &usernames) {
-	_usernames = ranges::views::all(
+	auto newUsernames = ranges::views::all(
 		usernames
 	) | ranges::views::filter([&](const Data::Username &username) {
 		return username.active;
 	}) | ranges::views::transform([&](const Data::Username &username) {
 		return username.username;
 	}) | ranges::to_vector;
+
+	if (!ranges::equal(_usernames, newUsernames)) {
+		_usernames = std::move(newUsernames);
+		session().changes().peerUpdated(this, UpdateFlag::Usernames);
+	}
 }
 
 QString ChannelData::username() const {

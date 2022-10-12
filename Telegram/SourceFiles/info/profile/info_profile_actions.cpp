@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_variant.h"
 #include "history/history_location_manager.h" // LocationClickHandler.
 #include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/abstract_box.h"
@@ -67,12 +68,59 @@ namespace Info {
 namespace Profile {
 namespace {
 
-object_ptr<Ui::RpWidget> CreateSkipWidget(
+[[nodiscard]] rpl::producer<TextWithEntities> UsernamesSubtext(
+		not_null<PeerData*> peer,
+		rpl::producer<QString> fallback) {
+	return rpl::combine(
+		UsernamesValue(peer),
+		std::move(fallback)
+	) | rpl::map([](std::vector<TextWithEntities> usernames, QString text) {
+		if (usernames.size() < 2) {
+			return TextWithEntities{ .text = text };
+		} else {
+			auto result = TextWithEntities();
+			result.append(tr::lng_info_usernames_label(tr::now));
+			result.append(' ');
+			auto &&subrange = ranges::make_subrange(
+				begin(usernames) + 1,
+				end(usernames));
+			for (auto &username : std::move(subrange)) {
+				const auto isLast = (usernames.back() == username);
+				result.append(Ui::Text::Link(
+					'@' + base::take(username.text),
+					username.entities.front().data()));
+				if (!isLast) {
+					result.append(u", "_q);
+				}
+			}
+			return result;
+		}
+	});
+}
+
+[[nodiscard]] Fn<void(QString)> UsernamesLinkCallback(
+		not_null<PeerData*> peer,
+		Window::Show show,
+		const QString &addToLink) {
+	return [=](QString link) {
+		if (!link.startsWith(u"https://"_q)) {
+			link = peer->session().createInternalLinkFull(peer->userName());
+		}
+		if (!link.isEmpty()) {
+			QGuiApplication::clipboard()->setText(link + addToLink);
+			Ui::Toast::Show(
+				show.toastParent(),
+				tr::lng_username_copied(tr::now));
+		}
+	};
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateSkipWidget(
 		not_null<Ui::RpWidget*> parent) {
 	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
 }
 
-object_ptr<Ui::SlideWrap<>> CreateSlideSkipWidget(
+[[nodiscard]] object_ptr<Ui::SlideWrap<>> CreateSlideSkipWidget(
 		not_null<Ui::RpWidget*> parent) {
 	auto result = Ui::CreateSlideSkipWidget(
 		parent,
@@ -113,7 +161,7 @@ auto AddActionButton(
 };
 
 template <typename Text, typename ToggleOn, typename Callback>
-auto AddMainButton(
+[[nodiscard]] auto AddMainButton(
 		not_null<Ui::VerticalLayout*> parent,
 		Text &&text,
 		ToggleOn &&toggleOn,
@@ -263,23 +311,23 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	};
 
 	const auto addInfoLineGeneric = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
 		auto line = CreateTextWithLabel(
 			result,
-			std::move(label) | Ui::Text::ToWithEntities(),
+			v::text::take_marked(std::move(label)),
 			std::move(text),
 			textSt,
 			padding);
 		tracker.track(result->add(std::move(line.wrap)));
 
 		line.text->setClickHandlerFilter(infoClickFilter);
-		return line.text;
+		return line;
 	};
 	const auto addInfoLine = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
@@ -290,17 +338,17 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			padding);
 	};
 	const auto addInfoOneLine = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const QString &contextCopyText,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
-		const auto result = addInfoLine(
+		auto result = addInfoLine(
 			std::move(label),
 			std::move(text),
 			st::infoLabeledOneLine,
 			padding);
-		result->setDoubleClickSelectsParagraph(true);
-		result->setContextCopyText(contextCopyText);
+		result.text->setDoubleClickSelectsParagraph(true);
+		result.text->setContextCopyText(contextCopyText);
 		return result;
 	};
 	if (const auto user = _peer->asUser()) {
@@ -320,11 +368,16 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			: tr::lng_info_bio_label();
 		addInfoLine(std::move(label), AboutValue(user));
 
-		const auto usernameLabel = addInfoOneLine(
-			tr::lng_info_username_label(),
-			UsernameValue(user),
+		const auto usernameLine = addInfoOneLine(
+			UsernamesSubtext(_peer, tr::lng_info_username_label()),
+			UsernameValue(user, true),
 			tr::lng_context_copy_mention(tr::now),
 			st::infoProfileLabeledUsernamePadding);
+		usernameLine.subtext->overrideLinkClickHandler(UsernamesLinkCallback(
+			_peer,
+			Window::Show(controller),
+			QString()));
+		const auto usernameLabel = usernameLine.text;
 		if (user->isBot()) {
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
 				usernameLabel->parentWidget(),
@@ -361,7 +414,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			? "?topic=" + QString::number(topicRootId.bare)
 			: QString();
 		auto linkText = LinkValue(
-			_peer
+			_peer,
+			true
 		) | rpl::map([=](const QString &link) {
 			return link.isEmpty()
 				? TextWithEntities()
@@ -371,21 +425,17 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 						: link) + addToLink,
 					link + addToLink);
 		});
-		auto link = addInfoOneLine(
-			tr::lng_info_link_label(),
+		auto linkLine = addInfoOneLine(
+			UsernamesSubtext(_peer, tr::lng_info_link_label()),
 			std::move(linkText),
 			QString());
 		const auto controller = _controller->parentController();
-		link->overrideLinkClickHandler([=, peer = _peer] {
-			const auto link = peer->session().createInternalLinkFull(
-				peer->userName());
-			if (!link.isEmpty()) {
-				QGuiApplication::clipboard()->setText(link + addToLink);
-				Ui::Toast::Show(
-					Window::Show(controller).toastParent(),
-					tr::lng_username_copied(tr::now));
-			}
-		});
+		const auto linkCallback = UsernamesLinkCallback(
+			_peer,
+			Window::Show(controller),
+			addToLink);
+		linkLine.text->overrideLinkClickHandler(linkCallback);
+		linkLine.subtext->overrideLinkClickHandler(linkCallback);
 
 		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {
 			auto locationText = LocationValue(
@@ -401,7 +451,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				tr::lng_info_location_label(),
 				std::move(locationText),
 				QString()
-			)->setLinksTrusted();
+			).text->setLinksTrusted();
 		}
 
 		addInfoLine(

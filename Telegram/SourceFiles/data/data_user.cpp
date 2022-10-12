@@ -121,13 +121,18 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 }
 
 void UserData::setUsernames(const Data::Usernames &usernames) {
-	_usernames = ranges::views::all(
+	auto newUsernames = ranges::views::all(
 		usernames
 	) | ranges::views::filter([&](const Data::Username &username) {
 		return username.active;
 	}) | ranges::views::transform([&](const Data::Username &username) {
 		return username.username;
 	}) | ranges::to_vector;
+
+	if (!ranges::equal(_usernames, newUsernames)) {
+		_usernames = std::move(newUsernames);
+		session().changes().peerUpdated(this, UpdateFlag::Usernames);
+	}
 }
 
 void UserData::setUsername(const QString &username) {

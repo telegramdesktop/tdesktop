@@ -47,12 +47,24 @@ auto PlainAboutValue(not_null<PeerData*> peer) {
 }
 
 auto PlainUsernameValue(not_null<PeerData*> peer) {
-	return peer->session().changes().peerFlagsValue(
-		peer,
-		UpdateFlag::Username
+	return rpl::merge(
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
 	) | rpl::map([=] {
 		return peer->userName();
 	});
+}
+
+auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
+	return UsernamesValue(
+		peer
+	) | rpl::map([=](std::vector<TextWithEntities> usernames) {
+		if (!usernames.empty()) {
+			return rpl::single(usernames.front().text);
+		} else {
+			return PlainUsernameValue(peer);
+		}
+	}) | rpl::flatten_latest();
 }
 
 void StripExternalLinks(TextWithEntities &text) {
@@ -124,14 +136,45 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 	});
 }
 
-rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
-	return PlainUsernameValue(
-		user
+rpl::producer<TextWithEntities> UsernameValue(
+		not_null<UserData*> user,
+		bool primary) {
+	return (primary
+		? PlainPrimaryUsernameValue(user)
+		: PlainUsernameValue(user)
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
 			? QString()
 			: ('@' + username);
 	}) | Ui::Text::ToWithEntities();
+}
+
+rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
+		not_null<PeerData*> peer) {
+	const auto map = [=](const std::vector<QString> &usernames) {
+		return ranges::views::all(
+			usernames
+		) | ranges::views::transform([&](const QString &u) {
+			return Ui::Text::Link(
+				u,
+				peer->session().createInternalLinkFull(u));
+		}) | ranges::to_vector;
+	};
+	auto value = rpl::merge(
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
+	);
+	if (const auto user = peer->asUser()) {
+		return std::move(value) | rpl::map([=] {
+			return map(user->usernames());
+		});
+	} else if (const auto channel = peer->asChannel()) {
+		return std::move(value) | rpl::map([=] {
+			return map(channel->usernames());
+		});
+	} else {
+		return rpl::never<std::vector<TextWithEntities>>();
+	}
 }
 
 TextWithEntities AboutWithEntities(
@@ -170,9 +213,10 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	});
 }
 
-rpl::producer<QString> LinkValue(not_null<PeerData*> peer) {
-	return PlainUsernameValue(
-		peer
+rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
+	return (primary
+		? PlainPrimaryUsernameValue(peer)
+		: PlainUsernameValue(peer)
 	) | rpl::map([=](QString &&username) {
 		return username.isEmpty()
 			? QString()
