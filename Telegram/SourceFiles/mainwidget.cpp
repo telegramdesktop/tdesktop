@@ -123,27 +123,33 @@ enum StackItemType {
 
 class StackItem {
 public:
-	StackItem(PeerData *peer) : _peer(peer) {
+	explicit StackItem(PeerData *peer) : _peer(peer) {
 	}
 
-	PeerData *peer() const {
+	[[nodiscard]] PeerData *peer() const {
 		return _peer;
 	}
 
 	void setThirdSectionMemento(
 		std::shared_ptr<Window::SectionMemento> memento);
-	std::shared_ptr<Window::SectionMemento> takeThirdSectionMemento() {
+	[[nodiscard]] auto takeThirdSectionMemento()
+	-> std::shared_ptr<Window::SectionMemento> {
 		return std::move(_thirdSectionMemento);
 	}
 
 	void setThirdSectionWeak(QPointer<Window::SectionWidget> section) {
 		_thirdSectionWeak = section;
 	}
-	QPointer<Window::SectionWidget> thirdSectionWeak() const {
+	[[nodiscard]] QPointer<Window::SectionWidget> thirdSectionWeak() const {
 		return _thirdSectionWeak;
 	}
 
-	virtual StackItemType type() const = 0;
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
+	[[nodiscard]] virtual StackItemType type() const = 0;
+	[[nodiscard]] virtual rpl::producer<> removeRequests() const = 0;
 	virtual ~StackItem() = default;
 
 private:
@@ -151,9 +157,11 @@ private:
 	QPointer<Window::SectionWidget> _thirdSectionWeak;
 	std::shared_ptr<Window::SectionMemento> _thirdSectionMemento;
 
+	rpl::lifetime _lifetime;
+
 };
 
-class StackItemHistory : public StackItem {
+class StackItemHistory final : public StackItem {
 public:
 	StackItemHistory(
 		not_null<History*> history,
@@ -167,6 +175,9 @@ public:
 
 	StackItemType type() const override {
 		return HistoryStackItem;
+	}
+	rpl::producer<> removeRequests() const override {
+		return rpl::never<>();
 	}
 
 	not_null<History*> history;
@@ -182,6 +193,9 @@ public:
 
 	StackItemType type() const override {
 		return SectionStackItem;
+	}
+	rpl::producer<> removeRequests() const override {
+		return _memento->removeRequests();
 	}
 	std::shared_ptr<Window::SectionMemento> takeMemento() {
 		return std::move(_memento);
@@ -1499,15 +1513,28 @@ void MainWidget::saveSectionInStack() {
 		if (auto memento = _mainSection->createMemento()) {
 			_stack.push_back(std::make_unique<StackItemSection>(
 				std::move(memento)));
-			_stack.back()->setThirdSectionWeak(_thirdSection.data());
+		} else {
+			return;
 		}
 	} else if (const auto history = _history->history()) {
 		_stack.push_back(std::make_unique<StackItemHistory>(
 			history,
 			_history->msgId(),
 			_history->replyReturns()));
-		_stack.back()->setThirdSectionWeak(_thirdSection.data());
+	} else {
+		return;
 	}
+	const auto raw = _stack.back().get();
+	raw->setThirdSectionWeak(_thirdSection.data());
+	raw->removeRequests(
+	) | rpl::start_with_next([=] {
+		for (auto i = begin(_stack); i != end(_stack); ++i) {
+			if (i->get() == raw) {
+				_stack.erase(i);
+				return;
+			}
+		}
+	}, raw->lifetime());
 }
 
 void MainWidget::showSection(
@@ -1715,6 +1742,12 @@ void MainWidget::showNewSection(
 		: _mainSection;
 	if (newThirdSection) {
 		_thirdSection = std::move(newThirdSection);
+		_thirdSection->removeRequests(
+		) | rpl::start_with_next([=] {
+			_thirdSection.destroy();
+			_thirdShadow.destroy();
+			updateControlsGeometry();
+		}, _thirdSection->lifetime());
 		if (!_thirdShadow) {
 			_thirdShadow.create(this);
 			_thirdShadow->show();
@@ -1821,9 +1854,9 @@ bool MainWidget::preventsCloseSection(Fn<void()> callback) const {
 bool MainWidget::preventsCloseSection(
 		Fn<void()> callback,
 		const SectionShow &params) const {
-	return params.thirdColumn
-		? false
-		: preventsCloseSection(std::move(callback));
+	return !params.thirdColumn
+		&& (params.activation != anim::activation::background)
+		&& preventsCloseSection(std::move(callback));
 }
 
 void MainWidget::showBackFromStack(

@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -888,6 +889,22 @@ Data::Forum *PeerData::forum() const {
 	}
 	return nullptr;
 }
+
+Data::ForumTopic *PeerData::forumTopicFor(
+		not_null<const HistoryItem*> item) const {
+	if (const auto forum = this->forum()) {
+		return forum->topicFor(item);
+	}
+	return nullptr;
+}
+
+Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
+	if (const auto forum = this->forum()) {
+		return forum->topicFor(rootId);
+	}
+	return nullptr;
+}
+
 
 bool PeerData::canWrite() const {
 	if (const auto user = asUser()) {

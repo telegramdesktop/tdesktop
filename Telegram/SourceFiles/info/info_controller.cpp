@@ -192,7 +192,10 @@ Controller::Controller(
 
 void Controller::setupMigrationViewer() {
 	const auto peer = _key.peer();
-	if (!peer || (!peer->isChat() && !peer->isChannel()) || _migrated) {
+	if (_key.topic()
+		|| !peer
+		|| (!peer->isChat() && !peer->isChannel())
+		|| _migrated) {
 		return;
 	}
 	peer->session().changes().peerFlagsValue(
@@ -335,6 +338,7 @@ auto Controller::produceSearchQuery(
 	auto result = SearchQuery();
 	result.type = _section.mediaType();
 	result.peerId = _key.peer()->id;
+	result.topicRootId = _key.topic() ? _key.topic()->rootId() : 0;
 	result.query = query;
 	result.migratedPeerId = _migrated ? _migrated->id : PeerId(0);
 	return result;

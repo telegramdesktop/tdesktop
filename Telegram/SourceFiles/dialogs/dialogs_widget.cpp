@@ -328,7 +328,7 @@ Widget::Widget(
 	}, lifetime());
 	_lockUnlock->setClickedCallback([this] {
 		_lockUnlock->setIconOverride(&st::dialogsUnlockIcon, &st::dialogsUnlockIconOver);
-		Core::App().lockByPasscode();
+		Core::App().maybeLockByPasscode();
 		_lockUnlock->setIconOverride(nullptr);
 	});
 

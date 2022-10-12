@@ -55,6 +55,7 @@ public:
 	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<Forum*> forum() const;
+	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
 	[[nodiscard]] bool isGeneral() const {
 		return (_rootId == kGeneralId);
@@ -131,7 +132,7 @@ private:
 		int count,
 		bool known) const;
 
-	const not_null<History*> _history;
+	const not_null<Data::Forum*> _forum;
 	const not_null<Dialogs::MainList*> _list;
 	std::shared_ptr<RepliesList> _replies;
 	MsgId _rootId = 0;

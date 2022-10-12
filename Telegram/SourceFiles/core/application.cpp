@@ -1032,11 +1032,15 @@ void Application::preventOrInvoke(Fn<void()> &&callback) {
 }
 
 void Application::lockByPasscode() {
+	enumerateWindows([&](not_null<Window::Controller*> w) {
+		_passcodeLock = true;
+		w->setupPasscodeLock();
+	});
+}
+
+void Application::maybeLockByPasscode() {
 	preventOrInvoke([=] {
-		enumerateWindows([&](not_null<Window::Controller*> w) {
-			_passcodeLock = true;
-			w->setupPasscodeLock();
-		});
+		lockByPasscode();
 	});
 }
 
@@ -1427,7 +1431,7 @@ void Application::startShortcuts() {
 		});
 		request->check(Command::Lock) && request->handle([=] {
 			if (!passcodeLocked() && _domain->local().hasLocalPasscode()) {
-				lockByPasscode();
+				maybeLockByPasscode();
 				return true;
 			}
 			return false;

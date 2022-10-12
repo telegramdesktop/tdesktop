@@ -1225,11 +1225,11 @@ reactionPremiumLocked: icon{
 	{ "chat/reactions_premium_star", historyPeerUserpicFg },
 };
 reactionExpandPanel: icon{
-	{ "chat/reactions_round_big", windowSubTextFg },
+	{ "chat/reactions_round_big", windowBgRipple },
 	{ "chat/reactions_expand_panel", windowBg },
 };
 reactionsExpandDropdown: icon{
-	{ "chat/reactions_round_small", windowSubTextFg },
+	{ "chat/reactions_round_small", windowBgRipple },
 	{ "chat/reactions_expand_panel", windowBg },
 };
 

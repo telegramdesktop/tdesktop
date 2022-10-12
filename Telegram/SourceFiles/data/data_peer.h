@@ -33,6 +33,7 @@ class Session;
 namespace Data {
 
 class Forum;
+class ForumTopic;
 class Session;
 class GroupCall;
 class CloudImageView;
@@ -197,6 +198,9 @@ public:
 	}
 
 	[[nodiscard]] Data::Forum *forum() const;
+	[[nodiscard]] Data::ForumTopic *forumTopicFor(
+		not_null<const HistoryItem*> item) const;
+	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
 
 	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
 		return _notify.muteUntil();

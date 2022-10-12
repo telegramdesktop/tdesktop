@@ -893,12 +893,8 @@ void SessionController::openForum(
 	closeFolder();
 	_openedForum = forum.get();
 	if (_openedForum.current() == forum) {
-		forum->flagsValue(
-		) | rpl::filter([=](const ChannelData::Flags::Change &update) {
-			using Flag = ChannelData::Flag;
-			return (update.diff & Flag::Forum)
-				&& !(update.value & Flag::Forum);
-		}) | rpl::start_with_next([=] {
+		forum->forum()->destroyed(
+		) | rpl::start_with_next([=] {
 			closeForum();
 			showPeerHistory(
 				forum,

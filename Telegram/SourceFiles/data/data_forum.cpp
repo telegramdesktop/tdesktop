@@ -67,6 +67,18 @@ not_null<Dialogs::MainList*> Forum::topicsList() {
 	return &_topicsList;
 }
 
+rpl::producer<> Forum::destroyed() const {
+	return channel()->flagsValue(
+	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
+		using Flag = ChannelData::Flag;
+		return (update.diff & Flag::Forum) && !(update.value & Flag::Forum);
+	}) | rpl::take(1) | rpl::to_empty;
+}
+
+rpl::producer<not_null<ForumTopic*>> Forum::topicDestroyed() const {
+	return _topicDestroyed.events();
+}
+
 void Forum::requestTopics() {
 	if (_allLoaded || _requestId) {
 		return;

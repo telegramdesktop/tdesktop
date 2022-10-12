@@ -37,6 +37,11 @@ public:
 	~Memento();
 
 private:
+	Memento(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		PeerId migratedPeerId);
+
 	std::unique_ptr<MembersState> _membersState;
 
 };

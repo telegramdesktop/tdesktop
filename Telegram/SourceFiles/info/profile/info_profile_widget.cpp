@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
@@ -22,15 +23,23 @@ namespace Info::Profile {
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peer(),
+	controller->topic(),
 	controller->migratedPeerId()) {
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: ContentMemento(peer, migratedPeerId) {
+: Memento(peer, nullptr, migratedPeerId) {
+}
+
+Memento::Memento(
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	PeerId migratedPeerId)
+: ContentMemento(peer, topic, migratedPeerId) {
 }
 
 Memento::Memento(not_null<Data::ForumTopic*> topic)
-: ContentMemento(topic) {
+: ContentMemento(topic->channel(), topic, 0) {
 }
 
 Section Memento::section() const {

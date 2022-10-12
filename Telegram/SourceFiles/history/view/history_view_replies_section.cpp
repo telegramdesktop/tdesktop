@@ -487,6 +487,13 @@ void RepliesWidget::subscribeToTopic() {
 		_cornerButtons.updateUnreadThingsVisibility();
 	}, _topicLifetime);
 
+	_topic->destroyed(
+	) | rpl::start_with_next([=] {
+		controller()->showBackFromStack(Window::SectionShow(
+			anim::type::normal,
+			anim::activation::background));
+	}, _topicLifetime);
+
 	_cornerButtons.updateUnreadThingsVisibility();
 }
 

@@ -83,6 +83,12 @@ public:
 	}
 
 private:
+	Memento(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		PeerId migratedPeerId,
+		Type type);
+
 	Type _type = Type::Photo;
 	FullMsgId _aroundId;
 	int _idsLimit = 0;

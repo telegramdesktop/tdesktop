@@ -139,7 +139,8 @@ public:
 		return false;
 	}
 
-	virtual bool preventsClose(Fn<void()> &&continueCallback) const {
+	[[nodiscard]] virtual bool preventsClose(
+			Fn<void()> &&continueCallback) const {
 		return false;
 	}
 
@@ -157,10 +158,13 @@ public:
 		doSetInnerFocus();
 	}
 
-	virtual rpl::producer<int> desiredHeight() const;
+	[[nodiscard]] virtual rpl::producer<int> desiredHeight() const;
+	[[nodiscard]] virtual rpl::producer<> removeRequests() const {
+		return rpl::never<>();
+	}
 
 	// Some sections convert to layers on some geometry sizes.
-	virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
+	[[nodiscard]] virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
 			QRect bodyGeometry) {
 		return nullptr;
 	}

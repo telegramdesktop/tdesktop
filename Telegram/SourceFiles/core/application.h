@@ -263,6 +263,7 @@ public:
 	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
+	void maybeLockByPasscode();
 	void unlockPasscode();
 	[[nodiscard]] bool passcodeLocked() const;
 	rpl::producer<bool> passcodeLockChanges() const;

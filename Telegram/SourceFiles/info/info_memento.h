@@ -58,6 +58,10 @@ public:
 		not_null<Window::SessionController*> controller,
 		const QRect &geometry) override;
 
+	rpl::producer<> removeRequests() const override {
+		return _removeRequests.events();
+	}
+
 	int stackSize() const {
 		return int(_stack.size());
 	}
@@ -96,6 +100,8 @@ private:
 		Section section);
 
 	std::vector<std::shared_ptr<ContentMemento>> _stack;
+	rpl::event_stream<> _removeRequests;
+	rpl::lifetime _lifetime;
 
 };
 

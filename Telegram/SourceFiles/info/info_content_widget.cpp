@@ -337,16 +337,23 @@ Key ContentMemento::key() const {
 	}
 }
 
-ContentMemento::ContentMemento(not_null<Data::ForumTopic*> topic)
-: _peer(topic->channel())
-, _migratedPeerId(_peer->migrateFrom() ? _peer->migrateFrom()->id : 0)
+ContentMemento::ContentMemento(
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	PeerId migratedPeerId)
+: _peer(peer)
+, _migratedPeerId((!topic && peer->migrateFrom())
+	? peer->migrateFrom()->id
+	: 0)
 , _topic(topic) {
-	_peer->owner().itemIdChanged(
-	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
-		if (_topic->rootId() == change.oldId) {
-			_topic = _topic->forum()->topicFor(change.newId.msg);
-		}
-	}, _lifetime);
+	if (_topic) {
+		_peer->owner().itemIdChanged(
+		) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+			if (_topic->rootId() == change.oldId) {
+				_topic = _topic->forum()->topicFor(change.newId.msg);
+			}
+		}, _lifetime);
+	}
 }
 
 ContentMemento::ContentMemento(Settings::Tag settings)

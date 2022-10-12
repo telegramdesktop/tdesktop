@@ -138,8 +138,8 @@ QImage ForumTopicIconFrame(
 
 ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
 : Entry(&history->owner(), Type::ForumTopic)
-, _history(history)
-, _list(forum()->topicsList())
+, _forum(history->peer->forum())
+, _list(_forum->topicsList())
 , _replies(std::make_shared<RepliesList>(history, rootId))
 , _rootId(rootId) {
 	_replies->unreadCountValue(
@@ -165,15 +165,22 @@ std::shared_ptr<Data::RepliesList> ForumTopic::replies() const {
 }
 
 not_null<ChannelData*> ForumTopic::channel() const {
-	return _history->peer->asChannel();
+	return _forum->channel();
 }
 
 not_null<History*> ForumTopic::history() const {
-	return _history;
+	return _forum->history();
 }
 
 not_null<Forum*> ForumTopic::forum() const {
-	return channel()->forum();
+	return _forum;
+}
+
+rpl::producer<> ForumTopic::destroyed() const {
+	using namespace rpl::mappers;
+	return rpl::merge(
+		_forum->destroyed(),
+		_forum->topicDestroyed() | rpl::filter(_1 == this) | rpl::to_empty);
 }
 
 MsgId ForumTopic::rootId() const {
@@ -183,7 +190,7 @@ MsgId ForumTopic::rootId() const {
 void ForumTopic::setRealRootId(MsgId realId) {
 	if (_rootId != realId) {
 		_rootId = realId;
-		_replies = std::make_shared<RepliesList>(_history, _rootId);
+		_replies = std::make_shared<RepliesList>(history(), _rootId);
 	}
 }
 
@@ -252,7 +259,7 @@ int ForumTopic::chatListNameVersion() const {
 
 void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
-		const auto itemId = FullMsgId(_history->peer->id, topMessageId);
+		const auto itemId = FullMsgId(channel()->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
 
@@ -428,7 +435,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	if (_iconId != iconId) {
 		_iconId = iconId;
 		_icon = iconId
-			? _history->owner().customEmojiManager().create(
+			? owner().customEmojiManager().create(
 				_iconId,
 				[=] { updateChatListEntry(); },
 				Data::CustomEmojiManager::SizeTag::Normal)
@@ -524,7 +531,7 @@ Dialogs::UnreadState ForumTopic::unreadStateFor(
 		bool known) const {
 	auto result = Dialogs::UnreadState();
 	const auto mark = !count && unreadMark();
-	const auto muted = _history->mute();
+	const auto muted = history()->mute();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;

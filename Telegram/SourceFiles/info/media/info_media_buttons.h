@@ -93,8 +93,15 @@ inline auto AddButton(
 		MediaText(type),
 		tracker)->entity();
 	result->addClickHandler([=] {
-		navigation->showSection(
-			std::make_shared<Info::Memento>(peer, Section(type)));
+		const auto topic = topicRootId
+			? peer->forumTopicFor(topicRootId)
+			: nullptr;
+		if (topicRootId && !topic) {
+			return;
+		}
+		navigation->showSection(topicRootId
+			? std::make_shared<Info::Memento>(topic, Section(type))
+			: std::make_shared<Info::Memento>(peer, Section(type)));
 	});
 	return result;
 };

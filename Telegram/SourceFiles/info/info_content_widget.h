@@ -144,11 +144,10 @@ private:
 
 class ContentMemento {
 public:
-	ContentMemento(not_null<PeerData*> peer, PeerId migratedPeerId)
-	: _peer(peer)
-	, _migratedPeerId(migratedPeerId) {
-	}
-	explicit ContentMemento(not_null<Data::ForumTopic*> topic);
+	ContentMemento(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		PeerId migratedPeerId);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)

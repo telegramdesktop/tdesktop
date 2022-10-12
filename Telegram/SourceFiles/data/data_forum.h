@@ -34,6 +34,9 @@ public:
 	[[nodiscard]] not_null<History*> history() const;
 	[[nodiscard]] not_null<ChannelData*> channel() const;
 	[[nodiscard]] not_null<Dialogs::MainList*> topicsList();
+	[[nodiscard]] rpl::producer<> destroyed() const;
+	[[nodiscard]] auto topicDestroyed() const
+		-> rpl::producer<not_null<ForumTopic*>>;
 
 	void requestTopics();
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
@@ -75,6 +78,7 @@ private:
 	const not_null<History*> _history;
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;
+	rpl::event_stream<not_null<ForumTopic*>> _topicDestroyed;
 	Dialogs::MainList _topicsList;
 
 	base::flat_map<MsgId, TopicRequest> _topicRequests;

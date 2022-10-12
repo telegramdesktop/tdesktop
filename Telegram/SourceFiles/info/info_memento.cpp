@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 
@@ -51,6 +52,27 @@ Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
 
 Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
+	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
+	for (auto &entry : _stack) {
+		if (const auto topic = entry->topic()) {
+			topics.emplace(topic);
+		}
+	}
+	for (const auto &topic : topics) {
+		topic->destroyed(
+		) | rpl::start_with_next([=] {
+			for (auto i = begin(_stack); i != end(_stack);) {
+				if (i->get()->topic() == topic) {
+					i = _stack.erase(i);
+				} else {
+					++i;
+				}
+			}
+			if (_stack.empty()) {
+				_removeRequests.fire({});
+			}
+		}, _lifetime);
+	}
 }
 
 std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(

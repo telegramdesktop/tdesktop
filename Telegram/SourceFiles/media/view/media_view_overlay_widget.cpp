@@ -1902,9 +1902,19 @@ void OverlayWidget::showMediaOverview() {
 		close();
 		if (SharedMediaOverviewType(*overviewType)) {
 			if (const auto window = findWindow()) {
-				window->showSection(std::make_shared<Info::Memento>(
-					_history->peer,
-					Info::Section(*overviewType)));
+				const auto topic = _topicRootId
+					? _history->peer->forumTopicFor(_topicRootId)
+					: nullptr;
+				if (_topicRootId && !topic) {
+					return;
+				}
+				window->showSection(_topicRootId
+					? std::make_shared<Info::Memento>(
+						topic,
+						Info::Section(*overviewType))
+					: std::make_shared<Info::Memento>(
+						_history->peer,
+						Info::Section(*overviewType)));
 			}
 		}
 	}

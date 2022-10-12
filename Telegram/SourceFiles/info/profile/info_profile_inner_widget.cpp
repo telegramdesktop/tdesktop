@@ -73,8 +73,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		_topic ? TitleValue(_topic) : NameValue(_peer)));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(
-			std::make_shared<Info::Memento>(_peer, section));
+		_controller->showSection(_topic
+			? std::make_shared<Info::Memento>(_topic, section)
+			: std::make_shared<Info::Memento>(_peer, section));
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	if (_topic) {
@@ -166,34 +167,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		object_ptr<Ui::VerticalLayout>(parent)
 	);
 
-	// Allows removing shared media links in third column.
-	// Was done for tabs support.
-	//
-	//using ToggledData = std::tuple<bool, Wrap, bool>;
-	//rpl::combine(
-	//	tracker.atLeastOneShownValue(),
-	//	_controller->wrapValue(),
-	//	_isStackBottom.value()
-	//) | rpl::combine_previous(
-	//	ToggledData()
-	//) | rpl::start_with_next([wrap = result.data()](
-	//		const ToggledData &was,
-	//		const ToggledData &now) {
-	//	bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
-	//	Wrap wasWrap, nowWrap;
-	//	std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
-	//	std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
-	//	// MSVC Internal Compiler Error
-	//	//auto [wasOneShown, wasWrap, wasStackBottom] = was;
-	//	//auto [nowOneShown, nowWrap, nowStackBottom] = now;
-	//	wrap->toggle(
-	//		nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
-	//		(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
-	//			? anim::type::normal
-	//			: anim::type::instant);
-	//}, result->lifetime());
-	//
-	// Using that instead
 	result->setDuration(
 		st::infoSlideDuration
 	)->toggleOn(
