@@ -480,7 +480,8 @@ void EditForumTopicBox(
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
-				MTP_long(state->iconId.current())
+				MTP_long(state->iconId.current()),
+				MTPBool() // closed
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
 				box->closeBox();

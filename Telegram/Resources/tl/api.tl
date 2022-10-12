@@ -193,7 +193,7 @@ messageActionWebViewDataSentMe#47dd8079 text:string data:string = MessageAction;
 messageActionWebViewDataSent#b4c38cb5 text:string = MessageAction;
 messageActionGiftPremium#aba0f5c6 currency:string amount:long months:int = MessageAction;
 messageActionTopicCreate#d999256 flags:# title:string icon_color:int icon_emoji_id:flags.0?long = MessageAction;
-messageActionTopicEdit#b117a9f5 flags:# title:flags.0?string icon_emoji_id:flags.1?long = MessageAction;
+messageActionTopicEdit#b18a431c flags:# title:flags.0?string icon_emoji_id:flags.1?long closed:flags.2?Bool = MessageAction;
 
 dialog#a8edd0f5 flags:# pinned:flags.2?true unread_mark:flags.3?true peer:Peer top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int notify_settings:PeerNotifySettings pts:flags.0?int draft:flags.1?DraftMessage folder_id:flags.4?int = Dialog;
 dialogFolder#71bd134c flags:# pinned:flags.2?true folder:Folder peer:Peer top_message:int unread_muted_peers_count:int unread_unmuted_peers_count:int unread_muted_messages_count:int unread_unmuted_messages_count:int = Dialog;
@@ -401,6 +401,7 @@ updateRecentEmojiStatuses#30f443db = Update;
 updateRecentReactions#6f7863f4 = Update;
 updateMoveStickerSetToTop#86fccf85 flags:# masks:flags.0?true emojis:flags.1?true stickerset:long = Update;
 updateMessageExtendedMedia#5a73a98c peer:Peer msg_id:int extended_media:MessageExtendedMedia = Update;
+updateChannelPinnedTopic#f694b0ae flags:# channel_id:long topic_id:flags.0?int = Update;
 
 updates.state#a56c2a3e pts:int qts:int date:int seq:int unread_count:int = updates.State;
 
@@ -1455,7 +1456,7 @@ stickerKeyword#fcfeb29c document_id:long keyword:Vector<string> = StickerKeyword
 
 username#b4073647 flags:# editable:flags.0?true active:flags.1?true username:string = Username;
 
-forumTopic#5920d6dc flags:# my:flags.1?true id:int date:int title:string icon_color:int icon_emoji_id:flags.0?long top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int from_id:Peer notify_settings:PeerNotifySettings = ForumTopic;
+forumTopic#5920d6dc flags:# my:flags.1?true closed:flags.2?true pinned:flags.3?true id:int date:int title:string icon_color:int icon_emoji_id:flags.0?long top_message:int read_inbox_max_id:int read_outbox_max_id:int unread_count:int unread_mentions_count:int unread_reactions_count:int from_id:Peer notify_settings:PeerNotifySettings = ForumTopic;
 
 messages.forumTopics#367617d3 flags:# order_by_create_date:flags.0?true count:int topics:Vector<ForumTopic> messages:Vector<Message> chats:Vector<Chat> users:Vector<User> pts:int = messages.ForumTopics;
 
@@ -1865,7 +1866,8 @@ channels.toggleForum#a4298b29 channel:InputChannel enabled:Bool = Updates;
 channels.createForumTopic#f40c0224 flags:# channel:InputChannel title:string icon_color:flags.0?int icon_emoji_id:flags.3?long random_id:long send_as:flags.2?InputPeer = Updates;
 channels.getForumTopics#de560d1 flags:# channel:InputChannel q:flags.0?string offset_date:int offset_id:int offset_topic:int limit:int = messages.ForumTopics;
 channels.getForumTopicsByID#b0831eb9 channel:InputChannel topics:Vector<int> = messages.ForumTopics;
-channels.editForumTopic#8a7f464b flags:# channel:InputChannel topic_id:int title:flags.0?string icon_emoji_id:flags.1?long = Updates;
+channels.editForumTopic#6c883e2d flags:# channel:InputChannel topic_id:int title:flags.0?string icon_emoji_id:flags.1?long closed:flags.2?Bool = Updates;
+channels.updatePinnedForumTopic#6c2d9026 channel:InputChannel topic_id:int pinned:Bool = Updates;
 channels.deleteTopicHistory#34435f2d channel:InputChannel top_msg_id:int = messages.AffectedHistory;
 
 bots.sendCustomRequest#aa2769ed custom_method:string params:DataJSON = DataJSON;
