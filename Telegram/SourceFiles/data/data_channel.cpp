@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_bot_command.h"
+#include "data/data_user_names.h"
 #include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
@@ -107,8 +108,22 @@ void ChannelData::setUsername(const QString &username) {
 	}
 }
 
+void ChannelData::setUsernames(const Data::Usernames &usernames) {
+	_usernames = ranges::views::all(
+		usernames
+	) | ranges::views::filter([&](const Data::Username &username) {
+		return username.active;
+	}) | ranges::views::transform([&](const Data::Username &username) {
+		return username.username;
+	}) | ranges::to_vector;
+}
+
 QString ChannelData::username() const {
 	return _username;
+}
+
+const std::vector<QString> &ChannelData::usernames() const {
+	return _usernames;
 }
 
 void ChannelData::setAccessHash(uint64 accessHash) {

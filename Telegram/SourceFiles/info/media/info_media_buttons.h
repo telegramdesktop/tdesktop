@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "settings/settings_common.h"
 #include "window/window_session_controller.h"
-#include "data/data_channel.h"
 #include "data/data_user.h"
 #include "styles/style_info.h"
 

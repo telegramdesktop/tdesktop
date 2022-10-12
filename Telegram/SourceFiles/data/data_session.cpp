@@ -798,6 +798,20 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 		}
 
+		{
+			const auto newUsername = qs(data.vusername().value_or_empty());
+			const auto newUsernames = data.vusernames()
+				? Api::Usernames::FromTL(*data.vusernames())
+				: !newUsername.isEmpty()
+				? Data::Usernames{ Data::Username{ newUsername, true, true } }
+				: Data::Usernames();
+			channel->setName(
+				qs(data.vtitle()),
+				TextUtilities::SingleLine(newUsername));
+			channel->setUsernames(newUsernames);
+		}
+		const auto hasUsername = !channel->username().isEmpty();
+
 		using Flag = ChannelDataFlag;
 		const auto flagsMask = Flag::Broadcast
 			| Flag::Verified
@@ -823,7 +837,7 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (data.is_fake() ? Flag::Fake : Flag())
 			| (data.is_megagroup() ? Flag::Megagroup : Flag())
 			| (data.is_gigagroup() ? Flag::Gigagroup : Flag())
-			| (data.vusername() ? Flag::Username : Flag())
+			| (hasUsername ? Flag::Username : Flag())
 			| (data.is_signatures() ? Flag::Signatures : Flag())
 			| (data.is_has_link() ? Flag::HasLink : Flag())
 			| (data.is_slowmode_enabled() ? Flag::SlowmodeEnabled : Flag())
@@ -844,10 +858,6 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				? Flag::Forum
 				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
-
-		channel->setName(
-			qs(data.vtitle()),
-			TextUtilities::SingleLine(qs(data.vusername().value_or_empty())));
 
 		channel->setPhoto(data.vphoto());
 
