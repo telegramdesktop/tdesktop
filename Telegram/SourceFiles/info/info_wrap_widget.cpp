@@ -503,6 +503,8 @@ bool WrapWidget::requireTopBarSearch() const {
 	} else if (_controller->wrap() == Wrap::Layer
 		|| _controller->section().type() == Section::Type::Profile) {
 		return false;
+	} else if (key().isDownloads()) {
+		return false;
 	} else if (hasStackHistory()) {
 		return true;
 	}
