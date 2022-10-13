@@ -2211,6 +2211,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_send_now_selected" = "Send selected now";
 "lng_context_reschedule_selected" = "Reschedule Selected";
 "lng_context_delete_selected" = "Delete Selected";
+"lng_context_save_images_selected" = "Save Selected";
+"lng_context_save_documents_selected" = "Download Selected";
 "lng_context_clear_selection" = "Clear Selection";
 "lng_context_seen_loading" = "Loading...";
 "lng_context_seen_text#one" = "{count} Seen";
@@ -2391,6 +2393,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_report_profile_photo" = "Report";
 
 "lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
+"lng_mediaview_saved_images_to" = "Images was saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";
 "lng_mediaview_video_loading" = "Loading - {percent}";
 "lng_mediaview_playback_speed" = "Playback speed: {speed}";

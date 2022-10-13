@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/controls/who_reacted_context_action.h"
 #include "ui/boxes/report_box.h"
 #include "ui/ui_utility.h"
+#include "menu/menu_item_download_files.h"
 #include "menu/menu_send.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/delete_messages_box.h"
@@ -803,6 +804,20 @@ void AddDeleteAction(
 	}
 }
 
+void AddDownloadFilesAction(
+		not_null<Ui::PopupMenu*> menu,
+		const ContextMenuRequest &request,
+		not_null<ListWidget*> list) {
+	if (!request.overSelection || request.selectedItems.empty()) {
+		return;
+	}
+	Menu::AddDownloadFilesAction(
+		menu,
+		request.navigation->parentController(),
+		request.selectedItems,
+		list);
+}
+
 void AddReportAction(
 		not_null<Ui::PopupMenu*> menu,
 		const ContextMenuRequest &request,
@@ -901,6 +916,7 @@ void AddMessageActions(
 	AddForwardAction(menu, request, list);
 	AddSendNowAction(menu, request, list);
 	AddDeleteAction(menu, request, list);
+	AddDownloadFilesAction(menu, request, list);
 	AddReportAction(menu, request, list);
 	AddSelectionAction(menu, request, list);
 	AddRescheduleAction(menu, request, list);
@@ -969,7 +985,7 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 	}
 
 	AddTopMessageActions(result, request, list);
-	if (lnkPhoto) {
+	if (lnkPhoto && request.selectedItems.empty()) {
 		AddPhotoActions(result, lnkPhoto, item, list);
 	} else if (lnkDocument) {
 		AddDocumentActions(result, lnkDocument, item, list);

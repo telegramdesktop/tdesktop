@@ -971,6 +971,8 @@ PRIVATE
     media/view/media_view_playback_progress.cpp
     media/view/media_view_playback_progress.h
     media/view/media_view_open_common.h
+    menu/menu_item_download_files.cpp
+    menu/menu_item_download_files.h
     menu/menu_mute.cpp
     menu/menu_mute.h
     menu/menu_send.cpp
