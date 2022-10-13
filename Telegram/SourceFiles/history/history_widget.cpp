@@ -2865,6 +2865,7 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 			session().data().histories().readInboxOnNewMessage(item);
 
 			// Also clear possible scheduled messages notifications.
+			// Side-effect: Also clears all notifications from forum topics.
 			Core::App().notifications().clearFromHistory(_history);
 		}
 	}
@@ -3954,7 +3955,7 @@ void HistoryWidget::cornerButtonsShowAtPosition(
 	}
 }
 
-Dialogs::Entry *HistoryWidget::cornerButtonsEntry() {
+Data::Thread *HistoryWidget::cornerButtonsThread() {
 	return _history;
 }
 

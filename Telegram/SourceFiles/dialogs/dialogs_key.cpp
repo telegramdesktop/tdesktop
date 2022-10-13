@@ -12,12 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 
 namespace Dialogs {
-namespace {
-
-using Folder = Data::Folder;
-using ForumTopic = Data::ForumTopic;
-
-} // namespace
 
 Key::Key(History *history) : _value(history) {
 }
@@ -47,12 +41,16 @@ History *Key::history() const {
 	return _value ? _value->asHistory() : nullptr;
 }
 
-Folder *Key::folder() const {
+Data::Folder *Key::folder() const {
 	return _value ? _value->asFolder() : nullptr;
 }
 
-ForumTopic *Key::topic() const {
+Data::ForumTopic *Key::topic() const {
 	return _value ? _value->asTopic() : nullptr;
+}
+
+Data::Thread *Key::thread() const {
+	return _value ? _value->asThread() : nullptr;
 }
 
 History *Key::parentHistory() const {

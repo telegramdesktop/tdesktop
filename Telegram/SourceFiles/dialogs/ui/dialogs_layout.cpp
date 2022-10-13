@@ -35,7 +35,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_user.h"
 #include "data/data_folder.h"
-#include "data/data_forum_topic.h"
 #include "data/data_peer_values.h"
 
 namespace Dialogs::Ui {
@@ -346,7 +345,7 @@ void PaintRow(
 	row->paintRipple(p, 0, 0, context.width, &ripple->c);
 
 	const auto history = chat.history();
-	const auto topic = chat.topic();
+	const auto thread = chat.thread();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -418,8 +417,8 @@ void PaintRow(
 	if (promoted && !history->topPromotionMessage().isEmpty()) {
 		auto availableWidth = namewidth;
 		p.setFont(st::dialogsTextFont);
-		if (history->cloudDraftTextCache.isEmpty()) {
-			history->cloudDraftTextCache.setText(
+		if (history->cloudDraftTextCache().isEmpty()) {
+			history->cloudDraftTextCache().setText(
 				st::dialogsTextStyle,
 				history->topPromotionMessage(),
 				DialogTextOptions());
@@ -429,7 +428,7 @@ void PaintRow(
 			: context.selected
 			? st::dialogsTextFgOver
 			: st::dialogsTextFg);
-		history->cloudDraftTextCache.draw(p, {
+		history->cloudDraftTextCache().draw(p, {
 			.position = { nameleft, texttop },
 			.availableWidth = availableWidth,
 			.spoiler = Text::DefaultSpoilerCache(),
@@ -475,7 +474,7 @@ void PaintRow(
 				context.width,
 				color,
 				context.paused)) {
-			if (history->cloudDraftTextCache.isEmpty()) {
+			if (history->cloudDraftTextCache().isEmpty()) {
 				using namespace TextUtilities;
 				auto draftWrapped = Text::PlainLink(
 					tr::lng_dialogs_text_from_wrapped(
@@ -500,7 +499,7 @@ void PaintRow(
 					.session = &history->session(),
 					.customEmojiRepaint = customEmojiRepaint,
 				};
-				history->cloudDraftTextCache.setMarkedText(
+				history->cloudDraftTextCache().setMarkedText(
 					st::dialogsTextStyle,
 					draftText,
 					DialogTextOptions(),
@@ -511,7 +510,7 @@ void PaintRow(
 				: context.selected
 				? st::dialogsTextFgOver
 				: st::dialogsTextFg);
-			history->cloudDraftTextCache.draw(p, {
+			history->cloudDraftTextCache().draw(p, {
 				.position = { nameleft, texttop },
 				.availableWidth = availableWidth,
 				.palette = &(supportMode
@@ -562,7 +561,7 @@ void PaintRow(
 			// Empty history
 		}
 	} else if (!item->isEmpty()) {
-		if ((history || topic) && !promoted) {
+		if (thread && !promoted) {
 			PaintRowDate(p, date, rectForName, context);
 		}
 
@@ -886,7 +885,7 @@ void RowPainter::Paint(
 		const PaintContext &context) {
 	const auto entry = row->entry();
 	const auto history = row->history();
-	const auto topic = row->topic();
+	const auto thread = row->thread();
 	const auto peer = history ? history->peer.get() : nullptr;
 	const auto unreadCount = entry->chatListUnreadCount();
 	const auto unreadMark = entry->chatListUnreadMark();
@@ -916,12 +915,11 @@ void RowPainter::Paint(
 			? base::unixtime::parse(cloudDraft->date)
 			: QDateTime();
 	}();
-	const auto displayMentionBadge = (history
-		&& history->unreadMentions().has())
-		|| (topic && topic->unreadMentions().has());
+	const auto displayMentionBadge = thread
+		&& thread->unreadMentions().has();
 	const auto displayReactionBadge = !displayMentionBadge
-		&& ((history && history->unreadReactions().has())
-			|| (topic && topic->unreadReactions().has()));
+		&& thread
+		&& thread->unreadReactions().has();
 	const auto mentionOrReactionMuted = (entry->folder() != nullptr)
 		|| (!displayMentionBadge && unreadMuted);
 	const auto displayUnreadCounter = [&] {
@@ -991,10 +989,8 @@ void RowPainter::Paint(
 			: false;
 		const auto view = actionWasPainted
 			? nullptr
-			: history
-			? &history->lastItemDialogsView
-			: topic
-			? &topic->lastItemDialogsView
+			: thread
+			? &thread->lastItemDialogsView()
 			: nullptr;
 		if (const auto folder = row->folder()) {
 			PaintListEntryText(p, row, context, rect);

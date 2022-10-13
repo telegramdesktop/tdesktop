@@ -9,8 +9,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
-namespace Dialogs {
-class Entry;
+namespace Data {
+class Thread;
 } // namespace Data
 
 namespace HistoryUnreadThings {
@@ -108,7 +108,7 @@ private:
 class Proxy final : public ConstProxy {
 public:
 	Proxy(
-		not_null<Dialogs::Entry*> entry,
+		not_null<Data::Thread*> thread,
 		std::unique_ptr<All> &data,
 		Type type,
 		bool known)
@@ -119,7 +119,7 @@ public:
 			? &data->mentions
 			: &data->reactions),
 		known)
-	, _entry(entry)
+	, _thread(thread)
 	, _data(data)
 	, _type(type)
 	, _known(known) {
@@ -138,9 +138,8 @@ private:
 	void createData();
 	void notifyUpdated();
 	[[nodiscard]] List &resolveList();
-	[[nodiscard]] not_null<History*> resolveHistory() const;
 
-	const not_null<Dialogs::Entry*> _entry;
+	const not_null<Data::Thread*> _thread;
 	std::unique_ptr<All> &_data;
 	Type _type = Type::Mentions;
 	bool _known = false;

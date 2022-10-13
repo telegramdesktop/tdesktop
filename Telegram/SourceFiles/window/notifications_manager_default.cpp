@@ -823,8 +823,8 @@ void Notification::updateNotifyDisplay() {
 	const auto options = manager()->getNotificationOptions(
 		_item,
 		(_reaction.empty()
-			? ItemNotificationType::Message
-			: ItemNotificationType::Reaction));
+			? Data::ItemNotificationType::Message
+			: Data::ItemNotificationType::Reaction));
 	_hideReplyButton = options.hideReplyButton;
 
 	int32 w = width(), h = height();
@@ -1118,7 +1118,9 @@ bool Notification::unlinkSession(not_null<Main::Session*> session) {
 }
 
 void Notification::enterEventHook(QEnterEvent *e) {
-	if (!_history) return;
+	if (!_history) {
+		return;
+	}
 	manager()->stopAllHiding();
 	if (!_replyArea && canReply()) {
 		toggleActionButtons(true);
@@ -1126,7 +1128,9 @@ void Notification::enterEventHook(QEnterEvent *e) {
 }
 
 void Notification::leaveEventHook(QEvent *e) {
-	if (!_history) return;
+	if (!_history) {
+		return;
+	}
 	manager()->startAllHiding();
 	toggleActionButtons(false);
 }

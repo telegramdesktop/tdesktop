@@ -130,7 +130,7 @@ void Forum::applyReceivedTopics(
 		const auto raw = creating
 			? _topics.emplace(
 				rootId,
-				std::make_unique<ForumTopic>(_history, rootId)
+				std::make_unique<ForumTopic>(this, rootId)
 			).first->second.get()
 			: i->second.get();
 		raw->applyTopic(topic);
@@ -194,7 +194,7 @@ void Forum::applyTopicAdded(
 		? i->second.get()
 		: _topics.emplace(
 			rootId,
-			std::make_unique<ForumTopic>(_history, rootId)
+			std::make_unique<ForumTopic>(this, rootId)
 		).first->second.get();
 	raw->applyTitle(title);
 	raw->applyColorId(colorId);
@@ -262,11 +262,13 @@ void Forum::clearAllUnreadReactions() {
 }
 
 ForumTopic *Forum::topicFor(not_null<const HistoryItem*> item) {
-	const auto maybe = topicFor(item->replyToTop());
-	return maybe ? maybe : topicFor(item->topicRootId());
+	return topicFor(item->topicRootId());
 }
 
 ForumTopic *Forum::topicFor(MsgId rootId) {
+	if (!rootId) {
+		return nullptr;
+	}
 	const auto i = _topics.find(rootId);
 	return (i != end(_topics)) ? i->second.get() : nullptr;
 }

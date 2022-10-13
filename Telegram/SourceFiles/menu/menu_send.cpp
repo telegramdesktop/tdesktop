@@ -152,29 +152,29 @@ void SetupMenuAndShortcuts(
 
 void SetupReadAllMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<Dialogs::Entry*()> currentEntry,
+		Fn<Data::Thread*()> currentThread,
 		const QString &text,
-		Fn<void(not_null<Dialogs::Entry*>, Fn<void()>)> sendReadRequest) {
+		Fn<void(not_null<Data::Thread*>, Fn<void()>)> sendReadRequest) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
-		base::flat_set<base::weak_ptr<Dialogs::Entry>> sentForEntries;
+		base::flat_set<base::weak_ptr<Data::Thread>> sentForEntries;
 	};
 	const auto state = std::make_shared<State>();
 	const auto showMenu = [=] {
-		const auto entry = base::make_weak(currentEntry());
-		if (!entry) {
+		const auto thread = base::make_weak(currentThread());
+		if (!thread) {
 			return;
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
 		state->menu->addAction(text, [=] {
-			const auto strong = entry.get();
-			if (!strong || !state->sentForEntries.emplace(entry).second) {
+			const auto strong = thread.get();
+			if (!strong || !state->sentForEntries.emplace(thread).second) {
 				return;
 			}
 			sendReadRequest(strong, [=] {
-				state->sentForEntries.remove(entry);
+				state->sentForEntries.remove(thread);
 			});
 		}, &st::menuIconMarkRead);
 		state->menu->popup(QCursor::pos());
@@ -191,21 +191,19 @@ void SetupReadAllMenu(
 
 void SetupUnreadMentionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<Dialogs::Entry*()> currentEntry) {
+		Fn<Data::Thread*()> currentThread) {
 	const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
 	const auto sendOne = [=](
-			base::weak_ptr<Dialogs::Entry> weakEntry,
+			base::weak_ptr<Data::Thread> weakThread,
 			Fn<void()> done,
 			auto resend) -> void {
-		const auto entry = weakEntry.get();
-		if (!entry) {
+		const auto thread = weakThread.get();
+		if (!thread) {
 			done();
 			return;
 		}
-		const auto history = entry->asHistory();
-		const auto topic = entry->asTopic();
-		Assert(history || topic);
-		const auto peer = (history ? history : topic->history().get())->peer;
+		const auto peer = thread->owningHistory()->peer;
+		const auto topic = thread->asTopic();
 		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadMentions::Flag;
 		peer->session().api().request(MTPmessages_ReadMentions(
@@ -217,7 +215,7 @@ void SetupUnreadMentionsMenu(
 				peer,
 				result);
 			if (offset > 0) {
-				resend(weakEntry, done, resend);
+				resend(weakThread, done, resend);
 			} else {
 				done();
 				peer->owner().history(peer)->clearUnreadMentionsFor(rootId);
@@ -225,30 +223,28 @@ void SetupUnreadMentionsMenu(
 		}).fail(done).send();
 	};
 	const auto sendRequest = [=](
-			not_null<Dialogs::Entry*> entry,
+			not_null<Data::Thread*> thread,
 			Fn<void()> done) {
-		sendOne(base::make_weak(entry.get()), std::move(done), sendOne);
+		sendOne(base::make_weak(thread.get()), std::move(done), sendOne);
 	};
-	SetupReadAllMenu(button, currentEntry, text, sendRequest);
+	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }
 
 void SetupUnreadReactionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<Dialogs::Entry*()> currentEntry) {
+		Fn<Data::Thread*()> currentThread) {
 	const auto text = tr::lng_context_mark_read_reactions_all(tr::now);
 	const auto sendOne = [=](
-			base::weak_ptr<Dialogs::Entry> weakEntry,
+			base::weak_ptr<Data::Thread> weakThread,
 			Fn<void()> done,
 			auto resend) -> void {
-		const auto entry = weakEntry.get();
-		if (!entry) {
+		const auto thread = weakThread.get();
+		if (!thread) {
 			done();
 			return;
 		}
-		const auto history = entry->asHistory();
-		const auto topic = entry->asTopic();
-		Assert(history || topic);
-		const auto peer = (history ? history : topic->history().get())->peer;
+		const auto topic = thread->asTopic();
+		const auto peer = thread->owningHistory()->peer;
 		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadReactions::Flag;
 		peer->session().api().request(MTPmessages_ReadReactions(
@@ -260,7 +256,7 @@ void SetupUnreadReactionsMenu(
 				peer,
 				result);
 			if (offset > 0) {
-				resend(weakEntry, done, resend);
+				resend(weakThread, done, resend);
 			} else {
 				done();
 				peer->owner().history(peer)->clearUnreadReactionsFor(rootId);
@@ -268,11 +264,11 @@ void SetupUnreadReactionsMenu(
 		}).fail(done).send();
 	};
 	const auto sendRequest = [=](
-			not_null<Dialogs::Entry*> entry,
+			not_null<Data::Thread*> thread,
 			Fn<void()> done) {
-		sendOne(base::make_weak(entry.get()), std::move(done), sendOne);
+		sendOne(base::make_weak(thread.get()), std::move(done), sendOne);
 	};
-	SetupReadAllMenu(button, currentEntry, text, sendRequest);
+	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }
 
 } // namespace SendMenu

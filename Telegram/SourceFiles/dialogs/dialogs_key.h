@@ -11,6 +11,7 @@ class History;
 class PeerData;
 
 namespace Data {
+class Thread;
 class Folder;
 class ForumTopic;
 } // namespace Data
@@ -40,6 +41,7 @@ public:
 	History *history() const;
 	Data::Folder *folder() const;
 	Data::ForumTopic *topic() const;
+	Data::Thread *thread() const;
 	History *parentHistory() const;
 	PeerData *peer() const;
 

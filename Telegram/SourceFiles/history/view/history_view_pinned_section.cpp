@@ -193,7 +193,7 @@ void PinnedWidget::cornerButtonsShowAtPosition(
 	showAtPosition(position);
 }
 
-Dialogs::Entry *PinnedWidget::cornerButtonsEntry() {
+Data::Thread *PinnedWidget::cornerButtonsThread() {
 	return _history;
 }
 

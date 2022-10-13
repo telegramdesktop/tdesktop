@@ -70,19 +70,21 @@ using UpdateFlag = Data::HistoryUpdate::Flag;
 } // namespace
 
 History::History(not_null<Data::Session*> owner, PeerId peerId)
-: Entry(owner, Type::History)
+: Thread(owner, Type::History)
 , peer(owner->peer(peerId))
-, cloudDraftTextCache(st::dialogsTextWidthMin)
 , _delegateMixin(HistoryInner::DelegateMixin())
-, _flags(owner->notifySettings().isMuted(peer) ? Flag::Muted : Flag(0))
 , _chatListNameSortKey(owner->nameSortKey(peer->name()))
 , _sendActionPainter(this) {
+	Thread::setMuted(owner->notifySettings().isMuted(peer));
+
 	if (const auto user = peer->asUser()) {
 		if (user->isBot()) {
 			_outboxReadBefore = std::numeric_limits<MsgId>::max();
 		}
 	}
 }
+
+History::~History() = default;
 
 void History::clearLastKeyboard() {
 	if (lastKeyboardId) {
@@ -98,38 +100,6 @@ void History::clearLastKeyboard() {
 
 int History::height() const {
 	return _height;
-}
-
-void History::removeNotification(not_null<HistoryItem*> item) {
-	_notifications.erase(
-		ranges::remove(_notifications, item, &ItemNotification::item),
-		end(_notifications));
-}
-
-auto History::currentNotification() const -> std::optional<ItemNotification> {
-	return empty(_notifications)
-		? std::nullopt
-		: std::make_optional(_notifications.front());
-}
-
-bool History::hasNotification() const {
-	return !empty(_notifications);
-}
-
-void History::skipNotification() {
-	if (!empty(_notifications)) {
-		_notifications.pop_front();
-	}
-}
-
-void History::pushNotification(ItemNotification notification) {
-	_notifications.push_back(notification);
-}
-
-void History::popNotification(ItemNotification notification) {
-	if (!empty(_notifications) && (_notifications.back() == notification)) {
-		_notifications.pop_back();
-	}
 }
 
 bool History::hasPendingResizedItems() const {
@@ -182,7 +152,7 @@ void History::checkChatListMessageRemoved(not_null<HistoryItem*> item) {
 }
 
 void History::itemVanished(not_null<HistoryItem*> item) {
-	removeNotification(item);
+	item->thread()->removeNotification(item);
 	if (lastKeyboardId == item->id) {
 		clearLastKeyboard();
 	}
@@ -255,7 +225,7 @@ void History::setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft)
 	}
 	const auto changingCloudDraft = (key == Data::DraftKey::Cloud());
 	if (changingCloudDraft) {
-		cloudDraftTextCache.clear();
+		cloudDraftTextCache().clear();
 	}
 	if (draft) {
 		_drafts[key] = std::move(draft);
@@ -283,7 +253,7 @@ void History::clearDrafts() {
 	const auto changingCloudDraft = _drafts.contains(Data::DraftKey::Cloud());
 	_drafts.clear();
 	if (changingCloudDraft) {
-		cloudDraftTextCache.clear();
+		cloudDraftTextCache().clear();
 		updateChatListSortPosition();
 	}
 }
@@ -314,7 +284,7 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 		existing->date = base::unixtime::now();
 	}
 
-	cloudDraftTextCache.clear();
+	cloudDraftTextCache().clear();
 	updateChatListSortPosition();
 
 	return cloudDraft();
@@ -1148,12 +1118,12 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		from->madeAction(item->date());
 	}
 	item->contributeToSlowmode();
-	auto notification = ItemNotification{
+	auto notification = Data::ItemNotification{
 		.item = item,
-		.type = ItemNotificationType::Message,
+		.type = Data::ItemNotificationType::Message,
 	};
 	if (item->showNotification()) {
-		pushNotification(notification);
+		item->thread()->pushNotification(notification);
 	}
 	owner().notifyNewItemAdded(item);
 	const auto stillShow = item->showNotification(); // Could be read already.
@@ -1732,7 +1702,7 @@ void History::setUnreadMark(bool unread) {
 	if (clearUnreadOnClientSide()) {
 		unread = false;
 	}
-	if (_unreadMark == unread) {
+	if (unreadMark() == unread) {
 		return;
 	}
 	const auto noUnreadMessages = !unreadCount();
@@ -1744,11 +1714,7 @@ void History::setUnreadMark(bool unread) {
 		session().changes().historyUpdated(this, UpdateFlag::UnreadView);
 	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-	_unreadMark = unread;
-}
-
-bool History::unreadMark() const {
-	return _unreadMark;
+	Thread::setUnreadMark(unread);
 }
 
 void History::setFakeUnreadWhileOpened(bool enabled) {
@@ -1768,13 +1734,9 @@ void History::setFakeUnreadWhileOpened(bool enabled) {
 	return _fakeUnreadWhileOpened;
 }
 
-bool History::muted() const {
-	return (_flags & Flag::Muted);
-}
-
-bool History::changeMuted(bool muted) {
+void History::setMuted(bool muted) {
 	if (this->muted() == muted) {
-		return false;
+		return;
 	}
 	const auto refresher = gsl::finally([&] {
 		if (inChatList()) {
@@ -1787,12 +1749,7 @@ bool History::changeMuted(bool muted) {
 	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
-	if (muted) {
-		_flags |= Flag::Muted;
-	} else {
-		_flags &= ~Flag::Muted;
-	}
-	return true;
+	Thread::setMuted(muted);
 }
 
 void History::getNextFirstUnreadMessage() {
@@ -2082,7 +2039,7 @@ bool History::chatListMutedBadge() const {
 Dialogs::UnreadState History::chatListUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
-	const auto mark = !count && _unreadMark;
+	const auto mark = !count && unreadMark();
 	const auto muted = this->muted();
 	result.messages = count;
 	result.messagesMuted = muted ? count : 0;
@@ -2161,21 +2118,6 @@ void History::finishBuildingFrontBlock() {
 		} else {
 			block->messages.back()->nextInBlocksRemoved();
 		}
-	}
-}
-
-void History::clearNotifications() {
-	_notifications.clear();
-}
-
-void History::clearIncomingNotifications() {
-	if (!peer->isSelf()) {
-		const auto proj = [](ItemNotification notification) {
-			return notification.item->out();
-		};
-		_notifications.erase(
-			ranges::remove(_notifications, false, proj),
-			end(_notifications));
 	}
 }
 
@@ -2697,9 +2639,9 @@ void History::cacheTopPromotion(
 	if (topPromotionType() != type || _topPromotedMessage != message) {
 		_topPromotedType = type;
 		_topPromotedMessage = message;
-		cloudDraftTextCache.clear();
+		cloudDraftTextCache().clear();
 	} else if (changed) {
-		cloudDraftTextCache.clear();
+		cloudDraftTextCache().clear();
 	}
 }
 
@@ -3169,7 +3111,7 @@ void History::clear(ClearType type) {
 		for (const auto &item : local) {
 			item->destroy();
 		}
-		_notifications.clear();
+		clearNotifications();
 		owner().notifyHistoryCleared(this);
 		if (unreadCountKnown()) {
 			setUnreadCount(0);
@@ -3265,7 +3207,24 @@ void History::setHasPinnedMessages(bool has) {
 	session().changes().historyUpdated(this, UpdateFlag::PinnedMessages);
 }
 
-History::~History() = default;
+void History::cacheTopPromoted(bool promoted) {
+	if (isTopPromoted() == promoted) {
+		return;
+	} else if (promoted) {
+		_flags |= Flag::IsTopPromoted;
+	} else {
+		_flags &= ~Flag::IsTopPromoted;
+	}
+	updateChatListSortPosition();
+	updateChatListEntry();
+	if (!isTopPromoted()) {
+		updateChatListExistence();
+	}
+}
+
+bool History::isTopPromoted() const {
+	return (_flags & Flag::IsTopPromoted);
+}
 
 HistoryBlock::HistoryBlock(not_null<History*> history)
 : _history(history) {

@@ -325,7 +325,7 @@ private:
 
 	void cornerButtonsShowAtPosition(
 		Data::MessagePosition position) override;
-	Dialogs::Entry *cornerButtonsEntry() override;
+	Data::Thread *cornerButtonsThread() override;
 	FullMsgId cornerButtonsCurrentId() override;
 	bool cornerButtonsIgnoreVisibility() override;
 	std::optional<bool> cornerButtonsDownShown() override;

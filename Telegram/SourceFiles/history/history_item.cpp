@@ -227,12 +227,12 @@ void CheckReactionNotificationSchedule(
 			if (user->blockStatus() == Status::Unknown) {
 				user->updateFull();
 			}
-			const auto notification = ItemNotification{
+			const auto notification = Data::ItemNotification{
 				.item = item,
 				.reactionSender = user,
-				.type = ItemNotificationType::Reaction,
+				.type = Data::ItemNotificationType::Reaction,
 			};
-			item->history()->pushNotification(notification);
+			item->thread()->pushNotification(notification);
 			Core::App().notifications().schedule(notification);
 			return;
 		}
@@ -374,9 +374,9 @@ void HistoryItem::invalidateChatListEntry() {
 	history()->session().changes().messageUpdated(
 		this,
 		Data::MessageUpdate::Flag::DialogRowRefresh);
-	history()->lastItemDialogsView.itemInvalidated(this);
+	history()->lastItemDialogsView().itemInvalidated(this);
 	if (const auto topic = this->topic()) {
-		topic->lastItemDialogsView.itemInvalidated(this);
+		topic->lastItemDialogsView().itemInvalidated(this);
 	}
 }
 
@@ -620,9 +620,20 @@ void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
 
+not_null<Data::Thread*> HistoryItem::thread() const {
+	if (const auto topic = this->topic()) {
+		return topic;
+	}
+	return _history;
+}
+
 Data::ForumTopic *HistoryItem::topic() const {
-	const auto forum = _history->peer->forum();
-	return forum ? forum->topicFor(this) : nullptr;
+	if (const auto rootId = topicRootId()) {
+		if (const auto forum = _history->peer->forum()) {
+			return forum->topicFor(rootId);
+		}
+	}
+	return nullptr;
 }
 
 void HistoryItem::refreshMainView() {

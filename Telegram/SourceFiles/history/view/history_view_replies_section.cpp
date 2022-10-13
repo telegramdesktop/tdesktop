@@ -1387,8 +1387,8 @@ void RepliesWidget::cornerButtonsShowAtPosition(
 	showAtPosition(position);
 }
 
-Dialogs::Entry *RepliesWidget::cornerButtonsEntry() {
-	return _topic ? static_cast<Dialogs::Entry*>(_topic) : _history;
+Data::Thread *RepliesWidget::cornerButtonsThread() {
+	return _topic ? static_cast<Data::Thread*>(_topic) : _history;
 }
 
 FullMsgId RepliesWidget::cornerButtonsCurrentId() {

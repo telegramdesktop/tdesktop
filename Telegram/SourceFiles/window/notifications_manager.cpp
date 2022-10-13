@@ -81,18 +81,18 @@ QString TextWithPermanentSpoiler(const TextWithEntities &textWithEntities) {
 struct System::Waiter {
 	NotificationInHistoryKey key;
 	UserData *reactionSender = nullptr;
-	ItemNotificationType type = ItemNotificationType::Message;
+	Data::ItemNotificationType type = Data::ItemNotificationType::Message;
 	crl::time when = 0;
 };
 
 System::NotificationInHistoryKey::NotificationInHistoryKey(
-	ItemNotification notification)
+	Data::ItemNotification notification)
 : NotificationInHistoryKey(notification.item->id, notification.type) {
 }
 
 System::NotificationInHistoryKey::NotificationInHistoryKey(
 	MsgId messageId,
-	ItemNotificationType type)
+	Data::ItemNotificationType type)
 : messageId(messageId)
 , type(type) {
 }
@@ -161,13 +161,13 @@ bool System::skipReactionNotification(not_null<HistoryItem*> item) const {
 }
 
 System::SkipState System::skipNotification(
-		ItemNotification notification) const {
+		Data::ItemNotification notification) const {
 	const auto item = notification.item;
 	const auto type = notification.type;
-	const auto messageNotification = (type == ItemNotificationType::Message);
-	if (!item->history()->currentNotification()
-		|| (messageNotification && item->skipNotification())
-		|| (type == ItemNotificationType::Reaction
+	const auto messageType = (type == Data::ItemNotificationType::Message);
+	if (!item->thread()->currentNotification()
+		|| (messageType && item->skipNotification())
+		|| (type == Data::ItemNotificationType::Reaction
 			&& skipReactionNotification(item))) {
 		return { SkipState::Skip };
 	}
@@ -175,27 +175,27 @@ System::SkipState System::skipNotification(
 }
 
 System::SkipState System::computeSkipState(
-		ItemNotification notification) const {
+		Data::ItemNotification notification) const {
 	const auto type = notification.type;
 	const auto item = notification.item;
 	const auto history = item->history();
-	const auto messageNotification = (type == ItemNotificationType::Message);
+	const auto messageType = (type == Data::ItemNotificationType::Message);
 	const auto withSilent = [&](
 			SkipState::Value value,
 			bool forceSilent = false) {
 		return SkipState{
 			.value = value,
 			.silent = (forceSilent
-				|| !messageNotification
+				|| !messageType
 				|| item->isSilent()
 				|| history->owner().notifySettings().sound(
 					history->peer).none),
 		};
 	};
-	const auto showForMuted = messageNotification
+	const auto showForMuted = messageType
 		&& item->out()
 		&& item->isFromScheduled();
-	const auto notifyBy = messageNotification
+	const auto notifyBy = messageType
 		? item->specialNotificationPeer()
 		: notification.reactionSender;
 	if (Core::Quitting()) {
@@ -205,7 +205,7 @@ System::SkipState System::computeSkipState(
 		return { SkipState::Skip };
 	}
 
-	if (messageNotification) {
+	if (messageType) {
 		history->owner().notifySettings().request(
 			history->peer);
 	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
@@ -215,10 +215,10 @@ System::SkipState System::computeSkipState(
 		history->owner().notifySettings().request(notifyBy);
 	}
 
-	if (messageNotification
+	if (messageType
 		&& history->owner().notifySettings().muteUnknown(history->peer)) {
 		return { SkipState::Unknown };
-	} else if (messageNotification
+	} else if (messageType
 		&& !history->owner().notifySettings().isMuted(history->peer)) {
 		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
@@ -226,11 +226,11 @@ System::SkipState System::computeSkipState(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
 			showForMuted);
 	} else if (history->owner().notifySettings().muteUnknown(notifyBy)
-		|| (!messageNotification
+		|| (!messageType
 			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
 		return withSilent(SkipState::Unknown);
 	} else if (!history->owner().notifySettings().isMuted(notifyBy)
-		&& (messageNotification || !notifyBy->isBlocked())) {
+		&& (messageType || !notifyBy->isBlocked())) {
 		return withSilent(SkipState::DontSkip);
 	} else {
 		return withSilent(
@@ -261,7 +261,7 @@ System::Timing System::countTiming(
 	};
 }
 
-void System::schedule(ItemNotification notification) {
+void System::schedule(Data::ItemNotification notification) {
 	Expects(_manager != nullptr);
 
 	const auto item = notification.item;
@@ -275,13 +275,13 @@ void System::schedule(ItemNotification notification) {
 	const auto ready = (skip.value != SkipState::Unknown)
 		&& item->notificationReady();
 
-	const auto minimalDelay = (type == ItemNotificationType::Reaction)
+	const auto minimalDelay = (type == Data::ItemNotificationType::Reaction)
 		? kMinimalDelay
 		: item->Has<HistoryMessageForwarded>()
 		? kMinimalForwardDelay
 		: kMinimalDelay;
 	const auto timing = countTiming(history, minimalDelay);
-	const auto notifyBy = (type == ItemNotificationType::Message)
+	const auto notifyBy = (type == Data::ItemNotificationType::Message)
 		? item->specialNotificationPeer()
 		: notification.reactionSender;
 	if (!skip.silent) {
@@ -320,8 +320,8 @@ void System::clearAll() {
 		_manager->clearAll();
 	}
 
-	for (auto i = _whenMaps.cbegin(), e = _whenMaps.cend(); i != e; ++i) {
-		i->first->clearNotifications();
+	for (const auto &[thread, _] : _whenMaps) {
+		thread->clearNotifications();
 	}
 	_whenMaps.clear();
 	_whenAlerts.clear();
@@ -334,52 +334,33 @@ void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 		_manager->clearFromTopic(topic);
 	}
 
-	// #TODO forum notifications
-	//topic->clearNotifications();
-	//_whenMaps.remove(topic);
-	//_whenAlerts.remove(topic);
-	//_waiters.remove(topic);
-	//_settingWaiters.remove(topic);
+	topic->clearNotifications();
+	_whenMaps.remove(topic);
+	_whenAlerts.remove(topic);
+	_waiters.remove(topic);
+	_settingWaiters.remove(topic);
 
 	_waitTimer.cancel();
 	showNext();
 }
 
-void System::clearFromHistory(not_null<History*> history) {
-	if (_manager) {
-		_manager->clearFromHistory(history);
-	}
-
-	history->clearNotifications();
-	_whenMaps.remove(history);
-	_whenAlerts.remove(history);
-	_waiters.remove(history);
-	_settingWaiters.remove(history);
-
-	_waitTimer.cancel();
-	showNext();
-}
-
-void System::clearFromSession(not_null<Main::Session*> session) {
-	if (_manager) {
-		_manager->clearFromSession(session);
-	}
-
+void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 	for (auto i = _whenMaps.begin(); i != _whenMaps.end();) {
-		const auto history = i->first;
-		if (&history->session() != session) {
+		const auto thread = i->first;
+		if (!predicate(thread)) {
 			++i;
 			continue;
 		}
-		history->clearNotifications();
 		i = _whenMaps.erase(i);
-		_whenAlerts.remove(history);
-		_waiters.remove(history);
-		_settingWaiters.remove(history);
+
+		thread->clearNotifications();
+		_whenAlerts.remove(thread);
+		_waiters.remove(thread);
+		_settingWaiters.remove(thread);
 	}
 	const auto clearFrom = [&](auto &map) {
 		for (auto i = map.begin(); i != map.end();) {
-			if (&i->first->session() == session) {
+			if (predicate(i->first)) {
 				i = map.erase(i);
 			} else {
 				++i;
@@ -389,6 +370,27 @@ void System::clearFromSession(not_null<Main::Session*> session) {
 	clearFrom(_whenAlerts);
 	clearFrom(_waiters);
 	clearFrom(_settingWaiters);
+
+	_waitTimer.cancel();
+	showNext();
+}
+
+void System::clearFromHistory(not_null<History*> history) {
+	if (_manager) {
+		_manager->clearFromHistory(history);
+	}
+	clearForThreadIf([&](not_null<Data::Thread*> thread) {
+		return (thread->owningHistory() == history);
+	});
+}
+
+void System::clearFromSession(not_null<Main::Session*> session) {
+	if (_manager) {
+		_manager->clearFromSession(session);
+	}
+	clearForThreadIf([&](not_null<Data::Thread*> thread) {
+		return (&thread->session() == session);
+	});
 }
 
 void System::clearIncomingFromHistory(not_null<History*> history) {
@@ -403,9 +405,8 @@ void System::clearIncomingFromTopic(not_null<Data::ForumTopic*> topic) {
 	if (_manager) {
 		_manager->clearFromTopic(topic);
 	}
-	// #TODO forum notifications
-	//topic->clearIncomingNotifications();
-	//_whenAlerts.remove(topic);
+	topic->clearIncomingNotifications();
+	_whenAlerts.remove(topic);
 }
 
 void System::clearFromItem(not_null<HistoryItem*> item) {
@@ -428,10 +429,10 @@ void System::clearAllFast() {
 void System::checkDelayed() {
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
 		const auto remove = [&] {
-			const auto history = i->first;
-			const auto peer = history->peer;
+			const auto thread = i->first;
+			const auto peer = thread->owningHistory()->peer;
 			const auto fullId = FullMsgId(peer->id, i->second.key.messageId);
-			const auto item = peer->owner().message(fullId);
+			const auto item = thread->owner().message(fullId);
 			if (!item) {
 				return true;
 			}
@@ -503,7 +504,7 @@ void System::showNext() {
 	auto alertPeer = (PeerData*)nullptr;
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
-			const auto peer = i->first->peer;
+			const auto peer = i->first->owningHistory()->peer;
 			const auto &notifySettings = peer->owner().notifySettings();
 			const auto peerUnknown = notifySettings.muteUnknown(peer);
 			const auto peerAlert = !peerUnknown
@@ -559,15 +560,15 @@ void System::showNext() {
 
 	while (true) {
 		auto next = 0LL;
-		auto notify = std::optional<ItemNotification>();
-		auto notifyHistory = (History*)nullptr;
+		auto notify = std::optional<Data::ItemNotification>();
+		auto notifyThread = (Data::Thread*)nullptr;
 		for (auto i = _waiters.begin(); i != _waiters.end();) {
-			const auto history = i->first;
-			auto current = history->currentNotification();
+			const auto thread = i->first;
+			auto current = thread->currentNotification();
 			if (current && current->item->id != i->second.key.messageId) {
-				auto j = _whenMaps.find(history);
+				auto j = _whenMaps.find(thread);
 				if (j == _whenMaps.end()) {
-					history->clearNotifications();
+					thread->clearNotifications();
 					i = _waiters.erase(i);
 					continue;
 				}
@@ -578,12 +579,12 @@ void System::showNext() {
 						i->second.when = k->second;
 						break;
 					}
-					history->skipNotification();
-					current = history->currentNotification();
+					thread->skipNotification();
+					current = thread->currentNotification();
 				} while (current);
 			}
 			if (!current) {
-				_whenMaps.remove(history);
+				_whenMaps.remove(thread);
 				i = _waiters.erase(i);
 				continue;
 			}
@@ -591,7 +592,7 @@ void System::showNext() {
 			if (!notify || next > when) {
 				next = when;
 				notify = current,
-				notifyHistory = history;
+				notifyThread = thread;
 			}
 			++i;
 		}
@@ -606,11 +607,11 @@ void System::showNext() {
 			break;
 		}
 		const auto notifyItem = notify->item;
-		const auto messageNotification = (notify->type
-			== ItemNotificationType::Message);
-		const auto isForwarded = messageNotification
+		const auto messageType = (notify->type
+			== Data::ItemNotificationType::Message);
+		const auto isForwarded = messageType
 			&& notifyItem->Has<HistoryMessageForwarded>();
-		const auto isAlbum = messageNotification
+		const auto isAlbum = messageType
 			&& notifyItem->groupId();
 
 		// Forwarded and album notify grouping.
@@ -619,15 +620,15 @@ void System::showNext() {
 			: nullptr;
 		auto forwardedCount = isForwarded ? 1 : 0;
 
-		const auto history = notifyItem->history();
-		const auto j = _whenMaps.find(history);
+		const auto thread = notifyItem->thread();
+		const auto j = _whenMaps.find(thread);
 		if (j == _whenMaps.cend()) {
-			history->clearNotifications();
+			thread->clearNotifications();
 		} else {
 			while (true) {
-				auto nextNotify = std::optional<ItemNotification>();
-				history->skipNotification();
-				if (!history->hasNotification()) {
+				auto nextNotify = std::optional<Data::ItemNotification>();
+				thread->skipNotification();
+				if (!thread->hasNotification()) {
 					break;
 				}
 
@@ -637,25 +638,26 @@ void System::showNext() {
 				});
 				do {
 					const auto k = j->second.find(
-						history->currentNotification());
+						thread->currentNotification());
 					if (k != j->second.cend()) {
-						nextNotify = history->currentNotification();
-						_waiters.emplace(notifyHistory, Waiter{
+						nextNotify = thread->currentNotification();
+						_waiters.emplace(notifyThread, Waiter{
 							.key = k->first,
 							.when = k->second
 						});
 						break;
 					}
-					history->skipNotification();
-				} while (history->hasNotification());
+					thread->skipNotification();
+				} while (thread->hasNotification());
 				if (!nextNotify || !groupedItem) {
 					break;
 				}
 				const auto nextMessageNotification
 					= (nextNotify->type
-						== ItemNotificationType::Message);
+						== Data::ItemNotificationType::Message);
 				const auto canNextBeGrouped = nextMessageNotification
-					&& ((isForwarded && nextNotify->item->Has<HistoryMessageForwarded>())
+					&& ((isForwarded
+						&& nextNotify->item->Has<HistoryMessageForwarded>())
 						|| (isAlbum && nextNotify->item->groupId()));
 				const auto nextItem = canNextBeGrouped
 					? nextNotify->item.get()
@@ -706,7 +708,7 @@ void System::showNext() {
 			// to show the previous notification.
 			showGrouped();
 			const auto reactionNotification
-				= (notify->type == ItemNotificationType::Reaction);
+				= (notify->type == Data::ItemNotificationType::Reaction);
 			const auto reaction = reactionNotification
 				? notify->item->lookupUnreadReaction(notify->reactionSender)
 				: Data::ReactionId();
@@ -720,9 +722,9 @@ void System::showNext() {
 			}
 		}
 
-		if (!history->hasNotification()) {
-			_waiters.remove(history);
-			_whenMaps.remove(history);
+		if (!thread->hasNotification()) {
+			_waiters.remove(thread);
+			_whenMaps.remove(thread);
 		}
 	}
 	if (nextAlert) {
@@ -785,7 +787,7 @@ void System::playSound(not_null<Main::Session*> session, DocumentId id) {
 
 Manager::DisplayOptions Manager::getNotificationOptions(
 		HistoryItem *item,
-		ItemNotificationType type) const {
+		Data::ItemNotificationType type) const {
 	const auto hideEverything = Core::App().passcodeLocked()
 		|| forceHideDetails();
 	const auto view = Core::App().settings().notifyView();
@@ -796,7 +798,7 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	result.hideMessageText = hideEverything
 		|| (view > Core::Settings::NotifyView::ShowPreview);
 	result.hideMarkAsRead = result.hideMessageText
-		|| (type != ItemNotificationType::Message)
+		|| (type != Data::ItemNotificationType::Message)
 		|| !item
 		|| ((item->out() || item->history()->peer->isSelf())
 			&& item->isFromScheduled());
@@ -1054,8 +1056,8 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 	const auto options = getNotificationOptions(
 		fields.item,
 		(fields.reactionFrom
-			? ItemNotificationType::Reaction
-			: ItemNotificationType::Message));
+			? Data::ItemNotificationType::Reaction
+			: Data::ItemNotificationType::Message));
 	const auto item = fields.item;
 	const auto peer = item->history()->peer;
 	const auto reactionFrom = fields.reactionFrom;

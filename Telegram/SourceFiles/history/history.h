@@ -10,8 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_types.h"
 #include "data/data_peer.h"
 #include "data/data_drafts.h"
-#include "dialogs/dialogs_entry.h"
-#include "dialogs/ui/dialogs_message_view.h"
+#include "data/data_thread.h"
 #include "history/view/history_view_send_action.h"
 #include "base/observer.h"
 #include "base/timer.h"
@@ -71,30 +70,16 @@ enum class NewMessageType {
 	Existing,
 };
 
-enum class ItemNotificationType {
-	Message,
-	Reaction,
-};
-struct ItemNotification {
-	not_null<HistoryItem*> item;
-	UserData *reactionSender = nullptr;
-	ItemNotificationType type = ItemNotificationType::Message;
-
-	friend inline bool operator==(ItemNotification a, ItemNotification b) {
-		return (a.item == b.item)
-			&& (a.reactionSender == b.reactionSender)
-			&& (a.type == b.type);
-	}
-};
-
-class History final : public Dialogs::Entry {
+class History final : public Data::Thread {
 public:
 	using Element = HistoryView::Element;
 
 	History(not_null<Data::Session*> owner, PeerId peerId);
-	History(const History &) = delete;
-	History &operator=(const History &) = delete;
 	~History();
+
+	not_null<History*> owningHistory() override {
+		return this;
+	}
 
 	[[nodiscard]] auto delegateMixin() const
 			-> not_null<HistoryMainElementDelegateMixin*> {
@@ -257,21 +242,17 @@ public:
 	[[nodiscard]] bool unreadCountRefreshNeeded(MsgId readTillId) const;
 
 	void setUnreadCount(int newUnreadCount);
-	void setUnreadMark(bool unread);
-	[[nodiscard]] bool unreadMark() const;
+	void setUnreadMark(bool unread) override;
 	void setFakeUnreadWhileOpened(bool enabled);
 	[[nodiscard]] bool fakeUnreadWhileOpened() const;
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-	[[nodiscard]] bool muted() const;
-	bool changeMuted(bool muted);
+	void setMuted(bool muted) override;
 	void addUnreadBar();
 	void destroyUnreadBar();
 	[[nodiscard]] Element *unreadBar() const;
 	void calculateFirstUnreadMessage();
 	void unsetFirstUnreadMessage();
 	[[nodiscard]] Element *firstUnreadMessage() const;
-	void clearNotifications();
-	void clearIncomingNotifications();
 
 	[[nodiscard]] bool loadedAtBottom() const; // last message is in the list
 	void setNotLoadedAtBottom();
@@ -314,12 +295,6 @@ public:
 
 	void itemRemoved(not_null<HistoryItem*> item);
 	void itemVanished(not_null<HistoryItem*> item);
-
-	[[nodiscard]] std::optional<ItemNotification> currentNotification() const;
-	bool hasNotification() const;
-	void skipNotification();
-	void pushNotification(ItemNotification notification);
-	void popNotification(ItemNotification notification);
 
 	bool hasPendingResizedItems() const;
 	void setHasPendingResizedItems();
@@ -441,10 +416,12 @@ public:
 	[[nodiscard]] bool hasPinnedMessages() const;
 	void setHasPinnedMessages(bool has);
 
+	[[nodiscard]] bool isTopPromoted() const;
+
+	const not_null<PeerData*> peer;
+
 	// Still public data.
 	std::deque<std::unique_ptr<HistoryBlock>> blocks;
-
-	not_null<PeerData*> peer;
 
 	// we save the last showAtMsgId to restore the state when switching
 	// between different conversation histories
@@ -464,20 +441,19 @@ public:
 
 	mtpRequestId sendRequestId = 0;
 
-	Ui::Text::String cloudDraftTextCache;
-	Dialogs::Ui::MessageView lastItemDialogsView;
-
 private:
 	friend class HistoryBlock;
 
 	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
-		Muted = (1 << 1),
+		IsTopPromoted = (1 << 1),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
 		return true;
 	};
+
+	void cacheTopPromoted(bool promoted);
 
 	// when this item is destroyed scrollTopItem just points to the next one
 	// and scrollTopOffset remains the same
@@ -530,7 +506,6 @@ private:
 	void mainViewRemoved(
 		not_null<HistoryBlock*> block,
 		not_null<Element*> view);
-	void removeNotification(not_null<HistoryItem*> item);
 
 	TimeId adjustedChatListTimeId() const override;
 	void changedChatListPinHook() override;
@@ -614,7 +589,6 @@ private:
 
 	QString _chatListNameSortKey;
 
-	bool _unreadMark = false;
 	bool _fakeUnreadWhileOpened = false;
 	bool _hasPinnedMessages = false;
 
@@ -636,8 +610,6 @@ private:
 	QString _topPromotedType;
 
 	HistoryView::SendActionPainter _sendActionPainter;
-
-	std::deque<ItemNotification> _notifications;
 
  };
 

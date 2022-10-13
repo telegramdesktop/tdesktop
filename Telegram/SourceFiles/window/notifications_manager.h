@@ -12,13 +12,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 
 class History;
-struct ItemNotification;
-enum class ItemNotificationType;
 
 namespace Data {
 class Session;
 class CloudImageView;
 class ForumTopic;
+class Thread;
+struct ItemNotification;
+enum class ItemNotificationType;
 } // namespace Data
 
 namespace Main {
@@ -31,17 +32,15 @@ class Manager;
 } // namespace Notifications
 } // namespace Platform
 
-namespace Media {
-namespace Audio {
+namespace Media::Audio {
 class Track;
-} // namespace Audio
-} // namespace Media
+} // namespace Media::Audio
 
 namespace Window {
-
 class SessionController;
+} // namespace Window
 
-namespace Notifications {
+namespace Window::Notifications {
 
 enum class ManagerType {
 	Dummy,
@@ -62,19 +61,17 @@ enum class ChangeType {
 	DemoIsHidden,
 };
 
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications
 
 namespace base {
 
 template <>
-struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : public std::true_type {
+struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : std::true_type {
 };
 
 } // namespace base
 
-namespace Window {
-namespace Notifications {
+namespace Window::Notifications {
 
 class Manager;
 
@@ -90,7 +87,7 @@ public:
 	[[nodiscard]] ManagerType managerType() const;
 
 	void checkDelayed();
-	void schedule(ItemNotification notification);
+	void schedule(Data::ItemNotification notification);
 	void clearFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearFromHistory(not_null<History*> history);
 	void clearIncomingFromTopic(not_null<Data::ForumTopic*> topic);
@@ -123,18 +120,17 @@ private:
 		bool silent = false;
 	};
 	struct NotificationInHistoryKey {
-		NotificationInHistoryKey(ItemNotification notification);
-		NotificationInHistoryKey(MsgId messageId, ItemNotificationType type);
+		NotificationInHistoryKey(Data::ItemNotification notification);
+		NotificationInHistoryKey(
+			MsgId messageId,
+			Data::ItemNotificationType type);
 
 		MsgId messageId = 0;
-		ItemNotificationType type = ItemNotificationType();
+		Data::ItemNotificationType type = Data::ItemNotificationType();
 
-		friend inline bool operator<(
-				NotificationInHistoryKey a,
-				NotificationInHistoryKey b) {
-			return std::pair(a.messageId, a.type)
-				< std::pair(b.messageId, b.type);
-		}
+		friend inline auto operator<=>(
+			NotificationInHistoryKey a,
+			NotificationInHistoryKey b) = default;
 	};
 	struct Timing {
 		crl::time delay = 0;
@@ -152,10 +148,12 @@ private:
 		}
 	};
 
+	void clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate);
+
 	[[nodiscard]] SkipState skipNotification(
-		ItemNotification notification) const;
+		Data::ItemNotification notification) const;
 	[[nodiscard]] SkipState computeSkipState(
-		ItemNotification notification) const;
+		Data::ItemNotification notification) const;
 	[[nodiscard]] Timing countTiming(
 		not_null<History*> history,
 		crl::time minimalDelay) const;
@@ -170,16 +168,16 @@ private:
 		DocumentId id);
 
 	base::flat_map<
-		not_null<History*>,
+		not_null<Data::Thread*>,
 		base::flat_map<NotificationInHistoryKey, crl::time>> _whenMaps;
 
-	base::flat_map<not_null<History*>, Waiter> _waiters;
-	base::flat_map<not_null<History*>, Waiter> _settingWaiters;
+	base::flat_map<not_null<Data::Thread*>, Waiter> _waiters;
+	base::flat_map<not_null<Data::Thread*>, Waiter> _settingWaiters;
 	base::Timer _waitTimer;
 	base::Timer _waitForAllGroupedTimer;
 
 	base::flat_map<
-		not_null<History*>,
+		not_null<Data::Thread*>,
 		base::flat_map<crl::time, PeerData*>> _whenAlerts;
 
 	mutable base::flat_map<
@@ -270,7 +268,7 @@ public:
 	};
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,
-		ItemNotificationType type) const;
+		Data::ItemNotificationType type) const;
 	[[nodiscard]] static TextWithEntities ComposeReactionEmoji(
 		not_null<Main::Session*> session,
 		const Data::ReactionId &reaction);
@@ -405,7 +403,6 @@ protected:
 
 };
 
-QString WrapFromScheduled(const QString &text);
+[[nodiscard]] QString WrapFromScheduled(const QString &text);
 
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications

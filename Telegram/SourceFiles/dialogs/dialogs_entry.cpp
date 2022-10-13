@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_unread_things.h"
 #include "styles/style_dialogs.h" // st::dialogsTextWidthMin
 
 namespace Dialogs {
@@ -70,6 +69,12 @@ Data::Folder *Entry::asFolder() {
 		: nullptr;
 }
 
+Data::Thread *Entry::asThread() {
+	return (_type == Type::History || _type == Type::ForumTopic)
+		? static_cast<Data::Thread*>(this)
+		: nullptr;
+}
+
 Data::ForumTopic *Entry::asTopic() {
 	return (_type == Type::ForumTopic)
 		? static_cast<Data::ForumTopic*>(this)
@@ -102,41 +107,6 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 		i->second = index;
 	}
 	pinnedIndexChanged(filterId, was, index);
-}
-
-void Entry::cacheTopPromoted(bool promoted) {
-	if (isTopPromoted() == promoted) {
-		return;
-	} else if (promoted) {
-		_flags |= Flag::IsTopPromoted;
-	} else {
-		_flags &= ~Flag::IsTopPromoted;
-	}
-	updateChatListSortPosition();
-	updateChatListEntry();
-	if (!isTopPromoted()) {
-		updateChatListExistence();
-	}
-}
-
-bool Entry::isTopPromoted() const {
-	return (_flags & Flag::IsTopPromoted);
-}
-
-const base::flat_set<MsgId> &Entry::unreadMentionsIds() const {
-	if (!_unreadThings) {
-		static const auto Result = base::flat_set<MsgId>();
-		return Result;
-	}
-	return _unreadThings->mentions.ids();
-}
-
-const base::flat_set<MsgId> &Entry::unreadReactionsIds() const {
-	if (!_unreadThings) {
-		static const auto Result = base::flat_set<MsgId>();
-		return Result;
-	}
-	return _unreadThings->reactions.ids();
 }
 
 bool Entry::needUpdateInChatList() const {
@@ -218,42 +188,6 @@ void Entry::setChatListExistence(bool exists) {
 
 TimeId Entry::adjustedChatListTimeId() const {
 	return chatListTimeId();
-}
-
-void Entry::setUnreadThingsKnown() {
-	_flags |= Flag::UnreadThingsKnown;
-}
-
-HistoryUnreadThings::Proxy Entry::unreadMentions() {
-	return {
-		this,
-		_unreadThings,
-		HistoryUnreadThings::Type::Mentions,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::ConstProxy Entry::unreadMentions() const {
-	return {
-		_unreadThings ? &_unreadThings->mentions : nullptr,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::Proxy Entry::unreadReactions() {
-	return {
-		this,
-		_unreadThings,
-		HistoryUnreadThings::Type::Reactions,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
-}
-
-HistoryUnreadThings::ConstProxy Entry::unreadReactions() const {
-	return {
-		_unreadThings ? &_unreadThings->reactions : nullptr,
-		!!(_flags & Flag::UnreadThingsKnown),
-	};
 }
 
 void Entry::changedChatListPinHook() {

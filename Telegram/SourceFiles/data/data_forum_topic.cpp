@@ -137,13 +137,14 @@ QImage ForumTopicIconFrame(
 	return background;
 }
 
-ForumTopic::ForumTopic(not_null<History*> history, MsgId rootId)
-: Entry(&history->owner(), Type::ForumTopic)
-, _forum(history->peer->forum())
+ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
+: Thread(&forum->history()->owner(), Type::ForumTopic)
+, _forum(forum)
 , _list(_forum->topicsList())
-, _replies(std::make_shared<RepliesList>(history, rootId))
-, _rootId(rootId)
-, _flags(owner().notifySettings().isMuted(this) ? Flag::Muted : Flag(0)) {
+, _replies(std::make_shared<RepliesList>(history(), rootId))
+, _rootId(rootId) {
+	Thread::setMuted(owner().notifySettings().isMuted(this));
+
 	_replies->unreadCountValue(
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
@@ -486,13 +487,9 @@ int ForumTopic::unreadCountForBadge() const {
 	return (!result && unreadMark()) ? 1 : result;
 }
 
-bool ForumTopic::muted() const {
-	return (_flags & Flag::Muted);
-}
-
-bool ForumTopic::changeMuted(bool muted) {
+void ForumTopic::setMuted(bool muted) {
 	if (this->muted() == muted) {
-		return false;
+		return;
 	}
 	const auto refresher = gsl::finally([&] {
 		if (inChatList()) {
@@ -504,12 +501,7 @@ bool ForumTopic::changeMuted(bool muted) {
 	});
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
-	if (muted) {
-		_flags |= Flag::Muted;
-	} else {
-		_flags &= ~Flag::Muted;
-	}
-	return true;
+	Thread::setMuted(muted);
 }
 
 bool ForumTopic::unreadCountKnown() const {
@@ -528,15 +520,7 @@ void ForumTopic::setUnreadMark(bool unread) {
 		session().changes().topicUpdated(this, UpdateFlag::UnreadView);
 	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-	if (unread) {
-		_flags |= Flag::UnreadMark;
-	} else {
-		_flags &= ~Flag::UnreadMark;
-	}
-}
-
-bool ForumTopic::unreadMark() const {
-	return (_flags & Flag::UnreadMark);
+	Thread::setUnreadMark(unread);
 }
 
 int ForumTopic::chatListUnreadCount() const {

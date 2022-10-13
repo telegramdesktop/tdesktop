@@ -2746,6 +2746,7 @@ void HistoryInner::checkHistoryActivation() {
 	adjustCurrent(_visibleAreaBottom);
 	if (_history->loadedAtBottom() && _visibleAreaBottom >= height()) {
 		// Clear possible message notifications.
+		// Side-effect: Also clears all notifications from forum topics.
 		Core::App().notifications().clearFromHistory(_history);
 	}
 	if (_curHistory != _history || _history->isEmpty()) {

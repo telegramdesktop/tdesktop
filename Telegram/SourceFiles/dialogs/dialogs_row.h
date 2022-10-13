@@ -96,6 +96,9 @@ public:
 	[[nodiscard]] Data::ForumTopic *topic() const {
 		return _id.topic();
 	}
+	[[nodiscard]] Data::Thread *thread() const {
+		return _id.thread();
+	}
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}

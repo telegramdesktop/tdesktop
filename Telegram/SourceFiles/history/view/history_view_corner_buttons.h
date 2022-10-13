@@ -22,11 +22,8 @@ class HistoryDownButton;
 
 namespace Data {
 struct MessagePosition;
+class Thread;
 } // namespace Data
-
-namespace Dialogs {
-class Entry;
-} // namespace Dialogs
 
 namespace HistoryView {
 
@@ -50,7 +47,7 @@ class CornerButtonsDelegate {
 public:
 	virtual void cornerButtonsShowAtPosition(
 		Data::MessagePosition position) = 0;
-	[[nodiscard]] virtual Dialogs::Entry *cornerButtonsEntry() = 0;
+	[[nodiscard]] virtual Data::Thread *cornerButtonsThread() = 0;
 	[[nodiscard]] virtual FullMsgId cornerButtonsCurrentId() = 0;
 	[[nodiscard]] virtual bool cornerButtonsIgnoreVisibility() = 0;
 	[[nodiscard]] virtual std::optional<bool> cornerButtonsDownShown() = 0;

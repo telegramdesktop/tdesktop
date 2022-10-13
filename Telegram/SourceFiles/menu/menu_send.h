@@ -16,9 +16,9 @@ class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
-namespace Dialogs {
-class Entry;
-} // namespace Dialogs
+namespace Data {
+class Thread;
+} // namespace Data
 
 namespace SendMenu {
 
@@ -55,10 +55,10 @@ void SetupMenuAndShortcuts(
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<Dialogs::Entry*()> currentEntry);
+	Fn<Data::Thread*()> currentThread);
 
 void SetupUnreadReactionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<Dialogs::Entry*()> currentEntry);
+	Fn<Data::Thread*()> currentThread);
 
 } // namespace SendMenu

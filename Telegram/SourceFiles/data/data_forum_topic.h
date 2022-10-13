@@ -7,8 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "dialogs/dialogs_entry.h"
-#include "dialogs/ui/dialogs_message_view.h"
+#include "data/data_thread.h"
 #include "data/notify/data_peer_notify_settings.h"
 #include "base/flags.h"
 
@@ -42,13 +41,14 @@ class Forum;
 	const QString &title,
 	const style::ForumTopicIcon &st);
 
-class ForumTopic final : public Dialogs::Entry {
+class ForumTopic final : public Data::Thread {
 public:
-	ForumTopic(not_null<History*> history, MsgId rootId);
+	ForumTopic(not_null<Forum*> forum, MsgId rootId);
 	~ForumTopic();
 
-	ForumTopic(const ForumTopic &) = delete;
-	ForumTopic &operator=(const ForumTopic &) = delete;
+	not_null<History*> owningHistory() override {
+		return history();
+	}
 
 	[[nodiscard]] std::shared_ptr<RepliesList> replies() const;
 	[[nodiscard]] not_null<ChannelData*> channel() const;
@@ -108,22 +108,11 @@ public:
 	[[nodiscard]] bool unreadCountKnown() const;
 
 	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-	[[nodiscard]] bool muted() const;
-	bool changeMuted(bool muted);
 
-	void setUnreadMark(bool unread);
-	[[nodiscard]] bool unreadMark() const;
-
-	Ui::Text::String cloudDraftTextCache;
-	Dialogs::Ui::MessageView lastItemDialogsView;
+	void setMuted(bool muted) override;
+	void setUnreadMark(bool unread) override;
 
 private:
-	enum class Flag : uchar {
-		UnreadMark = (1 << 0),
-		Muted = (1 << 1),
-	};
-	friend inline constexpr bool is_flag_type(Flag) { return true; }
-
 	void indexTitleParts();
 	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
@@ -159,7 +148,6 @@ private:
 	std::optional<HistoryItem*> _lastServerMessage;
 	std::optional<HistoryItem*> _chatListMessage;
 	base::flat_set<FullMsgId> _requestedGroups;
-	base::flags<Flag> _flags; // Initializer accesses _notify, be careful.
 
 	rpl::lifetime _lifetime;
 

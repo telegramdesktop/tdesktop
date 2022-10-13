@@ -1,0 +1,133 @@
+/*
+This file is part of Telegram Desktop,
+the official desktop application for the Telegram messaging service.
+
+For license and copyright information please follow this link:
+https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
+*/
+#include "data/data_thread.h"
+
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_unread_things.h"
+
+namespace Data {
+
+Thread::~Thread() = default;
+
+void Thread::setUnreadThingsKnown() {
+	_flags |= Flag::UnreadThingsKnown;
+}
+
+HistoryUnreadThings::Proxy Thread::unreadMentions() {
+	return {
+		this,
+		_unreadThings,
+		HistoryUnreadThings::Type::Mentions,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
+HistoryUnreadThings::ConstProxy Thread::unreadMentions() const {
+	return {
+		_unreadThings ? &_unreadThings->mentions : nullptr,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
+HistoryUnreadThings::Proxy Thread::unreadReactions() {
+	return {
+		this,
+		_unreadThings,
+		HistoryUnreadThings::Type::Reactions,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
+HistoryUnreadThings::ConstProxy Thread::unreadReactions() const {
+	return {
+		_unreadThings ? &_unreadThings->reactions : nullptr,
+		!!(_flags & Flag::UnreadThingsKnown),
+	};
+}
+
+const base::flat_set<MsgId> &Thread::unreadMentionsIds() const {
+	if (!_unreadThings) {
+		static const auto Result = base::flat_set<MsgId>();
+		return Result;
+	}
+	return _unreadThings->mentions.ids();
+}
+
+const base::flat_set<MsgId> &Thread::unreadReactionsIds() const {
+	if (!_unreadThings) {
+		static const auto Result = base::flat_set<MsgId>();
+		return Result;
+	}
+	return _unreadThings->reactions.ids();
+}
+
+void Thread::clearNotifications() {
+	_notifications.clear();
+}
+
+void Thread::clearIncomingNotifications() {
+	if (!owningHistory()->peer->isSelf()) {
+		const auto proj = [](ItemNotification notification) {
+			return notification.item->out();
+		};
+		_notifications.erase(
+			ranges::remove(_notifications, false, proj),
+			end(_notifications));
+	}
+}
+
+void Thread::removeNotification(not_null<HistoryItem*> item) {
+	_notifications.erase(
+		ranges::remove(_notifications, item, &ItemNotification::item),
+		end(_notifications));
+}
+
+std::optional<ItemNotification> Thread::currentNotification() const {
+	return empty(_notifications)
+		? std::nullopt
+		: std::make_optional(_notifications.front());
+}
+
+bool Thread::hasNotification() const {
+	return !empty(_notifications);
+}
+
+void Thread::skipNotification() {
+	if (!empty(_notifications)) {
+		_notifications.pop_front();
+	}
+}
+
+void Thread::pushNotification(ItemNotification notification) {
+	_notifications.push_back(notification);
+}
+
+void Thread::popNotification(ItemNotification notification) {
+	if (!empty(_notifications) && (_notifications.back() == notification)) {
+		_notifications.pop_back();
+	}
+}
+
+void Thread::setMuted(bool muted) {
+	if (muted) {
+		_flags |= Flag::Muted;
+	} else {
+		_flags &= ~Flag::Muted;
+	}
+}
+
+void Thread::setUnreadMark(bool unread) {
+	if (unread) {
+		_flags |= Flag::UnreadMark;
+	} else {
+		_flags &= ~Flag::UnreadMark;
+	}
+}
+
+} // namespace Data

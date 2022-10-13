@@ -822,7 +822,7 @@ void ScheduledWidget::cornerButtonsShowAtPosition(
 	showAtPosition(position);
 }
 
-Dialogs::Entry *ScheduledWidget::cornerButtonsEntry() {
+Data::Thread *ScheduledWidget::cornerButtonsThread() {
 	return _history;
 }
 

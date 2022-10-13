@@ -24,39 +24,27 @@ constexpr auto kPreloadIfLess = 5;
 constexpr auto kFirstRequestLimit = 10;
 constexpr auto kNextRequestLimit = 100;
 
-
-[[nodiscard]] not_null<History*> ResolveHistory(
-		not_null<Dialogs::Entry*> entry) {
-	if (const auto history = entry->asHistory()) {
-		return history;
-	}
-	const auto topic = entry->asTopic();
-
-	Ensures(topic != nullptr);
-	return topic->history();
-}
-
 } // namespace
 
 UnreadThings::UnreadThings(not_null<ApiWrap*> api) : _api(api) {
 }
 
-bool UnreadThings::trackMentions(DialogsEntry *entry) const {
-	const auto peer = entry ? ResolveHistory(entry)->peer.get() : nullptr;
+bool UnreadThings::trackMentions(Data::Thread *thread) const {
+	const auto peer = thread ? thread->owningHistory()->peer.get() : nullptr;
 	return peer && (peer->isChat() || peer->isMegagroup());
 }
 
-bool UnreadThings::trackReactions(DialogsEntry *entry) const {
-	const auto peer = entry ? ResolveHistory(entry)->peer.get() : nullptr;
+bool UnreadThings::trackReactions(Data::Thread *thread) const {
+	const auto peer = thread ? thread->owningHistory()->peer.get() : nullptr;
 	return peer && (peer->isChat() || peer->isMegagroup());
 }
 
-void UnreadThings::preloadEnough(DialogsEntry *entry) {
-	if (trackMentions(entry)) {
-		preloadEnoughMentions(entry);
+void UnreadThings::preloadEnough(Data::Thread *thread) {
+	if (trackMentions(thread)) {
+		preloadEnoughMentions(thread);
 	}
-	if (trackReactions(entry)) {
-		preloadEnoughReactions(entry);
+	if (trackReactions(thread)) {
+		preloadEnoughReactions(thread);
 	}
 }
 
@@ -75,48 +63,48 @@ void UnreadThings::mediaAndMentionsRead(
 	}
 }
 
-void UnreadThings::preloadEnoughMentions(not_null<DialogsEntry*> entry) {
-	const auto fullCount = entry->unreadMentions().count();
-	const auto loadedCount = entry->unreadMentions().loadedCount();
+void UnreadThings::preloadEnoughMentions(not_null<Data::Thread*> thread) {
+	const auto fullCount = thread->unreadMentions().count();
+	const auto loadedCount = thread->unreadMentions().loadedCount();
 	const auto allLoaded = (fullCount >= 0) && (loadedCount >= fullCount);
 	if (fullCount >= 0 && loadedCount < kPreloadIfLess && !allLoaded) {
-		requestMentions(entry, loadedCount);
+		requestMentions(thread, loadedCount);
 	}
 }
 
-void UnreadThings::preloadEnoughReactions(not_null<DialogsEntry*> entry) {
-	const auto fullCount = entry->unreadReactions().count();
-	const auto loadedCount = entry->unreadReactions().loadedCount();
+void UnreadThings::preloadEnoughReactions(not_null<Data::Thread*> thread) {
+	const auto fullCount = thread->unreadReactions().count();
+	const auto loadedCount = thread->unreadReactions().loadedCount();
 	const auto allLoaded = (fullCount >= 0) && (loadedCount >= fullCount);
 	if (fullCount >= 0 && loadedCount < kPreloadIfLess && !allLoaded) {
-		requestReactions(entry, loadedCount);
+		requestReactions(thread, loadedCount);
 	}
 }
 
-void UnreadThings::cancelRequests(not_null<DialogsEntry*> entry) {
-	if (const auto requestId = _mentionsRequests.take(entry)) {
+void UnreadThings::cancelRequests(not_null<Data::Thread*> thread) {
+	if (const auto requestId = _mentionsRequests.take(thread)) {
 		_api->request(*requestId).cancel();
 	}
-	if (const auto requestId = _reactionsRequests.take(entry)) {
+	if (const auto requestId = _reactionsRequests.take(thread)) {
 		_api->request(*requestId).cancel();
 	}
 }
 
 void UnreadThings::requestMentions(
-		not_null<DialogsEntry*> entry,
+		not_null<Data::Thread*> thread,
 		int loaded) {
-	if (_mentionsRequests.contains(entry)) {
+	if (_mentionsRequests.contains(thread)) {
 		return;
 	}
 	const auto offsetId = std::max(
-		entry->unreadMentions().maxLoaded(),
+		thread->unreadMentions().maxLoaded(),
 		MsgId(1));
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 	const auto maxId = 0;
 	const auto minId = 0;
-	const auto history = ResolveHistory(entry);
-	const auto topic = entry->asTopic();
+	const auto history = thread->owningHistory();
+	const auto topic = thread->asTopic();
 	using Flag = MTPmessages_GetUnreadMentions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadMentions(
 		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
@@ -128,29 +116,29 @@ void UnreadThings::requestMentions(
 		MTP_int(maxId),
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
-		_mentionsRequests.remove(entry);
-		entry->unreadMentions().addSlice(result, loaded);
+		_mentionsRequests.remove(thread);
+		thread->unreadMentions().addSlice(result, loaded);
 	}).fail([=] {
-		_mentionsRequests.remove(entry);
+		_mentionsRequests.remove(thread);
 	}).send();
-	_mentionsRequests.emplace(entry, requestId);
+	_mentionsRequests.emplace(thread, requestId);
 }
 
 void UnreadThings::requestReactions(
-		not_null<DialogsEntry*> entry,
+		not_null<Data::Thread*> thread,
 		int loaded) {
-	if (_reactionsRequests.contains(entry)) {
+	if (_reactionsRequests.contains(thread)) {
 		return;
 	}
 	const auto offsetId = loaded
-		? std::max(entry->unreadReactions().maxLoaded(), MsgId(1))
+		? std::max(thread->unreadReactions().maxLoaded(), MsgId(1))
 		: MsgId(1);
 	const auto limit = loaded ? kNextRequestLimit : kFirstRequestLimit;
 	const auto addOffset = loaded ? -(limit + 1) : -limit;
 	const auto maxId = 0;
 	const auto minId = 0;
-	const auto history = ResolveHistory(entry);
-	const auto topic = entry->asTopic();
+	const auto history = thread->owningHistory();
+	const auto topic = thread->asTopic();
 	using Flag = MTPmessages_GetUnreadReactions::Flag;
 	const auto requestId = _api->request(MTPmessages_GetUnreadReactions(
 		MTP_flags(topic ? Flag::f_top_msg_id : Flag()),
@@ -162,12 +150,12 @@ void UnreadThings::requestReactions(
 		MTP_int(maxId),
 		MTP_int(minId)
 	)).done([=](const MTPmessages_Messages &result) {
-		_reactionsRequests.remove(entry);
-		entry->unreadReactions().addSlice(result, loaded);
+		_reactionsRequests.remove(thread);
+		thread->unreadReactions().addSlice(result, loaded);
 	}).fail([=] {
-		_reactionsRequests.remove(entry);
+		_reactionsRequests.remove(thread);
 	}).send();
-	_reactionsRequests.emplace(entry, requestId);
+	_reactionsRequests.emplace(thread, requestId);
 }
 
 } // namespace UnreadThings

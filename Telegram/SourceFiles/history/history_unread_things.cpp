@@ -42,7 +42,7 @@ template <typename Update>
 
 void Proxy::setCount(int count) {
 	if (!_known) {
-		_entry->setUnreadThingsKnown();
+		_thread->setUnreadThingsKnown();
 	}
 	if (!_data) {
 		if (!count) {
@@ -69,16 +69,16 @@ void Proxy::setCount(int count) {
 	const auto has = (count > 0);
 	if (has != had) {
 		if (_type == Type::Mentions) {
-			if (const auto history = _entry->asHistory()) {
-				_entry->owner().chatsFilters().refreshHistory(history);
+			if (const auto history = _thread->asHistory()) {
+				_thread->owner().chatsFilters().refreshHistory(history);
 			}
 		}
-		_entry->updateChatListEntry();
+		_thread->updateChatListEntry();
 	}
 }
 
 bool Proxy::add(MsgId msgId, AddType type) {
-	if (const auto history = _entry->asHistory()) {
+	if (const auto history = _thread->asHistory()) {
 		if (history->peer->isBroadcast()) {
 			return false;
 		}
@@ -130,7 +130,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	if (!alreadyLoaded && _data) {
 		resolveList().clear();
 	}
-	const auto history = resolveHistory();
+	const auto history = _thread->owningHistory();
 	auto fullCount = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -150,7 +150,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		return data.vcount().v;
 	});
 
-	auto &owner = _entry->owner();
+	auto &owner = _thread->owner();
 	const auto messages = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -203,7 +203,7 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 	if (!list.loadedCount() || list.maxLoaded() <= msgId) {
 		return;
 	}
-	const auto history = resolveHistory();
+	const auto history = _thread->owningHistory();
 	const auto peer = history->peer;
 	const auto item = peer->owner().message(peer, msgId);
 	if (item && item->hasUnreadReaction()) {
@@ -216,11 +216,11 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 }
 
 void Proxy::notifyUpdated() {
-	if (const auto history = _entry->asHistory()) {
+	if (const auto history = _thread->asHistory()) {
 		history->session().changes().historyUpdated(
 			history,
 			HistoryUpdateFlag(_type));
-	} else if (const auto topic = _entry->asTopic()) {
+	} else if (const auto topic = _thread->asTopic()) {
 		topic->session().changes().topicUpdated(
 			topic,
 			TopicUpdateFlag(_type));
@@ -243,11 +243,6 @@ List &Proxy::resolveList() {
 	case Type::Reactions: return _data->reactions;
 	}
 	Unexpected("Unread things type in Proxy::resolveList.");
-}
-
-not_null<History*> Proxy::resolveHistory() const {
-	const auto result = _entry->asHistory();
-	return result ? not_null(result) : _entry->asTopic()->history();
 }
 
 } // namespace HistoryUnreadThings

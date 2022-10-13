@@ -189,7 +189,7 @@ void NotifySettings::defaultUpdate(
 void NotifySettings::updateLocal(not_null<Data::ForumTopic*> topic) {
 	auto changesIn = crl::time(0);
 	const auto muted = isMuted(topic, &changesIn);
-	topic->changeMuted(muted);
+	topic->setMuted(muted);
 	if (muted) {
 		auto &lifetime = _mutedTopics.emplace(
 			topic,
@@ -209,7 +209,9 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	const auto history = _owner->historyLoaded(peer->id);
 	auto changesIn = crl::time(0);
 	const auto muted = isMuted(peer, &changesIn);
-	if (history && history->changeMuted(muted)) {
+	const auto changeInHistory = history && (history->muted() != muted);
+	if (changeInHistory) {
+		history->setMuted(muted);
 		// Notification already sent.
 	} else {
 		peer->session().changes().peerUpdated(
@@ -316,18 +318,15 @@ void NotifySettings::unmuteByFinished() {
 		const auto history = _owner->historyLoaded((*i)->id);
 		auto changesIn = crl::time(0);
 		const auto muted = isMuted(*i, &changesIn);
+		if (history) {
+			history->setMuted(muted);
+		}
 		if (muted) {
-			if (history) {
-				history->changeMuted(true);
-			}
 			if (!changesInMin || changesInMin > changesIn) {
 				changesInMin = changesIn;
 			}
 			++i;
 		} else {
-			if (history) {
-				history->changeMuted(false);
-			}
 			i = _mutedPeers.erase(i);
 		}
 	}
@@ -335,14 +334,13 @@ void NotifySettings::unmuteByFinished() {
 		auto changesIn = crl::time(0);
 		const auto topic = i->first;
 		const auto muted = isMuted(topic, &changesIn);
+		topic->setMuted(muted);
 		if (muted) {
-			topic->changeMuted(true);
 			if (!changesInMin || changesInMin > changesIn) {
 				changesInMin = changesIn;
 			}
 			++i;
 		} else {
-			topic->changeMuted(false);
 			i = _mutedTopics.erase(i);
 		}
 	}
