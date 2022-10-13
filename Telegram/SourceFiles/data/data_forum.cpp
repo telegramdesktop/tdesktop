@@ -18,9 +18,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "core/application.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/input_fields.h"
 #include "window/window_session_controller.h"
+#include "window/notifications_manager.h"
 #include "styles/style_boxes.h"
 
 namespace Data {
@@ -114,6 +116,16 @@ void Forum::applyReceivedTopics(const MTPmessages_ForumTopics &result) {
 	applyReceivedTopics(result, false);
 }
 
+void Forum::applyTopicDeleted(MsgId rootId) {
+	const auto i = _topics.find(rootId);
+	if (i != end(_topics)) {
+		Core::App().notifications().clearFromTopic(i->second.get());
+		_topicDestroyed.fire(i->second.get());
+		_history->destroyMessagesByTopic(rootId);
+		_topics.erase(i);
+	}
+}
+
 void Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		bool updateOffset) {
@@ -124,23 +136,32 @@ void Forum::applyReceivedTopics(
 	channel()->ptsReceived(data.vpts().v);
 	const auto &list = data.vtopics().v;
 	for (const auto &topic : list) {
-		const auto rootId = MsgId(topic.data().vid().v);
-		const auto i = _topics.find(rootId);
-		const auto creating = (i == end(_topics));
-		const auto raw = creating
-			? _topics.emplace(
-				rootId,
-				std::make_unique<ForumTopic>(this, rootId)
-			).first->second.get()
-			: i->second.get();
-		raw->applyTopic(topic);
-		if (updateOffset) {
-			if (const auto last = raw->lastServerMessage()) {
-				_offsetDate = last->date();
-				_offsetId = last->id;
+		const auto rootId = topic.match([&](const auto &data) {
+			return data.vid().v;
+		});
+		topic.match([&](const MTPDforumTopicDeleted &data) {
+			if (updateOffset) {
+				LOG(("API Error: Got a deleted topic in getForumTopics."));
 			}
-			_offsetTopicId = rootId;
-		}
+			applyTopicDeleted(rootId);
+		}, [&](const MTPDforumTopic &data) {
+			const auto i = _topics.find(rootId);
+			const auto creating = (i == end(_topics));
+			const auto raw = creating
+				? _topics.emplace(
+					rootId,
+					std::make_unique<ForumTopic>(this, rootId)
+				).first->second.get()
+				: i->second.get();
+			raw->applyTopic(data);
+			if (updateOffset) {
+				if (const auto last = raw->lastServerMessage()) {
+					_offsetDate = last->date();
+					_offsetId = last->id;
+				}
+				_offsetTopicId = rootId;
+			}
+		});
 	}
 	if (updateOffset
 		&& (list.isEmpty() || list.size() == data.vcount().v)) {
@@ -184,11 +205,13 @@ void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
 	});
 }
 
-void Forum::applyTopicAdded(
+ForumTopic *Forum::applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
 		int32 colorId,
 		DocumentId iconId) {
+	Expects(rootId != 0);
+
 	const auto i = _topics.find(rootId);
 	const auto raw = (i != end(_topics))
 		? i->second.get()
@@ -203,6 +226,7 @@ void Forum::applyTopicAdded(
 		raw->addToChatList(FilterId(), topicsList());
 		_chatsListChanges.fire({});
 	}
+	return raw;
 }
 
 MsgId Forum::reserveCreatingId(
@@ -261,16 +285,24 @@ void Forum::clearAllUnreadReactions() {
 	}
 }
 
-ForumTopic *Forum::topicFor(not_null<const HistoryItem*> item) {
-	return topicFor(item->topicRootId());
-}
-
 ForumTopic *Forum::topicFor(MsgId rootId) {
 	if (!rootId) {
 		return nullptr;
 	}
 	const auto i = _topics.find(rootId);
 	return (i != end(_topics)) ? i->second.get() : nullptr;
+}
+
+ForumTopic *Forum::enforceTopicFor(MsgId rootId) {
+	Expects(rootId != 0);
+
+	const auto i = _topics.find(rootId);
+	if (i != end(_topics)) {
+		return i->second.get();
+	}
+	const auto result = applyTopicAdded(rootId, {}, {}, {});
+	requestTopic(rootId);
+	return result;
 }
 
 rpl::producer<> Forum::chatsListChanges() const {

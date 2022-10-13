@@ -53,17 +53,15 @@ Data::Thread *Key::thread() const {
 	return _value ? _value->asThread() : nullptr;
 }
 
-History *Key::parentHistory() const {
-	if (const auto result = history()) {
-		return result;
-	} else if (const auto child = topic()) {
-		return child->history();
+History *Key::owningHistory() const {
+	if (const auto thread = this->thread()) {
+		return thread->owningHistory();
 	}
 	return nullptr;
 }
 
 PeerData *Key::peer() const {
-	if (const auto history = parentHistory()) {
+	if (const auto history = owningHistory()) {
 		return history->peer;
 	}
 	return nullptr;

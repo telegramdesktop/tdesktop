@@ -43,14 +43,15 @@ public:
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
 
 	void requestTopic(MsgId rootId, Fn<void()> done = nullptr);
-	void applyTopicAdded(
+	ForumTopic *applyTopicAdded(
 		MsgId rootId,
 		const QString &title,
 		int32 colorId,
 		DocumentId iconId);
 	void applyTopicCreated(MsgId rootId, MsgId realId);
-	[[nodiscard]] ForumTopic *topicFor(not_null<const HistoryItem*> item);
+	void applyTopicDeleted(MsgId rootId);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
+	[[nodiscard]] ForumTopic *enforceTopicFor(MsgId rootId);
 
 	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
 

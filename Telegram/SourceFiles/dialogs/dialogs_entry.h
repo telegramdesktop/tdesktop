@@ -119,6 +119,11 @@ public:
 	Data::Thread *asThread();
 	Data::ForumTopic *asTopic();
 
+	const History *asHistory() const;
+	const Data::Folder *asFolder() const;
+	const Data::Thread *asThread() const;
+	const Data::ForumTopic *asTopic() const;
+
 	PositionChange adjustByPosInChatList(
 		FilterId filterId,
 		not_null<MainList*> list);

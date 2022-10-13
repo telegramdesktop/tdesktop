@@ -30,12 +30,12 @@ UnreadThings::UnreadThings(not_null<ApiWrap*> api) : _api(api) {
 }
 
 bool UnreadThings::trackMentions(Data::Thread *thread) const {
-	const auto peer = thread ? thread->owningHistory()->peer.get() : nullptr;
+	const auto peer = thread ? thread->peer().get() : nullptr;
 	return peer && (peer->isChat() || peer->isMegagroup());
 }
 
 bool UnreadThings::trackReactions(Data::Thread *thread) const {
-	const auto peer = thread ? thread->owningHistory()->peer.get() : nullptr;
+	const auto peer = thread ? thread->peer().get() : nullptr;
 	return peer && (peer->isChat() || peer->isMegagroup());
 }
 

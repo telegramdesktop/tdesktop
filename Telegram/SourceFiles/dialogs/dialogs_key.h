@@ -42,7 +42,7 @@ public:
 	Data::Folder *folder() const;
 	Data::ForumTopic *topic() const;
 	Data::Thread *thread() const;
-	History *parentHistory() const;
+	History *owningHistory() const;
 	PeerData *peer() const;
 
 	friend inline constexpr auto operator<=>(Key, Key) noexcept = default;

@@ -198,8 +198,6 @@ public:
 	}
 
 	[[nodiscard]] Data::Forum *forum() const;
-	[[nodiscard]] Data::ForumTopic *forumTopicFor(
-		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
 
 	[[nodiscard]] Data::PeerNotifySettings &notify() {

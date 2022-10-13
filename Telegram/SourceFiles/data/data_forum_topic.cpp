@@ -197,10 +197,9 @@ void ForumTopic::setRealRootId(MsgId realId) {
 	}
 }
 
-void ForumTopic::applyTopic(const MTPForumTopic &topic) {
-	Expects(_rootId == topic.data().vid().v);
+void ForumTopic::applyTopic(const MTPDforumTopic &data) {
+	Expects(_rootId == data.vid().v);
 
-	const auto &data = topic.data();
 	applyTitle(qs(data.vtitle()));
 	if (const auto iconId = data.vicon_emoji_id()) {
 		applyIconId(iconId->v);
@@ -217,6 +216,8 @@ void ForumTopic::applyTopic(const MTPForumTopic &topic) {
 		pinned->setPinned(Dialogs::Key(this), false);
 	}
 #endif
+
+	owner().notifySettings().apply(this, data.vnotify_settings());
 
 	_replies->setInboxReadTill(
 		data.vread_inbox_max_id().v,

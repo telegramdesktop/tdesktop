@@ -743,12 +743,12 @@ void TopBarWidget::setActiveChat(
 		_titleNameVersion = 0;
 		_emojiInteractionSeen = nullptr;
 		_activeChatLifetime.destroy();
-		if (const auto history = _activeChat.key.parentHistory()) {
+		if (const auto peer = _activeChat.key.peer()) {
 			session().changes().peerFlagsValue(
-				history->peer,
+				peer,
 				Data::PeerUpdate::Flag::GroupCall
 			) | rpl::map([=] {
-				return history->peer->groupCall();
+				return peer->groupCall();
 			}) | rpl::distinct_until_changed(
 			) | rpl::map([](Data::GroupCall *call) {
 				return call ? call->fullCountValue() : rpl::single(-1);

@@ -202,7 +202,7 @@ void SetupUnreadMentionsMenu(
 			done();
 			return;
 		}
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		const auto topic = thread->asTopic();
 		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadMentions::Flag;
@@ -244,7 +244,7 @@ void SetupUnreadReactionsMenu(
 			return;
 		}
 		const auto topic = thread->asTopic();
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		const auto rootId = topic ? topic->rootId() : 0;
 		using Flag = MTPmessages_ReadReactions::Flag;
 		peer->session().api().request(MTPmessages_ReadReactions(

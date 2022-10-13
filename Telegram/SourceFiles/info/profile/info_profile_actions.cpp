@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -22,13 +23,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/boxes/report_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "history/history_location_manager.h" // LocationClickHandler.
 #include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/abstract_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_mute.h"
+#include "history/history.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
@@ -132,6 +134,10 @@ public:
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer);
+	DetailsFiller(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::ForumTopic*> topic);
 
 	object_ptr<Ui::RpWidget> fill();
 
@@ -159,6 +165,7 @@ private:
 	not_null<Controller*> _controller;
 	not_null<Ui::RpWidget*> _parent;
 	not_null<PeerData*> _peer;
+	Data::ForumTopic *_topic = nullptr;
 	object_ptr<Ui::VerticalLayout> _wrap;
 
 };
@@ -199,6 +206,17 @@ DetailsFiller::DetailsFiller(
 : _controller(controller)
 , _parent(parent)
 , _peer(peer)
+, _wrap(_parent) {
+}
+
+DetailsFiller::DetailsFiller(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::ForumTopic*> topic)
+: _controller(controller)
+, _parent(parent)
+, _peer(topic->peer())
+, _topic(topic)
 , _wrap(_parent) {
 }
 
@@ -338,16 +356,20 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			[=] { controller->window().show(Box(EditContactBox, controller, user)); },
 			tracker);
 	} else {
+		const auto topicRootId = _topic ? _topic->rootId() : 0;
+		const auto addToLink = topicRootId
+			? "?topic=" + QString::number(topicRootId.bare)
+			: QString();
 		auto linkText = LinkValue(
 			_peer
-		) | rpl::map([](const QString &link) {
+		) | rpl::map([=](const QString &link) {
 			return link.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
 					(link.startsWith(qstr("https://"))
 						? link.mid(qstr("https://").size())
-						: link),
-					link);
+						: link) + addToLink,
+					link + addToLink);
 		});
 		auto link = addInfoOneLine(
 			tr::lng_info_link_label(),
@@ -358,14 +380,14 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			const auto link = peer->session().createInternalLinkFull(
 				peer->userName());
 			if (!link.isEmpty()) {
-				QGuiApplication::clipboard()->setText(link);
+				QGuiApplication::clipboard()->setText(link + addToLink);
 				Ui::Toast::Show(
 					Window::Show(controller).toastParent(),
 					tr::lng_username_copied(tr::now));
 			}
 		});
 
-		if (const auto channel = _peer->asChannel()) {
+		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {
 			auto locationText = LocationValue(
 				channel
 			) | rpl::map([](const ChannelLocation *location) {
@@ -382,7 +404,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			)->setLinksTrusted();
 		}
 
-		addInfoLine(tr::lng_info_about_label(), AboutValue(_peer));
+		addInfoLine(
+			tr::lng_info_about_label(),
+			_topic ? rpl::single(TextWithEntities()) : AboutValue(_peer));
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
@@ -400,17 +424,27 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result,
 		st::infoIconInformation,
 		st::infoInformationIconPosition);
+
 	return result;
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	const auto peer = _peer;
+	const auto topicRootId = _topic ? _topic->rootId() : MsgId();
+	const auto makeThread = [=] {
+		return topicRootId
+			? static_cast<Data::Thread*>(peer->forumTopicFor(topicRootId))
+			: peer->owner().history(peer).get();
+	};
 	auto result = object_ptr<Ui::SettingsButton>(
 		_wrap,
 		tr::lng_profile_enable_notifications(),
 		st::infoNotificationsButton);
-	result->toggleOn(NotificationsEnabledValue(peer), true);
+	result->toggleOn(_topic
+		? NotificationsEnabledValue(_topic)
+		: NotificationsEnabledValue(peer), true);
 	result->setAcceptBoth();
+	const auto notifySettings = &peer->owner().notifySettings();
 	MuteMenu::SetupMuteMenu(
 		result.data(),
 		result->clicks(
@@ -418,16 +452,15 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 			if (button == Qt::RightButton) {
 				return true;
 			}
-			if (peer->owner().notifySettings().isMuted(peer)) {
-				peer->owner().notifySettings().update(
-					peer,
-					{ .unmute = true });
+			if (notifySettings->isMuted(peer)) {
+				notifySettings->update(peer, { .unmute = true });
 				return false;
 			} else {
 				return true;
 			}
 		}) | rpl::to_empty,
-		{ peer, std::make_shared<Window::Show>(_controller) });
+		makeThread,
+		std::make_shared<Window::Show>(_controller));
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,
@@ -831,6 +864,14 @@ object_ptr<Ui::RpWidget> SetupDetails(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer) {
 	DetailsFiller filler(controller, parent, peer);
+	return filler.fill();
+}
+
+object_ptr<Ui::RpWidget> SetupDetails(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::ForumTopic*> topic) {
+	DetailsFiller filler(controller, parent, topic);
 	return filler.fill();
 }
 

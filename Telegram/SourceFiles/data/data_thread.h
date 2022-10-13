@@ -30,6 +30,8 @@ extern const int &dialogsTextWidthMin;
 
 namespace Data {
 
+class PeerNotifySettings;
+
 enum class ItemNotificationType {
 	Message,
 	Reaction,
@@ -55,6 +57,9 @@ public:
 	[[nodiscard]] not_null<const History*> owningHistory() const {
 		return const_cast<Thread*>(this)->owningHistory();
 	}
+	[[nodiscard]] not_null<PeerData*> peer() const;
+	[[nodiscard]] PeerNotifySettings &notify();
+	[[nodiscard]] const PeerNotifySettings &notify() const;
 
 	void setUnreadThingsKnown();
 	[[nodiscard]] HistoryUnreadThings::Proxy unreadMentions();

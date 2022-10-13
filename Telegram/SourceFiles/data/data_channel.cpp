@@ -20,14 +20,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_bot_command.h"
+#include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
@@ -131,9 +134,14 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			session().changes().peerUpdated(this, UpdateFlag::Migration);
 		}
 	}
-	if (diff & Flag::CallNotEmpty) {
+	if (diff & (Flag::Forum | Flag::CallNotEmpty)) {
 		if (const auto history = this->owner().historyLoaded(this)) {
-			history->updateChatListEntry();
+			if (diff & Flag::CallNotEmpty) {
+				history->updateChatListEntry();
+			}
+			if (diff & Flag::Forum) {
+				Core::App().notifications().clearFromHistory(history);
+			}
 		}
 	}
 }
@@ -986,8 +994,8 @@ void ApplyChannelUpdate(
 		session->changes().peerUpdated(channel, UpdateFlag::Rights);
 	}
 
-	session->api().applyNotifySettings(
-		MTP_inputNotifyPeer(channel->input),
+	channel->owner().notifySettings().apply(
+		channel,
 		update.vnotify_settings());
 
 	if (const auto sendAs = update.vdefault_send_as()) {

@@ -81,6 +81,22 @@ Data::ForumTopic *Entry::asTopic() {
 		: nullptr;
 }
 
+const History *Entry::asHistory() const {
+	return const_cast<Entry*>(this)->asHistory();
+}
+
+const Data::Folder *Entry::asFolder() const {
+	return const_cast<Entry*>(this)->asFolder();
+}
+
+const Data::Thread *Entry::asThread() const {
+	return const_cast<Entry*>(this)->asThread();
+}
+
+const Data::ForumTopic *Entry::asTopic() const {
+	return const_cast<Entry*>(this)->asTopic();
+}
+
 void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {
 	if (!filterId && session().supportMode()) {
 		// Force reorder in support mode.

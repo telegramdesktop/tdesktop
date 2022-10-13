@@ -1729,10 +1729,10 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 	const auto requestId = request(MTPaccount_GetNotifySettings(
 		peer
 	)).done([=](const MTPPeerNotifySettings &result) {
-		applyNotifySettings(peer, result);
+		_session->data().notifySettings().apply(peer, result);
 		_notifySettingRequests.remove(key);
 	}).fail([=] {
-		applyNotifySettings(
+		_session->data().notifySettings().apply(
 			peer,
 			MTP_peerNotifySettings(
 				MTP_flags(0),
@@ -1748,7 +1748,11 @@ void ApiWrap::requestNotifySettings(const MTPInputNotifyPeer &peer) {
 }
 
 void ApiWrap::updateNotifySettingsDelayed(
-		not_null<const Data::ForumTopic*> topic) {
+		not_null<const Data::Thread*> thread) {
+	const auto topic = thread->asTopic();
+	if (!topic) {
+		return updateNotifySettingsDelayed(thread->peer());
+	}
 	if (_updateNotifyTopics.emplace(topic).second) {
 		topic->destroyed(
 		) | rpl::start_with_next([=] {
@@ -2120,51 +2124,6 @@ void ApiWrap::registerModifyRequest(
 
 void ApiWrap::clearModifyRequest(const QString &key) {
 	_modifyRequests.remove(key);
-}
-
-void ApiWrap::applyNotifySettings(
-		MTPInputNotifyPeer notifyPeer,
-		const MTPPeerNotifySettings &settings) {
-	auto &notifySettings = _session->data().notifySettings();
-	switch (notifyPeer.type()) {
-	case mtpc_inputNotifyUsers:
-		notifySettings.apply(MTP_notifyUsers(), settings);
-	break;
-	case mtpc_inputNotifyChats:
-		notifySettings.apply(MTP_notifyChats(), settings);
-	break;
-	case mtpc_inputNotifyBroadcasts:
-		notifySettings.apply(
-			MTP_notifyBroadcasts(),
-			settings);
-	break;
-	case mtpc_inputNotifyPeer: {
-		auto &peer = notifyPeer.c_inputNotifyPeer().vpeer();
-		const auto apply = [&](PeerId peerId) {
-			notifySettings.apply(
-				MTP_notifyPeer(peerToMTP(peerId)),
-				settings);
-		};
-		switch (peer.type()) {
-		case mtpc_inputPeerEmpty:
-			apply(0);
-			break;
-		case mtpc_inputPeerSelf:
-			apply(_session->userPeerId());
-			break;
-		case mtpc_inputPeerUser:
-			apply(peerFromUser(peer.c_inputPeerUser().vuser_id()));
-			break;
-		case mtpc_inputPeerChat:
-			apply(peerFromChat(peer.c_inputPeerChat().vchat_id()));
-			break;
-		case mtpc_inputPeerChannel:
-			apply(peerFromChannel(peer.c_inputPeerChannel().vchannel_id()));
-			break;
-		}
-	} break;
-	}
-	Core::App().notifications().checkDelayed();
 }
 
 void ApiWrap::gotStickerSet(

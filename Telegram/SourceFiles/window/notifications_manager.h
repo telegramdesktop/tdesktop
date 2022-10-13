@@ -155,7 +155,7 @@ private:
 	[[nodiscard]] SkipState computeSkipState(
 		Data::ItemNotification notification) const;
 	[[nodiscard]] Timing countTiming(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		crl::time minimalDelay) const;
 	[[nodiscard]] bool skipReactionNotification(
 		not_null<HistoryItem*> item) const;
@@ -166,6 +166,8 @@ private:
 	[[nodiscard]] not_null<Media::Audio::Track*> lookupSound(
 		not_null<Data::Session*> owner,
 		DocumentId id);
+
+	void registerThread(not_null<Data::Thread*> thread);
 
 	base::flat_map<
 		not_null<Data::Thread*>,
@@ -192,6 +194,10 @@ private:
 	base::flat_map<
 		DocumentId,
 		std::unique_ptr<Media::Audio::Track>> _customSoundTracks;
+
+	base::flat_map<
+		not_null<Data::ForumTopic*>,
+		rpl::lifetime> _watchedTopics;
 
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;

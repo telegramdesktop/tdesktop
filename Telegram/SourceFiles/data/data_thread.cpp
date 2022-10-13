@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_thread.h"
 
+#include "data/data_forum_topic.h"
+#include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
@@ -14,6 +16,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Data {
 
 Thread::~Thread() = default;
+
+not_null<PeerData*> Thread::peer() const {
+	return owningHistory()->peer;
+}
+
+PeerNotifySettings &Thread::notify() {
+	const auto topic = asTopic();
+	return topic ? topic->notify() : peer()->notify();
+}
+
+const PeerNotifySettings &Thread::notify() const {
+	return const_cast<Thread*>(this)->notify();
+}
 
 void Thread::setUnreadThingsKnown() {
 	_flags |= Flag::UnreadThingsKnown;
@@ -72,7 +87,7 @@ void Thread::clearNotifications() {
 }
 
 void Thread::clearIncomingNotifications() {
-	if (!owningHistory()->peer->isSelf()) {
+	if (!peer()->isSelf()) {
 		const auto proj = [](ItemNotification notification) {
 			return notification.item->out();
 		};

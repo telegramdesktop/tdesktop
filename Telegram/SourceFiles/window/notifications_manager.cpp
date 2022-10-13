@@ -165,7 +165,7 @@ System::SkipState System::skipNotification(
 	const auto item = notification.item;
 	const auto type = notification.type;
 	const auto messageType = (type == Data::ItemNotificationType::Message);
-	if (!item->thread()->currentNotification()
+	if (!item->notificationThread()->currentNotification()
 		|| (messageType && item->skipNotification())
 		|| (type == Data::ItemNotificationType::Reaction
 			&& skipReactionNotification(item))) {
@@ -178,7 +178,8 @@ System::SkipState System::computeSkipState(
 		Data::ItemNotification notification) const {
 	const auto type = notification.type;
 	const auto item = notification.item;
-	const auto history = item->history();
+	const auto thread = item->notificationThread();
+	const auto notifySettings = &thread->owner().notifySettings();
 	const auto messageType = (type == Data::ItemNotificationType::Message);
 	const auto withSilent = [&](
 			SkipState::Value value,
@@ -188,8 +189,7 @@ System::SkipState System::computeSkipState(
 			.silent = (forceSilent
 				|| !messageType
 				|| item->isSilent()
-				|| history->owner().notifySettings().sound(
-					history->peer).none),
+				|| notifySettings->sound(thread).none),
 		};
 	};
 	const auto showForMuted = messageType
@@ -201,35 +201,32 @@ System::SkipState System::computeSkipState(
 	if (Core::Quitting()) {
 		return { SkipState::Skip };
 	} else if (!Core::App().settings().notifyFromAll()
-		&& &history->session().account() != &Core::App().domain().active()) {
+		&& &thread->session().account() != &Core::App().domain().active()) {
 		return { SkipState::Skip };
 	}
 
 	if (messageType) {
-		history->owner().notifySettings().request(
-			history->peer);
+		notifySettings->request(thread);
 	} else if (notifyBy->blockStatus() == PeerData::BlockStatus::Unknown) {
 		notifyBy->updateFull();
 	}
 	if (notifyBy) {
-		history->owner().notifySettings().request(notifyBy);
+		notifySettings->request(notifyBy);
 	}
 
-	if (messageType
-		&& history->owner().notifySettings().muteUnknown(history->peer)) {
+	if (messageType && notifySettings->muteUnknown(thread)) {
 		return { SkipState::Unknown };
-	} else if (messageType
-		&& !history->owner().notifySettings().isMuted(history->peer)) {
+	} else if (messageType && !notifySettings->isMuted(thread)) {
 		return withSilent(SkipState::DontSkip);
 	} else if (!notifyBy) {
 		return withSilent(
 			showForMuted ? SkipState::DontSkip : SkipState::Skip,
 			showForMuted);
-	} else if (history->owner().notifySettings().muteUnknown(notifyBy)
+	} else if (notifySettings->muteUnknown(notifyBy)
 		|| (!messageType
 			&& notifyBy->blockStatus() == PeerData::BlockStatus::Unknown)) {
 		return withSilent(SkipState::Unknown);
-	} else if (!history->owner().notifySettings().isMuted(notifyBy)
+	} else if (!notifySettings->isMuted(notifyBy)
 		&& (messageType || !notifyBy->isBlocked())) {
 		return withSilent(SkipState::DontSkip);
 	} else {
@@ -240,13 +237,13 @@ System::SkipState System::computeSkipState(
 }
 
 System::Timing System::countTiming(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		crl::time minimalDelay) const {
 	auto delay = minimalDelay;
 	const auto t = base::unixtime::now();
 	const auto ms = crl::now();
-	const auto &updates = history->session().updates();
-	const auto &config = history->session().serverConfig();
+	const auto &updates = thread->session().updates();
+	const auto &config = thread->session().serverConfig();
 	const bool isOnline = updates.lastWasOnline();
 	const auto otherNotOld = ((cOtherOnline() * 1000LL) + config.onlineCloudTimeout > t * 1000LL);
 	const bool otherLaterThanMe = (cOtherOnline() * 1000LL + (ms - updates.lastSetOnline()) > t * 1000LL);
@@ -261,15 +258,26 @@ System::Timing System::countTiming(
 	};
 }
 
+void System::registerThread(not_null<Data::Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		const auto [i, ok] = _watchedTopics.emplace(topic, rpl::lifetime());
+		if (ok) {
+			topic->destroyed() | rpl::start_with_next([=] {
+				clearFromTopic(topic);
+			}, i->second);
+		}
+	}
+}
+
 void System::schedule(Data::ItemNotification notification) {
 	Expects(_manager != nullptr);
 
 	const auto item = notification.item;
 	const auto type = notification.type;
-	const auto history = item->history();
+	const auto thread = item->notificationThread();
 	const auto skip = skipNotification(notification);
 	if (skip.value == SkipState::Skip) {
-		history->popNotification(notification);
+		thread->popNotification(notification);
 		return;
 	}
 	const auto ready = (skip.value != SkipState::Unknown)
@@ -280,25 +288,27 @@ void System::schedule(Data::ItemNotification notification) {
 		: item->Has<HistoryMessageForwarded>()
 		? kMinimalForwardDelay
 		: kMinimalDelay;
-	const auto timing = countTiming(history, minimalDelay);
+	const auto timing = countTiming(thread, minimalDelay);
 	const auto notifyBy = (type == Data::ItemNotificationType::Message)
 		? item->specialNotificationPeer()
 		: notification.reactionSender;
 	if (!skip.silent) {
-		_whenAlerts[history].emplace(timing.when, notifyBy);
+		registerThread(thread);
+		_whenAlerts[thread].emplace(timing.when, notifyBy);
 	}
 	if (Core::App().settings().desktopNotify()
 		&& !_manager->skipToast()) {
+		registerThread(thread);
 		const auto key = NotificationInHistoryKey(notification);
-		auto &whenMap = _whenMaps[history];
+		auto &whenMap = _whenMaps[thread];
 		if (whenMap.find(key) == whenMap.end()) {
 			whenMap.emplace(key, timing.when);
 		}
 
 		auto &addTo = ready ? _waiters : _settingWaiters;
-		const auto it = addTo.find(history);
+		const auto it = addTo.find(thread);
 		if (it == addTo.end() || it->second.when > timing.when) {
-			addTo.emplace(history, Waiter{
+			addTo.emplace(thread, Waiter{
 				.key = key,
 				.reactionSender = notification.reactionSender,
 				.type = notification.type,
@@ -312,7 +322,6 @@ void System::schedule(Data::ItemNotification notification) {
 			_waitTimer.callOnce(timing.delay);
 		}
 	}
-
 }
 
 void System::clearAll() {
@@ -327,6 +336,7 @@ void System::clearAll() {
 	_whenAlerts.clear();
 	_waiters.clear();
 	_settingWaiters.clear();
+	_watchedTopics.clear();
 }
 
 void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
@@ -339,6 +349,8 @@ void System::clearFromTopic(not_null<Data::ForumTopic*> topic) {
 	_whenAlerts.remove(topic);
 	_waiters.remove(topic);
 	_settingWaiters.remove(topic);
+
+	_watchedTopics.remove(topic);
 
 	_waitTimer.cancel();
 	showNext();
@@ -357,10 +369,17 @@ void System::clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate) {
 		_whenAlerts.remove(thread);
 		_waiters.remove(thread);
 		_settingWaiters.remove(thread);
+		if (const auto topic = thread->asTopic()) {
+			_watchedTopics.remove(topic);
+		}
 	}
 	const auto clearFrom = [&](auto &map) {
 		for (auto i = map.begin(); i != map.end();) {
-			if (predicate(i->first)) {
+			const auto thread = i->first;
+			if (predicate(thread)) {
+				if (const auto topic = thread->asTopic()) {
+					_watchedTopics.remove(topic);
+				}
 				i = map.erase(i);
 			} else {
 				++i;
@@ -424,13 +443,14 @@ void System::clearAllFast() {
 	_whenAlerts.clear();
 	_waiters.clear();
 	_settingWaiters.clear();
+	_watchedTopics.clear();
 }
 
 void System::checkDelayed() {
 	for (auto i = _settingWaiters.begin(); i != _settingWaiters.end();) {
 		const auto remove = [&] {
 			const auto thread = i->first;
-			const auto peer = thread->owningHistory()->peer;
+			const auto peer = thread->peer();
 			const auto fullId = FullMsgId(peer->id, i->second.key.messageId);
 			const auto item = thread->owner().message(fullId);
 			if (!item) {
@@ -501,21 +521,21 @@ void System::showNext() {
 	};
 
 	auto ms = crl::now(), nextAlert = crl::time(0);
-	auto alertPeer = (PeerData*)nullptr;
+	auto alertThread = (Data::Thread*)nullptr;
 	for (auto i = _whenAlerts.begin(); i != _whenAlerts.end();) {
 		while (!i->second.empty() && i->second.begin()->first <= ms) {
-			const auto peer = i->first->owningHistory()->peer;
-			const auto &notifySettings = peer->owner().notifySettings();
-			const auto peerUnknown = notifySettings.muteUnknown(peer);
-			const auto peerAlert = !peerUnknown
-				&& !notifySettings.isMuted(peer);
+			const auto thread = i->first;
+			const auto notifySettings = &thread->owner().notifySettings();
+			const auto threadUnknown = notifySettings->muteUnknown(thread);
+			const auto threadAlert = !threadUnknown
+				&& !notifySettings->isMuted(thread);
 			const auto from = i->second.begin()->second;
 			const auto fromUnknown = (!from
-				|| notifySettings.muteUnknown(from));
+				|| notifySettings->muteUnknown(from));
 			const auto fromAlert = !fromUnknown
-				&& !notifySettings.isMuted(from);
-			if (peerAlert || fromAlert) {
-				alertPeer = peer;
+				&& !notifySettings->isMuted(from);
+			if (threadAlert || fromAlert) {
+				alertThread = thread;
 			}
 			while (!i->second.empty()
 				&& i->second.begin()->first <= ms + kMinimalAlertDelay) {
@@ -532,7 +552,7 @@ void System::showNext() {
 		}
 	}
 	const auto &settings = Core::App().settings();
-	if (alertPeer) {
+	if (alertThread) {
 		if (settings.flashBounceNotify() && !_manager->skipFlashBounce()) {
 			if (const auto window = Core::App().primaryWindow()) {
 				if (const auto handle = window->widget()->windowHandle()) {
@@ -543,8 +563,8 @@ void System::showNext() {
 		}
 		if (settings.soundNotify() && !_manager->skipAudio()) {
 			const auto track = lookupSound(
-				&alertPeer->owner(),
-				alertPeer->owner().notifySettings().sound(alertPeer).id);
+				&alertThread->owner(),
+				alertThread->owner().notifySettings().sound(alertThread).id);
 			track->playOnce();
 			Media::Player::mixer()->suppressAll(track->getLengthMs());
 			Media::Player::mixer()->faderOnTimer();
@@ -620,7 +640,7 @@ void System::showNext() {
 			: nullptr;
 		auto forwardedCount = isForwarded ? 1 : 0;
 
-		const auto thread = notifyItem->thread();
+		const auto thread = notifyItem->notificationThread();
 		const auto j = _whenMaps.find(thread);
 		if (j == _whenMaps.cend()) {
 			thread->clearNotifications();
@@ -997,7 +1017,7 @@ void Manager::openNotificationMessage(
 		&& item
 		&& item->isRegular()
 		&& (item->out() || (item->mentionsMe() && !history->peer->isUser()));
-	const auto topic = item ? history->peer->forumTopicFor(item) : nullptr;
+	const auto topic = item ? item->topic() : nullptr;
 	const auto separate = Core::App().separateWindowForPeer(history->peer);
 	const auto window = separate
 		? separate->sessionController()

@@ -152,7 +152,7 @@ void History::checkChatListMessageRemoved(not_null<HistoryItem*> item) {
 }
 
 void History::itemVanished(not_null<HistoryItem*> item) {
-	item->thread()->removeNotification(item);
+	item->notificationThread()->removeNotification(item);
 	if (lastKeyboardId == item->id) {
 		clearLastKeyboard();
 	}
@@ -450,10 +450,24 @@ void History::destroyMessage(not_null<HistoryItem*> item) {
 
 void History::destroyMessagesByDates(TimeId minDate, TimeId maxDate) {
 	auto toDestroy = std::vector<not_null<HistoryItem*>>();
+	toDestroy.reserve(_messages.size());
 	for (const auto &message : _messages) {
 		if (message->isRegular()
 			&& message->date() > minDate
 			&& message->date() < maxDate) {
+			toDestroy.push_back(message.get());
+		}
+	}
+	for (const auto item : toDestroy) {
+		item->destroy();
+	}
+}
+
+void History::destroyMessagesByTopic(MsgId topicRootId) {
+	auto toDestroy = std::vector<not_null<HistoryItem*>>();
+	toDestroy.reserve(_messages.size());
+	for (const auto &message : _messages) {
+		if (message->topicRootId() == topicRootId) {
 			toDestroy.push_back(message.get());
 		}
 	}
@@ -1123,7 +1137,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		.type = Data::ItemNotificationType::Message,
 	};
 	if (item->showNotification()) {
-		item->thread()->pushNotification(notification);
+		item->notificationThread()->pushNotification(notification);
 	}
 	owner().notifyNewItemAdded(item);
 	const auto stillShow = item->showNotification(); // Could be read already.

@@ -16,6 +16,7 @@ struct ChannelLocation;
 
 namespace Data {
 class ForumTopic;
+class Thread;
 } // namespace Data
 
 namespace Main {
@@ -63,7 +64,7 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
-	not_null<Data::ForumTopic*> topic);
+	not_null<Data::Thread*> thread);
 [[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 	not_null<UserData*> user);

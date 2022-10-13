@@ -79,12 +79,14 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	if (_topic) {
-		result->add(setupSharedMedia(result.data()));
+		result->add(SetupDetails(_controller, parent, _topic));
+	} else {
+		result->add(SetupDetails(_controller, parent, _peer));
+	}
+	result->add(setupSharedMedia(result.data()));
+	if (_topic) {
 		return result;
 	}
-
-	result->add(SetupDetails(_controller, parent, _peer));
-	result->add(setupSharedMedia(result.data()));
 	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
 		result->add(std::move(members));
 	}

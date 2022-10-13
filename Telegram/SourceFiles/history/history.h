@@ -134,6 +134,7 @@ public:
 	}
 	void destroyMessage(not_null<HistoryItem*> item);
 	void destroyMessagesByDates(TimeId minDate, TimeId maxDate);
+	void destroyMessagesByTopic(MsgId topicRootId);
 
 	void unpinAllMessages();
 

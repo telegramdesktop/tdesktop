@@ -180,9 +180,7 @@ MTPinputPeerNotifySettings NotifyPeerSettingsValue::serialize() const {
 PeerNotifySettings::PeerNotifySettings() = default;
 
 bool PeerNotifySettings::change(const MTPPeerNotifySettings &settings) {
-	Expects(settings.type() == mtpc_peerNotifySettings);
-
-	auto &data = settings.c_peerNotifySettings();
+	auto &data = settings.data();
 	const auto empty = !data.vflags().v;
 	if (empty) {
 		if (!_known || _value) {

@@ -567,9 +567,13 @@ void SessionNavigation::showPeerInfo(
 }
 
 void SessionNavigation::showPeerInfo(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		const SectionShow &params) {
-	showPeerInfo(history->peer->id, params);
+	if (const auto topic = thread->asTopic()) {
+		showSection(std::make_shared<Info::Memento>(topic), params);
+	} else {
+		showPeerInfo(thread->peer()->id, params);
+	}
 }
 
 void SessionNavigation::showPeerHistory(

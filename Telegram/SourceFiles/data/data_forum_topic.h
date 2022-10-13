@@ -41,7 +41,7 @@ class Forum;
 	const QString &title,
 	const style::ForumTopicIcon &st);
 
-class ForumTopic final : public Data::Thread {
+class ForumTopic final : public Thread {
 public:
 	ForumTopic(not_null<Forum*> forum, MsgId rootId);
 	~ForumTopic();
@@ -59,7 +59,7 @@ public:
 
 	void setRealRootId(MsgId realId);
 
-	void applyTopic(const MTPForumTopic &topic);
+	void applyTopic(const MTPDforumTopic &data);
 
 	TimeId adjustedChatListTimeId() const override;
 
@@ -91,17 +91,17 @@ public:
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 
-	[[nodiscard]] Data::PeerNotifySettings &notify() {
+	[[nodiscard]] PeerNotifySettings &notify() {
 		return _notify;
 	}
-	[[nodiscard]] const Data::PeerNotifySettings &notify() const {
+	[[nodiscard]] const PeerNotifySettings &notify() const {
 		return _notify;
 	}
 
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		std::shared_ptr<CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const override;
 
 	[[nodiscard]] int unreadCount() const;
@@ -127,12 +127,12 @@ private:
 		int count,
 		bool known) const;
 
-	const not_null<Data::Forum*> _forum;
+	const not_null<Forum*> _forum;
 	const not_null<Dialogs::MainList*> _list;
 	std::shared_ptr<RepliesList> _replies;
 	MsgId _rootId = 0;
 
-	Data::PeerNotifySettings _notify;
+	PeerNotifySettings _notify;
 
 	QString _title;
 	DocumentId _iconId = 0;

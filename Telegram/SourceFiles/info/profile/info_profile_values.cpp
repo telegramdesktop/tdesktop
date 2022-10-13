@@ -181,7 +181,11 @@ rpl::producer<const ChannelLocation*> LocationValue(
 }
 
 rpl::producer<bool> NotificationsEnabledValue(
-		not_null<Data::ForumTopic*> topic) {
+		not_null<Data::Thread*> thread) {
+	const auto topic = thread->asTopic();
+	if (!topic) {
+		return NotificationsEnabledValue(thread->peer());
+	}
 	return rpl::merge(
 		topic->session().changes().topicFlagsValue(
 			topic,

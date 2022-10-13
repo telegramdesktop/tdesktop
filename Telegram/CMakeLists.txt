@@ -249,8 +249,6 @@ PRIVATE
     boxes/local_storage_box.h
     boxes/max_invite_box.cpp
     boxes/max_invite_box.h
-    boxes/mute_settings_box.cpp
-    boxes/mute_settings_box.h
     boxes/peer_list_box.cpp
     boxes/peer_list_box.h
     boxes/peer_list_controllers.cpp
@@ -539,6 +537,8 @@ PRIVATE
     data/data_sponsored_messages.h
     data/data_streaming.cpp
     data/data_streaming.h
+    data/data_thread.cpp
+    data/data_thread.h
     data/data_types.cpp
     data/data_types.h
     data/data_user.cpp

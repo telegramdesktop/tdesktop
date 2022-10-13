@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
+#include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
@@ -489,9 +490,7 @@ void ApplyChatUpdate(not_null<ChatData*> chat, const MTPDchatFull &update) {
 		update.vrequests_pending().value_or_empty(),
 		update.vrecent_requesters().value_or_empty());
 
-	chat->session().api().applyNotifySettings(
-		MTP_inputNotifyPeer(chat->input),
-		update.vnotify_settings());
+	chat->owner().notifySettings().apply(chat, update.vnotify_settings());
 }
 
 void ApplyChatUpdate(

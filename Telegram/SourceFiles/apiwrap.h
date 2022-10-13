@@ -33,6 +33,7 @@ struct ResolvedForwardDraft;
 enum class DefaultNotify;
 enum class StickersType : uchar;
 class ForumTopic;
+class Thread;
 } // namespace Data
 
 namespace InlineBots {
@@ -144,10 +145,6 @@ public:
 	void registerModifyRequest(const QString &key, mtpRequestId requestId);
 	void clearModifyRequest(const QString &key);
 
-	void applyNotifySettings(
-		MTPInputNotifyPeer peer,
-		const MTPPeerNotifySettings &settings);
-
 	void saveCurrentDraftToCloud();
 
 	void savePinnedOrder(Data::Folder *folder);
@@ -245,8 +242,7 @@ public:
 	void leaveChannel(not_null<ChannelData*> channel);
 
 	void requestNotifySettings(const MTPInputNotifyPeer &peer);
-	void updateNotifySettingsDelayed(
-		not_null<const Data::ForumTopic*> topic);
+	void updateNotifySettingsDelayed(not_null<const Data::Thread*> thread);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
 	void saveDraftToCloudDelayed(not_null<History*> history);

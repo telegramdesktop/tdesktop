@@ -17,6 +17,7 @@ namespace Data {
 
 class DocumentMedia;
 class Session;
+class Thread;
 class ForumTopic;
 
 enum class DefaultNotify {
@@ -30,15 +31,33 @@ public:
 	NotifySettings(not_null<Session*> owner);
 
 	void request(not_null<PeerData*> peer);
-	void request(not_null<Data::ForumTopic*> topic);
+	void request(not_null<Data::Thread*> thread);
+
 	void apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings);
-	void update(
+	void apply(
+		const MTPInputNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings);
+	void apply(DefaultNotify type, const MTPPeerNotifySettings &settings);
+	void apply(PeerId peerId, const MTPPeerNotifySettings &settings);
+	void apply(
+		not_null<PeerData*> peer,
+		const MTPPeerNotifySettings &settings);
+	void apply(
+		PeerId peerId,
+		MsgId topicRootId,
+		const MTPPeerNotifySettings &settings);
+	void apply(
 		not_null<Data::ForumTopic*> topic,
+		const MTPPeerNotifySettings &settings);
+
+	void update(
+		not_null<Data::Thread*> thread,
 		Data::MuteValue muteForSeconds,
+		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
-	void resetToDefault(not_null<Data::ForumTopic*> topic);
+	void resetToDefault(not_null<Data::Thread*> thread);
 	void update(
 		not_null<PeerData*> peer,
 		Data::MuteValue muteForSeconds,
@@ -64,14 +83,13 @@ public:
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
 
-	[[nodiscard]] bool isMuted(
-		not_null<const Data::ForumTopic*> topic) const;
+	[[nodiscard]] bool isMuted(not_null<const Data::Thread*> thread) const;
 	[[nodiscard]] NotifySound sound(
-		not_null<const Data::ForumTopic*> topic) const;
+		not_null<const Data::Thread*> thread) const;
 	[[nodiscard]] bool muteUnknown(
-		not_null<const Data::ForumTopic*> topic) const;
+		not_null<const Data::Thread*> thread) const;
 	[[nodiscard]] bool soundUnknown(
-		not_null<const Data::ForumTopic*> topic) const;
+		not_null<const Data::Thread*> thread) const;
 
 	[[nodiscard]] bool isMuted(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool silentPosts(not_null<const PeerData*> peer) const;
@@ -90,7 +108,7 @@ private:
 	void cacheSound(const std::optional<NotifySound> &sound);
 
 	[[nodiscard]] bool isMuted(
-		not_null<const Data::ForumTopic*> peer,
+		not_null<const Data::Thread*> thread,
 		crl::time *changesIn) const;
 	[[nodiscard]] bool isMuted(
 		not_null<const PeerData*> peer,
@@ -102,11 +120,11 @@ private:
 		not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool settingsUnknown(not_null<const PeerData*> peer) const;
 	[[nodiscard]] bool settingsUnknown(
-		not_null<const Data::ForumTopic*> topic) const;
+		not_null<const Data::Thread*> thread) const;
 
 	void unmuteByFinished();
 	void unmuteByFinishedDelayed(crl::time delay);
-	void updateLocal(not_null<Data::ForumTopic*> topic);
+	void updateLocal(not_null<Data::Thread*> thread);
 	void updateLocal(not_null<PeerData*> peer);
 	void updateLocal(DefaultNotify type);
 

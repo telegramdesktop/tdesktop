@@ -123,7 +123,7 @@ public:
 		const QString &label,
 		const TextWithEntities &content);
 
-	[[nodiscard]] not_null<Data::Thread*> thread() const;
+	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
 	[[nodiscard]] not_null<History*> history() const {
 		return _history;
 	}

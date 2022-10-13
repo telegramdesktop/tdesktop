@@ -46,11 +46,6 @@ void FillDialogsEntryMenu(
 	Dialogs::EntryState request,
 	const PeerMenuCallback &addAction);
 
-void PeerMenuAddMuteAction(
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer,
-	const PeerMenuCallback &addAction);
-
 void MenuAddMarkAsReadAllChatsAction(
 	not_null<Window::SessionController*> controller,
 	const PeerMenuCallback &addAction);

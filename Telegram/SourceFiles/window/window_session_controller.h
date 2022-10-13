@@ -69,6 +69,7 @@ class MessageSendingAnimationController;
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
+class Thread;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -219,7 +220,7 @@ public:
 		not_null<PeerData*> peer,
 		const SectionShow &params = SectionShow());
 	void showPeerInfo(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		const SectionShow &params = SectionShow());
 
 	virtual void showPeerHistory(

@@ -899,16 +899,6 @@ Data::Forum *PeerData::forum() const {
 	return nullptr;
 }
 
-Data::ForumTopic *PeerData::forumTopicFor(
-		not_null<const HistoryItem*> item) const {
-	if (const auto rootId = item->topicRootId()) {
-		if (const auto forum = this->forum()) {
-			return forum->topicFor(rootId);
-		}
-	}
-	return nullptr;
-}
-
 Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
 	if (!rootId) {
 		return nullptr;

@@ -232,7 +232,7 @@ void CheckReactionNotificationSchedule(
 				.reactionSender = user,
 				.type = Data::ItemNotificationType::Reaction,
 			};
-			item->thread()->pushNotification(notification);
+			item->notificationThread()->pushNotification(notification);
 			Core::App().notifications().schedule(notification);
 			return;
 		}
@@ -620,9 +620,11 @@ void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
 
-not_null<Data::Thread*> HistoryItem::thread() const {
-	if (const auto topic = this->topic()) {
-		return topic;
+not_null<Data::Thread*> HistoryItem::notificationThread() const {
+	if (const auto rootId = topicRootId()) {
+		if (const auto forum = _history->peer->forum()) {
+			return forum->enforceTopicFor(rootId);
+		}
 	}
 	return _history;
 }
