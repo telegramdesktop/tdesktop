@@ -1066,10 +1066,7 @@ bool HistoryItem::computeDropForwardedInfo() const {
 }
 
 bool HistoryItem::inThread(MsgId rootId) const {
-	const auto checkId = (rootId == Data::ForumTopic::kGeneralId)
-		? topicRootId()
-		: replyToTop();
-	return (checkId == rootId);
+	return (replyToTop() == rootId);
 }
 
 not_null<PeerData*> HistoryItem::author() const {

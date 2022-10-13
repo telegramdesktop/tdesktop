@@ -374,9 +374,6 @@ void ForumTopic::requestChatListMessage() {
 }
 
 TimeId ForumTopic::adjustedChatListTimeId() const {
-	if (isGeneral()) {
-		return TimeId(1);
-	}
 	const auto result = chatListTimeId();
 #if 0 // #TODO forum draft
 	if (const auto draft = cloudDraft()) {
@@ -419,10 +416,10 @@ QString ForumTopic::title() const {
 }
 
 void ForumTopic::applyTitle(const QString &title) {
-	if (_title == title || (isGeneral() && !_title.isEmpty())) {
+	if (_title == title) {
 		return;
 	}
-	_title = isGeneral() ? "General! Topic." : title; // #TODO lang-forum
+	_title = title;
 	++_titleVersion;
 	_defaultIcon = QImage();
 	indexTitleParts();

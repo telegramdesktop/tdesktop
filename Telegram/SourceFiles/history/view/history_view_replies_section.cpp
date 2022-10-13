@@ -1360,11 +1360,7 @@ void RepliesWidget::refreshTopBarActiveChat() {
 
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
-	return custom
-		? custom
-		: (_rootId == Data::ForumTopic::kGeneralId)
-		? MsgId(0)
-		: _rootId;
+	return custom ? custom : _rootId;
 }
 
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
@@ -1577,18 +1573,13 @@ bool RepliesWidget::showMessage(
 		return false;
 	}
 	auto originFound = false;
-	const auto general = (_rootId == Data::ForumTopic::kGeneralId);
 	const auto originMessage = [&]() -> HistoryItem* {
 		using OriginMessage = Window::SectionShow::OriginMessage;
 		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {
 			if (const auto returnTo = session().data().message(origin->id)) {
 				if (returnTo->history() != _history) {
 					return nullptr;
-				} else if (general
-					&& _inner->viewByPosition(returnTo->position())
-					&& returnTo->replyToId() == messageId) {
-					return returnTo;
-				} else if (!general && returnTo->inThread(_rootId)) {
+				} else if (returnTo->inThread(_rootId)) {
 					return returnTo;
 				}
 			}

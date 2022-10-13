@@ -1310,10 +1310,10 @@ MsgId HistoryService::topicRootId() const {
 	if (const auto data = GetDependentData()
 		; data && data->topicPost && data->topId) {
 		return data->topId;
-	} else if (const auto topic = Get<HistoryServiceTopicInfo>()) {
+	} else if (Has<HistoryServiceTopicInfo>()) {
 		return id;
 	}
-	return Data::ForumTopic::kGeneralId;
+	return 0;
 }
 
 void HistoryService::setReplyFields(

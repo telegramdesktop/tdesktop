@@ -44,8 +44,6 @@ class Forum;
 
 class ForumTopic final : public Dialogs::Entry {
 public:
-	static constexpr auto kGeneralId = 1;
-
 	ForumTopic(not_null<History*> history, MsgId rootId);
 	~ForumTopic();
 
@@ -58,9 +56,6 @@ public:
 	[[nodiscard]] not_null<Forum*> forum() const;
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
-	[[nodiscard]] bool isGeneral() const {
-		return (_rootId == kGeneralId);
-	}
 
 	void setRealRootId(MsgId realId);
 

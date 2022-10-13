@@ -267,16 +267,8 @@ ForumTopic *Forum::topicFor(not_null<const HistoryItem*> item) {
 }
 
 ForumTopic *Forum::topicFor(MsgId rootId) {
-	if (rootId != ForumTopic::kGeneralId) {
-		if (const auto i = _topics.find(rootId); i != end(_topics)) {
-			return i->second.get();
-		}
-	} else {
-		// #TODO lang-forum
-		applyTopicAdded(rootId, "General! Created.", kGeneralColorId, 0);
-		return _topics.find(rootId)->second.get();
-	}
-	return nullptr;
+	const auto i = _topics.find(rootId);
+	return (i != end(_topics)) ? i->second.get() : nullptr;
 }
 
 rpl::producer<> Forum::chatsListChanges() const {
