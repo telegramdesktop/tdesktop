@@ -1764,6 +1764,9 @@ void History::setMuted(bool muted) {
 	const auto notify = (unreadCountForBadge() > 0);
 	const auto notifier = unreadStateChangeNotifier(notify);
 	Thread::setMuted(muted);
+	if (const auto forum = peer->forum()) {
+		owner().notifySettings().forumParentMuteUpdated(forum);
+	}
 }
 
 void History::getNextFirstUnreadMessage() {

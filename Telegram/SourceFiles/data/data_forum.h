@@ -65,6 +65,7 @@ public:
 
 	void clearAllUnreadMentions();
 	void clearAllUnreadReactions();
+	void enumerateTopics(Fn<void(not_null<ForumTopic*>)> action) const;
 
 private:
 	struct TopicRequest {

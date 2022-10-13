@@ -18,6 +18,7 @@ namespace Data {
 class DocumentMedia;
 class Session;
 class Thread;
+class Forum;
 class ForumTopic;
 
 enum class DefaultNotify {
@@ -64,6 +65,8 @@ public:
 		std::optional<bool> silentPosts = std::nullopt,
 		std::optional<NotifySound> sound = std::nullopt);
 	void resetToDefault(not_null<PeerData*> peer);
+
+	void forumParentMuteUpdated(not_null<Data::Forum*> forum);
 
 	void cacheSound(DocumentId id);
 	void cacheSound(not_null<DocumentData*> document);

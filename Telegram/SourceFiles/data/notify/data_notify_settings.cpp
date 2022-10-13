@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -219,6 +220,14 @@ void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
+}
+
+void NotifySettings::forumParentMuteUpdated(not_null<Data::Forum*> forum) {
+	forum->enumerateTopics([&](not_null<Data::ForumTopic*> topic) {
+		if (!topic->notify().settingsUnknown()) {
+			updateLocal(topic);
+		}
+	});
 }
 
 auto NotifySettings::defaultValue(DefaultNotify type)

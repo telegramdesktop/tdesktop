@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "data/notify/data_notify_settings.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
@@ -282,6 +283,12 @@ void Forum::clearAllUnreadMentions() {
 void Forum::clearAllUnreadReactions() {
 	for (const auto &[rootId, topic] : _topics) {
 		topic->unreadReactions().clear();
+	}
+}
+
+void Forum::enumerateTopics(Fn<void(not_null<ForumTopic*>)> action) const {
+	for (const auto &[rootId, topic] : _topics) {
+		action(topic.get());
 	}
 }
 

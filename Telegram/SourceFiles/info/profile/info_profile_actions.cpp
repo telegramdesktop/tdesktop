@@ -452,8 +452,19 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 			if (button == Qt::RightButton) {
 				return true;
 			}
-			if (notifySettings->isMuted(peer)) {
-				notifySettings->update(peer, { .unmute = true });
+			const auto topic = topicRootId
+				? peer->forumTopicFor(topicRootId)
+				: nullptr;
+			Assert(!topicRootId || topic != nullptr);
+			const auto is = topic
+				? notifySettings->isMuted(topic)
+				: notifySettings->isMuted(peer);
+			if (is) {
+				if (topic) {
+					notifySettings->update(topic, { .unmute = true });
+				} else {
+					notifySettings->update(peer, { .unmute = true });
+				}
 				return false;
 			} else {
 				return true;
