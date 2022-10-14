@@ -685,9 +685,12 @@ bool ListWidget::showAtPositionNow(
 			&& position != Data::UnreadMessagePosition) {
 			highlightMessage(position.fullId);
 		}
-		done(!position.fullId.peer
-			|| !position.fullId.msg
-			|| viewForItem(position.fullId));
+		if (done) {
+			const auto found = !position.fullId.peer
+				|| !position.fullId.msg
+				|| viewForItem(position.fullId);
+			done(found);
+		}
 		return true;
 	}
 	return false;

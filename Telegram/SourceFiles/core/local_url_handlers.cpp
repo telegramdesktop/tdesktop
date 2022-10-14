@@ -362,8 +362,10 @@ bool ResolveUsernameOrPhone(
 	}
 	const auto commentParam = params.value(qsl("comment"));
 	const auto commentId = commentParam.toInt();
+	const auto topicParam = params.value(qsl("topic"));
+	const auto topicId = topicParam.toInt();
 	const auto threadParam = params.value(qsl("thread"));
-	const auto threadId = threadParam.toInt();
+	const auto threadId = topicId ? topicId : threadParam.toInt();
 	const auto gameParam = params.value(qsl("game"));
 	if (!gameParam.isEmpty() && validDomain(gameParam)) {
 		startToken = gameParam;
@@ -422,8 +424,10 @@ bool ResolvePrivatePost(
 	const auto msgId = params.value(qsl("post")).toInt();
 	const auto commentParam = params.value(qsl("comment"));
 	const auto commentId = commentParam.toInt();
+	const auto topicParam = params.value(qsl("topic"));
+	const auto topicId = topicParam.toInt();
 	const auto threadParam = params.value(qsl("thread"));
-	const auto threadId = threadParam.toInt();
+	const auto threadId = topicId ? topicId : threadParam.toInt();
 	if (!channelId || !IsServerMsgId(msgId)) {
 		return false;
 	}

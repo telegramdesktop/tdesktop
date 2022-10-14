@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
 #include "data/data_download_manager.h"
 #include "base/timer.h"
 #include "base/event_filter.h"
@@ -1228,6 +1229,9 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 			primary->showPeerHistory(
 				PeerId(0),
 				Window::SectionShow::Way::ClearStack);
+		}
+		if (primary->openedForum().current() == peer) {
+			primary->closeForum();
 		}
 	}
 }

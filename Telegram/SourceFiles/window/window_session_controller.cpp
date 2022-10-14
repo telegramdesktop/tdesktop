@@ -343,6 +343,8 @@ void SessionNavigation::showPeerByLinkResolved(
 			info.messageId,
 			commentId->id,
 			params);
+	} else if (peer->isForum()) {
+		parentController()->openForum(peer->asChannel(), params);
 	} else if (bot
 		&& (info.resolveType == ResolveType::AddToGroup
 			|| info.resolveType == ResolveType::AddToChannel
