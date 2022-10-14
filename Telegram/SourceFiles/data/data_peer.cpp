@@ -198,11 +198,11 @@ void PeerData::updateNameDelayed(
 	if (_name == newName && _nameVersion > 1) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone
-				&& asUser()->username() == newUsername) {
+				&& asUser()->editableUsername() == newUsername) {
 				return;
 			}
 		} else if (isChannel()) {
-			if (asChannel()->username() == newUsername) {
+			if (asChannel()->editableUsername() == newUsername) {
 				return;
 			}
 		} else if (isChat()) {
@@ -220,15 +220,15 @@ void PeerData::updateNameDelayed(
 		flags |= UpdateFlag::Name;
 	}
 	if (isUser()) {
-		if (asUser()->username() != newUsername) {
+		if (asUser()->editableUsername() != newUsername) {
 			asUser()->setUsername(newUsername);
 			flags |= UpdateFlag::Username;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
-		if (asChannel()->username() != newUsername) {
+		if (asChannel()->editableUsername() != newUsername) {
 			asChannel()->setUsername(newUsername);
-			if (newUsername.isEmpty()) {
+			if (asChannel()->username().isEmpty()) {
 				asChannel()->removeFlags(ChannelDataFlag::Username);
 			} else {
 				asChannel()->addFlags(ChannelDataFlag::Username);

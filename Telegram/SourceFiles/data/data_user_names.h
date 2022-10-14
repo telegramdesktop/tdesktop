@@ -17,4 +17,21 @@ struct Username final {
 
 using Usernames = std::vector<Username>;
 
+class UsernamesInfo final {
+public:
+	UsernamesInfo();
+
+	void setUsername(const QString &username);
+	void setUsernames(const Usernames &usernames);
+
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
+
+private:
+	std::vector<QString> _usernames;
+	short _indexEditableUsername = -1;
+
+};
+
 } // namespace Data

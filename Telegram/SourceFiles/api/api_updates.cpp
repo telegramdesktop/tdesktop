@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_user_names.h"
 #include "api/api_chat_participants.h"
 #include "api/api_ringtones.h"
 #include "api/api_text_entities.h"
@@ -1888,6 +1889,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				TextUtilities::SingleLine(last),
 				user->nameOrPhone,
 				TextUtilities::SingleLine(username));
+			user->setUsernames(Api::Usernames::FromTL(d.vusernames()));
 		}
 	} break;
 

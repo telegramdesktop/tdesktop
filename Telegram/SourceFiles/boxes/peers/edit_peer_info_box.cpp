@@ -723,7 +723,7 @@ void Controller::fillPrivacyTypeButton() {
 			? Privacy::HasUsername
 			: Privacy::NoUsername),
 		.username = (_peer->isChannel()
-			? _peer->asChannel()->username()
+			? _peer->asChannel()->editableUsername()
 			: QString()),
 		.noForwards = !_peer->allowsForwarding(),
 		.joinToWrite = (_peer->isMegagroup()
@@ -1452,10 +1452,10 @@ void Controller::saveUsernamesOrder() {
 		_api.request(MTPchannels_DeactivateAllUsernames(
 			channel->inputChannel
 		)).done([=] {
-			channel->setUsernames(channel->username().isEmpty()
+			channel->setUsernames(channel->editableUsername().isEmpty()
 				? Data::Usernames()
 				: Data::Usernames{
-					{ channel->username(), true, true }
+					{ channel->editableUsername(), true, true }
 				});
 			continueSave();
 		}).send();
@@ -1470,7 +1470,7 @@ void Controller::saveUsernamesOrder() {
 				newUsernames
 			) | ranges::views::transform([&](QString username) {
 				const auto editable =
-					(channel->username() == username);
+					(channel->editableUsername() == username);
 				return Data::Username{
 					.username = std::move(username),
 					.active = true,
@@ -1485,7 +1485,7 @@ void Controller::saveUsernamesOrder() {
 
 void Controller::saveUsername() {
 	const auto channel = _peer->asChannel();
-	const auto username = (channel ? channel->username() : QString());
+	const auto username = (channel ? channel->editableUsername() : QString());
 	if (!_savingData.username || *_savingData.username == username) {
 		return continueSave();
 	} else if (!channel) {
@@ -1583,7 +1583,9 @@ void Controller::saveTitle() {
 		if (type == qstr("CHAT_NOT_MODIFIED")
 			|| type == qstr("CHAT_TITLE_NOT_MODIFIED")) {
 			if (const auto channel = _peer->asChannel()) {
-				channel->setName(*_savingData.title, channel->username());
+				channel->setName(
+					*_savingData.title,
+					channel->editableUsername());
 			} else if (const auto chat = _peer->asChat()) {
 				chat->setName(*_savingData.title);
 			}

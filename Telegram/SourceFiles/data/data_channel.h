@@ -12,10 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_peer_bot_commands.h"
-
-namespace Data {
-struct Username;
-} // namespace Data
+#include "data/data_user_names.h"
 
 struct ChannelLocation {
 	QString address;
@@ -151,7 +148,7 @@ public:
 
 	void setName(const QString &name, const QString &username);
 	void setUsername(const QString &username);
-	void setUsernames(const std::vector<Data::Username> &usernames);
+	void setUsernames(const Data::Usernames &newUsernames);
 	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
@@ -166,6 +163,7 @@ public:
 	}
 
 	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 
 	[[nodiscard]] int membersCount() const {
@@ -466,8 +464,7 @@ private:
 
 	PtsWaiter _ptsWaiter;
 
-	QString _username;
-	std::vector<QString> _usernames;
+	Data::UsernamesInfo _username;
 
 	int _membersCount = -1;
 	int _adminsCount = 1;

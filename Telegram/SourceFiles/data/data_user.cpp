@@ -120,25 +120,25 @@ void UserData::setName(const QString &newFirstName, const QString &newLastName, 
 	updateNameDelayed(newFullName, newPhoneName, newUsername);
 }
 
-void UserData::setUsernames(const Data::Usernames &usernames) {
-	auto newUsernames = ranges::views::all(
-		usernames
-	) | ranges::views::filter([&](const Data::Username &username) {
-		return username.active;
-	}) | ranges::views::transform([&](const Data::Username &username) {
-		return username.username;
-	}) | ranges::to_vector;
-
-	if (!ranges::equal(_usernames, newUsernames)) {
-		_usernames = std::move(newUsernames);
-		session().changes().peerUpdated(this, UpdateFlag::Usernames);
-	}
+void UserData::setUsernames(const Data::Usernames &newUsernames) {
+	const auto wasUsername = username();
+	const auto wasUsernames = usernames();
+	_username.setUsernames(newUsernames);
+	const auto nowUsername = username();
+	const auto nowUsernames = usernames();
+	session().changes().peerUpdated(
+		this,
+		UpdateFlag()
+		| ((wasUsername != nowUsername)
+			? UpdateFlag::Username
+			: UpdateFlag())
+		| (!ranges::equal(wasUsernames, nowUsernames)
+			? UpdateFlag::Usernames
+			: UpdateFlag()));
 }
 
 void UserData::setUsername(const QString &username) {
-	if (_username != username) {
-		_username = username;
-	}
+	_username.setUsername(username);
 }
 
 void UserData::setPhone(const QString &newPhone) {
@@ -303,12 +303,16 @@ bool UserData::canShareThisContactFast() const {
 	return !_phone.isEmpty();
 }
 
-const QString &UserData::username() const {
-	return _username;
+QString UserData::username() const {
+	return _username.username();
+}
+
+QString UserData::editableUsername() const {
+	return _username.editableUsername();;
 }
 
 const std::vector<QString> &UserData::usernames() const {
-	return _usernames;
+	return _username.usernames();
 }
 
 const QString &UserData::phone() const {

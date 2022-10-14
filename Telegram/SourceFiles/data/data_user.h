@@ -9,11 +9,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Data {
 struct BotCommand;
-struct Username;
 } // namespace Data
 
 struct BotInfo {
@@ -74,7 +74,7 @@ public:
 		const QString &newLastName,
 		const QString &newPhoneName,
 		const QString &newUsername);
-	void setUsernames(const std::vector<Data::Username> &usernames);
+	void setUsernames(const Data::Usernames &newUsernames);
 
 	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
@@ -130,7 +130,8 @@ public:
 	QString firstName;
 	QString lastName;
 	[[nodiscard]] const QString &phone() const;
-	[[nodiscard]] const QString &username() const;
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
 	[[nodiscard]] const std::vector<QString> &usernames() const;
 	QString nameOrPhone;
 	TimeId onlineTill = 0;
@@ -168,14 +169,13 @@ private:
 
 	Flags _flags;
 
+	Data::UsernamesInfo _username;
+
 	std::vector<Data::UnavailableReason> _unavailableReasons;
-	QString _username;
 	QString _phone;
 	ContactStatus _contactStatus = ContactStatus::Unknown;
 	CallsStatus _callsStatus = CallsStatus::Unknown;
 	int _commonChatsCount = 0;
-
-	std::vector<QString> _usernames;
 
 	uint64 _accessHash = 0;
 	static constexpr auto kInaccessibleAccessHashOld

@@ -103,32 +103,36 @@ void ChannelData::setName(
 }
 
 void ChannelData::setUsername(const QString &username) {
-	if (_username != username) {
-		_username = username;
-	}
+	_username.setUsername(username);
 }
 
-void ChannelData::setUsernames(const Data::Usernames &usernames) {
-	auto newUsernames = ranges::views::all(
-		usernames
-	) | ranges::views::filter([&](const Data::Username &username) {
-		return username.active;
-	}) | ranges::views::transform([&](const Data::Username &username) {
-		return username.username;
-	}) | ranges::to_vector;
-
-	if (!ranges::equal(_usernames, newUsernames)) {
-		_usernames = std::move(newUsernames);
-		session().changes().peerUpdated(this, UpdateFlag::Usernames);
-	}
+void ChannelData::setUsernames(const Data::Usernames &newUsernames) {
+	const auto wasUsername = username();
+	const auto wasUsernames = usernames();
+	_username.setUsernames(newUsernames);
+	const auto nowUsername = username();
+	const auto nowUsernames = usernames();
+	session().changes().peerUpdated(
+		this,
+		UpdateFlag()
+		| ((wasUsername != nowUsername)
+			? UpdateFlag::Username
+			: UpdateFlag())
+		| (!ranges::equal(wasUsernames, nowUsernames)
+			? UpdateFlag::Usernames
+			: UpdateFlag()));
 }
 
 QString ChannelData::username() const {
-	return _username;
+	return _username.username();
+}
+
+QString ChannelData::editableUsername() const {
+	return _username.editableUsername();
 }
 
 const std::vector<QString> &ChannelData::usernames() const {
-	return _usernames;
+	return _username.usernames();
 }
 
 void ChannelData::setAccessHash(uint64 accessHash) {

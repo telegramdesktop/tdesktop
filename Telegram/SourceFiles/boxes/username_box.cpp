@@ -79,10 +79,10 @@ UsernameEditor::UsernameEditor(
 	this,
 	st::defaultInputField,
 	rpl::single(qsl("@username")),
-	session->user()->username(),
+	session->user()->editableUsername(),
 	QString())
 , _checkTimer([=] { check(); }) {
-	_goodText = _session->user()->username().isEmpty()
+	_goodText = _session->user()->editableUsername().isEmpty()
 		? QString()
 		: tr::lng_username_available(tr::now);
 
@@ -183,7 +183,7 @@ void UsernameEditor::check() {
 		_checkRequestId = 0;
 
 		_errorText = (mtpIsTrue(result)
-				|| _checkUsername == _session->user()->username())
+				|| _checkUsername == _session->user()->editableUsername())
 			? QString()
 			: tr::lng_username_occupied(tr::now);
 		_goodText = _errorText.isEmpty()
@@ -241,7 +241,7 @@ void UsernameEditor::changed() {
 void UsernameEditor::updateFail(const QString &error) {
 	const auto self = _session->user();
 	if ((error == qstr("USERNAME_NOT_MODIFIED"))
-		|| (_sentUsername == self->username())) {
+		|| (_sentUsername == self->editableUsername())) {
 		self->setName(
 			TextUtilities::SingleLine(self->firstName),
 			TextUtilities::SingleLine(self->lastName),
@@ -269,7 +269,7 @@ void UsernameEditor::checkFail(const QString &error) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		update();
 	} else if ((error == qstr("USERNAME_OCCUPIED"))
-		&& (_checkUsername != _session->user()->username())) {
+		&& (_checkUsername != _session->user()->editableUsername())) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		update();
 	} else {

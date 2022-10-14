@@ -549,6 +549,7 @@ PRIVATE
     data/data_user.h
     data/data_user_photos.cpp
     data/data_user_photos.h
+    data/data_user_names.cpp
     data/data_user_names.h
     data/data_wall_paper.cpp
     data/data_wall_paper.h
