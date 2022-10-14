@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/platform_specific.h"
 #include "base/platform/mac/base_utilities_mac.h"
 #include "base/random.h"
+#include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
@@ -111,7 +112,7 @@ using Manager = Platform::Notifications::Manager;
 		LOG(("App Error: A notification with unknown topic was received"));
 		return;
 	}
-	const auto notificationTopicRootId = [topicObject longlongValue];
+	const auto notificationTopicRootId = [topicObject longLongValue];
 
 	NSNumber *msgObject = [notificationUserInfo objectForKey:@"msgid"];
 	const auto notificationMsgId = msgObject ? [msgObject longLongValue] : 0LL;
@@ -223,7 +224,7 @@ private:
 	};
 	struct ClearFromTopic {
 		ContextId contextId;
-	}
+	};
 	struct ClearFromHistory {
 		ContextId partialContextId;
 	};
@@ -344,7 +345,7 @@ void Manager::Private::clearingThreadLoop() {
 					clearAll = true;
 				}, [&](const ClearFromItem &value) {
 					clearFromItems.emplace(value.id);
-				}, [&](Const ClearFromTopic &value) {
+				}, [&](const ClearFromTopic &value) {
 					clearFromTopics.emplace(value.contextId);
 				}, [&](const ClearFromHistory &value) {
 					clearFromHistories.emplace(value.partialContextId);

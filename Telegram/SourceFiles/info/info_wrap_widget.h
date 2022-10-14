@@ -132,7 +132,7 @@ public:
 	[[nodiscard]] rpl::producer<bool> grabbingForExpanding() const;
 	[[nodiscard]] const Ui::RoundRect *bottomSkipRounding() const;
 
-	[[nodiscard]] rpl::producer<> removeRequests() const {
+	[[nodiscard]] rpl::producer<> removeRequests() const override {
 		return _removeRequests.events();
 	}
 
