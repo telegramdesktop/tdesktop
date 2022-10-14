@@ -134,22 +134,25 @@ ComposedBadge::ComposedBadge(
 		}
 	}, lifetime());
 
+	auto textWidth = _text.value() | rpl::map([=] {
+		return button->fullTextWidth();
+	});
 	rpl::combine(
 		_unreadWidth.events_starting_with(_unread ? _unread->width() : 0),
 		_premiumWidth.events_starting_with(_badge.widget()
 			? _badge.widget()->width()
 			: 0),
-		_text.value(),
+		std::move(textWidth),
 		button->sizeValue()
 	) | rpl::start_with_next([=](
 			int unreadWidth,
 			int premiumWidth,
-			const QString &text,
+			int textWidth,
 			const QSize &buttonSize) {
 		const auto &st = button->st();
 		const auto skip = st.style.font->spacew;
 		const auto textRightPosition = st.padding.left()
-			+ st.style.font->width(text)
+			+ textWidth
 			+ skip;
 		const auto minWidth = unreadWidth + premiumWidth + skip;
 		const auto maxTextWidth = buttonSize.width()
