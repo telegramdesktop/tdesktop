@@ -314,7 +314,15 @@ void PeerData::paintUserpic(
 			x,
 			y,
 			userpic->pix(size, size, { .options = rounding }));
-	} else {
+	} else if (isForum()) {
+		ensureEmptyUserpic()->paintRounded(
+			p,
+			x,
+			y,
+			x + size + x,
+			size,
+			st::roundRadiusLarge);
+	} else{
 		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
 	}
 }
@@ -426,6 +434,9 @@ QImage PeerData::generateUserpicImage(
 			ensureEmptyUserpic()->paint(p, 0, 0, size, size);
 		} else if (radius == ImageRoundRadius::None) {
 			ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
+		} else if (radius == ImageRoundRadius::Large) {
+			const auto radius = st::roundRadiusLarge;
+			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, radius);
 		} else {
 			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size);
 		}
@@ -517,6 +528,10 @@ bool PeerData::canPinMessages() const {
 				|| channel->amCreator());
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+bool PeerData::canCreateTopics() const {
+	return isForum() && canPinMessages();
 }
 
 bool PeerData::canEditMessagesIndefinitely() const {

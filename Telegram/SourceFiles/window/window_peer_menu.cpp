@@ -63,7 +63,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_drafts.h"
+#include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "data/data_replies_list.h"
 #include "data/data_user.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_histories.h"
@@ -80,6 +82,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QAction>
 
 namespace Window {
+namespace {
+
+constexpr auto kTopicsSearchMinCount = 10;
+
+} // namespace
 
 const char kOptionViewProfileInChatsListContextMenu[] =
 	"view-profile-in-chats-list-context-menu";
@@ -104,20 +111,31 @@ void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
 	}, *lifetime);
 }
 
-[[nodiscard]] bool IsUnreadHistory(not_null<History*> history) {
-	return (history->chatListUnreadCount() > 0)
-		|| (history->chatListUnreadMark());
+[[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread) {
+	return (thread->chatListUnreadCount() > 0)
+		|| (thread->chatListUnreadMark());
 }
 
-void MarkAsReadHistory(not_null<History*> history) {
-	const auto read = [&](not_null<History*> history) {
-		if (IsUnreadHistory(history)) {
-			history->peer->owner().histories().readInbox(history);
-		}
+void MarkAsReadThread(not_null<Data::Thread*> thread) {
+	const auto readHistory = [&](not_null<History*> history) {
+		history->owner().histories().readInbox(history);
 	};
-	read(history);
-	if (const auto migrated = history->migrateSibling()) {
-		read(migrated);
+	if (!IsUnreadThread(thread)) {
+		return;
+	} else if (const auto history = thread->asHistory()) {
+		if (const auto forum = history->peer->forum()) {
+			forum->enumerateTopics([](
+					not_null<Data::ForumTopic*> topic) {
+				MarkAsReadThread(topic);
+			});
+		} else {
+			readHistory(history);
+			if (const auto migrated = history->migrateSibling()) {
+				readHistory(migrated);
+			}
+		}
+	} else if (const auto topic = thread->asTopic()) {
+		topic->replies()->readTill(topic->lastKnownServerMessageId());
 	}
 }
 
@@ -128,7 +146,7 @@ void MarkAsReadChatList(not_null<Dialogs::MainList*> list) {
 			mark.push_back(history);
 		}
 	}
-	ranges::for_each(mark, MarkAsReadHistory);
+	ranges::for_each(mark, MarkAsReadThread);
 }
 
 void PeerMenuAddMuteSubmenuAction(
@@ -188,6 +206,7 @@ private:
 	void fillRepliesActions();
 	void fillScheduledActions();
 	void fillArchiveActions();
+	void fillContextMenuActions();
 
 	void addHidePromotion();
 	void addTogglePin();
@@ -200,6 +219,7 @@ private:
 	void addClearHistory();
 	void addDeleteChat();
 	void addLeaveChat();
+	void addJoinChat();
 	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
@@ -216,10 +236,13 @@ private:
 	void addDeleteContact();
 	void addTTLSubmenu(bool addSeparator);
 	void addGiftPremium();
+	void addCreateTopic();
+	void addSearchTopics();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
 	Data::Thread *_thread = nullptr;
+	Data::ForumTopic *_topic = nullptr;
 	PeerData *_peer = nullptr;
 	Data::Folder *_folder = nullptr;
 	const PeerMenuCallback &_addAction;
@@ -340,6 +363,7 @@ Filler::Filler(
 : _controller(controller)
 , _request(request)
 , _thread(request.key.thread())
+, _topic(request.key.topic())
 , _peer(request.key.peer())
 , _folder(request.key.folder())
 , _addAction(addAction) {
@@ -347,7 +371,8 @@ Filler::Filler(
 
 void Filler::addHidePromotion() {
 	const auto history = _request.key.history();
-	if (!history
+	if (_topic
+		|| !history
 		|| !history->useTopPromotion()
 		|| history->topPromotionType().isEmpty()) {
 		return;
@@ -361,14 +386,14 @@ void Filler::addHidePromotion() {
 }
 
 void Filler::addTogglePin() {
-	if (!_peer) {
+	if (!_peer || _topic) {
 		// #TODO forum pinned
 		return;
 	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
 	const auto peer = _peer;
-	const auto history = peer->owner().historyLoaded(peer);
+	const auto history = _request.key.history();
 	if (!history || history->fixedOnTopIndex()) {
 		return;
 	}
@@ -435,7 +460,7 @@ void Filler::addInfo() {
 	const auto controller = _controller;
 	const auto weak = base::make_weak(_thread);
 	const auto text = _thread->asTopic()
-		? u"View Topic Info"_q // #TODO lang-forum
+		? tr::lng_context_view_topic(tr::now)
 		: (_peer->isChat() || _peer->isMegagroup())
 		? tr::lng_context_view_group(tr::now)
 		: _peer->isUser()
@@ -451,7 +476,7 @@ void Filler::addInfo() {
 void Filler::addToggleFolder() {
 	const auto controller = _controller;
 	const auto history = _request.key.history();
-	if (!history || !history->owner().chatsFilters().has()) {
+	if (_topic || !history || !history->owner().chatsFilters().has()) {
 		return;
 	}
 	_addAction(PeerMenuCallback::Args{
@@ -466,38 +491,37 @@ void Filler::addToggleFolder() {
 
 void Filler::addToggleUnreadMark() {
 	const auto peer = _peer;
-	const auto history = peer->owner().history(peer);
-	const auto label = [=] {
-		return IsUnreadHistory(history)
-			? tr::lng_context_mark_read(tr::now)
-			: tr::lng_context_mark_unread(tr::now);
-	};
-	auto action = _addAction(label(), [=] {
-		const auto markAsRead = IsUnreadHistory(history);
-		if (markAsRead) {
-			MarkAsReadHistory(history);
-		} else {
-			peer->owner().histories().changeDialogUnreadMark(
-				history,
-				!markAsRead);
+	const auto history = _request.key.history();
+	if (!_thread) {
+		return;
+	}
+	const auto unread = IsUnreadThread(_thread);
+	if (_thread->asTopic() && !unread) {
+		return;
+	}
+	const auto weak = base::make_weak(_thread);
+	const auto label = unread
+		? tr::lng_context_mark_read(tr::now)
+		: tr::lng_context_mark_unread(tr::now);
+	_addAction(label, [=] {
+		const auto thread = weak.get();
+		if (!thread) {
+			return;
 		}
-	}, (IsUnreadHistory(history)
-		? &st::menuIconMarkRead
-		: &st::menuIconMarkUnread));
-
-	auto actionText = history->session().changes().historyUpdates(
-		history,
-		Data::HistoryUpdate::Flag::UnreadView
-	) | rpl::map(label);
-	SetActionText(action, std::move(actionText));
+		if (unread) {
+			MarkAsReadThread(thread);
+		} else if (history) {
+			peer->owner().histories().changeDialogUnreadMark(history, true);
+		}
+	}, (unread ? &st::menuIconMarkRead : &st::menuIconMarkUnread));
 }
 
 void Filler::addToggleArchive() {
-	if (!_peer) {
+	if (!_peer || _topic) {
 		return;
 	}
 	const auto peer = _peer;
-	const auto history = peer->owner().historyLoaded(peer);
+	const auto history = _request.key.history();
 	if (history && history->useTopPromotion()) {
 		return;
 	} else if (peer->isNotificationsUser() || peer->isSelf()) {
@@ -529,6 +553,9 @@ void Filler::addToggleArchive() {
 }
 
 void Filler::addClearHistory() {
+	if (_topic) {
+		return;
+	}
 	const auto channel = _peer->asChannel();
 	const auto isGroup = _peer->isChat() || _peer->isMegagroup();
 	if (channel) {
@@ -546,7 +573,7 @@ void Filler::addClearHistory() {
 }
 
 void Filler::addDeleteChat() {
-	if (_peer->isChannel()) {
+	if (_topic || _peer->isChannel()) {
 		return;
 	}
 	_addAction({
@@ -561,7 +588,7 @@ void Filler::addDeleteChat() {
 
 void Filler::addLeaveChat() {
 	const auto channel = _peer->asChannel();
-	if (_thread->asTopic() || !channel || !channel->amIn()) {
+	if (_topic || !channel || !channel->amIn()) {
 		return;
 	}
 	_addAction({
@@ -572,6 +599,19 @@ void Filler::addLeaveChat() {
 		.icon = &st::menuIconLeaveAttention,
 		.isAttention = true,
 	});
+}
+
+void Filler::addJoinChat() {
+	const auto channel = _peer->asChannel();
+	if (_topic || !channel || channel->amIn()) {
+		return;
+	}
+	const auto label = _peer->isMegagroup()
+		? tr::lng_profile_join_group(tr::now)
+		: tr::lng_profile_join_channel(tr::now);
+	_addAction(label, [=] {
+		channel->session().api().joinChannel(channel);
+	}, &st::menuIconAddToFolder);
 }
 
 void Filler::addBlockUser() {
@@ -766,11 +806,10 @@ void Filler::addManageTopic() {
 	if (!topic) {
 		return;
 	}
-	// #TODO lang-forum
 	const auto history = topic->history();
 	const auto rootId = topic->rootId();
 	const auto navigation = _controller;
-	_addAction(u"Edit topic"_q, [=] {
+	_addAction(tr::lng_forum_topic_edit(tr::now), [=] {
 		navigation->show(
 			Box(EditForumTopicBox, navigation, history, rootId));
 	}, &st::menuIconEdit);
@@ -885,11 +924,53 @@ void Filler::fill() {
 	case Section::Profile: fillProfileActions(); break;
 	case Section::Replies: fillRepliesActions(); break;
 	case Section::Scheduled: fillScheduledActions(); break;
+	case Section::ContextMenu: fillContextMenuActions(); break;
 	default: Unexpected("_request.section in Filler::fill.");
 	}
 }
 
+void Filler::addCreateTopic() {
+	if (!_peer || !_peer->canCreateTopics()) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto controller = _controller;
+	_addAction(tr::lng_forum_create_topic(tr::now), [=] {
+		if (const auto forum = peer->forum()) {
+			controller->show(Box(
+				NewForumTopicBox,
+				controller,
+				forum->history()));
+		}
+	}, &st::menuIconDiscussion);
+	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+}
+
+void Filler::addSearchTopics() {
+	_addAction(tr::lng_dlg_filter(tr::now), [=] {
+
+	}, &st::menuIconSearch);
+}
+
 void Filler::fillChatsListActions() {
+	if (!_peer || !_peer->isForum()) {
+		return;
+	}
+	addCreateTopic();
+	addInfo();
+	addNewMembers();
+	const auto &all = _peer->forum()->topicsList()->indexed()->all();
+	if (all.size() > kTopicsSearchMinCount) {
+		addSearchTopics();
+	}
+	if (_peer->asChannel()->amIn()) {
+		addLeaveChat();
+	} else {
+		addJoinChat();
+	}
+}
+
+void Filler::fillContextMenuActions() {
 	addHidePromotion();
 	addToggleArchive();
 	addTogglePin();

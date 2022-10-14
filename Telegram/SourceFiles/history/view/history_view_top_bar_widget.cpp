@@ -980,9 +980,15 @@ void TopBarWidget::updateControlsVisibility() {
 	const auto hasPollsMenu = _activeChat.key.peer()
 		&& _activeChat.key.peer()->canSendPolls();
 	const auto hasMenu = !_activeChat.key.folder()
-		&& ((section == Section::Scheduled || section == Section::Replies)
+		&& (section == Section::History
+			? true
+			: (section == Section::Scheduled)
 			? hasPollsMenu
-			: historyMode);
+			: (section == Section::Replies)
+			? (hasPollsMenu || _activeChat.key.topic())
+			: (section == Section::ChatsList)
+			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
+			: false);
 	updateSearchVisibility();
 	_menuToggle->setVisible(hasMenu && !_chooseForReportReason);
 	_infoToggle->setVisible(historyMode

@@ -1935,7 +1935,7 @@ void InnerWidget::contextMenuEvent(QContextMenuEvent *e) {
 			_controller,
 			Dialogs::EntryState{
 				.key = row.key,
-				.section = Dialogs::EntryState::Section::ChatsList,
+				.section = Dialogs::EntryState::Section::ContextMenu,
 				.filterId = _filterId,
 			},
 			addAction);
@@ -2394,7 +2394,7 @@ void InnerWidget::refreshEmptyLabel() {
 	const auto data = &session().data();
 	const auto state = !shownDialogs()->empty()
 		? EmptyState::None
-		: _openedForum
+		: (_openedForum && _openedForum->topicsList()->loaded())
 		? EmptyState::EmptyForum
 		: (!_filterId && data->contactsLoaded().current())
 		? EmptyState::NoContacts
@@ -2415,16 +2415,14 @@ void InnerWidget::refreshEmptyLabel() {
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_no_chats_filter()
 		: (state == EmptyState::EmptyForum)
-		// #TODO lang-forum
-		? rpl::single(u"No chats currently created in this forum."_q)
+		? tr::lng_forum_no_topics()
 		: tr::lng_contacts_loading();
 	auto link = (state == EmptyState::NoContacts)
 		? tr::lng_add_contact_button()
 		: (state == EmptyState::EmptyFolder)
 		? tr::lng_filters_context_edit()
 		: (state == EmptyState::EmptyForum)
-		// #TODO lang-forum
-		? rpl::single(u"Create topic"_q)
+		? tr::lng_forum_create_topic()
 		: rpl::single(QString());
 	auto full = rpl::combine(
 		std::move(phrase),
@@ -3323,16 +3321,9 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			if (_openedForum) {
-				_controller->show(Box(
-					NewForumTopicBox,
-					_controller,
-					_openedForum->history()));
-			} else {
-				_controller->content()->choosePeer(
-					session().userPeerId(),
-					ShowAtUnreadMsgId);
-			}
+			_controller->content()->choosePeer(
+				session().userPeerId(),
+				ShowAtUnreadMsgId);
 			return true;
 		});
 		request->check(Command::ShowArchive) && request->handle([=] {

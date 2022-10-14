@@ -88,6 +88,7 @@ menuIconPhoto: icon {{ "menu/image", menuIconColor }};
 menuIconAddToFolder: icon {{ "menu/add_to_folder", menuIconColor }};
 menuIconLeave: icon {{ "menu/leave", menuIconColor }};
 menuIconGiftPremium: icon {{ "menu/gift_premium", menuIconColor }};
+menuIconSearch: icon {{ "menu/search", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

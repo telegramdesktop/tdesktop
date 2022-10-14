@@ -201,8 +201,6 @@ private:
 	void subscribeToTopic();
 	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
-	void sendReadTillRequest();
-	void readTill(not_null<HistoryItem*> item);
 
 	void scrollDownAnimationFinish();
 	void updatePinnedVisibility();
@@ -311,9 +309,6 @@ private:
 	rpl::lifetime _topicLifetime;
 
 	bool _choosingAttach = false;
-
-	base::Timer _readRequestTimer;
-	mtpRequestId _readRequestId = 0;
 
 	bool _loaded = false;
 

@@ -812,13 +812,13 @@ void Controller::fillForumButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
 	const auto channel = _peer->asChannel();
-	if (!channel) {
+	if (!channel || !channel->amCreator()) {
 		return;
 	}
 
 	AddButtonWithText(
 		_controls.buttonsLayout,
-		rpl::single(u"Topics"_q), // #TODO lang-forum
+		tr::lng_forum_topics_switch(),
 		rpl::single(QString()),
 		[] {},
 		{ &st::settingsIconGroup, Settings::kIconPurple }

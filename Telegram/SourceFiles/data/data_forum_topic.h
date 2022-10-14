@@ -81,6 +81,7 @@ public:
 	[[nodiscard]] HistoryItem *lastServerMessage() const;
 	[[nodiscard]] bool lastMessageKnown() const;
 	[[nodiscard]] bool lastServerMessageKnown() const;
+	[[nodiscard]] MsgId lastKnownServerMessageId() const;
 
 	[[nodiscard]] QString title() const;
 	void applyTitle(const QString &title);
@@ -116,6 +117,7 @@ private:
 	void indexTitleParts();
 	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
+	void growLastKnownServerMessageId(MsgId id);
 
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);
@@ -131,6 +133,7 @@ private:
 	const not_null<Dialogs::MainList*> _list;
 	std::shared_ptr<RepliesList> _replies;
 	MsgId _rootId = 0;
+	MsgId _lastKnownServerMessageId = 0;
 
 	PeerNotifySettings _notify;
 

@@ -100,6 +100,7 @@ struct EntryState {
 		Scheduled,
 		Pinned,
 		Replies,
+		ContextMenu,
 	};
 
 	Key key;

@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_messages.h"
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
+#include "window/notifications_manager.h"
+#include "core/application.h"
 #include "lang/lang_keys.h"
 #include "apiwrap.h"
 
@@ -25,6 +27,7 @@ namespace Data {
 namespace {
 
 constexpr auto kMessagesPerPage = 50;
+constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 
 [[nodiscard]] HistoryService *GenerateDivider(
 		not_null<History*> history,
@@ -59,7 +62,8 @@ struct RepliesList::Viewer {
 RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 : _history(history)
 , _rootId(rootId)
-, _creating(IsCreating(history, rootId)) {
+, _creating(IsCreating(history, rootId))
+, _readRequestTimer([=] { sendReadTillRequest(); }) {
 	_history->owner().repliesReadTillUpdates(
 	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
 		return (update.id.msg == _rootId)
@@ -92,6 +96,9 @@ RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 RepliesList::~RepliesList() {
 	histories().cancelRequest(base::take(_beforeId));
 	histories().cancelRequest(base::take(_afterId));
+	if (_readRequestTimer.isActive()) {
+		sendReadTillRequest();
+	}
 	if (_divider) {
 		_divider->destroy();
 	}
@@ -753,6 +760,9 @@ MsgId RepliesList::computeOutboxReadTillFull() const {
 
 void RepliesList::setUnreadCount(std::optional<int> count) {
 	_unreadCount = count;
+	if (!count && !_readRequestTimer.isActive() && !_readRequestId) {
+		reloadUnreadCountIfNeeded();
+	}
 }
 
 void RepliesList::checkReadTillEnd() {
@@ -856,6 +866,73 @@ void RepliesList::requestUnreadCount() {
 				data.vunread_count().v);
 		});
 	}).send();
+}
+
+void RepliesList::readTill(not_null<HistoryItem*> item) {
+	readTill(item->id, item);
+}
+
+void RepliesList::readTill(MsgId tillId) {
+	if (!IsServerMsgId(tillId)) {
+		return;
+	}
+	readTill(tillId, _history->owner().message(_history->peer->id, tillId));
+}
+
+void RepliesList::readTill(
+		MsgId tillId,
+		HistoryItem *tillIdItem) {
+	const auto was = computeInboxReadTillFull();
+	const auto now = tillId;
+	if (now < was) {
+		return;
+	}
+	const auto unreadCount = computeUnreadCountLocally(now);
+	const auto fast = (tillIdItem && tillIdItem->out()) || !unreadCount.has_value();
+	if (was < now || (fast && now == was)) {
+		setInboxReadTill(now, unreadCount);
+		const auto rootFullId = FullMsgId(_history->peer->id, _rootId);
+		if (const auto root = _history->owner().message(rootFullId)) {
+			if (const auto post = root->lookupDiscussionPostOriginal()) {
+				post->setCommentsInboxReadTill(now);
+			}
+		}
+		if (!_readRequestTimer.isActive()) {
+			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
+		} else if (fast && _readRequestTimer.remainingTime() > 0) {
+			_readRequestTimer.callOnce(0);
+		}
+	}
+	if (const auto topic = _history->peer->forumTopicFor(_rootId)) {
+		Core::App().notifications().clearIncomingFromTopic(topic);
+	}
+}
+
+void RepliesList::sendReadTillRequest() {
+	if (_readRequestTimer.isActive()) {
+		_readRequestTimer.cancel();
+	}
+	const auto api = &_history->session().api();
+	api->request(base::take(_readRequestId)).cancel();
+
+	_readRequestId = api->request(MTPmessages_ReadDiscussion(
+		_history->peer->input,
+		MTP_int(_rootId),
+		MTP_int(computeInboxReadTillFull())
+	)).done(crl::guard(this, [=] {
+		_readRequestId = 0;
+		reloadUnreadCountIfNeeded();
+	})).send();
+}
+
+void RepliesList::reloadUnreadCountIfNeeded() {
+	if (unreadCountKnown()) {
+		return;
+	} else if (inboxReadTillId() < computeInboxReadTillFull()) {
+		_readRequestTimer.callOnce(0);
+	} else {
+		requestUnreadCount();
+	}
 }
 
 } // namespace Data

@@ -142,7 +142,8 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 , _forum(forum)
 , _list(_forum->topicsList())
 , _replies(std::make_shared<RepliesList>(history(), rootId))
-, _rootId(rootId) {
+, _rootId(rootId)
+, _lastKnownServerMessageId(rootId) {
 	Thread::setMuted(owner().notifySettings().isMuted(this));
 
 	_replies->unreadCountValue(
@@ -193,6 +194,7 @@ MsgId ForumTopic::rootId() const {
 void ForumTopic::setRealRootId(MsgId realId) {
 	if (_rootId != realId) {
 		_rootId = realId;
+		_lastKnownServerMessageId = realId;
 		_replies = std::make_shared<RepliesList>(history(), _rootId);
 	}
 }
@@ -263,6 +265,7 @@ int ForumTopic::chatListNameVersion() const {
 
 void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 	if (topMessageId) {
+		growLastKnownServerMessageId(topMessageId);
 		const auto itemId = FullMsgId(channel()->id, topMessageId);
 		if (const auto item = owner().message(itemId)) {
 			setLastServerMessage(item);
@@ -285,7 +288,14 @@ void ForumTopic::applyTopicTopMessage(MsgId topMessageId) {
 	}
 }
 
+void ForumTopic::growLastKnownServerMessageId(MsgId id) {
+	_lastKnownServerMessageId = std::max(_lastKnownServerMessageId, id);
+}
+
 void ForumTopic::setLastServerMessage(HistoryItem *item) {
+	if (item) {
+		growLastKnownServerMessageId(item->id);
+	}
 	_lastServerMessage = item;
 	if (_lastMessage
 		&& *_lastMessage
@@ -303,6 +313,9 @@ void ForumTopic::setLastMessage(HistoryItem *item) {
 	_lastMessage = item;
 	if (!item || item->isRegular()) {
 		_lastServerMessage = item;
+		if (item) {
+			growLastKnownServerMessageId(item->id);
+		}
 	}
 	setChatListMessage(item);
 }
@@ -411,6 +424,10 @@ HistoryItem *ForumTopic::lastServerMessage() const {
 
 bool ForumTopic::lastServerMessageKnown() const {
 	return _lastServerMessage.has_value();
+}
+
+MsgId ForumTopic::lastKnownServerMessageId() const {
+	return _lastKnownServerMessageId;
 }
 
 QString ForumTopic::title() const {

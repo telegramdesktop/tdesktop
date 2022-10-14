@@ -53,7 +53,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "core/file_utilities.h"
-#include "core/application.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -70,7 +69,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
-#include "window/notifications_manager.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -82,7 +80,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 
 bool CanSendFiles(not_null<const QMimeData*> data) {
@@ -218,8 +215,7 @@ RepliesWidget::RepliesWidget(
 , _cornerButtons(
 	_scroll.get(),
 	controller->chatStyle(),
-	static_cast<HistoryView::CornerButtonsDelegate*>(this))
-, _readRequestTimer([=] { sendReadTillRequest(); }) {
+	static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
@@ -359,9 +355,6 @@ RepliesWidget::~RepliesWidget() {
 		_topic->forum()->discardCreatingId(_rootId);
 		_topic = nullptr;
 	}
-	if (_readRequestTimer.isActive()) {
-		sendReadTillRequest();
-	}
 	base::take(_sendAction);
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
@@ -378,23 +371,6 @@ void RepliesWidget::orderWidgets() {
 	}
 	_topBarShadow->raise();
 	_composeControls->raisePanels();
-}
-
-void RepliesWidget::sendReadTillRequest() {
-	if (_readRequestTimer.isActive()) {
-		_readRequestTimer.cancel();
-	}
-	const auto api = &_history->session().api();
-	api->request(base::take(_readRequestId)).cancel();
-
-	_readRequestId = api->request(MTPmessages_ReadDiscussion(
-		_history->peer->input,
-		MTP_int(_rootId),
-		MTP_int(_replies->computeInboxReadTillFull())
-	)).done(crl::guard(this, [=] {
-		_readRequestId = 0;
-		reloadUnreadCountIfNeeded();
-	})).send();
 }
 
 void RepliesWidget::setupRoot() {
@@ -1366,19 +1342,6 @@ MsgId RepliesWidget::replyToId() const {
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
 	if (count.has_value()) {
 		_cornerButtons.updateJumpDownVisibility(count);
-	} else if (!_readRequestTimer.isActive() && !_readRequestId) {
-		reloadUnreadCountIfNeeded();
-	}
-}
-
-void RepliesWidget::reloadUnreadCountIfNeeded() {
-	if (_replies->unreadCountKnown()) {
-		return;
-	} else if (_replies->inboxReadTillId()
-		< _replies->computeInboxReadTillFull()) {
-		_readRequestTimer.callOnce(0);
-	} else {
-		_replies->requestUnreadCount();
 	}
 }
 
@@ -1926,35 +1889,9 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-void RepliesWidget::readTill(not_null<HistoryItem*> item) {
-	const auto was = _replies->computeInboxReadTillFull();
-	const auto now = item->id;
-	if (now < was) {
-		return;
-	}
-	const auto unreadCount = _replies->computeUnreadCountLocally(now);
-	const auto fast = item->out() || !unreadCount.has_value();
-	if (was < now || (fast && now == was)) {
-		_replies->setInboxReadTill(now, unreadCount);
-		if (_root) {
-			if (const auto post = _root->lookupDiscussionPostOriginal()) {
-				post->setCommentsInboxReadTill(now);
-			}
-		}
-		if (!_readRequestTimer.isActive()) {
-			_readRequestTimer.callOnce(fast ? 0 : kReadRequestTimeout);
-		} else if (fast && _readRequestTimer.remainingTime() > 0) {
-			_readRequestTimer.callOnce(0);
-		}
-	}
-	if (_topic) {
-		Core::App().notifications().clearIncomingFromTopic(_topic);
-	}
-}
-
 void RepliesWidget::listMarkReadTill(not_null<HistoryItem*> item) {
 	if (true/*doWeReadServerHistory()*/) { // #TODO forum active
-		readTill(item);
+		_replies->readTill(item);
 	}
 }
 
@@ -1976,7 +1913,7 @@ MessagesBarData RepliesWidget::listMessagesBar(
 		const auto item = elements[i]->data();
 		if (item->isRegular() && item->id > till) {
 			if (item->out() || !item->replyToId()) {
-				readTill(item);
+				_replies->readTill(item);
 			} else {
 				return {
 					.bar = {

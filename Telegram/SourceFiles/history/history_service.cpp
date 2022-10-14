@@ -639,27 +639,56 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
 		// #TODO lang-forum
-		result.text = { "topic created: " + qs(action.vtitle()) };
+		result.text = { tr::lng_action_topic_created(tr::now) };
 		return result;
 	};
 
 	auto prepareTopicEdit = [&](const MTPDmessageActionTopicEdit &action) {
 		auto result = PreparedText{};
-		// #TODO lang-forum
-		result.text = { "topic edited: " };
-		if (const auto icon = action.vicon_emoji_id()) {
-			result.text.append(TextWithEntities{
+		const auto wrapIcon = [](DocumentId id) {
+			return TextWithEntities{
 				"@",
 				{ EntityInText(
 					EntityType::CustomEmoji,
 					0,
 					1,
-					Data::SerializeCustomEmojiId({ .id = icon->v }))
+					Data::SerializeCustomEmojiId({ .id = id }))
 				},
-			});
+			};
+		};
+		if (const auto closed = action.vclosed()) {
+			result.text = { mtpIsTrue(*closed)
+				? tr::lng_action_topic_closed(tr::now)
+				: tr::lng_action_topic_reopened(tr::now) };
+		} else if (!action.vtitle()) {
+			if (const auto icon = action.vicon_emoji_id()) {
+				if (const auto iconId = icon->v) {
+					result.text = tr::lng_action_topic_icon_changed(
+						tr::now,
+						lt_emoji,
+						wrapIcon(iconId),
+						Ui::Text::WithEntities);
+				} else {
+					result.text = {
+						tr::lng_action_topic_icon_removed(tr::now)
+					};
+				}
+			}
+		} else {
+			auto title = TextWithEntities{
+				qs(*action.vtitle())
+			};
+			if (const auto icon = action.vicon_emoji_id().value_or_empty()) {
+				title = wrapIcon(icon).append(' ').append(std::move(title));
+			}
+			result.text = tr::lng_action_topic_renamed(
+				tr::now,
+				lt_title,
+				std::move(title),
+				Ui::Text::WithEntities);
 		}
-		if (const auto &title = action.vtitle()) {
-			result.text.append(qs(*title));
+		if (result.text.empty()) {
+			result.text = { tr::lng_message_empty(tr::now) };
 		}
 		return result;
 	};
@@ -709,14 +738,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareProximityReached(data);
 	}, [](const MTPDmessageActionPaymentSentMe &) {
 		LOG(("API Error: messageActionPaymentSentMe received."));
-		return PreparedText{
-			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
-		};
+		return PreparedText{ { tr::lng_message_empty(tr::now) } };
 	}, [](const MTPDmessageActionSecureValuesSentMe &) {
 		LOG(("API Error: messageActionSecureValuesSentMe received."));
-		return PreparedText{
-			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
-		};
+		return PreparedText{ { tr::lng_message_empty(tr::now) } };
 	}, [&](const MTPDmessageActionGroupCall &data) {
 		return prepareGroupCall(data);
 	}, [&](const MTPDmessageActionInviteToGroupCall &data) {
@@ -739,13 +764,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return prepareTopicEdit(data);
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
-		return PreparedText{
-			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
-		};
+		return PreparedText{ { tr::lng_message_empty(tr::now) } };
 	}, [](const MTPDmessageActionEmpty &) {
-		return PreparedText{
-			tr::lng_message_empty(tr::now, Ui::Text::WithEntities)
-		};
+		return PreparedText{ { tr::lng_message_empty(tr::now) } };
 	}));
 
 	// Additional information.
