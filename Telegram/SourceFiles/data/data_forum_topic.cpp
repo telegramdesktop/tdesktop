@@ -443,6 +443,7 @@ void ForumTopic::applyTitle(const QString &title) {
 	_defaultIcon = QImage();
 	indexTitleParts();
 	updateChatListEntry();
+	session().changes().topicUpdated(this, UpdateFlag::Title);
 }
 
 DocumentId ForumTopic::iconId() const {
@@ -450,19 +451,21 @@ DocumentId ForumTopic::iconId() const {
 }
 
 void ForumTopic::applyIconId(DocumentId iconId) {
-	if (_iconId != iconId) {
-		_iconId = iconId;
-		_icon = iconId
-			? owner().customEmojiManager().create(
-				_iconId,
-				[=] { updateChatListEntry(); },
-				Data::CustomEmojiManager::SizeTag::Normal)
-			: nullptr;
-		if (iconId) {
-			_defaultIcon = QImage();
-		}
+	if (_iconId == iconId) {
+		return;
+	}
+	_iconId = iconId;
+	_icon = iconId
+		? owner().customEmojiManager().create(
+			_iconId,
+			[=] { updateChatListEntry(); },
+			Data::CustomEmojiManager::SizeTag::Normal)
+		: nullptr;
+	if (iconId) {
+		_defaultIcon = QImage();
 	}
 	updateChatListEntry();
+	session().changes().topicUpdated(this, UpdateFlag::Icon);
 }
 
 int32 ForumTopic::colorId() const {

@@ -149,6 +149,8 @@ struct TopicUpdate {
 		UnreadMentions = (1U << 2),
 		UnreadReactions = (1U << 3),
 		Notifications = (1U << 4),
+		Title = (1U << 5),
+		Icon = (1U << 6),
 
 		LastUsedBit = (1U << 4),
 	};

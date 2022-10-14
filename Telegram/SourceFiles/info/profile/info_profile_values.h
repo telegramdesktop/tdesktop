@@ -47,6 +47,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 [[nodiscard]] rpl::producer<QString> NameValue(not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<QString> TitleValue(
 	not_null<Data::ForumTopic*> topic);
+[[nodiscard]] rpl::producer<DocumentId> IconIdValue(
+	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(

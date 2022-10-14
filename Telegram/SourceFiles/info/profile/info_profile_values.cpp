@@ -83,7 +83,17 @@ rpl::producer<QString> NameValue(not_null<PeerData*> peer) {
 }
 
 rpl::producer<QString> TitleValue(not_null<Data::ForumTopic*> topic) {
-	return rpl::single(topic->title()); // #TODO forum title changes
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::Title
+	) | rpl::map([=] { return topic->title(); });
+}
+
+rpl::producer<DocumentId> IconIdValue(not_null<Data::ForumTopic*> topic) {
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::Icon
+	) | rpl::map([=] { return topic->iconId(); });
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {

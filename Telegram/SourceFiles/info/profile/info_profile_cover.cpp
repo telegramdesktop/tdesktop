@@ -12,6 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_forum_topic.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "info/profile/info_profile_values.h"
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
@@ -75,14 +78,47 @@ Cover::Cover(
 
 Cover::Cover(
 	QWidget *parent,
+	not_null<Data::ForumTopic*> topic,
+	not_null<Window::SessionController*> controller)
+: Cover(
+	parent,
+	topic->channel(),
+	topic,
+	controller,
+	TitleValue(topic)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
 	not_null<PeerData*> peer,
 	not_null<Window::SessionController*> controller,
 	rpl::producer<QString> title)
-: FixedHeightWidget(
+: Cover(
 	parent,
-	st::infoProfilePhotoTop
-		+ st::infoProfilePhoto.size.height()
-		+ st::infoProfilePhotoBottom)
+	peer,
+	nullptr,
+	controller,
+	std::move(title)) {
+}
+
+[[nodiscard]] const style::InfoProfileCover &CoverStyle(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic) {
+	return topic
+		? st::infoTopicCover
+		: peer->isMegagroup()
+		? st::infoProfileMegagroupCover
+		: st::infoProfileCover;
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	not_null<Window::SessionController*> controller,
+	rpl::producer<QString> title)
+: FixedHeightWidget(parent, CoverStyle(peer, topic).height)
+, _st(CoverStyle(peer, topic))
 , _controller(controller)
 , _peer(peer)
 , _emojiStatusPanel(peer->isSelf()
@@ -98,19 +134,22 @@ Cover::Cover(
 			return controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer);
 		}))
-, _userpic(
-	this,
-	controller,
-	_peer,
-	Ui::UserpicButton::Role::OpenPhoto,
-	st::infoProfilePhoto)
-, _name(this, st::infoProfileNameLabel)
-, _status(
-	this,
-	_peer->isMegagroup()
-		? st::infoProfileMegagroupStatusLabel
-		: st::infoProfileStatusLabel)
+, _userpic(topic
+	? nullptr
+	: object_ptr<Ui::UserpicButton>(
+		this,
+		controller,
+		_peer,
+		Ui::UserpicButton::Role::OpenPhoto,
+		_st.photo))
+, _iconView(topic ? object_ptr<Ui::RpWidget>(this) : nullptr)
+, _name(this, _st.name)
+, _status(this, _st.status)
 , _refreshStatusTimer([this] { refreshStatusText(); }) {
+	if (topic) {
+		setupIcon(topic);
+	}
+
 	_peer->updateFull();
 
 	_name->setSelectable(true);
@@ -134,21 +173,56 @@ Cover::Cover(
 	initViewers(std::move(title));
 	setupChildGeometry();
 
-	_userpic->uploadPhotoRequests(
+	if (_userpic) {
+		_userpic->uploadPhotoRequests(
+		) | rpl::start_with_next([=] {
+			_peer->session().api().peerPhoto().upload(
+				_peer,
+				_userpic->takeResultImage());
+		}, _userpic->lifetime());
+	} else {
+		// #TODO forum icon change on click if possible
+	}
+}
+
+void Cover::setupIcon(not_null<Data::ForumTopic*> topic) {
+	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
+	IconIdValue(
+		topic
+	) | rpl::start_with_next([=](DocumentId id) {
+		_icon = id
+			? topic->owner().customEmojiManager().create(
+				id,
+				[=] { _iconView->update(); },
+				tag)
+			: nullptr;
+	}, lifetime());
+	const auto size = Data::FrameSizeFromTag(tag);
+	_iconView->resize(size, size);
+	_iconView->paintRequest(
 	) | rpl::start_with_next([=] {
-		_peer->session().api().peerPhoto().upload(
-			_peer,
-			_userpic->takeResultImage());
-	}, _userpic->lifetime());
+		auto p = QPainter(_iconView.data());
+		if (_icon) {
+			_icon->paint(p, {
+				.preview = st::windowBgOver->c,
+				.now = crl::now(),
+				.paused = _controller->isGifPausedAtLeastFor(
+					Window::GifPauseReason::Layer),
+			});
+		} else {
+
+		}
+	}, _iconView->lifetime());
 }
 
 void Cover::setupChildGeometry() {
 	widthValue(
 	) | rpl::start_with_next([this](int newWidth) {
-		_userpic->moveToLeft(
-			st::infoProfilePhotoLeft,
-			st::infoProfilePhotoTop,
-			newWidth);
+		if (_userpic) {
+			_userpic->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
+		} else {
+			_iconView->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
+		}
 		refreshNameGeometry(newWidth);
 		refreshStatusGeometry(newWidth);
 	}, lifetime());
@@ -192,6 +266,9 @@ void Cover::initViewers(rpl::producer<QString> title) {
 }
 
 void Cover::refreshUploadPhotoOverlay() {
+	if (!_userpic) {
+		return;
+	}
 	_userpic->switchChangePhotoOverlay([&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditInformation();
@@ -255,31 +332,22 @@ Cover::~Cover() {
 }
 
 void Cover::refreshNameGeometry(int newWidth) {
-	auto nameLeft = st::infoProfileNameLeft;
-	auto nameTop = st::infoProfileNameTop;
-	auto nameWidth = newWidth
-		- nameLeft
-		- st::infoProfileNameRight;
+	auto nameWidth = newWidth - _st.nameLeft - _st.rightSkip;
 	if (const auto widget = _badge->widget()) {
 		nameWidth -= st::infoVerifiedCheckPosition.x() + widget->width();
 	}
 	_name->resizeToNaturalWidth(nameWidth);
-	_name->moveToLeft(nameLeft, nameTop, newWidth);
-	const auto badgeLeft = nameLeft + _name->width();
-	const auto badgeTop = nameTop;
-	const auto badgeBottom = nameTop + _name->height();
+	_name->moveToLeft(_st.nameLeft, _st.nameTop, newWidth);
+	const auto badgeLeft = _st.nameLeft + _name->width();
+	const auto badgeTop = _st.nameTop;
+	const auto badgeBottom = _st.nameTop + _name->height();
 	_badge->move(badgeLeft, badgeTop, badgeBottom);
 }
 
 void Cover::refreshStatusGeometry(int newWidth) {
-	auto statusWidth = newWidth
-		- st::infoProfileStatusLeft
-		- st::infoProfileStatusRight;
+	auto statusWidth = newWidth - _st.statusLeft - _st.rightSkip;
 	_status->resizeToWidth(statusWidth);
-	_status->moveToLeft(
-		st::infoProfileStatusLeft,
-		st::infoProfileStatusTop,
-		newWidth);
+	_status->moveToLeft(_st.statusLeft, _st.statusTop, newWidth);
 }
 
 } // namespace Info::Profile

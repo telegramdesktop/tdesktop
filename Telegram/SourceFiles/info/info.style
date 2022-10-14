@@ -255,31 +255,24 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 
+InfoProfileCover {
+	height: pixels;
+	photo: UserpicButton;
+	photoLeft: pixels;
+	photoTop: pixels;
+	name: FlatLabel;
+	nameLeft: pixels;
+	nameTop: pixels;
+	status: FlatLabel;
+	statusLeft: pixels;
+	statusTop: pixels;
+	rightSkip: pixels;
+}
 infoProfilePhotoInnerSize: 72px;
 infoProfilePhotoSize: size(
 	infoProfilePhotoInnerSize,
 	infoProfilePhotoInnerSize);
-infoProfilePhoto: UserpicButton(defaultUserpicButton) {
-	size: infoProfilePhotoSize;
-	photoSize: infoProfilePhotoInnerSize;
-}
-infoFeedProfilePhoto: FeedUserpicButton(defaultFeedUserpicButton) {
-	size: infoProfilePhotoSize;
-	innerSize: infoProfilePhotoInnerSize;
-	innerPart: UserpicButton(defaultUserpicButton) {
-		size: size(35px, 35px);
-		photoSize: 35px;
-	}
-
-}
-infoProfilePhotoLeft: 19px;
-infoProfilePhotoTop: 18px;
-infoProfilePhotoBottom: 18px;
-
-infoProfileStatusLeft: 109px;
-infoProfileStatusRight: 20px;
-infoProfileStatusTop: 58px;
-infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
+infoProfileStatus: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
@@ -288,25 +281,46 @@ infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
 		linkFontOver: normalFont;
 	}
 }
-infoProfileMegagroupStatusLabel: FlatLabel(infoProfileStatusLabel) {
-	style: defaultTextStyle;
-	palette: TextPalette(defaultTextPalette) {
-		linkFg: windowSubTextFg;
+infoProfileCover: InfoProfileCover {
+	height: 108px;
+	photo: UserpicButton(defaultUserpicButton) {
+		size: infoProfilePhotoSize;
+		photoSize: infoProfilePhotoInnerSize;
 	}
+	photoLeft: 19px;
+	photoTop: 18px;
+	name: FlatLabel(defaultFlatLabel) {
+		maxHeight: 24px;
+		textFg: windowBoldFg;
+		style: TextStyle(defaultTextStyle) {
+			font: font(16px semibold);
+			linkFont: font(16px semibold);
+			linkFontOver: font(16px semibold underline);
+		}
+	}
+	nameLeft: 109px;
+	nameTop: 32px;
+	status: infoProfileStatus;
+	statusLeft: 109px;
+	statusTop: 58px;
+	rightSkip: 20px;
+}
+infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
+	status: FlatLabel(infoProfileStatus) {
+		style: defaultTextStyle;
+		palette: TextPalette(defaultTextPalette) {
+			linkFg: windowSubTextFg;
+		}
+	}
+}
+infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
+	height: 77px;
+	nameLeft: 79px;
+	nameTop: 14px;
+	statusLeft: 79px;
+	statusTop: 38px;
 }
 
-infoProfileNameLeft: infoProfileStatusLeft;
-infoProfileNameRight: infoProfileStatusRight;
-infoProfileNameTop: 32px;
-infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
-	maxHeight: 24px;
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
-	}
-}
 infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedCheck: icon {
 	{ "profile_verified_star", profileVerifiedCheckBg },
@@ -392,7 +406,7 @@ infoLabeled: FlatLabel(infoLabeledOneLine) {
 	margin: margins(5px, 5px, 5px, 5px);
 }
 
-infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
+infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
@@ -718,15 +732,6 @@ topBarInfoButton: UserpicButton(defaultUserpicButton) {
 	size: topBarInfoButtonSize;
 	photoSize: topBarInfoButtonInnerSize;
 	photoPosition: topBarInfoButtonInnerPosition;
-}
-topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
-	size: topBarInfoButtonSize;
-	innerSize: topBarInfoButtonInnerSize;
-	innerPosition: topBarInfoButtonInnerPosition;
-	innerPart: UserpicButton(defaultUserpicButton) {
-		size: size(20px, 20px);
-		photoSize: 20px;
-	}
 }
 topBarConnectingPosition: point(2px, 5px);
 topBarConnectingSkip: 6px;

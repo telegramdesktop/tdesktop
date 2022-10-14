@@ -66,11 +66,15 @@ InnerWidget::InnerWidget(
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		not_null<RpWidget*> parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	_cover = result->add(object_ptr<Cover>(
-		result,
-		_peer,
-		_controller->parentController(),
-		_topic ? TitleValue(_topic) : NameValue(_peer)));
+	_cover = _topic
+		? result->add(object_ptr<Cover>(
+			result,
+			_topic,
+			_controller->parentController()))
+		: result->add(object_ptr<Cover>(
+			result,
+			_peer,
+			_controller->parentController()));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
 		_controller->showSection(_topic

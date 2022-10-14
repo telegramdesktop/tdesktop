@@ -25,10 +25,18 @@ namespace Ui::Text {
 struct CustomEmojiColored;
 } // namespace Ui::Text
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
 namespace Info {
 class Controller;
 class Section;
 } // namespace Info
+
+namespace style {
+struct InfoProfileCover;
+} // namespace style
 
 namespace Info::Profile {
 
@@ -40,6 +48,10 @@ public:
 	Cover(
 		QWidget *parent,
 		not_null<PeerData*> peer,
+		not_null<Window::SessionController*> controller);
+	Cover(
+		QWidget *parent,
+		not_null<Data::ForumTopic*> topic,
 		not_null<Window::SessionController*> controller);
 	Cover(
 		QWidget *parent,
@@ -55,12 +67,22 @@ public:
 	}
 
 private:
+	Cover(
+		QWidget *parent,
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		not_null<Window::SessionController*> controller,
+		rpl::producer<QString> title);
+
+	void setupIcon(not_null<Data::ForumTopic*> topic);
 	void setupChildGeometry();
 	void initViewers(rpl::producer<QString> title);
 	void refreshStatusText();
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
+
+	const style::InfoProfileCover &_st;
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<PeerData*> _peer;
@@ -69,6 +91,8 @@ private:
 	int _onlineCount = 0;
 
 	object_ptr<Ui::UserpicButton> _userpic;
+	object_ptr<Ui::RpWidget> _iconView;
+	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };
