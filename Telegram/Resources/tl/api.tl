@@ -301,7 +301,7 @@ updateUserTyping#c01e857f user_id:long action:SendMessageAction = Update;
 updateChatUserTyping#83487af0 chat_id:long from_id:Peer action:SendMessageAction = Update;
 updateChatParticipants#7761198 participants:ChatParticipants = Update;
 updateUserStatus#e5bdf8de user_id:long status:UserStatus = Update;
-updateUserName#c3f202e0 user_id:long first_name:string last_name:string username:string = Update;
+updateUserName#a7848924 user_id:long first_name:string last_name:string usernames:Vector<Username> = Update;
 updateUserPhoto#f227868c user_id:long date:int photo:UserProfilePhoto previous:Bool = Update;
 updateNewEncryptedMessage#12bcbd9a message:EncryptedMessage qts:int = Update;
 updateEncryptedChatTyping#1710f156 chat_id:int = Update;
@@ -957,6 +957,7 @@ channelAdminLogEventActionParticipantJoinByRequest#afb6144a invite:ExportedChatI
 channelAdminLogEventActionToggleNoForwards#cb2ac766 new_value:Bool = ChannelAdminLogEventAction;
 channelAdminLogEventActionSendMessage#278f2868 message:Message = ChannelAdminLogEventAction;
 channelAdminLogEventActionChangeAvailableReactions#be4e0ef8 prev_value:ChatReactions new_value:ChatReactions = ChannelAdminLogEventAction;
+channelAdminLogEventActionChangeUsernames#f04fb3a9 prev_value:Vector<string> new_value:Vector<string> = ChannelAdminLogEventAction;
 
 channelAdminLogEvent#1fad68cd id:long date:int user_id:long action:ChannelAdminLogEventAction = ChannelAdminLogEvent;
 

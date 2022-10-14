@@ -1872,21 +1872,22 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserName: {
-		auto &d = update.c_updateUserName();
-		if (auto user = session().data().userLoaded(d.vuser_id())) {
-			if (!user->isContact()) {
-				user->setName(
-					TextUtilities::SingleLine(qs(d.vfirst_name())),
-					TextUtilities::SingleLine(qs(d.vlast_name())),
-					user->nameOrPhone,
-					TextUtilities::SingleLine(qs(d.vusername())));
-			} else {
-				user->setName(
-					TextUtilities::SingleLine(user->firstName),
-					TextUtilities::SingleLine(user->lastName),
-					user->nameOrPhone,
-					TextUtilities::SingleLine(qs(d.vusername())));
-			}
+		const auto &d = update.c_updateUserName();
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			const auto contact = user->isContact();
+			const auto first = contact
+				? user->firstName
+				: qs(d.vfirst_name());
+			const auto last = contact ? user->lastName : qs(d.vlast_name());
+			// #TODO usernames
+			const auto username = d.vusernames().v.isEmpty()
+				? QString()
+				: qs(d.vusernames().v.front().data().vusername());
+			user->setName(
+				TextUtilities::SingleLine(first),
+				TextUtilities::SingleLine(last),
+				user->nameOrPhone,
+				TextUtilities::SingleLine(username));
 		}
 	} break;
 

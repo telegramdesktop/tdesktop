@@ -697,6 +697,7 @@ void GenerateItems(
 	using LogNoForwards = MTPDchannelAdminLogEventActionToggleNoForwards;
 	using LogActionSendMessage = MTPDchannelAdminLogEventActionSendMessage;
 	using LogEventActionChangeAvailableReactions = MTPDchannelAdminLogEventActionChangeAvailableReactions;
+	using LogEventActionChangeUsernames = MTPDchannelAdminLogEventActionChangeUsernames;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1513,6 +1514,12 @@ void GenerateItems(
 		addSimpleServiceMessage(text);
 	};
 
+	const auto createChangeUsernames = [&](
+			const LogEventActionChangeUsernames &data) {
+		// #TODO usernames
+		addSimpleServiceMessage({ "changed usernames" });
+	};
+
 	action.match([&](const LogTitle &data) {
 		createChangeTitle(data);
 	}, [&](const LogAbout &data) {
@@ -1585,6 +1592,8 @@ void GenerateItems(
 		createSendMessage(data);
 	}, [&](const LogEventActionChangeAvailableReactions &data) {
 		createChangeAvailableReactions(data);
+	}, [&](const LogEventActionChangeUsernames &data) {
+		createChangeUsernames(data);
 	});
 }
 
