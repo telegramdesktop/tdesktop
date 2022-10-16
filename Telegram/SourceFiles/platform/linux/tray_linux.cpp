@@ -58,7 +58,7 @@ private:
 	const QString _mutePanelTrayIconName;
 	const QString _attentionPanelTrayIconName;
 
-	const int _iconSizes[5];
+	const int _iconSizes[7];
 
 	bool _muted = true;
 	int32 _count = 0;
@@ -73,7 +73,7 @@ IconGraphic::IconGraphic()
 : _panelTrayIconName("telegram-panel")
 , _mutePanelTrayIconName("telegram-mute-panel")
 , _attentionPanelTrayIconName("telegram-attention-panel")
-, _iconSizes{ 16, 22, 24, 32, 48 } {
+, _iconSizes{ 16, 22, 32, 48, 64, 128, 256 } {
 }
 
 IconGraphic::~IconGraphic() = default;
@@ -211,13 +211,14 @@ QIcon IconGraphic::trayIcon(int counter, bool muted) {
 				: st::trayCounterBg;
 			const auto &fg = st::trayCounterFg;
 			if (iconSize >= 22) {
-				const auto layerSize = (iconSize >= 48)
-					? 32
-					: (iconSize >= 36)
-					? 24
-					: (iconSize >= 32)
-					? 20
-					: 16;
+				const auto layerSize0 = iconSize * 0.66;
+				const auto layerSize1 = int(base::SafeRound(layerSize0));
+				auto layerSize2 = 0.;
+				const auto layerSize = layerSize1 % 2
+					? std::modf(layerSize0, &layerSize2) >= 0.5
+						? layerSize1 + 1
+						: layerSize1 - 1
+					: layerSize1;
 				const auto layer = Window::GenerateCounterLayer({
 					.size = layerSize,
 					.count = counter,
