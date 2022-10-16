@@ -27,7 +27,8 @@ public:
 	UsernamesList(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Ui::Show> show);
+		std::shared_ptr<Ui::Show> show,
+		Fn<void()> focusCallback);
 
 	[[nodiscard]] rpl::producer<> save();
 	[[nodiscard]] std::vector<QString> order() const;
@@ -40,6 +41,7 @@ private:
 
 	const std::shared_ptr<Ui::Show> _show;
 	const not_null<PeerData*> _peer;
+	Fn<void()> _focusCallback;
 
 	base::unique_qptr<Ui::VerticalLayout> _container;
 	std::unique_ptr<Ui::VerticalLayoutReorder> _reorder;

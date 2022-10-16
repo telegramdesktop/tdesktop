@@ -294,6 +294,7 @@ void UsernamesBox(
 	const auto editor = box->addRow(
 		object_ptr<UsernameEditor>(box, session),
 		{});
+	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
@@ -307,7 +308,11 @@ void UsernamesBox(
 		object_ptr<UsernamesList>(
 			box,
 			session->user(),
-			std::make_shared<Ui::BoxShow>(box)),
+			std::make_shared<Ui::BoxShow>(box),
+			[=] {
+				box->scrollToY(0);
+				editor->setInnerFocus();
+			}),
 		{});
 
 	const auto finish = [=] {

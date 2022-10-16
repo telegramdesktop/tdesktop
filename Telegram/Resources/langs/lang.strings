@@ -407,6 +407,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_link" = "This link opens a chat with you:";
 "lng_username_copied" = "Link copied to clipboard.";
 
+"lng_usernames_edit" = "click to edit";
 "lng_usernames_active" = "active";
 "lng_usernames_non_active" = "non active";
 "lng_usernames_subtitle" = "Usernames order";
@@ -415,7 +416,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_channel_usernames_subtitle" = "Links order";
 "lng_usernames_deactivate_description" = "Do you want to hide this username from your info page?";
 "lng_usernames_deactivate_confirm" = "Hide";
-"lng_usernames_deactivate_error" = "Sorry, you can't deactivate this username from your info page. ";
 "lng_usernames_description" = "Drag and drop links to change the order in which they will be displayed on your info page.";
 
 "lng_channel_usernames_activate_description" = "Do you want to show this link on the channel info page?";

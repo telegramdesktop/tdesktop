@@ -88,6 +88,10 @@ public:
 		return _controls.requestToJoin && _controls.requestToJoin->toggled();
 	}
 
+	[[nodiscard]] rpl::producer<int> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
+
 	void showError(rpl::producer<QString> text) {
 		_controls.usernameInput->showError();
 		showUsernameError(std::move(text));
@@ -154,6 +158,8 @@ private:
 	mtpRequestId _checkUsernameRequestId = 0;
 	UsernameState _usernameState = UsernameState::Normal;
 	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
+
+	rpl::event_stream<int> _scrollToRequests;
 
 	rpl::lifetime _lifetime;
 
@@ -446,8 +452,12 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		container,
 		tr::lng_create_channel_link_about());
 
+	const auto focusCallback = [=] {
+		_scrollToRequests.fire(container->y());
+		_controls.usernameInput->setFocusFast();
+	};
 	_controls.usernamesList = container->add(
-		object_ptr<UsernamesList>(container, channel, _show));
+		object_ptr<UsernamesList>(container, channel, _show, focusCallback));
 
 	QObject::connect(
 		_controls.usernameInput,
@@ -715,6 +725,10 @@ void EditPeerTypeBox::prepare() {
 		_peer,
 		_useLocationPhrases,
 		_dataSavedValue);
+	controller->scrollToRequests(
+	) | rpl::start_with_next([=, raw = content.data()](int y) {
+		scrollToY(raw->y() + y);
+	}, lifetime());
 	_focusRequests.events(
 	) | rpl::start_with_next(
 		[=] {

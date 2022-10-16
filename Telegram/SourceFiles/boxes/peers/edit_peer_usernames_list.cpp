@@ -93,7 +93,9 @@ UsernamesList::Row::Row(
 : Ui::SettingsButton(parent, rpl::never<QString>())
 , _st(st::inviteLinkListItem)
 , _data(data)
-, _status(data.active
+, _status(data.editable
+	? tr::lng_usernames_edit(tr::now)
+	: data.active
 	? tr::lng_usernames_active(tr::now)
 	: tr::lng_usernames_non_active(tr::now))
 , _rightAction(Ui::CreateChild<RightAction>(this))
@@ -152,14 +154,16 @@ void UsernamesList::Row::paintEvent(QPaintEvent *e) {
 	Ui::SettingsButton::paintBg(p, e->rect(), paintOver);
 	Ui::SettingsButton::paintRipple(p, 0, 0);
 
-	const auto &color = _data.active ? st::msgFile1Bg : st::windowSubTextFg;
+	const auto active = _data.active;
+
+	const auto &color = active ? st::msgFile1Bg : st::windowSubTextFg;
 	p.setPen(Qt::NoPen);
 	p.setBrush(color);
 	{
 		auto hq = PainterHighQualityEnabler(p);
 		p.drawEllipse(_iconRect);
 	}
-	(!_data.active
+	(!active
 		? st::inviteLinkRevokedIcon
 		: st::inviteLinkIcon).paintInCenter(p, _iconRect);
 
@@ -171,7 +175,7 @@ void UsernamesList::Row::paintEvent(QPaintEvent *e) {
 		width(),
 		width() - _st.namePosition.x());
 
-	p.setPen(_data.active
+	p.setPen(active
 		? _st.statusFgActive
 		: paintOver
 		? _st.statusFgOver
@@ -187,10 +191,12 @@ void UsernamesList::Row::paintEvent(QPaintEvent *e) {
 UsernamesList::UsernamesList(
 	not_null<Ui::RpWidget*> parent,
 	not_null<PeerData*> peer,
-	std::shared_ptr<Ui::Show> show)
+	std::shared_ptr<Ui::Show> show,
+	Fn<void()> focusCallback)
 : RpWidget(parent)
 , _show(show)
-, _peer(peer) {
+, _peer(peer)
+, _focusCallback(std::move(focusCallback)) {
 	{
 		auto &api = _peer->session().api();
 		const auto usernames = api.usernames().cacheFor(_peer->id);
@@ -247,12 +253,8 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 				return;
 			}
 
-			if (username.username == _peer->userName()) {
-				_show->showBox(
-					Ui::MakeInformBox(_peer->isSelf()
-						? tr::lng_usernames_deactivate_error()
-						: tr::lng_channel_usernames_deactivate_error()),
-					Ui::LayerOption::KeepOther);
+			if (username.editable) {
+				_focusCallback();
 				return;
 			}
 
