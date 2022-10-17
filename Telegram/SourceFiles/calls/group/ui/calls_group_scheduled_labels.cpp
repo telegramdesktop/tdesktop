@@ -34,7 +34,7 @@ rpl::producer<QString> StartsWhenText(rpl::producer<TimeId> date) {
 		const auto tillAfter = tillToday + kDay;
 
 		const auto time = parsedDate.time().toString(
-			QLocale::system().timeFormat(QLocale::ShortFormat));
+			Ui::Integration::Instance().timeFormat());
 		auto exact = tr::lng_group_call_starts_short_date(
 			lt_date,
 			rpl::single(langDayOfMonthFull(dateDay.date())),
