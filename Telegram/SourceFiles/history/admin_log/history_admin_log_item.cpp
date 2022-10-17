@@ -1520,8 +1520,68 @@ void GenerateItems(
 	};
 
 	const auto createChangeUsernames = [&](const LogChangeUsernames &data) {
-		// #TODO usernames
-		addSimpleServiceMessage({ "changed usernames" });
+		const auto newValue = data.vnew_value().v;
+		const auto oldValue = data.vprev_value().v;
+
+		const auto list = [&](const auto &tlList) {
+			auto result = TextWithEntities();
+			for (const auto &tlValue : tlList) {
+				result.append(PrepareText(
+					history->session().createInternalLinkFull(qs(tlValue)),
+					QString()));
+				result.append('\n');
+			}
+			return result;
+		};
+
+		if (newValue.size() == oldValue.size()) {
+			if (newValue.size() == 1) {
+				const auto tl = MTP_channelAdminLogEventActionChangeUsername(
+					newValue.front(),
+					oldValue.front());
+				tl.match([&](const LogUsername &data) {
+					createChangeUsername(data);
+				}, [](const auto &) {
+				});
+				return;
+			} else {
+				const auto wasReordered = [&] {
+					for (const auto &newLink : newValue) {
+						if (!ranges::contains(oldValue, newLink)) {
+							return false;
+						}
+					}
+					return true;
+				}();
+				if (wasReordered) {
+					auto resultText = fromLinkText;
+					addSimpleServiceMessage(resultText.append({
+						.text = channel->isMegagroup()
+							? QString(" reordered group links:")
+							: QString(" reordered channel links:"),
+					}));
+					const auto body = makeSimpleTextMessage(list(newValue));
+					body->addLogEntryOriginal(
+						id,
+						"Previous order",
+						list(oldValue));
+					addPart(body);
+					return;
+				}
+			}
+		}
+		auto resultText = fromLinkText;
+		addSimpleServiceMessage(resultText.append({
+			.text = channel->isMegagroup()
+				? QString(" changed list of group links:")
+				: QString(" changed list of channel links:"),
+		}));
+		const auto body = makeSimpleTextMessage(list(newValue));
+		body->addLogEntryOriginal(
+			id,
+			"Previous links",
+			list(oldValue));
+		addPart(body);
 	};
 
 	const auto createToggleForum = [&](const LogToggleForum &data) {
