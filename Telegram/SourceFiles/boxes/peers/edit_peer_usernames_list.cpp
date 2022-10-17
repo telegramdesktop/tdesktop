@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/show.h"
 #include "ui/painter.h"
+#include "ui/text/text_utilities.h" // Ui::Text::RichLangValue.
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/popup_menu.h"
@@ -283,8 +284,23 @@ void UsernamesList::rebuild(const Data::Usernames &usernames) {
 							_peer,
 							username.username,
 							!username.active
-						) | rpl::start_with_done([=] {
+						) | rpl::start_with_error_done([=](
+								Api::Usernames::Error error) {
+							if (error == Api::Usernames::Error::TooMuch) {
+								constexpr auto kMaxUsernames = 10.;
+								_show->showBox(
+									Ui::MakeInformBox(
+										tr::lng_usernames_activate_error(
+											lt_count,
+											rpl::single(kMaxUsernames),
+											Ui::Text::RichLangValue)),
+									Ui::LayerOption::KeepOther);
+							}
 							load();
+							_toggleLifetime.destroy();
+						}, [=] {
+							load();
+							_toggleLifetime.destroy();
 						});
 					});
 					close();

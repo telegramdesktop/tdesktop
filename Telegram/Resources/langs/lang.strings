@@ -411,6 +411,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_usernames_active" = "active";
 "lng_usernames_non_active" = "non active";
 "lng_usernames_subtitle" = "Usernames order";
+"lng_usernames_activate_error#one" = "Sorry, you can't activate more than **{count}** usernames.";
+"lng_usernames_activate_error#other" = "Sorry, you can't activate more than **{count}** usernames.";
 "lng_usernames_activate_description" = "Do you want to show this username on your info page?";
 "lng_usernames_activate_confirm" = "Show";
 "lng_channel_usernames_subtitle" = "Links order";

@@ -21,11 +21,16 @@ namespace Api {
 
 class Usernames final {
 public:
+	enum class Error {
+		TooMuch,
+		Unknown,
+	};
+
 	explicit Usernames(not_null<ApiWrap*> api);
 
 	[[nodiscard]] rpl::producer<Data::Usernames> loadUsernames(
 		not_null<PeerData*> peer) const;
-	[[nodiscard]] rpl::producer<> toggle(
+	[[nodiscard]] rpl::producer<rpl::no_value, Error> toggle(
 		not_null<PeerData*> peer,
 		const QString &username,
 		bool active);
@@ -45,7 +50,7 @@ private:
 
 	using Key = PeerId;
 	struct Entry final {
-		rpl::event_stream<> done;
+		rpl::event_stream<rpl::no_value, Error> done;
 		std::vector<QString> usernames;
 	};
 	base::flat_map<Key, Entry> _toggleRequests;

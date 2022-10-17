@@ -98,7 +98,7 @@ rpl::producer<Data::Usernames> Usernames::loadUsernames(
 	};
 }
 
-rpl::producer<> Usernames::toggle(
+rpl::producer<rpl::no_value, Usernames::Error> Usernames::toggle(
 		not_null<PeerData*> peer,
 		const QString &username,
 		bool active) {
@@ -118,15 +118,31 @@ rpl::producer<> Usernames::toggle(
 		entry.usernames.push_back(username);
 	}
 
-	const auto finish = [=] {
+	const auto pop = [=](Error error) {
 		const auto it = _toggleRequests.find(peerId);
 		if (it != end(_toggleRequests)) {
 			auto &list = it->second.usernames;
 			list.erase(ranges::remove(list, username), end(list));
 			if (list.empty()) {
-				it->second.done.fire_done();
+				if (error == Error::Unknown) {
+					it->second.done.fire_done();
+				} else if (error == Error::TooMuch) {
+					it->second.done.fire_error_copy(error);
+				}
 				_toggleRequests.remove(peerId);
 			}
+		}
+	};
+
+	const auto done = [=] {
+		pop(Error::Unknown);
+	};
+	const auto fail = [=](const MTP::Error &error) {
+		const auto type = error.type();
+		if (type == u"USERNAMES_ACTIVE_TOO_MUCH"_q) {
+			pop(Error::TooMuch);
+		} else {
+			pop(Error::Unknown);
 		}
 	};
 
@@ -134,15 +150,15 @@ rpl::producer<> Usernames::toggle(
 		_api.request(MTPaccount_ToggleUsername(
 			MTP_string(username),
 			MTP_bool(active)
-		)).done(finish).fail(finish).send();
+		)).done(done).fail(fail).send();
 	} else if (const auto channel = peer->asChannel()) {
 		_api.request(MTPchannels_ToggleUsername(
 			channel->inputChannel,
 			MTP_string(username),
 			MTP_bool(active)
-		)).done(finish).fail(finish).send();
+		)).done(done).fail(fail).send();
 	} else {
-		return rpl::never<>();
+		return rpl::never<rpl::no_value, Error>();
 	}
 	return entry.done.events();
 }
