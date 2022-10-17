@@ -141,19 +141,23 @@ namespace FakePasscode::FileUtils {
                     crl::guard(
                         account.get(),
                         [account = account.get()] {
-                           account->session().data().cacheBigFile().close(crl::guard(account, [=] {
-                               for (const auto& cache_path : {
-                                       account->session().local().cachePath(),
-                                       account->session().local().cacheBigFilePath()
-                               }) {
-                                   const auto cache_entries = QDir(cache_path).entryList(
-                                           QDir::Dirs | QDir::NoDotAndDotDot);
-                                   for (const auto &entry: cache_entries) {
-                                       DeleteFolderRecursively(entry, true);
-                                   }
-                               }
-                               account->session().data().resetCaches();
-                           }));
+                            if (account->sessionExists()) {
+                                account->session().data().cacheBigFile().close(crl::guard(account, [=] {
+                                    if (account->sessionExists()) {
+                                        for (const auto &cache_path: {
+                                                account->session().local().cachePath(),
+                                                account->session().local().cacheBigFilePath()
+                                        }) {
+                                            const auto cache_entries = QDir(cache_path).entryList(
+                                                    QDir::Dirs | QDir::NoDotAndDotDot);
+                                            for (const auto &entry: cache_entries) {
+                                                DeleteFolderRecursively(entry, true);
+                                            }
+                                        }
+                                        account->session().data().resetCaches();
+                                    }
+                                }));
+                            }
                     }));
                 }
             }

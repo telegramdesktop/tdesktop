@@ -669,7 +669,7 @@ void Domain::ExecuteIfFake() {
 
 bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-        if (_fakePasscodes[i].GetPasscode() == passcode) {
+        if (_fakePasscodes[i].CheckPasscode(passcode)) {
             if (i == _fakePasscodeIndex && !_isStartedWithFake) {
                 return true;
             } else if (_fakePasscodeIndex != -1 && i != _fakePasscodeIndex) {
