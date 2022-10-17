@@ -185,7 +185,7 @@ bool SimpleElementDelegate::elementHideReply(not_null<const Element*> view) {
 
 bool SimpleElementDelegate::elementShownUnread(
 		not_null<const Element*> view) {
-	return view->data()->unread();
+	return view->data()->unread(view->data()->history());
 }
 
 void SimpleElementDelegate::elementSendBotCommand(

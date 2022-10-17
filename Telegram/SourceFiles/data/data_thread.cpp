@@ -17,6 +17,13 @@ namespace Data {
 
 Thread::~Thread() = default;
 
+MsgId Thread::topicRootId() const {
+	if (const auto topic = asTopic()) {
+		return topic->rootId();
+	}
+	return MsgId();
+}
+
 not_null<PeerData*> Thread::peer() const {
 	return owningHistory()->peer;
 }

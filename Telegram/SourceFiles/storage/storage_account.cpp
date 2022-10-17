@@ -1025,17 +1025,20 @@ std::unique_ptr<MTP::Config> Account::readMtpConfig() {
 template <typename Callback>
 void EnumerateDrafts(
 		const Data::HistoryDrafts &map,
-		Data::Draft *cloudDraft,
 		bool supportMode,
 		const base::flat_map<Data::DraftKey, MessageDraftSource> &sources,
 		Callback &&callback) {
 	for (const auto &[key, draft] : map) {
-		if (key == Data::DraftKey::Cloud() || sources.contains(key)) {
+		if (key.isCloud() || sources.contains(key)) {
 			continue;
-		} else if (key == Data::DraftKey::Local()
-			&& !supportMode
-			&& Data::draftsAreEqual(draft.get(), cloudDraft)) {
-			continue;
+		} else if (key.isLocal()
+			&& (!supportMode || key.topicRootId())) {
+			const auto i = map.find(
+				Data::DraftKey::Cloud(key.topicRootId()));
+			const auto cloud = (i != end(map)) ? i->second.get() : nullptr;
+			if (Data::DraftsAreEqual(draft.get(), cloud)) {
+				continue;
+			}
 		}
 		callback(
 			key,
@@ -1085,10 +1088,6 @@ void Account::unregisterDraftSource(
 void Account::writeDrafts(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
-	const auto cloudIt = map.find(Data::DraftKey::Cloud());
-	const auto cloudDraft = (cloudIt != end(map))
-		? cloudIt->second.get()
-		: nullptr;
 	const auto supportMode = _owner->session().supportMode();
 	const auto sourcesIt = _draftSources.find(history);
 	const auto &sources = (sourcesIt != _draftSources.end())
@@ -1097,7 +1096,6 @@ void Account::writeDrafts(not_null<History*> history) {
 	auto count = 0;
 	EnumerateDrafts(
 		map,
-		cloudDraft,
 		supportMode,
 		sources,
 		[&](auto&&...) { ++count; });
@@ -1133,7 +1131,6 @@ void Account::writeDrafts(not_null<History*> history) {
 	};
 	EnumerateDrafts(
 		map,
-		cloudDraft,
 		supportMode,
 		sources,
 		sizeCallback);
@@ -1159,7 +1156,6 @@ void Account::writeDrafts(not_null<History*> history) {
 	};
 	EnumerateDrafts(
 		map,
-		cloudDraft,
 		supportMode,
 		sources,
 		writeCallback);
@@ -1173,10 +1169,6 @@ void Account::writeDrafts(not_null<History*> history) {
 void Account::writeDraftCursors(not_null<History*> history) {
 	const auto peerId = history->peer->id;
 	const auto &map = history->draftsMap();
-	const auto cloudIt = map.find(Data::DraftKey::Cloud());
-	const auto cloudDraft = (cloudIt != end(map))
-		? cloudIt->second.get()
-		: nullptr;
 	const auto supportMode = _owner->session().supportMode();
 	const auto sourcesIt = _draftSources.find(history);
 	const auto &sources = (sourcesIt != _draftSources.end())
@@ -1185,7 +1177,6 @@ void Account::writeDraftCursors(not_null<History*> history) {
 	auto count = 0;
 	EnumerateDrafts(
 		map,
-		cloudDraft,
 		supportMode,
 		sources,
 		[&](auto&&...) { ++count; });
@@ -1223,7 +1214,6 @@ void Account::writeDraftCursors(not_null<History*> history) {
 	};
 	EnumerateDrafts(
 		map,
-		cloudDraft,
 		supportMode,
 		sources,
 		writeCallback);
@@ -1282,7 +1272,7 @@ void Account::readDraftCursors(PeerId peerId, Data::HistoryDrafts &map) {
 			? Data::DraftKey::FromSerialized(keyValue)
 			: keysOld
 			? Data::DraftKey::FromSerializedOld(keyValueOld)
-			: Data::DraftKey::Local();
+			: Data::DraftKey::Local(0);
 		qint32 position = 0, anchor = 0, scroll = QFIXED_MAX;
 		draft.stream >> position >> anchor >> scroll;
 		if (const auto i = map.find(key); i != end(map)) {
@@ -1309,13 +1299,14 @@ void Account::readDraftCursorsLegacy(
 		return;
 	}
 
-	if (const auto i = map.find(Data::DraftKey::Local()); i != end(map)) {
+	if (const auto i = map.find(Data::DraftKey::Local({})); i != end(map)) {
 		i->second->cursor = MessageCursor(
 			localPosition,
 			localAnchor,
 			localScroll);
 	}
-	if (const auto i = map.find(Data::DraftKey::LocalEdit()); i != end(map)) {
+	if (const auto i = map.find(Data::DraftKey::LocalEdit({}))
+		; i != end(map)) {
 		i->second->cursor = MessageCursor(
 			editPosition,
 			editAnchor,
@@ -1327,7 +1318,7 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	const auto guard = gsl::finally([&] {
 		if (const auto migrated = history->migrateFrom()) {
 			readDraftsWithCursors(migrated);
-			migrated->clearLocalEditDraft();
+			migrated->clearLocalEditDraft({});
 			history->takeLocalDraft(migrated);
 		}
 	});
@@ -1396,10 +1387,11 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 		const auto key = keysOld
 			? Data::DraftKey::FromSerializedOld(keyValueOld)
 			: Data::DraftKey::FromSerialized(keyValue);
-		if (key && key != Data::DraftKey::Cloud()) {
+		if (key && !key.isCloud()) {
 			map.emplace(key, std::make_unique<Data::Draft>(
 				data,
 				messageId,
+				key.topicRootId(),
 				MessageCursor(),
 				previewState));
 		}
@@ -1457,24 +1449,31 @@ void Account::readDraftsWithCursorsLegacy(
 		editTagsSerialized,
 		editData.text.size());
 
+	const auto topicRootId = MsgId();
 	auto map = base::flat_map<Data::DraftKey, std::unique_ptr<Data::Draft>>();
 	if (!msgData.text.isEmpty() || msgReplyTo) {
-		map.emplace(Data::DraftKey::Local(), std::make_unique<Data::Draft>(
-			msgData,
-			msgReplyTo,
-			MessageCursor(),
-			(msgPreviewCancelled
-				? Data::PreviewState::Cancelled
-				: Data::PreviewState::Allowed)));
+		map.emplace(
+			Data::DraftKey::Local(topicRootId),
+			std::make_unique<Data::Draft>(
+				msgData,
+				msgReplyTo,
+				topicRootId,
+				MessageCursor(),
+				(msgPreviewCancelled
+					? Data::PreviewState::Cancelled
+					: Data::PreviewState::Allowed)));
 	}
 	if (editMsgId) {
-		map.emplace(Data::DraftKey::LocalEdit(), std::make_unique<Data::Draft>(
-			editData,
-			editMsgId,
-			MessageCursor(),
-			(editPreviewCancelled
-				? Data::PreviewState::Cancelled
-				: Data::PreviewState::Allowed)));
+		map.emplace(
+			Data::DraftKey::LocalEdit(topicRootId),
+			std::make_unique<Data::Draft>(
+				editData,
+				editMsgId,
+				topicRootId,
+				MessageCursor(),
+				(editPreviewCancelled
+					? Data::PreviewState::Cancelled
+					: Data::PreviewState::Allowed)));
 	}
 	readDraftCursors(peerId, map);
 	history->setDraftsMap(std::move(map));

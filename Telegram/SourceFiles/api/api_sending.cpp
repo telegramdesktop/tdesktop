@@ -86,6 +86,9 @@ void SendExistingMedia(
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (message.action.topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, message.action.options);
@@ -118,7 +121,6 @@ void SendExistingMedia(
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
-	const auto replyTo = message.action.replyTo;
 	const auto captionText = caption.text;
 
 	if (message.action.options.scheduled) {
@@ -133,7 +135,7 @@ void SendExistingMedia(
 		newId.msg,
 		flags,
 		viaBotId,
-		replyTo,
+		message.action.replyTo,
 		HistoryItem::NewMessageDate(message.action.options.scheduled),
 		messageFromId,
 		messagePostAuthor,
@@ -146,12 +148,14 @@ void SendExistingMedia(
 		const auto usedFileReference = media->fileReference();
 		histories.sendPreparedMessage(
 			history,
-			replyTo,
+			message.action.replyTo,
+			message.action.topicRootId,
 			randomId,
 			Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 				MTP_flags(sendFlags),
 				peer->input,
 				Data::Histories::ReplyToPlaceholder(),
+				Data::Histories::TopicRootPlaceholder(),
 				inputMedia(),
 				MTP_string(captionText),
 				MTP_long(randomId),
@@ -269,6 +273,9 @@ bool SendDice(MessageToSend &message) {
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (message.action.topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto replyHeader = NewMessageReplyHeader(message.action);
 	const auto anonymousPost = peer->amAnonymous();
@@ -289,7 +296,6 @@ bool SendDice(MessageToSend &message) {
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name()
 		: QString();
-	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -312,12 +318,14 @@ bool SendDice(MessageToSend &message) {
 		HistoryMessageMarkupData());
 	histories.sendPreparedMessage(
 		history,
-		replyTo,
+		message.action.replyTo,
+		message.action.topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
@@ -368,9 +376,13 @@ void SendConfirmedFile(
 	const auto peer = history->peer;
 
 	if (!isEditing) {
-		file->to.replyTo = session->data().histories().convertTopicReplyTo(
+		const auto histories = &session->data().histories();
+		file->to.replyTo = histories->convertTopicReplyTo(
 			history,
 			file->to.replyTo);
+		file->to.topicRootId = histories->convertTopicReplyTo(
+			history,
+			file->to.topicRootId);
 	}
 
 	session->uploader().upload(newId, file);
@@ -378,6 +390,7 @@ void SendConfirmedFile(
 	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
+	action.topicRootId = file->to.topicRootId;
 	action.generateLocal = true;
 	session->api().sendAction(action);
 

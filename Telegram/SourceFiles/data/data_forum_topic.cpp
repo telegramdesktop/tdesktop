@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_histories.h"
 #include "data/data_replies_list.h"
+#include "data/data_send_action.h"
 #include "data/notify/data_notify_settings.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -142,9 +143,14 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 , _forum(forum)
 , _list(_forum->topicsList())
 , _replies(std::make_shared<RepliesList>(history(), rootId))
+, _sendActionPainter(owner().sendActionManager().repliesPainter(
+	history(),
+	rootId))
 , _rootId(rootId)
 , _lastKnownServerMessageId(rootId) {
 	Thread::setMuted(owner().notifySettings().isMuted(this));
+
+	_sendActionPainter->setTopic(this);
 
 	_replies->unreadCountValue(
 	) | rpl::combine_previous(
@@ -161,6 +167,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 }
 
 ForumTopic::~ForumTopic() {
+	_sendActionPainter->setTopic(nullptr);
 	session().api().unreadThings().cancelRequests(this);
 }
 
@@ -191,11 +198,24 @@ MsgId ForumTopic::rootId() const {
 	return _rootId;
 }
 
+bool ForumTopic::creating() const {
+	return _forum->creating(_rootId);
+}
+
+void ForumTopic::discard() {
+	Expects(creating());
+
+	_forum->discardCreatingId(_rootId);
+}
+
 void ForumTopic::setRealRootId(MsgId realId) {
 	if (_rootId != realId) {
 		_rootId = realId;
 		_lastKnownServerMessageId = realId;
 		_replies = std::make_shared<RepliesList>(history(), _rootId);
+		_sendActionPainter = owner().sendActionManager().repliesPainter(
+			history(),
+			_rootId);
 	}
 }
 
@@ -220,6 +240,15 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 #endif
 
 	owner().notifySettings().apply(this, data.vnotify_settings());
+
+	const auto draft = data.vdraft();
+	if (draft && draft->type() == mtpc_draftMessage) {
+		Data::ApplyPeerCloudDraft(
+			&session(),
+			channel()->id,
+			_rootId,
+			draft->c_draftMessage());
+	}
 
 	_replies->setInboxReadTill(
 		data.vread_inbox_max_id().v,
@@ -390,13 +419,11 @@ void ForumTopic::requestChatListMessage() {
 
 TimeId ForumTopic::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
-#if 0 // #TODO forum draft
-	if (const auto draft = cloudDraft()) {
-		if (!Data::draftIsNull(draft) && !session().supportMode()) {
+	if (const auto draft = history()->cloudDraft(_rootId)) {
+		if (!Data::DraftIsNull(draft) && !session().supportMode()) {
 			return std::max(result, draft->date);
 		}
 	}
-#endif
 	return result;
 }
 
@@ -480,6 +507,17 @@ void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {
 	setLastMessage(item);
 }
 
+void ForumTopic::maybeSetLastMessage(not_null<HistoryItem*> item) {
+	Expects(item->topicRootId() == _rootId);
+
+	if (!_lastMessage
+		|| ((*_lastMessage)->date() < item->date())
+		|| ((*_lastMessage)->date() == item->date()
+			&& (*_lastMessage)->id < item->id)) {
+		setLastMessage(item);
+	}
+}
+
 void ForumTopic::applyItemRemoved(MsgId id) {
 	if (const auto lastItem = lastMessage()) {
 		if (lastItem->id == id) {
@@ -497,6 +535,11 @@ void ForumTopic::applyItemRemoved(MsgId id) {
 			requestChatListMessage();
 		}
 	}
+}
+
+bool ForumTopic::isServerSideUnread(
+		not_null<const HistoryItem*> item) const {
+	return _replies->isServerSideUnread(item);
 }
 
 int ForumTopic::unreadCount() const {
@@ -542,6 +585,10 @@ void ForumTopic::setUnreadMark(bool unread) {
 	});
 	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
 	Thread::setUnreadMark(unread);
+}
+
+not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {
+	return _sendActionPainter.get();
 }
 
 int ForumTopic::chatListUnreadCount() const {

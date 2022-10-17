@@ -844,14 +844,16 @@ void Filler::addCreatePoll() {
 		? SendMenu::Type::SilentOnly
 		: SendMenu::Type::Scheduled;
 	const auto flag = PollData::Flags();
+	const auto topicRootId = _request.rootId;
 	const auto replyToId = _request.currentReplyToId
 		? _request.currentReplyToId
-		: _request.rootId;
+		: topicRootId;
 	auto callback = [=] {
 		PeerMenuCreatePoll(
 			controller,
 			peer,
 			replyToId,
+			topicRootId,
 			flag,
 			flag,
 			source,
@@ -1168,6 +1170,7 @@ void PeerMenuCreatePoll(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		MsgId replyToId,
+		MsgId topicRootId,
 		PollData::Flags chosen,
 		PollData::Flags disabled,
 		Api::SendType sendType,
@@ -1194,8 +1197,9 @@ void PeerMenuCreatePoll(
 			result.options);
 		action.clearDraft = false;
 		action.replyTo = replyToId;
-		if (const auto localDraft = action.history->localDraft()) {
-			action.clearDraft = localDraft->textWithTags.text.isEmpty();
+		action.topicRootId = topicRootId;
+		if (const auto local = action.history->localDraft(topicRootId)) {
+			action.clearDraft = local->textWithTags.text.isEmpty();
 		}
 		const auto api = &peer->session().api();
 		api->polls().create(result.poll, action, crl::guard(weak, [=] {

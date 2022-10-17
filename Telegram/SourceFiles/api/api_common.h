@@ -37,6 +37,7 @@ struct SendAction {
 	not_null<History*> history;
 	SendOptions options;
 	MsgId replyTo = 0;
+	MsgId topicRootId = 0;
 	bool clearDraft = true;
 	bool generateLocal = true;
 	MsgId replaceMediaOf = 0;

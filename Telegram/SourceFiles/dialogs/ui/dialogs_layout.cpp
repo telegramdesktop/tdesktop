@@ -48,7 +48,8 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 	return user->isBot() && !user->isSupport() && !user->isRepliesChat();
 }
 
-[[nodiscard]] bool ShowSendActionInDialogs(History *history) {
+[[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
+	const auto history = thread ? thread->owningHistory().get() : nullptr;
 	return history
 		&& (!history->peer->isUser()
 			|| history->peer->asUser()->onlineTill > 0);
@@ -465,8 +466,8 @@ void PaintRow(
 			: context.selected
 			? st::dialogsTextFgServiceOver
 			: st::dialogsTextFgService;
-		if (!ShowSendActionInDialogs(history)
-			|| !history->sendActionPainter()->paint(
+		if (!ShowSendActionInDialogs(thread)
+			|| !thread->sendActionPainter()->paint(
 				p,
 				nameleft,
 				texttop,
@@ -474,7 +475,8 @@ void PaintRow(
 				context.width,
 				color,
 				context.paused)) {
-			if (history->cloudDraftTextCache().isEmpty()) {
+			auto &cache = thread->cloudDraftTextCache();
+			if (cache.isEmpty()) {
 				using namespace TextUtilities;
 				auto draftWrapped = Text::PlainLink(
 					tr::lng_dialogs_text_from_wrapped(
@@ -496,10 +498,10 @@ void PaintRow(
 						}),
 						Text::WithEntities);
 				const auto context = Core::MarkedTextContext{
-					.session = &history->session(),
+					.session = &thread->session(),
 					.customEmojiRepaint = customEmojiRepaint,
 				};
-				history->cloudDraftTextCache().setMarkedText(
+				cache.setMarkedText(
 					st::dialogsTextStyle,
 					draftText,
 					DialogTextOptions(),
@@ -510,7 +512,7 @@ void PaintRow(
 				: context.selected
 				? st::dialogsTextFgOver
 				: st::dialogsTextFg);
-			history->cloudDraftTextCache().draw(p, {
+			cache.draw(p, {
 				.position = { nameleft, texttop },
 				.availableWidth = availableWidth,
 				.palette = &(supportMode
@@ -549,8 +551,8 @@ void PaintRow(
 			? st::dialogsTextFgServiceOver
 			: st::dialogsTextFgService;
 		p.setFont(st::dialogsTextFont);
-		if (!ShowSendActionInDialogs(history)
-			|| !history->sendActionPainter()->paint(
+		if (!ShowSendActionInDialogs(thread)
+			|| !thread->sendActionPainter()->paint(
 				p,
 				nameleft,
 				texttop,
@@ -575,8 +577,10 @@ void PaintRow(
 			: st::dialogsPinnedIcon;
 		icon.paint(p, context.width - context.st->padding.right() - icon.width(), texttop, context.width);
 	}
-	auto sendStateIcon = [&]() -> const style::icon* {
-		if (draft) {
+	const auto sendStateIcon = [&]() -> const style::icon* {
+		if (!thread) {
+			return nullptr;
+		} else if (draft) {
 			if (draft->saveRequestId) {
 				return &(context.active
 					? st::dialogsSendingIconActive
@@ -586,7 +590,7 @@ void PaintRow(
 			}
 		} else if (item && !item->isEmpty() && item->needCheck()) {
 			if (!item->isSending() && !item->hasFailed()) {
-				if (item->unread()) {
+				if (item->unread(thread)) {
 					return &(context.active
 						? st::dialogsSentIconActive
 						: context.selected
@@ -607,7 +611,7 @@ void PaintRow(
 		}
 		return nullptr;
 	}();
-	if (sendStateIcon && history) {
+	if (sendStateIcon) {
 		rectForName.setWidth(rectForName.width() - st::dialogsSendStateSkip);
 		sendStateIcon->paint(p, rectForName.topLeft() + QPoint(rectForName.width(), 0), context.width);
 	}
@@ -892,12 +896,12 @@ void RowPainter::Paint(
 	const auto unreadMuted = entry->chatListMutedBadge();
 	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
-		if (history && (!item || (!unreadCount && !unreadMark))) {
+		if (thread && (!item || (!unreadCount && !unreadMark))) {
 			// Draw item, if there are unread messages.
-			if (const auto draft = history->cloudDraft()) {
-				if (!Data::draftIsNull(draft)) {
-					return draft;
-				}
+			const auto draft = thread->owningHistory()->cloudDraft(
+				thread->topicRootId());
+			if (!Data::DraftIsNull(draft)) {
+				return draft;
 			}
 		}
 		return nullptr;
@@ -977,8 +981,8 @@ void RowPainter::Paint(
 			texttop,
 			availableWidth,
 			st::dialogsTextFont->height);
-		const auto actionWasPainted = ShowSendActionInDialogs(history)
-			? history->sendActionPainter()->paint(
+		const auto actionWasPainted = ShowSendActionInDialogs(thread)
+			? thread->sendActionPainter()->paint(
 				p,
 				rect.x(),
 				rect.y(),

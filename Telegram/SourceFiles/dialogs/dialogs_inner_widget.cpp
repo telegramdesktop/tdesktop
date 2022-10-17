@@ -185,7 +185,7 @@ InnerWidget::InnerWidget(
 			width(),
 			update.textUpdated);
 		updateDialogRow(
-			RowDescriptor(update.history, FullMsgId()),
+			RowDescriptor(update.thread, FullMsgId()),
 			updateRect,
 			UpdateRowSection::Default | UpdateRowSection::Filtered);
 	}, lifetime());
@@ -2394,8 +2394,10 @@ void InnerWidget::refreshEmptyLabel() {
 	const auto data = &session().data();
 	const auto state = !shownDialogs()->empty()
 		? EmptyState::None
-		: (_openedForum && _openedForum->topicsList()->loaded())
-		? EmptyState::EmptyForum
+		: _openedForum
+		? (_openedForum->topicsList()->loaded()
+			? EmptyState::EmptyForum
+			: EmptyState::Loading)
 		: (!_filterId && data->contactsLoaded().current())
 		? EmptyState::NoContacts
 		: (_filterId > 0) && data->chatsList()->loaded()

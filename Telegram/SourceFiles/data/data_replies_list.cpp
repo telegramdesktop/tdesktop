@@ -765,6 +765,14 @@ void RepliesList::setUnreadCount(std::optional<int> count) {
 	}
 }
 
+bool RepliesList::isServerSideUnread(
+		not_null<const HistoryItem*> item) const {
+	const auto till = item->out()
+		? computeOutboxReadTillFull()
+		: computeInboxReadTillFull();
+	return (item->id > till);
+}
+
 void RepliesList::checkReadTillEnd() {
 	if (_unreadCount.current() != 0
 		&& _skippedAfter == 0

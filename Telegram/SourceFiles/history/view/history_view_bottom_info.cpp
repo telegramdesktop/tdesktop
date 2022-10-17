@@ -645,7 +645,7 @@ BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	if (forwarded && forwarded->imported) {
 		result.flags |= Flag::Imported;
 	}
-	// We don't want to pass and update it in Date for now.
+	// We don't want to pass and update it in Data for now.
 	//if (item->unread()) {
 	//	result.flags |= Flag::Unread;
 	//}

@@ -654,7 +654,7 @@ bool InnerWidget::elementHideReply(not_null<const Element*> view) {
 }
 
 bool InnerWidget::elementShownUnread(not_null<const Element*> view) {
-	return view->data()->unread();
+	return false;
 }
 
 void InnerWidget::elementSendBotCommand(

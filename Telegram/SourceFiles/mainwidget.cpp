@@ -555,12 +555,14 @@ bool MainWidget::shareUrl(
 		QFIXED_MAX
 	};
 	const auto history = peer->owner().history(peer);
+	const auto topicRootId = 0;
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		0,
+		0, // replyTo
+		topicRootId,
 		cursor,
 		Data::PreviewState::Allowed));
-	history->clearLocalEditDraft();
+	history->clearLocalEditDraft(topicRootId);
 	history->session().changes().historyUpdated(
 		history,
 		Data::HistoryUpdate::Flag::LocalDraftSet);
@@ -587,12 +589,14 @@ bool MainWidget::inlineSwitchChosen(
 		int(botAndQuery.size()),
 		QFIXED_MAX
 	};
+	const auto topicRootId = 0;
 	h->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
-		0,
+		0, // replyTo
+		topicRootId,
 		cursor,
 		Data::PreviewState::Allowed));
-	h->clearLocalEditDraft();
+	h->clearLocalEditDraft(topicRootId);
 	h->session().changes().historyUpdated(
 		h,
 		Data::HistoryUpdate::Flag::LocalDraftSet);

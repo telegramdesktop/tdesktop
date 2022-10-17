@@ -75,7 +75,7 @@ auto SendActionManager::repliesPainter(
 	if (auto strong = weak.lock()) {
 		return strong;
 	}
-	auto result = std::make_shared<SendActionPainter>(history);
+	auto result = std::make_shared<SendActionPainter>(history, rootId);
 	weak = result;
 	return result;
 }

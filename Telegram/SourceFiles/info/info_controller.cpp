@@ -204,29 +204,35 @@ void Controller::setupMigrationViewer() {
 	) | rpl::filter([=] {
 		return peer->migrateTo() || (peer->migrateFrom() != _migrated);
 	}) | rpl::start_with_next([=] {
-		const auto window = parentController();
-		const auto section = _section;
-		auto params = Window::SectionShow(
-			Window::SectionShow::Way::Backward,
-			anim::type::instant,
-			anim::activation::background);
-		if (wrap() == Wrap::Side) {
-			params.thirdColumn = true;
-		}
-		InvokeQueued(_widget, [=] {
-			window->showSection(
-				std::make_shared<Memento>(peer, section),
-				params);
-		});
+		replaceWith(std::make_shared<Memento>(peer, _section));
 	}, lifetime());
+}
+
+void Controller::replaceWith(std::shared_ptr<Memento> memento) {
+	const auto window = parentController();
+	const auto section = _section;
+	auto params = Window::SectionShow(
+		Window::SectionShow::Way::Backward,
+		anim::type::instant,
+		anim::activation::background);
+	if (wrap() == Wrap::Side) {
+		params.thirdColumn = true;
+	}
+	InvokeQueued(_widget, [=, memento = std::move(memento)]() mutable {
+		window->showSection(std::move(memento), params);
+	});
 }
 
 void Controller::setupTopicViewer() {
 	session().data().itemIdChanged(
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
 		if (const auto topic = _key.topic()) {
-			if (topic->rootId() == change.oldId) {
-				_key = Key(topic->forum()->topicFor(change.newId.msg));
+			if (topic->rootId() == change.oldId
+				|| (topic->peer()->id == change.newId.peer
+					&& topic->rootId() == change.newId.msg)) {
+				const auto now = topic->forum()->topicFor(change.newId.msg);
+				_key = Key(now);
+				replaceWith(std::make_shared<Memento>(now, _section));
 			}
 		}
 	}, _lifetime);

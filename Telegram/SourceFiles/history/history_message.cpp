@@ -1773,6 +1773,9 @@ void HistoryMessage::setReplyFields(
 		&& !IsServerMsgId(reply->replyToMsgTop)) {
 		reply->replyToMsgTop = replyToTop;
 		changeReplyToTopCounter(reply, 1);
+		if (const auto topic = this->topic()) {
+			topic->maybeSetLastMessage(this);
+		}
 	}
 }
 

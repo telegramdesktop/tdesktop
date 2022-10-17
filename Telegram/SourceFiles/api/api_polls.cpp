@@ -42,16 +42,20 @@ void Polls::create(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (action.replyTo) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto clearCloudDraft = action.clearDraft;
 	if (clearCloudDraft) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-		history->clearLocalDraft();
-		history->clearCloudDraft();
-		history->startSavingCloudDraft();
+		history->clearLocalDraft(topicRootId);
+		history->clearCloudDraft(topicRootId);
+		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	if (silentPost) {
@@ -65,16 +69,17 @@ void Polls::create(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
 	auto &histories = history->owner().histories();
-	const auto replyTo = action.replyTo;
 	const auto randomId = base::RandomValue<uint64>();
 	histories.sendPreparedMessage(
 		history,
-		replyTo,
+		action.replyTo,
+		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			PollDataToInputMedia(&data),
 			MTP_string(),
 			MTP_long(randomId),
@@ -85,6 +90,7 @@ void Polls::create(
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
+				topicRootId,
 				UnixtimeFromMsgId(response.outerMsgId));
 		}
 		_session->changes().historyUpdated(
@@ -96,6 +102,7 @@ void Polls::create(
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		if (clearCloudDraft) {
 			history->finishSavingCloudDraft(
+				topicRootId,
 				UnixtimeFromMsgId(response.outerMsgId));
 		}
 		fail();

@@ -157,53 +157,56 @@ void History::itemVanished(not_null<HistoryItem*> item) {
 		clearLastKeyboard();
 	}
 	if ((!item->out() || item->isPost())
-		&& item->unread()
+		&& item->unread(this)
 		&& unreadCount() > 0) {
 		setUnreadCount(unreadCount() - 1);
 	}
 }
 
 void History::takeLocalDraft(not_null<History*> from) {
-	const auto i = from->_drafts.find(Data::DraftKey::Local());
+	const auto topicRootId = MsgId(0);
+	const auto i = from->_drafts.find(Data::DraftKey::Local(topicRootId));
 	if (i == end(from->_drafts)) {
 		return;
 	}
 	auto &draft = i->second;
 	if (!draft->textWithTags.text.isEmpty()
-		&& !_drafts.contains(Data::DraftKey::Local())) {
+		&& !_drafts.contains(Data::DraftKey::Local(topicRootId))) {
 		// Edit and reply to drafts can't migrate.
 		// Cloud drafts do not migrate automatically.
 		draft->msgId = 0;
 
 		setLocalDraft(std::move(draft));
 	}
-	from->clearLocalDraft();
+	from->clearLocalDraft(topicRootId);
 	session().api().saveDraftToCloudDelayed(from);
 }
 
-void History::createLocalDraftFromCloud() {
-	const auto draft = cloudDraft();
+void History::createLocalDraftFromCloud(MsgId topicRootId) {
+	const auto draft = cloudDraft(topicRootId);
 	if (!draft) {
-		clearLocalDraft();
+		clearLocalDraft(topicRootId);
 		return;
-	} else if (Data::draftIsNull(draft) || !draft->date) {
+	} else if (Data::DraftIsNull(draft) || !draft->date) {
 		return;
 	}
 
-	auto existing = localDraft();
-	if (Data::draftIsNull(existing)
+	auto existing = localDraft(topicRootId);
+	if (Data::DraftIsNull(existing)
 		|| !existing->date
 		|| draft->date >= existing->date) {
 		if (!existing) {
 			setLocalDraft(std::make_unique<Data::Draft>(
 				draft->textWithTags,
 				draft->msgId,
+				topicRootId,
 				draft->cursor,
 				draft->previewState));
-			existing = localDraft();
+			existing = localDraft(topicRootId);
 		} else if (existing != draft) {
 			existing->textWithTags = draft->textWithTags;
 			existing->msgId = draft->msgId;
+			existing->topicRootId = draft->topicRootId;
 			existing->cursor = draft->cursor;
 			existing->previewState = draft->previewState;
 		}
@@ -219,18 +222,22 @@ Data::Draft *History::draft(Data::DraftKey key) const {
 	return (i != _drafts.end()) ? i->second.get() : nullptr;
 }
 
-void History::setDraft(Data::DraftKey key, std::unique_ptr<Data::Draft> &&draft) {
+void History::setDraft(
+		Data::DraftKey key,
+		std::unique_ptr<Data::Draft> &&draft) {
 	if (!key) {
 		return;
 	}
-	const auto changingCloudDraft = (key == Data::DraftKey::Cloud());
-	if (changingCloudDraft) {
-		cloudDraftTextCache().clear();
+	const auto cloudThread = key.isCloud()
+		? threadFor(key.topicRootId())
+		: nullptr;
+	if (cloudThread) {
+		cloudThread->cloudDraftTextCache().clear();
 	}
 	if (draft) {
 		_drafts[key] = std::move(draft);
-	} else if (_drafts.remove(key) && changingCloudDraft) {
-		updateChatListSortPosition();
+	} else if (_drafts.remove(key) && cloudThread) {
+		cloudThread->updateChatListSortPosition();
 	}
 }
 
@@ -250,31 +257,38 @@ void History::clearDraft(Data::DraftKey key) {
 }
 
 void History::clearDrafts() {
-	const auto changingCloudDraft = _drafts.contains(Data::DraftKey::Cloud());
-	_drafts.clear();
-	if (changingCloudDraft) {
-		cloudDraftTextCache().clear();
-		updateChatListSortPosition();
+	for (auto &[key, draft] : base::take(_drafts)) {
+		const auto cloudThread = key.isCloud()
+			? threadFor(key.topicRootId())
+			: nullptr;
+		if (cloudThread) {
+			cloudThread->cloudDraftTextCache().clear();
+			cloudThread->updateChatListSortPosition();
+		}
 	}
 }
 
-Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
-	if (Data::draftIsNull(fromDraft)) {
+Data::Draft *History::createCloudDraft(
+		MsgId topicRootId,
+		const Data::Draft *fromDraft) {
+	if (Data::DraftIsNull(fromDraft)) {
 		setCloudDraft(std::make_unique<Data::Draft>(
 			TextWithTags(),
 			0,
+			topicRootId,
 			MessageCursor(),
 			Data::PreviewState::Allowed));
-		cloudDraft()->date = TimeId(0);
+		cloudDraft(topicRootId)->date = TimeId(0);
 	} else {
-		auto existing = cloudDraft();
+		auto existing = cloudDraft(topicRootId);
 		if (!existing) {
 			setCloudDraft(std::make_unique<Data::Draft>(
 				fromDraft->textWithTags,
 				fromDraft->msgId,
+				topicRootId,
 				fromDraft->cursor,
 				fromDraft->previewState));
-			existing = cloudDraft();
+			existing = cloudDraft(topicRootId);
 		} else if (existing != fromDraft) {
 			existing->textWithTags = fromDraft->textWithTags;
 			existing->msgId = fromDraft->msgId;
@@ -284,42 +298,60 @@ Data::Draft *History::createCloudDraft(const Data::Draft *fromDraft) {
 		existing->date = base::unixtime::now();
 	}
 
-	cloudDraftTextCache().clear();
-	updateChatListSortPosition();
-
-	return cloudDraft();
-}
-
-bool History::skipCloudDraftUpdate(TimeId date) const {
-	return (_savingCloudDraftRequests > 0)
-		|| (date < _acceptCloudDraftsAfter);
-}
-
-void History::startSavingCloudDraft() {
-	++_savingCloudDraftRequests;
-}
-
-void History::finishSavingCloudDraft(TimeId savedAt) {
-	if (_savingCloudDraftRequests > 0) {
-		--_savingCloudDraftRequests;
+	if (const auto thread = threadFor(topicRootId)) {
+		thread->cloudDraftTextCache().clear();
+		thread->updateChatListSortPosition();
 	}
-	const auto acceptAfter = savedAt + kSkipCloudDraftsFor;
-	_acceptCloudDraftsAfter = std::max(_acceptCloudDraftsAfter, acceptAfter);
+
+	return cloudDraft(topicRootId);
 }
 
-void History::applyCloudDraft() {
-	if (session().supportMode()) {
+bool History::skipCloudDraftUpdate(MsgId topicRootId, TimeId date) const {
+	const auto i = _acceptCloudDraftsAfter.find(topicRootId);
+	return _savingCloudDraftRequests.contains(topicRootId)
+		|| (i != _acceptCloudDraftsAfter.end() && date < i->second);
+}
+
+void History::startSavingCloudDraft(MsgId topicRootId) {
+	++_savingCloudDraftRequests[topicRootId];
+}
+
+void History::finishSavingCloudDraft(MsgId topicRootId, TimeId savedAt) {
+	const auto i = _savingCloudDraftRequests.find(topicRootId);
+	if (i != _savingCloudDraftRequests.end()) {
+		if (--i->second <= 0) {
+			_savingCloudDraftRequests.erase(i);
+		}
+	}
+	auto &after = _acceptCloudDraftsAfter[topicRootId];
+	after = std::max(after, savedAt + kSkipCloudDraftsFor);
+}
+
+void History::applyCloudDraft(MsgId topicRootId) {
+	if (!topicRootId && session().supportMode()) {
 		updateChatListEntry();
 		session().supportHelper().cloudDraftChanged(this);
 	} else {
-		createLocalDraftFromCloud();
-		updateChatListSortPosition();
-		session().changes().historyUpdated(this, UpdateFlag::CloudDraft);
+		createLocalDraftFromCloud(topicRootId);
+		if (const auto thread = threadFor(topicRootId)) {
+			thread->updateChatListSortPosition();
+			if (!topicRootId) {
+				session().changes().historyUpdated(
+					this,
+					UpdateFlag::CloudDraft);
+			} else {
+				session().changes().topicUpdated(
+					thread->asTopic(),
+					Data::TopicUpdate::Flag::CloudDraft);
+			}
+		}
 	}
 }
 
-void History::draftSavedToCloud() {
-	updateChatListEntry();
+void History::draftSavedToCloud(MsgId topicRootId) {
+	if (const auto thread = threadFor(topicRootId)) {
+		thread->updateChatListEntry();
+	}
 	session().local().writeDrafts(this);
 }
 
@@ -1143,20 +1175,22 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 	const auto stillShow = item->showNotification(); // Could be read already.
 	if (stillShow) {
 		Core::App().notifications().schedule(notification);
-		if (!item->out() && item->unread()) {
+	}
+	if (item->out()) {
+		destroyUnreadBar();
+		if (!item->unread(this)) {
+			outboxRead(item);
+		}
+	} else {
+		if (item->unread(this)) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
 			} else {
 				owner().histories().requestDialogEntry(this);
 			}
+		} else {
+			inboxRead(item);
 		}
-	} else if (item->out()) {
-		destroyUnreadBar();
-	} else if (!item->unread()) {
-		inboxRead(item);
-	}
-	if (item->out() && !item->unread()) {
-		outboxRead(item);
 	}
 	item->incrementReplyToTopCounter();
 	if (!folderKnown()) {
@@ -1879,8 +1913,8 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 
 TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
-	if (const auto draft = cloudDraft()) {
-		if (!Data::draftIsNull(draft) && !session().supportMode()) {
+	if (const auto draft = cloudDraft(MsgId(0))) {
+		if (!Data::DraftIsNull(draft) && !session().supportMode()) {
 			return std::max(result, draft->date);
 		}
 	}
@@ -2601,6 +2635,7 @@ void History::applyDialog(
 		Data::ApplyPeerCloudDraft(
 			&session(),
 			peer->id,
+			MsgId(0), // topicRootId
 			draft->c_draftMessage());
 	}
 	owner().histories().dialogEntryApplied(this);
@@ -2821,6 +2856,16 @@ void History::resizeToWidth(int newWidth) {
 void History::forceFullResize() {
 	_width = 0;
 	_flags |= Flag::HasPendingResizedItems;
+}
+
+Data::Thread *History::threadFor(MsgId topicRootId) {
+	return topicRootId
+		? peer->forumTopicFor(topicRootId)
+		: static_cast<Data::Thread*>(this);
+}
+
+const Data::Thread *History::threadFor(MsgId topicRootId) const {
+	return const_cast<History*>(this)->threadFor(topicRootId);
 }
 
 not_null<History*> History::migrateToOrMe() const {

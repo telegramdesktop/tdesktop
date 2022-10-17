@@ -3820,7 +3820,7 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	const auto mainList = chatsListFor(entry);
 	auto event = ChatListEntryRefresh{ .key = key };
 	const auto creating = event.existenceChanged = !entry->inChatList();
-	if (creating && topic && topic->forum()->creating(topic->rootId())) {
+	if (creating && topic && topic->creating()) {
 		return;
 	} else if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);

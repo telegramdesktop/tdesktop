@@ -43,6 +43,9 @@ public:
 	void setOutboxReadTill(MsgId readTillId);
 	[[nodiscard]] MsgId computeOutboxReadTillFull() const;
 
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const;
+
 	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
 		MsgId afterId) const;
 	void requestUnreadCount();

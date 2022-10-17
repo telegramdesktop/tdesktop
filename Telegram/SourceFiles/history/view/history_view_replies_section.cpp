@@ -351,8 +351,8 @@ RepliesWidget::RepliesWidget(
 }
 
 RepliesWidget::~RepliesWidget() {
-	if (_topic && _topic->forum()->creating(_rootId)) {
-		_topic->forum()->discardCreatingId(_rootId);
+	if (_topic && _topic->creating()) {
+		_topic->discard();
 		_topic = nullptr;
 	}
 	base::take(_sendAction);
@@ -434,15 +434,20 @@ void RepliesWidget::setupRootView() {
 }
 
 void RepliesWidget::setupTopicViewer() {
-	_history->owner().itemIdChanged(
+	const auto owner = &_history->owner();
+	owner->itemIdChanged(
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
 		if (_rootId == change.oldId) {
 			_rootId = change.newId.msg;
+			_sendAction = owner->sendActionManager().repliesPainter(
+				_history,
+				_rootId);
 			_root = lookupRoot();
 			if (_topic && _topic->rootId() == change.oldId) {
 				setTopic(_topic->forum()->topicFor(change.newId.msg));
 			} else {
 				refreshReplies();
+				refreshTopBarActiveChat();
 			}
 			_inner->update();
 		}
@@ -1007,6 +1012,7 @@ Api::SendAction RepliesWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyToId();
+	result.topicRootId = _rootId;
 	result.options.sendAs = _composeControls->sendAsPeer();
 	return result;
 }
@@ -1440,7 +1446,7 @@ bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
 		return true;
 	} else if (!_newTopicDiscarded
 		&& _topic
-		&& _topic->forum()->creating(_rootId)) {
+		&& _topic->creating()) {
 		const auto weak = Ui::MakeWeak(this);
 		auto sure = [=](Fn<void()> &&close) {
 			if (const auto strong = weak.data()) {
@@ -1943,14 +1949,7 @@ bool RepliesWidget::listElementHideReply(not_null<const Element*> view) {
 }
 
 bool RepliesWidget::listElementShownUnread(not_null<const Element*> view) {
-	if (!_root) {
-		return false;
-	}
-	const auto item = view->data();
-	const auto till = item->out()
-		? _replies->computeOutboxReadTillFull()
-		: _replies->computeInboxReadTillFull();
-	return (item->id > till);
+	return _replies->isServerSideUnread(view->data());
 }
 
 bool RepliesWidget::listIsGoodForAroundPosition(

@@ -24,6 +24,10 @@ class Proxy;
 class ConstProxy;
 } // namespace HistoryUnreadThings
 
+namespace HistoryView {
+class SendActionPainter;
+} // namespace HistoryView
+
 namespace st {
 extern const int &dialogsTextWidthMin;
 } // namespace st
@@ -57,6 +61,7 @@ public:
 	[[nodiscard]] not_null<const History*> owningHistory() const {
 		return const_cast<Thread*>(this)->owningHistory();
 	}
+	[[nodiscard]] MsgId topicRootId() const;
 	[[nodiscard]] not_null<PeerData*> peer() const;
 	[[nodiscard]] PeerNotifySettings &notify();
 	[[nodiscard]] const PeerNotifySettings &notify() const;
@@ -87,6 +92,9 @@ public:
 	}
 	virtual void setUnreadMark(bool unread);
 
+	[[nodiscard]] virtual bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const = 0;
+
 	[[nodiscard]] const base::flat_set<MsgId> &unreadMentionsIds() const;
 	[[nodiscard]] const base::flat_set<MsgId> &unreadReactionsIds() const;
 
@@ -96,6 +104,9 @@ public:
 	[[nodiscard]] Dialogs::Ui::MessageView &lastItemDialogsView() {
 		return _lastItemDialogsView;
 	}
+
+	[[nodiscard]] virtual auto sendActionPainter()
+		-> not_null<HistoryView::SendActionPainter*> = 0;
 
 private:
 	enum class Flag : uchar {

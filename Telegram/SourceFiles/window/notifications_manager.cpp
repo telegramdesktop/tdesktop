@@ -979,6 +979,10 @@ void Manager::notificationActivated(
 			const auto window = session->windows().front();
 			const auto history = session->data().history(
 				id.contextId.peerId);
+			const auto item = history->owner().message(
+				history->peer,
+				id.msgId);
+			const auto topic = item ? item->topic() : nullptr;
 			if (!reply.text.isEmpty()) {
 				// #TODO forum notifications
 				const auto replyToId = (id.msgId > 0
@@ -988,6 +992,7 @@ void Manager::notificationActivated(
 				auto draft = std::make_unique<Data::Draft>(
 					reply,
 					replyToId,
+					(topic ? topic->rootId() : 0),
 					MessageCursor{
 						int(reply.text.size()),
 						int(reply.text.size()),
@@ -1057,16 +1062,18 @@ void Manager::notificationReplied(
 		return;
 	}
 	const auto history = session->data().history(id.contextId.peerId);
+	const auto item = history->owner().message(history->peer, id.msgId);
+	const auto topic = item ? item->topic() : nullptr;
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
 	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
 		? id.msgId
 		: id.contextId.topicRootId;
+	message.action.topicRootId = topic ? topic->rootId() : 0;
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
 
-	const auto item = history->owner().message(history->peer, id.msgId);
 	if (item && item->isUnreadMention() && !item->isIncomingUnreadMedia()) {
 		history->session().api().markContentsRead(item);
 	}

@@ -103,22 +103,25 @@ public:
 	int sendPreparedMessage(
 		not_null<History*> history,
 		MsgId replyTo,
+		MsgId topicRootId,
 		uint64 randomId,
-		Fn<PreparedMessage(MsgId replyTo)> message,
+		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
 
 	struct ReplyToPlaceholder {
 	};
+	struct TopicRootPlaceholder {
+	};
 	template <typename RequestType, typename ...Args>
-	static Fn<Histories::PreparedMessage(MsgId)> PrepareMessage(
+	static Fn<Histories::PreparedMessage(MsgId, MsgId)> PrepareMessage(
 			const Args &...args) {
-		return [=](MsgId replyTo) {
-			return RequestType(ReplaceReplyTo(args, replyTo)...);
+		return [=](MsgId replyTo, MsgId topicRootId) -> RequestType {
+			return { ReplaceReplyIds(args, replyTo, topicRootId)... };
 		};
 	}
 
-	void checkTopicCreated(FullMsgId rootId, MsgId realId);
+	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
 	[[nodiscard]] MsgId convertTopicReplyTo(
 		not_null<History*> history,
 		MsgId replyTo) const;
@@ -147,7 +150,8 @@ private:
 	};
 	struct DelayedByTopicMessage {
 		uint64 randomId = 0;
-		Fn<PreparedMessage(MsgId replyTo)> message;
+		MsgId replyTo = 0;
+		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message;
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done;
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
 		int requestId = 0;
@@ -162,9 +166,11 @@ private:
 	};
 
 	template <typename Arg>
-	static auto ReplaceReplyTo(Arg arg, MsgId replyTo) {
+	static auto ReplaceReplyIds(Arg arg, MsgId replyTo, MsgId topicRootId) {
 		if constexpr (std::is_same_v<Arg, ReplyToPlaceholder>) {
 			return MTP_int(replyTo);
+		} else if constexpr (std::is_same_v<Arg, TopicRootPlaceholder>) {
+			return MTP_int(topicRootId);
 		} else {
 			return arg;
 		}

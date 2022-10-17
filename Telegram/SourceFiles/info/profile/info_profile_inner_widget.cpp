@@ -83,6 +83,9 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
 	if (_topic) {
+		if (_topic->creating()) {
+			return result;
+		}
 		result->add(SetupDetails(_controller, parent, _topic));
 	} else {
 		result->add(SetupDetails(_controller, parent, _peer));

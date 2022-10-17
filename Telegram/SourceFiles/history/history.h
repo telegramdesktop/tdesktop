@@ -80,6 +80,8 @@ public:
 	not_null<History*> owningHistory() override {
 		return this;
 	}
+	[[nodiscard]] Data::Thread *threadFor(MsgId topicRootId);
+	[[nodiscard]] const Data::Thread *threadFor(MsgId topicRootId) const;
 
 	[[nodiscard]] auto delegateMixin() const
 			-> not_null<HistoryMainElementDelegateMixin*> {
@@ -229,11 +231,12 @@ public:
 	void inboxRead(not_null<const HistoryItem*> wasRead);
 	void outboxRead(MsgId upTo);
 	void outboxRead(not_null<const HistoryItem*> wasRead);
-	[[nodiscard]] bool isServerSideUnread(
-		not_null<const HistoryItem*> item) const;
 	[[nodiscard]] MsgId loadAroundId() const;
 	[[nodiscard]] MsgId inboxReadTillId() const;
 	[[nodiscard]] MsgId outboxReadTillId() const;
+
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const override;
 
 	[[nodiscard]] bool trackUnreadMessages() const;
 	[[nodiscard]] int unreadCount() const;
@@ -301,7 +304,7 @@ public:
 	void setHasPendingResizedItems();
 
 	[[nodiscard]] auto sendActionPainter()
-	-> not_null<HistoryView::SendActionPainter*> {
+	-> not_null<HistoryView::SendActionPainter*> override {
 		return &_sendActionPainter;
 	}
 
@@ -316,41 +319,51 @@ public:
 	[[nodiscard]] const Data::HistoryDrafts &draftsMap() const;
 	void setDraftsMap(Data::HistoryDrafts &&map);
 
-	Data::Draft *localDraft() const {
-		return draft(Data::DraftKey::Local());
+	Data::Draft *localDraft(MsgId topicRootId) const {
+		return draft(Data::DraftKey::Local(topicRootId));
 	}
-	Data::Draft *localEditDraft() const {
-		return draft(Data::DraftKey::LocalEdit());
+	Data::Draft *localEditDraft(MsgId topicRootId) const {
+		return draft(Data::DraftKey::LocalEdit(topicRootId));
 	}
-	Data::Draft *cloudDraft() const {
-		return draft(Data::DraftKey::Cloud());
+	Data::Draft *cloudDraft(MsgId topicRootId) const {
+		return draft(Data::DraftKey::Cloud(topicRootId));
 	}
 	void setLocalDraft(std::unique_ptr<Data::Draft> &&draft) {
-		setDraft(Data::DraftKey::Local(), std::move(draft));
+		setDraft(
+			Data::DraftKey::Local(draft->topicRootId),
+			std::move(draft));
 	}
 	void setLocalEditDraft(std::unique_ptr<Data::Draft> &&draft) {
-		setDraft(Data::DraftKey::LocalEdit(), std::move(draft));
+		setDraft(
+			Data::DraftKey::LocalEdit(draft->topicRootId),
+			std::move(draft));
 	}
 	void setCloudDraft(std::unique_ptr<Data::Draft> &&draft) {
-		setDraft(Data::DraftKey::Cloud(), std::move(draft));
+		setDraft(
+			Data::DraftKey::Cloud(draft->topicRootId),
+			std::move(draft));
 	}
-	void clearLocalDraft() {
-		clearDraft(Data::DraftKey::Local());
+	void clearLocalDraft(MsgId topicRootId) {
+		clearDraft(Data::DraftKey::Local(topicRootId));
 	}
-	void clearCloudDraft() {
-		clearDraft(Data::DraftKey::Cloud());
+	void clearCloudDraft(MsgId topicRootId) {
+		clearDraft(Data::DraftKey::Cloud(topicRootId));
 	}
-	void clearLocalEditDraft() {
-		clearDraft(Data::DraftKey::LocalEdit());
+	void clearLocalEditDraft(MsgId topicRootId) {
+		clearDraft(Data::DraftKey::LocalEdit(topicRootId));
 	}
 	void clearDrafts();
-	Data::Draft *createCloudDraft(const Data::Draft *fromDraft);
-	bool skipCloudDraftUpdate(TimeId date) const;
-	void startSavingCloudDraft();
-	void finishSavingCloudDraft(TimeId savedAt);
+	Data::Draft *createCloudDraft(
+		MsgId topicRootId,
+		const Data::Draft *fromDraft);
+	[[nodiscard]] bool skipCloudDraftUpdate(
+		MsgId topicRootId,
+		TimeId date) const;
+	void startSavingCloudDraft(MsgId topicRootId);
+	void finishSavingCloudDraft(MsgId topicRootId, TimeId savedAt);
 	void takeLocalDraft(not_null<History*> from);
-	void applyCloudDraft();
-	void draftSavedToCloud();
+	void applyCloudDraft(MsgId topicRootId);
+	void draftSavedToCloud(MsgId topicRootId);
 
 	[[nodiscard]] const Data::ForwardDraft &forwardDraft() const {
 		return _forwardDraft;
@@ -553,7 +566,7 @@ private:
 
 	void viewReplaced(not_null<const Element*> was, Element *now);
 
-	void createLocalDraftFromCloud();
+	void createLocalDraftFromCloud(MsgId topicRootId);
 
 	HistoryService *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
@@ -603,8 +616,8 @@ private:
 	std::unique_ptr<BuildingBlock> _buildingFrontBlock;
 
 	Data::HistoryDrafts _drafts;
-	TimeId _acceptCloudDraftsAfter = 0;
-	int _savingCloudDraftRequests = 0;
+	base::flat_map<MsgId, TimeId> _acceptCloudDraftsAfter;
+	base::flat_map<MsgId, int> _savingCloudDraftRequests;
 	Data::ForwardDraft _forwardDraft;
 
 	QString _topPromotedMessage;

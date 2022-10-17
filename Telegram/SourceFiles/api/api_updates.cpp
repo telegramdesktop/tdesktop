@@ -2443,12 +2443,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateDraftMessage: {
 		const auto &data = update.c_updateDraftMessage();
 		const auto peerId = peerFromMTP(data.vpeer());
+		const auto topicRootId = data.vtop_msg_id().value_or_empty();
 		data.vdraft().match([&](const MTPDdraftMessage &data) {
-			Data::ApplyPeerCloudDraft(&session(), peerId, data);
+			Data::ApplyPeerCloudDraft(&session(), peerId, topicRootId, data);
 		}, [&](const MTPDdraftMessageEmpty &data) {
 			Data::ClearPeerCloudDraft(
 				&session(),
 				peerId,
+				topicRootId,
 				data.vdate().value_or_empty());
 		});
 	} break;

@@ -1342,10 +1342,19 @@ void HistoryService::setReplyFields(
 		MsgId replyToTop,
 		bool isForumPost) {
 	const auto data = GetDependentData();
-	if (!data || IsServerMsgId(data->topId) || isScheduled()) {
+	if (!data
+		|| (data->topId == replyToTop)
+		|| IsServerMsgId(data->topId)
+		|| isScheduled()) {
 		return;
 	}
 	data->topId = replyToTop;
+	if (isForumPost) {
+		data->topicPost = true;
+	}
+	if (const auto topic = this->topic()) {
+		topic->maybeSetLastMessage(this);
+	}
 }
 
 std::unique_ptr<HistoryView::Element> HistoryService::createView(

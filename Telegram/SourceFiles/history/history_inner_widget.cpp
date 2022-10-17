@@ -227,7 +227,7 @@ public:
 		return false;
 	}
 	bool elementShownUnread(not_null<const Element*> view) override {
-		return view->data()->unread();
+		return view->data()->unread(view->data()->history());
 	}
 	void elementSendBotCommand(
 			const QString &command,
@@ -983,7 +983,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 		const auto item = view->data();
 		const auto isSponsored = item->isSponsored();
 		const auto isUnread = !item->out()
-			&& item->unread()
+			&& item->unread(_history)
 			&& (item->history() == _history);
 		const auto withReaction = item->hasUnreadReaction();
 		const auto yShown = [&](int y) {

@@ -247,7 +247,7 @@ void Histories::readInboxOnNewMessage(not_null<HistoryItem*> item) {
 }
 
 void Histories::readClientSideMessage(not_null<HistoryItem*> item) {
-	if (item->out() || !item->unread()) {
+	if (item->out() || !item->unread(item->history())) {
 		return;
 	}
 	const auto history = item->history();
@@ -886,20 +886,22 @@ bool Histories::isCreatingTopic(
 int Histories::sendPreparedMessage(
 		not_null<History*> history,
 		MsgId replyTo,
+		MsgId topicRootId,
 		uint64 randomId,
-		Fn<PreparedMessage(MsgId replyTo)> message,
+		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message,
 		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
 		Fn<void(const MTP::Error&, const MTP::Response&)> fail) {
-	if (isCreatingTopic(history, replyTo)) {
+	if (isCreatingTopic(history, topicRootId)) {
 		const auto id = ++_requestAutoincrement;
-		const auto creatingId = FullMsgId(history->peer->id, replyTo);
+		const auto creatingId = FullMsgId(history->peer->id, topicRootId);
 		auto i = _creatingTopics.find(creatingId);
 		if (i == end(_creatingTopics)) {
-			sendCreateTopicRequest(history, replyTo);
+			sendCreateTopicRequest(history, topicRootId);
 			i = _creatingTopics.emplace(creatingId).first;
 		}
 		i->second.push_back({
 			.randomId = randomId,
+			.replyTo = replyTo,
 			.message = std::move(message),
 			.done = std::move(done),
 			.fail = std::move(fail),
@@ -908,8 +910,9 @@ int Histories::sendPreparedMessage(
 		_creatingTopicRequests.emplace(id);
 		return id;
 	}
-	const auto realTo = convertTopicReplyTo(history, replyTo);
-	return v::match(message(realTo), [&](const auto &request) {
+	const auto realReply = convertTopicReplyTo(history, replyTo);
+	const auto realRoot = convertTopicReplyTo(history, topicRootId);
+	return v::match(message(realReply, realRoot), [&](const auto &request) {
 		const auto type = RequestType::Send;
 		return sendRequest(history, type, [=](Fn<void()> finish) {
 			const auto session = &_owner->session();
@@ -935,38 +938,38 @@ int Histories::sendPreparedMessage(
 	});
 }
 
-void Histories::checkTopicCreated(FullMsgId rootId, MsgId realId) {
+void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 	const auto i = _creatingTopics.find(rootId);
 	if (i != end(_creatingTopics)) {
 		auto scheduled = base::take(i->second);
 		_creatingTopics.erase(i);
 
-		_createdTopicIds.emplace(rootId, realId);
+		_createdTopicIds.emplace(rootId, realRoot);
 
 		if (const auto forum = _owner->peer(rootId.peer)->forum()) {
-			forum->created(rootId.msg, realId);
+			forum->created(rootId.msg, realRoot);
 		}
 
 		const auto history = _owner->history(rootId.peer);
 		for (auto &entry : scheduled) {
 			_creatingTopicRequests.erase(entry.requestId);
-			AssertIsDebug();
-			//sendPreparedMessage(
-			//	history,
-			//	realId,
-			//	entry.randomId,
-			//	std::move(entry.message),
-			//	std::move(entry.done),
-			//	std::move(entry.fail));
+			sendPreparedMessage(
+				history,
+				entry.replyTo,
+				realRoot,
+				entry.randomId,
+				std::move(entry.message),
+				std::move(entry.done),
+				std::move(entry.fail));
 		}
 		for (const auto &item : history->clientSideMessages()) {
 			const auto replace = [&](MsgId nowId) {
-				return (nowId == rootId.msg) ? realId : nowId;
+				return (nowId == rootId.msg) ? realRoot : nowId;
 			};
-			if (item->replyToTop() == rootId.msg) {
+			if (item->topicRootId() == rootId.msg) {
 				item->setReplyFields(
 					replace(item->replyToId()),
-					realId,
+					realRoot,
 					true);
 			}
 		}

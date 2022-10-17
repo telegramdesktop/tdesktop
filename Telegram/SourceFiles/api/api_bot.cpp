@@ -351,6 +351,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 	case ButtonType::RequestPhone: {
 		HideSingleUseKeyboard(controller, item);
 		const auto itemId = item->id;
+		const auto topicRootId = item->topicRootId();
 		const auto history = item->history();
 		controller->show(Ui::MakeConfirmBox({
 			.text = tr::lng_bot_share_phone(),
@@ -362,6 +363,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				auto action = Api::SendAction(history);
 				action.clearDraft = false;
 				action.replyTo = itemId;
+				action.topicRootId = topicRootId;
 				history->session().api().shareContact(
 					history->session().user(),
 					action);
@@ -381,10 +383,12 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 			}
 		}
 		const auto replyToId = MsgId(0);
+		const auto topicRootId = MsgId(0);
 		Window::PeerMenuCreatePoll(
 			controller,
 			item->history()->peer,
 			replyToId,
+			topicRootId,
 			chosen,
 			disabled);
 	} break;

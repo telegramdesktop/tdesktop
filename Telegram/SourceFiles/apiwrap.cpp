@@ -1812,8 +1812,8 @@ void ApiWrap::sendNotifySettingsUpdates() {
 	session().mtp().sendAnything();
 }
 
-void ApiWrap::saveDraftToCloudDelayed(not_null<History*> history) {
-	_draftsSaveRequestIds.emplace(history, 0);
+void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
+	_draftsSaveRequestIds.emplace(base::make_weak(thread.get()), 0);
 	if (!_draftsSaveTimer.isActive()) {
 		_draftsSaveTimer.callOnce(kSaveCloudDraftTimeout);
 	}
@@ -2004,33 +2004,46 @@ void ApiWrap::saveCurrentDraftToCloud() {
 	Core::App().saveCurrentDraftsToHistories();
 
 	for (const auto &controller : _session->windows()) {
-		if (const auto history = controller->activeChatCurrent().history()) {
+		if (const auto thread = controller->activeChatCurrent().thread()) {
+			const auto history = thread->owningHistory();
 			_session->local().writeDrafts(history);
 
-			const auto localDraft = history->localDraft();
-			const auto cloudDraft = history->cloudDraft();
-			if (!Data::draftsAreEqual(localDraft, cloudDraft)
+			const auto topicRootId = thread->topicRootId();
+			const auto localDraft = history->localDraft(topicRootId);
+			const auto cloudDraft = history->cloudDraft(topicRootId);
+			if (!Data::DraftsAreEqual(localDraft, cloudDraft)
 				&& !_session->supportMode()) {
-				saveDraftToCloudDelayed(history);
+				saveDraftToCloudDelayed(thread);
 			}
 		}
 	}
 }
 
 void ApiWrap::saveDraftsToCloud() {
-	for (auto i = _draftsSaveRequestIds.begin(), e = _draftsSaveRequestIds.end(); i != e; ++i) {
-		if (i->second) continue; // sent already
+	for (auto i = begin(_draftsSaveRequestIds); i != end(_draftsSaveRequestIds);) {
+		const auto weak = i->first;
+		const auto thread = weak.get();
+		if (!thread) {
+			i = _draftsSaveRequestIds.erase(i);
+			continue;
+		}
+		auto &requestId = i->second;
+		++i;
+		if (requestId) {
+			continue; // sent already
+		}
 
-		auto history = i->first;
-		auto cloudDraft = history->cloudDraft();
-		auto localDraft = history->localDraft();
+		const auto history = thread->owningHistory();
+		const auto topicRootId = thread->topicRootId();
+		auto cloudDraft = history->cloudDraft(topicRootId);
+		auto localDraft = history->localDraft(topicRootId);
 		if (cloudDraft && cloudDraft->saveRequestId) {
 			request(base::take(cloudDraft->saveRequestId)).cancel();
 		}
 		if (!_session->supportMode()) {
-			cloudDraft = history->createCloudDraft(localDraft);
+			cloudDraft = history->createCloudDraft(topicRootId, localDraft);
 		} else if (!cloudDraft) {
-			cloudDraft = history->createCloudDraft(nullptr);
+			cloudDraft = history->createCloudDraft(topicRootId, nullptr);
 		}
 
 		auto flags = MTPmessages_SaveDraft::Flags(0);
@@ -2040,6 +2053,9 @@ void ApiWrap::saveDraftsToCloud() {
 		}
 		if (cloudDraft->msgId) {
 			flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
+			if (cloudDraft->topicRootId) {
+				flags |= MTPmessages_SaveDraft::Flag::f_top_msg_id;
+			}
 		}
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
@@ -2049,44 +2065,45 @@ void ApiWrap::saveDraftsToCloud() {
 			TextUtilities::ConvertTextTagsToEntities(textWithTags.tags),
 			Api::ConvertOption::SkipLocal);
 
-		history->startSavingCloudDraft();
+		history->startSavingCloudDraft(topicRootId);
 		cloudDraft->saveRequestId = request(MTPmessages_SaveDraft(
 			MTP_flags(flags),
 			MTP_int(cloudDraft->msgId),
+			MTP_int(cloudDraft->topicRootId),
 			history->peer->input,
 			MTP_string(textWithTags.text),
 			entities
 		)).done([=](const MTPBool &result, const MTP::Response &response) {
-			history->finishSavingCloudDraft(
-				UnixtimeFromMsgId(response.outerMsgId));
-
 			const auto requestId = response.requestId;
-			if (const auto cloudDraft = history->cloudDraft()) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
 					cloudDraft->saveRequestId = 0;
-					history->draftSavedToCloud();
+					history->draftSavedToCloud(topicRootId);
 				}
 			}
-			auto i = _draftsSaveRequestIds.find(history);
+			const auto i = _draftsSaveRequestIds.find(weak);
 			if (i != _draftsSaveRequestIds.cend()
 				&& i->second == requestId) {
-				_draftsSaveRequestIds.erase(history);
+				_draftsSaveRequestIds.erase(i);
 				checkQuitPreventFinished();
 			}
 		}).fail([=](const MTP::Error &error, const MTP::Response &response) {
-			history->finishSavingCloudDraft(
-				UnixtimeFromMsgId(response.outerMsgId));
-
 			const auto requestId = response.requestId;
-			if (const auto cloudDraft = history->cloudDraft()) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
-					history->clearCloudDraft();
+					history->clearCloudDraft(topicRootId);
 				}
 			}
-			auto i = _draftsSaveRequestIds.find(history);
+			const auto i = _draftsSaveRequestIds.find(weak);
 			if (i != _draftsSaveRequestIds.cend()
 				&& i->second == requestId) {
-				_draftsSaveRequestIds.erase(history);
+				_draftsSaveRequestIds.erase(i);
 				checkQuitPreventFinished();
 			}
 		}).send();
@@ -3420,6 +3437,9 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 		if (action.replyTo) {
 			flags |= MessageFlag::HasReplyInfo;
 			sendFlags |= MTPmessages_SendMessage::Flag::f_reply_to_msg_id;
+			if (action.topicRootId) {
+				sendFlags |= MTPmessages_SendMessage::Flag::f_top_msg_id;
+			}
 		}
 		const auto replyHeader = NewMessageReplyHeader(action);
 		MTPMessageMedia media = MTP_messageMediaEmpty();
@@ -3446,10 +3466,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_entities;
 		}
 		const auto clearCloudDraft = action.clearDraft;
+		const auto topicRootId = action.topicRootId;
 		if (clearCloudDraft) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_clear_draft;
-			history->clearCloudDraft();
-			history->startSavingCloudDraft();
+			history->clearCloudDraft(topicRootId);
+			history->startSavingCloudDraft(topicRootId);
 		}
 		const auto sendAs = action.options.sendAs;
 		const auto messageFromId = sendAs
@@ -3468,12 +3489,11 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			sendFlags |= MTPmessages_SendMessage::Flag::f_schedule_date;
 		}
 		const auto viaBotId = UserId();
-		const auto replyTo = action.replyTo;
 		lastMessage = history->addNewLocalMessage(
 			newId.msg,
 			flags,
 			viaBotId,
-			replyTo,
+			action.replyTo,
 			HistoryItem::NewMessageDate(action.options.scheduled),
 			messageFromId,
 			messagePostAuthor,
@@ -3482,12 +3502,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			HistoryMessageMarkupData());
 		histories.sendPreparedMessage(
 			history,
-			replyTo,
+			action.replyTo,
+			topicRootId,
 			randomId,
 			Data::Histories::PrepareMessage<MTPmessages_SendMessage>(
 				MTP_flags(sendFlags),
 				peer->input,
 				Data::Histories::ReplyToPlaceholder(),
+				Data::Histories::TopicRootPlaceholder(),
 				msgText,
 				MTP_long(randomId),
 				MTPReplyMarkup(),
@@ -3497,6 +3519,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			), [=](const MTPUpdates &result, const MTP::Response &response) {
 			if (clearCloudDraft) {
 				history->finishSavingCloudDraft(
+					topicRootId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
@@ -3507,6 +3530,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 			}
 			if (clearCloudDraft) {
 				history->finishSavingCloudDraft(
+					topicRootId,
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		});
@@ -3573,12 +3597,16 @@ void ApiWrap::sendInlineResult(
 			? (*localMessageId)
 			: _session->data().nextLocalMessageId());
 	const auto randomId = base::RandomValue<uint64>();
+	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
 
 	auto flags = NewMessageFlags(peer);
 	auto sendFlags = MTPmessages_SendInlineBotResult::Flag::f_clear_draft | 0;
 	if (action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_reply_to_msg_id;
+		if (topicRootId) {
+			sendFlags |= MTPmessages_SendInlineBotResult::Flag::f_top_msg_id;
+		}
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, action.options);
@@ -3618,19 +3646,20 @@ void ApiWrap::sendInlineResult(
 		action.replyTo,
 		messagePostAuthor);
 
-	history->clearCloudDraft();
-	history->startSavingCloudDraft();
+	history->clearCloudDraft(topicRootId);
+	history->startSavingCloudDraft(topicRootId);
 
 	auto &histories = history->owner().histories();
-	const auto replyTo = action.replyTo;
 	histories.sendPreparedMessage(
 		history,
-		replyTo,
+		action.replyTo,
+		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendInlineBotResult>(
 			MTP_flags(sendFlags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			MTP_long(randomId),
 			MTP_long(data->getQueryId()),
 			MTP_string(data->getId()),
@@ -3638,10 +3667,12 @@ void ApiWrap::sendInlineResult(
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 		), [=](const MTPUpdates &result, const MTP::Response &response) {
 		history->finishSavingCloudDraft(
+			topicRootId,
 			UnixtimeFromMsgId(response.outerMsgId));
 	}, [=](const MTP::Error &error, const MTP::Response &response) {
 		sendMessageFail(error, peer, randomId, newId);
 		history->finishSavingCloudDraft(
+			topicRootId,
 			UnixtimeFromMsgId(response.outerMsgId));
 	});
 	finishForwarding(action);
@@ -3740,6 +3771,7 @@ void ApiWrap::sendMediaWithRandomId(
 		uint64 randomId) {
 	const auto history = item->history();
 	const auto replyTo = item->replyToId();
+	const auto topicRootId = item->topicRootId();
 
 	auto caption = item->originalText();
 	TextUtilities::Trim(caption);
@@ -3750,22 +3782,16 @@ void ApiWrap::sendMediaWithRandomId(
 
 	const auto updateRecentStickers = Api::HasAttachedStickers(media);
 
-	const auto flags = MTPmessages_SendMedia::Flags(0)
-		| (replyTo
-			? MTPmessages_SendMedia::Flag::f_reply_to_msg_id
-			: MTPmessages_SendMedia::Flag(0))
+	using Flag = MTPmessages_SendMedia::Flag;
+	const auto flags = Flag(0)
+		| (replyTo ? Flag::f_reply_to_msg_id : Flag(0))
+		| (topicRootId ? Flag::f_top_msg_id : Flag(0))
 		| (ShouldSendSilent(history->peer, options)
-			? MTPmessages_SendMedia::Flag::f_silent
-			: MTPmessages_SendMedia::Flag(0))
-		| (!sentEntities.v.isEmpty()
-			? MTPmessages_SendMedia::Flag::f_entities
-			: MTPmessages_SendMedia::Flag(0))
-		| (options.scheduled
-			? MTPmessages_SendMedia::Flag::f_schedule_date
-			: MTPmessages_SendMedia::Flag(0))
-		| (options.sendAs
-			? MTPmessages_SendMedia::Flag::f_send_as
-			: MTPmessages_SendMedia::Flag(0));
+			? Flag::f_silent
+			: Flag(0))
+		| (!sentEntities.v.isEmpty() ? Flag::f_entities : Flag(0))
+		| (options.scheduled ? Flag::f_schedule_date : Flag(0))
+		| (options.sendAs ? Flag::f_send_as : Flag(0));
 
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
@@ -3773,11 +3799,13 @@ void ApiWrap::sendMediaWithRandomId(
 	histories.sendPreparedMessage(
 		history,
 		replyTo,
+		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(flags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			media,
 			MTP_string(caption.text),
 			MTP_long(randomId),
@@ -3859,30 +3887,29 @@ void ApiWrap::sendAlbumIfReady(not_null<SendingAlbum*> album) {
 	}
 	const auto history = sample->history();
 	const auto replyTo = sample->replyToId();
+	const auto topicRootId = sample->topicRootId();
 	const auto sendAs = album->options.sendAs;
-	const auto flags = MTPmessages_SendMultiMedia::Flags(0)
-		| (replyTo
-			? MTPmessages_SendMultiMedia::Flag::f_reply_to_msg_id
-			: MTPmessages_SendMultiMedia::Flag(0))
+	using Flag = MTPmessages_SendMultiMedia::Flag;
+	const auto flags = Flag(0)
+		| (replyTo ? Flag::f_reply_to_msg_id : Flag(0))
+		| (topicRootId ? Flag::f_top_msg_id : Flag(0))
 		| (ShouldSendSilent(history->peer, album->options)
-			? MTPmessages_SendMultiMedia::Flag::f_silent
-			: MTPmessages_SendMultiMedia::Flag(0))
-		| (album->options.scheduled
-			? MTPmessages_SendMultiMedia::Flag::f_schedule_date
-			: MTPmessages_SendMultiMedia::Flag(0))
-		| (sendAs
-			? MTPmessages_SendMultiMedia::Flag::f_send_as
-			: MTPmessages_SendMultiMedia::Flag(0));
+			? Flag::f_silent
+			: Flag(0))
+		| (album->options.scheduled ? Flag::f_schedule_date : Flag(0))
+		| (sendAs ? Flag::f_send_as : Flag(0));
 	auto &histories = history->owner().histories();
 	const auto peer = history->peer;
 	histories.sendPreparedMessage(
 		history,
 		replyTo,
+		topicRootId,
 		uint64(0), // randomId
 		Data::Histories::PrepareMessage<MTPmessages_SendMultiMedia>(
 			MTP_flags(flags),
 			peer->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			MTP_vector<MTPInputSingleMedia>(medias),
 			MTP_int(album->options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
@@ -3905,6 +3932,7 @@ FileLoadTo ApiWrap::fileLoadTaskOptions(const SendAction &action) const {
 		peer->id,
 		action.options,
 		action.replyTo,
+		action.topicRootId,
 		action.replaceMediaOf);
 }
 

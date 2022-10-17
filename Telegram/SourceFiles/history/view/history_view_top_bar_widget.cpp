@@ -152,7 +152,7 @@ TopBarWidget::TopBarWidget(
 		using AnimationUpdate = Data::SendActionManager::AnimationUpdate;
 		session().data().sendActionManager().animationUpdated(
 		) | rpl::filter([=](const AnimationUpdate &update) {
-			return (update.history == _activeChat.key.history());
+			return (update.thread == _activeChat.key.thread());
 		}) | rpl::start_with_next([=] {
 			update();
 		}, lifetime());
@@ -722,6 +722,7 @@ void TopBarWidget::backClicked() {
 void TopBarWidget::setActiveChat(
 		ActiveChat activeChat,
 		SendActionPainter *sendAction) {
+	_sendAction = sendAction;
 	if (_activeChat.key == activeChat.key
 		&& _activeChat.section == activeChat.section) {
 		_activeChat = activeChat;
@@ -733,7 +734,6 @@ void TopBarWidget::setActiveChat(
 		!= activeChat.key.history());
 
 	_activeChat = activeChat;
-	_sendAction = sendAction;
 	_titlePeerText.clear();
 	_back->clearState();
 	update();

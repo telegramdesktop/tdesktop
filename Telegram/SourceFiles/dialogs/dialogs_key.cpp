@@ -19,10 +19,16 @@ Key::Key(History *history) : _value(history) {
 Key::Key(Data::Folder *folder) : _value(folder) {
 }
 
+Key::Key(Data::Thread *thread) : _value(thread) {
+}
+
 Key::Key(Data::ForumTopic *topic) : _value(topic) {
 }
 
 Key::Key(not_null<History*> history) : _value(history) {
+}
+
+Key::Key(not_null<Data::Thread*> thread) : _value(thread) {
 }
 
 Key::Key(not_null<Data::Folder*> folder) : _value(folder) {

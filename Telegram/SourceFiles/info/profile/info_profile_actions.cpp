@@ -577,6 +577,8 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
+	Expects(!_topic || !_topic->creating());
+
 	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
@@ -585,6 +587,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	}
 	setupMainButtons();
 	add(CreateSkipWidget(_wrap));
+
 	return std::move(_wrap);
 }
 

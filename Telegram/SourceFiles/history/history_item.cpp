@@ -1217,22 +1217,22 @@ bool HistoryItem::needCheck() const {
 	return (out() && !isEmpty()) || (!isRegular() && history()->peer->isSelf());
 }
 
-bool HistoryItem::unread() const {
+bool HistoryItem::unread(not_null<Data::Thread*> thread) const {
 	// Messages from myself are always read, unless scheduled.
 	if (history()->peer->isSelf() && !isFromScheduled()) {
 		return false;
 	}
 
-	if (out()) {
-		// Outgoing messages in converted chats are always read.
-		if (history()->peer->migrateTo()) {
+	// All messages in converted chats are always read.
+	if (history()->peer->migrateTo()) {
+		return false;
+	}
+
+	if (isRegular()) {
+		if (!thread->isServerSideUnread(this)) {
 			return false;
 		}
-
-		if (isRegular()) {
-			if (!history()->isServerSideUnread(this)) {
-				return false;
-			}
+		if (out()) {
 			if (const auto user = history()->peer->asUser()) {
 				if (user->isBot() && !user->isSupport()) {
 					return false;
@@ -1246,13 +1246,7 @@ bool HistoryItem::unread() const {
 		return true;
 	}
 
-	if (isRegular()) {
-		if (!history()->isServerSideUnread(this)) {
-			return false;
-		}
-		return true;
-	}
-	return (_flags & MessageFlag::ClientSideUnread);
+	return out() || (_flags & MessageFlag::ClientSideUnread);
 }
 
 bool HistoryItem::showNotification() const {
@@ -1262,7 +1256,7 @@ bool HistoryItem::showNotification() const {
 	}
 	return (out() || _history->peer->isSelf())
 		? isFromScheduled()
-		: unread();
+		: unread(notificationThread());
 }
 
 void HistoryItem::markClientSideAsRead() {

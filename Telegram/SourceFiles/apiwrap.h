@@ -245,7 +245,7 @@ public:
 	void updateNotifySettingsDelayed(not_null<const Data::Thread*> thread);
 	void updateNotifySettingsDelayed(not_null<const PeerData*> peer);
 	void updateNotifySettingsDelayed(Data::DefaultNotify type);
-	void saveDraftToCloudDelayed(not_null<History*> history);
+	void saveDraftToCloudDelayed(not_null<Data::Thread*> thread);
 
 	static int OnlineTillFromStatus(
 		const MTPUserStatus &status,
@@ -563,7 +563,9 @@ private:
 	};
 	base::flat_map<NotifySettingsKey, mtpRequestId> _notifySettingRequests;
 
-	base::flat_map<not_null<History*>, mtpRequestId> _draftsSaveRequestIds;
+	base::flat_map<
+		base::weak_ptr<Data::Thread>,
+		mtpRequestId> _draftsSaveRequestIds;
 	base::Timer _draftsSaveTimer;
 
 	base::flat_set<mtpRequestId> _stickerSetDisenableRequests;

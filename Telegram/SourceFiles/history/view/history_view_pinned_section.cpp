@@ -553,7 +553,7 @@ bool PinnedWidget::listElementHideReply(not_null<const Element*> view) {
 }
 
 bool PinnedWidget::listElementShownUnread(not_null<const Element*> view) {
-	return view->data()->unread();
+	return view->data()->unread(view->data()->history());
 }
 
 bool PinnedWidget::listIsGoodForAroundPosition(

@@ -948,7 +948,7 @@ void HistoryWidget::initVoiceRecordBar() {
 	});
 
 	const auto applyLocalDraft = [=] {
-		if (_history && _history->localDraft()) {
+		if (_history && _history->localDraft({})) {
 			applyDraft();
 		}
 	};
@@ -1657,10 +1657,12 @@ void HistoryWidget::saveDraft(bool delayed) {
 void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	if (!_history) return;
 
+	const auto topicRootId = MsgId();
 	if (_editMsgId) {
 		_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 			_field,
 			_editMsgId,
+			topicRootId,
 			_previewState,
 			_saveEditMsgRequestId));
 	} else {
@@ -1668,11 +1670,12 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyToId,
+				topicRootId,
 				_previewState));
 		} else {
-			_history->clearLocalDraft();
+			_history->clearLocalDraft({});
 		}
-		_history->clearLocalEditDraft();
+		_history->clearLocalEditDraft({});
 	}
 }
 
@@ -1760,7 +1763,8 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 			MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				textWithTags,
-				0,
+				0, // replyTo
+				0, // topicRootId
 				cursor,
 				Data::PreviewState::Allowed));
 			applyDraft();
@@ -1782,21 +1786,19 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		auto draft = std::make_unique<Data::Draft>(
 			textWithTags,
 			to.currentReplyToId,
+			to.rootId,
 			cursor,
 			Data::PreviewState::Allowed);
 
-		if (to.section == Section::Replies) {
-			history->setDraft(
-				Data::DraftKey::Replies(to.rootId),
-				std::move(draft));
-			controller()->showRepliesForMessage(history, to.rootId);
-		} else if (to.section == Section::Scheduled) {
+		if (to.section == Section::Scheduled) {
 			history->setDraft(Data::DraftKey::Scheduled(), std::move(draft));
 			controller()->showSection(
 				std::make_shared<HistoryView::ScheduledMemento>(history));
 		} else {
 			history->setLocalDraft(std::move(draft));
-			if (history == _history) {
+			if (to.section == Section::Replies) {
+				controller()->showRepliesForMessage(history, to.rootId);
+			} else if (history == _history) {
 				applyDraft();
 			} else {
 				controller()->showPeerHistory(history->peer);
@@ -1878,13 +1880,14 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		return;
 	}
 
-	auto draft = !_history
-		? nullptr
-		: _history->localEditDraft()
-		? _history->localEditDraft()
-		: _history->localDraft();
+	const auto editDraft = _history ? _history->localEditDraft({}) : nullptr;
+	const auto draft = editDraft
+		? editDraft
+		: _history
+		? _history->localDraft({})
+		: nullptr;
 	auto fieldAvailable = canWriteMessage();
-	if (!draft || (!_history->localEditDraft() && !fieldAvailable)) {
+	if (!draft || (!_history->localEditDraft({}) && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
 		_field->setFocus();
@@ -1913,11 +1916,11 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_previewState = draft->previewState;
 
 	_replyEditMsg = nullptr;
-	if (const auto editDraft = _history->localEditDraft()) {
+	if (const auto editDraft = _history->localEditDraft({})) {
 		setEditMsgId(editDraft->msgId);
 		_replyToId = 0;
 	} else {
-		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
+		_replyToId = readyToForward() ? 0 : _history->localDraft({})->msgId;
 		setEditMsgId(0);
 	}
 	updateCmdStartShown();
@@ -2036,7 +2039,7 @@ void HistoryWidget::showHistory(
 							info->inlineReturnTo = wasDialogsEntryState;
 						}
 						sendBotStartCommand();
-						_history->clearLocalDraft();
+						_history->clearLocalDraft({});
 						applyDraft();
 						_send->finishAnimating();
 					}
@@ -2356,10 +2359,10 @@ void HistoryWidget::unregisterDraftSources() {
 	}
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::Local());
+		Data::DraftKey::Local({}));
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::LocalEdit());
+		Data::DraftKey::LocalEdit({}));
 }
 
 void HistoryWidget::registerDraftSource() {
@@ -2380,7 +2383,9 @@ void HistoryWidget::registerDraftSource() {
 	};
 	session().local().registerDraftSource(
 		_history,
-		editMsgId ? Data::DraftKey::LocalEdit() : Data::DraftKey::Local(),
+		(editMsgId
+			? Data::DraftKey::LocalEdit({})
+			: Data::DraftKey::Local({})),
 		std::move(draftSource));
 }
 
@@ -3564,16 +3569,16 @@ void HistoryWidget::saveEditMsg() {
 				cancelEdit();
 			}
 		})();
-		if (const auto editDraft = history->localEditDraft()) {
+		if (const auto editDraft = history->localEditDraft({})) {
 			if (editDraft->saveRequestId == requestId) {
-				history->clearLocalEditDraft();
+				history->clearLocalEditDraft({});
 				history->session().local().writeDrafts(history);
 			}
 		}
 	};
 
 	const auto fail = [=](const QString &error, mtpRequestId requestId) {
-		if (const auto editDraft = history->localEditDraft()) {
+		if (const auto editDraft = history->localEditDraft({})) {
 			if (editDraft->saveRequestId == requestId) {
 				editDraft->saveRequestId = 0;
 			}
@@ -3648,6 +3653,7 @@ Api::SendAction HistoryWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyToId();
+	result.topicRootId = 0;
 	result.options.sendAs = _sendAs
 		? _history->session().sendAsPeers().resolveChosen(
 			_history->peer).get()
@@ -6650,12 +6656,13 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	}
 
 	if (_editMsgId) {
-		if (auto localDraft = _history->localDraft()) {
+		if (const auto localDraft = _history->localDraft({})) {
 			localDraft->msgId = item->id;
 		} else {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				TextWithTags(),
 				item->id,
+				MsgId(), // topicRootId
 				MessageCursor(),
 				Data::PreviewState::Allowed));
 		}
@@ -6708,9 +6715,10 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyToId,
+				MsgId(), // topicRootId
 				_previewState));
 		} else {
-			_history->clearLocalDraft();
+			_history->clearLocalDraft({});
 		}
 	}
 
@@ -6732,6 +6740,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 		editData,
 		item->id,
+		MsgId(), // topicRootId
 		cursor,
 		previewState));
 	applyDraft();
@@ -6811,10 +6820,10 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 		refreshTopBarActiveChat();
 		updateControlsGeometry();
 		update();
-	} else if (auto localDraft = (_history ? _history->localDraft() : nullptr)) {
+	} else if (const auto localDraft = (_history ? _history->localDraft({}) : nullptr)) {
 		if (localDraft->msgId) {
 			if (localDraft->textWithTags.text.isEmpty()) {
-				_history->clearLocalDraft();
+				_history->clearLocalDraft({});
 			} else {
 				localDraft->msgId = 0;
 			}
@@ -6856,7 +6865,7 @@ void HistoryWidget::cancelEdit() {
 
 	_replyEditMsg = nullptr;
 	setEditMsgId(0);
-	_history->clearLocalEditDraft();
+	_history->clearLocalEditDraft({});
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {

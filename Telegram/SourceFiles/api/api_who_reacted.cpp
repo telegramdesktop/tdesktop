@@ -562,7 +562,7 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	}
 	const auto type = DetectSeenType(item);
 	const auto unseen = (type == Ui::WhoReadType::Seen)
-		? item->unread()
+		? item->unread(item->history())
 		: item->isUnreadMedia();
 	if (unseen) {
 		return false;

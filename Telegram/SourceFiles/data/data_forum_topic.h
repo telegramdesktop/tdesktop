@@ -25,6 +25,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace HistoryView {
+class SendActionPainter;
+} // namespace HistoryView
+
 namespace Data {
 
 class RepliesList;
@@ -56,6 +60,9 @@ public:
 	[[nodiscard]] not_null<Forum*> forum() const;
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
+
+	[[nodiscard]] bool creating() const;
+	void discard();
 
 	void setRealRootId(MsgId realId);
 
@@ -91,6 +98,7 @@ public:
 	void applyColorId(int32 colorId);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
+	void maybeSetLastMessage(not_null<HistoryItem*> item);
 
 	[[nodiscard]] PeerNotifySettings &notify() {
 		return _notify;
@@ -105,6 +113,9 @@ public:
 		std::shared_ptr<CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const override;
 
+	[[nodiscard]] bool isServerSideUnread(
+		not_null<const HistoryItem*> item) const override;
+
 	[[nodiscard]] int unreadCount() const;
 	[[nodiscard]] bool unreadCountKnown() const;
 
@@ -112,6 +123,9 @@ public:
 
 	void setMuted(bool muted) override;
 	void setUnreadMark(bool unread) override;
+
+	[[nodiscard]] auto sendActionPainter()
+		->not_null<HistoryView::SendActionPainter*> override;
 
 private:
 	void indexTitleParts();
@@ -132,6 +146,7 @@ private:
 	const not_null<Forum*> _forum;
 	const not_null<Dialogs::MainList*> _list;
 	std::shared_ptr<RepliesList> _replies;
+	std::shared_ptr<HistoryView::SendActionPainter> _sendActionPainter;
 	MsgId _rootId = 0;
 	MsgId _lastKnownServerMessageId = 0;
 

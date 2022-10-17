@@ -65,14 +65,17 @@ void ShareBotGame(
 	auto &histories = history->owner().histories();
 	const auto randomId = base::RandomValue<uint64>();
 	const auto replyTo = 0;
+	const auto topicRootId = 0;
 	histories.sendPreparedMessage(
 		history,
 		replyTo,
+		topicRootId,
 		randomId,
 		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(0),
 			chat->input,
 			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			MTP_inputMediaGame(
 				MTP_inputGameShortName(
 					bot->inputUser,

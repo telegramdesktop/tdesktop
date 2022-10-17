@@ -1169,16 +1169,18 @@ void ComposeControls::setFieldText(
 
 void ComposeControls::saveFieldToHistoryLocalDraft() {
 	const auto key = draftKeyCurrent();
-	if (!_history || key == Data::DraftKey::None()) {
+	if (!_history || !key) {
 		return;
 	}
 	const auto id = _header->getDraftMessageId();
 	if (_preview && (id || !_field->empty())) {
+		const auto key = draftKeyCurrent();
 		_history->setDraft(
-			draftKeyCurrent(),
+			key,
 			std::make_unique<Data::Draft>(
 				_field,
 				_header->getDraftMessageId(),
+				key.topicRootId(),
 				_preview->state()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
@@ -1680,15 +1682,14 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 
 	switch (_currentDialogsEntryState.section) {
 	case Section::History:
-		return (type == DraftType::Edit) ? Key::LocalEdit() : Key::Local();
+	case Section::Replies:
+		return (type == DraftType::Edit)
+			? Key::LocalEdit(_currentDialogsEntryState.rootId)
+			: Key::Local(_currentDialogsEntryState.rootId);
 	case Section::Scheduled:
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
 			: Key::Scheduled();
-	case Section::Replies:
-		return (type == DraftType::Edit)
-			? Key::RepliesEdit(_currentDialogsEntryState.rootId)
-			: Key::Replies(_currentDialogsEntryState.rootId);
 	}
 	return Key::None();
 }
@@ -2380,11 +2381,13 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	const auto previewState = previewPage
 		? Data::PreviewState::Allowed
 		: Data::PreviewState::EmptyOnEdit;
+	const auto key = draftKey(DraftType::Edit);
 	_history->setDraft(
-		draftKey(DraftType::Edit),
+		key,
 		std::make_unique<Data::Draft>(
 			editData,
 			item->id,
+			key.topicRootId(),
 			cursor,
 			previewState));
 	applyDraft();
@@ -2424,6 +2427,7 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 				std::make_unique<Data::Draft>(
 					TextWithTags(),
 					id.msg,
+					key.topicRootId(),
 					MessageCursor(),
 					Data::PreviewState::Allowed));
 		}
@@ -2438,7 +2442,6 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 
 void ComposeControls::cancelReplyMessage() {
 	Expects(_history != nullptr);
-	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	const auto wasReply = replyingToMessage();
 	_header->replyToMessage({});

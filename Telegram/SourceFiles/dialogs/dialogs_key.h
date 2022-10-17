@@ -27,10 +27,12 @@ public:
 	}
 	Key(History *history);
 	Key(Data::Folder *folder);
+	Key(Data::Thread *thread);
 	Key(Data::ForumTopic *topic);
 	Key(not_null<Entry*> entry) : _value(entry) {
 	}
 	Key(not_null<History*> history);
+	Key(not_null<Data::Thread*> thread);
 	Key(not_null<Data::Folder*> folder);
 	Key(not_null<Data::ForumTopic*> topic);
 

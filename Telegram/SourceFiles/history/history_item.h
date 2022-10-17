@@ -150,7 +150,7 @@ public:
 	[[nodiscard]] bool isPinned() const {
 		return _flags & MessageFlag::Pinned;
 	}
-	[[nodiscard]] bool unread() const;
+	[[nodiscard]] bool unread(not_null<Data::Thread*> thread) const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
 	[[nodiscard]] bool mentionsMe() const;

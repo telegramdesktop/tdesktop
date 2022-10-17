@@ -240,6 +240,8 @@ private:
 	void setupMigrationViewer();
 	void setupTopicViewer();
 
+	void replaceWith(std::shared_ptr<Memento> memento);
+
 	not_null<WrapWidget*> _widget;
 	Key _key;
 	PeerData *_migrated = nullptr;
