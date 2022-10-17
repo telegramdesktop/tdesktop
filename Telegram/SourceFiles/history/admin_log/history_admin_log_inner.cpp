@@ -533,8 +533,6 @@ QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = Element::Hovered()) {
-			const auto format = QLocale::system().dateTimeFormat(
-				QLocale::LongFormat);
 			auto dateText = HistoryView::DateTooltipText(view);
 
 			const auto sentIt = _itemDates.find(view->data());
@@ -542,7 +540,9 @@ QString InnerWidget::tooltipText() const {
 				dateText += '\n' + tr::lng_sent_date(
 					tr::now,
 					lt_date,
-					base::unixtime::parse(sentIt->second).toString(format));
+					QLocale().toString(
+						base::unixtime::parse(sentIt->second),
+						QLocale::LongFormat));
 			}
 			return dateText;
 		}

@@ -200,7 +200,7 @@ private:
 				left / 86400));
 		} else {
 			const auto time = base::unixtime::parse(link.expireDate).time();
-			add(QLocale::system().toString(time, QLocale::LongFormat));
+			add(QLocale().toString(time, QLocale::LongFormat));
 		}
 	}
 	return result;

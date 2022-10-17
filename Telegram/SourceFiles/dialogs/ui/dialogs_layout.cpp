@@ -72,12 +72,12 @@ void PaintRowDate(QPainter &p, QDateTime date, QRect &rectForName, bool active, 
 		const auto wasSameDay = (lastDate == nowDate);
 		const auto wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
 		if (wasSameDay || wasRecently) {
-			return lastTime.toString(cTimeFormat());
+			return QLocale().toString(lastTime, cTimeFormat());
 		} else if (lastDate.year() == nowDate.year()
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			return langDayOfWeek(lastDate);
 		} else {
-			return lastDate.toString(cDateFormat());
+			return QLocale().toString(lastDate, cDateFormat());
 		}
 	}();
 	PaintRowTopRight(p, dt, rectForName, active, selected);

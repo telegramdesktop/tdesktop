@@ -399,14 +399,15 @@ QString OnlineText(TimeId online, TimeId now) {
 	}
 	const auto onlineFull = base::unixtime::parse(online);
 	const auto nowFull = base::unixtime::parse(now);
+	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(cDateFormat());
+	const auto date = locale.toString(onlineFull.date(), cDateFormat());
 	return tr::lng_status_lastseen_date(tr::now, lt_date, date);
 }
 
@@ -425,15 +426,16 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	}
 	const auto onlineFull = base::unixtime::parse(user->onlineTill);
 	const auto nowFull = base::unixtime::parse(now);
+	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(cDateFormat());
-	const auto time = onlineFull.time().toString(cTimeFormat());
+	const auto date = locale.toString(onlineFull.date(), cDateFormat());
+	const auto time = locale.toString(onlineFull.time(), cTimeFormat());
 	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
 

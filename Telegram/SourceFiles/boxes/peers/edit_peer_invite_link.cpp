@@ -1376,7 +1376,7 @@ QString PrepareRequestedRowStatus(TimeId date) {
 	const auto now = QDateTime::currentDateTime();
 	const auto parsed = base::unixtime::parse(date);
 	const auto parsedDate = parsed.date();
-	const auto time = parsed.time().toString(cTimeFormat());
+	const auto time = QLocale().toString(parsed.time(), cTimeFormat());
 	const auto generic = [&] {
 		return tr::lng_group_requests_status_date_time(
 			tr::now,

@@ -289,7 +289,8 @@ void GroupCallBar::paint(Painter &p) {
 		}
 		const auto parsed = base::unixtime::parse(_content.scheduleDate);
 		const auto date = parsed.date();
-		const auto time = parsed.time().toString(
+		const auto time = QLocale().toString(
+			parsed.time(),
 			Ui::Integration::Instance().timeFormat());
 		const auto today = QDate::currentDate();
 		if (date == today) {

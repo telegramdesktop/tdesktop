@@ -88,19 +88,19 @@ QString FormatDateTime(
 		return tr::lng_mediaview_today(
 			tr::now,
 			lt_time,
-			date.time().toString(timeFormat));
+			QLocale().toString(date.time(), timeFormat));
 	} else if (date.date().addDays(1) == now.date()) {
 		return tr::lng_mediaview_yesterday(
 			tr::now,
 			lt_time,
-			date.time().toString(timeFormat));
+			QLocale().toString(date.time(), timeFormat));
 	} else {
 		return tr::lng_mediaview_date_time(
 			tr::now,
 			lt_date,
-			date.date().toString(dateFormat),
+			QLocale().toString(date.date(), dateFormat),
 			lt_time,
-			date.time().toString(timeFormat));
+			QLocale().toString(date.time(), timeFormat));
 	}
 }
 
