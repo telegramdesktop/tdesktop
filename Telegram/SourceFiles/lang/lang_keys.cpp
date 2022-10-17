@@ -218,7 +218,9 @@ QString langDateTime(const QDateTime &date) {
 		lt_date,
 		langDayOfMonth(date.date()),
 		lt_time,
-		date.time().toString(Ui::Integration::Instance().timeFormat()));
+		QLocale().toString(
+			date.time(),
+			Ui::Integration::Instance().timeFormat()));
 }
 
 QString langDateTimeFull(const QDateTime &date) {
@@ -227,5 +229,7 @@ QString langDateTimeFull(const QDateTime &date) {
 		lt_date,
 		langDayOfMonthFull(date.date()),
 		lt_time,
-		date.time().toString(Ui::Integration::Instance().timeFormat()));
+		QLocale().toString(
+			date.time(),
+			Ui::Integration::Instance().timeFormat()));
 }

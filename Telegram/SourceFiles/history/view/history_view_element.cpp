@@ -250,19 +250,20 @@ TextSelection ShiftItemSelection(
 }
 
 QString DateTooltipText(not_null<Element*> view) {
-	const auto format = QLocale::system().dateTimeFormat(QLocale::LongFormat);
-	auto dateText = view->dateTime().toString(format);
+	const auto locale = QLocale();
+	const auto format = QLocale::LongFormat;
+	auto dateText = locale.toString(view->dateTime(), format);
 	if (const auto editedDate = view->displayedEditDate()) {
 		dateText += '\n' + tr::lng_edited_date(
 			tr::now,
 			lt_date,
-			base::unixtime::parse(editedDate).toString(format));
+			locale.toString(base::unixtime::parse(editedDate), format));
 	}
 	if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 		dateText += '\n' + tr::lng_forwarded_date(
 			tr::now,
 			lt_date,
-			base::unixtime::parse(forwarded->originalDate).toString(format));
+			locale.toString(base::unixtime::parse(forwarded->originalDate), format));
 		if (forwarded->imported) {
 			dateText = tr::lng_forwarded_imported(tr::now)
 				+ "\n\n" + dateText;

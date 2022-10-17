@@ -272,8 +272,8 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: inited..."));
 
-	cChangeDateFormat(QLocale::system().dateFormat(QLocale::ShortFormat));
-	cChangeTimeFormat(QLocale::system().timeFormat(QLocale::ShortFormat));
+	cChangeDateFormat(QLocale().dateFormat(QLocale::ShortFormat));
+	cChangeTimeFormat(QLocale().timeFormat(QLocale::ShortFormat));
 
 	DEBUG_LOG(("Application Info: starting app..."));
 

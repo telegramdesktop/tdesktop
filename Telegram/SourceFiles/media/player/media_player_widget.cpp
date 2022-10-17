@@ -1020,7 +1020,7 @@ void Widget::handleSongChange() {
 			const auto date = [item] {
 				const auto parsed = ItemDateTime(item);
 				const auto date = parsed.date();
-				const auto time = parsed.time().toString(cTimeFormat());
+				const auto time = QLocale().toString(parsed.time(), cTimeFormat());
 				const auto today = QDateTime::currentDateTime().date();
 				if (date == today) {
 					return tr::lng_player_message_today(

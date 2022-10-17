@@ -1145,7 +1145,7 @@ HistoryService::PreparedText HistoryService::prepareCallScheduledText(
 				Ui::Text::WithEntities);
 		}
 	};
-	const auto time = scheduled.time().toString(cTimeFormat());
+	const auto time = QLocale().toString(scheduled.time(), cTimeFormat());
 	const auto prepareGeneric = [&] {
 		prepareWithDate(tr::lng_group_call_starts_date(
 			tr::now,
