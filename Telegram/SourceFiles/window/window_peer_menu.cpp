@@ -237,6 +237,7 @@ private:
 	void addTTLSubmenu(bool addSeparator);
 	void addGiftPremium();
 	void addCreateTopic();
+	void addViewAsMessages();
 	void addSearchTopics();
 
 	not_null<SessionController*> _controller;
@@ -948,6 +949,18 @@ void Filler::addCreateTopic() {
 	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 }
 
+void Filler::addViewAsMessages() {
+	if (!_peer || !_peer->isForum()) {
+		return;
+	}
+	const auto peer = _peer;
+	const auto controller = _controller;
+	_addAction(tr::lng_forum_view_as_messages(tr::now), [=] {
+		controller->showPeerHistory(peer->id);
+	}, &st::menuIconViewReplies);
+	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+}
+
 void Filler::addSearchTopics() {
 	_addAction(tr::lng_dlg_filter(tr::now), [=] {
 
@@ -959,6 +972,7 @@ void Filler::fillChatsListActions() {
 		return;
 	}
 	addCreateTopic();
+	addViewAsMessages();
 	addInfo();
 	addNewMembers();
 	const auto &all = _peer->forum()->topicsList()->indexed()->all();
