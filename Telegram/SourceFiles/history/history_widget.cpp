@@ -6351,6 +6351,20 @@ void HistoryWidget::setChooseReportMessagesDetails(
 }
 
 void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
+	const auto openSection = [=] {
+		const auto id = _pinnedTracker
+			? _pinnedTracker->currentMessageId()
+			: HistoryView::PinnedId();
+		if (!id.message) {
+			return;
+		}
+		controller()->showSection(
+			std::make_shared<HistoryView::PinnedMemento>(
+				_history,
+				((!_migrated || peerIsChannel(id.message.peer))
+					? id.message.msg
+					: (id.message.msg - ServerMaxMsgId))));
+	};
 	if (const auto replyMarkup = item ? item->inlineReplyMarkup() : nullptr) {
 		const auto &rows = replyMarkup->data.rows;
 		if ((rows.size() == 1) && (rows.front().size() == 1)) {
@@ -6372,6 +6386,18 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
 					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
 				}
+				struct State {
+					base::unique_qptr<Ui::PopupMenu> menu;
+				};
+				const auto state = button->lifetime().make_state<State>();
+				_pinnedBar->contextMenuRequested(
+				) | rpl::start_with_next([=, raw = button.data()] {
+					state->menu = base::make_unique_q<Ui::PopupMenu>(raw);
+					state->menu->addAction(
+						tr::lng_settings_events_pinned(tr::now),
+						openSection);
+					state->menu->popup(QCursor::pos());
+				}, button->lifetime());
 				_pinnedBar->setRightButton(std::move(button));
 				return;
 			}
@@ -6386,15 +6412,7 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		if (close) {
 			hidePinnedMessage();
 		} else {
-			const auto id = _pinnedTracker->currentMessageId();
-			if (id.message) {
-				controller()->showSection(
-					std::make_shared<HistoryView::PinnedMemento>(
-						_history,
-						((!_migrated || peerIsChannel(id.message.peer))
-							? id.message.msg
-							: (id.message.msg - ServerMaxMsgId))));
-			}
+			openSection();
 		}
 	}, button->lifetime());
 	_pinnedBar->setRightButton(std::move(button));

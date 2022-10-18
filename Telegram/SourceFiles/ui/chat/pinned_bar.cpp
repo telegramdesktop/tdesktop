@@ -150,10 +150,12 @@ void PinnedBar::createControls() {
 	_bar->widget()->setCursor(style::cur_pointer);
 	_bar->widget()->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress);
+		return (event->type() == QEvent::MouseButtonPress)
+			&& (static_cast<QMouseEvent*>(event.get())->button()
+					== Qt::LeftButton);
 	}) | rpl::map([=] {
 		return _bar->widget()->events(
-		) | rpl::filter([=](not_null<QEvent*> event) {
+		) | rpl::filter([](not_null<QEvent*> event) {
 			return (event->type() == QEvent::MouseButtonRelease);
 		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
 			return _bar->widget()->rect().contains(
@@ -245,6 +247,18 @@ rpl::producer<int> PinnedBar::heightValue() const {
 
 rpl::producer<> PinnedBar::barClicks() const {
 	return _barClicks.events();
+}
+
+rpl::producer<> PinnedBar::contextMenuRequested() const {
+	return _wrap.entity()->paintRequest(
+	) | rpl::filter([=] {
+		return _bar && _bar->widget();
+	}) | rpl::map([=] {
+		return _bar->widget()->events(
+		) | rpl::filter([](not_null<QEvent*> event) {
+			return (event->type() == QEvent::ContextMenu);
+		}) | rpl::to_empty;
+	}) | rpl::flatten_latest();
 }
 
 } // namespace Ui

@@ -41,6 +41,7 @@ public:
 	[[nodiscard]] int height() const;
 	[[nodiscard]] rpl::producer<int> heightValue() const;
 	[[nodiscard]] rpl::producer<> barClicks() const;
+	[[nodiscard]] rpl::producer<> contextMenuRequested() const;
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _wrap.lifetime();
@@ -63,6 +64,7 @@ private:
 	std::unique_ptr<Ui::PlainShadow> _shadow;
 	Fn<bool()> _customEmojiPaused;
 	rpl::event_stream<> _barClicks;
+	rpl::event_stream<> _contextMenuRequested;
 	Fn<QRect(QRect)> _shadowGeometryPostprocess;
 	bool _shouldBeShown = false;
 	bool _forceHidden = false;
