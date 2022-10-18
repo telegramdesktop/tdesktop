@@ -84,13 +84,13 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 	const auto hasPrevious = (_right.button != nullptr);
 	if (auto previous = _right.button.release()) {
-		_right.previousButtonLifetime.make_state<RightButton>(
-			RightButton::fromRaw(std::move(previous)));
-		_right.previousButtonLifetime = previous->toggledValue(
+		using Unique = base::unique_qptr<Ui::FadeWrapScaled<Ui::RpWidget>>;
+		_right.previousButtonLifetime = previous->shownValue(
 		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
 			_right.previousButtonLifetime.destroy();
 		});
 		previous->hide(anim::type::normal);
+		_right.previousButtonLifetime.make_state<Unique>(Unique{ previous });
 	}
 	_right.button.create(_wrap.entity(), std::move(button));
 	if (_right.button) {
