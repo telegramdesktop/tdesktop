@@ -154,6 +154,7 @@ struct TopicUpdate {
 		IconId = (1U << 6),
 		ColorId = (1U << 7),
 		CloudDraft = (1U << 8),
+		Closed = (1U << 9),
 
 		LastUsedBit = (1U << 8),
 	};

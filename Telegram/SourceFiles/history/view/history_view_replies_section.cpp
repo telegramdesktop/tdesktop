@@ -568,19 +568,34 @@ void RepliesWidget::setupComposeControls() {
 			std::move(hasSendingMessage),
 			_1 && _2);
 
+	auto topicWriteRestrictions = rpl::single(
+	) | rpl::then(session().changes().topicUpdates(
+		Data::TopicUpdate::Flag::Closed
+	) | rpl::filter([=](const Data::TopicUpdate &update) {
+		return (update.topic->history() == _history)
+			&& (update.topic->rootId() == _rootId);
+	}) | rpl::to_empty) | rpl::map([=] {
+		const auto topic = _topic
+			? _topic
+			: _history->peer->forumTopicFor(_rootId);
+		return (topic->canToggleClosed() || !topic->closed())
+			? std::optional<QString>()
+			: tr::lng_forum_topic_closed(tr::now);
+	});
 	auto writeRestriction = rpl::combine(
 		session().changes().peerFlagsValue(
 			_history->peer,
 			Data::PeerUpdate::Flag::Rights),
-		Data::CanWriteValue(_history->peer)
-	) | rpl::map([=] {
+		Data::CanWriteValue(_history->peer),
+		std::move(topicWriteRestrictions)
+	) | rpl::map([=](auto, auto, std::optional<QString> topicRestriction) {
 		const auto restriction = Data::RestrictionError(
 			_history->peer,
 			ChatRestriction::SendMessages);
 		return restriction
 			? restriction
 			: _history->peer->canWrite()
-			? std::optional<QString>()
+			? std::move(topicRestriction)
 			: tr::lng_group_not_accessible(tr::now);
 	});
 
@@ -1465,7 +1480,7 @@ bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
 			}
 		};
 		controller()->show(Ui::MakeConfirmBox({
-			.text = rpl::single(u"Sure discard?"_q), // #TODO lang-forum
+			.text = tr::lng_forum_discard_sure(tr::now),
 			.confirmed = std::move(sure),
 			.confirmText = tr::lng_record_lock_discard(),
 			.confirmStyle = &st::attentionBoxButton,

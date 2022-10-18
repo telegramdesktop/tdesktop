@@ -534,6 +534,15 @@ bool PeerData::canCreateTopics() const {
 	return isForum() && canPinMessages();
 }
 
+bool PeerData::canEditTopics() const {
+	if (const auto channel = asChannel()) {
+		return channel->isForum()
+			&& (channel->amCreator()
+				|| (channel->adminRights() & ChatAdminRight::PinMessages));
+	}
+	return false;
+}
+
 bool PeerData::canEditMessagesIndefinitely() const {
 	if (const auto user = asUser()) {
 		return user->isSelf();

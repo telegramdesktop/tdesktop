@@ -61,6 +61,13 @@ public:
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
 
+	[[nodiscard]] bool canEdit() const;
+	[[nodiscard]] bool canToggleClosed() const;
+
+	[[nodiscard]] bool closed() const;
+	void setClosed(bool closed);
+	void setClosedAndSave(bool closed);
+
 	[[nodiscard]] bool creating() const;
 	void discard();
 
@@ -128,6 +135,13 @@ public:
 		->not_null<HistoryView::SendActionPainter*> override;
 
 private:
+	enum class Flag : uchar {
+		Closed = (1 << 0),
+		My = (1 << 1),
+	};
+	friend inline constexpr bool is_flag_type(Flag) { return true; }
+	using Flags = base::flags<Flag>;
+
 	void indexTitleParts();
 	void validateDefaultIcon() const;
 	void applyTopicTopMessage(MsgId topMessageId);
@@ -158,6 +172,7 @@ private:
 	base::flat_set<QChar> _titleFirstLetters;
 	int _titleVersion = 0;
 	int32 _colorId = 0;
+	Flags _flags;
 
 	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 	mutable QImage _defaultIcon; // on-demand

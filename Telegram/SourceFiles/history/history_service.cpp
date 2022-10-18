@@ -638,7 +638,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
-		// #TODO lang-forum
 		result.text = { tr::lng_action_topic_created(tr::now) };
 		return result;
 	};

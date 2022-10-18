@@ -198,6 +198,14 @@ MsgId ForumTopic::rootId() const {
 	return _rootId;
 }
 
+bool ForumTopic::canEdit() const {
+	return (_flags & Flag::My) || channel()->canEditTopics();
+}
+
+bool ForumTopic::canToggleClosed() const {
+	return !creating() && canEdit();
+}
+
 bool ForumTopic::creating() const {
 	return _forum->creating(_rootId);
 }
@@ -231,13 +239,11 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	applyColorId(data.vicon_color().v);
 
 	const auto pinned = _list->pinned();
-#if 0 // #TODO forum pinned
 	if (data.is_pinned()) {
 		pinned->addPinned(Dialogs::Key(this));
 	} else {
 		pinned->setPinned(Dialogs::Key(this), false);
 	}
-#endif
 
 	owner().notifySettings().apply(this, data.vnotify_settings());
 
@@ -249,17 +255,58 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 			_rootId,
 			draft->c_draftMessage());
 	}
+	if (data.is_my()) {
+		_flags |= Flag::My;
+	} else {
+		_flags &= ~Flag::My;
+	}
+	setClosed(data.is_closed());
 
 	_replies->setInboxReadTill(
 		data.vread_inbox_max_id().v,
 		data.vunread_count().v);
 	_replies->setOutboxReadTill(data.vread_outbox_max_id().v);
 	applyTopicTopMessage(data.vtop_message().v);
-#if 0 // #TODO forum unread mark
-	setUnreadMark(data.is_unread_mark());
-#endif
 	unreadMentions().setCount(data.vunread_mentions_count().v);
 	unreadReactions().setCount(data.vunread_reactions_count().v);
+}
+
+bool ForumTopic::closed() const {
+	return _flags & Flag::Closed;
+}
+
+void ForumTopic::setClosed(bool closed) {
+	if (this->closed() == closed) {
+		return;
+	} else if (closed) {
+		_flags |= Flag::Closed;
+	} else {
+		_flags &= ~Flag::Closed;
+	}
+	session().changes().topicUpdated(this, UpdateFlag::Closed);
+}
+
+void ForumTopic::setClosedAndSave(bool closed) {
+	setClosed(closed);
+
+	const auto api = &session().api();
+	const auto weak = base::make_weak(this);
+	api->request(MTPchannels_EditForumTopic(
+		MTP_flags(MTPchannels_EditForumTopic::Flag::f_closed),
+		channel()->inputChannel,
+		MTP_int(_rootId),
+		MTPstring(), // title
+		MTPlong(), // icon_emoji_id
+		MTP_bool(closed)
+	)).done([=](const MTPUpdates &result) {
+		api->applyUpdates(result);
+	}).fail([=](const MTP::Error &error) {
+		if (error.type() != u"TOPIC_NOT_MODIFIED") {
+			if (const auto topic = weak.get()) {
+				topic->forum()->requestTopic(topic->rootId());
+			}
+		}
+	}).send();
 }
 
 void ForumTopic::indexTitleParts() {

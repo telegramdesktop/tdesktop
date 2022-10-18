@@ -226,6 +226,7 @@ private:
 	void addThemeEdit();
 	void addBlockUser();
 	void addViewDiscussion();
+	void addToggleTopicClosed();
 	void addExportChat();
 	void addReport();
 	void addNewContact();
@@ -239,6 +240,7 @@ private:
 	void addCreateTopic();
 	void addViewAsMessages();
 	void addSearchTopics();
+	void addDeleteTopic();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -384,6 +386,19 @@ void Filler::addHidePromotion() {
 			history->peer->input
 		)).send();
 	}, &st::menuIconRemove);
+}
+
+void Filler::addToggleTopicClosed() {
+	if (!_topic || !_topic->canToggleClosed()) {
+		return;
+	}
+	const auto closed = _topic->closed();
+	const auto weak = base::make_weak(_topic);
+	_addAction(closed ? u"Reopen"_q : u"Close"_q, [=] {
+		if (const auto topic = weak.get()) {
+			topic->setClosedAndSave(!closed);
+		}
+	}, closed ? &st::menuIconRestartBot : &st::menuIconBlock);
 }
 
 void Filler::addTogglePin() {
@@ -802,13 +817,19 @@ void Filler::addDeleteContact() {
 	});
 }
 
-void Filler::addManageTopic() {
-	const auto topic = _thread->asTopic();
-	if (!topic) {
+void Filler::addDeleteTopic() {
+	if (!_topic/* || !_topic->canDelete()*/) {
 		return;
 	}
-	const auto history = topic->history();
-	const auto rootId = topic->rootId();
+}
+
+
+void Filler::addManageTopic() {
+	if (!_topic || !_topic->canEdit()) {
+		return;
+	}
+	const auto history = _topic->history();
+	const auto rootId = _topic->rootId();
 	const auto navigation = _controller;
 	_addAction(tr::lng_forum_topic_edit(tr::now), [=] {
 		navigation->show(
@@ -995,6 +1016,7 @@ void Filler::fillContextMenuActions() {
 	}
 	addToggleMuteSubmenu(false);
 	addToggleUnreadMark();
+	addToggleTopicClosed();
 	addToggleFolder();
 	if (const auto user = _peer->asUser()) {
 		if (!user->isContact()) {
@@ -1004,6 +1026,7 @@ void Filler::fillContextMenuActions() {
 	addClearHistory();
 	addDeleteChat();
 	addLeaveChat();
+	addDeleteTopic();
 }
 
 void Filler::fillHistoryActions() {
@@ -1032,21 +1055,25 @@ void Filler::fillProfileActions() {
 	addNewMembers();
 	addManageTopic();
 	addManageChat();
+	addToggleTopicClosed();
 	addViewDiscussion();
 	addExportChat();
 	addBlockUser();
 	addReport();
 	addLeaveChat();
 	addDeleteContact();
+	addDeleteTopic();
 }
 
 void Filler::fillRepliesActions() {
-	if (_thread->asTopic()) {
+	if (_topic) {
 		addInfo();
 		addManageTopic();
 		addManageChat();
+		addDeleteTopic();
 	}
 	addCreatePoll();
+	addToggleTopicClosed();
 }
 
 void Filler::fillScheduledActions() {

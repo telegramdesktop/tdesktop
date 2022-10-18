@@ -3517,10 +3517,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_topic_new" = "New Topic";
 "lng_forum_topic_edit" = "Edit Topic";
 "lng_forum_topic_title" = "Topic Title";
+"lng_forum_topic_closed" = "This topic is now closed.";
 "lng_forum_topics_switch" = "Topics";
 "lng_forum_no_topics" = "No topics currently created in this forum.";
 "lng_forum_create_topic" = "Create topic";
-"lng_forum_discard_sure" = "Discard sure?";
+"lng_forum_discard_sure" = "Are you sure you want to discard this topic?";
 "lng_forum_view_as_messages" = "View as Messages";
 
 // Wnd specific
