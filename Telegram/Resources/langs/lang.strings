@@ -2971,6 +2971,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_filter_voice_chats_channel" = "Live stream";
 "lng_admin_log_filter_invite_links" = "Invite links";
 "lng_admin_log_filter_members_removed" = "Leaving members";
+"lng_admin_log_filter_topics" = "Topics";
 "lng_admin_log_filter_all_admins" = "All users and admins";
 "lng_admin_log_about" = "What is this?";
 "lng_admin_log_about_text" = "This is a list of all service actions taken by the group's members and admins in the last 48 hours.";
@@ -3076,6 +3077,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_invite_link_label" = "Name: {previous} -> {limit}";
 "lng_admin_log_invite_link_request_needed" = "Now admin approval is required to join.";
 "lng_admin_log_invite_link_request_not_needed" = "Now admin approval is not required to join.";
+"lng_admin_log_topics_enabled" = "{from} enabled topics";
+"lng_admin_log_topics_disabled" = "{from} disabled topics";
+"lng_admin_log_topics_created" = "{from} created topic {topic}";
+"lng_admin_log_topics_changed" = "{from} changed topic {topic} to {new_topic}";
+"lng_admin_log_topics_closed" = "{from} closed topic {topic}";
+"lng_admin_log_topics_reopened" = "{from} reopened topic {topic}";
+"lng_admin_log_topics_deleted" = "{from} deleted topic {topic}";
+"lng_admin_log_topics_pinned" = "{from} pinned topic {topic}";
+"lng_admin_log_topics_unpinned" = "{from} unpinned topic {topic}";
 "lng_admin_log_restricted_forever" = "indefinitely";
 "lng_admin_log_restricted_until" = "until {date}";
 "lng_admin_log_banned_view_messages" = "Read messages";

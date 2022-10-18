@@ -428,7 +428,7 @@ bool ResolvePrivatePost(
 	const auto topicId = topicParam.toInt();
 	const auto threadParam = params.value(qsl("thread"));
 	const auto threadId = topicId ? topicId : threadParam.toInt();
-	if (!channelId || !IsServerMsgId(msgId)) {
+	if (!channelId || (msgId && !IsServerMsgId(msgId))) {
 		return false;
 	}
 	const auto fromMessageId = context.value<ClickHandlerContext>().itemId;
@@ -941,9 +941,13 @@ QString TryConvertUrlToLocal(QString url) {
 				? "gradient"
 				: "slug";
 			return qsl("tg://bg?") + type + '=' + bg + (params.isEmpty() ? QString() : '&' + params);
-		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)/(\\d+)(/?\\?|/?$)"), query, matchOptions)) {
-			auto params = query.mid(postMatch->captured(0).size()).toString();
-			return qsl("tg://privatepost?channel=%1&post=%2").arg(postMatch->captured(1), postMatch->captured(2)) + (params.isEmpty() ? QString() : '&' + params);
+		} else if (auto postMatch = regex_match(qsl("^c/(\\-?\\d+)(/\\d+)?(/?\\?|/?$)"), query, matchOptions)) {
+			const auto params = query.mid(postMatch->captured(0).size()).toString();
+			const auto base = u"tg://privatepost?channel="_q + postMatch->captured(1);
+			const auto post = postMatch->captured(2).mid(1);
+			return base
+				+ (post.isEmpty() ? QString() : u"&post="_q + post)
+				+ (params.isEmpty() ? QString() : '&' + params);
 		} else if (auto usernameMatch = regex_match(qsl("^([a-zA-Z0-9\\.\\_]+)(/?\\?|/?$|/(\\d+)/?(?:\\?|$))"), query, matchOptions)) {
 			auto params = query.mid(usernameMatch->captured(0).size()).toString();
 			auto postParam = QString();

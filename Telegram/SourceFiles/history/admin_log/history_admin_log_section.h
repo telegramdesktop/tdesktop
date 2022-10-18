@@ -46,8 +46,9 @@ struct FilterValue {
 		Delete = (1U << 13),
 		GroupCall = (1U << 14),
 		Invites = (1U << 15),
+		Topics = (1U << 16),
 
-		MAX_FIELD = (1U << 15),
+		MAX_FIELD = (1U << 16),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr bool is_flag_type(Flag) { return true; };

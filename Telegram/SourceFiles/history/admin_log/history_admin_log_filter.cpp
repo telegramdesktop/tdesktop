@@ -305,6 +305,9 @@ void FilterBox::Inner::createActionsCheckboxes(const FilterValue &filter) {
 	}
 	addFlag(Flag::Invites, tr::lng_admin_log_filter_invite_links(tr::now));
 	addFlag(Flag::Leave, tr::lng_admin_log_filter_members_removed(tr::now));
+	if (isGroup) {
+		addFlag(Flag::Topics, tr::lng_admin_log_filter_topics(tr::now));
+	}
 }
 
 void FilterBox::Inner::createAllUsersCheckbox(const FilterValue &filter) {

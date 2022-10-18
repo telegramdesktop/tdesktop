@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_message_reaction_id.h"
+#include "data/stickers/data_custom_emoji.h"
 #include "lang/lang_keys.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
@@ -607,6 +608,48 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	result.entities.push_front(
 		EntityInText(EntityType::Italic, 0, result.text.size()));
 	return result;
+}
+
+[[nodiscard]] bool IsTopicClosed(const MTPForumTopic &topic) {
+	return topic.match([](const MTPDforumTopic &data) {
+		return data.is_closed();
+	}, [](const MTPDforumTopicDeleted &) {
+		return false;
+	});
+}
+
+[[nodiscard]] TextWithEntities GenerateTopicLink(
+		not_null<ChannelData*> channel,
+		const MTPForumTopic &topic) {
+	return topic.match([&](const MTPDforumTopic &data) {
+		const auto wrapIcon = [](DocumentId id) {
+			return TextWithEntities{
+				"@",
+				{ EntityInText(
+					EntityType::CustomEmoji,
+					0,
+					1,
+					Data::SerializeCustomEmojiId({ .id = id }))
+				},
+			};
+		};
+		auto result = (data.vicon_emoji_id() && data.vicon_emoji_id()->v)
+			? wrapIcon(data.vicon_emoji_id()->v)
+			: TextWithEntities();
+		result.append(qs(data.vtitle()));
+		result.entities.insert(
+			result.entities.begin(),
+			EntityInText(
+				EntityType::CustomUrl,
+				0,
+				result.text.size(),
+				u"https://t.me/c/%1?topic=%2"_q.arg(
+					peerToChannel(channel->id).bare).arg(
+						data.vid().v)));
+		return result;
+	}, [](const MTPDforumTopicDeleted &) {
+		return TextWithEntities{ u"Deleted"_q };
+	});
 }
 
 } // namespace
@@ -1585,23 +1628,89 @@ void GenerateItems(
 	};
 
 	const auto createToggleForum = [&](const LogToggleForum &data) {
-
+		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+		const auto text = (enabled
+			? tr::lng_admin_log_topics_enabled
+			: tr::lng_admin_log_topics_disabled)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
 	};
 
 	const auto createCreateTopic = [&](const LogCreateTopic &data) {
-
+		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+		addSimpleServiceMessage(tr::lng_admin_log_topics_created(
+			tr::now,
+			lt_from,
+			fromLinkText,
+			lt_topic,
+			topicLink,
+			Ui::Text::WithEntities));
 	};
 
 	const auto createEditTopic = [&](const LogEditTopic &data) {
-
+		const auto prevLink = GenerateTopicLink(channel, data.vprev_topic());
+		const auto nowLink = GenerateTopicLink(channel, data.vnew_topic());
+		if (prevLink != nowLink) {
+			addSimpleServiceMessage(tr::lng_admin_log_topics_changed(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				prevLink,
+				lt_new_topic,
+				nowLink,
+				Ui::Text::WithEntities));
+		}
+		const auto wasClosed = IsTopicClosed(data.vprev_topic());
+		const auto nowClosed = IsTopicClosed(data.vnew_topic());
+		if (nowClosed != wasClosed) {
+			addSimpleServiceMessage((nowClosed
+				? tr::lng_admin_log_topics_closed
+				: tr::lng_admin_log_topics_reopened)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_topic,
+					nowLink,
+					Ui::Text::WithEntities));
+		}
 	};
 
 	const auto createDeleteTopic = [&](const LogDeleteTopic &data) {
-
+		auto topicLink = GenerateTopicLink(channel, data.vtopic());
+		topicLink.entities.erase(topicLink.entities.begin());
+		addSimpleServiceMessage(tr::lng_admin_log_topics_deleted(
+			tr::now,
+			lt_from,
+			fromLinkText,
+			lt_topic,
+			topicLink,
+			Ui::Text::WithEntities));
 	};
 
 	const auto createPinTopic = [&](const LogPinTopic &data) {
-
+		if (const auto &topic = data.vnew_topic()) {
+			auto topicLink = GenerateTopicLink(channel, *topic);
+			addSimpleServiceMessage(tr::lng_admin_log_topics_pinned(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				topicLink,
+				Ui::Text::WithEntities));
+		} else if (const auto &previous = data.vprev_topic()) {
+			auto topicLink = GenerateTopicLink(channel, *previous);
+			addSimpleServiceMessage(tr::lng_admin_log_topics_unpinned(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				lt_topic,
+				topicLink,
+				Ui::Text::WithEntities));
+		}
 	};
 
 	action.match(

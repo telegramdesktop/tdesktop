@@ -753,7 +753,8 @@ void InnerWidget::preloadMore(Direction direction) {
 			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
 			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
 			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
-			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty);
+			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
+			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty);
 	}();
 	if (_filter.flags != 0) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;

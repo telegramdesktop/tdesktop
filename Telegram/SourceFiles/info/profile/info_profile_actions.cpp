@@ -104,10 +104,11 @@ namespace {
 		const QString &addToLink) {
 	return [=](QString link) {
 		if (!link.startsWith(u"https://"_q)) {
-			link = peer->session().createInternalLinkFull(peer->userName());
+			link = peer->session().createInternalLinkFull(peer->userName())
+				+ addToLink;
 		}
 		if (!link.isEmpty()) {
-			QGuiApplication::clipboard()->setText(link + addToLink);
+			QGuiApplication::clipboard()->setText(link);
 			Ui::Toast::Show(
 				show.toastParent(),
 				tr::lng_username_copied(tr::now));
@@ -426,7 +427,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 					link + addToLink);
 		});
 		auto linkLine = addInfoOneLine(
-			UsernamesSubtext(_peer, tr::lng_info_link_label()),
+			(topicRootId
+				? tr::lng_info_link_label(Ui::Text::WithEntities)
+				: UsernamesSubtext(_peer, tr::lng_info_link_label())),
 			std::move(linkText),
 			QString());
 		const auto controller = _controller->parentController();
