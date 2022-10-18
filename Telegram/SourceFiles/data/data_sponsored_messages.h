@@ -32,6 +32,7 @@ struct SponsoredFrom {
 	bool isExactPost = false;
 	bool isRecommended = false;
 	ImageWithLocation userpic;
+	bool isForceUserpicDisplay = false;
 };
 
 struct SponsoredMessage {

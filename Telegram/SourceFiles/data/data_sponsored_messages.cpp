@@ -164,6 +164,7 @@ void SponsoredMessages::append(
 			.isExactPost = exactPost,
 			.isRecommended = data.is_recommended(),
 			.userpic = { .location = peer->userpicLocation() },
+			.isForceUserpicDisplay = data.is_show_peer_photo(),
 		};
 	};
 	const auto from = [&]() -> SponsoredFrom {
@@ -195,6 +196,7 @@ void SponsoredMessages::append(
 				.isChannel = data.is_channel(),
 				.isPublic = data.is_public(),
 				.userpic = std::move(userpic),
+				.isForceUserpicDisplay = message.data().is_show_peer_photo(),
 			};
 		}, [&](const MTPDchatInviteAlready &data) {
 			const auto chat = _session->data().processChat(data.vchat());

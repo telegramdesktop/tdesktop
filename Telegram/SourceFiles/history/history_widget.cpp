@@ -297,6 +297,9 @@ HistoryWidget::HistoryWidget(
 		if (_history
 			&& _history->loadedAtBottom()
 			&& session().data().sponsoredMessages().append(_history)) {
+			if (_list) {
+				_list->setCanHaveFromUserpicsSponsored(true);
+			}
 			_scroll->contentAdded();
 		}
 	}, lifetime());

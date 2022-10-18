@@ -175,6 +175,8 @@ public:
 	void setChooseReportReason(Ui::ReportReason reason);
 	void clearChooseReportReason();
 
+	void setCanHaveFromUserpicsSponsored(bool value);
+
 	// -1 if should not be visible, -2 if bad history()
 	int itemTop(const HistoryItem *item) const;
 	int itemTop(const Element *view) const;
@@ -473,6 +475,7 @@ private:
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
 	bool _useCornerReaction = false;
+	bool _canHaveFromUserpicsSponsored = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

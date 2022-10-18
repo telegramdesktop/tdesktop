@@ -1741,6 +1741,7 @@ void HistoryMessage::setSponsoredFrom(const Data::SponsoredFrom &from) {
 		from.title,
 		false);
 	sponsored->recommended = from.isRecommended;
+	sponsored->isForceUserpicDisplay = from.isForceUserpicDisplay;
 	if (from.userpic.location.valid()) {
 		sponsored->sender->customUserpic.set(
 			&history()->session(),

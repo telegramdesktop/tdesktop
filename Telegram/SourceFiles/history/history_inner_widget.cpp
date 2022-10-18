@@ -703,6 +703,8 @@ bool HistoryInner::canHaveFromUserpics() const {
 		&& !_peer->isRepliesChat()
 		&& !_isChatWide) {
 		return false;
+	} else if (_canHaveFromUserpicsSponsored) {
+		return true;
 	} else if (_peer->isChannel() && !_peer->isMegagroup()) {
 		return false;
 	}
@@ -999,8 +1001,7 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 			: yShown(top + height / 2);
 		if (markShown) {
 			if (isSponsored) {
-				session().data().sponsoredMessages().view(
-					item->fullId());
+				session().data().sponsoredMessages().view(item->fullId());
 			} else if (isUnread) {
 				readTill = item;
 			}
@@ -3787,6 +3788,10 @@ void HistoryInner::setChooseReportReason(Ui::ReportReason reason) {
 
 void HistoryInner::clearChooseReportReason() {
 	_chooseForReportReason = std::nullopt;
+}
+
+void HistoryInner::setCanHaveFromUserpicsSponsored(bool value) {
+	_canHaveFromUserpicsSponsored = value;
 }
 
 // -1 if should not be visible, -2 if bad history()

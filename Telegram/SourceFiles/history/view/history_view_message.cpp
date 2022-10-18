@@ -1573,8 +1573,15 @@ bool Message::hasFromPhoto() const {
 	case Context::Replies: {
 		const auto item = message();
 		if (item->isPost()) {
-			return item->isSponsored()
-				&& item->history()->peer->isMegagroup();
+			if (item->isSponsored()) {
+				if (item->history()->peer->isMegagroup()) {
+					return true;
+				}
+				if (const auto info = item->Get<HistoryMessageSponsored>()) {
+					return info->isForceUserpicDisplay;
+				}
+			}
+			return false;
 		}
 		if (item->isEmpty()
 			|| (context() == Context::Replies && item->isDiscussionPost())) {
