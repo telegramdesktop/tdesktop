@@ -378,6 +378,9 @@ public:
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 	void floatPlayerAreaUpdated();
 
+	void materializeLocalDrafts();
+	[[nodiscard]] rpl::producer<> materializeLocalDraftsRequests() const;
+
 	struct ColumnLayout {
 		int bodyWidth = 0;
 		int dialogsWidth = 0;
@@ -628,6 +631,8 @@ private:
 	GiftPremiumValidator _giftPremiumValidator;
 
 	QString _premiumRef;
+
+	rpl::event_stream<> _materializeLocalDraftsRequests;
 
 	rpl::lifetime _lifetime;
 

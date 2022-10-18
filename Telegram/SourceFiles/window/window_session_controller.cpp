@@ -1119,6 +1119,14 @@ void SessionController::floatPlayerAreaUpdated() {
 	}
 }
 
+void SessionController::materializeLocalDrafts() {
+	_materializeLocalDraftsRequests.fire({});
+}
+
+rpl::producer<> SessionController::materializeLocalDraftsRequests() const {
+	return _materializeLocalDraftsRequests.events();
+}
+
 int SessionController::dialogsSmallColumnWidth() const {
 	return st::defaultDialogRow.padding.left()
 		+ st::defaultDialogRow.photoSize

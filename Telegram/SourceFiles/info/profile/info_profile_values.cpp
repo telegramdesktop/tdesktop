@@ -104,8 +104,15 @@ rpl::producer<QString> TitleValue(not_null<Data::ForumTopic*> topic) {
 rpl::producer<DocumentId> IconIdValue(not_null<Data::ForumTopic*> topic) {
 	return topic->session().changes().topicFlagsValue(
 		topic,
-		Data::TopicUpdate::Flag::Icon
+		Data::TopicUpdate::Flag::IconId
 	) | rpl::map([=] { return topic->iconId(); });
+}
+
+rpl::producer<int32> ColorIdValue(not_null<Data::ForumTopic*> topic) {
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::ColorId
+	) | rpl::map([=] { return topic->colorId(); });
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {

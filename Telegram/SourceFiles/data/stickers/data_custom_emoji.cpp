@@ -39,6 +39,22 @@ constexpr auto kUnsubscribeUpdatesDelay = 3 * crl::time(1000);
 
 using SizeTag = CustomEmojiManager::SizeTag;
 
+class CallbackListener final : public CustomEmojiManager::Listener {
+public:
+	explicit CallbackListener(Fn<void(not_null<DocumentData*>)> callback)
+	: _callback(std::move(callback)) {
+		Expects(_callback != nullptr);
+	}
+
+private:
+	void customEmojiResolveDone(not_null<DocumentData*> document) {
+		_callback(document);
+	}
+
+	Fn<void(not_null<DocumentData*>)> _callback;
+
+};
+
 [[nodiscard]] ChatHelpers::StickerLottieSize LottieSizeFromTag(SizeTag tag) {
 	// NB! onlyCustomEmoji dimensions caching uses last ::EmojiInteraction-s.
 	using LottieSize = ChatHelpers::StickerLottieSize;
@@ -544,6 +560,28 @@ void CustomEmojiManager::unregisterListener(not_null<Listener*> listener) {
 			}
 		}
 	}
+}
+
+rpl::producer<not_null<DocumentData*>> CustomEmojiManager::resolve(
+		DocumentId documentId) {
+	return [=](auto consumer) {
+		auto result = rpl::lifetime();
+		const auto put = [=](not_null<DocumentData*> document) {
+			if (!document->sticker()) {
+				return false;
+			}
+			consumer.put_next_copy(document);
+			return true;
+		};
+		if (!put(owner().document(documentId))) {
+			const auto listener = new CallbackListener(put);
+			result.add([=] {
+				unregisterListener(listener);
+				delete listener;
+			});
+		}
+		return result;
+	};
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(

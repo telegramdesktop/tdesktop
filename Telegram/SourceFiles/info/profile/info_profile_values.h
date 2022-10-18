@@ -49,6 +49,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<DocumentId> IconIdValue(
 	not_null<Data::ForumTopic*> topic);
+[[nodiscard]] rpl::producer<int32> ColorIdValue(
+	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(

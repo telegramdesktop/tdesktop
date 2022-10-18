@@ -492,7 +492,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 		_defaultIcon = QImage();
 	}
 	updateChatListEntry();
-	session().changes().topicUpdated(this, UpdateFlag::Icon);
+	session().changes().topicUpdated(this, UpdateFlag::IconId);
 }
 
 int32 ForumTopic::colorId() const {
@@ -500,7 +500,10 @@ int32 ForumTopic::colorId() const {
 }
 
 void ForumTopic::applyColorId(int32 colorId) {
-	_colorId = colorId;
+	if (_colorId != colorId) {
+		_colorId = colorId;
+		session().changes().topicUpdated(this, UpdateFlag::ColorId);
+	}
 }
 
 void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {

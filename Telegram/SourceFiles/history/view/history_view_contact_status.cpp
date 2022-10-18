@@ -44,22 +44,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
-class Listener final : public Data::CustomEmojiManager::Listener {
-public:
-	explicit Listener(Fn<void(not_null<DocumentData*>)> check)
-	: _check(std::move(check)) {
-	}
-
-	void customEmojiResolveDone(
-		not_null<DocumentData*> document) override {
-		_check(document);
-	}
-
-private:
-	Fn<void(not_null<DocumentData*>)> _check;
-
-};
-
 [[nodiscard]] bool BarCurrentlyHidden(not_null<PeerData*> peer) {
 	const auto settings = peer->settings();
 	if (!settings) {
@@ -83,43 +67,29 @@ private:
 [[nodiscard]] rpl::producer<TextWithEntities> ResolveIsCustom(
 		not_null<Data::Session*> owner,
 		DocumentId id) {
-	return [=](auto consumer) {
-		const auto document = owner->document(id);
-		const auto manager = &owner->customEmojiManager();
-		const auto check = [=](not_null<DocumentData*> document) {
-			if (const auto sticker = document->sticker()) {
-				const auto setId = manager->coloredSetId();
-				const auto text = (setId == sticker->set.id)
-					? QString()
-					: sticker->alt;
-				if (text.isEmpty()) {
-					consumer.put_next({});
-				} else {
-					consumer.put_next({
-						.text = text,
-						.entities = { EntityInText(
-							EntityType::CustomEmoji,
-							0,
-							text.size(),
-							Data::SerializeCustomEmojiId(document)) },
-					});
-				}
-				return true;
-			}
-			return false;
-		};
-		auto lifetime = rpl::lifetime();
-		if (!check(document)) {
-			const auto manager = &owner->customEmojiManager();
-			const auto listener = new Listener(check);
-			lifetime.add([=] {
-				manager->unregisterListener(listener);
-				delete listener;
-			});
-			manager->resolve(id, listener);
+	return owner->customEmojiManager().resolve(
+		id
+	) | rpl::map([=](not_null<DocumentData*> document) {
+		const auto sticker = document->sticker();
+		Assert(sticker != nullptr);
+
+		const auto &manager = document->owner().customEmojiManager();
+		const auto setId = manager.coloredSetId();
+		const auto text = (setId == sticker->set.id)
+			? QString()
+			: sticker->alt;
+		if (text.isEmpty()) {
+			return TextWithEntities();
 		}
-		return lifetime;
-	};
+		return TextWithEntities{
+			.text = text,
+			.entities = { EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				text.size(),
+				Data::SerializeCustomEmojiId(document)) },
+		};
+	});
 }
 
 [[nodiscard]] rpl::producer<TextWithEntities> PeerCustomStatus(

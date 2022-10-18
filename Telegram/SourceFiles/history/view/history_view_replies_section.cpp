@@ -359,6 +359,7 @@ RepliesWidget::~RepliesWidget() {
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
 		_rootId);
+	session().api().saveCurrentDraftToCloud();
 	controller()->sendingAnimation().clear();
 }
 
@@ -461,13 +462,19 @@ void RepliesWidget::setupTopicViewer() {
 void RepliesWidget::subscribeToTopic() {
 	Expects(_topic != nullptr);
 
-	using TopicUpdateFlag = Data::TopicUpdate::Flag;
+	using Flag = Data::TopicUpdate::Flag;
 	session().changes().topicUpdates(
 		_topic,
-		(TopicUpdateFlag::UnreadMentions
-			| TopicUpdateFlag::UnreadReactions)
+		(Flag::UnreadMentions
+			| Flag::UnreadReactions
+			| Flag::CloudDraft)
 	) | rpl::start_with_next([=](const Data::TopicUpdate &update) {
-		_cornerButtons.updateUnreadThingsVisibility();
+		if (update.flags & (Flag::UnreadMentions | Flag::UnreadReactions)) {
+			_cornerButtons.updateUnreadThingsVisibility();
+		}
+		if (update.flags & Flag::CloudDraft) {
+			_composeControls->applyCloudDraft();
+		}
 	}, _topicLifetime);
 
 	_topic->destroyed(

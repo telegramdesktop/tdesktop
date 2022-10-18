@@ -182,9 +182,9 @@ constexpr auto kSkipRepaintWhileScrollMs = 100;
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
 constexpr auto kDisplayEditTimeWarningMs = 300 * 1000;
 constexpr auto kFullDayInMs = 86400 * 1000;
-constexpr auto kSaveDraftTimeout = 1000;
-constexpr auto kSaveDraftAnywayTimeout = 5000;
-constexpr auto kSaveCloudDraftIdleTimeout = 14000;
+constexpr auto kSaveDraftTimeout = crl::time(1000);
+constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
+constexpr auto kSaveCloudDraftIdleTimeout = 14 * crl::time(1000);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
@@ -864,6 +864,11 @@ HistoryWidget::HistoryWidget(
 			crl::on_main(this, [=] { checkSupportPreload(true); });
 		}, lifetime());
 	}
+
+	controller->materializeLocalDraftsRequests(
+	) | rpl::start_with_next([=] {
+		saveFieldToHistoryLocalDraft();
+	}, lifetime());
 
 	setupScheduledToggle();
 	setupSendAsToggle();

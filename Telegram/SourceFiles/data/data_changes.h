@@ -151,10 +151,11 @@ struct TopicUpdate {
 		UnreadReactions = (1U << 3),
 		Notifications = (1U << 4),
 		Title = (1U << 5),
-		Icon = (1U << 6),
-		CloudDraft = (1U << 7),
+		IconId = (1U << 6),
+		ColorId = (1U << 7),
+		CloudDraft = (1U << 8),
 
-		LastUsedBit = (1U << 7),
+		LastUsedBit = (1U << 8),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

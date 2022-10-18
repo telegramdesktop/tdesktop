@@ -68,6 +68,7 @@ namespace {
 
 constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
+constexpr auto kSaveCloudDraftIdleTimeout = 14 * crl::time(1000);
 constexpr auto kMouseEvents = {
 	QEvent::MouseMove,
 	QEvent::MouseButtonPress,
@@ -870,7 +871,8 @@ ComposeControls::ComposeControls(
 		st::historySendSize.height()))
 , _sendMenuType(sendMenuType)
 , _unavailableEmojiPasted(unavailableEmojiPasted)
-, _saveDraftTimer([=] { saveDraft(); }) {
+, _saveDraftTimer([=] { saveDraft(); })
+, _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
 	init();
 }
 
@@ -1341,6 +1343,11 @@ void ComposeControls::init() {
 		}, _wrap->lifetime());
 	}
 
+	_window->materializeLocalDraftsRequests(
+	) | rpl::start_with_next([=] {
+		saveFieldToHistoryLocalDraft();
+	}, _wrap->lifetime());
+
 	orderControls();
 }
 
@@ -1660,6 +1667,7 @@ void ComposeControls::fieldChanged() {
 		}
 	});
 
+	_saveCloudDraftTimer.cancel();
 	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
 		return;
 	}
@@ -1707,6 +1715,10 @@ void ComposeControls::saveDraft(bool delayed) {
 		}
 	}
 	writeDrafts();
+}
+
+void ComposeControls::saveCloudDraft() {
+	session().api().saveCurrentDraftToCloud();
 }
 
 void ComposeControls::writeDraftTexts() {
@@ -1773,9 +1785,15 @@ void ComposeControls::writeDrafts() {
 	}
 	_saveDraftText = false;
 
-	//if (!isEditingMessage() && !_inlineBot) {
-	//	_saveCloudDraftTimer.callOnce(kSaveCloudDraftIdleTimeout);
-	//}
+	if (!isEditingMessage() && !_inlineBot) {
+		_saveCloudDraftTimer.callOnce(kSaveCloudDraftIdleTimeout);
+	}
+}
+
+void ComposeControls::applyCloudDraft() {
+	if (!isEditingMessage()) {
+		applyDraft(Ui::InputField::HistoryAction::NewEntry);
+	}
 }
 
 void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {

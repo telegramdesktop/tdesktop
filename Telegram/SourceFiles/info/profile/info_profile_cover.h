@@ -21,9 +21,9 @@ template <typename Widget>
 class SlideWrap;
 } // namespace Ui
 
-namespace Ui::Text {
-struct CustomEmojiColored;
-} // namespace Ui::Text
+namespace HistoryView {
+class StickerPlayer;
+} // namespace HistoryView
 
 namespace Data {
 class ForumTopic;
@@ -67,6 +67,8 @@ public:
 	}
 
 private:
+	using StickerPlayer = HistoryView::StickerPlayer;
+
 	Cover(
 		QWidget *parent,
 		not_null<PeerData*> peer,
@@ -75,6 +77,8 @@ private:
 		rpl::producer<QString> title);
 
 	void setupIcon(not_null<Data::ForumTopic*> topic);
+	void setupIconPlayer(not_null<Data::ForumTopic*> topic);
+	void setupIconImage(not_null<Data::ForumTopic*> topic);
 	void setupChildGeometry();
 	void initViewers(rpl::producer<QString> title);
 	void refreshStatusText();
@@ -92,7 +96,8 @@ private:
 
 	object_ptr<Ui::UserpicButton> _userpic;
 	object_ptr<Ui::RpWidget> _iconView;
-	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
+	std::shared_ptr<StickerPlayer> _iconPlayer;
+	QImage _iconImage;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

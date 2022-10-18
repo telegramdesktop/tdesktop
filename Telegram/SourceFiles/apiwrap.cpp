@@ -2003,9 +2003,8 @@ void ApiWrap::applyAffectedMessages(
 }
 
 void ApiWrap::saveCurrentDraftToCloud() {
-	Core::App().saveCurrentDraftsToHistories();
-
 	for (const auto &controller : _session->windows()) {
+		controller->materializeLocalDrafts();
 		if (const auto thread = controller->activeChatCurrent().thread()) {
 			const auto history = thread->owningHistory();
 			_session->local().writeDrafts(history);
@@ -2028,10 +2027,8 @@ void ApiWrap::saveDraftsToCloud() {
 		if (!thread) {
 			i = _draftsSaveRequestIds.erase(i);
 			continue;
-		}
-		auto &requestId = i->second;
-		++i;
-		if (requestId) {
+		} else if (i->second) {
+			++i;
 			continue; // sent already
 		}
 
@@ -2055,9 +2052,9 @@ void ApiWrap::saveDraftsToCloud() {
 		}
 		if (cloudDraft->msgId) {
 			flags |= MTPmessages_SaveDraft::Flag::f_reply_to_msg_id;
-			if (cloudDraft->topicRootId) {
-				flags |= MTPmessages_SaveDraft::Flag::f_top_msg_id;
-			}
+		}
+		if (cloudDraft->topicRootId) {
+			flags |= MTPmessages_SaveDraft::Flag::f_top_msg_id;
 		}
 		if (!textWithTags.tags.isEmpty()) {
 			flags |= MTPmessages_SaveDraft::Flag::f_entities;
@@ -2111,6 +2108,7 @@ void ApiWrap::saveDraftsToCloud() {
 		}).send();
 
 		i->second = cloudDraft->saveRequestId;
+		++i;
 	}
 }
 

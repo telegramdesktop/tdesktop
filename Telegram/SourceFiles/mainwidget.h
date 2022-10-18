@@ -169,8 +169,6 @@ public:
 	bool isActive() const;
 	[[nodiscard]] bool doWeMarkAsRead() const;
 
-	void saveFieldToHistoryLocalDraft();
-
 	void showForwardLayer(Data::ForwardDraft &&draft);
 	void showSendPathsLayer();
 	void shareUrlLayer(const QString &url, const QString &text);

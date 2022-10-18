@@ -1144,14 +1144,6 @@ bool Application::hasActiveWindow(not_null<Main::Session*> session) const {
 	return false;
 }
 
-void Application::saveCurrentDraftsToHistories() {
-	if (!_primaryWindow) {
-		return;
-	} else if (const auto controller = _primaryWindow->sessionController()) {
-		controller->content()->saveFieldToHistoryLocalDraft();
-	}
-}
-
 Window::Controller *Application::primaryWindow() const {
 	return _primaryWindow.get();
 }

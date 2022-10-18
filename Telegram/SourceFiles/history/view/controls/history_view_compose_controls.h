@@ -179,6 +179,7 @@ public:
 	[[nodiscard]] bool isLockPresent() const;
 	[[nodiscard]] bool isRecording() const;
 
+	void applyCloudDraft();
 	void applyDraft(
 		FieldHistoryAction fieldHistoryAction = FieldHistoryAction::Clear);
 
@@ -265,6 +266,7 @@ private:
 	[[nodiscard]] Data::DraftKey draftKeyCurrent() const;
 	void saveDraft(bool delayed = false);
 	void saveDraftDelayed();
+	void saveCloudDraft();
 
 	void writeDrafts();
 	void writeDraftTexts();
@@ -334,6 +336,7 @@ private:
 	crl::time _saveDraftStart = 0;
 	bool _saveDraftText = false;
 	base::Timer _saveDraftTimer;
+	base::Timer _saveCloudDraftTimer;
 
 	UserData *_inlineBot = nullptr;
 	QString _inlineBotUsername;

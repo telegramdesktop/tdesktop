@@ -35,6 +35,11 @@ largeForumTopicIcon: ForumTopicIcon {
 	font: font(bold 13px);
 	textTop: 3px;
 }
+infoForumTopicIcon: ForumTopicIcon {
+	size: 32px;
+	font: font(bold 15px);
+	textTop: 4px;
+}
 
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;

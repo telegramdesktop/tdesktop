@@ -227,7 +227,6 @@ public:
 	void clearSupportPreloadRequest();
 	void clearDelayedShowAtRequest();
 	void clearDelayedShowAt();
-	void saveFieldToHistoryLocalDraft();
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
@@ -355,6 +354,7 @@ private:
 	void checkFieldAutocomplete();
 	void showMembersDropdown();
 	void windowIsVisibleChanged();
+	void saveFieldToHistoryLocalDraft();
 
 	// Checks if we are too close to the top or to the bottom
 	// in the scroll area and preloads history if needed.

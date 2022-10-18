@@ -315,6 +315,11 @@ infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
 }
 infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
 	height: 77px;
+	photo: UserpicButton(defaultUserpicButton) {
+		size: size(36px, 36px);
+	}
+	photoLeft: 22px;
+	photoTop: 18px;
 	nameLeft: 79px;
 	nameTop: 14px;
 	statusLeft: 79px;

@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
+#include "data/data_document.h"
+#include "data/data_document_media.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
@@ -19,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_controller.h"
+#include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
@@ -27,10 +30,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
+#include "chat_helpers/stickers_lottie.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
+#include "styles/style_dialogs.h"
 
 namespace Info::Profile {
 namespace {
@@ -185,32 +190,90 @@ Cover::Cover(
 	}
 }
 
-void Cover::setupIcon(not_null<Data::ForumTopic*> topic) {
-	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
+void Cover::setupIconPlayer(not_null<Data::ForumTopic*> topic) {
 	IconIdValue(
 		topic
-	) | rpl::start_with_next([=](DocumentId id) {
-		_icon = id
-			? topic->owner().customEmojiManager().create(
-				id,
-				[=] { _iconView->update(); },
-				tag)
-			: nullptr;
+	) | rpl::map([=](DocumentId id) {
+		return topic->owner().customEmojiManager().resolve(id);
+	}) | rpl::flatten_latest(
+	) | rpl::map([=](not_null<DocumentData*> document) {
+		const auto media = document->createMediaView();
+		media->checkStickerLarge();
+		media->goodThumbnailWanted();
+
+		return rpl::single() | rpl::then(
+			document->owner().session().downloaderTaskFinished()
+		) | rpl::filter([=] {
+			return media->loaded();
+		}) | rpl::take(1) | rpl::map([=] {
+			auto result = std::shared_ptr<StickerPlayer>();
+			const auto sticker = document->sticker();
+			if (sticker->isLottie()) {
+				result = std::make_shared<HistoryView::LottiePlayer>(
+					ChatHelpers::LottiePlayerFromDocument(
+						media.get(),
+						ChatHelpers::StickerLottieSize::StickerSet,
+						_st.photo.size,
+						Lottie::Quality::High));
+			} else if (sticker->isWebm()) {
+				result = std::make_shared<HistoryView::WebmPlayer>(
+					media->owner()->location(),
+					media->bytes(),
+					_st.photo.size);
+			} else {
+				result = std::make_shared<HistoryView::StaticStickerPlayer>(
+					media->owner()->location(),
+					media->bytes(),
+					_st.photo.size);
+			}
+			result->setRepaintCallback([=] { _iconView->update(); });
+			return result;
+		});
+	}) | rpl::flatten_latest(
+	) | rpl::start_with_next([=](std::shared_ptr<StickerPlayer> player) {
+		_iconPlayer = std::move(player);
 	}, lifetime());
-	const auto size = Data::FrameSizeFromTag(tag);
-	_iconView->resize(size, size);
+}
+
+void Cover::setupIconImage(not_null<Data::ForumTopic*> topic) {
+	rpl::combine(
+		TitleValue(topic),
+		ColorIdValue(topic)
+	) | rpl::map([=](const QString &title, int32 colorId) {
+		using namespace Data;
+		return ForumTopicIconFrame(colorId, title, st::infoForumTopicIcon);
+	}) | rpl::start_with_next([=](QImage &&image) {
+		_iconImage = std::move(image);
+		_iconView->update();
+	}, lifetime());
+}
+
+void Cover::setupIcon(not_null<Data::ForumTopic*> topic) {
+	setupIconPlayer(topic);
+	setupIconImage(topic);
+
+	_iconView->resize(_st.photo.size);
 	_iconView->paintRequest(
 	) | rpl::start_with_next([=] {
 		auto p = QPainter(_iconView.data());
-		if (_icon) {
-			_icon->paint(p, {
-				.preview = st::windowBgOver->c,
-				.now = crl::now(),
-				.paused = _controller->isGifPausedAtLeastFor(
-					Window::GifPauseReason::Layer),
-			});
-		} else {
-
+		const auto paint = [&](const QImage &image) {
+			const auto size = image.size() / image.devicePixelRatio();
+			p.drawImage(
+				(_st.photo.size.width() - size.width()) / 2,
+				(_st.photo.size.height() - size.height()) / 2,
+				image);
+		};
+		if (_iconPlayer && _iconPlayer->ready()) {
+			paint(_iconPlayer->frame(
+				_st.photo.size,
+				QColor(0, 0, 0, 0),
+				false,
+				crl::now(),
+				_controller->isGifPausedAtLeastFor(
+					Window::GifPauseReason::Layer)).image);
+			_iconPlayer->markFrameShown();
+		} else if (!topic->iconId() && !_iconImage.isNull()) {
+			paint(_iconImage);
 		}
 	}, _iconView->lifetime());
 }

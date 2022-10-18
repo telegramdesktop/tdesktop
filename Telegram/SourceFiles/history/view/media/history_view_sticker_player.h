@@ -66,4 +66,27 @@ private:
 
 };
 
+class StaticStickerPlayer final : public StickerPlayer {
+public:
+	StaticStickerPlayer(
+		const Core::FileLocation &location,
+		const QByteArray &data,
+		QSize size);
+
+	void setRepaintCallback(Fn<void()> callback) override;
+	bool ready() override;
+	int framesCount() override;
+	FrameInfo frame(
+		QSize size,
+		QColor colored,
+		bool mirrorHorizontal,
+		crl::time now,
+		bool paused) override;
+	bool markFrameShown() override;
+
+private:
+	QImage _frame;
+
+};
+
 } // namespace HistoryView

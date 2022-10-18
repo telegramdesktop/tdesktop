@@ -65,6 +65,9 @@ public:
 	void resolve(DocumentId documentId, not_null<Listener*> listener);
 	void unregisterListener(not_null<Listener*> listener);
 
+	[[nodiscard]] rpl::producer<not_null<DocumentData*>> resolve(
+		DocumentId documentId);
+
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
 		SizeTag tag,

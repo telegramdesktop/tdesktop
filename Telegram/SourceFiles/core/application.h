@@ -152,7 +152,6 @@ public:
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
-	void saveCurrentDraftsToHistories();
 	[[nodiscard]] Window::Controller *primaryWindow() const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForPeer(

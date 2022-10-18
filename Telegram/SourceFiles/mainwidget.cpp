@@ -2727,10 +2727,6 @@ bool MainWidget::doWeMarkAsRead() const {
 	return isActive() && !_mainSection;
 }
 
-void MainWidget::saveFieldToHistoryLocalDraft() {
-	_history->saveFieldToHistoryLocalDraft();
-}
-
 bool MainWidget::isOneColumn() const {
 	return _controller->adaptive().isOneColumn();
 }
