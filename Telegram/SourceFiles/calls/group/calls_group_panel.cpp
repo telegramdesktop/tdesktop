@@ -2552,7 +2552,7 @@ not_null<Ui::RpWidget*> Panel::widget() const {
 }
 
 Show::Show(not_null<Panel*> panel)
-: _panel(base::make_weak(panel.get())) {
+: _panel(base::make_weak(panel)) {
 }
 
 Show::~Show() = default;

@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/continuous_sliders.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/text/text_utilities.h"
-#include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
 #include "info/profile/info_profile_icon.h"
 #include "info/profile/info_profile_values.h"
 #include "boxes/peers/edit_participants_box.h"
@@ -319,7 +319,7 @@ ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
 Fn<void()> AboutGigagroupCallback(
 		not_null<ChannelData*> channel,
 		not_null<Window::SessionController*> controller) {
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 
 	const auto converting = std::make_shared<bool>();
 	const auto convertSure = [=] {
@@ -333,9 +333,10 @@ Fn<void()> AboutGigagroupCallback(
 			channel->session().api().applyUpdates(result);
 			if (const auto strongController = weak.get()) {
 				strongController->window().hideSettingsAndLayer();
-				Ui::Toast::Show(
-					strongController->widget(),
-					tr::lng_gigagroup_done(tr::now));
+				Ui::ShowMultilineToast({
+					.parentOverride = strongController->widget(),
+					.text = { tr::lng_gigagroup_done(tr::now) },
+				});
 			}
 		}).fail([=] {
 			*converting = false;
@@ -430,7 +431,8 @@ void EditPeerPermissionsBox::prepare() {
 				disabledByAdminRights,
 				tr::lng_rights_permission_cant_edit(tr::now));
 		if (const auto channel = _peer->asChannel()) {
-			if (channel->isPublic()) {
+			if (channel->isPublic()
+				|| (channel->isMegagroup() && channel->linkedChat())) {
 				result.emplace(
 					Flag::ChangeInfo | Flag::PinMessages,
 					tr::lng_rights_permission_unavailable(tr::now));
@@ -732,7 +734,10 @@ EditFlagsControl<Flags> CreateEditFlags(
 		) | rpl::start_with_next([=](bool checked) {
 			if (locked.has_value()) {
 				if (checked != toggled) {
-					Ui::Toast::Show(parent, *locked);
+					Ui::ShowMultilineToast({
+						.parentOverride = parent,
+						.text = { *locked },
+					});
 					control->setChecked(toggled);
 				}
 			} else {

@@ -155,7 +155,7 @@ void PeerMenuAddMuteSubmenuAction(
 		const PeerMenuCallback &addAction) {
 	const auto notifySettings = &thread->owner().notifySettings();
 	notifySettings->request(thread);
-	const auto weak = base::make_weak(thread.get());
+	const auto weak = base::make_weak(thread);
 	const auto with = [=](Fn<void(not_null<Data::Thread*>)> callback) {
 		return [=] {
 			if (const auto strong = weak.get()) {
@@ -830,11 +830,23 @@ void Filler::addDeleteContact() {
 }
 
 void Filler::addDeleteTopic() {
-	if (!_topic/* || !_topic->canDelete()*/) {
+	if (!_topic || !_topic->canDelete()) {
 		return;
 	}
+	const auto controller = _controller;
+	const auto weak = base::make_weak(_topic);
+	const auto callback = [=] {
+		if (const auto strong = weak.get()) {
+			PeerMenuDeleteTopicWithConfirmation(controller, strong);
+		}
+	};
+	_addAction({
+		.text = tr::lng_forum_topic_delete(tr::now),
+		.handler = callback,
+		.icon = &st::menuIconDeleteAttention,
+		.isAttention = true,
+	});
 }
-
 
 void Filler::addManageTopic() {
 	if (!_topic || !_topic->canEdit()) {
@@ -971,6 +983,7 @@ void Filler::addCreateTopic() {
 	}
 	const auto peer = _peer;
 	const auto controller = _controller;
+	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 	_addAction(tr::lng_forum_create_topic(tr::now), [=] {
 		if (const auto forum = peer->forum()) {
 			controller->show(Box(
@@ -979,7 +992,6 @@ void Filler::addCreateTopic() {
 				forum->history()));
 		}
 	}, &st::menuIconDiscussion);
-	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 }
 
 void Filler::addViewAsMessages() {
@@ -1004,7 +1016,6 @@ void Filler::fillChatsListActions() {
 	if (!_peer || !_peer->isForum()) {
 		return;
 	}
-	addCreateTopic();
 	addViewAsMessages();
 	addInfo();
 	addNewMembers();
@@ -1017,6 +1028,7 @@ void Filler::fillChatsListActions() {
 	} else {
 		addJoinChat();
 	}
+	addCreateTopic();
 }
 
 void Filler::fillContextMenuActions() {
@@ -1082,10 +1094,10 @@ void Filler::fillRepliesActions() {
 		addInfo();
 		addManageTopic();
 		addManageChat();
-		addDeleteTopic();
 	}
 	addCreatePoll();
 	addToggleTopicClosed();
+	addDeleteTopic();
 }
 
 void Filler::fillScheduledActions() {
@@ -1157,6 +1169,49 @@ void PeerMenuDeleteContact(
 			.confirmText = tr::lng_box_delete(),
 		}),
 		Ui::LayerOption::CloseOther);
+}
+
+
+void PeerMenuDeleteTopicWithConfirmation(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<Data::ForumTopic*> topic) {
+	const auto weak = base::make_weak(topic);
+	const auto callback = [=](Fn<void()> &&close) {
+		close();
+		if (const auto strong = weak.get()) {
+			PeerMenuDeleteTopic(navigation, strong);
+		}
+	};
+	navigation->parentController()->show(Ui::MakeConfirmBox({
+		.text = tr::lng_forum_topic_delete_sure(tr::now),
+		.confirmed = callback,
+		.confirmText = tr::lng_box_delete(),
+		.confirmStyle = &st::attentionBoxButton,
+	}));
+}
+
+void PeerMenuDeleteTopic(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<ChannelData*> channel,
+		MsgId rootId) {
+	const auto api = &channel->session().api();
+	api->request(MTPchannels_DeleteTopicHistory(
+		channel->inputChannel,
+		MTP_int(rootId)
+	)).done([=](const MTPmessages_AffectedHistory &result) {
+		const auto offset = api->applyAffectedHistory(channel, result);
+		if (offset > 0) {
+			PeerMenuDeleteTopic(navigation, channel, rootId);
+		} else if (const auto forum = channel->forum()) {
+			forum->applyTopicDeleted(rootId);
+		}
+	}).send();
+}
+
+void PeerMenuDeleteTopic(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<Data::ForumTopic*> topic) {
+	PeerMenuDeleteTopic(navigation, topic->channel(), topic->rootId());
 }
 
 void PeerMenuShareContactBox(

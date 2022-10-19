@@ -628,7 +628,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 		}
 	} else {
 		const auto i = SizeIndex(tag);
-		_loaders[i][documentId].push_back(base::make_weak(result.get()));
+		_loaders[i][documentId].push_back(base::make_weak(result));
 		_pendingForRequest.emplace(documentId);
 		if (!_requestId && _pendingForRequest.size() == 1) {
 			crl::on_main(this, [=] { request(); });

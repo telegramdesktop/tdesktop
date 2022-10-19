@@ -148,7 +148,7 @@ void FillChooseFilterMenu(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::PopupMenu*> menu,
 		not_null<History*> history) {
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	const auto validator = ChooseFilterValidator(history);
 	for (const auto &filter : history->owner().chatsFilters().list()) {
 		const auto id = filter.id();

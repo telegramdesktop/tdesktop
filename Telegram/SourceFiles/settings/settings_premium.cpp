@@ -988,7 +988,7 @@ TopBar::TopBar(
 		ActivateClickHandler(_about, handler, {
 			button,
 			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(controller.get()),
+				.sessionWindow = base::make_weak(controller),
 				.botStartAutoSubmit = true,
 			})
 		});
@@ -1795,7 +1795,7 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 			UrlClickHandler::Open(
 				local,
 				QVariant::fromValue(ClickHandlerContext{
-					.sessionWindow = base::make_weak(controller.get()),
+					.sessionWindow = base::make_weak(controller),
 					.botStartAutoSubmit = true,
 				}));
 		} else {

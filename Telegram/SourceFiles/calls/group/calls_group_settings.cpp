@@ -244,7 +244,7 @@ void SettingsBox(
 		not_null<GroupCall*> call) {
 	using namespace Settings;
 
-	const auto weakCall = base::make_weak(call.get());
+	const auto weakCall = base::make_weak(call);
 	const auto weakBox = Ui::MakeWeak(box);
 
 	struct State {

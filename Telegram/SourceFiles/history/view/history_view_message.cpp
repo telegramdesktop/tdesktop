@@ -2862,7 +2862,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 				savedFromPeer->session().api().requestMessageData(
 					savedFromPeer,
 					savedFromMsgId,
-					[=, weak = base::make_weak(controller.get())] {
+					[=, weak = base::make_weak(controller)] {
 						if (const auto strong = showByThreadWeak.lock()) {
 							if (const auto strongController = weak.get()) {
 								*prequested = 2;

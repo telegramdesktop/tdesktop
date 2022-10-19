@@ -112,7 +112,7 @@ MuteItem::MuteItem(
 			st::defaultPopupMenu.showDuration);
 	}, lifetime());
 
-	const auto weak = base::make_weak(thread.get());
+	const auto weak = base::make_weak(thread);
 	setClickedCallback([=] {
 		if (const auto strong = weak.get()) {
 			strong->owner().notifySettings().update(
@@ -161,7 +161,7 @@ void MuteBox(not_null<Ui::GenericBox*> box, not_null<Data::Thread*> thread) {
 			: tr::lng_mute_menu_mute();
 	}) | rpl::flatten_latest();
 
-	const auto weak = base::make_weak(thread.get());
+	const auto weak = base::make_weak(thread);
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
 			if (const auto strong = weak.get()) {
@@ -191,7 +191,7 @@ void PickMuteBox(
 
 	const auto pickerCallback = TimePickerBox(box, seconds, phrases, 0);
 
-	const auto weak = base::make_weak(thread.get());
+	const auto weak = base::make_weak(thread);
 	Ui::ConfirmBox(box, {
 		.confirmed = [=] {
 			const auto muteFor = pickerCallback();
@@ -240,7 +240,7 @@ void FillMuteMenu(
 		not_null<Ui::PopupMenu*> menu,
 		not_null<Data::Thread*> thread,
 		std::shared_ptr<Ui::Show> show) {
-	const auto weak = base::make_weak(thread.get());
+	const auto weak = base::make_weak(thread);
 	const auto with = [=](Fn<void(not_null<Data::Thread*> thread)> handler) {
 		return [=] {
 			if (const auto strong = weak.get()) {

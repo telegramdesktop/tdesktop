@@ -930,7 +930,7 @@ void DownloadManager::writePostponed(not_null<Main::Session*> session) {
 
 Fn<std::optional<QByteArray>()> DownloadManager::serializator(
 		not_null<Main::Session*> session) const {
-	return [this, weak = base::make_weak(session.get())]()
+	return [this, weak = base::make_weak(session)]()
 		-> std::optional<QByteArray> {
 		const auto strong = weak.get();
 		if (!strong) {

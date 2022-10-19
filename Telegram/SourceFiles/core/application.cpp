@@ -769,7 +769,7 @@ void Application::forceLogOut(
 	}));
 	box->setCloseByEscape(false);
 	box->setCloseByOutsideClick(false);
-	const auto weak = base::make_weak(account.get());
+	const auto weak = base::make_weak(account);
 	connect(box, &QObject::destroyed, [=] {
 		crl::on_main(weak, [=] {
 			account->forcedLogOut();

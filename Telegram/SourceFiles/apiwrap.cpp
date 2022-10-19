@@ -1815,7 +1815,7 @@ void ApiWrap::sendNotifySettingsUpdates() {
 }
 
 void ApiWrap::saveDraftToCloudDelayed(not_null<Data::Thread*> thread) {
-	_draftsSaveRequestIds.emplace(base::make_weak(thread.get()), 0);
+	_draftsSaveRequestIds.emplace(base::make_weak(thread), 0);
 	if (!_draftsSaveTimer.isActive()) {
 		_draftsSaveTimer.callOnce(kSaveCloudDraftTimeout);
 	}

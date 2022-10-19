@@ -176,7 +176,7 @@ void Account::startAdded(MTP::AuthKeyPtr localKey) {
 }
 
 void Account::clearLegacyFiles() {
-	const auto weak = base::make_weak(_owner.get());
+	const auto weak = base::make_weak(_owner);
 	ClearLegacyFiles(_basePath, [weak, this](
 			FnMut<void(base::flat_set<QString>&&)> then) {
 		crl::on_main(weak, [this, then = std::move(then)]() mutable {

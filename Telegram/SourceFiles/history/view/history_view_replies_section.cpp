@@ -578,7 +578,7 @@ void RepliesWidget::setupComposeControls() {
 		const auto topic = _topic
 			? _topic
 			: _history->peer->forumTopicFor(_rootId);
-		return (topic->canToggleClosed() || !topic->closed())
+		return (!topic || topic->canToggleClosed() || !topic->closed())
 			? std::optional<QString>()
 			: tr::lng_forum_topic_closed(tr::now);
 	});

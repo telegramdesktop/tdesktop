@@ -83,7 +83,7 @@ void SendBotCallbackData(
 	if (withPassword) {
 		flags |= MTPmessages_GetBotCallbackAnswer::Flag::f_password;
 	}
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	const auto show = std::make_shared<Window::Show>(controller);
 	button->requestId = api->request(MTPmessages_GetBotCallbackAnswer(
 		MTP_flags(flags),
@@ -202,7 +202,7 @@ void SendBotCallbackDataWithPassword(
 		return;
 	}
 	api->cloudPassword().reload();
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	const auto show = std::make_shared<Window::Show>(controller);
 	SendBotCallbackData(controller, item, row, column, std::nullopt, [=](const QString &error) {
 		auto box = PrePasswordErrorBox(

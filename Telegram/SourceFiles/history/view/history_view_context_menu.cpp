@@ -1439,7 +1439,7 @@ void AddEmojiPacksAction(
 		menu->menu(),
 		menu->st().menu,
 		std::move(text));
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	button->setClickedCallback([=] {
 		const auto strong = weak.get();
 		if (!strong) {

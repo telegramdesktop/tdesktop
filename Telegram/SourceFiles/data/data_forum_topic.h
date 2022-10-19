@@ -64,6 +64,7 @@ public:
 	[[nodiscard]] bool canEdit() const;
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;
+	[[nodiscard]] bool canDelete() const;
 
 	[[nodiscard]] bool closed() const;
 	void setClosed(bool closed);

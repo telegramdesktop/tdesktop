@@ -1726,7 +1726,7 @@ void ListWidget::mouseActionFinish(
 			QVariant::fromValue(ClickHandlerContext{
 				.itemId = fullId,
 				.sessionWindow = base::make_weak(
-					_controller->parentController().get()),
+					_controller->parentController()),
 			})
 		});
 		return;

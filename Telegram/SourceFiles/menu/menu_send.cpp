@@ -225,7 +225,7 @@ void SetupUnreadMentionsMenu(
 	const auto sendRequest = [=](
 			not_null<Data::Thread*> thread,
 			Fn<void()> done) {
-		sendOne(base::make_weak(thread.get()), std::move(done), sendOne);
+		sendOne(base::make_weak(thread), std::move(done), sendOne);
 	};
 	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }
@@ -266,7 +266,7 @@ void SetupUnreadReactionsMenu(
 	const auto sendRequest = [=](
 			not_null<Data::Thread*> thread,
 			Fn<void()> done) {
-		sendOne(base::make_weak(thread.get()), std::move(done), sendOne);
+		sendOne(base::make_weak(thread), std::move(done), sendOne);
 	};
 	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }

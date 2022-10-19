@@ -455,7 +455,7 @@ void LeaveBox(
 				st::boxRowPadding.right(),
 				st::boxRowPadding.bottom()))
 		: nullptr;
-	const auto weak = base::make_weak(call.get());
+	const auto weak = base::make_weak(call);
 	auto label = scheduled
 		? tr::lng_group_call_close()
 		: tr::lng_group_call_leave();
@@ -488,7 +488,7 @@ void FillMenu(
 		Fn<void()> chooseJoinAs,
 		Fn<void()> chooseShareScreenSource,
 		Fn<void(object_ptr<Ui::BoxContent>)> showBox) {
-	const auto weak = base::make_weak(call.get());
+	const auto weak = base::make_weak(call);
 	const auto resolveReal = [=] {
 		const auto real = peer->groupCall();
 		const auto strong = weak.get();

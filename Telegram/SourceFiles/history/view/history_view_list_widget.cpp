@@ -3087,7 +3087,7 @@ void ListWidget::mouseActionFinish(
 						? (ElementDelegate*)weak
 						: nullptr;
 				},
-				.sessionWindow = base::make_weak(_controller.get()),
+				.sessionWindow = base::make_weak(_controller),
 			})
 		});
 		return;

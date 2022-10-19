@@ -107,7 +107,7 @@ void CheckChatInvite(
 		const QString &hash,
 		ChannelData *invitePeekChannel) {
 	const auto session = &controller->session();
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
 		Core::App().hideMediaView();
 		result.match([=](const MTPDchatInvite &data) {

@@ -1489,7 +1489,7 @@ void ShareGameScoreByHash(
 	if (const auto item = session.data().message(peerId, msgId)) {
 		FastShareMessage(controller, item);
 	} else {
-		const auto weak = base::make_weak(controller.get());
+		const auto weak = base::make_weak(controller);
 		const auto resolveMessageAndShareScore = crl::guard(weak, [=](
 				PeerData *peer) {
 			auto done = crl::guard(weak, [=] {

@@ -127,10 +127,13 @@ void Forum::applyReceivedTopics(const MTPmessages_ForumTopics &result) {
 void Forum::applyTopicDeleted(MsgId rootId) {
 	const auto i = _topics.find(rootId);
 	if (i != end(_topics)) {
-		Core::App().notifications().clearFromTopic(i->second.get());
-		_topicDestroyed.fire(i->second.get());
-		_history->destroyMessagesByTopic(rootId);
+		const auto raw = i->second.get();
+		Core::App().notifications().clearFromTopic(raw);
+		owner().removeChatListEntry(raw);
+		_topicDestroyed.fire(raw);
 		_topics.erase(i);
+
+		_history->destroyMessagesByTopic(rootId);
 	}
 }
 

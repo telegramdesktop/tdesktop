@@ -1125,7 +1125,7 @@ void Show(
 		}
 	}
 
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	list.push_back({
 		.descriptor = descriptor,
 		.media = (descriptor.requestedSticker

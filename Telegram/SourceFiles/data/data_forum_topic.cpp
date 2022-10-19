@@ -202,6 +202,13 @@ bool ForumTopic::canEdit() const {
 	return (_flags & Flag::My) || channel()->canEditTopics();
 }
 
+bool ForumTopic::canDelete() const {
+	return !creating()
+		&& (channel()->canEditTopics()
+			// We don't know if we can delete or not.
+			/*|| ((_flags & Flag::My) && onlyOneMyMessage)*/);
+}
+
 bool ForumTopic::canToggleClosed() const {
 	return !creating() && canEdit();
 }

@@ -49,7 +49,7 @@ auto LottieCachedFromContent(
 			key,
 			std::move(handler));
 	};
-	const auto weak = base::make_weak(session.get());
+	const auto weak = base::make_weak(session);
 	const auto put = [=](QByteArray &&cached) {
 		crl::on_main(weak, [=, data = std::move(cached)]() mutable {
 			weak->data().cacheBigFile().put(key, std::move(data));

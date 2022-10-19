@@ -1836,7 +1836,7 @@ void HistoryInner::mouseActionFinish(
 			: _mouseActionItem
 			? _mouseActionItem->fullId()
 			: FullMsgId();
-		const auto weak = base::make_weak(_controller.get());
+		const auto weak = base::make_weak(_controller);
 		mouseActionCancel();
 		ActivateClickHandler(
 			window(),
@@ -4176,7 +4176,7 @@ void HistoryInner::onParentGeometryChanged() {
 
 Fn<HistoryView::ElementDelegate*()> HistoryInner::elementDelegateFactory(
 		FullMsgId itemId) const {
-	const auto weak = base::make_weak(_controller.get());
+	const auto weak = base::make_weak(_controller);
 	return [=]() -> HistoryView::ElementDelegate* {
 		if (const auto strong = weak.get()) {
 			auto &data = strong->session().data();
@@ -4194,7 +4194,7 @@ ClickHandlerContext HistoryInner::prepareClickHandlerContext(
 	return ClickHandlerContext{
 		.itemId = itemId,
 		.elementDelegate = elementDelegateFactory(itemId),
-		.sessionWindow = base::make_weak(_controller.get()),
+		.sessionWindow = base::make_weak(_controller),
 	};
 }
 

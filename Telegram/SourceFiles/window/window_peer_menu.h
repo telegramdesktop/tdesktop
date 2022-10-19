@@ -24,6 +24,7 @@ namespace Data {
 class Folder;
 class Session;
 struct ForwardDraft;
+class ForumTopic;
 } // namespace Data
 
 namespace Dialogs {
@@ -74,6 +75,12 @@ void PeerMenuCreatePoll(
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal,
 	SendMenu::Type sendMenuType = SendMenu::Type::Scheduled);
+void PeerMenuDeleteTopicWithConfirmation(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<Data::ForumTopic*> topic);
+void PeerMenuDeleteTopic(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<Data::ForumTopic*> topic);
 
 struct ClearChat {
 };
