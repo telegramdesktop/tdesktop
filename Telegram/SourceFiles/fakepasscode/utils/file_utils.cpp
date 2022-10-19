@@ -128,38 +128,28 @@ namespace FakePasscode::FileUtils {
         return name;
     }
 
-    void ClearCaches() {
+    void ClearCaches(bool restore) {
         const auto& domain = Core::App().domain();
-        for (const auto &[index, account] : domain.accounts()) {
+        for (const auto &[index, account]: domain.accounts()) {
             if (account->sessionExists()) {
-                FAKE_LOG(qsl("Clear cache for account %1").arg(index));
-                if (!domain.local().IsErasingEnabled()) {
-                    account->session().data().cache().clear();
-                    account->session().data().cacheBigFile().clear();
-                } else {
-                    account->session().data().cache().close(
-                    crl::guard(
-                        account.get(),
-                        [account = account.get()] {
-                            if (account->sessionExists()) {
-                                account->session().data().cacheBigFile().close(crl::guard(account, [=] {
-                                    if (account->sessionExists()) {
-                                        for (const auto &cache_path: {
-                                                account->session().local().cachePath(),
-                                                account->session().local().cacheBigFilePath()
-                                        }) {
-                                            const auto cache_entries = QDir(cache_path).entryList(
-                                                    QDir::Dirs | QDir::NoDotAndDotDot);
-                                            for (const auto &entry: cache_entries) {
-                                                DeleteFolderRecursively(entry, true);
-                                            }
-                                        }
-                                        account->session().data().resetCaches();
-                                    }
-                                }));
+                auto path = account->local().getDatabasePath();
+                FAKE_LOG(qsl("Request clear path: %1").arg(path));
+                account->session().data().cache().close([account = account.get(), path, index = index,
+                                                         restore] {
+                    if (!account->sessionExists()) {
+                        FAKE_LOG(qsl("Session removed for %1, delete immediatly").arg(index));
+                        DeleteFolderRecursively(path, true);
+                    } else {
+                        FAKE_LOG(qsl("Try to close bigCache for %1").arg(index));
+                        account->session().data().cacheBigFile().close([=] {
+                            FAKE_LOG(qsl("Clear path: %1").arg(path));
+                            DeleteFolderRecursively(path, true);
+                            if (auto session = account->maybeSession(); restore && session != nullptr) {
+                                session->data().resetCaches();
                             }
-                    }));
-                }
+                        });
+                    }
+                });
             }
         }
     }

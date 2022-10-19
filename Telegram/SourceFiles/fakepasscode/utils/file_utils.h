@@ -13,5 +13,5 @@ namespace FakePasscode::FileUtils {
     QDir GetRandomDir();
     QString GetRandomName(QDir);
     bool DeleteFolderRecursively(QString path, bool deleteRoot = false);
-    void ClearCaches();
+    void ClearCaches(bool restore = true);
 }  // namespace FakePasscode::FileUtils
