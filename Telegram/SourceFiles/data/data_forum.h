@@ -38,6 +38,7 @@ public:
 	[[nodiscard]] auto topicDestroyed() const
 		-> rpl::producer<not_null<ForumTopic*>>;
 
+	void preloadTopics();
 	void requestTopics();
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
@@ -68,6 +69,10 @@ public:
 	void clearAllUnreadReactions();
 	void enumerateTopics(Fn<void(not_null<ForumTopic*>)> action) const;
 
+	[[nodiscard]] rpl::lifetime &lifetime() {
+		return _lifetime;
+	}
+
 private:
 	struct TopicRequest {
 		mtpRequestId id = 0;
@@ -96,6 +101,8 @@ private:
 
 	rpl::event_stream<> _chatsListChanges;
 	rpl::event_stream<> _chatsListLoadedEvents;
+
+	rpl::lifetime _lifetime;
 
 };
 

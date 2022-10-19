@@ -2067,6 +2067,13 @@ History *History::migrateSibling() const {
 }
 
 int History::chatListUnreadCount() const {
+	if (peer->isForum()) {
+		const auto state = chatListUnreadState();
+		return state.marks
+			+ (Core::App().settings().countUnreadMessages()
+				? state.messages
+				: state.chats);
+	}
 	const auto result = unreadCount();
 	if (const auto migrated = migrateSibling()) {
 		return result + migrated->unreadCount();
@@ -2084,10 +2091,24 @@ bool History::chatListUnreadMark() const {
 }
 
 bool History::chatListMutedBadge() const {
+	if (const auto forum = peer->forum()) {
+		const auto state = forum->topicsList()->unreadState();
+		return (state.marksMuted >= state.marks)
+			&& (Core::App().settings().countUnreadMessages()
+				? (state.messagesMuted >= state.messages)
+				: (state.chatsMuted >= state.chats));
+	}
 	return muted();
 }
 
 Dialogs::UnreadState History::chatListUnreadState() const {
+	if (const auto forum = peer->forum()) {
+		return forum->topicsList()->unreadState();
+	}
+	return computeUnreadState();
+}
+
+Dialogs::UnreadState History::computeUnreadState() const {
 	auto result = Dialogs::UnreadState();
 	const auto count = _unreadCount.value_or(0);
 	const auto mark = !count && unreadMark();
@@ -2639,6 +2660,10 @@ void History::applyDialog(
 			draft->c_draftMessage());
 	}
 	owner().histories().dialogEntryApplied(this);
+
+	if (const auto forum = inChatList() ? peer->forum() : nullptr) {
+		forum->preloadTopics();
+	}
 }
 
 void History::dialogEntryApplied() {
@@ -2866,6 +2891,28 @@ Data::Thread *History::threadFor(MsgId topicRootId) {
 
 const Data::Thread *History::threadFor(MsgId topicRootId) const {
 	return const_cast<History*>(this)->threadFor(topicRootId);
+}
+
+void History::forumChanged(Data::Forum *old) {
+	if (inChatList()) {
+		notifyUnreadStateChange(old
+			? old->topicsList()->unreadState()
+			: computeUnreadState());
+	}
+
+	if (const auto forum = peer->forum()) {
+		_flags |= Flag::IsForum;
+
+		forum->topicsList()->unreadStateChanges(
+		) | rpl::filter([=] {
+			return (_flags & Flag::IsForum) && inChatList();
+		}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
+			notifyUnreadStateChange(old);
+			updateChatListEntryPostponed();
+		}, forum->lifetime());
+	} else {
+		_flags &= ~Flag::IsForum;
+	}
 }
 
 not_null<History*> History::migrateToOrMe() const {

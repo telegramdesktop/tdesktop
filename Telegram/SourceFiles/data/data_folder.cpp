@@ -71,17 +71,6 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}, _lifetime);
 }
 
-void Folder::updateChatListEntryPostponed() {
-	if (_updateChatListEntryPostponed) {
-		return;
-	}
-	_updateChatListEntryPostponed = true;
-	Ui::PostponeCall(this, [=] {
-		updateChatListEntry();
-		_updateChatListEntryPostponed = false;
-	});
-}
-
 FolderId Folder::id() const {
 	return _id;
 }

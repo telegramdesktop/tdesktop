@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flat_map.h"
 #include "base/weak_ptr.h"
+#include "base/flags.h"
 #include "dialogs/dialogs_key.h"
 #include "ui/unread_badge.h"
 
@@ -145,6 +146,7 @@ public:
 		QChar letter,
 		not_null<Row*> row);
 	void updateChatListEntry();
+	void updateChatListEntryPostponed();
 	[[nodiscard]] bool isPinnedDialog(FilterId filterId) const {
 		return lookupPinnedIndex(filterId) != 0;
 	}
@@ -214,6 +216,14 @@ protected:
 	[[nodiscard]] int lookupPinnedIndex(FilterId filterId) const;
 
 private:
+	enum class Flag : uchar {
+		IsThread = (1 << 0),
+		IsHistory = (1 << 1),
+		UpdatePostponed = (1 << 2),
+	};
+	friend inline constexpr bool is_flag_type(Flag) { return true; }
+	using Flags = base::flags<Flag>;
+
 	virtual void changedChatListPinHook();
 	void pinnedIndexChanged(FilterId filterId, int was, int now);
 	[[nodiscard]] uint64 computeSortPosition(FilterId filterId) const;
@@ -233,7 +243,7 @@ private:
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;
-	const Type _type;
+	Flags _flags;
 
 };
 

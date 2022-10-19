@@ -47,7 +47,7 @@ namespace {
 		const auto name = history->peer->name();
 		return TextWithEntities{
 			.text = name,
-			.entities = (history->unreadCount() > 0)
+			.entities = (history->chatListUnreadCount() > 0)
 				? EntitiesInText{
 					{ EntityType::Semibold, 0, int(name.size()), QString() },
 					{ EntityType::PlainLink, 0, int(name.size()), QString() },

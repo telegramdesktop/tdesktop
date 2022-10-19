@@ -88,6 +88,8 @@ public:
 		return _delegateMixin.get();
 	}
 
+	void forumChanged(Data::Forum *old);
+
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
 	MsgRange rangeForDifferenceRequest() const;
@@ -461,6 +463,7 @@ private:
 	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
 		IsTopPromoted = (1 << 1),
+		IsForum = (1 << 2),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -571,6 +574,7 @@ private:
 	HistoryService *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
+	[[nodiscard]] Dialogs::UnreadState computeUnreadState() const;
 	void setFolderPointer(Data::Folder *folder);
 
 	int chatListNameVersion() const override;

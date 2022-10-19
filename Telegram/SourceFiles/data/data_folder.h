@@ -81,7 +81,6 @@ private:
 	int chatListNameVersion() const override;
 
 	void reorderLastHistories();
-	void updateChatListEntryPostponed();
 
 	void paintUserpic(
 		Painter &p,
@@ -101,7 +100,6 @@ private:
 	std::vector<not_null<History*>> _lastHistories;
 	HistoryItem *_chatListMessage = nullptr;
 	uint32 _chatListViewVersion = 0;
-	bool _updateChatListEntryPostponed = false;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
 	rpl::lifetime _lifetime;

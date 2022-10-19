@@ -652,11 +652,7 @@ not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {
 }
 
 int ForumTopic::chatListUnreadCount() const {
-	const auto state = chatListUnreadState();
-	return state.marks
-		+ (Core::App().settings().countUnreadMessages()
-			? state.messages
-			: state.chats);
+	return unreadCount();
 }
 
 Dialogs::UnreadState ForumTopic::chatListUnreadState() const {

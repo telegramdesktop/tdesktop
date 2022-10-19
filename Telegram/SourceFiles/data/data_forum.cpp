@@ -30,6 +30,7 @@ namespace Data {
 namespace {
 
 constexpr auto kTopicsFirstLoad = 20;
+constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
 constexpr auto kGeneralColorId = 0xA9A9A9;
 
@@ -39,6 +40,10 @@ Forum::Forum(not_null<History*> history)
 : _history(history)
 , _topicsList(&session(), FilterId(0), rpl::single(1)) {
 	Expects(_history->peer->isChannel());
+
+	if (_history->inChatList()) {
+		preloadTopics();
+	}
 }
 
 Forum::~Forum() {
@@ -87,6 +92,12 @@ rpl::producer<> Forum::destroyed() const {
 
 rpl::producer<not_null<ForumTopic*>> Forum::topicDestroyed() const {
 	return _topicDestroyed.events();
+}
+
+void Forum::preloadTopics() {
+	if (topicsList()->indexed()->size() < kLoadedTopicsMinCount) {
+		requestTopics();
+	}
 }
 
 void Forum::requestTopics() {

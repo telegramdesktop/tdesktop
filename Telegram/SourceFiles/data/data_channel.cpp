@@ -66,7 +66,9 @@ Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
 
 void MegagroupInfo::ensureForum(not_null<ChannelData*> that) {
 	if (!_forum) {
-		_forum = std::make_unique<Data::Forum>(that->owner().history(that));
+		const auto history = that->owner().history(that);
+		_forum = std::make_unique<Data::Forum>(history);
+		history->forumChanged(nullptr);
 	}
 }
 
@@ -75,7 +77,12 @@ Data::Forum *MegagroupInfo::forum() const {
 }
 
 std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
-	return std::move(_forum);
+	if (auto result = base::take(_forum)) {
+		result->history()->forumChanged(result.get());
+		return result;
+	}
+	return nullptr;
+
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)

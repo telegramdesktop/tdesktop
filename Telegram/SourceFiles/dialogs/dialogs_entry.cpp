@@ -46,7 +46,11 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 Entry::Entry(not_null<Data::Session*> owner, Type type)
 : _owner(owner)
-, _type(type) {
+, _flags((type == Type::History)
+	? (Flag::IsThread | Flag::IsHistory)
+	: (type == Type::ForumTopic)
+	? Flag::IsThread
+	: Flag(0)) {
 }
 
 Entry::~Entry() = default;
@@ -60,23 +64,23 @@ Main::Session &Entry::session() const {
 }
 
 History *Entry::asHistory() {
-	return (_type == Type::History) ? static_cast<History*>(this) : nullptr;
+	return (_flags & Flag::IsHistory) ? static_cast<History*>(this) : nullptr;
 }
 
 Data::Folder *Entry::asFolder() {
-	return (_type == Type::Folder)
-		? static_cast<Data::Folder*>(this)
-		: nullptr;
+	return (_flags & Flag::IsThread)
+		? nullptr
+		: static_cast<Data::Folder*>(this);
 }
 
 Data::Thread *Entry::asThread() {
-	return (_type == Type::History || _type == Type::ForumTopic)
+	return (_flags & Flag::IsThread)
 		? static_cast<Data::Thread*>(this)
 		: nullptr;
 }
 
 Data::ForumTopic *Entry::asTopic() {
-	return (_type == Type::ForumTopic)
+	return ((_flags & Flag::IsThread) && !(_flags & Flag::IsHistory))
 		? static_cast<Data::ForumTopic*>(this)
 		: nullptr;
 }
@@ -298,7 +302,20 @@ void Entry::addChatListEntryByLetter(
 }
 
 void Entry::updateChatListEntry() {
+	_flags &= ~Flag::UpdatePostponed;
 	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Repaint);
+}
+
+void Entry::updateChatListEntryPostponed() {
+	if (_flags & Flag::UpdatePostponed) {
+		return;
+	}
+	_flags |= Flag::UpdatePostponed;
+	Ui::PostponeCall(this, [=] {
+		if (_flags & Flag::UpdatePostponed) {
+			updateChatListEntry();
+		}
+	});
 }
 
 } // namespace Dialogs
