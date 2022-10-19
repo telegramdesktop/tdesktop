@@ -39,6 +39,7 @@ public:
 		-> rpl::producer<not_null<ForumTopic*>>;
 
 	void preloadTopics();
+	void reloadTopics();
 	void requestTopics();
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
@@ -79,6 +80,9 @@ private:
 		std::vector<Fn<void()>> callbacks;
 	};
 
+	void requestSomeStale();
+	void finishTopicRequest(MsgId rootId);
+
 	void applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		bool updateOffset);
@@ -90,6 +94,8 @@ private:
 	Dialogs::MainList _topicsList;
 
 	base::flat_map<MsgId, TopicRequest> _topicRequests;
+	base::flat_set<MsgId> _staleRootIds;
+	mtpRequestId _staleRequestId = 0;
 
 	mtpRequestId _requestId = 0;
 	TimeId _offsetDate = 0;

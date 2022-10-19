@@ -1185,7 +1185,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		if (item->unread(this)) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
-			} else {
+			} else if (!peer->isForum()) {
 				owner().histories().requestDialogEntry(this);
 			}
 		} else {

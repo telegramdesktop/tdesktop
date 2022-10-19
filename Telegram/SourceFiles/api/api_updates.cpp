@@ -395,6 +395,9 @@ void Updates::channelDifferenceDone(
 			data.vmessages().v,
 			QVector<MTPDialog>(1, data.vdialog()));
 		session().data().channelDifferenceTooLong(channel);
+		if (const auto forum = channel->forum()) {
+			forum->reloadTopics();
+		}
 	}, [&](const MTPDupdates_channelDifference &data) {
 		feedChannelDifference(data);
 		channel->ptsInit(data.vpts().v);
@@ -2210,7 +2213,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				}
 				const auto history = channel->owner().history(channel);
 				history->requestChatListMessage();
-				if (!history->unreadCountKnown()) {
+				if (!history->folderKnown()
+					|| (!history->unreadCountKnown()
+						&& !history->peer->isForum())) {
 					history->owner().histories().requestDialogEntry(history);
 				}
 				if (!channel->amCreator()) {

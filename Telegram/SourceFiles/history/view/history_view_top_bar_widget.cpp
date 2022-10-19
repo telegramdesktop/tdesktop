@@ -678,9 +678,10 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		&& !showSelectedState()
 		&& !_chooseForReportReason;
 	if (handleClick) {
-		if (_animatingMode && _back->rect().contains(e->pos())) {
+		if ((_animatingMode && _back->rect().contains(e->pos()))
+			|| (_activeChat.section == Section::ChatsList)) {
 			backClicked();
-		} else  {
+		} else {
 			infoClicked();
 		}
 	}
@@ -690,8 +691,6 @@ void TopBarWidget::infoClicked() {
 	const auto key = _activeChat.key;
 	if (!key) {
 		return;
-	} else if (key.folder()) {
-		_controller->closeFolder();
 	} else if (const auto topic = key.topic()) {
 		_controller->showSection(std::make_shared<Info::Memento>(topic));
 	} else if (key.peer()->isSelf()) {

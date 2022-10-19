@@ -32,6 +32,7 @@ namespace {
 constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
+constexpr auto kStalePerRequest = 100;
 constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
@@ -47,11 +48,16 @@ Forum::Forum(not_null<History*> history)
 }
 
 Forum::~Forum() {
+	for (const auto &request : _topicRequests) {
+		if (request.second.id != _staleRequestId) {
+			owner().histories().cancelRequest(request.second.id);
+		}
+	}
+	if (_staleRequestId) {
+		session().api().request(_staleRequestId).cancel();
+	}
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
-	}
-	for (const auto &request : _topicRequests) {
-		owner().histories().cancelRequest(request.second.id);
 	}
 }
 
@@ -100,6 +106,19 @@ void Forum::preloadTopics() {
 	}
 }
 
+void Forum::reloadTopics() {
+	_allLoaded = false;
+	session().api().request(base::take(_requestId)).cancel();
+	_offsetDate = 0;
+	_offsetId = _offsetTopicId = 0;
+	for (const auto &[rootId, topic] : _topics) {
+		if (!topic->creating()) {
+			_staleRootIds.emplace(topic->rootId());
+		}
+	}
+	requestTopics();
+}
+
 void Forum::requestTopics() {
 	if (_allLoaded || _requestId) {
 		return;
@@ -121,6 +140,7 @@ void Forum::requestTopics() {
 		if (_allLoaded) {
 			_chatsListLoadedEvents.fire({});
 		}
+		requestSomeStale();
 	}).fail([=](const MTP::Error &error) {
 		_allLoaded = true;
 		_requestId = 0;
@@ -161,6 +181,7 @@ void Forum::applyReceivedTopics(
 		const auto rootId = topic.match([&](const auto &data) {
 			return data.vid().v;
 		});
+		_staleRootIds.remove(rootId);
 		topic.match([&](const MTPDforumTopicDeleted &data) {
 			if (updateOffset) {
 				LOG(("API Error: Got a deleted topic in getForumTopics."));
@@ -189,9 +210,67 @@ void Forum::applyReceivedTopics(
 		&& (list.isEmpty() || list.size() == data.vcount().v)) {
 		_allLoaded = true;
 	}
+	if (!_staleRootIds.empty()) {
+		requestSomeStale();
+	}
+}
+
+void Forum::requestSomeStale() {
+	if (_staleRequestId || (!_offsetId && _requestId)) {
+		return;
+	}
+	const auto type = Histories::RequestType::History;
+	auto rootIds = QVector<MTPint>();
+	rootIds.reserve(std::min(int(_staleRootIds.size()), kStalePerRequest));
+	for (auto i = begin(_staleRootIds); i != end(_staleRootIds);) {
+		const auto rootId = *i;
+		i = _staleRootIds.erase(i);
+
+		if (_topicRequests.contains(rootId)) {
+			continue;
+		}
+		rootIds.push_back(MTP_int(rootId));
+		if (rootIds.size() == kStalePerRequest) {
+			break;
+		}
+	}
+	const auto call = [=] {
+		for (const auto &id : rootIds) {
+			finishTopicRequest(id.v);
+		}
+	};
+	auto &histories = owner().histories();
+	_staleRequestId = histories.sendRequest(_history, type, [=](
+			Fn<void()> finish) {
+		return session().api().request(
+			MTPchannels_GetForumTopicsByID(
+				channel()->inputChannel,
+				MTP_vector<MTPint>(rootIds))
+		).done([=](const MTPmessages_ForumTopics &result) {
+			applyReceivedTopics(result);
+			call();
+			finish();
+		}).fail([=] {
+			call();
+			finish();
+		}).send();
+	});
+	for (const auto &id : rootIds) {
+		_topicRequests[id.v].id = _staleRequestId;
+	}
+}
+
+void Forum::finishTopicRequest(MsgId rootId) {
+	if (const auto request = _topicRequests.take(rootId)) {
+		for (const auto &callback : request->callbacks) {
+			callback();
+		}
+	}
 }
 
 void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
+	_staleRootIds.remove(rootId);
+
 	auto &request = _topicRequests[rootId];
 	if (done) {
 		request.callbacks.push_back(std::move(done));
@@ -200,11 +279,7 @@ void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
 		return;
 	}
 	const auto call = [=] {
-		if (const auto request = _topicRequests.take(rootId)) {
-			for (const auto &callback : request->callbacks) {
-				callback();
-			}
-		}
+		finishTopicRequest(rootId);
 	};
 	const auto type = Histories::RequestType::History;
 	auto &histories = owner().histories();
@@ -215,11 +290,9 @@ void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
 				channel()->inputChannel,
 				MTP_vector<MTPint>(1, MTP_int(rootId.bare)))
 		).done([=](const MTPmessages_ForumTopics &result) {
-			if (const auto forum = _history->peer->forum()) {
-				forum->applyReceivedTopics(result);
-				call();
-				finish();
-			}
+			applyReceivedTopics(result);
+			call();
+			finish();
 		}).fail([=] {
 			call();
 			finish();
