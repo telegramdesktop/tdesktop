@@ -139,6 +139,7 @@ void SponsoredMessages::parse(
 		for (const auto &message : messages) {
 			append(history, list, message);
 		}
+	}, [](const MTPDmessages_sponsoredMessagesEmpty &) {
 	});
 }
 

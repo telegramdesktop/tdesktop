@@ -1365,6 +1365,7 @@ void FastShareMessage(
 						MTP_vector<MTPint>(msgIds),
 						MTP_vector<MTPlong>(generateRandom()),
 						peer->input,
+						MTPint(), // top_msg_id
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty() // send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
