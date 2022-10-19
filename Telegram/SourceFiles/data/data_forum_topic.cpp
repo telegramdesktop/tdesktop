@@ -206,6 +206,10 @@ bool ForumTopic::canToggleClosed() const {
 	return !creating() && canEdit();
 }
 
+bool ForumTopic::canTogglePinned() const {
+	return !creating() && channel()->canEditTopics();
+}
+
 bool ForumTopic::creating() const {
 	return _forum->creating(_rootId);
 }
@@ -238,11 +242,10 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	}
 	applyColorId(data.vicon_color().v);
 
-	const auto pinned = _list->pinned();
 	if (data.is_pinned()) {
-		pinned->addPinned(Dialogs::Key(this));
+		owner().setChatPinned(this, 0, true);
 	} else {
-		pinned->setPinned(Dialogs::Key(this), false);
+		_list->pinned()->setPinned(this, false);
 	}
 
 	owner().notifySettings().apply(this, data.vnotify_settings());

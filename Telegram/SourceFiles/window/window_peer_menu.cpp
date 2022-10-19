@@ -300,39 +300,55 @@ bool PinnedLimitReached(
 	return true;
 }
 
-void TogglePinnedDialog(
+void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history) {
-	if (!history->folderKnown()) {
+		not_null<Data::Thread*> thread) {
+	if (!thread->folderKnown()) {
 		return;
 	}
-	const auto owner = &history->owner();
-	const auto isPinned = !history->isPinnedDialog(0);
-	if (isPinned && PinnedLimitReached(controller, history, 0)) {
-		return;
+	const auto owner = &thread->owner();
+	const auto isPinned = !thread->isPinnedDialog(0);
+	if (const auto history = thread->asHistory()) {
+		if (isPinned && PinnedLimitReached(controller, history, 0)) {
+			return;
+		}
 	}
 
-	owner->setChatPinned(history, FilterId(), isPinned);
-	const auto flags = isPinned
-		? MTPmessages_ToggleDialogPin::Flag::f_pinned
-		: MTPmessages_ToggleDialogPin::Flag(0);
-	history->session().api().request(MTPmessages_ToggleDialogPin(
-		MTP_flags(flags),
-		MTP_inputDialogPeer(history->peer->input)
-	)).done([=] {
-		owner->notifyPinnedDialogsOrderUpdated();
-	}).send();
-	if (isPinned) {
-		controller->content()->dialogsToUp();
+	owner->setChatPinned(thread, FilterId(), isPinned);
+	if (const auto history = thread->asHistory()) {
+		const auto flags = isPinned
+			? MTPmessages_ToggleDialogPin::Flag::f_pinned
+			: MTPmessages_ToggleDialogPin::Flag(0);
+		owner->session().api().request(MTPmessages_ToggleDialogPin(
+			MTP_flags(flags),
+			MTP_inputDialogPeer(history->peer->input)
+		)).done([=] {
+			owner->notifyPinnedDialogsOrderUpdated();
+		}).send();
+		if (isPinned) {
+			controller->content()->dialogsToUp();
+		}
+	} else if (const auto topic = thread->asTopic()) {
+		owner->session().api().request(MTPchannels_UpdatePinnedForumTopic(
+			topic->channel()->inputChannel,
+			MTP_int(topic->rootId()),
+			MTP_bool(isPinned)
+		)).done([=](const MTPUpdates &result) {
+			owner->session().api().applyUpdates(result);
+		}).send();
 	}
 }
 
-void TogglePinnedDialog(
+void TogglePinnedThread(
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		FilterId filterId) {
 	if (!filterId) {
-		return TogglePinnedDialog(controller, history);
+		return TogglePinnedThread(controller, thread);
+	}
+	const auto history = thread->asHistory();
+	if (!history) {
+		return;
 	}
 	const auto owner = &history->owner();
 
@@ -402,37 +418,33 @@ void Filler::addToggleTopicClosed() {
 }
 
 void Filler::addTogglePin() {
-	if (!_peer || _topic) {
-		// #TODO forum pinned
+	if (!_peer || (_topic && !_topic->canTogglePinned())) {
 		return;
 	}
 	const auto controller = _controller;
 	const auto filterId = _request.filterId;
 	const auto peer = _peer;
-	const auto history = _request.key.history();
-	if (!history || history->fixedOnTopIndex()) {
+	const auto thread = _request.key.thread();
+	if (!thread || thread->fixedOnTopIndex()) {
 		return;
 	}
 	const auto pinText = [=] {
-		return history->isPinnedDialog(filterId)
+		return thread->isPinnedDialog(filterId)
 			? tr::lng_context_unpin_from_top(tr::now)
 			: tr::lng_context_pin_to_top(tr::now);
 	};
+	const auto weak = base::make_weak(thread);
 	const auto pinToggle = [=] {
-		TogglePinnedDialog(controller, history, filterId);
+		if (const auto strong = weak.get()) {
+			TogglePinnedThread(controller, strong, filterId);
+		}
 	};
 	const auto pinAction = _addAction(
 		pinText(),
 		pinToggle,
-		(history->isPinnedDialog(filterId)
+		(thread->isPinnedDialog(filterId)
 			? &st::menuIconUnpin
 			: &st::menuIconPin));
-
-	auto actionText = history->session().changes().historyUpdates(
-		history,
-		Data::HistoryUpdate::Flag::IsPinned
-	) | rpl::map(pinText);
-	SetActionText(pinAction, std::move(actionText));
 }
 
 void Filler::addToggleMuteSubmenu(bool addSeparator) {

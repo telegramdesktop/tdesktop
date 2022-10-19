@@ -1823,10 +1823,13 @@ void Session::setChatPinned(
 		bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	const auto list = filterId
+	const auto list = (filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(key.entry()->folder());
-	list->pinned()->setPinned(key, pinned);
+		: chatsListFor(key.entry()))->pinned();
+	if (const auto topic = key.topic()) {
+		topic->forum()->unpinTopic();
+	}
+	list->setPinned(key, pinned);
 	notifyPinnedDialogsOrderUpdated();
 }
 

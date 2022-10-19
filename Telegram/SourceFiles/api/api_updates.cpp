@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_histories.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_message_reactions.h"
@@ -2285,6 +2286,23 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			channel->setAvailableMinId(d.vavailable_min_id().v);
 			if (const auto history = session().data().historyLoaded(channel)) {
 				history->clearUpTill(d.vavailable_min_id().v);
+			}
+		}
+	} break;
+
+	case mtpc_updateChannelPinnedTopic: {
+		const auto &d = update.c_updateChannelPinnedTopic();
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			const auto rootId = d.vtopic_id().value_or_empty();
+			if (const auto topic = peer->forumTopicFor(rootId)) {
+				session().data().setChatPinned(topic, 0, true);
+			} else if (const auto forum = peer->forum()) {
+				if (rootId) {
+					forum->requestTopic(rootId);
+				} else {
+					forum->unpinTopic();
+				}
 			}
 		}
 	} break;

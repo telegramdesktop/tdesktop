@@ -70,6 +70,13 @@ not_null<Dialogs::MainList*> Forum::topicsList() {
 	return &_topicsList;
 }
 
+void Forum::unpinTopic() {
+	const auto list = _topicsList.pinned();
+	while (!list->order().empty()) {
+		list->setPinned(list->order().front(), false);
+	}
+}
+
 rpl::producer<> Forum::destroyed() const {
 	return channel()->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
