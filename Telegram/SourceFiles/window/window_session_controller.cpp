@@ -895,8 +895,6 @@ void SessionController::openForum(
 	if (_openedForum.current() != forum) {
 		resetFakeUnreadWhileOpened();
 	}
-	setActiveChatsFilter(0, params);
-	closeFolder();
 	_openedForum = forum.get();
 	if (_openedForum.current() == forum) {
 		forum->forum()->destroyed(
@@ -1658,6 +1656,7 @@ void SessionController::setActiveChatsFilter(
 	}
 	_activeChatsFilter.force_assign(id);
 	if (id) {
+		closeForum();
 		closeFolder();
 	}
 	if (adaptive().isOneColumn()) {

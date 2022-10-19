@@ -398,10 +398,11 @@ void Widget::chosenRow(const ChosenRow &row) {
 		controller()->showRepliesForMessage(
 			topic->history(),
 			topic->rootId(),
-			ShowAtUnreadMsgId,
+			row.message.fullId.msg,
 			Window::SectionShow::Way::ClearStack);
-	} else if (history && history->peer->isForum()) {
+	} else if (history && history->peer->isForum() && !row.message.fullId) {
 		controller()->openForum(history->peer->asChannel());
+		return;
 	} else if (history) {
 		const auto peer = history->peer;
 		const auto showAtMsgId = controller()->uniqueChatsInSearchResults()
@@ -692,6 +693,9 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 
 void Widget::changeOpenedForum(ChannelData *forum, anim::type animated) {
 	changeOpenedSubsection([&] {
+		if (forum) {
+			cancelSearch();
+		}
 		_openedForum = forum;
 		_inner->changeOpenedForum(forum);
 	}, (forum != nullptr), animated);
@@ -705,9 +709,9 @@ void Widget::refreshFolderTopBar() {
 		}
 		_folderTopBar->setActiveChat(
 			HistoryView::TopBarWidget::ActiveChat{
-				.key = (_openedFolder
-					? Dialogs::Key(_openedFolder)
-					: Dialogs::Key(session().data().history(_openedForum))),
+				.key = (_openedForum
+					? Dialogs::Key(session().data().history(_openedForum))
+					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
 			},
 			nullptr);
@@ -1852,10 +1856,10 @@ RowDescriptor Widget::resolveChatPrevious(RowDescriptor from) const {
 
 void Widget::keyPressEvent(QKeyEvent *e) {
 	if (e->key() == Qt::Key_Escape) {
-		if (_openedFolder) {
-			controller()->closeFolder();
-		} else if (_openedForum) {
+		if (_openedForum) {
 			controller()->closeForum();
+		} else if (_openedFolder) {
+			controller()->closeFolder();
 		} else {
 			e->ignore();
 		}

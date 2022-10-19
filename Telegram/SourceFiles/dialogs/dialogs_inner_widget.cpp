@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
@@ -201,7 +202,7 @@ InnerWidget::InnerWidget(
 		session().data().chatsListChanges(),
 		session().data().chatsListLoadedEvents()
 	) | rpl::filter([=](Data::Folder *folder) {
-		return (folder == _openedFolder);
+		return !_openedForum && (folder == _openedFolder);
 	}) | rpl::start_with_next([=] {
 		refresh();
 	}, lifetime());
@@ -419,6 +420,10 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	}
 	stopReorderPinned();
 	clearSelection();
+
+	_filterId = forum
+		? 0
+		: _controller->activeChatsFilterCurrent();
 	_openedForum = forum ? forum->forum() : nullptr;
 	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
 
@@ -1211,7 +1216,7 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
 	} else if (_openedForum) {
-		return; // #TODO forum pinned
+		return;
 	}
 	_dragging = _pressed;
 	if (updateReorderIndexGetCount() < 2) {
@@ -1249,6 +1254,9 @@ int InnerWidget::countPinnedIndex(Row *ofRow) {
 }
 
 void InnerWidget::savePinnedOrder() {
+	if (_openedForum) {
+		return;
+	}
 	const auto &newOrder = session().data().pinnedChatsOrder(
 		_openedFolder,
 		_filterId);
@@ -1568,7 +1576,13 @@ void InnerWidget::handleChatListEntryRefreshes() {
 	using Event = Data::Session::ChatListEntryRefresh;
 	session().data().chatListEntryRefreshes(
 	) | rpl::filter([=](const Event &event) {
-		return (event.filterId == _filterId);
+		if (event.filterId != _filterId) {
+			return false;
+		} else if (const auto topic = event.key.topic()) {
+			return (topic->forum() == _openedForum);
+		} else {
+			return !_openedForum;
+		}
 	}) | rpl::start_with_next([=](const Event &event) {
 		const auto offset = dialogsOffset();
 		const auto from = offset + event.moved.from * _st->height;
@@ -1579,8 +1593,10 @@ void InnerWidget::handleChatListEntryRefreshes() {
 		// Don't jump in chats list scroll position while dragging.
 		if (!_dragging
 			&& (from != to)
-			&& (entry->folder() == _openedFolder)
-			&& (_state == WidgetState::Default)) {
+			&& (_state == WidgetState::Default)
+			&& (key.topic()
+				? (key.topic()->forum() == _openedForum)
+				: (entry->folder() == _openedFolder))) {
 			_dialogMoved.fire({ from, to });
 		}
 
@@ -1822,10 +1838,10 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 not_null<IndexedList*> InnerWidget::shownDialogs() const {
-	return _filterId
-		? session().data().chatsFilters().chatsList(_filterId)->indexed()
-		: _openedForum
+	return _openedForum
 		? _openedForum->topicsList()->indexed()
+		: _filterId
+		? session().data().chatsFilters().chatsList(_filterId)->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
 }
 

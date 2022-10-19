@@ -3944,7 +3944,6 @@ auto Session::chatListEntryRefreshes() const
 	return _chatListEntryRefreshes.events();
 }
 
-
 void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 	_dialogsRowReplacements.fire(std::move(replacement));
 }
