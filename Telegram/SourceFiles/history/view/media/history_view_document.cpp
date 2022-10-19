@@ -736,7 +736,8 @@ void Document::validateThumbnail(
 	}
 	const auto small = (rounding == Ui::BubbleRounding());
 	auto image = normal ? normal : blurred;
-	auto thumbnail = Images::Prepare(image->original(), thumbed->thumbw, {
+	const auto imageWidth = thumbed->thumbw * style::DevicePixelRatio();
+	auto thumbnail = Images::Prepare(image->original(), imageWidth, {
 		.options = (normal ? Images::Option() : Images::Option::Blur)
 			| (small ? Images::Option::RoundSmall : Images::Option()),
 		.outer = outer,
