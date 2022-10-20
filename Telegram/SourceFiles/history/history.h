@@ -248,10 +248,9 @@ public:
 	[[nodiscard]] bool unreadCountRefreshNeeded(MsgId readTillId) const;
 
 	void setUnreadCount(int newUnreadCount);
-	void setUnreadMark(bool unread) override;
+	void setUnreadMark(bool unread);
 	void setFakeUnreadWhileOpened(bool enabled);
 	[[nodiscard]] bool fakeUnreadWhileOpened() const;
-	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
 	void setMuted(bool muted) override;
 	void addUnreadBar();
 	void destroyUnreadBar();
@@ -380,10 +379,8 @@ public:
 	int fixedOnTopIndex() const override;
 	void updateChatListExistence() override;
 	bool shouldBeInChatList() const override;
-	int chatListUnreadCount() const override;
-	bool chatListUnreadMark() const override;
-	bool chatListMutedBadge() const override;
 	Dialogs::UnreadState chatListUnreadState() const override;
+	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
@@ -574,10 +571,16 @@ private:
 	HistoryService *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
+	[[nodiscard]] Dialogs::BadgesState computeBadgesState() const;
+	[[nodiscard]] Dialogs::BadgesState adjustBadgesStateByFolder(
+		Dialogs::BadgesState state) const;
 	[[nodiscard]] Dialogs::UnreadState computeUnreadState() const;
 	void setFolderPointer(Data::Folder *folder);
 
 	int chatListNameVersion() const override;
+
+	void hasUnreadMentionChanged(bool has) override;
+	void hasUnreadReactionChanged(bool has) override;
 
 	const std::unique_ptr<HistoryMainElementDelegateMixin> _delegateMixin;
 

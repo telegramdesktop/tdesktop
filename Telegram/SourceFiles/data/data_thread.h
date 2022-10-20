@@ -71,6 +71,8 @@ public:
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;
 	[[nodiscard]] HistoryUnreadThings::Proxy unreadReactions();
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadReactions() const;
+	virtual void hasUnreadMentionChanged(bool has) = 0;
+	virtual void hasUnreadReactionChanged(bool has) = 0;
 
 	void removeNotification(not_null<HistoryItem*> item);
 	void clearNotifications();
@@ -90,7 +92,6 @@ public:
 	[[nodiscard]] bool unreadMark() const {
 		return (_flags & Flag::UnreadMark);
 	}
-	virtual void setUnreadMark(bool unread);
 
 	[[nodiscard]] virtual bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const = 0;
@@ -107,6 +108,9 @@ public:
 
 	[[nodiscard]] virtual auto sendActionPainter()
 		-> not_null<HistoryView::SendActionPainter*> = 0;
+
+protected:
+	void setUnreadMarkFlag(bool unread);
 
 private:
 	enum class Flag : uchar {

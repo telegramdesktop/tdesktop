@@ -2257,21 +2257,17 @@ void HistoryWidget::showHistory(
 		if (!_history->folderKnown()) {
 			session().data().histories().requestDialogEntry(_history);
 		}
-		if (_history->chatListUnreadMark()) {
-			_history->owner().histories().changeDialogUnreadMark(
+
+		// Must be done before unreadCountUpdated(), or we auto-close.
+		if (_history->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
 				_history,
 				false);
-			if (_migrated) {
-				_migrated->owner().histories().changeDialogUnreadMark(
-					_migrated,
-					false);
-			}
-
-			// Must be done before unreadCountUpdated(), or we auto-close.
-			_history->setUnreadMark(false);
-			if (_migrated) {
-				_migrated->setUnreadMark(false);
-			}
+		}
+		if (_migrated && _migrated->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
+				_migrated,
+				false);
 		}
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
@@ -2913,7 +2909,7 @@ void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 }
 
 void HistoryWidget::unreadCountUpdated() {
-	if (_history->chatListUnreadMark()) {
+	if (_history->unreadMark() || (_migrated && _migrated->unreadMark())) {
 		crl::on_main(this, [=, history = _history] {
 			if (history == _history) {
 				closeCurrent();
@@ -2922,7 +2918,7 @@ void HistoryWidget::unreadCountUpdated() {
 		});
 	} else {
 		_cornerButtons.updateJumpDownVisibility(
-			_history->chatListUnreadCount());
+			_history->chatListBadgesState().unreadCounter);
 	}
 }
 

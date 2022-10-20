@@ -99,156 +99,49 @@ void PaintRowDate(
 	PaintRowTopRight(p, dt, rectForName, context);
 }
 
-void PaintNarrowCounter(
+int PaintBadges(
 		QPainter &p,
 		const PaintContext &context,
-		bool displayUnreadCounter,
-		bool displayUnreadMark,
-		bool displayMentionBadge,
-		bool displayReactionBadge,
-		int unreadCount,
-		bool unreadMuted,
-		bool mentionOrReactionMuted) {
-	auto skipBeforeMention = 0;
-	if (displayUnreadCounter || displayUnreadMark) {
-		const auto counter = (unreadCount > 0)
-			? QString::number(unreadCount)
+		BadgesState badgesState,
+		int right,
+		int top,
+		bool displayPinnedIcon = false,
+		int pinnedIconTop = 0) {
+	auto initial = right;
+	if (badgesState.unread) {
+		UnreadBadgeStyle st;
+		st.active = context.active;
+		st.selected = context.selected;
+		st.muted = badgesState.unreadMuted;
+		const auto counter = (badgesState.unreadCounter > 0)
+			? QString::number(badgesState.unreadCounter)
 			: QString();
-		const auto allowDigits = (displayMentionBadge
-			|| displayReactionBadge)
-			? 1
-			: 3;
-		const auto unreadRight = context.st->padding.left()
-			+ context.st->photoSize;
-		const auto unreadTop = context.st->padding.top()
-			+ context.st->photoSize
-			- st::dialogsUnreadHeight;
-
-		UnreadBadgeStyle st;
-		st.active = context.active;
-		st.selected = context.selected;
-		st.muted = unreadMuted;
-		const auto badge = PaintUnreadBadge(
-			p,
-			counter,
-			unreadRight,
-			unreadTop,
-			st,
-			allowDigits);
-		skipBeforeMention += badge.width() + st.padding;
-	}
-	if (displayMentionBadge || displayReactionBadge) {
-		const auto counter = QString();
-		const auto unreadRight = context.st->padding.left()
-			+ context.st->photoSize
-			- skipBeforeMention;
-		const auto unreadTop = context.st->padding.top()
-			+ context.st->photoSize
-			- st::dialogsUnreadHeight;
-
-		UnreadBadgeStyle st;
-		st.sizeId = displayMentionBadge
-			? UnreadBadgeSize::Dialogs
-			: UnreadBadgeSize::ReactionInDialogs;
-		st.active = context.active;
-		st.selected = context.selected;
-		st.muted = mentionOrReactionMuted;
-		st.padding = 0;
-		st.textTop = 0;
-		const auto badge = PaintUnreadBadge(
-			p,
-			counter,
-			unreadRight,
-			unreadTop,
-			st);
-		(displayMentionBadge
-			? (st.active
-				? st::dialogsUnreadMentionActive
-				: st.selected
-				? st::dialogsUnreadMentionOver
-				: st::dialogsUnreadMention)
-			: (st.active
-				? st::dialogsUnreadReactionActive
-				: st.selected
-				? st::dialogsUnreadReactionOver
-				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
-	}
-}
-
-int PaintWideCounter(
-		QPainter &p,
-		const PaintContext &context,
-		int texttop,
-		int availableWidth,
-		bool displayUnreadCounter,
-		bool displayUnreadMark,
-		bool displayMentionBadge,
-		bool displayReactionBadge,
-		bool displayPinnedIcon,
-		int unreadCount,
-		bool unreadMuted,
-		bool mentionOrReactionMuted) {
-	const auto initial = availableWidth;
-	if (displayUnreadCounter || displayUnreadMark) {
-		const auto counter = (unreadCount > 0)
-			? QString::number(unreadCount)
-			: QString();
-		const auto unreadRight = context.width - context.st->padding.right();
-		const auto unreadTop = texttop
-			+ st::dialogsTextFont->ascent
-			- st::dialogsUnreadFont->ascent
-			- (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
-
-		UnreadBadgeStyle st;
-		st.active = context.active;
-		st.selected = context.selected;
-		st.muted = unreadMuted;
-		const auto badge = PaintUnreadBadge(
-			p,
-			counter,
-			unreadRight,
-			unreadTop,
-			st);
-		availableWidth -= badge.width() + st.padding;
+		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
+		right -= badge.width() + st.padding;
 	} else if (displayPinnedIcon) {
 		const auto &icon = context.active
 			? st::dialogsPinnedIconActive
 			: context.selected
 			? st::dialogsPinnedIconOver
 			: st::dialogsPinnedIcon;
-		icon.paint(
-			p,
-			context.width - context.st->padding.right() - icon.width(),
-			texttop,
-			context.width);
-		availableWidth -= icon.width() + st::dialogsUnreadPadding;
+		icon.paint(p, right - icon.width(), pinnedIconTop, context.width);
+		right -= icon.width() + st::dialogsUnreadPadding;
 	}
-	if (displayMentionBadge || displayReactionBadge) {
-		const auto counter = QString();
-		const auto unreadRight = context.width
-			- context.st->padding.right()
-			- (initial - availableWidth);
-		const auto unreadTop = texttop
-			+ st::dialogsTextFont->ascent
-			- st::dialogsUnreadFont->ascent
-			- (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
-
+	if (badgesState.mention || badgesState.reaction) {
 		UnreadBadgeStyle st;
-		st.sizeId = displayMentionBadge
+		st.sizeId = badgesState.mention
 			? UnreadBadgeSize::Dialogs
 			: UnreadBadgeSize::ReactionInDialogs;
 		st.active = context.active;
 		st.selected = context.selected;
-		st.muted = mentionOrReactionMuted;
+		st.muted = badgesState.mention
+			? badgesState.mentionMuted
+			: badgesState.reactionMuted;
 		st.padding = 0;
 		st.textTop = 0;
-		const auto badge = PaintUnreadBadge(
-			p,
-			counter,
-			unreadRight,
-			unreadTop,
-			st);
-		(displayMentionBadge
+		const auto counter = QString();
+		const auto badge = PaintUnreadBadge(p, counter, right, top, st);
+		(badgesState.mention
 			? (st.active
 				? st::dialogsUnreadMentionActive
 				: st.selected
@@ -259,11 +152,46 @@ int PaintWideCounter(
 				: st.selected
 				? st::dialogsUnreadReactionOver
 				: st::dialogsUnreadReaction)).paintInCenter(p, badge);
-		availableWidth -= badge.width()
-			+ st.padding
-			+ st::dialogsUnreadPadding;
+		right -= badge.width() + st.padding + st::dialogsUnreadPadding;
 	}
-	return availableWidth;
+	return (initial - right);
+}
+
+void PaintNarrowCounter(
+		QPainter &p,
+		const PaintContext &context,
+		BadgesState badgesState) {
+	const auto top = context.st->padding.top()
+		+ context.st->photoSize
+		- st::dialogsUnreadHeight;
+	PaintBadges(
+		p,
+		context,
+		badgesState,
+		context.st->padding.left() + context.st->photoSize,
+		top);
+}
+
+int PaintWideCounter(
+		QPainter &p,
+		const PaintContext &context,
+		BadgesState badgesState,
+		int texttop,
+		int availableWidth,
+		bool displayPinnedIcon) {
+	const auto top = texttop
+		+ st::dialogsTextFont->ascent
+		- st::dialogsUnreadFont->ascent
+		- (st::dialogsUnreadHeight - st::dialogsUnreadFont->height) / 2;
+	const auto used = PaintBadges(
+		p,
+		context,
+		badgesState,
+		context.width - context.st->padding.right(),
+		top,
+		displayPinnedIcon,
+		texttop);
+	return availableWidth - used;
 }
 
 void PaintListEntryText(
@@ -309,7 +237,7 @@ enum class Flag {
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
-template <typename PaintItemCallback, typename PaintCounterCallback>
+template <typename PaintItemCallback>
 void PaintRow(
 		Painter &p,
 		not_null<const BasicRow*> row,
@@ -325,9 +253,9 @@ void PaintRow(
 		const Data::Draft *draft,
 		QDateTime date,
 		const PaintContext &context,
+		BadgesState badgesState,
 		base::flags<Flag> flags,
-		PaintItemCallback &&paintItemCallback,
-		PaintCounterCallback &&paintCounterCallback) {
+		PaintItemCallback &&paintItemCallback) {
 	const auto supportMode = entry->session().supportMode();
 	if (supportMode) {
 		draft = nullptr;
@@ -383,7 +311,7 @@ void PaintRow(
 	auto nameleft = context.st->nameLeft;
 	if (context.width <= nameleft) {
 		if (!draft && item && !item->isEmpty()) {
-			paintCounterCallback();
+			PaintNarrowCounter(p, context, badgesState);
 		}
 		return;
 	}
@@ -891,12 +819,10 @@ void RowPainter::Paint(
 	const auto history = row->history();
 	const auto thread = row->thread();
 	const auto peer = history ? history->peer.get() : nullptr;
-	const auto unreadCount = entry->chatListUnreadCount();
-	const auto unreadMark = entry->chatListUnreadMark();
-	const auto unreadMuted = entry->chatListMutedBadge();
+	const auto badgesState = entry->chatListBadgesState();
 	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
-		if (thread && (!item || (!unreadCount && !unreadMark))) {
+		if (thread && (!item || !badgesState.unread)) {
 			// Draw item, if there are unread messages.
 			const auto draft = thread->owningHistory()->cloudDraft(
 				thread->topicRootId());
@@ -919,30 +845,7 @@ void RowPainter::Paint(
 			? base::unixtime::parse(cloudDraft->date)
 			: QDateTime();
 	}();
-	const auto displayMentionBadge = thread
-		&& thread->unreadMentions().has();
-	const auto displayReactionBadge = !displayMentionBadge
-		&& thread
-		&& thread->unreadReactions().has();
-	const auto mentionOrReactionMuted = (entry->folder() != nullptr)
-		|| (!displayMentionBadge && unreadMuted);
-	const auto displayUnreadCounter = [&] {
-		if (displayMentionBadge
-			&& unreadCount == 1
-			&& item
-			&& item->isUnreadMention()) {
-			return false;
-		}
-		return (unreadCount > 0);
-	}();
-	const auto displayUnreadMark = !displayUnreadCounter
-		&& !displayMentionBadge
-		&& history
-		&& unreadMark;
-	const auto displayPinnedIcon = !displayUnreadCounter
-		&& !displayMentionBadge
-		&& !displayReactionBadge
-		&& !displayUnreadMark
+	const auto displayPinnedIcon = badgesState.empty()
 		&& entry->isPinnedDialog(context.filter)
 		&& (context.filter || !entry->fixedOnTopIndex());
 
@@ -951,8 +854,7 @@ void RowPainter::Paint(
 			? history->peer->migrateTo()
 			: history->peer.get())
 		: nullptr;
-	const auto allowUserOnline = !context.narrow
-		|| (!displayUnreadCounter && !displayUnreadMark);
+	const auto allowUserOnline = !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
 		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0));
@@ -961,16 +863,10 @@ void RowPainter::Paint(
 		const auto availableWidth = PaintWideCounter(
 			p,
 			context,
+			badgesState,
 			texttop,
 			namewidth,
-			displayUnreadCounter,
-			displayUnreadMark,
-			displayMentionBadge,
-			displayReactionBadge,
-			displayPinnedIcon,
-			unreadCount,
-			unreadMuted,
-			mentionOrReactionMuted);
+			displayPinnedIcon);
 		const auto &color = context.active
 			? st::dialogsTextFgServiceActive
 			: context.selected
@@ -1008,18 +904,6 @@ void RowPainter::Paint(
 			view->paint(p, rect, context);
 		}
 	};
-	const auto paintCounterCallback = [&] {
-		PaintNarrowCounter(
-			p,
-			context,
-			displayUnreadCounter,
-			displayUnreadMark,
-			displayMentionBadge,
-			displayReactionBadge,
-			unreadCount,
-			unreadMuted,
-			mentionOrReactionMuted);
-	};
 	PaintRow(
 		p,
 		row,
@@ -1027,7 +911,7 @@ void RowPainter::Paint(
 		row->key(),
 		videoUserpic,
 		from,
-		entry->chatListBadge(),
+		entry->chatListPeerBadge(),
 		[=] { history->updateChatListEntry(); },
 		entry->chatListNameText(),
 		nullptr,
@@ -1035,9 +919,9 @@ void RowPainter::Paint(
 		cloudDraft,
 		displayDate,
 		context,
+		badgesState,
 		flags,
-		paintItemCallback,
-		paintCounterCallback);
+		paintItemCallback);
 }
 
 void RowPainter::Paint(
@@ -1078,22 +962,9 @@ void RowPainter::Paint(
 		return {};
 	}();
 
-	const auto unreadCount = context.displayUnreadInfo
-		? history->chatListUnreadCount()
-		: 0;
-	const auto unreadMark = context.displayUnreadInfo
-		&& history->chatListUnreadMark();
-	const auto unreadMuted = history->chatListMutedBadge();
-	const auto mentionOrReactionMuted = (history->folder() != nullptr);
-	const auto displayMentionBadge = context.displayUnreadInfo
-		&& history->unreadMentions().has();
-	const auto displayReactionBadge = context.displayUnreadInfo
-		&& !displayMentionBadge
-		&& history->unreadReactions().has();
-	const auto displayUnreadCounter = (unreadCount > 0);
-	const auto displayUnreadMark = !displayUnreadCounter
-		&& !displayMentionBadge
-		&& unreadMark;
+	const auto badgesState = context.displayUnreadInfo
+		? history->chatListBadgesState()
+		: BadgesState();
 	const auto displayPinnedIcon = false;
 
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
@@ -1101,16 +972,10 @@ void RowPainter::Paint(
 		const auto availableWidth = PaintWideCounter(
 			p,
 			context,
+			badgesState,
 			texttop,
 			namewidth,
-			displayUnreadCounter,
-			displayUnreadMark,
-			displayMentionBadge,
-			displayReactionBadge,
-			displayPinnedIcon,
-			unreadCount,
-			unreadMuted,
-			mentionOrReactionMuted);
+			displayPinnedIcon);
 
 		const auto itemRect = QRect(
 			nameleft,
@@ -1122,18 +987,6 @@ void RowPainter::Paint(
 			view.prepare(item, row->repaint(), previewOptions);
 		}
 		row->itemView().paint(p, itemRect, context);
-	};
-	const auto paintCounterCallback = [&] {
-		PaintNarrowCounter(
-			p,
-			context,
-			displayUnreadCounter,
-			displayUnreadMark,
-			displayMentionBadge,
-			displayReactionBadge,
-			unreadCount,
-			unreadMuted,
-			mentionOrReactionMuted);
 	};
 	const auto showSavedMessages = history->peer->isSelf()
 		&& !row->searchInChat();
@@ -1156,9 +1009,9 @@ void RowPainter::Paint(
 		cloudDraft,
 		ItemDateTime(item),
 		context,
+		badgesState,
 		flags,
-		paintItemCallback,
-		paintCounterCallback);
+		paintItemCallback);
 }
 
 QRect RowPainter::SendActionAnimationRect(

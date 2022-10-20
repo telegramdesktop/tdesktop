@@ -81,10 +81,8 @@ public:
 
 	int fixedOnTopIndex() const override;
 	bool shouldBeInChatList() const override;
-	int chatListUnreadCount() const override;
-	bool chatListUnreadMark() const override;
-	bool chatListMutedBadge() const override;
 	Dialogs::UnreadState chatListUnreadState() const override;
+	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;
@@ -92,6 +90,9 @@ public:
 	const QString &chatListNameSortKey() const override;
 	const base::flat_set<QString> &chatListNameWords() const override;
 	const base::flat_set<QChar> &chatListFirstLetters() const override;
+
+	void hasUnreadMentionChanged(bool has) override;
+	void hasUnreadReactionChanged(bool has) override;
 
 	[[nodiscard]] HistoryItem *lastMessage() const;
 	[[nodiscard]] HistoryItem *lastServerMessage() const;
@@ -125,13 +126,7 @@ public:
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const override;
 
-	[[nodiscard]] int unreadCount() const;
-	[[nodiscard]] bool unreadCountKnown() const;
-
-	[[nodiscard]] int unreadCountForBadge() const; // unreadCount || unreadMark ? 1 : 0.
-
 	void setMuted(bool muted) override;
-	void setUnreadMark(bool unread) override;
 
 	[[nodiscard]] auto sendActionPainter()
 		->not_null<HistoryView::SendActionPainter*> override;

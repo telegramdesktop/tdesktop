@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
@@ -43,6 +45,37 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 }
 
 } // namespace
+
+BadgesState BadgesForUnread(
+		const UnreadState &state,
+		CountInBadge count,
+		IncludeInBadge include) {
+	const auto countMessages = (count == CountInBadge::Messages)
+		|| ((count == CountInBadge::Default)
+			&& Core::App().settings().countUnreadMessages());
+	const auto counterFull = state.marks
+		+ (countMessages ? state.messages : state.chats);
+	const auto counterMuted = state.marksMuted
+		+ (countMessages ? state.messagesMuted : state.chatsMuted);
+	const auto unreadMuted = (counterFull <= counterMuted);
+
+	const auto includeMuted = (include == IncludeInBadge::All)
+		|| (include == IncludeInBadge::UnmutedOrAll && unreadMuted)
+		|| ((include == IncludeInBadge::Default)
+			&& Core::App().settings().includeMutedCounter());
+
+	const auto marks = state.marks - (includeMuted ? 0 : state.marksMuted);
+	const auto counter = counterFull - (includeMuted ? 0 : counterMuted);
+	const auto mark = (counter == 1) && (marks == 1);
+	return {
+		.unreadCounter = mark ? 0 : counter,
+		.unread = (counter > 0),
+		.unreadMuted = includeMuted && (counter <= counterMuted),
+		.mention = (state.mentions > 0),
+		.reaction = (state.reactions > 0),
+		.reactionMuted = (state.reactions <= state.reactionsMuted),
+	};
+}
 
 Entry::Entry(not_null<Data::Session*> owner, Type type)
 : _owner(owner)
@@ -181,8 +214,24 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 	owner().chatsListFor(this)->unreadStateChanged(wasState, nowState);
 	auto &filters = owner().chatsFilters();
 	for (const auto &[filterId, links] : _chatListLinks) {
-		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);
+		if (filterId) {
+			filters.chatsList(filterId)->unreadStateChanged(
+				wasState,
+				nowState);
+		}
 	}
+	if (const auto history = asHistory()) {
+		session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::UnreadView);
+		const auto isForFilters = [](UnreadState state) {
+			return state.messages || state.marks || state.mentions;
+		};
+		if (isForFilters(wasState) != isForFilters(nowState)) {
+			owner().chatsFilters().refreshHistory(history);
+		}
+	}
+	updateChatListEntryPostponed();
 }
 
 const Ui::Text::String &Entry::chatListNameText() const {

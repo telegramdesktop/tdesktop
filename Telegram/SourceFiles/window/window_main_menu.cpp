@@ -579,10 +579,10 @@ void MainMenu::setupArchive() {
 		return folder->owner().chatsList(folder)->unreadStateChanges();
 	}) | rpl::flatten_latest() | rpl::to_empty) | rpl::map([=] {
 		const auto loaded = folder();
-		return Badge::UnreadBadge{
-			loaded ? loaded->chatListUnreadCount() : 0,
-			true,
-		};
+		const auto state = loaded
+			? loaded->chatListBadgesState()
+			: Dialogs::BadgesState();
+		return Badge::UnreadBadge{ state.unreadCounter, true };
 	}));
 
 	controller->session().data().chatsListChanges(

@@ -62,7 +62,6 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 		++_chatListViewVersion;
 		notifyUnreadStateChange(old);
-		updateChatListEntryPostponed();
 	}, _lifetime);
 
 	_chatsList.fullSize().changes(
@@ -328,24 +327,20 @@ bool Folder::shouldBeInChatList() const {
 	return !_chatsList.empty();
 }
 
-int Folder::chatListUnreadCount() const {
-	const auto state = chatListUnreadState();
-	return state.marks
-		+ (Core::App().settings().countUnreadMessages()
-			? state.messages
-			: state.chats);
-}
-
 Dialogs::UnreadState Folder::chatListUnreadState() const {
 	return _chatsList.unreadState();
 }
 
-bool Folder::chatListUnreadMark() const {
-	return false;
-}
-
-bool Folder::chatListMutedBadge() const {
-	return true;
+Dialogs::BadgesState Folder::chatListBadgesState() const {
+	auto result = Dialogs::BadgesForUnread(
+		chatListUnreadState(),
+		Dialogs::CountInBadge::Chats,
+		Dialogs::IncludeInBadge::All);
+	result.unreadMuted = result.mentionMuted = result.reactionMuted = true;
+	if (result.unread && !result.unreadCounter) {
+		result.unreadCounter = 1;
+	}
+	return result;
 }
 
 HistoryItem *Folder::chatListMessage() const {

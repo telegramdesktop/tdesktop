@@ -144,7 +144,7 @@ void Thread::setMuted(bool muted) {
 	}
 }
 
-void Thread::setUnreadMark(bool unread) {
+void Thread::setUnreadMarkFlag(bool unread) {
 	if (unread) {
 		_flags |= Flag::UnreadMark;
 	} else {

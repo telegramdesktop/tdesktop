@@ -67,13 +67,12 @@ void Proxy::setCount(int count) {
 		list.setCount(count);
 	}
 	const auto has = (count > 0);
-	if (has != had) {
+	if (has != had && _thread->inChatList()) {
 		if (_type == Type::Mentions) {
-			if (const auto history = _thread->asHistory()) {
-				_thread->owner().chatsFilters().refreshHistory(history);
-			}
+			_thread->hasUnreadMentionChanged(has);
+		} else if (_type == Type::Reactions) {
+			_thread->hasUnreadReactionChanged(has);
 		}
-		_thread->updateChatListEntry();
 	}
 }
 

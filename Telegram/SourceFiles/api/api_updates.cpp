@@ -1711,11 +1711,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			if (const auto history = session().data().historyLoaded(id)) {
 				history->setUnreadMark(data.is_unread());
 			}
-		}, [&](const MTPDdialogPeerFolder &dialog) {
-			//const auto id = dialog.vfolder_id().v; // #TODO archive
-			//if (const auto folder = session().data().folderLoaded(id)) {
-			//	folder->setUnreadMark(data.is_unread());
-			//}
+		}, [](const MTPDdialogPeerFolder &dialog) {
 		});
 	} break;
 

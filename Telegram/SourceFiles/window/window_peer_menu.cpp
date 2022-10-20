@@ -112,8 +112,7 @@ void SetActionText(not_null<QAction*> action, rpl::producer<QString> &&text) {
 }
 
 [[nodiscard]] bool IsUnreadThread(not_null<Data::Thread*> thread) {
-	return (thread->chatListUnreadCount() > 0)
-		|| (thread->chatListUnreadMark());
+	return thread->chatListBadgesState().unread;
 }
 
 void MarkAsReadThread(not_null<Data::Thread*> thread) {
@@ -1739,7 +1738,7 @@ void MenuAddMarkAsReadChatListAction(
 		const PeerMenuCallback &addAction) {
 	// There is no async to make weak from controller.
 	const auto unreadState = list()->unreadState();
-	if (unreadState.empty()) {
+	if (!unreadState.messages && !unreadState.marks && !unreadState.chats) {
 		return;
 	}
 

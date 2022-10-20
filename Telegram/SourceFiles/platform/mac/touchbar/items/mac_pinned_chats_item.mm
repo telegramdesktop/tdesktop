@@ -91,16 +91,16 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 
 QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto history = peer->owner().history(peer->id);
-	const auto count = history->unreadCountForBadge();
-	if (!count) {
+	const auto state = history->chatListBadgesState();
+	if (!state.unread) {
 		return QImage();
 	}
-	const auto unread = history->unreadMark()
-		? QString()
-		: QString::number(count);
+	const auto counter = (state.unreadCounter > 0)
+		? QString::number(state.unreadCounter)
+		: QString();
 	Dialogs::Ui::UnreadBadgeStyle unreadSt;
 	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeSize::TouchBar;
-	unreadSt.muted = history->muted();
+	unreadSt.muted = state.unreadMuted;
 	// Use constant values to draw badge regardless of cConfigScale().
 	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
 	unreadSt.padding = 4 * cRetinaFactor();

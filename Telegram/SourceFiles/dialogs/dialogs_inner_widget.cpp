@@ -799,7 +799,7 @@ void InnerWidget::paintCollapsedRow(
 	Expects(row->folder != nullptr);
 
 	const auto text = row->folder->chatListName();
-	const auto unread = row->folder->chatListUnreadCount();
+	const auto unread = row->folder->chatListBadgesState().unreadCounter;
 	Ui::PaintCollapsedRow(p, row->row, row->folder, text, unread, {
 		.st = _st,
 		.width = width(),
@@ -3435,8 +3435,7 @@ void InnerWidget::setupShortcuts() {
 		request->check(Command::ReadChat) && request->handle([=] {
 			const auto history = _selected ? _selected->history() : nullptr;
 			if (history) {
-				if ((history->chatListUnreadCount() > 0)
-					|| history->chatListUnreadMark()) {
+				if (history->chatListBadgesState().unread) {
 					session().data().histories().readInbox(history);
 				}
 				return true;
@@ -3470,8 +3469,7 @@ RowDescriptor InnerWidget::computeJump(
 		const auto needSkip = [&] {
 			return (result.key.folder() != nullptr)
 				|| (session().supportMode()
-					&& !result.key.entry()->chatListUnreadCount()
-					&& !result.key.entry()->chatListUnreadMark());
+					&& !result.key.entry()->chatListBadgesState().unread);
 		};
 		while (needSkip()) {
 			const auto next = down

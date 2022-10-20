@@ -14,6 +14,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Dialogs {
 
 class MainList final {
@@ -35,9 +39,7 @@ public:
 	void unreadStateChanged(
 		const UnreadState &wasState,
 		const UnreadState &nowState);
-	void unreadEntryChanged(
-		const Dialogs::UnreadState &state,
-		bool added);
+	void unreadEntryChanged(const UnreadState &state, bool added);
 	void updateCloudUnread(const MTPDdialogFolder &data);
 	[[nodiscard]] bool cloudUnreadKnown() const;
 	[[nodiscard]] UnreadState unreadState() const;

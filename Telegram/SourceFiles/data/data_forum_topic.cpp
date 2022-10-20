@@ -155,7 +155,6 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	_replies->unreadCountValue(
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
-		session().changes().topicUpdated(this, UpdateFlag::UnreadView);
 		return inChatList();
 	}) | rpl::start_with_next([=](
 			std::optional<int> previous,
@@ -602,85 +601,50 @@ bool ForumTopic::isServerSideUnread(
 	return _replies->isServerSideUnread(item);
 }
 
-int ForumTopic::unreadCount() const {
-	return _replies->unreadCountCurrent();
-}
-
-int ForumTopic::unreadCountForBadge() const {
-	const auto result = unreadCount();
-	return (!result && unreadMark()) ? 1 : result;
-}
-
 void ForumTopic::setMuted(bool muted) {
 	if (this->muted() == muted) {
 		return;
 	}
-	const auto refresher = gsl::finally([&] {
-		if (inChatList()) {
-			updateChatListEntry();
-		}
-		session().changes().topicUpdated(
-			this,
-			Data::TopicUpdate::Flag::Notifications);
-	});
-	const auto notify = (unreadCountForBadge() > 0);
+	const auto state = chatListBadgesState();
+	const auto notify = state.unread || state.reaction;
 	const auto notifier = unreadStateChangeNotifier(notify);
 	Thread::setMuted(muted);
-}
-
-bool ForumTopic::unreadCountKnown() const {
-	return _replies->unreadCountKnown();
-}
-
-void ForumTopic::setUnreadMark(bool unread) {
-	if (unreadMark() == unread) {
-		return;
-	}
-	const auto noUnreadMessages = !unreadCount();
-	const auto refresher = gsl::finally([&] {
-		if (inChatList() && noUnreadMessages) {
-			updateChatListEntry();
-		}
-		session().changes().topicUpdated(this, UpdateFlag::UnreadView);
-	});
-	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-	Thread::setUnreadMark(unread);
+	session().changes().topicUpdated(
+		this,
+		Data::TopicUpdate::Flag::Notifications);
 }
 
 not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {
 	return _sendActionPainter.get();
 }
 
-int ForumTopic::chatListUnreadCount() const {
-	return unreadCount();
+Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
+	return unreadStateFor(
+		_replies->unreadCountCurrent(),
+		_replies->unreadCountKnown());
 }
 
-Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
-	return unreadStateFor(unreadCount(), unreadCountKnown());
+Dialogs::BadgesState ForumTopic::chatListBadgesState() const {
+	return Dialogs::BadgesForUnread(
+		chatListUnreadState(),
+		Dialogs::CountInBadge::Messages,
+		Dialogs::IncludeInBadge::All);
 }
 
 Dialogs::UnreadState ForumTopic::unreadStateFor(
 		int count,
 		bool known) const {
 	auto result = Dialogs::UnreadState();
-	const auto mark = !count && unreadMark();
 	const auto muted = this->muted();
 	result.messages = count;
-	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;
-	result.chatsMuted = (count && muted) ? 1 : 0;
-	result.marks = mark ? 1 : 0;
-	result.marksMuted = (mark && muted) ? 1 : 0;
+	result.mentions = unreadMentions().has() ? 1 : 0;
+	result.reactions = unreadReactions().has() ? 1 : 0;
+	result.messagesMuted = muted ? result.messages : 0;
+	result.chatsMuted = muted ? result.chats : 0;
+	result.reactionsMuted = muted ? result.reactions : 0;
 	result.known = known;
 	return result;
-}
-
-bool ForumTopic::chatListUnreadMark() const {
-	return false;
-}
-
-bool ForumTopic::chatListMutedBadge() const {
-	return muted();
 }
 
 HistoryItem *ForumTopic::chatListMessage() const {
@@ -701,6 +665,27 @@ const base::flat_set<QString> &ForumTopic::chatListNameWords() const {
 
 const base::flat_set<QChar> &ForumTopic::chatListFirstLetters() const {
 	return _titleFirstLetters;
+}
+
+void ForumTopic::hasUnreadMentionChanged(bool has) {
+	auto was = chatListUnreadState();
+	if (has) {
+		was.mentions = 0;
+	} else {
+		was.mentions = 1;
+	}
+	notifyUnreadStateChange(was);
+}
+
+void ForumTopic::hasUnreadReactionChanged(bool has) {
+	auto was = chatListUnreadState();
+	if (has) {
+		was.reactions = was.reactionsMuted = 0;
+	} else {
+		was.reactions = 1;
+		was.reactionsMuted = muted() ? was.reactions : 0;
+	}
+	notifyUnreadStateChange(was);
 }
 
 const QString &ForumTopic::chatListNameSortKey() const {

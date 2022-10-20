@@ -47,12 +47,12 @@ namespace {
 		const auto name = history->peer->name();
 		return TextWithEntities{
 			.text = name,
-			.entities = (history->chatListUnreadCount() > 0)
+			.entities = (history->chatListBadgesState().unread
 				? EntitiesInText{
 					{ EntityType::Semibold, 0, int(name.size()), QString() },
 					{ EntityType::PlainLink, 0, int(name.size()), QString() },
 				}
-				: EntitiesInText{}
+				: EntitiesInText{}),
 		};
 	};
 	const auto shown = int(peers.size());

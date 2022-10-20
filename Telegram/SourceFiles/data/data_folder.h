@@ -44,10 +44,8 @@ public:
 
 	int fixedOnTopIndex() const override;
 	bool shouldBeInChatList() const override;
-	int chatListUnreadCount() const override;
-	bool chatListUnreadMark() const override;
-	bool chatListMutedBadge() const override;
 	Dialogs::UnreadState chatListUnreadState() const override;
+	Dialogs::BadgesState chatListBadgesState() const override;
 	HistoryItem *chatListMessage() const override;
 	bool chatListMessageKnown() const override;
 	void requestChatListMessage() override;

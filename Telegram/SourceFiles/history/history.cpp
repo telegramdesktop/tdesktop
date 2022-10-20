@@ -1693,11 +1693,6 @@ int History::unreadCount() const {
 	return _unreadCount ? *_unreadCount : 0;
 }
 
-int History::unreadCountForBadge() const {
-	const auto result = unreadCount();
-	return (!result && unreadMark()) ? 1 : result;
-}
-
 bool History::unreadCountKnown() const {
 	return _unreadCount.has_value();
 }
@@ -1708,14 +1703,7 @@ void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount == newUnreadCount) {
 		return;
 	}
-	const auto wasForBadge = (unreadCountForBadge() > 0);
-	const auto refresher = gsl::finally([&] {
-		if (wasForBadge != (unreadCountForBadge() > 0)) {
-			owner().chatsFilters().refreshHistory(this);
-		}
-		session().changes().historyUpdated(this, UpdateFlag::UnreadView);
-	});
-	const auto notifier = unreadStateChangeNotifier(true);
+	const auto notifier = unreadStateChangeNotifier(!peer->isForum());
 	_unreadCount = newUnreadCount;
 
 	const auto lastOutgoing = [&] {
@@ -1753,26 +1741,22 @@ void History::setUnreadMark(bool unread) {
 	if (unreadMark() == unread) {
 		return;
 	}
-	const auto noUnreadMessages = !unreadCount();
-	const auto refresher = gsl::finally([&] {
-		if (inChatList() && noUnreadMessages) {
-			owner().chatsFilters().refreshHistory(this);
-			updateChatListEntry();
-		}
-		session().changes().historyUpdated(this, UpdateFlag::UnreadView);
-	});
-	const auto notifier = unreadStateChangeNotifier(noUnreadMessages);
-	Thread::setUnreadMark(unread);
+	const auto notifier = unreadStateChangeNotifier(
+		!unreadCount() && !peer->isForum());
+	Thread::setUnreadMarkFlag(unread);
 }
 
 void History::setFakeUnreadWhileOpened(bool enabled) {
-	if (_fakeUnreadWhileOpened == enabled
-		|| (enabled
-			&& (!inChatList()
-				|| (!unreadCount()
-					&& !unreadMark()
-					&& !unreadMentions().has())))) {
+	if (_fakeUnreadWhileOpened == enabled) {
 		return;
+	} else if (enabled) {
+		if (!inChatList()) {
+			return;
+		}
+		const auto state = chatListBadgesState();
+		if (!state.unread && !state.mention) {
+			return;
+		}
 	}
 	_fakeUnreadWhileOpened = enabled;
 	owner().chatsFilters().refreshHistory(this);
@@ -1785,19 +1769,18 @@ void History::setFakeUnreadWhileOpened(bool enabled) {
 void History::setMuted(bool muted) {
 	if (this->muted() == muted) {
 		return;
+	} else {
+		const auto state = peer->isForum()
+			? Dialogs::BadgesState()
+			: computeBadgesState();
+		const auto notify = (state.unread || state.reaction);
+		const auto notifier = unreadStateChangeNotifier(notify);
+		Thread::setMuted(muted);
 	}
-	const auto refresher = gsl::finally([&] {
-		if (inChatList()) {
-			owner().chatsFilters().refreshHistory(this);
-			updateChatListEntry();
-		}
-		session().changes().peerUpdated(
-			peer,
-			Data::PeerUpdate::Flag::Notifications);
-	});
-	const auto notify = (unreadCountForBadge() > 0);
-	const auto notifier = unreadStateChangeNotifier(notify);
-	Thread::setMuted(muted);
+	session().changes().peerUpdated(
+		peer,
+		Data::PeerUpdate::Flag::Notifications);
+	owner().chatsFilters().refreshHistory(this);
 	if (const auto forum = peer->forum()) {
 		owner().notifySettings().forumParentMuteUpdated(forum);
 	}
@@ -1899,6 +1882,33 @@ int History::chatListNameVersion() const {
 	return peer->nameVersion();
 }
 
+void History::hasUnreadMentionChanged(bool has) {
+	if (peer->isForum()) {
+		return;
+	}
+	auto was = chatListUnreadState();
+	if (has) {
+		was.mentions = 0;
+	} else {
+		was.mentions = 1;
+	}
+	notifyUnreadStateChange(was);
+}
+
+void History::hasUnreadReactionChanged(bool has) {
+	if (peer->isForum()) {
+		return;
+	}
+	auto was = chatListUnreadState();
+	if (has) {
+		was.reactions = was.reactionsMuted = 0;
+	} else {
+		was.reactions = 1;
+		was.reactionsMuted = muted() ? was.reactions : 0;
+	}
+	notifyUnreadStateChange(was);
+}
+
 void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 	const auto folderId = data.vfolder_id().value_or_empty();
 	if (!folderKnown()) {
@@ -1998,10 +2008,7 @@ void History::getNextScrollTopItem(HistoryBlock *block, int32 i) {
 }
 
 void History::addUnreadBar() {
-	if (_unreadBarView || !_firstUnreadView || !unreadCount()) {
-		return;
-	}
-	if (const auto count = chatListUnreadCount()) {
+	if (!_unreadBarView && _firstUnreadView && unreadCount()) {
 		_unreadBarView = _firstUnreadView;
 		_unreadBarView->createUnreadBar(tr::lng_unread_bar_some());
 	}
@@ -2066,46 +2073,38 @@ History *History::migrateSibling() const {
 	return owner().historyLoaded(addFromId);
 }
 
-int History::chatListUnreadCount() const {
-	if (peer->isForum()) {
-		const auto state = chatListUnreadState();
-		return state.marks
-			+ (Core::App().settings().countUnreadMessages()
-				? state.messages
-				: state.chats);
-	}
-	const auto result = unreadCount();
-	if (const auto migrated = migrateSibling()) {
-		return result + migrated->unreadCount();
-	}
-	return result;
-}
-
-bool History::chatListUnreadMark() const {
-	if (unreadMark()) {
-		return true;
-	} else if (const auto migrated = migrateSibling()) {
-		return migrated->unreadMark();
-	}
-	return false;
-}
-
-bool History::chatListMutedBadge() const {
-	if (const auto forum = peer->forum()) {
-		const auto state = forum->topicsList()->unreadState();
-		return (state.marksMuted >= state.marks)
-			&& (Core::App().settings().countUnreadMessages()
-				? (state.messagesMuted >= state.messages)
-				: (state.chatsMuted >= state.chats));
-	}
-	return muted();
-}
-
 Dialogs::UnreadState History::chatListUnreadState() const {
 	if (const auto forum = peer->forum()) {
 		return forum->topicsList()->unreadState();
 	}
 	return computeUnreadState();
+}
+
+Dialogs::BadgesState History::chatListBadgesState() const {
+	if (const auto forum = peer->forum()) {
+		return adjustBadgesStateByFolder(
+			Dialogs::BadgesForUnread(
+				forum->topicsList()->unreadState(),
+				Dialogs::CountInBadge::Chats,
+				Dialogs::IncludeInBadge::UnmutedOrAll));
+	}
+	return computeBadgesState();
+}
+
+Dialogs::BadgesState History::computeBadgesState() const {
+	return adjustBadgesStateByFolder(
+		Dialogs::BadgesForUnread(
+			computeUnreadState(),
+			Dialogs::CountInBadge::Messages,
+			Dialogs::IncludeInBadge::All));
+}
+
+Dialogs::BadgesState History::adjustBadgesStateByFolder(
+		Dialogs::BadgesState state) const {
+	if (folder()) {
+		state.mentionMuted = state.reactionMuted = state.unreadMuted = true;
+	}
+	return state;
 }
 
 Dialogs::UnreadState History::computeUnreadState() const {
@@ -2114,11 +2113,14 @@ Dialogs::UnreadState History::computeUnreadState() const {
 	const auto mark = !count && unreadMark();
 	const auto muted = this->muted();
 	result.messages = count;
-	result.messagesMuted = muted ? count : 0;
 	result.chats = count ? 1 : 0;
-	result.chatsMuted = (count && muted) ? 1 : 0;
 	result.marks = mark ? 1 : 0;
-	result.marksMuted = (mark && muted) ? 1 : 0;
+	result.mentions = unreadMentions().has() ? 1 : 0;
+	result.reactions = unreadReactions().has() ? 1 : 0;
+	result.messagesMuted = muted ? result.messages : 0;
+	result.chatsMuted = muted ? result.chats : 0;
+	result.marksMuted = muted ? result.marks : 0;
+	result.reactionsMuted = muted ? result.reactions : 0;
 	result.known = _unreadCount.has_value();
 	return result;
 }
@@ -2908,7 +2910,6 @@ void History::forumChanged(Data::Forum *old) {
 			return (_flags & Flag::IsForum) && inChatList();
 		}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 			notifyUnreadStateChange(old);
-			updateChatListEntryPostponed();
 		}, forum->lifetime());
 	} else {
 		_flags &= ~Flag::IsForum;

@@ -64,6 +64,9 @@ struct UnreadState {
 	int chatsMuted = 0;
 	int marks = 0;
 	int marksMuted = 0;
+	int reactions = 0;
+	int reactionsMuted = 0;
+	int mentions = 0;
 	bool known = false;
 
 	UnreadState &operator+=(const UnreadState &other) {
@@ -73,6 +76,9 @@ struct UnreadState {
 		chatsMuted += other.chatsMuted;
 		marks += other.marks;
 		marksMuted += other.marksMuted;
+		reactions += other.reactions;
+		reactionsMuted += other.reactionsMuted;
+		mentions += other.mentions;
 		return *this;
 	}
 	UnreadState &operator-=(const UnreadState &other) {
@@ -82,11 +88,10 @@ struct UnreadState {
 		chatsMuted -= other.chatsMuted;
 		marks -= other.marks;
 		marksMuted -= other.marksMuted;
+		reactions -= other.reactions;
+		reactionsMuted -= other.reactionsMuted;
+		mentions -= other.mentions;
 		return *this;
-	}
-
-	bool empty() const {
-		return !messages && !chats && !marks;
 	}
 };
 
@@ -101,6 +106,42 @@ inline UnreadState operator-(const UnreadState &a, const UnreadState &b) {
 	result -= b;
 	return result;
 }
+
+struct BadgesState {
+	int unreadCounter = 0;
+	bool unread : 1 = false;
+	bool unreadMuted : 1 = false;
+	bool mention : 1 = false;
+	bool mentionMuted : 1 = false;
+	bool reaction : 1 = false;
+	bool reactionMuted : 1 = false;
+
+	friend inline constexpr auto operator<=>(
+		BadgesState,
+		BadgesState) = default;
+
+	[[nodiscard]] bool empty() const {
+		return !unread && !mention && !reaction;
+	}
+};
+
+enum class CountInBadge : uchar {
+	Default,
+	Chats,
+	Messages,
+};
+
+enum class IncludeInBadge : uchar {
+	Default,
+	Unmuted,
+	All,
+	UnmutedOrAll,
+};
+
+[[nodiscard]] BadgesState BadgesForUnread(
+	const UnreadState &state,
+	CountInBadge count = CountInBadge::Default,
+	IncludeInBadge include = IncludeInBadge::Default);
 
 class Entry : public base::has_weak_ptr {
 public:
@@ -167,10 +208,8 @@ public:
 	static constexpr auto kTopPromotionFixOnTopIndex = 2;
 
 	virtual bool shouldBeInChatList() const = 0;
-	virtual int chatListUnreadCount() const = 0;
-	virtual bool chatListUnreadMark() const = 0;
-	virtual bool chatListMutedBadge() const = 0;
 	virtual UnreadState chatListUnreadState() const = 0;
+	virtual BadgesState chatListBadgesState() const = 0;
 	virtual HistoryItem *chatListMessage() const = 0;
 	virtual bool chatListMessageKnown() const = 0;
 	virtual void requestChatListMessage() = 0;
@@ -197,21 +236,13 @@ public:
 	}
 
 	[[nodiscard]] const Ui::Text::String &chatListNameText() const;
-	[[nodiscard]] Ui::PeerBadge &chatListBadge() const {
-		return _chatListBadge;
+	[[nodiscard]] Ui::PeerBadge &chatListPeerBadge() const {
+		return _chatListPeerBadge;
 	}
 
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);
-	auto unreadStateChangeNotifier(bool required) {
-		const auto notify = required && inChatList();
-		const auto wasState = notify ? chatListUnreadState() : UnreadState();
-		return gsl::finally([=] {
-			if (notify) {
-				notifyUnreadStateChange(wasState);
-			}
-		});
-	}
+	auto unreadStateChangeNotifier(bool required);
 
 	[[nodiscard]] int lookupPinnedIndex(FilterId filterId) const;
 
@@ -220,6 +251,7 @@ private:
 		IsThread = (1 << 0),
 		IsHistory = (1 << 1),
 		UpdatePostponed = (1 << 2),
+		InUnreadChangeBlock = (1 << 3),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;
@@ -239,12 +271,27 @@ private:
 	uint64 _sortKeyInChatList = 0;
 	uint64 _sortKeyByDate = 0;
 	base::flat_map<FilterId, int> _pinnedIndex;
-	mutable Ui::PeerBadge _chatListBadge;
+	mutable Ui::PeerBadge _chatListPeerBadge;
 	mutable Ui::Text::String _chatListNameText;
 	mutable int _chatListNameVersion = 0;
 	TimeId _timeId = 0;
 	Flags _flags;
 
 };
+
+auto Entry::unreadStateChangeNotifier(bool required) {
+	Expects(!(_flags & Flag::InUnreadChangeBlock));
+
+	_flags |= Flag::InUnreadChangeBlock;
+	const auto notify = required && inChatList();
+	const auto wasState = notify ? chatListUnreadState() : UnreadState();
+	return gsl::finally([=] {
+		_flags &= ~Flag::InUnreadChangeBlock;
+		if (notify) {
+			Assert(inChatList());
+			notifyUnreadStateChange(wasState);
+		}
+	});
+}
 
 } // namespace Dialogs
