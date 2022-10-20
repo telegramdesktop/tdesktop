@@ -748,12 +748,8 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 
 infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
 
-inviteLinkField: FlatInput(defaultFlatInput) {
-	font: font(fsize);
-
-	height: 44px;
-	textMrg: margins(14px, 12px, 36px, 9px);
-}
+inviteLinkFieldHeight: 44px;
+inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
 inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
 inviteLinkThreeDots: IconButton(defaultIconButton) {

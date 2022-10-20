@@ -847,21 +847,6 @@ historyVideoMessageProgressOpacity: 0.72;
 
 historyAdminLogEmptyWidth: 260px;
 historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
-historyAdminLogSearchField: FlatInput(defaultFlatInput) {
-	textColor: windowFg;
-	bgColor: topBarBg;
-	bgActive: topBarBg;
-
-	font: font(fsize);
-
-	borderWidth: 0px;
-	borderColor: topBarBg;
-	borderActive: topBarBg;
-
-	width: 100px;
-	height: 32px;
-	textMrg: margins(0px, 0px, 0px, 0px);
-}
 historyAdminLogCancelSearch: CrossButton {
 	width: 40px;
 	height: 54px;

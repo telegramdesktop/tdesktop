@@ -33,7 +33,7 @@ class IconButton;
 class PopupMenu;
 class DropdownMenu;
 class FlatButton;
-class FlatInput;
+class InputField;
 class CrossButton;
 class DownloadBar;
 template <typename Widget>
@@ -119,7 +119,7 @@ private:
 	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
-	void filterCursorMoved(int from = -1, int to = -1);
+	void filterCursorMoved();
 	void completeHashtag(QString tag);
 
 	bool searchMessages(bool searchCache = false);
@@ -191,7 +191,7 @@ private:
 	object_ptr<HistoryView::TopBarWidget> _folderTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::IconButton> _searchForNarrowFilters;
-	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::InputField> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;

@@ -626,28 +626,34 @@ void Generator::paintDialogs() {
 	auto filterRight = st::dialogsFilterSkip + st::dialogsFilterPadding.x();
 	auto filterWidth = _dialogs.x() + _dialogs.width() - filterLeft - filterRight;
 	auto filterAreaHeight = st::topBarHeight;
-	auto filterTop = _dialogs.y() + (filterAreaHeight - st::dialogsFilter.height) / 2;
-	auto filter = QRect(filterLeft, filterTop, filterWidth, st::dialogsFilter.height);
+	auto filterTop = _dialogs.y() + (filterAreaHeight - st::dialogsFilter.heightMin) / 2;
+	auto filter = QRect(filterLeft, filterTop, filterWidth, st::dialogsFilter.heightMin);
 
-	auto pen = st::dialogsFilter.borderColor[_palette]->p;
-	pen.setWidth(st::dialogsFilter.borderWidth);
+	auto pen = st::dialogsFilter.borderFg[_palette]->p;
+	pen.setWidth(st::dialogsFilter.border);
 	_p->setPen(pen);
-	_p->setBrush(st::dialogsFilter.bgColor[_palette]);
+	_p->setBrush(st::dialogsFilter.textBg[_palette]);
 	{
 		PainterHighQualityEnabler hq(*_p);
-		_p->drawRoundedRect(QRectF(filter).marginsRemoved(QMarginsF(st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2., st::dialogsFilter.borderWidth / 2.)), st::roundRadiusSmall - (st::dialogsFilter.borderWidth / 2.), st::roundRadiusSmall - (st::dialogsFilter.borderWidth / 2.));
-	}
-
-	if (!st::dialogsFilter.icon.empty()) {
-		st::dialogsFilter.icon[_palette].paint(*_p, filter.x(), filter.y(), _rect.width());
+		const auto radius = st::dialogsFilter.borderRadius
+			- (st::dialogsFilter.border / 2.);
+		_p->drawRoundedRect(
+			QRectF(filter).marginsRemoved(
+				QMarginsF(
+					st::dialogsFilter.border / 2.,
+					st::dialogsFilter.border / 2.,
+					st::dialogsFilter.border / 2.,
+					st::dialogsFilter.border / 2.)),
+			radius,
+			radius);
 	}
 
 	_p->save();
 	_p->setClipRect(filter);
-	auto phRect = QRect(filter.x() + st::dialogsFilter.textMrg.left() + st::dialogsFilter.phPos.x(), filter.y() + st::dialogsFilter.textMrg.top() + st::dialogsFilter.phPos.y(), filter.width() - st::dialogsFilter.textMrg.left() - st::dialogsFilter.textMrg.right(), filter.height() - st::dialogsFilter.textMrg.top() - st::dialogsFilter.textMrg.bottom());;
+	auto phRect = QRect(filter.x() + st::dialogsFilter.textMargins.left() + st::dialogsFilter.placeholderMargins.left(), filter.y() + st::dialogsFilter.textMargins.top() + st::dialogsFilter.placeholderMargins.top(), filter.width() - st::dialogsFilter.textMargins.left() - st::dialogsFilter.textMargins.right(), filter.height() - st::dialogsFilter.textMargins.top() - st::dialogsFilter.textMargins.bottom());
 	_p->setFont(st::dialogsFilter.font);
-	_p->setPen(st::dialogsFilter.phColor[_palette]);
-	_p->drawText(phRect, tr::lng_dlg_filter(tr::now), QTextOption(st::dialogsFilter.phAlign));
+	_p->setPen(st::dialogsFilter.placeholderFg[_palette]);
+	_p->drawText(phRect, tr::lng_dlg_filter(tr::now), QTextOption(st::dialogsFilter.placeholderAlign));
 	_p->restore();
 	_p->setClipping(false);
 

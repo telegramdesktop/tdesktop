@@ -290,16 +290,16 @@ Widget::Widget(
 		Ui::PostponeCall(this, [=] { listScrollUpdated(); });
 	}, lifetime());
 
-	QObject::connect(_filter, &Ui::FlatInput::cancelled, [=] {
+	QObject::connect(_filter, &Ui::InputField::cancelled, [=] {
 		escape();
 	});
-	QObject::connect(_filter, &Ui::FlatInput::changed, [=] {
+	QObject::connect(_filter, &Ui::InputField::changed, [=] {
 		applyFilterUpdate();
 	});
 	QObject::connect(
-		_filter,
-		&Ui::FlatInput::cursorPositionChanged,
-		[=](int from, int to) { filterCursorMoved(from, to); });
+		_filter->rawTextEdit().get(),
+		&QTextEdit::cursorPositionChanged,
+		[=] { filterCursorMoved(); });
 
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
@@ -647,7 +647,7 @@ void Widget::updateControlsVisibility(bool fast) {
 	} else {
 		if (hasFocus()) {
 			_filter->setFocus();
-			_filter->finishAnimations();
+			_filter->finishAnimating();
 		}
 		updateLockUnlockVisibility();
 		updateJumpToDateVisibility(fast);
@@ -1159,7 +1159,6 @@ void Widget::searchMessages(
 			setSearchInChat(inChat);
 		}
 		_filter->setText(query);
-		_filter->updatePlaceholder();
 		applyFilterUpdate(true);
 		_searchTimer.cancel();
 		searchMessages();
@@ -1649,29 +1648,35 @@ void Widget::showSearchFrom() {
 	}
 }
 
-void Widget::filterCursorMoved(int from, int to) {
-	if (to < 0) to = _filter->cursorPosition();
-	QString t = _filter->getLastText();
-	QStringView r;
+void Widget::filterCursorMoved() {
+	const auto to = _filter->textCursor().position();
+	const auto text = _filter->getLastText();
+	auto hashtag = QStringView();
 	for (int start = to; start > 0;) {
 		--start;
-		if (t.size() <= start) break;
-		if (t.at(start) == '#') {
-			r = base::StringViewMid(t, start, to - start);
+		if (text.size() <= start) {
 			break;
 		}
-		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
+		const auto ch = text[start];
+		if (ch == '#') {
+			hashtag = base::StringViewMid(text, start, to - start);
+			break;
+		} else if (!ch.isLetterOrNumber() && ch != '_') {
+			break;
+		}
 	}
-	_inner->onHashtagFilterUpdate(r);
+	_inner->onHashtagFilterUpdate(hashtag);
 }
 
 void Widget::completeHashtag(QString tag) {
-	QString t = _filter->getLastText(), r;
-	int cur = _filter->cursorPosition();
+	const auto t = _filter->getLastText();;
+	auto cur = _filter->textCursor().position();
+	auto hashtag = QString();
 	for (int start = cur; start > 0;) {
 		--start;
-		if (t.size() <= start) break;
-		if (t.at(start) == '#') {
+		if (t.size() <= start) {
+			break;
+		} else if (t.at(start) == '#') {
 			if (cur == start + 1
 				|| base::StringViewMid(t, start + 1, cur - start - 1)
 					== base::StringViewMid(tag, 0, cur - start - 1)) {
@@ -1679,15 +1684,16 @@ void Widget::completeHashtag(QString tag) {
 					if (t.at(cur) != tag.at(cur - start - 1)) break;
 				}
 				if (cur - start - 1 == tag.size() && cur < t.size() && t.at(cur) == ' ') ++cur;
-				r = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
-				_filter->setText(r);
+				hashtag = t.mid(0, start + 1) + tag + ' ' + t.mid(cur);
+				_filter->setText(hashtag);
 				_filter->setCursorPosition(start + 1 + tag.size() + 1);
 				applyFilterUpdate(true);
 				return;
 			}
 			break;
+		} else if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') {
+			break;
 		}
-		if (!t.at(start).isLetterOrNumber() && t.at(start) != '_') break;
 	}
 	_filter->setText(t.mid(0, cur) + '#' + tag + ' ' + t.mid(cur));
 	_filter->setCursorPosition(cur + 1 + tag.size() + 1);
@@ -1744,11 +1750,11 @@ void Widget::updateSearchFromVisibility(bool fast) {
 		visible,
 		fast ? anim::type::instant : anim::type::normal);
 	if (changed) {
-		auto margins = st::dialogsFilter.textMrg;
+		auto additional = QMargins();
 		if (visible) {
-			margins.setRight(margins.right() + _chooseFromUser->width());
+			additional.setRight(_chooseFromUser->width());
 		}
-		_filter->setTextMrg(margins);
+		_filter->setAdditionalMargins(additional);
 	}
 }
 
@@ -1973,7 +1979,6 @@ bool Widget::cancelSearch() {
 	}
 	_inner->clearFilter();
 	_filter->clear();
-	_filter->updatePlaceholder();
 	applyFilterUpdate();
 	return clearing;
 }
