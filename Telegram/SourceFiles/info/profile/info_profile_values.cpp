@@ -180,7 +180,7 @@ rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
 			return map(channel->usernames());
 		});
 	} else {
-		return rpl::never<std::vector<TextWithEntities>>();
+		return rpl::single(std::vector<TextWithEntities>());
 	}
 }
 
