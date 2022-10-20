@@ -725,6 +725,9 @@ void Controller::fillPrivacyTypeButton() {
 		.username = (_peer->isChannel()
 			? _peer->asChannel()->editableUsername()
 			: QString()),
+		.usernamesOrder = (_peer->isChannel()
+			? _peer->asChannel()->usernames()
+			: std::vector<QString>()),
 		.noForwards = !_peer->allowsForwarding(),
 		.joinToWrite = (_peer->isMegagroup()
 			&& _peer->asChannel()->joinToWrite()),
