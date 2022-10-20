@@ -42,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
+#include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
 #include "passport/passport_form_controller.h"
 #include "chat_helpers/tabbed_selector.h"
@@ -470,6 +471,18 @@ void SessionNavigation::showRepliesForMessage(
 		MsgId rootId,
 		MsgId commentId,
 		const SectionShow &params) {
+	if (const auto topic = history->peer->forumTopicFor(rootId)) {
+		auto replies = topic->replies();
+		if (replies->unreadCountKnown()) {
+			auto memento = std::make_shared<HistoryView::RepliesMemento>(
+				history,
+				rootId,
+				commentId);
+			memento->setReplies(std::move(replies));
+			showSection(std::move(memento), params);
+			return;
+		}
+	}
 	if (_showingRepliesRequestId
 		&& _showingRepliesHistory == history.get()
 		&& _showingRepliesRootId == rootId) {
@@ -530,9 +543,14 @@ void SessionNavigation::showRepliesForMessage(
 				}
 			}
 			if (deleted || item) {
-				auto memento = std::make_shared<HistoryView::RepliesMemento>(
-					item,
-					commentId);
+				auto memento = item
+					? std::make_shared<HistoryView::RepliesMemento>(
+						item,
+						commentId)
+					: std::make_shared<HistoryView::RepliesMemento>(
+						history,
+						rootId,
+						commentId);
 				memento->setReadInformation(
 					data.vread_inbox_max_id().value_or_empty(),
 					data.vunread_count().v,

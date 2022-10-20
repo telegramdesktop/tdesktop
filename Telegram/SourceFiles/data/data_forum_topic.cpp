@@ -153,6 +153,9 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	_sendActionPainter->setTopic(this);
 
 	_replies->unreadCountValue(
+	) | rpl::map([=](std::optional<int> value) {
+		return value ? _replies->displayedUnreadCount() : value;
+	}) | rpl::distinct_until_changed(
 	) | rpl::combine_previous(
 	) | rpl::filter([=] {
 		return inChatList();
@@ -620,7 +623,7 @@ not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {
 
 Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
 	return unreadStateFor(
-		_replies->unreadCountCurrent(),
+		_replies->displayedUnreadCount(),
 		_replies->unreadCountKnown());
 }
 

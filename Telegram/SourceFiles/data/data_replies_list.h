@@ -34,6 +34,7 @@ public:
 
 	[[nodiscard]] bool unreadCountKnown() const;
 	[[nodiscard]] int unreadCountCurrent() const;
+	[[nodiscard]] int displayedUnreadCount() const;
 	[[nodiscard]] rpl::producer<std::optional<int>> unreadCountValue() const;
 
 	void setInboxReadTill(MsgId readTillId, std::optional<int> unreadCount);

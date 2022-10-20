@@ -1202,9 +1202,7 @@ void RepliesWidget::refreshJoinGroupButton() {
 		}
 	};
 	const auto channel = _history->peer->asChannel();
-	if (channel->amIn()
-		|| !channel->joinToWrite()
-		|| (channel->amCreator() && channel->canWrite())) {
+	if (channel->amIn() || channel->canWrite()) {
 		set(nullptr);
 	} else {
 		if (!_joinGroup) {

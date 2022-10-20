@@ -765,6 +765,10 @@ void RepliesList::setUnreadCount(std::optional<int> count) {
 	}
 }
 
+int RepliesList::displayedUnreadCount() const {
+	return (_inboxReadTillId > 1) ? unreadCountCurrent() : 0;
+}
+
 bool RepliesList::isServerSideUnread(
 		not_null<const HistoryItem*> item) const {
 	const auto till = item->out()
@@ -847,7 +851,7 @@ void RepliesList::requestUnreadCount() {
 	const auto session = &_history->session();
 	const auto fullId = FullMsgId(_history->peer->id, _rootId);
 	const auto apply = [weak, session, fullId](
-			int readTill,
+			MsgId readTill,
 			int unreadCount) {
 		if (const auto strong = weak.get()) {
 			strong->setInboxReadTill(readTill, unreadCount);
