@@ -1304,6 +1304,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_report_message_title" = "Report message";
 "lng_report_profile_photo_title" = "Report profile photo";
 "lng_report_profile_video_title" = "Report profile video";
+"lng_report_group_photo_title" = "Report group photo";
+"lng_report_group_video_title" = "Report group video";
+"lng_report_channel_photo_title" = "Report channel photo";
+"lng_report_channel_video_title" = "Report channel video";
 "lng_report_please_select_messages" = "Please select messages to report.";
 "lng_report_select_messages" = "Select messages";
 "lng_report_messages_none" = "Select Messages";

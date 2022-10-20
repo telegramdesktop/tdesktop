@@ -1034,11 +1034,28 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		}, &st::mediaMenuIconProfile);
 	}();
 	[&] { // Report userpic.
-		if (!_peer
-			|| !_photo
-			|| _peer->isSelf()
-			|| _peer->isNotificationsUser()
-			|| !userPhotosKey()) {
+		if (!_peer || !_photo ) {
+			return;
+		}
+		using Type = SharedMediaType;
+		if (userPhotosKey()) {
+			if (_peer->isSelf() || _peer->isNotificationsUser()) {
+				return;
+			}
+		} else if ((sharedMediaType().value_or(Type::File) == Type::ChatPhoto)
+			|| (_peer->userpicPhotoId() == _photo->id)) {
+			if (const auto chat = _peer->asChat()) {
+				if (chat->canEditInformation()) {
+					return;
+				}
+			} else if (const auto channel = _peer->asChannel()) {
+				if (channel->canEditInformation()) {
+					return;
+				}
+			} else {
+				return;
+			}
+		} else {
 			return;
 		}
 		const auto photo = _photo;
