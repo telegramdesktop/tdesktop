@@ -1681,7 +1681,9 @@ void GenerateItems(
 
 	const auto createDeleteTopic = [&](const LogDeleteTopic &data) {
 		auto topicLink = GenerateTopicLink(channel, data.vtopic());
-		topicLink.entities.erase(topicLink.entities.begin());
+		if (!topicLink.entities.empty()) {
+			topicLink.entities.erase(topicLink.entities.begin());
+		}
 		addSimpleServiceMessage(tr::lng_admin_log_topics_deleted(
 			tr::now,
 			lt_from,
