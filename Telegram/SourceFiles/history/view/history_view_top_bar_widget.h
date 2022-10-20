@@ -138,7 +138,8 @@ private:
 		int availableWidth,
 		int outerWidth);
 	bool paintConnectingState(Painter &p, int left, int top, int outerWidth);
-	QRect getMembersShowAreaGeometry() const;
+	[[nodiscard]] QRect getMembersShowAreaGeometry() const;
+	[[nodiscard]] bool trackOnlineOf(not_null<PeerData*> user) const;
 	void updateMembersShowArea();
 	void updateOnlineDisplay();
 	void updateOnlineDisplayTimer();

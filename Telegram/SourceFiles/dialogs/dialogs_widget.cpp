@@ -707,14 +707,16 @@ void Widget::refreshFolderTopBar() {
 			_folderTopBar.create(this, controller());
 			updateControlsGeometry();
 		}
+		const auto history = _openedForum
+			? session().data().history(_openedForum).get()
+			: nullptr;
 		_folderTopBar->setActiveChat(
 			HistoryView::TopBarWidget::ActiveChat{
 				.key = (_openedForum
-					? Dialogs::Key(session().data().history(_openedForum))
+					? Dialogs::Key(history)
 					: Dialogs::Key(_openedFolder)),
 				.section = Dialogs::EntryState::Section::ChatsList,
-			},
-			nullptr);
+			}, history ? history->sendActionPainter().get() : nullptr);
 	} else {
 		_folderTopBar.destroy();
 	}

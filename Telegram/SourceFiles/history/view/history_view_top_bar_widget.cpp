@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
+#include "info/profile/info_profile_values.h"
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -177,11 +178,15 @@ TopBarWidget::TopBarWidget(
 			&& (_activeChat.key.peer() == update.peer)) {
 			updateControlsVisibility();
 		}
-		if (update.flags
-			& (UpdateFlag::OnlineStatus
-				| UpdateFlag::Members
-				| UpdateFlag::SupportInfo)) {
+		if ((update.flags & UpdateFlag::OnlineStatus)
+			&& trackOnlineOf(update.peer)) {
 			updateOnlineDisplay();
+		} else if (update.flags
+			& (UpdateFlag::Members | UpdateFlag::SupportInfo)) {
+			if (update.peer == _activeChat.key.peer()
+				&& !_activeChat.key.topic()) {
+				updateOnlineDisplay();
+			}
 		}
 		if ((update.flags & UpdateFlag::EmojiStatus)
 			&& (_activeChat.key.peer() == update.peer)) {
@@ -496,8 +501,7 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	} else if (folder
 		|| history->peer->sharedMediaInfo()
 		|| (_activeChat.section == Section::Scheduled)
-		|| (_activeChat.section == Section::Pinned)
-		|| (_activeChat.section == Section::ChatsList)) {
+		|| (_activeChat.section == Section::Pinned)) {
 		// #TODO forum name emoji.
 		auto text = (_activeChat.section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
@@ -768,7 +772,17 @@ void TopBarWidget::setActiveChat(
 				return (seen.peer == history->peer);
 			}) | rpl::start_with_next([=](const InteractionSeen &seen) {
 				handleEmojiInteractionSeen(seen.emoticon);
-			}, lifetime());
+			}, _activeChatLifetime);
+		}
+
+		if (const auto topic = _activeChat.key.topic()) {
+			Info::Profile::NameValue(
+				topic->channel()
+			) | rpl::start_with_next([=](const QString &name) {
+				_titlePeerText.setText(st::dialogsTextStyle, name);
+				_titlePeerTextOnline = false;
+				update();
+			}, _activeChatLifetime);
 		}
 	}
 	updateUnreadBadge();
@@ -930,7 +944,9 @@ void TopBarWidget::updateControlsGeometry() {
 		_rightTaken += _call->width();
 	}
 	_search->moveToRight(_rightTaken, otherButtonsTop);
-	_rightTaken += _search->width() + st::topBarCallSkip;
+	if (!_search->isHidden()) {
+		_rightTaken += _search->width() + st::topBarCallSkip;
+	}
 
 	updateMembersShowArea();
 }
@@ -1030,7 +1046,10 @@ void TopBarWidget::updateControlsVisibility() {
 void TopBarWidget::updateMembersShowArea() {
 	const auto membersShowAreaNeeded = [&] {
 		const auto peer = _activeChat.key.peer();
-		if (showSelectedState() || !peer) {
+		if (showSelectedState()
+			|| !peer
+			|| _activeChat.section == Section::ChatsList
+			|| _activeChat.key.topic()) {
 			return false;
 		} else if (const auto chat = peer->asChat()) {
 			return chat->amIn();
@@ -1194,9 +1213,25 @@ void TopBarWidget::updateInfoToggleActive() {
 	_infoToggle->setRippleColorOverride(rippleOverride);
 }
 
+bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {
+	const auto peer = _activeChat.key.peer();
+	if (!peer || _activeChat.key.topic() || !user->isUser()) {
+		return false;
+	} else if (peer->isUser()) {
+		return (peer == user);
+	} else if (const auto chat = peer->asChat()) {
+		return chat->participants.contains(user->asUser());
+	} else if (const auto channel = peer->asMegagroup()) {
+		return ranges::contains(
+			channel->mgInfo->lastParticipants,
+			not_null{ user->asUser() });
+	}
+	return false;
+}
+
 void TopBarWidget::updateOnlineDisplay() {
 	const auto peer = _activeChat.key.peer();
-	if (!peer) {
+	if (!peer || _activeChat.key.topic()) {
 		return;
 	}
 

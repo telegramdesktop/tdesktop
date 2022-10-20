@@ -1924,7 +1924,9 @@ void History::applyPinnedUpdate(const MTPDupdateDialogPinned &data) {
 TimeId History::adjustedChatListTimeId() const {
 	const auto result = chatListTimeId();
 	if (const auto draft = cloudDraft(MsgId(0))) {
-		if (!Data::DraftIsNull(draft) && !session().supportMode()) {
+		if (!peer->forum()
+			&& !Data::DraftIsNull(draft)
+			&& !session().supportMode()) {
 			return std::max(result, draft->date);
 		}
 	}
@@ -2913,6 +2915,9 @@ void History::forumChanged(Data::Forum *old) {
 		}, forum->lifetime());
 	} else {
 		_flags &= ~Flag::IsForum;
+	}
+	if (cloudDraft(MsgId(0))) {
+		updateChatListSortPosition();
 	}
 }
 

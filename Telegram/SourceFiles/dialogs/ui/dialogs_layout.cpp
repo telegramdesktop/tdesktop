@@ -822,7 +822,10 @@ void RowPainter::Paint(
 	const auto badgesState = entry->chatListBadgesState();
 	const auto item = entry->chatListMessage();
 	const auto cloudDraft = [&]() -> const Data::Draft*{
-		if (thread && (!item || !badgesState.unread)) {
+		if (!thread) {
+			return nullptr;
+		}
+		if ((!peer || !peer->isForum()) && (!item || !badgesState.unread)) {
 			// Draw item, if there are unread messages.
 			const auto draft = thread->owningHistory()->cloudDraft(
 				thread->topicRootId());
