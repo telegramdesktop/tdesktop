@@ -242,7 +242,7 @@ public:
 
 protected:
 	void notifyUnreadStateChange(const UnreadState &wasState);
-	auto unreadStateChangeNotifier(bool required);
+	inline auto unreadStateChangeNotifier(bool required);
 
 	[[nodiscard]] int lookupPinnedIndex(FilterId filterId) const;
 

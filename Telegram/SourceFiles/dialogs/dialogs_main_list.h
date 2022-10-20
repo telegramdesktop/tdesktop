@@ -57,14 +57,7 @@ private:
 	void finalizeCloudUnread();
 	void recomputeFullListSize();
 
-	auto unreadStateChangeNotifier(bool notify) {
-		const auto wasState = notify ? unreadState() : UnreadState();
-		return gsl::finally([=] {
-			if (notify) {
-				_unreadStateChanges.fire_copy(wasState);
-			}
-		});
-	}
+	inline auto unreadStateChangeNotifier(bool notify);
 
 	FilterId _filterId = 0;
 	IndexedList _all;
@@ -81,5 +74,14 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+auto MainList::unreadStateChangeNotifier(bool notify) {
+	const auto wasState = notify ? unreadState() : UnreadState();
+	return gsl::finally([=] {
+		if (notify) {
+			_unreadStateChanges.fire_copy(wasState);
+		}
+	});
+}
 
 } // namespace Dialogs
