@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/wrap/padding_wrap.h"
+#include "ui/abstract_button.h"
 #include "base/timer.h"
 
 namespace Window {
@@ -43,6 +44,27 @@ namespace Info::Profile {
 class EmojiStatusPanel;
 class Badge;
 
+class TopicIconView final : public Ui::AbstractButton {
+public:
+	TopicIconView(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		not_null<Data::ForumTopic*> topic);
+
+private:
+	using StickerPlayer = HistoryView::StickerPlayer;
+
+	void setup(
+		not_null<Data::ForumTopic*> topic,
+		Fn<bool()> paused);
+	void setupPlayer(not_null<Data::ForumTopic*> topic);
+	void setupImage(not_null<Data::ForumTopic*> topic);
+
+	std::shared_ptr<StickerPlayer> _player;
+	QImage _image;
+
+};
+
 class Cover final : public Ui::FixedHeightWidget {
 public:
 	Cover(
@@ -67,8 +89,6 @@ public:
 	}
 
 private:
-	using StickerPlayer = HistoryView::StickerPlayer;
-
 	Cover(
 		QWidget *parent,
 		not_null<PeerData*> peer,
@@ -76,9 +96,6 @@ private:
 		not_null<Window::SessionController*> controller,
 		rpl::producer<QString> title);
 
-	void setupIcon(not_null<Data::ForumTopic*> topic);
-	void setupIconPlayer(not_null<Data::ForumTopic*> topic);
-	void setupIconImage(not_null<Data::ForumTopic*> topic);
 	void setupChildGeometry();
 	void initViewers(rpl::producer<QString> title);
 	void refreshStatusText();
@@ -95,9 +112,7 @@ private:
 	int _onlineCount = 0;
 
 	object_ptr<Ui::UserpicButton> _userpic;
-	object_ptr<Ui::RpWidget> _iconView;
-	std::shared_ptr<StickerPlayer> _iconPlayer;
-	QImage _iconImage;
+	object_ptr<TopicIconView> _iconView;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

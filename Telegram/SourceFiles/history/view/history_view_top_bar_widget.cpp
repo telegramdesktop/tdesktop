@@ -838,7 +838,10 @@ void TopBarWidget::setCustomTitle(const QString &title) {
 }
 
 void TopBarWidget::refreshInfoButton() {
-	if (const auto peer = _activeChat.key.peer()) {
+	if (_activeChat.key.topic()
+		|| _activeChat.section == Section::ChatsList) {
+		_info.destroy();
+	} else if (const auto peer = _activeChat.key.peer()) {
 		auto info = object_ptr<Ui::UserpicButton>(
 			this,
 			_controller,
@@ -924,6 +927,9 @@ void TopBarWidget::updateControlsGeometry() {
 	if (_info && !_info->isHidden()) {
 		_info->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _info->width();
+	} else if (_activeChat.key.topic()
+		|| _activeChat.section == Section::ChatsList) {
+		_leftTaken += st::topBarArrowPadding.right();
 	}
 
 	_rightTaken = 0;
@@ -984,8 +990,8 @@ void TopBarWidget::updateControlsVisibility() {
 	_back->setVisible(backVisible && !_chooseForReportReason);
 	_cancelChoose->setVisible(_chooseForReportReason.has_value());
 	if (_info) {
-		_info->setVisible((isOneColumn || !_primaryWindow)
-			&& !_chooseForReportReason);
+		_info->setVisible(!_chooseForReportReason
+			&& (isOneColumn || !_primaryWindow));
 	}
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason);

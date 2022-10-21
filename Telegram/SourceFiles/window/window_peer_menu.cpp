@@ -523,7 +523,7 @@ void Filler::addToggleUnreadMark() {
 		return;
 	}
 	const auto unread = IsUnreadThread(_thread);
-	if (_thread->asTopic() && !unread) {
+	if ((_thread->asTopic() || peer->isForum()) && !unread) {
 		return;
 	}
 	const auto weak = base::make_weak(_thread);
