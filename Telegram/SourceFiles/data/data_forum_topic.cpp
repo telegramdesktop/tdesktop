@@ -444,8 +444,16 @@ void ForumTopic::paintUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	const auto &st = context.st;
-	const auto position = QPoint(st->padding.left(), st->padding.top());
+	auto position = QPoint(st->padding.left(), st->padding.top());
 	if (_icon) {
+		if (context.narrow) {
+			const auto ratio = style::DevicePixelRatio();
+			const auto tag = Data::CustomEmojiManager::SizeTag::Normal;
+			const auto size = Data::FrameSizeFromTag(tag) / ratio;
+			position = QPoint(
+				(context.width - size) / 2,
+				(st->height - size) / 2);
+		}
 		_icon->paint(p, {
 			.preview = st::windowBgOver->c,
 			.now = context.now,
@@ -455,11 +463,16 @@ void ForumTopic::paintUserpic(
 	} else {
 		validateDefaultIcon();
 		const auto size = st::defaultForumTopicIcon.size;
-		const auto esize = st::emojiSize;
-		const auto shift = (esize - size) / 2;
-		p.drawImage(
-			position + st::forumTopicIconPosition + QPoint(shift, 0),
-			_defaultIcon);
+		if (context.narrow) {
+			position = QPoint(
+				(context.width - size) / 2,
+				(st->height - size) / 2);
+		} else {
+			const auto esize = st::emojiSize;
+			const auto shift = (esize - size) / 2;
+			position += st::forumTopicIconPosition + QPoint(shift, 0);
+		}
+		p.drawImage(position, _defaultIcon);
 	}
 }
 

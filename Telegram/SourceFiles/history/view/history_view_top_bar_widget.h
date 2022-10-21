@@ -195,6 +195,7 @@ private:
 	int _leftTaken = 0;
 	int _rightTaken = 0;
 	bool _animatingMode = false;
+	bool _narrowMode = false;
 	std::unique_ptr<Ui::InfiniteRadialAnimation> _connecting;
 
 	SendActionPainter *_sendAction = nullptr;

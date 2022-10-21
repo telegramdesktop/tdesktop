@@ -309,7 +309,7 @@ void PaintRow(
 	}
 
 	auto nameleft = context.st->nameLeft;
-	if (context.width <= nameleft) {
+	if (context.narrow) {
 		if (!draft && item && !item->isEmpty()) {
 			PaintNarrowCounter(p, context, badgesState);
 		}

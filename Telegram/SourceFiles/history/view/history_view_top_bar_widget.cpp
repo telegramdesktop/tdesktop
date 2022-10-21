@@ -434,7 +434,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 }
 
 void TopBarWidget::paintTopBar(Painter &p) {
-	if (!_activeChat.key) {
+	if (!_activeChat.key || _narrowMode) {
 		return;
 	}
 	auto nameleft = _leftTaken;
@@ -855,6 +855,12 @@ void TopBarWidget::refreshInfoButton() {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
+	const auto narrowMode = (_activeChat.section == Section::ChatsList)
+		&& (width() < _back->width() + _search->width());
+	if (_narrowMode != narrowMode) {
+		_narrowMode = narrowMode;
+		updateControlsVisibility();
+	}
 	updateSearchVisibility();
 	updateControlsGeometry();
 }
@@ -865,11 +871,7 @@ int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 
 void TopBarWidget::updateSearchVisibility() {
 	const auto historyMode = (_activeChat.section == Section::History);
-	const auto smallDialogsColumn = _activeChat.key.folder()
-		&& (width() < _back->width() + _search->width());
-	_search->setVisible(historyMode
-		&& !smallDialogsColumn
-		&& !_chooseForReportReason);
+	_search->setVisible(historyMode && !_chooseForReportReason);
 }
 
 void TopBarWidget::updateControlsGeometry() {
@@ -915,9 +917,7 @@ void TopBarWidget::updateControlsGeometry() {
 	} else if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
-		const auto smallDialogsColumn = _activeChat.key.folder()
-			&& (width() < _back->width() + _search->width());
-		_leftTaken = smallDialogsColumn ? (width() - _back->width()) / 2 : 0;
+		_leftTaken = _narrowMode ? (width() - _back->width()) / 2 : 0;
 		_back->moveToLeft(_leftTaken, otherButtonsTop);
 		_leftTaken += _back->width();
 	}
@@ -1005,7 +1005,9 @@ void TopBarWidget::updateControlsVisibility() {
 			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
 			: false);
 	updateSearchVisibility();
-	_menuToggle->setVisible(hasMenu && !_chooseForReportReason);
+	_menuToggle->setVisible(hasMenu
+		&& !_chooseForReportReason
+		&& !_narrowMode);
 	_infoToggle->setVisible(historyMode
 		&& !_activeChat.key.folder()
 		&& !isOneColumn
