@@ -53,6 +53,7 @@ class SendActionManager;
 class SponsoredMessages;
 class Reactions;
 class EmojiStatuses;
+class ForumIcons;
 class ChatFilters;
 class CloudThemes;
 class Streaming;
@@ -127,6 +128,9 @@ public:
 	}
 	[[nodiscard]] EmojiStatuses &emojiStatuses() const {
 		return *_emojiStatuses;
+	}
+	[[nodiscard]] ForumIcons &forumIcons() const {
+		return *_forumIcons;
 	}
 	[[nodiscard]] NotifySettings &notifySettings() const {
 		return *_notifySettings;
@@ -986,6 +990,7 @@ private:
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
 	const std::unique_ptr<EmojiStatuses> _emojiStatuses;
+	const std::unique_ptr<ForumIcons> _forumIcons;
 	const std::unique_ptr<NotifySettings> _notifySettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 

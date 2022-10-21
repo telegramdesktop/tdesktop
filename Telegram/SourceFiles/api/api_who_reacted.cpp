@@ -571,7 +571,7 @@ bool WhoReadExists(not_null<HistoryItem*> item) {
 	const auto peer = history->peer;
 	const auto chat = peer->asChat();
 	const auto megagroup = peer->asMegagroup();
-	if (!chat && !megagroup) {
+	if ((!chat && !megagroup) || peer->isForum()) {
 		return false;
 	}
 	const auto &appConfig = peer->session().account().appConfig();

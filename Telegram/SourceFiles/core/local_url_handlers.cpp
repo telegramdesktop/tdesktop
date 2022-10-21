@@ -50,6 +50,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session_settings.h"
 #include "inline_bots/bot_attach_web_view.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "base/qt/qt_common_adapters.h"
 #include "apiwrap.h"
 
@@ -536,13 +537,14 @@ bool OpenMediaTimestamp(
 			MsgId(parts.value(2).toLongLong()));
 		const auto session = &controller->session();
 		const auto document = session->data().document(documentId);
+		const auto context = session->data().message(itemId);
 		const auto timeMs = time * crl::time(1000);
 		if (document->isVideoFile()) {
 			controller->window().openInMediaView(Media::View::OpenRequest(
 				controller,
 				document,
-				session->data().message(itemId),
-				MsgId(0), // #TODO forum shared media
+				context,
+				context ? context->topicRootId() : MsgId(0),
 				false,
 				timeMs));
 		} else if (document->isSong() || document->isVoiceMessage()) {

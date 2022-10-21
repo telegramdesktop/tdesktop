@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
+#include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
 #include "data/notify/data_notify_settings.h"
 #include "history/history.h"
@@ -44,6 +45,9 @@ Forum::Forum(not_null<History*> history)
 
 	if (_history->inChatList()) {
 		preloadTopics();
+	}
+	if (channel()->canCreateTopics()) {
+		owner().forumIcons().requestDefaultIfUnknown();
 	}
 }
 

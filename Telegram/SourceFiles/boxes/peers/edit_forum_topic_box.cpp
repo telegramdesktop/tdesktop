@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_document.h"
 #include "data/data_forum.h"
+#include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
@@ -222,7 +223,7 @@ struct IconSelector {
 	auto factory = [=](DocumentId id, Fn<void()> repaint)
 		-> std::unique_ptr<Ui::Text::CustomEmoji> {
 		const auto tag = Data::CustomEmojiManager::SizeTag::Large;
-		if (const auto colorId = kDefaultIconId) {
+		if (id == kDefaultIconId) {
 			return std::make_unique<DefaultIconEmoji>(
 				rpl::duplicate(defaultIcon),
 				repaint);
@@ -230,7 +231,14 @@ struct IconSelector {
 		return manager->create(id, std::move(repaint), tag);
 	};
 
+	const auto icons = &controller->session().data().forumIcons();
 	const auto body = box->verticalLayout();
+	Settings::AddSkip(body);
+	const auto recent = [=] {
+		auto list = icons->list();
+		list.insert(begin(list), kDefaultIconId);
+		return list;
+	};
 	const auto selector = body->add(
 		object_ptr<EmojiListWidget>(body, EmojiListDescriptor{
 			.session = &controller->session(),
@@ -239,11 +247,17 @@ struct IconSelector {
 			.paused = Window::PausedIn(
 				controller,
 				Window::GifPauseReason::Layer),
-			.customRecentList = { kDefaultIconId },
+			.customRecentList = recent(),
 			.customRecentFactory = std::move(factory),
 			.st = &st::reactPanelEmojiPan,
 		}),
 		st::reactPanelEmojiPan.padding);
+
+	icons->requestDefaultIfUnknown();
+	icons->defaultUpdates(
+	) | rpl::start_with_next([=] {
+		selector->provideRecent(recent());
+	}, selector->lifetime());
 
 	auto ownedFooter = selector->createFooter();
 	const auto footer = ownedFooter.data();
@@ -278,8 +292,12 @@ struct IconSelector {
 	selector->customChosen(
 	) | rpl::start_with_next([=](ChatHelpers::FileChosen data) {
 		const auto owner = &controller->session().data();
-		const auto custom = (data.document->id != kDefaultIconId);
-		if (custom && !controller->session().premium()) {
+		const auto document = data.document;
+		const auto id = document->id;
+		const auto custom = (id != kDefaultIconId);
+		const auto premium = custom
+			&& !ranges::contains(document->owner().forumIcons().list(), id);
+		if (premium && !controller->session().premium()) {
 			// #TODO forum premium promo
 			ShowPremiumPreviewBox(controller, PremiumPreview::EmojiStatus);
 			return;
@@ -288,7 +306,7 @@ struct IconSelector {
 		if (state->button && custom) {
 			const auto &from = data.messageSendingFrom;
 			auto args = Ui::ReactionFlyAnimationArgs{
-				.id = { { data.document->id } },
+				.id = { { id } },
 				.flyIcon = from.frame,
 				.flyFrom = body->mapFromGlobal(from.globalStartGeometry),
 			};
@@ -299,7 +317,7 @@ struct IconSelector {
 				[=] { state->animation->repaint(); },
 				Data::CustomEmojiSizeTag::Large);
 		}
-		state->iconId = data.document->id;
+		state->iconId = id;
 	}, selector->lifetime());
 
 	auto paintIconFrame = [=](not_null<Ui::RpWidget*> button) {

@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_badge.h"
 #include "info/profile/info_profile_emoji_status_panel.h"
 #include "info/info_controller.h"
+#include "boxes/peers/edit_forum_topic_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
 #include "ui/widgets/labels.h"
@@ -283,8 +284,16 @@ Cover::Cover(
 				_peer,
 				_userpic->takeResultImage());
 		}, _userpic->lifetime());
+	} else if (topic->canEdit()) {
+		_iconView->setClickedCallback([=] {
+			_controller->show(Box(
+				EditForumTopicBox,
+				_controller,
+				topic->history(),
+				topic->rootId()));
+		});
 	} else {
-		// #TODO forum icon change on click if possible
+		_iconView->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 }
 

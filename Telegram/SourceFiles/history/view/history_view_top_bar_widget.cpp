@@ -502,7 +502,6 @@ void TopBarWidget::paintTopBar(Painter &p) {
 		|| history->peer->sharedMediaInfo()
 		|| (_activeChat.section == Section::Scheduled)
 		|| (_activeChat.section == Section::Pinned)) {
-		// #TODO forum name emoji.
 		auto text = (_activeChat.section == Section::Scheduled)
 			? ((history && history->peer->isSelf())
 				? tr::lng_reminder_messages(tr::now)
@@ -929,7 +928,7 @@ void TopBarWidget::updateControlsGeometry() {
 		_leftTaken += _info->width();
 	} else if (_activeChat.key.topic()
 		|| _activeChat.section == Section::ChatsList) {
-		_leftTaken += st::topBarArrowPadding.right();
+		_leftTaken += st::normalFont->spacew;
 	}
 
 	_rightTaken = 0;
