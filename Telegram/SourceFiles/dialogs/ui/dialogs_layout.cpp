@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_abstract_structure.h"
 #include "data/data_drafts.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "dialogs/dialogs_list.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
@@ -508,6 +509,13 @@ void PaintRow(
 	const auto sendStateIcon = [&]() -> const style::icon* {
 		if (!thread) {
 			return nullptr;
+		} else if (const auto topic = thread->asTopic()
+			; topic && topic->closed()) {
+			return &(context.active
+				? st::dialogsLockIconActive
+				: context.selected
+				? st::dialogsLockIconOver
+				: st::dialogsLockIcon);
 		} else if (draft) {
 			if (draft->saveRequestId) {
 				return &(context.active

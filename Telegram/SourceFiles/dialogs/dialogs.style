@@ -297,6 +297,9 @@ dialogsReceivedIconActive: icon {{ "dialogs/dialogs_received", dialogsSentIconFg
 dialogsPinnedIcon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
 dialogsPinnedIconOver: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
 dialogsPinnedIconActive: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
+dialogsLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
+dialogsLockIconOver: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
+dialogsLockIconActive: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
 
 dialogsVerifiedIcon: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
