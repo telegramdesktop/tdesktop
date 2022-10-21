@@ -26,6 +26,7 @@ class Session;
 
 namespace HistoryView {
 class TopBarWidget;
+class ContactStatus;
 } // namespace HistoryView
 
 namespace Ui {
@@ -35,7 +36,10 @@ class DropdownMenu;
 class FlatButton;
 class InputField;
 class CrossButton;
+class PlainShadow;
 class DownloadBar;
+class GroupCallBar;
+class RequestsBar;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -152,7 +156,7 @@ private:
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
-	void refreshFolderTopBar();
+	void refreshTopBars();
 	void checkUpdateStatus();
 	void changeOpenedSubsection(
 		FnMut<void()> change,
@@ -196,6 +200,12 @@ private:
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
+
+	std::unique_ptr<Ui::PlainShadow> _forumTopShadow;
+	std::unique_ptr<Ui::GroupCallBar> _forumGroupCallBar;
+	std::unique_ptr<Ui::RequestsBar> _forumRequestsBar;
+	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
+
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;

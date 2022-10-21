@@ -105,16 +105,22 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		auto lifetime = rpl::lifetime();
 		auto state = lifetime.make_state<State>(peer);
 
-		const auto pushNext = [=] {
-			if (state->pushScheduled
-				|| (std::min(state->current.count, kRecentRequestsLimit)
-					!= state->users.size())) {
+		const auto pushNext = [=](bool now = false) {
+			if (std::min(state->current.count, kRecentRequestsLimit)
+				!= state->users.size()) {
+				return;
+			} else if (now) {
+				state->pushScheduled = false;
+				consumer.put_next_copy(state->current);
+			} else if (state->pushScheduled) {
 				return;
 			}
 			state->pushScheduled = true;
 			crl::on_main(&state->guard, [=] {
-				state->pushScheduled = false;
-				consumer.put_next_copy(state->current);
+				if (state->pushScheduled) {
+					state->pushScheduled = false;
+					consumer.put_next_copy(state->current);
+				}
 			});
 		};
 
@@ -172,6 +178,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 			}
 		}, lifetime);
 
+		pushNext(true);
 		return lifetime;
 	};
 }

@@ -13,10 +13,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "history/view/history_view_top_bar_widget.h"
+#include "history/view/history_view_contact_status.h"
+#include "history/view/history_view_requests_bar.h"
+#include "history/view/history_view_group_call_bar.h"
+#include "boxes/peers/edit_peer_requests_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/wrap/fade_wrap.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/chat/requests_bar.h"
+#include "ui/chat/group_call_bar.h"
 #include "ui/controls/download_bar.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
@@ -644,6 +650,18 @@ void Widget::updateControlsVisibility(bool fast) {
 	_searchControls->setVisible(!_openedFolder && !_openedForum);
 	if (_openedFolder || _openedForum) {
 		_folderTopBar->show();
+		if (_forumTopShadow) {
+			_forumTopShadow->show();
+		}
+		if (_forumGroupCallBar) {
+			_forumGroupCallBar->show();
+		}
+		if (_forumRequestsBar) {
+			_forumRequestsBar->show();
+		}
+		if (_forumReportBar) {
+			_forumReportBar->show();
+		}
 	} else {
 		if (hasFocus()) {
 			_filter->setFocus();
@@ -674,7 +692,7 @@ void Widget::changeOpenedSubsection(
 		_cacheUnder = grabForFolderSlideAnimation();
 	}
 	change();
-	refreshFolderTopBar();
+	refreshTopBars();
 	updateControlsVisibility(true);
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
@@ -701,7 +719,7 @@ void Widget::changeOpenedForum(ChannelData *forum, anim::type animated) {
 	}, (forum != nullptr), animated);
 }
 
-void Widget::refreshFolderTopBar() {
+void Widget::refreshTopBars() {
 	if (_openedFolder || _openedForum) {
 		if (!_folderTopBar) {
 			_folderTopBar.create(this, controller());
@@ -719,6 +737,68 @@ void Widget::refreshFolderTopBar() {
 			}, history ? history->sendActionPainter().get() : nullptr);
 	} else {
 		_folderTopBar.destroy();
+	}
+	if (_openedForum) {
+		_openedForum->updateFull();
+
+		_forumReportBar = std::make_unique<HistoryView::ContactStatus>(
+			controller(),
+			this,
+			_openedForum);
+		_forumRequestsBar = std::make_unique<Ui::RequestsBar>(
+			this,
+			HistoryView::RequestsBarContentByPeer(
+				_openedForum,
+				st::historyRequestsUserpics.size));
+		_forumGroupCallBar = std::make_unique<Ui::GroupCallBar>(
+			this,
+			HistoryView::GroupCallBarContentByPeer(
+				_openedForum,
+				st::historyGroupCallUserpics.size),
+			Core::App().appDeactivatedValue());
+		_forumTopShadow = std::make_unique<Ui::PlainShadow>(this);
+
+		_forumRequestsBar->barClicks(
+		) | rpl::start_with_next([=] {
+			RequestsBoxController::Start(controller(), _openedForum);
+		}, _forumRequestsBar->lifetime());
+
+		rpl::merge(
+			_forumGroupCallBar->barClicks(),
+			_forumGroupCallBar->joinClicks()
+		) | rpl::start_with_next([=] {
+			if (_openedForum->groupCall()) {
+				controller()->startOrJoinGroupCall(_openedForum);
+			}
+		}, _forumGroupCallBar->lifetime());
+
+		if (_a_show.animating()) {
+			_forumTopShadow->hide();
+			_forumGroupCallBar->hide();
+			_forumRequestsBar->hide();
+			_forumReportBar->bar().hide();
+		} else {
+			_forumTopShadow->show();
+			_forumGroupCallBar->show();
+			_forumRequestsBar->show();
+			_forumReportBar->show();
+			_forumGroupCallBar->finishAnimating();
+			_forumRequestsBar->finishAnimating();
+		}
+
+		rpl::combine(
+			_forumGroupCallBar->heightValue(),
+			_forumRequestsBar->heightValue(),
+			_forumReportBar->bar().heightValue()
+		) | rpl::start_with_next([=] {
+			updateControlsGeometry();
+		}, _forumRequestsBar->lifetime());
+	} else {
+		_forumTopShadow = nullptr;
+		_forumGroupCallBar = nullptr;
+		_forumRequestsBar = nullptr;
+		_forumReportBar = nullptr;
+		updateControlsGeometry();
 	}
 }
 
@@ -900,6 +980,18 @@ void Widget::startSlideAnimation() {
 	_searchControls->hide();
 	if (_folderTopBar) {
 		_folderTopBar->hide();
+	}
+	if (_forumTopShadow) {
+		_forumTopShadow->hide();
+	}
+	if (_forumGroupCallBar) {
+		_forumGroupCallBar->hide();
+	}
+	if (_forumRequestsBar) {
+		_forumRequestsBar->hide();
+	}
+	if (_forumReportBar) {
+		_forumReportBar->bar().hide();
 	}
 
 	if (_showDirection == Window::SlideDirection::FromLeft) {
@@ -1792,7 +1884,31 @@ void Widget::updateControlsGeometry() {
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _filter->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
-	auto scrollTop = filterAreaTop + filterAreaHeight;
+	if (_forumTopShadow) {
+		_forumTopShadow->setGeometry(
+			0,
+			filterAreaTop + filterAreaHeight,
+			width(),
+			st::lineWidth);
+	}
+	const auto forumGroupCallTop = filterAreaTop + filterAreaHeight;
+	if (_forumGroupCallBar) {
+		_forumGroupCallBar->move(0, forumGroupCallTop);
+		_forumGroupCallBar->resizeToWidth(width());
+	}
+	const auto forumRequestsTop = forumGroupCallTop
+		+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
+	if (_forumRequestsBar) {
+		_forumRequestsBar->move(0, forumRequestsTop);
+		_forumRequestsBar->resizeToWidth(width());
+	}
+	const auto forumReportTop = forumRequestsTop
+		+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
+	if (_forumReportBar) {
+		_forumReportBar->bar().move(0, forumReportTop);
+	}
+	auto scrollTop = forumReportTop
+		+ (_forumReportBar ? _forumReportBar->bar().height() : 0);
 	auto newScrollTop = _scroll->scrollTop() + _topDelta;
 	auto scrollHeight = height() - scrollTop;
 	const auto putBottomButton = [&](auto &button) {

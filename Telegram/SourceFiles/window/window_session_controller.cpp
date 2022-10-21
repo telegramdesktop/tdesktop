@@ -1382,6 +1382,10 @@ void SessionController::showPeer(not_null<PeerData*> peer, MsgId msgId) {
 	}
 }
 
+void SessionController::startOrJoinGroupCall(not_null<PeerData*> peer) {
+	startOrJoinGroupCall(peer, {});
+}
+
 void SessionController::startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		Calls::StartGroupCallArgs args) {
