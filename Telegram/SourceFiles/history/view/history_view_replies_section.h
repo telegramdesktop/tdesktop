@@ -65,6 +65,7 @@ class RepliesMemento;
 class ComposeControls;
 class SendActionPainter;
 class StickerToast;
+class TopicReopenBar;
 
 class RepliesWidget final
 	: public Window::SectionWidget
@@ -294,6 +295,7 @@ private:
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
+	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	bool _skipScrollEvent = false;
 
 	std::unique_ptr<Ui::PinnedBar> _rootView;
@@ -307,6 +309,9 @@ private:
 	FullMsgId _lastShownAt;
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
+
+	int _topicReopenBarHeight = 0;
+	int _scrollTopDelta = 0;
 
 	bool _choosingAttach = false;
 

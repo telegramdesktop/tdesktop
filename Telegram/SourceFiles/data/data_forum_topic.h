@@ -61,6 +61,7 @@ public:
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
 
+	[[nodiscard]] bool my() const;
 	[[nodiscard]] bool canEdit() const;
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;

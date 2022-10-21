@@ -1500,7 +1500,7 @@ void HistoryWidget::orderWidgets() {
 	_voiceRecordBar->raise();
 	_send->raise();
 	if (_contactStatus) {
-		_contactStatus->raise();
+		_contactStatus->bar().raise();
 	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
@@ -2127,9 +2127,9 @@ void HistoryWidget::showHistory(
 			controller(),
 			this,
 			_peer);
-		_contactStatus->heightValue() | rpl::start_with_next([=] {
+		_contactStatus->bar().heightValue() | rpl::start_with_next([=] {
 			updateControlsGeometry();
-		}, _contactStatus->lifetime());
+		}, _contactStatus->bar().lifetime());
 		orderWidgets();
 		controller()->tabbedSelector()->setCurrentPeer(_peer);
 	}
@@ -5204,9 +5204,9 @@ void HistoryWidget::updateControlsGeometry() {
 	}
 	const auto contactStatusTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
 	if (_contactStatus) {
-		_contactStatus->move(0, contactStatusTop);
+		_contactStatus->bar().move(0, contactStatusTop);
 	}
-	const auto scrollAreaTop = contactStatusTop + (_contactStatus ? _contactStatus->height() : 0);
+	const auto scrollAreaTop = contactStatusTop + (_contactStatus ? _contactStatus->bar().height() : 0);
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
@@ -5390,7 +5390,7 @@ void HistoryWidget::updateHistoryGeometry(
 		newScrollHeight -= _requestsBar->height();
 	}
 	if (_contactStatus) {
-		newScrollHeight -= _contactStatus->height();
+		newScrollHeight -= _contactStatus->bar().height();
 	}
 	if (isChoosingTheme()) {
 		newScrollHeight -= _chooseTheme->height();
@@ -5761,7 +5761,7 @@ void HistoryWidget::botCallbackSent(not_null<HistoryItem*> item) {
 int HistoryWidget::computeMaxFieldHeight() const {
 	const auto available = height()
 		- _topBar->height()
-		- (_contactStatus ? _contactStatus->height() : 0)
+		- (_contactStatus ? _contactStatus->bar().height() : 0)
 		- (_pinnedBar ? _pinnedBar->height() : 0)
 		- (_groupCallBar ? _groupCallBar->height() : 0)
 		- (_requestsBar ? _requestsBar->height() : 0)

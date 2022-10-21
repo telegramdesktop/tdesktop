@@ -147,7 +147,8 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	history(),
 	rootId))
 , _rootId(rootId)
-, _lastKnownServerMessageId(rootId) {
+, _lastKnownServerMessageId(rootId)
+, _flags(creating() ? Flag::My : Flag()) {
 	Thread::setMuted(owner().notifySettings().isMuted(this));
 
 	_sendActionPainter->setTopic(this);
@@ -200,15 +201,19 @@ MsgId ForumTopic::rootId() const {
 	return _rootId;
 }
 
+bool ForumTopic::my() const {
+	return (_flags & Flag::My);
+}
+
 bool ForumTopic::canEdit() const {
-	return (_flags & Flag::My) || channel()->canEditTopics();
+	return my() || channel()->canEditTopics();
 }
 
 bool ForumTopic::canDelete() const {
 	return !creating()
 		&& (channel()->canEditTopics()
 			// We don't know if we can delete or not.
-			/*|| ((_flags & Flag::My) && onlyOneMyMessage)*/);
+			/*|| (my() && onlyOneMyMessage)*/);
 }
 
 bool ForumTopic::canToggleClosed() const {

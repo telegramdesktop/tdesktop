@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_pinned_bar.h"
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_contact_status.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -260,6 +261,9 @@ RepliesWidget::RepliesWidget(
 	if (_rootView) {
 		_rootView->raise();
 	}
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().raise();
+	}
 	_topBarShadow->raise();
 
 	controller->adaptive().value(
@@ -462,6 +466,18 @@ void RepliesWidget::setupTopicViewer() {
 void RepliesWidget::subscribeToTopic() {
 	Expects(_topic != nullptr);
 
+	_topicReopenBar = std::make_unique<TopicReopenBar>(this, _topic);
+	_topicReopenBar->bar().setVisible(!animatingShow());
+	_topicReopenBarHeight = _topicReopenBar->bar().height();
+	_topicReopenBar->bar().heightValue(
+	) | rpl::start_with_next([=] {
+		const auto height = _topicReopenBar->bar().height();
+		_scrollTopDelta = (height - _topicReopenBarHeight);
+		_topicReopenBarHeight = height;
+		updateControlsGeometry();
+		_scrollTopDelta = 0;
+	}, _topicReopenBar->bar().lifetime());
+
 	using Flag = Data::TopicUpdate::Flag;
 	session().changes().topicUpdates(
 		_topic,
@@ -496,12 +512,11 @@ void RepliesWidget::setTopic(Data::ForumTopic *topic) {
 	refreshReplies();
 	refreshTopBarActiveChat();
 	if (_topic) {
-		subscribeToTopic();
 		if (_rootView) {
 			_rootView = nullptr;
 			_rootViewHeight = 0;
-			updateControlsGeometry();
 		}
+		subscribeToTopic();
 	}
 }
 
@@ -1689,7 +1704,9 @@ void RepliesWidget::updateControlsGeometry() {
 
 	const auto newScrollTop = _scroll->isHidden()
 		? std::nullopt
-		: base::make_optional(_scroll->scrollTop() + topDelta());
+		: base::make_optional(_scroll->scrollTop()
+			+ topDelta()
+			+ _scrollTopDelta);
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 	if (_rootView) {
@@ -1700,8 +1717,13 @@ void RepliesWidget::updateControlsGeometry() {
 	const auto controlsHeight = _joinGroup
 		? _joinGroup->height()
 		: _composeControls->heightCurrent();
-	const auto scrollY = _topBar->height() + _rootViewHeight;
-	const auto scrollHeight = bottom - scrollY - controlsHeight;
+	auto top = _topBar->height()
+		+ _rootViewHeight;
+	if (_topicReopenBar) {
+		_topicReopenBar->bar().move(0, top);
+		top += _topicReopenBar->bar().height();
+	}
+	const auto scrollHeight = bottom - top - controlsHeight;
 	const auto scrollSize = QSize(contentWidth, scrollHeight);
 	if (_scroll->size() != scrollSize) {
 		_skipScrollEvent = true;
@@ -1709,7 +1731,7 @@ void RepliesWidget::updateControlsGeometry() {
 		_inner->resizeToWidth(scrollSize.width(), _scroll->height());
 		_skipScrollEvent = false;
 	}
-	_scroll->move(0, scrollY);
+	_scroll->move(0, top);
 	if (!_scroll->isHidden()) {
 		if (newScrollTop) {
 			_scroll->scrollToY(*newScrollTop);

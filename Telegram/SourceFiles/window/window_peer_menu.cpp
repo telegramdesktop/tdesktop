@@ -409,7 +409,7 @@ void Filler::addToggleTopicClosed() {
 	}
 	const auto closed = _topic->closed();
 	const auto weak = base::make_weak(_topic);
-	_addAction(closed ? u"Reopen"_q : u"Close"_q, [=] {
+	_addAction(closed ? tr::lng_forum_topic_reopen(tr::now) : tr::lng_forum_topic_close(tr::now), [=] {
 		if (const auto topic = weak.get()) {
 			topic->setClosedAndSave(!closed);
 		}

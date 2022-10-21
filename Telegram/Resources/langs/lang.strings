@@ -3521,6 +3521,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_topic_new" = "New Topic";
 "lng_forum_topic_edit" = "Edit Topic";
 "lng_forum_topic_title" = "Topic Title";
+"lng_forum_topic_close" = "Close Topic";
+"lng_forum_topic_reopen" = "Reopen Topic";
 "lng_forum_topic_closed" = "This topic is now closed.";
 "lng_forum_topic_delete" = "Delete";
 "lng_forum_topic_delete_sure" = "Are you sure you want to delete this topic?";
