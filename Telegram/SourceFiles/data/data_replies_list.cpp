@@ -131,7 +131,7 @@ rpl::producer<MessagesSlice> RepliesList::source(
 
 		_history->session().changes().historyUpdates(
 			_history,
-			Data::HistoryUpdate::Flag::ClientSideMessages
+			HistoryUpdate::Flag::ClientSideMessages
 		) | rpl::start_with_next(pushDelayed, lifetime);
 
 		_history->session().changes().messageUpdates(
@@ -744,7 +744,7 @@ void RepliesList::setOutboxReadTill(MsgId readTillId) {
 		_outboxReadTillId = newReadTillId;
 		_history->session().changes().historyUpdated(
 			_history,
-			Data::HistoryUpdate::Flag::OutboxRead);
+			HistoryUpdate::Flag::OutboxRead);
 	}
 }
 
@@ -792,7 +792,7 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 
 	const auto wasUnreadCountAfter = _unreadCount.current();
 	const auto readTillId = std::max(afterId, _rootId);
-	const auto wasReadTillId = std::max(_inboxReadTillId, _rootId);
+	const auto wasReadTillId = _inboxReadTillId;
 	const auto backLoaded = (_skippedBefore == 0);
 	const auto frontLoaded = (_skippedAfter == 0);
 	const auto fullLoaded = backLoaded && frontLoaded;
@@ -838,7 +838,7 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 			end(_list),
 			wasReadTillId,
 			std::greater<>());
-		return std::max(*wasUnreadCountAfter - countIncoming(from, till), 0);
+		return std::max(*wasUnreadCountAfter - (till - from), 0);
 	}
 	return std::nullopt;
 }

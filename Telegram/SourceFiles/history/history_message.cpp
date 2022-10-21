@@ -661,7 +661,7 @@ void HistoryMessage::createComponentsHelper(
 		const auto forum = history()->peer->forum();
 		config.replyIsTopicPost = LookupReplyIsTopicPost(to)
 			|| (to && to->Has<HistoryServiceTopicInfo>())
-			|| (forum && forum->creating(replyToTop));
+			|| (forum && forum->creating(config.replyToTop));
 	}
 	config.markup = std::move(markup);
 	if (flags & MessageFlag::HasPostAuthor) config.author = postAuthor;
@@ -1813,8 +1813,7 @@ void HistoryMessage::changeReplyToTopCounter(
 		int delta) {
 	if (!isRegular() || !_history->peer->isMegagroup()) {
 		return;
-	}
-	if (!out() && delta > 0) {
+	} else if (delta > 0) {
 		_history->session().changes().messageUpdated(
 			this,
 			Data::MessageUpdate::Flag::ReplyToTopAdded);

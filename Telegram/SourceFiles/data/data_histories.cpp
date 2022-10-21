@@ -946,11 +946,11 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 
 		_createdTopicIds.emplace(rootId, realRoot);
 
-		if (const auto forum = _owner->peer(rootId.peer)->forum()) {
+		const auto history = _owner->history(rootId.peer);
+		if (const auto forum = history->peer->forum()) {
 			forum->created(rootId.msg, realRoot);
 		}
 
-		const auto history = _owner->history(rootId.peer);
 		for (auto &entry : scheduled) {
 			_creatingTopicRequests.erase(entry.requestId);
 			sendPreparedMessage(
@@ -962,6 +962,7 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 				std::move(entry.done),
 				std::move(entry.fail));
 		}
+		const auto topic = history->peer->forumTopicFor(realRoot);
 		for (const auto &item : history->clientSideMessages()) {
 			const auto replace = [&](MsgId nowId) {
 				return (nowId == rootId.msg) ? realRoot : nowId;

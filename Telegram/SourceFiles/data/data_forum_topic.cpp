@@ -388,7 +388,9 @@ void ForumTopic::setLastServerMessage(HistoryItem *item) {
 	if (_lastMessage
 		&& *_lastMessage
 		&& !(*_lastMessage)->isRegular()
-		&& (!item || (*_lastMessage)->date() > item->date())) {
+		&& (!item
+			|| (*_lastMessage)->date() > item->date()
+			|| (*_lastMessage)->isSending())) {
 		return;
 	}
 	setLastMessage(item);
@@ -566,7 +568,11 @@ void ForumTopic::applyColorId(int32 colorId) {
 }
 
 void ForumTopic::applyItemAdded(not_null<HistoryItem*> item) {
-	setLastMessage(item);
+	if (item->isRegular()) {
+		setLastServerMessage(item);
+	} else {
+		setLastMessage(item);
+	}
 }
 
 void ForumTopic::maybeSetLastMessage(not_null<HistoryItem*> item) {

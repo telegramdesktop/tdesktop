@@ -337,6 +337,7 @@ void EditForumTopicBox(
 	const auto topic = (!creating && forum->peer->forum())
 		? forum->peer->forum()->topicFor(rootId)
 		: nullptr;
+	const auto created = topic && !topic->creating();
 	box->setTitle(creating
 		? tr::lng_forum_topic_new()
 		: tr::lng_forum_topic_edit());
@@ -394,7 +395,7 @@ void EditForumTopicBox(
 	) | rpl::start_with_next([=](DocumentId iconId) {
 		icon->setAttribute(
 			Qt::WA_TransparentForMouseEvents,
-			!creating || (iconId != 0));
+			created || (iconId != 0));
 	}, box->lifetime());
 
 	icon->setClickedCallback([=] {

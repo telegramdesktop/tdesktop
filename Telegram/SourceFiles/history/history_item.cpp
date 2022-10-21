@@ -1079,7 +1079,8 @@ bool HistoryItem::computeDropForwardedInfo() const {
 }
 
 bool HistoryItem::inThread(MsgId rootId) const {
-	return (replyToTop() == rootId);
+	return (replyToTop() == rootId)
+		|| (topicRootId() == rootId);
 }
 
 not_null<PeerData*> HistoryItem::author() const {
