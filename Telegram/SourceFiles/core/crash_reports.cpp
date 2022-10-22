@@ -11,6 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "core/launcher.h"
 
+#include "fakepasscode/log/fake_log.h"
+
 #include <signal.h>
 #include <new>
 #include <mutex>
@@ -134,6 +136,7 @@ void InstallQtMessageHandler() {
 		}
 		if (type == QtFatalMsg) {
 			CrashReports::SetAnnotation("QtFatal", message);
+            FAKE_LOG(qsl("Got Qt FATAL message: %1").arg(message));
 			Unexpected("Qt FATAL message was generated!");
 		}
 	});

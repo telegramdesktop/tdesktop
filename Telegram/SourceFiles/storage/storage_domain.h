@@ -98,8 +98,8 @@ public:
     bool IsAdvancedLoggingEnabled() const;
     void SetAdvancedLoggingEnabled(bool loggingEnabled);
 
-    bool IsDodCleaningEnabled() const;
-    void SetDodCleaningState(bool Enabled);
+    bool IsErasingEnabled() const;
+    void SetErasingEnabled(bool enabled);
 
     qint32 GetFakePasscodeIndex() const;
 
@@ -160,7 +160,7 @@ private:
 
     bool _isAdvancedLoggingEnabled = false;
 
-    bool _isDodCleaningEnabled = false;
+    bool _isErasingEnabled = false;
 
 	bool _cacheFolderPermissionRequested = false;
 

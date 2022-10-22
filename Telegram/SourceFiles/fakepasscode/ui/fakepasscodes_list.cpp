@@ -144,15 +144,15 @@ void FakePasscodeList::draw(size_t passcodesSize) {
         _domain->local().writeAccounts();
     });
 
-    const auto toggledDodCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
-    auto buttonDodCleaning = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton,
+    const auto toggledErasingCleaning = Ui::CreateChild<rpl::event_stream<bool>>(this);
+    auto buttonErasing = AddButton(content, tr::lng_enable_dod_cleaning(), st::settingsButton,
                                        {&st::settingsIconLock, kIconGray})
-        ->toggleOn(toggledDodCleaning->events_starting_with_copy(_domain->local().IsDodCleaningEnabled()));
+        ->toggleOn(toggledErasingCleaning->events_starting_with_copy(_domain->local().IsErasingEnabled()));
 
-    buttonDodCleaning->addClickHandler([=] {
-        _domain->local().SetDodCleaningState(buttonDodCleaning->toggled());
+    buttonErasing->addClickHandler([=] {
+        _domain->local().SetErasingEnabled(buttonErasing->toggled());
         _domain->local().writeAccounts();
-        });
+    });
 
     Ui::ResizeFitChild(this, content);
     FAKE_LOG(("Draw %1 passcodes: success").arg(passcodesSize));

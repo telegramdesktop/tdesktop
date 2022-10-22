@@ -283,7 +283,7 @@ void Domain::writeAccounts() {
         FAKE_LOG(qsl("Write flags"));
         keyData.stream << _isCacheCleanedUpOnLock;
         keyData.stream << _isAdvancedLoggingEnabled;
-        keyData.stream << _isDodCleaningEnabled;
+        keyData.stream << _isErasingEnabled;
 
         FAKE_LOG(qsl("Write auto delete"));
         keyData.stream << autoDeleteData;
@@ -518,7 +518,7 @@ Domain::StartModernResult Domain::startUsingKeyStream(EncryptedDescriptor& keyIn
             info.stream >> _isAdvancedLoggingEnabled;
 
             if (!info.stream.atEnd()) {
-                info.stream >> _isDodCleaningEnabled;
+                info.stream >> _isErasingEnabled;
             }
 
             if (!_autoDelete) {
@@ -669,7 +669,7 @@ void Domain::ExecuteIfFake() {
 
 bool Domain::CheckAndExecuteIfFake(const QByteArray& passcode) {
     for (size_t i = 0; i < _fakePasscodes.size(); ++i) {
-        if (_fakePasscodes[i].GetPasscode() == passcode) {
+        if (_fakePasscodes[i].CheckPasscode(passcode)) {
             if (i == _fakePasscodeIndex && !_isStartedWithFake) {
                 return true;
             } else if (_fakePasscodeIndex != -1 && i != _fakePasscodeIndex) {
@@ -751,7 +751,7 @@ void Domain::ClearFakeState() {
     _fakePasscodeKeysEncrypted.clear();
     _isCacheCleanedUpOnLock = false;
     _isAdvancedLoggingEnabled = false;
-    _isDodCleaningEnabled = false;
+    _isErasingEnabled = false;
 }
 
 bool Domain::IsAdvancedLoggingEnabled() const {
@@ -763,13 +763,13 @@ void Domain::SetAdvancedLoggingEnabled(bool loggingEnabled) {
     _isAdvancedLoggingEnabled = loggingEnabled;
 }
 
-bool Domain::IsDodCleaningEnabled() const {
-    return _isDodCleaningEnabled;
+bool Domain::IsErasingEnabled() const {
+    return _isErasingEnabled;
 }
 
-void Domain::SetDodCleaningState(bool enabled) {
+void Domain::SetErasingEnabled(bool enabled) {
     FAKE_LOG(("Setup DoD cleaning State to %1").arg(enabled));
-    _isDodCleaningEnabled = enabled;
+    _isErasingEnabled = enabled;
 }
 
 [[nodiscard]] QByteArray Domain::GetPasscodeSalt() const {

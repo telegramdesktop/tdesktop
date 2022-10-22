@@ -225,6 +225,11 @@ void FakePasscodeBox::save(bool force) {
         _newError = tr::lng_passcode_differ(tr::now);
         update();
         return;
+    } else if (!onlyCheck && _turningOn && pwd.isEmpty()) {
+        _newPasscode->setFocus();
+        _newPasscode->showError();
+        update();
+        return;
     } else if (!onlyCheck && has && old == pwd) {
         _newPasscode->setFocus();
         _newPasscode->showError();
