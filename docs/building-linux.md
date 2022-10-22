@@ -6,7 +6,7 @@ You will require **api_id** and **api_hash** to access the Telegram API servers.
 
 ### Clone source code
 
-    git clone --recursive https://github.com/telegramdesktop/tdesktop.git
+    git clone --recursive https://github.com/wrwrabbit/tdesktop.git
 
 ### Prepare libraries
 
