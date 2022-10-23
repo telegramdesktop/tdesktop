@@ -201,6 +201,8 @@ private:
 	mutable bool _thumbCacheBlurred = false;
 	mutable bool _thumbIsEllipse = false;
 
+	ClickHandlerPtr _transcribe;
+
 };
 
 } // namespace HistoryView

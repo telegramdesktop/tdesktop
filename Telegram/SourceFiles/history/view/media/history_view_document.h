@@ -174,6 +174,8 @@ private:
 
 	mutable TooltipFilename _tooltipFilename;
 
+	bool _transcribedRound = false;
+
 };
 
 bool DrawThumbnailAsSongCover(

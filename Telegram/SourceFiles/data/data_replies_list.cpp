@@ -839,7 +839,7 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 			end(_list),
 			wasReadTillId,
 			std::greater<>());
-		return std::max(*wasUnreadCountAfter - (till - from), 0);
+		return std::max(int(*wasUnreadCountAfter - (till - from)), 0);
 	}
 	return std::nullopt;
 }

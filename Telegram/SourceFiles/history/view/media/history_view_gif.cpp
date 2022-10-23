@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_gif.h"
 
+#include "apiwrap.h"
+#include "api/api_transcribes.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "main/main_session.h"
@@ -93,6 +95,13 @@ Gif::Gif(
 			_data->loadVideoThumbnail(realParent->fullId());
 		}
 	}
+
+	_transcribe = std::make_shared<LambdaClickHandler>([=,
+			id = realParent->fullId()] {
+		if (const auto item = _data->session().data().message(id)) {
+			_data->session().api().transcribes().toggle(item);
+		}
+	});
 }
 
 Gif::~Gif() {
@@ -673,6 +682,21 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
 			}
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
+			if (_data->session().premium()) {
+				const auto stm = context.messageStyle();
+				PainterHighQualityEnabler hq(p);
+				p.setPen(Qt::NoPen);
+				p.setBrush(context.st->msgServiceBg());
+
+				const auto s = st::historyFastShareSize;
+				const auto r = QRect(
+					fastShareLeft,
+					fastShareTop - s - st::msgDateImgDelta,
+					s,
+					s);
+				p.drawEllipse(r);
+				context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+			}
 		}
 	}
 }
@@ -975,6 +999,17 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			}
 			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
+			}
+			if (_data->session().premium()) {
+				const auto s = st::historyFastShareSize;
+				const auto r = QRect(
+					fastShareLeft,
+					fastShareTop - s - st::msgDateImgDelta,
+					s,
+					s);
+				if (r.contains(point)) {
+					result.link = _transcribe;
+				}
 			}
 		}
 	}

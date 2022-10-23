@@ -85,6 +85,7 @@ ChatStyle::ChatStyle() {
 	make(_msgBotKbWebviewIcon, st::msgBotKbWebviewIcon);
 	make(_historyFastCommentsIcon, st::historyFastCommentsIcon);
 	make(_historyFastShareIcon, st::historyFastShareIcon);
+	make(_historyFastTranscribeIcon, st::historyFastTranscribeIcon);
 	make(_historyGoToOriginalIcon, st::historyGoToOriginalIcon);
 	make(_historyMapPoint, st::historyMapPoint);
 	make(_historyMapPointInner, st::historyMapPointInner);

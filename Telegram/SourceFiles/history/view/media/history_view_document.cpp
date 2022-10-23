@@ -155,7 +155,7 @@ void PaintWaveform(
 	if (const auto song = document->song()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
-	} else if (const auto voice = document->voice()) {
+	} else if (const auto voice = document->voice() ? document->voice() : document->round()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
 	} else if (document->isVideoFile()) {
@@ -174,6 +174,12 @@ Document::Document(
 	not_null<DocumentData*> document)
 : File(parent, realParent)
 , _data(document) {
+	if (_data->isVideoMessage()) {
+		const auto &entry = _data->session().api().transcribes().entry(
+			realParent);
+		_transcribedRound = entry.shown;
+	}
+
 	auto caption = createCaption();
 
 	createComponents(!caption.isEmpty());
@@ -215,7 +221,7 @@ bool Document::dataLoaded() const {
 
 void Document::createComponents(bool caption) {
 	uint64 mask = 0;
-	if (_data->isVoiceMessage()) {
+	if (_data->isVoiceMessage() || _transcribedRound) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
@@ -344,7 +350,9 @@ QSize Document::countOptimalSize() {
 	if (thumbed) {
 		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + tright);
 	} else {
-		auto unread = _data->isVoiceMessage() ? (st::mediaUnreadSkip + st::mediaUnreadSize) : 0;
+		auto unread = (_data->isVoiceMessage() || _transcribedRound)
+			? (st::mediaUnreadSkip + st::mediaUnreadSize)
+			: 0;
 		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + unread + _parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
@@ -604,8 +612,11 @@ void Document::draw(
 	if (voice) {
 		ensureDataMediaCreated();
 
-		if (const auto voiceData = _data->voice()) {
-			if (voiceData->waveform.isEmpty()) {
+		{
+			const auto voiceData = _data->isVideoMessage()
+				? _data->round()
+				: _data->voice();
+			if (voiceData && voiceData->waveform.isEmpty()) {
 				if (loaded) {
 					Local::countVoiceWaveform(_dataMedia.get());
 				}
@@ -642,7 +653,7 @@ void Document::draw(
 
 		PaintWaveform(p,
 			context,
-			_data->voice(),
+			_transcribedRound ? _data->round() : _data->voice(),
 			namewidth + st::msgWaveformSkip,
 			progress);
 		p.restore();
@@ -1156,6 +1167,8 @@ void Document::setStatusSize(int64 newSize, TimeId realDuration) const {
 		? _data->song()->duration
 		: (_data->isVoiceMessage()
 			? _data->voice()->duration
+			: _transcribedRound
+			? _data->round()->duration
 			: -1);
 	File::setStatusSize(newSize, _data->size, duration, realDuration);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
@@ -1190,7 +1203,7 @@ bool Document::updateStatusText() const {
 		statusSize = Ui::FileStatusSizeReady;
 	}
 
-	if (_data->isVoiceMessage()) {
+	if (_data->isVoiceMessage() || _transcribedRound) {
 		const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Voice);
 		if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
 			&& !::Media::Player::IsStoppedOrStopping(state.state)) {
