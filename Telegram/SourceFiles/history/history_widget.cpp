@@ -2126,7 +2126,8 @@ void HistoryWidget::showHistory(
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
-			_peer);
+			_peer,
+			false);
 		_contactStatus->bar().heightValue() | rpl::start_with_next([=] {
 			updateControlsGeometry();
 		}, _contactStatus->bar().lifetime());
@@ -6434,7 +6435,8 @@ void HistoryWidget::setupGroupCallBar() {
 		this,
 		HistoryView::GroupCallBarContentByPeer(
 			peer,
-			st::historyGroupCallUserpics.size),
+			st::historyGroupCallUserpics.size,
+			false),
 		Core::App().appDeactivatedValue());
 
 	controller()->adaptive().oneColumnValue(
@@ -6486,7 +6488,8 @@ void HistoryWidget::setupRequestsBar() {
 		this,
 		HistoryView::RequestsBarContentByPeer(
 			peer,
-			st::historyRequestsUserpics.size));
+			st::historyRequestsUserpics.size,
+			false));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {

@@ -69,7 +69,8 @@ public:
 	ContactStatus(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::RpWidget*> parent,
-		not_null<PeerData*> peer);
+		not_null<PeerData*> peer,
+		bool showInForum);
 
 	void show();
 
@@ -98,7 +99,7 @@ private:
 		TimeId requestDate = 0;
 	};
 
-	void setupState(not_null<PeerData*> peer);
+	void setupState(not_null<PeerData*> peer, bool showInForum);
 	void setupHandlers(not_null<PeerData*> peer);
 	void setupAddHandler(not_null<UserData*> user);
 	void setupBlockHandler(not_null<UserData*> user);
@@ -117,6 +118,7 @@ private:
 	Fn<std::any(Fn<void()> customEmojiRepaint)> _context;
 	QPointer<Bar> _inner;
 	SlidingBar _bar;
+	bool _hiddenByForum = false;
 	bool _shown = false;
 
 };

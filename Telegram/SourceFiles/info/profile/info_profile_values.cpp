@@ -437,12 +437,8 @@ rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 			return countOfRestrictions({}, chat->defaultRestrictions());
 		});
 	} else if (const auto channel = peer->asChannel()) {
-		auto forumValue = channel->flagsValue(
-		) | rpl::filter([](const ChannelData::Flags::Change &change) {
-			return (change.diff & ChannelData::Flag::Forum);
-		});
 		return rpl::combine(
-			std::move(forumValue),
+			Data::PeerFlagValue(channel, ChannelData::Flag::Forum),
 			channel->session().changes().peerFlagsValue(
 				channel,
 				UpdateFlag::Rights)

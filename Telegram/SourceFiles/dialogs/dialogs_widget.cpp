@@ -744,17 +744,20 @@ void Widget::refreshTopBars() {
 		_forumReportBar = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
-			_openedForum);
+			_openedForum,
+			true);
 		_forumRequestsBar = std::make_unique<Ui::RequestsBar>(
 			this,
 			HistoryView::RequestsBarContentByPeer(
 				_openedForum,
-				st::historyRequestsUserpics.size));
+				st::historyRequestsUserpics.size,
+				true));
 		_forumGroupCallBar = std::make_unique<Ui::GroupCallBar>(
 			this,
 			HistoryView::GroupCallBarContentByPeer(
 				_openedForum,
-				st::historyGroupCallUserpics.size),
+				st::historyGroupCallUserpics.size,
+				true),
 			Core::App().appDeactivatedValue());
 		_forumTopShadow = std::make_unique<Ui::PlainShadow>(this);
 

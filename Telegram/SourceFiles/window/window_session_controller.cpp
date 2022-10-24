@@ -976,12 +976,12 @@ void SessionController::setActiveChatEntry(Dialogs::RowDescriptor row) {
 		now->setFakeUnreadWhileOpened(true);
 		if (const auto channel = now->peer->asChannel()
 			; channel && !channel->isForum()) {
-			channel->flagsValue(
-			) | rpl::filter([=](const ChannelData::Flags::Change &update) {
-				using Flag = ChannelData::Flag;
-				return (update.diff & Flag::Forum)
-					&& (update.value & Flag::Forum);
-			}) | rpl::start_with_next([=] {
+			Data::PeerFlagValue(
+				channel,
+				ChannelData::Flag::Forum
+			) | rpl::filter(
+				rpl::mappers::_1
+			) | rpl::start_with_next([=] {
 				clearSectionStack(
 					{ anim::type::normal, anim::activation::background });
 				openForum(channel,

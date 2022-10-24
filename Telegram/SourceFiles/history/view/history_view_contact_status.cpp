@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_forum_topic.h"
+#include "data/data_peer_values.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "settings/settings_premium.h"
 #include "window/window_peer_menu.h"
@@ -41,6 +42,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 namespace HistoryView {
 namespace {
@@ -111,6 +113,23 @@ namespace {
 	}) | rpl::flatten_latest() | rpl::distinct_until_changed();
 }
 
+[[nodiscard]] object_ptr<Ui::AbstractButton> MakeIconButton(
+		QWidget *parent,
+		const style::icon &icon) {
+	auto result = object_ptr<Ui::RippleButton>(
+		parent,
+		st::historyContactStatusButton.ripple);
+	const auto raw = result.data();
+	raw->paintRequest(
+	) | rpl::start_with_next([=, &icon] {
+		auto p = QPainter(raw);
+		p.fillRect(raw->rect(), st::historyContactStatusButton.bgColor);
+		raw->paintRipple(p, 0, 0);
+		icon.paintInCenter(p, raw->rect());
+	}, raw->lifetime());
+	return result;
+}
+
 } // namespace
 
 class ContactStatus::BgButton final : public Ui::RippleButton {
@@ -153,15 +172,18 @@ private:
 	QString _name;
 	object_ptr<Ui::FlatButton> _add;
 	object_ptr<Ui::FlatButton> _unarchive;
+	object_ptr<Ui::AbstractButton> _unarchiveIcon;
 	object_ptr<Ui::FlatButton> _block;
 	object_ptr<Ui::FlatButton> _share;
 	object_ptr<Ui::FlatButton> _report;
+	object_ptr<Ui::AbstractButton> _reportIcon;
 	object_ptr<Ui::IconButton> _close;
 	object_ptr<BgButton> _requestChatBg;
 	object_ptr<Ui::FlatLabel> _requestChatInfo;
 	object_ptr<Ui::PaddingWrap<Ui::FlatLabel>> _emojiStatusInfo;
 	object_ptr<Ui::PlainShadow> _emojiStatusShadow;
 	bool _emojiStatusRepaintScheduled = false;
+	bool _narrow = false;
 	rpl::event_stream<> _emojiStatusClicks;
 
 };
@@ -200,6 +222,7 @@ ContactStatus::Bar::Bar(
 	this,
 	tr::lng_new_contact_unarchive(tr::now).toUpper(),
 	st::historyContactStatusButton)
+, _unarchiveIcon(MakeIconButton(this, st::menuIconUnarchive))
 , _block(
 	this,
 	tr::lng_new_contact_block(tr::now).toUpper(),
@@ -212,6 +235,7 @@ ContactStatus::Bar::Bar(
 	this,
 	QString(),
 	st::historyContactStatusBlock)
+, _reportIcon(MakeIconButton(this, st::menuIconReportAttention))
 , _close(this, st::historyReplyCancel)
 , _requestChatBg(this, st::historyContactStatusButton)
 , _requestChatInfo(
@@ -242,14 +266,18 @@ void ContactStatus::Bar::showState(
 	using Type = State::Type;
 	const auto type = state.type;
 	_add->setVisible(type == Type::AddOrBlock || type == Type::Add);
-	_unarchive->setVisible(type == Type::UnarchiveOrBlock
-		|| type == Type::UnarchiveOrReport);
+	const auto unarchive = (type == Type::UnarchiveOrBlock)
+		|| (type == Type::UnarchiveOrReport);
+	_unarchive->setVisible(!_narrow && unarchive);
+	_unarchiveIcon->setVisible(_narrow && unarchive);
 	_block->setVisible(type == Type::AddOrBlock
 		|| type == Type::UnarchiveOrBlock);
 	_share->setVisible(type == Type::SharePhoneNumber);
-	_close->setVisible(type != Type::RequestChatInfo);
-	_report->setVisible(type == Type::ReportSpam
-		|| type == Type::UnarchiveOrReport);
+	_close->setVisible(!_narrow && type != Type::RequestChatInfo);
+	const auto report = (type == Type::ReportSpam)
+		|| (type == Type::UnarchiveOrReport);
+	_report->setVisible(!_narrow && report);
+	_reportIcon->setVisible(_narrow && report);
 	_requestChatInfo->setVisible(type == Type::RequestChatInfo);
 	_requestChatBg->setVisible(type == Type::RequestChatInfo);
 	const auto has = !status.empty();
@@ -291,7 +319,10 @@ void ContactStatus::Bar::showState(
 }
 
 rpl::producer<> ContactStatus::Bar::unarchiveClicks() const {
-	return _unarchive->clicks() | rpl::to_empty;
+	return rpl::merge(
+		_unarchive->clicks(),
+		_unarchiveIcon->clicks()
+	) | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::addClicks() const {
@@ -307,7 +338,10 @@ rpl::producer<> ContactStatus::Bar::shareClicks() const {
 }
 
 rpl::producer<> ContactStatus::Bar::reportClicks() const {
-	return _report->clicks() | rpl::to_empty;
+	return rpl::merge(
+		_report->clicks(),
+		_reportIcon->clicks()
+	) | rpl::to_empty;
 }
 
 rpl::producer<> ContactStatus::Bar::closeClicks() const {
@@ -323,7 +357,27 @@ rpl::producer<> ContactStatus::Bar::emojiStatusClicks() const {
 }
 
 int ContactStatus::Bar::resizeGetHeight(int newWidth) {
-	_close->moveToRight(0, 0);
+	_close->moveToRight(0, 0, newWidth);
+	const auto narrow = (newWidth < _close->width() * 2);
+	if (_narrow != narrow) {
+		_narrow = narrow;
+		_close->setVisible(_requestChatInfo->isHidden() && !_narrow);
+		const auto report = !_report->isHidden() || !_reportIcon->isHidden();
+		_report->setVisible(!_narrow && report);
+		_reportIcon->setVisible(_narrow && report);
+		const auto unarchive = !_unarchive->isHidden()
+			|| !_unarchiveIcon->isHidden();
+		_unarchive->setVisible(!_narrow && unarchive);
+		_unarchiveIcon->setVisible(_narrow && unarchive);
+	}
+
+	if (!_unarchiveIcon->isHidden()) {
+		const auto half = newWidth / 2;
+		_unarchiveIcon->setGeometry(0, 0, half, _close->height());
+		_reportIcon->setGeometry(half, 0, newWidth - half, _close->height());
+	} else if (!_reportIcon->isHidden()) {
+		_reportIcon->setGeometry(0, 0, newWidth, _close->height());
+	}
 
 	const auto closeWidth = _close->width();
 	const auto closeHeight = _close->height();
@@ -489,11 +543,12 @@ rpl::producer<int> SlidingBar::heightValue() const {
 ContactStatus::ContactStatus(
 	not_null<Window::SessionController*> window,
 	not_null<Ui::RpWidget*> parent,
-	not_null<PeerData*> peer)
+	not_null<PeerData*> peer,
+	bool showInForum)
 : _controller(window)
 , _inner(Ui::CreateChild<Bar>(parent.get(), peer->shortName()))
 , _bar(parent, object_ptr<Bar>::fromRaw(_inner)) {
-	setupState(peer);
+	setupState(peer, showInForum);
 	setupHandlers(peer);
 }
 
@@ -555,7 +610,7 @@ auto ContactStatus::PeerState(not_null<PeerData*> peer)
 	});
 }
 
-void ContactStatus::setupState(not_null<PeerData*> peer) {
+void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
 	if (!BarCurrentlyHidden(peer)) {
 		peer->session().api().requestPeerSettings(peer);
 	}
@@ -567,13 +622,21 @@ void ContactStatus::setupState(not_null<PeerData*> peer) {
 		};
 	};
 	_inner->showState({}, {}, _context);
+	const auto channel = peer->asChannel();
 	rpl::combine(
 		PeerState(peer),
-		PeerCustomStatus(peer)
-	) | rpl::start_with_next([=](State state, TextWithEntities status) {
+		PeerCustomStatus(peer),
+		((channel && !showInForum)
+			? Data::PeerFlagValue(channel, ChannelData::Flag::Forum)
+			: rpl::single(false))
+	) | rpl::start_with_next([=](
+			State state,
+			TextWithEntities status,
+			bool hiddenByForum) {
 		_state = state;
 		_status = status;
-		if (state.type == State::Type::None) {
+		_hiddenByForum = hiddenByForum;
+		if (state.type == State::Type::None || hiddenByForum) {
 			_bar.toggleContent(false);
 		} else {
 			_inner->showState(state, std::move(status), _context);
@@ -769,7 +832,7 @@ void ContactStatus::setupEmojiStatusHandler(not_null<PeerData*> peer) {
 void ContactStatus::show() {
 	if (!_shown) {
 		_shown = true;
-		if (_state.type != State::Type::None) {
+		if (_state.type != State::Type::None && !_hiddenByForum) {
 			_inner->showState(_state, _status, _context);
 			_bar.toggleContent(true);
 		}
