@@ -246,6 +246,7 @@ Session::Session(not_null<Main::Session*> session)
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _pollsClosingTimer([=] { checkPollsClosings(); })
+, _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
@@ -644,6 +645,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (oldOnlineTill != newOnlineTill) {
 			result->onlineTill = newOnlineTill;
 			flags |= UpdateFlag::OnlineStatus;
+			session().data().maybeStopWatchForOffline(result);
 		}
 	}
 
@@ -966,6 +968,64 @@ void Session::unregisterGroupCall(not_null<GroupCall*> call) {
 GroupCall *Session::groupCall(CallId callId) const {
 	const auto i = _groupCalls.find(callId);
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
+}
+
+void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
+	if (!now) {
+		now = base::unixtime::now();
+	}
+	if (!Data::IsUserOnline(user, now)) {
+		return;
+	}
+	const auto till = user->onlineTill;
+	const auto [i, ok] = _watchingForOffline.emplace(user, till);
+	if (!ok) {
+		if (i->second == till) {
+			return;
+		}
+		i->second = till;
+	}
+	const auto timeout = Data::OnlineChangeTimeout(till, now);
+	const auto fires = _watchForOfflineTimer.isActive()
+		? _watchForOfflineTimer.remainingTime()
+		: -1;
+	if (fires >= 0 && fires <= timeout) {
+		return;
+	}
+	_watchForOfflineTimer.callOnce(std::max(timeout, crl::time(1)));
+}
+
+void Session::maybeStopWatchForOffline(not_null<UserData*> user) {
+	if (Data::IsUserOnline(user)) {
+		return;
+	} else if (_watchingForOffline.remove(user)
+		&& _watchingForOffline.empty()) {
+		_watchForOfflineTimer.cancel();
+	}
+}
+
+void Session::checkLocalUsersWentOffline() {
+	_watchForOfflineTimer.cancel();
+
+	auto minimal = 86400 * crl::time(1000);
+	const auto now = base::unixtime::now();
+	for (auto i = begin(_watchingForOffline)
+		; i != end(_watchingForOffline);) {
+		const auto user = i->first;
+		if (!Data::IsUserOnline(user, now)) {
+			i = _watchingForOffline.erase(i);
+			session().changes().peerUpdated(
+				user,
+				PeerUpdate::Flag::OnlineStatus);
+		} else {
+			const auto timeout = Data::OnlineChangeTimeout(user, now);
+			accumulate_min(minimal, timeout);
+			++i;
+		}
+	}
+	if (!_watchingForOffline.empty()) {
+		_watchForOfflineTimer.callOnce(std::max(minimal, crl::time(1)));
+	}
 }
 
 auto Session::invitedToCallUsers(CallId callId) const

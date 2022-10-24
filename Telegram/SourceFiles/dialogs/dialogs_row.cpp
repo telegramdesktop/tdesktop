@@ -15,10 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "data/data_folder.h"
+#include "data/data_session.h"
 #include "data/data_peer_values.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "base/unixtime.h"
 #include "mainwidget.h"
 #include "styles/style_dialogs.h"
 
@@ -196,15 +198,20 @@ void Row::setCornerBadgeShown(
 void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback) const {
+	const auto user = peer->asUser();
+	const auto now = user ? base::unixtime::now() : TimeId();
 	const auto shown = [&] {
-		if (const auto user = peer->asUser()) {
-			return Data::IsUserOnline(user);
+		if (user) {
+			return Data::IsUserOnline(user, now);
 		} else if (const auto channel = peer->asChannel()) {
 			return Data::ChannelHasActiveCall(channel);
 		}
 		return false;
 	}();
 	setCornerBadgeShown(shown, std::move(updateCallback));
+	if (shown && user) {
+		peer->owner().watchForOffline(user, now);
+	}
 }
 
 void Row::ensureCornerBadgeUserpic() const {

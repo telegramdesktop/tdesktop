@@ -460,8 +460,11 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 	return OnlineTextActive(user->onlineTill, now);
 }
 
-bool IsUserOnline(not_null<UserData*> user) {
-	return OnlineTextActive(user, base::unixtime::now());
+bool IsUserOnline(not_null<UserData*> user, TimeId now) {
+	if (!now) {
+		now = base::unixtime::now();
+	}
+	return OnlineTextActive(user, now);
 }
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {

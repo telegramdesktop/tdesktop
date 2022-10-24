@@ -1843,6 +1843,7 @@ void ApiWrap::updatePrivacyLastSeens() {
 		session().changes().peerUpdated(
 			user,
 			Data::PeerUpdate::Flag::OnlineStatus);
+		session().data().maybeStopWatchForOffline(user);
 	});
 
 	if (_contactsStatusesRequestId) {
@@ -1856,12 +1857,15 @@ void ApiWrap::updatePrivacyLastSeens() {
 			auto &data = item.c_contactStatus();
 			if (auto user = _session->data().userLoaded(data.vuser_id())) {
 				auto oldOnlineTill = user->onlineTill;
-				auto newOnlineTill = OnlineTillFromStatus(data.vstatus(), oldOnlineTill);
+				auto newOnlineTill = OnlineTillFromStatus(
+					data.vstatus(),
+					oldOnlineTill);
 				if (oldOnlineTill != newOnlineTill) {
 					user->onlineTill = newOnlineTill;
 					session().changes().peerUpdated(
 						user,
 						Data::PeerUpdate::Flag::OnlineStatus);
+					session().data().maybeStopWatchForOffline(user);
 				}
 			}
 		}

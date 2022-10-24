@@ -945,6 +945,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 			Data::PeerUpdate::Flag::OnlineStatus);
 		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
 			api().saveCurrentDraftToCloud();
+			session().data().maybeStopWatchForOffline(self);
 		}
 
 		_lastSetOnline = ms;
@@ -1856,6 +1857,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			session().changes().peerUpdated(
 				user,
 				Data::PeerUpdate::Flag::OnlineStatus);
+			session().data().maybeStopWatchForOffline(user);
 		}
 		if (UserId(d.vuser_id()) == session().userId()) {
 			if (d.vstatus().type() == mtpc_userStatusOffline
