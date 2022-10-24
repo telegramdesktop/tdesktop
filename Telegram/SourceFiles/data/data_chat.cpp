@@ -58,7 +58,7 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 		| Flag::DeleteMessages
 		| Flag::BanUsers
 		| Flag::InviteByLinkOrAdd
-		| Flag::PinMessagesOrTopics
+		| Flag::PinMessages
 		| Flag::ManageCall
 		| (isCreator ? Flag::AddAdmins : Flag(0)));
 }
@@ -114,10 +114,6 @@ bool ChatData::canBanMembers() const {
 
 bool ChatData::anyoneCanAddMembers() const {
 	return !(defaultRestrictions() & ChatRestriction::AddParticipants);
-}
-
-bool ChatData::anyoneCanPinMessages() const {
-	return !(defaultRestrictions() & ChatRestriction::PinMessages);
 }
 
 void ChatData::setName(const QString &newName) {

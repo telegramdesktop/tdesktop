@@ -224,7 +224,7 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 			| Flag::BanUsers
 			| Flag::InviteByLinkOrAdd
 			| Flag::ManageTopics
-			| Flag::PinMessagesOrTopics
+			| Flag::PinMessages
 			| Flag::ManageCall) }
 		: ChatAdminRightsInfo{ (Flag::ChangeInfo
 			| Flag::PostMessages
@@ -329,14 +329,10 @@ void EditAdminBox::prepare() {
 	const auto anyoneCanAddMembers = chat
 		? chat->anyoneCanAddMembers()
 		: channel->anyoneCanAddMembers();
-	const auto anyoneCanPinMessages = chat
-		? chat->anyoneCanPinMessages()
-		: channel->anyoneCanPinMessages();
 	const auto options = Data::AdminRightsSetOptions{
 		.isGroup = isGroup,
 		.isForum = peer()->isForum(),
 		.anyoneCanAddMembers = anyoneCanAddMembers,
-		.anyoneCanPinMessages = anyoneCanPinMessages,
 	};
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
 		inner,

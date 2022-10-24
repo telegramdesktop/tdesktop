@@ -538,7 +538,7 @@ bool PeerData::canCreateTopics() const {
 	return false;
 }
 
-bool PeerData::canEditTopics() const {
+bool PeerData::canManageTopics() const {
 	if (const auto channel = asChannel()) {
 		return channel->isForum()
 			&& (channel->amCreator()
@@ -970,7 +970,7 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		} else if (right == ChatRestriction::CreateTopics) {
 			return chat->adminRights() & ChatAdminRight::ManageTopics;
 		} else if (right == ChatRestriction::PinMessages) {
-			return chat->adminRights() & ChatAdminRight::PinMessagesOrTopics;
+			return chat->adminRights() & ChatAdminRight::PinMessages;
 		} else {
 			return chat->hasAdminRights();
 		}

@@ -206,7 +206,7 @@ bool ForumTopic::my() const {
 }
 
 bool ForumTopic::canEdit() const {
-	return my() || channel()->canEditTopics();
+	return my() || channel()->canManageTopics();
 }
 
 bool ForumTopic::canDelete() const {
@@ -223,12 +223,7 @@ bool ForumTopic::canToggleClosed() const {
 }
 
 bool ForumTopic::canTogglePinned() const {
-	if (creating()) {
-		return false;
-	}
-	const auto channel = this->channel();
-	return channel->amCreator()
-		|| (channel->adminRights() & ChatAdminRight::PinMessagesOrTopics);
+	return !creating() && channel()->canManageTopics();
 }
 
 bool ForumTopic::creating() const {

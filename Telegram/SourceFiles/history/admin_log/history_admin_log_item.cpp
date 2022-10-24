@@ -199,18 +199,9 @@ TextWithEntities GenerateAdminChangeText(
 
 	const auto useInviteLinkPhrase = channel->isMegagroup()
 		&& channel->anyoneCanAddMembers();
-	const auto pinMessagesAndTopics = channel->isForum()
-		&& !channel->anyoneCanPinMessages();
-	const auto pinOnlyTopics = channel->isForum()
-		&& channel->anyoneCanPinMessages();
 	const auto invitePhrase = useInviteLinkPhrase
 		? tr::lng_admin_log_admin_invite_link
 		: tr::lng_admin_log_admin_invite_users;
-	const auto pinPhrase = pinOnlyTopics
-		? tr::lng_admin_log_admin_pin_topics
-		: pinMessagesAndTopics
-		? tr::lng_admin_log_admin_pin_messages_topics
-		: tr::lng_admin_log_admin_pin_messages;
 	const auto callPhrase = channel->isBroadcast()
 		? tr::lng_admin_log_admin_manage_calls_channel
 		: tr::lng_admin_log_admin_manage_calls;
@@ -222,12 +213,11 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::BanUsers, tr::lng_admin_log_admin_ban_users },
 		{ Flag::InviteByLinkOrAdd, invitePhrase },
 		{ Flag::ManageTopics, tr::lng_admin_log_admin_manage_topics },
-		{ Flag::PinMessagesOrTopics, pinPhrase },
+		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 	};
 	phraseMap[Flag::InviteByLinkOrAdd] = invitePhrase;
-	phraseMap[Flag::PinMessagesOrTopics] = pinPhrase;
 	phraseMap[Flag::ManageCall] = callPhrase;
 
 	if (!channel->isMegagroup()) {

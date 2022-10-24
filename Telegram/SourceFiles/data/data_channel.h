@@ -324,7 +324,6 @@ public:
 	[[nodiscard]] bool canBanMembers() const;
 	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
-	[[nodiscard]] bool anyoneCanPinMessages() const;
 
 	[[nodiscard]] bool canEditMessages() const;
 	[[nodiscard]] bool canDeleteMessages() const;

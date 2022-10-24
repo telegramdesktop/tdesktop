@@ -528,10 +528,6 @@ bool ChannelData::anyoneCanAddMembers() const {
 	return !(defaultRestrictions() & Restriction::AddParticipants);
 }
 
-bool ChannelData::anyoneCanPinMessages() const {
-	return !(defaultRestrictions() & Restriction::PinMessages);
-}
-
 bool ChannelData::hiddenPreHistory() const {
 	return (flags() & Flag::PreHistoryHidden);
 }

@@ -19,7 +19,7 @@ enum class ChatAdminRight {
 	DeleteMessages = (1 << 3),
 	BanUsers = (1 << 4),
 	InviteByLinkOrAdd = (1 << 5),
-	PinMessagesOrTopics = (1 << 7),
+	PinMessages = (1 << 7),
 	AddAdmins = (1 << 9),
 	Anonymous = (1 << 10),
 	ManageCall = (1 << 11),
@@ -74,7 +74,6 @@ struct AdminRightsSetOptions {
 	bool isGroup : 1 = false;
 	bool isForum : 1 = false;
 	bool anyoneCanAddMembers : 1 = false;
-	bool anyoneCanPinMessages : 1 = false;
 };
 
 struct RestrictionsSetOptions {

@@ -189,7 +189,7 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 		| ((adminRights & Admin::ManageTopics)
 			? Flag(0)
 			: Flag::CreateTopics)
-		| ((adminRights & Admin::PinMessagesOrTopics)
+		| ((adminRights & Admin::PinMessages)
 			? Flag(0)
 			: Flag::PinMessages)
 		| ((adminRights & Admin::InviteByLinkOrAdd)
@@ -311,15 +311,10 @@ ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
 		}
 		Unexpected("User in DisabledByDefaultRestrictions.");
 	}());
-	const auto forum = peer->isForum();
 	return Flag(0)
-		//
-		// We allow to edit 'pin_messages' admin right in forums
-		// even if it is allowed in default permissions, because
-		// if everyone can 'pin_messages' admin can also pin topics.
-		| ((forum || (restrictions & Restriction::PinMessages))
+		| ((restrictions & Restriction::PinMessages)
 			? Flag(0)
-			: Flag::PinMessagesOrTopics)
+			: Flag::PinMessages)
 		//
 		// We allow to edit 'invite_users' admin right no matter what
 		// is chosen in default permissions for 'invite_users', because
@@ -765,11 +760,7 @@ std::vector<AdminRightLabel> AdminRightLabels(
 				? tr::lng_rights_group_invite_link(tr::now)
 				: tr::lng_rights_group_invite(tr::now) },
 			{ Flag::ManageTopics, tr::lng_rights_group_topics(tr::now) },
-			{ Flag::PinMessagesOrTopics, !options.isForum
-				? tr::lng_rights_group_pin(tr::now)
-				: options.anyoneCanPinMessages
-				? tr::lng_rights_group_pin_topics(tr::now)
-				: tr::lng_rights_group_pin_with_topics(tr::now) },
+			{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
 			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },

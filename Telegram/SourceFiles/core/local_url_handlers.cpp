@@ -299,7 +299,7 @@ bool ShowWallPaper(
 		} else if (element == u"manage_topics"_q) {
 			result |= ChatAdminRight::ManageTopics;
 		} else if (element == u"pin_messages"_q) {
-			result |= ChatAdminRight::PinMessagesOrTopics;
+			result |= ChatAdminRight::PinMessages;
 		} else if (element == u"promote_members"_q) {
 			result |= ChatAdminRight::AddAdmins;
 		} else if (element == u"manage_video_chats"_q) {
