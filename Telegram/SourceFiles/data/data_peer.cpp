@@ -524,21 +524,25 @@ bool PeerData::canPinMessages() const {
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
 			? !channel->amRestricted(ChatRestriction::PinMessages)
-			: ((channel->adminRights() & ChatAdminRight::EditMessages)
-				|| channel->amCreator());
+			: ((channel->amCreator()
+				|| channel->adminRights() & ChatAdminRight::EditMessages));
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
 }
 
 bool PeerData::canCreateTopics() const {
-	return isForum() && canPinMessages();
+	if (const auto channel = asChannel()) {
+		return channel->isForum()
+			&& !channel->amRestricted(ChatRestriction::CreateTopics);
+	}
+	return false;
 }
 
 bool PeerData::canEditTopics() const {
 	if (const auto channel = asChannel()) {
 		return channel->isForum()
 			&& (channel->amCreator()
-				|| (channel->adminRights() & ChatAdminRight::PinMessages));
+				|| (channel->adminRights() & ChatAdminRight::ManageTopics));
 	}
 	return false;
 }
@@ -959,12 +963,14 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		ChatRestriction right) const {
 	using Result = Data::RestrictionCheckResult;
 	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
-		if (right == ChatRestriction::InviteUsers) {
-			return chat->adminRights() & ChatAdminRight::InviteUsers;
+		if (right == ChatRestriction::AddParticipants) {
+			return chat->adminRights() & ChatAdminRight::InviteByLinkOrAdd;
 		} else if (right == ChatRestriction::ChangeInfo) {
 			return chat->adminRights() & ChatAdminRight::ChangeInfo;
+		} else if (right == ChatRestriction::CreateTopics) {
+			return chat->adminRights() & ChatAdminRight::ManageTopics;
 		} else if (right == ChatRestriction::PinMessages) {
-			return chat->adminRights() & ChatAdminRight::PinMessages;
+			return chat->adminRights() & ChatAdminRight::PinMessagesOrTopics;
 		} else {
 			return chat->hasAdminRights();
 		}

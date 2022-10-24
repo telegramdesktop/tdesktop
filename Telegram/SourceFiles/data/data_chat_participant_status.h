@@ -18,8 +18,8 @@ enum class ChatAdminRight {
 	EditMessages = (1 << 2),
 	DeleteMessages = (1 << 3),
 	BanUsers = (1 << 4),
-	InviteUsers = (1 << 5),
-	PinMessages = (1 << 7),
+	InviteByLinkOrAdd = (1 << 5),
+	PinMessagesOrTopics = (1 << 7),
 	AddAdmins = (1 << 9),
 	Anonymous = (1 << 10),
 	ManageCall = (1 << 11),
@@ -40,9 +40,9 @@ enum class ChatRestriction {
 	EmbedLinks = (1 << 7),
 	SendPolls = (1 << 8),
 	ChangeInfo = (1 << 10),
-	InviteUsers = (1 << 15),
+	AddParticipants = (1 << 15),
 	PinMessages = (1 << 17),
-	ManageTopics = (1 << 18),
+	CreateTopics = (1 << 18),
 };
 inline constexpr bool is_flag_type(ChatRestriction) { return true; }
 using ChatRestrictions = base::flags<ChatRestriction>;
@@ -74,6 +74,7 @@ struct AdminRightsSetOptions {
 	bool isGroup : 1 = false;
 	bool isForum : 1 = false;
 	bool anyoneCanAddMembers : 1 = false;
+	bool anyoneCanPinMessages : 1 = false;
 };
 
 struct RestrictionsSetOptions {

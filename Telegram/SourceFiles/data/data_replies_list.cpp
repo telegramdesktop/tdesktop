@@ -28,6 +28,7 @@ namespace {
 
 constexpr auto kMessagesPerPage = 50;
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
+constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 
 [[nodiscard]] HistoryService *GenerateDivider(
 		not_null<History*> history,
@@ -945,6 +946,27 @@ void RepliesList::reloadUnreadCountIfNeeded() {
 	} else {
 		requestUnreadCount();
 	}
+}
+
+bool RepliesList::canDeleteMyTopic() const {
+	if (_skippedBefore != 0 || _skippedAfter != 0) {
+		return false;
+	}
+	auto counter = 0;
+	const auto owner = &_history->owner();
+	const auto peerId = _history->peer->id;
+	for (const auto &id : _list) {
+		if (id == _rootId) {
+			continue;
+		} else if (const auto item = owner->message(peerId, id)) {
+			if (!item->out() || ++counter > kMaxMessagesToDeleteMyTopic) {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+	return true;
 }
 
 } // namespace Data

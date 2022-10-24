@@ -210,10 +210,12 @@ bool ForumTopic::canEdit() const {
 }
 
 bool ForumTopic::canDelete() const {
-	return !creating()
-		&& (channel()->canEditTopics()
-			// We don't know if we can delete or not.
-			/*|| (my() && onlyOneMyMessage)*/);
+	if (creating()) {
+		return false;
+	} else if (channel()->canDeleteMessages()) {
+		return true;
+	}
+	return my() && replies()->canDeleteMyTopic();
 }
 
 bool ForumTopic::canToggleClosed() const {
@@ -221,7 +223,12 @@ bool ForumTopic::canToggleClosed() const {
 }
 
 bool ForumTopic::canTogglePinned() const {
-	return !creating() && channel()->canEditTopics();
+	if (creating()) {
+		return false;
+	}
+	const auto channel = this->channel();
+	return channel->amCreator()
+		|| (channel->adminRights() & ChatAdminRight::PinMessagesOrTopics);
 }
 
 bool ForumTopic::creating() const {

@@ -199,9 +199,18 @@ TextWithEntities GenerateAdminChangeText(
 
 	const auto useInviteLinkPhrase = channel->isMegagroup()
 		&& channel->anyoneCanAddMembers();
+	const auto pinMessagesAndTopics = channel->isForum()
+		&& !channel->anyoneCanPinMessages();
+	const auto pinOnlyTopics = channel->isForum()
+		&& channel->anyoneCanPinMessages();
 	const auto invitePhrase = useInviteLinkPhrase
 		? tr::lng_admin_log_admin_invite_link
 		: tr::lng_admin_log_admin_invite_users;
+	const auto pinPhrase = pinOnlyTopics
+		? tr::lng_admin_log_admin_pin_topics
+		: pinMessagesAndTopics
+		? tr::lng_admin_log_admin_pin_messages_topics
+		: tr::lng_admin_log_admin_pin_messages;
 	const auto callPhrase = channel->isBroadcast()
 		? tr::lng_admin_log_admin_manage_calls_channel
 		: tr::lng_admin_log_admin_manage_calls;
@@ -211,12 +220,14 @@ TextWithEntities GenerateAdminChangeText(
 		{ Flag::EditMessages, tr::lng_admin_log_admin_edit_messages },
 		{ Flag::DeleteMessages, tr::lng_admin_log_admin_delete_messages },
 		{ Flag::BanUsers, tr::lng_admin_log_admin_ban_users },
-		{ Flag::InviteUsers, invitePhrase },
-		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
+		{ Flag::InviteByLinkOrAdd, invitePhrase },
+		{ Flag::ManageTopics, tr::lng_admin_log_admin_manage_topics },
+		{ Flag::PinMessagesOrTopics, pinPhrase },
 		{ Flag::ManageCall, tr::lng_admin_log_admin_manage_calls },
 		{ Flag::AddAdmins, tr::lng_admin_log_admin_add_admins },
 	};
-	phraseMap[Flag::InviteUsers] = invitePhrase;
+	phraseMap[Flag::InviteByLinkOrAdd] = invitePhrase;
+	phraseMap[Flag::PinMessagesOrTopics] = pinPhrase;
 	phraseMap[Flag::ManageCall] = callPhrase;
 
 	if (!channel->isMegagroup()) {
@@ -253,7 +264,8 @@ QString GeneratePermissionsChangeText(
 		{ Flag::EmbedLinks, tr::lng_admin_log_banned_embed_links },
 		{ Flag::SendPolls, tr::lng_admin_log_banned_send_polls },
 		{ Flag::ChangeInfo, tr::lng_admin_log_admin_change_info },
-		{ Flag::InviteUsers, tr::lng_admin_log_admin_invite_users },
+		{ Flag::AddParticipants, tr::lng_admin_log_admin_invite_users },
+		{ Flag::CreateTopics, tr::lng_admin_log_admin_create_topics },
 		{ Flag::PinMessages, tr::lng_admin_log_admin_pin_messages },
 	};
 	return CollectChanges(phraseMap, prevRights.flags, newRights.flags);

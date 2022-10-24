@@ -2891,6 +2891,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_rights_group_invite" = "Add users";
 "lng_rights_group_pin" = "Pin messages";
 "lng_rights_group_pin_with_topics" = "Pin messages and topics";
+"lng_rights_group_pin_topics" = "Pin topics";
 "lng_rights_group_topics" = "Manage topics";
 "lng_rights_group_add_topics" = "Create topics";
 "lng_rights_group_manage_calls" = "Manage voice chats";
@@ -3109,6 +3110,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_invite_users" = "Add members";
 "lng_admin_log_admin_invite_link" = "Invite users via link";
 "lng_admin_log_admin_pin_messages" = "Pin messages";
+"lng_admin_log_admin_pin_messages_topics" = "Pin messages and topics";
+"lng_admin_log_admin_pin_topics" = "Pin topics";
+"lng_admin_log_admin_manage_topics" = "Manage topics";
+"lng_admin_log_admin_create_topics" = "Create topics";
 "lng_admin_log_admin_manage_calls" = "Manage voice chats";
 "lng_admin_log_admin_manage_calls_channel" = "Manage live streams";
 "lng_admin_log_admin_add_admins" = "Add new admins";

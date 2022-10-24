@@ -57,8 +57,8 @@ ChatAdminRightsInfo ChatData::defaultAdminRights(not_null<UserData*> user) {
 		| Flag::ChangeInfo
 		| Flag::DeleteMessages
 		| Flag::BanUsers
-		| Flag::InviteUsers
-		| Flag::PinMessages
+		| Flag::InviteByLinkOrAdd
+		| Flag::PinMessagesOrTopics
 		| Flag::ManageCall
 		| (isCreator ? Flag::AddAdmins : Flag(0)));
 }
@@ -96,7 +96,7 @@ bool ChatData::canDeleteMessages() const {
 }
 
 bool ChatData::canAddMembers() const {
-	return amIn() && !amRestricted(ChatRestriction::InviteUsers);
+	return amIn() && !amRestricted(ChatRestriction::AddParticipants);
 }
 
 bool ChatData::canSendPolls() const {
@@ -113,7 +113,11 @@ bool ChatData::canBanMembers() const {
 }
 
 bool ChatData::anyoneCanAddMembers() const {
-	return !(defaultRestrictions() & ChatRestriction::InviteUsers);
+	return !(defaultRestrictions() & ChatRestriction::AddParticipants);
+}
+
+bool ChatData::anyoneCanPinMessages() const {
+	return !(defaultRestrictions() & ChatRestriction::PinMessages);
 }
 
 void ChatData::setName(const QString &newName) {
@@ -147,7 +151,7 @@ void ChatData::setInviteLink(const QString &newInviteLink) {
 
 bool ChatData::canHaveInviteLink() const {
 	return amCreator()
-		|| (adminRights() & ChatAdminRight::InviteUsers);
+		|| (adminRights() & ChatAdminRight::InviteByLinkOrAdd);
 }
 
 void ChatData::setAdminRights(ChatAdminRights rights) {

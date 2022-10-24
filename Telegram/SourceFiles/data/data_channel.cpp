@@ -201,7 +201,7 @@ void ChannelData::setInviteLink(const QString &newInviteLink) {
 
 bool ChannelData::canHaveInviteLink() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::InviteUsers);
+		|| (adminRights() & AdminRight::InviteByLinkOrAdd);
 }
 
 void ChannelData::setLocation(const MTPChannelLocation &data) {
@@ -525,7 +525,11 @@ bool ChannelData::canDeleteMessages() const {
 }
 
 bool ChannelData::anyoneCanAddMembers() const {
-	return !(defaultRestrictions() & Restriction::InviteUsers);
+	return !(defaultRestrictions() & Restriction::AddParticipants);
+}
+
+bool ChannelData::anyoneCanPinMessages() const {
+	return !(defaultRestrictions() & Restriction::PinMessages);
 }
 
 bool ChannelData::hiddenPreHistory() const {
@@ -534,8 +538,8 @@ bool ChannelData::hiddenPreHistory() const {
 
 bool ChannelData::canAddMembers() const {
 	return isMegagroup()
-		? !amRestricted(ChatRestriction::InviteUsers)
-		: ((adminRights() & AdminRight::InviteUsers) || amCreator());
+		? !amRestricted(ChatRestriction::AddParticipants)
+		: ((adminRights() & AdminRight::InviteByLinkOrAdd) || amCreator());
 }
 
 bool ChannelData::canSendPolls() const {

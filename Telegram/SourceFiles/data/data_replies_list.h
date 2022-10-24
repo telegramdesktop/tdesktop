@@ -54,6 +54,8 @@ public:
 	void readTill(not_null<HistoryItem*> item);
 	void readTill(MsgId tillId);
 
+	[[nodiscard]] bool canDeleteMyTopic() const;
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

@@ -148,7 +148,8 @@ ChatRestrictions NegateRestrictions(ChatRestrictions value) {
 		//| Flag::ViewMessages
 		| Flag::ChangeInfo
 		| Flag::EmbedLinks
-		| Flag::InviteUsers
+		| Flag::AddParticipants
+		| Flag::CreateTopics
 		| Flag::PinMessages
 		| Flag::SendGames
 		| Flag::SendGifs
@@ -185,12 +186,15 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 		Unexpected("User in DisabledByAdminRights.");
 	}();
 	return Flag(0)
-		| ((adminRights & Admin::PinMessages)
+		| ((adminRights & Admin::ManageTopics)
+			? Flag(0)
+			: Flag::CreateTopics)
+		| ((adminRights & Admin::PinMessagesOrTopics)
 			? Flag(0)
 			: Flag::PinMessages)
-		| ((adminRights & Admin::InviteUsers)
+		| ((adminRights & Admin::InviteByLinkOrAdd)
 			? Flag(0)
-			: Flag::InviteUsers)
+			: Flag::AddParticipants)
 		| ((adminRights & Admin::ChangeInfo)
 			? Flag(0)
 			: Flag::ChangeInfo);
@@ -307,18 +311,23 @@ ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
 		}
 		Unexpected("User in DisabledByDefaultRestrictions.");
 	}());
+	const auto forum = peer->isForum();
 	return Flag(0)
-		| ((restrictions & Restriction::PinMessages)
+		//
+		// We allow to edit 'pin_messages' admin right in forums
+		// even if it is allowed in default permissions, because
+		// if everyone can 'pin_messages' admin can also pin topics.
+		| ((forum || (restrictions & Restriction::PinMessages))
 			? Flag(0)
-			: Flag::PinMessages)
+			: Flag::PinMessagesOrTopics)
 		//
 		// We allow to edit 'invite_users' admin right no matter what
 		// is chosen in default permissions for 'invite_users', because
 		// if everyone can 'invite_users' it handles invite link for admins.
 		//
-		//| ((restrictions & Restriction::InviteUsers)
+		//| ((restrictions & Restriction::AddParticipants)
 		//	? Flag(0)
-		//	: Flag::InviteUsers)
+		//	: Flag::InviteByLinkOrAdd)
 		//
 		| ((restrictions & Restriction::ChangeInfo)
 			? Flag(0)
@@ -727,8 +736,8 @@ std::vector<RestrictionLabel> RestrictionLabels(
 			| Flag::SendInline, tr::lng_rights_chat_send_stickers(tr::now) },
 		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
 		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
-		{ Flag::InviteUsers, tr::lng_rights_chat_add_members(tr::now) },
-		{ Flag::ManageTopics, tr::lng_rights_group_add_topics(tr::now) },
+		{ Flag::AddParticipants, tr::lng_rights_chat_add_members(tr::now) },
+		{ Flag::CreateTopics, tr::lng_rights_group_add_topics(tr::now) },
 		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
 		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 	};
@@ -736,7 +745,7 @@ std::vector<RestrictionLabel> RestrictionLabels(
 		result.erase(
 			ranges::remove(
 				result,
-				Flag::ManageTopics,
+				Flag::CreateTopics,
 				&RestrictionLabel::flags),
 			end(result));
 	}
@@ -752,13 +761,15 @@ std::vector<AdminRightLabel> AdminRightLabels(
 			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
 			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
 			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
-			{ Flag::InviteUsers, options.anyoneCanAddMembers
+			{ Flag::InviteByLinkOrAdd, options.anyoneCanAddMembers
 				? tr::lng_rights_group_invite_link(tr::now)
 				: tr::lng_rights_group_invite(tr::now) },
 			{ Flag::ManageTopics, tr::lng_rights_group_topics(tr::now) },
-			{ Flag::PinMessages, options.isForum
-				? tr::lng_rights_group_pin_with_topics(tr::now)
-				: tr::lng_rights_group_pin(tr::now) },
+			{ Flag::PinMessagesOrTopics, !options.isForum
+				? tr::lng_rights_group_pin(tr::now)
+				: options.anyoneCanPinMessages
+				? tr::lng_rights_group_pin_topics(tr::now)
+				: tr::lng_rights_group_pin_with_topics(tr::now) },
 			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
 			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
@@ -778,7 +789,7 @@ std::vector<AdminRightLabel> AdminRightLabels(
 			{ Flag::PostMessages, tr::lng_rights_channel_post(tr::now) },
 			{ Flag::EditMessages, tr::lng_rights_channel_edit(tr::now) },
 			{ Flag::DeleteMessages, tr::lng_rights_channel_delete(tr::now) },
-			{ Flag::InviteUsers, tr::lng_rights_group_invite(tr::now) },
+			{ Flag::InviteByLinkOrAdd, tr::lng_rights_group_invite(tr::now) },
 			{ Flag::ManageCall, tr::lng_rights_channel_manage_calls(tr::now) },
 			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) }
 		};

@@ -295,9 +295,11 @@ bool ShowWallPaper(
 		} else if (element == u"restrict_members"_q) {
 			result |= ChatAdminRight::BanUsers;
 		} else if (element == u"invite_users"_q) {
-			result |= ChatAdminRight::InviteUsers;
+			result |= ChatAdminRight::InviteByLinkOrAdd;
+		} else if (element == u"manage_topics"_q) {
+			result |= ChatAdminRight::ManageTopics;
 		} else if (element == u"pin_messages"_q) {
-			result |= ChatAdminRight::PinMessages;
+			result |= ChatAdminRight::PinMessagesOrTopics;
 		} else if (element == u"promote_members"_q) {
 			result |= ChatAdminRight::AddAdmins;
 		} else if (element == u"manage_video_chats"_q) {

@@ -264,7 +264,7 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 			| ChatDataFlag::Creator;
 		return rpl::combine(
 			PeerFlagsValue(chat, mask),
-			AdminRightValue(chat, ChatAdminRight::PinMessages),
+			AdminRightValue(chat, ChatAdminRight::PinMessagesOrTopics),
 			DefaultRestrictionValue(chat, ChatRestriction::PinMessages),
 		[](
 				ChatDataFlags flags,
@@ -284,7 +284,7 @@ rpl::producer<bool> CanPinMessagesValue(not_null<PeerData*> peer) {
 			return rpl::single(true);
 		}
 		return rpl::combine(
-			AdminRightValue(megagroup, ChatAdminRight::PinMessages),
+			AdminRightValue(megagroup, ChatAdminRight::PinMessagesOrTopics),
 			DefaultRestrictionValue(megagroup, ChatRestriction::PinMessages),
 			PeerFlagsValue(
 				megagroup,

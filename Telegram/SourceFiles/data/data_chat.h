@@ -112,6 +112,7 @@ public:
 	[[nodiscard]] bool canBanMembers() const;
 	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool anyoneCanAddMembers() const;
+	[[nodiscard]] bool anyoneCanPinMessages() const;
 
 	void applyEditAdmin(not_null<UserData*> user, bool isAdmin);
 
