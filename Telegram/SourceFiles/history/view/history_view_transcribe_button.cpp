@@ -27,14 +27,20 @@ constexpr auto kOutNonChosenOpacity = 0.18;
 
 } // namespace
 
-TranscribeButton::TranscribeButton(not_null<HistoryItem*> item)
-: _item(item) {
+TranscribeButton::TranscribeButton(
+	not_null<HistoryItem*> item,
+	bool roundview)
+: _item(item)
+, _roundview(roundview)
+, _size(!roundview
+	? st::historyTranscribeSize
+	: QSize(st::historyFastShareSize, st::historyFastShareSize)) {
 }
 
 TranscribeButton::~TranscribeButton() = default;
 
 QSize TranscribeButton::size() const {
-	return st::historyTranscribeSize;
+	return _size;
 }
 
 void TranscribeButton::setLoading(bool loading, Fn<void()> update) {
@@ -60,6 +66,41 @@ void TranscribeButton::paint(
 	auto hq = PainterHighQualityEnabler(p);
 	const auto opened = _openedAnimation.value(_opened ? 1. : 0.);
 	const auto stm = context.messageStyle();
+	if (_roundview) {
+		_lastPaintedPoint = { x, y };
+
+		PainterHighQualityEnabler hq(p);
+		p.setPen(Qt::NoPen);
+		p.setBrush(context.st->msgServiceBg());
+
+		const auto r = QRect(QPoint(x, y), size());
+		p.drawEllipse(r);
+		context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+
+		const auto state = _animation
+			? _animation->computeState()
+			: Ui::RadialState();
+
+		auto pen = QPen(st::msgServiceFg);
+		pen.setCapStyle(Qt::RoundCap);
+		p.setPen(pen);
+		if (_animation && state.shown > 0 && anim::Disabled()) {
+			const auto _st = &st::defaultRadio;
+			anim::DrawStaticLoading(
+				p,
+				r,
+				_st->thickness,
+				pen.color(),
+				_st->bg);
+		} else if (state.arcLength < FullArcLength) {
+			const auto opacity = p.opacity();
+			p.setOpacity(state.shown * (1. - opened));
+			p.drawArc(r, state.arcFrom, state.arcLength);
+			p.setOpacity(opacity);
+		}
+
+		return;
+	}
 	auto bg = stm->msgFileBg->c;
 	bg.setAlphaF(bg.alphaF() * (context.outbg
 		? kOutNonChosenOpacity
@@ -152,6 +193,10 @@ ClickHandlerPtr TranscribeButton::link() {
 		}
 	});
 	return _link;
+}
+
+QRect TranscribeButton::lastPaintedRect() const {
+	return { _lastPaintedPoint, size() };
 }
 
 } // namespace HistoryView

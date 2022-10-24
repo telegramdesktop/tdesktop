@@ -288,7 +288,8 @@ QSize Document::countOptimalSize() {
 			const auto creating = !voice->transcribe;
 			if (creating) {
 				voice->transcribe = std::make_unique<TranscribeButton>(
-					_realParent);
+					_realParent,
+					false);
 			}
 			const auto &entry = session->api().transcribes().entry(
 				_realParent);

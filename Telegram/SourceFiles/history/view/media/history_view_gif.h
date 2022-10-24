@@ -37,6 +37,8 @@ enum class Error;
 
 namespace HistoryView {
 
+class TranscribeButton;
+
 class Gif final : public File {
 public:
 	Gif(
@@ -152,6 +154,14 @@ private:
 	void handleStreamingError(::Media::Streaming::Error &&error);
 	void streamingReady(::Media::Streaming::Information &&info);
 	void repaintStreamedContent();
+	void ensureTranscribeButton() const;
+
+	void paintTranscribe(
+		Painter &p,
+		int x,
+		int y,
+		bool right,
+		const PaintContext &context) const;
 
 	[[nodiscard]] bool needInfoDisplay() const;
 	[[nodiscard]] bool needCornerStatusDisplay() const;
@@ -192,6 +202,7 @@ private:
 	const not_null<DocumentData*> _data;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
+	mutable std::unique_ptr<TranscribeButton> _transcribe;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;
 	QString _downloadSize;
@@ -200,8 +211,6 @@ private:
 	mutable std::optional<Ui::BubbleRounding> _thumbCacheRounding;
 	mutable bool _thumbCacheBlurred = false;
 	mutable bool _thumbIsEllipse = false;
-
-	ClickHandlerPtr _transcribe;
 
 };
 

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
@@ -95,13 +96,7 @@ Gif::Gif(
 			_data->loadVideoThumbnail(realParent->fullId());
 		}
 	}
-
-	_transcribe = std::make_shared<LambdaClickHandler>([=,
-			id = realParent->fullId()] {
-		if (const auto item = _data->session().data().message(id)) {
-			_data->session().api().transcribes().toggle(item);
-		}
-	});
+	ensureTranscribeButton();
 }
 
 Gif::~Gif() {
@@ -153,6 +148,13 @@ QSize Gif::countOptimalSize() {
 		_caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
+	}
+	if (_data->isVideoMessage() && _transcribe) {
+		const auto &entry = _data->session().api().transcribes().entry(
+			_realParent);
+		_transcribe->setLoading(
+			entry.shown && (entry.requestId || entry.pending),
+			[=] { repaint(); });
 	}
 
 	const auto minWidth = std::clamp(
@@ -586,6 +588,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					p.drawEllipse(style::rtlrect(statusX - st::msgDateImgPadding.x() + statusW - st::msgDateImgPadding.x() - st::mediaUnreadSize, statusY + st::mediaUnreadTop, st::mediaUnreadSize, st::mediaUnreadSize, width()));
 				}
 			}
+			ensureTranscribeButton();
 		}
 		if (via || reply || forwarded) {
 			auto rectw = width() - usew - st::msgReplyPadding.left();
@@ -674,31 +677,52 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					? InfoDisplayType::Background
 					: InfoDisplayType::Image));
 		}
-		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
+		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()
+			; size || _transcribe) {
+			const auto rightActionWidth = size
+				? size->width()
+				: _transcribe->size().width();
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
-			if (fastShareLeft + size->width() > maxRight) {
-				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
-				fastShareTop -= (st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y());
+			auto fastShareTop = fullBottom
+				- st::historyFastShareBottom
+				- (size ? size->height() : 0);
+			if (fastShareLeft + rightActionWidth > maxRight) {
+				fastShareLeft = fullRight
+					- rightActionWidth
+					- st::msgDateImgDelta;
+				fastShareTop -= st::msgDateImgDelta
+					+ st::msgDateImgPadding.y()
+					+ st::msgDateFont->height
+					+ st::msgDateImgPadding.y();
 			}
-			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
-			if (_data->session().premium()) {
-				const auto stm = context.messageStyle();
-				PainterHighQualityEnabler hq(p);
-				p.setPen(Qt::NoPen);
-				p.setBrush(context.st->msgServiceBg());
-
-				const auto s = st::historyFastShareSize;
-				const auto r = QRect(
-					fastShareLeft,
-					fastShareTop - s - st::msgDateImgDelta,
-					s,
-					s);
-				p.drawEllipse(r);
-				context.st->historyFastTranscribeIcon().paintInCenter(p, r);
+			if (size) {
+				_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
+			}
+			if (_transcribe) {
+				paintTranscribe(p, fastShareLeft, fastShareTop, true, context);
 			}
 		}
+		if (_parent->hasOutLayout() && _transcribe) {
+			paintTranscribe(p, usex, fullBottom, false, context);
+		}
 	}
+}
+
+void Gif::paintTranscribe(
+		Painter &p,
+		int x,
+		int y,
+		bool right,
+		const PaintContext &context) const {
+	if (!_transcribe) {
+		return;
+	}
+	const auto s = _transcribe->size();
+	_transcribe->paint(
+		p,
+		x - (right ? 0 : s.width()),
+		y - s.height() - st::msgDateImgDelta,
+		context);
 }
 
 void Gif::validateVideoThumbnail() const {
@@ -991,26 +1015,26 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 			}
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
+			const auto rightActionWidth = size->width();
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
-			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
-			if (fastShareLeft + size->width() > maxRight) {
-				fastShareLeft = (fullRight - size->width() - st::msgDateImgDelta);
-				fastShareTop -= st::msgDateImgDelta + st::msgDateImgPadding.y() + st::msgDateFont->height + st::msgDateImgPadding.y();
+			auto fastShareTop = fullBottom
+				- st::historyFastShareBottom
+				- size->height();
+			if (fastShareLeft + rightActionWidth > maxRight) {
+				fastShareLeft = fullRight
+					- rightActionWidth
+					- st::msgDateImgDelta;
+				fastShareTop -= st::msgDateImgDelta
+					+ st::msgDateImgPadding.y()
+					+ st::msgDateFont->height
+					+ st::msgDateImgPadding.y();
 			}
-			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
+			if (QRect(QPoint(fastShareLeft, fastShareTop), *size).contains(point)) {
 				result.link = _parent->rightActionLink();
 			}
-			if (_data->session().premium()) {
-				const auto s = st::historyFastShareSize;
-				const auto r = QRect(
-					fastShareLeft,
-					fastShareTop - s - st::msgDateImgDelta,
-					s,
-					s);
-				if (r.contains(point)) {
-					result.link = _transcribe;
-				}
-			}
+		}
+		if (_transcribe && _transcribe->lastPaintedRect().contains(point)) {
+			result.link = _transcribe->link();
 		}
 	}
 	return result;
@@ -1725,6 +1749,18 @@ bool Gif::needInfoDisplay() const {
 bool Gif::needCornerStatusDisplay() const {
 	return _data->isVideoFile()
 		|| needInfoDisplay();
+}
+
+void Gif::ensureTranscribeButton() const {
+	if (_data->session().premium()) {
+		if (!_transcribe) {
+			_transcribe = std::make_unique<TranscribeButton>(
+				_realParent,
+				true);
+		}
+	} else {
+		_transcribe = nullptr;
+	}
 }
 
 } // namespace HistoryView
