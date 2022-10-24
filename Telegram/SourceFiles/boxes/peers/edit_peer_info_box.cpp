@@ -67,14 +67,6 @@ namespace {
 	});
 }
 
-[[nodiscard]] auto ToPositiveNumberStringRestrictions() {
-	return rpl::map([](int count) {
-		return QString::number(count)
-		+ QString("/")
-		+ QString::number(int(Data::ListOfRestrictions().size()));
-	});
-}
-
 void AddSkip(
 		not_null<Ui::VerticalLayout*> container,
 		int top = st::editPeerTopButtonsLayoutSkip,
@@ -1086,10 +1078,16 @@ void Controller::fillManageSection() {
 			tr::lng_manage_peer_permissions(),
 			Info::Profile::MigratedOrMeValue(
 				_peer
-			) | rpl::map(
-				Info::Profile::RestrictionsCountValue
-			) | rpl::flatten_latest(
-			) | ToPositiveNumberStringRestrictions(),
+			) | rpl::map([=](not_null<PeerData*> peer) {
+				return Info::Profile::RestrictionsCountValue(
+					peer
+				) | rpl::map([=](int count) {
+					return QString::number(count)
+						+ QString("/")
+						+ QString::number(int(Data::ListOfRestrictions(
+							{ .isForum = peer->isForum() }).size()));
+				});
+			}) | rpl::flatten_latest(),
 			[=] { ShowEditPermissions(_navigation, _peer); },
 			{ &st::settingsIconKey, Settings::kIconGreen });
 	}

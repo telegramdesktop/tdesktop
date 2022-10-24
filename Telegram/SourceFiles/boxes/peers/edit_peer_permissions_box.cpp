@@ -106,58 +106,6 @@ void ApplyDependencies(
 	};
 }
 
-std::vector<std::pair<ChatRestrictions, QString>> RestrictionLabels() {
-	const auto langKeys = {
-		tr::lng_rights_chat_send_text,
-		tr::lng_rights_chat_send_media,
-		tr::lng_rights_chat_send_stickers,
-		tr::lng_rights_chat_send_links,
-		tr::lng_rights_chat_send_polls,
-		tr::lng_rights_chat_add_members,
-		tr::lng_rights_group_pin,
-		tr::lng_rights_group_info,
-	};
-
-	std::vector<std::pair<ChatRestrictions, QString>> vector;
-	const auto restrictions = Data::ListOfRestrictions();
-	auto i = 0;
-	for (const auto &key : langKeys) {
-		vector.emplace_back(restrictions[i++], key(tr::now));
-	}
-	return vector;
-}
-
-std::vector<std::pair<ChatAdminRights, QString>> AdminRightLabels(
-		bool isGroup,
-		bool anyoneCanAddMembers) {
-	using Flag = ChatAdminRight;
-
-	if (isGroup) {
-		return {
-			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
-			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
-			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
-			{ Flag::InviteUsers, anyoneCanAddMembers
-				? tr::lng_rights_group_invite_link(tr::now)
-				: tr::lng_rights_group_invite(tr::now) },
-			{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
-			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
-			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
-			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
-		};
-	} else {
-		return {
-			{ Flag::ChangeInfo, tr::lng_rights_channel_info(tr::now) },
-			{ Flag::PostMessages, tr::lng_rights_channel_post(tr::now) },
-			{ Flag::EditMessages, tr::lng_rights_channel_edit(tr::now) },
-			{ Flag::DeleteMessages, tr::lng_rights_channel_delete(tr::now) },
-			{ Flag::InviteUsers, tr::lng_rights_group_invite(tr::now) },
-			{ Flag::ManageCall, tr::lng_rights_channel_manage_calls(tr::now) },
-			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) }
-		};
-	}
-}
-
 auto Dependencies(ChatRestrictions)
 -> std::vector<std::pair<ChatRestriction, ChatRestriction>> {
 	using Flag = ChatRestriction;
@@ -248,6 +196,103 @@ ChatRestrictions DisabledByAdminRights(not_null<PeerData*> peer) {
 			: Flag::ChangeInfo);
 }
 
+template <
+	typename Flags,
+	typename DisabledMessagePairs,
+	typename FlagLabelPairs>
+[[nodiscard]] EditFlagsControl<Flags> CreateEditFlags(
+		QWidget *parent,
+		rpl::producer<QString> header,
+		Flags checked,
+		const DisabledMessagePairs &disabledMessagePairs,
+		const FlagLabelPairs &flagLabelPairs) {
+	auto widget = object_ptr<Ui::VerticalLayout>(parent);
+	const auto container = widget.data();
+
+	const auto checkboxes = container->lifetime(
+	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
+
+	const auto value = [=] {
+		auto result = Flags(0);
+		for (const auto &[flags, checkbox] : *checkboxes) {
+			if (checkbox->checked()) {
+				result |= flags;
+			} else {
+				result &= ~flags;
+			}
+		}
+		return result;
+	};
+
+	const auto changes = container->lifetime(
+	).make_state<rpl::event_stream<>>();
+
+	const auto applyDependencies = [=](Ui::Checkbox *control) {
+		static const auto dependencies = Dependencies(Flags());
+		ApplyDependencies(*checkboxes, dependencies, control);
+	};
+
+	container->add(
+		object_ptr<Ui::FlatLabel>(
+			container,
+			std::move(header),
+			st::rightsHeaderLabel),
+		st::rightsHeaderMargin);
+
+	auto addCheckbox = [&](Flags flags, const QString &text) {
+		const auto lockedIt = ranges::find_if(
+			disabledMessagePairs,
+			[&](const auto &pair) { return (pair.first & flags) != 0; });
+		const auto locked = (lockedIt != end(disabledMessagePairs))
+			? std::make_optional(lockedIt->second)
+			: std::nullopt;
+		const auto toggled = ((checked & flags) != 0);
+		auto toggle = std::make_unique<Ui::ToggleView>(
+			st::rightsToggle,
+			toggled);
+		toggle->setLocked(locked.has_value());
+		const auto control = container->add(
+			object_ptr<Ui::Checkbox>(
+				container,
+				text,
+				st::rightsCheckbox,
+				std::move(toggle)),
+			st::rightsToggleMargin);
+		control->checkedChanges(
+		) | rpl::start_with_next([=](bool checked) {
+			if (locked.has_value()) {
+				if (checked != toggled) {
+					Ui::ShowMultilineToast({
+						.parentOverride = parent,
+						.text = { *locked },
+					});
+					control->setChecked(toggled);
+				}
+			} else {
+				InvokeQueued(control, [=] {
+					applyDependencies(control);
+					changes->fire({});
+				});
+			}
+		}, control->lifetime());
+		checkboxes->emplace(flags, control);
+	};
+	for (const auto &[flags, label] : flagLabelPairs) {
+		addCheckbox(flags, label);
+	}
+
+	applyDependencies(nullptr);
+	for (const auto &[flags, checkbox] : *checkboxes) {
+		checkbox->finishAnimating();
+	}
+
+	return {
+		std::move(widget),
+		value,
+		changes->events() | rpl::map(value)
+	};
+}
+
 } // namespace
 
 ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer) {
@@ -306,9 +351,10 @@ ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions) {
 	return restrictions;
 }
 
-ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup) {
+ChatAdminRights AdminRightsForOwnershipTransfer(
+		Data::AdminRightsSetOptions options) {
 	auto result = ChatAdminRights();
-	for (const auto &[flag, label] : AdminRightLabels(isGroup, true)) {
+	for (const auto &[flag, label] : AdminRightLabels(options)) {
 		if (!(flag & ChatAdminRight::Anonymous)) {
 			result |= flag;
 		}
@@ -445,7 +491,8 @@ void EditPeerPermissionsBox::prepare() {
 		this,
 		tr::lng_rights_default_restrictions_header(),
 		restrictions,
-		disabledMessages);
+		disabledMessages,
+		{ .isForum = _peer->isForum() });
 
 	inner->add(std::move(checkboxes));
 
@@ -668,114 +715,88 @@ void EditPeerPermissionsBox::addBannedButtons(
 	}
 }
 
-template <
-	typename Flags,
-	typename DisabledMessagePairs,
-	typename FlagLabelPairs>
-EditFlagsControl<Flags> CreateEditFlags(
-		QWidget *parent,
-		rpl::producer<QString> header,
-		Flags checked,
-		const DisabledMessagePairs &disabledMessagePairs,
-		const FlagLabelPairs &flagLabelPairs) {
-	auto widget = object_ptr<Ui::VerticalLayout>(parent);
-	const auto container = widget.data();
+std::vector<RestrictionLabel> RestrictionLabels(
+		Data::RestrictionsSetOptions options) {
+	using Flag = ChatRestriction;
+	auto result = std::vector<RestrictionLabel>{
+		{ Flag::SendMessages, tr::lng_rights_chat_send_text(tr::now) },
+		{ Flag::SendMedia, tr::lng_rights_chat_send_media(tr::now) },
+		{ Flag::SendStickers
+			| Flag::SendGifs
+			| Flag::SendGames
+			| Flag::SendInline, tr::lng_rights_chat_send_stickers(tr::now) },
+		{ Flag::EmbedLinks, tr::lng_rights_chat_send_links(tr::now) },
+		{ Flag::SendPolls, tr::lng_rights_chat_send_polls(tr::now) },
+		{ Flag::InviteUsers, tr::lng_rights_chat_add_members(tr::now) },
+		{ Flag::ManageTopics, tr::lng_rights_group_add_topics(tr::now) },
+		{ Flag::PinMessages, tr::lng_rights_group_pin(tr::now) },
+		{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
+	};
+	if (!options.isForum) {
+		result.erase(
+			ranges::remove(
+				result,
+				Flag::ManageTopics,
+				&RestrictionLabel::flags),
+			end(result));
+	}
+	return result;
+}
 
-	const auto checkboxes = container->lifetime(
-	).make_state<std::map<Flags, QPointer<Ui::Checkbox>>>();
+std::vector<AdminRightLabel> AdminRightLabels(
+		Data::AdminRightsSetOptions options) {
+	using Flag = ChatAdminRight;
 
-	const auto value = [=] {
-		auto result = Flags(0);
-		for (const auto &[flags, checkbox] : *checkboxes) {
-			if (checkbox->checked()) {
-				result |= flags;
-			} else {
-				result &= ~flags;
-			}
+	if (options.isGroup) {
+		auto result = std::vector<AdminRightLabel>{
+			{ Flag::ChangeInfo, tr::lng_rights_group_info(tr::now) },
+			{ Flag::DeleteMessages, tr::lng_rights_group_delete(tr::now) },
+			{ Flag::BanUsers, tr::lng_rights_group_ban(tr::now) },
+			{ Flag::InviteUsers, options.anyoneCanAddMembers
+				? tr::lng_rights_group_invite_link(tr::now)
+				: tr::lng_rights_group_invite(tr::now) },
+			{ Flag::ManageTopics, tr::lng_rights_group_topics(tr::now) },
+			{ Flag::PinMessages, options.isForum
+				? tr::lng_rights_group_pin_with_topics(tr::now)
+				: tr::lng_rights_group_pin(tr::now) },
+			{ Flag::ManageCall, tr::lng_rights_group_manage_calls(tr::now) },
+			{ Flag::Anonymous, tr::lng_rights_group_anonymous(tr::now) },
+			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) },
+		};
+		if (!options.isForum) {
+			result.erase(
+				ranges::remove(
+					result,
+					Flag::ManageTopics,
+					&AdminRightLabel::flags),
+				end(result));
 		}
 		return result;
-	};
-
-	const auto changes = container->lifetime(
-	).make_state<rpl::event_stream<>>();
-
-	const auto applyDependencies = [=](Ui::Checkbox *control) {
-		static const auto dependencies = Dependencies(Flags());
-		ApplyDependencies(*checkboxes, dependencies, control);
-	};
-
-	container->add(
-		object_ptr<Ui::FlatLabel>(
-			container,
-			std::move(header),
-			st::rightsHeaderLabel),
-		st::rightsHeaderMargin);
-
-	auto addCheckbox = [&](Flags flags, const QString &text) {
-		const auto lockedIt = ranges::find_if(
-			disabledMessagePairs,
-			[&](const auto &pair) { return (pair.first & flags) != 0; });
-		const auto locked = (lockedIt != end(disabledMessagePairs))
-			? std::make_optional(lockedIt->second)
-			: std::nullopt;
-		const auto toggled = ((checked & flags) != 0);
-		auto toggle = std::make_unique<Ui::ToggleView>(
-			st::rightsToggle,
-			toggled);
-		toggle->setLocked(locked.has_value());
-		const auto control = container->add(
-			object_ptr<Ui::Checkbox>(
-				container,
-				text,
-				st::rightsCheckbox,
-				std::move(toggle)),
-			st::rightsToggleMargin);
-		control->checkedChanges(
-		) | rpl::start_with_next([=](bool checked) {
-			if (locked.has_value()) {
-				if (checked != toggled) {
-					Ui::ShowMultilineToast({
-						.parentOverride = parent,
-						.text = { *locked },
-					});
-					control->setChecked(toggled);
-				}
-			} else {
-				InvokeQueued(control, [=] {
-					applyDependencies(control);
-					changes->fire({});
-				});
-			}
-		}, control->lifetime());
-		checkboxes->emplace(flags, control);
-	};
-	for (const auto &[flags, label] : flagLabelPairs) {
-		addCheckbox(flags, label);
+	} else {
+		return {
+			{ Flag::ChangeInfo, tr::lng_rights_channel_info(tr::now) },
+			{ Flag::PostMessages, tr::lng_rights_channel_post(tr::now) },
+			{ Flag::EditMessages, tr::lng_rights_channel_edit(tr::now) },
+			{ Flag::DeleteMessages, tr::lng_rights_channel_delete(tr::now) },
+			{ Flag::InviteUsers, tr::lng_rights_group_invite(tr::now) },
+			{ Flag::ManageCall, tr::lng_rights_channel_manage_calls(tr::now) },
+			{ Flag::AddAdmins, tr::lng_rights_add_admins(tr::now) }
+		};
 	}
-
-	applyDependencies(nullptr);
-	for (const auto &[flags, checkbox] : *checkboxes) {
-		checkbox->finishAnimating();
-	}
-
-	return {
-		std::move(widget),
-		value,
-		changes->events() | rpl::map(value)
-	};
 }
 
 EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
 		QWidget *parent,
 		rpl::producer<QString> header,
 		ChatRestrictions restrictions,
-		std::map<ChatRestrictions, QString> disabledMessages) {
+		std::map<ChatRestrictions, QString> disabledMessages,
+		Data::RestrictionsSetOptions options) {
 	auto result = CreateEditFlags(
 		parent,
 		header,
 		NegateRestrictions(restrictions),
 		disabledMessages,
-		RestrictionLabels());
+		RestrictionLabels(options));
 	result.value = [original = std::move(result.value)]{
 		return NegateRestrictions(original());
 	};
@@ -791,12 +812,11 @@ EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
 		rpl::producer<QString> header,
 		ChatAdminRights rights,
 		std::map<ChatAdminRights, QString> disabledMessages,
-		bool isGroup,
-		bool anyoneCanAddMembers) {
+		Data::AdminRightsSetOptions options) {
 	return CreateEditFlags(
 		parent,
 		header,
 		rights,
 		disabledMessages,
-		AdminRightLabels(isGroup, anyoneCanAddMembers));
+		AdminRightLabels(options));
 }

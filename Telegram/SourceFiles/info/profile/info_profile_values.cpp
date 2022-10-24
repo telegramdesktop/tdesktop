@@ -418,12 +418,15 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 
 
 rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
-	const auto countOfRestrictions = [](ChatRestrictions restrictions) {
+	const auto countOfRestrictions = [](
+			Data::RestrictionsSetOptions options,
+			ChatRestrictions restrictions) {
 		auto count = 0;
-		for (const auto &f : Data::ListOfRestrictions()) {
+		const auto list = Data::ListOfRestrictions(options);
+		for (const auto &f : list) {
 			if (restrictions & f) count++;
 		}
-		return int(Data::ListOfRestrictions().size()) - count;
+		return int(list.size()) - count;
 	};
 
 	if (const auto chat = peer->asChat()) {
@@ -431,14 +434,22 @@ rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 			peer,
 			UpdateFlag::Rights
 		) | rpl::map([=] {
-			return countOfRestrictions(chat->defaultRestrictions());
+			return countOfRestrictions({}, chat->defaultRestrictions());
 		});
 	} else if (const auto channel = peer->asChannel()) {
-		return peer->session().changes().peerFlagsValue(
-			peer,
-			UpdateFlag::Rights
+		auto forumValue = channel->flagsValue(
+		) | rpl::filter([](const ChannelData::Flags::Change &change) {
+			return (change.diff & ChannelData::Flag::Forum);
+		});
+		return rpl::combine(
+			std::move(forumValue),
+			channel->session().changes().peerFlagsValue(
+				channel,
+				UpdateFlag::Rights)
 		) | rpl::map([=] {
-			return countOfRestrictions(channel->defaultRestrictions());
+			return countOfRestrictions(
+				{ .isForum = channel->isForum() },
+				channel->defaultRestrictions());
 		});
 	}
 	Unexpected("User in RestrictionsCountValue().");

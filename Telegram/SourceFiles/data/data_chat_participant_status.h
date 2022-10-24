@@ -24,6 +24,7 @@ enum class ChatAdminRight {
 	Anonymous = (1 << 10),
 	ManageCall = (1 << 11),
 	Other = (1 << 12),
+	ManageTopics = (1 << 13),
 };
 inline constexpr bool is_flag_type(ChatAdminRight) { return true; }
 using ChatAdminRights = base::flags<ChatAdminRight>;
@@ -41,6 +42,7 @@ enum class ChatRestriction {
 	ChangeInfo = (1 << 10),
 	InviteUsers = (1 << 15),
 	PinMessages = (1 << 17),
+	ManageTopics = (1 << 18),
 };
 inline constexpr bool is_flag_type(ChatRestriction) { return true; }
 using ChatRestrictions = base::flags<ChatRestriction>;
@@ -68,6 +70,17 @@ struct ChatRestrictionsInfo {
 
 namespace Data {
 
-std::vector<ChatRestrictions> ListOfRestrictions();
+struct AdminRightsSetOptions {
+	bool isGroup : 1 = false;
+	bool isForum : 1 = false;
+	bool anyoneCanAddMembers : 1 = false;
+};
+
+struct RestrictionsSetOptions {
+	bool isForum = false;
+};
+
+[[nodiscard]] std::vector<ChatRestrictions> ListOfRestrictions(
+	RestrictionsSetOptions options);
 
 } // namespace Data
