@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "media/player/media_player_float.h" // Media::Player::RoundPainter.
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
@@ -255,6 +256,10 @@ void Document::createComponents(bool caption) {
 		voice->seekl = std::make_shared<VoiceSeekClickHandler>(
 			_data,
 			[](FullMsgId) {});
+		if (_transcribedRound) {
+			voice->round = std::make_unique<::Media::Player::RoundPainter>(
+				_realParent);
+		}
 	}
 }
 
@@ -542,9 +547,26 @@ void Document::draw(
 				inner,
 				context.selected());
 		if (!coverDrawn) {
-			PainterHighQualityEnabler hq(p);
-			p.setBrush(stm->msgFileBg);
-			p.drawEllipse(inner);
+			if (_transcribedRound) {
+				if (const auto voice = Get<HistoryDocumentVoice>()) {
+					if (const auto &round = voice->round) {
+						if (round->fillFrame(inner.size())) {
+							p.drawImage(inner.topLeft(), round->frame());
+						} else {
+							DrawThumbnailAsSongCover(
+								p,
+								st::transparent,
+								_dataMedia,
+								inner,
+								context.selected());
+						}
+					}
+				}
+			} else {
+				PainterHighQualityEnabler hq(p);
+				p.setBrush(stm->msgFileBg);
+				p.drawEllipse(inner);
+			}
 		}
 
 		const auto &icon = [&]() -> const style::icon& {
@@ -812,7 +834,9 @@ void Document::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
-	if (Get<HistoryDocumentThumbed>() || _data->isSongWithCover()) {
+	if (Get<HistoryDocumentThumbed>()
+		|| _data->isSongWithCover()
+		|| _transcribedRound) {
 		_dataMedia->thumbnailWanted(_realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);

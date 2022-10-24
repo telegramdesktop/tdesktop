@@ -25,6 +25,10 @@ namespace Data {
 class Session;
 } // namespace Data
 
+namespace Media::Player {
+class RoundPainter;
+} // namespace Media::Player
+
 namespace Images {
 struct CornersMaskRef;
 } // namespace Images
@@ -508,6 +512,7 @@ public:
 
 	std::unique_ptr<HistoryView::TranscribeButton> transcribe;
 	Ui::Text::String transcribeText;
+	std::unique_ptr<Media::Player::RoundPainter> round;
 
 private:
 	bool _seeking = false;
