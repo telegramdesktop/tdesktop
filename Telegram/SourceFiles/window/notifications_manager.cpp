@@ -985,15 +985,18 @@ void Manager::notificationActivated(
 				id.msgId);
 			const auto topic = item ? item->topic() : nullptr;
 			if (!reply.text.isEmpty()) {
-				// #TODO forum notifications
+				const auto topicRootId = topic
+					? topic->rootId()
+					: id.contextId.topicRootId;
 				const auto replyToId = (id.msgId > 0
-					&& !history->peer->isUser())
+					&& !history->peer->isUser()
+					&& id.msgId != topicRootId)
 					? id.msgId
 					: 0;
 				auto draft = std::make_unique<Data::Draft>(
 					reply,
 					replyToId,
-					(topic ? topic->rootId() : 0),
+					topicRootId,
 					MessageCursor{
 						int(reply.text.size()),
 						int(reply.text.size()),
