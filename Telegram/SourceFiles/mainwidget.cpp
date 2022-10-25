@@ -335,7 +335,10 @@ MainWidget::MainWidget(
 	_controller->activeChatValue(
 	) | rpl::map([](Dialogs::Key key) {
 		const auto peer = key.peer();
-		auto canWrite = peer
+		const auto topic = key.topic();
+		auto canWrite = topic
+			? Data::CanWriteValue(topic)
+			: peer
 			? Data::CanWriteValue(peer)
 			: rpl::single(false);
 		return std::move(
@@ -516,10 +519,10 @@ bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
+	const auto items = session().data().idsToItems(draft.ids);
 	const auto error = GetErrorTextForSending(
-		peer,
-		session().data().idsToItems(draft.ids),
-		true);
+		peer, // #TODO forum forward
+		{ .forward = &items, .ignoreSlowmodeCountdown = true });
 	if (!error.isEmpty()) {
 		Ui::show(Ui::MakeInformBox(error), Ui::LayerOption::KeepOther);
 		return false;
@@ -541,7 +544,7 @@ bool MainWidget::shareUrl(
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) {
+	if (!peer->canWrite()) { // #TODO forum forward
 		_controller->show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
@@ -575,7 +578,7 @@ bool MainWidget::inlineSwitchChosen(
 	Expects(peerId != 0);
 
 	const auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) {
+	if (!peer->canWrite()) { // #TODO forum forward
 		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
@@ -607,7 +610,7 @@ bool MainWidget::sendPaths(PeerId peerId) {
 	Expects(peerId != 0);
 
 	auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) {
+	if (!peer->canWrite()) { // #TODO forum forward
 		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else if (const auto error = Data::RestrictionError(
@@ -638,7 +641,7 @@ void MainWidget::onFilesOrForwardDrop(
 		}
 	} else {
 		auto peer = session().data().peer(peerId);
-		if (!peer->canWrite()) {
+		if (!peer->canWrite()) { // #TODO forum forward
 			Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 			return;
 		}

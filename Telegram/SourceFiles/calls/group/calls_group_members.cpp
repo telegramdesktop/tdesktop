@@ -1642,7 +1642,7 @@ void Members::setupAddMember(not_null<GroupCall*> call) {
 			return rpl::single(false) | rpl::type_erased();
 		}
 		return rpl::combine(
-			Data::CanWriteValue(peer.get()),
+			Data::CanWriteValue(peer, false),
 			_call->joinAsValue()
 		) | rpl::map([=](bool can, not_null<PeerData*> joinAs) {
 			return can && joinAs->isSelf();

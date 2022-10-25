@@ -552,11 +552,14 @@ bool ChannelData::canPublish() const {
 		|| (adminRights() & AdminRight::PostMessages);
 }
 
-bool ChannelData::canWrite() const {
+bool ChannelData::canWrite(bool checkForForum) const {
 	// Duplicated in Data::CanWriteValue().
 	const auto allowed = amIn()
 		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
-	return allowed && (canPublish()
+	const auto forumRestriction = checkForForum && isForum();
+	return allowed
+		&& !forumRestriction
+		&& (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::SendMessages)));
 }

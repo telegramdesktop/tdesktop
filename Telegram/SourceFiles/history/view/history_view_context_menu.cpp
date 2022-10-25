@@ -45,6 +45,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
 #include "data/data_media_types.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
 #include "data/data_channel.h"
@@ -584,9 +585,11 @@ bool AddReplyToMessageAction(
 		not_null<ListWidget*> list) {
 	const auto context = list->elementContext();
 	const auto item = request.item;
+	const auto topic = item ? item->topic() : nullptr;
+	const auto peer = item ? item->history()->peer.get() : nullptr;
 	if (!item
 		|| !item->isRegular()
-		|| !item->history()->peer->canWrite()
+		|| (topic ? topic->canWrite() : !peer->canWrite())
 		|| (context != Context::History && context != Context::Replies)) {
 		return false;
 	}

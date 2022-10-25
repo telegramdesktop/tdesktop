@@ -845,7 +845,7 @@ void Panel::setupMembers() {
 	_members->addMembersRequests(
 	) | rpl::start_with_next([=] {
 		if (!_peer->isBroadcast()
-			&& _peer->canWrite()
+			&& _peer->canWrite(false)
 			&& _call->joinAs()->isSelf()) {
 			addMembers();
 		} else if (const auto channel = _peer->asChannel()) {

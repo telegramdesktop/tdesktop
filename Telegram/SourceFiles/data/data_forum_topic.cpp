@@ -205,6 +205,13 @@ bool ForumTopic::my() const {
 	return (_flags & Flag::My);
 }
 
+bool ForumTopic::canWrite() const {
+	const auto channel = this->channel();
+	return channel->amIn()
+		&& !channel->amRestricted(ChatRestriction::SendMessages)
+		&& (!closed() || canToggleClosed());
+}
+
 bool ForumTopic::canEdit() const {
 	return my() || channel()->canManageTopics();
 }

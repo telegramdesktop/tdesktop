@@ -513,6 +513,12 @@ void ApiWrap::sendMessageFail(
 		Assert(randomId != 0);
 		_session->data().unregisterMessageRandomId(randomId);
 		item->sendFailed();
+
+		if (error == u"TOPIC_CLOSED"_q) {
+			if (const auto topic = item->topic()) {
+				topic->setClosed(true);
+			}
+		}
 	}
 }
 
@@ -3005,7 +3011,10 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 	if (!toForward.items.empty()) {
 		const auto error = GetErrorTextForSending(
 			history->peer,
-			toForward.items);
+			{
+				.topicRootId = action.topicRootId,
+				.forward = &toForward.items,
+			});
 		if (!error.isEmpty()) {
 			return;
 		}
@@ -3074,6 +3083,9 @@ void ApiWrap::forwardMessages(
 	if (sendAs) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_send_as;
 	}
+	if (action.topicRootId) {
+		sendFlags |= MTPmessages_ForwardMessages::Flag::f_top_msg_id;
+	}
 
 	auto forwardFrom = draft.items.front()->history()->peer;
 	auto ids = QVector<MTPint>();
@@ -3093,7 +3105,7 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPint>(ids),
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
-				MTPint(), // top_msg_id
+				MTP_int(action.topicRootId),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
@@ -3145,7 +3157,7 @@ void ApiWrap::forwardMessages(
 				HistoryItem::NewMessageDate(action.options.scheduled),
 				messageFromId,
 				messagePostAuthor,
-				item);
+				item); // #TODO forum forward
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
@@ -3405,7 +3417,13 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	if (!peer->canWrite() || Api::SendDice(message)) {
+	const auto replyToId = message.action.replyTo;
+	const auto replyTo = replyToId
+		? peer->owner().message(peer, replyToId)
+		: nullptr;
+	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	if (!(topic ? topic->canWrite() : peer->canWrite())
+		|| Api::SendDice(message)) {
 		return;
 	}
 	local().saveRecentSentHashtags(textWithTags.text);

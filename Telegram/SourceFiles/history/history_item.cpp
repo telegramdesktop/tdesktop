@@ -798,7 +798,13 @@ bool HistoryItem::canBeEdited() const {
 		if (isPost() && channel->canEditMessages()) {
 			return true;
 		} else if (out()) {
-			return isPost() ? channel->canPublish() : channel->canWrite();
+			if (isPost()) {
+				return channel->canPublish();
+			} else if (const auto topic = this->topic()) {
+				return topic->canWrite();
+			} else {
+				return channel->canWrite();
+			}
 		} else {
 			return false;
 		}

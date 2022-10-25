@@ -107,44 +107,52 @@ namespace {
 
 QString GetErrorTextForSending(
 		not_null<PeerData*> peer,
-		const HistoryItemsList &items,
-		const TextWithTags &comment,
-		bool ignoreSlowmodeCountdown) {
-	if (!peer->canWrite()) {
+		SendingErrorRequest request) {
+	const auto forum = request.topicRootId ? peer->forum() : nullptr;
+	const auto topic = forum
+		? forum->topicFor(request.topicRootId)
+		: nullptr;
+	if (!(topic ? topic->canWrite() : peer->canWrite())) {
 		return tr::lng_forward_cant(tr::now);
 	}
 
-	for (const auto &item : items) {
-		if (const auto media = item->media()) {
-			const auto error = media->errorTextForForward(peer);
-			if (!error.isEmpty() && error != qstr("skip")) {
-				return error;
+	if (request.forward) {
+		for (const auto &item : *request.forward) {
+			if (const auto media = item->media()) {
+				const auto error = media->errorTextForForward(peer);
+				if (!error.isEmpty() && error != qstr("skip")) {
+					return error;
+				}
 			}
 		}
 	}
 	const auto error = Data::RestrictionError(
 		peer,
 		ChatRestriction::SendInline);
-	if (error && HasInlineItems(items)) {
+	if (error && request.forward && HasInlineItems(*request.forward)) {
 		return *error;
 	}
 
 	if (peer->slowmodeApplied()) {
+		const auto hasText = (request.text && !request.text->empty());
+		const auto count = (hasText ? 1 : 0)
+			+ (request.forward ? int(request.forward->size()) : 0);
 		if (const auto history = peer->owner().historyLoaded(peer)) {
-			if (!ignoreSlowmodeCountdown
+			if (!request.ignoreSlowmodeCountdown
 				&& (history->latestSendingMessage() != nullptr)
-				&& (!items.empty() || !comment.text.isEmpty())) {
+				&& (count > 0)) {
 				return tr::lng_slowmode_no_many(tr::now);
 			}
 		}
-		if (comment.text.size() > MaxMessageSize) {
+		if (request.text && request.text->text.size() > MaxMessageSize) {
 			return tr::lng_slowmode_too_long(tr::now);
-		} else if (!items.empty() && !comment.text.isEmpty()) {
+		} else if (hasText && count > 1) {
 			return tr::lng_slowmode_no_many(tr::now);
-		} else if (items.size() > 1) {
+		} else if (count > 1) {
 			const auto albumForward = [&] {
-				if (const auto groupId = items.front()->groupId()) {
-					for (const auto &item : items) {
+				const auto first = request.forward->front();
+				if (const auto groupId = first->groupId()) {
+					for (const auto &item : *request.forward) {
 						if (item->groupId() != groupId) {
 							return false;
 						}
@@ -159,7 +167,7 @@ QString GetErrorTextForSending(
 		}
 	}
 	if (const auto left = peer->slowmodeSecondsLeft()) {
-		if (!ignoreSlowmodeCountdown) {
+		if (!request.ignoreSlowmodeCountdown) {
 			return tr::lng_slowmode_enabled(
 				tr::now,
 				lt_left,
@@ -240,13 +248,6 @@ MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
 			MTPint());
 	}
 	return MTPMessageReplyHeader();
-}
-
-QString GetErrorTextForSending(
-		not_null<PeerData*> peer,
-		const HistoryItemsList &items,
-		bool ignoreSlowmodeCountdown) {
-	return GetErrorTextForSending(peer, items, {}, ignoreSlowmodeCountdown);
 }
 
 TextWithEntities DropCustomEmoji(TextWithEntities text) {

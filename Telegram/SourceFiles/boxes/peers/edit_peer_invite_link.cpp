@@ -1153,8 +1153,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			for (const auto peer : result) {
 				const auto error = GetErrorTextForSending(
 					peer,
-					{},
-					comment);
+					{ .text = &comment });
 				if (!error.isEmpty()) {
 					return std::make_pair(error, peer);
 				}
@@ -1205,7 +1204,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
-		.submitCallback = std::move(submitCallback),
+		.submitCallback = std::move(submitCallback), // #TODO forum forward
 		.filterCallback = [](auto peer) { return peer->canWrite(); },
 	});
 	*box = Ui::MakeWeak(object.data());

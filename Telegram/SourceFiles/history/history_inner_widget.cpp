@@ -76,6 +76,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reactions.h"
 #include "data/data_document.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_poll.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
@@ -2003,7 +2004,6 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		return;
 	}
 	auto selectedState = getSelectionState();
-	auto canSendMessages = _peer->canWrite();
 
 	// -2 - has full selected items, but not over, -1 - has selection, but no over, 0 - no selection, 1 - over text, 2 - over full selected items
 	auto isUponSelected = 0;
@@ -2079,7 +2079,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 			return;
 		}
 		const auto itemId = item->fullId();
-		if (canSendMessages) {
+		const auto canReply = [&] {
+			const auto peer = item->history()->peer;
+			if (const auto forum = item->history()->peer->forum()) {
+				const auto topicRootId = item->topicRootId();
+				const auto topic = item->topic();
+				return topic
+					? topic->canWrite()
+					: peer->canWrite(!topicRootId);
+			}
+			return peer->canWrite();
+		}();
+		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {
 				_widget->replyToMessage(itemId);
 			}, &st::menuIconReply);

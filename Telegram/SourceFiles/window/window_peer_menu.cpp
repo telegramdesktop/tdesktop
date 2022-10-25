@@ -1219,7 +1219,7 @@ void PeerMenuShareContactBox(
 	// There is no async to make weak from controller.
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [=](not_null<PeerData*> peer) {
-		if (!peer->canWrite()) {
+		if (!peer->canWrite()) { // #TODO forum forward
 			navigation->parentController()->show(
 				Ui::MakeInformBox(tr::lng_forward_share_cant()),
 				Ui::LayerOption::KeepOther);
@@ -1529,10 +1529,10 @@ QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 		? tr::lng_scheduled_send_now_many(tr::now, lt_count, items.size())
 		: tr::lng_scheduled_send_now(tr::now);
 
+	const auto list = session->data().idsToItems(items);
 	const auto error = GetErrorTextForSending(
 		history->peer,
-		session->data().idsToItems(items),
-		TextWithTags());
+		{ .forward = &list });
 	if (!error.isEmpty()) {
 		Ui::ShowMultilineToast({
 			.parentOverride = Window::Show(navigation).toastParent(),

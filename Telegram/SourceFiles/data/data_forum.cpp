@@ -160,6 +160,8 @@ void Forum::applyReceivedTopics(const MTPmessages_ForumTopics &result) {
 }
 
 void Forum::applyTopicDeleted(MsgId rootId) {
+	_topicsDeleted.emplace(rootId);
+
 	const auto i = _topics.find(rootId);
 	if (i != end(_topics)) {
 		const auto raw = i->second.get();
@@ -192,6 +194,7 @@ void Forum::applyReceivedTopics(
 			}
 			applyTopicDeleted(rootId);
 		}, [&](const MTPDforumTopic &data) {
+			_topicsDeleted.remove(rootId);
 			const auto i = _topics.find(rootId);
 			const auto creating = (i == end(_topics));
 			const auto raw = creating
@@ -408,6 +411,10 @@ ForumTopic *Forum::enforceTopicFor(MsgId rootId) {
 	const auto result = applyTopicAdded(rootId, {}, {}, {});
 	requestTopic(rootId);
 	return result;
+}
+
+bool Forum::topicDeleted(MsgId rootId) const {
+	return _topicsDeleted.contains(rootId);
 }
 
 rpl::producer<> Forum::chatsListChanges() const {

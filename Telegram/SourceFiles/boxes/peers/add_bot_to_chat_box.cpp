@@ -342,7 +342,7 @@ auto AddBotToGroupBoxController::createRow(not_null<History*> history)
 bool AddBotToGroupBoxController::needToCreateRow(
 		not_null<PeerData*> peer) const {
 	if (sharingBotGame()) {
-		if (!peer->canWrite()
+		if (!peer->canWrite() // #TODO forum forward
 			|| peer->amRestricted(ChatRestriction::SendGames)) {
 			return false;
 		}

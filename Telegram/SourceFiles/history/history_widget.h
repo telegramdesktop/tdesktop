@@ -332,6 +332,8 @@ private:
 	bool cornerButtonsHas(HistoryView::CornerButtonType type) override;
 
 	void checkSuggestToGigagroup();
+	void processReply();
+	void setReplyFieldsFromProcessing();
 
 	void initTabbedSelector();
 	void initVoiceRecordBar();
@@ -382,6 +384,7 @@ private:
 	void toggleTabbedSelectorMode();
 	void recountChatWidth();
 	void handlePeerUpdate();
+	bool updateCanSendMessage();
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
 	void showAboutTopPromotion();
@@ -615,6 +618,9 @@ private:
 	MsgId _replyToId = 0;
 	Ui::Text::String _replyToName;
 	int _replyToNameVersion = 0;
+
+	MsgId _processingReplyId = 0;
+	HistoryItem *_processingReplyItem = nullptr;
 
 	Data::ResolvedForwardDraft _toForward;
 	Ui::Text::String _toForwardFrom, _toForwardText;

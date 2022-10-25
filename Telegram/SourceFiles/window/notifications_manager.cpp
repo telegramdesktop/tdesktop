@@ -811,6 +811,8 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	const auto hideEverything = Core::App().passcodeLocked()
 		|| forceHideDetails();
 	const auto view = Core::App().settings().notifyView();
+	const auto peer = item ? item->history()->peer.get() : nullptr;
+	const auto topic = item ? item->topic() : nullptr;
 
 	auto result = DisplayOptions();
 	result.hideNameAndPhoto = hideEverything
@@ -820,12 +822,11 @@ Manager::DisplayOptions Manager::getNotificationOptions(
 	result.hideMarkAsRead = result.hideMessageText
 		|| (type != Data::ItemNotificationType::Message)
 		|| !item
-		|| ((item->out() || item->history()->peer->isSelf())
-			&& item->isFromScheduled());
+		|| ((item->out() || peer->isSelf()) && item->isFromScheduled());
 	result.hideReplyButton = result.hideMarkAsRead
-		|| !item->history()->peer->canWrite()
-		|| item->history()->peer->isBroadcast()
-		|| (item->history()->peer->slowmodeSecondsLeft() > 0);
+		|| (!peer->canWrite() && (!topic || !topic->canWrite()))
+		|| peer->isBroadcast()
+		|| (peer->slowmodeSecondsLeft() > 0);
 	return result;
 }
 

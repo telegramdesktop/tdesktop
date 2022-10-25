@@ -207,7 +207,7 @@ public:
 		return _notify;
 	}
 
-	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;

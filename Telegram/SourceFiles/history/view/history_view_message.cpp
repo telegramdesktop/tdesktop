@@ -2703,7 +2703,7 @@ bool Message::hasFastReply() const {
 bool Message::displayFastReply() const {
 	return hasFastReply()
 		&& data()->isRegular()
-		&& data()->history()->peer->canWrite()
+		&& data()->history()->peer->canWrite(false)
 		&& !delegate()->elementInSelectionMode();
 }
 

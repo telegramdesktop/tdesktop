@@ -65,6 +65,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
@@ -1902,8 +1904,8 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
 		_field->setFocus();
-		_replyEditMsg = nullptr;
-		_replyToId = 0;
+		_processingReplyItem = _replyEditMsg = nullptr;
+		_processingReplyId = _replyToId = 0;
 		setEditMsgId(0);
 		if (fieldWillBeHiddenAfterEdit) {
 			updateControlsVisibility();
@@ -1926,23 +1928,25 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_parsedLinks = _fieldLinksParser->list().current();
 	_previewState = draft->previewState;
 
-	_replyEditMsg = nullptr;
+	_processingReplyItem = _replyEditMsg = nullptr;
+	_processingReplyId = _replyToId = 0;
 	if (const auto editDraft = _history->localEditDraft({})) {
 		setEditMsgId(editDraft->msgId);
-		_replyToId = 0;
 	} else {
-		_replyToId = readyToForward() ? 0 : _history->localDraft({})->msgId;
 		setEditMsgId(0);
 	}
 	updateCmdStartShown();
 	updateControlsVisibility();
 	updateControlsGeometry();
 	refreshTopBarActiveChat();
-	if (_editMsgId || _replyToId) {
+	if (_editMsgId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg) {
-			requestMessageData(_editMsgId ? _editMsgId : _replyToId);
+			requestMessageData(_editMsgId);
 		}
+	} else if (!readyToForward()) {
+		_processingReplyId = _history->localDraft({})->msgId;
+		processReply();
 	}
 }
 
@@ -2105,8 +2109,8 @@ void HistoryWidget::showHistory(
 	HistoryView::Element::ClearGlobal();
 
 	_saveEditMsgRequestId = 0;
-	_replyEditMsg = nullptr;
-	_editMsgId = _replyToId = 0;
+	_processingReplyItem = _replyEditMsg = nullptr;
+	_processingReplyId = _editMsgId = _replyToId = 0;
 	_previewData = nullptr;
 	_previewCache.clear();
 	_fieldBarCancel->hide();
@@ -2503,7 +2507,7 @@ void HistoryWidget::setupScheduledToggle() {
 
 void HistoryWidget::refreshScheduledToggle() {
 	const auto has = _history
-		&& _peer->canWrite()
+		&& _canSendMessages
 		&& (session().data().scheduledMessages().count(_history) > 0);
 	if (!_scheduled && has) {
 		_scheduled.create(this, st::historyScheduledToggle);
@@ -2564,9 +2568,15 @@ bool HistoryWidget::canWriteMessage() const {
 }
 
 std::optional<QString> HistoryWidget::writeRestriction() const {
-	return _peer
+	auto result = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::SendMessages)
 		: std::nullopt;
+	if (result) {
+		return result;
+	} else if (_peer && _peer->isForum()) {
+		return u"You can reply to messages in topics."_q;
+	}
+	return std::nullopt;
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -3699,11 +3709,17 @@ void HistoryWidget::send(Api::SendOptions options) {
 	message.webPageId = webPageId;
 
 	if (_canSendMessages) {
+		const auto topicRootId = _replyEditMsg
+			? _replyEditMsg->topicRootId()
+			: 0;
 		const auto error = GetErrorTextForSending(
 			_peer,
-			_toForward.items,
-			message.textWithTags,
-			options.scheduled);
+			{
+				.topicRootId = topicRootId,
+				.forward = &_toForward.items,
+				.text = &message.textWithTags,
+				.ignoreSlowmodeCountdown = (options.scheduled != 0),
+			});
 		if (!error.isEmpty()) {
 			Ui::ShowMultilineToast({
 				.parentOverride = Window::Show(controller()).toastParent(),
@@ -4027,7 +4043,7 @@ void HistoryWidget::chooseAttach(
 		return;
 	}
 
-	if (!_peer || !_peer->canWrite()) {
+	if (!_peer || !_canSendMessages) {
 		return;
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
@@ -5248,6 +5264,10 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (item == _replyEditMsg && _replyToId) {
 		cancelReply();
 	}
+	if (item == _processingReplyItem) {
+		_processingReplyId = 0;
+		_processingReplyItem = nullptr;
+	}
 	if (_kbReplyTo && item == _kbReplyTo) {
 		toggleKeyboard();
 		_kbReplyTo = nullptr;
@@ -6080,7 +6100,7 @@ void HistoryWidget::fieldTabbed() {
 }
 
 void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
-	if (!_peer || !_peer->canWrite()) {
+	if (!_peer || !_canSendMessages) {
 		return;
 	} else if (showSlowmodeError()) {
 		return;
@@ -6547,7 +6567,7 @@ bool HistoryWidget::sendExistingDocument(
 			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer
-		|| !_peer->canWrite()
+		|| !_canSendMessages
 		|| showSlowmodeError()
 		|| ShowSendPremiumError(controller(), document)) {
 		return false;
@@ -6583,7 +6603,7 @@ bool HistoryWidget::sendExistingPhoto(
 			Ui::MakeInformBox(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
-	} else if (!_peer || !_peer->canWrite()) {
+	} else if (!_peer || !_canSendMessages) {
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -6657,24 +6677,80 @@ void HistoryWidget::replyToMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
-	if (!item->isRegular() || !_canSendMessages) {
+	_processingReplyId = item->id;
+	_processingReplyItem = item;
+	processReply();
+}
+
+void HistoryWidget::processReply() {
+	const auto processContinue = [=] {
+		return crl::guard(_list, [=] {
+			if (!_peer || !_processingReplyId) {
+				return;
+			} else if (!_processingReplyItem) {
+				_processingReplyItem = _peer->owner().message(
+					_peer,
+					_processingReplyId);
+				if (!_processingReplyItem) {
+					_processingReplyId = 0;
+				} else {
+					processReply();
+				}
+			}
+		});
+	};
+	const auto processCancel = [=] {
+		_processingReplyId = 0;
+		_processingReplyItem = nullptr;
+	};
+
+	if (!_peer || !_processingReplyId) {
+		return processCancel();
+	} else if (!_processingReplyItem) {
+		session().api().requestMessageData(
+			_peer,
+			_processingReplyId,
+			processContinue());
 		return;
-	} else if (item->history() == _migrated) {
-		if (item->isService()) {
+	} else if (_processingReplyItem->history() == _migrated) {
+		if (_processingReplyItem->isService()) {
 			controller()->show(Ui::MakeInformBox(tr::lng_reply_cant()));
 		} else {
-			const auto itemId = item->fullId();
+			const auto itemId = _processingReplyItem->fullId();
 			controller()->show(
 				Ui::MakeConfirmBox({
 					.text = tr::lng_reply_cant_forward(),
 					.confirmed = crl::guard(this, [=] {
 						controller()->content()->setForwardDraft(
 							_peer->id,
-							{ .ids = { 1, itemId } });
+							{.ids = { 1, itemId } });
 					}),
 					.confirmText = tr::lng_selected_forward(),
-				}));
+					}));
 		}
+		return processCancel();
+	} else if (_processingReplyItem->history() != _history
+		|| !_processingReplyItem->isRegular()) {
+		return processCancel();
+	} else if (const auto forum = _peer->forum()) {
+		const auto topicRootId = _processingReplyItem->topicRootId();
+		if (!topicRootId || forum->topicDeleted(topicRootId)) {
+			return processCancel();
+		} else if (const auto topic = forum->topicFor(topicRootId)) {
+			if (!topic->canWrite()) {
+				return processCancel();
+			}
+		} else {
+			forum->requestTopic(topicRootId, processContinue());
+		}
+	} else if (!_peer->canWrite()) {
+		return processCancel();
+	}
+	setReplyFieldsFromProcessing();
+}
+
+void HistoryWidget::setReplyFieldsFromProcessing() {
+	if (!_processingReplyId || !_processingReplyItem) {
 		return;
 	}
 
@@ -6683,23 +6759,27 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 		_composeSearch->hideAnimated();
 	}
 
+	const auto id = base::take(_processingReplyId);
+	const auto item = base::take(_processingReplyItem);
 	if (_editMsgId) {
 		if (const auto localDraft = _history->localDraft({})) {
-			localDraft->msgId = item->id;
+			localDraft->msgId = id;
 		} else {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				TextWithTags(),
-				item->id,
-				MsgId(), // topicRootId
+				id,
+				MsgId(),
 				MessageCursor(),
 				Data::PreviewState::Allowed));
 		}
 	} else {
 		_replyEditMsg = item;
-		_replyToId = item->id;
+		_replyToId = id;
 		updateReplyEditText(_replyEditMsg);
+		updateCanSendMessage();
 		updateBotKeyboard();
 		updateReplyToName();
+		updateControlsVisibility();
 		updateControlsGeometry();
 		updateField();
 		refreshTopBarActiveChat();
@@ -6709,7 +6789,9 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	_saveDraftStart = crl::now();
 	saveDraft();
 
-	_field->setFocus();
+	if (!_field->isHidden()) {
+		_field->setFocus();
+	}
 }
 
 void HistoryWidget::editMessage(FullMsgId itemId) {
@@ -6836,16 +6918,17 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 	if (_replyToId) {
 		wasReply = true;
 
-		_replyEditMsg = nullptr;
-		_replyToId = 0;
+		_processingReplyItem = _replyEditMsg = nullptr;
+		_processingReplyId = _replyToId = 0;
 		mouseMoveEvent(0);
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
 			_fieldBarCancel->hide();
 			updateMouseTracking();
 		}
-
 		updateBotKeyboard();
 		refreshTopBarActiveChat();
+		updateCanSendMessage();
+		updateControlsVisibility();
 		updateControlsGeometry();
 		update();
 	} else if (const auto localDraft = (_history ? _history->localDraft({}) : nullptr)) {
@@ -7085,14 +7168,7 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::fullInfoUpdated() {
 	auto refresh = false;
 	if (_list) {
-		auto newCanSendMessages = _peer->canWrite();
-		if (newCanSendMessages != _canSendMessages) {
-			_canSendMessages = newCanSendMessages;
-			if (!_canSendMessages) {
-				cancelReply();
-			}
-			refreshScheduledToggle();
-			refreshSilentToggle();
+		if (updateCanSendMessage()) {
 			refresh = true;
 		}
 		checkFieldAutocomplete();
@@ -7134,14 +7210,7 @@ void HistoryWidget::handlePeerUpdate() {
 			|| (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
 			resize = true;
 		}
-		bool newCanSendMessages = _peer->canWrite();
-		if (newCanSendMessages != _canSendMessages) {
-			_canSendMessages = newCanSendMessages;
-			if (!_canSendMessages) {
-				cancelReply();
-			}
-			refreshScheduledToggle();
-			refreshSilentToggle();
+		if (updateCanSendMessage()) {
 			resize = true;
 		}
 		updateControlsVisibility();
@@ -7149,6 +7218,24 @@ void HistoryWidget::handlePeerUpdate() {
 			updateControlsGeometry();
 		}
 	}
+}
+
+bool HistoryWidget::updateCanSendMessage() {
+	const auto replyTo = (_replyToId && !_editMsgId) ? _replyEditMsg : 0;
+	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	const auto newCanSendMessages = topic
+		? topic->canWrite()
+		: _peer->canWrite();
+	if (_canSendMessages == newCanSendMessages) {
+		return false;
+	}
+	_canSendMessages = newCanSendMessages;
+	if (!_canSendMessages) {
+		cancelReply();
+	}
+	refreshScheduledToggle();
+	refreshSilentToggle();
+	return true;
 }
 
 void HistoryWidget::forwardSelected() {

@@ -40,15 +40,17 @@ void RequestDependentMessageData(
 	MsgId replyToId);
 [[nodiscard]] MTPMessageReplyHeader NewMessageReplyHeader(
 	const Api::SendAction &action);
+
+struct SendingErrorRequest {
+	MsgId topicRootId = 0;
+	const HistoryItemsList *forward = nullptr;
+	const TextWithTags *text = nullptr;
+	bool ignoreSlowmodeCountdown = false;
+};
 [[nodiscard]] QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
-	const HistoryItemsList &items,
-	bool ignoreSlowmodeCountdown = false);
-[[nodiscard]] QString GetErrorTextForSending(
-	not_null<PeerData*> peer,
-	const HistoryItemsList &items,
-	const TextWithTags &comment,
-	bool ignoreSlowmodeCountdown = false);
+	SendingErrorRequest request);
+
 [[nodiscard]] TextWithEntities DropCustomEmoji(TextWithEntities text);
 
 class HistoryMessage final : public HistoryItem {

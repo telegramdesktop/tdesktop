@@ -609,9 +609,11 @@ void RepliesWidget::setupComposeControls() {
 			ChatRestriction::SendMessages);
 		return restriction
 			? restriction
-			: _history->peer->canWrite()
+			: topicRestriction
 			? std::move(topicRestriction)
-			: tr::lng_group_not_accessible(tr::now);
+			: !(_topic ? _topic->canWrite() : _history->peer->canWrite())
+			? tr::lng_group_not_accessible(tr::now)
+			: std::optional<QString>();
 	});
 
 	_composeControls->setHistory({
@@ -1217,7 +1219,10 @@ void RepliesWidget::refreshJoinGroupButton() {
 		}
 	};
 	const auto channel = _history->peer->asChannel();
-	if (channel->amIn() || channel->canWrite()) {
+	const auto canWrite = !channel->isForum()
+		? channel->canWrite()
+		: (_topic && _topic->canWrite());
+	if (channel->amIn() || canWrite) {
 		set(nullptr);
 	} else {
 		if (!_joinGroup) {

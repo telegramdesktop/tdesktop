@@ -1292,11 +1292,10 @@ void FastShareMessage(
 		}
 
 		const auto error = [&] {
-			for (const auto peer : result) {
+			for (const auto peer : result) { // #TODO forum forward
 				const auto error = GetErrorTextForSending(
 					peer,
-					items,
-					comment);
+					{ .forward = &items, .text = &comment });
 				if (!error.isEmpty()) {
 					return std::make_pair(error, peer);
 				}
@@ -1399,7 +1398,7 @@ void FastShareMessage(
 		}
 	};
 	auto filterCallback = [isGame](PeerData *peer) {
-		if (peer->canWrite()) {
+		if (peer->canWrite()) { // #TODO forum forward
 			if (auto channel = peer->asChannel()) {
 				return isGame ? (!channel->isBroadcast()) : true;
 			}

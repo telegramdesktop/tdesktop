@@ -55,6 +55,7 @@ public:
 	void applyTopicDeleted(MsgId rootId);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 	[[nodiscard]] ForumTopic *enforceTopicFor(MsgId rootId);
+	[[nodiscard]] bool topicDeleted(MsgId rootId) const;
 
 	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
 
@@ -90,6 +91,7 @@ private:
 	const not_null<History*> _history;
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;
+	base::flat_set<MsgId> _topicsDeleted;
 	rpl::event_stream<not_null<ForumTopic*>> _topicDestroyed;
 	Dialogs::MainList _topicsList;
 

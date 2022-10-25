@@ -62,6 +62,7 @@ public:
 	[[nodiscard]] MsgId rootId() const;
 
 	[[nodiscard]] bool my() const;
+	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] bool canEdit() const;
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;

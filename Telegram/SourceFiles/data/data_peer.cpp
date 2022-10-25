@@ -937,11 +937,11 @@ Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
 }
 
 
-bool PeerData::canWrite() const {
+bool PeerData::canWrite(bool checkForForum) const {
 	if (const auto user = asUser()) {
 		return user->canWrite();
 	} else if (const auto channel = asChannel()) {
-		return channel->canWrite();
+		return channel->canWrite(checkForForum);
 	} else if (const auto chat = asChat()) {
 		return chat->canWrite();
 	}

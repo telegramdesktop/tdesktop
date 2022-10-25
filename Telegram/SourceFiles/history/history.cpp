@@ -1133,6 +1133,9 @@ void History::applyServiceChanges(
 			if (const auto icon = data.vicon_emoji_id()) {
 				topic->applyIconId(icon->v);
 			}
+			if (const auto closed = data.vclosed()) {
+				topic->setClosed(mtpIsTrue(*closed));
+			}
 		}
 	}, [](const auto &) {
 	});

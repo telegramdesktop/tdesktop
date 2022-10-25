@@ -129,7 +129,7 @@ void ShowChooseBox(
 		callback(peer);
 	};
 	auto filter = [=](not_null<PeerData*> peer) -> bool {
-		if (!peer->canWrite()) {
+		if (!peer->canWrite()) { // #TODO forum forward
 			return false;
 		} else if (const auto user = peer->asUser()) {
 			if (user->isBot()) {

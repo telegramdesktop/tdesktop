@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
 #include "main/main_session.h"
@@ -201,10 +202,11 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 		});
 }
 
-rpl::producer<bool> CanWriteValue(ChannelData *channel) {
+rpl::producer<bool> CanWriteValue(ChannelData *channel, bool checkForForum) {
 	using Flag = ChannelDataFlag;
 	const auto mask = 0
 		| Flag::Left
+		| Flag::Forum
 		| Flag::JoinToWrite
 		| Flag::HasLink
 		| Flag::Forbidden
@@ -221,15 +223,19 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		DefaultRestrictionValue(
 			channel,
 			ChatRestriction::SendMessages),
-		[](
+		[=](
 				ChannelDataFlags flags,
 				bool postMessagesRight,
 				bool sendMessagesRestriction,
 				bool defaultSendMessagesRestriction) {
 			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+			const auto forumRestriction = checkForForum
+				&& (flags & Flag::Forum);
 			const auto allowed = !(flags & notAmInFlags)
 				|| ((flags & Flag::HasLink) && !(flags & Flag::JoinToWrite));
-			return allowed && (postMessagesRight
+			return allowed
+				&& !forumRestriction
+				&& (postMessagesRight
 					|| (flags & Flag::Creator)
 					|| (!(flags & Flag::Broadcast)
 						&& !sendMessagesRestriction
@@ -237,15 +243,50 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		});
 }
 
-rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
+rpl::producer<bool> CanWriteValue(
+		not_null<PeerData*> peer,
+		bool checkForForum) {
 	if (auto user = peer->asUser()) {
 		return CanWriteValue(user);
 	} else if (auto chat = peer->asChat()) {
 		return CanWriteValue(chat);
 	} else if (auto channel = peer->asChannel()) {
-		return CanWriteValue(channel);
+		return CanWriteValue(channel, checkForForum);
 	}
 	Unexpected("Bad peer value in CanWriteValue");
+}
+
+rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic) {
+	using Flag = ChannelDataFlag;
+	const auto mask = 0
+		| Flag::Left
+		| Flag::JoinToWrite
+		| Flag::Forum
+		| Flag::Forbidden;
+	const auto channel = topic->channel();
+	return rpl::combine(
+		PeerFlagsValue(channel.get(), mask),
+		RestrictionValue(
+			channel,
+			ChatRestriction::SendMessages),
+		DefaultRestrictionValue(
+			channel,
+			ChatRestriction::SendMessages),
+		topic->session().changes().topicFlagsValue(
+			topic,
+			TopicUpdate::Flag::Closed),
+		[=](
+				ChannelDataFlags flags,
+				bool sendMessagesRestriction,
+				bool defaultSendMessagesRestriction,
+				auto) {
+			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+			const auto allowed = !(flags & notAmInFlags);
+			return allowed
+				&& !sendMessagesRestriction
+				&& !defaultSendMessagesRestriction
+				&& (!topic->closed() || topic->canToggleClosed());
+		});
 }
 
 // This is duplicated in PeerData::canPinMessages().
