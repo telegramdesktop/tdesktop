@@ -799,20 +799,9 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 	const auto fullLoaded = backLoaded && frontLoaded;
 	const auto allUnread = (readTillId == _rootId)
 		|| (fullLoaded && _list.empty());
-	const auto countIncoming = [&](auto from, auto till) {
-		auto &owner = _history->owner();
-		const auto peerId = _history->peer->id;
-		auto count = 0;
-		for (auto i = from; i != till; ++i) {
-			if (!owner.message(peerId, *i)->out()) {
-				++count;
-			}
-		}
-		return count;
-	};
 	if (allUnread && fullLoaded) {
 		// Should not happen too often unless the list is empty.
-		return countIncoming(begin(_list), end(_list));
+		return int(_list.size());
 	} else if (frontLoaded && !_list.empty() && readTillId >= _list.front()) {
 		// Always "count by local data" if read till the end.
 		return 0;
@@ -821,9 +810,8 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 		return wasUnreadCountAfter;
 	} else if (frontLoaded && !_list.empty() && readTillId >= _list.back()) {
 		// And count by local data if it is available and read-till changed.
-		return countIncoming(
-			begin(_list),
-			ranges::lower_bound(_list, readTillId, std::greater<>()));
+		return int(ranges::lower_bound(_list, readTillId, std::greater<>())
+			- begin(_list));
 	} else if (_list.empty()) {
 		return std::nullopt;
 	} else if (wasUnreadCountAfter.has_value()
@@ -839,7 +827,7 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 			end(_list),
 			wasReadTillId,
 			std::greater<>());
-		return std::max(int(*wasUnreadCountAfter - (till - from)), 0);
+		return std::max(*wasUnreadCountAfter - int(till - from), 0);
 	}
 	return std::nullopt;
 }
