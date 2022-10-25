@@ -1254,6 +1254,9 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 			case Mode::EmojiStatus:
 				Settings::ShowPremium(_controller, u"emoji_status"_q);
 				break;
+			case Mode::TopicIcon:
+				Settings::ShowPremium(_controller, u"forum_topic_icon"_q);
+				break;
 			}
 		}
 	}
