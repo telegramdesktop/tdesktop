@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_spoiler_click_handler.h"
 #include "history/history.h"
+#include "history/history_service.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -37,10 +38,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_media_types.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_message_reactions.h"
@@ -657,6 +661,141 @@ int Element::textHeightFor(int textWidth) {
 	return _textHeight;
 }
 
+auto Element::contextDependentServiceText() -> TextWithLinks {
+	if (_delegate->elementContext() == Context::Replies) {
+		return {};
+	}
+	const auto item = data();
+	const auto info = item->Get<HistoryServiceTopicInfo>();
+	if (!info) {
+		return {};
+	}
+	const auto peerId = item->history()->peer->id;
+	const auto topicRootId = item->topicRootId();
+	if (!topicRootId || !peerIsChannel(peerId)) {
+		return {};
+	}
+	const auto from = item->from();
+	const auto wrapIcon = [](DocumentId id) {
+		return TextWithEntities{
+			"@",
+			{ EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				1,
+				Data::SerializeCustomEmojiId({ .id = id }))
+			},
+		};
+	};
+	const auto topicUrl =  u"internal:url:https://t.me/c/%1?topic=%2"_q
+		.arg(peerToChannel(peerId).bare)
+		.arg(topicRootId.bare);
+	const auto fromLink = [&](int index) {
+		return Ui::Text::Link(from->name(), index);
+	};
+	const auto placeholderLink = [&] {
+		return Ui::Text::Link(
+			tr::lng_action_topic_placeholder(tr::now),
+			topicUrl);
+	};
+	const auto wrapTopic = [&](
+			const QString &title,
+			std::optional<DocumentId> iconId) {
+		auto result = TextWithEntities{ title };
+		auto full = iconId
+			? wrapIcon(*iconId).append(' ').append(std::move(result))
+			: result;
+		return Ui::Text::Link(std::move(full), topicUrl);
+	};
+	const auto wrapParentTopic = [&] {
+		const auto forum = history()->peer->forum();
+		if (!forum || forum->topicDeleted(topicRootId)) {
+			return wrapTopic(
+				tr::lng_deleted_message(tr::now),
+				std::nullopt);
+		} else if (const auto topic = forum->topicFor(topicRootId)) {
+			return wrapTopic(topic->title(), topic->iconId());
+		} else {
+			forum->requestTopic(topicRootId, crl::guard(this, [=] {
+				itemTextUpdated();
+				history()->owner().requestViewResize(this);
+			}));
+			return wrapTopic(
+				tr::lng_profile_loading(tr::now),
+				std::nullopt);
+		}
+	};
+
+	if (info->closed) {
+		return {
+			tr::lng_action_topic_closed(
+				tr::now,
+				lt_topic,
+				wrapParentTopic(),
+				Ui::Text::WithEntities),
+		};
+	} else if (info->reopened) {
+		return {
+			tr::lng_action_topic_reopened(
+				tr::now,
+				lt_topic,
+				wrapParentTopic(),
+				Ui::Text::WithEntities),
+		};
+	} else if (info->renamed) {
+		return {
+			tr::lng_action_topic_renamed(
+				tr::now,
+				lt_from,
+				fromLink(1),
+				lt_link,
+				placeholderLink(),
+				lt_title,
+				wrapTopic(
+					info->title,
+					(info->reiconed
+						? info->iconId
+						: std::optional<DocumentId>())),
+				Ui::Text::WithEntities),
+			{ from->createOpenLink() },
+		};
+	} else if (info->reiconed) {
+		if (const auto iconId = info->iconId) {
+			return {
+				tr::lng_action_topic_icon_changed(
+					tr::now,
+					lt_from,
+					fromLink(1),
+					lt_link,
+					placeholderLink(),
+					lt_emoji,
+					wrapIcon(iconId),
+					Ui::Text::WithEntities),
+				{ from->createOpenLink() },
+			};
+		} else {
+			return {
+				tr::lng_action_topic_icon_removed(
+					tr::now,
+					lt_from,
+					fromLink(1),
+					lt_link,
+					placeholderLink(),
+					Ui::Text::WithEntities),
+				{ from->createOpenLink() },
+			};
+		}
+	} else {
+		return {
+			tr::lng_action_topic_created(
+				tr::now,
+				lt_topic,
+				wrapTopic(info->title, info->iconId),
+				Ui::Text::WithEntities),
+		};
+	}
+}
+
 void Element::validateText() {
 	const auto item = data();
 	const auto &text = item->_text;
@@ -668,13 +807,20 @@ void Element::validateText() {
 		.customEmojiRepaint = [=] { customEmojiRepaint(); },
 	};
 	if (_flags & Flag::ServiceMessage) {
+		const auto contextDependentText = contextDependentServiceText();
+		const auto &markedText = contextDependentText.text.empty()
+			? text
+			: contextDependentText.text;
+		const auto &customLinks = contextDependentText.text.empty()
+			? item->customTextLinks()
+			: contextDependentText.links;
 		_text.setMarkedText(
 			st::serviceTextStyle,
-			text,
+			markedText,
 			Ui::ItemTextServiceOptions(),
 			context);
 		auto linkIndex = 0;
-		for (const auto &link : item->customTextLinks()) {
+		for (const auto &link : customLinks) {
 			// Link indices start with 1.
 			_text.setLink(++linkIndex, link);
 		}

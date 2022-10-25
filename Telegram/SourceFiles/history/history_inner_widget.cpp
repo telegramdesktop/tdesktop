@@ -2109,7 +2109,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				? item->id
 				: item->replyToTop();
 			const auto phrase = topicRootId
-				? u"View in Thread"_q // #TODO lang-forum
+				? tr::lng_replies_view_topic(tr::now)
 				: (repliesCount > 0)
 				? tr::lng_replies_view(
 					tr::now,

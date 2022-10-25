@@ -1508,12 +1508,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
-"lng_action_topic_created" = "Topic created";
-"lng_action_topic_renamed" = "Topic renamed to «{title}»";
-"lng_action_topic_icon_changed" = "Topic icon changed to {emoji}";
-"lng_action_topic_icon_removed" = "Topic icon removed";
-"lng_action_topic_closed" = "Topic closed";
-"lng_action_topic_reopened" = "Topic reopened";
+"lng_action_topic_created_inside" = "Topic created";
+"lng_action_topic_closed_inside" = "Topics closed";
+"lng_action_topic_reopened_inside" = "Topic reopened";
+"lng_action_topic_created" = "{topic} — was created";
+"lng_action_topic_closed" = "{topic} — was closed";
+"lng_action_topic_reopened" = "{topic} — was reopened";
+"lng_action_topic_placeholder" = "topic";
+"lng_action_topic_renamed" = "{from} renamed the {link} to «{title}»";
+"lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";
+"lng_action_topic_icon_removed" = "{from} removed the {link} icon";
 
 "lng_premium_gift_duration_months#one" = "for {count} month";
 "lng_premium_gift_duration_months#other" = "for {count} months";
@@ -2019,6 +2023,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_replies_header#one" = "{count} reply";
 "lng_replies_header#other" = "{count} replies";
 "lng_replies_header_none" = "Replies";
+"lng_replies_view_topic" = "View in Topic";
 "lng_comments_header#one" = "{count} comment";
 "lng_comments_header#other" = "{count} comments";
 "lng_comments_header_none" = "Comments";
@@ -3530,7 +3535,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_topic_closed" = "This topic is now closed.";
 "lng_forum_topic_delete" = "Delete";
 "lng_forum_topic_delete_sure" = "Are you sure you want to delete this topic?";
+"lng_forum_topic_created_title_my" = "Almost done!";
+"lng_forum_topic_created_body_my" = "Send the first message to start this topic.";
+"lng_forum_topic_created_title" = "Topic started!";
+"lng_forum_topic_created_body" = "Send a message to open the discussion";
 "lng_forum_topics_switch" = "Topics";
+"lng_forum_topics_not_enough#one" = "Only groups with more than **{count} member** can have topics enabled.";
+"lng_forum_topics_not_enough#other" = "Only groups with more than **{count} members** can have topics enabled.";
+"lng_forum_topics_no_discussion" = "Topics can't be enabled in discussion groups at the moment.";
 "lng_forum_no_topics" = "No topics currently created in this forum.";
 "lng_forum_create_topic" = "Create topic";
 "lng_forum_discard_sure" = "Are you sure you want to discard this topic?";

@@ -639,16 +639,11 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 			? wrapIcon(data.vicon_emoji_id()->v)
 			: TextWithEntities();
 		result.append(qs(data.vtitle()));
-		result.entities.insert(
-			result.entities.begin(),
-			EntityInText(
-				EntityType::CustomUrl,
-				0,
-				result.text.size(),
-				u"https://t.me/c/%1?topic=%2"_q.arg(
-					peerToChannel(channel->id).bare).arg(
-						data.vid().v)));
-		return result;
+		return Ui::Text::Link(
+			std::move(result),
+			u"internal:url:https://t.me/c/%1?topic=%2"_q.arg(
+				peerToChannel(channel->id).bare).arg(
+					data.vid().v));
 	}, [](const MTPDforumTopicDeleted &) {
 		return TextWithEntities{ u"Deleted"_q };
 	});

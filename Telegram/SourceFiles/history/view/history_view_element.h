@@ -515,6 +515,12 @@ private:
 
 	void refreshMedia(Element *replacing);
 
+	struct TextWithLinks {
+		TextWithEntities text;
+		std::vector<ClickHandlerPtr> links;
+	};
+	[[nodiscard]] TextWithLinks contextDependentServiceText();
+
 	const not_null<ElementDelegate*> _delegate;
 	const not_null<HistoryItem*> _data;
 	HistoryBlock *_block = nullptr;

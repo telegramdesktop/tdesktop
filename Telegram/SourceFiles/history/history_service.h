@@ -30,6 +30,12 @@ struct HistoryServicePinned
 struct HistoryServiceTopicInfo
 : public RuntimeComponent<HistoryServiceTopicInfo, HistoryItem>
 , public HistoryServiceDependentData {
+	QString title;
+	DocumentId iconId = 0;
+	bool closed = false;
+	bool reopened = false;
+	bool reiconed = false;
+	bool renamed = false;
 };
 
 struct HistoryServiceGameScore

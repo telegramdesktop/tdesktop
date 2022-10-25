@@ -633,7 +633,7 @@ bool AddViewRepliesAction(
 		: item->replyToTop();
 	const auto highlightId = topicRootId ? item->id : 0;
 	const auto phrase = topicRootId
-		? u"View in Thread"_q // #TODO lang-forum
+		? tr::lng_replies_view_topic(tr::now)
 		: (repliesCount > 0)
 		? tr::lng_replies_view(
 			tr::now,
