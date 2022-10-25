@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
 #include "boxes/peer_list_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/toasts/common_toasts.h"
 #include "boxes/add_contact_box.h"
 #include "apiwrap.h"
 #include "main/main_session.h"
@@ -32,6 +33,7 @@ constexpr auto kEnableSearchRowsCount = 10;
 class Controller : public PeerListController, public base::has_weak_ptr {
 public:
 	Controller(
+		not_null<Window::SessionNavigation*> navigation,
 		not_null<ChannelData*> channel,
 		ChannelData *chat,
 		const std::vector<not_null<PeerData*>> &chats,
@@ -47,6 +49,7 @@ private:
 	void choose(not_null<ChannelData*> chat);
 	void choose(not_null<ChatData*> chat);
 
+	not_null<Window::SessionNavigation*> _navigation;
 	not_null<ChannelData*> _channel;
 	ChannelData *_chat = nullptr;
 	std::vector<not_null<PeerData*>> _chats;
@@ -59,12 +62,14 @@ private:
 };
 
 Controller::Controller(
+	not_null<Window::SessionNavigation*> navigation,
 	not_null<ChannelData*> channel,
 	ChannelData *chat,
 	const std::vector<not_null<PeerData*>> &chats,
 	Fn<void(ChannelData*)> callback,
 	Fn<void(not_null<PeerData*>)> showHistoryCallback)
-: _channel(channel)
+: _navigation(navigation)
+, _channel(channel)
 , _chat(chat)
 , _chats(std::move(chats))
 , _callback(std::move(callback))
@@ -131,6 +136,10 @@ void Controller::rowClicked(not_null<PeerListRow*> row) {
 }
 
 void Controller::choose(not_null<ChannelData*> chat) {
+	if (chat->isForum()) {
+		ShowForumForDiscussionError(_navigation);
+		return;
+	}
 	auto text = tr::lng_manage_discussion_group_sure(
 		tr::now,
 		lt_group,
@@ -324,6 +333,7 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 			ShowAtUnreadMsgId);
 	};
 	auto controller = std::make_unique<Controller>(
+		navigation,
 		channel,
 		chat,
 		std::move(chats),
@@ -361,4 +371,14 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 		{},
 		canEdit,
 		callback);
+}
+
+void ShowForumForDiscussionError(
+		not_null<Window::SessionNavigation*> navigation) {
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(navigation).toastParent(),
+		.text = tr::lng_forum_topics_no_discussion(
+			tr::now,
+			Ui::Text::RichLangValue),
+	});
 }

@@ -103,7 +103,6 @@ private:
 	TimeId _offsetDate = 0;
 	MsgId _offsetId = 0;
 	MsgId _offsetTopicId = 0;
-	bool _allLoaded = false;
 
 	base::flat_set<MsgId> _creatingRootIds;
 

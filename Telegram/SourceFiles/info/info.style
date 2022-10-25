@@ -567,10 +567,11 @@ peerPermissionsButton: SettingsCountButton(managePeerButton) {
 	iconPosition: point(24px, 5px);
 }
 
+manageGroupButtonInner: SettingsButton(infoProfileButton) {
+	padding: margins(60px, 10px, 24px, 8px);
+}
 manageGroupButton: SettingsCountButton(managePeerButton) {
-	button: SettingsButton(infoProfileButton) {
-		padding: margins(60px, 10px, 24px, 8px);
-	}
+	button: manageGroupButtonInner;
 	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 4px);
 }
@@ -578,6 +579,16 @@ manageGroupButton: SettingsCountButton(managePeerButton) {
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
 	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
+}
+manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
+	button: SettingsButton(manageGroupButtonInner) {
+		toggle: Toggle(infoProfileToggle) {
+			lockIcon: icon {{ "info/info_rights_lock", menuIconFg }};
+		}
+		toggleOver: Toggle(infoProfileToggleOver) {
+			lockIcon: icon {{ "info/info_rights_lock", menuIconFgOver }};
+		}
+	}
 }
 
 manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {

@@ -111,7 +111,7 @@ void Forum::preloadTopics() {
 }
 
 void Forum::reloadTopics() {
-	_allLoaded = false;
+	_topicsList.setLoaded(false);
 	session().api().request(base::take(_requestId)).cancel();
 	_offsetDate = 0;
 	_offsetId = _offsetTopicId = 0;
@@ -124,7 +124,7 @@ void Forum::reloadTopics() {
 }
 
 void Forum::requestTopics() {
-	if (_allLoaded || _requestId) {
+	if (_topicsList.loaded() || _requestId) {
 		return;
 	}
 	const auto firstLoad = !_offsetDate;
@@ -141,13 +141,13 @@ void Forum::requestTopics() {
 		applyReceivedTopics(result, true);
 		_requestId = 0;
 		_chatsListChanges.fire({});
-		if (_allLoaded) {
+		if (_topicsList.loaded()) {
 			_chatsListLoadedEvents.fire({});
 		}
 		requestSomeStale();
 	}).fail([=](const MTP::Error &error) {
-		_allLoaded = true;
 		_requestId = 0;
+		_topicsList.setLoaded();
 		if (error.type() == u"CHANNEL_FORUM_MISSING"_q) {
 			const auto flags = channel()->flags() & ~ChannelDataFlag::Forum;
 			channel()->setFlags(flags);
@@ -215,7 +215,7 @@ void Forum::applyReceivedTopics(
 	}
 	if (updateOffset
 		&& (list.isEmpty() || list.size() == data.vcount().v)) {
-		_allLoaded = true;
+		_topicsList.setLoaded();
 	}
 	if (!_staleRootIds.empty()) {
 		requestSomeStale();

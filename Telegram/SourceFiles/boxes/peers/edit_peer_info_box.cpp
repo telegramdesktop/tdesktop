@@ -39,10 +39,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
+#include "main/main_session.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "settings/settings_common.h"
 #include "ui/rp_widget.h"
 #include "ui/special_buttons.h"
 #include "ui/toast/toast.h"
+#include "ui/toasts/common_toasts.h"
+#include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
@@ -65,6 +70,12 @@ namespace {
 	return rpl::map([](int count) {
 		return count ? QString::number(count) : QString();
 	});
+}
+
+[[nodiscard]] int EnableForumMinMembers(not_null<PeerData*> peer) {
+	return peer->session().account().appConfig().get<int>(
+		u"forum_upgrade_participants_min"_q,
+		200);
 }
 
 void AddSkip(
@@ -253,6 +264,8 @@ private:
 		Ui::UserpicButton *photo = nullptr;
 		rpl::lifetime initialPhotoImageWaiting;
 		Ui::VerticalLayout *buttonsLayout = nullptr;
+		Ui::SettingsButton *forumToggle = nullptr;
+		bool forumToggleLocked = false;
 		Ui::SlideWrap<> *historyVisibilityWrap = nullptr;
 	};
 	struct Saving {
@@ -279,6 +292,7 @@ private:
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditReactions() const;
 	void refreshHistoryVisibility();
+	void refreshForumToggleLocked();
 	void showEditPeerTypeBox(
 		std::optional<rpl::producer<QString>> error = {});
 	void showEditLinkedChatBox();
@@ -614,7 +628,8 @@ void Controller::refreshHistoryVisibility() {
 	_controls.historyVisibilityWrap->toggle(
 		(!withUsername
 			&& !_channelHasLocationOriginalValue
-			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)),
+			&& (!_linkedChatSavedValue || !*_linkedChatSavedValue)
+			&& (!_forumSavedValue || !*_forumSavedValue)),
 		anim::type::instant);
 }
 
@@ -645,6 +660,11 @@ void Controller::showEditPeerTypeBox(
 void Controller::showEditLinkedChatBox() {
 	Expects(_peer->isChannel());
 
+	if (_forumSavedValue && *_forumSavedValue) {
+		ShowForumForDiscussionError(_navigation);
+		return;
+	}
+
 	const auto box = std::make_shared<QPointer<Ui::BoxContent>>();
 	const auto channel = _peer->asChannel();
 	const auto callback = [=](ChannelData *result) {
@@ -654,6 +674,7 @@ void Controller::showEditLinkedChatBox() {
 		*_linkedChatSavedValue = result;
 		_linkedChatUpdates.fire_copy(result);
 		refreshHistoryVisibility();
+		refreshForumToggleLocked();
 	};
 	const auto canEdit = channel->isBroadcast()
 		? channel->canEditInformation()
@@ -675,8 +696,14 @@ void Controller::showEditLinkedChatBox() {
 	} else if (!canEdit || _linkedChatsRequestId) {
 		return;
 	} else if (channel->isMegagroup()) {
-		// Restore original linked channel.
-		callback(_linkedChatOriginalValue);
+		if (_forumSavedValue
+			&& *_forumSavedValue
+			&& _linkedChatOriginalValue) {
+			ShowForumForDiscussionError(_navigation);
+		} else {
+			// Restore original linked channel.
+			callback(_linkedChatOriginalValue);
+		}
 		return;
 	}
 	_linkedChatsRequestId = _api.request(
@@ -817,22 +844,58 @@ void Controller::fillLinkedChatButton() {
 void Controller::fillForumButton() {
 	Expects(_controls.buttonsLayout != nullptr);
 
-	const auto channel = _peer->asChannel();
-	if (!channel || !channel->amCreator()) {
-		return;
-	}
-
-	AddButtonWithText(
-		_controls.buttonsLayout,
-		tr::lng_forum_topics_switch(),
-		rpl::single(QString()),
-		[] {},
-		{ &st::settingsIconGroup, Settings::kIconPurple }
-	)->toggleOn(rpl::single(channel->isForum())
+	const auto button = _controls.forumToggle = _controls.buttonsLayout->add(
+		EditPeerInfoBox::CreateButton(
+			_controls.buttonsLayout,
+			tr::lng_forum_topics_switch(),
+			rpl::single(QString()),
+			[] {},
+			st::manageGroupTopicsButton,
+			{ &st::settingsIconGroup, Settings::kIconPurple }));
+	const auto unlocks = std::make_shared<rpl::event_stream<bool>>();
+	button->toggleOn(
+		rpl::single(_peer->isForum()) | rpl::then(unlocks->events())
 	)->toggledValue(
 	) | rpl::start_with_next([=](bool toggled) {
-		_forumSavedValue = toggled;
+		if (_controls.forumToggleLocked && toggled) {
+			unlocks->fire(false);
+			if (_linkedChatSavedValue && *_linkedChatSavedValue) {
+				ShowForumForDiscussionError(_navigation);
+			} else {
+				Ui::ShowMultilineToast({
+					.parentOverride = Window::Show(
+						_navigation).toastParent(),
+					.text = tr::lng_forum_topics_not_enough(
+						tr::now,
+						lt_count,
+						EnableForumMinMembers(_peer),
+						Ui::Text::RichLangValue),
+				});
+			}
+		} else {
+			_forumSavedValue = toggled;
+			if (toggled) {
+				_savingData.hiddenPreHistory = false;
+			}
+			refreshHistoryVisibility();
+		}
 	}, _controls.buttonsLayout->lifetime());
+	refreshForumToggleLocked();
+}
+
+void Controller::refreshForumToggleLocked() {
+	if (!_controls.forumToggle) {
+		return;
+	}
+	const auto limit = EnableForumMinMembers(_peer);
+	const auto chat = _peer->asChat();
+	const auto channel = _peer->asChannel();
+	const auto notenough = !_peer->isForum()
+		&& ((chat ? chat->count : channel->membersCount()) < limit);
+	const auto linked = _linkedChatSavedValue
+		&& *_linkedChatSavedValue;
+	const auto locked = _controls.forumToggleLocked = notenough || linked;
+	_controls.forumToggle->setToggleLocked(locked);
 }
 
 void Controller::fillSignaturesButton() {
@@ -943,8 +1006,8 @@ void Controller::fillManageSection() {
 			: chat->canEditPreHistoryHidden();
 	}();
 	const auto canEditForum = isChannel
-		&& channel->isMegagroup()
-		&& channel->canEditInformation();
+		? (channel->isMegagroup() && channel->amCreator())
+		: chat->amCreator();
 
 	const auto canEditPermissions = [&] {
 		return isChannel
@@ -1703,9 +1766,20 @@ void Controller::togglePreHistoryHidden(
 void Controller::saveForum() {
 	const auto channel = _peer->asChannel();
 	if (!_savingData.forum
-		|| !channel
-		|| *_savingData.forum == channel->isForum()) {
+		|| *_savingData.forum == _peer->isForum()) {
 		return continueSave();
+	} else if (!channel) {
+		const auto saveForChannel = [=](not_null<ChannelData*> channel) {
+			if (_peer->asChannel() == channel) {
+				saveForum();
+			} else {
+				cancelSave();
+			}
+		};
+		_peer->session().api().migrateChat(
+			_peer->asChat(),
+			crl::guard(this, saveForChannel));
+		return;
 	}
 	_api.request(MTPchannels_ToggleForum(
 		channel->inputChannel,
