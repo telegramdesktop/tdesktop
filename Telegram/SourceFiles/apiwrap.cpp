@@ -2999,7 +2999,14 @@ void ApiWrap::sharedMediaDone(
 
 void ApiWrap::sendAction(const SendAction &action) {
 	if (!action.options.scheduled) {
-		_session->data().histories().readInbox(action.history);
+		const auto topic = action.topicRootId
+			? action.history->peer->forumTopicFor(action.topicRootId)
+			: nullptr;
+		if (topic) {
+			topic->readTillEnd();
+		} else {
+			_session->data().histories().readInbox(action.history);
+		}
 		action.history->getReadyFor(ShowAtTheEndMsgId);
 	}
 	_sendActions.fire_copy(action);

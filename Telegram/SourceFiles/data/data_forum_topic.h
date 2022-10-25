@@ -76,6 +76,7 @@ public:
 	void discard();
 
 	void setRealRootId(MsgId realId);
+	void readTillEnd();
 
 	void applyTopic(const MTPDforumTopic &data);
 
