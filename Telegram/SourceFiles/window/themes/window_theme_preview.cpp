@@ -700,7 +700,9 @@ void Generator::paintRow(const Row &row) {
 	})();
 	if (chatTypeIcon) {
 		(*chatTypeIcon)[_palette].paint(*_p, rectForName.topLeft(), fullWidth);
-		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+		rectForName.setLeft(rectForName.left()
+			+ chatTypeIcon->width()
+			+ st::dialogsChatTypeSkip);
 	}
 
 	auto texttop = y + st.textTop;

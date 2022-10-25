@@ -859,7 +859,9 @@ void InnerWidget::paintPeerSearchResult(
 	// draw chat icon
 	if (const auto chatTypeIcon = Ui::ChatTypeIcon(peer, context)) {
 		chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
-		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+		rectForName.setLeft(rectForName.left()
+			+ chatTypeIcon->width()
+			+ st::dialogsChatTypeSkip);
 	}
 	const auto badgeWidth = result->badge.drawGetWidth(
 		p,
@@ -987,7 +989,9 @@ void InnerWidget::paintSearchInFilter(
 		st::semiboldFont->height);
 	if (icon) {
 		icon->paint(p, rectForName.topLeft(), width());
-		rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+		rectForName.setLeft(rectForName.left()
+			+ icon->width()
+			+ st::dialogsChatTypeSkip);
 	}
 	p.setPen(savedPen);
 	text.drawLeftElided(

@@ -870,7 +870,9 @@ void Notification::updateNotifyDisplay() {
 			}
 			if (const auto chatTypeIcon = Dialogs::Ui::ChatTypeIcon(_history->peer)) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
-				rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+				rectForName.setLeft(rectForName.left()
+					+ chatTypeIcon->width()
+					+ st::dialogsChatTypeSkip);
 			}
 		}
 

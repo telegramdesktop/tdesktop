@@ -340,7 +340,9 @@ void PaintRow(
 	} else if (from) {
 		if (const auto chatTypeIcon = ChatTypeIcon(from, context)) {
 			chatTypeIcon->paint(p, rectForName.topLeft(), context.width);
-			rectForName.setLeft(rectForName.left() + st::dialogsChatTypeSkip);
+			rectForName.setLeft(rectForName.left()
+				+ chatTypeIcon->width()
+				+ st::dialogsChatTypeSkip);
 		}
 	}
 	auto texttop = context.st->textTop;
@@ -739,19 +741,7 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 const style::icon *ChatTypeIcon(
 		not_null<PeerData*> peer,
 		const PaintContext &context) {
-	if (peer->isChat() || peer->isMegagroup()) {
-		return &(context.active
-			? st::dialogsChatIconActive
-			: context.selected
-			? st::dialogsChatIconOver
-			: st::dialogsChatIcon);
-	} else if (peer->isChannel()) {
-		return &(context.active
-			? st::dialogsChannelIconActive
-			: context.selected
-			? st::dialogsChannelIconOver
-			: st::dialogsChannelIcon);
-	} else if (const auto user = peer->asUser()) {
+	if (const auto user = peer->asUser()) {
 		if (ShowUserBotIcon(user)) {
 			return &(context.active
 				? st::dialogsBotIconActive
@@ -759,6 +749,24 @@ const style::icon *ChatTypeIcon(
 				? st::dialogsBotIconOver
 				: st::dialogsBotIcon);
 		}
+	} else if (peer->isBroadcast()) {
+		return &(context.active
+			? st::dialogsChannelIconActive
+			: context.selected
+			? st::dialogsChannelIconOver
+			: st::dialogsChannelIcon);
+	} else if (peer->isForum()) {
+		return &(context.active
+			? st::dialogsForumIconActive
+			: context.selected
+			? st::dialogsForumIconOver
+			: st::dialogsForumIcon);
+	} else {
+		return &(context.active
+			? st::dialogsChatIconActive
+			: context.selected
+			? st::dialogsChatIconOver
+			: st::dialogsChatIcon);
 	}
 	return nullptr;
 }

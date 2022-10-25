@@ -271,7 +271,7 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 	iconPosition: point(9px, 8px);
 }
 
-dialogsChatTypeSkip: 20px;
+dialogsChatTypeSkip: 3px;
 dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
 dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
 dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
@@ -281,6 +281,9 @@ dialogsChannelIconActive: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgAc
 dialogsBotIcon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
 dialogsBotIconOver: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
 dialogsBotIconActive: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+dialogsForumIcon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
+dialogsForumIconOver: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
+dialogsForumIconActive: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 
