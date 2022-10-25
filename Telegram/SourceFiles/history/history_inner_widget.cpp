@@ -2097,16 +2097,30 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = (repliesCount > 0);
-		if (withReplies && item->history()->peer->isMegagroup()) {
-			const auto rootId = repliesCount ? item->id : item->replyToTop();
-			const auto phrase = (repliesCount > 0)
+		const auto topicRootId = item->history()->peer->isForum()
+			? item->topicRootId()
+			: 0;
+		if (topicRootId
+			|| (withReplies && item->history()->peer->isMegagroup())) {
+			const auto highlightId = topicRootId ? item->id : 0;
+			const auto rootId = topicRootId
+				? topicRootId
+				: repliesCount
+				? item->id
+				: item->replyToTop();
+			const auto phrase = topicRootId
+				? u"View in Thread"_q // #TODO lang-forum
+				: (repliesCount > 0)
 				? tr::lng_replies_view(
 					tr::now,
 					lt_count,
 					repliesCount)
 				: tr::lng_replies_view_thread(tr::now);
 			_menu->addAction(phrase, [=] {
-				controller->showRepliesForMessage(_history, rootId);
+				controller->showRepliesForMessage(
+					_history,
+					rootId,
+					highlightId);
 			}, &st::menuIconViewReplies);
 		}
 		const auto t = base::unixtime::now();

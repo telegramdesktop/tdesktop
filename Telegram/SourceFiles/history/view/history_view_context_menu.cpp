@@ -616,13 +616,25 @@ bool AddViewRepliesAction(
 		|| (context != Context::History && context != Context::Pinned)) {
 		return false;
 	}
+	const auto topicRootId = item->history()->peer->isForum()
+		? item->topicRootId()
+		: 0;
 	const auto repliesCount = item->repliesCount();
 	const auto withReplies = (repliesCount > 0);
 	if (!withReplies || !item->history()->peer->isMegagroup()) {
-		return false;
+		if (!topicRootId) {
+			return false;
+		}
 	}
-	const auto rootId = repliesCount ? item->id : item->replyToTop();
-	const auto phrase = (repliesCount > 0)
+	const auto rootId = topicRootId
+		? topicRootId
+		: repliesCount
+		? item->id
+		: item->replyToTop();
+	const auto highlightId = topicRootId ? item->id : 0;
+	const auto phrase = topicRootId
+		? u"View in Thread"_q // #TODO lang-forum
+		: (repliesCount > 0)
 		? tr::lng_replies_view(
 			tr::now,
 			lt_count,
@@ -631,7 +643,10 @@ bool AddViewRepliesAction(
 	const auto controller = list->controller();
 	const auto history = item->history();
 	menu->addAction(phrase, crl::guard(controller, [=] {
-		controller->showRepliesForMessage(history, rootId);
+		controller->showRepliesForMessage(
+			history,
+			rootId,
+			highlightId);
 	}), &st::menuIconViewReplies);
 	return true;
 }
