@@ -589,7 +589,7 @@ void Filler::addClearHistory() {
 		if (!channel->amIn()) {
 			return;
 		} else if (!channel->canDeleteMessages()
-			&& (!isGroup || channel->isPublic())) {
+			&& (!isGroup || channel->isPublic() || channel->isForum())) {
 			return;
 		}
 	}
