@@ -1908,167 +1908,170 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 		return this->itemTop(elem) < bottom;
 	});
 
-	if (from != end(_items)) {
-		_reactionsManager->startEffectsCollection();
+	auto context = preparePaintContext(clip);
+	if (from == end(_items)) {
+		_delegate->listPaintEmpty(p, context);
+		return;
+	}
+	_reactionsManager->startEffectsCollection();
 
-		const auto session = &controller()->session();
-		auto top = itemTop(from->get());
-		auto context = preparePaintContext(clip).translated(0, -top);
-		p.translate(0, top);
-		const auto &sendingAnimation = _controller->sendingAnimation();
-		for (auto i = from; i != to; ++i) {
-			const auto view = *i;
-			const auto item = view->data();
-			const auto height = view->height();
-			if (!sendingAnimation.hasAnimatedMessage(item)) {
-				context.reactionInfo
-					= _reactionsManager->currentReactionPaintInfo();
-				context.outbg = view->hasOutLayout();
-				context.selection = itemRenderSelection(view);
-				view->draw(p, context);
-			}
-			const auto isSponsored = item->isSponsored();
-			const auto isUnread = _delegate->listElementShownUnread(view)
-				&& item->isRegular();
-			const auto withReaction = item->hasUnreadReaction();
-			const auto yShown = [&](int y) {
-				return (_visibleBottom >= y && _visibleTop <= y);
-			};
-			const auto markShown = isSponsored
-				? view->markSponsoredViewed(_visibleBottom - top)
-				: withReaction
-				? yShown(top + context.reactionInfo->position.y())
-				: isUnread
-				? yShown(top + height)
-				: yShown(top + height / 2);
-			if (markShown) {
-				if (isSponsored) {
-					session->data().sponsoredMessages().view(
-						item->fullId());
-				} else if (isUnread) {
-					readTill = item;
-				}
-				if (item->hasViews()) {
-					session->api().views().scheduleIncrement(item);
-				}
-				if (withReaction) {
-					readContents.insert(item);
-				} else if (item->isUnreadMention()
-					&& !item->isUnreadMedia()) {
-					readContents.insert(item);
-					_highlighter.enqueue(view);
-				}
-			}
-			session->data().reactions().poll(item, context.now);
-			if (item->hasExtendedMediaPreview()) {
-				session->api().views().pollExtendedMedia(item);
-			}
-			_reactionsManager->recordCurrentReactionEffect(
-				item->fullId(),
-				QPoint(0, top));
-			top += height;
-			context.translate(0, -height);
-			p.translate(0, height);
+	const auto session = &controller()->session();
+	auto top = itemTop(from->get());
+	context = context.translated(0, -top);
+	p.translate(0, top);
+	const auto &sendingAnimation = _controller->sendingAnimation();
+	for (auto i = from; i != to; ++i) {
+		const auto view = *i;
+		const auto item = view->data();
+		const auto height = view->height();
+		if (!sendingAnimation.hasAnimatedMessage(item)) {
+			context.reactionInfo
+				= _reactionsManager->currentReactionPaintInfo();
+			context.outbg = view->hasOutLayout();
+			context.selection = itemRenderSelection(view);
+			view->draw(p, context);
 		}
-		context.translate(0, top);
-		p.translate(0, -top);
-
-		enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
-			// stop the enumeration if the userpic is below the painted rect
-			if (userpicTop >= clip.top() + clip.height()) {
-				return false;
+		const auto isSponsored = item->isSponsored();
+		const auto isUnread = _delegate->listElementShownUnread(view)
+			&& item->isRegular();
+		const auto withReaction = item->hasUnreadReaction();
+		const auto yShown = [&](int y) {
+			return (_visibleBottom >= y && _visibleTop <= y);
+		};
+		const auto markShown = isSponsored
+			? view->markSponsoredViewed(_visibleBottom - top)
+			: withReaction
+			? yShown(top + context.reactionInfo->position.y())
+			: isUnread
+			? yShown(top + height)
+			: yShown(top + height / 2);
+		if (markShown) {
+			if (isSponsored) {
+				session->data().sponsoredMessages().view(
+					item->fullId());
+			} else if (isUnread) {
+				readTill = item;
 			}
+			if (item->hasViews()) {
+				session->api().views().scheduleIncrement(item);
+			}
+			if (withReaction) {
+				readContents.insert(item);
+			} else if (item->isUnreadMention()
+				&& !item->isUnreadMedia()) {
+				readContents.insert(item);
+				_highlighter.enqueue(view);
+			}
+		}
+		session->data().reactions().poll(item, context.now);
+		if (item->hasExtendedMediaPreview()) {
+			session->api().views().pollExtendedMedia(item);
+		}
+		_reactionsManager->recordCurrentReactionEffect(
+			item->fullId(),
+			QPoint(0, top));
+		top += height;
+		context.translate(0, -height);
+		p.translate(0, height);
+	}
+	context.translate(0, top);
+	p.translate(0, -top);
 
-			// paint the userpic if it intersects the painted rect
-			if (userpicTop + st::msgPhotoSize > clip.top()) {
-				if (const auto from = view->data()->displayFrom()) {
-					from->paintUserpicLeft(
+	enumerateUserpics([&](not_null<Element*> view, int userpicTop) {
+		// stop the enumeration if the userpic is below the painted rect
+		if (userpicTop >= clip.top() + clip.height()) {
+			return false;
+		}
+
+		// paint the userpic if it intersects the painted rect
+		if (userpicTop + st::msgPhotoSize > clip.top()) {
+			if (const auto from = view->data()->displayFrom()) {
+				from->paintUserpicLeft(
+					p,
+					_userpics[from],
+					st::historyPhotoLeft,
+					userpicTop,
+					view->width(),
+					st::msgPhotoSize);
+			} else if (const auto info = view->data()->hiddenSenderInfo()) {
+				if (info->customUserpic.empty()) {
+					info->emptyUserpic.paint(
 						p,
-						_userpics[from],
 						st::historyPhotoLeft,
 						userpicTop,
 						view->width(),
 						st::msgPhotoSize);
-				} else if (const auto info = view->data()->hiddenSenderInfo()) {
-					if (info->customUserpic.empty()) {
-						info->emptyUserpic.paint(
-							p,
-							st::historyPhotoLeft,
-							userpicTop,
-							view->width(),
-							st::msgPhotoSize);
-					} else {
-						const auto painted = info->paintCustomUserpic(
-							p,
-							st::historyPhotoLeft,
-							userpicTop,
-							view->width(),
-							st::msgPhotoSize);
-						if (!painted) {
-							const auto itemId = view->data()->fullId();
-							auto &v = _sponsoredUserpics[itemId.msg];
-							if (!info->customUserpic.isCurrentView(v)) {
-								v = info->customUserpic.createView();
-								info->customUserpic.load(session, itemId);
-							}
+				} else {
+					const auto painted = info->paintCustomUserpic(
+						p,
+						st::historyPhotoLeft,
+						userpicTop,
+						view->width(),
+						st::msgPhotoSize);
+					if (!painted) {
+						const auto itemId = view->data()->fullId();
+						auto &v = _sponsoredUserpics[itemId.msg];
+						if (!info->customUserpic.isCurrentView(v)) {
+							v = info->customUserpic.createView();
+							info->customUserpic.load(session, itemId);
 						}
 					}
+				}
+			} else {
+				Unexpected("Corrupt forwarded information in message.");
+			}
+		}
+		return true;
+	});
+
+	auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
+	auto scrollDateOpacity = _scrollDateOpacity.value(_scrollDateShown ? 1. : 0.);
+	enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
+		// stop the enumeration if the date is above the painted rect
+		if (dateTop + dateHeight <= clip.top()) {
+			return false;
+		}
+
+		const auto displayDate = view->displayDate();
+		auto dateInPlace = displayDate;
+		if (dateInPlace) {
+			const auto correctDateTop = itemtop + st::msgServiceMargin.top();
+			dateInPlace = (dateTop < correctDateTop + dateHeight);
+		}
+		//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
+		//if (noFloatingDate) {
+		//	if (itemtop < showFloatingBefore) {
+		//		noFloatingDate = false;
+		//	}
+		//}
+
+		// paint the date if it intersects the painted rect
+		if (dateTop < clip.top() + clip.height()) {
+			auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
+			if (opacity > 0.) {
+				p.setOpacity(opacity);
+				int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
+				int width = view->width();
+				if (const auto date = view->Get<HistoryView::DateBadge>()) {
+					date->paint(p, context.st, dateY, width, _isChatWide);
 				} else {
-					Unexpected("Corrupt forwarded information in message.");
+					ServiceMessagePainter::PaintDate(
+						p,
+						context.st,
+						ItemDateText(
+							view->data(),
+							IsItemScheduledUntilOnline(view->data())),
+						dateY,
+						width,
+						_isChatWide);
 				}
 			}
-			return true;
-		});
+		}
+		return true;
+	});
 
-		auto dateHeight = st::msgServicePadding.bottom() + st::msgServiceFont->height + st::msgServicePadding.top();
-		auto scrollDateOpacity = _scrollDateOpacity.value(_scrollDateShown ? 1. : 0.);
-		enumerateDates([&](not_null<Element*> view, int itemtop, int dateTop) {
-			// stop the enumeration if the date is above the painted rect
-			if (dateTop + dateHeight <= clip.top()) {
-				return false;
-			}
-
-			const auto displayDate = view->displayDate();
-			auto dateInPlace = displayDate;
-			if (dateInPlace) {
-				const auto correctDateTop = itemtop + st::msgServiceMargin.top();
-				dateInPlace = (dateTop < correctDateTop + dateHeight);
-			}
-			//bool noFloatingDate = (item->date.date() == lastDate && displayDate);
-			//if (noFloatingDate) {
-			//	if (itemtop < showFloatingBefore) {
-			//		noFloatingDate = false;
-			//	}
-			//}
-
-			// paint the date if it intersects the painted rect
-			if (dateTop < clip.top() + clip.height()) {
-				auto opacity = (dateInPlace/* || noFloatingDate*/) ? 1. : scrollDateOpacity;
-				if (opacity > 0.) {
-					p.setOpacity(opacity);
-					int dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
-					int width = view->width();
-					if (const auto date = view->Get<HistoryView::DateBadge>()) {
-						date->paint(p, context.st, dateY, width, _isChatWide);
-					} else {
-						ServiceMessagePainter::PaintDate(
-							p,
-							context.st,
-							ItemDateText(
-								view->data(),
-								IsItemScheduledUntilOnline(view->data())),
-							dateY,
-							width,
-							_isChatWide);
-					}
-				}
-			}
-			return true;
-		});
-
-		_reactionsManager->paint(p, context);
-		_emojiInteractions->paint(p);
-	}
+	_reactionsManager->paint(p, context);
+	_emojiInteractions->paint(p);
 }
 
 void ListWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {

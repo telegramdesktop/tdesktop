@@ -468,7 +468,6 @@ void EditForumTopicBox(
 		state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
 	}, box->lifetime());
 
-	const auto requestId = std::make_shared<mtpRequestId>();
 	const auto create = [=] {
 		const auto channel = forum->peer->asChannel();
 		if (!channel || !channel->isForum()) {
@@ -505,9 +504,11 @@ void EditForumTopicBox(
 			topic->applyTitle(title->getLastText().trimmed());
 			topic->applyColorId(state->defaultIcon.current().colorId);
 			topic->applyIconId(state->iconId.current());
+			box->closeBox();
 		} else {
 			using Flag = MTPchannels_EditForumTopic::Flag;
 			const auto api = &forum->session().api();
+			const auto weak = Ui::MakeWeak(box.get());
 			state->requestId = api->request(MTPchannels_EditForumTopic(
 				MTP_flags(Flag::f_title | Flag::f_icon_emoji_id),
 				topic->channel()->inputChannel,
@@ -517,12 +518,16 @@ void EditForumTopicBox(
 				MTPBool() // closed
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
-				box->closeBox();
+				if (const auto strong = weak.data()) {
+					strong->closeBox();
+				}
 			}).fail([=](const MTP::Error &error) {
-				if (error.type() == u"TOPIC_NOT_MODIFIED") {
-					box->closeBox();
-				} else {
-					state->requestId = -1;
+				if (const auto strong = weak.data()) {
+					if (error.type() == u"TOPIC_NOT_MODIFIED") {
+						strong->closeBox();
+					} else {
+						state->requestId = -1;
+					}
 				}
 			}).send();
 		}

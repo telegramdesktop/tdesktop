@@ -132,6 +132,9 @@ public:
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) = 0;
+	virtual void listPaintEmpty(
+		Painter &p,
+		const Ui::ChatPaintContext &context) = 0;
 };
 
 struct SelectionData {

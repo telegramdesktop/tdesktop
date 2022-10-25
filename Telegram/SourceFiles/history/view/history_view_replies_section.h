@@ -66,6 +66,7 @@ class ComposeControls;
 class SendActionPainter;
 class StickerToast;
 class TopicReopenBar;
+class EmptyPainter;
 
 class RepliesWidget final
 	: public Window::SectionWidget
@@ -158,6 +159,9 @@ public:
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) override;
+	void listPaintEmpty(
+		Painter &p,
+		const Ui::ChatPaintContext &context) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(
@@ -275,7 +279,9 @@ private:
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId);
 
+	void setupEmptyPainter();
 	void refreshJoinGroupButton();
+	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
 	[[nodiscard]] std::optional<QString> writeRestriction() const;
 
@@ -296,6 +302,7 @@ private:
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
+	std::unique_ptr<EmptyPainter> _emptyPainter;
 	bool _skipScrollEvent = false;
 
 	std::unique_ptr<Ui::PinnedBar> _rootView;

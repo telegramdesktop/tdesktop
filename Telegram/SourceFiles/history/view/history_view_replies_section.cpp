@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_sticker_toast.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_contact_status.h"
+#include "history/view/history_view_service_message.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -355,16 +356,17 @@ RepliesWidget::RepliesWidget(
 }
 
 RepliesWidget::~RepliesWidget() {
+	base::take(_sendAction);
+	session().api().saveCurrentDraftToCloud();
+	controller()->sendingAnimation().clear();
 	if (_topic && _topic->creating()) {
+		_emptyPainter = nullptr;
 		_topic->discard();
 		_topic = nullptr;
 	}
-	base::take(_sendAction);
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,
 		_rootId);
-	session().api().saveCurrentDraftToCloud();
-	controller()->sendingAnimation().clear();
 }
 
 void RepliesWidget::orderWidgets() {
@@ -517,6 +519,11 @@ void RepliesWidget::setTopic(Data::ForumTopic *topic) {
 			_rootViewHeight = 0;
 		}
 		subscribeToTopic();
+	}
+	if (_topic && emptyShown()) {
+		setupEmptyPainter();
+	} else {
+		_emptyPainter = nullptr;
 	}
 }
 
@@ -1772,6 +1779,12 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	SectionWidget::PaintBackground(controller(), _theme.get(), this, bg);
 }
 
+bool RepliesWidget::emptyShown() const {
+	return _topic
+		&& (_inner->isEmpty()
+			|| (_topic->lastKnownServerMessageId() == _rootId));
+}
+
 void RepliesWidget::onScroll() {
 	if (_skipScrollEvent) {
 		return;
@@ -2063,6 +2076,32 @@ void RepliesWidget::listOpenDocument(
 		FullMsgId context,
 		bool showInMediaView) {
 	controller()->openDocument(document, context, _rootId, showInMediaView);
+}
+
+void RepliesWidget::listPaintEmpty(
+		Painter &p,
+		const Ui::ChatPaintContext &context) {
+	if (!emptyShown()) {
+		return;
+	} else if (!_emptyPainter) {
+		setupEmptyPainter();
+	}
+	_emptyPainter->paint(p, context.st, width(), _scroll->height());
+}
+
+void RepliesWidget::setupEmptyPainter() {
+	Expects(_topic != nullptr);
+
+	_emptyPainter = std::make_unique<EmptyPainter>(_topic, [=] {
+		return controller()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	}, [=] {
+		if (emptyShown()) {
+			update();
+		} else {
+			_emptyPainter = nullptr;
+		}
+	});
 }
 
 void RepliesWidget::confirmDeleteSelected() {

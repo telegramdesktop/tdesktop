@@ -118,54 +118,59 @@ Cover::Cover(
 }
 
 TopicIconView::TopicIconView(
-	QWidget *parent,
-	not_null<Window::SessionController*> controller,
-	not_null<Data::ForumTopic*> topic)
-: AbstractButton(parent) {
-	setup(topic, [=] {
-		return controller->isGifPausedAtLeastFor(
-			Window::GifPauseReason::Layer);
-	});
+	not_null<Data::ForumTopic*> topic,
+	Fn<bool()> paused,
+	Fn<void()> update)
+: _topic(topic)
+, _paused(std::move(paused))
+, _update(std::move(update)) {
+	setup(topic);
 }
 
-void TopicIconView::setup(
-		not_null<Data::ForumTopic*> topic,
-		Fn<bool()> paused) {
+void TopicIconView::paintInRect(QPainter &p, QRect rect) {
+	const auto paint = [&](const QImage &image) {
+		const auto size = image.size() / image.devicePixelRatio();
+		p.drawImage(
+			rect.x() + (rect.width() - size.width()) / 2,
+			rect.y() + (rect.height() - size.height()) / 2,
+			image);
+	};
+	if (_player && _player->ready()) {
+		paint(_player->frame(
+			st::infoTopicCover.photo.size,
+			QColor(0, 0, 0, 0),
+			false,
+			crl::now(),
+			_paused()).image);
+		_player->markFrameShown();
+	} else if (!_topic->iconId() && !_image.isNull()) {
+		paint(_image);
+	}
+}
+
+void TopicIconView::setup(not_null<Data::ForumTopic*> topic) {
 	setupPlayer(topic);
 	setupImage(topic);
-
-	resize(st::infoTopicCover.photo.size);
-	paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(this);
-		const auto paint = [&](const QImage &image) {
-			const auto size = image.size() / image.devicePixelRatio();
-			p.drawImage(
-				(st::infoTopicCover.photo.size.width() - size.width()) / 2,
-				(st::infoTopicCover.photo.size.height() - size.height()) / 2,
-				image);
-		};
-		if (_player && _player->ready()) {
-			paint(_player->frame(
-				st::infoTopicCover.photo.size,
-				QColor(0, 0, 0, 0),
-				false,
-				crl::now(),
-				paused()).image);
-			_player->markFrameShown();
-		} else if (!topic->iconId() && !_image.isNull()) {
-			paint(_image);
-		}
-	}, lifetime());
 }
 
 void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 	IconIdValue(
 		topic
-	) | rpl::map([=](DocumentId id) {
-		return topic->owner().customEmojiManager().resolve(id);
+	) | rpl::map([=](DocumentId id) -> rpl::producer<DocumentData*> {
+		if (!id) {
+			return rpl::single((DocumentData*)nullptr);
+		}
+		return topic->owner().customEmojiManager().resolve(
+			id
+		) | rpl::map([=](not_null<DocumentData*> document) {
+			return document.get();
+		});
 	}) | rpl::flatten_latest(
-	) | rpl::map([=](not_null<DocumentData*> document) {
+	) | rpl::map([=](DocumentData *document)
+	-> rpl::producer<std::shared_ptr<StickerPlayer>> {
+		if (!document) {
+			return rpl::single(std::shared_ptr<StickerPlayer>());
+		}
 		const auto media = document->createMediaView();
 		media->checkStickerLarge();
 		media->goodThumbnailWanted();
@@ -195,13 +200,16 @@ void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 					media->bytes(),
 					st::infoTopicCover.photo.size);
 			}
-			result->setRepaintCallback([=] { update(); });
+			result->setRepaintCallback(_update);
 			return result;
 		});
 	}) | rpl::flatten_latest(
 	) | rpl::start_with_next([=](std::shared_ptr<StickerPlayer> player) {
 		_player = std::move(player);
-	}, lifetime());
+		if (!_player) {
+			_update();
+		}
+	}, _lifetime);
 }
 
 void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
@@ -213,7 +221,25 @@ void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
 		return ForumTopicIconFrame(colorId, title, st::infoForumTopicIcon);
 	}) | rpl::start_with_next([=](QImage &&image) {
 		_image = std::move(image);
-		update();
+		_update();
+	}, _lifetime);
+}
+
+TopicIconButton::TopicIconButton(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Data::ForumTopic*> topic)
+: AbstractButton(parent)
+, _view(
+		topic,
+		[=] { return controller->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Layer); },
+		[=] { update(); }) {
+	resize(st::infoTopicCover.photo.size);
+	paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(this);
+		_view.paintInRect(p, rect());
 	}, lifetime());
 }
 
@@ -248,8 +274,8 @@ Cover::Cover(
 		_peer,
 		Ui::UserpicButton::Role::OpenPhoto,
 		_st.photo))
-, _iconView(topic
-	? object_ptr<TopicIconView>(this, controller, topic)
+, _iconButton(topic
+	? object_ptr<TopicIconButton>(this, controller, topic)
 	: nullptr)
 , _name(this, _st.name)
 , _status(this, _st.status)
@@ -285,7 +311,7 @@ Cover::Cover(
 				_userpic->takeResultImage());
 		}, _userpic->lifetime());
 	} else if (topic->canEdit()) {
-		_iconView->setClickedCallback([=] {
+		_iconButton->setClickedCallback([=] {
 			_controller->show(Box(
 				EditForumTopicBox,
 				_controller,
@@ -293,7 +319,7 @@ Cover::Cover(
 				topic->rootId()));
 		});
 	} else {
-		_iconView->setAttribute(Qt::WA_TransparentForMouseEvents);
+		_iconButton->setAttribute(Qt::WA_TransparentForMouseEvents);
 	}
 }
 
@@ -303,7 +329,7 @@ void Cover::setupChildGeometry() {
 		if (_userpic) {
 			_userpic->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
 		} else {
-			_iconView->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
+			_iconButton->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
 		}
 		refreshNameGeometry(newWidth);
 		refreshStatusGeometry(newWidth);

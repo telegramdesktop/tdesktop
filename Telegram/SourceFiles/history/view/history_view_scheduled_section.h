@@ -142,6 +142,9 @@ public:
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) override;
+	void listPaintEmpty(
+		Painter &p,
+		const Ui::ChatPaintContext &context) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(

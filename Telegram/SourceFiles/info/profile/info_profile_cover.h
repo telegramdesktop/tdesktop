@@ -44,24 +44,40 @@ namespace Info::Profile {
 class EmojiStatusPanel;
 class Badge;
 
-class TopicIconView final : public Ui::AbstractButton {
+class TopicIconView final {
 public:
 	TopicIconView(
+		not_null<Data::ForumTopic*> topic,
+		Fn<bool()> paused,
+		Fn<void()> update);
+
+	void paintInRect(QPainter &p, QRect rect);
+
+private:
+	using StickerPlayer = HistoryView::StickerPlayer;
+
+	void setup(not_null<Data::ForumTopic*> topic);
+	void setupPlayer(not_null<Data::ForumTopic*> topic);
+	void setupImage(not_null<Data::ForumTopic*> topic);
+
+	const not_null<Data::ForumTopic*> _topic;
+	Fn<bool()> _paused;
+	Fn<void()> _update;
+	std::shared_ptr<StickerPlayer> _player;
+	QImage _image;
+	rpl::lifetime _lifetime;
+
+};
+
+class TopicIconButton final : public Ui::AbstractButton {
+public:
+	TopicIconButton(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
 		not_null<Data::ForumTopic*> topic);
 
 private:
-	using StickerPlayer = HistoryView::StickerPlayer;
-
-	void setup(
-		not_null<Data::ForumTopic*> topic,
-		Fn<bool()> paused);
-	void setupPlayer(not_null<Data::ForumTopic*> topic);
-	void setupImage(not_null<Data::ForumTopic*> topic);
-
-	std::shared_ptr<StickerPlayer> _player;
-	QImage _image;
+	TopicIconView _view;
 
 };
 
@@ -112,7 +128,7 @@ private:
 	int _onlineCount = 0;
 
 	object_ptr<Ui::UserpicButton> _userpic;
-	object_ptr<TopicIconView> _iconView;
+	object_ptr<TopicIconButton> _iconButton;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };
 	//object_ptr<CoverDropArea> _dropArea = { nullptr };

@@ -1509,7 +1509,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
 "lng_action_topic_created_inside" = "Topic created";
-"lng_action_topic_closed_inside" = "Topics closed";
+"lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
 "lng_action_topic_created" = "{topic} — was created";
 "lng_action_topic_closed" = "{topic} — was closed";
@@ -3536,9 +3536,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_topic_delete" = "Delete";
 "lng_forum_topic_delete_sure" = "Are you sure you want to delete this topic?";
 "lng_forum_topic_created_title_my" = "Almost done!";
-"lng_forum_topic_created_body_my" = "Send the first message to start this topic.";
+"lng_forum_topic_created_body_my" = "Send the first message\nto start this topic.";
 "lng_forum_topic_created_title" = "Topic started!";
-"lng_forum_topic_created_body" = "Send a message to open the discussion";
+"lng_forum_topic_created_body" = "Send a message to open\nthe discussion.";
 "lng_forum_topics_switch" = "Topics";
 "lng_forum_topics_not_enough#one" = "Only groups with more than **{count} member** can have topics enabled.";
 "lng_forum_topics_not_enough#other" = "Only groups with more than **{count} members** can have topics enabled.";

@@ -1282,6 +1282,11 @@ void ScheduledWidget::listOpenDocument(
 	controller()->openDocument(document, context, MsgId(), showInMediaView);
 }
 
+void ScheduledWidget::listPaintEmpty(
+	Painter &p,
+	const Ui::ChatPaintContext &context) {
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

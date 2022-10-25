@@ -123,7 +123,6 @@ StaticStickerPlayer::StaticStickerPlayer(
 : _frame(Images::Read({
 	.path = location.name(),
 	.content = data,
-	.forceOpaque = true,
 }).image) {
 	if (!_frame.isNull()) {
 		size = _frame.size().scaled(size, Qt::KeepAspectRatio);

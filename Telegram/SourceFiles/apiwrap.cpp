@@ -2016,6 +2016,10 @@ void ApiWrap::saveCurrentDraftToCloud() {
 	for (const auto &controller : _session->windows()) {
 		controller->materializeLocalDrafts();
 		if (const auto thread = controller->activeChatCurrent().thread()) {
+			const auto topic = thread->asTopic();
+			if (topic && topic->creating()) {
+				continue;
+			}
 			const auto history = thread->owningHistory();
 			_session->local().writeDrafts(history);
 

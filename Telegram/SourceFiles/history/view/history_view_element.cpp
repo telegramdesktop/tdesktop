@@ -702,7 +702,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 			const QString &title,
 			std::optional<DocumentId> iconId) {
 		auto result = TextWithEntities{ title };
-		auto full = iconId
+		auto full = (iconId && *iconId)
 			? wrapIcon(*iconId).append(' ').append(std::move(result))
 			: result;
 		return Ui::Text::Link(std::move(full), topicUrl);

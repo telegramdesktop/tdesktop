@@ -603,6 +603,11 @@ void PinnedWidget::listOpenDocument(
 	controller()->openDocument(document, context, MsgId(), showInMediaView);
 }
 
+void PinnedWidget::listPaintEmpty(
+	Painter &p,
+	const Ui::ChatPaintContext &context) {
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }
