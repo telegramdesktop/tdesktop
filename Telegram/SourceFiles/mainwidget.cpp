@@ -2194,16 +2194,24 @@ void MainWidget::updateControlsGeometry() {
 				anim::type::instant,
 				anim::activation::background);
 			const auto active = _controller->activeChatCurrent();
-			if (const auto peer = active.peer()) {
+			if (const auto thread = active.thread()) {
 				if (Core::App().settings().tabbedSelectorSectionEnabled()) {
 					if (_mainSection) {
-						_mainSection->pushTabbedSelectorToThirdSection(peer, params);
+						_mainSection->pushTabbedSelectorToThirdSection(
+							thread,
+							params);
 					} else {
-						_history->pushTabbedSelectorToThirdSection(peer, params);
+						_history->pushTabbedSelectorToThirdSection(
+							thread,
+							params);
 					}
 				} else if (Core::App().settings().thirdSectionInfoEnabled()) {
 					_controller->showSection(
-						Info::Memento::Default(peer),
+						(thread->asTopic()
+							? std::make_shared<Info::Memento>(
+								thread->asTopic())
+							: Info::Memento::Default(
+								thread->asHistory()->peer)),
 						params.withThirdColumn());
 				}
 			}
@@ -2491,11 +2499,11 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			thirdSectionForCurrentMainSection(key),
 			params.withThirdColumn());
 	};
-	auto switchTabbedFast = [&](not_null<PeerData*> peer) {
+	auto switchTabbedFast = [&](not_null<Data::Thread*> thread) {
 		saveOldThirdSection();
 		return _mainSection
-			? _mainSection->pushTabbedSelectorToThirdSection(peer, params)
-			: _history->pushTabbedSelectorToThirdSection(peer, params);
+			? _mainSection->pushTabbedSelectorToThirdSection(thread, params)
+			: _history->pushTabbedSelectorToThirdSection(thread, params);
 	};
 	if (isThreeColumn()
 		&& settings.tabbedSelectorSectionEnabled()
@@ -2505,8 +2513,8 @@ void MainWidget::updateThirdColumnToCurrentChat(
 			settings.setTabbedSelectorSectionEnabled(true);
 			settings.setTabbedReplacedWithInfo(true);
 		} else if (settings.tabbedReplacedWithInfo()
-			&& key.history()
-			&& switchTabbedFast(key.history()->peer)) {
+			&& key.thread()
+			&& switchTabbedFast(key.thread())) {
 			settings.setTabbedReplacedWithInfo(false);
 		}
 	} else {

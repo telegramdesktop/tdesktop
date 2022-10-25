@@ -920,9 +920,11 @@ void ScheduledWidget::setInternalState(
 }
 
 bool ScheduledWidget::pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
-	return _composeControls->pushTabbedSelectorToThirdSection(peer, params);
+	return _composeControls->pushTabbedSelectorToThirdSection(
+		thread,
+		params);
 }
 
 bool ScheduledWidget::returnTabbedSelector() {

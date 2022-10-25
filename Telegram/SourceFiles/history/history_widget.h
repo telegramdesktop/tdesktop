@@ -269,7 +269,7 @@ public:
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) override;
 	bool returnTabbedSelector() override;
 

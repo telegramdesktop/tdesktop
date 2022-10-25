@@ -18,6 +18,7 @@ class PeerData;
 
 namespace Data {
 struct ReactionId;
+class ForumTopic;
 } // namespace Data
 
 namespace Main {
@@ -58,7 +59,7 @@ public:
 
 	// Tabbed selector management.
 	virtual bool pushTabbedSelectorToThirdSection(
-			not_null<PeerData*> peer,
+			not_null<Data::Thread*> thread,
 			const SectionShow &params) {
 		return false;
 	}

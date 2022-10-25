@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -893,6 +894,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	Expects(!_history && *args.history);
 
 	_showSlowmodeError = std::move(args.showSlowmodeError);
+	_topicRootId = args.topicRootId;
 	_slowmodeSecondsLeft = rpl::single(0)
 		| rpl::then(std::move(args.slowmodeSecondsLeft));
 	_sendDisabledBySlowmode = rpl::single(false)
@@ -2287,7 +2289,7 @@ void ComposeControls::escape() {
 }
 
 bool ComposeControls::pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel) {
 		return true;
@@ -2344,8 +2346,11 @@ void ComposeControls::toggleTabbedSelectorMode() {
 				&& !_window->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
+			const auto topic = _topicRootId
+				? _history->peer->forumTopicFor(_topicRootId)
+				: nullptr;
 			pushTabbedSelectorToThirdSection(
-				_history->peer,
+				(topic ? topic : (Data::Thread*)_history),
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();

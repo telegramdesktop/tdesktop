@@ -66,6 +66,7 @@ public:
 	[[nodiscard]] PeerNotifySettings &notify();
 	[[nodiscard]] const PeerNotifySettings &notify() const;
 
+	[[nodiscard]] bool canWrite() const;
 	void setUnreadThingsKnown();
 	[[nodiscard]] HistoryUnreadThings::Proxy unreadMentions();
 	[[nodiscard]] HistoryUnreadThings::ConstProxy unreadMentions() const;

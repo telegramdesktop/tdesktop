@@ -4618,13 +4618,13 @@ void HistoryWidget::showMembersDropdown() {
 }
 
 bool HistoryWidget::pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel) {
 		return true;
-	} else if (!peer->canWrite()) {
+	} else if (!thread->canWrite()) {
 		Core::App().settings().setTabbedReplacedWithInfo(true);
-		controller()->showPeerInfo(peer, params.withThirdColumn());
+		controller()->showPeerInfo(thread, params.withThirdColumn());
 		return false;
 	}
 	Core::App().settings().setTabbedReplacedWithInfo(false);
@@ -4670,7 +4670,7 @@ bool HistoryWidget::preventsClose(Fn<void()> &&continueCallback) const {
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {
-	if (!_peer) {
+	if (!_history) {
 		return;
 	}
 	if (_tabbedPanel) {
@@ -4679,7 +4679,7 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
-				_peer,
+				_history,
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();

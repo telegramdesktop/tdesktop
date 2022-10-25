@@ -35,6 +35,7 @@ struct SendActionUpdate {
 
 struct SetHistoryArgs {
 	required<History*> history;
+	MsgId topicRootId = 0;
 	Fn<bool()> showSlowmodeError;
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;

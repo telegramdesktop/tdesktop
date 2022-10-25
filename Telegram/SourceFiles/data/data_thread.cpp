@@ -37,6 +37,11 @@ const PeerNotifySettings &Thread::notify() const {
 	return const_cast<Thread*>(this)->notify();
 }
 
+bool Thread::canWrite() const {
+	const auto topic = asTopic();
+	return topic ? topic->canWrite() : peer()->canWrite();
+}
+
 void Thread::setUnreadThingsKnown() {
 	_flags |= Flag::UnreadThingsKnown;
 }

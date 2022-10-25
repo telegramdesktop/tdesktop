@@ -143,7 +143,7 @@ public:
 	void setMimeDataHook(MimeDataHook hook);
 
 	bool pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params);
 	bool returnTabbedSelector();
 
@@ -291,6 +291,7 @@ private:
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<std::optional<QString>> _writeRestriction;
 	rpl::variable<bool> _hidden;
+	MsgId _topicRootId = 0;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

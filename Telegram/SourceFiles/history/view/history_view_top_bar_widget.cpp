@@ -380,7 +380,10 @@ void TopBarWidget::toggleInfoSection() {
 			Core::App().saveSettingsDelayed();
 			if (isThreeColumn) {
 				_controller->showSection(
-					Info::Memento::Default(_activeChat.key.peer()),
+					(_activeChat.key.topic()
+						? std::make_shared<Info::Memento>(
+							_activeChat.key.topic())
+						: Info::Memento::Default(_activeChat.key.peer())),
 					Window::SectionShow().withThirdColumn());
 			} else {
 				_controller->resizeForThirdSection();
@@ -1009,12 +1012,17 @@ void TopBarWidget::updateControlsVisibility() {
 			: (section == Section::ChatsList)
 			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
 			: false);
+	const auto hasInfo = !_activeChat.key.folder()
+		&& (section == Section::History
+			? true
+			: (section == Section::Replies)
+			? (_activeChat.key.topic() != nullptr)
+			: false);
 	updateSearchVisibility();
 	_menuToggle->setVisible(hasMenu
 		&& !_chooseForReportReason
 		&& !_narrowMode);
-	_infoToggle->setVisible(historyMode
-		&& !_activeChat.key.folder()
+	_infoToggle->setVisible(hasInfo
 		&& !isOneColumn
 		&& _controller->canShowThirdSection()
 		&& !_chooseForReportReason);
