@@ -85,8 +85,8 @@ public:
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
-	bool searchReceived(
-		const QVector<MTPMessage> &result,
+	void searchReceived(
+		std::vector<not_null<HistoryItem*>> result,
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
@@ -117,10 +117,6 @@ public:
 
 	[[nodiscard]] Data::Folder *shownFolder() const;
 	[[nodiscard]] Data::Forum *shownForum() const;
-	[[nodiscard]] int32 lastSearchDate() const;
-	[[nodiscard]] PeerData *lastSearchPeer() const;
-	[[nodiscard]] MsgId lastSearchId() const;
-	[[nodiscard]] MsgId lastSearchMigratedId() const;
 
 	[[nodiscard]] WidgetState state() const;
 	[[nodiscard]] not_null<const style::DialogRow*> st() const {
@@ -333,6 +329,8 @@ private:
 
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
+	void trackSearchResultsHistory(not_null<History*> history);
+	void trackSearchResultsForum(Data::Forum *forum);
 
 	[[nodiscard]] not_null<IndexedList*> shownDialogs() const;
 
@@ -406,15 +404,11 @@ private:
 	int _peerSearchPressed = -1;
 
 	std::vector<std::unique_ptr<FakeRow>> _searchResults;
+	rpl::lifetime _searchResultsLifetime;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
 	int _searchedPressed = -1;
-
-	int _lastSearchDate = 0;
-	PeerData *_lastSearchPeer = nullptr;
-	MsgId _lastSearchId = 0;
-	MsgId _lastSearchMigratedId = 0;
 
 	WidgetState _state = WidgetState::Default;
 

@@ -243,7 +243,6 @@ void PaintRow(
 		Painter &p,
 		not_null<const BasicRow*> row,
 		not_null<Entry*> entry,
-		Dialogs::Key chat,
 		VideoUserpic *videoUserpic,
 		PeerData *from,
 		Ui::PeerBadge &fromBadge,
@@ -274,8 +273,8 @@ void PaintRow(
 	p.fillRect(fullRect, bg);
 	row->paintRipple(p, 0, 0, context.width, &ripple->c);
 
-	const auto history = chat.history();
-	const auto thread = chat.thread();
+	const auto history = entry->asHistory();
+	const auto thread = entry->asThread();
 
 	if (flags & Flag::SavedMessages) {
 		EmptyUserpic::PaintSavedMessages(
@@ -512,7 +511,7 @@ void PaintRow(
 		if (!thread) {
 			return nullptr;
 		} else if (const auto topic = thread->asTopic()
-			; topic && topic->closed()) {
+			; !context.search && topic && topic->closed()) {
 			return &(context.active
 				? st::dialogsLockIconActive
 				: context.selected
@@ -927,11 +926,10 @@ void RowPainter::Paint(
 		p,
 		row,
 		entry,
-		row->key(),
 		videoUserpic,
 		from,
 		entry->chatListPeerBadge(),
-		[=] { history->updateChatListEntry(); },
+		[=] { entry->updateChatListEntry(); },
 		entry->chatListNameText(),
 		nullptr,
 		item,
@@ -947,14 +945,17 @@ void RowPainter::Paint(
 		Painter &p,
 		not_null<const FakeRow*> row,
 		const PaintContext &context) {
-	auto item = row->item();
-	auto history = item->history();
+	const auto item = row->item();
+	const auto topic = context.forum ? row->topic() : nullptr;
+	const auto history = topic ? nullptr : item->history().get();
+	const auto entry = topic ? (Entry*)topic : (Entry*)history;
 	auto cloudDraft = nullptr;
 	const auto from = [&] {
-		if (row->searchInChat()) {
-			return item->displayFrom();
-		}
-		return history->peer->migrateTo()
+		return topic
+			? nullptr
+			: row->searchInChat()
+			? item->displayFrom()
+			: history->peer->migrateTo()
 			? history->peer->migrateTo()
 			: history->peer.get();
 	}();
@@ -971,7 +972,9 @@ void RowPainter::Paint(
 		return nullptr;
 	}();
 	const auto previewOptions = [&]() -> HistoryView::ToPreviewOptions {
-		if (const auto searchChat = row->searchInChat()) {
+		if (topic) {
+			return {};
+		} else if (const auto searchChat = row->searchInChat()) {
 			if (const auto peer = searchChat.peer()) {
 				if (!peer->isChannel() || peer->isMegagroup()) {
 					return { .hideSender = true };
@@ -982,7 +985,7 @@ void RowPainter::Paint(
 	}();
 
 	const auto badgesState = context.displayUnreadInfo
-		? history->chatListBadgesState()
+		? entry->chatListBadgesState()
 		: BadgesState();
 	const auto displayPinnedIcon = false;
 
@@ -1007,17 +1010,18 @@ void RowPainter::Paint(
 		}
 		row->itemView().paint(p, itemRect, context);
 	};
-	const auto showSavedMessages = history->peer->isSelf()
+	const auto showSavedMessages = history
+		&& history->peer->isSelf()
 		&& !row->searchInChat();
-	const auto showRepliesMessages = history->peer->isRepliesChat()
+	const auto showRepliesMessages = history
+		&& history->peer->isRepliesChat()
 		&& !row->searchInChat();
 	const auto flags = (showSavedMessages ? Flag::SavedMessages : Flag(0))
 		| (showRepliesMessages ? Flag::RepliesMessages : Flag(0));
 	PaintRow(
 		p,
 		row,
-		history,
-		history,
+		entry,
 		nullptr,
 		from,
 		row->badge(),

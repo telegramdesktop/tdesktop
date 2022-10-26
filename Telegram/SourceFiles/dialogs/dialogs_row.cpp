@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_video_userpic.h"
 #include "dialogs/ui/dialogs_layout.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_peer_values.h"
 #include "history/history.h"
@@ -351,6 +352,25 @@ FakeRow::FakeRow(
 : _searchInChat(searchInChat)
 , _item(item)
 , _repaint(std::move(repaint)) {
+	invalidateTopic();
+}
+
+void FakeRow::invalidateTopic() {
+	_topic = _item->topic();
+	if (_topic) {
+		return;
+	} else if (const auto rootId = _item->topicRootId()) {
+		if (const auto forum = _item->history()->peer->forum()) {
+			if (!forum->topicDeleted(rootId)) {
+				forum->requestTopic(rootId, crl::guard(this, [=] {
+					_topic = _item->topic();
+					if (_topic) {
+						_repaint();
+					}
+				}));
+			}
+		}
+	}
 }
 
 const Ui::Text::String &FakeRow::name() const {

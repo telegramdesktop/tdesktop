@@ -334,8 +334,7 @@ HistoryMessage::HistoryMessage(
 			config.replyTo = data.is_reply_to_scheduled()
 				? history->owner().scheduledMessages().localMessageId(id)
 				: id;
-			config.replyToTop = data.vreply_to_top_id().value_or(
-				data.vreply_to_msg_id().v);
+			config.replyToTop = data.vreply_to_top_id().value_or(id);
 			config.replyIsTopicPost = data.is_forum_topic();
 		});
 	}
@@ -385,9 +384,9 @@ HistoryMessage::HistoryMessage(
 				? peerFromMTP(*data.vreply_to_peer_id())
 				: history->peer->id;
 			if (!peer || peer == history->peer->id) {
-				config.replyTo = data.vreply_to_msg_id().v;
-				config.replyToTop = data.vreply_to_top_id().value_or(
-					data.vreply_to_msg_id().v);
+				const auto id = data.vreply_to_msg_id().v;
+				config.replyTo = id;
+				config.replyToTop = data.vreply_to_top_id().value_or(id);
 			}
 		});
 	}

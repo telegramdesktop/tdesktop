@@ -1607,9 +1607,9 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 				dependent->peerId = (peerId != history()->peer->id)
 					? peerId
 					: 0;
-				dependent->msgId = data.vreply_to_msg_id().v;
-				dependent->topId = data.vreply_to_top_id().value_or(
-					data.vreply_to_msg_id().v);
+				const auto id = data.vreply_to_msg_id().v;
+				dependent->msgId = id;
+				dependent->topId = data.vreply_to_top_id().value_or(id);
 				dependent->topicPost = data.is_forum_topic()
 					|| Has<HistoryServiceTopicInfo>();
 				if (!updateDependent()) {

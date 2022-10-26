@@ -712,9 +712,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			p.translate(0, st::searchedBarHeight);
 
 			auto skip = searchedOffset();
-			auto from = floorclamp(r.y() - skip, st::dialogsRowHeight, 0, _searchResults.size());
-			auto to = ceilclamp(r.y() + r.height() - skip, st::dialogsRowHeight, 0, _searchResults.size());
-			p.translate(0, from * st::dialogsRowHeight);
+			auto from = floorclamp(r.y() - skip, _st->height, 0, _searchResults.size());
+			auto to = ceilclamp(r.y() + r.height() - skip, _st->height, 0, _searchResults.size());
+			p.translate(0, from * _st->height);
 			if (from < _searchResults.size()) {
 				for (; from < to; ++from) {
 					const auto &result = _searchResults[from];
@@ -725,7 +725,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 							? _searchedPressed
 							: _searchedSelected));
 					Ui::RowPainter::Paint(p, result.get(), {
-						.st = &st::defaultDialogRow,
+						.st = _st,
 						.folder = _openedFolder,
 						.forum = _openedForum,
 						.filter = _filterId,
@@ -738,7 +738,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.narrow = (fullWidth < st::columnMinimalWidthLeft),
 						.displayUnreadInfo = showUnreadInSearchResults,
 					});
-					p.translate(0, st::dialogsRowHeight);
+					p.translate(0, _st->height);
 				}
 			}
 		}
@@ -1141,7 +1141,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 		}
 		if (!_waitingForSearch && !_searchResults.empty()) {
 			auto skip = searchedOffset();
-			auto searchedSelected = (mouseY >= skip) ? ((mouseY - skip) / st::dialogsRowHeight) : -1;
+			auto searchedSelected = (mouseY >= skip) ? ((mouseY - skip) / _st->height) : -1;
 			if (searchedSelected < 0 || searchedSelected >= _searchResults.size()) {
 				searchedSelected = -1;
 			}
@@ -1205,7 +1205,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 			[this, peer = result->peer] { updateSearchResult(peer); });
 	} else if (base::in_range(_searchedPressed, 0, _searchResults.size())) {
 		auto &row = _searchResults[_searchedPressed];
-		row->addRipple(e->pos() - QPoint(0, searchedOffset() + _searchedPressed * st::dialogsRowHeight), QSize(width(), st::dialogsRowHeight), row->repaint());
+		row->addRipple(e->pos() - QPoint(0, searchedOffset() + _searchedPressed * _st->height), QSize(width(), _st->height), row->repaint());
 	}
 	if (anim::Disabled()
 		&& (!_pressed || !_pressed->entry()->isPinnedDialog(_filterId))) {
@@ -1789,8 +1789,8 @@ void InnerWidget::updateDialogRow(
 			for (const auto &result : _searchResults) {
 				if (isSearchResultActive(result.get(), row)) {
 					updateRow(
-						add + index * st::dialogsRowHeight,
-						st::dialogsRowHeight);
+						add + index * _st->height,
+						_st->height);
 					break;
 				}
 				++index;
@@ -1836,7 +1836,7 @@ void InnerWidget::updateSelectedRow(Key key) {
 		} else if (_peerSearchSelected >= 0) {
 			update(0, peerSearchOffset() + _peerSearchSelected * st::dialogsRowHeight, width(), st::dialogsRowHeight);
 		} else if (_searchedSelected >= 0) {
-			update(0, searchedOffset() + _searchedSelected * st::dialogsRowHeight, width(), st::dialogsRowHeight);
+			update(0, searchedOffset() + _searchedSelected * _st->height, width(), _st->height);
 		}
 	}
 }
@@ -2068,10 +2068,43 @@ InnerWidget::~InnerWidget() {
 void InnerWidget::clearSearchResults(bool clearPeerSearchResults) {
 	if (clearPeerSearchResults) _peerSearchResults.clear();
 	_searchResults.clear();
+	_searchResultsLifetime.destroy();
 	_searchedCount = _searchedMigratedCount = 0;
-	_lastSearchDate = 0;
-	_lastSearchPeer = nullptr;
-	_lastSearchId = _lastSearchMigratedId = 0;
+}
+
+void InnerWidget::trackSearchResultsHistory(not_null<History*> history) {
+	const auto channel = history->peer->asChannel();
+	if (!channel || channel->isBroadcast()) {
+		return;
+	}
+	channel->flagsValue(
+	) | rpl::skip(
+		1
+	) | rpl::filter([=](const ChannelData::Flags::Change &change) {
+		return (change.diff & ChannelDataFlag::Forum);
+	}) | rpl::start_with_next([=] {
+		for (const auto &row : _searchResults) {
+			if (row->item()->history()->peer == channel) {
+				row->invalidateTopic();
+			}
+		}
+		update();
+	}, _searchResultsLifetime);
+
+	if (const auto forum = channel->forum()) {
+		forum->topicDestroyed(
+		) | rpl::start_with_next([=](not_null<Data::ForumTopic*> topic) {
+			const auto from = ranges::remove(
+				_searchResults,
+				topic.get(),
+				&FakeRow::topic);
+			if (from != end(_searchResults)) {
+				_searchResults.erase(from, end(_searchResults));
+				refresh(true);
+				clearMouseSelection(true);
+			}
+		}, _searchResultsLifetime);
+	}
 }
 
 PeerData *InnerWidget::updateFromParentDrag(QPoint globalPosition) {
@@ -2210,8 +2243,8 @@ bool InnerWidget::hasHistoryInResults(not_null<History*> history) const {
 	return false;
 }
 
-bool InnerWidget::searchReceived(
-		const QVector<MTPMessage> &messages,
+void InnerWidget::searchReceived(
+		std::vector<not_null<HistoryItem*>> messages,
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount) {
@@ -2219,10 +2252,12 @@ bool InnerWidget::searchReceived(
 	if (type == SearchRequestType::FromStart || type == SearchRequestType::PeerFromStart) {
 		clearSearchResults(false);
 	}
-	auto isGlobalSearch = (type == SearchRequestType::FromStart || type == SearchRequestType::FromOffset);
-	auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart || type == SearchRequestType::MigratedFromOffset);
+	const auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart)
+		|| (type == SearchRequestType::MigratedFromOffset);
 
-	TimeId lastDateFound = 0;
+	const auto key = _openedForum
+		? Key(_openedForum->history())
+		: _searchInChat;
 	if (inject
 		&& (!_searchInChat
 			|| inject->history() == _searchInChat.history())) {
@@ -2230,49 +2265,25 @@ bool InnerWidget::searchReceived(
 		const auto index = int(_searchResults.size());
 		_searchResults.push_back(
 			std::make_unique<FakeRow>(
-				_searchInChat,
+				key,
 				inject,
 				[=] { repaintSearchResult(index); }));
+		trackSearchResultsHistory(inject->history());
 		++fullCount;
 	}
-	for (const auto &message : messages) {
-		auto msgId = IdFromMessage(message);
-		auto peerId = PeerFromMessage(message);
-		auto lastDate = DateFromMessage(message);
-		if (const auto peer = session().data().peerLoaded(peerId)) {
-			if (lastDate) {
-				const auto item = session().data().addNewMessage(
-					message,
-					MessageFlags(),
-					NewMessageType::Existing);
-				const auto history = item->history();
-				if (!uniquePeers || !hasHistoryInResults(history)) {
-					const auto index = int(_searchResults.size());
-					_searchResults.push_back(
-						std::make_unique<FakeRow>(
-							_searchInChat,
-							item,
-							[=] { repaintSearchResult(index); }));
-					if (uniquePeers && !history->unreadCountKnown()) {
-						history->owner().histories().requestDialogEntry(history);
-					}
-				}
-				lastDateFound = lastDate;
-				if (isGlobalSearch) {
-					_lastSearchDate = lastDateFound;
-				}
+	for (const auto &item : messages) {
+		const auto history = item->history();
+		if (!uniquePeers || !hasHistoryInResults(history)) {
+			const auto index = int(_searchResults.size());
+			_searchResults.push_back(
+				std::make_unique<FakeRow>(
+					key,
+					item,
+					[=] { repaintSearchResult(index); }));
+			trackSearchResultsHistory(history);
+			if (uniquePeers && !history->unreadCountKnown()) {
+				history->owner().histories().requestDialogEntry(history);
 			}
-			if (isGlobalSearch) {
-				_lastSearchPeer = peer;
-			}
-		} else {
-			LOG(("API Error: a search results with not loaded peer %1"
-				).arg(peerId.value));
-		}
-		if (isMigratedSearch) {
-			_lastSearchMigratedId = msgId;
-		} else {
-			_lastSearchId = msgId;
 		}
 	}
 	if (isMigratedSearch) {
@@ -2289,8 +2300,6 @@ bool InnerWidget::searchReceived(
 	}
 
 	refresh();
-
-	return lastDateFound != 0;
 }
 
 void InnerWidget::peerSearchReceived(
@@ -2397,9 +2406,9 @@ void InnerWidget::refresh(bool toTop) {
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (_waitingForSearch) {
-			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight) + ((_searchResults.empty() && !_searchInChat) ? -st::searchedBarHeight : 0);
+			h = searchedOffset() + (_searchResults.size() * _st->height) + ((_searchResults.empty() && !_searchInChat) ? -st::searchedBarHeight : 0);
 		} else {
-			h = searchedOffset() + (_searchResults.size() * st::dialogsRowHeight);
+			h = searchedOffset() + (_searchResults.size() * _st->height);
 		}
 	}
 	resize(width(), h);
@@ -2585,9 +2594,9 @@ void InnerWidget::refreshSearchInChatLabel() {
 void InnerWidget::repaintSearchResult(int index) {
 	rtlupdate(
 		0,
-		searchedOffset() + index * st::dialogsRowHeight,
+		searchedOffset() + index * _st->height,
 		width(),
-		st::dialogsRowHeight);
+		_st->height);
 }
 
 void InnerWidget::clearFilter() {
@@ -2603,9 +2612,6 @@ void InnerWidget::clearFilter() {
 		_filterResultsGlobal.clear();
 		_peerSearchResults.clear();
 		_searchResults.clear();
-		_lastSearchDate = 0;
-		_lastSearchPeer = nullptr;
-		_lastSearchId = _lastSearchMigratedId = 0;
 		_filter = QString();
 		refresh(true);
 	}
@@ -2718,10 +2724,10 @@ void InnerWidget::selectSkip(int32 direction) {
 		} else {
 			_mustScrollTo.fire({
 				searchedOffset()
-					+ _searchedSelected * st::dialogsRowHeight
+					+ _searchedSelected * _st->height
 					+ (_searchedSelected ? 0 : -st::searchedBarHeight),
 				searchedOffset()
-					+ (_searchedSelected + 1) * st::dialogsRowHeight,
+					+ (_searchedSelected + 1) * _st->height,
 			});
 		}
 	}
@@ -2738,8 +2744,8 @@ void InnerWidget::scrollToEntry(const RowDescriptor &entry) {
 	} else if (_state == WidgetState::Filtered) {
 		for (int32 i = 0, c = _searchResults.size(); i < c; ++i) {
 			if (isSearchResultActive(_searchResults[i].get(), entry)) {
-				fromY = searchedOffset() + i * st::dialogsRowHeight;
-				rowHeight = st::dialogsRowHeight;
+				fromY = searchedOffset() + i * _st->height;
+				rowHeight = _st->height;
 				break;
 			}
 		}
@@ -2936,9 +2942,11 @@ ChosenRow InnerWidget::computeChosenRow() const {
 			};
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
 			const auto result = _searchResults[_searchedSelected].get();
+			const auto topic = result->topic();
+			const auto item = result->item();
 			return {
-				result->item()->history(),
-				result->item()->position()
+				(topic ? (Entry*)topic : (Entry*)item->history()),
+				item->position()
 			};
 		}
 	}
@@ -3166,22 +3174,6 @@ RowDescriptor InnerWidget::chatListEntryLast() const {
 			FullMsgId(PeerId(), ShowAtUnreadMsgId));
 	}
 	return RowDescriptor();
-}
-
-int32 InnerWidget::lastSearchDate() const {
-	return _lastSearchDate;
-}
-
-PeerData *InnerWidget::lastSearchPeer() const {
-	return _lastSearchPeer;
-}
-
-MsgId InnerWidget::lastSearchId() const {
-	return _lastSearchId;
-}
-
-MsgId InnerWidget::lastSearchMigratedId() const {
-	return _lastSearchMigratedId;
 }
 
 void InnerWidget::setupOnlineStatusCheck() {

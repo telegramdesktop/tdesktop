@@ -252,6 +252,10 @@ private:
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _searchRequest = 0;
 
+	PeerData *_lastSearchPeer = nullptr;
+	MsgId _lastSearchId = 0;
+	MsgId _lastSearchMigratedId = 0;
+
 	base::flat_map<QString, MTPmessages_Messages> _searchCache;
 	Api::SingleMessageSearch _singleMessageSearch;
 	base::flat_map<mtpRequestId, QString> _searchQueries;

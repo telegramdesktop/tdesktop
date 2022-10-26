@@ -147,7 +147,7 @@ private:
 
 };
 
-class FakeRow : public BasicRow {
+class FakeRow final : public BasicRow, public base::has_weak_ptr {
 public:
 	FakeRow(
 		Key searchInChat,
@@ -156,6 +156,9 @@ public:
 
 	[[nodiscard]] Key searchInChat() const {
 		return _searchInChat;
+	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _topic;
 	}
 	[[nodiscard]] not_null<HistoryItem*> item() const {
 		return _item;
@@ -171,11 +174,14 @@ public:
 	}
 	[[nodiscard]] const Ui::Text::String &name() const;
 
+	void invalidateTopic();
+
 private:
 	friend class Ui::RowPainter;
 
 	const Key _searchInChat;
 	const not_null<HistoryItem*> _item;
+	Data::ForumTopic *_topic = nullptr;
 	const Fn<void()> _repaint;
 	mutable Ui::MessageView _itemView;
 	mutable Ui::PeerBadge _badge;
