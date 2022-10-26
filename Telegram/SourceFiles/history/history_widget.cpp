@@ -1825,25 +1825,24 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 void HistoryWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return Ui::AppInFocus()
+		return _history
+			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
 			&& !Ui::isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (_history) {
-			request->check(Command::Search, 1) && request->handle([=] {
-				searchInChat();
+		request->check(Command::Search, 1) && request->handle([=] {
+			searchInChat();
+			return true;
+		});
+		if (session().supportMode()) {
+			request->check(
+				Command::SupportToggleMuted
+			) && request->handle([=] {
+				toggleMuteUnmute();
 				return true;
 			});
-			if (session().supportMode()) {
-				request->check(
-					Command::SupportToggleMuted
-				) && request->handle([=] {
-					toggleMuteUnmute();
-					return true;
-				});
-			}
 		}
 	}, lifetime());
 }
@@ -4450,8 +4449,7 @@ bool HistoryWidget::updateCmdStartShown() {
 void HistoryWidget::searchInChat() {
 	if (!_history) {
 		return;
-	}
-	if (controller()->isPrimary()) {
+	} else if (controller()->isPrimary()) {
 		controller()->content()->searchInChat(_history);
 	} else if (!_composeSearch) {
 		const auto search = [=] {

@@ -955,9 +955,10 @@ void RowPainter::Paint(
 	const auto entry = topic ? (Entry*)topic : (Entry*)history;
 	auto cloudDraft = nullptr;
 	const auto from = [&] {
-		return topic
+		const auto in = row->searchInChat();
+		return (topic && (in.topic() != topic))
 			? nullptr
-			: row->searchInChat()
+			: in
 			? item->displayFrom()
 			: history->peer->migrateTo()
 			? history->peer->migrateTo()

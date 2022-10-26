@@ -55,7 +55,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/call_delayed.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "core/file_utilities.h"
+#include "core/application.h"
+#include "core/shortcuts.h"
 #include "main/main_session.h"
+#include "mainwidget.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_chat.h"
@@ -233,6 +236,7 @@ RepliesWidget::RepliesWidget(
 
 	setupRoot();
 	setupRootView();
+	setupShortcuts();
 
 	session().api().requestFullPeer(_history->peer);
 
@@ -257,6 +261,10 @@ RepliesWidget::RepliesWidget(
 	_topBar->clearSelectionRequest(
 	) | rpl::start_with_next([=] {
 		clearSelected();
+	}, _topBar->lifetime());
+	_topBar->searchRequest(
+	) | rpl::start_with_next([=] {
+		searchInTopic();
 	}, _topBar->lifetime());
 
 	if (_rootView) {
@@ -2131,6 +2139,33 @@ void RepliesWidget::setupDragArea() {
 	};
 	areas.document->setDroppedCallback(droppedCallback(false));
 	areas.photo->setDroppedCallback(droppedCallback(true));
+}
+
+void RepliesWidget::setupShortcuts() {
+	Shortcuts::Requests(
+	) | rpl::filter([=] {
+		return _topic
+			&& Ui::AppInFocus()
+			&& Ui::InFocusChain(this)
+			&& !Ui::isLayerShown()
+			&& (Core::App().activeWindow() == &controller()->window());
+	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
+		using Command = Shortcuts::Command;
+		request->check(Command::Search, 1) && request->handle([=] {
+			searchInTopic();
+			return true;
+		});
+	}, lifetime());
+}
+
+void RepliesWidget::searchInTopic() {
+	if (!_topic) {
+		return;
+	} else if (controller()->isPrimary()) {
+		controller()->content()->searchInChat(_topic);
+	} else {
+		// #TODO forum window
+	}
 }
 
 } // namespace HistoryView

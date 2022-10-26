@@ -206,7 +206,9 @@ private:
 	void subscribeToTopic();
 	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
+	void setupShortcuts();
 
+	void searchInTopic();
 	void scrollDownAnimationFinish();
 	void updatePinnedVisibility();
 

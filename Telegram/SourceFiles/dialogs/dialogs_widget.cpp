@@ -1848,6 +1848,12 @@ void Widget::applyFilterUpdate(bool force) {
 }
 
 void Widget::searchInChat(Key chat) {
+	if (_openedFolder) {
+		controller()->closeFolder();
+	}
+	if (const auto topic = chat.topic()) {
+		controller()->openForum(topic->channel());
+	}
 	cancelSearch();
 	setSearchInChat(chat);
 	applyFilterUpdate(true);
@@ -1855,24 +1861,25 @@ void Widget::searchInChat(Key chat) {
 
 void Widget::setSearchInChat(Key chat, PeerData *from) {
 	const auto peer = chat.peer();
-	if (const auto forum = peer ? peer->forum() : nullptr) {
+	const auto topic = chat.topic();
+	const auto forum = peer ? peer->forum() : nullptr;
+	if (forum) {
 		if (controller()->openedForum().current() == peer) {
 			_subsectionTopBar->toggleSearch(true, anim::type::normal);
 		} else {
 			_forumSearchRequested = true;
 			controller()->openForum(forum->channel());
 		}
-		return;
 	}
-	if (chat.folder()) {
+	if (chat.folder() || (forum && !topic)) {
 		chat = Key();
 	}
 	_searchInMigrated = nullptr;
-	if (const auto peer = chat.peer()) {
+	if (peer) {
 		if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			if (!chat.topic()) {
+			if (!topic) {
 				_searchInMigrated = peer->owner().history(migrateFrom);
 			}
 		}

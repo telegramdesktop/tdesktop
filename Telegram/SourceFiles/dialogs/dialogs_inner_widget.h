@@ -301,7 +301,9 @@ private:
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
 		const Ui::PaintContext &context);
-	void paintSearchInChat(Painter &p) const;
+	void paintSearchInChat(
+		Painter &p,
+		const Ui::PaintContext &context) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
@@ -314,6 +316,13 @@ private:
 		const Ui::Text::String &text) const;
 	void paintSearchInReplies(
 		Painter &p,
+		int top,
+		const Ui::Text::String &text) const;
+	void paintSearchInTopic(
+		Painter &p,
+		const Ui::PaintContext &context,
+		not_null<Data::ForumTopic*> topic,
+		std::shared_ptr<Data::CloudImageView> &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	template <typename PaintUserpic>

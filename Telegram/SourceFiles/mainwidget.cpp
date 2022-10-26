@@ -2678,10 +2678,6 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 	if (!_dialogs) {
 		return;
 	}
-
-	if (_controller->openedFolder().current()) {
-		_controller->closeFolder();
-	}
 	_dialogs->searchInChat(chat);
 	if (isOneColumn()) {
 		Ui::showChatsList(&session());

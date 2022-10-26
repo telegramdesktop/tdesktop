@@ -675,7 +675,12 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		}
 
 		if (_searchInChat) {
-			paintSearchInChat(p);
+			paintSearchInChat(p, {
+				.st = &st::forumTopicRow,
+				.now = ms,
+				.width = fullWidth,
+				.paused = videoPaused,
+			});
 			p.translate(0, searchInChatSkip());
 			if (_waitingForSearch && _searchResults.empty()) {
 				p.fillRect(
@@ -926,7 +931,9 @@ void InnerWidget::paintPeerSearchResult(
 	result->name.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
-void InnerWidget::paintSearchInChat(Painter &p) const {
+void InnerWidget::paintSearchInChat(
+		Painter &p,
+		const Ui::PaintContext &context) const {
 	auto height = searchInChatSkip();
 
 	auto top = st::searchedBarHeight;
@@ -942,7 +949,9 @@ void InnerWidget::paintSearchInChat(Painter &p) const {
 	}
 
 	p.setPen(st::dialogsNameFg);
-	if (const auto peer = _searchInChat.peer()) {
+	if (const auto topic = _searchInChat.topic()) {
+		paintSearchInTopic(p, context, topic, _searchInChatUserpic, top, _searchInChatText);
+	} else if (const auto peer = _searchInChat.peer()) {
 		if (peer->isSelf()) {
 			paintSearchInSaved(p, top, _searchInChatText);
 		} else if (peer->isRepliesChat()) {
@@ -1031,6 +1040,21 @@ void InnerWidget::paintSearchInReplies(
 		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
 		Ui::EmptyUserpic::PaintRepliesMessages(p, x, y, width(), size);
+	};
+	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
+}
+
+void InnerWidget::paintSearchInTopic(
+		Painter &p,
+		const Ui::PaintContext &context,
+		not_null<Data::ForumTopic*> topic,
+		std::shared_ptr<Data::CloudImageView> &userpic,
+		int top,
+		const Ui::Text::String &text) const {
+	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
+		p.translate(x, y);
+		topic->paintUserpic(p, userpic, context);
+		p.translate(-x, -y);
 	};
 	paintSearchInFilter(p, paintUserpic, top, nullptr, text);
 }
@@ -2313,9 +2337,9 @@ void InnerWidget::searchReceived(
 	const auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart)
 		|| (type == SearchRequestType::MigratedFromOffset);
 
-	const auto key = _openedForum
-		? Key(_openedForum->history())
-		: _searchInChat;
+	const auto key = (!_openedForum || _searchInChat.topic())
+		? _searchInChat
+		: Key(_openedForum->history());
 	if (inject
 		&& (!_searchInChat
 			|| inject->history() == _searchInChat.history())) {
@@ -2600,7 +2624,9 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 
 void InnerWidget::refreshSearchInChatLabel() {
 	const auto dialog = [&] {
-		if (const auto peer = _searchInChat.peer()) {
+		if (const auto topic = _searchInChat.topic()) {
+			return topic->title();
+		} else if (const auto peer = _searchInChat.peer()) {
 			if (peer->isSelf()) {
 				return tr::lng_saved_messages(tr::now);
 			} else if (peer->isRepliesChat()) {
