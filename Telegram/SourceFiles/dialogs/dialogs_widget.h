@@ -88,6 +88,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	void searchMessages(const QString &query, Key inChat = {});
+	void searchTopics();
 	void searchMore();
 
 	void updateForwardBar();
@@ -150,7 +151,8 @@ private:
 	void setupMainMenuToggle();
 	void setupDownloadBar();
 	void setupShortcuts();
-	bool searchForPeersRequired(const QString &query) const;
+	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
+	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	void setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
@@ -243,6 +245,13 @@ private:
 	QString _peerSearchQuery;
 	bool _peerSearchFull = false;
 	mtpRequestId _peerSearchRequest = 0;
+
+	QString _topicSearchQuery;
+	TimeId _topicSearchOffsetDate = 0;
+	MsgId _topicSearchOffsetId = 0;
+	MsgId _topicSearchOffsetTopicId = 0;
+	bool _topicSearchFull = false;
+	mtpRequestId _topicSearchRequest = 0;
 
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;

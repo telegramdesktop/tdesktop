@@ -624,9 +624,13 @@ void PaintRow(
 	} else {
 		p.setPen(context.active
 			? st::dialogsNameFgActive
-			: context.selected
-			? st::dialogsArchiveFgOver
-			: st::dialogsArchiveFg);
+			: entry->folder()
+			? (context.selected
+				? st::dialogsArchiveFgOver
+				: st::dialogsArchiveFg)
+			: (context.selected
+				? st::dialogsNameFgOver
+				: st::dialogsNameFg));
 		auto text = entry->chatListName(); // TODO feed name with emoji
 		auto textWidth = st::semiboldFont->width(text);
 		if (textWidth > rectForName.width()) {

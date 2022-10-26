@@ -24,6 +24,16 @@ namespace Data {
 
 class Session;
 
+struct ForumOffsets {
+	TimeId date = 0;
+	MsgId id = 0;
+	MsgId topicId = 0;
+
+	friend inline constexpr auto operator<=>(
+		ForumOffsets,
+		ForumOffsets) = default;
+};
+
 class Forum final {
 public:
 	explicit Forum(not_null<History*> history);
@@ -57,7 +67,12 @@ public:
 	[[nodiscard]] ForumTopic *enforceTopicFor(MsgId rootId);
 	[[nodiscard]] bool topicDeleted(MsgId rootId) const;
 
-	void applyReceivedTopics(const MTPmessages_ForumTopics &topics);
+	void applyReceivedTopics(
+		const MTPmessages_ForumTopics &topics,
+		ForumOffsets &updateOffsets);
+	void applyReceivedTopics(
+		const MTPmessages_ForumTopics &topics,
+		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
 
 	[[nodiscard]] MsgId reserveCreatingId(
 		const QString &title,
@@ -84,10 +99,6 @@ private:
 	void requestSomeStale();
 	void finishTopicRequest(MsgId rootId);
 
-	void applyReceivedTopics(
-		const MTPmessages_ForumTopics &topics,
-		bool updateOffset);
-
 	const not_null<History*> _history;
 
 	base::flat_map<MsgId, std::unique_ptr<ForumTopic>> _topics;
@@ -100,9 +111,7 @@ private:
 	mtpRequestId _staleRequestId = 0;
 
 	mtpRequestId _requestId = 0;
-	TimeId _offsetDate = 0;
-	MsgId _offsetId = 0;
-	MsgId _offsetTopicId = 0;
+	ForumOffsets _offset;
 
 	base::flat_set<MsgId> _creatingRootIds;
 

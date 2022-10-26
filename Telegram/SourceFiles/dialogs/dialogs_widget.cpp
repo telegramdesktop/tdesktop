@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_key.h"
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "history/view/history_view_top_bar_widget.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_requests_bar.h"
@@ -350,6 +351,14 @@ Widget::Widget(
 
 	setAcceptDrops(true);
 
+	_inner->setLoadMoreFilteredCallback([=] {
+		const auto state = _inner->state();
+		if (state == WidgetState::Filtered
+			&& !_topicSearchFull
+			&& searchForTopicsRequired(_topicSearchQuery)) {
+			searchTopics();
+		}
+	});
 	_inner->setLoadMoreCallback([=] {
 		const auto state = _inner->state();
 		if (state == WidgetState::Filtered
@@ -358,7 +367,7 @@ Widget::Widget(
 					&& _searchFull
 					&& !_searchFullMigrated))) {
 			searchMore();
-		} else if (_openedForum) {
+		} else if (_openedForum && state == WidgetState::Default) {
 			_openedForum->forum()->requestTopics();
 		} else {
 			const auto folder = _inner->shownFolder();
@@ -728,6 +737,7 @@ void Widget::changeOpenedSubsection(
 	refreshTopBars();
 	updateControlsVisibility(true);
 	_peerSearchRequest = 0;
+	_api.request(base::take(_topicSearchRequest)).cancel();
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
 		_cacheOver = grabForFolderSlideAnimation();
@@ -749,6 +759,7 @@ void Widget::changeOpenedForum(ChannelData *forum, anim::type animated) {
 			cancelSearch();
 		}
 		_openedForum = forum;
+		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
 	}, (forum != nullptr), animated);
 }
@@ -1157,6 +1168,7 @@ bool Widget::searchMessages(bool searchCache) {
 	if (q.isEmpty() && !_searchFromAuthor) {
 		cancelSearchRequest();
 		_api.request(base::take(_peerSearchRequest)).cancel();
+		_api.request(base::take(_topicSearchRequest)).cancel();
 		return true;
 	}
 	if (searchCache) {
@@ -1284,14 +1296,36 @@ bool Widget::searchMessages(bool searchCache) {
 				MTP_vector<MTPUser>(0)),
 			0);
 	}
+	if (searchForTopicsRequired(query)) {
+		if (searchCache) {
+			if (_topicSearchQuery != query) {
+				result = false;
+			}
+		} else if (_topicSearchQuery != query) {
+			_topicSearchQuery = query;
+			_topicSearchFull = false;
+			searchTopics();
+		}
+	} else {
+		_topicSearchQuery = query;
+		_topicSearchFull = true;
+	}
 	return result;
 }
 
 bool Widget::searchForPeersRequired(const QString &query) const {
-	if (_searchInChat || _openedForum || query.isEmpty()) {
-		return false;
-	}
-	return (query[0] != '#');
+	return !_searchInChat
+		&& !_openedForum
+		&& !query.isEmpty()
+		&& (query[0] != '#');
+}
+
+bool Widget::searchForTopicsRequired(const QString &query) const {
+	return !_searchInChat
+		&& _openedForum
+		&& !query.isEmpty()
+		&& (query[0] != '#')
+		&& !_openedForum->forum()->topicsList()->loaded();
 }
 
 void Widget::needSearchMessages() {
@@ -1335,6 +1369,45 @@ void Widget::searchMessages(
 
 		session().local().saveRecentSearchHashtags(query);
 	}
+}
+
+void Widget::searchTopics() {
+	if (_topicSearchRequest || _topicSearchFull) {
+		return;
+	}
+	_api.request(base::take(_topicSearchRequest)).cancel();
+	_topicSearchRequest = _api.request(MTPchannels_GetForumTopics(
+		MTP_flags(MTPchannels_GetForumTopics::Flag::f_q),
+		_openedForum->inputChannel,
+		MTP_string(_topicSearchQuery),
+		MTP_int(_topicSearchOffsetDate),
+		MTP_int(_topicSearchOffsetId),
+		MTP_int(_topicSearchOffsetTopicId),
+		MTP_int(kSearchPerPage)
+	)).done([=](const MTPmessages_ForumTopics &result) {
+		_topicSearchRequest = 0;
+		const auto savedTopicId = _topicSearchOffsetId;
+		const auto byCreation = result.data().is_order_by_create_date();
+		_openedForum->forum()->applyReceivedTopics(result, [&](
+				not_null<Data::ForumTopic*> topic) {
+			_topicSearchOffsetTopicId = topic->rootId();
+			if (byCreation) {
+				_topicSearchOffsetId = _topicSearchOffsetTopicId;
+				_topicSearchOffsetDate = topic->creationDate();
+			} else if (const auto last = topic->lastServerMessage()) {
+				_topicSearchOffsetId = last->id;
+				_topicSearchOffsetDate = last->date();
+			}
+			_inner->appendToFiltered(topic);
+		});
+		if (_topicSearchOffsetTopicId != savedTopicId) {
+			_inner->refresh();
+		} else {
+			_topicSearchFull = true;
+		}
+	}).fail([=] {
+		_topicSearchFull = true;
+	}).send();
 }
 
 void Widget::searchMore() {
@@ -1833,6 +1906,11 @@ void Widget::clearSearchCache() {
 	}
 	_searchQuery = QString();
 	_searchQueryFrom = nullptr;
+	_topicSearchQuery = QString();
+	_topicSearchOffsetDate = 0;
+	_topicSearchOffsetId = _topicSearchOffsetTopicId = 0;
+	_api.request(base::take(_peerSearchRequest)).cancel();
+	_api.request(base::take(_topicSearchRequest)).cancel();
 	cancelSearchRequest();
 }
 

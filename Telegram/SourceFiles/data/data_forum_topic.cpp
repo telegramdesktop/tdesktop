@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_unread_things.h"
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
+#include "base/unixtime.h"
 #include "ui/painter.h"
 #include "ui/color_int_conversion.h"
 #include "styles/style_dialogs.h"
@@ -148,6 +149,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	rootId))
 , _rootId(rootId)
 , _lastKnownServerMessageId(rootId)
+, _creationDate(creating() ? base::unixtime::now() : 0)
 , _flags(creating() ? Flag::My : Flag()) {
 	Thread::setMuted(owner().notifySettings().isMuted(this));
 
@@ -199,6 +201,10 @@ rpl::producer<> ForumTopic::destroyed() const {
 
 MsgId ForumTopic::rootId() const {
 	return _rootId;
+}
+
+TimeId ForumTopic::creationDate() const {
+	return _creationDate;
 }
 
 bool ForumTopic::my() const {
@@ -260,6 +266,8 @@ void ForumTopic::readTillEnd() {
 
 void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
+
+	_creationDate = data.vdate().v;
 
 	applyTitle(qs(data.vtitle()));
 	if (const auto iconId = data.vicon_emoji_id()) {

@@ -2061,6 +2061,18 @@ void InnerWidget::onHashtagFilterUpdate(QStringView newFilter) {
 	clearMouseSelection(true);
 }
 
+void InnerWidget::appendToFiltered(Key key) {
+	for (const auto &row : _filterResults) {
+		if (row->key() == key) {
+			return;
+		}
+	}
+	auto row = std::make_unique<Row>(key, _filterResults.size());
+	const auto [i, ok] = _filterResultsGlobal.emplace(key, std::move(row));
+	_filterResults.emplace_back(i->second.get());
+	trackSearchResultsHistory(key.owningHistory());
+}
+
 InnerWidget::~InnerWidget() {
 	clearSearchResults();
 }
@@ -2069,10 +2081,14 @@ void InnerWidget::clearSearchResults(bool clearPeerSearchResults) {
 	if (clearPeerSearchResults) _peerSearchResults.clear();
 	_searchResults.clear();
 	_searchResultsLifetime.destroy();
+	_searchResultsHistories.clear();
 	_searchedCount = _searchedMigratedCount = 0;
 }
 
 void InnerWidget::trackSearchResultsHistory(not_null<History*> history) {
+	if (!_searchResultsHistories.emplace(history).second) {
+		return;
+	}
 	const auto channel = history->peer->asChannel();
 	if (!channel || channel->isBroadcast()) {
 		return;
@@ -2088,19 +2104,51 @@ void InnerWidget::trackSearchResultsHistory(not_null<History*> history) {
 				row->invalidateTopic();
 			}
 		}
+		auto removed = false;
+		for (auto i = begin(_filterResultsGlobal)
+			; i != end(_filterResultsGlobal);) {
+			if (const auto topic = i->first.topic()) {
+				if (topic->channel() == channel) {
+					removed = true;
+					_filterResults.erase(
+						ranges::remove(_filterResults, i->first, &Row::key),
+						end(_filterResults));
+					i = _filterResultsGlobal.erase(i);
+					continue;
+				}
+			}
+			++i;
+		}
+		if (removed) {
+			refresh();
+			clearMouseSelection(true);
+		}
 		update();
 	}, _searchResultsLifetime);
 
 	if (const auto forum = channel->forum()) {
 		forum->topicDestroyed(
 		) | rpl::start_with_next([=](not_null<Data::ForumTopic*> topic) {
-			const auto from = ranges::remove(
+			auto removed = false;
+			const auto sfrom = ranges::remove(
 				_searchResults,
 				topic.get(),
 				&FakeRow::topic);
-			if (from != end(_searchResults)) {
-				_searchResults.erase(from, end(_searchResults));
-				refresh(true);
+			if (sfrom != end(_searchResults)) {
+				_searchResults.erase(sfrom, end(_searchResults));
+				removed = true;
+			}
+			const auto ffrom = ranges::remove(
+				_filterResults,
+				topic.get(),
+				&Row::topic);
+			if (ffrom != end(_filterResults)) {
+				_filterResults.erase(ffrom, end(_filterResults));
+				removed = true;
+			}
+			_filterResultsGlobal.erase(Key(topic));
+			if (removed) {
+				refresh();
 				clearMouseSelection(true);
 			}
 		}, _searchResultsLifetime);
@@ -2131,6 +2179,10 @@ PeerData *InnerWidget::updateFromParentDrag(QPoint globalPosition) {
 
 void InnerWidget::setLoadMoreCallback(Fn<void()> callback) {
 	_loadMoreCallback = std::move(callback);
+}
+
+void InnerWidget::setLoadMoreFilteredCallback(Fn<void()> callback) {
+	_loadMoreFilteredCallback = std::move(callback);
 }
 
 auto InnerWidget::chosenRow() const -> rpl::producer<ChosenRow> {
@@ -2183,8 +2235,14 @@ void InnerWidget::visibleTopBottomUpdated(
 	_visibleTop = visibleTop;
 	_visibleBottom = visibleBottom;
 	loadPeerPhotos();
-	if (_visibleTop + PreloadHeightsCount * (_visibleBottom - _visibleTop)
-		>= height()) {
+	const auto loadTill = _visibleTop
+		+ PreloadHeightsCount * (_visibleBottom - _visibleTop);
+	if (_state == WidgetState::Filtered && loadTill >= peerSearchOffset()) {
+		if (_loadMoreFilteredCallback) {
+			_loadMoreFilteredCallback();
+		}
+	}
+	if (loadTill >= height()) {
 		if (_loadMoreCallback) {
 			_loadMoreCallback();
 		}
@@ -2310,31 +2368,12 @@ void InnerWidget::peerSearchReceived(
 		return;
 	}
 
-	const auto alreadyAdded = [&](not_null<PeerData*> peer) {
-		for (const auto &row : _filterResults) {
-			if (const auto history = row->history()) {
-				if (history->peer == peer) {
-					return true;
-				}
-			}
-		}
-		return false;
-	};
 	_peerSearchQuery = query.toLower().trimmed();
 	_peerSearchResults.clear();
 	_peerSearchResults.reserve(result.size());
 	for	(const auto &mtpPeer : my) {
 		if (const auto peer = session().data().peerLoaded(peerFromMTP(mtpPeer))) {
-			if (alreadyAdded(peer)) {
-				continue;
-			}
-			auto row = std::make_unique<Row>(
-				peer->owner().history(peer),
-				_filterResults.size());
-			const auto [i, ok] = _filterResultsGlobal.emplace(
-				peer,
-				std::move(row));
-			_filterResults.emplace_back(i->second.get());
+			appendToFiltered(peer->owner().history(peer));
 		} else {
 			LOG(("API Error: "
 				"user %1 was not loaded in InnerWidget::peopleReceived()"

@@ -34,7 +34,7 @@ constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
 constexpr auto kStalePerRequest = 100;
-constexpr auto kGeneralColorId = 0xA9A9A9;
+// constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
 
@@ -113,8 +113,7 @@ void Forum::preloadTopics() {
 void Forum::reloadTopics() {
 	_topicsList.setLoaded(false);
 	session().api().request(base::take(_requestId)).cancel();
-	_offsetDate = 0;
-	_offsetId = _offsetTopicId = 0;
+	_offset = {};
 	for (const auto &[rootId, topic] : _topics) {
 		if (!topic->creating()) {
 			_staleRootIds.emplace(topic->rootId());
@@ -127,18 +126,22 @@ void Forum::requestTopics() {
 	if (_topicsList.loaded() || _requestId) {
 		return;
 	}
-	const auto firstLoad = !_offsetDate;
+	const auto firstLoad = !_offset.date;
 	const auto loadCount = firstLoad ? kTopicsFirstLoad : kTopicsPerPage;
 	_requestId = session().api().request(MTPchannels_GetForumTopics(
 		MTP_flags(0),
 		channel()->inputChannel,
 		MTPstring(), // q
-		MTP_int(_offsetDate),
-		MTP_int(_offsetId),
-		MTP_int(_offsetTopicId),
+		MTP_int(_offset.date),
+		MTP_int(_offset.id),
+		MTP_int(_offset.topicId),
 		MTP_int(loadCount)
 	)).done([=](const MTPmessages_ForumTopics &result) {
-		applyReceivedTopics(result, true);
+		applyReceivedTopics(result, _offset);
+		const auto &list = result.data().vtopics().v;
+		if (list.isEmpty() || list.size() == result.data().vcount().v) {
+			_topicsList.setLoaded();
+		}
 		_requestId = 0;
 		_chatsListChanges.fire({});
 		if (_topicsList.loaded()) {
@@ -153,10 +156,6 @@ void Forum::requestTopics() {
 			channel()->setFlags(flags);
 		}
 	}).send();
-}
-
-void Forum::applyReceivedTopics(const MTPmessages_ForumTopics &result) {
-	applyReceivedTopics(result, false);
 }
 
 void Forum::applyTopicDeleted(MsgId rootId) {
@@ -176,7 +175,19 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 
 void Forum::applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
-		bool updateOffset) {
+		ForumOffsets &updateOffsets) {
+	applyReceivedTopics(topics, [&](not_null<ForumTopic*> topic) {
+		if (const auto last = topic->lastServerMessage()) {
+			updateOffsets.date = last->date();
+			updateOffsets.id = last->id;
+		}
+		updateOffsets.topicId = topic->rootId();
+	});
+}
+
+void Forum::applyReceivedTopics(
+		const MTPmessages_ForumTopics &topics,
+		Fn<void(not_null<ForumTopic*>)> callback) {
 	const auto &data = topics.data();
 	owner().processUsers(data.vusers());
 	owner().processChats(data.vchats());
@@ -189,9 +200,6 @@ void Forum::applyReceivedTopics(
 		});
 		_staleRootIds.remove(rootId);
 		topic.match([&](const MTPDforumTopicDeleted &data) {
-			if (updateOffset) {
-				LOG(("API Error: Got a deleted topic in getForumTopics."));
-			}
 			applyTopicDeleted(rootId);
 		}, [&](const MTPDforumTopic &data) {
 			_topicsDeleted.remove(rootId);
@@ -204,18 +212,10 @@ void Forum::applyReceivedTopics(
 				).first->second.get()
 				: i->second.get();
 			raw->applyTopic(data);
-			if (updateOffset) {
-				if (const auto last = raw->lastServerMessage()) {
-					_offsetDate = last->date();
-					_offsetId = last->id;
-				}
-				_offsetTopicId = rootId;
+			if (callback) {
+				callback(raw);
 			}
 		});
-	}
-	if (updateOffset
-		&& (list.isEmpty() || list.size() == data.vcount().v)) {
-		_topicsList.setLoaded();
 	}
 	if (!_staleRootIds.empty()) {
 		requestSomeStale();
@@ -223,7 +223,7 @@ void Forum::applyReceivedTopics(
 }
 
 void Forum::requestSomeStale() {
-	if (_staleRequestId || (!_offsetId && _requestId)) {
+	if (_staleRequestId || (!_offset.id && _requestId)) {
 		return;
 	}
 	const auto type = Histories::RequestType::History;

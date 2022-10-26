@@ -131,10 +131,12 @@ public:
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringView newFilter);
+	void appendToFiltered(Key key);
 
 	PeerData *updateFromParentDrag(QPoint globalPosition);
 
 	void setLoadMoreCallback(Fn<void()> callback);
+	void setLoadMoreFilteredCallback(Fn<void()> callback);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] rpl::producer<> cancelSearchFromUserRequests() const;
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
@@ -389,9 +391,7 @@ private:
 	bool _hashtagDeletePressed = false;
 
 	std::vector<not_null<Row*>> _filterResults;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::unique_ptr<Row>> _filterResultsGlobal;
+	base::flat_map<Key, std::unique_ptr<Row>> _filterResultsGlobal;
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 
@@ -404,6 +404,7 @@ private:
 	int _peerSearchPressed = -1;
 
 	std::vector<std::unique_ptr<FakeRow>> _searchResults;
+	base::flat_set<not_null<History*>> _searchResultsHistories;
 	rpl::lifetime _searchResultsLifetime;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
@@ -432,6 +433,7 @@ private:
 		std::unique_ptr<Ui::VideoUserpic>> _videoUserpics;
 
 	Fn<void()> _loadMoreCallback;
+	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;
