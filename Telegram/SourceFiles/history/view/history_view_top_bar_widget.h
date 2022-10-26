@@ -24,8 +24,12 @@ class RoundButton;
 class IconButton;
 class PopupMenu;
 class UnreadBadge;
+class InputField;
+class CrossButton;
 class InfiniteRadialAnimation;
 enum class ReportReason;
+template <typename Widget>
+class FadeWrapScaled;
 } // namespace Ui
 
 namespace Window {
@@ -72,6 +76,15 @@ public:
 	void showChooseMessagesForReport(Ui::ReportReason reason);
 	void clearChooseMessagesForReport();
 
+	bool toggleSearch(bool shown, anim::type animated);
+	bool searchSetFocus();
+	[[nodiscard]] bool searchHasFocus() const;
+	[[nodiscard]] rpl::producer<> searchCancelled() const;
+	[[nodiscard]] rpl::producer<> searchSubmitted() const;
+	[[nodiscard]] rpl::producer<QString> searchQuery() const;
+	[[nodiscard]] QString searchQueryCurrent() const;
+	void searchClear();
+
 	[[nodiscard]] rpl::producer<> forwardSelectionRequest() const {
 		return _forwardSelection.events();
 	}
@@ -104,7 +117,7 @@ private:
 	void refreshLang();
 	void updateSearchVisibility();
 	void updateControlsGeometry();
-	void selectedShowCallback();
+	void slideAnimationCallback();
 	void updateInfoToggleActive();
 
 	void call();
@@ -169,11 +182,22 @@ private:
 	bool _canDelete = false;
 	bool _canForward = false;
 	bool _canSendNow = false;
+	bool _searchMode = false;
 
 	Ui::Animations::Simple _selectedShown;
+	Ui::Animations::Simple _searchShown;
 
 	object_ptr<Ui::RoundButton> _clear;
 	object_ptr<Ui::RoundButton> _forward, _sendNow, _delete;
+	object_ptr<Ui::InputField> _searchField = { nullptr };
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser
+		= { nullptr };
+	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate
+		= { nullptr };
+	object_ptr<Ui::CrossButton> _searchCancel = { nullptr };
+	rpl::variable<QString> _searchQuery;
+	rpl::event_stream<> _searchCancelled;
+	rpl::event_stream<> _searchSubmitted;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::IconButton> _cancelChoose;

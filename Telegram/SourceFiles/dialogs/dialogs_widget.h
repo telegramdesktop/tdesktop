@@ -126,6 +126,8 @@ private:
 	void filterCursorMoved();
 	void completeHashtag(QString tag);
 
+	[[nodiscard]] QString currentSearchQuery() const;
+	void clearSearchField();
 	bool searchMessages(bool searchCache = false);
 	void needSearchMessages();
 
@@ -138,12 +140,16 @@ private:
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 	void escape();
+	void submit();
 	void cancelSearchRequest();
+	[[nodiscard]] PeerData *searchInPeer() const;
+	[[nodiscard]] Data::ForumTopic *searchInTopic() const;
 
 	void setupSupportMode();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	void setupDownloadBar();
+	void setupShortcuts();
 	bool searchForPeersRequired(const QString &query) const;
 	void setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showCalendar();
@@ -192,7 +198,7 @@ private:
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
-	object_ptr<HistoryView::TopBarWidget> _folderTopBar = { nullptr } ;
+	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::IconButton> _searchForNarrowFilters;
 	object_ptr<Ui::InputField> _filter;
@@ -221,8 +227,9 @@ private:
 	ShowAnimation _showAnimationType = ShowAnimation::External;
 
 	Ui::Animations::Simple _scrollToTopShown;
-	bool _scrollToTopIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
+	bool _scrollToTopIsShown = false;
+	bool _forumSearchRequested = false;
 
 	Data::Folder *_openedFolder = nullptr;
 	ChannelData *_openedForum = nullptr;

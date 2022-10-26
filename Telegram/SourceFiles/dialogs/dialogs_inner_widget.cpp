@@ -2011,12 +2011,16 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 					end(results));
 			};
 			if (!_searchInChat && !words.isEmpty()) {
-				append(session().data().chatsList()->indexed());
-				const auto id = Data::Folder::kId;
-				if (const auto folder = session().data().folderLoaded(id)) {
-					append(folder->chatsList()->indexed());
+				if (_openedForum) {
+					append(_openedForum->topicsList()->indexed());
+				} else {
+					append(session().data().chatsList()->indexed());
+					const auto id = Data::Folder::kId;
+					if (const auto add = session().data().folderLoaded(id)) {
+						append(add->chatsList()->indexed());
+					}
+					append(session().data().contactsNoChatsList());
 				}
-				append(session().data().contactsNoChatsList());
 			}
 			refresh(true);
 		}

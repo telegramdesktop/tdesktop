@@ -83,7 +83,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Window {
 namespace {
 
-constexpr auto kTopicsSearchMinCount = 10;
+constexpr auto kTopicsSearchMinCount = 1;
 
 } // namespace
 
@@ -1005,8 +1005,14 @@ void Filler::addViewAsMessages() {
 }
 
 void Filler::addSearchTopics() {
+	const auto forum = _peer ? _peer->forum() : nullptr;
+	if (!forum) {
+		return;
+	}
+	const auto history = forum->history();
+	const auto controller = _controller;
 	_addAction(tr::lng_dlg_filter(tr::now), [=] {
-
+		controller->content()->searchInChat(history);
 	}, &st::menuIconSearch);
 }
 

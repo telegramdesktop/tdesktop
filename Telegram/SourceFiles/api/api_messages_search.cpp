@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+constexpr auto kSearchPerPage = 50;
+
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
 		const QVector<MTPMessage> &messages) {
@@ -94,7 +96,7 @@ void MessagesSearch::searchRequest() {
 			MTP_int(0), // max_date
 			MTP_int(_offsetId), // offset_id
 			MTP_int(0), // add_offset
-			MTP_int(SearchPerPage),
+			MTP_int(kSearchPerPage),
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_long(0) // hash

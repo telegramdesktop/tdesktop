@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/widgets/buttons.h"
+#include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/effects/radial_animation.h"
@@ -426,12 +427,16 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 	}
 	Painter p(this);
 
-	auto selectedButtonsTop = countSelectedButtonsTop(
+	const auto selectedButtonsTop = countSelectedButtonsTop(
 		_selectedShown.value(showSelectedActions() ? 1. : 0.));
+	const auto searchFieldTop = _searchField
+		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
+		: -st::topBarHeight;
+	const auto slidingTop = std::max(selectedButtonsTop, searchFieldTop);
 
 	p.fillRect(QRect(0, 0, width(), st::topBarHeight), st::topBarBg);
-	if (selectedButtonsTop < 0) {
-		p.translate(0, selectedButtonsTop + st::topBarHeight);
+	if (slidingTop < 0) {
+		p.translate(0, slidingTop + st::topBarHeight);
 		paintTopBar(p);
 	}
 }
@@ -883,9 +888,19 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_activeChat.key) {
 		return;
 	}
-	auto hasSelected = showSelectedActions();
-	auto selectedButtonsTop = countSelectedButtonsTop(_selectedShown.value(hasSelected ? 1. : 0.));
-	auto otherButtonsTop = selectedButtonsTop + st::topBarHeight;
+	const auto hasSelected = showSelectedActions();
+	auto selectedButtonsTop = countSelectedButtonsTop(
+		_selectedShown.value(hasSelected ? 1. : 0.));
+	if (!_searchMode && !_searchShown.animating() && _searchField) {
+		_searchField.destroy();
+		_searchCancel.destroy();
+	}
+	auto searchFieldTop = _searchField
+		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
+		: -st::topBarHeight;
+	const auto otherButtonsTop = std::max(selectedButtonsTop, searchFieldTop)
+		+ st::topBarHeight;
+	const auto backButtonTop = selectedButtonsTop + st::topBarHeight;
 	auto buttonsLeft = st::topBarActionSkip
 		+ (_controller->adaptive().isOneColumn() ? 0 : st::lineWidth);
 	auto buttonsWidth = (_forward->isHidden() ? 0 : _forward->contentWidth())
@@ -923,7 +938,7 @@ void TopBarWidget::updateControlsGeometry() {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
 		_leftTaken = _narrowMode ? (width() - _back->width()) / 2 : 0;
-		_back->moveToLeft(_leftTaken, otherButtonsTop);
+		_back->moveToLeft(_leftTaken, backButtonTop);
 		_leftTaken += _back->width();
 	}
 	if (_info && !_info->isHidden()) {
@@ -932,6 +947,26 @@ void TopBarWidget::updateControlsGeometry() {
 	} else if (_activeChat.key.topic()
 		|| _activeChat.section == Section::ChatsList) {
 		_leftTaken += st::normalFont->spacew;
+	}
+
+	if (_searchField) {
+		const auto fieldLeft = _leftTaken;
+		const auto fieldTop = searchFieldTop
+			+ (height() - _searchField->height()) / 2;
+		const auto fieldRight = st::dialogsFilterSkip
+			+ st::dialogsFilterPadding.x();
+		const auto fieldWidth = width() - fieldLeft - fieldRight;
+		_searchField->setGeometryToLeft(
+			fieldLeft,
+			fieldTop,
+			fieldWidth,
+			_searchField->height());
+
+		auto right = fieldLeft + fieldWidth;
+		_searchCancel->moveToLeft(
+			right - _searchCancel->width(),
+			_searchField->y());
+		right -= _searchCancel->width();
 	}
 
 	_rightTaken = 0;
@@ -1146,9 +1181,86 @@ void TopBarWidget::showSelected(SelectedState state) {
 	}
 }
 
+bool TopBarWidget::toggleSearch(bool shown, anim::type animated) {
+	if (_searchMode == shown) {
+		if (animated == anim::type::instant) {
+			_searchShown.stop();
+		}
+		return false;
+	}
+	_searchMode = shown;
+	if (shown && !_searchField) {
+		_searchField.create(this, st::dialogsFilter, tr::lng_dlg_filter());
+		_searchField->setFocusPolicy(Qt::StrongFocus);
+		_searchField->customUpDown(true);
+		_searchField->show();
+		_searchCancel.create(this, st::dialogsCancelSearch);
+		_searchCancel->show(anim::type::instant);
+		_searchCancel->setClickedCallback([=] { _searchCancelled.fire({}); });
+		QObject::connect(_searchField, &Ui::InputField::submitted, [=] {
+			_searchSubmitted.fire({});
+		});
+		QObject::connect(_searchField, &Ui::InputField::changed, [=] {
+			_searchQuery = _searchField->getLastText();
+		});
+	} else {
+		Assert(_searchField != nullptr);
+	}
+	_searchQuery = shown ? _searchField->getLastText() : QString();
+	if (animated == anim::type::normal) {
+		_searchShown.start(
+			[=] { slideAnimationCallback(); },
+			shown ? 0. : 1.,
+			shown ? 1. : 0.,
+			st::slideWrapDuration,
+			anim::easeOutCirc);
+	} else {
+		_searchShown.stop();
+		slideAnimationCallback();
+	}
+	if (shown) {
+		_searchField->setFocusFast();
+	}
+	return true;
+}
+
+bool TopBarWidget::searchSetFocus() {
+	if (!_searchMode) {
+		return false;
+	}
+	_searchField->setFocus();
+	return true;
+}
+
+bool TopBarWidget::searchHasFocus() const {
+	return _searchMode && _searchField->hasFocus();
+}
+
+rpl::producer<> TopBarWidget::searchCancelled() const {
+	return _searchCancelled.events();
+}
+
+rpl::producer<> TopBarWidget::searchSubmitted() const {
+	return _searchSubmitted.events();
+}
+
+rpl::producer<QString> TopBarWidget::searchQuery() const {
+	return _searchQuery.value();
+}
+
+QString TopBarWidget::searchQueryCurrent() const {
+	return _searchQuery.current();
+}
+
+void TopBarWidget::searchClear() {
+	if (_searchMode) {
+		_searchField->clear();
+	}
+}
+
 void TopBarWidget::toggleSelectedControls(bool shown) {
 	_selectedShown.start(
-		[this] { selectedShowCallback(); },
+		[this] { slideAnimationCallback(); },
 		shown ? 0. : 1.,
 		shown ? 1. : 0.,
 		st::slideWrapDuration,
@@ -1159,7 +1271,7 @@ bool TopBarWidget::showSelectedActions() const {
 	return showSelectedState() && !_chooseForReportReason;
 }
 
-void TopBarWidget::selectedShowCallback() {
+void TopBarWidget::slideAnimationCallback() {
 	updateControlsGeometry();
 	update();
 }
