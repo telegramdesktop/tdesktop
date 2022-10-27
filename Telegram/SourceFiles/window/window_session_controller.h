@@ -212,6 +212,10 @@ public:
 		MsgId rootId,
 		MsgId commentId = 0,
 		const SectionShow &params = SectionShow());
+	void showTopic(
+		not_null<Data::ForumTopic*> topic,
+		MsgId commentId = 0,
+		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(
 		PeerId peerId,

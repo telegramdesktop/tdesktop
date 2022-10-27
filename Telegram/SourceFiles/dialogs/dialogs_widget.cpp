@@ -416,9 +416,8 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& row.filteredRow;
 	const auto history = row.key.history();
 	if (const auto topic = row.key.topic()) {
-		controller()->showRepliesForMessage(
-			topic->history(),
-			topic->rootId(),
+		controller()->showTopic(
+			topic,
 			row.message.fullId.msg,
 			Window::SectionShow::Way::ClearStack);
 	} else if (history && history->peer->isForum() && !row.message.fullId) {
@@ -2309,32 +2308,34 @@ void Widget::clearSearchField() {
 }
 
 bool Widget::cancelSearch() {
-	bool clearing = !currentSearchQuery().isEmpty();
+	auto clearingQuery = !currentSearchQuery().isEmpty();
+	auto clearingInChat = false;
 	cancelSearchRequest();
-	if (!clearing && _searchInChat) {
+	if (!clearingQuery && _searchInChat) {
 		if (controller()->adaptive().isOneColumn()) {
 			if (const auto topic = _searchInChat.topic()) {
-				//controller()->showTopic(topic); // #TODO forum search
+				controller()->showTopic(topic);
 			} else if (const auto peer = _searchInChat.peer()) {
-				controller()->showPeer(peer, ShowAtUnreadMsgId);
+				controller()->showPeerHistory(peer);
 			} else {
 				Unexpected("Empty key in cancelSearch().");
 			}
 		}
 		setSearchInChat(Key());
-		clearing = true;
-	} else if (!clearing
+		clearingInChat = true;
+	}
+	if (!clearingQuery
 		&& _subsectionTopBar
 		&& _subsectionTopBar->toggleSearch(false, anim::type::normal)) {
 		setFocus();
-		return true;
+		clearingInChat = true;
 	}
 	_lastSearchPeer = nullptr;
 	_lastSearchId = _lastSearchMigratedId = 0;
 	_inner->clearFilter();
 	clearSearchField();
 	applyFilterUpdate();
-	return clearing;
+	return clearingQuery || clearingInChat;
 }
 
 void Widget::cancelSearchInChat() {
@@ -2345,9 +2346,9 @@ void Widget::cancelSearchInChat() {
 			&& !controller()->selectingPeer()
 			&& currentSearchQuery().trimmed().isEmpty()) {
 			if (const auto topic = _searchInChat.topic()) {
-				// #TODO forum search
+				controller()->showTopic(topic);
 			} else if (const auto peer = _searchInChat.peer()) {
-				Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+				controller()->showPeerHistory(peer);
 			} else {
 				Unexpected("Empty key in cancelSearchInPeer().");
 			}

@@ -575,6 +575,17 @@ void SessionNavigation::showPeerInfo(
 	showPeerInfo(_session->data().peer(peerId), params);
 }
 
+void SessionNavigation::showTopic(
+		not_null<Data::ForumTopic*> topic,
+		MsgId commentId,
+		const SectionShow &params) {
+	return showRepliesForMessage(
+		topic->history(),
+		topic->rootId(),
+		commentId,
+		params);
+}
+
 void SessionNavigation::showPeerInfo(
 		not_null<PeerData*> peer,
 		const SectionShow &params) {
@@ -1539,9 +1550,8 @@ void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 						SectionShow::Way::Forward,
 						id);
 				} else if (const auto strongTopic = weakTopic.get()) {
-					strong->showRepliesForMessage(
-						strongTopic->history(),
-						strongTopic->rootId(),
+					strong->showTopic(
+						strongTopic,
 						id,
 						SectionShow::Way::Forward);
 					strong->hideLayer(anim::type::normal);
