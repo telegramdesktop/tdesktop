@@ -60,7 +60,6 @@ class InnerWidget;
 enum class SearchRequestType;
 
 class Widget final : public Window::AbstractSectionWidget {
-
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
 
@@ -165,6 +164,7 @@ private:
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
 	void refreshTopBars();
+	void showSearchInTopBar(anim::type animated);
 	void checkUpdateStatus();
 	void changeOpenedSubsection(
 		FnMut<void()> change,

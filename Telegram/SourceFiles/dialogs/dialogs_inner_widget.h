@@ -354,6 +354,7 @@ private:
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatListEntryRefreshes();
+	void moveCancelSearchButtons();
 
 	const not_null<Window::SessionController*> _controller;
 

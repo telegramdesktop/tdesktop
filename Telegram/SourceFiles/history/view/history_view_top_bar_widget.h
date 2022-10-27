@@ -40,6 +40,8 @@ namespace HistoryView {
 
 class SendActionPainter;
 
+[[nodiscard]] QString SwitchToChooseFromQuery();
+
 class TopBarWidget final : public Ui::RpWidget {
 public:
 	struct SelectedState {
@@ -78,6 +80,7 @@ public:
 
 	bool toggleSearch(bool shown, anim::type animated);
 	void searchEnableJumpToDate(bool enable);
+	void searchEnableChooseFromUser(bool enable, bool visible);
 	bool searchSetFocus();
 	[[nodiscard]] bool searchHasFocus() const;
 	[[nodiscard]] rpl::producer<> searchCancelled() const;
@@ -103,6 +106,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> jumpToDateRequest() const {
 		return _jumpToDateRequests.events();
+	}
+	[[nodiscard]] rpl::producer<> chooseFromUserRequest() const {
+		return _chooseFromUserRequests.events();
 	}
 	[[nodiscard]] rpl::producer<> searchRequest() const;
 
@@ -203,6 +209,7 @@ private:
 	rpl::event_stream<> _searchCancelled;
 	rpl::event_stream<> _searchSubmitted;
 	rpl::event_stream<> _jumpToDateRequests;
+	rpl::event_stream<> _chooseFromUserRequests;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::IconButton> _cancelChoose;

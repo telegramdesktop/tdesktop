@@ -76,10 +76,6 @@ namespace {
 
 constexpr auto kSearchPerPage = 50;
 
-[[nodiscard]] QString SwitchToChooseFromQuery() {
-	return u"from:"_q;
-}
-
 } // namespace
 
 class Widget::BottomButton : public Ui::RippleButton {
@@ -276,7 +272,9 @@ Widget::Widget(
 	}, lifetime());
 	_inner->cancelSearchFromUserRequests(
 	) | rpl::start_with_next([=] {
-		setSearchInChat(_searchInChat, nullptr);
+		setSearchInChat((_openedForum && !_searchInChat)
+			? Key(_openedForum->forum()->history())
+			: _searchInChat, nullptr);
 		applyFilterUpdate(true);
 	}, lifetime());
 	_inner->chosenRow(
@@ -783,6 +781,10 @@ void Widget::refreshTopBars() {
 			) | rpl::start_with_next([=] {
 				showCalendar();
 			}, _subsectionTopBar->lifetime());
+			_subsectionTopBar->chooseFromUserRequest(
+			) | rpl::start_with_next([=] {
+				showSearchFrom();
+			}, _subsectionTopBar->lifetime());
 			updateControlsGeometry();
 		}
 		const auto history = _openedForum
@@ -796,7 +798,7 @@ void Widget::refreshTopBars() {
 				.section = Dialogs::EntryState::Section::ChatsList,
 			}, history ? history->sendActionPainter().get() : nullptr);
 		if (_forumSearchRequested) {
-			_subsectionTopBar->toggleSearch(true, anim::type::instant);
+			showSearchInTopBar(anim::type::instant);
 		}
 	} else if (_subsectionTopBar) {
 		if (_subsectionTopBar->searchHasFocus()) {
@@ -870,6 +872,15 @@ void Widget::refreshTopBars() {
 		_forumReportBar = nullptr;
 		updateControlsGeometry();
 	}
+}
+
+void Widget::showSearchInTopBar(anim::type animated) {
+	Expects(_subsectionTopBar != nullptr);
+
+	_subsectionTopBar->toggleSearch(true, animated);
+	_subsectionTopBar->searchEnableChooseFromUser(
+		true,
+		!_searchFromAuthor);
 }
 
 QPixmap Widget::grabForFolderSlideAnimation() {
@@ -1289,6 +1300,7 @@ bool Widget::searchMessages(bool searchCache) {
 			_peerSearchQueries.emplace(_peerSearchRequest, _peerSearchQuery);
 		}
 	} else {
+		_api.request(base::take(_peerSearchRequest)).cancel();
 		_peerSearchQuery = query;
 		_peerSearchFull = true;
 		peerSearchReceived(
@@ -1310,6 +1322,7 @@ bool Widget::searchMessages(bool searchCache) {
 			searchTopics();
 		}
 	} else {
+		_api.request(base::take(_topicSearchRequest)).cancel();
 		_topicSearchQuery = query;
 		_topicSearchFull = true;
 	}
@@ -1318,6 +1331,7 @@ bool Widget::searchMessages(bool searchCache) {
 
 bool Widget::searchForPeersRequired(const QString &query) const {
 	return !_searchInChat
+		&& !_searchFromAuthor
 		&& !_openedForum
 		&& !query.isEmpty()
 		&& (query[0] != '#');
@@ -1325,6 +1339,7 @@ bool Widget::searchForPeersRequired(const QString &query) const {
 
 bool Widget::searchForTopicsRequired(const QString &query) const {
 	return !_searchInChat
+		&& !_searchFromAuthor
 		&& _openedForum
 		&& !query.isEmpty()
 		&& (query[0] != '#')
@@ -1842,7 +1857,7 @@ void Widget::applyFilterUpdate(bool force) {
 	}
 
 	if (_chooseFromUser->toggled() || _searchFromAuthor) {
-		auto switchToChooseFrom = SwitchToChooseFromQuery();
+		auto switchToChooseFrom = HistoryView::SwitchToChooseFromQuery();
 		if (_lastFilterText != switchToChooseFrom
 			&& switchToChooseFrom.startsWith(_lastFilterText)
 			&& filterText == switchToChooseFrom) {
@@ -1853,11 +1868,11 @@ void Widget::applyFilterUpdate(bool force) {
 }
 
 void Widget::searchInChat(Key chat) {
+	if (_openedForum && !chat.peer()->forum()) {
+		controller()->closeForum();
+	}
 	if (_openedFolder) {
 		controller()->closeFolder();
-	}
-	if (const auto topic = chat.topic()) {
-		controller()->openForum(topic->channel());
 	}
 	cancelSearch();
 	setSearchInChat(chat);
@@ -1868,38 +1883,43 @@ void Widget::setSearchInChat(Key chat, PeerData *from) {
 	const auto peer = chat.peer();
 	const auto topic = chat.topic();
 	const auto forum = peer ? peer->forum() : nullptr;
+	if (chat.folder() || (forum && !topic)) {
+		chat = Key();
+	}
+	const auto searchInPeerUpdated = (_searchInChat != chat);
+	if (searchInPeerUpdated) {
+		from = nullptr;
+	} else if (!chat && !forum) {
+		from = nullptr;
+	}
+	const auto searchFromUpdated = searchInPeerUpdated
+		|| (_searchFromAuthor != from);
+	_searchFromAuthor = from;
+
 	if (forum) {
 		if (controller()->openedForum().current() == peer) {
-			_subsectionTopBar->toggleSearch(true, anim::type::normal);
+			showSearchInTopBar(anim::type::normal);
 		} else {
 			_forumSearchRequested = true;
 			controller()->openForum(forum->channel());
 		}
-	}
-	if (chat.folder() || (forum && !topic)) {
-		chat = Key();
 	}
 	_searchInMigrated = nullptr;
 	if (peer) {
 		if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
-			if (!topic) {
+			if (!forum) {
 				_searchInMigrated = peer->owner().history(migrateFrom);
 			}
 		}
 	}
-	const auto searchInPeerUpdated = (_searchInChat != chat);
 	if (searchInPeerUpdated) {
 		_searchInChat = chat;
-		from = nullptr;
 		controller()->searchInChat = _searchInChat;
 		updateJumpToDateVisibility();
-	} else if (!_searchInChat) {
-		from = nullptr;
 	}
-	if (_searchFromAuthor != from || searchInPeerUpdated) {
-		_searchFromAuthor = from;
+	if (searchFromUpdated) {
 		updateSearchFromVisibility();
 		clearSearchCache();
 	}
@@ -1908,7 +1928,8 @@ void Widget::setSearchInChat(Key chat, PeerData *from) {
 		_subsectionTopBar->searchEnableJumpToDate(
 			_openedForum && _searchInChat);
 	}
-	if (_searchFromAuthor && _lastFilterText == SwitchToChooseFromQuery()) {
+	if (_searchFromAuthor
+		&& _lastFilterText == HistoryView::SwitchToChooseFromQuery()) {
 		cancelSearch();
 	}
 	_filter->setFocus();
@@ -1938,14 +1959,19 @@ void Widget::showCalendar() {
 
 void Widget::showSearchFrom() {
 	if (const auto peer = searchInPeer()) {
-		const auto chat = _openedForum
+		const auto weak = base::make_weak(_searchInChat.topic());
+		const auto chat = (!_searchInChat && _openedForum)
 			? Key(_openedForum->forum()->history())
 			: _searchInChat;
 		auto box = SearchFromBox(
 			peer,
 			crl::guard(this, [=](not_null<PeerData*> from) {
 				Ui::hideLayer();
-				setSearchInChat(chat, from);
+				if (!chat.topic()) {
+					setSearchInChat(chat, from);
+				} else if (const auto strong = weak.get()) {
+					setSearchInChat(strong, from);
+				}
 				applyFilterUpdate(true);
 			}),
 			crl::guard(this, [=] { _filter->setFocus(); }));

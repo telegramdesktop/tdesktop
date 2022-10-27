@@ -82,6 +82,10 @@ struct TopBarWidget::EmojiInteractionSeenAnimation {
 	crl::time till = 0;
 };
 
+QString SwitchToChooseFromQuery() {
+	return u"from:"_q;
+}
+
 TopBarWidget::TopBarWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -898,6 +902,7 @@ void TopBarWidget::updateControlsGeometry() {
 		_searchField.destroy();
 		_searchCancel.destroy();
 		_jumpToDate.destroy();
+		_chooseFromUser.destroy();
 	}
 	auto searchFieldTop = _searchField
 		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
@@ -970,12 +975,14 @@ void TopBarWidget::updateControlsGeometry() {
 		_searchCancel->moveToLeft(
 			right - _searchCancel->width(),
 			_searchField->y());
+		right -= st::dialogsCalendar.width;
 		if (_jumpToDate) {
-			_jumpToDate->moveToLeft(
-				right - _jumpToDate->width(),
-				_searchField->y());
+			_jumpToDate->moveToLeft(right, _searchField->y());
 		}
-		right -= _searchCancel->width();
+		right -= st::dialogsSearchFrom.width;
+		if (_chooseFromUser) {
+			_chooseFromUser->moveToLeft(right, _searchField->y());
+		}
 	}
 
 	_rightTaken = 0;
@@ -1223,13 +1230,20 @@ bool TopBarWidget::toggleSearch(bool shown, anim::type animated) {
 			_searchSubmitted.fire({});
 		});
 		QObject::connect(_searchField, &Ui::InputField::changed, [=] {
-			const auto wasEmpty = _searchQuery.current().isEmpty();
-			const auto query = _searchField->getLastText();
-			const auto nowEmpty = query.isEmpty();
-			if (_jumpToDate && nowEmpty != wasEmpty) {
+			const auto was = _searchQuery.current();
+			const auto now = _searchField->getLastText();
+			if (_jumpToDate && was.isEmpty() != now.isEmpty()) {
 				updateControlsVisibility();
 			}
-			_searchQuery = query;
+			if (_chooseFromUser) {
+				auto switchToChooseFrom = SwitchToChooseFromQuery();
+				if (was != switchToChooseFrom
+					&& switchToChooseFrom.startsWith(was)
+					&& now == switchToChooseFrom) {
+					_chooseFromUserRequests.fire({});
+				}
+			}
+			_searchQuery = now;
 		});
 	} else {
 		Assert(_searchField != nullptr);
@@ -1253,9 +1267,11 @@ bool TopBarWidget::toggleSearch(bool shown, anim::type animated) {
 }
 
 void TopBarWidget::searchEnableJumpToDate(bool enable) {
-	if (!_searchMode && !enable) {
+	if (!_searchMode) {
 		return;
-	} else if (enable) {
+	} else if (!enable) {
+		_jumpToDate.destroy();
+	} else if (!_jumpToDate) {
 		_jumpToDate.create(
 			this,
 			object_ptr<Ui::IconButton>(this, st::dialogsCalendar));
@@ -1266,9 +1282,33 @@ void TopBarWidget::searchEnableJumpToDate(bool enable) {
 		) | rpl::to_empty | rpl::start_to_stream(
 			_jumpToDateRequests,
 			_jumpToDate->lifetime());
-	} else {
-		_jumpToDate.destroy();
 	}
+	updateControlsVisibility();
+	updateControlsGeometry();
+}
+
+void TopBarWidget::searchEnableChooseFromUser(bool enable, bool visible) {
+	if (!_searchMode) {
+		return;
+	} else if (!enable) {
+		_chooseFromUser.destroy();
+	} else if (!_chooseFromUser) {
+		_chooseFromUser.create(
+			this,
+			object_ptr<Ui::IconButton>(this, st::dialogsSearchFrom));
+		_chooseFromUser->toggle(visible, anim::type::instant);
+		_chooseFromUser->entity()->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(
+			_chooseFromUserRequests,
+			_chooseFromUser->lifetime());
+	} else {
+		_chooseFromUser->toggle(visible, anim::type::normal);
+	}
+	auto additional = QMargins();
+	if (_chooseFromUser && _chooseFromUser->toggled()) {
+		additional.setRight(_chooseFromUser->width());
+	}
+	_searchField->setAdditionalMargins(additional);
 	updateControlsVisibility();
 	updateControlsGeometry();
 }
