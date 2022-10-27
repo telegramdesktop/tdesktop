@@ -223,7 +223,9 @@ void Forum::applyReceivedTopics(
 }
 
 void Forum::requestSomeStale() {
-	if (_staleRequestId || (!_offset.id && _requestId)) {
+	if (_staleRequestId
+		|| (!_offset.id && _requestId)
+		|| _staleRootIds.empty()) {
 		return;
 	}
 	const auto type = Histories::RequestType::History;
@@ -240,6 +242,9 @@ void Forum::requestSomeStale() {
 		if (rootIds.size() == kStalePerRequest) {
 			break;
 		}
+	}
+	if (rootIds.empty()) {
+		return;
 	}
 	const auto call = [=] {
 		for (const auto &id : rootIds) {

@@ -77,6 +77,7 @@ public:
 	void clearChooseMessagesForReport();
 
 	bool toggleSearch(bool shown, anim::type animated);
+	void searchEnableJumpToDate(bool enable);
 	bool searchSetFocus();
 	[[nodiscard]] bool searchHasFocus() const;
 	[[nodiscard]] rpl::producer<> searchCancelled() const;
@@ -99,6 +100,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> cancelChooseForReportRequest() const {
 		return _cancelChooseForReport.events();
+	}
+	[[nodiscard]] rpl::producer<> jumpToDateRequest() const {
+		return _jumpToDateRequests.events();
 	}
 	[[nodiscard]] rpl::producer<> searchRequest() const;
 
@@ -198,6 +202,7 @@ private:
 	rpl::variable<QString> _searchQuery;
 	rpl::event_stream<> _searchCancelled;
 	rpl::event_stream<> _searchSubmitted;
+	rpl::event_stream<> _jumpToDateRequests;
 
 	object_ptr<Ui::IconButton> _back;
 	object_ptr<Ui::IconButton> _cancelChoose;

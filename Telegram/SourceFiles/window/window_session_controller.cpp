@@ -1396,12 +1396,18 @@ void SessionController::startOrJoinGroupCall(
 }
 
 void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
-	const auto history = chat.history();
+	const auto topic = chat.topic();
+	const auto history = chat.owningHistory();
 	if (!history) {
 		return;
 	}
 	const auto currentPeerDate = [&] {
-		if (history->scrollTopItem) {
+		if (topic) {
+			if (const auto item = topic->lastMessage()) {
+				return base::unixtime::parse(item->date()).date();
+			}
+			return QDate();
+		} else if (history->scrollTopItem) {
 			return history->scrollTopItem->dateTime().date();
 		} else if (history->loadedAtTop()
 			&& !history->isEmpty()
@@ -1419,6 +1425,12 @@ void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 		return QDate();
 	}();
 	const auto maxPeerDate = [&] {
+		if (topic) {
+			if (const auto item = topic->lastMessage()) {
+				return base::unixtime::parse(item->date()).date();
+			}
+			return QDate();
+		}
 		const auto check = history->peer->migrateTo()
 			? history->owner().historyLoaded(history->peer->migrateTo())
 			: history;
@@ -1428,11 +1440,13 @@ void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 		return QDate();
 	}();
 	const auto minPeerDate = [&] {
-		const auto startDate = [] {
+		const auto startDate = [&] {
 			// Telegram was launched in August 2013 :)
 			return QDate(2013, 8, 1);
 		};
-		if (const auto chat = history->peer->migrateFrom()) {
+		if (topic) {
+			return base::unixtime::parse(topic->creationDate()).date();
+		} else if (const auto chat = history->peer->migrateFrom()) {
 			if (const auto history = chat->owner().historyLoaded(chat)) {
 				if (history->loadedAtTop()) {
 					if (!history->isEmpty()) {
@@ -1515,13 +1529,28 @@ void SessionController::showCalendar(Dialogs::Key chat, QDate requestedDate) {
 		}
 	};
 	const auto weak = base::make_weak(this);
+	const auto weakTopic = base::make_weak(topic);
 	const auto jump = [=](const QDate &date) {
 		const auto open = [=](not_null<PeerData*> peer, MsgId id) {
 			if (const auto strong = weak.get()) {
-				strong->showPeerHistory(peer, SectionShow::Way::Forward, id);
+				if (!topic) {
+					strong->showPeerHistory(
+						peer,
+						SectionShow::Way::Forward,
+						id);
+				} else if (const auto strongTopic = weakTopic.get()) {
+					strong->showRepliesForMessage(
+						strongTopic->history(),
+						strongTopic->rootId(),
+						id,
+						SectionShow::Way::Forward);
+					strong->hideLayer(anim::type::normal);
+				}
 			}
 		};
-		session().api().resolveJumpToDate(chat, date, open);
+		if (!topic || weakTopic) {
+			session().api().resolveJumpToDate(chat, date, open);
+		}
 	};
 	show(Box<Ui::CalendarBox>(Ui::CalendarBoxArgs{
 		.month = highlighted,

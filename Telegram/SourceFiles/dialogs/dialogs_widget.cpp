@@ -779,7 +779,11 @@ void Widget::refreshTopBars() {
 			_subsectionTopBar->searchQuery(
 			) | rpl::start_with_next([=](QString query) {
 				applyFilterUpdate();
-			}, lifetime());
+			}, _subsectionTopBar->lifetime());
+			_subsectionTopBar->jumpToDateRequest(
+			) | rpl::start_with_next([=] {
+				showCalendar();
+			}, _subsectionTopBar->lifetime());
 			updateControlsGeometry();
 		}
 		const auto history = _openedForum
@@ -1386,14 +1390,16 @@ void Widget::searchTopics() {
 		MTP_int(kSearchPerPage)
 	)).done([=](const MTPmessages_ForumTopics &result) {
 		_topicSearchRequest = 0;
-		const auto savedTopicId = _topicSearchOffsetId;
+		const auto savedTopicId = _topicSearchOffsetTopicId;
 		const auto byCreation = result.data().is_order_by_create_date();
 		_openedForum->forum()->applyReceivedTopics(result, [&](
 				not_null<Data::ForumTopic*> topic) {
 			_topicSearchOffsetTopicId = topic->rootId();
 			if (byCreation) {
-				_topicSearchOffsetId = _topicSearchOffsetTopicId;
 				_topicSearchOffsetDate = topic->creationDate();
+				if (const auto last = topic->lastServerMessage()) {
+					_topicSearchOffsetId = last->id;
+				}
 			} else if (const auto last = topic->lastServerMessage()) {
 				_topicSearchOffsetId = last->id;
 				_topicSearchOffsetDate = last->date();
@@ -1899,6 +1905,10 @@ void Widget::setSearchInChat(Key chat, PeerData *from) {
 		clearSearchCache();
 	}
 	_inner->searchInChat(_searchInChat, _searchFromAuthor);
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchEnableJumpToDate(
+			_openedForum && _searchInChat);
+	}
 	if (_searchFromAuthor && _lastFilterText == SwitchToChooseFromQuery()) {
 		cancelSearch();
 	}

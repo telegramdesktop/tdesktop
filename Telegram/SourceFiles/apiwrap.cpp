@@ -2834,13 +2834,16 @@ void ApiWrap::resolveJumpToDate(
 		const QDate &date,
 		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto peer = chat.peer()) {
-		resolveJumpToHistoryDate(peer, date, std::move(callback));
+		const auto topic = chat.topic();
+		const auto rootId = topic ? topic->rootId() : 0;
+		resolveJumpToHistoryDate(peer, rootId, date, std::move(callback));
 	}
 }
 
 template <typename Callback>
 void ApiWrap::requestMessageAfterDate(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		const QDate &date,
 		Callback &&callback) {
 	// API returns a message with date <= offset_date.
@@ -2853,75 +2856,95 @@ void ApiWrap::requestMessageAfterDate(
 	const auto maxId = 0;
 	const auto minId = 0;
 	const auto historyHash = uint64(0);
-	request(MTPmessages_GetHistory(
-		peer->input,
-		MTP_int(offsetId),
-		MTP_int(offsetDate),
-		MTP_int(addOffset),
-		MTP_int(limit),
-		MTP_int(maxId),
-		MTP_int(minId),
-		MTP_long(historyHash)
-	)).done([
-		=,
-		callback = std::forward<Callback>(callback)
-	](const MTPmessages_Messages &result) {
-		auto getMessagesList = [&]() -> const QVector<MTPMessage>* {
-			auto handleMessages = [&](auto &messages) {
+
+	auto send = [&](auto &&serialized) {
+		request(std::move(serialized)).done([
+			=,
+			callback = std::forward<Callback>(callback)
+		](const MTPmessages_Messages &result) {
+			const auto handleMessages = [&](auto &messages) {
 				_session->data().processUsers(messages.vusers());
 				_session->data().processChats(messages.vchats());
 				return &messages.vmessages().v;
 			};
-			switch (result.type()) {
-			case mtpc_messages_messages:
+			const auto list = result.match([&](
+					const MTPDmessages_messages &data) {
 				return handleMessages(result.c_messages_messages());
-			case mtpc_messages_messagesSlice:
+			}, [&](const MTPDmessages_messagesSlice &data) {
 				return handleMessages(result.c_messages_messagesSlice());
-			case mtpc_messages_channelMessages: {
-				auto &messages = result.c_messages_channelMessages();
+			}, [&](const MTPDmessages_channelMessages &data) {
+				const auto &messages = result.c_messages_channelMessages();
 				if (peer && peer->isChannel()) {
 					peer->asChannel()->ptsReceived(messages.vpts().v);
 				} else {
-					LOG(("API Error: received messages.channelMessages when no channel was passed! (ApiWrap::jumpToDate)"));
+					LOG(("API Error: received messages.channelMessages when "
+						"no channel was passed! (ApiWrap::jumpToDate)"));
 				}
 				return handleMessages(messages);
-			} break;
-			case mtpc_messages_messagesNotModified: {
-				LOG(("API Error: received messages.messagesNotModified! (ApiWrap::jumpToDate)"));
-			} break;
-			}
-			return nullptr;
-		};
-
-		if (const auto list = getMessagesList()) {
-			_session->data().processMessages(*list, NewMessageType::Existing);
-			for (const auto &message : *list) {
-				if (DateFromMessage(message) >= offsetDate) {
-					callback(IdFromMessage(message));
-					return;
+			}, [&](const MTPDmessages_messagesNotModified &) {
+				LOG(("API Error: received messages.messagesNotModified! "
+					"(ApiWrap::jumpToDate)"));
+				return (const QVector<MTPMessage>*)nullptr;
+			});
+			if (list) {
+				_session->data().processMessages(
+					*list,
+					NewMessageType::Existing);
+				for (const auto &message : *list) {
+					if (DateFromMessage(message) >= offsetDate) {
+						callback(IdFromMessage(message));
+						return;
+					}
 				}
 			}
-		}
-		callback(ShowAtUnreadMsgId);
-	}).send();
+			callback(ShowAtUnreadMsgId);
+		}).send();
+	};
+	if (topicRootId) {
+		send(MTPmessages_GetReplies(
+			peer->input,
+			MTP_int(topicRootId),
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_long(historyHash)));
+	} else {
+		send(MTPmessages_GetHistory(
+			peer->input,
+			MTP_int(offsetId),
+			MTP_int(offsetDate),
+			MTP_int(addOffset),
+			MTP_int(limit),
+			MTP_int(maxId),
+			MTP_int(minId),
+			MTP_long(historyHash)));
+	}
 }
 
 void ApiWrap::resolveJumpToHistoryDate(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		const QDate &date,
 		Fn<void(not_null<PeerData*>, MsgId)> callback) {
 	if (const auto channel = peer->migrateTo()) {
-		return resolveJumpToHistoryDate(channel, date, std::move(callback));
+		return resolveJumpToHistoryDate(
+			channel,
+			topicRootId,
+			date,
+			std::move(callback));
 	}
 	const auto jumpToDateInPeer = [=] {
-		requestMessageAfterDate(peer, date, [=](MsgId resultId) {
-			callback(peer, resultId);
+		requestMessageAfterDate(peer, topicRootId, date, [=](MsgId itemId) {
+			callback(peer, itemId);
 		});
 	};
-	if (const auto chat = peer->migrateFrom()) {
-		requestMessageAfterDate(chat, date, [=](MsgId resultId) {
-			if (resultId) {
-				callback(chat, resultId);
+	if (const auto chat = topicRootId ? nullptr : peer->migrateFrom()) {
+		requestMessageAfterDate(chat, 0, date, [=](MsgId itemId) {
+			if (itemId) {
+				callback(chat, itemId);
 			} else {
 				jumpToDateInPeer();
 			}

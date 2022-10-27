@@ -454,11 +454,13 @@ private:
 
 	void resolveJumpToHistoryDate(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		const QDate &date,
 		Fn<void(not_null<PeerData*>, MsgId)> callback);
 	template <typename Callback>
 	void requestMessageAfterDate(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		const QDate &date,
 		Callback &&callback);
 

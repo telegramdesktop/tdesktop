@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "ui/wrap/fade_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/popup_menu.h"
@@ -880,8 +881,10 @@ int TopBarWidget::countSelectedButtonsTop(float64 selectedShown) {
 }
 
 void TopBarWidget::updateSearchVisibility() {
-	const auto historyMode = (_activeChat.section == Section::History);
-	_search->setVisible(historyMode && !_chooseForReportReason);
+	const auto searchAllowedMode = (_activeChat.section == Section::History)
+		|| (_activeChat.section == Section::Replies
+			&& _activeChat.key.topic());
+	_search->setVisible(searchAllowedMode && !_chooseForReportReason);
 }
 
 void TopBarWidget::updateControlsGeometry() {
@@ -894,6 +897,7 @@ void TopBarWidget::updateControlsGeometry() {
 	if (!_searchMode && !_searchShown.animating() && _searchField) {
 		_searchField.destroy();
 		_searchCancel.destroy();
+		_jumpToDate.destroy();
 	}
 	auto searchFieldTop = _searchField
 		? countSelectedButtonsTop(_searchShown.value(_searchMode ? 1. : 0.))
@@ -966,6 +970,11 @@ void TopBarWidget::updateControlsGeometry() {
 		_searchCancel->moveToLeft(
 			right - _searchCancel->width(),
 			_searchField->y());
+		if (_jumpToDate) {
+			_jumpToDate->moveToLeft(
+				right - _jumpToDate->width(),
+				_searchField->y());
+		}
 		right -= _searchCancel->width();
 	}
 
@@ -1054,6 +1063,19 @@ void TopBarWidget::updateControlsVisibility() {
 			? (_activeChat.key.topic() != nullptr)
 			: false);
 	updateSearchVisibility();
+	if (_searchMode) {
+		const auto hasSearchQuery = _searchField
+			&& !_searchField->getLastText().isEmpty();
+		if (!_jumpToDate || hasSearchQuery) {
+			_searchCancel->show(anim::type::normal);
+			if (_jumpToDate) {
+				_jumpToDate->hide(anim::type::normal);
+			}
+		} else {
+			_searchCancel->hide(anim::type::normal);
+			_jumpToDate->show(anim::type::normal);
+		}
+	}
 	_menuToggle->setVisible(hasMenu
 		&& !_chooseForReportReason
 		&& !_narrowMode);
@@ -1201,7 +1223,13 @@ bool TopBarWidget::toggleSearch(bool shown, anim::type animated) {
 			_searchSubmitted.fire({});
 		});
 		QObject::connect(_searchField, &Ui::InputField::changed, [=] {
-			_searchQuery = _searchField->getLastText();
+			const auto wasEmpty = _searchQuery.current().isEmpty();
+			const auto query = _searchField->getLastText();
+			const auto nowEmpty = query.isEmpty();
+			if (_jumpToDate && nowEmpty != wasEmpty) {
+				updateControlsVisibility();
+			}
+			_searchQuery = query;
 		});
 	} else {
 		Assert(_searchField != nullptr);
@@ -1222,6 +1250,27 @@ bool TopBarWidget::toggleSearch(bool shown, anim::type animated) {
 		_searchField->setFocusFast();
 	}
 	return true;
+}
+
+void TopBarWidget::searchEnableJumpToDate(bool enable) {
+	if (!_searchMode && !enable) {
+		return;
+	} else if (enable) {
+		_jumpToDate.create(
+			this,
+			object_ptr<Ui::IconButton>(this, st::dialogsCalendar));
+		_jumpToDate->toggle(
+			_searchField->getLastText().isEmpty(),
+			anim::type::instant);
+		_jumpToDate->entity()->clicks(
+		) | rpl::to_empty | rpl::start_to_stream(
+			_jumpToDateRequests,
+			_jumpToDate->lifetime());
+	} else {
+		_jumpToDate.destroy();
+	}
+	updateControlsVisibility();
+	updateControlsGeometry();
 }
 
 bool TopBarWidget::searchSetFocus() {
