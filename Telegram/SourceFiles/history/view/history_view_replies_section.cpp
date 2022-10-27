@@ -2010,8 +2010,19 @@ MessagesBarData RepliesWidget::listMessagesBar(
 void RepliesWidget::listContentRefreshed() {
 }
 
-ClickHandlerPtr RepliesWidget::listDateLink(not_null<Element*> view) {
-	return nullptr;
+void RepliesWidget::listUpdateDateLink(
+		ClickHandlerPtr &link,
+		not_null<Element*> view) {
+	if (!_topic) {
+		link = nullptr;
+		return;
+	}
+	const auto date = view->dateTime().date();
+	if (!link) {
+		link = std::make_shared<Window::DateClickHandler>(_topic, date);
+	} else {
+		static_cast<Window::DateClickHandler*>(link.get())->setDate(date);
+	}
 }
 
 bool RepliesWidget::listElementHideReply(not_null<const Element*> view) {

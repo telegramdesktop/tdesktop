@@ -106,7 +106,9 @@ public:
 	virtual MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) = 0;
 	virtual void listContentRefreshed() = 0;
-	virtual ClickHandlerPtr listDateLink(not_null<Element*> view) = 0;
+	virtual void listUpdateDateLink(
+		ClickHandlerPtr &link,
+		not_null<Element*> view) = 0;
 	virtual bool listElementHideReply(not_null<const Element*> view) = 0;
 	virtual bool listElementShownUnread(not_null<const Element*> view) = 0;
 	virtual bool listIsGoodForAroundPosition(

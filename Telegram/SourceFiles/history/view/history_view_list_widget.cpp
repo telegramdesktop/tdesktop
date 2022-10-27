@@ -3248,7 +3248,7 @@ void ListWidget::mouseActionUpdate() {
 					dateLeft += (widthForDate - dateWidth) / 2;
 
 					if (point.x() >= dateLeft && point.x() < dateLeft + dateWidth) {
-						_scrollDateLink = _delegate->listDateLink(view);
+						_delegate->listUpdateDateLink(_scrollDateLink, view);
 						dragState = TextState(
 							nullptr,
 							_scrollDateLink);

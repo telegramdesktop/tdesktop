@@ -167,8 +167,9 @@ bool operator!=(const PeerThemeOverride &a, const PeerThemeOverride &b) {
 }
 
 DateClickHandler::DateClickHandler(Dialogs::Key chat, QDate date)
-	: _chat(chat)
-	, _date(date) {
+: _chat(chat)
+, _weak(chat.topic())
+, _date(date) {
 }
 
 void DateClickHandler::setDate(QDate date) {
@@ -178,7 +179,11 @@ void DateClickHandler::setDate(QDate date) {
 void DateClickHandler::onClick(ClickContext context) const {
 	const auto my = context.other.value<ClickHandlerContext>();
 	if (const auto window = my.sessionWindow.get()) {
-		window->showCalendar(_chat, _date);
+		if (!_chat.topic()) {
+			window->showCalendar(_chat, _date);
+		} else if (const auto strong = _weak.get()) {
+			window->showCalendar(strong, _date);
+		}
 	}
 }
 

@@ -544,8 +544,9 @@ MessagesBarData PinnedWidget::listMessagesBar(
 void PinnedWidget::listContentRefreshed() {
 }
 
-ClickHandlerPtr PinnedWidget::listDateLink(not_null<Element*> view) {
-	return nullptr;
+void PinnedWidget::listUpdateDateLink(
+	ClickHandlerPtr &link,
+	not_null<Element*> view) {
 }
 
 bool PinnedWidget::listElementHideReply(not_null<const Element*> view) {

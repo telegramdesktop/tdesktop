@@ -70,6 +70,7 @@ namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
 class Thread;
+class ForumTopic;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -119,6 +120,7 @@ public:
 
 private:
 	Dialogs::Key _chat;
+	base::weak_ptr<Data::ForumTopic> _weak;
 	QDate _date;
 
 };

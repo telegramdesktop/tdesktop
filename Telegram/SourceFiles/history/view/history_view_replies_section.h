@@ -138,7 +138,9 @@ public:
 	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
-	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
+	void listUpdateDateLink(
+		ClickHandlerPtr &link,
+		not_null<Element*> view) override;
 	bool listElementHideReply(not_null<const Element*> view) override;
 	bool listElementShownUnread(not_null<const Element*> view) override;
 	bool listIsGoodForAroundPosition(not_null<const Element*> view) override;

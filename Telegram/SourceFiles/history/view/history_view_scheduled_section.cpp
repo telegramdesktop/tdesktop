@@ -1162,8 +1162,9 @@ MessagesBarData ScheduledWidget::listMessagesBar(
 void ScheduledWidget::listContentRefreshed() {
 }
 
-ClickHandlerPtr ScheduledWidget::listDateLink(not_null<Element*> view) {
-	return nullptr;
+void ScheduledWidget::listUpdateDateLink(
+	ClickHandlerPtr &link,
+	not_null<Element*> view) {
 }
 
 bool ScheduledWidget::listElementHideReply(not_null<const Element*> view) {
