@@ -198,7 +198,8 @@ private:
 	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
-		FullMsgId originItemId = {});
+		FullMsgId originItemId = {},
+		anim::type animated = anim::type::normal);
 	void finishSending();
 
 	void setupComposeControls();

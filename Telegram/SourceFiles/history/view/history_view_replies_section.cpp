@@ -1783,11 +1783,13 @@ void RepliesWidget::finishSending() {
 
 void RepliesWidget::showAtPosition(
 		Data::MessagePosition position,
-		FullMsgId originItemId) {
+		FullMsgId originItemId,
+		anim::type animated) {
 	_lastShownAt = position.fullId;
+	controller()->setActiveChatEntry(activeChat());
 	_inner->showAtPosition(
 		position,
-		anim::type::normal,
+		animated,
 		_cornerButtons.doneJumpFrom(position.fullId, originItemId));
 }
 
@@ -1802,16 +1804,13 @@ not_null<History*> RepliesWidget::history() const {
 }
 
 Dialogs::RowDescriptor RepliesWidget::activeChat() const {
+	const auto messageId = _lastShownAt
+		? _lastShownAt
+		: FullMsgId(_history->peer->id, ShowAtUnreadMsgId);
 	if (_topic) {
-		return {
-			_topic,
-			FullMsgId(_history->peer->id, ShowAtUnreadMsgId),
-		};
+		return { _topic, messageId };
 	}
-	return {
-		_history,
-		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
-	};
+	return { _history, messageId };
 }
 
 bool RepliesWidget::preventsClose(Fn<void()> &&continueCallback) const {
@@ -2019,10 +2018,10 @@ void RepliesWidget::restoreState(not_null<RepliesMemento*> memento) {
 	_cornerButtons.setReplyReturns(memento->replyReturns());
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
-		_inner->showAtPosition(Data::MessagePosition{
+		showAtPosition(Data::MessagePosition{
 			.fullId = FullMsgId(_history->peer->id, highlight),
 			.date = TimeId(0),
-		}, anim::type::instant);
+		}, {}, anim::type::instant);
 	}
 }
 
