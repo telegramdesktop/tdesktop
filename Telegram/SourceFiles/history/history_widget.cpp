@@ -6235,6 +6235,7 @@ void HistoryWidget::checkPinnedBarState() {
 			};
 			auto destroyer = [this, object = std::move(qobject)]() mutable {
 				object = nullptr;
+				_pinnedBarHeight = 0;
 				updateHistoryGeometry();
 				updateControlsGeometry();
 			};

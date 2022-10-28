@@ -1505,6 +1505,18 @@ void RepliesWidget::setupPinnedTracker() {
 		return result.fullCount().has_value();
 	}) | rpl::start_with_next([=](const SparseIdsSlice &result) {
 		_topic->setHasPinnedMessages(*result.fullCount() != 0);
+		if (result.skippedAfter() == 0) {
+			auto &settings = _history->session().settings();
+			const auto peerId = _history->peer->id;
+			const auto hiddenId = settings.hiddenPinnedMessageId(
+				peerId,
+				_rootId);
+			const auto last = result.size() ? result[result.size() - 1] : 0;
+			if (hiddenId && hiddenId != last) {
+				settings.setHiddenPinnedMessageId(peerId, _rootId, 0);
+				_history->session().saveSettingsDelayed();
+			}
+		}
 		checkPinnedBarState();
 	}, _topicLifetime);
 }
@@ -1521,7 +1533,7 @@ void RepliesWidget::checkPinnedBarState() {
 			_rootId);
 	const auto currentPinnedId = Data::ResolveTopPinnedId(peer, _rootId);
 	const auto universalPinnedId = !currentPinnedId
-		? int32(0)
+		? MsgId(0)
 		: currentPinnedId.msg;
 	if (universalPinnedId == hiddenId) {
 		if (_pinnedBar) {
@@ -1531,6 +1543,7 @@ void RepliesWidget::checkPinnedBarState() {
 			};
 			auto destroyer = [this, object = std::move(qobject)]() mutable {
 				object = nullptr;
+				_pinnedBarHeight = 0;
 				updateControlsGeometry();
 			};
 			base::call_delayed(
