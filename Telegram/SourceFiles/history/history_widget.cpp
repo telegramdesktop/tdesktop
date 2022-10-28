@@ -2353,6 +2353,7 @@ void HistoryWidget::refreshAttachBotsMenu() {
 	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
 		this,
 		_history->peer,
+		[=] { return prepareSendAction({}); },
 		[=](bool compress) { chooseAttach(compress); });
 	if (!_attachBotsMenu) {
 		return;

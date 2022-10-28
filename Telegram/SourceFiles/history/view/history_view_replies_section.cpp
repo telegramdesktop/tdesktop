@@ -670,6 +670,7 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->setHistory({
 		.history = _history.get(),
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
+		.sendActionFactory = [=] { return prepareSendAction({}); },
 		.slowmodeSecondsLeft = std::move(slowmodeSecondsLeft),
 		.sendDisabledBySlowmode = std::move(sendDisabledBySlowmode),
 		.writeRestriction = std::move(writeRestriction),
@@ -720,12 +721,12 @@ void RepliesWidget::setupComposeControls() {
 	_composeControls->attachRequests(
 	) | rpl::filter([=] {
 		return !_choosingAttach;
-	}) | rpl::start_with_next([=] {
+	}) | rpl::start_with_next([=](std::optional<bool> overrideCompress) {
 		_choosingAttach = true;
 		base::call_delayed(
 			st::historyAttach.ripple.hideDuration,
 			this,
-			[=] { _choosingAttach = false; chooseAttach(); });
+			[=] { chooseAttach(overrideCompress); });
 	}, lifetime());
 
 	_composeControls->fileChosen(
@@ -814,7 +815,9 @@ void RepliesWidget::setupComposeControls() {
 	}
 }
 
-void RepliesWidget::chooseAttach() {
+void RepliesWidget::chooseAttach(
+		std::optional<bool> overrideSendImagesAsPhotos) {
+	_choosingAttach = false;
 	if (const auto error = Data::RestrictionError(
 			_history->peer,
 			ChatRestriction::SendMedia)) {
@@ -827,7 +830,9 @@ void RepliesWidget::chooseAttach() {
 		return;
 	}
 
-	const auto filter = FileDialog::AllOrImagesFilter();
+	const auto filter = (overrideSendImagesAsPhotos == true)
+		? FileDialog::ImagesOrAllFilter()
+		: FileDialog::AllOrImagesFilter();
 	FileDialog::GetOpenPaths(this, tr::lng_choose_files(tr::now), filter, crl::guard(this, [=](
 			FileDialog::OpenResult &&result) {
 		if (result.paths.isEmpty() && result.remoteContent.isEmpty()) {
@@ -841,7 +846,8 @@ void RepliesWidget::chooseAttach() {
 			if (!read.image.isNull() && !read.animated) {
 				confirmSendingFiles(
 					std::move(read.image),
-					std::move(result.remoteContent));
+					std::move(result.remoteContent),
+					overrideSendImagesAsPhotos);
 			} else {
 				uploadFile(result.remoteContent, SendMediaType::File);
 			}
@@ -851,6 +857,7 @@ void RepliesWidget::chooseAttach() {
 				result.paths,
 				st::sendMediaPreviewSize,
 				premium);
+			list.overrideSendImagesAsPhotos = overrideSendImagesAsPhotos;
 			confirmSendingFiles(std::move(list));
 		}
 	}), nullptr);

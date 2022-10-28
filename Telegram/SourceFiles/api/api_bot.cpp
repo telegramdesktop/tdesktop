@@ -441,7 +441,7 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 		if (const auto bot = item->getMessageBot()) {
 			bot->session().attachWebView().request(
 				controller,
-				bot,
+				Api::SendAction(bot->owner().history(bot)),
 				bot,
 				{ .text = button->text, .url = button->data });
 		}

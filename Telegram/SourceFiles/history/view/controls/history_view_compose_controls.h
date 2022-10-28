@@ -53,6 +53,7 @@ class IconButton;
 class EmojiButton;
 class SendAsButton;
 class SilentToggle;
+class DropdownMenu;
 } // namespace Ui
 
 namespace Main {
@@ -123,7 +124,7 @@ public:
 	[[nodiscard]] rpl::producer<VoiceToSend> sendVoiceRequests() const;
 	[[nodiscard]] rpl::producer<QString> sendCommandRequests() const;
 	[[nodiscard]] rpl::producer<MessageToEdit> editRequests() const;
-	[[nodiscard]] rpl::producer<> attachRequests() const;
+	[[nodiscard]] rpl::producer<std::optional<bool>> attachRequests() const;
 	[[nodiscard]] rpl::producer<FileChosen> fileChosen() const;
 	[[nodiscard]] rpl::producer<PhotoChosen> photoChosen() const;
 	[[nodiscard]] rpl::producer<Data::MessagePosition> scrollRequests() const;
@@ -215,6 +216,7 @@ private:
 	void updateSendButtonType();
 	void updateMessagesTTLShown();
 	bool updateSendAsButton();
+	void updateAttachBotsMenu();
 	void updateHeight();
 	void updateWrappingVisibility();
 	void updateControlsVisibility();
@@ -287,6 +289,7 @@ private:
 	const not_null<Window::SessionController*> _window;
 	History *_history = nullptr;
 	Fn<bool()> _showSlowmodeError;
+	Fn<Api::SendAction()> _sendActionFactory;
 	rpl::variable<int> _slowmodeSecondsLeft;
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<std::optional<QString>> _writeRestriction;
@@ -308,6 +311,7 @@ private:
 
 	std::unique_ptr<InlineBots::Layout::Widget> _inlineResults;
 	std::unique_ptr<ChatHelpers::TabbedPanel> _tabbedPanel;
+	std::unique_ptr<Ui::DropdownMenu> _attachBotsMenu;
 	std::unique_ptr<FieldAutocomplete> _autocomplete;
 
 	friend class FieldHeader;
@@ -326,7 +330,7 @@ private:
 	rpl::event_stream<QString> _sendCommandRequests;
 	rpl::event_stream<not_null<QKeyEvent*>> _scrollKeyEvents;
 	rpl::event_stream<not_null<QKeyEvent*>> _editLastMessageRequests;
-	rpl::event_stream<> _attachRequests;
+	rpl::event_stream<std::optional<bool>> _attachRequests;
 	rpl::event_stream<ReplyNextRequest> _replyNextRequests;
 
 	TextUpdateEvents _textUpdateEvents = TextUpdateEvents()

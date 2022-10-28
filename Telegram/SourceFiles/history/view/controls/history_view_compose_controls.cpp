@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/history_view_webpage_preview.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
@@ -54,6 +55,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
@@ -894,6 +896,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	Expects(!_history && *args.history);
 
 	_showSlowmodeError = std::move(args.showSlowmodeError);
+	_sendActionFactory = std::move(args.sendActionFactory);
 	_topicRootId = args.topicRootId;
 	_slowmodeSecondsLeft = rpl::single(0)
 		| rpl::then(std::move(args.slowmodeSecondsLeft));
@@ -918,6 +921,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	updateControlsVisibility();
 	updateFieldPlaceholder();
 	updateSendAsButton();
+	updateAttachBotsMenu();
 	//if (!_history) {
 	//	return;
 	//}
@@ -1053,9 +1057,9 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 		std::move(submits) | filter | toValue);
 }
 
-rpl::producer<> ComposeControls::attachRequests() const {
+rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
 	return rpl::merge(
-		_attachToggle->clicks() | rpl::to_empty,
+		_attachToggle->clicks() | rpl::map_to(std::optional<bool>()),
 		_attachRequests.events()
 	) | rpl::filter([=] {
 		if (isEditingMessage()) {
@@ -1090,6 +1094,9 @@ void ComposeControls::showStarted() {
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideFast();
+	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
 	}
@@ -1106,6 +1113,9 @@ void ComposeControls::showFinished() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideFast();
 	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
@@ -1126,6 +1136,9 @@ void ComposeControls::raisePanels() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->raise();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->raise();
 	}
 	if (_raiseEmojiSuggestions) {
 		_raiseEmojiSuggestions();
@@ -1203,6 +1216,9 @@ void ComposeControls::hidePanelsAnimated() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideAnimated();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideAnimated();
 	}
 	if (_inlineResults) {
 		_inlineResults->hideAnimated();
@@ -1348,6 +1364,11 @@ void ComposeControls::init() {
 	_window->materializeLocalDraftsRequests(
 	) | rpl::start_with_next([=] {
 		saveFieldToHistoryLocalDraft();
+	}, _wrap->lifetime());
+
+	session().attachWebView().attachBotsUpdates(
+	) | rpl::start_with_next([=] {
+		updateAttachBotsMenu();
 	}, _wrap->lifetime());
 
 	orderControls();
@@ -2226,10 +2247,12 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	if (_inlineResults) {
 		_inlineResults->moveBottom(rect.y());
 	}
+	const auto bottom = rect.y() + rect.height() - _attachToggle->height();
 	if (_tabbedPanel) {
-		_tabbedPanel->moveBottomRight(
-			rect.y() + rect.height() - _attachToggle->height(),
-			rect.x() + rect.width());
+		_tabbedPanel->moveBottomRight(bottom, rect.x() + rect.width());
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->moveToLeft(0, bottom - _attachBotsMenu->height());
 	}
 }
 
@@ -2272,6 +2295,28 @@ bool ComposeControls::updateSendAsButton() {
 		rpl::single(peer.get()),
 		_window);
 	return true;
+}
+
+void ComposeControls::updateAttachBotsMenu() {
+	_attachBotsMenu = nullptr;
+	if (!_history || !_sendActionFactory) {
+		return;
+	}
+	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
+		_parent,
+		_history->peer,
+		_sendActionFactory,
+		[=](bool compress) { _attachRequests.fire_copy(compress); });
+	if (!_attachBotsMenu) {
+		return;
+	}
+	_attachBotsMenu->setOrigin(
+		Ui::PanelAnimation::Origin::BottomLeft);
+	_attachToggle->installEventFilter(_attachBotsMenu.get());
+	_attachBotsMenu->heightValue(
+	) | rpl::start_with_next([=] {
+		updateOuterGeometry(_wrap->geometry());
+	}, _attachBotsMenu->lifetime());
 }
 
 void ComposeControls::paintBackground(QRect clip) {

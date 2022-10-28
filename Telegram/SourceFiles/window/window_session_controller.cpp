@@ -394,9 +394,10 @@ void SessionNavigation::showPeerByLinkResolved(
 		}
 		if (!attachBotUsername.isEmpty()) {
 			crl::on_main(this, [=] {
-				showPeerHistory(peer->id, params, msgId);
+				const auto history = peer->owner().history(peer);
+				showPeerHistory(history, params, msgId);
 				peer->session().attachWebView().request(
-					peer,
+					Api::SendAction(history),
 					attachBotUsername,
 					info.attachBotToggleCommand.value_or(QString()));
 			});
@@ -410,7 +411,10 @@ void SessionNavigation::showPeerByLinkResolved(
 				? contextPeer->asUser()
 				: nullptr;
 			bot->session().attachWebView().requestAddToMenu(
-				contextUser,
+				(contextUser
+					? Api::SendAction(
+						contextUser->owner().history(contextUser))
+					: std::optional<Api::SendAction>()),
 				bot,
 				*info.attachBotToggleCommand,
 				parentController(),
