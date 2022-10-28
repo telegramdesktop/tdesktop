@@ -275,6 +275,9 @@ private:
 		const MTPcontacts_ResolvedPeer &result,
 		Fn<void(not_null<PeerData*>)> done);
 
+	void showMessageByLinkResolved(
+		not_null<HistoryItem*> item,
+		const PeerByLinkInfo &info);
 	void showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
@@ -424,7 +427,7 @@ public:
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
-	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
+	void showMessage(not_null<const HistoryItem*> item);
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 
 	void showLayer(

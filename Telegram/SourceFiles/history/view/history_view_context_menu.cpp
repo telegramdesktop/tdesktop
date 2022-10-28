@@ -720,9 +720,8 @@ bool AddGoToMessageAction(
 	const auto itemId = view->data()->fullId();
 	const auto controller = list->controller();
 	menu->addAction(tr::lng_context_to_msg(tr::now), crl::guard(controller, [=] {
-		const auto item = controller->session().data().message(itemId);
-		if (item) {
-			goToMessageClickHandler(item)->onClick(ClickContext{});
+		if (const auto item = controller->session().data().message(itemId)) {
+			controller->showMessage(item);
 		}
 	}), &st::menuIconShowInChat);
 	return true;

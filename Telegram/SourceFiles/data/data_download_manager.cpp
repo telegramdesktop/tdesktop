@@ -540,7 +540,7 @@ void DownloadManager::loadingStopWithConfirmation(
 			if (const auto strong = weak.get()) {
 				if (const auto item = strong->data().message(id)) {
 					if (const auto window = strong->tryResolveWindow()) {
-						window->showPeerHistoryAtItem(item);
+						window->showMessage(item);
 					}
 				}
 			}

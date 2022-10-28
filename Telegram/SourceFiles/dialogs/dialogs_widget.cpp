@@ -542,7 +542,7 @@ void Widget::setupDownloadBar() {
 					}
 				}
 				if (first) {
-					controller()->showPeerHistoryAtItem(first);
+					controller()->showMessage(first);
 				}
 			}, _downloadBar->lifetime());
 

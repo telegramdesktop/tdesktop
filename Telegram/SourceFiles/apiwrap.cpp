@@ -696,15 +696,16 @@ QString ApiWrap::exportDirectMessageLink(
 		const auto base = linkChannel->hasUsername()
 			? linkChannel->username()
 			: "c/" + QString::number(peerToChannel(linkChannel->id).bare);
+		const auto post = QString::number(linkItemId.bare);
 		const auto query = base
 			+ '/'
-			+ QString::number(linkItemId.bare)
 			+ (linkCommentId
-				? "?comment=" + QString::number(linkCommentId.bare)
+				? (post + "?comment=" + QString::number(linkCommentId.bare))
+				: (linkThreadId && !linkThreadIsTopic)
+				? (post + "?thread=" + QString::number(linkThreadId.bare))
 				: linkThreadId
-				? ((linkThreadIsTopic ? "?topic=" : "?thread=")
-					+ QString::number(linkThreadId.bare))
-				: "");
+				? (QString::number(linkThreadId.bare) + '/' + post)
+				: post);
 		if (linkChannel->hasUsername()
 			&& !linkChannel->isMegagroup()
 			&& !linkCommentId

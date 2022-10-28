@@ -412,7 +412,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	} else {
 		const auto topicRootId = _topic ? _topic->rootId() : 0;
 		const auto addToLink = topicRootId
-			? "?topic=" + QString::number(topicRootId.bare)
+			? ('/' + QString::number(topicRootId.bare))
 			: QString();
 		auto linkText = LinkValue(
 			_peer,

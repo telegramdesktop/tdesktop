@@ -314,6 +314,25 @@ void SessionNavigation::resolveChannelById(
 	}).fail(fail).send();
 }
 
+void SessionNavigation::showMessageByLinkResolved(
+		not_null<HistoryItem*> item,
+		const PeerByLinkInfo &info) {
+	auto params = SectionShow{
+		SectionShow::Way::Forward
+	};
+	params.origin = SectionShow::OriginMessage{
+		info.clickFromMessageId
+	};
+	const auto peer = item->history()->peer;
+	const auto topicId = peer->isForum() ? item->topicRootId() : 0;
+	if (topicId) {
+		const auto messageId = (item->id == topicId) ? MsgId() : item->id;
+		showRepliesForMessage(item->history(), topicId, messageId, params);
+	} else {
+		showPeerHistory(peer, params, item->id);
+	}
+}
+
 void SessionNavigation::showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info) {
@@ -326,7 +345,7 @@ void SessionNavigation::showPeerByLinkResolved(
 	if (info.voicechatHash && peer->isChannel()) {
 		// First show the channel itself.
 		crl::on_main(this, [=] {
-			showPeerHistory(peer->id, params, ShowAtUnreadMsgId);
+			showPeerHistory(peer, params, ShowAtUnreadMsgId);
 		});
 
 		// Then try to join the voice chat.
@@ -350,7 +369,24 @@ void SessionNavigation::showPeerByLinkResolved(
 			commentId->id,
 			params);
 	} else if (peer->isForum()) {
-		parentController()->openForum(peer->asChannel(), params);
+		const auto itemId = info.messageId;
+		if (!itemId) {
+			parentController()->openForum(peer->asChannel(), params);
+		} else if (const auto item = peer->owner().message(peer, itemId)) {
+			showMessageByLinkResolved(item, info);
+		} else {
+			const auto callback = crl::guard(this, [=] {
+				if (const auto item = peer->owner().message(peer, itemId)) {
+					showMessageByLinkResolved(item, info);
+				} else {
+					showPeerHistory(peer, params, itemId);
+				}
+			});
+			peer->session().api().requestMessageData(
+				peer,
+				info.messageId,
+				callback);
+		}
 	} else if (bot
 		&& (info.resolveType == ResolveType::AddToGroup
 			|| info.resolveType == ResolveType::AddToChannel
@@ -373,7 +409,7 @@ void SessionNavigation::showPeerByLinkResolved(
 	} else if (info.resolveType == ResolveType::Mention) {
 		if (bot || peer->isChannel()) {
 			crl::on_main(this, [=] {
-				showPeerHistory(peer->id, params);
+				showPeerHistory(peer, params);
 			});
 		} else {
 			showPeerInfo(peer, params);
@@ -421,7 +457,7 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.attachBotChooseTypes);
 		} else {
 			crl::on_main(this, [=] {
-				showPeerHistory(peer->id, params, msgId);
+				showPeerHistory(peer, params, msgId);
 			});
 		}
 	}
@@ -1619,7 +1655,7 @@ void SessionController::showPeerHistory(
 	content()->ui_showPeerHistory(peerId, params, msgId);
 }
 
-void SessionController::showPeerHistoryAtItem(
+void SessionController::showMessage(
 		not_null<const HistoryItem*> item) {
 	_window->invokeForSessionController(
 		&item->history()->peer->session().account(),
@@ -1628,7 +1664,13 @@ void SessionController::showPeerHistoryAtItem(
 			if (item->isScheduled()) {
 				controller->showSection(
 					std::make_shared<HistoryView::ScheduledMemento>(
-						item->history()));
+						item->history()),
+					SectionShow::Way::ClearStack);
+			} else if (const auto topic = item->topic()) {
+				controller->showTopic(
+					topic,
+					item->id,
+					SectionShow::Way::ClearStack);
 			} else {
 				controller->showPeerHistory(
 					item->history()->peer,

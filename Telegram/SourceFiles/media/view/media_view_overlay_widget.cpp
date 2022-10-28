@@ -1585,7 +1585,7 @@ void OverlayWidget::toMessage() {
 	if (const auto item = _message) {
 		close();
 		if (const auto window = findWindow()) {
-			window->showPeerHistoryAtItem(item);
+			window->showMessage(item);
 		}
 	}
 }

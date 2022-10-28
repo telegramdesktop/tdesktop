@@ -512,7 +512,7 @@ void MainWidget::floatPlayerClosed(FullMsgId itemId) {
 
 void MainWidget::floatPlayerDoubleClickEvent(
 		not_null<const HistoryItem*> item) {
-	_controller->showPeerHistoryAtItem(item);
+	_controller->showMessage(item);
 }
 
 bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
@@ -874,7 +874,7 @@ void MainWidget::createPlayer() {
 		_player->entity()->setCloseCallback([=] { closeBothPlayers(); });
 		_player->entity()->setShowItemCallback([=](
 				not_null<const HistoryItem*> item) {
-			_controller->showPeerHistoryAtItem(item);
+			_controller->showMessage(item);
 		});
 
 		_player->entity()->togglePlaylistRequests(

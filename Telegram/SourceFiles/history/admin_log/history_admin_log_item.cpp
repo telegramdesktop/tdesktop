@@ -641,7 +641,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 		result.append(qs(data.vtitle()));
 		return Ui::Text::Link(
 			std::move(result),
-			u"internal:url:https://t.me/c/%1?topic=%2"_q.arg(
+			u"internal:url:https://t.me/c/%1/%2"_q.arg(
 				peerToChannel(channel->id).bare).arg(
 					data.vid().v));
 	}, [](const MTPDforumTopicDeleted &) {

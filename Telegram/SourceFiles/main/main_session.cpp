@@ -440,7 +440,7 @@ void Session::uploadsStopWithConfirmation(Fn<void()> done) {
 
 				if (const auto item = data().message(id)) {
 					if (const auto window = tryResolveWindow()) {
-						window->showPeerHistoryAtItem(item);
+						window->showMessage(item);
 					}
 				}
 			});

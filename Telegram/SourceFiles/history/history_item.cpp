@@ -1436,9 +1436,8 @@ ClickHandlerPtr goToMessageClickHandler(
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};
-			const auto item = peer->owner().message(peer, msgId);
-			if (const auto topic = item ? item->topic() : nullptr) {
-				controller->showTopic(topic, msgId, params);
+			if (const auto item = peer->owner().message(peer, msgId)) {
+				controller->showMessage(item);
 			} else {
 				controller->showPeerHistory(peer, params, msgId);
 			}

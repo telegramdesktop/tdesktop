@@ -609,8 +609,8 @@ HistoryWidget::HistoryWidget(
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		if (_pinnedTracker
 			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
-			&& (_migrated && update.entry.get() == _migrated)
-			|| (update.entry.get() == _history)) {
+			&& ((update.entry.get() == _history)
+				|| (update.entry.get() == _migrated))) {
 			checkPinnedBarState();
 		}
 	}, lifetime());
@@ -6022,7 +6022,7 @@ void HistoryWidget::handlePeerMigration() {
 }
 
 bool HistoryWidget::replyToPreviousMessage() {
-	if (!_history || _editMsgId) {
+	if (!_history || _editMsgId || _history->peer->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
@@ -6030,14 +6030,14 @@ bool HistoryWidget::replyToPreviousMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto previousView = view->previousDisplayedInBlocks()) {
 				const auto previous = previousView->data();
-				controller()->showPeerHistoryAtItem(previous);
+				controller()->showMessage(previous);
 				replyToMessage(previous);
 				return true;
 			}
 		}
 	} else if (const auto previousView = _history->findLastDisplayed()) {
 		const auto previous = previousView->data();
-		controller()->showPeerHistoryAtItem(previous);
+		controller()->showMessage(previous);
 		replyToMessage(previous);
 		return true;
 	}
@@ -6045,7 +6045,7 @@ bool HistoryWidget::replyToPreviousMessage() {
 }
 
 bool HistoryWidget::replyToNextMessage() {
-	if (!_history || _editMsgId) {
+	if (!_history || _editMsgId || _history->peer->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
@@ -6053,7 +6053,7 @@ bool HistoryWidget::replyToNextMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto nextView = view->nextDisplayedInBlocks()) {
 				const auto next = nextView->data();
-				controller()->showPeerHistoryAtItem(next);
+				controller()->showMessage(next);
 				replyToMessage(next);
 			} else {
 				_highlighter.clear();
