@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_document.h"
 
+#include "base/random.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
@@ -72,6 +73,24 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 		result.append(from, end - from);
 	}
 	return result;
+}
+
+void FillWaveform(VoiceData *roundData) {
+	if (!roundData->waveform.empty()) {
+		return;
+	}
+	const auto &size = ::Media::Player::kWaveformSamplesCount;
+	auto randomBytes = bytes::vector(size);
+	base::RandomFill(randomBytes.data(), randomBytes.size());
+	roundData->waveform.resize(size);
+	for (auto i = 1; i < size; i += 2) {
+		const auto peak = uchar(randomBytes[i]) % 31;
+		roundData->waveform[i - 1] = char(std::max(
+			0,
+			peak - (uchar(randomBytes[i - 1]) % 3 + 2)));
+		roundData->waveform[i] = char(peak);
+	}
+	roundData->wavemax = *ranges::max_element(roundData->waveform);
 }
 
 void PaintWaveform(
@@ -674,6 +693,9 @@ void Document::draw(
 		p.save();
 		p.translate(nameleft, st.padding.top() - topMinus);
 
+		if (_transcribedRound) {
+			FillWaveform(_data->round());
+		}
 		PaintWaveform(p,
 			context,
 			_transcribedRound ? _data->round() : _data->voice(),
