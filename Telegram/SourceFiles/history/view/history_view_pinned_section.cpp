@@ -59,12 +59,12 @@ namespace {
 } // namespace
 
 PinnedMemento::PinnedMemento(
-	not_null<History*> history,
+	not_null<Data::Thread*> thread,
 	UniversalMsgId highlightId)
-: _history(history)
+: _thread(thread)
 , _highlightId(highlightId) {
 	_list.setAroundPosition({
-		.fullId = FullMsgId(history->peer->id, highlightId),
+		.fullId = FullMsgId(_thread->owningHistory()->peer->id, highlightId),
 		.date = TimeId(0),
 	});
 }
@@ -80,7 +80,7 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 	auto result = object_ptr<PinnedWidget>(
 		parent,
 		controller,
-		_history);
+		_thread);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -88,10 +88,13 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<History*> history)
-: Window::SectionWidget(parent, controller, history->peer)
-, _history(history->migrateToOrMe())
-, _migratedPeer(_history->peer->migrateFrom())
+	not_null<Data::Thread*> thread)
+: Window::SectionWidget(parent, controller, thread->owningHistory()->peer)
+, _thread(thread->migrateToOrMe())
+, _history(thread->owningHistory())
+, _migratedPeer(thread->asHistory()
+	? thread->asHistory()->peer->migrateFrom()
+	: nullptr)
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _scroll(std::make_unique<Ui::ScrollArea>(
@@ -113,7 +116,7 @@ PinnedWidget::PinnedWidget(
 
 	Window::ChatThemeValueFromPeer(
 		controller,
-		history->peer
+		thread->owningHistory()->peer
 	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);
@@ -121,7 +124,7 @@ PinnedWidget::PinnedWidget(
 
 	_topBar->setActiveChat(
 		TopBarWidget::ActiveChat{
-			.key = _history,
+			.key = _thread,
 			.section = Dialogs::EntryState::Section::Pinned,
 		},
 		nullptr);
@@ -181,9 +184,10 @@ void PinnedWidget::setupClearButton() {
 			Window::HidePinnedBar(
 				controller(),
 				_history->peer,
+				_thread->topicRootId(),
 				crl::guard(this, callback));
 		} else {
-			Window::UnpinAllMessages(controller(), _history);
+			Window::UnpinAllMessages(controller(), _thread);
 		}
 	});
 }
@@ -194,7 +198,7 @@ void PinnedWidget::cornerButtonsShowAtPosition(
 }
 
 Data::Thread *PinnedWidget::cornerButtonsThread() {
-	return _history;
+	return _thread;
 }
 
 FullMsgId PinnedWidget::cornerButtonsCurrentId() {
@@ -238,13 +242,13 @@ void PinnedWidget::updateAdaptiveLayout() {
 		_topBar->height());
 }
 
-not_null<History*> PinnedWidget::history() const {
-	return _history;
+not_null<Data::Thread*> PinnedWidget::thread() const {
+	return _thread;
 }
 
 Dialogs::RowDescriptor PinnedWidget::activeChat() const {
 	return {
-		_history,
+		_thread,
 		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
 	};
 }
@@ -265,8 +269,8 @@ bool PinnedWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<PinnedMemento*>(memento.get())) {
-		if (logMemento->getHistory() == history()
-			|| logMemento->getHistory()->migrateToOrMe() == history()) {
+		if (logMemento->getThread() == thread()
+			|| logMemento->getThread()->migrateToOrMe() == thread()) {
 			restoreState(logMemento);
 			return true;
 		}
@@ -283,7 +287,7 @@ void PinnedWidget::setInternalState(
 }
 
 std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
-	auto result = std::make_shared<PinnedMemento>(history());
+	auto result = std::make_shared<PinnedMemento>(thread());
 	saveState(result.get());
 	return result;
 }
@@ -431,7 +435,7 @@ Context PinnedWidget::listContext() {
 	return Context::Pinned;
 }
 
-bool PinnedWidget::listScrollTo(int top) {
+bool PinnedWidget::listScrollTo(int top, bool syntetic) {
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
@@ -462,11 +466,11 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		: (ServerMaxMsgId - 1);
 
 	return SharedMediaMergedViewer(
-		&_history->session(),
+		&_thread->session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				_history->peer->id,
-				MsgId(0), // topicRootId
+				_thread->topicRootId(),
 				_migratedPeer ? _migratedPeer->id : 0,
 				messageId),
 			Storage::SharedMediaType::Pinned),

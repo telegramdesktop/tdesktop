@@ -109,6 +109,10 @@ void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
 	_bottomInvalidated.fire(std::move(query));
 }
 
+void SharedMedia::unload(SharedMediaUnloadThread &&query) {
+	_lists.erase({ query.peerId, query.topicRootId });
+}
+
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 

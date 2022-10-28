@@ -25,6 +25,7 @@ class Folder;
 class Session;
 struct ForwardDraft;
 class ForumTopic;
+class Thread;
 } // namespace Data
 
 namespace Dialogs {
@@ -130,9 +131,10 @@ void ToggleMessagePinned(
 void HidePinnedBar(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	Fn<void()> onHidden);
 void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,
-	not_null<History*> history);
+	not_null<Data::Thread*> thread);
 
 } // namespace Window

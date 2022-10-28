@@ -20,6 +20,7 @@ public:
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
 	void invalidate(SharedMediaInvalidateBottom &&query);
+	void unload(SharedMediaUnloadThread &&query);
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	SharedMediaResult snapshot(const SharedMediaQuery &query) const;
 	bool empty(const SharedMediaKey &key) const;
@@ -63,6 +64,10 @@ void Facade::Impl::remove(SharedMediaRemoveAll &&query) {
 
 void Facade::Impl::invalidate(SharedMediaInvalidateBottom &&query) {
 	_sharedMedia.invalidate(std::move(query));
+}
+
+void Facade::Impl::unload(SharedMediaUnloadThread &&query) {
+	_sharedMedia.unload(std::move(query));
 }
 
 rpl::producer<SharedMediaResult> Facade::Impl::query(SharedMediaQuery &&query) const {
@@ -142,6 +147,10 @@ void Facade::remove(SharedMediaRemoveAll &&query) {
 
 void Facade::invalidate(SharedMediaInvalidateBottom &&query) {
 	_impl->invalidate(std::move(query));
+}
+
+void Facade::unload(SharedMediaUnloadThread &&query) {
+	_impl->unload(std::move(query));
 }
 
 rpl::producer<SharedMediaResult> Facade::query(SharedMediaQuery &&query) const {

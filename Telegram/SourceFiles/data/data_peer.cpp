@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -1255,7 +1256,6 @@ std::optional<QString> RestrictionError(
 
 void SetTopPinnedMessageId(
 		not_null<PeerData*> peer,
-		MsgId topicRootId,
 		MsgId messageId) {
 	if (const auto channel = peer->asChannel()) {
 		if (messageId <= channel->availableMinId()) {
@@ -1265,12 +1265,15 @@ void SetTopPinnedMessageId(
 	auto &session = peer->session();
 	const auto hiddenId = session.settings().hiddenPinnedMessageId(peer->id);
 	if (hiddenId != 0 && hiddenId != messageId) {
-		session.settings().setHiddenPinnedMessageId(peer->id, 0);
+		session.settings().setHiddenPinnedMessageId(
+			peer->id,
+			MsgId(0), // topicRootId
+			0);
 		session.saveSettingsDelayed();
 	}
 	session.storage().add(Storage::SharedMediaAddExisting(
 		peer->id,
-		topicRootId,
+		MsgId(0), // topicRootId
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));

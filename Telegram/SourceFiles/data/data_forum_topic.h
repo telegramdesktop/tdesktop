@@ -139,6 +139,7 @@ private:
 	enum class Flag : uchar {
 		Closed = (1 << 0),
 		My = (1 << 1),
+		HasPinnedMessages = (1 << 2),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;

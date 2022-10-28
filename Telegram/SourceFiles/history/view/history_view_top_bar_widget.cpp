@@ -489,9 +489,10 @@ void TopBarWidget::paintTopBar(Painter &p) {
 	}
 
 	const auto now = crl::now();
-	const auto history = _activeChat.key.history();
+	const auto history = _activeChat.key.owningHistory();
 	const auto folder = _activeChat.key.folder();
-	if (const auto topic = _activeChat.key.topic()) {
+	const auto topic = _activeChat.key.topic();
+	if (topic && _activeChat.section == Section::Replies) {
 		p.setPen(st::dialogsNameFg);
 		topic->chatListNameText().drawElided(
 			p,

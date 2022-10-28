@@ -508,16 +508,25 @@ void History::destroyMessagesByTopic(MsgId topicRootId) {
 	}
 }
 
-void History::unpinAllMessages() {
-	session().storage().remove(
-		Storage::SharedMediaRemoveAll(
-			peer->id,
-			Storage::SharedMediaType::Pinned));
-	setHasPinnedMessages(false);
-	for (const auto &message : _messages) {
-		if (message->isPinned()) {
-			message->setIsPinned(false);
+void History::unpinMessagesFor(MsgId topicRootId) {
+	if (!topicRootId) {
+		session().storage().remove(
+			Storage::SharedMediaRemoveAll(
+				peer->id,
+				Storage::SharedMediaType::Pinned));
+		setHasPinnedMessages(false);
+		if (const auto forum = peer->forum()) {
+			forum->enumerateTopics([](not_null<Data::ForumTopic*> topic) {
+				topic->setHasPinnedMessages(false);
+			});
 		}
+		for (const auto &message : _messages) {
+			if (message->isPinned()) {
+				message->setIsPinned(false);
+			}
+		}
+	} else {
+		// #TODO forum pinned
 	}
 }
 
@@ -792,14 +801,28 @@ not_null<HistoryItem*> History::addNewToBack(
 		if (const auto sharedMediaTypes = item->sharedMediaTypes()) {
 			auto from = loadedAtTop() ? 0 : minMsgId();
 			auto till = loadedAtBottom() ? ServerMaxMsgId : maxMsgId();
-			session().storage().add(Storage::SharedMediaAddExisting(
+			auto &storage = session().storage();
+			storage.add(Storage::SharedMediaAddExisting(
 				peer->id,
-				MsgId(0),
+				MsgId(0), // topicRootId
 				sharedMediaTypes,
 				item->id,
 				{ from, till }));
-			if (sharedMediaTypes.test(Storage::SharedMediaType::Pinned)) {
+			const auto pinned = sharedMediaTypes.test(
+				Storage::SharedMediaType::Pinned);
+			if (pinned) {
 				setHasPinnedMessages(true);
+			}
+			if (const auto topic = item->topic()) {
+				storage.add(Storage::SharedMediaAddExisting(
+					peer->id,
+					topic->rootId(),
+					sharedMediaTypes,
+					item->id,
+					{ item->id, item->id}));
+				if (pinned) {
+					topic->setHasPinnedMessages(true);
+				}
 			}
 		}
 	}
@@ -1064,11 +1087,20 @@ void History::applyServiceChanges(
 				if (item) {
 					session().storage().add(Storage::SharedMediaAddSlice(
 						peer->id,
-						MsgId(0), // topicRootId
+						MsgId(0),
 						Storage::SharedMediaType::Pinned,
 						{ id },
 						{ id, ServerMaxMsgId }));
 					setHasPinnedMessages(true);
+					if (const auto topic = item->topic()) {
+						session().storage().add(Storage::SharedMediaAddSlice(
+							peer->id,
+							topic->rootId(),
+							Storage::SharedMediaType::Pinned,
+							{ id },
+							{ id, ServerMaxMsgId }));
+						topic->setHasPinnedMessages(true);
+					}
 				}
 			});
 		}
@@ -1464,6 +1496,7 @@ void History::checkAddAllToUnreadMentions() {
 void History::addToSharedMedia(
 		const std::vector<not_null<HistoryItem*>> &items) {
 	std::vector<MsgId> medias[Storage::kSharedMediaTypeCount];
+	auto topicsWithPinned = base::flat_set<not_null<Data::ForumTopic*>>();
 	for (const auto &item : items) {
 		if (const auto types = item->sharedMediaTypes()) {
 			for (auto i = 0; i != Storage::kSharedMediaTypeCount; ++i) {
@@ -1473,6 +1506,13 @@ void History::addToSharedMedia(
 						medias[i].reserve(items.size());
 					}
 					medias[i].push_back(item->id);
+					if (type == Storage::SharedMediaType::Pinned) {
+						if (const auto topic = item->topic()) {
+							if (!topic->hasPinnedMessages()) {
+								topicsWithPinned.emplace(topic);
+							}
+						}
+					}
 				}
 			}
 		}
@@ -1492,6 +1532,9 @@ void History::addToSharedMedia(
 				setHasPinnedMessages(true);
 			}
 		}
+	}
+	for (const auto &topic : topicsWithPinned) {
+		topic->setHasPinnedMessages(true);
 	}
 }
 
@@ -1750,7 +1793,7 @@ void History::setUnreadMark(bool unread) {
 }
 
 void History::setFakeUnreadWhileOpened(bool enabled) {
-	if (_fakeUnreadWhileOpened == enabled) {
+	if (fakeUnreadWhileOpened() == enabled) {
 		return;
 	} else if (enabled) {
 		if (!inChatList()) {
@@ -1761,12 +1804,16 @@ void History::setFakeUnreadWhileOpened(bool enabled) {
 			return;
 		}
 	}
-	_fakeUnreadWhileOpened = enabled;
+	if (enabled) {
+		_flags |= Flag::FakeUnreadWhileOpened;
+	} else {
+		_flags &= ~Flag::FakeUnreadWhileOpened;
+	}
 	owner().chatsFilters().refreshHistory(this);
 }
 
 [[nodiscard]] bool History::fakeUnreadWhileOpened() const {
-	return _fakeUnreadWhileOpened;
+	return (_flags & Flag::FakeUnreadWhileOpened);
 }
 
 void History::setMuted(bool muted) {
@@ -3314,15 +3361,6 @@ void History::removeBlock(not_null<HistoryBlock*> block) {
 	} else if (!blocks.empty() && !blocks.back()->messages.empty()) {
 		blocks.back()->messages.back()->nextInBlocksRemoved();
 	}
-}
-
-bool History::hasPinnedMessages() const {
-	return _hasPinnedMessages;
-}
-
-void History::setHasPinnedMessages(bool has) {
-	_hasPinnedMessages = has;
-	session().changes().historyUpdated(this, UpdateFlag::PinnedMessages);
 }
 
 void History::cacheTopPromoted(bool promoted) {

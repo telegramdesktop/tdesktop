@@ -18,6 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_view_highlight_manager.h"
 #include "history/history_view_top_toast.h"
 
+struct ClickHandlerContext;
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -87,7 +89,7 @@ using SelectedItems = std::vector<SelectedItem>;
 class ListDelegate {
 public:
 	virtual Context listContext() = 0;
-	virtual bool listScrollTo(int top) = 0; // true if scroll was changed.
+	virtual bool listScrollTo(int top, bool syntetic = true) = 0;
 	virtual void listCancelRequest() = 0;
 	virtual void listDeleteRequest() = 0;
 	virtual rpl::producer<Data::MessagesSlice> listSource(
@@ -245,6 +247,11 @@ public:
 	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
 	[[nodiscard]] bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
+
+	[[nodiscard]] std::pair<Element*, int> findViewForPinnedTracking(
+		int top) const;
+	[[nodiscard]] ClickHandlerContext prepareClickHandlerContext(
+		FullMsgId id);
 
 	// AbstractTooltipShower interface
 	QString tooltipText() const override;

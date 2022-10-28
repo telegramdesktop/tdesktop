@@ -16,6 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_contact_status.h"
 #include "history/view/history_view_service_message.h"
+#include "history/view/history_view_pinned_tracker.h"
+#include "history/view/history_view_pinned_section.h"
 #include "history/history.h"
 #include "history/history_drag_area.h"
 #include "history/history_item_components.h"
@@ -27,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/shadow.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/layers/generic_box.h"
 #include "ui/item_text_options.h"
@@ -38,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "ui/toasts/common_toasts.h"
 #include "base/timer_rpl.h"
+#include "api/api_bot.h"
 #include "api/api_common.h"
 #include "api/api_editing.h"
 #include "api/api_sending.h"
@@ -57,7 +61,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/application.h"
 #include "core/shortcuts.h"
+#include "core/click_handler_types.h"
 #include "main/main_session.h"
+#include "main/main_session_settings.h"
 #include "mainwidget.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -68,10 +74,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_replies_list.h"
 #include "data/data_peer_values.h"
 #include "data/data_changes.h"
+#include "data/data_shared_media.h"
 #include "data/data_send_action.h"
 #include "storage/storage_media_prepare.h"
+#include "storage/storage_shared_media.h"
 #include "storage/storage_account.h"
 #include "inline_bots/inline_bot_result.h"
+#include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
 #include "facades.h"
 #include "styles/style_chat.h"
@@ -270,6 +279,9 @@ RepliesWidget::RepliesWidget(
 	if (_rootView) {
 		_rootView->raise();
 	}
+	if (_pinnedBar) {
+		_pinnedBar->raise();
+	}
 	if (_topicReopenBar) {
 		_topicReopenBar->bar().raise();
 	}
@@ -358,9 +370,13 @@ RepliesWidget::RepliesWidget(
 		}, lifetime());
 	}
 
-	setupComposeControls();
 	setupTopicViewer();
+	setupComposeControls();
 	orderWidgets();
+
+	if (_pinnedBar) {
+		_pinnedBar->finishAnimating();
+	}
 }
 
 RepliesWidget::~RepliesWidget() {
@@ -383,6 +399,9 @@ void RepliesWidget::orderWidgets() {
 	}
 	if (_rootView) {
 		_rootView->raise();
+	}
+	if (_pinnedBar) {
+		_pinnedBar->raise();
 	}
 	_topBarShadow->raise();
 	_composeControls->raisePanels();
@@ -483,9 +502,11 @@ void RepliesWidget::subscribeToTopic() {
 	) | rpl::start_with_next([=] {
 		const auto height = _topicReopenBar->bar().height();
 		_scrollTopDelta = (height - _topicReopenBarHeight);
-		_topicReopenBarHeight = height;
-		updateControlsGeometry();
-		_scrollTopDelta = 0;
+		if (_scrollTopDelta) {
+			_topicReopenBarHeight = height;
+			updateControlsGeometry();
+			_scrollTopDelta = 0;
+		}
 	}, _topicReopenBar->bar().lifetime());
 
 	using Flag = Data::TopicUpdate::Flag;
@@ -509,6 +530,21 @@ void RepliesWidget::subscribeToTopic() {
 			anim::type::normal,
 			anim::activation::background));
 	}, _topicLifetime);
+
+	if (!_topic->creating()) {
+		using EntryUpdateFlag = Data::EntryUpdate::Flag;
+		session().changes().entryUpdates(
+			EntryUpdateFlag::HasPinnedMessages
+		) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+			if (_pinnedTracker
+				&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
+				&& (_topic == update.entry.get())) {
+				checkPinnedBarState();
+			}
+		}, lifetime());
+
+		setupPinnedTracker();
+	}
 
 	_cornerButtons.updateUnreadThingsVisibility();
 }
@@ -1408,6 +1444,275 @@ void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
 	}
 }
 
+void RepliesWidget::updatePinnedViewer() {
+	if (_scroll->isHidden() || !_topic) {
+		return;
+	}
+	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
+	auto [view, offset] = _inner->findViewForPinnedTracking(visibleBottom);
+	const auto lessThanId = !view
+		? (ServerMaxMsgId - 1)
+		: (view->data()->id + (offset > 0 ? 1 : 0));
+	const auto lastClickedId = !_pinnedClickedId
+		? (ServerMaxMsgId - 1)
+		: _pinnedClickedId.msg;
+	if (_pinnedClickedId
+		&& lessThanId <= lastClickedId
+		&& !_inner->animatedScrolling()) {
+		_pinnedClickedId = FullMsgId();
+	}
+	if (_pinnedClickedId && !_minPinnedId) {
+		_minPinnedId = Data::ResolveMinPinnedId(_history->peer, _rootId);
+	}
+	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
+		// After click on the last pinned message we should the top one.
+		_pinnedTracker->trackAround(ServerMaxMsgId - 1);
+	} else {
+		_pinnedTracker->trackAround(std::min(lessThanId, lastClickedId));
+	}
+}
+
+void RepliesWidget::checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop) {
+	if (_scroll->isHidden() || !_topic) {
+		return;
+	}
+	if (wasScrollTop < nowScrollTop && _pinnedClickedId) {
+		// User scrolled down.
+		_pinnedClickedId = FullMsgId();
+		_minPinnedId = std::nullopt;
+		updatePinnedViewer();
+	}
+}
+
+void RepliesWidget::setupPinnedTracker() {
+	Expects(_topic != nullptr);
+
+	_pinnedTracker = std::make_unique<HistoryView::PinnedTracker>(_topic);
+	_pinnedBar = nullptr;
+
+	SharedMediaViewer(
+		&_topic->session(),
+		Storage::SharedMediaKey(
+			_topic->channel()->id,
+			_rootId,
+			Storage::SharedMediaType::Pinned,
+			ServerMaxMsgId - 1),
+		1,
+		1
+	) | rpl::filter([=](const SparseIdsSlice &result) {
+		return result.fullCount().has_value();
+	}) | rpl::start_with_next([=](const SparseIdsSlice &result) {
+		_topic->setHasPinnedMessages(*result.fullCount() != 0);
+		checkPinnedBarState();
+	}, _topicLifetime);
+}
+
+void RepliesWidget::checkPinnedBarState() {
+	Expects(_pinnedTracker != nullptr);
+	Expects(_inner != nullptr);
+
+	const auto peer = _history->peer;
+	const auto hiddenId = peer->canPinMessages()
+		? MsgId(0)
+		: peer->session().settings().hiddenPinnedMessageId(
+			peer->id,
+			_rootId);
+	const auto currentPinnedId = Data::ResolveTopPinnedId(peer, _rootId);
+	const auto universalPinnedId = !currentPinnedId
+		? int32(0)
+		: currentPinnedId.msg;
+	if (universalPinnedId == hiddenId) {
+		if (_pinnedBar) {
+			_pinnedTracker->reset();
+			auto qobject = base::unique_qptr{
+				Ui::WrapAsQObject(this, std::move(_pinnedBar)).get()
+			};
+			auto destroyer = [this, object = std::move(qobject)]() mutable {
+				object = nullptr;
+				updateControlsGeometry();
+			};
+			base::call_delayed(
+				st::defaultMessageBar.duration,
+				this,
+				std::move(destroyer));
+		}
+		return;
+	}
+	if (_pinnedBar || !universalPinnedId) {
+		return;
+	}
+
+	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
+		return controller()->isGifPausedAtLeastFor(
+			Window::GifPauseReason::Any);
+	});
+	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
+		_history->peer,
+		_rootId,
+		nullptr,
+		Storage::SharedMediaType::Pinned
+	) | rpl::distinct_until_changed(
+	) | rpl::map([=](int count) {
+		if (_pinnedClickedId) {
+			_pinnedClickedId = FullMsgId();
+			_minPinnedId = std::nullopt;
+			updatePinnedViewer();
+		}
+		return (count > 1);
+	}) | rpl::distinct_until_changed();
+	auto markupRefreshed = HistoryView::PinnedBarItemWithReplyMarkup(
+		&session(),
+		_pinnedTracker->shownMessageId());
+	rpl::combine(
+		rpl::duplicate(pinnedRefreshed),
+		rpl::duplicate(markupRefreshed)
+	) | rpl::start_with_next([=](bool many, HistoryItem *item) {
+		refreshPinnedBarButton(many, item);
+	}, _pinnedBar->lifetime());
+
+	_pinnedBar->setContent(rpl::combine(
+		HistoryView::PinnedBarContent(
+			&session(),
+			_pinnedTracker->shownMessageId(),
+			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
+		std::move(pinnedRefreshed),
+		std::move(markupRefreshed)
+	) | rpl::map([](Ui::MessageBarContent &&content, bool, HistoryItem*) {
+		return std::move(content);
+	}));
+
+	controller()->adaptive().oneColumnValue(
+	) | rpl::start_with_next([=](bool one) {
+		_pinnedBar->setShadowGeometryPostprocess([=](QRect geometry) {
+			if (!one) {
+				geometry.setLeft(geometry.left() + st::lineWidth);
+			}
+			return geometry;
+		});
+	}, _pinnedBar->lifetime());
+
+	_pinnedBar->barClicks(
+	) | rpl::start_with_next([=] {
+		const auto id = _pinnedTracker->currentMessageId();
+		if (const auto item = session().data().message(id.message)) {
+			showAtPosition(item->position());
+			if (const auto group = session().data().groups().find(item)) {
+				// Hack for the case when a non-first item of an album
+				// is pinned and we still want the 'show last after first'.
+				_pinnedClickedId = group->items.front()->fullId();
+			} else {
+				_pinnedClickedId = id.message;
+			}
+			_minPinnedId = std::nullopt;
+			updatePinnedViewer();
+		}
+	}, _pinnedBar->lifetime());
+
+	_pinnedBarHeight = 0;
+	_pinnedBar->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		if (const auto delta = height - _pinnedBarHeight) {
+			_pinnedBarHeight = height;
+			setGeometryWithTopMoved(geometry(), delta);
+		}
+	}, _pinnedBar->lifetime());
+
+	orderWidgets();
+
+	if (animatingShow()) {
+		_pinnedBar->hide();
+	}
+}
+
+void RepliesWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
+	const auto openSection = [=] {
+		const auto id = _pinnedTracker
+			? _pinnedTracker->currentMessageId()
+			: HistoryView::PinnedId();
+		if (!id.message) {
+			return;
+		}
+		controller()->showSection(
+			std::make_shared<PinnedMemento>(_topic, id.message.msg));
+	};
+	if (const auto replyMarkup = item ? item->inlineReplyMarkup() : nullptr) {
+		const auto &rows = replyMarkup->data.rows;
+		if ((rows.size() == 1) && (rows.front().size() == 1)) {
+			const auto text = rows.front().front().text;
+			if (!text.isEmpty()) {
+				auto button = object_ptr<Ui::RoundButton>(
+					this,
+					rpl::single(text),
+					st::historyPinnedBotButton);
+				button->setTextTransform(
+					Ui::RoundButton::TextTransform::NoTransform);
+				button->setFullRadius(true);
+				button->setClickedCallback([=] {
+					Api::ActivateBotCommand(
+						_inner->prepareClickHandlerContext(item->fullId()),
+						0,
+						0);
+				});
+				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
+					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
+				}
+				struct State {
+					base::unique_qptr<Ui::PopupMenu> menu;
+				};
+				const auto state = button->lifetime().make_state<State>();
+				_pinnedBar->contextMenuRequested(
+				) | rpl::start_with_next([=, raw = button.data()] {
+					state->menu = base::make_unique_q<Ui::PopupMenu>(raw);
+					state->menu->addAction(
+						tr::lng_settings_events_pinned(tr::now),
+						openSection);
+					state->menu->popup(QCursor::pos());
+				}, button->lifetime());
+				_pinnedBar->setRightButton(std::move(button));
+				return;
+			}
+		}
+	}
+	const auto close = !many;
+	auto button = object_ptr<Ui::IconButton>(
+		this,
+		close ? st::historyReplyCancel : st::historyPinnedShowAll);
+	button->clicks(
+	) | rpl::start_with_next([=] {
+		if (close) {
+			hidePinnedMessage();
+		} else {
+			openSection();
+		}
+	}, button->lifetime());
+	_pinnedBar->setRightButton(std::move(button));
+}
+
+void RepliesWidget::hidePinnedMessage() {
+	Expects(_pinnedBar != nullptr);
+
+	const auto id = _pinnedTracker->currentMessageId();
+	if (!id.message) {
+		return;
+	}
+	if (_history->peer->canPinMessages()) {
+		Window::ToggleMessagePinned(controller(), id.message, false);
+	} else {
+		const auto callback = [=] {
+			if (_pinnedTracker) {
+				checkPinnedBarState();
+			}
+		};
+		Window::HidePinnedBar(
+			controller(),
+			_history->peer,
+			_rootId,
+			crl::guard(this, callback));
+	}
+}
+
 void RepliesWidget::cornerButtonsShowAtPosition(
 		Data::MessagePosition position) {
 	showAtPosition(position);
@@ -1537,6 +1842,9 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 	}
 	if (_rootView) {
 		_rootView->hide();
+	}
+	if (_pinnedBar) {
+		_pinnedBar->hide();
 	}
 	return result;
 }
@@ -1734,13 +2042,18 @@ void RepliesWidget::updateControlsGeometry() {
 	if (_rootView) {
 		_rootView->resizeToWidth(contentWidth);
 	}
+	if (_pinnedBar) {
+		_pinnedBar->move(0, _topBar->height());
+		_pinnedBar->resizeToWidth(contentWidth);
+	}
 
 	const auto bottom = height();
 	const auto controlsHeight = _joinGroup
 		? _joinGroup->height()
 		: _composeControls->heightCurrent();
 	auto top = _topBar->height()
-		+ _rootViewHeight;
+		+ _rootViewHeight
+		+ _pinnedBarHeight;
 	if (_topicReopenBar) {
 		_topicReopenBar->bar().move(0, top);
 		top += _topicReopenBar->bar().height();
@@ -1807,8 +2120,15 @@ void RepliesWidget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
 	updatePinnedVisibility();
+	updatePinnedViewer();
 	_cornerButtons.updateJumpDownVisibility();
 	_cornerButtons.updateUnreadThingsVisibility();
+	if (_lastScrollTop != scrollTop) {
+		if (!_synteticScrollEvent) {
+			checkLastPinnedClickedIdReset(_lastScrollTop, scrollTop);
+		}
+		_lastScrollTop = scrollTop;
+	}
 }
 
 void RepliesWidget::updatePinnedVisibility() {
@@ -1875,6 +2195,9 @@ void RepliesWidget::showFinishedHook() {
 	if (_rootView) {
 		_rootView->show();
 	}
+	if (_pinnedBar) {
+		_pinnedBar->show();
+	}
 
 	// We should setup the drag area only after
 	// the section animation is finished,
@@ -1895,14 +2218,17 @@ Context RepliesWidget::listContext() {
 	return Context::Replies;
 }
 
-bool RepliesWidget::listScrollTo(int top) {
+bool RepliesWidget::listScrollTo(int top, bool syntetic) {
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
-	if (_scroll->scrollTop() == top) {
+	const auto scrolled = (_scroll->scrollTop() != top);
+	_synteticScrollEvent = syntetic;
+	if (scrolled) {
+		_scroll->scrollToY(top);
+	} else if (syntetic) {
 		updateInnerVisibleArea();
-		return false;
 	}
-	_scroll->scrollToY(top);
-	return true;
+	_synteticScrollEvent = false;
+	return syntetic;
 }
 
 void RepliesWidget::listCancelRequest() {

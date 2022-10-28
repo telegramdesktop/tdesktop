@@ -411,7 +411,7 @@ ListWidget::ListWidget(
 
 	_selectScroll.scrolls(
 	) | rpl::start_with_next([=](int d) {
-		delegate->listScrollTo(_visibleTop + d);
+		delegate->listScrollTo(_visibleTop + d, false);
 	}, lifetime());
 }
 
@@ -1376,6 +1376,37 @@ bool ListWidget::showCopyRestrictionForSelected() {
 bool ListWidget::hasSelectRestriction() const {
 	return _delegate->listSelectRestrictionType()
 		!= CopyRestrictionType::None;
+}
+
+auto ListWidget::findViewForPinnedTracking(int top) const
+-> std::pair<Element*, int> {
+	const auto findScrollTopItem = [&](int top)
+	-> std::vector<not_null<Element*>>::const_iterator {
+		if (!width() || _items.empty()) {
+			return end(_items);
+		}
+		const auto first = ranges::lower_bound(
+			_items,
+			top,
+			std::less<>(),
+			&Element::y);
+		return (first == end(_items) || (*first)->y() > top)
+			? first - 1
+			: first;
+	};
+	const auto findView = [&](int top)
+	-> std::pair<std::vector<not_null<Element*>>::const_iterator, int> {
+		if (const auto i = findScrollTopItem(top); i != end(_items)) {
+			return { i, top - (*i)->y() };
+		}
+		return { end(_items), 0 };
+	};
+	auto [view, offset] = findView(top);
+	while (view != end(_items) && !(*view)->data()->isRegular()) {
+		offset -= (*view)->height();
+		++view;
+	}
+	return { (view != end(_items)) ? view->get() : nullptr, offset };
 }
 
 int ListWidget::itemMinimalHeight() const {
@@ -2712,7 +2743,9 @@ void ListWidget::mouseReleaseEvent(QMouseEvent *e) {
 
 void ListWidget::touchScrollUpdated(const QPoint &screenPos) {
 	_touchPos = screenPos;
-	_delegate->listScrollTo(_visibleTop - (_touchPos - _touchPrevPos).y());
+	_delegate->listScrollTo(
+		_visibleTop - (_touchPos - _touchPrevPos).y(),
+		false);
 	touchUpdateSpeed();
 }
 
@@ -3083,15 +3116,8 @@ void ListWidget::mouseActionFinish(
 		mouseActionCancel();
 		ActivateClickHandler(window(), activated, {
 			button,
-			QVariant::fromValue(ClickHandlerContext{
-				.itemId = pressState.itemId,
-				.elementDelegate = [weak = Ui::MakeWeak(this)] {
-					return weak
-						? (ElementDelegate*)weak
-						: nullptr;
-				},
-				.sessionWindow = base::make_weak(_controller),
-			})
+			QVariant::fromValue(
+				prepareClickHandlerContext(pressState.itemId))
 		});
 		return;
 	}
@@ -3137,6 +3163,18 @@ void ListWidget::mouseActionFinish(
 				QClipboard::Selection);
 		}
 	}
+}
+
+ClickHandlerContext ListWidget::prepareClickHandlerContext(FullMsgId id) {
+	return {
+		.itemId = id,
+		.elementDelegate = [weak = Ui::MakeWeak(this)] {
+			return weak
+				? (ElementDelegate*)weak
+				: nullptr;
+		},
+		.sessionWindow = base::make_weak(_controller),
+	};
 }
 
 void ListWidget::mouseActionUpdate() {

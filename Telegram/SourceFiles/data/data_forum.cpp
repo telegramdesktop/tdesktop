@@ -23,6 +23,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/input_fields.h"
+#include "storage/storage_facade.h"
+#include "storage/storage_shared_media.h"
 #include "window/window_session_controller.h"
 #include "window/notifications_manager.h"
 #include "styles/style_boxes.h"
@@ -62,6 +64,12 @@ Forum::~Forum() {
 	}
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
+	}
+	const auto peerId = _history->peer->id;
+	for (const auto &[rootId, topic] : _topics) {
+		session().storage().unload(Storage::SharedMediaUnloadThread(
+			peerId,
+			rootId));
 	}
 }
 
@@ -170,6 +178,9 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		_topics.erase(i);
 
 		_history->destroyMessagesByTopic(rootId);
+		session().storage().unload(Storage::SharedMediaUnloadThread(
+			_history->peer->id,
+			rootId));
 	}
 }
 

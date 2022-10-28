@@ -1651,19 +1651,26 @@ void ToggleMessagePinned(
 void HidePinnedBar(
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		Fn<void()> onHidden) {
 	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
 		close();
 		auto &session = peer->session();
-		const auto migrated = peer->migrateFrom();
-		const auto top = Data::ResolveTopPinnedId(peer, MsgId(0), migrated);
+		const auto migrated = topicRootId ? nullptr : peer->migrateFrom();
+		const auto top = Data::ResolveTopPinnedId(
+			peer,
+			topicRootId,
+			migrated);
 		const auto universal = !top
 			? MsgId(0)
 			: (migrated && !peerIsChannel(top.peer))
 			? (top.msg - ServerMaxMsgId)
 			: top.msg;
 		if (universal) {
-			session.settings().setHiddenPinnedMessageId(peer->id, universal);
+			session.settings().setHiddenPinnedMessageId(
+				peer->id,
+				topicRootId,
+				universal);
 			session.saveSettingsDelayed();
 			if (onHidden) {
 				onHidden();
@@ -1683,11 +1690,18 @@ void HidePinnedBar(
 
 void UnpinAllMessages(
 		not_null<Window::SessionNavigation*> navigation,
-		not_null<History*> history) {
+		not_null<Data::Thread*> thread) {
+	const auto weak = base::make_weak(thread);
 	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
 		close();
-		const auto api = &history->session().api();
+		const auto strong = weak.get();
+		if (!strong || !strong->asHistory()) { // #TODO forum pinned
+			return;
+		}
+		const auto api = &strong->session().api();
 		const auto sendRequest = [=](auto self) -> void {
+			const auto history = strong->owningHistory();
+			const auto topicRootId = strong->topicRootId();
 			api->request(MTPmessages_UnpinAllMessages(
 				history->peer->input
 			)).done([=](const MTPmessages_AffectedHistory &result) {
@@ -1696,7 +1710,7 @@ void UnpinAllMessages(
 				if (offset > 0) {
 					self(self);
 				} else {
-					history->unpinAllMessages();
+					history->unpinMessagesFor(topicRootId);
 				}
 			}).send();
 		};

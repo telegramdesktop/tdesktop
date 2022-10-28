@@ -67,6 +67,7 @@ class SendActionPainter;
 class StickerToast;
 class TopicReopenBar;
 class EmptyPainter;
+class PinnedTracker;
 
 class RepliesWidget final
 	: public Window::SectionWidget
@@ -119,7 +120,7 @@ public:
 
 	// ListDelegate interface.
 	Context listContext() override;
-	bool listScrollTo(int top) override;
+	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(
@@ -242,7 +243,15 @@ private:
 	void replyToMessage(FullMsgId itemId);
 	void refreshTopBarActiveChat();
 	void refreshUnreadCountBadge(std::optional<int> count);
-	void reloadUnreadCountIfNeeded();
+
+	void hidePinnedMessage();
+	void updatePinnedViewer();
+	void setupPinnedTracker();
+	void checkPinnedBarState();
+	void refreshPinnedBarButton(bool many, HistoryItem *item);
+	void checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -308,6 +317,13 @@ private:
 	std::unique_ptr<TopicReopenBar> _topicReopenBar;
 	std::unique_ptr<EmptyPainter> _emptyPainter;
 	bool _skipScrollEvent = false;
+	bool _synteticScrollEvent = false;
+
+	std::unique_ptr<PinnedTracker> _pinnedTracker;
+	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
+	int _pinnedBarHeight = 0;
+	FullMsgId _pinnedClickedId;
+	std::optional<FullMsgId> _minPinnedId;
 
 	std::unique_ptr<Ui::PinnedBar> _rootView;
 	int _rootViewHeight = 0;
@@ -321,6 +337,7 @@ private:
 	HistoryView::CornerButtons _cornerButtons;
 	rpl::lifetime _topicLifetime;
 
+	int _lastScrollTop = 0;
 	int _topicReopenBarHeight = 0;
 	int _scrollTopDelta = 0;
 

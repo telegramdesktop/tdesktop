@@ -657,9 +657,7 @@ void ForumTopic::setMuted(bool muted) {
 	const auto notify = state.unread || state.reaction;
 	const auto notifier = unreadStateChangeNotifier(notify);
 	Thread::setMuted(muted);
-	session().changes().topicUpdated(
-		this,
-		Data::TopicUpdate::Flag::Notifications);
+	session().changes().topicUpdated(this, UpdateFlag::Notifications);
 }
 
 not_null<HistoryView::SendActionPainter*> ForumTopic::sendActionPainter() {

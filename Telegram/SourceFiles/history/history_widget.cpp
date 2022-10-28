@@ -603,6 +603,18 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	using EntryUpdateFlag = Data::EntryUpdate::Flag;
+	session().changes().entryUpdates(
+		EntryUpdateFlag::HasPinnedMessages
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (_pinnedTracker
+			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
+			&& (_migrated && update.entry.get() == _migrated)
+			|| (update.entry.get() == _history)) {
+			checkPinnedBarState();
+		}
+	}, lifetime());
+
 	using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
 	session().changes().historyUpdates(
 		HistoryUpdateFlag::MessageSent
@@ -614,14 +626,7 @@ HistoryWidget::HistoryWidget(
 		| HistoryUpdateFlag::UnreadView
 		| HistoryUpdateFlag::TopPromoted
 		| HistoryUpdateFlag::ClientSideMessages
-		| HistoryUpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
-		if (_migrated && update.history.get() == _migrated) {
-			if (_pinnedTracker
-				&& (update.flags & HistoryUpdateFlag::PinnedMessages)) {
-				checkPinnedBarState();
-			}
-		}
 		return (_history == update.history.get());
 	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
 		const auto flags = update.flags;
@@ -646,9 +651,6 @@ HistoryWidget::HistoryWidget(
 		}
 		if (flags & HistoryUpdateFlag::UnreadView) {
 			unreadCountUpdated();
-		}
-		if (_pinnedTracker && (flags & HistoryUpdateFlag::PinnedMessages)) {
-			checkPinnedBarState();
 		}
 		if (flags & HistoryUpdateFlag::TopPromoted) {
 			updateHistoryGeometry();
@@ -3365,15 +3367,16 @@ void HistoryWidget::handleScroll() {
 	if (!_itemsRevealHeight) {
 		updatePinnedViewer();
 	}
+	const auto now = crl::now();
 	if (!_synteticScrollEvent) {
-		_lastUserScrolled = crl::now();
+		_lastUserScrolled = now;
 	}
 	const auto scrollTop = _scroll->scrollTop();
 	if (scrollTop != _lastScrollTop) {
 		if (!_synteticScrollEvent) {
 			checkLastPinnedClickedIdReset(_lastScrollTop, scrollTop);
 		}
-		_lastScrolled = crl::now();
+		_lastScrolled = now;
 		_lastScrollTop = scrollTop;
 	}
 }
@@ -6892,6 +6895,7 @@ void HistoryWidget::hidePinnedMessage() {
 		Window::HidePinnedBar(
 			controller(),
 			_peer,
+			MsgId(0), // topicRootId
 			crl::guard(this, callback));
 	}
 }
@@ -7764,20 +7768,6 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 		p.drawText(left + st::msgServiceNameFont->width(tr::lng_edit_message(tr::now)) + st::normalFont->spacew, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, editTimeLeftText);
 	}
 }
-
-//
-//void HistoryWidget::drawPinnedBar(Painter &p) {
-//	//if (_pinnedBar->msg) {
-//	//	const auto media = _pinnedBar->msg->media();
-//	//	if (media && media->hasReplyPreview()) {
-//	//		if (const auto image = media->replyPreview()) {
-//	//			QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-//	//			p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
-//	//		}
-//	//		left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
-//	//	}
-//	//}
-//}
 
 bool HistoryWidget::paintShowAnimationFrame() {
 	auto progress = _a_show.value(1.);

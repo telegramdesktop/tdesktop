@@ -42,10 +42,10 @@ public:
 	PinnedWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller,
-		not_null<History*> history);
+		not_null<Data::Thread*> thread);
 	~PinnedWidget();
 
-	[[nodiscard]] not_null<History*> history() const;
+	[[nodiscard]] not_null<Data::Thread*> thread() const;
 	Dialogs::RowDescriptor activeChat() const override;
 
 	bool hasTopBarShadow() const override {
@@ -79,7 +79,7 @@ public:
 
 	// ListDelegate interface.
 	Context listContext() override;
-	bool listScrollTo(int top) override;
+	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(
@@ -165,6 +165,7 @@ private:
 	void setMessagesCount(int count);
 	void refreshClearButtonText();
 
+	const not_null<Data::Thread*> _thread;
 	const not_null<History*> _history;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	PeerData *_migratedPeer = nullptr;
@@ -187,7 +188,7 @@ public:
 	using UniversalMsgId = MsgId;
 
 	explicit PinnedMemento(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		UniversalMsgId highlightId = 0);
 
 	object_ptr<Window::SectionWidget> createWidget(
@@ -196,8 +197,8 @@ public:
 		Window::Column column,
 		const QRect &geometry) override;
 
-	[[nodiscard]] not_null<History*> getHistory() const {
-		return _history;
+	[[nodiscard]] not_null<Data::Thread*> getThread() const {
+		return _thread;
 	}
 
 	[[nodiscard]] not_null<ListMemento*> list() {
@@ -208,7 +209,7 @@ public:
 	}
 
 private:
-	const not_null<History*> _history;
+	const not_null<Data::Thread*> _thread;
 	const UniversalMsgId _highlightId = 0;
 	ListMemento _list;
 

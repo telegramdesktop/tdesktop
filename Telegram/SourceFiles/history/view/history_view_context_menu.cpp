@@ -680,10 +680,14 @@ bool AddPinMessageAction(
 		not_null<ListWidget*> list) {
 	const auto context = list->elementContext();
 	const auto item = request.item;
-	if (!item
-		|| !item->isRegular()
-		|| (context != Context::History && context != Context::Pinned)) {
+	if (!item || !item->isRegular()) {
 		return false;
+	}
+	const auto topic = item->topic();
+	if (context != Context::History && context != Context::Pinned) {
+		if (context != Context::Replies || !topic) {
+			return false;
+		}
 	}
 	const auto group = item->history()->owner().groups().find(item);
 	const auto pinItem = ((item->canPin() && item->isPinned()) || !group)

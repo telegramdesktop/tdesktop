@@ -58,6 +58,7 @@ public:
 
 	[[nodiscard]] virtual not_null<History*> owningHistory() = 0;
 
+	[[nodiscard]] not_null<Thread*> migrateToOrMe() const;
 	[[nodiscard]] not_null<const History*> owningHistory() const {
 		return const_cast<Thread*>(this)->owningHistory();
 	}
@@ -110,6 +111,9 @@ public:
 	[[nodiscard]] virtual auto sendActionPainter()
 		-> not_null<HistoryView::SendActionPainter*> = 0;
 
+	[[nodiscard]] bool hasPinnedMessages() const;
+	void setHasPinnedMessages(bool has);
+
 protected:
 	void setUnreadMarkFlag(bool unread);
 
@@ -118,6 +122,7 @@ private:
 		UnreadMark = (1 << 0),
 		Muted = (1 << 1),
 		UnreadThingsKnown = (1 << 2),
+		HasPinnedMessages = (1 << 3),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 

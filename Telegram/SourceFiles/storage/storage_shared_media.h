@@ -197,6 +197,18 @@ struct SharedMediaSliceUpdate {
 	SparseIdsSliceUpdate data;
 };
 
+struct SharedMediaUnloadThread {
+	SharedMediaUnloadThread(
+		PeerId peerId,
+		MsgId topicRootId)
+	: peerId(peerId)
+	, topicRootId(topicRootId) {
+	}
+
+	PeerId peerId = 0;
+	MsgId topicRootId = 0;
+};
+
 class SharedMedia {
 public:
 	using Type = SharedMediaType;
@@ -207,6 +219,7 @@ public:
 	void remove(SharedMediaRemoveOne &&query);
 	void remove(SharedMediaRemoveAll &&query);
 	void invalidate(SharedMediaInvalidateBottom &&query);
+	void unload(SharedMediaUnloadThread &&query);
 
 	rpl::producer<SharedMediaResult> query(SharedMediaQuery &&query) const;
 	SharedMediaResult snapshot(const SharedMediaQuery &query) const;

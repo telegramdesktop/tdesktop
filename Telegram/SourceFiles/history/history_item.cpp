@@ -480,13 +480,23 @@ void HistoryItem::setIsPinned(bool pinned) {
 	const auto changed = (isPinned() != pinned);
 	if (pinned) {
 		_flags |= MessageFlag::Pinned;
-		history()->session().storage().add(Storage::SharedMediaAddExisting(
+		auto &storage = history()->session().storage();
+		storage.add(Storage::SharedMediaAddExisting(
 			history()->peer->id,
 			MsgId(0), // topicRootId
 			Storage::SharedMediaType::Pinned,
 			id,
 			{ id, id }));
 		history()->setHasPinnedMessages(true);
+		if (const auto topic = this->topic()) {
+			storage.add(Storage::SharedMediaAddExisting(
+				history()->peer->id,
+				topic->rootId(),
+				Storage::SharedMediaType::Pinned,
+				id,
+				{ id, id }));
+			topic->setHasPinnedMessages(true);
+		}
 	} else {
 		_flags &= ~MessageFlag::Pinned;
 		history()->session().storage().remove(Storage::SharedMediaRemoveOne(
@@ -734,6 +744,9 @@ void HistoryItem::indexAsNewItem() {
 				id));
 			if (types.test(Storage::SharedMediaType::Pinned)) {
 				_history->setHasPinnedMessages(true);
+				if (const auto topic = this->topic()) {
+					topic->setHasPinnedMessages(true);
+				}
 			}
 		}
 	}
@@ -1423,7 +1436,12 @@ ClickHandlerPtr goToMessageClickHandler(
 			params.origin = Window::SectionShow::OriginMessage{
 				returnToId
 			};
-			controller->showPeerHistory(peer, params, msgId);
+			const auto item = peer->owner().message(peer, msgId);
+			if (const auto topic = item ? item->topic() : nullptr) {
+				controller->showTopic(topic, msgId, params);
+			} else {
+				controller->showPeerHistory(peer, params, msgId);
+			}
 		}
 	});
 }

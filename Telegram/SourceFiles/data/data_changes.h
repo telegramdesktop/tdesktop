@@ -130,9 +130,8 @@ struct HistoryUpdate {
 		BotKeyboard        = (1U << 12),
 		CloudDraft         = (1U << 13),
 		LocalDraftSet      = (1U << 14),
-		PinnedMessages     = (1U << 15),
 
-		LastUsedBit        = (1U << 15),
+		LastUsedBit        = (1U << 14),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -156,7 +155,7 @@ struct TopicUpdate {
 		CloudDraft = (1U << 8),
 		Closed = (1U << 9),
 
-		LastUsedBit = (1U << 8),
+		LastUsedBit = (1U << 9),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -196,8 +195,9 @@ struct EntryUpdate {
 		None = 0,
 
 		Repaint = (1U << 0),
+		HasPinnedMessages = (1U << 1),
 
-		LastUsedBit = (1U << 0),
+		LastUsedBit = (1U << 1),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

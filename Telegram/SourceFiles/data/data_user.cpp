@@ -363,7 +363,7 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 		user->setBotInfoVersion(-1);
 	}
 	if (const auto pinned = update.vpinned_msg_id()) {
-		SetTopPinnedMessageId(user, MsgId(0), pinned->v);
+		SetTopPinnedMessageId(user, pinned->v);
 	}
 	const auto canReceiveGifts = (update.vflags().v
 			& MTPDuserFull::Flag::f_premium_gifts)

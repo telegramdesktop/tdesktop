@@ -140,7 +140,7 @@ public:
 	void destroyMessagesByDates(TimeId minDate, TimeId maxDate);
 	void destroyMessagesByTopic(MsgId topicRootId);
 
-	void unpinAllMessages();
+	void unpinMessagesFor(MsgId topicRootId);
 
 	not_null<HistoryItem*> addNewMessage(
 		MsgId id,
@@ -426,9 +426,6 @@ public:
 	void setInboxReadTill(MsgId upTo);
 	std::optional<int> countStillUnreadLocal(MsgId readTillId) const;
 
-	[[nodiscard]] bool hasPinnedMessages() const;
-	void setHasPinnedMessages(bool has);
-
 	[[nodiscard]] bool isTopPromoted() const;
 
 	const not_null<PeerData*> peer;
@@ -461,6 +458,8 @@ private:
 		HasPendingResizedItems = (1 << 0),
 		IsTopPromoted = (1 << 1),
 		IsForum = (1 << 2),
+		FakeUnreadWhileOpened = (1 << 3),
+		HasPinnedMessages = (1 << 4),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -609,9 +608,6 @@ private:
 	std::optional<HistoryItem*> _chatListMessage;
 
 	QString _chatListNameSortKey;
-
-	bool _fakeUnreadWhileOpened = false;
-	bool _hasPinnedMessages = false;
 
 	// A pointer to the block that is currently being built.
 	// We hold this pointer so we can destroy it while building

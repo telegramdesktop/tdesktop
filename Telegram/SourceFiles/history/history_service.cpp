@@ -859,7 +859,8 @@ bool HistoryService::updateDependent(bool force) {
 			(dependent->peerId
 				? history()->owner().peer(dependent->peerId)
 				: history()->peer),
-			dependent->msgId);
+			dependent->msgId,
+			fullId());
 	}
 	auto gotDependencyItem = false;
 	if (!dependent->msg) {

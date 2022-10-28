@@ -73,6 +73,14 @@ float64 ElementHighlighter::progress(
 void ElementHighlighter::highlight(FullMsgId itemId) {
 	if (const auto item = _data->message(itemId)) {
 		if (const auto view = _viewForItem(item)) {
+			if (_highlightedMessageId
+				&& _highlightedMessageId != itemId) {
+				if (const auto was = _data->message(_highlightedMessageId)) {
+					if (const auto view = _viewForItem(was)) {
+						repaintHighlightedItem(view);
+					}
+				}
+			}
 			_highlightedMessageId = itemId;
 			_animation.start();
 

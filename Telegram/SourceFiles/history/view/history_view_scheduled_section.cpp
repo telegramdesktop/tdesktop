@@ -1050,7 +1050,7 @@ Context ScheduledWidget::listContext() {
 	return Context::History;
 }
 
-bool ScheduledWidget::listScrollTo(int top) {
+bool ScheduledWidget::listScrollTo(int top, bool syntetic) {
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();

@@ -101,7 +101,7 @@ public:
 
 	// ListDelegate interface.
 	Context listContext() override;
-	bool listScrollTo(int top) override;
+	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(

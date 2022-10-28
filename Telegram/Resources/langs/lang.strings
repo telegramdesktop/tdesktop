@@ -1511,9 +1511,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
-"lng_action_topic_created" = "{topic} — was created";
-"lng_action_topic_closed" = "{topic} — was closed";
-"lng_action_topic_reopened" = "{topic} — was reopened";
+"lng_action_topic_created" = "«{topic}» was created";
+"lng_action_topic_closed" = "«{topic}» was closed";
+"lng_action_topic_reopened" = "«{topic}» was reopened";
 "lng_action_topic_placeholder" = "topic";
 "lng_action_topic_renamed" = "{from} renamed the {link} to «{title}»";
 "lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";

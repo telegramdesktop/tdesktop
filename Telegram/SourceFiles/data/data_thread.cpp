@@ -8,14 +8,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_thread.h"
 
 #include "data/data_forum_topic.h"
+#include "data/data_changes.h"
 #include "data/data_peer.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
+#include "main/main_session.h"
 
 namespace Data {
 
 Thread::~Thread() = default;
+
+not_null<Thread*> Thread::migrateToOrMe() const {
+	const auto history = asHistory();
+	return history ? history->migrateToOrMe() : const_cast<Thread*>(this);
+}
 
 MsgId Thread::topicRootId() const {
 	if (const auto topic = asTopic()) {
@@ -155,6 +162,23 @@ void Thread::setUnreadMarkFlag(bool unread) {
 	} else {
 		_flags &= ~Flag::UnreadMark;
 	}
+}
+
+[[nodiscard]] bool Thread::hasPinnedMessages() const {
+	return (_flags & Flag::HasPinnedMessages);
+}
+
+void Thread::setHasPinnedMessages(bool has) {
+	if (hasPinnedMessages() == has) {
+		return;
+	} else if (has) {
+		_flags |= Flag::HasPinnedMessages;
+	} else {
+		_flags &= ~Flag::HasPinnedMessages;
+	}
+	session().changes().entryUpdated(
+		this,
+		EntryUpdate::Flag::HasPinnedMessages);
 }
 
 } // namespace Data

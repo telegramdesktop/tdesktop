@@ -3011,6 +3011,10 @@ void ApiWrap::sharedMediaDone(
 		MsgId topicRootId,
 		SharedMediaType type,
 		Api::SearchResult &&parsed) {
+	const auto topic = peer->forumTopicFor(topicRootId);
+	if (topicRootId && !topic) {
+		return;
+	}
 	_session->storage().add(Storage::SharedMediaAddSlice(
 		peer->id,
 		topicRootId,
@@ -3021,6 +3025,9 @@ void ApiWrap::sharedMediaDone(
 	));
 	if (type == SharedMediaType::Pinned && !parsed.messageIds.empty()) {
 		peer->owner().history(peer)->setHasPinnedMessages(true);
+		if (topic) {
+			topic->setHasPinnedMessages(true);
+		}
 	}
 }
 
@@ -3451,11 +3458,14 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	action.generateLocal = true;
 	sendAction(action);
 
-	const auto replyToId = message.action.replyTo;
+	const auto replyToId = action.replyTo;
 	const auto replyTo = replyToId
 		? peer->owner().message(peer, replyToId)
 		: nullptr;
-	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	const auto topicRootId = replyTo ? replyTo->topicRootId() : replyToId;
+	const auto topic = topicRootId
+		? peer->forumTopicFor(topicRootId)
+		: nullptr;
 	if (!(topic ? topic->canWrite() : peer->canWrite())
 		|| Api::SendDice(message)) {
 		return;
