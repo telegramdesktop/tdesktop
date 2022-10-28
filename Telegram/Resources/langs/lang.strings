@@ -2811,6 +2811,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_menu_start_group_call" = "Start video chat";
 "lng_menu_start_group_call_scheduled" = "Schedule video chat";
 "lng_menu_start_group_call_with" = "Stream with...";
+"lng_menu_start_group_call_join" = "Join video chat";
 "lng_menu_start_group_call_channel" = "Start live stream";
 "lng_menu_start_group_call_scheduled_channel" = "Schedule live stream";
 "lng_menu_start_group_call_with_channel" = "Stream with...";

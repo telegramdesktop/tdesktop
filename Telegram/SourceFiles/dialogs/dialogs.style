@@ -78,7 +78,7 @@ dialogsOnlineBadgeSkip: point(0px, 2px);
 dialogsOnlineBadgeDuration: 150;
 
 dialogsCallBadgeSize: 16px;
-dialogsCallBadgeSkip: point(-1px, 1px);
+dialogsCallBadgeSkip: point(-3px, -3px);
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;

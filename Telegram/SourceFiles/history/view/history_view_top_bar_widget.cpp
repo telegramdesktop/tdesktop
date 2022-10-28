@@ -340,34 +340,8 @@ void TopBarWidget::showGroupCallMenu(not_null<PeerData*> peer) {
 	if (!created) {
 		return;
 	}
-	const auto controller = _controller;
-	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
-		controller->startOrJoinGroupCall(peer, std::move(args));
-	};
-	const auto rtmpCallback = [=] {
-		Core::App().calls().showStartWithRtmp(
-			std::make_shared<Window::Show>(controller),
-			peer);
-	};
-	const auto livestream = !peer->isMegagroup() && peer->isChannel();
-	_menu->addAction(
-		(livestream
-			? tr::lng_menu_start_group_call_channel
-			: tr::lng_menu_start_group_call)(tr::now),
-		[=] { callback({}); },
-		&st::menuIconStartStream);
-	_menu->addAction(
-		(livestream
-			? tr::lng_menu_start_group_call_scheduled_channel
-			: tr::lng_menu_start_group_call_scheduled)(tr::now),
-		[=] { callback({ .scheduleNeeded = true }); },
-		&st::menuIconReschedule);
-	_menu->addAction(
-		(livestream
-			? tr::lng_menu_start_group_call_with_channel
-			: tr::lng_menu_start_group_call_with)(tr::now),
-		rtmpCallback,
-		&st::menuIconStartStreamWith);
+	const auto addAction = Ui::Menu::CreateAddActionCallback(_menu);
+	Window::FillVideoChatMenu(_controller, _activeChat, addAction);
 	_menu->setForcedOrigin(Ui::PanelAnimation::Origin::TopRight);
 	_menu->popup(mapToGlobal(QPoint(
 		_groupCall->x() + _groupCall->width() + st::topBarMenuGroupCallSkip,

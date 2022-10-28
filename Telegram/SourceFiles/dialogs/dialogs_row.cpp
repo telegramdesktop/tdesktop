@@ -293,7 +293,12 @@ void Row::paintUserpic(
 	}
 	ensureCornerBadgeUserpic();
 	const auto ratio = style::DevicePixelRatio();
-	const auto frameSide = context.st->photoSize * style::DevicePixelRatio();
+	const auto added = std::max({
+		-st::dialogsCallBadgeSkip.x(),
+		-st::dialogsCallBadgeSkip.y(),
+		0 });
+	const auto frameSide = (context.st->photoSize + added)
+		* style::DevicePixelRatio();
 	const auto frameSize = QSize(frameSide, frameSide);
 	if (_cornerBadgeUserpic->frame.size() != frameSize) {
 		_cornerBadgeUserpic->frame = QImage(

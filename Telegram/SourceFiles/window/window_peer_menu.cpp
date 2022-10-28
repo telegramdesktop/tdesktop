@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/edit_forum_topic_box.h"
 #include "boxes/peers/edit_contact_box.h"
+#include "calls/calls_instance.h"
 #include "ui/boxes/report_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/format_values.h"
@@ -1021,6 +1022,9 @@ void Filler::fillChatsListActions() {
 		return;
 	}
 	addViewAsMessages();
+	if (FillVideoChatMenu(_controller, _request, _addAction)) {
+		_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+	}
 	addInfo();
 	addNewMembers();
 	const auto &all = _peer->forum()->topicsList()->indexed()->all();
@@ -1827,6 +1831,59 @@ void FillDialogsEntryMenu(
 		Dialogs::EntryState request,
 		const PeerMenuCallback &callback) {
 	Filler(controller, request, callback).fill();
+}
+
+bool FillVideoChatMenu(
+		not_null<SessionController*> controller,
+		Dialogs::EntryState request,
+		const PeerMenuCallback &addAction) {
+	const auto peer = request.key.peer();
+	if (!peer || peer->isUser()) {
+		return false;
+	}
+
+	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
+		controller->startOrJoinGroupCall(peer, std::move(args));
+	};
+	const auto rtmpCallback = [=] {
+		Core::App().calls().showStartWithRtmp(
+			std::make_shared<Window::Show>(controller),
+			peer);
+	};
+	const auto livestream = !peer->isMegagroup() && peer->isChannel();
+	const auto has = (peer->groupCall() != nullptr);
+	const auto manager = peer->canManageGroupCall();
+	const auto creator = peer->isChat()
+		? peer->asChat()->amCreator()
+		: peer->asChannel()->amCreator();
+	if (has) {
+		addAction(
+			tr::lng_menu_start_group_call_join(tr::now),
+			[=] { callback({}); },
+			&st::menuIconStartStream);
+	} else if (manager) {
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_channel
+				: tr::lng_menu_start_group_call)(tr::now),
+			[=] { callback({}); },
+			&st::menuIconStartStream);
+	}
+	if (!has && creator) {
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_scheduled_channel
+				: tr::lng_menu_start_group_call_scheduled)(tr::now),
+			[=] { callback({ .scheduleNeeded = true }); },
+			&st::menuIconReschedule);
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_with_channel
+				: tr::lng_menu_start_group_call_with)(tr::now),
+			rtmpCallback,
+			&st::menuIconStartStreamWith);
+	}
+	return has || manager;
 }
 
 } // namespace Window
