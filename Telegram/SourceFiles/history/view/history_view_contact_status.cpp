@@ -628,7 +628,7 @@ void ContactStatus::setupState(not_null<PeerData*> peer, bool showInForum) {
 		PeerCustomStatus(peer),
 		((channel && !showInForum)
 			? Data::PeerFlagValue(channel, ChannelData::Flag::Forum)
-			: rpl::single(false))
+			: (rpl::single(false) | rpl::type_erased()))
 	) | rpl::start_with_next([=](
 			State state,
 			TextWithEntities status,

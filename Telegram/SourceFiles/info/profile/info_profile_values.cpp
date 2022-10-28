@@ -60,9 +60,9 @@ auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
 		peer
 	) | rpl::map([=](std::vector<TextWithEntities> usernames) {
 		if (!usernames.empty()) {
-			return rpl::single(usernames.front().text);
+			return rpl::single(usernames.front().text) | rpl::type_erased();
 		} else {
-			return PlainUsernameValue(peer);
+			return PlainUsernameValue(peer) | rpl::type_erased();
 		}
 	}) | rpl::flatten_latest();
 }
@@ -148,7 +148,7 @@ rpl::producer<TextWithEntities> UsernameValue(
 		bool primary) {
 	return (primary
 		? PlainPrimaryUsernameValue(user)
-		: PlainUsernameValue(user)
+		: (PlainUsernameValue(user) | rpl::type_erased())
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
 			? QString()
@@ -223,7 +223,7 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
 	return (primary
 		? PlainPrimaryUsernameValue(peer)
-		: PlainUsernameValue(peer)
+		: PlainUsernameValue(peer) | rpl::type_erased()
 	) | rpl::map([=](QString &&username) {
 		return username.isEmpty()
 			? QString()

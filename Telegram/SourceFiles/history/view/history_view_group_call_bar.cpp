@@ -358,7 +358,7 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByPeer(
 			Data::PeerUpdate::Flag::GroupCall),
 		Core::App().calls().currentGroupCallValue(),
 		((showInForum || !channel)
-			? rpl::single(false)
+			? (rpl::single(false) | rpl::type_erased())
 			: Data::PeerFlagValue(channel, ChannelData::Flag::Forum))
 	) | rpl::map([=](auto, Calls::GroupCall *current, bool hiddenByForum) {
 		const auto call = peer->groupCall();
