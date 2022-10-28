@@ -2453,6 +2453,12 @@ void RepliesWidget::listPaintEmpty(
 	_emptyPainter->paint(p, context.st, width(), _scroll->height());
 }
 
+QString RepliesWidget::listElementAuthorRank(not_null<const Element*> view) {
+	return (_topic && view->data()->from()->id == _topic->creatorId())
+		? tr::lng_topic_author_badge(tr::now)
+		: QString();
+}
+
 void RepliesWidget::setupEmptyPainter() {
 	Expects(_topic != nullptr);
 

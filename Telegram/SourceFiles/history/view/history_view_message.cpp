@@ -329,7 +329,10 @@ not_null<HistoryMessage*> Message::message() const {
 
 void Message::refreshRightBadge() {
 	const auto text = [&] {
-		if (data()->isDiscussionPost()) {
+		const auto author = delegate()->elementAuthorRank(this);
+		if (!author.isEmpty()) {
+			return author;
+		} else if (data()->isDiscussionPost()) {
 			return (delegate()->elementContext() == Context::Replies)
 				? QString()
 				: tr::lng_channel_badge(tr::now);
@@ -345,8 +348,8 @@ void Message::refreshRightBadge() {
 			return QString();
 		}
 		const auto info = channel->mgInfo.get();
-		const auto i = channel->mgInfo->admins.find(peerToUser(user->id));
-		const auto custom = (i != channel->mgInfo->admins.end())
+		const auto i = info->admins.find(peerToUser(user->id));
+		const auto custom = (i != info->admins.end())
 			? i->second
 			: (info->creator == user)
 			? info->creatorRank
@@ -355,7 +358,7 @@ void Message::refreshRightBadge() {
 			? custom
 			: (info->creator == user)
 			? tr::lng_owner_badge(tr::now)
-			: (i != channel->mgInfo->admins.end())
+			: (i != info->admins.end())
 			? tr::lng_admin_badge(tr::now)
 			: QString();
 	}();

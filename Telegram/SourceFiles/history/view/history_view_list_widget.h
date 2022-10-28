@@ -139,6 +139,7 @@ public:
 	virtual void listPaintEmpty(
 		Painter &p,
 		const Ui::ChatPaintContext &context) = 0;
+	virtual QString listElementAuthorRank(not_null<const Element*> view) = 0;
 };
 
 struct SelectionData {
@@ -319,6 +320,7 @@ public:
 		not_null<const Element*> view,
 		Element *replacing) override;
 	void elementCancelPremium(not_null<const Element*> view) override;
+	QString elementAuthorRank(not_null<const Element*> view) override;
 
 	void setEmptyInfoWidget(base::unique_qptr<Ui::RpWidget> &&w);
 

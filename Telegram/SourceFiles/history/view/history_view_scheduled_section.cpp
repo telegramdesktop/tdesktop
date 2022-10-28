@@ -1288,6 +1288,11 @@ void ScheduledWidget::listPaintEmpty(
 	const Ui::ChatPaintContext &context) {
 }
 
+QString ScheduledWidget::listElementAuthorRank(
+		not_null<const Element*> view) {
+	return {};
+}
+
 void ScheduledWidget::confirmSendNowSelected() {
 	ConfirmSendNowSelectedItems(_inner);
 }

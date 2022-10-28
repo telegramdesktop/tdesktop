@@ -124,6 +124,7 @@ public:
 	void listPaintEmpty(
 		Painter &p,
 		const Ui::ChatPaintContext &context) override;
+	QString listElementAuthorRank(not_null<const Element*> view) override;
 
 	// CornerButtonsDelegate delegate.
 	void cornerButtonsShowAtPosition(

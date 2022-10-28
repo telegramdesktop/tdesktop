@@ -687,6 +687,10 @@ void InnerWidget::elementStartPremium(
 void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
 }
 
+QString InnerWidget::elementAuthorRank(not_null<const Element*> view) {
+	return {};
+}
+
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
 	memento->setFilter(std::move(_filter));
 	memento->setAdmins(std::move(_admins));

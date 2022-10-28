@@ -149,6 +149,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	rootId))
 , _rootId(rootId)
 , _lastKnownServerMessageId(rootId)
+, _creatorId(creating() ? forum->session().userPeerId() : 0)
 , _creationDate(creating() ? base::unixtime::now() : 0)
 , _flags(creating() ? Flag::My : Flag()) {
 	Thread::setMuted(owner().notifySettings().isMuted(this));
@@ -201,6 +202,10 @@ rpl::producer<> ForumTopic::destroyed() const {
 
 MsgId ForumTopic::rootId() const {
 	return _rootId;
+}
+
+PeerId ForumTopic::creatorId() const {
+	return _creatorId;
 }
 
 TimeId ForumTopic::creationDate() const {
@@ -267,6 +272,7 @@ void ForumTopic::readTillEnd() {
 void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
 
+	_creatorId = peerFromMTP(data.vfrom_id());
 	_creationDate = data.vdate().v;
 
 	applyTitle(qs(data.vtitle()));

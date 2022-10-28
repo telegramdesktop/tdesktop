@@ -143,6 +143,8 @@ public:
 		HistoryView::Element *replacing) override;
 	void elementCancelPremium(
 		not_null<const HistoryView::Element*> view) override;
+	QString elementAuthorRank(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 

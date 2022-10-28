@@ -613,6 +613,10 @@ void PinnedWidget::listPaintEmpty(
 	const Ui::ChatPaintContext &context) {
 }
 
+QString PinnedWidget::listElementAuthorRank(not_null<const Element*> view) {
+	return {};
+}
+
 void PinnedWidget::confirmDeleteSelected() {
 	ConfirmDeleteSelectedItems(_inner);
 }

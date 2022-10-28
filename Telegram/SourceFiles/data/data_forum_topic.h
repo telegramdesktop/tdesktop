@@ -60,6 +60,7 @@ public:
 	[[nodiscard]] not_null<Forum*> forum() const;
 	[[nodiscard]] rpl::producer<> destroyed() const;
 	[[nodiscard]] MsgId rootId() const;
+	[[nodiscard]] PeerId creatorId() const;
 	[[nodiscard]] TimeId creationDate() const;
 
 	[[nodiscard]] bool my() const;
@@ -172,8 +173,9 @@ private:
 	DocumentId _iconId = 0;
 	base::flat_set<QString> _titleWords;
 	base::flat_set<QChar> _titleFirstLetters;
-	int _titleVersion = 0;
+	PeerId _creatorId = 0;
 	TimeId _creationDate = 0;
+	int _titleVersion = 0;
 	int32 _colorId = 0;
 	Flags _flags;
 

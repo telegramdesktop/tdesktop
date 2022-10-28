@@ -1682,6 +1682,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_badge" = "admin";
 "lng_owner_badge" = "owner";
 "lng_channel_badge" = "channel";
+"lng_topic_author_badge" = "Topic Author";
 "lng_fast_reply" = "Reply";
 "lng_cancel_edit_post_sure" = "Cancel editing?";
 "lng_cancel_edit_post_yes" = "Yes";

@@ -275,6 +275,10 @@ public:
 		}
 	}
 
+	QString elementAuthorRank(not_null<const Element*> view) override {
+		return {};
+	}
+
 	not_null<HistoryView::ElementDelegate*> delegate() override {
 		return this;
 	}

@@ -225,6 +225,11 @@ void SimpleElementDelegate::elementCancelPremium(
 	not_null<const Element*> view) {
 }
 
+QString SimpleElementDelegate::elementAuthorRank(
+		not_null<const Element*> view) {
+	return {};
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
