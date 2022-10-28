@@ -851,7 +851,7 @@ void Controller::fillForumButton() {
 			rpl::single(QString()),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::settingsIconGroup, Settings::kIconPurple }));
+			{ &st::settingsIconTopics, Settings::kIconPurple }));
 	const auto unlocks = std::make_shared<rpl::event_stream<bool>>();
 	button->toggleOn(
 		rpl::single(_peer->isForum()) | rpl::then(unlocks->events())
