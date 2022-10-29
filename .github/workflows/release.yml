@@ -7,9 +7,6 @@ on:
         description: 'Prerelease or not'
         required: true
         default: 'true'
-      workflowCommit:
-        description: 'SHA of built commit'
-        required: true
       releaseWindows:
         description: 'Release Windows assets?'
         type: boolean
@@ -37,7 +34,7 @@ jobs:
     steps:
       - id: parsing_step
         run: |
-          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/${{ github.event.inputs.workflowCommit }}/Telegram/SourceFiles/core/version.h
+          wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/master/Telegram/SourceFiles/core/version.h
           wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/master/Telegram/build/ptelegram_release_body.py
           wget https://raw.githubusercontent.com/wrwrabbit/tdesktop/master/ptelegram_changelog.md
 
@@ -66,7 +63,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: win.yml
           workflow_conclusion: success
-          commit: ${{ github.event.inputs.workflowCommit }}
           branch: master
           repo: wrwrabbit/tdesktop
           path: Windows
@@ -78,7 +74,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: linux.yml
           workflow_conclusion: success
-          commit: ${{ github.event.inputs.workflowCommit }}
           branch: master
           repo: wrwrabbit/tdesktop
           path: Linux
@@ -90,7 +85,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: mac.yml
           workflow_conclusion: success
-          commit: ${{ github.event.inputs.workflowCommit }}
           branch: master
           repo: wrwrabbit/tdesktop
           path: MacOS
@@ -102,7 +96,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: snap.yml
           workflow_conclusion: success
-          commit: ${{ github.event.inputs.workflowCommit }}
           branch: master
           repo: wrwrabbit/tdesktop
           path: Snap
