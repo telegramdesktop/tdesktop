@@ -16,18 +16,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/field_autocomplete.h"
 #include "window/section_widget.h"
 #include "ui/widgets/input_fields.h"
-#include "ui/effects/animations.h"
-#include "ui/rp_widget.h"
 #include "mtproto/sender.h"
 #include "base/flags.h"
-#include "base/timer.h"
 
 struct FileLoadResult;
 enum class SendMediaType;
 class MessageLinksParser;
 struct InlineBotQuery;
 struct AutocompleteQuery;
-class History;
 
 namespace MTP {
 class Error;
@@ -63,7 +59,6 @@ class InnerDropdown;
 class DropdownMenu;
 class PlainShadow;
 class IconButton;
-class HistoryDownButton;
 class EmojiButton;
 class SendButton;
 class SilentToggle;
