@@ -753,10 +753,10 @@ ComposeSearch::Inner::Inner(
 	const auto goToMessage = [=](const FullMsgId &itemId) {
 		const auto item = _history->owner().message(itemId);
 		if (item) {
-			_window->jumpToChatListEntry({
-				{ item->history() },
-				item->fullId(),
-			});
+			_window->showPeerHistory(
+				item->history()->peer->id,
+				::Window::SectionShow::Way::ClearStack,
+				item->fullId().msg);
 		}
 	};
 
