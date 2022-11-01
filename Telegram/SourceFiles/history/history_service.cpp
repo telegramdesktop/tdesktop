@@ -636,25 +636,39 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	const auto wrapTopicIcon = [](DocumentId id) {
+		return TextWithEntities{
+			"@",
+			{ EntityInText(
+				EntityType::CustomEmoji,
+				0,
+				1,
+				Data::SerializeCustomEmojiId({ .id = id }))
+			},
+		};
+	};
+
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
-		result.text = { tr::lng_action_topic_created_inside(tr::now) };
+		auto title = TextWithEntities{
+			qs(action.vtitle())
+		};
+		if (const auto icon = action.vicon_emoji_id().value_or_empty()) {
+			title = wrapTopicIcon(icon).append(' ').append(std::move(title));
+		}
+		const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
+			.arg(peerToChannel(history()->peer->id).bare)
+			.arg(id.bare);
+		result.text = tr::lng_action_topic_created(
+			tr::now,
+			lt_topic,
+			Ui::Text::Link(std::move(title), topicUrl),
+			Ui::Text::WithEntities);
 		return result;
 	};
 
 	auto prepareTopicEdit = [&](const MTPDmessageActionTopicEdit &action) {
 		auto result = PreparedText{};
-		const auto wrapIcon = [](DocumentId id) {
-			return TextWithEntities{
-				"@",
-				{ EntityInText(
-					EntityType::CustomEmoji,
-					0,
-					1,
-					Data::SerializeCustomEmojiId({ .id = id }))
-				},
-			};
-		};
 		if (const auto closed = action.vclosed()) {
 			result.text = { mtpIsTrue(*closed)
 				? tr::lng_action_topic_closed_inside(tr::now)
@@ -670,7 +684,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 						lt_link,
 						{ tr::lng_action_topic_placeholder(tr::now) },
 						lt_emoji,
-						wrapIcon(iconId),
+						wrapTopicIcon(iconId),
 						Ui::Text::WithEntities);
 				} else {
 					result.links.push_back(fromLink());
@@ -689,7 +703,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				qs(*action.vtitle())
 			};
 			if (const auto icon = action.vicon_emoji_id().value_or_empty()) {
-				title = wrapIcon(icon).append(' ').append(std::move(title));
+				title = wrapTopicIcon(icon)
+					.append(' ')
+					.append(std::move(title));
 			}
 			result.text = tr::lng_action_topic_renamed(
 				tr::now,

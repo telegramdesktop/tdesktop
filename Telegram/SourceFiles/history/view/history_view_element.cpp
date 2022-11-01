@@ -667,13 +667,22 @@ int Element::textHeightFor(int textWidth) {
 }
 
 auto Element::contextDependentServiceText() -> TextWithLinks {
-	if (_delegate->elementContext() == Context::Replies) {
-		return {};
-	}
 	const auto item = data();
 	const auto info = item->Get<HistoryServiceTopicInfo>();
 	if (!info) {
 		return {};
+	}
+	const auto created = !info->closed
+		&& !info->reopened
+		&& !info->renamed
+		&& !info->reiconed;
+	if (_delegate->elementContext() == Context::Replies) {
+		if (created) {
+			return { { tr::lng_action_topic_created_inside(tr::now) } };
+		}
+		return {};
+	} else if (created) {
+		return{};
 	}
 	const auto peerId = item->history()->peer->id;
 	const auto topicRootId = item->topicRootId();
@@ -791,13 +800,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 			};
 		}
 	} else {
-		return {
-			tr::lng_action_topic_created(
-				tr::now,
-				lt_topic,
-				wrapTopic(info->title, info->iconId),
-				Ui::Text::WithEntities),
-		};
+		return {};
 	}
 }
 
