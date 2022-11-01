@@ -694,6 +694,19 @@ void ChooseTopicBoxController::prepare() {
 	setSearchNoResultsText(tr::lng_blocked_list_not_found(tr::now));
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	refreshRows(true);
+
+	session().changes().entryUpdates(
+		Data::EntryUpdate::Flag::Repaint
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (const auto topic = update.entry->asTopic()) {
+			if (topic->forum() == _forum) {
+				const auto id = topic->rootId().bare;
+				if (const auto row = delegate()->peerListFindRow(id)) {
+					delegate()->peerListUpdateRow(row);
+				}
+			}
+		}
+	}, lifetime());
 }
 
 void ChooseTopicBoxController::refreshRows(bool initial) {
