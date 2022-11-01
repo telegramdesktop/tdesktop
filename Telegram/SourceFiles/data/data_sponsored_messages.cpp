@@ -138,6 +138,7 @@ void SponsoredMessages::parse(
 		list.received = crl::now();
 		for (const auto &message : messages) {
 			append(history, list, message);
+			break;
 		}
 	}, [](const MTPDmessages_sponsoredMessagesEmpty &) {
 	});
