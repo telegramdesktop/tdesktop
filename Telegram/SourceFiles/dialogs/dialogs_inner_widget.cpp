@@ -2954,10 +2954,11 @@ bool InnerWidget::chooseCollapsedRow() {
 }
 
 void InnerWidget::switchToFilter(FilterId filterId) {
-	const auto found = filterId && ranges::contains(
-		session().data().chatsFilters().list(),
-		filterId,
-		&Data::ChatFilter::id);
+	const auto &list = session().data().chatsFilters().list();
+	const auto filterIt = filterId
+		? ranges::find(list, filterId, &Data::ChatFilter::id)
+		: end(list);
+	const auto found = (filterIt != end(list));
 	if (!found) {
 		filterId = 0;
 	}
@@ -2965,6 +2966,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		_mustScrollTo.fire({ 0, 0 });
 		return;
 	}
+	_chatsFilterScrollStates[_filterId] = -pos().y();
 	if (_openedFolder) {
 		_filterId = filterId;
 	} else {
@@ -2974,6 +2976,17 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		refreshWithCollapsedRows(true);
 	}
 	refreshEmptyLabel();
+	{
+		const auto it = _chatsFilterScrollStates.find(filterId);
+		if (it != end(_chatsFilterScrollStates)) {
+			const auto skip = found
+				// Don't save a scroll state for very flexible chat filters.
+				&& (filterIt->flags() & (Data::ChatFilter::Flag::NoRead));
+			if (!skip) {
+				_mustScrollTo.fire({ it->second, -1 });
+			}
+		}
+	}
 }
 
 bool InnerWidget::chooseHashtag() {

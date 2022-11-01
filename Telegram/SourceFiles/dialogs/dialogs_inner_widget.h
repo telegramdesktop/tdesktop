@@ -443,6 +443,8 @@ private:
 		not_null<PeerData*>,
 		std::unique_ptr<Ui::VideoUserpic>> _videoUserpics;
 
+	base::flat_map<FilterId, int> _chatsFilterScrollStates;
+
 	Fn<void()> _loadMoreCallback;
 	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;
