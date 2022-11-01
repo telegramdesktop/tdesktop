@@ -84,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_unread_things.h"
 #include "history/view/controls/history_view_compose_search.h"
+#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -255,11 +256,12 @@ HistoryWidget::HistoryWidget(
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
-, _voiceRecordBar(std::make_unique<HistoryWidget::VoiceRecordBar>(
+, _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 	this,
 	controller,
 	_send,
 	st::historySendSize.height()))
+, _forwardPanel(std::make_unique<ForwardPanel>([=] { updateField(); }))
 , _field(
 	this,
 	st::historyComposeField,
@@ -376,6 +378,12 @@ HistoryWidget::HistoryWidget(
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
+	}, lifetime());
+
+	_forwardPanel->itemsUpdated(
+	) | rpl::start_with_next([=] {
+		updateControlsVisibility();
+		updateControlsGeometry();
 	}, lifetime());
 
 	InitMessageField(controller, _field, [=](
@@ -606,6 +614,7 @@ HistoryWidget::HistoryWidget(
 	using EntryUpdateFlag = Data::EntryUpdate::Flag;
 	session().changes().entryUpdates(
 		EntryUpdateFlag::HasPinnedMessages
+		| EntryUpdateFlag::ForwardDraft
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		if (_pinnedTracker
 			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
@@ -613,12 +622,14 @@ HistoryWidget::HistoryWidget(
 				|| (update.entry.get() == _migrated))) {
 			checkPinnedBarState();
 		}
+		if (update.flags & EntryUpdateFlag::ForwardDraft) {
+			updateForwarding();
+		}
 	}, lifetime());
 
 	using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
 	session().changes().historyUpdates(
 		HistoryUpdateFlag::MessageSent
-		| HistoryUpdateFlag::ForwardDraft
 		| HistoryUpdateFlag::BotKeyboard
 		| HistoryUpdateFlag::CloudDraft
 		| HistoryUpdateFlag::UnreadMentions
@@ -632,9 +643,6 @@ HistoryWidget::HistoryWidget(
 		const auto flags = update.flags;
 		if (flags & HistoryUpdateFlag::MessageSent) {
 			synteticScrollToY(_scroll->scrollTopMax());
-		}
-		if (flags & HistoryUpdateFlag::ForwardDraft) {
-			updateForwarding();
 		}
 		if (flags & HistoryUpdateFlag::BotKeyboard) {
 			updateBotKeyboard(update.history);
@@ -3719,7 +3727,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 			_peer,
 			{
 				.topicRootId = topicRootId,
-				.forward = &_toForward.items,
+				.forward = &_forwardPanel->items(),
 				.text = &message.textWithTags,
 				.ignoreSlowmodeCountdown = (options.scheduled != 0),
 			});
@@ -4281,7 +4289,7 @@ QRect HistoryWidget::floatPlayerAvailableRect() {
 }
 
 bool HistoryWidget::readyToForward() const {
-	return _canSendMessages && !_toForward.items.empty();
+	return _canSendMessages && !_forwardPanel->empty();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -5274,15 +5282,6 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 		toggleKeyboard();
 		_kbReplyTo = nullptr;
 	}
-	auto found = ranges::find(_toForward.items, item);
-	if (found != _toForward.items.end()) {
-		_toForward.items.erase(found);
-		updateForwardingTexts();
-		if (_toForward.items.empty()) {
-			updateControlsVisibility();
-			updateControlsGeometry();
-		}
-	}
 	const auto i = _itemRevealAnimations.find(item);
 	if (i != end(_itemRevealAnimations)) {
 		_itemRevealAnimations.erase(i);
@@ -5858,81 +5857,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		updateField();
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
-			using Options = Data::ForwardOptions;
-			const auto now = _toForward.options;
-			const auto count = _toForward.items.size();
-			const auto dropNames = (now != Options::PreserveInfo);
-			const auto hasCaptions = [&] {
-				for (const auto item : _toForward.items) {
-					if (const auto media = item->media()) {
-						if (!item->originalText().text.isEmpty()
-							&& media->allowsEditCaption()) {
-							return true;
-						}
-					}
-				}
-				return false;
-			}();
-			const auto hasOnlyForcedForwardedInfo = [&] {
-				if (hasCaptions) {
-					return false;
-				}
-				for (const auto item : _toForward.items) {
-					if (const auto media = item->media()) {
-						if (!media->forceForwardedInfo()) {
-							return false;
-						}
-					} else {
-						return false;
-					}
-				}
-				return true;
-			}();
-			const auto dropCaptions = (now == Options::NoNamesAndCaptions);
-			const auto weak = Ui::MakeWeak(this);
-			const auto changeRecipient = crl::guard(weak, [=] {
-				if (_toForward.items.empty()) {
-					return;
-				}
-				const auto draft = std::move(_toForward);
-				session().data().cancelForwarding(_history);
-				auto list = session().data().itemsToIds(draft.items);
-				Window::ShowForwardMessagesBox(controller(), {
-					.ids = session().data().itemsToIds(draft.items),
-					.options = draft.options,
-				});
-			});
-			if (hasOnlyForcedForwardedInfo) {
-				changeRecipient();
-				return;
-			}
-			const auto optionsChanged = crl::guard(weak, [=](
-					Ui::ForwardOptions options) {
-				const auto newOptions = (options.hasCaptions
-					&& options.dropCaptions)
-					? Options::NoNamesAndCaptions
-					: options.dropNames
-					? Options::NoSenderNames
-					: Options::PreserveInfo;
-				if (_history && _toForward.options != newOptions) {
-					_toForward.options = newOptions;
-					_history->setForwardDraft({
-						.ids = session().data().itemsToIds(_toForward.items),
-						.options = newOptions,
-					});
-					updateField();
-				}
-			});
-			controller()->show(Box(
-				Ui::ForwardOptionsBox,
-				count,
-				Ui::ForwardOptions{
-					.dropNames = dropNames,
-					.hasCaptions = hasCaptions,
-					.dropCaptions = dropCaptions,
-				},
-				optionsChanged,
-				changeRecipient));
+			_forwardPanel->editOptions(controller());
 		} else {
 			controller()->showPeerHistory(
 				_peer,
@@ -6725,8 +6650,8 @@ void HistoryWidget::processReply() {
 					.text = tr::lng_reply_cant_forward(),
 					.confirmed = crl::guard(this, [=] {
 						controller()->content()->setForwardDraft(
-							_peer->id,
-							{.ids = { 1, itemId } });
+							_history,
+							{ .ids = { 1, itemId } });
 					}),
 					.confirmText = tr::lng_selected_forward(),
 					}));
@@ -6757,7 +6682,7 @@ void HistoryWidget::setReplyFieldsFromProcessing() {
 		return;
 	}
 
-	session().data().cancelForwarding(_history);
+	_history->setForwardDraft(MsgId(), {});
 	if (_composeSearch) {
 		_composeSearch->hideAnimated();
 	}
@@ -7024,7 +6949,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
-		session().data().cancelForwarding(_history);
+		_history->setForwardDraft(MsgId(), {});
 	} else if (_replyToId) {
 		cancelReply();
 	} else if (_kbReplyTo) {
@@ -7437,113 +7362,14 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 }
 
 void HistoryWidget::updateForwarding() {
-	if (_history) {
-		_toForward = _history->resolveForwardDraft();
-		updateForwardingTexts();
-	} else {
-		_toForward = {};
+	_forwardPanel->update(_history, _history
+		? _history->resolveForwardDraft(MsgId())
+		: Data::ResolvedForwardDraft());
+	if (readyToForward()) {
+		cancelReply();
 	}
 	updateControlsVisibility();
 	updateControlsGeometry();
-}
-
-void HistoryWidget::updateForwardingTexts() {
-	int32 version = 0;
-	QString from;
-	TextWithEntities text;
-	const auto keepNames = (_toForward.options
-		== Data::ForwardOptions::PreserveInfo);
-	const auto keepCaptions = (_toForward.options
-		!= Data::ForwardOptions::NoNamesAndCaptions);
-	if (const auto count = int(_toForward.items.size())) {
-		auto insertedPeers = base::flat_set<not_null<PeerData*>>();
-		auto insertedNames = base::flat_set<QString>();
-		auto fullname = QString();
-		auto names = std::vector<QString>();
-		names.reserve(_toForward.items.size());
-		for (const auto item : _toForward.items) {
-			if (const auto from = item->senderOriginal()) {
-				if (!insertedPeers.contains(from)) {
-					insertedPeers.emplace(from);
-					names.push_back(from->shortName());
-					fullname = from->name();
-				}
-				version += from->nameVersion();
-			} else if (const auto info = item->hiddenSenderInfo()) {
-				if (!insertedNames.contains(info->name)) {
-					insertedNames.emplace(info->name);
-					names.push_back(info->firstName);
-					fullname = info->name;
-				}
-				++version;
-			} else {
-				Unexpected("Corrupt forwarded information in message.");
-			}
-		}
-		if (!keepNames) {
-			from = tr::lng_forward_sender_names_removed(tr::now);
-		} else if (names.size() > 2) {
-			from = tr::lng_forwarding_from(tr::now, lt_count, names.size() - 1, lt_user, names[0]);
-		} else if (names.size() < 2) {
-			from = fullname;
-		} else {
-			from = tr::lng_forwarding_from_two(tr::now, lt_user, names[0], lt_second_user, names[1]);
-		}
-
-		if (count < 2) {
-			const auto item = _toForward.items.front();
-			text = item->toPreview({
-				.hideSender = true,
-				.hideCaption = !keepCaptions,
-				.generateImages = false,
-			}).text;
-
-			const auto dropCustomEmoji = !session().premium()
-				&& !_peer->isSelf()
-				&& (item->computeDropForwardedInfo() || !keepNames);
-			if (dropCustomEmoji) {
-				text = DropCustomEmoji(std::move(text));
-			}
-		} else {
-			text = Ui::Text::PlainLink(
-				tr::lng_forward_messages(tr::now, lt_count, count));
-		}
-	}
-	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());
-	const auto context = Core::MarkedTextContext{
-		.session = &session(),
-		.customEmojiRepaint = [=] { updateField(); },
-	};
-	_toForwardText.setMarkedText(
-		st::messageTextStyle,
-		text,
-		Ui::DialogTextOptions(),
-		context);
-	_toForwardNameVersion = keepNames ? version : keepCaptions ? -1 : -2;
-}
-
-void HistoryWidget::checkForwardingInfo() {
-	if (!_toForward.items.empty()) {
-		const auto keepNames = (_toForward.options
-			== Data::ForwardOptions::PreserveInfo);
-		const auto keepCaptions = (_toForward.options
-			!= Data::ForwardOptions::NoNamesAndCaptions);
-		auto version = keepNames ? 0 : keepCaptions ? -1 : -2;
-		if (keepNames) {
-			for (const auto item : _toForward.items) {
-				if (const auto from = item->senderOriginal()) {
-					version += from->nameVersion();
-				} else if (const auto info = item->hiddenSenderInfo()) {
-					++version;
-				} else {
-					Unexpected("Corrupt forwarded information in message.");
-				}
-			}
-		}
-		if (version != _toForwardNameVersion) {
-			updateForwardingTexts();
-		}
-	}
 }
 
 void HistoryWidget::updateReplyToName() {
@@ -7594,7 +7420,6 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (hasForward) {
-		checkForwardingInfo();
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (_previewData && _previewData->pendingTill >= 0) {
@@ -7645,36 +7470,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			}
 		}
 	} else if (hasForward) {
-		auto forwardLeft = st::historyReplySkip;
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
-			const auto firstItem = _toForward.items.front();
-			const auto firstMedia = firstItem->media();
-			const auto preview = (_toForward.items.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
-				? firstMedia->replyPreview()
-				: nullptr;
-			if (preview) {
-				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				if (preview->width() == preview->height()) {
-					p.drawPixmap(to.x(), to.y(), preview->pix());
-				} else {
-					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
-					p.drawPixmap(to, preview->pix(), from);
-				}
-				forwardLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
-			}
-			p.setPen(st::historyReplyNameFg);
-			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.setPen(st::historyComposeAreaFg);
-			_toForwardText.draw(p, {
-				.position = QPoint(
-					forwardLeft,
-					backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
-				.availableWidth = width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
-				.palette = &st::historyComposeAreaPalette,
-				.spoiler = Ui::Text::DefaultSpoilerCache(),
-				.elisionLines = 1,
-			});
+			const auto x = st::historyReplySkip;
+			const auto available = width()
+				- x
+				- _fieldBarCancel->width()
+				- st::msgReplyPadding.right();
+			_forwardPanel->paint(p, x, backy, available, width());
 		}
 	}
 	if (drawWebPagePreview) {

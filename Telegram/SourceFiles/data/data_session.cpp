@@ -1151,13 +1151,6 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 	}
 }
 
-void Session::cancelForwarding(not_null<History*> history) {
-	history->setForwardDraft({});
-	session().changes().historyUpdated(
-		history,
-		Data::HistoryUpdate::Flag::ForwardDraft);
-}
-
 bool Session::chatsListLoaded(Data::Folder *folder) {
 	return chatsList(folder)->loaded();
 }

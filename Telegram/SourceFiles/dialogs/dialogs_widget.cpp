@@ -414,10 +414,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 		&& row.filteredRow;
 	const auto history = row.key.history();
 	if (const auto topic = row.key.topic()) {
-		controller()->showTopic(
-			topic,
-			row.message.fullId.msg,
-			Window::SectionShow::Way::ClearStack);
+		controller()->content()->chooseThread(topic, row.message.fullId.msg);
 	} else if (history && history->peer->isForum() && !row.message.fullId) {
 		controller()->openForum(history->peer->asChannel());
 		return;
@@ -448,7 +445,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 				toSeparate();
 			}
 		} else {
-			controller()->content()->choosePeer(peer->id, showAtMsgId);
+			controller()->content()->chooseThread(history, showAtMsgId);
 		}
 	} else if (const auto folder = row.key.folder()) {
 		controller()->openFolder(folder);
@@ -1783,7 +1780,9 @@ void Widget::dragMoveEvent(QDragMoveEvent *e) {
 			e->setDropAction(Qt::IgnoreAction);
 		}
 	} else {
-		if (_dragForward) updateDragInScroll(false);
+		if (_dragForward) {
+			updateDragInScroll(false);
+		}
 		_inner->dragLeft();
 		e->setDropAction(Qt::IgnoreAction);
 	}
@@ -1814,10 +1813,11 @@ void Widget::updateDragInScroll(bool inScroll) {
 void Widget::dropEvent(QDropEvent *e) {
 	_chooseByDragTimer.cancel();
 	if (_scroll->geometry().contains(e->pos())) {
-		if (auto peer = _inner->updateFromParentDrag(mapToGlobal(e->pos()))) {
+		const auto point = mapToGlobal(e->pos());
+		if (const auto thread = _inner->updateFromParentDrag(point)) {
 			e->acceptProposedAction();
 			controller()->content()->onFilesOrForwardDrop(
-				peer->id,
+				thread,
 				e->mimeData());
 			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
@@ -2339,10 +2339,8 @@ bool Widget::cancelSearch() {
 	cancelSearchRequest();
 	if (!clearingQuery && _searchInChat) {
 		if (controller()->adaptive().isOneColumn()) {
-			if (const auto topic = _searchInChat.topic()) {
-				controller()->showTopic(topic);
-			} else if (const auto peer = _searchInChat.peer()) {
-				controller()->showPeerHistory(peer);
+			if (const auto thread = _searchInChat.thread()) {
+				controller()->showThread(thread);
 			} else {
 				Unexpected("Empty key in cancelSearch().");
 			}
@@ -2371,10 +2369,8 @@ void Widget::cancelSearchInChat() {
 		if (isOneColumn
 			&& !controller()->selectingPeer()
 			&& currentSearchQuery().trimmed().isEmpty()) {
-			if (const auto topic = _searchInChat.topic()) {
-				controller()->showTopic(topic);
-			} else if (const auto peer = _searchInChat.peer()) {
-				controller()->showPeerHistory(peer);
+			if (const auto thread = _searchInChat.thread()) {
+				controller()->showThread(thread);
 			} else {
 				Unexpected("Empty key in cancelSearchInPeer().");
 			}

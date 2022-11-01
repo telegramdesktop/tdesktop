@@ -94,6 +94,7 @@ class ComposeSearch;
 namespace Controls {
 class RecordLock;
 class VoiceRecordBar;
+class ForwardPanel;
 class TTLButton;
 } // namespace Controls
 } // namespace HistoryView
@@ -110,6 +111,7 @@ public:
 	using FieldHistoryAction = Ui::InputField::HistoryAction;
 	using RecordLock = HistoryView::Controls::RecordLock;
 	using VoiceRecordBar = HistoryView::Controls::VoiceRecordBar;
+	using ForwardPanel = HistoryView::Controls::ForwardPanel;
 
 	HistoryWidget(
 		QWidget *parent,
@@ -189,7 +191,6 @@ public:
 	bool cancelReply(bool lastKeyboardUsed = false);
 	void cancelEdit();
 	void updateForwarding();
-	void updateForwardingTexts();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
 	[[nodiscard]] QVector<FullMsgId> replyReturns() const;
@@ -470,7 +471,6 @@ private:
 	int countMembersDropdownHeightMax() const;
 
 	void updateReplyToName();
-	void checkForwardingInfo();
 	bool editingMessage() const {
 		return _editMsgId != 0;
 	}
@@ -617,10 +617,6 @@ private:
 	MsgId _processingReplyId = 0;
 	HistoryItem *_processingReplyItem = nullptr;
 
-	Data::ResolvedForwardDraft _toForward;
-	Ui::Text::String _toForwardFrom, _toForwardText;
-	int _toForwardNameVersion = 0;
-
 	MsgId _editMsgId = 0;
 
 	HistoryItem *_replyEditMsg = nullptr;
@@ -723,6 +719,7 @@ private:
 	object_ptr<Ui::IconButton> _scheduled = { nullptr };
 	std::unique_ptr<HistoryView::Controls::TTLButton> _ttlInfo;
 	const std::unique_ptr<VoiceRecordBar> _voiceRecordBar;
+	const std::unique_ptr<ForwardPanel> _forwardPanel;
 	std::unique_ptr<HistoryView::ComposeSearch> _composeSearch;
 	bool _cmdStartShown = false;
 	object_ptr<Ui::InputField> _field;

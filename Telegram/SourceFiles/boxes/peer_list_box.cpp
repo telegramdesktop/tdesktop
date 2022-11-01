@@ -331,6 +331,14 @@ void PeerListController::peerListSearchAddRow(not_null<PeerData*> peer) {
 	}
 }
 
+void PeerListController::peerListSearchAddRow(PeerListRowId id) {
+	if (auto row = delegate()->peerListFindRow(id)) {
+		delegate()->peerListAppendFoundRow(row);
+	} else if (auto row = createSearchRow(id)) {
+		delegate()->peerListAppendSearchRow(std::move(row));
+	}
+}
+
 void PeerListController::peerListSearchRefreshRows() {
 	delegate()->peerListRefreshRows();
 }
@@ -359,13 +367,22 @@ void PeerListController::setSearchNoResultsText(const QString &text) {
 	if (text.isEmpty()) {
 		setSearchNoResults(nullptr);
 	} else {
-		setSearchNoResults(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
+		setSearchNoResults(
+			object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
 }
 
 base::unique_qptr<Ui::PopupMenu> PeerListController::rowContextMenu(
 		QWidget *parent,
 		not_null<PeerListRow*> row) {
+	return nullptr;
+}
+
+std::unique_ptr<PeerListRow> PeerListController::createSearchRow(
+		PeerListRowId id) {
+	if (const auto peer = session().data().peerLoaded(PeerId(id))) {
+		return createSearchRow(peer);
+	}
 	return nullptr;
 }
 
@@ -647,6 +664,18 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback() {
 		}
 	};
 }
+
+
+auto PeerListRow::generateNameFirstLetters() const
+-> const base::flat_set<QChar> & {
+	return peer()->nameFirstLetters();
+}
+
+auto PeerListRow::generateNameWords() const
+-> const base::flat_set<QString> & {
+	return peer()->nameWords();
+}
+
 
 void PeerListRow::invalidatePixmapsCache() {
 	if (_checkbox) {
@@ -983,12 +1012,12 @@ bool PeerListContent::addingToSearchIndex() const {
 }
 
 void PeerListContent::addToSearchIndex(not_null<PeerListRow*> row) {
-	if (row->isSearchResult() || row->special()) {
+	if (row->isSearchResult()) {
 		return;
 	}
 
 	removeFromSearchIndex(row);
-	row->setNameFirstLetters(row->peer()->nameFirstLetters());
+	row->setNameFirstLetters(row->generateNameFirstLetters());
 	for (auto ch : row->nameFirstLetters()) {
 		_searchIndex[ch].push_back(row);
 	}
@@ -1813,9 +1842,9 @@ void PeerListContent::searchQueryChanged(QString query) {
 			}
 			if (minimalList) {
 				auto searchWordInNames = [](
-						not_null<PeerData*> peer,
+						not_null<PeerListRow*> row,
 						const QString &searchWord) {
-					for (auto &nameWord : peer->nameWords()) {
+					for (auto &nameWord : row->generateNameWords()) {
 						if (nameWord.startsWith(searchWord)) {
 							return true;
 						}
@@ -1823,9 +1852,9 @@ void PeerListContent::searchQueryChanged(QString query) {
 					return false;
 				};
 				auto allSearchWordsInNames = [&](
-						not_null<PeerData*> peer) {
+						not_null<PeerListRow*> row) {
 					for (const auto &searchWord : searchWordsList) {
-						if (!searchWordInNames(peer, searchWord)) {
+						if (!searchWordInNames(row, searchWord)) {
 							return false;
 						}
 					}
@@ -1834,7 +1863,7 @@ void PeerListContent::searchQueryChanged(QString query) {
 
 				_filterResults.reserve(minimalList->size());
 				for (const auto &row : *minimalList) {
-					if (!row->special() && allSearchWordsInNames(row->peer())) {
+					if (allSearchWordsInNames(row)) {
 						_filterResults.push_back(row);
 					}
 				}

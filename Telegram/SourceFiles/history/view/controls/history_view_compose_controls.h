@@ -149,6 +149,7 @@ public:
 	bool returnTabbedSelector();
 
 	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 
 	[[nodiscard]] bool preventsClose(Fn<void()> &&continueCallback) const;
@@ -163,6 +164,9 @@ public:
 
 	void replyToMessage(FullMsgId id);
 	void cancelReplyMessage();
+
+	void updateForwarding();
+	void cancelForward();
 
 	bool handleCancelRequest();
 
@@ -208,6 +212,7 @@ private:
 	void initSendButton();
 	void initSendAsButton();
 	void initWebpageProcess();
+	void initForwardProcess();
 	void initWriteRestriction();
 	void initVoiceRecordBar();
 	void initAutocomplete();
@@ -294,7 +299,6 @@ private:
 	rpl::variable<bool> _sendDisabledBySlowmode;
 	rpl::variable<std::optional<QString>> _writeRestriction;
 	rpl::variable<bool> _hidden;
-	MsgId _topicRootId = 0;
 	Mode _mode = Mode::Normal;
 
 	const std::unique_ptr<Ui::RpWidget> _wrap;

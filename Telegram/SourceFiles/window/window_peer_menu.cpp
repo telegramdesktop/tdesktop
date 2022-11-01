@@ -188,6 +188,27 @@ void PeerMenuAddMuteSubmenuAction(
 	}
 }
 
+void ForwardToSelf(
+		not_null<Window::SessionNavigation*> navigation,
+		const Data::ForwardDraft &draft) {
+	const auto content = navigation->parentController()->content();
+	const auto session = &navigation->session();
+	const auto history = session->data().history(session->user());
+	auto resolved = history->resolveForwardDraft(draft);
+	if (!resolved.items.empty()) {
+		auto action = Api::SendAction(history);
+		action.clearDraft = false;
+		action.generateLocal = false;
+		const auto weakContent = Ui::MakeWeak(content);
+		session->api().forwardMessages(
+			std::move(resolved),
+			action,
+			crl::guard(weakContent, [w = weakContent] {
+				Ui::Toast::Show(w, tr::lng_share_done(tr::now));
+			}));
+	}
+}
+
 class Filler {
 public:
 	Filler(
@@ -1227,14 +1248,15 @@ void PeerMenuShareContactBox(
 		not_null<UserData*> user) {
 	// There is no async to make weak from controller.
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	auto callback = [=](not_null<PeerData*> peer) {
-		if (!peer->canWrite()) { // #TODO forum forward
+	auto callback = [=](not_null<Data::Thread*> thread) {
+		const auto peer = thread->owningHistory()->peer;
+		if (!thread->canWrite()) {
 			navigation->parentController()->show(
 				Ui::MakeInformBox(tr::lng_forward_share_cant()),
 				Ui::LayerOption::KeepOther);
 			return;
 		} else if (peer->isSelf()) {
-			auto action = Api::SendAction(peer->owner().history(peer));
+			auto action = Api::SendAction(thread);
 			action.clearDraft = false;
 			user->session().api().shareContact(user, action);
 			Ui::Toast::Show(
@@ -1245,24 +1267,29 @@ void PeerMenuShareContactBox(
 			}
 			return;
 		}
+		const auto title = thread->asTopic()
+			? thread->asTopic()->title()
+			: peer->name();
 		auto recipient = peer->isUser()
-			? peer->name()
-			: '\xAB' + peer->name() + '\xBB';
+			? title
+			: ('\xAB' + title + '\xBB');
+		const auto weak = base::make_weak(thread);
 		navigation->parentController()->show(
 			Ui::MakeConfirmBox({
 				.text = tr::lng_forward_share_contact(
 					tr::now,
 					lt_recipient,
 					recipient),
-				.confirmed = [peer, user, navigation](Fn<void()> &&close) {
-					const auto history = peer->owner().history(peer);
-					navigation->showPeerHistory(
-						history,
-						Window::SectionShow::Way::ClearStack,
-						ShowAtTheEndMsgId);
-					auto action = Api::SendAction(history);
-					action.clearDraft = false;
-					user->session().api().shareContact(user, action);
+				.confirmed = [weak, user, navigation](Fn<void()> &&close) {
+					if (const auto strong = weak.get()) {
+						navigation->showThread(
+							strong,
+							ShowAtTheEndMsgId,
+							Window::SectionShow::Way::ClearStack);
+						auto action = Api::SendAction(strong);
+						action.clearDraft = false;
+						strong->session().api().shareContact(user, action);
+					}
 					close();
 				},
 				.confirmText = tr::lng_forward_send(),
@@ -1470,32 +1497,19 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		Data::ForwardDraft &&draft,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	auto callback = [
+	auto chosen = [
 		draft = std::move(draft),
 		callback = std::move(successCallback),
 		weak,
 		navigation
-	](not_null<PeerData*> peer) mutable {
+	](not_null<Data::Thread*> thread) mutable {
+		const auto peer = thread->owningHistory()->peer;
 		const auto content = navigation->parentController()->content();
 		if (peer->isSelf()
 			&& !draft.ids.empty()
 			&& draft.ids.front().peer != peer->id) {
-			const auto history = peer->owner().history(peer);
-			auto resolved = history->resolveForwardDraft(draft);
-			if (!resolved.items.empty()) {
-				const auto api = &peer->session().api();
-				auto action = Api::SendAction(peer->owner().history(peer));
-				action.clearDraft = false;
-				action.generateLocal = false;
-				const auto weakContent = Ui::MakeWeak(content);
-				api->forwardMessages(
-					std::move(resolved),
-					action,
-					crl::guard(weakContent, [w = weakContent] {
-						Ui::Toast::Show(w, tr::lng_share_done(tr::now));
-					}));
-			}
-		} else if (!content->setForwardDraft(peer->id, std::move(draft))) {
+			ForwardToSelf(navigation, draft);
+		} else if (!content->setForwardDraft(thread, std::move(draft))) {
 			return;
 		}
 		if (const auto strong = *weak) {
@@ -1513,7 +1527,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
 			&navigation->session(),
-			std::move(callback)),
+			std::move(chosen)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
 }
@@ -1526,6 +1540,50 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		navigation,
 		Data::ForwardDraft{ .ids = std::move(items) },
 		std::move(successCallback));
+}
+
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		Data::ForwardDraft &&draft,
+		not_null<Data::Forum*> forum,
+		FnMut<void()> &&successCallback) {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto chosen = [
+		draft = std::move(draft),
+		callback = std::move(successCallback),
+		weak,
+		navigation
+	](not_null<Data::ForumTopic*> topic) mutable {
+		const auto content = navigation->parentController()->content();
+		if (!content->setForwardDraft(topic, std::move(draft))) {
+			return;
+		} else if (const auto strong = *weak) {
+			strong->closeBox();
+		}
+		if (callback) {
+			callback();
+		}
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = navigation->parentController()->show(Box<PeerListBox>(
+		std::make_unique<ChooseTopicBoxController>(
+			forum,
+			std::move(chosen)),
+		[=](not_null<PeerListBox*> box) {
+			box->addButton(tr::lng_cancel(), [=] {
+				box->closeBox();
+			});
+
+			forum->destroyed(
+			) | rpl::start_with_next([=] {
+				box->closeBox();
+			}, box->lifetime());
+		}));
+	return weak->data();
 }
 
 QPointer<Ui::BoxContent> ShowSendNowMessagesBox(

@@ -40,6 +40,7 @@ class SessionController;
 
 namespace Data {
 class CloudImageView;
+class Thread;
 class Folder;
 class Forum;
 } // namespace Data
@@ -133,7 +134,7 @@ public:
 	void onHashtagFilterUpdate(QStringView newFilter);
 	void appendToFiltered(Key key);
 
-	PeerData *updateFromParentDrag(QPoint globalPosition);
+	Data::Thread *updateFromParentDrag(QPoint globalPosition);
 
 	void setLoadMoreCallback(Fn<void()> callback);
 	void setLoadMoreFilteredCallback(Fn<void()> callback);

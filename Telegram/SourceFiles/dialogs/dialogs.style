@@ -445,3 +445,18 @@ forumTopicIconPosition: point(2px, 0px);
 editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
 editTopicIconPosition: point(24px, 19px);
 editTopicMaxHeight: 408px;
+
+chooseTopicListItem: PeerListItem(defaultPeerListItem) {
+	height: 44px;
+	photoSize: 28px;
+	photoPosition: point(16px, 5px);
+	namePosition: point(71px, 11px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+chooseTopicList: PeerList(defaultPeerList) {
+	item: chooseTopicListItem;
+}

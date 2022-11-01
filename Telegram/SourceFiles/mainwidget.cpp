@@ -51,6 +51,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_history_hider.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "window/themes/window_theme.h"
 #include "chat_helpers/tabbed_selector.h" // TabbedSelector::refreshStickers
 #include "chat_helpers/message_field.h"
@@ -307,27 +308,23 @@ MainWidget::MainWidget(
 
 	session().changes().historyUpdates(
 		Data::HistoryUpdate::Flag::MessageSent
-		| Data::HistoryUpdate::Flag::LocalDraftSet
 	) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
 		const auto history = update.history;
-		if (update.flags & Data::HistoryUpdate::Flag::MessageSent) {
-			history->forgetScrollState();
-			if (const auto from = history->peer->migrateFrom()) {
-				auto &owner = history->owner();
-				if (const auto migrated = owner.historyLoaded(from)) {
-					migrated->forgetScrollState();
-				}
+		history->forgetScrollState();
+		if (const auto from = history->peer->migrateFrom()) {
+			auto &owner = history->owner();
+			if (const auto migrated = owner.historyLoaded(from)) {
+				migrated->forgetScrollState();
 			}
 		}
-		if (update.flags & Data::HistoryUpdate::Flag::LocalDraftSet) {
-			const auto opened = (_history->peer() == history->peer.get());
-			if (opened) {
-				_history->applyDraft();
-			} else {
-				Ui::showPeerHistory(history, ShowAtUnreadMsgId);
-			}
-			_controller->hideLayer();
-		}
+	}, lifetime());
+
+	session().changes().entryUpdates(
+		Data::EntryUpdate::Flag::LocalDraftSet
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		controller->showThread(update.entry->asThread(), ShowAtUnreadMsgId);
+		_history->applyDraft(); // #TODO forum drop
+		controller->hideLayer();
 	}, lifetime());
 
 	// MSVC BUG + REGRESSION rpl::mappers::tuple :(
@@ -515,36 +512,38 @@ void MainWidget::floatPlayerDoubleClickEvent(
 	_controller->showMessage(item);
 }
 
-bool MainWidget::setForwardDraft(PeerId peerId, Data::ForwardDraft &&draft) {
-	Expects(peerId != 0);
-
-	const auto peer = session().data().peer(peerId);
+bool MainWidget::setForwardDraft(
+		not_null<Data::Thread*> thread,
+		Data::ForwardDraft &&draft) {
+	const auto history = thread->owningHistory();
+	const auto peer = history->peer;
 	const auto items = session().data().idsToItems(draft.ids);
+	const auto topicRootId = thread->topicRootId();
 	const auto error = GetErrorTextForSending(
-		peer, // #TODO forum forward
-		{ .forward = &items, .ignoreSlowmodeCountdown = true });
+		history->peer,
+		{
+			.topicRootId = topicRootId,
+			.forward = &items,
+			.ignoreSlowmodeCountdown = true,
+		});
 	if (!error.isEmpty()) {
 		Ui::show(Ui::MakeInformBox(error), Ui::LayerOption::KeepOther);
 		return false;
 	}
 
-	peer->owner().history(peer)->setForwardDraft(std::move(draft));
-	_controller->showPeerHistory(
-		peer,
-		SectionShow::Way::Forward,
-		ShowAtUnreadMsgId);
-	_history->cancelReply();
+	history->setForwardDraft(topicRootId, std::move(draft));
+	_controller->showThread(
+		thread,
+		ShowAtUnreadMsgId,
+		SectionShow::Way::Forward);
 	return true;
 }
 
 bool MainWidget::shareUrl(
-		PeerId peerId,
+		not_null<Data::Thread*> thread,
 		const QString &url,
 		const QString &text) const {
-	Expects(peerId != 0);
-
-	const auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) { // #TODO forum forward
+	if (!thread->canWrite()) {
 		_controller->show(Ui::MakeInformBox(tr::lng_share_cant()));
 		return false;
 	}
@@ -557,8 +556,8 @@ bool MainWidget::shareUrl(
 		int(url.size()) + 1 + int(text.size()),
 		QFIXED_MAX
 	};
-	const auto history = peer->owner().history(peer);
-	const auto topicRootId = 0;
+	const auto history = thread->owningHistory();
+	const auto topicRootId = thread->topicRootId();
 	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
 		0, // replyTo
@@ -566,23 +565,19 @@ bool MainWidget::shareUrl(
 		cursor,
 		Data::PreviewState::Allowed));
 	history->clearLocalEditDraft(topicRootId);
-	history->session().changes().historyUpdated(
-		history,
-		Data::HistoryUpdate::Flag::LocalDraftSet);
+	history->session().changes().entryUpdated(
+		thread,
+		Data::EntryUpdate::Flag::LocalDraftSet);
 	return true;
 }
 
 bool MainWidget::inlineSwitchChosen(
-		PeerId peerId,
+		not_null<Data::Thread*> thread,
 		const QString &botAndQuery) const {
-	Expects(peerId != 0);
-
-	const auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) { // #TODO forum forward
+	if (!thread->canWrite()) { // #TODO forum forward
 		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
-	const auto h = peer->owner().history(peer);
 	const auto textWithTags = TextWithTags{
 		botAndQuery,
 		TextWithTags::Tags(),
@@ -592,61 +587,74 @@ bool MainWidget::inlineSwitchChosen(
 		int(botAndQuery.size()),
 		QFIXED_MAX
 	};
-	const auto topicRootId = 0;
-	h->setLocalDraft(std::make_unique<Data::Draft>(
+	const auto history = thread->owningHistory();
+	const auto topicRootId = thread->topicRootId();
+	history->setLocalDraft(std::make_unique<Data::Draft>(
 		textWithTags,
 		0, // replyTo
 		topicRootId,
 		cursor,
 		Data::PreviewState::Allowed));
-	h->clearLocalEditDraft(topicRootId);
-	h->session().changes().historyUpdated(
-		h,
-		Data::HistoryUpdate::Flag::LocalDraftSet);
+	history->clearLocalEditDraft(topicRootId);
+	thread->session().changes().entryUpdated(
+		thread,
+		Data::EntryUpdate::Flag::LocalDraftSet);
 	return true;
 }
 
-bool MainWidget::sendPaths(PeerId peerId) {
-	Expects(peerId != 0);
-
-	auto peer = session().data().peer(peerId);
-	if (!peer->canWrite()) { // #TODO forum forward
+bool MainWidget::sendPaths(not_null<Data::Thread*> thread) {
+	if (!thread->canWrite()) {
 		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else if (const auto error = Data::RestrictionError(
-			peer,
+			thread->owningHistory()->peer,
 			ChatRestriction::SendMedia)) {
 		Ui::show(Ui::MakeInformBox(*error));
 		return false;
+	} else {
+		controller()->showThread(
+			thread,
+			ShowAtTheEndMsgId,
+			Window::SectionShow::Way::ClearStack);
 	}
-	Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-	return _history->confirmSendingFiles(cSendPaths());
+	// #TODO forum drop
+	return (controller()->activeChatCurrent().thread() == thread)
+		&& _history->confirmSendingFiles(cSendPaths());
 }
 
 void MainWidget::onFilesOrForwardDrop(
-		const PeerId &peerId,
+		not_null<Data::Thread*> thread,
 		const QMimeData *data) {
-	Expects(peerId != 0);
-
 	if (data->hasFormat(qsl("application/x-td-forward"))) {
 		auto draft = Data::ForwardDraft{
 			.ids = session().data().takeMimeForwardIds(),
 		};
-		if (!setForwardDraft(peerId, std::move(draft))) {
-			// We've already released the mouse button, so the forwarding is cancelled.
-			if (_hider) {
-				_hider->startHide();
-				clearHider(_hider);
-			}
-		}
-	} else {
-		auto peer = session().data().peer(peerId);
-		if (!peer->canWrite()) { // #TODO forum forward
-			Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
+		const auto history = thread->asHistory();
+		if (const auto forum = history ? history->peer->forum() : nullptr) {
+			Window::ShowForwardMessagesBox(
+				_controller,
+				std::move(draft),
+				forum);
+		} else if (setForwardDraft(thread, std::move(draft))) {
 			return;
 		}
-		Ui::showPeerHistory(peer, ShowAtTheEndMsgId);
-		_history->confirmSendingFiles(data);
+		// We've already released the mouse button,
+		// so the forwarding is cancelled.
+		if (_hider) {
+			_hider->startHide();
+			clearHider(_hider);
+		}
+	} else if (!thread->canWrite()) {
+		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
+	} else {
+		controller()->showThread(
+			thread,
+			ShowAtTheEndMsgId,
+			Window::SectionShow::Way::ClearStack);
+		if (thread->asHistory()) {
+			// #TODO forum drop
+			_history->confirmSendingFiles(data);
+		}
 	}
 }
 
@@ -735,8 +743,9 @@ void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
 }
 
 void MainWidget::showForwardLayer(Data::ForwardDraft &&draft) {
-	auto callback = [=, draft = std::move(draft)](PeerId peer) mutable {
-		return setForwardDraft(peer, std::move(draft));
+	auto callback = [=, draft = std::move(draft)](
+			not_null<Data::Thread*> thread) mutable {
+		return setForwardDraft(thread, std::move(draft));
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
@@ -749,7 +758,7 @@ void MainWidget::showSendPathsLayer() {
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
 		tr::lng_forward_choose(tr::now),
-		[=](PeerId peer) { return sendPaths(peer); },
+		[=](not_null<Data::Thread*> thread) { return sendPaths(thread); },
 		_controller->adaptive().oneColumnValue()));
 	if (_hider) {
 		connect(_hider, &QObject::destroyed, [] {
@@ -763,8 +772,8 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 	if (url.trimmed().startsWith('@')) {
 		return;
 	}
-	auto callback = [=](PeerId peer) {
-		return shareUrl(peer, url, text);
+	auto callback = [=](not_null<Data::Thread*> thread) {
+		return shareUrl(thread, url, text);
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
@@ -774,8 +783,8 @@ void MainWidget::shareUrlLayer(const QString &url, const QString &text) {
 }
 
 void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
-	auto callback = [=](PeerId peer) {
-		return inlineSwitchChosen(peer, botAndQuery);
+	auto callback = [=](not_null<Data::Thread*> thread) {
+		return inlineSwitchChosen(thread, botAndQuery);
 	};
 	hiderLayer(base::make_unique_q<Window::HistoryHider>(
 		this,
@@ -786,6 +795,14 @@ void MainWidget::inlineSwitchLayer(const QString &botAndQuery) {
 
 bool MainWidget::selectingPeer() const {
 	return _hider ? true : false;
+}
+
+void MainWidget::clearSelectingPeer() {
+	if (_hider) {
+		_hider->startHide();
+		_hider.release();
+		controller()->setSelectingPeer(false);
+	}
 }
 
 void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
@@ -1241,14 +1258,18 @@ void MainWidget::setInnerFocus() {
 	}
 }
 
-void MainWidget::choosePeer(PeerId peerId, MsgId showAtMsgId) {
+void MainWidget::chooseThread(
+		not_null<Data::Thread*> thread,
+		MsgId showAtMsgId) {
 	if (selectingPeer()) {
-		_hider->offerPeer(peerId);
-	} else if (peerId) {
-		Ui::showPeerHistory(session().data().peer(peerId), showAtMsgId);
+		_hider->offerThread(thread);
 	} else {
-		Ui::showChatsList(&session());
+		controller()->showThread(thread, showAtMsgId);
 	}
+}
+
+void MainWidget::chooseThread(not_null<PeerData*> peer, MsgId showAtMsgId) {
+	chooseThread(peer->owner().history(peer), showAtMsgId);
 }
 
 void MainWidget::clearBotStartToken(PeerData *peer) {
@@ -1401,11 +1422,6 @@ void MainWidget::ui_showPeerHistory(
 	const auto wasActivePeer = _controller->activeChatCurrent().peer();
 	if (params.activation != anim::activation::background) {
 		controller()->window().hideSettingsAndLayer();
-	}
-	if (_hider) {
-		_hider->startHide();
-		_hider.release();
-		controller()->setSelectingPeer(false);
 	}
 
 	auto animatedShow = [&] {

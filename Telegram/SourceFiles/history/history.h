@@ -46,7 +46,13 @@ enum class ForwardOptions {
 struct ForwardDraft {
 	MessageIdsList ids;
 	ForwardOptions options = ForwardOptions::PreserveInfo;
+
+	friend inline constexpr auto operator<=>(
+		const ForwardDraft&,
+		const ForwardDraft&) = default;
 };
+
+using ForwardDrafts = base::flat_map<MsgId, ForwardDraft>;
 
 struct ResolvedForwardDraft {
 	HistoryItemsList items;
@@ -165,7 +171,8 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryItem*> forwardOriginal);
+		not_null<HistoryItem*> forwardOriginal,
+		MsgId topicRootId);
 	not_null<HistoryItem*> addNewLocalMessage(
 		MsgId id,
 		MessageFlags flags,
@@ -366,13 +373,13 @@ public:
 	void applyCloudDraft(MsgId topicRootId);
 	void draftSavedToCloud(MsgId topicRootId);
 
-	[[nodiscard]] const Data::ForwardDraft &forwardDraft() const {
-		return _forwardDraft;
-	}
+	[[nodiscard]] const Data::ForwardDraft &forwardDraft(
+		MsgId topicRootId) const;
 	[[nodiscard]] Data::ResolvedForwardDraft resolveForwardDraft(
 		const Data::ForwardDraft &draft) const;
-	[[nodiscard]] Data::ResolvedForwardDraft resolveForwardDraft();
-	void setForwardDraft(Data::ForwardDraft &&draft);
+	[[nodiscard]] Data::ResolvedForwardDraft resolveForwardDraft(
+		MsgId topicRootId);
+	void setForwardDraft(MsgId topicRootId, Data::ForwardDraft &&draft);
 
 	History *migrateSibling() const;
 	[[nodiscard]] bool useTopPromotion() const;
@@ -621,7 +628,7 @@ private:
 	Data::HistoryDrafts _drafts;
 	base::flat_map<MsgId, TimeId> _acceptCloudDraftsAfter;
 	base::flat_map<MsgId, int> _savingCloudDraftRequests;
-	Data::ForwardDraft _forwardDraft;
+	Data::ForwardDrafts _forwardDrafts;
 
 	QString _topPromotedMessage;
 	QString _topPromotedType;

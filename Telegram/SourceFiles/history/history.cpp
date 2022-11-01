@@ -355,6 +355,13 @@ void History::draftSavedToCloud(MsgId topicRootId) {
 	session().local().writeDrafts(this);
 }
 
+const Data::ForwardDraft &History::forwardDraft(
+		MsgId topicRootId) const {
+	static const auto kEmpty = Data::ForwardDraft();
+	const auto i = _forwardDrafts.find(topicRootId);
+	return (i != end(_forwardDrafts)) ? i->second : kEmpty;
+}
+
 Data::ResolvedForwardDraft History::resolveForwardDraft(
 		const Data::ForwardDraft &draft) const {
 	return Data::ResolvedForwardDraft{
@@ -363,10 +370,12 @@ Data::ResolvedForwardDraft History::resolveForwardDraft(
 	};
 }
 
-Data::ResolvedForwardDraft History::resolveForwardDraft() {
-	auto result = resolveForwardDraft(_forwardDraft);
-	if (result.items.size() != _forwardDraft.ids.size()) {
-		setForwardDraft({
+Data::ResolvedForwardDraft History::resolveForwardDraft(
+		MsgId topicRootId) {
+	const auto &draft = forwardDraft(topicRootId);
+	auto result = resolveForwardDraft(draft);
+	if (result.items.size() != draft.ids.size()) {
+		setForwardDraft(topicRootId, {
 			.ids = owner().itemsToIds(result.items),
 			.options = result.options,
 		});
@@ -374,8 +383,29 @@ Data::ResolvedForwardDraft History::resolveForwardDraft() {
 	return result;
 }
 
-void History::setForwardDraft(Data::ForwardDraft &&draft) {
-	_forwardDraft = std::move(draft);
+void History::setForwardDraft(
+		MsgId topicRootId,
+		Data::ForwardDraft &&draft) {
+	auto changed = false;
+	if (draft.ids.empty()) {
+		changed = _forwardDrafts.remove(topicRootId);
+	} else {
+		auto &now = _forwardDrafts[topicRootId];
+		if (now != draft) {
+			now = std::move(draft);
+			changed = true;
+		}
+	}
+	if (changed) {
+		const auto entry = topicRootId
+			? peer->forumTopicFor(topicRootId)
+			: (Dialogs::Entry*)this;
+		if (entry) {
+			session().changes().entryUpdated(
+				entry,
+				Data::EntryUpdate::Flag::ForwardDraft);
+		}
+	}
 }
 
 not_null<HistoryItem*> History::createItem(
@@ -624,7 +654,8 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryItem*> forwardOriginal) {
+		not_null<HistoryItem*> forwardOriginal,
+		MsgId topicRootId) {
 	return addNewItem(
 		makeMessage(
 			id,
@@ -632,7 +663,8 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 			date,
 			from,
 			postAuthor,
-			forwardOriginal),
+			forwardOriginal,
+			topicRootId),
 		true);
 }
 

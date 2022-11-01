@@ -42,6 +42,7 @@ class Session;
 } // namespace Main
 
 namespace Data {
+class Thread;
 class WallPaper;
 struct ForwardDraft;
 } // namespace Data
@@ -174,10 +175,15 @@ public:
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
-	bool setForwardDraft(PeerId peer, Data::ForwardDraft &&draft);
-	bool sendPaths(PeerId peerId);
-	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
+	bool setForwardDraft(
+		not_null<Data::Thread*> thread,
+		Data::ForwardDraft &&draft);
+	bool sendPaths(not_null<Data::Thread*> thread);
+	void onFilesOrForwardDrop(
+		not_null<Data::Thread*> thread,
+		const QMimeData *data);
 	bool selectingPeer() const;
+	void clearSelectingPeer();
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -192,8 +198,9 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	// Does offerPeer or showPeerHistory.
-	void choosePeer(PeerId peerId, MsgId showAtMsgId);
+	// Does offerThread or showThread.
+	void chooseThread(not_null<Data::Thread*> thread, MsgId showAtMsgId);
+	void chooseThread(not_null<PeerData*> peer, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
 
 	void ctrlEnterSubmitUpdated();
@@ -251,10 +258,12 @@ private:
 		-> std::shared_ptr<Window::SectionMemento>;
 
 	bool shareUrl(
-		PeerId peerId,
+		not_null<Data::Thread*> thread,
 		const QString &url,
 		const QString &text) const;
-	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) const;
+	bool inlineSwitchChosen(
+		not_null<Data::Thread*> thread,
+		const QString &botAndQuery) const;
 
 	void setupConnectingWidget();
 	void createPlayer();

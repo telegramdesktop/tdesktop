@@ -216,7 +216,11 @@ public:
 		const SectionShow &params = SectionShow());
 	void showTopic(
 		not_null<Data::ForumTopic*> topic,
-		MsgId commentId = 0,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
+	void showThread(
+		not_null<Data::Thread*> thread,
+		MsgId itemId = 0,
 		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(

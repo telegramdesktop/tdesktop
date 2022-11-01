@@ -132,16 +132,17 @@ struct ParsedBot {
 void ShowChooseBox(
 		not_null<Window::SessionController*> controller,
 		PeerTypes types,
-		Fn<void(not_null<PeerData*>)> callback) {
+		Fn<void(not_null<Data::Thread*>)> callback) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	auto done = [=](not_null<PeerData*> peer) mutable {
+	auto done = [=](not_null<Data::Thread*> thread) mutable {
 		if (const auto strong = *weak) {
 			strong->closeBox();
 		}
-		callback(peer);
+		callback(thread);
 	};
-	auto filter = [=](not_null<PeerData*> peer) -> bool {
-		if (!peer->canWrite()) { // #TODO forum forward
+	auto filter = [=](not_null<Data::Thread*> thread) -> bool {
+		const auto peer = thread->owningHistory()->peer;
+		if (!thread->canWrite()) {
 			return false;
 		} else if (const auto user = peer->asUser()) {
 			if (user->isBot()) {
@@ -577,16 +578,15 @@ void AttachWebView::requestAddToMenu(
 		const auto open = [=](PeerTypes types) {
 			if (const auto useTypes = chooseTypes & types) {
 				if (const auto strong = chooseController.get()) {
-					const auto callback = [=](not_null<PeerData*> peer) {
-						const auto history = peer->owner().history(peer);
-						strong->showPeerHistory(history);
+					const auto done = [=](not_null<Data::Thread*> thread) {
+						strong->showThread(thread);
 						request(
 							nullptr,
-							Api::SendAction(history),
+							Api::SendAction(thread),
 							bot,
 							{ .startCommand = startCommand });
 					};
-					ShowChooseBox(strong, useTypes, callback);
+					ShowChooseBox(strong, useTypes, done);
 				}
 				return true;
 			} else if (!contextAction) {

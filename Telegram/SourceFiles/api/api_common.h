@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class History;
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Api {
 
 struct SendOptions {
@@ -28,11 +32,8 @@ enum class SendType {
 
 struct SendAction {
 	explicit SendAction(
-		not_null<History*> history,
-		SendOptions options = SendOptions())
-	: history(history)
-	, options(options) {
-	}
+		not_null<Data::Thread*> thread,
+		SendOptions options = SendOptions());
 
 	not_null<History*> history;
 	SendOptions options;

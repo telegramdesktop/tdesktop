@@ -125,13 +125,11 @@ struct HistoryUpdate {
 		ChatOccupied       = (1U << 7),
 		MessageSent        = (1U << 8),
 		ScheduledSent      = (1U << 9),
-		ForwardDraft       = (1U << 10),
-		OutboxRead         = (1U << 11),
-		BotKeyboard        = (1U << 12),
-		CloudDraft         = (1U << 13),
-		LocalDraftSet      = (1U << 14),
+		OutboxRead         = (1U << 10),
+		BotKeyboard        = (1U << 11),
+		CloudDraft         = (1U << 12),
 
-		LastUsedBit        = (1U << 14),
+		LastUsedBit        = (1U << 12),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -196,8 +194,10 @@ struct EntryUpdate {
 
 		Repaint = (1U << 0),
 		HasPinnedMessages = (1U << 1),
+		ForwardDraft = (1U << 2),
+		LocalDraftSet = (1U << 3),
 
-		LastUsedBit = (1U << 1),
+		LastUsedBit = (1U << 3),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

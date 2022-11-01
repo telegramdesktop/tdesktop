@@ -691,9 +691,8 @@ void MainMenu::setupMenu() {
 			tr::lng_saved_messages(),
 			{ &st::settingsIconSavedMessages, kIconLightBlue }
 		)->setClickedCallback([=] {
-			controller->content()->choosePeer(
-				controller->session().userPeerId(),
-				ShowAtUnreadMsgId);
+			const auto self = controller->session().user();
+			controller->content()->chooseThread(self, ShowAtUnreadMsgId);
 		});
 	} else {
 		addAction(

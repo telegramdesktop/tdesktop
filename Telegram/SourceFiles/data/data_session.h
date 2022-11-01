@@ -226,8 +226,6 @@ public:
 
 	void deleteConversationLocally(not_null<PeerData*> peer);
 
-	void cancelForwarding(not_null<History*> history);
-
 	[[nodiscard]] rpl::variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}

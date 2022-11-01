@@ -669,6 +669,7 @@ void RepliesWidget::setupComposeControls() {
 
 	_composeControls->setHistory({
 		.history = _history.get(),
+		.topicRootId = _topic ? _topic->rootId() : MsgId(0),
 		.showSlowmodeError = [=] { return showSlowmodeError(); },
 		.sendActionFactory = [=] { return prepareSendAction({}); },
 		.slowmodeSecondsLeft = std::move(slowmodeSecondsLeft),
@@ -708,6 +709,7 @@ void RepliesWidget::setupComposeControls() {
 			return;
 		}
 		listSendBotCommand(command, FullMsgId());
+		session().api().finishForwarding(prepareSendAction({}));
 	}, lifetime());
 
 	const auto saveEditMsgRequestId = lifetime().make_state<mtpRequestId>(0);

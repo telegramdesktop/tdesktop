@@ -622,13 +622,27 @@ void SessionNavigation::showPeerInfo(
 
 void SessionNavigation::showTopic(
 		not_null<Data::ForumTopic*> topic,
-		MsgId commentId,
+		MsgId itemId,
 		const SectionShow &params) {
 	return showRepliesForMessage(
 		topic->history(),
 		topic->rootId(),
-		commentId,
+		itemId,
 		params);
+}
+
+void SessionNavigation::showThread(
+		not_null<Data::Thread*> thread,
+		MsgId itemId,
+		const SectionShow &params) {
+	if (const auto topic = thread->asTopic()) {
+		showTopic(topic, itemId, params);
+	} else {
+		showPeerHistory(thread->asHistory(), params, itemId);
+	}
+	if (parentController()->activeChatCurrent().thread() == thread) {
+		parentController()->content()->clearSelectingPeer();
+	}
 }
 
 void SessionNavigation::showPeerInfo(

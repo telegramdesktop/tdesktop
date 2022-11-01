@@ -411,7 +411,8 @@ HistoryMessage::HistoryMessage(
 	TimeId date,
 	PeerId from,
 	const QString &postAuthor,
-	not_null<HistoryItem*> original)
+	not_null<HistoryItem*> original,
+	MsgId topicRootId)
 : HistoryItem(
 		history,
 		id,
@@ -424,6 +425,8 @@ HistoryMessage::HistoryMessage(
 
 	const auto originalMedia = original->media();
 	const auto dropForwardInfo = original->computeDropForwardedInfo();
+	config.replyTo = config.replyToTop = topicRootId;
+	config.replyIsTopicPost = (topicRootId != 0);
 	if (!dropForwardInfo) {
 		config.originalDate = original->dateOriginal();
 		if (const auto info = original->hiddenSenderInfo()) {

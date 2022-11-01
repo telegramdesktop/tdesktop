@@ -778,13 +778,14 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		}
 	};
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		(_hasArchive && (index == (_selfUnpinned ? -2 : -1)))
-			? openFolder()
-			: controller->content()->choosePeer(
-				(_selfUnpinned && index == -1)
-					? _session->userPeerId()
-					: peer->id,
-				ShowAtUnreadMsgId);
+		if (_hasArchive && (index == (_selfUnpinned ? -2 : -1))) {
+			openFolder();
+		} else {
+			const auto chosen = (_selfUnpinned && index == -1)
+				? _session->user()
+				: peer;
+			controller->content()->chooseThread(chosen, ShowAtUnreadMsgId);
+		}
 	});
 }
 

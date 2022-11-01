@@ -113,6 +113,7 @@ PRIVATE
     api/api_chat_participants.h
     api/api_cloud_password.cpp
     api/api_cloud_password.h
+    api/api_common.cpp
     api/api_common.h
     api/api_confirm_phone.cpp
     api/api_confirm_phone.h
@@ -625,6 +626,8 @@ PRIVATE
     history/view/controls/history_view_compose_controls.h
     history/view/controls/history_view_compose_search.cpp
     history/view/controls/history_view_compose_search.h
+    history/view/controls/history_view_forward_panel.cpp
+    history/view/controls/history_view_forward_panel.h
     history/view/controls/history_view_ttl_button.cpp
     history/view/controls/history_view_ttl_button.h
     history/view/controls/history_view_voice_record_bar.cpp

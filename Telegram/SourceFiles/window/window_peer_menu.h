@@ -21,6 +21,7 @@ class GenericBox;
 } // namespace Ui
 
 namespace Data {
+class Forum;
 class Folder;
 class Session;
 struct ForwardDraft;
@@ -120,6 +121,11 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
+	FnMut<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+	not_null<Window::SessionNavigation*> navigation,
+	Data::ForwardDraft &&draft,
+	not_null<Data::Forum*> forum,
 	FnMut<void()> &&successCallback = nullptr);
 
 QPointer<Ui::BoxContent> ShowSendNowMessagesBox(

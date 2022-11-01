@@ -2191,23 +2191,27 @@ void InnerWidget::trackSearchResultsHistory(not_null<History*> history) {
 	}
 }
 
-PeerData *InnerWidget::updateFromParentDrag(QPoint globalPosition) {
+Data::Thread *InnerWidget::updateFromParentDrag(QPoint globalPosition) {
 	selectByMouse(globalPosition);
-	const auto getPeerFromRow = [](Row *row) -> PeerData* {
-		if (const auto history = row ? row->history() : nullptr) {
-			return history->peer;
-		}
-		return nullptr;
+
+	const auto fromRow = [](Row *row) {
+		return row ? row->thread() : nullptr;
 	};
 	if (_state == WidgetState::Default) {
-		return getPeerFromRow(_selected);
+		return fromRow(_selected);
 	} else if (_state == WidgetState::Filtered) {
 		if (base::in_range(_filteredSelected, 0, _filterResults.size())) {
-			return getPeerFromRow(_filterResults[_filteredSelected]);
+			return fromRow(_filterResults[_filteredSelected]);
 		} else if (base::in_range(_peerSearchSelected, 0, _peerSearchResults.size())) {
-			return _peerSearchResults[_peerSearchSelected]->peer;
+			return session().data().history(
+				_peerSearchResults[_peerSearchSelected]->peer);
 		} else if (base::in_range(_searchedSelected, 0, _searchResults.size())) {
-			return _searchResults[_searchedSelected]->item()->history()->peer;
+			if (const auto item = _searchResults[_searchedSelected]->item()) {
+				if (const auto topic = item->topic()) {
+					return topic;
+				}
+				return item->history();
+			}
 		}
 	}
 	return nullptr;
@@ -3416,8 +3420,8 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			_controller->content()->choosePeer(
-				session().userPeerId(),
+			_controller->content()->chooseThread(
+				session().user(),
 				ShowAtUnreadMsgId);
 			return true;
 		});

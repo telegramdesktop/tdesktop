@@ -72,7 +72,8 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryItem*> original); // local forwarded
+		not_null<HistoryItem*> original,
+		MsgId topicRootId); // local forwarded
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,

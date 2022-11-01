@@ -3049,7 +3049,7 @@ void ApiWrap::sendAction(const SendAction &action) {
 
 void ApiWrap::finishForwarding(const SendAction &action) {
 	const auto history = action.history;
-	auto toForward = history->resolveForwardDraft();
+	auto toForward = history->resolveForwardDraft(action.topicRootId);
 	if (!toForward.items.empty()) {
 		const auto error = GetErrorTextForSending(
 			history->peer,
@@ -3062,7 +3062,7 @@ void ApiWrap::finishForwarding(const SendAction &action) {
 		}
 
 		forwardMessages(std::move(toForward), action);
-		_session->data().cancelForwarding(history);
+		history->setForwardDraft(action.topicRootId, {});
 	}
 
 	_session->data().sendHistoryChangeNotifications();
@@ -3199,7 +3199,8 @@ void ApiWrap::forwardMessages(
 				HistoryItem::NewMessageDate(action.options.scheduled),
 				messageFromId,
 				messagePostAuthor,
-				item); // #TODO forum forward
+				item,
+				action.topicRootId); // #TODO forum forward
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
