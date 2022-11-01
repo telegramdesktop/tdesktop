@@ -329,10 +329,7 @@ not_null<HistoryMessage*> Message::message() const {
 
 void Message::refreshRightBadge() {
 	const auto text = [&] {
-		const auto author = delegate()->elementAuthorRank(this);
-		if (!author.isEmpty()) {
-			return author;
-		} else if (data()->isDiscussionPost()) {
+		if (data()->isDiscussionPost()) {
 			return (delegate()->elementContext() == Context::Replies)
 				? QString()
 				: tr::lng_channel_badge(tr::now);
@@ -362,12 +359,13 @@ void Message::refreshRightBadge() {
 			? tr::lng_admin_badge(tr::now)
 			: QString();
 	}();
-	if (text.isEmpty()) {
+	const auto badge = text.isEmpty()
+		? delegate()->elementAuthorRank(this)
+		: TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text));
+	if (badge.isEmpty()) {
 		_rightBadge.clear();
 	} else {
-		_rightBadge.setText(
-			st::defaultTextStyle,
-			TextUtilities::RemoveEmoji(TextUtilities::SingleLine(text)));
+		_rightBadge.setText(st::defaultTextStyle, badge);
 	}
 }
 
