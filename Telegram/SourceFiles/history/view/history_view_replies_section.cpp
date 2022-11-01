@@ -164,13 +164,6 @@ void RepliesMemento::setReadInformation(
 	}
 	_replies->setInboxReadTill(inboxReadTillId, unreadCount);
 	_replies->setOutboxReadTill(outboxReadTillId);
-	if (!_list.aroundPosition().fullId
-		&& _replies->computeInboxReadTillFull() == MsgId(1)) {
-		_list.setAroundPosition(Data::MinMessagePosition);
-		_list.setScrollTopState(ListMemento::ScrollTopState{
-			Data::MinMessagePosition
-		});
-	}
 }
 
 object_ptr<Window::SectionWidget> RepliesMemento::createWidget(
@@ -180,6 +173,14 @@ object_ptr<Window::SectionWidget> RepliesMemento::createWidget(
 		const QRect &geometry) {
 	if (column == Window::Column::Third) {
 		return nullptr;
+	}
+	if (!_list.aroundPosition().fullId
+		&& _replies
+		&& _replies->computeInboxReadTillFull() == MsgId(1)) {
+		_list.setAroundPosition(Data::MinMessagePosition);
+		_list.setScrollTopState(ListMemento::ScrollTopState{
+			Data::MinMessagePosition
+		});
 	}
 	auto result = object_ptr<RepliesWidget>(
 		parent,
@@ -1886,6 +1887,9 @@ bool RepliesWidget::showInternal(
 		if (logMemento->getHistory() == history()
 			&& logMemento->getRootId() == _rootId) {
 			restoreState(logMemento);
+			if (!logMemento->getHighlightId()) {
+				showAtPosition(Data::UnreadMessagePosition);
+			}
 			return true;
 		}
 	}
@@ -2073,9 +2077,11 @@ void RepliesWidget::updateControlsGeometry() {
 
 	const auto newScrollTop = _scroll->isHidden()
 		? std::nullopt
-		: base::make_optional(_scroll->scrollTop()
+		: _scroll->scrollTop()
+		? base::make_optional(_scroll->scrollTop()
 			+ topDelta()
-			+ _scrollTopDelta);
+			+ _scrollTopDelta)
+		: 0;
 	_topBar->resizeToWidth(contentWidth);
 	_topBarShadow->resize(contentWidth, st::lineWidth);
 	if (_rootView) {

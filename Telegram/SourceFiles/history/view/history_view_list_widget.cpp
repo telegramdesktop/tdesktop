@@ -452,6 +452,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 		1
 	) - 1;
 
+	auto destroyingBarElement = _bar.element;
 	_items.clear();
 	_items.reserve(_slice.ids.size());
 	auto nearestIndex = -1;
@@ -460,8 +461,16 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 			if (_slice.nearestToAround == fullId) {
 				nearestIndex = int(_items.size());
 			}
-			_items.push_back(enforceViewForItem(item));
+			const auto view = enforceViewForItem(item);
+			_items.push_back(view);
+			if (destroyingBarElement == view) {
+				destroyingBarElement = nullptr;
+			}
 		}
+	}
+	if (destroyingBarElement) {
+		destroyingBarElement->destroyUnreadBar();
+		_bar = {};
 	}
 	for (auto e = end(_items), i = e - addedToEndCount; i != e; ++i) {
 		_itemRevealPending.emplace(*i);
