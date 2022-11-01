@@ -1615,7 +1615,6 @@ QPointer<Ui::BoxContent> ShowShareGameBox(
 		const auto confirm = std::make_shared<QPointer<Ui::BoxContent>>();
 		auto send = crl::guard(thread, [=] {
 			ShareBotGame(bot, thread, shortName);
-			using Way = Window::SectionShow::Way;
 			if (const auto strong = *weak) {
 				strong->closeBox();
 			}

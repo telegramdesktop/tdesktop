@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h" // For QFIXED_MAX
 #include "data/data_peer_id.h"
 #include "data/data_msg_id.h"
+#include "base/qt/qt_compare.h"
 
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
