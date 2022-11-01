@@ -16,7 +16,8 @@ SendAction::SendAction(
 	SendOptions options)
 : history(thread->owningHistory())
 , options(options)
-, topicRootId(thread->topicRootId()) {
+, replyTo(thread->topicRootId())
+, topicRootId(replyTo) {
 }
 
 } // namespace Api
