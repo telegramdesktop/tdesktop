@@ -265,6 +265,7 @@ private:
 	void updateGeometry(int x, int y, int width, int height) override;
 	void actionsOpacityCallback();
 	void repaintText();
+	void paintTitle(Painter &p);
 	void paintText(Painter &p);
 	void customEmojiCallback();
 
@@ -273,18 +274,21 @@ private:
 	const not_null<PeerData*> _peer;
 
 	QImage _cache;
+	Ui::Text::String _titleCache;
 	Ui::Text::String _textCache;
+	QRect _titleRect;
 	QRect _textRect;
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
-	bool _textRepaintScheduled = false;
+	bool _textsRepaintScheduled = false;
 	Ui::Animations::Simple a_actionsOpacity;
 	QPixmap _buttonsCache;
 
 	crl::time _started;
 
 	History *_history = nullptr;
+	Data::ForumTopic *_topic = nullptr;
 	MsgId _topicRootId = 0;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;

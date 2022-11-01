@@ -942,8 +942,8 @@ TextWithEntities Manager::ComposeReactionNotification(
 	return text();
 }
 
-QString Manager::addTargetAccountName(
-		const QString &title,
+TextWithEntities Manager::addTargetAccountName(
+		TextWithEntities title,
 		not_null<Main::Session*> session) {
 	const auto add = [&] {
 		for (const auto &[index, account] : Core::App().domain().accounts()) {
@@ -955,13 +955,19 @@ QString Manager::addTargetAccountName(
 		}
 		return false;
 	}();
-	return add
-		? (title
-			+ accountNameSeparator()
-			+ (session->user()->username().isEmpty()
-				? session->user()->name()
-				: session->user()->username()))
-		: title;
+	if (!add) {
+		return title;
+	}
+	return title.append(accountNameSeparator()).append(
+		(session->user()->username().isEmpty()
+			? session->user()->name()
+			: session->user()->username()));
+}
+
+QString Manager::addTargetAccountName(
+		const QString &title,
+		not_null<Main::Session*> session) {
+	return addTargetAccountName(TextWithEntities{ title }, session).text;
 }
 
 QString Manager::accountNameSeparator() {
@@ -1099,11 +1105,16 @@ void NativeManager::doShowNotification(NotificationFields &&fields) {
 		&& !reactionFrom
 		&& (item->out() || peer->isSelf())
 		&& item->isFromScheduled();
+	const auto topicWithChat = [&] {
+		const auto name = peer->name();
+		const auto topic = item->topic();
+		return topic ? (topic->title() + u" ("_q + name + ')') : name;
+	};
 	const auto title = options.hideNameAndPhoto
 		? AppName.utf16()
 		: (scheduled && peer->isSelf())
 		? tr::lng_notification_reminder(tr::now)
-		: peer->name();
+		: topicWithChat();
 	const auto fullTitle = addTargetAccountName(title, &peer->session());
 	const auto subtitle = reactionFrom
 		? (reactionFrom != peer ? reactionFrom->name() : QString())

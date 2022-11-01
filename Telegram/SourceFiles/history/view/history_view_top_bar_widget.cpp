@@ -1031,7 +1031,7 @@ void TopBarWidget::updateControlsVisibility() {
 		&& _activeChat.key.peer()->canSendPolls())
 		|| (topic && topic->canSendPolls());
 	const auto hasTopicMenu = [&] {
-		if (!topic) {
+		if (!topic || section != Section::Replies) {
 			return false;
 		}
 		auto empty = true;

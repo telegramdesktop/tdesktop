@@ -636,6 +636,7 @@ Notification::Notification(
 , _peer(peer)
 , _started(crl::now())
 , _history(history)
+, _topic(history->peer->forumTopicFor(topicRootId))
 , _topicRootId(topicRootId)
 , _userpicView(_peer->createUserpicView())
 , _author(author)
@@ -649,6 +650,13 @@ Notification::Notification(
 	) | rpl::start_with_next([=] {
 		refreshLang();
 	}, lifetime());
+
+	if (_topic) {
+		_topic->destroyed(
+		) | rpl::start_with_next([=] {
+			unlinkHistory();
+		}, lifetime());
+	}
 
 	auto position = computePosition(st::notifyMinHeight);
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyMinHeight);
@@ -779,18 +787,18 @@ void Notification::actionsOpacityCallback() {
 }
 
 void Notification::customEmojiCallback() {
-	if (_textRepaintScheduled) {
+	if (_textsRepaintScheduled) {
 		return;
 	}
-	_textRepaintScheduled = true;
+	_textsRepaintScheduled = true;
 	crl::on_main(this, [=] { repaintText(); });
 }
 
 void Notification::repaintText() {
-	if (!_textRepaintScheduled) {
+	if (!_textsRepaintScheduled) {
 		return;
 	}
-	_textRepaintScheduled = false;
+	_textsRepaintScheduled = false;
 	if (_cache.isNull()) {
 		return;
 	}
@@ -798,9 +806,23 @@ void Notification::repaintText() {
 	const auto adjusted = Ui::Text::AdjustCustomEmojiSize(st::emojiSize);
 	const auto skip = (adjusted - st::emojiSize + 1) / 2;
 	const auto margin = QMargins{ skip, skip, skip, skip };
+	p.fillRect(_titleRect.marginsAdded(margin), st::notificationBg);
 	p.fillRect(_textRect.marginsAdded(margin), st::notificationBg);
+	paintTitle(p);
 	paintText(p);
 	update();
+}
+
+void Notification::paintTitle(Painter &p) {
+	p.setPen(st::dialogsNameFg);
+	p.setFont(st::semiboldFont);
+	_titleCache.draw(p, {
+		.position = _titleRect.topLeft(),
+		.availableWidth = _titleRect.width(),
+		.palette = &st::dialogsTextPalette,
+		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.elisionLines = 1,
+	});
 }
 
 void Notification::paintText(Painter &p) {
@@ -868,7 +890,10 @@ void Notification::updateNotifyDisplay() {
 				Ui::Emoji::Draw(p, emoji, Ui::Emoji::GetSizeNormal(), rectForName.left(), top);
 				rectForName.setLeft(rectForName.left() + size + st::semiboldFont->spacew);
 			}
-			if (const auto chatTypeIcon = Dialogs::Ui::ChatTypeIcon(_history->peer)) {
+			const auto chatTypeIcon = _topic
+				? nullptr
+				: Dialogs::Ui::ChatTypeIcon(_history->peer);
+			if (chatTypeIcon) {
 				chatTypeIcon->paint(p, rectForName.topLeft(), w);
 				rectForName.setLeft(rectForName.left()
 					+ chatTypeIcon->width()
@@ -941,18 +966,46 @@ void Notification::updateNotifyDisplay() {
 					itemWidth));
 		}
 
-		p.setPen(st::dialogsNameFg);
-		Ui::Text::String titleText;
-		const auto title = options.hideNameAndPhoto
-			? qsl("Telegram Desktop")
+		const auto topicWithChat = [&]() -> TextWithEntities {
+			const auto name = _history->peer->name();
+			const auto wrapIcon = [](DocumentId id) {
+				return TextWithEntities{
+					"@",
+					{ EntityInText(
+						EntityType::CustomEmoji,
+						0,
+						1,
+						Data::SerializeCustomEmojiId({.id = id }))
+					},
+				};
+			};
+			if (!_topic) {
+				return { name };
+			}
+			auto start = _topic->iconId()
+				? wrapIcon(_topic->iconId())
+				: TextWithEntities();
+			return start.append(_topic->title() + u" ("_q + name + ')');
+		};
+		auto title = options.hideNameAndPhoto
+			? TextWithEntities{ u"Telegram Desktop"_q }
 			: reminder
-			? tr::lng_notification_reminder(tr::now)
-			: _history->peer->name();
+			? tr::lng_notification_reminder(tr::now, Ui::Text::WithEntities)
+			: topicWithChat();
 		const auto fullTitle = manager()->addTargetAccountName(
-			title,
+			std::move(title),
 			&_history->session());
-		titleText.setText(st::semiboldTextStyle, fullTitle, Ui::NameTextOptions());
-		titleText.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
+		const auto context = Core::MarkedTextContext{
+			.session = &_history->session(),
+			.customEmojiRepaint = [=] { customEmojiCallback(); },
+		};
+		_titleCache.setMarkedText(
+			st::semiboldTextStyle,
+			fullTitle,
+			Ui::NameTextOptions(),
+			context);
+		_titleRect = rectForName;
+		paintTitle(p);
 	}
 
 	_cache = std::move(img);
@@ -1104,6 +1157,7 @@ bool Notification::unlinkHistory(History *history, MsgId topicRootId) {
 	if (unlink) {
 		hideFast();
 		_history = nullptr;
+		_topic = nullptr;
 		_item = nullptr;
 	}
 	return unlink;

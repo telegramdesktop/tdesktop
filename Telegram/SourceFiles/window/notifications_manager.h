@@ -283,6 +283,9 @@ public:
 		const Data::ReactionId &reaction,
 		bool hideContent);
 
+	[[nodiscard]] TextWithEntities addTargetAccountName(
+		TextWithEntities title,
+		not_null<Main::Session*> session);
 	[[nodiscard]] QString addTargetAccountName(
 		const QString &title,
 		not_null<Main::Session*> session);
