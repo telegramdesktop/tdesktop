@@ -2309,7 +2309,7 @@ bool RepliesWidget::listAllowsMultiSelect() {
 
 bool RepliesWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return item->isRegular();
+	return item->isRegular() && !item->isService();
 }
 
 bool RepliesWidget::listIsLessInOrder(

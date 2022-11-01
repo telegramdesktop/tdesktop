@@ -510,7 +510,7 @@ bool PinnedWidget::listAllowsMultiSelect() {
 
 bool PinnedWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return item->isRegular();
+	return item->isRegular() && !item->isService();
 }
 
 bool PinnedWidget::listIsLessInOrder(
