@@ -12,8 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_thread.h"
 #include "history/view/history_view_send_action.h"
-#include "base/observer.h"
-#include "base/timer.h"
 #include "base/variant.h"
 #include "base/flat_set.h"
 #include "base/flags.h"
@@ -47,7 +45,7 @@ struct ForwardDraft {
 	MessageIdsList ids;
 	ForwardOptions options = ForwardOptions::PreserveInfo;
 
-	friend inline constexpr auto operator<=>(
+	friend inline auto operator<=>(
 		const ForwardDraft&,
 		const ForwardDraft&) = default;
 };

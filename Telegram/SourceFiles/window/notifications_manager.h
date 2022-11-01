@@ -8,8 +8,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_message_reaction_id.h"
-#include "base/observer.h"
 #include "base/timer.h"
+#include "base/type_traits.h"
 
 class History;
 
