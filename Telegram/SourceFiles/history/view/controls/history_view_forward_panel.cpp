@@ -171,7 +171,7 @@ void ForwardPanel::updateTexts() {
 			}).text;
 			const auto history = item->history();
 			const auto dropCustomEmoji = !history->session().premium()
-				&& !_to->owningHistory()->peer->isSelf()
+				&& !_to->peer()->isSelf()
 				&& (item->computeDropForwardedInfo() || !keepNames);
 			if (dropCustomEmoji) {
 				text = DropCustomEmoji(std::move(text));

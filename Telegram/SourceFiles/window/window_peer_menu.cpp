@@ -1290,7 +1290,7 @@ void PeerMenuShareContactBox(
 	// There is no async to make weak from controller.
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto callback = [=](not_null<Data::Thread*> thread) {
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		if (!thread->canWrite()) {
 			navigation->parentController()->show(
 				Ui::MakeInformBox(tr::lng_forward_share_cant()),
@@ -1544,7 +1544,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		weak,
 		navigation
 	](not_null<Data::Thread*> thread) mutable {
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		const auto content = navigation->parentController()->content();
 		if (peer->isSelf()
 			&& !draft.ids.empty()
@@ -1604,7 +1604,7 @@ QPointer<Ui::BoxContent> ShowShareGameBox(
 				ShowAtUnreadMsgId,
 				SectionShow::Way::ClearStack);
 		});
-		const auto confirmText = thread->owningHistory()->peer->isUser()
+		const auto confirmText = thread->peer()->isUser()
 			? tr::lng_bot_sure_share_game(
 				tr::now,
 				lt_user,
@@ -1621,7 +1621,7 @@ QPointer<Ui::BoxContent> ShowShareGameBox(
 			Ui::LayerOption::KeepOther);
 	};
 	auto filter = [](not_null<Data::Thread*> thread) {
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		return (thread->canWrite() || thread->asForum())
 			&& !peer->amRestricted(ChatRestriction::SendGames)
 			&& !peer->isSelf();

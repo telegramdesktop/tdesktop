@@ -64,7 +64,7 @@ PinnedMemento::PinnedMemento(
 : _thread(thread)
 , _highlightId(highlightId) {
 	_list.setAroundPosition({
-		.fullId = FullMsgId(_thread->owningHistory()->peer->id, highlightId),
+		.fullId = FullMsgId(_thread->peer()->id, highlightId),
 		.date = TimeId(0),
 	});
 }
@@ -89,7 +89,7 @@ PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
 	not_null<Data::Thread*> thread)
-: Window::SectionWidget(parent, controller, thread->owningHistory()->peer)
+: Window::SectionWidget(parent, controller, thread->peer())
 , _thread(thread->migrateToOrMe())
 , _history(thread->owningHistory())
 , _migratedPeer(thread->asHistory()
@@ -116,7 +116,7 @@ PinnedWidget::PinnedWidget(
 
 	Window::ChatThemeValueFromPeer(
 		controller,
-		thread->owningHistory()->peer
+		thread->peer()
 	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);

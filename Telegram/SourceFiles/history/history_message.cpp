@@ -178,6 +178,13 @@ QString GetErrorTextForSending(
 	return QString();
 }
 
+QString GetErrorTextForSending(
+		not_null<Data::Thread*> thread,
+		SendingErrorRequest request) {
+	request.topicRootId = thread->topicRootId();
+	return GetErrorTextForSending(thread->peer(), std::move(request));
+}
+
 void RequestDependentMessageData(
 		not_null<HistoryItem*> item,
 		PeerId peerId,

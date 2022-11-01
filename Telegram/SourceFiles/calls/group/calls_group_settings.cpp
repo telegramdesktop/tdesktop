@@ -133,7 +133,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		showToast(tr::lng_group_invite_copied(tr::now));
 	};
 	auto submitCallback = [=](
-			std::vector<not_null<PeerData*>> &&result,
+			std::vector<not_null<Data::Thread*>> &&result,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -142,12 +142,12 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		}
 
 		const auto error = [&] {
-			for (const auto peer : result) { // #TODO forum share
+			for (const auto thread : result) {
 				const auto error = GetErrorTextForSending(
-					peer,
+					thread,
 					{ .text = &comment });
 				if (!error.isEmpty()) {
-					return std::make_pair(error, peer);
+					return std::make_pair(error, thread);
 				}
 			}
 			return std::make_pair(QString(), result.front());
@@ -156,7 +156,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name())
+					Ui::Text::Bold(error.second->chatListName())
 				).append("\n\n");
 			}
 			text.append(error.first);
@@ -182,10 +182,9 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		}
 		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
-		for (const auto peer : result) {
-			const auto history = owner->history(peer);
+		for (const auto thread : result) {
 			auto message = Api::MessageToSend(
-				Api::SendAction(history, options));
+				Api::SendAction(thread, options));
 			message.textWithTags = comment;
 			message.action.clearDraft = false;
 			api.sendMessage(std::move(message));
@@ -195,8 +194,8 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		}
 		showToast(tr::lng_share_done(tr::now));
 	};
-	auto filterCallback = [](PeerData *peer) {
-		return peer->canWrite(); // #TODO forum share
+	auto filterCallback = [](not_null<Data::Thread*> thread) {
+		return thread->canWrite(); // #TODO forum share
 	};
 
 	const auto scheduleStyle = [&] {

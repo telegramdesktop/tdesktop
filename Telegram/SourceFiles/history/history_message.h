@@ -15,6 +15,7 @@ struct SendOptions;
 } // namespace Api
 
 namespace Data {
+class Thread;
 struct SponsoredFrom;
 } // namespace Data
 
@@ -49,6 +50,9 @@ struct SendingErrorRequest {
 };
 [[nodiscard]] QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
+	SendingErrorRequest request);
+[[nodiscard]] QString GetErrorTextForSending(
+	not_null<Data::Thread*> thread,
 	SendingErrorRequest request);
 
 [[nodiscard]] TextWithEntities DropCustomEmoji(TextWithEntities text);

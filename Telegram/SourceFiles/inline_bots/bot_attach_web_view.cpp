@@ -141,7 +141,7 @@ void ShowChooseBox(
 		callback(thread);
 	};
 	auto filter = [=](not_null<Data::Thread*> thread) -> bool {
-		const auto peer = thread->owningHistory()->peer;
+		const auto peer = thread->peer();
 		if (!thread->canWrite()) {
 			return false;
 		} else if (const auto user = peer->asUser()) {

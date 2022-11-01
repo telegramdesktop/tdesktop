@@ -607,7 +607,7 @@ bool MainWidget::sendPaths(not_null<Data::Thread*> thread) {
 		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else if (const auto error = Data::RestrictionError(
-			thread->owningHistory()->peer,
+			thread->peer(),
 			ChatRestriction::SendMedia)) {
 		Ui::show(Ui::MakeInformBox(*error));
 		return false;

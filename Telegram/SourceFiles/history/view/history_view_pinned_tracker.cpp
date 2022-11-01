@@ -79,7 +79,7 @@ void PinnedTracker::refreshViewer() {
 	}
 	_dataLifetime.destroy();
 	_viewerAroundId = _aroundId;
-	const auto peer = _thread->owningHistory()->peer;
+	const auto peer = _thread->peer();
 	SharedMediaMergedViewer(
 		&peer->session(),
 		SharedMediaMergedKey(
