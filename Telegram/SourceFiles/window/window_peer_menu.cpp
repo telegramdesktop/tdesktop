@@ -937,7 +937,7 @@ void Filler::addManageChat() {
 }
 
 void Filler::addCreatePoll() {
-	if (!_peer->canSendPolls()) {
+	if (!(_topic ? _topic->canSendPolls() : _peer->canSendPolls())) {
 		return;
 	}
 	const auto peer = _peer;
@@ -1044,7 +1044,6 @@ void Filler::addCreateTopic() {
 	}
 	const auto peer = _peer;
 	const auto controller = _controller;
-	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 	_addAction(tr::lng_forum_create_topic(tr::now), [=] {
 		if (const auto forum = peer->forum()) {
 			controller->show(Box(
@@ -1053,6 +1052,7 @@ void Filler::addCreateTopic() {
 				forum->history()));
 		}
 	}, &st::menuIconDiscussion);
+	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 }
 
 void Filler::addViewAsMessages() {
@@ -1064,7 +1064,6 @@ void Filler::addViewAsMessages() {
 	_addAction(tr::lng_forum_view_as_messages(tr::now), [=] {
 		controller->showPeerHistory(peer->id);
 	}, &st::menuIconViewReplies);
-	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 }
 
 void Filler::addSearchTopics() {
@@ -1083,22 +1082,22 @@ void Filler::fillChatsListActions() {
 	if (!_peer || !_peer->isForum()) {
 		return;
 	}
-	addViewAsMessages();
-	if (FillVideoChatMenu(_controller, _request, _addAction)) {
-		_addAction(PeerMenuCallback::Args{ .isSeparator = true });
-	}
+	addCreateTopic();
 	addInfo();
+	addViewAsMessages();
+	addManageChat();
+	FillVideoChatMenu(_controller, _request, _addAction);
 	addNewMembers();
 	const auto &all = _peer->forum()->topicsList()->indexed()->all();
 	if (all.size() > kTopicsSearchMinCount) {
 		addSearchTopics();
 	}
+	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 	if (_peer->asChannel()->amIn()) {
 		addLeaveChat();
 	} else {
 		addJoinChat();
 	}
-	addCreateTopic();
 }
 
 void Filler::fillContextMenuActions() {
@@ -1163,7 +1162,6 @@ void Filler::fillRepliesActions() {
 	if (_topic) {
 		addInfo();
 		addManageTopic();
-		addManageChat();
 	}
 	addCreatePoll();
 	addToggleTopicClosed();

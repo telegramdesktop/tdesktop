@@ -65,6 +65,7 @@ public:
 
 	[[nodiscard]] bool my() const;
 	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canSendPolls() const;
 	[[nodiscard]] bool canEdit() const;
 	[[nodiscard]] bool canToggleClosed() const;
 	[[nodiscard]] bool canTogglePinned() const;

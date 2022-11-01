@@ -1024,17 +1024,34 @@ void TopBarWidget::updateControlsVisibility() {
 	if (_unreadBadge) {
 		_unreadBadge->setVisible(!_chooseForReportReason);
 	}
+	const auto topic = _activeChat.key.topic();
 	const auto section = _activeChat.section;
 	const auto historyMode = (section == Section::History);
-	const auto hasPollsMenu = _activeChat.key.peer()
-		&& _activeChat.key.peer()->canSendPolls();
+	const auto hasPollsMenu = (_activeChat.key.peer()
+		&& _activeChat.key.peer()->canSendPolls())
+		|| (topic && topic->canSendPolls());
+	const auto hasTopicMenu = [&] {
+		if (!topic) {
+			return false;
+		}
+		auto empty = true;
+		const auto callback = [&](const Ui::Menu::MenuCallback::Args&) {
+			empty = false;
+			return (QAction*)nullptr;
+		};
+		Window::FillDialogsEntryMenu(
+			_controller,
+			_activeChat,
+			Ui::Menu::MenuCallback(callback));
+		return !empty;
+	}();
 	const auto hasMenu = !_activeChat.key.folder()
 		&& (section == Section::History
 			? true
 			: (section == Section::Scheduled)
 			? hasPollsMenu
 			: (section == Section::Replies)
-			? (hasPollsMenu || _activeChat.key.topic())
+			? (hasPollsMenu || hasTopicMenu)
 			: (section == Section::ChatsList)
 			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
 			: false);

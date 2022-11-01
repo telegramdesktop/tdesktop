@@ -223,6 +223,11 @@ bool ForumTopic::canWrite() const {
 		&& (!closed() || canToggleClosed());
 }
 
+bool ForumTopic::canSendPolls() const {
+	return canWrite()
+		&& !channel()->amRestricted(ChatRestriction::SendPolls);
+}
+
 bool ForumTopic::canEdit() const {
 	return my() || channel()->canManageTopics();
 }
