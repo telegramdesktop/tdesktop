@@ -129,7 +129,7 @@ TopicIconView::TopicIconView(
 
 void TopicIconView::paintInRect(QPainter &p, QRect rect) {
 	const auto paint = [&](const QImage &image) {
-		const auto size = image.size() / image.devicePixelRatio();
+		const auto size = image.size() / style::DevicePixelRatio();
 		p.drawImage(
 			rect.x() + (rect.width() - size.width()) / 2,
 			rect.y() + (rect.height() - size.height()) / 2,
