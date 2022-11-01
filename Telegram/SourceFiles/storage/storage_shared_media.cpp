@@ -85,8 +85,11 @@ void SharedMedia::remove(SharedMediaRemoveOne &&query) {
 }
 
 void SharedMedia::remove(SharedMediaRemoveAll &&query) {
-	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
-	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
+	auto peerIt = _lists.lower_bound({ query.peerId, query.topicRootId });
+	while (peerIt != end(_lists)
+		&& peerIt->first.peerId == query.peerId
+		&& (!query.topicRootId
+			|| peerIt->first.topicRootId == query.topicRootId)) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {

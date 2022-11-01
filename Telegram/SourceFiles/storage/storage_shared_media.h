@@ -124,8 +124,17 @@ struct SharedMediaRemoveAll {
 	: peerId(peerId)
 	, types(types) {
 	}
+	SharedMediaRemoveAll(
+		PeerId peerId,
+		MsgId topicRootId,
+		SharedMediaTypesMask types = SharedMediaTypesMask::All())
+	: peerId(peerId)
+	, topicRootId(topicRootId)
+	, types(types) {
+	}
 
 	PeerId peerId = 0;
+	MsgId topicRootId = 0;
 	SharedMediaTypesMask types;
 
 };

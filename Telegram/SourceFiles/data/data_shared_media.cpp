@@ -149,6 +149,8 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		session->storage().sharedMediaAllRemoved(
 		) | rpl::filter([=](const AllRemoved &update) {
 			return (update.peerId == key.peerId)
+				&& (!update.topicRootId
+					|| update.topicRootId == key.topicRootId)
 				&& update.types.test(key.type);
 		}) | rpl::filter([=] {
 			return builder->removeAll();

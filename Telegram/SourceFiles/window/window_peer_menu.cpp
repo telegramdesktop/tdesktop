@@ -1757,15 +1757,18 @@ void UnpinAllMessages(
 	const auto callback = crl::guard(navigation, [=](Fn<void()> &&close) {
 		close();
 		const auto strong = weak.get();
-		if (!strong || !strong->asHistory()) { // #TODO forum pinned
+		if (!strong) {
 			return;
 		}
 		const auto api = &strong->session().api();
 		const auto sendRequest = [=](auto self) -> void {
 			const auto history = strong->owningHistory();
 			const auto topicRootId = strong->topicRootId();
+			using Flag = MTPmessages_UnpinAllMessages::Flag;
 			api->request(MTPmessages_UnpinAllMessages(
-				history->peer->input
+				MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag()),
+				history->peer->input,
+				MTP_int(topicRootId.bare)
 			)).done([=](const MTPmessages_AffectedHistory &result) {
 				const auto peer = history->peer;
 				const auto offset = api->applyAffectedHistory(peer, result);

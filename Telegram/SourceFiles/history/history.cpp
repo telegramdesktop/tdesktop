@@ -550,13 +550,25 @@ void History::unpinMessagesFor(MsgId topicRootId) {
 				topic->setHasPinnedMessages(false);
 			});
 		}
-		for (const auto &message : _messages) {
-			if (message->isPinned()) {
-				message->setIsPinned(false);
+		for (const auto &item : _messages) {
+			if (item->isPinned()) {
+				item->setIsPinned(false);
 			}
 		}
 	} else {
-		// #TODO forum pinned
+		session().storage().remove(
+			Storage::SharedMediaRemoveAll(
+				peer->id,
+				topicRootId,
+				Storage::SharedMediaType::Pinned));
+		if (const auto topic = peer->forumTopicFor(topicRootId)) {
+			topic->setHasPinnedMessages(false);
+		}
+		for (const auto &item : _messages) {
+			if (item->isPinned() && item->topicRootId() == topicRootId) {
+				item->setIsPinned(false);
+			}
+		}
 	}
 }
 
