@@ -1954,7 +1954,8 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 			requestMessageData(_editMsgId);
 		}
 	} else if (!readyToForward()) {
-		_processingReplyId = _history->localDraft({})->msgId;
+		const auto draft = _history->localDraft({});
+		_processingReplyId = draft ? draft->msgId : MsgId();
 		processReply();
 	}
 }

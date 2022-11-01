@@ -1363,8 +1363,8 @@ void Account::readDraftsWithCursors(not_null<History*> history) {
 	for (auto i = 0; i != count; ++i) {
 		TextWithTags data;
 		QByteArray tagsSerialized;
-		qint64 keyValue = 0;
-		qint32 keyValueOld = 0, messageId = 0, uncheckedPreviewState = 0;
+		qint64 keyValue = 0, messageId = 0;
+		qint32 keyValueOld = 0, uncheckedPreviewState = 0;
 		if (keysOld) {
 			draft.stream >> keyValueOld;
 		} else {
