@@ -431,7 +431,9 @@ public:
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
-	void showMessage(not_null<const HistoryItem*> item);
+	void showMessage(
+		not_null<const HistoryItem*> item,
+		const SectionShow &params = SectionShow::Way::ClearStack);
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 
 	void showLayer(

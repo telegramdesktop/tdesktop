@@ -1670,26 +1670,19 @@ void SessionController::showPeerHistory(
 }
 
 void SessionController::showMessage(
-		not_null<const HistoryItem*> item) {
+		not_null<const HistoryItem*> item,
+		const SectionShow &params) {
 	_window->invokeForSessionController(
-		&item->history()->peer->session().account(),
+		&item->history()->session().account(),
 		item->history()->peer,
 		[&](not_null<SessionController*> controller) {
 			if (item->isScheduled()) {
 				controller->showSection(
 					std::make_shared<HistoryView::ScheduledMemento>(
 						item->history()),
-					SectionShow::Way::ClearStack);
-			} else if (const auto topic = item->topic()) {
-				controller->showTopic(
-					topic,
-					item->id,
-					SectionShow::Way::ClearStack);
+					params);
 			} else {
-				controller->showPeerHistory(
-					item->history()->peer,
-					SectionShow::Way::ClearStack,
-					item->id);
+				controller->content()->showMessage(item, params);
 			}
 		});
 }

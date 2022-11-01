@@ -7,7 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/mime_type.h"
 
+#include "core/utils.h"
+
 #include <QtCore/QMimeDatabase>
+#include <QtCore/QMimeData>
 
 namespace Core {
 
@@ -150,6 +153,21 @@ bool FileIsImage(const QString &name, const QString &mime) {
 		return true;
 	}
 	return false;
+}
+
+std::shared_ptr<QMimeData> ShareMimeMediaData(
+		not_null<const QMimeData*> original) {
+	auto result = std::make_shared<QMimeData>();
+	if (original->hasFormat(u"application/x-td-forward"_q)) {
+		result->setData(u"application/x-td-forward"_q, "1");
+	}
+	if (original->hasImage()) {
+		result->setImageData(original->imageData());
+	}
+	if (auto list = base::GetMimeUrls(original); !list.isEmpty()) {
+		result->setUrls(std::move(list));
+	}
+	return result;
 }
 
 } // namespace Core

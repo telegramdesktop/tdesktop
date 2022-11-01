@@ -3200,7 +3200,7 @@ void ApiWrap::forwardMessages(
 				messageFromId,
 				messagePostAuthor,
 				item,
-				action.topicRootId); // #TODO forum forward
+				action.topicRootId);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();

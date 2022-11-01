@@ -104,6 +104,9 @@ public:
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
 
+	bool confirmSendingFiles(const QStringList &files) override;
+	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+
 	void setInternalState(
 		const QRect &geometry,
 		not_null<RepliesMemento*> memento);
@@ -262,11 +265,14 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
+		const QStringList &files,
+		const QString &insertTextOnCancel);
+	bool confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
 	void sendingFilesConfirmed(

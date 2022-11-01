@@ -122,9 +122,9 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowDropMediaBox(
 	not_null<Window::SessionNavigation*> navigation,
-	Data::ForwardDraft &&draft,
+	std::shared_ptr<QMimeData> data,
 	not_null<Data::Forum*> forum,
 	FnMut<void()> &&successCallback = nullptr);
 

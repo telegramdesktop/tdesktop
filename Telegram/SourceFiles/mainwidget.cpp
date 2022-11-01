@@ -92,6 +92,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/shortcuts.h"
 #include "core/application.h"
 #include "core/changelogs.h"
+#include "core/mime_type.h"
 #include "base/unixtime.h"
 #include "calls/calls_call.h"
 #include "calls/calls_instance.h"
@@ -323,7 +324,6 @@ MainWidget::MainWidget(
 		Data::EntryUpdate::Flag::LocalDraftSet
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		controller->showThread(update.entry->asThread(), ShowAtUnreadMsgId);
-		_history->applyDraft(); // #TODO forum drop
 		controller->hideLayer();
 	}, lifetime());
 
@@ -574,7 +574,7 @@ bool MainWidget::shareUrl(
 bool MainWidget::inlineSwitchChosen(
 		not_null<Data::Thread*> thread,
 		const QString &botAndQuery) const {
-	if (!thread->canWrite()) { // #TODO forum forward
+	if (!thread->canWrite()) {
 		Ui::show(Ui::MakeInformBox(tr::lng_inline_switch_cant()));
 		return false;
 	}
@@ -617,26 +617,33 @@ bool MainWidget::sendPaths(not_null<Data::Thread*> thread) {
 			ShowAtTheEndMsgId,
 			Window::SectionShow::Way::ClearStack);
 	}
-	// #TODO forum drop
 	return (controller()->activeChatCurrent().thread() == thread)
-		&& _history->confirmSendingFiles(cSendPaths());
+		&& (_mainSection
+			? _mainSection->confirmSendingFiles(cSendPaths())
+			: _history->confirmSendingFiles(cSendPaths()));
 }
 
-void MainWidget::onFilesOrForwardDrop(
+bool MainWidget::onFilesOrForwardDrop(
 		not_null<Data::Thread*> thread,
-		const QMimeData *data) {
+		not_null<const QMimeData*> data) {
+	const auto history = thread->asHistory();
+	if (const auto forum = history ? history->peer->forum() : nullptr) {
+		Window::ShowDropMediaBox(
+			_controller,
+			Core::ShareMimeMediaData(data),
+			forum);
+		if (_hider) {
+			_hider->startHide();
+			clearHider(_hider);
+		}
+		return true;
+	}
 	if (data->hasFormat(qsl("application/x-td-forward"))) {
 		auto draft = Data::ForwardDraft{
 			.ids = session().data().takeMimeForwardIds(),
 		};
-		const auto history = thread->asHistory();
-		if (const auto forum = history ? history->peer->forum() : nullptr) {
-			Window::ShowForwardMessagesBox(
-				_controller,
-				std::move(draft),
-				forum);
-		} else if (setForwardDraft(thread, std::move(draft))) {
-			return;
+		if (setForwardDraft(thread, std::move(draft))) {
+			return true;
 		}
 		// We've already released the mouse button,
 		// so the forwarding is cancelled.
@@ -644,17 +651,22 @@ void MainWidget::onFilesOrForwardDrop(
 			_hider->startHide();
 			clearHider(_hider);
 		}
+		return false;
 	} else if (!thread->canWrite()) {
 		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
+		return false;
 	} else {
 		controller()->showThread(
 			thread,
 			ShowAtTheEndMsgId,
 			Window::SectionShow::Way::ClearStack);
-		if (thread->asHistory()) {
-			// #TODO forum drop
-			_history->confirmSendingFiles(data);
+		if (controller()->activeChatCurrent().thread() != thread) {
+			return false;
 		}
+		(_mainSection
+			? _mainSection->confirmSendingFiles(data)
+			: _history->confirmSendingFiles(data));
+		return true;
 	}
 }
 
@@ -1264,7 +1276,10 @@ void MainWidget::chooseThread(
 	if (selectingPeer()) {
 		_hider->offerThread(thread);
 	} else {
-		controller()->showThread(thread, showAtMsgId);
+		controller()->showThread(
+			thread,
+			showAtMsgId,
+			Window::SectionShow::Way::ClearStack);
 	}
 }
 
@@ -1520,6 +1535,31 @@ void MainWidget::ui_showPeerHistory(
 	}
 
 	floatPlayerCheckVisibility();
+}
+
+void MainWidget::showMessage(
+		not_null<const HistoryItem*> item,
+		const SectionShow &params) {
+	const auto peerId = item->history()->peer->id;
+	const auto itemId = item->id;
+	if (!v::is_null(params.origin)) {
+		if (_mainSection) {
+			if (_mainSection->showMessage(peerId, params, itemId)) {
+				return;
+			}
+		} else if (_history->peer() == item->history()->peer) {
+			ui_showPeerHistory(peerId, params, itemId);
+			return;
+		}
+	}
+	if (const auto topic = item->topic()) {
+		_controller->showTopic(topic, item->id, params);
+	} else {
+		_controller->showPeerHistory(
+			item->history(),
+			params,
+			item->id);
+	}
 }
 
 PeerData *MainWidget::peer() const {
@@ -2710,31 +2750,31 @@ bool MainWidget::contentOverlapped(const QRect &globalRect) {
 void MainWidget::activate() {
 	if (_a_show.animating()) {
 		return;
-	} else if (!_mainSection) {
-		if (_hider) {
+	} else if (!cSendPaths().isEmpty()) {
+		const auto interpret = qstr("interpret://");
+		const auto path = cSendPaths()[0];
+		if (path.startsWith(interpret)) {
+			cSetSendPaths(QStringList());
+			const auto error = Support::InterpretSendPath(
+				_controller,
+				path.mid(interpret.size()));
+			if (!error.isEmpty()) {
+				Ui::show(Ui::MakeInformBox(error));
+			}
+		} else {
+			showSendPathsLayer();
+		}
+	} else if (_mainSection) {
+		_mainSection->setInnerFocus();
+	} else if (_hider) {
+		Assert(_dialogs != nullptr);
+		_dialogs->setInnerFocus();
+	} else if (!Ui::isLayerShown()) {
+		if (_history->peer()) {
+			_history->activate();
+		} else {
 			Assert(_dialogs != nullptr);
 			_dialogs->setInnerFocus();
-		} else if (!Ui::isLayerShown()) {
-			if (!cSendPaths().isEmpty()) {
-				const auto interpret = qstr("interpret://");
-				const auto path = cSendPaths()[0];
-				if (path.startsWith(interpret)) {
-					cSetSendPaths(QStringList());
-					const auto error = Support::InterpretSendPath(
-						_controller,
-						path.mid(interpret.size()));
-					if (!error.isEmpty()) {
-						Ui::show(Ui::MakeInformBox(error));
-					}
-				} else {
-					showSendPathsLayer();
-				}
-			} else if (_history->peer()) {
-				_history->activate();
-			} else {
-				Assert(_dialogs != nullptr);
-				_dialogs->setInnerFocus();
-			}
 		}
 	}
 	_controller->widget()->fixOrder();

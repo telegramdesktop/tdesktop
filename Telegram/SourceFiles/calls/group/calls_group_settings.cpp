@@ -142,7 +142,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		}
 
 		const auto error = [&] {
-			for (const auto peer : result) { // #TODO forum forward
+			for (const auto peer : result) { // #TODO forum share
 				const auto error = GetErrorTextForSending(
 					peer,
 					{ .text = &comment });
@@ -196,7 +196,7 @@ object_ptr<ShareBox> ShareInviteLinkBox(
 		showToast(tr::lng_share_done(tr::now));
 	};
 	auto filterCallback = [](PeerData *peer) {
-		return peer->canWrite(); // #TODO forum forward
+		return peer->canWrite(); // #TODO forum share
 	};
 
 	const auto scheduleStyle = [&] {

@@ -294,4 +294,5 @@ PRIVATE
     desktop-app::lib_webview
     desktop-app::lib_webrtc
     desktop-app::lib_stripe
+    desktop-app::external_kcoreaddons
 )

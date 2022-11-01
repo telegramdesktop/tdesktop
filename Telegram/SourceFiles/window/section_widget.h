@@ -151,6 +151,13 @@ public:
 		return SectionActionResult::Ignore;
 	}
 
+	virtual bool confirmSendingFiles(const QStringList &files) {
+		return false;
+	}
+	virtual bool confirmSendingFiles(not_null<const QMimeData*> data) {
+		return false;
+	}
+
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
 	virtual std::shared_ptr<SectionMemento> createMemento();

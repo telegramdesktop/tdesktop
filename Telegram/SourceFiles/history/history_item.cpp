@@ -1437,7 +1437,7 @@ ClickHandlerPtr goToMessageClickHandler(
 				returnToId
 			};
 			if (const auto item = peer->owner().message(peer, msgId)) {
-				controller->showMessage(item);
+				controller->showMessage(item, params);
 			} else {
 				controller->showPeerHistory(peer, params, msgId);
 			}

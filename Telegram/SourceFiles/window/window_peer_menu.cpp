@@ -1542,20 +1542,20 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		std::move(successCallback));
 }
 
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowDropMediaBox(
 		not_null<Window::SessionNavigation*> navigation,
-		Data::ForwardDraft &&draft,
+		std::shared_ptr<QMimeData> data,
 		not_null<Data::Forum*> forum,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
 	auto chosen = [
-		draft = std::move(draft),
+		data = std::move(data),
 		callback = std::move(successCallback),
 		weak,
 		navigation
 	](not_null<Data::ForumTopic*> topic) mutable {
 		const auto content = navigation->parentController()->content();
-		if (!content->setForwardDraft(topic, std::move(draft))) {
+		if (!content->onFilesOrForwardDrop(topic, data.get())) {
 			return;
 		} else if (const auto strong = *weak) {
 			strong->closeBox();

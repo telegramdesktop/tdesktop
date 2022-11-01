@@ -179,9 +179,9 @@ public:
 		not_null<Data::Thread*> thread,
 		Data::ForwardDraft &&draft);
 	bool sendPaths(not_null<Data::Thread*> thread);
-	void onFilesOrForwardDrop(
+	bool onFilesOrForwardDrop(
 		not_null<Data::Thread*> thread,
-		const QMimeData *data);
+		not_null<const QMimeData*> data);
 	bool selectingPeer() const;
 	void clearSelectingPeer();
 
@@ -222,6 +222,9 @@ public:
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
+	void showMessage(
+		not_null<const HistoryItem*> item,
+		const SectionShow &params);
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 

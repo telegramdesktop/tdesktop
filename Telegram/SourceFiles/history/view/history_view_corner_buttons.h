@@ -87,7 +87,8 @@ public:
 	}
 	[[nodiscard]] Fn<void(bool found)> doneJumpFrom(
 		FullMsgId targetId,
-		FullMsgId originId);
+		FullMsgId originId,
+		bool ignoreMessageNotFound = false);
 
 private:
 	bool eventFilter(QObject *o, QEvent *e) override;

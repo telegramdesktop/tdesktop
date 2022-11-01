@@ -497,20 +497,24 @@ void ChooseRecipientBoxController::rowClicked(not_null<PeerListRow*> row) {
 				(*weak)->closeBox();
 			}
 		};
+		const auto filter = [=](not_null<Data::ForumTopic*> topic) {
+			return guard && (!_filter || _filter(topic));
+		};
 		auto owned = Box<PeerListBox>(
 			std::make_unique<ChooseTopicBoxController>(
 				forum,
-				std::move(callback)),
+				std::move(callback),
+				filter),
 			[=](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_cancel(), [=] {
-				box->closeBox();
-			});
+				box->addButton(tr::lng_cancel(), [=] {
+					box->closeBox();
+				});
 
-			forum->destroyed(
-			) | rpl::start_with_next([=] {
-				box->closeBox();
-			}, box->lifetime());
-		});
+				forum->destroyed(
+				) | rpl::start_with_next([=] {
+					box->closeBox();
+				}, box->lifetime());
+			});
 		*weak = owned.data();
 		delegate()->peerListShowBox(std::move(owned));
 		return;
@@ -604,6 +608,49 @@ bool ChooseTopicSearchController::loadMoreRows() {
 	return !_allLoaded;
 }
 
+ChooseTopicBoxController::Row::Row(not_null<Data::ForumTopic*> topic)
+: PeerListRow(topic->rootId().bare)
+, _topic(topic) {
+}
+
+QString ChooseTopicBoxController::Row::generateName() {
+	return _topic->title();
+}
+
+QString ChooseTopicBoxController::Row::generateShortName() {
+	return _topic->title();
+}
+
+auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
+-> PaintRoundImageCallback {
+	return [=](
+			Painter &p,
+			int x,
+			int y,
+			int outerWidth,
+			int size) {
+		auto view = std::shared_ptr<Data::CloudImageView>();
+		p.translate(x, y);
+		_topic->paintUserpic(p, view, {
+			.st = &st::forumTopicRow,
+			.now = crl::now(),
+			.width = outerWidth,
+			.paused = false,
+		});
+		p.translate(-x, -y);
+	};
+}
+
+auto ChooseTopicBoxController::Row::generateNameFirstLetters() const
+-> const base::flat_set<QChar> & {
+	return _topic->chatListFirstLetters();
+}
+
+auto ChooseTopicBoxController::Row::generateNameWords() const
+-> const base::flat_set<QString> & {
+	return _topic->chatListNameWords();
+}
+
 ChooseTopicBoxController::ChooseTopicBoxController(
 	not_null<Data::Forum*> forum,
 	FnMut<void(not_null<Data::ForumTopic*>)> callback,
@@ -656,8 +703,10 @@ void ChooseTopicBoxController::refreshRows(bool initial) {
 			const auto id = topic->rootId().bare;
 			auto already = delegate()->peerListFindRow(id);
 			if (initial || !already) {
-				delegate()->peerListAppendRow(createRow(topic));
-				added = true;
+				if (auto created = createRow(topic)) {
+					delegate()->peerListAppendRow(std::move(created));
+					added = true;
+				}
 			} else if (already->isSearchResult()) {
 				delegate()->peerListAppendFoundRow(already);
 				added = true;
@@ -679,49 +728,6 @@ std::unique_ptr<PeerListRow> ChooseTopicBoxController::createSearchRow(
 		return std::make_unique<Row>(topic);
 	}
 	return nullptr;
-}
-
-ChooseTopicBoxController::Row::Row(not_null<Data::ForumTopic*> topic)
-: PeerListRow(topic->rootId().bare)
-, _topic(topic) {
-}
-
-QString ChooseTopicBoxController::Row::generateName() {
-	return _topic->title();
-}
-
-QString ChooseTopicBoxController::Row::generateShortName() {
-	return _topic->title();
-}
-
-auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
--> PaintRoundImageCallback {
-	return [=](
-			Painter &p,
-			int x,
-			int y,
-			int outerWidth,
-			int size) {
-		auto view = std::shared_ptr<Data::CloudImageView>();
-		p.translate(x, y);
-		_topic->paintUserpic(p, view, {
-			.st = &st::forumTopicRow,
-			.now = crl::now(),
-			.width = outerWidth,
-			.paused = false,
-		});
-		p.translate(-x, -y);
-	};
-}
-
-auto ChooseTopicBoxController::Row::generateNameFirstLetters() const
--> const base::flat_set<QChar> & {
-	return _topic->chatListFirstLetters();
-}
-
-auto ChooseTopicBoxController::Row::generateNameWords() const
--> const base::flat_set<QString> & {
-	return _topic->chatListNameWords();
 }
 
 auto ChooseTopicBoxController::createRow(not_null<Data::ForumTopic*> topic)

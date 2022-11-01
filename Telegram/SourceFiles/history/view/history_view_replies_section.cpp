@@ -1796,10 +1796,11 @@ void RepliesWidget::showAtPosition(
 		anim::type animated) {
 	_lastShownAt = position.fullId;
 	controller()->setActiveChatEntry(activeChat());
+	const auto ignore = (position.fullId.msg == _rootId);
 	_inner->showAtPosition(
 		position,
 		animated,
-		_cornerButtons.doneJumpFrom(position.fullId, originItemId));
+		_cornerButtons.doneJumpFrom(position.fullId, originItemId, ignore));
 }
 
 void RepliesWidget::updateAdaptiveLayout() {
@@ -1960,6 +1961,23 @@ Window::SectionActionResult RepliesWidget::sendBotCommand(
 	}
 	listSendBotCommand(request.command, request.context);
 	return Window::SectionActionResult::Handle;
+}
+
+bool RepliesWidget::confirmSendingFiles(const QStringList &files) {
+	return confirmSendingFiles(files, QString());
+}
+
+bool RepliesWidget::confirmSendingFiles(not_null<const QMimeData*> data) {
+	return confirmSendingFiles(data, std::nullopt);
+}
+
+bool RepliesWidget::confirmSendingFiles(
+		const QStringList &files,
+		const QString &insertTextOnCancel) {
+	const auto premium = controller()->session().user()->isPremium();
+	return confirmSendingFiles(
+		Storage::PrepareMediaList(files, st::sendMediaPreviewSize, premium),
+		insertTextOnCancel);
 }
 
 void RepliesWidget::replyToMessage(FullMsgId itemId) {

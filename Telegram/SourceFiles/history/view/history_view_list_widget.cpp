@@ -687,7 +687,7 @@ bool ListWidget::showAtPositionNow(
 		}
 		if (done) {
 			const auto found = !position.fullId.peer
-				|| !position.fullId.msg
+				|| !IsServerMsgId(position.fullId.msg)
 				|| viewForItem(position.fullId);
 			done(found);
 		}

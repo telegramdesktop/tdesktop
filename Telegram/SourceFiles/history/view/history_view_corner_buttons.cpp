@@ -341,7 +341,8 @@ void CornerButtons::finishAnimations() {
 
 Fn<void(bool found)> CornerButtons::doneJumpFrom(
 		FullMsgId targetId,
-		FullMsgId originId) {
+		FullMsgId originId,
+		bool ignoreMessageNotFound) {
 	return [=](bool found) {
 		skipReplyReturn(targetId);
 		if (originId) {
@@ -351,7 +352,7 @@ Fn<void(bool found)> CornerButtons::doneJumpFrom(
 				}
 			}
 		}
-		if (!found) {
+		if (!found && !ignoreMessageNotFound) {
 			Ui::Toast::Show(
 				_scroll.get(),
 				tr::lng_message_not_found(tr::now));

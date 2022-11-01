@@ -150,8 +150,6 @@ public:
 
 	bool confirmSendingFiles(const QStringList &files);
 	bool confirmSendingFiles(not_null<const QMimeData*> data);
-	void sendFileConfirmed(const std::shared_ptr<FileLoadResult> &file,
-		const std::optional<FullMsgId> &oldId = std::nullopt);
 
 	void updateControlsVisibility();
 	void updateControlsGeometry();

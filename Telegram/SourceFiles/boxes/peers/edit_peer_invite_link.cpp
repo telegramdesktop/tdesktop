@@ -1204,7 +1204,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 	auto object = Box<ShareBox>(ShareBox::Descriptor{
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
-		.submitCallback = std::move(submitCallback), // #TODO forum forward
+		.submitCallback = std::move(submitCallback), // #TODO forum share
 		.filterCallback = [](auto peer) { return peer->canWrite(); },
 	});
 	*box = Ui::MakeWeak(object.data());
