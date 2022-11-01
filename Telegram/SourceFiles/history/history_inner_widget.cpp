@@ -2085,7 +2085,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto itemId = item->fullId();
 		const auto canReply = [&] {
 			const auto peer = item->history()->peer;
-			if (const auto forum = item->history()->peer->forum()) {
+			if (const auto forum = peer->forum()) {
 				const auto topicRootId = item->topicRootId();
 				const auto topic = item->topic();
 				return topic

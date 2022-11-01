@@ -151,7 +151,7 @@ void RepliesMemento::setReadInformation(
 		int unreadCount,
 		MsgId outboxReadTillId) {
 	if (!_replies) {
-		if (const auto forum = _history->peer->forum()) {
+		if (const auto forum = _history->asForum()) {
 			if (const auto topic = forum->topicFor(_rootId)) {
 				_replies = topic->replies();
 			}
@@ -576,12 +576,12 @@ HistoryItem *RepliesWidget::lookupRoot() const {
 }
 
 Data::ForumTopic *RepliesWidget::lookupTopic() {
-	if (const auto forum = _history->peer->forum()) {
+	if (const auto forum = _history->asForum()) {
 		if (const auto result = forum->topicFor(_rootId)) {
 			return result;
 		} else {
 			forum->requestTopic(_rootId, crl::guard(this, [=] {
-				if (const auto forum = _history->peer->forum()) {
+				if (const auto forum = _history->asForum()) {
 					setTopic(forum->topicFor(_rootId));
 				}
 			}));

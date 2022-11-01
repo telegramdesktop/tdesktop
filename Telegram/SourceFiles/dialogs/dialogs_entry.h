@@ -22,6 +22,7 @@ class Session;
 
 namespace Data {
 class Session;
+class Forum;
 class Folder;
 class ForumTopic;
 class CloudImageView;
@@ -157,11 +158,13 @@ public:
 	[[nodiscard]] Main::Session &session() const;
 
 	History *asHistory();
+	Data::Forum *asForum();
 	Data::Folder *asFolder();
 	Data::Thread *asThread();
 	Data::ForumTopic *asTopic();
 
 	const History *asHistory() const;
+	const Data::Forum *asForum() const;
 	const Data::Folder *asFolder() const;
 	const Data::Thread *asThread() const;
 	const Data::ForumTopic *asTopic() const;

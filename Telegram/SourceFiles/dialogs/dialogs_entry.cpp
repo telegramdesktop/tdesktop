@@ -97,7 +97,15 @@ Main::Session &Entry::session() const {
 }
 
 History *Entry::asHistory() {
-	return (_flags & Flag::IsHistory) ? static_cast<History*>(this) : nullptr;
+	return (_flags & Flag::IsHistory)
+		? static_cast<History*>(this)
+		: nullptr;
+}
+
+Data::Forum *Entry::asForum() {
+	return (_flags & Flag::IsHistory)
+		? static_cast<History*>(this)->peer->forum()
+		: nullptr;
 }
 
 Data::Folder *Entry::asFolder() {
@@ -120,6 +128,10 @@ Data::ForumTopic *Entry::asTopic() {
 
 const History *Entry::asHistory() const {
 	return const_cast<Entry*>(this)->asHistory();
+}
+
+const Data::Forum *Entry::asForum() const {
+	return const_cast<Entry*>(this)->asForum();
 }
 
 const Data::Folder *Entry::asFolder() const {

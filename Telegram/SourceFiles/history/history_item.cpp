@@ -632,7 +632,7 @@ void HistoryItem::destroy() {
 
 not_null<Data::Thread*> HistoryItem::notificationThread() const {
 	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->peer->forum()) {
+		if (const auto forum = _history->asForum()) {
 			return forum->enforceTopicFor(rootId);
 		}
 	}
@@ -641,7 +641,7 @@ not_null<Data::Thread*> HistoryItem::notificationThread() const {
 
 Data::ForumTopic *HistoryItem::topic() const {
 	if (const auto rootId = topicRootId()) {
-		if (const auto forum = _history->peer->forum()) {
+		if (const auto forum = _history->asForum()) {
 			return forum->topicFor(rootId);
 		}
 	}

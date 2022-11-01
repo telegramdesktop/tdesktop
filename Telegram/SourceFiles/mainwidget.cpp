@@ -626,8 +626,7 @@ bool MainWidget::sendPaths(not_null<Data::Thread*> thread) {
 bool MainWidget::onFilesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data) {
-	const auto history = thread->asHistory();
-	if (const auto forum = history ? history->peer->forum() : nullptr) {
+	if (const auto forum = thread->asForum()) {
 		Window::ShowDropMediaBox(
 			_controller,
 			Core::ShareMimeMediaData(data),

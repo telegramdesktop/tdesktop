@@ -850,7 +850,7 @@ void Histories::sendCreateTopicRequest(
 		MsgId rootId) {
 	Expects(history->peer->isChannel());
 
-	const auto forum = history->peer->forum();
+	const auto forum = history->asForum();
 	Assert(forum != nullptr);
 	const auto topic = forum->topicFor(rootId);
 	Assert(topic != nullptr);
@@ -879,7 +879,7 @@ void Histories::sendCreateTopicRequest(
 bool Histories::isCreatingTopic(
 		not_null<History*> history,
 		MsgId rootId) const {
-	const auto forum = history->peer->forum();
+	const auto forum = history->asForum();
 	return forum && forum->creating(rootId);
 }
 
@@ -947,7 +947,7 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 		_createdTopicIds.emplace(rootId, realRoot);
 
 		const auto history = _owner->history(rootId.peer);
-		if (const auto forum = history->peer->forum()) {
+		if (const auto forum = history->asForum()) {
 			forum->created(rootId.msg, realRoot);
 		}
 

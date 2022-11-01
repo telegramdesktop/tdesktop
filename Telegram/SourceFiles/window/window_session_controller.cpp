@@ -81,6 +81,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/file_upload.h"
 #include "facades.h"
 #include "window/themes/window_theme.h"
+#include "window/window_peer_menu.h"
 #include "settings/settings_main.h"
 #include "settings/settings_privacy_security.h"
 #include "styles/style_window.h"
@@ -387,13 +388,12 @@ void SessionNavigation::showPeerByLinkResolved(
 				info.messageId,
 				callback);
 		}
+	} else if (bot && info.resolveType == ResolveType::ShareGame) {
+		Window::ShowShareGameBox(parentController(), bot, info.startToken);
 	} else if (bot
 		&& (info.resolveType == ResolveType::AddToGroup
-			|| info.resolveType == ResolveType::AddToChannel
-			|| info.resolveType == ResolveType::ShareGame)) {
-		const auto scope = (info.resolveType == ResolveType::ShareGame)
-			? Scope::ShareGame
-			: (info.resolveType == ResolveType::AddToGroup)
+			|| info.resolveType == ResolveType::AddToChannel)) {
+		const auto scope = (info.resolveType == ResolveType::AddToGroup)
 			? (info.startAdminRights ? Scope::GroupAdmin : Scope::All)
 			: (info.resolveType == ResolveType::AddToChannel)
 			? Scope::ChannelAdmin

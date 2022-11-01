@@ -722,7 +722,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 		return Ui::Text::Link(std::move(full), topicUrl);
 	};
 	const auto wrapParentTopic = [&] {
-		const auto forum = history()->peer->forum();
+		const auto forum = history()->asForum();
 		if (!forum || forum->topicDeleted(topicRootId)) {
 			return wrapTopic(
 				tr::lng_deleted_message(tr::now),

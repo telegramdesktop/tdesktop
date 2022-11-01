@@ -661,7 +661,7 @@ void HistoryMessage::createComponentsHelper(
 		const auto to = LookupReplyTo(history(), replyTo);
 		const auto replyToTop = LookupReplyToTop(to);
 		config.replyToTop = replyToTop ? replyToTop : replyTo;
-		const auto forum = history()->peer->forum();
+		const auto forum = history()->asForum();
 		config.replyIsTopicPost = LookupReplyIsTopicPost(to)
 			|| (to && to->Has<HistoryServiceTopicInfo>())
 			|| (forum && forum->creating(config.replyToTop));

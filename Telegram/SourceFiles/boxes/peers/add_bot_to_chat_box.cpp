@@ -57,41 +57,6 @@ private:
 
 };
 
-void ShareBotGame(
-		not_null<UserData*> bot,
-		not_null<PeerData*> chat,
-		const QString &shortName) {
-	const auto history = chat->owner().history(chat);
-	auto &histories = history->owner().histories();
-	const auto randomId = base::RandomValue<uint64>();
-	const auto replyTo = 0;
-	const auto topicRootId = 0;
-	histories.sendPreparedMessage(
-		history,
-		replyTo,
-		topicRootId,
-		randomId,
-		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
-			MTP_flags(0),
-			chat->input,
-			Data::Histories::ReplyToPlaceholder(),
-			Data::Histories::TopicRootPlaceholder(),
-			MTP_inputMediaGame(
-				MTP_inputGameShortName(
-					bot->inputUser,
-					MTP_string(shortName))),
-			MTP_string(),
-			MTP_long(randomId),
-			MTPReplyMarkup(),
-			MTPVector<MTPMessageEntity>(),
-			MTP_int(0), // schedule_date
-			MTPInputPeer() // send_as
-		), [=](const MTPUpdates &result, const MTP::Response &response) {
-	}, [=](const MTP::Error &error, const MTP::Response &response) {
-		chat->session().api().sendMessageFail(error, chat);
-	});
-}
-
 Controller::Controller(
 	not_null<Main::Session*> session,
 	rpl::producer<not_null<PeerData*>> add,
@@ -165,9 +130,7 @@ AddBotToGroupBoxController::AddBotToGroupBoxController(
 	Scope scope,
 	const QString &token,
 	ChatAdminRights requestedRights)
-: ChatsListBoxController((scope == Scope::ShareGame)
-	? std::make_unique<PeerListGlobalSearchController>(&bot->session())
-	: nullptr)
+: ChatsListBoxController(std::unique_ptr<PeerListSearchController>())
 , _controller(controller)
 , _bot(bot)
 , _scope(scope)
@@ -185,42 +148,7 @@ Main::Session &AddBotToGroupBoxController::session() const {
 }
 
 void AddBotToGroupBoxController::rowClicked(not_null<PeerListRow*> row) {
-	if (sharingBotGame()) {
-		shareBotGame(row->peer());
-	} else {
-		addBotToGroup(row->peer());
-	}
-}
-
-void AddBotToGroupBoxController::shareBotGame(not_null<PeerData*> chat) {
-	auto send = crl::guard(this, [
-			bot = _bot,
-			controller = _controller,
-			chat,
-			token = _token] {
-		ShareBotGame(bot, chat, token);
-		using Way = Window::SectionShow::Way;
-		controller->hideLayer();
-		controller->showPeerHistory(chat, Way::ClearStack, ShowAtUnreadMsgId);
-	});
-	auto confirmText = [chat] {
-		if (chat->isUser()) {
-			return tr::lng_bot_sure_share_game(
-				tr::now,
-				lt_user,
-				chat->name());
-		}
-		return tr::lng_bot_sure_share_game_group(
-			tr::now,
-			lt_group,
-			chat->name());
-	}();
-	_controller->show(
-		Ui::MakeConfirmBox({
-			.text = confirmText,
-			.confirmed = std::move(send),
-		}),
-		Ui::LayerOption::KeepOther);
+	addBotToGroup(row->peer());
 }
 
 void AddBotToGroupBoxController::requestExistingRights(
@@ -341,13 +269,6 @@ auto AddBotToGroupBoxController::createRow(not_null<History*> history)
 
 bool AddBotToGroupBoxController::needToCreateRow(
 		not_null<PeerData*> peer) const {
-	if (sharingBotGame()) {
-		if (!peer->canWrite() // #TODO forum forward
-			|| peer->amRestricted(ChatRestriction::SendGames)) {
-			return false;
-		}
-		return true;
-	}
 	if (const auto chat = peer->asChat()) {
 		if (onlyAdminToGroup()) {
 			return chat->canAddAdmins();
@@ -374,14 +295,10 @@ bool AddBotToGroupBoxController::needToCreateRow(
 	return false;
 }
 
-bool AddBotToGroupBoxController::sharingBotGame() const {
-	return (_scope == Scope::ShareGame);
-}
-
 QString AddBotToGroupBoxController::emptyBoxText() const {
 	return !session().data().chatsListLoaded()
 		? tr::lng_contacts_loading(tr::now)
-		: (sharingBotGame() || _adminToChannel)
+		: _adminToChannel
 		? tr::lng_bot_no_chats(tr::now)
 		: tr::lng_bot_no_groups(tr::now);
 }
@@ -389,7 +306,7 @@ QString AddBotToGroupBoxController::emptyBoxText() const {
 QString AddBotToGroupBoxController::noResultsText() const {
 	return !session().data().chatsListLoaded()
 		? tr::lng_contacts_loading(tr::now)
-		: (sharingBotGame() || _adminToChannel)
+		: _adminToChannel
 		? tr::lng_bot_chats_not_found(tr::now)
 		: tr::lng_bot_groups_not_found(tr::now);
 }
@@ -463,7 +380,7 @@ bool AddBotToGroupBoxController::onlyAdminToChannel() const {
 }
 
 void AddBotToGroupBoxController::prepareViewHook() {
-	delegate()->peerListSetTitle((sharingBotGame() || _adminToChannel)
+	delegate()->peerListSetTitle(_adminToChannel
 		? tr::lng_bot_choose_chat()
 		: tr::lng_bot_choose_group());
 	if ((_adminToGroup && !onlyAdminToGroup())

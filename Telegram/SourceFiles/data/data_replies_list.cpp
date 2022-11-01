@@ -42,7 +42,7 @@ constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 }
 
 [[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {
-	if (const auto forum = history->peer->forum()) {
+	if (const auto forum = history->asForum()) {
 		return forum->creating(rootId);
 	}
 	return false;

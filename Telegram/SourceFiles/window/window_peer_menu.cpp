@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
+#include "base/random.h"
 #include "base/options.h"
 #include "base/unixtime.h"
 #include "boxes/delete_messages_box.h"
@@ -86,6 +87,48 @@ namespace {
 
 constexpr auto kTopicsSearchMinCount = 1;
 
+void ShareBotGame(
+		not_null<UserData*> bot,
+		not_null<Data::Thread*> thread,
+		const QString &shortName) {
+	auto &histories = thread->owner().histories();
+	const auto history = thread->owningHistory();
+	const auto randomId = base::RandomValue<uint64>();
+	const auto replyTo = thread->topicRootId();
+	const auto topicRootId = replyTo;
+	auto flags = MTPmessages_SendMedia::Flags(0);
+	if (replyTo) {
+		flags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (topicRootId) {
+			flags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
+	}
+	histories.sendPreparedMessage(
+		history,
+		replyTo,
+		topicRootId,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
+			MTP_flags(flags),
+			history->peer->input,
+			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
+			MTP_inputMediaGame(
+				MTP_inputGameShortName(
+					bot->inputUser,
+					MTP_string(shortName))),
+			MTP_string(),
+			MTP_long(randomId),
+			MTPReplyMarkup(),
+			MTPVector<MTPMessageEntity>(),
+			MTP_int(0), // schedule_date
+			MTPInputPeer() // send_as
+		), [=](const MTPUpdates &, const MTP::Response &) {
+	}, [=](const MTP::Error &error, const MTP::Response &) {
+		history->session().api().sendMessageFail(error, history->peer);
+	});
+}
+
 } // namespace
 
 const char kOptionViewProfileInChatsListContextMenu[] =
@@ -121,17 +164,15 @@ void MarkAsReadThread(not_null<Data::Thread*> thread) {
 	};
 	if (!IsUnreadThread(thread)) {
 		return;
+	} else if (const auto forum = thread->asForum()) {
+		forum->enumerateTopics([](
+			not_null<Data::ForumTopic*> topic) {
+			MarkAsReadThread(topic);
+		});
 	} else if (const auto history = thread->asHistory()) {
-		if (const auto forum = history->peer->forum()) {
-			forum->enumerateTopics([](
-					not_null<Data::ForumTopic*> topic) {
-				MarkAsReadThread(topic);
-			});
-		} else {
-			readHistory(history);
-			if (const auto migrated = history->migrateSibling()) {
-				readHistory(migrated);
-			}
+		readHistory(history);
+		if (const auto migrated = history->migrateSibling()) {
+			readHistory(migrated);
 		}
 	} else if (const auto topic = thread->asTopic()) {
 		topic->readTillEnd();
@@ -1540,6 +1581,63 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		navigation,
 		Data::ForwardDraft{ .ids = std::move(items) },
 		std::move(successCallback));
+}
+
+QPointer<Ui::BoxContent> ShowShareGameBox(
+		not_null<Window::SessionNavigation*> navigation,
+		not_null<UserData*> bot,
+		QString shortName) {
+	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
+	auto chosen = [=](not_null<Data::Thread*> thread) mutable {
+		const auto confirm = std::make_shared<QPointer<Ui::BoxContent>>();
+		auto send = crl::guard(thread, [=] {
+			ShareBotGame(bot, thread, shortName);
+			using Way = Window::SectionShow::Way;
+			if (const auto strong = *weak) {
+				strong->closeBox();
+			}
+			if (const auto strong = *confirm) {
+				strong->closeBox();
+			}
+			navigation->showThread(
+				thread,
+				ShowAtUnreadMsgId,
+				SectionShow::Way::ClearStack);
+		});
+		const auto confirmText = thread->owningHistory()->peer->isUser()
+			? tr::lng_bot_sure_share_game(
+				tr::now,
+				lt_user,
+				thread->chatListName())
+			: tr::lng_bot_sure_share_game_group(
+				tr::now,
+				lt_group,
+				thread->chatListName());
+		*confirm = navigation->parentController()->show(
+			Ui::MakeConfirmBox({
+				.text = confirmText,
+				.confirmed = std::move(send),
+			}),
+			Ui::LayerOption::KeepOther);
+	};
+	auto filter = [](not_null<Data::Thread*> thread) {
+		const auto peer = thread->owningHistory()->peer;
+		return (thread->canWrite() || thread->asForum())
+			&& !peer->amRestricted(ChatRestriction::SendGames)
+			&& !peer->isSelf();
+	};
+	auto initBox = [](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [box] {
+			box->closeBox();
+		});
+	};
+	*weak = navigation->parentController()->show(Box<PeerListBox>(
+		std::make_unique<ChooseRecipientBoxController>(
+			&navigation->session(),
+			std::move(chosen),
+			std::move(filter)),
+		std::move(initBox)), Ui::LayerOption::KeepOther);
+	return weak->data();
 }
 
 QPointer<Ui::BoxContent> ShowDropMediaBox(

@@ -365,7 +365,7 @@ void FakeRow::invalidateTopic() {
 	if (_topic) {
 		return;
 	} else if (const auto rootId = _item->topicRootId()) {
-		if (const auto forum = _item->history()->peer->forum()) {
+		if (const auto forum = _item->history()->asForum()) {
 			if (!forum->topicDeleted(rootId)) {
 				forum->requestTopic(rootId, crl::guard(this, [=] {
 					_topic = _item->topic();

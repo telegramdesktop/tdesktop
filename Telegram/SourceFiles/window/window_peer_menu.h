@@ -122,6 +122,10 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowShareGameBox(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> bot,
+	QString shortName);
 QPointer<Ui::BoxContent> ShowDropMediaBox(
 	not_null<Window::SessionNavigation*> navigation,
 	std::shared_ptr<QMimeData> data,
