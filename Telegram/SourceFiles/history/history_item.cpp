@@ -838,6 +838,8 @@ bool HistoryItem::canDelete() const {
 		return false;
 	} else if (isService() && !isRegular()) {
 		return false;
+	} else if (topicRootId() == id) {
+		return false;
 	} else if (!isHistoryEntry() && !isScheduled()) {
 		return false;
 	}
