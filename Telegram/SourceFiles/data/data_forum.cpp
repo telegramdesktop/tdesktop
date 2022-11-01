@@ -70,6 +70,7 @@ Forum::~Forum() {
 		session().storage().unload(Storage::SharedMediaUnloadThread(
 			peerId,
 			rootId));
+		_history->setForwardDraft(rootId, {});
 	}
 }
 
@@ -181,6 +182,7 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		session().storage().unload(Storage::SharedMediaUnloadThread(
 			_history->peer->id,
 			rootId));
+		_history->setForwardDraft(rootId, {});
 	}
 }
 
