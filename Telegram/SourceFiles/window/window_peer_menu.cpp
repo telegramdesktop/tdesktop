@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/checkbox.h"
+#include "ui/widgets/popup_menu.h"
+#include "ui/widgets/menu/menu_add_action_callback_factory.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toasts/common_toasts.h"
 #include "main/main_session.h"
@@ -220,10 +222,8 @@ void PeerMenuAddMuteSubmenuAction(
 			.icon = (notifySettings->sound(thread).none
 				? &st::menuIconSilent
 				: &st::menuIconMute),
-			.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
-				if (const auto strong = weak.get()) {
-					MuteMenu::FillMuteMenu(menu, strong, show);
-				}
+			.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+				MuteMenu::FillMuteMenu(menu, thread, show);
 			},
 		});
 	}
@@ -302,6 +302,7 @@ private:
 	void addViewAsMessages();
 	void addSearchTopics();
 	void addDeleteTopic();
+	void addVideoChat();
 
 	not_null<SessionController*> _controller;
 	Dialogs::EntryState _request;
@@ -572,7 +573,7 @@ void Filler::addToggleFolder() {
 		.text = tr::lng_filters_menu_add(tr::now),
 		.handler = nullptr,
 		.icon = &st::menuIconAddToFolder,
-		.fillSubmenu = [=](not_null<Ui::PopupMenu*> menu) {
+		.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
 			FillChooseFilterMenu(controller, menu, history);
 		},
 	});
@@ -1085,19 +1086,43 @@ void Filler::fillChatsListActions() {
 	addCreateTopic();
 	addInfo();
 	addViewAsMessages();
-	addManageChat();
-	FillVideoChatMenu(_controller, _request, _addAction);
-	addNewMembers();
 	const auto &all = _peer->forum()->topicsList()->indexed()->all();
 	if (all.size() > kTopicsSearchMinCount) {
 		addSearchTopics();
 	}
+	addManageChat();
+	addNewMembers();
+	addVideoChat();
 	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
 	if (_peer->asChannel()->amIn()) {
 		addLeaveChat();
 	} else {
 		addJoinChat();
 	}
+}
+
+void Filler::addVideoChat() {
+	auto test = Ui::PopupMenu(nullptr);
+	FillVideoChatMenu(
+		_controller,
+		_request,
+		Ui::Menu::CreateAddActionCallback(&test));
+	if (test.actions().size() < 2) {
+		FillVideoChatMenu(_controller, _request, _addAction);
+		return;
+	}
+	const auto show = std::make_shared<Window::Show>(_controller);
+	_addAction(PeerMenuCallback::Args{
+		.text = tr::lng_menu_start_group_call_options(tr::now),
+		.handler = nullptr,
+		.icon = &st::menuIconVideoChat,
+		.fillSubmenu = [&](not_null<Ui::PopupMenu*> menu) {
+			FillVideoChatMenu(
+				_controller,
+				_request,
+				Ui::Menu::CreateAddActionCallback(menu));
+		},
+	});
 }
 
 void Filler::fillContextMenuActions() {
@@ -2017,14 +2042,14 @@ bool FillVideoChatMenu(
 		addAction(
 			tr::lng_menu_start_group_call_join(tr::now),
 			[=] { callback({}); },
-			&st::menuIconStartStream);
+			&st::menuIconVideoChat);
 	} else if (manager) {
 		addAction(
 			(livestream
 				? tr::lng_menu_start_group_call_channel
 				: tr::lng_menu_start_group_call)(tr::now),
 			[=] { callback({}); },
-			&st::menuIconStartStream);
+			creator ? &st::menuIconStartStream : &st::menuIconVideoChat);
 	}
 	if (!has && creator) {
 		addAction(
