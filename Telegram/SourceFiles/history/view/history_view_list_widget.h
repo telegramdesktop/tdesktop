@@ -125,6 +125,8 @@ public:
 	CopyRestrictionType listCopyRestrictionType() {
 		return listCopyRestrictionType(nullptr);
 	}
+	virtual CopyRestrictionType listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) = 0;
 	virtual CopyRestrictionType listSelectRestrictionType() = 0;
 	virtual auto listAllowedReactionsValue()
 		-> rpl::producer<Data::AllowedReactions> = 0;
@@ -244,7 +246,10 @@ public:
 	[[nodiscard]] bool isEmpty() const;
 
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	[[nodiscard]] bool hasCopyMediaRestriction(
+		not_null<HistoryItem*> item) const;
 	[[nodiscard]] bool showCopyRestriction(HistoryItem *item = nullptr);
+	[[nodiscard]] bool showCopyMediaRestriction(not_null<HistoryItem*> item);
 	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
 	[[nodiscard]] bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
@@ -733,6 +738,9 @@ void ConfirmSendNowSelectedItems(not_null<ListWidget*> widget);
 [[nodiscard]] CopyRestrictionType CopyRestrictionTypeFor(
 	not_null<PeerData*> peer,
 	HistoryItem *item = nullptr);
+[[nodiscard]] CopyRestrictionType CopyMediaRestrictionTypeFor(
+	not_null<PeerData*> peer,
+	not_null<HistoryItem*> item);
 [[nodiscard]] CopyRestrictionType SelectRestrictionTypeFor(
 	not_null<PeerData*> peer);
 

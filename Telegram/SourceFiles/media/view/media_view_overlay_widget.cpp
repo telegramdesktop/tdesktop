@@ -563,13 +563,13 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 	return FlipSizeByRotation(size, _rotation);
 }
 
-bool OverlayWidget::hasCopyRestriction() const {
+bool OverlayWidget::hasCopyMediaRestriction() const {
 	return (_history && !_history->peer->allowsForwarding())
-		|| (_message && _message->forbidsForward());
+		|| (_message && _message->forbidsSaving());
 }
 
-bool OverlayWidget::showCopyRestriction() {
-	if (!hasCopyRestriction()) {
+bool OverlayWidget::showCopyMediaRestriction() {
+	if (!hasCopyMediaRestriction()) {
 		return false;
 	}
 	Ui::ShowMultilineToast({
@@ -739,7 +739,7 @@ void OverlayWidget::refreshNavVisibility() {
 }
 
 bool OverlayWidget::contentCanBeSaved() const {
-	if (hasCopyRestriction()) {
+	if (hasCopyMediaRestriction()) {
 		return false;
 	} else if (_photo) {
 		return _photo->hasVideo() || _photoMedia->loaded();
@@ -932,7 +932,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { showInFolder(); },
 			&st::mediaMenuIconShowInFolder);
 	}
-	if (!hasCopyRestriction()) {
+	if (!hasCopyMediaRestriction()) {
 		if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
 			addAction(
 				tr::lng_mediaview_copy(tr::now),
@@ -976,7 +976,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { deleteMedia(); },
 			&st::mediaMenuIconDelete);
 	}
-	if (!hasCopyRestriction()) {
+	if (!hasCopyMediaRestriction()) {
 		addAction(
 			tr::lng_mediaview_save_as(tr::now),
 			[=] { saveAs(); },
@@ -1602,7 +1602,7 @@ void OverlayWidget::notifyFileDialogShown(bool shown) {
 }
 
 void OverlayWidget::saveAs() {
-	if (showCopyRestriction()) {
+	if (showCopyMediaRestriction()) {
 		return;
 	}
 	QString file;
@@ -1938,7 +1938,7 @@ void OverlayWidget::showMediaOverview() {
 }
 
 void OverlayWidget::copyMedia() {
-	if (showCopyRestriction()) {
+	if (showCopyMediaRestriction()) {
 		return;
 	}
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);

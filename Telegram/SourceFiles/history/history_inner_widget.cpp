@@ -2154,7 +2154,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	const auto addPhotoActions = [&](not_null<PhotoData*> photo, HistoryItem *item) {
 		const auto media = photo->activeMediaView();
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		if (!photo->isNull() && media && media->loaded() && !hasCopyRestriction(item)) {
+		if (!photo->isNull() && media && media->loaded() && !hasCopyMediaRestriction(item)) {
 			_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 				savePhotoToFile(photo);
 			}), &st::menuIconSaveImage);
@@ -2194,7 +2194,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					openContextGif(itemId);
 				}, &st::menuIconShowInChat);
 			}
-			if (!hasCopyRestriction(item)) {
+			if (!hasCopyMediaRestriction(item)) {
 				_menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 					saveContextGif(itemId);
 				}, &st::menuIconGif);
@@ -2205,7 +2205,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				showContextInFolder(document);
 			}, &st::menuIconShowInFolder);
 		}
-		if (item && !hasCopyRestriction(item)) {
+		if (item && !hasCopyMediaRestriction(item)) {
 			HistoryView::AddSaveSoundForNotifications(
 				_menu,
 				item,
@@ -2373,7 +2373,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 								Api::ToggleFavedSticker(controller, document, itemId);
 							}, isFaved ? &st::menuIconUnfave : &st::menuIconFave);
 						}
-						if (!hasCopyRestriction(item)) {
+						if (!hasCopyMediaRestriction(item)) {
 							_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 								saveDocumentToFile(itemId, document);
 							}), &st::menuIconDownload);
@@ -2533,6 +2533,11 @@ bool HistoryInner::hasCopyRestriction(HistoryItem *item) const {
 	return !_peer->allowsForwarding() || (item && item->forbidsForward());
 }
 
+bool HistoryInner::hasCopyMediaRestriction(
+		not_null<HistoryItem*> item) const {
+	return hasCopyRestriction(item) || item->forbidsSaving();
+}
+
 bool HistoryInner::showCopyRestriction(HistoryItem *item) {
 	if (!hasCopyRestriction(item)) {
 		return false;
@@ -2543,6 +2548,19 @@ bool HistoryInner::showCopyRestriction(HistoryItem *item) {
 			? tr::lng_error_nocopy_channel(tr::now)
 			: tr::lng_error_nocopy_group(tr::now) },
 	});
+	return true;
+}
+
+bool HistoryInner::showCopyMediaRestriction(not_null<HistoryItem*> item) {
+	if (!hasCopyMediaRestriction(item)) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(_controller).toastParent(),
+		.text = { _peer->isBroadcast()
+			? tr::lng_error_nocopy_channel(tr::now)
+			: tr::lng_error_nocopy_group(tr::now) },
+		});
 	return true;
 }
 
@@ -2601,7 +2619,7 @@ void HistoryInner::copyContextImage(
 	const auto media = photo->activeMediaView();
 	if (photo->isNull() || !media || !media->loaded()) {
 		return;
-	} else if (!showCopyRestriction(item)) {
+	} else if (!showCopyMediaRestriction(item)) {
 		const auto image = media->image(Data::PhotoSize::Large)->original();
 		QGuiApplication::clipboard()->setImage(image);
 	}
@@ -2643,7 +2661,7 @@ void HistoryInner::openContextGif(FullMsgId itemId) {
 
 void HistoryInner::saveContextGif(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
-		if (!hasCopyRestriction(item)) {
+		if (!hasCopyMediaRestriction(item)) {
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					Api::ToggleSavedGif(

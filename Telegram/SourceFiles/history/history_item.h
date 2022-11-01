@@ -345,6 +345,7 @@ public:
 	[[nodiscard]] bool canBeEdited() const;
 	[[nodiscard]] bool canStopPoll() const;
 	[[nodiscard]] bool forbidsForward() const;
+	[[nodiscard]] bool forbidsSaving() const;
 	[[nodiscard]] virtual bool allowsSendNow() const;
 	[[nodiscard]] virtual bool allowsForward() const;
 	[[nodiscard]] virtual bool allowsEdit(TimeId now) const;

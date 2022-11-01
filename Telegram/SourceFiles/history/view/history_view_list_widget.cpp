@@ -1335,8 +1335,27 @@ bool ListWidget::hasCopyRestriction(HistoryItem *item) const {
 		!= CopyRestrictionType::None;
 }
 
+bool ListWidget::hasCopyMediaRestriction(not_null<HistoryItem*> item) const {
+	return _delegate->listCopyMediaRestrictionType(item)
+		!= CopyRestrictionType::None;
+}
+
 bool ListWidget::showCopyRestriction(HistoryItem *item) {
 	const auto type = _delegate->listCopyRestrictionType(item);
+	if (type == CopyRestrictionType::None) {
+		return false;
+	}
+	Ui::ShowMultilineToast({
+		.parentOverride = Window::Show(_controller).toastParent(),
+		.text = { (type == CopyRestrictionType::Channel)
+			? tr::lng_error_nocopy_channel(tr::now)
+			: tr::lng_error_nocopy_group(tr::now) },
+	});
+	return true;
+}
+
+bool ListWidget::showCopyMediaRestriction(not_null<HistoryItem*> item) {
+	const auto type = _delegate->listCopyMediaRestrictionType(item);
 	if (type == CopyRestrictionType::None) {
 		return false;
 	}
@@ -3861,6 +3880,20 @@ CopyRestrictionType CopyRestrictionTypeFor(
 		not_null<PeerData*> peer,
 		HistoryItem *item) {
 	return (peer->allowsForwarding() && (!item || !item->forbidsForward()))
+		? CopyRestrictionType::None
+		: peer->isBroadcast()
+		? CopyRestrictionType::Channel
+		: CopyRestrictionType::Group;
+}
+
+CopyRestrictionType CopyMediaRestrictionTypeFor(
+		not_null<PeerData*> peer,
+		not_null<HistoryItem*> item) {
+	if (const auto all = CopyRestrictionTypeFor(peer, item)
+		; all != CopyRestrictionType::None) {
+		return all;
+	}
+	return !item->forbidsSaving()
 		? CopyRestrictionType::None
 		: peer->isBroadcast()
 		? CopyRestrictionType::Channel

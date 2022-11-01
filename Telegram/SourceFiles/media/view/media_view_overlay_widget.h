@@ -409,8 +409,8 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 
-	[[nodiscard]] bool hasCopyRestriction() const;
-	[[nodiscard]] bool showCopyRestriction();
+	[[nodiscard]] bool hasCopyMediaRestriction() const;
+	[[nodiscard]] bool showCopyMediaRestriction();
 
 	[[nodiscard]] QSize flipSizeByRotation(QSize size) const;
 

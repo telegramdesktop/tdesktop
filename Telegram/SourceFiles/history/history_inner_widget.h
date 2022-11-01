@@ -403,7 +403,10 @@ private:
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	[[nodiscard]] bool hasCopyMediaRestriction(
+		not_null<HistoryItem*> item) const;
 	bool showCopyRestriction(HistoryItem *item = nullptr);
+	bool showCopyMediaRestriction(not_null<HistoryItem*> item);
 	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
 	bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;

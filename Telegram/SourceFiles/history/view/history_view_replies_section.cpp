@@ -2436,6 +2436,11 @@ CopyRestrictionType RepliesWidget::listCopyRestrictionType(
 	return CopyRestrictionTypeFor(_history->peer, item);
 }
 
+CopyRestrictionType RepliesWidget::listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) {
+	return CopyMediaRestrictionTypeFor(_history->peer, item);
+}
+
 CopyRestrictionType RepliesWidget::listSelectRestrictionType() {
 	return SelectRestrictionTypeFor(_history->peer);
 }

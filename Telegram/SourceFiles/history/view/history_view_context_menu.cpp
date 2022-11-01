@@ -147,7 +147,7 @@ void AddPhotoActions(
 		HistoryItem *item,
 		not_null<ListWidget*> list) {
 	const auto contextId = item ? item->fullId() : FullMsgId();
-	if (!list->hasCopyRestriction(item)) {
+	if (!list->hasCopyMediaRestriction(item)) {
 		menu->addAction(
 			tr::lng_context_save_image(tr::now),
 			App::LambdaDelayed(
@@ -157,7 +157,7 @@ void AddPhotoActions(
 			&st::menuIconSaveImage);
 		menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
 			const auto item = photo->owner().message(contextId);
-			if (!list->showCopyRestriction(item)) {
+			if (!list->showCopyMediaRestriction(item)) {
 				CopyImage(photo);
 			}
 		}, &st::menuIconCopy);
@@ -214,7 +214,7 @@ void AddSaveDocumentAction(
 		HistoryItem *item,
 		not_null<DocumentData*> document,
 		not_null<ListWidget*> list) {
-	if (list->hasCopyRestriction(item)) {
+	if (list->hasCopyMediaRestriction(item)) {
 		return;
 	}
 	const auto origin = item ? item->fullId() : FullMsgId();
@@ -269,7 +269,7 @@ void AddDocumentActions(
 				}
 			}, &st::menuIconShowInChat);
 		}
-		if (!list->hasCopyRestriction(item)) {
+		if (!list->hasCopyMediaRestriction(item)) {
 			menu->addAction(tr::lng_context_save_gif(tr::now), [=] {
 				SaveGif(list->controller(), contextId);
 			}, &st::menuIconGif);
@@ -309,7 +309,7 @@ void AddDocumentActions(
 			std::move(callback),
 			&st::menuIconStickers);
 	}
-	if (item && !list->hasCopyRestriction(item)) {
+	if (item && !list->hasCopyMediaRestriction(item)) {
 		const auto controller = list->controller();
 		AddSaveSoundForNotifications(menu, item, document, controller);
 	}

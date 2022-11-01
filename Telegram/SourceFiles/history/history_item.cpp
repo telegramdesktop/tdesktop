@@ -833,6 +833,15 @@ bool HistoryItem::forbidsForward() const {
 	return (_flags & MessageFlag::NoForwards);
 }
 
+bool HistoryItem::forbidsSaving() const {
+	if (forbidsForward()) {
+		return true;
+	} else if (const auto invoice = _media ? _media->invoice() : nullptr) {
+		return (invoice->extendedMedia != nullptr);
+	}
+	return false;
+}
+
 bool HistoryItem::canDelete() const {
 	if (isSponsored()) {
 		return false;

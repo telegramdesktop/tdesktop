@@ -583,6 +583,11 @@ CopyRestrictionType PinnedWidget::listCopyRestrictionType(
 	return CopyRestrictionTypeFor(_history->peer, item);
 }
 
+CopyRestrictionType PinnedWidget::listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) {
+	return CopyMediaRestrictionTypeFor(_history->peer, item);
+}
+
 CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
 	return SelectRestrictionTypeFor(_history->peer);
 }

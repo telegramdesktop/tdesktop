@@ -133,6 +133,8 @@ public:
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;
+	CopyRestrictionType listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) override;
 	CopyRestrictionType listSelectRestrictionType() override;
 	auto listAllowedReactionsValue()
 		-> rpl::producer<Data::AllowedReactions> override;
