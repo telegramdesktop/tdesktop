@@ -122,8 +122,6 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			}
 		});
 
-		const auto fdList = Gio::UnixFDList::create();
-		fdList->append(fd);
 		auto outFdList = Glib::RefPtr<Gio::UnixFDList>();
 
 		connection->call_sync(
@@ -132,7 +130,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 			"OpenFile",
 			Glib::VariantContainerBase::create_tuple({
 				Glib::Variant<Glib::ustring>::create(parentWindowId),
-				Glib::wrap(g_variant_new_handle(0)),
+				Glib::Variant<int>::create_handle(0),
 				Glib::Variant<std::map<
 					Glib::ustring,
 					Glib::VariantBase
@@ -151,7 +149,7 @@ bool ShowXDPOpenWithDialog(const QString &filepath) {
 					},
 				}),
 			}),
-			fdList,
+			Gio::UnixFDList::create(std::vector<int>{ fd }),
 			outFdList,
 			std::string(base::Platform::XDP::kService));
 

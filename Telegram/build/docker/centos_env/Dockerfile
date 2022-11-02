@@ -53,7 +53,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 355c563138 \
+	&& git checkout c95e7f1bb7 \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -655,8 +655,7 @@ FROM patches AS glibmm
 COPY --link --from=mm-common {{ LibrariesPath }}/mm-common-cache /
 COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
 
-# equals to glib version of Ubuntu 14.04
-RUN git clone -b 2.40.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
+RUN git clone -b 2.56.1 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
 	&& export ACLOCAL_PATH="/usr/local/share/aclocal" \
