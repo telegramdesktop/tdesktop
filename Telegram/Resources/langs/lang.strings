@@ -2049,6 +2049,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_dialogs_text_from_wrapped" = "{from}:";
 "lng_dialogs_text_media" = "{media_part} {caption}";
 "lng_dialogs_text_media_wrapped" = "{media},";
+"lng_dialogs_text_from_in_topic" = "{from} {topic}";
 "lng_dialogs_show_all_chats" = "Show all chats";
 "lng_dialogs_hide_muted_chats" = "Hide muted chats";
 "lng_dialogs_skip_archive_in_search" = "Skip results from archive";

@@ -848,7 +848,7 @@ TextWithEntities Manager::ComposeReactionEmoji(
 				EntityType::CustomEmoji,
 				0,
 				text.size(),
-				Data::SerializeCustomEmojiId(Data::CustomEmojiId{ id }))
+				Data::SerializeCustomEmojiId(id))
 		}
 	};
 }

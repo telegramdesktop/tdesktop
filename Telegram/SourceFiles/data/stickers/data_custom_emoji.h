@@ -21,10 +21,6 @@ namespace Data {
 class Session;
 class CustomEmojiLoader;
 
-struct CustomEmojiId {
-	DocumentId id = 0;
-};
-
 enum class CustomEmojiSizeTag : uchar {
 	Normal,
 	Large,
@@ -176,10 +172,14 @@ private:
 
 [[nodiscard]] int FrameSizeFromTag(CustomEmojiManager::SizeTag tag);
 
-[[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id);
+[[nodiscard]] QString SerializeCustomEmojiId(DocumentId id);
 [[nodiscard]] QString SerializeCustomEmojiId(
 	not_null<DocumentData*> document);
-[[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data);
+[[nodiscard]] DocumentId ParseCustomEmojiData(QStringView data);
+
+[[nodiscard]] TextWithEntities SingleCustomEmoji(DocumentId id);
+[[nodiscard]] TextWithEntities SingleCustomEmoji(
+	not_null<DocumentData*> document);
 
 [[nodiscard]] bool AllowEmojiWithoutPremium(not_null<PeerData*> peer);
 

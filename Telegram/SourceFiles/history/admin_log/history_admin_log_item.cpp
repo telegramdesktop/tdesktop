@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_text_entities.h"
 #include "data/data_channel.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_session.h"
 #include "data/data_message_reaction_id.h"
@@ -624,23 +625,10 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 		not_null<ChannelData*> channel,
 		const MTPForumTopic &topic) {
 	return topic.match([&](const MTPDforumTopic &data) {
-		const auto wrapIcon = [](DocumentId id) {
-			return TextWithEntities{
-				"@",
-				{ EntityInText(
-					EntityType::CustomEmoji,
-					0,
-					1,
-					Data::SerializeCustomEmojiId({ .id = id }))
-				},
-			};
-		};
-		auto result = (data.vicon_emoji_id() && data.vicon_emoji_id()->v)
-			? wrapIcon(data.vicon_emoji_id()->v)
-			: TextWithEntities();
-		result.append(qs(data.vtitle()));
 		return Ui::Text::Link(
-			std::move(result),
+			Data::ForumTopicIconWithTitle(
+				data.vicon_emoji_id().value_or_empty(),
+				qs(data.vtitle())),
 			u"internal:url:https://t.me/c/%1/%2"_q.arg(
 				peerToChannel(channel->id).bare).arg(
 					data.vid().v));

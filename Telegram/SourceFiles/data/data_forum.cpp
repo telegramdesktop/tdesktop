@@ -225,6 +225,13 @@ void Forum::applyReceivedTopics(
 				).first->second.get()
 				: i->second.get();
 			raw->applyTopic(data);
+			if (creating) {
+				if (const auto last = _history->chatListMessage()
+					; last && last->topicRootId() == rootId) {
+					_history->lastItemDialogsView().itemInvalidated(last);
+					_history->updateChatListEntry();
+				}
+			}
 			if (callback) {
 				callback(raw);
 			}

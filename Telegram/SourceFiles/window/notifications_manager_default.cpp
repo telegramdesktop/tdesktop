@@ -968,24 +968,9 @@ void Notification::updateNotifyDisplay() {
 
 		const auto topicWithChat = [&]() -> TextWithEntities {
 			const auto name = _history->peer->name();
-			const auto wrapIcon = [](DocumentId id) {
-				return TextWithEntities{
-					"@",
-					{ EntityInText(
-						EntityType::CustomEmoji,
-						0,
-						1,
-						Data::SerializeCustomEmojiId({.id = id }))
-					},
-				};
-			};
-			if (!_topic) {
-				return { name };
-			}
-			auto start = _topic->iconId()
-				? wrapIcon(_topic->iconId())
-				: TextWithEntities();
-			return start.append(_topic->title() + u" ("_q + name + ')');
+			return _topic
+				? _topic->titleWithIcon().append(u" ("_q + name + ')')
+				: TextWithEntities{ name };
 		};
 		auto title = options.hideNameAndPhoto
 			? TextWithEntities{ u"Telegram Desktop"_q }

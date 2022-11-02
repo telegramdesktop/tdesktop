@@ -16,25 +16,28 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 	if (replacementPosition < 0) {
 		return std::move(original);
 	}
+	return Replace(std::move(original), replacement, replacementPosition);
+}
 
+TextWithEntities ReplaceTag<TextWithEntities>::Replace(TextWithEntities &&original, const TextWithEntities &replacement, int start) {
 	auto result = TextWithEntities();
-	result.text = ReplaceTag<QString>::Replace(std::move(original.text), replacement.text, replacementPosition);
+	result.text = ReplaceTag<QString>::Replace(std::move(original.text), replacement.text, start);
 	auto originalEntitiesCount = original.entities.size();
 	auto replacementEntitiesCount = replacement.entities.size();
 	if (originalEntitiesCount != 0 || replacementEntitiesCount != 0) {
 		result.entities.reserve(originalEntitiesCount + replacementEntitiesCount);
 
-		auto replacementEnd = replacementPosition + int(replacement.text.size());
+		auto replacementEnd = start + int(replacement.text.size());
 		auto replacementEntity = replacement.entities.cbegin();
-		auto addReplacementEntitiesUntil = [&replacementEntity, &replacement, &result, replacementPosition, replacementEnd](int untilPosition) {
+		auto addReplacementEntitiesUntil = [&](int untilPosition) {
 			while (replacementEntity != replacement.entities.cend()) {
-				auto newOffset = replacementPosition + replacementEntity->offset();
+				auto newOffset = start + replacementEntity->offset();
 				if (newOffset >= untilPosition) {
 					return;
 				}
 				auto newEnd = newOffset + replacementEntity->length();
-				newOffset = std::clamp(newOffset, replacementPosition, replacementEnd);
-				newEnd = std::clamp(newEnd, replacementPosition, replacementEnd);
+				newOffset = std::clamp(newOffset, start, replacementEnd);
+				newEnd = std::clamp(newEnd, start, replacementEnd);
 				if (auto newLength = newEnd - newOffset) {
 					result.entities.push_back({ replacementEntity->type(), newOffset, newLength, replacementEntity->data() });
 				}
@@ -46,10 +49,10 @@ TextWithEntities ReplaceTag<TextWithEntities>::Call(TextWithEntities &&original,
 			// Transform the entity by the replacement.
 			auto offset = entity.offset();
 			auto end = offset + entity.length();
-			if (offset > replacementPosition) {
+			if (offset > start) {
 				offset = offset + replacement.text.size() - kTagReplacementSize;
 			}
-			if (end > replacementPosition) {
+			if (end > start) {
 				end = end + replacement.text.size() - kTagReplacementSize;
 			}
 			offset = std::clamp(offset, 0, int(result.text.size()));

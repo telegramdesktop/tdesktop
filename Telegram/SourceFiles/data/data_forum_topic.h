@@ -44,6 +44,9 @@ class Forum;
 	int32 colorId,
 	const QString &title,
 	const style::ForumTopicIcon &st);
+[[nodiscard]] TextWithEntities ForumTopicIconWithTitle(
+	DocumentId iconId,
+	const QString &title);
 
 class ForumTopic final : public Thread {
 public:
@@ -107,6 +110,7 @@ public:
 	[[nodiscard]] MsgId lastKnownServerMessageId() const;
 
 	[[nodiscard]] QString title() const;
+	[[nodiscard]] TextWithEntities titleWithIcon() const;
 	void applyTitle(const QString &title);
 	[[nodiscard]] DocumentId iconId() const;
 	void applyIconId(DocumentId iconId);

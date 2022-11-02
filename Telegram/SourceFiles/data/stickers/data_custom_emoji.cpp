@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -91,7 +92,7 @@ class CustomEmojiLoader final
 public:
 	CustomEmojiLoader(
 		not_null<Session*> owner,
-		const CustomEmojiId id,
+		DocumentId id,
 		SizeTag tag,
 		int sizeOverride);
 	CustomEmojiLoader(
@@ -144,7 +145,7 @@ private:
 
 	[[nodiscard]] static std::variant<Resolve, Lookup, Load> InitialState(
 		not_null<Session*> owner,
-		const CustomEmojiId &id);
+		DocumentId id);
 
 	std::variant<Resolve, Lookup, Load> _state;
 	ushort _sizeOverride = 0;
@@ -154,7 +155,7 @@ private:
 
 CustomEmojiLoader::CustomEmojiLoader(
 	not_null<Session*> owner,
-	const CustomEmojiId id,
+	DocumentId id,
 	SizeTag tag,
 	int sizeOverride)
 : _state(InitialState(owner, id))
@@ -368,9 +369,9 @@ void CustomEmojiLoader::check() {
 
 auto CustomEmojiLoader::InitialState(
 	not_null<Session*> owner,
-	const CustomEmojiId &id)
+	DocumentId id)
 -> std::variant<Resolve, Lookup, Load> {
-	const auto document = owner->document(id.id);
+	const auto document = owner->document(id);
 	if (document->sticker()) {
 		return Lookup{ document };
 	}
@@ -504,8 +505,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		SizeTag tag,
 		int sizeOverride) {
 	const auto parsed = ParseCustomEmojiData(data);
-	return parsed.id
-		? create(parsed.id, std::move(update), tag, sizeOverride)
+	return parsed
+		? create(parsed, std::move(update), tag, sizeOverride)
 		: nullptr;
 }
 
@@ -532,7 +533,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 void CustomEmojiManager::resolve(
 		QStringView data,
 		not_null<Listener*> listener) {
-	resolve(ParseCustomEmojiData(data).id, listener);
+	resolve(ParseCustomEmojiData(data), listener);
 }
 
 void CustomEmojiManager::resolve(
@@ -619,7 +620,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 ) -> LoaderWithSetId {
 	auto result = std::make_unique<CustomEmojiLoader>(
 		_owner,
-		CustomEmojiId{ .id = documentId },
+		documentId,
 		tag,
 		sizeOverride);
 	if (const auto document = result->document()) {
@@ -882,18 +883,24 @@ int FrameSizeFromTag(SizeTag tag) {
 	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
 
-QString SerializeCustomEmojiId(const CustomEmojiId &id) {
-	return QString::number(id.id);
+QString SerializeCustomEmojiId(DocumentId id) {
+	return QString::number(id);
 }
 
 QString SerializeCustomEmojiId(not_null<DocumentData*> document) {
-	return SerializeCustomEmojiId({
-		.id = document->id,
-	});
+	return SerializeCustomEmojiId(document->id);
 }
 
-CustomEmojiId ParseCustomEmojiData(QStringView data) {
-	return { .id = data.toULongLong() };
+DocumentId ParseCustomEmojiData(QStringView data) {
+	return data.toULongLong();
+}
+
+TextWithEntities SingleCustomEmoji(DocumentId id) {
+	return Ui::Text::SingleCustomEmoji(SerializeCustomEmojiId(id));
+}
+
+TextWithEntities SingleCustomEmoji(not_null<DocumentData*> document) {
+	return SingleCustomEmoji(document->id);
 }
 
 bool AllowEmojiWithoutPremium(not_null<PeerData*> peer) {

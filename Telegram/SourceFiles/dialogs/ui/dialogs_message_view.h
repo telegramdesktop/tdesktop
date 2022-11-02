@@ -57,6 +57,7 @@ private:
 
 	mutable const HistoryItem *_textCachedFor = nullptr;
 	mutable Text::String _senderCache;
+	mutable Text::String _topicCache;
 	mutable Text::String _textCache;
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
@@ -65,6 +66,7 @@ private:
 
 [[nodiscard]] HistoryView::ItemPreview PreviewWithSender(
 	HistoryView::ItemPreview &&preview,
-	const TextWithEntities &sender);
+	const QString &sender,
+	TextWithEntities topic);
 
 } // namespace Dialogs::Ui

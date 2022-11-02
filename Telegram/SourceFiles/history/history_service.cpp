@@ -636,33 +636,19 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	const auto wrapTopicIcon = [](DocumentId id) {
-		return TextWithEntities{
-			"@",
-			{ EntityInText(
-				EntityType::CustomEmoji,
-				0,
-				1,
-				Data::SerializeCustomEmojiId({ .id = id }))
-			},
-		};
-	};
-
 	auto prepareTopicCreate = [&](const MTPDmessageActionTopicCreate &action) {
 		auto result = PreparedText{};
-		auto title = TextWithEntities{
-			qs(action.vtitle())
-		};
-		if (const auto icon = action.vicon_emoji_id().value_or_empty()) {
-			title = wrapTopicIcon(icon).append(' ').append(std::move(title));
-		}
 		const auto topicUrl = u"internal:url:https://t.me/c/%1/%2"_q
 			.arg(peerToChannel(history()->peer->id).bare)
 			.arg(id.bare);
 		result.text = tr::lng_action_topic_created(
 			tr::now,
 			lt_topic,
-			Ui::Text::Link(std::move(title), topicUrl),
+			Ui::Text::Link(
+				Data::ForumTopicIconWithTitle(
+					action.vicon_emoji_id().value_or_empty(),
+					qs(action.vtitle())),
+				topicUrl),
 			Ui::Text::WithEntities);
 		return result;
 	};
@@ -684,7 +670,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 						lt_link,
 						{ tr::lng_action_topic_placeholder(tr::now) },
 						lt_emoji,
-						wrapTopicIcon(iconId),
+						Data::SingleCustomEmoji(iconId),
 						Ui::Text::WithEntities);
 				} else {
 					result.links.push_back(fromLink());
@@ -699,14 +685,6 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			}
 		} else {
 			result.links.push_back(fromLink());
-			auto title = TextWithEntities{
-				qs(*action.vtitle())
-			};
-			if (const auto icon = action.vicon_emoji_id().value_or_empty()) {
-				title = wrapTopicIcon(icon)
-					.append(' ')
-					.append(std::move(title));
-			}
 			result.text = tr::lng_action_topic_renamed(
 				tr::now,
 				lt_from,
@@ -714,7 +692,9 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				lt_link,
 				{ tr::lng_action_topic_placeholder(tr::now) },
 				lt_title,
-				std::move(title),
+				Data::ForumTopicIconWithTitle(
+					action.vicon_emoji_id().value_or_empty(),
+					qs(*action.vtitle())),
 				Ui::Text::WithEntities);
 		}
 		if (result.text.empty()) {

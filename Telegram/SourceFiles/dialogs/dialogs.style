@@ -69,7 +69,7 @@ defaultDialogRow: DialogRow {
 	nameLeft: 68px;
 	nameTop: 10px;
 	textLeft: 68px;
-	textTop: 35px;
+	textTop: 34px;
 }
 
 dialogsOnlineBadgeStroke: 2px;
@@ -460,3 +460,7 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
 }
+
+dialogsTopicArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgService }};
+dialogsTopicArrowSkip: 13px;
+dialogsTopicArrowTop: 4px;

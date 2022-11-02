@@ -1365,9 +1365,11 @@ ItemPreview HistoryItem::toPreview(ToPreviewOptions options) const {
 	if (!sender) {
 		return result;
 	}
-	const auto fromWrapped = Ui::Text::PlainLink(
-		tr::lng_dialogs_text_from_wrapped(tr::now, lt_from, *sender));
-	return Dialogs::Ui::PreviewWithSender(std::move(result), fromWrapped);
+	const auto topic = options.ignoreTopic ? nullptr : this->topic();
+	return Dialogs::Ui::PreviewWithSender(
+		std::move(result),
+		*sender,
+		topic ? topic->titleWithIcon() : TextWithEntities());
 }
 
 TextWithEntities HistoryItem::inReplyText() const {

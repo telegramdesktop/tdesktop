@@ -921,7 +921,7 @@ void RowPainter::Paint(
 				view->prepare(
 					item,
 					[=] { entry->updateChatListEntry(); },
-					{});
+					{ .ignoreTopic = (!history || !peer->isForum()) });
 			}
 			view->paint(p, rect, context);
 		}
