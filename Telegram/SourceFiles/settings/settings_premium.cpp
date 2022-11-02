@@ -852,7 +852,7 @@ void TopBarUser::updateTitle(
 		+ set->title;
 	const auto linkIndex = 1;
 	const auto entityEmojiData = Data::SerializeCustomEmojiId(
-		{ set->thumbnailDocumentId });
+		set->thumbnailDocumentId);
 	const auto entities = EntitiesInText{
 		{ EntityType::CustomEmoji, 0, 1, entityEmojiData },
 		Ui::Text::Link(text, linkIndex).entities.front(),

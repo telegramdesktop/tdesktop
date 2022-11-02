@@ -1961,14 +1961,6 @@ void ListWidget::checkActivation() {
 		|| !markingMessagesRead()) {
 		return;
 	}
-	const auto h = height();
-	const auto t = _visibleTop;
-	const auto b = _visibleBottom;
-	const auto r = _itemsRevealHeight;
-	auto a = 0;
-	for (const auto &view : _itemRevealPending) {
-		a += view->height();
-	}
 	for (const auto &view : ranges::views::reverse(_items)) {
 		const auto bottom = itemTop(view) + view->height();
 		if (_visibleBottom + _itemsRevealHeight >= bottom) {
