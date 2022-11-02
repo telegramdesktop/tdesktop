@@ -15,15 +15,24 @@ class HistoryService;
 
 namespace Data {
 
+class ForumTopic;
 class Histories;
 struct MessagePosition;
 struct MessagesSlice;
 struct MessageUpdate;
+struct RepliesReadTillUpdate;
 
 class RepliesList final : public base::has_weak_ptr {
 public:
-	RepliesList(not_null<History*> history, MsgId rootId);
+	RepliesList(
+		not_null<History*> history,
+		MsgId rootId,
+		ForumTopic *owningTopic = nullptr);
 	~RepliesList();
+
+	void apply(const RepliesReadTillUpdate &update);
+	void apply(const MessageUpdate &update);
+	void applyDifferenceTooLong();
 
 	[[nodiscard]] rpl::producer<MessagesSlice> source(
 		MessagePosition aroundId,
@@ -66,6 +75,7 @@ private:
 	HistoryItem *lookupRoot();
 	[[nodiscard]] Histories &histories();
 
+	void subscribeToUpdates();
 	[[nodiscard]] rpl::producer<MessagesSlice> sourceFromServer(
 		MessagePosition aroundId,
 		int limitBefore,
@@ -77,8 +87,6 @@ private:
 		not_null<Viewer*> viewer,
 		not_null<HistoryItem*> item);
 	[[nodiscard]] bool applyUpdate(const MessageUpdate &update);
-	[[nodiscard]] bool applyDifferenceTooLong(
-		not_null<ChannelData*> channel);
 	void injectRootMessageAndReverse(not_null<Viewer*> viewer);
 	void injectRootMessage(not_null<Viewer*> viewer);
 	void injectRootDivider(
@@ -97,6 +105,7 @@ private:
 	void reloadUnreadCountIfNeeded();
 
 	const not_null<History*> _history;
+	ForumTopic *_owningTopic = nullptr;
 	const MsgId _rootId = 0;
 	const bool _creating = false;
 

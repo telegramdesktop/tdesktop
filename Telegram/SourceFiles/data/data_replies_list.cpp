@@ -60,38 +60,24 @@ struct RepliesList::Viewer {
 	bool scheduled = false;
 };
 
-RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
+RepliesList::RepliesList(
+	not_null<History*> history,
+	MsgId rootId,
+	ForumTopic *owningTopic)
 : _history(history)
+, _owningTopic(owningTopic)
 , _rootId(rootId)
 , _creating(IsCreating(history, rootId))
 , _readRequestTimer([=] { sendReadTillRequest(); }) {
-	_history->owner().repliesReadTillUpdates(
-	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
-		return (update.id.msg == _rootId)
-			&& (update.id.peer == _history->peer->id);
-	}) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
-		if (update.out) {
-			setOutboxReadTill(update.readTillId);
-		} else if (update.readTillId >= _inboxReadTillId) {
-			setInboxReadTill(
-				update.readTillId,
-				computeUnreadCountLocally(update.readTillId));
-		}
-	}, _lifetime);
-
-	_history->session().changes().messageUpdates(
-		MessageUpdate::Flag::NewAdded
-		| MessageUpdate::Flag::NewMaybeAdded
-		| MessageUpdate::Flag::ReplyToTopAdded
-		| MessageUpdate::Flag::Destroyed
-	) | rpl::filter([=](const MessageUpdate &update) {
-		return applyUpdate(update);
-	}) | rpl::to_empty | rpl::start_to_stream(_instantChanges, _lifetime);
-
-	_history->owner().channelDifferenceTooLong(
-	) | rpl::filter([=](not_null<ChannelData*> channel) {
-		return applyDifferenceTooLong(channel);
-	}) | rpl::to_empty | rpl::start_to_stream(_listChanges, _lifetime);
+	if (_owningTopic) {
+		_owningTopic->destroyed(
+		) | rpl::start_with_next([=] {
+			_owningTopic = nullptr;
+			subscribeToUpdates();
+		}, _lifetime);
+	} else {
+		subscribeToUpdates();
+	}
 }
 
 RepliesList::~RepliesList() {
@@ -102,6 +88,48 @@ RepliesList::~RepliesList() {
 	}
 	if (_divider) {
 		_divider->destroy();
+	}
+}
+
+void RepliesList::subscribeToUpdates() {
+	_history->owner().repliesReadTillUpdates(
+	) | rpl::filter([=](const RepliesReadTillUpdate &update) {
+		return (update.id.msg == _rootId)
+			&& (update.id.peer == _history->peer->id);
+	}) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
+		apply(update);
+	}, _lifetime);
+
+	_history->session().changes().messageUpdates(
+		MessageUpdate::Flag::NewAdded
+		| MessageUpdate::Flag::NewMaybeAdded
+		| MessageUpdate::Flag::ReplyToTopAdded
+		| MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const MessageUpdate &update) {
+		apply(update);
+	}, _lifetime);
+
+	_history->owner().channelDifferenceTooLong(
+	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+		if (channel == _history->peer) {
+			applyDifferenceTooLong();
+		}
+	}, _lifetime);
+}
+
+void RepliesList::apply(const RepliesReadTillUpdate &update) {
+	if (update.out) {
+		setOutboxReadTill(update.readTillId);
+	} else if (update.readTillId >= _inboxReadTillId) {
+		setInboxReadTill(
+			update.readTillId,
+			computeUnreadCountLocally(update.readTillId));
+	}
+}
+
+void RepliesList::apply(const MessageUpdate &update) {
+	if (applyUpdate(update)) {
+		_instantChanges.fire({});
 	}
 }
 
@@ -426,14 +454,11 @@ bool RepliesList::applyUpdate(const MessageUpdate &update) {
 	return true;
 }
 
-bool RepliesList::applyDifferenceTooLong(not_null<ChannelData*> channel) {
-	if (_creating
-		|| _history->peer != channel
-		|| !_skippedAfter.has_value()) {
-		return false;
+void RepliesList::applyDifferenceTooLong() {
+	if (!_creating && _skippedAfter.has_value()) {
+		_skippedAfter = std::nullopt;
+		_listChanges.fire({});
 	}
-	_skippedAfter = std::nullopt;
-	return true;
 }
 
 void RepliesList::changeUnreadCountByPost(MsgId id, int delta) {

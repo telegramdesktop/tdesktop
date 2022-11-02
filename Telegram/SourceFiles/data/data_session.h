@@ -143,6 +143,7 @@ public:
 		return ++_nonHistoryEntryId;
 	}
 
+	void subscribeForTopicRepliesLists();
 	void clear();
 
 	void keepAlive(std::shared_ptr<PhotoMedia> media);

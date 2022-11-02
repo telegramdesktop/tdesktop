@@ -151,7 +151,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 : Thread(&forum->history()->owner(), Type::ForumTopic)
 , _forum(forum)
 , _list(_forum->topicsList())
-, _replies(std::make_shared<RepliesList>(history(), rootId))
+, _replies(std::make_shared<RepliesList>(history(), rootId, this))
 , _sendActionPainter(owner().sendActionManager().repliesPainter(
 	history(),
 	rootId))

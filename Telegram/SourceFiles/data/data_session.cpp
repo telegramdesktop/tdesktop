@@ -56,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_wall_paper.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
+#include "data/data_replies_list.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
@@ -292,6 +293,8 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}, _lifetime);
 
+	subscribeForTopicRepliesLists();
+
 	crl::on_main(_session, [=] {
 		AmPremiumValue(
 			_session
@@ -305,6 +308,37 @@ Session::Session(not_null<Main::Session*> session)
 			}
 		}, _lifetime);
 	});
+}
+
+void Session::subscribeForTopicRepliesLists() {
+	repliesReadTillUpdates(
+	) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
+		if (const auto peer = peerLoaded(update.id.peer)) {
+			if (const auto topic = peer->forumTopicFor(update.id.msg)) {
+				topic->replies()->apply(update);
+			}
+		}
+	}, _lifetime);
+
+	session().changes().messageUpdates(
+		MessageUpdate::Flag::NewAdded
+		| MessageUpdate::Flag::NewMaybeAdded
+		| MessageUpdate::Flag::ReplyToTopAdded
+		| MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const MessageUpdate &update) {
+		if (const auto topic = update.item->topic()) {
+			topic->replies()->apply(update);
+		}
+	}, _lifetime);
+
+	channelDifferenceTooLong(
+	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+		if (const auto forum = channel->forum()) {
+			forum->enumerateTopics([](not_null<ForumTopic*> topic) {
+				topic->replies()->applyDifferenceTooLong();
+			});
+		}
+	}, _lifetime);
 }
 
 void Session::clear() {
