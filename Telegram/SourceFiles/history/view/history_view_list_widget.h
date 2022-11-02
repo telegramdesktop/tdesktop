@@ -245,6 +245,11 @@ public:
 	[[nodiscard]] bool loadedAtBottom() const;
 	[[nodiscard]] bool isEmpty() const;
 
+	[[nodiscard]] bool markingContentsRead() const;
+	[[nodiscard]] bool markingMessagesRead() const;
+	void showFinished();
+	void checkActivation();
+
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
 	[[nodiscard]] bool hasCopyMediaRestriction(
 		not_null<HistoryItem*> item) const;
@@ -692,6 +697,9 @@ private:
 	Qt::CursorShape _cursor = style::cur_default;
 
 	bool _isChatWide = false;
+	bool _refreshingViewer = false;
+	bool _showFinished = false;
+	bool _resizePending = false;
 
 	// _menu must be destroyed before _whoReactedMenuLifetime.
 	rpl::lifetime _whoReactedMenuLifetime;

@@ -86,7 +86,7 @@ RepliesList::RepliesList(not_null<History*> history, MsgId rootId)
 		| MessageUpdate::Flag::Destroyed
 	) | rpl::filter([=](const MessageUpdate &update) {
 		return applyUpdate(update);
-	}) | rpl::to_empty | rpl::start_to_stream(_listChanges, _lifetime);
+	}) | rpl::to_empty | rpl::start_to_stream(_instantChanges, _lifetime);
 
 	_history->owner().channelDifferenceTooLong(
 	) | rpl::filter([=](not_null<ChannelData*> channel) {
@@ -114,11 +114,17 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		auto lifetime = rpl::lifetime();
 		const auto viewer = lifetime.make_state<Viewer>();
 		const auto push = [=] {
-			viewer->scheduled = false;
-			if (buildFromData(viewer)) {
-				appendClientSideMessages(viewer->slice);
-				consumer.put_next_copy(viewer->slice);
+			if (viewer->scheduled) {
+				viewer->scheduled = false;
+				if (buildFromData(viewer)) {
+					appendClientSideMessages(viewer->slice);
+					consumer.put_next_copy(viewer->slice);
+				}
 			}
+		};
+		const auto pushInstant = [=] {
+			viewer->scheduled = true;
+			push();
 		};
 		const auto pushDelayed = [=] {
 			if (!viewer->scheduled) {
@@ -144,7 +150,10 @@ rpl::producer<MessagesSlice> RepliesList::source(
 		_listChanges.events(
 		) | rpl::start_with_next(pushDelayed, lifetime);
 
-		push();
+		_instantChanges.events(
+		) | rpl::start_with_next(pushInstant, lifetime);
+
+		pushInstant();
 		return lifetime;
 	};
 }

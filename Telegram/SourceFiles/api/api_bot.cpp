@@ -57,11 +57,7 @@ void SendBotCallbackData(
 	const auto bot = item->getMessageBot();
 	const auto fullId = item->fullId();
 	const auto getButton = [=] {
-		return HistoryMessageMarkupButton::Get(
-			owner,
-			fullId,
-			row,
-			column);
+		return HistoryMessageMarkupButton::Get(owner, fullId, row, column);
 	};
 	const auto button = getButton();
 	if (!button || button->requestId) {

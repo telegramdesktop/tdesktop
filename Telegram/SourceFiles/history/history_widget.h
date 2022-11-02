@@ -129,10 +129,10 @@ public:
 	void setGeometryWithTopMoved(const QRect &newGeometry, int topDelta);
 
 	void windowShown();
-	[[nodiscard]] bool doWeReadServerHistory() const;
-	[[nodiscard]] bool doWeReadMentions() const;
+	[[nodiscard]] bool markingMessagesRead() const;
+	[[nodiscard]] bool markingContentsRead() const;
 	bool skipItemRepaint();
-	void checkHistoryActivation();
+	void checkActivation();
 
 	void leaveToChildEvent(QEvent *e, QWidget *child) override;
 

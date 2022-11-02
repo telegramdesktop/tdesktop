@@ -255,9 +255,6 @@ void Forum::requestSomeStale() {
 		const auto rootId = *i;
 		i = _staleRootIds.erase(i);
 
-		if (_topicRequests.contains(rootId)) {
-			continue;
-		}
 		rootIds.push_back(MTP_int(rootId));
 		if (rootIds.size() == kStalePerRequest) {
 			break;
@@ -279,10 +276,12 @@ void Forum::requestSomeStale() {
 				channel()->inputChannel,
 				MTP_vector<MTPint>(rootIds))
 		).done([=](const MTPmessages_ForumTopics &result) {
+			_staleRequestId = 0;
 			applyReceivedTopics(result);
 			call();
 			finish();
 		}).fail([=] {
+			_staleRequestId = 0;
 			call();
 			finish();
 		}).send();
@@ -301,35 +300,19 @@ void Forum::finishTopicRequest(MsgId rootId) {
 }
 
 void Forum::requestTopic(MsgId rootId, Fn<void()> done) {
-	_staleRootIds.remove(rootId);
-
 	auto &request = _topicRequests[rootId];
 	if (done) {
 		request.callbacks.push_back(std::move(done));
 	}
-	if (request.id) {
-		return;
+	if (!request.id
+		&& _staleRootIds.emplace(rootId).second
+		&& (_staleRootIds.size() == 1)) {
+		crl::on_main(&session(), [peer = channel()] {
+			if (const auto forum = peer->forum()) {
+				forum->requestSomeStale();
+			}
+		});
 	}
-	const auto call = [=] {
-		finishTopicRequest(rootId);
-	};
-	const auto type = Histories::RequestType::History;
-	auto &histories = owner().histories();
-	request.id = histories.sendRequest(_history, type, [=](
-			Fn<void()> finish) {
-		return session().api().request(
-			MTPchannels_GetForumTopicsByID(
-				channel()->inputChannel,
-				MTP_vector<MTPint>(1, MTP_int(rootId.bare)))
-		).done([=](const MTPmessages_ForumTopics &result) {
-			applyReceivedTopics(result);
-			call();
-			finish();
-		}).fail([=] {
-			call();
-			finish();
-		}).send();
-	});
 }
 
 ForumTopic *Forum::applyTopicAdded(

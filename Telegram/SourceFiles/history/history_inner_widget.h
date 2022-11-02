@@ -108,7 +108,7 @@ public:
 
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
-	void checkHistoryActivation();
+	void checkActivation();
 	void recountHistoryGeometry();
 	void updateSize();
 

@@ -113,7 +113,7 @@ void Controller::showAccount(
 			) | rpl::filter([=](bool idle) {
 				return !idle;
 			}) | rpl::start_with_next([=] {
-				widget()->checkHistoryActivation();
+				widget()->checkActivation();
 			}, _sessionController->lifetime());
 
 			session->termsLockValue(

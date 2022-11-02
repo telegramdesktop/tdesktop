@@ -2060,8 +2060,11 @@ void MainWidget::dialogsToUp() {
 	}
 }
 
-void MainWidget::checkHistoryActivation() {
-	_history->checkHistoryActivation();
+void MainWidget::checkActivation() {
+	_history->checkActivation();
+	if (_mainSection) {
+		_mainSection->checkActivation();
+	}
 }
 
 void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
@@ -2223,7 +2226,7 @@ void MainWidget::showAll() {
 	updateControlsGeometry();
 	floatPlayerCheckVisibility();
 
-	_controller->widget()->checkHistoryActivation();
+	_controller->widget()->checkActivation();
 }
 
 void MainWidget::resizeEvent(QResizeEvent *e) {
@@ -2778,14 +2781,8 @@ void MainWidget::activate() {
 	_controller->widget()->fixOrder();
 }
 
-bool MainWidget::isActive() const {
-	return isVisible()
-		&& !_a_show.animating()
-		&& !session().updates().isIdle();
-}
-
-bool MainWidget::doWeMarkAsRead() const {
-	return isActive() && !_mainSection;
+bool MainWidget::animatingShow() const {
+	return _a_show.animating();
 }
 
 bool MainWidget::isOneColumn() const {

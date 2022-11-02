@@ -429,11 +429,13 @@ not_null<ListDelegate*> ListWidget::delegate() const {
 
 void ListWidget::refreshViewer() {
 	_viewerLifetime.destroy();
+	_refreshingViewer = true;
 	_delegate->listSource(
 		_aroundPosition,
 		_idsLimit,
 		_idsLimit
 	) | rpl::start_with_next([=](Data::MessagesSlice &&slice) {
+		_refreshingViewer = false;
 		std::swap(_slice, slice);
 		refreshRows(slice);
 	}, _viewerLifetime);
@@ -453,6 +455,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	) - 1;
 
 	auto destroyingBarElement = _bar.element;
+	_resizePending = true;
 	_items.clear();
 	_items.reserve(_slice.ids.size());
 	auto nearestIndex = -1;
@@ -486,7 +489,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	if (_emptyInfo) {
 		_emptyInfo->setVisible(isEmpty());
 	}
-	_delegate->listContentRefreshed();
+	checkActivation();
 }
 
 std::optional<int> ListWidget::scrollTopForPosition(
@@ -1728,6 +1731,7 @@ void ListWidget::updateItemsGeometry() {
 void ListWidget::updateSize() {
 	resizeToWidth(width(), _minHeight);
 	updateVisibleTopItem();
+	_resizePending = false;
 }
 
 void ListWidget::resizeToWidth(int newWidth, int minHeight) {
@@ -1936,6 +1940,43 @@ Ui::ChatPaintContext ListWidget::preparePaintContext(
 	});
 }
 
+bool ListWidget::markingContentsRead() const {
+	return _showFinished
+		&& !_refreshingViewer
+		&& controller()->widget()->markingAsRead();
+}
+
+bool ListWidget::markingMessagesRead() const {
+	return markingContentsRead() && !session().supportMode();
+}
+
+void ListWidget::showFinished() {
+	_showFinished = true;
+	checkActivation();
+}
+
+void ListWidget::checkActivation() {
+	if (_resizePending
+		|| _visibleTop >= _visibleBottom
+		|| !markingMessagesRead()) {
+		return;
+	}
+	const auto h = height();
+	const auto t = _visibleTop;
+	const auto b = _visibleBottom;
+	const auto r = _itemsRevealHeight;
+	auto a = 0;
+	for (const auto &view : _itemRevealPending) {
+		a += view->height();
+	}
+	for (const auto &view : ranges::views::reverse(_items)) {
+		const auto bottom = itemTop(view) + view->height();
+		if (_visibleBottom + _itemsRevealHeight >= bottom) {
+			delegate()->listMarkReadTill(view->data());
+		}
+	}
+}
+
 void ListWidget::paintEvent(QPaintEvent *e) {
 	if (Ui::skipPaintEvent(this, e)) {
 		return;
@@ -1944,10 +1985,10 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
-		if (readTill) {
+		if (readTill && markingMessagesRead()) {
 			_delegate->listMarkReadTill(readTill);
 		}
-		if (!readContents.empty()) {
+		if (!readContents.empty() && markingContentsRead()) {
 			_delegate->listMarkContentsRead(readContents);
 		}
 		_userpicsCache.clear();
@@ -2137,7 +2178,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 void ListWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 	const auto view = viewForItem(item);
-	if (!view) {
+	if (!view || !markingContentsRead()) {
 		return;
 	}
 	const auto top = itemTop(view);
@@ -3592,8 +3633,10 @@ void ListWidget::refreshAttachmentsAtIndex(int index) {
 void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	Expects(from >= 0 && from <= till && till <= int(_items.size()));
 
-	if (from == till) {
+	const auto guard = gsl::finally([&] {
 		updateSize();
+	});
+	if (from == till) {
 		return;
 	}
 	auto view = _items[from].get();

@@ -975,10 +975,10 @@ void HistoryInner::paintEvent(QPaintEvent *e) {
 	auto readTill = (HistoryItem*)nullptr;
 	auto readContents = base::flat_set<not_null<HistoryItem*>>();
 	const auto guard = gsl::finally([&] {
-		if (readTill && _widget->doWeReadServerHistory()) {
+		if (readTill && _widget->markingMessagesRead()) {
 			session().data().histories().readInboxTill(readTill);
 		}
-		if (!readContents.empty() && _widget->doWeReadMentions()) {
+		if (!readContents.empty() && _widget->markingContentsRead()) {
 			session().api().markContentsRead(readContents);
 		}
 		_userpicsCache.clear();
@@ -2796,8 +2796,8 @@ void HistoryInner::keyPressEvent(QKeyEvent *e) {
 	}
 }
 
-void HistoryInner::checkHistoryActivation() {
-	if (!_widget->doWeReadServerHistory()) {
+void HistoryInner::checkActivation() {
+	if (!_widget->markingMessagesRead()) {
 		return;
 	}
 	adjustCurrent(_visibleAreaBottom);
@@ -3020,7 +3020,7 @@ void HistoryInner::visibleAreaUpdated(int top, int bottom) {
 			from,
 			till);
 	}
-	checkHistoryActivation();
+	checkActivation();
 
 	_emojiInteractions->visibleAreaUpdated(
 		_visibleAreaTop,

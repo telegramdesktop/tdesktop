@@ -182,16 +182,16 @@ public:
 	bool cornerButtonsUnreadMayBeShown() override;
 	bool cornerButtonsHas(CornerButtonType type) override;
 
-protected:
+private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;
 	void showFinishedHook() override;
+	void checkActivation() override;
 	void doSetInnerFocus() override;
 
-private:
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();

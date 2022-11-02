@@ -165,6 +165,8 @@ public:
 	void setInnerFocus() {
 		doSetInnerFocus();
 	}
+	virtual void checkActivation() {
+	}
 
 	[[nodiscard]] virtual rpl::producer<int> desiredHeight() const;
 	[[nodiscard]] virtual rpl::producer<> removeRequests() const {

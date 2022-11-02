@@ -114,7 +114,7 @@ void MainWindow::initHook() {
 		windowHandle(),
 		&QWindow::activeChanged,
 		this,
-		[=] { checkHistoryActivation(); },
+		[=] { checkActivation(); },
 		Qt::QueuedConnection);
 
 	if (Media::SystemMediaControlsManager::Supported()) {
@@ -395,7 +395,7 @@ void MainWindow::destroyLayer() {
 		setInnerFocus();
 	}
 	InvokeQueued(this, [=] {
-		checkHistoryActivation();
+		checkActivation();
 	});
 }
 
@@ -459,7 +459,7 @@ void MainWindow::showLayer(
 	showBoxOrLayer(std::move(layer), options, animated);
 }
 
-bool MainWindow::ui_isLayerShown() {
+bool MainWindow::ui_isLayerShown() const {
 	return _layer != nullptr;
 }
 
@@ -539,17 +539,19 @@ void MainWindow::themeUpdated(const Window::Theme::BackgroundUpdate &data) {
 	}
 }
 
-bool MainWindow::doWeMarkAsRead() {
-	if (!_main || Ui::isLayerShown()) {
-		return false;
-	}
-	return isActive() && _main->doWeMarkAsRead();
+bool MainWindow::markingAsRead() const {
+	return _main
+		&& !_main->isHidden()
+		&& !_main->animatingShow()
+		&& !_layer
+		&& isActive()
+		&& !_main->session().updates().isIdle();
 }
 
-void MainWindow::checkHistoryActivation() {
+void MainWindow::checkActivation() {
 	updateIsActive();
 	if (_main) {
-		_main->checkHistoryActivation();
+		_main->checkActivation();
 	}
 }
 

@@ -895,6 +895,10 @@ QPixmap ScheduledWidget::grabForShowAnimation(const Window::SectionSlideParams &
 	return result;
 }
 
+void ScheduledWidget::checkActivation() {
+	_inner->checkActivation();
+}
+
 void ScheduledWidget::doSetInnerFocus() {
 	_composeControls->focus();
 }
@@ -1031,6 +1035,7 @@ void ScheduledWidget::showAnimatedHook(
 void ScheduledWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
 	_composeControls->showFinished();
+	_inner->showFinished();
 
 	// We should setup the drag area only after
 	// the section animation is finished,

@@ -105,6 +105,7 @@ private:
 	std::optional<int> _skippedAfter;
 	rpl::variable<std::optional<int>> _fullCount;
 	rpl::event_stream<> _listChanges;
+	rpl::event_stream<> _instantChanges;
 	std::optional<MsgId> _loadingAround;
 	rpl::variable<std::optional<int>> _unreadCount;
 	MsgId _inboxReadTillId = 0;

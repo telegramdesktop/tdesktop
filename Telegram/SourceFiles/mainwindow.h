@@ -62,12 +62,10 @@ public:
 
 	MainWidget *sessionContent() const;
 
-	[[nodiscard]] bool doWeMarkAsRead();
-
+	void checkActivation();
+	[[nodiscard]] bool markingAsRead() const;
 
 	bool takeThirdSectionFromLayer();
-
-	void checkHistoryActivation();
 
 	void sendPaths();
 
@@ -98,7 +96,7 @@ public:
 		anim::type animated);
 	void ui_hideSettingsAndLayer(anim::type animated);
 	void ui_removeLayerBlackout();
-	bool ui_isLayerShown();
+	[[nodiscard]] bool ui_isLayerShown() const;
 	bool showMediaPreview(
 		Data::FileOrigin origin,
 		not_null<DocumentData*> document);

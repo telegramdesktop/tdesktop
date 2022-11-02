@@ -2879,10 +2879,10 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	}
 
 	// If we get here in non-resized state we can't rely on results of
-	// doWeReadServerHistory() and mark chat as read.
+	// markingMessagesRead() and mark chat as read.
 	// If we receive N messages being not at bottom:
 	// - on first message we set unreadcount += 1, firstUnreadMessage.
-	// - on second we get wrong doWeReadServerHistory() and read both.
+	// - on second we get wrong markingMessagesRead() and read both.
 	session().data().sendHistoryChangeNotifications();
 
 	if (item->isSending()) {
@@ -2892,7 +2892,7 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	}
 	if (item->showNotification()) {
 		destroyUnreadBar();
-		if (doWeReadServerHistory()) {
+		if (markingMessagesRead()) {
 			if (item->isUnreadMention() && !item->isUnreadMedia()) {
 				session().api().markContentsRead(item);
 			}
@@ -2916,7 +2916,7 @@ void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 	}
 	const auto view = item->mainView();
 	const auto itemTop = _list->itemTop(view);
-	if (itemTop <= 0 || !doWeReadMentions()) {
+	if (itemTop <= 0 || !markingContentsRead()) {
 		return;
 	}
 	const auto reactionCenter
@@ -3050,7 +3050,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom()) {
-			checkHistoryActivation();
+			checkActivation();
 		}
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
@@ -3114,23 +3114,23 @@ void HistoryWidget::windowShown() {
 	updateControlsGeometry();
 }
 
-bool HistoryWidget::doWeReadServerHistory() const {
-	return doWeReadMentions() && !session().supportMode();
+bool HistoryWidget::markingMessagesRead() const {
+	return markingContentsRead() && !session().supportMode();
 }
 
-bool HistoryWidget::doWeReadMentions() const {
+bool HistoryWidget::markingContentsRead() const {
 	return _history
 		&& _list
 		&& _historyInited
 		&& !_firstLoadRequest
 		&& !_delayedShowAtRequest
 		&& !_a_show.animating()
-		&& controller()->widget()->doWeMarkAsRead();
+		&& controller()->widget()->markingAsRead();
 }
 
-void HistoryWidget::checkHistoryActivation() {
+void HistoryWidget::checkActivation() {
 	if (_list) {
-		_list->checkHistoryActivation();
+		_list->checkActivation();
 	}
 }
 
@@ -3980,7 +3980,7 @@ void HistoryWidget::doneShow() {
 	if (_requestsBar) {
 		_requestsBar->finishAnimating();
 	}
-	checkHistoryActivation();
+	checkActivation();
 	controller()->widget()->setInnerFocus();
 	_preserveScrollTop = false;
 	checkSuggestToGigagroup();

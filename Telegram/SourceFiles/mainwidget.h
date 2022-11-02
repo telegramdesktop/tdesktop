@@ -144,7 +144,7 @@ public:
 	void windowShown();
 
 	void dialogsToUp();
-	void checkHistoryActivation();
+	void checkActivation();
 
 	[[nodiscard]] PeerData *peer() const;
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
@@ -167,8 +167,7 @@ public:
 		not_null<DocumentData*> document,
 		Api::SendOptions options);
 
-	bool isActive() const;
-	[[nodiscard]] bool doWeMarkAsRead() const;
+	[[nodiscard]] bool animatingShow() const;
 
 	void showForwardLayer(Data::ForwardDraft &&draft);
 	void showSendPathsLayer();

@@ -1872,6 +1872,10 @@ QPixmap RepliesWidget::grabForShowAnimation(const Window::SectionSlideParams &pa
 	return result;
 }
 
+void RepliesWidget::checkActivation() {
+	_inner->checkActivation();
+}
+
 void RepliesWidget::doSetInnerFocus() {
 	if (!_inner->getSelectedText().rich.text.isEmpty()
 		|| !_inner->getSelectedItems().empty()
@@ -2236,6 +2240,7 @@ void RepliesWidget::showFinishedHook() {
 	} else {
 		_composeControls->showFinished();
 	}
+	_inner->showFinished();
 	if (_rootView) {
 		_rootView->show();
 	}
@@ -2338,16 +2343,12 @@ void RepliesWidget::listSelectionChanged(SelectedItems &&items) {
 }
 
 void RepliesWidget::listMarkReadTill(not_null<HistoryItem*> item) {
-	if (true/*doWeReadServerHistory()*/) { // #TODO forum active
-		_replies->readTill(item);
-	}
+	_replies->readTill(item);
 }
 
 void RepliesWidget::listMarkContentsRead(
 		const base::flat_set<not_null<HistoryItem*>> &items) {
-	if (true/*doWeReadMentions()*/) { // #TODO forum active
-		session().api().markContentsRead(items);
-	}
+	session().api().markContentsRead(items);
 }
 
 MessagesBarData RepliesWidget::listMessagesBar(

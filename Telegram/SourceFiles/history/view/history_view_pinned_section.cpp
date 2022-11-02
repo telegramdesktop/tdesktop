@@ -261,6 +261,10 @@ QPixmap PinnedWidget::grabForShowAnimation(const Window::SectionSlideParams &par
 	return result;
 }
 
+void PinnedWidget::checkActivation() {
+	_inner->checkActivation();
+}
+
 void PinnedWidget::doSetInnerFocus() {
 	_inner->setFocus();
 }
@@ -421,6 +425,7 @@ void PinnedWidget::showAnimatedHook(
 
 void PinnedWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
+	_inner->showFinished();
 }
 
 bool PinnedWidget::floatPlayerHandleWheelEvent(QEvent *e) {
