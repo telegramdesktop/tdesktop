@@ -238,7 +238,6 @@ void PaintSolidBubble(QPainter &p, const SimpleBubble &args) {
 		auto &corners = (size == Corner::Large)
 			? st.msgBgCornersLarge
 			: st.msgBgCornersSmall;
-		const auto &corner = corners.p[index];
 		p.drawPixmap(x, y, corners.p[index]);
 	}, [&](const QPoint &bottomPosition) {
 		tail.paint(p, bottomPosition - tailShift, args.outerWidth);
@@ -341,15 +340,12 @@ void PaintBubble(QPainter &p, const ComplexBubble &args) {
 	auto from = top;
 	for (const auto &selected : args.selection) {
 		if (selected.top > from) {
-			const auto fromTop = (from <= top);
 			paintOne(
 				QRect(left, from, width, selected.top - from),
 				false,
 				(from <= top),
 				false);
 		}
-		const auto fromTop = (selected.top <= top);
-		const auto tillBottom = (selected.top + selected.height >= bottom);
 		paintOne(
 			QRect(left, selected.top, width, selected.height),
 			true,

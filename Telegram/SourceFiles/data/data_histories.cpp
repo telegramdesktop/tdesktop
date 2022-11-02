@@ -962,7 +962,6 @@ void Histories::checkTopicCreated(FullMsgId rootId, MsgId realRoot) {
 				std::move(entry.done),
 				std::move(entry.fail));
 		}
-		const auto topic = history->peer->forumTopicFor(realRoot);
 		for (const auto &item : history->clientSideMessages()) {
 			const auto replace = [&](MsgId nowId) {
 				return (nowId == rootId.msg) ? realRoot : nowId;

@@ -582,7 +582,6 @@ void Photo::drawGrouped(
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
-		const auto roundRadius = ImageRoundRadius::Large;
 		fillImageOverlay(p, geometry, rounding, context);
 		if (!context.selected()) {
 			fillImageOverlay(p, geometry, rounding, context);

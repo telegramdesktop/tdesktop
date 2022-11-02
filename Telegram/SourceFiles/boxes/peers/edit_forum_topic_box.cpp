@@ -261,9 +261,7 @@ struct IconSelector {
 		selector->provideRecent(recent());
 	}, selector->lifetime());
 
-	auto ownedFooter = selector->createFooter();
-	const auto footer = ownedFooter.data();
-	placeFooter(std::move(ownedFooter));
+	placeFooter(selector->createFooter());
 
 	const auto shadow = Ui::CreateChild<Ui::PlainShadow>(box.get());
 	shadow->show();

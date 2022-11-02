@@ -151,7 +151,6 @@ void Groups::refreshViews(const HistoryItemsList &items) {
 	if (items.empty()) {
 		return;
 	}
-	const auto history = items.front()->history();
 	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
 		item->invalidateChatListEntry();

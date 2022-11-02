@@ -210,7 +210,6 @@ void Controller::setupMigrationViewer() {
 
 void Controller::replaceWith(std::shared_ptr<Memento> memento) {
 	const auto window = parentController();
-	const auto section = _section;
 	auto params = Window::SectionShow(
 		Window::SectionShow::Way::Backward,
 		anim::type::instant,

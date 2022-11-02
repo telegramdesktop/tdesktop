@@ -1125,25 +1125,21 @@ void ShareBox::Inner::chooseForumTopic(not_null<Data::Forum*> forum) {
 		updateChatName(chat);
 		changePeerCheckState(chat, true);
 	};
-	auto initBox = [](not_null<PeerListBox*> box) {
-		box->addButton(tr::lng_cancel(), [box] {
+	auto initBox = [=](not_null<PeerListBox*> box) {
+		box->addButton(tr::lng_cancel(), [=] {
 			box->closeBox();
 		});
+
+		forum->destroyed(
+		) | rpl::start_with_next([=] {
+			box->closeBox();
+		}, box->lifetime());
 	};
 	auto box = Box<PeerListBox>(
 		std::make_unique<ChooseTopicBoxController>(
 			forum,
 			std::move(chosen)),
-		[=](not_null<PeerListBox*> box) {
-			box->addButton(tr::lng_cancel(), [=] {
-				box->closeBox();
-			});
-
-			forum->destroyed(
-			) | rpl::start_with_next([=] {
-				box->closeBox();
-			}, box->lifetime());
-		});
+		std::move(initBox));
 	*weak = box.data();
 	_show->showBox(std::move(box));
 }

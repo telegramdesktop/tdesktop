@@ -516,7 +516,6 @@ bool MainWidget::setForwardDraft(
 		not_null<Data::Thread*> thread,
 		Data::ForwardDraft &&draft) {
 	const auto history = thread->owningHistory();
-	const auto peer = history->peer;
 	const auto items = session().data().idsToItems(draft.ids);
 	const auto topicRootId = thread->topicRootId();
 	const auto error = GetErrorTextForSending(

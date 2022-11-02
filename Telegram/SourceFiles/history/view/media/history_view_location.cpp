@@ -160,7 +160,6 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
 	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
 	const auto hasText = !_title.isEmpty() || !_description.isEmpty();

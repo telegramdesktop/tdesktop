@@ -1934,7 +1934,6 @@ bool RepliesWidget::showMessage(
 	if (!message) {
 		return false;
 	}
-	auto originFound = false;
 	const auto originMessage = [&]() -> HistoryItem* {
 		using OriginMessage = Window::SectionShow::OriginMessage;
 		if (const auto origin = std::get_if<OriginMessage>(&params.origin)) {

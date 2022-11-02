@@ -1186,7 +1186,6 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		} else {
 			comment.text = link;
 		}
-		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
 		for (const auto thread : result) {
 			auto message = Api::MessageToSend(

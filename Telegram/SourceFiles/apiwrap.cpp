@@ -3487,7 +3487,6 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	HistoryItem *lastMessage = nullptr;
 
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
 
 	while (TextUtilities::CutPart(sending, left, MaxMessageSize)) {
 		auto newId = FullMsgId(

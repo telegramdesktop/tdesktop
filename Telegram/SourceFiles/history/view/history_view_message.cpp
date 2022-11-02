@@ -3133,7 +3133,7 @@ Ui::BubbleRounding Message::countMessageRounding() const {
 		|| (context() == Context::Replies && data()->isDiscussionPost());
 	const auto right = !delegate()->elementIsChatWide() && hasOutLayout();
 	using Corner = Ui::BubbleCornerRounding;
-	return {
+	return Ui::BubbleRounding{
 		.topLeft = (smallTop && !right) ? Corner::Small : Corner::Large,
 		.topRight = (smallTop && right) ? Corner::Small : Corner::Large,
 		.bottomLeft = ((smallBottom && !right)

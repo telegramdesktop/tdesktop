@@ -176,8 +176,6 @@ void ThemeDocument::draw(Painter &p, const PaintContext &context) const {
 	const auto radial = isRadialAnimation();
 
 	auto rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
-	auto roundRadius = ImageRoundRadius::Small;
-	auto roundCorners = RectPart::AllCorners;
 	validateThumbnail();
 	p.drawPixmap(rthumb.topLeft(), _thumbnail);
 	if (context.selected()) {

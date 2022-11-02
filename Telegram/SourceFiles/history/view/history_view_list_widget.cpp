@@ -651,8 +651,6 @@ void ListWidget::showAtPosition(
 		anim::type animated,
 		Fn<void(bool found)> done) {
 	const auto showAtUnread = (position == Data::UnreadMessagePosition);
-	const auto showAtStart = (position == Data::MinMessagePosition);
-	const auto showAtEnd = (position == Data::MaxMessagePosition);
 
 	if (showAtUnread && jumpToBottomInsteadOfUnread()) {
 		showAtPosition(Data::MaxMessagePosition, animated, std::move(done));

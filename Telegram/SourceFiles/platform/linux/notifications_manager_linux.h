@@ -21,6 +21,7 @@ public:
 protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,

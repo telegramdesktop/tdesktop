@@ -450,9 +450,7 @@ void ForumTopic::setLastMessage(HistoryItem *item) {
 void ForumTopic::setChatListMessage(HistoryItem *item) {
 	if (_chatListMessage && *_chatListMessage == item) {
 		return;
-	}
-	const auto was = _chatListMessage.value_or(nullptr);
-	if (item) {
+	} else if (item) {
 		if (item->isSponsored()) {
 			return;
 		}

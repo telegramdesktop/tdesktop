@@ -112,7 +112,6 @@ void ForwardPanel::updateTexts() {
 		_text.clear();
 		return;
 	}
-	int32 version = 0;
 	QString from;
 	TextWithEntities text;
 	const auto keepNames = (_data.options

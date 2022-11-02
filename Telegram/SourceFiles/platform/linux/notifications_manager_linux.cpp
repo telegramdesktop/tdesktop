@@ -787,6 +787,7 @@ public:
 
 	void showNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -1061,6 +1062,7 @@ Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -1069,6 +1071,7 @@ void Manager::doShowNativeNotification(
 		DisplayOptions options) {
 	_private->showNotification(
 		peer,
+		topicRootId,
 		userpicView,
 		msgId,
 		title,

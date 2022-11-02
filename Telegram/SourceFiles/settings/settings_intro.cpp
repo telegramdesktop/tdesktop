@@ -514,7 +514,6 @@ void LayerWidget::paintEvent(QPaintEvent *e) {
 
 	auto clip = e->rect();
 	auto r = st::boxRadius;
-	auto parts = RectPart::None | 0;
 	const auto &pixmaps = Ui::CachedCornerPixmaps(Ui::BoxCorners);
 	if (!_tillTop && clip.intersects({ 0, 0, width(), r })) {
 		Ui::FillRoundRect(p, 0, 0, width(), r, st::boxBg, {

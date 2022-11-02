@@ -953,7 +953,6 @@ void Widget::jumpToTop(bool belowPinned) {
 					controller()->activeChatsFilterCurrent())
 				: session().data().chatsList(_openedFolder);
 			const auto count = int(list->pinned()->order().size());
-			const auto now = _scroll->scrollTop();
 			const auto row = _inner->st()->height;
 			const auto min = (row * (count * 2 + 1) - _scroll->height()) / 2;
 			if (_scroll->scrollTop() <= min) {
@@ -1573,8 +1572,6 @@ void Widget::searchReceived(
 		_lastSearchPeer = nullptr;
 		_lastSearchId = _lastSearchMigratedId = 0;
 	}
-	const auto isGlobalSearch = (type == SearchRequestType::FromStart)
-		|| (type == SearchRequestType::FromOffset);
 	const auto isMigratedSearch = (type == SearchRequestType::MigratedFromStart)
 		|| (type == SearchRequestType::MigratedFromOffset);
 	const auto process = [&](const MTPVector<MTPMessage> &messages) {

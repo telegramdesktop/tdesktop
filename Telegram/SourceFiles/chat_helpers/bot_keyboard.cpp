@@ -141,7 +141,7 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 		_impl->paint(
 			p,
 			nullptr,
-			{},
+			Ui::BubbleRounding(),
 			width(),
 			clip.translated(-x, -st::botKbScroll.deltat));
 	}
@@ -249,7 +249,7 @@ void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 
 void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	if (!_impl) return;
-	_impl->clickHandlerPressedChanged(p, pressed, {});
+	_impl->clickHandlerPressedChanged(p, pressed, Ui::BubbleRounding());
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {

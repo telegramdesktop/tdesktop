@@ -760,7 +760,7 @@ Ui::BubbleRounding Document::thumbRounding(
 		Ui::BubbleRounding outsideRounding) const {
 	using Corner = Ui::BubbleCornerRounding;
 	if (mode != LayoutMode::Grouped && _parent->media() != this) {
-		return {}; // In a WebPage preview.
+		return Ui::BubbleRounding(); // In a WebPage preview.
 	}
 	const auto hasCaption = Has<HistoryDocumentCaptioned>();
 	const auto adjust = [&](Corner already, bool skip = false) {
