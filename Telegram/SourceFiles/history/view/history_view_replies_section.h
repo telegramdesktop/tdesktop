@@ -214,6 +214,7 @@ private:
 	void setupRootView();
 	void setupTopicViewer();
 	void subscribeToTopic();
+	void subscribeToPinnedMessages();
 	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
 	void setupShortcuts();

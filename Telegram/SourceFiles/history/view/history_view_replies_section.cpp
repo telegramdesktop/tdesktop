@@ -483,6 +483,9 @@ void RepliesWidget::setupTopicViewer() {
 			} else {
 				refreshReplies();
 				refreshTopBarActiveChat();
+				if (_topic) {
+					subscribeToPinnedMessages();
+				}
 			}
 			_inner->update();
 		}
@@ -533,21 +536,25 @@ void RepliesWidget::subscribeToTopic() {
 	}, _topicLifetime);
 
 	if (!_topic->creating()) {
-		using EntryUpdateFlag = Data::EntryUpdate::Flag;
-		session().changes().entryUpdates(
-			EntryUpdateFlag::HasPinnedMessages
-		) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
-			if (_pinnedTracker
-				&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
-				&& (_topic == update.entry.get())) {
-				checkPinnedBarState();
-			}
-		}, lifetime());
-
-		setupPinnedTracker();
+		subscribeToPinnedMessages();
 	}
 
 	_cornerButtons.updateUnreadThingsVisibility();
+}
+
+void RepliesWidget::subscribeToPinnedMessages() {
+	using EntryUpdateFlag = Data::EntryUpdate::Flag;
+	session().changes().entryUpdates(
+		EntryUpdateFlag::HasPinnedMessages
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (_pinnedTracker
+			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
+			&& (_topic == update.entry.get())) {
+			checkPinnedBarState();
+		}
+	}, lifetime());
+
+	setupPinnedTracker();
 }
 
 void RepliesWidget::setTopic(Data::ForumTopic *topic) {
