@@ -80,7 +80,7 @@ RUN git clone -b v3.4.2 --depth=1 {{ GIT }}/libffi/libffi.git \
 FROM builder AS zlib
 RUN git clone -b v1.2.11 --depth=1 {{ GIT }}/madler/zlib.git \
 	&& cd zlib \
-	&& ./configure --static \
+	&& ./configure \
 	&& make -j$(nproc) \
 	&& make DESTDIR="{{ LibrariesPath }}/zlib-cache" install \
 	&& cd .. \
