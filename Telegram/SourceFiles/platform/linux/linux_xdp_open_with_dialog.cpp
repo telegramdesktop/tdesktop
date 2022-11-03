@@ -32,7 +32,7 @@ constexpr auto kPropertiesInterface = "org.freedesktop.DBus.Properties"_cs;
 bool ShowXDPOpenWithDialog(const QString &filepath) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		auto reply = connection->call_sync(
 			std::string(base::Platform::XDP::kObjectPath),
