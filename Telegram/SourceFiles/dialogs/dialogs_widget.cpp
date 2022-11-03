@@ -307,7 +307,9 @@ Widget::Widget(
 	QObject::connect(
 		_filter->rawTextEdit().get(),
 		&QTextEdit::cursorPositionChanged,
-		[=] { filterCursorMoved(); });
+		this,
+		[=] { filterCursorMoved(); },
+		Qt::QueuedConnection); // So getLastText() works already.
 
 	if (!Core::UpdaterDisabled()) {
 		Core::UpdateChecker checker;
