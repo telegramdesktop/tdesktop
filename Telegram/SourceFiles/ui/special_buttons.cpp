@@ -59,6 +59,7 @@ bool IsCameraAvailable() {
 void CameraBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Window::Controller*> controller,
+		PeerData *peer,
 		Fn<void(QImage &&image)> &&doneCallback) {
 	using namespace Webrtc;
 
@@ -87,6 +88,9 @@ void CameraBox(
 		Editor::PrepareProfilePhoto(
 			box,
 			controller,
+			((peer && peer->isForum())
+				? ImageRoundRadius::Large
+				: ImageRoundRadius::Ellipse),
 			std::move(done),
 			track->frame(FrameRequest()).mirrored(true, false));
 	});
@@ -295,6 +299,9 @@ void UserpicButton::choosePhotoLocally() {
 			Editor::PrepareProfilePhotoFromFile(
 				this,
 				_window,
+				((_peer && _peer->isForum())
+					? ImageRoundRadius::Large
+					: ImageRoundRadius::Ellipse),
 				callback);
 		}));
 	};
@@ -304,7 +311,7 @@ void UserpicButton::choosePhotoLocally() {
 		_menu = base::make_unique_q<Ui::PopupMenu>(this);
 		_menu->addAction(tr::lng_attach_file(tr::now), chooseFile);
 		_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
-			_window->show(Box(CameraBox, _window, callback));
+			_window->show(Box(CameraBox, _window, _peer, callback));
 		});
 		_menu->popup(QCursor::pos());
 	}

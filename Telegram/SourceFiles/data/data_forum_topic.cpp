@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history_unread_things.h"
 #include "history/view/history_view_item_preview.h"
+#include "history/view/history_view_replies_section.h"
 #include "main/main_session.h"
 #include "base/unixtime.h"
 #include "ui/painter.h"
@@ -220,6 +221,13 @@ TimeId ForumTopic::creationDate() const {
 	return _creationDate;
 }
 
+not_null<HistoryView::ListMemento*> ForumTopic::listMemento() {
+	if (!_listMemento) {
+		_listMemento = std::make_unique<HistoryView::ListMemento>();
+	}
+	return _listMemento.get();
+}
+
 bool ForumTopic::my() const {
 	return (_flags & Flag::My);
 }
@@ -286,7 +294,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
 
 	applyCreator(peerFromMTP(data.vfrom_id()));
-	_creationDate = data.vdate().v;
+	applyCreationDate(data.vdate().v);
 
 	applyTitle(qs(data.vtitle()));
 	if (const auto iconId = data.vicon_emoji_id()) {
@@ -312,11 +320,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 			_rootId,
 			draft->c_draftMessage());
 	}
-	if (data.is_my()) {
-		_flags |= Flag::My;
-	} else {
-		_flags &= ~Flag::My;
-	}
+	applyIsMy(data.is_my());
 	setClosed(data.is_closed());
 
 	_replies->setInboxReadTill(
@@ -332,6 +336,20 @@ void ForumTopic::applyCreator(PeerId creatorId) {
 	if (_creatorId != creatorId) {
 		_creatorId = creatorId;
 		session().changes().topicUpdated(this, UpdateFlag::Creator);
+	}
+}
+
+void ForumTopic::applyCreationDate(TimeId date) {
+	_creationDate = date;
+}
+
+void ForumTopic::applyIsMy(bool my) {
+	if (my != this->my()) {
+		if (my) {
+			_flags |= Flag::My;
+		} else {
+			_flags &= ~Flag::My;
+		}
 	}
 }
 

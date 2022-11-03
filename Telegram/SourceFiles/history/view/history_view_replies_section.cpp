@@ -146,6 +146,13 @@ RepliesMemento::RepliesMemento(
 	}
 }
 
+void RepliesMemento::setFromTopic(not_null<Data::ForumTopic*> topic) {
+	_replies = topic->replies();
+	if (!_list.aroundPosition()) {
+		_list = *topic->listMemento();
+	}
+}
+
 void RepliesMemento::setReadInformation(
 		MsgId inboxReadTillId,
 		int unreadCount,
@@ -384,10 +391,14 @@ RepliesWidget::~RepliesWidget() {
 	base::take(_sendAction);
 	session().api().saveCurrentDraftToCloud();
 	controller()->sendingAnimation().clear();
-	if (_topic && _topic->creating()) {
-		_emptyPainter = nullptr;
-		_topic->discard();
-		_topic = nullptr;
+	if (_topic) {
+		if (_topic->creating()) {
+			_emptyPainter = nullptr;
+			_topic->discard();
+			_topic = nullptr;
+		} else {
+			_inner->saveState(_topic->listMemento());
+		}
 	}
 	_history->owner().sendActionManager().repliesPainterRemoved(
 		_history,

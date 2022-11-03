@@ -398,6 +398,8 @@ public:
 		return _replies;
 	}
 
+	void setFromTopic(not_null<Data::ForumTopic*> topic);
+
 	void setReplyReturns(const QVector<FullMsgId> &list) {
 		_replyReturns = list;
 	}

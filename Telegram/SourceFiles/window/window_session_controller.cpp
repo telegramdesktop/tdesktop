@@ -523,7 +523,7 @@ void SessionNavigation::showRepliesForMessage(
 				history,
 				rootId,
 				commentId);
-			memento->setReplies(std::move(replies));
+			memento->setFromTopic(topic);
 			showSection(std::move(memento), params);
 			return;
 		}

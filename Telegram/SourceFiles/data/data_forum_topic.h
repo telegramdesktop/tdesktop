@@ -27,6 +27,7 @@ class Session;
 
 namespace HistoryView {
 class SendActionPainter;
+class ListMemento;
 } // namespace HistoryView
 
 namespace Data {
@@ -65,6 +66,8 @@ public:
 	[[nodiscard]] MsgId rootId() const;
 	[[nodiscard]] PeerId creatorId() const;
 	[[nodiscard]] TimeId creationDate() const;
+
+	[[nodiscard]] not_null<HistoryView::ListMemento*> listMemento();
 
 	[[nodiscard]] bool my() const;
 	[[nodiscard]] bool canWrite() const;
@@ -117,6 +120,8 @@ public:
 	[[nodiscard]] int32 colorId() const;
 	void applyColorId(int32 colorId);
 	void applyCreator(PeerId creatorId);
+	void applyCreationDate(TimeId date);
+	void applyIsMy(bool my);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 	void maybeSetLastMessage(not_null<HistoryItem*> item);
@@ -169,6 +174,7 @@ private:
 	const not_null<Forum*> _forum;
 	const not_null<Dialogs::MainList*> _list;
 	std::shared_ptr<RepliesList> _replies;
+	std::unique_ptr<HistoryView::ListMemento> _listMemento;
 	std::shared_ptr<HistoryView::SendActionPainter> _sendActionPainter;
 	MsgId _rootId = 0;
 	MsgId _lastKnownServerMessageId = 0;

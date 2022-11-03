@@ -60,8 +60,10 @@ public:
 		MsgId rootId,
 		const QString &title,
 		int32 colorId,
-		DocumentId iconId);
-	void applyTopicCreated(MsgId rootId, MsgId realId);
+		DocumentId iconId,
+		PeerId creatorId,
+		TimeId date,
+		bool my);
 	void applyTopicDeleted(MsgId rootId);
 	[[nodiscard]] ForumTopic *topicFor(MsgId rootId);
 	[[nodiscard]] ForumTopic *enforceTopicFor(MsgId rootId);
