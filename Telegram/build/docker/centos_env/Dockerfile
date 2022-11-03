@@ -626,6 +626,8 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& rm -rf libxkbcommon
 
 FROM patches AS glibmm
+COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
+
 RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
@@ -636,6 +638,7 @@ RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 		-Dbuild-examples=false \
 		-Dsigc++-3.0:build-documentation=false \
 		-Dsigc++-3.0:build-examples=false \
+		-Dglib:tests=false \
 		-Dmm-common:use-network=true \
 	&& meson compile -C build \
 	&& DESTDIR="{{ LibrariesPath }}/glibmm-cache" meson install -C build \
