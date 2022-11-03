@@ -2694,11 +2694,7 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
-		if (!_field->isHidden()) {
-			_field->hide();
-			updateControlsGeometry();
-			update();
-		}
+		hideFieldIfVisible();
 	} else if (editingMessage() || _canSendMessages) {
 		checkFieldAutocomplete();
 		_unblock->hide();
@@ -2807,14 +2803,21 @@ void HistoryWidget::updateControlsVisibility() {
 			_inlineResults->hide();
 		}
 		_kbScroll->hide();
-		if (!_field->isHidden()) {
-			_field->hide();
-			updateControlsGeometry();
-			update();
-		}
+		hideFieldIfVisible();
 	}
 	//checkTabbedSelectorToggleTooltip();
 	updateMouseTracking();
+}
+
+void HistoryWidget::hideFieldIfVisible() {
+	if (_field->isHidden()) {
+		return;
+	} else if (InFocusChain(_field)) {
+		setFocus();
+	}
+	_field->hide();
+	updateControlsGeometry();
+	update();
 }
 
 void HistoryWidget::showAboutTopPromotion() {

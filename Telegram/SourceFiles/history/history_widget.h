@@ -382,6 +382,7 @@ private:
 	void setMembersShowAreaActive(bool active);
 	void handleHistoryChange(not_null<const History*> history);
 	void showAboutTopPromotion();
+	void hideFieldIfVisible();
 	void unreadCountUpdated();
 	void closeCurrent();
 
