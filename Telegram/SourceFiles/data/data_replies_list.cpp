@@ -109,6 +109,12 @@ void RepliesList::subscribeToUpdates() {
 		apply(update);
 	}, _lifetime);
 
+	_history->session().changes().topicUpdates(
+		TopicUpdate::Flag::Creator
+	) | rpl::start_with_next([=](const TopicUpdate &update) {
+		apply(update);
+	}, _lifetime);
+
 	_history->owner().channelDifferenceTooLong(
 	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
 		if (channel == _history->peer) {
@@ -130,6 +136,27 @@ void RepliesList::apply(const RepliesReadTillUpdate &update) {
 void RepliesList::apply(const MessageUpdate &update) {
 	if (applyUpdate(update)) {
 		_instantChanges.fire({});
+	}
+}
+
+void RepliesList::apply(const TopicUpdate &update) {
+	if (update.topic->history() == _history
+		&& update.topic->rootId() == _rootId) {
+		if (update.flags & TopicUpdate::Flag::Creator) {
+			applyTopicCreator(update.topic->creatorId());
+		}
+	}
+}
+
+void RepliesList::applyTopicCreator(PeerId creatorId) {
+	const auto owner = &_history->owner();
+	const auto peerId = _history->peer->id;
+	for (const auto &id : _list) {
+		if (const auto item = owner->message(peerId, id)) {
+			if (item->from()->id == creatorId) {
+				owner->requestItemResize(item);
+			}
+		}
 	}
 }
 

@@ -333,6 +333,7 @@ ForumTopic *Forum::applyTopicAdded(
 	raw->applyColorId(colorId);
 	raw->applyIconId(iconId);
 	if (!creating(rootId)) {
+		requestTopic(rootId);
 		raw->addToChatList(FilterId(), topicsList());
 		_chatsListChanges.fire({});
 	}
@@ -345,7 +346,9 @@ MsgId Forum::reserveCreatingId(
 		DocumentId iconId) {
 	const auto result = owner().nextLocalMessageId();
 	_creatingRootIds.emplace(result);
-	applyTopicAdded(result, title, colorId, iconId);
+	const auto topic = applyTopicAdded(result, title, colorId, iconId);
+	// Perhaps it will be created from some public channel name.
+	//topic->applyCreator(session().userPeerId());
 	return result;
 }
 
@@ -416,9 +419,7 @@ ForumTopic *Forum::enforceTopicFor(MsgId rootId) {
 	if (i != end(_topics)) {
 		return i->second.get();
 	}
-	const auto result = applyTopicAdded(rootId, {}, {}, {});
-	requestTopic(rootId);
-	return result;
+	return applyTopicAdded(rootId, {}, {}, {});
 }
 
 bool Forum::topicDeleted(MsgId rootId) const {

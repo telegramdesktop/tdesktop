@@ -331,6 +331,12 @@ void Session::subscribeForTopicRepliesLists() {
 		}
 	}, _lifetime);
 
+	session().changes().topicUpdates(
+		TopicUpdate::Flag::Creator
+	) | rpl::start_with_next([=](const TopicUpdate &update) {
+		update.topic->replies()->apply(update);
+	}, _lifetime);
+
 	channelDifferenceTooLong(
 	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
 		if (const auto forum = channel->forum()) {

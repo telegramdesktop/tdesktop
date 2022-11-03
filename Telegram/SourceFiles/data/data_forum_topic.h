@@ -116,6 +116,7 @@ public:
 	void applyIconId(DocumentId iconId);
 	[[nodiscard]] int32 colorId() const;
 	void applyColorId(int32 colorId);
+	void applyCreator(PeerId creatorId);
 	void applyItemAdded(not_null<HistoryItem*> item);
 	void applyItemRemoved(MsgId id);
 	void maybeSetLastMessage(not_null<HistoryItem*> item);

@@ -152,8 +152,9 @@ struct TopicUpdate {
 		ColorId = (1U << 7),
 		CloudDraft = (1U << 8),
 		Closed = (1U << 9),
+		Creator = (1U << 10),
 
-		LastUsedBit = (1U << 9),
+		LastUsedBit = (1U << 10),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

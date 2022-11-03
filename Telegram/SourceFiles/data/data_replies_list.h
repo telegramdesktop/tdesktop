@@ -20,6 +20,7 @@ class Histories;
 struct MessagePosition;
 struct MessagesSlice;
 struct MessageUpdate;
+struct TopicUpdate;
 struct RepliesReadTillUpdate;
 
 class RepliesList final : public base::has_weak_ptr {
@@ -32,6 +33,7 @@ public:
 
 	void apply(const RepliesReadTillUpdate &update);
 	void apply(const MessageUpdate &update);
+	void apply(const TopicUpdate &update);
 	void applyDifferenceTooLong();
 
 	[[nodiscard]] rpl::producer<MessagesSlice> source(
@@ -87,6 +89,7 @@ private:
 		not_null<Viewer*> viewer,
 		not_null<HistoryItem*> item);
 	[[nodiscard]] bool applyUpdate(const MessageUpdate &update);
+	void applyTopicCreator(PeerId creatorId);
 	void injectRootMessageAndReverse(not_null<Viewer*> viewer);
 	void injectRootMessage(not_null<Viewer*> viewer);
 	void injectRootDivider(

@@ -537,6 +537,10 @@ void RepliesWidget::subscribeToTopic() {
 
 	if (!_topic->creating()) {
 		subscribeToPinnedMessages();
+
+		if (!_topic->creatorId()) {
+			_topic->forum()->requestTopic(_topic->rootId());
+		}
 	}
 
 	_cornerButtons.updateUnreadThingsVisibility();

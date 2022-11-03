@@ -285,7 +285,7 @@ void ForumTopic::readTillEnd() {
 void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
 
-	_creatorId = peerFromMTP(data.vfrom_id());
+	applyCreator(peerFromMTP(data.vfrom_id()));
 	_creationDate = data.vdate().v;
 
 	applyTitle(qs(data.vtitle()));
@@ -326,6 +326,13 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	applyTopicTopMessage(data.vtop_message().v);
 	unreadMentions().setCount(data.vunread_mentions_count().v);
 	unreadReactions().setCount(data.vunread_reactions_count().v);
+}
+
+void ForumTopic::applyCreator(PeerId creatorId) {
+	if (_creatorId != creatorId) {
+		_creatorId = creatorId;
+		session().changes().topicUpdated(this, UpdateFlag::Creator);
+	}
 }
 
 bool ForumTopic::closed() const {
