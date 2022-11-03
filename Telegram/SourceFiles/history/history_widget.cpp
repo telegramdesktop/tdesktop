@@ -6078,7 +6078,8 @@ void HistoryWidget::updatePinnedViewer() {
 		|| _delayedShowAtRequest
 		|| _scroll->isHidden()
 		|| !_history
-		|| !_historyInited) {
+		|| !_historyInited
+		|| !_pinnedTracker) {
 		return;
 	}
 	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
@@ -6217,8 +6218,8 @@ void HistoryWidget::checkPinnedBarState() {
 	}));
 
 	controller()->adaptive().oneColumnValue(
-	) | rpl::start_with_next([=](bool one) {
-		_pinnedBar->setShadowGeometryPostprocess([=](QRect geometry) {
+	) | rpl::start_with_next([=, raw = _pinnedBar.get()](bool one) {
+		raw->setShadowGeometryPostprocess([=](QRect geometry) {
 			if (!one) {
 				geometry.setLeft(geometry.left() + st::lineWidth);
 			}
@@ -6305,6 +6306,9 @@ void HistoryWidget::setChooseReportMessagesDetails(
 }
 
 void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
+	if (!_pinnedBar) {
+		return; // It can be in process of hiding.
+	}
 	const auto openSection = [=] {
 		const auto id = _pinnedTracker
 			? _pinnedTracker->currentMessageId()
