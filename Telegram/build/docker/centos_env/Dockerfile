@@ -47,7 +47,7 @@ FROM builder-base AS builder
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -Ofast {% if DEBUG %}-flto -ffat-lto-objects{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} -Ofast {% if DEBUG %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
