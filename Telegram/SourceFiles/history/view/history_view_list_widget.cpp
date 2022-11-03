@@ -2527,6 +2527,10 @@ void ListWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				_overState));
 
 	_menu = FillContextMenu(this, request);
+	if (_menu->empty()) {
+		_menu = nullptr;
+		return;
+	}
 
 	using namespace HistoryView::Reactions;
 	const auto desiredPosition = e->globalPos();
@@ -3259,6 +3263,7 @@ void ListWidget::mouseActionUpdate() {
 		view ? view->height() : 0,
 		itemPoint,
 		view ? view->pointState(itemPoint) : PointState::Outside);
+	_overItemExact = nullptr;
 	const auto viewChanged = (_overElement != view);
 	if (viewChanged) {
 		repaintItem(_overElement);
