@@ -709,6 +709,7 @@ void HistoryItem::applySentMessage(const MTPDmessage &data) {
 		});
 	}
 	setPostAuthor(data.vpost_author().value_or_empty());
+	setIsPinned(data.is_pinned());
 	contributeToSlowmode(data.vdate().v);
 	indexAsNewItem();
 	invalidateChatListEntry();
