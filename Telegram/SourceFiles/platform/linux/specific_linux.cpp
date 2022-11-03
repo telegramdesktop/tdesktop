@@ -70,7 +70,7 @@ void PortalAutostart(bool start, bool silent) {
 
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		const auto parentWindowId = [&]() -> Glib::ustring {
 			const auto activeWindow = Core::App().activeWindow();
@@ -165,7 +165,7 @@ void PortalAutostart(bool start, bool silent) {
 			window.show();
 			loop->run();
 		}
-	} catch (const Glib::Error &e) {
+	} catch (const std::exception &e) {
 		if (!silent) {
 			LOG(("Portal Autostart Error: %1").arg(
 				QString::fromStdString(e.what())));
@@ -464,7 +464,7 @@ void start() {
 	Gio::init();
 
 	Glib::set_prgname(cExeName().toStdString());
-	Glib::set_application_name(std::string(AppName));
+	Glib::set_application_name(AppName.data());
 
 #ifdef DESKTOP_APP_USE_PACKAGED_RLOTTIE
 	g_warning(

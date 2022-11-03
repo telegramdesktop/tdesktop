@@ -53,9 +53,6 @@ void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
 		callback();
 		return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
 	} catch (const std::exception &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
@@ -69,7 +66,7 @@ void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		const auto activatable = [&] {
 			try {
@@ -109,7 +106,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 void StartServiceAsync(Fn<void()> callback) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		DBus::StartServiceByNameAsync(
 			connection,
@@ -145,7 +142,7 @@ void StartServiceAsync(Fn<void()> callback) {
 bool GetServiceRegistered() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		const auto hasOwner = [&] {
 			try {
@@ -178,7 +175,7 @@ void GetServerInformation(
 		Fn<void(const std::optional<ServerInformation> &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -224,7 +221,7 @@ void GetServerInformation(
 void GetCapabilities(Fn<void(const QStringList &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -263,7 +260,7 @@ void GetInhibited(Fn<void(bool)> callback) {
 
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -380,7 +377,7 @@ bool NotificationData::init(
 		Window::Notifications::Manager::DisplayOptions options) {
 	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 	});
 
 	if (!_dbusConnection) {
@@ -600,7 +597,7 @@ void NotificationData::close() {
 		{},
 		std::string(kService),
 		-1,
-		Gio::DBus::CALL_FLAGS_NO_AUTO_START);
+		Gio::DBus::CallFlags::NO_AUTO_START);
 	_manager->clearNotification(_id);
 }
 
@@ -849,7 +846,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 
 	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 	});
 
 	if (!_dbusConnection) {
@@ -873,7 +870,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 				const auto interface = GlibVariantCast<Glib::ustring>(
 					parameters.get_child(0));
 
-				if (interface != std::string(kInterface)) {
+				if (interface != kInterface.data()) {
 					return;
 				}
 

@@ -53,7 +53,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout c95e7f1bb7 \
+	&& git checkout b3b5f5cf92 \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -625,47 +625,20 @@ RUN git clone -b xkbcommon-1.3.1 --depth=1 {{ GIT }}/xkbcommon/libxkbcommon.git 
 	&& cd .. \
 	&& rm -rf libxkbcommon
 
-FROM builder AS mm-common
-RUN git clone -b 1.0.3 --depth=1 {{ GIT }}/GNOME/mm-common.git \
-	&& cd mm-common \
-	&& NOCONFIGURE=1 ./autogen.sh \
-	&& ./configure --enable-network \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/mm-common-cache" install \
-	&& cd .. \
-	&& rm -rf mm-common
-
-FROM builder AS libsigcplusplus
-COPY --link --from=mm-common {{ LibrariesPath }}/mm-common-cache /
-
-RUN git clone -b 2.10.7 --depth=1 {{ GIT }}/libsigcplusplus/libsigcplusplus.git \
-	&& cd libsigcplusplus \
-	&& export ACLOCAL_PATH="/usr/local/share/aclocal" \
-	&& NOCONFIGURE=1 ./autogen.sh \
-	&& ./configure \
-		--enable-maintainer-mode \
-		--enable-static \
-		--disable-documentation \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/libsigcplusplus-cache" install \
-	&& cd .. \
-	&& rm -rf libsigcplusplus
-
 FROM patches AS glibmm
-COPY --link --from=mm-common {{ LibrariesPath }}/mm-common-cache /
-COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
-
-RUN git clone -b 2.56.1 --depth=1 {{ GIT }}/GNOME/glibmm.git \
+RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
-	&& export ACLOCAL_PATH="/usr/local/share/aclocal" \
-	&& NOCONFIGURE=1 ./autogen.sh \
-	&& ./configure \
-		--enable-maintainer-mode \
-		--enable-static \
-		--disable-documentation \
-	&& make -j$(nproc) \
-	&& make DESTDIR="{{ LibrariesPath }}/glibmm-cache" install \
+	&& meson build \
+		--buildtype=plain \
+		--default-library=both \
+		-Dbuild-documentation=false \
+		-Dbuild-examples=false \
+		-Dsigc++-3.0:build-documentation=false \
+		-Dsigc++-3.0:build-examples=false \
+		-Dmm-common:use-network=true \
+	&& meson compile -C build \
+	&& DESTDIR="{{ LibrariesPath }}/glibmm-cache" meson install -C build \
 	&& cd .. \
 	&& rm -rf glibmm
 
@@ -806,7 +779,6 @@ COPY --link --from=ffmpeg {{ LibrariesPath }}/ffmpeg-cache /
 COPY --link --from=openal {{ LibrariesPath }}/openal-cache /
 COPY --link --from=openssl {{ LibrariesPath }}/openssl-cache /
 COPY --link --from=xkbcommon {{ LibrariesPath }}/xkbcommon-cache /
-COPY --link --from=libsigcplusplus {{ LibrariesPath }}/libsigcplusplus-cache /
 COPY --link --from=glibmm {{ LibrariesPath }}/glibmm-cache /
 COPY --link --from=qt {{ LibrariesPath }}/qt-cache /
 COPY --link --from=breakpad {{ LibrariesPath }}/breakpad-cache /

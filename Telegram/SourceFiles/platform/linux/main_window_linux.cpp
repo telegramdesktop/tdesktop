@@ -178,7 +178,7 @@ bool UseUnityCounter() {
 	static const auto Result = [&] {
 		try {
 			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
+				Gio::DBus::BusType::SESSION);
 
 			return base::Platform::DBus::NameHasOwner(
 				connection,
@@ -280,7 +280,7 @@ void MainWindow::updateIconCounters() {
 
 		try {
 			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::BUS_TYPE_SESSION);
+				Gio::DBus::BusType::SESSION);
 
 			connection->emit_signal(
 				"/com/canonical/unity/launcherentry/"
