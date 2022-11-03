@@ -1455,7 +1455,7 @@ void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
 }
 
 void RepliesWidget::updatePinnedViewer() {
-	if (_scroll->isHidden() || !_topic) {
+	if (_scroll->isHidden() || !_topic || !_pinnedTracker) {
 		return;
 	}
 	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
