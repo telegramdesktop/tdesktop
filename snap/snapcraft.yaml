@@ -95,7 +95,6 @@ parts:
       - libasound2-dev
       - libavif-dev
       - libglib2.0-dev
-      - libglibmm-2.4-dev
       - libheif-dev
       - libopus-dev
       - libpulse-dev
@@ -109,7 +108,6 @@ parts:
       - libasound2
       - libavif13
       - libglib2.0-0
-      - libglibmm-2.4-1v5
       - libheif1
       - libopus0
       - libpulse0
@@ -157,6 +155,7 @@ parts:
       - desktop-qt
       - ffmpeg
       - libjxl
+      - glibmm
       - mozjpeg
       - openal
       - openssl
@@ -217,6 +216,31 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/libjpeg.so.8.2.2
     after:
       - mozjpeg
+
+  glibmm:
+    source: https://github.com/GNOME/glibmm.git
+    source-depth: 1
+    source-tag: 2.72.1
+    plugin: meson
+    build-packages:
+      - meson
+      - ninja-build
+      - libglib2.0-dev
+      - libxml-parser-perl
+    stage-packages:
+      - libglib2.0-0
+    meson-parameters:
+      - --buildtype=release
+      - --prefix=/usr
+      - -Dbuild-documentation=false
+      - -Dbuild-examples=false
+      - -Dsigc++-3.0:build-documentation=false
+      - -Dsigc++-3.0:build-examples=false
+      - -Dmm-common:use-network=true
+    prime:
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
 
   libjxl:
     source: https://github.com/libjxl/libjxl.git
