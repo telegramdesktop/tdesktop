@@ -54,10 +54,12 @@ namespace {
 } // namespace
 
 int MuteValue::until() const {
+	constexpr auto kMax = std::numeric_limits<int>::max();
+
 	return forever
-		? std::numeric_limits<int>::max()
+		? kMax
 		: (period > 0)
-		? (base::unixtime::now() + period)
+		? int(std::min(int64(base::unixtime::now()) + period, int64(kMax)))
 		: unmute
 		? 0
 		: -1;
