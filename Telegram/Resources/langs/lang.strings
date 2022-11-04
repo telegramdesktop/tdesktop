@@ -3009,6 +3009,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_changed_link_channel" = "{from} changed channel link:";
 "lng_admin_log_removed_link_channel" = "{from} removed channel link";
 "lng_admin_log_previous_link" = "Previous link";
+"lng_admin_log_reordered_link_group" = "{from} reordered group links:";
+"lng_admin_log_reordered_link_channel" = "{from} reordered channel links:";
+"lng_admin_log_previous_links_order" = "Previous order";
+"lng_admin_log_activated_link" = "{from} activated @{link} username";
+"lng_admin_log_deactivated_link" = "{from} deactivated @{link} username";
 "lng_admin_log_changed_photo_group" = "{from} changed group photo";
 "lng_admin_log_changed_photo_channel" = "{from} changed channel photo";
 "lng_admin_log_removed_photo_group" = "{from} removed group photo";

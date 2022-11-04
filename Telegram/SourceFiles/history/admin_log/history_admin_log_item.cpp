@@ -1582,27 +1582,50 @@ void GenerateItems(
 					return true;
 				}();
 				if (wasReordered) {
-					auto resultText = fromLinkText;
-					addSimpleServiceMessage(resultText.append({
-						.text = channel->isMegagroup()
-							? QString(" reordered group links:")
-							: QString(" reordered channel links:"),
-					}));
+					addSimpleServiceMessage((channel->isMegagroup()
+						? tr::lng_admin_log_reordered_link_group
+						: tr::lng_admin_log_reordered_link_channel)(
+							tr::now,
+							lt_from,
+							fromLinkText,
+							Ui::Text::WithEntities));
 					const auto body = makeSimpleTextMessage(list(newValue));
 					body->addLogEntryOriginal(
 						id,
-						"Previous order",
+						tr::lng_admin_log_previous_links_order(tr::now),
 						list(oldValue));
 					addPart(body);
 					return;
 				}
 			}
+		} else if (std::abs(newValue.size() - oldValue.size()) == 1) {
+			const auto activated = newValue.size() > oldValue.size();
+			const auto changed = [&] {
+				const auto value = activated ? oldValue : newValue;
+				for (const auto &link : (activated ? newValue : oldValue)) {
+					if (!ranges::contains(value, link)) {
+						return qs(link);
+					}
+				}
+				return QString();
+			}();
+			addSimpleServiceMessage((activated
+				? tr::lng_admin_log_activated_link
+				: tr::lng_admin_log_deactivated_link)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_link,
+					{ changed },
+					Ui::Text::WithEntities));
+			return;
 		}
+		// Probably will never happen.
 		auto resultText = fromLinkText;
 		addSimpleServiceMessage(resultText.append({
 			.text = channel->isMegagroup()
-				? QString(" changed list of group links:")
-				: QString(" changed list of channel links:"),
+				? u" changed list of group links:"_q
+				: u" changed list of channel links:"_q,
 		}));
 		const auto body = makeSimpleTextMessage(list(newValue));
 		body->addLogEntryOriginal(
