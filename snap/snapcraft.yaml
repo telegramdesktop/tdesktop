@@ -456,6 +456,7 @@ parts:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/metatypes
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.la
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.prl
