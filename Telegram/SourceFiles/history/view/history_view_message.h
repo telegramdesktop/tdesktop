@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryMessage;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
+struct HistoryMessageReplyMarkup;
 
 namespace Data {
 struct ReactionId;
@@ -256,6 +257,7 @@ private:
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
+	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
 	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 

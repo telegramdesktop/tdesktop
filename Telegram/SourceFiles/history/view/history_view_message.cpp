@@ -485,13 +485,15 @@ auto Message::takeReactionAnimations()
 }
 
 QSize Message::performCountOptimalSize() {
+	const auto item = message();
+	const auto markup = item->inlineReplyMarkup();
 	validateText();
+	validateInlineKeyboard(markup);
 	updateViewButtonExistence();
 	updateMediaInBubbleState();
 	refreshRightBadge();
 	refreshInfoSkipBlock();
 
-	const auto item = message();
 	const auto media = this->media();
 
 	auto maxWidth = 0;
@@ -642,18 +644,10 @@ QSize Message::performCountOptimalSize() {
 		maxWidth = st::msgMinWidth;
 		minHeight = 0;
 	}
-	if (const auto markup = item->inlineReplyMarkup()) {
-		if (!markup->inlineKeyboard && !markup->hiddenBy(item->media())) {
-			markup->inlineKeyboard = std::make_unique<ReplyKeyboard>(
-				item,
-				std::make_unique<KeyboardStyle>(st::msgBotKbButton));
-		}
-
-		// if we have a text bubble we can resize it to fit the keyboard
-		// but if we have only media we don't do that
-		if (hasVisibleText() && markup->inlineKeyboard) {
-			accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
-		}
+	// if we have a text bubble we can resize it to fit the keyboard
+	// but if we have only media we don't do that
+	if (markup && markup->inlineKeyboard && hasVisibleText()) {
+		accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
 	}
 	return QSize(maxWidth, minHeight);
 }
@@ -2412,6 +2406,17 @@ void Message::refreshReactions() {
 	} else {
 		_reactions->update(std::move(reactionsData), width());
 	}
+}
+
+void Message::validateInlineKeyboard(HistoryMessageReplyMarkup *markup) {
+	if (!markup
+		|| markup->inlineKeyboard
+		|| markup->hiddenBy(data()->media())) {
+		return;
+	}
+	markup->inlineKeyboard = std::make_unique<ReplyKeyboard>(
+		data(),
+		std::make_unique<KeyboardStyle>(st::msgBotKbButton));
 }
 
 void Message::validateFromNameText(PeerData *from) const {
