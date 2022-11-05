@@ -2966,8 +2966,9 @@ void HistoryWidget::unreadCountUpdated() {
 			}
 		});
 	} else {
-		_cornerButtons.updateJumpDownVisibility(
-			_history->chatListBadgesState().unreadCounter);
+		_cornerButtons.updateJumpDownVisibility(_history->peer->isForum()
+			? 0
+			: _history->chatListBadgesState().unreadCounter);
 	}
 }
 
