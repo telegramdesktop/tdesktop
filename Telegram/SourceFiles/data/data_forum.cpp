@@ -352,7 +352,7 @@ MsgId Forum::reserveCreatingId(
 		DocumentId iconId) {
 	const auto result = owner().nextLocalMessageId();
 	_creatingRootIds.emplace(result);
-	const auto topic = applyTopicAdded(
+	applyTopicAdded(
 		result,
 		title,
 		colorId,
