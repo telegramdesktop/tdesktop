@@ -2609,7 +2609,7 @@ std::optional<QString> HistoryWidget::writeRestriction() const {
 	if (result) {
 		return result;
 	} else if (_peer && _peer->isForum()) {
-		return u"You can reply to messages in topics."_q;
+		return tr::lng_forum_replies_only(tr::now);
 	}
 	return std::nullopt;
 }

@@ -446,7 +446,7 @@ void EditForumTopicBox(
 
 	Settings::AddDividerText(
 		top,
-		rpl::single(u"Choose title and icon for your topic"_q));
+		tr::lng_forum_choose_title_and_icon());
 
 	box->setScrollStyle(st::reactPanelScroll);
 
