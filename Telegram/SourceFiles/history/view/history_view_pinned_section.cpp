@@ -559,7 +559,7 @@ void PinnedWidget::listUpdateDateLink(
 }
 
 bool PinnedWidget::listElementHideReply(not_null<const Element*> view) {
-	return false;
+	return (view->data()->replyToId() == _thread->topicRootId());
 }
 
 bool PinnedWidget::listElementShownUnread(not_null<const Element*> view) {
