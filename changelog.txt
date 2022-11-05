@@ -1,3 +1,8 @@
+4.3 (05.11.22)
+
+- Groups with more than 200 members can now have their discussions organized into topics.
+- Premium users can now convert both voice messages and video messages into text.
+
 4.2.4 (30.09.22)
 
 - Fix crash in emoji statuses clearing.
