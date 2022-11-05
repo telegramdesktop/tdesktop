@@ -701,7 +701,7 @@ QString ApiWrap::exportDirectMessageLink(
 			+ '/'
 			+ (linkCommentId
 				? (post + "?comment=" + QString::number(linkCommentId.bare))
-				: (linkThreadId && !linkThreadIsTopic)
+				: (linkThreadId/* && !linkThreadIsTopic*/)
 				? (post + "?thread=" + QString::number(linkThreadId.bare))
 				: linkThreadId
 				? (QString::number(linkThreadId.bare) + '/' + post)
