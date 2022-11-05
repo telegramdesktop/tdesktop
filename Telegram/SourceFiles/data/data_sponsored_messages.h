@@ -46,6 +46,11 @@ struct SponsoredMessage {
 
 class SponsoredMessages final {
 public:
+	enum class State {
+		None,
+		AppendToEnd,
+		InjectToMiddle,
+	};
 	struct Details {
 		std::optional<QString> hash;
 		PeerData *peer = nullptr;
@@ -58,12 +63,20 @@ public:
 	~SponsoredMessages();
 
 	[[nodiscard]] bool canHaveFor(not_null<History*> history) const;
-	void request(not_null<History*> history);
-	[[nodiscard]] bool append(not_null<History*> history);
+	void request(not_null<History*> history, Fn<void()> done);
 	void clearItems(not_null<History*> history);
 	[[nodiscard]] Details lookupDetails(const FullMsgId &fullId) const;
 
+	[[nodiscard]] bool append(not_null<History*> history);
+	void inject(
+		not_null<History*> history,
+		MsgId injectAfterMsgId,
+		int betweenHeight,
+		int fallbackWidth);
+
 	void view(const FullMsgId &fullId);
+
+	[[nodiscard]] State state(not_null<History*> history) const;
 
 private:
 	using OwnedItem = std::unique_ptr<HistoryItem, HistoryItem::Destroyer>;
@@ -73,8 +86,13 @@ private:
 	};
 	struct List {
 		std::vector<Entry> entries;
+		// Data between history displays.
+		size_t injectedCount = 0;
 		bool showedAll = false;
+		//
 		crl::time received = 0;
+		int postsBetween = 0;
+		State state = State::None;
 	};
 	struct Request {
 		mtpRequestId requestId = 0;

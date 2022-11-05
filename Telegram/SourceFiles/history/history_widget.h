@@ -604,6 +604,8 @@ private:
 	void refreshSendAsToggle();
 	void refreshAttachBotsMenu();
 
+	void injectSponsoredMessages() const;
+
 	bool kbWasHidden() const;
 
 	void searchInChat();

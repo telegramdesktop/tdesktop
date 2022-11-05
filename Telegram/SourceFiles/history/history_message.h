@@ -130,7 +130,8 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		Data::SponsoredFrom from,
-		const TextWithEntities &textWithEntities); // sponsored
+		const TextWithEntities &textWithEntities,
+		HistoryItem *injectedAfter); // sponsored
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);

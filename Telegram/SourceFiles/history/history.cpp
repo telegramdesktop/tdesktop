@@ -764,7 +764,8 @@ not_null<HistoryItem*> History::addNewLocalMessage(
 		makeMessage(
 			id,
 			from,
-			textWithEntities),
+			textWithEntities,
+			nullptr),
 		true);
 }
 

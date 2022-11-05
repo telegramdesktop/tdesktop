@@ -34,6 +34,7 @@ class Session;
 class Folder;
 class ChatFilter;
 struct SponsoredFrom;
+class SponsoredMessages;
 
 enum class ForwardOptions {
 	PreserveInfo,
@@ -495,6 +496,8 @@ private:
 	not_null<HistoryItem*> addNewToBack(
 		not_null<HistoryItem*> item,
 		bool unread);
+
+	friend class Data::SponsoredMessages;
 	not_null<HistoryItem*> addNewInTheMiddle(
 		not_null<HistoryItem*> item,
 		int blockIndex,

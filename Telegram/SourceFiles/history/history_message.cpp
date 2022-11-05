@@ -636,14 +636,17 @@ HistoryMessage::HistoryMessage(
 	not_null<History*> history,
 	MsgId id,
 	Data::SponsoredFrom from,
-	const TextWithEntities &textWithEntities)
+	const TextWithEntities &textWithEntities,
+	HistoryItem *injectedAfter)
 : HistoryItem(
 		history,
 		id,
 		((history->peer->isChannel() ? MessageFlag::Post : MessageFlag(0))
 			//| (from.peer ? MessageFlag::HasFromId : MessageFlag(0))
 			| MessageFlag::Local),
-		HistoryItem::NewMessageDate(0),
+		HistoryItem::NewMessageDate(injectedAfter
+			? injectedAfter->date()
+			: 0),
 		/*from.peer ? from.peer->id : */PeerId(0)) {
 	createComponentsHelper(
 		_flags,

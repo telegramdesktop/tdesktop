@@ -2288,9 +2288,25 @@ void HistoryWidget::showHistory(
 		showAboutTopPromotion();
 
 		{
-			auto &sponsored = session().data().sponsoredMessages();
-			sponsored.request(_history);
-			_scroll->setTrackingContent(sponsored.canHaveFor(_history));
+			_scroll->setTrackingContent(false);
+			const auto checkState = crl::guard(this, [=] {
+				auto &sponsored = session().data().sponsoredMessages();
+				using State = Data::SponsoredMessages::State;
+				const auto state = sponsored.state(_history);
+				if (state == State::AppendToEnd) {
+					_scroll->setTrackingContent(
+						sponsored.canHaveFor(_history));
+				} else if (state == State::InjectToMiddle) {
+					if (_list) {
+						_list->setCanHaveFromUserpicsSponsored(true);
+					}
+					injectSponsoredMessages();
+				}
+			});
+			session().data().sponsoredMessages().request(
+				_history,
+				checkState);
+			checkState();
 		}
 	} else {
 		_chooseForReport = nullptr;
@@ -2352,6 +2368,14 @@ void HistoryWidget::setHistory(History *history) {
 		registerDraftSource();
 	}
 	refreshAttachBotsMenu();
+}
+
+void HistoryWidget::injectSponsoredMessages() const {
+	session().data().sponsoredMessages().inject(
+		_history,
+		_showAtMsgId,
+		_scroll->height() * 2,
+		_scroll->width());
 }
 
 void HistoryWidget::refreshAttachBotsMenu() {
@@ -3268,7 +3292,7 @@ void HistoryWidget::loadMessagesDown() {
 	auto loadMigrated = _migrated && !(_migrated->isEmpty() || _migrated->loadedAtBottom() || (!_history->isEmpty() && !_history->loadedAtTop()));
 	auto from = loadMigrated ? _migrated : _history;
 	if (from->loadedAtBottom()) {
-		session().data().sponsoredMessages().request(_history);
+		session().data().sponsoredMessages().request(_history, nullptr);
 		return;
 	}
 
@@ -5659,6 +5683,7 @@ void HistoryWidget::addMessagesToBack(
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
+	injectSponsoredMessages();
 }
 
 void HistoryWidget::updateBotKeyboard(History *h, bool force) {
