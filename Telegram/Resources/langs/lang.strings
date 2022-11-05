@@ -2406,7 +2406,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_report_profile_photo" = "Report";
 
 "lng_mediaview_saved_to" = "Image was saved to your {downloads} folder";
-"lng_mediaview_saved_images_to" = "Images was saved to your {downloads} folder";
+"lng_mediaview_saved_images_to" = "Images were saved to your {downloads} folder";
 "lng_mediaview_downloads" = "Downloads";
 "lng_mediaview_video_loading" = "Loading - {percent}";
 "lng_mediaview_playback_speed" = "Playback speed: {speed}";
