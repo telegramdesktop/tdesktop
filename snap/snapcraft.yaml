@@ -223,6 +223,7 @@ parts:
     source-tag: 2.72.1
     plugin: meson
     build-packages:
+      - curl
       - meson
       - ninja-build
       - libglib2.0-dev
