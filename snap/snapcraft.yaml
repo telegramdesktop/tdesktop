@@ -236,6 +236,7 @@ parts:
       - -Dbuild-examples=false
       - -Dsigc++-3.0:build-documentation=false
       - -Dsigc++-3.0:build-examples=false
+      - -Dsigc++-3.0:validation=false
       - -Dmm-common:use-network=true
     prime:
       - -./usr/include
