@@ -183,13 +183,8 @@ parts:
       - dpkg-dev
     stage-packages:
       - libxkbcommon0
-      - fonts-ubuntu
-      - dmz-cursor-theme
-      - light-themes
-      - adwaita-icon-theme
-      - gnome-themes-standard
       - shared-mime-info
-      - libgdk-pixbuf2.0-0
+      - libgdk-pixbuf-2.0-0
       - locales-all
       - xdg-user-dirs
     stage:
