@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/platform_file_utilities.h"
@@ -173,29 +174,32 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
-		QStringList files;
-		QByteArray remoteContent;
-		const auto success = Platform::FileDialog::Get(
-			nullptr,
-			files,
-			remoteContent,
-			tr::lng_download_path_choose(tr::now),
-			QString(),
-			FileDialog::internal::Type::ReadFolder,
-			QString());
-		if (success && !files.isEmpty() && !files[0].isEmpty()) {
-			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
-			Core::App().settings().setDownloadPath(result);
-			Core::App().saveSettings();
-			return result;
-		}
-	}
-	return QStandardPaths::writableLocation(
+	static auto Choosing = false;
+	const auto realDefaultPath = QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
+	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
+		if (Choosing) {
+			return session->local().tempDirectory();
+		}
+		Choosing = true;
+		FileDialog::GetFolder(
+			nullptr,
+			tr::lng_download_path_choose(tr::now),
+			realDefaultPath,
+			[](const QString &result) {
+				Core::App().settings().setDownloadPath(result.endsWith('/')
+					? result
+					: (result + '/'));
+				Core::App().saveSettings();
+				Choosing = false;
+			},
+			[] { Choosing = false; });
+		return session->local().tempDirectory();
+	}
+	return realDefaultPath;
 }
 
 namespace internal {
