@@ -397,7 +397,9 @@ QString Controller::getUsernameInput() const {
 }
 
 std::vector<QString> Controller::usernamesOrder() const {
-	return _controls.usernamesList->order();
+	return _controls.usernamesList
+		? _controls.usernamesList->order()
+		: std::vector<QString>();
 }
 
 object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
@@ -452,12 +454,17 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 		container,
 		tr::lng_create_channel_link_about());
 
-	const auto focusCallback = [=] {
-		_scrollToRequests.fire(container->y());
-		_controls.usernameInput->setFocusFast();
-	};
-	_controls.usernamesList = container->add(
-		object_ptr<UsernamesList>(container, channel, _show, focusCallback));
+	if (channel) {
+		const auto focusCallback = [=] {
+			_scrollToRequests.fire(container->y());
+			_controls.usernameInput->setFocusFast();
+		};
+		_controls.usernamesList = container->add(object_ptr<UsernamesList>(
+			container,
+			channel,
+			_show,
+			focusCallback));
+	}
 
 	QObject::connect(
 		_controls.usernameInput,
