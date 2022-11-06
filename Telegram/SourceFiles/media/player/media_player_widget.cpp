@@ -697,8 +697,10 @@ void Widget::updateControlsGeometry() {
 	if (hasPlaybackSpeedControl()) {
 		_speedToggle->moveToRight(right, 0); right += _speedToggle->width();
 	}
-	_repeatToggle->moveToRight(right, 0); right += _repeatToggle->width();
-	_orderToggle->moveToRight(right, 0); right += _orderToggle->width();
+	if (_type == AudioMsgId::Type::Song) {
+		_repeatToggle->moveToRight(right, 0); right += _repeatToggle->width();
+		_orderToggle->moveToRight(right, 0); right += _orderToggle->width();
+	}
 	_volumeToggle->moveToRight(right, 0); right += _volumeToggle->width();
 
 	updateControlsWrapGeometry();
@@ -840,10 +842,10 @@ int Widget::getNameRight() const {
 
 int Widget::getTimeRight() const {
 	auto result = 0;
+	result += _volumeToggle->width();
 	if (_type == AudioMsgId::Type::Song) {
 		result += _repeatToggle->width()
-			+ _orderToggle->width()
-			+ _volumeToggle->width();
+			+ _orderToggle->width();
 	}
 	if (hasPlaybackSpeedControl()) {
 		result += _speedToggle->width();
@@ -908,7 +910,6 @@ bool Widget::hasPlaybackSpeedControl() const {
 void Widget::updateControlsVisibility() {
 	_repeatToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_orderToggle->setVisible(_type == AudioMsgId::Type::Song);
-	_volumeToggle->setVisible(_type == AudioMsgId::Type::Song);
 	_speedToggle->setVisible(hasPlaybackSpeedControl());
 	if (!_shadow->isHidden()) {
 		_playbackSlider->setVisible(_type == AudioMsgId::Type::Song);

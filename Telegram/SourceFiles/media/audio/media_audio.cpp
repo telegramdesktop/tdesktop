@@ -317,8 +317,10 @@ base::Observable<AudioMsgId> &Updated() {
 float64 ComputeVolume(AudioMsgId::Type type) {
 	const auto gain = [&] {
 		switch (type) {
-		case AudioMsgId::Type::Voice: return VolumeMultiplierAll;
-		case AudioMsgId::Type::Song: return VolumeMultiplierSong * mixer()->getSongVolume();
+		case AudioMsgId::Type::Voice:
+			return VolumeMultiplierAll * mixer()->getSongVolume();
+		case AudioMsgId::Type::Song:
+			return VolumeMultiplierSong * mixer()->getSongVolume();
 		case AudioMsgId::Type::Video: return mixer()->getVideoVolume();
 		}
 		return 1.;
@@ -1371,8 +1373,9 @@ void Fader::onTimer() {
 	};
 	auto suppressGainForMusic = ComputeVolume(AudioMsgId::Type::Song);
 	auto suppressGainForMusicChanged = volumeChangedSong || _volumeChangedSong;
+	auto suppressGainForVoice = ComputeVolume(AudioMsgId::Type::Voice);
 	for (auto i = 0; i != kTogetherLimit; ++i) {
-		updatePlayback(AudioMsgId::Type::Voice, i, VolumeMultiplierAll, volumeChangedAll);
+		updatePlayback(AudioMsgId::Type::Voice, i, suppressGainForVoice, suppressGainForMusicChanged);
 		updatePlayback(AudioMsgId::Type::Song, i, suppressGainForMusic, suppressGainForMusicChanged);
 	}
 	auto suppressGainForVideo = ComputeVolume(AudioMsgId::Type::Video);
