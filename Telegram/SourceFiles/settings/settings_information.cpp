@@ -690,13 +690,13 @@ void SetupAccountsWrap(
 		} else if (which != Qt::RightButton) {
 			return;
 		}
-		const auto addAction = Ui::Menu::CreateAddActionCallback(
-			state->menu);
 		if (!state->menu && IsAltShift(raw->clickModifiers()) && !locked) {
 			state->menu = base::make_unique_q<Ui::PopupMenu>(
 				raw,
 				st::popupMenuWithIcons);
-			Window::MenuAddMarkAsReadAllChatsAction(window, addAction);
+			Window::MenuAddMarkAsReadAllChatsAction(
+				window,
+				Ui::Menu::CreateAddActionCallback(state->menu));
 			state->menu->popup(QCursor::pos());
 			return;
 		}
@@ -707,6 +707,8 @@ void SetupAccountsWrap(
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			raw,
 			st::popupMenuWithIcons);
+		const auto addAction = Ui::Menu::CreateAddActionCallback(
+			state->menu);
 		addAction(tr::lng_profile_copy_phone(tr::now), [=] {
 			const auto phone = rpl::variable<TextWithEntities>(
 				Info::Profile::PhoneValue(session->user()));
