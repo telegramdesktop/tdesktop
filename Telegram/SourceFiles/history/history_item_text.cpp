@@ -16,59 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/text/text_options.h"
 
-TextForMimeData WrapAsReply(
-		TextForMimeData &&text,
-		not_null<HistoryItem*> to) {
-	const auto name = to->author()->name();
-	auto result = TextForMimeData();
-	result.reserve(
-		tr::lng_in_reply_to(tr::now).size()
-		+ name.size()
-		+ 4
-		+ text.expanded.size());
-	return result.append('['
-	).append(tr::lng_in_reply_to(tr::now)
-	).append(' '
-	).append(name
-	).append(qstr("]\n")
-	).append(std::move(text));
-}
-
-TextForMimeData WrapAsForwarded(
-		TextForMimeData &&text,
-		not_null<HistoryMessageForwarded*> forwarded) {
-	auto info = forwarded->text.toTextForMimeData();
-	auto result = TextForMimeData();
-	result.reserve(
-		info.expanded.size() + 4 + text.expanded.size(),
-		info.rich.entities.size() + text.rich.entities.size());
-	return result.append('['
-	).append(std::move(info)
-	).append(qstr("]\n")
-	).append(std::move(text));
-}
-
-TextForMimeData WrapAsItem(
-		not_null<HistoryItem*> item,
-		TextForMimeData &&result) {
-	if (const auto reply = item->Get<HistoryMessageReply>()) {
-		if (const auto message = reply->replyToMsg.get()) {
-			result = WrapAsReply(std::move(result), message);
-		}
-	}
-	if (const auto forwarded = item->Get<HistoryMessageForwarded>()) {
-		result = WrapAsForwarded(std::move(result), forwarded);
-	}
-	return std::move(result);
-}
-
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	const auto media = item->media();
 
-	auto mediaResult = media ? media->clipboardText() : TextForMimeData();
-	auto textResult = mediaResult.empty()
-		? item->clipboardText()
-		: TextForMimeData();
+	auto textResult = item->clipboardText();
 	auto logEntryOriginalResult = [&] {
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();
 		if (!entry) {
@@ -93,16 +44,11 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	}();
 	auto result = textResult;
 	if (result.empty()) {
-		result = std::move(mediaResult);
-	} else if (!mediaResult.empty()) {
-		result.append(qstr("\n\n")).append(std::move(mediaResult));
-	}
-	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.empty()) {
 		result.append(qstr("\n\n")).append(std::move(logEntryOriginalResult));
 	}
-	return WrapAsItem(item, std::move(result));
+	return result;
 }
 
 TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
@@ -148,7 +94,7 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 		auto result = (*first)->clipboardText();
 		return (++first == end) ? result : TextForMimeData();
 	}();
-	return WrapAsItem(group->items.front(), Data::WithCaptionClipboardText(
+	return Data::WithCaptionClipboardText(
 		tr::lng_in_dlg_album(tr::now),
-		std::move(caption)));
+		std::move(caption));
 }
