@@ -41,14 +41,17 @@ using SharedMediaTypesMask = base::enum_mask<SharedMediaType>;
 struct SharedMediaAddNew {
 	SharedMediaAddNew(
 		PeerId peerId,
+		MsgId topicRootId,
 		SharedMediaTypesMask types,
 		MsgId messageId)
 	: peerId(peerId)
+	, topicRootId(topicRootId)
 	, messageId(messageId)
 	, types(types) {
 	}
 
 	PeerId peerId = 0;
+	MsgId topicRootId = 0;
 	MsgId messageId = 0;
 	SharedMediaTypesMask types;
 

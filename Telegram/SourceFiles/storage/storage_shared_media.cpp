@@ -35,15 +35,20 @@ auto SharedMedia::enforceLists(Key key)
 }
 
 void SharedMedia::add(SharedMediaAddNew &&query) {
-	auto peerIt = enforceLists({ query.peerId, MsgId(0) });
-	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
+	const auto addByIt = [&](const auto i) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
-				peerIt->second[index].addNew(query.messageId);
+				i->second[index].addNew(query.messageId);
 			}
 		}
-		++peerIt;
+	};
+	addByIt(enforceLists({ query.peerId, MsgId(0) }));
+	const auto topicIt = query.topicRootId
+		? _lists.find({ query.peerId, query.topicRootId })
+		: end(_lists);
+	if (topicIt != end(_lists)) {
+		addByIt(topicIt);
 	}
 }
 
