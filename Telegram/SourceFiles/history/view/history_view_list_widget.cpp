@@ -3656,7 +3656,6 @@ void ListWidget::refreshAttachmentsFromTill(int from, int till) {
 	if (till == int(_items.size())) {
 		_items.back()->setAttachToNext(false);
 	}
-	updateSize();
 }
 
 void ListWidget::refreshItem(not_null<const Element*> view) {
