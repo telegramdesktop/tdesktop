@@ -17,7 +17,7 @@ apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegram-desktop_telegram-desktop.desktop
+    desktop: usr/share/applications/telegramdesktop.desktop
     environment:
       # Tell glib to use portals on file associations handling.
       GTK_USE_PORTAL: 1
@@ -127,7 +127,6 @@ parts:
       - -DTDESKTOP_API_ID=611335
       - -DTDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c
       - -DDESKTOP_APP_USE_PACKAGED_LAZY=ON
-      - -DTDESKTOP_LAUNCHER_BASENAME=telegram-desktop_telegram-desktop
     override-pull: |
       craftctl default
 

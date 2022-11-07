@@ -73,7 +73,6 @@
         <content_attribute id="money-gambling">none</content_attribute>
         <content_attribute id="money-advertising">moderate</content_attribute>
     </content_rating>
-    <launchable type="desktop-id">@TDESKTOP_LAUNCHER_BASENAME@.desktop</launchable>
     <provides>
         <binary>telegram-desktop</binary>
     </provides>
