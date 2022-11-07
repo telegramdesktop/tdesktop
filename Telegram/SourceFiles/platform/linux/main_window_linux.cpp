@@ -111,31 +111,36 @@ void XCBSetDesktopFileName(QWindow *window) {
 		return;
 	}
 
-	const auto desktopFileAtom = base::Platform::XCB::GetAtom(
-		connection,
-		"_KDE_NET_WM_DESKTOP_FILE");
-
 	const auto utf8Atom = base::Platform::XCB::GetAtom(
 		connection,
 		"UTF8_STRING");
 
-	if (!desktopFileAtom.has_value() || !utf8Atom.has_value()) {
+	if (!utf8Atom.has_value()) {
 		return;
 	}
+
+	const auto filenameAtoms = {
+		base::Platform::XCB::GetAtom(connection, "_GTK_APPLICATION_ID"),
+		base::Platform::XCB::GetAtom(connection, "_KDE_NET_WM_DESKTOP_FILE"),
+	};
 
 	const auto filename = QGuiApplication::desktopFileName()
 		.chopped(8)
 		.toUtf8();
 
-	xcb_change_property(
-		connection,
-		XCB_PROP_MODE_REPLACE,
-		window->winId(),
-		*desktopFileAtom,
-		*utf8Atom,
-		8,
-		filename.size(),
-		filename.data());
+	for (const auto atom : filenameAtoms) {
+		if (atom.has_value()) {
+			xcb_change_property(
+				connection,
+				XCB_PROP_MODE_REPLACE,
+				window->winId(),
+				*atom,
+				*utf8Atom,
+				8,
+				filename.size(),
+				filename.data());
+		}
+	}
 }
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
 
