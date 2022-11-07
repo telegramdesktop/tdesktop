@@ -1189,16 +1189,7 @@ void Controller::fillManageSection() {
 					Ui::LayerOption::KeepOther);
 			},
 			{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange });
-
-		if (_typeDataSavedValue) {
-			_privacyTypeUpdates.events_starting_with_copy(
-				_typeDataSavedValue->privacy
-			) | rpl::start_with_next([=](Privacy flag) {
-				wrap->toggle(
-					flag != Privacy::HasUsername,
-					anim::type::instant);
-			}, wrap->lifetime());
-		}
+		wrap->toggle(true, anim::type::instant);
 	}
 	if (canViewAdmins) {
 		AddButtonWithCount(
