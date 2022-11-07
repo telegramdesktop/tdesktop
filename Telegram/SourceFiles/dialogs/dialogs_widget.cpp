@@ -750,9 +750,7 @@ void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
 
 void Widget::changeOpenedForum(ChannelData *forum, anim::type animated) {
 	changeOpenedSubsection([&] {
-		if (forum) {
-			cancelSearch();
-		}
+		cancelSearch();
 		_openedForum = forum;
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
