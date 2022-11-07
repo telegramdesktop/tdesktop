@@ -247,29 +247,6 @@ bool GenerateDesktopFile(
 	}
 }
 
-QString AppRuntimeDirectory() {
-	static const auto Result = [&] {
-		auto runtimeDir = QStandardPaths::writableLocation(
-			QStandardPaths::RuntimeLocation);
-
-		if (KSandbox::isFlatpak()) {
-			runtimeDir += qsl("/app/") + base::FlatpakID();
-		}
-
-		if (!QFileInfo::exists(runtimeDir)) { // non-systemd distros
-			runtimeDir = QDir::tempPath();
-		}
-
-		if (!runtimeDir.endsWith('/')) {
-			runtimeDir += '/';
-		}
-
-		return runtimeDir;
-	}();
-
-	return Result;
-}
-
 } // namespace
 
 void SetApplicationIcon(const QIcon &icon) {
@@ -277,16 +254,7 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	const auto idealSocketPath = AppRuntimeDirectory()
-		+ hash
-		+ '-'
-		+ cGUIDStr();
-
-	if ((idealSocketPath.size() + 1) >= sizeof(sockaddr_un().sun_path)) {
-		return AppRuntimeDirectory() + hash;
-	} else {
-		return idealSocketPath;
-	}
+	return QDir::tempPath() + '/' + hash + '-' + cGUIDStr();
 }
 
 std::optional<bool> IsDarkMode() {
