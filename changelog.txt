@@ -1,3 +1,7 @@
+4.3.1 (07.11.22)
+
+- Critical bug fixes.
+
 4.3 (05.11.22)
 
 - Groups with more than 200 members can now have their discussions organized into topics.
