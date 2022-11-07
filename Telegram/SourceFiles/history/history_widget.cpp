@@ -2289,7 +2289,10 @@ void HistoryWidget::showHistory(
 
 		{
 			_scroll->setTrackingContent(false);
-			const auto checkState = crl::guard(this, [=] {
+			const auto checkState = crl::guard(this, [=, history = _history] {
+				if (history != _history) {
+					return;
+				}
 				auto &sponsored = session().data().sponsoredMessages();
 				using State = Data::SponsoredMessages::State;
 				const auto state = sponsored.state(_history);
