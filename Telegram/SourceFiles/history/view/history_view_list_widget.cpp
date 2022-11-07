@@ -1962,7 +1962,11 @@ void ListWidget::checkActivation() {
 	for (const auto &view : ranges::views::reverse(_items)) {
 		const auto bottom = itemTop(view) + view->height();
 		if (_visibleBottom + _itemsRevealHeight >= bottom) {
-			delegate()->listMarkReadTill(view->data());
+			const auto item = view->data();
+			if (item->isRegular()) {
+				delegate()->listMarkReadTill(item);
+				return;
+			}
 		}
 	}
 }

@@ -935,15 +935,15 @@ void RepliesList::readTill(not_null<HistoryItem*> item) {
 }
 
 void RepliesList::readTill(MsgId tillId) {
-	if (!IsServerMsgId(tillId)) {
-		return;
-	}
 	readTill(tillId, _history->owner().message(_history->peer->id, tillId));
 }
 
 void RepliesList::readTill(
 		MsgId tillId,
 		HistoryItem *tillIdItem) {
+	if (!IsServerMsgId(tillId)) {
+		return;
+	}
 	const auto was = computeInboxReadTillFull();
 	const auto now = tillId;
 	if (now < was) {
