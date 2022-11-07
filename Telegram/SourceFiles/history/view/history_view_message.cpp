@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_message_reactions.h"
 #include "data/data_sponsored_messages.h"
 #include "lang/lang_keys.h"
@@ -2707,9 +2708,21 @@ bool Message::hasFastReply() const {
 }
 
 bool Message::displayFastReply() const {
+	const auto canWrite = [&] {
+		const auto item = data();
+		const auto peer = item->history()->peer;
+		if (peer->isForum()) {
+			const auto topic = item->topic();
+			return topic
+				? topic->canWrite()
+				: peer->canWrite(!item->topicRootId());
+		}
+		return peer->canWrite();
+	};
+
 	return hasFastReply()
 		&& data()->isRegular()
-		&& data()->history()->peer->canWrite(false)
+		&& canWrite()
 		&& !delegate()->elementInSelectionMode();
 }
 
