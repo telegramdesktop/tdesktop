@@ -138,6 +138,7 @@ public:
 		Painter &p,
 		std::shared_ptr<CloudImageView> &view,
 		const Dialogs::Ui::PaintContext &context) const override;
+	void clearUserpicLoops();
 
 	[[nodiscard]] bool isServerSideUnread(
 		not_null<const HistoryItem*> item) const override;

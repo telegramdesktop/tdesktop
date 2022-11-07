@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_document.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "apiwrap.h"
 
 namespace Data {
@@ -22,7 +24,8 @@ constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 } // namespace
 
 ForumIcons::ForumIcons(not_null<Session*> owner)
-: _owner(owner) {
+: _owner(owner)
+, _resetUserpicsTimer([=] { resetUserpics(); }) {
 }
 
 ForumIcons::~ForumIcons() = default;
@@ -77,6 +80,47 @@ void ForumIcons::updateDefault(const MTPDmessages_stickerSet &data) {
 		_default.push_back(_owner->processDocument(sticker)->id);
 	}
 	_defaultUpdated.fire({});
+}
+
+void ForumIcons::scheduleUserpicsReset(not_null<Forum*> forum) {
+	const auto duration = crl::time(st::slideDuration);
+	_resetUserpicsWhen[forum] = crl::now() + duration;
+	if (!_resetUserpicsTimer.isActive()) {
+		_resetUserpicsTimer.callOnce(duration);
+	}
+}
+
+void ForumIcons::clearUserpicsReset(not_null<Forum*> forum) {
+	_resetUserpicsWhen.remove(forum);
+}
+
+void ForumIcons::resetUserpics() {
+	auto nearest = crl::time();
+	auto now = crl::now();
+	for (auto i = begin(_resetUserpicsWhen); i != end(_resetUserpicsWhen);) {
+		if (i->second > now) {
+			if (!nearest || nearest > i->second) {
+				nearest = i->second;
+			}
+			++i;
+		} else {
+			const auto forum = i->first;
+			i = _resetUserpicsWhen.erase(i);
+			resetUserpicsFor(forum);
+		}
+	}
+	if (nearest) {
+		_resetUserpicsTimer.callOnce(
+			std::min(nearest - now, 86400 * crl::time(1000)));
+	} else {
+		_resetUserpicsTimer.cancel();
+	}
+}
+
+void ForumIcons::resetUserpicsFor(not_null<Forum*> forum) {
+	forum->enumerateTopics([](not_null<ForumTopic*> topic) {
+		topic->clearUserpicLoops();
+	});
 }
 
 } // namespace Data

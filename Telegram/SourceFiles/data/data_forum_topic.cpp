@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "ui/painter.h"
 #include "ui/color_int_conversion.h"
+#include "ui/text/text_custom_emoji.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat_helpers.h"
 
@@ -40,6 +41,8 @@ namespace Data {
 namespace {
 
 using UpdateFlag = TopicUpdate::Flag;
+
+constexpr auto kUserpicLoopsCount = 2;
 
 } // namespace
 
@@ -544,6 +547,12 @@ void ForumTopic::paintUserpic(
 	}
 }
 
+void ForumTopic::clearUserpicLoops() {
+	if (_icon) {
+		_icon->unload();
+	}
+}
+
 void ForumTopic::validateDefaultIcon() const {
 	if (_defaultIcon.isNull()) {
 		_defaultIcon = ForumTopicIconFrame(
@@ -629,10 +638,12 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	}
 	_iconId = iconId;
 	_icon = iconId
-		? owner().customEmojiManager().create(
-			_iconId,
-			[=] { updateChatListEntry(); },
-			Data::CustomEmojiManager::SizeTag::Normal)
+		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			owner().customEmojiManager().create(
+				_iconId,
+				[=] { updateChatListEntry(); },
+				Data::CustomEmojiManager::SizeTag::Normal),
+			kUserpicLoopsCount)
 		: nullptr;
 	if (iconId) {
 		_defaultIcon = QImage();

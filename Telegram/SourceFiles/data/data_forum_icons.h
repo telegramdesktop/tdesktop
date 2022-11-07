@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -15,6 +17,7 @@ namespace Data {
 
 class DocumentMedia;
 class Session;
+class Forum;
 
 class ForumIcons final {
 public:
@@ -33,8 +36,13 @@ public:
 
 	[[nodiscard]] rpl::producer<> defaultUpdates() const;
 
+	void scheduleUserpicsReset(not_null<Forum*> forum);
+	void clearUserpicsReset(not_null<Forum*> forum);
+
 private:
 	void requestDefault();
+	void resetUserpics();
+	void resetUserpicsFor(not_null<Forum*> forum);
 
 	void updateDefault(const MTPDmessages_stickerSet &data);
 
@@ -44,6 +52,9 @@ private:
 	rpl::event_stream<> _defaultUpdated;
 
 	mtpRequestId _defaultRequestId = 0;
+
+	base::flat_map<not_null<Forum*>, crl::time> _resetUserpicsWhen;
+	base::Timer _resetUserpicsTimer;
 
 	rpl::lifetime _lifetime;
 

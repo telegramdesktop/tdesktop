@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_forum_icons.h"
 #include "data/data_session.h"
 #include "data/data_channel.h"
 #include "data/data_forum_topic.h"
@@ -428,6 +429,10 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	_filterId = forum
 		? 0
 		: _controller->activeChatsFilterCurrent();
+	if (const auto old = now ? now->forum() : nullptr) {
+		// If we close it inside forum destruction we should not schedule.
+		old->owner().forumIcons().scheduleUserpicsReset(old);
+	}
 	_openedForum = forum ? forum->forum() : nullptr;
 	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
 

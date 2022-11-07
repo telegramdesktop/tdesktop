@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_forum.h"
+#include "data/data_forum_icons.h"
 #include "data/data_location.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
@@ -164,8 +165,9 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
-
-	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+	if (const auto raw = taken.get()) {
+		owner().forumIcons().clearUserpicsReset(taken.get());
+	} else if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
 	}
 	_flags.set(which);
