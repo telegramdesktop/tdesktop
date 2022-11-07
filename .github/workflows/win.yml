@@ -60,21 +60,24 @@ jobs:
     steps:
       - name: Prepare directories.
         run: |
+          mkdir %userprofile%\TBuild
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+
           mkdir %userprofile%\TBuild Libraries
           mklink /d %userprofile%\TBuild\Libraries %GITHUB_WORKSPACE%\Libraries
-          echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
 
       - name: Get repository name.
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
+      - uses: ilammy/msvc-dev-cmd@v1.12.0
         name: Native Tools Command Prompt.
         with:
           arch: ${{ matrix.arch }}
 
       - name: Clone.
-        uses: LebedevRI/checkout@issue197
+        uses: actions/checkout@v3.1.0
         with:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
@@ -98,7 +101,7 @@ jobs:
 
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.11
         with:
           path: Libraries
           key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
@@ -132,7 +135,6 @@ jobs:
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
-          C:
           cd %TBUILD%\%REPO_NAME%\Telegram
 
           call configure.bat ^
