@@ -3320,7 +3320,7 @@ void InnerWidget::repaintDialogRowCornerStatus(not_null<History*> history) {
 }
 
 void InnerWidget::userOnlineUpdated(not_null<UserData*> user) {
-	if (!user->isSelf()) {
+	if (user->isSelf()) {
 		return;
 	}
 	const auto history = session().data().historyLoaded(user);
