@@ -716,19 +716,18 @@ void Widget::changeOpenedSubsection(
 		FnMut<void()> change,
 		bool fromRight,
 		anim::type animated) {
-	_a_show.stop();
-
 	if (isHidden()) {
 		animated = anim::type::instant;
 	}
 	if (animated == anim::type::normal) {
+		_connecting->setForceHidden(true);
+		_cacheUnder = grabForFolderSlideAnimation();
 		_showDirection = fromRight
 			? Window::SlideDirection::FromRight
 			: Window::SlideDirection::FromLeft;
 		_showAnimationType = ShowAnimation::Internal;
-		_connecting->setForceHidden(true);
-		_cacheUnder = grabForFolderSlideAnimation();
 	}
+	_a_show.stop();
 	change();
 	refreshTopBars();
 	updateControlsVisibility(true);

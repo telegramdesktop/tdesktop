@@ -983,6 +983,9 @@ void SessionController::openForum(
 	if (_openedForum.current() != forum) {
 		resetFakeUnreadWhileOpened();
 	}
+	if (forum && _activeChatEntry.current().key.peer()) {
+		clearSectionStack(params);
+	}
 	_openedForum = forum.get();
 	if (_openedForum.current() == forum) {
 		forum->forum()->destroyed(
