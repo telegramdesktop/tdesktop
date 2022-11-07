@@ -847,10 +847,16 @@ void PeerListRow::lazyInitialize(const style::PeerListItem &st) {
 void PeerListRow::createCheckbox(
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback) {
+	const auto generateRadius = [=] {
+		return (!special() && peer()->isForum())
+			? ImageRoundRadius::Large
+			: ImageRoundRadius::Ellipse;
+	};
 	_checkbox = std::make_unique<Ui::RoundImageCheckbox>(
 		st,
 		std::move(updateCallback),
-		generatePaintUserpicCallback());
+		generatePaintUserpicCallback(),
+		generateRadius);
 }
 
 void PeerListRow::setCheckedInternal(bool checked, anim::type animated) {
