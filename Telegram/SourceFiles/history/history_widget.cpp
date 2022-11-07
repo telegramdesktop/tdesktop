@@ -2086,7 +2086,7 @@ void HistoryWidget::showHistory(
 
 	_cornerButtons.clearReplyReturns();
 	if (_history) {
-		if (Ui::InFocusChain(_list)) {
+		if (Ui::InFocusChain(this)) {
 			// Removing focus from list clears selected and updates top bar.
 			setFocus();
 		}
@@ -3670,6 +3670,10 @@ void HistoryWidget::saveEditMsg() {
 }
 
 void HistoryWidget::hideChildWidgets() {
+	if (Ui::InFocusChain(this)) {
+		// Removing focus from list clears selected and updates top bar.
+		setFocus();
+	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
