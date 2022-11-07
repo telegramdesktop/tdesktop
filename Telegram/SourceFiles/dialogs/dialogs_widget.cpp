@@ -1102,10 +1102,10 @@ void Widget::animationCallback() {
 
 void Widget::escape() {
 	if (!cancelSearch()) {
-		if (controller()->openedFolder().current()) {
-			controller()->closeFolder();
-		} else if (controller()->openedForum().current()) {
+		if (controller()->openedForum().current()) {
 			controller()->closeForum();
+		} else if (controller()->openedFolder().current()) {
+			controller()->closeFolder();
 		} else if (controller()->activeChatEntryCurrent().key) {
 			controller()->content()->dialogsCancelled();
 		} else {
