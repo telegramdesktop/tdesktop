@@ -3338,11 +3338,6 @@ void InnerWidget::groupHasCallUpdated(not_null<PeerData*> peer) {
 }
 
 void InnerWidget::updateRowCornerStatusShown(not_null<History*> history) {
-	const auto repaint = [=] {
-		repaintDialogRowCornerStatus(history);
-	};
-	repaint();
-
 	const auto findRow = [&](not_null<History*> history)
 		-> std::pair<Row*, int> {
 		if (state() == WidgetState::Default) {
@@ -3358,11 +3353,7 @@ void InnerWidget::updateRowCornerStatusShown(not_null<History*> history) {
 		return { row, filteredOffset() + index * _st->height };
 	};
 	if (const auto &[row, top] = findRow(history); row != nullptr) {
-		const auto visible = (top < _visibleBottom)
-			&& (top + _st->height > _visibleTop);
-		row->updateCornerBadgeShown(
-			history->peer,
-			visible ? Fn<void()>(crl::guard(this, repaint)) : nullptr);
+		row->updateCornerBadgeShown(history->peer, [this]{repaint();});// init animation callback regardless of visibility
 	}
 }
 
