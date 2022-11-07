@@ -86,7 +86,7 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegram-desktop_telegram-desktop.metainfo.xml]
+    parse-info: [usr/share/metainfo/telegramdesktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     build-packages:
