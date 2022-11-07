@@ -17,8 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 
 TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
-	const auto media = item->media();
-
 	auto textResult = item->clipboardText();
 	auto logEntryOriginalResult = [&] {
 		const auto entry = item->Get<HistoryMessageLogEntryOriginal>();

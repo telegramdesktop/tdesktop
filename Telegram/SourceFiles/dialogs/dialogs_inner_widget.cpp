@@ -426,6 +426,9 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	stopReorderPinned();
 	clearSelection();
 
+	if (forum) {
+		saveChatsFilterScrollState(_filterId);
+	}
 	_filterId = forum
 		? 0
 		: _controller->activeChatsFilterCurrent();
@@ -449,6 +452,10 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	refreshWithCollapsedRows(true);
 	if (_loadMoreCallback) {
 		_loadMoreCallback();
+	}
+
+	if (!forum) {
+		restoreChatsFilterScrollState(_filterId);
 	}
 }
 
@@ -2971,7 +2978,7 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 		_mustScrollTo.fire({ 0, 0 });
 		return;
 	}
-	_chatsFilterScrollStates[_filterId] = -pos().y();
+	saveChatsFilterScrollState(_filterId);
 	if (_openedFolder) {
 		_filterId = filterId;
 	} else {
@@ -2982,15 +2989,23 @@ void InnerWidget::switchToFilter(FilterId filterId) {
 	}
 	refreshEmptyLabel();
 	{
-		const auto it = _chatsFilterScrollStates.find(filterId);
-		if (it != end(_chatsFilterScrollStates)) {
-			const auto skip = found
-				// Don't save a scroll state for very flexible chat filters.
-				&& (filterIt->flags() & (Data::ChatFilter::Flag::NoRead));
-			if (!skip) {
-				_mustScrollTo.fire({ it->second, -1 });
-			}
+		const auto skip = found
+			// Don't save a scroll state for very flexible chat filters.
+			&& (filterIt->flags() & (Data::ChatFilter::Flag::NoRead));
+		if (!skip) {
+			restoreChatsFilterScrollState(filterId);
 		}
+	}
+}
+
+void InnerWidget::saveChatsFilterScrollState(FilterId filterId) {
+	_chatsFilterScrollStates[filterId] = -pos().y();
+}
+
+void InnerWidget::restoreChatsFilterScrollState(FilterId filterId) {
+	const auto it = _chatsFilterScrollStates.find(filterId);
+	if (it != end(_chatsFilterScrollStates)) {
+		_mustScrollTo.fire({ it->second, -1 });
 	}
 }
 

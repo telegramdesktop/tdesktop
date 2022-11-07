@@ -357,6 +357,9 @@ private:
 	void handleChatListEntryRefreshes();
 	void moveCancelSearchButtons();
 
+	void saveChatsFilterScrollState(FilterId filterId);
+	void restoreChatsFilterScrollState(FilterId filterId);
+
 	const not_null<Window::SessionController*> _controller;
 
 	FilterId _filterId = 0;
