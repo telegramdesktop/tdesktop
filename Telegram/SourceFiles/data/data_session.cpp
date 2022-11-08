@@ -1921,9 +1921,6 @@ void Session::setChatPinned(
 	const auto list = (filterId
 		? chatsFilters().chatsList(filterId)
 		: chatsListFor(key.entry()))->pinned();
-	if (const auto topic = key.topic()) {
-		topic->forum()->unpinTopic();
-	}
 	list->setPinned(key, pinned);
 	notifyPinnedDialogsOrderUpdated();
 }

@@ -37,13 +37,14 @@ constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
 constexpr auto kStalePerRequest = 100;
+constexpr auto kPinnedLimit = 5;
 // constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
 
 Forum::Forum(not_null<History*> history)
 : _history(history)
-, _topicsList(&session(), FilterId(0), rpl::single(1)) {
+, _topicsList(&session(), FilterId(0), rpl::single(kPinnedLimit)) {
 	Expects(_history->peer->isChannel());
 
 	if (_history->inChatList()) {
@@ -95,13 +96,6 @@ not_null<Dialogs::MainList*> Forum::topicsList() {
 	return &_topicsList;
 }
 
-void Forum::unpinTopic() {
-	const auto list = _topicsList.pinned();
-	while (!list->order().empty()) {
-		list->setPinned(list->order().front(), false);
-	}
-}
-
 rpl::producer<> Forum::destroyed() const {
 	return channel()->flagsValue(
 	) | rpl::filter([=](const ChannelData::Flags::Change &update) {
@@ -147,9 +141,12 @@ void Forum::requestTopics() {
 		MTP_int(_offset.topicId),
 		MTP_int(loadCount)
 	)).done([=](const MTPmessages_ForumTopics &result) {
+		const auto previousOffset = _offset;
 		applyReceivedTopics(result, _offset);
 		const auto &list = result.data().vtopics().v;
-		if (list.isEmpty() || list.size() == result.data().vcount().v) {
+		if (list.isEmpty()
+			|| list.size() == result.data().vcount().v
+			|| (_offset == previousOffset)) {
 			_topicsList.setLoaded();
 		}
 		_requestId = 0;

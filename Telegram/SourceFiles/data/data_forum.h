@@ -53,7 +53,6 @@ public:
 	void requestTopics();
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
-	void unpinTopic();
 
 	void requestTopic(MsgId rootId, Fn<void()> done = nullptr);
 	ForumTopic *applyTopicAdded(

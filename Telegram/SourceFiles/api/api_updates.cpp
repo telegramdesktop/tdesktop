@@ -2297,17 +2297,17 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		const auto &d = update.c_updateChannelPinnedTopic();
 		const auto peerId = peerFromChannel(d.vchannel_id());
 		if (const auto peer = session().data().peerLoaded(peerId)) {
-			const auto rootId = d.vtopic_id().value_or_empty();
+			const auto rootId = d.vtopic_id().v;
 			if (const auto topic = peer->forumTopicFor(rootId)) {
-				session().data().setChatPinned(topic, 0, true);
+				session().data().setChatPinned(topic, 0, d.is_pinned());
 			} else if (const auto forum = peer->forum()) {
-				if (rootId) {
-					forum->requestTopic(rootId);
-				} else {
-					forum->unpinTopic();
-				}
+				forum->requestTopic(rootId);
 			}
 		}
+	} break;
+
+	case mtpc_updateChannelPinnedTopics: {
+		const auto &d = update.c_updateChannelPinnedTopics();
 	} break;
 
 	// Pinned message.
