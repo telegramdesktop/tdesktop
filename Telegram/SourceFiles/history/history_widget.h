@@ -522,10 +522,10 @@ private:
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
-	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
+	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
-	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
-	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
+	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
+	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();

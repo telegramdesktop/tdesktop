@@ -99,8 +99,12 @@ public:
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
-	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
-	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 

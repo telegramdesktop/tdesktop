@@ -142,6 +142,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	}, [&](const MTPDmessages_channelMessages &data) {
 		if (const auto channel = history->peer->asChannel()) {
 			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (Proxy::addSlice)"));

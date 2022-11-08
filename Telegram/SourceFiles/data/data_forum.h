@@ -74,6 +74,9 @@ public:
 	void applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
+	void applyReceivedTopics(
+		const MTPVector<MTPForumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
 
 	[[nodiscard]] MsgId reserveCreatingId(
 		const QString &title,

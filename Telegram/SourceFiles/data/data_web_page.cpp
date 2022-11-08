@@ -295,6 +295,7 @@ void WebPageData::ApplyChanges(
 			const MTPDmessages_channelMessages &data) {
 		if (channel) {
 			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages "
 				"when no channel was passed! (WebPageData::ApplyChanges)"));

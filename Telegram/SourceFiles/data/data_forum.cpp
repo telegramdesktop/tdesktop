@@ -204,7 +204,16 @@ void Forum::applyReceivedTopics(
 	owner().processChats(data.vchats());
 	owner().processMessages(data.vmessages(), NewMessageType::Existing);
 	channel()->ptsReceived(data.vpts().v);
-	const auto &list = data.vtopics().v;
+	applyReceivedTopics(data.vtopics(), std::move(callback));
+	if (!_staleRootIds.empty()) {
+		requestSomeStale();
+	}
+}
+
+void Forum::applyReceivedTopics(
+		const MTPVector<MTPForumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback) {
+	const auto &list = topics.v;
 	for (const auto &topic : list) {
 		const auto rootId = topic.match([&](const auto &data) {
 			return data.vid().v;
@@ -234,9 +243,6 @@ void Forum::applyReceivedTopics(
 				callback(raw);
 			}
 		});
-	}
-	if (!_staleRootIds.empty()) {
-		requestSomeStale();
 	}
 }
 

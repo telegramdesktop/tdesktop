@@ -560,7 +560,7 @@ bool HistoryInner::hasSelectRestriction() const {
 }
 
 void HistoryInner::messagesReceived(
-		PeerData *peer,
+		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
 	if (_history->peer == peer) {
 		_history->addOlderSlice(messages);
@@ -575,7 +575,9 @@ void HistoryInner::messagesReceived(
 	}
 }
 
-void HistoryInner::messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages) {
+void HistoryInner::messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages) {
 	if (_history->peer == peer) {
 		const auto oldLoaded = _migrated
 			&& _history->isEmpty()

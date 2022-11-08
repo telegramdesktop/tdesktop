@@ -661,25 +661,6 @@ void RepliesList::loadAfter() {
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
-	const auto fullCount = result.match([&](
-			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(HistoryWidget::messagesReceived)"));
-		return 0;
-	}, [&](const MTPDmessages_messages &data) {
-		return int(data.vmessages().v.size());
-	}, [&](const MTPDmessages_messagesSlice &data) {
-		return data.vcount().v;
-	}, [&](const MTPDmessages_channelMessages &data) {
-		if (_history->peer->isChannel()) {
-			_history->peer->asChannel()->ptsReceived(data.vpts().v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when "
-				"no channel was passed! (HistoryWidget::messagesReceived)"));
-		}
-		return data.vcount().v;
-	});
-
 	auto &owner = _history->owner();
 	const auto list = result.match([&](
 			const MTPDmessages_messagesNotModified &) {
@@ -691,6 +672,27 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		owner.processChats(data.vchats());
 		return data.vmessages().v;
 	});
+
+	const auto fullCount = result.match([&](
+			const MTPDmessages_messagesNotModified &) {
+		LOG(("API Error: received messages.messagesNotModified! "
+			"(HistoryWidget::messagesReceived)"));
+		return 0;
+	}, [&](const MTPDmessages_messages &data) {
+		return int(data.vmessages().v.size());
+	}, [&](const MTPDmessages_messagesSlice &data) {
+		return data.vcount().v;
+	}, [&](const MTPDmessages_channelMessages &data) {
+		if (const auto channel = _history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
+		} else {
+			LOG(("API Error: received messages.channelMessages when "
+				"no channel was passed! (HistoryWidget::messagesReceived)"));
+		}
+		return data.vcount().v;
+	});
+
 	if (list.isEmpty()) {
 		return true;
 	}

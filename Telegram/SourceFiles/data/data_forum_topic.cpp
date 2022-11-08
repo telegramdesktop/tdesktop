@@ -296,6 +296,8 @@ void ForumTopic::readTillEnd() {
 void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	Expects(_rootId == data.vid().v);
 
+	const auto min = data.is_short();
+
 	applyCreator(peerFromMTP(data.vfrom_id()));
 	applyCreationDate(data.vdate().v);
 
@@ -307,32 +309,38 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	}
 	applyColorId(data.vicon_color().v);
 
-	if (data.is_pinned()) {
-		owner().setChatPinned(this, 0, true);
-	} else {
-		_list->pinned()->setPinned(this, false);
-	}
-
-	owner().notifySettings().apply(this, data.vnotify_settings());
-
-	const auto draft = data.vdraft();
-	if (draft && draft->type() == mtpc_draftMessage) {
-		Data::ApplyPeerCloudDraft(
-			&session(),
-			channel()->id,
-			_rootId,
-			draft->c_draftMessage());
-	}
 	applyIsMy(data.is_my());
 	setClosed(data.is_closed());
 
-	_replies->setInboxReadTill(
-		data.vread_inbox_max_id().v,
-		data.vunread_count().v);
-	_replies->setOutboxReadTill(data.vread_outbox_max_id().v);
-	applyTopicTopMessage(data.vtop_message().v);
-	unreadMentions().setCount(data.vunread_mentions_count().v);
-	unreadReactions().setCount(data.vunread_reactions_count().v);
+	if (min) {
+		int a = 0;
+	} else {
+		if (data.is_pinned()) {
+			owner().setChatPinned(this, 0, true);
+		} else {
+			_list->pinned()->setPinned(this, false);
+		}
+
+		owner().notifySettings().apply(this, data.vnotify_settings());
+
+		if (const auto draft = data.vdraft()) {
+			draft->match([&](const MTPDdraftMessage &data) {
+				Data::ApplyPeerCloudDraft(
+					&session(),
+					channel()->id,
+					_rootId,
+					data);
+			}, [](const MTPDdraftMessageEmpty&) {});
+		}
+
+		_replies->setInboxReadTill(
+			data.vread_inbox_max_id().v,
+			data.vunread_count().v);
+		_replies->setOutboxReadTill(data.vread_outbox_max_id().v);
+		applyTopicTopMessage(data.vtop_message().v);
+		unreadMentions().setCount(data.vunread_mentions_count().v);
+		unreadReactions().setCount(data.vunread_reactions_count().v);
+	}
 }
 
 void ForumTopic::applyCreator(PeerId creatorId) {

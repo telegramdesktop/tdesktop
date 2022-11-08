@@ -3021,7 +3021,10 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 	}
 }
 
-void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId) {
+void HistoryWidget::messagesReceived(
+		not_null<PeerData*> peer,
+		const MTPmessages_Messages &messages,
+		int requestId) {
 	Expects(_history != nullptr);
 
 	bool toMigrated = (peer == _peer->migrateFrom());
@@ -3057,8 +3060,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	} break;
 	case mtpc_messages_channelMessages: {
 		auto &d(messages.c_messages_channelMessages());
-		if (peer && peer->isChannel()) {
-			peer->asChannel()->ptsReceived(d.vpts().v);
+		if (const auto channel = peer->asChannel()) {
+			channel->ptsReceived(d.vpts().v);
+			channel->processTopics(d.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (HistoryWidget::messagesReceived)"));
 		}
@@ -5668,7 +5672,9 @@ std::optional<int> HistoryWidget::unreadBarTop() const {
 	return std::nullopt;
 }
 
-void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
+void HistoryWidget::addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages) {
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry();
@@ -5677,7 +5683,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 }
 
 void HistoryWidget::addMessagesToBack(
-		PeerData *peer,
+		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
 	const auto checkForUnreadStart = [&] {
 		if (_history->unreadBar() || !_history->trackUnreadMessages()) {

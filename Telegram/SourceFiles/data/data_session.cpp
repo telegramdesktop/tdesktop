@@ -2155,6 +2155,7 @@ void Session::processExistingMessages(
 	data.match([&](const MTPDmessages_channelMessages &data) {
 		if (channel) {
 			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
 		} else {
 			LOG(("App Error: received messages.channelMessages!"));
 		}

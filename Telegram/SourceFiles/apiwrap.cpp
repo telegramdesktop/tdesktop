@@ -2870,18 +2870,18 @@ void ApiWrap::requestMessageAfterDate(
 			};
 			const auto list = result.match([&](
 					const MTPDmessages_messages &data) {
-				return handleMessages(result.c_messages_messages());
+				return handleMessages(data);
 			}, [&](const MTPDmessages_messagesSlice &data) {
-				return handleMessages(result.c_messages_messagesSlice());
+				return handleMessages(data);
 			}, [&](const MTPDmessages_channelMessages &data) {
-				const auto &messages = result.c_messages_channelMessages();
-				if (peer && peer->isChannel()) {
-					peer->asChannel()->ptsReceived(messages.vpts().v);
+				if (const auto channel = peer->asChannel()) {
+					channel->ptsReceived(data.vpts().v);
+					channel->processTopics(data.vtopics());
 				} else {
 					LOG(("API Error: received messages.channelMessages when "
 						"no channel was passed! (ApiWrap::jumpToDate)"));
 				}
-				return handleMessages(messages);
+				return handleMessages(data);
 			}, [&](const MTPDmessages_messagesNotModified &) {
 				LOG(("API Error: received messages.messagesNotModified! "
 					"(ApiWrap::jumpToDate)"));

@@ -1643,6 +1643,7 @@ void Widget::searchReceived(
 		if (const auto peer = searchInPeer()) {
 			if (const auto channel = peer->asChannel()) {
 				channel->ptsReceived(data.vpts().v);
+				channel->processTopics(data.vtopics());
 			} else {
 				LOG(("API Error: "
 					"received messages.channelMessages when no channel "
