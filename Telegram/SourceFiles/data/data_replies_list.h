@@ -42,6 +42,7 @@ public:
 		int limitAfter);
 
 	[[nodiscard]] rpl::producer<int> fullCount() const;
+	[[nodiscard]] rpl::producer<std::optional<int>> maybeFullCount() const;
 
 	[[nodiscard]] bool unreadCountKnown() const;
 	[[nodiscard]] int unreadCountCurrent() const;

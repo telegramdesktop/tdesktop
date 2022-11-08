@@ -2046,20 +2046,28 @@ void RepliesWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 		? _replies->unreadCountCurrent()
 		: std::optional<int>());
 
-	if (_topic) {
-		return;
-	}
+	const auto isTopic = (_topic != nullptr);
+	const auto isTopicCreating = isTopic && _topic->creating();
 	rpl::combine(
-		rpl::single(0) | rpl::then(_replies->fullCount()),
+		rpl::single(
+			std::optional<int>()
+		) | rpl::then(_replies->maybeFullCount()),
 		_areComments.value()
-	) | rpl::map([=](int count, bool areComments) {
-		return count
-			? (areComments
+	) | rpl::map([=](std::optional<int> count, bool areComments) {
+		const auto sub = isTopic ? 1 : 0;
+		return (count && (*count > sub))
+			? (isTopic
+				? tr::lng_forum_messages
+				: areComments
 				? tr::lng_comments_header
 				: tr::lng_replies_header)(
 					lt_count_decimal,
-					rpl::single(count) | tr::to_count())
-			: (areComments
+					rpl::single(*count - sub) | tr::to_count())
+			: (isTopic
+				? ((count.has_value() || isTopicCreating)
+					? tr::lng_forum_no_messages
+					: tr::lng_contacts_loading)
+				: areComments
 				? tr::lng_comments_header_none
 				: tr::lng_replies_header_none)();
 	}) | rpl::flatten_latest(

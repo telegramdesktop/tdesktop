@@ -276,6 +276,10 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
+rpl::producer<std::optional<int>> RepliesList::maybeFullCount() const {
+	return _fullCount.value();
+}
+
 bool RepliesList::unreadCountKnown() const {
 	return _unreadCount.current().has_value();
 }

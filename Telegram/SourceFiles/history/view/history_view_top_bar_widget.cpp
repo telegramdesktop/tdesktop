@@ -484,7 +484,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				width(),
 				st::historyStatusFgTyping,
 				now)) {
-			paintStatus(p, nameleft, statustop, availableWidth, width());
+			p.setPen(st::historyStatusFg);
+			p.drawTextLeft(nameleft, statustop, width(), _customTitleText);
 		}
 	} else if (folder
 		|| history->peer->sharedMediaInfo()
