@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/cached_round_corners.h"
-
+#include "ui/chat/chat_style.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/image/image_prepare.h"
@@ -244,10 +244,10 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 	using Radius = CachedCornerRadius;
 	switch (tag) {
 	case Radius::Small: return st::roundRadiusSmall;
-	case Radius::ThumbSmall: return st::msgFileThumbRadiusSmall;
-	case Radius::ThumbLarge: return st::msgFileThumbRadiusLarge;
-	case Radius::BubbleSmall: return st::bubbleRadiusSmall;
-	case Radius::BubbleLarge: return st::bubbleRadiusLarge;
+	case Radius::ThumbSmall: return MsgFileThumbRadiusSmall();
+	case Radius::ThumbLarge: return MsgFileThumbRadiusLarge();
+	case Radius::BubbleSmall: return BubbleRadiusSmall();
+	case Radius::BubbleLarge: return BubbleRadiusLarge();
 	}
 	Unexpected("Radius tag in CachedCornerRadiusValue.");
 }

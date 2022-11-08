@@ -786,8 +786,8 @@ void Generator::paintBubble(const Bubble &bubble) {
 	auto bubbleTop = y;
 	auto bubbleHeight = height;
 	if (isPhoto) {
-		bubbleTop -= st::bubbleRadiusLarge + 1;
-		bubbleHeight += st::bubbleRadiusLarge + 1;
+		bubbleTop -= Ui::BubbleRadiusLarge() + 1;
+		bubbleHeight += Ui::BubbleRadiusLarge() + 1;
 	}
 
 	auto left = bubble.outbg ? st::msgMargin.right() : st::msgMargin.left();

@@ -188,6 +188,8 @@ PRIVATE
     ui/chat/attach/attach_single_media_preview.h
     ui/chat/chat_style.cpp
     ui/chat/chat_style.h
+    ui/chat/chat_style_radius.cpp
+    ui/chat/chat_style_radius.h
     ui/chat/chat_theme.cpp
     ui/chat/chat_theme.h
     ui/chat/continuous_scroll.cpp
