@@ -2653,12 +2653,16 @@ void MainWidget::handleHistoryBack() {
 	if (!_dialogs) {
 		return;
 	}
-	const auto historyFromFolder = _history->history()
-		? _history->history()->folder()
-		: nullptr;
 	const auto openedFolder = _controller->openedFolder().current();
+	const auto rootPeer = _stack.empty()
+		? _history->peer()
+		: _stack.front()->peer();
+	const auto rootHistory = rootPeer
+		? rootPeer->owner().historyLoaded(rootPeer)
+		: nullptr;
+	const auto rootFolder = rootHistory ? rootHistory->folder() : nullptr;
 	if (!openedFolder
-		|| historyFromFolder == openedFolder
+		|| rootFolder == openedFolder
 		|| _dialogs->isHidden()) {
 		_controller->showBackFromStack();
 		_dialogs->setInnerFocus();
