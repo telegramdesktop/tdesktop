@@ -983,7 +983,9 @@ void SessionController::openForum(
 	if (_openedForum.current() != forum) {
 		resetFakeUnreadWhileOpened();
 	}
-	if (forum && _activeChatEntry.current().key.peer()) {
+	if (forum
+		&& _activeChatEntry.current().key.peer()
+		&& adaptive().isOneColumn()) {
 		clearSectionStack(params);
 	}
 	_openedForum = forum.get();
@@ -995,6 +997,9 @@ void SessionController::openForum(
 				forum,
 				{ anim::type::normal, anim::activation::background });
 		}, _openedForumLifetime);
+	}
+	if (params.activation != anim::activation::background) {
+		hideLayer();
 	}
 }
 

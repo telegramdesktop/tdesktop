@@ -194,6 +194,7 @@ private:
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
 	void setupMainButtons();
+	Ui::MultiSlideTracker fillTopicButtons();
 	Ui::MultiSlideTracker fillUserButtons(
 		not_null<UserData*> user);
 	Ui::MultiSlideTracker fillChannelButtons(
@@ -538,17 +539,41 @@ void DetailsFiller::setupMainButtons() {
 		auto tracker = callback();
 		topSkip->toggleOn(std::move(tracker).atLeastOneShownValue());
 	};
-	if (auto user = _peer->asUser()) {
+	if (_topic) {
+		wrapButtons([=] {
+			return fillTopicButtons();
+		});
+	} else if (const auto user = _peer->asUser()) {
 		wrapButtons([=] {
 			return fillUserButtons(user);
 		});
-	} else if (auto channel = _peer->asChannel()) {
+	} else if (const auto channel = _peer->asChannel()) {
 		if (!channel->isMegagroup()) {
 			wrapButtons([=] {
 				return fillChannelButtons(channel);
 			});
 		}
 	}
+}
+
+Ui::MultiSlideTracker DetailsFiller::fillTopicButtons() {
+	using namespace rpl::mappers;
+
+	Ui::MultiSlideTracker tracker;
+	const auto window = _controller->parentController();
+
+	const auto channel = _topic->channel().get();
+	auto showTopicsVisible = rpl::combine(
+		window->adaptive().oneColumnValue(),
+		window->openedForum().value(),
+		_1 || (_2 != channel));
+	AddMainButton(
+		_wrap,
+		tr::lng_forum_show_topics_list(),
+		std::move(showTopicsVisible),
+		[=] { window->openForum(channel); },
+		tracker);
+	return tracker;
 }
 
 Ui::MultiSlideTracker DetailsFiller::fillUserButtons(

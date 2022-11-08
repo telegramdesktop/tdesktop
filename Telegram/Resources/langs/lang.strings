@@ -3559,6 +3559,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_no_messages" = "No messages";
 "lng_forum_messages#one" = "{count} message";
 "lng_forum_messages#other" = "{count} messages";
+"lng_forum_show_topics_list" = "Show Topics List";
 
 // Wnd specific
 
