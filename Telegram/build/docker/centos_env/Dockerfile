@@ -8,6 +8,7 @@
 {%- set CMAKE_VER = "3.21.3" -%}
 {%- set CMAKE_FILE = "cmake-" ~ CMAKE_VER ~ "-Linux-x86_64.sh" -%}
 {%- set CFLAGS_DEBUG = "-g -pipe -fPIC -fstack-protector-all -fstack-clash-protection -D_GLIBCXX_ASSERTIONS" -%}
+{%- set CFLAGS_LTO = "-flto=auto -ffat-lto-objects" -%}
 {%- set LibrariesPath = "/usr/src/Libraries" -%}
 
 # syntax=docker/dockerfile:1
@@ -46,12 +47,10 @@ RUN mkdir /opt/cmake \
 	&& rm {{ CMAKE_FILE }}
 
 FROM builder-base AS builder
-{%- if LTO %}
 ENV AR gcc-ar
 ENV RANLIB gcc-ranlib
 ENV NM gcc-nm
-{%- endif %}
-ENV CFLAGS {% if DEBUG %}-g{% endif %} -Ofast {% if LTO %}-flto=auto -ffat-lto-objects{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
+ENV CFLAGS {% if DEBUG %}-g{% endif %} -Ofast {% if LTO %}{{ CFLAGS_LTO }}{% endif %} -pipe -fPIC -fstack-protector-all -fstack-clash-protection -DNDEBUG -D_FORTIFY_SOURCE=2 -D_GLIBCXX_ASSERTIONS
 ENV CXXFLAGS $CFLAGS
 
 FROM builder AS patches
@@ -635,7 +634,7 @@ COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 RUN git clone -b 2.74.0 --depth=1 {{ GIT }}/GNOME/glibmm.git \
 	&& cd glibmm \
 	&& git apply ../patches/glibmm.patch \
-	&& meson build \
+	&& CFLAGS="$CFLAGS {{ CFLAGS_LTO }}" CXXFLAGS="$CXXFLAGS {{ CFLAGS_LTO }}" meson build \
 		--buildtype=plain \
 		--default-library=both \
 		-Dbuild-documentation=false \
