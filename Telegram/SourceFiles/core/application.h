@@ -178,6 +178,7 @@ public:
 	[[nodiscard]] Settings &settings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettings();
+	[[nodiscard]] bool canSaveFileWithoutAskingForPath() const;
 
 	// Fallback config and proxy.
 	[[nodiscard]] MTP::Config &fallbackProductionConfig() const;

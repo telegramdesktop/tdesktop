@@ -1118,7 +1118,7 @@ bool DocumentData::saveFromData() {
 
 bool DocumentData::saveFromDataSilent() {
 	return !filepath(true).isEmpty()
-		|| (!Core::App().settings().askDownloadPath()
+		|| (Core::App().canSaveFileWithoutAskingForPath()
 			&& saveFromDataChecked());
 }
 

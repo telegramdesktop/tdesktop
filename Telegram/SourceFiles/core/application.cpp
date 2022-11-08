@@ -587,6 +587,12 @@ void Application::saveSettings() {
 	Local::writeSettings();
 }
 
+bool Application::canSaveFileWithoutAskingForPath() const {
+	return !Core::App().settings().askDownloadPath()
+		&& (!KSandbox::isInside()
+			|| !Core::App().settings().downloadPath().isEmpty());
+}
+
 MTP::Config &Application::fallbackProductionConfig() const {
 	if (!_fallbackProductionConfig) {
 		_fallbackProductionConfig = std::make_unique<MTP::Config>(
