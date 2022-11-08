@@ -173,6 +173,11 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
+	const auto realDefaultPath = QStandardPaths::writableLocation(
+		QStandardPaths::DownloadLocation)
+		+ '/'
+		+ DefaultDownloadPathFolder(session)
+		+ '/';
 	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
 		QStringList files;
 		QByteArray remoteContent;
@@ -183,7 +188,7 @@ QString DefaultDownloadPath(not_null<Main::Session*> session) {
 			tr::lng_download_path_choose(tr::now),
 			QString(),
 			FileDialog::internal::Type::ReadFolder,
-			QString());
+			realDefaultPath);
 		if (success && !files.isEmpty() && !files[0].isEmpty()) {
 			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
 			Core::App().settings().setDownloadPath(result);
@@ -191,11 +196,7 @@ QString DefaultDownloadPath(not_null<Main::Session*> session) {
 			return result;
 		}
 	}
-	return QStandardPaths::writableLocation(
-		QStandardPaths::DownloadLocation)
-		+ '/'
-		+ DefaultDownloadPathFolder(session)
-		+ '/';
+	return realDefaultPath;
 }
 
 namespace internal {
