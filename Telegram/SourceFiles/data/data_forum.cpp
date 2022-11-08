@@ -37,14 +37,13 @@ constexpr auto kTopicsFirstLoad = 20;
 constexpr auto kLoadedTopicsMinCount = 20;
 constexpr auto kTopicsPerPage = 500;
 constexpr auto kStalePerRequest = 100;
-constexpr auto kPinnedLimit = 5;
 // constexpr auto kGeneralColorId = 0xA9A9A9;
 
 } // namespace
 
 Forum::Forum(not_null<History*> history)
 : _history(history)
-, _topicsList(&session(), FilterId(0), rpl::single(kPinnedLimit)) {
+, _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
 	Expects(_history->peer->isChannel());
 
 	if (_history->inChatList()) {

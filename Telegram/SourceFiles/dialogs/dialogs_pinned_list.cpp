@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "data/data_session.h"
+#include "data/data_forum.h"
 
 namespace Dialogs {
 
@@ -94,6 +95,15 @@ void PinnedList::applyList(
 		}, [&](const MTPDdialogPeerFolder &data) {
 			addPinned(owner->folder(data.vfolder_id().v));
 		});
+	}
+}
+
+void PinnedList::applyList(
+		not_null<Data::Forum*> forum,
+		const QVector<MTPint> &list) {
+	clear();
+	for (const auto &topicId : list) {
+		addPinned(forum->topicFor(topicId.v));
 	}
 }
 

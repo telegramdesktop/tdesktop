@@ -85,6 +85,8 @@ namespace {
 
 using ViewElement = HistoryView::Element;
 
+constexpr auto kTopicsPinLimit = 5;
+
 // s: box 100x100
 // m: box 320x320
 // x: box 800x800
@@ -241,7 +243,7 @@ Session::Session(not_null<Main::Session*> session)
 , _chatsList(
 	session,
 	FilterId(),
-	maxPinnedChatsLimitValue(nullptr, FilterId()))
+	maxPinnedChatsLimitValue(nullptr))
 , _contactsList(Dialogs::SortMode::Name)
 , _contactsNoChatsList(Dialogs::SortMode::Name)
 , _ttlCheckTimer([=] { checkTTLs(); })
@@ -1925,10 +1927,10 @@ void Session::setChatPinned(
 	notifyPinnedDialogsOrderUpdated();
 }
 
-void Session::setPinnedFromDialog(const Dialogs::Key &key, bool pinned) {
+void Session::setPinnedFromEntryList(const Dialogs::Key &key, bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	const auto list = chatsList(key.entry()->folder())->pinned();
+	const auto list = chatsListFor(key.entry())->pinned();
 	if (pinned) {
 		list->addPinned(key);
 	} else {
@@ -1954,6 +1956,13 @@ void Session::applyPinnedChats(
 		});
 	}
 	chatsList(folder)->pinned()->applyList(this, list);
+	notifyPinnedDialogsOrderUpdated();
+}
+
+void Session::applyPinnedTopics(
+		not_null<Data::Forum*> forum,
+		const QVector<MTPint> &list) {
+	forum->topicsList()->pinned()->applyList(forum, list);
 	notifyPinnedDialogsOrderUpdated();
 }
 
@@ -1983,7 +1992,7 @@ void Session::applyDialog(
 
 	const auto history = this->history(peerId);
 	history->applyDialog(requestFolder, data);
-	setPinnedFromDialog(history, data.is_pinned());
+	setPinnedFromEntryList(history, data.is_pinned());
 
 	if (const auto from = history->peer->migrateFrom()) {
 		if (const auto historyFrom = historyLoaded(from)) {
@@ -2004,37 +2013,63 @@ void Session::applyDialog(
 	}
 	const auto folder = processFolder(data.vfolder());
 	folder->applyDialog(data);
-	setPinnedFromDialog(folder, data.is_pinned());
+	setPinnedFromEntryList(folder, data.is_pinned());
 }
 
-int Session::pinnedCanPin(
-		Data::Folder *folder,
+bool Session::pinnedCanPin(not_null<Data::Thread*> thread) const {
+	if (const auto topic = thread->asTopic()) {
+		const auto forum = topic->forum();
+		return pinnedChatsOrder(forum).size() < pinnedChatsLimit(forum);
+	}
+	const auto folder = thread->folder();
+	return pinnedChatsOrder(folder).size() < pinnedChatsLimit(folder);
+}
+
+bool Session::pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const {
-	if (!filterId) {
-		const auto limit = pinnedChatsLimit(folder, filterId);
-		return pinnedChatsOrder(folder, FilterId()).size() < limit;
-	}
+	Expects(filterId != 0);
+
 	const auto &list = chatsFilters().list();
 	const auto i = ranges::find(list, filterId, &Data::ChatFilter::id);
 	return (i == end(list))
 		|| (i->always().contains(history))
-		|| (i->always().size() < pinnedChatsLimit(folder, filterId));
+		|| (i->always().size() < pinnedChatsLimit(filterId));
 }
 
-int Session::pinnedChatsLimit(
-		Data::Folder *folder,
-		FilterId filterId) const {
+int Session::pinnedChatsLimit(Data::Folder *folder) const {
 	const auto limits = Data::PremiumLimits(_session);
-	return filterId
-		? limits.dialogFiltersChatsCurrent()
-		: folder
+	return folder
 		? limits.dialogsFolderPinnedCurrent()
 		: limits.dialogsPinnedCurrent();
 }
 
+int Session::pinnedChatsLimit(FilterId filterId) const {
+	const auto limits = Data::PremiumLimits(_session);
+	return limits.dialogFiltersChatsCurrent();
+}
+
+int Session::pinnedChatsLimit(not_null<Data::Forum*> forum) const {
+	return kTopicsPinLimit;
+}
+
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
-		Data::Folder *folder,
+		Data::Folder *folder) const {
+	// Premium limit from appconfig.
+	// We always use premium limit in the MainList limit producer,
+	// because it slices the list to that limit. We don't want to slice
+	// premium-ly added chats from the pinned list because of sync issues.
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		_session->account().appConfig().refreshed()
+	) | rpl::map([=] {
+		const auto limits = Data::PremiumLimits(_session);
+		return folder
+			? limits.dialogsFolderPinnedPremium()
+			: limits.dialogsPinnedPremium();
+	});
+}
+
+rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		FilterId filterId) const {
 	// Premium limit from appconfig.
 	// We always use premium limit in the MainList limit producer,
@@ -2044,21 +2079,28 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		_session->account().appConfig().refreshed()
 	) | rpl::map([=] {
 		const auto limits = Data::PremiumLimits(_session);
-		return filterId
-			? limits.dialogFiltersChatsPremium()
-			: folder
-			? limits.dialogsFolderPinnedPremium()
-			: limits.dialogsPinnedPremium();
+		return limits.dialogFiltersChatsPremium();
 	});
 }
 
+rpl::producer<int> Session::maxPinnedChatsLimitValue(
+		not_null<Data::Forum*> forum) const {
+	return rpl::single(pinnedChatsLimit(forum));
+}
+
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
-		Data::Folder *folder,
+		Data::Folder *folder) const {
+	return chatsList(folder)->pinned()->order();
+}
+
+const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
 		FilterId filterId) const {
-	const auto list = filterId
-		? chatsFilters().chatsList(filterId)
-		: chatsList(folder);
-	return list->pinned()->order();
+	return chatsFilters().chatsList(filterId)->pinned()->order();
+}
+
+const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
+		not_null<Data::Forum*> forum) const {
+	return forum->topicsList()->pinned()->order();
 }
 
 void Session::clearPinnedChats(Data::Folder *folder) {
@@ -2072,7 +2114,10 @@ void Session::reorderTwoPinnedChats(
 	Expects(key1.entry()->folderKnown() && key2.entry()->folderKnown());
 	Expects(filterId || (key1.entry()->folder() == key2.entry()->folder()));
 
-	const auto list = filterId
+	const auto topic = key1.topic();
+	const auto list = topic
+		? topic->forum()->topicsList()
+		: filterId
 		? chatsFilters().chatsList(filterId)
 		: chatsList(key1.entry()->folder());
 	list->pinned()->reorder(key1, key2);

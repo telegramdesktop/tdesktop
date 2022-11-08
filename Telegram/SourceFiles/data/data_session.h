@@ -230,16 +230,16 @@ public:
 	[[nodiscard]] rpl::variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}
-	[[nodiscard]] rpl::producer<Data::Folder*> chatsListChanges() const {
+	[[nodiscard]] rpl::producer<Folder*> chatsListChanges() const {
 		return _chatsListChanged.events();
 	}
-	[[nodiscard]] bool chatsListLoaded(Data::Folder *folder = nullptr);
-	[[nodiscard]] rpl::producer<Data::Folder*> chatsListLoadedEvents() const {
+	[[nodiscard]] bool chatsListLoaded(Folder *folder = nullptr);
+	[[nodiscard]] rpl::producer<Folder*> chatsListLoadedEvents() const {
 		return _chatsListLoadedEvents.events();
 	}
 	void chatsListChanged(FolderId folderId);
-	void chatsListChanged(Data::Folder *folder);
-	void chatsListDone(Data::Folder *folder);
+	void chatsListChanged(Folder *folder);
+	void chatsListDone(Folder *folder);
 
 	void userIsBotChanged(not_null<UserData*> user);
 	[[nodiscard]] rpl::producer<not_null<UserData*>> userIsBotChanges() const;
@@ -339,32 +339,42 @@ public:
 	void applyUpdate(const MTPDupdateChatDefaultBannedRights &update);
 
 	void applyDialogs(
-		Data::Folder *requestFolder,
+		Folder *requestFolder,
 		const QVector<MTPMessage> &messages,
 		const QVector<MTPDialog> &dialogs,
 		std::optional<int> count = std::nullopt);
 
-	int pinnedCanPin(
-		Data::Folder *folder,
+	[[nodiscard]] bool pinnedCanPin(not_null<Thread*> thread) const;
+	[[nodiscard]] bool pinnedCanPin(
 		FilterId filterId,
 		not_null<History*> history) const;
-	int pinnedChatsLimit(
-		Data::Folder *folder,
+	[[nodiscard]] int pinnedChatsLimit(Folder *folder) const;
+	[[nodiscard]] int pinnedChatsLimit(FilterId filterId) const;
+	[[nodiscard]] int pinnedChatsLimit(not_null<Forum*> forum) const;
+	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
+		Folder *folder) const;
+	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
 		FilterId filterId) const;
-	rpl::producer<int> maxPinnedChatsLimitValue(
-		Data::Folder *folder,
-		FilterId filterId) const;
-	const std::vector<Dialogs::Key> &pinnedChatsOrder(
-		Data::Folder *folder,
+	[[nodiscard]] rpl::producer<int> maxPinnedChatsLimitValue(
+		not_null<Forum*> forum) const;
+	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
+		Folder *folder) const;
+	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
+		not_null<Forum*> forum) const;
+	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		FilterId filterId) const;
 	void setChatPinned(
 		const Dialogs::Key &key,
 		FilterId filterId,
 		bool pinned);
-	void clearPinnedChats(Data::Folder *folder);
+	void setPinnedFromEntryList(const Dialogs::Key &key, bool pinned);
+	void clearPinnedChats(Folder *folder);
 	void applyPinnedChats(
-		Data::Folder *folder,
+		Folder *folder,
 		const QVector<MTPDialogPeer> &list);
+	void applyPinnedTopics(
+		not_null<Data::Forum*> forum,
+		const QVector<MTPint> &list);
 	void reorderTwoPinnedChats(
 		FilterId filterId,
 		const Dialogs::Key &key1,
@@ -572,7 +582,7 @@ public:
 	not_null<PollData*> processPoll(const MTPPoll &data);
 	not_null<PollData*> processPoll(const MTPDmessageMediaPoll &data);
 
-	[[nodiscard]] not_null<Data::CloudImage*> location(
+	[[nodiscard]] not_null<CloudImage*> location(
 		const LocationPoint &point);
 
 	void registerPhotoItem(
@@ -655,9 +665,9 @@ public:
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsListFor(
 		not_null<Dialogs::Entry*> entry);
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
-		Data::Folder *folder = nullptr);
+		Folder *folder = nullptr);
 	[[nodiscard]] not_null<const Dialogs::MainList*> chatsList(
-		Data::Folder *folder = nullptr) const;
+		Folder *folder = nullptr) const;
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsList();
 	[[nodiscard]] not_null<Dialogs::IndexedList*> contactsNoChatsList();
 
@@ -727,9 +737,9 @@ private:
 	int computeUnreadBadge(const Dialogs::UnreadState &state) const;
 	bool computeUnreadBadgeMuted(const Dialogs::UnreadState &state) const;
 
-	void applyDialog(Data::Folder *requestFolder, const MTPDdialog &data);
+	void applyDialog(Folder *requestFolder, const MTPDdialog &data);
 	void applyDialog(
-		Data::Folder *requestFolder,
+		Folder *requestFolder,
 		const MTPDdialogFolder &data);
 
 	const Messages *messagesList(PeerId peerId) const;
@@ -818,8 +828,6 @@ private:
 		PhotoData *photo,
 		DocumentData *document);
 
-	void setPinnedFromDialog(const Dialogs::Key &key, bool pinned);
-
 	template <typename Method>
 	void enumerateItemViews(
 		not_null<const HistoryItem*> item,
@@ -843,8 +851,8 @@ private:
 	QPointer<Ui::BoxContent> _exportSuggestion;
 
 	rpl::variable<bool> _contactsLoaded = false;
-	rpl::event_stream<Data::Folder*> _chatsListLoadedEvents;
-	rpl::event_stream<Data::Folder*> _chatsListChanged;
+	rpl::event_stream<Folder*> _chatsListLoadedEvents;
+	rpl::event_stream<Folder*> _chatsListChanged;
 	rpl::event_stream<not_null<UserData*>> _userIsBotChanges;
 	rpl::event_stream<not_null<PeerData*>> _botCommandsChanges;
 	rpl::event_stream<ItemVisibilityQuery> _itemVisibilityQueries;
@@ -916,7 +924,7 @@ private:
 		base::flat_set<not_null<ViewElement*>>> _webpageViews;
 	std::unordered_map<
 		LocationPoint,
-		std::unique_ptr<Data::CloudImage>> _locations;
+		std::unique_ptr<CloudImage>> _locations;
 	std::unordered_map<
 		PollId,
 		std::unique_ptr<PollData>> _polls;

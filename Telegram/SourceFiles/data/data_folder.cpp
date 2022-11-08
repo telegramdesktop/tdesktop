@@ -41,7 +41,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 , _chatsList(
 	&owner->session(),
 	FilterId(),
-	owner->maxPinnedChatsLimitValue(this, FilterId()))
+	owner->maxPinnedChatsLimitValue(this))
 , _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 

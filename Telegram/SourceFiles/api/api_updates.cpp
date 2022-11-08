@@ -2308,6 +2308,29 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateChannelPinnedTopics: {
 		const auto &d = update.c_updateChannelPinnedTopics();
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			if (const auto forum = peer->forum()) {
+				const auto done = [&] {
+					const auto list = d.vorder();
+					if (!list) {
+						return false;
+					}
+					const auto &order = list->v;
+					const auto notLoaded = [&](const MTPint &topicId) {
+						return !forum->topicFor(topicId.v);
+					};
+					if (!ranges::none_of(order, notLoaded)) {
+						return false;
+					}
+					session().data().applyPinnedTopics(forum, order);
+					return true;
+				}();
+				if (!done) {
+					forum->reloadTopics();
+				}
+			}
+		}
 	} break;
 
 	// Pinned message.

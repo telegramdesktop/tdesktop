@@ -11,6 +11,7 @@ class History;
 
 namespace Data {
 class Session;
+class Forum;
 } // namespace Data
 
 namespace Dialogs {
@@ -35,6 +36,9 @@ public:
 	void applyList(
 		not_null<Data::Session*> owner,
 		const QVector<MTPDialogPeer> &list);
+	void applyList(
+		not_null<Data::Forum*> forum,
+		const QVector<MTPint> &list);
 	void applyList(const std::vector<not_null<History*>> &list);
 	void reorder(const Key &key1, const Key &key2);
 

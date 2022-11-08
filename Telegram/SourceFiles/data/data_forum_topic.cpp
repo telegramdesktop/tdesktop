@@ -42,7 +42,7 @@ namespace {
 
 using UpdateFlag = TopicUpdate::Flag;
 
-constexpr auto kUserpicLoopsCount = 2;
+constexpr auto kUserpicLoopsCount = 1;
 
 } // namespace
 
@@ -315,12 +315,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	if (min) {
 		int a = 0;
 	} else {
-		if (data.is_pinned()) {
-			owner().setChatPinned(this, 0, true);
-		} else {
-			_list->pinned()->setPinned(this, false);
-		}
-
+		owner().setPinnedFromEntryList(this, data.is_pinned());
 		owner().notifySettings().apply(this, data.vnotify_settings());
 
 		if (const auto draft = data.vdraft()) {

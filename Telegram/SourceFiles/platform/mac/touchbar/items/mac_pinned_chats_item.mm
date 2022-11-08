@@ -386,9 +386,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 			if (index == result) {
 				return;
 			}
-			const auto &order = _session->data().pinnedChatsOrder(
-				nullptr,
-				FilterId());
+			const auto &order = _session->data().pinnedChatsOrder(nullptr);
 			const auto d = (index < result) ? 1 : -1; // Direction.
 			for (auto i = index; i != result; i += d) {
 				_session->data().chatsList()->pinned()->reorder(
@@ -634,7 +632,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 
 	const auto updatePinnedChats = [=] {
 		_pins = ranges::views::zip(
-			_session->data().pinnedChatsOrder(nullptr, FilterId()),
+			_session->data().pinnedChatsOrder(nullptr),
 			ranges::views::ints(0, ranges::unreachable)
 		) | ranges::views::transform([=](const auto &pair) {
 			const auto index = pair.second;

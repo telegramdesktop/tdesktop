@@ -346,6 +346,7 @@ private:
 
 	[[nodiscard]] not_null<IndexedList*> shownDialogs() const;
 
+	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
 	int updateReorderIndexGetCount();
 	bool updateReorderPinned(QPoint localPosition);

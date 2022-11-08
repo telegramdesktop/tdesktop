@@ -32,6 +32,7 @@ class WallPaper;
 struct ResolvedForwardDraft;
 enum class DefaultNotify;
 enum class StickersType : uchar;
+class Forum;
 class ForumTopic;
 class Thread;
 } // namespace Data
@@ -149,6 +150,7 @@ public:
 	void saveCurrentDraftToCloud();
 
 	void savePinnedOrder(Data::Folder *folder);
+	void savePinnedOrder(not_null<Data::Forum*> forum);
 	void toggleHistoryArchived(
 		not_null<History*> history,
 		bool archived,

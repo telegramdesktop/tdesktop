@@ -1255,6 +1255,13 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		mousePressReleased(e->globalPos(), e->button(), e->modifiers());
 	}
 }
+const std::vector<Key> &InnerWidget::pinnedChatsOrder() const {
+	return _openedForum
+		? session().data().pinnedChatsOrder(_openedForum)
+		: _filterId
+		? session().data().pinnedChatsOrder(_filterId)
+		: session().data().pinnedChatsOrder(_openedFolder);
+}
 
 void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	if (!_pressed || _dragging || _state != WidgetState::Default) {
@@ -1262,16 +1269,12 @@ void InnerWidget::checkReorderPinnedStart(QPoint localPosition) {
 	} else if (qAbs(localPosition.y() - _dragStart.y())
 		< style::ConvertScale(kStartReorderThreshold)) {
 		return;
-	} else if (_openedForum) {
-		return;
 	}
 	_dragging = _pressed;
 	if (updateReorderIndexGetCount() < 2) {
 		_dragging = nullptr;
 	} else {
-		const auto &order = session().data().pinnedChatsOrder(
-			_openedFolder,
-			_filterId);
+		const auto &order = pinnedChatsOrder();
 		_pinnedOnDragStart = base::flat_set<Key>{
 			order.begin(),
 			order.end()
@@ -1301,12 +1304,7 @@ int InnerWidget::countPinnedIndex(Row *ofRow) {
 }
 
 void InnerWidget::savePinnedOrder() {
-	if (_openedForum) {
-		return;
-	}
-	const auto &newOrder = session().data().pinnedChatsOrder(
-		_openedFolder,
-		_filterId);
+	const auto &newOrder = pinnedChatsOrder();
 	if (newOrder.size() != _pinnedOnDragStart.size()) {
 		return; // Something has changed in the set of pinned chats.
 	}
@@ -1315,7 +1313,9 @@ void InnerWidget::savePinnedOrder() {
 			return; // Something has changed in the set of pinned chats.
 		}
 	}
-	if (_filterId) {
+	if (_openedForum) {
+		session().api().savePinnedOrder(_openedForum);
+	} else if (_filterId) {
 		Api::SaveNewFilterPinned(&session(), _filterId);
 	} else {
 		session().api().savePinnedOrder(_openedFolder);
