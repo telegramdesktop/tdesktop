@@ -1936,6 +1936,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 "lng_in_dlg_poll" = "Poll";
+"lng_in_dlg_media_count#one" = "{count} media";
+"lng_in_dlg_media_count#other" = "{count} media";
+"lng_in_dlg_photo_count#one" = "{count} photo";
+"lng_in_dlg_photo_count#other" = "{count} photos";
+"lng_in_dlg_video_count#one" = "{count} video";
+"lng_in_dlg_video_count#other" = "{count} videos";
+"lng_in_dlg_file_count#one" = "{count} file";
+"lng_in_dlg_file_count#other" = "{count} files";
+"lng_in_dlg_audio_count#one" = "{count} audio";
+"lng_in_dlg_audio_count#other" = "{count} audio";
 
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from_user" = "Delete all from {user}";
