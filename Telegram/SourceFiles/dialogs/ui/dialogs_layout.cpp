@@ -51,9 +51,12 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
 	const auto history = thread ? thread->owningHistory().get() : nullptr;
-	return history
-		&& (!history->peer->isUser()
-			|| history->peer->asUser()->onlineTill > 0);
+	if (!history) {
+		return false;
+	} else if (const auto user = history->peer->asUser()) {
+		return (user->onlineTill > 0);
+	}
+	return !history->peer->isForum();
 }
 
 void PaintRowTopRight(
