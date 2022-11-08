@@ -344,6 +344,7 @@ bool PinnedLimitReached(
 	// Some old chat, that was converted, maybe is still pinned.
 	const auto history = thread->asHistory();
 	if (!history) {
+		controller->show(Box(ForumPinsLimitBox, thread->asTopic()->forum()));
 		return true;
 	}
 	const auto folder = history->folder();
@@ -380,11 +381,9 @@ void TogglePinnedThread(
 		return;
 	}
 	const auto owner = &thread->owner();
-	const auto isPinned = !thread->isPinnedDialog(0);
-	if (const auto history = thread->asHistory()) {
-		if (isPinned && PinnedLimitReached(controller, history, 0)) {
-			return;
-		}
+	const auto isPinned = !thread->isPinnedDialog(FilterId());
+	if (isPinned && PinnedLimitReached(controller, thread)) {
+		return;
 	}
 
 	owner->setChatPinned(thread, FilterId(), isPinned);

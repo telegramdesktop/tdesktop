@@ -204,6 +204,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filter_pin_limit2#one" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chat.";
 "lng_filter_pin_limit2#other" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chats.";
 
+"lng_forum_pin_limit#one" = "Sorry, you can't pin more than **{count}** topic to the top.";
+"lng_forum_pin_limit#other" = "Sorry, you can't pin more than **{count}** topics to the top.";
+
 "lng_fave_sticker_limit_title#one" = "The Limit of {count} Stickers Reached";
 "lng_fave_sticker_limit_title#other" = "The Limit of {count} Stickers Reached";
 "lng_fave_sticker_limit_more#one" = "An older sticker was replaced with this one.\nYou can {link} to {count} sticker.";
