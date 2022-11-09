@@ -1750,6 +1750,7 @@ void OverlayWidget::downloadMedia() {
 	} else {
 		path = Core::App().settings().downloadPath();
 	}
+	if (path.isEmpty()) return;
 	QString toName;
 	if (_document) {
 		const auto &location = _document->location(true);

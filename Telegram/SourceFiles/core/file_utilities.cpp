@@ -195,6 +195,7 @@ QString DefaultDownloadPath(not_null<Main::Session*> session) {
 			Core::App().saveSettings();
 			return result;
 		}
+		return QString();
 	}
 	return realDefaultPath;
 }
