@@ -3129,7 +3129,9 @@ QRect Message::countGeometry() const {
 			contentLeft += (availableWidth - contentWidth) / 2;
 		}
 	} else if (contentWidth < availableWidth && commentsRoot) {
-		contentLeft += ((st::msgMaxWidth + 2 * st::msgPhotoSkip) - contentWidth) / 2;
+		contentLeft += std::max(
+			((st::msgMaxWidth + 2 * st::msgPhotoSkip) - contentWidth) / 2,
+			0);
 	}
 
 	const auto contentTop = marginTop();
