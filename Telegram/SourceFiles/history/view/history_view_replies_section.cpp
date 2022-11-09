@@ -1620,9 +1620,12 @@ void RepliesWidget::checkPinnedBarState() {
 			_pinnedTracker->shownMessageId(),
 			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
 		std::move(pinnedRefreshed),
-		std::move(markupRefreshed)
-	) | rpl::map([](Ui::MessageBarContent &&content, bool, HistoryItem*) {
-		return std::move(content);
+		std::move(markupRefreshed),
+		_rootVisible.value()
+	) | rpl::map([](Ui::MessageBarContent &&content, auto, auto, bool show) {
+		return (show || content.count > 1)
+			? std::move(content)
+			: Ui::MessageBarContent();
 	}));
 
 	controller()->adaptive().oneColumnValue(
@@ -2223,26 +2226,28 @@ void RepliesWidget::updateInnerVisibleArea() {
 void RepliesWidget::updatePinnedVisibility() {
 	if (!_loaded) {
 		return;
-	} else if (!_root || _root->isEmpty()) {
+	} else if (!_topic && (!_root || _root->isEmpty())) {
 		setPinnedVisibility(!_root);
 		return;
 	}
-	const auto item = [&] {
+	const auto rootItem = [&] {
 		if (const auto group = _history->owner().groups().find(_root)) {
 			return group->items.front().get();
 		}
 		return _root;
-	}();
-	const auto view = _inner->viewByPosition(item->position());
+	};
+	const auto view = _inner->viewByPosition(_topic
+		? Data::MinMessagePosition
+		: rootItem()->position());
 	const auto visible = !view
 		|| (view->y() + view->height() <= _scroll->scrollTop());
-	setPinnedVisibility(visible);
+	setPinnedVisibility(visible || (_topic && !view->data()->isPinned()));
 }
 
 void RepliesWidget::setPinnedVisibility(bool shown) {
-	if (animatingShow() || _topic) {
+	if (animatingShow()) {
 		return;
-	} else if (!_rootViewInited) {
+	} else if (!_topic && !_rootViewInited) {
 		const auto height = shown ? st::historyReplyHeight : 0;
 		if (const auto delta = height - _rootViewHeight) {
 			_rootViewHeight = height;

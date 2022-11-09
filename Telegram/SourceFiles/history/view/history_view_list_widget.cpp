@@ -837,9 +837,12 @@ void ListWidget::updateAroundPositionFromNearest(int nearestIndex) {
 
 Element *ListWidget::viewByPosition(Data::MessagePosition position) const {
 	const auto index = findNearestItem(position);
-	return (index < 0 || _items[index]->data()->position() != position)
-		? nullptr
-		: _items[index].get();
+	const auto result = (index < 0) ? nullptr : _items[index].get();
+	return (position == Data::MinMessagePosition
+		|| position == Data::MaxMessagePosition
+		|| result->data()->position() == position)
+		? result
+		: nullptr;
 }
 
 int ListWidget::findNearestItem(Data::MessagePosition position) const {
