@@ -487,6 +487,7 @@ private:
 	void updatePinnedViewer();
 	void setupPinnedTracker();
 	void checkPinnedBarState();
+	void clearHidingPinnedBar();
 	void refreshPinnedBarButton(bool many, HistoryItem *item);
 	void checkLastPinnedClickedIdReset(
 		int wasScrollTop,
@@ -628,6 +629,7 @@ private:
 
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
+	std::unique_ptr<Ui::PinnedBar> _hidingPinnedBar;
 	int _pinnedBarHeight = 0;
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;

@@ -1569,19 +1569,15 @@ void RepliesWidget::checkPinnedBarState() {
 		: currentPinnedId.msg;
 	if (universalPinnedId == hiddenId) {
 		if (_pinnedBar) {
+			_pinnedBar->setContent(rpl::single(Ui::MessageBarContent()));
 			_pinnedTracker->reset();
-			auto qobject = base::unique_qptr{
-				Ui::WrapAsQObject(this, std::move(_pinnedBar)).get()
-			};
-			auto destroyer = [this, object = std::move(qobject)]() mutable {
-				object = nullptr;
-				_pinnedBarHeight = 0;
-				updateControlsGeometry();
-			};
-			base::call_delayed(
-				st::defaultMessageBar.duration,
-				this,
-				std::move(destroyer));
+			_hidingPinnedBar = base::take(_pinnedBar);
+			const auto raw = _hidingPinnedBar.get();
+			base::call_delayed(st::defaultMessageBar.duration, this, [=] {
+				if (_hidingPinnedBar.get() == raw) {
+					clearHidingPinnedBar();
+				}
+			});
 		}
 		return;
 	}
@@ -1589,6 +1585,7 @@ void RepliesWidget::checkPinnedBarState() {
 		return;
 	}
 
+	clearHidingPinnedBar();
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
@@ -1669,6 +1666,17 @@ void RepliesWidget::checkPinnedBarState() {
 	if (animatingShow()) {
 		_pinnedBar->hide();
 	}
+}
+
+void RepliesWidget::clearHidingPinnedBar() {
+	if (!_hidingPinnedBar) {
+		return;
+	}
+	if (const auto delta = -_pinnedBarHeight) {
+		_pinnedBarHeight = 0;
+		setGeometryWithTopMoved(geometry(), delta);
+	}
+	_hidingPinnedBar = nullptr;
 }
 
 void RepliesWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
