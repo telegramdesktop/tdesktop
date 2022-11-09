@@ -474,6 +474,8 @@ void HistoryMessageReply::paint(
 						? stm->replyTextPalette
 						: st->imgReplyTextPalette()),
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = context.now,
+					.paused = context.paused,
 					.elisionLines = 1,
 				});
 				p.setTextPalette(stm->textPalette);

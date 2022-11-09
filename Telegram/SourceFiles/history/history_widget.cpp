@@ -7509,6 +7509,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					.availableWidth = width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
 					.palette = &st::historyComposeAreaPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = crl::now(),
+					.paused = p.inactive(),
 					.elisionLines = 1,
 				});
 			} else {
