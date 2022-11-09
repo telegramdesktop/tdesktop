@@ -84,6 +84,7 @@ void AddAction(
 			: (downloadPath == u"tmp"_q)
 			? session->local().tempDirectory()
 			: downloadPath;
+		if (path.isEmpty()) return;
 
 		const auto fullPath = [&](int i) {
 			return filedialogDefaultName(
