@@ -155,6 +155,7 @@ QString FileNameUnsafe(
 			return path;
 		}
 	}();
+	if (path.isEmpty()) return QString();
 	if (name.isEmpty()) name = qsl(".unknown");
 	if (name.at(0) == QChar::fromLatin1('.')) {
 		if (!QDir().exists(path)) QDir().mkpath(path);
