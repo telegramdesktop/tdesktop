@@ -73,6 +73,7 @@ public:
 		bool showInForum);
 
 	void show();
+	void hide();
 
 	[[nodiscard]] SlidingBar &bar() {
 		return _bar;

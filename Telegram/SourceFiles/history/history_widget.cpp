@@ -3698,6 +3698,9 @@ void HistoryWidget::hideChildWidgets() {
 	if (_chooseTheme) {
 		_chooseTheme->hide();
 	}
+	if (_contactStatus) {
+		_contactStatus->hide();
+	}
 	hideChildren();
 }
 
