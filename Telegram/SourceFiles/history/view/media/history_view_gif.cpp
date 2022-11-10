@@ -678,7 +678,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					: InfoDisplayType::Image));
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()
-			; size || _transcribe) {
+			; size || (_transcribe && !rightAligned)) {
 			const auto rightActionWidth = size
 				? size->width()
 				: _transcribe->size().width();
@@ -702,7 +702,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				paintTranscribe(p, fastShareLeft, fastShareTop, true, context);
 			}
 		}
-		if (_parent->hasOutLayout() && _transcribe) {
+		if (rightAligned && _transcribe) {
 			paintTranscribe(p, usex, fullBottom, false, context);
 		}
 	}
