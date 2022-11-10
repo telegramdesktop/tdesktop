@@ -2657,14 +2657,21 @@ void MainWidget::handleHistoryBack() {
 		return;
 	}
 	const auto openedFolder = _controller->openedFolder().current();
-	const auto rootPeer = _stack.empty()
+	const auto openedForum = _controller->openedForum().current();
+	const auto rootPeer = !_stack.empty()
+		? _stack.front()->peer()
+		: _history->peer()
 		? _history->peer()
-		: _stack.front()->peer();
+		: _mainSection
+		? _mainSection->activeChat().key.peer()
+		: nullptr;
 	const auto rootHistory = rootPeer
 		? rootPeer->owner().historyLoaded(rootPeer)
 		: nullptr;
 	const auto rootFolder = rootHistory ? rootHistory->folder() : nullptr;
-	if (!openedFolder
+	if (openedForum && !rootPeer) {
+		_controller->closeForum();
+	} else if (!openedFolder
 		|| rootFolder == openedFolder
 		|| _dialogs->isHidden()) {
 		_controller->showBackFromStack();
