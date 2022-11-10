@@ -138,7 +138,7 @@ bool PreparedList::canBeSentInSlowmodeWith(const PreparedList &other) const {
 	return !hasNonGrouping && (!hasFiles || !hasVideos);
 }
 
-bool PreparedList::canAddCaption(bool sendingAlbum) const {
+bool PreparedList::canAddCaption(bool sendingAlbum, bool compress) const {
 	if (!filesToProcess.empty()
 		|| files.empty()
 		|| files.size() > kMaxAlbumCount) {
@@ -146,8 +146,8 @@ bool PreparedList::canAddCaption(bool sendingAlbum) const {
 	}
 	if (files.size() == 1) {
 		Assert(files.front().information != nullptr);
-		const auto isSticker = Core::IsMimeSticker(
-			files.front().information->filemime)
+		const auto isSticker = (!compress
+				&& Core::IsMimeSticker(files.front().information->filemime))
 			|| files.front().path.endsWith(
 				qstr(".tgs"),
 				Qt::CaseInsensitive);
@@ -196,6 +196,26 @@ bool PreparedList::hasSendImagesAsPhotosOption(bool slowmode) const {
 	return slowmode
 		? ((files.size() == 1) && (files.front().type == Type::Photo))
 		: ranges::contains(files, Type::Photo, &PreparedFile::type);
+}
+
+bool PreparedList::canHaveEditorHintLabel() const {
+	for (const auto &file : files) {
+		if ((file.type == PreparedFile::Type::Photo)
+			&& !Core::IsMimeSticker(file.information->filemime)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool PreparedList::hasSticker() const {
+	for (const auto &file : files) {
+		if ((file.type == PreparedFile::Type::Photo)
+			&& Core::IsMimeSticker(file.information->filemime)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 int MaxAlbumItems() {

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/chat/attach/attach_album_thumbnail.h"
 
+#include "core/mime_type.h" // Core::IsMimeSticker.
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "ui/text/format_values.h"
@@ -31,7 +32,8 @@ AlbumThumbnail::AlbumThumbnail(
 , _fullPreview(file.preview)
 , _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
-, _isVideo(file.type == PreparedFile::Type::Video) {
+, _isVideo(file.type == PreparedFile::Type::Video)
+, _isCompressedSticker(Core::IsMimeSticker(file.information->filemime)) {
 	Expects(!_fullPreview.isNull());
 
 	moveToLayout(layout);
@@ -105,21 +107,16 @@ AlbumThumbnail::AlbumThumbnail(
 	_editMedia->setIconOverride(&st::sendBoxAlbumGroupEditButtonIconFile);
 	_deleteMedia->setIconOverride(&st::sendBoxAlbumGroupDeleteButtonIconFile);
 
-	updateFileRow(-1);
+	setButtonVisible(false);
 }
 
-void AlbumThumbnail::updateFileRow(int row) {
-	if (row < 0) {
-		_editMedia->hide();
-		_deleteMedia->hide();
-		return;
-	}
-	_editMedia->show();
-	_deleteMedia->show();
+void AlbumThumbnail::setButtonVisible(bool value) {
+	_editMedia->setVisible(value);
+	_deleteMedia->setVisible(value);
+}
 
-	const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
-		+ st::sendMediaRowSkip;
-	const auto top = row * fileHeight + st::sendBoxFileGroupSkipTop;
+void AlbumThumbnail::moveButtons(int thumbTop) {
+	const auto top = thumbTop + st::sendBoxFileGroupSkipTop;
 
 	auto right = st::sendBoxFileGroupSkipRight + st::boxPhotoPadding.right();
 	_deleteMedia->moveToRight(right, top);
@@ -171,6 +168,16 @@ void AlbumThumbnail::moveToLayout(const GroupMediaLayout &layout) {
 
 int AlbumThumbnail::photoHeight() const {
 	return _photo.height() / style::DevicePixelRatio();
+}
+
+int AlbumThumbnail::fileHeight() const {
+	return _isCompressedSticker
+		? photoHeight()
+		: st::attachPreviewThumbLayout.thumbSize;
+}
+
+bool AlbumThumbnail::isCompressedSticker() const {
+	return _isCompressedSticker;
 }
 
 void AlbumThumbnail::paintInAlbum(
@@ -422,7 +429,7 @@ bool AlbumThumbnail::containsPoint(QPoint position) const {
 }
 
 bool AlbumThumbnail::buttonsContainPoint(QPoint position) const {
-	return (_isPhoto
+	return ((_isPhoto && !_isCompressedSticker)
 		? _lastRectOfModify
 		: _lastRectOfButtons).contains(position);
 }
@@ -431,7 +438,7 @@ AttachButtonType AlbumThumbnail::buttonTypeFromPoint(QPoint position) const {
 	if (!buttonsContainPoint(position)) {
 		return AttachButtonType::None;
 	}
-	return !_lastRectOfButtons.contains(position)
+	return (!_lastRectOfButtons.contains(position) && !_isCompressedSticker)
 		? AttachButtonType::Modify
 		: (position.x() < _lastRectOfButtons.center().x())
 		? AttachButtonType::Edit

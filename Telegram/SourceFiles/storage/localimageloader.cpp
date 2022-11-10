@@ -915,7 +915,8 @@ void FileLoadTask::process(Args &&args) {
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 		if (ValidateThumbDimensions(w, h)) {
-			isSticker = Core::IsMimeSticker(filemime)
+			isSticker = (_type == SendMediaType::File)
+				&& Core::IsMimeSticker(filemime)
 				&& (filesize < Storage::kMaxStickerBytesSize)
 				&& (Core::IsMimeStickerAnimated(filemime)
 					|| GoodStickerDimensions(w, h));
@@ -936,6 +937,9 @@ void FileLoadTask::process(Args &&args) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (filemime.startsWith(u"image/"_q)
 				&& _type != SendMediaType::File) {
+				if (Core::IsMimeSticker(filemime)) {
+					fullimage = Images::Opaque(std::move(fullimage));
+				}
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 
 				const auto downscaled = (w > 1280 || h > 1280);

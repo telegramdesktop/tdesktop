@@ -102,7 +102,9 @@ void FileDialogCallback(
 rpl::producer<QString> FieldPlaceholder(
 		const Ui::PreparedList &list,
 		SendFilesWay way) {
-	return list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
+	return list.canAddCaption(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
 }
@@ -390,6 +392,11 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem) {
 			break;
 		}
 	}
+	{
+		auto sendWay = _sendWay.current();
+		sendWay.setHasCompressedStickers(_list.hasSticker());
+		_sendWay = sendWay;
+	}
 	generatePreviewFrom(fromBlock);
 	_inner->resizeToWidth(st::boxWideWidth);
 	refreshControls();
@@ -427,6 +434,7 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 void SendFilesBox::initSendWay() {
 	_sendWay = [&] {
 		auto result = Core::App().settings().sendFilesWay();
+		result.setHasCompressedStickers(_list.hasSticker());
 		if (_sendLimit == SendLimit::One) {
 			result.setGroupFiles(true);
 			return result;
@@ -455,7 +463,9 @@ void SendFilesBox::updateCaptionPlaceholder() {
 		return;
 	}
 	const auto way = _sendWay.current();
-	if (!_list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
+	if (!_list.canAddCaption(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())
 		&& _sendLimit == SendLimit::One) {
 		_caption->hide();
 		if (_emojiToggle) {
@@ -668,7 +678,7 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 
 	_hintLabel->setVisible(
 		_controller->session().settings().photoEditorHintShown()
-			? _list.hasSendImagesAsPhotosOption(false)
+			? _list.canHaveEditorHintLabel()
 			: false);
 }
 
@@ -1019,7 +1029,8 @@ bool SendFilesBox::validateLength(const QString &text) const {
 	const auto way = _sendWay.current();
 	if (remove <= 0
 		|| !_list.canAddCaption(
-			way.groupFiles() && way.sendImagesAsPhotos())) {
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())) {
 		return true;
 	}
 	_controller->show(Box(CaptionLimitReachedBox, session, remove));

@@ -88,6 +88,8 @@ private:
 	int _photosHeight = 0;
 	int _filesHeight = 0;
 
+	bool _hasMixedFileHeights = false;
+
 	AlbumThumbnail *_draggedThumb = nullptr;
 	AlbumThumbnail *_suggestedThumb = nullptr;
 	AlbumThumbnail *_paintedAbove = nullptr;

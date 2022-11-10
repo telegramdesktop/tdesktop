@@ -145,7 +145,8 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::None;
 	}
 
-	const auto imageExtensions = Ui::ImageExtensions();
+	auto imageExtensions = Ui::ImageExtensions();
+	imageExtensions.push_back(u".webp"_q);
 	auto files = QStringList();
 	auto allAreSmallImages = true;
 	for (const auto &url : urls) {
@@ -303,11 +304,11 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 	if (const auto image = std::get_if<Image>(
 			&file.information->media)) {
 		Assert(!image->data.isNull());
-		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
+		if (ValidPhotoForAlbum(*image, file.information->filemime)
+			|| Core::IsMimeSticker(file.information->filemime)) {
 			UpdateImageDetails(file, previewWidth);
 			file.type = PreparedFile::Type::Photo;
-		} else if (Core::IsMimeSticker(file.information->filemime)
-			|| image->animated) {
+		} else if (image->animated) {
 			file.type = PreparedFile::Type::None;
 		}
 	} else if (const auto video = std::get_if<Video>(
