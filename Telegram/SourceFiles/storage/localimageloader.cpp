@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
@@ -630,7 +631,8 @@ bool FileLoadTask::CheckForSong(
 		return false;
 	}
 
-	auto media = Media::Player::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Song>(
+		Media::Player::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}
@@ -658,7 +660,8 @@ bool FileLoadTask::CheckForVideo(
 		return false;
 	}
 
-	auto media = Media::Clip::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Video>(
+		Media::Clip::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}

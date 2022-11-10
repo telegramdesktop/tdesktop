@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 #include <al.h>
 #include <alc.h>
@@ -1718,7 +1719,9 @@ private:
 
 namespace Player {
 
-Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+Ui::PreparedFileInformation PrepareForSending(
+		const QString &fname,
+		const QByteArray &data) {
 	auto result = Ui::PreparedFileInformation::Song();
 	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
@@ -1728,7 +1731,7 @@ Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const 
 		result.performer = reader.performer();
 		result.cover = reader.cover();
 	}
-	return result;
+	return { .media = result };
 }
 
 } // namespace Player

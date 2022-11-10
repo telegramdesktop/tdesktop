@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "core/application.h"
 #include "storage/file_download.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image.h"
 
 #include <QtCore/QBuffer>
@@ -60,7 +61,8 @@ enum class FileType {
 		QByteArray data,
 		FileType type) {
 	if (type == FileType::Video || type == FileType::VideoSticker) {
-		auto result = ::Media::Clip::PrepareForSending(path, data);
+		auto result = v::get<Ui::PreparedFileInformation::Video>(
+			::Media::Clip::PrepareForSending(path, data).media);
 		if (result.isWebmSticker && type == FileType::Video) {
 			result.thumbnail = Images::Opaque(std::move(result.thumbnail));
 		}

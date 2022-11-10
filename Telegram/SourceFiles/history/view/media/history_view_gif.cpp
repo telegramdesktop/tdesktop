@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/chat_style.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
@@ -730,7 +731,8 @@ void Gif::validateVideoThumbnail() const {
 	if (_videoThumbnailFrame || content.isEmpty()) {
 		return;
 	}
-	auto info = ::Media::Clip::PrepareForSending(QString(), content);
+	auto info = v::get<Ui::PreparedFileInformation::Video>(
+		::Media::Clip::PrepareForSending(QString(), content).media);
 	_videoThumbnailFrame = std::make_unique<Image>(info.thumbnail.isNull()
 		? Image::BlankMedia()->original()
 		: info.thumbnail);

@@ -8,13 +8,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/effects/animation_value.h"
-#include "ui/chat/attach/attach_prepare.h"
 #include "core/file_location.h"
 #include "data/data_audio_msg_id.h"
 #include "base/bytes.h"
 #include "base/timer.h"
 
 #include <QtCore/QTimer>
+
+namespace Ui {
+struct PreparedFileInformation;
+} // namespace Ui
 
 namespace Media {
 struct ExternalSoundData;
@@ -369,7 +372,7 @@ private:
 
 };
 
-[[nodiscard]] Ui::PreparedFileInformation::Song PrepareForSending(
+[[nodiscard]] Ui::PreparedFileInformation PrepareForSending(
 	const QString &fname,
 	const QByteArray &data);
 
