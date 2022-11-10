@@ -499,7 +499,9 @@ bool NotifySettings::silentPosts(not_null<const PeerData*> peer) const {
 }
 
 NotifySound NotifySettings::sound(not_null<const PeerData*> peer) const {
-	if (const auto sound = peer->notify().sound()) {
+	// Explicitly ignore a notify sound for Saved Messages
+	// to follow the global notify sound.
+	if (const auto sound = peer->notify().sound(); !peer->isSelf() && sound) {
 		return *sound;
 	} else if (const auto sound = defaultSettings(peer).sound()) {
 		return *sound;
