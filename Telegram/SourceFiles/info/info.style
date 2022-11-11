@@ -326,6 +326,8 @@ infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
 	statusTop: 38px;
 }
 
+infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
+
 infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedCheck: icon {
 	{ "profile_verified_star", profileVerifiedCheckBg },

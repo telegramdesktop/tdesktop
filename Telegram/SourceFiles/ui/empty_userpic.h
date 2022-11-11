@@ -12,6 +12,7 @@ namespace Ui {
 class EmptyUserpic {
 public:
 	[[nodiscard]] static QString ExternalName();
+	[[nodiscard]] static QString InaccessibleName();
 
 	EmptyUserpic(const style::color &color, const QString &name);
 

@@ -248,9 +248,12 @@ void PeerData::updateNameDelayed(
 
 not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 	if (!_userpicEmpty) {
+		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
 			Data::PeerUserpicColor(id),
-			name());
+			user && user->isInaccessible()
+				? Ui::EmptyUserpic::InaccessibleName()
+				: name());
 	}
 	return _userpicEmpty.get();
 }
