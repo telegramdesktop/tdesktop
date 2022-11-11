@@ -18,4 +18,5 @@ X-GNOME-SingleWindow=true
 [Desktop Action Quit]
 Exec=telegram-desktop -quit
 Name=Quit Telegram
+Name[pt_BR]=Fechar Telegram
 Icon=application-exit
