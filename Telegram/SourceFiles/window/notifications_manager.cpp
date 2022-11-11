@@ -125,9 +125,9 @@ void System::setManager(std::unique_ptr<Manager> manager) {
 	}
 }
 
-ManagerType System::managerType() const {
+Manager &System::manager() const {
 	Expects(_manager != nullptr);
-	return _manager->type();
+	return *_manager;
 }
 
 Main::Session *System::findSession(uint64 sessionId) const {

@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style_radius.h"
 #include "base/options.h"
 #include "core/application.h"
+#include "platform/platform_specific.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "history/history_widget.h"
@@ -143,6 +144,7 @@ void SetupExperimental(
 	addToggle(Settings::kOptionMonoSettingsIcons);
 	addToggle(Webview::kOptionWebviewDebugEnabled);
 	addToggle(kOptionAutoScrollInactiveChat);
+	addToggle(Platform::kOptionGApplication);
 }
 
 } // namespace
