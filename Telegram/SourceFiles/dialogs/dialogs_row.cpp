@@ -149,6 +149,8 @@ Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 		_height = history->peer->isForum()
 			? st::forumDialogRow.height
 			: st::defaultDialogRow.height;
+	} else if (key.folder()) {
+		_height = st::defaultDialogRow.height;
 	} else {
 		_height = st::forumTopicRow.height;
 	}

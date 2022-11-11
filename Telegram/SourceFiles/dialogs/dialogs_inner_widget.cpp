@@ -532,12 +532,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					: Key()));
 		if (shownBottom) {
 			const auto skip = dialogsOffset();
-			auto reorderingPinned = (_aboveIndex >= 0 && !_pinnedRows.empty());
-			if (reorderingPinned) {
-				dialogsClip = dialogsClip.marginsAdded(QMargins(0, _st->height, 0, _st->height));
-			}
-
 			const auto promoted = fixedOnTopCount();
+			const auto reorderingPinned = (_aboveIndex >= 0)
+				&& !_pinnedRows.empty();
+			const auto reorderingIndex = promoted + _aboveIndex;
+			const auto reorderingRow = (reorderingIndex < list.size())
+				? (list.cbegin() + reorderingIndex)->get()
+				: nullptr;
+			if (reorderingRow) {
+				dialogsClip = dialogsClip.marginsAdded({
+					0,
+					reorderingRow->height(),
+					0,
+					reorderingRow->height(),
+				});
+			}
 			const auto skippedTop = skipTopHeight();
 			const auto paintDialog = [&](not_null<Row*> row) {
 				const auto pinned = row->index() - promoted;
@@ -552,8 +561,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				const auto key = row->key();
 				const auto isActive = (key == active);
 				const auto isSelected = (key == selected);
+				const auto isForum = key.history()
+					&& key.history()->peer->isForum();
 				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
-					.st = _st,
+					.st = (isForum ? &st::forumDialogRow : _st.get()),
 					.folder = _openedFolder,
 					.forum = _openedForum,
 					.filter = _filterId,
@@ -600,14 +611,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 
 				// Paint the dragged chat above all others.
-				if (_aboveIndex >= 0) {
-					const auto index = promoted + _aboveIndex;
-					if (index < list.size()) {
-						const auto row = *(list.cbegin() + index);
-						p.translate(0, row->top() - top);
-						paintDialog(*i);
-						p.translate(0, top - row->top());
-					}
+				if (reorderingRow) {
+					p.translate(0, reorderingRow->top() - top);
+					paintDialog(reorderingRow);
+					p.translate(0, top - reorderingRow->top());
 				}
 			}
 		} else {
@@ -678,8 +685,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 					: (from == (isPressed()
 						? _filteredPressed
 						: _filteredSelected));
+				const auto isForum = key.history()
+					&& key.history()->peer->isForum();
 				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
-					.st = _st,
+					.st = (isForum ? &st::forumDialogRow : _st.get()),
 					.folder = _openedFolder,
 					.forum = _openedForum,
 					.filter = _filterId,
@@ -1422,25 +1431,26 @@ bool InnerWidget::updateReorderPinned(QPoint localPosition) {
 		return false;
 	}
 
+	const auto draggingHeight = _dragging->height();
 	auto yaddWas = _pinnedRows[_draggingIndex].yadd.current();
 	auto shift = 0;
 	auto now = crl::now();
 	if (_dragStart.y() > localPosition.y() && _draggingIndex > 0) {
-		shift = -floorclamp(_dragStart.y() - localPosition.y() + (_st->height / 2), _st->height, 0, _draggingIndex);
+		shift = -floorclamp(_dragStart.y() - localPosition.y() + (draggingHeight / 2), draggingHeight, 0, _draggingIndex);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from > to; --from) {
 			_shownList->movePinned(_dragging, -1);
 			std::swap(_pinnedRows[from], _pinnedRows[from - 1]);
-			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - _st->height, 0);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() - draggingHeight, 0);
 			_pinnedRows[from].animStartTime = now;
 		}
 	} else if (_dragStart.y() < localPosition.y() && _draggingIndex + 1 < pinnedCount) {
-		shift = floorclamp(localPosition.y() - _dragStart.y() + (_st->height / 2), _st->height, 0, pinnedCount - _draggingIndex - 1);
+		shift = floorclamp(localPosition.y() - _dragStart.y() + (draggingHeight / 2), draggingHeight, 0, pinnedCount - _draggingIndex - 1);
 
 		for (auto from = _draggingIndex, to = _draggingIndex + shift; from < to; ++from) {
 			_shownList->movePinned(_dragging, 1);
 			std::swap(_pinnedRows[from], _pinnedRows[from + 1]);
-			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + _st->height, 0);
+			_pinnedRows[from].yadd = anim::value(_pinnedRows[from].yadd.current() + draggingHeight, 0);
 			_pinnedRows[from].animStartTime = now;
 		}
 	}

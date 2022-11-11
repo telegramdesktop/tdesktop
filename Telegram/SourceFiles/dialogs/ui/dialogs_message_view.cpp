@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
@@ -111,7 +112,6 @@ struct MessageView::LoadingContext {
 
 MessageView::MessageView()
 : _senderCache(st::dialogsTextWidthMin)
-, _topicCache(st::dialogsTextWidthMin)
 , _textCache(st::dialogsTextWidthMin) {
 }
 
@@ -135,11 +135,11 @@ void MessageView::prepare(
 		not_null<const HistoryItem*> item,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
+	const auto validateTopics = !options.ignoreTopic;
 	options.existing = &_imagesCache;
+	options.ignoreTopic = true;
 	auto preview = item->toPreview(options);
 	const auto hasImages = !preview.images.empty();
-	const auto hasArrow = (preview.arrowInTextPosition > 0)
-		&& (preview.imagesInTextPosition > preview.arrowInTextPosition);
 	const auto history = item->history();
 	const auto context = Core::MarkedTextContext{
 		.session = &history->session(),
@@ -149,7 +149,7 @@ void MessageView::prepare(
 	const auto senderTill = (preview.arrowInTextPosition > 0)
 		? preview.arrowInTextPosition
 		: preview.imagesInTextPosition;
-	if ((hasImages || hasArrow) && senderTill > 0) {
+	if (hasImages && senderTill > 0) {
 		auto sender = Text::Mid(preview.text, 0, senderTill);
 		TextUtilities::Trim(sender);
 		_senderCache.setMarkedText(
@@ -157,24 +157,8 @@ void MessageView::prepare(
 			std::move(sender),
 			DialogTextOptions());
 		const auto topicTill = preview.imagesInTextPosition;
-		if (hasArrow && hasImages) {
-			auto topic = Text::Mid(
-				preview.text,
-				senderTill,
-				topicTill - senderTill);
-			TextUtilities::Trim(topic);
-			_topicCache.setMarkedText(
-				st::dialogsTextStyle,
-				std::move(topic),
-				DialogTextOptions(),
-				context);
-			preview.text = Text::Mid(preview.text, topicTill);
-		} else {
-			preview.text = Text::Mid(preview.text, senderTill);
-			_topicCache = { st::dialogsTextWidthMin };
-		}
+		preview.text = Text::Mid(preview.text, senderTill);
 	} else {
-		_topicCache = { st::dialogsTextWidthMin };
 		_senderCache = { st::dialogsTextWidthMin };
 	}
 	TextUtilities::Trim(preview.text);
@@ -199,6 +183,19 @@ void MessageView::prepare(
 	}
 }
 
+void MessageView::prepareTopics(
+		not_null<Data::Forum*> forum,
+		const QRect &geometry,
+		Fn<void()> customEmojiRepaint) {
+	if (!_topics || _topics->forum() != forum) {
+		_topics = std::make_unique<TopicsView>(forum);
+	}
+	_topics->prepare(
+		geometry,
+		&st::forumDialogRow,
+		std::move(customEmojiRepaint));
+}
+
 void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
@@ -212,13 +209,25 @@ void MessageView::paint(
 		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	const auto palette = &(context.active
-		? st::dialogsTextPaletteActive
-		: context.selected
-		? st::dialogsTextPaletteOver
-		: st::dialogsTextPalette);
+	const auto withTopic = _topics && context.st->topicsHeight;
+	const auto palette = &(withTopic
+		? (context.active
+			? st::dialogsTextPaletteInTopicActive
+			: context.selected
+			? st::dialogsTextPaletteInTopicOver
+			: st::dialogsTextPaletteInTopic)
+		: (context.active
+			? st::dialogsTextPaletteActive
+			: context.selected
+			? st::dialogsTextPaletteOver
+			: st::dialogsTextPalette));
 
 	auto rect = geometry;
+	if (withTopic) {
+		_topics->paint(p, rect, context);
+		rect.setTop(rect.top() + context.st->topicsHeight);
+	}
+
 	const auto lines = rect.height() / st::dialogsTextFont->height;
 	if (!_senderCache.isEmpty()) {
 		_senderCache.draw(p, {
@@ -228,32 +237,6 @@ void MessageView::paint(
 			.elisionLines = lines,
 		});
 		rect.setLeft(rect.x() + _senderCache.maxWidth());
-		if (!_topicCache.isEmpty() || _imagesCache.empty()) {
-			const auto skip = st::dialogsTopicArrowSkip;
-			if (rect.width() >= skip) {
-				const auto &icon = st::dialogsTopicArrow;
-				icon.paint(
-					p,
-					rect.x() + (skip - icon.width()) / 2,
-					rect.y() + st::dialogsTopicArrowTop,
-					geometry.width());
-			}
-			rect.setLeft(rect.x() + skip);
-		}
-		if (!_topicCache.isEmpty()) {
-			if (!rect.isEmpty()) {
-				_topicCache.draw(p, {
-					.position = rect.topLeft(),
-					.availableWidth = rect.width(),
-					.palette = palette,
-					.spoiler = Text::DefaultSpoilerCache(),
-					.now = context.now,
-					.paused = context.paused,
-					.elisionLines = lines,
-				});
-			}
-			rect.setLeft(rect.x() + _topicCache.maxWidth());
-		}
 		if (!_imagesCache.empty()) {
 			const auto skip = st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;

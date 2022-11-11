@@ -16,6 +16,10 @@ enum class ImageRoundRadius;
 namespace Ui {
 } // namespace Ui
 
+namespace Data {
+class Forum;
+} // namespace Data
+
 namespace HistoryView {
 struct ToPreviewOptions;
 struct ItemPreviewImage;
@@ -27,6 +31,7 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 
 struct PaintContext;
+class TopicsView;
 
 [[nodiscard]] TextWithEntities DialogsPreviewText(TextWithEntities text);
 
@@ -47,6 +52,12 @@ public:
 		not_null<const HistoryItem*> item,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options);
+
+	void prepareTopics(
+		not_null<Data::Forum*> forum,
+		const QRect &geometry,
+		Fn<void()> customEmojiRepaint);
+
 	void paint(
 		Painter &p,
 		const QRect &geometry,
@@ -57,7 +68,7 @@ private:
 
 	mutable const HistoryItem *_textCachedFor = nullptr;
 	mutable Text::String _senderCache;
-	mutable Text::String _topicCache;
+	mutable std::unique_ptr<TopicsView> _topics;
 	mutable Text::String _textCache;
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;

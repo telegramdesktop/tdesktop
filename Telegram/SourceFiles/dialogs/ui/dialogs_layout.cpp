@@ -216,17 +216,11 @@ void PaintListEntryText(
 	row->listEntryCache().draw(p, {
 		.position = rect.topLeft(),
 		.availableWidth = rect.width(),
-		.palette = &(row->folder()
-			? (context.active
-				? st::dialogsTextPaletteArchiveActive
-				: context.selected
-				? st::dialogsTextPaletteArchiveOver
-				: st::dialogsTextPaletteArchive)
-			: (context.active
-				? st::dialogsTextPaletteActive
-				: context.selected
-				? st::dialogsTextPaletteOver
-				: st::dialogsTextPalette)),
+		.palette = &(context.active
+			? st::dialogsTextPaletteArchiveActive
+			: context.selected
+			? st::dialogsTextPaletteArchiveOver
+			: st::dialogsTextPaletteArchive),
 		.spoiler = Text::DefaultSpoilerCache(),
 		.now = context.now,
 		.paused = context.paused,
@@ -897,7 +891,7 @@ void RowPainter::Paint(
 			: context.selected
 			? st::dialogsTextFgServiceOver
 			: st::dialogsTextFgService;
-		const auto rect = QRect(
+		auto rect = QRect(
 			nameleft,
 			texttop,
 			availableWidth,
@@ -925,6 +919,13 @@ void RowPainter::Paint(
 					item,
 					[=] { entry->updateChatListEntry(); },
 					{ .ignoreTopic = (!history || !peer->isForum()) });
+			}
+			if (const auto topics = context.st->topicsHeight) {
+				view->prepareTopics(
+					row->history()->peer->forum(),
+					rect,
+					[=] { entry->updateChatListEntry(); });
+				rect.setHeight(topics + rect.height());
 			}
 			view->paint(p, rect, context);
 		}

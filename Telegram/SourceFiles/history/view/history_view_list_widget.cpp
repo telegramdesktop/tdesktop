@@ -3206,13 +3206,6 @@ void ListWidget::mouseActionFinish(
 	};
 
 	auto activated = ClickHandler::unpressed();
-
-	if (_overElement) {
-		AssertIsDebug();
-		setGeometryCrashAnnotations(_overElement);
-		Unexpected("Test");
-	}
-
 	auto simpleSelectionChange = pressState.itemId
 		&& !_pressWasInactive
 		&& (button != Qt::RightButton)

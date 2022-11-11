@@ -17,6 +17,8 @@ DialogRow {
 	nameTop: pixels;
 	textLeft: pixels;
 	textTop: pixels;
+	topicsSkip: pixels;
+	topicsHeight: pixels;
 }
 
 ForumTopicIcon {
@@ -71,8 +73,11 @@ defaultDialogRow: DialogRow {
 	textLeft: 68px;
 	textTop: 34px;
 }
-forumDialogRow: DialogRow {
+forumDialogRow: DialogRow(defaultDialogRow) {
 	height: 80px;
+	textTop: 32px;
+	topicsSkip: 8px;
+	topicsHeight: 20px;
 }
 
 dialogsOnlineBadgeStroke: 2px;
@@ -148,6 +153,21 @@ dialogsTextPaletteArchiveOver: TextPalette(defaultTextPalette) {
 }
 dialogsTextPaletteArchiveActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgActive;
+	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
+}
+dialogsTextPaletteInTopic: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFg;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
+}
+dialogsTextPaletteInTopicOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgOver;
+	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
+}
+dialogsTextPaletteInTopicActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgActive;
 	monoFg: dialogsTextFgActive;
 	spoilerFg: dialogsTextFgActive;
 }

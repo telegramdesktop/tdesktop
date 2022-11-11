@@ -178,6 +178,9 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	}) | rpl::start_with_next([=](
 			std::optional<int> previous,
 			std::optional<int> now) {
+		if (previous.value_or(0) != now.value_or(0)) {
+			_forum->recentTopicsInvalidate(this);
+		}
 		notifyUnreadStateChange(unreadStateFor(
 			previous.value_or(0),
 			previous.has_value()));
@@ -489,7 +492,9 @@ void ForumTopic::setLastMessage(HistoryItem *item) {
 void ForumTopic::setChatListMessage(HistoryItem *item) {
 	if (_chatListMessage && *_chatListMessage == item) {
 		return;
-	} else if (item) {
+	}
+	const auto was = _chatListMessage.value_or(nullptr);
+	if (item) {
 		if (item->isSponsored()) {
 			return;
 		}
@@ -505,6 +510,7 @@ void ForumTopic::setChatListMessage(HistoryItem *item) {
 		_chatListMessage = nullptr;
 		updateChatListEntry();
 	}
+	_forum->listMessageChanged(was, item);
 }
 
 void ForumTopic::loadUserpic() {
@@ -625,6 +631,7 @@ void ForumTopic::applyTitle(const QString &title) {
 	}
 	_title = title;
 	++_titleVersion;
+	_forum->recentTopicsInvalidate(this);
 	_defaultIcon = QImage();
 	indexTitleParts();
 	updateChatListEntry();

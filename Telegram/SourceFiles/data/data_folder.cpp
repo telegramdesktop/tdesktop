@@ -179,7 +179,7 @@ void Folder::reorderLastHistories() {
 		const auto bDate = bItem ? bItem->date() : TimeId(0);
 		return aDate > bDate;
 	};
-	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
+	_lastHistories.clear();
 	_lastHistories.reserve(kShowChatNamesCount + 1);
 	auto &&histories = ranges::views::all(
 		*_chatsList.indexed()
@@ -187,17 +187,23 @@ void Folder::reorderLastHistories() {
 		return row->history();
 	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
-	}) | ranges::views::transform([](History *history) {
-		return not_null<History*>(history);
 	});
+	auto nonPinnedChecked = 0;
 	for (const auto history : histories) {
-		const auto i = ranges::upper_bound(_lastHistories, history, pred);
+		const auto i = ranges::upper_bound(
+			_lastHistories,
+			not_null(history),
+			pred);
 		if (size(_lastHistories) < kShowChatNamesCount
 			|| i != end(_lastHistories)) {
 			_lastHistories.insert(i, history);
 		}
 		if (size(_lastHistories) > kShowChatNamesCount) {
 			_lastHistories.pop_back();
+		}
+		if (!history->isPinnedDialog(FilterId())
+			&& ++nonPinnedChecked >= kShowChatNamesCount) {
+			break;
 		}
 	}
 	++_chatListViewVersion;

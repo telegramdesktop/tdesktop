@@ -3011,6 +3011,11 @@ void History::forumChanged(Data::Forum *old) {
 		}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 			notifyUnreadStateChange(old);
 		}, forum->lifetime());
+
+		forum->chatsListChanges(
+		) | rpl::start_with_next([=] {
+			updateChatListEntry();
+		}, forum->lifetime());
 	} else {
 		_flags &= ~Flag::IsForum;
 	}
