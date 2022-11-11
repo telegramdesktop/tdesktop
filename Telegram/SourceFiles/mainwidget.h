@@ -113,8 +113,7 @@ class ItemBase;
 
 class MainWidget
 	: public Ui::RpWidget
-	, private Media::Player::FloatDelegate
-	, private base::Subscriber {
+	, private Media::Player::FloatDelegate {
 public:
 	using SectionShow = Window::SectionShow;
 

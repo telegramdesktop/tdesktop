@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
 #include "data/data_audio_msg_id.h"
 #include "data/data_shared_media.h"
 
@@ -70,7 +69,7 @@ void SaveLastPlaybackPosition(
 
 not_null<Instance*> instance();
 
-class Instance : private base::Subscriber {
+class Instance final {
 public:
 	enum class Seeking {
 		Start,

@@ -41,7 +41,7 @@ not_null<Controller*> LockWidget::window() const {
 
 void LockWidget::setInnerFocus() {
 	if (const auto controller = _window->sessionController()) {
-		controller->dialogsListFocused().set(false, true);
+		controller->setDialogsListFocused(false);
 	}
 	setFocus();
 }

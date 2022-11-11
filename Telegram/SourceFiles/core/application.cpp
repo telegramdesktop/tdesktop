@@ -829,10 +829,6 @@ rpl::producer<bool> Application::appDeactivatedValue() const {
 	});
 }
 
-void Application::call_handleObservables() {
-	base::HandleObservables();
-}
-
 void Application::switchDebugMode() {
 	if (Logs::DebugEnabled()) {
 		Logs::SetDebugEnabled(false);

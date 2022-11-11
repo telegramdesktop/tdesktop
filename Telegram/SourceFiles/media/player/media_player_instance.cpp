@@ -146,9 +146,10 @@ Instance::Data::~Data() = default;
 Instance::Instance()
 : _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
 , _voiceData(AudioMsgId::Type::Voice, SharedMediaType::RoundVoiceFile) {
-	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
+	Media::Player::Updated(
+	) | rpl::start_with_next([=](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
-	});
+	}, _lifetime);
 
 	repeatChanges(
 		&_songData
@@ -157,6 +158,7 @@ Instance::Instance()
 			refreshPlaylist(&_songData);
 		}
 	}, _lifetime);
+
 	orderChanges(
 		&_songData
 	) | rpl::start_with_next([=](OrderMode mode) {

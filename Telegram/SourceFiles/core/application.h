@@ -297,8 +297,6 @@ public:
 
 	void preventOrInvoke(Fn<void()> &&callback);
 
-	void call_handleObservables();
-
 	// Global runtime variables.
 	void setScreenIsLocked(bool locked);
 	bool screenIsLocked() const;

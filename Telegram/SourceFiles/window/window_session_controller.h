@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "base/object_ptr.h"
-#include "base/observer.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "boxes/gift_premium_box.h" // GiftPremiumValidator.
@@ -480,17 +479,24 @@ public:
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
-	base::Variable<bool> &dialogsListFocused() {
-		return _dialogsListFocused;
+	[[nodiscard]] bool dialogsListFocused() const {
+		return _dialogsListFocused.current();
 	}
-	const base::Variable<bool> &dialogsListFocused() const {
-		return _dialogsListFocused;
+	[[nodiscard]] rpl::producer<bool> dialogsListFocusedChanges() const {
+		return _dialogsListFocused.changes();
 	}
-	base::Variable<bool> &dialogsListDisplayForced() {
-		return _dialogsListDisplayForced;
+	void setDialogsListFocused(bool value) {
+		_dialogsListFocused = value;
 	}
-	const base::Variable<bool> &dialogsListDisplayForced() const {
-		return _dialogsListDisplayForced;
+	[[nodiscard]] bool dialogsListDisplayForced() const {
+		return _dialogsListDisplayForced.current();
+	}
+	[[nodiscard]] auto dialogsListDisplayForcedChanges() const
+	-> rpl::producer<bool> {
+		return _dialogsListDisplayForced.changes();
+	}
+	void setDialogsListDisplayForced(bool value) {
+		_dialogsListDisplayForced = value;
 	}
 
 	not_null<SessionController*> parentController() override {
@@ -611,8 +617,8 @@ private:
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
-	base::Variable<bool> _dialogsListFocused = { false };
-	base::Variable<bool> _dialogsListDisplayForced = { false };
+	rpl::variable<bool> _dialogsListFocused = false;
+	rpl::variable<bool> _dialogsListDisplayForced = false;
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;

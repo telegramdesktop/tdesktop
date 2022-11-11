@@ -2508,9 +2508,8 @@ void InnerWidget::refresh(bool toTop) {
 		_mustScrollTo.fire({ 0, 0 });
 		loadPeerPhotos();
 	}
-	_controller->dialogsListDisplayForced().set(
-		_searchInChat || !_filter.isEmpty(),
-		true);
+	_controller->setDialogsListDisplayForced(
+		_searchInChat || !_filter.isEmpty());
 	update();
 }
 
@@ -2648,9 +2647,8 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	}
 	moveCancelSearchButtons();
 
-	_controller->dialogsListDisplayForced().set(
-		_searchInChat || !_filter.isEmpty(),
-		true);
+	_controller->setDialogsListDisplayForced(
+		_searchInChat || !_filter.isEmpty());
 }
 
 void InnerWidget::refreshSearchInChatLabel() {

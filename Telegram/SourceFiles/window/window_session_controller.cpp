@@ -1234,9 +1234,9 @@ int SessionController::minimalThreeColumnWidth() const {
 }
 
 bool SessionController::forceWideDialogs() const {
-	if (dialogsListDisplayForced().value()) {
+	if (_dialogsListDisplayForced.current()) {
 		return true;
-	} else if (dialogsListFocused().value()) {
+	} else if (_dialogsListFocused.current()) {
 		return true;
 	}
 	return !content()->isMainSectionShown();

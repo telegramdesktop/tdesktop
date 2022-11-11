@@ -294,12 +294,13 @@ MainWidget::MainWidget(
 		_player->finishAnimating();
 	}
 
-	subscribe(_controller->dialogsListFocused(), [this](bool) {
+	rpl::merge(
+		_controller->dialogsListFocusedChanges(),
+		_controller->dialogsListDisplayForcedChanges()
+	) | rpl::start_with_next([=] {
 		updateDialogsWidthAnimated();
-	});
-	subscribe(_controller->dialogsListDisplayForced(), [this](bool) {
-		updateDialogsWidthAnimated();
-	});
+	}, lifetime());
+
 	rpl::merge(
 		Core::App().settings().dialogsWidthRatioChanges() | rpl::to_empty,
 		Core::App().settings().thirdColumnWidthChanges() | rpl::to_empty
@@ -1396,7 +1397,7 @@ void MainWidget::ui_showPeerHistory(
 		}
 	}
 
-	_controller->dialogsListFocused().set(false, true);
+	_controller->setDialogsListFocused(false);
 	_a_dialogsWidth.stop();
 
 	using Way = SectionShow::Way;
@@ -1751,7 +1752,7 @@ void MainWidget::showNewSection(
 		controller()->window().hideSettingsAndLayer();
 	}
 
-	_controller->dialogsListFocused().set(false, true);
+	_controller->setDialogsListFocused(false);
 	_a_dialogsWidth.stop();
 
 	auto mainSectionTop = getMainSectionTop();
@@ -2619,10 +2620,10 @@ bool MainWidget::eventFilter(QObject *o, QEvent *e) {
 			if (_history == widget || _history->isAncestorOf(widget)
 				|| (_mainSection && (_mainSection == widget || _mainSection->isAncestorOf(widget)))
 				|| (_thirdSection && (_thirdSection == widget || _thirdSection->isAncestorOf(widget)))) {
-				_controller->dialogsListFocused().set(false);
+				_controller->setDialogsListFocused(false);
 			} else if (_dialogs
 				&& (_dialogs == widget || _dialogs->isAncestorOf(widget))) {
-				_controller->dialogsListFocused().set(true);
+				_controller->setDialogsListFocused(true);
 			}
 		}
 	} else if (e->type() == QEvent::MouseButtonPress) {

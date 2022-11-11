@@ -201,7 +201,7 @@ QString bytesToUtf8(QLatin1String bytes) {
 
 } // namespace
 
-class Editor::Inner : public Ui::RpWidget, private base::Subscriber {
+class Editor::Inner final : public Ui::RpWidget {
 public:
 	Inner(QWidget *parent, const QString &path);
 
@@ -397,24 +397,36 @@ Editor::Inner::Inner(QWidget *parent, const QString &path)
 , _existingRows(this, EditorBlock::Type::Existing, &_context)
 , _newRows(this, EditorBlock::Type::New, &_context) {
 	resize(st::windowMinWidth, st::windowMinHeight);
-	subscribe(_context.resized, [this] {
+
+	_context.resized.events(
+	) | rpl::start_with_next([=] {
 		resizeToWidth(width());
-	});
-	subscribe(_context.pending, [this](const EditorBlock::Context::EditionData &data) {
+	}, lifetime());
+
+	using Context = EditorBlock::Context;
+	_context.pending.events(
+	) | rpl::start_with_next([=](const Context::EditionData &data) {
 		applyEditing(data.name, data.copyOf, data.value);
-	});
-	subscribe(_context.updated, [this] {
+	}, lifetime());
+
+	_context.updated.events(
+	) | rpl::start_with_next([=] {
 		if (_context.name.isEmpty() && _focusCallback) {
 			_focusCallback();
 		}
-	});
-	subscribe(_context.scroll, [this](const EditorBlock::Context::ScrollData &data) {
+	}, lifetime());
+
+	_context.scroll.events(
+	) | rpl::start_with_next([=](const Context::ScrollData &data) {
 		if (_scrollCallback) {
-			auto top = (data.type == EditorBlock::Type::Existing ? _existingRows : _newRows)->y();
+			auto top = (data.type == EditorBlock::Type::Existing
+				? _existingRows
+				: _newRows)->y();
 			top += data.position;
 			_scrollCallback(top, top + data.height);
 		}
-	});
+	}, lifetime());
+
 	Background()->updates(
 	) | rpl::start_with_next([=](const BackgroundUpdate &update) {
 		if (_applyingUpdate || !Background()->editingTheme()) {

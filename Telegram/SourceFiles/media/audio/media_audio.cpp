@@ -305,12 +305,12 @@ constexpr auto kCheckPlaybackPositionTimeout = crl::time(100); // 100ms per chec
 constexpr auto kCheckPlaybackPositionDelta = 2400LL; // update position called each 2400 samples
 constexpr auto kCheckFadingTimeout = crl::time(7); // 7ms
 
-base::Observable<AudioMsgId> UpdatedObservable;
+rpl::event_stream<AudioMsgId> UpdatedStream;
 
 } // namespace
 
-base::Observable<AudioMsgId> &Updated() {
-	return UpdatedObservable;
+rpl::producer<AudioMsgId> Updated() {
+	return UpdatedStream.events();
 }
 
 // Thread: Any. Must be locked: AudioMutex.
@@ -648,7 +648,11 @@ void Mixer::onUpdated(const AudioMsgId &audio) {
 	if (audio.externalPlayId()) {
 		externalSoundProgress(audio);
 	}
-	Media::Player::Updated().notify(audio);
+	crl::on_main([=] {
+		// We've replaced base::Observable with on_main, because
+		// base::Observable::notify is not syncronous by default.
+		UpdatedStream.fire_copy(audio);
+	});
 }
 
 // Thread: Any. Must be locked: AudioMutex.
