@@ -1381,8 +1381,8 @@ void Session::setupUserIsContactViewer() {
 				_contactsNoChatsList.addByName(history);
 			}
 		} else if (const auto history = historyLoaded(user)) {
-			_contactsNoChatsList.del(history);
-			_contactsList.del(history);
+			_contactsNoChatsList.remove(history);
+			_contactsList.remove(history);
 		}
 	}, _lifetime);
 }
@@ -1915,7 +1915,7 @@ MessageIdsList Session::itemOrItsGroup(not_null<HistoryItem*> item) const {
 }
 
 void Session::setChatPinned(
-		const Dialogs::Key &key,
+		Dialogs::Key key,
 		FilterId filterId,
 		bool pinned) {
 	Expects(key.entry()->folderKnown());
@@ -1927,7 +1927,7 @@ void Session::setChatPinned(
 	notifyPinnedDialogsOrderUpdated();
 }
 
-void Session::setPinnedFromEntryList(const Dialogs::Key &key, bool pinned) {
+void Session::setPinnedFromEntryList(Dialogs::Key key, bool pinned) {
 	Expects(key.entry()->folderKnown());
 
 	const auto list = chatsListFor(key.entry())->pinned();
@@ -2109,8 +2109,8 @@ void Session::clearPinnedChats(Data::Folder *folder) {
 
 void Session::reorderTwoPinnedChats(
 		FilterId filterId,
-		const Dialogs::Key &key1,
-		const Dialogs::Key &key2) {
+		Dialogs::Key key1,
+		Dialogs::Key key2) {
 	Expects(key1.entry()->folderKnown() && key2.entry()->folderKnown());
 	Expects(filterId || (key1.entry()->folder() == key2.entry()->folder()));
 
@@ -2510,14 +2510,14 @@ bool Session::unreadBadgeMuted() const {
 	return computeUnreadBadgeMuted(_chatsList.unreadState());
 }
 
-int Session::unreadBadgeIgnoreOne(const Dialogs::Key &key) const {
+int Session::unreadBadgeIgnoreOne(Dialogs::Key key) const {
 	const auto remove = (key && key.entry()->inChatList())
 		? key.entry()->chatListUnreadState()
 		: Dialogs::UnreadState();
 	return computeUnreadBadge(_chatsList.unreadState() - remove);
 }
 
-bool Session::unreadBadgeMutedIgnoreOne(const Dialogs::Key &key) const {
+bool Session::unreadBadgeMutedIgnoreOne(Dialogs::Key key) const {
 	if (!Core::App().settings().includeMutedCounter()) {
 		return false;
 	}
@@ -3997,7 +3997,7 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 		return;
 	} else if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);
-		_contactsNoChatsList.del(key, mainRow);
+		_contactsNoChatsList.remove(key, mainRow);
 	} else {
 		event.moved = entry->adjustByPosInChatList(0, mainList);
 	}

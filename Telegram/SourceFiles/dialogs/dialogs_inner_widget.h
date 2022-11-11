@@ -192,6 +192,19 @@ private:
 		EmptyForum,
 	};
 
+	struct PinnedRow {
+		anim::value yadd;
+		crl::time animStartTime = 0;
+	};
+
+	struct FilterResult {
+		not_null<Row*> row;
+		int top = 0;
+
+		[[nodiscard]] Key key() const;
+		[[nodiscard]] int bottom() const;
+	};
+
 	Main::Session &session() const;
 
 	void dialogRowReplaced(Row *oldRow, Row *newRow);
@@ -220,6 +233,8 @@ private:
 	void clearIrrelevantState();
 	void selectByMouse(QPoint globalPosition);
 	void loadPeerPhotos();
+	void scrollToItem(int top, int height);
+	void scrollToDefaultSelected();
 	void setCollapsedPressed(int pressed);
 	void setPressed(Row *pressed);
 	void setHashtagPressed(int pressed);
@@ -283,13 +298,18 @@ private:
 	void fillSupportSearchMenu(not_null<Ui::PopupMenu*> menu);
 	void fillArchiveSearchMenu(not_null<Ui::PopupMenu*> menu);
 
-	int dialogsOffset() const;
-	int fixedOnTopCount() const;
-	int pinnedOffset() const;
-	int filteredOffset() const;
-	int peerSearchOffset() const;
-	int searchedOffset() const;
-	int searchInChatSkip() const;
+	void refreshShownList();
+	[[nodiscard]] int skipTopHeight() const;
+	[[nodiscard]] int dialogsOffset() const;
+	[[nodiscard]] int shownHeight(int till = -1) const;
+	[[nodiscard]] int fixedOnTopCount() const;
+	[[nodiscard]] int pinnedOffset() const;
+	[[nodiscard]] int filteredOffset() const;
+	[[nodiscard]] int filteredIndex(int y) const;
+	[[nodiscard]] int filteredHeight(int till = -1) const;
+	[[nodiscard]] int peerSearchOffset() const;
+	[[nodiscard]] int searchedOffset() const;
+	[[nodiscard]] int searchInChatSkip() const;
 
 	void paintCollapsedRows(
 		Painter &p,
@@ -339,12 +359,11 @@ private:
 	Ui::VideoUserpic *validateVideoUserpic(not_null<Row*> row);
 	Ui::VideoUserpic *validateVideoUserpic(not_null<History*> history);
 
+	Row *shownRowByKey(Key key);
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
 	void trackSearchResultsHistory(not_null<History*> history);
 	void trackSearchResultsForum(Data::Forum *forum);
-
-	[[nodiscard]] not_null<IndexedList*> shownDialogs() const;
 
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
@@ -363,6 +382,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
+	not_null<IndexedList*> _shownList;
 	FilterId _filterId = 0;
 	bool _mouseSelection = false;
 	std::optional<QPoint> _lastMousePosition;
@@ -376,7 +396,7 @@ private:
 	not_null<const style::DialogRow*> _st;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
-	int _skipTopDialogs = 0;
+	bool _skipTopDialog = false;
 	Row *_selected = nullptr;
 	Row *_pressed = nullptr;
 
@@ -384,10 +404,6 @@ private:
 	int _draggingIndex = -1;
 	int _aboveIndex = -1;
 	QPoint _dragStart;
-	struct PinnedRow {
-		anim::value yadd;
-		crl::time animStartTime = 0;
-	};
 	std::vector<PinnedRow> _pinnedRows;
 	Ui::Animations::Basic _pinnedShiftAnimation;
 	base::flat_set<Key> _pinnedOnDragStart;
@@ -405,7 +421,7 @@ private:
 	bool _hashtagDeleteSelected = false;
 	bool _hashtagDeletePressed = false;
 
-	std::vector<not_null<Row*>> _filterResults;
+	std::vector<FilterResult> _filterResults;
 	base::flat_map<Key, std::unique_ptr<Row>> _filterResultsGlobal;
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;

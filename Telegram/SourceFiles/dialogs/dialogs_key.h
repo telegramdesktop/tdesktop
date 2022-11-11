@@ -39,13 +39,13 @@ public:
 	explicit operator bool() const {
 		return (_value != nullptr);
 	}
-	not_null<Entry*> entry() const;
-	History *history() const;
-	Data::Folder *folder() const;
-	Data::ForumTopic *topic() const;
-	Data::Thread *thread() const;
-	History *owningHistory() const;
-	PeerData *peer() const;
+	[[nodiscard]] not_null<Entry*> entry() const;
+	[[nodiscard]] History *history() const;
+	[[nodiscard]] Data::Folder *folder() const;
+	[[nodiscard]] Data::ForumTopic *topic() const;
+	[[nodiscard]] Data::Thread *thread() const;
+	[[nodiscard]] History *owningHistory() const;
+	[[nodiscard]] PeerData *peer() const;
 
 	friend inline constexpr auto operator<=>(Key, Key) noexcept = default;
 

@@ -386,7 +386,7 @@ void ApiWrap::checkChatInvite(
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 	const auto &order = _session->data().pinnedChatsOrder(folder);
-	const auto input = [](const Dialogs::Key &key) {
+	const auto input = [](Dialogs::Key key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
 		} else if (const auto folder = key.folder()) {
@@ -409,7 +409,7 @@ void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 
 void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
 	const auto &order = _session->data().pinnedChatsOrder(forum);
-	const auto input = [](const Dialogs::Key &key) {
+	const auto input = [](Dialogs::Key key) {
 		if (const auto topic = key.topic()) {
 			return MTP_int(topic->rootId().bare);
 		}

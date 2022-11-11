@@ -56,6 +56,7 @@ enum class SortMode {
 struct PositionChange {
 	int from = -1;
 	int to = -1;
+	int height = 0;
 };
 
 struct UnreadState {

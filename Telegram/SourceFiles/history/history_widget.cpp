@@ -205,7 +205,7 @@ base::options::toggle AutoScrollInactiveChat({
 [[nodiscard]] rpl::producer<PeerData*> ActivePeerValue(
 		not_null<Window::SessionController*> controller) {
 	return controller->activeChatValue(
-	) | rpl::map([](const Dialogs::Key &key) {
+	) | rpl::map([](Dialogs::Key key) {
 		const auto history = key.history();
 		return history ? history->peer.get() : nullptr;
 	});
@@ -2530,7 +2530,7 @@ void HistoryWidget::refreshSilentToggle() {
 
 void HistoryWidget::setupScheduledToggle() {
 	controller()->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) -> rpl::producer<> {
+	) | rpl::map([=](Dialogs::Key key) -> rpl::producer<> {
 		if (const auto history = key.history()) {
 			return session().data().scheduledMessages().updates(history);
 		}

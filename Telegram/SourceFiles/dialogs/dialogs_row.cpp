@@ -143,9 +143,14 @@ void BasicRow::paintUserpic(
 		context.paused);
 }
 
-Row::Row(Key key, int pos) : _id(key), _pos(pos) {
+Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 	if (const auto history = key.history()) {
 		updateCornerBadgeShown(history->peer);
+		_height = history->peer->isForum()
+			? st::forumDialogRow.height
+			: st::defaultDialogRow.height;
+	} else {
+		_height = st::forumTopicRow.height;
 	}
 }
 
@@ -173,10 +178,11 @@ void Row::validateListEntryCache() const {
 void Row::setCornerBadgeShown(
 		bool shown,
 		Fn<void()> updateCallback) const {
-	if (_cornerBadgeShown == shown) {
+	const auto value = shown ? 1 : 0;
+	if (_cornerBadgeShown == value) {
 		return;
 	}
-	_cornerBadgeShown = shown;
+	_cornerBadgeShown = value;
 	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
 		_cornerBadgeUserpic->animation.change(
 			_cornerBadgeShown ? 1. : 0.,

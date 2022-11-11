@@ -134,7 +134,7 @@ void IndexedList::adjustByName(
 	}
 	for (auto ch : toRemove) {
 		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second.del(key, mainRow);
+			it->second.remove(key, mainRow);
 		}
 	}
 	if (!toAdd.empty()) {
@@ -171,7 +171,7 @@ void IndexedList::adjustNames(
 			history->removeChatListEntryByLetter(filterId, ch);
 		}
 		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second.del(key, mainRow);
+			it->second.remove(key, mainRow);
 		}
 	}
 	for (auto ch : toAdd) {
@@ -186,11 +186,11 @@ void IndexedList::adjustNames(
 	}
 }
 
-void IndexedList::del(Key key, Row *replacedBy) {
-	if (_list.del(key, replacedBy)) {
+void IndexedList::remove(Key key, Row *replacedBy) {
+	if (_list.remove(key, replacedBy)) {
 		for (const auto &ch : key.entry()->chatListFirstLetters()) {
-			if (auto it = _index.find(ch); it != _index.cend()) {
-				it->second.del(key, replacedBy);
+			if (const auto it = _index.find(ch); it != _index.cend()) {
+				it->second.remove(key, replacedBy);
 			}
 		}
 	}

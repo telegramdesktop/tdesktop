@@ -300,10 +300,10 @@ PositionChange Entry::adjustByPosInChatList(
 		not_null<MainList*> list) {
 	const auto links = chatListLinks(filterId);
 	Assert(links != nullptr);
-	const auto from = links->main->pos();
+	const auto from = links->main->top();
 	list->indexed()->adjustByDate(*links);
-	const auto to = links->main->pos();
-	return { from, to };
+	const auto to = links->main->top();
+	return { .from = from, .to = to, .height = links->main->height() };
 }
 
 void Entry::setChatListTimeId(TimeId date) {
@@ -315,7 +315,7 @@ void Entry::setChatListTimeId(TimeId date) {
 }
 
 int Entry::posInChatList(FilterId filterId) const {
-	return mainChatListLink(filterId)->pos();
+	return mainChatListLink(filterId)->index();
 }
 
 not_null<Row*> Entry::addToChatList(

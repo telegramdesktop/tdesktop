@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryItem;
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -57,7 +61,8 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
-	std::shared_ptr<Data::CloudImageView> &userpicView() const {
+	[[nodiscard]] auto userpicView() const
+	-> std::shared_ptr<Data::CloudImageView> & {
 		return _userpic;
 	}
 
@@ -68,11 +73,18 @@ private:
 };
 
 class List;
-class Row : public BasicRow {
+class Row final : public BasicRow {
 public:
 	explicit Row(std::nullptr_t) {
 	}
-	Row(Key key, int pos);
+	Row(Key key, int index, int top);
+
+	[[nodiscard]] int top() const {
+		return _top;
+	}
+	[[nodiscard]] int height() const {
+		return _height;
+	}
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
@@ -102,8 +114,8 @@ public:
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}
-	[[nodiscard]] int pos() const {
-		return _pos;
+	[[nodiscard]] int index() const {
+		return _index;
 	}
 	[[nodiscard]] uint64 sortKey(FilterId filterId) const;
 
@@ -139,11 +151,13 @@ private:
 		const Ui::PaintContext &context);
 
 	Key _id;
-	int _pos = 0;
-	mutable uint32 _listEntryCacheVersion = 0;
 	mutable Ui::Text::String _listEntryCache;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
-	mutable bool _cornerBadgeShown = false;
+	int _top = 0;
+	int _height = 0;
+	int _index = 0;
+	mutable int _listEntryCacheVersion : 31 = 0;
+	mutable int _cornerBadgeShown : 1 = 0;
 
 };
 

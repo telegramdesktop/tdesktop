@@ -245,6 +245,7 @@ template <typename PaintItemCallback>
 void PaintRow(
 		Painter &p,
 		not_null<const BasicRow*> row,
+		QRect geometry,
 		not_null<Entry*> entry,
 		VideoUserpic *videoUserpic,
 		PeerData *from,
@@ -264,7 +265,6 @@ void PaintRow(
 		draft = nullptr;
 	}
 
-	auto fullRect = QRect(0, 0, context.width, context.st->height);
 	auto bg = context.active
 		? st::dialogsBgActive
 		: context.selected
@@ -273,7 +273,7 @@ void PaintRow(
 	auto ripple = context.active
 		? st::dialogsRippleBgActive
 		: st::dialogsRippleBg;
-	p.fillRect(fullRect, bg);
+	p.fillRect(geometry, bg);
 	row->paintRipple(p, 0, 0, context.width, &ripple->c);
 
 	const auto history = entry->asHistory();
@@ -932,6 +932,7 @@ void RowPainter::Paint(
 	PaintRow(
 		p,
 		row,
+		QRect(0, 0, context.width, row->height()),
 		entry,
 		videoUserpic,
 		from,
@@ -1029,6 +1030,7 @@ void RowPainter::Paint(
 	PaintRow(
 		p,
 		row,
+		QRect(0, 0, context.width, context.st->height),
 		entry,
 		nullptr,
 		from,

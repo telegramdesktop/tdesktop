@@ -363,11 +363,8 @@ public:
 		not_null<Forum*> forum) const;
 	[[nodiscard]] const std::vector<Dialogs::Key> &pinnedChatsOrder(
 		FilterId filterId) const;
-	void setChatPinned(
-		const Dialogs::Key &key,
-		FilterId filterId,
-		bool pinned);
-	void setPinnedFromEntryList(const Dialogs::Key &key, bool pinned);
+	void setChatPinned(Dialogs::Key key, FilterId filterId, bool pinned);
+	void setPinnedFromEntryList(Dialogs::Key key, bool pinned);
 	void clearPinnedChats(Folder *folder);
 	void applyPinnedChats(
 		Folder *folder,
@@ -377,8 +374,8 @@ public:
 		const QVector<MTPint> &list);
 	void reorderTwoPinnedChats(
 		FilterId filterId,
-		const Dialogs::Key &key1,
-		const Dialogs::Key &key2);
+		Dialogs::Key key1,
+		Dialogs::Key key2);
 
 	void setSuggestToGigagroup(not_null<ChannelData*> group, bool suggest);
 	[[nodiscard]] bool suggestToGigagroup(
@@ -474,9 +471,8 @@ public:
 
 	[[nodiscard]] int unreadBadge() const;
 	[[nodiscard]] bool unreadBadgeMuted() const;
-	[[nodiscard]] int unreadBadgeIgnoreOne(const Dialogs::Key &key) const;
-	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(
-		const Dialogs::Key &key) const;
+	[[nodiscard]] int unreadBadgeIgnoreOne(Dialogs::Key key) const;
+	[[nodiscard]] bool unreadBadgeMutedIgnoreOne(Dialogs::Key key) const;
 	[[nodiscard]] int unreadOnlyMutedBadge() const;
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 	void notifyUnreadBadgeChanged();
