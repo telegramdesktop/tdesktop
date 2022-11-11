@@ -536,7 +536,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			const auto reorderingPinned = (_aboveIndex >= 0)
 				&& !_pinnedRows.empty();
 			const auto reorderingIndex = promoted + _aboveIndex;
-			const auto reorderingRow = (reorderingIndex < list.size())
+			const auto reorderingRow = (reorderingIndex >= 0
+				&& reorderingIndex < list.size())
 				? (list.cbegin() + reorderingIndex)->get()
 				: nullptr;
 			if (reorderingRow) {

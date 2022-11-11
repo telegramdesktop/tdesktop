@@ -198,6 +198,9 @@ private:
 	};
 
 	struct FilterResult {
+		FilterResult(not_null<Row*> row) : row(row) {
+		}
+
 		not_null<Row*> row;
 		int top = 0;
 

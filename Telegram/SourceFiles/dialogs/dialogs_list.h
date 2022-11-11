@@ -64,8 +64,7 @@ public:
 		return cfind(value);
 	}
 	[[nodiscard]] iterator find(Row *value) { return cfind(value); }
-	[[nodiscard]] const_iterator findByY(int y) const;
-	[[nodiscard]] iterator findByY(int y) { return findByY(y); }
+	[[nodiscard]] iterator findByY(int y) const;
 
 private:
 	void adjustByName(not_null<Row*> row);

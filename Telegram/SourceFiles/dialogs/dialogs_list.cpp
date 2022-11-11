@@ -164,7 +164,7 @@ Row *List::rowAtY(int y) const {
 	return (top <= y && bottom > y) ? row.get() : nullptr;
 }
 
-List::const_iterator List::findByY(int y) const {
+List::iterator List::findByY(int y) const {
 	return ranges::lower_bound(_rows, y, ranges::less(), [](const Row *row) {
 		return row->top() + row->height();
 	});
