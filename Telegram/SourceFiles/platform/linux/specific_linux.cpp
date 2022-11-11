@@ -114,7 +114,7 @@ static void t_desktop_application_init(TDesktopApplication *application) {
 namespace Platform {
 namespace {
 
-constexpr auto kDesktopFile = ":/misc/telegramdesktop.desktop"_cs;
+constexpr auto kDesktopFile = ":/misc/org.telegram.desktop.desktop"_cs;
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 void PortalAutostart(bool start, bool silent) {
@@ -481,6 +481,21 @@ bool GenerateDesktopFile(
 			DEBUG_LOG(("App Info: removing old .desktop files"));
 			QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
 			QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
+
+			const auto appimagePath = qsl("file://%1%2").arg(
+				cExeDir(),
+				cExeName()).toUtf8();
+
+			char md5Hash[33] = { 0 };
+			hashMd5Hex(
+				appimagePath.constData(),
+				appimagePath.size(),
+				md5Hash);
+
+			QFile::remove(qsl("%1appimagekit_%2-%3.desktop").arg(
+				targetPath,
+				md5Hash,
+				AppName.utf16().replace(' ', '_')));
 		}
 
 		return true;
@@ -647,7 +662,11 @@ int psFixPrevious() {
 namespace Platform {
 
 void start() {
-	QGuiApplication::setDesktopFileName([] {
+	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+	char h[33] = { 0 };
+	hashMd5Hex(d.constData(), d.size(), h);
+
+	QGuiApplication::setDesktopFileName([&] {
 		if (KSandbox::isFlatpak()) {
 			return qEnvironmentVariable("FLATPAK_ID") + qsl(".desktop");
 		}
@@ -659,23 +678,11 @@ void start() {
 				+ qsl(".desktop");
 		}
 
-		if (!Core::UpdaterDisabled() && !cExeName().isEmpty()) {
-			const auto appimagePath = qsl("file://%1%2").arg(
-				cExeDir(),
-				cExeName()).toUtf8();
-
-			char md5Hash[33] = { 0 };
-			hashMd5Hex(
-				appimagePath.constData(),
-				appimagePath.size(),
-				md5Hash);
-
-			return qsl("appimagekit_%1-%2.desktop").arg(
-				md5Hash,
-				AppName.utf16().replace(' ', '_'));
+		if (!Core::UpdaterDisabled()) {
+			return qsl("org.telegram.desktop.%1.desktop").arg(h);
 		}
 
-		return qsl("telegramdesktop.desktop");
+		return qsl("org.telegram.desktop.desktop");
 	}());
 
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
@@ -702,10 +709,6 @@ void start() {
 		"this may lead to font issues.");
 #endif // DESKTOP_APP_USE_PACKAGED_FONTS
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
-	const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
-	char h[33] = { 0 };
-	hashMd5Hex(d.constData(), d.size(), h);
 
 	Webview::WebKit2Gtk::SetSocketPath(qsl("%1/%2-%3-webview-%4").arg(
 		QDir::tempPath(),

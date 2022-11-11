@@ -17,7 +17,7 @@ apps:
   telegram-desktop:
     command: bin/desktop-launch telegram-desktop
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegramdesktop.desktop
+    desktop: usr/share/applications/org.telegram.desktop.desktop
     environment:
       # Tell glib to use portals on file associations handling.
       GTK_USE_PORTAL: 1
@@ -86,7 +86,7 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegramdesktop.metainfo.xml]
+    parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     build-packages:
@@ -142,7 +142,7 @@ parts:
 
       craftctl set version="$version"
 
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
+      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/org.telegram.desktop.desktop
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
