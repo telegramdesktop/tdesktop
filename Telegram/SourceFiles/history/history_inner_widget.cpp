@@ -52,6 +52,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/premium_preview_box.h"
+#include "boxes/translate_box.h"
 #include "chat_helpers/message_field.h"
 #include "chat_helpers/emoji_interactions.h"
 #include "history/history_widget.h"
@@ -2267,6 +2268,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					: tr::lng_context_copy_selected(tr::now)),
 				[=] { copySelectedText(); },
 				&st::menuIconCopy);
+			_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+				_controller->show(Box(
+					Ui::TranslateBox,
+					item->history()->peer,
+					MsgId(),
+					getSelectedText().rich));
+			}, &st::menuIconTranslate);
 		}
 		addItemActions(item, item);
 		if (!selectedState.count) {
@@ -2358,6 +2366,13 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					[=] { copySelectedText(); },
 					&st::menuIconCopy);
 			}
+			_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+				_controller->show(Box(
+					Ui::TranslateBox,
+					item->history()->peer,
+					MsgId(),
+					getSelectedText().rich));
+			}, &st::menuIconTranslate);
 			addItemActions(item, item);
 		} else {
 			addItemActions(item, albumPartItem);
@@ -2414,6 +2429,18 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
 						copyContextText(itemId);
 					}, &st::menuIconCopy);
+				}
+				if (!item->isService()
+					&& view
+					&& actionText.isEmpty()
+					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
+					_menu->addAction(tr::lng_context_translate(tr::now), [=] {
+						_controller->show(Box(
+							Ui::TranslateBox,
+							item->history()->peer,
+							item->fullId().msg,
+							item->originalText()));
+					}, &st::menuIconTranslate);
 				}
 			}
 		}
