@@ -1375,6 +1375,7 @@ void ComposeControls::init() {
 		if (_history && updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
+			orderControls();
 		}
 		registerDraftSource();
 	}, _wrap->lifetime());
@@ -2064,6 +2065,7 @@ void ComposeControls::initSendAsButton() {
 		if (updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
+			orderControls();
 		}
 	}, _wrap->lifetime());
 }

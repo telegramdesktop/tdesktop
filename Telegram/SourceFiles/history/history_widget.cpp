@@ -2444,6 +2444,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	_editMsgId = msgId;
 	if (_history) {
 		refreshSendAsToggle();
+		orderWidgets();
 	}
 	registerDraftSource();
 }
@@ -2568,6 +2569,7 @@ void HistoryWidget::setupSendAsToggle() {
 		refreshSendAsToggle();
 		updateControlsVisibility();
 		updateControlsGeometry();
+		orderWidgets();
 	}, lifetime());
 }
 
