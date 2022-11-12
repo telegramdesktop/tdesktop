@@ -7,10 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+class PeerData;
+
 namespace Ui {
 
 class GenericBox;
 
-void AboutSponsoredBox(not_null<Ui::GenericBox*> box);
+void TranslateBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<PeerData*> peer,
+	MsgId msgId,
+	TextWithEntities text);
 
 } // namespace Ui

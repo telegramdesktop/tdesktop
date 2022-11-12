@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/about_sponsored_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
