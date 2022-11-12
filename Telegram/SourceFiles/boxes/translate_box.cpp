@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
+#include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -145,9 +146,21 @@ void TranslateBox(
 	translated->entity()->setSelectable(true);
 	translated->hide(anim::type::instant);
 
+	constexpr auto kMaxLines = 3;
+	container->resizeToWidth(box->width());
+	const auto loading = box->addRow(object_ptr<SlideWrap<RpWidget>>(
+		box,
+		CreateLoadingTextWidget(
+			box,
+			st::aboutLabel,
+			std::min(original->entity()->height() / lineHeight, kMaxLines),
+			rpl::single(rtl()))));
+	loading->show(anim::type::instant);
+
 	const auto showText = [=](const QString &text) {
 		translated->entity()->setText(text);
-		translated->show(anim::type::normal);
+		translated->show(anim::type::instant);
+		loading->hide(anim::type::instant);
 	};
 
 	api->request(MTPmessages_TranslateText(
