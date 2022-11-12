@@ -258,11 +258,6 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 }
 
 void GetInhibited(Fn<void(bool)> callback) {
-	if (!CurrentCapabilities.contains(qsl("inhibitions"))) {
-		crl::on_main([=] { callback(false); });
-		return;
-	}
-
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
 			Gio::DBus::BusType::SESSION);
@@ -947,50 +942,52 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 			.arg(capabilities.join(", ")));
 	}
 
-	Noexcept([&] {
-		_dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::SESSION);
-	});
+	if (capabilities.contains(qsl("inhibitions"))) {
+		Noexcept([&] {
+			_dbusConnection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::SESSION);
+		});
 
-	if (!_dbusConnection) {
-		return;
-	}
+		if (!_dbusConnection) {
+			return;
+		}
 
-	const auto weak = base::make_weak(this);
-	GetInhibited(crl::guard(weak, [=](bool result) {
-		_inhibited = result;
-	}));
+		const auto weak = base::make_weak(this);
+		GetInhibited(crl::guard(weak, [=](bool result) {
+			_inhibited = result;
+		}));
 
-	_inhibitedSignalId = _dbusConnection->signal_subscribe(
-		[=](
-				const Glib::RefPtr<Gio::DBus::Connection> &connection,
-				const Glib::ustring &sender_name,
-				const Glib::ustring &object_path,
-				const Glib::ustring &interface_name,
-				const Glib::ustring &signal_name,
-				Glib::VariantContainerBase parameters) {
-			Noexcept([&] {
-				const auto interface = GlibVariantCast<Glib::ustring>(
-					parameters.get_child(0));
+		_inhibitedSignalId = _dbusConnection->signal_subscribe(
+			[=](
+					const Glib::RefPtr<Gio::DBus::Connection> &connection,
+					const Glib::ustring &sender_name,
+					const Glib::ustring &object_path,
+					const Glib::ustring &interface_name,
+					const Glib::ustring &signal_name,
+					Glib::VariantContainerBase parameters) {
+				Noexcept([&] {
+					const auto interface = GlibVariantCast<Glib::ustring>(
+						parameters.get_child(0));
 
-				if (interface != kInterface.data()) {
-					return;
-				}
+					if (interface != kInterface.data()) {
+						return;
+					}
 
-				const auto inhibited = GlibVariantCast<bool>(
-					GlibVariantCast<
-						std::map<Glib::ustring, Glib::VariantBase>
-				>(parameters.get_child(1)).at("Inhibited"));
+					const auto inhibited = GlibVariantCast<bool>(
+						GlibVariantCast<
+							std::map<Glib::ustring, Glib::VariantBase>
+					>(parameters.get_child(1)).at("Inhibited"));
 
-				crl::on_main(weak, [=] {
-					_inhibited = inhibited;
+					crl::on_main(weak, [=] {
+						_inhibited = inhibited;
+					});
 				});
-			});
-		},
-		std::string(kService),
-		std::string(kPropertiesInterface),
-		"PropertiesChanged",
-		std::string(kObjectPath));
+			},
+			std::string(kService),
+			std::string(kPropertiesInterface),
+			"PropertiesChanged",
+			std::string(kObjectPath));
+	}
 }
 
 void Manager::Private::showNotification(
