@@ -22,9 +22,63 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
 #include "styles/style_layers.h"
+#include "styles/style_settings.h" // settingsSubsectionTitlePadding.
+
+#include <QLocale>
 
 namespace Ui {
 namespace {
+
+[[nodiscard]] std::vector<QLocale::Language> Languages() {
+	return std::vector<QLocale::Language>{
+		QLocale::English,
+		QLocale::Albanian,
+		QLocale::Armenian,
+		QLocale::Bulgarian,
+		QLocale::Catalan,
+		QLocale::Chinese,
+		QLocale::Croatian,
+		QLocale::Czech,
+		QLocale::Danish,
+		QLocale::Dutch,
+		QLocale::Estonian,
+		QLocale::French,
+		QLocale::German,
+		QLocale::Greek,
+		QLocale::Hebrew,
+		QLocale::Hindi,
+		QLocale::Hungarian,
+		QLocale::Indonesian,
+		QLocale::Italian,
+		QLocale::Japanese,
+		QLocale::Korean,
+		QLocale::Latvian,
+		QLocale::Lithuanian,
+		QLocale::Persian,
+		QLocale::Polish,
+		QLocale::Portuguese,
+		QLocale::Romanian,
+		QLocale::Russian,
+		QLocale::Serbian,
+		QLocale::Slovak,
+		QLocale::Slovenian,
+		QLocale::Spanish,
+		QLocale::Swedish,
+		QLocale::Tajik,
+		QLocale::Tamil,
+		QLocale::Turkish,
+		QLocale::Ukrainian,
+		QLocale::Vietnamese,
+		QLocale::Welsh,
+	};
+}
+
+[[nodiscard]] QString LanguageName(const QLocale &locale) {
+	return (locale.language() == QLocale::English
+			&& locale.country() == QLocale::UnitedStates)
+		? u"English"_q
+		: locale.nativeLanguageName();
+}
 
 class ShowButton : public RpWidget {
 public:
@@ -83,9 +137,14 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
+	const auto defaultId = Lang::LanguageIdOrDefault(Lang::Id());
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
+	struct State {
+		rpl::event_stream<QLocale> locale;
+	};
+	const auto state = box->lifetime().make_state<State>();
 
 	using Flag = MTPmessages_translateText::Flag;
 	const auto flags = msgId
@@ -98,9 +157,9 @@ void TranslateBox(
 	const auto lineHeight = stLabel.style.lineHeight;
 
 	Settings::AddSkip(container);
-	Settings::AddSubsectionTitle(
-		container,
-		tr::lng_translate_box_original());
+	// Settings::AddSubsectionTitle(
+	// 	container,
+	// 	tr::lng_translate_box_original());
 
 	const auto original = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
 		box,
@@ -136,9 +195,20 @@ void TranslateBox(
 	Settings::AddDivider(container);
 	Settings::AddSkip(container);
 
-	Settings::AddSubsectionTitle(
-		container,
-		rpl::single(Lang::GetInstance().nativeName()));
+	{
+		const auto padding = st::settingsSubsectionTitlePadding;
+		const auto subtitle = Settings::AddSubsectionTitle(
+			container,
+			state->locale.events() | rpl::map(LanguageName));
+
+		// Workaround.
+		state->locale.events(
+		) | rpl::start_with_next([=] {
+			subtitle->resizeToWidth(container->width()
+				- padding.left()
+				- padding.right());
+		}, subtitle->lifetime());
+	}
 
 	const auto translated = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
 		box,
@@ -154,7 +224,9 @@ void TranslateBox(
 			box,
 			st::aboutLabel,
 			std::min(original->entity()->height() / lineHeight, kMaxLines),
-			rpl::single(rtl()))));
+			state->locale.events() | rpl::map([=](const QLocale &locale) {
+				return locale.textDirection() == Qt::RightToLeft;
+			}))));
 	loading->show(anim::type::instant);
 
 	const auto showText = [=](const QString &text) {
@@ -163,24 +235,52 @@ void TranslateBox(
 		loading->hide(anim::type::instant);
 	};
 
-	api->request(MTPmessages_TranslateText(
-		MTP_flags(flags),
-		msgId ? peer->input : MTP_inputPeerEmpty(),
-		MTP_int(msgId),
-		MTP_string(text.text),
-		MTPstring(),
-		MTP_string(Lang::LanguageIdOrDefault(Lang::Id()))
-	)).done([=](const MTPmessages_TranslatedText &result) {
-		const auto text = result.match([](
-				const MTPDmessages_translateNoResult &data) {
-			return tr::lng_translate_box_error(tr::now);
-		}, [](const MTPDmessages_translateResultText &data) {
-			return qs(data.vtext());
-		});
-		showText(text);
-	}).fail([=](const MTP::Error &error) {
-		showText(tr::lng_translate_box_error(tr::now));
-	}).send();
+	const auto send = [=](const QString &toLang) {
+		api->request(MTPmessages_TranslateText(
+			MTP_flags(flags),
+			msgId ? peer->input : MTP_inputPeerEmpty(),
+			MTP_int(msgId),
+			MTP_string(text.text),
+			MTPstring(),
+			MTP_string(toLang)
+		)).done([=](const MTPmessages_TranslatedText &result) {
+			const auto text = result.match([](
+					const MTPDmessages_translateNoResult &data) {
+				return tr::lng_translate_box_error(tr::now);
+			}, [](const MTPDmessages_translateResultText &data) {
+				return qs(data.vtext());
+			});
+			showText(text);
+		}).fail([=](const MTP::Error &error) {
+			showText(tr::lng_translate_box_error(tr::now));
+		}).send();
+	};
+	send(defaultId);
+	state->locale.fire(QLocale(defaultId));
+
+	box->addLeftButton(tr::lng_settings_language(), [=] {
+		if (loading->toggled()) {
+			return;
+		}
+		Ui::BoxShow(box).showBox(Box([=](not_null<GenericBox*> b) {
+			b->setTitle(tr::lng_languages());
+			for (const auto &lang : Languages()) {
+				const auto locale = QLocale(lang);
+				const auto button = Settings::AddButton(
+					b->verticalLayout(),
+					rpl::single(LanguageName(locale)),
+					st::defaultSettingsButton);
+				button->setClickedCallback([=] {
+					state->locale.fire_copy(locale);
+					loading->show(anim::type::instant);
+					translated->hide(anim::type::instant);
+					send(locale.name().mid(0, 2));
+					b->closeBox();
+				});
+			}
+			b->addButton(tr::lng_cancel(), [=] { b->closeBox(); });
+		}));
+	});
 
 }
 
