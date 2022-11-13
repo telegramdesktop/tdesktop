@@ -18,6 +18,7 @@ DialogRow {
 	textLeft: pixels;
 	textTop: pixels;
 	topicsSkip: pixels;
+	topicsSkipBig: pixels;
 	topicsHeight: pixels;
 }
 
@@ -77,8 +78,17 @@ forumDialogRow: DialogRow(defaultDialogRow) {
 	height: 80px;
 	textTop: 32px;
 	topicsSkip: 8px;
-	topicsHeight: 20px;
+	topicsSkipBig: 14px;
+	topicsHeight: 21px;
 }
+
+forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
+forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
+forumDialogJumpArrowSkip: 8px;
+forumDialogJumpArrowLeft: 3px;
+forumDialogJumpArrowTop: 3px;
+forumDialogJumpPadding: margins(8px, 3px, 8px, 3px);
+forumDialogJumpRadius: 11px;
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
@@ -483,7 +493,3 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
 }
-
-dialogsTopicArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgService }};
-dialogsTopicArrowSkip: 13px;
-dialogsTopicArrowTop: 4px;

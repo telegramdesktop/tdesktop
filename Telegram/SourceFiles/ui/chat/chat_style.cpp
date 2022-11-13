@@ -480,20 +480,9 @@ const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
 
 const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 	if (_serviceBgCornersInverted.p[0].isNull()) {
-		const auto radius = HistoryServiceMsgInvertedRadius();
-		const auto size = radius * style::DevicePixelRatio();
-		auto circle = style::colorizeImage(
-			style::createInvertedCircleMask(radius * 2),
+		_serviceBgCornersInverted = Ui::PrepareInvertedCornerPixmaps(
+			HistoryServiceMsgInvertedRadius(),
 			msgServiceBg());
-		circle.setDevicePixelRatio(style::DevicePixelRatio());
-		const auto fill = [&](int index, int xoffset, int yoffset) {
-			_serviceBgCornersInverted.p[index] = PixmapFromImage(
-				circle.copy(QRect(xoffset, yoffset, size, size)));
-		};
-		fill(0, 0, 0);
-		fill(1, size, 0);
-		fill(2, size, size);
-		fill(3, 0, size);
 	}
 	return _serviceBgCornersInverted;
 }

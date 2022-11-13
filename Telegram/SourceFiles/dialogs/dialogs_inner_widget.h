@@ -49,6 +49,7 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 class VideoUserpic;
 struct PaintContext;
+struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -397,6 +398,7 @@ private:
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
 	not_null<const style::DialogRow*> _st;
+	mutable std::unique_ptr<Ui::TopicJumpCache> _topicJumpCache;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
 	bool _skipTopDialog = false;

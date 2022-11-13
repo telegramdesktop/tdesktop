@@ -220,7 +220,7 @@ const CornersPixmaps &CachedCornerPixmaps(CachedRoundCorners index) {
 	return Corners[index];
 }
 
-CornersPixmaps PrepareCornerPixmaps(int32 radius, style::color bg, const style::color *sh) {
+CornersPixmaps PrepareCornerPixmaps(int radius, style::color bg, const style::color *sh) {
 	auto images = PrepareCorners(radius, bg, sh);
 	auto result = CornersPixmaps();
 	for (int j = 0; j < 4; ++j) {
@@ -238,6 +238,24 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 		return PrepareCornerPixmaps(st::roundRadiusLarge, bg, sh);
 	}
 	Unexpected("Image round radius in PrepareCornerPixmaps.");
+}
+
+CornersPixmaps PrepareInvertedCornerPixmaps(int radius, style::color bg) {
+	const auto size = radius * style::DevicePixelRatio();
+	auto circle = style::colorizeImage(
+		style::createInvertedCircleMask(radius * 2),
+		bg);
+	circle.setDevicePixelRatio(style::DevicePixelRatio());
+	auto result = CornersPixmaps();
+	const auto fill = [&](int index, int xoffset, int yoffset) {
+		result.p[index] = PixmapFromImage(
+			circle.copy(QRect(xoffset, yoffset, size, size)));
+	};
+	fill(0, 0, 0);
+	fill(1, size, 0);
+	fill(2, size, size);
+	fill(3, 0, size);
+	return result;
 }
 
 [[nodiscard]] int CachedCornerRadiusValue(CachedCornerRadius tag) {

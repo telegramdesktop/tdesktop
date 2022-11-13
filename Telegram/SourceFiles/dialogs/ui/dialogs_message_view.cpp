@@ -127,15 +127,32 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 	return (_textCachedFor == item.get());
 }
 
-bool MessageView::prepared(not_null<const HistoryItem*> item) const {
-	return (_textCachedFor == item.get());
+bool MessageView::prepared(
+		not_null<const HistoryItem*> item,
+		Data::Forum *forum) const {
+	return (_textCachedFor == item.get())
+		&& (!forum
+			|| (_topics
+				&& _topics->forum() == forum
+				&& _topics->prepared()));
 }
 
 void MessageView::prepare(
 		not_null<const HistoryItem*> item,
+		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
-	const auto validateTopics = !options.ignoreTopic;
+	if (!forum) {
+		_topics = nullptr;
+	} else if (!_topics || _topics->forum() != forum) {
+		_topics = std::make_unique<TopicsView>(forum);
+		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	} else if (!_topics->prepared()) {
+		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	}
+	if (_textCachedFor == item.get()) {
+		return;
+	}
 	options.existing = &_imagesCache;
 	options.ignoreTopic = true;
 	auto preview = item->toPreview(options);
@@ -183,17 +200,21 @@ void MessageView::prepare(
 	}
 }
 
-void MessageView::prepareTopics(
-		not_null<Data::Forum*> forum,
-		const QRect &geometry,
-		Fn<void()> customEmojiRepaint) {
-	if (!_topics || _topics->forum() != forum) {
-		_topics = std::make_unique<TopicsView>(forum);
+int MessageView::countWidth() const {
+	auto result = 0;
+	if (!_senderCache.isEmpty()) {
+		result += _senderCache.maxWidth();
+		if (!_imagesCache.empty()) {
+			result += st::dialogsMiniPreviewSkip
+				+ st::dialogsMiniPreviewRight;
+		}
 	}
-	_topics->prepare(
-		geometry,
-		&st::forumDialogRow,
-		std::move(customEmojiRepaint));
+	if (!_imagesCache.empty()) {
+		result += (_imagesCache.size()
+			* (st::dialogsMiniPreview + st::dialogsMiniPreviewSkip))
+			+ st::dialogsMiniPreviewRight;
+	}
+	return result + _textCache.maxWidth();
 }
 
 void MessageView::paint(
@@ -223,11 +244,22 @@ void MessageView::paint(
 			: st::dialogsTextPalette));
 
 	auto rect = geometry;
+	const auto checkJump = withTopic && !context.active;
+	const auto jump1 = checkJump ? _topics->jumpToTopicWidth() : 0;
+	if (jump1) {
+		paintJumpToLast(p, rect, context, jump1);
+	}
+
 	if (withTopic) {
 		_topics->paint(p, rect, context);
 		rect.setTop(rect.top() + context.st->topicsHeight);
 	}
 
+	auto finalRight = rect.x() + rect.width();
+	if (jump1) {
+		rect.setWidth(rect.width() - st::forumDialogJumpArrowSkip);
+		finalRight -= st::forumDialogJumpArrowSkip;
+	}
 	const auto lines = rect.height() / st::dialogsTextFont->height;
 	if (!_senderCache.isEmpty()) {
 		_senderCache.draw(p, {
@@ -258,18 +290,141 @@ void MessageView::paint(
 	if (!_imagesCache.empty()) {
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
-	if (rect.isEmpty()) {
+	if (!rect.isEmpty()) {
+		_textCache.draw(p, {
+			.position = rect.topLeft(),
+			.availableWidth = rect.width(),
+			.palette = palette,
+			.spoiler = Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.elisionLines = lines,
+		});
+		rect.setLeft(rect.x() + _textCache.maxWidth());
+	}
+	if (jump1) {
+		const auto x = (rect.width() > st::forumDialogJumpArrowSkip)
+			? rect.x()
+			: finalRight;
+		const auto add = st::forumDialogJumpArrowLeft;
+		const auto y = rect.y() + st::forumDialogJumpArrowTop;
+		(context.selected
+			? st::forumDialogJumpArrowOver
+			: st::forumDialogJumpArrow).paint(p, x + add, y, context.width);
+	}
+}
+
+void MessageView::paintJumpToLast(
+		Painter &p,
+		const QRect &rect,
+		const PaintContext &context,
+		int width1) const {
+	if (!context.topicJumpCache) {
 		return;
 	}
-	_textCache.draw(p, {
-		.position = rect.topLeft(),
-		.availableWidth = rect.width(),
-		.palette = palette,
-		.spoiler = Text::DefaultSpoilerCache(),
-		.now = context.now,
-		.paused = context.paused,
-		.elisionLines = lines,
+	FillJumpToLastBg(p, {
+		.st = context.st,
+		.corners = (context.selected
+			? &context.topicJumpCache->over
+			: &context.topicJumpCache->corners),
+		.geometry = rect,
+		.bg = (context.selected
+			? st::dialogsRippleBg
+			: st::dialogsBgOver),
+		.width1 = width1,
+		.width2 = countWidth() + st::forumDialogJumpArrowSkip,
 	});
+}
+
+void FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
+	const auto availableWidth = context.geometry.width();
+	const auto use1 = std::min(context.width1, availableWidth);
+	const auto use2 = std::min(context.width2, availableWidth);
+	const auto padding = st::forumDialogJumpPadding;
+	const auto radius = st::forumDialogJumpRadius;
+	const auto &bg = context.bg;
+	auto &normal = context.corners->normal;
+	auto &inverted = context.corners->inverted;
+	auto &small = context.corners->small;
+	auto hq = PainterHighQualityEnabler(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(bg);
+	const auto origin = context.geometry.topLeft();
+	const auto delta = std::abs(use1 - use2);
+	if (delta <= context.st->topicsSkip / 2) {
+		if (normal.p[0].isNull()) {
+			normal = Ui::PrepareCornerPixmaps(radius, bg);
+		}
+		const auto w = std::max(use1, use2);
+		const auto h = context.st->topicsHeight + st::normalFont->height;
+		const auto fill = QRect(origin, QSize(w, h));
+		Ui::FillRoundRect(p, fill.marginsAdded(padding), bg, normal);
+	} else {
+		const auto h1 = context.st->topicsHeight;
+		const auto h2 = st::normalFont->height;
+		const auto hmin = std::min(h1, h2);
+		const auto wantedInvertedRadius = hmin - radius;
+		const auto invertedr = std::min(wantedInvertedRadius, delta / 2);
+		const auto smallr = std::min(radius, delta - invertedr);
+		const auto smallkey = (use1 < use2) ? smallr : (-smallr);
+		if (normal.p[0].isNull()) {
+			normal = Ui::PrepareCornerPixmaps(radius, bg);
+		}
+		if (inverted.p[0].isNull()
+			|| context.corners->invertedRadius != invertedr) {
+			context.corners->invertedRadius = invertedr;
+			inverted = Ui::PrepareInvertedCornerPixmaps(invertedr, bg);
+		}
+		if (smallr != radius
+			&& (small.isNull() || context.corners->smallKey != smallkey)) {
+			context.corners->smallKey = smallr;
+			auto pixmaps = Ui::PrepareCornerPixmaps(smallr, bg);
+			small = pixmaps.p[(use1 < use2) ? 1 : 3];
+		}
+		const auto rect1 = QRect(origin, QSize(use1, h1));
+		auto no1 = normal;
+		no1.p[2] = QPixmap();
+		if (use1 < use2) {
+			no1.p[3] = QPixmap();
+		} else if (smallr != radius) {
+			no1.p[3] = small;
+		}
+		auto fill1 = rect1.marginsAdded({
+			padding.left(),
+			padding.top(),
+			padding.right(),
+			(use1 < use2 ? -padding.top() : padding.bottom()),
+		});
+		Ui::FillRoundRect(p, fill1, bg, no1);
+		if (use1 < use2) {
+			p.drawPixmap(
+				fill1.x() + fill1.width(),
+				fill1.y() + fill1.height() - invertedr,
+				inverted.p[3]);
+		}
+		const auto add = QPoint(0, h1);
+		const auto rect2 = QRect(origin + add, QSize(use2, h2));
+		const auto fill2 = rect2.marginsAdded({
+			padding.left(),
+			(use2 < use1 ? -padding.bottom() : padding.top()),
+			padding.right(),
+			padding.bottom(),
+		});
+		auto no2 = normal;
+		no2.p[0] = QPixmap();
+		if (use2 < use1) {
+			no2.p[1] = QPixmap();
+		} else if (smallr != radius) {
+			no2.p[1] = small;
+		}
+		Ui::FillRoundRect(p, fill2, bg, no2);
+		if (use2 < use1) {
+			p.drawPixmap(
+				fill2.x() + fill2.width(),
+				fill2.y(),
+				inverted.p[0]);
+		}
+	}
 }
 
 HistoryView::ItemPreview PreviewWithSender(

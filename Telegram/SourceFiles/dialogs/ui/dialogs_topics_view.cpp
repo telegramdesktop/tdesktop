@@ -29,47 +29,76 @@ TopicsView::TopicsView(not_null<Data::Forum*> forum)
 
 TopicsView::~TopicsView() = default;
 
-void TopicsView::prepare(
-		const QRect &geometry,
-		not_null<const style::DialogRow*> st,
-		Fn<void()> customEmojiRepaint) {
+bool TopicsView::prepared() const {
+	return (_version == _forum->recentTopicsListVersion());
+}
+
+void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
+	const auto &list = _forum->recentTopics();
+	_version = _forum->recentTopicsListVersion();
+	_titles.reserve(list.size());
 	auto index = 0;
-	auto available = geometry.width();
-	for (const auto &topic : _forum->recentTopics()) {
-		if (available <= 0) {
-			break;
-		} else if (_titles.size() == index) {
+	for (const auto &topic : list) {
+		const auto from = begin(_titles) + index;
+		const auto rootId = topic->rootId();
+		const auto i = ranges::find(
+			from,
+			end(_titles),
+			rootId,
+			&Title::topicRootId);
+		if (i != end(_titles)) {
+			if (i != from) {
+				ranges::rotate(from, i, i + 1);
+			}
+		} else if (index >= _titles.size()) {
 			_titles.emplace_back();
 		}
-		auto &title = _titles[index];
-		const auto rootId = topic->rootId();
+		auto &title = _titles[index++];
+		title.topicRootId = rootId;
+
 		const auto unread = topic->chatListBadgesState().unread;
-		if (title.topicRootId != rootId || title.unread != unread) {
-			const auto context = Core::MarkedTextContext{
-				.session = &topic->session(),
-				.customEmojiRepaint = customEmojiRepaint,
-				.customEmojiLoopLimit = kIconLoopCount,
-			};
-			auto topicTitle = topic->titleWithIcon();
-			title.title.setMarkedText(
-				st::dialogsTextStyle,
-				(unread
-					? Ui::Text::PlainLink(
-						Ui::Text::Wrapped(
-							std::move(topicTitle),
-							EntityType::Bold))
-					: std::move(topicTitle)),
-				DialogTextOptions(),
-				context);
-			title.topicRootId = rootId;
-			title.unread = unread;
+		if (title.unread == unread
+			&& title.version == topic->titleVersion()) {
+			continue;
 		}
-		available -= title.title.maxWidth() + st->topicsSkip;
-		++index;
+		const auto context = Core::MarkedTextContext{
+			.session = &topic->session(),
+			.customEmojiRepaint = customEmojiRepaint,
+			.customEmojiLoopLimit = kIconLoopCount,
+		};
+		auto topicTitle = topic->titleWithIcon();
+		title.version = topic->titleVersion();
+		title.unread = unread;
+		title.title.setMarkedText(
+			st::dialogsTextStyle,
+			(unread
+				? Ui::Text::PlainLink(
+					Ui::Text::Wrapped(
+						std::move(topicTitle),
+						EntityType::Bold))
+				: std::move(topicTitle)),
+			DialogTextOptions(),
+			context);
 	}
 	while (_titles.size() > index) {
 		_titles.pop_back();
 	}
+	const auto i = frontRootId
+		? ranges::find(_titles, frontRootId, &Title::topicRootId)
+		: end(_titles);
+	_jumpToTopic = (i != end(_titles));
+	if (_jumpToTopic) {
+		if (i != begin(_titles)) {
+			ranges::rotate(begin(_titles), i, i + 1);
+		}
+		if (!_titles.front().unread) {
+			_jumpToTopic = false;
+		}
+	}
+}
+
+int TopicsView::jumpToTopicWidth() const {
+	return _jumpToTopic ? _titles.front().title.maxWidth() : 0;
 }
 
 void TopicsView::paint(
@@ -91,6 +120,7 @@ void TopicsView::paint(
 		: st::dialogsTextPaletteArchive);
 	auto index = 0;
 	auto rect = geometry;
+	auto skipBig = _jumpToTopic && !context.active;
 	for (const auto &title : _titles) {
 		if (rect.width() <= 0) {
 			break;
@@ -104,8 +134,11 @@ void TopicsView::paint(
 			.paused = context.paused,
 			.elisionLines = 1,
 		});
-		rect.setLeft(
-			rect.left() + title.title.maxWidth() + context.st->topicsSkip);
+		const auto skip = skipBig
+			? context.st->topicsSkipBig
+			: context.st->topicsSkip;
+		rect.setLeft(rect.left() + title.title.maxWidth() + skip);
+		skipBig = false;
 	}
 }
 

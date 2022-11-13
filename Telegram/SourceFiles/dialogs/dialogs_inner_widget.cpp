@@ -514,22 +514,43 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		Window::GifPauseReason::Any);
 	auto fullWidth = width();
 	auto dialogsClip = r;
-	auto ms = crl::now();
+	const auto ms = crl::now();
+	const auto paintRow = [&](
+			not_null<Row*> row,
+			bool selected,
+			bool mayBeActive) {
+		const auto key = row->key();
+		const auto active = mayBeActive && (activeEntry.key == key);
+		const auto forum = key.history()
+			&& key.history()->peer->isForum();
+		if (forum && !_topicJumpCache) {
+			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
+		}
+		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
+			.st = (forum ? &st::forumDialogRow : _st.get()),
+			.topicJumpCache = _topicJumpCache.get(),
+			.folder = _openedFolder,
+			.forum = _openedForum,
+			.filter = _filterId,
+			.now = ms,
+			.width = fullWidth,
+			.active = active,
+			.selected = (_menuRow.key
+				? (row->key() == _menuRow.key)
+				: selected),
+			.paused = videoPaused,
+			.narrow = (fullWidth < st::columnMinimalWidthLeft),
+		});
+	};
 	if (_state == WidgetState::Default) {
 		paintCollapsedRows(p, r);
 
 		const auto &list = _shownList->all();
 		const auto shownBottom = _shownList->height() - skipTopHeight();
 		const auto active = activeEntry.key;
-		const auto selected = _menuRow.key
-			? _menuRow.key
-			: (isPressed()
-				? (_pressed
-					? _pressed->key()
-					: Key())
-				: (_selected
-					? _selected->key()
-					: Key()));
+		const auto selected = isPressed()
+			? (_pressed ? _pressed->key() : Key())
+			: (_selected ? _selected->key() : Key());
 		if (shownBottom) {
 			const auto skip = dialogsOffset();
 			const auto promoted = fixedOnTopCount();
@@ -559,23 +580,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				if (xadd || yadd) {
 					p.translate(xadd, yadd);
 				}
-				const auto key = row->key();
-				const auto isActive = (key == active);
-				const auto isSelected = (key == selected);
-				const auto isForum = key.history()
-					&& key.history()->peer->isForum();
-				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
-					.st = (isForum ? &st::forumDialogRow : _st.get()),
-					.folder = _openedFolder,
-					.forum = _openedForum,
-					.filter = _filterId,
-					.now = ms,
-					.width = fullWidth,
-					.active = isActive,
-					.selected = isSelected,
-					.paused = videoPaused,
-					.narrow = (fullWidth < st::columnMinimalWidthLeft),
-				});
+				paintRow(row, (row->key() == selected), true);
 				if (xadd || yadd) {
 					p.translate(-xadd, -yadd);
 				}
@@ -677,29 +682,11 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				int(_filterResults.size()));
 			p.translate(0, filteredHeight(from));
 			for (; from < to; ++from) {
+				const auto selected = isPressed()
+					? (from == _filteredPressed)
+					: (from == _filteredSelected);
 				const auto row = _filterResults[from].row;
-				const auto key = row->key();
-				const auto active = (activeEntry.key == key)
-					&& !activeEntry.fullId;
-				const auto selected = _menuRow.key
-					? (key == _menuRow.key)
-					: (from == (isPressed()
-						? _filteredPressed
-						: _filteredSelected));
-				const auto isForum = key.history()
-					&& key.history()->peer->isForum();
-				Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
-					.st = (isForum ? &st::forumDialogRow : _st.get()),
-					.folder = _openedFolder,
-					.forum = _openedForum,
-					.filter = _filterId,
-					.now = ms,
-					.width = fullWidth,
-					.active = active,
-					.selected = selected,
-					.paused = videoPaused,
-					.narrow = (fullWidth < st::columnMinimalWidthLeft),
-				});
+				paintRow(row, selected, !activeEntry.fullId);
 				p.translate(0, row->height());
 			}
 		}

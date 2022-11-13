@@ -119,11 +119,6 @@ public:
 	}
 	[[nodiscard]] uint64 sortKey(FilterId filterId) const;
 
-	void validateListEntryCache() const;
-	[[nodiscard]] const Ui::Text::String &listEntryCache() const {
-		return _listEntryCache;
-	}
-
 	// for any attached data, for example View in contacts list
 	void *attached = nullptr;
 
@@ -151,13 +146,11 @@ private:
 		const Ui::PaintContext &context);
 
 	Key _id;
-	mutable Ui::Text::String _listEntryCache;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
 	int _top = 0;
 	int _height = 0;
 	int _index = 0;
-	mutable int _listEntryCacheVersion : 31 = 0;
-	mutable int _cornerBadgeShown : 1 = 0;
+	bool _cornerBadgeShown = false;
 
 };
 

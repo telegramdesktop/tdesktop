@@ -625,6 +625,10 @@ TextWithEntities ForumTopic::titleWithIcon() const {
 	return ForumTopicIconWithTitle(_iconId, _title);
 }
 
+int ForumTopic::titleVersion() const {
+	return _titleVersion;
+}
+
 void ForumTopic::applyTitle(const QString &title) {
 	if (_title == title) {
 		return;
@@ -647,6 +651,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 		return;
 	}
 	_iconId = iconId;
+	++_titleVersion;
 	_icon = iconId
 		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
 			owner().customEmojiManager().create(

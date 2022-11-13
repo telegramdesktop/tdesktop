@@ -69,12 +69,13 @@ public:
 		const style::color &overrideFg) const;
 
 	const std::vector<not_null<History*>> &lastHistories() const;
-	uint32 chatListViewVersion() const;
+	void validateListEntryCache();
+	[[nodiscard]] const Ui::Text::String &listEntryCache() const {
+		return _listEntryCache;
+	}
 
 private:
 	void indexNameParts();
-	bool applyChatListMessage(HistoryItem *item);
-	void computeChatListMessage();
 
 	int chatListNameVersion() const override;
 
@@ -96,8 +97,10 @@ private:
 	base::flat_set<QChar> _nameFirstLetters;
 
 	std::vector<not_null<History*>> _lastHistories;
-	HistoryItem *_chatListMessage = nullptr;
-	uint32 _chatListViewVersion = 0;
+
+	Ui::Text::String _listEntryCache;
+	int _listEntryCacheVersion = 0;
+	int _chatListViewVersion = 0;
 	//rpl::variable<MessagePosition> _unreadPosition;
 
 	rpl::lifetime _lifetime;

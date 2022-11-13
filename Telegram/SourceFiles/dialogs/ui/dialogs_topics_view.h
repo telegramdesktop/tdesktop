@@ -36,10 +36,10 @@ public:
 		return _forum;
 	}
 
-	void prepare(
-		const QRect &geometry,
-		not_null<const style::DialogRow*> st,
-		Fn<void()> customEmojiRepaint);
+	[[nodiscard]] bool prepared() const;
+	void prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint);
+
+	[[nodiscard]] int jumpToTopicWidth() const;
 
 	void paint(
 		Painter &p,
@@ -54,11 +54,14 @@ private:
 	struct Title {
 		Text::String title;
 		MsgId topicRootId = 0;
+		int version = -1;
 		bool unread = false;
 	};
 	const not_null<Data::Forum*> _forum;
 
 	mutable std::vector<Title> _titles;
+	int _version = -1;
+	bool _jumpToTopic = false;
 
 	rpl::lifetime _lifetime;
 

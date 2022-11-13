@@ -26,67 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
-namespace {
-
-[[nodiscard]] TextWithEntities ComposeFolderListEntryText(
-		not_null<Data::Folder*> folder) {
-	const auto &list = folder->lastHistories();
-	if (list.empty()) {
-		return {};
-	}
-
-	const auto count = std::max(
-		int(list.size()),
-		folder->chatsList()->fullSize().current());
-
-	const auto throwAwayLastName = (list.size() > 1)
-		&& (count == list.size() + 1);
-	auto &&peers = ranges::views::all(
-		list
-	) | ranges::views::take(
-		list.size() - (throwAwayLastName ? 1 : 0)
-	);
-	const auto wrapName = [](not_null<History*> history) {
-		const auto name = history->peer->name();
-		return TextWithEntities{
-			.text = name,
-			.entities = (history->chatListBadgesState().unread
-				? EntitiesInText{
-					{ EntityType::Semibold, 0, int(name.size()), QString() },
-					{ EntityType::PlainLink, 0, int(name.size()), QString() },
-				}
-				: EntitiesInText{}),
-		};
-	};
-	const auto shown = int(peers.size());
-	const auto accumulated = [&] {
-		Expects(shown > 0);
-
-		auto i = peers.begin();
-		auto result = wrapName(*i);
-		for (++i; i != peers.end(); ++i) {
-			result = tr::lng_archived_last_list(
-				tr::now,
-				lt_accumulated,
-				result,
-				lt_chat,
-				wrapName(*i),
-				Ui::Text::WithEntities);
-		}
-		return result;
-	}();
-	return (shown < count)
-		? tr::lng_archived_last(
-			tr::now,
-			lt_count,
-			(count - shown),
-			lt_chats,
-			accumulated,
-			Ui::Text::WithEntities)
-		: accumulated;
-}
-
-} // namespace
 
 BasicRow::BasicRow() = default;
 BasicRow::~BasicRow() = default;
@@ -160,31 +99,13 @@ uint64 Row::sortKey(FilterId filterId) const {
 	return _id.entry()->sortKeyInChatList(filterId);
 }
 
-void Row::validateListEntryCache() const {
-	const auto folder = _id.folder();
-	if (!folder) {
-		return;
-	}
-	const auto version = folder->chatListViewVersion();
-	if (_listEntryCacheVersion == version) {
-		return;
-	}
-	_listEntryCacheVersion = version;
-	_listEntryCache.setMarkedText(
-		st::dialogsTextStyle,
-		ComposeFolderListEntryText(folder),
-		// Use rich options as long as the entry text does not have user text.
-		Ui::ItemTextDefaultOptions());
-}
-
 void Row::setCornerBadgeShown(
 		bool shown,
 		Fn<void()> updateCallback) const {
-	const auto value = shown ? 1 : 0;
-	if (_cornerBadgeShown == value) {
+	if (_cornerBadgeShown == shown) {
 		return;
 	}
-	_cornerBadgeShown = value;
+	const_cast<Row*>(this)->_cornerBadgeShown = shown;
 	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
 		_cornerBadgeUserpic->animation.change(
 			_cornerBadgeShown ? 1. : 0.,

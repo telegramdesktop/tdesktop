@@ -114,6 +114,7 @@ public:
 
 	[[nodiscard]] QString title() const;
 	[[nodiscard]] TextWithEntities titleWithIcon() const;
+	[[nodiscard]] int titleVersion() const;
 	void applyTitle(const QString &title);
 	[[nodiscard]] DocumentId iconId() const;
 	void applyIconId(DocumentId iconId);

@@ -198,22 +198,22 @@ int PaintWideCounter(
 	return availableWidth - used;
 }
 
-void PaintListEntryText(
+void PaintFolderEntryText(
 		Painter &p,
-		not_null<const Row*> row,
+		not_null<Data::Folder*> folder,
 		const PaintContext &context,
 		QRect rect) {
 	if (rect.isEmpty()) {
 		return;
 	}
-	row->validateListEntryCache();
+	folder->validateListEntryCache();
 	p.setFont(st::dialogsTextFont);
 	p.setPen(context.active
 		? st::dialogsTextFgActive
 		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	row->listEntryCache().draw(p, {
+	folder->listEntryCache().draw(p, {
 		.position = rect.topLeft(),
 		.availableWidth = rect.width(),
 		.palette = &(context.active
@@ -342,7 +342,14 @@ void PaintRow(
 		}
 	}
 	auto texttop = context.st->textTop;
-	if (promoted && !history->topPromotionMessage().isEmpty()) {
+	if (const auto folder = entry->asFolder()) {
+		const auto rect = QRect(
+			nameleft,
+			texttop,
+			namewidth,
+			st::dialogsTextFont->height);
+		PaintFolderEntryText(p, folder, context, rect);
+	} else if (promoted && !history->topPromotionMessage().isEmpty()) {
 		auto availableWidth = namewidth;
 		p.setFont(st::dialogsTextFont);
 		if (history->cloudDraftTextCache().isEmpty()) {
@@ -911,21 +918,19 @@ void RowPainter::Paint(
 			: thread
 			? &thread->lastItemDialogsView()
 			: nullptr;
-		if (const auto folder = row->folder()) {
-			PaintListEntryText(p, row, context, rect);
-		} else if (view) {
-			if (!view->prepared(item)) {
+		if (view) {
+			const auto forum = context.st->topicsHeight
+				? row->history()->peer->forum()
+				: nullptr;
+			if (!view->prepared(item, forum)) {
 				view->prepare(
 					item,
+					forum,
 					[=] { entry->updateChatListEntry(); },
-					{ .ignoreTopic = (!history || !peer->isForum()) });
+					{});
 			}
-			if (const auto topics = context.st->topicsHeight) {
-				view->prepareTopics(
-					row->history()->peer->forum(),
-					rect,
-					[=] { entry->updateChatListEntry(); });
-				rect.setHeight(topics + rect.height());
+			if (forum) {
+				rect.setHeight(context.st->topicsHeight + rect.height());
 			}
 			view->paint(p, rect, context);
 		}
@@ -1015,10 +1020,10 @@ void RowPainter::Paint(
 			availableWidth,
 			st::dialogsTextFont->height);
 		auto &view = row->itemView();
-		if (!view.prepared(item)) {
-			view.prepare(item, row->repaint(), previewOptions);
+		if (!view.prepared(item, nullptr)) {
+			view.prepare(item, nullptr, row->repaint(), previewOptions);
 		}
-		row->itemView().paint(p, itemRect, context);
+		view.paint(p, itemRect, context);
 	};
 	const auto showSavedMessages = history
 		&& history->peer->isSelf()
