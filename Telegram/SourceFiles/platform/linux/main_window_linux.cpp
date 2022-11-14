@@ -272,9 +272,9 @@ void MainWindow::updateIconCounters() {
 
 		if (counterSlice > 0) {
 			// According to the spec, it should be of 'x' D-Bus signature,
-			// which corresponds to gint64 type with glib
+			// which corresponds to signed 64-bit integer
 			// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-			dbusUnityProperties["count"] = Glib::Variant<gint64>::create(
+			dbusUnityProperties["count"] = Glib::Variant<int64>::create(
 				counterSlice);
 			dbusUnityProperties["count-visible"] =
 				Glib::Variant<bool>::create(true);
