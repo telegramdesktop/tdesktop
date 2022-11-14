@@ -415,8 +415,19 @@ void Widget::chosenRow(const ChosenRow &row) {
 	const auto openSearchResult = !controller()->selectingPeer()
 		&& row.filteredRow;
 	const auto history = row.key.history();
-	if (const auto topic = row.key.topic()) {
-		controller()->content()->chooseThread(topic, row.message.fullId.msg);
+	const auto topicJump = history
+		? history->peer->forumTopicFor(row.message.fullId.msg)
+		: nullptr;
+	if (topicJump) {
+		controller()->openForum(history->peer->asChannel());
+		controller()->content()->chooseThread(
+			topicJump,
+			ShowAtUnreadMsgId);
+		return;
+	} else if (const auto topic = row.key.topic()) {
+		controller()->content()->chooseThread(
+			topic,
+			row.message.fullId.msg);
 	} else if (history && history->peer->isForum() && !row.message.fullId) {
 		controller()->openForum(history->peer->asChannel());
 		return;

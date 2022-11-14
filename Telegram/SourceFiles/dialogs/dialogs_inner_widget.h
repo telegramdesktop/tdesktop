@@ -113,7 +113,9 @@ public:
 	void refreshEmptyLabel();
 	void resizeEmptyLabel();
 
-	bool chooseRow(Qt::KeyboardModifiers modifiers = {});
+	bool chooseRow(
+		Qt::KeyboardModifiers modifiers = {},
+		MsgId pressedTopicRootId = {});
 
 	void scrollToEntry(const RowDescriptor &entry);
 
@@ -240,7 +242,8 @@ private:
 	void scrollToItem(int top, int height);
 	void scrollToDefaultSelected();
 	void setCollapsedPressed(int pressed);
-	void setPressed(Row *pressed);
+	void setPressed(Row *pressed, bool pressedTopicJump);
+	void clearPressed();
 	void setHashtagPressed(int pressed);
 	void setFilteredPressed(int pressed);
 	void setPeerSearchPressed(int pressed);
@@ -404,6 +407,9 @@ private:
 	bool _skipTopDialog = false;
 	Row *_selected = nullptr;
 	Row *_pressed = nullptr;
+	MsgId _pressedTopicJumpRootId;
+	bool _selectedTopicJump = false;
+	bool _pressedTopicJump = false;
 
 	Row *_dragging = nullptr;
 	int _draggingIndex = -1;

@@ -35,13 +35,28 @@ void BasicRow::addRipple(
 		QSize size,
 		Fn<void()> updateCallback) {
 	if (!_ripple) {
-		auto mask = Ui::RippleAnimation::RectMask(size);
-		_ripple = std::make_unique<Ui::RippleAnimation>(
-			st::dialogsRipple,
-			std::move(mask),
+		addRippleWithMask(
+			origin,
+			Ui::RippleAnimation::RectMask(size),
 			std::move(updateCallback));
+	} else {
+		_ripple->add(origin);
 	}
+}
+
+void BasicRow::addRippleWithMask(
+		QPoint origin,
+		QImage mask,
+		Fn<void()> updateCallback) {
+	_ripple = std::make_unique<Ui::RippleAnimation>(
+		st::dialogsRipple,
+		std::move(mask),
+		std::move(updateCallback));
 	_ripple->add(origin);
+}
+
+void BasicRow::clearRipple() {
+	_ripple = nullptr;
 }
 
 void BasicRow::stopLastRipple() {
@@ -102,10 +117,11 @@ uint64 Row::sortKey(FilterId filterId) const {
 void Row::setCornerBadgeShown(
 		bool shown,
 		Fn<void()> updateCallback) const {
-	if (_cornerBadgeShown == shown) {
+	const auto value = (shown ? 1 : 0);
+	if (_cornerBadgeShown == value) {
 		return;
 	}
-	const_cast<Row*>(this)->_cornerBadgeShown = shown;
+	const_cast<Row*>(this)->_cornerBadgeShown = value;
 	if (_cornerBadgeUserpic && _cornerBadgeUserpic->animation.animating()) {
 		_cornerBadgeUserpic->animation.change(
 			_cornerBadgeShown ? 1. : 0.,
@@ -277,6 +293,46 @@ void Row::paintUserpic(
 		context.now);
 	p.translate(-context.st->padding.left(), -context.st->padding.top());
 	p.setOpacity(1.);
+}
+
+bool Row::lookupIsInTopicJump(int x, int y) const {
+	const auto history = this->history();
+	return history && history->lastItemDialogsView().isInTopicJump(x, y);
+}
+
+void Row::stopLastRipple() {
+	BasicRow::stopLastRipple();
+	const auto history = this->history();
+	const auto view = history ? &history->lastItemDialogsView() : nullptr;
+	if (view) {
+		view->stopLastRipple();
+	}
+}
+
+void Row::addTopicJumpRipple(
+		QPoint origin,
+		not_null<Ui::TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback) {
+	const auto history = this->history();
+	const auto view = history ? &history->lastItemDialogsView() : nullptr;
+	if (view) {
+		view->addTopicJumpRipple(
+			origin,
+			topicJumpCache,
+			std::move(updateCallback));
+		_topicJumpRipple = 1;
+	}
+}
+
+void Row::clearTopicJumpRipple() {
+	if (_topicJumpRipple) {
+		clearRipple();
+		_topicJumpRipple = 0;
+	}
+}
+
+bool Row::topicJumpRipple() const {
+	return _topicJumpRipple != 0;
 }
 
 FakeRow::FakeRow(

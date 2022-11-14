@@ -19,6 +19,7 @@ class ForumTopic;
 } // namespace Data
 
 namespace Ui {
+class RippleAnimation;
 } // namespace Ui
 
 namespace Dialogs::Ui {
@@ -26,6 +27,34 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 
 struct PaintContext;
+struct TopicJumpCache;
+struct TopicJumpCorners;
+
+struct JumpToLastBg {
+	not_null<const style::DialogRow*> st;
+	not_null<TopicJumpCorners*> corners;
+	QRect geometry;
+	const style::color &bg;
+	int width1 = 0;
+	int width2 = 0;
+};
+struct JumpToLastGeometry {
+	QRect area1;
+	QRect area2;
+
+	friend inline auto operator<=>(
+		const JumpToLastGeometry&,
+		const JumpToLastGeometry&) = default;
+};
+JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context);
+
+struct JumpToLastPrepared {
+	not_null<const style::DialogRow*> st;
+	not_null<TopicJumpCorners*> corners;
+	const style::color &bg;
+	const JumpToLastGeometry &prepared;
+};
+void FillJumpToLastPrepared(QPainter &p, JumpToLastPrepared context);
 
 class TopicsView final {
 public:
@@ -46,6 +75,22 @@ public:
 		const QRect &geometry,
 		const PaintContext &context) const;
 
+	bool changeTopicJumpGeometry(JumpToLastGeometry geometry);
+	void clearTopicJumpGeometry();
+	[[nodiscard]] bool isInTopicJumpArea(int x, int y) const;
+	void addTopicJumpRipple(
+		QPoint origin,
+		not_null<TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback);
+	void paintRipple(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		const QColor *colorOverride) const;
+	void clearRipple();
+	void stopLastRipple();
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -57,9 +102,15 @@ private:
 		int version = -1;
 		bool unread = false;
 	};
+
+	[[nodiscard]] QImage topicJumpRippleMask(
+		not_null<TopicJumpCache*> topicJumpCache) const;
+
 	const not_null<Data::Forum*> _forum;
 
 	mutable std::vector<Title> _titles;
+	mutable std::unique_ptr<RippleAnimation> _ripple;
+	JumpToLastGeometry _lastTopicJumpGeometry;
 	int _version = -1;
 	bool _jumpToTopic = false;
 

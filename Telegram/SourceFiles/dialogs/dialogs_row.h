@@ -33,6 +33,7 @@ using namespace ::Ui;
 class RowPainter;
 class VideoUserpic;
 struct PaintContext;
+struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -52,7 +53,12 @@ public:
 		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
-	void stopLastRipple();
+	virtual void stopLastRipple();
+	void addRippleWithMask(
+		QPoint origin,
+		QImage mask,
+		Fn<void()> updateCallback);
+	void clearRipple();
 
 	void paintRipple(
 		QPainter &p,
@@ -95,6 +101,15 @@ public:
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const final override;
+
+	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
+	void stopLastRipple() override;
+	void addTopicJumpRipple(
+		QPoint origin,
+		not_null<Ui::TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback);
+	void clearTopicJumpRipple();
+	[[nodiscard]] bool topicJumpRipple() const;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -149,8 +164,9 @@ private:
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
 	int _top = 0;
 	int _height = 0;
-	int _index = 0;
-	bool _cornerBadgeShown = false;
+	int _index : 30 = 0;
+	int _cornerBadgeShown : 1 = 0;
+	int _topicJumpRipple : 1 = 0;
 
 };
 

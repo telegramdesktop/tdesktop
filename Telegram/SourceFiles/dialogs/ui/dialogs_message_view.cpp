@@ -200,6 +200,28 @@ void MessageView::prepare(
 	}
 }
 
+bool MessageView::isInTopicJump(int x, int y) const {
+	return _topics && _topics->isInTopicJumpArea(x, y);
+}
+
+void MessageView::addTopicJumpRipple(
+		QPoint origin,
+		not_null<TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback) {
+	if (_topics) {
+		_topics->addTopicJumpRipple(
+			origin,
+			topicJumpCache,
+			std::move(updateCallback));
+	}
+}
+
+void MessageView::stopLastRipple() {
+	if (_topics) {
+		_topics->stopLastRipple();
+	}
+}
+
 int MessageView::countWidth() const {
 	auto result = 0;
 	if (!_senderCache.isEmpty()) {
@@ -248,6 +270,8 @@ void MessageView::paint(
 	const auto jump1 = checkJump ? _topics->jumpToTopicWidth() : 0;
 	if (jump1) {
 		paintJumpToLast(p, rect, context, jump1);
+	} else if (_topics) {
+		_topics->clearTopicJumpGeometry();
 	}
 
 	if (withTopic) {
@@ -320,9 +344,11 @@ void MessageView::paintJumpToLast(
 		const PaintContext &context,
 		int width1) const {
 	if (!context.topicJumpCache) {
+		_topics->clearTopicJumpGeometry();
 		return;
 	}
-	FillJumpToLastBg(p, {
+	const auto width2 = countWidth() + st::forumDialogJumpArrowSkip;
+	const auto geometry = FillJumpToLastBg(p, {
 		.st = context.st,
 		.corners = (context.selected
 			? &context.topicJumpCache->over
@@ -332,97 +358,23 @@ void MessageView::paintJumpToLast(
 			? st::dialogsRippleBg
 			: st::dialogsBgOver),
 		.width1 = width1,
-		.width2 = countWidth() + st::forumDialogJumpArrowSkip,
+		.width2 = width2,
 	});
-}
-
-void FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
-	const auto availableWidth = context.geometry.width();
-	const auto use1 = std::min(context.width1, availableWidth);
-	const auto use2 = std::min(context.width2, availableWidth);
-	const auto padding = st::forumDialogJumpPadding;
-	const auto radius = st::forumDialogJumpRadius;
-	const auto &bg = context.bg;
-	auto &normal = context.corners->normal;
-	auto &inverted = context.corners->inverted;
-	auto &small = context.corners->small;
-	auto hq = PainterHighQualityEnabler(p);
-	p.setPen(Qt::NoPen);
-	p.setBrush(bg);
-	const auto origin = context.geometry.topLeft();
-	const auto delta = std::abs(use1 - use2);
-	if (delta <= context.st->topicsSkip / 2) {
-		if (normal.p[0].isNull()) {
-			normal = Ui::PrepareCornerPixmaps(radius, bg);
-		}
-		const auto w = std::max(use1, use2);
-		const auto h = context.st->topicsHeight + st::normalFont->height;
-		const auto fill = QRect(origin, QSize(w, h));
-		Ui::FillRoundRect(p, fill.marginsAdded(padding), bg, normal);
-	} else {
-		const auto h1 = context.st->topicsHeight;
-		const auto h2 = st::normalFont->height;
-		const auto hmin = std::min(h1, h2);
-		const auto wantedInvertedRadius = hmin - radius;
-		const auto invertedr = std::min(wantedInvertedRadius, delta / 2);
-		const auto smallr = std::min(radius, delta - invertedr);
-		const auto smallkey = (use1 < use2) ? smallr : (-smallr);
-		if (normal.p[0].isNull()) {
-			normal = Ui::PrepareCornerPixmaps(radius, bg);
-		}
-		if (inverted.p[0].isNull()
-			|| context.corners->invertedRadius != invertedr) {
-			context.corners->invertedRadius = invertedr;
-			inverted = Ui::PrepareInvertedCornerPixmaps(invertedr, bg);
-		}
-		if (smallr != radius
-			&& (small.isNull() || context.corners->smallKey != smallkey)) {
-			context.corners->smallKey = smallr;
-			auto pixmaps = Ui::PrepareCornerPixmaps(smallr, bg);
-			small = pixmaps.p[(use1 < use2) ? 1 : 3];
-		}
-		const auto rect1 = QRect(origin, QSize(use1, h1));
-		auto no1 = normal;
-		no1.p[2] = QPixmap();
-		if (use1 < use2) {
-			no1.p[3] = QPixmap();
-		} else if (smallr != radius) {
-			no1.p[3] = small;
-		}
-		auto fill1 = rect1.marginsAdded({
-			padding.left(),
-			padding.top(),
-			padding.right(),
-			(use1 < use2 ? -padding.top() : padding.bottom()),
+	if (context.topicJumpSelected) {
+		p.setOpacity(0.1);
+		FillJumpToLastPrepared(p, {
+			.st = context.st,
+			.corners = &context.topicJumpCache->selected,
+			.bg = st::dialogsTextFg,
+			.prepared = geometry,
 		});
-		Ui::FillRoundRect(p, fill1, bg, no1);
-		if (use1 < use2) {
-			p.drawPixmap(
-				fill1.x() + fill1.width(),
-				fill1.y() + fill1.height() - invertedr,
-				inverted.p[3]);
-		}
-		const auto add = QPoint(0, h1);
-		const auto rect2 = QRect(origin + add, QSize(use2, h2));
-		const auto fill2 = rect2.marginsAdded({
-			padding.left(),
-			(use2 < use1 ? -padding.bottom() : padding.top()),
-			padding.right(),
-			padding.bottom(),
-		});
-		auto no2 = normal;
-		no2.p[0] = QPixmap();
-		if (use2 < use1) {
-			no2.p[1] = QPixmap();
-		} else if (smallr != radius) {
-			no2.p[1] = small;
-		}
-		Ui::FillRoundRect(p, fill2, bg, no2);
-		if (use2 < use1) {
-			p.drawPixmap(
-				fill2.x() + fill2.width(),
-				fill2.y(),
-				inverted.p[0]);
+		p.setOpacity(1.);
+	}
+	if (!_topics->changeTopicJumpGeometry(geometry)) {
+		auto color = st::dialogsTextFg->c;
+		color.setAlpha(color.alpha() / 10);
+		if (color.alpha() > 0) {
+			_topics->paintRipple(p, 0, 0, context.width, &color);
 		}
 	}
 }

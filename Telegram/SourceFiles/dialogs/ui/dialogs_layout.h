@@ -48,6 +48,7 @@ struct TopicJumpCorners {
 struct TopicJumpCache {
 	TopicJumpCorners corners;
 	TopicJumpCorners over;
+	TopicJumpCorners selected;
 	TopicJumpCorners rippleMask;
 };
 
@@ -61,6 +62,7 @@ struct PaintContext {
 	int width = 0;
 	bool active = false;
 	bool selected = false;
+	bool topicJumpSelected = false;
 	bool paused = false;
 	bool search = false;
 	bool narrow = false;

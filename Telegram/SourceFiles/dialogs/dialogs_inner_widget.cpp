@@ -156,6 +156,11 @@ InnerWidget::InnerWidget(
 	_cancelSearchInChat->hide();
 	_cancelSearchFromUser->hide();
 
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_topicJumpCache = nullptr;
+	}, lifetime());
+
 	session().downloaderTaskFinished(
 	) | rpl::start_with_next([=] {
 		update();
@@ -336,7 +341,7 @@ void InnerWidget::refreshWithCollapsedRows(bool toTop) {
 			_selected = nullptr;
 		}
 		if (_pressed && _pressed->folder() == archive) {
-			setPressed(nullptr);
+			clearPressed();
 		}
 		_skipTopDialog = true;
 		if (!inMainMenu && !_filterId) {
@@ -538,6 +543,9 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			.selected = (_menuRow.key
 				? (row->key() == _menuRow.key)
 				: selected),
+			.topicJumpSelected = (selected
+				&& _selectedTopicJump
+				&& (!_pressed || _pressedTopicJump)),
 			.paused = videoPaused,
 			.narrow = (fullWidth < st::columnMinimalWidthLeft),
 		});
@@ -1142,7 +1150,7 @@ void InnerWidget::clearIrrelevantState() {
 		_collapsedSelected = -1;
 		setCollapsedPressed(-1);
 		_selected = nullptr;
-		setPressed(nullptr);
+		clearPressed();
 	}
 }
 
@@ -1168,9 +1176,16 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			: (mouseY >= offset)
 			? _shownList->rowAtY(mouseY - offset)
 			: nullptr;
-		if (_selected != selected || _collapsedSelected != collapsedSelected) {
+		const auto selectedTopicJump = selected
+			&& selected->lookupIsInTopicJump(
+				local.x(),
+				mouseY - offset - selected->top());
+		if (_collapsedSelected != collapsedSelected
+			|| _selected != selected
+			|| _selectedTopicJump != selectedTopicJump) {
 			updateSelectedRow();
 			_selected = selected;
+			_selectedTopicJump = selectedTopicJump;
 			_collapsedSelected = collapsedSelected;
 			updateSelectedRow();
 			setCursor((_selected || _collapsedSelected)
@@ -1203,9 +1218,15 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			if (filteredSelected < 0 || filteredSelected >= _filterResults.size()) {
 				filteredSelected = -1;
 			}
-			if (_filteredSelected != filteredSelected) {
+			const auto selectedTopicJump = (filteredSelected >= 0)
+				&& _filterResults[filteredSelected].row->lookupIsInTopicJump(
+					local.x(),
+					mouseY - skip - _filterResults[filteredSelected].top);
+			if (_filteredSelected != filteredSelected
+				|| _selectedTopicJump != selectedTopicJump) {
 				updateSelectedRow();
 				_filteredSelected = filteredSelected;
+				_selectedTopicJump = selectedTopicJump;
 				updateSelectedRow();
 			}
 		}
@@ -1243,7 +1264,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	selectByMouse(e->globalPos());
 
 	_pressButton = e->button();
-	setPressed(_selected);
+	setPressed(_selected, _selectedTopicJump);
 	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
@@ -1257,14 +1278,25 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		});
 	} else if (_pressed) {
 		auto row = _pressed;
-		row->addRipple(
-			e->pos() - QPoint(0, dialogsOffset() + _pressed->top()),
-			QSize(width(), _pressed->height()),
-			[this, row] {
-				if (!_pinnedShiftAnimation.animating()) {
-					row->entry()->updateChatListEntry();
-				}
-			});
+		const auto updateCallback = [this, row] {
+			if (!_pinnedShiftAnimation.animating()) {
+				row->entry()->updateChatListEntry();
+			}
+		};
+		const auto origin = e->pos()
+			- QPoint(0, dialogsOffset() + _pressed->top());
+		if (_pressedTopicJump) {
+			row->addTopicJumpRipple(
+				origin,
+				_topicJumpCache.get(),
+				updateCallback);
+		} else {
+			row->clearTopicJumpRipple();
+			row->addRipple(
+				origin,
+				QSize(width(), _pressed->height()),
+				updateCallback);
+		}
 		_dragStart = e->pos();
 	} else if (base::in_range(_hashtagPressed, 0, _hashtagResults.size()) && !_hashtagDeletePressed) {
 		auto row = &_hashtagResults[_hashtagPressed]->row;
@@ -1543,8 +1575,10 @@ void InnerWidget::mousePressReleased(
 
 	auto collapsedPressed = _collapsedPressed;
 	setCollapsedPressed(-1);
+	const auto pressedTopicRootId = _pressedTopicJumpRootId;
+	const auto pressedTopicJump = _pressedTopicJump;
 	auto pressed = _pressed;
-	setPressed(nullptr);
+	clearPressed();
 	auto hashtagPressed = _hashtagPressed;
 	setHashtagPressed(-1);
 	auto hashtagDeletePressed = _hashtagDeletePressed;
@@ -1561,7 +1595,9 @@ void InnerWidget::mousePressReleased(
 	updateSelectedRow();
 	if (!wasDragging && button == Qt::LeftButton) {
 		if ((collapsedPressed >= 0 && collapsedPressed == _collapsedSelected)
-			|| (pressed && pressed == _selected)
+			|| (pressed
+				&& pressed == _selected
+				&& pressedTopicJump == _selectedTopicJump)
 			|| (hashtagPressed >= 0
 				&& hashtagPressed == _hashtagSelected
 				&& hashtagDeletePressed == _hashtagDeleteSelected)
@@ -1570,7 +1606,7 @@ void InnerWidget::mousePressReleased(
 				&& peerSearchPressed == _peerSearchSelected)
 			|| (searchedPressed >= 0
 				&& searchedPressed == _searchedSelected)) {
-			chooseRow(modifiers);
+			chooseRow(modifiers, pressedTopicRootId);
 		}
 	}
 }
@@ -1584,13 +1620,21 @@ void InnerWidget::setCollapsedPressed(int pressed) {
 	}
 }
 
-void InnerWidget::setPressed(Row *pressed) {
-	if (_pressed != pressed) {
+void InnerWidget::setPressed(Row *pressed, bool pressedTopicJump) {
+	if (_pressed != pressed || _pressedTopicJump != pressedTopicJump) {
 		if (_pressed) {
 			_pressed->stopLastRipple();
 		}
 		_pressed = pressed;
+		_pressedTopicJump = pressedTopicJump;
+		const auto history = pressedTopicJump ? pressed->history() : nullptr;
+		const auto item = history ? history->chatListMessage() : nullptr;
+		_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
 	}
+}
+
+void InnerWidget::clearPressed() {
+	setPressed(nullptr, false);
 }
 
 void InnerWidget::setHashtagPressed(int pressed) {
@@ -1656,7 +1700,7 @@ void InnerWidget::dialogRowReplaced(
 		_selected = newRow;
 	}
 	if (_pressed == oldRow) {
-		setPressed(newRow);
+		setPressed(newRow, _pressedTopicJump);
 	}
 	if (_dragging == oldRow) {
 		if (newRow) {
@@ -1704,7 +1748,7 @@ void InnerWidget::handleChatListEntryRefreshes() {
 					_selected = nullptr;
 				}
 				if (_pressed && _pressed->key() == key) {
-					setPressed(nullptr);
+					clearPressed();
 				}
 				const auto i = ranges::find(
 					_filterResults,
@@ -3147,7 +3191,9 @@ ChosenRow InnerWidget::computeChosenRow() const {
 	return ChosenRow();
 }
 
-bool InnerWidget::chooseRow(Qt::KeyboardModifiers modifiers) {
+bool InnerWidget::chooseRow(
+		Qt::KeyboardModifiers modifiers,
+		MsgId pressedTopicRootId) {
 	if (chooseCollapsedRow()) {
 		return true;
 	} else if (chooseHashtag()) {
@@ -3161,10 +3207,19 @@ bool InnerWidget::chooseRow(Qt::KeyboardModifiers modifiers) {
 		}
 		return row;
 	};
-	const auto chosen = modifyChosenRow(computeChosenRow(), modifiers);
+	auto chosen = modifyChosenRow(computeChosenRow(), modifiers);
 	if (chosen.key) {
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
 			session().local().saveRecentSearchHashtags(_filter);
+		}
+		if (pressedTopicRootId && !chosen.message.fullId) {
+			const auto history = chosen.key.history();
+			if (history->peer->isForum()) {
+				chosen.message.fullId = {
+					history->peer->id,
+					pressedTopicRootId,
+				};
+			}
 		}
 		_chosenRow.fire_copy(chosen);
 		return true;

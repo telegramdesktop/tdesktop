@@ -35,8 +35,8 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 
 struct PaintContext;
+struct TopicJumpCache;
 class TopicsView;
-struct TopicJumpCorners;
 
 [[nodiscard]] TextWithEntities DialogsPreviewText(TextWithEntities text);
 
@@ -66,6 +66,13 @@ public:
 		const QRect &geometry,
 		const PaintContext &context) const;
 
+	[[nodiscard]] bool isInTopicJump(int x, int y) const;
+	void addTopicJumpRipple(
+		QPoint origin,
+		not_null<TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback);
+	void stopLastRipple();
+
 private:
 	struct LoadingContext;
 
@@ -89,15 +96,5 @@ private:
 	HistoryView::ItemPreview &&preview,
 	const QString &sender,
 	TextWithEntities topic);
-
-struct JumpToLastBg {
-	not_null<const style::DialogRow*> st;
-	not_null<TopicJumpCorners*> corners;
-	QRect geometry;
-	const style::color &bg;
-	int width1 = 0;
-	int width2 = 0;
-};
-void FillJumpToLastBg(QPainter &p, JumpToLastBg context);
 
 } // namespace Dialogs::Ui
