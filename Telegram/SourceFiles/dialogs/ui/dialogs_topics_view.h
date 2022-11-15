@@ -42,7 +42,7 @@ struct JumpToLastGeometry {
 	QRect area1;
 	QRect area2;
 
-	friend inline auto operator<=>(
+	friend inline bool operator==(
 		const JumpToLastGeometry&,
 		const JumpToLastGeometry&) = default;
 };
