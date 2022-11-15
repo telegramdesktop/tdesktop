@@ -743,10 +743,15 @@ Dialogs::UnreadState ForumTopic::chatListUnreadState() const {
 }
 
 Dialogs::BadgesState ForumTopic::chatListBadgesState() const {
-	return Dialogs::BadgesForUnread(
+	auto result = Dialogs::BadgesForUnread(
 		chatListUnreadState(),
 		Dialogs::CountInBadge::Messages,
 		Dialogs::IncludeInBadge::All);
+	if (!result.unread && _replies->inboxReadTillId() < 2) {
+		result.unread = channel()->amIn()
+			&& (_lastKnownServerMessageId > history()->inboxReadTillId());
+	}
+	return result;
 }
 
 Dialogs::UnreadState ForumTopic::unreadStateFor(

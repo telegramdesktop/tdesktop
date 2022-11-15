@@ -47,6 +47,7 @@ Forum::Forum(not_null<History*> history)
 , _topicsList(&session(), {}, owner().maxPinnedChatsLimitValue(this)) {
 	Expects(_history->peer->isChannel());
 
+
 	if (_history->inChatList()) {
 		preloadTopics();
 	}
@@ -154,6 +155,7 @@ void Forum::requestTopics() {
 		if (_topicsList.loaded()) {
 			_chatsListLoadedEvents.fire({});
 		}
+		reorderLastTopics();
 		requestSomeStale();
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -409,7 +411,6 @@ ForumTopic *Forum::applyTopicAdded(
 	if (!creating(rootId)) {
 		raw->addToChatList(FilterId(), topicsList());
 		_chatsListChanges.fire({});
-
 		reorderLastTopics();
 	}
 	return raw;
