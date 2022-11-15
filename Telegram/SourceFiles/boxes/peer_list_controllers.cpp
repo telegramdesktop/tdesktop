@@ -533,6 +533,7 @@ auto ChooseRecipientBoxController::createRow(
 	const auto skip = _filter
 		? !_filter(history)
 		: ((peer->isBroadcast() && !peer->canWrite())
+			|| (peer->isUser() && !peer->canWrite())
 			|| peer->isRepliesChat());
 	return skip ? nullptr : std::make_unique<Row>(history);
 }
