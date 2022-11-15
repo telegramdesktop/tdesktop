@@ -750,6 +750,7 @@ Dialogs::BadgesState ForumTopic::chatListBadgesState() const {
 	if (!result.unread && _replies->inboxReadTillId() < 2) {
 		result.unread = channel()->amIn()
 			&& (_lastKnownServerMessageId > history()->inboxReadTillId());
+		result.unreadMuted = muted();
 	}
 	return result;
 }

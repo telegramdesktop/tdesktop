@@ -112,7 +112,32 @@ int PaintBadges(
 		bool displayPinnedIcon = false,
 		int pinnedIconTop = 0) {
 	auto initial = right;
-	if (badgesState.unread) {
+	if (badgesState.unread
+		&& !badgesState.unreadCounter
+		&& context.st->unreadMarkDiameter > 0) {
+		const auto d = context.st->unreadMarkDiameter;
+		UnreadBadgeStyle st;
+		PainterHighQualityEnabler hq(p);
+		const auto rect = QRect(
+			right - st.size + (st.size - d) / 2,
+			top + (st.size - d) / 2,
+			d,
+			d);
+		p.setPen(Qt::NoPen);
+		p.setBrush(badgesState.unreadMuted
+			? (context.active
+				? st::dialogsUnreadBgMutedActive
+				: context.selected
+				? st::dialogsUnreadBgMutedOver
+				: st::dialogsUnreadBgMuted)
+			: (context.active
+				? st::dialogsUnreadBgActive
+				: context.selected
+				? st::dialogsUnreadBgOver
+				: st::dialogsUnreadBg));
+		p.drawEllipse(rect);
+		right -= st.size + st.padding;
+	} else if (badgesState.unread) {
 		UnreadBadgeStyle st;
 		st.active = context.active;
 		st.selected = context.selected;

@@ -20,6 +20,7 @@ DialogRow {
 	topicsSkip: pixels;
 	topicsSkipBig: pixels;
 	topicsHeight: pixels;
+	unreadMarkDiameter: pixels;
 }
 
 ForumTopicIcon {
@@ -474,6 +475,7 @@ forumTopicRow: DialogRow(defaultDialogRow) {
 	nameTop: 7px;
 	textLeft: 68px;
 	textTop: 29px;
+	unreadMarkDiameter: 8px;
 }
 forumTopicIconPosition: point(2px, 0px);
 editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
