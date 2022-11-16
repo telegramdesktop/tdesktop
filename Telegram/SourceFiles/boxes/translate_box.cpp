@@ -173,10 +173,12 @@ void TranslateBox(
 			container.get(),
 			object_ptr<ShowButton>(container));
 		show->hide(anim::type::instant);
-		original->geometryValue(
-		) | rpl::start_with_next([=](const QRect &rect) {
+		rpl::combine(
+			container->widthValue(),
+			original->geometryValue()
+		) | rpl::start_with_next([=](int width, const QRect &rect) {
 			show->moveToLeft(
-				rect.x() + rect.width() - show->width(),
+				width - show->width() - st::boxRowPadding.right(),
 				rect.y() + std::abs(lineHeight - show->height()) / 2);
 		}, show->lifetime());
 		original->entity()->heightValue(
