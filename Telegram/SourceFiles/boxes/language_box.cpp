@@ -1095,7 +1095,14 @@ void LanguageBox::prepare() {
 
 	setTitle(tr::lng_languages());
 
-	const auto select = createMultiSelect();
+	const auto topContainer = Ui::CreateChild<Ui::VerticalLayout>(this);
+
+	const auto select = topContainer->add(
+		object_ptr<Ui::MultiSelect>(
+			topContainer,
+			st::defaultMultiSelect,
+			tr::lng_participant_filter()));
+	topContainer->resizeToWidth(st::boxWidth);
 
 	using namespace rpl::mappers;
 
@@ -1103,13 +1110,13 @@ void LanguageBox::prepare() {
 	const auto inner = setInnerWidget(
 		object_ptr<Content>(this, recent, official),
 		st::boxScroll,
-		select->height());
+		topContainer->height());
 	inner->resizeToWidth(st::boxWidth);
 
 	const auto max = lifetime().make_state<int>(0);
 	rpl::combine(
 		inner->heightValue(),
-		select->heightValue(),
+		topContainer->heightValue(),
 		_1 + _2
 	) | rpl::start_with_next([=](int height) {
 		accumulate_max(*max, height);
@@ -1178,16 +1185,6 @@ int LanguageBox::rowsInPage() const {
 
 void LanguageBox::setInnerFocus() {
 	_setInnerFocus();
-}
-
-not_null<Ui::MultiSelect*> LanguageBox::createMultiSelect() {
-	const auto result = Ui::CreateChild<Ui::MultiSelect>(
-		this,
-		st::defaultMultiSelect,
-		tr::lng_participant_filter());
-	result->resizeToWidth(st::boxWidth);
-	result->moveToLeft(0, 0);
-	return result;
 }
 
 base::binary_guard LanguageBox::Show() {
