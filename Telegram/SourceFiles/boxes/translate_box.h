@@ -13,10 +13,16 @@ namespace Ui {
 
 class GenericBox;
 
+[[nodiscard]] QString LanguageName(const QLocale &locale);
+
 void TranslateBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer,
 	MsgId msgId,
 	TextWithEntities text);
+
+void ChooseLanguageBox(
+	not_null<Ui::GenericBox*> box,
+	Fn<void(QLocale)> callback);
 
 } // namespace Ui

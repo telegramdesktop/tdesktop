@@ -722,6 +722,11 @@ public:
 		return _chatQuickAction;
 	}
 
+	void setTranslateButtonEnabled(bool value);
+	[[nodiscard]] bool translateButtonEnabled() const;
+	void setSkipTranslationForLanguage(QLocale::Language language);
+	[[nodiscard]] QLocale::Language skipTranslationForLanguage() const;
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -836,6 +841,7 @@ private:
 #endif // Q_OS_MAC
 	HistoryView::DoubleClickQuickAction _chatQuickAction =
 		HistoryView::DoubleClickQuickAction();
+	int _skipTranslationForLanguage = -int(QLocale::English);
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

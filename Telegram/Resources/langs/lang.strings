@@ -3390,6 +3390,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_translate_box_original" = "Original";
 "lng_translate_box_error" = "Translate failed.";
 
+"lng_translate_settings_subtitle" = "Translate Messages";
+"lng_translate_settings_show" = "Show Translate Button";
+"lng_translate_settings_choose" = "Do Not Translate";
+"lng_translate_settings_about" = "The 'Translate' button will appear when you open a context menu on a text message.";
+
 "lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
 "lng_launch_svg_warning" = "Opening this file can potentially expose your IP address to its sender. Continue?";
 "lng_launch_exe_sure" = "Run";

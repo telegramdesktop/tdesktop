@@ -7,12 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/translate_box.h"
 
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "data/data_peer.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
+#include "spellcheck/platform/platform_language.h"
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
@@ -73,13 +76,6 @@ namespace {
 	};
 }
 
-[[nodiscard]] QString LanguageName(const QLocale &locale) {
-	return (locale.language() == QLocale::English
-			&& locale.country() == QLocale::UnitedStates)
-		? u"English"_q
-		: locale.nativeLanguageName();
-}
-
 class ShowButton : public RpWidget {
 public:
 	ShowButton(not_null<Ui::RpWidget*> parent);
@@ -129,6 +125,17 @@ rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
 
 } // namespace
 
+QString LanguageName(const QLocale &locale) {
+	if (locale.language() == QLocale::English
+			&& (locale.country() == QLocale::UnitedStates
+				|| locale.country() == QLocale::AnyCountry)) {
+		return u"English"_q;
+	} else {
+		const auto name = locale.nativeLanguageName();
+		return name.left(1).toUpper() + name.mid(1);
+	}
+}
+
 void TranslateBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
@@ -137,7 +144,8 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto defaultId = Lang::LanguageIdOrDefault(Lang::Id());
+	const auto defaultId = QLocale(
+		Core::App().settings().skipTranslationForLanguage()).name().mid(0, 2);
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -264,26 +272,32 @@ void TranslateBox(
 		if (loading->toggled()) {
 			return;
 		}
-		Ui::BoxShow(box).showBox(Box([=](not_null<GenericBox*> b) {
-			b->setTitle(tr::lng_languages());
-			for (const auto &lang : Languages()) {
-				const auto locale = QLocale(lang);
-				const auto button = Settings::AddButton(
-					b->verticalLayout(),
-					rpl::single(LanguageName(locale)),
-					st::defaultSettingsButton);
-				button->setClickedCallback([=] {
-					state->locale.fire_copy(locale);
-					loading->show(anim::type::instant);
-					translated->hide(anim::type::instant);
-					send(locale.name().mid(0, 2));
-					b->closeBox();
-				});
-			}
-			b->addButton(tr::lng_cancel(), [=] { b->closeBox(); });
+		Ui::BoxShow(box).showBox(Box(ChooseLanguageBox, [=](QLocale locale) {
+			state->locale.fire_copy(locale);
+			loading->show(anim::type::instant);
+			translated->hide(anim::type::instant);
+			send(locale.name().mid(0, 2));
 		}));
 	});
 
+}
+
+void ChooseLanguageBox(
+		not_null<Ui::GenericBox*> box,
+		Fn<void(QLocale)> callback) {
+	box->setTitle(tr::lng_languages());
+	for (const auto &lang : Languages()) {
+		const auto locale = QLocale(lang);
+		const auto button = Settings::AddButton(
+			box->verticalLayout(),
+			rpl::single(LanguageName(locale)),
+			st::defaultSettingsButton);
+		button->setClickedCallback([=] {
+			callback(locale);
+			box->closeBox();
+		});
+	}
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
 } // namespace Ui
