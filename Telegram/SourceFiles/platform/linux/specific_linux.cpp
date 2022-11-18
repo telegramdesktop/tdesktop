@@ -286,7 +286,7 @@ void LaunchGApplication() {
 	};
 
 	if (OptionGApplication.value()
-		|| gtkNotifications()
+		|| (!KSandbox::isSnap() && gtkNotifications())
 		|| (KSandbox::isFlatpak() && !freedesktopNotifications())) {
 		Glib::signal_idle().connect_once([] {
 			const auto appId = QGuiApplication::desktopFileName()
