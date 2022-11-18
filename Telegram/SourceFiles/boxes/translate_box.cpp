@@ -300,4 +300,35 @@ void ChooseLanguageBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
+bool SkipTranslate(TextWithEntities textWithEntities) {
+	const auto &text = textWithEntities.text;
+	if (text.isEmpty()) {
+		return true;
+	}
+	if (!Core::App().settings().translateButtonEnabled()) {
+		return true;
+	}
+	auto hasLetters = false;
+	constexpr auto kFirstChunk = 100;
+	for (auto i = 0; i < kFirstChunk; i++) {
+		if (i >= text.size()) {
+			hasLetters = true; // Rest characters are unknown.
+			break;
+		}
+		if (text.at(i).isLetter()) {
+			hasLetters = true;
+			break;
+		}
+	}
+	if (!hasLetters) {
+		return true;
+	}
+	const auto result = Platform::Language::Recognize(text);
+	if (result.unknown) {
+		return false;
+	}
+	const auto skip = Core::App().settings().skipTranslationForLanguage();
+	return (result.locale.language() == skip);
+}
+
 } // namespace Ui

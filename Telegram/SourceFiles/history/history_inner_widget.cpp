@@ -2261,20 +2261,24 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	if (lnkPhoto || lnkDocument) {
 		const auto item = _dragStateItem;
 		const auto itemId = item ? item->fullId() : FullMsgId();
-		if (isUponSelected > 0 && !hasCopyRestrictionForSelected()) {
-			_menu->addAction(
-				(isUponSelected > 1
-					? tr::lng_context_copy_selected_items(tr::now)
-					: tr::lng_context_copy_selected(tr::now)),
-				[=] { copySelectedText(); },
-				&st::menuIconCopy);
-			_menu->addAction(tr::lng_context_translate_selected({}), [=] {
-				_controller->show(Box(
-					Ui::TranslateBox,
-					item->history()->peer,
-					MsgId(),
-					getSelectedText().rich));
-			}, &st::menuIconTranslate);
+		if (isUponSelected > 0) {
+			if (!hasCopyRestrictionForSelected()) {
+				_menu->addAction(
+					(isUponSelected > 1
+						? tr::lng_context_copy_selected_items(tr::now)
+						: tr::lng_context_copy_selected(tr::now)),
+					[=] { copySelectedText(); },
+					&st::menuIconCopy);
+			}
+			if (!Ui::SkipTranslate(getSelectedText().rich)) {
+				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+					_controller->show(Box(
+						Ui::TranslateBox,
+						item->history()->peer,
+						MsgId(),
+						getSelectedText().rich));
+				}, &st::menuIconTranslate);
+			}
 		}
 		addItemActions(item, item);
 		if (!selectedState.count) {
@@ -2366,13 +2370,15 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 					[=] { copySelectedText(); },
 					&st::menuIconCopy);
 			}
-			_menu->addAction(tr::lng_context_translate_selected({}), [=] {
-				_controller->show(Box(
-					Ui::TranslateBox,
-					item->history()->peer,
-					MsgId(),
-					getSelectedText().rich));
-			}, &st::menuIconTranslate);
+			if (!Ui::SkipTranslate(getSelectedText().rich)) {
+				_menu->addAction(tr::lng_context_translate_selected({}), [=] {
+					_controller->show(Box(
+						Ui::TranslateBox,
+						item->history()->peer,
+						MsgId(),
+						getSelectedText().rich));
+				}, &st::menuIconTranslate);
+			}
 			addItemActions(item, item);
 		} else {
 			addItemActions(item, albumPartItem);
@@ -2433,7 +2439,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				if (!item->isService()
 					&& view
 					&& actionText.isEmpty()
-					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
+					&& (view->hasVisibleText() || mediaHasTextForCopy)
+					&& !Ui::SkipTranslate(item->originalText())) {
 					_menu->addAction(tr::lng_context_translate(tr::now), [=] {
 						_controller->show(Box(
 							Ui::TranslateBox,

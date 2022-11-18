@@ -21,6 +21,8 @@ void TranslateBox(
 	MsgId msgId,
 	TextWithEntities text);
 
+[[nodiscard]] bool SkipTranslate(TextWithEntities textWithEntities);
+
 void ChooseLanguageBox(
 	not_null<Ui::GenericBox*> box,
 	Fn<void(QLocale)> callback);

@@ -1005,7 +1005,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			}
 		}, &st::menuIconCopy);
 	}
-	if (request.overSelection) {
+	if (request.overSelection
+		&& !Ui::SkipTranslate(list->getSelectedText().rich)) {
 		const auto owner = &view->history()->owner();
 		result->addAction(tr::lng_context_translate_selected(tr::now), [=] {
 			if (const auto item = owner->message(itemId)) {
@@ -1051,7 +1052,9 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 				}
 			}, &st::menuIconCopy);
 		}
-		if (!link && (view->hasVisibleText() || mediaHasTextForCopy)) {
+		if (!link
+			&& (view->hasVisibleText() || mediaHasTextForCopy)
+			&& !Ui::SkipTranslate(item->originalText())) {
 			result->addAction(tr::lng_context_translate(tr::now), [=] {
 				if (const auto item = owner->message(itemId)) {
 					list->controller()->show(Box(
