@@ -16,8 +16,7 @@ const char kOptionGApplication[] = "gapplication";
 base::options::toggle OptionGApplication({
 	.id = kOptionGApplication,
 	.name = "GApplication",
-	.description = "Force enable GNOME's GApplication and GNotification."
-		" This changes notification behavior to be native to GNOME."
+	.description = "Force enable GLib's GApplication and GNotification."
 		" When disabled, autodetect is used.",
 	.scope = base::options::linux,
 	.restartRequired = true,

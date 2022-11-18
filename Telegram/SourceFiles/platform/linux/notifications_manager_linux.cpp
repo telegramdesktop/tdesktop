@@ -1198,7 +1198,7 @@ void Manager::doClearFromSession(not_null<Main::Session*> session) {
 }
 
 bool Manager::doSkipAudio() const {
-	return _private->inhibited() || Gio::Application::get_default();
+	return _private->inhibited();
 }
 
 bool Manager::doSkipToast() const {
@@ -1206,7 +1206,7 @@ bool Manager::doSkipToast() const {
 }
 
 bool Manager::doSkipFlashBounce() const {
-	return _private->inhibited() || Gio::Application::get_default();
+	return _private->inhibited();
 }
 
 } // namespace Notifications
