@@ -268,25 +268,7 @@ void LaunchGApplication() {
 		return false;
 	};
 
-	const auto gtkNotifications = [&] {
-		try {
-			if (connection && NameHasOwner(
-				connection,
-				"org.gtk.Notifications")) {
-				return true;
-			}
-		} catch (...) {
-		}
-
-		if (ranges::contains(activatableNames, "org.gtk.Notifications")) {
-			return true;
-		}
-
-		return false;
-	};
-
 	if (OptionGApplication.value()
-		|| (!KSandbox::isSnap() && gtkNotifications())
 		|| (KSandbox::isFlatpak() && !freedesktopNotifications())) {
 		Glib::signal_idle().connect_once([] {
 			const auto appId = QGuiApplication::desktopFileName()
