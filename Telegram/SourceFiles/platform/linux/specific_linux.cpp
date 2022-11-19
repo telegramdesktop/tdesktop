@@ -416,6 +416,7 @@ void LaunchGApplication() {
 bool GenerateDesktopFile(
 		const QString &targetPath,
 		const QStringList &args = {},
+		bool onlyMainGroup = false,
 		bool silent = false) {
 	if (targetPath.isEmpty() || cExeName().isEmpty()) {
 		return false;
@@ -450,6 +451,11 @@ bool GenerateDesktopFile(
 				| Glib::KeyFile::Flags::KEEP_TRANSLATIONS);
 
 		for (const auto &group : target->get_groups()) {
+			if (onlyMainGroup && group != "Desktop Entry") {
+				target->remove_group(group);
+				continue;
+			}
+
 			if (target->has_key(group, "TryExec")) {
 				target->set_string(
 					group,
@@ -506,6 +512,13 @@ bool GenerateDesktopFile(
 		}
 		return false;
 	}
+
+	QFile::setPermissions(
+		targetFile,
+		QFile::permissions(targetFile)
+			| QFileDevice::ExeOwner
+			| QFileDevice::ExeGroup
+			| QFileDevice::ExeOther);
 
 	if (!Core::UpdaterDisabled()) {
 		DEBUG_LOG(("App Info: removing old .desktop files"));
@@ -598,11 +611,7 @@ std::optional<bool> IsDarkMode() {
 
 bool AutostartSupported() {
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	// snap sandbox doesn't allow creating files
-	// in folders with names started with a dot
-	// and doesn't provide any api to add an app to autostart
-	// thus, autostart isn't supported in snap
-	return !KSandbox::isSnap();
+	return true;
 #else // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	return false;
 #endif // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
@@ -625,7 +634,7 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 			+ u"/autostart/"_q;
 
 		if (enabled) {
-			GenerateDesktopFile(autostart, { u"-autostart"_q }, silent);
+			GenerateDesktopFile(autostart, { u"-autostart"_q }, true, silent);
 		} else {
 			QFile::remove(autostart + QGuiApplication::desktopFileName());
 		}
