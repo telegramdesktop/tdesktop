@@ -218,8 +218,8 @@ parts:
     source-tag: 2.72.1
     plugin: meson
     build-packages:
-      - curl
       - meson
+      - mm-common
       - ninja-build
       - libglib2.0-dev
       - libxml-parser-perl
@@ -233,7 +233,6 @@ parts:
       - -Dsigc++-3.0:build-documentation=false
       - -Dsigc++-3.0:build-examples=false
       - -Dsigc++-3.0:validation=false
-      - -Dmm-common:use-network=true
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
