@@ -315,9 +315,7 @@ void ForumTopic::applyTopic(const MTPDforumTopic &data) {
 	applyIsMy(data.is_my());
 	setClosed(data.is_closed());
 
-	if (min) {
-		int a = 0;
-	} else {
+	if (!min) {
 		owner().setPinnedFromEntryList(this, data.is_pinned());
 		owner().notifySettings().apply(this, data.vnotify_settings());
 

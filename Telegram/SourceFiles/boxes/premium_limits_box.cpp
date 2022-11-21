@@ -804,9 +804,6 @@ void PinsLimitBox(
 void ForumPinsLimitBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<Data::Forum*> forum) {
-	const auto premium = false;
-	const auto premiumPossible = false;
-
 	const auto current = forum->owner().pinnedChatsLimit(forum) * 1.;
 
 	auto text = tr::lng_forum_pin_limit(

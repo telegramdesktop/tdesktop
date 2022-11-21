@@ -555,7 +555,6 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 		const auto &list = _shownList->all();
 		const auto shownBottom = _shownList->height() - skipTopHeight();
-		const auto active = activeEntry.key;
 		const auto selected = isPressed()
 			? (_pressed ? _pressed->key() : Key())
 			: (_selected ? _selected->key() : Key());

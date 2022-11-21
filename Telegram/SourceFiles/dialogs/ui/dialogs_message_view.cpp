@@ -173,7 +173,6 @@ void MessageView::prepare(
 			st::dialogsTextStyle,
 			std::move(sender),
 			DialogTextOptions());
-		const auto topicTill = preview.imagesInTextPosition;
 		preview.text = Text::Mid(preview.text, senderTill);
 	} else {
 		_senderCache = { st::dialogsTextWidthMin };

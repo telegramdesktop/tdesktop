@@ -106,8 +106,6 @@ void TopicsView::paint(
 		Painter &p,
 		const QRect &geometry,
 		const PaintContext &context) const {
-	auto available = geometry.width();
-
 	p.setFont(st::dialogsTextFont);
 	p.setPen(context.active
 		? st::dialogsTextFgActive
@@ -119,7 +117,6 @@ void TopicsView::paint(
 		: context.selected
 		? st::dialogsTextPaletteArchiveOver
 		: st::dialogsTextPaletteArchive);
-	auto index = 0;
 	auto rect = geometry;
 	auto skipBig = _jumpToTopic && !context.active;
 	for (const auto &title : _titles) {
@@ -224,7 +221,6 @@ JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
 	const auto use1 = std::min(context.width1, availableWidth);
 	const auto use2 = std::min(context.width2, availableWidth);
 	const auto padding = st::forumDialogJumpPadding;
-	const auto radius = st::forumDialogJumpRadius;
 	const auto origin = context.geometry.topLeft();
 	const auto delta = std::abs(use1 - use2);
 	if (delta <= context.st->topicsSkip / 2) {
