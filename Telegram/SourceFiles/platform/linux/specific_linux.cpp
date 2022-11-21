@@ -401,11 +401,10 @@ void LaunchGApplication() {
 		});
 	}
 }
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 bool GenerateDesktopFile(
 		const QString &targetPath,
-		const QString &args,
+		const QStringList &args = {},
 		bool silent = false) {
 	if (targetPath.isEmpty() || cExeName().isEmpty()) {
 		return false;
@@ -418,7 +417,6 @@ bool GenerateDesktopFile(
 	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
 
 	QString fileText;
-
 	QFile source(sourceFile);
 	if (source.open(QIODevice::ReadOnly)) {
 		QTextStream s(&source);
@@ -431,65 +429,95 @@ bool GenerateDesktopFile(
 		return false;
 	}
 
-	QFile target(targetFile);
-	if (target.open(QIODevice::WriteOnly)) {
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^TryExec=.*$"),
-				QRegularExpression::MultilineOption),
-			qsl("TryExec=%1").arg(
-				QString(cExeDir() + cExeName()).replace('\\', "\\\\")));
+	try {
+		const auto target = Glib::KeyFile::create();
+		target->load_from_data(
+			fileText.toStdString(),
+			Glib::KeyFile::Flags::KEEP_COMMENTS
+				| Glib::KeyFile::Flags::KEEP_TRANSLATIONS);
 
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^Exec=telegram-desktop(.*)$"),
-				QRegularExpression::MultilineOption),
-			qsl("Exec=%1\\1").arg(
-				KShell::joinArgs(QStringList{
-					cExeDir() + cExeName(),
-				} + (Core::Sandbox::Instance().customWorkingDir()
-					? QStringList{ "-workdir", cWorkingDir() }
-					: QStringList{})).replace('\\', "\\\\")));
+		for (const auto &group : target->get_groups()) {
+			if (target->has_key(group, "TryExec")) {
+				target->set_string(
+					group,
+					"TryExec",
+					KShell::joinArgs({ cExeDir() + cExeName() }).replace(
+						'\\',
+						qstr("\\\\")).toStdString());
+			}
 
-		fileText = fileText.replace(
-			QRegularExpression(
-				qsl("^Exec=(.*) -- %u$"),
-				QRegularExpression::MultilineOption),
-			qsl("Exec=\\1%1").arg(
-				args.isEmpty() ? QString() : ' ' + args));
+			if (target->has_key(group, "Exec")) {
+				if (group == "Desktop Entry" && !args.isEmpty()) {
+					QStringList exec;
+					exec.append(cExeDir() + cExeName());
+					if (Core::Sandbox::Instance().customWorkingDir()) {
+						exec.append(qsl("-workdir"));
+						exec.append(cWorkingDir());
+					}
+					exec.append(args);
+					target->set_string(
+						group,
+						"Exec",
+						KShell::joinArgs(exec).replace(
+							'\\',
+							qstr("\\\\")).toStdString());
+				} else {
+					auto exec = KShell::splitArgs(
+						QString::fromStdString(
+							target->get_string(group, "Exec")
+						).replace(
+							qstr("\\\\"),
+							qstr("\\")));
 
-		target.write(fileText.toUtf8());
-		target.close();
+					if (!exec.isEmpty()) {
+						exec[0] = cExeDir() + cExeName();
+						if (Core::Sandbox::Instance().customWorkingDir()) {
+							exec.insert(1, qsl("-workdir"));
+							exec.insert(2, cWorkingDir());
+						}
+						target->set_string(
+							group,
+							"Exec",
+							KShell::joinArgs(exec).replace(
+								'\\',
+								qstr("\\\\")).toStdString());
+					}
+				}
+			}
 
-		if (!Core::UpdaterDisabled()) {
-			DEBUG_LOG(("App Info: removing old .desktop files"));
-			QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
-			QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
-
-			const auto appimagePath = qsl("file://%1%2").arg(
-				cExeDir(),
-				cExeName()).toUtf8();
-
-			char md5Hash[33] = { 0 };
-			hashMd5Hex(
-				appimagePath.constData(),
-				appimagePath.size(),
-				md5Hash);
-
-			QFile::remove(qsl("%1appimagekit_%2-%3.desktop").arg(
-				targetPath,
-				md5Hash,
-				AppName.utf16().replace(' ', '_')));
+			target->save_to_file(targetFile.toStdString());
 		}
-
-		return true;
-	} else {
+	} catch (const std::exception &e) {
 		if (!silent) {
-			LOG(("App Error: Could not open '%1' for write").arg(targetFile));
+			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
 		}
 		return false;
 	}
+
+	if (!Core::UpdaterDisabled()) {
+		DEBUG_LOG(("App Info: removing old .desktop files"));
+		QFile::remove(qsl("%1telegram.desktop").arg(targetPath));
+		QFile::remove(qsl("%1telegramdesktop.desktop").arg(targetPath));
+
+		const auto appimagePath = qsl("file://%1%2").arg(
+			cExeDir(),
+			cExeName()).toUtf8();
+
+		char md5Hash[33] = { 0 };
+		hashMd5Hex(
+			appimagePath.constData(),
+			appimagePath.size(),
+			md5Hash);
+
+		QFile::remove(qsl("%1appimagekit_%2-%3.desktop").arg(
+			targetPath,
+			md5Hash,
+			AppName.utf16().replace(' ', '_')));
+	}
+
+	return true;
 }
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 } // namespace
 
@@ -551,6 +579,7 @@ bool AutostartSupported() {
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	const auto guard = gsl::finally([&] {
 		if (done) {
 			done(enabled);
@@ -559,20 +588,19 @@ void AutostartToggle(bool enabled, Fn<void(bool)> done) {
 
 	const auto silent = !done;
 	if (KSandbox::isFlatpak()) {
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 		PortalAutostart(enabled, silent);
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	} else {
 		const auto autostart = QStandardPaths::writableLocation(
 			QStandardPaths::GenericConfigLocation)
 			+ qsl("/autostart/");
 
 		if (enabled) {
-			GenerateDesktopFile(autostart, qsl("-autostart"), silent);
+			GenerateDesktopFile(autostart, { qsl("-autostart") }, silent);
 		} else {
 			QFile::remove(autostart + QGuiApplication::desktopFileName());
 		}
 	}
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 bool AutostartSkip() {
@@ -716,6 +744,7 @@ void finish() {
 }
 
 void InstallLauncher(bool force) {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	static const auto DisabledByEnv = !qEnvironmentVariableIsEmpty(
 		"DESKTOPINTEGRATION");
 
@@ -728,7 +757,7 @@ void InstallLauncher(bool force) {
 	const auto applicationsPath = QStandardPaths::writableLocation(
 		QStandardPaths::ApplicationsLocation) + '/';
 
-	GenerateDesktopFile(applicationsPath, qsl("-- %u"));
+	GenerateDesktopFile(applicationsPath);
 
 	const auto icons = QStandardPaths::writableLocation(
 		QStandardPaths::GenericDataLocation) + qsl("/icons/");
@@ -752,6 +781,7 @@ void InstallLauncher(bool force) {
 	QProcess::execute("update-desktop-database", {
 		applicationsPath
 	});
+#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 PermissionStatus GetPermissionStatus(PermissionType type) {
