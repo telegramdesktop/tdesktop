@@ -3212,13 +3212,24 @@ bool InnerWidget::chooseRow(
 		if (IsServerMsgId(chosen.message.fullId.msg)) {
 			session().local().saveRecentSearchHashtags(_filter);
 		}
-		if (pressedTopicRootId && !chosen.message.fullId) {
-			const auto history = chosen.key.history();
-			if (history->peer->isForum()) {
-				chosen.message.fullId = {
-					history->peer->id,
-					pressedTopicRootId,
-				};
+		if (!chosen.message.fullId) {
+			if (const auto history = chosen.key.history()) {
+				if (const auto forum = history->peer->forum()) {
+					if (pressedTopicRootId) {
+						chosen.message.fullId = {
+							history->peer->id,
+							pressedTopicRootId,
+						};
+					} else if (!_controller->adaptive().isOneColumn()) {
+						const auto &recent = forum->recentTopics();
+						if (!recent.empty()) {
+							chosen.message.fullId = {
+								history->peer->id,
+								recent.front()->rootId(),
+							};
+						}
+					}
+				}
 			}
 		}
 		_chosenRow.fire_copy(chosen);
