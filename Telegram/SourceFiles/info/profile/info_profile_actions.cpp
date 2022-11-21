@@ -372,13 +372,22 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 
 		const auto usernameLine = addInfoOneLine(
 			UsernamesSubtext(_peer, tr::lng_info_username_label()),
-			UsernameValue(user, true),
-			tr::lng_context_copy_mention(tr::now),
+			UsernameValue(user, true) | rpl::map([=](TextWithEntities u) {
+				return u.text.isEmpty()
+					? TextWithEntities()
+					: Ui::Text::Link(
+						u,
+						user->session().createInternalLinkFull(
+							u.text.mid(1)));
+			}),
+			QString(),
 			st::infoProfileLabeledUsernamePadding);
-		usernameLine.subtext->overrideLinkClickHandler(UsernamesLinkCallback(
+		const auto callback = UsernamesLinkCallback(
 			_peer,
 			Window::Show(controller),
-			QString()));
+			QString());
+		usernameLine.text->overrideLinkClickHandler(callback);
+		usernameLine.subtext->overrideLinkClickHandler(callback);
 		const auto usernameLabel = usernameLine.text;
 		if (user->isBot()) {
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
