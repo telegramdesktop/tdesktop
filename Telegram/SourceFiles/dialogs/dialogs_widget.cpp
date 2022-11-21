@@ -419,7 +419,9 @@ void Widget::chosenRow(const ChosenRow &row) {
 		? history->peer->forumTopicFor(row.message.fullId.msg)
 		: nullptr;
 	if (topicJump) {
-		controller()->openForum(history->peer->asChannel());
+		if (!controller()->adaptive().isOneColumn()) {
+			controller()->openForum(history->peer->asChannel());
+		}
 		controller()->content()->chooseThread(
 			topicJump,
 			ShowAtUnreadMsgId);
