@@ -15,7 +15,9 @@ architectures:
 
 apps:
   telegram-desktop:
-    command: bin/desktop-launch telegram-desktop
+    command: usr/bin/telegram-desktop
+    command-chain:
+      - bin/desktop-launch
     common-id: org.telegram.desktop
     desktop: usr/share/applications/org.telegram.desktop.desktop
     environment:
