@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "platform/linux/linux_desktop_environment.h"
 #include "platform/linux/linux_wayland_integration.h"
+#include "platform/platform_launcher.h"
 #include "lang/lang_keys.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -139,20 +140,21 @@ void PortalAutostart(bool start, bool silent) {
 		const auto handleToken = Glib::ustring("tdesktop")
 			+ std::to_string(base::RandomValue<uint>());
 
+		std::vector<Glib::ustring> commandline;
+		commandline.push_back(cExeName().toStdString());
+		if (Core::Sandbox::Instance().customWorkingDir()) {
+			commandline.push_back("-workdir");
+			commandline.push_back(cWorkingDir().toStdString());
+		}
+		commandline.push_back("-autostart");
+
 		std::map<Glib::ustring, Glib::VariantBase> options;
 		options["handle_token"] = Glib::Variant<Glib::ustring>::create(
 			handleToken);
 		options["reason"] = Glib::Variant<Glib::ustring>::create(
 			tr::lng_settings_auto_start(tr::now).toStdString());
 		options["autostart"] = Glib::Variant<bool>::create(start);
-		options["commandline"] = Glib::Variant<std::vector<
-			Glib::ustring
-		>>::create({
-			cExeName().toStdString(),
-			"-workdir",
-			cWorkingDir().toStdString(),
-			"-autostart",
-		});
+		options["commandline"] = base::Platform::MakeGlibVariant(commandline);
 		options["dbus-activatable"] = Glib::Variant<bool>::create(false);
 
 		auto uniqueName = connection->get_unique_name();
@@ -443,11 +445,11 @@ bool GenerateDesktopFile(
 				qsl("^Exec=telegram-desktop(.*)$"),
 				QRegularExpression::MultilineOption),
 			qsl("Exec=%1\\1").arg(
-				KShell::joinArgs({
+				KShell::joinArgs(QStringList{
 					cExeDir() + cExeName(),
-					"-workdir",
-					cWorkingDir(),
-				}).replace('\\', "\\\\")));
+				} + (Core::Sandbox::Instance().customWorkingDir()
+					? QStringList{ "-workdir", cWorkingDir() }
+					: QStringList{})).replace('\\', "\\\\")));
 
 		fileText = fileText.replace(
 			QRegularExpression(
@@ -661,7 +663,18 @@ void start() {
 		}
 
 		if (!Core::UpdaterDisabled()) {
-			return qsl("org.telegram.desktop.%1.desktop").arg(h);
+			QByteArray md5Hash(h);
+			if (!Launcher::Instance().customWorkingDir()) {
+				const auto exePath = QFile::encodeName(
+					cExeDir() + cExeName());
+
+				hashMd5Hex(
+					exePath.constData(),
+					exePath.size(),
+					md5Hash.data());
+			}
+
+			return qsl("org.telegram.desktop.%1.desktop").arg(md5Hash);
 		}
 
 		return qsl("org.telegram.desktop.desktop");
