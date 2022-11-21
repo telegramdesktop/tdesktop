@@ -2348,7 +2348,7 @@ bool Widget::cancelSearch() {
 	auto clearingInChat = false;
 	cancelSearchRequest();
 	if (!clearingQuery && (_searchInChat || _searchFromAuthor)) {
-		if (controller()->adaptive().isOneColumn()) {
+		if (_searchInChat && controller()->adaptive().isOneColumn()) {
 			if (const auto thread = _searchInChat.thread()) {
 				controller()->showThread(thread);
 			} else {
