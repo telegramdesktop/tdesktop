@@ -81,7 +81,7 @@ static void t_desktop_application_class_init(
 				"activation-token",
 				"desktop-startup-id",
 			};
-			for (const auto key : keys) {
+			for (const auto &key : keys) {
 				const char *token = nullptr;
 				g_variant_lookup(platformData, key, "&s", &token);
 				if (token) {
@@ -307,7 +307,7 @@ void LaunchGApplication() {
 					const Gio::Application::type_vec_files &files,
 					const Glib::ustring &hint) {
 				Core::Sandbox::Instance().customEnterFromEventLoop([&] {
-					for (const auto file : files) {
+					for (const auto &file : files) {
 						if (file->get_uri_scheme() == "file") {
 							gSendPaths.append(
 								QString::fromStdString(file->get_path()));
