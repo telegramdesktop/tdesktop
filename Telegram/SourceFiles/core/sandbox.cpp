@@ -511,6 +511,10 @@ void Sandbox::refreshGlobalProxy() {
 	}
 }
 
+bool Sandbox::customWorkingDir() const {
+	return _launcher->customWorkingDir();
+}
+
 uint64 Sandbox::installationTag() const {
 	return _launcher->installationTag();
 }

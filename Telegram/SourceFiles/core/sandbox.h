@@ -41,6 +41,7 @@ public:
 	int start();
 
 	void refreshGlobalProxy();
+	bool customWorkingDir() const;
 	uint64 installationTag() const;
 
 	void postponeCall(FnMut<void()> &&callable);

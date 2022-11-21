@@ -1446,7 +1446,9 @@ void Application::startShortcuts() {
 void Application::RegisterUrlScheme() {
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = cExeDir() + cExeName(),
-		.arguments = qsl("-workdir \"%1\"").arg(cWorkingDir()),
+		.arguments = Sandbox::Instance().customWorkingDir()
+			? qsl("-workdir \"%1\"").arg(cWorkingDir())
+			: QString(),
 		.protocol = qsl("tg"),
 		.protocolName = qsl("Telegram Link"),
 		.shortAppName = qsl("tdesktop"),
