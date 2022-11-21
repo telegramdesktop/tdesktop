@@ -402,6 +402,7 @@ infoLabeledOneLine: FlatLabel(defaultFlatLabel) {
 	style: TextStyle(defaultTextStyle) {
 		lineHeight: 19px;
 	}
+	margin: margins(5px, 5px, 5px, 5px);
 }
 infoLabelSkip: 2px;
 infoLabel: FlatLabel(infoLabeledOneLine) {
