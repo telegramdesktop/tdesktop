@@ -587,12 +587,6 @@ void MainWindow::updateMinimumSize() {
 
 void MainWindow::recountGeometryConstraints() {
 	updateMinimumSize();
-	{
-		// Resizing to a new minimum size (larger than before)
-		// may cause the window to go out of bounds.
-		savePosition(Qt::WindowActive);
-		setGeometry(countInitialGeometry(positionFromSettings()));
-	}
 	updateControlsGeometry();
 	fixOrder();
 }
