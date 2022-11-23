@@ -15,10 +15,6 @@ if [ ! -d "$FullScriptPath/../../../../DesktopPrivate" ]; then
   exit
 fi
 
-Run () {
-  scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- "$@"
-}
-
 HomePath="$FullScriptPath/../.."
 cd $HomePath
 
@@ -30,10 +26,10 @@ if [ ! -f "/usr/bin/cmake" ]; then
   ln -s cmake3 /usr/bin/cmake
 fi
 
-Run ./configure.sh
+./configure.sh
 
 cd $ProjectPath
-Run cmake --build . --config Release --target Telegram
+cmake --build . --config Release --target Telegram
 cd $ReleasePath
 
 echo "$BinaryName build complete!"
