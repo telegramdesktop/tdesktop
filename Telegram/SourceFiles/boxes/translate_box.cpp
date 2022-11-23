@@ -159,6 +159,10 @@ void TranslateBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
+	if (!IsServerMsgId(msgId)) {
+		msgId = 0;
+	}
+
 	using Flag = MTPmessages_translateText::Flag;
 	const auto flags = msgId
 		? (Flag::f_peer | Flag::f_msg_id)
