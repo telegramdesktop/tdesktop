@@ -1,4 +1,4 @@
-#!/usr/bin/scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash
+#!/bin/bash
 
 cd Telegram
 ./configure.sh "$@"

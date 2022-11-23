@@ -51,7 +51,7 @@ jobs:
 
     defaults:
       run:
-        shell: scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable rh-python38 -- scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
