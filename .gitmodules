@@ -100,3 +100,6 @@
 [submodule "Telegram/ThirdParty/cld3"]
 	path = Telegram/ThirdParty/cld3
 	url = https://github.com/google/cld3.git
+[submodule "Telegram/ThirdParty/sonnet"]
+	path = Telegram/ThirdParty/sonnet
+	url = https://github.com/KDE/sonnet.git
