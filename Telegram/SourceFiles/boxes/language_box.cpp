@@ -1123,13 +1123,27 @@ void LanguageBox::prepare() {
 		tr::lng_translate_settings_choose(),
 		label->events() | rpl::map(Ui::LanguageName),
 		st::settingsButtonNoIcon);
-	label->fire(QLocale(Core::App().settings().skipTranslationForLanguage()));
+
+	{
+		const auto settingsLang =
+			Core::App().settings().skipTranslationForLanguage();
+		const auto locale = (settingsLang == QLocale::English)
+			? QLocale(Lang::LanguageIdOrDefault(Lang::Id()))
+			: (settingsLang == QLocale::C)
+			? QLocale(QLocale::English)
+			: QLocale(settingsLang);
+		label->fire_copy(locale);
+	}
 	translateSkip->setClickedCallback([=] {
 		Ui::BoxShow(this).showBox(
 			Box(Ui::ChooseLanguageBox, [=](QLocale locale) {
-				label->fire(QLocale(locale));
+				label->fire_copy(locale);
+				const auto result = (locale.language() == QLocale::English)
+					? QLocale::c()
+					: locale;
 				Core::App().settings().setSkipTranslationForLanguage(
-					locale.language());
+					result.language());
+				Core::App().saveSettingsDelayed();
 			}),
 			Ui::LayerOption::KeepOther);
 	});

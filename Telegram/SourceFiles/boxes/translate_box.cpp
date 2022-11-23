@@ -144,8 +144,13 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto defaultId = QLocale(
-		Core::App().settings().skipTranslationForLanguage()).name().mid(0, 2);
+	const auto settingsLang =
+		Core::App().settings().skipTranslationForLanguage();
+	const auto defaultId = (settingsLang == QLocale::English)
+		? Lang::LanguageIdOrDefault(Lang::Id())
+		: (settingsLang == QLocale::C)
+		? u"en"_q
+		: QLocale(settingsLang).name().mid(0, 2);
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -327,7 +332,13 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (result.unknown) {
 		return false;
 	}
-	const auto skip = Core::App().settings().skipTranslationForLanguage();
+	const auto settingsLang =
+		Core::App().settings().skipTranslationForLanguage();
+	const auto skip = (settingsLang == QLocale::English)
+		? QLocale(Lang::LanguageIdOrDefault(Lang::Id())).language()
+		: (settingsLang == QLocale::C)
+		? QLocale::English
+		: settingsLang;
 	return (result.locale.language() == skip);
 }
 
