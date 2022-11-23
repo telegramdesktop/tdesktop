@@ -56,6 +56,10 @@ struct BottomRippleMask {
 	int shift = 0;
 };
 
+[[nodiscard]] style::color FromNameFg(
+	const Ui::ChatPaintContext &context,
+	PeerId peerId);
+
 class Message final : public Element {
 public:
 	Message(

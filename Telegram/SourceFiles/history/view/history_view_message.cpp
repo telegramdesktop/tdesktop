@@ -225,6 +225,8 @@ QString FastReplyText() {
 	return tr::lng_fast_reply(tr::now);
 }
 
+} // namespace
+
 style::color FromNameFg(
 		const Ui::ChatPaintContext &context,
 		PeerId peerId) {
@@ -255,8 +257,6 @@ style::color FromNameFg(
 		return colors[Data::PeerColorIndex(peerId)];
 	}
 }
-
-} // namespace
 
 struct Message::CommentsButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
