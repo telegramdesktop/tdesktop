@@ -317,11 +317,10 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (!Core::App().settings().translateButtonEnabled()) {
 		return true;
 	}
-	auto hasLetters = false;
-	constexpr auto kFirstChunk = 100;
+	constexpr auto kFirstChunk = size_t(100);
+	auto hasLetters = (text.size() >= kFirstChunk);
 	for (auto i = 0; i < kFirstChunk; i++) {
 		if (i >= text.size()) {
-			hasLetters = true; // Rest characters are unknown.
 			break;
 		}
 		if (text.at(i).isLetter()) {
