@@ -371,10 +371,17 @@ void PaintRow(
 	}
 	auto texttop = context.st->textTop;
 	if (const auto folder = entry->asFolder()) {
+		const auto availableWidth = PaintWideCounter(
+			p,
+			context,
+			badgesState,
+			texttop,
+			namewidth,
+			false);
 		const auto rect = QRect(
 			nameleft,
 			texttop,
-			namewidth,
+			availableWidth,
 			st::dialogsTextFont->height);
 		PaintFolderEntryText(p, folder, context, rect);
 	} else if (promoted && !history->topPromotionMessage().isEmpty()) {
