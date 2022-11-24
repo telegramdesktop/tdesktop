@@ -408,7 +408,7 @@ win:
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
 
-    powershell -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
+    powershell -Command "iwr -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
     msys64.exe
     del msys64.exe
 
@@ -421,12 +421,12 @@ win:
 stage('NuGet', """
 win:
     mkdir NuGet
-    powershell -Command "Invoke-WebRequest -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+    powershell -Command "iwr -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
 """, 'ThirdParty')
 
 stage('jom', """
 win:
-    powershell -Command "Invoke-WebRequest -OutFile ./jom.zip https://master.qt.io/official_releases/jom/jom_1_1_3.zip"
+    powershell -Command "iwr -OutFile ./jom.zip https://master.qt.io/official_releases/jom/jom_1_1_3.zip"
     powershell -Command "Expand-Archive ./jom.zip"
     del jom.zip
 """, 'ThirdParty')
@@ -636,9 +636,9 @@ release:
 
 stage('libiconv', """
 mac:
-    VERSION=1.16
+    VERSION=1.17
     rm -f libiconv.tar.gz
-    wget -O libiconv.tar.gz https://ftp.gnu.org/pub/gnu/libiconv/libiconv-$VERSION.tar.gz
+    wget -O libiconv.tar.gz ftp://ftp.gnu.org/gnu/libiconv/libiconv-$VERSION.tar.gz
     rm -rf libiconv-$VERSION
     tar -xvzf libiconv.tar.gz
     rm libiconv.tar.gz
@@ -747,118 +747,124 @@ depends:patches/build_ffmpeg_win.sh
 mac:
     export PKG_CONFIG_PATH=$USED_PREFIX/lib/pkgconfig
 depends:yasm/yasm
-    ./configure --prefix=$USED_PREFIX \
-    --enable-cross-compile \
-    --target-os=darwin \
-    --arch="arm64" \
-    --extra-cflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER -arch arm64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER -arch arm64 $USED_PREFIX/lib/libopus.a" \
-    --disable-programs \
-    --disable-doc \
-    --disable-network \
-    --disable-everything \
-    --enable-protocol=file \
-    --enable-libopus \
-    --enable-libvpx \
-    --enable-hwaccel=h264_videotoolbox \
-    --enable-hwaccel=hevc_videotoolbox \
-    --enable-hwaccel=mpeg1_videotoolbox \
-    --enable-hwaccel=mpeg2_videotoolbox \
-    --enable-hwaccel=mpeg4_videotoolbox \
-    --enable-decoder=aac \
-    --enable-decoder=aac_at \
-    --enable-decoder=aac_fixed \
-    --enable-decoder=aac_latm \
-    --enable-decoder=aasc \
-    --enable-decoder=ac3 \
-    --enable-decoder=alac \
-    --enable-decoder=alac_at \
-    --enable-decoder=av1 \
-    --enable-decoder=eac3 \
-    --enable-decoder=flac \
-    --enable-decoder=gif \
-    --enable-decoder=h264 \
-    --enable-decoder=hevc \
-    --enable-decoder=libvpx_vp8 \
-    --enable-decoder=libvpx_vp9 \
-    --enable-decoder=mp1 \
-    --enable-decoder=mp1float \
-    --enable-decoder=mp2 \
-    --enable-decoder=mp2float \
-    --enable-decoder=mp3 \
-    --enable-decoder=mp3adu \
-    --enable-decoder=mp3adufloat \
-    --enable-decoder=mp3float \
-    --enable-decoder=mp3on4 \
-    --enable-decoder=mp3on4float \
-    --enable-decoder=mpeg4 \
-    --enable-decoder=msmpeg4v2 \
-    --enable-decoder=msmpeg4v3 \
-    --enable-decoder=opus \
-    --enable-decoder=pcm_alaw \
-    --enable-decoder=pcm_alaw_at \
-    --enable-decoder=pcm_f32be \
-    --enable-decoder=pcm_f32le \
-    --enable-decoder=pcm_f64be \
-    --enable-decoder=pcm_f64le \
-    --enable-decoder=pcm_lxf \
-    --enable-decoder=pcm_mulaw \
-    --enable-decoder=pcm_mulaw_at \
-    --enable-decoder=pcm_s16be \
-    --enable-decoder=pcm_s16be_planar \
-    --enable-decoder=pcm_s16le \
-    --enable-decoder=pcm_s16le_planar \
-    --enable-decoder=pcm_s24be \
-    --enable-decoder=pcm_s24daud \
-    --enable-decoder=pcm_s24le \
-    --enable-decoder=pcm_s24le_planar \
-    --enable-decoder=pcm_s32be \
-    --enable-decoder=pcm_s32le \
-    --enable-decoder=pcm_s32le_planar \
-    --enable-decoder=pcm_s64be \
-    --enable-decoder=pcm_s64le \
-    --enable-decoder=pcm_s8 \
-    --enable-decoder=pcm_s8_planar \
-    --enable-decoder=pcm_u16be \
-    --enable-decoder=pcm_u16le \
-    --enable-decoder=pcm_u24be \
-    --enable-decoder=pcm_u24le \
-    --enable-decoder=pcm_u32be \
-    --enable-decoder=pcm_u32le \
-    --enable-decoder=pcm_u8 \
-    --enable-decoder=vorbis \
-    --enable-decoder=vp8 \
-    --enable-decoder=wavpack \
-    --enable-decoder=wmalossless \
-    --enable-decoder=wmapro \
-    --enable-decoder=wmav1 \
-    --enable-decoder=wmav2 \
-    --enable-decoder=wmavoice \
-    --enable-encoder=libopus \
-    --enable-parser=aac \
-    --enable-parser=aac_latm \
-    --enable-parser=flac \
-    --enable-parser=h264 \
-    --enable-parser=hevc \
-    --enable-parser=mpeg4video \
-    --enable-parser=mpegaudio \
-    --enable-parser=opus \
-    --enable-parser=vorbis \
-    --enable-demuxer=aac \
-    --enable-demuxer=flac \
-    --enable-demuxer=gif \
-    --enable-demuxer=h264 \
-    --enable-demuxer=hevc \
-    --enable-demuxer=matroska \
-    --enable-demuxer=m4v \
-    --enable-demuxer=mov \
-    --enable-demuxer=mp3 \
-    --enable-demuxer=ogg \
-    --enable-demuxer=wav \
-    --enable-muxer=ogg \
-    --enable-muxer=opus
 
+    configureFFmpeg() {
+        arch=$1
+
+        ./configure --prefix=$USED_PREFIX \
+        --enable-cross-compile \
+        --target-os=darwin \
+        --arch="$arch" \
+        --extra-cflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+        --extra-cxxflags="$MIN_VER -arch $arch $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
+        --extra-ldflags="$MIN_VER -arch $arch $USED_PREFIX/lib/libopus.a" \
+        --disable-programs \
+        --disable-doc \
+        --disable-network \
+        --disable-everything \
+        --enable-protocol=file \
+        --enable-libopus \
+        --enable-libvpx \
+        --enable-hwaccel=h264_videotoolbox \
+        --enable-hwaccel=hevc_videotoolbox \
+        --enable-hwaccel=mpeg1_videotoolbox \
+        --enable-hwaccel=mpeg2_videotoolbox \
+        --enable-hwaccel=mpeg4_videotoolbox \
+        --enable-decoder=aac \
+        --enable-decoder=aac_at \
+        --enable-decoder=aac_fixed \
+        --enable-decoder=aac_latm \
+        --enable-decoder=aasc \
+        --enable-decoder=ac3 \
+        --enable-decoder=alac \
+        --enable-decoder=alac_at \
+        --enable-decoder=av1 \
+        --enable-decoder=eac3 \
+        --enable-decoder=flac \
+        --enable-decoder=gif \
+        --enable-decoder=h264 \
+        --enable-decoder=hevc \
+        --enable-decoder=libvpx_vp8 \
+        --enable-decoder=libvpx_vp9 \
+        --enable-decoder=mp1 \
+        --enable-decoder=mp1float \
+        --enable-decoder=mp2 \
+        --enable-decoder=mp2float \
+        --enable-decoder=mp3 \
+        --enable-decoder=mp3adu \
+        --enable-decoder=mp3adufloat \
+        --enable-decoder=mp3float \
+        --enable-decoder=mp3on4 \
+        --enable-decoder=mp3on4float \
+        --enable-decoder=mpeg4 \
+        --enable-decoder=msmpeg4v2 \
+        --enable-decoder=msmpeg4v3 \
+        --enable-decoder=opus \
+        --enable-decoder=pcm_alaw \
+        --enable-decoder=pcm_alaw_at \
+        --enable-decoder=pcm_f32be \
+        --enable-decoder=pcm_f32le \
+        --enable-decoder=pcm_f64be \
+        --enable-decoder=pcm_f64le \
+        --enable-decoder=pcm_lxf \
+        --enable-decoder=pcm_mulaw \
+        --enable-decoder=pcm_mulaw_at \
+        --enable-decoder=pcm_s16be \
+        --enable-decoder=pcm_s16be_planar \
+        --enable-decoder=pcm_s16le \
+        --enable-decoder=pcm_s16le_planar \
+        --enable-decoder=pcm_s24be \
+        --enable-decoder=pcm_s24daud \
+        --enable-decoder=pcm_s24le \
+        --enable-decoder=pcm_s24le_planar \
+        --enable-decoder=pcm_s32be \
+        --enable-decoder=pcm_s32le \
+        --enable-decoder=pcm_s32le_planar \
+        --enable-decoder=pcm_s64be \
+        --enable-decoder=pcm_s64le \
+        --enable-decoder=pcm_s8 \
+        --enable-decoder=pcm_s8_planar \
+        --enable-decoder=pcm_u16be \
+        --enable-decoder=pcm_u16le \
+        --enable-decoder=pcm_u24be \
+        --enable-decoder=pcm_u24le \
+        --enable-decoder=pcm_u32be \
+        --enable-decoder=pcm_u32le \
+        --enable-decoder=pcm_u8 \
+        --enable-decoder=vorbis \
+        --enable-decoder=vp8 \
+        --enable-decoder=wavpack \
+        --enable-decoder=wmalossless \
+        --enable-decoder=wmapro \
+        --enable-decoder=wmav1 \
+        --enable-decoder=wmav2 \
+        --enable-decoder=wmavoice \
+        --enable-encoder=libopus \
+        --enable-parser=aac \
+        --enable-parser=aac_latm \
+        --enable-parser=flac \
+        --enable-parser=h264 \
+        --enable-parser=hevc \
+        --enable-parser=mpeg4video \
+        --enable-parser=mpegaudio \
+        --enable-parser=opus \
+        --enable-parser=vorbis \
+        --enable-demuxer=aac \
+        --enable-demuxer=flac \
+        --enable-demuxer=gif \
+        --enable-demuxer=h264 \
+        --enable-demuxer=hevc \
+        --enable-demuxer=matroska \
+        --enable-demuxer=m4v \
+        --enable-demuxer=mov \
+        --enable-demuxer=mp3 \
+        --enable-demuxer=ogg \
+        --enable-demuxer=wav \
+        --enable-muxer=ogg \
+        --enable-muxer=opus
+    }
+
+    configureFFmpeg arm64
     make $MAKE_THREADS_CNT
 
     mkdir out.arm64
@@ -870,114 +876,7 @@ depends:yasm/yasm
 
     make clean
 
-    ./configure --prefix=$USED_PREFIX \
-    --enable-cross-compile \
-    --target-os=darwin \
-    --arch="x86_64" \
-    --extra-cflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-cxxflags="$MIN_VER -arch x86_64 $UNGUARDED -DCONFIG_SAFE_BITSTREAM_READER=1 -I$USED_PREFIX/include" \
-    --extra-ldflags="$MIN_VER -arch x86_64 $USED_PREFIX/lib/libopus.a" \
-    --disable-programs \
-    --disable-doc \
-    --disable-network \
-    --disable-everything \
-    --enable-protocol=file \
-    --enable-libopus \
-    --enable-libvpx \
-    --enable-hwaccel=h264_videotoolbox \
-    --enable-hwaccel=hevc_videotoolbox \
-    --enable-hwaccel=mpeg1_videotoolbox \
-    --enable-hwaccel=mpeg2_videotoolbox \
-    --enable-hwaccel=mpeg4_videotoolbox \
-    --enable-decoder=aac \
-    --enable-decoder=aac_at \
-    --enable-decoder=aac_fixed \
-    --enable-decoder=aac_latm \
-    --enable-decoder=aasc \
-    --enable-decoder=alac \
-    --enable-decoder=alac_at \
-    --enable-decoder=flac \
-    --enable-decoder=gif \
-    --enable-decoder=h264 \
-    --enable-decoder=hevc \
-    --enable-decoder=libvpx_vp8 \
-    --enable-decoder=libvpx_vp9 \
-    --enable-decoder=mp1 \
-    --enable-decoder=mp1float \
-    --enable-decoder=mp2 \
-    --enable-decoder=mp2float \
-    --enable-decoder=mp3 \
-    --enable-decoder=mp3adu \
-    --enable-decoder=mp3adufloat \
-    --enable-decoder=mp3float \
-    --enable-decoder=mp3on4 \
-    --enable-decoder=mp3on4float \
-    --enable-decoder=mpeg4 \
-    --enable-decoder=msmpeg4v2 \
-    --enable-decoder=msmpeg4v3 \
-    --enable-decoder=opus \
-    --enable-decoder=pcm_alaw \
-    --enable-decoder=pcm_alaw_at \
-    --enable-decoder=pcm_f32be \
-    --enable-decoder=pcm_f32le \
-    --enable-decoder=pcm_f64be \
-    --enable-decoder=pcm_f64le \
-    --enable-decoder=pcm_lxf \
-    --enable-decoder=pcm_mulaw \
-    --enable-decoder=pcm_mulaw_at \
-    --enable-decoder=pcm_s16be \
-    --enable-decoder=pcm_s16be_planar \
-    --enable-decoder=pcm_s16le \
-    --enable-decoder=pcm_s16le_planar \
-    --enable-decoder=pcm_s24be \
-    --enable-decoder=pcm_s24daud \
-    --enable-decoder=pcm_s24le \
-    --enable-decoder=pcm_s24le_planar \
-    --enable-decoder=pcm_s32be \
-    --enable-decoder=pcm_s32le \
-    --enable-decoder=pcm_s32le_planar \
-    --enable-decoder=pcm_s64be \
-    --enable-decoder=pcm_s64le \
-    --enable-decoder=pcm_s8 \
-    --enable-decoder=pcm_s8_planar \
-    --enable-decoder=pcm_u16be \
-    --enable-decoder=pcm_u16le \
-    --enable-decoder=pcm_u24be \
-    --enable-decoder=pcm_u24le \
-    --enable-decoder=pcm_u32be \
-    --enable-decoder=pcm_u32le \
-    --enable-decoder=pcm_u8 \
-    --enable-decoder=vorbis \
-    --enable-decoder=wavpack \
-    --enable-decoder=wmalossless \
-    --enable-decoder=wmapro \
-    --enable-decoder=wmav1 \
-    --enable-decoder=wmav2 \
-    --enable-decoder=wmavoice \
-    --enable-encoder=libopus \
-    --enable-parser=aac \
-    --enable-parser=aac_latm \
-    --enable-parser=flac \
-    --enable-parser=h264 \
-    --enable-parser=hevc \
-    --enable-demuxer=matroska \
-    --enable-parser=mpeg4video \
-    --enable-parser=mpegaudio \
-    --enable-parser=opus \
-    --enable-parser=vorbis \
-    --enable-demuxer=aac \
-    --enable-demuxer=flac \
-    --enable-demuxer=gif \
-    --enable-demuxer=h264 \
-    --enable-demuxer=hevc \
-    --enable-demuxer=m4v \
-    --enable-demuxer=mov \
-    --enable-demuxer=mp3 \
-    --enable-demuxer=ogg \
-    --enable-demuxer=wav \
-    --enable-muxer=ogg \
-    --enable-muxer=opus
-
+    configureFFmpeg x86_64
     make $MAKE_THREADS_CNT
 
     mkdir out.x86_64
