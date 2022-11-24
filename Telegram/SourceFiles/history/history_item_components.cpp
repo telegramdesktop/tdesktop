@@ -296,8 +296,9 @@ bool HistoryMessageReply::updateData(
 		}
 
 		{
-			const auto peerId = replyToMsg->fullId().peer;
-			replyToColorKey = (peerIsChannel(peerId) || peerIsChat(peerId))
+			const auto peer = replyToMsg->history()->peer;
+			replyToColorKey = (!holder->out()
+					&& (peer->isMegagroup() || peer->isChat()))
 				? replyToMsg->from()->id
 				: PeerId(0);
 		}
