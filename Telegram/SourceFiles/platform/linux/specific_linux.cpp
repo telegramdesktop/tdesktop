@@ -711,6 +711,11 @@ void start() {
 
 	LOG(("Launcher filename: %1").arg(QGuiApplication::desktopFileName()));
 
+	if (!qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")
+		&& qEnvironmentVariableIsSet("DESKTOP_STARTUP_ID")) {
+		qputenv("XDG_ACTIVATION_TOKEN", qgetenv("DESKTOP_STARTUP_ID"));
+	}
+
 	qputenv("PULSE_PROP_application.name", AppName.utf8());
 	qputenv("PULSE_PROP_application.icon_name", base::IconName().toLatin1());
 
