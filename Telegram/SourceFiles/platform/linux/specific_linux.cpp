@@ -103,6 +103,7 @@ static void t_desktop_application_class_init(
 					"{sv}",
 					"activation-token",
 					g_variant_new_string(token.constData()));
+				qunsetenv("XDG_ACTIVATION_TOKEN");
 			}
 		}
 	};
