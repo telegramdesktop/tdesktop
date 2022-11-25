@@ -514,6 +514,19 @@ bool GenerateDesktopFile(
 			targetPath,
 			md5Hash,
 			AppName.utf16().replace(' ', '_')));
+
+		const auto d = QFile::encodeName(QDir(cWorkingDir()).absolutePath());
+		hashMd5Hex(d.constData(), d.size(), md5Hash);
+
+		if (!Core::Sandbox::Instance().customWorkingDir()) {
+			const auto exePath = QFile::encodeName(
+				cExeDir() + cExeName());
+			hashMd5Hex(exePath.constData(), exePath.size(), md5Hash);
+		}
+
+		QFile::remove(qsl("%1org.telegram.desktop.%2.desktop").arg(
+			targetPath,
+			md5Hash));
 	}
 
 	return true;
@@ -707,7 +720,7 @@ void start() {
 					md5Hash.data());
 			}
 
-			return qsl("org.telegram.desktop.%1.desktop").arg(md5Hash);
+			return qsl("org.telegram.desktop._%1.desktop").arg(md5Hash);
 		}
 
 		return qsl("org.telegram.desktop.desktop");
