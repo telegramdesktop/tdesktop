@@ -55,6 +55,7 @@ struct Data {
 
 	int codeLength = 5;
 	bool codeByTelegram = false;
+	QString codeByFragmentUrl;
 
 	Core::CloudPasswordState pwdState;
 

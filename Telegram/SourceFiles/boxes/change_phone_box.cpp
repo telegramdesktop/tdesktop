@@ -229,6 +229,9 @@ void ChangePhone::EnterPhone::sendPhoneDone(
 	}, [&](const MTPDauth_sentCodeTypeSms &typeData) {
 		codeLength = typeData.vlength().v;
 		return true;
+	}, [&](const MTPDauth_sentCodeTypeFragmentSms &typeData) {
+		codeLength = typeData.vlength().v;
+		return true;
 	}, [&](const MTPDauth_sentCodeTypeCall &typeData) {
 		codeLength = typeData.vlength().v;
 		return true;

@@ -513,7 +513,8 @@ void EditForumTopicBox(
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId.current()),
-				MTPBool() // closed
+				MTPBool(), // closed
+				MTPBool() // hidden
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
 				if (const auto strong = weak.data()) {

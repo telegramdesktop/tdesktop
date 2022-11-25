@@ -386,7 +386,8 @@ void ForumTopic::setClosedAndSave(bool closed) {
 		MTP_int(_rootId),
 		MTPstring(), // title
 		MTPlong(), // icon_emoji_id
-		MTP_bool(closed)
+		MTP_bool(closed),
+		MTPBool() // hidden
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {

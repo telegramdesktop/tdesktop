@@ -592,8 +592,10 @@ void GroupInfoBox::createGroup(
 		return;
 	}
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
+		MTP_flags(0),
 		MTP_vector<TLUsers>(inputs),
-		MTP_string(title)
+		MTP_string(title),
+		MTPint() // ttl_period
 	)).done([=](const MTPUpdates &result) {
 		auto image = _photo->takeResultImage();
 		const auto navigation = _navigation;
@@ -683,7 +685,8 @@ void GroupInfoBox::createChannel(
 		MTP_string(title),
 		MTP_string(description),
 		MTPInputGeoPoint(), // geo_point
-		MTPstring() // address
+		MTPstring(), // address
+		MTPint() // ttl_period
 	)).done([=](const MTPUpdates &result) {
 		_navigation->session().api().applyUpdates(result);
 

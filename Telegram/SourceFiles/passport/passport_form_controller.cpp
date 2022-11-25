@@ -2174,6 +2174,7 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 			const auto timeout = data.vtimeout();
 			value->verification.requestId = 0;
 			value->verification.phoneCodeHash = qs(data.vphone_code_hash());
+			value->verification.fragmentUrl = QString();
 			const auto bad = [](const char *type) {
 				LOG(("API Error: Should not be '%1' "
 					"in FormController::startPhoneVerification.").arg(type));
@@ -2206,6 +2207,10 @@ void FormController::startPhoneVerification(not_null<Value*> value) {
 						timeout.value_or(60),
 					});
 				}
+			}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
+				value->verification.codeLength = data.vlength().v;
+				value->verification.fragmentUrl = qs(data.vurl());
+				value->verification.call = nullptr;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {
 				bad("FlashCall");
 			}, [&](const MTPDauth_sentCodeTypeMissedCall &) {
