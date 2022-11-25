@@ -158,6 +158,7 @@ parts:
       - mozjpeg
       - openal
       - openssl
+      - protobuf
       - rnnoise
       - webrtc
 
@@ -337,6 +338,29 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.a
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
+
+  protobuf:
+    source: https://github.com/protocolbuffers/protobuf.git
+    source-depth: 1
+    source-tag: v21.9
+    plugin: cmake
+    build-packages:
+      - zlib1g-dev
+    stage-packages:
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=ON
+      - -Dprotobuf_BUILD_TESTS=OFF
+      - -Dprotobuf_BUILD_LIBPROTOC=ON
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
 
   qt:
     plugin: nil
