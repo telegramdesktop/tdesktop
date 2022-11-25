@@ -1,3 +1,7 @@
+4.3.4 (25.11.22)
+
+- Fix OpenGL regression in Qt and language detection.
+
 4.3.3 (23.11.22)
 
 - Fix an issue with media auto-download on Windows.
