@@ -355,7 +355,6 @@ parts:
       - -DCMAKE_INSTALL_PREFIX=/usr
       - -DBUILD_SHARED_LIBS=ON
       - -Dprotobuf_BUILD_TESTS=OFF
-      - -Dprotobuf_BUILD_LIBPROTOC=ON
     prime:
       - -./usr/bin
       - -./usr/include
