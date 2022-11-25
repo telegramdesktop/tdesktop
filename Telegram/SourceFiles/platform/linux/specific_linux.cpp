@@ -572,11 +572,15 @@ std::optional<bool> IsDarkMode() {
 }
 
 bool AutostartSupported() {
+#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 	// snap sandbox doesn't allow creating files
 	// in folders with names started with a dot
 	// and doesn't provide any api to add an app to autostart
 	// thus, autostart isn't supported in snap
 	return !KSandbox::isSnap();
+#else // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
+	return false;
+#endif // DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
 
 void AutostartToggle(bool enabled, Fn<void(bool)> done) {
