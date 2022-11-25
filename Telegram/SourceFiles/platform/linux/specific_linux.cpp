@@ -291,6 +291,11 @@ void LaunchGApplication() {
 						nullptr)));
 
 			app->signal_startup().connect([=] {
+				// GNotification
+				InvokeQueued(qApp, [] {
+					Core::App().notifications().createManager();
+				});
+
 				QEventLoop loop;
 				loop.exec(QEventLoop::ApplicationExec);
 				app->quit();
