@@ -59,8 +59,8 @@ constexpr auto kTmpPasswordReserveTime = TimeId(10);
 	// Like 'https://telegram.me/' or 'https://t.me/'.
 	const auto &domain = session->serverConfig().internalLinksDomain;
 	const auto prefixes = {
-		qstr("https://"),
-		qstr("http://"),
+		u"https://"_q,
+		u"http://"_q,
 	};
 	for (const auto &prefix : prefixes) {
 		if (domain.startsWith(prefix, Qt::CaseInsensitive)) {
@@ -363,8 +363,8 @@ TextWithEntities Session::createInternalLink(
 		const TextWithEntities &query) const {
 	const auto result = createInternalLinkFull(query);
 	const auto prefixes = {
-		qstr("https://"),
-		qstr("http://"),
+		u"https://"_q,
+		u"http://"_q,
 	};
 	for (auto &prefix : prefixes) {
 		if (result.text.startsWith(prefix, Qt::CaseInsensitive)) {

@@ -116,7 +116,7 @@ QSize WebPage::countOptimalSize() {
 				if (result.endsWith('/')) {
 					result.chop(1);
 				}
-				const auto prefixes = { qstr("http://"), qstr("https://") };
+				const auto prefixes = { u"http://"_q, u"https://"_q };
 				for (const auto &prefix : prefixes) {
 					if (result.startsWith(prefix)) {
 						result = result.mid(prefix.size());
@@ -166,8 +166,8 @@ QSize WebPage::countOptimalSize() {
 		&& _data->type != WebPageType::Video) {
 		if (_data->type == WebPageType::Profile) {
 			_asArticle = true;
-		} else if (_data->siteName == qstr("Twitter")
-			|| _data->siteName == qstr("Facebook")
+		} else if (_data->siteName == u"Twitter"_q
+			|| _data->siteName == u"Facebook"_q
 			|| _data->type == WebPageType::ArticleWithIV) {
 			_asArticle = false;
 		} else {
@@ -216,9 +216,9 @@ QSize WebPage::countOptimalSize() {
 			.session = &history()->session(),
 			.customEmojiRepaint = [=] { _parent->customEmojiRepaint(); },
 		};
-		if (_data->siteName == qstr("Twitter")) {
+		if (_data->siteName == u"Twitter"_q) {
 			context.type = MarkedTextContext::HashtagMentionType::Twitter;
-		} else if (_data->siteName == qstr("Instagram")) {
+		} else if (_data->siteName == u"Instagram"_q) {
 			context.type = MarkedTextContext::HashtagMentionType::Instagram;
 		}
 		_description.setMarkedText(
@@ -607,7 +607,7 @@ void WebPage::draw(Painter &p, const PaintContext &context) const {
 			&& _data->photo
 			&& !_data->document) {
 			if (_attach->isReadyForOpen()) {
-				if (_data->siteName == qstr("YouTube")) {
+				if (_data->siteName == u"YouTube"_q) {
 					st->youtubeIcon().paint(p, (pixwidth - st::youtubeIcon.width()) / 2, (pixheight - st::youtubeIcon.height()) / 2, width());
 				} else {
 					st->videoIcon().paint(p, (pixwidth - st::videoIcon.width()) / 2, (pixheight - st::videoIcon.height()) / 2, width());
@@ -752,8 +752,8 @@ ClickHandlerPtr WebPage::replaceAttachLink(
 			|| _data->type == WebPageType::Video) {
 			return _openl;
 		} else if (_data->type == WebPageType::Photo
-			|| _data->siteName == qstr("Twitter")
-			|| _data->siteName == qstr("Facebook")) {
+			|| _data->siteName == u"Twitter"_q
+			|| _data->siteName == u"Facebook"_q) {
 			// leave photo link
 		} else {
 			return _openl;

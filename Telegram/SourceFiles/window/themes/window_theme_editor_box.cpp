@@ -612,7 +612,7 @@ Fn<void()> SavePreparedTheme(
 		)).done([=](const MTPTheme &result) {
 			save();
 		}).fail([=](const MTP::Error &error) {
-			if (error.type() == qstr("THEME_FILE_INVALID")) {
+			if (error.type() == u"THEME_FILE_INVALID"_q) {
 				save();
 			} else {
 				fail(SaveErrorType::Other, error.type());
@@ -887,11 +887,11 @@ void SaveThemeBox(
 				const QString &error) {
 			*saving = false;
 			box->showLoading(false);
-			if (error == qstr("THEME_TITLE_INVALID")) {
+			if (error == u"THEME_TITLE_INVALID"_q) {
 				type = SaveErrorType::Name;
-			} else if (error == qstr("THEME_SLUG_INVALID")) {
+			} else if (error == u"THEME_SLUG_INVALID"_q) {
 				type = SaveErrorType::Link;
-			} else if (error == qstr("THEME_SLUG_OCCUPIED")) {
+			} else if (error == u"THEME_SLUG_OCCUPIED"_q) {
 				Ui::Toast::Show(
 					Ui::BoxShow(box).toastParent(),
 					tr::lng_create_channel_link_occupied(tr::now));

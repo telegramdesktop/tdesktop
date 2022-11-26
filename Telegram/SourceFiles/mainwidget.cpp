@@ -2766,7 +2766,7 @@ void MainWidget::activate() {
 	if (_a_show.animating()) {
 		return;
 	} else if (!cSendPaths().isEmpty()) {
-		const auto interpret = qstr("interpret://");
+		const auto interpret = u"interpret://"_q;
 		const auto path = cSendPaths()[0];
 		if (path.startsWith(interpret)) {
 			cSetSendPaths(QStringList());

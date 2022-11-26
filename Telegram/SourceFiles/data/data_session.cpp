@@ -140,11 +140,11 @@ std::vector<UnavailableReason> ExtractUnavailableReasons(
 			const auto platform = qs(data.vplatform());
 			return false
 #ifdef OS_MAC_STORE
-				|| (platform == qstr("ios"))
+				|| (platform == u"ios"_q)
 #elif defined OS_WIN_STORE // OS_MAC_STORE
-				|| (platform == qstr("ms"))
+				|| (platform == u"ms"_q)
 #endif // OS_MAC_STORE || OS_WIN_STORE
-				|| (platform == qstr("all"));
+				|| (platform == u"all"_q);
 		});
 	}) | ranges::views::transform([](const MTPRestrictionReason &restriction) {
 		return restriction.match([&](const MTPDrestrictionReason &data) {
@@ -3258,7 +3258,7 @@ void Session::webpageApplyFields(
 	};
 	const auto siteName = qs(data.vsite_name().value_or_empty());
 	auto parseFlags = TextParseLinks | TextParseMultiline;
-	if (siteName == qstr("Twitter") || siteName == qstr("Instagram")) {
+	if (siteName == u"Twitter"_q || siteName == u"Instagram"_q) {
 		parseFlags |= TextParseHashtags | TextParseMentions;
 	}
 	TextUtilities::ParseEntities(description, parseFlags);

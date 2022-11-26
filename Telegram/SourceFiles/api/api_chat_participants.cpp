@@ -598,7 +598,7 @@ void ChatParticipants::requestSelf(not_null<ChannelData*> channel) {
 		});
 	}).fail([=](const MTP::Error &error) {
 		_selfParticipantRequests.erase(channel);
-		if (error.type() == qstr("CHANNEL_PRIVATE")) {
+		if (error.type() == u"CHANNEL_PRIVATE"_q) {
 			channel->privateErrorReceived();
 		}
 		finalize();

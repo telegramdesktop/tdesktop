@@ -2127,12 +2127,12 @@ TextForMimeData Message::selectedText(TextSelection selection) const {
 	if (result.empty()) {
 		result = std::move(mediaResult);
 	} else if (!mediaResult.empty()) {
-		result.append(qstr("\n\n")).append(std::move(mediaResult));
+		result.append(u"\n\n"_q).append(std::move(mediaResult));
 	}
 	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.empty()) {
-		result.append(qstr("\n\n")).append(std::move(logEntryOriginalResult));
+		result.append(u"\n\n"_q).append(std::move(logEntryOriginalResult));
 	}
 	return result;
 }

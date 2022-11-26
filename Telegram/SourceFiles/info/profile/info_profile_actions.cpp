@@ -458,8 +458,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			return link.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
-					(link.startsWith(qstr("https://"))
-						? link.mid(qstr("https://").size())
+					(link.startsWith(u"https://"_q)
+						? link.mid(u"https://"_q.size())
 						: link) + addToLink,
 					link + addToLink);
 		});

@@ -128,9 +128,9 @@ EditDocumentScheme GetDocumentScheme(
 		return result.isEmpty() ? value : result;
 	};
 	const auto GenderFormat = [](const QString &value) {
-		if (value == qstr("male")) {
+		if (value == u"male"_q) {
 			return tr::lng_passport_gender_male(tr::now);
-		} else if (value == qstr("female")) {
+		} else if (value == u"female"_q) {
 			return tr::lng_passport_gender_female(tr::now);
 		}
 		return value;
@@ -179,7 +179,7 @@ EditDocumentScheme GetDocumentScheme(
 		return value.isEmpty() || DateValidateBoolean(value);
 	});
 	const auto GenderValidate = FromBoolean([](const QString &value) {
-		return value == qstr("male") || value == qstr("female");
+		return value == u"male"_q || value == u"female"_q;
 	});
 	const auto CountryValidate = FromBoolean([=](const QString &value) {
 		return !CountryFormat(value).isEmpty();

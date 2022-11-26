@@ -435,7 +435,7 @@ InlineBotQuery ParseInlineBotQuery(
 		auto inlineUsernameEqualsText = (inlineUsernameEnd == textLength);
 		auto validInlineUsername = false;
 		if (inlineUsernameEqualsText) {
-			validInlineUsername = text.endsWith(qstr("bot"));
+			validInlineUsername = text.endsWith(u"bot"_q);
 		} else if (inlineUsernameEnd < textLength && inlineUsernameLength) {
 			validInlineUsername = text[inlineUsernameEnd].isSpace();
 		}

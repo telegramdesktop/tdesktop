@@ -277,13 +277,13 @@ void CodeWidget::codeSubmitFail(const MTP::Error &error) {
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_INVALID")
-		|| err == qstr("PHONE_CODE_EXPIRED")
-		|| err == qstr("PHONE_NUMBER_BANNED")) { // show error
+	if (err == u"PHONE_NUMBER_INVALID"_q
+		|| err == u"PHONE_CODE_EXPIRED"_q
+		|| err == u"PHONE_NUMBER_BANNED"_q) { // show error
 		goBack();
-	} else if (err == qstr("PHONE_CODE_EMPTY") || err == qstr("PHONE_CODE_INVALID")) {
+	} else if (err == u"PHONE_CODE_EMPTY"_q || err == u"PHONE_CODE_INVALID"_q) {
 		showCodeError(tr::lng_bad_code());
-	} else if (err == qstr("SESSION_PASSWORD_NEEDED")) {
+	} else if (err == u"SESSION_PASSWORD_NEEDED"_q) {
 		_checkRequestTimer.callEach(1000);
 		_sentRequest = api().request(MTPaccount_GetPassword(
 		)).done([=](const MTPaccount_Password &result) {

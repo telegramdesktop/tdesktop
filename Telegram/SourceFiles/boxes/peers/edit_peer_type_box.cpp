@@ -538,7 +538,7 @@ void Controller::checkUsernameAvailability() {
 	}
 	const auto initial = (_controls.privacy->value() != Privacy::HasUsername);
 	const auto checking = initial
-		? qsl(".bad.")
+		? u".bad."_q
 		: getUsernameInput();
 	if (checking.size() < Ui::EditPeer::kMinUsernameLength) {
 		return;
@@ -565,10 +565,10 @@ void Controller::checkUsernameAvailability() {
 		_checkUsernameRequestId = 0;
 		const auto &type = error.type();
 		_usernameState = UsernameState::Normal;
-		if (type == qstr("CHANNEL_PUBLIC_GROUP_NA")) {
+		if (type == u"CHANNEL_PUBLIC_GROUP_NA"_q) {
 			_usernameState = UsernameState::NotAvailable;
 			_controls.privacy->setValue(Privacy::NoUsername);
-		} else if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+		} else if (type == u"CHANNELS_ADMIN_PUBLIC_TOO_MUCH"_q) {
 			_usernameState = UsernameState::TooMany;
 			if (_controls.privacy->value() == Privacy::HasUsername) {
 				askUsernameRevoke();
@@ -578,10 +578,9 @@ void Controller::checkUsernameAvailability() {
 				_controls.usernameResult = nullptr;
 				setFocusUsername();
 			}
-		} else if (type == qstr("USERNAME_INVALID")) {
+		} else if (type == u"USERNAME_INVALID"_q) {
 			showUsernameError(tr::lng_create_channel_link_invalid());
-		} else if (type == qstr("USERNAME_OCCUPIED")
-			&& checking != username) {
+		} else if (type == u"USERNAME_OCCUPIED"_q && checking != username) {
 			showUsernameError(tr::lng_create_channel_link_occupied());
 		}
 	}).send();

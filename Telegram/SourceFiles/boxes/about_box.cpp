@@ -64,7 +64,7 @@ AboutBox::AboutBox(QWidget *parent)
 }
 
 void AboutBox::prepare() {
-	setTitle(rpl::single(qsl("Telegram Desktop")));
+	setTitle(rpl::single(u"Telegram Desktop"_q));
 
 	addButton(tr::lng_close(), [this] { closeBox(); });
 
@@ -94,19 +94,19 @@ void AboutBox::resizeEvent(QResizeEvent *e) {
 
 void AboutBox::showVersionHistory() {
 	if (cRealAlphaVersion()) {
-		auto url = qsl("https://tdesktop.com/");
+		auto url = u"https://tdesktop.com/"_q;
 		if (Platform::IsWindows32Bit()) {
-			url += qsl("win/%1.zip");
+			url += u"win/%1.zip"_q;
 		} else if (Platform::IsWindows64Bit()) {
-			url += qsl("win64/%1.zip");
+			url += u"win64/%1.zip"_q;
 		} else if (Platform::IsMac()) {
-			url += qsl("mac/%1.zip");
+			url += u"mac/%1.zip"_q;
 		} else if (Platform::IsLinux()) {
-			url += qsl("linux/%1.tar.xz");
+			url += u"linux/%1.tar.xz"_q;
 		} else {
 			Unexpected("Platform value.");
 		}
-		url = url.arg(qsl("talpha%1_%2").arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
+		url = url.arg(u"talpha%1_%2"_q.arg(cRealAlphaVersion()).arg(Core::countAlphaVersionSignature(cRealAlphaVersion())));
 
 		QGuiApplication::clipboard()->setText(url);
 
@@ -129,7 +129,7 @@ void AboutBox::keyPressEvent(QKeyEvent *e) {
 }
 
 QString telegramFaqLink() {
-	const auto result = qsl("https://telegram.org/faq");
+	const auto result = u"https://telegram.org/faq"_q;
 	const auto langpacked = [&](const char *language) {
 		return result + '/' + language;
 	};
@@ -139,7 +139,7 @@ QString telegramFaqLink() {
 			return langpacked(language);
 		}
 	}
-	if (current.startsWith(qstr("pt-br"))) {
+	if (current.startsWith(u"pt-br"_q)) {
 		return langpacked("br");
 	}
 	return result;
@@ -148,7 +148,7 @@ QString telegramFaqLink() {
 QString currentVersionText() {
 	auto result = QString::fromLatin1(AppVersionStr);
 	if (cAlphaVersion()) {
-		result += qsl(" alpha %1").arg(cAlphaVersion() % 1000);
+		result += u" alpha %1"_q.arg(cAlphaVersion() % 1000);
 	} else if (AppBetaVersion) {
 		result += " beta";
 	}

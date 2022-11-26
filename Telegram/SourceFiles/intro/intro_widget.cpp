@@ -509,10 +509,10 @@ void Widget::resetAccount() {
 			_resetRequest = 0;
 
 			const auto &type = error.type();
-			if (type.startsWith(qstr("2FA_CONFIRM_WAIT_"))) {
+			if (type.startsWith(u"2FA_CONFIRM_WAIT_"_q)) {
 				const auto seconds = base::StringViewMid(
 					type,
-					qstr("2FA_CONFIRM_WAIT_").size()).toInt();
+					u"2FA_CONFIRM_WAIT_"_q.size()).toInt();
 				const auto days = (seconds + 59) / 86400;
 				const auto hours = ((seconds + 59) % 86400) / 3600;
 				const auto minutes = ((seconds + 59) % 3600) / 60;
@@ -552,7 +552,7 @@ void Widget::resetAccount() {
 					Ui::FormatPhone(getData()->phone),
 					lt_when,
 					when)));
-			} else if (type == qstr("2FA_RECENT_CONFIRM")) {
+			} else if (type == u"2FA_RECENT_CONFIRM"_q) {
 				Ui::show(Ui::MakeInformBox(
 					tr::lng_signin_reset_cancelled()));
 			} else {

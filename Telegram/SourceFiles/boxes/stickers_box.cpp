@@ -1993,15 +1993,15 @@ void StickersBox::Inner::AddressField::correctValue(
 	auto newText = now;
 	auto newCursor = nowCursor;
 	auto removeFromBeginning = {
-		qstr("http://"),
-		qstr("https://"),
-		qstr("www.t.me/"),
-		qstr("www.telegram.me/"),
-		qstr("www.telegram.dog/"),
-		qstr("t.me/"),
-		qstr("telegram.me/"),
-		qstr("telegram.dog/"),
-		qstr("addstickers/"),
+		u"http://"_q,
+		u"https://"_q,
+		u"www.t.me/"_q,
+		u"www.telegram.me/"_q,
+		u"www.telegram.dog/"_q,
+		u"t.me/"_q,
+		u"telegram.me/"_q,
+		u"telegram.dog/"_q,
+		u"addstickers/"_q,
 	};
 	for (auto &removePhrase : removeFromBeginning) {
 		if (newText.startsWith(removePhrase)) {

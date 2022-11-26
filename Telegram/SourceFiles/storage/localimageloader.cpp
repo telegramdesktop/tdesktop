@@ -606,21 +606,21 @@ bool FileLoadTask::CheckForSong(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
-		qstr("audio/mp3"),
-		qstr("audio/m4a"),
-		qstr("audio/aac"),
-		qstr("audio/ogg"),
-		qstr("audio/flac"),
-		qstr("audio/opus"),
+		u"audio/mp3"_q,
+		u"audio/m4a"_q,
+		u"audio/aac"_q,
+		u"audio/ogg"_q,
+		u"audio/flac"_q,
+		u"audio/opus"_q,
 	};
 	static const auto extensions = {
-		qstr(".mp3"),
-		qstr(".m4a"),
-		qstr(".aac"),
-		qstr(".ogg"),
-		qstr(".flac"),
-		qstr(".opus"),
-		qstr(".oga"),
+		u".mp3"_q,
+		u".m4a"_q,
+		u".aac"_q,
+		u".ogg"_q,
+		u".flac"_q,
+		u".opus"_q,
+		u".oga"_q,
 	};
 	if (!filepath.isEmpty()
 		&& !CheckMimeOrExtensions(
@@ -648,13 +648,13 @@ bool FileLoadTask::CheckForVideo(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	static const auto mimes = {
-		qstr("video/mp4"),
-		qstr("video/quicktime"),
+		u"video/mp4"_q,
+		u"video/quicktime"_q,
 	};
 	static const auto extensions = {
-		qstr(".mp4"),
-		qstr(".mov"),
-		qstr(".webm"),
+		u".mp4"_q,
+		u".mov"_q,
+		u".webm"_q,
 	};
 	if (!CheckMimeOrExtensions(filepath, result->filemime, mimes, extensions)) {
 		return false;
@@ -672,8 +672,8 @@ bool FileLoadTask::CheckForVideo(
 		return false;
 	}
 
-	if (filepath.endsWith(qstr(".mp4"), Qt::CaseInsensitive)) {
-		result->filemime = qstr("video/mp4");
+	if (filepath.endsWith(u".mp4"_q, Qt::CaseInsensitive)) {
+		result->filemime = u"video/mp4"_q;
 	}
 	result->media = std::move(media);
 	return true;
@@ -684,12 +684,12 @@ bool FileLoadTask::CheckForImage(
 		const QByteArray &content,
 		std::unique_ptr<Ui::PreparedFileInformation> &result) {
 	auto read = [&] {
-		if (filepath.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
+		if (filepath.endsWith(u".tgs"_q, Qt::CaseInsensitive)) {
 			auto image = Lottie::ReadThumbnail(
 				Lottie::ReadContent(content, filepath));
 			const auto success = !image.isNull();
 			if (success) {
-				result->filemime = qstr("application/x-tgsticker");
+				result->filemime = u"application/x-tgsticker"_q;
 			}
 			return Images::ReadResult{
 				.image = std::move(image),
@@ -898,8 +898,8 @@ void FileLoadTask::process(Args &&args) {
 				}
 			}
 			thumbnail = PrepareFileThumbnail(std::move(video->thumbnail));
-		} else if (filemime == qstr("application/x-tdesktop-theme")
-			|| filemime == qstr("application/x-tgtheme-tdesktop")) {
+		} else if (filemime == u"application/x-tdesktop-theme"_q
+			|| filemime == u"application/x-tgtheme-tdesktop"_q) {
 			goodThumbnail = Window::Theme::GeneratePreview(_content, _filepath);
 			if (!goodThumbnail.isNull()) {
 				QBuffer buffer(&goodThumbnailBytes);

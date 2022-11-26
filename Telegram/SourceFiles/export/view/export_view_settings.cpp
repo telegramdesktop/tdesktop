@@ -357,9 +357,9 @@ void SettingsWidget::addFormatAndLocationLabel(
 			st::exportLocationLabel),
 		st::exportLocationPadding);
 	label->overrideLinkClickHandler([=](const QString &url) {
-		if (url == qstr("internal:edit_export_path")) {
+		if (url == u"internal:edit_export_path"_q) {
 			chooseFolder();
-		} else if (url == qstr("internal:edit_format")) {
+		} else if (url == u"internal:edit_format"_q) {
 			chooseFormat();
 		} else {
 			Unexpected("Click handler URL in export limits edit.");
@@ -409,7 +409,7 @@ void SettingsWidget::addLimitsLabel(
 			st::exportLocationLabel),
 		st::exportLimitsPadding);
 	label->overrideLinkClickHandler([=](const QString &url) {
-		if (url == qstr("internal:edit_from")) {
+		if (url == u"internal:edit_from"_q) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
 					settings.singlePeerFrom = limit;
@@ -421,7 +421,7 @@ void SettingsWidget::addLimitsLabel(
 				readData().singlePeerTill,
 				tr::lng_export_from_beginning(),
 				done);
-		} else if (url == qstr("internal:edit_till")) {
+		} else if (url == u"internal:edit_till"_q) {
 			const auto done = [=](TimeId limit) {
 				changeData([&](Settings &settings) {
 					settings.singlePeerTill = limit;

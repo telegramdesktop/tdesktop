@@ -495,19 +495,19 @@ void PasscodeBox::setPasswordFail(const QString &type) {
 
 	closeReplacedBy();
 	_setRequest = 0;
-	if (type == qstr("PASSWORD_HASH_INVALID")
-		|| type == qstr("SRP_PASSWORD_CHANGED")) {
+	if (type == u"PASSWORD_HASH_INVALID"_q
+		|| type == u"SRP_PASSWORD_CHANGED"_q) {
 		if (_oldPasscode->isHidden()) {
 			_passwordReloadNeeded.fire({});
 			closeBox();
 		} else {
 			badOldPasscode();
 		}
-	} else if (type == qstr("SRP_ID_INVALID")) {
+	} else if (type == u"SRP_ID_INVALID"_q) {
 		handleSrpIdInvalid();
-	//} else if (type == qstr("NEW_PASSWORD_BAD")) {
-	//} else if (type == qstr("NEW_SALT_INVALID")) {
-	} else if (type == qstr("EMAIL_INVALID")) {
+	//} else if (type == u"NEW_PASSWORD_BAD"_q) {
+	//} else if (type == u"NEW_SALT_INVALID"_q) {
+	} else if (type == u"EMAIL_INVALID"_q) {
 		_emailError = tr::lng_cloud_password_bad_email(tr::now);
 		_recoverEmail->setFocus();
 		_recoverEmail->showError();
@@ -519,7 +519,7 @@ void PasscodeBox::setPasswordFail(
 		const QByteArray &newPasswordBytes,
 		const QString &email,
 		const MTP::Error &error) {
-	const auto prefix = qstr("EMAIL_UNCONFIRMED_");
+	const auto prefix = u"EMAIL_UNCONFIRMED_"_q;
 	if (error.type().startsWith(prefix)) {
 		const auto codeLength = base::StringViewMid(error.type(), prefix.size()).toInt();
 
@@ -552,9 +552,9 @@ void PasscodeBox::validateEmail(
 			_setRequest = 0;
 			if (MTP::IsFloodError(error)) {
 				errors->fire(tr::lng_flood_error(tr::now));
-			} else if (error.type() == qstr("CODE_INVALID")) {
+			} else if (error.type() == u"CODE_INVALID"_q) {
 				errors->fire(tr::lng_signin_wrong_code(tr::now));
-			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
+			} else if (error.type() == u"EMAIL_HASH_EXPIRED"_q) {
 				const auto weak = Ui::MakeWeak(this);
 				_clearUnconfirmedPassword.fire({});
 				if (weak) {
@@ -801,9 +801,9 @@ bool PasscodeBox::handleCustomCheckError(const MTP::Error &error) {
 
 bool PasscodeBox::handleCustomCheckError(const QString &type) {
 	if (MTP::IsFloodError(type)
-		|| type == qstr("PASSWORD_HASH_INVALID")
-		|| type == qstr("SRP_PASSWORD_CHANGED")
-		|| type == qstr("SRP_ID_INVALID")) {
+		|| type == u"PASSWORD_HASH_INVALID"_q
+		|| type == u"SRP_PASSWORD_CHANGED"_q
+		|| type == u"SRP_ID_INVALID"_q) {
 		setPasswordFail(type);
 		return true;
 	}
@@ -979,7 +979,7 @@ void PasscodeBox::resetSecret(
 		});
 	}).fail([=](const MTP::Error &error) {
 		_setRequest = 0;
-		if (error.type() == qstr("SRP_ID_INVALID")) {
+		if (error.type() == u"SRP_ID_INVALID"_q) {
 			handleSrpIdInvalid();
 		}
 	}).send();
@@ -1330,17 +1330,17 @@ void RecoverBox::checkSubmitFail(const MTP::Error &error) {
 	_submitRequest = 0;
 
 	const QString &err = error.type();
-	if (err == qstr("PASSWORD_EMPTY")) {
+	if (err == u"PASSWORD_EMPTY"_q) {
 		_newPasswordSet.fire(QByteArray());
 		getDelegate()->show(
 			Ui::MakeInformBox(tr::lng_cloud_password_removed()),
 			Ui::LayerOption::CloseOther);
-	} else if (err == qstr("PASSWORD_RECOVERY_NA")) {
+	} else if (err == u"PASSWORD_RECOVERY_NA"_q) {
 		closeBox();
-	} else if (err == qstr("PASSWORD_RECOVERY_EXPIRED")) {
+	} else if (err == u"PASSWORD_RECOVERY_EXPIRED"_q) {
 		_recoveryExpired.fire({});
 		closeBox();
-	} else if (err == qstr("CODE_INVALID")) {
+	} else if (err == u"CODE_INVALID"_q) {
 		setError(tr::lng_signin_wrong_code(tr::now));
 		_recoverCode->selectAll();
 		_recoverCode->setFocus();
@@ -1381,9 +1381,9 @@ RecoveryEmailValidation ConfirmRecoveryEmail(
 			*requestId = 0;
 			if (MTP::IsFloodError(error)) {
 				errors->fire(tr::lng_flood_error(tr::now));
-			} else if (error.type() == qstr("CODE_INVALID")) {
+			} else if (error.type() == u"CODE_INVALID"_q) {
 				errors->fire(tr::lng_signin_wrong_code(tr::now));
-			} else if (error.type() == qstr("EMAIL_HASH_EXPIRED")) {
+			} else if (error.type() == u"EMAIL_HASH_EXPIRED"_q) {
 				cancels->fire({});
 				if (*weak) {
 					auto box = Ui::MakeInformBox(

@@ -396,7 +396,7 @@ void CloudManager::applyLangPackData(
 }
 
 bool CloudManager::canApplyWithoutRestart(const QString &id) const {
-	if (id == qstr("#TEST_X") || id == qstr("#TEST_0")) {
+	if (id == u"#TEST_X"_q || id == u"#TEST_0"_q) {
 		return true;
 	}
 	return Core::App().canApplyLangPackWithoutRestart();
@@ -422,7 +422,7 @@ void CloudManager::requestLanguageAndSwitch(
 	if (LanguageIdOrDefault(_langpack.id()) == id) {
 		Ui::show(Ui::MakeInformBox(tr::lng_language_already()));
 		return;
-	} else if (id == qstr("#custom")) {
+	} else if (id == u"#custom"_q) {
 		performSwitchToCustom();
 		return;
 	}
@@ -471,14 +471,14 @@ void CloudManager::sendSwitchingToLanguageRequest() {
 }
 
 void CloudManager::switchToLanguage(const Language &data) {
-	if (_langpack.id() == data.id && data.id != qstr("#custom")) {
+	if (_langpack.id() == data.id && data.id != u"#custom"_q) {
 		return;
 	} else if (!_api) {
 		return;
 	}
 
 	_api->request(base::take(_getKeysForSwitchRequestId)).cancel();
-	if (data.id == qstr("#custom")) {
+	if (data.id == u"#custom"_q) {
 		performSwitchToCustom();
 	} else if (canApplyWithoutRestart(data.id)) {
 		performSwitchAndAddToRecent(data);
@@ -516,8 +516,8 @@ void CloudManager::switchToLanguage(const Language &data) {
 }
 
 void CloudManager::performSwitchToCustom() {
-	auto filter = qsl("Language files (*.strings)");
-	auto title = qsl("Choose language .strings file");
+	auto filter = u"Language files (*.strings)"_q;
+	auto title = u"Choose language .strings file"_q;
 	FileDialog::GetOpenPath(Core::App().getFileDialogParent(), title, filter, [=, weak = base::make_weak(this)](const FileDialog::OpenResult &result) {
 		if (!weak || result.paths.isEmpty()) {
 			return;
@@ -533,7 +533,7 @@ void CloudManager::performSwitchToCustom() {
 					base::take(_switchingToLanguageRequest)
 				).cancel();
 			}
-			if (canApplyWithoutRestart(qsl("#custom"))) {
+			if (canApplyWithoutRestart(u"#custom"_q)) {
 				_langpack.switchToCustomFile(filePath);
 			} else {
 				const auto values = loader.found();
@@ -568,9 +568,9 @@ void CloudManager::performSwitchToCustom() {
 }
 
 void CloudManager::switchToTestLanguage() {
-	const auto testLanguageId = (_langpack.id() == qstr("#TEST_X"))
-		? qsl("#TEST_0")
-		: qsl("#TEST_X");
+	const auto testLanguageId = (_langpack.id() == u"#TEST_X"_q)
+		? u"#TEST_0"_q
+		: u"#TEST_X"_q;
 	performSwitch({ testLanguageId });
 }
 

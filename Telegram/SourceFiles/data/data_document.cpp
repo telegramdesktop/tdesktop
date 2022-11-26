@@ -201,7 +201,7 @@ QString FileNameForSave(
 		dir);
 #ifdef Q_OS_WIN
 	const auto lower = result.trimmed().toLower();
-	const auto kBadExtensions = { qstr(".lnk"), qstr(".scf") };
+	const auto kBadExtensions = { u".lnk"_q, u".scf"_q };
 	const auto kMaskExtension = qsl(".download");
 	for (const auto extension : kBadExtensions) {
 		if (lower.endsWith(extension)) {
@@ -227,7 +227,7 @@ QString DocumentFileNameForSave(
 	QStringList p = mimeType.globPatterns();
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (data->isVoiceMessage()) {
-		auto mp3 = data->hasMimeType(qstr("audio/mp3"));
+		auto mp3 = data->hasMimeType(u"audio/mp3"_q);
 		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
 		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
 		filter += FileDialog::AllFilesFilter();
@@ -430,7 +430,7 @@ void DocumentData::setattributes(
 		type = FileDocument;
 		_additional = nullptr;
 	} else if (type == FileDocument
-		&& hasMimeType(qstr("video/webm"))
+		&& hasMimeType(u"video/webm"_q)
 		&& (size < Storage::kMaxStickerBytesSize)
 		&& GoodStickerDimensions(dimensions.width(), dimensions.height())) {
 		type = StickerDocument;
@@ -444,7 +444,7 @@ void DocumentData::setattributes(
 
 void DocumentData::validateLottieSticker() {
 	if (type == FileDocument
-		&& hasMimeType(qstr("application/x-tgsticker"))) {
+		&& hasMimeType(u"application/x-tgsticker"_q)) {
 		type = StickerDocument;
 		_additional = std::make_unique<StickerData>();
 		sticker()->type = StickerType::Tgs;
@@ -532,11 +532,11 @@ bool DocumentData::isPatternWallPaper() const {
 }
 
 bool DocumentData::isPatternWallPaperPNG() const {
-	return isWallPaper() && hasMimeType(qstr("image/png"));
+	return isWallPaper() && hasMimeType(u"image/png"_q);
 }
 
 bool DocumentData::isPatternWallPaperSVG() const {
-	return isWallPaper() && hasMimeType(qstr("application/x-tgwallpattern"));
+	return isWallPaper() && hasMimeType(u"application/x-tgwallpattern"_q);
 }
 
 bool DocumentData::isPremiumSticker() const {
@@ -736,7 +736,7 @@ bool DocumentData::saveToCache() const {
 			|| isVoiceMessage()
 			|| isWallPaper()
 			|| isTheme()
-			|| (hasMimeType(qstr("image/png"))
+			|| (hasMimeType(u"image/png"_q)
 				&& _filename.startsWith("image_")));
 }
 
@@ -1157,7 +1157,7 @@ void DocumentData::refreshPossibleCoverThumbnail() {
 	if (songData->performer.isEmpty()
 		|| songData->title.isEmpty()
 		// Ignore cover for voice chat records.
-		|| hasMimeType(qstr("audio/ogg"))) {
+		|| hasMimeType(u"audio/ogg"_q)) {
 		return;
 	}
 	const auto size = kDefaultCoverThumbnailSize;
@@ -1375,7 +1375,7 @@ QString DocumentData::mimeString() const {
 	return _mimeString;
 }
 
-bool DocumentData::hasMimeType(QLatin1String mime) const {
+bool DocumentData::hasMimeType(const QString &mime) const {
 	return (_mimeString == mime);
 }
 
@@ -1438,19 +1438,19 @@ bool DocumentData::isVideoMessage() const {
 bool DocumentData::isAnimation() const {
 	return (type == AnimatedDocument)
 		|| isVideoMessage()
-		|| (hasMimeType(qstr("image/gif"))
+		|| (hasMimeType(u"image/gif"_q)
 			&& !(_flags & Flag::StreamingPlaybackFailed));
 }
 
 bool DocumentData::isGifv() const {
 	return (type == AnimatedDocument)
-		&& hasMimeType(qstr("video/mp4"));
+		&& hasMimeType(u"video/mp4"_q);
 }
 
 bool DocumentData::isTheme() const {
-	return hasMimeType(qstr("application/x-tgtheme-tdesktop"))
-		|| _filename.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)
-		|| _filename.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive);
+	return hasMimeType(u"application/x-tgtheme-tdesktop"_q)
+		|| _filename.endsWith(u".tdesktop-theme"_q, Qt::CaseInsensitive)
+		|| _filename.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive);
 }
 
 bool DocumentData::isSong() const {
@@ -1467,15 +1467,15 @@ bool DocumentData::isAudioFile() const {
 	} else if (isSong()) {
 		return true;
 	}
-	const auto prefix = qstr("audio/");
+	const auto prefix = u"audio/"_q;
 	if (!_mimeString.startsWith(prefix, Qt::CaseInsensitive)) {
-		if (_filename.endsWith(qstr(".opus"), Qt::CaseInsensitive)) {
+		if (_filename.endsWith(u".opus"_q, Qt::CaseInsensitive)) {
 			return true;
 		}
 		return false;
 	}
 	const auto left = _mimeString.mid(prefix.size());
-	const auto types = { qstr("x-wav"), qstr("wav"), qstr("mp4") };
+	const auto types = { u"x-wav"_q, u"wav"_q, u"mp4"_q };
 	return ranges::contains(types, left);
 }
 

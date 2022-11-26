@@ -419,7 +419,7 @@ void PhoneInput::correctValue(
 			plusFound = true;
 		}
 	}
-	if (!plusFound && newText == qstr("+")) {
+	if (!plusFound && newText == u"+"_q) {
 		newText = QString();
 		newPos = 0;
 	}

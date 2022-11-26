@@ -77,17 +77,17 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 }
 
 QString HiddenUrlClickHandler::copyToClipboardText() const {
-	return url().startsWith(qstr("internal:url:"))
-		? url().mid(qstr("internal:url:").size())
+	return url().startsWith(u"internal:url:"_q)
+		? url().mid(u"internal:url:"_q.size())
 		: url();
 }
 
 QString HiddenUrlClickHandler::copyToClipboardContextItemText() const {
 	return url().isEmpty()
 		? QString()
-		: !url().startsWith(qstr("internal:"))
+		: !url().startsWith(u"internal:"_q)
 		? UrlClickHandler::copyToClipboardContextItemText()
-		: url().startsWith(qstr("internal:url:"))
+		: url().startsWith(u"internal:url:"_q)
 		? UrlClickHandler::copyToClipboardContextItemText()
 		: QString();
 }
@@ -105,8 +105,8 @@ void HiddenUrlClickHandler::Open(QString url, QVariant context) {
 	const auto open = [=] {
 		UrlClickHandler::Open(url, context);
 	};
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)
-		|| url.startsWith(qstr("internal:"), Qt::CaseInsensitive)) {
+	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)
+		|| url.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		open();
 	} else {
 		const auto parsedUrl = QUrl::fromUserInput(url);
@@ -158,7 +158,7 @@ void BotGameUrlClickHandler::onClick(ClickContext context) const {
 	const auto open = [=] {
 		UrlClickHandler::Open(url, context.other);
 	};
-	if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		open();
 	} else if (!_bot
 		|| _bot->isVerified()

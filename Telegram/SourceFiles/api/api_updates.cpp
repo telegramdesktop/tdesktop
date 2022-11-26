@@ -95,7 +95,7 @@ void ProcessScheduledMessageWithElapsedTime(
 }
 
 bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
-	return qs(data.vtype()).startsWith(qstr("AUTH_KEY_DROP_"));
+	return qs(data.vtype()).startsWith(u"AUTH_KEY_DROP_"_q);
 }
 
 bool HasForceLogoutNotification(const MTPUpdates &updates) {

@@ -34,8 +34,8 @@ struct Delta {
 };
 
 bool IsTemplatesFile(const QString &file) {
-	return file.startsWith(qstr("tl_"), Qt::CaseInsensitive)
-		&& file.endsWith(qstr(".txt"), Qt::CaseInsensitive);
+	return file.startsWith(u"tl_"_q, Qt::CaseInsensitive)
+		&& file.endsWith(u".txt"_q, Qt::CaseInsensitive);
 }
 
 QString NormalizeQuestion(const QString &question) {
@@ -86,13 +86,13 @@ void ReadByLine(
 				hadKeys = hadValue = false;
 			}
 			const auto newState = [&] {
-				if (token == qstr("VALUE")) {
+				if (token == u"VALUE"_q) {
 					return hadValue ? State::None : State::Value;
-				} else if (token == qstr("KEYS")) {
+				} else if (token == u"KEYS"_q) {
 					return hadKeys ? State::None : State::Keys;
-				} else if (token == qstr("QUESTION")) {
+				} else if (token == u"QUESTION"_q) {
 					return State::Question;
-				} else if (token == qstr("URL")) {
+				} else if (token == u"URL"_q) {
 					return State::Url;
 				} else {
 					return State::None;
@@ -376,7 +376,7 @@ Delta ComputeDelta(const TemplatesFile &was, const TemplatesFile &now) {
 QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 	auto result = qsl("Template file '%1' updated!\n\n").arg(path);
 	if (!delta.added.empty()) {
-		result += qstr("-------- Added --------\n\n");
+		result += u"-------- Added --------\n\n"_q;
 		for (const auto question : delta.added) {
 			result += qsl("Q: %1\nK: %2\nA: %3\n\n").arg(
 				question->question,
@@ -385,7 +385,7 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 		}
 	}
 	if (!delta.changed.empty()) {
-		result += qstr("-------- Modified --------\n\n");
+		result += u"-------- Modified --------\n\n"_q;
 		for (const auto question : delta.changed) {
 			result += qsl("Q: %1\nA: %2\n\n").arg(
 				question->question,
@@ -393,7 +393,7 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 		}
 	}
 	if (!delta.removed.empty()) {
-		result += qstr("-------- Removed --------\n\n");
+		result += u"-------- Removed --------\n\n"_q;
 		for (const auto question : delta.removed) {
 			result += qsl("Q: %1\n\n").arg(question->question);
 		}
@@ -408,11 +408,11 @@ QString UpdateFile(
 	const Delta &delta) {
 	auto result = QString();
 	const auto full = cWorkingDir() + "TEMPLATES/" + path;
-	const auto old = full + qstr(".old");
+	const auto old = full + u".old"_q;
 	QFile(old).remove();
 	if (QFile(full).copy(old)) {
 		result += qsl("(old file saved at '%1')"
-		).arg(path + qstr(".old"));
+		).arg(path + u".old"_q);
 
 		QFile f(full);
 		if (f.open(QIODevice::WriteOnly)) {

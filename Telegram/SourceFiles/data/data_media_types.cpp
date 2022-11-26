@@ -283,7 +283,7 @@ TextForMimeData WithCaptionClipboardText(
 		TextForMimeData &&caption) {
 	auto result = TextForMimeData();
 	result.reserve(5 + attachType.size() + caption.expanded.size());
-	result.append(qstr("[ ")).append(attachType).append(qstr(" ]"));
+	result.append(u"[ "_q).append(attachType).append(u" ]"_q);
 	if (!caption.empty()) {
 		result.append('\n').append(std::move(caption));
 	}
@@ -914,7 +914,7 @@ TextForMimeData MediaFile::clipboardText() const {
 	const auto attachType = [&] {
 		const auto name = Ui::Text::FormatSongNameFor(_document).string();
 		const auto addName = !name.isEmpty()
-			? qstr(" : ") + name
+			? u" : "_q + name
 			: QString();
 		if (const auto sticker = _document->sticker()) {
 			if (!_emoji.isEmpty()) {
@@ -1245,7 +1245,7 @@ QString MediaLocation::pinnedTextSubstring() const {
 
 TextForMimeData MediaLocation::clipboardText() const {
 	auto result = TextForMimeData::Simple(
-		qstr("[ ") + tr::lng_maps_point(tr::now) + qstr(" ]\n"));
+		u"[ "_q + tr::lng_maps_point(tr::now) + u" ]\n"_q);
 	auto titleResult = TextUtilities::ParseEntities(
 		_title,
 		Ui::WebpageTextTitleOptions().flags);
@@ -1690,11 +1690,11 @@ QString MediaPoll::pinnedTextSubstring() const {
 }
 
 TextForMimeData MediaPoll::clipboardText() const {
-	const auto text = qstr("[ ")
+	const auto text = u"[ "_q
 		+ tr::lng_in_dlg_poll(tr::now)
-		+ qstr(" : ")
+		+ u" : "_q
 		+ _poll->question
-		+ qstr(" ]")
+		+ u" ]"_q
 		+ ranges::accumulate(
 			ranges::views::all(
 				_poll->answers

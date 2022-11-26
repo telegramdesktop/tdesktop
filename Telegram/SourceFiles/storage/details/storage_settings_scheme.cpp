@@ -936,7 +936,7 @@ bool ReadSetting(
 		stream >> v;
 		if (!CheckStreamStatus(stream)) return false;
 #ifndef OS_WIN_STORE
-		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
+		if (!v.isEmpty() && v != u"tmp"_q && !v.endsWith('/')) v += '/';
 		Core::App().settings().setDownloadPathBookmark(QByteArray());
 		Core::App().settings().setDownloadPath(v);
 #endif // OS_WIN_STORE
@@ -950,7 +950,7 @@ bool ReadSetting(
 		if (!CheckStreamStatus(stream)) return false;
 
 #ifndef OS_WIN_STORE
-		if (!v.isEmpty() && v != qstr("tmp") && !v.endsWith('/')) v += '/';
+		if (!v.isEmpty() && v != u"tmp"_q && !v.endsWith('/')) v += '/';
 		Core::App().settings().setDownloadPathBookmark(bookmark);
 		Core::App().settings().setDownloadPath(v);
 		psDownloadPathEnableAccess();

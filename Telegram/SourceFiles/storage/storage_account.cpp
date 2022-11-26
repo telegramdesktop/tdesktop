@@ -638,10 +638,10 @@ void Account::reset() {
 
 	crl::async([base = _basePath, temp = _tempPath, names = std::move(names)] {
 		for (const auto &name : names) {
-			if (!name.endsWith(qstr("map0"))
-				&& !name.endsWith(qstr("map1"))
-				&& !name.endsWith(qstr("maps"))
-				&& !name.endsWith(qstr("configs"))) {
+			if (!name.endsWith(u"map0"_q)
+				&& !name.endsWith(u"map1"_q)
+				&& !name.endsWith(u"maps"_q)
+				&& !name.endsWith(u"configs"_q)) {
 				QFile::remove(base + name);
 			}
 		}

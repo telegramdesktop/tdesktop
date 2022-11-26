@@ -129,7 +129,7 @@ void Inner::prepareRow(Row &row) {
 	row.question.setText(st::autocompleteRowTitle, row.data.question);
 	row.keys.setText(
 		st::autocompleteRowKeys,
-		row.data.originalKeys.join(qstr(", ")));
+		row.data.originalKeys.join(u", "_q));
 	row.answer.setText(st::autocompleteRowAnswer, row.data.value);
 }
 
@@ -470,7 +470,7 @@ void Autocomplete::setupContent() {
 }
 
 void Autocomplete::submitValue(const QString &value) {
-	const auto prefix = qstr("contact:");
+	const auto prefix = u"contact:"_q;
 	if (value.startsWith(prefix)) {
 		const auto line = value.indexOf('\n');
 		const auto text = (line > 0) ? value.mid(line + 1) : QString();

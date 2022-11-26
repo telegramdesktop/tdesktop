@@ -2986,13 +2986,13 @@ void HistoryWidget::closeCurrent() {
 }
 
 void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
-	if (error.type() == qstr("CHANNEL_PRIVATE")
+	if (error.type() == u"CHANNEL_PRIVATE"_q
 		&& _peer->isChannel()
 		&& _peer->asChannel()->invitePeekExpires()) {
 		_peer->asChannel()->privateErrorReceived();
-	} else if (error.type() == qstr("CHANNEL_PRIVATE")
-		|| error.type() == qstr("CHANNEL_PUBLIC_GROUP_NA")
-		|| error.type() == qstr("USER_BANNED_IN_CHANNEL")) {
+	} else if (error.type() == u"CHANNEL_PRIVATE"_q
+		|| error.type() == u"CHANNEL_PUBLIC_GROUP_NA"_q
+		|| error.type() == u"USER_BANNED_IN_CHANNEL"_q) {
 		auto was = _peer;
 		closeCurrent();
 		if (const auto primary = Core::App().primaryWindow()) {

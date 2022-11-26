@@ -2149,7 +2149,7 @@ void InnerWidget::parentGeometryChanged() {
 }
 
 void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
-	const auto mentionsSearch = (newFilter == qstr("@"));
+	const auto mentionsSearch = (newFilter == u"@"_q);
 	const auto words = mentionsSearch
 		? QStringList(newFilter)
 		: TextUtilities::PrepareSearchWords(newFilter);

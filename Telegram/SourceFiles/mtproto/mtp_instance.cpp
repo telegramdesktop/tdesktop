@@ -1406,7 +1406,7 @@ bool Instance::Private::onErrorDefault(
 			(dcWithShift < 0) ? -newdcWithShift : newdcWithShift);
 		session->sendPrepared(request);
 		return true;
-	} else if (type == qstr("MSG_WAIT_TIMEOUT") || type == qstr("MSG_WAIT_FAILED")) {
+	} else if (type == u"MSG_WAIT_TIMEOUT"_q || type == u"MSG_WAIT_FAILED"_q) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1477,7 +1477,7 @@ bool Instance::Private::onErrorDefault(
 		checkDelayedRequests();
 
 		return true;
-	} else if ((code == 401 && type != qstr("AUTH_KEY_PERM_EMPTY"))
+	} else if ((code == 401 && type != u"AUTH_KEY_PERM_EMPTY"_q)
 		|| (badGuestDc && _badGuestDcRequests.find(requestId) == _badGuestDcRequests.cend())) {
 		auto dcWithShift = ShiftedDcId(0);
 		if (const auto shiftedDcId = queryRequestByDc(requestId)) {
@@ -1515,8 +1515,8 @@ bool Instance::Private::onErrorDefault(
 		waiters.push_back(requestId);
 		if (badGuestDc) _badGuestDcRequests.insert(requestId);
 		return true;
-	} else if (type == qstr("CONNECTION_NOT_INITED")
-		|| type == qstr("CONNECTION_LAYER_INVALID")) {
+	} else if (type == u"CONNECTION_NOT_INITED"_q
+		|| type == u"CONNECTION_LAYER_INVALID"_q) {
 		SerializedRequest request;
 		{
 			QReadLocker locker(&_requestMapLock);
@@ -1539,7 +1539,7 @@ bool Instance::Private::onErrorDefault(
 		request->needsLayer = true;
 		session->sendPrepared(request);
 		return true;
-	} else if (type == qstr("CONNECTION_LANG_CODE_INVALID")) {
+	} else if (type == u"CONNECTION_LANG_CODE_INVALID"_q) {
 		Lang::CurrentCloudManager().resetToDefault();
 	}
 	if (badGuestDc) _badGuestDcRequests.erase(requestId);

@@ -647,15 +647,15 @@ void EditAdminBox::sendTransferRequestFrom(
 
 		const auto &type = error.type();
 		const auto problem = [&] {
-			if (type == qstr("CHANNELS_ADMIN_PUBLIC_TOO_MUCH")) {
+			if (type == u"CHANNELS_ADMIN_PUBLIC_TOO_MUCH"_q) {
 				return tr::lng_channels_too_much_public_other(tr::now);
-			} else if (type == qstr("CHANNELS_ADMIN_LOCATED_TOO_MUCH")) {
+			} else if (type == u"CHANNELS_ADMIN_LOCATED_TOO_MUCH"_q) {
 				return tr::lng_channels_too_much_located_other(tr::now);
-			} else if (type == qstr("ADMINS_TOO_MUCH")) {
+			} else if (type == u"ADMINS_TOO_MUCH"_q) {
 				return (channel->isBroadcast()
 					? tr::lng_error_admin_limit_channel
 					: tr::lng_error_admin_limit)(tr::now);
-			} else if (type == qstr("CHANNEL_INVALID")) {
+			} else if (type == u"CHANNEL_INVALID"_q) {
 				return (channel->isBroadcast()
 					? tr::lng_channel_not_accessible
 					: tr::lng_group_not_accessible)(tr::now);
@@ -663,9 +663,9 @@ void EditAdminBox::sendTransferRequestFrom(
 			return Lang::Hard::ServerError();
 		}();
 		const auto recoverable = [&] {
-			return (type == qstr("PASSWORD_MISSING"))
-				|| (type == qstr("PASSWORD_TOO_FRESH_XXX"))
-				|| (type == qstr("SESSION_TOO_FRESH_XXX"));
+			return (type == u"PASSWORD_MISSING"_q)
+				|| (type == u"PASSWORD_TOO_FRESH_XXX"_q)
+				|| (type == u"SESSION_TOO_FRESH_XXX"_q);
 		}();
 		const auto weak = Ui::MakeWeak(this);
 		getDelegate()->show(Ui::MakeInformBox(problem));

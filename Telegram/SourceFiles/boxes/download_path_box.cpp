@@ -91,7 +91,7 @@ void DownloadPathBox::radioChanged(Directory value) {
 void DownloadPathBox::editPath() {
 	const auto initialPath = [] {
 		const auto path = Core::App().settings().downloadPath();
-		if (!path.isEmpty() && path != qstr("tmp")) {
+		if (!path.isEmpty() && path != u"tmp"_q) {
 			return path.left(path.size() - (path.endsWith('/') ? 1 : 0));
 		}
 		return QString();

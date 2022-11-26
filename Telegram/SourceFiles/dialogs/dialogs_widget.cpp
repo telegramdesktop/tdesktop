@@ -1729,7 +1729,7 @@ void Widget::searchFailed(
 		SearchRequestType type,
 		const MTP::Error &error,
 		mtpRequestId requestId) {
-	if (error.type() == qstr("SEARCH_QUERY_EMPTY")) {
+	if (error.type() == u"SEARCH_QUERY_EMPTY"_q) {
 		searchReceived(
 			type,
 			MTP_messages_messages(

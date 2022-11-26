@@ -530,7 +530,7 @@ void InnerWidget::updateEmptyText() {
 		: _channel->isMegagroup()
 		? tr::lng_admin_log_no_events_text(tr::now)
 		: tr::lng_admin_log_no_events_text_channel(tr::now);
-	text.text.append(qstr("\n\n") + description);
+	text.text.append(u"\n\n"_q + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text);
 }
 

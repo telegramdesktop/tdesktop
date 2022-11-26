@@ -210,7 +210,7 @@ void UnsafeOpenUrlDefault(const QString &url) {
 }
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {
-	auto url = QUrl(qstr("mailto:") + email);
+	auto url = QUrl(u"mailto:"_q + email);
 	QDesktopServices::openUrl(url);
 }
 

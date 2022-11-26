@@ -4523,7 +4523,7 @@ void OverlayWidget::handleMouseRelease(
 	updateOver(position);
 
 	if (const auto activated = ClickHandler::unpressed()) {
-		if (activated->dragText() == qstr("internal:show_saved_message")) {
+		if (activated->dragText() == u"internal:show_saved_message"_q) {
 			showSaveMsgFile();
 			return;
 		}

@@ -329,7 +329,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		result.text = tr::lng_action_bot_allowed_from_domain(
 			tr::now,
 			lt_domain,
-			Ui::Text::Link(domain, qstr("http://") + domain),
+			Ui::Text::Link(domain, u"http://"_q + domain),
 			Ui::Text::WithEntities);
 		return result;
 	};

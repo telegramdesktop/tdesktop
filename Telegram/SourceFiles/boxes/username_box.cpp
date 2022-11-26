@@ -93,7 +93,7 @@ UsernameEditor::UsernameEditor(
 , _username(
 	this,
 	st::defaultInputField,
-	rpl::single(qsl("@username")),
+	rpl::single(u"@username"_q),
 	session->user()->editableUsername(),
 	QString())
 , _checkTimer([=] { check(); }) {
@@ -260,7 +260,7 @@ void UsernameEditor::checkInfoPurchaseAvailable() {
 
 void UsernameEditor::updateFail(const QString &error) {
 	const auto self = _session->user();
-	if ((error == qstr("USERNAME_NOT_MODIFIED"))
+	if ((error == u"USERNAME_NOT_MODIFIED"_q)
 		|| (_sentUsername == self->editableUsername())) {
 		self->setName(
 			TextUtilities::SingleLine(self->firstName),
@@ -268,18 +268,18 @@ void UsernameEditor::updateFail(const QString &error) {
 			TextUtilities::SingleLine(self->nameOrPhone),
 			TextUtilities::SingleLine(_sentUsername));
 		_saved.fire_done();
-	} else if (error == qstr("USERNAME_INVALID")) {
+	} else if (error == u"USERNAME_INVALID"_q) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_invalid(tr::now);
 		checkInfoChange();
-	} else if ((error == qstr("USERNAME_OCCUPIED"))
-		|| (error == qstr("USERNAMES_UNAVAILABLE"))) {
+	} else if ((error == u"USERNAME_OCCUPIED"_q)
+		|| (error == u"USERNAMES_UNAVAILABLE"_q)) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_occupied(tr::now);
 		checkInfoChange();
-	} else if (error == qstr("USERNAME_PURCHASE_AVAILABLE")) {
+	} else if (error == u"USERNAME_PURCHASE_AVAILABLE"_q) {
 		checkInfoPurchaseAvailable();
 	} else {
 		_username->setFocus();
@@ -287,14 +287,14 @@ void UsernameEditor::updateFail(const QString &error) {
 }
 
 void UsernameEditor::checkFail(const QString &error) {
-	if (error == qstr("USERNAME_INVALID")) {
+	if (error == u"USERNAME_INVALID"_q) {
 		_errorText = tr::lng_username_invalid(tr::now);
 		checkInfoChange();
-	} else if ((error == qstr("USERNAME_OCCUPIED"))
+	} else if ((error == u"USERNAME_OCCUPIED"_q)
 		&& (_checkUsername != _session->user()->editableUsername())) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		checkInfoChange();
-	} else if (error == qstr("USERNAME_PURCHASE_AVAILABLE")) {
+	} else if (error == u"USERNAME_PURCHASE_AVAILABLE"_q) {
 		checkInfoPurchaseAvailable();
 	} else {
 		_goodText = QString();

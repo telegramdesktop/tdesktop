@@ -57,18 +57,18 @@ QString MimeType::name() const {
 }
 
 MimeType MimeTypeForName(const QString &mime) {
-	if (mime == qstr("image/webp")) {
+	if (mime == u"image/webp"_q) {
 		return MimeType(MimeType::Known::WebP);
-	} else if (mime == qstr("application/x-tgsticker")) {
+	} else if (mime == u"application/x-tgsticker"_q) {
 		return MimeType(MimeType::Known::Tgs);
-	} else if (mime == qstr("application/x-tgwallpattern")) {
+	} else if (mime == u"application/x-tgwallpattern"_q) {
 		return MimeType(MimeType::Known::Tgv);
-	} else if (mime == qstr("application/x-tdesktop-theme")
-		|| mime == qstr("application/x-tgtheme-tdesktop")) {
+	} else if (mime == u"application/x-tdesktop-theme"_q
+		|| mime == u"application/x-tgtheme-tdesktop"_q) {
 		return MimeType(MimeType::Known::TDesktopTheme);
-	} else if (mime == qstr("application/x-tdesktop-palette")) {
+	} else if (mime == u"application/x-tdesktop-palette"_q) {
 		return MimeType(MimeType::Known::TDesktopPalette);
-	} else if (mime == qstr("audio/mpeg3")) {
+	} else if (mime == u"audio/mpeg3"_q) {
 		return MimeType(QMimeDatabase().mimeTypeForName("audio/mp3"));
 	}
 	return MimeType(QMimeDatabase().mimeTypeForName(mime));
@@ -76,15 +76,15 @@ MimeType MimeTypeForName(const QString &mime) {
 
 MimeType MimeTypeForFile(const QFileInfo &file) {
 	QString path = file.absoluteFilePath();
-	if (path.endsWith(qstr(".webp"), Qt::CaseInsensitive)) {
+	if (path.endsWith(u".webp"_q, Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::WebP);
-	} else if (path.endsWith(qstr(".tgs"), Qt::CaseInsensitive)) {
+	} else if (path.endsWith(u".tgs"_q, Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::Tgs);
-	} else if (path.endsWith(qstr(".tgv"))) {
+	} else if (path.endsWith(u".tgv"_q)) {
 		return MimeType(MimeType::Known::Tgv);
-	} else if (path.endsWith(qstr(".tdesktop-theme"), Qt::CaseInsensitive)) {
+	} else if (path.endsWith(u".tdesktop-theme"_q, Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::TDesktopTheme);
-	} else if (path.endsWith(qstr(".tdesktop-palette"), Qt::CaseInsensitive)) {
+	} else if (path.endsWith(u".tdesktop-palette"_q, Qt::CaseInsensitive)) {
 		return MimeType(MimeType::Known::TDesktopPalette);
 	}
 
@@ -138,18 +138,18 @@ bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime) {
 
 bool FileIsImage(const QString &name, const QString &mime) {
 	QString lowermime = mime.toLower(), namelower = name.toLower();
-	if (lowermime.startsWith(qstr("image/"))) {
+	if (lowermime.startsWith(u"image/"_q)) {
 		return true;
-	} else if (namelower.endsWith(qstr(".bmp"))
-		|| namelower.endsWith(qstr(".jpg"))
-		|| namelower.endsWith(qstr(".jpeg"))
-		|| namelower.endsWith(qstr(".gif"))
-		|| namelower.endsWith(qstr(".webp"))
-		|| namelower.endsWith(qstr(".tga"))
-		|| namelower.endsWith(qstr(".tiff"))
-		|| namelower.endsWith(qstr(".tif"))
-		|| namelower.endsWith(qstr(".psd"))
-		|| namelower.endsWith(qstr(".png"))) {
+	} else if (namelower.endsWith(u".bmp"_q)
+		|| namelower.endsWith(u".jpg"_q)
+		|| namelower.endsWith(u".jpeg"_q)
+		|| namelower.endsWith(u".gif"_q)
+		|| namelower.endsWith(u".webp"_q)
+		|| namelower.endsWith(u".tga"_q)
+		|| namelower.endsWith(u".tiff"_q)
+		|| namelower.endsWith(u".tif"_q)
+		|| namelower.endsWith(u".psd"_q)
+		|| namelower.endsWith(u".png"_q)) {
 		return true;
 	}
 	return false;

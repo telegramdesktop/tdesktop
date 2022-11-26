@@ -120,7 +120,7 @@ QString GetErrorTextForSending(
 		for (const auto &item : *request.forward) {
 			if (const auto media = item->media()) {
 				const auto error = media->errorTextForForward(peer);
-				if (!error.isEmpty() && error != qstr("skip")) {
+				if (!error.isEmpty() && error != u"skip"_q) {
 					return error;
 				}
 			}

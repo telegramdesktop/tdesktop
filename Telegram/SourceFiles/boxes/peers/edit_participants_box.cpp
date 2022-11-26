@@ -112,7 +112,7 @@ void SaveChatAdmin(
 		const auto &type = error.type();
 		if (retryOnNotParticipant
 			&& isAdmin
-			&& (type == qstr("USER_NOT_PARTICIPANT"))) {
+			&& (type == u"USER_NOT_PARTICIPANT"_q)) {
 			AddChatParticipant(chat, user, [=] {
 				SaveChatAdmin(chat, user, isAdmin, onDone, onFail, false);
 			}, onFail);

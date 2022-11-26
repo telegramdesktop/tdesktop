@@ -570,7 +570,7 @@ bool Application::eventFilter(QObject *object, QEvent *e) {
 			const auto event = static_cast<QFileOpenEvent*>(e);
 			const auto url = QString::fromUtf8(
 				event->url().toEncoded().trimmed());
-			if (url.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+			if (url.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 				cSetStartUrl(url.mid(0, 8192));
 				checkStartUrl();
 			}

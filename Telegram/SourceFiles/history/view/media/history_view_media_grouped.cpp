@@ -547,7 +547,7 @@ TextForMimeData GroupedMedia::selectedText(
 			if (result.empty()) {
 				result = std::move(text);
 			} else {
-				result.append(qstr("\n\n")).append(std::move(text));
+				result.append(u"\n\n"_q).append(std::move(text));
 			}
 		}
 		selection = part.content->skipSelection(selection);

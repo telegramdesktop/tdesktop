@@ -266,7 +266,7 @@ void Instance::Inner::start(Fn<void(Update)> updated, Fn<void()> error) {
 	const AVOutputFormat *fmt = nullptr;
 	void *i = nullptr;
 	while ((fmt = av_muxer_iterate(&i))) {
-		if (fmt->name == qstr("opus")) {
+		if (fmt->name == u"opus"_q) {
 			break;
 		}
 	}

@@ -455,11 +455,11 @@ void Uploader::sendNext() {
 					: std::vector<MTPInputDocument>();
 				if (uploadingData.type() == SendMediaType::Photo) {
 					auto photoFilename = uploadingData.filename();
-					if (!photoFilename.endsWith(qstr(".jpg"), Qt::CaseInsensitive)) {
+					if (!photoFilename.endsWith(u".jpg"_q, Qt::CaseInsensitive)) {
 						// Server has some extensions checking for inputMediaUploadedPhoto,
 						// so force the extension to be .jpg anyway. It doesn't matter,
 						// because the filename from inputFile is not used anywhere.
-						photoFilename += qstr(".jpg");
+						photoFilename += u".jpg"_q;
 					}
 					const auto md5 = uploadingData.file
 						? uploadingData.file->filemd5
