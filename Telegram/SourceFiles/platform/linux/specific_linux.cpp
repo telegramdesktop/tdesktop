@@ -867,7 +867,6 @@ bool OpenSystemSettings(SystemSettingsType type) {
 }
 
 void NewVersionLaunched(int oldVersion) {
-	InstallLauncher();
 	if (oldVersion > 0
 		&& oldVersion <= 4000002
 		&& qEnvironmentVariableIsSet("WAYLAND_DISPLAY")
