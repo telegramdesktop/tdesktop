@@ -1130,6 +1130,23 @@ void AddPollActions(
 		not_null<HistoryItem*> item,
 		Context context,
 		not_null<Window::SessionController*> controller) {
+	{
+		constexpr auto kRadio = "\xf0\x9f\x94\x98";
+		const auto radio = QString::fromUtf8(kRadio);
+		auto text = poll->question;
+		for (const auto &answer : poll->answers) {
+			text += '\n' + radio + answer.text;
+		}
+		if (!Ui::SkipTranslate({ text })) {
+			menu->addAction(tr::lng_context_translate(tr::now), [=] {
+				Window::Show(controller).showBox(Box(
+					Ui::TranslateBox,
+					item->history()->peer,
+					MsgId(),
+					TextWithEntities{ .text = text }));
+			}, &st::menuIconTranslate);
+		}
+	}
 	if ((context != Context::History)
 		&& (context != Context::Replies)
 		&& (context != Context::Pinned)) {
