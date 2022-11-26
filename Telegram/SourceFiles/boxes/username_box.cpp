@@ -29,30 +29,40 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
+struct CheckInfo final {
+	enum class Type {
+		Good,
+		Error,
+		Default,
+	};
+	Type type;
+	QString text;
+};
+
 class UsernameEditor final : public Ui::RpWidget {
 public:
 	UsernameEditor(not_null<Ui::RpWidget*>, not_null<Main::Session*> session);
 
 	void setInnerFocus();
-	rpl::producer<> submitted() const;
-	rpl::producer<> save();
+	[[nodiscard]] rpl::producer<> submitted() const;
+	[[nodiscard]] rpl::producer<> save();
+	[[nodiscard]] rpl::producer<CheckInfo> checkInfoChanged() const;
 
 protected:
-	void paintEvent(QPaintEvent *e) override;
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
 	void updateFail(const QString &error);
 	void checkFail(const QString &error);
 
-
 	void check();
 	void changed();
+
+	void checkInfoChange();
 
 	QString getName() const;
 
 	const not_null<Main::Session*> _session;
-	const style::font &_font;
 	const style::margins &_padding;
 	MTP::Sender _api;
 
@@ -65,6 +75,7 @@ private:
 	base::Timer _checkTimer;
 
 	rpl::event_stream<> _saved;
+	rpl::event_stream<CheckInfo> _checkInfoChanged;
 
 };
 
@@ -72,7 +83,6 @@ UsernameEditor::UsernameEditor(
 	not_null<Ui::RpWidget*>,
 	not_null<Main::Session*> session)
 : _session(session)
-, _font(st::normalFont)
 , _padding(st::usernamePadding)
 , _api(&_session->mtp())
 , _username(
@@ -88,11 +98,7 @@ UsernameEditor::UsernameEditor(
 
 	connect(_username, &Ui::MaskedInputField::changed, [=] { changed(); });
 
-	resize(
-		width(),
-		(_padding.top()
-			+ _username->height()
-			+ st::usernameSkip));
+	resize(width(), (_padding.top() + _username->height()));
 }
 
 rpl::producer<> UsernameEditor::submitted() const {
@@ -108,39 +114,6 @@ rpl::producer<> UsernameEditor::submitted() const {
 
 void UsernameEditor::setInnerFocus() {
 	_username->setFocusFast();
-}
-
-void UsernameEditor::paintEvent(QPaintEvent *e) {
-	Painter p(this);
-
-	const auto textTop = _username->y()
-		+ _username->height()
-		+ ((st::usernameSkip - _font->height) / 2);
-
-	p.setFont(_font);
-	if (!_errorText.isEmpty()) {
-		p.setPen(st::boxTextFgError);
-		p.drawTextLeft(
-			_padding.left(),
-			textTop,
-			width(),
-			_errorText);
-	} else if (!_goodText.isEmpty()) {
-		p.setPen(st::boxTextFgGood);
-		p.drawTextLeft(
-			_padding.left(),
-			textTop,
-			width(),
-			_goodText);
-	} else {
-		p.setPen(st::usernameDefaultFg);
-		p.drawTextLeft(
-			_padding.left(),
-			textTop,
-			width(),
-			tr::lng_username_choose(tr::now));
-	}
-	p.setPen(st::boxTextFg);
 }
 
 void UsernameEditor::resizeEvent(QResizeEvent *e) {
@@ -169,6 +142,10 @@ rpl::producer<> UsernameEditor::save() {
 	return _saved.events();
 }
 
+rpl::producer<CheckInfo> UsernameEditor::checkInfoChanged() const {
+	return _checkInfoChanged.events();
+}
+
 void UsernameEditor::check() {
 	_api.request(base::take(_checkRequestId)).cancel();
 
@@ -190,7 +167,7 @@ void UsernameEditor::check() {
 			? tr::lng_username_available(tr::now)
 			: QString();
 
-		update();
+		checkInfoChange();
 	}).fail([=](const MTP::Error &error) {
 		_checkRequestId = 0;
 		checkFail(error.type());
@@ -202,7 +179,7 @@ void UsernameEditor::changed() {
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 			_errorText = _goodText = QString();
-			update();
+			checkInfoChange();
 		}
 		_checkTimer.cancel();
 	} else {
@@ -216,7 +193,7 @@ void UsernameEditor::changed() {
 				&& (ch != '@' || i > 0)) {
 				if (_errorText != tr::lng_username_bad_symbols(tr::now)) {
 					_errorText = tr::lng_username_bad_symbols(tr::now);
-					update();
+					checkInfoChange();
 				}
 				_checkTimer.cancel();
 				return;
@@ -225,16 +202,35 @@ void UsernameEditor::changed() {
 		if (name.size() < Ui::EditPeer::kMinUsernameLength) {
 			if (_errorText != tr::lng_username_too_short(tr::now)) {
 				_errorText = tr::lng_username_too_short(tr::now);
-				update();
+				checkInfoChange();
 			}
 			_checkTimer.cancel();
 		} else {
 			if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 				_errorText = _goodText = QString();
-				update();
+				checkInfoChange();
 			}
 			_checkTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 		}
+	}
+}
+
+void UsernameEditor::checkInfoChange() {
+	if (!_errorText.isEmpty()) {
+		_checkInfoChanged.fire({
+			.type = CheckInfo::Type::Error,
+			.text = _errorText,
+		});
+	} else if (!_goodText.isEmpty()) {
+		_checkInfoChanged.fire({
+			.type = CheckInfo::Type::Good,
+			.text = _goodText,
+		});
+	} else {
+		_checkInfoChanged.fire({
+			.type = CheckInfo::Type::Default,
+			.text = tr::lng_username_choose(tr::now),
+		});
 	}
 }
 
@@ -252,13 +248,13 @@ void UsernameEditor::updateFail(const QString &error) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_invalid(tr::now);
-		update();
+		checkInfoChange();
 	} else if ((error == qstr("USERNAME_OCCUPIED"))
 		|| (error == qstr("USERNAMES_UNAVAILABLE"))) {
 		_username->setFocus();
 		_username->showError();
 		_errorText = tr::lng_username_occupied(tr::now);
-		update();
+		checkInfoChange();
 	} else {
 		_username->setFocus();
 	}
@@ -267,11 +263,11 @@ void UsernameEditor::updateFail(const QString &error) {
 void UsernameEditor::checkFail(const QString &error) {
 	if (error == qstr("USERNAME_INVALID")) {
 		_errorText = tr::lng_username_invalid(tr::now);
-		update();
+		checkInfoChange();
 	} else if ((error == qstr("USERNAME_OCCUPIED"))
 		&& (_checkUsername != _session->user()->editableUsername())) {
 		_errorText = tr::lng_username_occupied(tr::now);
-		update();
+		checkInfoChange();
 	} else {
 		_goodText = QString();
 		_username->setFocus();
@@ -295,6 +291,35 @@ void UsernamesBox(
 		object_ptr<UsernameEditor>(box, session),
 		{});
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
+
+	{
+		const auto padding = st::boxRowPadding;
+		const auto &st = st::aboutRevokePublicLabel;
+		const auto skip = (st::usernameSkip - st.style.font->height) / 2;
+
+		box->addSkip(skip);
+		const auto label = box->addRow(
+			object_ptr<Ui::FlatLabel>(box, st),
+			padding);
+
+		label->setText(Ui::InputField::kTagBold);
+		label->setTextColorOverride(QColor(0, 0, 0, 0));
+
+		editor->checkInfoChanged(
+		) | rpl::start_with_next([=](const CheckInfo &info) {
+			label->setText(info.text);
+			const auto &color = (info.type == CheckInfo::Type::Good)
+				? st::boxTextFgGood
+				: (info.type == CheckInfo::Type::Error)
+				? st::boxTextFgError
+				: st::usernameDefaultFg;
+			label->setTextColorOverride(color->c);
+			label->resizeToWidth(container->width()
+				- padding.left()
+				- padding.right());
+		}, label->lifetime());
+		box->addSkip(skip);
+	}
 
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
