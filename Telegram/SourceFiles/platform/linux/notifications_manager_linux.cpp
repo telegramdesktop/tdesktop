@@ -691,7 +691,25 @@ void NotificationData::setImage(const QString &imagePath) {
 	}
 
 	if (_notification) {
-		_notification->set_icon(Gio::Icon::create(imagePath.toStdString()));
+		const auto imageData = [&] {
+			QFile f(imagePath);
+			if (f.open(QIODevice::ReadOnly)) {
+				return f.readAll();
+			}
+			return QByteArray();
+		}();
+
+		if (imageData.isEmpty()) {
+			return;
+		}
+
+		const auto imageBytes = Glib::Bytes::create(
+			imageData.constData(),
+			imageData.size());
+
+		_notification->set_icon(
+			Glib::wrap(g_bytes_icon_new(imageBytes->gobj())));
+
 		return;
 	}
 
