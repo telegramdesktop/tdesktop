@@ -19,10 +19,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/layers/generic_box.h"
 #include "ui/painter.h"
 #include "ui/text/text_utilities.h"
+#include "ui/text/text_variant.h"
 #include "ui/toast/toast.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/special_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -34,9 +36,10 @@ struct CheckInfo final {
 		Good,
 		Error,
 		Default,
+		PurchaseAvailable,
 	};
 	Type type;
-	QString text;
+	v::text::data text;
 };
 
 class UsernameEditor final : public Ui::RpWidget {
@@ -54,6 +57,8 @@ protected:
 private:
 	void updateFail(const QString &error);
 	void checkFail(const QString &error);
+
+	void checkInfoPurchaseAvailable();
 
 	void check();
 	void changed();
@@ -234,6 +239,25 @@ void UsernameEditor::checkInfoChange() {
 	}
 }
 
+void UsernameEditor::checkInfoPurchaseAvailable() {
+	constexpr auto kUsernameAuction = "auction";
+	const auto text = tr::lng_username_purchase_available(
+		tr::now,
+		lt_link,
+		Ui::Text::Link(
+			'@' + QString(kUsernameAuction),
+			u"https://t.me/"_q + kUsernameAuction),
+		Ui::Text::RichLangValue);
+	_username->setFocus();
+	_username->showError();
+	_errorText = text.text;
+
+	_checkInfoChanged.fire({
+		.type = CheckInfo::Type::PurchaseAvailable,
+		.text = text,
+	});
+}
+
 void UsernameEditor::updateFail(const QString &error) {
 	const auto self = _session->user();
 	if ((error == qstr("USERNAME_NOT_MODIFIED"))
@@ -255,6 +279,8 @@ void UsernameEditor::updateFail(const QString &error) {
 		_username->showError();
 		_errorText = tr::lng_username_occupied(tr::now);
 		checkInfoChange();
+	} else if (error == qstr("USERNAME_PURCHASE_AVAILABLE")) {
+		checkInfoPurchaseAvailable();
 	} else {
 		_username->setFocus();
 	}
@@ -268,6 +294,8 @@ void UsernameEditor::checkFail(const QString &error) {
 		&& (_checkUsername != _session->user()->editableUsername())) {
 		_errorText = tr::lng_username_occupied(tr::now);
 		checkInfoChange();
+	} else if (error == qstr("USERNAME_PURCHASE_AVAILABLE")) {
+		checkInfoPurchaseAvailable();
 	} else {
 		_goodText = QString();
 		_username->setFocus();
@@ -298,16 +326,30 @@ void UsernamesBox(
 		const auto skip = (st::usernameSkip - st.style.font->height) / 2;
 
 		box->addSkip(skip);
-		const auto label = box->addRow(
-			object_ptr<Ui::FlatLabel>(box, st),
+		const auto wrap = box->addRow(
+			object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
+				box,
+				object_ptr<Ui::RpWidget>(box)),
 			padding);
+		wrap->setMinimalHeight(st.style.font->height);
 
-		label->setText(Ui::InputField::kTagBold);
-		label->setTextColorOverride(QColor(0, 0, 0, 0));
+		const auto maxHeightWrap = wrap->entity();
+		const auto label = Ui::CreateChild<Ui::FlatLabel>(
+			maxHeightWrap,
+			editor->checkInfoChanged(
+			) | rpl::map([](CheckInfo info) {
+				return v::text::take_marked(base::take(info.text));
+			}) | rpl::flatten_latest(),
+			st);
+		label->heightValue(
+		) | rpl::start_with_next([=](int height) {
+			if (height > maxHeightWrap->height()) {
+				maxHeightWrap->resize(maxHeightWrap->width(), height);
+			}
+		}, maxHeightWrap->lifetime());
 
 		editor->checkInfoChanged(
-		) | rpl::start_with_next([=](const CheckInfo &info) {
-			label->setText(info.text);
+		) | rpl::start_with_next([=](CheckInfo info) {
 			const auto &color = (info.type == CheckInfo::Type::Good)
 				? st::boxTextFgGood
 				: (info.type == CheckInfo::Type::Error)
@@ -317,6 +359,10 @@ void UsernamesBox(
 			label->resizeToWidth(container->width()
 				- padding.left()
 				- padding.right());
+
+			wrap->toggle(
+				info.type == CheckInfo::Type::PurchaseAvailable,
+				anim::type::normal);
 		}, label->lifetime());
 		box->addSkip(skip);
 	}
