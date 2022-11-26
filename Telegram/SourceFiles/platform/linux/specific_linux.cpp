@@ -422,13 +422,15 @@ bool GenerateDesktopFile(
 	const auto sourceFile = kDesktopFile.utf16();
 	const auto targetFile = targetPath + QGuiApplication::desktopFileName();
 
-	QString fileText;
-	QFile source(sourceFile);
-	if (source.open(QIODevice::ReadOnly)) {
-		QTextStream s(&source);
-		fileText = s.readAll();
-		source.close();
-	} else {
+	const auto sourceText = [&] {
+		QFile source(sourceFile);
+		if (source.open(QIODevice::ReadOnly)) {
+			return source.readAll().toStdString();
+		}
+		return std::string();
+	}();
+	
+	if (sourceText.empty()) {
 		if (!silent) {
 			LOG(("App Error: Could not open '%1' for read").arg(sourceFile));
 		}
@@ -438,7 +440,7 @@ bool GenerateDesktopFile(
 	try {
 		const auto target = Glib::KeyFile::create();
 		target->load_from_data(
-			fileText.toStdString(),
+			sourceText,
 			Glib::KeyFile::Flags::KEEP_COMMENTS
 				| Glib::KeyFile::Flags::KEEP_TRANSLATIONS);
 
