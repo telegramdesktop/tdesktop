@@ -1132,9 +1132,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				if (thumbnail || blurred) {
 					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
 						_thumbLoaded = (thumbnail != nullptr);
-						const auto options = _thumbLoaded
-							? Images::Option()
-							: Images::Option::Blur;
+						const auto options = Images::Option::RoundSmall
+							| (_thumbLoaded
+								? Images::Option()
+								: Images::Option::Blur);
 						const auto image = thumbnail ? thumbnail : blurred;
 						_thumb = image->pixNoCache(
 							_thumbw * style::DevicePixelRatio(),
@@ -1147,10 +1148,20 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
-					p.fillRect(rthumb, st::overviewFileThumbBg);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::overviewFileThumbBg);
+					p.drawRoundedRect(
+						rthumb,
+						st::roundRadiusSmall,
+						st::roundRadiusSmall);
 				}
 			} else {
-				p.fillRect(rthumb, _generic.color);
+				p.setPen(Qt::NoPen);
+				p.setBrush(_generic.color);
+				p.drawRoundedRect(
+					rthumb,
+					st::roundRadiusSmall,
+					st::roundRadiusSmall);
 				if (!radial && loaded && !_ext.isEmpty()) {
 					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::overviewFileExtFg);
@@ -1158,7 +1169,12 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				}
 			}
 			if (selected) {
-				p.fillRect(rthumb, st::defaultTextPalette.selectOverlay);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::defaultTextPalette.selectOverlay);
+				p.drawRoundedRect(
+					rthumb,
+					st::roundRadiusSmall,
+					st::roundRadiusSmall);
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
