@@ -173,12 +173,15 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	const auto realDefaultPath = QStandardPaths::writableLocation(
-		QStandardPaths::DownloadLocation)
+	const auto standardLocation = QStandardPaths::writableLocation(
+		QStandardPaths::DownloadLocation);
+	const auto realDefaultPath = standardLocation
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
-	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
+	if (KSandbox::isInside()
+		&& Core::App().settings().downloadPath().isEmpty()
+		&& !base::CanReadDirectory(standardLocation)) {
 		QStringList files;
 		QByteArray remoteContent;
 		const auto success = Platform::FileDialog::Get(
