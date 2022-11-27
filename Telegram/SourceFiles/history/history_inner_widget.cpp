@@ -2276,7 +2276,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						Ui::TranslateBox,
 						item->history()->peer,
 						MsgId(),
-						getSelectedText().rich));
+						getSelectedText().rich,
+						hasCopyRestrictionForSelected()));
 				}, &st::menuIconTranslate);
 			}
 		}
@@ -2376,7 +2377,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						Ui::TranslateBox,
 						item->history()->peer,
 						MsgId(),
-						getSelectedText().rich));
+						getSelectedText().rich,
+						hasCopyRestrictionForSelected()));
 				}, &st::menuIconTranslate);
 			}
 			addItemActions(item, item);
@@ -2446,7 +2448,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 							Ui::TranslateBox,
 							item->history()->peer,
 							item->fullId().msg,
-							item->originalText()));
+							item->originalText(),
+							hasCopyRestriction(item)));
 					}, &st::menuIconTranslate);
 				}
 			}

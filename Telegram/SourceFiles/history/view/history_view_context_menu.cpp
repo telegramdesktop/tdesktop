@@ -1014,7 +1014,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 					Ui::TranslateBox,
 					item->history()->peer,
 					MsgId(),
-					list->getSelectedText().rich));
+					list->getSelectedText().rich,
+					list->hasCopyRestrictionForSelected()));
 			}
 		}, &st::menuIconTranslate);
 	}
@@ -1061,7 +1062,8 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 						Ui::TranslateBox,
 						item->history()->peer,
 						item->fullId().msg,
-						item->originalText()));
+						item->originalText(),
+						list->hasCopyRestriction(view->data())));
 				}
 			}, &st::menuIconTranslate);
 		}
@@ -1143,7 +1145,8 @@ void AddPollActions(
 					Ui::TranslateBox,
 					item->history()->peer,
 					MsgId(),
-					TextWithEntities{ .text = text }));
+					TextWithEntities{ .text = text },
+					item->forbidsForward()));
 			}, &st::menuIconTranslate);
 		}
 	}

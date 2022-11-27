@@ -140,7 +140,8 @@ void TranslateBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
 		MsgId msgId,
-		TextWithEntities text) {
+		TextWithEntities text,
+		bool hasCopyRestriction) {
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
@@ -182,6 +183,10 @@ void TranslateBox(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
 	{
+		if (hasCopyRestriction) {
+			original->entity()->setContextMenuHook([](auto&&) {
+			});
+		}
 		original->entity()->setMarkedText(text);
 		original->setMinimalHeight(lineHeight);
 		original->hide(anim::type::instant);
@@ -232,7 +237,7 @@ void TranslateBox(
 	const auto translated = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
-	translated->entity()->setSelectable(true);
+	translated->entity()->setSelectable(!hasCopyRestriction);
 	translated->hide(anim::type::instant);
 
 	constexpr auto kMaxLines = 3;

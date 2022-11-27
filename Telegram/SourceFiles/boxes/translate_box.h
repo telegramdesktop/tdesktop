@@ -19,7 +19,8 @@ void TranslateBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<PeerData*> peer,
 	MsgId msgId,
-	TextWithEntities text);
+	TextWithEntities text,
+	bool hasCopyRestriction);
 
 [[nodiscard]] bool SkipTranslate(TextWithEntities textWithEntities);
 
