@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtNetwork/QNetworkProxy>
 #include <cmath>
 #include <set>
+#include <filesystem>
 
 #if __has_include(<kurlmimedata.h>)
 #include <kurlmimedata.h>
@@ -59,6 +60,19 @@ inline QString IconName() {
 	return Result;
 }
 #endif
+
+inline bool CanReadDirectory(const QString &path) {
+#ifndef Q_OS_MAC // directory_iterator since 10.15
+	try {
+		std::filesystem::directory_iterator(path.toStdString());
+		return true;
+	} catch (...) {
+		return false;
+	}
+#else
+	Unexpected("Not implemented.");
+#endif
+}
 
 } // namespace base
 
