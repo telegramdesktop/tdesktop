@@ -407,6 +407,30 @@ QString FormatTTL(float64 ttl) {
 		: tr::lng_years({}, lt_count, std::round(ttl / (86400 * 365)));
 }
 
+QString FormatTTLAfter(float64 ttl) {
+	return (ttl <= 3600 * 23)
+		? tr::lng_settings_ttl_after_hours(tr::now, lt_count, int(ttl / 3600))
+		: (ttl <= (86400) * 6)
+		? tr::lng_settings_ttl_after_days(
+			tr::now,
+			lt_count,
+			int(ttl / (86400)))
+		: (ttl <= (86400 * 7) * 3)
+		? tr::lng_settings_ttl_after_weeks(
+			tr::now,
+			lt_count,
+			int(ttl / (86400 * 7)))
+		: (ttl <= (86400 * 31) * 11)
+		? tr::lng_settings_ttl_after_months(
+			tr::now,
+			lt_count,
+			int(ttl / (86400 * 31)))
+		: tr::lng_settings_ttl_after_years(
+			tr::now,
+			lt_count,
+			std::round(ttl / (86400 * 365)));
+}
+
 QString FormatTTLTiny(float64 ttl) {
 	return (ttl <= 3600 * 9)
 		? tr::lng_hours_tiny(tr::now, lt_count, int(ttl / 3600))

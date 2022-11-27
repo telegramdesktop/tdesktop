@@ -23,6 +23,7 @@ struct Args {
 	TimeId startTtl;
 	rpl::producer<QString> about;
 	Fn<void(TimeId)> callback;
+	bool hideDisable = false;
 };
 
 void TTLBox(not_null<Ui::GenericBox*> box, Args args);

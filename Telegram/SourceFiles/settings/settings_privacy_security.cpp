@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/cloud_password/settings_cloud_password_start.h"
 #include "settings/settings_blocked_peers.h"
 #include "settings/settings_common.h"
+#include "settings/settings_global_ttl.h"
 #include "settings/settings_local_passcode.h"
 #include "settings/settings_premium.h" // Settings::ShowPremium.
 #include "settings/settings_privacy_controllers.h"
@@ -31,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "ui/chat/chat_style.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toast/toast.h"
 #include "ui/wrap/vertical_layout.h"
@@ -459,9 +461,6 @@ void SetupCloudPassword(
 		reloadOnActivation);
 
 	session->api().cloudPassword().reload();
-
-	AddSkip(container);
-	AddDividerText(container, tr::lng_settings_cloud_password_start_about());
 }
 
 void SetupSensitiveContent(
@@ -671,6 +670,37 @@ void SetupSessionsList(
 	});
 }
 
+void SetupGlobalTTLList(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<> updateTrigger,
+		Fn<void(Type)> showOther) {
+	const auto session = &controller->session();
+	auto ttlLabel = rpl::combine(
+		session->api().selfDestruct().periodDefaultHistoryTTL(),
+		tr::lng_settings_ttl_after_off()
+	) | rpl::map([](int ttl, const QString &none) {
+		return ttl ? Ui::FormatTTL(ttl) : none;
+	});
+	const auto globalTTLButton = AddButtonWithLabel(
+		container,
+		tr::lng_settings_ttl_title(),
+		std::move(ttlLabel),
+		st::settingsButton,
+		{ &st::settingsIconTTL, kIconPurple });
+	globalTTLButton->addClickHandler([=] {
+		showOther(GlobalTTLId());
+	});
+	std::move(
+		updateTrigger
+	) | rpl::start_with_next([=] {
+		session->api().selfDestruct().reload();
+	}, container->lifetime());
+
+	AddSkip(container);
+	AddDividerText(container, tr::lng_settings_ttl_about());
+}
+
 void SetupSecurity(
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::VerticalLayout*> container,
@@ -691,6 +721,11 @@ void SetupSecurity(
 		showOther);
 	SetupLocalPasscode(controller, container, showOther);
 	SetupCloudPassword(controller, container, showOther);
+	SetupGlobalTTLList(
+		controller,
+		container,
+		rpl::duplicate(updateTrigger),
+		showOther);
 }
 
 } // namespace

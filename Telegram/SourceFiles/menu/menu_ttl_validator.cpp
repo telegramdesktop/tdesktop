@@ -92,6 +92,7 @@ Args TTLValidator::createArgs() const {
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
+		show->hideLayer();
 	};
 	auto about = peer->isUser()
 		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
