@@ -667,6 +667,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_cloud_password_email_confirm" = "Confirm and Finish";
 "lng_settings_cloud_password_reset_in" = "You can reset your password in {duration}.";
 
+"lng_settings_ttl_title" = "Auto-Delete Messages";
+"lng_settings_ttl_about" = "Automatically delete messages for everyone after a period of time in all new chats you start.";
+"lng_settings_ttl_after" = "After {after_duration}";
+"lng_settings_ttl_after_hours#one" = "{count} hour";
+"lng_settings_ttl_after_hours#other" = "{count} hours";
+"lng_settings_ttl_after_days#one" = "{count} day";
+"lng_settings_ttl_after_days#other" = "{count} days";
+"lng_settings_ttl_after_weeks#one" = "{count} week";
+"lng_settings_ttl_after_weeks#other" = "{count} weeks";
+"lng_settings_ttl_after_months#one" = "{count} month";
+"lng_settings_ttl_after_months#other" = "{count} months";
+"lng_settings_ttl_after_years#one" = "{count} year";
+"lng_settings_ttl_after_years#other" = "{count} years";
+"lng_settings_ttl_after_off" = "Off";
+"lng_settings_ttl_after_custom" = "Set Custom Time";
+"lng_settings_ttl_after_about" = "If enabled, all new messages in chats you start will be automatically deleted for everyone at some point after they have been sent. You can also {link}.";
+"lng_settings_ttl_after_about_link" = "apply this setting for your existing chats";
+"lng_settings_ttl_after_subtitle" = "Self-destruct timer";
+"lng_settings_ttl_after_sure" = "Are you sure you want all messages in new chats started by you to be automatically deleted for everyone {after_duration} after they have been sent?";
+"lng_settings_ttl_after_toast" = "Messages in all new chats you start will be automatically deleted after {after_duration}.";
+
+"lng_settings_ttl_select_chats_title" = "Select Chats";
+"lng_settings_ttl_select_chats_subtitle" = "to apply the self-destruct timer";
+"lng_settings_ttl_select_chats_subtitle_chosen" = "will have the self-destruct timer";
+"lng_settings_ttl_select_chats_status" = "auto-delete after {after_duration}";
+"lng_settings_ttl_select_chats_status_disabled" = "auto-deletion disabled";
+"lng_settings_ttl_select_chats_status_toast#one" = "Self-destruct timer for {duration} has been enabled in {count} selected chat.";
+"lng_settings_ttl_select_chats_status_toast#other" = "Self-destruct timer for {duration} has been enabled in {count} selected chats.";
+
 "lng_clear_payment_info_title" = "Clear payment info";
 "lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
 "lng_clear_payment_info_shipping" = "Shipping info";
@@ -1297,6 +1326,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
 "lng_ttl_edit_about_channel" = "Automatically delete new messages sent in this channel after a certain period of time.";
+"lng_ttl_edit_about2" = "You can also set your default {link} for all chats in Settings.";
+"lng_ttl_edit_about2_link" = "self-destruct timer";
 "lng_ttl_edit_save" = "Confirm";
 "lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
@@ -1364,6 +1395,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
+"lng_create_group_ttl_about" = "Automatically delete messages in this group for everyone after a period of time.";
 "lng_create_channel_title" = "New Channel";
 "lng_create_public_channel_title" = "Public Channel";
 "lng_create_public_channel_about" = "Anyone can find the channel in search and join";
@@ -1458,6 +1490,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
+"lng_action_ttl_global" = "{from} uses a self-destruct timer for all chats. All new messages in this chat will be automatically deleted after {duration} they've been sent.";
 "lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
 "lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";
