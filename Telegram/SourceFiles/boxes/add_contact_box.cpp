@@ -1225,6 +1225,8 @@ SetupChannelBox::UsernameResult SetupChannelBox::parseError(
 		return UsernameResult::Invalid;
 	} else if (error == u"USERNAME_OCCUPIED"_q) {
 		return UsernameResult::Occupied;
+	} else if (error == u"USERNAME_PURCHASE_AVAILABLE"_q) {
+		return UsernameResult::Occupied;
 	} else if (error == u"USERNAMES_UNAVAILABLE"_q) {
 		return UsernameResult::Occupied;
 	} else if (error == u"CHANNEL_PUBLIC_GROUP_NA"_q) {

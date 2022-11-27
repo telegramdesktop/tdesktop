@@ -1386,6 +1386,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_channel_link_too_short" = "Sorry, this link is too short";
 "lng_create_channel_link_bad_symbols" = "Only 0-9, a-z, and underscores allowed.";
 "lng_create_channel_link_available" = "This link is available";
+"lng_create_channel_link_pending" = "Checking name...";
 "lng_create_channel_link_copied" = "Link copied to clipboard";
 
 "lng_create_group_crop" = "Select an area for group photo";

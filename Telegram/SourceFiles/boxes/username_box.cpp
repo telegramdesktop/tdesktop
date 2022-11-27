@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/fields/special_fields.h"
 #include "ui/widgets/labels.h"
+#include "ui/wrap/follow_slide_wrap.h"
 #include "ui/wrap/slide_wrap.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -31,16 +32,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-struct CheckInfo final {
-	enum class Type {
-		Good,
-		Error,
-		Default,
-		PurchaseAvailable,
-	};
-	Type type;
-	v::text::data text;
-};
+[[nodiscard]] TextWithEntities PurchaseAvailableText() {
+	constexpr auto kUsernameAuction = "auction";
+	return tr::lng_username_purchase_available(
+		tr::now,
+		lt_link,
+		Ui::Text::Link(
+			'@' + QString(kUsernameAuction),
+			u"https://t.me/"_q + kUsernameAuction),
+		Ui::Text::RichLangValue);
+}
 
 class UsernameEditor final : public Ui::RpWidget {
 public:
@@ -49,7 +50,7 @@ public:
 	void setInnerFocus();
 	[[nodiscard]] rpl::producer<> submitted() const;
 	[[nodiscard]] rpl::producer<> save();
-	[[nodiscard]] rpl::producer<CheckInfo> checkInfoChanged() const;
+	[[nodiscard]] rpl::producer<UsernameCheckInfo> checkInfoChanged() const;
 
 protected:
 	void resizeEvent(QResizeEvent *e) override;
@@ -80,7 +81,7 @@ private:
 	base::Timer _checkTimer;
 
 	rpl::event_stream<> _saved;
-	rpl::event_stream<CheckInfo> _checkInfoChanged;
+	rpl::event_stream<UsernameCheckInfo> _checkInfoChanged;
 
 };
 
@@ -147,7 +148,7 @@ rpl::producer<> UsernameEditor::save() {
 	return _saved.events();
 }
 
-rpl::producer<CheckInfo> UsernameEditor::checkInfoChanged() const {
+rpl::producer<UsernameCheckInfo> UsernameEditor::checkInfoChanged() const {
 	return _checkInfoChanged.events();
 }
 
@@ -184,7 +185,7 @@ void UsernameEditor::changed() {
 	if (name.isEmpty()) {
 		if (!_errorText.isEmpty() || !_goodText.isEmpty()) {
 			_errorText = _goodText = QString();
-			checkInfoChange();
+			_checkInfoChanged.fire({ UsernameCheckInfo::Type::Default });
 		}
 		_checkTimer.cancel();
 	} else {
@@ -223,38 +224,29 @@ void UsernameEditor::changed() {
 void UsernameEditor::checkInfoChange() {
 	if (!_errorText.isEmpty()) {
 		_checkInfoChanged.fire({
-			.type = CheckInfo::Type::Error,
-			.text = _errorText,
+			.type = UsernameCheckInfo::Type::Error,
+			.text = { _errorText },
 		});
 	} else if (!_goodText.isEmpty()) {
 		_checkInfoChanged.fire({
-			.type = CheckInfo::Type::Good,
-			.text = _goodText,
+			.type = UsernameCheckInfo::Type::Good,
+			.text = { _goodText },
 		});
 	} else {
 		_checkInfoChanged.fire({
-			.type = CheckInfo::Type::Default,
-			.text = tr::lng_username_choose(tr::now),
+			.type = UsernameCheckInfo::Type::Default,
+			.text = { tr::lng_username_choose(tr::now) },
 		});
 	}
 }
 
 void UsernameEditor::checkInfoPurchaseAvailable() {
-	constexpr auto kUsernameAuction = "auction";
-	const auto text = tr::lng_username_purchase_available(
-		tr::now,
-		lt_link,
-		Ui::Text::Link(
-			'@' + QString(kUsernameAuction),
-			u"https://t.me/"_q + kUsernameAuction),
-		Ui::Text::RichLangValue);
 	_username->setFocus();
 	_username->showError();
-	_errorText = text.text;
+	_errorText = u".bad."_q;
 
 	_checkInfoChanged.fire({
-		.type = CheckInfo::Type::PurchaseAvailable,
-		.text = text,
+		.type = UsernameCheckInfo::Type::PurchaseAvailable,
 	});
 }
 
@@ -320,52 +312,7 @@ void UsernamesBox(
 		{});
 	box->setFocusCallback([=] { editor->setInnerFocus(); });
 
-	{
-		const auto padding = st::boxRowPadding;
-		const auto &st = st::aboutRevokePublicLabel;
-		const auto skip = (st::usernameSkip - st.style.font->height) / 2;
-
-		box->addSkip(skip);
-		const auto wrap = box->addRow(
-			object_ptr<Ui::SlideWrap<Ui::RpWidget>>(
-				box,
-				object_ptr<Ui::RpWidget>(box)),
-			padding);
-		wrap->setMinimalHeight(st.style.font->height);
-
-		const auto maxHeightWrap = wrap->entity();
-		const auto label = Ui::CreateChild<Ui::FlatLabel>(
-			maxHeightWrap,
-			editor->checkInfoChanged(
-			) | rpl::map([](CheckInfo info) {
-				return v::text::take_marked(base::take(info.text));
-			}) | rpl::flatten_latest(),
-			st);
-		label->heightValue(
-		) | rpl::start_with_next([=](int height) {
-			if (height > maxHeightWrap->height()) {
-				maxHeightWrap->resize(maxHeightWrap->width(), height);
-			}
-		}, maxHeightWrap->lifetime());
-
-		editor->checkInfoChanged(
-		) | rpl::start_with_next([=](CheckInfo info) {
-			const auto &color = (info.type == CheckInfo::Type::Good)
-				? st::boxTextFgGood
-				: (info.type == CheckInfo::Type::Error)
-				? st::boxTextFgError
-				: st::usernameDefaultFg;
-			label->setTextColorOverride(color->c);
-			label->resizeToWidth(container->width()
-				- padding.left()
-				- padding.right());
-
-			wrap->toggle(
-				info.type == CheckInfo::Type::PurchaseAvailable,
-				anim::type::normal);
-		}, label->lifetime());
-		box->addSkip(skip);
-	}
+	AddUsernameCheckLabel(container, editor->checkInfoChanged());
 
 	container->add(object_ptr<Ui::DividerLabel>(
 		container,
@@ -400,4 +347,42 @@ void UsernamesBox(
 
 	box->addButton(tr::lng_settings_save(), finish);
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
+void AddUsernameCheckLabel(
+		not_null<Ui::VerticalLayout*> container,
+		rpl::producer<UsernameCheckInfo> checkInfo) {
+	const auto padding = st::boxRowPadding;
+	const auto &st = st::aboutRevokePublicLabel;
+	const auto skip = (st::usernameSkip - st.style.font->height) / 4;
+
+	auto wrapped = object_ptr<Ui::VerticalLayout>(container);
+	Settings::AddSkip(wrapped, skip);
+	const auto label = wrapped->add(object_ptr<Ui::FlatLabel>(wrapped, st));
+	Settings::AddSkip(wrapped, skip);
+
+	Settings::AddSkip(container, skip);
+	const auto wrap = container->add(
+		object_ptr<Ui::FollowSlideWrap<Ui::VerticalLayout>>(
+			container,
+			std::move(wrapped)),
+		padding);
+
+	rpl::combine(
+		std::move(checkInfo),
+		container->widthValue()
+	) | rpl::start_with_next([=](const UsernameCheckInfo &info, int w) {
+		using Type = UsernameCheckInfo::Type;
+		label->setMarkedText((info.type == Type::PurchaseAvailable)
+			? PurchaseAvailableText()
+			: info.text);
+		const auto &color = (info.type == Type::Good)
+			? st::boxTextFgGood
+			: (info.type == Type::Error)
+			? st::boxTextFgError
+			: st::usernameDefaultFg;
+		label->setTextColorOverride(color->c);
+		label->resizeToWidth(w - padding.left() - padding.right());
+	}, label->lifetime());
+	Settings::AddSkip(container, skip);
 }

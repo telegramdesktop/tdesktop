@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
 #include "boxes/peers/edit_peer_usernames_list.h"
+#include "boxes/username_box.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -103,8 +104,7 @@ private:
 		Ui::SlideWrap<Ui::RpWidget> *usernameWrap = nullptr;
 		Ui::UsernameInput *usernameInput = nullptr;
 		UsernamesList *usernamesList = nullptr;
-		base::unique_qptr<Ui::FlatLabel> usernameResult;
-		const style::FlatLabel *usernameResultStyle = nullptr;
+		base::unique_qptr<Ui::FlatLabel> usernameCheckResult;
 
 		Ui::SlideWrap<> *inviteLinkWrap = nullptr;
 		Ui::FlatLabel *inviteLink = nullptr;
@@ -127,9 +127,8 @@ private:
 	void usernameChanged();
 	void showUsernameError(rpl::producer<QString> &&error);
 	void showUsernameGood();
-	void showUsernameResult(
-		rpl::producer<QString> &&text,
-		not_null<const style::FlatLabel*> st);
+	void showUsernamePending();
+	void showUsernameEmpty();
 
 	void fillPrivaciesButtons(
 		not_null<Ui::VerticalLayout*> parent,
@@ -157,7 +156,9 @@ private:
 	base::Timer _checkUsernameTimer;
 	mtpRequestId _checkUsernameRequestId = 0;
 	UsernameState _usernameState = UsernameState::Normal;
-	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
+
+	rpl::event_stream<UsernameCheckInfo> _usernameCheckInfo;
+	rpl::lifetime _usernameCheckInfoLifetime;
 
 	rpl::event_stream<int> _scrollToRequests;
 
@@ -450,6 +451,8 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	}, placeholder->lifetime());
 	_controls.usernameInput->move(placeholder->pos());
 
+	AddUsernameCheckLabel(container, _usernameCheckInfo.events());
+
 	AddDividerText(
 		container,
 		tr::lng_create_channel_link_about());
@@ -506,7 +509,7 @@ void Controller::privacyChanged(Privacy value) {
 			toggleEditUsername();
 			toggleWhoSendWrap();
 
-			_controls.usernameResult = nullptr;
+			showUsernameEmpty();
 			checkUsernameAvailability();
 		} else {
 			toggleWhoSendWrap();
@@ -575,11 +578,16 @@ void Controller::checkUsernameAvailability() {
 			}
 		} else if (initial) {
 			if (_controls.privacy->value() == Privacy::HasUsername) {
-				_controls.usernameResult = nullptr;
+				showUsernameEmpty();
 				setFocusUsername();
 			}
 		} else if (type == u"USERNAME_INVALID"_q) {
 			showUsernameError(tr::lng_create_channel_link_invalid());
+		} else if (type == u"USERNAME_PURCHASE_AVAILABLE"_q) {
+			_goodUsername = false;
+			_usernameCheckInfo.fire({
+				.type = UsernameCheckInfo::Type::PurchaseAvailable,
+			});
 		} else if (type == u"USERNAME_OCCUPIED"_q && checking != username) {
 			showUsernameError(tr::lng_create_channel_link_occupied());
 		}
@@ -602,7 +610,7 @@ void Controller::usernameChanged() {
 	_goodUsername = false;
 	const auto username = getUsernameInput();
 	if (username.isEmpty()) {
-		_controls.usernameResult = nullptr;
+		showUsernameEmpty();
 		_checkUsernameTimer.cancel();
 		return;
 	}
@@ -617,43 +625,44 @@ void Controller::usernameChanged() {
 	} else if (username.size() < Ui::EditPeer::kMinUsernameLength) {
 		showUsernameError(tr::lng_create_channel_link_too_short());
 	} else {
-		_controls.usernameResult = nullptr;
+		showUsernamePending();
 		_checkUsernameTimer.callOnce(Ui::EditPeer::kUsernameCheckTimeout);
 	}
 }
 
 void Controller::showUsernameError(rpl::producer<QString> &&error) {
 	_goodUsername = false;
-	showUsernameResult(std::move(error), &st::editPeerUsernameError);
+	_usernameCheckInfoLifetime.destroy();
+	std::move(
+		error
+	) | rpl::map([](QString s) {
+		return UsernameCheckInfo{
+			.type = UsernameCheckInfo::Type::Error,
+			.text = { std::move(s) },
+		};
+	}) | rpl::start_to_stream(_usernameCheckInfo, _usernameCheckInfoLifetime);
 }
 
 void Controller::showUsernameGood() {
 	_goodUsername = true;
-	showUsernameResult(
-		tr::lng_create_channel_link_available(),
-		&st::editPeerUsernameGood);
+	_usernameCheckInfoLifetime.destroy();
+	_usernameCheckInfo.fire({
+		.type = UsernameCheckInfo::Type::Good,
+		.text = { tr::lng_create_channel_link_available(tr::now) },
+	});
 }
 
-void Controller::showUsernameResult(
-		rpl::producer<QString> &&text,
-		not_null<const style::FlatLabel*> st) {
-	if (!_controls.usernameResult
-		|| _controls.usernameResultStyle != st) {
-		_controls.usernameResultStyle = st;
-		_controls.usernameResult = base::make_unique_q<Ui::FlatLabel>(
-			_controls.usernameWrap,
-			_usernameResultTexts.events() | rpl::flatten_latest(),
-			*st);
-		const auto label = _controls.usernameResult.get();
-		label->show();
-		label->widthValue(
-		) | rpl::start_with_next([label] {
-			label->moveToRight(
-				st::editPeerUsernamePosition.x(),
-				st::editPeerUsernamePosition.y());
-		}, label->lifetime());
-	}
-	_usernameResultTexts.fire(std::move(text));
+void Controller::showUsernamePending() {
+	_usernameCheckInfoLifetime.destroy();
+	_usernameCheckInfo.fire({
+		.type = UsernameCheckInfo::Type::Default,
+		.text = { .text = tr::lng_create_channel_link_pending(tr::now) },
+	});
+}
+
+void Controller::showUsernameEmpty() {
+	_usernameCheckInfoLifetime.destroy();
+	_usernameCheckInfo.fire({ .type = UsernameCheckInfo::Type::Default });
 }
 
 object_ptr<Ui::RpWidget> Controller::createInviteLinkBlock() {
