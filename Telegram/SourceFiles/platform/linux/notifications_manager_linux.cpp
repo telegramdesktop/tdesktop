@@ -431,10 +431,12 @@ bool NotificationData::init(
 				idTuple);
 		}
 
-		_notification->add_button(
-			tr::lng_notification_reply(tr::now).toStdString(),
-			"app.notification-reply",
-			idTuple);
+		if (!options.hideReplyButton) {
+			_notification->add_button(
+				tr::lng_notification_reply(tr::now).toStdString(),
+				"app.notification-reply",
+				idTuple);
+		}
 
 		return true;
 	}
@@ -520,22 +522,24 @@ bool NotificationData::init(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (capabilities.contains("inline-reply") && !options.hideReplyButton) {
-			_actions.push_back("inline-reply");
-			_actions.push_back(
-				tr::lng_notification_reply(tr::now).toStdString());
+		if (!options.hideReplyButton) {
+			if (capabilities.contains("inline-reply")) {
+				_actions.push_back("inline-reply");
+				_actions.push_back(
+					tr::lng_notification_reply(tr::now).toStdString());
 
-			_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
-				signalEmitted,
-				std::string(kService),
-				std::string(kInterface),
-				"NotificationReplied",
-				std::string(kObjectPath));
-		} else {
-			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-			_actions.push_back("mail-reply-sender");
-			_actions.push_back(
-				tr::lng_notification_reply(tr::now).toStdString());
+				_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
+					signalEmitted,
+					std::string(kService),
+					std::string(kInterface),
+					"NotificationReplied",
+					std::string(kObjectPath));
+			} else {
+				// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+				_actions.push_back("mail-reply-sender");
+				_actions.push_back(
+					tr::lng_notification_reply(tr::now).toStdString());
+			}
 		}
 
 		_actionInvokedSignalId = _dbusConnection->signal_subscribe(
