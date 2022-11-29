@@ -38,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/translate_box.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_mute.h"
 #include "history/history.h"
@@ -61,6 +62,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -313,6 +315,34 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return true;
 	};
 
+	const auto addTranslateToMenu = [&,
+			peer = _peer.get(),
+			controller = _controller->parentController()](
+			not_null<Ui::FlatLabel*> label,
+			rpl::producer<TextWithEntities> &&text) {
+		struct State {
+			rpl::variable<TextWithEntities> labelText;
+		};
+		const auto state = label->lifetime().make_state<State>();
+		state->labelText = std::move(text);
+		label->setContextMenuHook([=](
+				Ui::FlatLabel::ContextMenuRequest request) {
+			label->fillContextMenu(request);
+			if (Ui::SkipTranslate(state->labelText.current())) {
+				return;
+			}
+			auto item = tr::lng_context_translate(tr::now);
+			request.menu->addAction(std::move(item), [=] {
+				controller->window().show(Box(
+					Ui::TranslateBox,
+					peer,
+					MsgId(),
+					state->labelText.current(),
+					false));
+			});
+		});
+	};
+
 	const auto addInfoLineGeneric = [&](
 			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
@@ -369,7 +399,9 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		auto label = user->isBot()
 			? tr::lng_info_about_label()
 			: tr::lng_info_bio_label();
-		addInfoLine(std::move(label), AboutValue(user));
+		addTranslateToMenu(
+			addInfoLine(std::move(label), AboutValue(user)).text,
+			AboutValue(user));
 
 		const auto usernameLine = addInfoOneLine(
 			UsernamesSubtext(_peer, tr::lng_info_username_label()),
@@ -494,9 +526,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			).text->setLinksTrusted();
 		}
 
-		addInfoLine(
+		const auto about = addInfoLine(
 			tr::lng_info_about_label(),
 			_topic ? rpl::single(TextWithEntities()) : AboutValue(_peer));
+		if (!_topic) {
+			addTranslateToMenu(about.text, AboutValue(_peer));
+		}
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
