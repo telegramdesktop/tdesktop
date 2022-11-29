@@ -121,7 +121,20 @@ TopicIconView::TopicIconView(
 	not_null<Data::ForumTopic*> topic,
 	Fn<bool()> paused,
 	Fn<void()> update)
+: TopicIconView(
+	topic,
+	std::move(paused),
+	std::move(update),
+	st::windowSubTextFg) {
+}
+
+TopicIconView::TopicIconView(
+	not_null<Data::ForumTopic*> topic,
+	Fn<bool()> paused,
+	Fn<void()> update,
+	const style::color &generalIconFg)
 : _topic(topic)
+, _generalIconFg(generalIconFg)
 , _paused(std::move(paused))
 , _update(std::move(update)) {
 	setup(topic);
@@ -218,9 +231,14 @@ void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
 	using namespace Data;
 	if (topic->isGeneral()) {
-		_image = ForumTopicGeneralIconFrame(
-			st::infoForumTopicIcon.size,
-			st::windowSubTextFg);
+		rpl::single(rpl::empty) | rpl::then(
+			style::PaletteChanged()
+		) | rpl::start_with_next([=] {
+			_image = ForumTopicGeneralIconFrame(
+				st::infoForumTopicIcon.size,
+				_generalIconFg);
+			_update();
+		}, _lifetime);
 		return;
 	}
 	rpl::combine(
