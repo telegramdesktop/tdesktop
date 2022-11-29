@@ -120,7 +120,7 @@ void TopicsView::paint(
 	auto rect = geometry;
 	auto skipBig = _jumpToTopic && !context.active;
 	for (const auto &title : _titles) {
-		if (rect.width() <= 0) {
+		if (rect.width() < title.title.style()->font->elidew) {
 			break;
 		}
 		title.title.draw(p, {
