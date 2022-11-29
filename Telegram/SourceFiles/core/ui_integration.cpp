@@ -164,13 +164,13 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		using HashtagMentionType = MarkedTextContext::HashtagMentionType;
 		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
-				(qsl("https://twitter.com/hashtag/")
+				(u"https://twitter.com/hashtag/"_q
 					+ data.data.mid(1)
-					+ qsl("?src=hash")),
+					+ u"?src=hash"_q),
 				true);
 		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
-				(qsl("https://instagram.com/explore/tags/")
+				(u"https://instagram.com/explore/tags/"_q
 					+ data.data.mid(1)
 					+ '/'),
 				true);
@@ -184,11 +184,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		using HashtagMentionType = MarkedTextContext::HashtagMentionType;
 		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://twitter.com/") + data.data.mid(1),
+				u"https://twitter.com/"_q + data.data.mid(1),
 				true);
 		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://instagram.com/") + data.data.mid(1) + '/',
+				u"https://instagram.com/"_q + data.data.mid(1) + '/',
 				true);
 		}
 		return std::make_shared<MentionClickHandler>(data.data);

@@ -693,7 +693,7 @@ ShareBox::Inner::Inner(
 	}
 	addList(_descriptor.session->data().contactsNoChatsList());
 
-	_filter = qsl("a");
+	_filter = u"a"_q;
 	updateFilter();
 
 	_descriptor.session->changes().peerUpdates(
@@ -1325,9 +1325,9 @@ QString AppendShareGameScoreUrl(
 	}
 
 	auto shareHash = shareHashEncrypted.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	auto shareUrl = qsl("tg://share_game_score?hash=") + QString::fromLatin1(shareHash);
+	auto shareUrl = u"tg://share_game_score?hash="_q + QString::fromLatin1(shareHash);
 
-	auto shareComponent = qsl("tgShareScoreUrl=") + qthelp::url_encode(shareUrl);
+	auto shareComponent = u"tgShareScoreUrl="_q + qthelp::url_encode(shareUrl);
 
 	auto hashPosition = url.indexOf('#');
 	if (hashPosition < 0) {
@@ -1391,7 +1391,7 @@ void FastShareMessage(
 			if (const auto media = item->media()) {
 				if (const auto game = media->game()) {
 					const auto link = session->createInternalLinkFull(
-						bot->username() + qsl("?game=") + game->shortName);
+						bot->username() + u"?game="_q + game->shortName);
 
 					QGuiApplication::clipboard()->setText(link);
 

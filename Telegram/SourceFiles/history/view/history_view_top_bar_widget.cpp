@@ -1402,7 +1402,7 @@ void TopBarWidget::updateUnreadBadge() {
 			return QString();
 		}
 		return (counter > 999)
-			? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
+			? u"..%1"_q.arg(counter % 100, 2, 10, QChar('0'))
 			: QString::number(counter);
 	}();
 	_unreadBadge->setText(text, !muted);

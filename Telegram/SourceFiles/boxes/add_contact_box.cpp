@@ -53,14 +53,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 bool IsValidPhone(QString phone) {
-	phone = phone.replace(QRegularExpression(qsl("[^\\d]")), QString());
+	phone = phone.replace(QRegularExpression(u"[^\\d]"_q), QString());
 	return (phone.length() >= 8)
-		|| (phone == qsl("333"))
-		|| (phone.startsWith(qsl("42"))
+		|| (phone == u"333"_q)
+		|| (phone.startsWith(u"42"_q)
 			&& (phone.length() == 2
 				|| phone.length() == 5
 				|| phone.length() == 6
-				|| phone == qsl("4242")));
+				|| phone == u"4242"_q));
 }
 
 void ChatCreateDone(
@@ -112,7 +112,7 @@ TextWithEntities PeerFloodErrorText(
 		PeerFloodType type) {
 	const auto link = Ui::Text::Link(
 		tr::lng_cant_more_info(tr::now),
-		session->createInternalLinkFull(qsl("spambot")));
+		session->createInternalLinkFull(u"spambot"_q));
 	return ((type == PeerFloodType::InviteGroup)
 		? tr::lng_cant_invite_not_contact
 		: tr::lng_cant_send_to_not_contact)(

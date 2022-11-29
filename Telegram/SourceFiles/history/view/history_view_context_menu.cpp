@@ -110,8 +110,8 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
 		tr::lng_save_photo(tr::now),
-		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
-		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
+		u"JPEG Image (*.jpg);;"_q + FileDialog::AllFilesFilter(),
+		filedialogDefaultName(u"photo"_q, u".jpg"_q),
 		crl::guard(&photo->session(), [=](const QString &result) {
 			if (!result.isEmpty()) {
 				media->saveToFile(result);

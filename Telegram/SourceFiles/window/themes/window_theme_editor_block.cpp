@@ -19,7 +19,7 @@ namespace Window {
 namespace Theme {
 namespace {
 
-auto SearchSplitter = QRegularExpression(qsl("[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0\\#]"));
+auto SearchSplitter = QRegularExpression(u"[\\@\\s\\-\\+\\(\\)\\[\\]\\{\\}\\<\\>\\,\\.\\:\\!\\_\\;\\\"\\'\\x0\\#]"_q);
 
 } // namespace
 

@@ -27,7 +27,7 @@ constexpr int kNotifyDeletePhotoAfterMs = 60000;
 CachedUserpics::CachedUserpics(Type type)
 : _type(type)
 , _clearTimer([=] { clear(); }) {
-	QDir().mkpath(cWorkingDir() + qsl("tdata/temp"));
+	QDir().mkpath(cWorkingDir() + u"tdata/temp"_q);
 }
 
 CachedUserpics::~CachedUserpics() {
@@ -37,7 +37,7 @@ CachedUserpics::~CachedUserpics() {
 		}
 
 		// This works about 1200ms on Windows for a folder with one image O_o
-		//		base::Platform::DeleteDirectory(cWorkingDir() + qsl("tdata/temp"));
+		//		base::Platform::DeleteDirectory(cWorkingDir() + u"tdata/temp"_q);
 	}
 }
 

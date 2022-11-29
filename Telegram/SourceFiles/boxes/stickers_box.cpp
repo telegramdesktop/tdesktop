@@ -1179,13 +1179,13 @@ StickersBox::Inner::Inner(
 , _megagroupSetField(
 	this,
 	st::groupStickersField,
-	rpl::single(qsl("stickerset")),
+	rpl::single(u"stickerset"_q),
 	QString(),
 	_controller->session().createInternalLink(QString()))
 , _megagroupDivider(this)
 , _megagroupSubTitle(this, tr::lng_stickers_group_from_your(tr::now), st::boxTitle) {
 	_megagroupSetField->setLinkPlaceholder(
-		_controller->session().createInternalLink(qsl("addstickers/")));
+		_controller->session().createInternalLink(u"addstickers/"_q));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
 	connect(

@@ -290,7 +290,7 @@ void Application::run() {
 	DEBUG_LOG(("Application Info: starting app..."));
 
 	// Create mime database, so it won't be slow later.
-	QMimeDatabase().mimeTypeForName(qsl("text/plain"));
+	QMimeDatabase().mimeTypeForName(u"text/plain"_q);
 
 	_primaryWindow = std::make_unique<Window::Controller>();
 	_lastActiveWindow = _primaryWindow.get();
@@ -863,10 +863,10 @@ void Application::switchDebugMode() {
 
 void Application::switchFreeType() {
 	if (cUseFreeType()) {
-		QFile(cWorkingDir() + qsl("tdata/withfreetype")).remove();
+		QFile(cWorkingDir() + u"tdata/withfreetype"_q).remove();
 		cSetUseFreeType(false);
 	} else {
-		QFile f(cWorkingDir() + qsl("tdata/withfreetype"));
+		QFile f(cWorkingDir() + u"tdata/withfreetype"_q);
 		if (f.open(QIODevice::WriteOnly)) {
 			f.write("1");
 			f.close();
@@ -1471,11 +1471,11 @@ void Application::RegisterUrlScheme() {
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = cExeDir() + cExeName(),
 		.arguments = Sandbox::Instance().customWorkingDir()
-			? qsl("-workdir \"%1\"").arg(cWorkingDir())
+			? u"-workdir \"%1\""_q.arg(cWorkingDir())
 			: QString(),
-		.protocol = qsl("tg"),
-		.protocolName = qsl("Telegram Link"),
-		.shortAppName = qsl("tdesktop"),
+		.protocol = u"tg"_q,
+		.protocolName = u"Telegram Link"_q,
+		.shortAppName = u"tdesktop"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),
 		.displayAppDescription = AppName.utf16(),

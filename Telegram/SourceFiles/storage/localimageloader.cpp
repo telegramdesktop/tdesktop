@@ -113,7 +113,7 @@ struct PreparedFileThumbnail {
 		const QString &filemime,
 		int64 filesize,
 		bool isSticker) {
-	prepared.name = isSticker ? qsl("thumb.webp") : qsl("thumb.jpg");
+	prepared.name = isSticker ? u"thumb.webp"_q : u"thumb.jpg"_q;
 	if (FileThumbnailUploadRequired(filemime, filesize)) {
 		const auto format = isSticker ? "WEBP" : "JPG";
 		auto buffer = QBuffer(&prepared.bytes);
@@ -784,7 +784,7 @@ void FileLoadTask::process(Args &&args) {
 	} else if (!_content.isEmpty()) {
 		filesize = _content.size();
 		if (isVoice) {
-			filename = filedialogDefaultName(qsl("audio"), qsl(".ogg"), QString(), true);
+			filename = filedialogDefaultName(u"audio"_q, u".ogg"_q, QString(), true);
 			filemime = "audio/ogg";
 		} else {
 			if (_information) {
@@ -803,16 +803,16 @@ void FileLoadTask::process(Args &&args) {
 				fullimagebytes = fullimageformat = QByteArray();
 			}
 			if (filemime == "image/jpeg") {
-				filename = filedialogDefaultName(qsl("photo"), qsl(".jpg"), QString(), true);
+				filename = filedialogDefaultName(u"photo"_q, u".jpg"_q, QString(), true);
 			} else if (filemime == "image/png") {
-				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+				filename = filedialogDefaultName(u"image"_q, u".png"_q, QString(), true);
 			} else {
 				QString ext;
 				QStringList patterns = mimeType.globPatterns();
 				if (!patterns.isEmpty()) {
 					ext = patterns.front().replace('*', QString());
 				}
-				filename = filedialogDefaultName(qsl("file"), ext, QString(), true);
+				filename = filedialogDefaultName(u"file"_q, ext, QString(), true);
 			}
 		}
 	} else {
@@ -829,14 +829,14 @@ void FileLoadTask::process(Args &&args) {
 				if (ValidateThumbDimensions(fullimage.width(), fullimage.height())) {
 					filesize = -1; // Fill later.
 					filemime = Core::MimeTypeForName("image/jpeg").name();
-					filename = filedialogDefaultName(qsl("image"), qsl(".jpg"), QString(), true);
+					filename = filedialogDefaultName(u"image"_q, u".jpg"_q, QString(), true);
 				} else {
 					_type = SendMediaType::File;
 				}
 			}
 			if (_type == SendMediaType::File) {
 				filemime = Core::MimeTypeForName("image/png").name();
-				filename = filedialogDefaultName(qsl("image"), qsl(".png"), QString(), true);
+				filename = filedialogDefaultName(u"image"_q, u".png"_q, QString(), true);
 				{
 					QBuffer buffer(&_content);
 					fullimage.save(&buffer, "PNG");

@@ -132,7 +132,7 @@ bool ValidateEditMediaDragData(
 }
 
 MimeDataState ComputeMimeDataState(const QMimeData *data) {
-	if (!data || data->hasFormat(qsl("application/x-td-forward"))) {
+	if (!data || data->hasFormat(u"application/x-td-forward"_q)) {
 		return MimeDataState::None;
 	}
 

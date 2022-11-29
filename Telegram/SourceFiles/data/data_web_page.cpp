@@ -20,16 +20,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 QString SiteNameFromUrl(const QString &url) {
-	QUrl u(url);
+	const auto u = QUrl(url);
 	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	QRegularExpressionMatch m = QRegularExpression(qsl("^[a-zA-Z0-9]+://")).match(pretty);
+	const auto m = QRegularExpression(u"^[a-zA-Z0-9]+://"_q).match(pretty);
 	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
 	int32 slash = pretty.indexOf('/');
 	if (slash > 0) pretty = pretty.mid(0, slash);
 	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
 	if (components.size() >= 2) {
 		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
+		return components.at(0).at(0).toUpper()
+			+ components.at(0).mid(1)
+			+ '.'
+			+ components.at(1);
 	}
 	return QString();
 }

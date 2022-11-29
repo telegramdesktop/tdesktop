@@ -783,7 +783,7 @@ void System::ensureSoundCreated() {
 
 	_soundTrack = Media::Audio::Current().createTrack();
 	_soundTrack->fillFromFile(
-		Core::App().settings().getSoundPath(qsl("msg_incoming")));
+		Core::App().settings().getSoundPath(u"msg_incoming"_q));
 }
 
 void System::updateAll() {

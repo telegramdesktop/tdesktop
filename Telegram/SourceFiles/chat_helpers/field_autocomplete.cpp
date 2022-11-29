@@ -693,7 +693,7 @@ void FieldAutocomplete::hideAnimated() {
 void FieldAutocomplete::hideFinish() {
 	hide();
 	_hiding = false;
-	_filter = qsl("-");
+	_filter = u"-"_q;
 	_inner->clearSel(true);
 }
 

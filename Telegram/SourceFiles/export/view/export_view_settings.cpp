@@ -378,7 +378,7 @@ void SettingsWidget::addLimitsLabel(
 			? rpl::single(langDayOfMonthFull(
 				base::unixtime::parse(from).date()))
 			: tr::lng_export_beginning()
-		) | Ui::Text::ToLink(qsl("internal:edit_from"));
+		) | Ui::Text::ToLink(u"internal:edit_from"_q);
 	}) | rpl::flatten_latest();
 
 	auto tillLink = value() | rpl::map([](const Settings &data) {
@@ -389,7 +389,7 @@ void SettingsWidget::addLimitsLabel(
 			? rpl::single(langDayOfMonthFull(
 				base::unixtime::parse(till).date()))
 			: tr::lng_export_end()
-		) | Ui::Text::ToLink(qsl("internal:edit_till"));
+		) | Ui::Text::ToLink(u"internal:edit_till"_q);
 	}) | rpl::flatten_latest();
 
 	auto datesText = tr::lng_export_limits(

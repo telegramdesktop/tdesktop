@@ -853,10 +853,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	};
 	addBotCommand(
 		tr::lng_profile_bot_help(),
-		qsl("help"),
+		u"help"_q,
 		&st::infoIconInformation);
-	addBotCommand(tr::lng_profile_bot_settings(), qsl("settings"));
-	addBotCommand(tr::lng_profile_bot_privacy(), qsl("privacy"));
+	addBotCommand(tr::lng_profile_bot_settings(), u"settings"_q);
+	addBotCommand(tr::lng_profile_bot_privacy(), u"privacy"_q);
 }
 
 void ActionsFiller::addReportAction() {

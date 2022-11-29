@@ -105,11 +105,11 @@ std::vector<Type> ComputeAndLog() {
 	const auto names = ranges::accumulate(
 		result | ranges::views::transform([](auto type) {
 			switch (type) {
-			case Type::Gnome: return qsl("Gnome, ");
-			case Type::Cinnamon: return qsl("Cinnamon, ");
-			case Type::KDE: return qsl("KDE, ");
-			case Type::Unity: return qsl("Unity, ");
-			case Type::MATE: return qsl("MATE, ");
+			case Type::Gnome: return u"Gnome, "_q;
+			case Type::Cinnamon: return u"Cinnamon, "_q;
+			case Type::KDE: return u"KDE, "_q;
+			case Type::Unity: return u"Unity, "_q;
+			case Type::MATE: return u"MATE, "_q;
 			}
 			Unexpected("Type in Platform::DesktopEnvironment::ComputeAndLog");
 		}),

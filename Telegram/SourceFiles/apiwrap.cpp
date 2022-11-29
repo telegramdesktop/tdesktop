@@ -486,7 +486,7 @@ void ApiWrap::sendMessageFail(
 	} else if (error == u"USER_BANNED_IN_CHANNEL"_q) {
 		const auto link = Ui::Text::Link(
 			tr::lng_cant_more_info(tr::now),
-			session().createInternalLinkFull(qsl("spambot")));
+			session().createInternalLinkFull(u"spambot"_q));
 		show->showBox(
 			Ui::MakeInformBox(
 				tr::lng_error_public_groups_denied(
@@ -734,7 +734,7 @@ QString ApiWrap::exportDirectMessageLink(
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					if (document->isVideoMessage()) {
-						return qsl("https://telesco.pe/") + query;
+						return u"https://telesco.pe/"_q + query;
 					}
 				}
 			}

@@ -145,18 +145,18 @@ void CodeWidget::updateCallText() {
 				return tr::lng_code_call(
 					tr::now,
 					lt_minutes,
-					qsl("%1:%2"
+					(u"%1:%2"_q
 					).arg(_callTimeout / 3600
 					).arg((_callTimeout / 60) % 60, 2, 10, QChar('0')),
 					lt_seconds,
-					qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+					u"%1"_q.arg(_callTimeout % 60, 2, 10, QChar('0')));
 			} else {
 				return tr::lng_code_call(
 					tr::now,
 					lt_minutes,
 					QString::number(_callTimeout / 60),
 					lt_seconds,
-					qsl("%1").arg(_callTimeout % 60, 2, 10, QChar('0')));
+					u"%1"_q.arg(_callTimeout % 60, 2, 10, QChar('0')));
 			}
 		} break;
 		case CallStatus::Calling:

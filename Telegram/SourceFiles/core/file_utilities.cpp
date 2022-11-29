@@ -83,8 +83,8 @@ QString filedialogDefaultName(
 		time_t t = time(NULL);
 		mylocaltime(&tm, &t);
 
-		QChar zero('0');
-		base = prefix + qsl("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
+		const auto zero = QChar('0');
+		base = prefix + u"_%1-%2-%3_%4-%5-%6"_q.arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
 	}
 
 	QString name;
@@ -97,7 +97,7 @@ QString filedialogDefaultName(
 			+ base;
 		name = nameBase + extension;
 		for (int i = 0; QFileInfo::exists(name); ++i) {
-			name = nameBase + qsl(" (%1)").arg(i + 2) + extension;
+			name = nameBase + u" (%1)"_q.arg(i + 2) + extension;
 		}
 	}
 	return name;
@@ -118,7 +118,7 @@ QString filedialogNextFilename(
 	const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/')) + prefix;
 	auto result = nameBase + extension;
 	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo::exists(result); ++i) {
-		result = nameBase + qsl(" (%1)").arg(i + 2) + extension;
+		result = nameBase + u" (%1)"_q.arg(i + 2) + extension;
 	}
 	return result;
 }
@@ -336,9 +336,9 @@ void GetFolder(
 
 QString AllFilesFilter() {
 #ifdef Q_OS_WIN
-	return qsl("All files (*.*)");
+	return u"All files (*.*)"_q;
 #else // Q_OS_WIN
-	return qsl("All files (*)");
+	return u"All files (*)"_q;
 #endif // Q_OS_WIN
 }
 

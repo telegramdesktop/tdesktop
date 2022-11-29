@@ -80,7 +80,7 @@ public:
 	}
 
 	bool openMain() {
-		return reopen(LogDataMain, 0, qsl("start"));
+		return reopen(LogDataMain, 0, u"start"_q);
 	}
 
 	void closeMain() {
@@ -181,7 +181,7 @@ private:
 				int32 oldest = -1; // find not existing log_startX.txt or pick the oldest one (by lastModified)
 				QDateTime oldestLastModified;
 				for (int32 i = 0; i < 10; ++i) {
-					QString trying = _logsFilePath(type, qsl("_start%1").arg(i));
+					QString trying = _logsFilePath(type, u"_start%1"_q.arg(i));
 					files[type]->setFileName(trying);
 					if (!files[type]->exists()) {
 						LogsStartIndexChosen = i;
@@ -195,7 +195,7 @@ private:
 					}
 				}
 				if (!found) {
-					files[type]->setFileName(_logsFilePath(type, qsl("_start%1").arg(oldest)));
+					files[type]->setFileName(_logsFilePath(type, u"_start%1"_q.arg(oldest)));
 					LogsStartIndexChosen = oldest;
 				}
 			}
@@ -437,7 +437,7 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"
-			).arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
+			).arg(_logsFilePath(LogDataMain, u"_startXX"_q)));
 		return;
 	}
 

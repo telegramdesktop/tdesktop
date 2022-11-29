@@ -56,7 +56,7 @@ inline QList<QUrl> GetMimeUrls(const QMimeData *data) {
 inline QString IconName() {
 	static const auto Result = KSandbox::isFlatpak()
 		? qEnvironmentVariable("FLATPAK_ID")
-		: qsl("telegram");
+		: u"telegram"_q;
 	return Result;
 }
 #endif

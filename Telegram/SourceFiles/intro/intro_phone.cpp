@@ -86,7 +86,7 @@ PhoneWidget::PhoneWidget(
 	setupQrLogin();
 
 	if (!_country->chooseCountry(getData()->country)) {
-		_country->chooseCountry(qsl("US"));
+		_country->chooseCountry(u"US"_q);
 	}
 	_changed = false;
 }

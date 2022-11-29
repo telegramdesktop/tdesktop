@@ -1342,7 +1342,7 @@ bool Instance::Private::onErrorDefault(
 	const auto requestId = response.requestId;
 	const auto &type = error.type();
 	const auto code = error.code();
-	auto badGuestDc = (code == 400) && (type == qsl("FILE_ID_INVALID"));
+	auto badGuestDc = (code == 400) && (type == u"FILE_ID_INVALID"_q);
 	QRegularExpressionMatch m1, m2;
 	if ((m1 = QRegularExpression("^(FILE|PHONE|NETWORK|USER)_MIGRATE_(\\d+)$").match(type)).hasMatch()) {
 		if (!requestId) return false;

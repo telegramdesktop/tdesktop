@@ -634,7 +634,7 @@ bool MainWidget::filesOrForwardDrop(
 		}
 		return true;
 	}
-	if (data->hasFormat(qsl("application/x-td-forward"))) {
+	if (data->hasFormat(u"application/x-td-forward"_q)) {
 		auto draft = Data::ForwardDraft{
 			.ids = session().data().takeMimeForwardIds(),
 		};

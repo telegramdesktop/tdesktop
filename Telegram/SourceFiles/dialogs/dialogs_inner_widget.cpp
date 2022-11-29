@@ -799,7 +799,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			const auto text = _searchResults.empty()
 				? tr::lng_search_no_results(tr::now)
 				: showUnreadInSearchResults
-				? qsl("Search results")
+				? u"Search results"_q
 				: tr::lng_search_found_results(
 					tr::now,
 					lt_count,

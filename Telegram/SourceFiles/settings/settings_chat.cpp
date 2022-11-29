@@ -636,9 +636,9 @@ void ChooseFromFile(
 		not_null<Window::SessionController*> controller,
 		not_null<QWidget*> parent) {
 	auto filters = QStringList(
-		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette *")
-		+ Ui::ImageExtensions().join(qsl(" *"))
-		+ qsl(")"));
+		u"Theme files (*.tdesktop-theme *.tdesktop-palette *"_q
+		+ Ui::ImageExtensions().join(u" *"_q)
+		+ u")"_q);
 	filters.push_back(FileDialog::AllFilesFilter());
 	const auto callback = crl::guard(controller, [=](
 			const FileDialog::OpenResult &result) {
@@ -674,7 +674,7 @@ void ChooseFromFile(
 	FileDialog::GetOpenPath(
 		parent.get(),
 		tr::lng_choose_image(tr::now),
-		filters.join(qsl(";;")),
+		filters.join(u";;"_q),
 		crl::guard(parent, callback));
 }
 
@@ -1056,7 +1056,7 @@ void SetupDataStorage(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
 			return tr::lng_download_path_default(tr::now);
-		} else if (text == qsl("tmp")) {
+		} else if (text == u"tmp"_q) {
 			return tr::lng_download_path_temp(tr::now);
 		}
 		return QDir::toNativeSeparators(text);
@@ -1630,7 +1630,7 @@ void SetupSupport(
 		not_null<Ui::VerticalLayout*> container) {
 	AddSkip(container);
 
-	AddSubsectionTitle(container, rpl::single(qsl("Support settings")));
+	AddSubsectionTitle(container, rpl::single(u"Support settings"_q));
 
 	AddSkip(container, st::settingsSendTypeSkip);
 
@@ -1677,7 +1677,7 @@ void SetupSupport(
 
 	AddSkip(inner, st::settingsCheckboxesSkip);
 
-	AddSubsectionTitle(inner, rpl::single(qsl("Load chats for a period")));
+	AddSubsectionTitle(inner, rpl::single(u"Load chats for a period"_q));
 
 	SetupSupportChatsLimitSlice(controller, inner);
 

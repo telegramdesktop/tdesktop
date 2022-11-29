@@ -1771,7 +1771,7 @@ void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	const auto data = e->mimeData();
 	_dragInScroll = false;
 	_dragForward = !controller()->adaptive().isOneColumn()
-		&& data->hasFormat(qsl("application/x-td-forward"));
+		&& data->hasFormat(u"application/x-td-forward"_q);
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();

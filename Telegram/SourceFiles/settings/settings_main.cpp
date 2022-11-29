@@ -265,7 +265,7 @@ void SetupLanguageButton(
 	button->addClickHandler([=] {
 		const auto m = button->clickModifiers();
 		if ((m & Qt::ShiftModifier) && (m & Qt::AltModifier)) {
-			Lang::CurrentCloudManager().switchToLanguage({ qsl("#custom") });
+			Lang::CurrentCloudManager().switchToLanguage({ u"#custom"_q });
 		} else {
 			*guard = LanguageBox::Show();
 		}

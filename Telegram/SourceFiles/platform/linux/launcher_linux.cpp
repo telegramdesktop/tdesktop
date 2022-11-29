@@ -84,8 +84,8 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
 		? (cExeDir() + cExeName())
 		: (cWriteProtected()
-			? (cWorkingDir() + qsl("tupdates/temp/Updater"))
-			: (cExeDir() + qsl("Updater")));
+			? (cWorkingDir() + u"tupdates/temp/Updater"_q)
+			: (cExeDir() + u"Updater"_q));
 
 	auto argumentsList = Arguments();
 	if (action == UpdaterLaunch::PerformUpdate && cWriteProtected()) {
@@ -102,7 +102,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	if (cStartInTray()) {
 		argumentsList.push("-startintray");
 	}
-	if (cDataFile() != qsl("data")) {
+	if (cDataFile() != u"data"_q) {
 		argumentsList.push("-key");
 		argumentsList.push(QFile::encodeName(cDataFile()));
 	}

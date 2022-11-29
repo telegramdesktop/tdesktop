@@ -650,14 +650,14 @@ void PeerData::fillNames() {
 		}
 		appendToIndex(user->username());
 		if (isSelf()) {
-			const auto english = qsl("Saved messages");
+			const auto english = u"Saved messages"_q;
 			const auto localized = tr::lng_saved_messages(tr::now);
 			appendToIndex(english);
 			if (localized != english) {
 				appendToIndex(localized);
 			}
 		} else if (isRepliesChat()) {
-			const auto english = qsl("Replies");
+			const auto english = u"Replies"_q;
 			const auto localized = tr::lng_replies_messages(tr::now);
 			appendToIndex(english);
 			if (localized != english) {

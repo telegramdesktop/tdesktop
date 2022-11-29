@@ -398,7 +398,7 @@ void Autocomplete::setupContent() {
 		object_ptr<Ui::InputField>(
 			this,
 			st::gifsSearchField,
-			rpl::single(qsl("Search for templates"))), // #TODO hard_lang
+			rpl::single(u"Search for templates"_q)), // #TODO hard_lang
 		st::autocompleteSearchPadding);
 	const auto input = inputWrap->entity();
 	const auto scroll = Ui::CreateChild<Ui::ScrollArea>(this);
@@ -510,7 +510,7 @@ ConfirmContactBox::ConfirmContactBox(
 }
 
 void ConfirmContactBox::prepare() {
-	setTitle(rpl::single(qsl("Confirmation"))); // #TODO hard_lang
+	setTitle(rpl::single(u"Confirmation"_q)); // #TODO hard_lang
 
 	auto maxWidth = 0;
 	if (_comment) {

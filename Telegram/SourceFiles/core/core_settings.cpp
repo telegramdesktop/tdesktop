@@ -739,7 +739,7 @@ QString Settings::getSoundPath(const QString &key) const {
 	if (it != _soundOverrides.end()) {
 		return it->second;
 	}
-	return qsl(":/sounds/") + key + qsl(".mp3");
+	return u":/sounds/"_q + key + u".mp3"_q;
 }
 
 void Settings::setTabbedSelectorSectionEnabled(bool enabled) {

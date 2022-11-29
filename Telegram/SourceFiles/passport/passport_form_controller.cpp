@@ -268,10 +268,9 @@ auto ParseConfig(const QByteArray &json) {
 } // namespace
 
 QString NonceNameByScope(const QString &scope) {
-	if (scope.startsWith('{') && scope.endsWith('}')) {
-		return qsl("nonce");
-	}
-	return qsl("payload");
+	return (scope.startsWith('{') && scope.endsWith('}'))
+		? u"nonce"_q
+		: u"payload"_q;
 }
 
 bool ValueChanged(not_null<const Value*> value, const ValueMap &data) {

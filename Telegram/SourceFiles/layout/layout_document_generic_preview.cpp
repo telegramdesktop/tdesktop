@@ -31,7 +31,7 @@ DocumentGenericPreview DocumentGenericPreview::Create(
 		? (document->filename().isEmpty()
 			? (document->sticker()
 				? tr::lng_in_dlg_sticker(tr::now)
-				: qsl("Unknown File"))
+				: u"Unknown File"_q)
 			: document->filename())
 		: tr::lng_message_empty(tr::now)).toLower();
 	auto lastDot = name.lastIndexOf('.');

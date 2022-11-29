@@ -40,7 +40,7 @@ void DownloadPathBox::prepare() {
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 
 	_pathLink->addClickHandler([=] { editPath(); });
-	if (!_path.isEmpty() && _path != qsl("tmp")) {
+	if (!_path.isEmpty() && _path != u"tmp"_q) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
 	updateControlsVisibility();
@@ -73,14 +73,14 @@ void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 
 void DownloadPathBox::radioChanged(Directory value) {
 	if (value == Directory::Custom) {
-		if (_path.isEmpty() || _path == qsl("tmp")) {
+		if (_path.isEmpty() || _path == u"tmp"_q) {
 			_group->setValue(_path.isEmpty() ? Directory::Downloads : Directory::Temp);
 			editPath();
 		} else {
 			setPathText(QDir::toNativeSeparators(_path));
 		}
 	} else if (value == Directory::Temp) {
-		_path = qsl("tmp");
+		_path = u"tmp"_q;
 	} else {
 		_path = QString();
 	}

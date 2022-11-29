@@ -77,7 +77,7 @@ EditInfoBox::EditInfoBox(
 	this,
 	st::supportInfoField,
 	Ui::InputField::Mode::MultiLine,
-	rpl::single(qsl("Support information")), // #TODO hard_lang
+	rpl::single(u"Support information"_q), // #TODO hard_lang
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
@@ -95,7 +95,7 @@ EditInfoBox::EditInfoBox(
 }
 
 void EditInfoBox::prepare() {
-	setTitle(rpl::single(qsl("Edit support information"))); // #TODO hard_lang
+	setTitle(rpl::single(u"Edit support information"_q)); // #TODO hard_lang
 
 	const auto save = [=] {
 		const auto done = crl::guard(this, [=](bool success) {
@@ -270,7 +270,7 @@ Helper::Helper(not_null<Main::Session*> session)
 		});
 	}).fail([=] {
 		setSupportName(
-			qsl("[rand^")
+			u"[rand^"_q
 			+ QString::number(Core::Sandbox::Instance().installationTag())
 			+ ']');
 	}).send();

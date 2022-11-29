@@ -78,7 +78,7 @@ void ReadByLine(
 	for (const auto &utf : blob.split('\n')) {
 		const auto line = QString::fromUtf8(utf).trimmed();
 		const auto match = QRegularExpression(
-			qsl("^\\{([A-Z_]+)\\}$")
+			u"^\\{([A-Z_]+)\\}$"_q
 		).match(line);
 		if (match.hasMatch()) {
 			const auto token = match.captured(1);
@@ -180,7 +180,7 @@ FileResult ReadFile(const QString &path) {
 	if (!f.open(QIODevice::ReadOnly)) {
 		auto result = FileResult();
 		result.errors.push_back(
-			qsl("Couldn't open '%1' for reading!").arg(path));
+			u"Couldn't open '%1' for reading!"_q.arg(path));
 		return result;
 	}
 
@@ -374,20 +374,20 @@ Delta ComputeDelta(const TemplatesFile &was, const TemplatesFile &now) {
 }
 
 QString FormatUpdateNotification(const QString &path, const Delta &delta) {
-	auto result = qsl("Template file '%1' updated!\n\n").arg(path);
+	auto result = u"Template file '%1' updated!\n\n"_q.arg(path);
 	if (!delta.added.empty()) {
 		result += u"-------- Added --------\n\n"_q;
 		for (const auto question : delta.added) {
-			result += qsl("Q: %1\nK: %2\nA: %3\n\n").arg(
+			result += u"Q: %1\nK: %2\nA: %3\n\n"_q.arg(
 				question->question,
-				question->originalKeys.join(qsl(", ")),
+				question->originalKeys.join(u", "_q),
 				question->value.trimmed());
 		}
 	}
 	if (!delta.changed.empty()) {
 		result += u"-------- Modified --------\n\n"_q;
 		for (const auto question : delta.changed) {
-			result += qsl("Q: %1\nA: %2\n\n").arg(
+			result += u"Q: %1\nA: %2\n\n"_q.arg(
 				question->question,
 				question->value.trimmed());
 		}
@@ -395,7 +395,7 @@ QString FormatUpdateNotification(const QString &path, const Delta &delta) {
 	if (!delta.removed.empty()) {
 		result += u"-------- Removed --------\n\n"_q;
 		for (const auto question : delta.removed) {
-			result += qsl("Q: %1\n\n").arg(question->question);
+			result += u"Q: %1\n\n"_q.arg(question->question);
 		}
 	}
 	return result;
@@ -411,19 +411,16 @@ QString UpdateFile(
 	const auto old = full + u".old"_q;
 	QFile(old).remove();
 	if (QFile(full).copy(old)) {
-		result += qsl("(old file saved at '%1')"
-		).arg(path + u".old"_q);
+		result += u"(old file saved at '%1')"_q.arg(path + u".old"_q);
 
 		QFile f(full);
 		if (f.open(QIODevice::WriteOnly)) {
 			WriteWithOwnUrlAndKeys(f, content, url, delta);
 		} else {
-			result += qsl("\n\nError: could not open new file '%1'!"
-			).arg(full);
+			result += u"\n\nError: could not open new file '%1'!"_q.arg(full);
 		}
 	} else {
-		result += qsl("Error: could not save old file '%1'!"
-		).arg(old);
+		result += u"Error: could not save old file '%1'!"_q.arg(old);
 	}
 	return result;
 }
@@ -555,8 +552,8 @@ void Templates::updateRequestFinished(QNetworkReply *reply) {
 	}
 	_updates->requests[path] = nullptr;
 	if (reply->error() != QNetworkReply::NoError) {
-		const auto message = qsl(
-			"Error: template update failed, url '%1', error %2, %3"
+		const auto message = (
+			u"Error: template update failed, url '%1', error %2, %3"_q
 		).arg(reply->url().toDisplayString()
 		).arg(reply->error()
 		).arg(reply->errorString());

@@ -264,17 +264,17 @@ void Sandbox::socketConnected() {
 	QString commands;
 	const QStringList &lst(cSendPaths());
 	for (QStringList::const_iterator i = lst.cbegin(), e = lst.cend(); i != e; ++i) {
-		commands += qsl("SEND:") + _escapeTo7bit(*i) + ';';
+		commands += u"SEND:"_q + _escapeTo7bit(*i) + ';';
 	}
 	if (qEnvironmentVariableIsSet("XDG_ACTIVATION_TOKEN")) {
-		commands += qsl("XDG_ACTIVATION_TOKEN:") + _escapeTo7bit(qEnvironmentVariable("XDG_ACTIVATION_TOKEN")) + ';';
+		commands += u"XDG_ACTIVATION_TOKEN:"_q + _escapeTo7bit(qEnvironmentVariable("XDG_ACTIVATION_TOKEN")) + ';';
 	}
 	if (!cStartUrl().isEmpty()) {
-		commands += qsl("OPEN:") + _escapeTo7bit(cStartUrl()) + ';';
+		commands += u"OPEN:"_q + _escapeTo7bit(cStartUrl()) + ';';
 	} else if (cQuit()) {
-		commands += qsl("CMD:quit;");
+		commands += u"CMD:quit;"_q;
 	} else {
-		commands += qsl("CMD:show;");
+		commands += u"CMD:show;"_q;
 	}
 
 	DEBUG_LOG(("Sandbox Info: writing commands %1").arg(commands));
@@ -425,17 +425,17 @@ void Sandbox::readClients() {
 			int32 from = 0, l = cmds.length();
 			for (int32 to = cmds.indexOf(QChar(';'), from); to >= from; to = (from < l) ? cmds.indexOf(QChar(';'), from) : -1) {
 				auto cmd = base::StringViewMid(cmds, from, to - from);
-				if (cmd.startsWith(qsl("CMD:"))) {
+				if (cmd.startsWith(u"CMD:"_q)) {
 					execExternal(cmds.mid(from + 4, to - from - 4));
-					const auto response = qsl("RES:%1;").arg(QApplication::applicationPid()).toLatin1();
+					const auto response = u"RES:%1;"_q.arg(QApplication::applicationPid()).toLatin1();
 					i->first->write(response.data(), response.size());
-				} else if (cmd.startsWith(qsl("SEND:"))) {
+				} else if (cmd.startsWith(u"SEND:"_q)) {
 					if (cSendPaths().isEmpty()) {
 						toSend.append(_escapeFrom7bit(cmds.mid(from + 5, to - from - 5)));
 					}
-				} else if (cmd.startsWith(qsl("XDG_ACTIVATION_TOKEN:"))) {
+				} else if (cmd.startsWith(u"XDG_ACTIVATION_TOKEN:"_q)) {
 					qputenv("XDG_ACTIVATION_TOKEN", _escapeFrom7bit(cmds.mid(from + 21, to - from - 21)).toUtf8());
-				} else if (cmd.startsWith(qsl("OPEN:"))) {
+				} else if (cmd.startsWith(u"OPEN:"_q)) {
 					startUrl = _escapeFrom7bit(cmds.mid(from + 5, to - from - 5)).mid(0, 8192);
 					auto activateRequired = StartUrlRequiresActivate(startUrl);
 					if (activateRequired) {
@@ -444,7 +444,7 @@ void Sandbox::readClients() {
 					const auto responsePid = activateRequired
 						? QApplication::applicationPid()
 						: kEmptyPidForCommandResponse;
-					const auto response = qsl("RES:%1;").arg(responsePid).toLatin1();
+					const auto response = u"RES:%1;"_q.arg(responsePid).toLatin1();
 					i->first->write(response.data(), response.size());
 				} else {
 					LOG(("Sandbox Error: unknown command %1 passed in local socket").arg(cmd.toString()));

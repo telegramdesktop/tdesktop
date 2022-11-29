@@ -778,7 +778,7 @@ void Editor::exportTheme() {
 
 void Editor::importTheme() {
 	auto filters = QStringList(
-		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette)"));
+		u"Theme files (*.tdesktop-theme *.tdesktop-palette)"_q);
 	filters.push_back(FileDialog::AllFilesFilter());
 	const auto callback = crl::guard(this, [=](
 		const FileDialog::OpenResult &result) {
@@ -817,7 +817,7 @@ void Editor::importTheme() {
 	FileDialog::GetOpenPath(
 		this,
 		tr::lng_theme_editor_menu_import(tr::now),
-		filters.join(qsl(";;")),
+		filters.join(u";;"_q),
 		crl::guard(this, callback));
 }
 

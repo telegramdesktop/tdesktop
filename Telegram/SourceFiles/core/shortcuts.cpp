@@ -55,87 +55,87 @@ const auto SupportCommands = base::flat_set<Command>{
 };
 
 const auto CommandByName = base::flat_map<QString, Command>{
-	{ qsl("close_telegram")    , Command::Close },
-	{ qsl("lock_telegram")     , Command::Lock },
-	{ qsl("minimize_telegram") , Command::Minimize },
-	{ qsl("quit_telegram")     , Command::Quit },
+	{ u"close_telegram"_q    , Command::Close },
+	{ u"lock_telegram"_q     , Command::Lock },
+	{ u"minimize_telegram"_q , Command::Minimize },
+	{ u"quit_telegram"_q     , Command::Quit },
 
-	{ qsl("media_play")        , Command::MediaPlay },
-	{ qsl("media_pause")       , Command::MediaPause },
-	{ qsl("media_playpause")   , Command::MediaPlayPause },
-	{ qsl("media_stop")        , Command::MediaStop },
-	{ qsl("media_previous")    , Command::MediaPrevious },
-	{ qsl("media_next")        , Command::MediaNext },
+	{ u"media_play"_q        , Command::MediaPlay },
+	{ u"media_pause"_q       , Command::MediaPause },
+	{ u"media_playpause"_q   , Command::MediaPlayPause },
+	{ u"media_stop"_q        , Command::MediaStop },
+	{ u"media_previous"_q    , Command::MediaPrevious },
+	{ u"media_next"_q        , Command::MediaNext },
 
-	{ qsl("search")            , Command::Search },
+	{ u"search"_q            , Command::Search },
 
-	{ qsl("previous_chat")     , Command::ChatPrevious },
-	{ qsl("next_chat")         , Command::ChatNext },
-	{ qsl("first_chat")        , Command::ChatFirst },
-	{ qsl("last_chat")         , Command::ChatLast },
-	{ qsl("self_chat")         , Command::ChatSelf },
+	{ u"previous_chat"_q     , Command::ChatPrevious },
+	{ u"next_chat"_q         , Command::ChatNext },
+	{ u"first_chat"_q        , Command::ChatFirst },
+	{ u"last_chat"_q         , Command::ChatLast },
+	{ u"self_chat"_q         , Command::ChatSelf },
 
-	{ qsl("previous_folder")   , Command::FolderPrevious },
-	{ qsl("next_folder")       , Command::FolderNext },
-	{ qsl("all_chats")         , Command::ShowAllChats },
+	{ u"previous_folder"_q   , Command::FolderPrevious },
+	{ u"next_folder"_q       , Command::FolderNext },
+	{ u"all_chats"_q         , Command::ShowAllChats },
 
-	{ qsl("folder1")           , Command::ShowFolder1 },
-	{ qsl("folder2")           , Command::ShowFolder2 },
-	{ qsl("folder3")           , Command::ShowFolder3 },
-	{ qsl("folder4")           , Command::ShowFolder4 },
-	{ qsl("folder5")           , Command::ShowFolder5 },
-	{ qsl("folder6")           , Command::ShowFolder6 },
-	{ qsl("last_folder")       , Command::ShowFolderLast },
+	{ u"folder1"_q           , Command::ShowFolder1 },
+	{ u"folder2"_q           , Command::ShowFolder2 },
+	{ u"folder3"_q           , Command::ShowFolder3 },
+	{ u"folder4"_q           , Command::ShowFolder4 },
+	{ u"folder5"_q           , Command::ShowFolder5 },
+	{ u"folder6"_q           , Command::ShowFolder6 },
+	{ u"last_folder"_q       , Command::ShowFolderLast },
 
-	{ qsl("show_archive")      , Command::ShowArchive },
-	{ qsl("show_contacts")     , Command::ShowContacts },
+	{ u"show_archive"_q      , Command::ShowArchive },
+	{ u"show_contacts"_q     , Command::ShowContacts },
 
-	{ qsl("read_chat")         , Command::ReadChat },
+	{ u"read_chat"_q         , Command::ReadChat },
 
 	// Shortcuts that have no default values.
-	{ qsl("message")           , Command::JustSendMessage },
-	{ qsl("message_silently")  , Command::SendSilentMessage },
-	{ qsl("message_scheduled") , Command::ScheduleMessage },
+	{ u"message"_q           , Command::JustSendMessage },
+	{ u"message_silently"_q  , Command::SendSilentMessage },
+	{ u"message_scheduled"_q , Command::ScheduleMessage },
 	//
 };
 
 const auto CommandNames = base::flat_map<Command, QString>{
-	{ Command::Close          , qsl("close_telegram") },
-	{ Command::Lock           , qsl("lock_telegram") },
-	{ Command::Minimize       , qsl("minimize_telegram") },
-	{ Command::Quit           , qsl("quit_telegram") },
+	{ Command::Close          , u"close_telegram"_q },
+	{ Command::Lock           , u"lock_telegram"_q },
+	{ Command::Minimize       , u"minimize_telegram"_q },
+	{ Command::Quit           , u"quit_telegram"_q },
 
-	{ Command::MediaPlay      , qsl("media_play") },
-	{ Command::MediaPause     , qsl("media_pause") },
-	{ Command::MediaPlayPause , qsl("media_playpause") },
-	{ Command::MediaStop      , qsl("media_stop") },
-	{ Command::MediaPrevious  , qsl("media_previous") },
-	{ Command::MediaNext      , qsl("media_next") },
+	{ Command::MediaPlay      , u"media_play"_q },
+	{ Command::MediaPause     , u"media_pause"_q },
+	{ Command::MediaPlayPause , u"media_playpause"_q },
+	{ Command::MediaStop      , u"media_stop"_q },
+	{ Command::MediaPrevious  , u"media_previous"_q },
+	{ Command::MediaNext      , u"media_next"_q },
 
-	{ Command::Search         , qsl("search") },
+	{ Command::Search         , u"search"_q },
 
-	{ Command::ChatPrevious   , qsl("previous_chat") },
-	{ Command::ChatNext       , qsl("next_chat") },
-	{ Command::ChatFirst      , qsl("first_chat") },
-	{ Command::ChatLast       , qsl("last_chat") },
-	{ Command::ChatSelf       , qsl("self_chat") },
+	{ Command::ChatPrevious   , u"previous_chat"_q },
+	{ Command::ChatNext       , u"next_chat"_q },
+	{ Command::ChatFirst      , u"first_chat"_q },
+	{ Command::ChatLast       , u"last_chat"_q },
+	{ Command::ChatSelf       , u"self_chat"_q },
 
-	{ Command::FolderPrevious , qsl("previous_folder") },
-	{ Command::FolderNext     , qsl("next_folder") },
-	{ Command::ShowAllChats   , qsl("all_chats") },
+	{ Command::FolderPrevious , u"previous_folder"_q },
+	{ Command::FolderNext     , u"next_folder"_q },
+	{ Command::ShowAllChats   , u"all_chats"_q },
 
-	{ Command::ShowFolder1    , qsl("folder1") },
-	{ Command::ShowFolder2    , qsl("folder2") },
-	{ Command::ShowFolder3    , qsl("folder3") },
-	{ Command::ShowFolder4    , qsl("folder4") },
-	{ Command::ShowFolder5    , qsl("folder5") },
-	{ Command::ShowFolder6    , qsl("folder6") },
-	{ Command::ShowFolderLast , qsl("last_folder") },
+	{ Command::ShowFolder1    , u"folder1"_q },
+	{ Command::ShowFolder2    , u"folder2"_q },
+	{ Command::ShowFolder3    , u"folder3"_q },
+	{ Command::ShowFolder4    , u"folder4"_q },
+	{ Command::ShowFolder5    , u"folder5"_q },
+	{ Command::ShowFolder6    , u"folder6"_q },
+	{ Command::ShowFolderLast , u"last_folder"_q },
 
-	{ Command::ShowArchive    , qsl("show_archive") },
-	{ Command::ShowContacts   , qsl("show_contacts") },
+	{ Command::ShowArchive    , u"show_archive"_q },
+	{ Command::ShowContacts   , u"show_contacts"_q },
 
-	{ Command::ReadChat       , qsl("read_chat") },
+	{ Command::ReadChat       , u"read_chat"_q },
 };
 
 class Manager {
@@ -169,11 +169,11 @@ private:
 };
 
 QString DefaultFilePath() {
-	return cWorkingDir() + qsl("tdata/shortcuts-default.json");
+	return cWorkingDir() + u"tdata/shortcuts-default.json"_q;
 }
 
 QString CustomFilePath() {
-	return cWorkingDir() + qsl("tdata/shortcuts-custom.json");
+	return cWorkingDir() + u"tdata/shortcuts-custom.json"_q;
 }
 
 bool DefaultFileIsValid() {
@@ -195,7 +195,7 @@ bool DefaultFileIsValid() {
 		return false;
 	}
 	const auto versionObject = (*shortcuts.constBegin()).toObject();
-	const auto version = versionObject.constFind(qsl("version"));
+	const auto version = versionObject.constFind(u"version"_q);
 	if (version == versionObject.constEnd()
 		|| !(*version).isString()
 		|| (*version).toString() != QString::number(AppVersion)) {
@@ -266,12 +266,12 @@ bool Manager::readCustomFile() {
 	}
 	const auto guard = gsl::finally([&] {
 		if (!_errors.isEmpty()) {
-			_errors.push_front(qsl("While reading file '%1'..."
+			_errors.push_front((u"While reading file '%1'..."_q
 			).arg(file.fileName()));
 		}
 	});
 	if (!file.open(QIODevice::ReadOnly)) {
-		_errors.push_back(qsl("Could not read the file!"));
+		_errors.push_back(u"Could not read the file!"_q);
 		return true;
 	}
 	auto error = QJsonParseError{ 0, QJsonParseError::NoError };
@@ -281,23 +281,23 @@ bool Manager::readCustomFile() {
 	file.close();
 
 	if (error.error != QJsonParseError::NoError) {
-		_errors.push_back(qsl("Failed to parse! Error: %2"
+		_errors.push_back((u"Failed to parse! Error: %2"_q
 		).arg(error.errorString()));
 		return true;
 	} else if (!document.isArray()) {
-		_errors.push_back(qsl("Failed to parse! Error: array expected"));
+		_errors.push_back(u"Failed to parse! Error: array expected"_q);
 		return true;
 	}
 	const auto shortcuts = document.array();
 	auto limit = kCountLimit;
 	for (auto i = shortcuts.constBegin(), e = shortcuts.constEnd(); i != e; ++i) {
 		if (!(*i).isObject()) {
-			_errors.push_back(qsl("Bad entry! Error: object expected"));
+			_errors.push_back(u"Bad entry! Error: object expected"_q);
 			continue;
 		}
 		const auto entry = (*i).toObject();
-		const auto keys = entry.constFind(qsl("keys"));
-		const auto command = entry.constFind(qsl("command"));
+		const auto keys = entry.constFind(u"keys"_q);
+		const auto command = entry.constFind(u"command"_q);
 		if (keys == entry.constEnd()
 			|| command == entry.constEnd()
 			|| !(*keys).isString()
@@ -319,8 +319,8 @@ bool Manager::readCustomFile() {
 			}
 		}
 		if (!--limit) {
-			_errors.push_back(qsl("Too many entries! Limit is %1"
-			).arg(kCountLimit));
+			_errors.push_back(u"Too many entries! Limit is %1"_q.arg(
+				kCountLimit));
 			break;
 		}
 	}
@@ -328,66 +328,66 @@ bool Manager::readCustomFile() {
 }
 
 void Manager::fillDefaults() {
-	const auto ctrl = Platform::IsMac() ? qsl("meta") : qsl("ctrl");
+	const auto ctrl = Platform::IsMac() ? u"meta"_q : u"ctrl"_q;
 
-	set(qsl("ctrl+w"), Command::Close);
-	set(qsl("ctrl+f4"), Command::Close);
-	set(qsl("ctrl+l"), Command::Lock);
-	set(qsl("ctrl+m"), Command::Minimize);
-	set(qsl("ctrl+q"), Command::Quit);
+	set(u"ctrl+w"_q, Command::Close);
+	set(u"ctrl+f4"_q, Command::Close);
+	set(u"ctrl+l"_q, Command::Lock);
+	set(u"ctrl+m"_q, Command::Minimize);
+	set(u"ctrl+q"_q, Command::Quit);
 
-	set(qsl("media play"), Command::MediaPlay);
-	set(qsl("media pause"), Command::MediaPause);
-	set(qsl("toggle media play/pause"), Command::MediaPlayPause);
-	set(qsl("media stop"), Command::MediaStop);
-	set(qsl("media previous"), Command::MediaPrevious);
-	set(qsl("media next"), Command::MediaNext);
+	set(u"media play"_q, Command::MediaPlay);
+	set(u"media pause"_q, Command::MediaPause);
+	set(u"toggle media play/pause"_q, Command::MediaPlayPause);
+	set(u"media stop"_q, Command::MediaStop);
+	set(u"media previous"_q, Command::MediaPrevious);
+	set(u"media next"_q, Command::MediaNext);
 
-	set(qsl("ctrl+f"), Command::Search);
-	set(qsl("search"), Command::Search);
-	set(qsl("find"), Command::Search);
+	set(u"ctrl+f"_q, Command::Search);
+	set(u"search"_q, Command::Search);
+	set(u"find"_q, Command::Search);
 
-	set(qsl("ctrl+pgdown"), Command::ChatNext);
-	set(qsl("alt+down"), Command::ChatNext);
-	set(qsl("ctrl+pgup"), Command::ChatPrevious);
-	set(qsl("alt+up"), Command::ChatPrevious);
+	set(u"ctrl+pgdown"_q, Command::ChatNext);
+	set(u"alt+down"_q, Command::ChatNext);
+	set(u"ctrl+pgup"_q, Command::ChatPrevious);
+	set(u"alt+up"_q, Command::ChatPrevious);
 
-	set(qsl("%1+tab").arg(ctrl), Command::ChatNext);
-	set(qsl("%1+shift+tab").arg(ctrl), Command::ChatPrevious);
-	set(qsl("%1+backtab").arg(ctrl), Command::ChatPrevious);
+	set(u"%1+tab"_q.arg(ctrl), Command::ChatNext);
+	set(u"%1+shift+tab"_q.arg(ctrl), Command::ChatPrevious);
+	set(u"%1+backtab"_q.arg(ctrl), Command::ChatPrevious);
 
-	set(qsl("ctrl+alt+home"), Command::ChatFirst);
-	set(qsl("ctrl+alt+end"), Command::ChatLast);
+	set(u"ctrl+alt+home"_q, Command::ChatFirst);
+	set(u"ctrl+alt+end"_q, Command::ChatLast);
 
-	set(qsl("f5"), Command::SupportReloadTemplates);
-	set(qsl("ctrl+delete"), Command::SupportToggleMuted);
-	set(qsl("ctrl+insert"), Command::SupportScrollToCurrent);
-	set(qsl("ctrl+shift+x"), Command::SupportHistoryBack);
-	set(qsl("ctrl+shift+c"), Command::SupportHistoryForward);
+	set(u"f5"_q, Command::SupportReloadTemplates);
+	set(u"ctrl+delete"_q, Command::SupportToggleMuted);
+	set(u"ctrl+insert"_q, Command::SupportScrollToCurrent);
+	set(u"ctrl+shift+x"_q, Command::SupportHistoryBack);
+	set(u"ctrl+shift+c"_q, Command::SupportHistoryForward);
 
-	set(qsl("ctrl+1"), Command::ChatPinned1);
-	set(qsl("ctrl+2"), Command::ChatPinned2);
-	set(qsl("ctrl+3"), Command::ChatPinned3);
-	set(qsl("ctrl+4"), Command::ChatPinned4);
-	set(qsl("ctrl+5"), Command::ChatPinned5);
+	set(u"ctrl+1"_q, Command::ChatPinned1);
+	set(u"ctrl+2"_q, Command::ChatPinned2);
+	set(u"ctrl+3"_q, Command::ChatPinned3);
+	set(u"ctrl+4"_q, Command::ChatPinned4);
+	set(u"ctrl+5"_q, Command::ChatPinned5);
 
 	auto &&folders = ranges::views::zip(
 		kShowFolder,
 		ranges::views::ints(1, ranges::unreachable));
 
 	for (const auto [command, index] : folders) {
-		set(qsl("%1+%2").arg(ctrl).arg(index), command);
+		set(u"%1+%2"_q.arg(ctrl).arg(index), command);
 	}
 
-	set(qsl("%1+shift+down").arg(ctrl), Command::FolderNext);
-	set(qsl("%1+shift+up").arg(ctrl), Command::FolderPrevious);
+	set(u"%1+shift+down"_q.arg(ctrl), Command::FolderNext);
+	set(u"%1+shift+up"_q.arg(ctrl), Command::FolderPrevious);
 
-	set(qsl("ctrl+0"), Command::ChatSelf);
+	set(u"ctrl+0"_q, Command::ChatSelf);
 
-	set(qsl("ctrl+9"), Command::ShowArchive);
-	set(qsl("ctrl+j"), Command::ShowContacts);
+	set(u"ctrl+9"_q, Command::ShowArchive);
+	set(u"ctrl+j"_q, Command::ShowContacts);
 
-	set(qsl("ctrl+r"), Command::ReadChat);
+	set(u"ctrl+r"_q, Command::ReadChat);
 }
 
 void Manager::writeDefaultFile() {
@@ -405,7 +405,7 @@ void Manager::writeDefaultFile() {
 
 	auto shortcuts = QJsonArray();
 	auto version = QJsonObject();
-	version.insert(qsl("version"), QString::number(AppVersion));
+	version.insert(u"version"_q, QString::number(AppVersion));
 	shortcuts.push_back(version);
 
 	for (const auto &[sequence, shortcut] : _shortcuts) {
@@ -416,8 +416,8 @@ void Manager::writeDefaultFile() {
 			const auto j = CommandNames.find(i->second);
 			if (j != CommandNames.end()) {
 				QJsonObject entry;
-				entry.insert(qsl("keys"), sequence.toString().toLower());
-				entry.insert(qsl("command"), j->second);
+				entry.insert(u"keys"_q, sequence.toString().toLower());
+				entry.insert(u"command"_q, j->second);
 				shortcuts.append(entry);
 			}
 		}
@@ -435,8 +435,7 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 
 	const auto result = QKeySequence(keys, QKeySequence::PortableText);
 	if (result.isEmpty()) {
-		_errors.push_back(qsl("Could not derive key sequence '%1'!"
-		).arg(keys));
+		_errors.push_back(u"Could not derive key sequence '%1'!"_q.arg(keys));
 		return;
 	}
 	auto shortcut = base::make_unique_q<QShortcut>(
@@ -463,7 +462,7 @@ void Manager::set(const QString &keys, Command command, bool replace) {
 		id = i->second->id();
 	}
 	if (!id) {
-		_errors.push_back(qsl("Could not create shortcut '%1'!").arg(keys));
+		_errors.push_back(u"Could not create shortcut '%1'!"_q.arg(keys));
 		return;
 	}
 	_commandByShortcutId.emplace(id, command);
@@ -482,8 +481,7 @@ void Manager::remove(const QString &keys) {
 
 	const auto result = QKeySequence(keys, QKeySequence::PortableText);
 	if (result.isEmpty()) {
-		_errors.push_back(qsl("Could not derive key sequence '%1'!"
-		).arg(keys));
+		_errors.push_back(u"Could not derive key sequence '%1'!"_q.arg(keys));
 		return;
 	}
 	const auto i = _shortcuts.find(result);

@@ -792,7 +792,7 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 	const QString &unreadCount,
 	int allowDigits) {
 	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
-		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
+		? u".."_q + unreadCount.mid(unreadCount.size() - allowDigits)
 		: unreadCount;
 }
 

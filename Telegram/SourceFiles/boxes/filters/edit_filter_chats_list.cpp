@@ -463,6 +463,6 @@ auto EditFilterChatsListController::createRow(not_null<History*> history)
 void EditFilterChatsListController::updateTitle() {
 	const auto count = delegate()->peerListSelectedRowsCount()
 		- selectedTypesCount();
-	const auto additional = qsl("%1 / %2").arg(count).arg(_limit);
+	const auto additional = u"%1 / %2"_q.arg(count).arg(_limit);
 	delegate()->peerListSetAdditionalTitle(rpl::single(additional));
 }

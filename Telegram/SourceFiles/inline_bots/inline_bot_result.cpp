@@ -507,10 +507,10 @@ MTPVector<MTPDocumentAttribute> Result::adjustAttributes(
 				const auto p = Core::MimeTypeForName(mime).globPatterns();
 				auto pattern = p.isEmpty() ? QString() : p.front();
 				const auto extension = pattern.isEmpty()
-					? qsl(".unknown")
+					? u".unknown"_q
 					: pattern.replace('*', QString());
 				const auto filename = filedialogDefaultName(
-					qsl("inline"),
+					u"inline"_q,
 					extension,
 					QString(),
 					true);

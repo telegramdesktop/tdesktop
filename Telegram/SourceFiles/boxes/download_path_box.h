@@ -42,7 +42,7 @@ private:
 	Directory typeFromPath(const QString &path) {
 		if (path.isEmpty()) {
 			return Directory::Downloads;
-		} else if (path == qsl("tmp")) {
+		} else if (path == u"tmp"_q) {
 			return Directory::Temp;
 		}
 		return Directory::Custom;

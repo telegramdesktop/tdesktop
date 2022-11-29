@@ -225,7 +225,7 @@ void EditLinkBox(
 
 TextWithEntities StripSupportHashtag(TextWithEntities &&text) {
 	static const auto expression = QRegularExpression(
-		qsl("\\n?#tsf[a-z0-9_-]*[\\s#a-z0-9_-]*$"),
+		u"\\n?#tsf[a-z0-9_-]*[\\s#a-z0-9_-]*$"_q,
 		QRegularExpression::CaseInsensitiveOption);
 	const auto match = expression.match(text.text);
 	if (!match.hasMatch()) {

@@ -1092,17 +1092,17 @@ ProxiesBoxController::ProxiesBoxController(not_null<Main::Account*> account)
 void ProxiesBoxController::ShowApplyConfirmation(
 		Type type,
 		const QMap<QString, QString> &fields) {
-	const auto server = fields.value(qsl("server"));
-	const auto port = fields.value(qsl("port")).toUInt();
+	const auto server = fields.value(u"server"_q);
+	const auto port = fields.value(u"port"_q).toUInt();
 	auto proxy = ProxyData();
 	proxy.type = type;
 	proxy.host = server;
 	proxy.port = port;
 	if (type == Type::Socks5) {
-		proxy.user = fields.value(qsl("user"));
-		proxy.password = fields.value(qsl("pass"));
+		proxy.user = fields.value(u"user"_q);
+		proxy.password = fields.value(u"pass"_q);
 	} else if (type == Type::Mtproto) {
-		proxy.password = fields.value(qsl("secret"));
+		proxy.password = fields.value(u"secret"_q);
 	}
 	if (proxy) {
 		const auto displayed = "https://" + server + "/";
@@ -1504,12 +1504,9 @@ void ProxiesBoxController::updateView(const Item &item) {
 	const auto deleted = item.deleted;
 	const auto type = [&] {
 		switch (item.data.type) {
-		case Type::Http:
-			return qsl("HTTP");
-		case Type::Socks5:
-			return qsl("SOCKS5");
-		case Type::Mtproto:
-			return qsl("MTPROTO");
+		case Type::Http: return u"HTTP"_q;
+		case Type::Socks5: return u"SOCKS5"_q;
+		case Type::Mtproto: return u"MTPROTO"_q;
 		}
 		Unexpected("Proxy type in ProxiesBoxController::updateView.");
 	}();
@@ -1541,7 +1538,7 @@ void ProxiesBoxController::share(const ProxyData &proxy) {
 	if (proxy.type == Type::Http) {
 		return;
 	}
-	const auto link = qsl("https://t.me/")
+	const auto link = u"https://t.me/"_q
 		+ (proxy.type == Type::Socks5 ? "socks" : "proxy")
 		+ "?server=" + proxy.host + "&port=" + QString::number(proxy.port)
 		+ ((proxy.type == Type::Socks5 && !proxy.user.isEmpty())

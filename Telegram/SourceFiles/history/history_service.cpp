@@ -138,7 +138,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_user,
-				{ .text = qsl("somebody") },
+				{ .text = u"somebody"_q },
 				Ui::Text::WithEntities);
 		} else {
 			result.links.push_back(fromLink());
@@ -928,7 +928,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 			lt_from,
 			fromLinkText(), // Link 1.
 			lt_user,
-			{ .text = qsl("somebody") },
+			{ .text = u"somebody"_q },
 			lt_chat,
 			chatText,
 			Ui::Text::WithEntities);

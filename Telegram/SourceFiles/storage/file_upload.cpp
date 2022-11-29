@@ -502,7 +502,7 @@ void Uploader::sendNext() {
 						}
 						const auto thumbFilename = uploadingData.file
 							? uploadingData.file->thumbname
-							: (qsl("thumb.") + uploadingData.media.thumbExt);
+							: (u"thumb."_q + uploadingData.media.thumbExt);
 						const auto thumbMd5 = uploadingData.file
 							? uploadingData.file->thumbmd5
 							: uploadingData.media.jpeg_md5;

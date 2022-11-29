@@ -104,7 +104,7 @@ QString FileNameUnsafe(
 	if (Core::App().settings().askDownloadPath() || savingAs) {
 		if (!name.isEmpty() && name.at(0) == QChar::fromLatin1('.')) {
 			name = filedialogDefaultName(prefix, name);
-		} else if (dir.path() != qsl(".")) {
+		} else if (dir.path() != u"."_q) {
 			QString path = dir.absolutePath();
 			if (path != cDialogLastPath()) {
 				cSetDialogLastPath(path);
@@ -115,21 +115,21 @@ QString FileNameUnsafe(
 		// check if extension of filename is present in filter
 		// it should be in first filter section on the first place
 		// place it there, if it is not
-		QString ext = QFileInfo(name).suffix(), fil = filter, sep = qsl(";;");
+		QString ext = QFileInfo(name).suffix(), fil = filter, sep = u";;"_q;
 		if (!ext.isEmpty()) {
-			if (QRegularExpression(qsl("^[a-zA-Z_0-9]+$")).match(ext).hasMatch()) {
+			if (QRegularExpression(u"^[a-zA-Z_0-9]+$"_q).match(ext).hasMatch()) {
 				QStringList filters = filter.split(sep);
 				if (filters.size() > 1) {
 					const auto &first = filters.at(0);
-					int32 start = first.indexOf(qsl("(*."));
+					int32 start = first.indexOf(u"(*."_q);
 					if (start >= 0) {
-						if (!QRegularExpression(qsl("\\(\\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first).hasMatch()) {
-							QRegularExpressionMatch m = QRegularExpression(qsl(" \\*\\.") + ext + qsl("[\\)\\s]"), QRegularExpression::CaseInsensitiveOption).match(first);
+						if (!QRegularExpression(u"\\(\\*\\."_q + ext + u"[\\)\\s]"_q, QRegularExpression::CaseInsensitiveOption).match(first).hasMatch()) {
+							QRegularExpressionMatch m = QRegularExpression(u" \\*\\."_q + ext + u"[\\)\\s]"_q, QRegularExpression::CaseInsensitiveOption).match(first);
 							if (m.hasMatch() && m.capturedStart() > start + 3) {
 								int32 oldpos = m.capturedStart(), oldend = m.capturedEnd();
-								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + JoinStringList(filters.mid(1), sep);
+								fil = first.mid(0, start + 3) + ext + u" *."_q + first.mid(start + 3, oldpos - start - 3) + first.mid(oldend - 1) + sep + JoinStringList(filters.mid(1), sep);
 							} else {
-								fil = first.mid(0, start + 3) + ext + qsl(" *.") + first.mid(start + 3) + sep + JoinStringList(filters.mid(1), sep);
+								fil = first.mid(0, start + 3) + ext + u" *."_q + first.mid(start + 3) + sep + JoinStringList(filters.mid(1), sep);
 							}
 						}
 					} else {
@@ -149,19 +149,19 @@ QString FileNameUnsafe(
 		const auto path = Core::App().settings().downloadPath();
 		if (path.isEmpty()) {
 			return File::DefaultDownloadPath(session);
-		} else if (path == qsl("tmp")) {
+		} else if (path == u"tmp"_q) {
 			return session->local().tempDirectory();
 		} else {
 			return path;
 		}
 	}();
 	if (path.isEmpty()) return QString();
-	if (name.isEmpty()) name = qsl(".unknown");
+	if (name.isEmpty()) name = u".unknown"_q;
 	if (name.at(0) == QChar::fromLatin1('.')) {
 		if (!QDir().exists(path)) QDir().mkpath(path);
 		return filedialogDefaultName(prefix, name, path);
 	}
-	if (dir.path() != qsl(".")) {
+	if (dir.path() != u"."_q) {
 		path = dir.absolutePath() + '/';
 	}
 
@@ -176,7 +176,7 @@ QString FileNameUnsafe(
 	QString nameBase = path + nameStart;
 	name = nameBase + extension;
 	for (int i = 0; QFileInfo::exists(name); ++i) {
-		name = nameBase + QString(" (%1)").arg(i + 2) + extension;
+		name = nameBase + u" (%1)"_q.arg(i + 2) + extension;
 	}
 
 	if (!QDir().exists(path)) QDir().mkpath(path);
@@ -202,7 +202,7 @@ QString FileNameForSave(
 #ifdef Q_OS_WIN
 	const auto lower = result.trimmed().toLower();
 	const auto kBadExtensions = { u".lnk"_q, u".scf"_q };
-	const auto kMaskExtension = qsl(".download");
+	const auto kMaskExtension = u".download"_q;
 	for (const auto extension : kBadExtensions) {
 		if (lower.endsWith(extension)) {
 			return result + kMaskExtension;
@@ -228,37 +228,37 @@ QString DocumentFileNameForSave(
 	QString pattern = p.isEmpty() ? QString() : p.front();
 	if (data->isVoiceMessage()) {
 		auto mp3 = data->hasMimeType(u"audio/mp3"_q);
-		name = already.isEmpty() ? (mp3 ? qsl(".mp3") : qsl(".ogg")) : already;
-		filter = mp3 ? qsl("MP3 Audio (*.mp3);;") : qsl("OGG Opus Audio (*.ogg);;");
+		name = already.isEmpty() ? (mp3 ? u".mp3"_q : u".ogg"_q) : already;
+		filter = mp3 ? u"MP3 Audio (*.mp3);;"_q : u"OGG Opus Audio (*.ogg);;"_q;
 		filter += FileDialog::AllFilesFilter();
 		caption = tr::lng_save_audio(tr::now);
-		prefix = qsl("audio");
+		prefix = u"audio"_q;
 	} else if (data->isVideoFile()) {
 		name = already.isEmpty() ? data->filename() : already;
 		if (name.isEmpty()) {
-			name = pattern.isEmpty() ? qsl(".mov") : pattern.replace('*', QString());
+			name = pattern.isEmpty() ? u".mov"_q : pattern.replace('*', QString());
 		}
 		if (pattern.isEmpty()) {
-			filter = qsl("MOV Video (*.mov);;") + FileDialog::AllFilesFilter();
+			filter = u"MOV Video (*.mov);;"_q + FileDialog::AllFilesFilter();
 		} else {
-			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
+			filter = mimeType.filterString() + u";;"_q + FileDialog::AllFilesFilter();
 		}
 		caption = tr::lng_save_video(tr::now);
-		prefix = qsl("video");
+		prefix = u"video"_q;
 	} else {
 		name = already.isEmpty() ? data->filename() : already;
 		if (name.isEmpty()) {
-			name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
+			name = pattern.isEmpty() ? u".unknown"_q : pattern.replace('*', QString());
 		}
 		if (pattern.isEmpty()) {
 			filter = QString();
 		} else {
-			filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
+			filter = mimeType.filterString() + u";;"_q + FileDialog::AllFilesFilter();
 		}
 		caption = data->isAudioFile()
 			? tr::lng_save_audio_file(tr::now)
 			: tr::lng_save_file(tr::now);
-		prefix = qsl("doc");
+		prefix = u"doc"_q;
 	}
 
 	return FileNameForSave(

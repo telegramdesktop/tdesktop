@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Lang {
 namespace {
 
-const auto kSerializeVersionTag = qsl("#new");
+const auto kSerializeVersionTag = u"#new"_q;
 constexpr auto kSerializeVersion = 1;
 constexpr auto kDefaultLanguage = "en"_cs;
 constexpr auto kCloudLangPackName = "tdesktop"_cs;
@@ -231,11 +231,11 @@ QString CustomLanguageId() {
 
 Language DefaultLanguage() {
 	return Language{
-		qsl("en"),
+		u"en"_q,
 		QString(),
 		QString(),
-		qsl("English"),
-		qsl("English"),
+		u"English"_q,
+		u"English"_q,
 	};
 }
 

@@ -4273,7 +4273,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 	if (!insertingInlineBot) {
 		auto &textWithTags = _field->getTextWithTags();
 		TextWithTags textWithTagsToSet;
-		QRegularExpressionMatch m = QRegularExpression(qsl("^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)")).match(textWithTags.text);
+		const auto m = QRegularExpression(u"^/[A-Za-z_0-9]{0,64}(@[A-Za-z_0-9]{0,32})?(\\s|$)"_q).match(textWithTags.text);
 		if (m.hasMatch()) {
 			textWithTagsToSet = _field->getTextWithTagsPart(m.capturedLength());
 		} else {
@@ -4631,7 +4631,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 
 void HistoryWidget::startBotCommand() {
 	setFieldText(
-		{ qsl("/"), TextWithTags::Tags() },
+		{ u"/"_q, TextWithTags::Tags() },
 		0,
 		Ui::InputField::HistoryAction::NewEntry);
 }
@@ -7610,7 +7610,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 	auto timeSinceMessage = ItemDateTime(_replyEditMsg).msecsTo(QDateTime::currentDateTime());
 	auto editTimeLeft = (session().serverConfig().editTimeLimit * 1000LL) - timeSinceMessage;
 	if (editTimeLeft < 2) {
-		editTimeLeftText = qsl("0:00");
+		editTimeLeftText = u"0:00"_q;
 	} else if (editTimeLeft > kDisplayEditTimeWarningMs) {
 		updateIn = static_cast<int>(qMin(editTimeLeft - kDisplayEditTimeWarningMs, qint64(kFullDayInMs)));
 	} else {
@@ -7621,7 +7621,7 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 		++updateIn;
 
 		editTimeLeft = (editTimeLeft - 1) / 1000; // seconds
-		editTimeLeftText = qsl("%1:%2").arg(editTimeLeft / 60).arg(editTimeLeft % 60, 2, 10, QChar('0'));
+		editTimeLeftText = u"%1:%2"_q.arg(editTimeLeft / 60).arg(editTimeLeft % 60, 2, 10, QChar('0'));
 	}
 
 	// Restart timer only if we are sure that we've painted the whole timer.

@@ -97,7 +97,7 @@ auto EmptyMessageDraftSources()
 
 [[nodiscard]] FileKey ComputeDataNameKey(const QString &dataName) {
 	// We dropped old test authorizations when migrated to multi auth.
-	//const auto testAddition = (cTestMode() ? qsl(":/test/") : QString());
+	//const auto testAddition = (cTestMode() ? u":/test/"_q : QString());
 	const auto testAddition = QString();
 	const auto dataNameUtf8 = (dataName + testAddition).toUtf8();
 	FileKey dataNameHash[2] = { 0 };
@@ -106,7 +106,7 @@ auto EmptyMessageDraftSources()
 }
 
 [[nodiscard]] QString BaseGlobalPath() {
-	return cWorkingDir() + qsl("tdata/");
+	return cWorkingDir() + u"tdata/"_q;
 }
 
 [[nodiscard]] QString ComputeDatabasePath(const QString &dataName) {
@@ -118,7 +118,7 @@ auto EmptyMessageDraftSources()
 }
 
 [[nodiscard]] QString LegacyTempDirectory() {
-	return cWorkingDir() + qsl("tdata/tdld/");
+	return cWorkingDir() + u"tdata/tdld/"_q;
 }
 
 } // namespace
@@ -243,7 +243,7 @@ Account::ReadMapResult Account::readMapWith(
 	auto ms = crl::now();
 
 	FileReadDescriptor mapData;
-	if (!ReadFile(mapData, qsl("map"), _basePath)) {
+	if (!ReadFile(mapData, u"map"_q, _basePath)) {
 		return ReadMapResult::Failed;
 	}
 	LOG(("App Info: reading map..."));
@@ -1839,7 +1839,7 @@ void Account::readStickerSets(
 			setTitle = tr::lng_stickers_default_set(tr::now);
 			setFlags |= SetFlag::Official | SetFlag::Special;
 		} else if (setId == Data::Stickers::CustomSetId) {
-			setTitle = qsl("Custom stickers");
+			setTitle = u"Custom stickers"_q;
 			setFlags |= SetFlag::Special;
 		} else if ((setId == Data::Stickers::CloudRecentSetId)
 				|| (setId == Data::Stickers::CloudRecentAttachedSetId)) {
@@ -2199,7 +2199,7 @@ void Account::importOldRecentStickers() {
 			Data::Stickers::CustomSetId,
 			uint64(0), // accessHash
 			uint64(0), // hash
-			qsl("Custom stickers"),
+			u"Custom stickers"_q,
 			QString(),
 			0, // count
 			(SetFlag::Installed | SetFlag::Special),
