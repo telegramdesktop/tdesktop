@@ -100,10 +100,16 @@ void BasicRow::paintUserpic(
 Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 	if (const auto history = key.history()) {
 		updateCornerBadgeShown(history->peer);
+	}
+	recountHeight();
+}
+
+void Row::recountHeight() {
+	if (const auto history = _id.history()) {
 		_height = history->peer->isForum()
 			? st::forumDialogRow.height
 			: st::defaultDialogRow.height;
-	} else if (key.folder()) {
+	} else if (_id.folder()) {
 		_height = st::defaultDialogRow.height;
 	} else {
 		_height = st::forumTopicRow.height;

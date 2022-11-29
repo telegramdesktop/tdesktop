@@ -107,6 +107,10 @@ void MainList::removeEntry(Key key) {
 	recomputeFullListSize();
 }
 
+void MainList::updateEntryHeight(const RowsByLetter &links) {
+	_all.updateHeight(links);
+}
+
 void MainList::recomputeFullListSize() {
 	_fullListSize = std::max(_all.size(), loaded() ? 0 : _cloudListSize);
 }

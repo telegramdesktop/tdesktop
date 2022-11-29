@@ -192,6 +192,7 @@ public:
 		not_null<Row*> row);
 	void updateChatListEntry();
 	void updateChatListEntryPostponed();
+	void updateChatListEntryHeight();
 	[[nodiscard]] bool isPinnedDialog(FilterId filterId) const {
 		return lookupPinnedIndex(filterId) != 0;
 	}

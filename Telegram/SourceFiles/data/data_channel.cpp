@@ -183,6 +183,12 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			}
 			if (diff & Flag::Forum) {
 				Core::App().notifications().clearFromHistory(history);
+				history->updateChatListEntryHeight();
+				if (history->inChatList()) {
+					if (const auto forum = this->forum()) {
+						forum->preloadTopics();
+					}
+				}
 			}
 		}
 	}

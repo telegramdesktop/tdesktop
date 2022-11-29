@@ -48,6 +48,7 @@ public:
 	not_null<Row*> addByName(Key key);
 	bool moveToTop(Key key);
 	void adjustByDate(not_null<Row*> row);
+	void updateHeight(not_null<Row*> row);
 	bool remove(Key key, Row *replacedBy = nullptr);
 
 	using const_iterator = std::vector<not_null<Row*>>::const_iterator;

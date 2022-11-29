@@ -285,8 +285,14 @@ InnerWidget::InnerWidget(
 
 	session().changes().entryUpdates(
 		Data::EntryUpdate::Flag::Repaint
+		| Data::EntryUpdate::Flag::Height
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		const auto entry = update.entry;
+		if (update.flags & Data::EntryUpdate::Flag::Height) {
+			updateFilteredEntryHeight(entry);
+			refresh();
+			return;
+		}
 		const auto repaintId = (_state == WidgetState::Default)
 			? _filterId
 			: 0;
@@ -318,6 +324,24 @@ InnerWidget::InnerWidget(
 	refreshWithCollapsedRows(true);
 
 	setupShortcuts();
+}
+
+void InnerWidget::updateFilteredEntryHeight(not_null<Entry*> entry) {
+	auto changing = false;
+	auto top = 0;
+	for (auto &result : _filterResults) {
+		if (changing) {
+			result.top = top;
+		}
+		if (result.row->key().entry() == entry) {
+			result.row->recountHeight();
+			changing = true;
+			top = result.top;
+		}
+		if (changing) {
+			top += result.row->height();
+		}
+	}
 }
 
 Main::Session &InnerWidget::session() const {

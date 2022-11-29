@@ -197,8 +197,9 @@ struct EntryUpdate {
 		HasPinnedMessages = (1U << 1),
 		ForwardDraft = (1U << 2),
 		LocalDraftSet = (1U << 3),
+		Height = (1U << 4),
 
-		LastUsedBit = (1U << 3),
+		LastUsedBit = (1U << 4),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }

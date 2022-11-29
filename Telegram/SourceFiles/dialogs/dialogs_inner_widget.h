@@ -230,6 +230,7 @@ private:
 	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 	void refreshDialogRow(RowDescriptor row);
+	void updateFilteredEntryHeight(not_null<Entry*> entry);
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(

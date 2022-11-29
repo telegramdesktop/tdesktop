@@ -22,6 +22,7 @@ public:
 	Row *addByName(Key key);
 	void adjustByDate(const RowsByLetter &links);
 	void moveToTop(Key key);
+	void updateHeight(const RowsByLetter &links);
 
 	// row must belong to this indexed list all().
 	void movePinned(Row *row, int deltaSign);

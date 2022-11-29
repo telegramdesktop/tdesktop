@@ -91,6 +91,7 @@ public:
 	[[nodiscard]] int height() const {
 		return _height;
 	}
+	void recountHeight();
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,

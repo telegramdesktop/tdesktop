@@ -103,6 +103,17 @@ void List::adjustByDate(not_null<Row*> row) {
 	}
 }
 
+void List::updateHeight(not_null<Row*> row) {
+	row->recountHeight();
+
+	const auto index = row->index();
+	auto top = row->top();
+	for (auto i = _rows.begin() + index, e = _rows.end(); i != e; ++i) {
+		(*i)->_top = top;
+		top += (*i)->height();
+	}
+}
+
 bool List::moveToTop(Key key) {
 	const auto i = _rowByKey.find(key);
 	if (i == _rowByKey.cend()) {
