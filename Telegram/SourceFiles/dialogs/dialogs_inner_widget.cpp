@@ -867,10 +867,12 @@ void InnerWidget::paintCollapsedRow(
 
 	const auto text = row->folder->chatListName();
 	const auto unread = row->folder->chatListBadgesState().unreadCounter;
+	const auto fullWidth = width();
 	Ui::PaintCollapsedRow(p, row->row, row->folder, text, unread, {
 		.st = _st,
-		.width = width(),
+		.width = fullWidth,
 		.selected = selected,
+		.narrow = (fullWidth < st::columnMinimalWidthLeft),
 	});
 }
 
