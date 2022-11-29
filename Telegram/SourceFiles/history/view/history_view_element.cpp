@@ -705,7 +705,10 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 			const QString &title,
 			std::optional<DocumentId> iconId) {
 		return Ui::Text::Link(
-			Data::ForumTopicIconWithTitle(iconId.value_or(0), title),
+			Data::ForumTopicIconWithTitle(
+				topicRootId,
+				iconId.value_or(0),
+				title),
 			topicUrl);
 	};
 	const auto wrapParentTopic = [&] {

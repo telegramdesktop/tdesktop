@@ -646,6 +646,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			lt_topic,
 			Ui::Text::Link(
 				Data::ForumTopicIconWithTitle(
+					id,
 					action.vicon_emoji_id().value_or_empty(),
 					qs(action.vtitle())),
 				topicUrl),
@@ -693,6 +694,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				{ tr::lng_action_topic_placeholder(tr::now) },
 				lt_title,
 				Data::ForumTopicIconWithTitle(
+					topicRootId(),
 					action.vicon_emoji_id().value_or_empty(),
 					qs(*action.vtitle())),
 				Ui::Text::WithEntities);

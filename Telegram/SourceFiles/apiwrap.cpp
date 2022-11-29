@@ -3490,10 +3490,12 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	const auto replyTo = replyToId
 		? peer->owner().message(peer, replyToId)
 		: nullptr;
-	const auto topicRootId = replyTo ? replyTo->topicRootId() : replyToId;
-	const auto topic = topicRootId
-		? peer->forumTopicFor(topicRootId)
-		: nullptr;
+	const auto topicRootId = replyTo
+		? replyTo->topicRootId()
+		: action.topicRootId
+		? action.topicRootId
+		: Data::ForumTopic::kGeneralId;
+	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? topic->canWrite() : peer->canWrite())
 		|| Api::SendDice(message)) {
 		return;

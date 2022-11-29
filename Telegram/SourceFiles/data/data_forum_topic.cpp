@@ -162,9 +162,12 @@ QImage ForumTopicGeneralIconFrame(int size, const style::color &color) {
 }
 
 TextWithEntities ForumTopicIconWithTitle(
+		MsgId rootId,
 		DocumentId iconId,
 		const QString &title) {
-	return iconId
+	return (rootId == ForumTopic::kGeneralId)
+		? TextWithEntities{ u"# "_q + title }
+		: iconId
 		? Data::SingleCustomEmoji(iconId).append(title)
 		: TextWithEntities{ title };
 }
@@ -185,24 +188,7 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	Thread::setMuted(owner().notifySettings().isMuted(this));
 
 	_sendActionPainter->setTopic(this);
-
-	_replies->unreadCountValue(
-	) | rpl::map([=](std::optional<int> value) {
-		return value ? _replies->displayedUnreadCount() : value;
-	}) | rpl::distinct_until_changed(
-	) | rpl::combine_previous(
-	) | rpl::filter([=] {
-		return inChatList();
-	}) | rpl::start_with_next([=](
-			std::optional<int> previous,
-			std::optional<int> now) {
-		if (previous.value_or(0) != now.value_or(0)) {
-			_forum->recentTopicsInvalidate(this);
-		}
-		notifyUnreadStateChange(unreadStateFor(
-			previous.value_or(0),
-			previous.has_value()));
-	}, _replies->lifetime());
+	subscribeToUnreadChanges();
 
 	if (isGeneral()) {
 		style::PaletteChanged(
@@ -311,10 +297,35 @@ void ForumTopic::setRealRootId(MsgId realId) {
 		_rootId = realId;
 		_lastKnownServerMessageId = realId;
 		_replies = std::make_shared<RepliesList>(history(), _rootId);
+		if (_sendActionPainter) {
+			_sendActionPainter->setTopic(nullptr);
+		}
 		_sendActionPainter = owner().sendActionManager().repliesPainter(
 			history(),
 			_rootId);
+		_sendActionPainter->setTopic(this);
+		subscribeToUnreadChanges();
 	}
+}
+
+void ForumTopic::subscribeToUnreadChanges() {
+	_replies->unreadCountValue(
+	) | rpl::map([=](std::optional<int> value) {
+		return value ? _replies->displayedUnreadCount() : value;
+	}) | rpl::distinct_until_changed(
+	) | rpl::combine_previous(
+	) | rpl::filter([=] {
+		return inChatList();
+	}) | rpl::start_with_next([=](
+		std::optional<int> previous,
+		std::optional<int> now) {
+		if (previous.value_or(0) != now.value_or(0)) {
+			_forum->recentTopicsInvalidate(this);
+		}
+		notifyUnreadStateChange(unreadStateFor(
+			previous.value_or(0),
+			previous.has_value()));
+	}, _lifetime);
 }
 
 void ForumTopic::readTillEnd() {
@@ -672,7 +683,7 @@ QString ForumTopic::title() const {
 }
 
 TextWithEntities ForumTopic::titleWithIcon() const {
-	return ForumTopicIconWithTitle(_iconId, _title);
+	return ForumTopicIconWithTitle(_rootId, _iconId, _title);
 }
 
 int ForumTopic::titleVersion() const {

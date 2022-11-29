@@ -49,6 +49,7 @@ class Forum;
 	int size,
 	const style::color &color);
 [[nodiscard]] TextWithEntities ForumTopicIconWithTitle(
+	MsgId rootId,
 	DocumentId iconId,
 	const QString &title);
 
@@ -181,6 +182,7 @@ private:
 
 	int chatListNameVersion() const override;
 
+	void subscribeToUnreadChanges();
 	[[nodiscard]] Dialogs::UnreadState unreadStateFor(
 		int count,
 		bool known) const;

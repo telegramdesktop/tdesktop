@@ -627,6 +627,7 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	return topic.match([&](const MTPDforumTopic &data) {
 		return Ui::Text::Link(
 			Data::ForumTopicIconWithTitle(
+				data.vid().v,
 				data.vicon_emoji_id().value_or_empty(),
 				qs(data.vtitle())),
 			u"internal:url:https://t.me/c/%1/%2"_q.arg(
