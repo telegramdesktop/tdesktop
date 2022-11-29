@@ -45,6 +45,9 @@ class Forum;
 	int32 colorId,
 	const QString &title,
 	const style::ForumTopicIcon &st);
+[[nodiscard]] QImage ForumTopicGeneralIconFrame(
+	int size,
+	const style::color &color);
 [[nodiscard]] TextWithEntities ForumTopicIconWithTitle(
 	DocumentId iconId,
 	const QString &title);
@@ -160,12 +163,15 @@ private:
 		Closed = (1 << 0),
 		My = (1 << 1),
 		HasPinnedMessages = (1 << 2),
+		GeneralIconActive = (1 << 3),
+		GeneralIconSelected = (1 << 4),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;
 
 	void indexTitleParts();
 	void validateDefaultIcon() const;
+	void validateGeneralIcon(const Dialogs::Ui::PaintContext &context) const;
 	void applyTopicTopMessage(MsgId topMessageId);
 	void growLastKnownServerMessageId(MsgId id);
 
@@ -197,7 +203,7 @@ private:
 	TimeId _creationDate = 0;
 	int _titleVersion = 0;
 	int32 _colorId = 0;
-	Flags _flags;
+	mutable Flags _flags;
 
 	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 	mutable QImage _defaultIcon; // on-demand

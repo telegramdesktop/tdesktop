@@ -216,11 +216,17 @@ void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 }
 
 void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
+	using namespace Data;
+	if (topic->isGeneral()) {
+		_image = ForumTopicGeneralIconFrame(
+			st::infoForumTopicIcon.size,
+			st::windowSubTextFg);
+		return;
+	}
 	rpl::combine(
 		TitleValue(topic),
 		ColorIdValue(topic)
 	) | rpl::map([=](const QString &title, int32 colorId) {
-		using namespace Data;
 		return ForumTopicIconFrame(colorId, title, st::infoForumTopicIcon);
 	}) | rpl::start_with_next([=](QImage &&image) {
 		_image = std::move(image);

@@ -143,6 +143,24 @@ QImage ForumTopicIconFrame(
 	return background;
 }
 
+QImage ForumTopicGeneralIconFrame(int size, const style::color &color) {
+	const auto ratio = style::DevicePixelRatio();
+	auto svg = QSvgRenderer(ForumTopicIconPath(u"general"_q));
+	auto result = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+
+	const auto use = size * 0.8;
+	const auto skip = size * 0.1;
+	auto p = QPainter(&result);
+	svg.render(&p, QRectF(skip, 0, use, use));
+	p.end();
+
+	return style::colorizeImage(result, color);
+}
+
 TextWithEntities ForumTopicIconWithTitle(
 		DocumentId iconId,
 		const QString &title) {
@@ -185,6 +203,13 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 			previous.value_or(0),
 			previous.has_value()));
 	}, _replies->lifetime());
+
+	if (isGeneral()) {
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_defaultIcon = QImage();
+		}, _lifetime);
+	}
 }
 
 ForumTopic::~ForumTopic() {
@@ -540,7 +565,11 @@ void ForumTopic::paintUserpic(
 			.paused = context.paused,
 		});
 	} else {
-		validateDefaultIcon();
+		if (isGeneral()) {
+			validateGeneralIcon(context);
+		} else {
+			validateDefaultIcon();
+		}
 		const auto size = st::defaultForumTopicIcon.size;
 		if (context.narrow) {
 			position = QPoint(
@@ -562,12 +591,34 @@ void ForumTopic::clearUserpicLoops() {
 }
 
 void ForumTopic::validateDefaultIcon() const {
-	if (_defaultIcon.isNull()) {
-		_defaultIcon = ForumTopicIconFrame(
-			_colorId,
-			_title,
-			st::defaultForumTopicIcon);
+	if (!_defaultIcon.isNull()) {
+		return;
 	}
+	_defaultIcon = ForumTopicIconFrame(
+		_colorId,
+		_title,
+		st::defaultForumTopicIcon);
+}
+
+void ForumTopic::validateGeneralIcon(
+		const Dialogs::Ui::PaintContext &context) const {
+	const auto mask = Flag::GeneralIconActive | Flag::GeneralIconSelected;
+	const auto flags = context.active
+		? Flag::GeneralIconActive
+		: context.selected
+		? Flag::GeneralIconSelected
+		: Flag(0);
+	if (!_defaultIcon.isNull() && ((_flags & mask) == flags)) {
+		return;
+	}
+	const auto size = st::defaultForumTopicIcon.size;
+	const auto &color = context.active
+		? st::dialogsTextFgActive
+		: context.selected
+		? st::dialogsTextFgOver
+		: st::dialogsTextFg;
+	_defaultIcon = ForumTopicGeneralIconFrame(size, color);
+	_flags = (_flags & ~mask) | flags;
 }
 
 void ForumTopic::requestChatListMessage() {
