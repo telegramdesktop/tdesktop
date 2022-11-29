@@ -94,11 +94,24 @@ Args TTLValidator::createArgs() const {
 		}).send();
 		show->hideLayer();
 	};
-	auto about = peer->isUser()
+	auto about1 = peer->isUser()
 		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
 		: peer->isBroadcast()
 		? tr::lng_ttl_edit_about_channel()
 		: tr::lng_ttl_edit_about_group();
+	auto about2 = tr::lng_ttl_edit_about2(
+		lt_link,
+		tr::lng_ttl_edit_about2_link(
+		) | rpl::map([=](const QString &s) {
+			return Ui::Text::Link(s, "tg://settings/auto_delete");
+		}),
+		Ui::Text::WithEntities);
+	auto about = rpl::combine(
+		std::move(about1),
+		std::move(about2)
+	) | rpl::map([](const QString &s1, TextWithEntities &&s2) {
+		return TextWithEntities{ s1 }.append(u"\n\n"_q).append(std::move(s2));
+	});
 	const auto ttl = peer->messagesTTL();
 	return { std::move(show), ttl, std::move(about), std::move(callback) };
 }

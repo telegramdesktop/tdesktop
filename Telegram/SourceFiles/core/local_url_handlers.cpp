@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
 #include "settings/settings_common.h"
+#include "settings/settings_global_ttl.h"
 #include "settings/settings_folders.h"
 #include "settings/settings_main.h"
 #include "settings/settings_privacy_security.h"
@@ -485,6 +486,8 @@ bool ResolveSettings(
 			return ::Settings::Chat::Id();
 		} else if (section == u"change_number"_q) {
 			return ::Settings::ChangePhone::Id();
+		} else if (section == u"auto_delete"_q) {
+			return ::Settings::GlobalTTLId();
 		}
 		return ::Settings::Main::Id();
 	}();
@@ -843,7 +846,7 @@ const std::vector<LocalUrlHandler> &LocalUrlHandlers() {
 			ResolvePrivatePost
 		},
 		{
-			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number)?$"_q,
+			u"^settings(/language|/devices|/folders|/privacy|/themes|/change_number|/auto_delete)?$"_q,
 			ResolveSettings
 		},
 		{
