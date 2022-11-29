@@ -2762,10 +2762,6 @@ void History::applyDialog(
 			draft->c_draftMessage());
 	}
 	owner().histories().dialogEntryApplied(this);
-
-	if (const auto forum = inChatList() ? peer->forum() : nullptr) {
-		forum->preloadTopics();
-	}
 }
 
 void History::dialogEntryApplied() {

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "core/ui_integration.h"
+#include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -119,6 +120,13 @@ void TopicsView::paint(
 		: st::dialogsTextPaletteArchive);
 	auto rect = geometry;
 	auto skipBig = _jumpToTopic && !context.active;
+	if (_titles.empty()) {
+		p.drawText(
+			rect.x(),
+			rect.y() + st::normalFont->ascent,
+			tr::lng_contacts_loading(tr::now));
+		return;
+	}
 	for (const auto &title : _titles) {
 		if (rect.width() < title.title.style()->font->elidew) {
 			break;

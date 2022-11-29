@@ -4036,6 +4036,9 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 				removeChatListEntry(migrated);
 			}
 		}
+		if (const auto forum = history->peer->forum()) {
+			forum->preloadTopics();
+		}
 	}
 }
 
