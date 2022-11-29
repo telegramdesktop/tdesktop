@@ -231,7 +231,8 @@ MsgId LookupReplyToTop(HistoryItem *replyTo) {
 }
 
 bool LookupReplyIsTopicPost(HistoryItem *replyTo) {
-	return replyTo && (replyTo->topicRootId() != 0);
+	return replyTo
+		&& (replyTo->topicRootId() != Data::ForumTopic::kGeneralId);
 }
 
 MTPMessageReplyHeader NewMessageReplyHeader(const Api::SendAction &action) {
@@ -1502,7 +1503,7 @@ MsgId HistoryMessage::topicRootId() const {
 		; reply && reply->topicPost) {
 		return reply->replyToTop();
 	}
-	return 0;
+	return Data::ForumTopic::kGeneralId;
 }
 
 void HistoryMessage::setText(const TextWithEntities &textWithEntities) {

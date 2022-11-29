@@ -257,10 +257,12 @@ void Uploader::sendProgressUpdate(
 	const auto history = item->history();
 	auto &manager = _api->session().sendProgressManager();
 	manager.update(history, type, progress);
-	if (const auto replyTo = item->topicRootId()) {
+	if (const auto replyTo = item->replyToTop()) {
 		if (history->peer->isMegagroup()) {
 			manager.update(history, replyTo, type, progress);
 		}
+	} else if (history->peer->isForum()) {
+		manager.update(history, item->topicRootId(), type, progress);
 	}
 	_api->session().data().requestItemRepaint(item);
 }

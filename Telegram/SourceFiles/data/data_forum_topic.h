@@ -51,11 +51,17 @@ class Forum;
 
 class ForumTopic final : public Thread {
 public:
+	static constexpr auto kGeneralId = 1;
+
 	ForumTopic(not_null<Forum*> forum, MsgId rootId);
 	~ForumTopic();
 
 	not_null<History*> owningHistory() override {
 		return history();
+	}
+
+	[[nodiscard]] bool isGeneral() const {
+		return (_rootId == kGeneralId);
 	}
 
 	[[nodiscard]] std::shared_ptr<RepliesList> replies() const;

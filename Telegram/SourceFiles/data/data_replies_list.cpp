@@ -304,7 +304,7 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 		return;
 	}
 	const auto root = lookupRoot();
-	if (!root || root->topicRootId()) {
+	if (!root || root->topicRootId() != Data::ForumTopic::kGeneralId) {
 		return;
 	}
 	injectRootDivider(root, slice);

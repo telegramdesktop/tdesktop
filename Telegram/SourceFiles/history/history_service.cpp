@@ -1344,7 +1344,7 @@ MsgId HistoryService::topicRootId() const {
 	} else if (Has<HistoryServiceTopicInfo>()) {
 		return id;
 	}
-	return 0;
+	return Data::ForumTopic::kGeneralId;
 }
 
 void HistoryService::setReplyFields(

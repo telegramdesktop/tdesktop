@@ -686,7 +686,7 @@ auto Element::contextDependentServiceText() -> TextWithLinks {
 	}
 	const auto peerId = item->history()->peer->id;
 	const auto topicRootId = item->topicRootId();
-	if (!topicRootId || !peerIsChannel(peerId)) {
+	if (!peerIsChannel(peerId)) {
 		return {};
 	}
 	const auto from = item->from();

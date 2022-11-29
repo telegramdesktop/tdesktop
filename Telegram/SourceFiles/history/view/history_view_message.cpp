@@ -2711,13 +2711,8 @@ bool Message::displayFastReply() const {
 	const auto canWrite = [&] {
 		const auto item = data();
 		const auto peer = item->history()->peer;
-		if (peer->isForum()) {
-			const auto topic = item->topic();
-			return topic
-				? topic->canWrite()
-				: peer->canWrite(!item->topicRootId());
-		}
-		return peer->canWrite();
+		const auto topic = item->topic();
+		return topic ? topic->canWrite() : peer->canWrite();
 	};
 
 	return hasFastReply()

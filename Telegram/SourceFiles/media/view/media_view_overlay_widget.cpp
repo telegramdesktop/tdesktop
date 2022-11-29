@@ -4166,9 +4166,9 @@ void OverlayWidget::setContext(
 		not_null<PeerData*>> context) {
 	if (const auto item = std::get_if<ItemContext>(&context)) {
 		_message = item->item;
-		_topicRootId = item->topicRootId;
 		_history = _message->history();
 		_peer = _history->peer;
+		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);

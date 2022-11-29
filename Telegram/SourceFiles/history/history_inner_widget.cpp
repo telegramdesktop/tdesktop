@@ -2088,14 +2088,8 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto itemId = item->fullId();
 		const auto canReply = [&] {
 			const auto peer = item->history()->peer;
-			if (const auto forum = peer->forum()) {
-				const auto topicRootId = item->topicRootId();
-				const auto topic = item->topic();
-				return topic
-					? topic->canWrite()
-					: peer->canWrite(!topicRootId);
-			}
-			return peer->canWrite();
+			const auto topic = item->topic();
+			return topic ? topic->canWrite() : peer->canWrite();
 		}();
 		if (canReply) {
 			_menu->addAction(tr::lng_context_reply_msg(tr::now), [=] {

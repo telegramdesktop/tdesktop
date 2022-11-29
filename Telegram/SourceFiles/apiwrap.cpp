@@ -689,7 +689,7 @@ QString ApiWrap::exportDirectMessageLink(
 		auto linkItemId = item->id;
 		auto linkCommentId = MsgId();
 		auto linkThreadId = MsgId();
-		//auto linkThreadIsTopic = false;
+		auto linkThreadIsTopic = false;
 		if (inRepliesContext) {
 			if (const auto rootId = item->replyToTop()) {
 				const auto root = item->history()->owner().message(
@@ -711,7 +711,7 @@ QString ApiWrap::exportDirectMessageLink(
 				} else {
 					// Reply in a thread, maybe comment in a private channel.
 					linkThreadId = rootId;
-					//linkThreadIsTopic = (item->topicRootId() == rootId);
+					linkThreadIsTopic = (item->topicRootId() == rootId);
 				}
 			}
 		}
@@ -723,7 +723,7 @@ QString ApiWrap::exportDirectMessageLink(
 			+ '/'
 			+ (linkCommentId
 				? (post + "?comment=" + QString::number(linkCommentId.bare))
-				: (linkThreadId/* && !linkThreadIsTopic*/)
+				: (linkThreadId && !linkThreadIsTopic)
 				? (post + "?thread=" + QString::number(linkThreadId.bare))
 				: linkThreadId
 				? (QString::number(linkThreadId.bare) + '/' + post)

@@ -1467,7 +1467,11 @@ void RepliesWidget::refreshTopBarActiveChat() {
 
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
-	return custom ? custom : _rootId;
+	return custom
+		? custom
+		: (_rootId == Data::ForumTopic::kGeneralId)
+		? MsgId()
+		: _rootId;
 }
 
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {

@@ -6721,7 +6721,7 @@ void HistoryWidget::processReply() {
 		return processCancel();
 	} else if (const auto forum = _peer->forum()) {
 		const auto topicRootId = _processingReplyItem->topicRootId();
-		if (!topicRootId || forum->topicDeleted(topicRootId)) {
+		if (forum->topicDeleted(topicRootId)) {
 			return processCancel();
 		} else if (const auto topic = forum->topicFor(topicRootId)) {
 			if (!topic->canWrite()) {
