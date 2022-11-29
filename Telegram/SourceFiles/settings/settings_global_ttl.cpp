@@ -9,12 +9,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "api/api_self_destruct.h"
 #include "apiwrap.h"
+#include "boxes/peer_list_controllers.h"
+#include "data/data_changes.h"
+#include "data/data_peer.h"
+#include "history/history.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
 #include "menu/menu_ttl.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/painter.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"
@@ -26,9 +31,123 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
+#include "styles/style_calls.h"
 
 namespace Settings {
 namespace {
+
+class TTLRow : public ChatsListBoxController::Row {
+public:
+	using ChatsListBoxController::Row::Row;
+
+	void paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) override;
+
+};
+
+void TTLRow::paintStatusText(
+		Painter &p,
+		const style::PeerListItem &st,
+		int x,
+		int y,
+		int availableWidth,
+		int outerWidth,
+		bool selected) {
+	auto icon = history()->peer->messagesTTL()
+		? &st::callArrowIn
+		: &st::callArrowOut;
+	icon->paint(
+		p,
+		x + st::callArrowPosition.x(),
+		y + st::callArrowPosition.y(),
+		outerWidth);
+	auto shift = st::callArrowPosition.x()
+		+ icon->width()
+		+ st::callArrowSkip;
+	x += shift;
+	availableWidth -= shift;
+
+	PeerListRow::paintStatusText(
+		p,
+		st,
+		x,
+		y,
+		availableWidth,
+		outerWidth,
+		selected);
+}
+
+class TTLChatsBoxController : public ChatsListBoxController {
+public:
+
+	TTLChatsBoxController(not_null<Main::Session*> session);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+protected:
+	void prepareViewHook() override;
+	std::unique_ptr<Row> createRow(not_null<History*> history) override;
+
+private:
+	const not_null<Main::Session*> _session;
+
+	rpl::lifetime _lifetime;
+
+};
+
+TTLChatsBoxController::TTLChatsBoxController(not_null<Main::Session*> session)
+: ChatsListBoxController(session)
+, _session(session) {
+}
+
+Main::Session &TTLChatsBoxController::session() const {
+	return *_session;
+}
+
+void TTLChatsBoxController::prepareViewHook() {
+	delegate()->peerListSetTitle(tr::lng_settings_ttl_title());
+}
+
+void TTLChatsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	delegate()->peerListSetRowChecked(row, !row->checked());
+}
+
+std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
+		not_null<History*> history) {
+	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
+		return nullptr;
+	} else if (!history->peer->canWrite()) {
+		return nullptr;
+	}
+	auto result = std::make_unique<TTLRow>(history);
+	const auto applyStatus = [=, raw = result.get()] {
+		const auto ttl = history->peer->messagesTTL();
+		raw->setCustomStatus(
+			ttl
+				? tr::lng_settings_ttl_select_chats_status(
+					tr::now,
+					lt_after_duration,
+					Ui::FormatTTLAfter(ttl))
+				: tr::lng_settings_ttl_select_chats_status_disabled(tr::now),
+			ttl);
+	};
+	if (!history->peer->messagesTTL()) {
+		session().api().requestFullPeer(history->peer);
+		session().changes().peerUpdates(
+			history->peer,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::take(1) | rpl::start_with_next(applyStatus, _lifetime);
+	}
+	applyStatus();
+	return result;
+}
 
 void SetupTopContent(
 		not_null<Ui::VerticalLayout*> parent,
@@ -252,8 +371,50 @@ void GlobalTTL::setupContent() {
 			) | rpl::map([](QString s) { return Ui::Text::Link(s, 1); }),
 			Ui::Text::WithEntities),
 		st::boxDividerLabel);
-	footer->overrideLinkClickHandler([=] {
-	});
+	footer->setLink(1, std::make_shared<LambdaClickHandler>([=] {
+		const auto session = &_controller->session();
+		auto controller = std::make_unique<TTLChatsBoxController>(session);
+		auto initBox = [=, controller = controller.get()](
+				not_null<PeerListBox*> box) {
+			box->addButton(tr::lng_background_apply(), crl::guard(this, [=] {
+				const auto &peers = box->collectSelectedRows();
+				if (peers.empty()) {
+					return;
+				}
+				const auto &apiTTL = session->api().selfDestruct();
+				const auto ttl = apiTTL.periodDefaultHistoryTTLCurrent();
+				for (const auto &peer : peers) {
+					peer->session().api().request(MTPmessages_SetHistoryTTL(
+						peer->input,
+						MTP_int(ttl)
+					)).done([=](const MTPUpdates &result) {
+						peer->session().api().applyUpdates(result);
+					}).send();
+				}
+				Ui::ShowMultilineToast({
+					.parentOverride = Ui::BoxShow(box).toastParent(),
+					.text = ttl
+						? tr::lng_settings_ttl_select_chats_toast(
+							tr::now,
+							lt_count,
+							peers.size(),
+							lt_duration,
+							{ .text = Ui::FormatTTL(ttl) },
+							Ui::Text::WithEntities)
+						: tr::lng_settings_ttl_select_chats_disabled_toast(
+							tr::now,
+							lt_count,
+							peers.size(),
+							Ui::Text::WithEntities),
+				});
+				box->closeBox();
+			}));
+			box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+		};
+		_controller->show(
+			Box<PeerListBox>(std::move(controller), std::move(initBox)),
+			Ui::LayerOption::KeepOther);
+	}));
 	content->add(object_ptr<Ui::DividerLabel>(
 		content,
 		std::move(footer),

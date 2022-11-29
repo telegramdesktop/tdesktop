@@ -693,8 +693,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_ttl_select_chats_subtitle_chosen" = "will have the self-destruct timer";
 "lng_settings_ttl_select_chats_status" = "auto-delete after {after_duration}";
 "lng_settings_ttl_select_chats_status_disabled" = "auto-deletion disabled";
-"lng_settings_ttl_select_chats_status_toast#one" = "Self-destruct timer for {duration} has been enabled in {count} selected chat.";
-"lng_settings_ttl_select_chats_status_toast#other" = "Self-destruct timer for {duration} has been enabled in {count} selected chats.";
+"lng_settings_ttl_select_chats_toast#one" = "Self-destruct timer for {duration} has been enabled in {count} selected chat.";
+"lng_settings_ttl_select_chats_toast#other" = "Self-destruct timer for {duration} has been enabled in {count} selected chats.";
+"lng_settings_ttl_select_chats_disabled_toast#one" = "Self-destruct timer has been disabled in {count} selected chat.";
+"lng_settings_ttl_select_chats_disabled_toast#other" = "Self-destruct timer has been disabled in {count} selected chats.";
 
 "lng_clear_payment_info_title" = "Clear payment info";
 "lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
