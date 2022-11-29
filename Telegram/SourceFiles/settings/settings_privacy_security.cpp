@@ -520,10 +520,8 @@ void SetupSelfDestruction(
 		session->api().selfDestruct().reload();
 	}, container->lifetime());
 	const auto label = [&] {
-		return session->api().selfDestruct().days(
-		) | rpl::map(
-			SelfDestructionBox::DaysLabel
-		);
+		return session->api().selfDestruct().daysAccountTTL(
+		) | rpl::map(SelfDestructionBox::DaysLabel);
 	};
 
 	AddButtonWithLabel(
@@ -535,7 +533,7 @@ void SetupSelfDestruction(
 		controller->show(Box<SelfDestructionBox>(
 			session,
 			SelfDestructionBox::Type::Account,
-			session->api().selfDestruct().days()));
+			session->api().selfDestruct().daysAccountTTL()));
 	});
 
 	AddSkip(container);

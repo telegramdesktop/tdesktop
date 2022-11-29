@@ -95,12 +95,13 @@ void SelfDestructionBox::showContent() {
 
 	clearButtons();
 	addButton(tr::lng_settings_save(), [=] {
+		const auto value = _ttlGroup->value();
 		switch (_type) {
 		case Type::Account:
-			_session->api().selfDestruct().update(_ttlGroup->value());
+			_session->api().selfDestruct().updateAccountTTL(value);
 			break;
 		case Type::Sessions:
-			_session->api().authorizations().updateTTL(_ttlGroup->value());
+			_session->api().authorizations().updateTTL(value);
 			break;
 		}
 
