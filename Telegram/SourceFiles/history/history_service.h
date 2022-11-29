@@ -36,6 +36,17 @@ struct HistoryServiceTopicInfo
 	bool reopened = false;
 	bool reiconed = false;
 	bool renamed = false;
+	bool hidden = false;
+	bool unhidden = false;
+
+	[[nodiscard]] bool created() const {
+		return !closed
+			&& !reopened
+			&& !reiconed
+			&& !renamed
+			&& !hidden
+			&& !unhidden;
+	}
 };
 
 struct HistoryServiceGameScore

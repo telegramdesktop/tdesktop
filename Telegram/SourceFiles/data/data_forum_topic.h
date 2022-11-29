@@ -91,6 +91,9 @@ public:
 	void setClosed(bool closed);
 	void setClosedAndSave(bool closed);
 
+	[[nodiscard]] bool hidden() const;
+	void setHidden(bool hidden);
+
 	[[nodiscard]] bool creating() const;
 	void discard();
 
@@ -162,10 +165,11 @@ public:
 private:
 	enum class Flag : uchar {
 		Closed = (1 << 0),
-		My = (1 << 1),
-		HasPinnedMessages = (1 << 2),
-		GeneralIconActive = (1 << 3),
-		GeneralIconSelected = (1 << 4),
+		Hidden = (1 << 1),
+		My = (1 << 2),
+		HasPinnedMessages = (1 << 3),
+		GeneralIconActive = (1 << 4),
+		GeneralIconSelected = (1 << 5),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;

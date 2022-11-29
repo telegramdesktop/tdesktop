@@ -1343,8 +1343,10 @@ MsgId HistoryService::topicRootId() const {
 	if (const auto data = GetDependentData()
 		; data && data->topicPost && data->topId) {
 		return data->topId;
-	} else if (Has<HistoryServiceTopicInfo>()) {
-		return id;
+	} else if (const auto info = Get<HistoryServiceTopicInfo>()) {
+		if (info->created()) {
+			return id;
+		}
 	}
 	return Data::ForumTopic::kGeneralId;
 }
@@ -1513,6 +1515,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 			if (const auto closed = data.vclosed()) {
 				info->closed = mtpIsTrue(*closed);
 				info->reopened = !info->closed;
+			}
+			if (const auto hidden = data.vhidden()) {
+				info->hidden = mtpIsTrue(*hidden);
+				info->unhidden = !info->hidden;
 			}
 		} else {
 			const auto &data = action.c_messageActionTopicCreate();

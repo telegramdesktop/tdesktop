@@ -435,6 +435,18 @@ void ForumTopic::setClosedAndSave(bool closed) {
 	}).send();
 }
 
+bool ForumTopic::hidden() const {
+	return (_flags & Flag::Hidden);
+}
+
+void ForumTopic::setHidden(bool hidden) {
+	if (hidden) {
+		_flags |= Flag::Hidden;
+	} else {
+		_flags &= ~Flag::Hidden;
+	}
+}
+
 void ForumTopic::indexTitleParts() {
 	_titleWords.clear();
 	_titleFirstLetters.clear();

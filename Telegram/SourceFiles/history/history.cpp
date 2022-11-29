@@ -1216,6 +1216,9 @@ void History::applyServiceChanges(
 			if (const auto closed = data.vclosed()) {
 				topic->setClosed(mtpIsTrue(*closed));
 			}
+			if (const auto hidden = data.vhidden()) {
+				topic->setHidden(mtpIsTrue(*hidden));
+			}
 		}
 	}, [](const auto &) {
 	});
