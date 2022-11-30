@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/popup_menu.h"
+#include "ui/effects/loading_element.h"
 #include "ui/effects/round_checkbox.h"
 #include "ui/effects/ripple_animation.h"
 #include "ui/empty_userpic.h"
@@ -352,14 +353,6 @@ void PeerListController::setDescriptionText(const QString &text) {
 		setDescription(nullptr);
 	} else {
 		setDescription(object_ptr<Ui::FlatLabel>(nullptr, text, computeListSt().about));
-	}
-}
-
-void PeerListController::setSearchLoadingText(const QString &text) {
-	if (text.isEmpty()) {
-		setSearchLoading(nullptr);
-	} else {
-		setSearchLoading(object_ptr<Ui::FlatLabel>(nullptr, text, st::membersAbout));
 	}
 }
 
@@ -1243,7 +1236,7 @@ int PeerListContent::labelHeight() const {
 		if (!_filterResults.empty()) {
 			return 0;
 		}
-		if (_controller->isSearchLoading()) {
+		if (_controller->isSearchLoading() && _searchLoading) {
 			return computeLabelHeight(_searchLoading);
 		}
 		return computeLabelHeight(_searchNoResults);
@@ -1279,11 +1272,20 @@ void PeerListContent::setSearchMode(PeerListSearchMode mode) {
 		}
 		_searchMode = mode;
 		if (_controller->hasComplexSearch()) {
-			if (!_searchLoading) {
-				setSearchLoading(object_ptr<Ui::FlatLabel>(
-					this,
-					tr::lng_contacts_loading(tr::now),
-					st::membersAbout));
+			if (_mode == Mode::Custom) {
+				if (!_searchLoading) {
+					setSearchLoading(object_ptr<Ui::FlatLabel>(
+						this,
+						tr::lng_contacts_loading(tr::now),
+						st::membersAbout));
+				}
+			} else {
+				if (!_loadingAnimation) {
+					_loadingAnimation = Ui::CreateLoadingPeerListItemWidget(
+						this,
+						_st.item,
+						2);
+				}
 			}
 		} else {
 			clearSearchRows();
@@ -1377,6 +1379,14 @@ int PeerListContent::resizeGetHeight(int newWidth) {
 		_searchLoading->resizeToWidth(labelWidth);
 		_searchLoading->moveToLeft(st::contactsPadding.left(), labelTop + st::membersAboutLimitPadding.top(), newWidth);
 		_searchLoading->setVisible(!hideAll && showingSearch() && _filterResults.empty() && _controller->isSearchLoading());
+	}
+	if (_loadingAnimation) {
+		_loadingAnimation->resizeToWidth(newWidth);
+		_loadingAnimation->moveToLeft(0, rowsTop(), newWidth);
+		_loadingAnimation->setVisible(!hideAll
+			&& showingSearch()
+			&& _filterResults.empty()
+			&& _controller->isSearchLoading());
 	}
 	const auto label = labelHeight();
 	const auto belowTop = (label > 0 || rowsCount > 0)

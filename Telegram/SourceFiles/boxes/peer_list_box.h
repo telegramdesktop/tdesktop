@@ -294,7 +294,6 @@ public:
 	virtual void peerListSetAdditionalTitle(rpl::producer<QString> title) = 0;
 	virtual void peerListSetHideEmpty(bool hide) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
-	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
 	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
 	virtual void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) = 0;
@@ -541,13 +540,9 @@ protected:
 	}
 
 	void setDescriptionText(const QString &text);
-	void setSearchLoadingText(const QString &text);
 	void setSearchNoResultsText(const QString &text);
 	void setDescription(object_ptr<Ui::FlatLabel> description) {
 		delegate()->peerListSetDescription(std::move(description));
-	}
-	void setSearchLoading(object_ptr<Ui::FlatLabel> loading) {
-		delegate()->peerListSetSearchLoading(std::move(loading));
 	}
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults) {
 		delegate()->peerListSetSearchNoResults(std::move(noResults));
@@ -822,6 +817,7 @@ private:
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
+	object_ptr<Ui::RpWidget> _loadingAnimation = { nullptr };
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
@@ -897,9 +893,6 @@ public:
 	}
 	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override {
 		_content->setDescription(std::move(description));
-	}
-	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override {
-		_content->setSearchLoading(std::move(loading));
 	}
 	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override {
 		_content->setSearchNoResults(std::move(noResults));
