@@ -1745,7 +1745,7 @@ void OverlayWidget::downloadMedia() {
 	const auto session = _photo ? &_photo->session() : &_document->session();
 	if (Core::App().settings().downloadPath().isEmpty()) {
 		path = File::DefaultDownloadPath(session);
-	} else if (Core::App().settings().downloadPath() == u"tmp"_q) {
+	} else if (Core::App().settings().downloadPath() == FileDialog::Tmp()) {
 		path = session->local().tempDirectory();
 	} else {
 		path = Core::App().settings().downloadPath();

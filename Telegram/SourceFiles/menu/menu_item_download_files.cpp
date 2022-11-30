@@ -83,7 +83,7 @@ void AddAction(
 			: folderPath;
 		const auto path = downloadPath.isEmpty()
 			? File::DefaultDownloadPath(session)
-			: (downloadPath == u"tmp"_q)
+			: (downloadPath == FileDialog::Tmp())
 			? session->local().tempDirectory()
 			: downloadPath;
 		if (path.isEmpty()) {
@@ -144,7 +144,7 @@ void AddAction(
 		if (Core::App().settings().askDownloadPath()) {
 			const auto initialPath = [] {
 				const auto path = Core::App().settings().downloadPath();
-				if (!path.isEmpty() && path != u"tmp"_q) {
+				if (!path.isEmpty() && path != FileDialog::Tmp()) {
 					return path.left(path.size()
 						- (path.endsWith('/') ? 1 : 0));
 				}

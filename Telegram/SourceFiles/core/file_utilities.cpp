@@ -359,6 +359,11 @@ QString PhotoVideoFilesFilter() {
 		+ AllFilesFilter();
 }
 
+const QString &Tmp() {
+	static const auto tmp = u"tmp"_q;
+	return tmp;
+}
+
 namespace internal {
 
 void InitLastPathDefault() {

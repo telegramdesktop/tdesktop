@@ -1056,7 +1056,7 @@ void SetupDataStorage(
 	) | rpl::map([](const QString &text) {
 		if (text.isEmpty()) {
 			return tr::lng_download_path_default(tr::now);
-		} else if (text == u"tmp"_q) {
+		} else if (text == FileDialog::Tmp()) {
 			return tr::lng_download_path_temp(tr::now);
 		}
 		return QDir::toNativeSeparators(text);

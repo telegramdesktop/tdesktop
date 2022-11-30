@@ -149,7 +149,7 @@ QString FileNameUnsafe(
 		const auto path = Core::App().settings().downloadPath();
 		if (path.isEmpty()) {
 			return File::DefaultDownloadPath(session);
-		} else if (path == u"tmp"_q) {
+		} else if (path == FileDialog::Tmp()) {
 			return session->local().tempDirectory();
 		} else {
 			return path;

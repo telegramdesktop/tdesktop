@@ -255,7 +255,7 @@ void Application::run() {
 	if (KSandbox::isInside()) {
 		const auto path = settings().downloadPath();
 		if (!path.isEmpty()
-			&& path != qstr("tmp")
+			&& path != FileDialog::Tmp()
 			&& !base::CanReadDirectory(path)) {
 			settings().setDownloadPath(QString());
 		}
