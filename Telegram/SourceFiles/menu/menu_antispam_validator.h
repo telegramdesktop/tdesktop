@@ -11,8 +11,10 @@ template <typename Object>
 class object_ptr;
 
 class ChannelData;
+class UserData;
 
 namespace Ui {
+class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
@@ -29,6 +31,10 @@ public:
 		not_null<ChannelData*> channel);
 
 	[[nodiscard]] object_ptr<Ui::RpWidget> createButton() const;
+
+	void resolveUser(Fn<void()> finish) const;
+	[[nodiscard]] UserData *maybeAppendUser() const;
+	void addAction(not_null<Ui::PopupMenu*> menu, FullMsgId fullId) const;
 
 private:
 	const not_null<ChannelData*> _channel;

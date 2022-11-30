@@ -250,7 +250,8 @@ InnerWidget::InnerWidget(
 , _emptyText(
 		st::historyAdminLogEmptyWidth
 		- st::historyAdminLogEmptyPadding.left()
-		- st::historyAdminLogEmptyPadding.left()) {
+		- st::historyAdminLogEmptyPadding.left())
+, _antiSpamValidator(_controller, _channel) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -326,7 +327,9 @@ InnerWidget::InnerWidget(
 
 	updateEmptyText();
 
-	requestAdmins();
+	_antiSpamValidator.resolveUser(crl::guard(
+		this,
+		[=] { requestAdmins(); }));
 }
 
 Main::Session &InnerWidget::session() const {
@@ -470,6 +473,9 @@ void InnerWidget::requestAdmins() {
 				data);
 			_admins.clear();
 			_adminsCanEdit.clear();
+			if (const auto user = _antiSpamValidator.maybeAppendUser()) {
+				_admins.emplace_back(user);
+			}
 			for (const auto &parsed : list) {
 				if (parsed.isUser()) {
 					const auto user = _channel->owner().userLoaded(
@@ -1273,6 +1279,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 	} else { // maybe cursor on some text history item?
 		const auto item = view ? view->data().get() : nullptr;
 		const auto itemId = item ? item->fullId() : FullMsgId();
+
+		_antiSpamValidator.addAction(_menu, itemId);
 
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
