@@ -1838,7 +1838,7 @@ void HistoryWidget::setupShortcuts() {
 		return _history
 			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
@@ -4059,7 +4059,7 @@ void HistoryWidget::checkSuggestToGigagroup() {
 		return;
 	}
 	InvokeQueued(_list, [=] {
-		if (!Ui::isLayerShown()) {
+		if (!controller()->isLayerShown()) {
 			group->owner().setSuggestToGigagroup(group, false);
 			group->session().api().request(MTPhelp_DismissSuggestion(
 				group->input,
@@ -7351,7 +7351,8 @@ void HistoryWidget::updateTopBarSelection() {
 		: tr::lng_report_messages_none(tr::now)));
 	updateControlsVisibility();
 	updateHistoryGeometry();
-	if (!Ui::isLayerShown() && !Core::App().passcodeLocked()) {
+	if (!controller()->isLayerShown()
+		&& !Core::App().passcodeLocked()) {
 		if (isSearching()) {
 			_composeSearch->setInnerFocus();
 		} else if (_nonEmptySelection

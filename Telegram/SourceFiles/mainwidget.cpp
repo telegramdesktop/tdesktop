@@ -2676,7 +2676,7 @@ void MainWidget::activate() {
 	} else if (_hider) {
 		Assert(_dialogs != nullptr);
 		_dialogs->setInnerFocus();
-	} else if (!Ui::isLayerShown()) {
+	} else if (!_controller->isLayerShown()) {
 		if (_history->peer()) {
 			_history->activate();
 		} else {
@@ -2702,14 +2702,3 @@ bool MainWidget::isNormalColumn() const {
 bool MainWidget::isThreeColumn() const {
 	return _controller->adaptive().isThreeColumn();
 }
-
-namespace App {
-
-MainWidget *main() {
-	if (const auto window = wnd()) {
-		return window->sessionContent();
-	}
-	return nullptr;
-}
-
-} // namespace App

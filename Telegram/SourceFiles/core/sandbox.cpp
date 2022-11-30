@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "storage/localstorage.h"
 #include "window/notifications_manager.h"
+#include "window/window_controller.h"
 #include "core/crash_reports.h"
 #include "core/crash_report_window.h"
 #include "core/application.h"
@@ -460,10 +461,8 @@ void Sandbox::readClients() {
 		paths.append(toSend);
 		cSetSendPaths(paths);
 	}
-	if (!cSendPaths().isEmpty()) {
-		if (App::wnd()) {
-			App::wnd()->sendPaths();
-		}
+	if (_application) {
+		_application->checkSendPaths();
 	}
 	if (!startUrl.isEmpty()) {
 		cSetStartUrl(startUrl);
@@ -647,8 +646,8 @@ void Sandbox::closeApplication() {
 void Sandbox::execExternal(const QString &cmd) {
 	DEBUG_LOG(("Sandbox Info: executing external command '%1'").arg(cmd));
 	if (cmd == "show") {
-		if (App::wnd()) {
-			App::wnd()->activate();
+		if (Core::IsAppLaunched() && Core::App().primaryWindow()) {
+			Core::App().primaryWindow()->activate();
 		} else if (PreLaunchWindow::instance()) {
 			PreLaunchWindow::instance()->activate();
 		}

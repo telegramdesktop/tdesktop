@@ -3615,7 +3615,7 @@ void InnerWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
 		return isActiveWindow()
-			&& !Ui::isLayerShown()
+			&& !_controller->isLayerShown()
 			&& !_controller->window().locked();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;

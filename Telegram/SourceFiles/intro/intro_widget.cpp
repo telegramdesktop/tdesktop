@@ -493,7 +493,7 @@ void Widget::resetAccount() {
 		)).done([=] {
 			_resetRequest = 0;
 
-			Ui::hideLayer();
+			getData()->controller->hideLayer();
 			if (getData()->phone.isEmpty()) {
 				moveToStep(
 					new QrWidget(this, _account, getData()),
@@ -556,7 +556,7 @@ void Widget::resetAccount() {
 				Ui::show(Ui::MakeInformBox(
 					tr::lng_signin_reset_cancelled()));
 			} else {
-				Ui::hideLayer();
+				getData()->controller->hideLayer();
 				getStep()->showError(rpl::single(Lang::Hard::ServerError()));
 			}
 		}).send();

@@ -236,6 +236,7 @@ public:
 
 	// Internal links.
 	void checkStartUrl();
+	void checkSendPaths();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 	[[nodiscard]] QString changelogLink() const;

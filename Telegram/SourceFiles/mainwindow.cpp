@@ -724,13 +724,3 @@ void MainWindow::sendPaths() {
 }
 
 MainWindow::~MainWindow() = default;
-
-namespace App {
-
-MainWindow *wnd() {
-	return (Core::IsAppLaunched() && Core::App().primaryWindow())
-		? Core::App().primaryWindow()->widget().get()
-		: nullptr;
-}
-
-} // namespace App

@@ -341,6 +341,10 @@ void Controller::hideSettingsAndLayer(anim::type animated) {
 	_widget.ui_hideSettingsAndLayer(animated);
 }
 
+bool Controller::isLayerShown() const {
+	return _widget.ui_isLayerShown();
+}
+
 void Controller::sideBarChanged() {
 	_widget.recountGeometryConstraints();
 }

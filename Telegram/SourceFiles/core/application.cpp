@@ -855,7 +855,9 @@ void Application::switchDebugMode() {
 		Logs::SetDebugEnabled(true);
 		_launcher->writeDebugModeSetting();
 		DEBUG_LOG(("Debug logs started."));
-		Ui::hideLayer();
+		if (_primaryWindow) {
+			_primaryWindow->hideLayer();
+		}
 	}
 }
 
@@ -964,6 +966,12 @@ bool Application::canApplyLangPackWithoutRestart() const {
 		}
 	}
 	return true;
+}
+
+void Application::checkSendPaths() {
+	if (!cSendPaths().isEmpty() && _primaryWindow && !_primaryWindow->locked()) {
+		_primaryWindow->widget()->sendPaths();
+	}
 }
 
 void Application::checkStartUrl() {

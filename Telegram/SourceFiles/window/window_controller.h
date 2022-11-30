@@ -90,6 +90,7 @@ public:
 
 	void hideLayer(anim::type animated = anim::type::normal);
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
+	[[nodiscard]] bool isLayerShown() const;
 
 	void activate();
 	void reActivate();

@@ -663,7 +663,7 @@ void Widget::setupShortcuts() {
 	) | rpl::filter([=] {
 		return isActiveWindow()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& !controller()->window().locked();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
@@ -2027,7 +2027,7 @@ void Widget::showSearchFrom() {
 		auto box = SearchFromBox(
 			peer,
 			crl::guard(this, [=](not_null<PeerData*> from) {
-				Ui::hideLayer();
+				controller()->hideLayer();
 				if (!chat.topic()) {
 					setSearchInChat(chat, from);
 				} else if (const auto strong = weak.get()) {

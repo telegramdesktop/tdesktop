@@ -303,8 +303,11 @@ void LaunchGApplication() {
 
 			app->signal_activate().connect([] {
 				Core::Sandbox::Instance().customEnterFromEventLoop([] {
-					if (const auto w = App::wnd()) {
-						w->activate();
+					const auto window = Core::IsAppLaunched()
+						? Core::App().primaryWindow()
+						: nullptr;
+					if (window) {
+						window->activate();
 					}
 				});
 			}, true);
@@ -329,17 +332,19 @@ void LaunchGApplication() {
 							continue;
 						}
 						if (Core::StartUrlRequiresActivate(url)) {
-							if (const auto w = App::wnd()) {
-								w->activate();
+							const auto window = Core::IsAppLaunched()
+								? Core::App().primaryWindow()
+								: nullptr;
+							if (window) {
+								window->activate();
 							}
 						}
 						cSetStartUrl(url);
 						Core::App().checkStartUrl();
 					}
+
 					if (!cSendPaths().isEmpty()) {
-						if (const auto w = App::wnd()) {
-							w->sendPaths();
-						}
+						Core::App().checkSendPaths();
 					}
 				});
 			}, true);
@@ -429,7 +434,7 @@ bool GenerateDesktopFile(
 		}
 		return std::string();
 	}();
-	
+
 	if (sourceText.empty()) {
 		if (!silent) {
 			LOG(("App Error: Could not open '%1' for read").arg(sourceFile));

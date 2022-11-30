@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 
 namespace Core {
@@ -123,8 +124,8 @@ QString UiIntegration::angleBackendFilePath() {
 }
 
 void UiIntegration::textActionsUpdated() {
-	if (const auto window = App::wnd()) {
-		window->updateGlobalMenu();
+	if (const auto window = Core::App().primaryWindow()) {
+		window->widget()->updateGlobalMenu();
 	}
 }
 

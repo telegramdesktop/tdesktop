@@ -162,7 +162,7 @@ void ShowInFolder(const QString &filepath) {
 		Ui::PreventDelayedActivation();
 		if (Platform::IsLinux()) {
 			// Hide mediaview to make other apps visible.
-			Ui::hideLayer(anim::type::instant);
+			Core::App().hideMediaView();
 		}
 		base::Platform::ShowInFolder(filepath);
 	});

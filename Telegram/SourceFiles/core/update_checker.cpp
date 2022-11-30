@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_domain.h"
 #include "info/info_memento.h"
 #include "info/info_controller.h"
+#include "window/window_controller.h"
 #include "window/window_session_controller.h"
 #include "settings/settings_advanced.h"
 #include "settings/settings_intro.h"
@@ -1648,7 +1649,10 @@ void UpdateApplication() {
 		UrlClickHandler::Open(url);
 	} else {
 		cSetAutoUpdate(true);
-		if (const auto window = App::wnd()) {
+		const auto window = Core::IsAppLaunched()
+			? Core::App().primaryWindow()
+			: nullptr;
+		if (window) {
 			if (const auto controller = window->sessionController()) {
 				controller->showSection(
 					std::make_shared<Info::Memento>(
@@ -1656,11 +1660,11 @@ void UpdateApplication() {
 						::Settings::Advanced::Id()),
 					Window::SectionShow());
 			} else {
-				window->showSpecialLayer(
-					Box<::Settings::LayerWidget>(&window->controller()),
+				window->widget()->showSpecialLayer(
+					Box<::Settings::LayerWidget>(window),
 					anim::type::normal);
 			}
-			window->showFromTray();
+			window->widget()->showFromTray();
 		}
 		cSetLastUpdateCheck(0);
 		Core::UpdateChecker().start();

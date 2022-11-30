@@ -1769,6 +1769,10 @@ void SessionController::removeLayerBlackout() {
 	widget()->ui_removeLayerBlackout();
 }
 
+bool SessionController::isLayerShown() const {
+	return _window->isLayerShown();
+}
+
 not_null<MainWidget*> SessionController::content() const {
 	return widget()->sessionContent();
 }

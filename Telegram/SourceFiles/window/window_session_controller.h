@@ -446,6 +446,7 @@ public:
 		showSpecialLayer(nullptr, animated);
 	}
 	void removeLayerBlackout();
+	[[nodiscard]] bool isLayerShown() const;
 
 	void showCalendar(
 		Dialogs::Key chat,
