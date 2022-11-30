@@ -35,46 +35,27 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "styles/style_chat.h"
 
-namespace {
-
-[[nodiscard]] MainWidget *CheckMainWidget(not_null<Main::Session*> session) {
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == session) {
-			return m;
-		}
-	}
-	if (&Core::App().domain().active() != &session->account()) {
-		Core::App().domain().activate(&session->account());
-	}
-	if (const auto m = App::main()) { // multi good
-		if (&m->session() == session) {
-			return m;
-		}
-	}
-	return nullptr;
-}
-
-} // namespace
-
 namespace Ui {
 
 void showChatsList(not_null<Main::Session*> session) {
-	if (const auto m = CheckMainWidget(session)) {
-		m->ui_showPeerHistory(
-			0,
-			::Window::SectionShow::Way::ClearStack,
-			0);
+	if (const auto window = session->tryResolveWindow()) {
+		window->clearSectionStack();
 	}
 }
 
-void showPeerHistory(not_null<const History*> history, MsgId msgId) {
-	showPeerHistory(history->peer, msgId);
+void showPeerHistory(not_null<History*> history, MsgId msgId) {
+	if (const auto window = history->session().tryResolveWindow()) {
+		window->showPeerHistory(
+			history,
+			::Window::SectionShow::Way::ClearStack,
+			msgId);
+	}
 }
 
-void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId) {
-	if (const auto m = CheckMainWidget(&peer->session())) {
-		m->ui_showPeerHistory(
-			peer->id,
+void showPeerHistory(not_null<PeerData*> peer, MsgId msgId) {
+	if (const auto window = peer->session().tryResolveWindow()) {
+		window->showPeerHistory(
+			peer,
 			::Window::SectionShow::Way::ClearStack,
 			msgId);
 	}

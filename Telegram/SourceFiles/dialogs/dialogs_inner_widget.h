@@ -102,7 +102,7 @@ public:
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
-	void changeOpenedForum(ChannelData *forum);
+	void changeOpenedForum(Data::Forum *forum);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -422,6 +422,7 @@ private:
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;
+	int _narrowWidth = 0;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;

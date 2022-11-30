@@ -633,16 +633,16 @@ Ui::MultiSlideTracker DetailsFiller::fillTopicButtons() {
 	Ui::MultiSlideTracker tracker;
 	const auto window = _controller->parentController();
 
-	const auto channel = _topic->channel().get();
+	const auto forum = _topic->forum();
 	auto showTopicsVisible = rpl::combine(
 		window->adaptive().oneColumnValue(),
-		window->openedForum().value(),
-		_1 || (_2 != channel));
+		window->shownForum().value(),
+		_1 || (_2 != forum));
 	AddMainButton(
 		_wrap,
 		tr::lng_forum_show_topics_list(),
 		std::move(showTopicsVisible),
-		[=] { window->openForum(channel); },
+		[=] { window->showForum(forum); },
 		tracker);
 	return tracker;
 }

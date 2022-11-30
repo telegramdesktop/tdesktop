@@ -242,7 +242,10 @@ MainWidget::MainWidget(
 	? base::make_unique_q<Ui::PlainShadow>(this)
 	: nullptr)
 , _dialogs(isPrimary()
-	? base::make_unique_q<Dialogs::Widget>(this, _controller)
+	? base::make_unique_q<Dialogs::Widget>(
+		this,
+		_controller,
+		Dialogs::Widget::Layout::Main)
 	: nullptr)
 , _history(std::in_place, this, _controller)
 , _playerPlaylist(this, _controller)
@@ -612,12 +615,12 @@ bool MainWidget::sendPaths(not_null<Data::Thread*> thread) {
 		Ui::show(Ui::MakeInformBox(*error));
 		return false;
 	} else {
-		controller()->showThread(
+		_controller->showThread(
 			thread,
 			ShowAtTheEndMsgId,
 			Window::SectionShow::Way::ClearStack);
 	}
-	return (controller()->activeChatCurrent().thread() == thread)
+	return (_controller->activeChatCurrent().thread() == thread)
 		&& (_mainSection
 			? _mainSection->confirmSendingFiles(cSendPaths())
 			: _history->confirmSendingFiles(cSendPaths()));
@@ -655,11 +658,11 @@ bool MainWidget::onFilesOrForwardDrop(
 		Ui::show(Ui::MakeInformBox(tr::lng_forward_send_files_cant()));
 		return false;
 	} else {
-		controller()->showThread(
+		_controller->showThread(
 			thread,
 			ShowAtTheEndMsgId,
 			Window::SectionShow::Way::ClearStack);
-		if (controller()->activeChatCurrent().thread() != thread) {
+		if (_controller->activeChatCurrent().thread() != thread) {
 			return false;
 		}
 		(_mainSection
@@ -678,7 +681,7 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 		return;
 	}
 	_hider.release();
-	controller()->setSelectingPeer(false);
+	_controller->setSelectingPeer(false);
 
 	Assert(_dialogs != nullptr);
 	if (isOneColumn()) {
@@ -703,12 +706,12 @@ void MainWidget::clearHider(not_null<Window::HistoryHider*> instance) {
 }
 
 void MainWidget::hiderLayer(base::unique_qptr<Window::HistoryHider> hider) {
-	if (!_dialogs || controller()->window().locked()) {
+	if (!_dialogs || _controller->window().locked()) {
 		return;
 	}
 
 	_hider = std::move(hider);
-	controller()->setSelectingPeer(true);
+	_controller->setSelectingPeer(true);
 
 	_dialogs->closeForwardBarRequests(
 	) | rpl::start_with_next([=] {
@@ -812,7 +815,7 @@ void MainWidget::clearSelectingPeer() {
 	if (_hider) {
 		_hider->startHide();
 		_hider.release();
-		controller()->setSelectingPeer(false);
+		_controller->setSelectingPeer(false);
 	}
 }
 
@@ -821,8 +824,8 @@ void MainWidget::sendBotCommand(Bot::SendCommandRequest request) {
 		? _mainSection->sendBotCommand(request)
 		: Window::SectionActionResult::Fallback;
 	if (type == Window::SectionActionResult::Fallback) {
-		ui_showPeerHistory(
-			request.peer->id,
+		_controller->showPeerHistory(
+			request.peer,
 			SectionShow::Way::Forward,
 			ShowAtTheEndMsgId);
 		_history->sendBotCommand(request);
@@ -1275,7 +1278,7 @@ void MainWidget::chooseThread(
 	if (selectingPeer()) {
 		_hider->offerThread(thread);
 	} else {
-		controller()->showThread(
+		_controller->showThread(
 			thread,
 			showAtMsgId,
 			Window::SectionShow::Way::ClearStack);
@@ -1301,8 +1304,8 @@ void MainWidget::showChooseReportMessages(
 		Ui::ReportReason reason,
 		Fn<void(MessageIdsList)> done) {
 	_history->setChooseReportMessagesDetails(reason, std::move(done));
-	ui_showPeerHistory(
-		peer->id,
+	_controller->showPeerHistory(
+		peer,
 		SectionShow::Way::Forward,
 		ShowForChooseMessagesMsgId);
 	Ui::ShowMultilineToast({
@@ -1325,7 +1328,7 @@ bool MainWidget::showHistoryInDifferentWindow(
 		MsgId showAtMsgId) {
 	const auto peer = session().data().peer(peerId);
 	if (const auto separate = Core::App().separateWindowForPeer(peer)) {
-		if (separate == &controller()->window()) {
+		if (separate == &_controller->window()) {
 			return false;
 		}
 		separate->sessionController()->showPeerHistory(
@@ -1351,7 +1354,7 @@ bool MainWidget::showHistoryInDifferentWindow(
 	return true;
 }
 
-void MainWidget::ui_showPeerHistory(
+void MainWidget::showPeerHistory(
 		PeerId peerId,
 		const SectionShow &params,
 		MsgId showAtMsgId) {
@@ -1367,7 +1370,7 @@ void MainWidget::ui_showPeerHistory(
 		if (!unavailable.isEmpty()) {
 			Assert(isPrimary());
 			if (params.activation != anim::activation::background) {
-				controller()->show(Ui::MakeInformBox(unavailable));
+				_controller->show(Ui::MakeInformBox(unavailable));
 			}
 			return;
 		}
@@ -1383,7 +1386,7 @@ void MainWidget::ui_showPeerHistory(
 
 	if (!(_history->peer() && _history->peer()->id == peerId)
 		&& preventsCloseSection(
-			[=] { ui_showPeerHistory(peerId, params, showAtMsgId); },
+			[=] { showPeerHistory(peerId, params, showAtMsgId); },
 			params)) {
 		return;
 	}
@@ -1435,7 +1438,7 @@ void MainWidget::ui_showPeerHistory(
 
 	const auto wasActivePeer = _controller->activeChatCurrent().peer();
 	if (params.activation != anim::activation::background) {
-		controller()->window().hideSettingsAndLayer();
+		_controller->window().hideSettingsAndLayer();
 	}
 
 	auto animatedShow = [&] {
@@ -1484,7 +1487,7 @@ void MainWidget::ui_showPeerHistory(
 
 	if (noPeer) {
 		_controller->setActiveChatEntry(Dialogs::Key());
-		_controller->setChatStyleTheme(controller()->defaultChatTheme());
+		_controller->setChatStyleTheme(_controller->defaultChatTheme());
 	}
 
 	if (onlyDialogs) {
@@ -1547,7 +1550,7 @@ void MainWidget::showMessage(
 				return;
 			}
 		} else if (_history->peer() == item->history()->peer) {
-			ui_showPeerHistory(peerId, params, itemId);
+			showPeerHistory(peerId, params, itemId);
 			return;
 		}
 	}
@@ -1558,6 +1561,18 @@ void MainWidget::showMessage(
 			item->history(),
 			params,
 			item->id);
+	}
+}
+
+void MainWidget::showForum(
+		not_null<Data::Forum*> forum,
+		const SectionShow &params) {
+	Expects(isPrimary() || (singlePeer() && singlePeer()->forum() == forum));
+
+	_dialogs->showForum(forum, params);
+
+	if (params.activation != anim::activation::background) {
+		_controller->hideLayer();
 	}
 }
 
@@ -1749,7 +1764,7 @@ void MainWidget::showNewSection(
 	}
 
 	if (params.activation != anim::activation::background) {
-		controller()->window().hideSettingsAndLayer();
+		_controller->window().hideSettingsAndLayer();
 	}
 
 	_controller->setDialogsListFocused(false);
@@ -2657,7 +2672,7 @@ void MainWidget::handleHistoryBack() {
 		return;
 	}
 	const auto openedFolder = _controller->openedFolder().current();
-	const auto openedForum = _controller->openedForum().current();
+	const auto openedForum = _controller->shownForum().current();
 	const auto rootPeer = !_stack.empty()
 		? _stack.front()->peer()
 		: _history->peer()

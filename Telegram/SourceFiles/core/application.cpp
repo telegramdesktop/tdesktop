@@ -1241,8 +1241,10 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 				PeerId(0),
 				Window::SectionShow::Way::ClearStack);
 		}
-		if (primary->openedForum().current() == peer) {
-			primary->closeForum();
+		if (const auto forum = primary->shownForum().current()) {
+			if (peer->forum() == forum) {
+				primary->closeForum();
+			}
 		}
 	}
 }

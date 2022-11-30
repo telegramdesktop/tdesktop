@@ -40,8 +40,8 @@ namespace Ui {
 
 // Legacy global methods.
 
-void showPeerHistory(not_null<const PeerData*> peer, MsgId msgId);
-void showPeerHistory(not_null<const History*> history, MsgId msgId);
+void showPeerHistory(not_null<PeerData*> peer, MsgId msgId);
+void showPeerHistory(not_null<History*> history, MsgId msgId);
 void showChatsList(not_null<Main::Session*> session);
 
 bool skipPaintEvent(QWidget *widget, QPaintEvent *event);

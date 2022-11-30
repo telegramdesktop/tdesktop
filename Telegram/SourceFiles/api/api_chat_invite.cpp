@@ -116,14 +116,11 @@ void CheckChatInvite(
 		}
 		Core::App().hideMediaView();
 		const auto show = [&](not_null<PeerData*> chat) {
+			const auto way = Window::SectionShow::Way::Forward;
 			if (const auto forum = chat->forum()) {
-				strong->openForum(
-					forum->channel(),
-					Window::SectionShow::Way::Forward);
+				strong->showForum(forum, way);
 			} else {
-				strong->showPeerHistory(
-					chat,
-					Window::SectionShow::Way::Forward);
+				strong->showPeerHistory(chat, way);
 			}
 		};
 		result.match([=](const MTPDchatInvite &data) {

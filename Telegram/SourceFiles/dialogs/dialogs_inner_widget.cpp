@@ -149,6 +149,9 @@ InnerWidget::InnerWidget(
 , _pinnedShiftAnimation([=](crl::time now) {
 	return pinnedShiftAnimationCallback(now);
 })
+, _narrowWidth(st::defaultDialogRow.padding.left()
+	+ st::defaultDialogRow.photoSize
+	+ st::defaultDialogRow.padding.left())
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
 , _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
@@ -487,9 +490,8 @@ void InnerWidget::changeOpenedFolder(Data::Folder *folder) {
 	}
 }
 
-void InnerWidget::changeOpenedForum(ChannelData *forum) {
-	const auto now = _openedForum ? _openedForum->channel().get() : nullptr;
-	if (now == forum) {
+void InnerWidget::changeOpenedForum(Data::Forum *forum) {
+	if (_openedForum == forum) {
 		return;
 	}
 	stopReorderPinned();
@@ -501,19 +503,19 @@ void InnerWidget::changeOpenedForum(ChannelData *forum) {
 	_filterId = forum
 		? 0
 		: _controller->activeChatsFilterCurrent();
-	if (const auto old = now ? now->forum() : nullptr) {
+	if (_openedForum) {
 		// If we close it inside forum destruction we should not schedule.
-		old->owner().forumIcons().scheduleUserpicsReset(old);
+		session().data().forumIcons().scheduleUserpicsReset(_openedForum);
 	}
-	_openedForum = forum ? forum->forum() : nullptr;
+	_openedForum = forum;
 	_st = forum ? &st::forumTopicRow : &st::defaultDialogRow;
 	refreshShownList();
 
 	_openedForumLifetime.destroy();
 	if (forum) {
 		rpl::merge(
-			forum->forum()->chatsListChanges(),
-			forum->forum()->chatsListLoadedEvents()
+			forum->chatsListChanges(),
+			forum->chatsListLoadedEvents()
 		) | rpl::start_with_next([=] {
 			refresh();
 		}, _openedForumLifetime);
@@ -571,7 +573,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				&& _selectedTopicJump
 				&& (!_pressed || _pressedTopicJump)),
 			.paused = videoPaused,
-			.narrow = (fullWidth < st::columnMinimalWidthLeft),
+			.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 		});
 	};
 	if (_state == WidgetState::Default) {
@@ -826,7 +828,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.selected = selected,
 						.paused = videoPaused,
 						.search = true,
-						.narrow = (fullWidth < st::columnMinimalWidthLeft),
+						.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 						.displayUnreadInfo = showUnreadInSearchResults,
 					});
 					p.translate(0, _st->height);
@@ -896,7 +898,7 @@ void InnerWidget::paintCollapsedRow(
 		.st = _st,
 		.width = fullWidth,
 		.selected = selected,
-		.narrow = (fullWidth < st::columnMinimalWidthLeft),
+		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
 	});
 }
 
@@ -1698,7 +1700,9 @@ void InnerWidget::resizeEvent(QResizeEvent *e) {
 }
 
 void InnerWidget::moveCancelSearchButtons() {
-	const auto widthForCancelButton = qMax(width(), st::columnMinimalWidthLeft);
+	const auto widthForCancelButton = qMax(
+		width(),
+		st::columnMinimalWidthLeft - _narrowWidth);
 	const auto left = widthForCancelButton - st::dialogsSearchInSkip - _cancelSearchInChat->width();
 	const auto top = (st::dialogsSearchInHeight - st::dialogsCancelSearchInPeer.height) / 2;
 	_cancelSearchInChat->moveToLeft(left, st::searchedBarHeight + top);

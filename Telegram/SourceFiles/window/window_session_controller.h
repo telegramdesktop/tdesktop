@@ -69,6 +69,7 @@ namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
 class Thread;
+class Forum;
 class ForumTopic;
 } // namespace Data
 
@@ -151,12 +152,17 @@ struct SectionShow {
 	, activation(activation) {
 	}
 
-	SectionShow withWay(Way newWay) const {
+	[[nodiscard]] SectionShow withWay(Way newWay) const {
 		return SectionShow(newWay, animated, activation);
 	}
-	SectionShow withThirdColumn() const {
+	[[nodiscard]] SectionShow withThirdColumn() const {
 		auto copy = *this;
 		copy.thirdColumn = true;
+		return copy;
+	}
+	[[nodiscard]] SectionShow withChildColumn() const {
+		auto copy = *this;
+		copy.childColumn = true;
 		return copy;
 	}
 
@@ -164,6 +170,7 @@ struct SectionShow {
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
+	bool childColumn = false;
 	Origin origin;
 
 };
@@ -358,11 +365,11 @@ public:
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
 
-	void openForum(
-		not_null<ChannelData*> forum,
+	void showForum(
+		not_null<Data::Forum*> forum,
 		const SectionShow &params = SectionShow::Way::ClearStack);
 	void closeForum();
-	const rpl::variable<ChannelData*> &openedForum() const;
+	const rpl::variable<Data::Forum*> &shownForum() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -634,8 +641,8 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
-	rpl::variable<ChannelData*> _openedForum;
-	rpl::lifetime _openedForumLifetime;
+	rpl::variable<Data::Forum*> _shownForum;
+	rpl::lifetime _shownForumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

@@ -466,6 +466,11 @@ Window::SessionController *Session::tryResolveWindow() const {
 			return nullptr;
 		}
 	}
+	for (const auto &window : _windows) {
+		if (window->isPrimary()) {
+			return window;
+		}
+	}
 	return _windows.front();
 }
 

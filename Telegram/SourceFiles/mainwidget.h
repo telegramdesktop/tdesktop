@@ -45,6 +45,7 @@ namespace Data {
 class Thread;
 class WallPaper;
 struct ForwardDraft;
+class Forum;
 } // namespace Data
 
 namespace Dialogs {
@@ -216,13 +217,14 @@ public:
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
-	void ui_showPeerHistory(
+	void showPeerHistory(
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
 	void showMessage(
 		not_null<const HistoryItem*> item,
 		const SectionShow &params);
+	void showForum(not_null<Data::Forum*> forum, const SectionShow &params);
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
