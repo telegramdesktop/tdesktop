@@ -3281,10 +3281,13 @@ bool InnerWidget::chooseRow(
 						};
 					} else if (!_controller->adaptive().isOneColumn()) {
 						const auto &recent = forum->recentTopics();
-						if (!recent.empty()) {
+						const auto topic = recent.empty()
+							? nullptr
+							: recent.front().get();
+						if (topic && !topic->chatListBadgesState().unread) {
 							chosen.message.fullId = {
 								history->peer->id,
-								recent.front()->rootId(),
+								topic->rootId(),
 							};
 						}
 					}
