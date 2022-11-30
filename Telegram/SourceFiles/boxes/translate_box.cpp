@@ -44,6 +44,7 @@ namespace {
 		QLocale::Czech,
 		QLocale::Danish,
 		QLocale::Dutch,
+		QLocale::Esperanto,
 		QLocale::Estonian,
 		QLocale::French,
 		QLocale::German,
