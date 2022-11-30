@@ -952,7 +952,7 @@ void Notification::updateNotifyDisplay() {
 				context);
 			_textRect = r;
 			paintText(p);
-			if (!_textCache.hasPersistentAnimation()) {
+			if (!_textCache.hasPersistentAnimation() && !_topic) {
 				_textCache = Ui::Text::String();
 			}
 		} else {
