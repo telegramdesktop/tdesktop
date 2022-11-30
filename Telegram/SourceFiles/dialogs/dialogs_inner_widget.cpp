@@ -1170,7 +1170,7 @@ void InnerWidget::clearIrrelevantState() {
 		setHashtagPressed(-1);
 		_hashtagDeleteSelected = _hashtagDeletePressed = false;
 		_filteredSelected = -1;
-		setFilteredPressed(-1);
+		setFilteredPressed(-1, false);
 		_peerSearchSelected = -1;
 		setPeerSearchPressed(-1);
 		_searchedSelected = -1;
@@ -1297,7 +1297,7 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 	setCollapsedPressed(_collapsedSelected);
 	setHashtagPressed(_hashtagSelected);
 	_hashtagDeletePressed = _hashtagDeleteSelected;
-	setFilteredPressed(_filteredSelected);
+	setFilteredPressed(_filteredSelected, _selectedTopicJump);
 	setPeerSearchPressed(_peerSearchSelected);
 	setSearchedPressed(_searchedSelected);
 	if (base::in_range(_collapsedSelected, 0, _collapsedRows.size())) {
@@ -1336,10 +1336,21 @@ void InnerWidget::mousePressEvent(QMouseEvent *e) {
 		const auto &result = _filterResults[_filteredPressed];
 		const auto row = result.row;
 		const auto filterId = _filterId;
-		row->addRipple(
-			e->pos() - QPoint(0, filteredOffset() + result.top),
-			QSize(width(), row->height()),
-			[=] { repaintDialogRow(filterId, row); });
+		const auto origin = e->pos()
+			- QPoint(0, filteredOffset() + result.top);
+		const auto updateCallback = [=] { repaintDialogRow(filterId, row); };
+		if (_pressedTopicJump) {
+			row->addTopicJumpRipple(
+				origin,
+				_topicJumpCache.get(),
+				updateCallback);
+		} else {
+			row->clearTopicJumpRipple();
+			row->addRipple(
+				origin,
+				QSize(width(), row->height()),
+				updateCallback);
+		}
 	} else if (base::in_range(_peerSearchPressed, 0, _peerSearchResults.size())) {
 		auto &result = _peerSearchResults[_peerSearchPressed];
 		auto row = &result->row;
@@ -1613,7 +1624,7 @@ void InnerWidget::mousePressReleased(
 	auto hashtagDeletePressed = _hashtagDeletePressed;
 	_hashtagDeletePressed = false;
 	auto filteredPressed = _filteredPressed;
-	setFilteredPressed(-1);
+	setFilteredPressed(-1, false);
 	auto peerSearchPressed = _peerSearchPressed;
 	setPeerSearchPressed(-1);
 	auto searchedPressed = _searchedPressed;
@@ -1655,10 +1666,14 @@ void InnerWidget::setPressed(Row *pressed, bool pressedTopicJump) {
 			_pressed->stopLastRipple();
 		}
 		_pressed = pressed;
-		_pressedTopicJump = pressedTopicJump;
-		const auto history = pressedTopicJump ? pressed->history() : nullptr;
-		const auto item = history ? history->chatListMessage() : nullptr;
-		_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
+		if (pressed || !pressedTopicJump) {
+			_pressedTopicJump = pressedTopicJump;
+			const auto history = pressedTopicJump
+				? pressed->history()
+				: nullptr;
+			const auto item = history ? history->chatListMessage() : nullptr;
+			_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
+		}
 	}
 }
 
@@ -1673,11 +1688,22 @@ void InnerWidget::setHashtagPressed(int pressed) {
 	_hashtagPressed = pressed;
 }
 
-void InnerWidget::setFilteredPressed(int pressed) {
-	if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
-		_filterResults[_filteredPressed].row->stopLastRipple();
+void InnerWidget::setFilteredPressed(int pressed, bool pressedTopicJump) {
+	if (_filteredPressed != pressed
+		|| _pressedTopicJump != pressedTopicJump) {
+		if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
+			_filterResults[_filteredPressed].row->stopLastRipple();
+		}
+		_filteredPressed = pressed;
+		if (pressed >= 0 || !pressedTopicJump) {
+			_pressedTopicJump = pressedTopicJump;
+			const auto history = pressedTopicJump
+				? _filterResults[pressed].row->history()
+				: nullptr;
+			const auto item = history ? history->chatListMessage() : nullptr;
+			_pressedTopicJumpRootId = item ? item->topicRootId() : MsgId();
+		}
 	}
-	_filteredPressed = pressed;
 }
 
 void InnerWidget::setPeerSearchPressed(int pressed) {

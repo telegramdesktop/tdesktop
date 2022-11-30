@@ -246,7 +246,7 @@ private:
 	void setPressed(Row *pressed, bool pressedTopicJump);
 	void clearPressed();
 	void setHashtagPressed(int pressed);
-	void setFilteredPressed(int pressed);
+	void setFilteredPressed(int pressed, bool pressedTopicJump);
 	void setPeerSearchPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
