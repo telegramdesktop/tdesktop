@@ -190,7 +190,9 @@ void TTLBox(not_null<Ui::GenericBox*> box, Args args) {
 	const auto pickerTtl = TimePickerBox(box, ttls, phrases, args.startTtl);
 
 	Ui::ConfirmBox(box, {
-		.confirmed = [=] { args.callback(pickerTtl()); },
+		.confirmed = [=](Fn<void()> close) {
+			args.callback(pickerTtl(), std::move(close));
+		},
 		.confirmText = tr::lng_settings_save(),
 		.cancelText = tr::lng_cancel(),
 	});
@@ -199,7 +201,7 @@ void TTLBox(not_null<Ui::GenericBox*> box, Args args) {
 
 	if (args.startTtl && !args.hideDisable) {
 		box->addLeftButton(tr::lng_manage_messages_ttl_disable(), [=] {
-			args.callback(0);
+			args.callback(0, [=] { box->closeBox(); });
 			box->getDelegate()->hideLayer();
 		});
 	}

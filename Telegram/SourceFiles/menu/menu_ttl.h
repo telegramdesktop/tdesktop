@@ -22,7 +22,7 @@ struct Args {
 	std::shared_ptr<Ui::Show> show;
 	TimeId startTtl;
 	rpl::producer<TextWithEntities> about;
-	Fn<void(TimeId)> callback;
+	Fn<void(TimeId, Fn<void()>)> callback;
 	bool hideDisable = false;
 };
 

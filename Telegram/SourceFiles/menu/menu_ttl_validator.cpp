@@ -68,7 +68,9 @@ Args TTLValidator::createArgs() const {
 		mtpRequestId savingRequestId = 0;
 	};
 	const auto state = std::make_shared<State>();
-	auto callback = [=, toastParent = show->toastParent()](TimeId period) {
+	auto callback = [=, toastParent = show->toastParent()](
+			TimeId period,
+			Fn<void()>) {
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
 			if (period == state->savingPeriod) {
@@ -84,11 +86,6 @@ Args TTLValidator::createArgs() const {
 			peer->session().api().applyUpdates(result);
 			ShowAutoDeleteToast(toastParent, peer);
 			state->savingRequestId = 0;
-#if 0
-			if (const auto strong = state->weak.data()) {
-				strong->closeBox();
-			}
-#endif
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();

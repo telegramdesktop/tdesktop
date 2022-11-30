@@ -356,7 +356,7 @@ void GlobalTTL::setupContent() {
 		show->showBox(Box(TTLMenu::TTLBox, TTLMenu::Args{
 			.show = show,
 			.startTtl = _group->value(),
-			.callback = [=](TimeId ttl) { showSure(ttl, true); },
+			.callback = [=](TimeId ttl, Fn<void()>) { showSure(ttl, true); },
 			.hideDisable = true,
 		}));
 	});
