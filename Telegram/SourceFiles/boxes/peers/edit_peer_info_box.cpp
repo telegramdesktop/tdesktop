@@ -863,8 +863,7 @@ void Controller::fillForumButton() {
 				ShowForumForDiscussionError(_navigation);
 			} else {
 				Ui::ShowMultilineToast({
-					.parentOverride = Window::Show(
-						_navigation).toastParent(),
+					.parentOverride = Window::Show(_navigation).toastParent(),
 					.text = tr::lng_forum_topics_not_enough(
 						tr::now,
 						lt_count,

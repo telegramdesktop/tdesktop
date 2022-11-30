@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/max_invite_box.h"
 #include "boxes/add_contact_box.h"
 #include "main/main_session.h"
+#include "menu/menu_antispam_validator.h"
 #include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -1186,6 +1187,12 @@ void ParticipantsBoxController::prepare() {
 		}
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
+	if ((_role == Role::Admins) && _peer->isMegagroup()) {
+		const auto validator = AntiSpamMenu::AntiSpamValidator(
+			_navigation->parentController(),
+			_peer->asChannel());
+		delegate()->peerListSetAboveWidget(validator.createButton());
+	}
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(std::move(title));
 	setDescriptionText(tr::lng_contacts_loading(tr::now));

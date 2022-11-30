@@ -13,7 +13,6 @@ class PeerData;
 
 namespace Ui {
 class Show;
-class RpWidget;
 } // namespace Ui
 
 namespace TTLMenu {
