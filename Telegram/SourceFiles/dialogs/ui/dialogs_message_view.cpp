@@ -326,7 +326,7 @@ void MessageView::paint(
 		rect.setLeft(rect.x() + _textCache.maxWidth());
 	}
 	if (jump1) {
-		const auto x = (rect.width() > st::forumDialogJumpArrowSkip)
+		const auto x = (rect.width() > 0)
 			? rect.x()
 			: finalRight;
 		const auto add = st::forumDialogJumpArrowLeft;

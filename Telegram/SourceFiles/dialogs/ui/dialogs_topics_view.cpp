@@ -119,6 +119,7 @@ void TopicsView::paint(
 		? st::dialogsTextPaletteArchiveOver
 		: st::dialogsTextPaletteArchive);
 	auto rect = geometry;
+	rect.setWidth(rect.width() - _lastTopicJumpGeometry.rightCut);
 	auto skipBig = _jumpToTopic && !context.active;
 	if (_titles.empty()) {
 		p.drawText(
@@ -225,10 +226,12 @@ QImage TopicsView::topicJumpRippleMask(
 }
 
 JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
-	const auto availableWidth = context.geometry.width();
-	const auto use1 = std::min(context.width1, availableWidth);
-	const auto use2 = std::min(context.width2, availableWidth);
 	const auto padding = st::forumDialogJumpPadding;
+	const auto availableWidth = context.geometry.width();
+	const auto want1 = std::min(context.width1, availableWidth);
+	const auto use1 = std::min(want1, availableWidth - padding.right());
+	const auto use2 = std::min(context.width2, availableWidth);
+	const auto rightCut = want1 - use1;
 	const auto origin = context.geometry.topLeft();
 	const auto delta = std::abs(use1 - use2);
 	if (delta <= context.st->topicsSkip / 2) {
@@ -236,7 +239,7 @@ JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
 		const auto h = context.st->topicsHeight + st::normalFont->height;
 		const auto fill = QRect(origin, QSize(w, h));
 		const auto full = fill.marginsAdded(padding);
-		auto result = JumpToLastGeometry{ full };
+		auto result = JumpToLastGeometry{ rightCut, full };
 		FillJumpToLastPrepared(p, {
 			.st = context.st,
 			.corners = context.corners,
@@ -262,7 +265,7 @@ JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
 		padding.right(),
 		padding.bottom(),
 	});
-	auto result = JumpToLastGeometry{ fill1, fill2 };
+	auto result = JumpToLastGeometry{ rightCut, fill1, fill2 };
 	FillJumpToLastPrepared(p, {
 		.st = context.st,
 		.corners = context.corners,

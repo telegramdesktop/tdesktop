@@ -39,6 +39,7 @@ struct JumpToLastBg {
 	int width2 = 0;
 };
 struct JumpToLastGeometry {
+	int rightCut = 0;
 	QRect area1;
 	QRect area2;
 
