@@ -546,6 +546,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto fullWidth = width();
 	auto dialogsClip = r;
 	const auto ms = crl::now();
+	const auto shownForum = _controller->shownForum().current();
 	const auto paintRow = [&](
 			not_null<Row*> row,
 			bool selected,
@@ -557,6 +558,10 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (forum && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
+		const auto expanded = !active
+			&& forum
+			&& !_openedForum
+			&& (key.history()->peer->forum() == shownForum);
 		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
 			.st = (forum ? &st::forumDialogRow : _st.get()),
 			.topicJumpCache = _topicJumpCache.get(),
@@ -569,6 +574,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			.selected = (_menuRow.key
 				? (row->key() == _menuRow.key)
 				: selected),
+			.topicsExpanded = expanded,
 			.topicJumpSelected = (selected
 				&& _selectedTopicJump
 				&& (!_pressed || _pressedTopicJump)),

@@ -62,6 +62,7 @@ struct PaintContext {
 	int width = 0;
 	bool active = false;
 	bool selected = false;
+	bool topicsExpanded = false;
 	bool topicJumpSelected = false;
 	bool paused = false;
 	bool search = false;

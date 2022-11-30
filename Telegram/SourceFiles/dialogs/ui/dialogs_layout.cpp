@@ -186,6 +186,21 @@ int PaintBadges(
 	return (initial - right);
 }
 
+void PaintExpandedTopicsBar(QPainter &p) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = st::roundRadiusLarge;
+	const auto width = st::forumDialogRow.padding.left() / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::dialogsBgActive);
+	p.drawRoundedRect(
+		-3 * radius,
+		st::forumDialogRow.padding.top(),
+		3 * radius + width,
+		st::forumDialogRow.photoSize,
+		radius,
+		radius);
+}
+
 void PaintNarrowCounter(
 		QPainter &p,
 		const PaintContext &context,
@@ -337,6 +352,9 @@ void PaintRow(
 	if (context.narrow) {
 		if (!draft && item && !item->isEmpty()) {
 			PaintNarrowCounter(p, context, badgesState);
+		}
+		if (context.topicsExpanded) {
+			PaintExpandedTopicsBar(p);
 		}
 		return;
 	}
