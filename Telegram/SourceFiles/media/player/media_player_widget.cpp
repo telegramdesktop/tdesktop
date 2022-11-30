@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
-#include "facades.h"
 
 namespace Media {
 namespace Player {

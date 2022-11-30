@@ -536,14 +536,14 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 
 	p.setInactive(
 		_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
-	const auto r = e->rect();
-	if (_controller->widget()->contentOverlapped(this, r)) {
+	if (_controller->contentOverlapped(this, e)) {
 		return;
 	}
 	const auto activeEntry = _controller->activeChatEntryCurrent();
 	const auto videoPaused = _controller->isGifPausedAtLeastFor(
 		Window::GifPauseReason::Any);
 	auto fullWidth = width();
+	const auto r = e->rect();
 	auto dialogsClip = r;
 	const auto ms = crl::now();
 	const auto shownForum = _controller->shownForum().current();

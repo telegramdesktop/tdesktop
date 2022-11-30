@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
-#include "facades.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>

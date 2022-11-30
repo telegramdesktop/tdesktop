@@ -59,7 +59,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
-#include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
 #include "styles/style_menu_icons.h"
@@ -876,7 +875,8 @@ void ActionsFiller::addReportAction() {
 }
 
 void ActionsFiller::addBlockAction(not_null<UserData*> user) {
-	const auto window = &_controller->parentController()->window();
+	const auto controller = _controller->parentController();
+	const auto window = &controller->window();
 
 	auto text = user->session().changes().peerFlagsValue(
 		user,
@@ -905,7 +905,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		if (user->isBlocked()) {
 			Window::PeerMenuUnblockUserWithBotRestart(user);
 			if (user->isBot()) {
-				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+				controller->showPeerHistory(user);
 			}
 		} else if (user->isBot()) {
 			user->session().api().blockedPeers().block(user);

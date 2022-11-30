@@ -1236,10 +1236,7 @@ void Application::closeChatFromWindows(not_null<PeerData*> peer) {
 		const auto primary = _primaryWindow->sessionController();
 		if ((primary->activeChatCurrent().peer() == peer)
 			&& (&primary->session() == &peer->session())) {
-			// showChatsList
-			primary->showPeerHistory(
-				PeerId(0),
-				Window::SectionShow::Way::ClearStack);
+			primary->clearSectionStack();
 		}
 		if (const auto forum = primary->shownForum().current()) {
 			if (peer->forum() == forum) {

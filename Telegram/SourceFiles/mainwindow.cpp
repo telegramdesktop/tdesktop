@@ -50,7 +50,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h" // App::wnd.
 #include "window/window_session_controller.h"
 #include "window/window_media_preview.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
 #include "styles/style_window.h"
@@ -556,9 +555,8 @@ void MainWindow::checkActivation() {
 }
 
 bool MainWindow::contentOverlapped(const QRect &globalRect) {
-	if (_main && _main->contentOverlapped(globalRect)) return true;
-	if (_layer && _layer->contentOverlapped(globalRect)) return true;
-	return false;
+	return (_main && _main->contentOverlapped(globalRect))
+		|| (_layer && _layer->contentOverlapped(globalRect));
 }
 
 void MainWindow::setInnerFocus() {

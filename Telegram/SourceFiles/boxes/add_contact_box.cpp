@@ -42,7 +42,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_invite_links.h"
 #include "api/api_peer_photo.h"
 #include "main/main_session.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_dialogs.h"
@@ -98,7 +97,7 @@ void ChatCreateDone(
 					chat,
 					std::move(image));
 			}
-			Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+			navigation->showPeerHistory(chat);
 		};
 	if (!success) {
 		LOG(("API Error: chat not found in updates "
@@ -398,7 +397,9 @@ void AddContactBox::save() {
 			: extractUser(list.front());
 		if (user) {
 			if (user->isContact() || user->session().supportMode()) {
-				Ui::showPeerHistory(user, ShowAtTheEndMsgId);
+				if (const auto window = user->session().tryResolveWindow()) {
+					window->showPeerHistory(user);
+				}
 			}
 			if (weak) { // showPeerHistory could close the box.
 				getDelegate()->hideLayer();

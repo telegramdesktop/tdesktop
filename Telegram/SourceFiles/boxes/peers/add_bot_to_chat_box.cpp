@@ -26,7 +26,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_chat_participants.h"
 #include "window/window_session_controller.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_boxes.h"
 
 namespace {
@@ -406,5 +405,7 @@ void AddBotToGroup(
 	} else {
 		chat->session().api().chatParticipants().add(chat, { 1, bot });
 	}
-	Ui::showPeerHistory(chat, ShowAtUnreadMsgId);
+	if (const auto window = chat->session().tryResolveWindow()) {
+		window->showPeerHistory(chat);
+	}
 }

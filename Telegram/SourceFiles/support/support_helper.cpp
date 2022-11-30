@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -597,7 +596,7 @@ QString InterpretSendPath(
 		return "App Error: Could not find channel with id: "
 			+ QString::number(peerToChannel(toId).bare);
 	}
-	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+	window->showPeerHistory(history);
 	const auto premium = window->session().user()->isPremium();
 	history->session().api().sendFiles(
 		Storage::PrepareMediaList(

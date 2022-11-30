@@ -554,7 +554,9 @@ public:
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e);
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 

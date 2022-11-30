@@ -23,7 +23,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_slide_animation.h"
 #include "window/window_session_controller.h"
 #include "main/main_domain.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -77,7 +76,7 @@ void LockWidget::showFinished() {
 	showChildren();
 	_window->widget()->setInnerFocus();
 	if (const auto controller = _window->sessionController()) {
-		Ui::showChatsList(&controller->session());
+		controller->clearSectionStack();
 	}
 	_cacheUnder = _cacheOver = QPixmap();
 }

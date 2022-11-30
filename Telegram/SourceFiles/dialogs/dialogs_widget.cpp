@@ -62,7 +62,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "info/downloads/info_downloads_widget.h"
 #include "info/info_memento.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_info.h"
@@ -745,12 +744,13 @@ void Widget::changeOpenedSubsection(
 	if (isHidden()) {
 		animated = anim::type::instant;
 	}
+	auto cacheUnder = QPixmap();
+	const auto showDirection = fromRight
+		? Window::SlideDirection::FromRight
+		: Window::SlideDirection::FromLeft;
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
-		_cacheUnder = grabForFolderSlideAnimation();
-		_showDirection = fromRight
-			? Window::SlideDirection::FromRight
-			: Window::SlideDirection::FromLeft;
+		cacheUnder = grabForFolderSlideAnimation();
 	}
 	_a_show.stop();
 	change();
@@ -760,7 +760,7 @@ void Widget::changeOpenedSubsection(
 	_api.request(base::take(_topicSearchRequest)).cancel();
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
-		_cacheOver = grabForFolderSlideAnimation();
+		auto cacheOver = grabForFolderSlideAnimation();
 		_connecting->setForceHidden(false);
 		startSlideAnimation();
 	}
@@ -2297,7 +2297,7 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 }
 
 void Widget::paintEvent(QPaintEvent *e) {
-	if (controller()->widget()->contentOverlapped(this, e)) {
+	if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
 

@@ -109,7 +109,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_facade.h"
 #include "storage/storage_shared_media.h"
 #include "storage/storage_user_photos.h"
-#include "facades.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
@@ -737,7 +736,7 @@ void MainWidget::searchMessages(const QString &query, Dialogs::Key inChat) {
 	}
 	_dialogs->searchMessages(query, inChat);
 	if (isOneColumn()) {
-		Ui::showChatsList(&session());
+		_controller->clearSectionStack();
 	} else {
 		_dialogs->setInnerFocus();
 	}
@@ -2642,7 +2641,7 @@ void MainWidget::searchInChat(Dialogs::Key chat) {
 	}
 	_dialogs->searchInChat(chat);
 	if (isOneColumn()) {
-		Ui::showChatsList(&session());
+		_controller->clearSectionStack();
 	} else {
 		_dialogs->setInnerFocus();
 	}

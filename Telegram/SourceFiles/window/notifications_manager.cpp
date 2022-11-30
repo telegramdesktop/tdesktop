@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_domain.h"
 #include "ui/text/text_utilities.h"
-#include "facades.h"
 
 #include <QtGui/QWindow>
 

@@ -57,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
-#include "facades.h"
 #include "styles/style_settings.h"
 #include "styles/style_boxes.h"
 #include "styles/style_info.h"
@@ -571,7 +570,7 @@ void SetupHelp(
 				result.match([&](const MTPDhelp_support &data) {
 					auto &owner = controller->session().data();
 					if (const auto user = owner.processUser(data.vuser())) {
-						Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+						controller->showPeerHistory(user);
 					}
 				});
 			}).fail([=] {

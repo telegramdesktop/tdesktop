@@ -24,7 +24,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_settings.h"
 #include "window/notifications_manager.h"
 #include "data/data_peer_values.h" // Data::AmPremiumValue.
-#include "facades.h"
 
 namespace Main {
 

@@ -7662,7 +7662,7 @@ bool HistoryWidget::paintShowAnimationFrame() {
 
 void HistoryWidget::paintEvent(QPaintEvent *e) {
 	if (paintShowAnimationFrame()
-		|| controller()->window().widget()->contentOverlapped(this, e)) {
+		|| controller()->contentOverlapped(this, e)) {
 		return;
 	}
 	if (hasPendingResizedItems()) {

@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "storage/file_download.h"
 #include "core/application.h"
-#include "facades.h"
 
 namespace {
 

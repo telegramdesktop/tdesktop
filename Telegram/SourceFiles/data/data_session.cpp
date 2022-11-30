@@ -77,7 +77,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/call_delayed.h"
 #include "base/random.h"
-#include "facades.h" // Notify::switchInlineBotButtonReceived
 #include "styles/style_boxes.h" // st::backgroundSize
 
 namespace Data {

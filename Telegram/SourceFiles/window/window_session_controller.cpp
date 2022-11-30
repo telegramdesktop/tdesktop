@@ -79,7 +79,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_blocked_peers.h"
 #include "support/support_helper.h"
 #include "storage/file_upload.h"
-#include "facades.h"
 #include "window/themes/window_theme.h"
 #include "window/window_peer_menu.h"
 #include "settings/settings_main.h"
@@ -1124,7 +1123,10 @@ bool SessionController::chatEntryHistoryMove(int steps) {
 
 bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
 	if (const auto history = row.key.history()) {
-		Ui::showPeerHistory(history, row.fullId.msg);
+		showPeerHistory(
+			history,
+			SectionShow::Way::ClearStack,
+			row.fullId.msg);
 		return true;
 	}
 	return false;
@@ -2151,6 +2153,10 @@ void SessionController::setPremiumRef(const QString &ref) {
 
 QString SessionController::premiumRef() const {
 	return _premiumRef;
+}
+
+bool SessionController::contentOverlapped(QWidget *w, QPaintEvent *e) {
+	return widget()->contentOverlapped(w, e);
 }
 
 SessionController::~SessionController() {

@@ -69,12 +69,15 @@ public:
 
 	void sendPaths();
 
-	bool contentOverlapped(const QRect &globalRect);
-	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
-		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
+	[[nodiscard]] bool contentOverlapped(const QRect &globalRect);
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) {
+		return contentOverlapped(
+			QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
 	}
-	bool contentOverlapped(QWidget *w, const QRegion &r) {
-		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
+	[[nodiscard]] bool contentOverlapped(QWidget *w, const QRegion &r) {
+		return contentOverlapped(QRect(
+			w->mapToGlobal(r.boundingRect().topLeft()),
+			r.boundingRect().size()));
 	}
 
 	void showMainMenu();
