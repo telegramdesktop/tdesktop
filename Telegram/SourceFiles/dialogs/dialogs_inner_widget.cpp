@@ -1573,12 +1573,14 @@ bool InnerWidget::pinnedShiftAnimationCallback(crl::time now) {
 		if (updateMax < _draggingIndex) updateMax = _draggingIndex;
 	}
 	if (updateMin >= 0) {
+		const auto minHeight = _st->height;
+		const auto maxHeight = st::forumDialogRow.height;
 		auto top = pinnedOffset();
-		auto updateFrom = top + _st->height * (updateMin - 1);
-		auto updateHeight = _st->height * (updateMax - updateMin + 3);
+		auto updateFrom = top + minHeight * (updateMin - 1);
+		auto updateHeight = maxHeight * (updateMax - updateMin + 3);
 		if (base::in_range(_aboveIndex, 0, _pinnedRows.size())) {
 			// Always include currently dragged chat in its current and old positions.
-			auto aboveRowBottom = top + (_aboveIndex + 1) * _st->height;
+			auto aboveRowBottom = top + (_aboveIndex + 1) * maxHeight;
 			auto aboveTopShift = qCeil(_pinnedRows[_aboveIndex].yadd.current());
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + _aboveTopShift);
 			accumulate_max(updateHeight, (aboveRowBottom - updateFrom) + aboveTopShift);
