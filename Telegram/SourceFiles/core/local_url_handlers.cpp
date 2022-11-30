@@ -37,6 +37,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/view/media_view_open_common.h"
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
+#include "window/window_peer_menu.h"
 #include "window/themes/window_theme_editor_box.h" // GenerateSlug.
 #include "payments/payments_checkout_process.h"
 #include "settings/settings_common.h"
@@ -136,18 +137,23 @@ bool ShareUrl(
 	if (!controller) {
 		return false;
 	}
-	auto params = url_parse_params(
+	const auto params = url_parse_params(
 		match->captured(1),
 		qthelp::UrlParamNameTransform::ToLower);
-	auto url = params.value(u"url"_q);
-	if (url.isEmpty()) {
+	const auto url = params.value(u"url"_q);
+	if (url.isEmpty() || url.trimmed().startsWith('@')) {
+		// Don't allow to insert an inline bot query by share url link.
 		return false;
-	} else {
-		controller->content()->shareUrlLayer(url, params.value("text"));
-		controller->window().activate();
-		return true;
 	}
-	return false;
+
+	const auto text = params.value("text");
+	const auto chosen = [=](not_null<Data::Thread*> thread) {
+		const auto content = controller->content();
+		return content->shareUrl(thread, url, text);
+	};
+	Window::ShowChooseRecipientBox(controller, chosen);
+	controller->window().activate();
+	return true;
 }
 
 bool ConfirmPhone(

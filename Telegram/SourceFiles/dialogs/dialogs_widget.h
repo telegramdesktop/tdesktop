@@ -107,10 +107,6 @@ public:
 	void searchTopics();
 	void searchMore();
 
-	void updateForwardBar();
-
-	[[nodiscard]] rpl::producer<> closeForwardBarRequests() const;
-
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
 
@@ -132,11 +128,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	enum class ShowAnimation {
-		External,
-		Internal,
-	};
-
 	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
@@ -218,7 +209,6 @@ private:
 
 	Layout _layout = Layout::Main;
 	int _narrowWidth = 0;
-	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
@@ -246,7 +236,6 @@ private:
 	Ui::Animations::Simple _a_show;
 	Window::SlideDirection _showDirection = Window::SlideDirection();
 	QPixmap _cacheUnder, _cacheOver;
-	ShowAnimation _showAnimationType = ShowAnimation::External;
 
 	Ui::Animations::Simple _scrollToTopShown;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
@@ -294,8 +283,6 @@ private:
 	QPixmap _widthAnimationCache;
 
 	int _topDelta = 0;
-
-	rpl::event_stream<> _closeForwardBarRequests;
 
 	std::unique_ptr<Widget> _childList;
 	std::unique_ptr<Ui::RpWidget> _childListShadow;

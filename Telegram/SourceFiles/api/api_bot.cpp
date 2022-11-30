@@ -426,10 +426,19 @@ void ActivateBotCommand(ClickHandlerContext context, int row, int column) {
 				return false;
 			}();
 			if (!fastSwitchDone) {
-				controller->content()->inlineSwitchLayer('@'
+				const auto botAndQuery = '@'
 					+ bot->username()
 					+ ' '
-					+ QString::fromUtf8(button->data));
+					+ QString::fromUtf8(button->data);
+				const auto chosen = [=](not_null<Data::Thread*> thread) {
+					return controller->content()->inlineSwitchChosen(
+						thread,
+						botAndQuery);
+				};
+				Window::ShowChooseRecipientBox(
+					controller,
+					chosen,
+					tr::lng_inline_switch_choose());
 			}
 		}
 	} break;

@@ -169,20 +169,25 @@ public:
 
 	[[nodiscard]] bool animatingShow() const;
 
-	void showForwardLayer(Data::ForwardDraft &&draft);
-	void showSendPathsLayer();
-	void shareUrlLayer(const QString &url, const QString &text);
-	void inlineSwitchLayer(const QString &botAndQuery);
-	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
+	void showDragForwardInfo();
+	void hideDragForwardInfo();
+
 	bool setForwardDraft(
 		not_null<Data::Thread*> thread,
 		Data::ForwardDraft &&draft);
-	bool sendPaths(not_null<Data::Thread*> thread);
-	bool onFilesOrForwardDrop(
+	bool sendPaths(
+		not_null<Data::Thread*> thread,
+		const QStringList &paths);
+	bool shareUrl(
+		not_null<Data::Thread*> thread,
+		const QString &url,
+		const QString &text) const;
+	bool filesOrForwardDrop(
 		not_null<Data::Thread*> thread,
 		not_null<const QMimeData*> data);
-	bool selectingPeer() const;
-	void clearSelectingPeer();
+	bool inlineSwitchChosen(
+		not_null<Data::Thread*> thread,
+		const QString &botAndQuery) const;
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -197,9 +202,6 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	// Does offerThread or showThread.
-	void chooseThread(not_null<Data::Thread*> thread, MsgId showAtMsgId);
-	void chooseThread(not_null<PeerData*> peer, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
 
 	void ctrlEnterSubmitUpdated();
@@ -260,14 +262,6 @@ private:
 	[[nodiscard]] auto thirdSectionForCurrentMainSection(Dialogs::Key key)
 		-> std::shared_ptr<Window::SectionMemento>;
 
-	bool shareUrl(
-		not_null<Data::Thread*> thread,
-		const QString &url,
-		const QString &text) const;
-	bool inlineSwitchChosen(
-		not_null<Data::Thread*> thread,
-		const QString &botAndQuery) const;
-
 	void setupConnectingWidget();
 	void createPlayer();
 	void playerHeightUpdated();
@@ -304,6 +298,7 @@ private:
 
 	void hideAll();
 	void showAll();
+	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
 	void clearHider(not_null<Window::HistoryHider*> instance);
 
 	[[nodiscard]] auto floatPlayerDelegate()

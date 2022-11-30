@@ -401,19 +401,6 @@ dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	size: size(12px, 12px);
 }
 
-dialogsForwardHeight: 32px;
-dialogsForwardTextLeft: 35px;
-dialogsForwardTextTop: 6px;
-dialogsForwardCancel: IconButton {
-	width: 34px;
-	height: dialogsForwardHeight;
-
-	icon: dialogsForwardCancelIcon;
-	iconOver: dialogsForwardCancelIcon;
-	iconPosition: point(12px, 11px);
-}
-dialogsForwardFont: semiboldFont;
-
 dialogsSearchInHeight: 52px;
 dialogsSearchInPhotoSize: 36px;
 dialogsSearchInPhotoPadding: 10px;

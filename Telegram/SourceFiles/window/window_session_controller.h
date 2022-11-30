@@ -326,15 +326,6 @@ public:
 		return *_emojiInteractions;
 	}
 
-	// We need access to this from MainWidget::MainWidget, where
-	// we can't call content() yet.
-	void setSelectingPeer(bool selecting) {
-		_selectingPeer = selecting;
-	}
-	[[nodiscard]] bool selectingPeer() const {
-		return _selectingPeer;
-	}
-
 	void setConnectingBottomSkip(int skip);
 	rpl::producer<int> connectingBottomSkipValue() const;
 
@@ -629,7 +620,6 @@ private:
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;
-	bool _selectingPeer = false;
 
 	base::Timer _invitePeekTimer;
 

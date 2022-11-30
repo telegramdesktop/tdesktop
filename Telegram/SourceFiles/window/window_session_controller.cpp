@@ -641,7 +641,7 @@ void SessionNavigation::showThread(
 		showPeerHistory(thread->asHistory(), params, itemId);
 	}
 	if (parentController()->activeChatCurrent().thread() == thread) {
-		parentController()->content()->clearSelectingPeer();
+		parentController()->content()->hideDragForwardInfo();
 	}
 }
 

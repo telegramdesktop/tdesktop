@@ -3620,9 +3620,6 @@ void InnerWidget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		if (_controller->selectingPeer()) {
-			return;
-		}
 		const auto row = _controller->activeChatEntryCurrent();
 		// Those should be computed before the call to request->handle.
 		const auto previous = row.key
@@ -3660,9 +3657,10 @@ void InnerWidget::setupShortcuts() {
 			return jumpToDialogRow(last);
 		});
 		request->check(Command::ChatSelf) && request->handle([=] {
-			_controller->content()->chooseThread(
-				session().user(),
-				ShowAtUnreadMsgId);
+			_controller->showThread(
+				session().data().history(session().user()),
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
 			return true;
 		});
 		request->check(Command::ShowArchive) && request->handle([=] {

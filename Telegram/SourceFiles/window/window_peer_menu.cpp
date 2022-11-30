@@ -1565,44 +1565,63 @@ void BlockSenderFromRepliesBox(
 		Window::ClearReply{ id });
 }
 
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 		not_null<Window::SessionNavigation*> navigation,
-		Data::ForwardDraft &&draft,
+		FnMut<bool(not_null<Data::Thread*>)> &&chosen,
+		rpl::producer<QString> titleOverride,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	auto chosen = [
-		draft = std::move(draft),
-		callback = std::move(successCallback),
-		weak,
-		navigation
+	auto callback = [
+		chosen = std::move(chosen),
+		success = std::move(successCallback),
+		weak
 	](not_null<Data::Thread*> thread) mutable {
-		const auto peer = thread->peer();
-		const auto content = navigation->parentController()->content();
-		if (peer->isSelf()
-			&& !draft.ids.empty()
-			&& draft.ids.front().peer != peer->id) {
-			ForwardToSelf(navigation, draft);
-		} else if (!content->setForwardDraft(thread, std::move(draft))) {
+		if (!chosen(thread)) {
 			return;
-		}
-		if (const auto strong = *weak) {
+		} else if (const auto strong = *weak) {
 			strong->closeBox();
 		}
-		if (callback) {
-			callback();
+		if (success) {
+			success();
 		}
 	};
-	auto initBox = [](not_null<PeerListBox*> box) {
+	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] {
 			box->closeBox();
 		});
+		if (titleOverride) {
+			box->setTitle(std::move(titleOverride));
+		}
 	};
 	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
 			&navigation->session(),
-			std::move(chosen)),
+			std::move(callback)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
+}
+
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
+		Data::ForwardDraft &&draft,
+		FnMut<void()> &&successCallback) {
+	auto chosen = [navigation, draft = std::move(draft)](
+			not_null<Data::Thread*> thread) mutable {
+		const auto content = navigation->parentController()->content();
+		const auto peer = thread->peer();
+		if (peer->isSelf()
+			&& !draft.ids.empty()
+			&& draft.ids.front().peer != peer->id) {
+			ForwardToSelf(navigation, draft);
+			return true;
+		}
+		return content->setForwardDraft(thread, std::move(draft));
+	};
+	return ShowChooseRecipientBox(
+		navigation,
+		std::move(chosen),
+		nullptr,
+		std::move(successCallback));
 }
 
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
@@ -1684,7 +1703,7 @@ QPointer<Ui::BoxContent> ShowDropMediaBox(
 		navigation
 	](not_null<Data::ForumTopic*> topic) mutable {
 		const auto content = navigation->parentController()->content();
-		if (!content->onFilesOrForwardDrop(topic, data.get())) {
+		if (!content->filesOrForwardDrop(topic, data.get())) {
 			return;
 		} else if (const auto strong = *weak) {
 			strong->closeBox();

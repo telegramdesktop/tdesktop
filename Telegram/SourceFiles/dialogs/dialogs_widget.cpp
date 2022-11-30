@@ -328,11 +328,6 @@ Widget::Widget(
 		}, lifetime());
 	}
 
-	controller->adaptive().changes(
-	) | rpl::start_with_next([=] {
-		updateForwardBar();
-	}, lifetime());
-
 	_cancelSearch->setClickedCallback([this] { cancelSearch(); });
 	_jumpToDate->entity()->setClickedCallback([this] { showCalendar(); });
 	_chooseFromUser->entity()->setClickedCallback([this] { showSearchFrom(); });
@@ -425,8 +420,6 @@ Widget::Widget(
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
-	const auto openSearchResult = !controller()->selectingPeer()
-		&& row.filteredRow;
 	const auto history = row.key.history();
 	const auto topicJump = history
 		? history->peer->forumTopicFor(row.message.fullId.msg)
@@ -437,14 +430,16 @@ void Widget::chosenRow(const ChosenRow &row) {
 				topicJump->forum(),
 				Window::SectionShow().withChildColumn());
 		}
-		controller()->content()->chooseThread(
+		controller()->showThread(
 			topicJump,
-			ShowAtUnreadMsgId);
+			ShowAtUnreadMsgId,
+			Window::SectionShow::Way::ClearStack);
 		return;
 	} else if (const auto topic = row.key.topic()) {
-		controller()->content()->chooseThread(
+		controller()->showThread(
 			topic,
-			row.message.fullId.msg);
+			row.message.fullId.msg,
+			Window::SectionShow::Way::ClearStack);
 	} else if (history && history->peer->isForum() && !row.message.fullId) {
 		controller()->showForum(
 			history->peer->forum(),
@@ -475,13 +470,16 @@ void Widget::chosenRow(const ChosenRow &row) {
 			}
 		} else {
 			hideChildList();
-			controller()->content()->chooseThread(history, showAtMsgId);
+			controller()->showThread(
+				history,
+				showAtMsgId,
+				Window::SectionShow::Way::ClearStack);
 		}
 	} else if (const auto folder = row.key.folder()) {
 		hideChildList();
 		controller()->openFolder(folder);
 	}
-	if (openSearchResult && !session().supportMode()) {
+	if (row.filteredRow && !session().supportMode()) {
 		if (_subsectionTopBar) {
 			_subsectionTopBar->toggleSearch(false, anim::type::instant);
 		} else {
@@ -671,9 +669,6 @@ void Widget::setupShortcuts() {
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 
-		if (controller()->selectingPeer()) {
-			return;
-		}
 		if (_openedForum && !controller()->activeChatCurrent()) {
 			request->check(Command::Search) && request->handle([=] {
 				const auto history = _openedForum->history();
@@ -706,9 +701,6 @@ void Widget::fullSearchRefreshOn(rpl::producer<> events) {
 void Widget::updateControlsVisibility(bool fast) {
 	updateLoadMoreChatsVisibility();
 	_scroll->show();
-	if (_forwardCancel) {
-		_forwardCancel->show();
-	}
 	if ((_openedFolder || _openedForum) && _filter->hasFocus()) {
 		setInnerFocus();
 	}
@@ -759,7 +751,6 @@ void Widget::changeOpenedSubsection(
 		_showDirection = fromRight
 			? Window::SlideDirection::FromRight
 			: Window::SlideDirection::FromLeft;
-		_showAnimationType = ShowAnimation::Internal;
 	}
 	_a_show.stop();
 	change();
@@ -926,12 +917,11 @@ QPixmap Widget::grabForFolderSlideAnimation() {
 		_scrollToTop->hide();
 	}
 
-	const auto top = _forwardCancel ? _forwardCancel->height() : 0;
 	const auto rect = QRect(
 		0,
-		top,
+		0,
 		width(),
-		(_updateTelegram ? _updateTelegram->y() : height()) - top);
+		_updateTelegram ? _updateTelegram->y() : height());
 	auto result = Ui::GrabWidget(this, rect);
 
 	if (!hidden) {
@@ -1069,13 +1059,10 @@ void Widget::showFast() {
 		_inner->clearSelection();
 	}
 	show();
-	updateForwardBar();
 }
 
 void Widget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
 	_showDirection = direction;
-	_showAnimationType = ShowAnimation::External;
-
 	_a_show.stop();
 
 	_cacheUnder = params.oldContentCache;
@@ -1091,9 +1078,6 @@ void Widget::showAnimated(Window::SlideDirection direction, const Window::Sectio
 
 void Widget::startSlideAnimation() {
 	_scroll->hide();
-	if (_forwardCancel) {
-		_forwardCancel->hide();
-	}
 	_searchControls->hide();
 	if (_subsectionTopBar) {
 		_subsectionTopBar->hide();
@@ -1155,10 +1139,9 @@ void Widget::escape() {
 				controller()->setActiveChatsFilter(first);
 			}
 		}
-	} else if (!_searchInChat && !controller()->selectingPeer()) {
-		if (controller()->activeChatEntryCurrent().key) {
-			controller()->content()->dialogsCancelled();
-		}
+	} else if (!_searchInChat
+		&& controller()->activeChatEntryCurrent().key) {
+		controller()->content()->dialogsCancelled();
 	}
 }
 
@@ -1785,15 +1768,10 @@ void Widget::peopleFailed(const MTP::Error &error, mtpRequestId requestId) {
 void Widget::dragEnterEvent(QDragEnterEvent *e) {
 	using namespace Storage;
 
-	if (controller()->selectingPeer()) {
-		return;
-	}
-
 	const auto data = e->mimeData();
 	_dragInScroll = false;
-	_dragForward = controller()->adaptive().isOneColumn()
-		? false
-		: data->hasFormat(qsl("application/x-td-forward"));
+	_dragForward = !controller()->adaptive().isOneColumn()
+		&& data->hasFormat(qsl("application/x-td-forward"));
 	if (_dragForward) {
 		e->setDropAction(Qt::CopyAction);
 		e->accept();
@@ -1841,7 +1819,7 @@ void Widget::updateDragInScroll(bool inScroll) {
 	if (_dragInScroll != inScroll) {
 		_dragInScroll = inScroll;
 		if (_dragInScroll) {
-			controller()->content()->showForwardLayer({});
+			controller()->content()->showDragForwardInfo();
 		} else {
 			controller()->content()->dialogsCancelled();
 		}
@@ -1857,7 +1835,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			if (!thread->owningHistory()->peer->isForum()) {
 				hideChildList();
 			}
-			controller()->content()->onFilesOrForwardDrop(
+			controller()->content()->filesOrForwardDrop(
 				thread,
 				e->mimeData());
 			controller()->widget()->raise();
@@ -2176,10 +2154,6 @@ void Widget::updateSearchFromVisibility(bool fast) {
 
 void Widget::updateControlsGeometry() {
 	auto filterAreaTop = 0;
-	if (_forwardCancel) {
-		_forwardCancel->moveToLeft(0, filterAreaTop);
-		filterAreaTop += st::dialogsForwardHeight;
-	}
 	const auto usew = _childList ? _narrowWidth : width();
 	const auto childw = std::max(_narrowWidth, width() - usew);
 	const auto smallw = st::columnMinimalWidthLeft - _narrowWidth;
@@ -2289,30 +2263,6 @@ void Widget::updateControlsGeometry() {
 	}
 }
 
-rpl::producer<> Widget::closeForwardBarRequests() const {
-	return _closeForwardBarRequests.events();
-}
-
-void Widget::updateForwardBar() {
-	auto selecting = controller()->selectingPeer();
-	auto oneColumnSelecting = (controller()->adaptive().isOneColumn()
-		&& selecting);
-	if (!oneColumnSelecting == !_forwardCancel) {
-		return;
-	}
-	if (oneColumnSelecting) {
-		_forwardCancel.create(this, st::dialogsForwardCancel);
-		_forwardCancel->setClickedCallback([=] {
-			_closeForwardBarRequests.fire({});
-		});
-		if (!_a_show.animating()) _forwardCancel->show();
-	} else {
-		_forwardCancel.destroyDelayed();
-	}
-	updateControlsGeometry();
-	update();
-}
-
 RowDescriptor Widget::resolveChatNext(RowDescriptor from) const {
 	return _inner->resolveChatNext(from);
 }
@@ -2358,9 +2308,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	}
 	if (_a_show.animating()) {
 		const auto progress = _a_show.value(1.);
-		const auto top = (_showAnimationType == ShowAnimation::Internal)
-			? (_forwardCancel ? _forwardCancel->height() : 0)
-			: 0;
+		const auto top = 0;
 		const auto shift = std::min(st::slideShift, width() / 2);
 		const auto retina = cIntRetinaFactor();
 		const auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
@@ -2378,15 +2326,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), top, st::slideShadow.width(), _cacheOver.height() / retina));
 		return;
 	}
-	auto aboveTop = 0;
-	if (_forwardCancel) {
-		p.fillRect(0, aboveTop, width(), st::dialogsForwardHeight, st::dialogsForwardBg);
-		p.setPen(st::dialogsForwardFg);
-		p.setFont(st::dialogsForwardFont);
-		p.drawTextLeft(st::dialogsForwardTextLeft, st::dialogsForwardTextTop, width(), tr::lng_forward_choose(tr::now));
-		aboveTop += st::dialogsForwardHeight;
-	}
-	auto above = QRect(0, aboveTop, width(), _scroll->y() - aboveTop);
+	auto above = QRect(0, 0, width(), _scroll->y());
 	if (above.intersects(r)) {
 		p.fillRect(above.intersected(r), st::dialogsBg);
 	}
@@ -2470,9 +2410,7 @@ void Widget::cancelSearchInChat() {
 	cancelSearchRequest();
 	const auto isOneColumn = controller()->adaptive().isOneColumn();
 	if (_searchInChat) {
-		if (isOneColumn
-			&& !controller()->selectingPeer()
-			&& currentSearchQuery().trimmed().isEmpty()) {
+		if (isOneColumn && currentSearchQuery().trimmed().isEmpty()) {
 			if (const auto thread = _searchInChat.thread()) {
 				controller()->showThread(thread);
 			} else {
@@ -2482,7 +2420,7 @@ void Widget::cancelSearchInChat() {
 		setSearchInChat(Key());
 	}
 	applyFilterUpdate(true);
-	if (!isOneColumn && !controller()->selectingPeer()) {
+	if (!isOneColumn) {
 		controller()->content()->dialogsCancelled();
 	}
 }

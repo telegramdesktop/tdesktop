@@ -779,10 +779,9 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		if (_hasArchive && (index == (_selfUnpinned ? -2 : -1))) {
 			openFolder();
 		} else {
-			const auto chosen = (_selfUnpinned && index == -1)
+			controller->showPeerHistory((_selfUnpinned && index == -1)
 				? _session->user()
-				: peer;
-			controller->content()->chooseThread(chosen, ShowAtUnreadMsgId);
+				: peer);
 		}
 	});
 }

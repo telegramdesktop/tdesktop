@@ -17,14 +17,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Window {
 
-HistoryHider::HistoryHider(
-	QWidget *parent,
-	const QString &text,
-	Fn<bool(not_null<Data::Thread*>)> confirm,
-	rpl::producer<bool> oneColumnValue)
+HistoryHider::HistoryHider(QWidget *parent, const QString &text)
 : RpWidget(parent)
-, _text(text)
-, _confirm(std::move(confirm)) {
+, _text(text) {
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
@@ -33,14 +28,10 @@ HistoryHider::HistoryHider(
 	_chooseWidth = st::historyForwardChooseFont->width(_text);
 
 	resizeEvent(0);
-	_a_opacity.start([this] { update(); }, 0., 1., st::boxDuration);
-
-	std::move(
-		oneColumnValue
-	) | rpl::start_with_next([=](bool oneColumn) {
-		_isOneColumn = oneColumn;
-	}, lifetime());
+	_a_opacity.start([=] { update(); }, 0., 1., st::boxDuration);
 }
+
+HistoryHider::~HistoryHider() = default;
 
 void HistoryHider::refreshLang() {
 	InvokeQueued(this, [this] { updateControlsGeometry(); });
@@ -85,11 +76,7 @@ void HistoryHider::startHide() {
 	if (_hiding) return;
 
 	_hiding = true;
-	if (_isOneColumn) {
-		crl::on_main(this, [=] { _hidden.fire({}); });
-	} else {
-		_a_opacity.start([=] { animationCallback(); }, 1., 0., st::boxDuration);
-	}
+	_a_opacity.start([=] { animationCallback(); }, 1., 0., st::boxDuration);
 }
 
 void HistoryHider::animationCallback() {
@@ -97,14 +84,6 @@ void HistoryHider::animationCallback() {
 	if (!_a_opacity.animating() && _hiding) {
 		crl::on_main(this, [=] { _hidden.fire({}); });
 	}
-}
-
-void HistoryHider::confirm() {
-	_confirmed.fire({});
-}
-
-rpl::producer<> HistoryHider::confirmed() const {
-	return _confirmed.events();
 }
 
 rpl::producer<> HistoryHider::hidden() const {
@@ -120,15 +99,6 @@ void HistoryHider::updateControlsGeometry() {
 	auto h = st::boxPadding.top() + st::boxPadding.bottom();
 	h += st::historyForwardChooseFont->height;
 	_box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
-}
-
-void HistoryHider::offerThread(not_null<Data::Thread*> thread) {
-	if (_confirm(thread)) {
-		startHide();
-	}
-}
-
-HistoryHider::~HistoryHider() {
 }
 
 } // namespace Window
