@@ -7,7 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/dialogs_row.h"
 
+#include "ui/chat/chat_theme.h" // CountAverageColor.
+#include "ui/color_contrast.h"
 #include "ui/effects/ripple_animation.h"
+#include "ui/image/image_prepare.h"
+#include "ui/text/format_values.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/painter.h"
@@ -22,13 +26,111 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
-#include "mainwidget.h"
 #include "styles/style_dialogs.h"
 
 namespace Dialogs {
+namespace {
 
-constexpr auto kTopLayer = 1;
+constexpr auto kTopLayer = 2;
+constexpr auto kBottomLayer = 1;
 constexpr auto kNoneLayer = 0;
+
+void PaintCornerBadgeTTLFrame(
+		QPainter &q,
+		not_null<PeerData*> peer,
+		std::shared_ptr<Data::CloudImageView> &view,
+		float64 progress,
+		int photoSize) {
+	const auto ttl = peer->messagesTTL();
+	if (!ttl || !view) {
+		return;
+	}
+	using Radius = ImageRoundRadius;
+	constexpr auto kBlurRadius = 24;
+	PainterHighQualityEnabler hq(q);
+
+	q.setOpacity(progress);
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto fullSize = photoSize;
+	const auto blurredFull = Images::BlurLargeImage(
+		peer->generateUserpicImage(view, fullSize * ratio, Radius::None),
+		kBlurRadius);
+	const auto partRect = CornerBadgeTTLRect(fullSize);
+	const auto &partSize = partRect.width();
+	if (progress <= 1.) {
+		q.save();
+		q.translate(partRect.center());
+		q.scale(progress, progress);
+		q.translate(-partRect.center());
+		q.restore();
+	}
+	{
+		auto blurredPart = blurredFull.copy(
+			blurredFull.width() - partSize * ratio,
+			blurredFull.height() - partSize * ratio,
+			partSize * ratio,
+			partSize * ratio);
+		blurredPart.setDevicePixelRatio(ratio);
+
+		constexpr auto kMinAcceptableContrast = 4.5;
+		const auto averageColor = Ui::CountAverageColor(blurredPart);
+		const auto contrast = Ui::CountContrast(
+			averageColor,
+			st::premiumButtonFg->c);
+		if (contrast < kMinAcceptableContrast) {
+			constexpr auto kDarkerBy = 0.2;
+			auto painterPart = QPainter(&blurredPart);
+			painterPart.setOpacity(kDarkerBy);
+			painterPart.fillRect(
+				QRect(QPoint(), partRect.size()),
+				Qt::black);
+		}
+		q.drawImage(
+			partRect.topLeft(),
+			Images::Circle(std::move(blurredPart)));
+	}
+	const auto innerRect = partRect - st::dialogsTTLBadgeInnerMargins;
+	const auto ttlText = Ui::FormatTTLTiny(ttl);
+
+	q.setFont(st::dialogsScamFont);
+	q.setPen(st::premiumButtonFg);
+	q.drawText(
+		innerRect,
+		(ttlText.size() > 2) ? ttlText.mid(0, 2) : ttlText,
+		style::al_center);
+
+	constexpr auto kPenWidth = 1.5;
+	constexpr auto kAngleStart = 90 * 16;
+	constexpr auto kAngleSpan = 180 * 16;
+
+	auto pen = QPen(st::premiumButtonFg);
+	pen.setJoinStyle(Qt::RoundJoin);
+	pen.setCapStyle(Qt::RoundCap);
+	pen.setWidthF(kPenWidth);
+
+	q.setPen(pen);
+	q.setBrush(Qt::NoBrush);
+	q.drawArc(innerRect, kAngleStart, kAngleSpan);
+
+	q.setClipRect(partRect - QMargins(partRect.width() / 2, 0, 0, 0));
+	pen.setStyle(Qt::DotLine);
+	q.setPen(pen);
+	q.drawEllipse(innerRect);
+
+	q.setOpacity(1.);
+}
+
+} // namespace
+
+QRect CornerBadgeTTLRect(int photoSize) {
+	const auto &partSize = st::dialogsTTLBadgeSize;
+	return QRect(
+		photoSize - partSize + st::dialogsTTLBadgeSkip.x(),
+		photoSize - partSize + st::dialogsTTLBadgeSkip.y(),
+		partSize,
+		partSize);
+}
 
 Row::CornerLayersManager::CornerLayersManager() = default;
 
@@ -214,6 +316,8 @@ void Row::updateCornerBadgeShown(
 		} else if (peer->isChannel()
 			&& Data::ChannelHasActiveCall(peer->asChannel())) {
 			return kTopLayer;
+		} else if (peer->messagesTTL()) {
+			return kBottomLayer;
 		}
 		return kNoneLayer;
 	}();
@@ -250,10 +354,18 @@ void Row::PaintCornerBadgeFrame(
 		context.st->photoSize,
 		context.paused);
 
+	const auto &manager = data->layersManager;
+	if (const auto p = manager.progressForLayer(kBottomLayer); p) {
+		PaintCornerBadgeTTLFrame(q, peer, view, p, context.st->photoSize);
+	}
+	const auto topLayerProgress = manager.progressForLayer(kTopLayer);
+	if (!topLayerProgress) {
+		return;
+	}
+
 	PainterHighQualityEnabler hq(q);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
 
-	const auto progress = data->layersManager.progressForLayer(kTopLayer);
 	const auto size = peer->isUser()
 		? st::dialogsOnlineBadgeSize
 		: st::dialogsCallBadgeSize;
@@ -261,10 +373,10 @@ void Row::PaintCornerBadgeFrame(
 	const auto skip = peer->isUser()
 		? st::dialogsOnlineBadgeSkip
 		: st::dialogsCallBadgeSkip;
-	const auto shrink = (size / 2) * (1. - progress);
+	const auto shrink = (size / 2) * (1. - topLayerProgress);
 
 	auto pen = QPen(Qt::transparent);
-	pen.setWidthF(stroke * progress);
+	pen.setWidthF(stroke * topLayerProgress);
 	q.setPen(pen);
 	q.setBrush(data->active
 		? st::dialogsOnlineBadgeFgActive
@@ -315,7 +427,8 @@ void Row::paintUserpic(
 			QImage::Format_ARGB32_Premultiplied);
 		_cornerBadgeUserpic->frame.setDevicePixelRatio(ratio);
 	}
-	const auto key = peer->userpicUniqueKey(userpicView());
+	auto key = peer->userpicUniqueKey(userpicView());
+	key.first += peer->messagesTTL();
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
 	if (!_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->key != key

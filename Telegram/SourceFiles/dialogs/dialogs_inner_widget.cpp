@@ -3530,11 +3530,24 @@ void InnerWidget::setupOnlineStatusCheck() {
 	session().changes().peerUpdates(
 		Data::PeerUpdate::Flag::OnlineStatus
 		| Data::PeerUpdate::Flag::GroupCall
+		| Data::PeerUpdate::Flag::MessagesTTL
 	) | rpl::start_with_next([=](const Data::PeerUpdate &update) {
-		if (const auto user = update.peer->asUser()) {
-			userOnlineUpdated(user);
-		} else {
-			groupHasCallUpdated(update.peer);
+		const auto &peer = update.peer;
+		if (const auto user = peer->asUser()) {
+			if (user->isSelf()) {
+				return;
+			}
+			if (const auto history = session().data().historyLoaded(user)) {
+				updateRowCornerStatusShown(history);
+			}
+		} else if (const auto group = peer->asMegagroup()) {
+			if (const auto history = session().data().historyLoaded(group)) {
+				updateRowCornerStatusShown(history);
+			}
+		} else if (peer->messagesTTL()) {
+			if (const auto history = session().data().historyLoaded(peer)) {
+				updateRowCornerStatusShown(history);
+			}
 		}
 	}, lifetime());
 }
@@ -3559,35 +3572,20 @@ void InnerWidget::repaintDialogRowCornerStatus(not_null<History*> history) {
 		st::defaultDialogRow.padding.left(),
 		st::defaultDialogRow.padding.top()
 	);
+	const auto ttlUpdateRect = !history->peer->messagesTTL()
+		? QRect()
+		: Dialogs::CornerBadgeTTLRect(
+			_st->photoSize
+		).translated(
+			st::defaultDialogRow.padding.left(),
+			st::defaultDialogRow.padding.top()
+		);
 	updateDialogRow(
 		RowDescriptor(
 			history,
 			FullMsgId()),
-		updateRect,
+		updateRect.united(ttlUpdateRect),
 		UpdateRowSection::Default | UpdateRowSection::Filtered);
-}
-
-void InnerWidget::userOnlineUpdated(not_null<UserData*> user) {
-	if (user->isSelf()) {
-		return;
-	}
-	const auto history = session().data().historyLoaded(user);
-	if (!history) {
-		return;
-	}
-	updateRowCornerStatusShown(history);
-}
-
-void InnerWidget::groupHasCallUpdated(not_null<PeerData*> peer) {
-	const auto group = peer->asMegagroup();
-	if (!group) {
-		return;
-	}
-	const auto history = session().data().historyLoaded(group);
-	if (!history) {
-		return;
-	}
-	updateRowCornerStatusShown(history);
 }
 
 void InnerWidget::updateRowCornerStatusShown(not_null<History*> history) {

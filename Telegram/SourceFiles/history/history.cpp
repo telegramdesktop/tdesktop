@@ -2764,6 +2764,9 @@ void History::applyDialog(
 			MsgId(0), // topicRootId
 			draft->c_draftMessage());
 	}
+	if (const auto ttl = data.vttl_period()) {
+		peer->setMessagesTTL(ttl->v);
+	}
 	owner().histories().dialogEntryApplied(this);
 }
 

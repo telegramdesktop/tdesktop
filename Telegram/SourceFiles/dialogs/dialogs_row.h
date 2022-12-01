@@ -40,6 +40,8 @@ namespace Dialogs {
 
 enum class SortMode;
 
+[[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
+
 class BasicRow {
 public:
 	BasicRow();
