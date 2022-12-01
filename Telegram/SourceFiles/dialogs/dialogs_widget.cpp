@@ -397,11 +397,12 @@ Widget::Widget(
 
 	updateJumpToDateVisibility(true);
 	updateSearchFromVisibility(true);
-	setupConnectingWidget();
 	setupSupportMode();
 	setupScrollUpButton();
 
 	if (_layout != Layout::Child) {
+		setupConnectingWidget();
+
 		changeOpenedFolder(
 			controller->openedFolder().current(),
 			anim::type::instant);
@@ -424,9 +425,9 @@ Widget::Widget(
 		) | rpl::start_with_next([=] {
 			updateControlsGeometry();
 		}, lifetime());
-	}
 
-	setupDownloadBar();
+		setupDownloadBar();
+	}
 }
 
 void Widget::chosenRow(const ChosenRow &row) {
@@ -540,6 +541,10 @@ void Widget::setupScrollUpButton() {
 }
 
 void Widget::setupDownloadBar() {
+	if (_layout == Layout::Child) {
+		return;
+	}
+
 	Data::MakeDownloadBarContent(
 	) | rpl::start_with_next([=](Ui::DownloadBarContent &&content) {
 		const auto create = (content.count && !_downloadBar);
@@ -745,7 +750,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		updateJumpToDateVisibility(fast);
 		updateSearchFromVisibility(fast);
 	}
-	_connecting->setForceHidden(false);
+	if (_connecting) {
+		_connecting->setForceHidden(false);
+	}
 	if (_childList) {
 		_childList->show();
 		_childListShadow->show();
@@ -770,7 +777,9 @@ void Widget::changeOpenedSubsection(
 		? Window::SlideDirection::FromRight
 		: Window::SlideDirection::FromLeft;
 	if (animated == anim::type::normal) {
-		_connecting->setForceHidden(true);
+		if (_connecting) {
+			_connecting->setForceHidden(true);
+		}
 		oldContentCache = grabForFolderSlideAnimation();
 	}
 	_showAnimation = nullptr;
@@ -780,9 +789,13 @@ void Widget::changeOpenedSubsection(
 	_peerSearchRequest = 0;
 	_api.request(base::take(_topicSearchRequest)).cancel();
 	if (animated == anim::type::normal) {
-		_connecting->setForceHidden(true);
+		if (_connecting) {
+			_connecting->setForceHidden(true);
+		}
 		auto newContentCache = grabForFolderSlideAnimation();
-		_connecting->setForceHidden(false);
+		if (_connecting) {
+			_connecting->setForceHidden(false);
+		}
 		startSlideAnimation(
 			std::move(oldContentCache),
 			std::move(newContentCache),
@@ -954,7 +967,7 @@ QPixmap Widget::grabForFolderSlideAnimation() {
 		0,
 		0,
 		width(),
-		_updateTelegram ? _updateTelegram->y() : height());
+		_scroll->y() + _scroll->height());
 	auto result = Ui::GrabWidget(this, rect);
 
 	if (!hidden) {
@@ -965,6 +978,10 @@ QPixmap Widget::grabForFolderSlideAnimation() {
 
 void Widget::checkUpdateStatus() {
 	Expects(!Core::UpdaterDisabled());
+
+	if (_layout == Layout::Child) {
+		return;
+	}
 
 	using Checker = Core::UpdateChecker;
 	if (Checker().state() == Checker::State::Ready) {
@@ -1112,7 +1129,9 @@ void Widget::showAnimated(
 	if (_updateTelegram) {
 		_updateTelegram->hide();
 	}
-	_connecting->setForceHidden(true);
+	if (_connecting) {
+		_connecting->setForceHidden(true);
+	}
 	if (_childList) {
 		_childList->hide();
 		_childListShadow->hide();
@@ -1215,6 +1234,10 @@ void Widget::submit() {
 }
 
 void Widget::refreshLoadMoreButton(bool mayBlock, bool isBlocked) {
+	if (_layout == Layout::Child) {
+		return;
+	}
+
 	if (!mayBlock) {
 		if (_loadMoreChats) {
 			_loadMoreChats.destroy();
@@ -2359,24 +2382,24 @@ void Widget::updateControlsGeometry() {
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _filter->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
-	const auto usew = _childList ? _narrowWidth : width();
+	const auto barw = width();
 	if (_forumTopShadow) {
 		_forumTopShadow->setGeometry(
 			0,
 			filterAreaTop + filterAreaHeight,
-			usew,
+			barw,
 			st::lineWidth);
 	}
 	const auto forumGroupCallTop = filterAreaTop + filterAreaHeight;
 	if (_forumGroupCallBar) {
 		_forumGroupCallBar->move(0, forumGroupCallTop);
-		_forumGroupCallBar->resizeToWidth(usew);
+		_forumGroupCallBar->resizeToWidth(barw);
 	}
 	const auto forumRequestsTop = forumGroupCallTop
 		+ (_forumGroupCallBar ? _forumGroupCallBar->height() : 0);
 	if (_forumRequestsBar) {
 		_forumRequestsBar->move(0, forumRequestsTop);
-		_forumRequestsBar->resizeToWidth(usew);
+		_forumRequestsBar->resizeToWidth(barw);
 	}
 	const auto forumReportTop = forumRequestsTop
 		+ (_forumRequestsBar ? _forumRequestsBar->height() : 0);
@@ -2394,7 +2417,7 @@ void Widget::updateControlsGeometry() {
 			button->setGeometry(
 				0,
 				scrollTop + scrollHeight,
-				usew,
+				barw,
 				buttonHeight);
 		}
 	};
@@ -2406,9 +2429,11 @@ void Widget::updateControlsGeometry() {
 		_connecting->setBottomSkip(bottomSkip);
 	}
 	controller()->setConnectingBottomSkip(bottomSkip);
-	auto wasScrollHeight = _scroll->height();
-	_scroll->setGeometry(0, scrollTop, usew, scrollHeight);
-	_inner->resize(usew, _inner->height());
+
+	const auto scrollw = _childList ? _narrowWidth : barw;
+	const auto wasScrollHeight = _scroll->height();
+	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
+	_inner->resize(scrollw, _inner->height());
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated();
 	}
@@ -2422,11 +2447,12 @@ void Widget::updateControlsGeometry() {
 	}
 
 	if (_childList) {
-		const auto childw = std::max(_narrowWidth, width() - usew);
+		const auto childw = std::max(_narrowWidth, width() - scrollw);
+		const auto childh = scrollTop + scrollHeight;
 		_childList->setGeometryWithTopMoved(
-			{ width() - childw, 0, childw, height() },
+			{ width() - childw, 0, childw, childh },
 			_topDelta);
-		_childListShadow->setGeometry(0, 0, (width() - childw), height());
+		_childListShadow->setGeometry(0, 0, (width() - childw), childh);
 	}
 }
 
