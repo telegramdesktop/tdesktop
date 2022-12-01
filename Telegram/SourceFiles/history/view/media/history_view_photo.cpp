@@ -439,8 +439,11 @@ void Photo::paintUserpicFrame(
 		return;
 	}
 	const auto pix = [&] {
+		const auto forum = _parent->data()->history()->peer->isForum();
 		const auto args = Images::PrepareArgs{
-			.options = Images::Option::RoundCircle,
+			.options = (forum
+				? Images::Option::RoundLarge
+				: Images::Option::RoundCircle),
 		};
 		if (const auto large = _dataMedia->image(PhotoSize::Large)) {
 			return large->pix(size, args);
