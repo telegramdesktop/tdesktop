@@ -160,6 +160,12 @@ void TranslateBox(
 	};
 	const auto state = box->lifetime().make_state<State>();
 
+	text.entities = ranges::views::all(
+		text.entities
+	) | ranges::views::filter([](const EntityInText &e) {
+		return e.type() != EntityType::Spoiler;
+	}) | ranges::to<EntitiesInText>();
+
 	if (!IsServerMsgId(msgId)) {
 		msgId = 0;
 	}
