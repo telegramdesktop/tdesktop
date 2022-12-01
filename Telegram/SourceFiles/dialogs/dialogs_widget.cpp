@@ -354,10 +354,10 @@ Widget::Widget(
 	setupShortcuts();
 
 	_searchForNarrowFilters->setClickedCallback([=] {
+		_filter->setFocusFast();
 		if (_childList) {
 			controller->closeForum();
 		}
-		_filter->setFocus();
 	});
 
 	setAcceptDrops(true);
@@ -738,9 +738,8 @@ void Widget::updateControlsVisibility(bool fast) {
 			_forumReportBar->show();
 		}
 	} else {
-		if (hasFocus()) {
-			_filter->setFocus();
-			_filter->finishAnimating();
+		if (hasFocus() && !_childList) {
+			_filter->setFocusFast();
 		}
 		updateLockUnlockVisibility();
 		updateJumpToDateVisibility(fast);
@@ -753,6 +752,9 @@ void Widget::updateControlsVisibility(bool fast) {
 	}
 	if (_hideChildListCanvas) {
 		_hideChildListCanvas->show();
+	}
+	if (_childList && _filter->hasFocus()) {
+		setInnerFocus();
 	}
 }
 
@@ -1967,12 +1969,17 @@ void Widget::openChildList(
 	auto copy = params;
 	copy.childColumn = false;
 	copy.animated = anim::type::instant;
-	_childList = std::make_unique<Widget>(
-		this,
-		controller(),
-		Layout::Child);
-	_childList->showForum(forum, copy);
-	_childListPeerId = forum->channel()->id;
+	{
+		if (_childList && InFocusChain(_childList.get())) {
+			setFocus();
+		}
+		_childList = std::make_unique<Widget>(
+			this,
+			controller(),
+			Layout::Child);
+		_childList->showForum(forum, copy);
+		_childListPeerId = forum->channel()->id;
+	}
 
 	_childListShadow = std::make_unique<Ui::RpWidget>(this);
 	const auto shadow = _childListShadow.get();
@@ -2006,6 +2013,9 @@ void Widget::openChildList(
 	} else {
 		_childListShown = 1.;
 	}
+	if (hasFocus()) {
+		setInnerFocus();
+	}
 }
 
 void Widget::closeChildList(anim::type animated) {
@@ -2029,8 +2039,15 @@ void Widget::closeChildList(anim::type animated) {
 			animation->paintContents(p);
 		}, _hideChildListCanvas->lifetime());
 	}
+	if (InFocusChain(_childList.get())) {
+		setFocus();
+	}
 	_childList = nullptr;
 	_childListShown = 0.;
+	if (hasFocus()) {
+		setInnerFocus();
+		_filter->finishAnimating();
+	}
 	if (animated == anim::type::normal) {
 		_hideChildListCanvas->hide();
 		auto newContentCache = Ui::GrabWidget(this, geometry);
@@ -2060,6 +2077,9 @@ void Widget::searchInChat(Key chat) {
 		controller()->closeForum();
 	}
 	if (_openedFolder) {
+		if (_childList && _childList->setSearchInChat(chat)) {
+			return;
+		}
 		controller()->closeFolder();
 	}
 	cancelSearch();
@@ -2298,7 +2318,7 @@ void Widget::updateControlsGeometry() {
 		_narrowWidth,
 		_childListShown.current());
 	const auto smallw = st::columnMinimalWidthLeft - _narrowWidth;
-	const auto smallLayoutRatio = (ratiow < smallw)
+	const auto narrowRatio = (ratiow < smallw)
 		? ((smallw - ratiow) / float64(smallw - _narrowWidth))
 		: 0.;
 
@@ -2313,21 +2333,24 @@ void Widget::updateControlsGeometry() {
 	auto filterAreaHeight = st::topBarHeight;
 	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {
-		_subsectionTopBar->setGeometry(_searchControls->geometry());
+		_subsectionTopBar->setGeometryWithNarrowRatio(
+			_searchControls->geometry(),
+			_narrowWidth,
+			narrowRatio);
 	}
 
 	auto filterTop = (filterAreaHeight - _filter->height()) / 2;
-	filterLeft = anim::interpolate(filterLeft, _narrowWidth, smallLayoutRatio);
+	filterLeft = anim::interpolate(filterLeft, _narrowWidth, narrowRatio);
 	_filter->setGeometryToLeft(filterLeft, filterTop, filterWidth, _filter->height());
 	auto mainMenuLeft = anim::interpolate(
 		st::dialogsFilterPadding.x(),
 		(_narrowWidth - _mainMenuToggle->width()) / 2,
-		smallLayoutRatio);
+		narrowRatio);
 	_mainMenuToggle->moveToLeft(mainMenuLeft, st::dialogsFilterPadding.y());
 	const auto searchLeft = anim::interpolate(
 		-_searchForNarrowFilters->width(),
 		(_narrowWidth - _searchForNarrowFilters->width()) / 2,
-		smallLayoutRatio);
+		narrowRatio);
 	_searchForNarrowFilters->moveToLeft(searchLeft, st::dialogsFilterPadding.y());
 
 	auto right = filterLeft + filterWidth;

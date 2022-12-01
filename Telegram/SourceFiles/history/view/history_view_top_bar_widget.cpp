@@ -421,7 +421,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 }
 
 void TopBarWidget::paintTopBar(Painter &p) {
-	if (!_activeChat.key || _narrowMode) {
+	if (!_activeChat.key || _narrowRatio == 1.) {
 		return;
 	}
 	auto nameleft = _leftTaken;
@@ -846,12 +846,6 @@ void TopBarWidget::refreshInfoButton() {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	const auto narrowMode = (_activeChat.section == Section::ChatsList)
-		&& (width() < _back->width() + _search->width());
-	if (_narrowMode != narrowMode) {
-		_narrowMode = narrowMode;
-		updateControlsVisibility();
-	}
 	updateSearchVisibility();
 	updateControlsGeometry();
 }
@@ -922,7 +916,10 @@ void TopBarWidget::updateControlsGeometry() {
 	} else if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
-		_leftTaken = _narrowMode ? (width() - _back->width()) / 2 : 0;
+		_leftTaken = anim::interpolate(
+			0,
+			(_narrowWidth - _back->width()) / 2,
+			_narrowRatio);
 		_back->moveToLeft(_leftTaken, backButtonTop);
 		_leftTaken += _back->width();
 	}
@@ -1078,7 +1075,7 @@ void TopBarWidget::updateControlsVisibility() {
 	}
 	_menuToggle->setVisible(hasMenu
 		&& !_chooseForReportReason
-		&& !_narrowMode);
+		&& (_narrowRatio < 1.));
 	_infoToggle->setVisible(hasInfo
 		&& !isOneColumn
 		&& _controller->canShowThirdSection()
@@ -1347,6 +1344,30 @@ void TopBarWidget::toggleSelectedControls(bool shown) {
 		shown ? 1. : 0.,
 		st::slideWrapDuration,
 		anim::easeOutCirc);
+}
+
+void TopBarWidget::setGeometryWithNarrowRatio(
+		QRect geometry,
+		int narrowWidth,
+		float64 narrowRatio) {
+	if (_activeChat.section != Section::ChatsList) {
+		narrowRatio = 0.;
+		narrowWidth = 0;
+	}
+	const auto changed = (_narrowRatio != narrowRatio);
+	const auto started = (_narrowRatio == 0.) != (narrowRatio == 0.);
+	const auto finished = (_narrowRatio == 1.) != (narrowRatio == 1.);
+	const auto resized = (size() != geometry.size());
+	_narrowRatio = narrowRatio;
+	_narrowWidth = narrowWidth;
+	if (started || finished) {
+		updateControlsVisibility();
+	}
+	setGeometry(geometry);
+	if (changed && !resized) {
+		updateSearchVisibility();
+		updateControlsGeometry();
+	}
 }
 
 bool TopBarWidget::showSelectedActions() const {
