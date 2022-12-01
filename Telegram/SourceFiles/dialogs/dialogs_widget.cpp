@@ -202,7 +202,16 @@ Widget::Widget(
 , _scrollToTop(_scroll, st::dialogsToUp)
 , _searchTimer([=] { searchMessages(); })
 , _singleMessageSearch(&controller->session()) {
-	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(this, controller));
+	const auto makeChildListShown = [](PeerId peerId, float64 shown) {
+		return InnerWidget::ChildListShown{ peerId, shown };
+	};
+	_inner = _scroll->setOwnedWidget(object_ptr<InnerWidget>(
+		this,
+		controller,
+		rpl::combine(
+			_childListPeerId.value(),
+			_childListShown.value(),
+			makeChildListShown)));
 
 	_inner->updated(
 	) | rpl::start_with_next([=] {
@@ -392,26 +401,28 @@ Widget::Widget(
 	setupSupportMode();
 	setupScrollUpButton();
 
-	changeOpenedFolder(
-		controller->openedFolder().current(),
-		anim::type::instant);
-
-	controller->openedFolder().changes(
-	) | rpl::start_with_next([=](Data::Folder *folder) {
-		changeOpenedFolder(folder, anim::type::normal);
-	}, lifetime());
-
 	if (_layout != Layout::Child) {
+		changeOpenedFolder(
+			controller->openedFolder().current(),
+			anim::type::instant);
+
+		controller->openedFolder().changes(
+		) | rpl::start_with_next([=](Data::Folder *folder) {
+			changeOpenedFolder(folder, anim::type::normal);
+		}, lifetime());
+
 		controller->shownForum().changes(
 		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
 			if (_openedForum) {
 				changeOpenedForum(nullptr, anim::type::normal);
 			} else if (_childList) {
-				_childList = nullptr;
-				_childListShadow = nullptr;
-				updateControlsGeometry();
-				updateControlsVisibility(true);
+				closeChildList(anim::type::normal);
 			}
+		}, lifetime());
+
+		_childListShown.changes(
+		) | rpl::start_with_next([=] {
+			updateControlsGeometry();
 		}, lifetime());
 	}
 
@@ -440,9 +451,14 @@ void Widget::chosenRow(const ChosenRow &row) {
 			row.message.fullId.msg,
 			Window::SectionShow::Way::ClearStack);
 	} else if (history && history->peer->isForum() && !row.message.fullId) {
-		controller()->showForum(
-			history->peer->forum(),
-			Window::SectionShow().withChildColumn());
+		const auto forum = history->peer->forum();
+		if (controller()->shownForum().current() == forum) {
+			controller()->closeForum();
+		} else {
+			controller()->showForum(
+				forum,
+				Window::SectionShow().withChildColumn());
+		}
 		return;
 	} else if (history) {
 		const auto peer = history->peer;
@@ -468,15 +484,15 @@ void Widget::chosenRow(const ChosenRow &row) {
 				toSeparate();
 			}
 		} else {
-			hideChildList();
 			controller()->showThread(
 				history,
 				showAtMsgId,
 				Window::SectionShow::Way::ClearStack);
+			hideChildList();
 		}
 	} else if (const auto folder = row.key.folder()) {
-		hideChildList();
 		controller()->openFolder(folder);
+		hideChildList();
 	}
 	if (row.filteredRow && !session().supportMode()) {
 		if (_subsectionTopBar) {
@@ -735,6 +751,9 @@ void Widget::updateControlsVisibility(bool fast) {
 		_childList->show();
 		_childListShadow->show();
 	}
+	if (_hideChildListCanvas) {
+		_hideChildListCanvas->show();
+	}
 }
 
 void Widget::changeOpenedSubsection(
@@ -770,15 +789,24 @@ void Widget::changeOpenedSubsection(
 }
 
 void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
+	if (_openedFolder == folder) {
+		return;
+	}
 	changeOpenedSubsection([&] {
+		closeChildList(anim::type::instant);
+		controller()->closeForum();
 		_openedFolder = folder;
 		_inner->changeOpenedFolder(folder);
 	}, (folder != nullptr), animated);
 }
 
 void Widget::changeOpenedForum(Data::Forum *forum, anim::type animated) {
+	if (_openedForum == forum) {
+		return;
+	}
 	changeOpenedSubsection([&] {
 		cancelSearch();
+		closeChildList(anim::type::instant);
 		_openedForum = forum;
 		_api.request(base::take(_topicSearchRequest)).cancel();
 		_inner->changeOpenedForum(forum);
@@ -965,7 +993,9 @@ void Widget::checkUpdateStatus() {
 }
 
 void Widget::setInnerFocus() {
-	if (!_openedFolder && !_openedForum) {
+	if (_childList) {
+		_childList->setInnerFocus();
+	} else if (!_openedFolder && !_openedForum) {
 		_filter->setFocus();
 	} else if (!_subsectionTopBar->searchSetFocus()) {
 		setFocus();
@@ -1064,18 +1094,28 @@ void Widget::showFast() {
 	show();
 }
 
-void Widget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
+rpl::producer<float64> Widget::shownProgressValue() const {
+	return _shownProgressValue.value();
+}
+
+void Widget::showAnimated(
+		Window::SlideDirection direction,
+		const Window::SectionSlideParams &params) {
 	_showAnimation = nullptr;
 
 	auto oldContentCache = params.oldContentCache;
 	showFast();
-	const auto content = controller()->content();
-	auto newContentCache = content->grabForShowAnimation(params);
+	auto newContentCache = Ui::GrabWidget(this);
 
 	if (_updateTelegram) {
 		_updateTelegram->hide();
 	}
 	_connecting->setForceHidden(true);
+	if (_childList) {
+		_childList->hide();
+		_childListShadow->hide();
+	}
+	_shownProgressValue = 0.;
 	startSlideAnimation(
 		std::move(oldContentCache),
 		std::move(newContentCache),
@@ -1106,7 +1146,12 @@ void Widget::startSlideAnimation(
 
 	_showAnimation = std::make_unique<Window::SlideAnimation>();
 	_showAnimation->setDirection(direction);
-	_showAnimation->setRepaintCallback([=] { update(); });
+	_showAnimation->setRepaintCallback([=] {
+		if (_shownProgressValue.current() < 1.) {
+			_shownProgressValue = _showAnimation->progress();
+		}
+		update();
+	});
 	_showAnimation->setFinishedCallback([=] { slideFinished(); });
 	_showAnimation->setPixmaps(oldContentCache, newContentCache);
 	_showAnimation->start();
@@ -1122,6 +1167,7 @@ QRect Widget::floatPlayerAvailableRect() {
 
 void Widget::slideFinished() {
 	_showAnimation = nullptr;
+	_shownProgressValue = 1.;
 	updateControlsVisibility(true);
 	if ((!_subsectionTopBar || !_subsectionTopBar->searchHasFocus())
 		&& !_filter->hasFocus()) {
@@ -1838,12 +1884,12 @@ void Widget::dropEvent(QDropEvent *e) {
 		const auto point = mapToGlobal(e->pos());
 		if (const auto thread = _inner->updateFromParentDrag(point)) {
 			e->acceptProposedAction();
-			if (!thread->owningHistory()->peer->isForum()) {
-				hideChildList();
-			}
 			controller()->content()->filesOrForwardDrop(
 				thread,
 				e->mimeData());
+			if (!thread->owningHistory()->peer->isForum()) {
+				hideChildList();
+			}
 			controller()->widget()->raise();
 			controller()->widget()->activateWindow();
 		}
@@ -1902,6 +1948,22 @@ void Widget::showForum(
 		return;
 	}
 	cancelSearch();
+	openChildList(forum, params);
+}
+
+void Widget::openChildList(
+		not_null<Data::Forum*> forum,
+		const Window::SectionShow &params) {
+	auto slide = Window::SectionSlideParams();
+	const auto animated = !_childList
+		&& (params.animated == anim::type::normal);
+	if (animated) {
+		_childListShown = 0.;
+		_hideChildListCanvas = nullptr;
+		slide.oldContentCache = Ui::GrabWidget(
+			this,
+			QRect(_narrowWidth, 0, width() - _narrowWidth, height()));
+	}
 	auto copy = params;
 	copy.childColumn = false;
 	copy.animated = anim::type::instant;
@@ -1910,19 +1972,87 @@ void Widget::showForum(
 		controller(),
 		Layout::Child);
 	_childList->showForum(forum, copy);
+	_childListPeerId = forum->channel()->id;
+
 	_childListShadow = std::make_unique<Ui::RpWidget>(this);
-	_childListShadow->setAttribute(Qt::WA_TransparentForMouseEvents);
-	_childListShadow->paintRequest(
+	const auto shadow = _childListShadow.get();
+	const auto opacity = shadow->lifetime().make_state<float64>(0.);
+	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
+	shadow->paintRequest(
 	) | rpl::start_with_next([=] {
-		auto p = QPainter(_childListShadow.get());
+		auto p = QPainter(shadow);
+		p.setOpacity(*opacity);
 		st::slideShadow.fill(p, QRect(
-			_childListShadow->width() - st::slideShadow.width(),
+			shadow->width() - st::slideShadow.width(),
 			0,
 			st::slideShadow.width(),
-			_childListShadow->height()));
-	}, _childListShadow->lifetime());
+			shadow->height()));
+	}, shadow->lifetime());
+	_childListShown.value() | rpl::start_with_next([=](float64 value) {
+		*opacity = value;
+		if (!value && _childListShadow.get() != shadow) {
+			delete shadow;
+		} else {
+			shadow->update();
+		}
+	}, shadow->lifetime());
+
 	updateControlsGeometry();
 	updateControlsVisibility(true);
+
+	if (animated) {
+		_childList->showAnimated(Window::SlideDirection::FromRight, slide);
+		_childListShown = _childList->shownProgressValue();
+	} else {
+		_childListShown = 1.;
+	}
+}
+
+void Widget::closeChildList(anim::type animated) {
+	if (!_childList) {
+		return;
+	}
+	const auto geometry = _childList->geometry();
+	const auto shown = _childListShown.current();
+	auto oldContentCache = QPixmap();
+	auto animation = (Window::SlideAnimation*)nullptr;
+	if (animated == anim::type::normal) {
+		oldContentCache = Ui::GrabWidget(_childList.get());
+		_hideChildListCanvas = std::make_unique<Ui::RpWidget>(this);
+		_hideChildListCanvas->setGeometry(geometry);
+		animation = _hideChildListCanvas->lifetime().make_state<
+			Window::SlideAnimation
+		>();
+		_hideChildListCanvas->paintRequest(
+		) | rpl::start_with_next([=] {
+			QPainter p(_hideChildListCanvas.get());
+			animation->paintContents(p);
+		}, _hideChildListCanvas->lifetime());
+	}
+	_childList = nullptr;
+	_childListShown = 0.;
+	if (animated == anim::type::normal) {
+		_hideChildListCanvas->hide();
+		auto newContentCache = Ui::GrabWidget(this, geometry);
+		_hideChildListCanvas->show();
+
+		_childListShown = shown;
+		_childListShadow.release();
+
+		animation->setDirection(Window::SlideDirection::FromLeft);
+		animation->setRepaintCallback([=] {
+			_childListShown = (1. - animation->progress()) * shown;
+			_hideChildListCanvas->update();
+		});
+		animation->setFinishedCallback([=] {
+			_childListShown = 0.;
+			_hideChildListCanvas = nullptr;
+		});
+		animation->setPixmaps(oldContentCache, newContentCache);
+		animation->start();
+	} else {
+		_childListShadow = nullptr;
+	}
 }
 
 void Widget::searchInChat(Key chat) {
@@ -2162,12 +2292,16 @@ void Widget::updateSearchFromVisibility(bool fast) {
 
 void Widget::updateControlsGeometry() {
 	auto filterAreaTop = 0;
-	const auto usew = _childList ? _narrowWidth : width();
-	const auto childw = std::max(_narrowWidth, width() - usew);
+
+	const auto ratiow = anim::interpolate(
+		width(),
+		_narrowWidth,
+		_childListShown.current());
 	const auto smallw = st::columnMinimalWidthLeft - _narrowWidth;
-	const auto smallLayoutRatio = (usew < smallw)
-		? ((smallw - usew) / float64(smallw - _narrowWidth))
+	const auto smallLayoutRatio = (ratiow < smallw)
+		? ((smallw - ratiow) / float64(smallw - _narrowWidth))
 		: 0.;
+
 	auto filterLeft = (controller()->filtersWidth()
 		? st::dialogsFilterSkip
 		: (st::dialogsFilterPadding.x() + _mainMenuToggle->width()))
@@ -2175,9 +2309,9 @@ void Widget::updateControlsGeometry() {
 	auto filterRight = (session().domain().local().hasLocalPasscode()
 		? (st::dialogsFilterPadding.x() + _lockUnlock->width())
 		: st::dialogsFilterSkip) + st::dialogsFilterPadding.x();
-	auto filterWidth = qMax(usew, smallw) - filterLeft - filterRight;
+	auto filterWidth = qMax(ratiow, smallw) - filterLeft - filterRight;
 	auto filterAreaHeight = st::topBarHeight;
-	_searchControls->setGeometry(0, filterAreaTop, usew, filterAreaHeight);
+	_searchControls->setGeometry(0, filterAreaTop, ratiow, filterAreaHeight);
 	if (_subsectionTopBar) {
 		_subsectionTopBar->setGeometry(_searchControls->geometry());
 	}
@@ -2202,6 +2336,7 @@ void Widget::updateControlsGeometry() {
 	right -= _jumpToDate->width(); _jumpToDate->moveToLeft(right, _filter->y());
 	right -= _chooseFromUser->width(); _chooseFromUser->moveToLeft(right, _filter->y());
 
+	const auto usew = _childList ? _narrowWidth : width();
 	if (_forumTopShadow) {
 		_forumTopShadow->setGeometry(
 			0,
@@ -2264,6 +2399,7 @@ void Widget::updateControlsGeometry() {
 	}
 
 	if (_childList) {
+		const auto childw = std::max(_narrowWidth, width() - usew);
 		_childList->setGeometryWithTopMoved(
 			{ width() - childw, 0, childw, height() },
 			_topDelta);

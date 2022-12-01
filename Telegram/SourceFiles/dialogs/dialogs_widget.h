@@ -100,6 +100,7 @@ public:
 		Window::SlideDirection direction,
 		const Window::SectionSlideParams &params);
 	void showFast();
+	[[nodiscard]] rpl::producer<float64> shownProgressValue() const;
 
 	void scrollToEntry(const RowDescriptor &entry);
 
@@ -187,6 +188,11 @@ private:
 		QPixmap newContentCache,
 		Window::SlideDirection direction);
 
+	void openChildList(
+		not_null<Data::Forum*> forum,
+		const Window::SectionShow &params);
+	void closeChildList(anim::type animated);
+
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void applyFilterUpdate(bool force = false);
 	void refreshLoadMoreButton(bool mayBlock, bool isBlocked);
@@ -237,6 +243,7 @@ private:
 
 	Ui::Animations::Simple _scrollToAnimation;
 	std::unique_ptr<Window::SlideAnimation> _showAnimation;
+	rpl::variable<float64> _shownProgressValue;
 
 	Ui::Animations::Simple _scrollToTopShown;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
@@ -287,6 +294,9 @@ private:
 
 	std::unique_ptr<Widget> _childList;
 	std::unique_ptr<Ui::RpWidget> _childListShadow;
+	rpl::variable<float64> _childListShown;
+	rpl::variable<PeerId> _childListPeerId;
+	std::unique_ptr<Ui::RpWidget> _hideChildListCanvas;
 
 };
 

@@ -83,9 +83,14 @@ enum class WidgetState {
 
 class InnerWidget final : public Ui::RpWidget {
 public:
+	struct ChildListShown {
+		PeerId peerId = 0;
+		float64 shown = 0.;
+	};
 	InnerWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		rpl::producer<ChildListShown> childListShown);
 
 	void searchReceived(
 		std::vector<not_null<HistoryItem*>> result,
@@ -489,6 +494,8 @@ private:
 	rpl::event_stream<> _searchMessages;
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
+
+	rpl::variable<ChildListShown> _childListShown;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

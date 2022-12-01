@@ -186,17 +186,18 @@ int PaintBadges(
 	return (initial - right);
 }
 
-void PaintExpandedTopicsBar(QPainter &p) {
+void PaintExpandedTopicsBar(QPainter &p, float64 progress) {
 	auto hq = PainterHighQualityEnabler(p);
 	const auto radius = st::roundRadiusLarge;
 	const auto width = st::forumDialogRow.padding.left() / 2;
 	p.setPen(Qt::NoPen);
 	p.setBrush(st::dialogsBgActive);
 	p.drawRoundedRect(
-		-3 * radius,
-		st::forumDialogRow.padding.top(),
-		3 * radius + width,
-		st::forumDialogRow.photoSize,
+		QRectF(
+			-3. * radius - width * (1. - progress),
+			st::forumDialogRow.padding.top(),
+			3. * radius + width,
+			st::forumDialogRow.photoSize),
 		radius,
 		radius);
 }
@@ -349,12 +350,12 @@ void PaintRow(
 	}
 
 	auto nameleft = context.st->nameLeft;
+	if (context.topicsExpanded > 0.) {
+		PaintExpandedTopicsBar(p, context.topicsExpanded);
+	}
 	if (context.narrow) {
 		if (!draft && item && !item->isEmpty()) {
 			PaintNarrowCounter(p, context, badgesState);
-		}
-		if (context.topicsExpanded) {
-			PaintExpandedTopicsBar(p);
 		}
 		return;
 	}

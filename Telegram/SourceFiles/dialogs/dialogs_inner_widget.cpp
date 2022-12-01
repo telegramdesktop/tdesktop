@@ -141,7 +141,8 @@ int InnerWidget::FilterResult::bottom() const {
 
 InnerWidget::InnerWidget(
 	QWidget *parent,
-	not_null<Window::SessionController*> controller)
+	not_null<Window::SessionController*> controller,
+	rpl::producer<ChildListShown> childListShown)
 : RpWidget(parent)
 , _controller(controller)
 , _shownList(controller->session().data().chatsList()->indexed())
@@ -153,7 +154,8 @@ InnerWidget::InnerWidget(
 	+ st::defaultDialogRow.photoSize
 	+ st::defaultDialogRow.padding.left())
 , _cancelSearchInChat(this, st::dialogsCancelSearchInPeer)
-, _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer) {
+, _cancelSearchFromUser(this, st::dialogsCancelSearchInPeer)
+, _childListShown(std::move(childListShown)) {
 	setAttribute(Qt::WA_OpaquePaintEvent, true);
 
 	_cancelSearchInChat->hide();
@@ -546,7 +548,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	const auto r = e->rect();
 	auto dialogsClip = r;
 	const auto ms = crl::now();
-	const auto shownForum = _controller->shownForum().current();
+	const auto childListShown = _childListShown.current();
 	const auto paintRow = [&](
 			not_null<Row*> row,
 			bool selected,
@@ -558,23 +560,25 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (forum && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
-		const auto expanded = !active
+
+		const auto expanded = (!active
 			&& forum
-			&& !_openedForum
-			&& (key.history()->peer->forum() == shownForum);
+			&& (key.history()->peer->id == childListShown.peerId))
+			? childListShown.shown
+			: 0.;
 		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
 			.st = (forum ? &st::forumDialogRow : _st.get()),
 			.topicJumpCache = _topicJumpCache.get(),
 			.folder = _openedFolder,
 			.forum = _openedForum,
 			.filter = _filterId,
+			.topicsExpanded = expanded,
 			.now = ms,
 			.width = fullWidth,
 			.active = active,
 			.selected = (_menuRow.key
 				? (row->key() == _menuRow.key)
 				: selected),
-			.topicsExpanded = expanded,
 			.topicJumpSelected = (selected
 				&& _selectedTopicJump
 				&& (!_pressed || _pressedTopicJump)),

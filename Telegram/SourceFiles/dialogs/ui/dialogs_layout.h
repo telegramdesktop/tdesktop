@@ -58,11 +58,11 @@ struct PaintContext {
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
 	FilterId filter = 0;
+	float64 topicsExpanded = 0.;
 	crl::time now = 0;
 	int width = 0;
 	bool active = false;
 	bool selected = false;
-	bool topicsExpanded = false;
 	bool topicJumpSelected = false;
 	bool paused = false;
 	bool search = false;
