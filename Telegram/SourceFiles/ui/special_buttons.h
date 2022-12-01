@@ -132,7 +132,8 @@ private:
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
-	QPoint countPhotoPosition() const;
+	void fillShape(QPainter &p, const style::color &color) const;
+	[[nodiscard]] QPoint countPhotoPosition() const;
 	void startChangeOverlayAnimation();
 	void updateCursorInChangeOverlay(QPoint localPos);
 	void setCursorInChangeOverlay(bool inOverlay);
