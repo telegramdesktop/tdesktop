@@ -89,9 +89,11 @@ public:
 		return _top;
 	}
 	[[nodiscard]] int height() const {
+		Expects(_height != 0);
+
 		return _height;
 	}
-	void recountHeight();
+	void recountHeight(float64 narrowRatio);
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,

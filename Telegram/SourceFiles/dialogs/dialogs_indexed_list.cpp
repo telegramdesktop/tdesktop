@@ -61,13 +61,12 @@ void IndexedList::adjustByDate(const RowsByLetter &links) {
 	}
 }
 
-void IndexedList::updateHeight(const RowsByLetter &links) {
-	_list.updateHeight(links.main);
-	for (const auto &[ch, row] : links.letters) {
-		if (auto it = _index.find(ch); it != _index.cend()) {
-			it->second.updateHeight(row);
-		}
-	}
+bool IndexedList::updateHeights(float64 narrowRatio) {
+	return _list.updateHeights(narrowRatio);
+}
+
+bool IndexedList::updateHeight(Key key, float64 narrowRatio) {
+	return _list.updateHeight(key, narrowRatio);
 }
 
 void IndexedList::moveToTop(Key key) {

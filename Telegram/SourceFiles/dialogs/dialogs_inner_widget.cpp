@@ -294,8 +294,9 @@ InnerWidget::InnerWidget(
 	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
 		const auto entry = update.entry;
 		if (update.flags & Data::EntryUpdate::Flag::Height) {
-			updateFilteredEntryHeight(entry);
-			refresh();
+			if (updateEntryHeight(entry)) {
+				refresh();
+			}
 			return;
 		}
 		const auto repaintId = (_state == WidgetState::Default)
@@ -331,7 +332,10 @@ InnerWidget::InnerWidget(
 	setupShortcuts();
 }
 
-void InnerWidget::updateFilteredEntryHeight(not_null<Entry*> entry) {
+bool InnerWidget::updateEntryHeight(not_null<Entry*> entry) {
+	if (!_geometryInited) {
+		return false;
+	}
 	auto changing = false;
 	auto top = 0;
 	for (auto &result : _filterResults) {
@@ -339,13 +343,25 @@ void InnerWidget::updateFilteredEntryHeight(not_null<Entry*> entry) {
 			result.top = top;
 		}
 		if (result.row->key().entry() == entry) {
-			result.row->recountHeight();
+			result.row->recountHeight(_narrowRatio);
 			changing = true;
 			top = result.top;
 		}
 		if (changing) {
 			top += result.row->height();
 		}
+	}
+	return _shownList->updateHeight(entry, _narrowRatio) || changing;
+}
+
+void InnerWidget::setNarrowRatio(float64 narrowRatio) {
+	if (_geometryInited && _narrowRatio == narrowRatio) {
+		return;
+	}
+	_geometryInited = true;
+	_narrowRatio = narrowRatio;
+	if (_shownList->updateHeights(_narrowRatio) || !height()) {
+		refresh();
 	}
 }
 
@@ -2070,11 +2086,14 @@ void InnerWidget::updateSelectedRow(Key key) {
 }
 
 void InnerWidget::refreshShownList() {
-	_shownList = _openedForum
+	const auto list = _openedForum
 		? _openedForum->topicsList()->indexed()
 		: _filterId
 		? session().data().chatsFilters().chatsList(_filterId)->indexed()
 		: session().data().chatsList(_openedFolder)->indexed();
+	if (_shownList != list) {
+		_shownList = list;
+	}
 }
 
 void InnerWidget::leaveEventHook(QEvent *e) {
@@ -2240,6 +2259,7 @@ void InnerWidget::applyFilterUpdate(QString newFilter, bool force) {
 					end(results));
 				for (const auto e = end(_filterResults); i != e; ++i) {
 					i->top = top;
+					i->row->recountHeight(_narrowRatio);
 					top += i->row->height();
 				}
 			};
@@ -2672,7 +2692,9 @@ void InnerWidget::editOpenedFilter() {
 }
 
 void InnerWidget::refresh(bool toTop) {
-	if (needCollapsedRowsRefresh()) {
+	if (!_geometryInited) {
+		return;
+	} else if (needCollapsedRowsRefresh()) {
 		return refreshWithCollapsedRows(toTop);
 	}
 	refreshEmptyLabel();

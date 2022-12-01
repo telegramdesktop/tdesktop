@@ -112,6 +112,7 @@ public:
 	void selectSkipPage(int32 pixels, int32 direction);
 
 	void dragLeft();
+	void setNarrowRatio(float64 narrowRatio);
 
 	void clearFilter();
 	void refresh(bool toTop = false);
@@ -235,7 +236,7 @@ private:
 	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 	void refreshDialogRow(RowDescriptor row);
-	void updateFilteredEntryHeight(not_null<Entry*> entry);
+	bool updateEntryHeight(not_null<Entry*> entry);
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(
@@ -496,6 +497,8 @@ private:
 	rpl::event_stream<> _refreshHashtagsRequests;
 
 	rpl::variable<ChildListShown> _childListShown;
+	float64 _narrowRatio = 0.;
+	bool _geometryInited = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

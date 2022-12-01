@@ -436,15 +436,19 @@ void Widget::chosenRow(const ChosenRow &row) {
 		? history->peer->forumTopicFor(row.message.fullId.msg)
 		: nullptr;
 	if (topicJump) {
-		if (!controller()->adaptive().isOneColumn()) {
-			controller()->showForum(
-				topicJump->forum(),
-				Window::SectionShow().withChildColumn());
+		if (controller()->shownForum().current() == topicJump->forum()) {
+			controller()->closeForum();
+		} else {
+			if (!controller()->adaptive().isOneColumn()) {
+				controller()->showForum(
+					topicJump->forum(),
+					Window::SectionShow().withChildColumn());
+			}
+			controller()->showThread(
+				topicJump,
+				ShowAtUnreadMsgId,
+				Window::SectionShow::Way::ClearStack);
 		}
-		controller()->showThread(
-			topicJump,
-			ShowAtUnreadMsgId,
-			Window::SectionShow::Way::ClearStack);
 		return;
 	} else if (const auto topic = row.key.topic()) {
 		controller()->showThread(
@@ -2334,6 +2338,9 @@ void Widget::updateSearchFromVisibility(bool fast) {
 }
 
 void Widget::updateControlsGeometry() {
+	if (width() < _narrowWidth) {
+		return;
+	}
 	auto filterAreaTop = 0;
 
 	const auto ratiow = anim::interpolate(
@@ -2434,6 +2441,7 @@ void Widget::updateControlsGeometry() {
 	const auto wasScrollHeight = _scroll->height();
 	_scroll->setGeometry(0, scrollTop, scrollw, scrollHeight);
 	_inner->resize(scrollw, _inner->height());
+	_inner->setNarrowRatio(narrowRatio);
 	if (scrollHeight != wasScrollHeight) {
 		controller()->floatPlayerAreaUpdated();
 	}

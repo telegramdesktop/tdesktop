@@ -35,7 +35,6 @@ public:
 
 	RowsByLetter addEntry(Key key);
 	void removeEntry(Key key);
-	void updateEntryHeight(const RowsByLetter &links);
 
 	void unreadStateChanged(
 		const UnreadState &wasState,

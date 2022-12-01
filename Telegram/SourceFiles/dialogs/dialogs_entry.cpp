@@ -380,13 +380,6 @@ void Entry::updateChatListEntryPostponed() {
 }
 
 void Entry::updateChatListEntryHeight() {
-	auto &filters = _owner->chatsFilters();
-	for (auto &[filterId, rows] : _chatListLinks) {
-		const auto list = filterId
-			? filters.chatsList(filterId)
-			: _owner->chatsList(folder());
-		list->updateEntryHeight(rows);
-	}
 	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Height);
 }
 

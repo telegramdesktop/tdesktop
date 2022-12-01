@@ -101,13 +101,15 @@ Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 	if (const auto history = key.history()) {
 		updateCornerBadgeShown(history->peer);
 	}
-	recountHeight();
 }
 
-void Row::recountHeight() {
+void Row::recountHeight(float64 narrowRatio) {
 	if (const auto history = _id.history()) {
 		_height = history->peer->isForum()
-			? st::forumDialogRow.height
+			? anim::interpolate(
+				st::forumDialogRow.height,
+				st::defaultDialogRow.height,
+				narrowRatio)
 			: st::defaultDialogRow.height;
 	} else if (_id.folder()) {
 		_height = st::defaultDialogRow.height;
