@@ -89,6 +89,7 @@ class TopBarWrapWidget;
 class SectionMemento;
 class SectionWidget;
 class AbstractSectionWidget;
+class SlideAnimation;
 class ConnectionState;
 struct SectionSlideParams;
 struct SectionShow;
@@ -137,7 +138,7 @@ public:
 
 	void returnTabbedSelector();
 
-	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	void showAnimated(QPixmap oldContentCache, bool back = false);
 
 	void activate();
 
@@ -248,7 +249,7 @@ protected:
 	bool eventFilter(QObject *o, QEvent *e) override;
 
 private:
-	void animationCallback();
+	void showFinished();
 	void handleAdaptiveLayoutUpdate();
 	void updateWindowAdaptiveLayout();
 	void handleAudioUpdate(const Media::Player::TrackState &state);
@@ -342,9 +343,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 
-	Ui::Animations::Simple _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	int _dialogsWidth = 0;
 	int _thirdColumnWidth = 0;

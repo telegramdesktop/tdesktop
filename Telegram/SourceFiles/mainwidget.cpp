@@ -816,7 +816,7 @@ void MainWidget::createPlayer() {
 		}, _player->lifetime());
 
 		orderWidgets();
-		if (_a_show.animating()) {
+		if (_showAnimation) {
 			_player->show(anim::type::instant);
 			_player->setVisible(false);
 			Shortcuts::ToggleMediaShortcuts(true);
@@ -825,7 +825,7 @@ void MainWidget::createPlayer() {
 		}
 	}
 	if (_player && !_player->toggled()) {
-		if (!_a_show.animating()) {
+		if (!_showAnimation) {
 			_player->show(anim::type::normal);
 			_playerHeight = _contentScrollAddToY = _player->contentHeight();
 			updateControlsGeometry();
@@ -916,7 +916,7 @@ void MainWidget::createCallTopBar() {
 		callTopBarHeightUpdated(value);
 	}, lifetime());
 	orderWidgets();
-	if (_a_show.animating()) {
+	if (_showAnimation) {
 		_callTopBar->show(anim::type::instant);
 		_callTopBar->setVisible(false);
 	} else {
@@ -980,7 +980,7 @@ void MainWidget::createExportTopBar(Export::View::Content &&data) {
 		}
 	}, _exportTopBar->lifetime());
 	orderWidgets();
-	if (_a_show.animating()) {
+	if (_showAnimation) {
 		_exportTopBar->show(anim::type::instant);
 		_exportTopBar->setVisible(false);
 	} else {
@@ -1318,7 +1318,7 @@ void MainWidget::showPeerHistory(
 	}
 
 	auto animatedShow = [&] {
-		if (_a_show.animating()
+		if (_showAnimation
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)) {
 			return false;
@@ -1369,7 +1369,7 @@ void MainWidget::showPeerHistory(
 	if (onlyDialogs) {
 		Assert(_dialogs != nullptr);
 		_history->hide();
-		if (!_a_show.animating()) {
+		if (!_showAnimation) {
 			if (animationParams) {
 				auto direction = back ? Window::SlideDirection::FromLeft : Window::SlideDirection::FromRight;
 				_dialogs->showAnimated(direction, animationParams);
@@ -1385,7 +1385,7 @@ void MainWidget::showPeerHistory(
 		if (isOneColumn() && _dialogs && !_dialogs->isHidden()) {
 			_dialogs->hide();
 		}
-		if (!_a_show.animating()) {
+		if (!_showAnimation) {
 			if (!animationParams.oldContentCache.isNull()) {
 				_history->showAnimated(
 					back
@@ -1661,7 +1661,7 @@ void MainWidget::showNewSection(
 	Assert(newMainSection || newThirdSection);
 
 	auto animatedShow = [&] {
-		if (_a_show.animating()
+		if (_showAnimation
 			|| Core::App().passcodeLocked()
 			|| (params.animated == anim::type::instant)
 			|| memento->instant()) {
@@ -1965,58 +1965,41 @@ void MainWidget::checkActivation() {
 	}
 }
 
-void MainWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
-	_showBack = back;
-	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
-
-	_a_show.stop();
+void MainWidget::showAnimated(QPixmap oldContentCache, bool back) {
+	_showAnimation = nullptr;
 
 	showAll();
 	floatPlayerHideAll();
-	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
+	auto newContentCache = Ui::GrabWidget(this);
 	hideAll();
 	floatPlayerShowVisible();
 
-	_a_show.start(
-		[this] { animationCallback(); },
-		0.,
-		1.,
-		st::slideDuration,
-		Window::SlideAnimation::transition());
+	_showAnimation = std::make_unique<Window::SlideAnimation>();
+	_showAnimation->setDirection(back
+		? Window::SlideDirection::FromLeft
+		: Window::SlideDirection::FromRight);
+	_showAnimation->setRepaintCallback([=] { update(); });
+	_showAnimation->setFinishedCallback([=] { showFinished(); });
+	_showAnimation->setPixmaps(oldContentCache, newContentCache);
+	_showAnimation->start();
 
 	show();
 }
 
-void MainWidget::animationCallback() {
-	update();
-	if (!_a_show.animating()) {
-		_cacheUnder = _cacheOver = QPixmap();
+void MainWidget::showFinished() {
+	_showAnimation = nullptr;
 
-		showAll();
-		activate();
-	}
+	showAll();
+	activate();
 }
 
 void MainWidget::paintEvent(QPaintEvent *e) {
 	if (_background) {
 		checkChatBackground();
 	}
-
-	auto p = QPainter(this);
-	auto progress = _a_show.value(1.);
-	if (_a_show.animating()) {
-		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
-		auto shadow = _showBack ? (1. - progress) : progress;
-		if (coordOver > 0) {
-			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(shadow);
-			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
-			p.setOpacity(1);
-		}
-		p.drawPixmap(coordOver, 0, _cacheOver);
-		p.setOpacity(shadow);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
+	if (_showAnimation) {
+		auto p = QPainter(this);
+		_showAnimation->paintContents(p);
 	}
 }
 
@@ -2653,7 +2636,7 @@ bool MainWidget::contentOverlapped(const QRect &globalRect) {
 }
 
 void MainWidget::activate() {
-	if (_a_show.animating()) {
+	if (_showAnimation) {
 		return;
 	} else if (const auto paths = cSendPaths(); !paths.isEmpty()) {
 		const auto interpret = u"interpret://"_q;
@@ -2688,7 +2671,7 @@ void MainWidget::activate() {
 }
 
 bool MainWidget::animatingShow() const {
-	return _a_show.animating();
+	return _showAnimation != nullptr;
 }
 
 bool MainWidget::isOneColumn() const {

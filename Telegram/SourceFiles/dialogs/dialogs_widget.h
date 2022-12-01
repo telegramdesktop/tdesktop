@@ -139,7 +139,7 @@ private:
 	bool searchMessages(bool searchCache = false);
 	void needSearchMessages();
 
-	void animationCallback();
+	void slideFinished();
 	void searchReceived(
 		SearchRequestType type,
 		const MTPmessages_Messages &result,
@@ -182,7 +182,10 @@ private:
 	void changeOpenedForum(Data::Forum *forum, anim::type animated);
 	void hideChildList();
 	[[nodiscard]] QPixmap grabForFolderSlideAnimation();
-	void startSlideAnimation();
+	void startSlideAnimation(
+		QPixmap oldContentCache,
+		QPixmap newContentCache,
+		Window::SlideDirection direction);
 
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void applyFilterUpdate(bool force = false);
@@ -233,9 +236,7 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	Ui::Animations::Simple _scrollToAnimation;
-	Ui::Animations::Simple _a_show;
-	Window::SlideDirection _showDirection = Window::SlideDirection();
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	Ui::Animations::Simple _scrollToTopShown;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;

@@ -162,7 +162,9 @@ public:
 	bool hasTopBarShadow() const {
 		return peer() != nullptr;
 	}
-	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
+	void showAnimated(
+		Window::SlideDirection direction,
+		const Window::SectionSlideParams &params);
 	void finishAnimating();
 
 	void doneShow();
@@ -403,7 +405,7 @@ private:
 
 	auto computeSendButtonType() const;
 
-	void animationCallback();
+	void showFinished();
 	void updateOverStates(QPoint pos);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
 	void sendButtonClicked();
@@ -754,9 +756,7 @@ private:
 
 	QString _confirmSource;
 
-	Ui::Animations::Simple _a_show;
-	Window::SlideDirection _showDirection;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	HistoryView::ElementHighlighter _highlighter;
 

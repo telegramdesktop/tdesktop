@@ -53,8 +53,8 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro(Intro::EnterPoint point);
-	void setupMain(MsgId singlePeerShowAtMsgId);
+	void setupIntro(Intro::EnterPoint point, QPixmap oldContentCache);
+	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showSettings();
 
@@ -82,6 +82,8 @@ public:
 
 	void showMainMenu();
 	void fixOrder() override;
+
+	[[nodiscard]] QPixmap grabForSlideAnimation();
 
 	void showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
@@ -131,8 +133,6 @@ private:
 		anim::type animated);
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
-
-	QPixmap grabInner();
 
 	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
 

@@ -744,15 +744,15 @@ void Widget::changeOpenedSubsection(
 	if (isHidden()) {
 		animated = anim::type::instant;
 	}
-	auto cacheUnder = QPixmap();
+	auto oldContentCache = QPixmap();
 	const auto showDirection = fromRight
 		? Window::SlideDirection::FromRight
 		: Window::SlideDirection::FromLeft;
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
-		cacheUnder = grabForFolderSlideAnimation();
+		oldContentCache = grabForFolderSlideAnimation();
 	}
-	_a_show.stop();
+	_showAnimation = nullptr;
 	change();
 	refreshTopBars();
 	updateControlsVisibility(true);
@@ -760,9 +760,12 @@ void Widget::changeOpenedSubsection(
 	_api.request(base::take(_topicSearchRequest)).cancel();
 	if (animated == anim::type::normal) {
 		_connecting->setForceHidden(true);
-		auto cacheOver = grabForFolderSlideAnimation();
+		auto newContentCache = grabForFolderSlideAnimation();
 		_connecting->setForceHidden(false);
-		startSlideAnimation();
+		startSlideAnimation(
+			std::move(oldContentCache),
+			std::move(newContentCache),
+			showDirection);
 	}
 }
 
@@ -872,7 +875,7 @@ void Widget::refreshTopBars() {
 			}
 		}, _forumGroupCallBar->lifetime());
 
-		if (_a_show.animating()) {
+		if (_showAnimation) {
 			_forumTopShadow->hide();
 			_forumGroupCallBar->hide();
 			_forumRequestsBar->hide();
@@ -1048,7 +1051,7 @@ void Widget::startWidthAnimation() {
 
 void Widget::stopWidthAnimation() {
 	_widthAnimationCache = QPixmap();
-	if (!_a_show.animating()) {
+	if (!_showAnimation) {
 		_scroll->show();
 	}
 	update();
@@ -1062,21 +1065,27 @@ void Widget::showFast() {
 }
 
 void Widget::showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params) {
-	_showDirection = direction;
-	_a_show.stop();
+	_showAnimation = nullptr;
 
-	_cacheUnder = params.oldContentCache;
+	auto oldContentCache = params.oldContentCache;
 	showFast();
-	_cacheOver = controller()->content()->grabForShowAnimation(params);
+	const auto content = controller()->content();
+	auto newContentCache = content->grabForShowAnimation(params);
 
 	if (_updateTelegram) {
 		_updateTelegram->hide();
 	}
 	_connecting->setForceHidden(true);
-	startSlideAnimation();
+	startSlideAnimation(
+		std::move(oldContentCache),
+		std::move(newContentCache),
+		direction);
 }
 
-void Widget::startSlideAnimation() {
+void Widget::startSlideAnimation(
+		QPixmap oldContentCache,
+		QPixmap newContentCache,
+		Window::SlideDirection direction) {
 	_scroll->hide();
 	_searchControls->hide();
 	if (_subsectionTopBar) {
@@ -1095,10 +1104,12 @@ void Widget::startSlideAnimation() {
 		_forumReportBar->bar().hide();
 	}
 
-	if (_showDirection == Window::SlideDirection::FromLeft) {
-		std::swap(_cacheUnder, _cacheOver);
-	}
-	_a_show.start([=] { animationCallback(); }, 0., 1., st::slideDuration, Window::SlideAnimation::transition());
+	_showAnimation = std::make_unique<Window::SlideAnimation>();
+	_showAnimation->setDirection(direction);
+	_showAnimation->setRepaintCallback([=] { update(); });
+	_showAnimation->setFinishedCallback([=] { slideFinished(); });
+	_showAnimation->setPixmaps(oldContentCache, newContentCache);
+	_showAnimation->start();
 }
 
 bool Widget::floatPlayerHandleWheelEvent(QEvent *e) {
@@ -1109,17 +1120,12 @@ QRect Widget::floatPlayerAvailableRect() {
 	return mapToGlobal(_scroll->geometry());
 }
 
-void Widget::animationCallback() {
-	update();
-	if (!_a_show.animating()) {
-		_cacheUnder = _cacheOver = QPixmap();
-
-		updateControlsVisibility(true);
-
-		if ((!_subsectionTopBar || !_subsectionTopBar->searchHasFocus())
-			&& !_filter->hasFocus()) {
-			controller()->widget()->setInnerFocus();
-		}
+void Widget::slideFinished() {
+	_showAnimation = nullptr;
+	updateControlsVisibility(true);
+	if ((!_subsectionTopBar || !_subsectionTopBar->searchHasFocus())
+		&& !_filter->hasFocus()) {
+		controller()->widget()->setInnerFocus();
 	}
 }
 
@@ -1854,7 +1860,7 @@ void Widget::listScrollUpdated() {
 }
 
 void Widget::applyFilterUpdate(bool force) {
-	if (_a_show.animating() && !force) {
+	if (_showAnimation && !force) {
 		return;
 	}
 
@@ -2099,7 +2105,7 @@ void Widget::resizeEvent(QResizeEvent *e) {
 }
 
 void Widget::updateLockUnlockVisibility() {
-	if (_a_show.animating()) {
+	if (_showAnimation) {
 		return;
 	}
 	const auto hidden = !session().domain().local().hasLocalPasscode();
@@ -2110,7 +2116,7 @@ void Widget::updateLockUnlockVisibility() {
 }
 
 void Widget::updateLoadMoreChatsVisibility() {
-	if (_a_show.animating() || !_loadMoreChats) {
+	if (_showAnimation || !_loadMoreChats) {
 		return;
 	}
 	const auto hidden = (_openedFolder != nullptr)
@@ -2123,7 +2129,9 @@ void Widget::updateLoadMoreChatsVisibility() {
 }
 
 void Widget::updateJumpToDateVisibility(bool fast) {
-	if (_a_show.animating()) return;
+	if (_showAnimation) {
+		return;
+	}
 
 	_jumpToDate->toggle(
 		(_searchInChat && _filter->getLastText().isEmpty()),
@@ -2306,24 +2314,8 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (r != rect()) {
 		p.setClipRect(r);
 	}
-	if (_a_show.animating()) {
-		const auto progress = _a_show.value(1.);
-		const auto top = 0;
-		const auto shift = std::min(st::slideShift, width() / 2);
-		const auto retina = cIntRetinaFactor();
-		const auto fromLeft = (_showDirection == Window::SlideDirection::FromLeft);
-		const auto coordUnder = fromLeft ? anim::interpolate(-shift, 0, progress) : anim::interpolate(0, -shift, progress);
-		const auto coordOver = fromLeft ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
-		const auto shadow = fromLeft ? (1. - progress) : progress;
-		if (coordOver > 0) {
-			p.drawPixmap(QRect(0, top, coordOver, _cacheUnder.height() / retina), _cacheUnder, QRect(-coordUnder * retina, 0, coordOver * retina, _cacheUnder.height()));
-			p.setOpacity(shadow);
-			p.fillRect(0, top, coordOver, _cacheUnder.height() / retina, st::slideFadeOutBg);
-			p.setOpacity(1);
-		}
-		p.drawPixmap(QRect(coordOver, top, _cacheOver.width() / retina, _cacheOver.height() / retina), _cacheOver, QRect(0, 0, _cacheOver.width(), _cacheOver.height()));
-		p.setOpacity(shadow);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), top, st::slideShadow.width(), _cacheOver.height() / retina));
+	if (_showAnimation) {
+		_showAnimation->paintContents(p);
 		return;
 	}
 	auto above = QRect(0, 0, width(), _scroll->y());

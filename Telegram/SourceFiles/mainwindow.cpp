@@ -172,15 +172,8 @@ void MainWindow::clearWidgetsHook() {
 	}
 }
 
-QPixmap MainWindow::grabInner() {
-	if (_passcodeLock) {
-		return Ui::GrabWidget(_passcodeLock);
-	} else if (_intro) {
-		return Ui::GrabWidget(_intro);
-	} else if (_main) {
-		return Ui::GrabWidget(_main);
-	}
-	return {};
+QPixmap MainWindow::grabForSlideAnimation() {
+	return Ui::GrabWidget(bodyWidget());
 }
 
 void MainWindow::preventOrInvoke(Fn<void()> callback) {
@@ -192,7 +185,7 @@ void MainWindow::preventOrInvoke(Fn<void()> callback) {
 
 void MainWindow::setupPasscodeLock() {
 	auto animated = (_main || _intro);
-	auto bg = animated ? grabInner() : QPixmap();
+	auto oldContentCache = animated ? grabForSlideAnimation() : QPixmap();
 	_passcodeLock.create(bodyWidget(), &controller());
 	updateControlsGeometry();
 
@@ -205,7 +198,7 @@ void MainWindow::setupPasscodeLock() {
 		_intro->hide();
 	}
 	if (animated) {
-		_passcodeLock->showAnimated(bg);
+		_passcodeLock->showAnimated(std::move(oldContentCache));
 	} else {
 		_passcodeLock->showFinished();
 		setInnerFocus();
@@ -213,29 +206,30 @@ void MainWindow::setupPasscodeLock() {
 }
 
 void MainWindow::clearPasscodeLock() {
+	Expects(_intro || _main);
+
 	if (!_passcodeLock) {
 		return;
 	}
 
+	auto oldContentCache = grabForSlideAnimation();
+	_passcodeLock.destroy();
 	if (_intro) {
-		auto bg = grabInner();
-		_passcodeLock.destroy();
 		_intro->show();
 		updateControlsGeometry();
-		_intro->showAnimated(bg, true);
+		_intro->showAnimated(std::move(oldContentCache), true);
 	} else if (_main) {
-		auto bg = grabInner();
-		_passcodeLock.destroy();
 		_main->show();
 		updateControlsGeometry();
-		_main->showAnimated(bg, true);
+		_main->showAnimated(std::move(oldContentCache), true);
 		Core::App().checkStartUrl();
 	}
 }
 
-void MainWindow::setupIntro(Intro::EnterPoint point) {
+void MainWindow::setupIntro(
+		Intro::EnterPoint point,
+		QPixmap oldContentCache) {
 	auto animated = (_main || _passcodeLock);
-	auto bg = animated ? grabInner() : QPixmap();
 
 	destroyLayer();
 	auto created = object_ptr<Intro::Widget>(
@@ -256,7 +250,7 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 		_intro->show();
 		updateControlsGeometry();
 		if (animated) {
-			_intro->showAnimated(bg);
+			_intro->showAnimated(std::move(oldContentCache));
 		} else {
 			setInnerFocus();
 		}
@@ -264,12 +258,13 @@ void MainWindow::setupIntro(Intro::EnterPoint point) {
 	fixOrder();
 }
 
-void MainWindow::setupMain(MsgId singlePeerShowAtMsgId) {
+void MainWindow::setupMain(
+		MsgId singlePeerShowAtMsgId,
+		QPixmap oldContentCache) {
 	Expects(account().sessionExists());
 
 	const auto animated = _intro
 		|| (_passcodeLock && !Core::App().passcodeLocked());
-	const auto bg = animated ? grabInner() : QPixmap();
 	const auto weakAnimatedLayer = (_main && _layer && !_passcodeLock)
 		? Ui::MakeWeak(_layer.get())
 		: nullptr;
@@ -295,7 +290,7 @@ void MainWindow::setupMain(MsgId singlePeerShowAtMsgId) {
 		_main->show();
 		updateControlsGeometry();
 		if (animated) {
-			_main->showAnimated(bg);
+			_main->showAnimated(std::move(oldContentCache));
 		} else {
 			_main->activate();
 		}

@@ -62,8 +62,6 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro();
-	void setupMain(MsgId singlePeerShowAtMsgId);
 
 	void showLogoutConfirmation();
 
@@ -120,6 +118,9 @@ private:
 		PeerData *singlePeer = nullptr;
 	};
 	explicit Controller(CreateArgs &&args);
+
+	void setupIntro(QPixmap oldContentCache);
+	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showAccount(
 		not_null<Main::Account*> account,

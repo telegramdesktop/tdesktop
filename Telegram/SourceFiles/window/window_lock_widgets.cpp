@@ -34,6 +34,8 @@ LockWidget::LockWidget(QWidget *parent, not_null<Controller*> window)
 	show();
 }
 
+LockWidget::~LockWidget() = default;
+
 not_null<Controller*> LockWidget::window() const {
 	return _window;
 }
@@ -45,62 +47,40 @@ void LockWidget::setInnerFocus() {
 	setFocus();
 }
 
-void LockWidget::showAnimated(const QPixmap &bgAnimCache, bool back) {
-	_showBack = back;
-	(_showBack ? _cacheOver : _cacheUnder) = bgAnimCache;
-
-	_a_show.stop();
+void LockWidget::showAnimated(QPixmap oldContentCache) {
+	_showAnimation = nullptr;
 
 	showChildren();
 	setInnerFocus();
-	(_showBack ? _cacheUnder : _cacheOver) = Ui::GrabWidget(this);
+	auto newContentCache = Ui::GrabWidget(this);
 	hideChildren();
 
-	_a_show.start(
-		[this] { animationCallback(); },
-		0.,
-		1.,
-		st::slideDuration,
-		Window::SlideAnimation::transition());
-	show();
-}
+	_showAnimation = std::make_unique<Window::SlideAnimation>();
+	_showAnimation->setRepaintCallback([=] { update(); });
+	_showAnimation->setFinishedCallback([=] { showFinished(); });
+	_showAnimation->setPixmaps(oldContentCache, newContentCache);
+	_showAnimation->start();
 
-void LockWidget::animationCallback() {
-	update();
-	if (!_a_show.animating()) {
-		showFinished();
-	}
+	show();
 }
 
 void LockWidget::showFinished() {
 	showChildren();
 	_window->widget()->setInnerFocus();
+	_showAnimation = nullptr;
 	if (const auto controller = _window->sessionController()) {
 		controller->clearSectionStack();
 	}
-	_cacheUnder = _cacheOver = QPixmap();
 }
 
 void LockWidget::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	auto progress = _a_show.value(1.);
-	if (_a_show.animating()) {
-		auto coordUnder = _showBack ? anim::interpolate(-st::slideShift, 0, progress) : anim::interpolate(0, -st::slideShift, progress);
-		auto coordOver = _showBack ? anim::interpolate(0, width(), progress) : anim::interpolate(width(), 0, progress);
-		auto shadow = _showBack ? (1. - progress) : progress;
-		if (coordOver > 0) {
-			p.drawPixmap(QRect(0, 0, coordOver, height()), _cacheUnder, QRect(-coordUnder * cRetinaFactor(), 0, coordOver * cRetinaFactor(), height() * cRetinaFactor()));
-			p.setOpacity(shadow);
-			p.fillRect(0, 0, coordOver, height(), st::slideFadeOutBg);
-			p.setOpacity(1);
-		}
-		p.drawPixmap(coordOver, 0, _cacheOver);
-		p.setOpacity(shadow);
-		st::slideShadow.fill(p, QRect(coordOver - st::slideShadow.width(), 0, st::slideShadow.width(), height()));
-	} else {
-		paintContent(p);
+	if (_showAnimation) {
+		_showAnimation->paintContents(p);
+		return;
 	}
+	paintContent(p);
 }
 
 void LockWidget::paintContent(QPainter &p) {
