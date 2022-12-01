@@ -78,6 +78,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 		_channel->antiSpamMode()
 	) | rpl::then(state->toggled.events()));
 	container->show(anim::type::instant);
+	Settings::AddSkip(container->entity());
 	Settings::AddDividerText(
 		container->entity(),
 		tr::lng_manage_peer_antispam_about());

@@ -1181,7 +1181,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::popupMenuWithIcons);
+		st::popupMenuExpandedSeparator);
 
 	const auto link = ClickHandler::getActive();
 	auto view = Element::Hovered()
