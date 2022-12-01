@@ -84,8 +84,6 @@ namespace {
 
 using ViewElement = HistoryView::Element;
 
-constexpr auto kTopicsPinLimit = 5;
-
 // s: box 100x100
 // m: box 320x320
 // x: box 800x800
@@ -2049,7 +2047,8 @@ int Session::pinnedChatsLimit(FilterId filterId) const {
 }
 
 int Session::pinnedChatsLimit(not_null<Data::Forum*> forum) const {
-	return kTopicsPinLimit;
+	const auto limits = Data::PremiumLimits(_session);
+	return limits.topicsPinnedCurrent();
 }
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
@@ -2084,7 +2083,12 @@ rpl::producer<int> Session::maxPinnedChatsLimitValue(
 
 rpl::producer<int> Session::maxPinnedChatsLimitValue(
 		not_null<Data::Forum*> forum) const {
-	return rpl::single(pinnedChatsLimit(forum));
+	return rpl::single(rpl::empty_value()) | rpl::then(
+		_session->account().appConfig().refreshed()
+	) | rpl::map([=] {
+		const auto limits = Data::PremiumLimits(_session);
+		return limits.topicsPinnedCurrent();
+	});
 }
 
 const std::vector<Dialogs::Key> &Session::pinnedChatsOrder(
