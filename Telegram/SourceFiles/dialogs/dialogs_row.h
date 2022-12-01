@@ -143,17 +143,37 @@ public:
 private:
 	friend class List;
 
+	class CornerLayersManager {
+	public:
+		using Layer = int;
+		CornerLayersManager();
+
+		[[nodiscard]] bool isSameLayer(Layer layer) const;
+		[[nodiscard]] bool isDisplayedNone() const;
+		[[nodiscard]] float64 progressForLayer(Layer layer) const;
+		[[nodiscard]] float64 progress() const;
+		[[nodiscard]] bool isFinished() const;
+		void setLayer(Layer layer, Fn<void()> updateCallback);
+		void markFrameShown();
+
+	private:
+		bool _lastFrameShown = false;
+		Layer _prevLayer = 0;
+		Layer _nextLayer = 0;
+		Ui::Animations::Simple _animation;
+
+	};
+
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
-		float64 shown = 0.;
+		CornerLayersManager layersManager;
 		int frameIndex = -1;
 		bool active = false;
 		QImage frame;
-		Ui::Animations::Simple animation;
 	};
 
 	void setCornerBadgeShown(
-		bool shown,
+		CornerLayersManager::Layer nextLayer,
 		Fn<void()> updateCallback) const;
 	void ensureCornerBadgeUserpic() const;
 	static void PaintCornerBadgeFrame(
