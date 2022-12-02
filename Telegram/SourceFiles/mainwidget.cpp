@@ -2542,7 +2542,7 @@ void MainWidget::handleHistoryBack() {
 		? rootPeer->owner().historyLoaded(rootPeer)
 		: nullptr;
 	const auto rootFolder = rootHistory ? rootHistory->folder() : nullptr;
-	if (openedForum && !rootPeer) {
+	if (openedForum && (!rootPeer || rootPeer->forum() != openedForum)) {
 		_controller->closeForum();
 	} else if (!openedFolder
 		|| rootFolder == openedFolder
