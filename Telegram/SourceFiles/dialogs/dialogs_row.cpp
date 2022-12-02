@@ -107,7 +107,7 @@ void PaintCornerBadgeTTLFrame(
 	auto pen = QPen(st::premiumButtonFg);
 	pen.setJoinStyle(Qt::RoundJoin);
 	pen.setCapStyle(Qt::RoundCap);
-	pen.setWidthF(kPenWidth);
+	pen.setWidthF(style::ConvertScaleExact(kPenWidth));
 
 	q.setPen(pen);
 	q.setBrush(Qt::NoBrush);
