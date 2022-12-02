@@ -35,6 +35,7 @@ struct ChatPaintContext;
 class ChatStyle;
 struct ReactionFlyAnimationArgs;
 class ReactionFlyAnimation;
+class RippleAnimation;
 } // namespace Ui
 
 namespace HistoryView::Reactions {
@@ -237,6 +238,14 @@ struct DateBadge : public RuntimeComponent<DateBadge, Element> {
 
 };
 
+struct TopicButton {
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	ClickHandlerPtr link;
+	Ui::Text::String name;
+	QPoint lastPoint;
+	int nameVersion = 0;
+};
+
 class Element
 	: public Object
 	, public RuntimeComposer<Element>
@@ -376,7 +385,7 @@ public:
 	[[nodiscard]] virtual bool displayFromPhoto() const;
 	[[nodiscard]] virtual bool hasFromName() const;
 	[[nodiscard]] virtual bool displayFromName() const;
-	[[nodiscard]] virtual bool displayTopicButton() const;
+	[[nodiscard]] virtual TopicButton *displayedTopicButton() const;
 	[[nodiscard]] virtual bool displayForwardedFrom() const;
 	[[nodiscard]] virtual bool hasOutLayout() const;
 	[[nodiscard]] virtual bool drawBubble() const;

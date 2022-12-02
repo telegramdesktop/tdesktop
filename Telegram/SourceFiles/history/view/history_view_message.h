@@ -123,7 +123,7 @@ public:
 	bool hasOutLayout() const override;
 	bool drawBubble() const override;
 	bool hasBubble() const override;
-	bool displayTopicButton() const override;
+	TopicButton *displayedTopicButton() const override;
 	bool unwrapped() const override;
 	int minWidthForMedia() const override;
 	bool hasFastReply() const override;
@@ -168,7 +168,6 @@ protected:
 private:
 	struct CommentsButton;
 	struct FromNameStatus;
-	struct TopicButton;
 
 	void initLogEntryOriginal();
 	void initPsa();

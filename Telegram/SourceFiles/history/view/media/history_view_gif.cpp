@@ -1309,7 +1309,7 @@ bool Gif::needsBubble() const {
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName()
-		|| _parent->displayTopicButton();
+		|| _parent->displayedTopicButton();
 	return false;
 }
 

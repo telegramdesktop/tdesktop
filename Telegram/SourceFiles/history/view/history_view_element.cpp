@@ -1179,8 +1179,8 @@ bool Element::displayFromName() const {
 	return false;
 }
 
-bool Element::displayTopicButton() const {
-	return false;
+TopicButton *Element::displayedTopicButton() const {
+	return nullptr;
 }
 
 bool Element::displayForwardedFrom() const {

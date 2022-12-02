@@ -254,7 +254,7 @@ RepliesWidget::RepliesWidget(
 	setupRootView();
 	setupShortcuts();
 
-	session().api().requestFullPeer(_history->peer);
+	_history->peer->updateFull();
 
 	refreshTopBarActiveChat();
 

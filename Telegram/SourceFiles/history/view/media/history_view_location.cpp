@@ -378,7 +378,7 @@ bool Location::needsBubble() const {
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
 		|| _parent->displayFromName()
-		|| _parent->displayTopicButton();
+		|| _parent->displayedTopicButton();
 }
 
 QPoint Location::resolveCustomInfoRightBottom() const {

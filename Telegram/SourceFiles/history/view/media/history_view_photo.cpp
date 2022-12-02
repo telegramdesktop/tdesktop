@@ -886,7 +886,7 @@ bool Photo::needsBubble() const {
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
-			|| _parent->displayTopicButton());
+			|| _parent->displayedTopicButton());
 }
 
 QPoint Photo::resolveCustomInfoRightBottom() const {

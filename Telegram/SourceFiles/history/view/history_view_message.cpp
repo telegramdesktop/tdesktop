@@ -285,14 +285,6 @@ struct Message::CommentsButton {
 	int rippleShift = 0;
 };
 
-struct Message::TopicButton {
-	std::unique_ptr<Ui::RippleAnimation> ripple;
-	ClickHandlerPtr link;
-	Ui::Text::String name;
-	QPoint lastPoint;
-	int nameVersion = 0;
-};
-
 struct Message::FromNameStatus {
 	DocumentId id = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> custom;
@@ -642,7 +634,7 @@ QSize Message::performCountOptimalSize() {
 			} else if (via && !displayForwardedFrom()) {
 				accumulate_max(maxWidth, st::msgPadding.left() + via->maxWidth + st::msgPadding.right());
 			}
-			if (displayTopicButton()) {
+			if (displayedTopicButton()) {
 				const auto padding = st::msgPadding + st::topicButtonPadding;
 				accumulate_max(
 					maxWidth,
@@ -1303,7 +1295,8 @@ void Message::paintTopicButton(
 		Painter &p,
 		QRect &trect,
 		const PaintContext &context) const {
-	if (!displayTopicButton()) {
+	const auto button = displayedTopicButton();
+	if (!button) {
 		return;
 	}
 	trect.setTop(trect.top() + st::topicButtonSkip);
@@ -1316,7 +1309,7 @@ void Message::paintTopicButton(
 		std::min(
 			availableWidth,
 			(padding.left()
-				+ _topicButton->name.maxWidth()
+				+ button->name.maxWidth()
 				+ st::topicButtonArrowSkip
 				+ padding.right())),
 		height);
@@ -1333,21 +1326,21 @@ void Message::paintTopicButton(
 		auto hq = PainterHighQualityEnabler(p);
 		p.drawRoundedRect(rect, height / 2, height / 2);
 	}
-	if (_topicButton->ripple) {
-		_topicButton->ripple->paint(
+	if (button->ripple) {
+		button->ripple->paint(
 			p,
 			rect.x(),
 			rect.y(),
 			this->width(),
 			&color);
-		if (_topicButton->ripple->empty()) {
-			_topicButton->ripple.reset();
+		if (button->ripple->empty()) {
+			button->ripple.reset();
 		}
 	}
 	clearCustomEmojiRepaint();
 	p.setPen(stm->msgServiceFg);
 	p.setTextPalette(stm->fwdTextPalette);
-	_topicButton->name.drawElided(
+	button->name.drawElided(
 		p,
 		trect.x() + padding.left(),
 		trect.y() + padding.top(),
@@ -2082,7 +2075,7 @@ bool Message::getStateTopicButton(
 		QPoint point,
 		QRect &trect,
 		not_null<TextState*> outResult) const {
-	if (!displayTopicButton()) {
+	if (!displayedTopicButton()) {
 		return false;
 	}
 	trect.setTop(trect.top() + st::topicButtonSkip);
@@ -2285,7 +2278,7 @@ void Message::updatePressed(QPoint point) {
 			if (displayFromName()) {
 				trect.setTop(trect.top() + st::msgNameFont->height);
 			}
-			if (displayTopicButton()) {
+			if (displayedTopicButton()) {
 				trect.setTop(trect.top()
 					+ st::topicButtonSkip
 					+ st::topicButtonPadding.top()
@@ -2869,8 +2862,8 @@ bool Message::hasBubble() const {
 	return drawBubble();
 }
 
-bool Message::displayTopicButton() const {
-	return _topicButton != nullptr;
+TopicButton *Message::displayedTopicButton() const {
+	return _topicButton.get();
 }
 
 bool Message::unwrapped() const {
@@ -3167,7 +3160,7 @@ void Message::updateMediaInBubbleState() {
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
-			|| displayTopicButton()
+			|| displayedTopicButton()
 			|| displayForwardedFrom()
 			|| displayedReply()
 			|| item->Has<HistoryMessageVia>();
@@ -3286,7 +3279,7 @@ QRect Message::innerGeometry() const {
 			// See paintFromName().
 			result.translate(0, st::msgNameFont->height);
 		}
-		if (displayTopicButton()) {
+		if (displayedTopicButton()) {
 			result.translate(0, st::topicButtonSkip
 				+ st::topicButtonPadding.top()
 				+ st::msgNameFont->height
@@ -3513,7 +3506,7 @@ int Message::resizeContentGetHeight(int newWidth) {
 			newHeight += st::msgNameFont->height;
 		}
 
-		if (displayTopicButton()) {
+		if (displayedTopicButton()) {
 			newHeight += st::topicButtonSkip
 				+ st::topicButtonPadding.top()
 				+ st::msgNameFont->height

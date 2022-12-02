@@ -17,6 +17,8 @@ struct HistoryMessageForwarded;
 
 namespace HistoryView {
 
+struct TopicButton;
+
 class UnwrappedMedia final : public Media {
 public:
 	class Content {
@@ -111,7 +113,9 @@ public:
 
 private:
 	struct SurroundingInfo {
+		QSize topicSize;
 		int height = 0;
+		int panelHeight = 0;
 		int forwardedHeight = 0;
 		bool forwardedBreakEverywhere = false;
 
@@ -120,6 +124,7 @@ private:
 		}
 	};
 	[[nodiscard]] SurroundingInfo surroundingInfo(
+		const TopicButton *topic,
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded,
@@ -128,6 +133,7 @@ private:
 		Painter &p,
 		const QRect &inner,
 		const PaintContext &context,
+		const TopicButton *topic,
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
@@ -137,6 +143,7 @@ private:
 
 	bool needInfoDisplay() const;
 	int additionalWidth(
+		const TopicButton *topic,
 		const HistoryMessageVia *via,
 		const HistoryMessageReply *reply,
 		const HistoryMessageForwarded *forwarded) const;
