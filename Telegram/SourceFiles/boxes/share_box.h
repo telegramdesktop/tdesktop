@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/round_checkbox.h"
 #include "mtproto/sender.h"
 
+class History;
+
 namespace style {
 struct MultiSelect;
 struct InputField;
@@ -74,8 +76,13 @@ public:
 		std::vector<not_null<Data::Thread*>>&&,
 		TextWithTags&&,
 		Api::SendOptions,
-		Data::ForwardOptions option)>;
+		Data::ForwardOptions)>;
 	using FilterCallback = Fn<bool(not_null<Data::Thread*>)>;
+
+	[[nodiscard]] static SubmitCallback DefaultForwardCallback(
+		std::shared_ptr<Ui::Show> show,
+		not_null<History*> history,
+		MessageIdsList msgIds);
 
 	struct Descriptor {
 		not_null<Main::Session*> session;
