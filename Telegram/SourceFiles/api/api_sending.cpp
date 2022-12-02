@@ -88,6 +88,9 @@ void SendExistingMedia(
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (message.action.topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto anonymousPost = peer->amAnonymous();
 	const auto silentPost = ShouldSendSilent(peer, message.action.options);
@@ -120,7 +123,6 @@ void SendExistingMedia(
 	if (!sentEntities.v.isEmpty()) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_entities;
 	}
-	const auto replyTo = message.action.replyTo;
 	const auto captionText = caption.text;
 
 	if (message.action.options.scheduled) {
@@ -136,7 +138,7 @@ void SendExistingMedia(
 		newId.msg,
 		flags,
 		viaBotId,
-		replyTo,
+		message.action.replyTo,
 		HistoryItem::NewMessageDate(message.action.options.scheduled),
 		messageFromId,
 		messagePostAuthor,
@@ -144,15 +146,19 @@ void SendExistingMedia(
 		caption,
 		HistoryMessageMarkupData());
 
-	auto performRequest = [=](const auto &repeatRequest) -> void {
+	const auto performRequest = [=](const auto &repeatRequest) -> void {
 		auto &histories = history->owner().histories();
-		const auto requestType = Data::Histories::RequestType::Send;
-		histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-			const auto usedFileReference = media->fileReference();
-			history->sendRequestId = api->request(MTPmessages_SendMedia(
+		const auto usedFileReference = media->fileReference();
+		histories.sendPreparedMessage(
+			history,
+			message.action.replyTo,
+			message.action.topicRootId,
+			randomId,
+			Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 				MTP_flags(sendFlags),
 				peer->input,
-				MTP_int(replyTo),
+				Data::Histories::ReplyToPlaceholder(),
+				Data::Histories::TopicRootPlaceholder(),
 				inputMedia(),
 				MTP_string(captionText),
 				MTP_long(randomId),
@@ -160,26 +166,20 @@ void SendExistingMedia(
 				sentEntities,
 				MTP_int(message.action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-			)).done([=](const MTPUpdates &result) {
-				api->applyUpdates(result, randomId);
-				finish();
-			}).fail([=](const MTP::Error &error) {
-				if (error.code() == 400
-					&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
-					api->refreshFileReference(origin, [=](const auto &result) {
-						if (media->fileReference() != usedFileReference) {
-							repeatRequest(repeatRequest);
-						} else {
-							api->sendMessageFail(error, peer, randomId, newId);
-						}
-					});
-				} else {
-					api->sendMessageFail(error, peer, randomId, newId);
-				}
-				finish();
-			}).afterRequest(history->sendRequestId
-			).send();
-			return history->sendRequestId;
+			), [=](const MTPUpdates &result, const MTP::Response &response) {
+		}, [=](const MTP::Error &error, const MTP::Response &response) {
+			if (error.code() == 400
+				&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+				api->refreshFileReference(origin, [=](const auto &result) {
+					if (media->fileReference() != usedFileReference) {
+						repeatRequest(repeatRequest);
+					} else {
+						api->sendMessageFail(error, peer, randomId, newId);
+					}
+				});
+			} else {
+				api->sendMessageFail(error, peer, randomId, newId);
+			}
 		});
 	};
 	performRequest(performRequest);
@@ -276,6 +276,9 @@ bool SendDice(MessageToSend &message) {
 	if (message.action.replyTo) {
 		flags |= MessageFlag::HasReplyInfo;
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (message.action.topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto replyHeader = NewMessageReplyHeader(message.action);
 	const auto anonymousPost = peer->amAnonymous();
@@ -296,7 +299,6 @@ bool SendDice(MessageToSend &message) {
 	const auto messagePostAuthor = peer->isBroadcast()
 		? session->user()->name()
 		: QString();
-	const auto replyTo = message.action.replyTo;
 
 	if (message.action.options.scheduled) {
 		flags |= MessageFlag::IsOrWasScheduled;
@@ -318,13 +320,16 @@ bool SendDice(MessageToSend &message) {
 		TextWithEntities(),
 		MTP_messageMediaDice(MTP_int(0), MTP_string(emoji)),
 		HistoryMessageMarkupData());
-
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		history->sendRequestId = api->request(MTPmessages_SendMedia(
+	histories.sendPreparedMessage(
+		history,
+		message.action.replyTo,
+		message.action.topicRootId,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			MTP_inputMediaDice(MTP_string(emoji)),
 			MTP_string(),
 			MTP_long(randomId),
@@ -332,15 +337,9 @@ bool SendDice(MessageToSend &message) {
 			MTP_vector<MTPMessageEntity>(),
 			MTP_int(message.action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](const MTPUpdates &result) {
-			api->applyUpdates(result, randomId);
-			finish();
-		}).fail([=](const MTP::Error &error) {
-			api->sendMessageFail(error, peer, randomId, newId);
-			finish();
-		}).afterRequest(history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		api->sendMessageFail(error, peer, randomId, newId);
 	});
 	api->finishForwarding(message.action);
 	return true;
@@ -360,9 +359,9 @@ void SendConfirmedFile(
 		&& (file->to.replaceMediaOf != 0);
 	const auto newId = FullMsgId(
 		file->to.peer,
-		isEditing
+		(isEditing
 			? file->to.replaceMediaOf
-			: session->data().nextLocalMessageId());
+			: session->data().nextLocalMessageId()));
 	const auto groupId = file->album ? file->album->groupId : uint64(0);
 	if (file->album) {
 		const auto proj = [](const SendingAlbum::Item &item) {
@@ -373,18 +372,29 @@ void SendConfirmedFile(
 
 		it->msgId = newId;
 	}
-	session->uploader().upload(newId, file);
 
 	const auto itemToEdit = isEditing
 		? session->data().message(newId)
 		: nullptr;
-
 	const auto history = session->data().history(file->to.peer);
 	const auto peer = history->peer;
+
+	if (!isEditing) {
+		const auto histories = &session->data().histories();
+		file->to.replyTo = histories->convertTopicReplyTo(
+			history,
+			file->to.replyTo);
+		file->to.topicRootId = histories->convertTopicReplyTo(
+			history,
+			file->to.topicRootId);
+	}
+
+	session->uploader().upload(newId, file);
 
 	auto action = SendAction(history, file->to.options);
 	action.clearDraft = false;
 	action.replyTo = file->to.replyTo;
+	action.topicRootId = file->to.topicRootId;
 	action.generateLocal = true;
 	session->api().sendAction(action);
 

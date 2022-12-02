@@ -462,12 +462,23 @@ std::unique_ptr<HistoryView::Media> Media::createView(
 ItemPreview Media::toGroupPreview(
 		const HistoryItemsList &items,
 		ToPreviewOptions options) const {
-	const auto genericText = Ui::Text::PlainLink(
-		tr::lng_in_dlg_album(tr::now));
 	auto result = ItemPreview();
 	auto loadingContext = std::vector<std::any>();
+	auto photoCount = 0;
+	auto videoCount = 0;
+	auto audioCount = 0;
+	auto fileCount = 0;
 	for (const auto &item : items) {
 		if (const auto media = item->media()) {
+			if (media->photo()) {
+				photoCount++;
+			} else if (const auto document = media->document()) {
+				(document->isVideoFile()
+					? videoCount
+					: document->isAudioFile()
+					? audioCount
+					: fileCount)++;
+			}
 			auto copy = options;
 			copy.ignoreGroup = true;
 			const auto already = int(result.images.size());
@@ -490,13 +501,25 @@ ItemPreview Media::toGroupPreview(
 				if (result.text.text.isEmpty()) {
 					result.text = original;
 				} else {
-					result.text = genericText;
+					result.text = {};
 				}
 			}
 		}
 	}
 	if (result.text.text.isEmpty()) {
-		result.text = genericText;
+		const auto mediaCount = photoCount + videoCount;
+		auto genericText = (photoCount && videoCount)
+			? tr::lng_in_dlg_media_count(tr::now, lt_count, mediaCount)
+			: photoCount
+			? tr::lng_in_dlg_photo_count(tr::now, lt_count, photoCount)
+			: videoCount
+			? tr::lng_in_dlg_video_count(tr::now, lt_count, videoCount)
+			: audioCount
+			? tr::lng_in_dlg_audio_count(tr::now, lt_count, audioCount)
+			: fileCount
+			? tr::lng_in_dlg_file_count(tr::now, lt_count, fileCount)
+			: tr::lng_in_dlg_album(tr::now);
+		result.text = Ui::Text::PlainLink(genericText);
 	}
 	if (!loadingContext.empty()) {
 		result.loadingContext = std::move(loadingContext);
@@ -1048,6 +1071,23 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 				_document,
 				_skipPremiumEffect,
 				replacing));
+	} else if (_document->isVideoMessage()) {
+		const auto &entry = _document->session().api().transcribes().entry(
+			parent());
+		if (!entry.requestId
+			&& entry.shown
+			&& entry.roundview
+			&& !entry.pending) {
+			return std::make_unique<HistoryView::Document>(
+				message,
+				realParent,
+				_document);
+		} else {
+			return std::make_unique<HistoryView::Gif>(
+				message,
+				realParent,
+				_document);
+		}
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
 		return std::make_unique<HistoryView::Gif>(
 			message,

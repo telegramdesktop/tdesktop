@@ -22,7 +22,7 @@ namespace Info {
 namespace CommonGroups {
 
 Memento::Memento(not_null<UserData*> user)
-: ContentMemento(user, 0) {
+: ContentMemento(user, nullptr, PeerId()) {
 }
 
 Section Memento::section() const {

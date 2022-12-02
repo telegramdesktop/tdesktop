@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "main/main_session.h"
+#include "ui/chat/attach/attach_prepare.h"
 
 #include <al.h>
 #include <alc.h>
@@ -305,20 +306,22 @@ constexpr auto kCheckPlaybackPositionTimeout = crl::time(100); // 100ms per chec
 constexpr auto kCheckPlaybackPositionDelta = 2400LL; // update position called each 2400 samples
 constexpr auto kCheckFadingTimeout = crl::time(7); // 7ms
 
-base::Observable<AudioMsgId> UpdatedObservable;
+rpl::event_stream<AudioMsgId> UpdatedStream;
 
 } // namespace
 
-base::Observable<AudioMsgId> &Updated() {
-	return UpdatedObservable;
+rpl::producer<AudioMsgId> Updated() {
+	return UpdatedStream.events();
 }
 
 // Thread: Any. Must be locked: AudioMutex.
 float64 ComputeVolume(AudioMsgId::Type type) {
 	const auto gain = [&] {
 		switch (type) {
-		case AudioMsgId::Type::Voice: return VolumeMultiplierAll;
-		case AudioMsgId::Type::Song: return VolumeMultiplierSong * mixer()->getSongVolume();
+		case AudioMsgId::Type::Voice:
+			return VolumeMultiplierAll * mixer()->getSongVolume();
+		case AudioMsgId::Type::Song:
+			return VolumeMultiplierSong * mixer()->getSongVolume();
 		case AudioMsgId::Type::Video: return mixer()->getVideoVolume();
 		}
 		return 1.;
@@ -646,7 +649,11 @@ void Mixer::onUpdated(const AudioMsgId &audio) {
 	if (audio.externalPlayId()) {
 		externalSoundProgress(audio);
 	}
-	Media::Player::Updated().notify(audio);
+	crl::on_main([=] {
+		// We've replaced base::Observable with on_main, because
+		// base::Observable::notify is not syncronous by default.
+		UpdatedStream.fire_copy(audio);
+	});
 }
 
 // Thread: Any. Must be locked: AudioMutex.
@@ -1371,8 +1378,9 @@ void Fader::onTimer() {
 	};
 	auto suppressGainForMusic = ComputeVolume(AudioMsgId::Type::Song);
 	auto suppressGainForMusicChanged = volumeChangedSong || _volumeChangedSong;
+	auto suppressGainForVoice = ComputeVolume(AudioMsgId::Type::Voice);
 	for (auto i = 0; i != kTogetherLimit; ++i) {
-		updatePlayback(AudioMsgId::Type::Voice, i, VolumeMultiplierAll, volumeChangedAll);
+		updatePlayback(AudioMsgId::Type::Voice, i, suppressGainForVoice, suppressGainForMusicChanged);
 		updatePlayback(AudioMsgId::Type::Song, i, suppressGainForMusic, suppressGainForMusicChanged);
 	}
 	auto suppressGainForVideo = ComputeVolume(AudioMsgId::Type::Video);
@@ -1711,7 +1719,9 @@ private:
 
 namespace Player {
 
-Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const QByteArray &data) {
+Ui::PreparedFileInformation PrepareForSending(
+		const QString &fname,
+		const QByteArray &data) {
 	auto result = Ui::PreparedFileInformation::Song();
 	FFMpegAttributesReader reader(Core::FileLocation(fname), data);
 	const auto positionMs = crl::time(0);
@@ -1721,7 +1731,7 @@ Ui::PreparedFileInformation::Song PrepareForSending(const QString &fname, const 
 		result.performer = reader.performer();
 		result.cover = reader.cover();
 	}
-	return result;
+	return { .media = result };
 }
 
 } // namespace Player

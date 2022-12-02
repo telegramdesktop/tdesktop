@@ -23,6 +23,8 @@ class FireworksAnimation;
 
 namespace HistoryView {
 
+class Message;
+
 class Poll : public Media, public base::has_weak_ptr {
 public:
 	Poll(
@@ -213,6 +215,7 @@ private:
 	ClickHandlerPtr _sendVotesLink;
 	mutable ClickHandlerPtr _showSolutionLink;
 	mutable std::unique_ptr<Ui::RippleAnimation> _linkRipple;
+	mutable int _linkRippleShift = 0;
 
 	mutable std::unique_ptr<AnswersAnimation> _answersAnimation;
 	mutable std::unique_ptr<SendingAnimation> _sendingAnimation;

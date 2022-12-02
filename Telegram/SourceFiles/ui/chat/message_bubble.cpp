@@ -15,79 +15,154 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 namespace {
 
+using Corner = BubbleCornerRounding;
+
 template <
 	typename FillBg, // fillBg(QRect rect)
 	typename FillSh, // fillSh(QRect rect)
-	typename FillRounded, // fillRounded(QRect rect, RectParts parts)
+	typename FillCorner, // fillCorner(int x, int y, int index, Corner size)
 	typename PaintTail> // paintTail(QPoint bottomPosition) -> tailWidth
 void PaintBubbleGeneric(
 		const SimpleBubble &args,
 		FillBg &&fillBg,
 		FillSh &&fillSh,
-		FillRounded &&fillRounded,
+		FillCorner &&fillCorner,
 		PaintTail &&paintTail) {
-	auto parts = RectPart::None | RectPart::NoTopBottom;
-	auto rect = args.geometry;
-	if (args.skip & RectPart::Top) {
-		if (args.skip & RectPart::Bottom) {
-			fillBg(rect);
-			return;
+	using namespace Images;
+
+	const auto topLeft = args.rounding.topLeft;
+	const auto topRight = args.rounding.topRight;
+	const auto bottomWithTailLeft = args.rounding.bottomLeft;
+	const auto bottomWithTailRight = args.rounding.bottomRight;
+	if (topLeft == Corner::None
+		&& topRight == Corner::None
+		&& bottomWithTailLeft == Corner::None
+		&& bottomWithTailRight == Corner::None) {
+		fillBg(args.geometry);
+		return;
+	}
+	const auto bottomLeft = (bottomWithTailLeft == Corner::Tail)
+		? Corner::None
+		: bottomWithTailLeft;
+	const auto bottomRight = (bottomWithTailRight == Corner::Tail)
+		? Corner::None
+		: bottomWithTailRight;
+	const auto rect = args.geometry;
+	const auto small = BubbleRadiusSmall();
+	const auto large = BubbleRadiusLarge();
+	const auto cornerSize = [&](Corner corner) {
+		return (corner == Corner::Large)
+			? large
+			: (corner == Corner::Small)
+			? small
+			: 0;
+	};
+	const auto verticalSkip = [&](Corner left, Corner right) {
+		return std::max(cornerSize(left), cornerSize(right));
+	};
+	const auto top = verticalSkip(topLeft, topRight);
+	const auto bottom = verticalSkip(bottomLeft, bottomRight);
+	if (top) {
+		const auto left = cornerSize(topLeft);
+		const auto right = cornerSize(topRight);
+		if (left) {
+			fillCorner(rect.left(), rect.top(), kTopLeft, topLeft);
+			if (const auto add = top - left) {
+				fillBg({ rect.left(), rect.top() + left, left, add });
+			}
 		}
-		rect.setTop(rect.y() - st::historyMessageRadius);
-	} else {
-		parts |= RectPart::FullTop;
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillBg({ rect.left() + left, rect.top(), fill, top });
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top(),
+				kTopRight,
+				topRight);
+			if (const auto add = top - right) {
+				fillBg({
+					rect.left() + rect.width() - right,
+					rect.top() + right,
+					right,
+					add,
+				});
+			}
+		}
 	}
-	const auto skipBottom = (args.skip & RectPart::Bottom);
-	if (skipBottom) {
-		rect.setHeight(rect.height() + st::historyMessageRadius);
-	} else {
-		parts |= RectPart::Bottom;
+	if (const auto fill = rect.height() - top - bottom; fill > 0) {
+		fillBg({ rect.left(), rect.top() + top, rect.width(), fill });
 	}
-	if (!skipBottom && args.tailSide == RectPart::Right) {
-		parts |= RectPart::BottomLeft;
-		fillBg({
-			rect.x() + rect.width() - st::historyMessageRadius,
-			rect.y() + rect.height() - st::historyMessageRadius,
-			st::historyMessageRadius,
-			st::historyMessageRadius });
-		const auto tailWidth = paintTail({
-			rect.x() + rect.width(),
-			rect.y() + rect.height() });
-		fillSh({
-			rect.x() + rect.width() - st::historyMessageRadius,
-			rect.y() + rect.height(),
-			st::historyMessageRadius + tailWidth,
-			st::msgShadow });
-	} else if (!skipBottom && args.tailSide == RectPart::Left) {
-		parts |= RectPart::BottomRight;
-		fillBg({
-			rect.x(),
-			rect.y() + rect.height() - st::historyMessageRadius,
-			st::historyMessageRadius,
-			st::historyMessageRadius });
-		const auto tailWidth = paintTail({
-			rect.x(),
-			rect.y() + rect.height() });
-		fillSh({
-			rect.x() - tailWidth,
-			rect.y() + rect.height(),
-			st::historyMessageRadius + tailWidth,
-			st::msgShadow });
-	} else if (!skipBottom) {
-		parts |= RectPart::FullBottom;
+	if (bottom) {
+		const auto left = cornerSize(bottomLeft);
+		const auto right = cornerSize(bottomRight);
+		if (left) {
+			fillCorner(
+				rect.left(),
+				rect.top() + rect.height() - left,
+				kBottomLeft,
+				bottomLeft);
+			if (const auto add = bottom - left) {
+				fillBg({
+					rect.left(),
+					rect.top() + rect.height() - bottom,
+					left,
+					add,
+				});
+			}
+		}
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillBg({
+				rect.left() + left,
+				rect.top() + rect.height() - bottom,
+				fill,
+				bottom,
+			});
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top() + rect.height() - right,
+				kBottomRight,
+				bottomRight);
+			if (const auto add = bottom - right) {
+				fillBg({
+					rect.left() + rect.width() - right,
+					rect.top() + rect.height() - bottom,
+					right,
+					add,
+				});
+			}
+		}
 	}
-	fillRounded(rect, parts);
+	const auto leftTail = (bottomWithTailLeft == Corner::Tail)
+		? paintTail({ rect.x(), rect.y() + rect.height() })
+		: 0;
+	const auto rightTail = (bottomWithTailRight == Corner::Tail)
+		? paintTail({ rect.x() + rect.width(), rect.y() + rect.height() })
+		: 0;
+	if (!args.shadowed) {
+		return;
+	}
+	const auto shLeft = rect.x() + cornerSize(bottomLeft) - leftTail;
+	const auto shWidth = rect.x()
+		+ rect.width()
+		- cornerSize(bottomRight)
+		+ rightTail
+		- shLeft;
+	if (shWidth > 0) {
+		fillSh({ shLeft, rect.y() + rect.height(), shWidth, st::msgShadow });
+	}
 }
 
 void PaintPatternBubble(QPainter &p, const SimpleBubble &args) {
 	const auto opacity = args.st->msgOutBg()->c.alphaF();
 	const auto shadowOpacity = opacity * args.st->msgOutShadow()->c.alphaF();
 	const auto pattern = args.pattern;
-	const auto sh = !(args.skip & RectPart::Bottom);
-	const auto &tail = (args.tailSide == RectPart::Right)
+	const auto &tail = (args.rounding.bottomRight == Corner::Tail)
 		? pattern->tailRight
 		: pattern->tailLeft;
-	const auto tailShift = (args.tailSide == RectPart::Right
+	const auto tailShift = (args.rounding.bottomRight == Corner::Tail
 		? QPoint(0, tail.height())
 		: QPoint(tail.width(), tail.height())) / int(tail.devicePixelRatio());
 	const auto fillBg = [&](const QRect &rect) {
@@ -101,11 +176,9 @@ void PaintPatternBubble(QPainter &p, const SimpleBubble &args) {
 		}
 	};
 	const auto fillSh = [&](const QRect &rect) {
-		if (!(args.skip & RectPart::Bottom)) {
-			p.setOpacity(shadowOpacity);
-			fillBg(rect);
-			p.setOpacity(opacity);
-		}
+		p.setOpacity(shadowOpacity);
+		fillBg(rect);
+		p.setOpacity(opacity);
 	};
 	const auto fillPattern = [&](
 			int x,
@@ -120,121 +193,52 @@ void PaintPatternBubble(QPainter &p, const SimpleBubble &args) {
 			mask,
 			cache);
 	};
-	const auto fillCorner = [&](int x, int y, int index) {
-		fillPattern(
-			x,
-			y,
-			pattern->corners[index],
-			(index < 2) ? pattern->cornerTopCache : pattern->cornerBottomCache);
-	};
-	const auto fillRounded = [&](const QRect &rect, RectParts parts) {
-		const auto x = rect.x();
-		const auto y = rect.y();
-		const auto w = rect.width();
-		const auto h = rect.height();
-
-		const auto cornerWidth = pattern->corners[0].width()
-			/ style::DevicePixelRatio();
-		const auto cornerHeight = pattern->corners[0].height()
-			/ style::DevicePixelRatio();
-		if (w < 2 * cornerWidth || h < 2 * cornerHeight) {
-			return;
-		}
-		if (w > 2 * cornerWidth) {
-			if (parts & RectPart::Top) {
-				fillBg({
-					x + cornerWidth,
-					y,
-					w - 2 * cornerWidth,
-					cornerHeight });
-			}
-			if (parts & RectPart::Bottom) {
-				fillBg({
-					x + cornerWidth,
-					y + h - cornerHeight,
-					w - 2 * cornerWidth,
-					cornerHeight });
-				if (sh) {
-					fillSh({
-						x + cornerWidth,
-						y + h,
-						w - 2 * cornerWidth,
-						st::msgShadow });
-				}
-			}
-		}
-		if (h > 2 * cornerHeight) {
-			if ((parts & RectPart::NoTopBottom) == RectPart::NoTopBottom) {
-				fillBg({
-					x,
-					y + cornerHeight,
-					w,
-					h - 2 * cornerHeight });
-			} else {
-				if (parts & RectPart::Left) {
-					fillBg({
-						x,
-						y + cornerHeight,
-						cornerWidth,
-						h - 2 * cornerHeight });
-				}
-				if ((parts & RectPart::Center) && w > 2 * cornerWidth) {
-					fillBg({
-						x + cornerWidth,
-						y + cornerHeight,
-						w - 2 * cornerWidth,
-						h - 2 * cornerHeight });
-				}
-				if (parts & RectPart::Right) {
-					fillBg({
-						x + w - cornerWidth,
-						y + cornerHeight,
-						cornerWidth,
-						h - 2 * cornerHeight });
-				}
-			}
-		}
-		if (parts & RectPart::TopLeft) {
-			fillCorner(x, y, 0);
-		}
-		if (parts & RectPart::TopRight) {
-			fillCorner(x + w - cornerWidth, y, 1);
-		}
-		if (parts & RectPart::BottomLeft) {
-			fillCorner(x, y + h - cornerHeight, 2);
-		}
-		if (parts & RectPart::BottomRight) {
-			fillCorner(x + w - cornerWidth, y + h - cornerHeight, 3);
-		}
+	const auto fillCorner = [&](int x, int y, int index, Corner size) {
+		auto &corner = (size == Corner::Large)
+			? pattern->cornersLarge[index]
+			: pattern->cornersSmall[index];
+		auto &cache = (size == Corner::Large)
+			? (index < 2
+				? pattern->cornerTopLargeCache
+				: pattern->cornerBottomLargeCache)
+			: (index < 2
+				? pattern->cornerTopSmallCache
+				: pattern->cornerBottomSmallCache);
+		fillPattern(x, y, corner, cache);
 	};
 	const auto paintTail = [&](QPoint bottomPosition) {
 		const auto position = bottomPosition - tailShift;
 		fillPattern(position.x(), position.y(), tail, pattern->tailCache);
 		return tail.width() / int(tail.devicePixelRatio());
 	};
+
 	p.setOpacity(opacity);
-	PaintBubbleGeneric(args, fillBg, fillSh, fillRounded, paintTail);
+	PaintBubbleGeneric(args, fillBg, fillSh, fillCorner, paintTail);
 	p.setOpacity(1.);
 }
 
 void PaintSolidBubble(QPainter &p, const SimpleBubble &args) {
 	const auto &st = args.st->messageStyle(args.outbg, args.selected);
 	const auto &bg = st.msgBg;
-	const auto sh = (args.skip & RectPart::Bottom)
+	const auto sh = (args.rounding.bottomRight == Corner::None)
 		? nullptr
 		: &st.msgShadow;
-	const auto &tail = (args.tailSide == RectPart::Right)
+	const auto &tail = (args.rounding.bottomRight == Corner::Tail)
 		? st.tailRight
 		: st.tailLeft;
-	const auto tailShift = (args.tailSide == RectPart::Right)
+	const auto tailShift = (args.rounding.bottomRight == Corner::Tail)
 		? QPoint(0, tail.height())
 		: QPoint(tail.width(), tail.height());
+
 	PaintBubbleGeneric(args, [&](const QRect &rect) {
 		p.fillRect(rect, bg);
 	}, [&](const QRect &rect) {
 		p.fillRect(rect, *sh);
-	}, [&](const QRect &rect, RectParts parts) {
-		Ui::FillRoundRect(p, rect, bg, st.msgBgCorners, sh, parts);
+	}, [&](int x, int y, int index, Corner size) {
+		auto &corners = (size == Corner::Large)
+			? st.msgBgCornersLarge
+			: st.msgBgCornersSmall;
+		p.drawPixmap(x, y, corners.p[index]);
 	}, [&](const QPoint &bottomPosition) {
 		tail.paint(p, bottomPosition - tailShift, args.outerWidth);
 		return tail.width();
@@ -246,7 +250,8 @@ void PaintSolidBubble(QPainter &p, const SimpleBubble &args) {
 std::unique_ptr<BubblePattern> PrepareBubblePattern(
 		not_null<const style::palette*> st) {
 	auto result = std::make_unique<Ui::BubblePattern>();
-	result->corners = Images::CornersMask(st::historyMessageRadius);
+	result->cornersSmall = Images::CornersMask(BubbleRadiusSmall());
+	result->cornersLarge = Images::CornersMask(BubbleRadiusLarge());
 	const auto addShadow = [&](QImage &bottomCorner) {
 		auto result = QImage(
 			bottomCorner.width(),
@@ -264,13 +269,19 @@ std::unique_ptr<BubblePattern> PrepareBubblePattern(
 
 		bottomCorner = std::move(result);
 	};
-	addShadow(result->corners[2]);
-	addShadow(result->corners[3]);
-	result->cornerTopCache = QImage(
-		result->corners[0].size(),
+	addShadow(result->cornersSmall[2]);
+	addShadow(result->cornersSmall[3]);
+	result->cornerTopSmallCache = QImage(
+		result->cornersSmall[0].size(),
 		QImage::Format_ARGB32_Premultiplied);
-	result->cornerBottomCache = QImage(
-		result->corners[2].size(),
+	result->cornerTopLargeCache = QImage(
+		result->cornersLarge[0].size(),
+		QImage::Format_ARGB32_Premultiplied);
+	result->cornerBottomSmallCache = QImage(
+		result->cornersSmall[2].size(),
+		QImage::Format_ARGB32_Premultiplied);
+	result->cornerBottomLargeCache = QImage(
+		result->cornersLarge[2].size(),
 		QImage::Format_ARGB32_Premultiplied);
 	return result;
 }
@@ -305,40 +316,49 @@ void PaintBubble(QPainter &p, const ComplexBubble &args) {
 	const auto width = rect.width();
 	const auto top = rect.y();
 	const auto bottom = top + rect.height();
-	const auto paintOne = [&](QRect geometry, bool selected, RectParts skip) {
+	const auto paintOne = [&](
+			QRect geometry,
+			bool selected,
+			bool fromTop,
+			bool tillBottom) {
 		auto simple = args.simple;
 		simple.geometry = geometry;
 		simple.selected = selected;
-		simple.skip = skip;
+		if (!fromTop) {
+			simple.rounding.topLeft
+				= simple.rounding.topRight
+				= Corner::None;
+		}
+		if (!tillBottom) {
+			simple.rounding.bottomLeft
+				= simple.rounding.bottomRight
+				= Corner::None;
+			simple.shadowed = false;
+		}
 		PaintBubble(p, simple);
 	};
 	auto from = top;
 	for (const auto &selected : args.selection) {
 		if (selected.top > from) {
-			const auto skip = RectPart::Bottom
-				| (from > top ? RectPart::Top : RectPart::None);
 			paintOne(
 				QRect(left, from, width, selected.top - from),
 				false,
-				skip);
+				(from <= top),
+				false);
 		}
-		const auto skip = ((selected.top > top)
-			? RectPart::Top
-			: RectPart::None)
-			| ((selected.top + selected.height < bottom)
-				? RectPart::Bottom
-				: RectPart::None);
 		paintOne(
 			QRect(left, selected.top, width, selected.height),
 			true,
-			skip);
+			(selected.top <= top),
+			(selected.top + selected.height >= bottom));
 		from = selected.top + selected.height;
 	}
 	if (from < bottom) {
 		paintOne(
 			QRect(left, from, width, bottom - from),
 			false,
-			RectPart::Top);
+			false,
+			true);
 	}
 }
 

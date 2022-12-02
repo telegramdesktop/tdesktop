@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_file_origin.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
@@ -168,7 +169,9 @@ auto ActiveChat(not_null<Window::Controller*> controller) {
 }
 
 bool CanWriteToActiveChat(not_null<Window::Controller*> controller) {
-	if (const auto history = ActiveChat(controller).history()) {
+	if (const auto topic = ActiveChat(controller).topic()) {
+		return topic->canWrite();
+	} else if (const auto history = ActiveChat(controller).history()) {
 		return history->peer->canWrite();
 	}
 	return false;
@@ -557,10 +560,11 @@ void AppendEmojiPacks(
 
 	controller->sessionController()->activeChatValue(
 	) | rpl::map([](Dialogs::Key k) {
-		return k.peer()
-			&& k.history()
-			&& k.peer()->canWrite()
-			&& !RestrictionToSendStickers(k.peer());
+		const auto topic = k.topic();
+		const auto peer = k.peer();
+		return peer
+			&& !RestrictionToSendStickers(peer)
+			&& (topic ? topic->canWrite() : peer->canWrite());
 	}) | rpl::distinct_until_changed(
 	) | rpl::start_with_next([=](bool value) {
 		[self dismissPopover:nil];

@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/output/export_output_result.h"
 #include "export/output/export_output_file.h"
 #include "mtproto/mtproto_response.h"
-#include "base/value_ordering.h"
 #include "base/bytes.h"
 #include "base/random.h"
 #include <set>

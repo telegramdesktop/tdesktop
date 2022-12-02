@@ -23,52 +23,48 @@ public:
 	List &operator=(List &&other) = default;
 	~List() = default;
 
-	int size() const {
+	[[nodiscard]] int size() const {
 		return _rows.size();
 	}
-	bool empty() const {
+	[[nodiscard]] bool empty() const {
 		return _rows.empty();
 	}
-	bool contains(Key key) const {
+	[[nodiscard]] int height() const {
+		return _rows.empty()
+			? 0
+			: (_rows.back()->top() + _rows.back()->height());
+	}
+	[[nodiscard]] bool contains(Key key) const {
 		return _rowByKey.find(key) != _rowByKey.end();
 	}
-	Row *getRow(Key key) const {
+	[[nodiscard]] Row *getRow(Key key) const {
 		const auto i = _rowByKey.find(key);
 		return (i != _rowByKey.end()) ? i->second.get() : nullptr;
 	}
-	Row *rowAtY(int y, int h) const {
-		const auto i = cfind(y, h);
-		if (i == cend() || (*i)->pos() != ((y > 0) ? (y / h) : 0)) {
-			return nullptr;
-		}
-		return *i;
-	}
+	[[nodiscard]] Row *rowAtY(int y) const;
 
 	not_null<Row*> addToEnd(Key key);
 	Row *adjustByName(Key key);
 	not_null<Row*> addByName(Key key);
 	bool moveToTop(Key key);
 	void adjustByDate(not_null<Row*> row);
-	bool del(Key key, Row *replacedBy = nullptr);
+	bool remove(Key key, Row *replacedBy = nullptr);
 
 	using const_iterator = std::vector<not_null<Row*>>::const_iterator;
 	using iterator = const_iterator;
 
-	const_iterator cbegin() const { return _rows.cbegin(); }
-	const_iterator cend() const { return _rows.cend(); }
-	const_iterator begin() const { return cbegin(); }
-	const_iterator end() const { return cend(); }
-	iterator begin() { return cbegin(); }
-	iterator end() { return cend(); }
-	const_iterator cfind(Row *value) const;
-	const_iterator find(Row *value) const { return cfind(value); }
-	iterator find(Row *value) { return cfind(value); }
-	const_iterator cfind(int y, int h) const {
-		const auto index = std::max(y, 0) / h;
-		return _rows.begin() + std::min(index, size());
+	[[nodiscard]] const_iterator cbegin() const { return _rows.cbegin(); }
+	[[nodiscard]] const_iterator cend() const { return _rows.cend(); }
+	[[nodiscard]] const_iterator begin() const { return cbegin(); }
+	[[nodiscard]] const_iterator end() const { return cend(); }
+	[[nodiscard]] iterator begin() { return cbegin(); }
+	[[nodiscard]] iterator end() { return cend(); }
+	[[nodiscard]] const_iterator cfind(Row *value) const;
+	[[nodiscard]] const_iterator find(Row *value) const {
+		return cfind(value);
 	}
-	const_iterator find(int y, int h) const { return cfind(y, h); }
-	iterator find(int y, int h) { return cfind(y, h); }
+	[[nodiscard]] iterator find(Row *value) { return cfind(value); }
+	[[nodiscard]] iterator findByY(int y) const;
 
 private:
 	void adjustByName(not_null<Row*> row);

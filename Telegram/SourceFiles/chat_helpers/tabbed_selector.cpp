@@ -298,6 +298,12 @@ TabbedSelector::TabbedSelector(
 , _controller(controller)
 , _level(level)
 , _mode(mode)
+, _panelRounding(Ui::PrepareCornerPixmaps(
+	ImageRoundRadius::Small,
+	st::emojiPanBg))
+, _categoriesRounding(Ui::PrepareCornerPixmaps(
+	ImageRoundRadius::Small,
+	st::emojiPanCategories))
 , _topShadow(full() ? object_ptr<Ui::PlainShadow>(this) : nullptr)
 , _bottomShadow(this)
 , _scroll(this, st::emojiScroll)
@@ -409,6 +415,16 @@ TabbedSelector::TabbedSelector(
 			refreshStickers();
 		}, lifetime());
 	}
+
+	style::PaletteChanged(
+	) | rpl::start_with_next([=] {
+		_panelRounding = Ui::PrepareCornerPixmaps(
+			ImageRoundRadius::Small,
+			st::emojiPanBg);
+		_categoriesRounding = Ui::PrepareCornerPixmaps(
+			ImageRoundRadius::Small,
+			st::emojiPanCategories);
+	}, lifetime());
 
 	if (hasEmojiTab()) {
 		session().data().stickers().emojiSetInstalled(
@@ -646,26 +662,19 @@ void TabbedSelector::paintSlideFrame(QPainter &p) {
 }
 
 void TabbedSelector::paintBgRoundedPart(QPainter &p) {
-	const auto threeRadius = 3 * _roundRadius;
-	const auto topOrBottomPart = _dropDown
-		? QRect(0, height() - threeRadius, width(), threeRadius)
-		: QRect(
-			0,
-			0,
-			width(),
-			(_tabsSlider
-				? _tabsSlider->height() + _roundRadius
-				: threeRadius));
-	Ui::FillRoundRect(
-		p,
-		topOrBottomPart,
-		st::emojiPanBg,
-		ImageRoundRadius::Small,
-		(_dropDown
-			? RectPart::FullBottom
-			: tabbed()
-			? (RectPart::FullTop | RectPart::NoTopBottom)
-			: RectPart::FullTop));
+	const auto fill = _dropDown
+		? QRect(0, height() - _roundRadius, width(), _roundRadius)
+		: _tabsSlider
+		? QRect(0, 0, width(), _tabsSlider->height())
+		: QRect(0, 0, width(), _roundRadius);
+	Ui::FillRoundRect(p, fill, st::emojiPanBg, {
+		.p = {
+			_dropDown ? QPixmap() : _panelRounding.p[0],
+			_dropDown ? QPixmap() : _panelRounding.p[1],
+			_dropDown ? _panelRounding.p[2] : QPixmap(),
+			_dropDown ? _panelRounding.p[3] : QPixmap(),
+		},
+	});
 }
 
 void TabbedSelector::paintContent(QPainter &p) {
@@ -675,18 +684,22 @@ void TabbedSelector::paintContent(QPainter &p) {
 	if (_roundRadius > 0) {
 		paintBgRoundedPart(p);
 
+		const auto &pixmaps = hasSectionIcons()
+			? _categoriesRounding
+			: _panelRounding;
 		const auto footerPart = QRect(
 			0,
-			_footerTop - (_dropDown ? 0 : _roundRadius),
+			_footerTop,
 			width(),
-			_st.footer + _roundRadius);
-		Ui::FillRoundRect(
-			p,
-			footerPart,
-			footerBg,
-			ImageRoundRadius::Small,
-			(RectPart::NoTopBottom
-				| (_dropDown ? RectPart::FullTop : RectPart::FullBottom)));
+			_st.footer);
+		Ui::FillRoundRect(p, footerPart, footerBg, {
+			.p = {
+				_dropDown ? pixmaps.p[0] : QPixmap(),
+				_dropDown ? pixmaps.p[1] : QPixmap(),
+				_dropDown ? QPixmap() : pixmaps.p[2],
+				_dropDown ? QPixmap() : pixmaps.p[3],
+			},
+		});
 	} else {
 		if (_tabsSlider) {
 			p.fillRect(0, 0, width(), _tabsSlider->height(), st::emojiPanBg);

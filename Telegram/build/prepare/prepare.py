@@ -406,7 +406,7 @@ win:
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
-    powershell -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20220603.sfx.exe"
+    powershell -Command "Invoke-WebRequest -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
     msys64.exe
     del msys64.exe
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
@@ -1313,5 +1313,42 @@ mac:
     mkdir Release
     lipo -create Release.arm64/libtg_owt.a Release.x86_64/libtg_owt.a -output Release/libtg_owt.a
 """)
+
+stage('protobuf', """
+win:
+    git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
+    cd protobuf
+    git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
+    cd third_party/abseil-cpp
+    git checkout 273292d1cf
+    cd ../..
+    mkdir build
+    cd build
+    cmake .. ^
+        -A %WIN32X64% ^
+        -Dprotobuf_BUILD_TESTS=OFF ^
+        -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON ^
+        -Dprotobuf_BUILD_LIBPROTOC=ON ^
+        -Dprotobuf_WITH_ZLIB_DEFAULT=OFF ^
+        -Dprotobuf_DEBUG_POSTFIX=""
+    cmake --build . --config Release --parallel
+    cmake --build . --config Debug --parallel
+""")
+# mac:
+#     git clone --recursive -b v21.9 https://github.com/protocolbuffers/protobuf
+#     cd protobuf
+#     git clone https://github.com/abseil/abseil-cpp third_party/abseil-cpp
+#     cd third_party/abseil-cpp
+#     git checkout 273292d1cf
+#     cd ../..
+#     mkdir build
+#     cd build
+#     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake .. \
+#         -DCMAKE_OSX_DEPLOYMENT_TARGET:STRING=$MACOSX_DEPLOYMENT_TARGET \
+#         -Dprotobuf_BUILD_TESTS=OFF \
+#         -Dprotobuf_BUILD_PROTOBUF_BINARIES=ON \
+#         -Dprotobuf_BUILD_LIBPROTOC=ON \
+#         -Dprotobuf_WITH_ZLIB_DEFAULT=OFF
+#     cmake --build . $MAKE_THREADS_CNT
 
 runStages()

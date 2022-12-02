@@ -1137,13 +1137,32 @@ auto HtmlWriter::Wrap::pushMessage(
 			+ "&raquo; button to the bot";
 	}, [&](const ActionGiftPremium &data) {
 		if (!data.months || data.cost.isEmpty()) {
-			return (serviceFrom + " sent you a gift.");
+			return serviceFrom + " sent you a gift.";
 		}
-		return (serviceFrom
+		return serviceFrom
 			+ " sent you a gift for "
 			+ data.cost
 			+ ": Telegram Premium for "
-			+ QString::number(data.months).toUtf8() + " months.");
+			+ QString::number(data.months).toUtf8()
+			+ " months.";
+	}, [&](const ActionTopicCreate &data) {
+		return serviceFrom
+			+ " created topic &laquo;"
+			+ SerializeString(data.title)
+			+ "&raquo;";
+	}, [&](const ActionTopicEdit &data) {
+		auto parts = QList<QByteArray>();
+		if (!data.title.isEmpty()) {
+			parts.push_back("title to &laquo;"
+				+ SerializeString(data.title)
+				+ "&raquo;");
+		}
+		if (data.iconEmojiId) {
+			parts.push_back("icon to &laquo;"
+				+ QString::number(*data.iconEmojiId).toUtf8()
+				+ "&raquo;");
+		}
+		return serviceFrom + " changed topic " + parts.join(',');
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

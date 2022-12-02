@@ -29,3 +29,6 @@ object_ptr<Ui::BoxContent> EditLinkedChatBox(
 	not_null<ChannelData*> channel,
 	std::vector<not_null<PeerData*>> &&chats,
 	Fn<void(ChannelData*)> callback);
+
+void ShowForumForDiscussionError(
+	not_null<Window::SessionNavigation*> navigation);

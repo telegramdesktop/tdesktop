@@ -15,7 +15,6 @@ enum class MimeDataState;
 } // namespace Storage
 
 class DragArea : public Ui::RpWidget {
-
 public:
 	DragArea(QWidget *parent);
 

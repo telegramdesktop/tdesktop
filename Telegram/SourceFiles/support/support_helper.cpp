@@ -47,6 +47,7 @@ namespace {
 constexpr auto kOccupyFor = TimeId(60);
 constexpr auto kReoccupyEach = 30 * crl::time(1000);
 constexpr auto kMaxSupportInfoLength = MaxMessageSize * 4;
+constexpr auto kTopicRootId = MsgId(0);
 
 class EditInfoBox : public Ui::BoxContent {
 public:
@@ -157,7 +158,8 @@ Data::Draft OccupiedDraft(const QString &normalizedName) {
 			+ QString::number(OccupationTag())
 			+ ";n:"
 			+ normalizedName },
-		MsgId(0),
+		MsgId(0), // replyTo
+		kTopicRootId,
 		MessageCursor(),
 		Data::PreviewState::Allowed
 	};
@@ -176,7 +178,7 @@ uint32 ParseOccupationTag(History *history) {
 	if (!TrackHistoryOccupation(history)) {
 		return 0;
 	}
-	const auto draft = history->cloudDraft();
+	const auto draft = history->cloudDraft(kTopicRootId);
 	if (!draft) {
 		return 0;
 	}
@@ -202,7 +204,7 @@ QString ParseOccupationName(History *history) {
 	if (!TrackHistoryOccupation(history)) {
 		return QString();
 	}
-	const auto draft = history->cloudDraft();
+	const auto draft = history->cloudDraft(kTopicRootId);
 	if (!draft) {
 		return QString();
 	}
@@ -228,7 +230,7 @@ TimeId OccupiedBySomeoneTill(History *history) {
 	if (!TrackHistoryOccupation(history)) {
 		return 0;
 	}
-	const auto draft = history->cloudDraft();
+	const auto draft = history->cloudDraft(kTopicRootId);
 	if (!draft) {
 		return 0;
 	}
@@ -340,7 +342,7 @@ void Helper::updateOccupiedHistory(
 		not_null<Window::SessionController*> controller,
 		History *history) {
 	if (isOccupiedByMe(_occupiedHistory)) {
-		_occupiedHistory->clearCloudDraft();
+		_occupiedHistory->clearCloudDraft(kTopicRootId);
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 	}
 	_occupiedHistory = history;
@@ -364,7 +366,7 @@ void Helper::occupyInDraft() {
 		&& !isOccupiedBySomeone(_occupiedHistory)
 		&& !_supportName.isEmpty()) {
 		const auto draft = OccupiedDraft(_supportNameNormalized);
-		_occupiedHistory->createCloudDraft(&draft);
+		_occupiedHistory->createCloudDraft(kTopicRootId, &draft);
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 		_reoccupyTimer.callEach(kReoccupyEach);
 	}
@@ -373,7 +375,7 @@ void Helper::occupyInDraft() {
 void Helper::reoccupy() {
 	if (isOccupiedByMe(_occupiedHistory)) {
 		const auto draft = OccupiedDraft(_supportNameNormalized);
-		_occupiedHistory->createCloudDraft(&draft);
+		_occupiedHistory->createCloudDraft(kTopicRootId, &draft);
 		_session->api().saveDraftToCloudDelayed(_occupiedHistory);
 	}
 }

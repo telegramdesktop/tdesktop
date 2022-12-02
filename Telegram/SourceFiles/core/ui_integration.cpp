@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/click_handler_types.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_session.h"
+#include "ui/text/text_custom_emoji.h"
 #include "ui/basic_click_handlers.h"
 #include "ui/emoji_config.h"
 #include "lang/lang_keys.h"
@@ -249,9 +250,15 @@ std::unique_ptr<Ui::Text::CustomEmoji> UiIntegration::createCustomEmoji(
 	if (!my || !my->session) {
 		return nullptr;
 	}
-	return my->session->data().customEmojiManager().create(
+	auto result = my->session->data().customEmojiManager().create(
 		data,
 		my->customEmojiRepaint);
+	if (my->customEmojiLoopLimit > 0) {
+		return std::make_unique<Ui::Text::LimitedLoopsEmoji>(
+			std::move(result),
+			my->customEmojiLoopLimit);
+	}
+	return result;
 }
 
 Fn<void()> UiIntegration::createSpoilerRepaint(const std::any &context) {

@@ -499,6 +499,15 @@ struct ActionGiftPremium {
 	int months;
 };
 
+struct ActionTopicCreate {
+	Utf8String title;
+};
+
+struct ActionTopicEdit {
+	Utf8String title;
+	std::optional<uint64> iconEmojiId = 0;
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -531,7 +540,9 @@ struct ServiceAction {
 		ActionSetChatTheme,
 		ActionChatJoinedByRequest,
 		ActionWebViewDataSent,
-		ActionGiftPremium> content;
+		ActionGiftPremium,
+		ActionTopicCreate,
+		ActionTopicEdit> content;
 };
 
 ServiceAction ParseServiceAction(

@@ -377,6 +377,7 @@ rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
 		int limitBefore,
 		int limitAfter,
 		Fn<SimpleViewerFunction> simpleViewer) {
+	Expects(!key.topicRootId || !key.migratedPeerId);
 	Expects(IsServerMsgId(key.universalId)
 		|| (key.universalId == 0)
 		|| (IsServerMsgId(ServerMaxMsgId + key.universalId) && key.migratedPeerId != 0));
@@ -386,6 +387,7 @@ rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
 	return [=](auto consumer) {
 		auto partViewer = simpleViewer(
 			key.peerId,
+			key.topicRootId,
 			SparseIdsMergedSlice::PartKey(key),
 			limitBefore,
 			limitAfter
@@ -402,6 +404,7 @@ rpl::producer<SparseIdsMergedSlice> SparseIdsMergedSlice::CreateViewer(
 		}
 		auto migratedViewer = simpleViewer(
 			key.migratedPeerId,
+			MsgId(0), // topicRootId
 			SparseIdsMergedSlice::MigratedKey(key),
 			limitBefore,
 			limitAfter);

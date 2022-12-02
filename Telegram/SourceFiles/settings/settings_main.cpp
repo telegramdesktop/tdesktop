@@ -103,7 +103,7 @@ Cover::Cover(
 : FixedHeightWidget(
 	parent,
 	st::settingsPhotoTop
-		+ st::infoProfilePhoto.size.height()
+		+ st::infoProfileCover.photo.size.height()
 		+ st::settingsPhotoBottom)
 , _controller(controller)
 , _user(user)
@@ -123,10 +123,10 @@ Cover::Cover(
 	controller,
 	_user,
 	Ui::UserpicButton::Role::OpenPhoto,
-	st::infoProfilePhoto)
-, _name(this, st::infoProfileNameLabel)
+	st::infoProfileCover.photo)
+, _name(this, st::infoProfileCover.name)
 , _phone(this, st::defaultFlatLabel)
-, _username(this, st::infoProfileMegagroupStatusLabel) {
+, _username(this, st::infoProfileMegagroupCover.status) {
 	_user->updateFull();
 
 	_name->setSelectable(true);
@@ -176,8 +176,8 @@ void Cover::setupChildGeometry() {
 void Cover::initViewers() {
 	Info::Profile::NameValue(
 		_user
-	) | rpl::start_with_next([=](const TextWithEntities &value) {
-		_name->setText(value.text);
+	) | rpl::start_with_next([=](const QString &name) {
+		_name->setText(name);
 		refreshNameGeometry(width());
 	}, lifetime());
 
@@ -200,7 +200,7 @@ void Cover::initViewers() {
 	_username->overrideLinkClickHandler([=] {
 		const auto username = _user->userName();
 		if (username.isEmpty()) {
-			_controller->show(Box<UsernameBox>(&_user->session()));
+			_controller->show(Box(UsernamesBox, &_user->session()));
 		} else {
 			QGuiApplication::clipboard()->setText(
 				_user->session().createInternalLinkFull(username));
@@ -216,7 +216,7 @@ void Cover::refreshNameGeometry(int newWidth) {
 	const auto nameTop = st::settingsNameTop;
 	auto nameWidth = newWidth
 		- nameLeft
-		- st::infoProfileNameRight;
+		- st::infoProfileCover.rightSkip;
 	if (const auto width = _badge.widget() ? _badge.widget()->width() : 0) {
 		nameWidth -= st::infoVerifiedCheckPosition.x() + width;
 	}
@@ -231,7 +231,9 @@ void Cover::refreshNameGeometry(int newWidth) {
 void Cover::refreshPhoneGeometry(int newWidth) {
 	const auto phoneLeft = st::settingsPhoneLeft;
 	const auto phoneTop = st::settingsPhoneTop;
-	const auto phoneWidth = newWidth - phoneLeft - st::infoProfileNameRight;
+	const auto phoneWidth = newWidth
+		- phoneLeft
+		- st::infoProfileCover.rightSkip;
 	_phone->resizeToWidth(phoneWidth);
 	_phone->moveToLeft(phoneLeft, phoneTop, newWidth);
 }
@@ -239,7 +241,7 @@ void Cover::refreshPhoneGeometry(int newWidth) {
 void Cover::refreshUsernameGeometry(int newWidth) {
 	const auto usernameLeft = st::settingsUsernameLeft;
 	const auto usernameTop = st::settingsUsernameTop;
-	const auto usernameRight = st::infoProfileNameRight;
+	const auto usernameRight = st::infoProfileCover.rightSkip;
 	const auto usernameWidth = newWidth - usernameLeft - usernameRight;
 	_username->resizeToWidth(usernameWidth);
 	_username->moveToLeft(usernameLeft, usernameTop, newWidth);

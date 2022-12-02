@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h" // ApiWrap::updateStickers()
 #include "core/application.h"
 #include "data/data_peer.h" // PeerData::canWrite()
+#include "data/data_forum_topic.h" // Data::ForumTopic::canWrite()
 #include "data/data_session.h"
 #include "data/stickers/data_stickers.h" // Stickers::setsRef()
 #include "main/main_domain.h"
@@ -144,7 +145,11 @@ const auto kAudioItemIdentifier = @"touchbarAudio";
 				_canApplyMarkdownLast),
 			_controller->sessionController()->activeChatValue(
 			) | rpl::map([](Dialogs::Key k) {
-				return k.peer() && k.history() && k.peer()->canWrite();
+				const auto topic = k.topic();
+				const auto peer = k.peer();
+				return topic
+					? topic->canWrite()
+					: (peer && peer->canWrite());
 			}) | rpl::distinct_until_changed()
 		) | rpl::start_with_next([=](
 				bool canApplyMarkdown,

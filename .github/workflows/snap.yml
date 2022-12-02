@@ -39,14 +39,14 @@ jobs:
 
     steps:
       - name: Clone.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit == ''
         with:
           fetch-depth: 0
           submodules: recursive
 
       - name: Clone with checkout.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit != ''
         with:
           fetch-depth: 0

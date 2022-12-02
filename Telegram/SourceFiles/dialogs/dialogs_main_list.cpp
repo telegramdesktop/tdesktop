@@ -8,7 +8,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 
 #include "data/data_changes.h"
+#include "data/data_session.h"
+#include "data/data_chat_filters.h"
 #include "main/main_session.h"
+#include "history/history_unread_things.h"
 #include "history/history.h"
 
 namespace Dialogs {
@@ -86,7 +89,7 @@ void MainList::clear() {
 	_cloudListSize = 0;
 }
 
-RowsByLetter MainList::addEntry(const Key &key) {
+RowsByLetter MainList::addEntry(Key key) {
 	const auto result = _all.addToEnd(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
@@ -96,8 +99,8 @@ RowsByLetter MainList::addEntry(const Key &key) {
 	return result;
 }
 
-void MainList::removeEntry(const Key &key) {
-	_all.del(key);
+void MainList::removeEntry(Key key) {
+	_all.remove(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
 	unreadEntryChanged(unread, false);
@@ -126,7 +129,11 @@ void MainList::unreadStateChanged(
 void MainList::unreadEntryChanged(
 		const Dialogs::UnreadState &state,
 		bool added) {
-	if (state.empty()) {
+	if (!state.messages
+		&& !state.chats
+		&& !state.marks
+		&& !state.mentions
+		&& !state.reactions) {
 		return;
 	}
 	const auto updateCloudUnread = _cloudUnreadState.known && state.known;

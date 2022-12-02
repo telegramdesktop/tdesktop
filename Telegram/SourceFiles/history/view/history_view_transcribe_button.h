@@ -20,7 +20,7 @@ using PaintContext = Ui::ChatPaintContext;
 
 class TranscribeButton final {
 public:
-	explicit TranscribeButton(not_null<HistoryItem*> item);
+	explicit TranscribeButton(not_null<HistoryItem*> item, bool roundview);
 	~TranscribeButton();
 
 	[[nodiscard]] QSize size() const;
@@ -30,9 +30,12 @@ public:
 	void paint(QPainter &p, int x, int y, const PaintContext &context);
 
 	[[nodiscard]] ClickHandlerPtr link();
+	[[nodiscard]] QRect lastPaintedRect() const;
 
 private:
 	const not_null<HistoryItem*> _item;
+	const bool _roundview = false;
+	const QSize _size;
 
 	mutable std::unique_ptr<Ui::InfiniteRadialAnimation> _animation;
 	ClickHandlerPtr _link;
@@ -40,6 +43,7 @@ private:
 	Ui::Animations::Simple _openedAnimation;
 	bool _loading = false;
 	bool _opened = false;
+	QPoint _lastPaintedPoint;
 
 };
 

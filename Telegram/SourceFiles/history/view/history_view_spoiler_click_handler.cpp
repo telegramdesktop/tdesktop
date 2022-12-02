@@ -20,7 +20,7 @@ void FillTextWithAnimatedSpoilers(
 		not_null<Element*> view,
 		Ui::Text::String &text) {
 	if (text.hasSpoilers()) {
-		text.setSpoilerLinkFilter([weak = base::make_weak(view.get())](
+		text.setSpoilerLinkFilter([weak = base::make_weak(view)](
 				const ClickContext &context) {
 			const auto my = context.other.value<ClickHandlerContext>();
 			const auto button = context.button;

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_entry.h"
 #include "history/history.h"
 #include "data/data_session.h"
+#include "data/data_forum.h"
 
 namespace Dialogs {
 
@@ -30,13 +31,13 @@ void PinnedList::setLimit(int limit) {
 	applyLimit(_limit);
 }
 
-void PinnedList::addPinned(const Key &key) {
+void PinnedList::addPinned(Key key) {
 	Expects(key.entry()->folderKnown());
 
 	addPinnedGetPosition(key);
 }
 
-int PinnedList::addPinnedGetPosition(const Key &key) {
+int PinnedList::addPinnedGetPosition(Key key) {
 	const auto already = ranges::find(_data, key);
 	if (already != end(_data)) {
 		return already - begin(_data);
@@ -48,7 +49,7 @@ int PinnedList::addPinnedGetPosition(const Key &key) {
 	return position;
 }
 
-void PinnedList::setPinned(const Key &key, bool pinned) {
+void PinnedList::setPinned(Key key, bool pinned) {
 	Expects(key.entry()->folderKnown() || _filterId != 0);
 
 	if (pinned) {
@@ -97,6 +98,15 @@ void PinnedList::applyList(
 	}
 }
 
+void PinnedList::applyList(
+		not_null<Data::Forum*> forum,
+		const QVector<MTPint> &list) {
+	clear();
+	for (const auto &topicId : list) {
+		addPinned(forum->topicFor(topicId.v));
+	}
+}
+
 void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
 	Expects(_filterId != 0);
 
@@ -118,7 +128,7 @@ void PinnedList::applyList(const std::vector<not_null<History*>> &list) {
 	}
 }
 
-void PinnedList::reorder(const Key &key1, const Key &key2) {
+void PinnedList::reorder(Key key1, Key key2) {
 	const auto index1 = ranges::find(_data, key1) - begin(_data);
 	const auto index2 = ranges::find(_data, key2) - begin(_data);
 	Assert(index1 >= 0 && index1 < _data.size());

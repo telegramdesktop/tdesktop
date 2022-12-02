@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/history.h"
 #include "main/main_session.h"
+#include "data/data_document.h"
 #include "data/data_session.h"
 #include "data/data_peer.h"
 #include "apiwrap.h"
@@ -30,6 +31,9 @@ void Transcribes::toggle(not_null<HistoryItem*> item) {
 		_session->data().requestItemResize(item);
 	} else if (!i->second.requestId) {
 		i->second.shown = !i->second.shown;
+		if (i->second.roundview) {
+			_session->data().requestItemViewRefresh(item);
+		}
 		_session->data().requestItemResize(item);
 	}
 }
@@ -55,6 +59,9 @@ void Transcribes::apply(const MTPDupdateTranscribedAudio &update) {
 	j->second.result = text;
 	j->second.pending = update.is_pending();
 	if (const auto item = _session->data().message(i->second)) {
+		if (j->second.roundview) {
+			_session->data().requestItemViewRefresh(item);
+		}
 		_session->data().requestItemResize(item);
 	}
 }
@@ -63,29 +70,41 @@ void Transcribes::load(not_null<HistoryItem*> item) {
 	if (!item->isHistoryEntry() || item->isLocal()) {
 		return;
 	}
+	const auto toggleRound = [](not_null<HistoryItem*> item, Entry &entry) {
+		if (const auto media = item->media()) {
+			if (const auto document = media->document()) {
+				if (document->isVideoMessage()) {
+					entry.roundview = true;
+					document->owner().requestItemViewRefresh(item);
+				}
+			}
+		}
+	};
 	const auto id = item->fullId();
 	const auto requestId = _api.request(MTPmessages_TranscribeAudio(
 		item->history()->peer->input,
 		MTP_int(item->id)
 	)).done([=](const MTPmessages_TranscribedAudio &result) {
-		result.match([&](const MTPDmessages_transcribedAudio &data) {
-			auto &entry = _map[id];
-			entry.requestId = 0;
-			entry.pending = data.is_pending();
-			entry.result = qs(data.vtext());
-			_ids.emplace(data.vtranscription_id().v, id);
-			if (const auto item = _session->data().message(id)) {
-				_session->data().requestItemResize(item);
-			}
-		});
+		const auto &data = result.data();
+		auto &entry = _map[id];
+		entry.requestId = 0;
+		entry.pending = data.is_pending();
+		entry.result = qs(data.vtext());
+		_ids.emplace(data.vtranscription_id().v, id);
+		if (const auto item = _session->data().message(id)) {
+			toggleRound(item, entry);
+			_session->data().requestItemResize(item);
+		}
 	}).fail([=](const MTP::Error &error) {
 		auto &entry = _map[id];
 		entry.requestId = 0;
 		entry.pending = false;
 		entry.failed = true;
-		if (error.type() == qstr("MSG_VOICE_TOO_LONG")) {
+		if (error.type() == u"MSG_VOICE_TOO_LONG"_q) {
 			entry.toolong = true;
-		} else if (const auto item = _session->data().message(id)) {
+		}
+		if (const auto item = _session->data().message(id)) {
+			toggleRound(item, entry);
 			_session->data().requestItemResize(item);
 		}
 	}).send();

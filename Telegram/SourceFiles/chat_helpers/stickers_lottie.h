@@ -51,7 +51,7 @@ namespace ChatHelpers {
 
 enum class StickerLottieSize : uint8 {
 	MessageHistory,
-	StickerSet,
+	StickerSet, // In Emoji used for forum topic profile cover icons.
 	StickersPanel,
 	StickersFooter,
 	SetsListThumbnail,

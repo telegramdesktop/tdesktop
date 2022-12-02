@@ -99,8 +99,12 @@ public:
 
 	Ui::ChatPaintContext preparePaintContext(const QRect &clip) const;
 
-	void messagesReceived(PeerData *peer, const QVector<MTPMessage> &messages);
-	void messagesReceivedDown(PeerData *peer, const QVector<MTPMessage> &messages);
+	void messagesReceived(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
+	void messagesReceivedDown(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages);
 
 	[[nodiscard]] TextForMimeData getSelectedText() const;
 
@@ -108,7 +112,7 @@ public:
 
 	void setItemsRevealHeight(int revealHeight);
 	void changeItemsRevealHeight(int revealHeight);
-	void checkHistoryActivation();
+	void checkActivation();
 	void recountHistoryGeometry();
 	void updateSize();
 
@@ -174,6 +178,8 @@ public:
 
 	void setChooseReportReason(Ui::ReportReason reason);
 	void clearChooseReportReason();
+
+	void setCanHaveFromUserpicsSponsored(bool value);
 
 	// -1 if should not be visible, -2 if bad history()
 	int itemTop(const HistoryItem *item) const;
@@ -401,7 +407,10 @@ private:
 
 	void setupSharingDisallowed();
 	[[nodiscard]] bool hasCopyRestriction(HistoryItem *item = nullptr) const;
+	[[nodiscard]] bool hasCopyMediaRestriction(
+		not_null<HistoryItem*> item) const;
 	bool showCopyRestriction(HistoryItem *item = nullptr);
+	bool showCopyMediaRestriction(not_null<HistoryItem*> item);
 	[[nodiscard]] bool hasCopyRestrictionForSelected() const;
 	bool showCopyRestrictionForSelected();
 	[[nodiscard]] bool hasSelectRestriction() const;
@@ -473,6 +482,7 @@ private:
 	bool _pressWasInactive = false;
 	bool _recountedAfterPendingResizedItems = false;
 	bool _useCornerReaction = false;
+	bool _canHaveFromUserpicsSponsored = false;
 
 	QPoint _trippleClickPoint;
 	base::Timer _trippleClickTimer;

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_updates.h"
 
 #include "api/api_authorizations.h"
+#include "api/api_user_names.h"
 #include "api/api_chat_participants.h"
 #include "api/api_ringtones.h"
 #include "api/api_text_entities.h"
@@ -33,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_drafts.h"
 #include "data/data_histories.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_message_reactions.h"
@@ -395,6 +397,9 @@ void Updates::channelDifferenceDone(
 			data.vmessages().v,
 			QVector<MTPDialog>(1, data.vdialog()));
 		session().data().channelDifferenceTooLong(channel);
+		if (const auto forum = channel->forum()) {
+			forum->reloadTopics();
+		}
 	}, [&](const MTPDupdates_channelDifference &data) {
 		feedChannelDifference(data);
 		channel->ptsInit(data.vpts().v);
@@ -942,6 +947,7 @@ void Updates::updateOnline(crl::time lastNonIdleTime, bool gotOtherOffline) {
 			Data::PeerUpdate::Flag::OnlineStatus);
 		if (!isOnline) { // Went offline, so we need to save message draft to the cloud.
 			api().saveCurrentDraftToCloud();
+			session().data().maybeStopWatchForOffline(self);
 		}
 
 		_lastSetOnline = ms;
@@ -1537,7 +1543,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 		FakePasscode::UpdateMessageId(&session(), randomId, d.vid().v);
 		if (const auto id = session().data().messageIdByRandomId(randomId)) {
 			const auto newId = d.vid().v;
-			if (const auto local = session().data().message(id)) {
+			auto &owner = session().data();
+			if (const auto local = owner.message(id)) {
 				if (local->isScheduled()) {
 					session().data().scheduledMessages().apply(d, local);
 				} else {
@@ -1555,6 +1562,8 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						local->setRealId(d.vid().v);
 					}
 				}
+			} else {
+				owner.histories().checkTopicCreated(id, newId);
 			}
 			session().data().unregisterMessageRandomId(randomId);
 		}
@@ -1707,11 +1716,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			if (const auto history = session().data().historyLoaded(id)) {
 				history->setUnreadMark(data.is_unread());
 			}
-		}, [&](const MTPDdialogPeerFolder &dialog) {
-			//const auto id = dialog.vfolder_id().v; // #TODO archive
-			//if (const auto folder = session().data().folderLoaded(id)) {
-			//	folder->setUnreadMark(data.is_unread());
-			//}
+		}, [](const MTPDdialogPeerFolder &dialog) {
 		});
 	} break;
 
@@ -1856,6 +1861,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			session().changes().peerUpdated(
 				user,
 				Data::PeerUpdate::Flag::OnlineStatus);
+			session().data().maybeStopWatchForOffline(user);
 		}
 		if (UserId(d.vuser_id()) == session().userId()) {
 			if (d.vstatus().type() == mtpc_userStatusOffline
@@ -1873,21 +1879,23 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	} break;
 
 	case mtpc_updateUserName: {
-		auto &d = update.c_updateUserName();
-		if (auto user = session().data().userLoaded(d.vuser_id())) {
-			if (!user->isContact()) {
-				user->setName(
-					TextUtilities::SingleLine(qs(d.vfirst_name())),
-					TextUtilities::SingleLine(qs(d.vlast_name())),
-					user->nameOrPhone,
-					TextUtilities::SingleLine(qs(d.vusername())));
-			} else {
-				user->setName(
-					TextUtilities::SingleLine(user->firstName),
-					TextUtilities::SingleLine(user->lastName),
-					user->nameOrPhone,
-					TextUtilities::SingleLine(qs(d.vusername())));
-			}
+		const auto &d = update.c_updateUserName();
+		if (const auto user = session().data().userLoaded(d.vuser_id())) {
+			const auto contact = user->isContact();
+			const auto first = contact
+				? user->firstName
+				: qs(d.vfirst_name());
+			const auto last = contact ? user->lastName : qs(d.vlast_name());
+			// #TODO usernames
+			const auto username = d.vusernames().v.isEmpty()
+				? QString()
+				: qs(d.vusernames().v.front().data().vusername());
+			user->setName(
+				TextUtilities::SingleLine(first),
+				TextUtilities::SingleLine(last),
+				user->nameOrPhone,
+				TextUtilities::SingleLine(username));
+			user->setUsernames(Api::Usernames::FromTL(d.vusernames()));
 		}
 	} break;
 
@@ -1953,7 +1961,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 						|| user->phone().isEmpty())
 						? QString()
 						: Ui::FormatPhone(user->phone())),
-					user->username);
+					user->username());
 
 				session().changes().peerUpdated(
 					user,
@@ -2207,7 +2215,9 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				}
 				const auto history = channel->owner().history(channel);
 				history->requestChatListMessage();
-				if (!history->unreadCountKnown()) {
+				if (!history->folderKnown()
+					|| (!history->unreadCountKnown()
+						&& !history->peer->isForum())) {
 					history->owner().histories().requestDialogEntry(history);
 				}
 				if (!channel->amCreator()) {
@@ -2247,40 +2257,34 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 
 	case mtpc_updateReadChannelDiscussionInbox: {
 		const auto &d = update.c_updateReadChannelDiscussionInbox();
-		const auto peerId = peerFromChannel(d.vchannel_id());
-		const auto msgId = d.vtop_msg_id().v;
+		const auto id = FullMsgId(
+			peerFromChannel(d.vchannel_id()),
+			d.vtop_msg_id().v);
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(peerId, msgId);
-		const auto unreadCount = item
-			? session().data().countUnreadRepliesLocally(item, readTillId)
-			: std::nullopt;
+		session().data().updateRepliesReadTill({ id, readTillId, false });
+		const auto item = session().data().message(id);
 		if (item) {
-			item->setRepliesInboxReadTill(readTillId, unreadCount);
+			item->setCommentsInboxReadTill(readTillId);
 			if (const auto post = item->lookupDiscussionPostOriginal()) {
-				post->setRepliesInboxReadTill(readTillId, unreadCount);
+				post->setCommentsInboxReadTill(readTillId);
 			}
 		}
 		if (const auto broadcastId = d.vbroadcast_id()) {
 			if (const auto post = session().data().message(
 					peerFromChannel(*broadcastId),
 					d.vbroadcast_post()->v)) {
-				post->setRepliesInboxReadTill(readTillId, unreadCount);
+				post->setCommentsInboxReadTill(readTillId);
 			}
 		}
 	} break;
 
 	case mtpc_updateReadChannelDiscussionOutbox: {
 		const auto &d = update.c_updateReadChannelDiscussionOutbox();
-		const auto peerId = peerFromChannel(d.vchannel_id());
-		const auto msgId = d.vtop_msg_id().v;
+		const auto id = FullMsgId(
+			peerFromChannel(d.vchannel_id()),
+			d.vtop_msg_id().v);
 		const auto readTillId = d.vread_max_id().v;
-		const auto item = session().data().message(peerId, msgId);
-		if (item) {
-			item->setRepliesOutboxReadTill(readTillId);
-			if (const auto post = item->lookupDiscussionPostOriginal()) {
-				post->setRepliesOutboxReadTill(readTillId);
-			}
-		}
+		session().data().updateRepliesReadTill({ id, readTillId, true });
 	} break;
 
 	case mtpc_updateChannelAvailableMessages: {
@@ -2289,6 +2293,46 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 			channel->setAvailableMinId(d.vavailable_min_id().v);
 			if (const auto history = session().data().historyLoaded(channel)) {
 				history->clearUpTill(d.vavailable_min_id().v);
+			}
+		}
+	} break;
+
+	case mtpc_updateChannelPinnedTopic: {
+		const auto &d = update.c_updateChannelPinnedTopic();
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			const auto rootId = d.vtopic_id().v;
+			if (const auto topic = peer->forumTopicFor(rootId)) {
+				session().data().setChatPinned(topic, 0, d.is_pinned());
+			} else if (const auto forum = peer->forum()) {
+				forum->requestTopic(rootId);
+			}
+		}
+	} break;
+
+	case mtpc_updateChannelPinnedTopics: {
+		const auto &d = update.c_updateChannelPinnedTopics();
+		const auto peerId = peerFromChannel(d.vchannel_id());
+		if (const auto peer = session().data().peerLoaded(peerId)) {
+			if (const auto forum = peer->forum()) {
+				const auto done = [&] {
+					const auto list = d.vorder();
+					if (!list) {
+						return false;
+					}
+					const auto &order = list->v;
+					const auto notLoaded = [&](const MTPint &topicId) {
+						return !forum->topicFor(topicId.v);
+					};
+					if (!ranges::none_of(order, notLoaded)) {
+						return false;
+					}
+					session().data().applyPinnedTopics(forum, order);
+					return true;
+				}();
+				if (!done) {
+					forum->reloadTopics();
+				}
 			}
 		}
 	} break;
@@ -2449,12 +2493,14 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 	case mtpc_updateDraftMessage: {
 		const auto &data = update.c_updateDraftMessage();
 		const auto peerId = peerFromMTP(data.vpeer());
+		const auto topicRootId = data.vtop_msg_id().value_or_empty();
 		data.vdraft().match([&](const MTPDdraftMessage &data) {
-			Data::ApplyPeerCloudDraft(&session(), peerId, data);
+			Data::ApplyPeerCloudDraft(&session(), peerId, topicRootId, data);
 		}, [&](const MTPDdraftMessageEmpty &data) {
 			Data::ClearPeerCloudDraft(
 				&session(),
 				peerId,
+				topicRootId,
 				data.vdate().value_or_empty());
 		});
 	} break;

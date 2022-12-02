@@ -53,6 +53,10 @@ DocumentClickHandler::DocumentClickHandler(
 		reinterpret_cast<qulonglong>(_document.get()));
 }
 
+QString DocumentClickHandler::tooltip() const {
+	return property(kDocumentFilenameTooltipProperty).value<QString>();
+}
+
 DocumentOpenClickHandler::DocumentOpenClickHandler(
 	not_null<DocumentData*> document,
 	Fn<void(FullMsgId)> &&callback,

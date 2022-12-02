@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_session.h"
+#include "data/data_peer_values.h"
 #include "main/main_session.h"
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_userpics.h"
@@ -23,7 +24,8 @@ namespace HistoryView {
 
 rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		not_null<PeerData*> peer,
-		int userpicSize) {
+		int userpicSize,
+		bool showInForum) {
 	struct State {
 		explicit State(not_null<PeerData*> peer)
 		: peer(peer) {
@@ -105,18 +107,40 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		auto lifetime = rpl::lifetime();
 		auto state = lifetime.make_state<State>(peer);
 
-		const auto pushNext = [=] {
-			if (state->pushScheduled
+		const auto pushNext = [=](bool now = false) {
+			if ((!showInForum && peer->isForum())
 				|| (std::min(state->current.count, kRecentRequestsLimit)
 					!= state->users.size())) {
+				return;
+			} else if (now) {
+				state->pushScheduled = false;
+				consumer.put_next_copy(state->current);
+			} else if (state->pushScheduled) {
 				return;
 			}
 			state->pushScheduled = true;
 			crl::on_main(&state->guard, [=] {
-				state->pushScheduled = false;
-				consumer.put_next_copy(state->current);
+				if (state->pushScheduled) {
+					state->pushScheduled = false;
+					consumer.put_next_copy(state->current);
+				}
 			});
 		};
+
+		if (!showInForum) {
+			if (const auto channel = peer->asChannel()) {
+				Data::PeerFlagValue(
+					channel,
+					ChannelData::Flag::Forum
+				) | rpl::start_with_next([=](bool hiddenByForum) {
+					if (hiddenByForum) {
+						consumer.put_next({});
+					} else {
+						pushNext();
+					}
+				}, lifetime);
+			}
+		}
 
 		peer->session().downloaderTaskFinished(
 		) | rpl::filter([=] {
@@ -172,6 +196,7 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 			}
 		}, lifetime);
 
+		pushNext(true);
 		return lifetime;
 	};
 }

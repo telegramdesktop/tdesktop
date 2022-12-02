@@ -299,7 +299,7 @@ mentionTop: 11px;
 mentionFont: linkFont;
 mentionNameFg: windowFg;
 mentionNameFgOver: windowFgOver;
-mentionPhotoSize: msgPhotoSize;
+mentionPhotoSize: 33px;
 mentionBg: windowBg;
 mentionBgOver: windowBgOver;
 mentionFg: windowSubTextFg;

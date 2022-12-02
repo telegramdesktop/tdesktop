@@ -69,6 +69,7 @@ bool UrlRequiresConfirmation(const QUrl &url) {
 		"|t\\.me"
 		"|te\\.?legra\\.ph"
 		"|graph\\.org"
+		"|fragment\\.com"
 		"|telesco\\.pe"
 		")$",
 		url.host(),

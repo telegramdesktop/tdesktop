@@ -92,7 +92,7 @@ CustomEmoji::CustomEmoji(
 						tag));
 			} else {
 				const auto &data = element.entityData;
-				const auto id = Data::ParseCustomEmojiData(data).id;
+				const auto id = Data::ParseCustomEmojiData(data);
 				const auto document = owner->document(id);
 				if (document->sticker()) {
 					_lines.back().push_back(createStickerPart(document));

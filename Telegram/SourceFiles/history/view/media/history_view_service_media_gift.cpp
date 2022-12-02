@@ -259,7 +259,7 @@ void MediaGift::Button::toggleRipple(bool pressed) {
 		const auto linkHeight = size.height();
 		if (!ripple) {
 			const auto drawMask = [&](QPainter &p) { drawBg(p); };
-			auto mask = Ui::RippleAnimation::maskByDrawer(
+			auto mask = Ui::RippleAnimation::MaskByDrawer(
 				QSize(linkWidth, linkHeight),
 				false,
 				drawMask);

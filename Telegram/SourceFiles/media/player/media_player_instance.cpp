@@ -86,6 +86,7 @@ struct Instance::ShuffleData {
 	std::vector<UniversalMsgId> nonPlayedIds;
 	std::vector<UniversalMsgId> playedIds;
 	History *history = nullptr;
+	MsgId topicRootId = 0;
 	History *migrated = nullptr;
 	bool scheduled = false;
 	int indexInPlayedIds = 0;
@@ -145,9 +146,10 @@ Instance::Data::~Data() = default;
 Instance::Instance()
 : _songData(AudioMsgId::Type::Song, SharedMediaType::MusicFile)
 , _voiceData(AudioMsgId::Type::Voice, SharedMediaType::RoundVoiceFile) {
-	subscribe(Media::Player::Updated(), [this](const AudioMsgId &audioId) {
+	Media::Player::Updated(
+	) | rpl::start_with_next([=](const AudioMsgId &audioId) {
 		handleSongUpdate(audioId);
-	});
+	}, _lifetime);
 
 	repeatChanges(
 		&_songData
@@ -156,6 +158,7 @@ Instance::Instance()
 			refreshPlaylist(&_songData);
 		}
 	}, _lifetime);
+
 	orderChanges(
 		&_songData
 	) | rpl::start_with_next([=](OrderMode mode) {
@@ -243,6 +246,7 @@ void Instance::setHistory(
 		Main::Session *sessionFallback) {
 	if (history) {
 		data->history = history->migrateToOrMe();
+		data->topicRootId = 0;
 		data->migrated = data->history->migrateFrom();
 		setSession(data, &history->session());
 	} else {
@@ -349,8 +353,8 @@ bool Instance::validPlaylist(not_null<const Data*> data) const {
 		using Key = SliceKey;
 		const auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.peerId == b.peerId)
-				&& (a.migratedPeerId == b.migratedPeerId)
-				&& (a.scheduled == b.scheduled);
+				&& (a.topicRootId == b.topicRootId)
+				&& (a.migratedPeerId == b.migratedPeerId);
 		};
 		const auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SparseIdsMergedSlice &data) {
@@ -382,7 +386,8 @@ void Instance::validatePlaylist(not_null<Data*> data) {
 	if (const auto key = playlistKey(data)) {
 		data->playlistRequestedKey = key;
 
-		const auto sharedMediaViewer = key->scheduled
+		const auto sharedMediaViewer = (key->topicRootId
+			== SparseIdsMergedSlice::kScheduledTopicId)
 			? SharedScheduledMediaViewer
 			: SharedMediaMergedViewer;
 		sharedMediaViewer(
@@ -419,9 +424,11 @@ auto Instance::playlistKey(not_null<const Data*> data) const
 		: (contextId.msg - ServerMaxMsgId);
 	return SliceKey(
 		data->history->peer->id,
+		(item->isScheduled()
+			? SparseIdsMergedSlice::kScheduledTopicId
+			: data->topicRootId),
 		data->migrated ? data->migrated->peer->id : 0,
-		universalId,
-		item->isScheduled());
+		universalId);
 }
 
 bool Instance::validOtherPlaylist(not_null<const Data*> data) const {
@@ -476,13 +483,13 @@ auto Instance::playlistOtherKey(not_null<const Data*> data) const
 
 	return SliceKey(
 		data->history->peer->id,
+		data->topicRootId,
 		data->migrated ? data->migrated->peer->id : 0,
 		(data->playlistSlice->skippedBefore() == 0
 			? ServerMaxMsgId - 1
 			: data->migrated
 			? (1 - ServerMaxMsgId)
-			: 1),
-		false);
+			: 1));
 }
 
 HistoryItem *Instance::itemByIndex(not_null<Data*> data, int index) {
@@ -892,8 +899,10 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 	}
 	const auto raw = data->shuffleData.get();
 	const auto key = playlistKey(data);
-	const auto scheduled = key && key->scheduled;
+	const auto scheduled = key
+		&& (key->topicRootId == SparseIdsMergedSlice::kScheduledTopicId);
 	if (raw->history != data->history
+		|| raw->topicRootId != data->topicRootId
 		|| raw->migrated != data->migrated
 		|| raw->scheduled != scheduled) {
 		raw->history = data->history;
@@ -950,9 +959,9 @@ void Instance::validateShuffleData(not_null<Data*> data) {
 		SharedMediaMergedKey(
 			SliceKey(
 				raw->history->peer->id,
+				raw->topicRootId,
 				raw->migrated ? raw->migrated->peer->id : 0,
-				last,
-				false),
+				last),
 			data->overview),
 		kIdsLimit,
 		kIdsLimit

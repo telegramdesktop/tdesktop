@@ -21,9 +21,12 @@ class GenericBox;
 } // namespace Ui
 
 namespace Data {
+class Forum;
 class Folder;
 class Session;
 struct ForwardDraft;
+class ForumTopic;
+class Thread;
 } // namespace Data
 
 namespace Dialogs {
@@ -45,10 +48,9 @@ void FillDialogsEntryMenu(
 	not_null<SessionController*> controller,
 	Dialogs::EntryState request,
 	const PeerMenuCallback &addAction);
-
-void PeerMenuAddMuteAction(
-	not_null<Window::SessionController*> controller,
-	not_null<PeerData*> peer,
+bool FillVideoChatMenu(
+	not_null<SessionController*> controller,
+	Dialogs::EntryState request,
 	const PeerMenuCallback &addAction);
 
 void MenuAddMarkAsReadAllChatsAction(
@@ -74,10 +76,17 @@ void PeerMenuCreatePoll(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	MsgId replyToId = 0,
+	MsgId topicRootId = 0,
 	PollData::Flags chosen = PollData::Flags(),
 	PollData::Flags disabled = PollData::Flags(),
 	Api::SendType sendType = Api::SendType::Normal,
 	SendMenu::Type sendMenuType = SendMenu::Type::Scheduled);
+void PeerMenuDeleteTopicWithConfirmation(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<Data::ForumTopic*> topic);
+void PeerMenuDeleteTopic(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<Data::ForumTopic*> topic);
 
 struct ClearChat {
 };
@@ -117,6 +126,15 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
 	FnMut<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowShareGameBox(
+	not_null<Window::SessionNavigation*> navigation,
+	not_null<UserData*> bot,
+	QString shortName);
+QPointer<Ui::BoxContent> ShowDropMediaBox(
+	not_null<Window::SessionNavigation*> navigation,
+	std::shared_ptr<QMimeData> data,
+	not_null<Data::Forum*> forum,
+	FnMut<void()> &&successCallback = nullptr);
 
 QPointer<Ui::BoxContent> ShowSendNowMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
@@ -131,9 +149,10 @@ void ToggleMessagePinned(
 void HidePinnedBar(
 	not_null<Window::SessionNavigation*> navigation,
 	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	Fn<void()> onHidden);
 void UnpinAllMessages(
 	not_null<Window::SessionNavigation*> navigation,
-	not_null<History*> history);
+	not_null<Data::Thread*> thread);
 
 } // namespace Window

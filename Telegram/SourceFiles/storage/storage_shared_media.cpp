@@ -11,13 +11,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Storage {
 
-std::map<PeerId, SharedMedia::Lists>::iterator
-		SharedMedia::enforceLists(PeerId peer) {
-	auto result = _lists.find(peer);
+auto SharedMedia::enforceLists(Key key)
+-> std::map<Key, SharedMedia::Lists>::iterator {
+	auto result = _lists.find(key);
 	if (result != _lists.end()) {
 		return result;
 	}
-	result = _lists.emplace(peer, Lists {}).first;
+	result = _lists.emplace(key, Lists {}).first;
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 		auto &list = result->second[index];
 		auto type = static_cast<SharedMediaType>(index);
@@ -25,7 +25,8 @@ std::map<PeerId, SharedMedia::Lists>::iterator
 		list.sliceUpdated(
 		) | rpl::map([=](const SparseIdsSliceUpdate &update) {
 			return SharedMediaSliceUpdate(
-				peer,
+				key.peerId,
+				key.topicRootId,
 				type,
 				update);
 		}) | rpl::start_to_stream(_sliceUpdated, _lifetime);
@@ -34,22 +35,31 @@ std::map<PeerId, SharedMedia::Lists>::iterator
 }
 
 void SharedMedia::add(SharedMediaAddNew &&query) {
-	auto peer = query.peerId;
-	auto peerIt = enforceLists(peer);
-	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
-		auto type = static_cast<SharedMediaType>(index);
-		if (query.types.test(type)) {
-			peerIt->second[index].addNew(query.messageId);
+	const auto addByIt = [&](const auto i) {
+		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
+			auto type = static_cast<SharedMediaType>(index);
+			if (query.types.test(type)) {
+				i->second[index].addNew(query.messageId);
+			}
 		}
+	};
+	addByIt(enforceLists({ query.peerId, MsgId(0) }));
+	const auto topicIt = query.topicRootId
+		? _lists.find({ query.peerId, query.topicRootId })
+		: end(_lists);
+	if (topicIt != end(_lists)) {
+		addByIt(topicIt);
 	}
 }
 
 void SharedMedia::add(SharedMediaAddExisting &&query) {
-	auto peerIt = enforceLists(query.peerId);
+	auto peerIt = enforceLists({ query.peerId, query.topicRootId });
 	for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 		auto type = static_cast<SharedMediaType>(index);
 		if (query.types.test(type)) {
-			peerIt->second[index].addExisting(query.messageId, query.noSkipRange);
+			peerIt->second[index].addExisting(
+				query.messageId,
+				query.noSkipRange);
 		}
 	}
 }
@@ -57,7 +67,7 @@ void SharedMedia::add(SharedMediaAddExisting &&query) {
 void SharedMedia::add(SharedMediaAddSlice &&query) {
 	Expects(IsValidSharedMediaType(query.type));
 
-	auto peerIt = enforceLists(query.peerId);
+	auto peerIt = enforceLists({ query.peerId, query.topicRootId });
 	auto index = static_cast<int>(query.type);
 	peerIt->second[index].addSlice(
 		std::move(query.messageIds),
@@ -66,45 +76,55 @@ void SharedMedia::add(SharedMediaAddSlice &&query) {
 }
 
 void SharedMedia::remove(SharedMediaRemoveOne &&query) {
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt != _lists.end()) {
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
+	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
 				peerIt->second[index].removeOne(query.messageId);
 			}
 		}
-		_oneRemoved.fire(std::move(query));
+		++peerIt;
 	}
+	_oneRemoved.fire(std::move(query));
 }
 
 void SharedMedia::remove(SharedMediaRemoveAll &&query) {
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt != _lists.end()) {
+	auto peerIt = _lists.lower_bound({ query.peerId, query.topicRootId });
+	while (peerIt != end(_lists)
+		&& peerIt->first.peerId == query.peerId
+		&& (!query.topicRootId
+			|| peerIt->first.topicRootId == query.topicRootId)) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			auto type = static_cast<SharedMediaType>(index);
 			if (query.types.test(type)) {
 				peerIt->second[index].removeAll();
 			}
 		}
-		_allRemoved.fire(std::move(query));
+		++peerIt;
 	}
+	_allRemoved.fire(std::move(query));
 }
 
 void SharedMedia::invalidate(SharedMediaInvalidateBottom &&query) {
-	auto peerIt = _lists.find(query.peerId);
-	if (peerIt != _lists.end()) {
+	auto peerIt = _lists.lower_bound({ query.peerId, MsgId(0) });
+	while (peerIt != end(_lists) && peerIt->first.peerId == query.peerId) {
 		for (auto index = 0; index != kSharedMediaTypeCount; ++index) {
 			peerIt->second[index].invalidateBottom();
 		}
-		_bottomInvalidated.fire(std::move(query));
+		++peerIt;
 	}
+	_bottomInvalidated.fire(std::move(query));
+}
+
+void SharedMedia::unload(SharedMediaUnloadThread &&query) {
+	_lists.erase({ query.peerId, query.topicRootId });
 }
 
 rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 
-	auto peerIt = _lists.find(query.key.peerId);
+	auto peerIt = _lists.find({ query.key.peerId, query.key.topicRootId });
 	if (peerIt != _lists.end()) {
 		auto index = static_cast<int>(query.key.type);
 		return peerIt->second[index].query(SparseIdsListQuery(
@@ -121,7 +141,7 @@ rpl::producer<SharedMediaResult> SharedMedia::query(SharedMediaQuery &&query) co
 SharedMediaResult SharedMedia::snapshot(const SharedMediaQuery &query) const {
 	Expects(IsValidSharedMediaType(query.key.type));
 
-	auto peerIt = _lists.find(query.key.peerId);
+	auto peerIt = _lists.find({ query.key.peerId, query.key.topicRootId });
 	if (peerIt != _lists.end()) {
 		auto index = static_cast<int>(query.key.type);
 		return peerIt->second[index].snapshot(SparseIdsListQuery(
@@ -135,7 +155,7 @@ SharedMediaResult SharedMedia::snapshot(const SharedMediaQuery &query) const {
 bool SharedMedia::empty(const SharedMediaKey &key) const {
 	Expects(IsValidSharedMediaType(key.type));
 
-	auto peerIt = _lists.find(key.peerId);
+	auto peerIt = _lists.find({ key.peerId, key.topicRootId });
 	if (peerIt != _lists.end()) {
 		auto index = static_cast<int>(key.type);
 		return peerIt->second[index].empty();

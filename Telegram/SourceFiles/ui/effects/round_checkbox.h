@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_widgets.h"
 
 class Painter;
+enum class ImageRoundRadius;
 
 namespace Ui {
 
@@ -47,7 +48,11 @@ private:
 class RoundImageCheckbox {
 public:
 	using PaintRoundImage = Fn<void(Painter &p, int x, int y, int outerWidth, int size)>;
-	RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<void()> updateCallback, PaintRoundImage &&paintRoundImage);
+	RoundImageCheckbox(
+		const style::RoundImageCheckbox &st,
+		Fn<void()> updateCallback,
+		PaintRoundImage &&paintRoundImage,
+		Fn<ImageRoundRadius()> roundingRadius = nullptr);
 
 	void paint(Painter &p, int x, int y, int outerWidth) const;
 	float64 checkedAnimationRatio() const;
@@ -71,6 +76,7 @@ private:
 	const style::RoundImageCheckbox &_st;
 	Fn<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
+	Fn<ImageRoundRadius()> _roundingRadius;
 
 	QPixmap _wideCache;
 	Ui::Animations::Simple _selection;

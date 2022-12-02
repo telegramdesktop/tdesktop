@@ -63,6 +63,7 @@ class LocalStickersManager;
 
 enum class EmojiListMode {
 	Full,
+	TopicIcon,
 	EmojiStatus,
 	FullReactions,
 	RecentReactions,

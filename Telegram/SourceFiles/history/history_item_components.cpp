@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/history_view_message.h" // FromNameFg.
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
+constexpr auto kReplyBarAlpha = 230. / 255.;
 
 } // namespace
 
@@ -53,7 +55,10 @@ void HistoryMessageVia::create(
 		UserId userId) {
 	bot = owner->user(userId);
 	maxWidth = st::msgServiceNameFont->width(
-		tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username));
+		tr::lng_inline_bot_via(
+			tr::now,
+			lt_inline_bot,
+			'@' + bot->username()));
 	link = std::make_shared<LambdaClickHandler>([bot = this->bot](
 		ClickContext context) {
 		const auto my = context.other.value<ClickHandlerContext>();
@@ -83,7 +88,10 @@ void HistoryMessageVia::resize(int32 availw) const {
 		text = QString();
 		width = 0;
 	} else {
-		text = tr::lng_inline_bot_via(tr::now, lt_inline_bot, '@' + bot->username);
+		text = tr::lng_inline_bot_via(
+			tr::now,
+			lt_inline_bot,
+			'@' + bot->username());
 		if (availw < maxWidth) {
 			text = st::msgServiceNameFont->elided(text, availw);
 			width = st::msgServiceNameFont->width(text);
@@ -182,7 +190,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_channel,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username, 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
 				Ui::Text::WithEntities);
 		} else {
 			phrase = tr::lng_forwarded_via(
@@ -190,7 +198,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 				lt_user,
 				Ui::Text::Link(phrase.text, 1), // Link 1.
 				lt_inline_bot,
-				Ui::Text::Link('@' + via->bot->username, 2),  // Link 2.
+				Ui::Text::Link('@' + via->bot->username(), 2),  // Link 2.
 				Ui::Text::WithEntities);
 		}
 	} else {
@@ -259,7 +267,7 @@ bool HistoryMessageReply::updateData(
 			} else {
 				holder->history()->owner().registerDependentMessage(
 					holder,
-					replyToMsg);
+					replyToMsg.get());
 			}
 		}
 	}
@@ -286,8 +294,16 @@ bool HistoryMessageReply::updateData(
 					peerToUser(bot->id));
 			}
 		}
+
+		{
+			const auto peerId = replyToMsg->fullId().peer;
+			replyToColorKey = (peerIsChannel(peerId) || peerIsChat(peerId))
+				? replyToMsg->from()->id
+				: PeerId(0);
+		}
 	} else if (force) {
 		replyToMsgId = 0;
+		replyToColorKey = PeerId(0);
 	}
 	if (force) {
 		holder->history()->owner().requestItemResize(holder);
@@ -298,7 +314,7 @@ bool HistoryMessageReply::updateData(
 void HistoryMessageReply::setReplyToLinkFrom(
 		not_null<HistoryMessage*> holder) {
 	replyToLnk = replyToMsg
-		? goToMessageClickHandler(replyToMsg, holder->fullId())
+		? goToMessageClickHandler(replyToMsg.get(), holder->fullId())
 		: nullptr;
 }
 
@@ -307,7 +323,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 	if (replyToMsg) {
 		holder->history()->owner().unregisterDependentMessage(
 			holder,
-			replyToMsg);
+			replyToMsg.get());
 		replyToMsg = nullptr;
 	}
 	replyToMsgId = 0;
@@ -399,7 +415,7 @@ void HistoryMessageReply::resize(int width) const {
 void HistoryMessageReply::itemRemoved(
 		HistoryMessage *holder,
 		HistoryItem *removed) {
-	if (replyToMsg == removed) {
+	if (replyToMsg.get() == removed) {
 		clearData(holder);
 		holder->history()->owner().requestItemResize(holder);
 	}
@@ -416,11 +432,23 @@ void HistoryMessageReply::paint(
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
-	const auto &bar = inBubble
-		? stm->msgReplyBarColor
-		: st->msgImgReplyBarColor();
-	QRect rbar(style::rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
-	p.fillRect(rbar, bar);
+	{
+		const auto &bar = !inBubble
+			? st->msgImgReplyBarColor()
+			: replyToColorKey
+			? HistoryView::FromNameFg(context, replyToColorKey)
+			: stm->msgReplyBarColor;
+		const auto rbar = style::rtlrect(
+			x + st::msgReplyBarPos.x(),
+			y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
+			st::msgReplyBarSize.width(),
+			st::msgReplyBarSize.height(),
+			w + 2 * x);
+		const auto opacity = p.opacity();
+		p.setOpacity(opacity * kReplyBarAlpha);
+		p.fillRect(rbar, bar);
+		p.setOpacity(opacity);
+	}
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
@@ -446,9 +474,11 @@ void HistoryMessageReply::paint(
 				}
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {
-				p.setPen(inBubble
-					? stm->msgServiceFg
-					: st->msgImgReplyBarColor());
+				p.setPen(!inBubble
+					? st->msgImgReplyBarColor()
+					: replyToColorKey
+					? HistoryView::FromNameFg(context, replyToColorKey)
+					: stm->msgServiceFg);
 				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				if (replyToVia && w > st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew) {
 					p.setFont(st::msgServiceFont);
@@ -468,6 +498,8 @@ void HistoryMessageReply::paint(
 						? stm->replyTextPalette
 						: st->imgReplyTextPalette()),
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = context.now,
+					.paused = context.paused,
 					.elisionLines = 1,
 				});
 				p.setTextPalette(stm->textPalette);
@@ -724,14 +756,16 @@ int ReplyKeyboard::naturalHeight() const {
 void ReplyKeyboard::paint(
 		Painter &p,
 		const Ui::ChatStyle *st,
+		Ui::BubbleRounding rounding,
 		int outerWidth,
 		const QRect &clip) const {
 	Assert(_st != nullptr);
 	Assert(_width > 0);
 
 	_st->startPaint(p, st);
-	for (const auto &row : _rows) {
-		for (const auto &button : row) {
+	for (auto y = 0, rowsCount = int(_rows.size()); y != rowsCount; ++y) {
+		for (auto x = 0, count = int(_rows[y].size()); x != count; ++x) {
+			const auto &button = _rows[y][x];
 			const auto rect = button.rect;
 			if (rect.y() >= clip.y() + clip.height()) return;
 			if (rect.y() + rect.height() < clip.y()) continue;
@@ -739,7 +773,20 @@ void ReplyKeyboard::paint(
 			// just ignore the buttons that didn't layout well
 			if (rect.x() + rect.width() > _width) break;
 
-			_st->paintButton(p, st, outerWidth, button);
+			auto buttonRounding = Ui::BubbleRounding();
+			using Corner = Ui::BubbleCornerRounding;
+			buttonRounding.topLeft = buttonRounding.topRight = Corner::Small;
+			buttonRounding.bottomLeft = ((y + 1 == rowsCount)
+				&& !x
+				&& (rounding.bottomLeft == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			buttonRounding.bottomRight = ((y + 1 == rowsCount)
+				&& (x + 1 == count)
+				&& (rounding.bottomRight == Corner::Large))
+				? Corner::Large
+				: Corner::Small;
+			_st->paintButton(p, st, outerWidth, button, buttonRounding);
 		}
 	}
 }
@@ -787,7 +834,8 @@ ReplyKeyboard::ButtonCoords ReplyKeyboard::findButtonCoordsByClickHandler(const 
 
 void ReplyKeyboard::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
-		bool pressed) {
+		bool pressed,
+		Ui::BubbleRounding rounding) {
 	if (!handler) return;
 
 	_savedPressed = pressed ? handler : ClickHandlerPtr();
@@ -796,13 +844,22 @@ void ReplyKeyboard::clickHandlerPressedChanged(
 		auto &button = _rows[coords.i][coords.j];
 		if (pressed) {
 			if (!button.ripple) {
-				auto mask = Ui::RippleAnimation::roundRectMask(
+				const auto sides = RectPart()
+					| (!coords.i ? RectPart::Top : RectPart())
+					| (!coords.j ? RectPart::Left : RectPart())
+					| ((coords.i + 1 == _rows.size())
+						? RectPart::Bottom
+						: RectPart())
+					| ((coords.j + 1 == _rows[coords.i].size())
+						? RectPart::Right
+						: RectPart());
+				auto mask = Ui::RippleAnimation::RoundRectMask(
 					button.rect.size(),
-					_st->buttonRadius());
+					_st->buttonRounding(rounding, sides));
 				button.ripple = std::make_unique<Ui::RippleAnimation>(
 					_st->_st->ripple,
 					std::move(mask),
-					[this] { _st->repaint(_item); });
+					[=] { _st->repaint(_item); });
 			}
 			button.ripple->add(_savedCoords - button.rect.topLeft());
 		} else {
@@ -877,9 +934,10 @@ void ReplyKeyboard::Style::paintButton(
 		Painter &p,
 		const Ui::ChatStyle *st,
 		int outerWidth,
-		const ReplyKeyboard::Button &button) const {
+		const ReplyKeyboard::Button &button,
+		Ui::BubbleRounding rounding) const {
 	const QRect &rect = button.rect;
-	paintButtonBg(p, st, rect, button.howMuchOver);
+	paintButtonBg(p, st, rect, rounding, button.howMuchOver);
 	if (button.ripple) {
 		const auto color = st ? &st->msgBotKbRippleBg()->c : nullptr;
 		button.ripple->paint(p, rect.x(), rect.y(), outerWidth, color);
@@ -950,7 +1008,7 @@ HistoryMessageLogEntryOriginal &HistoryMessageLogEntryOriginal::operator=(
 HistoryMessageLogEntryOriginal::~HistoryMessageLogEntryOriginal() = default;
 
 HistoryDocumentCaptioned::HistoryDocumentCaptioned()
-: _caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
+: caption(st::msgFileMinWidth - st::msgPadding.left() - st::msgPadding.right()) {
 }
 
 HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
@@ -964,14 +1022,14 @@ HistoryDocumentVoicePlayback::HistoryDocumentVoicePlayback(
 
 void HistoryDocumentVoice::ensurePlayback(
 		const HistoryView::Document *that) const {
-	if (!_playback) {
-		_playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
+	if (!playback) {
+		playback = std::make_unique<HistoryDocumentVoicePlayback>(that);
 	}
 }
 
 void HistoryDocumentVoice::checkPlaybackFinished() const {
-	if (_playback && !_playback->progressAnimation.animating()) {
-		_playback.reset();
+	if (playback && !playback->progressAnimation.animating()) {
+		playback.reset();
 	}
 }
 

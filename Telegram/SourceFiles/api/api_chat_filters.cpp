@@ -17,9 +17,7 @@ namespace Api {
 void SaveNewFilterPinned(
 		not_null<Main::Session*> session,
 		FilterId filterId) {
-	const auto &order = session->data().pinnedChatsOrder(
-		nullptr,
-		filterId);
+	const auto &order = session->data().pinnedChatsOrder(filterId);
 	auto &filters = session->data().chatsFilters();
 	const auto &filter = filters.applyUpdatedPinned(filterId, order);
 	session->api().request(MTPmessages_UpdateDialogFilter(

@@ -124,6 +124,10 @@ object_ptr<Ui::LayerWidget> SectionWidget::moveContentToLayer(
 			bodyGeometry);
 }
 
+rpl::producer<> SectionWidget::removeRequests() const {
+	return _content->removeRequests();
+}
+
 bool SectionWidget::floatPlayerHandleWheelEvent(QEvent *e) {
 	return _content->floatPlayerHandleWheelEvent(e);
 }

@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/ui/dialogs_message_view.h"
 #include "data/data_media_types.h"
 #include "data/data_session.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 
 namespace Data {
 namespace {
@@ -29,6 +31,14 @@ bool Groups::isGrouped(not_null<const HistoryItem*> item) const {
 	}
 	const auto media = item->media();
 	return media && media->canBeGrouped();
+}
+
+bool Groups::isGroupOfOne(not_null<const HistoryItem*> item) const {
+	if (const auto groupId = item->groupId()) {
+		const auto i = _groups.find(groupId);
+		return (i != _groups.end()) && (i->second.items.size() == 1);
+	}
+	return false;
 }
 
 void Groups::registerMessage(not_null<HistoryItem*> item) {
@@ -141,10 +151,9 @@ void Groups::refreshViews(const HistoryItemsList &items) {
 	if (items.empty()) {
 		return;
 	}
-	const auto history = items.front()->history();
 	for (const auto &item : items) {
 		_data->requestItemViewRefresh(item);
-		history->lastItemDialogsView.itemInvalidated(item);
+		item->invalidateChatListEntry();
 	}
 }
 

@@ -54,10 +54,12 @@ namespace {
 } // namespace
 
 int MuteValue::until() const {
+	constexpr auto kMax = std::numeric_limits<int>::max();
+
 	return forever
-		? std::numeric_limits<int>::max()
+		? kMax
 		: (period > 0)
-		? (base::unixtime::now() + period)
+		? int(std::min(int64(base::unixtime::now()) + period, int64(kMax)))
 		: unmute
 		? 0
 		: -1;
@@ -180,9 +182,7 @@ MTPinputPeerNotifySettings NotifyPeerSettingsValue::serialize() const {
 PeerNotifySettings::PeerNotifySettings() = default;
 
 bool PeerNotifySettings::change(const MTPPeerNotifySettings &settings) {
-	Expects(settings.type() == mtpc_peerNotifySettings);
-
-	auto &data = settings.c_peerNotifySettings();
+	auto &data = settings.data();
 	const auto empty = !data.vflags().v;
 	if (empty) {
 		if (!_known || _value) {

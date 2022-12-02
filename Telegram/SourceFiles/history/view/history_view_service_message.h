@@ -16,6 +16,14 @@ class ChatStyle;
 struct CornersPixmaps;
 } // namespace Ui
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
+namespace Info::Profile {
+class TopicIconView;
+} // namespace Info::Profile
+
 namespace HistoryView {
 
 class Service final : public Element {
@@ -116,6 +124,11 @@ private:
 class EmptyPainter {
 public:
 	explicit EmptyPainter(not_null<History*> history);
+	EmptyPainter(
+		not_null<Data::ForumTopic*> topic,
+		Fn<bool()> paused,
+		Fn<void()> update);
+	~EmptyPainter();
 
 	void paint(
 		Painter &p,
@@ -125,11 +138,16 @@ public:
 
 private:
 	void fillAboutGroup();
+	void fillAboutTopic();
 
 	not_null<History*> _history;
-	Ui::Text::String _header = { st::msgMinWidth };
-	Ui::Text::String _text = { st::msgMinWidth };
+	Data::ForumTopic *_topic = nullptr;
+	std::unique_ptr<Info::Profile::TopicIconView> _icon;
+	Ui::Text::String _header;
+	Ui::Text::String _text;
 	std::vector<Ui::Text::String> _phrases;
+
+	rpl::lifetime _lifetime;
 
 };
 

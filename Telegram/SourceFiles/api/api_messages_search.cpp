@@ -19,6 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 namespace {
 
+constexpr auto kSearchPerPage = 50;
+
 [[nodiscard]] MessageIdsList HistoryItemsFromTL(
 		not_null<Data::Session*> data,
 		const QVector<MTPMessage> &messages) {
@@ -94,7 +96,7 @@ void MessagesSearch::searchRequest() {
 			MTP_int(0), // max_date
 			MTP_int(_offsetId), // offset_id
 			MTP_int(0), // add_offset
-			MTP_int(SearchPerPage),
+			MTP_int(kSearchPerPage),
 			MTP_int(0), // max_id
 			MTP_int(0), // min_id
 			MTP_long(0) // hash
@@ -150,17 +152,21 @@ void MessagesSearch::searchReceived(
 		const auto total = int(data.vcount().v);
 		return FoundMessages{ total, std::move(items), nextToken };
 	}, [&](const MTPDmessages_channelMessages &data) {
-		if (const auto channel = _history->peer->asChannel()) {
-			channel->ptsReceived(data.vpts().v);
-		} else {
-			LOG(("API Error: "
-				"received messages.channelMessages when no channel "
-				"was passed!"));
-		}
 		if (_requestId != 0) {
 			// Don't apply cached data!
 			owner.processUsers(data.vusers());
 			owner.processChats(data.vchats());
+		}
+		if (const auto channel = _history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
+			if (_requestId != 0) {
+				// Don't apply cached data!
+				channel->processTopics(data.vtopics());
+			}
+		} else {
+			LOG(("API Error: "
+				"received messages.channelMessages when no channel "
+				"was passed!"));
 		}
 		auto items = HistoryItemsFromTL(&owner, data.vmessages().v);
 		const auto total = int(data.vcount().v);

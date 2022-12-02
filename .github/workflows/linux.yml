@@ -42,7 +42,7 @@ jobs:
 
     defaults:
       run:
-        shell: scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
+        shell: scl enable rh-python38 -- scl enable llvm-toolset-7.0 -- scl enable devtoolset-10 -- bash --noprofile --norc -eo pipefail {0}
 
     strategy:
       matrix:
@@ -64,14 +64,14 @@ jobs:
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
       - name: Clone.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
           path: ${{ env.REPO_NAME }}
 
       - name: Clone with checkout.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit != ''
         with:
           submodules: recursive

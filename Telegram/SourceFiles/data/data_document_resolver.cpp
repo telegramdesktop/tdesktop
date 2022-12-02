@@ -234,7 +234,8 @@ base::binary_guard ReadBackgroundImageAsync(
 void ResolveDocument(
 		Window::SessionController *controller,
 		not_null<DocumentData*> document,
-		HistoryItem *item) {
+		HistoryItem *item,
+		MsgId topicRootId) {
 	if (document->isNull()) {
 		return;
 	}
@@ -246,7 +247,7 @@ void ResolveDocument(
 			&& !document->filepath().isEmpty()) {
 			File::Launch(document->location(false).fname);
 		} else if (controller) {
-			controller->openDocument(document, msgId, true);
+			controller->openDocument(document, msgId, topicRootId, true);
 		}
 	};
 

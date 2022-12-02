@@ -44,6 +44,12 @@ void ReportReasonBox(
 			return tr::lng_report_profile_photo_title();
 		case Source::ProfileVideo:
 			return tr::lng_report_profile_video_title();
+		case Source::GroupPhoto: return tr::lng_report_group_photo_title();
+		case Source::GroupVideo: return tr::lng_report_group_video_title();
+		case Source::ChannelPhoto:
+			return tr::lng_report_channel_photo_title();
+		case Source::ChannelVideo:
+			return tr::lng_report_channel_video_title();
 		}
 		Unexpected("'source' in ReportReasonBox.");
 	}());

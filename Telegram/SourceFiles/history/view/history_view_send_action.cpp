@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_user.h"
 #include "data/data_send_action.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -39,11 +40,18 @@ constexpr auto kStatusShowClientsideSpeaking = 6 * crl::time(1000);
 
 } // namespace
 
-SendActionPainter::SendActionPainter(not_null<History*> history)
+SendActionPainter::SendActionPainter(
+	not_null<History*> history,
+	MsgId rootId)
 : _history(history)
+, _rootId(rootId)
 , _weak(&_history->session())
 , _st(st::dialogsTextStyle)
 , _sendActionText(st::dialogsTextWidthMin) {
+}
+
+void SendActionPainter::setTopic(Data::ForumTopic *topic) {
+	_topic = topic;
 }
 
 bool SendActionPainter::updateNeedsAnimating(
@@ -382,7 +390,7 @@ bool SendActionPainter::updateNeedsAnimating(crl::time now, bool force) {
 			st::normalFont->height,
 			st::dialogsMiniPreviewTop + st::dialogsMiniPreview);
 		_history->peer->owner().sendActionManager().updateAnimation({
-			_history,
+			_topic ? ((Data::Thread*)_topic) : _history,
 			0,
 			_sendActionAnimation.width() + _animationLeft,
 			height,

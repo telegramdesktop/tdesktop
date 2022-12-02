@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat_filters.h"
 #include "data/data_user.h"
 #include "data/data_channel.h"
+#include "data/data_forum.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
 #include "data/data_premium_limits.h"
@@ -361,7 +362,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		tr::now);
 	const auto closeBox = _closeBox;
 	const auto once = std::make_shared<bool>(false);
-	auto callback = crl::guard(_navigation, [=](Fn<void()> &&close) {
+	auto callback = crl::guard(_navigation, [=](Fn<void()> close) {
 		if (*once) {
 			return;
 		}
@@ -369,9 +370,13 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		peer->session().api().request(MTPchannels_UpdateUsername(
 			peer->asChannel()->inputChannel,
 			MTP_string()
-		)).done([=, close = std::move(close)] {
-			closeBox();
-			close();
+		)).done([=] {
+			peer->session().api().request(MTPchannels_DeactivateAllUsernames(
+				peer->asChannel()->inputChannel
+			)).done([=] {
+				closeBox();
+				close();
+			}).send();
 		}).send();
 	});
 	_navigation->parentController()->show(
@@ -794,6 +799,25 @@ void PinsLimitBox(
 		limits.dialogsPinnedDefault(),
 		limits.dialogsPinnedPremium(),
 		PinsCount(session->data().chatsList()));
+}
+
+void ForumPinsLimitBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<Data::Forum*> forum) {
+	const auto current = forum->owner().pinnedChatsLimit(forum) * 1.;
+
+	auto text = tr::lng_forum_pin_limit(
+		lt_count,
+		rpl::single(current),
+		Ui::Text::RichLangValue);
+	SimpleLimitBox(
+		box,
+		&forum->session(),
+		false,
+		tr::lng_filter_pin_limit_title(),
+		std::move(text),
+		QString(),
+		{ current, current, current * 2, &st::premiumIconPins });
 }
 
 void CaptionLimitBox(

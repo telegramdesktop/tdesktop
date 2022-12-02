@@ -12,9 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
+#include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "lang/lang_keys.h"
 #include "storage/storage_facade.h"
 #include "core/application.h"
@@ -32,17 +35,74 @@ namespace {
 constexpr auto kLoadedChatsMinCount = 20;
 constexpr auto kShowChatNamesCount = 8;
 
+[[nodiscard]] TextWithEntities ComposeFolderListEntryText(
+		not_null<Folder*> folder) {
+	const auto &list = folder->lastHistories();
+	if (list.empty()) {
+		return {};
+	}
+
+	const auto count = std::max(
+		int(list.size()),
+		folder->chatsList()->fullSize().current());
+
+	const auto throwAwayLastName = (list.size() > 1)
+		&& (count == list.size() + 1);
+	auto &&peers = ranges::views::all(
+		list
+	) | ranges::views::take(
+		list.size() - (throwAwayLastName ? 1 : 0)
+	);
+	const auto wrapName = [](not_null<History*> history) {
+		const auto name = history->peer->name();
+		return TextWithEntities{
+			.text = name,
+			.entities = (history->chatListBadgesState().unread
+				? EntitiesInText{
+					{ EntityType::Semibold, 0, int(name.size()), QString() },
+					{ EntityType::PlainLink, 0, int(name.size()), QString() },
+				}
+				: EntitiesInText{}),
+		};
+	};
+	const auto shown = int(peers.size());
+	const auto accumulated = [&] {
+		Expects(shown > 0);
+
+		auto i = peers.begin();
+		auto result = wrapName(*i);
+		for (++i; i != peers.end(); ++i) {
+			result = tr::lng_archived_last_list(
+				tr::now,
+				lt_accumulated,
+				result,
+				lt_chat,
+				wrapName(*i),
+				Ui::Text::WithEntities);
+		}
+		return result;
+	}();
+	return (shown < count)
+		? tr::lng_archived_last(
+			tr::now,
+			lt_count,
+			(count - shown),
+			lt_chats,
+			accumulated,
+			Ui::Text::WithEntities)
+		: accumulated;
+}
+
 } // namespace
 
-Folder::Folder(not_null<Data::Session*> owner, FolderId id)
+Folder::Folder(not_null<Session*> owner, FolderId id)
 : Entry(owner, Type::Folder)
 , _id(id)
 , _chatsList(
 	&owner->session(),
 	FilterId(),
-	owner->maxPinnedChatsLimitValue(this, FilterId()))
-, _name(tr::lng_archived_name(tr::now))
-, _chatListNameSortKey(owner->nameSortKey(_name)) {
+	owner->maxPinnedChatsLimitValue(this))
+, _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
 	session().changes().peerUpdates(
@@ -62,7 +122,6 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 		++_chatListViewVersion;
 		notifyUnreadStateChange(old);
-		updateChatListEntryPostponed();
 	}, _lifetime);
 
 	_chatsList.fullSize().changes(
@@ -71,46 +130,12 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}, _lifetime);
 }
 
-void Folder::updateChatListEntryPostponed() {
-	if (_updateChatListEntryPostponed) {
-		return;
-	}
-	_updateChatListEntryPostponed = true;
-	Ui::PostponeCall(this, [=] {
-		updateChatListEntry();
-		_updateChatListEntryPostponed = false;
-	});
-}
-
 FolderId Folder::id() const {
 	return _id;
 }
 
 void Folder::indexNameParts() {
 	// We don't want archive to be filtered in the chats list.
-	//_nameWords.clear();
-	//_nameFirstLetters.clear();
-	//auto toIndexList = QStringList();
-	//auto appendToIndex = [&](const QString &value) {
-	//	if (!value.isEmpty()) {
-	//		toIndexList.push_back(TextUtilities::RemoveAccents(value));
-	//	}
-	//};
-
-	//appendToIndex(_name);
-	//const auto appendTranslit = !toIndexList.isEmpty()
-	//	&& cRussianLetters().match(toIndexList.front()).hasMatch();
-	//if (appendTranslit) {
-	//	appendToIndex(translitRusEng(toIndexList.front()));
-	//}
-	//auto toIndex = toIndexList.join(' ');
-	//toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
-
-	//const auto namesList = TextUtilities::PrepareSearchWords(toIndex);
-	//for (const auto &name : namesList) {
-	//	_nameWords.insert(name);
-	//	_nameFirstLetters.insert(name[0]);
-	//}
 }
 
 void Folder::registerOne(not_null<History*> history) {
@@ -122,16 +147,12 @@ void Folder::registerOne(not_null<History*> history) {
 	} else {
 		updateChatListEntry();
 	}
-	applyChatListMessage(history->chatListMessage());
 	reorderLastHistories();
 }
 
 void Folder::unregisterOne(not_null<History*> history) {
 	if (_chatsList.empty()) {
 		updateChatListExistence();
-	}
-	if (_chatListMessage && _chatListMessage->history() == history) {
-		computeChatListMessage();
 	}
 	reorderLastHistories();
 }
@@ -141,45 +162,9 @@ int Folder::chatListNameVersion() const {
 }
 
 void Folder::oneListMessageChanged(HistoryItem *from, HistoryItem *to) {
-	if (!applyChatListMessage(to) && _chatListMessage == from) {
-		computeChatListMessage();
-	}
 	if (from || to) {
 		reorderLastHistories();
 	}
-}
-
-bool Folder::applyChatListMessage(HistoryItem *item) {
-	if (!item) {
-		return false;
-	} else if (_chatListMessage
-		&& _chatListMessage->date() >= item->date()) {
-		return false;
-	}
-	_chatListMessage = item;
-	updateChatListEntry();
-	return true;
-}
-
-void Folder::computeChatListMessage() {
-	auto &&items = ranges::views::all(
-		*_chatsList.indexed()
-	) | ranges::views::filter([](not_null<Dialogs::Row*> row) {
-		return row->entry()->chatListMessage() != nullptr;
-	});
-	const auto chatListDate = [](not_null<Dialogs::Row*> row) {
-		return row->entry()->chatListMessage()->date();
-	};
-	const auto top = ranges::max_element(
-		items,
-		ranges::less(),
-		chatListDate);
-	if (top == items.end()) {
-		_chatListMessage = nullptr;
-	} else {
-		_chatListMessage = (*top)->entry()->chatListMessage();
-	}
-	updateChatListEntry();
 }
 
 void Folder::reorderLastHistories() {
@@ -191,7 +176,7 @@ void Folder::reorderLastHistories() {
 		const auto bDate = bItem ? bItem->date() : TimeId(0);
 		return aDate > bDate;
 	};
-	_lastHistories.erase(_lastHistories.begin(), _lastHistories.end());
+	_lastHistories.clear();
 	_lastHistories.reserve(kShowChatNamesCount + 1);
 	auto &&histories = ranges::views::all(
 		*_chatsList.indexed()
@@ -199,17 +184,23 @@ void Folder::reorderLastHistories() {
 		return row->history();
 	}) | ranges::views::filter([](History *history) {
 		return (history != nullptr);
-	}) | ranges::views::transform([](History *history) {
-		return not_null<History*>(history);
 	});
+	auto nonPinnedChecked = 0;
 	for (const auto history : histories) {
-		const auto i = ranges::upper_bound(_lastHistories, history, pred);
+		const auto i = ranges::upper_bound(
+			_lastHistories,
+			not_null(history),
+			pred);
 		if (size(_lastHistories) < kShowChatNamesCount
 			|| i != end(_lastHistories)) {
 			_lastHistories.insert(i, history);
 		}
 		if (size(_lastHistories) > kShowChatNamesCount) {
 			_lastHistories.pop_back();
+		}
+		if (!history->isPinnedDialog(FilterId())
+			&& ++nonPinnedChecked >= kShowChatNamesCount) {
+			break;
 		}
 	}
 	++_chatListViewVersion;
@@ -225,10 +216,16 @@ void Folder::loadUserpic() {
 
 void Folder::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
+		std::shared_ptr<CloudImageView> &view,
+		const Dialogs::Ui::PaintContext &context) const {
+	paintUserpic(
+		p,
+		context.st->padding.left(),
+		context.st->padding.top(),
+		context.st->photoSize);
+}
+
+void Folder::paintUserpic(Painter &p, int x, int y, int size) const {
 	paintUserpic(p, x, y, size, nullptr, nullptr);
 }
 
@@ -255,7 +252,7 @@ void Folder::paintUserpic(
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 	}
-	if (size == st::dialogsPhotoSize) {
+	if (size == st::defaultDialogRow.photoSize) {
 		const auto rect = QRect{ x, y, size, size };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(
@@ -267,10 +264,10 @@ void Folder::paintUserpic(
 		}
 	} else {
 		p.save();
-		const auto ratio = size / float64(st::dialogsPhotoSize);
+		const auto ratio = size / float64(st::defaultDialogRow.photoSize);
 		p.translate(x + size / 2., y + size / 2.);
 		p.scale(ratio, ratio);
-		const auto skip = st::dialogsPhotoSize;
+		const auto skip = st::defaultDialogRow.photoSize;
 		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(
@@ -288,8 +285,16 @@ const std::vector<not_null<History*>> &Folder::lastHistories() const {
 	return _lastHistories;
 }
 
-uint32 Folder::chatListViewVersion() const {
-	return _chatListViewVersion;
+void Folder::validateListEntryCache() {
+	if (_listEntryCacheVersion == _chatListViewVersion) {
+		return;
+	}
+	_listEntryCacheVersion = _chatListViewVersion;
+	_listEntryCache.setMarkedText(
+		st::dialogsTextStyle,
+		ComposeFolderListEntryText(this),
+		// Use rich options as long as the entry text does not have user text.
+		Ui::ItemTextDefaultOptions());
 }
 
 void Folder::requestChatListMessage() {
@@ -299,7 +304,7 @@ void Folder::requestChatListMessage() {
 }
 
 TimeId Folder::adjustedChatListTimeId() const {
-	return _chatListMessage ? _chatListMessage->date() : chatListTimeId();
+	return chatListTimeId();
 }
 
 void Folder::applyDialog(const MTPDdialogFolder &data) {
@@ -333,28 +338,24 @@ bool Folder::shouldBeInChatList() const {
 	return !_chatsList.empty();
 }
 
-int Folder::chatListUnreadCount() const {
-	const auto state = chatListUnreadState();
-	return state.marks
-		+ (Core::App().settings().countUnreadMessages()
-			? state.messages
-			: state.chats);
-}
-
 Dialogs::UnreadState Folder::chatListUnreadState() const {
 	return _chatsList.unreadState();
 }
 
-bool Folder::chatListUnreadMark() const {
-	return false;
-}
-
-bool Folder::chatListMutedBadge() const {
-	return true;
+Dialogs::BadgesState Folder::chatListBadgesState() const {
+	auto result = Dialogs::BadgesForUnread(
+		chatListUnreadState(),
+		Dialogs::CountInBadge::Chats,
+		Dialogs::IncludeInBadge::All);
+	result.unreadMuted = result.mentionMuted = result.reactionMuted = true;
+	if (result.unread && !result.unreadCounter) {
+		result.unreadCounter = 1;
+	}
+	return result;
 }
 
 HistoryItem *Folder::chatListMessage() const {
-	return _chatListMessage;
+	return nullptr;
 }
 
 bool Folder::chatListMessageKnown() const {
@@ -374,7 +375,8 @@ const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 }
 
 const QString &Folder::chatListNameSortKey() const {
-	return _chatListNameSortKey;
+	static const auto empty = QString();
+	return empty;
 }
 
 } // namespace Data

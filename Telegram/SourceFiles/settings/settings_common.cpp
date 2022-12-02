@@ -42,12 +42,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_settings.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_dialogs.h"
 
 #include <QAction>
 
 #include "data/data_cloud_file.h"
 #include "dialogs/dialogs_row.h"
 #include "dialogs/dialogs_entry.h"
+#include "dialogs/ui/dialogs_layout.h"
 
 namespace Settings {
 namespace {
@@ -218,8 +220,16 @@ void AddDialogImageToButton(
     }, icon->widget.lifetime());
     icon->widget.paintRequest(
     ) | rpl::start_with_next([=] {
+		auto iconStyle = style::DialogRow{
+            .height = icon->widget.height(),
+			.padding = style::margins(0, 0, 0, 0),
+			.photoSize = icon->widget.height(),
+		};
         auto p = Painter(&icon->widget);
-        icon->dialog->entry()->paintUserpicLeft(p, icon->dialog->userpicView(), 0, 0, icon->widget.width(), icon->widget.height());
+        icon->dialog->entry()->paintUserpic(p, icon->dialog->userpicView(), {
+			.st = &iconStyle,
+			.width = icon->widget.width(),
+		});
     }, icon->widget.lifetime());
 }
 

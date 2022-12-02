@@ -21,7 +21,7 @@ List::List(SortMode sortMode, FilterId filterId)
 
 List::const_iterator List::cfind(Row *value) const {
 	return value
-		? (cbegin() + value->pos())
+		? (cbegin() + value->index())
 		: cend();
 }
 
@@ -31,7 +31,7 @@ not_null<Row*> List::addToEnd(Key key) {
 	}
 	const auto result = _rowByKey.emplace(
 		key,
-		std::make_unique<Row>(key, _rows.size())
+		std::make_unique<Row>(key, _rows.size(), height())
 	).first->second.get();
 	_rows.emplace_back(result);
 	if (_sortMode == SortMode::Date) {
@@ -60,10 +60,10 @@ not_null<Row*> List::addByName(Key key) {
 }
 
 void List::adjustByName(not_null<Row*> row) {
-	Expects(row->pos() >= 0 && row->pos() < _rows.size());
+	Expects(row->index() >= 0 && row->index() < _rows.size());
 
 	const auto &key = row->entry()->chatListNameSortKey();
-	const auto index = row->pos();
+	const auto index = row->index();
 	const auto i = _rows.begin() + index;
 	const auto before = std::find_if(i + 1, _rows.end(), [&](Row *row) {
 		return row->entry()->chatListNameSortKey().compare(key) >= 0;
@@ -85,7 +85,7 @@ void List::adjustByDate(not_null<Row*> row) {
 	Expects(_sortMode == SortMode::Date);
 
 	const auto key = row->sortKey(_filterId);
-	const auto index = row->pos();
+	const auto index = row->index();
 	const auto i = _rows.begin() + index;
 	const auto before = std::find_if(i + 1, _rows.end(), [&](Row *row) {
 		return (row->sortKey(_filterId) <= key);
@@ -108,7 +108,7 @@ bool List::moveToTop(Key key) {
 	if (i == _rowByKey.cend()) {
 		return false;
 	}
-	const auto index = i->second->pos();
+	const auto index = i->second->index();
 	const auto begin = _rows.begin();
 	rotate(begin, begin + index, begin + index + 1);
 	return true;
@@ -118,16 +118,20 @@ void List::rotate(
 		std::vector<not_null<Row*>>::iterator first,
 		std::vector<not_null<Row*>>::iterator middle,
 		std::vector<not_null<Row*>>::iterator last) {
+	auto top = (*first)->top();
 	std::rotate(first, middle, last);
 
 	auto count = (last - first);
 	auto index = (first - _rows.begin());
 	while (count--) {
-		(*first++)->_pos = index++;
+		const auto row = *first++;
+		row->_index = index++;
+		row->_top = top;
+		top += row->height();
 	}
 }
 
-bool List::del(Key key, Row *replacedBy) {
+bool List::remove(Key key, Row *replacedBy) {
 	auto i = _rowByKey.find(key);
 	if (i == _rowByKey.cend()) {
 		return false;
@@ -136,13 +140,34 @@ bool List::del(Key key, Row *replacedBy) {
 	const auto row = i->second.get();
 	row->entry()->owner().dialogsRowReplaced({ row, replacedBy });
 
-	const auto index = row->pos();
+	auto top = row->top();
+	const auto index = row->index();
 	_rows.erase(_rows.begin() + index);
 	for (auto i = index, count = int(_rows.size()); i != count; ++i) {
-		_rows[i]->_pos = i;
+		const auto row = _rows[i];
+		row->_index = i;
+		row->_top = top;
+		top += row->height();
 	}
 	_rowByKey.erase(i);
 	return true;
+}
+
+Row *List::rowAtY(int y) const {
+	const auto i = findByY(y);
+	if (i == cend()) {
+		return nullptr;
+	}
+	const auto row = *i;
+	const auto top = row->top();
+	const auto bottom = top + row->height();
+	return (top <= y && bottom > y) ? row.get() : nullptr;
+}
+
+List::iterator List::findByY(int y) const {
+	return ranges::lower_bound(_rows, y, ranges::less(), [](const Row *row) {
+		return row->top() + row->height();
+	});
 }
 
 } // namespace Dialogs

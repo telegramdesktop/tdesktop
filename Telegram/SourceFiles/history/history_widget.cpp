@@ -65,6 +65,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
@@ -82,6 +84,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item_components.h"
 #include "history/history_unread_things.h"
 #include "history/view/controls/history_view_compose_search.h"
+#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
 #include "history/view/reactions/history_view_reactions_button.h"
@@ -174,17 +177,17 @@ const char kOptionAutoScrollInactiveChat[] =
 
 namespace {
 
-constexpr auto kMessagesPerPageFirst = 30;
-constexpr auto kMessagesPerPage = 50;
+constexpr auto kMessagesPerPageFirst = 10;
+constexpr auto kMessagesPerPage = 10;
 constexpr auto kPreloadHeightsCount = 3; // when 3 screens to scroll left make a preload request
 constexpr auto kScrollToVoiceAfterScrolledMs = 1000;
 constexpr auto kSkipRepaintWhileScrollMs = 100;
 constexpr auto kShowMembersDropdownTimeoutMs = 300;
 constexpr auto kDisplayEditTimeWarningMs = 300 * 1000;
 constexpr auto kFullDayInMs = 86400 * 1000;
-constexpr auto kSaveDraftTimeout = 1000;
-constexpr auto kSaveDraftAnywayTimeout = 5000;
-constexpr auto kSaveCloudDraftIdleTimeout = 14000;
+constexpr auto kSaveDraftTimeout = crl::time(1000);
+constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
+constexpr auto kSaveCloudDraftIdleTimeout = 14 * crl::time(1000);
 constexpr auto kRefreshSlowmodeLabelTimeout = crl::time(200);
 constexpr auto kCommonModifiers = 0
 	| Qt::ShiftModifier
@@ -202,7 +205,7 @@ base::options::toggle AutoScrollInactiveChat({
 [[nodiscard]] rpl::producer<PeerData*> ActivePeerValue(
 		not_null<Window::SessionController*> controller) {
 	return controller->activeChatValue(
-	) | rpl::map([](const Dialogs::Key &key) {
+	) | rpl::map([](Dialogs::Key key) {
 		const auto history = key.history();
 		return history ? history->peer.get() : nullptr;
 	});
@@ -228,15 +231,10 @@ HistoryWidget::HistoryWidget(
 	controller->chatStyle()->value(lifetime(), st::historyScroll),
 	false)
 , _updateHistoryItems([=] { updateHistoryItemsByTimer(); })
-, _historyDown(
-	_scroll,
-	controller->chatStyle()->value(lifetime(), st::historyToDown))
-, _unreadMentions(
-	_scroll,
-	controller->chatStyle()->value(lifetime(), st::historyUnreadMentions))
-, _unreadReactions(
-	_scroll,
-	controller->chatStyle()->value(lifetime(), st::historyUnreadReactions))
+, _cornerButtons(
+	_scroll.data(),
+	controller->chatStyle(),
+	static_cast<HistoryView::CornerButtonsDelegate*>(this))
 , _fieldAutocomplete(this, controller)
 , _supportAutocomplete(session().supportMode()
 	? object_ptr<Support::Autocomplete>(this, &session())
@@ -258,11 +256,12 @@ HistoryWidget::HistoryWidget(
 , _botKeyboardShow(this, st::historyBotKeyboardShow)
 , _botKeyboardHide(this, st::historyBotKeyboardHide)
 , _botCommandStart(this, st::historyBotCommandStart)
-, _voiceRecordBar(std::make_unique<HistoryWidget::VoiceRecordBar>(
+, _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 	this,
 	controller,
 	_send,
 	st::historySendSize.height()))
+, _forwardPanel(std::make_unique<ForwardPanel>([=] { updateField(); }))
 , _field(
 	this,
 	st::historyComposeField,
@@ -302,17 +301,13 @@ HistoryWidget::HistoryWidget(
 		if (_history
 			&& _history->loadedAtBottom()
 			&& session().data().sponsoredMessages().append(_history)) {
+			if (_list) {
+				_list->setCanHaveFromUserpicsSponsored(true);
+			}
 			_scroll->contentAdded();
 		}
 	}, lifetime());
 
-	_historyDown.widget->addClickHandler([=] { historyDownClicked(); });
-	_unreadMentions.widget->addClickHandler([=] {
-		showNextUnreadMention();
-	});
-	_unreadReactions.widget->addClickHandler([=] {
-		showNextUnreadReaction();
-	});
 	_fieldBarCancel->addClickHandler([=] { cancelFieldAreaState(); });
 	_send->addClickHandler([=] { sendButtonClicked(); });
 
@@ -386,15 +381,11 @@ HistoryWidget::HistoryWidget(
 		_scroll->updateBars();
 	}, lifetime());
 
-	_historyDown.widget->installEventFilter(this);
-	_unreadMentions.widget->installEventFilter(this);
-	_unreadReactions.widget->installEventFilter(this);
-	SendMenu::SetupUnreadMentionsMenu(_unreadMentions.widget.data(), [=] {
-		return _history ? _history->peer.get() : nullptr;
-	});
-	SendMenu::SetupUnreadReactionsMenu(_unreadReactions.widget.data(), [=] {
-		return _history ? _history->peer.get() : nullptr;
-	});
+	_forwardPanel->itemsUpdated(
+	) | rpl::start_with_next([=] {
+		updateControlsVisibility();
+		updateControlsGeometry();
+	}, lifetime());
 
 	InitMessageField(controller, _field, [=](
 			not_null<DocumentData*> document) {
@@ -412,7 +403,18 @@ HistoryWidget::HistoryWidget(
 
 	_fieldAutocomplete->mentionChosen(
 	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
-		insertMention(data.user);
+		auto replacement = QString();
+		auto entityTag = QString();
+		if (data.mention.isEmpty()) {
+			replacement = data.user->firstName;
+			if (replacement.isEmpty()) {
+				replacement = data.user->name();
+			}
+			entityTag = PrepareMentionTag(data.user);
+		} else {
+			replacement = '@' + data.mention;
+		}
+		_field->insertTag(replacement, entityTag);
 	}, lifetime());
 
 	_fieldAutocomplete->hashtagChosen(
@@ -583,7 +585,7 @@ HistoryWidget::HistoryWidget(
 	) | rpl::filter([=](not_null<ChannelData*> channel) {
 		return _peer == channel.get();
 	}) | rpl::start_with_next([=] {
-		updateHistoryDownVisibility();
+		_cornerButtons.updateJumpDownVisibility();
 		preloadHistoryIfNeeded();
 	}, lifetime());
 
@@ -610,10 +612,25 @@ HistoryWidget::HistoryWidget(
 		}
 	}, lifetime());
 
+	using EntryUpdateFlag = Data::EntryUpdate::Flag;
+	session().changes().entryUpdates(
+		EntryUpdateFlag::HasPinnedMessages
+		| EntryUpdateFlag::ForwardDraft
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (_pinnedTracker
+			&& (update.flags & EntryUpdateFlag::HasPinnedMessages)
+			&& ((update.entry.get() == _history)
+				|| (update.entry.get() == _migrated))) {
+			checkPinnedBarState();
+		}
+		if (update.flags & EntryUpdateFlag::ForwardDraft) {
+			updateForwarding();
+		}
+	}, lifetime());
+
 	using HistoryUpdateFlag = Data::HistoryUpdate::Flag;
 	session().changes().historyUpdates(
 		HistoryUpdateFlag::MessageSent
-		| HistoryUpdateFlag::ForwardDraft
 		| HistoryUpdateFlag::BotKeyboard
 		| HistoryUpdateFlag::CloudDraft
 		| HistoryUpdateFlag::UnreadMentions
@@ -621,22 +638,12 @@ HistoryWidget::HistoryWidget(
 		| HistoryUpdateFlag::UnreadView
 		| HistoryUpdateFlag::TopPromoted
 		| HistoryUpdateFlag::ClientSideMessages
-		| HistoryUpdateFlag::PinnedMessages
 	) | rpl::filter([=](const Data::HistoryUpdate &update) {
-		if (_migrated && update.history.get() == _migrated) {
-			if (_pinnedTracker
-				&& (update.flags & HistoryUpdateFlag::PinnedMessages)) {
-				checkPinnedBarState();
-			}
-		}
 		return (_history == update.history.get());
 	}) | rpl::start_with_next([=](const Data::HistoryUpdate &update) {
 		const auto flags = update.flags;
 		if (flags & HistoryUpdateFlag::MessageSent) {
 			synteticScrollToY(_scroll->scrollTopMax());
-		}
-		if (flags & HistoryUpdateFlag::ForwardDraft) {
-			updateForwarding();
 		}
 		if (flags & HistoryUpdateFlag::BotKeyboard) {
 			updateBotKeyboard(update.history);
@@ -649,13 +656,10 @@ HistoryWidget::HistoryWidget(
 		}
 		if ((flags & HistoryUpdateFlag::UnreadMentions)
 			|| (flags & HistoryUpdateFlag::UnreadReactions)) {
-			updateUnreadThingsVisibility();
+			_cornerButtons.updateUnreadThingsVisibility();
 		}
 		if (flags & HistoryUpdateFlag::UnreadView) {
 			unreadCountUpdated();
-		}
-		if (_pinnedTracker && (flags & HistoryUpdateFlag::PinnedMessages)) {
-			checkPinnedBarState();
 		}
 		if (flags & HistoryUpdateFlag::TopPromoted) {
 			updateHistoryGeometry();
@@ -874,6 +878,11 @@ HistoryWidget::HistoryWidget(
 		}, lifetime());
 	}
 
+	controller->materializeLocalDraftsRequests(
+	) | rpl::start_with_next([=] {
+		saveFieldToHistoryLocalDraft();
+	}, lifetime());
+
 	setupScheduledToggle();
 	setupSendAsToggle();
 	orderWidgets();
@@ -971,7 +980,7 @@ void HistoryWidget::initVoiceRecordBar() {
 	});
 
 	const auto applyLocalDraft = [=] {
-		if (_history && _history->localDraft()) {
+		if (_history && _history->localDraft({})) {
 			applyDraft();
 		}
 	};
@@ -1008,8 +1017,8 @@ void HistoryWidget::initVoiceRecordBar() {
 
 	_voiceRecordBar->lockShowStarts(
 	) | rpl::start_with_next([=] {
-		updateHistoryDownVisibility();
-		updateUnreadThingsVisibility();
+		_cornerButtons.updateJumpDownVisibility();
+		_cornerButtons.updateUnreadThingsVisibility();
 	}, lifetime());
 
 	_voiceRecordBar->updateSendButtonTypeRequests(
@@ -1354,20 +1363,6 @@ void HistoryWidget::start() {
 	session().data().stickers().notifySavedGifsUpdated();
 }
 
-void HistoryWidget::insertMention(UserData *user) {
-	QString replacement, entityTag;
-	if (user->username.isEmpty()) {
-		replacement = user->firstName;
-		if (replacement.isEmpty()) {
-			replacement = user->name();
-		}
-		entityTag = PrepareMentionTag(user);
-	} else {
-		replacement = '@' + user->username;
-	}
-	_field->insertTag(replacement, entityTag);
-}
-
 void HistoryWidget::insertHashtagOrBotCommand(
 		QString str,
 		FieldAutocomplete::ChooseMethod method) {
@@ -1487,9 +1482,9 @@ void HistoryWidget::applyInlineBotQuery(UserData *bot, const QString &query) {
 				if (result.open) {
 					const auto request = result.result->openRequest();
 					if (const auto photo = request.photo()) {
-						controller()->openPhoto(photo, FullMsgId());
+						controller()->openPhoto(photo, {}, {});
 					} else if (const auto document = request.document()) {
-						controller()->openDocument(document, FullMsgId());
+						controller()->openDocument(document, {}, {});
 					}
 				} else {
 					sendInlineResult(result);
@@ -1518,7 +1513,7 @@ void HistoryWidget::orderWidgets() {
 	_voiceRecordBar->raise();
 	_send->raise();
 	if (_contactStatus) {
-		_contactStatus->raise();
+		_contactStatus->bar().raise();
 	}
 	if (_pinnedBar) {
 		_pinnedBar->raise();
@@ -1680,10 +1675,12 @@ void HistoryWidget::saveDraft(bool delayed) {
 void HistoryWidget::saveFieldToHistoryLocalDraft() {
 	if (!_history) return;
 
+	const auto topicRootId = MsgId();
 	if (_editMsgId) {
 		_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 			_field,
 			_editMsgId,
+			topicRootId,
 			_previewState,
 			_saveEditMsgRequestId));
 	} else {
@@ -1691,11 +1688,12 @@ void HistoryWidget::saveFieldToHistoryLocalDraft() {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyToId,
+				topicRootId,
 				_previewState));
 		} else {
-			_history->clearLocalDraft();
+			_history->clearLocalDraft({});
 		}
-		_history->clearLocalEditDraft();
+		_history->clearLocalEditDraft({});
 	}
 }
 
@@ -1779,11 +1777,15 @@ void HistoryWidget::setInnerFocus() {
 bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo) {
 	if (samePeerBot) {
 		if (_history) {
-			TextWithTags textWithTags = { '@' + samePeerBot->username + ' ' + query, TextWithTags::Tags() };
+			const auto textWithTags = TextWithTags{
+				'@' + samePeerBot->username() + ' ' + query,
+				TextWithTags::Tags(),
+			};
 			MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				textWithTags,
-				0,
+				0, // replyTo
+				0, // topicRootId
 				cursor,
 				Data::PreviewState::Allowed));
 			applyDraft();
@@ -1800,26 +1802,27 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 		bot->botInfo->inlineReturnTo = Dialogs::EntryState();
 		using Section = Dialogs::EntryState::Section;
 
-		TextWithTags textWithTags = { '@' + bot->username + ' ' + query, TextWithTags::Tags() };
+		const auto textWithTags = TextWithTags{
+			'@' + bot->username() + ' ' + query,
+			TextWithTags::Tags(),
+		};
 		MessageCursor cursor = { int(textWithTags.text.size()), int(textWithTags.text.size()), QFIXED_MAX };
 		auto draft = std::make_unique<Data::Draft>(
 			textWithTags,
 			to.currentReplyToId,
+			to.rootId,
 			cursor,
 			Data::PreviewState::Allowed);
 
-		if (to.section == Section::Replies) {
-			history->setDraft(
-				Data::DraftKey::Replies(to.rootId),
-				std::move(draft));
-			controller()->showRepliesForMessage(history, to.rootId);
-		} else if (to.section == Section::Scheduled) {
+		if (to.section == Section::Scheduled) {
 			history->setDraft(Data::DraftKey::Scheduled(), std::move(draft));
 			controller()->showSection(
 				std::make_shared<HistoryView::ScheduledMemento>(history));
 		} else {
 			history->setLocalDraft(std::move(draft));
-			if (history == _history) {
+			if (to.section == Section::Replies) {
+				controller()->showRepliesForMessage(history, to.rootId);
+			} else if (history == _history) {
 				applyDraft();
 			} else {
 				controller()->showPeerHistory(history->peer);
@@ -1833,96 +1836,47 @@ bool HistoryWidget::notify_switchInlineBotButtonReceived(const QString &query, U
 void HistoryWidget::setupShortcuts() {
 	Shortcuts::Requests(
 	) | rpl::filter([=] {
-		return Ui::AppInFocus()
+		return _history
+			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
 			&& !Ui::isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
-		if (_history) {
-			request->check(Command::Search, 1) && request->handle([=] {
-				searchInChat();
+		request->check(Command::Search, 1) && request->handle([=] {
+			searchInChat();
+			return true;
+		});
+		if (session().supportMode()) {
+			request->check(
+				Command::SupportToggleMuted
+			) && request->handle([=] {
+				toggleMuteUnmute();
 				return true;
 			});
-			if (session().supportMode()) {
-				request->check(
-					Command::SupportToggleMuted
-				) && request->handle([=] {
-					toggleMuteUnmute();
-					return true;
-				});
-			}
 		}
 	}, lifetime());
 }
 
-void HistoryWidget::clearReplyReturns() {
-	_replyReturns.clear();
-	_replyReturn = nullptr;
-}
-
 void HistoryWidget::pushReplyReturn(not_null<HistoryItem*> item) {
-	if (item->history() == _history) {
-		_replyReturns.push_back(item->id);
-	} else if (item->history() == _migrated) {
-		_replyReturns.push_back(-item->id);
-	} else {
+	if (item->history() != _history && item->history() != _migrated) {
 		return;
 	}
-	_replyReturn = item;
+	_cornerButtons.pushReplyReturn(item);
 	updateControlsVisibility();
 }
 
-QList<MsgId> HistoryWidget::replyReturns() {
-	return _replyReturns;
+QVector<FullMsgId> HistoryWidget::replyReturns() const {
+	return _cornerButtons.replyReturns();
 }
 
-void HistoryWidget::setReplyReturns(PeerId peer, const QList<MsgId> &replyReturns) {
-	if (!_peer || _peer->id != peer) return;
-
-	_replyReturns = replyReturns;
-	if (_replyReturns.isEmpty()) {
-		_replyReturn = nullptr;
-	} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-		_replyReturn = _migrated
-			? session().data().message(_migrated->peer, -_replyReturns.back())
-			: nullptr;
-	} else {
-		_replyReturn = session().data().message(peer, _replyReturns.back());
+void HistoryWidget::setReplyReturns(
+		PeerId peer,
+		QVector<FullMsgId> replyReturns) {
+	if (!_peer || _peer->id != peer) {
+		return;
 	}
-	while (!_replyReturns.isEmpty() && !_replyReturn) {
-		_replyReturns.pop_back();
-		if (_replyReturns.isEmpty()) {
-			_replyReturn = nullptr;
-		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-			_replyReturn = _migrated
-				? session().data().message(_migrated->peer, -_replyReturns.back())
-				: nullptr;
-		} else {
-			_replyReturn = session().data().message(peer, _replyReturns.back());
-		}
-	}
-}
-
-void HistoryWidget::calcNextReplyReturn() {
-	_replyReturn = nullptr;
-	while (!_replyReturns.isEmpty() && !_replyReturn) {
-		_replyReturns.pop_back();
-		if (_replyReturns.isEmpty()) {
-			_replyReturn = nullptr;
-		} else if (_replyReturns.back() < 0 && -_replyReturns.back() < ServerMaxMsgId) {
-			_replyReturn = _migrated
-				? session().data().message(_migrated->peer, -_replyReturns.back())
-				: nullptr;
-		} else {
-			_replyReturn = _peer
-				? session().data().message(_peer, _replyReturns.back())
-				: nullptr;
-		}
-	}
-	if (!_replyReturn) {
-		updateControlsVisibility();
-	}
+	_cornerButtons.setReplyReturns(std::move(replyReturns));
 }
 
 void HistoryWidget::fastShowAtEnd(not_null<History*> history) {
@@ -1949,18 +1903,19 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		return;
 	}
 
-	auto draft = !_history
-		? nullptr
-		: _history->localEditDraft()
-		? _history->localEditDraft()
-		: _history->localDraft();
+	const auto editDraft = _history ? _history->localEditDraft({}) : nullptr;
+	const auto draft = editDraft
+		? editDraft
+		: _history
+		? _history->localDraft({})
+		: nullptr;
 	auto fieldAvailable = canWriteMessage();
-	if (!draft || (!_history->localEditDraft() && !fieldAvailable)) {
+	if (!draft || (!_history->localEditDraft({}) && !fieldAvailable)) {
 		auto fieldWillBeHiddenAfterEdit = (!fieldAvailable && _editMsgId != 0);
 		clearFieldText(0, fieldHistoryAction);
 		_field->setFocus();
-		_replyEditMsg = nullptr;
-		_replyToId = 0;
+		_processingReplyItem = _replyEditMsg = nullptr;
+		_processingReplyId = _replyToId = 0;
 		setEditMsgId(0);
 		if (fieldWillBeHiddenAfterEdit) {
 			updateControlsVisibility();
@@ -1983,23 +1938,26 @@ void HistoryWidget::applyDraft(FieldHistoryAction fieldHistoryAction) {
 	_parsedLinks = _fieldLinksParser->list().current();
 	_previewState = draft->previewState;
 
-	_replyEditMsg = nullptr;
-	if (const auto editDraft = _history->localEditDraft()) {
+	_processingReplyItem = _replyEditMsg = nullptr;
+	_processingReplyId = _replyToId = 0;
+	if (const auto editDraft = _history->localEditDraft({})) {
 		setEditMsgId(editDraft->msgId);
-		_replyToId = 0;
 	} else {
-		_replyToId = readyToForward() ? 0 : _history->localDraft()->msgId;
 		setEditMsgId(0);
 	}
 	updateCmdStartShown();
 	updateControlsVisibility();
 	updateControlsGeometry();
 	refreshTopBarActiveChat();
-	if (_editMsgId || _replyToId) {
+	if (_editMsgId) {
 		updateReplyEditTexts();
 		if (!_replyEditMsg) {
-			requestMessageData(_editMsgId ? _editMsgId : _replyToId);
+			requestMessageData(_editMsgId);
 		}
+	} else if (!readyToForward()) {
+		const auto draft = _history->localDraft({});
+		_processingReplyId = draft ? draft->msgId : MsgId();
+		processReply();
 	}
 }
 
@@ -2075,14 +2033,13 @@ void HistoryWidget::showHistory(
 				}
 
 				clearDelayedShowAt();
-				while (_replyReturn) {
-					if (_replyReturn->history() == _history && _replyReturn->id == showAtMsgId) {
-						calcNextReplyReturn();
-					} else if (_replyReturn->history() == _migrated && -_replyReturn->id == showAtMsgId) {
-						calcNextReplyReturn();
-					} else {
-						break;
-					}
+				const auto skipId = (_migrated && showAtMsgId < 0)
+					? FullMsgId(_migrated->peer->id, -showAtMsgId)
+					: (showAtMsgId > 0)
+					? FullMsgId(_history->peer->id, showAtMsgId)
+					: FullMsgId();
+				if (skipId) {
+					_cornerButtons.skipReplyReturn(skipId);
 				}
 
 				setMsgId(showAtMsgId);
@@ -2108,7 +2065,7 @@ void HistoryWidget::showHistory(
 							info->inlineReturnTo = wasDialogsEntryState;
 						}
 						sendBotStartCommand();
-						_history->clearLocalDraft();
+						_history->clearLocalDraft({});
 						applyDraft();
 						_send->finishAnimating();
 					}
@@ -2128,9 +2085,9 @@ void HistoryWidget::showHistory(
 		session().sendProgressManager().cancelTyping(_history);
 	}
 
-	clearReplyReturns();
+	_cornerButtons.clearReplyReturns();
 	if (_history) {
-		if (Ui::InFocusChain(_list)) {
+		if (Ui::InFocusChain(this)) {
 			// Removing focus from list clears selected and updates top bar.
 			setFocus();
 		}
@@ -2163,8 +2120,8 @@ void HistoryWidget::showHistory(
 	HistoryView::Element::ClearGlobal();
 
 	_saveEditMsgRequestId = 0;
-	_replyEditMsg = nullptr;
-	_editMsgId = _replyToId = 0;
+	_processingReplyItem = _replyEditMsg = nullptr;
+	_processingReplyId = _editMsgId = _replyToId = 0;
 	_previewData = nullptr;
 	_previewCache.clear();
 	_fieldBarCancel->hide();
@@ -2184,10 +2141,11 @@ void HistoryWidget::showHistory(
 		_contactStatus = std::make_unique<HistoryView::ContactStatus>(
 			controller(),
 			this,
-			_peer);
-		_contactStatus->heightValue() | rpl::start_with_next([=] {
+			_peer,
+			false);
+		_contactStatus->bar().heightValue() | rpl::start_with_next([=] {
 			updateControlsGeometry();
-		}, _contactStatus->lifetime());
+		}, _contactStatus->bar().lifetime());
 		orderWidgets();
 		controller()->tabbedSelector()->setCurrentPeer(_peer);
 	}
@@ -2315,29 +2273,44 @@ void HistoryWidget::showHistory(
 		if (!_history->folderKnown()) {
 			session().data().histories().requestDialogEntry(_history);
 		}
-		if (_history->chatListUnreadMark()) {
-			_history->owner().histories().changeDialogUnreadMark(
+
+		// Must be done before unreadCountUpdated(), or we auto-close.
+		if (_history->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
 				_history,
 				false);
-			if (_migrated) {
-				_migrated->owner().histories().changeDialogUnreadMark(
-					_migrated,
-					false);
-			}
-
-			// Must be done before unreadCountUpdated(), or we auto-close.
-			_history->setUnreadMark(false);
-			if (_migrated) {
-				_migrated->setUnreadMark(false);
-			}
+		}
+		if (_migrated && _migrated->unreadMark()) {
+			session().data().histories().changeDialogUnreadMark(
+				_migrated,
+				false);
 		}
 		unreadCountUpdated(); // set _historyDown badge.
 		showAboutTopPromotion();
 
 		{
-			auto &sponsored = session().data().sponsoredMessages();
-			sponsored.request(_history);
-			_scroll->setTrackingContent(sponsored.canHaveFor(_history));
+			_scroll->setTrackingContent(false);
+			const auto checkState = crl::guard(this, [=, history = _history] {
+				if (history != _history) {
+					return;
+				}
+				auto &sponsored = session().data().sponsoredMessages();
+				using State = Data::SponsoredMessages::State;
+				const auto state = sponsored.state(_history);
+				if (state == State::AppendToEnd) {
+					_scroll->setTrackingContent(
+						sponsored.canHaveFor(_history));
+				} else if (state == State::InjectToMiddle) {
+					if (_list) {
+						_list->setCanHaveFromUserpicsSponsored(true);
+					}
+					injectSponsoredMessages();
+				}
+			});
+			session().data().sponsoredMessages().request(
+				_history,
+				checkState);
+			checkState();
 		}
 	} else {
 		_chooseForReport = nullptr;
@@ -2401,6 +2374,14 @@ void HistoryWidget::setHistory(History *history) {
 	refreshAttachBotsMenu();
 }
 
+void HistoryWidget::injectSponsoredMessages() const {
+	session().data().sponsoredMessages().inject(
+		_history,
+		_showAtMsgId,
+		_scroll->height() * 2,
+		_scroll->width());
+}
+
 void HistoryWidget::refreshAttachBotsMenu() {
 	_attachBotsMenu = nullptr;
 	if (!_history) {
@@ -2409,6 +2390,7 @@ void HistoryWidget::refreshAttachBotsMenu() {
 	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
 		this,
 		_history->peer,
+		[=] { return prepareSendAction({}); },
 		[=](bool compress) { chooseAttach(compress); });
 	if (!_attachBotsMenu) {
 		return;
@@ -2428,10 +2410,10 @@ void HistoryWidget::unregisterDraftSources() {
 	}
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::Local());
+		Data::DraftKey::Local({}));
 	session().local().unregisterDraftSource(
 		_history,
-		Data::DraftKey::LocalEdit());
+		Data::DraftKey::LocalEdit({}));
 }
 
 void HistoryWidget::registerDraftSource() {
@@ -2452,7 +2434,9 @@ void HistoryWidget::registerDraftSource() {
 	};
 	session().local().registerDraftSource(
 		_history,
-		editMsgId ? Data::DraftKey::LocalEdit() : Data::DraftKey::Local(),
+		(editMsgId
+			? Data::DraftKey::LocalEdit({})
+			: Data::DraftKey::Local({})),
 		std::move(draftSource));
 }
 
@@ -2461,6 +2445,7 @@ void HistoryWidget::setEditMsgId(MsgId msgId) {
 	_editMsgId = msgId;
 	if (_history) {
 		refreshSendAsToggle();
+		orderWidgets();
 	}
 	registerDraftSource();
 }
@@ -2520,7 +2505,7 @@ void HistoryWidget::updateNotifyControls() {
 		return;
 	}
 
-	_muteUnmute->setText((_history->mute()
+	_muteUnmute->setText((_history->muted()
 		? tr::lng_channel_unmute(tr::now)
 		: tr::lng_channel_mute(tr::now)).toUpper());
 	if (!session().data().notifySettings().silentPostsUnknown(_peer)) {
@@ -2547,7 +2532,7 @@ void HistoryWidget::refreshSilentToggle() {
 
 void HistoryWidget::setupScheduledToggle() {
 	controller()->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) -> rpl::producer<> {
+	) | rpl::map([=](Dialogs::Key key) -> rpl::producer<> {
 		if (const auto history = key.history()) {
 			return session().data().scheduledMessages().updates(history);
 		}
@@ -2562,7 +2547,7 @@ void HistoryWidget::setupScheduledToggle() {
 
 void HistoryWidget::refreshScheduledToggle() {
 	const auto has = _history
-		&& _peer->canWrite()
+		&& _canSendMessages
 		&& (session().data().scheduledMessages().count(_history) > 0);
 	if (!_scheduled && has) {
 		_scheduled.create(this, st::historyScheduledToggle);
@@ -2585,6 +2570,7 @@ void HistoryWidget::setupSendAsToggle() {
 		refreshSendAsToggle();
 		updateControlsVisibility();
 		updateControlsGeometry();
+		orderWidgets();
 	}, lifetime());
 }
 
@@ -2623,9 +2609,15 @@ bool HistoryWidget::canWriteMessage() const {
 }
 
 std::optional<QString> HistoryWidget::writeRestriction() const {
-	return _peer
+	auto result = _peer
 		? Data::RestrictionError(_peer, ChatRestriction::SendMessages)
 		: std::nullopt;
+	if (result) {
+		return result;
+	} else if (_peer && _peer->isForum()) {
+		return tr::lng_forum_replies_only(tr::now);
+	}
+	return std::nullopt;
 }
 
 void HistoryWidget::updateControlsVisibility() {
@@ -2633,8 +2625,8 @@ void HistoryWidget::updateControlsVisibility() {
 		_topShadow->setVisible(_peer != nullptr);
 		_topBar->setVisible(_peer != nullptr);
 	}
-	updateHistoryDownVisibility();
-	updateUnreadThingsVisibility();
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
 	if (!_history || _a_show.animating()) {
 		hideChildWidgets();
 		return;
@@ -2732,11 +2724,7 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_inlineResults) {
 			_inlineResults->hide();
 		}
-		if (!_field->isHidden()) {
-			_field->hide();
-			updateControlsGeometry();
-			update();
-		}
+		hideFieldIfVisible();
 	} else if (editingMessage() || _canSendMessages) {
 		checkFieldAutocomplete();
 		_unblock->hide();
@@ -2845,14 +2833,21 @@ void HistoryWidget::updateControlsVisibility() {
 			_inlineResults->hide();
 		}
 		_kbScroll->hide();
-		if (!_field->isHidden()) {
-			_field->hide();
-			updateControlsGeometry();
-			update();
-		}
+		hideFieldIfVisible();
 	}
 	//checkTabbedSelectorToggleTooltip();
 	updateMouseTracking();
+}
+
+void HistoryWidget::hideFieldIfVisible() {
+	if (_field->isHidden()) {
+		return;
+	} else if (InFocusChain(_field)) {
+		setFocus();
+	}
+	_field->hide();
+	updateControlsGeometry();
+	update();
 }
 
 void HistoryWidget::showAboutTopPromotion() {
@@ -2917,10 +2912,10 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	}
 
 	// If we get here in non-resized state we can't rely on results of
-	// doWeReadServerHistory() and mark chat as read.
+	// markingMessagesRead() and mark chat as read.
 	// If we receive N messages being not at bottom:
 	// - on first message we set unreadcount += 1, firstUnreadMessage.
-	// - on second we get wrong doWeReadServerHistory() and read both.
+	// - on second we get wrong markingMessagesRead() and read both.
 	session().data().sendHistoryChangeNotifications();
 
 	if (item->isSending()) {
@@ -2930,13 +2925,14 @@ void HistoryWidget::newItemAdded(not_null<HistoryItem*> item) {
 	}
 	if (item->showNotification()) {
 		destroyUnreadBar();
-		if (doWeReadServerHistory()) {
+		if (markingMessagesRead()) {
 			if (item->isUnreadMention() && !item->isUnreadMedia()) {
 				session().api().markContentsRead(item);
 			}
 			session().data().histories().readInboxOnNewMessage(item);
 
 			// Also clear possible scheduled messages notifications.
+			// Side-effect: Also clears all notifications from forum topics.
 			Core::App().notifications().clearFromHistory(_history);
 		}
 	}
@@ -2953,7 +2949,7 @@ void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 	}
 	const auto view = item->mainView();
 	const auto itemTop = _list->itemTop(view);
-	if (itemTop <= 0 || !doWeReadMentions()) {
+	if (itemTop <= 0 || !markingContentsRead()) {
 		return;
 	}
 	const auto reactionCenter
@@ -2968,7 +2964,7 @@ void HistoryWidget::maybeMarkReactionsRead(not_null<HistoryItem*> item) {
 }
 
 void HistoryWidget::unreadCountUpdated() {
-	if (_history->chatListUnreadMark()) {
+	if (_history->unreadMark() || (_migrated && _migrated->unreadMark())) {
 		crl::on_main(this, [=, history = _history] {
 			if (history == _history) {
 				closeCurrent();
@@ -2976,8 +2972,9 @@ void HistoryWidget::unreadCountUpdated() {
 			}
 		});
 	} else {
-		updateHistoryDownVisibility();
-		_historyDown.widget->setUnreadCount(_history->chatListUnreadCount());
+		_cornerButtons.updateJumpDownVisibility(_history->peer->isForum()
+			? 0
+			: _history->chatListBadgesState().unreadCounter);
 	}
 }
 
@@ -3027,7 +3024,10 @@ void HistoryWidget::messagesFailed(const MTP::Error &error, int requestId) {
 	}
 }
 
-void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId) {
+void HistoryWidget::messagesReceived(
+		not_null<PeerData*> peer,
+		const MTPmessages_Messages &messages,
+		int requestId) {
 	Expects(_history != nullptr);
 
 	bool toMigrated = (peer == _peer->migrateFrom());
@@ -3063,8 +3063,9 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 	} break;
 	case mtpc_messages_channelMessages: {
 		auto &d(messages.c_messages_channelMessages());
-		if (peer && peer->isChannel()) {
-			peer->asChannel()->ptsReceived(d.vpts().v);
+		if (const auto channel = peer->asChannel()) {
+			channel->ptsReceived(d.vpts().v);
+			channel->processTopics(d.vtopics());
 		} else {
 			LOG(("API Error: received messages.channelMessages when no channel was passed! (HistoryWidget::messagesReceived)"));
 		}
@@ -3087,7 +3088,7 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 		_preloadDownRequest = 0;
 		preloadHistoryIfNeeded();
 		if (_history->loadedAtBottom()) {
-			checkHistoryActivation();
+			checkActivation();
 		}
 	} else if (_firstLoadRequest == requestId) {
 		if (toMigrated) {
@@ -3124,16 +3125,13 @@ void HistoryWidget::messagesReceived(PeerData *peer, const MTPmessages_Messages 
 			firstLoadMessages();
 			return;
 		}
-		while (_replyReturn) {
-			if (_replyReturn->history() == _history
-				&& _replyReturn->id == _delayedShowAtMsgId) {
-				calcNextReplyReturn();
-			} else if (_replyReturn->history() == _migrated
-				&& -_replyReturn->id == _delayedShowAtMsgId) {
-				calcNextReplyReturn();
-			} else {
-				break;
-			}
+		const auto skipId = (_migrated && _delayedShowAtMsgId < 0)
+			? FullMsgId(_migrated->peer->id, -_delayedShowAtMsgId)
+			: (_delayedShowAtMsgId > 0)
+			? FullMsgId(_history->peer->id, _delayedShowAtMsgId)
+			: FullMsgId();
+		if (skipId) {
+			_cornerButtons.skipReplyReturn(skipId);
 		}
 
 		_delayedShowAtRequest = 0;
@@ -3154,23 +3152,23 @@ void HistoryWidget::windowShown() {
 	updateControlsGeometry();
 }
 
-bool HistoryWidget::doWeReadServerHistory() const {
-	return doWeReadMentions() && !session().supportMode();
+bool HistoryWidget::markingMessagesRead() const {
+	return markingContentsRead() && !session().supportMode();
 }
 
-bool HistoryWidget::doWeReadMentions() const {
+bool HistoryWidget::markingContentsRead() const {
 	return _history
 		&& _list
 		&& _historyInited
 		&& !_firstLoadRequest
 		&& !_delayedShowAtRequest
 		&& !_a_show.animating()
-		&& controller()->widget()->doWeMarkAsRead();
+		&& controller()->widget()->markingAsRead();
 }
 
-void HistoryWidget::checkHistoryActivation() {
+void HistoryWidget::checkActivation() {
 	if (_list) {
-		_list->checkHistoryActivation();
+		_list->checkActivation();
 	}
 }
 
@@ -3305,7 +3303,7 @@ void HistoryWidget::loadMessagesDown() {
 	auto loadMigrated = _migrated && !(_migrated->isEmpty() || _migrated->loadedAtBottom() || (!_history->isEmpty() && !_history->loadedAtTop()));
 	auto from = loadMigrated ? _migrated : _history;
 	if (from->loadedAtBottom()) {
-		session().data().sponsoredMessages().request(_history);
+		session().data().sponsoredMessages().request(_history, nullptr);
 		return;
 	}
 
@@ -3417,15 +3415,16 @@ void HistoryWidget::handleScroll() {
 	if (!_itemsRevealHeight) {
 		updatePinnedViewer();
 	}
+	const auto now = crl::now();
 	if (!_synteticScrollEvent) {
-		_lastUserScrolled = crl::now();
+		_lastUserScrolled = now;
 	}
 	const auto scrollTop = _scroll->scrollTop();
 	if (scrollTop != _lastScrollTop) {
 		if (!_synteticScrollEvent) {
 			checkLastPinnedClickedIdReset(_lastScrollTop, scrollTop);
 		}
-		_lastScrolled = crl::now();
+		_lastScrolled = now;
 		_lastScrollTop = scrollTop;
 	}
 }
@@ -3465,8 +3464,8 @@ void HistoryWidget::preloadHistoryIfNeeded() {
 		return;
 	}
 
-	updateHistoryDownVisibility();
-	updateUnreadThingsVisibility();
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
 	if (!_scrollToAnimation.animating()) {
 		preloadHistoryByScroll();
 		checkReplyReturns();
@@ -3536,19 +3535,32 @@ void HistoryWidget::checkReplyReturns() {
 	auto scrollTop = _scroll->scrollTop();
 	auto scrollTopMax = _scroll->scrollTopMax();
 	auto scrollHeight = _scroll->height();
-	while (_replyReturn) {
-		auto below = (!_replyReturn->mainView() && _replyReturn->history() == _history && !_history->isEmpty() && _replyReturn->id < _history->blocks.back()->messages.back()->data()->id);
+	while (const auto replyReturn = _cornerButtons.replyReturn()) {
+		auto below = !replyReturn->mainView()
+			&& (replyReturn->history() == _history)
+			&& !_history->isEmpty()
+			&& (replyReturn->id
+				< _history->blocks.back()->messages.back()->data()->id);
 		if (!below) {
-			below = (!_replyReturn->mainView() && _replyReturn->history() == _migrated && !_history->isEmpty());
+			below = !replyReturn->mainView()
+				&& (replyReturn->history() == _migrated)
+				&& !_history->isEmpty();
 		}
 		if (!below) {
-			below = (!_replyReturn->mainView() && _migrated && _replyReturn->history() == _migrated && !_migrated->isEmpty() && _replyReturn->id < _migrated->blocks.back()->messages.back()->data()->id);
+			below = !replyReturn->mainView()
+				&& _migrated
+				&& (replyReturn->history() == _migrated)
+				&& !_migrated->isEmpty()
+				&& (replyReturn->id
+					< _migrated->blocks.back()->messages.back()->data()->id);
 		}
-		if (!below && _replyReturn->mainView()) {
-			below = (scrollTop >= scrollTopMax) || (_list->itemTop(_replyReturn) < scrollTop + scrollHeight / 2);
+		if (!below && replyReturn->mainView()) {
+			below = (scrollTop >= scrollTopMax)
+				|| (_list->itemTop(replyReturn)
+					< scrollTop + scrollHeight / 2);
 		}
 		if (below) {
-			calcNextReplyReturn();
+			_cornerButtons.calculateNextReplyReturn();
 		} else {
 			break;
 		}
@@ -3573,46 +3585,6 @@ void HistoryWidget::windowIsVisibleChanged() {
 	InvokeQueued(this, [=] {
 		preloadHistoryIfNeeded();
 	});
-}
-
-void HistoryWidget::historyDownClicked() {
-	if (base::IsCtrlPressed()) {
-		showHistory(_peer->id, ShowAtUnreadMsgId);
-	} else if (_replyReturn && _replyReturn->history() == _history) {
-		showHistory(_peer->id, _replyReturn->id);
-	} else if (_replyReturn && _replyReturn->history() == _migrated) {
-		showHistory(_peer->id, -_replyReturn->id);
-	} else if (_peer) {
-		showHistory(_peer->id, ShowAtUnreadMsgId);
-	}
-}
-
-void HistoryWidget::showNextUnreadMention() {
-	const auto msgId = _history->unreadMentions().minLoaded();
-	const auto already = (_showAtMsgId == msgId);
-
-	// Mark mention voice/video message as read.
-	// See https://github.com/telegramdesktop/tdesktop/issues/5623
-	if (msgId && already) {
-		const auto item = _history->owner().message(
-			_history->peer->id,
-			msgId);
-		if (const auto media = item ? item->media() : nullptr) {
-			if (const auto document = media->document()) {
-				if (!media->webpage()
-					&& (document->isVoiceMessage()
-						|| document->isVideoMessage())) {
-					document->owner().markMediaRead(document);
-				}
-			}
-		}
-	}
-	showHistory(_peer->id, msgId);
-}
-
-void HistoryWidget::showNextUnreadReaction() {
-	const auto msgId = _history->unreadReactions().minLoaded();
-	showHistory(_peer->id, msgId);
 }
 
 void HistoryWidget::saveEditMsg() {
@@ -3665,16 +3637,16 @@ void HistoryWidget::saveEditMsg() {
 				cancelEdit();
 			}
 		})();
-		if (const auto editDraft = history->localEditDraft()) {
+		if (const auto editDraft = history->localEditDraft({})) {
 			if (editDraft->saveRequestId == requestId) {
-				history->clearLocalEditDraft();
+				history->clearLocalEditDraft({});
 				history->session().local().writeDrafts(history);
 			}
 		}
 	};
 
 	const auto fail = [=](const QString &error, mtpRequestId requestId) {
-		if (const auto editDraft = history->localEditDraft()) {
+		if (const auto editDraft = history->localEditDraft({})) {
 			if (editDraft->saveRequestId == requestId) {
 				editDraft->saveRequestId = 0;
 			}
@@ -3708,6 +3680,10 @@ void HistoryWidget::saveEditMsg() {
 }
 
 void HistoryWidget::hideChildWidgets() {
+	if (Ui::InFocusChain(this)) {
+		// Removing focus from list clears selected and updates top bar.
+		setFocus();
+	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
@@ -3729,6 +3705,9 @@ void HistoryWidget::hideChildWidgets() {
 	if (_chooseTheme) {
 		_chooseTheme->hide();
 	}
+	if (_contactStatus) {
+		_contactStatus->hide();
+	}
 	hideChildren();
 }
 
@@ -3749,6 +3728,7 @@ Api::SendAction HistoryWidget::prepareSendAction(
 		Api::SendOptions options) const {
 	auto result = Api::SendAction(_history, options);
 	result.replyTo = replyToId();
+	result.topicRootId = 0;
 	result.options.sendAs = _sendAs
 		? _history->session().sendAsPeers().resolveChosen(
 			_history->peer).get()
@@ -3772,7 +3752,7 @@ void HistoryWidget::send(Api::SendOptions options) {
 	}
 
 	if (!options.scheduled) {
-		clearReplyReturns();
+		_cornerButtons.clearReplyReturns();
 	}
 
 	const auto webPageId = (_previewState != Data::PreviewState::Allowed)
@@ -3786,11 +3766,17 @@ void HistoryWidget::send(Api::SendOptions options) {
 	message.webPageId = webPageId;
 
 	if (_canSendMessages) {
+		const auto topicRootId = _replyEditMsg
+			? _replyEditMsg->topicRootId()
+			: 0;
 		const auto error = GetErrorTextForSending(
 			_peer,
-			_toForward.items,
-			message.textWithTags,
-			options.scheduled);
+			{
+				.topicRootId = topicRootId,
+				.forward = &_forwardPanel->items(),
+				.text = &message.textWithTags,
+				.ignoreSlowmodeCountdown = (options.scheduled != 0),
+			});
 		if (!error.isEmpty()) {
 			Ui::ShowMultilineToast({
 				.parentOverride = Window::Show(controller()).toastParent(),
@@ -3908,7 +3894,7 @@ void HistoryWidget::joinChannel() {
 }
 
 void HistoryWidget::toggleMuteUnmute() {
-	const auto wasMuted = !!_history->mute();
+	const auto wasMuted = _history->muted();
 	const auto muteForSeconds = Data::MuteValue{
 		.unmute = wasMuted,
 		.forever = !wasMuted,
@@ -3975,7 +3961,7 @@ void HistoryWidget::showAnimated(
 	_preserveScrollTop = true;
 	show();
 	_topBar->finishAnimating();
-	cornerButtonsAnimationFinish();
+	_cornerButtons.finishAnimations();
 	if (_pinnedBar) {
 		_pinnedBar->finishAnimating();
 	}
@@ -4009,7 +3995,7 @@ void HistoryWidget::showAnimated(
 void HistoryWidget::animationCallback() {
 	update();
 	if (!_a_show.animating()) {
-		cornerButtonsAnimationFinish();
+		_cornerButtons.finishAnimations();
 		if (_pinnedBar) {
 			_pinnedBar->finishAnimating();
 		}
@@ -4048,10 +4034,33 @@ void HistoryWidget::doneShow() {
 	if (_requestsBar) {
 		_requestsBar->finishAnimating();
 	}
-	checkHistoryActivation();
+	checkActivation();
 	controller()->widget()->setInnerFocus();
 	_preserveScrollTop = false;
 	checkSuggestToGigagroup();
+}
+
+void HistoryWidget::cornerButtonsShowAtPosition(
+		Data::MessagePosition position) {
+	if (position == Data::UnreadMessagePosition) {
+		showHistory(_peer->id, ShowAtUnreadMsgId);
+	} else if (_peer && position.fullId.peer == _peer->id) {
+		showHistory(_peer->id, position.fullId.msg);
+	} else if (_migrated && position.fullId.peer == _migrated->peer->id) {
+		showHistory(_peer->id, -position.fullId.msg);
+	}
+}
+
+Data::Thread *HistoryWidget::cornerButtonsThread() {
+	return _history;
+}
+
+FullMsgId HistoryWidget::cornerButtonsCurrentId() {
+	return (_migrated && _showAtMsgId < 0)
+		? FullMsgId(_migrated->peer->id, -_showAtMsgId)
+		: (_history && _showAtMsgId > 0)
+		? FullMsgId(_history->peer->id, _showAtMsgId)
+		: FullMsgId();
 }
 
 void HistoryWidget::checkSuggestToGigagroup() {
@@ -4090,14 +4099,7 @@ void HistoryWidget::finishAnimating() {
 	_a_show.stop();
 	_topShadow->setVisible(_peer != nullptr);
 	_topBar->setVisible(_peer != nullptr);
-	cornerButtonsAnimationFinish();
-}
-
-void HistoryWidget::cornerButtonsAnimationFinish() {
-	_historyDown.animation.stop();
-	_unreadMentions.animation.stop();
-	_unreadReactions.animation.stop();
-	updateCornerButtonsPositions();
+	_cornerButtons.finishAnimations();
 }
 
 void HistoryWidget::chooseAttach(
@@ -4107,7 +4109,7 @@ void HistoryWidget::chooseAttach(
 		return;
 	}
 
-	if (!_peer || !_peer->canWrite()) {
+	if (!_peer || !_canSendMessages) {
 		return;
 	} else if (const auto error = Data::RestrictionError(
 			_peer,
@@ -4270,7 +4272,7 @@ bool HistoryWidget::insertBotCommand(const QString &cmd) {
 		if (bot && (!bot->isUser() || !bot->asUser()->isBot())) {
 			bot = nullptr;
 		}
-		auto username = bot ? bot->asUser()->username : QString();
+		auto username = bot ? bot->asUser()->username() : QString();
 		auto botStatus = _peer->isChat() ? _peer->asChat()->botStatus : (_peer->isMegagroup() ? _peer->asChannel()->mgInfo->botStatus : -1);
 		if (toInsert.indexOf('@') < 0 && !username.isEmpty() && (botStatus == 0 || botStatus == 2)) {
 			toInsert += '@' + username;
@@ -4330,12 +4332,6 @@ bool HistoryWidget::eventFilter(QObject *obj, QEvent *e) {
 			}
 		}
 	}
-	if (e->type() == QEvent::Wheel
-		&& (obj == _historyDown.widget
-			|| obj == _unreadMentions.widget
-			|| obj == _unreadReactions.widget)) {
-		return _scroll->viewportEvent(e);
-	}
 	return TWidget::eventFilter(obj, e);
 }
 
@@ -4348,7 +4344,7 @@ QRect HistoryWidget::floatPlayerAvailableRect() {
 }
 
 bool HistoryWidget::readyToForward() const {
-	return _canSendMessages && !_toForward.items.empty();
+	return _canSendMessages && !_forwardPanel->empty();
 }
 
 bool HistoryWidget::hasSilentToggle() const {
@@ -4520,8 +4516,7 @@ bool HistoryWidget::updateCmdStartShown() {
 void HistoryWidget::searchInChat() {
 	if (!_history) {
 		return;
-	}
-	if (controller()->isPrimary()) {
+	} else if (controller()->isPrimary()) {
 		controller()->content()->searchInChat(_history);
 	} else if (!_composeSearch) {
 		const auto search = [=] {
@@ -4688,13 +4683,13 @@ void HistoryWidget::showMembersDropdown() {
 }
 
 bool HistoryWidget::pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel) {
 		return true;
-	} else if (!peer->canWrite()) {
+	} else if (!thread->canWrite()) {
 		Core::App().settings().setTabbedReplacedWithInfo(true);
-		controller()->showPeerInfo(peer, params.withThirdColumn());
+		controller()->showPeerInfo(thread, params.withThirdColumn());
 		return false;
 	}
 	Core::App().settings().setTabbedReplacedWithInfo(false);
@@ -4740,7 +4735,7 @@ bool HistoryWidget::preventsClose(Fn<void()> &&continueCallback) const {
 }
 
 void HistoryWidget::toggleTabbedSelectorMode() {
-	if (!_peer) {
+	if (!_history) {
 		return;
 	}
 	if (_tabbedPanel) {
@@ -4749,7 +4744,7 @@ void HistoryWidget::toggleTabbedSelectorMode() {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
 			pushTabbedSelectorToThirdSection(
-				_peer,
+				_history,
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
@@ -4912,7 +4907,7 @@ void HistoryWidget::updateFieldPlaceholder() {
 	if (!_editMsgId && _inlineBot && !_inlineLookingUpBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username.size() + 2);
+			_inlineBot->username().size() + 2);
 		return;
 	}
 
@@ -5291,9 +5286,9 @@ void HistoryWidget::updateControlsGeometry() {
 	}
 	const auto contactStatusTop = pinnedBarTop + (_pinnedBar ? _pinnedBar->height() : 0);
 	if (_contactStatus) {
-		_contactStatus->move(0, contactStatusTop);
+		_contactStatus->bar().move(0, contactStatusTop);
 	}
-	const auto scrollAreaTop = contactStatusTop + (_contactStatus ? _contactStatus->height() : 0);
+	const auto scrollAreaTop = contactStatusTop + (_contactStatus ? _contactStatus->bar().height() : 0);
 	if (_scroll->y() != scrollAreaTop) {
 		_scroll->moveToLeft(0, scrollAreaTop);
 		_fieldAutocomplete->setBoundings(_scroll->geometry());
@@ -5306,7 +5301,7 @@ void HistoryWidget::updateControlsGeometry() {
 
 	updateFieldSize();
 
-	updateCornerButtonsPositions();
+	_cornerButtons.updatePositions();
 
 	if (_membersDropdown) {
 		_membersDropdown->setMaxHeight(countMembersDropdownHeightMax());
@@ -5334,21 +5329,13 @@ void HistoryWidget::itemRemoved(not_null<const HistoryItem*> item) {
 	if (item == _replyEditMsg && _replyToId) {
 		cancelReply();
 	}
-	while (item == _replyReturn) {
-		calcNextReplyReturn();
+	if (item == _processingReplyItem) {
+		_processingReplyId = 0;
+		_processingReplyItem = nullptr;
 	}
 	if (_kbReplyTo && item == _kbReplyTo) {
 		toggleKeyboard();
 		_kbReplyTo = nullptr;
-	}
-	auto found = ranges::find(_toForward.items, item);
-	if (found != _toForward.items.end()) {
-		_toForward.items.erase(found);
-		updateForwardingTexts();
-		if (_toForward.items.empty()) {
-			updateControlsVisibility();
-			updateControlsGeometry();
-		}
 	}
 	const auto i = _itemRevealAnimations.find(item);
 	if (i != end(_itemRevealAnimations)) {
@@ -5480,7 +5467,7 @@ void HistoryWidget::updateHistoryGeometry(
 		newScrollHeight -= _requestsBar->height();
 	}
 	if (_contactStatus) {
-		newScrollHeight -= _contactStatus->height();
+		newScrollHeight -= _contactStatus->bar().height();
 	}
 	if (isChoosingTheme()) {
 		newScrollHeight -= _chooseTheme->height();
@@ -5524,7 +5511,7 @@ void HistoryWidget::updateHistoryGeometry(
 		if (_supportAutocomplete) {
 			_supportAutocomplete->setBoundings(_scroll->geometry());
 		}
-		updateCornerButtonsPositions();
+		_cornerButtons.updatePositions();
 		controller()->floatPlayerAreaUpdated();
 	}
 
@@ -5697,7 +5684,9 @@ std::optional<int> HistoryWidget::unreadBarTop() const {
 	return std::nullopt;
 }
 
-void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages) {
+void HistoryWidget::addMessagesToFront(
+		not_null<PeerData*> peer,
+		const QVector<MTPMessage> &messages) {
 	_list->messagesReceived(peer, messages);
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry();
@@ -5706,7 +5695,7 @@ void HistoryWidget::addMessagesToFront(PeerData *peer, const QVector<MTPMessage>
 }
 
 void HistoryWidget::addMessagesToBack(
-		PeerData *peer,
+		not_null<PeerData*> peer,
 		const QVector<MTPMessage> &messages) {
 	const auto checkForUnreadStart = [&] {
 		if (_history->unreadBar() || !_history->trackUnreadMessages()) {
@@ -5723,6 +5712,7 @@ void HistoryWidget::addMessagesToBack(
 	if (!_firstLoadRequest) {
 		updateHistoryGeometry(false, true, { ScrollChangeNoJumpToBottom, 0 });
 	}
+	injectSponsoredMessages();
 }
 
 void HistoryWidget::updateBotKeyboard(History *h, bool force) {
@@ -5851,7 +5841,7 @@ void HistoryWidget::botCallbackSent(not_null<HistoryItem*> item) {
 int HistoryWidget::computeMaxFieldHeight() const {
 	const auto available = height()
 		- _topBar->height()
-		- (_contactStatus ? _contactStatus->height() : 0)
+		- (_contactStatus ? _contactStatus->bar().height() : 0)
 		- (_pinnedBar ? _pinnedBar->height() : 0)
 		- (_groupCallBar ? _groupCallBar->height() : 0)
 		- (_requestsBar ? _requestsBar->height() : 0)
@@ -5866,75 +5856,24 @@ int HistoryWidget::computeMaxFieldHeight() const {
 	return std::min(st::historyComposeFieldMaxHeight, available);
 }
 
-void HistoryWidget::updateCornerButtonsPositions() {
-	const auto checkVisibility = [](CornerButton &button) {
-		const auto shouldBeHidden = !button.shown
-			&& !button.animation.animating();
-		if (shouldBeHidden != button.widget->isHidden()) {
-			button.widget->setVisible(!shouldBeHidden);
-		}
-	};
-	const auto shown = [](CornerButton &button) {
-		return button.animation.value(button.shown ? 1. : 0.);
-	};
-
-	// All corner buttons is a child widgets of _scroll, not me.
-
-	const auto historyDownShown = shown(_historyDown);
-	const auto unreadMentionsShown = shown(_unreadMentions);
-	const auto unreadReactionsShown = shown(_unreadReactions);
-	const auto skip = st::historyUnreadThingsSkip;
-	{
-		const auto top = anim::interpolate(
-			0,
-			_historyDown.widget->height() + st::historyToDownPosition.y(),
-			historyDownShown);
-		_historyDown.widget->moveToRight(
-			st::historyToDownPosition.x(),
-			_scroll->height() - top);
-	}
-	{
-		const auto right = anim::interpolate(
-			-_unreadMentions.widget->width(),
-			st::historyToDownPosition.x(),
-			unreadMentionsShown);
-		const auto shift = anim::interpolate(
-			0,
-			_historyDown.widget->height() + skip,
-			historyDownShown);
-		const auto top = _scroll->height()
-			- _unreadMentions.widget->height()
-			- st::historyToDownPosition.y()
-			- shift;
-		_unreadMentions.widget->moveToRight(right, top);
-	}
-	{
-		const auto right = anim::interpolate(
-			-_unreadReactions.widget->width(),
-			st::historyToDownPosition.x(),
-			unreadReactionsShown);
-		const auto shift = anim::interpolate(
-			0,
-			_historyDown.widget->height() + skip,
-			historyDownShown
-		) + anim::interpolate(
-			0,
-			_unreadMentions.widget->height() + skip,
-			unreadMentionsShown);
-		const auto top = _scroll->height()
-			- _unreadReactions.widget->height()
-			- st::historyToDownPosition.y()
-			- shift;
-		_unreadReactions.widget->moveToRight(right, top);
-	}
-
-	checkVisibility(_historyDown);
-	checkVisibility(_unreadMentions);
-	checkVisibility(_unreadReactions);
+bool HistoryWidget::cornerButtonsIgnoreVisibility() {
+	return _a_show.animating();
 }
 
-void HistoryWidget::updateHistoryDownVisibility() {
-	if (_a_show.animating()) return;
+std::optional<bool> HistoryWidget::cornerButtonsDownShown() {
+	if (!_list || _firstLoadRequest) {
+		return false;
+	}
+	if (_voiceRecordBar->isLockPresent()) {
+		return false;
+	}
+	if (!_history->loadedAtBottom() || _cornerButtons.replyReturn()) {
+		return true;
+	}
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax()) {
+		return true;
+	}
 
 	const auto haveUnreadBelowBottom = [&](History *history) {
 		if (!_list || !history || history->unreadCount() <= 0) {
@@ -5947,75 +5886,19 @@ void HistoryWidget::updateHistoryDownVisibility() {
 		const auto top = _list->itemTop(unread);
 		return (top >= _scroll->scrollTop() + _scroll->height());
 	};
-	updateCornerButtonVisibility(_historyDown, [&] {
-		if (!_list || _firstLoadRequest) {
-			return false;
-		}
-		if (_voiceRecordBar->isLockPresent()) {
-			return false;
-		}
-		if (!_history->loadedAtBottom() || _replyReturn) {
-			return true;
-		}
-		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-		if (top < _scroll->scrollTopMax()) {
-			return true;
-		}
-		if (haveUnreadBelowBottom(_history)
-			|| haveUnreadBelowBottom(_migrated)) {
-			return true;
-		}
-		return false;
-	}());
+	if (haveUnreadBelowBottom(_history)
+		|| haveUnreadBelowBottom(_migrated)) {
+		return true;
+	}
+	return false;
 }
 
-void HistoryWidget::updateCornerButtonVisibility(
-		CornerButton &button,
-		bool shown) {
-	if (button.shown != shown) {
-		button.shown = shown;
-		button.animation.start(
-			[=] { updateCornerButtonsPositions(); },
-			shown ? 0. : 1.,
-			shown ? 1. : 0.,
-			st::historyToDownDuration);
-	}
+bool HistoryWidget::cornerButtonsUnreadMayBeShown() {
+	return !_firstLoadRequest && !_voiceRecordBar->isLockPresent();
 }
 
-void HistoryWidget::updateUnreadThingsVisibility() {
-	if (_a_show.animating()) {
-		return;
-	}
-
-	auto &unreadThings = session().api().unreadThings();
-	unreadThings.preloadEnough(_history);
-
-	const auto updateWithLoadedCount = [&](CornerButton &button, int count) {
-		updateCornerButtonVisibility(button, (count > 0)
-			&& !_firstLoadRequest
-			&& !_voiceRecordBar->isLockPresent());
-	};
-	if (unreadThings.trackMentions(_peer)) {
-		if (const auto count = _history->unreadMentions().count(0)) {
-			_unreadMentions.widget->setUnreadCount(count);
-		}
-		updateWithLoadedCount(
-			_unreadMentions,
-			_history->unreadMentions().loadedCount());
-	} else {
-		updateCornerButtonVisibility(_unreadMentions, false);
-	}
-
-	if (unreadThings.trackReactions(_peer)) {
-		if (const auto count = _history->unreadReactions().count(0)) {
-			_unreadReactions.widget->setUnreadCount(count);
-		}
-		updateWithLoadedCount(
-			_unreadReactions,
-			_history->unreadReactions().loadedCount());
-	} else {
-		updateCornerButtonVisibility(_unreadReactions, false);
-	}
+bool HistoryWidget::cornerButtonsHas(HistoryView::CornerButtonType type) {
+	return true;
 }
 
 void HistoryWidget::mousePressEvent(QMouseEvent *e) {
@@ -6032,81 +5915,7 @@ void HistoryWidget::mousePressEvent(QMouseEvent *e) {
 		updateField();
 	} else if (_inReplyEditForward) {
 		if (readyToForward()) {
-			using Options = Data::ForwardOptions;
-			const auto now = _toForward.options;
-			const auto count = _toForward.items.size();
-			const auto dropNames = (now != Options::PreserveInfo);
-			const auto hasCaptions = [&] {
-				for (const auto item : _toForward.items) {
-					if (const auto media = item->media()) {
-						if (!item->originalText().text.isEmpty()
-							&& media->allowsEditCaption()) {
-							return true;
-						}
-					}
-				}
-				return false;
-			}();
-			const auto hasOnlyForcedForwardedInfo = [&] {
-				if (hasCaptions) {
-					return false;
-				}
-				for (const auto item : _toForward.items) {
-					if (const auto media = item->media()) {
-						if (!media->forceForwardedInfo()) {
-							return false;
-						}
-					} else {
-						return false;
-					}
-				}
-				return true;
-			}();
-			const auto dropCaptions = (now == Options::NoNamesAndCaptions);
-			const auto weak = Ui::MakeWeak(this);
-			const auto changeRecipient = crl::guard(weak, [=] {
-				if (_toForward.items.empty()) {
-					return;
-				}
-				const auto draft = std::move(_toForward);
-				session().data().cancelForwarding(_history);
-				auto list = session().data().itemsToIds(draft.items);
-				Window::ShowForwardMessagesBox(controller(), {
-					.ids = session().data().itemsToIds(draft.items),
-					.options = draft.options,
-				});
-			});
-			if (hasOnlyForcedForwardedInfo) {
-				changeRecipient();
-				return;
-			}
-			const auto optionsChanged = crl::guard(weak, [=](
-					Ui::ForwardOptions options) {
-				const auto newOptions = (options.hasCaptions
-					&& options.dropCaptions)
-					? Options::NoNamesAndCaptions
-					: options.dropNames
-					? Options::NoSenderNames
-					: Options::PreserveInfo;
-				if (_history && _toForward.options != newOptions) {
-					_toForward.options = newOptions;
-					_history->setForwardDraft({
-						.ids = session().data().itemsToIds(_toForward.items),
-						.options = newOptions,
-					});
-					updateField();
-				}
-			});
-			controller()->show(Box(
-				Ui::ForwardOptionsBox,
-				count,
-				Ui::ForwardOptions{
-					.dropNames = dropNames,
-					.hasCaptions = hasCaptions,
-					.dropCaptions = dropCaptions,
-				},
-				optionsChanged,
-				changeRecipient));
+			_forwardPanel->editOptions(controller());
 		} else {
 			controller()->showPeerHistory(
 				_peer,
@@ -6196,7 +6005,7 @@ void HistoryWidget::handlePeerMigration() {
 }
 
 bool HistoryWidget::replyToPreviousMessage() {
-	if (!_history || _editMsgId) {
+	if (!_history || _editMsgId || _history->peer->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
@@ -6204,14 +6013,14 @@ bool HistoryWidget::replyToPreviousMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto previousView = view->previousDisplayedInBlocks()) {
 				const auto previous = previousView->data();
-				controller()->showPeerHistoryAtItem(previous);
+				controller()->showMessage(previous);
 				replyToMessage(previous);
 				return true;
 			}
 		}
 	} else if (const auto previousView = _history->findLastDisplayed()) {
 		const auto previous = previousView->data();
-		controller()->showPeerHistoryAtItem(previous);
+		controller()->showMessage(previous);
 		replyToMessage(previous);
 		return true;
 	}
@@ -6219,7 +6028,7 @@ bool HistoryWidget::replyToPreviousMessage() {
 }
 
 bool HistoryWidget::replyToNextMessage() {
-	if (!_history || _editMsgId) {
+	if (!_history || _editMsgId || _history->peer->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
@@ -6227,7 +6036,7 @@ bool HistoryWidget::replyToNextMessage() {
 		if (const auto view = item->mainView()) {
 			if (const auto nextView = view->nextDisplayedInBlocks()) {
 				const auto next = nextView->data();
-				controller()->showPeerHistoryAtItem(next);
+				controller()->showMessage(next);
 				replyToMessage(next);
 			} else {
 				_highlighter.clear();
@@ -6276,7 +6085,7 @@ void HistoryWidget::fieldTabbed() {
 }
 
 void HistoryWidget::sendInlineResult(InlineBots::ResultSelected result) {
-	if (!_peer || !_peer->canWrite()) {
+	if (!_peer || !_canSendMessages) {
 		return;
 	} else if (showSlowmodeError()) {
 		return;
@@ -6326,7 +6135,8 @@ void HistoryWidget::updatePinnedViewer() {
 		|| _delayedShowAtRequest
 		|| _scroll->isHidden()
 		|| !_history
-		|| !_historyInited) {
+		|| !_historyInited
+		|| !_pinnedTracker) {
 		return;
 	}
 	const auto visibleBottom = _scroll->scrollTop() + _scroll->height();
@@ -6349,6 +6159,7 @@ void HistoryWidget::updatePinnedViewer() {
 	if (_pinnedClickedId && !_minPinnedId) {
 		_minPinnedId = Data::ResolveMinPinnedId(
 			_peer,
+			MsgId(0), // topicRootId
 			_migrated ? _migrated->peer.get() : nullptr);
 	}
 	if (_pinnedClickedId && _minPinnedId && _minPinnedId >= _pinnedClickedId) {
@@ -6394,6 +6205,7 @@ void HistoryWidget::checkPinnedBarState() {
 		: session().settings().hiddenPinnedMessageId(_peer->id);
 	const auto currentPinnedId = Data::ResolveTopPinnedId(
 		_peer,
+		MsgId(0), // topicRootId
 		_migrated ? _migrated->peer.get() : nullptr);
 	const auto universalPinnedId = !currentPinnedId
 		? int32(0)
@@ -6402,19 +6214,15 @@ void HistoryWidget::checkPinnedBarState() {
 		: currentPinnedId.msg;
 	if (universalPinnedId == hiddenId) {
 		if (_pinnedBar) {
+			_pinnedBar->setContent(rpl::single(Ui::MessageBarContent()));
 			_pinnedTracker->reset();
-			auto qobject = base::unique_qptr{
-				Ui::WrapAsQObject(this, std::move(_pinnedBar)).get()
-			};
-			auto destroyer = [this, object = std::move(qobject)]() mutable {
-				object = nullptr;
-				updateHistoryGeometry();
-				updateControlsGeometry();
-			};
-			base::call_delayed(
-				st::defaultMessageBar.duration,
-				this,
-				std::move(destroyer));
+			_hidingPinnedBar = base::take(_pinnedBar);
+			const auto raw = _hidingPinnedBar.get();
+			base::call_delayed(st::defaultMessageBar.duration, this, [=] {
+				if (_hidingPinnedBar.get() == raw) {
+					clearHidingPinnedBar();
+				}
+			});
 		}
 		return;
 	}
@@ -6422,12 +6230,14 @@ void HistoryWidget::checkPinnedBarState() {
 		return;
 	}
 
+	clearHidingPinnedBar();
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
 	});
 	auto pinnedRefreshed = Info::Profile::SharedMediaCountValue(
 		_peer,
+		MsgId(0), // topicRootId
 		nullptr,
 		Storage::SharedMediaType::Pinned
 	) | rpl::distinct_until_changed(
@@ -6461,8 +6271,8 @@ void HistoryWidget::checkPinnedBarState() {
 	}));
 
 	controller()->adaptive().oneColumnValue(
-	) | rpl::start_with_next([=](bool one) {
-		_pinnedBar->setShadowGeometryPostprocess([=](QRect geometry) {
+	) | rpl::start_with_next([=, raw = _pinnedBar.get()](bool one) {
+		raw->setShadowGeometryPostprocess([=](QRect geometry) {
 			if (!one) {
 				geometry.setLeft(geometry.left() + st::lineWidth);
 			}
@@ -6507,6 +6317,17 @@ void HistoryWidget::checkPinnedBarState() {
 	}
 }
 
+void HistoryWidget::clearHidingPinnedBar() {
+	if (!_hidingPinnedBar) {
+		return;
+	}
+	if (const auto delta = -_pinnedBarHeight) {
+		_pinnedBarHeight = 0;
+		setGeometryWithTopMoved(geometry(), delta);
+	}
+	_hidingPinnedBar = nullptr;
+}
+
 void HistoryWidget::checkMessagesTTL() {
 	if (!_peer || !_peer->messagesTTL()) {
 		if (_ttlInfo) {
@@ -6549,6 +6370,23 @@ void HistoryWidget::setChooseReportMessagesDetails(
 }
 
 void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
+	if (!_pinnedBar) {
+		return; // It can be in process of hiding.
+	}
+	const auto openSection = [=] {
+		const auto id = _pinnedTracker
+			? _pinnedTracker->currentMessageId()
+			: HistoryView::PinnedId();
+		if (!id.message) {
+			return;
+		}
+		controller()->showSection(
+			std::make_shared<HistoryView::PinnedMemento>(
+				_history,
+				((!_migrated || peerIsChannel(id.message.peer))
+					? id.message.msg
+					: (id.message.msg - ServerMaxMsgId))));
+	};
 	if (const auto replyMarkup = item ? item->inlineReplyMarkup() : nullptr) {
 		const auto &rows = replyMarkup->data.rows;
 		if ((rows.size() == 1) && (rows.front().size() == 1)) {
@@ -6570,6 +6408,18 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 				if (button->width() > st::historyPinnedBotButtonMaxWidth) {
 					button->setFullWidth(st::historyPinnedBotButtonMaxWidth);
 				}
+				struct State {
+					base::unique_qptr<Ui::PopupMenu> menu;
+				};
+				const auto state = button->lifetime().make_state<State>();
+				_pinnedBar->contextMenuRequested(
+				) | rpl::start_with_next([=, raw = button.data()] {
+					state->menu = base::make_unique_q<Ui::PopupMenu>(raw);
+					state->menu->addAction(
+						tr::lng_settings_events_pinned(tr::now),
+						openSection);
+					state->menu->popup(QCursor::pos());
+				}, button->lifetime());
 				_pinnedBar->setRightButton(std::move(button));
 				return;
 			}
@@ -6584,15 +6434,7 @@ void HistoryWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
 		if (close) {
 			hidePinnedMessage();
 		} else {
-			const auto id = _pinnedTracker->currentMessageId();
-			if (id.message) {
-				controller()->showSection(
-					std::make_shared<HistoryView::PinnedMemento>(
-						_history,
-						((!_migrated || peerIsChannel(id.message.peer))
-							? id.message.msg
-							: (id.message.msg - ServerMaxMsgId))));
-			}
+			openSection();
 		}
 	}, button->lifetime());
 	_pinnedBar->setRightButton(std::move(button));
@@ -6610,7 +6452,8 @@ void HistoryWidget::setupGroupCallBar() {
 		this,
 		HistoryView::GroupCallBarContentByPeer(
 			peer,
-			st::historyGroupCallUserpics.size),
+			st::historyGroupCallUserpics.size,
+			false),
 		Core::App().appDeactivatedValue());
 
 	controller()->adaptive().oneColumnValue(
@@ -6662,7 +6505,8 @@ void HistoryWidget::setupRequestsBar() {
 		this,
 		HistoryView::RequestsBarContentByPeer(
 			peer,
-			st::historyRequestsUserpics.size));
+			st::historyRequestsUserpics.size,
+			false));
 
 	controller()->adaptive().oneColumnValue(
 	) | rpl::start_with_next([=](bool one) {
@@ -6720,7 +6564,7 @@ bool HistoryWidget::sendExistingDocument(
 			Ui::LayerOption::KeepOther);
 		return false;
 	} else if (!_peer
-		|| !_peer->canWrite()
+		|| !_canSendMessages
 		|| showSlowmodeError()
 		|| ShowSendPremiumError(controller(), document)) {
 		return false;
@@ -6756,7 +6600,7 @@ bool HistoryWidget::sendExistingPhoto(
 			Ui::MakeInformBox(*error),
 			Ui::LayerOption::KeepOther);
 		return false;
-	} else if (!_peer || !_peer->canWrite()) {
+	} else if (!_peer || !_canSendMessages) {
 		return false;
 	} else if (showSlowmodeError()) {
 		return false;
@@ -6775,7 +6619,11 @@ bool HistoryWidget::sendExistingPhoto(
 void HistoryWidget::showInfoTooltip(
 		const TextWithEntities &text,
 		Fn<void()> hiddenCallback) {
-	_topToast.show(_scroll.data(), text, std::move(hiddenCallback));
+	_topToast.show(
+		_scroll.data(),
+		&session(),
+		text,
+		std::move(hiddenCallback));
 }
 
 void HistoryWidget::showPremiumStickerTooltip(
@@ -6826,48 +6674,109 @@ void HistoryWidget::replyToMessage(FullMsgId itemId) {
 }
 
 void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
-	if (!item->isRegular() || !_canSendMessages) {
+	_processingReplyId = item->id;
+	_processingReplyItem = item;
+	processReply();
+}
+
+void HistoryWidget::processReply() {
+	const auto processContinue = [=] {
+		return crl::guard(_list, [=] {
+			if (!_peer || !_processingReplyId) {
+				return;
+			} else if (!_processingReplyItem) {
+				_processingReplyItem = _peer->owner().message(
+					_peer,
+					_processingReplyId);
+				if (!_processingReplyItem) {
+					_processingReplyId = 0;
+				} else {
+					processReply();
+				}
+			}
+		});
+	};
+	const auto processCancel = [=] {
+		_processingReplyId = 0;
+		_processingReplyItem = nullptr;
+	};
+
+	if (!_peer || !_processingReplyId) {
+		return processCancel();
+	} else if (!_processingReplyItem) {
+		session().api().requestMessageData(
+			_peer,
+			_processingReplyId,
+			processContinue());
 		return;
-	} else if (item->history() == _migrated) {
-		if (item->isService()) {
+	} else if (_processingReplyItem->history() == _migrated) {
+		if (_processingReplyItem->isService()) {
 			controller()->show(Ui::MakeInformBox(tr::lng_reply_cant()));
 		} else {
-			const auto itemId = item->fullId();
+			const auto itemId = _processingReplyItem->fullId();
 			controller()->show(
 				Ui::MakeConfirmBox({
 					.text = tr::lng_reply_cant_forward(),
 					.confirmed = crl::guard(this, [=] {
 						controller()->content()->setForwardDraft(
-							_peer->id,
+							_history,
 							{ .ids = { 1, itemId } });
 					}),
 					.confirmText = tr::lng_selected_forward(),
-				}));
+					}));
 		}
+		return processCancel();
+	} else if (_processingReplyItem->history() != _history
+		|| !_processingReplyItem->isRegular()) {
+		return processCancel();
+	} else if (const auto forum = _peer->forum()) {
+		const auto topicRootId = _processingReplyItem->topicRootId();
+		if (!topicRootId || forum->topicDeleted(topicRootId)) {
+			return processCancel();
+		} else if (const auto topic = forum->topicFor(topicRootId)) {
+			if (!topic->canWrite()) {
+				return processCancel();
+			}
+		} else {
+			forum->requestTopic(topicRootId, processContinue());
+		}
+	} else if (!_peer->canWrite()) {
+		return processCancel();
+	}
+	setReplyFieldsFromProcessing();
+}
+
+void HistoryWidget::setReplyFieldsFromProcessing() {
+	if (!_processingReplyId || !_processingReplyItem) {
 		return;
 	}
 
-	session().data().cancelForwarding(_history);
+	_history->setForwardDraft(MsgId(), {});
 	if (_composeSearch) {
 		_composeSearch->hideAnimated();
 	}
 
+	const auto id = base::take(_processingReplyId);
+	const auto item = base::take(_processingReplyItem);
 	if (_editMsgId) {
-		if (auto localDraft = _history->localDraft()) {
-			localDraft->msgId = item->id;
+		if (const auto localDraft = _history->localDraft({})) {
+			localDraft->msgId = id;
 		} else {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				TextWithTags(),
-				item->id,
+				id,
+				MsgId(),
 				MessageCursor(),
 				Data::PreviewState::Allowed));
 		}
 	} else {
 		_replyEditMsg = item;
-		_replyToId = item->id;
+		_replyToId = id;
 		updateReplyEditText(_replyEditMsg);
+		updateCanSendMessage();
 		updateBotKeyboard();
 		updateReplyToName();
+		updateControlsVisibility();
 		updateControlsGeometry();
 		updateField();
 		refreshTopBarActiveChat();
@@ -6877,7 +6786,9 @@ void HistoryWidget::replyToMessage(not_null<HistoryItem*> item) {
 	_saveDraftStart = crl::now();
 	saveDraft();
 
-	_field->setFocus();
+	if (!_field->isHidden()) {
+		_field->setFocus();
+	}
 }
 
 void HistoryWidget::editMessage(FullMsgId itemId) {
@@ -6911,9 +6822,10 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 			_history->setLocalDraft(std::make_unique<Data::Draft>(
 				_field,
 				_replyToId,
+				MsgId(), // topicRootId
 				_previewState));
 		} else {
-			_history->clearLocalDraft();
+			_history->clearLocalDraft({});
 		}
 	}
 
@@ -6935,6 +6847,7 @@ void HistoryWidget::editMessage(not_null<HistoryItem*> item) {
 	_history->setLocalEditDraft(std::make_unique<Data::Draft>(
 		editData,
 		item->id,
+		MsgId(), // topicRootId
 		cursor,
 		previewState));
 	applyDraft();
@@ -6978,6 +6891,7 @@ void HistoryWidget::hidePinnedMessage() {
 		Window::HidePinnedBar(
 			controller(),
 			_peer,
+			MsgId(0), // topicRootId
 			crl::guard(this, callback));
 	}
 }
@@ -7002,22 +6916,23 @@ bool HistoryWidget::cancelReply(bool lastKeyboardUsed) {
 	if (_replyToId) {
 		wasReply = true;
 
-		_replyEditMsg = nullptr;
-		_replyToId = 0;
+		_processingReplyItem = _replyEditMsg = nullptr;
+		_processingReplyId = _replyToId = 0;
 		mouseMoveEvent(0);
 		if (!readyToForward() && (!_previewData || _previewData->pendingTill < 0) && !_kbReplyTo) {
 			_fieldBarCancel->hide();
 			updateMouseTracking();
 		}
-
 		updateBotKeyboard();
 		refreshTopBarActiveChat();
+		updateCanSendMessage();
+		updateControlsVisibility();
 		updateControlsGeometry();
 		update();
-	} else if (auto localDraft = (_history ? _history->localDraft() : nullptr)) {
+	} else if (const auto localDraft = (_history ? _history->localDraft({}) : nullptr)) {
 		if (localDraft->msgId) {
 			if (localDraft->textWithTags.text.isEmpty()) {
-				_history->clearLocalDraft();
+				_history->clearLocalDraft({});
 			} else {
 				localDraft->msgId = 0;
 			}
@@ -7059,7 +6974,7 @@ void HistoryWidget::cancelEdit() {
 
 	_replyEditMsg = nullptr;
 	setEditMsgId(0);
-	_history->clearLocalEditDraft();
+	_history->clearLocalEditDraft({});
 	applyDraft();
 
 	if (_saveEditMsgRequestId) {
@@ -7103,7 +7018,7 @@ void HistoryWidget::cancelFieldAreaState() {
 	} else if (_editMsgId) {
 		cancelEdit();
 	} else if (readyToForward()) {
-		session().data().cancelForwarding(_history);
+		_history->setForwardDraft(MsgId(), {});
 	} else if (_replyToId) {
 		cancelReply();
 	} else if (_kbReplyTo) {
@@ -7251,14 +7166,7 @@ void HistoryWidget::updatePreview() {
 void HistoryWidget::fullInfoUpdated() {
 	auto refresh = false;
 	if (_list) {
-		auto newCanSendMessages = _peer->canWrite();
-		if (newCanSendMessages != _canSendMessages) {
-			_canSendMessages = newCanSendMessages;
-			if (!_canSendMessages) {
-				cancelReply();
-			}
-			refreshScheduledToggle();
-			refreshSilentToggle();
+		if (updateCanSendMessage()) {
 			refresh = true;
 		}
 		checkFieldAutocomplete();
@@ -7300,14 +7208,7 @@ void HistoryWidget::handlePeerUpdate() {
 			|| (!isBlocked() && _joinChannel->isHidden() == isJoinChannel())) {
 			resize = true;
 		}
-		bool newCanSendMessages = _peer->canWrite();
-		if (newCanSendMessages != _canSendMessages) {
-			_canSendMessages = newCanSendMessages;
-			if (!_canSendMessages) {
-				cancelReply();
-			}
-			refreshScheduledToggle();
-			refreshSilentToggle();
+		if (updateCanSendMessage()) {
 			resize = true;
 		}
 		updateControlsVisibility();
@@ -7315,6 +7216,24 @@ void HistoryWidget::handlePeerUpdate() {
 			updateControlsGeometry();
 		}
 	}
+}
+
+bool HistoryWidget::updateCanSendMessage() {
+	const auto replyTo = (_replyToId && !_editMsgId) ? _replyEditMsg : 0;
+	const auto topic = replyTo ? replyTo->topic() : nullptr;
+	const auto newCanSendMessages = topic
+		? topic->canWrite()
+		: _peer->canWrite();
+	if (_canSendMessages == newCanSendMessages) {
+		return false;
+	}
+	_canSendMessages = newCanSendMessages;
+	if (!_canSendMessages) {
+		cancelReply();
+	}
+	refreshScheduledToggle();
+	refreshSilentToggle();
+	return true;
 }
 
 void HistoryWidget::forwardSelected() {
@@ -7512,113 +7431,14 @@ void HistoryWidget::updateReplyEditTexts(bool force) {
 }
 
 void HistoryWidget::updateForwarding() {
-	if (_history) {
-		_toForward = _history->resolveForwardDraft();
-		updateForwardingTexts();
-	} else {
-		_toForward = {};
+	_forwardPanel->update(_history, _history
+		? _history->resolveForwardDraft(MsgId())
+		: Data::ResolvedForwardDraft());
+	if (readyToForward()) {
+		cancelReply();
 	}
 	updateControlsVisibility();
 	updateControlsGeometry();
-}
-
-void HistoryWidget::updateForwardingTexts() {
-	int32 version = 0;
-	QString from;
-	TextWithEntities text;
-	const auto keepNames = (_toForward.options
-		== Data::ForwardOptions::PreserveInfo);
-	const auto keepCaptions = (_toForward.options
-		!= Data::ForwardOptions::NoNamesAndCaptions);
-	if (const auto count = int(_toForward.items.size())) {
-		auto insertedPeers = base::flat_set<not_null<PeerData*>>();
-		auto insertedNames = base::flat_set<QString>();
-		auto fullname = QString();
-		auto names = std::vector<QString>();
-		names.reserve(_toForward.items.size());
-		for (const auto item : _toForward.items) {
-			if (const auto from = item->senderOriginal()) {
-				if (!insertedPeers.contains(from)) {
-					insertedPeers.emplace(from);
-					names.push_back(from->shortName());
-					fullname = from->name();
-				}
-				version += from->nameVersion();
-			} else if (const auto info = item->hiddenSenderInfo()) {
-				if (!insertedNames.contains(info->name)) {
-					insertedNames.emplace(info->name);
-					names.push_back(info->firstName);
-					fullname = info->name;
-				}
-				++version;
-			} else {
-				Unexpected("Corrupt forwarded information in message.");
-			}
-		}
-		if (!keepNames) {
-			from = tr::lng_forward_sender_names_removed(tr::now);
-		} else if (names.size() > 2) {
-			from = tr::lng_forwarding_from(tr::now, lt_count, names.size() - 1, lt_user, names[0]);
-		} else if (names.size() < 2) {
-			from = fullname;
-		} else {
-			from = tr::lng_forwarding_from_two(tr::now, lt_user, names[0], lt_second_user, names[1]);
-		}
-
-		if (count < 2) {
-			const auto item = _toForward.items.front();
-			text = item->toPreview({
-				.hideSender = true,
-				.hideCaption = !keepCaptions,
-				.generateImages = false,
-			}).text;
-
-			const auto dropCustomEmoji = !session().premium()
-				&& !_peer->isSelf()
-				&& (item->computeDropForwardedInfo() || !keepNames);
-			if (dropCustomEmoji) {
-				text = DropCustomEmoji(std::move(text));
-			}
-		} else {
-			text = Ui::Text::PlainLink(
-				tr::lng_forward_messages(tr::now, lt_count, count));
-		}
-	}
-	_toForwardFrom.setText(st::msgNameStyle, from, Ui::NameTextOptions());
-	const auto context = Core::MarkedTextContext{
-		.session = &session(),
-		.customEmojiRepaint = [=] { updateField(); },
-	};
-	_toForwardText.setMarkedText(
-		st::messageTextStyle,
-		text,
-		Ui::DialogTextOptions(),
-		context);
-	_toForwardNameVersion = keepNames ? version : keepCaptions ? -1 : -2;
-}
-
-void HistoryWidget::checkForwardingInfo() {
-	if (!_toForward.items.empty()) {
-		const auto keepNames = (_toForward.options
-			== Data::ForwardOptions::PreserveInfo);
-		const auto keepCaptions = (_toForward.options
-			!= Data::ForwardOptions::NoNamesAndCaptions);
-		auto version = keepNames ? 0 : keepCaptions ? -1 : -2;
-		if (keepNames) {
-			for (const auto item : _toForward.items) {
-				if (const auto from = item->senderOriginal()) {
-					version += from->nameVersion();
-				} else if (const auto info = item->hiddenSenderInfo()) {
-					++version;
-				} else {
-					Unexpected("Corrupt forwarded information in message.");
-				}
-			}
-		}
-		if (version != _toForwardNameVersion) {
-			updateForwardingTexts();
-		}
-	}
 }
 
 void HistoryWidget::updateReplyToName() {
@@ -7669,7 +7489,6 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (hasForward) {
-		checkForwardingInfo();
 		backy -= st::historyReplyHeight;
 		backh += st::historyReplyHeight;
 	} else if (_previewData && _previewData->pendingTill >= 0) {
@@ -7711,6 +7530,8 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 					.availableWidth = width() - replyLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
 					.palette = &st::historyComposeAreaPalette,
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = crl::now(),
+					.paused = p.inactive(),
 					.elisionLines = 1,
 				});
 			} else {
@@ -7720,36 +7541,14 @@ void HistoryWidget::drawField(Painter &p, const QRect &rect) {
 			}
 		}
 	} else if (hasForward) {
-		auto forwardLeft = st::historyReplySkip;
 		st::historyForwardIcon.paint(p, st::historyReplyIconPosition + QPoint(0, backy), width());
 		if (!drawWebPagePreview) {
-			const auto firstItem = _toForward.items.front();
-			const auto firstMedia = firstItem->media();
-			const auto preview = (_toForward.items.size() < 2 && firstMedia && firstMedia->hasReplyPreview())
-				? firstMedia->replyPreview()
-				: nullptr;
-			if (preview) {
-				auto to = QRect(forwardLeft, backy + st::msgReplyPadding.top(), st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-				if (preview->width() == preview->height()) {
-					p.drawPixmap(to.x(), to.y(), preview->pix());
-				} else {
-					auto from = (preview->width() > preview->height()) ? QRect((preview->width() - preview->height()) / 2, 0, preview->height(), preview->height()) : QRect(0, (preview->height() - preview->width()) / 2, preview->width(), preview->width());
-					p.drawPixmap(to, preview->pix(), from);
-				}
-				forwardLeft += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
-			}
-			p.setPen(st::historyReplyNameFg);
-			_toForwardFrom.drawElided(p, forwardLeft, backy + st::msgReplyPadding.top(), width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right());
-			p.setPen(st::historyComposeAreaFg);
-			_toForwardText.draw(p, {
-				.position = QPoint(
-					forwardLeft,
-					backy + st::msgReplyPadding.top() + st::msgServiceNameFont->height),
-				.availableWidth = width() - forwardLeft - _fieldBarCancel->width() - st::msgReplyPadding.right(),
-				.palette = &st::historyComposeAreaPalette,
-				.spoiler = Ui::Text::DefaultSpoilerCache(),
-				.elisionLines = 1,
-			});
+			const auto x = st::historyReplySkip;
+			const auto available = width()
+				- x
+				- _fieldBarCancel->width()
+				- st::msgReplyPadding.right();
+			_forwardPanel->paint(p, x, backy, available, width());
 		}
 	}
 	if (drawWebPagePreview) {
@@ -7845,20 +7644,6 @@ void HistoryWidget::paintEditHeader(Painter &p, const QRect &rect, int left, int
 		p.drawText(left + st::msgServiceNameFont->width(tr::lng_edit_message(tr::now)) + st::normalFont->spacew, top + st::msgReplyPadding.top() + st::msgServiceNameFont->ascent, editTimeLeftText);
 	}
 }
-
-//
-//void HistoryWidget::drawPinnedBar(Painter &p) {
-//	//if (_pinnedBar->msg) {
-//	//	const auto media = _pinnedBar->msg->media();
-//	//	if (media && media->hasReplyPreview()) {
-//	//		if (const auto image = media->replyPreview()) {
-//	//			QRect to(left, top, st::msgReplyBarSize.height(), st::msgReplyBarSize.height());
-//	//			p.drawPixmap(to.x(), to.y(), image->pixSingle(image->width() / cIntRetinaFactor(), image->height() / cIntRetinaFactor(), to.width(), to.height(), ImageRoundRadius::Small));
-//	//		}
-//	//		left += st::msgReplyBarSize.height() + st::msgReplyBarSkip - st::msgReplyBarSize.width() - st::msgReplyBarPos.x();
-//	//	}
-//	//}
-//}
 
 bool HistoryWidget::paintShowAnimationFrame() {
 	auto progress = _a_show.value(1.);

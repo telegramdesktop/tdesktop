@@ -12,6 +12,7 @@ namespace Ui {
 class EmptyUserpic {
 public:
 	[[nodiscard]] static QString ExternalName();
+	[[nodiscard]] static QString InaccessibleName();
 
 	EmptyUserpic(const style::color &color, const QString &name);
 
@@ -26,7 +27,8 @@ public:
 		int x,
 		int y,
 		int outerWidth,
-		int size) const;
+		int size,
+		int radius = 0) const;
 	void paintSquare(
 		QPainter &p,
 		int x,

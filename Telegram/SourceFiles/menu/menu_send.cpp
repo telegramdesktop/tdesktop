@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "ui/widgets/popup_menu.h"
 #include "data/data_peer.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "history/history.h"
@@ -167,27 +169,30 @@ void SetupMenuAndShortcuts(
 
 void SetupReadAllMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer,
+		Fn<Data::Thread*()> currentThread,
 		const QString &text,
-		Fn<void(not_null<PeerData*>, Fn<void()>)> sendReadRequest) {
+		Fn<void(not_null<Data::Thread*>, Fn<void()>)> sendReadRequest) {
 	struct State {
 		base::unique_qptr<Ui::PopupMenu> menu;
-		base::flat_set<not_null<PeerData*>> sentForPeers;
+		base::flat_set<base::weak_ptr<Data::Thread>> sentForEntries;
 	};
 	const auto state = std::make_shared<State>();
 	const auto showMenu = [=] {
-		const auto peer = currentPeer();
-		if (!peer) {
+		const auto thread = base::make_weak(currentThread());
+		if (!thread) {
 			return;
 		}
 		state->menu = base::make_unique_q<Ui::PopupMenu>(
 			button,
 			st::popupMenuWithIcons);
 		state->menu->addAction(text, [=] {
-			if (!state->sentForPeers.emplace(peer).second) {
+			const auto strong = thread.get();
+			if (!strong || !state->sentForEntries.emplace(thread).second) {
 				return;
 			}
-			sendReadRequest(peer, [=] { state->sentForPeers.remove(peer); });
+			sendReadRequest(strong, [=] {
+				state->sentForEntries.remove(thread);
+			});
 		}, &st::menuIconMarkRead);
 		state->menu->popup(QCursor::pos());
 	};
@@ -203,34 +208,84 @@ void SetupReadAllMenu(
 
 void SetupUnreadMentionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer) {
+		Fn<Data::Thread*()> currentThread) {
 	const auto text = tr::lng_context_mark_read_mentions_all(tr::now);
-	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
-		peer->session().api().request(MTPmessages_ReadMentions(
-			peer->input
-		)).done([=](const MTPmessages_AffectedHistory &result) {
+	const auto sendOne = [=](
+			base::weak_ptr<Data::Thread> weakThread,
+			Fn<void()> done,
+			auto resend) -> void {
+		const auto thread = weakThread.get();
+		if (!thread) {
 			done();
-			peer->session().api().applyAffectedHistory(peer, result);
-			peer->owner().history(peer)->unreadMentions().clear();
+			return;
+		}
+		const auto peer = thread->peer();
+		const auto topic = thread->asTopic();
+		const auto rootId = topic ? topic->rootId() : 0;
+		using Flag = MTPmessages_ReadMentions::Flag;
+		peer->session().api().request(MTPmessages_ReadMentions(
+			MTP_flags(rootId ? Flag::f_top_msg_id : Flag()),
+			peer->input,
+			MTP_int(rootId)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = peer->session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				resend(weakThread, done, resend);
+			} else {
+				done();
+				peer->owner().history(peer)->clearUnreadMentionsFor(rootId);
+			}
 		}).fail(done).send();
 	};
-	SetupReadAllMenu(button, currentPeer, text, sendRequest);
+	const auto sendRequest = [=](
+			not_null<Data::Thread*> thread,
+			Fn<void()> done) {
+		sendOne(base::make_weak(thread), std::move(done), sendOne);
+	};
+	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }
 
 void SetupUnreadReactionsMenu(
 		not_null<Ui::RpWidget*> button,
-		Fn<PeerData*()> currentPeer) {
+		Fn<Data::Thread*()> currentThread) {
 	const auto text = tr::lng_context_mark_read_reactions_all(tr::now);
-	const auto sendRequest = [=](not_null<PeerData*> peer, Fn<void()> done) {
-		peer->session().api().request(MTPmessages_ReadReactions(
-			peer->input
-		)).done([=](const MTPmessages_AffectedHistory &result) {
+	const auto sendOne = [=](
+			base::weak_ptr<Data::Thread> weakThread,
+			Fn<void()> done,
+			auto resend) -> void {
+		const auto thread = weakThread.get();
+		if (!thread) {
 			done();
-			peer->session().api().applyAffectedHistory(peer, result);
-			peer->owner().history(peer)->unreadReactions().clear();
+			return;
+		}
+		const auto topic = thread->asTopic();
+		const auto peer = thread->peer();
+		const auto rootId = topic ? topic->rootId() : 0;
+		using Flag = MTPmessages_ReadReactions::Flag;
+		peer->session().api().request(MTPmessages_ReadReactions(
+			MTP_flags(rootId ? Flag::f_top_msg_id : Flag(0)),
+			peer->input,
+			MTP_int(rootId)
+		)).done([=](const MTPmessages_AffectedHistory &result) {
+			const auto offset = peer->session().api().applyAffectedHistory(
+				peer,
+				result);
+			if (offset > 0) {
+				resend(weakThread, done, resend);
+			} else {
+				done();
+				peer->owner().history(peer)->clearUnreadReactionsFor(rootId);
+			}
 		}).fail(done).send();
 	};
-	SetupReadAllMenu(button, currentPeer, text, sendRequest);
+	const auto sendRequest = [=](
+			not_null<Data::Thread*> thread,
+			Fn<void()> done) {
+		sendOne(base::make_weak(thread), std::move(done), sendOne);
+	};
+	SetupReadAllMenu(button, currentThread, text, sendRequest);
 }
 
 Fn<void()> DefaultAutoDeleteCallback(

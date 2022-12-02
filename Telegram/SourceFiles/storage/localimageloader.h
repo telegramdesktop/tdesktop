@@ -9,7 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/variant.h"
 #include "api/api_common.h"
-#include "ui/chat/attach/attach_prepare.h"
+
+namespace Ui {
+struct PreparedFileInformation;
+} // namespace Ui
 
 namespace Main {
 class Session;
@@ -200,15 +203,18 @@ struct FileLoadTo {
 		PeerId peer,
 		Api::SendOptions options,
 		MsgId replyTo,
+		MsgId topicRootId,
 		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
 	, replyTo(replyTo)
+	, topicRootId(topicRootId)
 	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
 	MsgId replyTo;
+	MsgId topicRootId;
 	MsgId replaceMediaOf;
 };
 

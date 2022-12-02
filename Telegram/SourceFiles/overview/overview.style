@@ -148,15 +148,6 @@ linksDateMargin: margins(0px, 15px, 0px, 2px);
 linksPhotoSize: 46px;
 linksPhotoPadding: 12px;
 
-overviewFilter: FlatInput(defaultFlatInput) {
-	font: font(fsize);
-	icon: fieldSearchIcon;
-
-	width: 240px;
-	height: 32px;
-	textMrg: margins(32px, 3px, 32px, 3px);
-}
-
 overviewVideoStatusMargin: 3px;
 overviewVideoStatusPadding: point(6px, 0px);
 overviewVideoStatusRadius: 4px;

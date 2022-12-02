@@ -15,11 +15,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
 #include "data/data_user.h"
+#include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
-namespace Info {
-namespace Media {
+namespace Info::Media {
 
 std::optional<int> TypeToTabIndex(Type type) {
 	switch (type) {
@@ -44,6 +45,7 @@ Memento::Memento(not_null<Controller*> controller)
 	(controller->peer()
 		? controller->peer()
 		: controller->parentController()->session().user()),
+	controller->topic(),
 	controller->migratedPeerId(),
 	(controller->section().type() == Section::Type::Downloads
 		? Type::File
@@ -51,10 +53,23 @@ Memento::Memento(not_null<Controller*> controller)
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type)
-: ContentMemento(peer, migratedPeerId)
+: Memento(peer, nullptr, migratedPeerId, type) {
+}
+
+Memento::Memento(not_null<Data::ForumTopic*> topic, Type type)
+: Memento(topic->channel(), topic, PeerId(), type) {
+}
+
+Memento::Memento(
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	PeerId migratedPeerId,
+	Type type)
+: ContentMemento(peer, topic, migratedPeerId)
 , _type(type) {
 	_searchState.query.type = type;
 	_searchState.query.peerId = peer->id;
+	_searchState.query.topicRootId = topic ? topic->rootId() : 0;
 	_searchState.query.migratedPeerId = migratedPeerId;
 	if (migratedPeerId) {
 		_searchState.migratedList = Storage::SparseIdsList();
@@ -162,5 +177,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	_inner->restoreState(memento);
 }
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

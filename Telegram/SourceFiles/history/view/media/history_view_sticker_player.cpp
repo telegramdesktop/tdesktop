@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_sticker_player.h"
 
+#include "core/file_location.h"
+
 namespace HistoryView {
 namespace {
 
@@ -112,6 +114,47 @@ WebmPlayer::FrameInfo WebmPlayer::frame(
 
 bool WebmPlayer::markFrameShown() {
 	return _reader->moveToNextFrame();
+}
+
+StaticStickerPlayer::StaticStickerPlayer(
+	const Core::FileLocation &location,
+	const QByteArray &data,
+	QSize size)
+: _frame(Images::Read({
+	.path = location.name(),
+	.content = data,
+}).image) {
+	if (!_frame.isNull()) {
+		size = _frame.size().scaled(size, Qt::KeepAspectRatio);
+		const auto ratio = style::DevicePixelRatio();
+		_frame = Images::Prepare(std::move(_frame), size * ratio, {});
+		_frame.setDevicePixelRatio(ratio);
+	}
+}
+
+void StaticStickerPlayer::setRepaintCallback(Fn<void()> callback) {
+	callback();
+}
+
+bool StaticStickerPlayer::ready() {
+	return true;
+}
+
+int StaticStickerPlayer::framesCount() {
+	return 1;
+}
+
+StaticStickerPlayer::FrameInfo StaticStickerPlayer::frame(
+		QSize size,
+		QColor colored,
+		bool mirrorHorizontal,
+		crl::time now,
+		bool paused) {
+	return { _frame };
+}
+
+bool StaticStickerPlayer::markFrameShown() {
+	return false;
 }
 
 } // namespace HistoryView

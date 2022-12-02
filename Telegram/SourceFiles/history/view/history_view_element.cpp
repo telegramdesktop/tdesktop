@@ -17,12 +17,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_large_emoji.h"
 #include "history/view/media/history_view_custom_emoji.h"
-#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/reactions/history_view_reactions_button.h"
 #include "history/view/reactions/history_view_reactions.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_spoiler_click_handler.h"
 #include "history/history.h"
+#include "history/history_service.h"
 #include "base/unixtime.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -33,14 +33,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_emoji_pack.h"
 #include "window/window_session_controller.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/reaction_fly_animation.h"
 #include "ui/chat/chat_style.h"
 #include "ui/toast/toast.h"
 #include "ui/toasts/common_toasts.h"
 #include "ui/text/text_options.h"
+#include "ui/text/text_utilities.h"
 #include "ui/item_text_options.h"
 #include "ui/painter.h"
 #include "data/data_session.h"
 #include "data/data_groups.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_media_types.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_message_reactions.h"
@@ -185,7 +189,7 @@ bool SimpleElementDelegate::elementHideReply(not_null<const Element*> view) {
 
 bool SimpleElementDelegate::elementShownUnread(
 		not_null<const Element*> view) {
-	return view->data()->unread();
+	return view->data()->unread(view->data()->history());
 }
 
 void SimpleElementDelegate::elementSendBotCommand(
@@ -221,6 +225,11 @@ void SimpleElementDelegate::elementCancelPremium(
 	not_null<const Element*> view) {
 }
 
+QString SimpleElementDelegate::elementAuthorRank(
+		not_null<const Element*> view) {
+	return {};
+}
+
 TextSelection UnshiftItemSelection(
 		TextSelection selection,
 		uint16 byLength) {
@@ -250,19 +259,20 @@ TextSelection ShiftItemSelection(
 }
 
 QString DateTooltipText(not_null<Element*> view) {
-	const auto format = QLocale::system().dateTimeFormat(QLocale::LongFormat);
-	auto dateText = view->dateTime().toString(format);
+	const auto locale = QLocale();
+	const auto format = QLocale::LongFormat;
+	auto dateText = locale.toString(view->dateTime(), format);
 	if (const auto editedDate = view->displayedEditDate()) {
 		dateText += '\n' + tr::lng_edited_date(
 			tr::now,
 			lt_date,
-			base::unixtime::parse(editedDate).toString(format));
+			locale.toString(base::unixtime::parse(editedDate), format));
 	}
 	if (const auto forwarded = view->data()->Get<HistoryMessageForwarded>()) {
 		dateText += '\n' + tr::lng_forwarded_date(
 			tr::now,
 			lt_date,
-			base::unixtime::parse(forwarded->originalDate).toString(format));
+			locale.toString(base::unixtime::parse(forwarded->originalDate), format));
 		if (forwarded->imported) {
 			dateText = tr::lng_forwarded_imported(tr::now)
 				+ "\n\n" + dateText;
@@ -367,8 +377,11 @@ Element::Element(
 	? QDateTime()
 	: ItemDateTime(data))
 , _text(st::msgMinWidth)
-, _isScheduledUntilOnline(IsItemScheduledUntilOnline(data))
-, _flags(serviceFlag | Flag::NeedsResize)
+, _flags(serviceFlag
+	| Flag::NeedsResize
+	| (IsItemScheduledUntilOnline(data)
+		? Flag::ScheduledUntilOnline
+		: Flag()))
 , _context(delegate->elementContext()) {
 	history()->owner().registerItemView(this);
 	refreshMedia(replacing);
@@ -545,6 +558,14 @@ bool Element::isAttachedToNext() const {
 	return _flags & Flag::AttachedToNext;
 }
 
+bool Element::isBubbleAttachedToPrevious() const {
+	return _flags & Flag::BubbleAttachedToPrevious;
+}
+
+bool Element::isBubbleAttachedToNext() const {
+	return _flags & Flag::BubbleAttachedToNext;
+}
+
 int Element::skipBlockWidth() const {
 	return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
 }
@@ -645,6 +666,131 @@ int Element::textHeightFor(int textWidth) {
 	return _textHeight;
 }
 
+auto Element::contextDependentServiceText() -> TextWithLinks {
+	const auto item = data();
+	const auto info = item->Get<HistoryServiceTopicInfo>();
+	if (!info) {
+		return {};
+	}
+	const auto created = !info->closed
+		&& !info->reopened
+		&& !info->renamed
+		&& !info->reiconed;
+	if (_delegate->elementContext() == Context::Replies) {
+		if (created) {
+			return { { tr::lng_action_topic_created_inside(tr::now) } };
+		}
+		return {};
+	} else if (created) {
+		return{};
+	}
+	const auto peerId = item->history()->peer->id;
+	const auto topicRootId = item->topicRootId();
+	if (!topicRootId || !peerIsChannel(peerId)) {
+		return {};
+	}
+	const auto from = item->from();
+	const auto topicUrl =  u"internal:url:https://t.me/c/%1/%2"_q
+		.arg(peerToChannel(peerId).bare)
+		.arg(topicRootId.bare);
+	const auto fromLink = [&](int index) {
+		return Ui::Text::Link(from->name(), index);
+	};
+	const auto placeholderLink = [&] {
+		return Ui::Text::Link(
+			tr::lng_action_topic_placeholder(tr::now),
+			topicUrl);
+	};
+	const auto wrapTopic = [&](
+			const QString &title,
+			std::optional<DocumentId> iconId) {
+		return Ui::Text::Link(
+			Data::ForumTopicIconWithTitle(iconId.value_or(0), title),
+			topicUrl);
+	};
+	const auto wrapParentTopic = [&] {
+		const auto forum = history()->asForum();
+		if (!forum || forum->topicDeleted(topicRootId)) {
+			return wrapTopic(
+				tr::lng_deleted_message(tr::now),
+				std::nullopt);
+		} else if (const auto topic = forum->topicFor(topicRootId)) {
+			return wrapTopic(topic->title(), topic->iconId());
+		} else {
+			forum->requestTopic(topicRootId, crl::guard(this, [=] {
+				itemTextUpdated();
+				history()->owner().requestViewResize(this);
+			}));
+			return wrapTopic(
+				tr::lng_profile_loading(tr::now),
+				std::nullopt);
+		}
+	};
+
+	if (info->closed) {
+		return {
+			tr::lng_action_topic_closed(
+				tr::now,
+				lt_topic,
+				wrapParentTopic(),
+				Ui::Text::WithEntities),
+		};
+	} else if (info->reopened) {
+		return {
+			tr::lng_action_topic_reopened(
+				tr::now,
+				lt_topic,
+				wrapParentTopic(),
+				Ui::Text::WithEntities),
+		};
+	} else if (info->renamed) {
+		return {
+			tr::lng_action_topic_renamed(
+				tr::now,
+				lt_from,
+				fromLink(1),
+				lt_link,
+				placeholderLink(),
+				lt_title,
+				wrapTopic(
+					info->title,
+					(info->reiconed
+						? info->iconId
+						: std::optional<DocumentId>())),
+				Ui::Text::WithEntities),
+			{ from->createOpenLink() },
+		};
+	} else if (info->reiconed) {
+		if (const auto iconId = info->iconId) {
+			return {
+				tr::lng_action_topic_icon_changed(
+					tr::now,
+					lt_from,
+					fromLink(1),
+					lt_link,
+					placeholderLink(),
+					lt_emoji,
+					Data::SingleCustomEmoji(iconId),
+					Ui::Text::WithEntities),
+				{ from->createOpenLink() },
+			};
+		} else {
+			return {
+				tr::lng_action_topic_icon_removed(
+					tr::now,
+					lt_from,
+					fromLink(1),
+					lt_link,
+					placeholderLink(),
+					Ui::Text::WithEntities),
+				{ from->createOpenLink() },
+			};
+		}
+	} else {
+		return {};
+	}
+}
+
 void Element::validateText() {
 	const auto item = data();
 	const auto &text = item->_text;
@@ -656,13 +802,20 @@ void Element::validateText() {
 		.customEmojiRepaint = [=] { customEmojiRepaint(); },
 	};
 	if (_flags & Flag::ServiceMessage) {
+		const auto contextDependentText = contextDependentServiceText();
+		const auto &markedText = contextDependentText.text.empty()
+			? text
+			: contextDependentText.text;
+		const auto &customLinks = contextDependentText.text.empty()
+			? item->customTextLinks()
+			: contextDependentText.links;
 		_text.setMarkedText(
 			st::serviceTextStyle,
-			text,
+			markedText,
 			Ui::ItemTextServiceOptions(),
 			context);
 		auto linkIndex = 0;
-		for (const auto &link : item->customTextLinks()) {
+		for (const auto &link : customLinks) {
 			// Link indices start with 1.
 			_text.setLink(++linkIndex, link);
 		}
@@ -744,10 +897,12 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 	const auto item = data();
 	if (!Has<DateBadge>() && !Has<UnreadBar>()) {
 		const auto prev = previous->data();
+		const auto previousMarkup = prev->inlineReplyMarkup();
 		const auto possible = (std::abs(prev->date() - item->date())
 				< kAttachMessageToPreviousSecondsDelta)
 			&& mayBeAttached(this)
-			&& mayBeAttached(previous);
+			&& mayBeAttached(previous)
+			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()));
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
@@ -882,11 +1037,12 @@ void Element::recountAttachToPreviousInBlocks() {
 		return;
 	}
 	auto attachToPrevious = false;
-	if (const auto previous = previousDisplayedInBlocks()) {
+	const auto previous = previousDisplayedInBlocks();
+	if (previous) {
 		attachToPrevious = computeIsAttachToPrevious(previous);
-		previous->setAttachToNext(attachToPrevious);
+		previous->setAttachToNext(attachToPrevious, this);
 	}
-	setAttachToPrevious(attachToPrevious);
+	setAttachToPrevious(attachToPrevious, previous);
 }
 
 void Element::recountDisplayDateInBlocks() {
@@ -924,7 +1080,8 @@ void Element::setDisplayDate(bool displayDate) {
 	const auto item = data();
 	if (displayDate && !Has<DateBadge>()) {
 		AddComponents(DateBadge::Bit());
-		Get<DateBadge>()->init(ItemDateText(item, _isScheduledUntilOnline));
+		Get<DateBadge>()->init(
+			ItemDateText(item, (_flags & Flag::ScheduledUntilOnline)));
 		setPendingResize();
 	} else if (!displayDate && Has<DateBadge>()) {
 		RemoveComponents(DateBadge::Bit());
@@ -932,22 +1089,50 @@ void Element::setDisplayDate(bool displayDate) {
 	}
 }
 
-void Element::setAttachToNext(bool attachToNext) {
+void Element::setAttachToNext(bool attachToNext, Element *next) {
+	Expects(next || !attachToNext);
+
+	auto pending = false;
 	if (attachToNext && !(_flags & Flag::AttachedToNext)) {
 		_flags |= Flag::AttachedToNext;
-		setPendingResize();
+		pending = true;
 	} else if (!attachToNext && (_flags & Flag::AttachedToNext)) {
 		_flags &= ~Flag::AttachedToNext;
+		pending = true;
+	}
+	const auto bubble = attachToNext && !next->unwrapped();
+	if (bubble && !(_flags & Flag::BubbleAttachedToNext)) {
+		_flags |= Flag::BubbleAttachedToNext;
+		pending = true;
+	} else if (!bubble && (_flags & Flag::BubbleAttachedToNext)) {
+		_flags &= ~Flag::BubbleAttachedToNext;
+		pending = true;
+	}
+	if (pending) {
 		setPendingResize();
 	}
 }
 
-void Element::setAttachToPrevious(bool attachToPrevious) {
+void Element::setAttachToPrevious(bool attachToPrevious, Element *previous) {
+	Expects(previous || !attachToPrevious);
+
+	auto pending = false;
 	if (attachToPrevious && !(_flags & Flag::AttachedToPrevious)) {
 		_flags |= Flag::AttachedToPrevious;
-		setPendingResize();
+		pending = true;
 	} else if (!attachToPrevious && (_flags & Flag::AttachedToPrevious)) {
 		_flags &= ~Flag::AttachedToPrevious;
+		pending = true;
+	}
+	const auto bubble = attachToPrevious && !previous->unwrapped();
+	if (bubble && !(_flags & Flag::BubbleAttachedToPrevious)) {
+		_flags |= Flag::BubbleAttachedToPrevious;
+		pending = true;
+	} else if (!bubble && (_flags & Flag::BubbleAttachedToPrevious)) {
+		_flags &= ~Flag::BubbleAttachedToPrevious;
+		pending = true;
+	}
+	if (pending) {
 		setPendingResize();
 	}
 }
@@ -982,6 +1167,10 @@ bool Element::drawBubble() const {
 
 bool Element::hasBubble() const {
 	return false;
+}
+
+bool Element::unwrapped() const {
+	return true;
 }
 
 bool Element::hasFastReply() const {
@@ -1215,11 +1404,6 @@ void Element::clickHandlerActiveChanged(
 void Element::clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) {
-	if (const auto markup = _data->Get<HistoryMessageReplyMarkup>()) {
-		if (const auto keyboard = markup->inlineKeyboard.get()) {
-			keyboard->clickHandlerPressedChanged(handler, pressed);
-		}
-	}
 	PressedLink(pressed ? this : nullptr);
 	repaint();
 	if (const auto media = this->media()) {
@@ -1227,7 +1411,7 @@ void Element::clickHandlerPressedChanged(
 	}
 }
 
-void Element::animateReaction(Reactions::AnimationArgs &&args) {
+void Element::animateReaction(Ui::ReactionFlyAnimationArgs &&args) {
 }
 
 void Element::animateUnreadReactions() {
@@ -1240,7 +1424,9 @@ void Element::animateUnreadReactions() {
 }
 
 auto Element::takeReactionAnimations()
--> base::flat_map<Data::ReactionId, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<
+		Data::ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>> {
 	return {};
 }
 

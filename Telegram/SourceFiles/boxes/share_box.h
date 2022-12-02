@@ -44,6 +44,7 @@ class IndexedList;
 
 namespace Data {
 enum class ForwardOptions;
+class Thread;
 } // namespace Data
 
 namespace Ui {
@@ -70,11 +71,11 @@ class ShareBox final : public Ui::BoxContent {
 public:
 	using CopyCallback = Fn<void()>;
 	using SubmitCallback = Fn<void(
-		std::vector<not_null<PeerData*>>&&,
+		std::vector<not_null<Data::Thread*>>&&,
 		TextWithTags&&,
 		Api::SendOptions,
 		Data::ForwardOptions option)>;
-	using FilterCallback = Fn<bool(PeerData*)>;
+	using FilterCallback = Fn<bool(not_null<Data::Thread*>)>;
 
 	struct Descriptor {
 		not_null<Main::Session*> session;
@@ -126,8 +127,8 @@ private:
 	int contentHeight() const;
 	void updateScrollSkips();
 
-	void addPeerToMultiSelect(PeerData *peer, bool skipAnimation = false);
-	void innerSelectedChanged(PeerData *peer, bool checked);
+	void addPeerToMultiSelect(not_null<Data::Thread*> thread);
+	void innerSelectedChanged(not_null<Data::Thread*> thread, bool checked);
 
 	void peopleDone(
 		const MTPcontacts_Found &result,

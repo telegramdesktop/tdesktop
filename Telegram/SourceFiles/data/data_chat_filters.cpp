@@ -204,17 +204,19 @@ bool ChatFilter::contains(not_null<History*> history) const {
 	if (_never.contains(history)) {
 		return false;
 	}
+	const auto state = (_flags & (Flag::NoMuted | Flag::NoRead))
+		? history->chatListBadgesState()
+		: Dialogs::BadgesState();
 	return false
 		|| ((_flags & flag)
 			&& (!(_flags & Flag::NoMuted)
-				|| !history->mute()
-				|| (history->unreadMentions().has()
+				|| !history->muted()
+				|| (state.mention
 					&& history->folderKnown()
 					&& !history->folder()))
 			&& (!(_flags & Flag::NoRead)
-				|| history->unreadCount()
-				|| history->unreadMark()
-				|| history->unreadMentions().has()
+				|| state.unread
+				|| state.mention
 				|| history->fakeUnreadWhileOpened())
 			&& (!(_flags & Flag::NoArchived)
 				|| (history->folderKnown() && !history->folder())))
@@ -234,12 +236,12 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 		auto limit = rpl::single(rpl::empty_value()) | rpl::then(
 			_owner->session().account().appConfig().refreshed()
 		) | rpl::map([=] {
-			return _owner->pinnedChatsLimit(nullptr, filterId);
+			return _owner->pinnedChatsLimit(filterId);
 		});
 		pointer = std::make_unique<Dialogs::MainList>(
 			&_owner->session(),
 			filterId,
-			_owner->maxPinnedChatsLimitValue(nullptr, filterId));
+			_owner->maxPinnedChatsLimitValue(filterId));
 	}
 	return pointer.get();
 }
@@ -474,7 +476,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	Assert(i != end(_list));
 
-	const auto limit = _owner->pinnedChatsLimit(nullptr, id);
+	const auto limit = _owner->pinnedChatsLimit(id);
 	auto always = i->always();
 	auto pinned = std::vector<not_null<History*>>();
 	pinned.reserve(dialogs.size());

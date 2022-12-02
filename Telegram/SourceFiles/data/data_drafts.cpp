@@ -19,29 +19,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 
-DraftKey DraftKey::FromSerializedOld(int32 value) {
-	return !value
-		? DraftKey::None()
-		: (value == kLocalDraftIndex + kEditDraftShiftOld)
-		? DraftKey::LocalEdit()
-		: (value == kScheduledDraftIndex + kEditDraftShiftOld)
-		? DraftKey::ScheduledEdit()
-		: (value > 0 && value < 0x4000'0000)
-		? DraftKey::Replies(int64(value))
-		: (value > kEditDraftShiftOld
-			&& value < kEditDraftShiftOld + 0x4000'000)
-		? DraftKey::RepliesEdit(int64(value - kEditDraftShiftOld))
-		: DraftKey::None();
-}
-
 Draft::Draft(
 	const TextWithTags &textWithTags,
 	MsgId msgId,
+	MsgId topicRootId,
 	const MessageCursor &cursor,
 	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(textWithTags)
 , msgId(msgId)
+, topicRootId(topicRootId)
 , cursor(cursor)
 , previewState(previewState)
 , saveRequestId(saveRequestId) {
@@ -50,10 +37,12 @@ Draft::Draft(
 Draft::Draft(
 	not_null<const Ui::InputField*> field,
 	MsgId msgId,
+	MsgId topicRootId,
 	PreviewState previewState,
 	mtpRequestId saveRequestId)
 : textWithTags(field->getTextWithTags())
 , msgId(msgId)
+, topicRootId(topicRootId)
 , cursor(field)
 , previewState(previewState) {
 }
@@ -61,10 +50,11 @@ Draft::Draft(
 void ApplyPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
+		MsgId topicRootId,
 		const MTPDdraftMessage &draft) {
 	const auto history = session->data().history(peerId);
 	const auto date = draft.vdate().v;
-	if (history->skipCloudDraftUpdate(date)) {
+	if (history->skipCloudDraftUpdate(topicRootId, date)) {
 		return;
 	}
 	const auto textWithTags = TextWithTags{
@@ -78,6 +68,7 @@ void ApplyPeerCloudDraft(
 	auto cloudDraft = std::make_unique<Draft>(
 		textWithTags,
 		replyTo,
+		topicRootId,
 		MessageCursor(QFIXED_MAX, QFIXED_MAX, QFIXED_MAX),
 		(draft.is_no_webpage()
 			? Data::PreviewState::Cancelled
@@ -85,20 +76,21 @@ void ApplyPeerCloudDraft(
 	cloudDraft->date = date;
 
 	history->setCloudDraft(std::move(cloudDraft));
-	history->applyCloudDraft();
+	history->applyCloudDraft(topicRootId);
 }
 
 void ClearPeerCloudDraft(
 		not_null<Main::Session*> session,
 		PeerId peerId,
+		MsgId topicRootId,
 		TimeId date) {
 	const auto history = session->data().history(peerId);
-	if (history->skipCloudDraftUpdate(date)) {
+	if (history->skipCloudDraftUpdate(topicRootId, date)) {
 		return;
 	}
 
-	history->clearCloudDraft();
-	history->applyCloudDraft();
+	history->clearCloudDraft(topicRootId);
+	history->applyCloudDraft(topicRootId);
 }
 
 } // namespace Data

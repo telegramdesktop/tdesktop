@@ -28,7 +28,9 @@ public:
 		not_null<BotKeyboard*> parent,
 		const style::BotKeyboardButton &st);
 
-	int buttonRadius() const override;
+	Images::CornersMaskRef buttonRounding(
+		Ui::BubbleRounding outer,
+		RectParts sides) const override;
 
 	void startPaint(QPainter &p, const Ui::ChatStyle *st) const override;
 	const style::TextStyle &textStyle() const override;
@@ -39,6 +41,7 @@ protected:
 		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
+		Ui::BubbleRounding rounding,
 		float64 howMuchOver) const override;
 	void paintButtonIcon(
 		QPainter &p,
@@ -76,14 +79,18 @@ void Style::repaint(not_null<const HistoryItem*> item) const {
 	_parent->update();
 }
 
-int Style::buttonRadius() const {
-	return st::roundRadiusSmall;
+Images::CornersMaskRef Style::buttonRounding(
+		Ui::BubbleRounding outer,
+		RectParts sides) const {
+	using namespace Images;
+	return CornersMaskRef(CornersMask(ImageRoundRadius::Small));
 }
 
 void Style::paintButtonBg(
 		QPainter &p,
 		const Ui::ChatStyle *st,
 		const QRect &rect,
+		Ui::BubbleRounding rounding,
 		float64 howMuchOver) const {
 	Ui::FillRoundRect(p, rect, st::botKbBg, Ui::BotKeyboardCorners);
 }
@@ -131,7 +138,12 @@ void BotKeyboard::paintEvent(QPaintEvent *e) {
 	if (_impl) {
 		int x = rtl() ? st::botKbScroll.width : _st->margin;
 		p.translate(x, st::botKbScroll.deltat);
-		_impl->paint(p, nullptr, width(), clip.translated(-x, -st::botKbScroll.deltat));
+		_impl->paint(
+			p,
+			nullptr,
+			Ui::BubbleRounding(),
+			width(),
+			clip.translated(-x, -st::botKbScroll.deltat));
 	}
 }
 
@@ -155,7 +167,7 @@ void BotKeyboard::mouseReleaseEvent(QMouseEvent *e) {
 		ActivateClickHandler(window(), activated, {
 			e->button(),
 			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(_controller.get()),
+				.sessionWindow = base::make_weak(_controller),
 			})
 		});
 	}
@@ -237,7 +249,7 @@ void BotKeyboard::clickHandlerActiveChanged(const ClickHandlerPtr &p, bool activ
 
 void BotKeyboard::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	if (!_impl) return;
-	_impl->clickHandlerPressedChanged(p, pressed);
+	_impl->clickHandlerPressedChanged(p, pressed, Ui::BubbleRounding());
 }
 
 bool BotKeyboard::updateMarkup(HistoryItem *to, bool force) {

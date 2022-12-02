@@ -319,6 +319,11 @@ InnerWidget::InnerWidget(
 		}
 	}, lifetime());
 
+	controller->adaptive().chatWideValue(
+	) | rpl::start_with_next([=](bool wide) {
+		_isChatWide = wide;
+	}, lifetime());
+
 	updateEmptyText();
 
 	requestAdmins();
@@ -533,8 +538,6 @@ QString InnerWidget::tooltipText() const {
 	if (_mouseCursorState == CursorState::Date
 		&& _mouseAction == MouseAction::None) {
 		if (const auto view = Element::Hovered()) {
-			const auto format = QLocale::system().dateTimeFormat(
-				QLocale::LongFormat);
 			auto dateText = HistoryView::DateTooltipText(view);
 
 			const auto sentIt = _itemDates.find(view->data());
@@ -542,7 +545,9 @@ QString InnerWidget::tooltipText() const {
 				dateText += '\n' + tr::lng_sent_date(
 					tr::now,
 					lt_date,
-					base::unixtime::parse(sentIt->second).toString(format));
+					QLocale().toString(
+						base::unixtime::parse(sentIt->second),
+						QLocale::LongFormat));
 			}
 			return dateText;
 		}
@@ -619,14 +624,14 @@ void InnerWidget::elementShowPollResults(
 void InnerWidget::elementOpenPhoto(
 		not_null<PhotoData*> photo,
 		FullMsgId context) {
-	_controller->openPhoto(photo, context);
+	_controller->openPhoto(photo, context, MsgId(0));
 }
 
 void InnerWidget::elementOpenDocument(
 		not_null<DocumentData*> document,
 		FullMsgId context,
 		bool showInMediaView) {
-	_controller->openDocument(document, context, showInMediaView);
+	_controller->openDocument(document, context, MsgId(0), showInMediaView);
 }
 
 void InnerWidget::elementCancelUpload(const FullMsgId &context) {
@@ -649,7 +654,7 @@ bool InnerWidget::elementHideReply(not_null<const Element*> view) {
 }
 
 bool InnerWidget::elementShownUnread(not_null<const Element*> view) {
-	return view->data()->unread();
+	return false;
 }
 
 void InnerWidget::elementSendBotCommand(
@@ -661,7 +666,7 @@ void InnerWidget::elementHandleViaClick(not_null<UserData*> bot) {
 }
 
 bool InnerWidget::elementIsChatWide() {
-	return _controller->adaptive().isChatWide();
+	return _isChatWide;
 }
 
 not_null<Ui::PathShiftGradient*> InnerWidget::elementPathShiftGradient() {
@@ -680,6 +685,10 @@ void InnerWidget::elementStartPremium(
 }
 
 void InnerWidget::elementCancelPremium(not_null<const Element*> view) {
+}
+
+QString InnerWidget::elementAuthorRank(not_null<const Element*> view) {
+	return {};
 }
 
 void InnerWidget::saveState(not_null<SectionMemento*> memento) {
@@ -748,7 +757,8 @@ void InnerWidget::preloadMore(Direction direction) {
 			| ((f & LocalFlag::Edit) ? Flag::f_edit : empty)
 			| ((f & LocalFlag::Delete) ? Flag::f_delete : empty)
 			| ((f & LocalFlag::GroupCall) ? Flag::f_group_call : empty)
-			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty);
+			| ((f & LocalFlag::Invites) ? Flag::f_invites : empty)
+			| ((f & LocalFlag::Topics) ? Flag::f_forums : empty);
 	}();
 	if (_filter.flags != 0) {
 		flags |= MTPchannels_GetAdminLog::Flag::f_events_filter;
@@ -884,8 +894,8 @@ void InnerWidget::itemsAdded(Direction direction, int addedCount) {
 				const auto previous = _items[i].get();
 				view->setDisplayDate(view->dateTime().date() != previous->dateTime().date());
 				const auto attach = view->computeIsAttachToPrevious(previous);
-				view->setAttachToPrevious(attach);
-				previous->setAttachToNext(attach);
+				view->setAttachToPrevious(attach, previous);
+				previous->setAttachToNext(attach, view);
 			} else {
 				view->setDisplayDate(true);
 			}
@@ -1029,10 +1039,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						p.setOpacity(opacity);
 						const auto dateY = /*noFloatingDate ? itemtop :*/ (dateTop - st::msgServiceMargin.top());
 						const auto width = view->width();
-						const auto chatWide =
-							_controller->adaptive().isChatWide();
 						if (const auto date = view->Get<HistoryView::DateBadge>()) {
-							date->paint(p, context.st, dateY, width, chatWide);
+							date->paint(p, context.st, dateY, width, _isChatWide);
 						} else {
 							HistoryView::ServiceMessagePainter::PaintDate(
 								p,
@@ -1040,7 +1048,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 								view->dateTime(),
 								dateY,
 								width,
-								chatWide);
+								_isChatWide);
 						}
 					}
 				}
@@ -1375,7 +1383,7 @@ void InnerWidget::openContextGif(FullMsgId itemId) {
 	if (const auto item = session().data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto document = media->document()) {
-				_controller->openDocument(document, itemId, true);
+				_controller->openDocument(document, itemId, MsgId(), true);
 			}
 		}
 	}
@@ -1655,7 +1663,7 @@ void InnerWidget::mouseActionFinish(const QPoint &screenPos, Qt::MouseButton but
 						? (ElementDelegate*)weak
 						: nullptr;
 				},
-				.sessionWindow = base::make_weak(_controller.get()),
+				.sessionWindow = base::make_weak(_controller),
 			})
 		});
 		return;

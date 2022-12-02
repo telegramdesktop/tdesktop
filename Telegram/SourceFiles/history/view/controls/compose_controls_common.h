@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Api {
 enum class SendProgressType;
 struct SendOptions;
+struct SendAction;
 } // namespace Api
 
 class History;
@@ -35,7 +36,9 @@ struct SendActionUpdate {
 
 struct SetHistoryArgs {
 	required<History*> history;
+	MsgId topicRootId = 0;
 	Fn<bool()> showSlowmodeError;
+	Fn<Api::SendAction()> sendActionFactory;
 	rpl::producer<int> slowmodeSecondsLeft;
 	rpl::producer<bool> sendDisabledBySlowmode;
 	rpl::producer<std::optional<QString>> writeRestriction;

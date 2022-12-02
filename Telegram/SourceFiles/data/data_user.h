@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_peer.h"
 #include "data/data_chat_participant_status.h"
+#include "data/data_user_names.h"
 #include "dialogs/dialogs_key.h"
 
 namespace Data {
@@ -16,6 +17,8 @@ struct BotCommand;
 } // namespace Data
 
 struct BotInfo {
+	BotInfo();
+
 	bool inited = false;
 	bool readsAllHistory = false;
 	bool cantJoinGroups = false;
@@ -23,7 +26,7 @@ struct BotInfo {
 	int version = 0;
 	QString description, inlinePlaceholder;
 	std::vector<Data::BotCommand> commands;
-	Ui::Text::String text = { int(st::msgMinWidth) }; // description
+	Ui::Text::String text;
 
 	QString botMenuButtonText;
 	QString botMenuButtonUrl;
@@ -57,7 +60,7 @@ enum class UserDataFlag {
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;
 
-class UserData : public PeerData {
+class UserData final : public PeerData {
 public:
 	using Flag = UserDataFlag;
 	using Flags = Data::Flags<UserDataFlags>;
@@ -71,10 +74,12 @@ public:
 		const QString &newLastName,
 		const QString &newPhoneName,
 		const QString &newUsername);
+	void setUsernames(const Data::Usernames &newUsernames);
 
 	void setEmojiStatus(DocumentId emojiStatusId, TimeId until = 0);
 	[[nodiscard]] DocumentId emojiStatusId() const;
 
+	void setUsername(const QString &username);
 	void setPhone(const QString &newPhone);
 	void setBotInfoVersion(int version);
 	void setBotInfo(const MTPBotInfo &info);
@@ -124,8 +129,10 @@ public:
 
 	QString firstName;
 	QString lastName;
-	QString username;
 	[[nodiscard]] const QString &phone() const;
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
 	QString nameOrPhone;
 	TimeId onlineTill = 0;
 
@@ -161,6 +168,8 @@ private:
 		-> const std::vector<Data::UnavailableReason> & override;
 
 	Flags _flags;
+
+	Data::UsernamesInfo _username;
 
 	std::vector<Data::UnavailableReason> _unavailableReasons;
 	QString _phone;

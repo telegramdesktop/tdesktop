@@ -8,16 +8,18 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "data/data_message_reaction_id.h"
-#include "base/observer.h"
 #include "base/timer.h"
+#include "base/type_traits.h"
 
 class History;
-struct ItemNotification;
-enum class ItemNotificationType;
 
 namespace Data {
 class Session;
 class CloudImageView;
+class ForumTopic;
+class Thread;
+struct ItemNotification;
+enum class ItemNotificationType;
 } // namespace Data
 
 namespace Main {
@@ -30,17 +32,15 @@ class Manager;
 } // namespace Notifications
 } // namespace Platform
 
-namespace Media {
-namespace Audio {
+namespace Media::Audio {
 class Track;
-} // namespace Audio
-} // namespace Media
+} // namespace Media::Audio
 
 namespace Window {
-
 class SessionController;
+} // namespace Window
 
-namespace Notifications {
+namespace Window::Notifications {
 
 enum class ManagerType {
 	Dummy,
@@ -61,19 +61,17 @@ enum class ChangeType {
 	DemoIsHidden,
 };
 
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications
 
 namespace base {
 
 template <>
-struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : public std::true_type {
+struct custom_is_fast_copy_type<Window::Notifications::ChangeType> : std::true_type {
 };
 
 } // namespace base
 
-namespace Window {
-namespace Notifications {
+namespace Window::Notifications {
 
 class Manager;
 
@@ -86,11 +84,13 @@ public:
 
 	void createManager();
 	void setManager(std::unique_ptr<Manager> manager);
-	[[nodiscard]] ManagerType managerType() const;
+	[[nodiscard]] Manager &manager() const;
 
 	void checkDelayed();
-	void schedule(ItemNotification notification);
+	void schedule(Data::ItemNotification notification);
+	void clearFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearFromHistory(not_null<History*> history);
+	void clearIncomingFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearIncomingFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearFromItem(not_null<HistoryItem*> item);
@@ -120,18 +120,17 @@ private:
 		bool silent = false;
 	};
 	struct NotificationInHistoryKey {
-		NotificationInHistoryKey(ItemNotification notification);
-		NotificationInHistoryKey(MsgId messageId, ItemNotificationType type);
+		NotificationInHistoryKey(Data::ItemNotification notification);
+		NotificationInHistoryKey(
+			MsgId messageId,
+			Data::ItemNotificationType type);
 
 		MsgId messageId = 0;
-		ItemNotificationType type = ItemNotificationType();
+		Data::ItemNotificationType type = Data::ItemNotificationType();
 
-		friend inline bool operator<(
-				NotificationInHistoryKey a,
-				NotificationInHistoryKey b) {
-			return std::pair(a.messageId, a.type)
-				< std::pair(b.messageId, b.type);
-		}
+		friend inline auto operator<=>(
+			NotificationInHistoryKey a,
+			NotificationInHistoryKey b) = default;
 	};
 	struct Timing {
 		crl::time delay = 0;
@@ -149,12 +148,14 @@ private:
 		}
 	};
 
+	void clearForThreadIf(Fn<bool(not_null<Data::Thread*>)> predicate);
+
 	[[nodiscard]] SkipState skipNotification(
-		ItemNotification notification) const;
+		Data::ItemNotification notification) const;
 	[[nodiscard]] SkipState computeSkipState(
-		ItemNotification notification) const;
+		Data::ItemNotification notification) const;
 	[[nodiscard]] Timing countTiming(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		crl::time minimalDelay) const;
 	[[nodiscard]] bool skipReactionNotification(
 		not_null<HistoryItem*> item) const;
@@ -166,17 +167,19 @@ private:
 		not_null<Data::Session*> owner,
 		DocumentId id);
 
+	void registerThread(not_null<Data::Thread*> thread);
+
 	base::flat_map<
-		not_null<History*>,
+		not_null<Data::Thread*>,
 		base::flat_map<NotificationInHistoryKey, crl::time>> _whenMaps;
 
-	base::flat_map<not_null<History*>, Waiter> _waiters;
-	base::flat_map<not_null<History*>, Waiter> _settingWaiters;
+	base::flat_map<not_null<Data::Thread*>, Waiter> _waiters;
+	base::flat_map<not_null<Data::Thread*>, Waiter> _settingWaiters;
 	base::Timer _waitTimer;
 	base::Timer _waitForAllGroupedTimer;
 
 	base::flat_map<
-		not_null<History*>,
+		not_null<Data::Thread*>,
 		base::flat_map<crl::time, PeerData*>> _whenAlerts;
 
 	mutable base::flat_map<
@@ -192,6 +195,10 @@ private:
 		DocumentId,
 		std::unique_ptr<Media::Audio::Track>> _customSoundTracks;
 
+	base::flat_map<
+		not_null<Data::ForumTopic*>,
+		rpl::lifetime> _watchedTopics;
+
 	int _lastForwardedCount = 0;
 	uint64 _lastHistorySessionId = 0;
 	FullMsgId _lastHistoryItemId;
@@ -202,23 +209,51 @@ private:
 
 class Manager {
 public:
-	struct FullPeer {
+	struct ContextId {
 		uint64 sessionId = 0;
 		PeerId peerId = 0;
+		MsgId topicRootId = 0;
 
-		friend inline bool operator<(const FullPeer &a, const FullPeer &b) {
-			return std::tie(a.sessionId, a.peerId)
-				< std::tie(b.sessionId, b.peerId);
+		friend inline auto operator<=>(
+			const ContextId&,
+			const ContextId&) = default;
+
+		[[nodiscard]] auto toTuple() const {
+			return std::make_tuple(
+				sessionId,
+				peerId.value,
+				topicRootId.bare);
+		}
+
+		template<typename T>
+		[[nodiscard]] static auto FromTuple(const T &tuple) {
+			return ContextId{
+				std::get<0>(tuple),
+				PeerIdHelper(std::get<1>(tuple)),
+				std::get<2>(tuple),
+			};
 		}
 	};
 	struct NotificationId {
-		FullPeer full;
+		ContextId contextId;
 		MsgId msgId = 0;
 
-		friend inline bool operator<(
-				const NotificationId &a,
-				const NotificationId &b) {
-			return std::tie(a.full, a.msgId) < std::tie(b.full, b.msgId);
+		friend inline auto operator<=>(
+			const NotificationId&,
+			const NotificationId&) = default;
+
+		[[nodiscard]] auto toTuple() const {
+			return std::make_tuple(
+				contextId.toTuple(),
+				msgId.bare);
+		}
+
+		template<typename T>
+		[[nodiscard]] static auto FromTuple(const T &tuple) {
+			return NotificationId{
+				ContextId::FromTuple(std::get<0>(tuple)),
+				std::get<1>(tuple),
+			};
 		}
 	};
 	struct NotificationFields {
@@ -246,6 +281,9 @@ public:
 	void clearFromItem(not_null<HistoryItem*> item) {
 		doClearFromItem(item);
 	}
+	void clearFromTopic(not_null<Data::ForumTopic*> topic) {
+		doClearFromTopic(topic);
+	}
 	void clearFromHistory(not_null<History*> history) {
 		doClearFromHistory(history);
 	}
@@ -266,7 +304,7 @@ public:
 	};
 	[[nodiscard]] DisplayOptions getNotificationOptions(
 		HistoryItem *item,
-		ItemNotificationType type) const;
+		Data::ItemNotificationType type) const;
 	[[nodiscard]] static TextWithEntities ComposeReactionEmoji(
 		not_null<Main::Session*> session,
 		const Data::ReactionId &reaction);
@@ -275,6 +313,9 @@ public:
 		const Data::ReactionId &reaction,
 		bool hideContent);
 
+	[[nodiscard]] TextWithEntities addTargetAccountName(
+		TextWithEntities title,
+		not_null<Main::Session*> session);
 	[[nodiscard]] QString addTargetAccountName(
 		const QString &title,
 		not_null<Main::Session*> session);
@@ -294,7 +335,7 @@ public:
 	virtual ~Manager() = default;
 
 protected:
-	not_null<System*> system() const {
+	[[nodiscard]] not_null<System*> system() const {
 		return _system;
 	}
 
@@ -303,6 +344,7 @@ protected:
 	virtual void doClearAll() = 0;
 	virtual void doClearAllFast() = 0;
 	virtual void doClearFromItem(not_null<HistoryItem*> item) = 0;
+	virtual void doClearFromTopic(not_null<Data::ForumTopic*> topic) = 0;
 	virtual void doClearFromHistory(not_null<History*> history) = 0;
 	virtual void doClearFromSession(not_null<Main::Session*> session) = 0;
 	virtual bool doSkipAudio() const = 0;
@@ -349,6 +391,7 @@ protected:
 
 	virtual void doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -369,6 +412,7 @@ public:
 protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -379,6 +423,8 @@ protected:
 	void doClearAllFast() override {
 	}
 	void doClearFromItem(not_null<HistoryItem*> item) override {
+	}
+	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override {
 	}
 	void doClearFromHistory(not_null<History*> history) override {
 	}
@@ -396,7 +442,6 @@ protected:
 
 };
 
-QString WrapFromScheduled(const QString &text);
+[[nodiscard]] QString WrapFromScheduled(const QString &text);
 
-} // namespace Notifications
-} // namespace Window
+} // namespace Window::Notifications

@@ -7,8 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
-#include "base/timer.h"
 #include "base/binary_guard.h"
 #include "base/weak_ptr.h"
 

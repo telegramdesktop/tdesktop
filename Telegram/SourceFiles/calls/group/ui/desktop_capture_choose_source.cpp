@@ -50,7 +50,7 @@ private:
 };
 
 QImage SourceButton::prepareRippleMask() const {
-	return RippleAnimation::roundRectMask(size(), st::roundRadiusLarge);
+	return RippleAnimation::RoundRectMask(size(), st::roundRadiusLarge);
 }
 
 class Source final {

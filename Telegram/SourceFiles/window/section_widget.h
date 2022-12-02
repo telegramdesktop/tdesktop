@@ -18,6 +18,7 @@ class PeerData;
 
 namespace Data {
 struct ReactionId;
+class ForumTopic;
 } // namespace Data
 
 namespace Main {
@@ -58,7 +59,7 @@ public:
 
 	// Tabbed selector management.
 	virtual bool pushTabbedSelectorToThirdSection(
-			not_null<PeerData*> peer,
+			not_null<Data::Thread*> thread,
 			const SectionShow &params) {
 		return false;
 	}
@@ -139,7 +140,8 @@ public:
 		return false;
 	}
 
-	virtual bool preventsClose(Fn<void()> &&continueCallback) const {
+	[[nodiscard]] virtual bool preventsClose(
+			Fn<void()> &&continueCallback) const {
 		return false;
 	}
 
@@ -149,6 +151,13 @@ public:
 		return SectionActionResult::Ignore;
 	}
 
+	virtual bool confirmSendingFiles(const QStringList &files) {
+		return false;
+	}
+	virtual bool confirmSendingFiles(not_null<const QMimeData*> data) {
+		return false;
+	}
+
 	// Create a memento of that section to store it in the history stack.
 	// This method may modify the section ("take" heavy items).
 	virtual std::shared_ptr<SectionMemento> createMemento();
@@ -156,11 +165,16 @@ public:
 	void setInnerFocus() {
 		doSetInnerFocus();
 	}
+	virtual void checkActivation() {
+	}
 
-	virtual rpl::producer<int> desiredHeight() const;
+	[[nodiscard]] virtual rpl::producer<int> desiredHeight() const;
+	[[nodiscard]] virtual rpl::producer<> removeRequests() const {
+		return rpl::never<>();
+	}
 
 	// Some sections convert to layers on some geometry sizes.
-	virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
+	[[nodiscard]] virtual object_ptr<Ui::LayerWidget> moveContentToLayer(
 			QRect bodyGeometry) {
 		return nullptr;
 	}

@@ -84,13 +84,13 @@ void PinnedBar::setContent(rpl::producer<Ui::MessageBarContent> content) {
 void PinnedBar::setRightButton(object_ptr<Ui::RpWidget> button) {
 	const auto hasPrevious = (_right.button != nullptr);
 	if (auto previous = _right.button.release()) {
-		_right.previousButtonLifetime.make_state<RightButton>(
-			RightButton::fromRaw(std::move(previous)));
-		_right.previousButtonLifetime = previous->toggledValue(
+		using Unique = base::unique_qptr<Ui::FadeWrapScaled<Ui::RpWidget>>;
+		_right.previousButtonLifetime = previous->shownValue(
 		) | rpl::filter(!rpl::mappers::_1) | rpl::start_with_next([=] {
 			_right.previousButtonLifetime.destroy();
 		});
 		previous->hide(anim::type::normal);
+		_right.previousButtonLifetime.make_state<Unique>(Unique{ previous });
 	}
 	_right.button.create(_wrap.entity(), std::move(button));
 	if (_right.button) {
@@ -150,10 +150,12 @@ void PinnedBar::createControls() {
 	_bar->widget()->setCursor(style::cur_pointer);
 	_bar->widget()->events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
-		return (event->type() == QEvent::MouseButtonPress);
+		return (event->type() == QEvent::MouseButtonPress)
+			&& (static_cast<QMouseEvent*>(event.get())->button()
+					== Qt::LeftButton);
 	}) | rpl::map([=] {
 		return _bar->widget()->events(
-		) | rpl::filter([=](not_null<QEvent*> event) {
+		) | rpl::filter([](not_null<QEvent*> event) {
 			return (event->type() == QEvent::MouseButtonRelease);
 		}) | rpl::take(1) | rpl::filter([=](not_null<QEvent*> event) {
 			return _bar->widget()->rect().contains(
@@ -245,6 +247,18 @@ rpl::producer<int> PinnedBar::heightValue() const {
 
 rpl::producer<> PinnedBar::barClicks() const {
 	return _barClicks.events();
+}
+
+rpl::producer<> PinnedBar::contextMenuRequested() const {
+	return _wrap.entity()->paintRequest(
+	) | rpl::filter([=] {
+		return _bar && _bar->widget();
+	}) | rpl::map([=] {
+		return _bar->widget()->events(
+		) | rpl::filter([](not_null<QEvent*> event) {
+			return (event->type() == QEvent::ContextMenu);
+		}) | rpl::to_empty;
+	}) | rpl::flatten_latest();
 }
 
 } // namespace Ui

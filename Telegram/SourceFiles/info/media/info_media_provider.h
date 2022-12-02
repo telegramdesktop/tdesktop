@@ -104,6 +104,7 @@ private:
 	const not_null<AbstractController*> _controller;
 
 	const not_null<PeerData*> _peer;
+	const MsgId _topicRootId = 0;
 	PeerData * const _migrated = nullptr;
 	const Type _type = Type::Photo;
 

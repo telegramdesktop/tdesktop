@@ -297,7 +297,7 @@ void ChooseThemeController::paintEntry(QPainter &p, const Entry &entry) {
 	if (entry.chosen) {
 		auto hq = PainterHighQualityEnabler(p);
 		auto pen = st::activeLineFg->p;
-		const auto width = st::defaultFlatInput.borderWidth;
+		const auto width = st::defaultInputField.borderActive;
 		pen.setWidth(width);
 		p.setPen(pen);
 		const auto add = st::lineWidth + width;

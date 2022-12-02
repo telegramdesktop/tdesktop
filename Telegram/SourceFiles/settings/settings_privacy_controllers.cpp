@@ -277,14 +277,13 @@ struct ForwardedTooltip {
 		{ line, line, line, line + arrowSize });
 	const auto origin = full.topLeft();
 
+	const auto rounded = std::make_shared<Ui::RoundRect>(
+		ImageRoundRadius::Large,
+		st::toastBg);
 	const auto paint = [=](QPainter &p) {
 		p.translate(-origin);
 
-		Ui::FillRoundRect(
-			p,
-			geometry,
-			st::toastBg,
-			ImageRoundRadius::Large);
+		rounded->paint(p, geometry);
 
 		p.setFont(font);
 		p.setPen(st::toastFg);
@@ -440,8 +439,8 @@ std::unique_ptr<PeerListRow> BlockedBoxController::createRow(
 			return tr::lng_group_status(tr::now);
 		} else if (!user->phone().isEmpty()) {
 			return Ui::FormatPhone(user->phone());
-		} else if (!user->username.isEmpty()) {
-			return '@' + user->username;
+		} else if (!user->username().isEmpty()) {
+			return '@' + user->username();
 		} else if (user->isBot()) {
 			return tr::lng_status_bot(tr::now);
 		}

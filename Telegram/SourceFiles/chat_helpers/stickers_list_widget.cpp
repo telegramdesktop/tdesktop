@@ -177,6 +177,16 @@ StickersListWidget::StickersListWidget(
 , _isMasks(masks)
 , _updateItemsTimer([=] { updateItems(); })
 , _updateSetsTimer([=] { updateSets(); })
+, _trendingAddBgOver(
+	ImageRoundRadius::Small,
+	st::stickersTrendingAdd.textBgOver)
+, _trendingAddBg(ImageRoundRadius::Small, st::stickersTrendingAdd.textBg)
+, _groupCategoryAddBgOver(
+	ImageRoundRadius::Small,
+	st::stickerGroupCategoryAdd.textBgOver)
+, _groupCategoryAddBg(
+	ImageRoundRadius::Small,
+	st::stickerGroupCategoryAdd.textBg)
 , _pathGradient(std::make_unique<Ui::PathShiftGradient>(
 	st::windowBgRipple,
 	st::windowBgOver,
@@ -840,9 +850,7 @@ void StickersListWidget::paintStickers(Painter &p, QRect clip) {
 			if (featuredHasAddButton(info.section)) {
 				auto add = featuredAddRect(info);
 				auto selected = selectedButton ? (selectedButton->section == info.section) : false;
-				auto &textBg = selected ? st::stickersTrendingAdd.textBgOver : st::stickersTrendingAdd.textBg;
-
-				Ui::FillRoundRect(p, myrtlrect(add), textBg, ImageRoundRadius::Small);
+				(selected ? _trendingAddBgOver : _trendingAddBg).paint(p, myrtlrect(add));
 				if (set.ripple) {
 					set.ripple->paint(p, add.x(), add.y(), width());
 					if (set.ripple->empty()) {
@@ -1068,12 +1076,10 @@ void StickersListWidget::paintMegagroupEmptySet(Painter &p, int y, bool buttonSe
 	auto infoLeft = megagroupSetInfoLeft();
 	_megagroupSetAbout.drawLeft(p, infoLeft, y, width() - infoLeft, width());
 
-	auto &textBg = buttonSelected
-		? st::stickerGroupCategoryAdd.textBgOver
-		: st::stickerGroupCategoryAdd.textBg;
-
 	auto button = _megagroupSetButtonRect.translated(0, y);
-	Ui::FillRoundRect(p, myrtlrect(button), textBg, ImageRoundRadius::Small);
+	(buttonSelected ? _groupCategoryAddBgOver : _groupCategoryAddBg).paint(
+		p,
+		myrtlrect(button));
 	if (_megagroupSetButtonRipple) {
 		_megagroupSetButtonRipple->paint(p, button.x(), button.y(), width());
 		if (_megagroupSetButtonRipple->empty()) {
@@ -1486,7 +1492,7 @@ void StickersListWidget::setPressed(OverState newPressed) {
 	} else if (std::get_if<OverGroupAdd>(&_pressed)) {
 		if (!_megagroupSetButtonRipple) {
 			auto maskSize = _megagroupSetButtonRect.size();
-			auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::roundRadiusSmall);
+			auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusSmall);
 			_megagroupSetButtonRipple = std::make_unique<Ui::RippleAnimation>(st::stickerGroupCategoryAdd.ripple, std::move(mask), [this] {
 				rtlupdate(megagroupSetButtonRectFinal());
 			});
@@ -1514,14 +1520,14 @@ std::unique_ptr<Ui::RippleAnimation> StickersListWidget::createButtonRipple(int 
 
 	if (shownSets()[section].externalLayout) {
 		auto maskSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
-		auto mask = Ui::RippleAnimation::roundRectMask(maskSize, st::roundRadiusSmall);
+		auto mask = Ui::RippleAnimation::RoundRectMask(maskSize, st::roundRadiusSmall);
 		return std::make_unique<Ui::RippleAnimation>(
 			st::stickersTrendingAdd.ripple,
 			std::move(mask),
 			[this, section] { rtlupdate(featuredAddRect(section)); });
 	}
 	auto maskSize = QSize(st::stickerPanRemoveSet.rippleAreaSize, st::stickerPanRemoveSet.rippleAreaSize);
-	auto mask = Ui::RippleAnimation::ellipseMask(maskSize);
+	auto mask = Ui::RippleAnimation::EllipseMask(maskSize);
 	return std::make_unique<Ui::RippleAnimation>(
 		st::stickerPanRemoveSet.ripple,
 		std::move(mask),

@@ -67,7 +67,7 @@ public:
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const override;
@@ -123,17 +123,12 @@ private:
 	bool needInfoDisplay() const;
 	void validateGroupedCache(
 		const QRect &geometry,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const;
 	void validateImageCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
-	[[nodiscard]] QImage prepareImageCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
+		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
 
 	bool videoAutoplayEnabled() const;
@@ -154,10 +149,9 @@ private:
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	mutable std::unique_ptr<Streamed> _streamed;
 	mutable QImage _imageCache;
+	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
 	int _serviceWidth = 0;
-	mutable int _imageCacheRoundRadius : 4 = 0;
-	mutable int _imageCacheRoundCorners : 12 = 0;
-	mutable int _imageCacheBlurred : 1 = 0;
+	mutable bool _imageCacheBlurred = false;
 
 };
 

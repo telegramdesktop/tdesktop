@@ -9,11 +9,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "platform/linux/notifications_manager_linux.h"
 
 #include "window/notifications_utilities.h"
+#include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
 #include "base/platform/linux/base_linux_dbus_utilities.h"
+#include "platform/platform_specific.h"
 #include "core/application.h"
+#include "core/sandbox.h"
 #include "core/core_settings.h"
+#include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "main/main_session.h"
@@ -25,6 +29,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <glibmm.h>
 #include <giomm.h>
+
+#include <dlfcn.h>
 
 namespace Platform {
 namespace Notifications {
@@ -52,9 +58,6 @@ void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 	try {
 		callback();
 		return;
-	} catch (const Glib::Error &e) {
-		LOG(("Native Notification Error: %1").arg(
-			QString::fromStdString(e.what())));
 	} catch (const std::exception &e) {
 		LOG(("Native Notification Error: %1").arg(
 			QString::fromStdString(e.what())));
@@ -68,7 +71,7 @@ void Noexcept(Fn<void()> callback, Fn<void()> failed = nullptr) noexcept {
 std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		const auto activatable = [&] {
 			try {
@@ -108,7 +111,7 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 void StartServiceAsync(Fn<void()> callback) {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		DBus::StartServiceByNameAsync(
 			connection,
@@ -144,7 +147,7 @@ void StartServiceAsync(Fn<void()> callback) {
 bool GetServiceRegistered() {
 	try {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		const auto hasOwner = [&] {
 			try {
@@ -177,7 +180,7 @@ void GetServerInformation(
 		Fn<void(const std::optional<ServerInformation> &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -223,7 +226,7 @@ void GetServerInformation(
 void GetCapabilities(Fn<void(const QStringList &)> callback) {
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -255,14 +258,9 @@ void GetCapabilities(Fn<void(const QStringList &)> callback) {
 }
 
 void GetInhibited(Fn<void(bool)> callback) {
-	if (!CurrentCapabilities.contains(qsl("inhibitions"))) {
-		crl::on_main([=] { callback(false); });
-		return;
-	}
-
 	Noexcept([&] {
 		const auto connection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 
 		connection->call(
 			std::string(kObjectPath),
@@ -343,6 +341,9 @@ private:
 	const not_null<Manager*> _manager;
 	NotificationId _id;
 
+	Glib::RefPtr<Gio::Application> _application;
+	Glib::RefPtr<Gio::Notification> _notification;
+
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
 	Glib::ustring _title;
 	Glib::ustring _body;
@@ -369,7 +370,8 @@ NotificationData::NotificationData(
 	not_null<Manager*> manager,
 	NotificationId id)
 : _manager(manager)
-, _id(id) {
+, _id(id)
+, _application(Gio::Application::get_default()) {
 }
 
 bool NotificationData::init(
@@ -377,9 +379,67 @@ bool NotificationData::init(
 		const QString &subtitle,
 		const QString &msg,
 		Window::Notifications::Manager::DisplayOptions options) {
+	if (_application) {
+		_notification = Gio::Notification::create(title.toStdString());
+
+		_notification->set_body(
+			subtitle.isEmpty()
+				? msg.toStdString()
+				: qsl("%1\n%2").arg(subtitle, msg).toStdString());
+
+		_notification->set_icon(
+			Gio::ThemedIcon::create(base::IconName().toStdString()));
+
+		// glib 2.42+, we keep glib 2.40+ compatibility
+		static const auto set_priority = [] {
+			// reset dlerror after dlsym call
+			const auto guard = gsl::finally([] { dlerror(); });
+			return reinterpret_cast<decltype(&g_notification_set_priority)>(
+				dlsym(RTLD_DEFAULT, "g_notification_set_priority"));
+		}();
+
+		if (set_priority) {
+			// for chat messages, according to
+			// https://docs.gtk.org/gio/enum.NotificationPriority.html
+			set_priority(_notification->gobj(), G_NOTIFICATION_PRIORITY_HIGH);
+		}
+
+		// glib 2.70+, we keep glib 2.40+ compatibility
+		static const auto set_category = [] {
+			// reset dlerror after dlsym call
+			const auto guard = gsl::finally([] { dlerror(); });
+			return reinterpret_cast<decltype(&g_notification_set_category)>(
+				dlsym(RTLD_DEFAULT, "g_notification_set_category"));
+		}();
+
+		if (set_category) {
+			set_category(_notification->gobj(), "im.received");
+		}
+
+		const auto idTuple = _id.toTuple();
+
+		_notification->set_default_action(
+			"app.notification-reply",
+			idTuple);
+
+		if (!options.hideMarkAsRead) {
+			_notification->add_button(
+				tr::lng_context_mark_read(tr::now).toStdString(),
+				"app.notification-mark-as-read",
+				idTuple);
+		}
+
+		_notification->add_button(
+			tr::lng_notification_reply(tr::now).toStdString(),
+			"app.notification-reply",
+			idTuple);
+
+		return true;
+	}
+
 	Noexcept([&] {
 		_dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
+			Gio::DBus::BusType::SESSION);
 	});
 
 	if (!_dbusConnection) {
@@ -547,6 +607,17 @@ NotificationData::~NotificationData() {
 }
 
 void NotificationData::show() {
+	if (_application && _notification) {
+		_application->send_notification(
+			std::to_string(_id.contextId.sessionId)
+				+ '-'
+				+ std::to_string(_id.contextId.peerId.value)
+				+ '-'
+				+ std::to_string(_id.msgId.bare),
+			_notification);
+		return;
+	}
+
 	// a hack for snap's activation restriction
 	const auto weak = base::make_weak(this);
 	StartServiceAsync(crl::guard(weak, [=] {
@@ -589,6 +660,17 @@ void NotificationData::show() {
 }
 
 void NotificationData::close() {
+	if (_application) {
+		_application->withdraw_notification(
+			std::to_string(_id.contextId.sessionId)
+				+ '-'
+				+ std::to_string(_id.contextId.peerId.value)
+				+ '-'
+				+ std::to_string(_id.msgId.bare));
+		_manager->clearNotification(_id);
+		return;
+	}
+
 	_dbusConnection->call(
 		std::string(kObjectPath),
 		std::string(kInterface),
@@ -599,12 +681,21 @@ void NotificationData::close() {
 		{},
 		std::string(kService),
 		-1,
-		Gio::DBus::CALL_FLAGS_NO_AUTO_START);
+		Gio::DBus::CallFlags::NO_AUTO_START);
 	_manager->clearNotification(_id);
 }
 
 void NotificationData::setImage(const QString &imagePath) {
-	if (imagePath.isEmpty() || _imageKey.empty()) {
+	if (imagePath.isEmpty()) {
+		return;
+	}
+
+	if (_notification) {
+		_notification->set_icon(Gio::Icon::create(imagePath.toStdString()));
+		return;
+	}
+
+	if (_imageKey.empty()) {
 		return;
 	}
 
@@ -698,13 +789,13 @@ bool SkipFlashBounceForCustom() {
 }
 
 bool Supported() {
-	return ServiceRegistered;
+	return ServiceRegistered || Gio::Application::get_default();
 }
 
 bool Enforced() {
 	// Wayland doesn't support positioning
 	// and custom notifications don't work here
-	return IsWayland();
+	return IsWayland() || OptionGApplication.value();
 }
 
 bool ByDefault() {
@@ -730,24 +821,29 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
-	static const auto ServiceWatcher = CreateServiceWatcher();
-
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() || Enforced())
 			&& Supported()) {
-			if (system->managerType() != ManagerType::Native) {
+			if (system->manager().type() != ManagerType::Native) {
 				system->setManager(std::make_unique<Manager>(system));
 			}
 		} else if (Enforced()) {
-			if (system->managerType() != ManagerType::Dummy) {
+			if (system->manager().type() != ManagerType::Dummy) {
 				using DummyManager = Window::Notifications::DummyManager;
 				system->setManager(std::make_unique<DummyManager>(system));
 			}
-		} else if (system->managerType() != ManagerType::Default) {
+		} else if (system->manager().type() != ManagerType::Default) {
 			system->setManager(nullptr);
 		}
 	};
+
+	if (Gio::Application::get_default()) {
+		managerSetter();
+		return;
+	}
+
+	static const auto ServiceWatcher = CreateServiceWatcher();
 
 	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
@@ -786,6 +882,7 @@ public:
 
 	void showNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -794,11 +891,12 @@ public:
 		DisplayOptions options);
 	void clearAll();
 	void clearFromItem(not_null<HistoryItem*> item);
+	void clearFromTopic(not_null<Data::ForumTopic*> topic);
 	void clearFromHistory(not_null<History*> history);
 	void clearFromSession(not_null<Main::Session*> session);
 	void clearNotification(NotificationId id);
 
-	bool inhibited() {
+	[[nodiscard]] bool inhibited() const {
 		return _inhibited;
 	}
 
@@ -808,7 +906,7 @@ private:
 	const not_null<Manager*> _manager;
 
 	base::flat_map<
-		FullPeer,
+		ContextId,
 		base::flat_map<MsgId, Notification>> _notifications;
 
 	Window::Notifications::CachedUserpics _cachedUserpics;
@@ -844,65 +942,72 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 			.arg(capabilities.join(", ")));
 	}
 
-	Noexcept([&] {
-		_dbusConnection = Gio::DBus::Connection::get_sync(
-			Gio::DBus::BusType::BUS_TYPE_SESSION);
-	});
+	if (capabilities.contains(qsl("inhibitions"))) {
+		Noexcept([&] {
+			_dbusConnection = Gio::DBus::Connection::get_sync(
+				Gio::DBus::BusType::SESSION);
+		});
 
-	if (!_dbusConnection) {
-		return;
-	}
+		if (!_dbusConnection) {
+			return;
+		}
 
-	const auto weak = base::make_weak(this);
-	GetInhibited(crl::guard(weak, [=](bool result) {
-		_inhibited = result;
-	}));
+		const auto weak = base::make_weak(this);
+		GetInhibited(crl::guard(weak, [=](bool result) {
+			_inhibited = result;
+		}));
 
-	_inhibitedSignalId = _dbusConnection->signal_subscribe(
-		[=](
-				const Glib::RefPtr<Gio::DBus::Connection> &connection,
-				const Glib::ustring &sender_name,
-				const Glib::ustring &object_path,
-				const Glib::ustring &interface_name,
-				const Glib::ustring &signal_name,
-				Glib::VariantContainerBase parameters) {
-			Noexcept([&] {
-				const auto interface = GlibVariantCast<Glib::ustring>(
-					parameters.get_child(0));
+		_inhibitedSignalId = _dbusConnection->signal_subscribe(
+			[=](
+					const Glib::RefPtr<Gio::DBus::Connection> &connection,
+					const Glib::ustring &sender_name,
+					const Glib::ustring &object_path,
+					const Glib::ustring &interface_name,
+					const Glib::ustring &signal_name,
+					Glib::VariantContainerBase parameters) {
+				Noexcept([&] {
+					const auto interface = GlibVariantCast<Glib::ustring>(
+						parameters.get_child(0));
 
-				if (interface != std::string(kInterface)) {
-					return;
-				}
+					if (interface != kInterface.data()) {
+						return;
+					}
 
-				const auto inhibited = GlibVariantCast<bool>(
-					GlibVariantCast<
-						std::map<Glib::ustring, Glib::VariantBase>
-				>(parameters.get_child(1)).at("Inhibited"));
+					const auto inhibited = GlibVariantCast<bool>(
+						GlibVariantCast<
+							std::map<Glib::ustring, Glib::VariantBase>
+					>(parameters.get_child(1)).at("Inhibited"));
 
-				crl::on_main(weak, [=] {
-					_inhibited = inhibited;
+					crl::on_main(weak, [=] {
+						_inhibited = inhibited;
+					});
 				});
-			});
-		},
-		std::string(kService),
-		std::string(kPropertiesInterface),
-		"PropertiesChanged",
-		std::string(kObjectPath));
+			},
+			std::string(kService),
+			std::string(kPropertiesInterface),
+			"PropertiesChanged",
+			std::string(kObjectPath));
+	}
 }
 
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
 		const QString &msg,
 		DisplayOptions options) {
-	const auto key = FullPeer{
+	const auto key = ContextId{
 		.sessionId = peer->session().uniqueId(),
-		.peerId = peer->id
+		.peerId = peer->id,
+		.topicRootId = topicRootId,
 	};
-	const auto notificationId = NotificationId{ .full = key, .msgId = msgId };
+	const auto notificationId = NotificationId{
+		.contextId = key,
+		.msgId = msgId,
+	};
 	auto notification = std::make_unique<NotificationData>(
 		_manager,
 		notificationId);
@@ -951,9 +1056,10 @@ void Manager::Private::clearAll() {
 }
 
 void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
-	const auto key = FullPeer{
+	const auto key = ContextId{
 		.sessionId = item->history()->session().uniqueId(),
-		.peerId = item->history()->peer->id
+		.peerId = item->history()->peer->id,
+		.topicRootId = item->topicRootId(),
 	};
 	const auto i = _notifications.find(key);
 	if (i == _notifications.cend()) {
@@ -971,10 +1077,10 @@ void Manager::Private::clearFromItem(not_null<HistoryItem*> item) {
 	taken->close();
 }
 
-void Manager::Private::clearFromHistory(not_null<History*> history) {
-	const auto key = FullPeer{
-		.sessionId = history->session().uniqueId(),
-		.peerId = history->peer->id
+void Manager::Private::clearFromTopic(not_null<Data::ForumTopic*> topic) {
+	const auto key = ContextId{
+		.sessionId = topic->session().uniqueId(),
+		.peerId = topic->history()->peer->id
 	};
 	const auto i = _notifications.find(key);
 	if (i != _notifications.cend()) {
@@ -987,13 +1093,31 @@ void Manager::Private::clearFromHistory(not_null<History*> history) {
 	}
 }
 
+void Manager::Private::clearFromHistory(not_null<History*> history) {
+	const auto sessionId = history->session().uniqueId();
+	const auto peerId = history->peer->id;
+	auto i = _notifications.lower_bound(ContextId{
+		.sessionId = sessionId,
+		.peerId = peerId,
+	});
+	while (i != _notifications.cend()
+		&& i->first.sessionId == sessionId
+		&& i->first.peerId == peerId) {
+		const auto temp = base::take(i->second);
+		i = _notifications.erase(i);
+
+		for (const auto &[msgId, notification] : temp) {
+			notification->close();
+		}
+	}
+}
+
 void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 	const auto sessionId = session->uniqueId();
-	for (auto i = _notifications.begin(); i != _notifications.end();) {
-		if (i->first.sessionId != sessionId) {
-			++i;
-			continue;
-		}
+	auto i = _notifications.lower_bound(ContextId{
+		.sessionId = sessionId,
+	});
+	while (i != _notifications.cend() && i->first.sessionId == sessionId) {
 		const auto temp = base::take(i->second);
 		i = _notifications.erase(i);
 
@@ -1004,7 +1128,7 @@ void Manager::Private::clearFromSession(not_null<Main::Session*> session) {
 }
 
 void Manager::Private::clearNotification(NotificationId id) {
-	auto i = _notifications.find(id.full);
+	auto i = _notifications.find(id.contextId);
 	if (i != _notifications.cend()) {
 		if (i->second.remove(id.msgId) && i->second.empty()) {
 			_notifications.erase(i);
@@ -1035,6 +1159,7 @@ Manager::~Manager() = default;
 
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		std::shared_ptr<Data::CloudImageView> &userpicView,
 		MsgId msgId,
 		const QString &title,
@@ -1043,6 +1168,7 @@ void Manager::doShowNativeNotification(
 		DisplayOptions options) {
 	_private->showNotification(
 		peer,
+		topicRootId,
 		userpicView,
 		msgId,
 		title,
@@ -1057,6 +1183,10 @@ void Manager::doClearAllFast() {
 
 void Manager::doClearFromItem(not_null<HistoryItem*> item) {
 	_private->clearFromItem(item);
+}
+
+void Manager::doClearFromTopic(not_null<Data::ForumTopic*> topic) {
+	_private->clearFromTopic(topic);
 }
 
 void Manager::doClearFromHistory(not_null<History*> history) {

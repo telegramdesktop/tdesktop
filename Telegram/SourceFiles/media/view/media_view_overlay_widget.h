@@ -131,7 +131,8 @@ private:
 			v::null_t,
 			not_null<PhotoData*>,
 			not_null<DocumentData*>> data;
-		HistoryItem *item;
+		HistoryItem *item = nullptr;
+		MsgId topicRootId = 0;
 	};
 	enum class SavePhotoVideo {
 		None,
@@ -241,9 +242,14 @@ private:
 	Entity entityByIndex(int index) const;
 	Entity entityForItemId(const FullMsgId &itemId) const;
 	bool moveToEntity(const Entity &entity, int preloadDelta = 0);
+
+	struct ItemContext {
+		not_null<HistoryItem*> item;
+		MsgId topicRootId = 0;
+	};
 	void setContext(std::variant<
 		v::null_t,
-		not_null<HistoryItem*>,
+		ItemContext,
 		not_null<PeerData*>> context);
 
 	void refreshLang();
@@ -330,7 +336,7 @@ private:
 	void updateThemePreviewGeometry();
 
 	void documentUpdated(not_null<DocumentData*> document);
-	void changingMsgId(not_null<HistoryItem*> row, MsgId oldId);
+	void changingMsgId(FullMsgId newId, MsgId oldId);
 
 	[[nodiscard]] int finalContentRotation() const;
 	[[nodiscard]] QRect finalContentRect() const;
@@ -403,8 +409,8 @@ private:
 	void validatePhotoImage(Image *image, bool blurred);
 	void validatePhotoCurrentImage();
 
-	[[nodiscard]] bool hasCopyRestriction() const;
-	[[nodiscard]] bool showCopyRestriction();
+	[[nodiscard]] bool hasCopyMediaRestriction() const;
+	[[nodiscard]] bool showCopyMediaRestriction();
 
 	[[nodiscard]] QSize flipSizeByRotation(QSize size) const;
 
@@ -519,6 +525,7 @@ private:
 
 	History *_migrated = nullptr;
 	History *_history = nullptr; // if conversation photos or files overview
+	MsgId _topicRootId = 0;
 	PeerData *_peer = nullptr;
 	UserData *_user = nullptr; // if user profile photos overview
 

@@ -213,7 +213,7 @@ QPoint ActionWithTimer::prepareRippleStartPosition() const {
 }
 
 QImage ActionWithTimer::prepareRippleMask() const {
-	return Ui::RippleAnimation::rectMask(size());
+	return Ui::RippleAnimation::RectMask(size());
 }
 
 int ActionWithTimer::contentHeight() const {

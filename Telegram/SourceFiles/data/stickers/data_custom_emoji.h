@@ -21,10 +21,6 @@ namespace Data {
 class Session;
 class CustomEmojiLoader;
 
-struct CustomEmojiId {
-	DocumentId id = 0;
-};
-
 enum class CustomEmojiSizeTag : uchar {
 	Normal,
 	Large,
@@ -64,6 +60,9 @@ public:
 	void resolve(QStringView data, not_null<Listener*> listener);
 	void resolve(DocumentId documentId, not_null<Listener*> listener);
 	void unregisterListener(not_null<Listener*> listener);
+
+	[[nodiscard]] rpl::producer<not_null<DocumentData*>> resolve(
+		DocumentId documentId);
 
 	[[nodiscard]] std::unique_ptr<Ui::CustomEmoji::Loader> createLoader(
 		not_null<DocumentData*> document,
@@ -108,6 +107,7 @@ private:
 		not_null<Ui::CustomEmoji::Instance*> instance,
 		Ui::CustomEmoji::RepaintRequest request);
 	void scheduleRepaintTimer();
+	bool checkEmptyRepaints();
 	void invokeRepaints();
 	void fillColoredFlags(not_null<DocumentData*> document);
 	void processLoaders(not_null<DocumentData*> document);
@@ -161,16 +161,25 @@ private:
 	bool _repaintTimerScheduled = false;
 	bool _requestSetsScheduled = false;
 
+#if 0 // inject-to-on_main
+	crl::time _repaintsLastAdded = 0;
+	rpl::lifetime _repaintsLifetime;
+#endif
+
 	rpl::lifetime _lifetime;
 
 };
 
 [[nodiscard]] int FrameSizeFromTag(CustomEmojiManager::SizeTag tag);
 
-[[nodiscard]] QString SerializeCustomEmojiId(const CustomEmojiId &id);
+[[nodiscard]] QString SerializeCustomEmojiId(DocumentId id);
 [[nodiscard]] QString SerializeCustomEmojiId(
 	not_null<DocumentData*> document);
-[[nodiscard]] CustomEmojiId ParseCustomEmojiData(QStringView data);
+[[nodiscard]] DocumentId ParseCustomEmojiData(QStringView data);
+
+[[nodiscard]] TextWithEntities SingleCustomEmoji(DocumentId id);
+[[nodiscard]] TextWithEntities SingleCustomEmoji(
+	not_null<DocumentData*> document);
 
 [[nodiscard]] bool AllowEmojiWithoutPremium(not_null<PeerData*> peer);
 

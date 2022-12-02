@@ -27,6 +27,7 @@ struct ReplaceTag;
 template <>
 struct ReplaceTag<TextWithEntities> {
 	static TextWithEntities Call(TextWithEntities &&original, ushort tag, const TextWithEntities &replacement);
+	static TextWithEntities Replace(TextWithEntities &&original, const TextWithEntities &replacement, int start);
 
 };
 

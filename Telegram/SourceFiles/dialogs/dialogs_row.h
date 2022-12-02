@@ -16,6 +16,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryItem;
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
 namespace Data {
 class CloudImageView;
 } // namespace Data
@@ -28,6 +32,8 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 class RowPainter;
 class VideoUserpic;
+struct PaintContext;
+struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -44,13 +50,15 @@ public:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const;
+		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
-	void stopLastRipple();
+	virtual void stopLastRipple();
+	void addRippleWithMask(
+		QPoint origin,
+		QImage mask,
+		Fn<void()> updateCallback);
+	void clearRipple();
 
 	void paintRipple(
 		QPainter &p,
@@ -59,7 +67,8 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
-	std::shared_ptr<Data::CloudImageView> &userpicView() const {
+	[[nodiscard]] auto userpicView() const
+	-> std::shared_ptr<Data::CloudImageView> & {
 		return _userpic;
 	}
 
@@ -70,11 +79,18 @@ private:
 };
 
 class List;
-class Row : public BasicRow {
+class Row final : public BasicRow {
 public:
 	explicit Row(std::nullptr_t) {
 	}
-	Row(Key key, int pos);
+	Row(Key key, int index, int top);
+
+	[[nodiscard]] int top() const {
+		return _top;
+	}
+	[[nodiscard]] int height() const {
+		return _height;
+	}
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
@@ -84,10 +100,16 @@ public:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const final override;
+		const Ui::PaintContext &context) const final override;
+
+	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
+	void stopLastRipple() override;
+	void addTopicJumpRipple(
+		QPoint origin,
+		not_null<Ui::TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback);
+	void clearTopicJumpRipple();
+	[[nodiscard]] bool topicJumpRipple() const;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -98,18 +120,19 @@ public:
 	[[nodiscard]] Data::Folder *folder() const {
 		return _id.folder();
 	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _id.topic();
+	}
+	[[nodiscard]] Data::Thread *thread() const {
+		return _id.thread();
+	}
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}
-	[[nodiscard]] int pos() const {
-		return _pos;
+	[[nodiscard]] int index() const {
+		return _index;
 	}
 	[[nodiscard]] uint64 sortKey(FilterId filterId) const;
-
-	void validateListEntryCache() const;
-	[[nodiscard]] const Ui::Text::String &listEntryCache() const {
-		return _listEntryCache;
-	}
 
 	// for any attached data, for example View in contacts list
 	void *attached = nullptr;
@@ -135,18 +158,19 @@ private:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		std::shared_ptr<Data::CloudImageView> &view,
-		bool paused);
+		const Ui::PaintContext &context);
 
 	Key _id;
-	int _pos = 0;
-	mutable uint32 _listEntryCacheVersion = 0;
-	mutable Ui::Text::String _listEntryCache;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
-	mutable bool _cornerBadgeShown = false;
+	int _top = 0;
+	int _height = 0;
+	int _index : 30 = 0;
+	int _cornerBadgeShown : 1 = 0;
+	int _topicJumpRipple : 1 = 0;
 
 };
 
-class FakeRow : public BasicRow {
+class FakeRow final : public BasicRow, public base::has_weak_ptr {
 public:
 	FakeRow(
 		Key searchInChat,
@@ -155,6 +179,9 @@ public:
 
 	[[nodiscard]] Key searchInChat() const {
 		return _searchInChat;
+	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _topic;
 	}
 	[[nodiscard]] not_null<HistoryItem*> item() const {
 		return _item;
@@ -170,11 +197,14 @@ public:
 	}
 	[[nodiscard]] const Ui::Text::String &name() const;
 
+	void invalidateTopic();
+
 private:
 	friend class Ui::RowPainter;
 
 	const Key _searchInChat;
 	const not_null<HistoryItem*> _item;
+	Data::ForumTopic *_topic = nullptr;
 	const Fn<void()> _repaint;
 	mutable Ui::MessageView _itemView;
 	mutable Ui::PeerBadge _badge;

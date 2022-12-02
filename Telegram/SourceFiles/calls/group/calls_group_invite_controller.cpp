@@ -193,7 +193,7 @@ object_ptr<Ui::BoxContent> PrepareInviteBox(
 		&st::groupCallInviteMembersList,
 		&st::groupCallMultiSelect);
 
-	const auto weak = base::make_weak(call.get());
+	const auto weak = base::make_weak(call);
 	const auto invite = [=](const std::vector<not_null<UserData*>> &users) {
 		const auto call = weak.get();
 		if (!call) {

@@ -44,16 +44,20 @@ void Polls::create(
 
 	const auto history = action.history;
 	const auto peer = history->peer;
+	const auto topicRootId = action.replyTo ? action.topicRootId : 0;
 	auto sendFlags = MTPmessages_SendMedia::Flags(0);
 	if (action.replyTo) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_reply_to_msg_id;
+		if (topicRootId) {
+			sendFlags |= MTPmessages_SendMedia::Flag::f_top_msg_id;
+		}
 	}
 	const auto clearCloudDraft = action.clearDraft;
 	if (clearCloudDraft) {
 		sendFlags |= MTPmessages_SendMedia::Flag::f_clear_draft;
-		history->clearLocalDraft();
-		history->clearCloudDraft();
-		history->startSavingCloudDraft();
+		history->clearLocalDraft(topicRootId);
+		history->clearCloudDraft(topicRootId);
+		history->startSavingCloudDraft(topicRootId);
 	}
 	const auto silentPost = ShouldSendSilent(peer, action.options);
 	if (silentPost) {
@@ -67,47 +71,44 @@ void Polls::create(
 		sendFlags |= MTPmessages_SendMedia::Flag::f_send_as;
 	}
 	auto &histories = history->owner().histories();
-	const auto requestType = Data::Histories::RequestType::Send;
-	histories.sendRequest(history, requestType, [=](Fn<void()> finish) {
-		const auto replyTo = action.replyTo;
-		history->sendRequestId = _api.request(MTPmessages_SendMedia(
+	const auto randomId = base::RandomValue<uint64>();
+	FakePasscode::RegisterMessageRandomId(_session, randomId, peer->id, action.options);
+	histories.sendPreparedMessage(
+		history,
+		action.replyTo,
+		topicRootId,
+		randomId,
+		Data::Histories::PrepareMessage<MTPmessages_SendMedia>(
 			MTP_flags(sendFlags),
 			peer->input,
-			MTP_int(replyTo),
+			Data::Histories::ReplyToPlaceholder(),
+			Data::Histories::TopicRootPlaceholder(),
 			PollDataToInputMedia(&data),
 			MTP_string(),
-			MTP_long(FakePasscode::RegisterMessageRandomId(_session, peer->id, action.options)),
+			MTP_long(randomId),
 			MTPReplyMarkup(),
 			MTPVector<MTPMessageEntity>(),
 			MTP_int(action.options.scheduled),
 			(sendAs ? sendAs->input : MTP_inputPeerEmpty())
-		)).done([=](
-				const MTPUpdates &result,
-				const MTP::Response &response) mutable {
-			_session->updates().applyUpdates(result);
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(
-					UnixtimeFromMsgId(response.outerMsgId));
-			}
-			_session->changes().historyUpdated(
-				history,
-				(action.options.scheduled
-					? Data::HistoryUpdate::Flag::ScheduledSent
-					: Data::HistoryUpdate::Flag::MessageSent));
-			done();
-			finish();
-		}).fail([=](
-				const MTP::Error &error,
-				const MTP::Response &response) mutable {
-			if (clearCloudDraft) {
-				history->finishSavingCloudDraft(
-					UnixtimeFromMsgId(response.outerMsgId));
-			}
-			fail();
-			finish();
-		}).afterRequest(history->sendRequestId
-		).send();
-		return history->sendRequestId;
+		), [=](const MTPUpdates &result, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		_session->changes().historyUpdated(
+			history,
+			(action.options.scheduled
+				? Data::HistoryUpdate::Flag::ScheduledSent
+				: Data::HistoryUpdate::Flag::MessageSent));
+		done();
+	}, [=](const MTP::Error &error, const MTP::Response &response) {
+		if (clearCloudDraft) {
+			history->finishSavingCloudDraft(
+				topicRootId,
+				UnixtimeFromMsgId(response.outerMsgId));
+		}
+		fail();
 	});
 }
 

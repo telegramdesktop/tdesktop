@@ -95,6 +95,7 @@ public:
 		Group,
 		Channel,
 		Megagroup,
+		Forum,
 	};
 	GroupInfoBox(
 		QWidget*,

@@ -27,6 +27,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/send_files_box.h"
 #include "boxes/premium_limits_box.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/image/image_prepare.h"
 #include "lang/lang_keys.h"
 #include "storage/file_download.h"
@@ -630,7 +631,8 @@ bool FileLoadTask::CheckForSong(
 		return false;
 	}
 
-	auto media = Media::Player::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Song>(
+		Media::Player::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}
@@ -658,7 +660,8 @@ bool FileLoadTask::CheckForVideo(
 		return false;
 	}
 
-	auto media = Media::Clip::PrepareForSending(filepath, content);
+	auto media = v::get<Ui::PreparedFileInformation::Video>(
+		Media::Clip::PrepareForSending(filepath, content).media);
 	if (media.duration < 0) {
 		return false;
 	}
@@ -912,7 +915,8 @@ void FileLoadTask::process(Args &&args) {
 		attributes.push_back(MTP_documentAttributeImageSize(MTP_int(w), MTP_int(h)));
 
 		if (ValidateThumbDimensions(w, h)) {
-			isSticker = Core::IsMimeSticker(filemime)
+			isSticker = (_type == SendMediaType::File)
+				&& Core::IsMimeSticker(filemime)
 				&& (filesize < Storage::kMaxStickerBytesSize)
 				&& (Core::IsMimeStickerAnimated(filemime)
 					|| GoodStickerDimensions(w, h));
@@ -933,6 +937,9 @@ void FileLoadTask::process(Args &&args) {
 				attributes.push_back(MTP_documentAttributeAnimated());
 			} else if (filemime.startsWith(u"image/"_q)
 				&& _type != SendMediaType::File) {
+				if (Core::IsMimeSticker(filemime)) {
+					fullimage = Images::Opaque(std::move(fullimage));
+				}
 				auto medium = (w > 320 || h > 320) ? fullimage.scaled(320, 320, Qt::KeepAspectRatio, Qt::SmoothTransformation) : fullimage;
 
 				const auto downscaled = (w > 1280 || h > 1280);

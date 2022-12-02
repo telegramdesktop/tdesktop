@@ -85,11 +85,6 @@ Sandbox::Sandbox(
 	char **argv)
 : QApplication(argc, argv)
 , _mainThreadId(QThread::currentThreadId())
-, _handleObservables([=] {
-	if (_application) {
-		_application->call_handleObservables();
-	}
-})
 , _launcher(launcher) {
 	setQuitOnLastWindowClosed(false);
 }
@@ -200,10 +195,6 @@ void Sandbox::launchApplication() {
 			return;
 		}
 		setupScreenScale();
-
-		base::InitObservables([] {
-			Instance()._handleObservables.call();
-		});
 
 		_application = std::make_unique<Application>(_launcher);
 
@@ -518,6 +509,10 @@ void Sandbox::refreshGlobalProxy() {
 	} else {
 		QNetworkProxy::setApplicationProxy(QNetworkProxy::NoProxy);
 	}
+}
+
+bool Sandbox::customWorkingDir() const {
+	return _launcher->customWorkingDir();
 }
 
 uint64 Sandbox::installationTag() const {

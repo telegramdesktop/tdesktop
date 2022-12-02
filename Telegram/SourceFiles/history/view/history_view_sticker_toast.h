@@ -32,7 +32,13 @@ public:
 		Fn<void()> destroy);
 	~StickerToast();
 
-	void showFor(not_null<DocumentData*> document);
+	enum class Section {
+		Message,
+		TopicIcon,
+	};
+	void showFor(
+		not_null<DocumentData*> document,
+		Section section = Section::Message);
 
 private:
 	void requestSet();
@@ -46,6 +52,7 @@ private:
 
 	const not_null<Window::SessionController*> _controller;
 	const not_null<QWidget*> _parent;
+	Section _section = {};
 	style::Toast _st;
 	base::weak_ptr<Ui::Toast::Instance> _weak;
 	std::vector<base::weak_ptr<Ui::Toast::Instance>> _hiding;

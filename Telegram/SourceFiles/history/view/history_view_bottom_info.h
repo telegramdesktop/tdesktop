@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace Ui {
 struct ChatPaintContext;
 class AnimatedIcon;
+struct ReactionFlyAnimationArgs;
+class ReactionFlyAnimation;
 } // namespace Ui
 
 namespace Data {
@@ -23,10 +25,6 @@ struct MessageReaction;
 } // namespace Data
 
 namespace HistoryView {
-namespace Reactions {
-class Animation;
-struct AnimationArgs;
-} // namespace Reactions
 
 using PaintContext = Ui::ChatPaintContext;
 
@@ -57,6 +55,7 @@ public:
 		std::vector<MessageReaction> reactions;
 		std::optional<int> views;
 		std::optional<int> replies;
+		std::optional<int> forwardsCount;
 		Flags flags;
 	};
 	BottomInfo(not_null<::Data::Reactions*> reactionsOwner, Data &&data);
@@ -80,13 +79,15 @@ public:
 		const PaintContext &context) const;
 
 	void animateReaction(
-		Reactions::AnimationArgs &&args,
+		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeReactionAnimations()
-		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
+		-> base::flat_map<
+			ReactionId,
+			std::unique_ptr<Ui::ReactionFlyAnimation>>;
 	void continueReactionAnimations(base::flat_map<
 		ReactionId,
-		std::unique_ptr<Reactions::Animation>> animations);
+		std::unique_ptr<Ui::ReactionFlyAnimation>> animations);
 
 private:
 	struct Reaction;

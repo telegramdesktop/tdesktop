@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStandardPaths>
 #include <QtGui/QDesktopServices>
 
+#include <ksandbox.h>
+
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
 		QString &file,
@@ -75,7 +77,7 @@ QString filedialogDefaultName(
 	QString base;
 	if (fileTime) {
 		const auto date = base::unixtime::parse(fileTime);
-		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
+		base = prefix + QLocale().toString(date, "_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);
@@ -171,11 +173,31 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	return QStandardPaths::writableLocation(
+	const auto realDefaultPath = QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
+	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
+		QStringList files;
+		QByteArray remoteContent;
+		const auto success = Platform::FileDialog::Get(
+			nullptr,
+			files,
+			remoteContent,
+			tr::lng_download_path_choose(tr::now),
+			QString(),
+			FileDialog::internal::Type::ReadFolder,
+			realDefaultPath);
+		if (success && !files.isEmpty() && !files[0].isEmpty()) {
+			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
+			Core::App().settings().setDownloadPath(result);
+			Core::App().saveSettings();
+			return result;
+		}
+		return QString();
+	}
+	return realDefaultPath;
 }
 
 namespace internal {

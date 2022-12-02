@@ -23,7 +23,13 @@ namespace {
 [[nodiscard]] bool IsExternal(const QString &name) {
 	return !name.isEmpty()
 		&& (name.front() == QChar(0))
-		&& QStringView(name).mid(1) == qstr("external");
+		&& QStringView(name).mid(1) == u"external"_q;
+}
+
+[[nodiscard]] bool IsInaccessible(const QString &name) {
+	return !name.isEmpty()
+		&& (name.front() == QChar(0))
+		&& QStringView(name).mid(1) == u"inaccessible"_q;
 }
 
 void PaintSavedMessagesInner(
@@ -140,7 +146,7 @@ void PaintRepliesMessagesInner(
 		x,
 		y,
 		size,
-		st::dialogsPhotoSize,
+		st::defaultDialogRow.photoSize,
 		st::dialogsRepliesUserpic,
 		fg);
 }
@@ -159,6 +165,33 @@ void PaintExternalMessagesInner(
 		st::msgPhotoSize,
 		st::topBarCall.icon,
 		fg);
+}
+
+void PaintInaccessibleAccountInner(
+		QPainter &p,
+		int x,
+		int y,
+		int size,
+		const style::color &fg) {
+	if (size > st::defaultDialogRow.photoSize) {
+		PaintIconInner(
+			p,
+			x,
+			y,
+			size,
+			st::infoProfilePhotoInnerSize,
+			st::infoProfileInaccessibleUserpic,
+			fg);
+	} else {
+		PaintIconInner(
+			p,
+			x,
+			y,
+			size,
+			st::defaultDialogRow.photoSize,
+			st::dialogsInaccessibleUserpic,
+			fg);
+	}
 }
 
 template <typename Callback>
@@ -186,6 +219,10 @@ QString EmptyUserpic::ExternalName() {
 	return QChar(0) + u"external"_q;
 }
 
+QString EmptyUserpic::InaccessibleName() {
+	return QChar(0) + u"inaccessible"_q;
+}
+
 template <typename Callback>
 void EmptyUserpic::paint(
 		QPainter &p,
@@ -207,6 +244,8 @@ void EmptyUserpic::paint(
 
 	if (IsExternal(_string)) {
 		PaintExternalMessagesInner(p, x, y, size, st::historyPeerUserpicFg);
+	} else if (IsInaccessible(_string)) {
+		PaintInaccessibleAccountInner(p, x, y, size, st::historyPeerUserpicFg);
 	} else {
 		p.setFont(font);
 		p.setBrush(Qt::NoBrush);
@@ -224,19 +263,28 @@ void EmptyUserpic::paint(
 		int y,
 		int outerWidth,
 		int size) const {
-	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
+	paint(p, x, y, outerWidth, size, [&] {
 		p.drawEllipse(x, y, size, size);
 	});
 }
 
-void EmptyUserpic::paintRounded(QPainter &p, int x, int y, int outerWidth, int size) const {
-	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
-		p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
+void EmptyUserpic::paintRounded(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size,
+		int radius) const {
+	if (!radius) {
+		radius = st::roundRadiusSmall;
+	}
+	paint(p, x, y, outerWidth, size, [&] {
+		p.drawRoundedRect(x, y, size, size, radius, radius);
 	});
 }
 
 void EmptyUserpic::paintSquare(QPainter &p, int x, int y, int outerWidth, int size) const {
-	paint(p, x, y, outerWidth, size, [&p, x, y, size] {
+	paint(p, x, y, outerWidth, size, [&] {
 		p.fillRect(x, y, size, size, p.brush());
 	});
 }
@@ -401,7 +449,7 @@ QPixmap EmptyUserpic::generate(int size) {
 }
 
 void EmptyUserpic::fillString(const QString &name) {
-	if (IsExternal(name)) {
+	if (IsExternal(name) || IsInaccessible(name)) {
 		_string = name;
 		return;
 	}

@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/runtime_composer.h"
 #include "base/flags.h"
-#include "base/value_ordering.h"
 #include "data/data_media_types.h"
 #include "history/history_item_edition.h"
 #include "history/history_item_reply_markup.h"
@@ -46,6 +45,8 @@ struct ReactionId;
 class Media;
 struct MessageReaction;
 class MessageReactions;
+class ForumTopic;
+class Thread;
 } // namespace Data
 
 namespace Main {
@@ -122,13 +123,15 @@ public:
 		const QString &label,
 		const TextWithEntities &content);
 
-	not_null<History*> history() const {
+	[[nodiscard]] not_null<Data::Thread*> notificationThread() const;
+	[[nodiscard]] not_null<History*> history() const {
 		return _history;
 	}
-	not_null<PeerData*> from() const {
+	[[nodiscard]] Data::ForumTopic *topic() const;
+	[[nodiscard]] not_null<PeerData*> from() const {
 		return _from;
 	}
-	HistoryView::Element *mainView() const {
+	[[nodiscard]] HistoryView::Element *mainView() const {
 		return _mainView;
 	}
 	void setMainView(not_null<HistoryView::Element*> view) {
@@ -138,6 +141,8 @@ public:
 	void clearMainView();
 	void removeMainView();
 
+	void invalidateChatListEntry();
+
 	void destroy();
 	[[nodiscard]] bool out() const {
 		return _flags & MessageFlag::Outgoing;
@@ -145,7 +150,7 @@ public:
 	[[nodiscard]] bool isPinned() const {
 		return _flags & MessageFlag::Pinned;
 	}
-	[[nodiscard]] bool unread() const;
+	[[nodiscard]] bool unread(not_null<Data::Thread*> thread) const;
 	[[nodiscard]] bool showNotification() const;
 	void markClientSideAsRead();
 	[[nodiscard]] bool mentionsMe() const;
@@ -233,29 +238,13 @@ public:
 	}
 	[[nodiscard]] bool hasExtendedMediaPreview() const;
 
-	[[nodiscard]] virtual MsgId repliesInboxReadTill() const {
-		return MsgId(0);
+	virtual void setCommentsInboxReadTill(MsgId readTillId) {
 	}
-	virtual void setRepliesInboxReadTill(
-		MsgId readTillId,
-		std::optional<int> unreadCount) {
+	virtual void setCommentsMaxId(MsgId maxId) {
 	}
-	[[nodiscard]] virtual MsgId computeRepliesInboxReadTillFull() const {
-		return MsgId(0);
+	virtual void setCommentsPossibleMaxId(MsgId possibleMaxId) {
 	}
-	[[nodiscard]] virtual MsgId repliesOutboxReadTill() const {
-		return MsgId(0);
-	}
-	virtual void setRepliesOutboxReadTill(MsgId readTillId) {
-	}
-	[[nodiscard]] virtual MsgId computeRepliesOutboxReadTillFull() const {
-		return MsgId(0);
-	}
-	virtual void setRepliesMaxId(MsgId maxId) {
-	}
-	virtual void setRepliesPossibleMaxId(MsgId possibleMaxId) {
-	}
-	[[nodiscard]] virtual bool areRepliesUnread() const {
+	[[nodiscard]] virtual bool areCommentsUnread() const {
 		return false;
 	}
 
@@ -336,13 +325,12 @@ public:
 	}
 	virtual void clearReplies() {
 	}
-	virtual void changeRepliesCount(
-		int delta,
-		PeerId replier,
-		std::optional<bool> unread) {
+	virtual void changeRepliesCount(int delta, PeerId replier) {
 	}
-	virtual void setReplyToTop(MsgId replyToTop) {
-	}
+	virtual void setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) = 0;
 	virtual void setPostAuthor(const QString &author) {
 	}
 	virtual void setRealId(MsgId newId);
@@ -357,6 +345,7 @@ public:
 	[[nodiscard]] bool canBeEdited() const;
 	[[nodiscard]] bool canStopPoll() const;
 	[[nodiscard]] bool forbidsForward() const;
+	[[nodiscard]] bool forbidsSaving() const;
 	[[nodiscard]] virtual bool allowsSendNow() const;
 	[[nodiscard]] virtual bool allowsForward() const;
 	[[nodiscard]] virtual bool allowsEdit(TimeId now) const;
@@ -405,8 +394,10 @@ public:
 	virtual void setText(const TextWithEntities &textWithEntities) {
 	}
 
-	[[nodiscard]] MsgId replyToId() const;
-	[[nodiscard]] MsgId replyToTop() const;
+	[[nodiscard]] virtual MsgId replyToId() const = 0;
+	[[nodiscard]] virtual MsgId replyToTop() const = 0;
+	[[nodiscard]] virtual MsgId topicRootId() const = 0;
+	[[nodiscard]] bool inThread(MsgId rootId) const;
 
 	[[nodiscard]] not_null<PeerData*> author() const;
 
@@ -472,8 +463,6 @@ protected:
 	const not_null<History*> _history;
 	const not_null<PeerData*> _from;
 	MessageFlags _flags = 0;
-
-	void invalidateChatListEntry();
 
 	void setGroupId(MessageGroupId groupId);
 

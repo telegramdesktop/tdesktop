@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "media/clip/media_clip_ffmpeg.h"
 #include "media/clip/media_clip_check_streaming.h"
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/painter.h"
 #include "core/file_location.h"
 #include "base/random.h"
@@ -963,7 +964,9 @@ Manager::~Manager() {
 	clear();
 }
 
-Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const QByteArray &data) {
+Ui::PreparedFileInformation PrepareForSending(
+		const QString &fname,
+		const QByteArray &data) {
 	auto result = Ui::PreparedFileInformation::Video();
 	auto localLocation = Core::FileLocation(fname);
 	auto localData = QByteArray(data);
@@ -999,7 +1002,7 @@ Ui::PreparedFileInformation::Video PrepareForSending(const QString &fname, const
 				localData);
 		}
 	}
-	return result;
+	return { .media = result };
 }
 
 void Finish() {

@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/system_media_controls_manager.h"
 
 #include "media/audio/media_audio.h"
-#include "base/observer.h"
 #include "base/platform/base_platform_system_media_controls.h"
 #include "core/application.h"
 #include "core/core_settings.h"
@@ -23,6 +22,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/streaming/media_streaming_player.h"
 #include "ui/text/format_song_document_name.h"
 #include "window/window_controller.h"
+
+#include <ksandbox.h>
 
 namespace Media {
 namespace {
@@ -52,7 +53,10 @@ SystemMediaControlsManager::SystemMediaControlsManager(
 		base::Platform::SystemMediaControls::PlaybackStatus;
 	using Command = base::Platform::SystemMediaControls::Command;
 
-	_controls->setServiceName(qsl("org.mpris.MediaPlayer2.tdesktop"));
+	// Flatpak provides default permission to MPRIS, but not snap
+	if (!KSandbox::isFlatpak()) {
+		_controls->setServiceName(qsl("tdesktop"));
+	}
 	_controls->setApplicationName(AppName.utf16());
 	const auto inited = _controls->init(controller->widget());
 	if (!inited) {
