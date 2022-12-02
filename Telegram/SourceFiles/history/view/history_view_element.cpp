@@ -566,6 +566,10 @@ bool Element::isBubbleAttachedToNext() const {
 	return _flags & Flag::BubbleAttachedToNext;
 }
 
+bool Element::isTopicRootReply() const {
+	return _flags & Flag::TopicRootReply;
+}
+
 int Element::skipBlockWidth() const {
 	return st::msgDateSpace + infoWidth() - st::msgDateDelta.x();
 }
@@ -905,7 +909,8 @@ bool Element::computeIsAttachToPrevious(not_null<Element*> previous) {
 				< kAttachMessageToPreviousSecondsDelta)
 			&& mayBeAttached(this)
 			&& mayBeAttached(previous)
-			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()));
+			&& (!previousMarkup || previousMarkup->hiddenBy(prev->media()))
+			&& (item->topicRootId() == prev->topicRootId());
 		if (possible) {
 			const auto forwarded = item->Get<HistoryMessageForwarded>();
 			const auto prevForwarded = prev->Get<HistoryMessageForwarded>();
@@ -1068,15 +1073,33 @@ void Element::recountDisplayDateInBlocks() {
 }
 
 QSize Element::countOptimalSize() {
+	_flags &= ~Flag::NeedsResize;
 	return performCountOptimalSize();
 }
 
 QSize Element::countCurrentSize(int newWidth) {
 	if (_flags & Flag::NeedsResize) {
-		_flags &= ~Flag::NeedsResize;
 		initDimensions();
 	}
 	return performCountCurrentSize(newWidth);
+}
+
+void Element::refreshIsTopicRootReply() {
+	const auto topicRootReply = countIsTopicRootReply();
+	if (topicRootReply) {
+		_flags |= Flag::TopicRootReply;
+	} else {
+		_flags &= ~Flag::TopicRootReply;
+	}
+}
+
+bool Element::countIsTopicRootReply() const {
+	const auto item = data();
+	if (!item->history()->isForum()) {
+		return false;
+	}
+	const auto replyTo = item->replyToId();
+	return !replyTo || (item->topicRootId() == replyTo);
 }
 
 void Element::setDisplayDate(bool displayDate) {
@@ -1153,6 +1176,10 @@ bool Element::hasFromName() const {
 }
 
 bool Element::displayFromName() const {
+	return false;
+}
+
+bool Element::displayTopicButton() const {
 	return false;
 }
 

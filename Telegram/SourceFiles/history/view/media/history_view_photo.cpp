@@ -412,7 +412,7 @@ void Photo::paintUserpicFrame(
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
-		const auto forum = _parent->data()->history()->peer->isForum();
+		const auto forum = _parent->data()->history()->isForum();
 		if (forum) {
 			request.rounding = Images::CornersMaskRef(
 				Images::CornersMask(ImageRoundRadius::Large));
@@ -439,7 +439,7 @@ void Photo::paintUserpicFrame(
 		return;
 	}
 	const auto pix = [&] {
-		const auto forum = _parent->data()->history()->peer->isForum();
+		const auto forum = _parent->data()->history()->isForum();
 		const auto args = Images::PrepareArgs{
 			.options = (forum
 				? Images::Option::RoundLarge
@@ -885,7 +885,8 @@ bool Photo::needsBubble() const {
 			|| item->viaBot()
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
-			|| _parent->displayFromName());
+			|| _parent->displayFromName()
+			|| _parent->displayTopicButton());
 }
 
 QPoint Photo::resolveCustomInfoRightBottom() const {

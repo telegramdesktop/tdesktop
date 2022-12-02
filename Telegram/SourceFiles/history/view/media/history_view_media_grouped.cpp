@@ -775,6 +775,7 @@ bool GroupedMedia::computeNeedBubble() const {
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
+			|| _parent->displayTopicButton()
 			) {
 			return true;
 		}

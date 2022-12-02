@@ -775,7 +775,7 @@ void HistoryItem::setRealId(MsgId newId) {
 	}
 
 	_history->owner().notifyItemDataChange(this);
-	_history->owner().requestItemRepaint(this);
+	_history->owner().requestItemResize(this);
 }
 
 bool HistoryItem::canPin() const {

@@ -94,6 +94,7 @@ public:
 	}
 
 	void forumChanged(Data::Forum *old);
+	[[nodiscard]] bool isForum() const;
 
 	not_null<History*> migrateToOrMe() const;
 	History *migrateFrom() const;
@@ -462,10 +463,11 @@ private:
 
 	enum class Flag : uchar {
 		HasPendingResizedItems = (1 << 0),
-		IsTopPromoted = (1 << 1),
-		IsForum = (1 << 2),
-		FakeUnreadWhileOpened = (1 << 3),
-		HasPinnedMessages = (1 << 4),
+		PendingAllItemsResize = (1 << 1),
+		IsTopPromoted = (1 << 2),
+		IsForum = (1 << 3),
+		FakeUnreadWhileOpened = (1 << 4),
+		HasPinnedMessages = (1 << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) {
@@ -636,11 +638,17 @@ private:
 
 	HistoryView::SendActionPainter _sendActionPainter;
 
- };
+};
 
 class HistoryBlock {
 public:
 	using Element = HistoryView::Element;
+
+	enum class ResizeRequest {
+		ReinitAll = 0,
+		ResizeAll = 1,
+		ResizePending = 2,
+	};
 
 	HistoryBlock(not_null<History*> history);
 	HistoryBlock(const HistoryBlock &) = delete;
@@ -652,7 +660,7 @@ public:
 	void remove(not_null<Element*> view);
 	void refreshView(not_null<Element*> view);
 
-	int resizeGetHeight(int newWidth, bool resizeAllItems);
+	int resizeGetHeight(int newWidth, ResizeRequest request);
 	int y() const {
 		return _y;
 	}

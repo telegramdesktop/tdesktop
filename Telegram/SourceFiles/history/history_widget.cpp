@@ -2971,7 +2971,7 @@ void HistoryWidget::unreadCountUpdated() {
 			}
 		});
 	} else {
-		_cornerButtons.updateJumpDownVisibility(_history->peer->isForum()
+		_cornerButtons.updateJumpDownVisibility(_history->isForum()
 			? 0
 			: _history->chatListBadgesState().unreadCounter);
 	}
@@ -5991,7 +5991,7 @@ void HistoryWidget::handlePeerMigration() {
 }
 
 bool HistoryWidget::replyToPreviousMessage() {
-	if (!_history || _editMsgId || _history->peer->isForum()) {
+	if (!_history || _editMsgId || _history->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);
@@ -6014,7 +6014,7 @@ bool HistoryWidget::replyToPreviousMessage() {
 }
 
 bool HistoryWidget::replyToNextMessage() {
-	if (!_history || _editMsgId || _history->peer->isForum()) {
+	if (!_history || _editMsgId || _history->isForum()) {
 		return false;
 	}
 	const auto fullId = FullMsgId(_history->peer->id, _replyToId);

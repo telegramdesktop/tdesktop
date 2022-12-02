@@ -227,7 +227,7 @@ public:
 		return _widget ? _widget->elementAnimationsPaused() : false;
 	}
 	bool elementHideReply(not_null<const Element*> view) override {
-		return false;
+		return view->isTopicRootReply();
 	}
 	bool elementShownUnread(not_null<const Element*> view) override {
 		return view->data()->unread(view->data()->history());
@@ -2096,7 +2096,7 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		}
 		const auto repliesCount = item->repliesCount();
 		const auto withReplies = (repliesCount > 0);
-		const auto topicRootId = item->history()->peer->isForum()
+		const auto topicRootId = item->history()->isForum()
 			? item->topicRootId()
 			: 0;
 		if (topicRootId

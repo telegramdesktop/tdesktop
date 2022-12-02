@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_message.h"
 
 #include "core/click_handler_types.h" // ClickHandlerContext
+#include "core/ui_integration.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/history_item_components.h"
 #include "history/history_message.h"
@@ -225,6 +226,23 @@ QString FastReplyText() {
 	return tr::lng_fast_reply(tr::now);
 }
 
+[[nodiscard]] ClickHandlerPtr MakeTopicButtonLink(
+		not_null<Data::ForumTopic*> topic,
+		MsgId messageId) {
+	const auto weak = base::make_weak(topic);
+	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		const auto my = context.other.value<ClickHandlerContext>();
+		if (const auto controller = my.sessionWindow.get()) {
+			if (const auto strong = weak.get()) {
+				controller->showTopic(
+					strong,
+					messageId,
+					Window::SectionShow::Way::Forward);
+			}
+		}
+	});
+}
+
 } // namespace
 
 style::color FromNameFg(
@@ -260,11 +278,19 @@ style::color FromNameFg(
 
 struct Message::CommentsButton {
 	std::unique_ptr<Ui::RippleAnimation> ripple;
-	int rippleShift = 0;
 	std::vector<UserpicInRow> userpics;
 	QImage cachedUserpics;
 	ClickHandlerPtr link;
 	QPoint lastPoint;
+	int rippleShift = 0;
+};
+
+struct Message::TopicButton {
+	std::unique_ptr<Ui::RippleAnimation> ripple;
+	ClickHandlerPtr link;
+	Ui::Text::String name;
+	QPoint lastPoint;
+	int nameVersion = 0;
 };
 
 struct Message::FromNameStatus {
@@ -488,9 +514,11 @@ auto Message::takeReactionAnimations()
 QSize Message::performCountOptimalSize() {
 	const auto item = message();
 	const auto markup = item->inlineReplyMarkup();
+	refreshIsTopicRootReply();
 	validateText();
 	validateInlineKeyboard(markup);
 	updateViewButtonExistence();
+	refreshTopicButton();
 	updateMediaInBubbleState();
 	refreshRightBadge();
 	refreshInfoSkipBlock();
@@ -614,6 +642,15 @@ QSize Message::performCountOptimalSize() {
 			} else if (via && !displayForwardedFrom()) {
 				accumulate_max(maxWidth, st::msgPadding.left() + via->maxWidth + st::msgPadding.right());
 			}
+			if (displayTopicButton()) {
+				const auto padding = st::msgPadding + st::topicButtonPadding;
+				accumulate_max(
+					maxWidth,
+					(padding.left()
+						+ _topicButton->name.maxWidth()
+						+ st::topicButtonArrowSkip
+						+ padding.right()));
+			}
 			if (displayForwardedFrom()) {
 				const auto skip1 = forwarded->psaType.isEmpty()
 					? 0
@@ -651,6 +688,34 @@ QSize Message::performCountOptimalSize() {
 		accumulate_max(maxWidth, markup->inlineKeyboard->naturalWidth());
 	}
 	return QSize(maxWidth, minHeight);
+}
+
+void Message::refreshTopicButton() {
+	const auto item = message();
+	if (isAttachedToPrevious() || context() != Context::History) {
+		_topicButton = nullptr;
+	} else if (const auto topic = item->topic()) {
+		if (!_topicButton) {
+			_topicButton = std::make_unique<TopicButton>();
+		}
+		const auto jumpToId = IsServerMsgId(item->id) ? item->id : MsgId();
+		_topicButton->link = MakeTopicButtonLink(topic, jumpToId);
+		if (_topicButton->nameVersion != topic->titleVersion()) {
+			_topicButton->nameVersion = topic->titleVersion();
+			const auto context = Core::MarkedTextContext{
+				.session = &history()->session(),
+				.customEmojiRepaint = [=] { customEmojiRepaint(); },
+				.customEmojiLoopLimit = 1,
+			};
+			_topicButton->name.setMarkedText(
+				st::fwdTextStyle,
+				topic->titleWithIcon(),
+				kMarkupTextOptions,
+				context);
+		}
+	} else {
+		_topicButton = nullptr;
+	}
 }
 
 int Message::marginTop() const {
@@ -869,6 +934,7 @@ void Message::draw(Painter &p, const PaintContext &context) const {
 			trect.setY(trect.y() - st::msgPadding.top());
 		} else {
 			paintFromName(p, trect, context);
+			paintTopicButton(p, trect, context);
 			paintForwardedInfo(p, trect, context);
 			paintReplyInfo(p, trect, context);
 			paintViaBotIdInfo(p, trect, context);
@@ -1233,6 +1299,71 @@ void Message::paintFromName(
 	trect.setY(trect.y() + st::msgNameFont->height);
 }
 
+void Message::paintTopicButton(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const {
+	if (!displayTopicButton()) {
+		return;
+	}
+	trect.setTop(trect.top() + st::topicButtonSkip);
+	const auto padding = st::topicButtonPadding;
+	const auto availableWidth = trect.width();
+	const auto height = padding.top()
+		+ st::msgNameFont->height
+		+ padding.bottom();
+	const auto width = std::max(
+		std::min(
+			availableWidth,
+			(padding.left()
+				+ _topicButton->name.maxWidth()
+				+ st::topicButtonArrowSkip
+				+ padding.right())),
+		height);
+	const auto rect = QRect(trect.x(), trect.y(), width, height);
+
+	const auto st = context.st;
+	const auto stm = context.messageStyle();
+	const auto skip = padding.right() + st::topicButtonArrowSkip;
+	auto color = stm->msgServiceFg->c;
+	color.setAlpha(color.alpha() / 8);
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+	{
+		auto hq = PainterHighQualityEnabler(p);
+		p.drawRoundedRect(rect, height / 2, height / 2);
+	}
+	if (_topicButton->ripple) {
+		_topicButton->ripple->paint(
+			p,
+			rect.x(),
+			rect.y(),
+			this->width(),
+			&color);
+		if (_topicButton->ripple->empty()) {
+			_topicButton->ripple.reset();
+		}
+	}
+	clearCustomEmojiRepaint();
+	p.setPen(stm->msgServiceFg);
+	p.setTextPalette(stm->fwdTextPalette);
+	_topicButton->name.drawElided(
+		p,
+		trect.x() + padding.left(),
+		trect.y() + padding.top(),
+		width - padding.left() - skip);
+
+	const auto &icon = st::topicButtonArrow;
+	icon.paint(
+		p,
+		rect.x() + rect.width() - skip + st::topicButtonArrowPosition.x(),
+		rect.y() + padding.top() + st::topicButtonArrowPosition.y(),
+		this->width(),
+		stm->msgServiceFg->c);
+
+	trect.setY(trect.y() + height + st::topicButtonSkip);
+}
+
 void Message::paintForwardedInfo(
 		Painter &p,
 		QRect &trect,
@@ -1388,6 +1519,7 @@ PointState Message::pointState(QPoint point) const {
 			//	trect.setY(trect.y() - st::msgPadding.top());
 			//} else {
 			//	if (getStateFromName(point, trect, &result)) return result;
+			//	if (getStateTopicButton(point, trect, &result)) return result;
 			//	if (getStateForwardedInfo(point, trect, &result, request)) return result;
 			//	if (getStateReplyInfo(point, trect, &result)) return result;
 			//	if (getStateViaBotIdInfo(point, trect, &result)) return result;
@@ -1432,6 +1564,8 @@ void Message::clickHandlerPressedChanged(
 		return;
 	} else if (_comments && (handler == _comments->link)) {
 		toggleCommentsButtonRipple(pressed);
+	} else if (_topicButton && (handler == _topicButton->link)) {
+		toggleTopicButtonRipple(pressed);
 	} else if (_viewButton) {
 		_viewButton->checkLink(handler, pressed);
 	}
@@ -1444,7 +1578,7 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 		return;
 	} else if (pressed) {
 		if (!_comments->ripple) {
-			createCommentsRipple();
+			createCommentsButtonRipple();
 		}
 		_comments->ripple->add(_comments->lastPoint
 			+ QPoint(_comments->rippleShift, 0));
@@ -1522,13 +1656,52 @@ BottomRippleMask Message::bottomRippleMask(int buttonHeight) const {
 	};
 }
 
-void Message::createCommentsRipple() {
+void Message::createCommentsButtonRipple() {
 	auto mask = bottomRippleMask(st::historyCommentsButtonHeight);
 	_comments->ripple = std::make_unique<Ui::RippleAnimation>(
 		st::defaultRippleAnimation,
 		std::move(mask.image),
 		[=] { repaint(); });
 	_comments->rippleShift = mask.shift;
+}
+
+void Message::toggleTopicButtonRipple(bool pressed) {
+	Expects(_topicButton != nullptr);
+
+	if (!drawBubble()) {
+		return;
+	} else if (pressed) {
+		if (!_topicButton->ripple) {
+			createTopicButtonRipple();
+		}
+		_topicButton->ripple->add(_topicButton->lastPoint);
+	} else if (_topicButton->ripple) {
+		_topicButton->ripple->lastStop();
+	}
+}
+
+void Message::createTopicButtonRipple() {
+	const auto geometry = countGeometry().marginsRemoved(st::msgPadding);
+	const auto availableWidth = geometry.width();
+	const auto padding = st::topicButtonPadding;
+	const auto height = padding.top()
+		+ st::msgNameFont->height
+		+ padding.bottom();
+	const auto width = std::max(
+		std::min(
+			availableWidth,
+			(padding.left()
+				+ _topicButton->name.maxWidth()
+				+ st::topicButtonArrowSkip
+				+ padding.right())),
+		height);
+	auto mask = Ui::RippleAnimation::RoundRectMask(
+		{ width, height },
+		height / 2);
+	_topicButton->ripple = std::make_unique<Ui::RippleAnimation>(
+		st::defaultRippleAnimation,
+		std::move(mask),
+		[=] { repaint(); });
 }
 
 bool Message::hasHeavyPart() const {
@@ -1692,6 +1865,9 @@ TextState Message::textState(
 			if (getStateFromName(point, trect, &result)) {
 				return result;
 			}
+			if (getStateTopicButton(point, trect, &result)) {
+				return result;
+			}
 			if (getStateForwardedInfo(point, trect, &result, request)) {
 				return result;
 			}
@@ -1847,57 +2023,89 @@ bool Message::getStateFromName(
 		QPoint point,
 		QRect &trect,
 		not_null<TextState*> outResult) const {
-	const auto item = message();
-	if (displayFromName()) {
-		const auto replyWidth = [&] {
-			if (isUnderCursor() && displayFastReply()) {
-				return st::msgFont->width(FastReplyText());
+	if (!displayFromName()) {
+		return false;
+	}
+	const auto replyWidth = [&] {
+		if (isUnderCursor() && displayFastReply()) {
+			return st::msgFont->width(FastReplyText());
+		}
+		return 0;
+	}();
+	if (replyWidth
+		&& point.x() >= trect.left() + trect.width() - replyWidth
+		&& point.x() < trect.left() + trect.width() + st::msgPadding.right()
+		&& point.y() >= trect.top() - st::msgPadding.top()
+		&& point.y() < trect.top() + st::msgServiceFont->height) {
+		outResult->link = fastReplyLink();
+		return true;
+	}
+	if (point.y() >= trect.top() && point.y() < trect.top() + st::msgNameFont->height) {
+		auto availableLeft = trect.left();
+		auto availableWidth = trect.width();
+		if (replyWidth) {
+			availableWidth -= st::msgPadding.right() + replyWidth;
+		}
+		const auto item = message();
+		const auto from = item->displayFrom();
+		const auto nameText = [&]() -> const Ui::Text::String * {
+			if (from) {
+				validateFromNameText(from);
+				return &_fromName;
+			} else if (const auto info = item->hiddenSenderInfo()) {
+				return &info->nameText();
+			} else {
+				Unexpected("Corrupt forwarded information in message.");
 			}
-			return 0;
 		}();
-		if (replyWidth
-			&& point.x() >= trect.left() + trect.width() - replyWidth
-			&& point.x() < trect.left() + trect.width() + st::msgPadding.right()
-			&& point.y() >= trect.top() - st::msgPadding.top()
-			&& point.y() < trect.top() + st::msgServiceFont->height) {
-			outResult->link = fastReplyLink();
+		if (point.x() >= availableLeft
+			&& point.x() < availableLeft + availableWidth
+			&& point.x() < availableLeft + nameText->maxWidth()) {
+			outResult->link = fromLink();
 			return true;
 		}
-		if (point.y() >= trect.top() && point.y() < trect.top() + st::msgNameFont->height) {
-			auto availableLeft = trect.left();
-			auto availableWidth = trect.width();
-			if (replyWidth) {
-				availableWidth -= st::msgPadding.right() + replyWidth;
-			}
-			const auto from = item->displayFrom();
-			const auto nameText = [&]() -> const Ui::Text::String * {
-				if (from) {
-					validateFromNameText(from);
-					return &_fromName;
-				} else if (const auto info = item->hiddenSenderInfo()) {
-					return &info->nameText();
-				} else {
-					Unexpected("Corrupt forwarded information in message.");
-				}
-			}();
-			if (point.x() >= availableLeft
-				&& point.x() < availableLeft + availableWidth
-				&& point.x() < availableLeft + nameText->maxWidth()) {
-				outResult->link = fromLink();
-				return true;
-			}
-			auto via = item->Get<HistoryMessageVia>();
-			if (via
-				&& !displayForwardedFrom()
-				&& point.x() >= availableLeft + nameText->maxWidth() + st::msgServiceFont->spacew
-				&& point.x() < availableLeft + availableWidth
-				&& point.x() < availableLeft + nameText->maxWidth() + st::msgServiceFont->spacew + via->width) {
-				outResult->link = via->link;
-				return true;
-			}
+		auto via = item->Get<HistoryMessageVia>();
+		if (via
+			&& !displayForwardedFrom()
+			&& point.x() >= availableLeft + nameText->maxWidth() + st::msgServiceFont->spacew
+			&& point.x() < availableLeft + availableWidth
+			&& point.x() < availableLeft + nameText->maxWidth() + st::msgServiceFont->spacew + via->width) {
+			outResult->link = via->link;
+			return true;
 		}
-		trect.setTop(trect.top() + st::msgNameFont->height);
 	}
+	trect.setTop(trect.top() + st::msgNameFont->height);
+	return false;
+}
+
+bool Message::getStateTopicButton(
+		QPoint point,
+		QRect &trect,
+		not_null<TextState*> outResult) const {
+	if (!displayTopicButton()) {
+		return false;
+	}
+	trect.setTop(trect.top() + st::topicButtonSkip);
+	const auto padding = st::topicButtonPadding;
+	const auto availableWidth = trect.width();
+	const auto height = padding.top()
+		+ st::msgNameFont->height
+		+ padding.bottom();
+	const auto width = std::max(
+		std::min(
+			availableWidth,
+			(padding.left()
+				+ _topicButton->name.maxWidth()
+				+ st::topicButtonArrowSkip
+				+ padding.right())),
+		height);
+	const auto rect = QRect(trect.x(), trect.y(), width, height);
+	if (rect.contains(point)) {
+		outResult->link = _topicButton->link;
+		_topicButton->lastPoint = point - rect.topLeft();
+		return true;
+	}
+	trect.setY(trect.y() + height + st::topicButtonSkip);
 	return false;
 }
 
@@ -1906,56 +2114,57 @@ bool Message::getStateForwardedInfo(
 		QRect &trect,
 		not_null<TextState*> outResult,
 		StateRequest request) const {
-	if (displayForwardedFrom()) {
-		const auto item = message();
-		const auto forwarded = item->Get<HistoryMessageForwarded>();
-		const auto skip1 = forwarded->psaType.isEmpty()
-			? 0
-			: st::historyPsaIconSkip1;
-		const auto skip2 = forwarded->psaType.isEmpty()
-			? 0
-			: st::historyPsaIconSkip2;
-		const auto fits = (forwarded->text.maxWidth() <= (trect.width() - skip1));
-		const auto fwdheight = (fits ? 1 : 2) * st::semiboldFont->height;
-		if (point.y() >= trect.top() && point.y() < trect.top() + fwdheight) {
-			if (skip1) {
-				const auto &icon = st::historyPsaIconIn;
-				const auto position = fits
-					? st::historyPsaIconPosition1
-					: st::historyPsaIconPosition2;
-				const auto iconRect = QRect(
-					trect.x() + trect.width() - position.x() - icon.width(),
-					trect.y() + position.y(),
-					icon.width(),
-					icon.height());
-				if (iconRect.contains(point)) {
-					if (const auto link = psaTooltipLink()) {
-						outResult->link = link;
-						return true;
-					}
+	if (!displayForwardedFrom()) {
+		return false;
+	}
+	const auto item = message();
+	const auto forwarded = item->Get<HistoryMessageForwarded>();
+	const auto skip1 = forwarded->psaType.isEmpty()
+		? 0
+		: st::historyPsaIconSkip1;
+	const auto skip2 = forwarded->psaType.isEmpty()
+		? 0
+		: st::historyPsaIconSkip2;
+	const auto fits = (forwarded->text.maxWidth() <= (trect.width() - skip1));
+	const auto fwdheight = (fits ? 1 : 2) * st::semiboldFont->height;
+	if (point.y() >= trect.top() && point.y() < trect.top() + fwdheight) {
+		if (skip1) {
+			const auto &icon = st::historyPsaIconIn;
+			const auto position = fits
+				? st::historyPsaIconPosition1
+				: st::historyPsaIconPosition2;
+			const auto iconRect = QRect(
+				trect.x() + trect.width() - position.x() - icon.width(),
+				trect.y() + position.y(),
+				icon.width(),
+				icon.height());
+			if (iconRect.contains(point)) {
+				if (const auto link = psaTooltipLink()) {
+					outResult->link = link;
+					return true;
 				}
 			}
-			const auto useWidth = trect.width() - (fits ? skip1 : skip2);
-			const auto breakEverywhere = (forwarded->text.countHeight(useWidth) > 2 * st::semiboldFont->height);
-			auto textRequest = request.forText();
-			if (breakEverywhere) {
-				textRequest.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
-			}
-			*outResult = TextState(item, forwarded->text.getState(
-				point - trect.topLeft(),
-				useWidth,
-				textRequest));
-			outResult->symbol = 0;
-			outResult->afterSymbol = false;
-			if (breakEverywhere) {
-				outResult->cursor = CursorState::Forwarded;
-			} else {
-				outResult->cursor = CursorState::None;
-			}
-			return true;
 		}
-		trect.setTop(trect.top() + fwdheight);
+		const auto useWidth = trect.width() - (fits ? skip1 : skip2);
+		const auto breakEverywhere = (forwarded->text.countHeight(useWidth) > 2 * st::semiboldFont->height);
+		auto textRequest = request.forText();
+		if (breakEverywhere) {
+			textRequest.flags |= Ui::Text::StateRequest::Flag::BreakEverywhere;
+		}
+		*outResult = TextState(item, forwarded->text.getState(
+			point - trect.topLeft(),
+			useWidth,
+			textRequest));
+		outResult->symbol = 0;
+		outResult->afterSymbol = false;
+		if (breakEverywhere) {
+			outResult->cursor = CursorState::Forwarded;
+		} else {
+			outResult->cursor = CursorState::None;
+		}
+		return true;
 	}
+	trect.setTop(trect.top() + fwdheight);
 	return false;
 }
 
@@ -2075,6 +2284,14 @@ void Message::updatePressed(QPoint point) {
 		} else {
 			if (displayFromName()) {
 				trect.setTop(trect.top() + st::msgNameFont->height);
+			}
+			if (displayTopicButton()) {
+				trect.setTop(trect.top()
+					+ st::topicButtonSkip
+					+ st::topicButtonPadding.top()
+					+ st::msgNameFont->height
+					+ st::topicButtonPadding.bottom()
+					+ st::topicButtonSkip);
 			}
 			if (displayForwardedFrom()) {
 				auto forwarded = item->Get<HistoryMessageForwarded>();
@@ -2652,6 +2869,10 @@ bool Message::hasBubble() const {
 	return drawBubble();
 }
 
+bool Message::displayTopicButton() const {
+	return _topicButton != nullptr;
+}
+
 bool Message::unwrapped() const {
 	const auto item = message();
 	if (isHidden()) {
@@ -2946,6 +3167,7 @@ void Message::updateMediaInBubbleState() {
 	auto mediaHasSomethingAbove = false;
 	auto getMediaHasSomethingAbove = [&] {
 		return displayFromName()
+			|| displayTopicButton()
 			|| displayForwardedFrom()
 			|| displayedReply()
 			|| item->Has<HistoryMessageVia>();
@@ -3063,6 +3285,13 @@ QRect Message::innerGeometry() const {
 		if (displayFromName()) {
 			// See paintFromName().
 			result.translate(0, st::msgNameFont->height);
+		}
+		if (displayTopicButton()) {
+			result.translate(0, st::topicButtonSkip
+				+ st::topicButtonPadding.top()
+				+ st::msgNameFont->height
+				+ st::topicButtonPadding.bottom()
+				+ st::topicButtonSkip);
 		}
 		// Skip displayForwardedFrom() until there are no animations for it.
 		if (displayedReply()) {
@@ -3282,6 +3511,14 @@ int Message::resizeContentGetHeight(int newWidth) {
 		} else if (via && !displayForwardedFrom()) {
 			via->resize(contentWidth - st::msgPadding.left() - st::msgPadding.right());
 			newHeight += st::msgNameFont->height;
+		}
+
+		if (displayTopicButton()) {
+			newHeight += st::topicButtonSkip
+				+ st::topicButtonPadding.top()
+				+ st::msgNameFont->height
+				+ st::topicButtonPadding.bottom()
+				+ st::topicButtonSkip;
 		}
 
 		if (displayForwardedFrom()) {

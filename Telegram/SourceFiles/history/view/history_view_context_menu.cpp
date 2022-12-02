@@ -617,7 +617,7 @@ bool AddViewRepliesAction(
 		|| (context != Context::History && context != Context::Pinned)) {
 		return false;
 	}
-	const auto topicRootId = item->history()->peer->isForum()
+	const auto topicRootId = item->history()->isForum()
 		? item->topicRootId()
 		: 0;
 	const auto repliesCount = item->repliesCount();

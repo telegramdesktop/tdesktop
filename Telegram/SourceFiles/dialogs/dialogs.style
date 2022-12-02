@@ -86,8 +86,7 @@ forumDialogRow: DialogRow(defaultDialogRow) {
 forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
 forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
 forumDialogJumpArrowSkip: 8px;
-forumDialogJumpArrowLeft: 3px;
-forumDialogJumpArrowTop: 3px;
+forumDialogJumpArrowPosition: point(3px, 3px);
 forumDialogJumpPadding: margins(8px, 3px, 8px, 3px);
 forumDialogJumpRadius: 11px;
 

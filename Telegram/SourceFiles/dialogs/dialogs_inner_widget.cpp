@@ -571,8 +571,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 			bool mayBeActive) {
 		const auto key = row->key();
 		const auto active = mayBeActive && (activeEntry.key == key);
-		const auto forum = key.history()
-			&& key.history()->peer->isForum();
+		const auto forum = key.history() && key.history()->isForum();
 		if (forum && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}

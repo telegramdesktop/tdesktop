@@ -264,7 +264,7 @@ Row::Row(Key key, int index, int top) : _id(key), _top(top), _index(index) {
 
 void Row::recountHeight(float64 narrowRatio) {
 	if (const auto history = _id.history()) {
-		_height = history->peer->isForum()
+		_height = history->isForum()
 			? anim::interpolate(
 				st::forumDialogRow.height,
 				st::defaultDialogRow.height,

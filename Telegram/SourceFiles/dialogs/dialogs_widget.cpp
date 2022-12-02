@@ -455,7 +455,7 @@ void Widget::chosenRow(const ChosenRow &row) {
 			topic,
 			row.message.fullId.msg,
 			Window::SectionShow::Way::ClearStack);
-	} else if (history && history->peer->isForum() && !row.message.fullId) {
+	} else if (history && history->isForum() && !row.message.fullId) {
 		const auto forum = history->peer->forum();
 		if (controller()->shownForum().current() == forum) {
 			controller()->closeForum();
@@ -1916,7 +1916,7 @@ void Widget::dropEvent(QDropEvent *e) {
 			controller()->content()->filesOrForwardDrop(
 				thread,
 				e->mimeData());
-			if (!thread->owningHistory()->peer->isForum()) {
+			if (!thread->owningHistory()->isForum()) {
 				hideChildList();
 			}
 			controller()->widget()->raise();

@@ -261,7 +261,7 @@ void Uploader::sendProgressUpdate(
 		if (history->peer->isMegagroup()) {
 			manager.update(history, replyTo, type, progress);
 		}
-	} else if (history->peer->isForum()) {
+	} else if (history->isForum()) {
 		manager.update(history, item->topicRootId(), type, progress);
 	}
 	_api->session().data().requestItemRepaint(item);

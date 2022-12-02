@@ -703,7 +703,7 @@ void TopBarWidget::backClicked() {
 		_controller->closeFolder();
 	} else if (_activeChat.section == Section::ChatsList
 		&& _activeChat.key.history()
-		&& _activeChat.key.history()->peer->isForum()) {
+		&& _activeChat.key.history()->isForum()) {
 		_controller->closeForum();
 	} else {
 		_controller->showBackFromStack();

@@ -254,6 +254,7 @@ public:
 		SpecialOnlyEmoji = 0x0080,
 		CustomEmojiRepainting = 0x0100,
 		ScheduledUntilOnline = 0x0200,
+		TopicRootReply = 0x0400,
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -289,6 +290,8 @@ public:
 	[[nodiscard]] bool isAttachedToNext() const;
 	[[nodiscard]] bool isBubbleAttachedToPrevious() const;
 	[[nodiscard]] bool isBubbleAttachedToNext() const;
+
+	[[nodiscard]] bool isTopicRootReply() const;
 
 	[[nodiscard]] int skipBlockWidth() const;
 	[[nodiscard]] int skipBlockHeight() const;
@@ -373,6 +376,7 @@ public:
 	[[nodiscard]] virtual bool displayFromPhoto() const;
 	[[nodiscard]] virtual bool hasFromName() const;
 	[[nodiscard]] virtual bool displayFromName() const;
+	[[nodiscard]] virtual bool displayTopicButton() const;
 	[[nodiscard]] virtual bool displayForwardedFrom() const;
 	[[nodiscard]] virtual bool hasOutLayout() const;
 	[[nodiscard]] virtual bool drawBubble() const;
@@ -497,6 +501,7 @@ protected:
 
 	void clearSpecialOnlyEmoji();
 	void checkSpecialOnlyEmoji();
+	void refreshIsTopicRootReply();
 
 private:
 	// This should be called only from previousInBlocksChanged()
@@ -509,6 +514,8 @@ private:
 	// then the result should be cached in a client side flag
 	// HistoryView::Element::Flag::AttachedToPrevious.
 	void recountAttachToPreviousInBlocks();
+
+	[[nodiscard]] bool countIsTopicRootReply() const;
 
 	QSize countOptimalSize() final override;
 	QSize countCurrentSize(int newWidth) final override;

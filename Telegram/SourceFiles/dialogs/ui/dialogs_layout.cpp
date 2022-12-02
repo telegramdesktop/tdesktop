@@ -56,7 +56,7 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 	} else if (const auto user = history->peer->asUser()) {
 		return (user->onlineTill > 0);
 	}
-	return !history->peer->isForum();
+	return !history->isForum();
 }
 
 void PaintRowTopRight(

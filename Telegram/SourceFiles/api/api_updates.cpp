@@ -2213,7 +2213,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				history->requestChatListMessage();
 				if (!history->folderKnown()
 					|| (!history->unreadCountKnown()
-						&& !history->peer->isForum())) {
+						&& !history->isForum())) {
 					history->owner().histories().requestDialogEntry(history);
 				}
 				if (!channel->amCreator()) {
