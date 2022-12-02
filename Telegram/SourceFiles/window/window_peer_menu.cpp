@@ -1737,7 +1737,7 @@ QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 			const auto weak = Ui::MakeWeak(state->box);
 			if (!chosen(thread)) {
 				return;
-			} else if (const auto strong = weak.get()) {
+			} else if (const auto strong = weak.data()) {
 				strong->closeBox();
 			}
 			if (successCallback) {
