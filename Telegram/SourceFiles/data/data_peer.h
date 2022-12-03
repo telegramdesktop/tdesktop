@@ -40,7 +40,6 @@ class CloudImageView;
 struct ReactionId;
 
 int PeerColorIndex(PeerId peerId);
-int PeerColorIndex(BareId bareId);
 
 // Must be used only for PeerColor-s.
 PeerId FakePeerIdForJustName(const QString &name);

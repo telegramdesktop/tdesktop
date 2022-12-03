@@ -16,6 +16,9 @@ public:
 		const style::color color2;
 	};
 
+	[[nodiscard]] static int ColorIndex(uint64 id);
+	[[nodiscard]] static EmptyUserpic::BgColors UserpicColor(int id);
+
 	[[nodiscard]] static QString ExternalName();
 	[[nodiscard]] static QString InaccessibleName();
 
@@ -40,8 +43,8 @@ public:
 		int y,
 		int outerWidth,
 		int size) const;
-	QPixmap generate(int size);
-	InMemoryKey uniqueKey() const;
+	[[nodiscard]] QPixmap generate(int size);
+	[[nodiscard]] std::pair<uint64, uint64> uniqueKey() const;
 
 	static void PaintSavedMessages(
 		QPainter &p,
@@ -71,8 +74,8 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	static QPixmap GenerateSavedMessages(int size);
-	static QPixmap GenerateSavedMessagesRounded(int size);
+	[[nodiscard]] static QPixmap GenerateSavedMessages(int size);
+	[[nodiscard]] static QPixmap GenerateSavedMessagesRounded(int size);
 
 	static void PaintRepliesMessages(
 		QPainter &p,
@@ -102,20 +105,19 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	static QPixmap GenerateRepliesMessages(int size);
-	static QPixmap GenerateRepliesMessagesRounded(int size);
+	[[nodiscard]] static QPixmap GenerateRepliesMessages(int size);
+	[[nodiscard]] static QPixmap GenerateRepliesMessagesRounded(int size);
 
 	~EmptyUserpic();
 
 private:
-	template <typename Callback>
 	void paint(
 		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size,
-		Callback paintBackground) const;
+		Fn<void()> paintBackground) const;
 
 	void fillString(const QString &name);
 
@@ -123,7 +125,5 @@ private:
 	QString _string;
 
 };
-
-[[nodiscard]] EmptyUserpic::BgColors PeerUserpicColor(PeerId peerId);
 
 } // namespace Ui

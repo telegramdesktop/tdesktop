@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/empty_userpic.h"
 
-#include "data/data_peer.h"
 #include "ui/emoji_config.h"
 #include "ui/effects/animation_value.h"
 #include "ui/painter.h"
@@ -194,12 +193,11 @@ void PaintInaccessibleAccountInner(
 	}
 }
 
-template <typename Callback>
-[[nodiscard]] QPixmap Generate(int size, Callback callback) {
+[[nodiscard]] QPixmap Generate(int size, Fn<void(QPainter&)> callback) {
 	auto result = QImage(
-		QSize(size, size) * cIntRetinaFactor(),
+		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
 		Painter p(&result);
@@ -223,15 +221,34 @@ QString EmptyUserpic::InaccessibleName() {
 	return QChar(0) + u"inaccessible"_q;
 }
 
-template <typename Callback>
+int EmptyUserpic::ColorIndex(uint64 id) {
+	const auto index = id % 7;
+	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
+	return map[index];
+}
+
+EmptyUserpic::BgColors EmptyUserpic::UserpicColor(int id) {
+	const EmptyUserpic::BgColors colors[] = {
+		{ st::historyPeer1UserpicBg, st::historyPeer1UserpicBg2 },
+		{ st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 },
+		{ st::historyPeer3UserpicBg, st::historyPeer3UserpicBg2 },
+		{ st::historyPeer4UserpicBg, st::historyPeer4UserpicBg2 },
+		{ st::historyPeer5UserpicBg, st::historyPeer5UserpicBg2 },
+		{ st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 },
+		{ st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 },
+		{ st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 },
+	};
+	return colors[id];
+}
+
 void EmptyUserpic::paint(
 		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size,
-		Callback paintBackground) const {
-	x = rtl() ? (outerWidth - x - size) : x;
+		Fn<void()> paintBackground) const {
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
 
 	const auto fontsize = (size * 13) / 33;
 	auto font = st::historyPeerUserpicFont->f;
@@ -252,7 +269,12 @@ void EmptyUserpic::paint(
 	if (IsExternal(_string)) {
 		PaintExternalMessagesInner(p, x, y, size, st::historyPeerUserpicFg);
 	} else if (IsInaccessible(_string)) {
-		PaintInaccessibleAccountInner(p, x, y, size, st::historyPeerUserpicFg);
+		PaintInaccessibleAccountInner(
+			p,
+			x,
+			y,
+			size,
+			st::historyPeerUserpicFg);
 	} else {
 		p.setFont(font);
 		p.setBrush(Qt::NoBrush);
@@ -290,7 +312,12 @@ void EmptyUserpic::paintRounded(
 	});
 }
 
-void EmptyUserpic::paintSquare(QPainter &p, int x, int y, int outerWidth, int size) const {
+void EmptyUserpic::paintSquare(
+		QPainter &p,
+		int x,
+		int y,
+		int outerWidth,
+		int size) const {
 	paint(p, x, y, outerWidth, size, [&] {
 		p.fillRect(x, y, size, size, p.brush());
 	});
@@ -334,7 +361,7 @@ void EmptyUserpic::PaintSavedMessages(
 		int size,
 		QBrush bg,
 		const style::color &fg) {
-	x = rtl() ? (outerWidth - x - size) : x;
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(std::move(bg));
@@ -352,12 +379,18 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 		int size,
 		QBrush bg,
 		const style::color &fg) {
-	x = rtl() ? (outerWidth - x - size) : x;
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(std::move(bg));
 	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
+	p.drawRoundedRect(
+		x,
+		y,
+		size,
+		size,
+		st::roundRadiusSmall,
+		st::roundRadiusSmall);
 
 	PaintSavedMessagesInner(p, x, y, size, fg);
 }
@@ -412,7 +445,7 @@ void EmptyUserpic::PaintRepliesMessages(
 		int size,
 		QBrush bg,
 		const style::color &fg) {
-	x = rtl() ? (outerWidth - x - size) : x;
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(bg);
@@ -430,12 +463,18 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 		int size,
 		QBrush bg,
 		const style::color &fg) {
-	x = rtl() ? (outerWidth - x - size) : x;
+	x = style::RightToLeft() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
 	p.setBrush(bg);
 	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
+	p.drawRoundedRect(
+		x,
+		y,
+		size,
+		size,
+		st::roundRadiusSmall,
+		st::roundRadiusSmall);
 
 	PaintRepliesMessagesInner(p, x, y, size, fg);
 }
@@ -452,17 +491,22 @@ QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
 	});
 }
 
-InMemoryKey EmptyUserpic::uniqueKey() const {
+std::pair<uint64, uint64> EmptyUserpic::uniqueKey() const {
 	const auto first = (uint64(0xFFFFFFFFU) << 32)
 		| anim::getPremultiplied(_colors.color1->c);
 	auto second = uint64(0);
-	memcpy(&second, _string.constData(), qMin(sizeof(second), _string.size() * sizeof(QChar)));
-	return InMemoryKey(first, second);
+	memcpy(
+		&second,
+		_string.constData(),
+		std::min(sizeof(second), size_t(_string.size()) * sizeof(QChar)));
+	return { first, second };
 }
 
 QPixmap EmptyUserpic::generate(int size) {
-	auto result = QImage(QSize(size, size) * cIntRetinaFactor(), QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(cRetinaFactor());
+	auto result = QImage(
+		QSize(size, size) * style::DevicePixelRatio(),
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(style::DevicePixelRatio());
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
@@ -534,19 +578,5 @@ void EmptyUserpic::fillString(const QString &name) {
 }
 
 EmptyUserpic::~EmptyUserpic() = default;
-
-EmptyUserpic::BgColors PeerUserpicColor(PeerId peerId) {
-	const EmptyUserpic::BgColors colors[] = {
-		{ st::historyPeer1UserpicBg, st::historyPeer1UserpicBg2 },
-		{ st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 },
-		{ st::historyPeer3UserpicBg, st::historyPeer3UserpicBg2 },
-		{ st::historyPeer4UserpicBg, st::historyPeer4UserpicBg2 },
-		{ st::historyPeer5UserpicBg, st::historyPeer5UserpicBg2 },
-		{ st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 },
-		{ st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 },
-		{ st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 },
-	};
-	return colors[Data::PeerColorIndex(peerId)];
-}
 
 } // namespace Ui

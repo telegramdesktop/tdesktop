@@ -274,6 +274,8 @@ PRIVATE
     ui/color_contrast.h
     ui/color_int_conversion.cpp
     ui/color_int_conversion.h
+    ui/empty_userpic.cpp
+    ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/widgets/fields/special_fields.cpp

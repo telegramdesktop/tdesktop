@@ -122,9 +122,9 @@ QSize Contact::countOptimalSize() {
 	} else {
 		const auto full = _name.toString();
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Ui::PeerUserpicColor(_userId
+			Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(_userId
 				? peerFromUser(_userId)
-				: Data::FakePeerIdForJustName(full)),
+				: Data::FakePeerIdForJustName(full))),
 			full);
 	}
 	if (_contact && _contact->isContact()) {

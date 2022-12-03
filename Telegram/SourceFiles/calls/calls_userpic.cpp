@@ -197,7 +197,8 @@ void Userpic::createCache(Image *image) {
 		{
 			auto p = QPainter(&filled);
 			Ui::EmptyUserpic(
-				Ui::PeerUserpicColor(_peer->id),
+				Ui::EmptyUserpic::UserpicColor(
+					Data::PeerColorIndex(_peer->id)),
 				_peer->name()
 			).paint(p, 0, 0, size, size);
 		}

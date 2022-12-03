@@ -59,14 +59,8 @@ using UpdateFlag = Data::PeerUpdate::Flag;
 
 namespace Data {
 
-int PeerColorIndex(BareId bareId) {
-	const auto index = bareId % 7;
-	const int map[] = { 0, 7, 4, 1, 6, 3, 5 };
-	return map[index];
-}
-
 int PeerColorIndex(PeerId peerId) {
-	return PeerColorIndex(peerId.value & PeerId::kChatTypeMask);
+	return Ui::EmptyUserpic::ColorIndex(peerId.value & PeerId::kChatTypeMask);
 }
 
 PeerId FakePeerIdForJustName(const QString &name) {
@@ -236,7 +230,7 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 	if (!_userpicEmpty) {
 		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Ui::PeerUserpicColor(id),
+			Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(id)),
 			user && user->isInaccessible()
 				? Ui::EmptyUserpic::InaccessibleName()
 				: name());

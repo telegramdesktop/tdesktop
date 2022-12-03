@@ -241,7 +241,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Ui::PeerUserpicColor(0),
+			Ui::EmptyUserpic::UserpicColor(0),
 			invite.title);
 	}
 }

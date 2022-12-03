@@ -1273,8 +1273,6 @@ PRIVATE
     ui/widgets/level_meter.h
     ui/countryinput.cpp
     ui/countryinput.h
-    ui/empty_userpic.cpp
-    ui/empty_userpic.h
     ui/filter_icons.cpp
     ui/filter_icons.h
     ui/filter_icon_panel.cpp
