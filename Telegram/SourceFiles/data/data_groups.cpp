@@ -47,7 +47,7 @@ void Groups::registerMessage(not_null<HistoryItem*> item) {
 	}
 	const auto i = _groups.emplace(item->groupId(), Group()).first;
 	auto &items = i->second.items;
-	if (items.size() < kMaxItemsInGroup) {
+	if (items.size() < kMaxItemsInGroup && !item->from()->isBlocked() ) {
 		items.insert(findPositionForItem(items, item), item);
 		if (items.size() > 1) {
 			refreshViews(items);
