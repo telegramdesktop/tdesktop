@@ -741,6 +741,7 @@ void GenerateItems(
 	using LogEditTopic = MTPDchannelAdminLogEventActionEditTopic;
 	using LogDeleteTopic = MTPDchannelAdminLogEventActionDeleteTopic;
 	using LogPinTopic = MTPDchannelAdminLogEventActionPinTopic;
+	using LogToggleAntiSpam = MTPDchannelAdminLogEventActionToggleAntiSpam;
 
 	const auto session = &history->session();
 	const auto id = event.vid().v;
@@ -1750,6 +1751,18 @@ void GenerateItems(
 		}
 	};
 
+	const auto createToggleAntiSpam = [&](const LogToggleAntiSpam &data) {
+		const auto enabled = (data.vnew_value().type() == mtpc_boolTrue);
+		const auto text = (enabled
+			? tr::lng_admin_log_antispam_enabled
+			: tr::lng_admin_log_antispam_disabled)(
+				tr::now,
+				lt_from,
+				fromLinkText,
+				Ui::Text::WithEntities);
+		addSimpleServiceMessage(text);
+	};
+
 	action.match(
 		createChangeTitle,
 		createChangeAbout,
@@ -1792,7 +1805,8 @@ void GenerateItems(
 		createCreateTopic,
 		createEditTopic,
 		createDeleteTopic,
-		createPinTopic);
+		createPinTopic,
+		createToggleAntiSpam);
 }
 
 } // namespace AdminLog

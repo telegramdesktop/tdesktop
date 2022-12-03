@@ -3138,6 +3138,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_disallowed_unmute_self_channel" = "{from} started muting new live stream members";
 "lng_admin_log_participant_volume" = "{from} changed voice chat volume for {user} to {percent}";
 "lng_admin_log_participant_volume_channel" = "{from} changed live stream volume for {user} to {percent}";
+"lng_admin_log_antispam_enabled" = "{from} enabled aggressive anti-spam";
+"lng_admin_log_antispam_disabled" = "{from} disabled aggressive anti-spam";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
