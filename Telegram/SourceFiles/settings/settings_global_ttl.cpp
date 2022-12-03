@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "data/data_changes.h"
 #include "data/data_peer.h"
+#include "data/data_session.h"
 #include "history/history.h"
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
@@ -126,6 +127,9 @@ std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 	} else if (!history->peer->canWrite()) {
 		return nullptr;
 	}
+	if (session().data().contactsNoChatsList()->contains({ history })) {
+		return nullptr;
+	}
 	auto result = std::make_unique<TTLRow>(history);
 	const auto applyStatus = [=, raw = result.get()] {
 		const auto ttl = history->peer->messagesTTL();
@@ -138,13 +142,6 @@ std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 				: tr::lng_settings_ttl_select_chats_status_disabled(tr::now),
 			ttl);
 	};
-	if (!history->peer->messagesTTL()) {
-		session().api().requestFullPeer(history->peer);
-		session().changes().peerUpdates(
-			history->peer,
-			Data::PeerUpdate::Flag::FullInfo
-		) | rpl::take(1) | rpl::start_with_next(applyStatus, _lifetime);
-	}
 	applyStatus();
 	return result;
 }
