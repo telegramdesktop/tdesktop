@@ -69,20 +69,6 @@ int PeerColorIndex(PeerId peerId) {
 	return PeerColorIndex(peerId.value & PeerId::kChatTypeMask);
 }
 
-style::color PeerUserpicColor(PeerId peerId) {
-	const style::color colors[] = {
-		st::historyPeer1UserpicBg,
-		st::historyPeer2UserpicBg,
-		st::historyPeer3UserpicBg,
-		st::historyPeer4UserpicBg,
-		st::historyPeer5UserpicBg,
-		st::historyPeer6UserpicBg,
-		st::historyPeer7UserpicBg,
-		st::historyPeer8UserpicBg,
-	};
-	return colors[PeerColorIndex(peerId)];
-}
-
 PeerId FakePeerIdForJustName(const QString &name) {
 	constexpr auto kShift = (0xFEULL << 32);
 	const auto base = name.isEmpty()
@@ -250,7 +236,7 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 	if (!_userpicEmpty) {
 		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Data::PeerUserpicColor(id),
+			Ui::PeerUserpicColor(id),
 			user && user->isInaccessible()
 				? Ui::EmptyUserpic::InaccessibleName()
 				: name());

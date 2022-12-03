@@ -210,8 +210,8 @@ template <typename Callback>
 
 } // namespace
 
-EmptyUserpic::EmptyUserpic(const style::color &color, const QString &name)
-: _color(color) {
+EmptyUserpic::EmptyUserpic(const BgColors &colors, const QString &name)
+: _colors(colors) {
 	fillString(name);
 }
 
@@ -238,7 +238,14 @@ void EmptyUserpic::paint(
 	font.setPixelSize(fontsize);
 
 	PainterHighQualityEnabler hq(p);
-	p.setBrush(_color);
+	{
+		auto gradient = QLinearGradient(x, y, x, y + size);
+		gradient.setStops({
+			{ 0., _colors.color1->c },
+			{ 1., _colors.color2->c }
+		});
+		p.setBrush(gradient);
+	}
 	p.setPen(Qt::NoPen);
 	paintBackground();
 
@@ -295,9 +302,13 @@ void EmptyUserpic::PaintSavedMessages(
 		int y,
 		int outerWidth,
 		int size) {
-	const auto &bg = st::historyPeerSavedMessagesBg;
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
 	const auto &fg = st::historyPeerUserpicFg;
-	PaintSavedMessages(p, x, y, outerWidth, size, bg, fg);
+	PaintSavedMessages(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
 void EmptyUserpic::PaintSavedMessagesRounded(
@@ -306,9 +317,13 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 		int y,
 		int outerWidth,
 		int size) {
-	const auto &bg = st::historyPeerSavedMessagesBg;
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
 	const auto &fg = st::historyPeerUserpicFg;
-	PaintSavedMessagesRounded(p, x, y, outerWidth, size, bg, fg);
+	PaintSavedMessagesRounded(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
 void EmptyUserpic::PaintSavedMessages(
@@ -317,12 +332,12 @@ void EmptyUserpic::PaintSavedMessages(
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg) {
 	x = rtl() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
-	p.setBrush(bg);
+	p.setBrush(std::move(bg));
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(x, y, size, size);
 
@@ -335,12 +350,12 @@ void EmptyUserpic::PaintSavedMessagesRounded(
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg) {
 	x = rtl() ? (outerWidth - x - size) : x;
 
 	PainterHighQualityEnabler hq(p);
-	p.setBrush(bg);
+	p.setBrush(std::move(bg));
 	p.setPen(Qt::NoPen);
 	p.drawRoundedRect(x, y, size, size, st::roundRadiusSmall, st::roundRadiusSmall);
 
@@ -365,9 +380,13 @@ void EmptyUserpic::PaintRepliesMessages(
 		int y,
 		int outerWidth,
 		int size) {
-	const auto &bg = st::historyPeerSavedMessagesBg;
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
 	const auto &fg = st::historyPeerUserpicFg;
-	PaintRepliesMessages(p, x, y, outerWidth, size, bg, fg);
+	PaintRepliesMessages(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
 void EmptyUserpic::PaintRepliesMessagesRounded(
@@ -376,9 +395,13 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 		int y,
 		int outerWidth,
 		int size) {
-	const auto &bg = st::historyPeerSavedMessagesBg;
+	auto bg = QLinearGradient(x, y, x, y + size);
+	bg.setStops({
+		{ 0., st::historyPeerSavedMessagesBg->c },
+		{ 1., st::historyPeerSavedMessagesBg2->c }
+	});
 	const auto &fg = st::historyPeerUserpicFg;
-	PaintRepliesMessagesRounded(p, x, y, outerWidth, size, bg, fg);
+	PaintRepliesMessagesRounded(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
 void EmptyUserpic::PaintRepliesMessages(
@@ -387,7 +410,7 @@ void EmptyUserpic::PaintRepliesMessages(
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg) {
 	x = rtl() ? (outerWidth - x - size) : x;
 
@@ -405,7 +428,7 @@ void EmptyUserpic::PaintRepliesMessagesRounded(
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg) {
 	x = rtl() ? (outerWidth - x - size) : x;
 
@@ -431,7 +454,7 @@ QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
 
 InMemoryKey EmptyUserpic::uniqueKey() const {
 	const auto first = (uint64(0xFFFFFFFFU) << 32)
-		| anim::getPremultiplied(_color->c);
+		| anim::getPremultiplied(_colors.color1->c);
 	auto second = uint64(0);
 	memcpy(&second, _string.constData(), qMin(sizeof(second), _string.size() * sizeof(QChar)));
 	return InMemoryKey(first, second);
@@ -511,5 +534,19 @@ void EmptyUserpic::fillString(const QString &name) {
 }
 
 EmptyUserpic::~EmptyUserpic() = default;
+
+EmptyUserpic::BgColors PeerUserpicColor(PeerId peerId) {
+	const EmptyUserpic::BgColors colors[] = {
+		{ st::historyPeer1UserpicBg, st::historyPeer1UserpicBg2 },
+		{ st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 },
+		{ st::historyPeer3UserpicBg, st::historyPeer3UserpicBg2 },
+		{ st::historyPeer4UserpicBg, st::historyPeer4UserpicBg2 },
+		{ st::historyPeer5UserpicBg, st::historyPeer5UserpicBg2 },
+		{ st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 },
+		{ st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 },
+		{ st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 },
+	};
+	return colors[Data::PeerColorIndex(peerId)];
+}
 
 } // namespace Ui

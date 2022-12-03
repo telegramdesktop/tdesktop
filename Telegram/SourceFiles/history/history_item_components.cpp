@@ -105,7 +105,7 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
 , emptyUserpic(
-	Data::PeerUserpicColor(colorPeerId),
+	Ui::PeerUserpicColor(colorPeerId),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {

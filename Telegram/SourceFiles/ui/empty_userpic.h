@@ -11,10 +11,15 @@ namespace Ui {
 
 class EmptyUserpic {
 public:
+	struct BgColors {
+		const style::color color1;
+		const style::color color2;
+	};
+
 	[[nodiscard]] static QString ExternalName();
 	[[nodiscard]] static QString InaccessibleName();
 
-	EmptyUserpic(const style::color &color, const QString &name);
+	EmptyUserpic(const BgColors &colors, const QString &name);
 
 	void paint(
 		QPainter &p,
@@ -56,7 +61,7 @@ public:
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
 	static void PaintSavedMessagesRounded(
 		QPainter &p,
@@ -64,7 +69,7 @@ public:
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
 	static QPixmap GenerateSavedMessages(int size);
 	static QPixmap GenerateSavedMessagesRounded(int size);
@@ -87,7 +92,7 @@ public:
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
 	static void PaintRepliesMessagesRounded(
 		QPainter &p,
@@ -95,7 +100,7 @@ public:
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
 	static QPixmap GenerateRepliesMessages(int size);
 	static QPixmap GenerateRepliesMessagesRounded(int size);
@@ -114,9 +119,11 @@ private:
 
 	void fillString(const QString &name);
 
-	style::color _color;
+	const BgColors _colors;
 	QString _string;
 
 };
+
+[[nodiscard]] EmptyUserpic::BgColors PeerUserpicColor(PeerId peerId);
 
 } // namespace Ui
