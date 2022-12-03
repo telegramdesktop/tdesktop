@@ -383,6 +383,7 @@ infoRoundedIconAdministrators: icon {{ "info/edit/group_manage_admins", settings
 infoRoundedIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
 infoRoundedIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
 infoRoundedIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
+infoRoundedIconAntiSpam: icon {{ "info/edit/antispam", settingsIconFg }};
 
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};

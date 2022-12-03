@@ -73,7 +73,7 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 			rpl::single(QString()),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::infoRoundedIconAdministrators, Settings::kIconPurple }
+			{ &st::infoRoundedIconAntiSpam, Settings::kIconPurple }
 	))->toggleOn(rpl::single(
 		_channel->antiSpamMode()
 	) | rpl::then(state->toggled.events()));
@@ -194,7 +194,7 @@ void AntiSpamValidator::addAction(
 						MTP_int(eventId)
 				)).done(showToast).send();
 			},
-			&st::menuIconAdmin);
+			&st::menuIconReportAntiSpam);
 	};
 	{
 		const auto it = _itemEventMsgIds.find(fakeId);

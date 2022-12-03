@@ -61,8 +61,8 @@ void TTLRow::paintStatusText(
 		int outerWidth,
 		bool selected) {
 	auto icon = history()->peer->messagesTTL()
-		? &st::callArrowIn
-		: &st::callArrowOut;
+		? &st::settingsTTLChatsOn
+		: &st::settingsTTLChatsOff;
 	icon->paint(
 		p,
 		x + st::callArrowPosition.x(),
