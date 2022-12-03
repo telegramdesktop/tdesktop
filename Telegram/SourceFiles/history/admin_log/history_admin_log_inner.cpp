@@ -829,20 +829,32 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		? _items
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
+
+	const auto antiSpamUserId = _antiSpamValidator.userId();
 	for (const auto &event : events) {
 		const auto &data = event.data();
 		const auto id = data.vid().v;
 		if (_eventIds.find(id) != _eventIds.end()) {
 			return;
 		}
+		const auto rememberRealMsgId = (antiSpamUserId
+			== peerToUser(peerFromUser(data.vuser_id())));
 
 		auto count = 0;
-		const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+		const auto addOne = [&](
+				OwnedItem item,
+				TimeId sentDate,
+				MsgId realId) {
 			if (sentDate) {
 				_itemDates.emplace(item->data(), sentDate);
 			}
 			_eventIds.emplace(id);
 			_itemsByData.emplace(item->data(), item.get());
+			if (rememberRealMsgId && realId) {
+				_antiSpamValidator.addEventMsgId(
+					item->data()->fullId(),
+					realId);
+			}
 			addToItems.push_back(std::move(item));
 			++count;
 		};

@@ -34,11 +34,15 @@ public:
 
 	void resolveUser(Fn<void()> finish) const;
 	[[nodiscard]] UserData *maybeAppendUser() const;
-	void addAction(not_null<Ui::PopupMenu*> menu, FullMsgId fullId) const;
+	[[nodiscard]] UserId userId() const;
+	void addAction(not_null<Ui::PopupMenu*> menu, FullMsgId fakeId) const;
+	void addEventMsgId(FullMsgId fakeId, MsgId realId);
 
 private:
 	const not_null<ChannelData*> _channel;
 	const not_null<Window::SessionController*> _controller;
+
+	base::flat_map<FullMsgId, MsgId> _itemEventMsgIds;
 
 };
 

@@ -147,14 +147,18 @@ UserData *AntiSpamValidator::maybeAppendUser() const {
 	return nullptr;
 }
 
+UserId AntiSpamValidator::userId() const {
+	return AntiSpamUserId(_channel);
+}
+
 void AntiSpamValidator::addAction(
 		not_null<Ui::PopupMenu*> menu,
-		FullMsgId fullId) const {
-	if (!fullId) {
+		FullMsgId fakeId) const {
+	if (!fakeId) {
 		return;
 	}
 	const auto antiSpamUserId = AntiSpamUserId(_channel);
-	const auto suggestReport = [&] {
+	const auto suggestReport = [&](MsgId eventId) {
 		const auto text = tr::lng_admin_log_antispam_menu_report_toast(
 			tr::now,
 			lt_link,
@@ -187,29 +191,22 @@ void AntiSpamValidator::addAction(
 				_channel->session().api().request(
 					MTPchannels_ReportAntiSpamFalsePositive(
 						channel->inputChannel,
-						MTP_int(fullId.msg)
+						MTP_int(eventId)
 				)).done(showToast).send();
 			},
 			&st::menuIconAdmin);
 	};
-	const auto &data = _channel->owner();
-	const auto findItem = [&](FullMsgId id, int offset) {
-		id.msg.bare -= offset;
-		if (const auto item = data.message(id)) {
-			if (peerToUser(item->from()->id) == antiSpamUserId) {
-				suggestReport();
-				return true;
-			}
-		}
-		return false;
-	};
-	// Context menu on service message.
-	if (!findItem(fullId, 0)) {
-		// Take a previous.
-		if (findItem(fullId, 1)) {
+	{
+		const auto it = _itemEventMsgIds.find(fakeId);
+		if (it != end(_itemEventMsgIds)) {
+			suggestReport(it->second);
 			menu->addSeparator();
 		}
 	}
+}
+
+void AntiSpamValidator::addEventMsgId(FullMsgId fakeId, MsgId realId) {
+	_itemEventMsgIds.emplace(fakeId, realId);
 }
 
 } // namespace AntiSpamMenu
