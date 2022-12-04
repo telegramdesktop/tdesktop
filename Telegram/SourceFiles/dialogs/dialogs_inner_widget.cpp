@@ -2320,6 +2320,7 @@ void InnerWidget::appendToFiltered(Key key) {
 		}
 	}
 	auto row = std::make_unique<Row>(key, 0, 0);
+	row->recountHeight(_narrowRatio);
 	const auto [i, ok] = _filterResultsGlobal.emplace(key, std::move(row));
 	const auto height = filteredHeight();
 	_filterResults.emplace_back(i->second.get());
