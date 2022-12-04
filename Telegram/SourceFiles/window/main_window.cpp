@@ -798,7 +798,12 @@ void MainWindow::updateUnreadCounter() {
 	}
 
 	const auto counter = Core::App().unreadBadge();
-	setTitle((counter > 0) ? u"Telegram (%1)"_q.arg(counter) : u"Telegram"_q);
+	const auto additionalName = singlePeer()
+		? u" %1 %2"_q.arg(QChar(8212), singlePeer()->name())
+		: QString();
+	setTitle(((counter > 0)
+		? u"Telegram (%1)"_q.arg(counter)
+		: u"Telegram"_q) + additionalName);
 
 	Core::App().tray().updateIconCounters();
 	unreadCounterChangedHook();
