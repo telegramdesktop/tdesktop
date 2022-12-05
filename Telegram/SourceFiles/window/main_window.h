@@ -55,6 +55,8 @@ struct CounterLayerArgs {
 [[nodiscard]] QImage GenerateCounterLayer(CounterLayerArgs &&args);
 [[nodiscard]] QImage WithSmallCounter(QImage image, CounterLayerArgs &&args);
 
+extern const char kOptionShowChatNameInNewWindow[];
+
 class MainWindow : public Ui::RpWindow {
 public:
 	explicit MainWindow(not_null<Controller*> controller);

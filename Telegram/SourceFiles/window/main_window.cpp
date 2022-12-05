@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
+#include "base/options.h"
 #include "base/call_delayed.h"
 #include "base/crc32hash.h"
 #include "ui/toast/toast.h"
@@ -48,7 +49,15 @@ namespace {
 
 constexpr auto kSaveWindowPositionTimeout = crl::time(1000);
 
+base::options::toggle ShowChatNameInNewWindow({
+	.id = kOptionShowChatNameInNewWindow,
+	.name = "Show chat name in title of separated windows",
+	.description = "",
+});
+
 } // namespace
+
+const char kOptionShowChatNameInNewWindow[] = "show-chat-name-in-new-window";
 
 const QImage &Logo() {
 	static const auto result = QImage(u":/gui/art/logo_256.png"_q);
@@ -798,12 +807,18 @@ void MainWindow::updateUnreadCounter() {
 	}
 
 	const auto counter = Core::App().unreadBadge();
-	const auto additionalName = singlePeer()
-		? u" %1 %2"_q.arg(QChar(8212), singlePeer()->name())
-		: QString();
-	setTitle(((counter > 0)
-		? u"Telegram (%1)"_q.arg(counter)
-		: u"Telegram"_q) + additionalName);
+	if (ShowChatNameInNewWindow.value()) {
+		const auto additionalName = singlePeer()
+			? u" %1 %2"_q.arg(QChar(8212), singlePeer()->name())
+			: QString();
+		setTitle(((counter > 0)
+			? u"Telegram (%1)"_q.arg(counter)
+			: u"Telegram"_q) + additionalName);
+	} else {
+		setTitle((counter > 0)
+			? u"Telegram (%1)"_q.arg(counter)
+			: u"Telegram"_q);
+	}
 
 	Core::App().tray().updateIconCounters();
 	unreadCounterChangedHook();
