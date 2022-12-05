@@ -494,6 +494,7 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	) - 1;
 
 	auto destroyingBarElement = _bar.element;
+	auto clearingOverElement = _overElement;
 	_resizePending = true;
 	_items.clear();
 	_items.reserve(_slice.ids.size());
@@ -508,11 +509,10 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 			if (destroyingBarElement == view) {
 				destroyingBarElement = nullptr;
 			}
+			if (clearingOverElement == view) {
+				clearingOverElement = nullptr;
+			}
 		}
-	}
-	if (destroyingBarElement) {
-		destroyingBarElement->destroyUnreadBar();
-		_bar = {};
 	}
 	for (auto e = end(_items), i = e - addedToEndCount; i != e; ++i) {
 		_itemRevealPending.emplace(*i);
@@ -520,6 +520,15 @@ void ListWidget::refreshRows(const Data::MessagesSlice &old) {
 	updateAroundPositionFromNearest(nearestIndex);
 
 	updateItemsGeometry();
+
+	if (clearingOverElement) {
+		_overElement = nullptr;
+	}
+	if (destroyingBarElement) {
+		destroyingBarElement->destroyUnreadBar();
+		_bar = {};
+	}
+
 	checkUnreadBarCreation();
 	restoreScrollState();
 	if (!_itemsRevealHeight) {

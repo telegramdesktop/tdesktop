@@ -1014,10 +1014,10 @@ void Element::destroyUnreadBar() {
 		return;
 	}
 	RemoveComponents(UnreadBar::Bit());
-	history()->owner().requestViewResize(this);
 	if (data()->mainView() == this) {
 		recountAttachToPreviousInBlocks();
 	}
+	history()->owner().requestViewResize(this);
 }
 
 int Element::displayedDateHeight() const {
