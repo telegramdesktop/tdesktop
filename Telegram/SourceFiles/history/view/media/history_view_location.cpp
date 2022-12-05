@@ -248,8 +248,8 @@ void Location::validateImageCache(
 	Expects(_media != nullptr);
 
 	const auto ratio = style::DevicePixelRatio();
-	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRounding == rounding
+	if ((_imageCache.size() == (outer * ratio)
+			&& _imageCacheRounding == rounding)
 		|| _media->isNull()) {
 		return;
 	}

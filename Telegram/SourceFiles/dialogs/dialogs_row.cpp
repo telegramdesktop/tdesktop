@@ -45,7 +45,6 @@ void PaintCornerBadgeTTLFrame(
 	if (!ttl) {
 		return;
 	}
-	using Radius = ImageRoundRadius;
 	constexpr auto kBlurRadius = 24;
 	PainterHighQualityEnabler hq(q);
 

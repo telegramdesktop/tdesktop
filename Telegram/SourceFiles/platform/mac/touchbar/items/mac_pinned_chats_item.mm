@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
+#include "ui/userpic_view.h"
 #include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -84,7 +85,6 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	auto result = PrepareImage();
 	Painter paint(&result);
 
-	auto view = Ui::PeerUserpicView();
 	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
@@ -549,7 +549,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		) | rpl::start_with_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
 				return (!pin->peer->hasUserpic())
-					|| (pin->userpicView && pin->userpicView->image());
+					|| (!Ui::PeerUserpicLoading(pin->userpicView));
 			});
 			if (all) {
 				downloadLifetime->destroy();

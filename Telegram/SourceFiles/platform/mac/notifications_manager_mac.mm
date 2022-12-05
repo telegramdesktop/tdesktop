@@ -19,7 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
-#include "window/notification_utilities.h"
+#include "window/notifications_utilities.h"
 #include "styles/style_window.h"
 
 #include <thread>
