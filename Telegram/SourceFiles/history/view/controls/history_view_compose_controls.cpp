@@ -1006,6 +1006,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	}
 	session().local().readDraftsWithCursors(_history);
 	applyDraft();
+	orderControls();
 }
 
 void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
