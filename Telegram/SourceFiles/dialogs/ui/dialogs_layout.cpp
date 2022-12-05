@@ -305,7 +305,10 @@ void PaintRow(
 		? st::dialogsBgActive
 		: context.selected
 		? st::dialogsBgOver
-		: st::dialogsBg;
+		: anim::brush(
+			st::dialogsBg, 
+			st::dialogsBgOver, 
+			context.childListShown);
 	p.fillRect(geometry, bg);
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active

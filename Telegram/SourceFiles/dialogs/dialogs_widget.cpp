@@ -2013,21 +2013,17 @@ void Widget::openChildList(
 	const auto opacity = shadow->lifetime().make_state<float64>(0.);
 	shadow->setAttribute(Qt::WA_TransparentForMouseEvents);
 	shadow->paintRequest(
-	) | rpl::start_with_next([=] {
+	) | rpl::start_with_next([=](QRect clip) {
 		auto p = QPainter(shadow);
 		p.setOpacity(*opacity);
-		st::slideShadow.fill(p, QRect(
-			shadow->width() - st::slideShadow.width(),
-			0,
-			st::slideShadow.width(),
-			shadow->height()));
+		p.fillRect(clip, st::shadowFg);
 	}, shadow->lifetime());
 	_childListShown.value() | rpl::start_with_next([=](float64 value) {
 		*opacity = value;
+		update();
+		_inner->update();
 		if (!value && _childListShadow.get() != shadow) {
 			delete shadow;
-		} else {
-			shadow->update();
 		}
 	}, shadow->lifetime());
 
@@ -2056,6 +2052,7 @@ void Widget::closeChildList(anim::type animated) {
 	if (animated == anim::type::normal) {
 		oldContentCache = Ui::GrabWidget(_childList.get());
 		_hideChildListCanvas = std::make_unique<Ui::RpWidget>(this);
+		_hideChildListCanvas->setAttribute(Qt::WA_TransparentForMouseEvents);
 		_hideChildListCanvas->setGeometry(geometry);
 		animation = _hideChildListCanvas->lifetime().make_state<
 			Window::SlideAnimation
@@ -2457,10 +2454,12 @@ void Widget::updateControlsGeometry() {
 	if (_childList) {
 		const auto childw = std::max(_narrowWidth, width() - scrollw);
 		const auto childh = scrollTop + scrollHeight;
+		const auto childx = width() - childw;
 		_childList->setGeometryWithTopMoved(
-			{ width() - childw, 0, childw, childh },
+			{ childx, 0, childw, childh },
 			_topDelta);
-		_childListShadow->setGeometry(0, 0, (width() - childw), childh);
+		const auto line = st::lineWidth;
+		_childListShadow->setGeometry(childx - line, 0, line, childh);
 	}
 }
 
@@ -2511,9 +2510,13 @@ void Widget::paintEvent(QPaintEvent *e) {
 		_showAnimation->paintContents(p);
 		return;
 	}
+	const auto bg = anim::brush(
+		st::dialogsBg,
+		st::dialogsBgOver,
+		_childListShown.current());
 	auto above = QRect(0, 0, width(), _scroll->y());
 	if (above.intersects(r)) {
-		p.fillRect(above.intersected(r), st::dialogsBg);
+		p.fillRect(above.intersected(r), bg);
 	}
 
 	auto belowTop = _scroll->y() + qMin(_scroll->height(), _inner->height());
@@ -2524,7 +2527,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 
 	auto below = QRect(0, belowTop, width(), height() - belowTop);
 	if (below.intersects(r)) {
-		p.fillRect(below.intersected(r), st::dialogsBg);
+		p.fillRect(below.intersected(r), bg);
 	}
 }
 

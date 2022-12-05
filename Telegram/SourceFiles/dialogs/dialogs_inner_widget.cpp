@@ -565,6 +565,18 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 	auto dialogsClip = r;
 	const auto ms = crl::now();
 	const auto childListShown = _childListShown.current();
+	auto context = Ui::PaintContext{
+		.st = _st,
+		.topicJumpCache = _topicJumpCache.get(),
+		.folder = _openedFolder,
+		.forum = _openedForum,
+		.filter = _filterId,
+		.childListShown = childListShown.shown,
+		.now = ms,
+		.width = fullWidth,
+		.paused = videoPaused,
+		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
+	};
 	const auto paintRow = [&](
 			not_null<Row*> row,
 			bool selected,
@@ -575,31 +587,21 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (forum && !_topicJumpCache) {
 			_topicJumpCache = std::make_unique<Ui::TopicJumpCache>();
 		}
+		const auto expanding = forum
+			&& (key.history()->peer->id == childListShown.peerId);
 
-		const auto expanded = (!active
-			&& forum
-			&& (key.history()->peer->id == childListShown.peerId))
+		context.st = (forum ? &st::forumDialogRow : _st.get());
+		context.topicsExpanded = (expanding && !active)
 			? childListShown.shown
 			: 0.;
-		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), {
-			.st = (forum ? &st::forumDialogRow : _st.get()),
-			.topicJumpCache = _topicJumpCache.get(),
-			.folder = _openedFolder,
-			.forum = _openedForum,
-			.filter = _filterId,
-			.topicsExpanded = expanded,
-			.now = ms,
-			.width = fullWidth,
-			.active = active,
-			.selected = (_menuRow.key
-				? (row->key() == _menuRow.key)
-				: selected),
-			.topicJumpSelected = (selected
-				&& _selectedTopicJump
-				&& (!_pressed || _pressedTopicJump)),
-			.paused = videoPaused,
-			.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
-		});
+		context.active = active;
+		context.selected = _menuRow.key
+			? (row->key() == _menuRow.key)
+			: selected;
+		context.topicJumpSelected = selected
+			&& _selectedTopicJump
+			&& (!_pressed || _pressedTopicJump);
+		Ui::RowPainter::Paint(p, row, validateVideoUserpic(row), context);
 	};
 	if (_state == WidgetState::Default) {
 		paintCollapsedRows(p, r);

@@ -59,6 +59,7 @@ struct PaintContext {
 	Data::Forum *forum = nullptr;
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
+	float64 childListShown = 0.;
 	crl::time now = 0;
 	int width = 0;
 	bool active = false;
