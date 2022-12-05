@@ -168,6 +168,7 @@ private:
 		int frameIndex = -1;
 		bool active = false;
 		QImage frame;
+		QImage cacheTTL;
 	};
 
 	void setCornerBadgeShown(

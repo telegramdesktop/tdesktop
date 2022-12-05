@@ -35,20 +35,15 @@ constexpr auto kTopLayer = 2;
 constexpr auto kBottomLayer = 1;
 constexpr auto kNoneLayer = 0;
 
-void PaintCornerBadgeTTLFrame(
-		QPainter &q,
+[[nodiscard]] QImage CornerBadgeTTL(
 		not_null<PeerData*> peer,
 		Ui::PeerUserpicView &view,
-		float64 progress,
 		int photoSize) {
 	const auto ttl = peer->messagesTTL();
 	if (!ttl) {
-		return;
+		return QImage();
 	}
 	constexpr auto kBlurRadius = 24;
-	PainterHighQualityEnabler hq(q);
-
-	q.setOpacity(progress);
 
 	const auto ratio = style::DevicePixelRatio();
 	const auto fullSize = photoSize;
@@ -57,14 +52,7 @@ void PaintCornerBadgeTTLFrame(
 		kBlurRadius);
 	const auto partRect = CornerBadgeTTLRect(fullSize);
 	const auto &partSize = partRect.width();
-	if (progress <= 1.) {
-		q.save();
-		q.translate(partRect.center());
-		q.scale(progress, progress);
-		q.translate(-partRect.center());
-		q.restore();
-	}
-	{
+	auto result = [&] {
 		auto blurredPart = blurredFull.copy(
 			blurredFull.width() - partSize * ratio,
 			blurredFull.height() - partSize * ratio,
@@ -85,11 +73,14 @@ void PaintCornerBadgeTTLFrame(
 				QRect(QPoint(), partRect.size()),
 				Qt::black);
 		}
-		q.drawImage(
-			partRect.topLeft(),
-			Images::Circle(std::move(blurredPart)));
-	}
-	const auto innerRect = partRect - st::dialogsTTLBadgeInnerMargins;
+		return Images::Circle(std::move(blurredPart));
+	}();
+
+	auto q = QPainter(&result);
+	PainterHighQualityEnabler hq(q);
+
+	const auto innerRect = QRect(QPoint(), partRect.size())
+		- st::dialogsTTLBadgeInnerMargins;
 	const auto ttlText = Ui::FormatTTLTiny(ttl);
 
 	q.setFont(st::dialogsScamFont);
@@ -112,12 +103,12 @@ void PaintCornerBadgeTTLFrame(
 	q.setBrush(Qt::NoBrush);
 	q.drawArc(innerRect, kAngleStart, kAngleSpan);
 
-	q.setClipRect(partRect - QMargins(partRect.width() / 2, 0, 0, 0));
+	q.setClipRect(innerRect - QMargins(innerRect.width() / 2, 0, 0, 0));
 	pen.setStyle(Qt::DotLine);
 	q.setPen(pen);
 	q.drawEllipse(innerRect);
 
-	q.setOpacity(1.);
+	return result;
 }
 
 } // namespace
@@ -355,7 +346,14 @@ void Row::PaintCornerBadgeFrame(
 
 	const auto &manager = data->layersManager;
 	if (const auto p = manager.progressForLayer(kBottomLayer); p) {
-		PaintCornerBadgeTTLFrame(q, peer, view, p, context.st->photoSize);
+		const auto size = context.st->photoSize;
+		if (data->cacheTTL.isNull() && peer->messagesTTL()) {
+			data->cacheTTL = CornerBadgeTTL(peer, view, size);
+		}
+		q.setOpacity(p);
+		const auto point = CornerBadgeTTLRect(size).topLeft();
+		q.drawImage(point, data->cacheTTL);
+		q.setOpacity(1.);
 	}
 	const auto topLayerProgress = manager.progressForLayer(kTopLayer);
 	if (!topLayerProgress) {
@@ -429,6 +427,9 @@ void Row::paintUserpic(
 	auto key = peer->userpicUniqueKey(userpicView());
 	key.first += peer->messagesTTL();
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
+	if (_cornerBadgeUserpic->key != key) {
+		_cornerBadgeUserpic->cacheTTL = QImage();
+	}
 	if (!_cornerBadgeUserpic->layersManager.isFinished()
 		|| _cornerBadgeUserpic->key != key
 		|| _cornerBadgeUserpic->active != context.active
