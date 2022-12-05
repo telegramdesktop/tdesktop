@@ -159,7 +159,12 @@ void Userpic::refreshPhoto() {
 		_userPhotoFull = true;
 		createCache(_photo->image(Data::PhotoSize::Thumbnail));
 	} else if (_userPhoto.isNull()) {
-		createCache(_userpic ? _userpic->image() : nullptr);
+		if (const auto cloud = _peer->userpicCloudImage(_userpic)) {
+			auto image = Image(base::duplicate(*cloud));
+			createCache(&image);
+		} else {
+			createCache(nullptr);
+		}
 	}
 }
 
@@ -200,7 +205,7 @@ void Userpic::createCache(Image *image) {
 				Ui::EmptyUserpic::UserpicColor(
 					Data::PeerColorIndex(_peer->id)),
 				_peer->name()
-			).paint(p, 0, 0, size, size);
+			).paintCircle(p, 0, 0, size, size);
 		}
 		//_userPhoto = Images::PixmapFast(Images::Round(
 		//	std::move(filled),

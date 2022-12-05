@@ -8,10 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "history/view/media/history_view_media.h"
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
+#include "ui/userpic_view.h"
 
 namespace Ui {
 class EmptyUserpic;
@@ -72,7 +69,7 @@ private:
 	QString _fname, _lname, _phone;
 	Ui::Text::String _name;
 	std::unique_ptr<Ui::EmptyUserpic> _photoEmpty;
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 
 	ClickHandlerPtr _linkl;
 	int _linkw = 0;

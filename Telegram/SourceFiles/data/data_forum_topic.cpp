@@ -568,7 +568,7 @@ void ForumTopic::loadUserpic() {
 
 void ForumTopic::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	const auto &st = context.st;
 	auto position = QPoint(st->padding.left(), st->padding.top());

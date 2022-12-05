@@ -879,9 +879,17 @@ void Video::prepareThumbnail(QSize size) const {
 			}
 		}
 	}
+	auto resultThumbnailImage = _documentMedia
+		? nullptr
+		: getResultThumb(fileOrigin());
+	const auto resultThumbnail = Image(resultThumbnailImage
+		? base::duplicate(*resultThumbnailImage)
+		: QImage());
 	const auto thumb = _documentMedia
 		? _documentMedia->thumbnail()
-		: getResultThumb(fileOrigin());
+		: resultThumbnailImage
+		? &resultThumbnail
+		: nullptr;
 	if (!thumb) {
 		return;
 	}
@@ -1245,7 +1253,7 @@ void Contact::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(
+	_thumb = Image(base::duplicate(*thumb)).pixNoCache(
 		QSize(w, h) * style::DevicePixelRatio(),
 		{
 			.options = Images::Option::TransparentBackground,
@@ -1403,7 +1411,7 @@ void Article::prepareThumbnail(int width, int height) const {
 			w = width;
 		}
 	}
-	_thumb = thumb->pixNoCache(
+	_thumb = Image(base::duplicate(*thumb)).pixNoCache(
 		QSize(w, h) * style::DevicePixelRatio(),
 		{
 			.options = Images::Option::TransparentBackground,

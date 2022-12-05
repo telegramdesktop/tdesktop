@@ -157,7 +157,7 @@ PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
 	const auto replies = peer->isRepliesChat();
-	auto userpic = saved ? nullptr : ensureUserpicView();
+	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);

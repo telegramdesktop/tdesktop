@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
 #include "ui/unread_badge.h"
+#include "ui/userpic_view.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/ui/dialogs_message_view.h"
 
@@ -19,10 +20,6 @@ class HistoryItem;
 namespace style {
 struct DialogRow;
 } // namespace style
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Ui {
 class RippleAnimation;
@@ -69,13 +66,12 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
-	[[nodiscard]] auto userpicView() const
-	-> std::shared_ptr<Data::CloudImageView> & {
+	[[nodiscard]] Ui::PeerUserpicView &userpicView() const {
 		return _userpic;
 	}
 
 private:
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
@@ -182,7 +178,7 @@ private:
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context);
 
 	Key _id;

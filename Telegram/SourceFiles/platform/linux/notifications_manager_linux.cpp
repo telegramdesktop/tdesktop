@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "base/weak_ptr.h"
+#include "window/notifications_utilities.h"
 #include "styles/style_window.h"
 
 #include <QtCore/QBuffer>
@@ -906,7 +907,7 @@ public:
 	void showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -1013,7 +1014,7 @@ Manager::Private::Private(not_null<Manager*> manager)
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -1041,12 +1042,8 @@ void Manager::Private::showNotification(
 	}
 
 	if (!options.hideNameAndPhoto) {
-		const auto userpic = peer->isSelf()
-			? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
-			: peer->isRepliesChat()
-			? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
-			: peer->genUserpic(userpicView, st::notifyMacPhotoSize);
-		notification->setImage(userpic.toImage());
+		notification->setImage(
+			Window::Notifications::GenerateUserpic(peer, userpicView));
 	}
 
 	auto i = _notifications.find(key);
@@ -1183,7 +1180,7 @@ Manager::~Manager() = default;
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

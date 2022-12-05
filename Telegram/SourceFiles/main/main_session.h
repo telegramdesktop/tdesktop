@@ -32,7 +32,6 @@ class Templates;
 namespace Data {
 class Session;
 class Changes;
-class CloudImageView;
 } // namespace Data
 
 namespace Storage {
@@ -216,7 +215,7 @@ private:
 
 	const std::unique_ptr<Support::Helper> _supportHelper;
 
-	std::shared_ptr<Data::CloudImageView> _selfUserpicView;
+	std::shared_ptr<QImage> _selfUserpicView;
 	rpl::variable<bool> _premiumPossible = false;
 
 	rpl::event_stream<bool> _termsLockChanges;

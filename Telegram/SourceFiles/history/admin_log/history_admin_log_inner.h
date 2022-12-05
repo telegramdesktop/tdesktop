@@ -19,10 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct ChatRestrictionsInfo;
 
-namespace Data {
-class CloudImageView;
-} // namespace Data
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -38,6 +34,7 @@ enum class PointState : char;
 namespace Ui {
 class PopupMenu;
 class ChatStyle;
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Window {
@@ -278,9 +275,8 @@ private:
 	std::map<not_null<const HistoryItem*>, not_null<Element*>> _itemsByData;
 	base::flat_map<not_null<const HistoryItem*>, TimeId> _itemDates;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpicsCache;
 	int _itemsTop = 0;
 	int _itemsWidth = 0;
 	int _itemsHeight = 0;

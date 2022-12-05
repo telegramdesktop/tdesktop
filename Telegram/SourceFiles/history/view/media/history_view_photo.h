@@ -129,6 +129,7 @@ private:
 	void validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const;
+	void validateUserpicImageCache(QSize size, bool forum) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
 
 	bool videoAutoplayEnabled() const;
@@ -150,8 +151,9 @@ private:
 	mutable std::unique_ptr<Streamed> _streamed;
 	mutable QImage _imageCache;
 	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
-	int _serviceWidth = 0;
-	mutable bool _imageCacheBlurred = false;
+	int _serviceWidth : 30 = 0;
+	mutable int _imageCacheForum : 1 = 0;
+	mutable int _imageCacheBlurred : 1 = 0;
 
 };
 

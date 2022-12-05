@@ -46,6 +46,7 @@ struct Photo::Streamed {
 	::Media::Streaming::Instance instance;
 	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
+	std::array<QImage, 4> roundingCorners;
 	QImage roundingMask;
 };
 
@@ -352,22 +353,66 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	}
 }
 
+void Photo::validateUserpicImageCache(QSize size, bool forum) const {
+	const auto forumValue = forum ? 1 : 0;
+	const auto large = _dataMedia->image(PhotoSize::Large);
+	const auto ratio = style::DevicePixelRatio();
+	const auto blurredValue = large ? 0 : 1;
+	if (_imageCache.size() == (size * ratio)
+		&& _imageCacheForum == forumValue
+		&& _imageCacheBlurred == blurredValue) {
+		return;
+	}
+	auto original = [&] {
+		if (large) {
+			return large->original();
+		} else if (const auto thumbnail = _dataMedia->image(
+				PhotoSize::Thumbnail)) {
+			return thumbnail->original();
+		} else if (const auto small = _dataMedia->image(
+				PhotoSize::Small)) {
+			return small->original();
+		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
+			return blurred->original();
+		} else {
+			return Image::Empty()->original();
+		}
+	}();
+	auto args = Images::PrepareArgs();
+	if (blurredValue) {
+		args = args.blurred();
+	}
+	original = Images::Prepare(std::move(original), size, args);
+	if (forumValue) {
+		original = Images::Round(
+			std::move(original),
+			Images::CornersMask(std::min(size.width(), size.height())
+				* Ui::ForumUserpicRadiusMultiplier()
+				* style::DevicePixelRatio()));
+	} else {
+		original = Images::Circle(std::move(original));
+	}
+	_imageCache = std::move(original);
+	_imageCacheForum = forumValue;
+	_imageCacheBlurred = blurredValue;
+}
+
 void Photo::validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto large = _dataMedia->image(PhotoSize::Large);
 	const auto ratio = style::DevicePixelRatio();
-	const auto shouldBeBlurred = !large;
+	const auto blurredValue = large ? 0 : 1;
 	if (_imageCache.size() == (outer * ratio)
 		&& _imageCacheRounding == rounding
-		&& _imageCacheBlurred == shouldBeBlurred) {
+		&& _imageCacheBlurred == blurredValue) {
 		return;
 	}
 	_imageCache = Images::Round(
 		prepareImageCache(outer),
 		MediaRoundingMask(rounding));
 	_imageCacheRounding = rounding;
-	_imageCacheBlurred = shouldBeBlurred;
+	_imageCacheBlurred = blurredValue;
 }
 
 QImage Photo::prepareImageCache(QSize outer) const {
@@ -405,17 +450,23 @@ void Photo::paintUserpicFrame(
 	const auto rect = QRect(photoPosition, size);
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
+	const auto forum = _parent->data()->history()->isForum();
 
 	if (_streamed
 		&& _streamed->instance.player().ready()
 		&& !_streamed->instance.player().videoSize().isEmpty()) {
+		const auto ratio = style::DevicePixelRatio();
 		auto request = ::Media::Streaming::FrameRequest();
-		request.outer = size * cIntRetinaFactor();
-		request.resize = size * cIntRetinaFactor();
-		const auto forum = _parent->data()->history()->isForum();
+		request.outer = request.resize = size * ratio;
 		if (forum) {
+			const auto radius = int(std::min(size.width(), size.height())
+				* Ui::ForumUserpicRadiusMultiplier()
+				* ratio);
+			if (_streamed->roundingCorners[0].width() != radius) {
+				_streamed->roundingCorners = Images::CornersMask(radius);
+			}
 			request.rounding = Images::CornersMaskRef(
-				Images::CornersMask(ImageRoundRadius::Large));
+				_streamed->roundingCorners);
 		} else {
 			if (_streamed->roundingMask.size() != request.outer) {
 				_streamed->roundingMask = Images::EllipseMask(size);
@@ -438,28 +489,8 @@ void Photo::paintUserpicFrame(
 		}
 		return;
 	}
-	const auto pix = [&] {
-		const auto forum = _parent->data()->history()->isForum();
-		const auto args = Images::PrepareArgs{
-			.options = (forum
-				? Images::Option::RoundLarge
-				: Images::Option::RoundCircle),
-		};
-		if (const auto large = _dataMedia->image(PhotoSize::Large)) {
-			return large->pix(size, args);
-		} else if (const auto thumbnail = _dataMedia->image(
-				PhotoSize::Thumbnail)) {
-			return thumbnail->pix(size, args.blurred());
-		} else if (const auto small = _dataMedia->image(
-				PhotoSize::Small)) {
-			return small->pix(size, args.blurred());
-		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-			return blurred->pix(size, args.blurred());
-		} else {
-			return QPixmap();
-		}
-	}();
-	p.drawPixmap(rect, pix);
+	validateUserpicImageCache(size, forum);
+	p.drawImage(rect, _imageCache);
 
 	if (_data->videoCanBePlayed() && !_streamed) {
 		const auto innerSize = st::msgFileLayout.thumbSize;

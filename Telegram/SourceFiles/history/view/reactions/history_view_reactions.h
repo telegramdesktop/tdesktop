@@ -11,7 +11,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_message_reaction_id.h"
 
 namespace Data {
-class CloudImageView;
 class Reactions;
 } // namespace Data
 

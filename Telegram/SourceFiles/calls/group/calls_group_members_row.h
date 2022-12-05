@@ -19,6 +19,7 @@ struct GroupCallParticipant;
 
 namespace Ui {
 class RippleAnimation;
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Calls::Group {
@@ -180,7 +181,7 @@ private:
 	void setVolume(int volume);
 
 	void ensureUserpicCache(
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int size);
 	void paintBlobs(
 		Painter &p,
@@ -190,7 +191,7 @@ private:
 		int sizeh, PanelMode mode);
 	void paintScaledUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int x,
 		int y,
 		int outerWidth,

@@ -7,9 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
 namespace Ui {
 
-class EmptyUserpic {
+class EmptyUserpic final : public base::has_weak_ptr {
 public:
 	struct BgColors {
 		const style::color color1;
@@ -24,7 +26,7 @@ public:
 
 	EmptyUserpic(const BgColors &colors, const QString &name);
 
-	void paint(
+	void paintCircle(
 		QPainter &p,
 		int x,
 		int y,
@@ -52,12 +54,6 @@ public:
 		int y,
 		int outerWidth,
 		int size);
-	static void PaintSavedMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
 	static void PaintSavedMessages(
 		QPainter &p,
 		int x,
@@ -66,16 +62,7 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	static void PaintSavedMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		QBrush bg,
-		const style::color &fg);
-	[[nodiscard]] static QPixmap GenerateSavedMessages(int size);
-	[[nodiscard]] static QPixmap GenerateSavedMessagesRounded(int size);
+	[[nodiscard]] static QImage GenerateSavedMessages(int size);
 
 	static void PaintRepliesMessages(
 		QPainter &p,
@@ -83,12 +70,6 @@ public:
 		int y,
 		int outerWidth,
 		int size);
-	static void PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
 	static void PaintRepliesMessages(
 		QPainter &p,
 		int x,
@@ -97,16 +78,7 @@ public:
 		int size,
 		QBrush bg,
 		const style::color &fg);
-	static void PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		QBrush bg,
-		const style::color &fg);
-	[[nodiscard]] static QPixmap GenerateRepliesMessages(int size);
-	[[nodiscard]] static QPixmap GenerateRepliesMessagesRounded(int size);
+	[[nodiscard]] static QImage GenerateRepliesMessages(int size);
 
 	~EmptyUserpic();
 

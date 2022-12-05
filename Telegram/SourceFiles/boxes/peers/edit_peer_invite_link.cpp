@@ -1042,11 +1042,12 @@ void AddPermanentLinkBlock(
 		state->allUserpicsLoaded = ranges::all_of(
 			state->list,
 			[](const HistoryView::UserpicInRow &element) {
-				return !element.peer->hasUserpic() || element.view->image();
+				return !element.peer->hasUserpic()
+					|| !Ui::PeerUserpicLoading(element.view);
 			});
 		state->content = Ui::JoinedCountContent{
 			.count = state->count,
-			.userpics = state->cachedUserpics
+			.userpics = state->cachedUserpics,
 		};
 	};
 	value->value(
@@ -1087,7 +1088,7 @@ void AddPermanentLinkBlock(
 			} else if (element.peer->userpicUniqueKey(element.view)
 				!= element.uniqueKey) {
 				pushing = true;
-			} else if (!element.view->image()) {
+			} else if (Ui::PeerUserpicLoading(element.view)) {
 				state->allUserpicsLoaded = false;
 			}
 		}

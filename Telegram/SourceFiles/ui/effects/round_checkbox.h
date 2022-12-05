@@ -52,7 +52,7 @@ public:
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback,
 		PaintRoundImage &&paintRoundImage,
-		Fn<ImageRoundRadius()> roundingRadius = nullptr);
+		Fn<std::optional<int>(int size)> roundingRadius = nullptr);
 
 	void paint(Painter &p, int x, int y, int outerWidth) const;
 	float64 checkedAnimationRatio() const;
@@ -76,7 +76,7 @@ private:
 	const style::RoundImageCheckbox &_st;
 	Fn<void()> _updateCallback;
 	PaintRoundImage _paintRoundImage;
-	Fn<ImageRoundRadius()> _roundingRadius;
+	Fn<std::optional<int>(int size)> _roundingRadius;
 
 	QPixmap _wideCache;
 	Ui::Animations::Simple _selection;

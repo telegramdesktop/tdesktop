@@ -29,6 +29,7 @@ class PopupMenu;
 class ChatTheme;
 struct ChatPaintContext;
 enum class TouchScrollState;
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Window {
@@ -37,7 +38,6 @@ class SessionController;
 
 namespace Data {
 struct Group;
-class CloudImageView;
 struct Reaction;
 struct AllowedReactions;
 } // namespace Data
@@ -637,12 +637,9 @@ private:
 		ItemRevealAnimation> _itemRevealAnimations;
 	int _itemsRevealHeight = 0;
 	base::flat_set<FullMsgId> _animatedStickersPlayed;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::shared_ptr<Data::CloudImageView>> _userpics, _userpicsCache;
-	base::flat_map<
-		MsgId,
-		std::shared_ptr<Data::CloudImageView>> _sponsoredUserpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpics;
+	base::flat_map<not_null<PeerData*>, Ui::PeerUserpicView> _userpicsCache;
+	base::flat_map<MsgId, Ui::PeerUserpicView> _hiddenSenderUserpics;
 
 	const std::unique_ptr<Ui::PathShiftGradient> _pathGradient;
 

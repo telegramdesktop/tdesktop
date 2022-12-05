@@ -110,8 +110,9 @@ Session::Session(
 		_user,
 		Data::PeerUpdate::Flag::Photo
 	) | rpl::start_with_next([=] {
-		[[maybe_unused]] const auto image = _user->currentUserpic(
-			_selfUserpicView);
+		auto view = Ui::PeerUserpicView{ .cloud = _selfUserpicView };
+		[[maybe_unused]] const auto image = _user->userpicCloudImage(view);
+		_selfUserpicView = view.cloud;
 	}, lifetime());
 
 	crl::on_main(this, [=] {

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "ui/userpic_view.h"
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
@@ -39,7 +40,6 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-class CloudImageView;
 class Thread;
 class Folder;
 class Forum;
@@ -340,7 +340,7 @@ private:
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	void paintSearchInSaved(
@@ -355,7 +355,7 @@ private:
 		Painter &p,
 		const Ui::PaintContext &context,
 		not_null<Data::ForumTopic*> topic,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
@@ -470,8 +470,8 @@ private:
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromPeer = nullptr;
-	mutable std::shared_ptr<Data::CloudImageView> _searchInChatUserpic;
-	mutable std::shared_ptr<Data::CloudImageView> _searchFromUserUserpic;
+	mutable Ui::PeerUserpicView _searchInChatUserpic;
+	mutable Ui::PeerUserpicView _searchFromUserUserpic;
 	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
 	RowDescriptor _menuRow;

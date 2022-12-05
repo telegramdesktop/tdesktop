@@ -21,7 +21,6 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-class CloudImageView;
 class PhotoMedia;
 } // namespace Data
 
@@ -55,10 +54,7 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	struct Participant {
-		not_null<UserData*> user;
-		std::shared_ptr<Data::CloudImageView> userpic;
-	};
+	struct Participant;
 	struct ChatInvite {
 		QString title;
 		QString about;

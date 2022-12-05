@@ -2262,7 +2262,7 @@ void History::loadUserpic() {
 
 void History::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	peer->paintUserpic(
 		p,

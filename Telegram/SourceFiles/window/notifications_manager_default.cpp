@@ -660,7 +660,7 @@ Notification::Notification(
 	auto position = computePosition(st::notifyMinHeight);
 	updateGeometry(position.x(), position.y(), st::notifyWidth, st::notifyMinHeight);
 
-	_userpicLoaded = !_userpicView || (_userpicView->image() != nullptr);
+	_userpicLoaded = !Ui::PeerUserpicLoading(_userpicView);
 	updateNotifyDisplay();
 
 	_hideTimer.setSingleShot(true);
@@ -1004,7 +1004,7 @@ void Notification::updatePeerPhoto() {
 		return;
 	}
 	_userpicView = _peer->createUserpicView();
-	if (_userpicView && !_userpicView->image()) {
+	if (Ui::PeerUserpicLoading(_userpicView)) {
 		return;
 	}
 	_userpicLoaded = true;
@@ -1024,7 +1024,7 @@ void Notification::updatePeerPhoto() {
 		st::notifyPhotoPos.y(),
 		width(),
 		st::notifyPhotoSize);
-	_userpicView = nullptr;
+	_userpicView = {};
 	update();
 }
 

@@ -2827,14 +2827,16 @@ void OverlayWidget::initStreamingThumbnail() {
 
 	_touchbarDisplay.fire(TouchBarItemType::Video);
 
+	auto userpicImage = std::optional<Image>();
 	const auto computePhotoThumbnail = [&] {
 		const auto thumbnail = _photoMedia->image(Data::PhotoSize::Thumbnail);
 		if (thumbnail) {
 			return thumbnail;
 		} else if (_peer && _peer->userpicPhotoId() == _photo->id) {
-			if (const auto view = _peer->activeUserpicView()) {
-				if (const auto image = view->image()) {
-					return image;
+			if (const auto view = _peer->activeUserpicView(); view.cloud) {
+				if (!view.cloud->isNull()) {
+					userpicImage.emplace(base::duplicate(*view.cloud));
+					return &*userpicImage;
 				}
 			}
 		}
@@ -3455,8 +3457,11 @@ void OverlayWidget::validatePhotoCurrentImage() {
 		&& !_message
 		&& _peer
 		&& _peer->hasUserpic()) {
-		if (const auto view = _peer->activeUserpicView()) {
-			validatePhotoImage(view->image(), true);
+		if (const auto view = _peer->activeUserpicView(); view.cloud) {
+			if (!view.cloud->isNull()) {
+				auto image = Image(base::duplicate(*view.cloud));
+				validatePhotoImage(&image, true);
+			}
 		}
 	}
 	if (_staticContent.isNull()) {

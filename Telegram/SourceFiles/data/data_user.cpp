@@ -228,22 +228,27 @@ void UserData::setAccessHash(uint64 accessHash) {
 	if (accessHash == kInaccessibleAccessHashOld) {
 		_accessHash = 0;
 		_flags.add(Flag::Deleted);
+		invalidateEmptyUserpic();
 	} else {
 		_accessHash = accessHash;
 	}
 }
 
 void UserData::setFlags(UserDataFlags which) {
+	if ((which & UserDataFlag::Deleted)
+		!= (flags() & UserDataFlag::Deleted)) {
+		invalidateEmptyUserpic();
+	}
 	_flags.set((flags() & UserDataFlag::Self)
 		| (which & ~UserDataFlag::Self));
 }
 
 void UserData::addFlags(UserDataFlags which) {
-	_flags.add(which & ~UserDataFlag::Self);
+	setFlags(flags() | which);
 }
 
 void UserData::removeFlags(UserDataFlags which) {
-	_flags.remove(which & ~UserDataFlag::Self);
+	setFlags(flags() & ~which);
 }
 
 bool UserData::isVerified() const {

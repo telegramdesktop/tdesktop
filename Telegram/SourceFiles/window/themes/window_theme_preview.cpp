@@ -982,7 +982,7 @@ void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString le
 	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		userpic.paintRounded(p, 0, 0, size, size, size / 2);
+		userpic.paintCircle(p, 0, 0, size, size);
 	}
 	_p->drawImage(rtl() ? (_rect.width() - x - size) : x, y, image);
 }

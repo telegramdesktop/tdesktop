@@ -142,7 +142,7 @@ bool ItemBase::hasResultThumb() const {
 			|| !_result->_locationThumbnail.empty());
 }
 
-Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
+QImage *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 	if (_result && !_thumbnail) {
 		if (!_result->_thumbnail.empty()) {
 			_thumbnail = _result->_thumbnail.createView();
@@ -152,7 +152,9 @@ Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 			_result->_locationThumbnail.load(_result->_session, origin);
 		}
 	}
-	return _thumbnail->image();
+	return (_thumbnail && !_thumbnail->isNull())
+		? _thumbnail.get()
+		: nullptr;
 }
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {

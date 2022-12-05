@@ -193,7 +193,7 @@ void PaintInaccessibleAccountInner(
 	}
 }
 
-[[nodiscard]] QPixmap Generate(int size, Fn<void(QPainter&)> callback) {
+[[nodiscard]] QImage Generate(int size, Fn<void(QPainter&)> callback) {
 	auto result = QImage(
 		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
@@ -203,7 +203,7 @@ void PaintInaccessibleAccountInner(
 		Painter p(&result);
 		callback(p);
 	}
-	return Ui::PixmapFromImage(std::move(result));
+	return result;
 }
 
 } // namespace
@@ -286,7 +286,7 @@ void EmptyUserpic::paint(
 	}
 }
 
-void EmptyUserpic::paint(
+void EmptyUserpic::paintCircle(
 		QPainter &p,
 		int x,
 		int y,
@@ -304,9 +304,6 @@ void EmptyUserpic::paintRounded(
 		int outerWidth,
 		int size,
 		int radius) const {
-	if (!radius) {
-		radius = st::roundRadiusSmall;
-	}
 	paint(p, x, y, outerWidth, size, [&] {
 		p.drawRoundedRect(x, y, size, size, radius, radius);
 	});
@@ -338,21 +335,6 @@ void EmptyUserpic::PaintSavedMessages(
 	PaintSavedMessages(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
-void EmptyUserpic::PaintSavedMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	auto bg = QLinearGradient(x, y, x, y + size);
-	bg.setStops({
-		{ 0., st::historyPeerSavedMessagesBg->c },
-		{ 1., st::historyPeerSavedMessagesBg2->c }
-	});
-	const auto &fg = st::historyPeerUserpicFg;
-	PaintSavedMessagesRounded(p, x, y, outerWidth, size, QBrush(bg), fg);
-}
-
 void EmptyUserpic::PaintSavedMessages(
 		QPainter &p,
 		int x,
@@ -371,39 +353,9 @@ void EmptyUserpic::PaintSavedMessages(
 	PaintSavedMessagesInner(p, x, y, size, fg);
 }
 
-void EmptyUserpic::PaintSavedMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		QBrush bg,
-		const style::color &fg) {
-	x = style::RightToLeft() ? (outerWidth - x - size) : x;
-
-	PainterHighQualityEnabler hq(p);
-	p.setBrush(std::move(bg));
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(
-		x,
-		y,
-		size,
-		size,
-		st::roundRadiusSmall,
-		st::roundRadiusSmall);
-
-	PaintSavedMessagesInner(p, x, y, size, fg);
-}
-
-QPixmap EmptyUserpic::GenerateSavedMessages(int size) {
+QImage EmptyUserpic::GenerateSavedMessages(int size) {
 	return Generate(size, [&](QPainter &p) {
 		PaintSavedMessages(p, 0, 0, size, size);
-	});
-}
-
-QPixmap EmptyUserpic::GenerateSavedMessagesRounded(int size) {
-	return Generate(size, [&](QPainter &p) {
-		PaintSavedMessagesRounded(p, 0, 0, size, size);
 	});
 }
 
@@ -420,21 +372,6 @@ void EmptyUserpic::PaintRepliesMessages(
 	});
 	const auto &fg = st::historyPeerUserpicFg;
 	PaintRepliesMessages(p, x, y, outerWidth, size, QBrush(bg), fg);
-}
-
-void EmptyUserpic::PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size) {
-	auto bg = QLinearGradient(x, y, x, y + size);
-	bg.setStops({
-		{ 0., st::historyPeerSavedMessagesBg->c },
-		{ 1., st::historyPeerSavedMessagesBg2->c }
-	});
-	const auto &fg = st::historyPeerUserpicFg;
-	PaintRepliesMessagesRounded(p, x, y, outerWidth, size, QBrush(bg), fg);
 }
 
 void EmptyUserpic::PaintRepliesMessages(
@@ -455,39 +392,9 @@ void EmptyUserpic::PaintRepliesMessages(
 	PaintRepliesMessagesInner(p, x, y, size, fg);
 }
 
-void EmptyUserpic::PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		QBrush bg,
-		const style::color &fg) {
-	x = style::RightToLeft() ? (outerWidth - x - size) : x;
-
-	PainterHighQualityEnabler hq(p);
-	p.setBrush(bg);
-	p.setPen(Qt::NoPen);
-	p.drawRoundedRect(
-		x,
-		y,
-		size,
-		size,
-		st::roundRadiusSmall,
-		st::roundRadiusSmall);
-
-	PaintRepliesMessagesInner(p, x, y, size, fg);
-}
-
-QPixmap EmptyUserpic::GenerateRepliesMessages(int size) {
+QImage EmptyUserpic::GenerateRepliesMessages(int size) {
 	return Generate(size, [&](QPainter &p) {
 		PaintRepliesMessages(p, 0, 0, size, size);
-	});
-}
-
-QPixmap EmptyUserpic::GenerateRepliesMessagesRounded(int size) {
-	return Generate(size, [&](QPainter &p) {
-		PaintRepliesMessagesRounded(p, 0, 0, size, size);
 	});
 }
 
@@ -510,7 +417,7 @@ QPixmap EmptyUserpic::generate(int size) {
 	result.fill(Qt::transparent);
 	{
 		auto p = QPainter(&result);
-		paint(p, 0, 0, size, size);
+		paintCircle(p, 0, 0, size, size);
 	}
 	return Ui::PixmapFromImage(std::move(result));
 }

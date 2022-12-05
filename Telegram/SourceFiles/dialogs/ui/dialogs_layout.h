@@ -38,8 +38,8 @@ using namespace ::Ui;
 class VideoUserpic;
 
 struct TopicJumpCorners {
-	Ui::CornersPixmaps normal;
-	Ui::CornersPixmaps inverted;
+	CornersPixmaps normal;
+	CornersPixmaps inverted;
 	QPixmap small;
 	int invertedRadius = 0;
 	int smallKey = 0; // = `-radius` if top right else `radius`.

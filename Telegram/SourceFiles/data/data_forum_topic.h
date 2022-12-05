@@ -150,7 +150,7 @@ public:
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
-		std::shared_ptr<CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const override;
 	void clearUserpicLoops();
 

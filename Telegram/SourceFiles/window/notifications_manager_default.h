@@ -11,15 +11,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/text/text.h"
 #include "ui/rp_widget.h"
+#include "ui/userpic_view.h"
 #include "base/timer.h"
 #include "base/binary_guard.h"
 #include "base/object_ptr.h"
 
 #include <QtCore/QTimer>
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Ui {
 class IconButton;
@@ -290,7 +287,7 @@ private:
 	History *_history = nullptr;
 	Data::ForumTopic *_topic = nullptr;
 	MsgId _topicRootId = 0;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
+	Ui::PeerUserpicView _userpicView;
 	QString _author;
 	Data::ReactionId _reaction;
 	HistoryItem *_item = nullptr;

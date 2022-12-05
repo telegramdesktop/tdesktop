@@ -2132,7 +2132,8 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 
 		// paint the userpic if it intersects the painted rect
 		if (userpicTop + st::msgPhotoSize > clip.top()) {
-			if (const auto from = view->data()->displayFrom()) {
+			const auto item = view->data();
+			if (const auto from = item->displayFrom()) {
 				from->paintUserpicLeft(
 					p,
 					_userpics[from],
@@ -2140,28 +2141,25 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 					userpicTop,
 					view->width(),
 					st::msgPhotoSize);
-			} else if (const auto info = view->data()->hiddenSenderInfo()) {
+			} else if (const auto info = item->hiddenSenderInfo()) {
 				if (info->customUserpic.empty()) {
-					info->emptyUserpic.paint(
+					info->emptyUserpic.paintCircle(
 						p,
 						st::historyPhotoLeft,
 						userpicTop,
 						view->width(),
 						st::msgPhotoSize);
 				} else {
-					const auto painted = info->paintCustomUserpic(
+					auto &userpic = _hiddenSenderUserpics[item->id];
+					const auto valid = info->paintCustomUserpic(
 						p,
+						userpic,
 						st::historyPhotoLeft,
 						userpicTop,
 						view->width(),
 						st::msgPhotoSize);
-					if (!painted) {
-						const auto itemId = view->data()->fullId();
-						auto &v = _sponsoredUserpics[itemId.msg];
-						if (!info->customUserpic.isCurrentView(v)) {
-							v = info->customUserpic.createView();
-							info->customUserpic.load(session, itemId);
-						}
+					if (!valid) {
+						info->customUserpic.load(session, item->fullId());
 					}
 				}
 			} else {

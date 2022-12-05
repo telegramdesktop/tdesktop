@@ -632,7 +632,7 @@ auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
 			int y,
 			int outerWidth,
 			int size) {
-		auto view = std::shared_ptr<Data::CloudImageView>();
+		auto view = Ui::PeerUserpicView();
 		p.translate(x, y);
 		_topic->paintUserpic(p, view, {
 			.st = &st::forumTopicRow,

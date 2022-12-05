@@ -350,7 +350,7 @@ void MembersRow::updateBlobAnimation(crl::time now) {
 }
 
 void MembersRow::ensureUserpicCache(
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int size) {
 	Expects(_blobsAnimation != nullptr);
 
@@ -401,7 +401,7 @@ void MembersRow::paintBlobs(
 
 void MembersRow::paintScaledUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int x,
 		int y,
 		int outerWidth,

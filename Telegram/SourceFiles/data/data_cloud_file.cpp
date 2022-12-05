@@ -22,23 +22,12 @@ CloudFile::~CloudFile() {
 	base::take(loader);
 }
 
-void CloudImageView::set(
-		not_null<Main::Session*> session,
-		QImage image) {
-	_image.emplace(std::move(image));
-	session->notifyDownloaderTaskFinished();
-}
-
 CloudImage::CloudImage() = default;
 
 CloudImage::CloudImage(
 		not_null<Main::Session*> session,
 		const ImageWithLocation &data) {
 	update(session, data);
-}
-
-Image *CloudImageView::image() {
-	return _image ? &*_image : nullptr;
 }
 
 void CloudImage::set(
@@ -52,11 +41,11 @@ void CloudImage::set(
 		_file.location = ImageLocation();
 		_file.byteSize = 0;
 		_file.flags = CloudFile::Flag();
-		_view = std::weak_ptr<CloudImageView>();
+		_view = std::weak_ptr<QImage>();
 	} else if (was != now
 		&& (!v::is<InMemoryLocation>(was) || v::is<InMemoryLocation>(now))) {
 		_file.location = ImageLocation();
-		_view = std::weak_ptr<CloudImageView>();
+		_view = std::weak_ptr<QImage>();
 	}
 	UpdateCloudFile(
 		_file,
@@ -65,9 +54,7 @@ void CloudImage::set(
 		kImageCacheTag,
 		[=](FileOrigin origin) { load(session, origin); },
 		[=](QImage preloaded, QByteArray) {
-			if (const auto view = activeView()) {
-				view->set(session, data.preloaded);
-			}
+			setToActive(session, std::move(preloaded));
 		});
 }
 
@@ -81,9 +68,7 @@ void CloudImage::update(
 		kImageCacheTag,
 		[=](FileOrigin origin) { load(session, origin); },
 		[=](QImage preloaded, QByteArray) {
-			if (const auto view = activeView()) {
-				view->set(session, data.preloaded);
-			}
+			setToActive(session, std::move(preloaded));
 		});
 }
 
@@ -107,16 +92,14 @@ void CloudImage::load(not_null<Main::Session*> session, FileOrigin origin) {
 	const auto autoLoading = false;
 	const auto finalCheck = [=] {
 		if (const auto active = activeView()) {
-			return !active->image();
+			return active->isNull();
 		} else if (_file.flags & CloudFile::Flag::Loaded) {
 			return false;
 		}
 		return !(_file.flags & CloudFile::Flag::Loaded);
 	};
 	const auto done = [=](QImage result, QByteArray) {
-		if (const auto active = activeView()) {
-			active->set(session, std::move(result));
-		}
+		setToActive(session, std::move(result));
 	};
 	LoadCloudFile(
 		session,
@@ -137,25 +120,35 @@ int CloudImage::byteSize() const {
 	return _file.byteSize;
 }
 
-std::shared_ptr<CloudImageView> CloudImage::createView() {
+std::shared_ptr<QImage> CloudImage::createView() {
 	if (auto active = activeView()) {
 		return active;
 	}
-	auto view = std::make_shared<CloudImageView>();
+	auto view = std::make_shared<QImage>();
 	_view = view;
 	return view;
 }
 
-std::shared_ptr<CloudImageView> CloudImage::activeView() const {
+std::shared_ptr<QImage> CloudImage::activeView() const {
 	return _view.lock();
 }
 
-bool CloudImage::isCurrentView(
-		const std::shared_ptr<CloudImageView> &view) const {
+bool CloudImage::isCurrentView(const std::shared_ptr<QImage> &view) const {
 	if (!view) {
 		return empty();
 	}
 	return !view.owner_before(_view) && !_view.owner_before(view);
+}
+
+void CloudImage::setToActive(
+		not_null<Main::Session*> session,
+		QImage image) {
+	if (const auto view = activeView()) {
+		*view = image.isNull()
+			? Image::Empty()->original()
+			: std::move(image);
+		session->notifyDownloaderTaskFinished();
+	}
 }
 
 void UpdateCloudFile(

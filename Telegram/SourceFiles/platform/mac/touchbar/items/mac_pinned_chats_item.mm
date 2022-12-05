@@ -84,7 +84,7 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	auto result = PrepareImage();
 	Painter paint(&result);
 
-	auto view = std::shared_ptr<Data::CloudImageView>();
+	auto view = Ui::PeerUserpicView();
 	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
@@ -161,7 +161,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 @implementation PinnedDialogsPanel {
 	struct Pin {
 		PeerData *peer = nullptr;
-		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
+		Ui::PeerUserpicView userpicView;
 		int index = -1;
 		QImage userpic;
 		QImage unreadBadge;

@@ -48,7 +48,7 @@ PaintRoundImageCallback PaintUserpicCallback(
 			};
 		}
 	}
-	auto userpic = std::shared_ptr<Data::CloudImageView>();
+	auto userpic = Ui::PeerUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		peer->paintUserpicLeft(p, userpic, x, y, outerWidth, size);
 	};
@@ -635,8 +635,8 @@ QString PeerListRow::generateShortName() {
 		: peer()->shortName();
 }
 
-std::shared_ptr<Data::CloudImageView> &PeerListRow::ensureUserpicView() {
-	if (!_userpic) {
+Ui::PeerUserpicView &PeerListRow::ensureUserpicView() {
+	if (!_userpic.cloud && peer()->hasUserpic()) {
 		_userpic = peer()->createUserpicView();
 	}
 	return _userpic;
@@ -646,7 +646,7 @@ PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback() {
 	const auto saved = _isSavedMessagesChat;
 	const auto replies = _isRepliesMessagesChat;
 	const auto peer = this->peer();
-	auto userpic = saved ? nullptr : ensureUserpicView();
+	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
@@ -840,10 +840,10 @@ void PeerListRow::lazyInitialize(const style::PeerListItem &st) {
 void PeerListRow::createCheckbox(
 		const style::RoundImageCheckbox &st,
 		Fn<void()> updateCallback) {
-	const auto generateRadius = [=] {
+	const auto generateRadius = [=](int size) {
 		return (!special() && peer()->isForum())
-			? ImageRoundRadius::Large
-			: ImageRoundRadius::Ellipse;
+			? int(size * Ui::ForumUserpicRadiusMultiplier())
+			: std::optional<int>();
 	};
 	_checkbox = std::make_unique<Ui::RoundImageCheckbox>(
 		st,

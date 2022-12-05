@@ -1134,7 +1134,7 @@ void InnerWidget::paintSearchInFilter(
 void InnerWidget::paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
@@ -1168,7 +1168,7 @@ void InnerWidget::paintSearchInTopic(
 		Painter &p,
 		const Ui::PaintContext &context,
 		not_null<Data::ForumTopic*> topic,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const {
 	const auto paintUserpic = [&](Painter &p, int x, int y, int size) {
@@ -2846,7 +2846,7 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 		_searchFromUserUserpic = _searchFromPeer->createUserpicView();
 	} else {
 		_cancelSearchFromUser->hide();
-		_searchFromUserUserpic = nullptr;
+		_searchFromUserUserpic = {};
 	}
 	if (_searchInChat || _searchFromPeer) {
 		refreshSearchInChatLabel();
@@ -2855,7 +2855,7 @@ void InnerWidget::searchInChat(Key key, PeerData *from) {
 	if (const auto peer = _searchInChat.peer()) {
 		_searchInChatUserpic = peer->createUserpicView();
 	} else {
-		_searchInChatUserpic = nullptr;
+		_searchInChatUserpic = {};
 	}
 	moveCancelSearchButtons();
 

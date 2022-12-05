@@ -38,11 +38,11 @@ constexpr auto kNoneLayer = 0;
 void PaintCornerBadgeTTLFrame(
 		QPainter &q,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		float64 progress,
 		int photoSize) {
 	const auto ttl = peer->messagesTTL();
-	if (!ttl || !view) {
+	if (!ttl) {
 		return;
 	}
 	using Radius = ImageRoundRadius;
@@ -54,7 +54,7 @@ void PaintCornerBadgeTTLFrame(
 	const auto ratio = style::DevicePixelRatio();
 	const auto fullSize = photoSize;
 	const auto blurredFull = Images::BlurLargeImage(
-		peer->generateUserpicImage(view, fullSize * ratio, Radius::None),
+		peer->generateUserpicImage(view, fullSize * ratio, 0),
 		kBlurRadius);
 	const auto partRect = CornerBadgeTTLRect(fullSize);
 	const auto &partSize = partRect.width();
@@ -338,7 +338,7 @@ void Row::PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) {
 	data->frame.fill(Qt::transparent);
 

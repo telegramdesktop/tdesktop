@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "ui/userpic_view.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 #include "data/data_cloud_file.h"
@@ -84,7 +85,7 @@ public:
 		return _id;
 	}
 
-	[[nodiscard]] std::shared_ptr<Data::CloudImageView> &ensureUserpicView();
+	[[nodiscard]] Ui::PeerUserpicView &ensureUserpicView();
 
 	[[nodiscard]] virtual QString generateName();
 	[[nodiscard]] virtual QString generateShortName();
@@ -262,7 +263,7 @@ private:
 
 	PeerListRowId _id = 0;
 	PeerData *_peer = nullptr;
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Ui::Text::String _name;

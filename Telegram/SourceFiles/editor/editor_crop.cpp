@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "editor/editor_crop.h"
 
+#include "ui/userpic_view.h"
 #include "styles/style_editor.h"
 #include "styles/style_basic.h"
 #include "styles/style_dialogs.h"
@@ -149,7 +150,7 @@ void Crop::setCropPaint(QRectF &&rect) {
 		_painterPath.addEllipse(_cropPaint);
 	} else if (_data.cropType == EditorData::CropType::RoundedRect) {
 		const auto radius = std::min(_cropPaint.width(), _cropPaint.height())
-			* st::roundRadiusLarge / float64(st::defaultDialogRow.photoSize);
+			* Ui::ForumUserpicRadiusMultiplier();
 		_painterPath.addRoundedRect(_cropPaint, radius, radius);
 	} else {
 		_painterPath.addRect(_cropPaint);

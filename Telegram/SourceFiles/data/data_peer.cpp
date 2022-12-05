@@ -191,7 +191,7 @@ void PeerData::updateNameDelayed(
 		}
 	}
 	_name = newName;
-	_userpicEmpty = nullptr;
+	invalidateEmptyUserpic();
 
 	auto flags = UpdateFlag::None | UpdateFlag::None;
 	auto oldFirstLetters = base::flat_set<QChar>();
@@ -231,11 +231,15 @@ not_null<Ui::EmptyUserpic*> PeerData::ensureEmptyUserpic() const {
 		const auto user = asUser();
 		_userpicEmpty = std::make_unique<Ui::EmptyUserpic>(
 			Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(id)),
-			user && user->isInaccessible()
+			((user && user->isInaccessible())
 				? Ui::EmptyUserpic::InaccessibleName()
-				: name());
+				: name()));
 	}
 	return _userpicEmpty.get();
+}
+
+void PeerData::invalidateEmptyUserpic() {
+	_userpicEmpty = nullptr;
 }
 
 ClickHandlerPtr PeerData::createOpenLink() {
@@ -265,50 +269,45 @@ void PeerData::setUserpicPhoto(const MTPPhoto &data) {
 	}
 }
 
-Image *PeerData::currentUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const {
-	if (!_userpic.isCurrentView(view)) {
-		view = _userpic.createView();
-		_userpic.load(&session(), userpicOrigin());
+QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
+	if (!_userpic.isCurrentView(view.cloud)) {
+		if (!_userpic.empty()) {
+			view.cloud = _userpic.createView();
+			_userpic.load(&session(), userpicOrigin());
+		} else {
+			view.cloud = nullptr;
+			if (view.empty.null()) {
+				view.paletteVersion = 0;
+			}
+		}
 	}
-	const auto image = view ? view->image() : nullptr;
-	if (image) {
+	if (const auto image = view.cloud.get(); image && !image->isNull()) {
 		_userpicEmpty = nullptr;
+		return image;
 	} else if (isNotificationsUser()) {
-		static auto result = Image(
-			Window::LogoNoMargin().scaledToWidth(
-				kUserpicSize,
-				Qt::SmoothTransformation));
+		static auto result = Window::LogoNoMargin().scaledToWidth(
+			kUserpicSize,
+			Qt::SmoothTransformation);
 		return &result;
 	}
-	return image;
+	return nullptr;
 }
 
 void PeerData::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int x,
 		int y,
 		int size) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto rounding = isForum()
-			? Images::Option::RoundLarge
-			: Images::Option::RoundCircle;
-		p.drawPixmap(
-			x,
-			y,
-			userpic->pix(size, size, { .options = rounding }));
-	} else if (isForum()) {
-		ensureEmptyUserpic()->paintRounded(
-			p,
-			x,
-			y,
-			x + size + x,
-			size,
-			st::roundRadiusLarge);
-	} else{
-		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
-	}
+	const auto cloud = userpicCloudImage(view);
+	const auto ratio = style::DevicePixelRatio();
+	Ui::ValidateUserpicCache(
+		view,
+		cloud,
+		cloud ? nullptr : ensureEmptyUserpic().get(),
+		size * ratio,
+		isForum());
+	p.drawImage(QRect(x, y, size, size), view.cached);
 }
 
 void PeerData::loadUserpic() {
@@ -319,112 +318,76 @@ bool PeerData::hasUserpic() const {
 	return !_userpic.empty();
 }
 
-std::shared_ptr<Data::CloudImageView> PeerData::activeUserpicView() {
-	return _userpic.empty() ? nullptr : _userpic.activeView();
+Ui::PeerUserpicView PeerData::activeUserpicView() {
+	return { .cloud = _userpic.empty() ? nullptr : _userpic.activeView() };
 }
 
-std::shared_ptr<Data::CloudImageView> PeerData::createUserpicView() {
+Ui::PeerUserpicView PeerData::createUserpicView() {
 	if (_userpic.empty()) {
-		return nullptr;
+		return {};
 	}
 	auto result = _userpic.createView();
 	_userpic.load(&session(), userpicPhotoOrigin());
-	return result;
+	return { .cloud = result };
 }
 
-bool PeerData::useEmptyUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const {
-	return !currentUserpic(view);
+bool PeerData::useEmptyUserpic(Ui::PeerUserpicView &view) const {
+	return !userpicCloudImage(view);
 }
 
-InMemoryKey PeerData::userpicUniqueKey(
-		std::shared_ptr<Data::CloudImageView> &view) const {
+InMemoryKey PeerData::userpicUniqueKey(Ui::PeerUserpicView &view) const {
 	return useEmptyUserpic(view)
 		? ensureEmptyUserpic()->uniqueKey()
 		: inMemoryKey(_userpic.location());
 }
 
-void PeerData::saveUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const {
-	generateUserpicImage(view, size * cIntRetinaFactor()).save(path, "PNG");
-}
-
-void PeerData::saveUserpicRounded(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const {
-	generateUserpicImage(
-		view,
-		size * cIntRetinaFactor(),
-		ImageRoundRadius::Small).save(path, "PNG");
-}
-
-QPixmap PeerData::genUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto rounding = isForum()
-			? Images::Option::RoundLarge
-			: Images::Option::RoundCircle;
-		return userpic->pix(size, size, { .options = rounding });
-	}
-	const auto ratio = style::DevicePixelRatio();
-	auto result = QImage(
-		QSize(size, size) * ratio,
-		QImage::Format_ARGB32_Premultiplied);
-	result.setDevicePixelRatio(ratio);
-	result.fill(Qt::transparent);
-	{
-		Painter p(&result);
-		paintUserpic(p, view, 0, 0, size);
-	}
-	return Ui::PixmapFromImage(std::move(result));
-}
-
 QImage PeerData::generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const {
-	return generateUserpicImage(
-		view,
-		size,
-		isForum() ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse);
-}
-
-QImage PeerData::generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int size,
-		ImageRoundRadius radius) const {
-	if (const auto userpic = currentUserpic(view)) {
-		const auto options = (radius == ImageRoundRadius::Ellipse)
-			? Images::Option::RoundCircle
-			: (radius == ImageRoundRadius::Large)
-			? Images::Option::RoundLarge
-			: (radius == ImageRoundRadius::Small)
-			? Images::Option::RoundSmall
-			: Images::Option();
-		return userpic->pixNoCache(
+		std::optional<int> radius) const {
+	if (const auto userpic = userpicCloudImage(view)) {
+		auto image = userpic->scaled(
 			{ size, size },
-			{ .options = options }).toImage();
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		const auto round = [&](int radius) {
+			return Images::Round(
+				std::move(image),
+				Images::CornersMask(radius));
+		};
+		if (radius == 0) {
+			return image;
+		} else if (radius) {
+			return round(*radius);
+		} else if (isForum()) {
+			return round(size * Ui::ForumUserpicRadiusMultiplier());
+		} else {
+			return Images::Circle(std::move(image));
+		}
 	}
 	auto result = QImage(
 		QSize(size, size),
 		QImage::Format_ARGB32_Premultiplied);
 	result.fill(Qt::transparent);
-	{
-		Painter p(&result);
-		if (radius == ImageRoundRadius::Ellipse) {
-			ensureEmptyUserpic()->paint(p, 0, 0, size, size);
-		} else if (radius == ImageRoundRadius::None) {
-			ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
-		} else if (radius == ImageRoundRadius::Large) {
-			const auto radius = st::roundRadiusLarge;
-			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, radius);
-		} else {
-			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size);
-		}
+
+	Painter p(&result);
+	if (radius == 0) {
+		ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
+	} else if (radius) {
+		ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, *radius);
+	} else if (isForum()) {
+		ensureEmptyUserpic()->paintRounded(
+			p,
+			0,
+			0,
+			size,
+			size,
+			size * Ui::ForumUserpicRadiusMultiplier());
+	} else {
+		ensureEmptyUserpic()->paintCircle(p, 0, 0, size, size);
 	}
+	p.end();
+
 	return result;
 }
 

@@ -31,7 +31,6 @@ class SessionController;
 
 namespace Data {
 class DocumentMedia;
-class CloudImageView;
 } // namespace Data
 
 namespace SendMenu {
@@ -131,20 +130,8 @@ private:
 	class Inner;
 	friend class Inner;
 	struct StickerSuggestion;
-
-	struct MentionRow {
-		not_null<UserData*> user;
-		Ui::Text::String name;
-		std::shared_ptr<Data::CloudImageView> userpic;
-	};
-
-	struct BotCommandRow {
-		not_null<UserData*> user;
-		QString command;
-		QString description;
-		std::shared_ptr<Data::CloudImageView> userpic;
-		Ui::Text::String descriptionText;
-	};
+	struct MentionRow;
+	struct BotCommandRow;
 
 	using HashtagRows = std::vector<QString>;
 	using BotCommandRows = std::vector<BotCommandRow>;

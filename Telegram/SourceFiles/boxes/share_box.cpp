@@ -536,7 +536,7 @@ void ShareBox::applyFilterUpdate(const QString &query) {
 }
 
 PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
-	auto userpic = std::shared_ptr<Data::CloudImageView>();
+	auto userpic = Ui::PeerUserpicView();
 	auto cache = std::make_shared<QImage>();
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		const auto ratio = style::DevicePixelRatio();
@@ -956,9 +956,9 @@ ShareBox::Inner::Chat::Chat(
 	st.checkbox,
 	updateCallback,
 	PaintUserpicCallback(peer, true),
-	[=] { return peer->isForum()
-	? ImageRoundRadius::Large
-	: ImageRoundRadius::Ellipse; })
+	[=](int size) { return peer->isForum()
+		? int(size * Ui::ForumUserpicRadiusMultiplier())
+		: std::optional<int>(); })
 , name(st.checkbox.imageRadius * 2) {
 }
 

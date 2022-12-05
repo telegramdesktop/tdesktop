@@ -245,17 +245,16 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 void Location::validateImageCache(
 		QSize outer,
 		Ui::BubbleRounding rounding) const {
+	Expects(_media != nullptr);
+
 	const auto ratio = style::DevicePixelRatio();
 	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRounding == rounding) {
-		return;
-	}
-	const auto thumbnail = _media->image();
-	if (!thumbnail) {
+		&& _imageCacheRounding == rounding
+		|| _media->isNull()) {
 		return;
 	}
 	_imageCache = Images::Round(
-		thumbnail->original().scaled(
+		_media->scaled(
 			outer * ratio,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation),

@@ -285,9 +285,9 @@ void PaintRow(
 		not_null<Entry*> entry,
 		VideoUserpic *videoUserpic,
 		PeerData *from,
-		Ui::PeerBadge &fromBadge,
+		PeerBadge &fromBadge,
 		Fn<void()> customEmojiRepaint,
-		const Ui::Text::String &fromName,
+		const Text::String &fromName,
 		const HiddenSenderInfo *hiddenSenderInfo,
 		HistoryItem *item,
 		const Data::Draft *draft,
@@ -306,8 +306,8 @@ void PaintRow(
 		: context.selected
 		? st::dialogsBgOver
 		: anim::brush(
-			st::dialogsBg, 
-			st::dialogsBgOver, 
+			st::dialogsBg,
+			st::dialogsBgOver,
 			context.childListShown);
 	p.fillRect(geometry, bg);
 	if (!(flags & Flag::TopicJumpRipple)) {
@@ -342,7 +342,7 @@ void PaintRow(
 			(flags & Flag::AllowUserOnline) ? history : nullptr,
 			context);
 	} else if (hiddenSenderInfo) {
-		hiddenSenderInfo->emptyUserpic.paint(
+		hiddenSenderInfo->emptyUserpic.paintCircle(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),

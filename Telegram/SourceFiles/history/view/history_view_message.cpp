@@ -1105,10 +1105,10 @@ void Message::paintCommentsButton(
 				auto &entry = list[i];
 				const auto peer = entry.peer;
 				auto &view = entry.view;
-				const auto wasView = view.get();
+				const auto wasView = view.cloud.get();
 				if (views->recentRepliers[i] != peer->id
 					|| peer->userpicUniqueKey(view) != entry.uniqueKey
-					|| view.get() != wasView) {
+					|| view.cloud.get() != wasView) {
 					return true;
 				}
 			}

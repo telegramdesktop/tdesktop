@@ -36,7 +36,7 @@ struct UserpicState {
 	PeerShortInfoUserpic current;
 	std::optional<UserPhotosSlice> userSlice;
 	PhotoId userpicPhotoId = PeerData::kUnknownPhotoId;
-	std::shared_ptr<Data::CloudImageView> userpicView;
+	Ui::PeerUserpicView userpicView;
 	std::shared_ptr<Data::PhotoMedia> photoView;
 	std::vector<std::shared_ptr<Data::PhotoMedia>> photoPreloads;
 	InMemoryKey userpicKey;
@@ -76,27 +76,26 @@ void ProcessUserpic(
 		not_null<UserpicState*> state) {
 	state->current.videoDocument = nullptr;
 	state->userpicKey = peer->userpicUniqueKey(state->userpicView);
-	if (!state->userpicView) {
+	if (!state->userpicView.cloud) {
 		GenerateImage(
 			state,
 			peer->generateUserpicImage(
 				state->userpicView,
 				st::shortInfoWidth * style::DevicePixelRatio(),
-				ImageRoundRadius::None),
+				0),
 			false);
 		state->current.photoLoadingProgress = 1.;
 		state->photoView = nullptr;
 		return;
 	}
 	peer->loadUserpic();
-	const auto image = state->userpicView->image();
-	if (!image) {
+	if (Ui::PeerUserpicLoading(state->userpicView)) {
 		state->current.photoLoadingProgress = 0.;
 		state->current.photo = QImage();
 		state->waitingLoad = true;
 		return;
 	}
-	GenerateImage(state, image, true);
+	GenerateImage(state, *state->userpicView.cloud, true);
 	state->current.photoLoadingProgress = peer->userpicPhotoId() ? 0. : 1.;
 	state->photoView = nullptr;
 }
@@ -411,7 +410,7 @@ bool ProcessCurrent(
 			return state->waitingLoad
 				&& (state->photoView
 					? (!!state->photoView->image(Data::PhotoSize::Large))
-					: (state->userpicView && state->userpicView->image()));
+					: (!Ui::PeerUserpicLoading(state->userpicView)));
 		}) | rpl::start_with_next([=] {
 			push();
 		}, lifetime);

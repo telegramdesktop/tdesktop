@@ -171,6 +171,11 @@ void CheckChatInvite(
 
 } // namespace Api
 
+struct ConfirmInviteBox::Participant {
+	not_null<UserData*> user;
+	Ui::PeerUserpicView userpic;
+};
+
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
 	not_null<Main::Session*> session,
@@ -356,7 +361,7 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 					{ .options = Images::Option::RoundCircle }));
 		}
 	} else if (_photoEmpty) {
-		_photoEmpty->paint(
+		_photoEmpty->paintCircle(
 			p,
 			(width() - st::confirmInvitePhotoSize) / 2,
 			st::confirmInvitePhotoTop,

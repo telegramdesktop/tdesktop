@@ -8,13 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/rp_widget.h"
+#include "ui/userpic_view.h"
 #include "ui/effects/animations.h"
 
 class PeerData;
 class Image;
 
 namespace Data {
-class CloudImageView;
 class PhotoMedia;
 } // namespace Data
 
@@ -51,7 +51,7 @@ private:
 	Ui::RpWidget _content;
 
 	not_null<PeerData*> _peer;
-	std::shared_ptr<Data::CloudImageView> _userpic;
+	Ui::PeerUserpicView _userpic;
 	std::shared_ptr<Data::PhotoMedia> _photo;
 	Ui::Animations::Simple _mutedAnimation;
 	QPixmap _userPhoto;
