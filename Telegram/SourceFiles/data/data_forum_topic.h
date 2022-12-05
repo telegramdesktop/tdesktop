@@ -179,6 +179,7 @@ private:
 	void validateGeneralIcon(const Dialogs::Ui::PaintContext &context) const;
 	void applyTopicTopMessage(MsgId topMessageId);
 	void growLastKnownServerMessageId(MsgId id);
+	void invalidateTitleWithIcon();
 
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);

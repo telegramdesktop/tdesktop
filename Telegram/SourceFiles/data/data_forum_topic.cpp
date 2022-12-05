@@ -707,8 +707,7 @@ void ForumTopic::applyTitle(const QString &title) {
 		return;
 	}
 	_title = title;
-	++_titleVersion;
-	_forum->recentTopicsInvalidate(this);
+	invalidateTitleWithIcon();
 	_defaultIcon = QImage();
 	indexTitleParts();
 	updateChatListEntry();
@@ -724,7 +723,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 		return;
 	}
 	_iconId = iconId;
-	++_titleVersion;
+	invalidateTitleWithIcon();
 	_icon = iconId
 		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
 			owner().customEmojiManager().create(
@@ -738,6 +737,11 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	}
 	updateChatListEntry();
 	session().changes().topicUpdated(this, UpdateFlag::IconId);
+}
+
+void ForumTopic::invalidateTitleWithIcon() {
+	++_titleVersion;
+	_forum->recentTopicsInvalidate(this);
 }
 
 int32 ForumTopic::colorId() const {

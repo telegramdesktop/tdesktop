@@ -56,10 +56,9 @@ void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
 			_titles.emplace_back();
 		}
 		auto &title = _titles[index++];
-		title.topicRootId = rootId;
-
 		const auto unread = topic->chatListBadgesState().unread;
-		if (title.unread == unread
+		if (title.topicRootId == rootId
+			&& title.unread == unread
 			&& title.version == topic->titleVersion()) {
 			continue;
 		}
@@ -69,6 +68,7 @@ void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
 			.customEmojiLoopLimit = kIconLoopCount,
 		};
 		auto topicTitle = topic->titleWithIcon();
+		title.topicRootId = rootId;
 		title.version = topic->titleVersion();
 		title.unread = unread;
 		title.title.setMarkedText(
