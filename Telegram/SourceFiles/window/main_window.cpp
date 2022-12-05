@@ -806,15 +806,18 @@ void MainWindow::updateUnreadCounter() {
 		return;
 	}
 
-	const auto counter = Core::App().unreadBadge();
-	if (ShowChatNameInNewWindow.value()) {
-		const auto additionalName = singlePeer()
-			? u" %1 %2"_q.arg(QChar(8212), singlePeer()->name())
-			: QString();
-		setTitle(((counter > 0)
-			? u"Telegram (%1)"_q.arg(counter)
-			: u"Telegram"_q) + additionalName);
+	if (ShowChatNameInNewWindow.value() && singlePeer()) {
+		const auto peer = singlePeer();
+		const auto history = peer->owner().history(peer);
+		const auto name = peer->isSelf()
+			? tr::lng_saved_messages(tr::now)
+			: peer->name();
+		const auto counter = history->unreadCount();
+		setTitle((counter > 0)
+			? u"(%1) %2 \u2013 Telegram"_q.arg(QString::number(counter), name)
+			: u"%1 \u2013 Telegram"_q.arg(name));
 	} else {
+		const auto counter = Core::App().unreadBadge();
 		setTitle((counter > 0)
 			? u"Telegram (%1)"_q.arg(counter)
 			: u"Telegram"_q);
