@@ -803,8 +803,9 @@ void Filler::addExportChat() {
 void Filler::addReport() {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
-	if ((!chat || chat->amCreator())
-		&& (!channel || channel->amCreator())) {
+	if (_topic
+		|| ((!chat || chat->amCreator())
+			&& (!channel || channel->amCreator()))) {
 		return;
 	}
 	const auto peer = _peer;
@@ -1108,6 +1109,7 @@ void Filler::fillChatsListActions() {
 	addNewMembers();
 	addVideoChat();
 	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+	addReport();
 	if (_peer->asChannel()->amIn()) {
 		addLeaveChat();
 	} else {
