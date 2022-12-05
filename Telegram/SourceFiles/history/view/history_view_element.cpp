@@ -1227,6 +1227,9 @@ ClickHandlerPtr Element::rightActionLink() const {
 	return ClickHandlerPtr();
 }
 
+void Element::applyRightActionLastPoint(QPoint p) const {
+}
+
 TimeId Element::displayedEditDate() const {
 	return TimeId(0);
 }

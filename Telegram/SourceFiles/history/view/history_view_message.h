@@ -130,6 +130,7 @@ public:
 	bool displayFastReply() const override;
 	bool displayRightActionComments() const;
 	std::optional<QSize> rightActionSize() const override;
+	void applyRightActionLastPoint(QPoint p) const override;
 	void drawRightAction(
 		Painter &p,
 		const PaintContext &context,
@@ -168,6 +169,7 @@ protected:
 private:
 	struct CommentsButton;
 	struct FromNameStatus;
+	struct RightAction;
 
 	void initLogEntryOriginal();
 	void initPsa();
@@ -185,6 +187,9 @@ private:
 
 	void toggleTopicButtonRipple(bool pressed);
 	void createTopicButtonRipple();
+
+	void toggleRightActionRipple(bool pressed);
+	void createRightActionRipple();
 
 	void paintCommentsButton(
 		Painter &p,
@@ -288,7 +293,7 @@ private:
 	void refreshReactions();
 	void validateFromNameText(PeerData *from) const;
 
-	mutable ClickHandlerPtr _rightActionLink;
+	mutable std::unique_ptr<RightAction> _rightAction;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
 	std::unique_ptr<Reactions::InlineList> _reactions;

@@ -335,6 +335,8 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
 				result.link = _parent->rightActionLink();
+				_parent->applyRightActionLastPoint(point
+					- QPoint(fastShareLeft, fastShareTop));
 			}
 		}
 	}
