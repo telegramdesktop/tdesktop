@@ -691,6 +691,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_ttl_select_chats_title" = "Select Chats";
 "lng_settings_ttl_select_chats_subtitle" = "to apply the self-destruct timer";
 "lng_settings_ttl_select_chats_subtitle_chosen" = "will have the self-destruct timer";
+"lng_settings_ttl_select_chats_sorry" = "Sorry, you can't set self-destruct timer for this chat.";
 "lng_settings_ttl_select_chats_status" = "auto-delete after {after_duration}";
 "lng_settings_ttl_select_chats_status_disabled" = "auto-deletion disabled";
 "lng_settings_ttl_select_chats_toast#one" = "Self-destruct timer for {duration} has been enabled in {count} selected chat.";

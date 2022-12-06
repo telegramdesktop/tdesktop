@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "boxes/peer_list_controllers.h"
 #include "data/data_changes.h"
+#include "data/data_chat.h"
 #include "data/data_peer.h"
 #include "data/data_session.h"
 #include "history/history.h"
@@ -117,6 +118,13 @@ void TTLChatsBoxController::prepareViewHook() {
 }
 
 void TTLChatsBoxController::rowClicked(not_null<PeerListRow*> row) {
+	if (!TTLMenu::TTLValidator(nullptr, row->peer()).can()) {
+		Ui::ShowMultilineToast({
+			.parentOverride = delegate()->peerListToastParent(),
+			.text = { tr::lng_settings_ttl_select_chats_sorry(tr::now) },
+		});
+		return;
+	}
 	delegate()->peerListSetRowChecked(row, !row->checked());
 }
 
@@ -124,6 +132,8 @@ std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 		not_null<History*> history) {
 	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
 		return nullptr;
+	} else if (history->peer->isChat() && history->peer->asChat()->amIn()) {
+	} else if (history->peer->isMegagroup()) {
 	} else if (!TTLMenu::TTLValidator(nullptr, history->peer).can()) {
 		return nullptr;
 	}
