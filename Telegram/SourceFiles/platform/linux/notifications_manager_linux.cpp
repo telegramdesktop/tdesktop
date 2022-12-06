@@ -129,7 +129,7 @@ void StartServiceAsync(Fn<void()> callback) {
 						};
 
 						const auto errorName =
-							Gio::DBus::ErrorUtils::get_remote_error(e);
+							Gio::DBus::ErrorUtils::get_remote_error(e).raw();
 
 						if (!ranges::contains(NotSupportedErrors, errorName)) {
 							throw e;
