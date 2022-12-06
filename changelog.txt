@@ -1,3 +1,20 @@
+4.4 (06.12.22)
+
+- You can set a Global Auto-Delete Timer for all new chats and groups you create.
+- New messages will be deleted after 1 day, week, month - or a custom duration you choose.
+- The new menu in Settings > Privacy & Security > Auto-Delete Messages also lets you set up Auto-Delete for any of your existing chats faster.
+- Admins of groups with 100+ members can organize discussions into separate topics.
+- Topics now have a two-column layout that keeps recent chats easily accessible as you browse topics.
+- Previews of topic messages in the chat list work like a button - click to jump to the last updated topic.
+- Up to 5 topics can be pinned to the top of the list.
+- Each topic now supports multiple pinned messages.
+- The View as Messages mode now shows which topic each message belongs to.
+- Badge counters for topics you never opened will have a lighter, less distracting color.
+- A new General topic is now included by default, containing service messages and the earlier message history from the group.
+- Admins can rename the General topic.
+- Large groups can enable Aggressive Filtering in Manage Group > Administrators to remove more spam with automated algorithms.
+- Admins help improve filtering by reporting any false positives in Recent Actions.
+
 4.3.4 (25.11.22)
 
 - Fix OpenGL regression in Qt and language detection.
