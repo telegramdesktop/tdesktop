@@ -773,6 +773,13 @@ void TopBarWidget::setActiveChat(
 				_titlePeerTextOnline = false;
 				update();
 			}, _activeChatLifetime);
+
+			// _menuToggle visibility depends on "View topic info",
+			// "View topic info" visibility depends on activeChatCurrent.
+			_controller->activeChatChanges(
+			) | rpl::start_with_next([=] {
+				updateControlsVisibility();
+			}, _activeChatLifetime);
 		}
 	}
 	updateUnreadBadge();
