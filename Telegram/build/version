@@ -3,5 +3,5 @@ AppVersionStrMajor 4.3
 AppVersionStrSmall 4.3.4
 AppVersionStr      4.3.4
 BetaChannel        0
-AlphaVersion       0
-AppVersionOriginal 4.3.4
+AlphaVersion       4003004001
+AppVersionOriginal 4.3.4.1
