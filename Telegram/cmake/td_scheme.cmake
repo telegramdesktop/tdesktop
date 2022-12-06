@@ -34,6 +34,14 @@ PUBLIC
     desktop-app::lib_tl
 )
 
+if (WIN32 AND NOT build_win64 AND DESKTOP_APP_SPECIAL_TARGET)
+    target_compile_options(td_scheme
+    PRIVATE
+        $<IF:$<CONFIG:Debug>,,/GL>
+    )
+    set_property(TARGET td_scheme APPEND_STRING PROPERTY STATIC_LIBRARY_OPTIONS "$<IF:$<CONFIG:Debug>,,/LTCG>")
+endif()
+
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "mips64")
     # Sometimes final linking may fail with error "relocation truncated to fit"
     # due to large scheme size.

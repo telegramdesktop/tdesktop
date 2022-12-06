@@ -1601,6 +1601,17 @@ if (WIN32)
         /DELAYLOAD:wtsapi32.dll
         /DELAYLOAD:propsys.dll
     )
+
+    if (NOT build_win64 AND DESKTOP_APP_SPECIAL_TARGET)
+        target_compile_options(Telegram
+        PRIVATE
+            $<IF:$<CONFIG:Debug>,,/GL>
+        )
+        target_link_options(Telegram
+        PRIVATE
+            $<IF:$<CONFIG:Debug>,,/LTCG>
+        )
+    endif()
 endif()
 
 target_prepare_qrc(Telegram)
