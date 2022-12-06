@@ -80,7 +80,8 @@ std::unique_ptr<base::Platform::DBus::ServiceWatcher> CreateServiceWatcher() {
 			try {
 				return ranges::contains(
 					base::Platform::DBus::ListActivatableNames(connection),
-					Glib::ustring(std::string(kService)));
+					std::string(kService),
+					&Glib::ustring::raw);
 			} catch (...) {
 				// avoid service restart loop in sandboxed environments
 				return true;
@@ -129,7 +130,7 @@ void StartServiceAsync(Fn<void()> callback) {
 						};
 
 						const auto errorName =
-							Gio::DBus::ErrorUtils::get_remote_error(e);
+							Gio::DBus::ErrorUtils::get_remote_error(e).raw();
 
 						if (!ranges::contains(NotSupportedErrors, errorName)) {
 							throw e;
@@ -166,7 +167,8 @@ bool GetServiceRegistered() {
 			try {
 				return ranges::contains(
 					DBus::ListActivatableNames(connection),
-					Glib::ustring(std::string(kService)));
+					std::string(kService),
+					&Glib::ustring::raw);
 			} catch (...) {
 				return false;
 			}

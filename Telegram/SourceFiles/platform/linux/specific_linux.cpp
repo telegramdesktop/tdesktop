@@ -264,7 +264,8 @@ void LaunchGApplication() {
 
 		if (ranges::contains(
 			activatableNames,
-			"org.freedesktop.Notifications")) {
+			"org.freedesktop.Notifications",
+			&Glib::ustring::raw)) {
 			return true;
 		}
 
