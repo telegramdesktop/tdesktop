@@ -444,8 +444,6 @@ win:
     git clone https://chromium.googlesource.com/external/gyp
     cd gyp
     git checkout 9d09418933
-depends:patches/gyp.diff
-    git apply $LIBS_DIR/patches/gyp.diff
 mac:
     python3 -m pip install ^
         --ignore-installed ^
