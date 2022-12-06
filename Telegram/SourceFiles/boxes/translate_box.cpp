@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "spellcheck/platform/platform_language.h"
+#endif
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
@@ -343,6 +345,7 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (!hasLetters) {
 		return true;
 	}
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto result = Platform::Language::Recognize(text);
 	if (result.unknown) {
 		return false;
@@ -355,6 +358,9 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 		? QLocale::English
 		: settingsLang;
 	return (result.locale.language() == skip);
+#else
+    return false;
+#endif
 }
 
 } // namespace Ui
