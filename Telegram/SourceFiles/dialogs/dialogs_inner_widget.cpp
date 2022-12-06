@@ -3360,8 +3360,8 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 		return RowDescriptor();
 	}
 
-	const auto whichHistory = which.key.history();
-	if (!whichHistory) {
+	const auto whichThread = which.key.thread();
+	if (!whichThread) {
 		return RowDescriptor();
 	}
 	if (!_searchResults.empty()) {
@@ -3387,21 +3387,23 @@ RowDescriptor InnerWidget::chatListEntryBefore(
 				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
 	}
-	if (!_peerSearchResults.empty()
-		&& _peerSearchResults[0]->peer == whichHistory->peer) {
-		if (_filterResults.empty()) {
-			return RowDescriptor();
+	if (const auto history = whichThread->asHistory()) {
+		if (!_peerSearchResults.empty()
+			&& _peerSearchResults[0]->peer == history->peer) {
+			if (_filterResults.empty()) {
+				return RowDescriptor();
+			}
+			return RowDescriptor(
+				_filterResults.back().key(),
+				FullMsgId(PeerId(), ShowAtUnreadMsgId));
 		}
-		return RowDescriptor(
-			_filterResults.back().key(),
-			FullMsgId(PeerId(), ShowAtUnreadMsgId));
-	}
-	if (!_peerSearchResults.empty()) {
-		for (auto b = _peerSearchResults.cbegin(), i = b + 1, e = _peerSearchResults.cend(); i != e; ++i) {
-			if ((*i)->peer == whichHistory->peer) {
-				return RowDescriptor(
-					session().data().history((*(i - 1))->peer),
-					FullMsgId(PeerId(), ShowAtUnreadMsgId));
+		if (!_peerSearchResults.empty()) {
+			for (auto b = _peerSearchResults.cbegin(), i = b + 1, e = _peerSearchResults.cend(); i != e; ++i) {
+				if ((*i)->peer == history->peer) {
+					return RowDescriptor(
+						session().data().history((*(i - 1))->peer),
+						FullMsgId(PeerId(), ShowAtUnreadMsgId));
+				}
 			}
 		}
 	}
@@ -3436,8 +3438,8 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 		return RowDescriptor();
 	}
 
-	const auto whichHistory = which.key.history();
-	if (!whichHistory) {
+	const auto whichThread = which.key.thread();
+	if (!whichThread) {
 		return RowDescriptor();
 	}
 	for (auto i = _searchResults.cbegin(), e = _searchResults.cend(); i != e; ++i) {
@@ -3450,19 +3452,21 @@ RowDescriptor InnerWidget::chatListEntryAfter(
 			return RowDescriptor();
 		}
 	}
-	for (auto i = _peerSearchResults.cbegin(), e = _peerSearchResults.cend(); i != e; ++i) {
-		if ((*i)->peer == whichHistory->peer) {
-			++i;
-			if (i != e) {
-				return RowDescriptor(
-					session().data().history((*i)->peer),
-					FullMsgId(PeerId(), ShowAtUnreadMsgId));
-			} else if (!_searchResults.empty()) {
-				return RowDescriptor(
-					_searchResults.front()->item()->history(),
-					_searchResults.front()->item()->fullId());
+	if (const auto history = whichThread->asHistory()) {
+		for (auto i = _peerSearchResults.cbegin(), e = _peerSearchResults.cend(); i != e; ++i) {
+			if ((*i)->peer == history->peer) {
+				++i;
+				if (i != e) {
+					return RowDescriptor(
+						session().data().history((*i)->peer),
+						FullMsgId(PeerId(), ShowAtUnreadMsgId));
+				} else if (!_searchResults.empty()) {
+					return RowDescriptor(
+						_searchResults.front()->item()->history(),
+						_searchResults.front()->item()->fullId());
+				}
+				return RowDescriptor();
 			}
-			return RowDescriptor();
 		}
 	}
 	for (auto i = _filterResults.cbegin(), e = _filterResults.cend(); i != e; ++i) {
@@ -3651,7 +3655,8 @@ void InnerWidget::setupShortcuts() {
 	) | rpl::filter([=] {
 		return isActiveWindow()
 			&& !_controller->isLayerShown()
-			&& !_controller->window().locked();
+			&& !_controller->window().locked()
+			&& !_childListShown.current().shown;
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
 

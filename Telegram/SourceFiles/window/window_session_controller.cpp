@@ -1122,11 +1122,11 @@ bool SessionController::chatEntryHistoryMove(int steps) {
 }
 
 bool SessionController::jumpToChatListEntry(Dialogs::RowDescriptor row) {
-	if (const auto history = row.key.history()) {
-		showPeerHistory(
-			history,
-			SectionShow::Way::ClearStack,
-			row.fullId.msg);
+	if (const auto thread = row.key.thread()) {
+		showThread(
+			thread,
+			row.fullId.msg,
+			SectionShow::Way::ClearStack);
 		return true;
 	}
 	return false;
