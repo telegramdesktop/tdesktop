@@ -362,6 +362,11 @@ void AddUsernameCheckLabel(
 	Settings::AddSkip(wrapped, skip);
 
 	Settings::AddSkip(container, skip);
+	container->add(
+		object_ptr<Ui::FollowSlideWrap<Ui::VerticalLayout>>(
+			container,
+			std::move(wrapped)),
+		padding);
 
 	rpl::combine(
 		std::move(checkInfo),
