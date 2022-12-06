@@ -404,7 +404,7 @@ public:
 		int top,
 		int outerWidth) const;
 	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
-	[[nodiscard]] virtual void applyRightActionLastPoint(QPoint p) const;
+	virtual void applyRightActionLastPoint(QPoint p) const;
 	[[nodiscard]] virtual TimeId displayedEditDate() const;
 	[[nodiscard]] virtual bool hasVisibleText() const;
 	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;
