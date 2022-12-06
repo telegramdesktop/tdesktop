@@ -276,10 +276,8 @@ QImage *PeerData::userpicCloudImage(Ui::PeerUserpicView &view) const {
 			_userpic.load(&session(), userpicOrigin());
 		} else {
 			view.cloud = nullptr;
-			if (view.empty.null()) {
-				view.paletteVersion = 0;
-			}
 		}
+		view.cached = QImage();
 	}
 	if (const auto image = view.cloud.get(); image && !image->isNull()) {
 		_userpicEmpty = nullptr;
