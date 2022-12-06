@@ -377,6 +377,8 @@ private:
 	void trackSearchResultsHistory(not_null<History*> history);
 	void trackSearchResultsForum(Data::Forum *forum);
 
+	[[nodiscard]] QBrush currentBg() const;
+
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
 	int updateReorderIndexGetCount();

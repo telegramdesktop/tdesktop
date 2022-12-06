@@ -570,8 +570,8 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		.topicJumpCache = _topicJumpCache.get(),
 		.folder = _openedFolder,
 		.forum = _openedForum,
+		.currentBg = currentBg(),
 		.filter = _filterId,
-		.childListShown = childListShown.shown,
 		.now = ms,
 		.width = fullWidth,
 		.paused = videoPaused,
@@ -659,7 +659,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				if (reorderingPinned) {
 					const auto pinnedBottom = shownHeight(promoted + _pinnedRows.size());
 					const auto pinnedTop = shownHeight(promoted);
-					p.fillRect(0, pinnedTop - skippedTop, fullWidth, pinnedBottom - pinnedTop, st::dialogsBg);
+					p.fillRect(0, pinnedTop - skippedTop, fullWidth, pinnedBottom - pinnedTop, currentBg());
 				}
 
 				p.translate(0, top - skippedTop);
@@ -686,7 +686,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				}
 			}
 		} else {
-			p.fillRect(dialogsClip, st::dialogsBg);
+			p.fillRect(dialogsClip, currentBg());
 		}
 	} else if (_state == WidgetState::Filtered) {
 		if (!_hashtagResults.empty()) {
@@ -703,7 +703,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 				for (; from < to; ++from) {
 					auto &result = _hashtagResults[from];
 					bool selected = (from == (isPressed() ? _hashtagPressed : _hashtagSelected));
-					p.fillRect(0, 0, fullWidth, st::mentionHeight, selected ? st::mentionBgOver : st::dialogsBg);
+					p.fillRect(0, 0, fullWidth, st::mentionHeight, selected ? st::mentionBgOver : currentBg());
 					result->row.paintRipple(p, 0, 0, fullWidth);
 					auto &tag = result->tag;
 					if (selected) {
@@ -923,6 +923,7 @@ void InnerWidget::paintCollapsedRow(
 	const auto fullWidth = width();
 	Ui::PaintCollapsedRow(p, row->row, row->folder, text, unread, {
 		.st = _st,
+		.currentBg = currentBg(),
 		.width = fullWidth,
 		.selected = selected,
 		.narrow = (fullWidth < st::columnMinimalWidthLeft / 2),
@@ -952,7 +953,7 @@ void InnerWidget::paintPeerSearchResult(
 			? st::dialogsBgActive
 			: context.selected
 			? st::dialogsBgOver
-			: st::dialogsBg));
+			: currentBg()));
 	if (!context.active) {
 		result->row.paintRipple(p, 0, 0, context.width);
 	}
@@ -1048,6 +1049,13 @@ void InnerWidget::paintPeerSearchResult(
 	result->name.drawElided(p, rectForName.left(), rectForName.top(), rectForName.width());
 }
 
+QBrush InnerWidget::currentBg() const {
+	return anim::brush(
+		st::dialogsBg,
+		st::dialogsBgOver,
+		_childListShown.current().shown);
+}
+
 void InnerWidget::paintSearchInChat(
 		Painter &p,
 		const Ui::PaintContext &context) const {
@@ -1062,7 +1070,7 @@ void InnerWidget::paintSearchInChat(
 		p.drawTextLeft(st::searchedBarPosition.x(), st::searchedBarPosition.y(), width(), tr::lng_dlg_search_in(tr::now));
 	}
 	auto fullRect = QRect(0, top, width(), height - top);
-	p.fillRect(fullRect, st::dialogsBg);
+	p.fillRect(fullRect, currentBg());
 	if (_searchInChat) {
 		if (_searchFromPeer) {
 			p.fillRect(QRect(0, top + st::dialogsSearchInHeight, width(), st::lineWidth), st::shadowFg);
@@ -1244,7 +1252,7 @@ void InnerWidget::selectByMouse(QPoint globalPosition) {
 			_selectedTopicJump = selectedTopicJump;
 			_collapsedSelected = collapsedSelected;
 			updateSelectedRow();
-			setCursor((_selected || _collapsedSelected)
+			setCursor((_selected || _collapsedSelected >= 0)
 				? style::cur_pointer
 				: style::cur_default);
 		}

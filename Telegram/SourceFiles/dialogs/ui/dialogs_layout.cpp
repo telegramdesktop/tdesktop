@@ -305,10 +305,7 @@ void PaintRow(
 		? st::dialogsBgActive
 		: context.selected
 		? st::dialogsBgOver
-		: anim::brush(
-			st::dialogsBg,
-			st::dialogsBgOver,
-			context.childListShown);
+		: context.currentBg;
 	p.fillRect(geometry, bg);
 	if (!(flags & Flag::TopicJumpRipple)) {
 		auto ripple = context.active
@@ -1137,7 +1134,7 @@ void PaintCollapsedRow(
 		const PaintContext &context) {
 	p.fillRect(
 		QRect{ 0, 0, context.width, st::dialogsImportantBarHeight },
-		context.selected ? st::dialogsBgOver : st::dialogsBg);
+		context.selected ? st::dialogsBgOver : context.currentBg);
 
 	row.paintRipple(p, 0, 0, context.width);
 

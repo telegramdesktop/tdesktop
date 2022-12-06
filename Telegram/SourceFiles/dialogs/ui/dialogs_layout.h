@@ -57,9 +57,9 @@ struct PaintContext {
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
+	QBrush currentBg;
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
-	float64 childListShown = 0.;
 	crl::time now = 0;
 	int width = 0;
 	bool active = false;
