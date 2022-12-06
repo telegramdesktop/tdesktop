@@ -778,6 +778,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						: _peerSearchSelected));
 					paintPeerSearchResult(p, result.get(), {
 						.st = &st::defaultDialogRow,
+						.currentBg = currentBg(),
 						.now = ms,
 						.width = fullWidth,
 						.active = active,
@@ -792,6 +793,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 		if (_searchInChat || _searchFromPeer) {
 			paintSearchInChat(p, {
 				.st = &st::forumTopicRow,
+				.currentBg = currentBg(),
 				.now = ms,
 				.width = fullWidth,
 				.paused = videoPaused,
@@ -848,6 +850,7 @@ void InnerWidget::paintEvent(QPaintEvent *e) {
 						.st = _st,
 						.folder = _openedFolder,
 						.forum = _openedForum,
+						.currentBg = currentBg(),
 						.filter = _filterId,
 						.now = ms,
 						.width = fullWidth,

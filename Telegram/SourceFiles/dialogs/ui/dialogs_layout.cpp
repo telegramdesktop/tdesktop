@@ -799,6 +799,13 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 
 } // namespace
 
+const style::icon *ChatTypeIcon(not_null<PeerData*> peer) {
+	return ChatTypeIcon(peer, {
+		.st = &st::defaultDialogRow,
+		.currentBg = st::windowBg,
+	});
+}
+
 const style::icon *ChatTypeIcon(
 		not_null<PeerData*> peer,
 		const PaintContext &context) {

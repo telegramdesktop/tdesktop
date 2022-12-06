@@ -57,7 +57,7 @@ struct PaintContext {
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
-	QBrush currentBg;
+	required<QBrush> currentBg;
 	FilterId filter = 0;
 	float64 topicsExpanded = 0.;
 	crl::time now = 0;
@@ -71,9 +71,10 @@ struct PaintContext {
 	bool displayUnreadInfo = false;
 };
 
-const style::icon *ChatTypeIcon(
+[[nodiscard]] const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
-	const PaintContext &context = { .st = &st::defaultDialogRow });
+	const PaintContext &context);
+[[nodiscard]] const style::icon *ChatTypeIcon(not_null<PeerData*> peer);
 
 class RowPainter {
 public:

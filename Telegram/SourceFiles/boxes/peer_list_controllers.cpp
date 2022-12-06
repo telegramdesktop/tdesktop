@@ -637,6 +637,7 @@ auto ChooseTopicBoxController::Row::generatePaintUserpicCallback(
 		p.translate(x, y);
 		_topic->paintUserpic(p, view, {
 			.st = &st::forumTopicRow,
+			.currentBg = st::windowBg,
 			.now = crl::now(),
 			.width = outerWidth,
 			.paused = false,
