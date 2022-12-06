@@ -17,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "lottie/lottie_icon.h"
 #include "main/main_session.h"
-#include "menu/menu_ttl.h"
+#include "menu/menu_ttl_validator.h"
 #include "settings/settings_common.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
@@ -124,7 +124,7 @@ std::unique_ptr<TTLChatsBoxController::Row> TTLChatsBoxController::createRow(
 		not_null<History*> history) {
 	if (history->peer->isSelf() || history->peer->isRepliesChat()) {
 		return nullptr;
-	} else if (!history->peer->canWrite()) {
+	} else if (!TTLMenu::TTLValidator(nullptr, history->peer).can()) {
 		return nullptr;
 	}
 	if (session().data().contactsNoChatsList()->contains({ history })) {
