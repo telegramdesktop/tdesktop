@@ -122,7 +122,8 @@ public:
 		bool selected,
 		bool actionSelected) override;
 
-	PaintRoundImageCallback generatePaintUserpicCallback() override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 	void paintComplexUserpic(
 		Painter &p,
 		int x,

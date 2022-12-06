@@ -624,7 +624,8 @@ QString ChooseTopicBoxController::Row::generateShortName() {
 	return _topic->title();
 }
 
-auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
+auto ChooseTopicBoxController::Row::generatePaintUserpicCallback(
+	bool forceRound)
 -> PaintRoundImageCallback {
 	return [=](
 			Painter &p,

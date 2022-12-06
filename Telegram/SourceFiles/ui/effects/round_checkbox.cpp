@@ -390,7 +390,7 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 
 	if (selectionLevel > 0) {
 		const auto radius = _roundingRadius
-			? _roundingRadius(_st.imageRadius)
+			? _roundingRadius(_st.imageRadius * 2)
 			: std::optional<int>();
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));

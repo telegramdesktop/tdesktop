@@ -49,7 +49,8 @@ public:
 
 	QString generateName() override;
 	QString generateShortName() override;
-	PaintRoundImageCallback generatePaintUserpicCallback() override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 
 private:
 	[[nodiscard]] Flag flag() const;
@@ -62,7 +63,8 @@ public:
 
 	QString generateName() override;
 	QString generateShortName() override;
-	PaintRoundImageCallback generatePaintUserpicCallback() override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 
 };
 
@@ -124,7 +126,8 @@ QString TypeRow::generateShortName() {
 	return generateName();
 }
 
-PaintRoundImageCallback TypeRow::generatePaintUserpicCallback() {
+PaintRoundImageCallback TypeRow::generatePaintUserpicCallback(
+		bool forceRound) {
 	const auto flag = this->flag();
 	return [=](QPainter &p, int x, int y, int outerWidth, int size) {
 		PaintFilterChatsTypeIcon(p, flag, x, y, outerWidth, size);
@@ -153,11 +156,15 @@ QString ExceptionRow::generateShortName() {
 	return generateName();
 }
 
-PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback() {
+PaintRoundImageCallback ExceptionRow::generatePaintUserpicCallback(
+		bool forceRound) {
 	const auto peer = this->peer();
 	const auto saved = peer->isSelf();
 	const auto replies = peer->isRepliesChat();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
+	if (forceRound && peer->isForum()) {
+		return ForceRoundUserpicCallback(peer);
+	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);

@@ -535,25 +535,6 @@ void ShareBox::applyFilterUpdate(const QString &query) {
 	_inner->updateFilter(query);
 }
 
-PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
-	auto userpic = Ui::PeerUserpicView();
-	auto cache = std::make_shared<QImage>();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		const auto ratio = style::DevicePixelRatio();
-		const auto cacheSize = QSize(size, size) * ratio;
-		if (cache->size() != cacheSize) {
-			*cache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
-			cache->setDevicePixelRatio(ratio);
-		}
-		auto q = Painter(cache.get());
-		peer->paintUserpicLeft(q, userpic, 0, 0, outerWidth, size);
-		q.end();
-
-		*cache = Images::Circle(std::move(*cache));
-		p.drawImage(x, y, *cache);
-	};
-}
-
 void ShareBox::addPeerToMultiSelect(not_null<Data::Thread*> thread) {
 	auto addItemWay = Ui::MultiSelect::AddItemWay::Default;
 	const auto peer = thread->peer();

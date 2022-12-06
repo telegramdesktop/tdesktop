@@ -54,6 +54,25 @@ PaintRoundImageCallback PaintUserpicCallback(
 	};
 }
 
+PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
+	auto userpic = Ui::PeerUserpicView();
+	auto cache = std::make_shared<QImage>();
+	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
+		const auto ratio = style::DevicePixelRatio();
+		const auto cacheSize = QSize(size, size) * ratio;
+		if (cache->size() != cacheSize) {
+			*cache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
+			cache->setDevicePixelRatio(ratio);
+		}
+		auto q = Painter(cache.get());
+		peer->paintUserpicLeft(q, userpic, 0, 0, outerWidth, size);
+		q.end();
+
+		*cache = Images::Circle(std::move(*cache));
+		p.drawImage(x, y, *cache);
+	};
+}
+
 PeerListContentDelegateShow::PeerListContentDelegateShow(
 	std::shared_ptr<Ui::Show> show)
 : _show(show) {
@@ -412,7 +431,9 @@ void PeerListBox::addSelectItem(
 	addSelectItem(
 		peer->id.value,
 		text,
-		PaintUserpicCallback(peer, respect),
+		(peer->isForum()
+			? ForceRoundUserpicCallback(peer)
+			: PaintUserpicCallback(peer, respect)),
 		animated);
 }
 
@@ -422,7 +443,7 @@ void PeerListBox::addSelectItem(
 	addSelectItem(
 		row->id(),
 		row->generateShortName(),
-		row->generatePaintUserpicCallback(),
+		row->generatePaintUserpicCallback(true),
 		animated);
 }
 
@@ -642,11 +663,15 @@ Ui::PeerUserpicView &PeerListRow::ensureUserpicView() {
 	return _userpic;
 }
 
-PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback() {
+PaintRoundImageCallback PeerListRow::generatePaintUserpicCallback(
+		bool forceRound) {
 	const auto saved = _isSavedMessagesChat;
 	const auto replies = _isRepliesMessagesChat;
 	const auto peer = this->peer();
 	auto userpic = saved ? Ui::PeerUserpicView() : ensureUserpicView();
+	if (forceRound && peer->isForum()) {
+		return ForceRoundUserpicCallback(peer);
+	}
 	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
 		if (saved) {
 			Ui::EmptyUserpic::PaintSavedMessages(p, x, y, outerWidth, size);
@@ -769,7 +794,7 @@ void PeerListRow::paintUserpic(
 		paintDisabledCheckUserpic(p, st, x, y, outerWidth);
 	} else if (_checkbox) {
 		_checkbox->paint(p, x, y, outerWidth);
-	} else if (const auto callback = generatePaintUserpicCallback()) {
+	} else if (const auto callback = generatePaintUserpicCallback(false)) {
 		callback(p, x, y, outerWidth, st.photoSize);
 	}
 }
@@ -848,7 +873,7 @@ void PeerListRow::createCheckbox(
 	_checkbox = std::make_unique<Ui::RoundImageCheckbox>(
 		st,
 		std::move(updateCallback),
-		generatePaintUserpicCallback(),
+		generatePaintUserpicCallback(false),
 		generateRadius);
 }
 

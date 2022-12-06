@@ -47,6 +47,8 @@ using PaintRoundImageCallback = Fn<void(
 [[nodiscard]] PaintRoundImageCallback PaintUserpicCallback(
 	not_null<PeerData*> peer,
 	bool respectSavedMessagesChat);
+[[nodiscard]] PaintRoundImageCallback ForceRoundUserpicCallback(
+	not_null<PeerData*> peer);
 
 using PeerListRowId = uint64;
 
@@ -89,8 +91,8 @@ public:
 
 	[[nodiscard]] virtual QString generateName();
 	[[nodiscard]] virtual QString generateShortName();
-	[[nodiscard]] virtual auto generatePaintUserpicCallback()
-		-> PaintRoundImageCallback;
+	[[nodiscard]] virtual auto generatePaintUserpicCallback(
+		bool forceRound) -> PaintRoundImageCallback;
 
 	[[nodiscard]] virtual auto generateNameFirstLetters() const
 		-> const base::flat_set<QChar> &;

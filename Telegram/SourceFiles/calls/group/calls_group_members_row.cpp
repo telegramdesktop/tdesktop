@@ -448,7 +448,8 @@ void MembersRow::paintMuteIcon(
 	_delegate->rowPaintIcon(p, iconRect, computeIconState(style));
 }
 
-auto MembersRow::generatePaintUserpicCallback() -> PaintRoundImageCallback {
+auto MembersRow::generatePaintUserpicCallback(bool forceRound)
+-> PaintRoundImageCallback {
 	return [=](Painter &p, int x, int y, int outerWidth, int size) {
 		const auto outer = outerWidth;
 		paintComplexUserpic(p, x, y, outer, size, size, PanelMode::Default);
