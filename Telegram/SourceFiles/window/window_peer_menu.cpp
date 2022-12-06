@@ -88,6 +88,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_menu_icons.h"
 
 #include <QAction>
+#include <QtGui/QGuiApplication>
 
 namespace Window {
 namespace {
@@ -286,6 +287,7 @@ private:
 	void addDeleteChat();
 	void addLeaveChat();
 	void addJoinChat();
+	void addTopicLink();
 	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
@@ -925,6 +927,28 @@ void Filler::addDeleteTopic() {
 	});
 }
 
+void Filler::addTopicLink() {
+	if (!_topic || _topic->creating()) {
+		return;
+	}
+	const auto channel = _topic->channel();
+	const auto id = _topic->rootId();
+	const auto controller = _controller;
+	_addAction(tr::lng_context_copy_topic_link(tr::now), [=] {
+		const auto base = channel->hasUsername()
+			? channel->username()
+			: "c/" + QString::number(peerToChannel(channel->id).bare);
+		const auto query = base + '/' + QString::number(id.bare);
+		const auto link = channel->session().createInternalLinkFull(query);
+		QGuiApplication::clipboard()->setText(link);
+		Ui::Toast::Show(
+			Window::Show(controller).toastParent(),
+			(channel->hasUsername()
+				? tr::lng_channel_public_link_copied(tr::now)
+				: tr::lng_context_about_private_link(tr::now)));
+	}, &st::menuIconCopy);
+}
+
 void Filler::addManageTopic() {
 	if (!_topic || !_topic->canEdit()) {
 		return;
@@ -1187,8 +1211,9 @@ void Filler::fillProfileActions() {
 	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
-	addManageTopic();
 	addManageChat();
+	addTopicLink();
+	addManageTopic();
 	addToggleTopicClosed();
 	addViewDiscussion();
 	addExportChat();
