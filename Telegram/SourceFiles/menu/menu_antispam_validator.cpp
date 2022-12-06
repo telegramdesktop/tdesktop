@@ -84,7 +84,6 @@ object_ptr<Ui::RpWidget> AntiSpamValidator::createButton() const {
 		tr::lng_manage_peer_antispam_about());
 
 	const auto updateLocked = [=] {
-		const auto &config = channel->session().account().appConfig();
 		const auto min = EnableAntiSpamMinMembers(channel);
 		const auto locked = (channel->membersCount() <= min);
 		state->locked = locked;
@@ -157,7 +156,6 @@ void AntiSpamValidator::addAction(
 	if (!fakeId) {
 		return;
 	}
-	const auto antiSpamUserId = AntiSpamUserId(_channel);
 	const auto suggestReport = [&](MsgId eventId) {
 		const auto text = tr::lng_admin_log_antispam_menu_report_toast(
 			tr::now,

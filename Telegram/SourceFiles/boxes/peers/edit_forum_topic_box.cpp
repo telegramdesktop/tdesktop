@@ -200,7 +200,6 @@ bool DefaultIconEmoji::readyInDefaultState() {
 	struct State {
 		QImage frame;
 	};
-	const auto tag = Data::CustomEmojiManager::SizeTag::Large;
 	const auto size = EditIconSize();
 	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
 	result->show();

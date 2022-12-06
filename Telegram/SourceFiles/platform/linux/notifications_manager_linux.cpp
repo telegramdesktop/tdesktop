@@ -388,7 +388,7 @@ bool NotificationData::init(
 		_notification->set_body(
 			subtitle.isEmpty()
 				? msg.toStdString()
-				: u("%1\n%2"_q.arg(subtitle, msg).toStdString());
+				: u"%1\n%2"_q.arg(subtitle, msg).toStdString());
 
 		_notification->set_icon(
 			Gio::ThemedIcon::create(base::IconName().toStdString()));

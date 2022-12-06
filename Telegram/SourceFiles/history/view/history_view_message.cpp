@@ -1321,7 +1321,6 @@ void Message::paintTopicButton(
 		height);
 	const auto rect = QRect(trect.x(), trect.y(), width, height);
 
-	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto skip = padding.right() + st::topicButtonArrowSkip;
 	auto color = stm->msgServiceFg->c;
