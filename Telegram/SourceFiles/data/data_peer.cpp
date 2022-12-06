@@ -353,7 +353,7 @@ QImage PeerData::generateUserpicImage(
 		const auto round = [&](int radius) {
 			return Images::Round(
 				std::move(image),
-				Images::CornersMask(radius));
+				Images::CornersMask(radius / style::DevicePixelRatio()));
 		};
 		if (radius == 0) {
 			return image;

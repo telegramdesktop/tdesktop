@@ -382,13 +382,12 @@ void Photo::validateUserpicImageCache(QSize size, bool forum) const {
 	if (blurredValue) {
 		args = args.blurred();
 	}
-	original = Images::Prepare(std::move(original), size, args);
+	original = Images::Prepare(std::move(original), size * ratio, args);
 	if (forumValue) {
 		original = Images::Round(
 			std::move(original),
 			Images::CornersMask(std::min(size.width(), size.height())
-				* Ui::ForumUserpicRadiusMultiplier()
-				* style::DevicePixelRatio()));
+				* Ui::ForumUserpicRadiusMultiplier()));
 	} else {
 		original = Images::Circle(std::move(original));
 	}
@@ -460,9 +459,8 @@ void Photo::paintUserpicFrame(
 		request.outer = request.resize = size * ratio;
 		if (forum) {
 			const auto radius = int(std::min(size.width(), size.height())
-				* Ui::ForumUserpicRadiusMultiplier()
-				* ratio);
-			if (_streamed->roundingCorners[0].width() != radius) {
+				* Ui::ForumUserpicRadiusMultiplier());
+			if (_streamed->roundingCorners[0].width() != radius * ratio) {
 				_streamed->roundingCorners = Images::CornersMask(radius);
 			}
 			request.rounding = Images::CornersMaskRef(

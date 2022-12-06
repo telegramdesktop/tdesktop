@@ -478,9 +478,8 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 		const auto forum = _peer && _peer->isForum();
 		if (forum) {
 			const auto radius = int(_st.photoSize
-				* Ui::ForumUserpicRadiusMultiplier()
-				* ratio);
-			if (_roundingCorners[0].width() != radius) {
+				* Ui::ForumUserpicRadiusMultiplier());
+			if (_roundingCorners[0].width() != radius * ratio) {
 				_roundingCorners = Images::CornersMask(radius);
 			}
 			request.rounding = Images::CornersMaskRef(_roundingCorners);

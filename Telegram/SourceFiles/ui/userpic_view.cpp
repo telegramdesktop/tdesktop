@@ -51,8 +51,9 @@ void ValidateUserpicCache(
 		if (forum) {
 			view.cached = Images::Round(
 				std::move(view.cached),
-				Images::CornersMask(
-					size * Ui::ForumUserpicRadiusMultiplier()));
+				Images::CornersMask(size
+					* Ui::ForumUserpicRadiusMultiplier()
+					/ style::DevicePixelRatio()));
 		} else {
 			view.cached = Images::Circle(std::move(view.cached));
 		}
