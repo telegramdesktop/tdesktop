@@ -7,20 +7,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/timer.h"
 #include "ui/effects/animations.h"
 #include "ui/widgets/side_bar_button.h"
 #include "ui/widgets/scroll_area.h"
-#include "ui/wrap/vertical_layout.h"
 
 namespace Ui {
+class VerticalLayout;
 class VerticalLayoutReorder;
 enum class FilterIcon : uchar;
 class PopupMenu;
 } // namespace Ui
-
-namespace Data {
-class ChatFilter;
-} // namespace Data
 
 namespace Window {
 
@@ -72,6 +69,10 @@ private:
 	bool _waitingSuggested = false;
 
 	base::unique_qptr<Ui::PopupMenu> _popupMenu;
+	struct {
+		base::Timer timer;
+		FilterId filterId = FilterId(-1);
+	} _drag;
 
 	Ui::Animations::Simple _scrollToAnimation;
 
