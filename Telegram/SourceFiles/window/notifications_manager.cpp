@@ -1073,12 +1073,18 @@ void Manager::notificationReplied(
 	const auto history = session->data().history(id.contextId.peerId);
 	const auto item = history->owner().message(history->peer, id.msgId);
 	const auto topic = item ? item->topic() : nullptr;
+	const auto topicRootId = topic
+		? topic->rootId()
+		: id.contextId.topicRootId;
 
 	auto message = Api::MessageToSend(Api::SendAction(history));
 	message.textWithTags = reply;
-	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser())
+	message.action.replyTo = (id.msgId > 0 && !history->peer->isUser()
+		&& id.msgId != topicRootId)
 		? id.msgId
-		: id.contextId.topicRootId;
+		: history->peer->isForum()
+		? topicRootId
+		: MsgId(0);
 	message.action.topicRootId = topic ? topic->rootId() : 0;
 	message.action.clearDraft = false;
 	history->session().api().sendMessage(std::move(message));
