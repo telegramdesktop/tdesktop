@@ -164,9 +164,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
-	if (const auto raw = taken.get()) {
-		owner().forumIcons().clearUserpicsReset(taken.get());
-	} else if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
 	}
 	_flags.set(which);
@@ -191,6 +189,9 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 				}
 			}
 		}
+	}
+	if (const auto raw = taken.get()) {
+		owner().forumIcons().clearUserpicsReset(raw);
 	}
 }
 
