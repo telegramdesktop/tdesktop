@@ -1008,7 +1008,6 @@ void HistoryWidget::initVoiceRecordBar() {
 			data.duration,
 			action);
 		_voiceRecordBar->clearListenState();
-		applyLocalDraft();
 	}, lifetime());
 
 	_voiceRecordBar->cancelRequests(
