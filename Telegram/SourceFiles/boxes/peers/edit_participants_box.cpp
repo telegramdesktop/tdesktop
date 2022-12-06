@@ -1187,11 +1187,14 @@ void ParticipantsBoxController::prepare() {
 		}
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
-	if ((_role == Role::Admins) && _peer->isMegagroup()) {
-		const auto validator = AntiSpamMenu::AntiSpamValidator(
-			_navigation->parentController(),
-			_peer->asChannel());
-		delegate()->peerListSetAboveWidget(validator.createButton());
+	if (const auto megagroup = _peer->asMegagroup()) {
+		if ((_role == Role::Admins)
+			&& (megagroup->amCreator() || megagroup->hasAdminRights())) {
+			const auto validator = AntiSpamMenu::AntiSpamValidator(
+				_navigation->parentController(),
+				_peer->asChannel());
+			delegate()->peerListSetAboveWidget(validator.createButton());
+		}
 	}
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(std::move(title));
