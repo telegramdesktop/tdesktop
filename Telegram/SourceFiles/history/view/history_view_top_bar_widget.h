@@ -134,6 +134,7 @@ private:
 	void updateControlsGeometry();
 	void slideAnimationCallback();
 	void updateInfoToggleActive();
+	void setupDragOnBackButton();
 
 	void call();
 	void groupCall();
@@ -251,6 +252,8 @@ private:
 	rpl::event_stream<> _deleteSelection;
 	rpl::event_stream<> _clearSelection;
 	rpl::event_stream<> _cancelChooseForReport;
+
+	rpl::lifetime _backLifetime;
 
 };
 

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
+#include "storage/storage_media_prepare.h"
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -782,6 +783,7 @@ void TopBarWidget::setActiveChat(
 	updateOnlineDisplay();
 	updateControlsVisibility();
 	refreshUnreadBadge();
+	setupDragOnBackButton();
 }
 
 void TopBarWidget::handleEmojiInteractionSeen(const QString &emoticon) {
@@ -1442,6 +1444,45 @@ void TopBarWidget::updateInfoToggleActive() {
 		: nullptr;
 	_infoToggle->setIconOverride(iconOverride, iconOverride);
 	_infoToggle->setRippleColorOverride(rippleOverride);
+}
+
+void TopBarWidget::setupDragOnBackButton() {
+	_backLifetime.destroy();
+	if (_activeChat.section != Section::ChatsList) {
+		_back->setAcceptDrops(false);
+		return;
+	}
+	const auto lifetime = _backLifetime.make_state<rpl::lifetime>();
+	_back->setAcceptDrops(true);
+	_back->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::DragEnter;
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		using namespace Storage;
+		const auto d = static_cast<QDragEnterEvent*>(e.get());
+		const auto data = d->mimeData();
+		if (ComputeMimeDataState(data) == MimeDataState::None) {
+			return;
+		}
+		const auto timer = _backLifetime.make_state<base::Timer>([=] {
+			backClicked();
+		});
+		timer->callOnce(ChoosePeerByDragTimeout);
+		d->setDropAction(Qt::CopyAction);
+		d->accept();
+		_back->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::DragMove
+				|| e->type() == QEvent::DragLeave;
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::DragMove) {
+				timer->callOnce(ChoosePeerByDragTimeout);
+			} else if (e->type() == QEvent::DragLeave) {
+				timer->cancel();
+				lifetime->destroy();
+			}
+		}, *lifetime);
+	}, _backLifetime);
 }
 
 bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {
