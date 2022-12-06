@@ -182,6 +182,7 @@ private:
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
 	void changeOpenedForum(Data::Forum *forum, anim::type animated);
 	void hideChildList();
+	void destroyChildListCanvas();
 	[[nodiscard]] QPixmap grabForFolderSlideAnimation();
 	void startSlideAnimation(
 		QPixmap oldContentCache,

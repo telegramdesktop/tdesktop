@@ -2102,6 +2102,7 @@ void InnerWidget::refreshShownList() {
 		: session().data().chatsList(_openedFolder)->indexed();
 	if (_shownList != list) {
 		_shownList = list;
+		_shownList->updateHeights(_narrowRatio);
 	}
 }
 

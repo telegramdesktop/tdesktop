@@ -787,6 +787,7 @@ void Widget::changeOpenedSubsection(
 		oldContentCache = grabForFolderSlideAnimation();
 	}
 	_showAnimation = nullptr;
+	destroyChildListCanvas();
 	change();
 	refreshTopBars();
 	updateControlsVisibility(true);
@@ -805,6 +806,11 @@ void Widget::changeOpenedSubsection(
 			std::move(newContentCache),
 			showDirection);
 	}
+}
+
+void Widget::destroyChildListCanvas() {
+	_childListShown = 0.;
+	_hideChildListCanvas = nullptr;
 }
 
 void Widget::changeOpenedFolder(Data::Folder *folder, anim::type animated) {
@@ -1987,8 +1993,7 @@ void Widget::openChildList(
 	const auto animated = !_childList
 		&& (params.animated == anim::type::normal);
 	if (animated) {
-		_childListShown = 0.;
-		_hideChildListCanvas = nullptr;
+		destroyChildListCanvas();
 		slide.oldContentCache = Ui::GrabWidget(
 			this,
 			QRect(_narrowWidth, 0, width() - _narrowWidth, height()));
@@ -2086,8 +2091,7 @@ void Widget::closeChildList(anim::type animated) {
 			_hideChildListCanvas->update();
 		});
 		animation->setFinishedCallback([=] {
-			_childListShown = 0.;
-			_hideChildListCanvas = nullptr;
+			destroyChildListCanvas();
 		});
 		animation->setPixmaps(oldContentCache, newContentCache);
 		animation->start();
