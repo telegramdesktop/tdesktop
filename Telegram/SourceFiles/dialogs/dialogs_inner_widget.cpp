@@ -3325,17 +3325,6 @@ bool InnerWidget::chooseRow(
 							history->peer->id,
 							pressedTopicRootId,
 						};
-					} else if (!_controller->adaptive().isOneColumn()) {
-						const auto &recent = forum->recentTopics();
-						const auto topic = recent.empty()
-							? nullptr
-							: recent.front().get();
-						if (topic && !topic->chatListBadgesState().unread) {
-							chosen.message.fullId = {
-								history->peer->id,
-								topic->rootId(),
-							};
-						}
 					}
 				}
 			}
