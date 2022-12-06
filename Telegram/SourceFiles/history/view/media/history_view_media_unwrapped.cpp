@@ -47,7 +47,7 @@ QSize UnwrappedMedia::countOptimalSize() {
 	_content->refreshLink();
 	const auto optimal = _content->countOptimalSize();
 	auto maxWidth = optimal.width();
-	const auto minimal = st::emojiSize;
+	const auto minimal = std::max(st::emojiSize, st::msgPhotoSize);
 	auto minHeight = std::max(optimal.height(), minimal);
 	if (_parent->media() == this) {
 		const auto item = _parent->data();
