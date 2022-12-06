@@ -671,7 +671,8 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		&& !_chooseForReportReason;
 	if (handleClick) {
 		if ((_animatingMode && _back->rect().contains(e->pos()))
-			|| (_activeChat.section == Section::ChatsList)) {
+			|| (_activeChat.section == Section::ChatsList
+				&& _activeChat.key.folder())) {
 			backClicked();
 		} else {
 			infoClicked();
