@@ -1557,9 +1557,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
+"lng_action_topic_hidden_inside" = "Topic hidden";
+"lng_action_topic_unhidden_inside" = "Topic unhidden";
 "lng_action_topic_created" = "«{topic}» was created";
 "lng_action_topic_closed" = "«{topic}» was closed";
 "lng_action_topic_reopened" = "«{topic}» was reopened";
+"lng_action_topic_hidden" = "«{topic}» was hidden";
+"lng_action_topic_unhidden" = "«{topic}» was unhidden";
 "lng_action_topic_placeholder" = "topic";
 "lng_action_topic_renamed" = "{from} renamed the {link} to «{title}»";
 "lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";
@@ -3162,6 +3166,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_topics_changed" = "{from} changed topic {topic} to {new_topic}";
 "lng_admin_log_topics_closed" = "{from} closed topic {topic}";
 "lng_admin_log_topics_reopened" = "{from} reopened topic {topic}";
+"lng_admin_log_topics_hidden" = "{from} hid topic {topic}";
+"lng_admin_log_topics_unhidden" = "{from} unhid topic {topic}";
 "lng_admin_log_topics_deleted" = "{from} deleted topic {topic}";
 "lng_admin_log_topics_pinned" = "{from} pinned topic {topic}";
 "lng_admin_log_topics_unpinned" = "{from} unpinned topic {topic}";

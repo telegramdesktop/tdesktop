@@ -674,6 +674,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.text = { mtpIsTrue(*closed)
 				? tr::lng_action_topic_closed_inside(tr::now)
 				: tr::lng_action_topic_reopened_inside(tr::now) };
+		} else if (const auto hidden = action.vhidden()) {
+			result.text = { mtpIsTrue(*hidden)
+				? tr::lng_action_topic_hidden_inside(tr::now)
+				: tr::lng_action_topic_unhidden_inside(tr::now) };
 		} else if (!action.vtitle()) {
 			if (const auto icon = action.vicon_emoji_id()) {
 				if (const auto iconId = icon->v) {

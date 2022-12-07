@@ -630,6 +630,14 @@ TextWithEntities GenerateDefaultBannedRightsChangeText(
 	});
 }
 
+[[nodiscard]] bool IsTopicHidden(const MTPForumTopic &topic) {
+	return topic.match([](const MTPDforumTopic &data) {
+		return data.is_hidden();
+	}, [](const MTPDforumTopicDeleted &) {
+		return false;
+	});
+}
+
 [[nodiscard]] TextWithEntities GenerateTopicLink(
 		not_null<ChannelData*> channel,
 		const MTPForumTopic &topic) {
@@ -1706,6 +1714,19 @@ void GenerateItems(
 			addSimpleServiceMessage((nowClosed
 				? tr::lng_admin_log_topics_closed
 				: tr::lng_admin_log_topics_reopened)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_topic,
+					nowLink,
+					Ui::Text::WithEntities));
+		}
+		const auto wasHidden = IsTopicHidden(data.vprev_topic());
+		const auto nowHidden = IsTopicHidden(data.vnew_topic());
+		if (nowHidden != wasHidden) {
+			addSimpleServiceMessage((nowHidden
+				? tr::lng_admin_log_topics_hidden
+				: tr::lng_admin_log_topics_unhidden)(
 					tr::now,
 					lt_from,
 					fromLinkText,
