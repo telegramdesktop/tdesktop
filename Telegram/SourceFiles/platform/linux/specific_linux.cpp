@@ -731,7 +731,8 @@ void start() {
 					md5Hash.data());
 			}
 
-			return u"org.telegram.desktop._%1.desktop"_q.arg(md5Hash);
+			return u"org.telegram.desktop._%1.desktop"_q.arg(
+				md5Hash.constData());
 		}
 
 		return u"org.telegram.desktop.desktop"_q;
