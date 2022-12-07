@@ -296,8 +296,7 @@ void LaunchGApplication() {
 					Core::App().notifications().createManager();
 				});
 
-				QEventLoop loop;
-				loop.exec(QEventLoop::ApplicationExec);
+				QEventLoop().exec();
 				app->quit();
 			}, true);
 
