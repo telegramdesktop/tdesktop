@@ -1,3 +1,7 @@
+4.4.1 (07.12.22)
+
+- Bug fixes and other minor improvements.
+
 4.4 (06.12.22)
 
 - You can set a Global Auto-Delete Timer for all new chats and groups you create.
