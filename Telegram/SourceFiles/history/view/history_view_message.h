@@ -273,7 +273,9 @@ private:
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
+	[[nodiscard]] ClickHandlerPtr prepareRightActionLink() const;
 
+	void ensureRightAction() const;
 	void refreshTopicButton();
 	void refreshInfoSkipBlock();
 	[[nodiscard]] int plainMaxWidth() const;

@@ -1589,6 +1589,7 @@ void Message::toggleCommentsButtonRipple(bool pressed) {
 
 void Message::toggleRightActionRipple(bool pressed) {
 	Expects(_rightAction != nullptr);
+
 	const auto size = rightActionSize();
 	Assert(size != std::nullopt);
 
@@ -2007,7 +2008,7 @@ bool Message::getStateCommentsButton(
 	if (!_comments->link && data()->repliesAreComments()) {
 		_comments->link = createGoToCommentsLink();
 	} else if (!_comments->link && data()->externalReply()) {
-		_comments->link = rightActionLink();
+		_comments->link = prepareRightActionLink();
 	}
 	outResult->link = _comments->link;
 	_comments->lastPoint = point - QPoint(g.left(), g.top() + g.height());
@@ -2989,9 +2990,7 @@ std::optional<QSize> Message::rightActionSize() const {
 }
 
 void Message::applyRightActionLastPoint(QPoint p) const {
-	if (!_rightAction) {
-		_rightAction = std::make_unique<RightAction>();
-	}
+	ensureRightAction();
 	_rightAction->lastPoint = std::move(p);
 }
 
@@ -3038,9 +3037,7 @@ void Message::drawRightAction(
 		int left,
 		int top,
 		int outerWidth) const {
-	if (!_rightAction) {
-		_rightAction = std::make_unique<RightAction>();
-	}
+	ensureRightAction();
 
 	const auto size = rightActionSize();
 	const auto st = context.st;
@@ -3104,18 +3101,26 @@ void Message::drawRightAction(
 }
 
 ClickHandlerPtr Message::rightActionLink() const {
-	if (!_rightAction) {
-		_rightAction = std::make_unique<RightAction>();
+	ensureRightAction();
+	if (!_rightAction->link) {
+		_rightAction->link = prepareRightActionLink();
 	}
-	if (_rightAction->link) {
-		return _rightAction->link;
+	return _rightAction->link;
+}
+
+void Message::ensureRightAction() const {
+	if (_rightAction) {
+		return;
 	}
+	Assert(rightActionSize().has_value());
+	_rightAction = std::make_unique<RightAction>();
+}
+
+ClickHandlerPtr Message::prepareRightActionLink() const {
 	if (isPinnedContext()) {
-		_rightAction->link = goToMessageClickHandler(data());
-		return _rightAction->link;
+		return goToMessageClickHandler(data());
 	} else if (displayRightActionComments()) {
-		_rightAction->link = createGoToCommentsLink();
-		return _rightAction->link;
+		return createGoToCommentsLink();
 	}
 	const auto sessionId = data()->history()->session().uniqueId();
 	const auto owner = &data()->history()->owner();
@@ -3163,7 +3168,7 @@ ClickHandlerPtr Message::rightActionLink() const {
 			}
 		};
 	};
-	_rightAction->link = std::make_shared<LambdaClickHandler>([=](
+	return std::make_shared<LambdaClickHandler>([=](
 			ClickContext context) {
 		const auto controller = ExtractController(context).value_or(nullptr);
 		if (!controller) {
@@ -3186,7 +3191,6 @@ ClickHandlerPtr Message::rightActionLink() const {
 			}
 		}
 	});
-	return _rightAction->link;
 }
 
 ClickHandlerPtr Message::fastReplyLink() const {
