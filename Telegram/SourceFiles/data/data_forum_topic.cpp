@@ -266,7 +266,7 @@ bool ForumTopic::canEdit() const {
 }
 
 bool ForumTopic::canDelete() const {
-	if (creating()) {
+	if (creating() || isGeneral()) {
 		return false;
 	} else if (channel()->canDeleteMessages()) {
 		return true;
