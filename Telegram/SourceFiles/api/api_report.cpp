@@ -44,9 +44,10 @@ void SendReport(
 		Ui::ReportReason reason,
 		const QString &comment,
 		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
-	auto done = [=] {
+	auto weak = Ui::MakeWeak(toastParent.get());
+	auto done = crl::guard(toastParent, [=] {
 		Ui::Toast::Show(toastParent, tr::lng_report_thanks(tr::now));
-	};
+	});
 	v::match(data, [&](v::null_t) {
 		peer->session().api().request(MTPaccount_ReportPeer(
 			peer->input,

@@ -68,7 +68,7 @@ Args TTLValidator::createArgs() const {
 		mtpRequestId savingRequestId = 0;
 	};
 	const auto state = std::make_shared<State>();
-	auto callback = [=, toastParent = show->toastParent()](
+	auto callback = [=](
 			TimeId period,
 			Fn<void()>) {
 		auto &api = peer->session().api();
@@ -79,12 +79,15 @@ Args TTLValidator::createArgs() const {
 			api.request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
+		const auto weak = Ui::MakeWeak(show->toastParent().get());
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
 			peer->input,
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
-			ShowAutoDeleteToast(toastParent, peer);
+			if (const auto strong = weak.data()) {
+				ShowAutoDeleteToast(strong, peer);
+			}
 			state->savingRequestId = 0;
 		}).fail([=] {
 			state->savingRequestId = 0;

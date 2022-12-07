@@ -110,7 +110,9 @@ void SendBotCallbackData(
 		const auto showAlert = data.is_alert();
 
 		if (!message.isEmpty()) {
-			if (showAlert) {
+			if (!show->valid()) {
+				return;
+			} else if (showAlert) {
 				show->showBox(Ui::MakeInformBox(message));
 			} else {
 				if (withPassword) {

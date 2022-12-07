@@ -622,21 +622,21 @@ void EditAdminBox::sendTransferRequestFrom(
 		channel->inputChannel,
 		user->inputUser,
 		result.result
-	)).done([=, toastParent = _show.toastParent()](const MTPUpdates &result) {
+	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
+		if (!box && !weak) {
+			return;
+		}
+
 		Ui::Toast::Show(
-			toastParent,
+			(box ? Ui::BoxShow(box) : weak->_show).toastParent(),
 			(channel->isBroadcast()
 				? tr::lng_rights_transfer_done_channel
 				: tr::lng_rights_transfer_done_group)(
 					tr::now,
 					lt_user,
 					user->shortName()));
-		if (box) {
-			Ui::BoxShow(box).hideLayer();
-		} else if (weak) {
-			weak->_show.hideLayer();
-		}
+		(box ? Ui::BoxShow(box) : weak->_show).hideLayer();
 	}).fail(crl::guard(this, [=](const MTP::Error &error) {
 		if (weak) {
 			_transferRequestId = 0;

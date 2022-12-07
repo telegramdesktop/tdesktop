@@ -202,7 +202,6 @@ void TTLBox(not_null<Ui::GenericBox*> box, Args args) {
 	if (args.startTtl && !args.hideDisable) {
 		box->addLeftButton(tr::lng_manage_messages_ttl_disable(), [=] {
 			args.callback(0, [=] { box->closeBox(); });
-			box->getDelegate()->hideLayer();
 		});
 	}
 }
