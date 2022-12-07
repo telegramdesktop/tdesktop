@@ -1701,7 +1701,7 @@ void InnerWidget::setCollapsedPressed(int pressed) {
 }
 
 void InnerWidget::setPressed(Row *pressed, bool pressedTopicJump) {
-	if (_pressed != pressed || _pressedTopicJump != pressedTopicJump) {
+	if (_pressed != pressed || (pressed && _pressedTopicJump != pressedTopicJump)) {
 		if (_pressed) {
 			_pressed->stopLastRipple();
 		}
@@ -1730,7 +1730,7 @@ void InnerWidget::setHashtagPressed(int pressed) {
 
 void InnerWidget::setFilteredPressed(int pressed, bool pressedTopicJump) {
 	if (_filteredPressed != pressed
-		|| _pressedTopicJump != pressedTopicJump) {
+		|| (pressed >= 0 && _pressedTopicJump != pressedTopicJump)) {
 		if (base::in_range(_filteredPressed, 0, _filterResults.size())) {
 			_filterResults[_filteredPressed].row->stopLastRipple();
 		}
