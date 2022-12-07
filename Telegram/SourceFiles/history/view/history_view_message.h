@@ -130,14 +130,14 @@ public:
 	bool displayFastReply() const override;
 	bool displayRightActionComments() const;
 	std::optional<QSize> rightActionSize() const override;
-	void applyRightActionLastPoint(QPoint p) const override;
 	void drawRightAction(
 		Painter &p,
 		const PaintContext &context,
 		int left,
 		int top,
 		int outerWidth) const override;
-	[[nodiscard]] ClickHandlerPtr rightActionLink() const override;
+	[[nodiscard]] ClickHandlerPtr rightActionLink(
+		std::optional<QPoint> pressPoint) const override;
 	[[nodiscard]] TimeId displayedEditDate() const override;
 	[[nodiscard]] HistoryMessageReply *displayedReply() const override;
 	[[nodiscard]] bool toggleSelectionByHandlerClick(

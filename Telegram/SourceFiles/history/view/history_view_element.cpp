@@ -1223,11 +1223,9 @@ void Element::drawRightAction(
 	int outerWidth) const {
 }
 
-ClickHandlerPtr Element::rightActionLink() const {
+ClickHandlerPtr Element::rightActionLink(
+		std::optional<QPoint> pressPoint) const {
 	return ClickHandlerPtr();
-}
-
-void Element::applyRightActionLastPoint(QPoint p) const {
 }
 
 TimeId Element::displayedEditDate() const {

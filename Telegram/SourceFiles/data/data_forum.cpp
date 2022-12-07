@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "data/data_channel.h"
 #include "data/data_histories.h"
+#include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_forum_icons.h"
 #include "data/data_forum_topic.h"
@@ -68,12 +69,16 @@ Forum::~Forum() {
 	if (_requestId) {
 		session().api().request(_requestId).cancel();
 	}
+	auto &storage = session().storage();
+	auto &changes = session().changes();
 	const auto peerId = _history->peer->id;
 	for (const auto &[rootId, topic] : _topics) {
-		session().storage().unload(Storage::SharedMediaUnloadThread(
-			peerId,
-			rootId));
+		storage.unload(Storage::SharedMediaUnloadThread(peerId, rootId));
 		_history->setForwardDraft(rootId, {});
+
+		const auto raw = topic.get();
+		changes.topicRemoved(raw);
+		changes.entryRemoved(raw);
 	}
 }
 
@@ -181,6 +186,12 @@ void Forum::applyTopicDeleted(MsgId rootId) {
 		}
 
 		_topicDestroyed.fire(raw);
+		session().changes().topicUpdated(
+			raw,
+			Data::TopicUpdate::Flag::Destroyed);
+		session().changes().entryUpdated(
+			raw,
+			Data::EntryUpdate::Flag::Destroyed);
 		_topics.erase(i);
 
 		_history->destroyMessagesByTopic(rootId);

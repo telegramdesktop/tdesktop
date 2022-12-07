@@ -485,8 +485,7 @@ TextState UnwrappedMedia::textState(QPoint point, StateRequest request) const {
 				fullRight,
 				*rightActionSize);
 			if (QRect(position.x(), position.y(), rightActionSize->width(), rightActionSize->height()).contains(point)) {
-				result.link = _parent->rightActionLink();
-				_parent->applyRightActionLastPoint(point - position);
+				result.link = _parent->rightActionLink(point - position);
 				return result;
 			}
 		}

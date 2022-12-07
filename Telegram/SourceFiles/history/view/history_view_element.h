@@ -403,8 +403,8 @@ public:
 		int left,
 		int top,
 		int outerWidth) const;
-	[[nodiscard]] virtual ClickHandlerPtr rightActionLink() const;
-	virtual void applyRightActionLastPoint(QPoint p) const;
+	[[nodiscard]] virtual ClickHandlerPtr rightActionLink(
+		std::optional<QPoint> pressPoint) const;
 	[[nodiscard]] virtual TimeId displayedEditDate() const;
 	[[nodiscard]] virtual bool hasVisibleText() const;
 	[[nodiscard]] virtual HistoryMessageReply *displayedReply() const;

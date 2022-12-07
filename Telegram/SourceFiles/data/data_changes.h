@@ -153,8 +153,9 @@ struct TopicUpdate {
 		CloudDraft = (1U << 8),
 		Closed = (1U << 9),
 		Creator = (1U << 10),
+		Destroyed = (1U << 11),
 
-		LastUsedBit = (1U << 10),
+		LastUsedBit = (1U << 11),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -198,8 +199,9 @@ struct EntryUpdate {
 		ForwardDraft = (1U << 2),
 		LocalDraftSet = (1U << 3),
 		Height = (1U << 4),
+		Destroyed = (1U << 5),
 
-		LastUsedBit = (1U << 4),
+		LastUsedBit = (1U << 5),
 	};
 	using Flags = base::flags<Flag>;
 	friend inline constexpr auto is_flag_type(Flag) { return true; }
@@ -261,6 +263,7 @@ public:
 		TopicUpdate::Flags flags) const;
 	[[nodiscard]] rpl::producer<TopicUpdate> realtimeTopicUpdates(
 		TopicUpdate::Flag flag) const;
+	void topicRemoved(not_null<ForumTopic*> topic);
 
 	void messageUpdated(
 		not_null<HistoryItem*> item,
@@ -289,6 +292,7 @@ public:
 		EntryUpdate::Flags flags) const;
 	[[nodiscard]] rpl::producer<EntryUpdate> realtimeEntryUpdates(
 		EntryUpdate::Flag flag) const;
+	void entryRemoved(not_null<Dialogs::Entry*> entry);
 
 	void sendNotifications();
 
@@ -312,6 +316,8 @@ private:
 			Flags flags) const;
 		[[nodiscard]] rpl::producer<UpdateType> realtimeUpdates(
 			Flag flag) const;
+
+		void drop(not_null<DataType*> data);
 
 		void sendNotifications();
 

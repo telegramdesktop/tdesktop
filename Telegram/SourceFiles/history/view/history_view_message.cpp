@@ -1963,10 +1963,9 @@ TextState Message::textState(
 				size->width(),
 				size->height()
 			).contains(point)) {
-				result.link = rightActionLink();
+				result.link = rightActionLink(point
+					- QPoint(fastShareLeft, fastShareTop));
 			}
-			applyRightActionLastPoint(point
-				- QPoint(fastShareLeft, fastShareTop));
 		}
 	} else if (media && media->isDisplayed()) {
 		result = media->textState(point - g.topLeft(), request);
@@ -2715,7 +2714,7 @@ auto Message::verticalRepaintRange() const -> VerticalRepaintRange {
 
 void Message::refreshDataIdHook() {
 	if (_rightAction && base::take(_rightAction->link)) {
-		_rightAction->link = rightActionLink();
+		_rightAction->link = rightActionLink(_rightAction->lastPoint);
 	}
 	if (base::take(_fastReplyLink)) {
 		_fastReplyLink = fastReplyLink();
@@ -2989,11 +2988,6 @@ std::optional<QSize> Message::rightActionSize() const {
 		: std::optional<QSize>();
 }
 
-void Message::applyRightActionLastPoint(QPoint p) const {
-	ensureRightAction();
-	_rightAction->lastPoint = std::move(p);
-}
-
 bool Message::displayFastShare() const {
 	const auto item = message();
 	const auto peer = item->history()->peer;
@@ -3100,10 +3094,14 @@ void Message::drawRightAction(
 	}
 }
 
-ClickHandlerPtr Message::rightActionLink() const {
+ClickHandlerPtr Message::rightActionLink(
+		std::optional<QPoint> pressPoint) const {
 	ensureRightAction();
 	if (!_rightAction->link) {
 		_rightAction->link = prepareRightActionLink();
+	}
+	if (pressPoint) {
+		_rightAction->lastPoint = *pressPoint;
 	}
 	return _rightAction->link;
 }
