@@ -3055,7 +3055,7 @@ void ApiWrap::sharedMediaDone(
 }
 
 void ApiWrap::sendAction(const SendAction &action) {
-	if (!action.options.scheduled) {
+	if (!action.options.scheduled && !action.replaceMediaOf) {
 		const auto topic = action.topicRootId
 			? action.history->peer->forumTopicFor(action.topicRootId)
 			: nullptr;
