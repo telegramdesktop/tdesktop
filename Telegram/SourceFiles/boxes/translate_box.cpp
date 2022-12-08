@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/application.h"
 #include "core/core_settings.h"
+#include "core/ui_integration.h"
 #include "data/data_peer.h"
 #include "lang/lang_instance.h"
 #include "lang/lang_keys.h"
@@ -196,7 +197,12 @@ void TranslateBox(
 			original->entity()->setContextMenuHook([](auto&&) {
 			});
 		}
-		original->entity()->setMarkedText(text);
+		original->entity()->setMarkedText(
+			text,
+			Core::MarkedTextContext{
+				.session = &peer->session(),
+				.customEmojiRepaint = [=] { original->entity()->update(); },
+			});
 		original->setMinimalHeight(lineHeight);
 		original->hide(anim::type::instant);
 
