@@ -356,9 +356,10 @@ void LaunchGApplication() {
 
 			using Window::Notifications::Manager;
 			using NotificationId = Manager::NotificationId;
-			using NotificationIdTuple = std::result_of<
-				decltype(&NotificationId::toTuple)(NotificationId*)
-			>::type;
+			using NotificationIdTuple = std::invoke_result_t<
+				decltype(&NotificationId::toTuple),
+				NotificationId*
+			>;
 
 			const auto notificationIdVariantType = [] {
 				try {
