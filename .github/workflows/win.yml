@@ -119,12 +119,19 @@ jobs:
           DEFINE=""
           if [ -n "${{ matrix.defines }}" ]; then
             DEFINE="-D ${{ matrix.defines }}=ON"
-            echo Define from matrix: $DEFINE
+            echo "Define from matrix: $DEFINE"
             echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}_${{ matrix.defines }}" >> $GITHUB_ENV
           else
             echo "ARTIFACT_NAME=Telegram_${{ matrix.arch }}" >> $GITHUB_ENV
           fi
           echo "TDESKTOP_BUILD_DEFINE=$DEFINE" >> $GITHUB_ENV
+
+          API="-D TDESKTOP_API_TEST=ON"
+          if [ ${{ github.ref == 'refs/heads/nightly' }} ]; then
+            echo "Use the open credentials."
+            API="-D TDESKTOP_API_ID=611335 -D TDESKTOP_API_HASH=d524b414d21f4d37f08684c1df41ac9c"
+          fi
+          echo "TDESKTOP_BUILD_API=$API" >> $GITHUB_ENV
 
       - name: Free up some disk space.
         run: |
@@ -139,7 +146,7 @@ jobs:
 
           call configure.bat ^
           ${{ matrix.arch }} ^
-          -D TDESKTOP_API_TEST=ON ^
+          %TDESKTOP_BUILD_API% ^
           -D DESKTOP_APP_DISABLE_CRASH_REPORTS=OFF ^
           -D DESKTOP_APP_NO_PDB=ON ^
           %TDESKTOP_BUILD_DEFINE% ^
@@ -149,13 +156,13 @@ jobs:
           msbuild -m Telegram.sln /p:Configuration=Debug,Platform=${{ matrix.arch }},DebugSymbols=false,DebugType=none
 
       - name: Move artifact.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: (env.UPLOAD_ARTIFACT == 'true') || ${{ github.ref == 'refs/heads/nightly' }}
         run: |
           mkdir artifact
           move %TBUILD%\%REPO_NAME%\out\Debug\Telegram.exe artifact/
       - uses: actions/upload-artifact@master
         name: Upload artifact.
-        if: env.UPLOAD_ARTIFACT == 'true'
+        if: (env.UPLOAD_ARTIFACT == 'true') || ${{ github.ref == 'refs/heads/nightly' }}
         with:
           name: ${{ env.ARTIFACT_NAME }}
           path: artifact\
