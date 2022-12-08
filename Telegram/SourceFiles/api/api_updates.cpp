@@ -97,7 +97,7 @@ void ProcessScheduledMessageWithElapsedTime(
 }
 
 bool IsForceLogoutNotification(const MTPDupdateServiceNotification &data) {
-	return qs(data.vtype()).startsWith(qstr("AUTH_KEY_DROP_"));
+	return qs(data.vtype()).startsWith(u"AUTH_KEY_DROP_"_q);
 }
 
 bool HasForceLogoutNotification(const MTPUpdates &updates) {
@@ -2217,7 +2217,7 @@ void Updates::feedUpdate(const MTPUpdate &update) {
 				history->requestChatListMessage();
 				if (!history->folderKnown()
 					|| (!history->unreadCountKnown()
-						&& !history->peer->isForum())) {
+						&& !history->isForum())) {
 					history->owner().histories().requestDialogEntry(history);
 				}
 				if (!channel->amCreator()) {

@@ -73,6 +73,7 @@
         <content_attribute id="money-gambling">none</content_attribute>
         <content_attribute id="money-advertising">moderate</content_attribute>
     </content_rating>
+    <launchable type="desktop-id">org.telegram.desktop.desktop</launchable>
     <provides>
         <binary>telegram-desktop</binary>
     </provides>

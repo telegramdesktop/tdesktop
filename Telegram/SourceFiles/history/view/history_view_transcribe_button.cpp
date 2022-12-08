@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/click_handler.h"
 #include "ui/effects/radial_animation.h"
+#include "ui/effects/ripple_animation.h"
 #include "ui/painter.h"
 #include "api/api_transcribes.h"
 #include "apiwrap.h"
@@ -68,12 +69,25 @@ void TranscribeButton::paint(
 	const auto stm = context.messageStyle();
 	if (_roundview) {
 		_lastPaintedPoint = { x, y };
+		const auto r = QRect(QPoint(x, y), size());
+
+		if (_ripple) {
+			const auto colorOverride = &stm->msgWaveformInactive->c;
+			_ripple->paint(
+				p,
+				x,
+				y,
+				r.width(),
+				colorOverride);
+			if (_ripple->empty()) {
+				_ripple.reset();
+			}
+		}
 
 		PainterHighQualityEnabler hq(p);
 		p.setPen(Qt::NoPen);
 		p.setBrush(context.st->msgServiceBg());
 
-		const auto r = QRect(QPoint(x, y), size());
 		p.drawEllipse(r);
 		context.st->historyFastTranscribeIcon().paintInCenter(p, r);
 
@@ -195,8 +209,25 @@ ClickHandlerPtr TranscribeButton::link() {
 	return _link;
 }
 
-QRect TranscribeButton::lastPaintedRect() const {
-	return { _lastPaintedPoint, size() };
+bool TranscribeButton::contains(const QPoint &p) {
+	_lastStatePoint = p - _lastPaintedPoint;
+	return QRect(_lastPaintedPoint, size()).contains(p);
+}
+
+void TranscribeButton::addRipple(Fn<void()> callback) {
+	if (!_ripple) {
+		_ripple = std::make_unique<Ui::RippleAnimation>(
+			st::defaultRippleAnimation,
+			Ui::RippleAnimation::EllipseMask(size()),
+			std::move(callback));
+	}
+	_ripple->add(_lastStatePoint);
+}
+
+void TranscribeButton::stopRipple() const {
+	if (_ripple) {
+		_ripple->lastStop();
+	}
 }
 
 } // namespace HistoryView

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/abstract_box.h"
 
+#include "core/application.h"
+#include "window/window_controller.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
 
@@ -17,25 +19,30 @@ void showBox(
 		object_ptr<BoxContent> content,
 		LayerOptions options,
 		anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(std::move(content), options, animated);
+	const auto window = Core::IsAppLaunched()
+		? Core::App().primaryWindow()
+		: nullptr;
+	if (window) {
+		window->show(std::move(content), options, animated);
 	}
 }
 
 } // namespace internal
 
 void hideLayer(anim::type animated) {
-	if (auto w = App::wnd()) {
-		w->ui_showBox(
-			{ nullptr },
-			LayerOption::CloseOther,
-			animated);
+	const auto window = Core::IsAppLaunched()
+		? Core::App().primaryWindow()
+		: nullptr;
+	if (window) {
+		window->hideLayer(animated);
 	}
 }
 
 bool isLayerShown() {
-	if (auto w = App::wnd()) return w->ui_isLayerShown();
-	return false;
+	const auto window = Core::IsAppLaunched()
+		? Core::App().primaryWindow()
+		: nullptr;
+	return window && window->isLayerShown();
 }
 
 } // namespace Ui

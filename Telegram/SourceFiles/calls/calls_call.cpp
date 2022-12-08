@@ -500,8 +500,8 @@ void Call::startWaitingTrack() {
 	_waitingTrack = Media::Audio::Current().createTrack();
 	const auto trackFileName = Core::App().settings().getSoundPath(
 		(_type == Type::Outgoing)
-		? qsl("call_outgoing")
-		: qsl("call_incoming"));
+		? u"call_outgoing"_q
+		: u"call_incoming"_q);
 	_waitingTrack->samplePeakEach(kSoundSampleMs);
 	_waitingTrack->fillFromFile(trackFileName);
 	_waitingTrack->playInLoop();
@@ -893,8 +893,8 @@ void Call::createAndStartController(const MTPDphoneCall &call) {
 			settings.callAudioBackend()),
 	};
 	if (Logs::DebugEnabled()) {
-		const auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
-		const auto callLogPath = callLogFolder + qsl("/last_call_log.txt");
+		const auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
+		const auto callLogPath = callLogFolder + u"/last_call_log.txt"_q;
 		const auto callLogNative = QDir::toNativeSeparators(callLogPath);
 #ifdef Q_OS_WIN
 		descriptor.config.logPath.data = callLogNative.toStdWString();

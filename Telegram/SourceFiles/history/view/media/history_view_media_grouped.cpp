@@ -461,7 +461,8 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
-				result.link = _parent->rightActionLink();
+				result.link = _parent->rightActionLink(point
+					- QPoint(fastShareLeft, fastShareTop));
 			}
 		}
 	}
@@ -547,7 +548,7 @@ TextForMimeData GroupedMedia::selectedText(
 			if (result.empty()) {
 				result = std::move(text);
 			} else {
-				result.append(qstr("\n\n")).append(std::move(text));
+				result.append(u"\n\n"_q).append(std::move(text));
 			}
 		}
 		selection = part.content->skipSelection(selection);
@@ -775,6 +776,7 @@ bool GroupedMedia::computeNeedBubble() const {
 			|| _parent->displayedReply()
 			|| _parent->displayForwardedFrom()
 			|| _parent->displayFromName()
+			|| _parent->displayedTopicButton()
 			) {
 			return true;
 		}

@@ -326,14 +326,11 @@ void MessageView::paint(
 		rect.setLeft(rect.x() + _textCache.maxWidth());
 	}
 	if (jump1) {
-		const auto x = (rect.width() > st::forumDialogJumpArrowSkip)
-			? rect.x()
-			: finalRight;
-		const auto add = st::forumDialogJumpArrowLeft;
-		const auto y = rect.y() + st::forumDialogJumpArrowTop;
+		const auto position = st::forumDialogJumpArrowPosition
+			+ QPoint((rect.width() > 0) ? rect.x() : finalRight, rect.y());
 		(context.selected
 			? st::forumDialogJumpArrowOver
-			: st::forumDialogJumpArrow).paint(p, x + add, y, context.width);
+			: st::forumDialogJumpArrow).paint(p, position, context.width);
 	}
 }
 

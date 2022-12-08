@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
 #include "ui/unread_badge.h"
+#include "ui/userpic_view.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/ui/dialogs_message_view.h"
 
@@ -19,10 +20,6 @@ class HistoryItem;
 namespace style {
 struct DialogRow;
 } // namespace style
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Ui {
 class RippleAnimation;
@@ -39,6 +36,8 @@ struct TopicJumpCache;
 namespace Dialogs {
 
 enum class SortMode;
+
+[[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
 
 class BasicRow {
 public:
@@ -67,13 +66,12 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
-	[[nodiscard]] auto userpicView() const
-	-> std::shared_ptr<Data::CloudImageView> & {
+	[[nodiscard]] Ui::PeerUserpicView &userpicView() const {
 		return _userpic;
 	}
 
 private:
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
@@ -89,8 +87,11 @@ public:
 		return _top;
 	}
 	[[nodiscard]] int height() const {
+		Expects(_height != 0);
+
 		return _height;
 	}
+	void recountHeight(float64 narrowRatio);
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
@@ -140,24 +141,45 @@ public:
 private:
 	friend class List;
 
+	class CornerLayersManager {
+	public:
+		using Layer = int;
+		CornerLayersManager();
+
+		[[nodiscard]] bool isSameLayer(Layer layer) const;
+		[[nodiscard]] bool isDisplayedNone() const;
+		[[nodiscard]] float64 progressForLayer(Layer layer) const;
+		[[nodiscard]] float64 progress() const;
+		[[nodiscard]] bool isFinished() const;
+		void setLayer(Layer layer, Fn<void()> updateCallback);
+		void markFrameShown();
+
+	private:
+		bool _lastFrameShown = false;
+		Layer _prevLayer = 0;
+		Layer _nextLayer = 0;
+		Ui::Animations::Simple _animation;
+
+	};
+
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
-		float64 shown = 0.;
+		CornerLayersManager layersManager;
 		int frameIndex = -1;
 		bool active = false;
 		QImage frame;
-		Ui::Animations::Simple animation;
+		QImage cacheTTL;
 	};
 
 	void setCornerBadgeShown(
-		bool shown,
+		CornerLayersManager::Layer nextLayer,
 		Fn<void()> updateCallback) const;
 	void ensureCornerBadgeUserpic() const;
 	static void PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context);
 
 	Key _id;

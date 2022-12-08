@@ -61,6 +61,14 @@ void IndexedList::adjustByDate(const RowsByLetter &links) {
 	}
 }
 
+bool IndexedList::updateHeights(float64 narrowRatio) {
+	return _list.updateHeights(narrowRatio);
+}
+
+bool IndexedList::updateHeight(Key key, float64 narrowRatio) {
+	return _list.updateHeight(key, narrowRatio);
+}
+
 void IndexedList::moveToTop(Key key) {
 	if (_list.moveToTop(key)) {
 		for (const auto &ch : key.entry()->chatListFirstLetters()) {

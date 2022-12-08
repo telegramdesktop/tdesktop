@@ -93,6 +93,7 @@ menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
 menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
 menuIconVideoChat: icon {{ "menu/video_chat", menuIconColor }};
 menuIconTranslate: icon {{ "menu/translate", menuIconColor }};
+menuIconReportAntiSpam: icon {{ "menu/false_positive", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);

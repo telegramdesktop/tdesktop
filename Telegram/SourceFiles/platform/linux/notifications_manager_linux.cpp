@@ -8,7 +8,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "platform/linux/notifications_manager_linux.h"
 
-#include "window/notifications_utilities.h"
 #include "base/options.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/linux/base_linux_glibmm_helper.h"
@@ -20,10 +19,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum_topic.h"
 #include "history/history.h"
 #include "history/history_item.h"
+#include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "base/weak_ptr.h"
+#include "window/notifications_utilities.h"
+#include "styles/style_window.h"
 
+#include <QtCore/QBuffer>
 #include <QtCore/QVersionNumber>
 #include <QtGui/QGuiApplication>
 
@@ -335,7 +338,7 @@ public:
 
 	void show();
 	void close();
-	void setImage(const QString &imagePath);
+	void setImage(const QImage &image);
 
 private:
 	const not_null<Manager*> _manager;
@@ -385,7 +388,7 @@ bool NotificationData::init(
 		_notification->set_body(
 			subtitle.isEmpty()
 				? msg.toStdString()
-				: qsl("%1\n%2").arg(subtitle, msg).toStdString());
+				: u"%1\n%2"_q.arg(subtitle, msg).toStdString());
 
 		_notification->set_icon(
 			Gio::ThemedIcon::create(base::IconName().toStdString()));
@@ -429,10 +432,12 @@ bool NotificationData::init(
 				idTuple);
 		}
 
-		_notification->add_button(
-			tr::lng_notification_reply(tr::now).toStdString(),
-			"app.notification-reply",
-			idTuple);
+		if (!options.hideReplyButton) {
+			_notification->add_button(
+				tr::lng_notification_reply(tr::now).toStdString(),
+				"app.notification-reply",
+				idTuple);
+		}
 
 		return true;
 	}
@@ -496,16 +501,16 @@ bool NotificationData::init(
 	_title = title.toStdString();
 	_imageKey = GetImageKey(CurrentServerInformationValue().specVersion);
 
-	if (capabilities.contains(qsl("body-markup"))) {
+	if (capabilities.contains(u"body-markup"_q)) {
 		_body = subtitle.isEmpty()
 			? msg.toHtmlEscaped().toStdString()
-			: qsl("<b>%1</b>\n%2").arg(
+			: u"<b>%1</b>\n%2"_q.arg(
 				subtitle.toHtmlEscaped(),
 				msg.toHtmlEscaped()).toStdString();
 	} else {
 		_body = subtitle.isEmpty()
 			? msg.toStdString()
-			: qsl("%1\n%2").arg(subtitle, msg).toStdString();
+			: u"%1\n%2"_q.arg(subtitle, msg).toStdString();
 	}
 
 	if (capabilities.contains("actions")) {
@@ -518,22 +523,24 @@ bool NotificationData::init(
 				tr::lng_context_mark_read(tr::now).toStdString());
 		}
 
-		if (capabilities.contains("inline-reply") && !options.hideReplyButton) {
-			_actions.push_back("inline-reply");
-			_actions.push_back(
-				tr::lng_notification_reply(tr::now).toStdString());
+		if (!options.hideReplyButton) {
+			if (capabilities.contains("inline-reply")) {
+				_actions.push_back("inline-reply");
+				_actions.push_back(
+					tr::lng_notification_reply(tr::now).toStdString());
 
-			_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
-				signalEmitted,
-				std::string(kService),
-				std::string(kInterface),
-				"NotificationReplied",
-				std::string(kObjectPath));
-		} else {
-			// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
-			_actions.push_back("mail-reply-sender");
-			_actions.push_back(
-				tr::lng_notification_reply(tr::now).toStdString());
+				_notificationRepliedSignalId = _dbusConnection->signal_subscribe(
+					signalEmitted,
+					std::string(kService),
+					std::string(kInterface),
+					"NotificationReplied",
+					std::string(kObjectPath));
+			} else {
+				// icon name according to https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+				_actions.push_back("mail-reply-sender");
+				_actions.push_back(
+					tr::lng_notification_reply(tr::now).toStdString());
+			}
 		}
 
 		_actionInvokedSignalId = _dbusConnection->signal_subscribe(
@@ -685,13 +692,23 @@ void NotificationData::close() {
 	_manager->clearNotification(_id);
 }
 
-void NotificationData::setImage(const QString &imagePath) {
-	if (imagePath.isEmpty()) {
-		return;
-	}
-
+void NotificationData::setImage(const QImage &image) {
 	if (_notification) {
-		_notification->set_icon(Gio::Icon::create(imagePath.toStdString()));
+		const auto imageData = [&] {
+			QByteArray ba;
+			QBuffer buffer(&ba);
+			buffer.open(QIODevice::WriteOnly);
+			image.save(&buffer, "PNG");
+			return ba;
+		}();
+
+		const auto imageBytes = Glib::Bytes::create(
+			imageData.constData(),
+			imageData.size());
+
+		_notification->set_icon(
+			Glib::wrap(g_bytes_icon_new(imageBytes->gobj())));
+
 		return;
 	}
 
@@ -699,27 +716,20 @@ void NotificationData::setImage(const QString &imagePath) {
 		return;
 	}
 
-	const auto image = [&] {
-		const auto original = QImage(imagePath);
-		return original.hasAlphaChannel()
-			? original.convertToFormat(QImage::Format_RGBA8888)
-			: original.convertToFormat(QImage::Format_RGB888);
-	}();
-
-	if (image.isNull()) {
-		return;
-	}
+	const auto convertedImage = image.hasAlphaChannel()
+		? image.convertToFormat(QImage::Format_RGBA8888)
+		: image.convertToFormat(QImage::Format_RGB888);
 
 	_hints[_imageKey] = MakeGlibVariant(std::tuple{
-		image.width(),
-		image.height(),
-		int(image.bytesPerLine()),
-		image.hasAlphaChannel(),
+		convertedImage.width(),
+		convertedImage.height(),
+		int(convertedImage.bytesPerLine()),
+		convertedImage.hasAlphaChannel(),
 		8,
-		image.hasAlphaChannel() ? 4 : 3,
+		convertedImage.hasAlphaChannel() ? 4 : 3,
 		std::vector<uchar>(
-			image.constBits(),
-			image.constBits() + image.sizeInBytes()),
+			convertedImage.constBits(),
+			convertedImage.constBits() + convertedImage.sizeInBytes()),
 	});
 }
 
@@ -803,16 +813,16 @@ bool ByDefault() {
 	// with custom notifications
 	static const auto NeededCapabilities = {
 		// To show message content
-		qsl("body"),
+		u"body"_q,
 		// To make the sender name bold
-		qsl("body-markup"),
+		u"body-markup"_q,
 		// To have buttons on notifications
-		qsl("actions"),
+		u"actions"_q,
 		// To have quick reply
-		qsl("inline-reply"),
+		u"inline-reply"_q,
 		// To not to play sound with Don't Disturb activated
 		// (no, using sound capability is not a way)
-		qsl("inhibitions"),
+		u"inhibitions"_q,
 	};
 
 	return ranges::all_of(NeededCapabilities, [&](const auto &capability) {
@@ -821,6 +831,8 @@ bool ByDefault() {
 }
 
 void Create(Window::Notifications::System *system) {
+	static auto ServiceWatcher = CreateServiceWatcher();
+
 	const auto managerSetter = [=] {
 		using ManagerType = Window::Notifications::ManagerType;
 		if ((Core::App().settings().nativeNotifications() || Enforced())
@@ -839,21 +851,34 @@ void Create(Window::Notifications::System *system) {
 	};
 
 	if (Gio::Application::get_default()) {
+		ServiceWatcher = nullptr;
+		ServiceRegistered = false;
+		CurrentServerInformation = std::nullopt;
+		CurrentCapabilities = QStringList{};
 		managerSetter();
 		return;
 	}
 
-	static const auto ServiceWatcher = CreateServiceWatcher();
-
 	const auto counter = std::make_shared<int>(2);
 	const auto oneReady = [=] {
 		if (!--*counter) {
+			// GApplication may be created while the reply is received
+			if (Gio::Application::get_default()) {
+				Core::App().notifications().createManager();
+				return;
+			}
 			managerSetter();
 		}
 	};
 
 	// snap doesn't allow access when the daemon is not running :(
 	StartServiceAsync([=] {
+		// GApplication may be created while the reply is received
+		if (Gio::Application::get_default()) {
+			Core::App().notifications().createManager();
+			return;
+		}
+
 		ServiceRegistered = GetServiceRegistered();
 
 		if (!ServiceRegistered) {
@@ -877,13 +902,12 @@ void Create(Window::Notifications::System *system) {
 
 class Manager::Private : public base::has_weak_ptr {
 public:
-	using Type = Window::Notifications::CachedUserpics::Type;
-	explicit Private(not_null<Manager*> manager, Type type);
+	explicit Private(not_null<Manager*> manager);
 
 	void showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -909,17 +933,14 @@ private:
 		ContextId,
 		base::flat_map<MsgId, Notification>> _notifications;
 
-	Window::Notifications::CachedUserpics _cachedUserpics;
-
 	Glib::RefPtr<Gio::DBus::Connection> _dbusConnection;
 	bool _inhibited = false;
 	uint _inhibitedSignalId = 0;
 
 };
 
-Manager::Private::Private(not_null<Manager*> manager, Type type)
-: _manager(manager)
-, _cachedUserpics(type) {
+Manager::Private::Private(not_null<Manager*> manager)
+: _manager(manager) {
 	const auto serverInformation = CurrentServerInformation;
 	const auto capabilities = CurrentCapabilities;
 
@@ -942,7 +963,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 			.arg(capabilities.join(", ")));
 	}
 
-	if (capabilities.contains(qsl("inhibitions"))) {
+	if (capabilities.contains(u"inhibitions"_q)) {
 		Noexcept([&] {
 			_dbusConnection = Gio::DBus::Connection::get_sync(
 				Gio::DBus::BusType::SESSION);
@@ -993,7 +1014,7 @@ Manager::Private::Private(not_null<Manager*> manager, Type type)
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -1021,9 +1042,8 @@ void Manager::Private::showNotification(
 	}
 
 	if (!options.hideNameAndPhoto) {
-		const auto userpicKey = peer->userpicUniqueKey(userpicView);
 		notification->setImage(
-			_cachedUserpics.get(userpicKey, peer, userpicView));
+			Window::Notifications::GenerateUserpic(peer, userpicView));
 	}
 
 	auto i = _notifications.find(key);
@@ -1148,7 +1168,7 @@ Manager::Private::~Private() {
 
 Manager::Manager(not_null<Window::Notifications::System*> system)
 : NativeManager(system)
-, _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
+, _private(std::make_unique<Private>(this)) {
 }
 
 void Manager::clearNotification(NotificationId id) {
@@ -1160,7 +1180,7 @@ Manager::~Manager() = default;
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

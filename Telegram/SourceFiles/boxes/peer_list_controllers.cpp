@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "dialogs/dialogs_main_list.h"
 #include "window/window_session_controller.h" // showAddContact()
 #include "base/unixtime.h"
-#include "facades.h"
 #include "styles/style_boxes.h"
 #include "styles/style_profile.h"
 #include "styles/style_dialogs.h"
@@ -378,7 +377,10 @@ std::unique_ptr<PeerListRow> ContactsBoxController::createSearchRow(
 }
 
 void ContactsBoxController::rowClicked(not_null<PeerListRow*> row) {
-	Ui::showPeerHistory(row->peer(), ShowAtUnreadMsgId);
+	const auto peer = row->peer();
+	if (const auto window = peer->session().tryResolveWindow()) {
+		window->showPeerHistory(row->peer());
+	}
 }
 
 void ContactsBoxController::setSortMode(SortMode mode) {
@@ -622,7 +624,8 @@ QString ChooseTopicBoxController::Row::generateShortName() {
 	return _topic->title();
 }
 
-auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
+auto ChooseTopicBoxController::Row::generatePaintUserpicCallback(
+	bool forceRound)
 -> PaintRoundImageCallback {
 	return [=](
 			Painter &p,
@@ -630,10 +633,11 @@ auto ChooseTopicBoxController::Row::generatePaintUserpicCallback()
 			int y,
 			int outerWidth,
 			int size) {
-		auto view = std::shared_ptr<Data::CloudImageView>();
+		auto view = Ui::PeerUserpicView();
 		p.translate(x, y);
 		_topic->paintUserpic(p, view, {
 			.st = &st::forumTopicRow,
+			.currentBg = st::windowBg,
 			.now = crl::now(),
 			.width = outerWidth,
 			.paused = false,

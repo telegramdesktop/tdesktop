@@ -143,10 +143,31 @@ QImage ForumTopicIconFrame(
 	return background;
 }
 
+QImage ForumTopicGeneralIconFrame(int size, const style::color &color) {
+	const auto ratio = style::DevicePixelRatio();
+	auto svg = QSvgRenderer(ForumTopicIconPath(u"general"_q));
+	auto result = QImage(
+		QSize(size, size) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	result.setDevicePixelRatio(ratio);
+	result.fill(Qt::transparent);
+
+	const auto use = size * 0.8;
+	const auto skip = size * 0.1;
+	auto p = QPainter(&result);
+	svg.render(&p, QRectF(skip, 0, use, use));
+	p.end();
+
+	return style::colorizeImage(result, color);
+}
+
 TextWithEntities ForumTopicIconWithTitle(
+		MsgId rootId,
 		DocumentId iconId,
 		const QString &title) {
-	return iconId
+	return (rootId == ForumTopic::kGeneralId)
+		? TextWithEntities{ u"# "_q + title }
+		: iconId
 		? Data::SingleCustomEmoji(iconId).append(title)
 		: TextWithEntities{ title };
 }
@@ -167,24 +188,14 @@ ForumTopic::ForumTopic(not_null<Forum*> forum, MsgId rootId)
 	Thread::setMuted(owner().notifySettings().isMuted(this));
 
 	_sendActionPainter->setTopic(this);
+	subscribeToUnreadChanges();
 
-	_replies->unreadCountValue(
-	) | rpl::map([=](std::optional<int> value) {
-		return value ? _replies->displayedUnreadCount() : value;
-	}) | rpl::distinct_until_changed(
-	) | rpl::combine_previous(
-	) | rpl::filter([=] {
-		return inChatList();
-	}) | rpl::start_with_next([=](
-			std::optional<int> previous,
-			std::optional<int> now) {
-		if (previous.value_or(0) != now.value_or(0)) {
-			_forum->recentTopicsInvalidate(this);
-		}
-		notifyUnreadStateChange(unreadStateFor(
-			previous.value_or(0),
-			previous.has_value()));
-	}, _replies->lifetime());
+	if (isGeneral()) {
+		style::PaletteChanged(
+		) | rpl::start_with_next([=] {
+			_defaultIcon = QImage();
+		}, _lifetime);
+	}
 }
 
 ForumTopic::~ForumTopic() {
@@ -255,7 +266,7 @@ bool ForumTopic::canEdit() const {
 }
 
 bool ForumTopic::canDelete() const {
-	if (creating()) {
+	if (creating() || isGeneral()) {
 		return false;
 	} else if (channel()->canDeleteMessages()) {
 		return true;
@@ -286,10 +297,35 @@ void ForumTopic::setRealRootId(MsgId realId) {
 		_rootId = realId;
 		_lastKnownServerMessageId = realId;
 		_replies = std::make_shared<RepliesList>(history(), _rootId);
+		if (_sendActionPainter) {
+			_sendActionPainter->setTopic(nullptr);
+		}
 		_sendActionPainter = owner().sendActionManager().repliesPainter(
 			history(),
 			_rootId);
+		_sendActionPainter->setTopic(this);
+		subscribeToUnreadChanges();
 	}
+}
+
+void ForumTopic::subscribeToUnreadChanges() {
+	_replies->unreadCountValue(
+	) | rpl::map([=](std::optional<int> value) {
+		return value ? _replies->displayedUnreadCount() : value;
+	}) | rpl::distinct_until_changed(
+	) | rpl::combine_previous(
+	) | rpl::filter([=] {
+		return inChatList();
+	}) | rpl::start_with_next([=](
+		std::optional<int> previous,
+		std::optional<int> now) {
+		if (previous.value_or(0) != now.value_or(0)) {
+			_forum->recentTopicsInvalidate(this);
+		}
+		notifyUnreadStateChange(unreadStateFor(
+			previous.value_or(0),
+			previous.has_value()));
+	}, _lifetime);
 }
 
 void ForumTopic::readTillEnd() {
@@ -386,7 +422,8 @@ void ForumTopic::setClosedAndSave(bool closed) {
 		MTP_int(_rootId),
 		MTPstring(), // title
 		MTPlong(), // icon_emoji_id
-		MTP_bool(closed)
+		MTP_bool(closed),
+		MTPBool() // hidden
 	)).done([=](const MTPUpdates &result) {
 		api->applyUpdates(result);
 	}).fail([=](const MTP::Error &error) {
@@ -396,6 +433,18 @@ void ForumTopic::setClosedAndSave(bool closed) {
 			}
 		}
 	}).send();
+}
+
+bool ForumTopic::hidden() const {
+	return (_flags & Flag::Hidden);
+}
+
+void ForumTopic::setHidden(bool hidden) {
+	if (hidden) {
+		_flags |= Flag::Hidden;
+	} else {
+		_flags &= ~Flag::Hidden;
+	}
 }
 
 void ForumTopic::indexTitleParts() {
@@ -519,7 +568,7 @@ void ForumTopic::loadUserpic() {
 
 void ForumTopic::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	const auto &st = context.st;
 	auto position = QPoint(st->padding.left(), st->padding.top());
@@ -539,7 +588,11 @@ void ForumTopic::paintUserpic(
 			.paused = context.paused,
 		});
 	} else {
-		validateDefaultIcon();
+		if (isGeneral()) {
+			validateGeneralIcon(context);
+		} else {
+			validateDefaultIcon();
+		}
 		const auto size = st::defaultForumTopicIcon.size;
 		if (context.narrow) {
 			position = QPoint(
@@ -561,12 +614,34 @@ void ForumTopic::clearUserpicLoops() {
 }
 
 void ForumTopic::validateDefaultIcon() const {
-	if (_defaultIcon.isNull()) {
-		_defaultIcon = ForumTopicIconFrame(
-			_colorId,
-			_title,
-			st::defaultForumTopicIcon);
+	if (!_defaultIcon.isNull()) {
+		return;
 	}
+	_defaultIcon = ForumTopicIconFrame(
+		_colorId,
+		_title,
+		st::defaultForumTopicIcon);
+}
+
+void ForumTopic::validateGeneralIcon(
+		const Dialogs::Ui::PaintContext &context) const {
+	const auto mask = Flag::GeneralIconActive | Flag::GeneralIconSelected;
+	const auto flags = context.active
+		? Flag::GeneralIconActive
+		: context.selected
+		? Flag::GeneralIconSelected
+		: Flag(0);
+	if (!_defaultIcon.isNull() && ((_flags & mask) == flags)) {
+		return;
+	}
+	const auto size = st::defaultForumTopicIcon.size;
+	const auto &color = context.active
+		? st::dialogsTextFgActive
+		: context.selected
+		? st::dialogsTextFgOver
+		: st::dialogsTextFg;
+	_defaultIcon = ForumTopicGeneralIconFrame(size, color);
+	_flags = (_flags & ~mask) | flags;
 }
 
 void ForumTopic::requestChatListMessage() {
@@ -620,7 +695,7 @@ QString ForumTopic::title() const {
 }
 
 TextWithEntities ForumTopic::titleWithIcon() const {
-	return ForumTopicIconWithTitle(_iconId, _title);
+	return ForumTopicIconWithTitle(_rootId, _iconId, _title);
 }
 
 int ForumTopic::titleVersion() const {
@@ -632,8 +707,7 @@ void ForumTopic::applyTitle(const QString &title) {
 		return;
 	}
 	_title = title;
-	++_titleVersion;
-	_forum->recentTopicsInvalidate(this);
+	invalidateTitleWithIcon();
 	_defaultIcon = QImage();
 	indexTitleParts();
 	updateChatListEntry();
@@ -649,7 +723,7 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 		return;
 	}
 	_iconId = iconId;
-	++_titleVersion;
+	invalidateTitleWithIcon();
 	_icon = iconId
 		? std::make_unique<Ui::Text::LimitedLoopsEmoji>(
 			owner().customEmojiManager().create(
@@ -663,6 +737,11 @@ void ForumTopic::applyIconId(DocumentId iconId) {
 	}
 	updateChatListEntry();
 	session().changes().topicUpdated(this, UpdateFlag::IconId);
+}
+
+void ForumTopic::invalidateTitleWithIcon() {
+	++_titleVersion;
+	_forum->recentTopicsInvalidate(this);
 }
 
 int32 ForumTopic::colorId() const {

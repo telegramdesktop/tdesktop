@@ -20,16 +20,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 QString SiteNameFromUrl(const QString &url) {
-	QUrl u(url);
+	const auto u = QUrl(url);
 	QString pretty = u.isValid() ? u.toDisplayString() : url;
-	QRegularExpressionMatch m = QRegularExpression(qsl("^[a-zA-Z0-9]+://")).match(pretty);
+	const auto m = QRegularExpression(u"^[a-zA-Z0-9]+://"_q).match(pretty);
 	if (m.hasMatch()) pretty = pretty.mid(m.capturedLength());
 	int32 slash = pretty.indexOf('/');
 	if (slash > 0) pretty = pretty.mid(0, slash);
 	QStringList components = pretty.split('.', Qt::SkipEmptyParts);
 	if (components.size() >= 2) {
 		components = components.mid(components.size() - 2);
-		return components.at(0).at(0).toUpper() + components.at(0).mid(1) + '.' + components.at(1);
+		return components.at(0).at(0).toUpper()
+			+ components.at(0).mid(1)
+			+ '.'
+			+ components.at(1);
 	}
 	return QString();
 }
@@ -137,35 +140,35 @@ WebPageType ParseWebPageType(
 		const QString &type,
 		const QString &embedUrl,
 		bool hasIV) {
-	if (type == qstr("video") || !embedUrl.isEmpty()) {
+	if (type == u"video"_q || !embedUrl.isEmpty()) {
 		return WebPageType::Video;
-	} else if (type == qstr("photo")) {
+	} else if (type == u"photo"_q) {
 		return WebPageType::Photo;
-	} else if (type == qstr("profile")) {
+	} else if (type == u"profile"_q) {
 		return WebPageType::Profile;
-	} else if (type == qstr("telegram_background")) {
+	} else if (type == u"telegram_background"_q) {
 		return WebPageType::WallPaper;
-	} else if (type == qstr("telegram_theme")) {
+	} else if (type == u"telegram_theme"_q) {
 		return WebPageType::Theme;
-	} else if (type == qstr("telegram_channel")) {
+	} else if (type == u"telegram_channel"_q) {
 		return WebPageType::Channel;
-	} else if (type == qstr("telegram_channel_request")) {
+	} else if (type == u"telegram_channel_request"_q) {
 		return WebPageType::ChannelWithRequest;
-	} else if (type == qstr("telegram_megagroup")
-		|| type == qstr("telegram_chat")) {
+	} else if (type == u"telegram_megagroup"_q
+		|| type == u"telegram_chat"_q) {
 		return WebPageType::Group;
-	} else if (type == qstr("telegram_megagroup_request")
-		|| type == qstr("telegram_chat_request")) {
+	} else if (type == u"telegram_megagroup_request"_q
+		|| type == u"telegram_chat_request"_q) {
 		return WebPageType::GroupWithRequest;
-	}  else if (type == qstr("telegram_message")) {
+	}  else if (type == u"telegram_message"_q) {
 		return WebPageType::Message;
-	}  else if (type == qstr("telegram_bot")) {
+	}  else if (type == u"telegram_bot"_q) {
 		return WebPageType::Bot;
-	}  else if (type == qstr("telegram_voicechat")) {
+	}  else if (type == u"telegram_voicechat"_q) {
 		return WebPageType::VoiceChat;
-	}  else if (type == qstr("telegram_livestream")) {
+	}  else if (type == u"telegram_livestream"_q) {
 		return WebPageType::Livestream;
-	}  else if (type == qstr("telegram_user")) {
+	}  else if (type == u"telegram_user"_q) {
 		return WebPageType::User;
 	} else if (hasIV) {
 		return WebPageType::ArticleWithIV;

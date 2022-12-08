@@ -160,8 +160,8 @@ using SwscalePointer = std::unique_ptr<SwsContext, SwscaleDeleter>;
 	QSize resize,
 	SwscalePointer *existing = nullptr);
 
-void LogError(QLatin1String method);
-void LogError(QLatin1String method, FFmpeg::AvErrorWrap error);
+void LogError(const QString &method);
+void LogError(const QString &method, FFmpeg::AvErrorWrap error);
 
 [[nodiscard]] const AVCodec *FindDecoder(not_null<AVCodecContext*> context);
 [[nodiscard]] crl::time PtsToTime(int64_t pts, AVRational timeBase);

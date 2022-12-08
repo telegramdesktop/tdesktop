@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image_prepare.h"
+#include "ui/empty_userpic.h"
 #include "ui/emoji_config.h"
 #include "ui/painter.h"
 #include "ui/chat/chat_theme.h"
@@ -969,36 +970,20 @@ void Generator::paintService(QString text) {
 }
 
 void Generator::paintUserpic(int x, int y, Row::Type type, int index, QString letters) {
-	style::color colors[] = {
-		st::historyPeer1UserpicBg,
-		st::historyPeer2UserpicBg,
-		st::historyPeer3UserpicBg,
-		st::historyPeer4UserpicBg,
-		st::historyPeer5UserpicBg,
-		st::historyPeer6UserpicBg,
-		st::historyPeer7UserpicBg,
-		st::historyPeer8UserpicBg,
-	};
-	auto color = colors[index % base::array_size(colors)];
+	const auto colorIndex = Ui::EmptyUserpic::ColorIndex(index);
+	const auto colors = Ui::EmptyUserpic::UserpicColor(colorIndex);
+	auto userpic = Ui::EmptyUserpic(colors, letters);
 
 	const auto size = st::defaultDialogRow.photoSize;
 	auto image = QImage(
-		QSize(size, size) * cIntRetinaFactor(),
+		QSize(size, size) * style::DevicePixelRatio(),
 		QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(cRetinaFactor());
-	image.fill(color[_palette]->c);
+	image.fill(Qt::transparent);
 	{
 		Painter p(&image);
-		auto fontsize = (size * 13) / 33;
-		auto font = st::historyPeerUserpicFont->f;
-		font.setPixelSize(fontsize);
-
-		p.setFont(font);
-		p.setBrush(Qt::NoBrush);
-		p.setPen(st::historyPeerUserpicFg[_palette]);
-		p.drawText(QRect(0, 0, size, size), letters, QTextOption(style::al_center));
+		userpic.paintCircle(p, 0, 0, size, size);
 	}
-	image = Images::Circle(std::move(image));
 	_p->drawImage(rtl() ? (_rect.width() - x - size) : x, y, image);
 }
 

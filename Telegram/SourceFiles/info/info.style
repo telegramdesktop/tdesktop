@@ -383,6 +383,7 @@ infoRoundedIconAdministrators: icon {{ "info/edit/group_manage_admins", settings
 infoRoundedIconInviteLinks: icon {{ "info/edit/group_manage_links", settingsIconFg }};
 infoRoundedIconReactions: icon {{ "info/edit/group_manage_reactions", settingsIconFg }};
 infoRoundedIconSignature: icon {{ "info/edit/channel_manage_signature", settingsIconFg }};
+infoRoundedIconAntiSpam: icon {{ "info/edit/antispam", settingsIconFg }};
 
 infoIconShare: icon {{ "info/info_share", infoIconFg }};
 infoIconEdit: icon {{ "info/info_edit", infoIconFg }};
@@ -655,7 +656,7 @@ editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
 editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
-editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 16px);
+editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 0px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -669,7 +670,6 @@ editPeerUsernameGood: FlatLabel(defaultFlatLabel) {
 editPeerUsernameError: FlatLabel(editPeerUsernameGood) {
 	textFg: boxTextFgError;
 }
-editPeerUsernamePosition: point(22px, 18px);
 
 editPeerReactionsButton: SettingsButton(infoProfileButton) {
 	padding: margins(59px, 13px, 8px, 11px);

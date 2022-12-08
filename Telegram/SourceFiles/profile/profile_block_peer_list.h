@@ -8,10 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "profile/profile_block_widget.h"
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
+#include "ui/userpic_view.h"
 
 namespace Ui {
 class RippleAnimation;
@@ -33,7 +30,7 @@ public:
 		~Item();
 
 		const not_null<PeerData*> peer;
-		std::shared_ptr<Data::CloudImageView> userpic;
+		Ui::PeerUserpicView userpic;
 		Ui::Text::String name;
 		QString statusText;
 		bool statusHasOnlineColor = false;

@@ -48,6 +48,8 @@ public:
 	not_null<Row*> addByName(Key key);
 	bool moveToTop(Key key);
 	void adjustByDate(not_null<Row*> row);
+	bool updateHeight(Key key, float64 narrowRatio);
+	bool updateHeights(float64 narrowRatio);
 	bool remove(Key key, Row *replacedBy = nullptr);
 
 	using const_iterator = std::vector<not_null<Row*>>::const_iterator;
@@ -75,6 +77,7 @@ private:
 
 	SortMode _sortMode = SortMode();
 	FilterId _filterId = 0;
+	float64 _narrowRatio = 0.;
 	std::vector<not_null<Row*>> _rows;
 	std::map<Key, std::unique_ptr<Row>> _rowByKey;
 

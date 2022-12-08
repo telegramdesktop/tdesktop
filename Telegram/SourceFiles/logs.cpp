@@ -52,10 +52,10 @@ QMutex *_logsMutex(LogDataType type, bool clear = false) {
 QString _logsFilePath(LogDataType type, const QString &postfix = QString()) {
 	QString path(cWorkingDir());
 	switch (type) {
-	case LogDataMain: path += qstr("log") + postfix + qstr(".txt"); break;
-	case LogDataDebug: path += qstr("DebugLogs/log") + postfix + qstr(".txt"); break;
-	case LogDataTcp: path += qstr("DebugLogs/tcp") + postfix + qstr(".txt"); break;
-	case LogDataMtp: path += qstr("DebugLogs/mtp") + postfix + qstr(".txt"); break;
+	case LogDataMain: path += u"log"_q + postfix + u".txt"_q; break;
+	case LogDataDebug: path += u"DebugLogs/log"_q + postfix + u".txt"_q; break;
+	case LogDataTcp: path += u"DebugLogs/tcp"_q + postfix + u".txt"_q; break;
+	case LogDataMtp: path += u"DebugLogs/mtp"_q + postfix + u".txt"_q; break;
 	}
 	return path;
 }
@@ -80,7 +80,7 @@ public:
 	}
 
 	bool openMain() {
-		return reopen(LogDataMain, 0, qsl("start"));
+		return reopen(LogDataMain, 0, u"start"_q);
 	}
 
 	void closeMain() {
@@ -165,8 +165,8 @@ private:
 					QDir working(cWorkingDir()); // delete all other log_startXX.txt that we can
 					QStringList oldlogs = working.entryList(QStringList("log_start*.txt"), QDir::Files);
 					for (QStringList::const_iterator i = oldlogs.cbegin(), e = oldlogs.cend(); i != e; ++i) {
-						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(qstr("log_start").size());
-						if (oldlogend.size() == 1 + qstr(".txt").size() && oldlogend.at(0).isDigit() && base::StringViewMid(oldlogend, 1) == qstr(".txt")) {
+						QString oldlog = cWorkingDir() + *i, oldlogend = i->mid(u"log_start"_q.size());
+						if (oldlogend.size() == 1 + u".txt"_q.size() && oldlogend.at(0).isDigit() && base::StringViewMid(oldlogend, 1) == u".txt"_q) {
 							bool removed = QFile(oldlog).remove();
 							LOG(("Old start log '%1' found, deleted: %2").arg(*i, Logs::b(removed)));
 						}
@@ -181,7 +181,7 @@ private:
 				int32 oldest = -1; // find not existing log_startX.txt or pick the oldest one (by lastModified)
 				QDateTime oldestLastModified;
 				for (int32 i = 0; i < 10; ++i) {
-					QString trying = _logsFilePath(type, qsl("_start%1").arg(i));
+					QString trying = _logsFilePath(type, u"_start%1"_q.arg(i));
 					files[type]->setFileName(trying);
 					if (!files[type]->exists()) {
 						LogsStartIndexChosen = i;
@@ -195,7 +195,7 @@ private:
 					}
 				}
 				if (!found) {
-					files[type]->setFileName(_logsFilePath(type, qsl("_start%1").arg(oldest)));
+					files[type]->setFileName(_logsFilePath(type, u"_start%1"_q.arg(oldest)));
 					LogsStartIndexChosen = oldest;
 				}
 			}
@@ -209,7 +209,7 @@ private:
 					files[type]->close();
 				}
 			} else {
-				QDir().mkdir(cWorkingDir() + qstr("DebugLogs"));
+				QDir().mkdir(cWorkingDir() + u"DebugLogs"_q);
 			}
 		}
 		if (files[type]->open(mode)) {
@@ -415,7 +415,7 @@ void start(not_null<Core::Launcher*> launcher) {
 	QDir().setCurrent(cWorkingDir());
 #endif // !Q_OS_WINRT
 
-	QDir().mkpath(cWorkingDir() + qstr("tdata"));
+	QDir().mkpath(cWorkingDir() + u"tdata"_q);
 
 	launcher->workingFolderReady();
 	CrashReports::StartCatching(launcher);
@@ -437,7 +437,7 @@ void start(not_null<Core::Launcher*> launcher) {
 
 	if (!LogsData) {
 		LOG(("FATAL: Could not open '%1' for writing log!"
-			).arg(_logsFilePath(LogDataMain, qsl("_startXX"))));
+			).arg(_logsFilePath(LogDataMain, u"_startXX"_q)));
 		return;
 	}
 

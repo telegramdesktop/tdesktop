@@ -45,17 +45,27 @@ class Forum;
 	int32 colorId,
 	const QString &title,
 	const style::ForumTopicIcon &st);
+[[nodiscard]] QImage ForumTopicGeneralIconFrame(
+	int size,
+	const style::color &color);
 [[nodiscard]] TextWithEntities ForumTopicIconWithTitle(
+	MsgId rootId,
 	DocumentId iconId,
 	const QString &title);
 
 class ForumTopic final : public Thread {
 public:
+	static constexpr auto kGeneralId = 1;
+
 	ForumTopic(not_null<Forum*> forum, MsgId rootId);
 	~ForumTopic();
 
 	not_null<History*> owningHistory() override {
 		return history();
+	}
+
+	[[nodiscard]] bool isGeneral() const {
+		return (_rootId == kGeneralId);
 	}
 
 	[[nodiscard]] std::shared_ptr<RepliesList> replies() const;
@@ -80,6 +90,9 @@ public:
 	[[nodiscard]] bool closed() const;
 	void setClosed(bool closed);
 	void setClosedAndSave(bool closed);
+
+	[[nodiscard]] bool hidden() const;
+	void setHidden(bool hidden);
 
 	[[nodiscard]] bool creating() const;
 	void discard();
@@ -137,7 +150,7 @@ public:
 	void loadUserpic() override;
 	void paintUserpic(
 		Painter &p,
-		std::shared_ptr<CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const override;
 	void clearUserpicLoops();
 
@@ -152,16 +165,21 @@ public:
 private:
 	enum class Flag : uchar {
 		Closed = (1 << 0),
-		My = (1 << 1),
-		HasPinnedMessages = (1 << 2),
+		Hidden = (1 << 1),
+		My = (1 << 2),
+		HasPinnedMessages = (1 << 3),
+		GeneralIconActive = (1 << 4),
+		GeneralIconSelected = (1 << 5),
 	};
 	friend inline constexpr bool is_flag_type(Flag) { return true; }
 	using Flags = base::flags<Flag>;
 
 	void indexTitleParts();
 	void validateDefaultIcon() const;
+	void validateGeneralIcon(const Dialogs::Ui::PaintContext &context) const;
 	void applyTopicTopMessage(MsgId topMessageId);
 	void growLastKnownServerMessageId(MsgId id);
+	void invalidateTitleWithIcon();
 
 	void setLastMessage(HistoryItem *item);
 	void setLastServerMessage(HistoryItem *item);
@@ -169,6 +187,7 @@ private:
 
 	int chatListNameVersion() const override;
 
+	void subscribeToUnreadChanges();
 	[[nodiscard]] Dialogs::UnreadState unreadStateFor(
 		int count,
 		bool known) const;
@@ -191,7 +210,7 @@ private:
 	TimeId _creationDate = 0;
 	int _titleVersion = 0;
 	int32 _colorId = 0;
-	Flags _flags;
+	mutable Flags _flags;
 
 	std::unique_ptr<Ui::Text::CustomEmoji> _icon;
 	mutable QImage _defaultIcon; // on-demand

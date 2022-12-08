@@ -45,6 +45,8 @@ public:
 	[[nodiscard]] int dialogsFolderPinnedPremium() const;
 	[[nodiscard]] int dialogsFolderPinnedCurrent() const;
 
+	[[nodiscard]] int topicsPinnedCurrent() const;
+
 	[[nodiscard]] int channelsPublicDefault() const;
 	[[nodiscard]] int channelsPublicPremium() const;
 	[[nodiscard]] int channelsPublicCurrent() const;

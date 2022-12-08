@@ -416,7 +416,7 @@ bool Rows::hasMenu(not_null<const Row*> row) const {
 }
 
 void Rows::share(not_null<const Row*> row) const {
-	const auto link = qsl("https://t.me/setlanguage/") + row->data.id;
+	const auto link = u"https://t.me/setlanguage/"_q + row->data.id;
 	QGuiApplication::clipboard()->setText(link);
 	Ui::Toast::Show(tr::lng_username_copied(tr::now));
 }
@@ -1118,8 +1118,16 @@ void LanguageBox::prepare() {
 	}, translateEnabled->lifetime());
 
 	const auto label = lifetime().make_state<rpl::event_stream<QLocale>>();
+	const auto translateSkipWrap = topContainer->add(
+		object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
+			topContainer,
+			object_ptr<Ui::VerticalLayout>(topContainer)));
+	translateSkipWrap->toggle(
+		translateEnabled->toggled(),
+		anim::type::normal);
+	translateSkipWrap->toggleOn(translateEnabled->toggledValue());
 	const auto translateSkip = Settings::AddButtonWithLabel(
-		topContainer,
+		translateSkipWrap->entity(),
 		tr::lng_translate_settings_choose(),
 		label->events() | rpl::map(Ui::LanguageName),
 		st::settingsButtonNoIcon);
@@ -1176,6 +1184,10 @@ void LanguageBox::prepare() {
 	) | rpl::start_with_next([=](int height) {
 		accumulate_max(*max, height);
 		setDimensions(st::boxWidth, qMin(*max, st::boxMaxListHeight));
+	}, inner->lifetime());
+	topContainer->heightValue(
+	) | rpl::start_with_next([=](int height) {
+		setInnerTopSkip(height);
 	}, inner->lifetime());
 
 	select->setSubmittedCallback([=](Qt::KeyboardModifiers) {

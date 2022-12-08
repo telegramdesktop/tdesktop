@@ -34,5 +34,9 @@ void LocationClickHandler::setup() {
 
 QString LocationClickHandler::Url(const Data::LocationPoint &point) {
 	const auto latlon = point.latAsString() + ',' + point.lonAsString();
-	return qsl("https://maps.google.com/maps?q=") + latlon + qsl("&ll=") + latlon + qsl("&z=16");
+	return u"https://maps.google.com/maps?q="_q
+		+ latlon
+		+ u"&ll="_q
+		+ latlon
+		+ u"&z=16"_q;
 }

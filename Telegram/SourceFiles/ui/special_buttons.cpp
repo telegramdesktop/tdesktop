@@ -354,7 +354,7 @@ void UserpicButton::setupPeerViewers() {
 	) | rpl::filter([=] {
 		return _waiting;
 	}) | rpl::start_with_next([=] {
-		if (!_userpicView || _userpicView->image()) {
+		if (!Ui::PeerUserpicLoading(_userpicView)) {
 			_waiting = false;
 			startNewPhotoShowing();
 		}
@@ -395,31 +395,16 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 		paintUserpicFrame(p, photoPosition);
 	}
 
-	const auto fillShape = [&](const style::color &color) {
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(color);
-		if (_peer && _peer->isForum()) {
-			p.drawRoundedRect(
-				photoLeft,
-				photoTop,
-				_st.photoSize,
-				_st.photoSize,
-				st::roundRadiusLarge,
-				st::roundRadiusLarge);
-		} else {
-			p.drawEllipse(
-				photoLeft,
-				photoTop,
-				_st.photoSize,
-				_st.photoSize);
-		}
+	const auto fillTranslatedShape = [&](const style::color &color) {
+		p.translate(photoLeft, photoTop);
+		fillShape(p, color);
+		p.translate(-photoLeft, -photoTop);
 	};
 
 	if (_role == Role::ChangePhoto || _role == Role::ChoosePhoto) {
 		auto over = isOver() || isDown();
 		if (over) {
-			fillShape(_userpicHasImage
+			fillTranslatedShape(_userpicHasImage
 				? st::msgDateImgBg
 				: _st.changeButton.textBgOver);
 		}
@@ -459,7 +444,7 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 				_st.photoSize,
 				barHeight);
 			p.setClipRect(rect);
-			fillShape(_st.uploadBg);
+			fillTranslatedShape(_st.uploadBg);
 			auto iconLeft = (_st.uploadIconPosition.x() < 0)
 				? (_st.photoSize - _st.uploadIcon.width()) / 2
 				: _st.uploadIconPosition.x();
@@ -488,12 +473,16 @@ void UserpicButton::paintUserpicFrame(Painter &p, QPoint photoPosition) {
 			: false;
 		auto request = Media::Streaming::FrameRequest();
 		auto size = QSize{ _st.photoSize, _st.photoSize };
-		request.outer = size * cIntRetinaFactor();
-		request.resize = size * cIntRetinaFactor();
+		const auto ratio = style::DevicePixelRatio();
+		request.outer = request.resize = size * ratio;
 		const auto forum = _peer && _peer->isForum();
 		if (forum) {
-			request.rounding = Images::CornersMaskRef(
-				Images::CornersMask(ImageRoundRadius::Large));
+			const auto radius = int(_st.photoSize
+				* Ui::ForumUserpicRadiusMultiplier());
+			if (_roundingCorners[0].width() != radius * ratio) {
+				_roundingCorners = Images::CornersMask(radius);
+			}
+			request.rounding = Images::CornersMaskRef(_roundingCorners);
 		} else {
 			if (_ellipseMask.size() != request.outer) {
 				_ellipseMask = Images::EllipseMask(size);
@@ -535,7 +524,7 @@ void UserpicButton::processPeerPhoto() {
 	Expects(_peer != nullptr);
 
 	_userpicView = _peer->createUserpicView();
-	_waiting = _userpicView && !_userpicView->image();
+	_waiting = Ui::PeerUserpicLoading(_userpicView);
 	if (_waiting) {
 		_peer->loadUserpic();
 	}
@@ -807,25 +796,32 @@ void UserpicButton::setImage(QImage &&image) {
 	startNewPhotoShowing();
 }
 
+void UserpicButton::fillShape(QPainter &p, const style::color &color) const {
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(color);
+	const auto size = _st.photoSize;
+	if (_peer && _peer->isForum()) {
+		const auto radius = size * Ui::ForumUserpicRadiusMultiplier();
+		p.drawRoundedRect(0, 0, size, size, radius, radius);
+	} else {
+		p.drawEllipse(0, 0, size, size);
+	}
+}
+
 void UserpicButton::prepareUserpicPixmap() {
 	if (_userpicCustom) {
 		return;
 	}
 	auto size = _st.photoSize;
-	auto paintButton = [&](QPainter &p, const style::color &color) {
-		PainterHighQualityEnabler hq(p);
-		p.setBrush(color);
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(0, 0, size, size);
-	};
 	_userpicHasImage = _peer
-		? (_peer->currentUserpic(_userpicView) || _role != Role::ChangePhoto)
-		: false;
+		&& (_peer->userpicCloudImage(_userpicView)
+			|| _role != Role::ChangePhoto);
 	_userpic = CreateSquarePixmap(size, [&](Painter &p) {
 		if (_userpicHasImage) {
 			_peer->paintUserpic(p, _userpicView, 0, 0, _st.photoSize);
 		} else {
-			paintButton(p, _st.changeButton.textBg);
+			fillShape(p, _st.changeButton.textBg);
 		}
 	});
 	_userpicUniqueKey = _userpicHasImage

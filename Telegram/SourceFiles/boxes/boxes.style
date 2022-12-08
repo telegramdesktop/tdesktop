@@ -273,7 +273,7 @@ notificationsSampleMargin: 2px;
 notificationSampleOpacity: 0.5;
 notificationSampleSize: size(64px, 16px);
 
-membersAboutLimitPadding: margins(0px, 12px, 0px, 12px);
+membersAboutLimitPadding: margins(0px, 16px, 0px, 16px);
 membersAbout: FlatLabel(defaultFlatLabel) {
 	minWidth: 240px;
 	textFg: membersAboutLimitFg;

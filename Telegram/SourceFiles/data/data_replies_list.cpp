@@ -304,7 +304,9 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 		return;
 	}
 	const auto root = lookupRoot();
-	if (!root || root->topicRootId()) {
+	if (!root
+		|| (_rootId == Data::ForumTopic::kGeneralId)
+		|| (root->topicRootId() != Data::ForumTopic::kGeneralId)) {
 		return;
 	}
 	injectRootDivider(root, slice);
@@ -858,7 +860,13 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 		MsgId afterId) const {
 	Expects(afterId >= _inboxReadTillId);
 
-	const auto wasUnreadCountAfter = _unreadCount.current();
+	const auto currentUnreadCountAfter = _unreadCount.current();
+	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0)
+		&& (_inboxReadTillId == 1)
+		&& (afterId > 1);
+	const auto wasUnreadCountAfter = startingMarkingAsRead
+		? _fullCount.current().value_or(0)
+		: currentUnreadCountAfter;
 	const auto readTillId = std::max(afterId, _rootId);
 	const auto wasReadTillId = _inboxReadTillId;
 	const auto backLoaded = (_skippedBefore == 0);

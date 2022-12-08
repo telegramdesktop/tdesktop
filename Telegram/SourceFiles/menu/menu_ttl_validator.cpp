@@ -68,7 +68,9 @@ Args TTLValidator::createArgs() const {
 		mtpRequestId savingRequestId = 0;
 	};
 	const auto state = std::make_shared<State>();
-	auto callback = [=, toastParent = show->toastParent()](TimeId period) {
+	auto callback = [=](
+			TimeId period,
+			Fn<void()>) {
 		auto &api = peer->session().api();
 		if (state->savingRequestId) {
 			if (period == state->savingPeriod) {
@@ -77,27 +79,39 @@ Args TTLValidator::createArgs() const {
 			api.request(state->savingRequestId).cancel();
 		}
 		state->savingPeriod = period;
+		const auto weak = Ui::MakeWeak(show->toastParent().get());
 		state->savingRequestId = api.request(MTPmessages_SetHistoryTTL(
 			peer->input,
 			MTP_int(period)
 		)).done([=](const MTPUpdates &result) {
 			peer->session().api().applyUpdates(result);
-			ShowAutoDeleteToast(toastParent, peer);
-			state->savingRequestId = 0;
-#if 0
-			if (const auto strong = state->weak.data()) {
-				strong->closeBox();
+			if (const auto strong = weak.data()) {
+				ShowAutoDeleteToast(strong, peer);
 			}
-#endif
+			state->savingRequestId = 0;
 		}).fail([=] {
 			state->savingRequestId = 0;
 		}).send();
+		show->hideLayer();
 	};
-	auto about = peer->isUser()
+	auto about1 = peer->isUser()
 		? tr::lng_ttl_edit_about(lt_user, rpl::single(peer->shortName()))
 		: peer->isBroadcast()
 		? tr::lng_ttl_edit_about_channel()
 		: tr::lng_ttl_edit_about_group();
+	auto about2 = tr::lng_ttl_edit_about2(
+		lt_link,
+		tr::lng_ttl_edit_about2_link(
+		) | rpl::map([=](const QString &s) {
+			return Ui::Text::Link(s, "tg://settings/auto_delete");
+		}),
+		Ui::Text::WithEntities);
+	auto about = rpl::combine(
+		std::move(about1),
+		std::move(about2)
+	) | rpl::map([](const QString &s1, TextWithEntities &&s2) {
+		return TextWithEntities{ s1 }.append(u"\n\n"_q).append(std::move(s2));
+	});
 	const auto ttl = peer->messagesTTL();
 	return { std::move(show), ttl, std::move(about), std::move(callback) };
 }
@@ -108,10 +122,10 @@ bool TTLValidator::can() const {
 			&& !_peer->isNotificationsUser()
 			&& !_peer->asUser()->isInaccessible())
 		|| (_peer->isChat()
-			&& _peer->asChat()->canDeleteMessages()
+			&& _peer->asChat()->canEditInformation()
 			&& _peer->asChat()->amIn())
 		|| (_peer->isChannel()
-			&& _peer->asChannel()->canDeleteMessages()
+			&& _peer->asChannel()->canEditInformation()
 			&& _peer->asChannel()->amIn());
 }
 

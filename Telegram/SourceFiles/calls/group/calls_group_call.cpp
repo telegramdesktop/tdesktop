@@ -2427,8 +2427,8 @@ bool GroupCall::tryCreateController() {
 		},
 	};
 	if (Logs::DebugEnabled()) {
-		auto callLogFolder = cWorkingDir() + qsl("DebugLogs");
-		auto callLogPath = callLogFolder + qsl("/last_group_call_log.txt");
+		auto callLogFolder = cWorkingDir() + u"DebugLogs"_q;
+		auto callLogPath = callLogFolder + u"/last_group_call_log.txt"_q;
 		auto callLogNative = QDir::toNativeSeparators(callLogPath);
 		descriptor.config.need_log = true;
 #ifdef Q_OS_WIN

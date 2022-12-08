@@ -51,8 +51,8 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro(Intro::EnterPoint point);
-	void setupMain(MsgId singlePeerShowAtMsgId);
+	void setupIntro(Intro::EnterPoint point, QPixmap oldContentCache);
+	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showSettings();
 
@@ -67,16 +67,21 @@ public:
 
 	void sendPaths();
 
-	bool contentOverlapped(const QRect &globalRect);
-	bool contentOverlapped(QWidget *w, QPaintEvent *e) {
-		return contentOverlapped(QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
+	[[nodiscard]] bool contentOverlapped(const QRect &globalRect);
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e) {
+		return contentOverlapped(
+			QRect(w->mapToGlobal(e->rect().topLeft()), e->rect().size()));
 	}
-	bool contentOverlapped(QWidget *w, const QRegion &r) {
-		return contentOverlapped(QRect(w->mapToGlobal(r.boundingRect().topLeft()), r.boundingRect().size()));
+	[[nodiscard]] bool contentOverlapped(QWidget *w, const QRegion &r) {
+		return contentOverlapped(QRect(
+			w->mapToGlobal(r.boundingRect().topLeft()),
+			r.boundingRect().size()));
 	}
 
 	void showMainMenu();
 	void fixOrder() override;
+
+	[[nodiscard]] QPixmap grabForSlideAnimation();
 
 	void showLayer(
 		std::unique_ptr<Ui::LayerWidget> &&layer,
@@ -127,8 +132,6 @@ private:
 
 	void themeUpdated(const Window::Theme::BackgroundUpdate &data);
 
-	QPixmap grabInner();
-
 	std::unique_ptr<Media::SystemMediaControlsManager> _mediaControlsManager;
 
 	QPoint _lastMousePosition;
@@ -142,7 +145,3 @@ private:
 	object_ptr<Window::Theme::WarningWidget> _testingThemeWarning = { nullptr };
 
 };
-
-namespace App {
-MainWindow *wnd();
-} // namespace App

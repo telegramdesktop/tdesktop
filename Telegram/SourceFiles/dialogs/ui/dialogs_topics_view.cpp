@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_forum.h"
 #include "data/data_forum_topic.h"
 #include "core/ui_integration.h"
+#include "lang/lang_keys.h"
 #include "ui/painter.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
@@ -55,10 +56,9 @@ void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
 			_titles.emplace_back();
 		}
 		auto &title = _titles[index++];
-		title.topicRootId = rootId;
-
 		const auto unread = topic->chatListBadgesState().unread;
-		if (title.unread == unread
+		if (title.topicRootId == rootId
+			&& title.unread == unread
 			&& title.version == topic->titleVersion()) {
 			continue;
 		}
@@ -68,6 +68,7 @@ void TopicsView::prepare(MsgId frontRootId, Fn<void()> customEmojiRepaint) {
 			.customEmojiLoopLimit = kIconLoopCount,
 		};
 		auto topicTitle = topic->titleWithIcon();
+		title.topicRootId = rootId;
 		title.version = topic->titleVersion();
 		title.unread = unread;
 		title.title.setMarkedText(
@@ -118,9 +119,17 @@ void TopicsView::paint(
 		? st::dialogsTextPaletteArchiveOver
 		: st::dialogsTextPaletteArchive);
 	auto rect = geometry;
+	rect.setWidth(rect.width() - _lastTopicJumpGeometry.rightCut);
 	auto skipBig = _jumpToTopic && !context.active;
+	if (_titles.empty()) {
+		p.drawText(
+			rect.x(),
+			rect.y() + st::normalFont->ascent,
+			tr::lng_contacts_loading(tr::now));
+		return;
+	}
 	for (const auto &title : _titles) {
-		if (rect.width() <= 0) {
+		if (rect.width() < title.title.style()->font->elidew) {
 			break;
 		}
 		title.title.draw(p, {
@@ -217,10 +226,12 @@ QImage TopicsView::topicJumpRippleMask(
 }
 
 JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
-	const auto availableWidth = context.geometry.width();
-	const auto use1 = std::min(context.width1, availableWidth);
-	const auto use2 = std::min(context.width2, availableWidth);
 	const auto padding = st::forumDialogJumpPadding;
+	const auto availableWidth = context.geometry.width();
+	const auto want1 = std::min(context.width1, availableWidth);
+	const auto use1 = std::min(want1, availableWidth - padding.right());
+	const auto use2 = std::min(context.width2, availableWidth);
+	const auto rightCut = want1 - use1;
 	const auto origin = context.geometry.topLeft();
 	const auto delta = std::abs(use1 - use2);
 	if (delta <= context.st->topicsSkip / 2) {
@@ -228,7 +239,7 @@ JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
 		const auto h = context.st->topicsHeight + st::normalFont->height;
 		const auto fill = QRect(origin, QSize(w, h));
 		const auto full = fill.marginsAdded(padding);
-		auto result = JumpToLastGeometry{ full };
+		auto result = JumpToLastGeometry{ rightCut, full };
 		FillJumpToLastPrepared(p, {
 			.st = context.st,
 			.corners = context.corners,
@@ -254,7 +265,7 @@ JumpToLastGeometry FillJumpToLastBg(QPainter &p, JumpToLastBg context) {
 		padding.right(),
 		padding.bottom(),
 	});
-	auto result = JumpToLastGeometry{ fill1, fill2 };
+	auto result = JumpToLastGeometry{ rightCut, fill1, fill2 };
 	FillJumpToLastPrepared(p, {
 		.st = context.st,
 		.corners = context.corners,

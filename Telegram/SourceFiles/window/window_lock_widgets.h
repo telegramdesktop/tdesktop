@@ -26,16 +26,18 @@ class Session;
 namespace Window {
 
 class Controller;
+class SlideAnimation;
 
 class LockWidget : public Ui::RpWidget {
 public:
 	LockWidget(QWidget *parent, not_null<Controller*> window);
+	~LockWidget();
 
-	not_null<Controller*> window() const;
+	[[nodiscard]] not_null<Controller*> window() const;
 
 	virtual void setInnerFocus();
 
-	void showAnimated(const QPixmap &bgAnimCache, bool back = false);
+	void showAnimated(QPixmap oldContentCache);
 	void showFinished();
 
 protected:
@@ -43,12 +45,8 @@ protected:
 	virtual void paintContent(QPainter &p);
 
 private:
-	void animationCallback();
-
 	const not_null<Controller*> _window;
-	Ui::Animations::Simple _a_show;
-	bool _showBack = false;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<SlideAnimation> _showAnimation;
 
 };
 

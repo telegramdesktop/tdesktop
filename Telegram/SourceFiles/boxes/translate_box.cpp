@@ -15,7 +15,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "mtproto/sender.h"
 #include "settings/settings_common.h"
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
 #include "spellcheck/platform/platform_language.h"
+#endif
 #include "ui/effects/loading_element.h"
 #include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
@@ -44,6 +46,7 @@ namespace {
 		QLocale::Czech,
 		QLocale::Danish,
 		QLocale::Dutch,
+		QLocale::Esperanto,
 		QLocale::Estonian,
 		QLocale::French,
 		QLocale::German,
@@ -140,7 +143,8 @@ void TranslateBox(
 		not_null<Ui::GenericBox*> box,
 		not_null<PeerData*> peer,
 		MsgId msgId,
-		TextWithEntities text) {
+		TextWithEntities text,
+		bool hasCopyRestriction) {
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
@@ -158,6 +162,12 @@ void TranslateBox(
 		rpl::event_stream<QLocale> locale;
 	};
 	const auto state = box->lifetime().make_state<State>();
+
+	text.entities = ranges::views::all(
+		text.entities
+	) | ranges::views::filter([](const EntityInText &e) {
+		return e.type() != EntityType::Spoiler;
+	}) | ranges::to<EntitiesInText>();
 
 	if (!IsServerMsgId(msgId)) {
 		msgId = 0;
@@ -182,6 +192,10 @@ void TranslateBox(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
 	{
+		if (hasCopyRestriction) {
+			original->entity()->setContextMenuHook([](auto&&) {
+			});
+		}
 		original->entity()->setMarkedText(text);
 		original->setMinimalHeight(lineHeight);
 		original->hide(anim::type::instant);
@@ -232,7 +246,7 @@ void TranslateBox(
 	const auto translated = box->addRow(object_ptr<SlideWrap<FlatLabel>>(
 		box,
 		object_ptr<FlatLabel>(box, stLabel)));
-	translated->entity()->setSelectable(true);
+	translated->entity()->setSelectable(!hasCopyRestriction);
 	translated->hide(anim::type::instant);
 
 	constexpr auto kMaxLines = 3;
@@ -331,6 +345,7 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (!hasLetters) {
 		return true;
 	}
+#ifndef TDESKTOP_DISABLE_SPELLCHECK
 	const auto result = Platform::Language::Recognize(text);
 	if (result.unknown) {
 		return false;
@@ -343,6 +358,9 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 		? QLocale::English
 		: settingsLang;
 	return (result.locale.language() == skip);
+#else
+    return false;
+#endif
 }
 
 } // namespace Ui

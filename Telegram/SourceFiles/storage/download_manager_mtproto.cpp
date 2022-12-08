@@ -904,7 +904,7 @@ bool DownloadMtprotoTask::normalPartFailed(
 		return false;
 	}
 	if (error.code() == 400
-		&& error.type().startsWith(qstr("FILE_REFERENCE_"))) {
+		&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
 		api().refreshFileReference(
 			_origin,
 			this,
@@ -932,8 +932,8 @@ bool DownloadMtprotoTask::cdnPartFailed(
 		return false;
 	}
 
-	if (error.type() == qstr("FILE_TOKEN_INVALID")
-		|| error.type() == qstr("REQUEST_TOKEN_INVALID")) {
+	if (error.type() == u"FILE_TOKEN_INVALID"_q
+		|| error.type() == u"REQUEST_TOKEN_INVALID"_q) {
 		const auto requestData = finishSentRequest(
 			requestId,
 			FinishRequestReason::Redirect);

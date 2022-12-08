@@ -82,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -255,7 +254,7 @@ RepliesWidget::RepliesWidget(
 	setupRootView();
 	setupShortcuts();
 
-	session().api().requestFullPeer(_history->peer);
+	_history->peer->updateFull();
 
 	refreshTopBarActiveChat();
 
@@ -1467,7 +1466,11 @@ void RepliesWidget::refreshTopBarActiveChat() {
 
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
-	return custom ? custom : _rootId;
+	return custom
+		? custom
+		: (_rootId == Data::ForumTopic::kGeneralId)
+		? MsgId()
+		: _rootId;
 }
 
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
@@ -2181,7 +2184,7 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	} else if (Ui::skipPaintEvent(this, e)) {
+	} else if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
 
@@ -2585,7 +2588,7 @@ void RepliesWidget::setupShortcuts() {
 		return _topic
 			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;

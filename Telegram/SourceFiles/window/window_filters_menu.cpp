@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "lang/lang_keys.h"
 #include "ui/filter_icons.h"
+#include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/vertical_layout_reorder.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/boxes/confirm_box.h"
@@ -28,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_limits_box.h"
 #include "settings/settings_common.h"
 #include "settings/settings_folders.h"
+#include "storage/storage_media_prepare.h"
 #include "api/api_chat_filters.h"
 #include "apiwrap.h"
 #include "styles/style_widgets.h"
@@ -77,6 +79,11 @@ FiltersMenu::FiltersMenu(
 , _container(
 	_scroll.setOwnedWidget(
 		object_ptr<Ui::VerticalLayout>(&_scroll))) {
+	_drag.timer.setCallback([=] {
+		if (_drag.filterId >= 0) {
+			_session->setActiveChatsFilter(_drag.filterId);
+		}
+	});
 	setup();
 }
 
@@ -324,15 +331,36 @@ base::unique_qptr<Ui::SideBarButton> FiltersMenu::prepareButton(
 			}
 		}
 	});
-	if (id > 0) {
+	if (id >= 0) {
+		raw->setAcceptDrops(true);
 		raw->events(
-		) | rpl::filter([](not_null<QEvent*> e) {
-			return e->type() == QEvent::ContextMenu;
-		}) | rpl::start_with_next([=] {
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return ((e->type() == QEvent::ContextMenu) && (id > 0))
+				|| e->type() == QEvent::DragEnter
+				|| e->type() == QEvent::DragMove
+				|| e->type() == QEvent::DragLeave;
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
 			if (raw->locked()) {
 				return;
 			}
-			showMenu(QCursor::pos(), id);
+			if (e->type() == QEvent::ContextMenu) {
+				showMenu(QCursor::pos(), id);
+			} else if (e->type() == QEvent::DragEnter) {
+				using namespace Storage;
+				const auto d = static_cast<QDragEnterEvent*>(e.get());
+				const auto data = d->mimeData();
+				if (ComputeMimeDataState(data) != MimeDataState::None) {
+					_drag.timer.callOnce(ChoosePeerByDragTimeout);
+					_drag.filterId = id;
+					d->setDropAction(Qt::CopyAction);
+					d->accept();
+				}
+			} else if (e->type() == QEvent::DragMove) {
+				_drag.timer.callOnce(ChoosePeerByDragTimeout);
+			} else if (e->type() == QEvent::DragLeave) {
+				_drag.filterId = FilterId(-1);
+				_drag.timer.cancel();
+			}
 		}, raw->lifetime());
 	}
 	return button;

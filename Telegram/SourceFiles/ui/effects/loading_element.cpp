@@ -10,12 +10,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/glare.h"
 
 #include "base/object_ptr.h"
-#include "styles/palette.h"
-#include "styles/style_basic.h"
-#include "styles/style_widgets.h"
 #include "base/random.h"
+#include "styles/palette.h"
 #include "ui/painter.h"
 #include "ui/rp_widget.h"
+#include "styles/style_basic.h"
+#include "styles/style_widgets.h"
 
 namespace Ui {
 namespace {
@@ -52,7 +52,7 @@ void LoadingText::paint(QPainter &p, int width) {
 
 	p.setPen(Qt::NoPen);
 
-	p.setBrush(st::dialogsDateFg);
+	p.setBrush(st::windowBgOver);
 	const auto h = _st.style.font->ascent;
 	p.drawRoundedRect(
 		0,
@@ -63,13 +63,63 @@ void LoadingText::paint(QPainter &p, int width) {
 		h / 2);
 }
 
-} // namespace
+class LoadingPeerListItem final : public LoadingElement {
+public:
+	LoadingPeerListItem(const style::PeerListItem &st) : _st(st) {
+	}
 
-object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
+	[[nodiscard]] int height() const override {
+		return _st.height;
+	}
+	void paint(QPainter &p, int width) override {
+		auto hq = PainterHighQualityEnabler(p);
+
+		const auto &style = _st.nameStyle;
+		const auto offset = -style.font->ascent
+			- (style.lineHeight - style.font->height);
+
+		p.setPen(Qt::NoPen);
+		p.setBrush(st::windowBgOver);
+
+		p.drawEllipse(
+			_st.photoPosition.x(),
+			_st.photoPosition.y(),
+			_st.photoSize,
+			_st.photoSize);
+
+		constexpr auto kNameWidth = 60;
+		constexpr auto kStatusWidth = 100;
+
+		const auto h1 = st::semiboldTextStyle.font->ascent;
+		p.drawRoundedRect(
+			_st.namePosition.x(),
+			_st.namePosition.y() + offset,
+			kNameWidth,
+			h1,
+			h1 / 2,
+			h1 / 2);
+
+		const auto h2 = st::defaultTextStyle.font->ascent;
+		p.drawRoundedRect(
+			_st.statusPosition.x(),
+			_st.statusPosition.y() + offset,
+			kStatusWidth,
+			h2,
+			h2 / 2,
+			h2 / 2);
+	}
+
+private:
+	const style::PeerListItem &_st;
+
+};
+
+template <typename Element, typename ...ElementArgs>
+object_ptr<Ui::RpWidget> CreateLoadingElementWidget(
 		not_null<Ui::RpWidget*> parent,
-		const style::FlatLabel &st,
 		int lines,
-		rpl::producer<bool> rtl) {
+		rpl::producer<bool> rtl,
+		ElementArgs &&...args) {
 	auto widget = object_ptr<Ui::RpWidget>(parent);
 	const auto raw = widget.data();
 
@@ -84,10 +134,12 @@ object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 	state->rtl = std::move(rtl);
 	state->rtl.value(
 	) | rpl::start_with_next([=] { raw->update(); }, raw->lifetime());
-	raw->resize(raw->width(), LoadingText(st).height() * lines);
+	raw->resize(
+		raw->width(),
+		Element(std::forward<ElementArgs>(args)...).height() * lines);
 
 	const auto draw = [=](QPainter &p) {
-		auto loading = LoadingText(st);
+		auto loading = Element(std::forward<ElementArgs>(args)...);
 		const auto countRows = lines;
 		for (auto i = 0; i < countRows; i++) {
 			const auto w = (i == countRows - 1)
@@ -137,6 +189,31 @@ object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 	}, widget->lifetime());
 
 	return widget;
+}
+
+} // namespace
+
+object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
+		not_null<Ui::RpWidget*> parent,
+		const style::FlatLabel &st,
+		int lines,
+		rpl::producer<bool> rtl) {
+	return CreateLoadingElementWidget<LoadingText>(
+		parent,
+		lines,
+		std::move(rtl),
+		st);
+}
+
+object_ptr<Ui::RpWidget> CreateLoadingPeerListItemWidget(
+		not_null<Ui::RpWidget*> parent,
+		const style::PeerListItem &st,
+		int lines) {
+	return CreateLoadingElementWidget<LoadingPeerListItem>(
+		parent,
+		lines,
+		rpl::single(false),
+		st);
 }
 
 } // namespace Ui

@@ -38,8 +38,8 @@ using namespace ::Ui;
 class VideoUserpic;
 
 struct TopicJumpCorners {
-	Ui::CornersPixmaps normal;
-	Ui::CornersPixmaps inverted;
+	CornersPixmaps normal;
+	CornersPixmaps inverted;
 	QPixmap small;
 	int invertedRadius = 0;
 	int smallKey = 0; // = `-radius` if top right else `radius`.
@@ -57,7 +57,9 @@ struct PaintContext {
 	TopicJumpCache *topicJumpCache = nullptr;
 	Data::Folder *folder = nullptr;
 	Data::Forum *forum = nullptr;
+	required<QBrush> currentBg;
 	FilterId filter = 0;
+	float64 topicsExpanded = 0.;
 	crl::time now = 0;
 	int width = 0;
 	bool active = false;
@@ -69,9 +71,10 @@ struct PaintContext {
 	bool displayUnreadInfo = false;
 };
 
-const style::icon *ChatTypeIcon(
+[[nodiscard]] const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
-	const PaintContext &context = { .st = &st::defaultDialogRow });
+	const PaintContext &context);
+[[nodiscard]] const style::icon *ChatTypeIcon(not_null<PeerData*> peer);
 
 class RowPainter {
 public:

@@ -40,7 +40,7 @@ void DownloadPathBox::prepare() {
 	_group->setChangedCallback([this](Directory value) { radioChanged(value); });
 
 	_pathLink->addClickHandler([=] { editPath(); });
-	if (!_path.isEmpty() && _path != qsl("tmp")) {
+	if (!_path.isEmpty() && _path != FileDialog::Tmp()) {
 		setPathText(QDir::toNativeSeparators(_path));
 	}
 	updateControlsVisibility();
@@ -73,14 +73,14 @@ void DownloadPathBox::resizeEvent(QResizeEvent *e) {
 
 void DownloadPathBox::radioChanged(Directory value) {
 	if (value == Directory::Custom) {
-		if (_path.isEmpty() || _path == qsl("tmp")) {
+		if (_path.isEmpty() || _path == FileDialog::Tmp()) {
 			_group->setValue(_path.isEmpty() ? Directory::Downloads : Directory::Temp);
 			editPath();
 		} else {
 			setPathText(QDir::toNativeSeparators(_path));
 		}
 	} else if (value == Directory::Temp) {
-		_path = qsl("tmp");
+		_path = FileDialog::Tmp();
 	} else {
 		_path = QString();
 	}
@@ -91,7 +91,7 @@ void DownloadPathBox::radioChanged(Directory value) {
 void DownloadPathBox::editPath() {
 	const auto initialPath = [] {
 		const auto path = Core::App().settings().downloadPath();
-		if (!path.isEmpty() && path != qstr("tmp")) {
+		if (!path.isEmpty() && path != FileDialog::Tmp()) {
 			return path.left(path.size() - (path.endsWith('/') ? 1 : 0));
 		}
 		return QString();
@@ -118,7 +118,7 @@ void DownloadPathBox::save() {
 		if (value == Directory::Custom) {
 			return _path;
 		} else if (value == Directory::Temp) {
-			return qsl("tmp");
+			return FileDialog::Tmp();
 		}
 		return QString();
 	};
@@ -133,4 +133,14 @@ void DownloadPathBox::save() {
 void DownloadPathBox::setPathText(const QString &text) {
 	auto availw = st::boxWideWidth - st::boxPadding.left() - st::defaultCheck.diameter - st::defaultBoxCheckbox.textPosition.x() - st::boxPadding.right();
 	_pathLink->setText(st::boxTextFont->elided(text, availw));
+}
+
+DownloadPathBox::Directory DownloadPathBox::typeFromPath(
+		const QString &path) {
+	if (path.isEmpty()) {
+		return Directory::Downloads;
+	} else if (path == FileDialog::Tmp()) {
+		return Directory::Temp;
+	}
+	return Directory::Custom;
 }

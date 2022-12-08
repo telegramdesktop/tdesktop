@@ -15,12 +15,15 @@ class History;
 
 namespace Data {
 class Session;
-class CloudImageView;
 class ForumTopic;
 class Thread;
 struct ItemNotification;
 enum class ItemNotificationType;
 } // namespace Data
+
+namespace Ui {
+struct PeerUserpicView;
+} // namespace Ui
 
 namespace Main {
 class Session;
@@ -392,7 +395,7 @@ protected:
 	virtual void doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -413,7 +416,7 @@ protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

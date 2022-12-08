@@ -28,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_dialogs.h"
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
+#include "ui/userpic_view.h"
 #include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -84,7 +85,6 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	auto result = PrepareImage();
 	Painter paint(&result);
 
-	auto view = std::shared_ptr<Data::CloudImageView>();
 	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
@@ -161,7 +161,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 @implementation PinnedDialogsPanel {
 	struct Pin {
 		PeerData *peer = nullptr;
-		std::shared_ptr<Data::CloudImageView> userpicView = nullptr;
+		Ui::PeerUserpicView userpicView;
 		int index = -1;
 		QImage userpic;
 		QImage unreadBadge;
@@ -549,7 +549,7 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		) | rpl::start_with_next([=] {
 			const auto all = ranges::all_of(_pins, [=](const auto &pin) {
 				return (!pin->peer->hasUserpic())
-					|| (pin->userpicView && pin->userpicView->image());
+					|| (!Ui::PeerUserpicLoading(pin->userpicView));
 			});
 			if (all) {
 				downloadLifetime->destroy();
@@ -779,10 +779,9 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		if (_hasArchive && (index == (_selfUnpinned ? -2 : -1))) {
 			openFolder();
 		} else {
-			const auto chosen = (_selfUnpinned && index == -1)
+			controller->showPeerHistory((_selfUnpinned && index == -1)
 				? _session->user()
-				: peer;
-			controller->content()->chooseThread(chosen, ShowAtUnreadMsgId);
+				: peer);
 		}
 	});
 }

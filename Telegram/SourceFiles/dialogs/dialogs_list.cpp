@@ -33,6 +33,7 @@ not_null<Row*> List::addToEnd(Key key) {
 		key,
 		std::make_unique<Row>(key, _rows.size(), height())
 	).first->second.get();
+	result->recountHeight(_narrowRatio);
 	_rows.emplace_back(result);
 	if (_sortMode == SortMode::Date) {
 		adjustByDate(result);
@@ -101,6 +102,38 @@ void List::adjustByDate(not_null<Row*> row) {
 			rotate(after, i, i + 1);
 		}
 	}
+}
+
+bool List::updateHeight(Key key, float64 narrowRatio) {
+	const auto i = _rowByKey.find(key);
+	if (i == _rowByKey.cend()) {
+		return false;
+	}
+	const auto row = i->second.get();
+	const auto index = row->index();
+	auto top = row->top();
+	const auto was = row->height();
+	row->recountHeight(narrowRatio);
+	if (row->height() == was) {
+		return false;
+	}
+	for (auto i = _rows.begin() + index, e = _rows.end(); i != e; ++i) {
+		(*i)->_top = top;
+		top += (*i)->height();
+	}
+	return true;
+}
+
+bool List::updateHeights(float64 narrowRatio) {
+	_narrowRatio = narrowRatio;
+	auto was = height();
+	auto top = 0;
+	for (const auto &row : _rows) {
+		row->_top = top;
+		row->recountHeight(narrowRatio);
+		top += row->height();
+	}
+	return (height() != was);
 }
 
 bool List::moveToTop(Key key) {

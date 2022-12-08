@@ -148,9 +148,7 @@ bool PreparedList::canAddCaption(bool sendingAlbum, bool compress) const {
 		Assert(files.front().information != nullptr);
 		const auto isSticker = (!compress
 				&& Core::IsMimeSticker(files.front().information->filemime))
-			|| files.front().path.endsWith(
-				qstr(".tgs"),
-				Qt::CaseInsensitive);
+			|| files.front().path.endsWith(u".tgs"_q, Qt::CaseInsensitive);
 		return !isSticker;
 	} else if (!sendingAlbum) {
 		return false;

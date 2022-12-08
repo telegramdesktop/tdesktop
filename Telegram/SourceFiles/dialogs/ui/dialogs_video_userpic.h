@@ -12,9 +12,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Painter;
 
 namespace Data {
-class CloudImageView;
 class PhotoMedia;
 } // namespace Data
+
+namespace Ui {
+struct PeerUserpicView;
+} // namespace Ui
 
 namespace Dialogs::Ui {
 
@@ -29,7 +32,7 @@ public:
 
 	void paintLeft(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		PeerUserpicView &view,
 		int x,
 		int y,
 		int w,
@@ -54,8 +57,8 @@ private:
 void PaintUserpic(
 	Painter &p,
 	not_null<PeerData*> peer,
-	Ui::VideoUserpic *videoUserpic,
-	std::shared_ptr<Data::CloudImageView> &view,
+	VideoUserpic *videoUserpic,
+	PeerUserpicView &view,
 	int x,
 	int y,
 	int outerWidth,

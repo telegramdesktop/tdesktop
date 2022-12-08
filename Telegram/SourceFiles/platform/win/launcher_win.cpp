@@ -46,50 +46,50 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 	const auto operation = (action == UpdaterLaunch::JustRelaunch)
 		? QString()
 		: (cWriteProtected()
-			? qsl("runas")
+			? u"runas"_q
 			: QString());
 	const auto binaryPath = (action == UpdaterLaunch::JustRelaunch)
 		? (cExeDir() + cExeName())
 		: (cWriteProtected()
-			? (cWorkingDir() + qsl("tupdates/temp/Updater.exe"))
-			: (cExeDir() + qsl("Updater.exe")));
+			? (cWorkingDir() + u"tupdates/temp/Updater.exe"_q)
+			: (cExeDir() + u"Updater.exe"_q));
 
 	auto argumentsList = QStringList();
 	const auto pushArgument = [&](const QString &argument) {
 		argumentsList.push_back(argument.trimmed());
 	};
 	if (cLaunchMode() == LaunchModeAutoStart) {
-		pushArgument(qsl("-autostart"));
+		pushArgument(u"-autostart"_q);
 	}
 	if (Logs::DebugEnabled()) {
-		pushArgument(qsl("-debug"));
+		pushArgument(u"-debug"_q);
 	}
 	if (cStartInTray()) {
-		pushArgument(qsl("-startintray"));
+		pushArgument(u"-startintray"_q);
 	}
 	if (cUseFreeType()) {
-		pushArgument(qsl("-freetype"));
+		pushArgument(u"-freetype"_q);
 	}
 	if (customWorkingDir()) {
-		pushArgument(qsl("-workdir"));
+		pushArgument(u"-workdir"_q);
 		pushArgument('"' + cWorkingDir() + '"');
 	}
-	if (cDataFile() != qsl("data")) {
-		pushArgument(qsl("-key"));
+	if (cDataFile() != u"data"_q) {
+		pushArgument(u"-key"_q);
 		pushArgument('"' + cDataFile() + '"');
 	}
 
 	if (action == UpdaterLaunch::JustRelaunch) {
-		pushArgument(qsl("-noupdate"));
+		pushArgument(u"-noupdate"_q);
 		if (cRestartingToSettings()) {
-			pushArgument(qsl("-tosettings"));
+			pushArgument(u"-tosettings"_q);
 		}
 	} else {
-		pushArgument(qsl("-update"));
-		pushArgument(qsl("-exename"));
+		pushArgument(u"-update"_q);
+		pushArgument(u"-exename"_q);
 		pushArgument('"' + cExeName() + '"');
 		if (cWriteProtected()) {
-			pushArgument(qsl("-writeprotected"));
+			pushArgument(u"-writeprotected"_q);
 			pushArgument('"' + cExeDir() + '"');
 		}
 	}

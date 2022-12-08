@@ -105,7 +105,7 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
 , emptyUserpic(
-	Data::PeerUserpicColor(colorPeerId),
+	Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(colorPeerId)),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
@@ -144,22 +144,31 @@ ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
 
 bool HiddenSenderInfo::paintCustomUserpic(
 		Painter &p,
+		Ui::PeerUserpicView &view,
 		int x,
 		int y,
 		int outerWidth,
 		int size) const {
-	const auto view = customUserpic.activeView();
-	if (const auto image = view ? view->image() : nullptr) {
-		const auto circled = Images::Option::RoundCircle;
-		p.drawPixmap(
-			x,
-			y,
-			image->pix(size, size, { .options = circled }));
-		return true;
-	} else {
-		emptyUserpic.paint(p, x, y, outerWidth, size);
-		return false;
+	Expects(!customUserpic.empty());
+
+	auto valid = true;
+	if (!customUserpic.isCurrentView(view.cloud)) {
+		view.cloud = customUserpic.createView();
+		valid = false;
 	}
+	const auto image = *view.cloud;
+	if (image.isNull()) {
+		emptyUserpic.paintCircle(p, x, y, outerWidth, size);
+		return valid;
+	}
+	Ui::ValidateUserpicCache(
+		view,
+		image.isNull() ? nullptr : &image,
+		image.isNull() ? &emptyUserpic : nullptr,
+		size * style::DevicePixelRatio(),
+		false);
+	p.drawImage(QRect(x, y, size, size), view.cached);
+	return valid;
 }
 
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
@@ -296,8 +305,9 @@ bool HistoryMessageReply::updateData(
 		}
 
 		{
-			const auto peerId = replyToMsg->fullId().peer;
-			replyToColorKey = (peerIsChannel(peerId) || peerIsChat(peerId))
+			const auto peer = replyToMsg->history()->peer;
+			replyToColorKey = (!holder->out()
+					&& (peer->isMegagroup() || peer->isChat()))
 				? replyToMsg->from()->id
 				: PeerId(0);
 		}

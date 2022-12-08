@@ -6,7 +6,7 @@
 
 add_library(lib_ffmpeg OBJECT)
 add_library(desktop-app::lib_ffmpeg ALIAS lib_ffmpeg)
-init_target(lib_ffmpeg)
+init_target(lib_ffmpeg ltcg)
 
 nice_target_sources(lib_ffmpeg ${src_loc}
 PRIVATE

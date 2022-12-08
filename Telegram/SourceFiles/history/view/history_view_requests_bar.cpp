@@ -86,12 +86,12 @@ rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 		state->someUserpicsNotLoaded = false;
 		for (auto &userpic : state->userpics) {
 			userpic.peer->loadUserpic();
-			const auto pic = userpic.peer->genUserpic(
+			auto image = userpic.peer->generateUserpicImage(
 				userpic.view,
 				userpicSize);
 			userpic.uniqueKey = userpic.peer->userpicUniqueKey(userpic.view);
 			state->current.users.push_back({
-				.userpic = pic.toImage(),
+				.userpic = std::move(image),
 				.userpicKey = userpic.uniqueKey,
 				.id = userpic.peer->id.value,
 			});

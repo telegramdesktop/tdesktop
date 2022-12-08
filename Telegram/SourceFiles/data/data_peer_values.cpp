@@ -515,17 +515,10 @@ bool ChannelHasActiveCall(not_null<ChannelData*> channel) {
 rpl::producer<QImage> PeerUserpicImageValue(
 		not_null<PeerData*> peer,
 		int size) {
-	return PeerUserpicImageValue(peer, size, ImageRoundRadius::Ellipse);
-}
-
-rpl::producer<QImage> PeerUserpicImageValue(
-		not_null<PeerData*> peer,
-		int size,
-		ImageRoundRadius radius) {
 	return [=](auto consumer) {
 		auto result = rpl::lifetime();
 		struct State {
-			std::shared_ptr<CloudImageView> view;
+			Ui::PeerUserpicView view;
 			rpl::lifetime waiting;
 			InMemoryKey key = {};
 			bool empty = true;
@@ -534,7 +527,7 @@ rpl::producer<QImage> PeerUserpicImageValue(
 		const auto state = result.make_state<State>();
 		state->push = [=] {
 			const auto key = peer->userpicUniqueKey(state->view);
-			const auto loading = state->view && !state->view->image();
+			const auto loading = Ui::PeerUserpicLoading(state->view);
 
 			if (loading && !state->waiting) {
 				peer->session().downloaderTaskFinished(
@@ -548,8 +541,7 @@ rpl::producer<QImage> PeerUserpicImageValue(
 			}
 			state->key = key;
 			state->empty = false;
-			consumer.put_next(
-				peer->generateUserpicImage(state->view, size, radius));
+			consumer.put_next(peer->generateUserpicImage(state->view, size));
 		};
 		peer->session().changes().peerFlagsValue(
 			peer,

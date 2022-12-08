@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/dragging_scroll_manager.h"
 #include "ui/effects/animations.h"
 #include "ui/rp_widget.h"
+#include "ui/userpic_view.h"
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
@@ -39,7 +40,6 @@ class SessionController;
 } // namespace Window
 
 namespace Data {
-class CloudImageView;
 class Thread;
 class Folder;
 class Forum;
@@ -83,9 +83,14 @@ enum class WidgetState {
 
 class InnerWidget final : public Ui::RpWidget {
 public:
+	struct ChildListShown {
+		PeerId peerId = 0;
+		float64 shown = 0.;
+	};
 	InnerWidget(
 		QWidget *parent,
-		not_null<Window::SessionController*> controller);
+		not_null<Window::SessionController*> controller,
+		rpl::producer<ChildListShown> childListShown);
 
 	void searchReceived(
 		std::vector<not_null<HistoryItem*>> result,
@@ -102,11 +107,12 @@ public:
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
-	void changeOpenedForum(ChannelData *forum);
+	void changeOpenedForum(Data::Forum *forum);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
 	void dragLeft();
+	void setNarrowRatio(float64 narrowRatio);
 
 	void clearFilter();
 	void refresh(bool toTop = false);
@@ -230,6 +236,7 @@ private:
 	void repaintDialogRow(FilterId filterId, not_null<Row*> row);
 	void repaintDialogRow(RowDescriptor row);
 	void refreshDialogRow(RowDescriptor row);
+	bool updateEntryHeight(not_null<Entry*> entry);
 
 	void clearMouseSelection(bool clearSelection = false);
 	void mousePressReleased(
@@ -245,7 +252,7 @@ private:
 	void setPressed(Row *pressed, bool pressedTopicJump);
 	void clearPressed();
 	void setHashtagPressed(int pressed);
-	void setFilteredPressed(int pressed);
+	void setFilteredPressed(int pressed, bool pressedTopicJump);
 	void setPeerSearchPressed(int pressed);
 	void setSearchedPressed(int pressed);
 	bool isPressed() const {
@@ -269,8 +276,6 @@ private:
 
 	int defaultRowTop(not_null<Row*> row) const;
 	void setupOnlineStatusCheck();
-	void userOnlineUpdated(not_null<UserData*> user);
-	void groupHasCallUpdated(not_null<PeerData*> peer);
 
 	void updateRowCornerStatusShown(not_null<History*> history);
 	void repaintDialogRowCornerStatus(not_null<History*> history);
@@ -335,7 +340,7 @@ private:
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	void paintSearchInSaved(
@@ -350,7 +355,7 @@ private:
 		Painter &p,
 		const Ui::PaintContext &context,
 		not_null<Data::ForumTopic*> topic,
-		std::shared_ptr<Data::CloudImageView> &userpic,
+		Ui::PeerUserpicView &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
@@ -371,6 +376,8 @@ private:
 	void updateSelectedRow(Key key = Key());
 	void trackSearchResultsHistory(not_null<History*> history);
 	void trackSearchResultsForum(Data::Forum *forum);
+
+	[[nodiscard]] QBrush currentBg() const;
 
 	[[nodiscard]] const std::vector<Key> &pinnedChatsOrder() const;
 	void checkReorderPinnedStart(QPoint localPosition);
@@ -421,6 +428,7 @@ private:
 
 	// Remember the last currently dragged row top shift for updating area.
 	int _aboveTopShift = -1;
+	int _narrowWidth = 0;
 
 	int _visibleTop = 0;
 	int _visibleBottom = 0;
@@ -464,8 +472,8 @@ private:
 	Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromPeer = nullptr;
-	mutable std::shared_ptr<Data::CloudImageView> _searchInChatUserpic;
-	mutable std::shared_ptr<Data::CloudImageView> _searchFromUserUserpic;
+	mutable Ui::PeerUserpicView _searchInChatUserpic;
+	mutable Ui::PeerUserpicView _searchFromUserUserpic;
 	Ui::Text::String _searchInChatText;
 	Ui::Text::String _searchFromUserText;
 	RowDescriptor _menuRow;
@@ -487,6 +495,10 @@ private:
 	rpl::event_stream<> _searchMessages;
 	rpl::event_stream<QString> _completeHashtagRequests;
 	rpl::event_stream<> _refreshHashtagsRequests;
+
+	rpl::variable<ChildListShown> _childListShown;
+	float64 _narrowRatio = 0.;
+	bool _geometryInited = false;
 
 	base::unique_qptr<Ui::PopupMenu> _menu;
 

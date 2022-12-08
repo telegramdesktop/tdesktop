@@ -181,6 +181,11 @@ struct Poll::CloseInformation {
 	Ui::Animations::Basic radial;
 };
 
+struct Poll::RecentVoter {
+	not_null<UserData*> user;
+	mutable Ui::PeerUserpicView userpic;
+};
+
 template <typename Callback>
 Poll::SendingAnimation::SendingAnimation(
 	const QByteArray &option,
@@ -886,9 +891,9 @@ void Poll::paintRecentVoters(
 
 	auto created = false;
 	for (auto &recent : _recentVoters) {
-		const auto was = (recent.userpic != nullptr);
+		const auto was = !recent.userpic.null();
 		recent.user->paintUserpic(p, recent.userpic, x, y, size);
-		if (!was && recent.userpic) {
+		if (!was && !recent.userpic.null()) {
 			created = true;
 		}
 		const auto paintContent = [&](QPainter &p) {
@@ -1499,13 +1504,13 @@ void Poll::clickHandlerPressedChanged(
 
 void Poll::unloadHeavyPart() {
 	for (auto &recent : _recentVoters) {
-		recent.userpic = nullptr;
+		recent.userpic = {};
 	}
 }
 
 bool Poll::hasHeavyPart() const {
 	for (auto &recent : _recentVoters) {
-		if (recent.userpic) {
+		if (!recent.userpic.null()) {
 			return true;
 		}
 	}

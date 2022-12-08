@@ -649,6 +649,12 @@ historyPinnedBotButton: RoundButton(defaultActiveButton) {
 }
 historyPinnedBotButtonMaxWidth: 150px;
 
+topicButtonSkip: 3px;
+topicButtonPadding: margins(6px, 3px, 8px, 3px);
+topicButtonArrowSkip: 8px;
+topicButtonArrowPosition: point(3px, 3px);
+topicButtonArrow: icon{{ "dialogs/dialogs_topic_arrow", historyReplyIconFg }};
+
 msgBotKbDuration: 200;
 msgBotKbFont: semiboldFont;
 msgBotKbIconPadding: 4px;

@@ -282,7 +282,7 @@ void SaveAllowedReactions(
 			Unexpected("Invalid peer type in SaveAllowedReactions.");
 		}
 	}).fail([=](const MTP::Error &error) {
-		if (error.type() == qstr("REACTION_INVALID")) {
+		if (error.type() == u"REACTION_INVALID"_q) {
 			peer->updateFullForced();
 			peer->owner().reactions().refreshDefault();
 		}

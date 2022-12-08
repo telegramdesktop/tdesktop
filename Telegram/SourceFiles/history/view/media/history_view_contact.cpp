@@ -96,8 +96,8 @@ Contact::Contact(
 
 Contact::~Contact() {
 	history()->owner().unregisterContactView(_userId, _parent);
-	if (_userpic) {
-		_userpic = nullptr;
+	if (!_userpic.null()) {
+		_userpic = {};
 		_parent->checkHeavyPart();
 	}
 }
@@ -122,9 +122,9 @@ QSize Contact::countOptimalSize() {
 	} else {
 		const auto full = _name.toString();
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Data::PeerUserpicColor(_userId
+			Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(_userId
 				? peerFromUser(_userId)
-				: Data::FakePeerIdForJustName(full)),
+				: Data::FakePeerIdForJustName(full))),
 			full);
 	}
 	if (_contact && _contact->isContact()) {
@@ -177,13 +177,13 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 	if (_userId) {
 		QRect rthumb(style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, paintw));
 		if (_contact) {
-			const auto was = (_userpic != nullptr);
+			const auto was = !_userpic.null();
 			_contact->paintUserpic(p, _userpic, rthumb.x(), rthumb.y(), st.thumbSize);
-			if (!was && _userpic) {
+			if (!was && !_userpic.null()) {
 				history()->owner().registerHeavyViewPart(_parent);
 			}
 		} else {
-			_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
+			_photoEmpty->paintCircle(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
 		}
 		if (context.selected()) {
 			PainterHighQualityEnabler hq(p);
@@ -197,7 +197,7 @@ void Contact::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(stm->msgFileThumbLinkFg);
 		p.drawTextLeft(nameleft, linktop, paintw, _link, _linkw);
 	} else {
-		_photoEmpty->paint(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
+		_photoEmpty->paintCircle(p, st.padding.left(), st.padding.top() - topMinus, paintw, st.thumbSize);
 	}
 	const auto namewidth = paintw - nameleft - nameright;
 
@@ -232,11 +232,11 @@ TextState Contact::textState(QPoint point, StateRequest request) const {
 }
 
 void Contact::unloadHeavyPart() {
-	_userpic = nullptr;
+	_userpic = {};
 }
 
 bool Contact::hasHeavyPart() const {
-	return (_userpic != nullptr);
+	return !_userpic.null();
 }
 
 } // namespace HistoryView

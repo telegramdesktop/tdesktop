@@ -20,6 +20,8 @@ class SlideAnimation {
 public:
 	void paintContents(QPainter &p) const;
 
+	[[nodiscard]] float64 progress() const;
+
 	void setDirection(SlideDirection direction);
 	void setPixmaps(
 		const QPixmap &oldContentCache,

@@ -108,7 +108,7 @@ static const char *AlphaPrivateKey = "";
 extern QString gKeyFile;
 inline const QString &cDataFile() {
 	if (!gKeyFile.isEmpty()) return gKeyFile;
-	static const QString res(qsl("data"));
+	static const QString res(u"data"_q);
 	return res;
 }
 

@@ -64,7 +64,7 @@ bool Launcher::launchUpdater(UpdaterLaunch action) {
 		if (Logs::DebugEnabled()) [args addObject:@"-debug"];
 		if (cStartInTray()) [args addObject:@"-startintray"];
 		if (cUseFreeType()) [args addObject:@"-freetype"];
-		if (cDataFile() != qsl("data")) {
+		if (cDataFile() != u"data"_q) {
 			[args addObject:@"-key"];
 			[args addObject:Q2NSString(cDataFile())];
 		}

@@ -25,10 +25,10 @@ class Session;
 class Forum;
 class Folder;
 class ForumTopic;
-class CloudImageView;
 } // namespace Data
 
 namespace Ui {
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Dialogs::Ui {
@@ -192,6 +192,7 @@ public:
 		not_null<Row*> row);
 	void updateChatListEntry();
 	void updateChatListEntryPostponed();
+	void updateChatListEntryHeight();
 	[[nodiscard]] bool isPinnedDialog(FilterId filterId) const {
 		return lookupPinnedIndex(filterId) != 0;
 	}
@@ -232,7 +233,7 @@ public:
 	virtual void loadUserpic() = 0;
 	virtual void paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context) const = 0;
 
 	[[nodiscard]] TimeId chatListTimeId() const {

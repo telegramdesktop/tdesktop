@@ -267,9 +267,9 @@ void IdentityBox::updateControlsPosition() {
 
 void IdentityBox::chooseScan() {
 	const auto filter = FileDialog::AllFilesFilter()
-		+ qsl(";;Image files (*")
-		+ cImgExtensions().join(qsl(" *"))
-		+ qsl(")");
+		+ u";;Image files (*"_q
+		+ cImgExtensions().join(u" *"_q)
+		+ u")"_q;
 	const auto callback = [=](FileDialog::OpenResult &&result) {
 		if (result.paths.size() == 1) {
 			encryptScan(result.paths.front());

@@ -19,6 +19,7 @@ class VoiceSeekClickHandler;
 namespace Ui {
 struct ChatPaintContext;
 class ChatStyle;
+struct PeerUserpicView;
 } // namespace Ui
 
 namespace Data {
@@ -94,6 +95,7 @@ public:
 	[[nodiscard]] const Ui::Text::String &nameText() const;
 	[[nodiscard]] bool paintCustomUserpic(
 		Painter &p,
+		Ui::PeerUserpicView &view,
 		int x,
 		int y,
 		int outerWidth,

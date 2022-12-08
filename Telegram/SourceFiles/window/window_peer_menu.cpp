@@ -7,6 +7,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "window/window_peer_menu.h"
 
+#include "menu/menu_check_item.h"
+#include "boxes/share_box.h"
+#include "chat_helpers/message_field.h"
+#include "ui/wrap/slide_wrap.h"
+#include "ui/widgets/input_fields.h"
 #include "api/api_chat_participants.h"
 #include "lang/lang_keys.h"
 #include "ui/boxes/confirm_box.h"
@@ -88,6 +93,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "fakepasscode/log/fake_log.h"
 
 #include <QAction>
+#include <QtGui/QGuiApplication>
 
 namespace Window {
 namespace {
@@ -286,8 +292,9 @@ private:
 	void addToggleArchive();
 	void addClearHistory();
 	void addDeleteChat();
-	void addJoinChat();
 	void addLeaveChat();
+	void addJoinChat();
+	void addTopicLink();
 	void addManageTopic();
 	void addManageChat();
 	void addCreatePoll();
@@ -805,8 +812,9 @@ void Filler::addExportChat() {
 void Filler::addReport() {
 	const auto chat = _peer->asChat();
 	const auto channel = _peer->asChannel();
-	if ((!chat || chat->amCreator())
-		&& (!channel || channel->amCreator())) {
+	if (_topic
+		|| ((!chat || chat->amCreator())
+			&& (!channel || channel->amCreator()))) {
 		return;
 	}
 	const auto peer = _peer;
@@ -924,6 +932,28 @@ void Filler::addDeleteTopic() {
 		.icon = &st::menuIconDeleteAttention,
 		.isAttention = true,
 	});
+}
+
+void Filler::addTopicLink() {
+	if (!_topic || _topic->creating()) {
+		return;
+	}
+	const auto channel = _topic->channel();
+	const auto id = _topic->rootId();
+	const auto controller = _controller;
+	_addAction(tr::lng_context_copy_topic_link(tr::now), [=] {
+		const auto base = channel->hasUsername()
+			? channel->username()
+			: "c/" + QString::number(peerToChannel(channel->id).bare);
+		const auto query = base + '/' + QString::number(id.bare);
+		const auto link = channel->session().createInternalLinkFull(query);
+		QGuiApplication::clipboard()->setText(link);
+		Ui::Toast::Show(
+			Window::Show(controller).toastParent(),
+			(channel->hasUsername()
+				? tr::lng_channel_public_link_copied(tr::now)
+				: tr::lng_context_about_private_link(tr::now)));
+	}, &st::menuIconCopy);
 }
 
 void Filler::addManageTopic() {
@@ -1121,6 +1151,7 @@ void Filler::fillChatsListActions() {
 	addNewMembers();
 	addVideoChat();
 	_addAction(PeerMenuCallback::Args{ .isSeparator = true });
+	addReport();
 	if (_peer->asChannel()->amIn()) {
 		addLeaveChat();
 	} else {
@@ -1204,8 +1235,9 @@ void Filler::fillProfileActions() {
 	addGiftPremium();
 	addBotToGroup();
 	addNewMembers();
-	addManageTopic();
 	addManageChat();
+	addTopicLink();
+	addManageTopic();
 	addToggleTopicClosed();
 	addViewDiscussion();
 	addExportChat();
@@ -1606,50 +1638,338 @@ void BlockSenderFromRepliesBox(
 		Window::ClearReply{ id });
 }
 
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 		not_null<Window::SessionNavigation*> navigation,
-		Data::ForwardDraft &&draft,
+		FnMut<bool(not_null<Data::Thread*>)> &&chosen,
+		rpl::producer<QString> titleOverride,
 		FnMut<void()> &&successCallback) {
 	const auto weak = std::make_shared<QPointer<Ui::BoxContent>>();
-	auto chosen = [
-		draft = std::move(draft),
-		callback = std::move(successCallback),
-		weak,
-		navigation
+	auto callback = [
+		chosen = std::move(chosen),
+		success = std::move(successCallback),
+		weak
 	](not_null<Data::Thread*> thread) mutable {
-		const auto peer = thread->peer();
-		const auto content = navigation->parentController()->content();
-		if (peer->isSelf()
-			&& !draft.ids.empty()
-			&& draft.ids.front().peer != peer->id) {
-			ForwardToSelf(navigation, draft);
-		} else if (!content->setForwardDraft(thread, std::move(draft))) {
+		if (!chosen(thread)) {
 			return;
-		}
-		if (const auto strong = *weak) {
+		} else if (const auto strong = *weak) {
 			strong->closeBox();
 		}
-		if (callback) {
-			callback();
+		if (success) {
+			success();
 		}
 	};
-	auto initBox = [](not_null<PeerListBox*> box) {
+	auto initBox = [=](not_null<PeerListBox*> box) {
 		box->addButton(tr::lng_cancel(), [box] {
 			box->closeBox();
 		});
+		if (titleOverride) {
+			box->setTitle(std::move(titleOverride));
+		}
 	};
 	*weak = navigation->parentController()->show(Box<PeerListBox>(
 		std::make_unique<ChooseRecipientBoxController>(
 			&navigation->session(),
-			std::move(chosen)),
+			std::move(callback)),
 		std::move(initBox)), Ui::LayerOption::KeepOther);
 	return weak->data();
 }
 
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 		not_null<Window::SessionNavigation*> navigation,
+		Data::ForwardDraft &&draft,
+		Fn<void()> &&successCallback) {
+	const auto msgIds = draft.ids;
+
+	class ListBox final : public PeerListBox {
+	public:
+		using PeerListBox::PeerListBox;
+
+		void setBottomSkip(int bottomSkip) {
+			PeerListBox::setInnerBottomSkip(bottomSkip);
+		}
+
+		[[nodiscard]] rpl::producer<> focusRequests() const {
+			return _focusRequests.events();
+		}
+
+		[[nodiscard]] Data::ForwardOptions forwardOptionsData() const {
+			return (_forwardOptions.hasCaptions
+					&& _forwardOptions.dropCaptions)
+				? Data::ForwardOptions::NoNamesAndCaptions
+				: _forwardOptions.dropNames
+				? Data::ForwardOptions::NoSenderNames
+				: Data::ForwardOptions::PreserveInfo;
+		}
+		[[nodiscard]] Ui::ForwardOptions forwardOptions() const {
+			return _forwardOptions;
+		}
+		void setForwardOptions(Ui::ForwardOptions forwardOptions) {
+			_forwardOptions = forwardOptions;
+		}
+
+	private:
+		rpl::event_stream<> _focusRequests;
+		Ui::ForwardOptions _forwardOptions;
+
+	};
+
+	class Controller final : public ChooseRecipientBoxController {
+	public:
+		using Chosen = not_null<Data::Thread*>;
+
+		Controller(not_null<Main::Session*> session)
+		: ChooseRecipientBoxController(
+			session,
+			[=](Chosen thread) mutable { _singleChosen.fire_copy(thread); },
+			nullptr) {
+		}
+
+		void rowClicked(not_null<PeerListRow*> row) override final {
+			const auto count = delegate()->peerListSelectedRowsCount();
+			if (count && row->peer()->isForum()) {
+				return;
+			} else if (!count || row->peer()->isForum()) {
+				ChooseRecipientBoxController::rowClicked(row);
+			} else if (count) {
+				delegate()->peerListSetRowChecked(row, !row->checked());
+				_hasSelectedChanges.fire(
+					delegate()->peerListSelectedRowsCount() > 0);
+			}
+		}
+
+		base::unique_qptr<Ui::PopupMenu> rowContextMenu(
+				QWidget *parent,
+				not_null<PeerListRow*> row) override final {
+			const auto count = delegate()->peerListSelectedRowsCount();
+			if (!count && !row->peer()->isForum()) {
+				auto menu = base::make_unique_q<Ui::PopupMenu>(
+					parent,
+					st::popupMenuWithIcons);
+				menu->addAction(tr::lng_bot_choose_chat(tr::now), [=] {
+					delegate()->peerListSetRowChecked(row, !row->checked());
+					_hasSelectedChanges.fire(
+						delegate()->peerListSelectedRowsCount() > 0);
+				}, &st::menuIconSelect);
+				return menu;
+			}
+			return nullptr;
+		}
+
+		[[nodiscard]] rpl::producer<bool> hasSelectedChanges() const{
+			return _hasSelectedChanges.events_starting_with(false);
+		}
+
+		[[nodiscard]] rpl::producer<Chosen> singleChosen() const{
+			return _singleChosen.events();
+		}
+
+	private:
+		rpl::event_stream<Chosen> _singleChosen;
+		rpl::event_stream<bool> _hasSelectedChanges;
+
+	};
+
+	const auto session = &navigation->session();
+	struct State {
+		not_null<ListBox*> box;
+		not_null<Controller*> controller;
+		base::unique_qptr<Ui::PopupMenu> menu;
+	};
+	const auto state = [&] {
+		auto controller = std::make_unique<Controller>(session);
+		const auto controllerRaw = controller.get();
+		auto box = Box<ListBox>(std::move(controller), nullptr);
+		const auto boxRaw = box.data();
+		navigation->parentController()->show(
+			std::move(box),
+			Ui::LayerOption::KeepOther);
+		auto state = State{ boxRaw, controllerRaw };
+		return boxRaw->lifetime().make_state<State>(std::move(state));
+	}();
+
+	{ // Chosen a single.
+		auto chosen = [navigation, draft = std::move(draft)](
+				not_null<Data::Thread*> thread) mutable {
+			const auto content = navigation->parentController()->content();
+			const auto peer = thread->peer();
+			if (peer->isSelf()
+				&& !draft.ids.empty()
+				&& draft.ids.front().peer != peer->id) {
+				ForwardToSelf(navigation, draft);
+				return true;
+			}
+			return content->setForwardDraft(thread, std::move(draft));
+		};
+		auto callback = [=, chosen = std::move(chosen)](
+				Controller::Chosen thread) mutable {
+			const auto weak = Ui::MakeWeak(state->box);
+			if (!chosen(thread)) {
+				return;
+			} else if (const auto strong = weak.data()) {
+				strong->closeBox();
+			}
+			if (successCallback) {
+				successCallback();
+			}
+		};
+		state->controller->singleChosen(
+		) | rpl::start_with_next(std::move(callback), state->box->lifetime());
+	}
+
+	const auto comment = Ui::CreateChild<Ui::SlideWrap<Ui::InputField>>(
+		state->box.get(),
+		object_ptr<Ui::InputField>(
+			state->box,
+			st::shareComment,
+			Ui::InputField::Mode::MultiLine,
+			tr::lng_photos_comment()),
+		st::shareCommentPadding);
+
+	const auto send = ShareBox::DefaultForwardCallback(
+		std::make_shared<Window::Show>(navigation),
+		session->data().message(msgIds.front())->history(),
+		msgIds);
+
+	const auto submit = [=](Api::SendOptions options) {
+		const auto peers = state->box->collectSelectedRows();
+		send(
+			ranges::views::all(
+				peers
+			) | ranges::views::transform([&](
+					not_null<PeerData*> peer) -> Controller::Chosen {
+				return peer->owner().history(peer);
+			}) | ranges::to_vector,
+			comment->entity()->getTextWithAppliedMarkdown(),
+			options,
+			state->box->forwardOptionsData());
+		if (successCallback) {
+			successCallback();
+		}
+	};
+
+	const auto sendMenuType = [=] {
+		const auto selected = state->box->collectSelectedRows();
+		return ranges::all_of(selected, HistoryView::CanScheduleUntilOnline)
+			? SendMenu::Type::ScheduledToUser
+			: ((selected.size() == 1) && selected.front()->isSelf())
+			? SendMenu::Type::Reminder
+			: SendMenu::Type::Scheduled;
+	};
+
+	const auto showForwardOptions = true;
+	const auto showMenu = [=](not_null<Ui::RpWidget*> parent) {
+		if (state->menu) {
+			state->menu = nullptr;
+			return;
+		}
+		state->menu.emplace(parent, st::popupMenuWithIcons);
+
+		if (showForwardOptions) {
+			auto createView = [&](
+					rpl::producer<QString> &&text,
+					bool checked) {
+				auto item = base::make_unique_q<Menu::ItemWithCheck>(
+					state->menu->menu(),
+					st::popupMenuWithIcons.menu,
+					Ui::CreateChild<QAction>(state->menu->menu().get()),
+					nullptr,
+					nullptr);
+				std::move(
+					text
+				) | rpl::start_with_next([action = item->action()](
+						QString text) {
+					action->setText(text);
+				}, item->lifetime());
+				item->init(checked);
+				const auto view = item->checkView();
+				state->menu->addAction(std::move(item));
+				return view;
+			};
+			Ui::FillForwardOptions(
+				std::move(createView),
+				msgIds.size(),
+				state->box->forwardOptions(),
+				[=](Ui::ForwardOptions o) {
+					state->box->setForwardOptions(o);
+				},
+				state->menu->lifetime());
+
+			state->menu->addSeparator();
+		}
+		const auto type = sendMenuType();
+		const auto result = SendMenu::FillSendMenu(
+			state->menu.get(),
+			type,
+			SendMenu::DefaultSilentCallback(submit),
+			SendMenu::DefaultScheduleCallback(state->box, type, submit));
+		const auto success = (result == SendMenu::FillMenuResult::Success);
+		if (showForwardOptions || success) {
+			state->menu->setForcedVerticalOrigin(
+				Ui::PopupMenu::VerticalOrigin::Bottom);
+			state->menu->popup(QCursor::pos());
+		}
+	};
+
+	comment->hide(anim::type::instant);
+	comment->toggleOn(state->controller->hasSelectedChanges());
+
+	rpl::combine(
+		state->box->sizeValue(),
+		comment->heightValue()
+	) | rpl::start_with_next([=](const QSize &size, int commentHeight) {
+		comment->moveToLeft(0, size.height() - commentHeight);
+		comment->resizeToWidth(size.width());
+
+		state->box->setBottomSkip(comment->isHidden() ? 0 : commentHeight);
+	}, comment->lifetime());
+
+	const auto field = comment->entity();
+
+	QObject::connect(field, &Ui::InputField::submitted, [=] {
+		submit({});
+	});
+	const auto show = std::make_shared<Ui::BoxShow>(state->box);
+	if (show->valid()) {
+		InitMessageFieldHandlers(session, show, field, nullptr);
+	}
+	field->setSubmitSettings(Core::App().settings().sendSubmitWay());
+
+	Ui::SendPendingMoveResizeEvents(comment);
+
+	state->box->focusRequests(
+	) | rpl::start_with_next([=] {
+		if (!comment->isHidden()) {
+			comment->entity()->setFocusFast();
+		}
+	}, comment->lifetime());
+
+	state->controller->hasSelectedChanges(
+	) | rpl::start_with_next([=](bool shown) {
+		state->box->clearButtons();
+		if (shown) {
+			const auto send = state->box->addButton(
+				tr::lng_send_button(),
+				[=] { submit({}); });
+			send->setAcceptBoth();
+			send->clicks(
+			) | rpl::start_with_next([=](Qt::MouseButton button) {
+				if (button == Qt::RightButton) {
+					showMenu(send);
+				}
+			}, send->lifetime());
+		}
+		state->box->addButton(tr::lng_cancel(), [=] {
+			state->box->closeBox();
+		});
+	}, state->box->lifetime());
+
+	return QPointer<Ui::BoxContent>(state->box);
+}
+
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+		not_null<Window::SessionNavigation*> navigation,
 		MessageIdsList &&items,
-		FnMut<void()> &&successCallback) {
+		Fn<void()> &&successCallback) {
 	return ShowForwardMessagesBox(
 		navigation,
 		Data::ForwardDraft{ .ids = std::move(items) },
@@ -1725,7 +2045,7 @@ QPointer<Ui::BoxContent> ShowDropMediaBox(
 		navigation
 	](not_null<Data::ForumTopic*> topic) mutable {
 		const auto content = navigation->parentController()->content();
-		if (!content->onFilesOrForwardDrop(topic, data.get())) {
+		if (!content->filesOrForwardDrop(topic, data.get())) {
 			return;
 		} else if (const auto strong = *weak) {
 			strong->closeBox();

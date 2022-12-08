@@ -21,8 +21,9 @@ namespace TTLMenu {
 struct Args {
 	std::shared_ptr<Ui::Show> show;
 	TimeId startTtl;
-	rpl::producer<QString> about;
-	Fn<void(TimeId)> callback;
+	rpl::producer<TextWithEntities> about;
+	Fn<void(TimeId, Fn<void()>)> callback;
+	bool hideDisable = false;
 };
 
 void TTLBox(not_null<Ui::GenericBox*> box, Args args);

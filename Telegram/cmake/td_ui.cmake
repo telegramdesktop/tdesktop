@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(td_ui OBJECT)
-init_non_host_target(td_ui)
+init_non_host_target(td_ui ltcg)
 add_library(tdesktop::td_ui ALIAS td_ui)
 
 include(lib_ui/cmake/generate_styles.cmake)
@@ -274,8 +274,12 @@ PRIVATE
     ui/color_contrast.h
     ui/color_int_conversion.cpp
     ui/color_int_conversion.h
+    ui/empty_userpic.cpp
+    ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/userpic_view.cpp
+    ui/userpic_view.h
     ui/widgets/fields/special_fields.cpp
     ui/widgets/fields/special_fields.h
     ui/widgets/fields/time_part_input_with_placeholder.cpp

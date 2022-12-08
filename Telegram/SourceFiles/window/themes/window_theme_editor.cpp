@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "boxes/edit_color_box.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_window.h"
 #include "styles/style_dialogs.h"
 #include "styles/style_layers.h"
@@ -675,7 +674,7 @@ Editor::Editor(
 
 	_inner = _scroll->setOwnedWidget(object_ptr<Inner>(this, path));
 
-	_save->setClickedCallback(App::LambdaDelayed(
+	_save->setClickedCallback(base::fn_delayed(
 		st::defaultRippleAnimation.hideDuration,
 		this,
 		[=] { save(); }));
@@ -779,7 +778,7 @@ void Editor::exportTheme() {
 
 void Editor::importTheme() {
 	auto filters = QStringList(
-		qsl("Theme files (*.tdesktop-theme *.tdesktop-palette)"));
+		u"Theme files (*.tdesktop-theme *.tdesktop-palette)"_q);
 	filters.push_back(FileDialog::AllFilesFilter());
 	const auto callback = crl::guard(this, [=](
 		const FileDialog::OpenResult &result) {
@@ -818,7 +817,7 @@ void Editor::importTheme() {
 	FileDialog::GetOpenPath(
 		this,
 		tr::lng_theme_editor_menu_import(tr::now),
-		filters.join(qsl(";;")),
+		filters.join(u";;"_q),
 		crl::guard(this, callback));
 }
 

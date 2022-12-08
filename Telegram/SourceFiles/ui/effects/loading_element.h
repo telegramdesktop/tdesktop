@@ -12,6 +12,7 @@ class object_ptr;
 
 namespace style {
 struct FlatLabel;
+struct PeerListItem;
 } // namespace style
 
 namespace Ui {
@@ -23,5 +24,10 @@ object_ptr<Ui::RpWidget> CreateLoadingTextWidget(
 	const style::FlatLabel &st,
 	int lines,
 	rpl::producer<bool> rtl);
+
+object_ptr<Ui::RpWidget> CreateLoadingPeerListItemWidget(
+	not_null<Ui::RpWidget*> parent,
+	const style::PeerListItem &st,
+	int lines);
 
 } // namespace Ui

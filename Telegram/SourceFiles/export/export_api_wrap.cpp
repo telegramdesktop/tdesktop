@@ -367,7 +367,7 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 			MTP_int(kFileChunkSize))
 	)).fail([=](const MTP::Error &result) {
 		_fileProcess->requestId = 0;
-		if (result.type() == qstr("TAKEOUT_FILE_EMPTY")
+		if (result.type() == u"TAKEOUT_FILE_EMPTY"_q
 			&& _otherDataProcess != nullptr) {
 			filePartDone(
 				0,
@@ -375,12 +375,12 @@ auto ApiWrap::fileRequest(const Data::FileLocation &location, int64 offset) {
 					MTP_storage_filePartial(),
 					MTP_int(0),
 					MTP_bytes()));
-		} else if (result.type() == qstr("LOCATION_INVALID")
-			|| result.type() == qstr("VERSION_INVALID")
-			|| result.type() == qstr("LOCATION_NOT_AVAILABLE")) {
+		} else if (result.type() == u"LOCATION_INVALID"_q
+			|| result.type() == u"VERSION_INVALID"_q
+			|| result.type() == u"LOCATION_NOT_AVAILABLE"_q) {
 			filePartUnavailable();
 		} else if (result.code() == 400
-			&& result.type().startsWith(qstr("FILE_REFERENCE_"))) {
+			&& result.type().startsWith(u"FILE_REFERENCE_"_q)) {
 			filePartRefreshReference(offset);
 		} else {
 			error(std::move(result));
@@ -1443,7 +1443,7 @@ void ApiWrap::requestChatMessages(
 		)).fail([=](const MTP::Error &error) {
 			Expects(_chatProcess != nullptr);
 
-			if (error.type() == qstr("CHANNEL_PRIVATE")) {
+			if (error.type() == u"CHANNEL_PRIVATE"_q) {
 				if (realPeerInput.type() == mtpc_inputPeerChannel
 					&& !_chatProcess->info.onlyMyMessages) {
 

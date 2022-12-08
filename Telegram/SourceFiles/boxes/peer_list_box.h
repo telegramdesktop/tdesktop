@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/empty_userpic.h"
 #include "ui/unread_badge.h"
+#include "ui/userpic_view.h"
 #include "boxes/abstract_box.h"
 #include "mtproto/sender.h"
 #include "data/data_cloud_file.h"
@@ -46,6 +47,8 @@ using PaintRoundImageCallback = Fn<void(
 [[nodiscard]] PaintRoundImageCallback PaintUserpicCallback(
 	not_null<PeerData*> peer,
 	bool respectSavedMessagesChat);
+[[nodiscard]] PaintRoundImageCallback ForceRoundUserpicCallback(
+	not_null<PeerData*> peer);
 
 using PeerListRowId = uint64;
 
@@ -84,12 +87,12 @@ public:
 		return _id;
 	}
 
-	[[nodiscard]] std::shared_ptr<Data::CloudImageView> &ensureUserpicView();
+	[[nodiscard]] Ui::PeerUserpicView &ensureUserpicView();
 
 	[[nodiscard]] virtual QString generateName();
 	[[nodiscard]] virtual QString generateShortName();
-	[[nodiscard]] virtual auto generatePaintUserpicCallback()
-		-> PaintRoundImageCallback;
+	[[nodiscard]] virtual auto generatePaintUserpicCallback(
+		bool forceRound) -> PaintRoundImageCallback;
 
 	[[nodiscard]] virtual auto generateNameFirstLetters() const
 		-> const base::flat_set<QChar> &;
@@ -262,7 +265,7 @@ private:
 
 	PeerListRowId _id = 0;
 	PeerData *_peer = nullptr;
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 	std::unique_ptr<Ui::RippleAnimation> _ripple;
 	std::unique_ptr<Ui::RoundImageCheckbox> _checkbox;
 	Ui::Text::String _name;
@@ -294,7 +297,6 @@ public:
 	virtual void peerListSetAdditionalTitle(rpl::producer<QString> title) = 0;
 	virtual void peerListSetHideEmpty(bool hide) = 0;
 	virtual void peerListSetDescription(object_ptr<Ui::FlatLabel> description) = 0;
-	virtual void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) = 0;
 	virtual void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) = 0;
 	virtual void peerListSetAboveWidget(object_ptr<TWidget> aboveWidget) = 0;
 	virtual void peerListSetAboveSearchWidget(object_ptr<TWidget> aboveWidget) = 0;
@@ -541,13 +543,9 @@ protected:
 	}
 
 	void setDescriptionText(const QString &text);
-	void setSearchLoadingText(const QString &text);
 	void setSearchNoResultsText(const QString &text);
 	void setDescription(object_ptr<Ui::FlatLabel> description) {
 		delegate()->peerListSetDescription(std::move(description));
-	}
-	void setSearchLoading(object_ptr<Ui::FlatLabel> loading) {
-		delegate()->peerListSetSearchLoading(std::move(loading));
 	}
 	void setSearchNoResults(object_ptr<Ui::FlatLabel> noResults) {
 		delegate()->peerListSetSearchNoResults(std::move(noResults));
@@ -822,6 +820,7 @@ private:
 	object_ptr<Ui::FlatLabel> _description = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchNoResults = { nullptr };
 	object_ptr<Ui::FlatLabel> _searchLoading = { nullptr };
+	object_ptr<Ui::RpWidget> _loadingAnimation = { nullptr };
 
 	std::vector<std::unique_ptr<PeerListRow>> _searchRows;
 	base::Timer _repaintByStatus;
@@ -897,9 +896,6 @@ public:
 	}
 	void peerListSetDescription(object_ptr<Ui::FlatLabel> description) override {
 		_content->setDescription(std::move(description));
-	}
-	void peerListSetSearchLoading(object_ptr<Ui::FlatLabel> loading) override {
-		_content->setSearchLoading(std::move(loading));
 	}
 	void peerListSetSearchNoResults(object_ptr<Ui::FlatLabel> noResults) override {
 		_content->setSearchNoResults(std::move(noResults));

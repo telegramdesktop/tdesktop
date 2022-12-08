@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_account.h"
 #include "main/main_session.h"
 #include "main/main_app_config.h"
+#include "window/window_controller.h"
 #include "mainwindow.h"
 
 namespace Core {
@@ -123,8 +124,8 @@ QString UiIntegration::angleBackendFilePath() {
 }
 
 void UiIntegration::textActionsUpdated() {
-	if (const auto window = App::wnd()) {
-		window->updateGlobalMenu();
+	if (const auto window = Core::App().primaryWindow()) {
+		window->widget()->updateGlobalMenu();
 	}
 }
 
@@ -163,13 +164,13 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		using HashtagMentionType = MarkedTextContext::HashtagMentionType;
 		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
-				(qsl("https://twitter.com/hashtag/")
+				(u"https://twitter.com/hashtag/"_q
 					+ data.data.mid(1)
-					+ qsl("?src=hash")),
+					+ u"?src=hash"_q),
 				true);
 		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
-				(qsl("https://instagram.com/explore/tags/")
+				(u"https://instagram.com/explore/tags/"_q
 					+ data.data.mid(1)
 					+ '/'),
 				true);
@@ -183,11 +184,11 @@ std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		using HashtagMentionType = MarkedTextContext::HashtagMentionType;
 		if (my && my->type == HashtagMentionType::Twitter) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://twitter.com/") + data.data.mid(1),
+				u"https://twitter.com/"_q + data.data.mid(1),
 				true);
 		} else if (my && my->type == HashtagMentionType::Instagram) {
 			return std::make_shared<UrlClickHandler>(
-				qsl("https://instagram.com/") + data.data.mid(1) + '/',
+				u"https://instagram.com/"_q + data.data.mid(1) + '/',
 				true);
 		}
 		return std::make_shared<MentionClickHandler>(data.data);
@@ -226,10 +227,10 @@ bool UiIntegration::handleUrlClick(
 	if (UrlClickHandler::IsEmail(url)) {
 		File::OpenEmailLink(url);
 		return true;
-	} else if (local.startsWith(qstr("tg://"), Qt::CaseInsensitive)) {
+	} else if (local.startsWith(u"tg://"_q, Qt::CaseInsensitive)) {
 		Core::App().openLocalUrl(local, context);
 		return true;
-	} else if (local.startsWith(qstr("internal:"), Qt::CaseInsensitive)) {
+	} else if (local.startsWith(u"internal:"_q, Qt::CaseInsensitive)) {
 		Core::App().openInternalUrl(local, context);
 		return true;
 	}

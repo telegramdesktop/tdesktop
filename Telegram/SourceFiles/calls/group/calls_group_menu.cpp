@@ -59,7 +59,7 @@ private:
 	const not_null<QAction*> _dummyAction;
 	const style::Menu &_st;
 	const not_null<PeerData*> _peer;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
+	Ui::PeerUserpicView _userpicView;
 
 	Ui::Text::String _text;
 	Ui::Text::String _name;

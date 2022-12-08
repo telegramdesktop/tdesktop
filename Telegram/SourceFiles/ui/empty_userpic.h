@@ -7,16 +7,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "base/weak_ptr.h"
+
 namespace Ui {
 
-class EmptyUserpic {
+class EmptyUserpic final : public base::has_weak_ptr {
 public:
+	struct BgColors {
+		const style::color color1;
+		const style::color color2;
+	};
+
+	[[nodiscard]] static int ColorIndex(uint64 id);
+	[[nodiscard]] static EmptyUserpic::BgColors UserpicColor(int id);
+
 	[[nodiscard]] static QString ExternalName();
 	[[nodiscard]] static QString InaccessibleName();
 
-	EmptyUserpic(const style::color &color, const QString &name);
+	EmptyUserpic(const BgColors &colors, const QString &name);
 
-	void paint(
+	void paintCircle(
 		QPainter &p,
 		int x,
 		int y,
@@ -35,16 +45,10 @@ public:
 		int y,
 		int outerWidth,
 		int size) const;
-	QPixmap generate(int size);
-	InMemoryKey uniqueKey() const;
+	[[nodiscard]] QPixmap generate(int size);
+	[[nodiscard]] std::pair<uint64, uint64> uniqueKey() const;
 
 	static void PaintSavedMessages(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
-	static void PaintSavedMessagesRounded(
 		QPainter &p,
 		int x,
 		int y,
@@ -56,18 +60,9 @@ public:
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
-	static void PaintSavedMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		const style::color &bg,
-		const style::color &fg);
-	static QPixmap GenerateSavedMessages(int size);
-	static QPixmap GenerateSavedMessagesRounded(int size);
+	[[nodiscard]] static QImage GenerateSavedMessages(int size);
 
 	static void PaintRepliesMessages(
 		QPainter &p,
@@ -75,46 +70,30 @@ public:
 		int y,
 		int outerWidth,
 		int size);
-	static void PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size);
 	static void PaintRepliesMessages(
 		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size,
-		const style::color &bg,
+		QBrush bg,
 		const style::color &fg);
-	static void PaintRepliesMessagesRounded(
-		QPainter &p,
-		int x,
-		int y,
-		int outerWidth,
-		int size,
-		const style::color &bg,
-		const style::color &fg);
-	static QPixmap GenerateRepliesMessages(int size);
-	static QPixmap GenerateRepliesMessagesRounded(int size);
+	[[nodiscard]] static QImage GenerateRepliesMessages(int size);
 
 	~EmptyUserpic();
 
 private:
-	template <typename Callback>
 	void paint(
 		QPainter &p,
 		int x,
 		int y,
 		int outerWidth,
 		int size,
-		Callback paintBackground) const;
+		Fn<void()> paintBackground) const;
 
 	void fillString(const QString &name);
 
-	style::color _color;
+	const BgColors _colors;
 	QString _string;
 
 };
