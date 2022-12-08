@@ -112,7 +112,7 @@
 # define ALLOC(size) (malloc(size))
 #endif
 #ifndef TRYFREE
-# define TRYFREE(p) {if (p) free(p);}
+# define TRYFREE(p) { free(p);}
 #endif
 
 #define SIZECENTRALDIRITEM (0x2e)
@@ -200,7 +200,7 @@ typedef struct
 /* ===========================================================================
      Read a byte from a gz_stream; update next_in and avail_in. Return EOF
    for end of file.
-   IN assertion: the stream s has been sucessfully opened for reading.
+   IN assertion: the stream s has been successfully opened for reading.
 */
 
 
@@ -455,7 +455,7 @@ local ZPOS64_T unz64local_SearchCentralDir(const zlib_filefunc64_32_def* pzlib_f
             if (((*(buf+i))==0x50) && ((*(buf+i+1))==0x4b) &&
                 ((*(buf+i+2))==0x05) && ((*(buf+i+3))==0x06))
             {
-                uPosFound = uReadPos+i;
+                uPosFound = uReadPos+(unsigned)i;
                 break;
             }
 
@@ -523,7 +523,7 @@ local ZPOS64_T unz64local_SearchCentralDir64(const zlib_filefunc64_32_def* pzlib
             if (((*(buf+i))==0x50) && ((*(buf+i+1))==0x4b) &&
                 ((*(buf+i+2))==0x06) && ((*(buf+i+3))==0x07))
             {
-                uPosFound = uReadPos+i;
+                uPosFound = uReadPos+(unsigned)i;
                 break;
             }
 
@@ -853,13 +853,13 @@ local void unz64local_DosDateToTmuDate (ZPOS64_T ulDosDate, tm_unz* ptm)
 {
     ZPOS64_T uDate;
     uDate = (ZPOS64_T)(ulDosDate>>16);
-    ptm->tm_mday = (uInt)(uDate&0x1f) ;
-    ptm->tm_mon =  (uInt)((((uDate)&0x1E0)/0x20)-1) ;
-    ptm->tm_year = (uInt)(((uDate&0x0FE00)/0x0200)+1980) ;
+    ptm->tm_mday = (int)(uDate&0x1f) ;
+    ptm->tm_mon =  (int)((((uDate)&0x1E0)/0x20)-1) ;
+    ptm->tm_year = (int)(((uDate&0x0FE00)/0x0200)+1980) ;
 
-    ptm->tm_hour = (uInt) ((ulDosDate &0xF800)/0x800);
-    ptm->tm_min =  (uInt) ((ulDosDate&0x7E0)/0x20) ;
-    ptm->tm_sec =  (uInt) (2*(ulDosDate&0x1f)) ;
+    ptm->tm_hour = (int) ((ulDosDate &0xF800)/0x800);
+    ptm->tm_min =  (int) ((ulDosDate&0x7E0)/0x20) ;
+    ptm->tm_sec =  (int) (2*(ulDosDate&0x1f)) ;
 }
 
 /*
@@ -993,7 +993,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
 
         if (lSeek!=0)
         {
-            if (ZSEEK64(s->z_filefunc, s->filestream,lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
+            if (ZSEEK64(s->z_filefunc, s->filestream,(ZPOS64_T)lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
                 lSeek=0;
             else
                 err=UNZ_ERRNO;
@@ -1018,7 +1018,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
 
         if (lSeek!=0)
         {
-            if (ZSEEK64(s->z_filefunc, s->filestream,lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
+            if (ZSEEK64(s->z_filefunc, s->filestream,(ZPOS64_T)lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
                 lSeek=0;
             else
                 err=UNZ_ERRNO;
@@ -1090,7 +1090,7 @@ local int unz64local_GetCurrentFileInfoInternal (unzFile file,
 
         if (lSeek!=0)
         {
-            if (ZSEEK64(s->z_filefunc, s->filestream,lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
+            if (ZSEEK64(s->z_filefunc, s->filestream,(ZPOS64_T)lSeek,ZLIB_FILEFUNC_SEEK_CUR)==0)
                 lSeek=0;
             else
                 err=UNZ_ERRNO;
@@ -1566,6 +1566,7 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
         pfile_in_zip_read_info->stream_initialised=Z_BZIP2ED;
       else
       {
+        TRYFREE(pfile_in_zip_read_info->read_buffer);
         TRYFREE(pfile_in_zip_read_info);
         return err;
       }
@@ -1586,6 +1587,7 @@ extern int ZEXPORT unzOpenCurrentFile3 (unzFile file, int* method,
         pfile_in_zip_read_info->stream_initialised=Z_DEFLATED;
       else
       {
+        TRYFREE(pfile_in_zip_read_info->read_buffer);
         TRYFREE(pfile_in_zip_read_info);
         return err;
       }
@@ -1767,7 +1769,7 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
 
             if ((pfile_in_zip_read_info->stream.avail_in == 0) &&
                 (pfile_in_zip_read_info->rest_read_compressed == 0))
-                return (iRead==0) ? UNZ_EOF : iRead;
+                return (iRead==0) ? UNZ_EOF : (int)iRead;
 
             if (pfile_in_zip_read_info->stream.avail_out <
                             pfile_in_zip_read_info->stream.avail_in)
@@ -1857,6 +1859,9 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
               err = Z_DATA_ERROR;
 
             uTotalOutAfter = pfile_in_zip_read_info->stream.total_out;
+            /* Detect overflow, because z_stream.total_out is uLong (32 bits) */
+            if (uTotalOutAfter<uTotalOutBefore)
+                uTotalOutAfter += 1LL << 32; /* Add maximum value of uLong + 1 */
             uOutThis = uTotalOutAfter-uTotalOutBefore;
 
             pfile_in_zip_read_info->total_out_64 = pfile_in_zip_read_info->total_out_64 + uOutThis;
@@ -1871,14 +1876,14 @@ extern int ZEXPORT unzReadCurrentFile  (unzFile file, voidp buf, unsigned len)
             iRead += (uInt)(uTotalOutAfter - uTotalOutBefore);
 
             if (err==Z_STREAM_END)
-                return (iRead==0) ? UNZ_EOF : iRead;
+                return (iRead==0) ? UNZ_EOF : (int)iRead;
             if (err!=Z_OK)
                 break;
         }
     }
 
     if (err==Z_OK)
-        return iRead;
+        return (int)iRead;
     return err;
 }
 
