@@ -296,9 +296,9 @@ void SetupPhoto(
 	const auto upload = CreateUploadButton(wrap, controller);
 
 	upload->chosenImages(
-	) | rpl::start_with_next([=](QImage &&image) {
-		UploadPhoto(self, image);
-		photo->changeTo(std::move(image));
+	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
+		UploadPhoto(self, chosen.image);
+		photo->changeTo(std::move(chosen.image));
 	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(

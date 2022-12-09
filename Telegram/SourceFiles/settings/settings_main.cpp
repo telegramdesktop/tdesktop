@@ -138,13 +138,12 @@ Cover::Cover(
 	initViewers();
 	setupChildGeometry();
 
-	_userpic->switchChangePhotoOverlay(_user->isSelf());
-	_userpic->uploadPhotoRequests(
-	) | rpl::start_with_next([=] {
-		_user->session().api().peerPhoto().upload(
-			_user,
-			_userpic->takeResultImage());
-	}, _userpic->lifetime());
+	_userpic->switchChangePhotoOverlay(_user->isSelf(), [=](
+			Ui::UserpicButton::ChosenImage chosen) {
+		auto &image = chosen.image;
+		_userpic->changeTo(base::duplicate(image));
+		_user->session().api().peerPhoto().upload(_user, std::move(image));
+	});
 
 	_badge.setPremiumClickCallback([=] {
 		_emojiStatusPanel.show(

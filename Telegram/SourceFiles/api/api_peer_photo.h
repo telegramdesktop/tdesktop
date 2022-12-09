@@ -25,18 +25,22 @@ public:
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
 	void upload(not_null<PeerData*> peer, QImage &&image);
+	void suggest(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
+	void clearPersonal(not_null<UserData*> user);
 	void set(not_null<PeerData*> peer, not_null<PhotoData*> photo);
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
 
 private:
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);
+	void upload(not_null<PeerData*> peer, QImage &&image, bool suggestion);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	base::flat_map<FullMsgId, not_null<PeerData*>> _uploads;
+	base::flat_set<FullMsgId> _suggestions;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 

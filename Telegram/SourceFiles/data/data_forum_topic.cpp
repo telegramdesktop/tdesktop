@@ -168,7 +168,7 @@ TextWithEntities ForumTopicIconWithTitle(
 	return (rootId == ForumTopic::kGeneralId)
 		? TextWithEntities{ u"# "_q + title }
 		: iconId
-		? Data::SingleCustomEmoji(iconId).append(title)
+		? Data::SingleCustomEmoji(iconId).append(' ').append(title)
 		: TextWithEntities{ title };
 }
 

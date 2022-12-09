@@ -91,17 +91,24 @@ public:
 		Role role,
 		const style::UserpicButton &st);
 
-	void switchChangePhotoOverlay(bool enabled);
+	enum class ChosenType {
+		Set,
+		Suggest,
+	};
+	struct ChosenImage {
+		QImage image;
+		ChosenType type = ChosenType::Set;
+	};
+
+	// Role::OpenPhoto
+	void switchChangePhotoOverlay(
+		bool enabled,
+		Fn<void(ChosenImage)> chosen);
 	void showSavedMessagesOnSelf(bool enabled);
 
-	// Role::ChoosePhoto
-	[[nodiscard]] rpl::producer<QImage> chosenImages() const {
+	// Role::ChoosePhoto or Role::ChangePhoto
+	[[nodiscard]] rpl::producer<ChosenImage> chosenImages() const {
 		return _chosenImages.events();
-	}
-
-	// Role::ChangePhoto
-	[[nodiscard]] rpl::producer<> uploadPhotoRequests() const {
-		return _uploadPhotoRequests.events();
 	}
 	[[nodiscard]] QImage takeResultImage() {
 		return std::move(_result);
@@ -150,7 +157,6 @@ private:
 	void setClickHandlerByRole();
 	void openPeerPhoto();
 	void choosePhotoLocally();
-	void changePhotoLocally(bool requestToUpload = false);
 
 	const style::UserpicButton &_st;
 	::Window::SessionController *_controller = nullptr;
@@ -164,7 +170,6 @@ private:
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
 	bool _userpicCustom = false;
-	bool _requestToUpload = false;
 	InMemoryKey _userpicUniqueKey;
 	Animations::Simple _a_appearance;
 	QImage _result;
@@ -181,8 +186,7 @@ private:
 	bool _changeOverlayEnabled = false;
 	Animations::Simple _changeOverlayShown;
 
-	rpl::event_stream<QImage> _chosenImages;
-	rpl::event_stream<> _uploadPhotoRequests;
+	rpl::event_stream<ChosenImage> _chosenImages;
 
 };
 

@@ -56,6 +56,7 @@ enum class UserDataFlag {
 	Premium = (1 << 14),
 	CanReceiveGifts = (1 << 15),
 	VoiceMessagesForbidden = (1 << 16),
+	PersonalPhoto = (1 << 17),
 };
 inline constexpr bool is_flag_type(UserDataFlag) { return true; };
 using UserDataFlags = base::flags<UserDataFlag>;

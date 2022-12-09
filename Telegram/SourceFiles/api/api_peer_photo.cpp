@@ -113,6 +113,13 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 }
 
 void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
+	upload(peer, std::move(image), false);
+}
+
+void PeerPhoto::upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		bool suggestion) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(
 		_api.instance().mainDcId(),
@@ -128,10 +135,18 @@ void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
 		[](const auto &pair) { return pair.second; });
 	if (already != end(_uploads)) {
 		_session->uploader().cancel(already->first);
+		_suggestions.remove(already->first);
 		_uploads.erase(already);
 	}
 	_uploads.emplace(fakeId, peer);
+	if (suggestion) {
+		_suggestions.emplace(fakeId);
+	}
 	_session->uploader().uploadMedia(fakeId, ready);
+}
+
+void PeerPhoto::suggest(not_null<PeerData*> peer, QImage &&image) {
+	upload(peer, std::move(image), true);
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
@@ -164,6 +179,27 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
 			peerToUser(self->id),
 			photo->id));
+	}
+}
+
+void PeerPhoto::clearPersonal(not_null<UserData*> user) {
+	_api.request(MTPphotos_UploadContactProfilePhoto(
+		MTP_flags(MTPphotos_UploadContactProfilePhoto::Flag::f_save),
+		user->inputUser,
+		MTPInputFile(),
+		MTPInputFile(), // video
+		MTPdouble() // video_start_ts
+	)).done([=](const MTPphotos_Photo &result) {
+		result.match([&](const MTPDphotos_photo &data) {
+			_session->data().processPhoto(data.vphoto());
+			_session->data().processUsers(data.vusers());
+		});
+	}).send();
+	if (!user->userpicPhotoUnknown()
+		&& (user->flags() & UserDataFlag::PersonalPhoto)) {
+		_session->storage().remove(Storage::UserPhotosRemoveOne(
+			peerToUser(user->id),
+			user->userpicPhotoId()));
 	}
 }
 
@@ -200,6 +236,8 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 
 void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 	const auto maybePeer = _uploads.take(msgId);
+	const auto suggestion = _suggestions.contains(msgId);
+	_suggestions.remove(msgId);
 	if (!maybePeer) {
 		return;
 	}
@@ -239,6 +277,21 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				MTPInputFile(), // video
 				MTPdouble()) // video_start_ts
 		)).done(applier).afterRequest(history->sendRequestId).send();
+	} else if (const auto user = peer->asUser()) {
+		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
+		_api.request(MTPphotos_UploadContactProfilePhoto(
+			MTP_flags(Flag::f_file
+				| (suggestion ? Flag::f_suggest : Flag::f_save)),
+			user->inputUser,
+			file,
+			MTPInputFile(), // video
+			MTPdouble() // video_start_ts
+		)).done([=](const MTPphotos_Photo &result) {
+			result.match([&](const MTPDphotos_photo &data) {
+				_session->data().processPhoto(data.vphoto());
+				_session->data().processUsers(data.vusers());
+			});
+		}).send();
 	}
 }
 
@@ -257,26 +310,35 @@ void PeerPhoto::requestUserPhotos(
 	)).done([this, user](const MTPphotos_Photos &result) {
 		_userPhotosRequests.remove(user);
 
-		const auto fullCount = result.match([](const MTPDphotos_photos &d) {
+		auto fullCount = result.match([](const MTPDphotos_photos &d) {
 			return int(d.vphotos().v.size());
 		}, [](const MTPDphotos_photosSlice &d) {
 			return d.vcount().v;
 		});
 
+		auto &owner = _session->data();
 		auto photoIds = result.match([&](const auto &data) {
-			auto &owner = _session->data();
 			owner.processUsers(data.vusers());
 
 			auto photoIds = std::vector<PhotoId>();
 			photoIds.reserve(data.vphotos().v.size());
 
-			for (const auto &photo : data.vphotos().v) {
-				if (const auto photoData = owner.processPhoto(photo)) {
-					photoIds.push_back(photoData->id);
+			for (const auto &single : data.vphotos().v) {
+				const auto photo = owner.processPhoto(single);
+				if (!photo->isNull()) {
+					photoIds.push_back(photo->id);
 				}
 			}
 			return photoIds;
 		});
+		if (!user->userpicPhotoUnknown()
+			&& (user->flags() & UserDataFlag::PersonalPhoto)) {
+			const auto photo = owner.photo(user->userpicPhotoId());
+			if (!photo->isNull()) {
+				++fullCount;
+				photoIds.insert(begin(photoIds), photo->id);
+			}
+		}
 
 		_session->storage().add(Storage::UserPhotosAddSlice(
 			peerToUser(user->id),

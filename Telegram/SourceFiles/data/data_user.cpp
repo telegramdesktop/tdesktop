@@ -54,11 +54,17 @@ void UserData::setIsContact(bool is) {
 // see Serialize::readPeer as well
 void UserData::setPhoto(const MTPUserProfilePhoto &photo) {
 	photo.match([&](const MTPDuserProfilePhoto &data) {
+		if (data.is_personal()) {
+			addFlags(UserDataFlag::PersonalPhoto);
+		} else {
+			removeFlags(UserDataFlag::PersonalPhoto);
+		}
 		updateUserpic(
 			data.vphoto_id().v,
 			data.vdc_id().v,
 			data.is_has_video());
 	}, [&](const MTPDuserProfilePhotoEmpty &) {
+		removeFlags(UserDataFlag::PersonalPhoto);
 		clearUserpic();
 	});
 }
@@ -356,6 +362,9 @@ namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	if (const auto photo = update.vprofile_photo()) {
+		user->owner().processPhoto(*photo);
+	}
+	if (const auto photo = update.vpersonal_photo()) {
 		user->owner().processPhoto(*photo);
 	}
 	user->setSettings(update.vsettings());

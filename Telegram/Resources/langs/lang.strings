@@ -1200,6 +1200,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_send_message" = "Send Message";
 "lng_info_add_as_contact" = "Add to contacts";
 "lng_profile_shared_media" = "Shared media";
+"lng_profile_suggest_photo" = "Suggest Photo for {user}";
+"lng_profile_set_photo_for" = "Set Photo for {user}";
+"lng_profile_photo_reset" = "Reset to Original Photo";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_gifs" = "GIFs";
 "lng_media_type_videos" = "Videos";

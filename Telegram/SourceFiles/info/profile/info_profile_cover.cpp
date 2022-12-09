@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_peer.h"
+#include "data/data_user.h"
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_changes.h"
@@ -331,12 +332,6 @@ Cover::Cover(
 	setupChildGeometry();
 
 	if (_userpic) {
-		_userpic->uploadPhotoRequests(
-		) | rpl::start_with_next([=] {
-			_peer->session().api().peerPhoto().upload(
-				_peer,
-				_userpic->takeResultImage());
-		}, _userpic->lifetime());
 	} else if (topic->canEdit()) {
 		_iconButton->setClickedCallback([=] {
 			_controller->show(Box(
@@ -388,30 +383,48 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	) | rpl::start_with_next(
 		[=] { refreshStatusText(); },
 		lifetime());
-	if (!_peer->isUser()) {
-		_peer->session().changes().peerFlagsValue(
-			_peer,
-			Flag::Rights
-		) | rpl::start_with_next(
-			[=] { refreshUploadPhotoOverlay(); },
-			lifetime());
-	} else if (_peer->isSelf()) {
-		refreshUploadPhotoOverlay();
-	}
+	_peer->session().changes().peerFlagsValue(
+		_peer,
+		(_peer->isUser() ? Flag::IsContact : Flag::Rights)
+	) | rpl::start_with_next(
+		[=] { refreshUploadPhotoOverlay(); },
+		lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
 	if (!_userpic) {
 		return;
 	}
+
 	_userpic->switchChangePhotoOverlay([&] {
 		if (const auto chat = _peer->asChat()) {
 			return chat->canEditInformation();
 		} else if (const auto channel = _peer->asChannel()) {
 			return channel->canEditInformation();
+		} else if (const auto user = _peer->asUser()) {
+			return user->isSelf()
+				|| (user->isContact()
+					&& !user->isInaccessible()
+					&& !user->isServiceUser());
 		}
-		return _peer->isSelf();
-	}());
+		Unexpected("Peer type in Info::Profile::Cover.");
+	}(), [=](Ui::UserpicButton::ChosenImage chosen) {
+		using ChosenType = Ui::UserpicButton::ChosenType;
+		auto &image = chosen.image;
+		switch (chosen.type) {
+		case ChosenType::Set:
+			_userpic->changeTo(base::duplicate(image));
+			_peer->session().api().peerPhoto().upload(
+				_peer,
+				std::move(image));
+			break;
+		case ChosenType::Suggest:
+			_peer->session().api().peerPhoto().suggest(
+				_peer,
+				std::move(image));
+			break;
+		}
+	});
 }
 
 void Cover::refreshStatusText() {

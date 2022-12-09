@@ -43,6 +43,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 
@@ -246,13 +247,10 @@ void UserpicButton::prepare() {
 	}
 	setClickHandlerByRole();
 
-	if (_role == Role::ChangePhoto || _role == Role::OpenPhoto) {
+	if (_role == Role::ChangePhoto) {
 		chosenImages(
-		) | rpl::start_with_next([=](QImage &&image) {
-			setImage(std::move(image));
-			if (_requestToUpload) {
-				_uploadPhotoRequests.fire({});
-			}
+		) | rpl::start_with_next([=](ChosenImage &&chosen) {
+			setImage(std::move(chosen.image));
 		}, lifetime());
 	}
 }
@@ -260,11 +258,8 @@ void UserpicButton::prepare() {
 void UserpicButton::setClickHandlerByRole() {
 	switch (_role) {
 	case Role::ChoosePhoto:
-		addClickHandler([=] { choosePhotoLocally(); });
-		break;
-
 	case Role::ChangePhoto:
-		addClickHandler([=] { changePhotoLocally(); });
+		addClickHandler([=] { choosePhotoLocally(); });
 		break;
 
 	case Role::OpenPhoto:
@@ -289,10 +284,12 @@ void UserpicButton::choosePhotoLocally() {
 	if (!_window) {
 		return;
 	}
-	auto callback = [=](QImage &&image) {
-		_chosenImages.fire(std::move(image));
+	const auto callback = [=](ChosenType type) {
+		return [=](QImage &&image) {
+			_chosenImages.fire({ std::move(image), type });
+		};
 	};
-	const auto chooseFile = [=] {
+	const auto chooseFile = [=](ChosenType type = ChosenType::Set) {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
@@ -302,24 +299,44 @@ void UserpicButton::choosePhotoLocally() {
 				((_peer && _peer->isForum())
 					? ImageRoundRadius::Large
 					: ImageRoundRadius::Ellipse),
-				callback);
+				callback(type));
 		}));
 	};
 	if (!IsCameraAvailable()) {
 		chooseFile();
 	} else {
 		_menu = base::make_unique_q<Ui::PopupMenu>(this);
-		_menu->addAction(tr::lng_attach_file(tr::now), chooseFile);
-		_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
-			_window->show(Box(CameraBox, _window, _peer, callback));
-		});
+		const auto user = _peer ? _peer->asUser() : nullptr;
+		if (user && !user->isSelf()) {
+			const auto name = user->firstName.isEmpty()
+				? user->name()
+				: user->firstName;
+			_menu->addAction(
+				tr::lng_profile_set_photo_for(tr::now, lt_user, name),
+				[=] { chooseFile(); });
+			_menu->addAction(
+				tr::lng_profile_suggest_photo(tr::now, lt_user, name),
+				[=] { chooseFile(ChosenType::Suggest); });
+			if (user->flags() & UserDataFlag::PersonalPhoto) {
+				_menu->addAction(
+					tr::lng_profile_photo_reset(tr::now),
+					[=] { user->session().api().peerPhoto().clearPersonal(
+						user); _userpicCustom = false; });
+			}
+		} else {
+			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
+				chooseFile();
+			});
+			_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
+				_window->show(Box(
+					CameraBox,
+					_window,
+					_peer,
+					callback(ChosenType::Set)));
+			});
+		}
 		_menu->popup(QCursor::pos());
 	}
-}
-
-void UserpicButton::changePhotoLocally(bool requestToUpload) {
-	_requestToUpload = requestToUpload;
-	choosePhotoLocally();
 }
 
 void UserpicButton::openPeerPhoto() {
@@ -327,7 +344,7 @@ void UserpicButton::openPeerPhoto() {
 	Expects(_controller != nullptr);
 
 	if (_changeOverlayEnabled && _cursorInChangeOverlay) {
-		changePhotoLocally(true);
+		choosePhotoLocally();
 		return;
 	}
 
@@ -720,7 +737,9 @@ void UserpicButton::startAnimation() {
 	_a_appearance.start([this] { update(); }, 0, 1, _st.duration);
 }
 
-void UserpicButton::switchChangePhotoOverlay(bool enabled) {
+void UserpicButton::switchChangePhotoOverlay(
+		bool enabled,
+		Fn<void(ChosenImage)> chosen) {
 	Expects(_role == Role::OpenPhoto);
 
 	if (_changeOverlayEnabled != enabled) {
@@ -731,6 +750,9 @@ void UserpicButton::switchChangePhotoOverlay(bool enabled) {
 			}
 			updateCursorInChangeOverlay(
 				mapFromGlobal(QCursor::pos()));
+			if (chosen) {
+				chosenImages() | rpl::start_with_next(chosen, lifetime());
+			}
 		} else {
 			_changeOverlayShown.stop();
 			update();
@@ -791,6 +813,7 @@ void UserpicButton::setImage(QImage &&image) {
 		: Images::Circle(std::move(small)));
 	_userpic.setDevicePixelRatio(cRetinaFactor());
 	_userpicCustom = _userpicHasImage = true;
+	_userpicUniqueKey = {};
 	_result = std::move(image);
 
 	startNewPhotoShowing();
