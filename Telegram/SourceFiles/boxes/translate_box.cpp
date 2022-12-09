@@ -129,6 +129,29 @@ rpl::producer<Qt::MouseButton> ShowButton::clicks() const {
 
 } // namespace
 
+namespace Translate {
+
+std::vector<QLocale> LocalesFromSettings() {
+	const auto langs = Core::App().settings().skipTranslationForLanguages();
+	if (langs.empty()) {
+		return { QLocale(QLocale::English) };
+	}
+	return ranges::views::all(
+		langs
+	) | ranges::view::transform([](int langId) {
+		const auto lang = QLocale::Language(langId);
+		return (lang == QLocale::English)
+			? QLocale(Lang::LanguageIdOrDefault(Lang::Id()))
+			: (lang == QLocale::C)
+			? QLocale(QLocale::English)
+			: QLocale(lang);
+	}) | ranges::to_vector;
+}
+
+} // namespace Translate
+
+using namespace Translate;
+
 QString LanguageName(const QLocale &locale) {
 	if (locale.language() == QLocale::English
 			&& (locale.country() == QLocale::UnitedStates
@@ -149,13 +172,7 @@ void TranslateBox(
 	box->setWidth(st::boxWideWidth);
 	box->addButton(tr::lng_box_ok(), [=] { box->closeBox(); });
 	const auto container = box->verticalLayout();
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto defaultId = (settingsLang == QLocale::English)
-		? Lang::LanguageIdOrDefault(Lang::Id())
-		: (settingsLang == QLocale::C)
-		? u"en"_q
-		: QLocale(settingsLang).name().mid(0, 2);
+	const auto defaultId = LocalesFromSettings().front().name().mid(0, 2);
 
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());
@@ -356,14 +373,9 @@ bool SkipTranslate(TextWithEntities textWithEntities) {
 	if (result.unknown) {
 		return false;
 	}
-	const auto settingsLang =
-		Core::App().settings().skipTranslationForLanguage();
-	const auto skip = (settingsLang == QLocale::English)
-		? QLocale(Lang::LanguageIdOrDefault(Lang::Id())).language()
-		: (settingsLang == QLocale::C)
-		? QLocale::English
-		: settingsLang;
-	return (result.locale.language() == skip);
+	return ranges::any_of(LocalesFromSettings(), [&](const QLocale &l) {
+		return result.locale.language() == l.language();
+	});
 #else
     return false;
 #endif

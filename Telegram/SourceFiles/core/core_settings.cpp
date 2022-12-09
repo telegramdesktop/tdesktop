@@ -267,7 +267,13 @@ QByteArray Settings::serialize() const {
 			<< qint32(_hardwareAcceleratedVideo ? 1 : 0)
 			<< qint32(_suggestAnimatedEmoji ? 1 : 0)
 			<< qint32(_cornerReaction.current() ? 1 : 0)
-			<< qint32(_skipTranslationForLanguage);
+			<< qint32(_translateButtonEnabled ? 1 : 0);
+
+		stream
+			<< qint32(_skipTranslationForLanguages.size());
+		for (const auto &lang : _skipTranslationForLanguages) {
+			stream << quint64(lang);
+		}
 	}
 	return result;
 }
@@ -361,7 +367,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 chatQuickAction = static_cast<qint32>(_chatQuickAction);
 	qint32 suggestAnimatedEmoji = _suggestAnimatedEmoji ? 1 : 0;
 	qint32 cornerReaction = _cornerReaction.current() ? 1 : 0;
-	qint32 skipTranslationForLanguage = _skipTranslationForLanguage;
+	qint32 legacySkipTranslationForLanguage = _translateButtonEnabled ? 1 : 0;
+	qint32 skipTranslationForLanguagesCount = 0;
+	std::vector<int> skipTranslationForLanguages;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -560,7 +568,17 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 		stream >> cornerReaction;
 	}
 	if (!stream.atEnd()) {
-		stream >> skipTranslationForLanguage;
+		stream >> legacySkipTranslationForLanguage;
+	}
+	if (!stream.atEnd()) {
+		stream >> skipTranslationForLanguagesCount;
+		if (stream.status() == QDataStream::Ok) {
+			for (auto i = 0; i != skipTranslationForLanguagesCount; ++i) {
+				quint64 language;
+				stream >> language;
+				skipTranslationForLanguages.emplace_back(language);
+			}
+		}
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -731,7 +749,18 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_suggestAnimatedEmoji = (suggestAnimatedEmoji == 1);
 	_cornerReaction = (cornerReaction == 1);
-	_skipTranslationForLanguage = skipTranslationForLanguage;
+	{ // Parse the legacy translation setting.
+		_skipTranslationForLanguages = skipTranslationForLanguages;
+		if (legacySkipTranslationForLanguage == 0) {
+			_translateButtonEnabled = false;
+		} else if (legacySkipTranslationForLanguage == 1) {
+			_translateButtonEnabled = true;
+		} else {
+			_translateButtonEnabled = (legacySkipTranslationForLanguage > 0);
+			_skipTranslationForLanguages.push_back(
+				std::abs(legacySkipTranslationForLanguage));
+		}
+	}
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1042,18 +1071,16 @@ float64 Settings::DefaultDialogsWidthRatio() {
 }
 
 void Settings::setTranslateButtonEnabled(bool value) {
-	_skipTranslationForLanguage = std::abs(_skipTranslationForLanguage)
-		* (value ? 1 : -1);
+	_translateButtonEnabled = value;
 }
 bool Settings::translateButtonEnabled() const {
-	return _skipTranslationForLanguage > 0;
+	return _translateButtonEnabled;
 }
-void Settings::setSkipTranslationForLanguage(QLocale::Language language) {
-	const auto enabled = translateButtonEnabled();
-	_skipTranslationForLanguage = language * (enabled ? 1 : -1);
+void Settings::setSkipTranslationForLanguages(std::vector<int> languages) {
+	_skipTranslationForLanguages = std::move(languages);
 }
-QLocale::Language Settings::skipTranslationForLanguage() const {
-	return QLocale::Language(std::abs(_skipTranslationForLanguage));
+std::vector<int> Settings::skipTranslationForLanguages() const {
+	return _skipTranslationForLanguages;
 }
 
 } // namespace Core

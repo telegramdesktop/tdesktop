@@ -724,8 +724,8 @@ public:
 
 	void setTranslateButtonEnabled(bool value);
 	[[nodiscard]] bool translateButtonEnabled() const;
-	void setSkipTranslationForLanguage(QLocale::Language language);
-	[[nodiscard]] QLocale::Language skipTranslationForLanguage() const;
+	void setSkipTranslationForLanguages(std::vector<int> languages);
+	[[nodiscard]] std::vector<int> skipTranslationForLanguages() const;
 
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
@@ -841,7 +841,8 @@ private:
 #endif // Q_OS_MAC
 	HistoryView::DoubleClickQuickAction _chatQuickAction =
 		HistoryView::DoubleClickQuickAction();
-	int _skipTranslationForLanguage = -int(QLocale::English);
+	bool _translateButtonEnabled = false;
+	std::vector<int> _skipTranslationForLanguages;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window

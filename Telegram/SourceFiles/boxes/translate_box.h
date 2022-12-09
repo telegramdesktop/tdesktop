@@ -10,6 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class PeerData;
 
 namespace Ui {
+namespace Translate {
+[[nodiscard]] std::vector<QLocale> LocalesFromSettings();
+} // namespace Translate
 
 class GenericBox;
 
