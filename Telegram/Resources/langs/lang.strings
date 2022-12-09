@@ -166,6 +166,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_scam_badge" = "SCAM";
 "lng_fake_badge" = "FAKE";
 
+"lng_remember" = "Remember this choice";
+
 "lng_channels_limit_title" = "Too Many Communities";
 "lng_channels_limit1#one" = "You are a member of **{count}** groups and channels.";
 "lng_channels_limit1#other" = "You are a member of **{count}** groups and channels.";

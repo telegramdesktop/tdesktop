@@ -274,6 +274,9 @@ QByteArray Settings::serialize() const {
 		for (const auto &lang : _skipTranslationForLanguages) {
 			stream << quint64(lang);
 		}
+
+		stream
+			<< qint32(_rememberedDeleteMessageOnlyForYou ? 1 : 0);
 	}
 	return result;
 }
@@ -370,6 +373,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 legacySkipTranslationForLanguage = _translateButtonEnabled ? 1 : 0;
 	qint32 skipTranslationForLanguagesCount = 0;
 	std::vector<int> skipTranslationForLanguages;
+	qint32 rememberedDeleteMessageOnlyForYou = _rememberedDeleteMessageOnlyForYou ? 1 : 0;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -579,6 +583,8 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 				skipTranslationForLanguages.emplace_back(language);
 			}
 		}
+
+		stream >> rememberedDeleteMessageOnlyForYou;
 	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
@@ -761,6 +767,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 				std::abs(legacySkipTranslationForLanguage));
 		}
 	}
+	_rememberedDeleteMessageOnlyForYou = (rememberedDeleteMessageOnlyForYou == 1);
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -1081,6 +1088,13 @@ void Settings::setSkipTranslationForLanguages(std::vector<int> languages) {
 }
 std::vector<int> Settings::skipTranslationForLanguages() const {
 	return _skipTranslationForLanguages;
+}
+
+void Settings::setRememberedDeleteMessageOnlyForYou(bool value) {
+	_rememberedDeleteMessageOnlyForYou = value;
+}
+bool Settings::rememberedDeleteMessageOnlyForYou() const {
+	return _rememberedDeleteMessageOnlyForYou;
 }
 
 } // namespace Core

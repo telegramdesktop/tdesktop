@@ -727,6 +727,9 @@ public:
 	void setSkipTranslationForLanguages(std::vector<int> languages);
 	[[nodiscard]] std::vector<int> skipTranslationForLanguages() const;
 
+	void setRememberedDeleteMessageOnlyForYou(bool value);
+	[[nodiscard]] bool rememberedDeleteMessageOnlyForYou() const;
+
 	[[nodiscard]] static bool ThirdColumnByDefault();
 	[[nodiscard]] static float64 DefaultDialogsWidthRatio();
 	[[nodiscard]] static qint32 SerializePlaybackSpeed(float64 speed) {
@@ -843,6 +846,7 @@ private:
 		HistoryView::DoubleClickQuickAction();
 	bool _translateButtonEnabled = false;
 	std::vector<int> _skipTranslationForLanguages;
+	bool _rememberedDeleteMessageOnlyForYou = false;
 
 	bool _tabbedReplacedWithInfo = false; // per-window
 	rpl::event_stream<bool> _tabbedReplacedWithInfoValue; // per-window
