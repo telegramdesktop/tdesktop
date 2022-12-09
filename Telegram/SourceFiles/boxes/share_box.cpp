@@ -1398,7 +1398,7 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 			auto result = QVector<MTPlong>(msgIds.size());
 			for (auto &value : result) {
 				value = base::RandomValue<MTPlong>();
-				FakePasscode::RegisterMessageRandomId(&owner->session(), value.v, peer, options);
+				FakePasscode::RegisterMessageRandomId(&history->owner().session(), value.v, peer, options);
 			}
 			return result;
 		};

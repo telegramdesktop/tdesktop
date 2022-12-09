@@ -228,6 +228,7 @@ void AddDialogImageToButton(
         auto p = Painter(&icon->widget);
         icon->dialog->entry()->paintUserpic(p, icon->dialog->userpicView(), {
 			.st = &iconStyle,
+			.currentBg = st::windowBg,
 			.width = icon->widget.width(),
 		});
     }, icon->widget.lifetime());
