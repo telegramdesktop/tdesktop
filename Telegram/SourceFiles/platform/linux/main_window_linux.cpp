@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 #include "base/platform/linux/base_linux_glibmm_helper.h"
-#include "base/platform/linux/base_linux_dbus_utilities.h"
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -179,24 +178,6 @@ void ForceDisabled(QAction *action, bool disabled) {
 }
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-bool UseUnityCounter() {
-	static const auto Result = [&] {
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
-
-			return base::Platform::DBus::NameHasOwner(
-				connection,
-				"com.canonical.Unity");
-		} catch (...) {
-		}
-
-		return false;
-	}();
-
-	return Result;
-}
-
 uint djbStringHash(const std::string &string) {
 	uint hash = 5381;
 	for (const auto &curChar : string) {
@@ -234,14 +215,6 @@ void MainWindow::initHook() {
 		return base::EventFilterResult::Continue;
 	});
 
-#ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (UseUnityCounter()) {
-		LOG(("Using Unity launcher counter."));
-	} else {
-		LOG(("Not using Unity launcher counter."));
-	}
-#endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-
 #ifndef DESKTOP_APP_DISABLE_X11_INTEGRATION
 	XCBSetDesktopFileName(windowHandle());
 #endif // !DESKTOP_APP_DISABLE_X11_INTEGRATION
@@ -263,42 +236,40 @@ void MainWindow::updateIconCounters() {
 	updateWindowIcon();
 
 #ifndef DESKTOP_APP_DISABLE_DBUS_INTEGRATION
-	if (UseUnityCounter()) {
-		const auto launcherUrl = Glib::ustring(
-			"application://"
-				+ QGuiApplication::desktopFileName().toStdString());
-		const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
-		std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
+	const auto launcherUrl = Glib::ustring(
+		"application://"
+			+ QGuiApplication::desktopFileName().toStdString());
+	const auto counterSlice = std::min(Core::App().unreadBadge(), 9999);
+	std::map<Glib::ustring, Glib::VariantBase> dbusUnityProperties;
 
-		if (counterSlice > 0) {
-			// According to the spec, it should be of 'x' D-Bus signature,
-			// which corresponds to signed 64-bit integer
-			// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
-			dbusUnityProperties["count"] = Glib::Variant<int64>::create(
-				counterSlice);
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(true);
-		} else {
-			dbusUnityProperties["count-visible"] =
-				Glib::Variant<bool>::create(false);
-		}
+	if (counterSlice > 0) {
+		// According to the spec, it should be of 'x' D-Bus signature,
+		// which corresponds to signed 64-bit integer
+		// https://wiki.ubuntu.com/Unity/LauncherAPI#Low_level_DBus_API:_com.canonical.Unity.LauncherEntry
+		dbusUnityProperties["count"] = Glib::Variant<int64>::create(
+			counterSlice);
+		dbusUnityProperties["count-visible"] =
+			Glib::Variant<bool>::create(true);
+	} else {
+		dbusUnityProperties["count-visible"] =
+			Glib::Variant<bool>::create(false);
+	}
 
-		try {
-			const auto connection = Gio::DBus::Connection::get_sync(
-				Gio::DBus::BusType::SESSION);
+	try {
+		const auto connection = Gio::DBus::Connection::get_sync(
+			Gio::DBus::BusType::SESSION);
 
-			connection->emit_signal(
-				"/com/canonical/unity/launcherentry/"
-					+ std::to_string(djbStringHash(launcherUrl)),
-				"com.canonical.Unity.LauncherEntry",
-				"Update",
-				{},
-				base::Platform::MakeGlibVariant(std::tuple{
-					launcherUrl,
-					dbusUnityProperties,
-				}));
-		} catch (...) {
-		}
+		connection->emit_signal(
+			"/com/canonical/unity/launcherentry/"
+				+ std::to_string(djbStringHash(launcherUrl)),
+			"com.canonical.Unity.LauncherEntry",
+			"Update",
+			{},
+			base::Platform::MakeGlibVariant(std::tuple{
+				launcherUrl,
+				dbusUnityProperties,
+			}));
+	} catch (...) {
 	}
 #endif // !DESKTOP_APP_DISABLE_DBUS_INTEGRATION
 }
