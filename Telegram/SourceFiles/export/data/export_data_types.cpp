@@ -1165,6 +1165,14 @@ ServiceAction ParseServiceAction(
 			content.iconEmojiId = icon->v;
 		}
 		result.content = content;
+	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
+		auto content = ActionSuggestProfilePhoto();
+		content.photo = ParsePhoto(
+			data.vphoto(),
+			mediaFolder
+			+ "photos/"
+			+ PreparePhotoFileName(++context.photos, date));
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }
@@ -1173,6 +1181,9 @@ File &Message::file() {
 	const auto content = &action.content;
 	if (const auto photo = std::get_if<ActionChatEditPhoto>(content)) {
 		return photo->photo.image.file;
+	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
+			content)) {
+		return photo->photo.image.file;
 	}
 	return media.file();
 }
@@ -1180,6 +1191,9 @@ File &Message::file() {
 const File &Message::file() const {
 	const auto content = &action.content;
 	if (const auto photo = std::get_if<ActionChatEditPhoto>(content)) {
+		return photo->photo.image.file;
+	} else if (const auto photo = std::get_if<ActionSuggestProfilePhoto>(
+			content)) {
 		return photo->photo.image.file;
 	}
 	return media.file();

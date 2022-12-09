@@ -573,6 +573,10 @@ QByteArray SerializeMessage(
 		if (data.iconEmojiId) {
 			push("new_icon_emoji_id", *data.iconEmojiId);
 		}
+	}, [&](const ActionSuggestProfilePhoto &data) {
+		pushActor();
+		pushAction("suggest_profile_photo");
+		pushPhoto(data.photo.image);
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {

@@ -3870,6 +3870,17 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareSuggestProfilePhoto = [this](const MTPDmessageActionSuggestProfilePhoto &action) {
+		auto result = PreparedServiceText{};
+		result.links.push_back(fromLink());
+		result.text = tr::lng_action_changed_photo(
+			tr::now,
+			lt_from,
+			fromLinkText(), // Link 1.
+			Ui::Text::WithEntities);
+		return result;
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -3942,6 +3953,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	}, [&](const MTPDmessageActionWebViewDataSentMe &data) {
 		LOG(("API Error: messageActionWebViewDataSentMe received."));
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
+	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
+		return prepareSuggestProfilePhoto(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));
