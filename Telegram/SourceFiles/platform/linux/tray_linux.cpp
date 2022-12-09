@@ -231,6 +231,7 @@ QIcon IconGraphic::trayIcon(
 				: st::trayCounterBg;
 			const auto &fg = st::trayCounterFg;
 			if (iconSize >= 22) {
+				const auto imageSize = dprSize(iconImage);
 				const auto layerSize = (iconSize >= 48)
 					? 32
 					: (iconSize >= 36)
@@ -247,8 +248,8 @@ QIcon IconGraphic::trayIcon(
 
 				QPainter p(&iconImage);
 				p.drawImage(
-					iconImage.width() - layer.width() - 1,
-					iconImage.height() - layer.height() - 1,
+					imageSize.width() - layer.width() - 1,
+					imageSize.height() - layer.height() - 1,
 					layer);
 			} else {
 				iconImage = Window::WithSmallCounter(std::move(iconImage), {
