@@ -59,6 +59,7 @@ public:
 	PhotoData *getPhoto() const override {
 		return _data;
 	}
+	void showPhoto(FullMsgId id);
 
 	QSize sizeForGroupingOptimal(int maxWidth) const override;
 	QSize sizeForGrouping(int width) const override;
@@ -102,8 +103,6 @@ protected:
 
 private:
 	struct Streamed;
-
-	void showPhoto(FullMsgId id);
 
 	void create(FullMsgId contextId, PeerData *chat = nullptr);
 

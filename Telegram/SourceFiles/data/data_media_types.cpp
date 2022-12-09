@@ -27,7 +27,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_theme_document.h"
 #include "history/view/media/history_view_slot_machine.h"
 #include "history/view/media/history_view_dice.h"
-#include "history/view/media/history_view_service_media_gift.h"
+#include "history/view/media/history_view_service_box.h"
+#include "history/view/media/history_view_premium_gift.h"
+#include "history/view/media/history_view_userpic_suggestion.h"
 #include "dialogs/ui/dialogs_message_view.h"
 #include "ui/image/image.h"
 #include "ui/effects/spoiler_mess.h"
@@ -702,6 +704,15 @@ std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
 	if (_chat) {
+		if (realParent->isUserpicSuggestion()) {
+			return std::make_unique<HistoryView::ServiceBox>(
+				message,
+				std::make_unique<HistoryView::UserpicSuggestion>(
+					message,
+					_chat,
+					_photo,
+					st::msgServicePhotoWidth));
+		}
 		return std::make_unique<HistoryView::Photo>(
 			message,
 			_chat,
@@ -1907,7 +1918,9 @@ std::unique_ptr<HistoryView::Media> MediaGiftBox::createView(
 		not_null<HistoryView::Element*> message,
 		not_null<HistoryItem*> realParent,
 		HistoryView::Element *replacing) {
-	return std::make_unique<HistoryView::MediaGift>(message, this);
+	return std::make_unique<HistoryView::ServiceBox>(
+		message,
+		std::make_unique<HistoryView::PremiumGift>(message, this));
 }
 
 bool MediaGiftBox::activated() const {

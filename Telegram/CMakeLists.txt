@@ -673,8 +673,10 @@ PRIVATE
     history/view/media/history_view_photo.h
     history/view/media/history_view_poll.cpp
     history/view/media/history_view_poll.h
-    history/view/media/history_view_service_media_gift.cpp
-    history/view/media/history_view_service_media_gift.h
+    history/view/media/history_view_premium_gift.cpp
+    history/view/media/history_view_premium_gift.h
+    history/view/media/history_view_service_box.cpp
+    history/view/media/history_view_service_box.h
     history/view/media/history_view_slot_machine.cpp
     history/view/media/history_view_slot_machine.h
     history/view/media/history_view_sticker.cpp
@@ -684,6 +686,8 @@ PRIVATE
     history/view/media/history_view_sticker_player_abstract.h
     history/view/media/history_view_theme_document.cpp
     history/view/media/history_view_theme_document.h
+    history/view/media/history_view_userpic_suggestion.cpp
+    history/view/media/history_view_userpic_suggestion.h
     history/view/media/history_view_web_page.cpp
     history/view/media/history_view_web_page.h
     history/view/reactions/history_view_reactions.cpp

@@ -199,6 +199,7 @@ public:
 	[[nodiscard]] bool isScheduled() const;
 	[[nodiscard]] bool isSponsored() const;
 	[[nodiscard]] bool skipNotification() const;
+	[[nodiscard]] bool isUserpicSuggestion() const;
 
 	void addLogEntryOriginal(
 		WebPageId localId,

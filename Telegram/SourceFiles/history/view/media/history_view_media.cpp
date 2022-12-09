@@ -176,6 +176,10 @@ Storage::SharedMediaTypesMask Media::sharedMediaTypes() const {
 	return {};
 }
 
+not_null<Element*> Media::parent() const {
+	return _parent;
+}
+
 not_null<History*> Media::history() const {
 	return _parent->history();
 }

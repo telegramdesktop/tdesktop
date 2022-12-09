@@ -79,6 +79,7 @@ public:
 	explicit Media(not_null<Element*> parent) : _parent(parent) {
 	}
 
+	[[nodiscard]] not_null<Element*> parent() const;
 	[[nodiscard]] not_null<History*> history() const;
 
 	[[nodiscard]] virtual TextForMimeData selectedText(

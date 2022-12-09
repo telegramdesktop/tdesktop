@@ -25,6 +25,7 @@ public:
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
 	void upload(not_null<PeerData*> peer, QImage &&image);
+	void updateSelf(not_null<PhotoData*> photo);
 	void suggest(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
 	void clearPersonal(not_null<UserData*> user);

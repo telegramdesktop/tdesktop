@@ -1561,6 +1561,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_webview_data_done" = "You have just successfully transferred data from the «{text}» button to the bot.";
 "lng_action_gift_received" = "{user} sent you a gift for {cost}";
 "lng_action_gift_received_me" = "You sent to {user} a gift for {cost}";
+"lng_action_suggested_photo_title" = "Suggested Photo";
+"lng_action_suggested_photo_me" = "You suggested {user} to use this photo for their account.";
+"lng_action_suggested_photo" = "{user} suggests you to use this photo for your account.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";

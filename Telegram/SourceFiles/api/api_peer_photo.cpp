@@ -116,6 +116,17 @@ void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
 	upload(peer, std::move(image), false);
 }
 
+void PeerPhoto::updateSelf(not_null<PhotoData*> photo) {
+	_api.request(MTPphotos_UpdateProfilePhoto(
+		photo->mtpInput()
+	)).done([=](const MTPphotos_Photo &result) {
+		result.match([&](const MTPDphotos_photo &data) {
+			_session->data().processPhoto(data.vphoto());
+			_session->data().processUsers(data.vusers());
+		});
+	}).send();
+}
+
 void PeerPhoto::upload(
 		not_null<PeerData*> peer,
 		QImage &&image,
@@ -195,8 +206,7 @@ void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 			_session->data().processUsers(data.vusers());
 		});
 	}).send();
-	if (!user->userpicPhotoUnknown()
-		&& (user->flags() & UserDataFlag::PersonalPhoto)) {
+	if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
 			peerToUser(user->id),
 			user->userpicPhotoId()));
@@ -331,8 +341,7 @@ void PeerPhoto::requestUserPhotos(
 			}
 			return photoIds;
 		});
-		if (!user->userpicPhotoUnknown()
-			&& (user->flags() & UserDataFlag::PersonalPhoto)) {
+		if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
 			const auto photo = owner.photo(user->userpicPhotoId());
 			if (!photo->isNull()) {
 				++fullCount;

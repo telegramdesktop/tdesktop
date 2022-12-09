@@ -298,6 +298,10 @@ bool UserData::applyMinPhoto() const {
 	return !(flags() & UserDataFlag::DiscardMinPhoto);
 }
 
+bool UserData::hasPersonalPhoto() const {
+	return (flags() & UserDataFlag::PersonalPhoto);
+}
+
 bool UserData::canAddContact() const {
 	return canShareThisContact() && !isContact();
 }

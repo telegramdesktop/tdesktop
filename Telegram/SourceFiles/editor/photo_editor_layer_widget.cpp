@@ -123,7 +123,8 @@ void PrepareProfilePhoto(
 				.cropType = (radius == ImageRoundRadius::Ellipse
 					? EditorData::CropType::Ellipse
 					: EditorData::CropType::RoundedRect),
-				.keepAspectRatio = true, }),
+				.keepAspectRatio = true,
+			}),
 		Ui::LayerOption::KeepOther);
 }
 

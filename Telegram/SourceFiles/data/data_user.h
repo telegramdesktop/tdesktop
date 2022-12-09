@@ -114,6 +114,7 @@ public:
 	[[nodiscard]] bool isInaccessible() const;
 	[[nodiscard]] bool canWrite() const;
 	[[nodiscard]] bool applyMinPhoto() const;
+	[[nodiscard]] bool hasPersonalPhoto() const;
 
 	[[nodiscard]] bool canShareThisContact() const;
 	[[nodiscard]] bool canAddContact() const;

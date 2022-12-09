@@ -1318,6 +1318,10 @@ bool HistoryItem::skipNotification() const {
 	return false;
 }
 
+bool HistoryItem::isUserpicSuggestion() const {
+	return (_flags & MessageFlag::IsUserpicSuggestion);
+}
+
 void HistoryItem::destroy() {
 	_history->destroyMessage(this);
 }
@@ -3872,12 +3876,20 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 
 	auto prepareSuggestProfilePhoto = [this](const MTPDmessageActionSuggestProfilePhoto &action) {
 		auto result = PreparedServiceText{};
-		result.links.push_back(fromLink());
-		result.text = tr::lng_action_changed_photo(
-			tr::now,
-			lt_from,
-			fromLinkText(), // Link 1.
-			Ui::Text::WithEntities);
+		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto peer = isSelf ? history()->peer : _from;
+		const auto user = peer->asUser();
+		const auto name = (user && !user->firstName.isEmpty())
+			? user->firstName
+			: peer->name();
+		result.links.push_back(peer->createOpenLink());
+		result.text = (isSelf
+			? tr::lng_action_suggested_photo_me
+			: tr::lng_action_suggested_photo)(
+				tr::now,
+				lt_user,
+				Ui::Text::Link(name, 1), // Link 1.
+				Ui::Text::WithEntities);
 		return result;
 	};
 
@@ -4009,6 +4021,15 @@ void HistoryItem::applyAction(const MTPMessageAction &action) {
 			this,
 			_from,
 			data.vmonths().v);
+	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
+		data.vphoto().match([&](const MTPDphoto &photo) {
+			_flags |= MessageFlag::IsUserpicSuggestion;
+			_media = std::make_unique<Data::MediaPhoto>(
+				this,
+				history()->peer,
+				history()->owner().processPhoto(photo));
+		}, [](const MTPDphotoEmpty &) {
+		});
 	}, [](const auto &) {
 	});
 }

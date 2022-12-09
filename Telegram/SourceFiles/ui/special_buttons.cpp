@@ -317,7 +317,7 @@ void UserpicButton::choosePhotoLocally() {
 			_menu->addAction(
 				tr::lng_profile_suggest_photo(tr::now, lt_user, name),
 				[=] { chooseFile(ChosenType::Suggest); });
-			if (user->flags() & UserDataFlag::PersonalPhoto) {
+			if (user->hasPersonalPhoto()) {
 				_menu->addAction(
 					tr::lng_profile_photo_reset(tr::now),
 					[=] { user->session().api().peerPhoto().clearPersonal(
