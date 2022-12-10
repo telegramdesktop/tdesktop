@@ -266,20 +266,6 @@ private:
 	return upload;
 }
 
-void UploadPhoto(not_null<UserData*> user, QImage image) {
-	auto bytes = QByteArray();
-	auto buffer = QBuffer(&bytes);
-	image.save(&buffer, "JPG", 87);
-	user->setUserpic(
-		base::RandomValue<PhotoId>(),
-		ImageLocation(
-			{ .data = InMemoryLocation{ .bytes = bytes } },
-			image.width(),
-			image.height()),
-		false);
-	user->session().api().peerPhoto().upload(user, std::move(image));
-}
-
 void SetupPhoto(
 		not_null<Ui::VerticalLayout*> container,
 		not_null<Window::SessionController*> controller,
@@ -297,8 +283,10 @@ void SetupPhoto(
 
 	upload->chosenImages(
 	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
-		UploadPhoto(self, chosen.image);
-		photo->changeTo(std::move(chosen.image));
+		auto &image = chosen.image;
+		UpdatePhotoLocally(self, image);
+		photo->changeTo(base::duplicate(image));
+		self->session().api().peerPhoto().upload(self, std::move(image));
 	}, upload->lifetime());
 
 	const auto name = Ui::CreateChild<Ui::FlatLabel>(
@@ -974,6 +962,19 @@ AccountsEvents SetupAccounts(
 	return {
 		.currentAccountActivations = list->currentAccountActivations(),
 	};
+}
+
+void UpdatePhotoLocally(not_null<UserData*> user, const QImage &image) {
+	auto bytes = QByteArray();
+	auto buffer = QBuffer(&bytes);
+	image.save(&buffer, "JPG", 87);
+	user->setUserpic(
+		base::RandomValue<PhotoId>(),
+		ImageLocation(
+			{ .data = InMemoryLocation{ .bytes = bytes } },
+			image.width(),
+			image.height()),
+		false);
 }
 
 namespace Badge {

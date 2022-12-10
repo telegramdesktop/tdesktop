@@ -40,6 +40,8 @@ AccountsEvents SetupAccounts(
 	not_null<Ui::VerticalLayout*> container,
 	not_null<Window::SessionController*> controller);
 
+void UpdatePhotoLocally(not_null<UserData*> user, const QImage &image);
+
 namespace Badge {
 
 [[nodiscard]] Dialogs::Ui::UnreadBadgeStyle Style();

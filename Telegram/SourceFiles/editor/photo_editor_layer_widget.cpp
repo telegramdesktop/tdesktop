@@ -184,11 +184,12 @@ LayerWidget::LayerWidget(
 		closeLayer();
 	}, lifetime());
 
+	const auto weak = Ui::MakeWeak(_content.get());
 	_content->doneRequests(
 	) | rpl::start_with_next([=, done = std::move(doneCallback)](
 			const PhotoModifications &mods) {
 		done(mods);
-		closeLayer();
+		if (weak) closeLayer();
 	}, lifetime());
 
 	sizeValue(

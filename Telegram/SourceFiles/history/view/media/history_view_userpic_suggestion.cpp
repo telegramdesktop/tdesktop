@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "apiwrap.h"
 #include "api/api_peer_photo.h"
+#include "settings/settings_information.h" // UpdatePhotoLocally
 #include "styles/style_chat.h"
 
 namespace HistoryView {
@@ -76,8 +77,10 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 					const auto original = std::make_shared<QImage>(
 						media->image(Data::PhotoSize::Large)->original());
 					const auto callback = [=](QImage &&image) {
+						using namespace Settings;
 						const auto session = &photo->session();
 						const auto user = session->user();
+						UpdatePhotoLocally(user, image);
 						auto &peerPhotos = session->api().peerPhoto();
 						if (original->size() == image.size()
 							&& original->constBits() == image.constBits()) {
@@ -85,6 +88,7 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 						} else {
 							peerPhotos.upload(user, std::move(image));
 						}
+						controller->showSettings(Information::Id());
 					};
 					Editor::PrepareProfilePhoto(
 						controller->content(),
