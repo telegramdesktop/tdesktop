@@ -152,7 +152,7 @@ void VideoBubble::prepareFrame() {
 		.resize = size,
 		.outer = size,
 	};
-	const auto frame = _track->frame(request);
+	const auto frame = _track->frame(request).mirrored(!_mirrored, false);
 	if (_frame.width() < size.width() || _frame.height() < size.height()) {
 		_frame = QImage(
 			size * cIntRetinaFactor(),

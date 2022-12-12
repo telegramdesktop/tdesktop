@@ -407,6 +407,7 @@ void Panel::reinitWithCall(Call *call) {
 			const auto active = _call->isSharingScreen();
 			_screencast->setProgress(active ? 0. : 1.);
 			_screencast->setText(tr::lng_call_screencast());
+			_outgoingVideoBubble->setMirrored(!active);
 		}
 	}, _callLifetime);
 
