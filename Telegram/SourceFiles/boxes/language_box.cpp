@@ -1141,15 +1141,16 @@ void LanguageBox::prepare() {
 	label->fire(Ui::Translate::LocalesFromSettings());
 	translateSkip->setClickedCallback([=] {
 		Ui::BoxShow(this).showBox(
-			Box(Ui::ChooseLanguageBox, [=](QLocale locale) {
-				label->fire({ locale });
-				const auto result = (locale.language() == QLocale::English)
-					? QLocale::c()
-					: locale;
-				Core::App().settings().setSkipTranslationForLanguages(
-					{ result.language() });
+			Box(Ui::ChooseLanguageBox, [=](std::vector<QLocale> locales) {
+				label->fire_copy(locales);
+				const auto result = ranges::views::all(
+					locales
+				) | ranges::views::transform([](const QLocale &l) {
+					return int(l.language());
+				}) | ranges::to_vector;
+				Core::App().settings().setSkipTranslationForLanguages(result);
 				Core::App().saveSettingsDelayed();
-			}),
+			}, Ui::Translate::LocalesFromSettings()),
 			Ui::LayerOption::KeepOther);
 	});
 	Settings::AddSkip(topContainer);

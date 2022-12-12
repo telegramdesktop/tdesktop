@@ -29,6 +29,7 @@ void TranslateBox(
 
 void ChooseLanguageBox(
 	not_null<Ui::GenericBox*> box,
-	Fn<void(QLocale)> callback);
+	Fn<void(std::vector<QLocale>)> callback,
+	std::vector<QLocale> toggled);
 
 } // namespace Ui
