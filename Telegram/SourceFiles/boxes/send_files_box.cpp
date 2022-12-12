@@ -633,15 +633,17 @@ void SendFilesBox::refreshControls() {
 }
 
 void SendFilesBox::setupSendWayControls() {
+	const auto groupFilesFirst = _sendWay.current().groupFiles();
+	const auto asPhotosFirst = _sendWay.current().sendImagesAsPhotos();
 	_groupFiles.create(
 		this,
 		tr::lng_send_grouped(tr::now),
-		_sendWay.current().groupFiles(),
+		groupFilesFirst,
 		st::defaultBoxCheckbox);
 	_sendImagesAsPhotos.create(
 		this,
 		tr::lng_send_compressed(tr::now),
-		_sendWay.current().sendImagesAsPhotos(),
+		asPhotosFirst,
 		st::defaultBoxCheckbox);
 
 	_sendWay.changes(
@@ -662,6 +664,21 @@ void SendFilesBox::setupSendWayControls() {
 		auto sendWay = _sendWay.current();
 		sendWay.setSendImagesAsPhotos(_sendImagesAsPhotos->checked());
 		_sendWay = sendWay;
+	}, lifetime());
+
+	_wayRemember.create(
+		this,
+		tr::lng_remember(tr::now),
+		false,
+		st::defaultBoxCheckbox);
+	_wayRemember->hide();
+	rpl::combine(
+		_groupFiles->checkedValue(),
+		_sendImagesAsPhotos->checkedValue()
+	) | rpl::start_with_next([=](bool groupFiles, bool asPhoto) {
+		_wayRemember->setVisible(
+			(groupFiles != groupFilesFirst) || (asPhoto != asPhotosFirst));
+		captionResized();
 	}, lifetime());
 
 	_hintLabel.create(
@@ -913,9 +930,10 @@ void SendFilesBox::updateBoxSize() {
 	if (_caption) {
 		footerHeight += st::boxPhotoCaptionSkip + _caption->height();
 	}
-	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 4>{ {
 		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
 		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+		{ _wayRemember.data(), st::boxPhotoCompressedSkip },
 		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
 	} };
 	for (const auto &pair : pairs) {
@@ -980,10 +998,11 @@ void SendFilesBox::updateControlsGeometry() {
 			_emojiToggle->update();
 		}
 	}
-	const auto pairs = std::array<std::pair<RpWidget*, int>, 3>{ {
+	const auto pairs = std::array<std::pair<RpWidget*, int>, 4>{ {
 		{ _hintLabel.data(), st::editMediaLabelMargins.top() },
 		{ _groupFiles.data(), st::boxPhotoCompressedSkip },
 		{ _sendImagesAsPhotos.data(), st::boxPhotoCompressedSkip },
+		{ _wayRemember.data(), st::boxPhotoCompressedSkip },
 	} };
 	for (const auto &pair : ranges::views::reverse(pairs)) {
 		const auto pointer = pair.first;
@@ -1052,7 +1071,9 @@ void SendFilesBox::send(
 		return;
 	}
 
-	saveSendWaySettings();
+	if (_wayRemember && _wayRemember->checked()) {
+		saveSendWaySettings();
+	}
 
 	for (auto &block : _blocks) {
 		block.applyAlbumOrder();
