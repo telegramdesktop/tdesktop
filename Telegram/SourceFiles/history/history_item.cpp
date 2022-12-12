@@ -184,7 +184,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 		return photo->match([&](const MTPDphoto &photo) -> Result {
 			return std::make_unique<Data::MediaPhoto>(
 				item,
-				item->history()->owner().processPhoto(photo));
+				item->history()->owner().processPhoto(photo),
+				media.is_spoiler());
 		}, [](const MTPDphotoEmpty &) -> Result {
 			return nullptr;
 		});
@@ -205,7 +206,8 @@ std::unique_ptr<Data::Media> HistoryItem::CreateMedia(
 			return std::make_unique<Data::MediaFile>(
 				item,
 				item->history()->owner().processDocument(document),
-				media.is_nopremium());
+				media.is_nopremium(),
+				media.is_spoiler());
 		}, [](const MTPDdocumentEmpty &) -> Result {
 			return nullptr;
 		});
@@ -513,10 +515,12 @@ HistoryItem::HistoryItem(
 		std::move(markup));
 
 	const auto skipPremiumEffect = !history->session().premium();
+	const auto spoiler = false;
 	_media = std::make_unique<Data::MediaFile>(
 		this,
 		document,
-		skipPremiumEffect);
+		skipPremiumEffect,
+		spoiler);
 	setText(caption);
 }
 
@@ -545,7 +549,8 @@ HistoryItem::HistoryItem(
 		postAuthor,
 		std::move(markup));
 
-	_media = std::make_unique<Data::MediaPhoto>(this, photo);
+	const auto spoiler = false;
+	_media = std::make_unique<Data::MediaPhoto>(this, photo, spoiler);
 	setText(caption);
 }
 

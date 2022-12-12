@@ -694,6 +694,13 @@ TextWithEntities GroupedMedia::getCaption() const {
 	return main()->getCaption();
 }
 
+void GroupedMedia::hideSpoilers() {
+	_caption.setSpoilerRevealed(false, anim::type::instant);
+	for (const auto &part : _parts) {
+		part.content->hideSpoilers();
+	}
+}
+
 Storage::SharedMediaTypesMask GroupedMedia::sharedMediaTypes() const {
 	return main()->sharedMediaTypes();
 }

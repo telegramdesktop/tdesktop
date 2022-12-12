@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_transcribe_button.h"
 #include "history/view/media/history_view_media_common.h"
+#include "history/view/media/history_view_media_spoiler.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
 #include "ui/chat/attach/attach_prepare.h"
@@ -38,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/grouped_layout.h"
 #include "ui/cached_round_corners.h"
 #include "ui/effects/path_shift_gradient.h"
+#include "ui/effects/spoiler_mess.h"
 #include "data/data_session.h"
 #include "data/data_streaming.h"
 #include "data/data_document.h"
@@ -80,10 +82,12 @@ Gif::Streamed::Streamed(
 Gif::Gif(
 	not_null<Element*> parent,
 	not_null<HistoryItem*> realParent,
-	not_null<DocumentData*> document)
+	not_null<DocumentData*> document,
+	bool spoiler)
 : File(parent, realParent)
 , _data(document)
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right())
+, _spoiler(spoiler ? std::make_unique<MediaSpoiler>() : nullptr)
 , _downloadSize(Ui::FormatSizeText(_data->size)) {
 	setDocumentLinks(_data, realParent);
 	setStatusSize(Ui::FileStatusSizeReady);
@@ -476,6 +480,13 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 		p.drawImage(rthumb, _thumbCache);
 	}
 
+	if (!isRound && _spoiler) {
+		fillImageSpoiler(
+			p,
+			_spoiler.get(),
+			rthumb,
+			context);
+	}
 	if (context.selected()) {
 		if (isRound) {
 			Ui::FillComplexEllipse(p, st, rthumb);
@@ -1312,6 +1323,13 @@ bool Gif::uploading() const {
 	return _data->uploading();
 }
 
+void Gif::hideSpoilers() {
+	_caption.setSpoilerRevealed(false, anim::type::instant);
+	if (_spoiler) {
+		_spoiler->revealed = false;
+	}
+}
+
 bool Gif::needsBubble() const {
 	if (_data->isVideoMessage()) {
 		return false;
@@ -1538,12 +1556,16 @@ void Gif::parentTextUpdated() {
 }
 
 bool Gif::hasHeavyPart() const {
-	return _streamed || _dataMedia;
+	return (_spoiler && _spoiler->animation) || _streamed || _dataMedia;
 }
 
 void Gif::unloadHeavyPart() {
 	stopAnimation();
 	_dataMedia = nullptr;
+	if (_spoiler) {
+		_spoiler->background = _spoiler->cornerCache = QImage();
+		_spoiler->animation = nullptr;
+	}
 	_thumbCache = QImage();
 	_videoThumbnailFrame = nullptr;
 	_caption.unloadPersistentAnimation();

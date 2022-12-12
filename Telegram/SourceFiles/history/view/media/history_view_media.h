@@ -32,6 +32,7 @@ struct ColorReplacements;
 namespace Ui {
 struct BubbleSelectionInterval;
 struct ChatPaintContext;
+class SpoilerAnimation;
 } // namespace Ui
 
 namespace Images {
@@ -45,6 +46,7 @@ enum class CursorState : char;
 enum class InfoDisplayType : char;
 struct TextState;
 struct StateRequest;
+struct MediaSpoiler;
 class StickerPlayer;
 class Element;
 
@@ -74,7 +76,7 @@ enum class MediaInBubbleState : uchar {
 	TimeId duration,
 	const QString &base);
 
-class Media : public Object {
+class Media : public Object, public base::has_weak_ptr {
 public:
 	explicit Media(not_null<Element*> parent) : _parent(parent) {
 	}
@@ -208,6 +210,8 @@ public:
 
 	[[nodiscard]] virtual TextWithEntities getCaption() const {
 		return TextWithEntities();
+	}
+	virtual void hideSpoilers() {
 	}
 	[[nodiscard]] virtual bool needsBubble() const = 0;
 	[[nodiscard]] virtual bool unwrapped() const {
@@ -343,6 +347,12 @@ protected:
 		QRect rect,
 		std::optional<Ui::BubbleRounding> rounding, // nullopt if in WebPage.
 		const PaintContext &context) const;
+	void fillImageSpoiler(
+		QPainter &p,
+		not_null<MediaSpoiler*> spoiler,
+		QRect rect,
+		const PaintContext &context) const;
+	void createSpoilerLink(not_null<MediaSpoiler*> spoiler);
 
 	void repaint() const;
 

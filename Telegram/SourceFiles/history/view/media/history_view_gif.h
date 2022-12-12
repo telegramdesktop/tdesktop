@@ -44,7 +44,8 @@ public:
 	Gif(
 		not_null<Element*> parent,
 		not_null<HistoryItem*> realParent,
-		not_null<DocumentData*> document);
+		not_null<DocumentData*> document,
+		bool spoiler);
 	~Gif();
 
 	void draw(Painter &p, const PaintContext &context) const override;
@@ -98,6 +99,7 @@ public:
 	TextWithEntities getCaption() const override {
 		return _caption.toTextWithEntities();
 	}
+	void hideSpoilers() override;
 	bool needsBubble() const override;
 	bool unwrapped() const override;
 	bool customInfoLayout() const override {
@@ -206,6 +208,7 @@ private:
 	const not_null<DocumentData*> _data;
 	Ui::Text::String _caption;
 	std::unique_ptr<Streamed> _streamed;
+	const std::unique_ptr<MediaSpoiler> _spoiler;
 	mutable std::unique_ptr<TranscribeButton> _transcribe;
 	mutable std::shared_ptr<Data::DocumentMedia> _dataMedia;
 	mutable std::unique_ptr<Image> _videoThumbnailFrame;

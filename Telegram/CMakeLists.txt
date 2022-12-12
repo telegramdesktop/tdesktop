@@ -667,6 +667,8 @@ PRIVATE
     history/view/media/history_view_media_common.h
     history/view/media/history_view_media_grouped.cpp
     history/view/media/history_view_media_grouped.h
+    history/view/media/history_view_media_spoiler.cpp
+    history/view/media/history_view_media_spoiler.h
     history/view/media/history_view_media_unwrapped.cpp
     history/view/media/history_view_media_unwrapped.h
     history/view/media/history_view_photo.cpp

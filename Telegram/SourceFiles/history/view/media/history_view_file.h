@@ -15,7 +15,7 @@ class FileClickHandler;
 
 namespace HistoryView {
 
-class File : public Media, public base::has_weak_ptr {
+class File : public Media {
 public:
 	File(
 		not_null<Element*> parent,

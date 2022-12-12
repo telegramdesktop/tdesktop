@@ -530,9 +530,11 @@ ItemPreview Media::toGroupPreview(
 
 MediaPhoto::MediaPhoto(
 	not_null<HistoryItem*> parent,
-	not_null<PhotoData*> photo)
+	not_null<PhotoData*> photo,
+	bool spoiler)
 : Media(parent)
-, _photo(photo) {
+, _photo(photo)
+, _spoiler(spoiler) {
 	parent->history()->owner().registerPhotoItem(_photo, parent);
 }
 
@@ -556,7 +558,7 @@ MediaPhoto::~MediaPhoto() {
 std::unique_ptr<Media> MediaPhoto::clone(not_null<HistoryItem*> parent) {
 	return _chat
 		? std::make_unique<MediaPhoto>(parent, _chat, _photo)
-		: std::make_unique<MediaPhoto>(parent, _photo);
+		: std::make_unique<MediaPhoto>(parent, _photo, _spoiler);
 }
 
 PhotoData *MediaPhoto::photo() const {
@@ -722,17 +724,20 @@ std::unique_ptr<HistoryView::Media> MediaPhoto::createView(
 	return std::make_unique<HistoryView::Photo>(
 		message,
 		realParent,
-		_photo);
+		_photo,
+		_spoiler);
 }
 
 MediaFile::MediaFile(
 	not_null<HistoryItem*> parent,
 	not_null<DocumentData*> document,
-	bool skipPremiumEffect)
+	bool skipPremiumEffect,
+	bool spoiler)
 : Media(parent)
 , _document(document)
 , _emoji(document->sticker() ? document->sticker()->alt : QString())
-, _skipPremiumEffect(skipPremiumEffect) {
+, _skipPremiumEffect(skipPremiumEffect)
+, _spoiler(spoiler) {
 	parent->history()->owner().registerDocumentItem(_document, parent);
 
 	if (!_emoji.isEmpty()) {
@@ -755,7 +760,8 @@ std::unique_ptr<Media> MediaFile::clone(not_null<HistoryItem*> parent) {
 	return std::make_unique<MediaFile>(
 		parent,
 		_document,
-		!_document->session().premium());
+		!_document->session().premium(),
+		_spoiler);
 }
 
 DocumentData *MediaFile::document() const {
@@ -1096,13 +1102,15 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 			return std::make_unique<HistoryView::Gif>(
 				message,
 				realParent,
-				_document);
+				_document,
+				_spoiler);
 		}
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
 		return std::make_unique<HistoryView::Gif>(
 			message,
 			realParent,
-			_document);
+			_document,
+			_spoiler);
 	} else if (_document->isTheme() && _document->hasThumbnail()) {
 		return std::make_unique<HistoryView::ThemeDocument>(
 			message,

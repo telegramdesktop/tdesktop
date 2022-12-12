@@ -431,6 +431,9 @@ void Element::hideSpoilers() {
 	if (_text.hasSpoilers()) {
 		_text.setSpoilerRevealed(false, anim::type::instant);
 	}
+	if (_media) {
+		_media->hideSpoilers();
+	}
 }
 
 void Element::customEmojiRepaint() {

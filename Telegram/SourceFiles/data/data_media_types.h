@@ -165,7 +165,8 @@ class MediaPhoto final : public Media {
 public:
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
-		not_null<PhotoData*> photo);
+		not_null<PhotoData*> photo,
+		bool spoiler);
 	MediaPhoto(
 		not_null<HistoryItem*> parent,
 		not_null<PeerData*> chat,
@@ -200,6 +201,7 @@ public:
 private:
 	not_null<PhotoData*> _photo;
 	PeerData *_chat = nullptr;
+	bool _spoiler = false;
 
 };
 
@@ -208,7 +210,8 @@ public:
 	MediaFile(
 		not_null<HistoryItem*> parent,
 		not_null<DocumentData*> document,
-		bool skipPremiumEffect);
+		bool skipPremiumEffect,
+		bool spoiler);
 	~MediaFile();
 
 	std::unique_ptr<Media> clone(not_null<HistoryItem*> parent) override;
@@ -242,6 +245,7 @@ private:
 	not_null<DocumentData*> _document;
 	QString _emoji;
 	bool _skipPremiumEffect = false;
+	bool _spoiler = false;
 
 };
 

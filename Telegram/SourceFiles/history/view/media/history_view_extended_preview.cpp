@@ -54,7 +54,7 @@ ExtendedPreview::ExtendedPreview(
 , _caption(st::minPhotoSize - st::msgPadding.left() - st::msgPadding.right()) {
 	const auto item = parent->data();
 	_caption = createCaption(item);
-	_link = MakeInvoiceLink(item);
+	_spoiler.link = MakeInvoiceLink(item);
 	resolveButtonText();
 }
 
@@ -97,15 +97,15 @@ void ExtendedPreview::ensureThumbnailRead() const {
 }
 
 bool ExtendedPreview::hasHeavyPart() const {
-	return _animation || !_inlineThumbnail.isNull();
+	return _spoiler.animation || !_inlineThumbnail.isNull();
 }
 
 void ExtendedPreview::unloadHeavyPart() {
 	_inlineThumbnail
-		= _imageCache
-		= _cornerCache
+		= _spoiler.background
+		= _spoiler.cornerCache
 		= _buttonBackground = QImage();
-	_animation = nullptr;
+	_spoiler.animation = nullptr;
 	_caption.unloadPersistentAnimation();
 }
 
@@ -217,8 +217,8 @@ void ExtendedPreview::draw(Painter &p, const PaintContext &context) const {
 		fillImageShadow(p, rthumb, *rounding, context);
 	}
 	validateImageCache(rthumb.size(), rounding);
-	p.drawImage(rthumb.topLeft(), _imageCache);
-	fillSpoilerMess(p, rthumb, rounding, context);
+	p.drawImage(rthumb.topLeft(), _spoiler.background);
+	fillImageSpoiler(p, &_spoiler, rthumb, context);
 	paintButton(p, rthumb, context);
 	if (context.selected()) {
 		fillImageOverlay(p, rthumb, rounding, context);
@@ -263,41 +263,19 @@ void ExtendedPreview::validateImageCache(
 		QSize outer,
 		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto ratio = style::DevicePixelRatio();
-	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRounding == rounding) {
+	if (_spoiler.background.size() == (outer * ratio)
+		&& _spoiler.backgroundRounding == rounding) {
 		return;
 	}
-	_imageCache = Images::Round(
+	_spoiler.background = Images::Round(
 		prepareImageCache(outer),
 		MediaRoundingMask(rounding));
-	_imageCacheRounding = rounding;
+	_spoiler.backgroundRounding = rounding;
 }
 
 QImage ExtendedPreview::prepareImageCache(QSize outer) const {
 	ensureThumbnailRead();
 	return PrepareWithBlurredBackground(outer, {}, {}, _inlineThumbnail);
-}
-
-void ExtendedPreview::fillSpoilerMess(
-		QPainter &p,
-		QRect rect,
-		std::optional<Ui::BubbleRounding> rounding,
-		const PaintContext &context) const {
-	if (!_animation) {
-		_animation = std::make_unique<Ui::SpoilerAnimation>([=] {
-			_parent->customEmojiRepaint();
-		});
-		history()->owner().registerHeavyViewPart(_parent);
-	}
-	_parent->clearCustomEmojiRepaint();
-	const auto &spoiler = Ui::DefaultImageSpoiler();
-	const auto index = _animation->index(context.now, context.paused);
-	Ui::FillSpoilerRect(
-		p,
-		rect,
-		MediaRoundingMask(rounding),
-		spoiler.frame(index),
-		_cornerCache);
 }
 
 void ExtendedPreview::paintButton(
@@ -318,13 +296,14 @@ void ExtendedPreview::paintButton(
 	const auto size = QSize(width, height);
 	if (_buttonBackground.size() != size * ratio
 		|| _buttonBackgroundOverlay != overlay) {
-		if (_imageCache.width() < width * ratio
-			|| _imageCache.height() < height * ratio) {
+		auto &background = _spoiler.background;
+		if (background.width() < width * ratio
+			|| background.height() < height * ratio) {
 			return;
 		}
-		_buttonBackground = _imageCache.copy(QRect(
-			(_imageCache.width() - width * ratio) / 2,
-			(_imageCache.height() - height * ratio) / 2,
+		_buttonBackground = background.copy(QRect(
+			(background.width() - width * ratio) / 2,
+			(background.height() - height * ratio) / 2,
 			width * ratio,
 			height * ratio));
 		_buttonBackground.setDevicePixelRatio(ratio);
@@ -374,7 +353,7 @@ TextState ExtendedPreview::textState(QPoint point, StateRequest request) const {
 		painth -= st::mediaCaptionSkip;
 	}
 	if (QRect(paintx, painty, paintw, painth).contains(point)) {
-		result.link = _link;
+		result.link = _spoiler.link;
 	}
 	if (_caption.isEmpty() && _parent->media() == this) {
 		auto fullRight = paintx + paintw;
@@ -402,11 +381,11 @@ TextState ExtendedPreview::textState(QPoint point, StateRequest request) const {
 }
 
 bool ExtendedPreview::toggleSelectionByHandlerClick(const ClickHandlerPtr &p) const {
-	return p == _link;
+	return p == _spoiler.link;
 }
 
 bool ExtendedPreview::dragItemByHandler(const ClickHandlerPtr &p) const {
-	return p == _link;
+	return p == _spoiler.link;
 }
 
 bool ExtendedPreview::needInfoDisplay() const {
@@ -418,6 +397,10 @@ bool ExtendedPreview::needInfoDisplay() const {
 
 TextForMimeData ExtendedPreview::selectedText(TextSelection selection) const {
 	return _caption.toTextForMimeData(selection);
+}
+
+void ExtendedPreview::hideSpoilers() {
+	_caption.setSpoilerRevealed(false, anim::type::instant);
 }
 
 bool ExtendedPreview::needsBubble() const {
