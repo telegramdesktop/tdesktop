@@ -474,7 +474,15 @@ void ChooseLanguageBox(
 	box->setFocusCallback([=] { multiSelect->setInnerFocus(); });
 
 	const auto container = box->verticalLayout();
-	const auto langs = Languages();
+	const auto langs = [&] {
+		auto langs = Languages();
+		const auto current = QLocale(
+			Lang::LanguageIdOrDefault(Lang::Id())).language();
+		if (const auto it = ranges::find(langs, current); it != end(langs)) {
+			base::reorder(langs, std::distance(begin(langs), it), 0);
+		}
+		return langs;
+	}();
 	auto rows = std::vector<not_null<Ui::SlideWrap<Row>*>>();
 	rows.reserve(langs.size());
 	for (const auto &lang : langs) {
