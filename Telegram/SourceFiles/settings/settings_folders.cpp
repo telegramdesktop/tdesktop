@@ -538,7 +538,7 @@ void FilterRowButton::paintEvent(QPaintEvent *e) {
 			const auto id = row.filter.id();
 			const auto removed = row.removed;
 			const auto i = ranges::find(list, id, &Data::ChatFilter::id);
-			if (removed && i == end(list)) {
+			if (removed && (i == end(list) || id == FilterId(0))) {
 				continue;
 			} else if (!removed && i != end(list) && *i == row.filter) {
 				order.push_back(id);
