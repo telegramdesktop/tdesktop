@@ -183,6 +183,9 @@ private:
 		bool isEllipse,
 		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareThumbCache(QSize outer) const;
+	void validateSpoilerImageCache(
+		QSize outer,
+		std::optional<Ui::BubbleRounding> rounding) const;
 
 	void validateGroupedCache(
 		const QRect &geometry,
