@@ -441,13 +441,17 @@ void SendConfirmedFile(
 
 	const auto media = MTPMessageMedia([&] {
 		if (file->type == SendMediaType::Photo) {
+			using Flag = MTPDmessageMediaPhoto::Flag;
 			return MTP_messageMediaPhoto(
-				MTP_flags(MTPDmessageMediaPhoto::Flag::f_photo),
+				MTP_flags(Flag::f_photo
+					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->photo,
 				MTPint());
 		} else if (file->type == SendMediaType::File) {
+			using Flag = MTPDmessageMediaDocument::Flag;
 			return MTP_messageMediaDocument(
-				MTP_flags(MTPDmessageMediaDocument::Flag::f_document),
+				MTP_flags(Flag::f_document
+					| (file->spoiler ? Flag::f_spoiler : Flag())),
 				file->document,
 				MTPint());
 		} else if (file->type == SendMediaType::Audio) {

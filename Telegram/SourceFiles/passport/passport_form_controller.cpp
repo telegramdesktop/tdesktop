@@ -1588,6 +1588,7 @@ void FormController::uploadEncryptedFile(
 		file.uploadData->fileId,
 		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId(), MsgId()),
 		TextWithTags(),
+		false,
 		std::shared_ptr<SendingAlbum>(nullptr));
 	prepared->type = SendMediaType::Secure;
 	prepared->content = QByteArray::fromRawData(

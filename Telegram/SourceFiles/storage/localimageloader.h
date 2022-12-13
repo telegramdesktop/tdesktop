@@ -224,6 +224,7 @@ struct FileLoadResult {
 		uint64 id,
 		const FileLoadTo &to,
 		const TextWithTags &caption,
+		bool spoiler,
 		std::shared_ptr<SendingAlbum> album);
 
 	TaskId taskId;
@@ -256,6 +257,7 @@ struct FileLoadResult {
 
 	PreparedPhotoThumbs photoThumbs;
 	TextWithTags caption;
+	bool spoiler = false;
 
 	std::vector<MTPInputDocument> attachedStickers;
 
@@ -285,6 +287,7 @@ public:
 		SendMediaType type,
 		const FileLoadTo &to,
 		const TextWithTags &caption,
+		bool spoiler,
 		std::shared_ptr<SendingAlbum> album = nullptr);
 	FileLoadTask(
 		not_null<Main::Session*> session,
@@ -343,6 +346,7 @@ private:
 	VoiceWaveform _waveform;
 	SendMediaType _type;
 	TextWithTags _caption;
+	bool _spoiler = false;
 
 	std::shared_ptr<FileLoadResult> _result;
 

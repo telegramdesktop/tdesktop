@@ -446,6 +446,10 @@ QString Media::errorTextForForward(not_null<PeerData*> peer) const {
 	return QString();
 }
 
+bool Media::hasSpoiler() const {
+	return false;
+}
+
 bool Media::consumeMessageText(const TextWithEntities &text) {
 	return false;
 }
@@ -661,6 +665,10 @@ QString MediaPhoto::errorTextForForward(not_null<PeerData*> peer) const {
 		peer,
 		ChatRestriction::SendMedia
 	).value_or(QString());
+}
+
+bool MediaPhoto::hasSpoiler() const {
+	return _spoiler;
 }
 
 bool MediaPhoto::updateInlineResultMedia(const MTPMessageMedia &media) {
@@ -1035,6 +1043,10 @@ QString MediaFile::errorTextForForward(not_null<PeerData*> peer) const {
 		}
 	}
 	return QString();
+}
+
+bool MediaFile::hasSpoiler() const {
+	return _spoiler;
 }
 
 bool MediaFile::updateInlineResultMedia(const MTPMessageMedia &media) {

@@ -129,6 +129,7 @@ public:
 	virtual bool dropForwardedInfo() const;
 	virtual bool forceForwardedInfo() const;
 	virtual QString errorTextForForward(not_null<PeerData*> peer) const;
+	[[nodiscard]] virtual bool hasSpoiler() const;
 
 	[[nodiscard]] virtual bool consumeMessageText(
 		const TextWithEntities &text);
@@ -190,6 +191,7 @@ public:
 	bool allowsEditCaption() const override;
 	bool allowsEditMedia() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
+	bool hasSpoiler() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
@@ -233,6 +235,7 @@ public:
 	bool forwardedBecomesUnread() const override;
 	bool dropForwardedInfo() const override;
 	QString errorTextForForward(not_null<PeerData*> peer) const override;
+	bool hasSpoiler() const override;
 
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;

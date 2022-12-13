@@ -215,19 +215,35 @@ rpl::producer<int> SendFilesBox::Block::itemModifyRequest() const {
 
 void SendFilesBox::Block::setSendWay(Ui::SendFilesWay way) {
 	if (!_isAlbum) {
+		if (_isSingleMedia) {
+			const auto media = static_cast<Ui::SingleMediaPreview*>(
+				_preview.get());
+			media->setSendWay(way);
+		}
 		return;
 	}
-	applyAlbumOrder();
+	applyChanges();
 	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
 	album->setSendWay(way);
 }
 
-void SendFilesBox::Block::applyAlbumOrder() {
+void SendFilesBox::Block::applyChanges() {
 	if (!_isAlbum) {
+		if (_isSingleMedia) {
+			const auto media = static_cast<Ui::SingleMediaPreview*>(
+				_preview.get());
+			(*_items)[_from].spoiler = media->hasSpoiler();
+		}
 		return;
 	}
 	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
 	const auto order = album->takeOrder();
+	const auto spoilered = album->collectSpoileredIndices();
+	const auto guard = gsl::finally([&] {
+		for (auto i = 0, count = int(order.size()); i != count; ++i) {
+			(*_items)[_from + i].spoiler = spoilered.contains(i);
+		}
+	});
 	const auto isIdentity = [&] {
 		for (auto i = 0, count = int(order.size()); i != count; ++i) {
 			if (order[i] != i) {
@@ -385,19 +401,25 @@ void SendFilesBox::setupDragArea() {
 	areas.photo->setDroppedCallback(droppedCallback(true));
 }
 
-void SendFilesBox::refreshAllAfterChanges(int fromItem) {
+void SendFilesBox::refreshAllAfterChanges(int fromItem, Fn<void()> perform) {
 	auto fromBlock = 0;
 	for (auto count = int(_blocks.size()); fromBlock != count; ++fromBlock) {
 		if (_blocks[fromBlock].tillIndex() >= fromItem) {
 			break;
 		}
 	}
+	for (auto index = fromBlock; index < _blocks.size(); ++index) {
+		_blocks[index].applyChanges();
+	}
+	if (perform) {
+		perform();
+	}
+	generatePreviewFrom(fromBlock);
 	{
 		auto sendWay = _sendWay.current();
 		sendWay.setHasCompressedStickers(_list.hasSticker());
 		_sendWay = sendWay;
 	}
-	generatePreviewFrom(fromBlock);
 	_inner->resizeToWidth(st::boxWideWidth);
 	refreshControls();
 	captionResized();
@@ -489,11 +511,7 @@ void SendFilesBox::generatePreviewFrom(int fromBlock) {
 
 	using Type = Ui::PreparedFile::Type;
 
-	const auto eraseFrom = _blocks.begin() + fromBlock;
-	for (auto i = eraseFrom; i != _blocks.end(); ++i) {
-		i->applyAlbumOrder();
-	}
-	_blocks.erase(eraseFrom, _blocks.end());
+	_blocks.erase(_blocks.begin() + fromBlock, _blocks.end());
 
 	const auto fromItem = _blocks.empty() ? 0 : _blocks.back().tillIndex();
 	Assert(fromItem <= _list.files.size());
@@ -559,8 +577,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 				closeBox();
 				return;
 			}
-			_list.files.erase(_list.files.begin() + index);
-			refreshAllAfterChanges(from);
+			refreshAllAfterChanges(index, [&] {
+				_list.files.erase(_list.files.begin() + index);
+			});
 		});
 	}, widget->lifetime());
 
@@ -571,8 +590,9 @@ void SendFilesBox::pushBlock(int from, int till) {
 			if (list.files.empty()) {
 				return;
 			}
-			_list.files[index] = std::move(list.files.front());
-			refreshAllAfterChanges(from);
+			refreshAllAfterChanges(from, [&] {
+				_list.files[index] = std::move(list.files.front());
+			});
 		};
 		const auto checkResult = [=](const Ui::PreparedList &list) {
 			if (_sendLimit != SendLimit::One) {
@@ -1076,7 +1096,7 @@ void SendFilesBox::send(
 	}
 
 	for (auto &block : _blocks) {
-		block.applyAlbumOrder();
+		block.applyChanges();
 	}
 
 	Storage::ApplyModifications(_list);

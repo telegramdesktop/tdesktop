@@ -32,6 +32,7 @@ public:
 		QImage preview,
 		bool animated,
 		bool sticker,
+		bool spoiler,
 		const QString &animatedPreviewPath,
 		AttachControls::Type type);
 

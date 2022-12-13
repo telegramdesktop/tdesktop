@@ -106,7 +106,7 @@ private:
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 
 		void setSendWay(Ui::SendFilesWay way);
-		void applyAlbumOrder();
+		void applyChanges();
 
 	private:
 		base::unique_qptr<Ui::RpWidget> _preview;
@@ -152,7 +152,7 @@ private:
 	void pushBlock(int from, int till);
 
 	void openDialogToAddFileToAlbum();
-	void refreshAllAfterChanges(int fromItem);
+	void refreshAllAfterChanges(int fromItem, Fn<void()> perform = nullptr);
 
 	void enqueueNextPrepare();
 	void addPreparedAsyncFile(Ui::PreparedFile &&file);

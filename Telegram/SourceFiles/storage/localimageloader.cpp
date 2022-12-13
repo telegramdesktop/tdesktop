@@ -488,12 +488,14 @@ FileLoadResult::FileLoadResult(
 	uint64 id,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
+	bool spoiler,
 	std::shared_ptr<SendingAlbum> album)
 : taskId(taskId)
 , id(id)
 , to(to)
 , album(std::move(album))
-, caption(caption) {
+, caption(caption)
+, spoiler(spoiler) {
 }
 
 void FileLoadResult::setFileData(const QByteArray &filedata) {
@@ -530,6 +532,7 @@ FileLoadTask::FileLoadTask(
 	SendMediaType type,
 	const FileLoadTo &to,
 	const TextWithTags &caption,
+	bool spoiler,
 	std::shared_ptr<SendingAlbum> album)
 : _id(base::RandomValue<uint64>())
 , _session(session)
@@ -540,7 +543,8 @@ FileLoadTask::FileLoadTask(
 , _content(content)
 , _information(std::move(information))
 , _type(type)
-, _caption(caption) {
+, _caption(caption)
+, _spoiler(spoiler) {
 	Expects(to.options.scheduled
 		|| !to.replaceMediaOf
 		|| IsServerMsgId(to.replaceMediaOf));
@@ -736,6 +740,7 @@ void FileLoadTask::process(Args &&args) {
 		_id,
 		_to,
 		_caption,
+		_spoiler,
 		_album);
 
 	QString filename, filemime;

@@ -2327,6 +2327,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_animated_reactions_many#one" = "Reactions contain emoji from **{count} pack**.";
 "lng_context_animated_reactions_many#other" = "Reactions contain emoji from **{count} packs**.";
 
+"lng_context_spoiler_effect" = "Spoiler Effect";
+"lng_context_disable_spoiler" = "Disable Spoiler Effect";
+
 "lng_downloads_section" = "Downloads";
 "lng_downloads_view_in_chat" = "View in chat";
 "lng_downloads_view_in_section" = "View in downloads";

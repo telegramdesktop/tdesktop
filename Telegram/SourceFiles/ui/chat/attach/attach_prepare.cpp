@@ -295,4 +295,28 @@ QPixmap PrepareSongCoverForThumbnail(QImage image, int size) {
 		}));
 }
 
+QPixmap BlurredPreviewFromPixmap(QPixmap pixmap, RectParts corners) {
+	const auto image = pixmap.toImage();
+	const auto skip = st::roundRadiusLarge * image.devicePixelRatio();
+	auto small = image.copy(
+		skip,
+		skip,
+		image.width() - 2 * skip,
+		image.height() - 2 * skip
+	).scaled(
+		40,
+		40,
+		Qt::KeepAspectRatioByExpanding,
+		Qt::SmoothTransformation);
+
+	using namespace Images;
+	return PixmapFromImage(Prepare(
+		Blur(std::move(small), true),
+		image.size() / style::DevicePixelRatio(),
+		{
+			.options = RoundOptions(ImageRoundRadius::Large, corners),
+			.outer = image.size() / style::DevicePixelRatio(),
+		}));
+}
+
 } // namespace Ui

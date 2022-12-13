@@ -834,12 +834,27 @@ void Gif::validateSpoilerImageCache(
 		&& _spoiler->backgroundRounding == rounding) {
 		return;
 	}
+	const auto normal = _dataMedia->thumbnail();
+	auto container = std::optional<Image>();
+	const auto downscale = [&](Image *image) {
+		if (!image || (image->width() <= 40 && image->height() <= 40)) {
+			return image;
+		}
+		container.emplace(image->original().scaled(
+			{ 40, 40 },
+			Qt::KeepAspectRatio,
+			Qt::SmoothTransformation));
+		return &*container;
+	};
+	const auto videothumb = _videoThumbnailFrame.get();
+	const auto embedded = _dataMedia->thumbnailInline();
+	const auto blurred = embedded ? embedded : downscale(normal);
 	_spoiler->background = Images::Round(
 		PrepareWithBlurredBackground(
 			outer,
 			::Media::Streaming::ExpandDecision(),
 			nullptr,
-			_dataMedia->thumbnailInline()),
+			blurred),
 		MediaRoundingMask(rounding));
 	_spoiler->backgroundRounding = rounding;
 }

@@ -3365,7 +3365,8 @@ void ApiWrap::editMedia(
 		std::move(file.information),
 		type,
 		to,
-		caption));
+		caption,
+		file.spoiler));
 }
 
 void ApiWrap::sendFiles(
@@ -3406,6 +3407,7 @@ void ApiWrap::sendFiles(
 			uploadWithType,
 			to,
 			caption,
+			file.spoiler,
 			album));
 		caption = TextWithTags();
 	}
@@ -3425,14 +3427,17 @@ void ApiWrap::sendFile(
 		const SendAction &action) {
 	const auto to = fileLoadTaskOptions(action);
 	auto caption = TextWithTags();
+	const auto spoiler = false;
+	const auto information = nullptr;
 	_fileLoader->addTask(std::make_unique<FileLoadTask>(
 		&session(),
 		QString(),
 		fileContent,
-		nullptr,
+		information,
 		type,
 		to,
-		caption));
+		caption,
+		spoiler));
 }
 
 void ApiWrap::sendUploadedPhoto(
@@ -3440,7 +3445,7 @@ void ApiWrap::sendUploadedPhoto(
 		Api::RemoteFileInfo info,
 		Api::SendOptions options) {
 	if (const auto item = _session->data().message(localId)) {
-		const auto media = Api::PrepareUploadedPhoto(std::move(info));
+		const auto media = Api::PrepareUploadedPhoto(item, std::move(info));
 		if (const auto groupId = item->groupId()) {
 			uploadAlbumMedia(item, groupId, media);
 		} else {
