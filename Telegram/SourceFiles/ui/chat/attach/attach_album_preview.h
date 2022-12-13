@@ -29,6 +29,7 @@ public:
 	void setSendWay(SendFilesWay way);
 
 	[[nodiscard]] base::flat_set<int> collectSpoileredIndices();
+	[[nodiscard]] bool canHaveSpoiler(int index) const;
 	[[nodiscard]] std::vector<int> takeOrder();
 
 	[[nodiscard]] rpl::producer<int> thumbDeleted() const {

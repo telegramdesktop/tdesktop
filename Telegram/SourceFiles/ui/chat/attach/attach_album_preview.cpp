@@ -77,6 +77,10 @@ base::flat_set<int> AlbumPreview::collectSpoileredIndices() {
 	return result;
 }
 
+bool AlbumPreview::canHaveSpoiler(int index) const {
+	return _sendWay.sendImagesAsPhotos();
+}
+
 std::vector<int> AlbumPreview::takeOrder() {
 	//Expects(_thumbs.size() == _order.size());
 	//Expects(_itemsShownDimensions.size() == _order.size());

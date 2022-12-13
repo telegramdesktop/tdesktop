@@ -37,6 +37,7 @@ public:
 		AttachControls::Type type);
 
 protected:
+	bool supportsSpoilers() const override;
 	bool drawBackground() const override;
 	bool tryPaintAnimation(QPainter &p) override;
 	bool isAnimatedPreviewReady() const override;

@@ -232,16 +232,20 @@ void SendFilesBox::Block::applyChanges() {
 		if (_isSingleMedia) {
 			const auto media = static_cast<Ui::SingleMediaPreview*>(
 				_preview.get());
-			(*_items)[_from].spoiler = media->hasSpoiler();
+			if (media->canHaveSpoiler()) {
+				(*_items)[_from].spoiler = media->hasSpoiler();
+			}
 		}
 		return;
 	}
 	const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
 	const auto order = album->takeOrder();
-	const auto spoilered = album->collectSpoileredIndices();
 	const auto guard = gsl::finally([&] {
+		const auto spoilered = album->collectSpoileredIndices();
 		for (auto i = 0, count = int(order.size()); i != count; ++i) {
-			(*_items)[_from + i].spoiler = spoilered.contains(i);
+			if (album->canHaveSpoiler(i)) {
+				(*_items)[_from + i].spoiler = spoilered.contains(i);
+			}
 		}
 	});
 	const auto isIdentity = [&] {
@@ -1095,6 +1099,9 @@ void SendFilesBox::send(
 		saveSendWaySettings();
 	}
 
+	for (auto &item : _list.files) {
+		item.spoiler = false;
+	}
 	for (auto &block : _blocks) {
 		block.applyChanges();
 	}

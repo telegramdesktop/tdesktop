@@ -64,11 +64,13 @@ private:
 	void setupDragArea();
 
 	bool validateLength(const QString &text) const;
+	void applyChanges();
 	void save();
 
 	bool fileFromClipboard(not_null<const QMimeData*> data);
 
-	int errorTopSkip() const;
+	[[nodiscard]] int errorTopSkip() const;
+	[[nodiscard]] bool hasSpoiler() const;
 
 	bool setPreparedList(Ui::PreparedList &&list);
 
@@ -83,6 +85,7 @@ private:
 	const base::unique_qptr<Ui::EmojiButton> _emojiToggle;
 
 	base::unique_qptr<Ui::AbstractSinglePreview> _content;
+	Fn<bool()> _previewHasSpoiler;
 	base::unique_qptr<ChatHelpers::TabbedPanel> _emojiPanel;
 	base::unique_qptr<QObject> _emojiFilter;
 

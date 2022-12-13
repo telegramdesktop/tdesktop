@@ -51,10 +51,12 @@ rpl::producer<> AbstractSingleMediaPreview::modifyRequests() const {
 }
 
 void AbstractSingleMediaPreview::setSendWay(SendFilesWay way) {
-	if (_sendWay != way) {
-		_sendWay = way;
-	}
+	_sendWay = way;
 	update();
+}
+
+SendFilesWay AbstractSingleMediaPreview::sendWay() const {
+	return _sendWay;
 }
 
 void AbstractSingleMediaPreview::setSpoiler(bool spoiler) {
@@ -66,6 +68,10 @@ void AbstractSingleMediaPreview::setSpoiler(bool spoiler) {
 
 bool AbstractSingleMediaPreview::hasSpoiler() const {
 	return _spoiler != nullptr;
+}
+
+bool AbstractSingleMediaPreview::canHaveSpoiler() const {
+	return supportsSpoilers();
 }
 
 void AbstractSingleMediaPreview::preparePreview(QImage preview) {
@@ -149,7 +155,7 @@ void AbstractSingleMediaPreview::resizeEvent(QResizeEvent *e) {
 void AbstractSingleMediaPreview::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
-	auto takenSpoiler = (drawBackground() || _sendWay.sendImagesAsPhotos())
+	auto takenSpoiler = supportsSpoilers()
 		? nullptr
 		: base::take(_spoiler);
 	const auto guard = gsl::finally([&] {
@@ -251,7 +257,7 @@ void AbstractSingleMediaPreview::applyCursor(style::cursor cursor) {
 }
 
 void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
-	if (!_sendWay.sendImagesAsPhotos()) {
+	if (!_sendWay.sendImagesAsPhotos() || !supportsSpoilers()) {
 		return;
 	}
 	_menu = base::make_unique_q<Ui::PopupMenu>(

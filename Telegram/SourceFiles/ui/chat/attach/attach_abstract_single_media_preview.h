@@ -22,6 +22,7 @@ public:
 	~AbstractSingleMediaPreview();
 
 	void setSendWay(SendFilesWay way);
+	[[nodiscard]] SendFilesWay sendWay() const;
 
 	[[nodiscard]] rpl::producer<> deleteRequests() const override;
 	[[nodiscard]] rpl::producer<> editRequests() const override;
@@ -31,8 +32,10 @@ public:
 
 	void setSpoiler(bool spoiler);
 	[[nodiscard]] bool hasSpoiler() const;
+	[[nodiscard]] bool canHaveSpoiler() const;
 
 protected:
+	virtual bool supportsSpoilers() const = 0;
 	virtual bool drawBackground() const = 0;
 	virtual bool tryPaintAnimation(QPainter &p) = 0;
 	virtual bool isAnimatedPreviewReady() const = 0;

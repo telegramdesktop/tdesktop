@@ -72,6 +72,10 @@ SingleMediaPreview::SingleMediaPreview(
 	setSpoiler(spoiler);
 }
 
+bool SingleMediaPreview::supportsSpoilers() const {
+	return !_sticker || sendWay().sendImagesAsPhotos();
+}
+
 bool SingleMediaPreview::drawBackground() const {
 	return !_sticker;
 }
