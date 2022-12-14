@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/reactions/history_view_reactions.h"
 
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -604,7 +604,7 @@ void InlineList::continueAnimations(base::flat_map<
 
 InlineListData InlineListDataFromMessage(not_null<Message*> message) {
 	using Flag = InlineListData::Flag;
-	const auto item = message->message();
+	const auto item = message->data();
 	auto result = InlineListData();
 	result.reactions = item->reactions();
 	if (const auto user = item->history()->peer->asUser()) {

@@ -16,7 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_origin.h"
 #include "countries/countries_instance.h"
 #include "history/history_item.h"
-#include "history/history_service.h" // HistoryServicePayment.
+#include "history/history_item_components.h"
 #include "stripe/stripe_api_client.h"
 #include "stripe/stripe_error.h"
 #include "stripe/stripe_token.h"

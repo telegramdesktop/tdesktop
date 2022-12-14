@@ -34,6 +34,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_media_player.h"
 #include "styles/style_media_view.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
 

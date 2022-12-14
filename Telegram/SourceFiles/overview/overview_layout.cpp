@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history.h"
 #include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "base/unixtime.h"
@@ -644,7 +645,7 @@ Voice::Voice(
 			lt_duration,
 			{ .text = Ui::FormatDurationText(duration()) },
 			Ui::Text::WithEntities));
-	_details.setLink(1, goToMessageClickHandler(parent));
+	_details.setLink(1, JumpToMessageClickHandler(parent));
 }
 
 void Voice::initDimensions() {
@@ -944,7 +945,9 @@ Document::Document(
 	const style::OverviewFileLayout &st)
 : RadialProgressItem(delegate, parent)
 , _data(fields.document)
-, _msgl(parent->isHistoryEntry() ? goToMessageClickHandler(parent) : nullptr)
+, _msgl(parent->isHistoryEntry()
+	? JumpToMessageClickHandler(parent)
+	: nullptr)
 , _namel(std::make_shared<DocumentOpenClickHandler>(
 	_data,
 	crl::guard(this, [=](FullMsgId id) {

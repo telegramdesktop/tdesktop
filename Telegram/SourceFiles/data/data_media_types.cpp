@@ -8,8 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_media_types.h"
 
 #include "history/history.h"
-#include "history/history_item.h"
-#include "history/history_message.h" // CreateMedia.
+#include "history/history_item.h" // CreateMedia.
 #include "history/history_location_manager.h"
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_item_preview.h"
@@ -235,7 +234,7 @@ template <typename MediaType>
 
 bool UpdateExtendedMedia(
 		Invoice &invoice,
-		not_null<HistoryMessage*> item,
+		not_null<HistoryItem*> item,
 		const MTPMessageExtendedMedia &media) {
 	return media.match([&](const MTPDmessageExtendedMediaPreview &data) {
 		if (invoice.extendedMedia) {
@@ -269,7 +268,7 @@ bool UpdateExtendedMedia(
 		}
 		return changed;
 	}, [&](const MTPDmessageExtendedMedia &data) {
-		invoice.extendedMedia = HistoryMessage::CreateMedia(
+		invoice.extendedMedia = HistoryItem::CreateMedia(
 			item,
 			data.vmedia());
 		return true;
@@ -291,7 +290,7 @@ TextForMimeData WithCaptionClipboardText(
 }
 
 Invoice ComputeInvoiceData(
-		not_null<HistoryMessage*> item,
+		not_null<HistoryItem*> item,
 		const MTPDmessageMediaInvoice &data) {
 	auto description = qs(data.vdescription());
 	auto result = Invoice{
@@ -1639,7 +1638,7 @@ bool MediaInvoice::updateSentMedia(const MTPMessageMedia &media) {
 }
 
 bool MediaInvoice::updateExtendedMedia(
-		not_null<HistoryMessage*> item,
+		not_null<HistoryItem*> item,
 		const MTPMessageExtendedMedia &media) {
 	Expects(item == parent());
 

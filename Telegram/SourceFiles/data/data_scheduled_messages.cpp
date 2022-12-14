@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "history/history.h"
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item_helpers.h"
 #include "apiwrap.h"
 
 namespace Data {

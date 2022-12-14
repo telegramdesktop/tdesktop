@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_download_manager.h"
 #include "data/data_forum_topic.h"
 #include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_service_message.h"
@@ -892,7 +893,7 @@ void ListWidget::showContextMenu(
 			tr::lng_context_to_msg(tr::now),
 			[=] {
 				if (const auto item = MessageByGlobalId(globalId)) {
-					goToMessageClickHandler(item)->onClick({});
+					JumpToMessageClickHandler(item)->onClick({});
 				}
 			},
 			&st::menuIconShowInChat);

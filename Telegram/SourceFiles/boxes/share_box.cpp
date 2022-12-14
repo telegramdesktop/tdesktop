@@ -30,7 +30,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "menu/menu_check_item.h"
 #include "menu/menu_send.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_element.h" // HistoryView::Context.
 #include "history/view/history_view_context_menu.h" // CopyPostLink.
 #include "history/view/history_view_schedule_box.h"

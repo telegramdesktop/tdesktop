@@ -11,7 +11,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/crash_reports.h"
 #include "core/click_handler_types.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
 #include "history/view/media/history_view_web_page.h"
@@ -144,22 +145,6 @@ public:
 
 	HistoryView::Context elementContext() override {
 		return HistoryView::Context::History;
-	}
-	std::unique_ptr<Element> elementCreate(
-			not_null<HistoryMessage*> message,
-			Element *replacing = nullptr) override {
-		return std::make_unique<HistoryView::Message>(
-			this,
-			message,
-			replacing);
-	}
-	std::unique_ptr<HistoryView::Element> elementCreate(
-			not_null<HistoryService*> message,
-			Element *replacing = nullptr) override {
-		return std::make_unique<HistoryView::Service>(
-			this,
-			message,
-			replacing);
 	}
 	bool elementUnderCursor(
 			not_null<const Element*> view) override {

@@ -19,8 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryBlock;
 class HistoryItem;
-class HistoryMessage;
-class HistoryService;
 struct HistoryMessageMarkupData;
 class HistoryMainElementDelegateMixin;
 
@@ -126,22 +124,14 @@ public:
 	void applyGroupAdminChanges(const base::flat_set<UserId> &changes);
 
 	template <typename ...Args>
-	not_null<HistoryMessage*> makeMessage(Args &&...args) {
-		return static_cast<HistoryMessage*>(
+	not_null<HistoryItem*> makeMessage(Args &&...args) {
+		return static_cast<HistoryItem*>(
 			insertItem(
-				std::make_unique<HistoryMessage>(
+				std::make_unique<HistoryItem>(
 					this,
 					std::forward<Args>(args)...)).get());
 	}
 
-	template <typename ...Args>
-	not_null<HistoryService*> makeServiceMessage(Args &&...args) {
-		return static_cast<HistoryService*>(
-			insertItem(
-				std::make_unique<HistoryService>(
-					this,
-					std::forward<Args>(args)...)).get());
-	}
 	void destroyMessage(not_null<HistoryItem*> item);
 	void destroyMessagesByDates(TimeId minDate, TimeId maxDate);
 	void destroyMessagesByTopic(MsgId topicRootId);
@@ -577,7 +567,7 @@ private:
 
 	void createLocalDraftFromCloud(MsgId topicRootId);
 
-	HistoryService *insertJoinedMessage();
+	HistoryItem *insertJoinedMessage();
 	void insertMessageToBlocks(not_null<HistoryItem*> item);
 
 	[[nodiscard]] Dialogs::BadgesState computeBadgesState() const;
@@ -598,7 +588,7 @@ private:
 	int _height = 0;
 	Element *_unreadBarView = nullptr;
 	Element *_firstUnreadView = nullptr;
-	HistoryService *_joinedMessage = nullptr;
+	HistoryItem *_joinedMessage = nullptr;
 	bool _loadedAtTop = false;
 	bool _loadedAtBottom = true;
 

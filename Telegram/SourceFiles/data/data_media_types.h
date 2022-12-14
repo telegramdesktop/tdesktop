@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class Image;
 class History;
 class HistoryItem;
-class HistoryMessage;
 
 namespace base {
 template <typename Enum>
@@ -140,7 +139,7 @@ public:
 	virtual bool updateInlineResultMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateSentMedia(const MTPMessageMedia &media) = 0;
 	virtual bool updateExtendedMedia(
-			not_null<HistoryMessage*> item,
+			not_null<HistoryItem*> item,
 			const MTPMessageExtendedMedia &media) {
 		return false;
 	}
@@ -428,7 +427,7 @@ public:
 	bool updateInlineResultMedia(const MTPMessageMedia &media) override;
 	bool updateSentMedia(const MTPMessageMedia &media) override;
 	bool updateExtendedMedia(
-		not_null<HistoryMessage*> item,
+		not_null<HistoryItem*> item,
 		const MTPMessageExtendedMedia &media) override;
 	std::unique_ptr<HistoryView::Media> createView(
 		not_null<HistoryView::Element*> message,
@@ -541,7 +540,7 @@ private:
 	TextForMimeData &&caption);
 
 [[nodiscard]] Invoice ComputeInvoiceData(
-	not_null<HistoryMessage*> item,
+	not_null<HistoryItem*> item,
 	const MTPDmessageMediaInvoice &data);
 
 [[nodiscard]] Call ComputeCallData(const MTPDmessageActionPhoneCall &call);

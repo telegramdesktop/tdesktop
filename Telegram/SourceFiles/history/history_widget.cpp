@@ -78,7 +78,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/stickers/data_custom_emoji.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_message.h"
+#include "history/history_item_helpers.h" // GetErrorTextForSending.
 #include "history/history_drag_area.h"
 #include "history/history_inner_widget.h"
 #include "history/history_item_components.h"

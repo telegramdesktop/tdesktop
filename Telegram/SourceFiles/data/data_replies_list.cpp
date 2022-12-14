@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/history_service.h"
+#include "history/history_item_helpers.h"
 #include "main/main_session.h"
 #include "data/data_histories.h"
 #include "data/data_session.h"
@@ -30,15 +30,15 @@ constexpr auto kMessagesPerPage = 50;
 constexpr auto kReadRequestTimeout = 3 * crl::time(1000);
 constexpr auto kMaxMessagesToDeleteMyTopic = 10;
 
-[[nodiscard]] HistoryService *GenerateDivider(
+[[nodiscard]] HistoryItem *GenerateDivider(
 		not_null<History*> history,
 		TimeId date,
 		const QString &text) {
-	return history->makeServiceMessage(
+	return history->makeMessage(
 		history->nextNonHistoryEntryId(),
 		MessageFlag::FakeHistoryItem,
 		date,
-		HistoryService::PreparedText{ { .text = text } });
+		PreparedServiceText{ { .text = text } });
 }
 
 [[nodiscard]] bool IsCreating(not_null<History*> history, MsgId rootId) {
@@ -345,7 +345,7 @@ void RepliesList::injectRootDivider(
 			text());
 	} else if (_dividerWithComments != withComments) {
 		_dividerWithComments = withComments;
-		_divider->setServiceText(HistoryService::PreparedText{ { text() } });
+		_divider->updateServiceText(PreparedServiceText{ { text() } });
 	}
 	slice->ids.push_back(_divider->fullId());
 }

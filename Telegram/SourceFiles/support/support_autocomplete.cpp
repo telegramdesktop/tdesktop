@@ -18,7 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "support/support_common.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_service_message.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "lang/lang_keys.h"
 #include "base/unixtime.h"
 #include "base/call_delayed.h"

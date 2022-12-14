@@ -15,7 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "lang/lang_keys.h"
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
@@ -629,7 +629,7 @@ void BottomInfo::continueReactionAnimations(base::flat_map<
 
 BottomInfo::Data BottomInfoDataFromMessage(not_null<Message*> message) {
 	using Flag = BottomInfo::Data::Flag;
-	const auto item = message->message();
+	const auto item = message->data();
 
 	auto result = BottomInfo::Data();
 	result.date = message->dateTime();

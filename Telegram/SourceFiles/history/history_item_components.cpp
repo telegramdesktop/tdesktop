@@ -18,7 +18,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_theme.h"
 #include "ui/painter.h"
 #include "history/history.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
 #include "history/view/history_view_message.h" // FromNameFg.
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
@@ -244,7 +245,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 	text.setMarkedText(st::fwdTextStyle, phrase);
 
 	text.setLink(1, fromChannel
-		? goToMessageClickHandler(originalSender, originalId)
+		? JumpToMessageClickHandler(originalSender, originalId)
 		: originalSender
 		? originalSender->openLink()
 		: HiddenSenderInfo::ForwardClickHandler());
@@ -254,7 +255,7 @@ void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
 }
 
 bool HistoryMessageReply::updateData(
-		not_null<HistoryMessage*> holder,
+		not_null<HistoryItem*> holder,
 		bool force) {
 	const auto guard = gsl::finally([&] { refreshReplyToMedia(); });
 	if (!force) {
@@ -322,13 +323,13 @@ bool HistoryMessageReply::updateData(
 }
 
 void HistoryMessageReply::setReplyToLinkFrom(
-		not_null<HistoryMessage*> holder) {
+		not_null<HistoryItem*> holder) {
 	replyToLnk = replyToMsg
-		? goToMessageClickHandler(replyToMsg.get(), holder->fullId())
+		? JumpToMessageClickHandler(replyToMsg.get(), holder->fullId())
 		: nullptr;
 }
 
-void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
+void HistoryMessageReply::clearData(not_null<HistoryItem*> holder) {
 	replyToVia = nullptr;
 	if (replyToMsg) {
 		holder->history()->owner().unregisterDependentMessage(
@@ -341,7 +342,7 @@ void HistoryMessageReply::clearData(not_null<HistoryMessage*> holder) {
 }
 
 PeerData *HistoryMessageReply::replyToFrom(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (!replyToMsg) {
 		return nullptr;
 	} else if (holder->Has<HistoryMessageForwarded>()) {
@@ -356,7 +357,7 @@ PeerData *HistoryMessageReply::replyToFrom(
 }
 
 QString HistoryMessageReply::replyToFromName(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (!replyToMsg) {
 		return QString();
 	} else if (holder->Has<HistoryMessageForwarded>()) {
@@ -381,7 +382,7 @@ QString HistoryMessageReply::replyToFromName(
 }
 
 bool HistoryMessageReply::isNameUpdated(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (const auto from = replyToFrom(holder)) {
 		if (replyToVersion < from->nameVersion()) {
 			updateName(holder);
@@ -392,7 +393,7 @@ bool HistoryMessageReply::isNameUpdated(
 }
 
 void HistoryMessageReply::updateName(
-		not_null<HistoryMessage*> holder) const {
+		not_null<HistoryItem*> holder) const {
 	if (const auto name = replyToFromName(holder); !name.isEmpty()) {
 		replyToName.setText(st::fwdTextStyle, name, Ui::NameTextOptions());
 		if (const auto from = replyToFrom(holder)) {
@@ -423,7 +424,7 @@ void HistoryMessageReply::resize(int width) const {
 }
 
 void HistoryMessageReply::itemRemoved(
-		HistoryMessage *holder,
+		HistoryItem *holder,
 		HistoryItem *removed) {
 	if (replyToMsg.get() == removed) {
 		clearData(holder);

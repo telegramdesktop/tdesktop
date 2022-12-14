@@ -15,8 +15,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class History;
 class HistoryBlock;
 class HistoryItem;
-class HistoryMessage;
-class HistoryService;
 struct HistoryMessageReply;
 
 namespace Data {
@@ -64,12 +62,6 @@ class Element;
 class ElementDelegate {
 public:
 	virtual Context elementContext() = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) = 0;
-	virtual std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) = 0;
 	virtual bool elementUnderCursor(not_null<const Element*> view) = 0;
 	[[nodiscard]] virtual float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const = 0;
@@ -126,12 +118,6 @@ public:
 		Fn<void()> update);
 	~SimpleElementDelegate();
 
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	[[nodiscard]] float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const override;

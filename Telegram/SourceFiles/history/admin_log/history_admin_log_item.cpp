@@ -9,10 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/admin_log/history_admin_log_inner.h"
 #include "history/view/history_view_element.h"
-#include "history/history_location_manager.h"
-#include "history/history_service.h"
-#include "history/history_message.h"
 #include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_helpers.h"
+#include "history/history_location_manager.h"
 #include "api/api_chat_participants.h"
 #include "api/api_text_entities.h"
 #include "data/data_channel.h"
@@ -773,10 +773,10 @@ void GenerateItems(
 			const TextWithEntities &text,
 			MsgId realId = MsgId(),
 			PhotoData *photo = nullptr) {
-		auto message = HistoryService::PreparedText{ text };
+		auto message = PreparedServiceText{ text };
 		message.links.push_back(fromLink);
 		addPart(
-			history->makeServiceMessage(
+			history->makeMessage(
 				history->nextNonHistoryEntryId(),
 				MessageFlag::AdminLogEntry,
 				date,
@@ -1117,10 +1117,10 @@ void GenerateItems(
 						Ui::LayerOption::CloseOther);
 				}
 			});
-			auto message = HistoryService::PreparedText { text };
+			auto message = PreparedServiceText{ text };
 			message.links.push_back(fromLink);
 			message.links.push_back(setLink);
-			addPart(history->makeServiceMessage(
+			addPart(history->makeMessage(
 				history->nextNonHistoryEntryId(),
 				MessageFlag::AdminLogEntry,
 				date,
@@ -1198,10 +1198,10 @@ void GenerateItems(
 					window->showPeerHistory(now);
 				}
 			});
-			auto message = HistoryService::PreparedText{ text };
+			auto message = PreparedServiceText{ text };
 			message.links.push_back(fromLink);
 			message.links.push_back(chatLink);
-			addPart(history->makeServiceMessage(
+			addPart(history->makeMessage(
 				history->nextNonHistoryEntryId(),
 				MessageFlag::AdminLogEntry,
 				date,
@@ -1294,10 +1294,10 @@ void GenerateItems(
 	const auto addServiceMessageWithLink = [&](
 			const TextWithEntities &text,
 			const ClickHandlerPtr &link) {
-		auto message = HistoryService::PreparedText{ text };
+		auto message = PreparedServiceText{ text };
 		message.links.push_back(fromLink);
 		message.links.push_back(link);
-		addPart(history->makeServiceMessage(
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			MessageFlag::AdminLogEntry,
 			date,
@@ -1363,7 +1363,7 @@ void GenerateItems(
 			const TextWithEntities &text,
 			const MTPExportedChatInvite &data,
 			ClickHandlerPtr additional = nullptr) {
-		auto message = HistoryService::PreparedText{ text };
+		auto message = PreparedServiceText{ text };
 		message.links.push_back(fromLink);
 		if (!ExtractInviteLink(data).endsWith(Ui::kQEllipsis)) {
 			message.links.push_back(std::make_shared<UrlClickHandler>(
@@ -1372,7 +1372,7 @@ void GenerateItems(
 		if (additional) {
 			message.links.push_back(std::move(additional));
 		}
-		addPart(history->makeServiceMessage(
+		addPart(history->makeMessage(
 			history->nextNonHistoryEntryId(),
 			MessageFlag::AdminLogEntry,
 			date,

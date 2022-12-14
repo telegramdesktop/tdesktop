@@ -19,8 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class Image;
 class HistoryItem;
-class HistoryMessage;
-class HistoryService;
 struct WebPageCollage;
 enum class WebPageType;
 enum class NewMessageType;

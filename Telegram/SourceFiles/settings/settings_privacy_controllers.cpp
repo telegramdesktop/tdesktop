@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_message.h"
 #include "history/history_item_components.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history.h"
 #include "calls/calls_instance.h"
 #include "base/unixtime.h"
@@ -188,7 +188,7 @@ AdminLog::OwnedItem GenerateForwardedItem(
 			history->nextNonHistoryEntryId(),
 			data,
 			MessageFlag::FakeHistoryItem);
-	}, [](auto &&) -> not_null<HistoryMessage*> {
+	}, [](auto &&) -> not_null<HistoryItem*> {
 		Unexpected("Type in GenerateForwardedItem.");
 	});
 

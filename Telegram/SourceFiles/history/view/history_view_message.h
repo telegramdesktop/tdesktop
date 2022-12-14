@@ -11,7 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_bottom_info.h"
 #include "ui/effects/animations.h"
 
-class HistoryMessage;
+class HistoryItem;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
 struct HistoryMessageReplyMarkup;
@@ -64,15 +64,13 @@ class Message final : public Element {
 public:
 	Message(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryMessage*> data,
+		not_null<HistoryItem*> data,
 		Element *replacing);
 	~Message();
 
 	void clickHandlerPressedChanged(
 		const ClickHandlerPtr &handler,
 		bool pressed) override;
-
-	not_null<HistoryMessage*> message() const;
 
 	[[nodiscard]] const HistoryMessageEdited *displayedEditBadge() const;
 	[[nodiscard]] HistoryMessageEdited *displayedEditBadge();

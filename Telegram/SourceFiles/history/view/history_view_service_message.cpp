@@ -7,11 +7,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/history_view_service_message.h"
 
-#include "history/history.h"
-#include "history/history_service.h"
 #include "history/view/media/history_view_media.h"
-#include "history/history_item_components.h"
 #include "history/view/history_view_cursor_state.h"
+#include "history/history.h"
+#include "history/history_item.h"
+#include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "data/data_abstract_structure.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
@@ -400,13 +401,9 @@ QVector<int> ServiceMessagePainter::CountLineWidths(
 
 Service::Service(
 	not_null<ElementDelegate*> delegate,
-	not_null<HistoryService*> data,
+	not_null<HistoryItem*> data,
 	Element *replacing)
 : Element(delegate, data, replacing, Flag::ServiceMessage) {
-}
-
-not_null<HistoryService*> Service::message() const {
-	return static_cast<HistoryService*>(data().get());
 }
 
 QRect Service::innerGeometry() const {
@@ -592,7 +589,7 @@ PointState Service::pointState(QPoint point) const {
 }
 
 TextState Service::textState(QPoint point, StateRequest request) const {
-	const auto item = message();
+	const auto item = data();
 	const auto media = this->media();
 
 	auto result = TextState(item);

@@ -764,6 +764,8 @@ PRIVATE
     history/history_item_components.h
     history/history_item_edition.cpp
     history/history_item_edition.h
+    history/history_item_helpers.cpp
+    history/history_item_helpers.h
     history/history_item_reply_markup.cpp
     history/history_item_reply_markup.h
     history/history_item_text.cpp
@@ -772,10 +774,6 @@ PRIVATE
     history/history_inner_widget.h
     history/history_location_manager.cpp
     history/history_location_manager.h
-    history/history_message.cpp
-    history/history_message.h
-    history/history_service.cpp
-    history/history_service.h
     history/history_unread_things.cpp
     history/history_unread_things.h
     history/history_view_highlight_manager.cpp

@@ -16,7 +16,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_poll.h"
 #include "data/data_session.h"
 #include "history/history.h"
-#include "history/history_message.h" // ShouldSendSilent
+#include "history/history_item.h"
+#include "history/history_item_helpers.h" // ShouldSendSilent
 #include "main/main_session.h"
 
 namespace Api {

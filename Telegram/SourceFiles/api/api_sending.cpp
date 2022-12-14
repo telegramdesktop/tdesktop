@@ -20,7 +20,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/stickers/data_stickers.h"
 #include "history/history.h"
-#include "history/history_message.h" // NewMessageFlags.
+#include "history/history_item.h"
+#include "history/history_item_helpers.h" // NewMessageFlags.
 #include "chat_helpers/message_field.h" // ConvertTextTagsToEntities.
 #include "chat_helpers/stickers_dice_pack.h" // DicePacks::kDiceString.
 #include "ui/text/text_entity.h" // TextWithEntities.

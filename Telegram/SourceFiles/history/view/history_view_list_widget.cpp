@@ -10,8 +10,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/qt/qt_common_adapters.h"
-#include "history/history_message.h"
+#include "history/history_item.h"
 #include "history/history_item_components.h"
+#include "history/history_item_helpers.h"
 #include "history/history_item_text.h"
 #include "history/view/media/history_view_media.h"
 #include "history/view/media/history_view_sticker.h"
@@ -1612,18 +1613,6 @@ bool ListWidget::tooltipWindowActive() const {
 
 Context ListWidget::elementContext() {
 	return _delegate->listContext();
-}
-
-std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing) {
-	return std::make_unique<Message>(this, message, replacing);
-}
-
-std::unique_ptr<Element> ListWidget::elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing) {
-	return std::make_unique<Service>(this, message, replacing);
 }
 
 bool ListWidget::elementUnderCursor(

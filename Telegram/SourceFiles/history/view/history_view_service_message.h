@@ -9,7 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/view/history_view_element.h"
 
-class HistoryService;
+class HistoryItem;
 
 namespace Ui {
 class ChatStyle;
@@ -30,7 +30,7 @@ class Service final : public Element {
 public:
 	Service(
 		not_null<ElementDelegate*> delegate,
-		not_null<HistoryService*> data,
+		not_null<HistoryItem*> data,
 		Element *replacing);
 
 	int marginTop() const override;
@@ -50,9 +50,7 @@ public:
 	QRect innerGeometry() const override;
 
 private:
-	not_null<HistoryService*> message() const;
-
-	QRect countGeometry() const;
+	[[nodiscard]] QRect countGeometry() const;
 
 	QSize performCountOptimalSize() override;
 	QSize performCountCurrentSize(int newWidth) override;

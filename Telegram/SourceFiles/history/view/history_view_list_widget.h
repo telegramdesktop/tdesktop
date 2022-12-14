@@ -286,12 +286,6 @@ public:
 
 	// ElementDelegate interface.
 	Context elementContext() override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryMessage*> message,
-		Element *replacing = nullptr) override;
-	std::unique_ptr<Element> elementCreate(
-		not_null<HistoryService*> message,
-		Element *replacing = nullptr) override;
 	bool elementUnderCursor(not_null<const Element*> view) override;
 	[[nodiscard]] float64 elementHighlightOpacity(
 		not_null<const HistoryItem*> item) const override;
