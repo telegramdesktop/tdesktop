@@ -73,6 +73,8 @@ PRIVATE
     editor/controllers/undo_controller.h
     editor/editor_crop.cpp
     editor/editor_crop.h
+    editor/editor_layer_widget.cpp
+    editor/editor_layer_widget.h
     editor/photo_editor_common.cpp
     editor/photo_editor_common.h
     editor/photo_editor_inner_common.h

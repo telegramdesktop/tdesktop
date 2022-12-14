@@ -8,11 +8,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_layer_widget.h"
 
 #include "ui/boxes/confirm_box.h" // InformBox
+#include "editor/editor_layer_widget.h"
 #include "editor/photo_editor.h"
 #include "storage/storage_media_prepare.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+
+#include <QtGui/QGuiApplication>
 
 namespace Editor {
 namespace {
@@ -22,7 +25,7 @@ constexpr auto kProfilePhotoSize = 640;
 } // namespace
 
 void OpenWithPreparedFile(
-		not_null<Ui::RpWidget*> parent,
+		not_null<QWidget*> parent,
 		not_null<Window::SessionController*> controller,
 		not_null<Ui::PreparedFile*> file,
 		int previewWidth,
@@ -54,18 +57,19 @@ void OpenWithPreparedFile(
 	};
 	auto copy = image->data;
 	const auto fileImage = std::make_shared<Image>(std::move(copy));
-	controller->showLayer(
-		std::make_unique<LayerWidget>(
-			parent,
-			&controller->window(),
-			fileImage,
-			image->modifications,
-			std::move(callback)),
-		Ui::LayerOption::KeepOther);
+	auto editor = base::make_unique_q<PhotoEditor>(
+		parent,
+		&controller->window(),
+		fileImage,
+		image->modifications);
+	const auto raw = editor.get();
+	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	InitEditorLayer(layer.get(), raw, std::move(callback));
+	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
 void PrepareProfilePhoto(
-		not_null<Ui::RpWidget*> parent,
+		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
 		ImageRoundRadius radius,
 		Fn<void(QImage &&image)> &&doneCallback,
@@ -112,24 +116,25 @@ void PrepareProfilePhoto(
 			minSide);
 	}();
 
-	controller->showLayer(
-		std::make_unique<LayerWidget>(
-			parent,
-			controller,
-			fileImage,
-			PhotoModifications{ .crop = std::move(crop) },
-			std::move(applyModifications),
-			EditorData{
-				.cropType = (radius == ImageRoundRadius::Ellipse
-					? EditorData::CropType::Ellipse
-					: EditorData::CropType::RoundedRect),
-				.keepAspectRatio = true,
-			}),
-		Ui::LayerOption::KeepOther);
+	auto editor = base::make_unique_q<PhotoEditor>(
+		parent,
+		controller,
+		fileImage,
+		PhotoModifications{ .crop = std::move(crop) },
+		EditorData{
+			.cropType = (radius == ImageRoundRadius::Ellipse
+				? EditorData::CropType::Ellipse
+				: EditorData::CropType::RoundedRect),
+			.keepAspectRatio = true,
+		});
+	const auto raw = editor.get();
+	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
+	InitEditorLayer(layer.get(), raw, std::move(applyModifications));
+	controller->showLayer(std::move(layer), Ui::LayerOption::KeepOther);
 }
 
 void PrepareProfilePhotoFromFile(
-		not_null<Ui::RpWidget*> parent,
+		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
 		ImageRoundRadius radius,
 		Fn<void(QImage &&image)> &&doneCallback) {
@@ -156,62 +161,6 @@ void PrepareProfilePhotoFromFile(
 		tr::lng_choose_image(tr::now),
 		FileDialog::ImagesOrAllFilter(),
 		crl::guard(parent, callback));
-}
-
-LayerWidget::LayerWidget(
-	not_null<Ui::RpWidget*> parent,
-	not_null<Window::Controller*> window,
-	std::shared_ptr<Image> photo,
-	PhotoModifications modifications,
-	Fn<void(PhotoModifications)> &&doneCallback,
-	EditorData data)
-: Ui::LayerWidget(parent)
-, _content(base::make_unique_q<PhotoEditor>(
-	this,
-	window,
-	photo,
-	std::move(modifications),
-	std::move(data))) {
-
-	paintRequest(
-	) | rpl::start_with_next([=](const QRect &clip) {
-		auto p = QPainter(this);
-		p.fillRect(clip, st::photoEditorBg);
-	}, lifetime());
-
-	_content->cancelRequests(
-	) | rpl::start_with_next([=] {
-		closeLayer();
-	}, lifetime());
-
-	const auto weak = Ui::MakeWeak(_content.get());
-	_content->doneRequests(
-	) | rpl::start_with_next([=, done = std::move(doneCallback)](
-			const PhotoModifications &mods) {
-		done(mods);
-		if (weak) closeLayer();
-	}, lifetime());
-
-	sizeValue(
-	) | rpl::start_with_next([=](const QSize &size) {
-		_content->resize(size);
-	}, lifetime());
-}
-
-void LayerWidget::parentResized() {
-	resizeToWidth(parentWidget()->width());
-}
-
-void LayerWidget::keyPressEvent(QKeyEvent *e) {
-	_content->handleKeyPress(e);
-}
-
-int LayerWidget::resizeGetHeight(int newWidth) {
-	return parentWidget()->height();
-}
-
-bool LayerWidget::closeByOutsideClick() const {
-	return false;
 }
 
 } // namespace Editor

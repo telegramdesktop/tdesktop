@@ -3884,6 +3884,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 	auto prepareSuggestProfilePhoto = [this](const MTPDmessageActionSuggestProfilePhoto &action) {
 		auto result = PreparedServiceText{};
 		const auto isSelf = (_from->id == _from->session().userPeerId());
+		const auto isVideo = action.vphoto().match([&](const MTPDphoto &data) {
+			return data.vvideo_sizes().has_value()
+				&& !data.vvideo_sizes()->v.isEmpty();
+		}, [](const MTPDphotoEmpty &) {
+			return false;
+		});
 		const auto peer = isSelf ? history()->peer : _from;
 		const auto user = peer->asUser();
 		const auto name = (user && !user->firstName.isEmpty())
@@ -3891,8 +3897,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 			: peer->name();
 		result.links.push_back(peer->createOpenLink());
 		result.text = (isSelf
-			? tr::lng_action_suggested_photo_me
-			: tr::lng_action_suggested_photo)(
+			? (isVideo
+				? tr::lng_action_suggested_video_me
+				: tr::lng_action_suggested_photo_me)
+			: (isVideo
+				? tr::lng_action_suggested_video
+				: tr::lng_action_suggested_photo))(
 				tr::now,
 				lt_user,
 				Ui::Text::Link(name, 1), // Link 1.

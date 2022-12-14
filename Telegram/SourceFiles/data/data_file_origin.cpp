@@ -95,6 +95,8 @@ struct FileReferenceAccumulator {
 			data.vaction().match(
 			[&](const MTPDmessageActionChatEditPhoto &data) {
 				push(data.vphoto());
+			}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
+				push(data.vphoto());
 			}, [](const auto &data) {
 			});
 		}, [](const MTPDmessageEmpty &data) {

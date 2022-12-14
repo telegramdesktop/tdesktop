@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -56,7 +57,11 @@ QString UserpicSuggestion::title() {
 }
 
 QString UserpicSuggestion::button() {
-	return tr::lng_action_suggested_photo_button(tr::now);
+	return _photo.getPhoto()->hasVideo()
+		? (_photo.parent()->data()->out()
+			? tr::lng_action_suggested_video_button(tr::now)
+			: tr::lng_profile_set_video_button(tr::now))
+		: tr::lng_action_suggested_photo_button(tr::now);
 }
 
 QString UserpicSuggestion::subtitle() {
@@ -67,6 +72,7 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 	const auto out = _photo.parent()->data()->out();
 	const auto photo = _photo.getPhoto();
 	const auto itemId = _photo.parent()->data()->fullId();
+	const auto peer = _photo.parent()->data()->history()->peer;
 	const auto show = crl::guard(&_photo, [=](FullMsgId id) {
 		_photo.showPhoto(id);
 	});
@@ -76,7 +82,29 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 			const auto media = photo->activeMediaView();
 			if (media->loaded()) {
 				if (out) {
-					PhotoOpenClickHandler(photo, show, itemId).onClick(context);
+					PhotoOpenClickHandler(photo, show, itemId).onClick(
+						context);
+				} else if (photo->hasVideo()) {
+					const auto user = peer->asUser();
+					const auto name = (user && !user->firstName.isEmpty())
+						? user->firstName
+						: peer->name();
+					const auto done = [=] {
+						using namespace Settings;
+						const auto session = &photo->session();
+						auto &peerPhotos = session->api().peerPhoto();
+						peerPhotos.updateSelf(photo, itemId);
+						controller->showSettings(Information::Id());
+					};
+					controller->show(Ui::MakeConfirmBox({
+						.text = tr::lng_profile_accept_video_sure(
+							tr::now,
+							lt_user,
+							name),
+						.confirmed = done,
+						.confirmText = tr::lng_profile_set_video_button(
+							tr::now),
+					}));
 				} else {
 					const auto original = std::make_shared<QImage>(
 						media->image(Data::PhotoSize::Large)->original());
@@ -88,7 +116,7 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 						auto &peerPhotos = session->api().peerPhoto();
 						if (original->size() == image.size()
 							&& original->constBits() == image.constBits()) {
-							peerPhotos.updateSelf(photo);
+							peerPhotos.updateSelf(photo, itemId);
 						} else {
 							peerPhotos.upload(user, std::move(image));
 						}

@@ -140,6 +140,8 @@ UserpicButton::UserpicButton(
 , _role(role) {
 	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
+	showCustom({});
+	_waiting = false;
 	prepare();
 }
 
@@ -157,7 +159,9 @@ UserpicButton::UserpicButton(
 , _peer(peer)
 , _role(role)
 , _source(source) {
-	if (_source != Source::Custom) {
+	if (_source == Source::Custom) {
+		showCustom({});
+	} else {
 		processPeerPhoto();
 		setupPeerViewers();
 	}
@@ -175,7 +179,9 @@ UserpicButton::UserpicButton(
 , _source(Source::PeerPhoto) {
 	Expects(_role != Role::OpenPhoto);
 
-	if (_source != Source::Custom) {
+	if (_source == Source::Custom) {
+		showCustom({});
+	} else {
 		processPeerPhoto();
 		setupPeerViewers();
 	}
@@ -813,7 +819,9 @@ void UserpicButton::onStateChanged(
 }
 
 void UserpicButton::showCustom(QImage &&image) {
-	grabOldUserpic();
+	if (!_notShownYet) {
+		grabOldUserpic();
+	}
 
 	clearStreaming();
 	_sourceLifetime.destroy();

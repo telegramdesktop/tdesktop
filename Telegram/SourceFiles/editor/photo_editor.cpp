@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
+#include "ui/layers/layer_widget.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -46,7 +47,7 @@ constexpr auto kPrecision = 100000;
 } // namespace
 
 PhotoEditor::PhotoEditor(
-	not_null<Ui::RpWidget*> parent,
+	not_null<QWidget*> parent,
 	not_null<Window::Controller*> controller,
 	std::shared_ptr<Image> photo,
 	PhotoModifications modifications,
@@ -174,7 +175,7 @@ PhotoEditor::PhotoEditor(
 	}, lifetime());
 }
 
-void PhotoEditor::handleKeyPress(not_null<QKeyEvent*> e) {
+void PhotoEditor::keyPressEvent(QKeyEvent *e) {
 	if (!_colorPicker->preventHandleKeyPress()) {
 		_content->handleKeyPress(e) || _controls->handleKeyPress(e);
 	}
@@ -191,6 +192,26 @@ rpl::producer<PhotoModifications> PhotoEditor::doneRequests() const {
 
 rpl::producer<> PhotoEditor::cancelRequests() const {
 	return _cancel.events();
+}
+
+void InitEditorLayer(
+		not_null<Ui::LayerWidget*> layer,
+		not_null<PhotoEditor*> editor,
+		Fn<void(PhotoModifications)> doneCallback) {
+	editor->cancelRequests(
+	) | rpl::start_with_next([=] {
+		layer->closeLayer();
+	}, editor->lifetime());
+
+	const auto weak = Ui::MakeWeak(layer.get());
+	editor->doneRequests(
+	) | rpl::start_with_next([=, done = std::move(doneCallback)](
+			const PhotoModifications &mods) {
+		done(mods);
+		if (const auto strong = weak.data()) {
+			strong->closeLayer();
+		}
+	}, editor->lifetime());
 }
 
 } // namespace Editor

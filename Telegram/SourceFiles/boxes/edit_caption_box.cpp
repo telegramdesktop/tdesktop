@@ -28,6 +28,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_premium_limits.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
+#include "editor/editor_layer_widget.h"
+#include "editor/photo_editor.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history_drag_area.h"
 #include "history/history_item.h"
@@ -453,13 +455,18 @@ void EditCaptionBox::setupPhotoEditorEventHandler() {
 				rebuildPreview();
 			};
 			const auto fileImage = std::make_shared<Image>(*large);
+			auto editor = base::make_unique_q<Editor::PhotoEditor>(
+				this,
+				&controller->window(),
+				fileImage,
+				Editor::PhotoModifications());
+			const auto raw = editor.get();
+			auto layer = std::make_unique<Editor::LayerWidget>(
+				this,
+				std::move(editor));
+			Editor::InitEditorLayer(layer.get(), raw, std::move(callback));
 			controller->showLayer(
-				std::make_unique<Editor::LayerWidget>(
-					this,
-					&controller->window(),
-					fileImage,
-					Editor::PhotoModifications(),
-					std::move(callback)),
+				std::move(layer),
 				Ui::LayerOption::KeepOther);
 		}
 	}, lifetime());

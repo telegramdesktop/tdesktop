@@ -1211,6 +1211,17 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_profile_suggest_photo" = "Suggest Profile Photo";
 "lng_profile_set_photo_for" = "Set Profile Photo";
 "lng_profile_photo_reset" = "Reset to Original";
+"lng_profile_set_for_done" = "You will now always see this photo for {user}'s account.";
+"lng_profile_suggest_sure" = "You can suggest {user} to set this photo for their page.";
+"lng_profile_suggest_button" = "Suggest";
+"lng_profile_set_personal_sure" = "Only you will see this photo and it will replace any photo {user} sets for themselves.";
+"lng_profile_accept_photo_sure" = "{user} suggests you to use this profile photo for your Telegram account.";
+"lng_profile_set_photo_button" = "Set Photo";
+"lng_profile_accept_video_sure" = "{user} suggests you to use this profile video for your Telegram account.";
+"lng_profile_set_video_button" = "Set Video";
+"lng_profile_changed_photo_title" = "Photo updated";
+"lng_profile_changed_photo_about" = "You can change it in {link}.";
+"lng_profile_changed_photo_link" = "Settings";
 "lng_media_type_photos" = "Photos";
 "lng_media_type_gifs" = "GIFs";
 "lng_media_type_videos" = "Videos";
@@ -1569,6 +1580,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_photo_me" = "You suggested {user} to use this profile photo.";
 "lng_action_suggested_photo" = "{user} suggests you to use this profile photo.";
 "lng_action_suggested_photo_button" = "View Photo";
+"lng_action_suggested_video_me" = "You suggested {user} to use this profile video.";
+"lng_action_suggested_video" = "{user} suggests you to use this profile video.";
+"lng_action_suggested_video_button" = "View Video";
 "lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";

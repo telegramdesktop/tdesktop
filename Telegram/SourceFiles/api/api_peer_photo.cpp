@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/unixtime.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_file_origin.h"
 #include "data/data_peer.h"
 #include "data/data_photo.h"
 #include "data/data_session.h"
@@ -121,16 +122,32 @@ void PeerPhoto::uploadFallback(not_null<PeerData*> peer, QImage &&image) {
 	upload(peer, std::move(image), UploadType::Fallback);
 }
 
-void PeerPhoto::updateSelf(not_null<PhotoData*> photo) {
-	_api.request(MTPphotos_UpdateProfilePhoto(
-		MTP_flags(0),
-		photo->mtpInput()
-	)).done([=](const MTPphotos_Photo &result) {
-		result.match([&](const MTPDphotos_photo &data) {
-			_session->data().processPhoto(data.vphoto());
-			_session->data().processUsers(data.vusers());
-		});
-	}).send();
+void PeerPhoto::updateSelf(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin) {
+	const auto send = [=](auto resend) -> void {
+		const auto usedFileReference = photo->fileReference();
+		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
+			photo->mtpInput()
+		)).done([=](const MTPphotos_Photo &result) {
+			result.match([&](const MTPDphotos_photo &data) {
+				_session->data().processPhoto(data.vphoto());
+				_session->data().processUsers(data.vusers());
+			});
+		}).fail([=](const MTP::Error &error) {
+			if (error.code() == 400
+				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
+				photo->session().api().refreshFileReference(origin, [=](
+						const auto &) {
+					if (photo->fileReference() != usedFileReference) {
+						resend(resend);
+					}
+				});
+			}
+		}).send();
+	};
+	send(send);
 }
 
 void PeerPhoto::upload(

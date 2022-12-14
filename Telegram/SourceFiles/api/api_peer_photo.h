@@ -13,6 +13,10 @@ class ApiWrap;
 class PeerData;
 class UserData;
 
+namespace Data {
+struct FileOrigin;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -26,7 +30,9 @@ public:
 
 	void upload(not_null<PeerData*> peer, QImage &&image);
 	void uploadFallback(not_null<PeerData*> peer, QImage &&image);
-	void updateSelf(not_null<PhotoData*> photo);
+	void updateSelf(
+		not_null<PhotoData*> photo,
+		Data::FileOrigin origin);
 	void suggest(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
 	void clearPersonal(not_null<UserData*> user);
