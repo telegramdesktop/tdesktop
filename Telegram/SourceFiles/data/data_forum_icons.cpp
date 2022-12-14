@@ -76,7 +76,7 @@ void ForumIcons::updateDefault(const MTPDmessages_stickerSet &data) {
 	const auto &list = data.vdocuments().v;
 	_default.clear();
 	_default.reserve(list.size());
-	for (const auto &sticker : data.vdocuments().v) {
+	for (const auto &sticker : list) {
 		_default.push_back(_owner->processDocument(sticker)->id);
 	}
 	_defaultUpdated.fire({});

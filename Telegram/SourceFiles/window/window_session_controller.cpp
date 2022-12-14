@@ -728,7 +728,7 @@ SessionController::SessionController(
 , _defaultChatTheme(std::make_shared<Ui::ChatTheme>())
 , _chatStyle(std::make_unique<Ui::ChatStyle>())
 , _cachedReactionIconFactory(std::make_unique<ReactionIconFactory>())
-, _giftPremiumValidator(GiftPremiumValidator(this)) {
+, _giftPremiumValidator(this) {
 	init();
 
 	_chatStyleTheme = _defaultChatTheme;
