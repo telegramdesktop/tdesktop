@@ -38,7 +38,7 @@ enum class Section;
 } // namespace Ui::Emoji
 
 namespace Ui::Text {
-struct CustomEmojiColored;
+struct CustomEmojiPaintContext;
 } // namespace Ui::Text
 
 namespace Ui::CustomEmoji {
@@ -267,8 +267,6 @@ private:
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		crl::time now,
-		bool paused,
 		int index);
 	void drawEmoji(
 		QPainter &p,
@@ -279,10 +277,9 @@ private:
 		QPainter &p,
 		const ExpandingContext &context,
 		QPoint position,
-		crl::time now,
-		bool paused,
 		int set,
 		int index);
+	void validateEmojiPaintContext(const ExpandingContext &context);
 	[[nodiscard]] bool hasRemoveButton(int index) const;
 	[[nodiscard]] QRect removeButtonRect(int index) const;
 	[[nodiscard]] QRect removeButtonRect(const SectionInfo &info) const;
@@ -345,7 +342,7 @@ private:
 	std::vector<RecentOne> _recent;
 	base::flat_set<DocumentId> _recentCustomIds;
 	base::flat_set<uint64> _repaintsScheduled;
-	std::unique_ptr<Ui::Text::CustomEmojiColored> _emojiStatusColor;
+	std::unique_ptr<Ui::Text::CustomEmojiPaintContext> _emojiPaintContext;
 	bool _recentPainted = false;
 	bool _grabbingChosen = false;
 	QVector<EmojiPtr> _emoji[kEmojiSectionCount];

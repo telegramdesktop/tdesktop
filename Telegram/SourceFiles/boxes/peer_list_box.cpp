@@ -735,7 +735,6 @@ int PeerListRow::paintNameIconGetWidth(
 			.premiumFg = &(selected
 				? st::dialogsVerifiedIconBgOver
 				: st::dialogsVerifiedIconBg),
-			.preview = st::windowBgOver->c,
 			.customEmojiRepaint = repaint,
 			.now = now,
 			.paused = false,

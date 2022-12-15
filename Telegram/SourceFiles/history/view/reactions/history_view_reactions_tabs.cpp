@@ -112,13 +112,9 @@ not_null<Ui::AbstractButton*> CreateTab(
 			const auto shift = (height - size) / 2;
 			const auto skip = (size - AdjustCustomEmojiSize(size)) / 2;
 			custom->paint(p, {
-				.preview = (state->selected
-					? QColor(
-						st::activeButtonFg->c.red(),
-						st::activeButtonFg->c.green(),
-						st::activeButtonFg->c.blue(),
-						st::activeButtonFg->c.alpha() / 3)
-					: st::windowBgRipple->c),
+				.textColor = (state->selected
+					? stm->textActiveFg
+					: stm->textFg)->c,
 				.now = crl::now(),
 				.position = { icon.x() + shift + skip, shift + skip },
 			});

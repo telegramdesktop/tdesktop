@@ -178,9 +178,6 @@ int PeerBadge::drawGetWidth(
 			const auto size = st::emojiSize;
 			const auto emoji = Ui::Text::AdjustCustomEmojiSize(size);
 			_emojiStatus->skip = (size - emoji) / 2;
-			_emojiStatus->colored = std::make_unique<
-				Ui::Text::CustomEmojiColored
-			>();
 		}
 		if (_emojiStatus->id != id) {
 			using namespace Ui::Text;
@@ -192,10 +189,8 @@ int PeerBadge::drawGetWidth(
 					descriptor.customEmojiRepaint),
 				kPlayStatusLimit);
 		}
-		_emojiStatus->colored->color = (*descriptor.premiumFg)->c;
 		_emojiStatus->emoji->paint(p, {
-			.preview = descriptor.preview,
-			.colored = _emojiStatus->colored.get(),
+			.textColor = (*descriptor.premiumFg)->c,
 			.now = descriptor.now,
 			.position = QPoint(
 				iconx - 2 * _emojiStatus->skip,

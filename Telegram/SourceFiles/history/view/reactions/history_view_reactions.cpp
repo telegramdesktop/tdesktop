@@ -547,7 +547,7 @@ void InlineList::paintCustomFrame(
 		not_null<Ui::Text::CustomEmoji*> emoji,
 		QPoint innerTopLeft,
 		crl::time now,
-		const QColor &preview) const {
+		const QColor &textColor) const {
 	if (_customCache.isNull()) {
 		using namespace Ui::Text;
 		const auto size = st::emojiSize;
@@ -562,7 +562,7 @@ void InlineList::paintCustomFrame(
 	_customCache.fill(Qt::transparent);
 	auto q = QPainter(&_customCache);
 	emoji->paint(q, {
-		.preview = preview,
+		.textColor = textColor,
 		.now = now,
 		.paused = p.inactive(),
 	});

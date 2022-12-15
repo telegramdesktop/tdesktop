@@ -18,7 +18,7 @@ namespace Serialize {
 namespace {
 
 constexpr auto kVersionTag = int32(0x7FFFFFFF);
-constexpr auto kVersion = 4;
+constexpr auto kVersion = 5;
 
 enum StickerSetType {
 	StickerSetTypeEmpty = 0,
@@ -63,6 +63,7 @@ void Document::writeToStream(QDataStream &stream, DocumentData *document) {
 		const auto premium = document->isPremiumSticker()
 			|| document->isPremiumEmoji();
 		stream << qint32(premium ? 1 : 0);
+		stream << qint32(document->emojiUsesTextColor() ? 1 : 0);
 	}
 	writeImageLocation(stream, document->thumbnailLocation());
 	stream << qint32(document->thumbnailByteSize());
@@ -111,6 +112,7 @@ DocumentData *Document::readFromStreamHelper(
 
 	qint32 duration = -1;
 	qint32 isPremiumSticker = 0;
+	qint32 useTextColor = 0;
 	if (type == StickerDocument) {
 		QString alt;
 		qint32 typeOfSet;
@@ -119,6 +121,9 @@ DocumentData *Document::readFromStreamHelper(
 			stream >> duration;
 			if (version >= 4) {
 				stream >> isPremiumSticker;
+				if (version >= 5) {
+					stream >> useTextColor;
+				}
 			}
 		}
 		if (typeOfSet == StickerSetTypeEmpty) {
@@ -140,9 +145,15 @@ DocumentData *Document::readFromStreamHelper(
 				attributes.push_back(MTP_documentAttributeSticker(MTP_flags(MTPDdocumentAttributeSticker::Flag::f_mask), MTP_string(alt), MTP_inputStickerSetID(MTP_long(info->setId), MTP_long(info->accessHash)), MTPMaskCoords()));
 			} break;
 			case StickerSetTypeEmoji: {
+				if (version < 5) {
+					// We didn't store useTextColor yet, can't use.
+					stream.setStatus(QDataStream::ReadCorruptData);
+					return nullptr;
+				}
 				using Flag = MTPDdocumentAttributeCustomEmoji::Flag;
 				attributes.push_back(MTP_documentAttributeCustomEmoji(
-					MTP_flags(isPremiumSticker ? Flag(0) : Flag::f_free),
+					MTP_flags((isPremiumSticker ? Flag(0) : Flag::f_free)
+						| (useTextColor ? Flag::f_text_color : Flag(0))),
 					MTP_string(alt),
 					MTP_inputStickerSetID(
 						MTP_long(info->setId),

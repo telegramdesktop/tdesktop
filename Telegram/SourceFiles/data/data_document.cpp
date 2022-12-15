@@ -327,6 +327,7 @@ void DocumentData::setattributes(
 		const QVector<MTPDocumentAttribute> &attributes) {
 	_flags &= ~(Flag::ImageType
 		| Flag::HasAttachedStickers
+		| Flag::UseTextColor
 		| kStreamingSupportedMask);
 	_flags |= kStreamingSupportedUnknown;
 
@@ -374,6 +375,9 @@ void DocumentData::setattributes(
 					_flags &= ~Flag::PremiumSticker;
 				} else {
 					_flags |= Flag::PremiumSticker;
+				}
+				if (data.is_text_color()) {
+					_flags |= Flag::UseTextColor;
 				}
 				UpdateStickerSetIdentifier(info->set, data.vstickerset());
 			}
@@ -553,6 +557,10 @@ bool DocumentData::isPremiumEmoji() const {
 	}
 	const auto info = sticker();
 	return info && info->setType == Data::StickersType::Emoji;
+}
+
+bool DocumentData::emojiUsesTextColor() const {
+	return (_flags & Flag::UseTextColor);
 }
 
 bool DocumentData::hasThumbnail() const {

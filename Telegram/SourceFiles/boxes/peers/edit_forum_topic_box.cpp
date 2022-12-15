@@ -177,7 +177,7 @@ bool DefaultIconEmoji::readyInDefaultState() {
 		return !paintIconFrame(result);
 	}) | rpl::start_with_next([=](QRect clip) {
 		auto args = Ui::Text::CustomEmoji::Context{
-			.preview = st::windowBgOver->c,
+			.textColor = st::windowFg->c,
 			.now = crl::now(),
 			.paused = controller->isGifPausedAtLeastFor(
 				Window::GifPauseReason::Layer),

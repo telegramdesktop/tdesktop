@@ -562,7 +562,6 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				.premium = &st::dialogsPremiumIcon,
 				.scam = &st::attentionButtonFg,
 				.premiumFg = &st::dialogsVerifiedIconBg,
-				.preview = st::windowBgOver->c,
 				.customEmojiRepaint = [=] { update(); },
 				.now = now,
 				.paused = _controller->isGifPausedAtLeastFor(

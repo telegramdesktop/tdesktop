@@ -181,6 +181,7 @@ public:
 	[[nodiscard]] bool isPatternWallPaperSVG() const;
 	[[nodiscard]] bool isPremiumSticker() const;
 	[[nodiscard]] bool isPremiumEmoji() const;
+	[[nodiscard]] bool emojiUsesTextColor() const;
 
 	[[nodiscard]] bool hasThumbnail() const;
 	[[nodiscard]] bool thumbnailLoading() const;
@@ -290,6 +291,7 @@ private:
 		ForceToCache = 0x100,
 		PremiumSticker = 0x200,
 		PossibleCoverThumbnail = 0x400,
+		UseTextColor = 0x800,
 	};
 	using Flags = base::flags<Flag>;
 	friend constexpr bool is_flag_type(Flag) { return true; };

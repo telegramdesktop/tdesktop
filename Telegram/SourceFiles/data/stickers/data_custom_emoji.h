@@ -90,6 +90,7 @@ private:
 	struct LoaderWithSetId {
 		std::unique_ptr<Ui::CustomEmoji::Loader> loader;
 		uint64 setId = 0;
+		bool colored = false;
 	};
 
 	[[nodiscard]] LoaderWithSetId createLoaderWithSetId(

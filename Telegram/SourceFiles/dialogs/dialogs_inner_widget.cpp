@@ -1016,11 +1016,6 @@ void InnerWidget::paintPeerSearchResult(
 				: context.selected
 				? &st::dialogsVerifiedIconBgOver
 				: &st::dialogsVerifiedIconBg),
-			.preview = (context.active
-				? st::dialogsScamFgActive
-				: context.selected
-				? st::windowBgRipple
-				: st::windowBgOver)->c,
 			.customEmojiRepaint = [=] { updateSearchResult(peer); },
 			.now = context.now,
 			.paused = context.paused,

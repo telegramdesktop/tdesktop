@@ -311,7 +311,7 @@ void StickerToast::setupEmojiPreview(
 		const auto size = Ui::Emoji::GetSizeLarge()
 			/ style::DevicePixelRatio();
 		instance->object.paint(p, Ui::Text::CustomEmoji::Context{
-			.preview = st::toastBg->c,
+			.textColor = st::toastFg->c,
 			.now = crl::now(),
 			.position = QPoint(
 				(widget->width() - size) / 2,

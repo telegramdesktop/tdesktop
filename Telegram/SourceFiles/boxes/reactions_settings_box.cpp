@@ -447,7 +447,7 @@ void AddReactionCustomIcon(
 		const auto ratio = style::DevicePixelRatio();
 		const auto size = Data::FrameSizeFromTag(tag) / ratio;
 		state->custom->paint(p, {
-			.preview = st::windowBgRipple->c,
+			.textColor = st::windowFg->c,
 			.now = crl::now(),
 			.position = QPoint(
 				(widget->width() - size) / 2,

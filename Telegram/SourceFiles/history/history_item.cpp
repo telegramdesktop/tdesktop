@@ -2987,12 +2987,12 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 					config.replyToPeer = 0;
 				}
 			}
-		const auto id = data.vreply_to_msg_id().v;
-		config.replyTo = data.is_reply_to_scheduled()
-			? _history->owner().scheduledMessages().localMessageId(id)
-			: id;
-		config.replyToTop = data.vreply_to_top_id().value_or(id);
-		config.replyIsTopicPost = data.is_forum_topic();
+			const auto id = data.vreply_to_msg_id().v;
+			config.replyTo = data.is_reply_to_scheduled()
+				? _history->owner().scheduledMessages().localMessageId(id)
+				: id;
+			config.replyToTop = data.vreply_to_top_id().value_or(id);
+			config.replyIsTopicPost = data.is_forum_topic();
 		});
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
@@ -3239,7 +3239,9 @@ void HistoryItem::createServiceFromMtp(const MTPDmessageService &message) {
 				if (!updateServiceDependent()) {
 					RequestDependentMessageData(
 						this,
-						dependent->peerId,
+						(dependent->peerId
+							? dependent->peerId
+							: _history->peer->id),
 						dependent->msgId);
 				}
 			}

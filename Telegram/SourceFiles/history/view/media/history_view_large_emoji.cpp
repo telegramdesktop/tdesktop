@@ -135,7 +135,8 @@ void LargeEmoji::paintCustom(
 	const auto inner = st::largeEmojiSize + 2 * st::largeEmojiOutline;
 	const auto outer = Ui::Text::AdjustCustomEmojiSize(inner);
 	const auto skip = (inner - outer) / 2;
-	const auto preview = context.imageStyle()->msgServiceBg->c;
+	//const auto preview = context.imageStyle()->msgServiceBg->c;
+	auto &textst = context.st->messageStyle(false, false);
 	if (context.selected()) {
 		const auto factor = style::DevicePixelRatio();
 		const auto size = QSize(outer, outer) * factor;
@@ -148,7 +149,7 @@ void LargeEmoji::paintCustom(
 		_selectedFrame.fill(Qt::transparent);
 		auto q = QPainter(&_selectedFrame);
 		emoji->paint(q, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
 			.paused = context.paused,
 		});
@@ -160,7 +161,7 @@ void LargeEmoji::paintCustom(
 		p.drawImage(x + skip, y + skip, _selectedFrame);
 	} else {
 		emoji->paint(p, {
-			.preview = preview,
+			.textColor = textst.historyTextFg->c,
 			.now = context.now,
 			.position = { x + skip, y + skip },
 			.paused = context.paused,

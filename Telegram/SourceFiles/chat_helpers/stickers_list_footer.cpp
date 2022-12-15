@@ -605,6 +605,7 @@ void StickersListFooter::paint(
 
 	const auto now = crl::now();
 	const auto paused = _paused();
+	p.setPen(st::windowFg);
 	enumerateVisibleIcons([&](const IconInfo &info) {
 		paintSetIcon(p, context, info, now, paused);
 	});
@@ -1251,7 +1252,7 @@ void StickersListFooter::paintSetIcon(
 		const auto y = _iconsTop + (st().footer - icon.pixh) / 2;
 		if (icon.custom) {
 			icon.custom->paint(p, Ui::Text::CustomEmoji::Context{
-				.preview = st::windowBgRipple->c,
+				.textColor = st::windowFg->c,
 				.size = QSize(icon.pixw, icon.pixh),
 				.now = now,
 				.scale = context.progress,

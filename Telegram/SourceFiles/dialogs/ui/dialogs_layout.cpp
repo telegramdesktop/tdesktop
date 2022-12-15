@@ -656,11 +656,6 @@ void PaintRow(
 						: context.selected
 						? &st::dialogsVerifiedIconBgOver
 						: &st::dialogsVerifiedIconBg),
-					.preview = (context.active
-						? st::dialogsScamFgActive
-						: context.selected
-						? st::windowBgRipple
-						: st::windowBgOver)->c,
 					.customEmojiRepaint = customEmojiRepaint,
 					.now = context.now,
 					.paused = context.paused,

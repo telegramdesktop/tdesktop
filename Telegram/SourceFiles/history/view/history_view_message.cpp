@@ -289,7 +289,6 @@ struct Message::CommentsButton {
 struct Message::FromNameStatus {
 	DocumentId id = 0;
 	std::unique_ptr<Ui::Text::CustomEmoji> custom;
-	Ui::Text::CustomEmojiColored colored;
 	int skip = 0;
 };
 
@@ -1239,10 +1238,8 @@ void Message::paintFromName(
 		}
 		if (_fromNameStatus->custom) {
 			clearCustomEmojiRepaint();
-			_fromNameStatus->colored.color = color;
 			_fromNameStatus->custom->paint(p, {
-				.preview = color,
-				.colored = &_fromNameStatus->colored,
+				.textColor = color,
 				.now = context.now,
 				.position = QPoint(
 					x - 2 * _fromNameStatus->skip,

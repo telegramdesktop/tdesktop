@@ -582,7 +582,11 @@ void ForumTopic::paintUserpic(
 				(st->height - size) / 2);
 		}
 		_icon->paint(p, {
-			.preview = st::windowBgOver->c,
+			.textColor = (context.active
+				? st::dialogsNameFgActive
+				: context.selected
+				? st::dialogsNameFgOver
+				: st::dialogsNameFg)->c,
 			.now = context.now,
 			.position = position,
 			.paused = context.paused,
