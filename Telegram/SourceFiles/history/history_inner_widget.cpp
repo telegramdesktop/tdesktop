@@ -2733,9 +2733,6 @@ TextForMimeData HistoryInner::getSelectedText() const {
 		TextForMimeData unwrapped;
 	};
 
-	const auto timeFormat = QString(", [%1 %2]\n")
-		.arg(cDateFormat())
-		.arg(cTimeFormat());
 	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
 	auto texts = base::flat_map<Data::MessagePosition, Part>();
@@ -2745,7 +2742,8 @@ TextForMimeData HistoryInner::getSelectedText() const {
 			TextForMimeData &&unwrapped) {
 		const auto i = texts.emplace(item->position(), Part{
 			.name = item->author()->name(),
-			.time = QLocale().toString(ItemDateTime(item), timeFormat),
+			.time = QString(", [%1]\n").arg(
+				QLocale().toString(ItemDateTime(item), QLocale::ShortFormat)),
 			.unwrapped = std::move(unwrapped),
 		}).first;
 		fullSize += i->second.name.size()

@@ -46,7 +46,9 @@ Call::Call(
 , _video(call->video) {
 	const auto item = parent->data();
 	_text = Data::MediaCall::Text(item, _reason, _video);
-	_status = QLocale().toString(parent->dateTime().time(), cTimeFormat());
+	_status = QLocale().toString(
+		parent->dateTime().time(),
+		QLocale::ShortFormat);
 	if (_duration) {
 		_status = tr::lng_call_duration_info(
 			tr::now,

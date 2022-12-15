@@ -2277,9 +2277,6 @@ TextForMimeData ListWidget::getSelectedText() const {
 		return _selectedText;
 	}
 
-	const auto timeFormat = QString(", [%1 %2]\n")
-		.arg(cDateFormat())
-		.arg(cTimeFormat());
 	auto groups = base::flat_set<not_null<const Data::Group*>>();
 	auto fullSize = 0;
 	auto texts = std::vector<std::pair<
@@ -2290,7 +2287,8 @@ TextForMimeData ListWidget::getSelectedText() const {
 	const auto wrapItem = [&](
 			not_null<HistoryItem*> item,
 			TextForMimeData &&unwrapped) {
-		auto time = QLocale().toString(ItemDateTime(item), timeFormat);
+		auto time = QString(", [%1]\n").arg(
+			QLocale().toString(ItemDateTime(item), QLocale::ShortFormat));
 		auto part = TextForMimeData();
 		auto size = item->author()->name().size()
 			+ time.size()
