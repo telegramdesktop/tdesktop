@@ -1120,8 +1120,8 @@ std::optional<QString> RestrictionError(
 			auto restrictedUntil = channel->restrictedUntil();
 			if (restrictedUntil > 0 && !ChannelData::IsRestrictedForever(restrictedUntil)) {
 				auto restrictedUntilDateTime = base::unixtime::parse(channel->restrictedUntil());
-				auto date = QLocale().toString(restrictedUntilDateTime, cDateFormat());
-				auto time = QLocale().toString(restrictedUntilDateTime, cTimeFormat());
+				auto date = QLocale().toString(restrictedUntilDateTime.date(), QLocale::ShortFormat);
+				auto time = QLocale().toString(restrictedUntilDateTime.time(), QLocale::ShortFormat);
 
 				switch (restriction) {
 				case Flag::SendPolls:

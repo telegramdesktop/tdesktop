@@ -284,9 +284,6 @@ void Application::run() {
 
 	DEBUG_LOG(("Application Info: inited..."));
 
-	cChangeDateFormat(QLocale().dateFormat(QLocale::ShortFormat));
-	cChangeTimeFormat(QLocale().timeFormat(QLocale::ShortFormat));
-
 	DEBUG_LOG(("Application Info: starting app..."));
 
 	// Create mime database, so it won't be slow later.

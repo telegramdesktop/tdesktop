@@ -137,10 +137,6 @@ bool UiIntegration::screenIsLocked() {
 	return Core::App().screenIsLocked();
 }
 
-QString UiIntegration::timeFormat() {
-	return cTimeFormat();
-}
-
 std::shared_ptr<ClickHandler> UiIntegration::createLinkHandler(
 		const EntityLinkData &data,
 		const std::any &context) {

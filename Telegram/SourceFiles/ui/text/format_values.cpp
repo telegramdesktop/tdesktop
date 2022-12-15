@@ -79,28 +79,25 @@ QString FormatProgressText(qint64 ready, qint64 total) {
 		total);
 }
 
-QString FormatDateTime(
-		QDateTime date,
-		QString dateFormat,
-		QString timeFormat) {
+QString FormatDateTime(QDateTime date) {
 	const auto now = QDateTime::currentDateTime();
 	if (date.date() == now.date()) {
 		return tr::lng_mediaview_today(
 			tr::now,
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	} else if (date.date().addDays(1) == now.date()) {
 		return tr::lng_mediaview_yesterday(
 			tr::now,
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	} else {
 		return tr::lng_mediaview_date_time(
 			tr::now,
 			lt_date,
-			QLocale().toString(date.date(), dateFormat),
+			QLocale().toString(date.date(), QLocale::ShortFormat),
 			lt_time,
-			QLocale().toString(date.time(), timeFormat));
+			QLocale().toString(date.time(), QLocale::ShortFormat));
 	}
 }
 

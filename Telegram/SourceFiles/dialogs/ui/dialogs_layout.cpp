@@ -92,12 +92,12 @@ void PaintRowDate(
 		const auto wasSameDay = (lastDate == nowDate);
 		const auto wasRecently = qAbs(lastTime.secsTo(now)) < kRecentlyInSeconds;
 		if (wasSameDay || wasRecently) {
-			return QLocale().toString(lastTime, cTimeFormat());
+			return QLocale().toString(lastTime.time(), QLocale::ShortFormat);
 		} else if (lastDate.year() == nowDate.year()
 			&& lastDate.weekNumber() == nowDate.weekNumber()) {
 			return langDayOfWeek(lastDate);
 		} else {
-			return QLocale().toString(lastDate, cDateFormat());
+			return QLocale().toString(lastDate, QLocale::ShortFormat);
 		}
 	}();
 	PaintRowTopRight(p, dt, rectForName, context);
