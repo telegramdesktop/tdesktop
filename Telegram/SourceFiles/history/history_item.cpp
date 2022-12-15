@@ -92,6 +92,7 @@ struct HistoryItem::CreateConfig {
 	bool replyIsTopicPost = false;
 	UserId viaBotId = 0;
 	int viewsCount = -1;
+	int forwardsCount = -1;
 	QString author;
 	PeerId senderOriginal = 0;
 	QString senderNameOriginal;
@@ -2705,6 +2706,7 @@ void HistoryItem::createComponents(CreateConfig &&config) {
 				}
 			}
 		}
+		setForwardsCount(config.forwardsCount);
 		setReplies(std::move(config.replies));
 	}
 	if (const auto edited = Get<HistoryMessageEdited>()) {
@@ -2986,6 +2988,7 @@ void HistoryItem::createComponents(const MTPDmessage &data) {
 	}
 	config.viaBotId = data.vvia_bot_id().value_or_empty();
 	config.viewsCount = data.vviews().value_or(-1);
+	config.forwardsCount = data.vforwards().value_or(-1);
 	config.replies = isScheduled()
 		? HistoryMessageRepliesData()
 		: HistoryMessageRepliesData(data.vreplies());
