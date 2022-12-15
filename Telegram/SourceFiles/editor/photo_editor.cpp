@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_content.h"
 #include "editor/photo_editor_controls.h"
 #include "window/window_controller.h"
+#include "window/window_session_controller.h"
 #include "styles/style_editor.h"
 
 namespace Editor {
@@ -59,7 +60,7 @@ PhotoEditor::PhotoEditor(
 			controller->sessionController())
 		: nullptr,
 	std::make_unique<UndoController>(),
-	[=] (object_ptr<Ui::BoxContent> c) { controller->show(std::move(c)); }))
+	std::make_shared<Window::Show>(controller)))
 , _content(base::make_unique_q<PhotoEditorContent>(
 	this,
 	photo,
