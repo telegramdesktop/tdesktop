@@ -54,6 +54,7 @@ jobs:
 
       - name: First set up.
         run: |
+          sudo iptables -P FORWARD ACCEPT
           sudo snap install --classic snapcraft
           sudo usermod -aG lxd $USER
           sudo snap run lxd init --auto
