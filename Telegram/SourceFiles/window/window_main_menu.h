@@ -73,6 +73,8 @@ private:
 	void toggleAccounts();
 	void chooseEmojiStatus();
 
+	void drawName(Painter &p);
+
 	const not_null<SessionController*> _controller;
 	object_ptr<Ui::UserpicButton> _userpicButton;
 	Ui::Text::String _name;

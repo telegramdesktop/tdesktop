@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_controller.h"
 #include "ui/chat/chat_theme.h"
 #include "ui/controls/userpic_button.h"
+#include "ui/effects/snowflakes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -77,6 +78,20 @@ namespace Window {
 namespace {
 
 constexpr auto kPlayStatusLimit = 2;
+
+[[nodiscard]] bool CanCheckSpecialEvent() {
+	static const auto result = [] {
+		const auto now = QDate::currentDate();
+		return (now.month() == 12) || (now.month() == 1 && now.day() == 1);
+	}();
+	return result;
+}
+
+[[nodiscard]] bool CheckSpecialEvent() {
+	const auto now = QDate::currentDate();
+	return (now.month() == 12 && now.day() >= 24)
+		|| (now.month() == 1 && now.day() == 1);
+}
 
 void ShowCallsBox(not_null<Window::SessionController*> window) {
 	auto controller = std::make_unique<Calls::BoxController>(window);
@@ -469,6 +484,38 @@ MainMenu::MainMenu(
 	}, lifetime());
 
 	initResetScaleButton();
+
+	if (CanCheckSpecialEvent() && CheckSpecialEvent()) {
+		const auto snowLifetime = lifetime().make_state<rpl::lifetime>();
+		const auto rebuild = [=] {
+			const auto snowRaw = Ui::CreateChild<Ui::RpWidget>(this);
+			const auto snow = snowLifetime->make_state<Ui::Snowflakes>(
+				[=](const QRect &r) { snowRaw->update(r); });
+			snow->setBrush(QColor(230, 230, 230));
+			snowRaw->paintRequest(
+			) | rpl::start_with_next([=](const QRect &r) {
+				auto p = Painter(snowRaw);
+				p.fillRect(r, st::mainMenuBg);
+				drawName(p);
+				snow->paint(p, snowRaw->rect());
+			}, snowRaw->lifetime());
+			widthValue(
+			) | rpl::start_with_next([=](int width) {
+				snowRaw->setGeometry(0, 0, width, st::mainMenuCoverHeight);
+			}, snowRaw->lifetime());
+			snowRaw->show();
+			snowRaw->lower();
+			snowRaw->setAttribute(Qt::WA_TransparentForMouseEvents);
+			snowLifetime->add([=] { base::unique_qptr{ snowRaw }; });
+		};
+		Window::Theme::IsNightModeValue(
+		) | rpl::start_with_next([=](bool isNightMode) {
+			snowLifetime->destroy();
+			if (isNightMode) {
+				rebuild();
+			}
+		}, lifetime());
+	}
 }
 
 MainMenu::~MainMenu() = default;
@@ -812,37 +859,41 @@ void MainMenu::chooseEmojiStatus() {
 }
 
 void MainMenu::paintEvent(QPaintEvent *e) {
-	Painter p(this);
+	auto p = Painter(this);
 	const auto clip = e->rect();
 	const auto cover = QRect(0, 0, width(), st::mainMenuCoverHeight);
 
 	p.fillRect(clip, st::mainMenuBg);
 	if (cover.intersects(clip)) {
-		const auto widthText = width()
-			- st::mainMenuCoverNameLeft
-			- _toggleAccounts->rightSkip();
-
-		const auto user = _controller->session().user();
-		if (_nameVersion < user->nameVersion()) {
-			_nameVersion = user->nameVersion();
-			_name.setText(
-				st::semiboldTextStyle,
-				user->name(),
-				Ui::NameTextOptions());
-			moveBadge();
-		}
-		p.setFont(st::semiboldFont);
-		p.setPen(st::windowBoldFg);
-		_name.drawLeftElided(
-			p,
-			st::mainMenuCoverNameLeft,
-			st::mainMenuCoverNameTop,
-			(widthText
-				- (_badge->widget()
-					? (st::semiboldFont->spacew + _badge->widget()->width())
-					: 0)),
-			width());
+		drawName(p);
 	}
+}
+
+void MainMenu::drawName(Painter &p) {
+	const auto widthText = width()
+		- st::mainMenuCoverNameLeft
+		- _toggleAccounts->rightSkip();
+
+	const auto user = _controller->session().user();
+	if (_nameVersion < user->nameVersion()) {
+		_nameVersion = user->nameVersion();
+		_name.setText(
+			st::semiboldTextStyle,
+			user->name(),
+			Ui::NameTextOptions());
+		moveBadge();
+	}
+	p.setFont(st::semiboldFont);
+	p.setPen(st::windowBoldFg);
+	_name.drawLeftElided(
+		p,
+		st::mainMenuCoverNameLeft,
+		st::mainMenuCoverNameTop,
+		(widthText
+			- (_badge->widget()
+				? (st::semiboldFont->spacew + _badge->widget()->width())
+				: 0)),
+		width());
 }
 
 void MainMenu::initResetScaleButton() {

@@ -250,6 +250,8 @@ PRIVATE
     ui/effects/round_checkbox.h
     ui/effects/scroll_content_shadow.cpp
     ui/effects/scroll_content_shadow.h
+    ui/effects/snowflakes.cpp
+    ui/effects/snowflakes.h
     ui/text/format_song_name.cpp
     ui/text/format_song_name.h
     ui/text/format_values.cpp
