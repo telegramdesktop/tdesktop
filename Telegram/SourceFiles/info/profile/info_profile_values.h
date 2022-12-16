@@ -106,6 +106,8 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<int> FullReactionsCountValue(
 	not_null<Main::Session*> peer);
+[[nodiscard]] rpl::producer<bool> CanViewParticipantsValue(
+	not_null<ChannelData*> megagroup);
 
 enum class BadgeType;
 [[nodiscard]] rpl::producer<BadgeType> BadgeValue(not_null<PeerData*> peer);

@@ -359,12 +359,7 @@ void Cover::setupChildGeometry() {
 }
 
 Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
-	std::move(
-		count
-	) | rpl::start_with_next([this](int count) {
-		_onlineCount = count;
-		refreshStatusText();
-	}, lifetime());
+	_onlineCount = std::move(count);
 	return this;
 }
 
@@ -377,18 +372,21 @@ void Cover::initViewers(rpl::producer<QString> title) {
 		refreshNameGeometry(width());
 	}, lifetime());
 
-	_peer->session().changes().peerFlagsValue(
-		_peer,
-		Flag::OnlineStatus | Flag::Members
-	) | rpl::start_with_next(
-		[=] { refreshStatusText(); },
-		lifetime());
+	rpl::combine(
+		_peer->session().changes().peerFlagsValue(
+			_peer,
+			Flag::OnlineStatus | Flag::Members),
+		_onlineCount.value()
+	) | rpl::start_with_next([=] {
+		refreshStatusText();
+	}, lifetime());
+
 	_peer->session().changes().peerFlagsValue(
 		_peer,
 		(_peer->isUser() ? Flag::IsContact : Flag::Rights)
-	) | rpl::start_with_next(
-		[=] { refreshUploadPhotoOverlay(); },
-		lifetime());
+	) | rpl::start_with_next([=] {
+		refreshUploadPhotoOverlay();
+	}, lifetime());
 }
 
 void Cover::refreshUploadPhotoOverlay() {
@@ -451,15 +449,17 @@ void Cover::refreshStatusText() {
 			if (!chat->amIn()) {
 				return tr::lng_chat_status_unaccessible({}, WithEntities);
 			}
-			auto fullCount = std::max(
+			const auto onlineCount = _onlineCount.current();
+			const auto fullCount = std::max(
 				chat->count,
 				int(chat->participants.size()));
-			return { .text = ChatStatusText(fullCount, _onlineCount, true) };
+			return { .text = ChatStatusText(fullCount, onlineCount, true) };
 		} else if (auto channel = _peer->asChannel()) {
-			auto fullCount = qMax(channel->membersCount(), 1);
+			const auto onlineCount = _onlineCount.current();
+			const auto fullCount = qMax(channel->membersCount(), 1);
 			auto result = ChatStatusText(
 				fullCount,
-				_onlineCount,
+				onlineCount,
 				channel->isMegagroup());
 			return hasMembersLink
 				? PlainLink(result)

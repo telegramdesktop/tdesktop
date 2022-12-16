@@ -58,6 +58,7 @@ protected:
 private:
 	object_ptr<RpWidget> setupContent(not_null<RpWidget*> parent);
 	object_ptr<RpWidget> setupSharedMedia(not_null<RpWidget*> parent);
+	void setupMembers(not_null<Ui::VerticalLayout*> container);
 
 	int countDesiredHeight() const;
 	void updateDesiredHeight() {

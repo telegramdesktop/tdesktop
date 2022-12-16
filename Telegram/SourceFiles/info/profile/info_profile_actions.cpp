@@ -929,9 +929,12 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 
 void ActionsFiller::addLeaveChannelAction(not_null<ChannelData*> channel) {
 	Expects(_controller->parentController());
+
 	AddActionButton(
 		_wrap,
-		tr::lng_profile_leave_channel(),
+		(channel->isMegagroup()
+			? tr::lng_profile_leave_group()
+			: tr::lng_profile_leave_channel()),
 		AmInChannelValue(channel),
 		Window::DeleteAndLeaveHandler(
 			_controller->parentController(),
@@ -947,7 +950,9 @@ void ActionsFiller::addJoinChannelAction(
 		| rpl::start_spawning(_wrap->lifetime());
 	AddActionButton(
 		_wrap,
-		tr::lng_profile_join_channel(),
+		(channel->isMegagroup()
+			? tr::lng_profile_join_group()
+			: tr::lng_profile_join_channel()),
 		rpl::duplicate(joinVisible),
 		[=] { channel->session().api().joinChannel(channel); },
 		&st::infoIconAddMember);
@@ -998,7 +1003,14 @@ void ActionsFiller::fillChannelActions(
 }
 
 object_ptr<Ui::RpWidget> ActionsFiller::fill() {
-	auto wrapResult = [=](auto &&callback) {
+	const auto wrapToggled = [=](
+			object_ptr<Ui::RpWidget> content,
+			rpl::producer<bool> shown) {
+		auto result = object_ptr<Ui::SlideWrap<>>(_parent, std::move(content));
+		result->setDuration(0)->toggleOn(std::move(shown));
+		return result;
+	};
+	const auto wrapResult = [=](auto &&callback) {
 		_wrap = object_ptr<Ui::VerticalLayout>(_parent);
 		_wrap->add(CreateSkipWidget(_wrap));
 		callback();
@@ -1010,8 +1022,11 @@ object_ptr<Ui::RpWidget> ActionsFiller::fill() {
 			fillUserActions(user);
 		});
 	} else if (auto channel = _peer->asChannel()) {
-		if (channel->isMegagroup()) {
-			return { nullptr };
+		if (const auto megagroup = channel->asMegagroup()) {
+			using namespace rpl::mappers;
+			return wrapToggled(wrapResult([=] {
+				fillChannelActions(megagroup);
+			}), CanViewParticipantsValue(megagroup) | rpl::map(!_1));
 		}
 		return wrapResult([=] {
 			fillChannelActions(channel);

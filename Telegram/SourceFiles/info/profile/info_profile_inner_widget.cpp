@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/profile/info_profile_inner_widget.h"
 
-#include <rpl/combine.h>
-#include <rpl/combine_previous.h>
-#include <rpl/flatten_latest.h>
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_widget.h"
@@ -31,8 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
 #include "lang/lang_keys.h"
-#include "styles/style_info.h"
-#include "styles/style_boxes.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/scroll_area.h"
@@ -40,7 +35,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/box_content_divider.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/vertical_layout.h"
+#include "data/data_channel.h"
 #include "data/data_shared_media.h"
+#include "styles/style_info.h"
+#include "styles/style_boxes.h"
 
 namespace Info {
 namespace Profile {
@@ -102,25 +100,40 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		result->add(std::move(actions));
 	}
 
-	if (_peer->isChat() || _peer->isMegagroup()) {
-		_members = result->add(object_ptr<Members>(
-			result,
-			_controller));
-		_members->scrollToRequests(
-		) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
-			auto min = (request.ymin < 0)
-				? request.ymin
-				: MapFrom(this, _members, QPoint(0, request.ymin)).y();
-			auto max = (request.ymin < 0)
-				? MapFrom(this, _members, QPoint()).y()
-				: (request.ymax < 0)
-				? request.ymax
-				: MapFrom(this, _members, QPoint(0, request.ymax)).y();
-			_scrollToRequests.fire({ min, max });
-		}, _members->lifetime());
-		_cover->setOnlineCount(_members->onlineCountValue());
+	if (_peer->isChat()) {
+		setupMembers(result.data());
+	} else if (const auto megagroup = _peer->asMegagroup()) {
+		CanViewParticipantsValue(
+			megagroup
+		) | rpl::start_with_next([=, raw = result.data()](bool can) {
+			if (can) {
+				setupMembers(raw);
+			} else {
+				_cover->setOnlineCount(rpl::single(0));
+				delete base::take(_members);
+			}
+		}, lifetime());
 	}
 	return result;
+}
+
+void InnerWidget::setupMembers(not_null<Ui::VerticalLayout*> container) {
+	_members = container->add(object_ptr<Members>(
+		container,
+		_controller));
+	_members->scrollToRequests(
+	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
+		auto min = (request.ymin < 0)
+			? request.ymin
+			: MapFrom(this, _members, QPoint(0, request.ymin)).y();
+		auto max = (request.ymin < 0)
+			? MapFrom(this, _members, QPoint()).y()
+			: (request.ymax < 0)
+			? request.ymax
+			: MapFrom(this, _members, QPoint(0, request.ymax)).y();
+		_scrollToRequests.fire({ min, max });
+	}, _members->lifetime());
+	_cover->setOnlineCount(_members->onlineCountValue());
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(

@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 #include "boxes/peers/add_participants_box.h"
 #include "boxes/peers/prepare_short_info_box.h" // PrepareShortInfoBox
+#include "boxes/peers/edit_members_visible.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/max_invite_box.h"
 #include "boxes/add_contact_box.h"
@@ -1188,11 +1189,14 @@ void ParticipantsBoxController::prepare() {
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
 	if (const auto megagroup = _peer->asMegagroup()) {
-		if ((_role == Role::Admins)
+		if ((_role == Role::Members) && megagroup->canBanMembers()) {
+			delegate()->peerListSetAboveWidget(CreateMembersVisibleButton(
+				megagroup));
+		} else if ((_role == Role::Admins)
 			&& (megagroup->amCreator() || megagroup->hasAdminRights())) {
 			const auto validator = AntiSpamMenu::AntiSpamValidator(
 				_navigation->parentController(),
-				_peer->asChannel());
+				megagroup);
 			delegate()->peerListSetAboveWidget(validator.createButton());
 		}
 	}

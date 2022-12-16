@@ -184,6 +184,8 @@ PRIVATE
     boxes/peers/edit_forum_topic_box.h
     boxes/peers/edit_linked_chat_box.cpp
     boxes/peers/edit_linked_chat_box.h
+    boxes/peers/edit_members_visible.cpp
+    boxes/peers/edit_members_visible.h
     boxes/peers/edit_participant_box.cpp
     boxes/peers/edit_participant_box.h
     boxes/peers/edit_participants_box.cpp
