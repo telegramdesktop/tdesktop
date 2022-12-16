@@ -1774,18 +1774,24 @@ void InnerWidget::moveCancelSearchButtons() {
 void InnerWidget::dialogRowReplaced(
 		Row *oldRow,
 		Row *newRow) {
+	auto found = false;
 	if (_state == WidgetState::Filtered) {
+		auto top = 0;
 		for (auto i = _filterResults.begin(); i != _filterResults.end();) {
 			if (i->row == oldRow) { // this row is shown in filtered and maybe is in contacts!
-				if (newRow) {
-					i->row = newRow;
-					++i;
-				} else {
+				found = true;
+				top = i->top;
+				if (!newRow) {
 					i = _filterResults.erase(i);
+					continue;
 				}
-			} else {
-				++i;
+				i->row = newRow;
 			}
+			if (found) {
+				i->top = top;
+				top += i->row->height();
+			}
+			++i;
 		}
 	}
 	if (_selected == oldRow) {
@@ -1800,6 +1806,9 @@ void InnerWidget::dialogRowReplaced(
 		} else {
 			stopReorderPinned();
 		}
+	}
+	if (found) {
+		refresh();
 	}
 }
 
