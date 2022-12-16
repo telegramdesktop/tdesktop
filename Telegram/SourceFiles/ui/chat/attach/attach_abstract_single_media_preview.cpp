@@ -264,11 +264,12 @@ void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
 		this,
 		st::popupMenuWithIcons);
 
-	_menu->addAction(hasSpoiler()
+	const auto spoilered = hasSpoiler();
+	_menu->addAction(spoilered
 		? tr::lng_context_disable_spoiler(tr::now)
 		: tr::lng_context_spoiler_effect(tr::now), [=] {
-		setSpoiler(!hasSpoiler());
-	}, &st::menuIconCopy);
+		setSpoiler(!spoilered);
+	}, spoilered ? &st::menuIconDisable : &st::menuIconSpoiler);
 
 	if (_menu->empty()) {
 		_menu = nullptr;

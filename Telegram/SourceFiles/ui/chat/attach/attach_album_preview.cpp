@@ -81,6 +81,12 @@ bool AlbumPreview::canHaveSpoiler(int index) const {
 	return _sendWay.sendImagesAsPhotos();
 }
 
+void AlbumPreview::toggleSpoilers(bool enabled) {
+	for (auto &thumb : _thumbs) {
+		thumb->setSpoiler(enabled);
+	}
+}
+
 std::vector<int> AlbumPreview::takeOrder() {
 	//Expects(_thumbs.size() == _order.size());
 	//Expects(_itemsShownDimensions.size() == _order.size());
@@ -582,11 +588,12 @@ void AlbumPreview::showContextMenu(
 		this,
 		st::popupMenuWithIcons);
 
-	_menu->addAction(thumb->hasSpoiler()
+	const auto spoilered = thumb->hasSpoiler();
+	_menu->addAction(spoilered
 		? tr::lng_context_disable_spoiler(tr::now)
 		: tr::lng_context_spoiler_effect(tr::now), [=] {
-		thumb->setSpoiler(!thumb->hasSpoiler());
-	}, &st::menuIconCopy);
+		thumb->setSpoiler(!spoilered);
+	}, spoilered ? &st::menuIconDisable : &st::menuIconSpoiler);
 
 	if (_menu->empty()) {
 		_menu = nullptr;

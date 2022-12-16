@@ -35,6 +35,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/widgets/scroll_area.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
@@ -62,6 +63,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat_helpers.h"
+#include "styles/style_info.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtCore/QMimeData>
 
@@ -227,6 +230,17 @@ void SendFilesBox::Block::setSendWay(Ui::SendFilesWay way) {
 	album->setSendWay(way);
 }
 
+void SendFilesBox::Block::toggleSpoilers(bool enabled) {
+	if (_isAlbum) {
+		const auto album = static_cast<Ui::AlbumPreview*>(_preview.get());
+		album->toggleSpoilers(enabled);
+	} else if (_isSingleMedia) {
+		const auto media = static_cast<Ui::SingleMediaPreview*>(
+			_preview.get());
+		media->setSpoiler(enabled);
+	}
+}
+
 void SendFilesBox::Block::applyChanges() {
 	if (!_isAlbum) {
 		if (_isSingleMedia) {
@@ -297,7 +311,7 @@ SendFilesBox::SendFilesBox(
 void SendFilesBox::initPreview() {
 	using namespace rpl::mappers;
 
-	refreshControls();
+	refreshControls(true);
 
 	updateBoxSize();
 
@@ -345,19 +359,6 @@ void SendFilesBox::enqueueNextPrepare() {
 }
 
 void SendFilesBox::prepare() {
-	_send = addButton(
-		(_sendType == Api::SendType::Normal
-			? tr::lng_send_button()
-			: tr::lng_create_group_next()),
-		[=] { send({}); });
-	if (_sendType == Api::SendType::Normal) {
-		SendMenu::SetupMenuAndShortcuts(
-			_send,
-			[=] { return _sendMenuType; },
-			[=] { sendSilent(); },
-			[=] { sendScheduled(); });
-	}
-	addButton(tr::lng_cancel(), [=] { closeBox(); });
 	initSendWay();
 	setupCaption();
 	setupSendWayControls();
@@ -371,11 +372,6 @@ void SendFilesBox::prepare() {
 		}
 	}, lifetime());
 
-	_addFile = addLeftButton(
-		tr::lng_stickers_featured_add(),
-		base::fn_delayed(st::historyAttach.ripple.hideDuration, this, [=] {
-			openDialogToAddFileToAlbum();
-		}));
 	setupDragArea();
 }
 
@@ -457,6 +453,103 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 		crl::guard(this, callback));
 }
 
+void SendFilesBox::refreshButtons() {
+	clearButtons();
+
+	_send = addButton(
+		(_sendType == Api::SendType::Normal
+			? tr::lng_send_button()
+			: tr::lng_create_group_next()),
+		[=] { send({}); });
+	if (_sendType == Api::SendType::Normal) {
+		SendMenu::SetupMenuAndShortcuts(
+			_send,
+			[=] { return _sendMenuType; },
+			[=] { sendSilent(); },
+			[=] { sendScheduled(); });
+	}
+	addButton(tr::lng_cancel(), [=] { closeBox(); });
+	_addFile = addLeftButton(
+		tr::lng_stickers_featured_add(),
+		base::fn_delayed(st::historyAttach.ripple.hideDuration, this, [=] {
+			openDialogToAddFileToAlbum();
+		}));
+
+	addMenuButton();
+}
+
+bool SendFilesBox::hasSendMenu() const {
+	return (_sendMenuType != SendMenu::Type::Disabled);
+}
+
+bool SendFilesBox::hasSpoilerMenu() const {
+	const auto allAreVideo = !ranges::any_of(_list.files, [](const auto &f) {
+		using Type = Ui::PreparedFile::Type;
+		return (f.type != Type::Video);
+	});
+	const auto allAreMedia = !ranges::any_of(_list.files, [](const auto &f) {
+		using Type = Ui::PreparedFile::Type;
+		return (f.type != Type::Photo) && (f.type != Type::Video);
+	});
+	return allAreVideo
+		|| (allAreMedia && _sendWay.current().sendImagesAsPhotos());
+}
+
+void SendFilesBox::applyBlockChanges() {
+	for (auto &block : _blocks) {
+		block.applyChanges();
+	}
+}
+
+bool SendFilesBox::allWithSpoilers() {
+	applyBlockChanges();
+	return ranges::all_of(_list.files, &Ui::PreparedFile::spoiler);
+}
+
+void SendFilesBox::toggleSpoilers(bool enabled) {
+	for (auto &file : _list.files) {
+		file.spoiler = enabled;
+	}
+	for (auto &block : _blocks) {
+		block.toggleSpoilers(enabled);
+	}
+}
+
+void SendFilesBox::addMenuButton() {
+	if (!hasSendMenu() && !hasSpoilerMenu()) {
+		return;
+	}
+
+	const auto top = addTopButton(st::infoTopBarMenu);
+	top->setClickedCallback([=] {
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			top,
+			st::popupMenuExpandedSeparator);
+		if (hasSpoilerMenu()) {
+			const auto spoilered = allWithSpoilers();
+			_menu->addAction(
+				(spoilered
+					? tr::lng_context_disable_spoiler(tr::now)
+					: tr::lng_context_spoiler_effect(tr::now)),
+				[=] { toggleSpoilers(!spoilered); },
+				(spoilered ? &st::menuIconDisable : &st::menuIconSpoiler));
+			if (hasSendMenu()) {
+				_menu->addSeparator();
+			}
+		}
+		if (hasSendMenu()) {
+			SendMenu::FillSendMenu(
+				_menu.get(),
+				_sendMenuType,
+				[=] { sendSilent(); },
+				[=] { sendScheduled(); });
+		}
+		_menu->popup(QCursor::pos());
+		return true;
+	});
+
+}
+
 void SendFilesBox::initSendWay() {
 	_sendWay = [&] {
 		auto result = Core::App().settings().sendFilesWay();
@@ -479,6 +572,9 @@ void SendFilesBox::initSendWay() {
 		updateEmojiPanelGeometry();
 		for (auto &block : _blocks) {
 			block.setSendWay(value);
+		}
+		if (!hasSendMenu()) {
+			refreshButtons();
 		}
 		setInnerFocus();
 	}, lifetime());
@@ -650,9 +746,12 @@ void SendFilesBox::pushBlock(int from, int till) {
 	}, widget->lifetime());
 }
 
-void SendFilesBox::refreshControls() {
+void SendFilesBox::refreshControls(bool initial) {
+	if (initial || !hasSendMenu()) {
+		refreshButtons();
+	}
 	refreshTitleText();
-	updateSendWayControlsVisibility();
+	updateSendWayControls();
 	updateCaptionPlaceholder();
 }
 
@@ -711,11 +810,14 @@ void SendFilesBox::setupSendWayControls() {
 		st::editMediaHintLabel);
 }
 
-void SendFilesBox::updateSendWayControlsVisibility() {
+void SendFilesBox::updateSendWayControls() {
 	const auto onlyOne = (_sendLimit == SendLimit::One);
 	_groupFiles->setVisible(_list.hasGroupOption(onlyOne));
 	_sendImagesAsPhotos->setVisible(
 		_list.hasSendImagesAsPhotosOption(onlyOne));
+	_sendImagesAsPhotos->setText((_list.files.size() > 1)
+		? tr::lng_send_compressed(tr::now)
+		: tr::lng_send_compressed_one(tr::now));
 
 	_hintLabel->setVisible(
 		_controller->session().settings().photoEditorHintShown()
@@ -933,20 +1035,27 @@ void SendFilesBox::addFile(Ui::PreparedFile &&file) {
 }
 
 void SendFilesBox::refreshTitleText() {
+	using Type = Ui::PreparedFile::Type;
 	const auto count = int(_list.files.size());
 	if (count > 1) {
 		const auto imagesCount = ranges::count(
 			_list.files,
-			Ui::PreparedFile::Type::Photo,
+			Type::Photo,
 			&Ui::PreparedFile::type);
 		_titleText = (imagesCount == count)
 			? tr::lng_send_images_selected(tr::now, lt_count, count)
 			: tr::lng_send_files_selected(tr::now, lt_count, count);
-		_titleHeight = st::boxTitleHeight;
 	} else {
-		_titleText = QString();
-		_titleHeight = count ? st::boxPhotoPadding.top() : 0;
+		const auto type = _list.files.empty()
+			? Type::None
+			: _list.files.front().type;
+		_titleText = (type == Type::Photo)
+			? tr::lng_send_image(tr::now)
+			: (type == Type::Video)
+			? tr::lng_send_video(tr::now)
+			: tr::lng_send_file(tr::now);
 	}
+	_titleHeight = st::boxTitleHeight;
 }
 
 void SendFilesBox::updateBoxSize() {
@@ -1102,9 +1211,7 @@ void SendFilesBox::send(
 	for (auto &item : _list.files) {
 		item.spoiler = false;
 	}
-	for (auto &block : _blocks) {
-		block.applyChanges();
-	}
+	applyBlockChanges();
 
 	Storage::ApplyModifications(_list);
 

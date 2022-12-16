@@ -319,7 +319,7 @@ void EditCaptionBox::setupControls() {
 		this,
 		object_ptr<Ui::Checkbox>(
 			this,
-			tr::lng_send_compressed(tr::now),
+			tr::lng_send_compressed_one(tr::now),
 			true,
 			st::defaultBoxCheckbox),
 		st::editMediaCheckboxMargins)

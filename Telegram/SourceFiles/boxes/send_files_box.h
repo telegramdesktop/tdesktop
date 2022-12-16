@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/abstract_box.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
+#include "ui/widgets/popup_menu.h"
 #include "storage/localimageloader.h"
 #include "storage/storage_media_prepare.h"
 
@@ -36,6 +37,7 @@ class EmojiButton;
 class AlbumPreview;
 class VerticalLayout;
 class FlatLabel;
+class PopupMenu;
 } // namespace Ui
 
 namespace Window {
@@ -106,6 +108,7 @@ private:
 		[[nodiscard]] rpl::producer<int> itemModifyRequest() const;
 
 		void setSendWay(Ui::SendFilesWay way);
+		void toggleSpoilers(bool enabled);
 		void applyChanges();
 
 	private:
@@ -117,16 +120,24 @@ private:
 		bool _isSingleMedia = false;
 
 	};
+
 	void initSendWay();
 	void initPreview();
+	[[nodiscard]] bool hasSendMenu() const;
+	[[nodiscard]] bool hasSpoilerMenu() const;
+	[[nodiscard]] bool allWithSpoilers();
+	void addMenuButton();
+	void applyBlockChanges();
+	void toggleSpoilers(bool enabled);
 
 	bool validateLength(const QString &text) const;
-	void refreshControls();
+	void refreshButtons();
+	void refreshControls(bool initial = false);
 	void setupSendWayControls();
 	void setupCaption();
 
 	void setupEmojiPanel();
-	void updateSendWayControlsVisibility();
+	void updateSendWayControls();
 	void updateEmojiPanelGeometry();
 	void emojiFilterForGeometry(not_null<QEvent*> event);
 
@@ -199,6 +210,8 @@ private:
 	std::vector<Block> _blocks;
 	Fn<void()> _whenReadySend;
 	bool _preparing = false;
+
+	base::unique_qptr<Ui::PopupMenu> _menu;
 
 	QPointer<Ui::RoundButton> _send;
 	QPointer<Ui::RoundButton> _addFile;

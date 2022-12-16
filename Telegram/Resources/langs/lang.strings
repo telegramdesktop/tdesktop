@@ -2344,17 +2344,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_send_image_empty" = "Could not send an empty file: {name}";
 "lng_send_images_selected#one" = "{count} image selected";
 "lng_send_images_selected#other" = "{count} images selected";
-"lng_send_photos#one" = "Send {count} photo";
-"lng_send_photos#other" = "Send {count} photos";
-"lng_send_separate_photos" = "Send as separate photos";
-"lng_send_separate_photos_videos" = "Send as separate media";
 "lng_send_files_selected#one" = "{count} file selected";
 "lng_send_files_selected#other" = "{count} files selected";
-"lng_send_files#one" = "Send {count} file";
-"lng_send_files#other" = "Send {count} files";
 "lng_send_grouped" = "Group items";
+"lng_send_compressed_one" = "Compress the image";
 "lng_send_compressed" = "Compress images";
 "lng_send_media_invalid_files" = "Sorry, no valid files found.";
+"lng_send_image" = "Send an image";
+"lng_send_file" = "Send a file";
+"lng_send_video" = "Send a video file";
 
 "lng_forward_choose" = "Choose recipient...";
 "lng_forward_cant" = "Sorry, no way to forward here :(";
