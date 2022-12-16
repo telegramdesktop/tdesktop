@@ -989,6 +989,7 @@ void AttachWebView::toggleInMenu(
 		bool enabled,
 		Fn<void()> callback) {
 	_session->api().request(MTPmessages_ToggleBotInAttachMenu(
+		MTP_flags(0),
 		bot->inputUser,
 		MTP_bool(enabled)
 	)).done([=] {

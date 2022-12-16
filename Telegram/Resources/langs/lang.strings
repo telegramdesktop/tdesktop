@@ -1564,6 +1564,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_suggested_photo_title" = "Suggested Photo";
 "lng_action_suggested_photo_me" = "You suggested {user} to use this photo for their account.";
 "lng_action_suggested_photo" = "{user} suggests you to use this photo for your account.";
+"lng_action_attach_menu_bot_allowed" = "You allowed this bot to message you when you added it in the attachment menu.";
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";

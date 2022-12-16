@@ -3900,6 +3900,12 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
+	auto prepareAttachMenuBotAllowed = [this](const MTPDmessageActionAttachMenuBotAllowed &action) {
+		return PreparedServiceText{ {
+			tr::lng_action_attach_menu_bot_allowed(tr::now)
+		} };
+	};
+
 	setServiceText(action.match([&](
 			const MTPDmessageActionChatAddUser &data) {
 		return prepareChatAddUserText(data);
@@ -3974,6 +3980,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}, [&](const MTPDmessageActionSuggestProfilePhoto &data) {
 		return prepareSuggestProfilePhoto(data);
+	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
+		return prepareAttachMenuBotAllowed(data);
 	}, [](const MTPDmessageActionEmpty &) {
 		return PreparedServiceText{ { tr::lng_message_empty(tr::now) } };
 	}));

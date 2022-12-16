@@ -1164,7 +1164,10 @@ auto HtmlWriter::Wrap::pushMessage(
 		}
 		return serviceFrom + " changed topic " + parts.join(',');
 	}, [&](const ActionSuggestProfilePhoto &data) {
-		return (serviceFrom + " suggests to use this photo");
+		return serviceFrom + " suggests to use this photo";
+	}, [&](const ActionAttachMenuBotAllowed &data) {
+		return "You allowed this bot to message you "
+			"when you added it in the attachment menu."_q;
 	}, [](v::null_t) { return QByteArray(); });
 
 	if (!serviceText.isEmpty()) {

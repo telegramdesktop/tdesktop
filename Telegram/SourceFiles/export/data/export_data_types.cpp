@@ -1173,6 +1173,8 @@ ServiceAction ParseServiceAction(
 			+ "photos/"
 			+ PreparePhotoFileName(++context.photos, date));
 		result.content = content;
+	}, [&](const MTPDmessageActionAttachMenuBotAllowed &data) {
+		result.content = ActionAttachMenuBotAllowed();
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

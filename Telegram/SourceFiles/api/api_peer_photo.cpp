@@ -118,6 +118,7 @@ void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
 
 void PeerPhoto::updateSelf(not_null<PhotoData*> photo) {
 	_api.request(MTPphotos_UpdateProfilePhoto(
+		MTP_flags(0),
 		photo->mtpInput()
 	)).done([=](const MTPphotos_Photo &result) {
 		result.match([&](const MTPDphotos_photo &data) {
@@ -164,6 +165,7 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 	const auto self = _session->user();
 	if (self->userpicPhotoId() == photo->id) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
 			MTP_inputPhotoEmpty()
 		)).done([=](const MTPphotos_Photo &result) {
 			self->setPhoto(MTP_userProfilePhotoEmpty());
@@ -219,6 +221,7 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 	}
 	if (peer == _session->user()) {
 		_api.request(MTPphotos_UpdateProfilePhoto(
+			MTP_flags(0),
 			photo->mtpInput()
 		)).done([=](const MTPphotos_Photo &result) {
 			result.match([&](const MTPDphotos_photo &data) {

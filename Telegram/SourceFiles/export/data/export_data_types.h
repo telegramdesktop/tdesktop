@@ -512,6 +512,9 @@ struct ActionSuggestProfilePhoto {
 	Photo photo;
 };
 
+struct ActionAttachMenuBotAllowed {
+};
+
 struct ServiceAction {
 	std::variant<
 		v::null_t,
@@ -547,7 +550,8 @@ struct ServiceAction {
 		ActionGiftPremium,
 		ActionTopicCreate,
 		ActionTopicEdit,
-		ActionSuggestProfilePhoto> content;
+		ActionSuggestProfilePhoto,
+		ActionAttachMenuBotAllowed> content;
 };
 
 ServiceAction ParseServiceAction(

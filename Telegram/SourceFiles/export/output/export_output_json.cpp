@@ -577,6 +577,9 @@ QByteArray SerializeMessage(
 		pushActor();
 		pushAction("suggest_profile_photo");
 		pushPhoto(data.photo.image);
+	}, [&](const ActionAttachMenuBotAllowed &data) {
+		pushActor();
+		pushAction("attach_menu_bot_allowed");
 	}, [](v::null_t) {});
 
 	if (v::is_null(message.action.content)) {
