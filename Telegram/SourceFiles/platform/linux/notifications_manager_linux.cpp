@@ -798,6 +798,10 @@ bool SkipFlashBounceForCustom() {
 	return false;
 }
 
+bool WaitForInputForCustom() {
+	return true;
+}
+
 bool Supported() {
 	return ServiceRegistered || Gio::Application::get_default();
 }

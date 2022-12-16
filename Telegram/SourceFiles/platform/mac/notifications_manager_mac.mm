@@ -163,6 +163,10 @@ bool SkipFlashBounceForCustom() {
 	return false;
 }
 
+bool WaitForInputForCustom() {
+	return true;
+}
+
 bool Supported() {
 	return true;
 }
