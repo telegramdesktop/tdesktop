@@ -46,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "api/api_peer_photo.h"
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
+#include "styles/style_menu_icons.h"
 
 namespace Ui {
 namespace {
@@ -305,7 +306,9 @@ void UserpicButton::choosePhotoLocally() {
 	if (!IsCameraAvailable()) {
 		chooseFile();
 	} else {
-		_menu = base::make_unique_q<Ui::PopupMenu>(this);
+		_menu = base::make_unique_q<Ui::PopupMenu>(
+			this,
+			st::popupMenuWithIcons);
 		const auto user = _peer ? _peer->asUser() : nullptr;
 		if (user && !user->isSelf()) {
 			const auto name = user->firstName.isEmpty()
@@ -313,27 +316,30 @@ void UserpicButton::choosePhotoLocally() {
 				: user->firstName;
 			_menu->addAction(
 				tr::lng_profile_set_photo_for(tr::now, lt_user, name),
-				[=] { chooseFile(); });
+				[=] { chooseFile(); },
+				&st::menuIconPhotoSet);
 			_menu->addAction(
 				tr::lng_profile_suggest_photo(tr::now, lt_user, name),
-				[=] { chooseFile(ChosenType::Suggest); });
+				[=] { chooseFile(ChosenType::Suggest); },
+				&st::menuIconPhotoSuggest);
 			if (user->hasPersonalPhoto()) {
 				_menu->addAction(
 					tr::lng_profile_photo_reset(tr::now),
 					[=] { user->session().api().peerPhoto().clearPersonal(
-						user); _userpicCustom = false; });
+						user); _userpicCustom = false; },
+					&st::menuIconRemove);
 			}
 		} else {
 			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
 				chooseFile();
-			});
+			}, &st::menuIconPhoto);
 			_menu->addAction(tr::lng_attach_camera(tr::now), [=] {
 				_window->show(Box(
 					CameraBox,
 					_window,
 					_peer,
 					callback(ChosenType::Set)));
-			});
+			}, &st::menuIconPhotoSet);
 		}
 		_menu->popup(QCursor::pos());
 	}
