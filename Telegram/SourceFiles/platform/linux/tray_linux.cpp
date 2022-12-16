@@ -110,7 +110,7 @@ QIcon IconGraphic::systemIcon(
 		base::IconName(),
 	};
 
-	for (const auto candidate : candidates) {
+	for (const auto &candidate : candidates) {
 		const auto icon = QIcon::fromTheme(candidate);
 		if (icon.name() == candidate) {
 			return icon;
