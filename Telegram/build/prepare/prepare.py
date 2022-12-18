@@ -423,7 +423,7 @@ version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifi
 win:
     python -m venv python
     python\\Scripts\\activate.bat
-    pip install pywin32 six
+    pip install pywin32 six meson
     deactivate
 """, 'ThirdParty')
 
@@ -662,6 +662,133 @@ mac:
     mv lib/.libs/libiconv.a out.x86_64
     lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
     make install
+""")
+
+stage('dav1d', """
+win:
+    git clone -b 1.0.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
+    cd dav1d
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
+    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=debug -Denable_tools=false -Denable_tests=false -Db_vscrt=mtd builddir-debug
+    meson compile -C builddir-debug
+    meson install -C builddir-debug
+release:
+    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=release -Denable_tools=false -Denable_tests=false -Db_vscrt=mt builddir-release
+    meson compile -C builddir-release
+    meson install -C builddir-release
+win:
+    copy %LIBS_DIR%\\local\\lib\\libdav1d.a %LIBS_DIR%\\local\\lib\\dav1d.lib
+    deactivate
+""")
+
+stage('libavif', """
+win:
+    git clone -b v0.11.1 --depth 1 https://github.com/AOMediaCodec/libavif.git
+    cd libavif
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DAVIF_ENABLE_WERROR=OFF ^
+        -DAVIF_CODEC_DAV1D=ON
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libde265', """
+win:
+    git clone https://github.com/strukturag/libde265.git
+    cd libde265
+    git checkout c96962cf6a0259f1678e9a0e1566eb9b5516093a
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS="/DLIBDE265_STATIC_BUILD" ^
+        -DCMAKE_CXX_FLAGS="/DLIBDE265_STATIC_BUILD" ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DENABLE_SDL=OFF ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DENABLE_DECODER=OFF ^
+        -DENABLE_ENCODER=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libheif', """
+win:
+    git clone --depth 1 -b v1.14.0 https://github.com/strukturag/libheif.git
+    cd libheif
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DENABLE_PLUGIN_LOADING=OFF ^
+        -DWITH_LIBDE265=ON ^
+        -DWITH_SvtEnc=OFF ^
+        -DWITH_RAV1E=OFF ^
+        -DWITH_EXAMPLES=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libjxl', """
+win:
+    git clone -b v0.7.0 --depth 1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    cd libjxl
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DBUILD_TESTING=OFF ^
+        -DJPEGXL_ENABLE_FUZZERS=OFF ^
+        -DJPEGXL_ENABLE_DEVTOOLS=OFF ^
+        -DJPEGXL_ENABLE_TOOLS=OFF ^
+        -DJPEGXL_ENABLE_DOXYGEN=OFF ^
+        -DJPEGXL_ENABLE_MANPAGES=OFF ^
+        -DJPEGXL_ENABLE_EXAMPLES=OFF ^
+        -DJPEGXL_ENABLE_JNI=OFF ^
+        -DJPEGXL_ENABLE_SJPEG=OFF ^
+        -DJPEGXL_ENABLE_OPENEXR=OFF ^
+        -DJPEGXL_ENABLE_SKCMS=ON ^
+        -DJPEGXL_BUNDLE_SKCMS=ON ^
+        -DJPEGXL_ENABLE_VIEWERS=OFF ^
+        -DJPEGXL_ENABLE_TCMALLOC=OFF ^
+        -DJPEGXL_ENABLE_PLUGINS=OFF ^
+        -DJPEGXL_ENABLE_COVERAGE=OFF ^
+        -DJPEGXL_ENABLE_PROFILER=OFF ^
+        -DJPEGXL_WARNINGS_AS_ERRORS=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
 """)
 
 stage('libvpx', """
