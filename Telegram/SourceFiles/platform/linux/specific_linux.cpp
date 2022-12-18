@@ -497,9 +497,9 @@ bool GenerateDesktopFile(
 					}
 				}
 			}
-
-			target->save_to_file(targetFile.toStdString());
 		}
+
+		target->save_to_file(targetFile.toStdString());
 	} catch (const std::exception &e) {
 		if (!silent) {
 			LOG(("App Error: %1").arg(QString::fromStdString(e.what())));
