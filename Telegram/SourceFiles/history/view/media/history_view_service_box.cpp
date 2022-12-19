@@ -28,9 +28,7 @@ ServiceBox::ServiceBox(
 , _button([&] {
 	auto result = Button();
 	result.repaint = [=] { repaint(); };
-	result.text.setText(
-		st::semiboldTextStyle,
-		tr::lng_sticker_premium_view(tr::now));
+	result.text.setText(st::semiboldTextStyle, _content->button());
 
 	const auto height = st::msgServiceGiftBoxButtonHeight;
 	const auto &padding = st::msgServiceGiftBoxButtonPadding;
@@ -64,8 +62,10 @@ ServiceBox::ServiceBox(
 		+ _content->top()
 		+ _content->size().height()
 		+ st::msgServiceGiftBoxTitlePadding.top()
-		+ _title.countHeight(_maxWidth)
-		+ st::msgServiceGiftBoxTitlePadding.bottom()
+		+ (_title.isEmpty()
+			? 0
+			: (_title.countHeight(_maxWidth)
+				+ st::msgServiceGiftBoxTitlePadding.bottom()))
 		+ _subtitle.countHeight(_maxWidth)
 		+ st::msgServiceGiftBoxButtonMargins.top()
 		+ _button.size.height()
@@ -98,8 +98,10 @@ void ServiceBox::draw(Painter &p, const PaintContext &context) const {
 		p.setPen(context.st->msgServiceFg());
 		const auto &padding = st::msgServiceGiftBoxTitlePadding;
 		top += padding.top();
-		_title.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
-		top += _title.countHeight(_maxWidth) + padding.bottom();
+		if (!_title.isEmpty()) {
+			_title.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
+			top += _title.countHeight(_maxWidth) + padding.bottom();
+		}
 		_subtitle.draw(p, st::msgPadding.left(), top, _maxWidth, style::al_top);
 		top += _subtitle.countHeight(_maxWidth) + padding.bottom();
 	}

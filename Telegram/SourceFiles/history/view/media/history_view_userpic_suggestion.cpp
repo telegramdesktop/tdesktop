@@ -52,7 +52,11 @@ QSize UserpicSuggestion::size() {
 }
 
 QString UserpicSuggestion::title() {
-	return tr::lng_action_suggested_photo_title(tr::now);
+	return QString();
+}
+
+QString UserpicSuggestion::button() {
+	return tr::lng_action_suggested_photo_button(tr::now);
 }
 
 QString UserpicSuggestion::subtitle() {

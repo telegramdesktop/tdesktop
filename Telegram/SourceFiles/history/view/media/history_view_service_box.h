@@ -23,6 +23,7 @@ public:
 	[[nodiscard]] virtual QSize size() = 0;
 	[[nodiscard]] virtual QString title() = 0;
 	[[nodiscard]] virtual QString subtitle() = 0;
+	[[nodiscard]] virtual QString button() = 0;
 	virtual void draw(
 		Painter &p,
 		const PaintContext &context,

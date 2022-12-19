@@ -58,6 +58,10 @@ QString PremiumGift::subtitle() {
 	return FormatGiftMonths(_gift->months());
 }
 
+QString PremiumGift::button() {
+	return tr::lng_sticker_premium_view(tr::now);
+}
+
 ClickHandlerPtr PremiumGift::createViewLink() {
 	const auto from = _gift->from();
 	const auto to = _parent->history()->peer;

@@ -27,6 +27,7 @@ public:
 	QSize size() override;
 	QString title() override;
 	QString subtitle() override;
+	QString button() override;
 	void draw(
 		Painter &p,
 		const PaintContext &context,
