@@ -1039,6 +1039,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_forwards_always_empty" = "Always allow";
 "lng_edit_privacy_forwards_never_empty" = "Never allow";
 "lng_edit_privacy_forwards_exceptions" = "These settings will override the values above.";
+"lng_edit_privacy_forwards_exceptions_everyone" = "You can add users or entire groups which will not see your profile photo.";
+"lng_edit_privacy_forwards_exceptions_nobody" = "Add users or entire groups which will still see your profile photo.";
 "lng_edit_privacy_forwards_always_title" = "Always allow";
 "lng_edit_privacy_forwards_never_title" = "Never allow";
 "lng_edit_privacy_forwards_sample_message" = "Reinhardt, we need to find you some new tunes 🎶";
@@ -1053,6 +1055,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_privacy_profile_photo_exceptions" = "These settings will override the values above.";
 "lng_edit_privacy_profile_photo_always_title" = "Always allow";
 "lng_edit_privacy_profile_photo_never_title" = "Never allow";
+"lng_edit_privacy_profile_photo_public_set" = "Set Public Photo";
+"lng_edit_privacy_profile_photo_public_update" = "Update Public Photo";
+"lng_edit_privacy_profile_photo_public_remove" = "Remove Public Photo";
+"lng_edit_privacy_profile_photo_public_about" = "You can upload a public photo for those who are restricted from viewing your real profile photo.";
+"lng_edit_privacy_profile_photo_public_toast" = "This photo is now set for those who are restricted from viewing your main photo.";
 
 "lng_edit_privacy_voices_title" = "Voice messages settings";
 "lng_edit_privacy_voices_header" = "Who can send me voice messages";
@@ -1183,6 +1190,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_profile_info_section" = "Info";
 "lng_info_tab_media" = "Media";
+"lng_info_public_photo" = "public photo";
 "lng_info_mobile_label" = "Mobile";
 "lng_info_mobile_hidden" = "Hidden";
 "lng_info_username_label" = "Username";
@@ -2468,6 +2476,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_mediaview_group_photo" = "Group Photo";
 "lng_mediaview_channel_photo" = "Channel Photo";
 "lng_mediaview_profile_photo" = "Profile Photo";
+"lng_mediaview_profile_public_photo" = "Public Photo";
 "lng_mediaview_file_n_of_amount" = "{file} {n} of {amount}";
 "lng_mediaview_n_of_amount" = "Photo {n} of {amount}";
 "lng_mediaview_doc_image" = "File";

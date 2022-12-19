@@ -254,14 +254,14 @@ void UserpicButton::choosePhotoLocally() {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
-			Editor::PrepareProfilePhotoFromFile(
-				this,
-				_window,
-				((_peer && _peer->isForum())
-					? ImageRoundRadius::Large
-					: ImageRoundRadius::Ellipse),
-				callback(type));
-		}));
+				Editor::PrepareProfilePhotoFromFile(
+					this,
+					_window,
+					((_peer && _peer->isForum())
+						? ImageRoundRadius::Large
+						: ImageRoundRadius::Ellipse),
+					callback(type));
+			}));
 	};
 	if (!IsCameraAvailable()) {
 		chooseFile();
