@@ -25,7 +25,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/chat_style.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/attach/attach_send_files_way.h"
-#include "ui/special_buttons.h"
 #include "ui/ui_utility.h"
 #include "ui/text/text_utilities.h"
 #include "ui/toasts/common_toasts.h"

@@ -363,4 +363,21 @@ void PeerPhoto::requestUserPhotos(
 	_userPhotosRequests.emplace(user, requestId);
 }
 
+// Non-personal photo in case a personal photo is set.
+void PeerPhoto::registerNonPersonalPhoto(
+		not_null<UserData*> user,
+		not_null<PhotoData*> photo) {
+	_nonPersonalPhotos.emplace_or_assign(user, photo);
+}
+
+void PeerPhoto::unregisterNonPersonalPhoto(not_null<UserData*> user) {
+	_nonPersonalPhotos.erase(user);
+}
+
+PhotoData *PeerPhoto::nonPersonalPhoto(
+		not_null<UserData*> user) const {
+	const auto i = _nonPersonalPhotos.find(user);
+	return (i != end(_nonPersonalPhotos)) ? i->second.get() : nullptr;
+}
+
 } // namespace Api

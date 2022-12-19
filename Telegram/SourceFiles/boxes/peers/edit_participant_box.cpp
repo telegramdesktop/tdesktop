@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_participant_box.h"
 
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/padding_wrap.h"
 #include "ui/wrap/slide_wrap.h"
@@ -20,7 +21,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
-#include "ui/special_buttons.h"
 #include "ui/painter.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "settings/settings_privacy_security.h"

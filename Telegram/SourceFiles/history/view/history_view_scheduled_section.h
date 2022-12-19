@@ -30,8 +30,7 @@ namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
-class HistoryDownButton;
-struct PreparedList;
+class PreparedList;
 class SendFilesWay;
 } // namespace Ui
 

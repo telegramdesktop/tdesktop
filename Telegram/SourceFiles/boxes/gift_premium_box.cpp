@@ -19,10 +19,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "settings/settings_premium.h"
 #include "ui/basic_click_handlers.h" // UrlClickHandler::Open.
+#include "ui/controls/userpic_button.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/effects/premium_stars_colored.h"
 #include "ui/layers/generic_box.h"
-#include "ui/special_buttons.h"
 #include "ui/text/format_values.h"
 #include "ui/text/text_utilities.h"
 #include "ui/widgets/checkbox.h"

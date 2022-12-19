@@ -12,9 +12,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "main/main_session.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "lang/lang_keys.h"
 #include "ui/painter.h"
+#include "ui/unread_badge_paint.h"
 #include "styles/style_dialogs.h"
 
 namespace Ui {
@@ -46,11 +46,11 @@ void UnreadBadge::paintEvent(QPaintEvent *e) {
 
 	auto p = QPainter(this);
 
-	Dialogs::Ui::UnreadBadgeStyle unreadSt;
+	UnreadBadgeStyle unreadSt;
 	unreadSt.muted = !_active;
 	auto unreadRight = width();
 	auto unreadTop = 0;
-	Dialogs::Ui::PaintUnreadBadge(
+	PaintUnreadBadge(
 		p,
 		_text,
 		unreadRight,

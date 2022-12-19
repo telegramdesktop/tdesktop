@@ -22,11 +22,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
 #include "window/window_session_controller.h"
 #include "menu/menu_ttl.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/toast/toast.h"
-#include "ui/special_buttons.h"
 #include "ui/widgets/fields/special_fields.h"
 #include "ui/widgets/popup_menu.h"
 #include "ui/text/format_values.h"
@@ -465,9 +465,6 @@ void GroupInfoBox::prepare() {
 	_photo.create(
 		this,
 		&_navigation->parentController()->window(),
-		((_type == Type::Channel)
-			? tr::lng_create_channel_crop
-			: tr::lng_create_group_crop)(tr::now),
 		Ui::UserpicButton::Role::ChangePhoto,
 		st::defaultUserpicButton);
 	_title.create(

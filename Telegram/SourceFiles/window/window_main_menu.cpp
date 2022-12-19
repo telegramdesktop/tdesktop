@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "window/window_controller.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/widgets/popup_menu.h"
@@ -24,9 +25,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_utilities.h"
 #include "ui/text/text_options.h"
 #include "ui/painter.h"
-#include "ui/special_buttons.h"
 #include "ui/empty_userpic.h"
-#include "dialogs/ui/dialogs_layout.h"
+#include "ui/unread_badge_paint.h"
 #include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "storage/localstorage.h"
@@ -271,7 +271,7 @@ void MainMenu::ToggleAccountsButton::paintUnreadBadge(Painter &p) {
 		- st::mainMenuTogglePosition.y()
 		- st::mainMenuBadgeSize / 2;
 	p.setOpacity(progress);
-	Dialogs::Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
+	Ui::PaintUnreadBadge(p, _unreadBadge, right, top, st);
 }
 
 void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
@@ -289,7 +289,7 @@ void MainMenu::ToggleAccountsButton::validateUnreadBadge() {
 	if (!_unreadBadge.isEmpty()) {
 		const auto st = Settings::Badge::Style();
 		skip += 2 * st::mainMenuToggleSize
-			+ Dialogs::Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
+			+ Ui::CountUnreadBadgeSize(_unreadBadge, st).width();
 	}
 	_rightSkip = skip;
 }

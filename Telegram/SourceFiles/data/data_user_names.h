@@ -30,7 +30,7 @@ public:
 
 private:
 	std::vector<QString> _usernames;
-	short _indexEditableUsername = -1;
+	int _indexEditableUsername = -1;
 
 };
 

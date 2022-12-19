@@ -20,7 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
-#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "mainwidget.h"
@@ -29,6 +28,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/empty_userpic.h"
 #include "ui/userpic_view.h"
+#include "ui/unread_badge_paint.h"
 #include "ui/painter.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -98,8 +98,8 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto counter = (state.unreadCounter > 0)
 		? QString::number(state.unreadCounter)
 		: QString();
-	Dialogs::Ui::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeSize::TouchBar;
+	Ui::UnreadBadgeStyle unreadSt;
+	unreadSt.sizeId = Ui::UnreadBadgeSize::TouchBar;
 	unreadSt.muted = state.unreadMuted;
 	// Use constant values to draw badge regardless of cConfigScale().
 	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
@@ -115,7 +115,7 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 	result.fill(Qt::transparent);
 	Painter p(&result);
 
-	Dialogs::Ui::PaintUnreadBadge(
+	Ui::PaintUnreadBadge(
 		p,
 		counter,
 		result.width(),

@@ -178,14 +178,6 @@ settingsInfoPhoto: UserpicButton(defaultUserpicButton) {
 	size: size(settingsInfoPhotoSize, settingsInfoPhotoSize);
 	photoSize: settingsInfoPhotoSize;
 }
-settingsInfoUploadSize: 32px;
-settingsInfoUpload: UserpicButton(defaultUserpicButton) {
-	size: size(settingsInfoUploadSize, settingsInfoUploadSize);
-	photoSize: settingsInfoUploadSize;
-	changeIcon: icon {{ "settings/photo", activeButtonFg }};
-	changeIconPosition: point(4px, 4px);
-}
-settingsInfoUploadBorder: 2px;
 settingsInfoPhotoTop: 0px;
 settingsInfoPhotoSkip: 7px;
 settingsInfoNameSkip: -1px;

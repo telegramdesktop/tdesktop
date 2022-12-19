@@ -325,6 +325,10 @@ infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
 	statusLeft: 79px;
 	statusTop: 38px;
 }
+infoEditContactCover: InfoProfileCover(infoProfileCover) {
+	nameTop: 33px;
+	statusTop: 57px;
+}
 
 infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 

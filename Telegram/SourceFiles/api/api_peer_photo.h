@@ -33,6 +33,14 @@ public:
 
 	void requestUserPhotos(not_null<UserData*> user, UserPhotoId afterId);
 
+	// Non-personal photo in case a personal photo is set.
+	void registerNonPersonalPhoto(
+		not_null<UserData*> user,
+		not_null<PhotoData*> photo);
+	void unregisterNonPersonalPhoto(not_null<UserData*> user);
+	[[nodiscard]] PhotoData *nonPersonalPhoto(
+		not_null<UserData*> user) const;
+
 private:
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);
 	void upload(not_null<PeerData*> peer, QImage &&image, bool suggestion);
@@ -44,6 +52,10 @@ private:
 	base::flat_set<FullMsgId> _suggestions;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
+
+	base::flat_map<
+		not_null<UserData*>,
+		not_null<PhotoData*>> _nonPersonalPhotos;
 
 };
 

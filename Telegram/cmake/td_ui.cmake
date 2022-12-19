@@ -218,6 +218,8 @@ PRIVATE
     ui/controls/download_bar.h
     ui/controls/emoji_button.cpp
     ui/controls/emoji_button.h
+    ui/controls/jump_down_button.cpp
+    ui/controls/jump_down_button.h
     ui/controls/invite_link_buttons.cpp
     ui/controls/invite_link_buttons.h
     ui/controls/invite_link_label.cpp
@@ -278,6 +280,8 @@ PRIVATE
     ui/empty_userpic.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
+    ui/unread_badge_paint.cpp
+    ui/unread_badge_paint.h
     ui/userpic_view.cpp
     ui/userpic_view.h
     ui/widgets/fields/special_fields.cpp

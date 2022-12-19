@@ -67,12 +67,12 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	_cover = _topic
 		? result->add(object_ptr<Cover>(
 			result,
-			_topic,
-			_controller->parentController()))
+			_controller->parentController(),
+			_topic))
 		: result->add(object_ptr<Cover>(
 			result,
-			_peer,
-			_controller->parentController()));
+			_controller->parentController(),
+			_peer));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
 		_controller->showSection(_topic

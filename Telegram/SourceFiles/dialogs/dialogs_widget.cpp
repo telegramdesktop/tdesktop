@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/chat/requests_bar.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/controls/download_bar.h"
+#include "ui/controls/jump_down_button.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "lang/lang_keys.h"

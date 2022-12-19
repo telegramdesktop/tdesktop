@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "dialogs/ui/dialogs_layout.h"
 
-#include "data/data_abstract_structure.h"
 #include "data/data_drafts.h"
 #include "data/data_forum_topic.h"
 #include "data/data_session.h"
@@ -20,8 +19,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/unread_badge.h"
+#include "ui/unread_badge_paint.h"
 #include "ui/painter.h"
-#include "ui/ui_utility.h"
 #include "core/ui_integration.h"
 #include "lang/lang_keys.h"
 #include "support/support_helper.h"
@@ -694,105 +693,6 @@ void PaintRow(
 	}
 }
 
-struct UnreadBadgeSizeData {
-	QImage circle;
-	QPixmap left[6], right[6];
-};
-class UnreadBadgeStyleData : public Data::AbstractStructure {
-public:
-	UnreadBadgeStyleData();
-
-	UnreadBadgeSizeData sizes[static_cast<int>(UnreadBadgeSize::kCount)];
-	style::color bg[6] = {
-		st::dialogsUnreadBg,
-		st::dialogsUnreadBgOver,
-		st::dialogsUnreadBgActive,
-		st::dialogsUnreadBgMuted,
-		st::dialogsUnreadBgMutedOver,
-		st::dialogsUnreadBgMutedActive
-	};
-	style::color reactionBg[6] = {
-		st::dialogsDraftFg,
-		st::dialogsDraftFgOver,
-		st::dialogsDraftFgActive,
-		st::dialogsUnreadBgMuted,
-		st::dialogsUnreadBgMutedOver,
-		st::dialogsUnreadBgMutedActive
-	};
-	rpl::lifetime lifetime;
-};
-Data::GlobalStructurePointer<UnreadBadgeStyleData> unreadBadgeStyle;
-
-UnreadBadgeStyleData::UnreadBadgeStyleData() {
-	style::PaletteChanged(
-	) | rpl::start_with_next([=] {
-		for (auto &data : sizes) {
-			for (auto &left : data.left) {
-				left = QPixmap();
-			}
-			for (auto &right : data.right) {
-				right = QPixmap();
-			}
-		}
-	}, lifetime);
-}
-
-void createCircleMask(UnreadBadgeSizeData *data, int size) {
-	if (!data->circle.isNull()) return;
-
-	data->circle = style::createCircleMask(size);
-}
-
-QImage colorizeCircleHalf(UnreadBadgeSizeData *data, int size, int half, int xoffset, style::color color) {
-	auto result = style::colorizeImage(data->circle, color, QRect(xoffset, 0, half, size));
-	result.setDevicePixelRatio(cRetinaFactor());
-	return result;
-}
-
-void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st) {
-	Assert(rect.height() == st.size);
-
-	int index = (st.muted ? 0x03 : 0x00) + (st.active ? 0x02 : (st.selected ? 0x01 : 0x00));
-	int size = st.size, sizehalf = size / 2;
-
-	unreadBadgeStyle.createIfNull();
-	auto badgeData = unreadBadgeStyle->sizes;
-	if (st.sizeId > UnreadBadgeSize()) {
-		Assert(st.sizeId < UnreadBadgeSize::kCount);
-		badgeData = &unreadBadgeStyle->sizes[static_cast<int>(st.sizeId)];
-	}
-	const auto bg = (st.sizeId == UnreadBadgeSize::ReactionInDialogs)
-		? unreadBadgeStyle->reactionBg[index]
-		: unreadBadgeStyle->bg[index];
-	if (badgeData->left[index].isNull()) {
-		int imgsize = size * cIntRetinaFactor(), imgsizehalf = sizehalf * cIntRetinaFactor();
-		createCircleMask(badgeData, size);
-		badgeData->left[index] = PixmapFromImage(
-			colorizeCircleHalf(badgeData, imgsize, imgsizehalf, 0, bg));
-		badgeData->right[index] = PixmapFromImage(colorizeCircleHalf(
-			badgeData,
-			imgsize,
-			imgsizehalf,
-			imgsize - imgsizehalf,
-			bg));
-	}
-
-	int bar = rect.width() - 2 * sizehalf;
-	p.drawPixmap(rect.x(), rect.y(), badgeData->left[index]);
-	if (bar) {
-		p.fillRect(rect.x() + sizehalf, rect.y(), bar, rect.height(), bg);
-	}
-	p.drawPixmap(rect.x() + sizehalf + bar, rect.y(), badgeData->right[index]);
-}
-
-[[nodiscard]] QString ComputeUnreadBadgeText(
-	const QString &unreadCount,
-	int allowDigits) {
-	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
-		? u".."_q + unreadCount.mid(unreadCount.size() - allowDigits)
-		: unreadCount;
-}
-
 } // namespace
 
 const style::icon *ChatTypeIcon(not_null<PeerData*> peer) {
@@ -833,61 +733,6 @@ const style::icon *ChatTypeIcon(
 			: st::dialogsChatIcon);
 	}
 	return nullptr;
-}
-
-UnreadBadgeStyle::UnreadBadgeStyle()
-: size(st::dialogsUnreadHeight)
-, padding(st::dialogsUnreadPadding)
-, font(st::dialogsUnreadFont) {
-}
-
-QSize CountUnreadBadgeSize(
-		const QString &unreadCount,
-		const UnreadBadgeStyle &st,
-		int allowDigits) {
-	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
-	const auto unreadRectHeight = st.size;
-	const auto unreadWidth = st.font->width(text);
-	return {
-		std::max(unreadWidth + 2 * st.padding, unreadRectHeight),
-		unreadRectHeight,
-	};
-}
-
-QRect PaintUnreadBadge(
-		QPainter &p,
-		const QString &unreadCount,
-		int x,
-		int y,
-		const UnreadBadgeStyle &st,
-		int allowDigits) {
-	const auto text = ComputeUnreadBadgeText(unreadCount, allowDigits);
-	const auto unreadRectHeight = st.size;
-	const auto unreadWidth = st.font->width(text);
-	const auto unreadRectWidth = std::max(
-		unreadWidth + 2 * st.padding,
-		unreadRectHeight);
-
-	const auto unreadRectLeft = ((st.align & Qt::AlignHorizontal_Mask) & style::al_center)
-		? (x - unreadRectWidth) / 2
-		: ((st.align & Qt::AlignHorizontal_Mask) & style::al_right)
-		? (x - unreadRectWidth)
-		: x;
-	const auto unreadRectTop = y;
-
-	const auto badge = QRect(unreadRectLeft, unreadRectTop, unreadRectWidth, unreadRectHeight);
-	PaintUnreadBadge(p, badge, st);
-
-	const auto textTop = st.textTop ? st.textTop : (unreadRectHeight - st.font->height) / 2;
-	p.setFont(st.font);
-	p.setPen(st.active
-		? st::dialogsUnreadFgActive
-		: st.selected
-		? st::dialogsUnreadFgOver
-		: st::dialogsUnreadFg);
-	p.drawText(unreadRectLeft + (unreadRectWidth - unreadWidth) / 2, unreadRectTop + textTop + st.font->ascent, text);
-
-	return badge;
 }
 
 void RowPainter::Paint(

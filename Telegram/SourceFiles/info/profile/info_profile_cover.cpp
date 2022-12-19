@@ -25,9 +25,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_forum_topic_box.h"
 #include "history/view/media/history_view_sticker_player.h"
 #include "lang/lang_keys.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
-#include "ui/special_buttons.h"
 #include "base/unixtime.h"
 #include "window/window_session_controller.h"
 #include "main/main_session.h"
@@ -74,49 +74,20 @@ auto ChatStatusText(int fullCount, int onlineCount, bool isGroup) {
 		: tr::lng_channel_status(tr::now);
 };
 
-} // namespace
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<PeerData*> peer,
-	not_null<Window::SessionController*> controller)
-: Cover(parent, peer, controller, NameValue(peer)) {
-}
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<Data::ForumTopic*> topic,
-	not_null<Window::SessionController*> controller)
-: Cover(
-	parent,
-	topic->channel(),
-	topic,
-	controller,
-	TitleValue(topic)) {
-}
-
-Cover::Cover(
-	QWidget *parent,
-	not_null<PeerData*> peer,
-	not_null<Window::SessionController*> controller,
-	rpl::producer<QString> title)
-: Cover(
-	parent,
-	peer,
-	nullptr,
-	controller,
-	std::move(title)) {
-}
-
 [[nodiscard]] const style::InfoProfileCover &CoverStyle(
 		not_null<PeerData*> peer,
-		Data::ForumTopic *topic) {
-	return topic
+		Data::ForumTopic *topic,
+		Cover::Role role) {
+	return (role == Cover::Role::EditContact)
+		? st::infoEditContactCover
+		: topic
 		? st::infoTopicCover
 		: peer->isMegagroup()
 		? st::infoProfileMegagroupCover
 		: st::infoProfileCover;
 }
+
+} // namespace
 
 TopicIconView::TopicIconView(
 	not_null<Data::ForumTopic*> topic,
@@ -273,12 +244,49 @@ TopicIconButton::TopicIconButton(
 
 Cover::Cover(
 	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer)
+: Cover(parent, controller, peer, Role::Info, NameValue(peer)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<Data::ForumTopic*> topic)
+: Cover(
+	parent,
+	controller,
+	topic->channel(),
+	topic,
+	Role::Info,
+	TitleValue(topic)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
+	not_null<PeerData*> peer,
+	Role role,
+	rpl::producer<QString> title)
+: Cover(
+	parent,
+	controller,
+	peer,
+	nullptr,
+	role,
+	std::move(title)) {
+}
+
+Cover::Cover(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Data::ForumTopic *topic,
-	not_null<Window::SessionController*> controller,
+	Role role,
 	rpl::producer<QString> title)
-: FixedHeightWidget(parent, CoverStyle(peer, topic).height)
-, _st(CoverStyle(peer, topic))
+: FixedHeightWidget(parent, CoverStyle(peer, topic, role).height)
+, _st(CoverStyle(peer, topic, role))
+, _role(role)
 , _controller(controller)
 , _peer(peer)
 , _emojiStatusPanel(peer->isSelf()
@@ -300,7 +308,9 @@ Cover::Cover(
 		this,
 		controller,
 		_peer,
-		Ui::UserpicButton::Role::OpenPhoto,
+		(role == Role::Info
+			? Ui::UserpicButton::Role::OpenPhoto
+			: Ui::UserpicButton::Role::Custom),
 		_st.photo))
 , _iconButton(topic
 	? object_ptr<TopicIconButton>(this, controller, topic)
@@ -390,7 +400,7 @@ void Cover::initViewers(rpl::producer<QString> title) {
 }
 
 void Cover::refreshUploadPhotoOverlay() {
-	if (!_userpic) {
+	if (!_userpic || _role == Role::EditContact) {
 		return;
 	}
 

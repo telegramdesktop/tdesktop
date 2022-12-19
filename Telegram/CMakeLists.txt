@@ -1260,6 +1260,10 @@ PRIVATE
     ui/chat/choose_send_as.h
     ui/chat/choose_theme_controller.cpp
     ui/chat/choose_theme_controller.h
+    ui/controls/silent_toggle.cpp
+    ui/controls/silent_toggle.h
+    ui/controls/userpic_button.cpp
+    ui/controls/userpic_button.h
     ui/effects/emoji_fly_animation.cpp
     ui/effects/emoji_fly_animation.h
     ui/effects/message_sending_animation_common.h
@@ -1288,8 +1292,6 @@ PRIVATE
     ui/resize_area.h
     ui/search_field_controller.cpp
     ui/search_field_controller.h
-    ui/special_buttons.cpp
-    ui/special_buttons.h
     ui/text/format_song_document_name.cpp
     ui/text/format_song_document_name.h
     ui/unread_badge.cpp

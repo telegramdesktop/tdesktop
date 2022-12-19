@@ -29,7 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "mtproto/sender.h"
 #include "ui/rp_widget.h"
-#include "ui/special_buttons.h"
+#include "ui/controls/userpic_button.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/checkbox.h"
 #include "ui/widgets/input_fields.h"

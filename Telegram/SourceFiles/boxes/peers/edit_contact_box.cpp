@@ -136,15 +136,16 @@ void Controller::setupContent() {
 }
 
 void Controller::setupCover() {
-	_box->addRow(
+	const auto cover = _box->addRow(
 		object_ptr<Info::Profile::Cover>(
 			_box,
-			_user,
 			_window,
+			_user,
+			Info::Profile::Cover::Role::EditContact,
 			(_phone.isEmpty()
 				? tr::lng_contact_mobile_hidden()
 				: rpl::single(Ui::FormatPhone(_phone)))),
-		style::margins())->setAttribute(Qt::WA_TransparentForMouseEvents);
+		style::margins());
 }
 
 void Controller::setupNameFields() {

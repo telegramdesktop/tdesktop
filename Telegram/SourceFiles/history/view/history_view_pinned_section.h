@@ -21,7 +21,6 @@ namespace Ui {
 class ScrollArea;
 class PlainShadow;
 class FlatButton;
-class HistoryDownButton;
 } // namespace Ui
 
 namespace Profile {
