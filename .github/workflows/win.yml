@@ -82,9 +82,6 @@ jobs:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
-      - name: Python installs.
-        run: pip3 install --upgrade pywin32 six
-
       - name: Set up environment paths.
         shell: bash
         run: |
