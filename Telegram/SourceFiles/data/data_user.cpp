@@ -8,10 +8,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 
 #include "storage/localstorage.h"
+#include "storage/storage_user_photos.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_peer_bot_command.h"
+#include "data/data_photo.h"
 #include "data/data_emoji_statuses.h"
 #include "data/data_user_names.h"
 #include "data/notify/data_notify_settings.h"
@@ -379,6 +381,13 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 			profilePhoto);
 	} else {
 		user->session().api().peerPhoto().unregisterNonPersonalPhoto(user);
+	}
+	if (const auto photo = update.vfallback_photo()) {
+		const auto data = user->owner().processPhoto(*photo);
+		user->session().storage().add(Storage::UserPhotosSetBack(
+			peerToUser(user->id),
+			data->id
+		));
 	}
 	user->setSettings(update.vsettings());
 	user->owner().notifySettings().apply(user, update.vnotify_settings());
