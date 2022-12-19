@@ -3,6 +3,7 @@
 setlocal enabledelayedexpansion
 set "FullScriptPath=%~dp0"
 
+call %FullScriptPath%..\..\ThirdParty\python\Scripts\activate.bat
 python %FullScriptPath%configure.py %*
 if %errorlevel% neq 0 goto error
 

@@ -418,6 +418,15 @@ win:
     SET PATH=%PATH_BACKUP_%
 """, 'ThirdParty')
 
+stage('python', """
+version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifiedEnv).stdout.decode().strip().split()[-1] if win else '0') + """
+win:
+    python -m venv python
+    python\\Scripts\\activate.bat
+    pip install pywin32 six
+    deactivate
+""", 'ThirdParty')
+
 stage('NuGet', """
 win:
     mkdir NuGet
@@ -953,6 +962,8 @@ win:
     ) else (
         SET "FolderPostfix="
     )
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
@@ -963,6 +974,8 @@ release:
     gyp dump_syms.gyp --format=ninja
     cd ..\\..\\..
     ninja -C out/Release%FolderPostfix% dump_syms
+win:
+    deactivate
 mac:
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
