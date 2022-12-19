@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
+#include "data/data_user_photos.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "storage/file_upload.h"
@@ -113,7 +114,11 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 }
 
 void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), false);
+	upload(peer, std::move(image), UploadType::Default);
+}
+
+void PeerPhoto::uploadFallback(not_null<PeerData*> peer, QImage &&image) {
+	upload(peer, std::move(image), UploadType::Fallback);
 }
 
 void PeerPhoto::updateSelf(not_null<PhotoData*> photo) {
@@ -131,7 +136,7 @@ void PeerPhoto::updateSelf(not_null<PhotoData*> photo) {
 void PeerPhoto::upload(
 		not_null<PeerData*> peer,
 		QImage &&image,
-		bool suggestion) {
+		UploadType type) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(
 		_api.instance().mainDcId(),
@@ -144,21 +149,23 @@ void PeerPhoto::upload(
 	const auto already = ranges::find(
 		_uploads,
 		peer,
-		[](const auto &pair) { return pair.second; });
+		[](const auto &pair) { return pair.second.peer; });
 	if (already != end(_uploads)) {
 		_session->uploader().cancel(already->first);
 		_suggestions.remove(already->first);
 		_uploads.erase(already);
 	}
-	_uploads.emplace(fakeId, peer);
-	if (suggestion) {
+	_uploads.emplace(
+		fakeId,
+		UploadValue{ peer, type == UploadType::Fallback });
+	if (type == UploadType::Suggestion) {
 		_suggestions.emplace(fakeId);
 	}
 	_session->uploader().uploadMedia(fakeId, ready);
 }
 
 void PeerPhoto::suggest(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), true);
+	upload(peer, std::move(image), UploadType::Suggestion);
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
@@ -186,12 +193,23 @@ void PeerPhoto::clear(not_null<PhotoData*> photo) {
 			)).done(applier).send();
 		}
 	} else {
-		_api.request(MTPphotos_DeletePhotos(
-			MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
-		)).send();
-		_session->storage().remove(Storage::UserPhotosRemoveOne(
-			peerToUser(self->id),
-			photo->id));
+		const auto fallbackPhotoId = SyncUserFallbackPhotoViewer(self);
+		if (fallbackPhotoId && (*fallbackPhotoId) == photo->id) {
+			_api.request(MTPphotos_UpdateProfilePhoto(
+				MTP_flags(MTPphotos_UpdateProfilePhoto::Flag::f_fallback),
+				MTP_inputPhotoEmpty()
+			)).send();
+			_session->storage().add(Storage::UserPhotosSetBack(
+				peerToUser(self->id),
+				PhotoId()));
+		} else {
+			_api.request(MTPphotos_DeletePhotos(
+				MTP_vector<MTPInputPhoto>(1, photo->mtpInput())
+			)).send();
+			_session->storage().remove(Storage::UserPhotosRemoveOne(
+				peerToUser(self->id),
+				photo->id));
+		}
 	}
 }
 
@@ -249,27 +267,35 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 }
 
 void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
-	const auto maybePeer = _uploads.take(msgId);
+	const auto maybeUploadValue = _uploads.take(msgId);
 	const auto suggestion = _suggestions.contains(msgId);
 	_suggestions.remove(msgId);
-	if (!maybePeer) {
+	if (!maybeUploadValue) {
 		return;
 	}
-	const auto peer = *maybePeer;
+	const auto peer = maybeUploadValue->peer;
+	const auto fallback = maybeUploadValue->fallback;
 	const auto applier = [=](const MTPUpdates &result) {
 		_session->updates().applyUpdates(result);
 	};
 	if (peer->isSelf()) {
 		_api.request(MTPphotos_UploadProfilePhoto(
-			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file),
+			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file
+				| (fallback
+					? MTPphotos_UploadProfilePhoto::Flag::f_fallback
+					: MTPphotos_UploadProfilePhoto::Flags(0))),
 			file,
 			MTPInputFile(), // video
 			MTPdouble() // video_start_ts
 		)).done([=](const MTPphotos_Photo &result) {
-			result.match([&](const MTPDphotos_photo &data) {
-				_session->data().processPhoto(data.vphoto());
-				_session->data().processUsers(data.vusers());
-			});
+			const auto photoId = _session->data().processPhoto(
+				result.data().vphoto())->id;
+			_session->data().processUsers(result.data().vusers());
+			if (fallback) {
+				_session->storage().add(Storage::UserPhotosSetBack(
+					peerToUser(peer->id),
+					photoId));
+			}
 		}).send();
 	} else if (const auto chat = peer->asChat()) {
 		const auto history = _session->data().history(chat);

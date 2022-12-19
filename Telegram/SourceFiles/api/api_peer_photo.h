@@ -25,6 +25,7 @@ public:
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
 	void upload(not_null<PeerData*> peer, QImage &&image);
+	void uploadFallback(not_null<PeerData*> peer, QImage &&image);
 	void updateSelf(not_null<PhotoData*> photo);
 	void suggest(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
@@ -42,13 +43,27 @@ public:
 		not_null<UserData*> user) const;
 
 private:
+	enum class UploadType {
+		Default,
+		Suggestion,
+		Fallback,
+	};
+
 	void ready(const FullMsgId &msgId, const MTPInputFile &file);
-	void upload(not_null<PeerData*> peer, QImage &&image, bool suggestion);
+	void upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		UploadType type);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
-	base::flat_map<FullMsgId, not_null<PeerData*>> _uploads;
+	struct UploadValue {
+		not_null<PeerData*> peer;
+		bool fallback = false;
+	};
+
+	base::flat_map<FullMsgId, UploadValue> _uploads;
 	base::flat_set<FullMsgId> _suggestions;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
