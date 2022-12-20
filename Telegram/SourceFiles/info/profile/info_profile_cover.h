@@ -115,6 +115,7 @@ public:
 	[[nodiscard]] rpl::producer<Section> showSection() const {
 		return _showSection.events();
 	}
+	[[nodiscard]] std::optional<QImage> updatedPersonalPhoto() const;
 
 private:
 	Cover(
@@ -131,6 +132,7 @@ private:
 	void refreshNameGeometry(int newWidth);
 	void refreshStatusGeometry(int newWidth);
 	void refreshUploadPhotoOverlay();
+	void setupChangePersonal();
 
 	const style::InfoProfileCover &_st;
 
@@ -142,6 +144,8 @@ private:
 	rpl::variable<int> _onlineCount;
 
 	object_ptr<Ui::UserpicButton> _userpic;
+	Ui::UserpicButton *_changePersonal = nullptr;
+	std::optional<QImage> _personalChosen;
 	object_ptr<TopicIconButton> _iconButton;
 	object_ptr<Ui::FlatLabel> _name = { nullptr };
 	object_ptr<Ui::FlatLabel> _status = { nullptr };

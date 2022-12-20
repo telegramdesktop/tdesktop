@@ -841,9 +841,7 @@ void TopBarWidget::refreshInfoButton() {
 	} else if (const auto peer = _activeChat.key.peer()) {
 		auto info = object_ptr<Ui::UserpicButton>(
 			this,
-			_controller,
 			peer,
-			Ui::UserpicButton::Role::Custom,
 			st::topBarInfoButton);
 		info->showSavedMessagesOnSelf(true);
 		_info.destroy();

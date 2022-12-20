@@ -329,6 +329,7 @@ infoEditContactCover: InfoProfileCover(infoProfileCover) {
 	nameTop: 33px;
 	statusTop: 57px;
 }
+infoEditContactPersonalLeft: 6px;
 
 infoProfileInaccessibleUserpic: icon {{ "info/inaccessible_userpic", historyPeerUserpicFg }};
 

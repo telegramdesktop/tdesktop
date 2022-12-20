@@ -85,11 +85,7 @@ EditParticipantBox::Inner::Inner(
 : RpWidget(parent)
 , _peer(peer)
 , _user(user)
-, _userPhoto(
-	this,
-	_user,
-	Ui::UserpicButton::Role::Custom,
-	st::rightsPhotoButton)
+, _userPhoto(this, _user, st::rightsPhotoButton)
 , _hasAdminRights(hasAdminRights)
 , _rows(this) {
 	_rows->heightValue(
@@ -97,7 +93,7 @@ EditParticipantBox::Inner::Inner(
 		resizeToWidth(width());
 	}, lifetime());
 
-	_userPhoto->setPointerCursor(false);
+	_userPhoto->setAttribute(Qt::WA_TransparentForMouseEvents);
 	_userName.setText(
 		st::rightsNameStyle,
 		_user->name(),

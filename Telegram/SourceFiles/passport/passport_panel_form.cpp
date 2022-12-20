@@ -73,7 +73,6 @@ not_null<Ui::RpWidget*> PanelForm::setupContent() {
 		object_ptr<Ui::UserpicButton>(
 			userpicWrap,
 			bot,
-			Ui::UserpicButton::Role::Custom,
 			st::passportFormUserpic));
 	userpicWrap->widthValue(
 	) | rpl::start_with_next([=](int width) {

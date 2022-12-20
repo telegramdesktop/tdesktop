@@ -354,9 +354,7 @@ MainMenu::MainMenu(
 , _controller(controller)
 , _userpicButton(
 	this,
-	_controller,
 	_controller->session().user(),
-	Ui::UserpicButton::Role::Custom,
 	st::mainMenuUserpic)
 , _toggleAccounts(this)
 , _setEmojiStatus(this, SetStatusLabel(&controller->session()))

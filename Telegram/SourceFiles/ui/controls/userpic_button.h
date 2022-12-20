@@ -12,6 +12,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 class PeerData;
 
+namespace Data {
+class PhotoMedia;
+} // namespace Data
+
 namespace Window {
 class Controller;
 class SessionController;
@@ -40,16 +44,15 @@ public:
 		ChoosePhoto,
 		ChangePhoto,
 		OpenPhoto,
-		OpenProfile,
+		Custom,
+	};
+	enum class Source {
+		PeerPhoto,
+		NonPersonalPhoto,
+		NonPersonalIfHasPersonal,
 		Custom,
 	};
 
-	UserpicButton(
-		QWidget *parent,
-		not_null<::Window::Controller*> window,
-		not_null<PeerData*> peer,
-		Role role,
-		const style::UserpicButton &st);
 	UserpicButton(
 		QWidget *parent,
 		not_null<::Window::Controller*> window,
@@ -60,11 +63,11 @@ public:
 		not_null<::Window::SessionController*> controller,
 		not_null<PeerData*> peer,
 		Role role,
+		Source source,
 		const style::UserpicButton &st);
 	UserpicButton(
 		QWidget *parent,
-		not_null<PeerData*> peer,
-		Role role,
+		not_null<PeerData*> peer, // Role::Custom, Source::PeerPhoto
 		const style::UserpicButton &st);
 	~UserpicButton();
 
@@ -91,8 +94,11 @@ public:
 		return std::move(_result);
 	}
 
-	// For Role::OpenPhoto as if it is Role::ChangePhoto.
-	void changeTo(QImage &&image);
+	void showCustom(QImage &&image);
+	void showSource(Source source);
+
+	void overrideHasPersonalPhoto(bool has);
+	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -106,7 +112,6 @@ protected:
 
 private:
 	void prepare();
-	void setImage(QImage &&image);
 	void setupPeerViewers();
 	void startAnimation();
 	void processPeerPhoto();
@@ -132,20 +137,24 @@ private:
 
 	void grabOldUserpic();
 	void setClickHandlerByRole();
+	void requestSuggestAvailability();
 	void openPeerPhoto();
 	void choosePhotoLocally();
+	[[nodiscard]] bool canSuggestPhoto(not_null<UserData*> user) const;
+	[[nodiscard]] bool hasPersonalPhotoLocally() const;
 
 	const style::UserpicButton &_st;
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
 	PeerUserpicView _userpicView;
+	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;
 	bool _waiting = false;
 	QPixmap _userpic, _oldUserpic;
 	bool _userpicHasImage = false;
-	bool _userpicCustom = false;
+	bool _showPeerUserpic = false;
 	InMemoryKey _userpicUniqueKey;
 	Animations::Simple _a_appearance;
 	QImage _result;
@@ -163,6 +172,11 @@ private:
 	Animations::Simple _changeOverlayShown;
 
 	rpl::event_stream<ChosenImage> _chosenImages;
+
+	Source _source = Source::Custom;
+	std::optional<bool> _overrideHasPersonalPhoto;
+	rpl::event_stream<> _resetPersonalRequests;
+	rpl::lifetime _sourceLifetime;
 
 };
 

@@ -31,7 +31,6 @@ PanelAskPassword::PanelAskPassword(
 , _userpic(
 	this,
 	_controller->bot(),
-	Ui::UserpicButton::Role::Custom,
 	st::passportPasswordUserpic)
 , _about1(
 	this,

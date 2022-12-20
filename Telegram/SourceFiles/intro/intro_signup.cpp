@@ -29,7 +29,7 @@ SignupWidget::SignupWidget(
 , _photo(
 	this,
 	data->controller,
-	Ui::UserpicButton::Role::ChangePhoto,
+	Ui::UserpicButton::Role::ChoosePhoto,
 	st::defaultUserpicButton)
 , _first(this, st::introName, tr::lng_signup_firstname())
 , _last(this, st::introName, tr::lng_signup_lastname())

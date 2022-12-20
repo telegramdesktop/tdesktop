@@ -15,6 +15,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_emoji_statuses.h"
 #include "data/data_user_names.h"
 #include "data/notify/data_notify_settings.h"
+#include "api/api_peer_photo.h"
+#include "apiwrap.h"
 #include "ui/text/text_options.h"
 #include "lang/lang_keys.h"
 #include "styles/style_chat.h"
@@ -365,11 +367,18 @@ bool UserData::hasCalls() const {
 namespace Data {
 
 void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
-	if (const auto photo = update.vprofile_photo()) {
-		user->owner().processPhoto(*photo);
-	}
-	if (const auto photo = update.vpersonal_photo()) {
-		user->owner().processPhoto(*photo);
+	const auto profilePhoto = update.vprofile_photo()
+		? user->owner().processPhoto(*update.vprofile_photo()).get()
+		: nullptr;
+	const auto personalPhoto = update.vpersonal_photo()
+		? user->owner().processPhoto(*update.vpersonal_photo()).get()
+		: nullptr;
+	if (personalPhoto && profilePhoto) {
+		user->session().api().peerPhoto().registerNonPersonalPhoto(
+			user,
+			profilePhoto);
+	} else {
+		user->session().api().peerPhoto().unregisterNonPersonalPhoto(user);
 	}
 	user->setSettings(update.vsettings());
 	user->owner().notifySettings().apply(user, update.vnotify_settings());

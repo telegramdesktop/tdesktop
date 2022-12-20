@@ -86,7 +86,6 @@ void GiftBox(
 	const auto userpic = Ui::CreateChild<Ui::UserpicButton>(
 		top,
 		user,
-		Ui::UserpicButton::Role::Custom,
 		st::defaultUserpicButton);
 	userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 	top->widthValue(

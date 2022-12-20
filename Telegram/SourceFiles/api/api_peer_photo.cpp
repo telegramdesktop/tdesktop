@@ -208,6 +208,7 @@ void PeerPhoto::clearPersonal(not_null<UserData*> user) {
 			_session->data().processUsers(data.vusers());
 		});
 	}).send();
+
 	if (!user->userpicPhotoUnknown() && user->hasPersonalPhoto()) {
 		_session->storage().remove(Storage::UserPhotosRemoveOne(
 			peerToUser(user->id),
@@ -304,6 +305,9 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				_session->data().processPhoto(data.vphoto());
 				_session->data().processUsers(data.vusers());
 			});
+			if (!suggestion) {
+				user->updateFullForced();
+			}
 		}).send();
 	}
 }

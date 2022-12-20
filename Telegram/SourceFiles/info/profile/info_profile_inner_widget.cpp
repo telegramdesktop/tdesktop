@@ -19,11 +19,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_buttons.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
+#include "data/data_changes.h"
 #include "data/data_forum_topic.h"
+#include "data/data_photo.h"
+#include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
+#include "api/api_peer_photo.h"
 #include "window/main_window.h"
 #include "window/window_session_controller.h"
 #include "storage/storage_shared_media.h"
@@ -64,6 +68,20 @@ InnerWidget::InnerWidget(
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		not_null<RpWidget*> parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
+	if (const auto user = _peer->asUser()) {
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::start_with_next([=] {
+			auto &photos = user->session().api().peerPhoto();
+			if (const auto original = photos.nonPersonalPhoto(user)) {
+				// Preload it for the edit contact box.
+				_nonPersonalView = original->createMediaView();
+				const auto id = peerToUser(user->id);
+				original->load(Data::FileOriginFullUser{ id });
+			}
+		}, lifetime());
+	}
 	_cover = _topic
 		? result->add(object_ptr<Cover>(
 			result,

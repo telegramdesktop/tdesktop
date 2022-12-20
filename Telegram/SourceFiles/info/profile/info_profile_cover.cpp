@@ -308,10 +308,16 @@ Cover::Cover(
 		this,
 		controller,
 		_peer,
-		(role == Role::Info
-			? Ui::UserpicButton::Role::OpenPhoto
-			: Ui::UserpicButton::Role::Custom),
+		Ui::UserpicButton::Role::OpenPhoto,
+		Ui::UserpicButton::Source::PeerPhoto,
 		_st.photo))
+, _changePersonal((role == Role::Info
+	|| topic
+	|| !_peer->isUser()
+	|| _peer->isSelf()
+	|| _peer->asUser()->isBot())
+	? nullptr
+	: CreateUploadSubButton(this, _peer->asUser(), controller).get())
 , _iconButton(topic
 	? object_ptr<TopicIconButton>(this, controller, topic)
 	: nullptr)
@@ -363,6 +369,16 @@ void Cover::setupChildGeometry() {
 		} else {
 			_iconButton->moveToLeft(_st.photoLeft, _st.photoTop, newWidth);
 		}
+		if (_changePersonal) {
+			_changePersonal->moveToLeft(
+				(_st.photoLeft
+					+ _st.photo.photoSize
+					- _changePersonal->width()
+					+ st::infoEditContactPersonalLeft),
+				(_userpic->y()
+					+ _userpic->height()
+					- _changePersonal->height()));
+		}
 		refreshNameGeometry(newWidth);
 		refreshStatusGeometry(newWidth);
 	}, lifetime());
@@ -371,6 +387,10 @@ void Cover::setupChildGeometry() {
 Cover *Cover::setOnlineCount(rpl::producer<int> &&count) {
 	_onlineCount = std::move(count);
 	return this;
+}
+
+std::optional<QImage> Cover::updatedPersonalPhoto() const {
+	return _personalChosen;
 }
 
 void Cover::initViewers(rpl::producer<QString> title) {
@@ -397,10 +417,15 @@ void Cover::initViewers(rpl::producer<QString> title) {
 	) | rpl::start_with_next([=] {
 		refreshUploadPhotoOverlay();
 	}, lifetime());
+
+	setupChangePersonal();
 }
 
 void Cover::refreshUploadPhotoOverlay() {
-	if (!_userpic || _role == Role::EditContact) {
+	if (!_userpic) {
+		return;
+	} else if (_role == Role::EditContact) {
+		_userpic->setAttribute(Qt::WA_TransparentForMouseEvents);
 		return;
 	}
 
@@ -421,7 +446,7 @@ void Cover::refreshUploadPhotoOverlay() {
 		auto &image = chosen.image;
 		switch (chosen.type) {
 		case ChosenType::Set:
-			_userpic->changeTo(base::duplicate(image));
+			_userpic->showCustom(base::duplicate(image));
 			_peer->session().api().peerPhoto().upload(
 				_peer,
 				std::move(image));
@@ -433,6 +458,44 @@ void Cover::refreshUploadPhotoOverlay() {
 			break;
 		}
 	});
+
+	if (const auto user = _peer->asUser()) {
+		_userpic->resetPersonalRequests(
+		) | rpl::start_with_next([=] {
+			user->session().api().peerPhoto().clearPersonal(user);
+			_userpic->showSource(Ui::UserpicButton::Source::PeerPhoto);
+		}, lifetime());
+	}
+}
+
+void Cover::setupChangePersonal() {
+	if (!_changePersonal) {
+		return;
+	}
+
+	_changePersonal->chosenImages(
+	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
+		if (chosen.type == Ui::UserpicButton::ChosenType::Suggest) {
+			_peer->session().api().peerPhoto().suggest(
+				_peer,
+				std::move(chosen.image));
+		} else {
+			_personalChosen = std::move(chosen.image);
+			_userpic->showCustom(base::duplicate(*_personalChosen));
+			_changePersonal->overrideHasPersonalPhoto(true);
+			_changePersonal->showSource(
+				Ui::UserpicButton::Source::NonPersonalIfHasPersonal);
+		}
+	}, _changePersonal->lifetime());
+
+	_changePersonal->resetPersonalRequests(
+	) | rpl::start_with_next([=] {
+		_personalChosen = QImage();
+		_userpic->showSource(
+			Ui::UserpicButton::Source::NonPersonalPhoto);
+		_changePersonal->overrideHasPersonalPhoto(false);
+		_changePersonal->showCustom(QImage());
+	}, _changePersonal->lifetime());
 }
 
 void Cover::refreshStatusText() {

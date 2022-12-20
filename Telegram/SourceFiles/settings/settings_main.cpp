@@ -123,6 +123,7 @@ Cover::Cover(
 	controller,
 	_user,
 	Ui::UserpicButton::Role::OpenPhoto,
+	Ui::UserpicButton::Source::PeerPhoto,
 	st::infoProfileCover.photo)
 , _name(this, st::infoProfileCover.name)
 , _phone(this, st::defaultFlatLabel)
@@ -141,7 +142,7 @@ Cover::Cover(
 	_userpic->switchChangePhotoOverlay(_user->isSelf(), [=](
 			Ui::UserpicButton::ChosenImage chosen) {
 		auto &image = chosen.image;
-		_userpic->changeTo(base::duplicate(image));
+		_userpic->showCustom(base::duplicate(image));
 		_user->session().api().peerPhoto().upload(_user, std::move(image));
 	});
 

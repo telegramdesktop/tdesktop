@@ -245,6 +245,7 @@ void SetupPhoto(
 		controller,
 		self,
 		Ui::UserpicButton::Role::OpenPhoto,
+		Ui::UserpicButton::Source::PeerPhoto,
 		st::settingsInfoPhoto);
 	const auto upload = CreateUploadSubButton(wrap, controller);
 
@@ -252,7 +253,7 @@ void SetupPhoto(
 	) | rpl::start_with_next([=](Ui::UserpicButton::ChosenImage &&chosen) {
 		auto &image = chosen.image;
 		UpdatePhotoLocally(self, image);
-		photo->changeTo(base::duplicate(image));
+		photo->showCustom(base::duplicate(image));
 		self->session().api().peerPhoto().upload(self, std::move(image));
 	}, upload->lifetime());
 

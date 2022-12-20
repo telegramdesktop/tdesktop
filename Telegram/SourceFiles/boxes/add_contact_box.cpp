@@ -465,7 +465,7 @@ void GroupInfoBox::prepare() {
 	_photo.create(
 		this,
 		&_navigation->parentController()->window(),
-		Ui::UserpicButton::Role::ChangePhoto,
+		Ui::UserpicButton::Role::ChoosePhoto,
 		st::defaultUserpicButton);
 	_title.create(
 		this,

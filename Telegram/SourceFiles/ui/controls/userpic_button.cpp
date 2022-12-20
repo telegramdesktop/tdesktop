@@ -14,8 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
+#include "data/data_histories.h"
 #include "data/data_streaming.h"
 #include "data/data_file_origin.h"
+#include "data/data_photo_media.h"
+#include "history/history.h"
 #include "calls/calls_instance.h"
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
@@ -99,25 +102,31 @@ QPixmap CreateSquarePixmap(int width, Callback &&paintCallback) {
 	return Ui::PixmapFromImage(std::move(image));
 };
 
-} // namespace
+void SetupSubButtonBackground(
+		not_null<Ui::UserpicButton*> upload,
+		not_null<Ui::RpWidget*> background) {
+	const auto border = st::uploadUserpicButtonBorder;
+	const auto size = upload->rect().marginsAdded(
+		{ border, border, border, border }
+	).size();
 
-UserpicButton::UserpicButton(
-	QWidget *parent,
-	not_null<Window::Controller*> window,
-	not_null<PeerData*> peer,
-	Role role,
-	const style::UserpicButton &st)
-: RippleButton(parent, st.changeButton.ripple)
-, _st(st)
-, _controller(window->sessionController())
-, _window(window)
-, _peer(peer)
-, _role(role) {
-	Expects(_role == Role::ChangePhoto);
+	background->resize(size);
+	background->paintRequest(
+	) | rpl::start_with_next([=] {
+		auto p = QPainter(background);
+		auto hq = PainterHighQualityEnabler(p);
+		p.setBrush(st::boxBg);
+		p.setPen(Qt::NoPen);
+		p.drawEllipse(background->rect());
+	}, background->lifetime());
 
-	_waiting = false;
-	prepare();
+	upload->positionValue(
+	) | rpl::start_with_next([=](QPoint position) {
+		background->move(position - QPoint(border, border));
+	}, background->lifetime());
 }
+
+} // namespace
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
@@ -131,7 +140,6 @@ UserpicButton::UserpicButton(
 , _role(role) {
 	Expects(_role == Role::ChangePhoto || _role == Role::ChoosePhoto);
 
-	_waiting = false;
 	prepare();
 }
 
@@ -140,33 +148,39 @@ UserpicButton::UserpicButton(
 	not_null<Window::SessionController*> controller,
 	not_null<PeerData*> peer,
 	Role role,
+	Source source,
 	const style::UserpicButton &st)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _controller(controller)
 , _window(&controller->window())
 , _peer(peer)
-, _role(role) {
-	processPeerPhoto();
+, _role(role)
+, _source(source) {
+	if (_source != Source::Custom) {
+		processPeerPhoto();
+		setupPeerViewers();
+	}
 	prepare();
-	setupPeerViewers();
 }
 
 UserpicButton::UserpicButton(
 	QWidget *parent,
 	not_null<PeerData*> peer,
-	Role role,
 	const style::UserpicButton &st)
 : RippleButton(parent, st.changeButton.ripple)
 , _st(st)
 , _peer(peer)
-, _role(role) {
-	Expects(_role != Role::OpenProfile && _role != Role::OpenPhoto);
+, _role(Role::Custom)
+, _source(Source::PeerPhoto) {
+	Expects(_role != Role::OpenPhoto);
 
+	if (_source != Source::Custom) {
+		processPeerPhoto();
+		setupPeerViewers();
+	}
 	_waiting = false;
-	processPeerPhoto();
 	prepare();
-	setupPeerViewers();
 }
 
 UserpicButton::~UserpicButton() = default;
@@ -182,12 +196,39 @@ void UserpicButton::prepare() {
 	if (_role == Role::ChangePhoto) {
 		chosenImages(
 		) | rpl::start_with_next([=](ChosenImage &&chosen) {
-			setImage(std::move(chosen.image));
+			showCustom(std::move(chosen.image));
 		}, lifetime());
 	}
 }
 
+void UserpicButton::requestSuggestAvailability() {
+	if (const auto user = _peer ? _peer->asUser() : nullptr) {
+		if (!user->isSelf()) {
+			const auto history = user->owner().history(user);
+			if (!history->lastServerMessageKnown()) {
+				// Server allows suggesting photos only in non-empty chats.
+				user->owner().histories().requestDialogEntry(history);
+			}
+		}
+	}
+}
+
+bool UserpicButton::canSuggestPhoto(not_null<UserData*> user) const {
+	// Server allows suggesting photos only in non-empty chats.
+	return !user->isSelf()
+		&& (user->owner().history(user)->lastServerMessage() != nullptr);
+}
+
+bool UserpicButton::hasPersonalPhotoLocally() const {
+	if (const auto user = _peer->asUser()) {
+		return _overrideHasPersonalPhoto.value_or(user->hasPersonalPhoto());
+	}
+	return false;
+}
+
 void UserpicButton::setClickHandlerByRole() {
+	requestSuggestAvailability();
+
 	switch (_role) {
 	case Role::ChoosePhoto:
 	case Role::ChangePhoto:
@@ -197,19 +238,7 @@ void UserpicButton::setClickHandlerByRole() {
 	case Role::OpenPhoto:
 		addClickHandler([=] { openPeerPhoto(); });
 		break;
-
-	case Role::OpenProfile:
-		addClickHandler([this] {
-			Expects(_controller != nullptr);
-
-			_controller->showPeerInfo(_peer);
-		});
-		break;
 	}
-}
-
-void UserpicButton::changeTo(QImage &&image) {
-	setImage(std::move(image));
 }
 
 void UserpicButton::choosePhotoLocally() {
@@ -246,15 +275,16 @@ void UserpicButton::choosePhotoLocally() {
 				tr::lng_profile_set_photo_for(tr::now),
 				[=] { chooseFile(); },
 				&st::menuIconPhotoSet);
-			_menu->addAction(
-				tr::lng_profile_suggest_photo(tr::now),
-				[=] { chooseFile(ChosenType::Suggest); },
-				&st::menuIconPhotoSuggest);
-			if (user->hasPersonalPhoto()) {
+			if (canSuggestPhoto(user)) {
+				_menu->addAction(
+					tr::lng_profile_suggest_photo(tr::now),
+					[=] { chooseFile(ChosenType::Suggest); },
+					&st::menuIconPhotoSuggest);
+			}
+			if (hasPersonalPhotoLocally()) {
 				_menu->addAction(
 					tr::lng_profile_photo_reset(tr::now),
-					[=] { user->session().api().peerPhoto().clearPersonal(
-						user); _userpicCustom = false; },
+					[=] { _resetPersonalRequests.fire({}); },
 					&st::menuIconRemove);
 			}
 		} else {
@@ -293,23 +323,47 @@ void UserpicButton::openPeerPhoto() {
 }
 
 void UserpicButton::setupPeerViewers() {
-	_peer->session().changes().peerUpdates(
-		_peer,
-		Data::PeerUpdate::Flag::Photo
-	) | rpl::start_with_next([=] {
-		processNewPeerPhoto();
-		update();
-	}, lifetime());
-
+	const auto user = _peer->asUser();
+	if (user
+		&& (_source == Source::NonPersonalPhoto
+			|| _source == Source::NonPersonalIfHasPersonal)) {
+		user->session().changes().peerFlagsValue(
+			user,
+			Data::PeerUpdate::Flag::FullInfo
+		) | rpl::map([=] {
+			return std::pair(
+				user->session().api().peerPhoto().nonPersonalPhoto(user),
+				user->hasPersonalPhoto());
+		}) | rpl::distinct_until_changed() | rpl::skip(
+			1
+		) | rpl::start_with_next([=] {
+			processNewPeerPhoto();
+			update();
+		}, _sourceLifetime);
+	}
+	if (!user
+		|| _source == Source::PeerPhoto
+		|| _source == Source::NonPersonalIfHasPersonal) {
+		_peer->session().changes().peerUpdates(
+			_peer,
+			Data::PeerUpdate::Flag::Photo
+		) | rpl::start_with_next([=] {
+			processNewPeerPhoto();
+			update();
+		}, _sourceLifetime);
+	}
 	_peer->session().downloaderTaskFinished(
 	) | rpl::filter([=] {
 		return _waiting;
 	}) | rpl::start_with_next([=] {
-		if (!Ui::PeerUserpicLoading(_userpicView)) {
+		const auto loading = _showPeerUserpic
+			? Ui::PeerUserpicLoading(_userpicView)
+			: (_nonPersonalView && !_nonPersonalView->loaded());
+		if (!loading) {
 			_waiting = false;
 			startNewPhotoShowing();
 		}
-	}, lifetime());
+	}, _sourceLifetime);
 }
 
 void UserpicButton::paintEvent(QPaintEvent *e) {
@@ -363,9 +417,9 @@ void UserpicButton::paintEvent(QPaintEvent *e) {
 			p,
 			photoLeft,
 			photoTop,
-			_userpicHasImage
+			(_userpicHasImage
 				? &st::shadowFg->c
-				: &_st.changeButton.ripple.color->c);
+				: &_st.changeButton.ripple.color->c));
 		if (over || !_userpicHasImage) {
 			auto iconLeft = (_st.changeIconPosition.x() < 0)
 				? (_st.photoSize - _st.changeIcon.width()) / 2
@@ -474,10 +528,36 @@ QPoint UserpicButton::prepareRippleStartPosition() const {
 void UserpicButton::processPeerPhoto() {
 	Expects(_peer != nullptr);
 
-	_userpicView = _peer->createUserpicView();
-	_waiting = Ui::PeerUserpicLoading(_userpicView);
+	const auto user = _peer->asUser();
+	const auto nonPersonal = (user && _source != Source::PeerPhoto)
+		? _peer->session().api().peerPhoto().nonPersonalPhoto(user)
+		: nullptr;
+	_showPeerUserpic = (_source == Source::PeerPhoto)
+		|| (user
+			&& !user->hasPersonalPhoto()
+			&& (_source == Source::NonPersonalPhoto
+				|| (_source == Source::NonPersonalIfHasPersonal
+					&& hasPersonalPhotoLocally())));
+	const auto showNonPersonal = _showPeerUserpic ? nullptr : nonPersonal;
+
+	_userpicView = _showPeerUserpic
+		? _peer->createUserpicView()
+		: PeerUserpicView();
+	_nonPersonalView = showNonPersonal
+		? showNonPersonal->createMediaView()
+		: nullptr;
+	_waiting = _showPeerUserpic
+		? Ui::PeerUserpicLoading(_userpicView)
+		: (_nonPersonalView && !_nonPersonalView->loaded());
 	if (_waiting) {
-		_peer->loadUserpic();
+		if (_showPeerUserpic) {
+			_peer->loadUserpic();
+		} else if (_nonPersonalView) {
+			AssertIsDebug();
+			showNonPersonal->load(Data::FileOriginFullUser{
+				peerToUser(user->id),
+			});
+		}
 	}
 	if (_role == Role::OpenPhoto) {
 		if (_peer->userpicPhotoUnknown()) {
@@ -492,7 +572,7 @@ void UserpicButton::processPeerPhoto() {
 void UserpicButton::updateCursor() {
 	Expects(_role == Role::OpenPhoto);
 
-	auto pointer = _canOpenPhoto
+	const auto pointer = _canOpenPhoto
 		|| (_changeOverlayEnabled && _cursorInChangeOverlay);
 	setPointerCursor(pointer);
 }
@@ -634,7 +714,7 @@ void UserpicButton::setCursorInChangeOverlay(bool inOverlay) {
 }
 
 void UserpicButton::processNewPeerPhoto() {
-	if (_userpicCustom) {
+	if (_source == Source::Custom) {
 		return;
 	}
 	processPeerPhoto();
@@ -653,14 +733,13 @@ void UserpicButton::grabOldUserpic() {
 }
 
 void UserpicButton::startNewPhotoShowing() {
-	auto oldUniqueKey = _userpicUniqueKey;
+	const auto oldUniqueKey = _userpicUniqueKey;
 	prepareUserpicPixmap();
 	update();
 
 	if (_notShownYet) {
 		return;
-	}
-	if (oldUniqueKey != _userpicUniqueKey
+	} else if (oldUniqueKey != _userpicUniqueKey
 		|| _a_appearance.animating()) {
 		startAnimation();
 	}
@@ -733,24 +812,65 @@ void UserpicButton::onStateChanged(
 	}
 }
 
-void UserpicButton::setImage(QImage &&image) {
+void UserpicButton::showCustom(QImage &&image) {
 	grabOldUserpic();
 
-	auto size = QSize(_st.photoSize, _st.photoSize);
-	auto small = image.scaled(
-		size * cIntRetinaFactor(),
-		Qt::IgnoreAspectRatio,
-		Qt::SmoothTransformation);
-	const auto forum = _peer && _peer->isForum();
-	_userpic = Ui::PixmapFromImage(forum
-		? Images::Round(std::move(small), Images::Option::RoundLarge)
-		: Images::Circle(std::move(small)));
+	clearStreaming();
+	_sourceLifetime.destroy();
+	_source = Source::Custom;
+
+	_userpicHasImage = !image.isNull();
+	if (_userpicHasImage) {
+		auto size = QSize(_st.photoSize, _st.photoSize);
+		auto small = image.scaled(
+			size * cIntRetinaFactor(),
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation);
+		const auto forum = _peer && _peer->isForum();
+		_userpic = Ui::PixmapFromImage(forum
+			? Images::Round(std::move(small), Images::Option::RoundLarge)
+			: Images::Circle(std::move(small)));
+	} else {
+		_userpic = CreateSquarePixmap(_st.photoSize, [&](Painter &p) {
+			fillShape(p, _st.changeButton.textBg);
+		});
+	}
 	_userpic.setDevicePixelRatio(cRetinaFactor());
-	_userpicCustom = _userpicHasImage = true;
 	_userpicUniqueKey = {};
 	_result = std::move(image);
 
 	startNewPhotoShowing();
+}
+
+void UserpicButton::showSource(Source source) {
+	Expects(_peer != nullptr);
+	Expects(source != Source::Custom); // Show this using showCustom().
+	Expects(source == Source::PeerPhoto || _peer->isUser());
+
+	if (_source != source) {
+		clearStreaming();
+	}
+
+	_sourceLifetime.destroy();
+	_source = source;
+
+	_result = QImage();
+
+	processPeerPhoto();
+	setupPeerViewers();
+
+	prepareUserpicPixmap();
+	update();
+}
+
+void UserpicButton::overrideHasPersonalPhoto(bool has) {
+	Expects(_peer && _peer->isUser());
+
+	_overrideHasPersonalPhoto = has;
+}
+
+rpl::producer<> UserpicButton::resetPersonalRequests() const {
+	return _resetPersonalRequests.events();
 }
 
 void UserpicButton::fillShape(QPainter &p, const style::color &color) const {
@@ -767,22 +887,69 @@ void UserpicButton::fillShape(QPainter &p, const style::color &color) const {
 }
 
 void UserpicButton::prepareUserpicPixmap() {
-	if (_userpicCustom) {
+	if (_source == Source::Custom) {
 		return;
 	}
-	auto size = _st.photoSize;
-	_userpicHasImage = _peer
-		&& (_peer->userpicCloudImage(_userpicView)
-			|| _role != Role::ChangePhoto);
+	const auto size = _st.photoSize;
+	_userpicHasImage = _showPeerUserpic
+		? (_peer
+			&& (_peer->userpicCloudImage(_userpicView)
+				|| _role != Role::ChangePhoto))
+		: (_source == Source::NonPersonalPhoto
+			|| (_source == Source::NonPersonalIfHasPersonal
+				&& hasPersonalPhotoLocally()));
 	_userpic = CreateSquarePixmap(size, [&](Painter &p) {
 		if (_userpicHasImage) {
-			_peer->paintUserpic(p, _userpicView, 0, 0, _st.photoSize);
+			if (_showPeerUserpic) {
+				_peer->paintUserpic(p, _userpicView, 0, 0, size);
+			} else if (_nonPersonalView) {
+				using Size = Data::PhotoSize;
+				if (const auto full = _nonPersonalView->image(Size::Large)) {
+					const auto ratio = style::DevicePixelRatio();
+					auto image = full->original().scaled(
+						QSize(size, size) * ratio,
+						Qt::IgnoreAspectRatio,
+						Qt::SmoothTransformation);
+					if (_peer->isForum()) {
+						image = Images::Round(
+							std::move(image),
+							Images::CornersMask(size
+								* Ui::ForumUserpicRadiusMultiplier()));
+					} else {
+						image = Images::Circle(std::move(image));
+					}
+					p.drawImage(0, 0, image);
+				}
+			} else {
+				const auto user = _peer->asUser();
+				auto empty = Ui::EmptyUserpic(
+					Ui::EmptyUserpic::UserpicColor(
+						Data::PeerColorIndex(_peer->id)),
+					((user && user->isInaccessible())
+						? Ui::EmptyUserpic::InaccessibleName()
+						: _peer->name()));
+				if (_peer->isForum()) {
+					empty.paintRounded(
+						p,
+						0,
+						0,
+						size,
+						size,
+						size * Ui::ForumUserpicRadiusMultiplier());
+				} else {
+					empty.paintCircle(p, 0, 0, size, size);
+				}
+			}
 		} else {
 			fillShape(p, _st.changeButton.textBg);
 		}
 	});
 	_userpicUniqueKey = _userpicHasImage
-		? _peer->userpicUniqueKey(_userpicView)
+		? (_showPeerUserpic
+			? _peer->userpicUniqueKey(_userpicView)
+			: _nonPersonalView
+			? InMemoryKey{ _nonPersonalView->owner()->id, 0 }
+			: InMemoryKey{ _peer->id.value, _peer->id.value })
 		: InMemoryKey();
 }
 
@@ -795,27 +962,7 @@ not_null<Ui::UserpicButton*> CreateUploadSubButton(
 		&controller->window(),
 		Ui::UserpicButton::Role::ChoosePhoto,
 		st::uploadUserpicButton);
-
-	const auto border = st::uploadUserpicButtonBorder;
-	const auto size = upload->rect().marginsAdded(
-		{ border, border, border, border }
-	).size();
-
-	background->resize(size);
-	background->paintRequest(
-	) | rpl::start_with_next([=] {
-		auto p = QPainter(background);
-		auto hq = PainterHighQualityEnabler(p);
-		p.setBrush(st::boxBg);
-		p.setPen(Qt::NoPen);
-		p.drawEllipse(background->rect());
-	}, background->lifetime());
-
-	upload->positionValue(
-	) | rpl::start_with_next([=](QPoint position) {
-		background->move(position - QPoint(border, border));
-	}, background->lifetime());
-
+	SetupSubButtonBackground(upload, background);
 	return upload;
 }
 
@@ -823,8 +970,16 @@ not_null<Ui::UserpicButton*> CreateUploadSubButton(
 		not_null<Ui::RpWidget*> parent,
 		not_null<UserData*> contact,
 		not_null<Window::SessionController*> controller) {
-	const auto result = CreateUploadSubButton(parent, controller);
-	return result;
+	const auto background = Ui::CreateChild<Ui::RpWidget>(parent.get());
+	const auto upload = Ui::CreateChild<Ui::UserpicButton>(
+		parent.get(),
+		controller,
+		contact,
+		Ui::UserpicButton::Role::ChoosePhoto,
+		Ui::UserpicButton::Source::NonPersonalIfHasPersonal,
+		st::uploadUserpicButton);
+	SetupSubButtonBackground(upload, background);
+	return upload;
 }
 
 } // namespace Ui

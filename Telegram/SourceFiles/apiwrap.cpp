@@ -2416,6 +2416,12 @@ void ApiWrap::refreshFileReference(
 		} else {
 			fail();
 		}
+	}, [&](Data::FileOriginFullUser data) {
+		if (const auto user = _session->data().user(data.userId)) {
+			request(MTPusers_GetFullUser(user->inputUser));
+		} else {
+			fail();
+		}
 	}, [&](Data::FileOriginPeerPhoto data) {
 		fail();
 	}, [&](Data::FileOriginStickerSet data) {

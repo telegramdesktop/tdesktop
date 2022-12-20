@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class ForumTopic;
+class PhotoMedia;
 } // namespace Data
 
 namespace Window {
@@ -69,6 +70,8 @@ private:
 	const not_null<PeerData*> _peer;
 	PeerData * const _migrated = nullptr;
 	Data::ForumTopic * const _topic = nullptr;
+
+	std::shared_ptr<Data::PhotoMedia> _nonPersonalView;
 
 	Members *_members = nullptr;
 	Cover *_cover = nullptr;

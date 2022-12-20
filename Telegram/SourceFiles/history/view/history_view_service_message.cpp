@@ -429,7 +429,9 @@ QSize Service::performCountCurrentSize(int newWidth) {
 	}
 	const auto media = this->media();
 	if (media && data()->isUserpicSuggestion()) {
-		newHeight = st::msgServiceMargin.top() + media->resizeGetHeight(newWidth) + st::msgServiceMargin.bottom();
+		newHeight += st::msgServiceMargin.top()
+			+ media->resizeGetHeight(newWidth)
+			+ st::msgServiceMargin.bottom();
 	} else if (!text().isEmpty()) {
 		auto contentWidth = newWidth;
 		if (delegate()->elementIsChatWide()) {
