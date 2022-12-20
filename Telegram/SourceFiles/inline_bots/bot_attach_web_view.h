@@ -69,6 +69,7 @@ public:
 		QString text;
 		QString startCommand;
 		QByteArray url;
+		bool fromMenu = false;
 	};
 	void request(
 		const Api::SendAction &action,
@@ -127,7 +128,8 @@ private:
 	void show(
 		uint64 queryId,
 		const QString &url,
-		const QString &buttonText = QString());
+		const QString &buttonText = QString(),
+		bool fromMenu = false);
 	void confirmAddToMenu(
 		AttachWebViewBot bot,
 		Fn<void()> callback = nullptr);

@@ -52,7 +52,8 @@ public:
 		QString phone,
 		MenuButtons menuButtons,
 		Fn<void(MenuButton)> handleMenuButton,
-		Fn<Webview::ThemeParams()> themeParams);
+		Fn<Webview::ThemeParams()> themeParams,
+		bool allowClipboardRead);
 	~Panel();
 
 	void requestActivate();
@@ -94,13 +95,18 @@ private:
 	void openInvoice(const QJsonObject &args);
 	void openPopup(const QJsonObject &args);
 	void requestPhone();
+	void requestClipboardText(const QJsonObject &args);
 	void setupClosingBehaviour(const QJsonObject &args);
 	void createMainButton();
 	void scheduleCloseWithConfirmation();
 	void closeWithConfirmation();
 
-	void postEvent(const QString &event, const QString &data = {});
+	using EventData = std::variant<QString, QJsonObject>;
+	void postEvent(const QString &event);
+	void postEvent(const QString &event, EventData data);
 
+	[[nodiscard]] bool allowOpenLink() const;
+	[[nodiscard]] bool allowClipboardQuery() const;
 	[[nodiscard]] bool progressWithBackground() const;
 	[[nodiscard]] QRect progressRect() const;
 	void setupProgressGeometry();
@@ -119,7 +125,7 @@ private:
 	std::unique_ptr<RpWidget> _webviewBottom;
 	QPointer<QWidget> _webviewParent;
 	std::unique_ptr<Button> _mainButton;
-	crl::time _mainButtonLastClick = 0;
+	mutable crl::time _mainButtonLastClick = 0;
 	std::unique_ptr<Progress> _progress;
 	rpl::event_stream<> _themeUpdateForced;
 	rpl::lifetime _fgLifetime;
@@ -128,6 +134,7 @@ private:
 	bool _themeUpdateScheduled = false;
 	bool _hiddenForPayment = false;
 	bool _closeWithConfirmationScheduled = false;
+	bool _allowClipboardRead = false;
 
 };
 
@@ -144,6 +151,7 @@ struct Args {
 	MenuButtons menuButtons;
 	Fn<void(MenuButton)> handleMenuButton;
 	Fn<Webview::ThemeParams()> themeParams;
+	bool allowClipboardRead = false;
 };
 [[nodiscard]] std::unique_ptr<Panel> Show(Args &&args);
 

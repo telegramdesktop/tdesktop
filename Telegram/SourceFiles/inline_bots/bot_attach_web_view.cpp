@@ -490,7 +490,11 @@ void AttachWebView::request(const WebViewButton &button) {
 	)).done([=](const MTPWebViewResult &result) {
 		_requestId = 0;
 		result.match([&](const MTPDwebViewResultUrl &data) {
-			show(data.vquery_id().v, qs(data.vurl()), button.text);
+			show(
+				data.vquery_id().v,
+				qs(data.vurl()),
+				button.text,
+				button.fromMenu);
 		});
 	}).fail([=](const MTP::Error &error) {
 		_requestId = 0;
@@ -792,7 +796,8 @@ void AttachWebView::ClearAll() {
 void AttachWebView::show(
 		uint64 queryId,
 		const QString &url,
-		const QString &buttonText) {
+		const QString &buttonText,
+		bool fromMenu) {
 	Expects(_bot != nullptr && _action.has_value());
 
 	const auto close = crl::guard(this, [=] {
@@ -916,6 +921,7 @@ void AttachWebView::show(
 		.menuButtons = buttons,
 		.handleMenuButton = handleMenuButton,
 		.themeParams = [] { return Window::Theme::WebViewParams(); },
+		.allowClipboardRead = fromMenu,
 	});
 	*panel = _panel.get();
 	started(queryId);
@@ -1023,11 +1029,18 @@ std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 		if (!PeerMatchesTypes(peer, bot.user, bot.types)) {
 			continue;
 		}
+		const auto callback = [=] {
+			bots->request(
+				nullptr,
+				actionFactory(),
+				bot.user,
+				{ .fromMenu = true });
+		};
 		auto action = base::make_unique_q<BotAction>(
 			raw,
 			raw->menu()->st(),
 			bot,
-			[=] { bots->request(nullptr, actionFactory(), bot.user, {}); });
+			callback);
 		action->forceShown(
 		) | rpl::start_with_next([=](bool shown) {
 			if (shown) {

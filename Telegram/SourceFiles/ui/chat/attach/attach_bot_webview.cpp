@@ -32,6 +32,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
+#include <QtGui/QGuiApplication>
+#include <QtGui/QClipboard>
 
 namespace Ui::BotWebView {
 namespace {
@@ -344,7 +346,8 @@ Panel::Panel(
 	QString phone,
 	MenuButtons menuButtons,
 	Fn<void(MenuButton)> handleMenuButton,
-	Fn<Webview::ThemeParams()> themeParams)
+	Fn<Webview::ThemeParams()> themeParams,
+	bool allowClipboardRead)
 : _userDataPath(userDataPath)
 , _handleLocalUri(std::move(handleLocalUri))
 , _handleInvoice(std::move(handleInvoice))
@@ -353,7 +356,8 @@ Panel::Panel(
 , _phone(phone)
 , _menuButtons(menuButtons)
 , _handleMenuButton(std::move(handleMenuButton))
-, _widget(std::make_unique<SeparatePanel>()) {
+, _widget(std::make_unique<SeparatePanel>())
+, _allowClipboardRead(allowClipboardRead) {
 	_widget->setInnerSize(st::paymentsPanelSize);
 	_widget->setWindowFlag(Qt::WindowStaysOnTopHint, false);
 
@@ -663,6 +667,8 @@ bool Panel::createWebview() {
 			requestPhone();
 		} else if (command == "web_app_setup_closing_behavior") {
 			setupClosingBehaviour(arguments);
+		} else if (command == "web_app_read_text_from_clipboard") {
+			requestClipboardText(arguments);
 		}
 	});
 
@@ -737,16 +743,10 @@ void Panel::openExternalLink(const QJsonObject &args) {
 		LOG(("BotWebView Error: Bad 'url' in openExternalLink."));
 		_close();
 		return;
+	} else if (!allowOpenLink()) {
+		return;
 	}
-	const auto now = crl::now();
-	if (_mainButtonLastClick
-		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
-		_mainButtonLastClick = 0;
-		File::OpenUrl(url);
-	} else {
-		const auto string = EncodeForJs(url);
-		_webview->window.eval(("window.open(\"" + string + "\");").toUtf8());
-	}
+	File::OpenUrl(url);
 }
 
 void Panel::openInvoice(const QJsonObject &args) {
@@ -816,9 +816,9 @@ void Panel::openPopup(const QJsonObject &args) {
 				QJsonArray{ { QJsonValue(*result.id) } }
 			).toJson(QJsonDocument::Compact) + "[0]";
 		};
-		postEvent(
-			"popup_closed",
-			result.id ? ("\"button_id\": " + safe()) : QString());
+		postEvent("popup_closed", result.id
+			? QJsonObject{ { u"button_id"_q, *result.id } }
+			: EventData());
 	}
 }
 
@@ -841,13 +841,47 @@ void Panel::requestPhone() {
 		},
 	});
 	if (weak) {
-		postEvent(
-			"phone_requested",
-			(result.id == "share"
-				? "\"phone_number\": \"" + _phone + "\""
-				: QString()));
+		postEvent("phone_requested", (result.id == "share")
+			? QJsonObject{ { u"phone_number"_q, _phone } }
+			: EventData());
 	}
 #endif
+}
+
+void Panel::requestClipboardText(const QJsonObject &args) {
+	const auto requestId = args["req_id"];
+	if (requestId.isUndefined()) {
+		return;
+	}
+	auto result = QJsonObject();
+	result["req_id"] = requestId;
+	if (allowClipboardQuery()) {
+		result["data"] = QGuiApplication::clipboard()->text();
+	}
+	postEvent(u"clipboard_text_received"_q, result);
+}
+
+bool Panel::allowOpenLink() const {
+	const auto now = crl::now();
+	if (_mainButtonLastClick
+		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
+		_mainButtonLastClick = 0;
+		return true;
+	}
+	return true;
+}
+
+bool Panel::allowClipboardQuery() const {
+	if (!_allowClipboardRead) {
+		return false;
+	}
+	const auto now = crl::now();
+	if (_mainButtonLastClick
+		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
+		_mainButtonLastClick = 0;
+		return true;
+	}
+	return true;
 }
 
 void Panel::scheduleCloseWithConfirmation() {
@@ -1031,16 +1065,17 @@ void Panel::updateThemeParams(const Webview::ThemeParams &params) {
 		params.scrollBgOver,
 		params.scrollBarBg,
 		params.scrollBarBgOver);
-	postEvent("theme_changed", "\"theme_params\": " + params.json);
+	postEvent("theme_changed", "{\"theme_params\": " + params.json + "}");
 }
 
 void Panel::invoiceClosed(const QString &slug, const QString &status) {
 	if (!_webview || !_webview->window.widget()) {
 		return;
 	}
-	postEvent(
-		"invoice_closed",
-		"\"slug\": \"" + slug + "\", \"status\": \"" + status + "\"");
+	postEvent("invoice_closed", QJsonObject{
+		{ u"slug"_q, slug },
+		{ u"status"_q, status },
+	});
 	_widget->showAndActivate();
 	_hiddenForPayment = false;
 }
@@ -1050,13 +1085,21 @@ void Panel::hideForPayment() {
 	_widget->hideGetDuration();
 }
 
-void Panel::postEvent(const QString &event, const QString &data) {
+void Panel::postEvent(const QString &event) {
+	postEvent(event, {});
+}
+
+void Panel::postEvent(const QString &event, EventData data) {
+	auto written = v::is<QString>(data)
+		? v::get<QString>(data).toUtf8()
+		: QJsonDocument(
+			v::get<QJsonObject>(data)).toJson(QJsonDocument::Compact);
 	_webview->window.eval(R"(
 if (window.TelegramGameProxy) {
 	window.TelegramGameProxy.receiveEvent(
 		")"
 		+ event.toUtf8()
-		+ '"' + (data.isEmpty() ? QByteArray() : ", {" + data.toUtf8() + '}')
+		+ '"' + (written.isEmpty() ? QByteArray() : ", " + written)
 		+ R"();
 }
 )");
@@ -1110,7 +1153,8 @@ std::unique_ptr<Panel> Show(Args &&args) {
 		args.phone,
 		args.menuButtons,
 		std::move(args.handleMenuButton),
-		std::move(args.themeParams));
+		std::move(args.themeParams),
+		args.allowClipboardRead);
 	if (!result->showWebview(args.url, params, std::move(args.bottom))) {
 		const auto available = Webview::Availability();
 		if (available.error != Webview::Available::Error::None) {
