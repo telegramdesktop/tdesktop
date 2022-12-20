@@ -2737,7 +2737,7 @@ void HistoryWidget::updateControlsVisibility() {
 		if (_kbShown) {
 			_kbScroll->show();
 			_tabbedSelectorToggle->hide();
-			_botKeyboardHide->show();
+			showKeyboardHideButton();
 			_botKeyboardShow->hide();
 			_botCommandStart->hide();
 		} else if (_kbReplyTo) {
@@ -4543,6 +4543,11 @@ bool HistoryWidget::kbWasHidden() const {
 				_history->lastKeyboardHiddenId));
 }
 
+void HistoryWidget::showKeyboardHideButton() {
+	_botKeyboardHide->setVisible(!_peer->isUser()
+		|| !_keyboard->persistent());
+}
+
 void HistoryWidget::toggleKeyboard(bool manual) {
 	auto fieldEnabled = canWriteMessage() && !_showAnimation;
 	if (_kbShown || _kbReplyTo) {
@@ -4594,7 +4599,7 @@ void HistoryWidget::toggleKeyboard(bool manual) {
 			_history->lastKeyboardHiddenId = 0;
 		}
 	} else if (fieldEnabled) {
-		_botKeyboardHide->show();
+		showKeyboardHideButton();
 		_botKeyboardShow->hide();
 		_kbScroll->show();
 		_kbShown = true;
@@ -5741,7 +5746,7 @@ void HistoryWidget::updateBotKeyboard(History *h, bool force) {
 				if (hasMarkup) {
 					_kbScroll->show();
 					_tabbedSelectorToggle->hide();
-					_botKeyboardHide->show();
+					showKeyboardHideButton();
 				} else {
 					_kbScroll->hide();
 					_tabbedSelectorToggle->show();

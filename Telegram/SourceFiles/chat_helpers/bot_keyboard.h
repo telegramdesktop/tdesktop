@@ -49,6 +49,7 @@ public:
 
 	[[nodiscard]] bool maximizeSize() const;
 	[[nodiscard]] bool singleUse() const;
+	[[nodiscard]] bool persistent() const;
 
 	[[nodiscard]] FullMsgId forMsgId() const {
 		return _wasForMsgId;
@@ -91,6 +92,7 @@ private:
 	bool _maximizeSize = false;
 	bool _singleUse = false;
 	bool _forceReply = false;
+	bool _persistent = false;
 
 	QPoint _lastMousePos;
 	std::unique_ptr<ReplyKeyboard> _impl;

@@ -391,6 +391,7 @@ private:
 	[[nodiscard]] int computeMaxFieldHeight() const;
 	void toggleMuteUnmute();
 	void reportSelectedMessages();
+	void showKeyboardHideButton();
 	void toggleKeyboard(bool manual = true);
 	void startBotCommand();
 	void hidePinnedMessage();

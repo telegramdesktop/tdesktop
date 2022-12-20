@@ -154,7 +154,8 @@ HistoryMessageMarkupData::HistoryMessageMarkupData(
 	data->match([&](const MTPDreplyKeyboardMarkup &data) {
 		flags = (data.is_resize() ? Flag::Resize : Flag())
 			| (data.is_selective() ? Flag::Selective : Flag())
-			| (data.is_single_use() ? Flag::SingleUse : Flag());
+			| (data.is_single_use() ? Flag::SingleUse : Flag())
+			| (data.is_persistent() ? Flag::Persistent : Flag());
 		placeholder = qs(data.vplaceholder().value_or_empty());
 		fillRows(data.vrows().v);
 	}, [&](const MTPDreplyInlineMarkup &data) {
