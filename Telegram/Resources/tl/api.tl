@@ -782,6 +782,7 @@ messages.stickerSetInstallResultArchive#35e410a8 sets:Vector<StickerSetCovered> 
 stickerSetCovered#6410a5d2 set:StickerSet cover:Document = StickerSetCovered;
 stickerSetMultiCovered#3407e51b set:StickerSet covers:Vector<Document> = StickerSetCovered;
 stickerSetFullCovered#40d13c0e set:StickerSet packs:Vector<StickerPack> keywords:Vector<StickerKeyword> documents:Vector<Document> = StickerSetCovered;
+stickerSetNoCovered#77b15d1c set:StickerSet = StickerSetCovered;
 
 maskCoords#aed6dbb2 n:int x:double y:double zoom:double = MaskCoords;
 
