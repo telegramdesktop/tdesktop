@@ -532,7 +532,7 @@ void SendFilesBox::addMenuButton() {
 					? tr::lng_context_disable_spoiler(tr::now)
 					: tr::lng_context_spoiler_effect(tr::now)),
 				[=] { toggleSpoilers(!spoilered); },
-				(spoilered ? &st::menuIconDisable : &st::menuIconSpoiler));
+				spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
 			if (hasSendMenu()) {
 				_menu->addSeparator();
 			}

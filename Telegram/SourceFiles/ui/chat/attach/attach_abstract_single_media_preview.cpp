@@ -269,7 +269,7 @@ void AbstractSingleMediaPreview::showContextMenu(QPoint position) {
 		? tr::lng_context_disable_spoiler(tr::now)
 		: tr::lng_context_spoiler_effect(tr::now), [=] {
 		setSpoiler(!spoilered);
-	}, spoilered ? &st::menuIconDisable : &st::menuIconSpoiler);
+	}, spoilered ? &st::menuIconSpoilerOff : &st::menuIconSpoiler);
 
 	if (_menu->empty()) {
 		_menu = nullptr;

@@ -36,7 +36,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 			rpl::single(QString()),
 			[] {},
 			st::manageGroupTopicsButton,
-			{ &st::infoRoundedIconAntiSpam, Settings::kIconPurple }
+			{ &st::infoRoundedIconHideMembers, Settings::kIconDarkBlue }
 	))->toggleOn(rpl::single(
 		(megagroup->flags() & ChannelDataFlag::ParticipantsHidden) != 0
 	) | rpl::then(state->toggled.events()));
