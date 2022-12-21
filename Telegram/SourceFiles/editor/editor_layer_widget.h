@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/image/image.h"
 #include "editor/photo_editor_common.h"
 #include "base/unique_qptr.h"
+#include "base/timer.h"
 
 enum class ImageRoundRadius;
 
@@ -30,12 +31,28 @@ public:
 	void parentResized() override;
 	bool closeByOutsideClick() const override;
 
-protected:
+private:
+	bool eventHook(QEvent *e) override;
 	void keyPressEvent(QKeyEvent *e) override;
 	int resizeGetHeight(int newWidth) override;
 
-private:
+	void start();
+	void cacheBackground();
+	void checkBackgroundStale();
+	void checkCacheBackground();
+	[[nodiscard]] QImage renderBackground();
+	void backgroundReady(QImage background, bool night);
+	void startBackgroundFade();
+
 	const base::unique_qptr<Ui::RpWidget> _content;
+	QImage _backgroundBack;
+	QImage _background;
+	QImage _backgroundNext;
+	Ui::Animations::Simple _backgroundFade;
+	base::Timer _backgroundTimer;
+	crl::time _lastAreaChangeTime = 0;
+	bool _backgroundCaching = false;
+	bool _backgroundNight = false;
 
 };
 
