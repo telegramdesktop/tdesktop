@@ -397,6 +397,8 @@ public:
 	virtual void setPaused(bool paused) = 0;
 	virtual void setTextPosition(int x, int y) = 0;
 
+	[[nodiscard]] virtual rpl::producer<int> additionalHeight() const = 0;
+
 protected:
 	void paintEdges(QPainter &p, const QBrush &brush) const;
 	void paintEdges(QPainter &p) const;
@@ -600,6 +602,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -912,6 +916,10 @@ void TopBarUser::setTextPosition(int x, int y) {
 	_smallTop.position = { x, y };
 }
 
+rpl::producer<int> TopBarUser::additionalHeight() const {
+	return rpl::never<int>();
+}
+
 void TopBarUser::paintEvent(QPaintEvent *e) {
 	auto p = QPainter(this);
 
@@ -938,6 +946,8 @@ public:
 
 	void setPaused(bool paused) override;
 	void setTextPosition(int x, int y) override;
+
+	rpl::producer<int> additionalHeight() const override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -1018,6 +1028,13 @@ void TopBar::setPaused(bool paused) {
 
 void TopBar::setTextPosition(int x, int y) {
 	_titlePosition = { x, y };
+}
+
+rpl::producer<int> TopBar::additionalHeight() const {
+	return _about->heightValue(
+	) | rpl::map([l = st::settingsPremiumAbout.style.lineHeight](int height) {
+		return std::max(height - l * 2, 0);
+	});
 }
 
 void TopBar::resizeEvent(QResizeEvent *e) {
@@ -1530,12 +1547,25 @@ QPointer<Ui::RpWidget> Premium::createPinnedToTop(
 		content->setRoundEdges(wrap == Info::Wrap::Layer);
 	}, content->lifetime());
 
-	content->setMaximumHeight(isEmojiStatus
-		? st::settingsPremiumUserHeight + TopTransitionSkip()
-		: st::settingsPremiumTopHeight);
+	const auto calculateMaximumHeight = [=] {
+		return isEmojiStatus
+			? st::settingsPremiumUserHeight + TopTransitionSkip()
+			: st::settingsPremiumTopHeight;
+	};
+
+	content->setMaximumHeight(calculateMaximumHeight());
 	content->setMinimumHeight(st::infoLayerTopBarHeight);
 
 	content->resize(content->width(), content->maximumHeight());
+	content->additionalHeight(
+	) | rpl::start_with_next([=](int additionalHeight) {
+		const auto wasMax = (content->height() == content->maximumHeight());
+		content->setMaximumHeight(calculateMaximumHeight()
+			+ additionalHeight);
+		if (wasMax) {
+			content->resize(content->width(), content->maximumHeight());
+		}
+	}, content->lifetime());
 
 	_wrap.value(
 	) | rpl::start_with_next([=](Info::Wrap wrap) {
