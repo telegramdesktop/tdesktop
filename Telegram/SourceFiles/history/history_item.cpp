@@ -3910,7 +3910,8 @@ void HistoryItem::setServiceMessageByAction(const MTPmessageAction &action) {
 		return result;
 	};
 
-	auto prepareAttachMenuBotAllowed = [this](const MTPDmessageActionAttachMenuBotAllowed &action) {
+	auto prepareAttachMenuBotAllowed = [](
+			const MTPDmessageActionAttachMenuBotAllowed &action) {
 		return PreparedServiceText{ {
 			tr::lng_action_attach_menu_bot_allowed(tr::now)
 		} };

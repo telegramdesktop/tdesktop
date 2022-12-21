@@ -1840,4 +1840,41 @@ not_null<Ui::GradientButton*> CreateSubscribeButton(
 	return result;
 }
 
+[[nodiscard]] std::vector<PremiumPreview> PremiumPreviewOrder(
+		not_null<Main::Session*> session) {
+	const auto mtpOrder = session->account().appConfig().get<Order>(
+		"premium_promo_order",
+		FallbackOrder());
+	return ranges::views::all(
+		mtpOrder
+	) | ranges::views::transform([](const QString &s) {
+		if (s == u"more_upload"_q) {
+			return PremiumPreview::MoreUpload;
+		} else if (s == u"faster_download"_q) {
+			return PremiumPreview::FasterDownload;
+		} else if (s == u"voice_to_text"_q) {
+			return PremiumPreview::VoiceToText;
+		} else if (s == u"no_ads"_q) {
+			return PremiumPreview::NoAds;
+		} else if (s == u"emoji_status"_q) {
+			return PremiumPreview::EmojiStatus;
+		} else if (s == u"infinite_reactions"_q) {
+			return PremiumPreview::InfiniteReactions;
+		} else if (s == u"premium_stickers"_q) {
+			return PremiumPreview::Stickers;
+		} else if (s == u"animated_emoji"_q) {
+			return PremiumPreview::AnimatedEmoji;
+		} else if (s == u"advanced_chat_management"_q) {
+			return PremiumPreview::AdvancedChatManagement;
+		} else if (s == u"profile_badge"_q) {
+			return PremiumPreview::ProfileBadge;
+		} else if (s == u"animated_userpics"_q) {
+			return PremiumPreview::AnimatedUserpics;
+		}
+		return PremiumPreview::kCount;
+	}) | ranges::views::filter([](PremiumPreview type) {
+		return (type != PremiumPreview::kCount);
+	}) | ranges::to_vector;
+}
+
 } // namespace Settings

@@ -921,7 +921,8 @@ QGradientStops FullHeightGradientStops() {
 		{ 0.0, st::premiumIconBg1->c },
 		{ .28, st::premiumIconBg2->c },
 		{ .55, st::premiumButtonBg2->c },
-		{ 1.0, st::premiumButtonBg1->c },
+		{ .75, st::premiumButtonBg1->c },
+		{ 1.0, st::premiumIconBg3->c },
 	};
 }
 
