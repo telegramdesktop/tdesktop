@@ -54,6 +54,7 @@ private:
 	const Interval _velocity;
 	const Interval _angle;
 	const Interval _relativeX;
+	const Interval _relativeY;
 
 	const float64 _appearProgressTill;
 	const float64 _disappearProgressAfter;
@@ -66,7 +67,10 @@ private:
 	std::vector<Particle> _particles;
 
 	crl::time _nextBirthTime = 0;
-	bool _paused = false;
+	struct {
+		crl::time diff = 0;
+		crl::time at = 0;
+	} _paused;
 	QBrush _brush;
 
 	QRect _rectToUpdate;

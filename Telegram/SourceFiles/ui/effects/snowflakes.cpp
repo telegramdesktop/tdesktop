@@ -74,33 +74,37 @@ namespace {
 } // namespace
 
 Snowflakes::Snowflakes(Fn<void(const QRect &r)> updateCallback)
-: _lifeLength({ 300, 100 })
-, _deathTime({ 2000, 100 })
+: _lifeLength({ 300 * 2, 100 * 2 })
+, _deathTime({ 2000 * 5, 100 * 5 })
 , _scale({ 60, 100 })
-, _velocity({ 20, 4 })
+, _velocity({ 20 * 7, 4 * 7 })
 , _angle({ 70, 40 })
 , _relativeX({ 0, 100 })
+, _relativeY({ -10, 70 })
 , _appearProgressTill(200. / _deathTime.from)
 , _disappearProgressAfter(_appearProgressTill)
 , _dotMargins(3., 3., 3., 3.)
 , _renderMargins(1., 1., 1., 1.)
 , _animation([=](crl::time now) {
-	if (now > _nextBirthTime && !_paused) {
+	if (now > _nextBirthTime && !_paused.at) {
 		createParticle(now);
 	}
 	if (_rectToUpdate.isValid()) {
 		updateCallback(base::take(_rectToUpdate));
 	}
 }) {
-	if (anim::Disabled()) {
+	{
 		const auto from = _deathTime.from + _deathTime.length;
 		auto r = bytes::vector(from);
 		base::RandomFill(r.data(), r.size());
+
+		const auto now = crl::now();
 		for (auto i = -from; i < 0; i += randomInterval(_lifeLength, r[-i])) {
-			createParticle(i);
+			createParticle(now + i);
 		}
 		updateCallback(_rectToUpdate);
-	} else {
+	}
+	if (!anim::Disabled()) {
 		_animation.start();
 	}
 }
@@ -112,7 +116,7 @@ int Snowflakes::randomInterval(
 }
 
 crl::time Snowflakes::timeNow() const {
-	return anim::Disabled() ? 0 : crl::now();
+	return _paused.at ? _paused.at : (crl::now() - _paused.diff);
 }
 
 void Snowflakes::paint(QPainter &p, const QRectF &rect) {
@@ -121,8 +125,9 @@ void Snowflakes::paint(QPainter &p, const QRectF &rect) {
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
 	p.setBrush(_brush);
+	const auto now = timeNow();
 	for (const auto &particle : _particles) {
-		const auto progress = (timeNow() - particle.birthTime)
+		const auto progress = (now - particle.birthTime)
 			/ float64(particle.deathTime - particle.birthTime);
 		if (progress > 1.) {
 			continue;
@@ -162,7 +167,14 @@ void Snowflakes::paint(QPainter &p, const QRectF &rect) {
 }
 
 void Snowflakes::setPaused(bool paused) {
-	_paused = paused;
+	paused |= anim::Disabled();
+	if (paused) {
+		_paused.diff = 0;
+		_paused.at = crl::now();
+	} else {
+		_paused.diff = _paused.at ? (crl::now() - _paused.at) : 0;
+		_paused.at = 0;
+	}
 }
 
 void Snowflakes::setBrush(QBrush brush) {
@@ -171,7 +183,7 @@ void Snowflakes::setBrush(QBrush brush) {
 }
 
 void Snowflakes::createParticle(crl::time now) {
-	constexpr auto kRandomSize = 8;
+	constexpr auto kRandomSize = 9;
 	auto random = bytes::vector(kRandomSize);
 	base::RandomFill(random.data(), random.size());
 
@@ -187,7 +199,7 @@ void Snowflakes::createParticle(crl::time now) {
 		.deathTime = now + randomInterval(_deathTime, next()),
 		.scale = float64(randomInterval(_scale, next())) / 100.,
 		.relativeX = float64(randomInterval(_relativeX, next())) / 100.,
-		.relativeY = float64(randomInterval(_relativeX, next())) / 100.,
+		.relativeY = float64(randomInterval(_relativeY, next())) / 100.,
 		.velocityX = std::cos(M_PI / 180. * angle) * velocity,
 		.velocityY = std::sin(M_PI / 180. * angle) * velocity,
 		.type = ((uchar(next()) % 2) == 1 ? Type::Snowflake : Type::Dot),

@@ -492,6 +492,10 @@ MainMenu::MainMenu(
 			const auto snow = snowLifetime->make_state<Ui::Snowflakes>(
 				[=](const QRect &r) { snowRaw->update(r); });
 			snow->setBrush(QColor(230, 230, 230));
+			_showFinished.value(
+			) | rpl::start_with_next([=](bool shown) {
+				snow->setPaused(!shown);
+			}, snowRaw->lifetime());
 			snowRaw->paintRequest(
 			) | rpl::start_with_next([=](const QRect &r) {
 				auto p = Painter(snowRaw);
@@ -692,6 +696,10 @@ void MainMenu::setupSetEmojiStatus() {
 
 void MainMenu::parentResized() {
 	resize(st::mainMenuWidth, parentWidget()->height());
+}
+
+void MainMenu::showFinished() {
+	_showFinished = true;
 }
 
 void MainMenu::setupMenu() {

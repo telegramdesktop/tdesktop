@@ -47,6 +47,7 @@ public:
 	~MainMenu();
 
 	void parentResized() override;
+	void showFinished() override;
 
 protected:
 	void paintEvent(QPaintEvent *e) override;
@@ -97,6 +98,8 @@ private:
 	rpl::event_stream<bool> _nightThemeSwitches;
 	base::Timer _nightThemeSwitch;
 	base::unique_qptr<Ui::PopupMenu> _contextMenu;
+
+	rpl::variable<bool> _showFinished = false;
 
 };
 
