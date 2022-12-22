@@ -1344,6 +1344,12 @@ void TopBarWidget::searchClear() {
 	}
 }
 
+void TopBarWidget::searchSetText(const QString &query) {
+	if (_searchMode) {
+		_searchField->setText(query);
+	}
+}
+
 void TopBarWidget::toggleSelectedControls(bool shown) {
 	_selectedShown.start(
 		[this] { slideAnimationCallback(); },

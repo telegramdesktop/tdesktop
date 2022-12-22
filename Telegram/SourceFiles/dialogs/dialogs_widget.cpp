@@ -1466,6 +1466,16 @@ void Widget::showMainMenu() {
 void Widget::searchMessages(
 		const QString &query,
 		Key inChat) {
+	if (_childList) {
+		const auto forum = controller()->shownForum().current();
+		const auto topic = inChat.topic();
+		if ((forum && forum->channel() == inChat.peer())
+			|| (topic && topic->forum() == forum)) {
+			_childList->searchMessages(query, inChat);
+			return;
+		}
+		hideChildList();
+	}
 	const auto inChatChanged = [&] {
 		const auto inPeer = inChat.peer();
 		const auto inTopic = inChat.topic();
@@ -1482,12 +1492,12 @@ void Widget::searchMessages(
 		}
 		return true;
 	}();
-	if ((_filter->getLastText() != query) || inChatChanged) {
+	if ((currentSearchQuery() != query) || inChatChanged) {
 		if (inChat) {
 			cancelSearch();
 			setSearchInChat(inChat);
 		}
-		_filter->setText(query);
+		setSearchQuery(query);
 		applyFilterUpdate(true);
 		_searchTimer.cancel();
 		searchMessages();
@@ -2567,6 +2577,14 @@ void Widget::clearSearchField() {
 		_subsectionTopBar->searchClear();
 	} else {
 		_filter->clear();
+	}
+}
+
+void Widget::setSearchQuery(const QString &query) {
+	if (_subsectionTopBar) {
+		_subsectionTopBar->searchSetText(query);
+	} else {
+		_filter->setText(query);
 	}
 }
 

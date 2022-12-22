@@ -166,6 +166,7 @@ private:
 	void showSearchFrom();
 	void showMainMenu();
 	void clearSearchCache();
+	void setSearchQuery(const QString &query);
 	void updateControlsVisibility(bool fast = false);
 	void updateLockUnlockVisibility();
 	void updateLoadMoreChatsVisibility();
