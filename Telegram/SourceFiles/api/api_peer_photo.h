@@ -28,11 +28,15 @@ public:
 	using UserPhotoId = PhotoId;
 	explicit PeerPhoto(not_null<ApiWrap*> api);
 
-	void upload(not_null<PeerData*> peer, QImage &&image);
+	void upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		Fn<void()> done = nullptr);
 	void uploadFallback(not_null<PeerData*> peer, QImage &&image);
 	void updateSelf(
 		not_null<PhotoData*> photo,
-		Data::FileOrigin origin);
+		Data::FileOrigin origin,
+		Fn<void()> done = nullptr);
 	void suggest(not_null<PeerData*> peer, QImage &&image);
 	void clear(not_null<PhotoData*> photo);
 	void clearPersonal(not_null<UserData*> user);
@@ -59,18 +63,19 @@ private:
 	void upload(
 		not_null<PeerData*> peer,
 		QImage &&image,
-		UploadType type);
+		UploadType type,
+		Fn<void()> done);
 
 	const not_null<Main::Session*> _session;
 	MTP::Sender _api;
 
 	struct UploadValue {
 		not_null<PeerData*> peer;
-		bool fallback = false;
+		UploadType type = UploadType::Default;
+		Fn<void()> done;
 	};
 
 	base::flat_map<FullMsgId, UploadValue> _uploads;
-	base::flat_set<FullMsgId> _suggestions;
 
 	base::flat_map<not_null<UserData*>, mtpRequestId> _userPhotosRequests;
 

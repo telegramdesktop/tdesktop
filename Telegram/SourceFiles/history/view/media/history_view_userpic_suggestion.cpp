@@ -24,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "window/window_session_controller.h"
 #include "ui/boxes/confirm_box.h"
+#include "ui/text/text_utilities.h"
+#include "ui/toast/toast.h"
 #include "ui/painter.h"
 #include "mainwidget.h"
 #include "apiwrap.h"
@@ -34,23 +36,26 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryView {
 namespace {
 
+constexpr auto kToastDuration = 5 * crl::time(1000);
+
 void ShowUserpicSuggestion(
 		not_null<Window::SessionController*> controller,
 		const std::shared_ptr<Data::PhotoMedia> &media,
 		const FullMsgId itemId,
-		not_null<PeerData*> peer) {
+		not_null<PeerData*> peer,
+		Fn<void()> setDone) {
 	const auto photo = media->owner();
 	const auto from = peer->asUser();
 	const auto name = (from && !from->firstName.isEmpty())
 		? from->firstName
 		: peer->name();
 	if (photo->hasVideo()) {
-		const auto done = [=] {
+		const auto done = [=](Fn<void()> close) {
 			using namespace Settings;
 			const auto session = &photo->session();
 			auto &peerPhotos = session->api().peerPhoto();
-			peerPhotos.updateSelf(photo, itemId);
-			controller->showSettings(Information::Id());
+			peerPhotos.updateSelf(photo, itemId, setDone);
+			close();
 		};
 		controller->show(Ui::MakeConfirmBox({
 			.text = tr::lng_profile_accept_video_sure(
@@ -72,11 +77,10 @@ void ShowUserpicSuggestion(
 			auto &peerPhotos = session->api().peerPhoto();
 			if (original->size() == image.size()
 				&& original->constBits() == image.constBits()) {
-				peerPhotos.updateSelf(photo, itemId);
+				peerPhotos.updateSelf(photo, itemId, setDone);
 			} else {
-				peerPhotos.upload(user, std::move(image));
+				peerPhotos.upload(user, std::move(image), setDone);
 			}
-			controller->showSettings(Information::Id());
 		};
 		using namespace Editor;
 		PrepareProfilePhoto(
@@ -96,7 +100,86 @@ void ShowUserpicSuggestion(
 	}
 }
 
+[[nodiscard]] QImage GrabUserpicFrame(base::weak_ptr<Photo> photo) {
+	const auto strong = photo.get();
+	if (!strong || !strong->width() || !strong->height()) {
+		return {};
+	}
+	const auto ratio = style::DevicePixelRatio();
+	auto frame = QImage(
+		QSize(strong->width(), strong->height()) * ratio,
+		QImage::Format_ARGB32_Premultiplied);
+	frame.fill(Qt::transparent);
+	frame.setDevicePixelRatio(ratio);
+	auto p = Painter(&frame);
+	strong->paintUserpicFrame(p, QPoint(0, 0), false);
+	p.end();
+	return frame;
+}
+
+void ShowSetToast(
+		not_null<Window::SessionController*> controller,
+		const QImage &frame) {
+	const auto text = Ui::Text::Bold(
+		tr::lng_profile_changed_photo_title(tr::now)
+	).append('\n').append(
+		tr::lng_profile_changed_photo_about(
+			tr::now,
+			lt_link,
+			Ui::Text::Link(
+				tr::lng_profile_changed_photo_link(tr::now),
+				u"tg://settings/information"_q),
+			Ui::Text::WithEntities)
+	);
+	auto st = std::make_shared<style::Toast>(st::historyPremiumToast);
+	const auto skip = st->padding.top();
+	const auto size = st->style.font->height * 2;
+	const auto ratio = style::DevicePixelRatio();
+	auto copy = frame.scaled(
+		QSize(size, size) * ratio,
+		Qt::IgnoreAspectRatio,
+		Qt::SmoothTransformation);
+	copy.setDevicePixelRatio(ratio);
+	st->padding.setLeft(skip + size + skip);
+	st->palette.linkFg = st->palette.selectLinkFg = st::mediaviewTextLinkFg;
+
+	const auto parent = Window::Show(controller).toastParent();
+	const auto weak = Ui::Toast::Show(parent, {
+		.text = text,
+		.st = st.get(),
+		.durationMs = kToastDuration,
+		.multiline = true,
+		.dark = true,
+		.slideSide = RectPart::Bottom,
+	});
+	if (const auto strong = weak.get()) {
+		const auto widget = strong->widget();
+		widget->lifetime().add([st = std::move(st)] {});
+
+		const auto preview = Ui::CreateChild<Ui::RpWidget>(widget.get());
+		preview->moveToLeft(skip, skip);
+		preview->resize(size, size);
+		preview->show();
+		preview->setAttribute(Qt::WA_TransparentForMouseEvents);
+		preview->paintRequest(
+		) | rpl::start_with_next([=] {
+			QPainter(preview).drawImage(0, 0, copy);
+		}, preview->lifetime());
+	}
+}
+
+[[nodiscard]] Fn<void()> ShowSetToastCallback(
+		base::weak_ptr<Window::SessionController> weak,
+		QImage frame) {
+	return [weak = std::move(weak), frame = std::move(frame)] {
+		if (const auto strong = weak.get()) {
+			ShowSetToast(strong, frame);
+		}
+	};
+}
+
 } // namespace
+
 UserpicSuggestion::UserpicSuggestion(
 	not_null<Element*> parent,
 	not_null<PeerData*> chat,
@@ -138,10 +221,15 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 	const auto photo = _photo.getPhoto();
 	const auto itemId = _photo.parent()->data()->fullId();
 	const auto peer = _photo.parent()->data()->history()->peer;
-	const auto show = crl::guard(&_photo, [=](FullMsgId id) {
+	const auto weak = base::make_weak(&_photo);
+	const auto show = crl::guard(weak, [=](FullMsgId id) {
 		_photo.showPhoto(id);
 	});
 	return std::make_shared<LambdaClickHandler>([=](ClickContext context) {
+		auto frame = GrabUserpicFrame(weak);
+		if (frame.isNull()) {
+			return;
+		}
 		const auto my = context.other.value<ClickHandlerContext>();
 		if (const auto controller = my.sessionWindow.get()) {
 			const auto media = photo->activeMediaView();
@@ -150,7 +238,12 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 					PhotoOpenClickHandler(photo, show, itemId).onClick(
 						context);
 				} else {
-					ShowUserpicSuggestion(controller, media, itemId, peer);
+					ShowUserpicSuggestion(
+						controller,
+						media,
+						itemId,
+						peer,
+						ShowSetToastCallback(controller, std::move(frame)));
 				}
 			} else if (!photo->loading()) {
 				PhotoSaveClickHandler(photo, itemId).onClick(context);

@@ -63,6 +63,11 @@ public:
 	}
 	void showPhoto(FullMsgId id);
 
+	void paintUserpicFrame(
+		Painter &p,
+		QPoint photoPosition,
+		bool markFrameShown) const;
+
 	QSize sizeForGroupingOptimal(int maxWidth) const override;
 	QSize sizeForGrouping(int width) const override;
 	void drawGrouped(

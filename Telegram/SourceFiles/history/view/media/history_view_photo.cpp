@@ -481,9 +481,10 @@ QImage Photo::prepareImageCacheWithLarge(QSize outer, Image *large) const {
 
 void Photo::paintUserpicFrame(
 		Painter &p,
-		const PaintContext &context,
-		QPoint photoPosition) const {
-	const auto autoplay = _data->videoCanBePlayed() && videoAutoplayEnabled();
+		QPoint photoPosition,
+		bool markFrameShown) const {
+	const auto autoplay = _data->videoCanBePlayed()
+		&& videoAutoplayEnabled();
 	const auto startPlay = autoplay && !_streamed;
 	if (startPlay) {
 		const_cast<Photo*>(this)->playAnimation(true);
@@ -493,8 +494,6 @@ void Photo::paintUserpicFrame(
 
 	const auto size = QSize(width(), height());
 	const auto rect = QRect(photoPosition, size);
-	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto forum = _parent->data()->history()->isForum();
 
 	if (_streamed
@@ -527,7 +526,7 @@ void Photo::paintUserpicFrame(
 		} else {
 			_streamed->frozenFrame = QImage();
 			p.drawImage(rect, _streamed->instance.frame(request));
-			if (!context.paused) {
+			if (markFrameShown) {
 				_streamed->instance.markFrameShown();
 			}
 		}
@@ -535,10 +534,23 @@ void Photo::paintUserpicFrame(
 	}
 	validateUserpicImageCache(size, forum);
 	p.drawImage(rect, _imageCache);
+}
+
+void Photo::paintUserpicFrame(
+		Painter &p,
+		const PaintContext &context,
+		QPoint photoPosition) const {
+	paintUserpicFrame(p, photoPosition, !context.paused);
 
 	if (_data->videoCanBePlayed() && !_streamed) {
+		const auto st = context.st;
+		const auto sti = context.imageStyle();
 		const auto innerSize = st::msgFileLayout.thumbSize;
-		auto inner = QRect(rect.x() + (rect.width() - innerSize) / 2, rect.y() + (rect.height() - innerSize) / 2, innerSize, innerSize);
+		auto inner = QRect(
+			photoPosition.x() + (width() - innerSize) / 2,
+			photoPosition.y() + (height() - innerSize) / 2,
+			innerSize,
+			innerSize);
 		p.setPen(Qt::NoPen);
 		if (context.selected()) {
 			p.setBrush(st->msgDateImgBgSelected());

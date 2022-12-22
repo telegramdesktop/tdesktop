@@ -114,17 +114,21 @@ PeerPhoto::PeerPhoto(not_null<ApiWrap*> api)
 	});
 }
 
-void PeerPhoto::upload(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), UploadType::Default);
+void PeerPhoto::upload(
+		not_null<PeerData*> peer,
+		QImage &&image,
+		Fn<void()> done) {
+	upload(peer, std::move(image), UploadType::Default, std::move(done));
 }
 
 void PeerPhoto::uploadFallback(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), UploadType::Fallback);
+	upload(peer, std::move(image), UploadType::Fallback, nullptr);
 }
 
 void PeerPhoto::updateSelf(
 		not_null<PhotoData*> photo,
-		Data::FileOrigin origin) {
+		Data::FileOrigin origin,
+		Fn<void()> done) {
 	const auto send = [=](auto resend) -> void {
 		const auto usedFileReference = photo->fileReference();
 		_api.request(MTPphotos_UpdateProfilePhoto(
@@ -135,6 +139,9 @@ void PeerPhoto::updateSelf(
 				_session->data().processPhoto(data.vphoto());
 				_session->data().processUsers(data.vusers());
 			});
+			if (done) {
+				done();
+			}
 		}).fail([=](const MTP::Error &error) {
 			if (error.code() == 400
 				&& error.type().startsWith(u"FILE_REFERENCE_"_q)) {
@@ -153,7 +160,8 @@ void PeerPhoto::updateSelf(
 void PeerPhoto::upload(
 		not_null<PeerData*> peer,
 		QImage &&image,
-		UploadType type) {
+		UploadType type,
+		Fn<void()> done) {
 	peer = peer->migrateToOrMe();
 	const auto ready = PreparePeerPhoto(
 		_api.instance().mainDcId(),
@@ -169,20 +177,16 @@ void PeerPhoto::upload(
 		[](const auto &pair) { return pair.second.peer; });
 	if (already != end(_uploads)) {
 		_session->uploader().cancel(already->first);
-		_suggestions.remove(already->first);
 		_uploads.erase(already);
 	}
 	_uploads.emplace(
 		fakeId,
-		UploadValue{ peer, type == UploadType::Fallback });
-	if (type == UploadType::Suggestion) {
-		_suggestions.emplace(fakeId);
-	}
+		UploadValue{ peer, type, std::move(done) });
 	_session->uploader().uploadMedia(fakeId, ready);
 }
 
 void PeerPhoto::suggest(not_null<PeerData*> peer, QImage &&image) {
-	upload(peer, std::move(image), UploadType::Suggestion);
+	upload(peer, std::move(image), UploadType::Suggestion, nullptr);
 }
 
 void PeerPhoto::clear(not_null<PhotoData*> photo) {
@@ -285,20 +289,22 @@ void PeerPhoto::set(not_null<PeerData*> peer, not_null<PhotoData*> photo) {
 
 void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 	const auto maybeUploadValue = _uploads.take(msgId);
-	const auto suggestion = _suggestions.contains(msgId);
-	_suggestions.remove(msgId);
 	if (!maybeUploadValue) {
 		return;
 	}
 	const auto peer = maybeUploadValue->peer;
-	const auto fallback = maybeUploadValue->fallback;
+	const auto type = maybeUploadValue->type;
+	const auto done = maybeUploadValue->done;
 	const auto applier = [=](const MTPUpdates &result) {
 		_session->updates().applyUpdates(result);
+		if (done) {
+			done();
+		}
 	};
 	if (peer->isSelf()) {
 		_api.request(MTPphotos_UploadProfilePhoto(
 			MTP_flags(MTPphotos_UploadProfilePhoto::Flag::f_file
-				| (fallback
+				| ((type == UploadType::Fallback)
 					? MTPphotos_UploadProfilePhoto::Flag::f_fallback
 					: MTPphotos_UploadProfilePhoto::Flags(0))),
 			file,
@@ -308,10 +314,13 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 			const auto photoId = _session->data().processPhoto(
 				result.data().vphoto())->id;
 			_session->data().processUsers(result.data().vusers());
-			if (fallback) {
+			if (type == UploadType::Fallback) {
 				_session->storage().add(Storage::UserPhotosSetBack(
 					peerToUser(peer->id),
 					photoId));
+			}
+			if (done) {
+				done();
 			}
 		}).send();
 	} else if (const auto chat = peer->asChat()) {
@@ -338,7 +347,9 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 		using Flag = MTPphotos_UploadContactProfilePhoto::Flag;
 		_api.request(MTPphotos_UploadContactProfilePhoto(
 			MTP_flags(Flag::f_file
-				| (suggestion ? Flag::f_suggest : Flag::f_save)),
+				| ((type == UploadType::Suggestion)
+					? Flag::f_suggest
+					: Flag::f_save)),
 			user->inputUser,
 			file,
 			MTPInputFile(), // video
@@ -348,8 +359,11 @@ void PeerPhoto::ready(const FullMsgId &msgId, const MTPInputFile &file) {
 				_session->data().processPhoto(data.vphoto());
 				_session->data().processUsers(data.vusers());
 			});
-			if (!suggestion) {
+			if (type != UploadType::Suggestion) {
 				user->updateFullForced();
+			}
+			if (done) {
+				done();
 			}
 		}).send();
 	}
