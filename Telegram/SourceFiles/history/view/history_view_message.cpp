@@ -508,12 +508,23 @@ auto Message::takeReactionAnimations()
 QSize Message::performCountOptimalSize() {
 	const auto item = data();
 	const auto markup = item->inlineReplyMarkup();
+	const auto reactionsKey = [&] {
+		return embedReactionsInBottomInfo()
+			? 0
+			: embedReactionsInBubble()
+			? 1
+			: 2;
+	};
+	const auto oldKey = reactionsKey();
 	refreshIsTopicRootReply();
 	validateText();
 	validateInlineKeyboard(markup);
 	updateViewButtonExistence();
 	refreshTopicButton();
 	updateMediaInBubbleState();
+	if (oldKey != reactionsKey()) {
+		refreshReactions();
+	}
 	refreshRightBadge();
 	refreshInfoSkipBlock();
 
