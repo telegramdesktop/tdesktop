@@ -22,7 +22,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "calls/calls_instance.h"
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
+#include "ui/text/text_utilities.h"
 #include "ui/painter.h"
+#include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "media/streaming/media_streaming_instance.h"
 #include "media/streaming/media_streaming_player.h"
@@ -70,22 +72,29 @@ void CameraBox(
 		}
 	}, box->lifetime());
 
-	auto done = [=, done = std::move(doneCallback)](QImage &&image) {
+	auto done = [=, done = std::move(doneCallback)]() mutable {
+		using namespace Editor;
+		auto callback = [=, done = std::move(done)](QImage &&image) {
+			box->closeBox();
+			done(std::move(image));
+		};
+		PrepareProfilePhoto(
+			box,
+			controller,
+			{
+				.confirm = tr::lng_profile_set_photo_button(tr::now),
+				.cropType = ((peer && peer->isForum())
+					? EditorData::CropType::RoundedRect
+					: EditorData::CropType::Ellipse),
+				.keepAspectRatio = true,
+			},
+			std::move(callback),
+			track->frame(FrameRequest()).mirrored(true, false));
 		box->closeBox();
-		done(std::move(image));
 	};
 
 	box->setTitle(tr::lng_profile_camera_title());
-	box->addButton(tr::lng_continue(), [=, done = std::move(done)]() mutable {
-		Editor::PrepareProfilePhoto(
-			box,
-			controller,
-			((peer && peer->isForum())
-				? ImageRoundRadius::Large
-				: ImageRoundRadius::Ellipse),
-			std::move(done),
-			track->frame(FrameRequest()).mirrored(true, false));
-	});
+	box->addButton(tr::lng_continue(), std::move(done));
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
@@ -260,12 +269,35 @@ void UserpicButton::choosePhotoLocally() {
 		base::call_delayed(
 			_st.changeButton.ripple.hideDuration,
 			crl::guard(this, [=] {
-				Editor::PrepareProfilePhotoFromFile(
+				using namespace Editor;
+				const auto user = _peer ? _peer->asUser() : nullptr;
+				const auto name = (user && !user->firstName.isEmpty())
+					? user->firstName
+					: _peer->name();
+				const auto phrase = (type == ChosenType::Suggest)
+					? &tr::lng_profile_suggest_sure
+					: (_peer->isUser() && !_peer->isSelf())
+					? &tr::lng_profile_set_personal_sure
+					: nullptr;
+				PrepareProfilePhotoFromFile(
 					this,
 					_window,
-					((_peer && _peer->isForum())
-						? ImageRoundRadius::Large
-						: ImageRoundRadius::Ellipse),
+					{
+						.about = (phrase
+							? (*phrase)(
+								tr::now,
+								lt_user,
+								Ui::Text::Bold(name),
+								Ui::Text::WithEntities)
+							: TextWithEntities()),
+						.confirm = ((type == ChosenType::Suggest)
+							? tr::lng_profile_suggest_button(tr::now)
+							: tr::lng_profile_set_photo_button(tr::now)),
+						.cropType = ((_peer && _peer->isForum())
+							? EditorData::CropType::RoundedRect
+							: EditorData::CropType::Ellipse),
+						.keepAspectRatio = true,
+					},
 					callback(type));
 			}));
 	};

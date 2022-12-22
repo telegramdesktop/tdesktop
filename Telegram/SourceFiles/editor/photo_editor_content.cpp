@@ -80,6 +80,8 @@ PhotoEditorContent::PhotoEditorContent(
 			mods.angle,
 			mods.flipped, imageSizeF);
 		_paint->applyTransform(geometry, mods.angle, mods.flipped);
+
+		_innerRect = geometry;
 	}, lifetime());
 
 	paintRequest(

@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo_media.h"
 #include "data/data_file_click_handler.h"
 #include "data/data_session.h"
+#include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -31,7 +32,71 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_chat.h"
 
 namespace HistoryView {
+namespace {
 
+void ShowUserpicSuggestion(
+		not_null<Window::SessionController*> controller,
+		const std::shared_ptr<Data::PhotoMedia> &media,
+		const FullMsgId itemId,
+		not_null<PeerData*> peer) {
+	const auto photo = media->owner();
+	const auto from = peer->asUser();
+	const auto name = (from && !from->firstName.isEmpty())
+		? from->firstName
+		: peer->name();
+	if (photo->hasVideo()) {
+		const auto done = [=] {
+			using namespace Settings;
+			const auto session = &photo->session();
+			auto &peerPhotos = session->api().peerPhoto();
+			peerPhotos.updateSelf(photo, itemId);
+			controller->showSettings(Information::Id());
+		};
+		controller->show(Ui::MakeConfirmBox({
+			.text = tr::lng_profile_accept_video_sure(
+				tr::now,
+				lt_user,
+				name),
+			.confirmed = done,
+			.confirmText = tr::lng_profile_set_video_button(
+				tr::now),
+		}));
+	} else {
+		const auto original = std::make_shared<QImage>(
+			media->image(Data::PhotoSize::Large)->original());
+		const auto callback = [=](QImage &&image) {
+			using namespace Settings;
+			const auto session = &photo->session();
+			const auto user = session->user();
+			UpdatePhotoLocally(user, image);
+			auto &peerPhotos = session->api().peerPhoto();
+			if (original->size() == image.size()
+				&& original->constBits() == image.constBits()) {
+				peerPhotos.updateSelf(photo, itemId);
+			} else {
+				peerPhotos.upload(user, std::move(image));
+			}
+			controller->showSettings(Information::Id());
+		};
+		using namespace Editor;
+		PrepareProfilePhoto(
+			controller->content(),
+			&controller->window(),
+			{
+				.about = { tr::lng_profile_accept_photo_sure(
+					tr::now,
+					lt_user,
+					name) },
+				.confirm = tr::lng_profile_set_photo_button(tr::now),
+				.cropType = EditorData::CropType::Ellipse,
+				.keepAspectRatio = true,
+			},
+			callback,
+			base::duplicate(*original));
+	}
+}
+
+} // namespace
 UserpicSuggestion::UserpicSuggestion(
 	not_null<Element*> parent,
 	not_null<PeerData*> chat,
@@ -84,50 +149,8 @@ ClickHandlerPtr UserpicSuggestion::createViewLink() {
 				if (out) {
 					PhotoOpenClickHandler(photo, show, itemId).onClick(
 						context);
-				} else if (photo->hasVideo()) {
-					const auto user = peer->asUser();
-					const auto name = (user && !user->firstName.isEmpty())
-						? user->firstName
-						: peer->name();
-					const auto done = [=] {
-						using namespace Settings;
-						const auto session = &photo->session();
-						auto &peerPhotos = session->api().peerPhoto();
-						peerPhotos.updateSelf(photo, itemId);
-						controller->showSettings(Information::Id());
-					};
-					controller->show(Ui::MakeConfirmBox({
-						.text = tr::lng_profile_accept_video_sure(
-							tr::now,
-							lt_user,
-							name),
-						.confirmed = done,
-						.confirmText = tr::lng_profile_set_video_button(
-							tr::now),
-					}));
 				} else {
-					const auto original = std::make_shared<QImage>(
-						media->image(Data::PhotoSize::Large)->original());
-					const auto callback = [=](QImage &&image) {
-						using namespace Settings;
-						const auto session = &photo->session();
-						const auto user = session->user();
-						UpdatePhotoLocally(user, image);
-						auto &peerPhotos = session->api().peerPhoto();
-						if (original->size() == image.size()
-							&& original->constBits() == image.constBits()) {
-							peerPhotos.updateSelf(photo, itemId);
-						} else {
-							peerPhotos.upload(user, std::move(image));
-						}
-						controller->showSettings(Information::Id());
-					};
-					Editor::PrepareProfilePhoto(
-						controller->content(),
-						&controller->window(),
-						ImageRoundRadius::Ellipse,
-						callback,
-						base::duplicate(*original));
+					ShowUserpicSuggestion(controller, media, itemId, peer);
 				}
 			} else if (!photo->loading()) {
 				PhotoSaveClickHandler(photo, itemId).onClick(context);

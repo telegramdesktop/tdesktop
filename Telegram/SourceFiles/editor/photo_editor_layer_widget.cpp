@@ -71,7 +71,7 @@ void OpenWithPreparedFile(
 void PrepareProfilePhoto(
 		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
-		ImageRoundRadius radius,
+		EditorData data,
 		Fn<void(QImage &&image)> &&doneCallback,
 		QImage &&image) {
 	const auto resizeToMinSize = [=](
@@ -121,12 +121,7 @@ void PrepareProfilePhoto(
 		controller,
 		fileImage,
 		PhotoModifications{ .crop = std::move(crop) },
-		EditorData{
-			.cropType = (radius == ImageRoundRadius::Ellipse
-				? EditorData::CropType::Ellipse
-				: EditorData::CropType::RoundedRect),
-			.keepAspectRatio = true,
-		});
+		data);
 	const auto raw = editor.get();
 	auto layer = std::make_unique<LayerWidget>(parent, std::move(editor));
 	InitEditorLayer(layer.get(), raw, std::move(applyModifications));
@@ -136,7 +131,7 @@ void PrepareProfilePhoto(
 void PrepareProfilePhotoFromFile(
 		not_null<QWidget*> parent,
 		not_null<Window::Controller*> controller,
-		ImageRoundRadius radius,
+		EditorData data,
 		Fn<void(QImage &&image)> &&doneCallback) {
 	const auto callback = [=, done = std::move(doneCallback)](
 			const FileDialog::OpenResult &result) mutable {
@@ -152,7 +147,7 @@ void PrepareProfilePhotoFromFile(
 		PrepareProfilePhoto(
 			parent,
 			controller,
-			radius,
+			data,
 			std::move(done),
 			std::move(image));
 	};

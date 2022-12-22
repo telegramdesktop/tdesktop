@@ -67,11 +67,12 @@ PhotoEditor::PhotoEditor(
 	photo,
 	_modifications,
 	_controllers,
-	std::move(data)))
+	data))
 , _controls(base::make_unique_q<PhotoEditorControls>(
 	this,
 	_controllers,
-	_modifications))
+	_modifications,
+	data))
 , _colorPicker(std::make_unique<ColorPicker>(
 	this,
 	Deserialize(Core::App().settings().photoEditorBrush()))) {
@@ -81,12 +82,18 @@ PhotoEditor::PhotoEditor(
 		if (size.isEmpty()) {
 			return;
 		}
-		const auto geometry = QRect(QPoint(), size);
-		const auto contentRect = geometry - st::photoEditorContentMargins;
-		_content->setGeometry(contentRect);
-		const auto contentBottom = contentRect.top() + contentRect.height();
-		const auto controlsRect = geometry
-			- style::margins(0, contentBottom, 0, 0);
+		_content->setGeometry(rect() - st::photoEditorContentMargins);
+	}, lifetime());
+
+	_content->innerRect(
+	) | rpl::start_with_next([=](QRect inner) {
+		if (inner.isEmpty()) {
+			return;
+		}
+		const auto innerTop = _content->y() + inner.top();
+		const auto skip = st::photoEditorCropPointSize;
+		const auto controlsRect = rect()
+			- style::margins(0, innerTop + inner.height() + skip, 0, 0);
 		_controls->setGeometry(controlsRect);
 	}, lifetime());
 

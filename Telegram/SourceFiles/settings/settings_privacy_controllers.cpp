@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "data/data_user_photos.h" // UserPhotosViewer.
+#include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
 #include "history/admin_log/history_admin_log_item.h"
 #include "history/history.h"
@@ -1134,10 +1135,15 @@ object_ptr<Ui::RpWidget> ProfilePhotoPrivacyController::setupBelowWidget(
 		base::call_delayed(
 			st::settingsButton.ripple.hideDuration,
 			crl::guard(container, [=] {
-				Editor::PrepareProfilePhotoFromFile(
+				using namespace Editor;
+				PrepareProfilePhotoFromFile(
 					container,
 					&controller->window(),
-					ImageRoundRadius::Ellipse,
+					{
+						.confirm = tr::lng_profile_set_photo_button(tr::now),
+						.cropType = EditorData::CropType::Ellipse,
+						.keepAspectRatio = true,
+					},
 					[=](QImage &&image) {
 						state->updatePhoto(std::move(image), true);
 						state->hiddenByUser = false;

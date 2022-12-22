@@ -31,10 +31,24 @@ photoEditorButtonIconFgOver: mediaviewPipControlsFgOver;
 photoEditorButtonIconFgActive: lightButtonFg;
 photoEditorButtonIconFgInactive: mediaviewPipPlaybackInactive;
 
-photoEditorButtonBarHeight: 50px;
-photoEditorButtonBarWidth: windowMinWidth;
+photoEditorButtonBarHeight: 48px;
+photoEditorButtonBarWidth: 422px;
 photoEditorButtonBarPadding: margins(2px, 0px, 2px, 0px);
 photoEditorTextButtonPadding: margins(22px, 0px, 22px, 0px);
+
+photoEditorButtonStyle: TextStyle(semiboldTextStyle) {
+	font: font(14px semibold);
+	linkFont: font(14px semibold);
+	linkFontOver: font(14px semibold underline);
+}
+photoEditorButtonTextTop: 15px;
+
+photoEditorAbout: FlatLabel(defaultFlatLabel) {
+	textFg: mediaviewCaptionFg;
+	minWidth: 240px;
+	align: align(top);
+}
+photoEditorAboutMargin: margins(10px, 22px, 10px, 0px);
 
 photoEditorRotateButton: IconButton(defaultIconButton) {
 	width: photoEditorButtonBarHeight;
@@ -43,7 +57,7 @@ photoEditorRotateButton: IconButton(defaultIconButton) {
 	icon: icon {{ "photo_editor/rotate", photoEditorButtonIconFg }};
 	iconOver: icon {{ "photo_editor/rotate", photoEditorButtonIconFgOver }};
 
-	rippleAreaPosition: point(5px, 5px);
+	rippleAreaPosition: point(4px, 4px);
 	rippleAreaSize: 40px;
 	ripple: RippleAnimation(defaultRippleAnimation) {
 		color: shadowFg;

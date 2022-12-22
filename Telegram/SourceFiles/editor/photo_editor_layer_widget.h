@@ -25,6 +25,8 @@ class SessionController;
 
 namespace Editor {
 
+struct EditorData;
+
 void OpenWithPreparedFile(
 	not_null<QWidget*> parent,
 	not_null<Window::SessionController*> controller,
@@ -35,14 +37,14 @@ void OpenWithPreparedFile(
 void PrepareProfilePhoto(
 	not_null<QWidget*> parent,
 	not_null<Window::Controller*> controller,
-	ImageRoundRadius radius,
+	EditorData data,
 	Fn<void(QImage &&image)> &&doneCallback,
 	QImage &&image);
 
 void PrepareProfilePhotoFromFile(
 	not_null<QWidget*> parent,
 	not_null<Window::Controller*> controller,
-	ImageRoundRadius radius,
+	EditorData data,
 	Fn<void(QImage &&image)> &&doneCallback);
 
 } // namespace Editor
