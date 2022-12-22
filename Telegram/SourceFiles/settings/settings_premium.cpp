@@ -1359,6 +1359,9 @@ void Premium::setupContent() {
 					box->closeBox();
 				}, box->lifetime());
 
+				box->boxClosing(
+				) | rpl::start_with_next(hidden, box->lifetime());
+
 				if (controller->session().premium()) {
 					box->addButton(tr::lng_close(), [=] {
 						box->closeBox();
@@ -1369,9 +1372,6 @@ void Premium::setupContent() {
 						box,
 						[] { return u"double_limits"_q; }
 					});
-
-					box->boxClosing(
-					) | rpl::start_with_next(hidden, box->lifetime());
 
 					box->setShowFinishedCallback([=] {
 						button->startGlareAnimation();
