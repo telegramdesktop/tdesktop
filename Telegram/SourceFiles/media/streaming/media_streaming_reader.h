@@ -77,6 +77,7 @@ public:
 	void doneForDownloader(int64 offset);
 	void cancelForDownloader(
 		not_null<Storage::StreamedFileDownloader*> downloader);
+	void continueDownloaderFromMainThread();
 
 	~Reader();
 
