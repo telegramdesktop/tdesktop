@@ -34,6 +34,10 @@ namespace style {
 struct UserpicButton;
 } // namespace style
 
+namespace Ui::Menu {
+class ItemBase;
+} // namespace Ui::Menu
+
 namespace Ui {
 
 class PopupMenu;
@@ -142,6 +146,8 @@ private:
 	void choosePhotoLocally();
 	[[nodiscard]] bool canSuggestPhoto(not_null<UserData*> user) const;
 	[[nodiscard]] bool hasPersonalPhotoLocally() const;
+	[[nodiscard]] auto makeResetToOriginalAction()
+		-> base::unique_qptr<Menu::ItemBase>;
 
 	const style::UserpicButton &_st;
 	::Window::SessionController *_controller = nullptr;

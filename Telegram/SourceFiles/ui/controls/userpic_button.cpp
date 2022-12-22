@@ -23,6 +23,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/application.h"
 #include "ui/layers/generic_box.h"
 #include "ui/text/text_utilities.h"
+#include "ui/widgets/menu/menu_action.h"
 #include "ui/painter.h"
 #include "editor/photo_editor_common.h"
 #include "editor/photo_editor_layer_widget.h"
@@ -301,30 +302,27 @@ void UserpicButton::choosePhotoLocally() {
 					callback(type));
 			}));
 	};
-	if (!IsCameraAvailable()) {
-		chooseFile();
-	} else {
-		_menu = base::make_unique_q<Ui::PopupMenu>(
-			this,
-			st::popupMenuWithIcons);
-		const auto user = _peer ? _peer->asUser() : nullptr;
-		if (user && !user->isSelf()) {
+	_menu = base::make_unique_q<Ui::PopupMenu>(
+		this,
+		st::popupMenuWithIcons);
+	const auto user = _peer ? _peer->asUser() : nullptr;
+	if (user && !user->isSelf()) {
+		_menu->addAction(
+			tr::lng_profile_set_photo_for(tr::now),
+			[=] { chooseFile(); },
+			&st::menuIconPhotoSet);
+		if (canSuggestPhoto(user)) {
 			_menu->addAction(
-				tr::lng_profile_set_photo_for(tr::now),
-				[=] { chooseFile(); },
-				&st::menuIconPhotoSet);
-			if (canSuggestPhoto(user)) {
-				_menu->addAction(
-					tr::lng_profile_suggest_photo(tr::now),
-					[=] { chooseFile(ChosenType::Suggest); },
-					&st::menuIconPhotoSuggest);
-			}
-			if (hasPersonalPhotoLocally()) {
-				_menu->addAction(
-					tr::lng_profile_photo_reset(tr::now),
-					[=] { _resetPersonalRequests.fire({}); },
-					&st::menuIconRemove);
-			}
+				tr::lng_profile_suggest_photo(tr::now),
+				[=] { chooseFile(ChosenType::Suggest); },
+				&st::menuIconPhotoSuggest);
+		}
+		if (hasPersonalPhotoLocally()) {
+			_menu->addAction(makeResetToOriginalAction());
+		}
+	} else {
+		if (!IsCameraAvailable()) {
+			chooseFile();
 		} else {
 			_menu->addAction(tr::lng_attach_file(tr::now), [=] {
 				chooseFile();
@@ -337,8 +335,37 @@ void UserpicButton::choosePhotoLocally() {
 					callback(ChosenType::Set)));
 			}, &st::menuIconPhotoSet);
 		}
-		_menu->popup(QCursor::pos());
 	}
+	_menu->popup(QCursor::pos());
+}
+
+auto UserpicButton::makeResetToOriginalAction()
+-> base::unique_qptr<Menu::ItemBase> {
+	auto item = base::make_unique_q<Menu::Action>(
+		_menu.get(),
+		_menu->st().menu,
+		Menu::CreateAction(
+			_menu.get(),
+			tr::lng_profile_photo_reset(tr::now),
+			[=] { _resetPersonalRequests.fire({}); }),
+		nullptr,
+		nullptr);
+	const auto icon = CreateChild<UserpicButton>(
+		item.get(),
+		_controller,
+		_peer,
+		Ui::UserpicButton::Role::Custom,
+		Ui::UserpicButton::Source::NonPersonalIfHasPersonal,
+		st::restoreUserpicIcon);
+	if (_source == Source::Custom) {
+		icon->showCustom(base::duplicate(_result));
+	}
+	icon->setAttribute(Qt::WA_TransparentForMouseEvents);
+	icon->move(_menu->st().menu.itemIconPosition
+		+ QPoint(
+			(st::menuIconRemove.width() - icon->width()) / 2,
+			(st::menuIconRemove.height() - icon->height()) / 2));
+	return item;
 }
 
 void UserpicButton::openPeerPhoto() {

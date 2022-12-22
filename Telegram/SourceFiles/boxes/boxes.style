@@ -70,6 +70,10 @@ uploadUserpicButton: UserpicButton(defaultUserpicButton) {
 	changeIconPosition: point(4px, 4px);
 }
 uploadUserpicButtonBorder: 2px;
+restoreUserpicIcon: UserpicButton(defaultUserpicButton) {
+	size: size(22px, 22px);
+	photoSize: 22px;
+}
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
 	align: align(center);
