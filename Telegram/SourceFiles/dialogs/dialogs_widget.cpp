@@ -2161,7 +2161,9 @@ bool Widget::setSearchInChat(Key chat, PeerData *from) {
 	}
 	_searchInMigrated = nullptr;
 	if (peer) {
-		if (const auto migrateTo = peer->migrateTo()) {
+		if (_layout != Layout::Main) {
+			return false;
+		} else if (const auto migrateTo = peer->migrateTo()) {
 			return setSearchInChat(peer->owner().history(migrateTo), from);
 		} else if (const auto migrateFrom = peer->migrateFrom()) {
 			if (!forum) {

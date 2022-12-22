@@ -3703,8 +3703,11 @@ void InnerWidget::setupShortcuts() {
 			const auto folder = session().data().folderLoaded(
 				Data::Folder::kId);
 			if (folder && !folder->chatsList()->empty()) {
-				_controller->openFolder(folder);
-				_controller->window().hideSettingsAndLayer();
+				const auto controller = _controller;
+				controller->openFolder(folder);
+
+				// Calling openFolder() could've destroyed this widget.
+				controller->window().hideSettingsAndLayer();
 				return true;
 			}
 			return false;
