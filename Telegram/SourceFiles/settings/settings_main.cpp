@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/username_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "boxes/about_box.h"
+#include "ui/basic_click_handlers.h"
 #include "ui/wrap/vertical_layout.h"
 #include "ui/wrap/slide_wrap.h"
 #include "ui/wrap/padding_wrap.h"
@@ -53,7 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/profile/info_profile_values.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
-#include "core/click_handler_types.h"
+#include "core/file_utilities.h"
 #include "core/application.h"
 #include "base/call_delayed.h"
 #include "base/platform/base_platform_info.h"
@@ -518,7 +519,7 @@ void SetupInterfaceScale(
 }
 
 void OpenFaq() {
-	UrlClickHandler::Open(telegramFaqLink());
+	File::OpenUrl(telegramFaqLink());
 }
 
 void SetupFaq(not_null<Ui::VerticalLayout*> container, bool icon) {

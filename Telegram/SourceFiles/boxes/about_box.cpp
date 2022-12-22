@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/text/text_utilities.h"
 #include "base/platform/base_platform_info.h"
+#include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "core/update_checker.h"
 #include "core/application.h"
@@ -116,7 +117,7 @@ void AboutBox::showVersionHistory() {
 				"version of Telegram Desktop was copied to the clipboard."),
 			Ui::LayerOption::CloseOther);
 	} else {
-		UrlClickHandler::Open(Core::App().changelogLink());
+		File::OpenUrl(Core::App().changelogLink());
 	}
 }
 
