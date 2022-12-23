@@ -1189,7 +1189,7 @@ void ParticipantsBoxController::prepare() {
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
 	if (const auto megagroup = _peer->asMegagroup()) {
-		if ((_role == Role::Members) && megagroup->canBanMembers()) {
+		if (_role == Role::Members) {
 			delegate()->peerListSetAboveWidget(CreateMembersVisibleButton(
 				megagroup));
 		} else if ((_role == Role::Admins)

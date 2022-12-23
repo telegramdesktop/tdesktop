@@ -14,15 +14,32 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/buttons.h"
 #include "settings/settings_common.h"
+#include "main/main_account.h"
+#include "main/main_app_config.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
 #include "styles/style_info.h"
 
+namespace {
+
+[[nodiscard]] int EnableHideMembersMin(not_null<ChannelData*> channel) {
+	return channel->session().account().appConfig().get<int>(
+		u"hidden_members_group_size_min"_q,
+		100);
+}
+
+} // namespace
+
 [[nodiscard]] object_ptr<Ui::RpWidget> CreateMembersVisibleButton(
 		not_null<ChannelData*> megagroup) {
 	auto result = object_ptr<Ui::VerticalLayout>((QWidget*)nullptr);
 	const auto container = result.data();
+
+	const auto min = EnableHideMembersMin(megagroup);
+	if (!megagroup->canBanMembers() || megagroup->membersCount() < min) {
+		return { nullptr };
+	}
 
 	struct State {
 		rpl::event_stream<bool> toggled;
