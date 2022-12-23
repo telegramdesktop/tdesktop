@@ -113,32 +113,23 @@ object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
 		result->add(std::move(members));
 	}
-	result->add(object_ptr<Ui::BoxContentDivider>(result));
 	if (auto actions = SetupActions(_controller, result.data(), _peer)) {
+		result->add(object_ptr<Ui::BoxContentDivider>(result));
 		result->add(std::move(actions));
 	}
-
-	if (_peer->isChat()) {
+	if (_peer->isChat() || _peer->isMegagroup()) {
 		setupMembers(result.data());
-	} else if (const auto megagroup = _peer->asMegagroup()) {
-		CanViewParticipantsValue(
-			megagroup
-		) | rpl::start_with_next([=, raw = result.data()](bool can) {
-			if (can) {
-				setupMembers(raw);
-			} else {
-				_cover->setOnlineCount(rpl::single(0));
-				delete base::take(_members);
-			}
-		}, lifetime());
 	}
 	return result;
 }
 
 void InnerWidget::setupMembers(not_null<Ui::VerticalLayout*> container) {
-	_members = container->add(object_ptr<Members>(
+	auto wrap = container->add(object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		container,
-		_controller));
+		object_ptr<Ui::VerticalLayout>(container)));
+	const auto inner = wrap->entity();
+	inner->add(object_ptr<Ui::BoxContentDivider>(inner));
+	_members = inner->add(object_ptr<Members>(inner, _controller));
 	_members->scrollToRequests(
 	) | rpl::start_with_next([this](Ui::ScrollToRequest request) {
 		auto min = (request.ymin < 0)
@@ -152,6 +143,11 @@ void InnerWidget::setupMembers(not_null<Ui::VerticalLayout*> container) {
 		_scrollToRequests.fire({ min, max });
 	}, _members->lifetime());
 	_cover->setOnlineCount(_members->onlineCountValue());
+
+	using namespace rpl::mappers;
+	wrap->toggleOn(
+		_members->fullCountValue() | rpl::map(_1 > 0),
+		anim::type::instant);
 }
 
 object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(

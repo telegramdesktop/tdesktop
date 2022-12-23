@@ -1504,9 +1504,10 @@ bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {
 	} else if (const auto chat = peer->asChat()) {
 		return chat->participants.contains(user->asUser());
 	} else if (const auto channel = peer->asMegagroup()) {
-		return ranges::contains(
-			channel->mgInfo->lastParticipants,
-			not_null{ user->asUser() });
+		return channel->canViewMembers()
+			&& ranges::contains(
+				channel->mgInfo->lastParticipants,
+				not_null{ user->asUser() });
 	}
 	return false;
 }
@@ -1562,6 +1563,7 @@ void TopBarWidget::updateOnlineDisplay() {
 		}
 	} else if (const auto channel = peer->asChannel()) {
 		if (channel->isMegagroup()
+			&& channel->canViewMembers()
 			&& (channel->membersCount() > 0)
 			&& (channel->membersCount()
 				<= channel->session().serverConfig().chatSizeMax)) {

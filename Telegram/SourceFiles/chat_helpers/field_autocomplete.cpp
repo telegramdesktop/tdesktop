@@ -472,7 +472,9 @@ void FieldAutocomplete::updateFiltered(bool resetScroll) {
 				--i;
 				mrows.push_back({ i->second });
 			}
-		} else if (_channel && _channel->isMegagroup()) {
+		} else if (_channel
+			&& _channel->isMegagroup()
+			&& _channel->canViewMembers()) {
 			if (_channel->lastParticipantsRequestNeeded()) {
 				_channel->session().api().chatParticipants().requestLast(
 					_channel);

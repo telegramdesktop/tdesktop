@@ -529,8 +529,6 @@ public:
 		Unexpected("PeerListController::customRowRippleMaskGenerator.");
 	}
 
-	[[nodiscard]] virtual rpl::producer<int> onlineCountValue() const;
-
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}

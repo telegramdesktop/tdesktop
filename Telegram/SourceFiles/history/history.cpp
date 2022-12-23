@@ -879,7 +879,9 @@ not_null<HistoryItem*> History::addNewToBack(
 				if (auto chat = peer->asChat()) {
 					return &chat->lastAuthors;
 				} else if (auto channel = peer->asMegagroup()) {
-					return &channel->mgInfo->lastParticipants;
+					return channel->canViewMembers()
+						? &channel->mgInfo->lastParticipants
+						: nullptr;
 				}
 				return nullptr;
 			};
@@ -998,7 +1000,8 @@ void History::applyServiceChanges(
 			not_null<ChannelData*> megagroup,
 			not_null<MegagroupInfo*> mgInfo,
 			not_null<UserData*> user) {
-		if (!base::contains(mgInfo->lastParticipants, user)) {
+		if (!base::contains(mgInfo->lastParticipants, user)
+			&& megagroup->canViewMembers()) {
 			mgInfo->lastParticipants.push_front(user);
 			session().changes().peerUpdated(
 				peer,
