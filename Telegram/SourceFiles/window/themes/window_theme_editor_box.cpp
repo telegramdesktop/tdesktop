@@ -401,7 +401,7 @@ SendMediaReady PrepareThemeMedia(
 	auto thumbnailBytes = QByteArray();
 	{
 		QBuffer buffer(&thumbnailBytes);
-		thumbnail.save(&buffer, "JPG", 87);
+		thumbnail.save(&buffer, "JPG", 90);
 	}
 
 	const auto push = [&](
@@ -779,7 +779,7 @@ struct CollectedData {
 	parsed.isPng = false;
 	if (changed) {
 		QBuffer buffer(&parsed.background);
-		background.save(&buffer, "JPG", 87);
+		background.save(&buffer, "JPG", 90);
 	} else {
 		// Use existing background serialization.
 		parsed.background = originalParsed.background;

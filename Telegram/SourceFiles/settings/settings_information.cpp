@@ -269,7 +269,7 @@ private:
 void UploadPhoto(not_null<UserData*> user, QImage image) {
 	auto bytes = QByteArray();
 	auto buffer = QBuffer(&bytes);
-	image.save(&buffer, "JPG", 87);
+	image.save(&buffer, "JPG", 90);
 	user->setUserpic(
 		base::RandomValue<PhotoId>(),
 		ImageLocation(

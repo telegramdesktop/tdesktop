@@ -39,7 +39,7 @@ SendMediaReady PreparePeerPhoto(
 
 	QByteArray jpeg;
 	QBuffer jpegBuffer(&jpeg);
-	image.save(&jpegBuffer, "JPG", 87);
+	image.save(&jpegBuffer, "JPG", 90);
 
 	const auto scaled = [&](int size) {
 		return image.scaled(

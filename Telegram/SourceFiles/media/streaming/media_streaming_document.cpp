@@ -28,7 +28,7 @@ namespace {
 constexpr auto kWaitingFastDuration = crl::time(200);
 constexpr auto kWaitingShowDuration = crl::time(500);
 constexpr auto kWaitingShowDelay = crl::time(500);
-constexpr auto kGoodThumbQuality = 87;
+constexpr auto kGoodThumbQuality = 90;
 
 } // namespace
 

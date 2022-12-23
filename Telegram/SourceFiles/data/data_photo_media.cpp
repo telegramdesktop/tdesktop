@@ -197,7 +197,7 @@ bool PhotoMedia::saveToFile(const QString &path) {
 			&& (f.write(photo) == photo.size());
 	} else if (const auto fallback = image(large)->original()
 		; !fallback.isNull()) {
-		return fallback.save(path, "JPG");
+		return fallback.save(path, "JPG", 100);
 	}
 	return false;
 }

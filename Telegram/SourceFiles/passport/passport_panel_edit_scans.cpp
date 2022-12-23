@@ -35,7 +35,7 @@ namespace {
 
 constexpr auto kMaxDimensions = 2048;
 constexpr auto kMaxSize = 10 * 1024 * 1024;
-constexpr auto kJpegQuality = 89;
+constexpr auto kJpegQuality = 90;
 
 static_assert(kMaxSize <= Storage::kUseBigFilesFrom);
 
