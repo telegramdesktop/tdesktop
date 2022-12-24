@@ -15,6 +15,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/flags.h"
 #include "base/object_ptr.h"
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
 namespace MTP {
 class Error;
 } // namespace MTP
@@ -36,11 +40,15 @@ class SessionController;
 
 namespace Data {
 class CloudImageView;
+class Thread;
+class Folder;
+class Forum;
 } // namespace Data
 
 namespace Dialogs::Ui {
 using namespace ::Ui;
 class VideoUserpic;
+struct PaintContext;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -73,14 +81,13 @@ enum class WidgetState {
 };
 
 class InnerWidget final : public Ui::RpWidget {
-
 public:
 	InnerWidget(
 		QWidget *parent,
 		not_null<Window::SessionController*> controller);
 
-	bool searchReceived(
-		const QVector<MTPMessage> &result,
+	void searchReceived(
+		std::vector<not_null<HistoryItem*>> result,
 		HistoryItem *inject,
 		SearchRequestType type,
 		int fullCount);
@@ -94,6 +101,7 @@ public:
 	void clearSelection();
 
 	void changeOpenedFolder(Data::Folder *folder);
+	void changeOpenedForum(ChannelData *forum);
 	void selectSkip(int32 direction);
 	void selectSkipPage(int32 pixels, int32 direction);
 
@@ -108,26 +116,28 @@ public:
 
 	void scrollToEntry(const RowDescriptor &entry);
 
-	Data::Folder *shownFolder() const;
-	int32 lastSearchDate() const;
-	PeerData *lastSearchPeer() const;
-	MsgId lastSearchId() const;
-	MsgId lastSearchMigratedId() const;
+	[[nodiscard]] Data::Folder *shownFolder() const;
+	[[nodiscard]] Data::Forum *shownForum() const;
 
-	WidgetState state() const;
-	bool waitingForSearch() const {
+	[[nodiscard]] WidgetState state() const;
+	[[nodiscard]] not_null<const style::DialogRow*> st() const {
+		return _st;
+	}
+	[[nodiscard]] bool waitingForSearch() const {
 		return _waitingForSearch;
 	}
-	bool hasFilteredResults() const;
+	[[nodiscard]] bool hasFilteredResults() const;
 
 	void searchInChat(Key key, PeerData *from);
 
 	void applyFilterUpdate(QString newFilter, bool force = false);
 	void onHashtagFilterUpdate(QStringView newFilter);
+	void appendToFiltered(Key key);
 
-	PeerData *updateFromParentDrag(QPoint globalPosition);
+	Data::Thread *updateFromParentDrag(QPoint globalPosition);
 
 	void setLoadMoreCallback(Fn<void()> callback);
+	void setLoadMoreFilteredCallback(Fn<void()> callback);
 	[[nodiscard]] rpl::producer<> listBottomReached() const;
 	[[nodiscard]] rpl::producer<> cancelSearchFromUserRequests() const;
 	[[nodiscard]] rpl::producer<ChosenRow> chosenRow() const;
@@ -179,6 +189,7 @@ private:
 		Loading,
 		NoContacts,
 		EmptyFolder,
+		EmptyForum,
 	};
 
 	Main::Session &session() const;
@@ -236,13 +247,11 @@ private:
 
 	int defaultRowTop(not_null<Row*> row) const;
 	void setupOnlineStatusCheck();
-	void userOnlineUpdated(not_null<PeerData*> peer);
+	void userOnlineUpdated(not_null<UserData*> user);
 	void groupHasCallUpdated(not_null<PeerData*> peer);
 
-	void updateRowCornerStatusShown(
-		not_null<History*> history,
-		bool shown);
-	void updateDialogRowCornerStatus(not_null<History*> history);
+	void updateRowCornerStatusShown(not_null<History*> history);
+	void repaintDialogRowCornerStatus(not_null<History*> history);
 
 	void setupShortcuts();
 	RowDescriptor computeJump(
@@ -292,12 +301,10 @@ private:
 	void paintPeerSearchResult(
 		Painter &p,
 		not_null<const PeerSearchResult*> result,
-		int fullWidth,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused);
-	void paintSearchInChat(Painter &p) const;
+		const Ui::PaintContext &context);
+	void paintSearchInChat(
+		Painter &p,
+		const Ui::PaintContext &context) const;
 	void paintSearchInPeer(
 		Painter &p,
 		not_null<PeerData*> peer,
@@ -310,6 +317,13 @@ private:
 		const Ui::Text::String &text) const;
 	void paintSearchInReplies(
 		Painter &p,
+		int top,
+		const Ui::Text::String &text) const;
+	void paintSearchInTopic(
+		Painter &p,
+		const Ui::PaintContext &context,
+		not_null<Data::ForumTopic*> topic,
+		std::shared_ptr<Data::CloudImageView> &userpic,
 		int top,
 		const Ui::Text::String &text) const;
 	template <typename PaintUserpic>
@@ -327,8 +341,10 @@ private:
 
 	void clearSearchResults(bool clearPeerSearchResults = true);
 	void updateSelectedRow(Key key = Key());
+	void trackSearchResultsHistory(not_null<History*> history);
+	void trackSearchResultsForum(Data::Forum *forum);
 
-	not_null<IndexedList*> shownDialogs() const;
+	[[nodiscard]] not_null<IndexedList*> shownDialogs() const;
 
 	void checkReorderPinnedStart(QPoint localPosition);
 	int updateReorderIndexGetCount();
@@ -339,8 +355,12 @@ private:
 	void savePinnedOrder();
 	bool pinnedShiftAnimationCallback(crl::time now);
 	void handleChatListEntryRefreshes();
+	void moveCancelSearchButtons();
 
-	not_null<Window::SessionController*> _controller;
+	void saveChatsFilterScrollState(FilterId filterId);
+	void restoreChatsFilterScrollState(FilterId filterId);
+
+	const not_null<Window::SessionController*> _controller;
 
 	FilterId _filterId = 0;
 	bool _mouseSelection = false;
@@ -348,8 +368,11 @@ private:
 	Qt::MouseButton _pressButton = Qt::LeftButton;
 
 	Data::Folder *_openedFolder = nullptr;
+	Data::Forum *_openedForum = nullptr;
+	rpl::lifetime _openedForumLifetime;
 
 	std::vector<std::unique_ptr<CollapsedRow>> _collapsedRows;
+	not_null<const style::DialogRow*> _st;
 	int _collapsedSelected = -1;
 	int _collapsedPressed = -1;
 	int _skipTopDialogs = 0;
@@ -382,9 +405,7 @@ private:
 	bool _hashtagDeletePressed = false;
 
 	std::vector<not_null<Row*>> _filterResults;
-	base::flat_map<
-		not_null<PeerData*>,
-		std::unique_ptr<Row>> _filterResultsGlobal;
+	base::flat_map<Key, std::unique_ptr<Row>> _filterResultsGlobal;
 	int _filteredSelected = -1;
 	int _filteredPressed = -1;
 
@@ -397,15 +418,12 @@ private:
 	int _peerSearchPressed = -1;
 
 	std::vector<std::unique_ptr<FakeRow>> _searchResults;
+	base::flat_set<not_null<History*>> _searchResultsHistories;
+	rpl::lifetime _searchResultsLifetime;
 	int _searchedCount = 0;
 	int _searchedMigratedCount = 0;
 	int _searchedSelected = -1;
 	int _searchedPressed = -1;
-
-	int _lastSearchDate = 0;
-	PeerData *_lastSearchPeer = nullptr;
-	MsgId _lastSearchId = 0;
-	MsgId _lastSearchMigratedId = 0;
 
 	WidgetState _state = WidgetState::Default;
 
@@ -428,7 +446,10 @@ private:
 		not_null<PeerData*>,
 		std::unique_ptr<Ui::VideoUserpic>> _videoUserpics;
 
+	base::flat_map<FilterId, int> _chatsFilterScrollStates;
+
 	Fn<void()> _loadMoreCallback;
+	Fn<void()> _loadMoreFilteredCallback;
 	rpl::event_stream<> _listBottomReached;
 	rpl::event_stream<ChosenRow> _chosenRow;
 	rpl::event_stream<> _updated;

@@ -222,14 +222,15 @@ ChatAdminRightsInfo EditAdminBox::defaultRights() const {
 		? ChatAdminRightsInfo{ (Flag::ChangeInfo
 			| Flag::DeleteMessages
 			| Flag::BanUsers
-			| Flag::InviteUsers
+			| Flag::InviteByLinkOrAdd
+			| Flag::ManageTopics
 			| Flag::PinMessages
 			| Flag::ManageCall) }
 		: ChatAdminRightsInfo{ (Flag::ChangeInfo
 			| Flag::PostMessages
 			| Flag::EditMessages
 			| Flag::DeleteMessages
-			| Flag::InviteUsers
+			| Flag::InviteByLinkOrAdd
 			| Flag::ManageCall) };
 }
 
@@ -328,13 +329,17 @@ void EditAdminBox::prepare() {
 	const auto anyoneCanAddMembers = chat
 		? chat->anyoneCanAddMembers()
 		: channel->anyoneCanAddMembers();
+	const auto options = Data::AdminRightsSetOptions{
+		.isGroup = isGroup,
+		.isForum = peer()->isForum(),
+		.anyoneCanAddMembers = anyoneCanAddMembers,
+	};
 	auto [checkboxes, getChecked, changes] = CreateEditAdminRights(
 		inner,
 		tr::lng_rights_edit_admin_header(),
 		prepareFlags,
 		disabledMessages,
-		isGroup,
-		anyoneCanAddMembers);
+		options);
 	inner->add(std::move(checkboxes), QMargins());
 
 	auto selectedFlags = rpl::single(
@@ -355,7 +360,7 @@ void EditAdminBox::prepare() {
 	}, lifetime());
 
 	if (canTransferOwnership()) {
-		const auto allFlags = AdminRightsForOwnershipTransfer(isGroup);
+		const auto allFlags = AdminRightsForOwnershipTransfer(options);
 		setupTransferButton(
 			inner,
 			isGroup
@@ -746,7 +751,8 @@ void EditRestrictedBox::prepare() {
 		this,
 		tr::lng_rights_user_restrictions_header(),
 		prepareFlags,
-		disabledMessages);
+		disabledMessages,
+		{ .isForum = peer()->isForum() });
 	addControl(std::move(checkboxes), QMargins());
 
 	_until = prepareRights.until;

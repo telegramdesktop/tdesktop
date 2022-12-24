@@ -90,6 +90,8 @@ struct VoiceData : public DocumentAdditionalData {
 	char wavemax = 0;
 };
 
+using RoundData = VoiceData;
+
 namespace Serialize {
 class Document;
 } // namespace Serialize;
@@ -152,6 +154,8 @@ public:
 	[[nodiscard]] const SongData *song() const;
 	[[nodiscard]] VoiceData *voice();
 	[[nodiscard]] const VoiceData *voice() const;
+	[[nodiscard]] RoundData *round();
+	[[nodiscard]] const RoundData *round() const;
 
 	void forceIsStreamedAnimation();
 	[[nodiscard]] bool isVoiceMessage() const;

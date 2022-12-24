@@ -7,9 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "info/info_content_widget.h"
 
-#include <rpl/never.h>
-#include <rpl/combine.h>
-#include <rpl/range.h>
 #include "window/window_session_controller.h"
 #include "ui/widgets/scroll_area.h"
 #include "ui/widgets/input_fields.h"
@@ -23,7 +20,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_section_widget.h"
 #include "info/info_controller.h"
 #include "boxes/peer_list_box.h"
+#include "data/data_chat.h"
+#include "data/data_channel.h"
 #include "data/data_session.h"
+#include "data/data_forum_topic.h"
+#include "data/data_forum.h"
 #include "main/main_session.h"
 #include "styles/style_info.h"
 #include "styles/style_profile.h"
@@ -323,7 +324,9 @@ rpl::producer<bool> ContentWidget::desiredBottomShadowVisibility() const {
 }
 
 Key ContentMemento::key() const {
-	if (const auto peer = this->peer()) {
+	if (const auto topic = this->topic()) {
+		return Key(topic);
+	} else if (const auto peer = this->peer()) {
 		return Key(peer);
 	} else if (const auto poll = this->poll()) {
 		return Key(poll, pollContextId());
@@ -331,6 +334,25 @@ Key ContentMemento::key() const {
 		return Settings::Tag{ self };
 	} else {
 		return Downloads::Tag();
+	}
+}
+
+ContentMemento::ContentMemento(
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	PeerId migratedPeerId)
+: _peer(peer)
+, _migratedPeerId((!topic && peer->migrateFrom())
+	? peer->migrateFrom()->id
+	: 0)
+, _topic(topic) {
+	if (_topic) {
+		_peer->owner().itemIdChanged(
+		) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
+			if (_topic->rootId() == change.oldId) {
+				_topic = _topic->forum()->topicFor(change.newId.msg);
+			}
+		}, _lifetime);
 	}
 }
 

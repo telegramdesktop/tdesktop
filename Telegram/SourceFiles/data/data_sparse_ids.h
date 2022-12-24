@@ -27,32 +27,29 @@ using SparseUnsortedIdsSlice = AbstractSparseIds<std::vector<MsgId>>;
 class SparseIdsMergedSlice {
 public:
 	using UniversalMsgId = MsgId;
+	static constexpr MsgId kScheduledTopicId
+		= ServerMaxMsgId + ScheduledMsgIdsRange;
+
 	struct Key {
 		Key(
 			PeerId peerId,
+			MsgId topicRootId,
 			PeerId migratedPeerId,
-			UniversalMsgId universalId,
-			bool scheduled = false)
+			UniversalMsgId universalId)
 		: peerId(peerId)
-		, scheduled(scheduled)
-		, migratedPeerId(scheduled ? 0 : migratedPeerId)
+		, topicRootId(topicRootId)
+		, migratedPeerId(topicRootId ? 0 : migratedPeerId)
 		, universalId(universalId) {
 		}
 
-		bool operator==(const Key &other) const {
-			return (peerId == other.peerId)
-				&& (migratedPeerId == other.migratedPeerId)
-				&& (universalId == other.universalId);
-		}
-		bool operator!=(const Key &other) const {
-			return !(*this == other);
-		}
+		friend inline constexpr bool operator==(
+			const Key &,
+			const Key &) = default;
 
 		PeerId peerId = 0;
-		bool scheduled = false;
+		MsgId topicRootId = 0;
 		PeerId migratedPeerId = 0;
 		UniversalMsgId universalId = 0;
-
 	};
 
 	SparseIdsMergedSlice(Key key);
@@ -75,6 +72,7 @@ public:
 
 	using SimpleViewerFunction = rpl::producer<SparseIdsSlice>(
 		PeerId peerId,
+		MsgId topicRootId,
 		SparseIdsSlice::Key simpleKey,
 		int limitBefore,
 		int limitAfter);

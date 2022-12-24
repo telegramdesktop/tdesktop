@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/media/info_media_buttons.h"
 #include "boxes/abstract_box.h"
 #include "boxes/add_contact_box.h"
+#include "data/data_forum_topic.h"
 #include "ui/boxes/confirm_box.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
@@ -51,6 +52,7 @@ InnerWidget::InnerWidget(
 , _controller(controller)
 , _peer(_controller->key().peer())
 , _migrated(_controller->migrated())
+, _topic(_controller->key().topic())
 , _content(setupContent(this)) {
 	_content->heightValue(
 	) | rpl::start_with_next([this](int height) {
@@ -64,19 +66,34 @@ InnerWidget::InnerWidget(
 object_ptr<Ui::RpWidget> InnerWidget::setupContent(
 		not_null<RpWidget*> parent) {
 	auto result = object_ptr<Ui::VerticalLayout>(parent);
-	_cover = result->add(object_ptr<Cover>(
-		result,
-		_peer,
-		_controller->parentController()));
+	_cover = _topic
+		? result->add(object_ptr<Cover>(
+			result,
+			_topic,
+			_controller->parentController()))
+		: result->add(object_ptr<Cover>(
+			result,
+			_peer,
+			_controller->parentController()));
 	_cover->showSection(
 	) | rpl::start_with_next([=](Section section) {
-		_controller->showSection(
-			std::make_shared<Info::Memento>(_peer, section));
+		_controller->showSection(_topic
+			? std::make_shared<Info::Memento>(_topic, section)
+			: std::make_shared<Info::Memento>(_peer, section));
 	}, _cover->lifetime());
 	_cover->setOnlineCount(rpl::single(0));
-	auto details = SetupDetails(_controller, parent, _peer);
-	result->add(std::move(details));
+	if (_topic) {
+		if (_topic->creating()) {
+			return result;
+		}
+		result->add(SetupDetails(_controller, parent, _topic));
+	} else {
+		result->add(SetupDetails(_controller, parent, _peer));
+	}
 	result->add(setupSharedMedia(result.data()));
+	if (_topic) {
+		return result;
+	}
 	if (auto members = SetupChannelMembers(_controller, result.data(), _peer)) {
 		result->add(std::move(members));
 	}
@@ -120,6 +137,7 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 			content,
 			_controller,
 			_peer,
+			_topic ? _topic->rootId() : 0,
 			_migrated,
 			type,
 			tracker);
@@ -158,34 +176,6 @@ object_ptr<Ui::RpWidget> InnerWidget::setupSharedMedia(
 		object_ptr<Ui::VerticalLayout>(parent)
 	);
 
-	// Allows removing shared media links in third column.
-	// Was done for tabs support.
-	//
-	//using ToggledData = std::tuple<bool, Wrap, bool>;
-	//rpl::combine(
-	//	tracker.atLeastOneShownValue(),
-	//	_controller->wrapValue(),
-	//	_isStackBottom.value()
-	//) | rpl::combine_previous(
-	//	ToggledData()
-	//) | rpl::start_with_next([wrap = result.data()](
-	//		const ToggledData &was,
-	//		const ToggledData &now) {
-	//	bool wasOneShown, wasStackBottom, nowOneShown, nowStackBottom;
-	//	Wrap wasWrap, nowWrap;
-	//	std::tie(wasOneShown, wasWrap, wasStackBottom) = was;
-	//	std::tie(nowOneShown, nowWrap, nowStackBottom) = now;
-	//	// MSVC Internal Compiler Error
-	//	//auto [wasOneShown, wasWrap, wasStackBottom] = was;
-	//	//auto [nowOneShown, nowWrap, nowStackBottom] = now;
-	//	wrap->toggle(
-	//		nowOneShown && (nowWrap != Wrap::Side || !nowStackBottom),
-	//		(wasStackBottom == nowStackBottom && wasWrap == nowWrap)
-	//			? anim::type::normal
-	//			: anim::type::instant);
-	//}, result->lifetime());
-	//
-	// Using that instead
 	result->setDuration(
 		st::infoSlideDuration
 	)->toggleOn(

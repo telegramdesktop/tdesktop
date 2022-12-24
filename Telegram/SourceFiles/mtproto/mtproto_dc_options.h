@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/observer.h"
 #include "base/bytes.h"
 
 #include <QtCore/QReadWriteLock>

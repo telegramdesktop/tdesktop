@@ -160,11 +160,13 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	auto paintx = 0, painty = 0, paintw = width(), painth = height();
 	bool bubble = _parent->hasBubble();
 	const auto st = context.st;
-	const auto sti = context.imageStyle();
 	const auto stm = context.messageStyle();
 
+	const auto hasText = !_title.isEmpty() || !_description.isEmpty();
+	const auto rounding = adjustedBubbleRounding(
+		hasText ? RectPart::FullTop : RectPart());
 	if (bubble) {
-		if (!_title.isEmpty() || !_description.isEmpty()) {
+		if (hasText) {
 			if (isBubbleTop()) {
 				painty += st::msgPadding.top();
 			}
@@ -185,24 +187,29 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			painty += st::mediaInBubbleSkip;
 		}
 		painth -= painty;
-	} else {
-		Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
+	}
+	auto rthumb = QRect(paintx, painty, paintw, painth);
+	if (!bubble) {
+		fillImageShadow(p, rthumb, rounding, context);
 	}
 
-	auto roundRadius = ImageRoundRadius::Large;
-	auto roundCorners = ((isBubbleTop() && _title.isEmpty() && _description.isEmpty()) ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-		| (isRoundedInBubbleBottom() ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None);
-	auto rthumb = QRect(paintx, painty, paintw, painth);
 	ensureMediaCreated();
-	if (const auto thumbnail = _media->image()) {
-		p.drawPixmap(rthumb.topLeft(), thumbnail->pixSingle(
-			rthumb.size(),
-			{
-				.options = Images::RoundOptions(roundRadius, roundCorners),
-				.outer = rthumb.size(),
-			}));
-	} else {
-		Ui::FillComplexLocationRect(p, st, rthumb, roundRadius, roundCorners);
+	validateImageCache(rthumb.size(), rounding);
+	if (!_imageCache.isNull()) {
+		p.drawImage(rthumb.topLeft(), _imageCache);
+	} else if (!bubble) {
+		Ui::PaintBubble(
+			p,
+			Ui::SimpleBubble{
+				.st = context.st,
+				.geometry = rthumb,
+				.pattern = context.bubblesPattern,
+				.patternViewport = context.viewport,
+				.outerWidth = width(),
+				.selected = context.selected(),
+				.outbg = context.outbg,
+				.rounding = rounding,
+			});
 	}
 	const auto paintMarker = [&](const style::icon &icon) {
 		icon.paint(
@@ -214,7 +221,7 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 	paintMarker(st->historyMapPoint());
 	paintMarker(st->historyMapPointInner());
 	if (context.selected()) {
-		Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+		fillImageOverlay(p, rthumb, rounding, context);
 	}
 
 	if (_parent->media() == this) {
@@ -233,6 +240,28 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 			_parent->drawRightAction(p, context, fastShareLeft, fastShareTop, 2 * paintx + paintw);
 		}
 	}
+}
+
+void Location::validateImageCache(
+		QSize outer,
+		Ui::BubbleRounding rounding) const {
+	const auto ratio = style::DevicePixelRatio();
+	if (_imageCache.size() == (outer * ratio)
+		&& _imageCacheRounding == rounding) {
+		return;
+	}
+	const auto thumbnail = _media->image();
+	if (!thumbnail) {
+		return;
+	}
+	_imageCache = Images::Round(
+		thumbnail->original().scaled(
+			outer * ratio,
+			Qt::IgnoreAspectRatio,
+			Qt::SmoothTransformation),
+		MediaRoundingMask(rounding));
+	_imageCache.setDevicePixelRatio(ratio);
+	_imageCacheRounding = rounding;
 }
 
 TextState Location::textState(QPoint point, StateRequest request) const {
@@ -298,7 +327,8 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 			point,
 			InfoDisplayType::Image);
 		if (bottomInfoResult.link
-			|| bottomInfoResult.cursor != CursorState::None) {
+			|| bottomInfoResult.cursor != CursorState::None
+			|| bottomInfoResult.customTooltip) {
 			return bottomInfoResult;
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {

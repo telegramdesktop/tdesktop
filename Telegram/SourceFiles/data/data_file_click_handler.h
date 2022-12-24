@@ -33,6 +33,8 @@ public:
 		not_null<DocumentData*> document,
 		FullMsgId context = FullMsgId());
 
+	QString tooltip() const override;
+
 	[[nodiscard]] not_null<DocumentData*> document() const;
 
 private:

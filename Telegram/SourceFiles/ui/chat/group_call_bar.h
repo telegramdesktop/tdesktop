@@ -95,6 +95,8 @@ private:
 	void setupInner();
 	void setupRightButton(not_null<RoundButton*> button);
 	void paint(Painter &p);
+	void paintTitleAndStatus(Painter &p);
+	void paintUserpics(Painter &p);
 
 	SlideWrap<> _wrap;
 	not_null<RpWidget*> _inner;

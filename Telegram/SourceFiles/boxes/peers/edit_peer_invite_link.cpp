@@ -1141,7 +1141,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		showToast(tr::lng_group_invite_copied(tr::now));
 	};
 	auto submitCallback = [=](
-			std::vector<not_null<PeerData*>> &&result,
+			std::vector<not_null<Data::Thread*>> &&result,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions) {
@@ -1150,13 +1150,12 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		}
 
 		const auto error = [&] {
-			for (const auto peer : result) {
+			for (const auto thread : result) {
 				const auto error = GetErrorTextForSending(
-					peer,
-					{},
-					comment);
+					thread,
+					{ .text = &comment });
 				if (!error.isEmpty()) {
-					return std::make_pair(error, peer);
+					return std::make_pair(error, thread);
 				}
 			}
 			return std::make_pair(QString(), result.front());
@@ -1165,7 +1164,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 			auto text = TextWithEntities();
 			if (result.size() > 1) {
 				text.append(
-					Ui::Text::Bold(error.second->name())
+					Ui::Text::Bold(error.second->chatListName())
 				).append("\n\n");
 			}
 			text.append(error.first);
@@ -1187,12 +1186,10 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		} else {
 			comment.text = link;
 		}
-		const auto owner = &peer->owner();
 		auto &api = peer->session().api();
-		for (const auto peer : result) {
-			const auto history = owner->history(peer);
+		for (const auto thread : result) {
 			auto message = Api::MessageToSend(
-				Api::SendAction(history, options));
+				Api::SendAction(thread, options));
 			message.textWithTags = comment;
 			message.action.clearDraft = false;
 			api.sendMessage(std::move(message));
@@ -1206,7 +1203,7 @@ object_ptr<Ui::BoxContent> ShareInviteLinkBox(
 		.session = &peer->session(),
 		.copyCallback = std::move(copyCallback),
 		.submitCallback = std::move(submitCallback),
-		.filterCallback = [](auto peer) { return peer->canWrite(); },
+		.filterCallback = [](auto thread) { return thread->canWrite(); },
 	});
 	*box = Ui::MakeWeak(object.data());
 	return object;
@@ -1376,7 +1373,7 @@ QString PrepareRequestedRowStatus(TimeId date) {
 	const auto now = QDateTime::currentDateTime();
 	const auto parsed = base::unixtime::parse(date);
 	const auto parsedDate = parsed.date();
-	const auto time = parsed.time().toString(cTimeFormat());
+	const auto time = QLocale().toString(parsed.time(), cTimeFormat());
 	const auto generic = [&] {
 		return tr::lng_group_requests_status_date_time(
 			tr::now,

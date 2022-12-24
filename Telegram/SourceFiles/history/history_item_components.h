@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "ui/empty_userpic.h"
 #include "ui/effects/animations.h"
+#include "ui/chat/message_bubble.h"
 
 struct WebPageData;
 class VoiceSeekClickHandler;
@@ -23,6 +24,14 @@ class ChatStyle;
 namespace Data {
 class Session;
 } // namespace Data
+
+namespace Media::Player {
+class RoundPainter;
+} // namespace Media::Player
+
+namespace Images {
+struct CornersMaskRef;
+} // namespace Images
 
 namespace HistoryView {
 class Element;
@@ -53,12 +62,11 @@ struct HistoryMessageViews : public RuntimeComponent<HistoryMessageViews, Histor
 	Part views;
 	Part replies;
 	Part repliesSmall;
-	MsgId repliesInboxReadTillId = 0;
-	MsgId repliesOutboxReadTillId = 0;
-	MsgId repliesMaxId = 0;
-	int repliesUnreadCount = -1; // unknown
 	ChannelId commentsMegagroupId = 0;
 	MsgId commentsRootId = 0;
+	MsgId commentsInboxReadTillId = 0;
+	MsgId commentsMaxId = 0;
+	int forwardsCount = 0;
 };
 
 struct HistoryMessageSigned : public RuntimeComponent<HistoryMessageSigned, HistoryItem> {
@@ -130,31 +138,58 @@ struct HistoryMessageSponsored : public RuntimeComponent<HistoryMessageSponsored
 	std::unique_ptr<HiddenSenderInfo> sender;
 	Type type = Type::User;
 	bool recommended = false;
+	bool isForceUserpicDisplay = false;
 };
 
-struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, HistoryItem> {
+class ReplyToMessagePointer final {
+public:
+	ReplyToMessagePointer(HistoryItem *item = nullptr) : _data(item) {
+	}
+	ReplyToMessagePointer(ReplyToMessagePointer &&other)
+	: _data(base::take(other._data)) {
+	}
+	ReplyToMessagePointer &operator=(ReplyToMessagePointer &&other) {
+		_data = base::take(other._data);
+		return *this;
+	}
+	ReplyToMessagePointer &operator=(HistoryItem *item) {
+		_data = item;
+		return *this;
+	}
+
+	[[nodiscard]] bool empty() const {
+		return !_data;
+	}
+	[[nodiscard]] HistoryItem *get() const {
+		return _data;
+	}
+	explicit operator bool() const {
+		return !empty();
+	}
+
+	[[nodiscard]] HistoryItem *operator->() const {
+		return _data;
+	}
+	[[nodiscard]] HistoryItem &operator*() const {
+		return *_data;
+	}
+
+private:
+	HistoryItem *_data = nullptr;
+
+};
+
+struct HistoryMessageReply
+	: public RuntimeComponent<HistoryMessageReply, HistoryItem> {
 	HistoryMessageReply() = default;
 	HistoryMessageReply(const HistoryMessageReply &other) = delete;
 	HistoryMessageReply(HistoryMessageReply &&other) = delete;
-	HistoryMessageReply &operator=(const HistoryMessageReply &other) = delete;
-	HistoryMessageReply &operator=(HistoryMessageReply &&other) {
-		replyToPeerId = other.replyToPeerId;
-		replyToMsgId = other.replyToMsgId;
-		replyToMsgTop = other.replyToMsgTop;
-		replyToDocumentId = other.replyToDocumentId;
-		replyToWebPageId = other.replyToWebPageId;
-		std::swap(replyToMsg, other.replyToMsg);
-		replyToLnk = std::move(other.replyToLnk);
-		replyToName = std::move(other.replyToName);
-		replyToText = std::move(other.replyToText);
-		replyToVersion = other.replyToVersion;
-		maxReplyWidth = other.maxReplyWidth;
-		replyToVia = std::move(other.replyToVia);
-		return *this;
-	}
+	HistoryMessageReply &operator=(
+		const HistoryMessageReply &other) = delete;
+	HistoryMessageReply &operator=(HistoryMessageReply &&other) = default;
 	~HistoryMessageReply() {
 		// clearData() should be called by holder.
-		Expects(replyToMsg == nullptr);
+		Expects(replyToMsg.empty());
 		Expects(replyToVia == nullptr);
 	}
 
@@ -205,15 +240,16 @@ struct HistoryMessageReply : public RuntimeComponent<HistoryMessageReply, Histor
 	PeerId replyToPeerId = 0;
 	MsgId replyToMsgId = 0;
 	MsgId replyToMsgTop = 0;
-	HistoryItem *replyToMsg = nullptr;
 	DocumentId replyToDocumentId = 0;
 	WebPageId replyToWebPageId = 0;
+	ReplyToMessagePointer replyToMsg;
+	std::unique_ptr<HistoryMessageVia> replyToVia;
 	ClickHandlerPtr replyToLnk;
 	mutable Ui::Text::String replyToName, replyToText;
 	mutable int replyToVersion = 0;
 	mutable int maxReplyWidth = 0;
-	std::unique_ptr<HistoryMessageVia> replyToVia;
 	int toWidth = 0;
+	bool topicPost = false;
 
 };
 
@@ -295,7 +331,9 @@ public:
 		int buttonSkip() const;
 		int buttonPadding() const;
 		int buttonHeight() const;
-		virtual int buttonRadius() const = 0;
+		[[nodiscard]] virtual Images::CornersMaskRef buttonRounding(
+			Ui::BubbleRounding outer,
+			RectParts sides) const = 0;
 
 		virtual void repaint(not_null<const HistoryItem*> item) const = 0;
 		virtual ~Style() {
@@ -306,6 +344,7 @@ public:
 			QPainter &p,
 			const Ui::ChatStyle *st,
 			const QRect &rect,
+			Ui::BubbleRounding rounding,
 			float64 howMuchOver) const = 0;
 		virtual void paintButtonIcon(
 			QPainter &p,
@@ -327,7 +366,8 @@ public:
 			Painter &p,
 			const Ui::ChatStyle *st,
 			int outerWidth,
-			const ReplyKeyboard::Button &button) const;
+			const ReplyKeyboard::Button &button,
+			Ui::BubbleRounding rounding) const;
 		friend class ReplyKeyboard;
 
 	};
@@ -349,12 +389,18 @@ public:
 	void paint(
 		Painter &p,
 		const Ui::ChatStyle *st,
+		Ui::BubbleRounding rounding,
 		int outerWidth,
 		const QRect &clip) const;
 	ClickHandlerPtr getLink(QPoint point) const;
 
-	void clickHandlerActiveChanged(const ClickHandlerPtr &p, bool active);
-	void clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed);
+	void clickHandlerActiveChanged(
+		const ClickHandlerPtr &p,
+		bool active);
+	void clickHandlerPressedChanged(
+		const ClickHandlerPtr &p,
+		bool pressed,
+		Ui::BubbleRounding rounding);
 
 	void clearSelection();
 	void updateMessageId();
@@ -414,24 +460,26 @@ struct HistoryMessageLogEntryOriginal
 
 class FileClickHandler;
 struct HistoryDocumentThumbed : public RuntimeComponent<HistoryDocumentThumbed, HistoryView::Document> {
-	std::shared_ptr<FileClickHandler> _linksavel;
-	std::shared_ptr<FileClickHandler> _linkopenwithl;
-	std::shared_ptr<FileClickHandler> _linkcancell;
-	int _thumbw = 0;
-
-	mutable int _linkw = 0;
-	mutable QString _link;
+	std::shared_ptr<FileClickHandler> linksavel;
+	std::shared_ptr<FileClickHandler> linkopenwithl;
+	std::shared_ptr<FileClickHandler> linkcancell;
+	mutable QImage thumbnail;
+	mutable QString link;
+	int thumbw = 0;
+	mutable int linkw = 0;
+	mutable Ui::BubbleRounding rounding;
+	mutable bool blurred : 1 = false;
 };
 
 struct HistoryDocumentCaptioned : public RuntimeComponent<HistoryDocumentCaptioned, HistoryView::Document> {
 	HistoryDocumentCaptioned();
 
-	Ui::Text::String _caption;
+	Ui::Text::String caption;
 };
 
 struct HistoryDocumentNamed : public RuntimeComponent<HistoryDocumentNamed, HistoryView::Document> {
-	QString _name;
-	int _namew = 0;
+	QString name;
+	int namew = 0;
 };
 
 struct HistoryDocumentVoicePlayback {
@@ -450,9 +498,9 @@ public:
 	void ensurePlayback(const HistoryView::Document *interfaces) const;
 	void checkPlaybackFinished() const;
 
-	mutable std::unique_ptr<HistoryDocumentVoicePlayback> _playback;
-	std::shared_ptr<VoiceSeekClickHandler> _seekl;
-	mutable int _lastDurationMs = 0;
+	mutable std::unique_ptr<HistoryDocumentVoicePlayback> playback;
+	std::shared_ptr<VoiceSeekClickHandler> seekl;
+	mutable int lastDurationMs = 0;
 
 	[[nodiscard]] bool seeking() const;
 	void startSeeking();
@@ -464,6 +512,7 @@ public:
 
 	std::unique_ptr<HistoryView::TranscribeButton> transcribe;
 	Ui::Text::String transcribeText;
+	std::unique_ptr<Media::Player::RoundPainter> round;
 
 private:
 	bool _seeking = false;

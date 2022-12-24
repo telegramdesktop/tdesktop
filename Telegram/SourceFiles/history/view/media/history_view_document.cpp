@@ -7,13 +7,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "history/view/media/history_view_document.h"
 
+#include "base/random.h"
 #include "lang/lang_keys.h"
 #include "storage/localstorage.h"
 #include "main/main_session.h"
+#include "media/player/media_player_float.h" // Media::Player::RoundPainter.
 #include "media/audio/media_audio.h"
 #include "media/player/media_player_instance.h"
 #include "history/history_item_components.h"
 #include "history/history.h"
+#include "core/click_handler_types.h" // kDocumentFilenameTooltipProperty.
 #include "history/view/history_view_element.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_transcribe_button.h"
@@ -70,6 +73,24 @@ constexpr auto kAudioVoiceMsgUpdateView = crl::time(100);
 		result.append(from, end - from);
 	}
 	return result;
+}
+
+void FillWaveform(VoiceData *roundData) {
+	if (!roundData->waveform.empty()) {
+		return;
+	}
+	const auto &size = ::Media::Player::kWaveformSamplesCount;
+	auto randomBytes = bytes::vector(size);
+	base::RandomFill(randomBytes.data(), randomBytes.size());
+	roundData->waveform.resize(size);
+	for (auto i = 1; i < size; i += 2) {
+		const auto peak = uchar(randomBytes[i]) % 31;
+		roundData->waveform[i - 1] = char(std::max(
+			0,
+			peak - (uchar(randomBytes[i - 1]) % 3 + 2)));
+		roundData->waveform[i] = char(peak);
+	}
+	roundData->wavemax = *ranges::max_element(roundData->waveform);
 }
 
 void PaintWaveform(
@@ -154,7 +175,7 @@ void PaintWaveform(
 	if (const auto song = document->song()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
-	} else if (const auto voice = document->voice()) {
+	} else if (const auto voice = document->voice() ? document->voice() : document->round()) {
 		add(FormatPlayedText(duration, duration));
 		add(FormatDurationAndSizeText(duration, document->size));
 	} else if (document->isVideoFile()) {
@@ -173,11 +194,18 @@ Document::Document(
 	not_null<DocumentData*> document)
 : File(parent, realParent)
 , _data(document) {
+	if (_data->isVideoMessage()) {
+		const auto &entry = _data->session().api().transcribes().entry(
+			realParent);
+		_transcribedRound = entry.shown;
+	}
+
 	auto caption = createCaption();
 
 	createComponents(!caption.isEmpty());
 	if (const auto named = Get<HistoryDocumentNamed>()) {
 		fillNamedFromData(named);
+		_tooltipFilename.setTooltipText(named->name);
 	}
 
 	setDocumentLinks(_data, realParent);
@@ -185,7 +213,7 @@ Document::Document(
 	setStatusSize(Ui::FileStatusSizeReady);
 
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		captioned->_caption = std::move(caption);
+		captioned->caption = std::move(caption);
 	}
 }
 
@@ -213,7 +241,7 @@ bool Document::dataLoaded() const {
 
 void Document::createComponents(bool caption) {
 	uint64 mask = 0;
-	if (_data->isVoiceMessage()) {
+	if (_data->isVoiceMessage() || _transcribedRound) {
 		mask |= HistoryDocumentVoice::Bit();
 	} else {
 		mask |= HistoryDocumentNamed::Bit();
@@ -230,13 +258,13 @@ void Document::createComponents(bool caption) {
 	}
 	UpdateComponents(mask);
 	if (const auto thumbed = Get<HistoryDocumentThumbed>()) {
-		thumbed->_linksavel = std::make_shared<DocumentSaveClickHandler>(
+		thumbed->linksavel = std::make_shared<DocumentSaveClickHandler>(
 			_data,
 			_realParent->fullId());
-		thumbed->_linkopenwithl = std::make_shared<DocumentOpenWithClickHandler>(
+		thumbed->linkopenwithl = std::make_shared<DocumentOpenWithClickHandler>(
 			_data,
 			_realParent->fullId());
-		thumbed->_linkcancell = std::make_shared<DocumentCancelClickHandler>(
+		thumbed->linkcancell = std::make_shared<DocumentCancelClickHandler>(
 			_data,
 			crl::guard(this, [=](FullMsgId id) {
 				_parent->delegate()->elementCancelUpload(id);
@@ -244,16 +272,20 @@ void Document::createComponents(bool caption) {
 			_realParent->fullId());
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		voice->_seekl = std::make_shared<VoiceSeekClickHandler>(
+		voice->seekl = std::make_shared<VoiceSeekClickHandler>(
 			_data,
 			[](FullMsgId) {});
+		if (_transcribedRound) {
+			voice->round = std::make_unique<::Media::Player::RoundPainter>(
+				_realParent);
+		}
 	}
 }
 
-void Document::fillNamedFromData(HistoryDocumentNamed *named) {
-	const auto nameString = named->_name = CleanTagSymbols(
+void Document::fillNamedFromData(not_null<HistoryDocumentNamed*> named) {
+	const auto nameString = named->name = CleanTagSymbols(
 		Ui::Text::FormatSongNameFor(_data).string());
-	named->_namew = st::semiboldFont->width(nameString);
+	named->namew = st::semiboldFont->width(nameString);
 }
 
 QSize Document::countOptimalSize() {
@@ -263,8 +295,8 @@ QSize Document::countOptimalSize() {
 			RemoveComponents(HistoryDocumentCaptioned::Bit());
 			captioned = nullptr;
 		}
-	} else if (captioned && captioned->_caption.hasSkipBlock()) {
-		captioned->_caption.updateSkipBlock(
+	} else if (captioned && captioned->caption.hasSkipBlock()) {
+		captioned->caption.updateSkipBlock(
 			_parent->skipBlockWidth(),
 			_parent->skipBlockHeight());
 	}
@@ -280,7 +312,8 @@ QSize Document::countOptimalSize() {
 			const auto creating = !voice->transcribe;
 			if (creating) {
 				voice->transcribe = std::make_unique<TranscribeButton>(
-					_realParent);
+					_realParent,
+					false);
 			}
 			const auto &entry = session->api().transcribes().entry(
 				_realParent);
@@ -329,25 +362,27 @@ QSize Document::countOptimalSize() {
 		auto tw = style::ConvertScale(location.width());
 		auto th = style::ConvertScale(location.height());
 		if (tw > th) {
-			thumbed->_thumbw = (tw * st.thumbSize) / th;
+			thumbed->thumbw = (tw * st.thumbSize) / th;
 		} else {
-			thumbed->_thumbw = st.thumbSize;
+			thumbed->thumbw = st.thumbSize;
 		}
 	}
 
 	auto maxWidth = st::msgFileMinWidth;
 
-	const auto tleft = st.padding.left() + st.thumbSize + st.padding.right();
-	const auto tright = st.padding.left();
+	const auto tleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+	const auto tright = st.padding.right();
 	if (thumbed) {
 		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + tright);
 	} else {
-		auto unread = _data->isVoiceMessage() ? (st::mediaUnreadSkip + st::mediaUnreadSize) : 0;
+		auto unread = (_data->isVoiceMessage() || _transcribedRound)
+			? (st::mediaUnreadSkip + st::mediaUnreadSize)
+			: 0;
 		accumulate_max(maxWidth, tleft + MaxStatusWidth(_data) + unread + _parent->skipBlockWidth() + st::msgPadding.right());
 	}
 
 	if (auto named = Get<HistoryDocumentNamed>()) {
-		accumulate_max(maxWidth, tleft + named->_namew + tright);
+		accumulate_max(maxWidth, tleft + named->namew + tright);
 		accumulate_min(maxWidth, st::msgMaxWidth);
 	}
 	if (voice && voice->transcribe) {
@@ -378,7 +413,7 @@ QSize Document::countOptimalSize() {
 		auto captionw = maxWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
-		minHeight += captioned->_caption.countHeight(captionw);
+		minHeight += captioned->caption.countHeight(captionw);
 		if (isBubbleBottom()) {
 			minHeight += st::msgPadding.bottom();
 		}
@@ -411,7 +446,7 @@ QSize Document::countCurrentSize(int newWidth) {
 		}
 	}
 	if (captioned) {
-		newHeight += captioned->_caption.countHeight(captionw);
+		newHeight += captioned->caption.countHeight(captionw);
 		if (isBubbleBottom()) {
 			newHeight += st::msgPadding.bottom();
 		}
@@ -421,14 +456,15 @@ QSize Document::countCurrentSize(int newWidth) {
 }
 
 void Document::draw(Painter &p, const PaintContext &context) const {
-	draw(p, context, width(), LayoutMode::Full);
+	draw(p, context, width(), LayoutMode::Full, adjustedBubbleRounding());
 }
 
 void Document::draw(
 		Painter &p,
 		const PaintContext &context,
 		int width,
-		LayoutMode mode) const {
+		LayoutMode mode,
+		Ui::BubbleRounding outsideRounding) const {
 	if (width < st::msgPadding.left() + st::msgPadding.right() + 1) return;
 
 	ensureDataMediaCreated();
@@ -458,9 +494,9 @@ void Document::draw(
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
 		: (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
-	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
-	const auto nameright = st.padding.left();
+	const auto nameright = st.padding.right();
 	const auto statustop = st.statusTop - topMinus;
 	const auto linktop = st.linkTop - topMinus;
 	const auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
@@ -469,25 +505,11 @@ void Document::draw(
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
 	const auto radialOpacity = radial ? _animation->radial.opacity() : 1.;
 	if (thumbed) {
-		const auto inWebPage = (_parent->media() != this);
-		const auto args = Images::PrepareArgs{
-			.options = (inWebPage
-				? Images::Option::RoundSmall
-				: Images::Option::RoundLarge),
-			.outer = QSize(st.thumbSize, st.thumbSize),
-		};
-		QPixmap thumb;
-		if (const auto normal = _dataMedia->thumbnail()) {
-			thumb = normal->pixSingle(thumbed->_thumbw, args);
-		} else if (const auto blurred = _dataMedia->thumbnailInline()) {
-			thumb = blurred->pixSingle(thumbed->_thumbw, args.blurred());
-		}
-		p.drawPixmap(rthumb.topLeft(), thumb);
+		const auto rounding = thumbRounding(mode, outsideRounding);
+		validateThumbnail(thumbed, st.thumbSize, rounding);
+		p.drawImage(rthumb, thumbed->thumbnail);
 		if (context.selected()) {
-			const auto st = context.st;
-			Ui::FillRoundRect(p, rthumb, st->msgSelectOverlay(), inWebPage
-				? st->msgSelectOverlayCornersSmall()
-				: st->msgSelectOverlayCornersLarge());
+			fillThumbnailOverlay(p, rthumb, rounding, context);
 		}
 
 		if (radial || (!loaded && !_data->loading()) || _data->waitingForAlbum()) {
@@ -524,14 +546,14 @@ void Document::draw(
 
 		if (_data->status != FileUploadFailed) {
 			const auto &lnk = (_data->loading() || _data->uploading())
-				? thumbed->_linkcancell
+				? thumbed->linkcancell
 				: dataLoaded()
-				? thumbed->_linkopenwithl
-				: thumbed->_linksavel;
+				? thumbed->linkopenwithl
+				: thumbed->linksavel;
 			bool over = ClickHandler::showAsActive(lnk);
 			p.setFont(over ? st::semiboldFont->underline() : st::semiboldFont);
 			p.setPen(stm->msgFileThumbLinkFg);
-			p.drawTextLeft(nameleft, linktop, width, thumbed->_link, thumbed->_linkw);
+			p.drawTextLeft(nameleft, linktop, width, thumbed->link, thumbed->linkw);
 		}
 	} else {
 		p.setPen(Qt::NoPen);
@@ -544,9 +566,26 @@ void Document::draw(
 				inner,
 				context.selected());
 		if (!coverDrawn) {
-			PainterHighQualityEnabler hq(p);
-			p.setBrush(stm->msgFileBg);
-			p.drawEllipse(inner);
+			if (_transcribedRound) {
+				if (const auto voice = Get<HistoryDocumentVoice>()) {
+					if (const auto &round = voice->round) {
+						if (round->fillFrame(inner.size())) {
+							p.drawImage(inner.topLeft(), round->frame());
+						} else {
+							DrawThumbnailAsSongCover(
+								p,
+								st::transparent,
+								_dataMedia,
+								inner,
+								context.selected());
+						}
+					}
+				}
+			} else {
+				PainterHighQualityEnabler hq(p);
+				p.setBrush(stm->msgFileBg);
+				p.drawEllipse(inner);
+			}
 		}
 
 		const auto &icon = [&]() -> const style::icon& {
@@ -615,8 +654,11 @@ void Document::draw(
 	if (voice) {
 		ensureDataMediaCreated();
 
-		if (const auto voiceData = _data->voice()) {
-			if (voiceData->waveform.isEmpty()) {
+		{
+			const auto voiceData = _data->isVideoMessage()
+				? _data->round()
+				: _data->voice();
+			if (voiceData && voiceData->waveform.isEmpty()) {
 				if (loaded) {
 					Local::countVoiceWaveform(_dataMedia.get());
 				}
@@ -625,21 +667,21 @@ void Document::draw(
 
 		const auto progress = [&] {
 			if (!context.outbg
-				&& !voice->_playback
+				&& !voice->playback
 				&& _realParent->hasUnreadMediaFlag()) {
 				return 1.;
 			}
 			if (voice->seeking()) {
 				return voice->seekingCurrent();
-			} else if (voice->_playback) {
-				return voice->_playback->progress.current();
+			} else if (voice->playback) {
+				return voice->playback->progress.current();
 			}
 			return 0.;
 		}();
 		if (voice->seeking()) {
 			voiceStatusOverride = Ui::FormatPlayedText(
-				base::SafeRound(progress * voice->_lastDurationMs) / 1000,
-				voice->_lastDurationMs / 1000);
+				base::SafeRound(progress * voice->lastDurationMs) / 1000,
+				voice->lastDurationMs / 1000);
 		}
 		if (voice->transcribe) {
 			const auto size = voice->transcribe->size();
@@ -651,20 +693,25 @@ void Document::draw(
 		p.save();
 		p.translate(nameleft, st.padding.top() - topMinus);
 
+		if (_transcribedRound) {
+			FillWaveform(_data->round());
+		}
 		PaintWaveform(p,
 			context,
-			_data->voice(),
+			_transcribedRound ? _data->round() : _data->voice(),
 			namewidth + st::msgWaveformSkip,
 			progress);
 		p.restore();
 	} else if (auto named = Get<HistoryDocumentNamed>()) {
 		p.setFont(st::semiboldFont);
 		p.setPen(stm->historyFileNameFg);
-		if (namewidth < named->_namew) {
-			p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(named->_name, namewidth, Qt::ElideMiddle));
+		const auto elided = (namewidth < named->namew);
+		if (elided) {
+			p.drawTextLeft(nameleft, nametop, width, st::semiboldFont->elided(named->name, namewidth, Qt::ElideMiddle));
 		} else {
-			p.drawTextLeft(nameleft, nametop, width, named->_name, named->_namew);
+			p.drawTextLeft(nameleft, nametop, width, named->name, named->namew);
 		}
+		_tooltipFilename.setElided(elided);
 	}
 
 	auto statusText = voiceStatusOverride.isEmpty() ? _statusText : voiceStatusOverride;
@@ -695,8 +742,8 @@ void Document::draw(
 	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
 		p.setPen(stm->historyTextFg);
-		_parent->prepareCustomEmojiPaint(p, context, captioned->_caption);
-		captioned->_caption.draw(p, {
+		_parent->prepareCustomEmojiPaint(p, context, captioned->caption);
+		captioned->caption.draw(p, {
 			.position = { st::msgPadding.left(), captiontop },
 			.availableWidth = captionw,
 			.palette = &stm->textPalette,
@@ -708,6 +755,91 @@ void Document::draw(
 	}
 }
 
+Ui::BubbleRounding Document::thumbRounding(
+		LayoutMode mode,
+		Ui::BubbleRounding outsideRounding) const {
+	using Corner = Ui::BubbleCornerRounding;
+	if (mode != LayoutMode::Grouped && _parent->media() != this) {
+		return Ui::BubbleRounding(); // In a WebPage preview.
+	}
+	const auto hasCaption = Has<HistoryDocumentCaptioned>();
+	const auto adjust = [&](Corner already, bool skip = false) {
+		return (already == Corner::Large && !skip)
+			? Corner::Large
+			: Corner::Small;
+	};
+	auto result = Ui::BubbleRounding();
+	result.topLeft = adjust(outsideRounding.topLeft);
+	result.bottomLeft = adjust(outsideRounding.bottomLeft, hasCaption);
+	result.topRight = result.bottomRight = Corner::Small;
+	return result;
+}
+
+void Document::validateThumbnail(
+		not_null<const HistoryDocumentThumbed*> thumbed,
+		int size,
+		Ui::BubbleRounding rounding) const {
+	const auto normal = _dataMedia->thumbnail();
+	const auto blurred = _dataMedia->thumbnailInline();
+	if (!normal && !blurred) {
+		return;
+	}
+	const auto outer = QSize(size, size);
+	if ((thumbed->thumbnail.size() == outer * style::DevicePixelRatio())
+		&& (thumbed->blurred == !normal)
+		&& (thumbed->rounding == rounding)) {
+		return;
+	}
+	const auto small = (rounding == Ui::BubbleRounding());
+	auto image = normal ? normal : blurred;
+	const auto imageWidth = thumbed->thumbw * style::DevicePixelRatio();
+	auto thumbnail = Images::Prepare(image->original(), imageWidth, {
+		.options = (normal ? Images::Option() : Images::Option::Blur)
+			| (small ? Images::Option::RoundSmall : Images::Option()),
+		.outer = outer,
+	});
+	if (!small) {
+		using Corner = Ui::BubbleCornerRounding;
+		using Radius = Ui::CachedCornerRadius;
+		auto corners = std::array<QImage, 4>();
+		const auto &small = Ui::CachedCornersMasks(Radius::ThumbSmall);
+		const auto &large = Ui::CachedCornersMasks(Radius::ThumbLarge);
+		for (auto i = 0; i != 4; ++i) {
+			switch (rounding[i]) {
+			case Corner::Small: corners[i] = small[i]; break;
+			case Corner::Large: corners[i] = large[i]; break;
+			}
+		}
+		thumbnail = Images::Round(std::move(thumbnail), corners);
+	}
+	thumbed->thumbnail = std::move(thumbnail);
+	thumbed->blurred = !normal;
+	thumbed->rounding = rounding;
+}
+
+void Document::fillThumbnailOverlay(
+		QPainter &p,
+		QRect rect,
+		Ui::BubbleRounding rounding,
+		const PaintContext &context) const {
+	using Corner = Ui::BubbleCornerRounding;
+	using Radius = Ui::CachedCornerRadius;
+	auto corners = Ui::CornersPixmaps();
+	const auto &st = context.st;
+	const auto lookup = [&](Corner corner) {
+		switch (corner) {
+		case Corner::None: return Radius::Small;
+		case Corner::Small: return Radius::ThumbSmall;
+		case Corner::Large: return Radius::ThumbLarge;
+		}
+		Unexpected("Corner value in Document::fillThumbnailOverlay.");
+	};
+	for (auto i = 0; i != 4; ++i) {
+		corners.p[i] = st->msgSelectOverlayCorners(lookup(rounding[i])).p[i];
+	}
+	Ui::FillComplexOverlayRect(p, rect, st->msgSelectOverlay(), corners);
+}
+
 bool Document::hasHeavyPart() const {
 	return (_dataMedia != nullptr);
 }
@@ -715,7 +847,7 @@ bool Document::hasHeavyPart() const {
 void Document::unloadHeavyPart() {
 	_dataMedia = nullptr;
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		captioned->_caption.unloadPersistentAnimation();
+		captioned->caption.unloadPersistentAnimation();
 	}
 }
 
@@ -724,7 +856,9 @@ void Document::ensureDataMediaCreated() const {
 		return;
 	}
 	_dataMedia = _data->createMediaView();
-	if (Get<HistoryDocumentThumbed>() || _data->isSongWithCover()) {
+	if (Get<HistoryDocumentThumbed>()
+		|| _data->isSongWithCover()
+		|| _transcribedRound) {
 		_dataMedia->thumbnailWanted(_realParent->fullId());
 	}
 	history()->owner().registerHeavyViewPart(_parent);
@@ -852,14 +986,18 @@ TextState Document::textState(
 	const auto &st = (mode == LayoutMode::Full)
 		? (thumbed ? st::msgFileThumbLayout : st::msgFileLayout)
 		: (thumbed ? st::msgFileThumbLayoutGrouped : st::msgFileLayoutGrouped);
-	const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
+	const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
 	const auto nametop = st.nameTop - topMinus;
-	const auto nameright = st.padding.left();
+	const auto nameright = st.padding.right();
+	auto namewidth = width - nameleft - nameright;
 	const auto linktop = st.linkTop - topMinus;
 	auto bottom = st.padding.top() + st.thumbSize + st.padding.bottom() - topMinus;
 	const auto rthumb = style::rtlrect(st.padding.left(), st.padding.top() - topMinus, st.thumbSize, st.thumbSize, width);
 	const auto innerSize = st::msgFileLayout.thumbSize;
 	const auto inner = QRect(rthumb.x() + (rthumb.width() - innerSize) / 2, rthumb.y() + (rthumb.height() - innerSize) / 2, innerSize, innerSize);
+
+	const auto filenameMoused = QRect(nameleft, nametop, namewidth, st::semiboldFont->height).contains(point);
+	_tooltipFilename.setMoused(filenameMoused);
 	if (const auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if ((_data->loading() || _data->uploading()) && rthumb.contains(point)) {
 			result.link = _cancell;
@@ -867,12 +1005,12 @@ TextState Document::textState(
 		}
 
 		if (_data->status != FileUploadFailed) {
-			if (style::rtlrect(nameleft, linktop, thumbed->_linkw, st::semiboldFont->height, width).contains(point)) {
+			if (style::rtlrect(nameleft, linktop, thumbed->linkw, st::semiboldFont->height, width).contains(point)) {
 				result.link = (_data->loading() || _data->uploading())
-					? thumbed->_linkcancell
+					? thumbed->linkcancell
 					: dataLoaded()
-					? thumbed->_linkopenwithl
-					: thumbed->_linksavel;
+					? thumbed->linkopenwithl
+					: thumbed->linksavel;
 				return result;
 			}
 		}
@@ -887,7 +1025,6 @@ TextState Document::textState(
 	}
 
 	const auto voice = Get<HistoryDocumentVoice>();
-	auto namewidth = width - nameleft - nameright;
 	auto transcribeLength = 0;
 	auto transcribeHeight = 0;
 	auto painth = layout.height();
@@ -910,7 +1047,7 @@ TextState Document::textState(
 				if (!voice->seeking()) {
 					voice->setSeekingStart((point.x() - nameleft) / float64(namewidth));
 				}
-				result.link = voice->_seekl;
+				result.link = voice->seekl;
 				return result;
 			}
 		}
@@ -939,7 +1076,7 @@ TextState Document::textState(
 			bottom += st::mediaCaptionSkip;
 		}
 		if (point.y() >= bottom) {
-			result = TextState(_parent, captioned->_caption.getState(
+			result = TextState(_parent, captioned->caption.getState(
 				point - QPoint(st::msgPadding.left(), bottom),
 				width - st::msgPadding.left() - st::msgPadding.right(),
 				request.forText()));
@@ -947,7 +1084,7 @@ TextState Document::textState(
 			return result;
 		}
 		auto captionw = width - st::msgPadding.left() - st::msgPadding.right();
-		painth -= captioned->_caption.countHeight(captionw);
+		painth -= captioned->caption.countHeight(captionw);
 		if (isBubbleBottom()) {
 			painth -= st::msgPadding.bottom();
 		}
@@ -964,8 +1101,10 @@ TextState Document::textState(
 		} else {
 			result.link = _savel;
 		}
+		_tooltipFilename.updateTooltipForLink(result.link.get());
 		return result;
 	}
+	_tooltipFilename.updateTooltipForState(result);
 	return result;
 }
 
@@ -975,8 +1114,8 @@ void Document::updatePressed(QPoint point) {
 		if (voice->seeking()) {
 			const auto thumbed = Get<HistoryDocumentThumbed>();
 			const auto &st = thumbed ? st::msgFileThumbLayout : st::msgFileLayout;
-			const auto nameleft = st.padding.left() + st.thumbSize + st.padding.right();
-			const auto nameright = st.padding.left();
+			const auto nameleft = st.padding.left() + st.thumbSize + st.thumbSkip;
+			const auto nameright = st.padding.right();
 			voice->setSeekingCurrent(std::clamp(
 				(point.x() - nameleft)
 					/ float64(width() - nameleft - nameright),
@@ -996,7 +1135,7 @@ TextSelection Document::adjustSelection(
 		transcribe = &voice->transcribeText;
 	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		caption = &captioned->_caption;
+		caption = &captioned->caption;
 	}
 	const auto transcribeLength = transcribe ? transcribe->length() : 0;
 	if (transcribe && selection.from < transcribeLength) {
@@ -1028,7 +1167,7 @@ uint16 Document::fullSelectionLength() const {
 		result += voice->transcribeText.length();
 	}
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		result += captioned->_caption.length();
+		result += captioned->caption.length();
 	}
 	return result;
 }
@@ -1061,7 +1200,7 @@ TextForMimeData Document::selectedText(TextSelection selection) const {
 		if (!result.empty()) {
 			result.append("\n\n");
 		}
-		result.append(captioned->_caption.toTextForMimeData(selection));
+		result.append(captioned->caption.toTextForMimeData(selection));
 	}
 	return result;
 }
@@ -1075,21 +1214,23 @@ void Document::setStatusSize(int64 newSize, TimeId realDuration) const {
 		? _data->song()->duration
 		: (_data->isVoiceMessage()
 			? _data->voice()->duration
+			: _transcribedRound
+			? _data->round()->duration
 			: -1);
 	File::setStatusSize(newSize, _data->size, duration, realDuration);
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
 		if (_statusSize == Ui::FileStatusSizeReady) {
-			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
+			thumbed->link = tr::lng_media_download(tr::now).toUpper();
 		} else if (_statusSize == Ui::FileStatusSizeLoaded) {
-			thumbed->_link = tr::lng_media_open_with(tr::now).toUpper();
+			thumbed->link = tr::lng_media_open_with(tr::now).toUpper();
 		} else if (_statusSize == Ui::FileStatusSizeFailed) {
-			thumbed->_link = tr::lng_media_download(tr::now).toUpper();
+			thumbed->link = tr::lng_media_download(tr::now).toUpper();
 		} else if (_statusSize >= 0) {
-			thumbed->_link = tr::lng_media_cancel(tr::now).toUpper();
+			thumbed->link = tr::lng_media_cancel(tr::now).toUpper();
 		} else {
-			thumbed->_link = tr::lng_media_open_with(tr::now).toUpper();
+			thumbed->link = tr::lng_media_open_with(tr::now).toUpper();
 		}
-		thumbed->_linkw = st::semiboldFont->width(thumbed->_link);
+		thumbed->linkw = st::semiboldFont->width(thumbed->link);
 	}
 }
 
@@ -1109,29 +1250,29 @@ bool Document::updateStatusText() const {
 		statusSize = Ui::FileStatusSizeReady;
 	}
 
-	if (_data->isVoiceMessage()) {
+	if (_data->isVoiceMessage() || _transcribedRound) {
 		const auto state = ::Media::Player::instance()->getState(AudioMsgId::Type::Voice);
 		if (state.id == AudioMsgId(_data, _realParent->fullId(), state.id.externalPlayId())
 			&& !::Media::Player::IsStoppedOrStopping(state.state)) {
 			if (auto voice = Get<HistoryDocumentVoice>()) {
-				bool was = (voice->_playback != nullptr);
+				bool was = (voice->playback != nullptr);
 				voice->ensurePlayback(this);
-				if (!was || state.position != voice->_playback->position) {
+				if (!was || state.position != voice->playback->position) {
 					auto prg = state.length
 						? std::clamp(
 							float64(state.position) / state.length,
 							0.,
 							1.)
 						: 0.;
-					if (voice->_playback->position < state.position) {
-						voice->_playback->progress.start(prg);
+					if (voice->playback->position < state.position) {
+						voice->playback->progress.start(prg);
 					} else {
-						voice->_playback->progress = anim::value(0., prg);
+						voice->playback->progress = anim::value(0., prg);
 					}
-					voice->_playback->position = state.position;
-					voice->_playback->progressAnimation.start();
+					voice->playback->position = state.position;
+					voice->playback->progressAnimation.start();
 				}
-				voice->_lastDurationMs = static_cast<int>((state.length * 1000LL) / state.frequency); // Bad :(
+				voice->lastDurationMs = static_cast<int>((state.length * 1000LL) / state.frequency); // Bad :(
 			}
 
 			statusSize = -1 - (state.position / state.frequency);
@@ -1170,7 +1311,7 @@ QMargins Document::bubbleMargins() const {
 		return st::msgPadding;
 	}
 	const auto padding = st::msgFileThumbLayout.padding;
-	return QMargins(padding.left(), padding.top(), padding.left(), padding.bottom());
+	return QMargins(padding.left(), padding.top(), padding.right(), padding.bottom());
 }
 
 QSize Document::sizeForGroupingOptimal(int maxWidth) const {
@@ -1181,7 +1322,7 @@ QSize Document::sizeForGroupingOptimal(int maxWidth) const {
 		auto captionw = maxWidth
 			- st::msgPadding.left()
 			- st::msgPadding.right();
-		height += captioned->_caption.countHeight(captionw);
+		height += captioned->caption.countHeight(captionw);
 	}
 	return { maxWidth, height };
 }
@@ -1194,7 +1335,7 @@ QSize Document::sizeForGrouping(int width) const {
 		auto captionw = width
 			- st::msgPadding.left()
 			- st::msgPadding.right();
-		height += captioned->_caption.countHeight(captionw);
+		height += captioned->caption.countHeight(captionw);
 	}
 	return { maxWidth(), height };
 }
@@ -1204,7 +1345,7 @@ void Document::drawGrouped(
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
@@ -1213,7 +1354,8 @@ void Document::drawGrouped(
 		p,
 		context.translated(-geometry.topLeft()),
 		geometry.width(),
-		LayoutMode::Grouped);
+		LayoutMode::Grouped,
+		rounding);
 	p.translate(-geometry.topLeft());
 }
 
@@ -1235,14 +1377,14 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 		now += (2 * kAudioVoiceMsgUpdateView);
 	}
 	if (const auto voice = Get<HistoryDocumentVoice>()) {
-		if (voice->_playback) {
-			const auto dt = (now - voice->_playback->progressAnimation.started())
+		if (voice->playback) {
+			const auto dt = (now - voice->playback->progressAnimation.started())
 				/ float64(2 * kAudioVoiceMsgUpdateView);
 			if (dt >= 1.) {
-				voice->_playback->progressAnimation.stop();
-				voice->_playback->progress.finish();
+				voice->playback->progressAnimation.stop();
+				voice->playback->progress.finish();
 			} else {
-				voice->_playback->progress.update(qMin(dt, 1.), anim::linear);
+				voice->playback->progress.update(qMin(dt, 1.), anim::linear);
 			}
 			repaint();
 			return (dt < 1.);
@@ -1253,7 +1395,7 @@ bool Document::voiceProgressAnimationCallback(crl::time now) {
 
 void Document::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed) {
 	if (auto voice = Get<HistoryDocumentVoice>()) {
-		if (pressed && p == voice->_seekl && !voice->seeking()) {
+		if (pressed && p == voice->seekl && !voice->seeking()) {
 			voice->startSeeking();
 		} else if (!pressed && voice->seeking()) {
 			const auto type = AudioMsgId::Type::Voice;
@@ -1265,8 +1407,8 @@ void Document::clickHandlerPressedChanged(const ClickHandlerPtr &p, bool pressed
 					currentProgress);
 
 				voice->ensurePlayback(this);
-				voice->_playback->position = 0;
-				voice->_playback->progress = anim::value(currentProgress, currentProgress);
+				voice->playback->position = 0;
+				voice->playback->progress = anim::value(currentProgress, currentProgress);
 			}
 			voice->stopSeeking();
 		}
@@ -1279,14 +1421,14 @@ void Document::refreshParentId(not_null<HistoryItem*> realParent) {
 
 	const auto fullId = realParent->fullId();
 	if (auto thumbed = Get<HistoryDocumentThumbed>()) {
-		if (thumbed->_linksavel) {
-			thumbed->_linksavel->setMessageId(fullId);
-			thumbed->_linkcancell->setMessageId(fullId);
+		if (thumbed->linksavel) {
+			thumbed->linksavel->setMessageId(fullId);
+			thumbed->linkcancell->setMessageId(fullId);
 		}
 	}
 	if (auto voice = Get<HistoryDocumentVoice>()) {
-		if (voice->_seekl) {
-			voice->_seekl->setMessageId(fullId);
+		if (voice->seekl) {
+			voice->seekl->setMessageId(fullId);
 		}
 	}
 }
@@ -1298,7 +1440,7 @@ void Document::parentTextUpdated() {
 	if (!caption.isEmpty()) {
 		AddComponents(HistoryDocumentCaptioned::Bit());
 		auto captioned = Get<HistoryDocumentCaptioned>();
-		captioned->_caption = std::move(caption);
+		captioned->caption = std::move(caption);
 	} else {
 		RemoveComponents(HistoryDocumentCaptioned::Bit());
 	}
@@ -1307,13 +1449,55 @@ void Document::parentTextUpdated() {
 
 TextWithEntities Document::getCaption() const {
 	if (const auto captioned = Get<HistoryDocumentCaptioned>()) {
-		return captioned->_caption.toTextWithEntities();
+		return captioned->caption.toTextWithEntities();
 	}
 	return TextWithEntities();
 }
 
 Ui::Text::String Document::createCaption() {
 	return File::createCaption(_realParent);
+}
+
+void Document::TooltipFilename::setElided(bool value) {
+	if (_elided != value) {
+		_elided = value;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::setMoused(bool value) {
+	if (_moused != value) {
+		_moused = value;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::setTooltipText(QString text) {
+	if (_tooltip != text) {
+		_tooltip = text;
+		_stale = true;
+	}
+}
+
+void Document::TooltipFilename::updateTooltipForLink(ClickHandler *link) {
+	if (_lastLink != link) {
+		_lastLink = link;
+		_stale = true;
+	}
+	if (_stale && link) {
+		_stale = false;
+		link->setProperty(
+			kDocumentFilenameTooltipProperty,
+			(_elided && _moused) ? _tooltip : QString());
+	}
+}
+
+void Document::TooltipFilename::updateTooltipForState(
+		TextState &state) const {
+	if (_elided && _moused) {
+		state.customTooltip = true;
+		state.customTooltipText = _tooltip;
+	}
 }
 
 bool DrawThumbnailAsSongCover(

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwidget.h"
 #include "api/api_bot.h"
 #include "api/api_text_entities.h"
+#include "api/api_user_names.h"
 #include "core/application.h"
 #include "core/core_settings.h"
 #include "core/mime_type.h" // Core::IsMimeSticker
@@ -55,18 +56,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_wall_paper.h"
 #include "data/data_game.h"
 #include "data/data_poll.h"
+#include "data/data_replies_list.h"
 #include "data/data_chat_filters.h"
 #include "data/data_scheduled_messages.h"
 #include "data/data_send_action.h"
 #include "data/data_sponsored_messages.h"
 #include "data/data_message_reactions.h"
 #include "data/data_emoji_statuses.h"
+#include "data/data_forum_icons.h"
 #include "data/data_cloud_themes.h"
 #include "data/data_streaming.h"
 #include "data/data_media_rotation.h"
 #include "data/data_histories.h"
 #include "data/data_peer_values.h"
 #include "data/data_premium_limits.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "base/platform/base_platform_info.h"
 #include "base/unixtime.h"
@@ -242,6 +247,7 @@ Session::Session(not_null<Main::Session*> session)
 , _ttlCheckTimer([=] { checkTTLs(); })
 , _selfDestructTimer([=] { checkSelfDestructItems(); })
 , _pollsClosingTimer([=] { checkPollsClosings(); })
+, _watchForOfflineTimer([=] { checkLocalUsersWentOffline(); })
 , _groups(this)
 , _chatsFilters(std::make_unique<ChatFilters>(this))
 , _scheduledMessages(std::make_unique<ScheduledMessages>(this))
@@ -254,6 +260,7 @@ Session::Session(not_null<Main::Session*> session)
 , _sponsoredMessages(std::make_unique<SponsoredMessages>(this))
 , _reactions(std::make_unique<Reactions>(this))
 , _emojiStatuses(std::make_unique<EmojiStatuses>(this))
+, _forumIcons(std::make_unique<ForumIcons>(this))
 , _notifySettings(std::make_unique<NotifySettings>(this))
 , _customEmojiManager(std::make_unique<CustomEmojiManager>(this)) {
 	_cache->open(_session->local().cacheKey());
@@ -286,6 +293,8 @@ Session::Session(not_null<Main::Session*> session)
 		}
 	}, _lifetime);
 
+	subscribeForTopicRepliesLists();
+
 	crl::on_main(_session, [=] {
 		AmPremiumValue(
 			_session
@@ -301,9 +310,60 @@ Session::Session(not_null<Main::Session*> session)
 	});
 }
 
+void Session::subscribeForTopicRepliesLists() {
+	repliesReadTillUpdates(
+	) | rpl::start_with_next([=](const RepliesReadTillUpdate &update) {
+		if (const auto peer = peerLoaded(update.id.peer)) {
+			if (const auto topic = peer->forumTopicFor(update.id.msg)) {
+				topic->replies()->apply(update);
+			}
+		}
+	}, _lifetime);
+
+	session().changes().messageUpdates(
+		MessageUpdate::Flag::NewAdded
+		| MessageUpdate::Flag::NewMaybeAdded
+		| MessageUpdate::Flag::ReplyToTopAdded
+		| MessageUpdate::Flag::Destroyed
+	) | rpl::start_with_next([=](const MessageUpdate &update) {
+		if (const auto topic = update.item->topic()) {
+			topic->replies()->apply(update);
+		}
+	}, _lifetime);
+
+	session().changes().topicUpdates(
+		TopicUpdate::Flag::Creator
+	) | rpl::start_with_next([=](const TopicUpdate &update) {
+		update.topic->replies()->apply(update);
+	}, _lifetime);
+
+	channelDifferenceTooLong(
+	) | rpl::start_with_next([=](not_null<ChannelData*> channel) {
+		if (const auto forum = channel->forum()) {
+			forum->enumerateTopics([](not_null<ForumTopic*> topic) {
+				topic->replies()->applyDifferenceTooLong();
+			});
+		}
+	}, _lifetime);
+}
+
 void Session::clear() {
 	// Optimization: clear notifications before destroying items.
 	Core::App().notifications().clearFromSession(_session);
+
+	// We must clear all forums before clearing customEmojiManager.
+	// Because in Data::ForumTopic an Ui::Text::CustomEmoji is cached.
+	auto forums = base::flat_set<not_null<ChannelData*>>();
+	for (const auto &[peerId, peer] : _peers) {
+		if (const auto channel = peer->asChannel()) {
+			if (channel->isForum()) {
+				forums.emplace(channel);
+			}
+		}
+	}
+	for (const auto &channel : forums) {
+		channel->setFlags(channel->flags() & ~ChannelDataFlag::Forum);
+	}
 
 	_sendActionManager->clear();
 
@@ -501,12 +561,24 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		} else {
 			// apply first_name and last_name from minimal user only if we don't have
 			// local values for first name and last name already, otherwise skip
-			bool noLocalName = result->firstName.isEmpty() && result->lastName.isEmpty();
-			QString fname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vfirst_name().value_or_empty())) : result->firstName;
-			QString lname = (!minimal || noLocalName) ? TextUtilities::SingleLine(qs(data.vlast_name().value_or_empty())) : result->lastName;
+			const auto noLocalName = result->firstName.isEmpty()
+				&& result->lastName.isEmpty();
+			const auto fname = (!minimal || noLocalName)
+				? TextUtilities::SingleLine(
+					qs(data.vfirst_name().value_or_empty()))
+				: result->firstName;
+			const auto lname = (!minimal || noLocalName)
+				? TextUtilities::SingleLine(
+					qs(data.vlast_name().value_or_empty()))
+				: result->lastName;
 
-			QString phone = minimal ? result->phone() : qs(data.vphone().value_or_empty());
-			QString uname = minimal ? result->username : TextUtilities::SingleLine(qs(data.vusername().value_or_empty()));
+			const auto phone = minimal
+				? result->phone()
+				: qs(data.vphone().value_or_empty());
+			const auto uname = minimal
+				? result->username()
+				: TextUtilities::SingleLine(
+					qs(data.vusername().value_or_empty()));
 
 			const auto phoneChanged = (result->phone() != phone);
 			if (phoneChanged) {
@@ -555,6 +627,15 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 				result->setAccessHash(accessHash->v);
 			}
 			status = data.vstatus();
+			{
+				const auto newUsername = uname;
+				const auto newUsernames = data.vusernames()
+					? Api::Usernames::FromTL(*data.vusernames())
+					: !newUsername.isEmpty()
+					? Data::Usernames{{ newUsername, true, true }}
+					: Data::Usernames();
+				result->setUsernames(newUsernames);
+			}
 		}
 		if (const auto &status = data.vemoji_status()) {
 			result->setEmojiStatus(*status);
@@ -604,6 +685,7 @@ not_null<UserData*> Session::processUser(const MTPUser &data) {
 		if (oldOnlineTill != newOnlineTill) {
 			result->onlineTill = newOnlineTill;
 			flags |= UpdateFlag::OnlineStatus;
+			session().data().maybeStopWatchForOffline(result);
 		}
 	}
 
@@ -760,6 +842,20 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			}
 		}
 
+		{
+			const auto newUsername = qs(data.vusername().value_or_empty());
+			const auto newUsernames = data.vusernames()
+				? Api::Usernames::FromTL(*data.vusernames())
+				: !newUsername.isEmpty()
+				? Data::Usernames{ Data::Username{ newUsername, true, true } }
+				: Data::Usernames();
+			channel->setName(
+				qs(data.vtitle()),
+				TextUtilities::SingleLine(newUsername));
+			channel->setUsernames(newUsernames);
+		}
+		const auto hasUsername = !channel->username().isEmpty();
+
 		using Flag = ChannelDataFlag;
 		const auto flagsMask = Flag::Broadcast
 			| Flag::Verified
@@ -777,14 +873,15 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 			| (!minimal ? (Flag::Left | Flag::Creator) : Flag())
 			| Flag::NoForwards
 			| Flag::JoinToWrite
-			| Flag::RequestToJoin;
+			| Flag::RequestToJoin
+			| Flag::Forum;
 		const auto flagsSet = (data.is_broadcast() ? Flag::Broadcast : Flag())
 			| (data.is_verified() ? Flag::Verified : Flag())
 			| (data.is_scam() ? Flag::Scam : Flag())
 			| (data.is_fake() ? Flag::Fake : Flag())
 			| (data.is_megagroup() ? Flag::Megagroup : Flag())
 			| (data.is_gigagroup() ? Flag::Gigagroup : Flag())
-			| (data.vusername() ? Flag::Username : Flag())
+			| (hasUsername ? Flag::Username : Flag())
 			| (data.is_signatures() ? Flag::Signatures : Flag())
 			| (data.is_has_link() ? Flag::HasLink : Flag())
 			| (data.is_slowmode_enabled() ? Flag::SlowmodeEnabled : Flag())
@@ -800,12 +897,11 @@ not_null<PeerData*> Session::processChat(const MTPChat &data) {
 				: Flag())
 			| (data.is_noforwards() ? Flag::NoForwards : Flag())
 			| (data.is_join_to_send() ? Flag::JoinToWrite : Flag())
-			| (data.is_join_request() ? Flag::RequestToJoin : Flag());
+			| (data.is_join_request() ? Flag::RequestToJoin : Flag())
+			| ((data.is_forum() && data.is_megagroup())
+				? Flag::Forum
+				: Flag());
 		channel->setFlags((channel->flags() & ~flagsMask) | flagsSet);
-
-		channel->setName(
-			qs(data.vtitle()),
-			TextUtilities::SingleLine(qs(data.vusername().value_or_empty())));
 
 		channel->setPhoto(data.vphoto());
 
@@ -912,6 +1008,64 @@ void Session::unregisterGroupCall(not_null<GroupCall*> call) {
 GroupCall *Session::groupCall(CallId callId) const {
 	const auto i = _groupCalls.find(callId);
 	return (i != end(_groupCalls)) ? i->second.get() : nullptr;
+}
+
+void Session::watchForOffline(not_null<UserData*> user, TimeId now) {
+	if (!now) {
+		now = base::unixtime::now();
+	}
+	if (!Data::IsUserOnline(user, now)) {
+		return;
+	}
+	const auto till = user->onlineTill;
+	const auto [i, ok] = _watchingForOffline.emplace(user, till);
+	if (!ok) {
+		if (i->second == till) {
+			return;
+		}
+		i->second = till;
+	}
+	const auto timeout = Data::OnlineChangeTimeout(till, now);
+	const auto fires = _watchForOfflineTimer.isActive()
+		? _watchForOfflineTimer.remainingTime()
+		: -1;
+	if (fires >= 0 && fires <= timeout) {
+		return;
+	}
+	_watchForOfflineTimer.callOnce(std::max(timeout, crl::time(1)));
+}
+
+void Session::maybeStopWatchForOffline(not_null<UserData*> user) {
+	if (Data::IsUserOnline(user)) {
+		return;
+	} else if (_watchingForOffline.remove(user)
+		&& _watchingForOffline.empty()) {
+		_watchForOfflineTimer.cancel();
+	}
+}
+
+void Session::checkLocalUsersWentOffline() {
+	_watchForOfflineTimer.cancel();
+
+	auto minimal = 86400 * crl::time(1000);
+	const auto now = base::unixtime::now();
+	for (auto i = begin(_watchingForOffline)
+		; i != end(_watchingForOffline);) {
+		const auto user = i->first;
+		if (!Data::IsUserOnline(user, now)) {
+			i = _watchingForOffline.erase(i);
+			session().changes().peerUpdated(
+				user,
+				PeerUpdate::Flag::OnlineStatus);
+		} else {
+			const auto timeout = Data::OnlineChangeTimeout(user, now);
+			accumulate_min(minimal, timeout);
+			++i;
+		}
+	}
+	if (!_watchingForOffline.empty()) {
+		_watchForOfflineTimer.callOnce(std::max(minimal, crl::time(1)));
+	}
 }
 
 auto Session::invitedToCallUsers(CallId callId) const
@@ -1035,13 +1189,6 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			}
 		}
 	}
-}
-
-void Session::cancelForwarding(not_null<History*> history) {
-	history->setForwardDraft({});
-	session().changes().historyUpdated(
-		history,
-		Data::HistoryUpdate::Flag::ForwardDraft);
 }
 
 bool Session::chatsListLoaded(Data::Folder *folder) {
@@ -1387,10 +1534,12 @@ rpl::producer<not_null<HistoryItem*>> Session::newItemAdded() const {
 	return _newItemAdded.events();
 }
 
-void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
+HistoryItem *Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	const auto list = messagesListForInsert(peerId);
-	auto i = list->find(wasId);
-	Assert(i != list->end());
+	const auto i = list->find(wasId);
+	if (i == list->end()) {
+		return nullptr;
+	}
 	const auto item = i->second;
 	list->erase(i);
 	const auto [j, ok] = list->emplace(nowId, item);
@@ -1407,6 +1556,7 @@ void Session::changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId) {
 	}
 
 	Ensures(ok);
+	return item;
 }
 
 bool Session::queryItemVisibility(not_null<HistoryItem*> item) const {
@@ -1428,19 +1578,23 @@ void Session::itemVisibilitiesUpdated() {
 }
 
 void Session::notifyItemIdChange(IdChange event) {
-	const auto item = event.item;
-	changeMessageId(item->history()->peer->id, event.oldId, item->id);
+	const auto item = changeMessageId(
+		event.newId.peer,
+		event.oldId,
+		event.newId.msg);
 
 	_itemIdChanges.fire_copy(event);
 
-	const auto refreshViewDataId = [](not_null<ViewElement*> view) {
-		view->refreshDataId();
-	};
-	enumerateItemViews(item, refreshViewDataId);
-	if (const auto group = groups().find(item)) {
-		const auto leader = group->items.front();
-		if (leader != item) {
-			enumerateItemViews(leader, refreshViewDataId);
+	if (item) {
+		const auto refreshViewDataId = [](not_null<ViewElement*> view) {
+			view->refreshDataId();
+		};
+		enumerateItemViews(item, refreshViewDataId);
+		if (const auto group = groups().find(item)) {
+			const auto leader = group->items.front();
+			if (leader != item) {
+				enumerateItemViews(leader, refreshViewDataId);
+			}
 		}
 	}
 }
@@ -1469,8 +1623,13 @@ void Session::requestItemRepaint(not_null<const HistoryItem*> item) {
 		}
 	}
 	const auto history = item->history();
-	if (history->lastItemDialogsView.dependsOn(item)) {
+	if (history->lastItemDialogsView().dependsOn(item)) {
 		history->updateChatListEntry();
+	}
+	if (const auto topic = item->topic()) {
+		if (topic->lastItemDialogsView().dependsOn(item)) {
+			topic->updateChatListEntry();
+		}
 	}
 }
 
@@ -1759,10 +1918,13 @@ void Session::setChatPinned(
 		bool pinned) {
 	Expects(key.entry()->folderKnown());
 
-	const auto list = filterId
+	const auto list = (filterId
 		? chatsFilters().chatsList(filterId)
-		: chatsList(key.entry()->folder());
-	list->pinned()->setPinned(key, pinned);
+		: chatsListFor(key.entry()))->pinned();
+	if (const auto topic = key.topic()) {
+		topic->forum()->unpinTopic();
+	}
+	list->setPinned(key, pinned);
 	notifyPinnedDialogsOrderUpdated();
 }
 
@@ -2337,21 +2499,13 @@ void Session::notifyUnreadBadgeChanged() {
 	_unreadBadgeChanges.fire({});
 }
 
-std::optional<int> Session::countUnreadRepliesLocally(
-		not_null<HistoryItem*> root,
-		MsgId afterId) const {
-	auto result = std::optional<int>();
-	_unreadRepliesCountRequests.fire({
-		.root = root,
-		.afterId = afterId,
-		.result = &result,
-	});
-	return result;
+void Session::updateRepliesReadTill(RepliesReadTillUpdate update) {
+	_repliesReadTillUpdates.fire(std::move(update));
 }
 
-auto Session::unreadRepliesCountRequests() const
--> rpl::producer<UnreadRepliesCountRequest> {
-	return _unreadRepliesCountRequests.events();
+auto Session::repliesReadTillUpdates() const
+-> rpl::producer<RepliesReadTillUpdate> {
+	return _repliesReadTillUpdates.events();
 }
 
 int Session::computeUnreadBadge(const Dialogs::UnreadState &state) const {
@@ -3760,6 +3914,14 @@ not_null<Folder*> Session::processFolder(const MTPDfolder &data) {
 	return folder(data.vid().v);
 }
 
+not_null<Dialogs::MainList*> Session::chatsListFor(
+		not_null<Dialogs::Entry*> entry) {
+	const auto topic = entry->asTopic();
+	return topic
+		? topic->forum()->topicsList()
+		: chatsList(entry->folder());
+}
+
 not_null<Dialogs::MainList*> Session::chatsList(Data::Folder *folder) {
 	return folder ? folder->chatsList().get() : &_chatsList;
 }
@@ -3783,11 +3945,14 @@ void Session::refreshChatListEntry(Dialogs::Key key) {
 	using namespace Dialogs;
 
 	const auto entry = key.entry();
-	const auto history = key.history();
-	const auto mainList = chatsList(entry->folder());
+	const auto history = entry->asHistory();
+	const auto topic = entry->asTopic();
+	const auto mainList = chatsListFor(entry);
 	auto event = ChatListEntryRefresh{ .key = key };
 	const auto creating = event.existenceChanged = !entry->inChatList();
-	if (event.existenceChanged) {
+	if (creating && topic && topic->creating()) {
+		return;
+	} else if (event.existenceChanged) {
 		const auto mainRow = entry->addToChatList(0, mainList);
 		_contactsNoChatsList.del(key, mainRow);
 	} else {
@@ -3839,6 +4004,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 		return;
 	}
 	Assert(entry->folderKnown());
+
 	for (const auto &filter : _chatsFilters->list()) {
 		const auto id = filter.id();
 		if (id && entry->inChatList(id)) {
@@ -3850,7 +4016,7 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 			});
 		}
 	}
-	const auto mainList = chatsList(entry->folder());
+	const auto mainList = chatsListFor(entry);
 	entry->removeFromChatList(0, mainList);
 	_chatListEntryRefreshes.fire(ChatListEntryRefresh{
 		.key = key,
@@ -3861,7 +4027,9 @@ void Session::removeChatListEntry(Dialogs::Key key) {
 			_contactsNoChatsList.addByName(key);
 		}
 	}
-	if (const auto history = key.history()) {
+	if (const auto topic = key.topic()) {
+		Core::App().notifications().clearFromTopic(topic);
+	} else if (const auto history = key.history()) {
 		Core::App().notifications().clearFromHistory(history);
 	}
 }
@@ -3870,7 +4038,6 @@ auto Session::chatListEntryRefreshes() const
 -> rpl::producer<ChatListEntryRefresh> {
 	return _chatListEntryRefreshes.events();
 }
-
 
 void Session::dialogsRowReplaced(DialogsRowReplacement replacement) {
 	_dialogsRowReplacements.fire(std::move(replacement));
@@ -3904,7 +4071,8 @@ void Session::serviceNotification(
 			MTPVector<MTPRestrictionReason>(),
 			MTPstring(), // bot_inline_placeholder
 			MTPstring(), // lang_code
-			MTPEmojiStatus()));
+			MTPEmojiStatus(),
+			MTPVector<MTPUsername>()));
 	}
 	const auto history = this->history(PeerData::kServiceNotificationsId);
 	if (!history->folderKnown()) {

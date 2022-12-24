@@ -28,7 +28,7 @@ DoneHandler ConcurrentSender::HandlerMaker::MakeDone(
 		not_null<ConcurrentSender*> sender,
 		Fn<void(FnMut<void()>)> runner) {
 	return [
-		weak = base::make_weak(sender.get()),
+		weak = base::make_weak(sender),
 		runner = std::move(runner)
 	](const Response &response) mutable {
 		runner([=]() mutable {
@@ -47,7 +47,7 @@ FailHandler ConcurrentSender::HandlerMaker::MakeFail(
 		Fn<void(FnMut<void()>)> runner,
 		FailSkipPolicy skipPolicy) {
 	return [
-		weak = base::make_weak(sender.get()),
+		weak = base::make_weak(sender),
 		runner = std::move(runner),
 		skipPolicy
 	](const Error &error, const Response &response) mutable {

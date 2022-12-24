@@ -373,8 +373,8 @@ void Rows::ensureRippleBySelection(not_null<Row*> row, Selection selected) {
 	const auto menu = v::is<MenuSelection>(selected);
 	const auto menuArea = menuToggleArea(row);
 	auto mask = menu
-		? Ui::RippleAnimation::ellipseMask(menuArea.size())
-		: Ui::RippleAnimation::rectMask({ width(), row->height });
+		? Ui::RippleAnimation::EllipseMask(menuArea.size())
+		: Ui::RippleAnimation::RectMask({ width(), row->height });
 	ripple = std::make_unique<Ui::RippleAnimation>(
 		st::defaultRippleAnimation,
 		std::move(mask),

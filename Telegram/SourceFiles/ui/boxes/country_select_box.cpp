@@ -347,7 +347,7 @@ void CountrySelectBox::Inner::mousePressEvent(QMouseEvent *e) {
 			}
 		}
 		if (!_ripples[_pressed]) {
-			auto mask = RippleAnimation::rectMask(QSize(width(), _rowHeight));
+			auto mask = RippleAnimation::RectMask(QSize(width(), _rowHeight));
 			_ripples[_pressed] = std::make_unique<RippleAnimation>(st::countryRipple, std::move(mask), [this, index = _pressed] {
 				updateRow(index);
 			});

@@ -1048,6 +1048,23 @@ std::unique_ptr<HistoryView::Media> MediaFile::createView(
 				_document,
 				_skipPremiumEffect,
 				replacing));
+	} else if (_document->isVideoMessage()) {
+		const auto &entry = _document->session().api().transcribes().entry(
+			parent());
+		if (!entry.requestId
+			&& entry.shown
+			&& entry.roundview
+			&& !entry.pending) {
+			return std::make_unique<HistoryView::Document>(
+				message,
+				realParent,
+				_document);
+		} else {
+			return std::make_unique<HistoryView::Gif>(
+				message,
+				realParent,
+				_document);
+		}
 	} else if (_document->isAnimation() || _document->isVideoFile()) {
 		return std::make_unique<HistoryView::Gif>(
 			message,

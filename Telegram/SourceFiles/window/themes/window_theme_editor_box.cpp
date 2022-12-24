@@ -738,8 +738,7 @@ void SaveTheme(
 	if (cloud.id) {
 		window->account().session().api().request(MTPaccount_GetTheme(
 			MTP_string(Data::CloudThemes::Format()),
-			MTP_inputTheme(MTP_long(cloud.id), MTP_long(cloud.accessHash)),
-			MTP_long(0)
+			MTP_inputTheme(MTP_long(cloud.id), MTP_long(cloud.accessHash))
 		)).done([=](const MTPTheme &result) {
 			result.match([&](const MTPDtheme &data) {
 				save(CloudTheme::Parse(&window->account().session(), data));

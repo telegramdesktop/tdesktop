@@ -12,24 +12,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 
-// Not used for now.
-//
-//class MembersAddButton : public Ui::RippleButton {
-//public:
-//	MembersAddButton(QWidget *parent, const style::TwoIconButton &st);
-//
-//protected:
-//	void paintEvent(QPaintEvent *e) override;
-//
-//	QImage prepareRippleMask() const override;
-//	QPoint prepareRippleStartPosition() const override;
-//
-//private:
-//	const style::TwoIconButton &_st;
-//
-//};
-
 class History;
+
+namespace Data {
+class Thread;
+class Forum;
+class ForumTopic;
+} // namespace Data
 
 namespace Window {
 class SessionController;
@@ -110,7 +99,8 @@ public:
 		std::unique_ptr<PeerListSearchController> searchController);
 
 	void prepare() override final;
-	std::unique_ptr<PeerListRow> createSearchRow(not_null<PeerData*> peer) override final;
+	std::unique_ptr<PeerListRow> createSearchRow(
+		not_null<PeerData*> peer) override final;
 
 protected:
 	virtual std::unique_ptr<Row> createRow(not_null<History*> history) = 0;
@@ -173,8 +163,8 @@ class ChooseRecipientBoxController
 public:
 	ChooseRecipientBoxController(
 		not_null<Main::Session*> session,
-		FnMut<void(not_null<PeerData*>)> callback,
-		Fn<bool(not_null<PeerData*>)> filter = nullptr);
+		FnMut<void(not_null<Data::Thread*>)> callback,
+		Fn<bool(not_null<Data::Thread*>)> filter = nullptr);
 
 	Main::Session &session() const override;
 	void rowClicked(not_null<PeerListRow*> row) override;
@@ -189,7 +179,80 @@ protected:
 
 private:
 	const not_null<Main::Session*> _session;
-	FnMut<void(not_null<PeerData*>)> _callback;
-	Fn<bool(not_null<PeerData*>)> _filter;
+	FnMut<void(not_null<Data::Thread*>)> _callback;
+	Fn<bool(not_null<Data::Thread*>)> _filter;
+
+};
+
+class ChooseTopicSearchController : public PeerListSearchController {
+public:
+	explicit ChooseTopicSearchController(not_null<Data::Forum*> forum);
+
+	void searchQuery(const QString &query) override;
+	bool isLoading() override;
+	bool loadMoreRows() override;
+
+private:
+	void searchOnServer();
+	void searchDone(const MTPcontacts_Found &result, mtpRequestId requestId);
+
+	const not_null<Data::Forum*> _forum;
+	MTP::Sender _api;
+	base::Timer _timer;
+	QString _query;
+	mtpRequestId _requestId = 0;
+	TimeId _offsetDate = 0;
+	MsgId _offsetId = 0;
+	MsgId _offsetTopicId = 0;
+	bool _allLoaded = false;
+
+};
+
+class ChooseTopicBoxController final
+	: public PeerListController
+	, public base::has_weak_ptr {
+public:
+	ChooseTopicBoxController(
+		not_null<Data::Forum*> forum,
+		FnMut<void(not_null<Data::ForumTopic*>)> callback,
+		Fn<bool(not_null<Data::ForumTopic*>)> filter = nullptr);
+
+	Main::Session &session() const override;
+	void rowClicked(not_null<PeerListRow*> row) override;
+
+	void prepare() override;
+	void loadMoreRows() override;
+	std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id) override;
+
+private:
+	class Row final : public PeerListRow {
+	public:
+		explicit Row(not_null<Data::ForumTopic*> topic);
+
+		[[nodiscard]] not_null<Data::ForumTopic*> topic() const {
+			return _topic;
+		}
+
+		QString generateName() override;
+		QString generateShortName() override;
+		PaintRoundImageCallback generatePaintUserpicCallback() override;
+
+		auto generateNameFirstLetters() const
+			-> const base::flat_set<QChar> & override;
+		auto generateNameWords() const
+			-> const base::flat_set<QString> & override;
+
+	private:
+		const not_null<Data::ForumTopic*> _topic;
+
+	};
+
+	void refreshRows(bool initial = false);
+	[[nodiscard]] std::unique_ptr<Row> createRow(
+		not_null<Data::ForumTopic*> topic);
+
+	const not_null<Data::Forum*> _forum;
+	FnMut<void(not_null<Data::ForumTopic*>)> _callback;
+	Fn<bool(not_null<Data::ForumTopic*>)> _filter;
 
 };

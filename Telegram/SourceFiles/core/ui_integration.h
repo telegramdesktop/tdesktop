@@ -29,6 +29,7 @@ struct MarkedTextContext {
 	Main::Session *session = nullptr;
 	HashtagMentionType type = HashtagMentionType::Telegram;
 	Fn<void()> customEmojiRepaint;
+	int customEmojiLoopLimit = 0;
 };
 
 class UiIntegration final : public Ui::Integration {

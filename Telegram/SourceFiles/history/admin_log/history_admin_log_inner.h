@@ -143,6 +143,8 @@ public:
 		HistoryView::Element *replacing) override;
 	void elementCancelPremium(
 		not_null<const HistoryView::Element*> view) override;
+	QString elementAuthorRank(
+		not_null<const HistoryView::Element*> view) override;
 
 	~InnerWidget();
 
@@ -288,6 +290,7 @@ private:
 	Element *_visibleTopItem = nullptr;
 	int _visibleTopFromItem = 0;
 
+	bool _isChatWide = false;
 	bool _scrollDateShown = false;
 	Ui::Animations::Simple _scrollDateOpacity;
 	SingleQueuedInvokation _scrollDateCheck;

@@ -99,7 +99,7 @@ void PeerListWidget::paintItem(Painter &p, int x, int y, Item *item, bool select
 
 	if (item->name.isEmpty()) {
 		item->name.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			item->peer->name(),
 			Ui::NameTextOptions());
 	}
@@ -149,7 +149,7 @@ void PeerListWidget::mousePressEvent(QMouseEvent *e) {
 		const auto item = _items[_pressed];
 		if (!item->ripple) {
 			auto memberRowWidth = rowWidth();
-			auto mask = Ui::RippleAnimation::rectMask(QSize(memberRowWidth, _st.height));
+			auto mask = Ui::RippleAnimation::RectMask(QSize(memberRowWidth, _st.height));
 			item->ripple = std::make_unique<Ui::RippleAnimation>(_st.button.ripple, std::move(mask), [this, index = _pressed] {
 				repaintRow(index);
 			});

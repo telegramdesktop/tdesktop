@@ -745,7 +745,7 @@ void EditorBlock::addRowRipple(int index) {
 	auto &row = rowAtIndex(index);
 	auto ripple = row.ripple();
 	if (!ripple) {
-		auto mask = Ui::RippleAnimation::rectMask(QSize(width(), row.height()));
+		auto mask = Ui::RippleAnimation::RectMask(QSize(width(), row.height()));
 		ripple = row.setRipple(std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(mask), [this, index = findRowIndex(&row)] {
 			updateRow(_data[index]);
 		}));

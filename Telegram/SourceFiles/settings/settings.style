@@ -92,6 +92,7 @@ settingsIconPosition: icon {{ "settings/position", settingsIconFg }};
 settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
+settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
 
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};

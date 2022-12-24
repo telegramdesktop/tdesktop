@@ -266,6 +266,8 @@ PRIVATE
     ui/cached_round_corners.h
     ui/color_contrast.cpp
     ui/color_contrast.h
+    ui/color_int_conversion.cpp
+    ui/color_int_conversion.h
     ui/grouped_layout.cpp
     ui/grouped_layout.h
     ui/widgets/fields/special_fields.cpp
@@ -292,4 +294,5 @@ PRIVATE
     desktop-app::lib_webview
     desktop-app::lib_webrtc
     desktop-app::lib_stripe
+    desktop-app::external_kcoreaddons
 )

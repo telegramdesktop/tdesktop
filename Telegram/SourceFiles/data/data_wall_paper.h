@@ -15,6 +15,14 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Ui {
+
+[[nodiscard]] QColor ColorFromSerialized(MTPint serialized);
+[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
+	const tl::conditional<MTPint> &mtp);
+
+} // namespace Ui
+
 namespace Data {
 
 struct FileOrigin;
@@ -125,13 +133,6 @@ private:
 [[nodiscard]] bool IsCloudWallPaper(const WallPaper &paper);
 
 [[nodiscard]] QImage GenerateDitheredGradient(const WallPaper &paper);
-
-[[nodiscard]] QColor ColorFromSerialized(quint32 serialized);
-[[nodiscard]] QColor ColorFromSerialized(MTPint serialized);
-[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
-	quint32 serialized);
-[[nodiscard]] std::optional<QColor> MaybeColorFromSerialized(
-	const tl::conditional<MTPint> &mtp);
 
 namespace details {
 

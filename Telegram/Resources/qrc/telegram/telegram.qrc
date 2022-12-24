@@ -28,6 +28,13 @@
     <file alias="icons/settings/dino.svg">../../icons/settings/dino.svg</file>
     <file alias="icons/settings/star.svg">../../icons/settings/star.svg</file>
     <file alias="icons/settings/starmini.svg">../../icons/settings/starmini.svg</file>
+    <file alias="topic_icons/blue.svg">../../art/topic_icons/blue.svg</file>
+    <file alias="topic_icons/yellow.svg">../../art/topic_icons/yellow.svg</file>
+    <file alias="topic_icons/violet.svg">../../art/topic_icons/violet.svg</file>
+    <file alias="topic_icons/green.svg">../../art/topic_icons/green.svg</file>
+    <file alias="topic_icons/rose.svg">../../art/topic_icons/rose.svg</file>
+    <file alias="topic_icons/red.svg">../../art/topic_icons/red.svg</file>
+    <file alias="topic_icons/gray.svg">../../art/topic_icons/gray.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>

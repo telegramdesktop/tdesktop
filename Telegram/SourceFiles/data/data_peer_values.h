@@ -21,6 +21,7 @@ class Session;
 namespace Data {
 
 struct Reaction;
+class ForumTopic;
 
 template <typename ChangeType, typename Error, typename Generator>
 inline auto FlagsValueWithMask(
@@ -102,8 +103,13 @@ inline auto PeerFullFlagValue(
 
 [[nodiscard]] rpl::producer<bool> CanWriteValue(UserData *user);
 [[nodiscard]] rpl::producer<bool> CanWriteValue(ChatData *chat);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(ChannelData *channel);
-[[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> CanWriteValue(
+	ChannelData *channel,
+	bool checkForForum = true);
+[[nodiscard]] rpl::producer<bool> CanWriteValue(
+	not_null<PeerData*> peer,
+	bool checkForForum = true);
+[[nodiscard]] rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic);
 [[nodiscard]] rpl::producer<bool> CanPinMessagesValue(
 	not_null<PeerData*> peer);
 [[nodiscard]] rpl::producer<bool> CanManageGroupCallValue(
@@ -122,7 +128,7 @@ inline auto PeerFullFlagValue(
 [[nodiscard]] QString OnlineTextFull(not_null<UserData*> user, TimeId now);
 [[nodiscard]] bool OnlineTextActive(TimeId online, TimeId now);
 [[nodiscard]] bool OnlineTextActive(not_null<UserData*> user, TimeId now);
-[[nodiscard]] bool IsUserOnline(not_null<UserData*> user);
+[[nodiscard]] bool IsUserOnline(not_null<UserData*> user, TimeId now = 0);
 [[nodiscard]] bool ChannelHasActiveCall(not_null<ChannelData*> channel);
 
 [[nodiscard]] rpl::producer<QImage> PeerUserpicImageValue(

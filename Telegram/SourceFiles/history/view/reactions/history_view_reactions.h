@@ -17,6 +17,8 @@ class Reactions;
 
 namespace Ui {
 struct ChatPaintContext;
+struct ReactionFlyAnimationArgs;
+class ReactionFlyAnimation;
 } // namespace Ui
 
 namespace HistoryView {
@@ -30,8 +32,6 @@ namespace HistoryView::Reactions {
 
 using ::Data::ReactionId;
 using ::Data::MessageReaction;
-struct AnimationArgs;
-class Animation;
 
 struct InlineListData {
 	enum class Flag : uchar {
@@ -79,13 +79,15 @@ public:
 		not_null<TextState*> outResult) const;
 
 	void animate(
-		AnimationArgs &&args,
+		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint);
 	[[nodiscard]] auto takeAnimations()
-		-> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>>;
+	-> base::flat_map<
+		ReactionId,
+		std::unique_ptr<Ui::ReactionFlyAnimation>>;
 	void continueAnimations(base::flat_map<
 		ReactionId,
-		std::unique_ptr<Reactions::Animation>> animations);
+		std::unique_ptr<Ui::ReactionFlyAnimation>> animations);
 
 private:
 	struct Userpics {

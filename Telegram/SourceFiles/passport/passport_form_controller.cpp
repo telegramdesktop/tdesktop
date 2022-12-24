@@ -1587,7 +1587,7 @@ void FormController::uploadEncryptedFile(
 	auto prepared = std::make_shared<FileLoadResult>(
 		TaskId(),
 		file.uploadData->fileId,
-		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId()),
+		FileLoadTo(PeerId(), Api::SendOptions(), MsgId(), MsgId(), MsgId()),
 		TextWithTags(),
 		std::shared_ptr<SendingAlbum>(nullptr));
 	prepared->type = SendMediaType::Secure;

@@ -54,6 +54,20 @@ private:
 	not_null<ChannelData*> channel,
 	not_null<Window::SessionController*> controller);
 
+struct RestrictionLabel {
+	ChatRestrictions flags;
+	QString label;
+};
+[[nodiscard]] std::vector<RestrictionLabel> RestrictionLabels(
+	Data::RestrictionsSetOptions options);
+
+struct AdminRightLabel {
+	ChatAdminRights flags;
+	QString label;
+};
+[[nodiscard]] std::vector<AdminRightLabel> AdminRightLabels(
+	Data::AdminRightsSetOptions options);
+
 template <typename Flags>
 struct EditFlagsControl {
 	object_ptr<Ui::RpWidget> widget;
@@ -61,20 +75,23 @@ struct EditFlagsControl {
 	rpl::producer<Flags> changes;
 };
 
-EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
+[[nodiscard]] EditFlagsControl<ChatRestrictions> CreateEditRestrictions(
 	QWidget *parent,
 	rpl::producer<QString> header,
 	ChatRestrictions restrictions,
-	std::map<ChatRestrictions, QString> disabledMessages);
+	std::map<ChatRestrictions, QString> disabledMessages,
+	Data::RestrictionsSetOptions options);
 
-EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
+[[nodiscard]] EditFlagsControl<ChatAdminRights> CreateEditAdminRights(
 	QWidget *parent,
 	rpl::producer<QString> header,
 	ChatAdminRights rights,
 	std::map<ChatAdminRights, QString> disabledMessages,
-	bool isGroup,
-	bool anyoneCanAddMembers);
+	Data::AdminRightsSetOptions options);
 
-ChatAdminRights DisabledByDefaultRestrictions(not_null<PeerData*> peer);
-ChatRestrictions FixDependentRestrictions(ChatRestrictions restrictions);
-ChatAdminRights AdminRightsForOwnershipTransfer(bool isGroup);
+[[nodiscard]] ChatAdminRights DisabledByDefaultRestrictions(
+	not_null<PeerData*> peer);
+[[nodiscard]] ChatRestrictions FixDependentRestrictions(
+	ChatRestrictions restrictions);
+[[nodiscard]] ChatAdminRights AdminRightsForOwnershipTransfer(
+	Data::AdminRightsSetOptions options);

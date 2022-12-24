@@ -26,6 +26,8 @@ namespace Dialogs::Ui {
 
 using namespace ::Ui;
 
+struct PaintContext;
+
 [[nodiscard]] TextWithEntities DialogsPreviewText(TextWithEntities text);
 
 class MessageView final {
@@ -48,16 +50,14 @@ public:
 	void paint(
 		Painter &p,
 		const QRect &geometry,
-		bool active,
-		bool selected,
-		crl::time now,
-		bool paused) const;
+		const PaintContext &context) const;
 
 private:
 	struct LoadingContext;
 
 	mutable const HistoryItem *_textCachedFor = nullptr;
 	mutable Text::String _senderCache;
+	mutable Text::String _topicCache;
 	mutable Text::String _textCache;
 	mutable std::vector<ItemPreviewImage> _imagesCache;
 	mutable std::unique_ptr<LoadingContext> _loadingContext;
@@ -66,6 +66,7 @@ private:
 
 [[nodiscard]] HistoryView::ItemPreview PreviewWithSender(
 	HistoryView::ItemPreview &&preview,
-	const TextWithEntities &sender);
+	const QString &sender,
+	TextWithEntities topic);
 
 } // namespace Dialogs::Ui

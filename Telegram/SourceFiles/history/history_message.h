@@ -15,6 +15,7 @@ struct SendOptions;
 } // namespace Api
 
 namespace Data {
+class Thread;
 struct SponsoredFrom;
 } // namespace Data
 
@@ -40,15 +41,20 @@ void RequestDependentMessageData(
 	MsgId replyToId);
 [[nodiscard]] MTPMessageReplyHeader NewMessageReplyHeader(
 	const Api::SendAction &action);
+
+struct SendingErrorRequest {
+	MsgId topicRootId = 0;
+	const HistoryItemsList *forward = nullptr;
+	const TextWithTags *text = nullptr;
+	bool ignoreSlowmodeCountdown = false;
+};
 [[nodiscard]] QString GetErrorTextForSending(
 	not_null<PeerData*> peer,
-	const HistoryItemsList &items,
-	bool ignoreSlowmodeCountdown = false);
+	SendingErrorRequest request);
 [[nodiscard]] QString GetErrorTextForSending(
-	not_null<PeerData*> peer,
-	const HistoryItemsList &items,
-	const TextWithTags &comment,
-	bool ignoreSlowmodeCountdown = false);
+	not_null<Data::Thread*> thread,
+	SendingErrorRequest request);
+
 [[nodiscard]] TextWithEntities DropCustomEmoji(TextWithEntities text);
 
 class HistoryMessage final : public HistoryItem {
@@ -70,7 +76,8 @@ public:
 		TimeId date,
 		PeerId from,
 		const QString &postAuthor,
-		not_null<HistoryItem*> original); // local forwarded
+		not_null<HistoryItem*> original,
+		MsgId topicRootId); // local forwarded
 	HistoryMessage(
 		not_null<History*> history,
 		MsgId id,
@@ -123,7 +130,8 @@ public:
 		not_null<History*> history,
 		MsgId id,
 		Data::SponsoredFrom from,
-		const TextWithEntities &textWithEntities); // sponsored
+		const TextWithEntities &textWithEntities,
+		HistoryItem *injectedAfter); // sponsored
 
 	void refreshMedia(const MTPMessageMedia *media);
 	void refreshSentMedia(const MTPMessageMedia *media);
@@ -142,11 +150,11 @@ public:
 	void setForwardsCount(int count) override;
 	void setReplies(HistoryMessageRepliesData &&data) override;
 	void clearReplies() override;
-	void changeRepliesCount(
-		int delta,
-		PeerId replier,
-		std::optional<bool> unread) override;
-	void setReplyToTop(MsgId replyToTop) override;
+	void changeRepliesCount(int delta, PeerId replier) override;
+	void setReplyFields(
+		MsgId replyTo,
+		MsgId replyToTop,
+		bool isForumPost) override;
 	void setPostAuthor(const QString &author) override;
 	void setRealId(MsgId newId) override;
 	void incrementReplyToTopCounter() override;
@@ -180,6 +188,10 @@ public:
 	void destroyHistoryEntry() override;
 	[[nodiscard]] Storage::SharedMediaTypesMask sharedMediaTypes() const override;
 
+	[[nodiscard]] MsgId replyToId() const override;
+	[[nodiscard]] MsgId replyToTop() const override;
+	[[nodiscard]] MsgId topicRootId() const override;
+
 	void setText(const TextWithEntities &textWithEntities) override;
 	[[nodiscard]] TextWithEntities originalText() const override;
 	[[nodiscard]] auto originalTextWithLocalEntities() const
@@ -191,17 +203,10 @@ public:
 	[[nodiscard]] bool repliesAreComments() const override;
 	[[nodiscard]] bool externalReply() const override;
 
-	[[nodiscard]] MsgId repliesInboxReadTill() const override;
-	void setRepliesInboxReadTill(
-		MsgId readTillId,
-		std::optional<int> unreadCount) override;
-	[[nodiscard]] MsgId computeRepliesInboxReadTillFull() const override;
-	[[nodiscard]] MsgId repliesOutboxReadTill() const override;
-	void setRepliesOutboxReadTill(MsgId readTillId) override;
-	[[nodiscard]] MsgId computeRepliesOutboxReadTillFull() const override;
-	void setRepliesMaxId(MsgId maxId) override;
-	void setRepliesPossibleMaxId(MsgId possibleMaxId) override;
-	[[nodiscard]] bool areRepliesUnread() const override;
+	void setCommentsInboxReadTill(MsgId readTillId) override;
+	void setCommentsMaxId(MsgId maxId) override;
+	void setCommentsPossibleMaxId(MsgId possibleMaxId) override;
+	[[nodiscard]] bool areCommentsUnread() const override;
 
 	[[nodiscard]] FullMsgId commentsItemId() const override;
 	void setCommentsItemId(FullMsgId id) override;
@@ -252,9 +257,6 @@ private:
 	void refreshRepliesText(
 		not_null<HistoryMessageViews*> views,
 		bool forceResize = false);
-	void setUnreadRepliesCount(
-		not_null<HistoryMessageViews*> views,
-		int count);
 	void setSponsoredFrom(const Data::SponsoredFrom &from);
 
 	static void FillForwardedInfo(

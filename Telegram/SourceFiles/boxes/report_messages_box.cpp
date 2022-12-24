@@ -22,10 +22,18 @@ namespace {
 		std::variant<v::null_t, MessageIdsList, not_null<PhotoData*>> data) {
 	const auto source = v::match(data, [](const MessageIdsList &ids) {
 		return Ui::ReportSource::Message;
-	}, [](not_null<PhotoData*> photo) {
-		return photo->hasVideo()
-			? Ui::ReportSource::ProfileVideo
-			: Ui::ReportSource::ProfilePhoto;
+	}, [&](not_null<PhotoData*> photo) {
+		return peer->isUser()
+			? (photo->hasVideo()
+				? Ui::ReportSource::ProfileVideo
+				: Ui::ReportSource::ProfilePhoto)
+			: (peer->isChat() || (peer->isChannel() && peer->isMegagroup()))
+			? (photo->hasVideo()
+				? Ui::ReportSource::GroupVideo
+				: Ui::ReportSource::GroupPhoto)
+			: (photo->hasVideo()
+				? Ui::ReportSource::ChannelVideo
+				: Ui::ReportSource::ChannelPhoto);
 	}, [](v::null_t) {
 		Unexpected("Bad source report.");
 		return Ui::ReportSource::Bot;

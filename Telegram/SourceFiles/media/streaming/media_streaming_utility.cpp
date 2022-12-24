@@ -101,8 +101,7 @@ bool GoodForRequest(
 		return true;
 	} else if (rotation != 0) {
 		return false;
-	} else if ((request.radius != ImageRoundRadius::None)
-		&& ((request.corners & RectPart::AllCorners) != 0)) {
+	} else if (!request.rounding.empty() || !request.mask.isNull()) {
 		return false;
 	}
 	const auto size = request.blurredBackground
@@ -348,14 +347,15 @@ void PaintFrameContent(
 }
 
 void ApplyFrameRounding(QImage &storage, const FrameRequest &request) {
-	if (!(request.corners & RectPart::AllCorners)
-		|| (request.radius == ImageRoundRadius::None)) {
-		return;
+	if (!request.mask.isNull()) {
+		auto p = QPainter(&storage);
+		p.setCompositionMode(QPainter::CompositionMode_DestinationIn);
+		p.drawImage(
+			QRect(QPoint(), storage.size() / storage.devicePixelRatio()),
+			request.mask);
+	} else if (!request.rounding.empty()) {
+		storage = Images::Round(std::move(storage), request.rounding);
 	}
-	storage = Images::Round(
-		std::move(storage),
-		request.radius,
-		request.corners);
 }
 
 ExpandDecision DecideFrameResize(

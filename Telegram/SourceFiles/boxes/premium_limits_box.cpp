@@ -361,7 +361,7 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		tr::now);
 	const auto closeBox = _closeBox;
 	const auto once = std::make_shared<bool>(false);
-	auto callback = crl::guard(_navigation, [=](Fn<void()> &&close) {
+	auto callback = crl::guard(_navigation, [=](Fn<void()> close) {
 		if (*once) {
 			return;
 		}
@@ -369,9 +369,13 @@ void PublicsController::rowRightActionClicked(not_null<PeerListRow*> row) {
 		peer->session().api().request(MTPchannels_UpdateUsername(
 			peer->asChannel()->inputChannel,
 			MTP_string()
-		)).done([=, close = std::move(close)] {
-			closeBox();
-			close();
+		)).done([=] {
+			peer->session().api().request(MTPchannels_DeactivateAllUsernames(
+				peer->asChannel()->inputChannel
+			)).done([=] {
+				closeBox();
+				close();
+			}).send();
 		}).send();
 	});
 	_navigation->parentController()->show(

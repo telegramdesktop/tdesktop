@@ -91,6 +91,11 @@ public:
 	[[nodiscard]] virtual auto generatePaintUserpicCallback()
 		-> PaintRoundImageCallback;
 
+	[[nodiscard]] virtual auto generateNameFirstLetters() const
+		-> const base::flat_set<QChar> &;
+	[[nodiscard]] virtual auto generateNameWords() const
+		-> const base::flat_set<QString> &;
+
 	void setCustomStatus(const QString &status, bool active = false);
 	void clearCustomStatus();
 
@@ -360,6 +365,7 @@ private:
 class PeerListSearchDelegate {
 public:
 	virtual void peerListSearchAddRow(not_null<PeerData*> peer) = 0;
+	virtual void peerListSearchAddRow(PeerListRowId id) = 0;
 	virtual void peerListSearchRefreshRows() = 0;
 	virtual ~PeerListSearchDelegate() = default;
 
@@ -470,6 +476,7 @@ public:
 			not_null<PeerData*> peer) {
 		return nullptr;
 	}
+	virtual std::unique_ptr<PeerListRow> createSearchRow(PeerListRowId id);
 	virtual std::unique_ptr<PeerListRow> createRestoredRow(
 			not_null<PeerData*> peer) {
 		return nullptr;
@@ -494,6 +501,7 @@ public:
 	void search(const QString &query);
 
 	void peerListSearchAddRow(not_null<PeerData*> peer) override;
+	void peerListSearchAddRow(PeerListRowId id) override;
 	void peerListSearchRefreshRows() override;
 
 	[[nodiscard]] virtual bool respectSavedMessagesChat() const {

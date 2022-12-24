@@ -200,15 +200,18 @@ struct FileLoadTo {
 		PeerId peer,
 		Api::SendOptions options,
 		MsgId replyTo,
+		MsgId topicRootId,
 		MsgId replaceMediaOf)
 	: peer(peer)
 	, options(options)
 	, replyTo(replyTo)
+	, topicRootId(topicRootId)
 	, replaceMediaOf(replaceMediaOf) {
 	}
 	PeerId peer;
 	Api::SendOptions options;
 	MsgId replyTo;
+	MsgId topicRootId;
 	MsgId replaceMediaOf;
 };
 

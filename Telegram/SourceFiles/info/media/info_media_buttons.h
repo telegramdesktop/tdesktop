@@ -19,7 +19,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "settings/settings_common.h"
 #include "window/window_session_controller.h"
-#include "data/data_channel.h"
 #include "data/data_user.h"
 #include "styles/style_info.h"
 
@@ -83,17 +82,25 @@ inline auto AddButton(
 		Ui::VerticalLayout *parent,
 		not_null<Window::SessionNavigation*> navigation,
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated,
 		Type type,
 		Ui::MultiSlideTracker &tracker) {
 	auto result = AddCountedButton(
 		parent,
-		Profile::SharedMediaCountValue(peer, migrated, type),
+		Profile::SharedMediaCountValue(peer, topicRootId, migrated, type),
 		MediaText(type),
 		tracker)->entity();
 	result->addClickHandler([=] {
-		navigation->showSection(
-			std::make_shared<Info::Memento>(peer, Section(type)));
+		const auto topic = topicRootId
+			? peer->forumTopicFor(topicRootId)
+			: nullptr;
+		if (topicRootId && !topic) {
+			return;
+		}
+		navigation->showSection(topicRootId
+			? std::make_shared<Info::Memento>(topic, Section(type))
+			: std::make_shared<Info::Memento>(peer, Section(type)));
 	});
 	return result;
 };

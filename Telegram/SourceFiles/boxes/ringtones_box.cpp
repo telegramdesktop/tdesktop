@@ -21,7 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_document_media.h"
 #include "data/data_document_resolver.h"
-#include "data/data_peer.h"
+#include "data/data_thread.h"
 #include "data/data_session.h"
 #include "data/notify/data_notify_settings.h"
 #include "lang/lang_keys.h"
@@ -342,11 +342,11 @@ void RingtonesBox(
 	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
 }
 
-void PeerRingtonesBox(
+void ThreadRingtonesBox(
 		not_null<Ui::GenericBox*> box,
-		not_null<PeerData*> peer) {
-	const auto now = peer->owner().notifySettings().sound(peer);
-	RingtonesBox(box, &peer->session(), now, [=](Data::NotifySound sound) {
-		peer->owner().notifySettings().update(peer, {}, {}, sound);
+		not_null<Data::Thread*> thread) {
+	const auto now = thread->owner().notifySettings().sound(thread);
+	RingtonesBox(box, &thread->session(), now, [=](Data::NotifySound sound) {
+		thread->owner().notifySettings().update(thread, {}, {}, sound);
 	});
 }

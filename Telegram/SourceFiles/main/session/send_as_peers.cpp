@@ -43,7 +43,7 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 
 bool SendAsPeers::shouldChoose(not_null<PeerData*> peer) {
 	refresh(peer);
-	return peer->canWrite() && (list(peer).size() > 1);
+	return peer->canWrite(false) && (list(peer).size() > 1);
 }
 
 void SendAsPeers::refresh(not_null<PeerData*> peer, bool force) {

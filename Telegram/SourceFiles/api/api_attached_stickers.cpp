@@ -25,7 +25,7 @@ AttachedStickers::AttachedStickers(not_null<ApiWrap*> api)
 void AttachedStickers::request(
 		not_null<Window::SessionController*> controller,
 		MTPmessages_GetAttachedStickers &&mtpRequest) {
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	_api.request(_requestId).cancel();
 	_requestId = _api.request(
 		std::move(mtpRequest)

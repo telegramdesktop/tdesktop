@@ -28,6 +28,7 @@ namespace Dialogs::Ui {
 using namespace ::Ui;
 class RowPainter;
 class VideoUserpic;
+struct PaintContext;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
@@ -44,10 +45,7 @@ public:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const;
+		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	void stopLastRipple();
@@ -84,10 +82,7 @@ public:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const final override;
+		const Ui::PaintContext &context) const final override;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -97,6 +92,12 @@ public:
 	}
 	[[nodiscard]] Data::Folder *folder() const {
 		return _id.folder();
+	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _id.topic();
+	}
+	[[nodiscard]] Data::Thread *thread() const {
+		return _id.thread();
 	}
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
@@ -135,7 +136,7 @@ private:
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		std::shared_ptr<Data::CloudImageView> &view,
-		bool paused);
+		const Ui::PaintContext &context);
 
 	Key _id;
 	int _pos = 0;
@@ -146,7 +147,7 @@ private:
 
 };
 
-class FakeRow : public BasicRow {
+class FakeRow final : public BasicRow, public base::has_weak_ptr {
 public:
 	FakeRow(
 		Key searchInChat,
@@ -155,6 +156,9 @@ public:
 
 	[[nodiscard]] Key searchInChat() const {
 		return _searchInChat;
+	}
+	[[nodiscard]] Data::ForumTopic *topic() const {
+		return _topic;
 	}
 	[[nodiscard]] not_null<HistoryItem*> item() const {
 		return _item;
@@ -170,11 +174,14 @@ public:
 	}
 	[[nodiscard]] const Ui::Text::String &name() const;
 
+	void invalidateTopic();
+
 private:
 	friend class Ui::RowPainter;
 
 	const Key _searchInChat;
 	const not_null<HistoryItem*> _item;
+	Data::ForumTopic *_topic = nullptr;
 	const Fn<void()> _repaint;
 	mutable Ui::MessageView _itemView;
 	mutable Ui::PeerBadge _badge;

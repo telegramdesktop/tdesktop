@@ -14,6 +14,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 struct ChannelLocation;
 
+namespace Data {
+class ForumTopic;
+class Thread;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -28,8 +33,7 @@ namespace Storage {
 enum class SharedMediaType : signed char;
 } // namespace Storage
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 
 inline auto ToSingleLine() {
 	return rpl::map([](const QString &text) {
@@ -40,24 +44,36 @@ inline auto ToSingleLine() {
 rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<PeerData*> peer);
 
-[[nodiscard]] rpl::producer<TextWithEntities> NameValue(
-	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> NameValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> TitleValue(
+	not_null<Data::ForumTopic*> topic);
+[[nodiscard]] rpl::producer<DocumentId> IconIdValue(
+	not_null<Data::ForumTopic*> topic);
+[[nodiscard]] rpl::producer<int32> ColorIdValue(
+	not_null<Data::ForumTopic*> topic);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> PhoneOrHiddenValue(
 	not_null<UserData*> user);
 [[nodiscard]] rpl::producer<TextWithEntities> UsernameValue(
-	not_null<UserData*> user);
+	not_null<UserData*> user,
+	bool primary = false);
+[[nodiscard]] rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
+	not_null<PeerData*> peer);
 [[nodiscard]] TextWithEntities AboutWithEntities(
 	not_null<PeerData*> peer,
 	const QString &value);
 [[nodiscard]] rpl::producer<TextWithEntities> AboutValue(
 	not_null<PeerData*> peer);
-[[nodiscard]] rpl::producer<QString> LinkValue(not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<QString> LinkValue(
+	not_null<PeerData*> peer,
+	bool primary = false);
 [[nodiscard]] rpl::producer<const ChannelLocation*> LocationValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
 	not_null<PeerData*> peer);
+[[nodiscard]] rpl::producer<bool> NotificationsEnabledValue(
+	not_null<Data::Thread*> thread);
 [[nodiscard]] rpl::producer<bool> IsContactValue(not_null<UserData*> user);
 [[nodiscard]] rpl::producer<QString> InviteToChatButton(
 	not_null<UserData*> user);
@@ -81,6 +97,7 @@ rpl::producer<not_null<PeerData*>> MigratedOrMeValue(
 	not_null<ChannelData*> channel);
 [[nodiscard]] rpl::producer<int> SharedMediaCountValue(
 	not_null<PeerData*> peer,
+	MsgId topicRootId,
 	PeerData *migrated,
 	Storage::SharedMediaType type);
 [[nodiscard]] rpl::producer<int> CommonGroupsCountValue(
@@ -95,5 +112,4 @@ enum class BadgeType;
 [[nodiscard]] rpl::producer<DocumentId> EmojiStatusIdValue(
 	not_null<PeerData*> peer);
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

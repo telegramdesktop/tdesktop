@@ -51,7 +51,7 @@ TextWithLabel CreateTextWithLabel(
 		textSt));
 	labeled->setSelectable(true);
 	layout->add(Ui::CreateSkipWidget(layout, st::infoLabelSkip));
-	layout->add(object_ptr<Ui::FlatLabel>(
+	const auto subtext = layout->add(object_ptr<Ui::FlatLabel>(
 		layout,
 		std::move(
 			label
@@ -60,7 +60,7 @@ TextWithLabel CreateTextWithLabel(
 		}),
 		st::infoLabel));
 	result->finishAnimating();
-	return { std::move(result), labeled };
+	return { std::move(result), labeled, subtext };
 }
 
 } // namespace Profile

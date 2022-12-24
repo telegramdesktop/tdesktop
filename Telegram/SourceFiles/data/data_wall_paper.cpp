@@ -12,8 +12,22 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "storage/serialize_common.h"
 #include "ui/chat/chat_theme.h"
+#include "ui/color_int_conversion.h"
 #include "core/application.h"
 #include "main/main_session.h"
+
+namespace Ui {
+
+QColor ColorFromSerialized(MTPint serialized) {
+	return ColorFromSerialized(serialized.v);
+}
+
+std::optional<QColor> MaybeColorFromSerialized(
+		const tl::conditional<MTPint> &mtp) {
+	return mtp ? ColorFromSerialized(*mtp) : std::optional<QColor>();
+}
+
+} // namespace Ui
 
 namespace Data {
 namespace {
@@ -38,6 +52,8 @@ constexpr auto kIncorrectDefaultBackground = FromLegacyBackgroundId(105);
 constexpr auto kVersionTag = qint32(0x7FFFFFFF);
 constexpr auto kVersion = 1;
 
+using Ui::MaybeColorFromSerialized;
+
 [[nodiscard]] quint32 SerializeColor(const QColor &color) {
 	return (quint32(std::clamp(color.red(), 0, 255)) << 16)
 		| (quint32(std::clamp(color.green(), 0, 255)) << 8)
@@ -57,7 +73,8 @@ constexpr auto kVersion = 1;
 	}
 	result.reserve(4);
 	result.push_back(*c1);
-	const auto c2 = MaybeColorFromSerialized(data.vsecond_background_color());
+	const auto c2 = MaybeColorFromSerialized(
+		data.vsecond_background_color());
 	if (!c2) {
 		return result;
 	}
@@ -67,7 +84,8 @@ constexpr auto kVersion = 1;
 		return result;
 	}
 	result.push_back(*c3);
-	const auto c4 = MaybeColorFromSerialized(data.vfourth_background_color());
+	const auto c4 = MaybeColorFromSerialized(
+		data.vfourth_background_color());
 	if (!c4) {
 		return result;
 	}
@@ -710,29 +728,6 @@ QImage GenerateDitheredGradient(const Data::WallPaper &paper) {
 	return Ui::GenerateDitheredGradient(
 		paper.backgroundColors(),
 		paper.gradientRotation());
-}
-
-QColor ColorFromSerialized(quint32 serialized) {
-	return QColor(
-		int((serialized >> 16) & 0xFFU),
-		int((serialized >> 8) & 0xFFU),
-		int(serialized & 0xFFU));
-}
-
-QColor ColorFromSerialized(MTPint serialized) {
-	return ColorFromSerialized(serialized.v);
-}
-
-std::optional<QColor> MaybeColorFromSerialized(
-		quint32 serialized) {
-	return (serialized == quint32(-1))
-		? std::nullopt
-		: std::make_optional(ColorFromSerialized(serialized));
-}
-
-std::optional<QColor> MaybeColorFromSerialized(
-		const tl::conditional<MTPint> &mtp) {
-	return mtp ? std::make_optional(ColorFromSerialized(*mtp)) : std::nullopt;
 }
 
 namespace details {

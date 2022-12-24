@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/rp_widget.h"
 #include "ui/abstract_button.h"
+#include "ui/cached_round_corners.h"
 #include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/panel_animation.h"
@@ -144,6 +145,7 @@ private:
 
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<Inner> _inner;
+	Ui::CornersPixmaps _innerRounding;
 
 	std::map<QString, std::unique_ptr<CacheEntry>> _inlineCache;
 	base::Timer _inlineRequestTimer;

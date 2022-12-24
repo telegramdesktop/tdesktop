@@ -26,6 +26,7 @@ class Session;
 
 namespace HistoryView {
 class TopBarWidget;
+class ContactStatus;
 } // namespace HistoryView
 
 namespace Ui {
@@ -33,9 +34,12 @@ class IconButton;
 class PopupMenu;
 class DropdownMenu;
 class FlatButton;
-class FlatInput;
+class InputField;
 class CrossButton;
+class PlainShadow;
 class DownloadBar;
+class GroupCallBar;
+class RequestsBar;
 template <typename Widget>
 class FadeWrapScaled;
 } // namespace Ui
@@ -56,7 +60,6 @@ class InnerWidget;
 enum class SearchRequestType;
 
 class Widget final : public Window::AbstractSectionWidget {
-
 public:
 	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
 
@@ -70,7 +73,7 @@ public:
 	void searchInChat(Key chat);
 	void setInnerFocus();
 
-	void jumpToTop();
+	void jumpToTop(bool belowPinned = false);
 
 	void startWidthAnimation();
 	void stopWidthAnimation();
@@ -84,6 +87,7 @@ public:
 	void scrollToEntry(const RowDescriptor &entry);
 
 	void searchMessages(const QString &query, Key inChat = {});
+	void searchTopics();
 	void searchMore();
 
 	void updateForwardBar();
@@ -116,11 +120,14 @@ private:
 		Internal,
 	};
 
+	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
-	void filterCursorMoved(int from = -1, int to = -1);
+	void filterCursorMoved();
 	void completeHashtag(QString tag);
 
+	[[nodiscard]] QString currentSearchQuery() const;
+	void clearSearchField();
 	bool searchMessages(bool searchCache = false);
 	void needSearchMessages();
 
@@ -133,13 +140,18 @@ private:
 		const MTPcontacts_Found &result,
 		mtpRequestId requestId);
 	void escape();
+	void submit();
 	void cancelSearchRequest();
+	[[nodiscard]] PeerData *searchInPeer() const;
+	[[nodiscard]] Data::ForumTopic *searchInTopic() const;
 
 	void setupSupportMode();
 	void setupConnectingWidget();
 	void setupMainMenuToggle();
 	void setupDownloadBar();
-	bool searchForPeersRequired(const QString &query) const;
+	void setupShortcuts();
+	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
+	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
 	void setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
@@ -151,9 +163,15 @@ private:
 	void updateJumpToDateVisibility(bool fast = false);
 	void updateSearchFromVisibility(bool fast = false);
 	void updateControlsGeometry();
-	void refreshFolderTopBar();
+	void refreshTopBars();
+	void showSearchInTopBar(anim::type animated);
 	void checkUpdateStatus();
+	void changeOpenedSubsection(
+		FnMut<void()> change,
+		bool fromRight,
+		anim::type animated);
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
+	void changeOpenedForum(ChannelData *forum, anim::type animated);
 	QPixmap grabForFolderSlideAnimation();
 	void startSlideAnimation();
 
@@ -182,14 +200,20 @@ private:
 
 	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
 	object_ptr<Ui::RpWidget> _searchControls;
-	object_ptr<HistoryView::TopBarWidget> _folderTopBar = { nullptr } ;
+	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
 	object_ptr<Ui::IconButton> _searchForNarrowFilters;
-	object_ptr<Ui::FlatInput> _filter;
+	object_ptr<Ui::InputField> _filter;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _chooseFromUser;
 	object_ptr<Ui::FadeWrapScaled<Ui::IconButton>> _jumpToDate;
 	object_ptr<Ui::CrossButton> _cancelSearch;
 	object_ptr<Ui::IconButton> _lockUnlock;
+
+	std::unique_ptr<Ui::PlainShadow> _forumTopShadow;
+	std::unique_ptr<Ui::GroupCallBar> _forumGroupCallBar;
+	std::unique_ptr<Ui::RequestsBar> _forumRequestsBar;
+	std::unique_ptr<HistoryView::ContactStatus> _forumReportBar;
+
 	object_ptr<Ui::ScrollArea> _scroll;
 	QPointer<InnerWidget> _inner;
 	class BottomButton;
@@ -205,10 +229,12 @@ private:
 	ShowAnimation _showAnimationType = ShowAnimation::External;
 
 	Ui::Animations::Simple _scrollToTopShown;
-	bool _scrollToTopIsShown = false;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
+	bool _scrollToTopIsShown = false;
+	bool _forumSearchRequested = false;
 
 	Data::Folder *_openedFolder = nullptr;
+	ChannelData *_openedForum = nullptr;
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
@@ -220,6 +246,13 @@ private:
 	bool _peerSearchFull = false;
 	mtpRequestId _peerSearchRequest = 0;
 
+	QString _topicSearchQuery;
+	TimeId _topicSearchOffsetDate = 0;
+	MsgId _topicSearchOffsetId = 0;
+	MsgId _topicSearchOffsetTopicId = 0;
+	bool _topicSearchFull = false;
+	mtpRequestId _topicSearchRequest = 0;
+
 	QString _searchQuery;
 	PeerData *_searchQueryFrom = nullptr;
 	int32 _searchNextRate = 0;
@@ -227,6 +260,10 @@ private:
 	bool _searchFullMigrated = false;
 	int _searchInHistoryRequest = 0; // Not real mtpRequestId.
 	mtpRequestId _searchRequest = 0;
+
+	PeerData *_lastSearchPeer = nullptr;
+	MsgId _lastSearchId = 0;
+	MsgId _lastSearchMigratedId = 0;
 
 	base::flat_map<QString, MTPmessages_Messages> _searchCache;
 	Api::SingleMessageSearch _singleMessageSearch;

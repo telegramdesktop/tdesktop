@@ -27,6 +27,7 @@ constexpr auto kDefaultSearchTimeoutMs = crl::time(200);
 
 std::optional<SearchRequest> PrepareSearchRequest(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		Storage::SharedMediaType type,
 		const QString &query,
 		MsgId messageId,
@@ -90,12 +91,13 @@ std::optional<SearchRequest> PrepareSearchRequest(
 		offsetId.bare,
 		int64(0),
 		int64(0x3FFFFFFF)));
+	using Flag = MTPmessages_Search::Flag;
 	return MTPmessages_Search(
-		MTP_flags(0),
+		MTP_flags(topicRootId ? Flag::f_top_msg_id : Flag(0)),
 		peer->input,
 		MTP_string(query),
 		MTP_inputPeerEmpty(),
-		MTPint(), // top_msg_id
+		MTP_int(topicRootId),
 		filter,
 		MTP_int(0), // min_date
 		MTP_int(0), // max_date
@@ -234,11 +236,13 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 	auto query = (const Query&)_current->first;
 	auto createSimpleViewer = [=](
 			PeerId peerId,
+			MsgId topicRootId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
 		return simpleIdsSlice(
 			peerId,
+			topicRootId,
 			simpleKey,
 			query,
 			limitBefore,
@@ -247,6 +251,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 	return SparseIdsMergedSlice::CreateViewer(
 		SparseIdsMergedSlice::Key(
 			query.peerId,
+			query.topicRootId,
 			query.migratedPeerId,
 			aroundId),
 		limitBefore,
@@ -256,6 +261,7 @@ rpl::producer<SparseIdsMergedSlice> SearchController::idsSlice(
 
 rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 		PeerId peerId,
+		MsgId topicRootId,
 		MsgId aroundId,
 		const Query &query,
 		int limitBefore,
@@ -264,8 +270,8 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 	Expects(IsServerMsgId(aroundId) || (aroundId == 0));
 	Expects((aroundId != 0)
 		|| (limitBefore == 0 && limitAfter == 0));
-	Expects((query.peerId == peerId)
-		|| (query.migratedPeerId == peerId));
+	Expects((query.peerId == peerId && query.topicRootId == topicRootId)
+		|| (query.migratedPeerId == peerId && MsgId(0) == topicRootId));
 
 	auto it = _cache.find(query);
 	if (it == _cache.end()) {
@@ -298,7 +304,8 @@ rpl::producer<SparseIdsSlice> SearchController::simpleIdsSlice(
 
 		_session->data().itemRemoved(
 		) | rpl::filter([=](not_null<const HistoryItem*> item) {
-			return (item->history()->peer->id == peerId);
+			return (item->history()->peer->id == peerId)
+				&& (!topicRootId || item->topicRootId() == topicRootId);
 		}) | rpl::filter([=](not_null<const HistoryItem*> item) {
 			return builder->removeOne(item->id);
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
@@ -370,6 +377,7 @@ void SearchController::requestMore(
 	}
 	auto prepared = PrepareSearchRequest(
 		listData->peer,
+		query.topicRootId,
 		query.type,
 		query.query,
 		key.aroundId,

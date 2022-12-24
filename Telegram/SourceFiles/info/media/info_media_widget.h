@@ -7,13 +7,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include <rpl/producer.h>
 #include "info/info_content_widget.h"
 #include "storage/storage_shared_media.h"
 #include "data/data_search_controller.h"
 
-namespace Info {
-namespace Media {
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
+namespace Info::Media {
 
 using Type = Storage::SharedMediaType;
 
@@ -24,8 +26,9 @@ class InnerWidget;
 
 class Memento final : public ContentMemento {
 public:
-	Memento(not_null<Controller*> controller);
+	explicit Memento(not_null<Controller*> controller);
 	Memento(not_null<PeerData*> peer, PeerId migratedPeerId, Type type);
+	Memento(not_null<Data::ForumTopic*> topic, Type type);
 
 	using SearchState = Api::DelayedSearchController::SavedState;
 
@@ -80,6 +83,12 @@ public:
 	}
 
 private:
+	Memento(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		PeerId migratedPeerId,
+		Type type);
+
 	Type _type = Type::Photo;
 	FullMsgId _aroundId;
 	int _idsLimit = 0;
@@ -120,5 +129,4 @@ private:
 
 };
 
-} // namespace Media
-} // namespace Info
+} // namespace Info::Media

@@ -7,6 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+#include "api/api_common.h"
 #include "mtproto/sender.h"
 #include "base/weak_ptr.h"
 #include "base/flags.h"
@@ -70,12 +71,12 @@ public:
 		QByteArray url;
 	};
 	void request(
-		not_null<PeerData*> peer,
+		const Api::SendAction &action,
 		const QString &botUsername,
 		const QString &startCommand);
 	void request(
 		Window::SessionController *controller,
-		not_null<PeerData*> peer,
+		const Api::SendAction &action,
 		not_null<UserData*> bot,
 		const WebViewButton &button);
 	void requestSimple(
@@ -97,7 +98,7 @@ public:
 	}
 
 	void requestAddToMenu(
-		PeerData *peer,
+		const std::optional<Api::SendAction> &action,
 		not_null<UserData*> bot,
 		const QString &startCommand,
 		Window::SessionController *controller = nullptr,
@@ -134,12 +135,11 @@ private:
 
 	const not_null<Main::Session*> _session;
 
-	PeerData *_peer = nullptr;
+	std::optional<Api::SendAction> _action;
 	UserData *_bot = nullptr;
 	QString _botUsername;
 	QString _startCommand;
 	QPointer<Ui::GenericBox> _confirmAddBox;
-	MsgId _replyToMsgId;
 
 	mtpRequestId _requestId = 0;
 	mtpRequestId _prolongId = 0;
@@ -147,7 +147,7 @@ private:
 	uint64 _botsHash = 0;
 	mtpRequestId _botsRequestId = 0;
 
-	PeerData *_addToMenuPeer = nullptr;
+	std::optional<Api::SendAction> _addToMenuAction;
 	UserData *_addToMenuBot = nullptr;
 	mtpRequestId _addToMenuId = 0;
 	QString _addToMenuStartCommand;
@@ -164,6 +164,7 @@ private:
 [[nodiscard]] std::unique_ptr<Ui::DropdownMenu> MakeAttachBotsMenu(
 	not_null<QWidget*> parent,
 	not_null<PeerData*> peer,
+	Fn<Api::SendAction()> actionFactory,
 	Fn<void(bool)> attach);
 
 } // namespace InlineBots

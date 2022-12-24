@@ -42,6 +42,7 @@ class Session;
 } // namespace Main
 
 namespace Data {
+class Thread;
 class WallPaper;
 struct ForwardDraft;
 } // namespace Data
@@ -143,7 +144,7 @@ public:
 	void windowShown();
 
 	void dialogsToUp();
-	void checkHistoryActivation();
+	void checkActivation();
 
 	[[nodiscard]] PeerData *peer() const;
 	[[nodiscard]] Ui::ChatTheme *customChatTheme() const;
@@ -166,20 +167,22 @@ public:
 		not_null<DocumentData*> document,
 		Api::SendOptions options);
 
-	bool isActive() const;
-	[[nodiscard]] bool doWeMarkAsRead() const;
-
-	void saveFieldToHistoryLocalDraft();
+	[[nodiscard]] bool animatingShow() const;
 
 	void showForwardLayer(Data::ForwardDraft &&draft);
 	void showSendPathsLayer();
 	void shareUrlLayer(const QString &url, const QString &text);
 	void inlineSwitchLayer(const QString &botAndQuery);
 	void hiderLayer(base::unique_qptr<Window::HistoryHider> h);
-	bool setForwardDraft(PeerId peer, Data::ForwardDraft &&draft);
-	bool sendPaths(PeerId peerId);
-	void onFilesOrForwardDrop(const PeerId &peer, const QMimeData *data);
+	bool setForwardDraft(
+		not_null<Data::Thread*> thread,
+		Data::ForwardDraft &&draft);
+	bool sendPaths(not_null<Data::Thread*> thread);
+	bool onFilesOrForwardDrop(
+		not_null<Data::Thread*> thread,
+		not_null<const QMimeData*> data);
 	bool selectingPeer() const;
+	void clearSelectingPeer();
 
 	void sendBotCommand(Bot::SendCommandRequest request);
 	void hideSingleUseKeyboard(PeerData *peer, MsgId replyTo);
@@ -194,8 +197,9 @@ public:
 	void checkChatBackground();
 	Image *newBackgroundThumb();
 
-	// Does offerPeer or showPeerHistory.
-	void choosePeer(PeerId peerId, MsgId showAtMsgId);
+	// Does offerThread or showThread.
+	void chooseThread(not_null<Data::Thread*> thread, MsgId showAtMsgId);
+	void chooseThread(not_null<PeerData*> peer, MsgId showAtMsgId);
 	void clearBotStartToken(PeerData *peer);
 
 	void ctrlEnterSubmitUpdated();
@@ -217,6 +221,9 @@ public:
 		PeerId peer,
 		const SectionShow &params,
 		MsgId msgId);
+	void showMessage(
+		not_null<const HistoryItem*> item,
+		const SectionShow &params);
 
 	bool notify_switchInlineBotButtonReceived(const QString &query, UserData *samePeerBot, MsgId samePeerReplyTo);
 
@@ -253,10 +260,12 @@ private:
 		-> std::shared_ptr<Window::SectionMemento>;
 
 	bool shareUrl(
-		PeerId peerId,
+		not_null<Data::Thread*> thread,
 		const QString &url,
 		const QString &text) const;
-	bool inlineSwitchChosen(PeerId peerId, const QString &botAndQuery) const;
+	bool inlineSwitchChosen(
+		not_null<Data::Thread*> thread,
+		const QString &botAndQuery) const;
 
 	void setupConnectingWidget();
 	void createPlayer();

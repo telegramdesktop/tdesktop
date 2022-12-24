@@ -21,6 +21,7 @@ struct ItemPreviewImage {
 struct ItemPreview {
 	TextWithEntities text;
 	std::vector<ItemPreviewImage> images;
+	int arrowInTextPosition = -1;
 	int imagesInTextPosition = 0;
 	std::any loadingContext;
 };
@@ -31,7 +32,7 @@ struct ToPreviewOptions {
 	bool hideCaption = false;
 	bool generateImages = true;
 	bool ignoreGroup = false;
-	bool ignoreSpoilers = false;
+	bool ignoreTopic = true;
 };
 
 } // namespace HistoryView

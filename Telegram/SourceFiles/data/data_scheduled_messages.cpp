@@ -30,8 +30,7 @@ constexpr auto kRequestTimeLimit = 60 * crl::time(1000);
 }
 
 [[nodiscard]] MsgId LocalToRemoteMsgId(MsgId id) {
-	Expects(id > ServerMaxMsgId);
-	Expects(id < ServerMaxMsgId + ScheduledMsgIdsRange);
+	Expects(IsScheduledMsgId(id));
 
 	return (id - ServerMaxMsgId - 1);
 }

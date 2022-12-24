@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "editor/photo_editor_common.h"
 #include "ui/image/image.h"
 
+enum class ImageRoundRadius;
+
 namespace Ui {
 struct PreparedFile;
 } // namespace Ui
@@ -34,12 +36,14 @@ void OpenWithPreparedFile(
 void PrepareProfilePhoto(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::Controller*> controller,
+	ImageRoundRadius radius,
 	Fn<void(QImage &&image)> &&doneCallback,
 	QImage &&image);
 
 void PrepareProfilePhotoFromFile(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Window::Controller*> controller,
+	ImageRoundRadius radius,
 	Fn<void(QImage &&image)> &&doneCallback);
 
 class PhotoEditor;

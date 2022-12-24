@@ -18,7 +18,6 @@ public:
 		None,
 		GroupAdmin,
 		ChannelAdmin,
-		ShareGame,
 		All,
 	};
 	static void Start(
@@ -50,11 +49,9 @@ private:
 	[[nodiscard]] bool onlyAdminToChannel() const;
 
 	bool needToCreateRow(not_null<PeerData*> peer) const;
-	bool sharingBotGame() const;
 	QString noResultsText() const;
 	void updateLabels();
 
-	void shareBotGame(not_null<PeerData*> chat);
 	void addBotToGroup(not_null<PeerData*> chat);
 	void requestExistingRights(not_null<ChannelData*> channel);
 

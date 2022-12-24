@@ -29,6 +29,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/stickers/data_stickers.h"
 #include "data/stickers/data_custom_emoji.h"
 #include "data/data_web_page.h"
@@ -41,7 +42,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "history/view/controls/history_view_voice_record_bar.h"
 #include "history/view/controls/history_view_ttl_button.h"
+#include "history/view/controls/history_view_forward_panel.h"
 #include "history/view/history_view_webpage_preview.h"
+#include "inline_bots/bot_attach_web_view.h"
 #include "inline_bots/inline_results_widget.h"
 #include "inline_bots/inline_bot_result.h"
 #include "lang/lang_keys.h"
@@ -53,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text_options.h"
 #include "ui/ui_utility.h"
 #include "ui/widgets/input_fields.h"
+#include "ui/widgets/dropdown_menu.h"
 #include "ui/text/format_values.h"
 #include "ui/controls/emoji_button.h"
 #include "ui/controls/send_button.h"
@@ -68,6 +72,7 @@ namespace {
 
 constexpr auto kSaveDraftTimeout = crl::time(1000);
 constexpr auto kSaveDraftAnywayTimeout = 5 * crl::time(1000);
+constexpr auto kSaveCloudDraftIdleTimeout = 14 * crl::time(1000);
 constexpr auto kMouseEvents = {
 	QEvent::MouseMove,
 	QEvent::MouseButtonPress,
@@ -85,7 +90,8 @@ using MessageToEdit = ComposeControls::MessageToEdit;
 using VoiceToSend = ComposeControls::VoiceToSend;
 using SendActionUpdate = ComposeControls::SendActionUpdate;
 using SetHistoryArgs = ComposeControls::SetHistoryArgs;
-using VoiceRecordBar = HistoryView::Controls::VoiceRecordBar;
+using VoiceRecordBar = Controls::VoiceRecordBar;
+using ForwardPanel = Controls::ForwardPanel;
 
 [[nodiscard]] auto ShowWebPagePreview(WebPageData *page) {
 	return page && (page->pendingTill >= 0);
@@ -327,13 +333,18 @@ rpl::producer<WebPageData*> WebpageProcessor::pageDataChanges() const {
 
 class FieldHeader final : public Ui::RpWidget {
 public:
-	FieldHeader(QWidget *parent, not_null<Data::Session*> data);
+	FieldHeader(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller);
 
 	void setHistory(const SetHistoryArgs &args);
 	void init();
 
 	void editMessage(FullMsgId id);
 	void replyToMessage(FullMsgId id);
+	void updateForwarding(
+		Data::Thread *thread,
+		Data::ResolvedForwardDraft items);
 	void previewRequested(
 		rpl::producer<QString> title,
 		rpl::producer<QString> description,
@@ -341,6 +352,7 @@ public:
 
 	[[nodiscard]] bool isDisplayed() const;
 	[[nodiscard]] bool isEditingMessage() const;
+	[[nodiscard]] bool readyToForward() const;
 	[[nodiscard]] FullMsgId replyingToMessage() const;
 	[[nodiscard]] rpl::producer<FullMsgId> editMsgId() const;
 	[[nodiscard]] rpl::producer<FullMsgId> scrollToItemRequests() const;
@@ -353,6 +365,9 @@ public:
 	}
 	[[nodiscard]] rpl::producer<> replyCancelled() const {
 		return _replyCancelled.events();
+	}
+	[[nodiscard]] rpl::producer<> forwardCancelled() const {
+		return _forwardCancelled.events();
 	}
 	[[nodiscard]] rpl::producer<> previewCancelled() const {
 		return _previewCancelled.events();
@@ -370,6 +385,9 @@ private:
 
 	void paintWebPage(Painter &p, not_null<PeerData*> peer);
 	void paintEditOrReplyToMessage(Painter &p);
+	void paintForwardInfo(Painter &p);
+
+	bool hasPreview() const;
 
 	struct Preview {
 		WebPageData *data = nullptr;
@@ -378,6 +396,7 @@ private:
 		bool cancelled = false;
 	};
 
+	const not_null<Window::SessionController*> _controller;
 	History *_history = nullptr;
 	rpl::variable<QString> _title;
 	rpl::variable<QString> _description;
@@ -385,12 +404,13 @@ private:
 	Preview _preview;
 	rpl::event_stream<> _editCancelled;
 	rpl::event_stream<> _replyCancelled;
+	rpl::event_stream<> _forwardCancelled;
 	rpl::event_stream<> _previewCancelled;
-
-	bool hasPreview() const;
 
 	rpl::variable<FullMsgId> _editMsgId;
 	rpl::variable<FullMsgId> _replyToId;
+	std::unique_ptr<ForwardPanel> _forwardPanel;
+	rpl::producer<> _toForwardUpdated;
 
 	HistoryItem *_shownMessage = nullptr;
 	Ui::Text::String _shownMessageName;
@@ -408,9 +428,14 @@ private:
 
 };
 
-FieldHeader::FieldHeader(QWidget *parent, not_null<Data::Session*> data)
+FieldHeader::FieldHeader(
+	QWidget *parent,
+	not_null<Window::SessionController*> controller)
 : RpWidget(parent)
-, _data(data)
+, _controller(controller)
+, _forwardPanel(
+	std::make_unique<ForwardPanel>([=] { customEmojiRepaint(); }))
+, _data(&controller->session().data())
 , _cancel(Ui::CreateChild<Ui::IconButton>(this, st::historyReplyCancel)) {
 	resize(QSize(parent->width(), st::historyReplyHeight));
 	init();
@@ -426,6 +451,11 @@ void FieldHeader::init() {
 		updateControlsGeometry(size);
 	}, lifetime());
 
+	_forwardPanel->itemsUpdated(
+	) | rpl::start_with_next([=] {
+		updateVisible();
+	}, lifetime());
+
 	const auto leftIconPressed = lifetime().make_state<bool>(false);
 	paintRequest(
 	) | rpl::start_with_next([=] {
@@ -435,15 +465,19 @@ void FieldHeader::init() {
 		const auto position = st::historyReplyIconPosition;
 		if (isEditingMessage()) {
 			st::historyEditIcon.paint(p, position, width());
+		} else if (readyToForward()) {
+			st::historyForwardIcon.paint(p, position, width());
 		} else if (replyingToMessage()) {
 			st::historyReplyIcon.paint(p, position, width());
 		}
 
-		(!ShowWebPagePreview(_preview.data) || *leftIconPressed)
-			? paintEditOrReplyToMessage(p)
-			: paintWebPage(
+		(ShowWebPagePreview(_preview.data) && !*leftIconPressed)
+			? paintWebPage(
 				p,
-				_history ? _history->peer : _data->session().user());
+				_history ? _history->peer : _data->session().user())
+			: (isEditingMessage() || !readyToForward())
+			? paintEditOrReplyToMessage(p)
+			: paintForwardInfo(p);
 	}, lifetime());
 
 	_editMsgId.value(
@@ -483,6 +517,8 @@ void FieldHeader::init() {
 			_previewCancelled.fire({});
 		} else if (_editMsgId.current()) {
 			_editCancelled.fire({});
+		} else if (readyToForward()) {
+			_forwardCancelled.fire({});
 		} else if (_replyToId.current()) {
 			_replyCancelled.fire({});
 		}
@@ -511,7 +547,9 @@ void FieldHeader::init() {
 	events(
 	) | rpl::filter([=](not_null<QEvent*> event) {
 		return ranges::contains(kMouseEvents, event->type())
-			&& (isEditingMessage() || replyingToMessage());
+			&& (isEditingMessage()
+				|| readyToForward()
+				|| replyingToMessage());
 	}) | rpl::start_with_next([=](not_null<QEvent*> event) {
 		const auto type = event->type();
 		const auto e = static_cast<QMouseEvent*>(event.get());
@@ -534,10 +572,14 @@ void FieldHeader::init() {
 				*leftIconPressed = true;
 				update();
 			} else if (isLeftButton && inPreviewRect) {
-				auto id = isEditingMessage()
-					? _editMsgId.current()
-					: replyingToMessage();
-				_scrollToItemRequests.fire(std::move(id));
+				if (!isEditingMessage() && readyToForward()) {
+					_forwardPanel->editOptions(_controller);
+				} else {
+					auto id = isEditingMessage()
+						? _editMsgId.current()
+						: replyingToMessage();
+					_scrollToItemRequests.fire(std::move(id));
+				}
 			}
 		} else if (type == QEvent::MouseButtonRelease) {
 			if (isLeftButton && *leftIconPressed) {
@@ -757,6 +799,17 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 	});
 }
 
+void FieldHeader::paintForwardInfo(Painter &p) {
+	_repaintScheduled = false;
+
+	const auto replySkip = st::historyReplySkip;
+	const auto availableWidth = width()
+		- replySkip
+		- _cancel->width()
+		- st::msgReplyPadding.right();
+	_forwardPanel->paint(p, replySkip, 0, availableWidth, width());
+}
+
 void FieldHeader::updateVisible() {
 	isDisplayed() ? show() : hide();
 	_visibleChanged.fire(isVisible());
@@ -767,11 +820,18 @@ rpl::producer<bool> FieldHeader::visibleChanged() {
 }
 
 bool FieldHeader::isDisplayed() const {
-	return isEditingMessage() || replyingToMessage() || hasPreview();
+	return isEditingMessage()
+		|| readyToForward()
+		|| replyingToMessage()
+		|| hasPreview();
 }
 
 bool FieldHeader::isEditingMessage() const {
 	return !!_editMsgId.current();
+}
+
+bool FieldHeader::readyToForward() const {
+	return !_forwardPanel->empty();
 }
 
 FullMsgId FieldHeader::replyingToMessage() const {
@@ -805,6 +865,15 @@ void FieldHeader::editMessage(FullMsgId id) {
 
 void FieldHeader::replyToMessage(FullMsgId id) {
 	_replyToId = id;
+}
+
+void FieldHeader::updateForwarding(
+		Data::Thread *thread,
+		Data::ResolvedForwardDraft items) {
+	_forwardPanel->update(thread, std::move(items));
+	if (readyToForward()) {
+		replyToMessage({});
+	}
 }
 
 rpl::producer<FullMsgId> FieldHeader::editMsgId() const {
@@ -859,9 +928,7 @@ ComposeControls::ComposeControls(
 , _autocomplete(std::make_unique<FieldAutocomplete>(
 		parent,
 		window))
-, _header(std::make_unique<FieldHeader>(
-		_wrap.get(),
-		&_window->session().data()))
+, _header(std::make_unique<FieldHeader>(_wrap.get(), _window))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
 		_wrap.get(),
 		parent,
@@ -870,7 +937,8 @@ ComposeControls::ComposeControls(
 		st::historySendSize.height()))
 , _sendMenuType(sendMenuType)
 , _unavailableEmojiPasted(unavailableEmojiPasted)
-, _saveDraftTimer([=] { saveDraft(); }) {
+, _saveDraftTimer([=] { saveDraft(); })
+, _saveCloudDraftTimer([=] { saveCloudDraft(); }) {
 	init();
 }
 
@@ -888,9 +956,10 @@ Main::Session &ComposeControls::session() const {
 void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	// Right now only single non-null set of history is supported.
 	// Otherwise initWebpageProcess should be updated / rewritten.
-	Expects(!_history && *args.history);
+	Expects(!_history && (*args.history));
 
 	_showSlowmodeError = std::move(args.showSlowmodeError);
+	_sendActionFactory = std::move(args.sendActionFactory);
 	_slowmodeSecondsLeft = rpl::single(0)
 		| rpl::then(std::move(args.slowmodeSecondsLeft));
 	_sendDisabledBySlowmode = rpl::single(false)
@@ -898,9 +967,9 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_writeRestriction = rpl::single(std::optional<QString>())
 		| rpl::then(std::move(args.writeRestriction));
 	const auto history = *args.history;
-	//if (_history == history) {
-	//	return;
-	//}
+	if (_history == history) {
+		return;
+	}
 	unregisterDraftSources();
 	_history = history;
 	_header->setHistory(args);
@@ -908,12 +977,14 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	_window->tabbedSelector()->setCurrentPeer(
 		history ? history->peer.get() : nullptr);
 	initWebpageProcess();
+	initForwardProcess();
 	updateBotCommandShown();
 	updateMessagesTTLShown();
 	updateControlsGeometry(_wrap->size());
 	updateControlsVisibility();
 	updateFieldPlaceholder();
 	updateSendAsButton();
+	updateAttachBotsMenu();
 	//if (!_history) {
 	//	return;
 	//}
@@ -934,7 +1005,10 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 }
 
 void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
+	unregisterDraftSources();
 	_currentDialogsEntryState = state;
+	updateForwarding();
+	registerDraftSource();
 	if (_inlineResults) {
 		_inlineResults->setCurrentDialogsEntryState(state);
 	}
@@ -1049,9 +1123,9 @@ rpl::producer<MessageToEdit> ComposeControls::editRequests() const {
 		std::move(submits) | filter | toValue);
 }
 
-rpl::producer<> ComposeControls::attachRequests() const {
+rpl::producer<std::optional<bool>> ComposeControls::attachRequests() const {
 	return rpl::merge(
-		_attachToggle->clicks() | rpl::to_empty,
+		_attachToggle->clicks() | rpl::map_to(std::optional<bool>()),
 		_attachRequests.events()
 	) | rpl::filter([=] {
 		if (isEditingMessage()) {
@@ -1086,6 +1160,9 @@ void ComposeControls::showStarted() {
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
 	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideFast();
+	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
 	}
@@ -1102,6 +1179,9 @@ void ComposeControls::showFinished() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideFast();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideFast();
 	}
 	if (_voiceRecordBar) {
 		_voiceRecordBar->hideFast();
@@ -1122,6 +1202,9 @@ void ComposeControls::raisePanels() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->raise();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->raise();
 	}
 	if (_raiseEmojiSuggestions) {
 		_raiseEmojiSuggestions();
@@ -1169,16 +1252,18 @@ void ComposeControls::setFieldText(
 
 void ComposeControls::saveFieldToHistoryLocalDraft() {
 	const auto key = draftKeyCurrent();
-	if (!_history || key == Data::DraftKey::None()) {
+	if (!_history || !key) {
 		return;
 	}
 	const auto id = _header->getDraftMessageId();
 	if (_preview && (id || !_field->empty())) {
+		const auto key = draftKeyCurrent();
 		_history->setDraft(
-			draftKeyCurrent(),
+			key,
 			std::make_unique<Data::Draft>(
 				_field,
 				_header->getDraftMessageId(),
+				key.topicRootId(),
 				_preview->state()));
 	} else {
 		_history->clearDraft(draftKeyCurrent());
@@ -1197,6 +1282,9 @@ void ComposeControls::hidePanelsAnimated() {
 	}
 	if (_tabbedPanel) {
 		_tabbedPanel->hideAnimated();
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->hideAnimated();
 	}
 	if (_inlineResults) {
 		_inlineResults->hideAnimated();
@@ -1307,6 +1395,11 @@ void ComposeControls::init() {
 		cancelReplyMessage();
 	}, _wrap->lifetime());
 
+	_header->forwardCancelled(
+	) | rpl::start_with_next([=] {
+		cancelForward();
+	}, _wrap->lifetime());
+
 	_header->visibleChanged(
 	) | rpl::start_with_next([=](bool shown) {
 		updateHeight();
@@ -1339,6 +1432,16 @@ void ComposeControls::init() {
 		}, _wrap->lifetime());
 	}
 
+	_window->materializeLocalDraftsRequests(
+	) | rpl::start_with_next([=] {
+		saveFieldToHistoryLocalDraft();
+	}, _wrap->lifetime());
+
+	session().attachWebView().attachBotsUpdates(
+	) | rpl::start_with_next([=] {
+		updateAttachBotsMenu();
+	}, _wrap->lifetime());
+
 	orderControls();
 }
 
@@ -1352,7 +1455,7 @@ bool ComposeControls::showRecordButton() const {
 		&& !_voiceRecordBar->isListenState()
 		&& !_voiceRecordBar->isRecordingByAnotherBar()
 		&& !HasSendText(_field)
-		//&& !readyToForward()
+		&& !readyToForward()
 		&& !isEditingMessage();
 }
 
@@ -1494,19 +1597,17 @@ void ComposeControls::initAutocomplete() {
 			_field->insertTag(string);
 		}
 	};
-	const auto insertMention = [=](not_null<UserData*> user) {
-		if (user->username.isEmpty()) {
+
+	_autocomplete->mentionChosen(
+	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
+		const auto user = data.user;
+		if (data.mention.isEmpty()) {
 			_field->insertTag(
 				user->firstName.isEmpty() ? user->name() : user->firstName,
 				PrepareMentionTag(user));
 		} else {
-			_field->insertTag('@' + user->username);
+			_field->insertTag('@' + data.mention);
 		}
-	};
-
-	_autocomplete->mentionChosen(
-	) | rpl::start_with_next([=](FieldAutocomplete::MentionChosen data) {
-		insertMention(data.user);
 	}, _autocomplete->lifetime());
 
 	_autocomplete->hashtagChosen(
@@ -1602,7 +1703,7 @@ void ComposeControls::updateFieldPlaceholder() {
 	if (!isEditingMessage() && _isInlineBot) {
 		_field->setPlaceholder(
 			rpl::single(_inlineBot->botInfo->inlinePlaceholder.mid(1)),
-			_inlineBot->username.size() + 2);
+			_inlineBot->username().size() + 2);
 		return;
 	}
 
@@ -1660,6 +1761,7 @@ void ComposeControls::fieldChanged() {
 		}
 	});
 
+	_saveCloudDraftTimer.cancel();
 	if (!(_textUpdateEvents & TextUpdateEvent::SaveDraft)) {
 		return;
 	}
@@ -1680,15 +1782,14 @@ Data::DraftKey ComposeControls::draftKey(DraftType type) const {
 
 	switch (_currentDialogsEntryState.section) {
 	case Section::History:
-		return (type == DraftType::Edit) ? Key::LocalEdit() : Key::Local();
+	case Section::Replies:
+		return (type == DraftType::Edit)
+			? Key::LocalEdit(_currentDialogsEntryState.rootId)
+			: Key::Local(_currentDialogsEntryState.rootId);
 	case Section::Scheduled:
 		return (type == DraftType::Edit)
 			? Key::ScheduledEdit()
 			: Key::Scheduled();
-	case Section::Replies:
-		return (type == DraftType::Edit)
-			? Key::RepliesEdit(_currentDialogsEntryState.rootId)
-			: Key::Replies(_currentDialogsEntryState.rootId);
 	}
 	return Key::None();
 }
@@ -1708,6 +1809,10 @@ void ComposeControls::saveDraft(bool delayed) {
 		}
 	}
 	writeDrafts();
+}
+
+void ComposeControls::saveCloudDraft() {
+	session().api().saveCurrentDraftToCloud();
 }
 
 void ComposeControls::writeDraftTexts() {
@@ -1774,9 +1879,15 @@ void ComposeControls::writeDrafts() {
 	}
 	_saveDraftText = false;
 
-	//if (!isEditingMessage() && !_inlineBot) {
-	//	_saveCloudDraftTimer.callOnce(kSaveCloudDraftIdleTimeout);
-	//}
+	if (!isEditingMessage() && !_inlineBot) {
+		_saveCloudDraftTimer.callOnce(kSaveCloudDraftIdleTimeout);
+	}
+}
+
+void ComposeControls::applyCloudDraft() {
+	if (!isEditingMessage()) {
+		applyDraft(Ui::InputField::HistoryAction::NewEntry);
+	}
 }
 
 void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
@@ -1815,8 +1926,18 @@ void ComposeControls::applyDraft(FieldHistoryAction fieldHistoryAction) {
 		_header->replyToMessage({});
 	} else {
 		_header->replyToMessage({ _history->peer->id, draft->msgId });
+		if (_header->replyingToMessage()) {
+			cancelForward();
+		}
 		_header->editMessage({});
 	}
+}
+
+void ComposeControls::cancelForward() {
+	_history->setForwardDraft(
+		_currentDialogsEntryState.rootId,
+		{});
+	updateForwarding();
 }
 
 void ComposeControls::fieldTabbed() {
@@ -2208,10 +2329,12 @@ void ComposeControls::updateOuterGeometry(QRect rect) {
 	if (_inlineResults) {
 		_inlineResults->moveBottom(rect.y());
 	}
+	const auto bottom = rect.y() + rect.height() - _attachToggle->height();
 	if (_tabbedPanel) {
-		_tabbedPanel->moveBottomRight(
-			rect.y() + rect.height() - _attachToggle->height(),
-			rect.x() + rect.width());
+		_tabbedPanel->moveBottomRight(bottom, rect.x() + rect.width());
+	}
+	if (_attachBotsMenu) {
+		_attachBotsMenu->moveToLeft(0, bottom - _attachBotsMenu->height());
 	}
 }
 
@@ -2256,6 +2379,28 @@ bool ComposeControls::updateSendAsButton() {
 	return true;
 }
 
+void ComposeControls::updateAttachBotsMenu() {
+	_attachBotsMenu = nullptr;
+	if (!_history || !_sendActionFactory) {
+		return;
+	}
+	_attachBotsMenu = InlineBots::MakeAttachBotsMenu(
+		_parent,
+		_history->peer,
+		_sendActionFactory,
+		[=](bool compress) { _attachRequests.fire_copy(compress); });
+	if (!_attachBotsMenu) {
+		return;
+	}
+	_attachBotsMenu->setOrigin(
+		Ui::PanelAnimation::Origin::BottomLeft);
+	_attachToggle->installEventFilter(_attachBotsMenu.get());
+	_attachBotsMenu->heightValue(
+	) | rpl::start_with_next([=] {
+		updateOuterGeometry(_wrap->geometry());
+	}, _attachBotsMenu->lifetime());
+}
+
 void ComposeControls::paintBackground(QRect clip) {
 	Painter p(_wrap.get());
 
@@ -2271,7 +2416,7 @@ void ComposeControls::escape() {
 }
 
 bool ComposeControls::pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) {
 	if (!_tabbedPanel) {
 		return true;
@@ -2328,8 +2473,10 @@ void ComposeControls::toggleTabbedSelectorMode() {
 				&& !_window->adaptive().isOneColumn()) {
 			Core::App().settings().setTabbedSelectorSectionEnabled(true);
 			Core::App().saveSettingsDelayed();
+			const auto topic = _history->peer->forumTopicFor(
+				_currentDialogsEntryState.rootId);
 			pushTabbedSelectorToThirdSection(
-				_history->peer,
+				(topic ? topic : (Data::Thread*)_history),
 				Window::SectionShow::Way::ClearStack);
 		} else {
 			_tabbedPanel->toggleAnimated();
@@ -2381,11 +2528,13 @@ void ComposeControls::editMessage(not_null<HistoryItem*> item) {
 	const auto previewState = previewPage
 		? Data::PreviewState::Allowed
 		: Data::PreviewState::EmptyOnEdit;
+	const auto key = draftKey(DraftType::Edit);
 	_history->setDraft(
-		draftKey(DraftType::Edit),
+		key,
 		std::make_unique<Data::Draft>(
 			editData,
 			item->id,
+			key.topicRootId(),
 			cursor,
 			previewState));
 	applyDraft();
@@ -2425,11 +2574,15 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 				std::make_unique<Data::Draft>(
 					TextWithTags(),
 					id.msg,
+					key.topicRootId(),
 					MessageCursor(),
 					Data::PreviewState::Allowed));
 		}
 	} else {
 		_header->replyToMessage(id);
+		if (_header->replyingToMessage()) {
+			cancelForward();
+		}
 	}
 
 	_saveDraftText = true;
@@ -2439,7 +2592,6 @@ void ComposeControls::replyToMessage(FullMsgId id) {
 
 void ComposeControls::cancelReplyMessage() {
 	Expects(_history != nullptr);
-	Expects(draftKeyCurrent() != Data::DraftKey::None());
 
 	const auto wasReply = replyingToMessage();
 	_header->replyToMessage({});
@@ -2460,15 +2612,29 @@ void ComposeControls::cancelReplyMessage() {
 	}
 }
 
+void ComposeControls::updateForwarding() {
+	const auto rootId = _currentDialogsEntryState.rootId;
+	const auto thread = (_history && rootId)
+		? _history->peer->forumTopicFor(rootId)
+		: (Data::Thread*)_history;
+	_header->updateForwarding(thread, thread
+		? _history->resolveForwardDraft(rootId)
+		: Data::ResolvedForwardDraft());
+	updateSendButtonType();
+}
+
 bool ComposeControls::handleCancelRequest() {
 	if (_isInlineBot) {
 		cancelInlineBot();
 		return true;
+	} else if (_autocomplete && !_autocomplete->isHidden()) {
+		_autocomplete->hideAnimated();
+		return true;
 	} else if (isEditingMessage()) {
 		cancelEditMessage();
 		return true;
-	} else if (_autocomplete && !_autocomplete->isHidden()) {
-		_autocomplete->hideAnimated();
+	} else if (readyToForward()) {
+		cancelForward();
 		return true;
 	} else if (replyingToMessage()) {
 		cancelReplyMessage();
@@ -2523,6 +2689,22 @@ void ComposeControls::initWebpageProcess() {
 		_preview->pageDataChanges());
 }
 
+void ComposeControls::initForwardProcess() {
+	using EntryUpdateFlag = Data::EntryUpdate::Flag;
+	session().changes().entryUpdates(
+		EntryUpdateFlag::ForwardDraft
+	) | rpl::start_with_next([=](const Data::EntryUpdate &update) {
+		if (const auto topic = update.entry->asTopic()) {
+			if (topic->history() == _history
+				&& topic->rootId() == _currentDialogsEntryState.rootId) {
+				updateForwarding();
+			}
+		}
+	}, _wrap->lifetime());
+
+	updateForwarding();
+}
+
 WebPageId ComposeControls::webPageId() const {
 	return _header->webPageId();
 }
@@ -2543,6 +2725,10 @@ bool ComposeControls::isEditingMessage() const {
 
 FullMsgId ComposeControls::replyingToMessage() const {
 	return _header->replyingToMessage();
+}
+
+bool ComposeControls::readyToForward() const {
+	return _header->readyToForward();
 }
 
 bool ComposeControls::isLockPresent() const {
@@ -2663,9 +2849,9 @@ void ComposeControls::applyInlineBotQuery(
 				if (result.open) {
 					const auto request = result.result->openRequest();
 					if (const auto photo = request.photo()) {
-						_window->openPhoto(photo, FullMsgId());
+						_window->openPhoto(photo, {}, {});
 					} else if (const auto document = request.document()) {
-						_window->openDocument(document, FullMsgId());
+						_window->openDocument(document, {}, {});
 					}
 				} else {
 					_inlineResultChosen.fire_copy(result);

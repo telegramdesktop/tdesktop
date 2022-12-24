@@ -7,10 +7,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/value_ordering.h"
 #include "ui/text/text.h" // For QFIXED_MAX
 #include "data/data_peer_id.h"
 #include "data/data_msg_id.h"
+#include "base/qt/qt_compare.h"
 
 class HistoryItem;
 using HistoryItemsList = std::vector<not_null<HistoryItem*>>;
@@ -84,9 +84,9 @@ struct MessageGroupId {
 		return value;
 	}
 
-	friend inline std::pair<uint64, uint64> value_ordering_helper(MessageGroupId value) {
-		return std::make_pair(value.value, value.peer.value);
-	}
+	friend inline constexpr auto operator<=>(
+		MessageGroupId,
+		MessageGroupId) noexcept = default;
 
 };
 

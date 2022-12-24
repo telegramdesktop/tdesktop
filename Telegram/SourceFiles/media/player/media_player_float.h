@@ -33,6 +33,21 @@ class Instance;
 namespace Media {
 namespace Player {
 
+class RoundPainter {
+public:
+	RoundPainter(not_null<HistoryItem*> item);
+
+	bool fillFrame(const QSize &size);
+	const QImage &frame() const;
+
+private:
+	const not_null<HistoryItem*> _item;
+
+	QImage _roundingMask;
+	QImage _frame;
+
+};
+
 class Float : public Ui::RpWidget, private base::Subscriber {
 public:
 	Float(
@@ -85,7 +100,6 @@ private:
 	void repaintItem();
 	void prepareShadow();
 	bool hasFrame() const;
-	bool fillFrame();
 	[[nodiscard]] QRect getInnerRect() const;
 	void finishDrag(bool closed);
 	void pauseResume();
@@ -93,10 +107,11 @@ private:
 	HistoryItem *_item = nullptr;
 	Fn<void(bool visible)> _toggleCallback;
 
+	std::unique_ptr<RoundPainter> _roundPainter;
+
 	float64 _opacity = 1.;
 
 	QPixmap _shadow;
-	QImage _frame;
 	bool _down = false;
 	QPoint _downPoint;
 

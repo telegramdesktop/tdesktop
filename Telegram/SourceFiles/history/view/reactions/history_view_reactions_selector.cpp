@@ -967,7 +967,7 @@ AttachSelectorResult MakeJustSelectorMenu(
 			state.toggling);
 	}, selector->lifetime());
 
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	controller->enableGifPauseReason(
 		Window::GifPauseReason::MediaPreview);
 	QObject::connect(menu.get(), &QObject::destroyed, [weak] {
@@ -1040,7 +1040,7 @@ AttachSelectorResult AttachSelectorToMenu(
 			state.toggling);
 	}, selector->lifetime());
 
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	controller->enableGifPauseReason(
 		Window::GifPauseReason::MediaPreview);
 	QObject::connect(menu.get(), &QObject::destroyed, [weak] {

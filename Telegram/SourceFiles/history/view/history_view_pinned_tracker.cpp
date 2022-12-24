@@ -27,24 +27,26 @@ constexpr auto kChangeViewerLimit = 2;
 
 } // namespace
 
-PinnedTracker::PinnedTracker(not_null<History*> history)
-: _history(history->migrateToOrMe())
-, _migratedPeer(_history->peer->migrateFrom()) {
+PinnedTracker::PinnedTracker(not_null<Data::Thread*> thread)
+: _thread(thread->migrateToOrMe())
+, _migratedPeer(_thread->asHistory()
+	? _thread->asHistory()->peer->migrateFrom()
+	: nullptr) {
 	using namespace rpl::mappers;
-	const auto has = [&](History *history) -> rpl::producer<bool> {
-		auto &changes = _history->session().changes();
-		const auto flag = Data::HistoryUpdate::Flag::PinnedMessages;
-		if (!history) {
+	const auto has = [&](Data::Thread *thread) -> rpl::producer<bool> {
+		auto &changes = _thread->session().changes();
+		const auto flag = Data::EntryUpdate::Flag::HasPinnedMessages;
+		if (!thread) {
 			return rpl::single(false);
 		}
-		return changes.historyFlagsValue(history, flag) | rpl::map([=] {
-			return history->hasPinnedMessages();
+		return changes.entryFlagsValue(thread, flag) | rpl::map([=] {
+			return thread->hasPinnedMessages();
 		});
 	};
 	rpl::combine(
-		has(_history),
+		has(_thread),
 		has(_migratedPeer
-			? _history->owner().history(_migratedPeer).get()
+			? _thread->owner().history(_migratedPeer).get()
 			: nullptr),
 		_1 || _2
 	) | rpl::distinct_until_changed(
@@ -77,11 +79,13 @@ void PinnedTracker::refreshViewer() {
 	}
 	_dataLifetime.destroy();
 	_viewerAroundId = _aroundId;
+	const auto peer = _thread->peer();
 	SharedMediaMergedViewer(
-		&_history->peer->session(),
+		&peer->session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
-				_history->peer->id,
+				peer->id,
+				_thread->topicRootId(),
 				_migratedPeer ? _migratedPeer->id : 0,
 				_viewerAroundId),
 			Storage::SharedMediaType::Pinned),
@@ -99,9 +103,9 @@ void PinnedTracker::refreshViewer() {
 		}
 		refreshCurrentFromSlice();
 		if (_slice.fullCount == 0) {
-			_history->setHasPinnedMessages(false);
+			_thread->setHasPinnedMessages(false);
 			if (_migratedPeer) {
-				const auto to = _history->owner().history(_migratedPeer);
+				const auto to = _thread->owner().history(_migratedPeer);
 				to->setHasPinnedMessages(false);
 			}
 		}

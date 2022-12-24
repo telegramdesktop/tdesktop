@@ -1082,6 +1082,7 @@ bool ReadSetting(
 		for (auto i = v.begin(), e = v.end(); i != e; ++i) {
 			context.sessionSettings().setHiddenPinnedMessageId(
 				DeserializePeerId(i.key()),
+				MsgId(0), // topicRootId
 				MsgId(i.value()));
 		}
 		context.legacyRead = true;

@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_chat_participant_status.h"
 
+#include "boxes/peers/edit_peer_permissions_box.h"
+
 namespace {
 
 [[nodiscard]] ChatAdminRights ChatAdminRightsFlags(
@@ -43,22 +45,12 @@ ChatRestrictionsInfo::ChatRestrictionsInfo(const MTPChatBannedRights &rights)
 
 namespace Data {
 
-std::vector<ChatRestrictions> ListOfRestrictions() {
-	using Flag = ChatRestriction;
-
-	return {
-		Flag::SendMessages,
-		Flag::SendMedia,
-		Flag::SendStickers
-		| Flag::SendGifs
-		| Flag::SendGames
-		| Flag::SendInline,
-		Flag::EmbedLinks,
-		Flag::SendPolls,
-		Flag::InviteUsers,
-		Flag::PinMessages,
-		Flag::ChangeInfo,
-	};
+std::vector<ChatRestrictions> ListOfRestrictions(
+		RestrictionsSetOptions options) {
+	auto labels = RestrictionLabels(options);
+	return ranges::views::all(labels)
+		| ranges::views::transform(&RestrictionLabel::flags)
+		| ranges::to_vector;
 }
 
 } // namespace Data

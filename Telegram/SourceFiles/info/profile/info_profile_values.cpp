@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_chat.h"
 #include "data/data_user.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_premium_limits.h"
 #include "boxes/peers/edit_peer_permissions_box.h"
@@ -46,12 +47,24 @@ auto PlainAboutValue(not_null<PeerData*> peer) {
 }
 
 auto PlainUsernameValue(not_null<PeerData*> peer) {
-	return peer->session().changes().peerFlagsValue(
-		peer,
-		UpdateFlag::Username
+	return rpl::merge(
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
 	) | rpl::map([=] {
 		return peer->userName();
 	});
+}
+
+auto PlainPrimaryUsernameValue(not_null<PeerData*> peer) {
+	return UsernamesValue(
+		peer
+	) | rpl::map([=](std::vector<TextWithEntities> usernames) {
+		if (!usernames.empty()) {
+			return rpl::single(usernames.front().text) | rpl::type_erased();
+		} else {
+			return PlainUsernameValue(peer) | rpl::type_erased();
+		}
+	}) | rpl::flatten_latest();
 }
 
 void StripExternalLinks(TextWithEntities &text) {
@@ -74,13 +87,32 @@ void StripExternalLinks(TextWithEntities &text) {
 
 } // namespace
 
-rpl::producer<TextWithEntities> NameValue(not_null<PeerData*> peer) {
+rpl::producer<QString> NameValue(not_null<PeerData*> peer) {
 	return peer->session().changes().peerFlagsValue(
 		peer,
 		UpdateFlag::Name
-	) | rpl::map([=] {
-		return peer->name();
-	}) | Ui::Text::ToWithEntities();
+	) | rpl::map([=] { return peer->name(); });
+}
+
+rpl::producer<QString> TitleValue(not_null<Data::ForumTopic*> topic) {
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::Title
+	) | rpl::map([=] { return topic->title(); });
+}
+
+rpl::producer<DocumentId> IconIdValue(not_null<Data::ForumTopic*> topic) {
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::IconId
+	) | rpl::map([=] { return topic->iconId(); });
+}
+
+rpl::producer<int32> ColorIdValue(not_null<Data::ForumTopic*> topic) {
+	return topic->session().changes().topicFlagsValue(
+		topic,
+		Data::TopicUpdate::Flag::ColorId
+	) | rpl::map([=] { return topic->colorId(); });
 }
 
 rpl::producer<TextWithEntities> PhoneValue(not_null<UserData*> user) {
@@ -111,14 +143,45 @@ rpl::producer<TextWithEntities> PhoneOrHiddenValue(not_null<UserData*> user) {
 	});
 }
 
-rpl::producer<TextWithEntities> UsernameValue(not_null<UserData*> user) {
-	return PlainUsernameValue(
-		user
+rpl::producer<TextWithEntities> UsernameValue(
+		not_null<UserData*> user,
+		bool primary) {
+	return (primary
+		? PlainPrimaryUsernameValue(user)
+		: (PlainUsernameValue(user) | rpl::type_erased())
 	) | rpl::map([](QString &&username) {
 		return username.isEmpty()
 			? QString()
 			: ('@' + username);
 	}) | Ui::Text::ToWithEntities();
+}
+
+rpl::producer<std::vector<TextWithEntities>> UsernamesValue(
+		not_null<PeerData*> peer) {
+	const auto map = [=](const std::vector<QString> &usernames) {
+		return ranges::views::all(
+			usernames
+		) | ranges::views::transform([&](const QString &u) {
+			return Ui::Text::Link(
+				u,
+				peer->session().createInternalLinkFull(u));
+		}) | ranges::to_vector;
+	};
+	auto value = rpl::merge(
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Username),
+		peer->session().changes().peerFlagsValue(peer, UpdateFlag::Usernames)
+	);
+	if (const auto user = peer->asUser()) {
+		return std::move(value) | rpl::map([=] {
+			return map(user->usernames());
+		});
+	} else if (const auto channel = peer->asChannel()) {
+		return std::move(value) | rpl::map([=] {
+			return map(channel->usernames());
+		});
+	} else {
+		return rpl::single(std::vector<TextWithEntities>());
+	}
 }
 
 TextWithEntities AboutWithEntities(
@@ -157,9 +220,10 @@ rpl::producer<TextWithEntities> AboutValue(not_null<PeerData*> peer) {
 	});
 }
 
-rpl::producer<QString> LinkValue(not_null<PeerData*> peer) {
-	return PlainUsernameValue(
-		peer
+rpl::producer<QString> LinkValue(not_null<PeerData*> peer, bool primary) {
+	return (primary
+		? PlainPrimaryUsernameValue(peer)
+		: PlainUsernameValue(peer) | rpl::type_erased()
 	) | rpl::map([=](QString &&username) {
 		return username.isEmpty()
 			? QString()
@@ -175,6 +239,27 @@ rpl::producer<const ChannelLocation*> LocationValue(
 	) | rpl::map([=] {
 		return channel->getLocation();
 	});
+}
+
+rpl::producer<bool> NotificationsEnabledValue(
+		not_null<Data::Thread*> thread) {
+	const auto topic = thread->asTopic();
+	if (!topic) {
+		return NotificationsEnabledValue(thread->peer());
+	}
+	return rpl::merge(
+		topic->session().changes().topicFlagsValue(
+			topic,
+			Data::TopicUpdate::Flag::Notifications
+		) | rpl::to_empty,
+		topic->session().changes().peerUpdates(
+			topic->channel(),
+			UpdateFlag::Notifications
+		) | rpl::to_empty,
+		topic->owner().notifySettings().defaultUpdates(topic->channel())
+	) | rpl::map([=] {
+		return !topic->owner().notifySettings().isMuted(topic);
+	}) | rpl::distinct_until_changed();
 }
 
 rpl::producer<bool> NotificationsEnabledValue(not_null<PeerData*> peer) {
@@ -333,12 +418,15 @@ rpl::producer<int> AdminsCountValue(not_null<PeerData*> peer) {
 
 
 rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
-	const auto countOfRestrictions = [](ChatRestrictions restrictions) {
+	const auto countOfRestrictions = [](
+			Data::RestrictionsSetOptions options,
+			ChatRestrictions restrictions) {
 		auto count = 0;
-		for (const auto &f : Data::ListOfRestrictions()) {
+		const auto list = Data::ListOfRestrictions(options);
+		for (const auto &f : list) {
 			if (restrictions & f) count++;
 		}
-		return int(Data::ListOfRestrictions().size()) - count;
+		return int(list.size()) - count;
 	};
 
 	if (const auto chat = peer->asChat()) {
@@ -346,14 +434,18 @@ rpl::producer<int> RestrictionsCountValue(not_null<PeerData*> peer) {
 			peer,
 			UpdateFlag::Rights
 		) | rpl::map([=] {
-			return countOfRestrictions(chat->defaultRestrictions());
+			return countOfRestrictions({}, chat->defaultRestrictions());
 		});
 	} else if (const auto channel = peer->asChannel()) {
-		return peer->session().changes().peerFlagsValue(
-			peer,
-			UpdateFlag::Rights
+		return rpl::combine(
+			Data::PeerFlagValue(channel, ChannelData::Flag::Forum),
+			channel->session().changes().peerFlagsValue(
+				channel,
+				UpdateFlag::Rights)
 		) | rpl::map([=] {
-			return countOfRestrictions(channel->defaultRestrictions());
+			return countOfRestrictions(
+				{ .isForum = channel->isForum() },
+				channel->defaultRestrictions());
 		});
 	}
 	Unexpected("User in RestrictionsCountValue().");
@@ -397,6 +489,7 @@ rpl::producer<int> KickedCountValue(not_null<ChannelData*> channel) {
 
 rpl::producer<int> SharedMediaCountValue(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated,
 		Storage::SharedMediaType type) {
 	auto aroundId = 0;
@@ -406,6 +499,7 @@ rpl::producer<int> SharedMediaCountValue(
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				peer->id,
+				topicRootId,
 				migrated ? migrated->id : 0,
 				aroundId),
 			type),

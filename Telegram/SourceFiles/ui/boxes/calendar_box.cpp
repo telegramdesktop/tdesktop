@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/cached_round_corners.h"
 #include "lang/lang_keys.h"
 #include "styles/style_boxes.h"
+#include "styles/style_chat.h"
 
 namespace Ui {
 namespace {
@@ -415,8 +416,7 @@ CalendarBox::FloatingDate::FloatingDate(
 , _corners(
 	PrepareCornerPixmaps(
 		HistoryServiceMsgRadius(),
-		st::roundedBg,
-		nullptr)) {
+		st::roundedBg)) {
 	_context->monthValue(
 	) | rpl::start_with_next([=](QDate month) {
 		_text = langMonthOfYearFull(month.month(), month.year());
@@ -669,7 +669,7 @@ void CalendarBox::Inner::mousePressEvent(QMouseEvent *e) {
 		auto cell = QRect(rowsLeft() + col * _st.cellSize.width(), rowsTop() + row * _st.cellSize.height(), _st.cellSize.width(), _st.cellSize.height());
 		auto it = _ripples.find(_selected);
 		if (it == _ripples.cend()) {
-			auto mask = RippleAnimation::ellipseMask(QSize(_st.cellInner, _st.cellInner));
+			auto mask = RippleAnimation::EllipseMask(QSize(_st.cellInner, _st.cellInner));
 			auto update = [this, cell] { rtlupdate(cell); };
 			it = _ripples.emplace(_selected, std::make_unique<RippleAnimation>(st::defaultRippleAnimation, std::move(mask), std::move(update))).first;
 		}

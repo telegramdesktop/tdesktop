@@ -16,6 +16,11 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace MTP {
+class Error;
+struct Response;
+} // namespace MTP
+
 namespace Data {
 
 class Session;
@@ -90,6 +95,37 @@ public:
 		Fn<mtpRequestId(Fn<void()> finish)> generator);
 	void cancelRequest(int id);
 
+	using PreparedMessage = std::variant<
+		MTPmessages_SendMessage,
+		MTPmessages_SendMedia,
+		MTPmessages_SendInlineBotResult,
+		MTPmessages_SendMultiMedia>;
+	int sendPreparedMessage(
+		not_null<History*> history,
+		MsgId replyTo,
+		MsgId topicRootId,
+		uint64 randomId,
+		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message,
+		Fn<void(const MTPUpdates&, const MTP::Response&)> done,
+		Fn<void(const MTP::Error&, const MTP::Response&)> fail);
+
+	struct ReplyToPlaceholder {
+	};
+	struct TopicRootPlaceholder {
+	};
+	template <typename RequestType, typename ...Args>
+	static Fn<Histories::PreparedMessage(MsgId, MsgId)> PrepareMessage(
+			const Args &...args) {
+		return [=](MsgId replyTo, MsgId topicRootId) -> RequestType {
+			return { ReplaceReplyIds(args, replyTo, topicRootId)... };
+		};
+	}
+
+	void checkTopicCreated(FullMsgId rootId, MsgId realRoot);
+	[[nodiscard]] MsgId convertTopicReplyTo(
+		not_null<History*> history,
+		MsgId replyTo) const;
+
 private:
 	struct PostponedHistoryRequest {
 		Fn<mtpRequestId(Fn<void()> finish)> generator;
@@ -112,6 +148,33 @@ private:
 		MsgId aroundId = 0;
 		mtpRequestId requestId = 0;
 	};
+	struct DelayedByTopicMessage {
+		uint64 randomId = 0;
+		MsgId replyTo = 0;
+		Fn<PreparedMessage(MsgId replyTo, MsgId topicRootId)> message;
+		Fn<void(const MTPUpdates&, const MTP::Response&)> done;
+		Fn<void(const MTP::Error&, const MTP::Response&)> fail;
+		int requestId = 0;
+	};
+	struct GroupRequestKey {
+		not_null<History*> history;
+		MsgId rootId = 0;
+
+		friend inline auto operator<=>(
+			GroupRequestKey,
+			GroupRequestKey) = default;
+	};
+
+	template <typename Arg>
+	static auto ReplaceReplyIds(Arg arg, MsgId replyTo, MsgId topicRootId) {
+		if constexpr (std::is_same_v<Arg, ReplyToPlaceholder>) {
+			return MTP_int(replyTo);
+		} else if constexpr (std::is_same_v<Arg, TopicRootPlaceholder>) {
+			return MTP_int(topicRootId);
+		} else {
+			return arg;
+		}
+	}
 
 	void readInboxTill(not_null<History*> history, MsgId tillId, bool force);
 	void sendReadRequests();
@@ -128,6 +191,12 @@ private:
 	void postponeRequestDialogEntries();
 
 	void sendDialogRequests();
+
+	[[nodiscard]] bool isCreatingTopic(
+		not_null<History*> history,
+		MsgId rootId) const;
+	void sendCreateTopicRequest(not_null<History*> history, MsgId rootId);
+	void cancelDelayedByTopicRequest(int id);
 
 	const not_null<Session*> _owner;
 
@@ -148,8 +217,14 @@ private:
 	base::flat_set<not_null<History*>> _fakeChatListRequests;
 
 	base::flat_map<
-		not_null<History*>,
+		GroupRequestKey,
 		ChatListGroupRequest> _chatListGroupRequests;
+
+	base::flat_map<
+		FullMsgId,
+		std::vector<DelayedByTopicMessage>> _creatingTopics;
+	base::flat_map<FullMsgId, MsgId> _createdTopicIds;
+	base::flat_set<mtpRequestId> _creatingTopicRequests;
 
 };
 

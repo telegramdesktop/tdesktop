@@ -71,8 +71,18 @@ void Dropdown::paintEvent(QPaintEvent *e) {
 	auto shadowedRect = rect().marginsRemoved(getMargin());
 	auto shadowedSides = RectPart::Left | RectPart::Right | RectPart::Bottom;
 	Ui::Shadow::paint(p, shadowedRect, width(), st::defaultRoundShadow, shadowedSides);
-	auto parts = RectPart::NoTopBottom | RectPart::FullBottom;
-	Ui::FillRoundRect(p, QRect(shadowedRect.x(), -st::roundRadiusSmall, shadowedRect.width(), shadowedRect.y() + shadowedRect.height() + st::roundRadiusSmall), st::menuBg, Ui::MenuCorners, nullptr, parts);
+	const auto &corners = Ui::CachedCornerPixmaps(Ui::MenuCorners);
+	const auto fill = Ui::CornersPixmaps{
+		.p = { QPixmap(), QPixmap(), corners.p[2], corners.p[3] },
+	};
+	Ui::FillRoundRect(
+		p,
+		shadowedRect.x(),
+		0,
+		shadowedRect.width(),
+		shadowedRect.y() + shadowedRect.height(),
+		st::menuBg,
+		fill);
 }
 
 void Dropdown::enterEventHook(QEnterEvent *e) {

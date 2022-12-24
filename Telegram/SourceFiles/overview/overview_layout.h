@@ -433,7 +433,7 @@ private:
 	std::shared_ptr<Data::DocumentMedia> _documentMedia;
 	int _pixw = 0;
 	int _pixh = 0;
-	Ui::Text::String _text = { st::msgMinWidth };
+	Ui::Text::String _text;
 	QPixmap _thumbnail;
 	bool _thumbnailBlurred = true;
 

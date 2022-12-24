@@ -13,6 +13,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "ui/image/image.h"
+#include "styles/style_chat.h"
 
 namespace Data {
 

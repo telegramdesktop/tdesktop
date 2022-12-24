@@ -7,7 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-class PeerData;
+namespace Data {
+class Thread;
+} // namespace Data
 
 namespace Ui {
 class PopupMenu;
@@ -17,18 +19,15 @@ class Show;
 
 namespace MuteMenu {
 
-struct Args {
-	not_null<PeerData*> peer;
-	std::shared_ptr<Ui::Show> show;
-};
-
 void FillMuteMenu(
 	not_null<Ui::PopupMenu*> menu,
-	Args args);
+	not_null<Data::Thread*> thread,
+	std::shared_ptr<Ui::Show> show);
 
 void SetupMuteMenu(
 	not_null<Ui::RpWidget*> parent,
 	rpl::producer<> triggers,
-	Args args);
+	Fn<Data::Thread*()> makeThread,
+	std::shared_ptr<Ui::Show> show);
 
 } // namespace MuteMenu

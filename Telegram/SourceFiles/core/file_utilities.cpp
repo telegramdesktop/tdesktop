@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
+#include "storage/storage_account.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/platform_file_utilities.h"
@@ -23,6 +24,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QCoreApplication>
 #include <QtCore/QStandardPaths>
 #include <QtGui/QDesktopServices>
+
+#include <ksandbox.h>
 
 bool filedialogGetSaveFile(
 		QPointer<QWidget> parent,
@@ -75,7 +78,7 @@ QString filedialogDefaultName(
 	QString base;
 	if (fileTime) {
 		const auto date = base::unixtime::parse(fileTime);
-		base = prefix + date.toString("_yyyy-MM-dd_HH-mm-ss");
+		base = prefix + QLocale().toString(date, "_yyyy-MM-dd_HH-mm-ss");
 	} else {
 		struct tm tm;
 		time_t t = time(NULL);
@@ -171,11 +174,32 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	return QStandardPaths::writableLocation(
+	static auto Choosing = false;
+	const auto realDefaultPath = QStandardPaths::writableLocation(
 		QStandardPaths::DownloadLocation)
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
+	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
+		if (Choosing) {
+			return session->local().tempDirectory();
+		}
+		Choosing = true;
+		FileDialog::GetFolder(
+			nullptr,
+			tr::lng_download_path_choose(tr::now),
+			realDefaultPath,
+			[](const QString &result) {
+				Core::App().settings().setDownloadPath(result.endsWith('/')
+					? result
+					: (result + '/'));
+				Core::App().saveSettings();
+				Choosing = false;
+			},
+			[] { Choosing = false; });
+		return session->local().tempDirectory();
+	}
+	return realDefaultPath;
 }
 
 namespace internal {

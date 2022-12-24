@@ -7,8 +7,21 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace style {
+struct DialogRow;
+} // namespace style
+
+namespace st {
+extern const style::DialogRow &defaultDialogRow;
+} // namespace st
+
 namespace Ui {
 } // namespace Ui
+
+namespace Data {
+class Forum;
+class Folder;
+} // namespace Data
 
 namespace Dialogs {
 class Row;
@@ -22,39 +35,43 @@ using namespace ::Ui;
 
 class VideoUserpic;
 
+struct PaintContext {
+	not_null<const style::DialogRow*> st;
+	Data::Folder *folder = nullptr;
+	Data::Forum *forum = nullptr;
+	FilterId filter = 0;
+	crl::time now = 0;
+	int width = 0;
+	bool active = false;
+	bool selected = false;
+	bool paused = false;
+	bool search = false;
+	bool narrow = false;
+	bool displayUnreadInfo = false;
+};
+
 const style::icon *ChatTypeIcon(
 	not_null<PeerData*> peer,
-	bool active,
-	bool selected);
+	const PaintContext &context = { .st = &st::defaultDialogRow });
 
 class RowPainter {
 public:
-	static void paint(
+	static void Paint(
 		Painter &p,
 		not_null<const Row*> row,
 		VideoUserpic *videoUserpic,
-		FilterId filterId,
-		int fullWidth,
-		bool active,
-		bool selected,
-		crl::time ms,
-		bool paused);
-	static void paint(
+		const PaintContext &context);
+	static void Paint(
 		Painter &p,
 		not_null<const FakeRow*> row,
-		int fullWidth,
-		bool active,
-		bool selected,
-		crl::time ms,
-		bool paused,
-		bool displayUnreadInfo);
-	static QRect sendActionAnimationRect(
+		const PaintContext &context);
+	static QRect SendActionAnimationRect(
+		not_null<const style::DialogRow*> st,
 		int animationLeft,
 		int animationWidth,
 		int animationHeight,
 		int fullWidth,
 		bool textUpdated);
-
 };
 
 void PaintCollapsedRow(
@@ -63,19 +80,18 @@ void PaintCollapsedRow(
 	Data::Folder *folder,
 	const QString &text,
 	int unread,
-	int fullWidth,
-	bool selected);
+	const PaintContext &context);
 
-enum UnreadBadgeSize {
-	UnreadBadgeInDialogs = 0,
-	UnreadBadgeInMainMenu,
-	UnreadBadgeInHistoryToDown,
-	UnreadBadgeInStickersPanel,
-	UnreadBadgeInStickersBox,
-	UnreadBadgeInTouchBar,
-	UnreadBadgeReactionInDialogs,
+enum class UnreadBadgeSize {
+	Dialogs,
+	MainMenu,
+	HistoryToDown,
+	StickersPanel,
+	StickersBox,
+	TouchBar,
+	ReactionInDialogs,
 
-	UnreadBadgeSizesCount
+	kCount,
 };
 struct UnreadBadgeStyle {
 	UnreadBadgeStyle();
@@ -87,13 +103,15 @@ struct UnreadBadgeStyle {
 	int textTop = 0;
 	int size = 0;
 	int padding = 0;
-	UnreadBadgeSize sizeId = UnreadBadgeInDialogs;
+	UnreadBadgeSize sizeId = UnreadBadgeSize::Dialogs;
 	style::font font;
 };
+
 [[nodiscard]] QSize CountUnreadBadgeSize(
 	const QString &unreadCount,
 	const UnreadBadgeStyle &st,
 	int allowDigits = 0);
+
 QRect PaintUnreadBadge(
 	QPainter &p,
 	const QString &t,
@@ -101,7 +119,5 @@ QRect PaintUnreadBadge(
 	int y,
 	const UnreadBadgeStyle &st,
 	int allowDigits = 0);
-
-void clearUnreadBadgesCache();
 
 } // namespace Dialogs::Ui

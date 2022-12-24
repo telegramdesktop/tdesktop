@@ -28,49 +28,6 @@ void EnsureCorners(
 	}
 }
 
-void RectWithCorners(
-		QPainter &p,
-		QRect rect,
-		const style::color &bg,
-		const CornersPixmaps &corners,
-		RectParts roundCorners) {
-	const auto parts = RectPart::Top
-		| RectPart::NoTopBottom
-		| RectPart::Bottom
-		| roundCorners;
-	FillRoundRect(p, rect, bg, corners, nullptr, parts);
-	if ((roundCorners & RectPart::AllCorners) != RectPart::AllCorners) {
-		const auto size = corners.p[0].width() / style::DevicePixelRatio();
-		if (!(roundCorners & RectPart::TopLeft)) {
-			p.fillRect(rect.x(), rect.y(), size, size, bg);
-		}
-		if (!(roundCorners & RectPart::TopRight)) {
-			p.fillRect(
-				rect.x() + rect.width() - size,
-				rect.y(),
-				size,
-				size,
-				bg);
-		}
-		if (!(roundCorners & RectPart::BottomLeft)) {
-			p.fillRect(
-				rect.x(),
-				rect.y() + rect.height() - size,
-				size,
-				size,
-				bg);
-		}
-		if (!(roundCorners & RectPart::BottomRight)) {
-			p.fillRect(
-				rect.x() + rect.width() - size,
-				rect.y() + rect.height() - size,
-				size,
-				size,
-				bg);
-		}
-	}
-}
-
 } // namespace
 
 not_null<const MessageStyle*> ChatPaintContext::messageStyle() const {
@@ -128,6 +85,7 @@ ChatStyle::ChatStyle() {
 	make(_msgBotKbWebviewIcon, st::msgBotKbWebviewIcon);
 	make(_historyFastCommentsIcon, st::historyFastCommentsIcon);
 	make(_historyFastShareIcon, st::historyFastShareIcon);
+	make(_historyFastTranscribeIcon, st::historyFastTranscribeIcon);
 	make(_historyGoToOriginalIcon, st::historyGoToOriginalIcon);
 	make(_historyMapPoint, st::historyMapPoint);
 	make(_historyMapPointInner, st::historyMapPointInner);
@@ -461,6 +419,11 @@ ChatStyle::ChatStyle() {
 		st::historyVideoMessageMuteSelected);
 }
 
+ChatStyle::ChatStyle(not_null<const style::palette*> isolated)
+: ChatStyle() {
+	assignPalette(isolated);
+}
+
 void ChatStyle::apply(not_null<ChatTheme*> theme) {
 	const auto themePalette = theme->palette();
 	assignPalette(themePalette
@@ -480,18 +443,23 @@ void ChatStyle::assignPalette(not_null<const style::palette*> palette) {
 	*static_cast<style::palette*>(this) = *palette;
 	style::internal::resetIcons();
 	for (auto &style : _messageStyles) {
-		style.msgBgCorners = {};
+		style.msgBgCornersSmall = {};
+		style.msgBgCornersLarge = {};
 	}
 	for (auto &style : _imageStyles) {
 		style.msgDateImgBgCorners = {};
-		style.msgServiceBgCorners = {};
-		style.msgShadowCorners = {};
+		style.msgServiceBgCornersSmall = {};
+		style.msgServiceBgCornersLarge = {};
+		style.msgShadowCornersSmall = {};
+		style.msgShadowCornersLarge = {};
 	}
 	_serviceBgCornersNormal = {};
 	_serviceBgCornersInverted = {};
-	_msgBotKbOverBgAddCorners = {};
-	_msgSelectOverlayCornersSmall = {};
-	_msgSelectOverlayCornersLarge = {};
+	_msgBotKbOverBgAddCornersSmall = {};
+	_msgBotKbOverBgAddCornersLarge = {};
+	for (auto &corners : _msgSelectOverlayCorners) {
+		corners = {};
+	}
 
 	for (auto &stm : _messageStyles) {
 		const auto same = (stm.textPalette.linkFg->c == stm.historyTextFg->c);
@@ -533,8 +501,13 @@ const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	auto &result = messageStyleRaw(outbg, selected);
 	EnsureCorners(
-		result.msgBgCorners,
-		st::historyMessageRadius,
+		result.msgBgCornersSmall,
+		st::bubbleRadiusSmall,
+		result.msgBg,
+		&result.msgShadow);
+	EnsureCorners(
+		result.msgBgCornersLarge,
+		st::bubbleRadiusLarge,
 		result.msgBg,
 		&result.msgShadow);
 	return result;
@@ -544,41 +517,53 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 	auto &result = imageStyleRaw(selected);
 	EnsureCorners(
 		result.msgDateImgBgCorners,
-		st::dateRadius,
+		(st::msgDateImgPadding.y() * 2 + st::normalFont->height) / 2,
 		result.msgDateImgBg);
 	EnsureCorners(
-		result.msgServiceBgCorners,
-		st::dateRadius,
+		result.msgServiceBgCornersSmall,
+		st::bubbleRadiusSmall,
 		result.msgServiceBg);
 	EnsureCorners(
-		result.msgShadowCorners,
-		st::historyMessageRadius,
+		result.msgServiceBgCornersLarge,
+		st::bubbleRadiusLarge,
+		result.msgServiceBg);
+	EnsureCorners(
+		result.msgShadowCornersSmall,
+		st::bubbleRadiusSmall,
+		result.msgShadow);
+	EnsureCorners(
+		result.msgShadowCornersLarge,
+		st::bubbleRadiusLarge,
 		result.msgShadow);
 	return result;
 }
 
-const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCorners() const {
+const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
 	EnsureCorners(
-		_msgBotKbOverBgAddCorners,
-		st::dateRadius,
+		_msgBotKbOverBgAddCornersSmall,
+		st::bubbleRadiusSmall,
 		msgBotKbOverBgAdd());
-	return _msgBotKbOverBgAddCorners;
+	return _msgBotKbOverBgAddCornersSmall;
 }
 
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersSmall() const {
+const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersLarge() const {
 	EnsureCorners(
-		_msgSelectOverlayCornersSmall,
-		st::roundRadiusSmall,
-		msgSelectOverlay());
-	return _msgSelectOverlayCornersSmall;
+		_msgBotKbOverBgAddCornersLarge,
+		st::bubbleRadiusLarge,
+		msgBotKbOverBgAdd());
+	return _msgBotKbOverBgAddCornersLarge;
 }
 
-const CornersPixmaps &ChatStyle::msgSelectOverlayCornersLarge() const {
+const CornersPixmaps &ChatStyle::msgSelectOverlayCorners(
+		CachedCornerRadius radius) const {
+	const auto index = static_cast<int>(radius);
+	Assert(index >= 0 && index < int(CachedCornerRadius::kCount));
+
 	EnsureCorners(
-		_msgSelectOverlayCornersLarge,
-		st::historyMessageRadius,
+		_msgSelectOverlayCorners[index],
+		CachedCornerRadiusValue(radius),
 		msgSelectOverlay());
-	return _msgSelectOverlayCornersLarge;
+	return _msgSelectOverlayCorners[index];
 }
 
 MessageStyle &ChatStyle::messageStyleRaw(bool outbg, bool selected) const {
@@ -682,32 +667,116 @@ void ChatStyle::make(
 
 void FillComplexOverlayRect(
 		QPainter &p,
-		not_null<const ChatStyle*> st,
 		QRect rect,
-		ImageRoundRadius radius,
-		RectParts roundCorners) {
-	const auto bg = st->msgSelectOverlay();
-	if (radius == ImageRoundRadius::Ellipse) {
-		PainterHighQualityEnabler hq(p);
-		p.setPen(Qt::NoPen);
-		p.setBrush(bg);
-		p.drawEllipse(rect);
-	} else {
-		const auto &corners = (radius == ImageRoundRadius::Small)
-			? st->msgSelectOverlayCornersSmall()
-			: st->msgSelectOverlayCornersLarge();
-		RectWithCorners(p, rect, bg, corners, roundCorners);
+		const style::color &color,
+		const CornersPixmaps &corners) {
+	using namespace Images;
+
+	const auto pix = corners.p;
+	const auto fillRect = [&](QRect rect) {
+		p.fillRect(rect, color);
+	};
+	if (pix[kTopLeft].isNull()
+		&& pix[kTopRight].isNull()
+		&& pix[kBottomLeft].isNull()
+		&& pix[kBottomRight].isNull()) {
+		fillRect(rect);
+		return;
+	}
+
+	const auto ratio = style::DevicePixelRatio();
+	const auto fillCorner = [&](int left, int top, int index) {
+		p.drawPixmap(left, top, pix[index]);
+	};
+	const auto cornerSize = [&](int index) {
+		const auto &p = pix[index];
+		return p.isNull() ? 0 : p.width() / ratio;
+	};
+	const auto verticalSkip = [&](int left, int right) {
+		return std::max(cornerSize(left), cornerSize(right));
+	};
+	const auto top = verticalSkip(kTopLeft, kTopRight);
+	const auto bottom = verticalSkip(kBottomLeft, kBottomRight);
+	if (top) {
+		const auto left = cornerSize(kTopLeft);
+		const auto right = cornerSize(kTopRight);
+		if (left) {
+			fillCorner(rect.left(), rect.top(), kTopLeft);
+			if (const auto add = top - left) {
+				fillRect({ rect.left(), rect.top() + left, left, add });
+			}
+		}
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillRect({ rect.left() + left, rect.top(), fill, top });
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top(),
+				kTopRight);
+			if (const auto add = top - right) {
+				fillRect({
+					rect.left() + rect.width() - right,
+					rect.top() + right,
+					right,
+					add,
+				});
+			}
+		}
+	}
+	if (const auto h = rect.height() - top - bottom; h > 0) {
+		fillRect({ rect.left(), rect.top() + top, rect.width(), h });
+	}
+	if (bottom) {
+		const auto left = cornerSize(kBottomLeft);
+		const auto right = cornerSize(kBottomRight);
+		if (left) {
+			fillCorner(
+				rect.left(),
+				rect.top() + rect.height() - left,
+				kBottomLeft);
+			if (const auto add = bottom - left) {
+				fillRect({
+					rect.left(),
+					rect.top() + rect.height() - bottom,
+					left,
+					add,
+				});
+			}
+		}
+		if (const auto fill = rect.width() - left - right; fill > 0) {
+			fillRect({
+				rect.left() + left,
+				rect.top() + rect.height() - bottom,
+				fill,
+				bottom,
+			});
+		}
+		if (right) {
+			fillCorner(
+				rect.left() + rect.width() - right,
+				rect.top() + rect.height() - right,
+				kBottomRight);
+			if (const auto add = bottom - right) {
+				fillRect({
+					rect.left() + rect.width() - right,
+					rect.top() + rect.height() - bottom,
+					right,
+					add,
+				});
+			}
+		}
 	}
 }
 
-void FillComplexLocationRect(
+void FillComplexEllipse(
 		QPainter &p,
 		not_null<const ChatStyle*> st,
-		QRect rect,
-		ImageRoundRadius radius,
-		RectParts roundCorners) {
-	const auto stm = &st->messageStyle(false, false);
-	RectWithCorners(p, rect, stm->msgBg, stm->msgBgCorners, roundCorners);
+		QRect rect) {
+	PainterHighQualityEnabler hq(p);
+	p.setPen(Qt::NoPen);
+	p.setBrush(st->msgSelectOverlay());
+	p.drawEllipse(rect);
 }
 
 } // namespace Ui

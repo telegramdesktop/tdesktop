@@ -209,7 +209,7 @@ void BoxController::Row::refreshStatus() {
 		return;
 	}
 	auto text = [this] {
-		auto time = ItemDateTime(_items.front()).time().toString(cTimeFormat());
+		auto time = QLocale().toString(ItemDateTime(_items.front()).time(), cTimeFormat());
 		auto today = QDateTime::currentDateTime().date();
 		if (_date == today) {
 			return tr::lng_call_box_status_today(tr::now, lt_time, time);
@@ -258,7 +258,7 @@ BoxController::Row::CallType BoxController::Row::ComputeCallType(
 
 void BoxController::Row::rightActionAddRipple(QPoint point, Fn<void()> updateCallback) {
 	if (!_actionRipple) {
-		auto mask = Ui::RippleAnimation::ellipseMask(
+		auto mask = Ui::RippleAnimation::EllipseMask(
 			QSize(_st->rippleAreaSize, _st->rippleAreaSize));
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(
 			_st->ripple,

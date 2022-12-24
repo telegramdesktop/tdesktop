@@ -9,6 +9,38 @@ using "ui/basic.style";
 
 using "ui/widgets/widgets.style";
 
+DialogRow {
+	height: pixels;
+	padding: margins;
+	photoSize: pixels;
+	nameLeft: pixels;
+	nameTop: pixels;
+	textLeft: pixels;
+	textTop: pixels;
+}
+
+ForumTopicIcon {
+	size: pixels;
+	font: font;
+	textTop: pixels;
+}
+
+defaultForumTopicIcon: ForumTopicIcon {
+	size: 21px;
+	font: font(bold 11px);
+	textTop: 2px;
+}
+largeForumTopicIcon: ForumTopicIcon {
+	size: 26px;
+	font: font(bold 13px);
+	textTop: 3px;
+}
+infoForumTopicIcon: ForumTopicIcon {
+	size: 32px;
+	font: font(bold 15px);
+	textTop: 4px;
+}
+
 dialogsUnreadFont: font(12px bold);
 dialogsUnreadHeight: 19px;
 dialogsUnreadPadding: 5px;
@@ -25,14 +57,20 @@ dialogsTextStyle: TextStyle(defaultTextStyle) {
 }
 dialogsDateFont: font(13px);
 dialogsDateSkip: 5px;
-dialogsNameTop: 2px;
 
 dialogsRowHeight: 62px;
 dialogsFilterPadding: point(7px, 7px);
 dialogsFilterSkip: 4px;
-dialogsPhotoSize: 46px;
-dialogsPhotoPadding: 12px;
-dialogsPadding: point(10px, 8px);
+
+defaultDialogRow: DialogRow {
+	height: dialogsRowHeight;
+	padding: margins(10px, 8px, 10px, 8px);
+	photoSize: 46px;
+	nameLeft: 68px;
+	nameTop: 10px;
+	textLeft: 68px;
+	textTop: 34px;
+}
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
@@ -40,14 +78,12 @@ dialogsOnlineBadgeSkip: point(0px, 2px);
 dialogsOnlineBadgeDuration: 150;
 
 dialogsCallBadgeSize: 16px;
-dialogsCallBadgeSkip: point(-1px, 1px);
+dialogsCallBadgeSkip: point(-3px, -3px);
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
 
 dialogsImportantBarHeight: 37px;
-
-dialogsSkip: 8px;
 
 dialogsWidthDuration: 120;
 dialogsTextWidthMin: 150px;
@@ -170,12 +206,30 @@ dialogsSearchForNarrowFilters: IconButton(dialogsMenuToggle) {
 }
 dialogsSearchFromPadding: margins(10px, 10px, 10px, 10px);
 
-dialogsFilter: FlatInput(defaultFlatInput) {
-	font: font(fsize);
+dialogsFilter: InputField(defaultInputField) {
+	textBg: filterInputInactiveBg;
+	textBgActive: filterInputActiveBg;
+	textMargins: margins(12px, 7px, 30px, 3px);
 
-	width: 240px;
-	height: 32px;
-	textMrg: margins(12px, 3px, 30px, 3px);
+	placeholderFg: placeholderFg;
+	placeholderFgActive: placeholderFgActive;
+	placeholderFgError: placeholderFgActive;
+	placeholderMargins: margins(2px, 0px, 2px, 0px);
+	placeholderScale: 0.;
+	placeholderShift: -50px;
+	placeholderFont: normalFont;
+
+	borderFg: filterInputInactiveBg;
+	borderFgActive: filterInputBorderFg;
+	borderFgError: activeLineFgError;
+
+	border: 2px;
+	borderActive: 2px;
+	borderRadius: roundRadiusSmall;
+
+	font: normalFont;
+
+	heightMin: 32px;
 }
 dialogsCancelSearchInPeer: IconButton(dialogsMenuToggle) {
 	icon: icon {{ "dialogs/dialogs_cancel_search", dialogsMenuIconFg }};
@@ -217,7 +271,7 @@ dialogSearchFrom: IconButton(dialogCalendar) {
 	iconPosition: point(9px, 8px);
 }
 
-dialogsChatTypeSkip: 20px;
+dialogsChatTypeSkip: 3px;
 dialogsChatIcon: icon {{ "dialogs/dialogs_chat", dialogsChatIconFg, point(1px, 4px) }};
 dialogsChatIconOver: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgOver, point(1px, 4px) }};
 dialogsChatIconActive: icon {{ "dialogs/dialogs_chat", dialogsChatIconFgActive, point(1px, 4px) }};
@@ -227,6 +281,9 @@ dialogsChannelIconActive: icon {{ "dialogs/dialogs_channel", dialogsChatIconFgAc
 dialogsBotIcon: icon {{ "dialogs/dialogs_bot", dialogsChatIconFg, point(1px, 3px) }};
 dialogsBotIconOver: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgOver, point(1px, 3px) }};
 dialogsBotIconActive: icon {{ "dialogs/dialogs_bot", dialogsChatIconFgActive, point(1px, 3px) }};
+dialogsForumIcon: icon {{ "dialogs/dialogs_forum", dialogsChatIconFg, point(1px, 4px) }};
+dialogsForumIconOver: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, point(1px, 4px) }};
+dialogsForumIconActive: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
 
@@ -243,6 +300,9 @@ dialogsReceivedIconActive: icon {{ "dialogs/dialogs_received", dialogsSentIconFg
 dialogsPinnedIcon: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMuted }};
 dialogsPinnedIconOver: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedOver }};
 dialogsPinnedIconActive: icon {{ "dialogs/dialogs_pinned", dialogsUnreadBgMutedActive }};
+dialogsLockIcon: icon {{ "emoji/premium_lock", dialogsUnreadBgMuted, point(4px, 0px) }};
+dialogsLockIconOver: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedOver, point(4px, 0px) }};
+dialogsLockIconActive: icon {{ "emoji/premium_lock", dialogsUnreadBgMutedActive, point(4px, 0px) }};
 
 dialogsVerifiedIcon: icon {
 	{ "dialogs/dialogs_verified_star", dialogsVerifiedIconBg },
@@ -371,3 +431,36 @@ downloadLoadedSize: 30px;
 downloadIconDocument: icon {{ "dialogs/dialogs_downloads", windowFgActive }};
 downloadIconSize: 16px;
 downloadIconSizeDone: 20px;
+
+forumTopicRow: DialogRow(defaultDialogRow) {
+	height: 54px;
+	padding: margins(8px, 7px, 10px, 7px);
+	photoSize: 20px;
+	nameLeft: 39px;
+	nameTop: 7px;
+	textLeft: 68px;
+	textTop: 29px;
+}
+forumTopicIconPosition: point(2px, 0px);
+editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
+editTopicIconPosition: point(24px, 19px);
+editTopicMaxHeight: 408px;
+
+chooseTopicListItem: PeerListItem(defaultPeerListItem) {
+	height: 44px;
+	photoSize: 28px;
+	photoPosition: point(8px, 5px);
+	namePosition: point(55px, 11px);
+	nameStyle: TextStyle(defaultTextStyle) {
+		font: font(14px semibold);
+		linkFont: font(14px semibold);
+		linkFontOver: font(14px semibold);
+	}
+}
+chooseTopicList: PeerList(defaultPeerList) {
+	item: chooseTopicListItem;
+}
+
+dialogsTopicArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgService }};
+dialogsTopicArrowSkip: 13px;
+dialogsTopicArrowTop: 4px;

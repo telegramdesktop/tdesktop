@@ -9,10 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/timer.h"
 
-namespace Ui::Text {
-class CustomEmoji;
-} // namespace Ui::Text
-
 namespace Main {
 class Session;
 } // namespace Main
@@ -78,7 +74,6 @@ private:
 	bool _recentRequestScheduled = false;
 	uint64 _recentHash = 0;
 
-	base::Timer _defaultRefreshTimer;
 	mtpRequestId _defaultRequestId = 0;
 	uint64 _defaultHash = 0;
 

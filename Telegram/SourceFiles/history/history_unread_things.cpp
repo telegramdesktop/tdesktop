@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_changes.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -19,20 +20,29 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace HistoryUnreadThings {
 namespace {
 
-[[nodiscard]] Data::HistoryUpdate::Flag UpdateFlag(Type type) {
-	using Flag = Data::HistoryUpdate::Flag;
+template <typename Update>
+[[nodiscard]] typename Update::Flag UpdateFlag(Type type) {
+	using Flag = typename Update::Flag;
 	switch (type) {
 	case Type::Mentions: return Flag::UnreadMentions;
 	case Type::Reactions: return Flag::UnreadReactions;
 	}
-	Unexpected("Type in Proxy::addSlice.");
+	Unexpected("Type in HistoryUnreadThings::UpdateFlag.");
+}
+
+[[nodiscard]] Data::HistoryUpdate::Flag HistoryUpdateFlag(Type type) {
+	return UpdateFlag<Data::HistoryUpdate>(type);
+}
+
+[[nodiscard]] Data::TopicUpdate::Flag TopicUpdateFlag(Type type) {
+	return UpdateFlag<Data::TopicUpdate>(type);
 }
 
 } // namespace
 
 void Proxy::setCount(int count) {
 	if (!_known) {
-		_history->setUnreadThingsKnown();
+		_thread->setUnreadThingsKnown();
 	}
 	if (!_data) {
 		if (!count) {
@@ -57,18 +67,20 @@ void Proxy::setCount(int count) {
 		list.setCount(count);
 	}
 	const auto has = (count > 0);
-	if (has != had) {
+	if (has != had && _thread->inChatList()) {
 		if (_type == Type::Mentions) {
-			_history->owner().chatsFilters().refreshHistory(_history);
+			_thread->hasUnreadMentionChanged(has);
+		} else if (_type == Type::Reactions) {
+			_thread->hasUnreadReactionChanged(has);
 		}
-		_history->updateChatListEntry();
 	}
 }
 
 bool Proxy::add(MsgId msgId, AddType type) {
-	const auto peer = _history->peer;
-	if (peer->isChannel() && !peer->isMegagroup()) {
-		return false;
+	if (const auto history = _thread->asHistory()) {
+		if (history->peer->isBroadcast()) {
+			return false;
+		}
 	}
 
 	if (!_data) {
@@ -89,7 +101,6 @@ bool Proxy::add(MsgId msgId, AddType type) {
 		return true;
 	}
 	return false;
-
 }
 
 void Proxy::erase(MsgId msgId) {
@@ -101,9 +112,7 @@ void Proxy::erase(MsgId msgId) {
 	if (const auto count = list.count(); count > 0) {
 		setCount(count - 1);
 	}
-	_history->session().changes().historyUpdated(
-		_history,
-		UpdateFlag(_type));
+	notifyUpdated();
 }
 
 void Proxy::clear() {
@@ -113,15 +122,14 @@ void Proxy::clear() {
 	auto &list = resolveList();
 	list.clear();
 	setCount(0);
-	_history->session().changes().historyUpdated(
-		_history,
-		UpdateFlag(_type));
+	notifyUpdated();
 }
 
 void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	if (!alreadyLoaded && _data) {
 		resolveList().clear();
 	}
+	const auto history = _thread->owningHistory();
 	auto fullCount = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -132,8 +140,8 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	}, [&](const MTPDmessages_messagesSlice &data) {
 		return data.vcount().v;
 	}, [&](const MTPDmessages_channelMessages &data) {
-		if (_history->peer->isChannel()) {
-			_history->peer->asChannel()->ptsReceived(data.vpts().v);
+		if (const auto channel = history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
 		} else {
 			LOG(("API Error: received messages.channelMessages when "
 				"no channel was passed! (Proxy::addSlice)"));
@@ -141,7 +149,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		return data.vcount().v;
 	});
 
-	auto &owner = _history->owner();
+	auto &owner = _thread->owner();
 	const auto messages = slice.match([&](
 			const MTPDmessages_messagesNotModified &) {
 		LOG(("API Error: received messages.messagesNotModified! "
@@ -160,7 +168,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 	const auto localFlags = MessageFlags();
 	const auto type = NewMessageType::Existing;
 	for (const auto &message : messages) {
-		const auto item = _history->addNewMessage(
+		const auto item = history->addNewMessage(
 			IdFromMessage(message),
 			message,
 			localFlags,
@@ -181,9 +189,7 @@ void Proxy::addSlice(const MTPmessages_Messages &slice, int alreadyLoaded) {
 		fullCount = loadedCount();
 	}
 	setCount(fullCount);
-	_history->session().changes().historyUpdated(
-		_history,
-		UpdateFlag(_type));
+	notifyUpdated();
 }
 
 void Proxy::checkAdd(MsgId msgId, bool resolved) {
@@ -196,7 +202,7 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 	if (!list.loadedCount() || list.maxLoaded() <= msgId) {
 		return;
 	}
-	const auto history = _history;
+	const auto history = _thread->owningHistory();
 	const auto peer = history->peer;
 	const auto item = peer->owner().message(peer, msgId);
 	if (item && item->hasUnreadReaction()) {
@@ -208,6 +214,18 @@ void Proxy::checkAdd(MsgId msgId, bool resolved) {
 	}
 }
 
+void Proxy::notifyUpdated() {
+	if (const auto history = _thread->asHistory()) {
+		history->session().changes().historyUpdated(
+			history,
+			HistoryUpdateFlag(_type));
+	} else if (const auto topic = _thread->asTopic()) {
+		topic->session().changes().topicUpdated(
+			topic,
+			TopicUpdateFlag(_type));
+	}
+}
+
 void Proxy::createData() {
 	_data = std::make_unique<All>();
 	if (_known) {
@@ -216,7 +234,7 @@ void Proxy::createData() {
 	}
 }
 
-[[nodiscard]] List &Proxy::resolveList() {
+List &Proxy::resolveList() {
 	Expects(_data != nullptr);
 
 	switch (_type) {

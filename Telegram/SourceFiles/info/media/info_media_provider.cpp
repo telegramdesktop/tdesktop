@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_session.h"
 #include "data/data_chat.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "data/data_peer_values.h"
 #include "data/data_document.h"
@@ -61,6 +62,9 @@ constexpr auto kPreloadedScreensCountFull
 Provider::Provider(not_null<AbstractController*> controller)
 : _controller(controller)
 , _peer(_controller->key().peer())
+, _topicRootId(_controller->key().topic()
+	? _controller->key().topic()->rootId()
+	: 0)
 , _migrated(_controller->migrated())
 , _type(_controller->section().mediaType())
 , _slice(sliceKey(_universalAroundId)) {
@@ -348,14 +352,14 @@ void Provider::setSearchQuery(QString query) {
 SparseIdsMergedSlice::Key Provider::sliceKey(
 		UniversalMsgId universalId) const {
 	using Key = SparseIdsMergedSlice::Key;
-	if (_migrated) {
-		return Key(_peer->id, _migrated->id, universalId);
+	if (!_topicRootId && _migrated) {
+		return Key(_peer->id, _topicRootId, _migrated->id, universalId);
 	}
 	if (universalId < 0) {
 		// Convert back to plain id for non-migrated histories.
 		universalId = universalId + ServerMaxMsgId;
 	}
-	return Key(_peer->id, 0, universalId);
+	return Key(_peer->id, _topicRootId, 0, universalId);
 }
 
 void Provider::itemRemoved(not_null<const HistoryItem*> item) {

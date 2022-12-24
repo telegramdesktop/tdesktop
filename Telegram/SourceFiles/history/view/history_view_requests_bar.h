@@ -19,6 +19,7 @@ inline constexpr auto kRecentRequestsLimit = 3;
 
 [[nodiscard]] rpl::producer<Ui::RequestsBarContent> RequestsBarContentByPeer(
 	not_null<PeerData*> peer,
-	int userpicSize);
+	int userpicSize,
+	bool showInForum);
 
 } // namespace HistoryView

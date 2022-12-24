@@ -14,25 +14,35 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_forum_icons.h"
 #include "data/data_location.h"
 #include "data/data_histories.h"
 #include "data/data_group_call.h"
 #include "data/data_message_reactions.h"
 #include "data/data_peer_bot_command.h"
+#include "data/data_user_names.h"
+#include "data/notify/data_notify_settings.h"
 #include "main/main_session.h"
 #include "main/session/send_as_peers.h"
 #include "base/unixtime.h"
+#include "core/application.h"
 #include "history/history.h"
 #include "main/main_session.h"
 #include "api/api_chat_invite.h"
 #include "api/api_invite_links.h"
 #include "apiwrap.h"
+#include "window/notifications_manager.h"
 
 namespace {
 
 using UpdateFlag = Data::PeerUpdate::Flag;
 
 } // namespace
+
+MegagroupInfo::MegagroupInfo() = default;
+
+MegagroupInfo::~MegagroupInfo() = default;
 
 ChatData *MegagroupInfo::getMigrateFromChat() const {
 	return _migratedFrom;
@@ -55,35 +65,32 @@ Data::ChatBotCommands::Changed MegagroupInfo::setBotCommands(
 	return _botCommands.update(list);
 }
 
+void MegagroupInfo::ensureForum(not_null<ChannelData*> that) {
+	if (!_forum) {
+		const auto history = that->owner().history(that);
+		_forum = std::make_unique<Data::Forum>(history);
+		history->forumChanged(nullptr);
+	}
+}
+
+Data::Forum *MegagroupInfo::forum() const {
+	return _forum.get();
+}
+
+std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
+	if (auto result = base::take(_forum)) {
+		result->history()->forumChanged(result.get());
+		return result;
+	}
+	return nullptr;
+
+}
+
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
 : PeerData(owner, id)
 , inputChannel(
 	MTP_inputChannel(MTP_long(peerToChannel(id).bare), MTP_long(0)))
 , _ptsWaiter(&owner->session().updates()) {
-	_flags.changes(
-	) | rpl::start_with_next([=](const Flags::Change &change) {
-		if (change.diff
-			& (Flag::Left | Flag::Forbidden)) {
-			if (const auto chat = getMigrateFromChat()) {
-				session().changes().peerUpdated(chat, UpdateFlag::Migration);
-				session().changes().peerUpdated(this, UpdateFlag::Migration);
-			}
-		}
-		if (change.diff & Flag::Megagroup) {
-			if (change.value & Flag::Megagroup) {
-				if (!mgInfo) {
-					mgInfo = std::make_unique<MegagroupInfo>();
-				}
-			} else if (mgInfo) {
-				mgInfo = nullptr;
-			}
-		}
-		if (change.diff & Flag::CallNotEmpty) {
-			if (const auto history = this->owner().historyLoaded(this)) {
-				history->updateChatListEntry();
-			}
-		}
-	}, _lifetime);
 }
 
 void ChannelData::setPhoto(const MTPChatPhoto &photo) {
@@ -103,6 +110,39 @@ void ChannelData::setName(
 	updateNameDelayed(newName.isEmpty() ? name() : newName, {}, newUsername);
 }
 
+void ChannelData::setUsername(const QString &username) {
+	_username.setUsername(username);
+}
+
+void ChannelData::setUsernames(const Data::Usernames &newUsernames) {
+	const auto wasUsername = username();
+	const auto wasUsernames = usernames();
+	_username.setUsernames(newUsernames);
+	const auto nowUsername = username();
+	const auto nowUsernames = usernames();
+	session().changes().peerUpdated(
+		this,
+		UpdateFlag()
+		| ((wasUsername != nowUsername)
+			? UpdateFlag::Username
+			: UpdateFlag())
+		| (!ranges::equal(wasUsernames, nowUsernames)
+			? UpdateFlag::Usernames
+			: UpdateFlag()));
+}
+
+QString ChannelData::username() const {
+	return _username.username();
+}
+
+QString ChannelData::editableUsername() const {
+	return _username.editableUsername();
+}
+
+const std::vector<QString> &ChannelData::usernames() const {
+	return _username.usernames();
+}
+
 void ChannelData::setAccessHash(uint64 accessHash) {
 	access = accessHash;
 	input = MTP_inputPeerChannel(
@@ -113,13 +153,57 @@ void ChannelData::setAccessHash(uint64 accessHash) {
 		MTP_long(accessHash));
 }
 
+void ChannelData::setFlags(ChannelDataFlags which) {
+	const auto diff = flags() ^ which;
+	if ((which & Flag::Megagroup) && !mgInfo) {
+		mgInfo = std::make_unique<MegagroupInfo>();
+	}
+
+	// Let Data::Forum live till the end of _flags.set.
+	// That way the data can be used in changes handler.
+	// Example: render frame for forum auto-closing animation.
+	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
+		? mgInfo->takeForumData()
+		: nullptr;
+	if (const auto raw = taken.get()) {
+		owner().forumIcons().clearUserpicsReset(taken.get());
+	} else if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+		mgInfo->ensureForum(this);
+	}
+	_flags.set(which);
+	if (diff & (Flag::Left | Flag::Forbidden)) {
+		if (const auto chat = getMigrateFromChat()) {
+			session().changes().peerUpdated(chat, UpdateFlag::Migration);
+			session().changes().peerUpdated(this, UpdateFlag::Migration);
+		}
+	}
+	if (diff & (Flag::Forum | Flag::CallNotEmpty)) {
+		if (const auto history = this->owner().historyLoaded(this)) {
+			if (diff & Flag::CallNotEmpty) {
+				history->updateChatListEntry();
+			}
+			if (diff & Flag::Forum) {
+				Core::App().notifications().clearFromHistory(history);
+			}
+		}
+	}
+}
+
+void ChannelData::addFlags(ChannelDataFlags which) {
+	setFlags(flags() | which);
+}
+
+void ChannelData::removeFlags(ChannelDataFlags which) {
+	setFlags(flags() & ~which);
+}
+
 void ChannelData::setInviteLink(const QString &newInviteLink) {
 	_inviteLink = newInviteLink;
 }
 
 bool ChannelData::canHaveInviteLink() const {
 	return amCreator()
-		|| (adminRights() & AdminRight::InviteUsers);
+		|| (adminRights() & AdminRight::InviteByLinkOrAdd);
 }
 
 void ChannelData::setLocation(const MTPChannelLocation &data) {
@@ -443,7 +527,7 @@ bool ChannelData::canDeleteMessages() const {
 }
 
 bool ChannelData::anyoneCanAddMembers() const {
-	return !(defaultRestrictions() & Restriction::InviteUsers);
+	return !(defaultRestrictions() & Restriction::AddParticipants);
 }
 
 bool ChannelData::hiddenPreHistory() const {
@@ -452,8 +536,8 @@ bool ChannelData::hiddenPreHistory() const {
 
 bool ChannelData::canAddMembers() const {
 	return isMegagroup()
-		? !amRestricted(ChatRestriction::InviteUsers)
-		: ((adminRights() & AdminRight::InviteUsers) || amCreator());
+		? !amRestricted(ChatRestriction::AddParticipants)
+		: ((adminRights() & AdminRight::InviteByLinkOrAdd) || amCreator());
 }
 
 bool ChannelData::canSendPolls() const {
@@ -470,11 +554,14 @@ bool ChannelData::canPublish() const {
 		|| (adminRights() & AdminRight::PostMessages);
 }
 
-bool ChannelData::canWrite() const {
+bool ChannelData::canWrite(bool checkForForum) const {
 	// Duplicated in Data::CanWriteValue().
 	const auto allowed = amIn()
 		|| ((flags() & Flag::HasLink) && !(flags() & Flag::JoinToWrite));
-	return allowed && (canPublish()
+	const auto forumRestriction = checkForForum && isForum();
+	return allowed
+		&& !forumRestriction
+		&& (canPublish()
 			|| (!isBroadcast()
 				&& !amRestricted(Restriction::SendMessages)));
 }
@@ -953,8 +1040,8 @@ void ApplyChannelUpdate(
 		session->changes().peerUpdated(channel, UpdateFlag::Rights);
 	}
 
-	session->api().applyNotifySettings(
-		MTP_inputNotifyPeer(channel->input),
+	channel->owner().notifySettings().apply(
+		channel,
 		update.vnotify_settings());
 
 	if (const auto sendAs = update.vdefault_send_as()) {

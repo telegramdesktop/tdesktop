@@ -26,7 +26,8 @@ public:
 		int x,
 		int y,
 		int outerWidth,
-		int size) const;
+		int size,
+		int radius = 0) const;
 	void paintSquare(
 		QPainter &p,
 		int x,

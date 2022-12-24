@@ -14,6 +14,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Dialogs {
 
 class MainList final {
@@ -35,9 +39,7 @@ public:
 	void unreadStateChanged(
 		const UnreadState &wasState,
 		const UnreadState &nowState);
-	void unreadEntryChanged(
-		const Dialogs::UnreadState &state,
-		bool added);
+	void unreadEntryChanged(const UnreadState &state, bool added);
 	void updateCloudUnread(const MTPDdialogFolder &data);
 	[[nodiscard]] bool cloudUnreadKnown() const;
 	[[nodiscard]] UnreadState unreadState() const;
@@ -55,14 +57,7 @@ private:
 	void finalizeCloudUnread();
 	void recomputeFullListSize();
 
-	auto unreadStateChangeNotifier(bool notify) {
-		const auto wasState = notify ? unreadState() : UnreadState();
-		return gsl::finally([=] {
-			if (notify) {
-				_unreadStateChanges.fire_copy(wasState);
-			}
-		});
-	}
+	inline auto unreadStateChangeNotifier(bool notify);
 
 	FilterId _filterId = 0;
 	IndexedList _all;
@@ -79,5 +74,14 @@ private:
 	rpl::lifetime _lifetime;
 
 };
+
+auto MainList::unreadStateChangeNotifier(bool notify) {
+	const auto wasState = notify ? unreadState() : UnreadState();
+	return gsl::finally([=] {
+		if (notify) {
+			_unreadStateChanges.fire_copy(wasState);
+		}
+	});
+}
 
 } // namespace Dialogs

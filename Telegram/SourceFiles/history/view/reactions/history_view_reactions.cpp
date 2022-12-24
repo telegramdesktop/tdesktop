@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "history/history_message.h"
 #include "history/history.h"
-#include "history/view/reactions/history_view_reactions_animation.h"
 #include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "history/view/history_view_group_call_bar.h"
@@ -23,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_tag.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/chat/chat_style.h"
+#include "ui/effects/reaction_fly_animation.h"
 #include "ui/painter.h"
 #include "styles/style_chat.h"
 
@@ -43,7 +43,7 @@ constexpr auto kMaxNicePerRow = 5;
 
 struct InlineList::Button {
 	QRect geometry;
-	mutable std::unique_ptr<Animation> animation;
+	mutable std::unique_ptr<Ui::ReactionFlyAnimation> animation;
 	mutable QImage image;
 	mutable ClickHandlerPtr link;
 	mutable std::unique_ptr<Ui::Text::CustomEmoji> custom;
@@ -322,12 +322,12 @@ void InlineList::paint(
 		int outerWidth,
 		const QRect &clip) const {
 	struct SingleAnimation {
-		not_null<Reactions::Animation*> animation;
+		not_null<Ui::ReactionFlyAnimation*> animation;
 		QRect target;
 	};
 	std::vector<SingleAnimation> animations;
 
-	auto finished = std::vector<std::unique_ptr<Animation>>();
+	auto finished = std::vector<std::unique_ptr<Ui::ReactionFlyAnimation>>();
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 	const auto padding = st::reactionInlinePadding;
@@ -500,13 +500,13 @@ bool InlineList::getState(
 }
 
 void InlineList::animate(
-		AnimationArgs &&args,
+		Ui::ReactionFlyAnimationArgs &&args,
 		Fn<void()> repaint) {
 	const auto i = ranges::find(_buttons, args.id, &Button::id);
 	if (i == end(_buttons)) {
 		return;
 	}
-	i->animation = std::make_unique<Reactions::Animation>(
+	i->animation = std::make_unique<Ui::ReactionFlyAnimation>(
 		_owner,
 		std::move(args),
 		std::move(repaint),
@@ -579,10 +579,10 @@ void InlineList::paintCustomFrame(
 }
 
 auto InlineList::takeAnimations()
--> base::flat_map<ReactionId, std::unique_ptr<Reactions::Animation>> {
+-> base::flat_map<ReactionId, std::unique_ptr<Ui::ReactionFlyAnimation>> {
 	auto result = base::flat_map<
 		ReactionId,
-		std::unique_ptr<Reactions::Animation>>();
+		std::unique_ptr<Ui::ReactionFlyAnimation>>();
 	for (auto &button : _buttons) {
 		if (button.animation) {
 			result.emplace(button.id, std::move(button.animation));
@@ -593,7 +593,7 @@ auto InlineList::takeAnimations()
 
 void InlineList::continueAnimations(base::flat_map<
 		ReactionId,
-		std::unique_ptr<Reactions::Animation>> animations) {
+		std::unique_ptr<Ui::ReactionFlyAnimation>> animations) {
 	for (auto &[id, animation] : animations) {
 		const auto i = ranges::find(_buttons, id, &Button::id);
 		if (i != end(_buttons)) {

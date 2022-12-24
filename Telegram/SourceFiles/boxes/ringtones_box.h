@@ -9,10 +9,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/generic_box.h"
 
-class PeerData;
-
 namespace Data {
 struct NotifySound;
+class Thread;
 } // namespace Data
 
 namespace Main {
@@ -31,6 +30,6 @@ void RingtonesBox(
 	Data::NotifySound selected,
 	Fn<void(Data::NotifySound)> save);
 
-void PeerRingtonesBox(
+void ThreadRingtonesBox(
 	not_null<Ui::GenericBox*> box,
-	not_null<PeerData*> peer);
+	not_null<Data::Thread*> thread);

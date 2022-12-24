@@ -121,7 +121,7 @@ uint32 peerSize(not_null<PeerData*> peer) {
 		result += stringSize(user->firstName)
 			+ stringSize(user->lastName)
 			+ stringSize(user->phone())
-			+ stringSize(user->username)
+			+ stringSize(user->username())
 			+ sizeof(quint64) // access
 			+ sizeof(qint32) // flags
 			+ sizeof(qint32) // onlineTill
@@ -164,7 +164,7 @@ void writePeer(QDataStream &stream, not_null<PeerData*> peer) {
 			<< user->firstName
 			<< user->lastName
 			<< user->phone()
-			<< user->username
+			<< user->username()
 			<< quint64(user->accessHash())
 			<< qint32(user->flags())
 			<< botInlinePlaceholder

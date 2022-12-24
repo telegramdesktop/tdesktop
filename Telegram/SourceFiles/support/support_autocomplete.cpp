@@ -514,8 +514,8 @@ void ConfirmContactBox::prepare() {
 
 	auto maxWidth = 0;
 	if (_comment) {
-		_comment->setAttachToNext(true);
-		_contact->setAttachToPrevious(true);
+		_comment->setAttachToNext(true, _contact.get());
+		_contact->setAttachToPrevious(true, _comment.get());
 		_comment->initDimensions();
 		accumulate_max(maxWidth, _comment->maxWidth());
 	}
