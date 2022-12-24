@@ -95,30 +95,6 @@ constexpr auto kLightnessDelta = 32;
 		alpha);
 }
 
-[[nodiscard]] QString EncodeForJs(const QString &text) {
-	auto result = QString();
-	for (auto ch = text.data(), e = ch + text.size(); ch != e; ++ch) {
-		const auto code = ch->unicode();
-		const auto hex = [&](int value) {
-			const auto v = value & 0x0F;
-			return QChar((v < 10) ? ('0' + v) : 'A' + (v - 10));
-		};
-		if (code >= 32 && code < 128) {
-			if (code == '\\' || code == '"' || code == '\'') {
-				result += QChar('\\');
-			}
-			result += *ch;
-		} else {
-			result += u"\\u"_q
-				+ hex(code >> 12)
-				+ hex(code >> 8)
-				+ hex(code >> 4)
-				+ hex(code);
-		}
-	}
-	return result;
-}
-
 } // namespace
 
 class Panel::Button final : public RippleButton {
@@ -811,11 +787,6 @@ void Panel::openPopup(const QJsonObject &args) {
 		.buttons = std::move(buttons),
 	});
 	if (weak) {
-		const auto safe = [&] {
-			return QJsonDocument(
-				QJsonArray{ { QJsonValue(*result.id) } }
-			).toJson(QJsonDocument::Compact) + "[0]";
-		};
 		postEvent("popup_closed", result.id
 			? QJsonObject{ { u"button_id"_q, *result.id } }
 			: EventData());

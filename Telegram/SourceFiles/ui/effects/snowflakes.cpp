@@ -120,7 +120,6 @@ crl::time Snowflakes::timeNow() const {
 }
 
 void Snowflakes::paint(QPainter &p, const QRectF &rect) {
-	const auto center = rect.center();
 	const auto opacity = p.opacity();
 	PainterHighQualityEnabler hq(p);
 	p.setPen(Qt::NoPen);
