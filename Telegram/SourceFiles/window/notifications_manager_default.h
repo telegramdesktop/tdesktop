@@ -72,6 +72,7 @@ private:
 	void doShowNotification(NotificationFields &&fields) override;
 	void doClearAll() override;
 	void doClearAllFast() override;
+	void doClearFromTopic(not_null<Data::ForumTopic*> topic) override;
 	void doClearFromHistory(not_null<History*> history) override;
 	void doClearFromSession(not_null<Main::Session*> session) override;
 	void doClearFromItem(not_null<HistoryItem*> item) override;
@@ -112,6 +113,7 @@ private:
 		QueuedNotification(NotificationFields &&fields);
 
 		not_null<History*> history;
+		MsgId topicRootId = 0;
 		not_null<PeerData*> peer;
 		Data::ReactionId reaction;
 		QString author;
@@ -205,6 +207,7 @@ public:
 	Notification(
 		not_null<Manager*> manager,
 		not_null<History*> history,
+		MsgId topicRootId,
 		not_null<PeerData*> peer,
 		const QString &author,
 		HistoryItem *item,
@@ -233,7 +236,7 @@ public:
 
 	// Called only by Manager.
 	bool unlinkItem(HistoryItem *del);
-	bool unlinkHistory(History *history = nullptr);
+	bool unlinkHistory(History *history = nullptr, MsgId topicRootId = 0);
 	bool unlinkSession(not_null<Main::Session*> session);
 	bool checkLastInput(
 		bool hasReplyingNotifications,
@@ -262,6 +265,7 @@ private:
 	void updateGeometry(int x, int y, int width, int height) override;
 	void actionsOpacityCallback();
 	void repaintText();
+	void paintTitle(Painter &p);
 	void paintText(Painter &p);
 	void customEmojiCallback();
 
@@ -270,18 +274,22 @@ private:
 	const not_null<PeerData*> _peer;
 
 	QImage _cache;
+	Ui::Text::String _titleCache;
 	Ui::Text::String _textCache;
+	QRect _titleRect;
 	QRect _textRect;
 
 	bool _hideReplyButton = false;
 	bool _actionsVisible = false;
-	bool _textRepaintScheduled = false;
+	bool _textsRepaintScheduled = false;
 	Ui::Animations::Simple a_actionsOpacity;
 	QPixmap _buttonsCache;
 
 	crl::time _started;
 
 	History *_history = nullptr;
+	Data::ForumTopic *_topic = nullptr;
+	MsgId _topicRootId = 0;
 	std::shared_ptr<Data::CloudImageView> _userpicView;
 	QString _author;
 	Data::ReactionId _reaction;

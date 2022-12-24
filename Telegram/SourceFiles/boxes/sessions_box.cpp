@@ -588,7 +588,7 @@ void Row::elementsPaint(
 			: st::sessionTerminate.icon;
 		icon.paint(p, position.x(), position.y(), outerWidth);
 	}
-	p.setFont(st::msgFont);
+	p.setFont(st::normalFont);
 	p.setPen(st::sessionInfoFg);
 	const auto locationLeft = st::sessionListItem.namePosition.x();
 	const auto available = outerWidth - locationLeft;

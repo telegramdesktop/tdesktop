@@ -53,6 +53,7 @@ class SendActionManager;
 class SponsoredMessages;
 class Reactions;
 class EmojiStatuses;
+class ForumIcons;
 class ChatFilters;
 class CloudThemes;
 class Streaming;
@@ -64,6 +65,12 @@ class Stickers;
 class GroupCall;
 class NotifySettings;
 class CustomEmojiManager;
+
+struct RepliesReadTillUpdate {
+	FullMsgId id;
+	MsgId readTillId;
+	bool out = false;
+};
 
 class Session final {
 public:
@@ -122,6 +129,9 @@ public:
 	[[nodiscard]] EmojiStatuses &emojiStatuses() const {
 		return *_emojiStatuses;
 	}
+	[[nodiscard]] ForumIcons &forumIcons() const {
+		return *_forumIcons;
+	}
 	[[nodiscard]] NotifySettings &notifySettings() const {
 		return *_notifySettings;
 	}
@@ -133,6 +143,7 @@ public:
 		return ++_nonHistoryEntryId;
 	}
 
+	void subscribeForTopicRepliesLists();
 	void clear();
 
 	void keepAlive(std::shared_ptr<PhotoMedia> media);
@@ -182,6 +193,9 @@ public:
 	void unregisterGroupCall(not_null<GroupCall*> call);
 	GroupCall *groupCall(CallId callId) const;
 
+	void watchForOffline(not_null<UserData*> user, TimeId now = 0);
+	void maybeStopWatchForOffline(not_null<UserData*> user);
+
 	[[nodiscard]] auto invitedToCallUsers(CallId callId) const
 		-> const base::flat_set<not_null<UserData*>> &;
 	void registerInvitedToCallUser(
@@ -213,8 +227,6 @@ public:
 
 	void deleteConversationLocally(not_null<PeerData*> peer);
 
-	void cancelForwarding(not_null<History*> history);
-
 	[[nodiscard]] rpl::variable<bool> &contactsLoaded() {
 		return _contactsLoaded;
 	}
@@ -243,7 +255,7 @@ public:
 	void itemVisibilitiesUpdated();
 
 	struct IdChange {
-		not_null<HistoryItem*> item;
+		FullMsgId newId;
 		MsgId oldId = 0;
 	};
 	void notifyItemIdChange(IdChange event);
@@ -459,16 +471,9 @@ public:
 	[[nodiscard]] rpl::producer<> unreadBadgeChanges() const;
 	void notifyUnreadBadgeChanged();
 
-	[[nodiscard]] std::optional<int> countUnreadRepliesLocally(
-		not_null<HistoryItem*> root,
-		MsgId afterId) const;
-	struct UnreadRepliesCountRequest {
-		not_null<HistoryItem*> root;
-		MsgId afterId = 0;
-		not_null<std::optional<int>*> result;
-	};
-	[[nodiscard]] auto unreadRepliesCountRequests() const
-		-> rpl::producer<UnreadRepliesCountRequest>;
+	void updateRepliesReadTill(RepliesReadTillUpdate update);
+	[[nodiscard]] auto repliesReadTillUpdates() const
+		-> rpl::producer<RepliesReadTillUpdate>;
 
 	void selfDestructIn(not_null<HistoryItem*> item, crl::time delay);
 
@@ -647,6 +652,8 @@ public:
 	not_null<Folder*> processFolder(const MTPFolder &data);
 	not_null<Folder*> processFolder(const MTPDfolder &data);
 
+	[[nodiscard]] not_null<Dialogs::MainList*> chatsListFor(
+		not_null<Dialogs::Entry*> entry);
 	[[nodiscard]] not_null<Dialogs::MainList*> chatsList(
 		Data::Folder *folder = nullptr);
 	[[nodiscard]] not_null<const Dialogs::MainList*> chatsList(
@@ -716,6 +723,7 @@ private:
 	void setupUserIsContactViewer();
 
 	void checkSelfDestructItems();
+	void checkLocalUsersWentOffline();
 
 	void scheduleNextTTLs();
 	void checkTTLs();
@@ -732,7 +740,7 @@ private:
 	not_null<Messages*> messagesListForInsert(PeerId peerId);
 	not_null<HistoryItem*> registerMessage(
 		std::unique_ptr<HistoryItem> item);
-	void changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
+	HistoryItem *changeMessageId(PeerId peerId, MsgId wasId, MsgId nowId);
 	void removeDependencyMessage(not_null<HistoryItem*> item);
 
 	void photoApplyFields(
@@ -867,7 +875,7 @@ private:
 	rpl::event_stream<DialogsRowReplacement> _dialogsRowReplacements;
 	rpl::event_stream<ChatListEntryRefresh> _chatListEntryRefreshes;
 	rpl::event_stream<> _unreadBadgeChanges;
-	rpl::event_stream<UnreadRepliesCountRequest> _unreadRepliesCountRequests;
+	rpl::event_stream<RepliesReadTillUpdate> _repliesReadTillUpdates;
 
 	Dialogs::MainList _chatsList;
 	Dialogs::IndexedList _contactsList;
@@ -975,6 +983,9 @@ private:
 	std::vector<WallPaper> _wallpapers;
 	uint64 _wallpapersHash = 0;
 
+	base::flat_map<not_null<UserData*>, TimeId> _watchingForOffline;
+	base::Timer _watchForOfflineTimer;
+
 	rpl::event_stream<WebViewResultSent> _webViewResultSent;
 
 	Groups _groups;
@@ -989,6 +1000,7 @@ private:
 	std::unique_ptr<SponsoredMessages> _sponsoredMessages;
 	const std::unique_ptr<Reactions> _reactions;
 	const std::unique_ptr<EmojiStatuses> _emojiStatuses;
+	const std::unique_ptr<ForumIcons> _forumIcons;
 	const std::unique_ptr<NotifySettings> _notifySettings;
 	const std::unique_ptr<CustomEmojiManager> _customEmojiManager;
 

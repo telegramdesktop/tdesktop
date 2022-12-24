@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "storage/cache/storage_cache_types.h"
 #include "base/qt/qt_common_adapters.h"
+#include "base/timer.h"
 #include "base/weak_ptr.h"
 
 #include <QtNetwork/QAuthenticator>

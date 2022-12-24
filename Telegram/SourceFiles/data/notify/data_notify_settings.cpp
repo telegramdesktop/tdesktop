@@ -17,6 +17,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_document.h"
 #include "data/data_file_origin.h"
 #include "data/data_peer.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
 #include "main/main_session.h"
@@ -25,10 +27,20 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/notifications_manager.h"
 
 namespace Data {
-
 namespace {
 
 constexpr auto kMaxNotifyCheckDelay = 24 * 3600 * crl::time(1000);
+
+[[nodiscard]] bool MutedFromUntil(TimeId until, crl::time *changesIn) {
+	const auto now = base::unixtime::now();
+	const auto result = (until > now) ? (until - now) : 0;
+	if (changesIn) {
+		*changesIn = (result > 0)
+			? std::min(result * crl::time(1000), kMaxNotifyCheckDelay)
+			: kMaxNotifyCheckDelay;
+	}
+	return (result > 0);
+}
 
 } // namespace
 
@@ -38,7 +50,7 @@ NotifySettings::NotifySettings(not_null<Session*> owner)
 }
 
 void NotifySettings::request(not_null<PeerData*> peer) {
-	if (peer->notifySettingsUnknown()) {
+	if (peer->notify().settingsUnknown()) {
 		peer->session().api().requestNotifySettings(
 			MTP_inputNotifyPeer(peer->input));
 	}
@@ -51,26 +63,136 @@ void NotifySettings::request(not_null<PeerData*> peer) {
 	}
 }
 
+void NotifySettings::request(not_null<Data::Thread*> thread) {
+	if (const auto topic = thread->asTopic()) {
+		if (topic->notify().settingsUnknown()) {
+			topic->session().api().requestNotifySettings(
+				MTP_inputNotifyForumTopic(
+					topic->channel()->input,
+					MTP_int(topic->rootId())));
+		}
+	}
+	request(thread->peer());
+}
+
 void NotifySettings::apply(
 		const MTPNotifyPeer &notifyPeer,
 		const MTPPeerNotifySettings &settings) {
-	const auto set = [&](DefaultNotify type) {
-		if (defaultValue(type).settings.change(settings)) {
-			updateLocal(type);
-		}
+	notifyPeer.match([&](const MTPDnotifyUsers &) {
+		apply(DefaultNotify::User, settings);
+	}, [&](const MTPDnotifyChats &) {
+		apply(DefaultNotify::Group, settings);
+	}, [&](const MTPDnotifyBroadcasts &) {
+		apply(DefaultNotify::Broadcast, settings);
+	}, [&](const MTPDnotifyPeer &data) {
+		apply(peerFromMTP(data.vpeer()), settings);
+	}, [&](const MTPDnotifyForumTopic &data) {
+		apply(peerFromMTP(data.vpeer()), data.vtop_msg_id().v, settings);
+	});
+}
+
+void NotifySettings::apply(
+		const MTPInputNotifyPeer &notifyPeer,
+		const MTPPeerNotifySettings &settings) {
+	const auto peerFromInput = [&](const MTPInputPeer &peer) {
+		return peer.match([&](const MTPDinputPeerSelf &) {
+			return _owner->session().userPeerId();
+		}, [](const MTPDinputPeerUser &data) {
+			return peerFromUser(data.vuser_id());
+		}, [](const MTPDinputPeerChat &data) {
+			return peerFromChat(data.vchat_id());
+		}, [](const MTPDinputPeerChannel &data) {
+			return peerFromChannel(data.vchannel_id());
+		}, [](const MTPDinputPeerUserFromMessage &data) -> PeerId {
+			Unexpected("From message peer in NotifySettings::apply.");
+		}, [](const MTPDinputPeerChannelFromMessage &data) -> PeerId {
+			Unexpected("From message peer in NotifySettings::apply.");
+		}, [](const MTPDinputPeerEmpty &) -> PeerId {
+			Unexpected("Empty peer in NotifySettings::apply.");
+		});
 	};
-	switch (notifyPeer.type()) {
-	case mtpc_notifyUsers: set(DefaultNotify::User); break;
-	case mtpc_notifyChats: set(DefaultNotify::Group); break;
-	case mtpc_notifyBroadcasts: set(DefaultNotify::Broadcast); break;
-	case mtpc_notifyPeer: {
-		const auto &data = notifyPeer.c_notifyPeer();
-		if (const auto peer = _owner->peerLoaded(peerFromMTP(data.vpeer()))) {
-			if (peer->notifyChange(settings)) {
-				updateLocal(peer);
-			}
+	notifyPeer.match([&](const MTPDinputNotifyUsers &) {
+		apply(DefaultNotify::User, settings);
+	}, [&](const MTPDinputNotifyChats &) {
+		apply(DefaultNotify::Group, settings);
+	}, [&](const MTPDinputNotifyBroadcasts &) {
+		apply(DefaultNotify::Broadcast, settings);
+	}, [&](const MTPDinputNotifyPeer &data) {
+		apply(peerFromInput(data.vpeer()), settings);
+	}, [&](const MTPDinputNotifyForumTopic &data) {
+		apply(peerFromInput(data.vpeer()), data.vtop_msg_id().v, settings);
+	});
+}
+
+void NotifySettings::apply(
+		DefaultNotify type,
+		const MTPPeerNotifySettings &settings) {
+	if (defaultValue(type).settings.change(settings)) {
+		updateLocal(type);
+		Core::App().notifications().checkDelayed();
+	}
+}
+
+void NotifySettings::apply(
+		PeerId peerId,
+		const MTPPeerNotifySettings &settings) {
+	if (const auto peer = _owner->peerLoaded(peerId)) {
+		apply(peer, settings);
+	}
+}
+
+void NotifySettings::apply(
+		not_null<PeerData*> peer,
+		const MTPPeerNotifySettings &settings) {
+	if (peer->notify().change(settings)) {
+		updateLocal(peer);
+		Core::App().notifications().checkDelayed();
+	}
+}
+
+void NotifySettings::apply(
+		PeerId peerId,
+		MsgId topicRootId,
+		const MTPPeerNotifySettings &settings) {
+	if (const auto peer = _owner->peerLoaded(peerId)) {
+		if (const auto topic = peer->forumTopicFor(topicRootId)) {
+			apply(topic, settings);
 		}
-	} break;
+	}
+}
+
+void NotifySettings::apply(
+		not_null<Data::ForumTopic*> topic,
+		const MTPPeerNotifySettings &settings) {
+	if (topic->notify().change(settings)) {
+		updateLocal(topic);
+		Core::App().notifications().checkDelayed();
+	}
+}
+
+void NotifySettings::update(
+		not_null<Data::Thread*> thread,
+		Data::MuteValue muteForSeconds,
+		std::optional<bool> silentPosts,
+		std::optional<NotifySound> sound) {
+	if (thread->notify().change(muteForSeconds, silentPosts, sound)) {
+		updateLocal(thread);
+		thread->session().api().updateNotifySettingsDelayed(thread);
+	}
+}
+
+void NotifySettings::resetToDefault(not_null<Data::Thread*> thread) {
+	const auto empty = MTP_peerNotifySettings(
+		MTP_flags(0),
+		MTPBool(),
+		MTPBool(),
+		MTPint(),
+		MTPNotificationSound(),
+		MTPNotificationSound(),
+		MTPNotificationSound());
+	if (thread->notify().change(empty)) {
+		updateLocal(thread);
+		thread->session().api().updateNotifySettingsDelayed(thread);
 	}
 }
 
@@ -79,7 +201,7 @@ void NotifySettings::update(
 		Data::MuteValue muteForSeconds,
 		std::optional<bool> silentPosts,
 		std::optional<NotifySound> sound) {
-	if (peer->notifyChange(muteForSeconds, silentPosts, sound)) {
+	if (peer->notify().change(muteForSeconds, silentPosts, sound)) {
 		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
@@ -94,10 +216,18 @@ void NotifySettings::resetToDefault(not_null<PeerData*> peer) {
 		MTPNotificationSound(),
 		MTPNotificationSound(),
 		MTPNotificationSound());
-	if (peer->notifyChange(empty)) {
+	if (peer->notify().change(empty)) {
 		updateLocal(peer);
 		peer->session().api().updateNotifySettingsDelayed(peer);
 	}
+}
+
+void NotifySettings::forumParentMuteUpdated(not_null<Data::Forum*> forum) {
+	forum->enumerateTopics([&](not_null<Data::ForumTopic*> topic) {
+		if (!topic->notify().settingsUnknown()) {
+			updateLocal(topic);
+		}
+	});
 }
 
 auto NotifySettings::defaultValue(DefaultNotify type)
@@ -136,15 +266,40 @@ void NotifySettings::defaultUpdate(
 	auto &settings = defaultValue(type).settings;
 	if (settings.change(muteForSeconds, silentPosts, sound)) {
 		updateLocal(type);
-		_owner->session().api().updateDefaultNotifySettingsDelayed(type);
+		_owner->session().api().updateNotifySettingsDelayed(type);
 	}
+}
+
+void NotifySettings::updateLocal(not_null<Data::Thread*> thread) {
+	const auto topic = thread->asTopic();
+	if (!topic) {
+		return updateLocal(thread->peer());
+	}
+	auto changesIn = crl::time(0);
+	const auto muted = isMuted(topic, &changesIn);
+	topic->setMuted(muted);
+	if (muted) {
+		auto &lifetime = _mutedTopics.emplace(
+			topic,
+			rpl::lifetime()).first->second;
+		topic->destroyed() | rpl::start_with_next([=] {
+			_mutedTopics.erase(topic);
+		}, lifetime);
+		unmuteByFinishedDelayed(changesIn);
+		Core::App().notifications().clearIncomingFromTopic(topic);
+	} else {
+		_mutedTopics.erase(topic);
+	}
+	cacheSound(topic->notify().sound());
 }
 
 void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	const auto history = _owner->historyLoaded(peer->id);
 	auto changesIn = crl::time(0);
 	const auto muted = isMuted(peer, &changesIn);
-	if (history && history->changeMute(muted)) {
+	const auto changeInHistory = history && (history->muted() != muted);
+	if (changeInHistory) {
+		history->setMuted(muted);
 		// Notification already sent.
 	} else {
 		peer->session().changes().peerUpdated(
@@ -161,7 +316,7 @@ void NotifySettings::updateLocal(not_null<PeerData*> peer) {
 	} else {
 		_mutedPeers.erase(peer);
 	}
-	cacheSound(peer->notifySound());
+	cacheSound(peer->notify().sound());
 }
 
 void NotifySettings::cacheSound(DocumentId id) {
@@ -206,10 +361,11 @@ void NotifySettings::updateLocal(DefaultNotify type) {
 	const auto goodForUpdate = [&](
 			not_null<const PeerData*> peer,
 			const PeerNotifySettings &settings) {
-		return !peer->notifySettingsUnknown()
-			&& ((!peer->notifyMuteUntil() && settings.muteUntil())
-				|| (!peer->notifySilentPosts() && settings.silentPosts())
-				|| (!peer->notifySound() && settings.sound()));
+		auto &peers = peer->notify();
+		return !peers.settingsUnknown()
+			&& ((!peers.muteUntil() && settings.muteUntil())
+				|| (!peers.silentPosts() && settings.silentPosts())
+				|| (!peers.sound() && settings.sound()));
 	};
 
 	const auto callback = [&](not_null<PeerData*> peer) {
@@ -250,19 +406,30 @@ void NotifySettings::unmuteByFinished() {
 		const auto history = _owner->historyLoaded((*i)->id);
 		auto changesIn = crl::time(0);
 		const auto muted = isMuted(*i, &changesIn);
+		if (history) {
+			history->setMuted(muted);
+		}
 		if (muted) {
-			if (history) {
-				history->changeMute(true);
-			}
 			if (!changesInMin || changesInMin > changesIn) {
 				changesInMin = changesIn;
 			}
 			++i;
 		} else {
-			if (history) {
-				history->changeMute(false);
-			}
 			i = _mutedPeers.erase(i);
+		}
+	}
+	for (auto i = begin(_mutedTopics); i != end(_mutedTopics);) {
+		auto changesIn = crl::time(0);
+		const auto topic = i->first;
+		const auto muted = isMuted(topic, &changesIn);
+		topic->setMuted(muted);
+		if (muted) {
+			if (!changesInMin || changesInMin > changesIn) {
+				changesInMin = changesIn;
+			}
+			++i;
+		} else {
+			i = _mutedTopics.erase(i);
 		}
 	}
 	if (changesInMin) {
@@ -271,24 +438,49 @@ void NotifySettings::unmuteByFinished() {
 }
 
 bool NotifySettings::isMuted(
+		not_null<const Data::Thread*> thread,
+		crl::time *changesIn) const {
+	const auto topic = thread->asTopic();
+	const auto until = topic ? topic->notify().muteUntil() : std::nullopt;
+	return until
+		? MutedFromUntil(*until, changesIn)
+		: isMuted(thread->peer(), changesIn);
+}
+
+bool NotifySettings::isMuted(not_null<const Data::Thread*> thread) const {
+	return isMuted(thread, nullptr);
+}
+
+NotifySound NotifySettings::sound(
+		not_null<const Data::Thread*> thread) const {
+	const auto topic = thread->asTopic();
+	const auto sound = topic ? topic->notify().sound() : std::nullopt;
+	return sound ? *sound : this->sound(thread->peer());
+}
+
+bool NotifySettings::muteUnknown(
+		not_null<const Data::Thread*> thread) const {
+	const auto topic = thread->asTopic();
+	return (topic && topic->notify().settingsUnknown())
+		|| ((!topic || !topic->notify().muteUntil().has_value())
+			&& muteUnknown(thread->peer()));
+}
+
+bool NotifySettings::soundUnknown(
+		not_null<const Data::Thread*> thread) const {
+	const auto topic = thread->asTopic();
+	return (topic && topic->notify().settingsUnknown())
+		|| ((!topic || !topic->notify().sound().has_value())
+			&& soundUnknown(topic->channel()));
+}
+
+bool NotifySettings::isMuted(
 		not_null<const PeerData*> peer,
 		crl::time *changesIn) const {
-	const auto resultFromUntil = [&](TimeId until) {
-		const auto now = base::unixtime::now();
-		const auto result = (until > now) ? (until - now) : 0;
-		if (changesIn) {
-			*changesIn = (result > 0)
-				? std::min(result * crl::time(1000), kMaxNotifyCheckDelay)
-				: kMaxNotifyCheckDelay;
-		}
-		return (result > 0);
-	};
-	if (const auto until = peer->notifyMuteUntil()) {
-		return resultFromUntil(*until);
-	}
-	const auto &settings = defaultSettings(peer);
-	if (const auto until = settings.muteUntil()) {
-		return resultFromUntil(*until);
+	if (const auto until = peer->notify().muteUntil()) {
+		return MutedFromUntil(*until, changesIn);
+	} else if (const auto until = defaultSettings(peer).muteUntil()) {
+		return MutedFromUntil(*until, changesIn);
 	}
 	return true;
 }
@@ -298,60 +490,55 @@ bool NotifySettings::isMuted(not_null<const PeerData*> peer) const {
 }
 
 bool NotifySettings::silentPosts(not_null<const PeerData*> peer) const {
-	if (const auto silent = peer->notifySilentPosts()) {
+	if (const auto silent = peer->notify().silentPosts()) {
 		return *silent;
-	}
-	const auto &settings = defaultSettings(peer);
-	if (const auto silent = settings.silentPosts()) {
+	} else if (const auto silent = defaultSettings(peer).silentPosts()) {
 		return *silent;
 	}
 	return false;
 }
 
 NotifySound NotifySettings::sound(not_null<const PeerData*> peer) const {
-	if (const auto sound = peer->notifySound()) {
+	if (const auto sound = peer->notify().sound()) {
 		return *sound;
-	}
-	const auto &settings = defaultSettings(peer);
-	if (const auto sound = settings.sound()) {
+	} else if (const auto sound = defaultSettings(peer).sound()) {
 		return *sound;
 	}
 	return {};
 }
 
 bool NotifySettings::muteUnknown(not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifyMuteUntil()) {
-		return false;
-	}
-	return defaultSettings(peer).settingsUnknown();
+	return peer->notify().settingsUnknown()
+		|| (!peer->notify().muteUntil().has_value()
+			&& defaultSettings(peer).settingsUnknown());
 }
 
 bool NotifySettings::silentPostsUnknown(
 		not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifySilentPosts()) {
-		return false;
-	}
-	return defaultSettings(peer).settingsUnknown();
+	return peer->notify().settingsUnknown()
+		|| (!peer->notify().silentPosts().has_value()
+			&& defaultSettings(peer).settingsUnknown());
 }
 
 bool NotifySettings::soundUnknown(
 		not_null<const PeerData*> peer) const {
-	if (peer->notifySettingsUnknown()) {
-		return true;
-	} else if (const auto nonDefault = peer->notifySound()) {
-		return false;
-	}
-	return defaultSettings(peer).settingsUnknown();
+	return peer->notify().settingsUnknown()
+		|| (!peer->notify().sound().has_value()
+			&& defaultSettings(peer).settingsUnknown());
 }
 
 bool NotifySettings::settingsUnknown(not_null<const PeerData*> peer) const {
 	return muteUnknown(peer)
 		|| silentPostsUnknown(peer)
 		|| soundUnknown(peer);
+}
+
+bool NotifySettings::settingsUnknown(
+		not_null<const Data::Thread*> thread) const {
+	const auto topic = thread->asTopic();
+	return muteUnknown(thread)
+		|| soundUnknown(thread)
+		|| (!topic && silentPostsUnknown(thread->peer()));
 }
 
 rpl::producer<> NotifySettings::defaultUpdates(DefaultNotify type) const {

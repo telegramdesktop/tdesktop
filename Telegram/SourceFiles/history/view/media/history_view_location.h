@@ -65,19 +65,28 @@ public:
 private:
 	void ensureMediaCreated() const;
 
+	void validateImageCache(
+		QSize outer,
+		Ui::BubbleRounding rounding) const;
+
 	QSize countOptimalSize() override;
 	QSize countCurrentSize(int newWidth) override;
 
-	TextSelection toDescriptionSelection(TextSelection selection) const;
-	TextSelection fromDescriptionSelection(TextSelection selection) const;
+	[[nodiscard]] TextSelection toDescriptionSelection(
+		TextSelection selection) const;
+	[[nodiscard]] TextSelection fromDescriptionSelection(
+		TextSelection selection) const;
+
+	[[nodiscard]] int fullWidth() const;
+	[[nodiscard]] int fullHeight() const;
 
 	const not_null<Data::CloudImage*> _data;
 	mutable std::shared_ptr<Data::CloudImageView> _media;
 	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
 
-	int fullWidth() const;
-	int fullHeight() const;
+	mutable QImage _imageCache;
+	mutable Ui::BubbleRounding _imageCacheRounding;
 
 };
 

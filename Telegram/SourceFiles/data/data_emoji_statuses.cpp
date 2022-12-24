@@ -44,7 +44,6 @@ constexpr auto kMaxTimeout = 6 * 60 * 60 * crl::time(1000);
 
 EmojiStatuses::EmojiStatuses(not_null<Session*> owner)
 : _owner(owner)
-, _defaultRefreshTimer([=] { refreshDefault(); })
 , _clearingTimer([=] { processClearing(); }) {
 	refreshDefault();
 	refreshColored();

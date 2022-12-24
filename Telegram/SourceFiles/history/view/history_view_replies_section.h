@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "window/section_widget.h"
 #include "window/section_memento.h"
+#include "history/view/history_view_corner_buttons.h"
 #include "history/view/history_view_list_widget.h"
 #include "data/data_messages.h"
 #include "base/timer.h"
@@ -49,6 +50,7 @@ class Result;
 
 namespace Data {
 class RepliesList;
+class ForumTopic;
 } // namespace Data
 
 namespace HistoryView {
@@ -63,10 +65,14 @@ class RepliesMemento;
 class ComposeControls;
 class SendActionPainter;
 class StickerToast;
+class TopicReopenBar;
+class EmptyPainter;
+class PinnedTracker;
 
 class RepliesWidget final
 	: public Window::SectionWidget
-	, private ListDelegate {
+	, private ListDelegate
+	, private CornerButtonsDelegate {
 public:
 	RepliesWidget(
 		QWidget *parent,
@@ -98,13 +104,16 @@ public:
 	Window::SectionActionResult sendBotCommand(
 		Bot::SendCommandRequest request) override;
 
+	bool confirmSendingFiles(const QStringList &files) override;
+	bool confirmSendingFiles(not_null<const QMimeData*> data) override;
+
 	void setInternalState(
 		const QRect &geometry,
 		not_null<RepliesMemento*> memento);
 
 	// Tabbed selector management.
 	bool pushTabbedSelectorToThirdSection(
-		not_null<PeerData*> peer,
+		not_null<Data::Thread*> thread,
 		const Window::SectionShow &params) override;
 	bool returnTabbedSelector() override;
 
@@ -114,7 +123,7 @@ public:
 
 	// ListDelegate interface.
 	Context listContext() override;
-	bool listScrollTo(int top) override;
+	bool listScrollTo(int top, bool syntetic = true) override;
 	void listCancelRequest() override;
 	void listDeleteRequest() override;
 	rpl::producer<Data::MessagesSlice> listSource(
@@ -127,11 +136,15 @@ public:
 		not_null<HistoryItem*> first,
 		not_null<HistoryItem*> second) override;
 	void listSelectionChanged(SelectedItems &&items) override;
-	void listVisibleItemsChanged(HistoryItemsList &&items) override;
+	void listMarkReadTill(not_null<HistoryItem*> item) override;
+	void listMarkContentsRead(
+		const base::flat_set<not_null<HistoryItem*>> &items) override;
 	MessagesBarData listMessagesBar(
 		const std::vector<not_null<Element*>> &elements) override;
 	void listContentRefreshed() override;
-	ClickHandlerPtr listDateLink(not_null<Element*> view) override;
+	void listUpdateDateLink(
+		ClickHandlerPtr &link,
+		not_null<Element*> view) override;
 	bool listElementHideReply(not_null<const Element*> view) override;
 	bool listElementShownUnread(not_null<const Element*> view) override;
 	bool listIsGoodForAroundPosition(not_null<const Element*> view) override;
@@ -141,35 +154,57 @@ public:
 	void listHandleViaClick(not_null<UserData*> bot) override;
 	not_null<Ui::ChatTheme*> listChatTheme() override;
 	CopyRestrictionType listCopyRestrictionType(HistoryItem *item) override;
+	CopyRestrictionType listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) override;
 	CopyRestrictionType listSelectRestrictionType() override;
 	auto listAllowedReactionsValue()
 		->rpl::producer<Data::AllowedReactions> override;
 	void listShowPremiumToast(not_null<DocumentData*> document) override;
+	void listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) override;
+	void listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) override;
+	void listPaintEmpty(
+		Painter &p,
+		const Ui::ChatPaintContext &context) override;
+	QString listElementAuthorRank(not_null<const Element*> view) override;
 
-protected:
+	// CornerButtonsDelegate delegate.
+	void cornerButtonsShowAtPosition(
+		Data::MessagePosition position) override;
+	Data::Thread *cornerButtonsThread() override;
+	FullMsgId cornerButtonsCurrentId() override;
+	bool cornerButtonsIgnoreVisibility() override;
+	std::optional<bool> cornerButtonsDownShown() override;
+	bool cornerButtonsUnreadMayBeShown() override;
+	bool cornerButtonsHas(CornerButtonType type) override;
+
+private:
 	void resizeEvent(QResizeEvent *e) override;
 	void paintEvent(QPaintEvent *e) override;
 
 	void showAnimatedHook(
 		const Window::SectionSlideParams &params) override;
 	void showFinishedHook() override;
+	void checkActivation() override;
 	void doSetInnerFocus() override;
 
-private:
 	void onScroll();
 	void updateInnerVisibleArea();
 	void updateControlsGeometry();
 	void updateAdaptiveLayout();
 	void saveState(not_null<RepliesMemento*> memento);
 	void restoreState(not_null<RepliesMemento*> memento);
+	void setReplies(std::shared_ptr<Data::RepliesList> replies);
+	void refreshReplies();
 	void showAtStart();
 	void showAtEnd();
 	void showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem = nullptr);
-	bool showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
+		FullMsgId originItemId = {},
 		anim::type animated = anim::type::normal);
 	void finishSending();
 
@@ -177,17 +212,15 @@ private:
 
 	void setupRoot();
 	void setupRootView();
+	void setupTopicViewer();
+	void subscribeToTopic();
+	void subscribeToPinnedMessages();
+	void setTopic(Data::ForumTopic *topic);
 	void setupDragArea();
-	void sendReadTillRequest();
-	void readTill(not_null<HistoryItem*> item);
-	[[nodiscard]] std::optional<int> computeUnreadCountLocally(
-		MsgId afterId) const;
+	void setupShortcuts();
 
-	void setupScrollDownButton();
-	void scrollDownClicked();
+	void searchInTopic();
 	void scrollDownAnimationFinish();
-	void updateScrollDownVisibility();
-	void updateScrollDownPosition();
 	void updatePinnedVisibility();
 
 	void confirmDeleteSelected();
@@ -204,24 +237,29 @@ private:
 		not_null<HistoryItem*> item,
 		Api::SendOptions options,
 		mtpRequestId *const saveEditMsgRequestId);
-	void chooseAttach();
+	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos);
 	[[nodiscard]] SendMenu::Type sendMenuType() const;
 	[[nodiscard]] MsgId replyToId() const;
 	[[nodiscard]] HistoryItem *lookupRoot() const;
+	[[nodiscard]] Data::ForumTopic *lookupTopic();
 	[[nodiscard]] bool computeAreComments() const;
-	[[nodiscard]] std::optional<int> computeUnreadCount() const;
 	void orderWidgets();
 
 	void pushReplyReturn(not_null<HistoryItem*> item);
-	void computeCurrentReplyReturn();
-	void calculateNextReplyReturn();
-	void restoreReplyReturns(const std::vector<MsgId> &list);
 	void checkReplyReturns();
 	void recountChatWidth();
 	void replyToMessage(FullMsgId itemId);
 	void refreshTopBarActiveChat();
-	void refreshUnreadCountBadge();
-	void reloadUnreadCountIfNeeded();
+	void refreshUnreadCountBadge(std::optional<int> count);
+
+	void hidePinnedMessage();
+	void updatePinnedViewer();
+	void setupPinnedTracker();
+	void checkPinnedBarState();
+	void refreshPinnedBarButton(bool many, HistoryItem *item);
+	void checkLastPinnedClickedIdReset(
+		int wasScrollTop,
+		int nowScrollTop);
 
 	void uploadFile(const QByteArray &fileContent, SendMediaType type);
 	bool confirmSendingFiles(
@@ -230,11 +268,14 @@ private:
 		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
+		const QStringList &files,
+		const QString &insertTextOnCancel);
+	bool confirmSendingFiles(
 		Ui::PreparedList &&list,
 		const QString &insertTextOnCancel = QString());
 	bool confirmSendingFiles(
 		not_null<const QMimeData*> data,
-		std::optional<bool> overrideSendImagesAsPhotos = std::nullopt,
+		std::optional<bool> overrideSendImagesAsPhotos,
 		const QString &insertTextOnCancel = QString());
 	bool showSendingFilesError(const Ui::PreparedList &list) const;
 	void sendingFilesConfirmed(
@@ -262,15 +303,21 @@ private:
 		Api::SendOptions options,
 		std::optional<MsgId> localMessageId);
 
+	void setupEmptyPainter();
 	void refreshJoinGroupButton();
+	[[nodiscard]] bool emptyShown() const;
 	[[nodiscard]] bool showSlowmodeError();
 	[[nodiscard]] std::optional<QString> writeRestriction() const;
 
 	const not_null<History*> _history;
-	const MsgId _rootId = 0;
+	MsgId _rootId = 0;
 	std::shared_ptr<Ui::ChatTheme> _theme;
 	HistoryItem *_root = nullptr;
+	Data::ForumTopic *_topic = nullptr;
+	mutable bool _newTopicDiscarded = false;
+
 	std::shared_ptr<Data::RepliesList> _replies;
+	rpl::lifetime _repliesLifetime;
 	rpl::variable<bool> _areComments = false;
 	std::shared_ptr<SendActionPainter> _sendAction;
 	QPointer<ListWidget> _inner;
@@ -278,7 +325,16 @@ private:
 	object_ptr<Ui::PlainShadow> _topBarShadow;
 	std::unique_ptr<ComposeControls> _composeControls;
 	std::unique_ptr<Ui::FlatButton> _joinGroup;
+	std::unique_ptr<TopicReopenBar> _topicReopenBar;
+	std::unique_ptr<EmptyPainter> _emptyPainter;
 	bool _skipScrollEvent = false;
+	bool _synteticScrollEvent = false;
+
+	std::unique_ptr<PinnedTracker> _pinnedTracker;
+	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
+	int _pinnedBarHeight = 0;
+	FullMsgId _pinnedClickedId;
+	std::optional<FullMsgId> _minPinnedId;
 
 	std::unique_ptr<Ui::PinnedBar> _rootView;
 	int _rootViewHeight = 0;
@@ -288,26 +344,22 @@ private:
 	std::unique_ptr<Ui::ScrollArea> _scroll;
 	std::unique_ptr<HistoryView::StickerToast> _stickerToast;
 
-	std::vector<MsgId> _replyReturns;
-	HistoryItem *_replyReturn = nullptr;
+	FullMsgId _lastShownAt;
+	HistoryView::CornerButtons _cornerButtons;
+	rpl::lifetime _topicLifetime;
 
-	Ui::Animations::Simple _scrollDownShown;
-	bool _scrollDownIsShown = false;
-	object_ptr<Ui::HistoryDownButton> _scrollDown;
+	int _lastScrollTop = 0;
+	int _topicReopenBarHeight = 0;
+	int _scrollTopDelta = 0;
 
 	bool _choosingAttach = false;
 
-	base::Timer _readRequestTimer;
-	bool _readRequestPending = false;
-	mtpRequestId _readRequestId = 0;
-
-	mtpRequestId _reloadUnreadCountRequestId = 0;
 	bool _loaded = false;
 
 };
 
 
-class RepliesMemento : public Window::SectionMemento {
+class RepliesMemento final : public Window::SectionMemento {
 public:
 	RepliesMemento(
 		not_null<History*> history,
@@ -320,6 +372,11 @@ public:
 	explicit RepliesMemento(
 		not_null<HistoryItem*> commentsItem,
 		MsgId commentId = 0);
+
+	void setReadInformation(
+		MsgId inboxReadTillId,
+		int unreadCount,
+		MsgId outboxReadTillId);
 
 	object_ptr<Window::SectionWidget> createWidget(
 		QWidget *parent,
@@ -341,10 +398,12 @@ public:
 		return _replies;
 	}
 
-	void setReplyReturns(const std::vector<MsgId> &list) {
+	void setFromTopic(not_null<Data::ForumTopic*> topic);
+
+	void setReplyReturns(const QVector<FullMsgId> &list) {
 		_replyReturns = list;
 	}
-	const std::vector<MsgId> &replyReturns() const {
+	const QVector<FullMsgId> &replyReturns() const {
 		return _replyReturns;
 	}
 
@@ -356,12 +415,16 @@ public:
 	}
 
 private:
+	void setupTopicViewer();
+
 	const not_null<History*> _history;
-	const MsgId _rootId = 0;
+	MsgId _rootId = 0;
 	const MsgId _highlightId = 0;
 	ListMemento _list;
 	std::shared_ptr<Data::RepliesList> _replies;
-	std::vector<MsgId> _replyReturns;
+	QVector<FullMsgId> _replyReturns;
+
+	rpl::lifetime _lifetime;
 
 };
 

@@ -421,7 +421,7 @@ void Form::processDetails(const MTPDpayments_paymentForm &data) {
 	if (const auto botId = _details.botId) {
 		if (const auto bot = _session->data().userLoaded(botId)) {
 			_invoice.cover.seller = bot->name();
-			_details.termsBotUsername = bot->username;
+			_details.termsBotUsername = bot->username();
 		}
 	}
 	if (const auto providerId = _details.providerId) {

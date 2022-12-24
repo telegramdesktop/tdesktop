@@ -88,6 +88,10 @@ menuIconPhoto: icon {{ "menu/image", menuIconColor }};
 menuIconAddToFolder: icon {{ "menu/add_to_folder", menuIconColor }};
 menuIconLeave: icon {{ "menu/leave", menuIconColor }};
 menuIconGiftPremium: icon {{ "menu/gift_premium", menuIconColor }};
+menuIconSearch: icon {{ "menu/search", menuIconColor }};
+menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
+menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
+menuIconVideoChat: icon {{ "menu/video_chat", menuIconColor }};
 
 menuIconTTLAny: icon {{ "menu/auto_delete_plain", menuIconColor }};
 menuIconTTLAnyTextPosition: point(11px, 22px);
@@ -109,11 +113,9 @@ mediaMenuIconShowAll: icon {{ "menu/all_media", mediaviewMenuFg }};
 mediaMenuIconProfile: icon {{ "menu/profile", mediaviewMenuFg }};
 mediaMenuIconReport: icon {{ "menu/report", mediaviewMenuFg }};
 
-menuIconStartStream: icon {{ "menu/start_stream", menuIconColor }};
-menuIconStartStreamWith: icon {{ "menu/start_stream_with", menuIconColor }};
-
 menuIconDeleteAttention: icon {{ "menu/delete", menuIconAttentionColor }};
 menuIconLeaveAttention: icon {{ "menu/leave", menuIconAttentionColor }};
 menuIconDisableAttention: icon {{ "menu/disable", menuIconAttentionColor }};
+menuIconReportAttention: icon {{ "menu/report", menuIconAttentionColor }};
 
 menuIconBlockSettings: icon {{ "menu/block", windowBgActive }};

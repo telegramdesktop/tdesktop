@@ -144,10 +144,10 @@ private:
 
 class ContentMemento {
 public:
-	ContentMemento(not_null<PeerData*> peer, PeerId migratedPeerId)
-	: _peer(peer)
-	, _migratedPeerId(migratedPeerId) {
-	}
+	ContentMemento(
+		not_null<PeerData*> peer,
+		Data::ForumTopic *topic,
+		PeerId migratedPeerId);
 	explicit ContentMemento(Settings::Tag settings);
 	explicit ContentMemento(Downloads::Tag downloads);
 	ContentMemento(not_null<PollData*> poll, FullMsgId contextId)
@@ -165,6 +165,9 @@ public:
 	}
 	PeerId migratedPeerId() const {
 		return _migratedPeerId;
+	}
+	Data::ForumTopic *topic() const {
+		return _topic;
 	}
 	UserData *settingsSelf() const {
 		return _settingsSelf;
@@ -209,6 +212,7 @@ public:
 private:
 	PeerData * const _peer = nullptr;
 	const PeerId _migratedPeerId = 0;
+	Data::ForumTopic *_topic = nullptr;
 	UserData * const _settingsSelf = nullptr;
 	PollData * const _poll = nullptr;
 	const FullMsgId _pollContextId;
@@ -217,6 +221,8 @@ private:
 	QString _searchFieldQuery;
 	bool _searchEnabledByContent = false;
 	bool _searchStartsFocused = false;
+
+	rpl::lifetime _lifetime;
 
 };
 

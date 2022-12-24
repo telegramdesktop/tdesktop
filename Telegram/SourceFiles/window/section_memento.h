@@ -19,19 +19,23 @@ enum class Column;
 
 class SectionMemento {
 public:
-	virtual object_ptr<SectionWidget> createWidget(
+	[[nodiscard]] virtual object_ptr<SectionWidget> createWidget(
 		QWidget *parent,
 		not_null<SessionController*> controller,
 		Column column,
 		const QRect &geometry) = 0;
 
-	virtual object_ptr<Ui::LayerWidget> createLayer(
+	[[nodiscard]] virtual object_ptr<Ui::LayerWidget> createLayer(
 			not_null<SessionController*> controller,
 			const QRect &geometry) {
 		return nullptr;
 	}
-	virtual bool instant() const {
+	[[nodiscard]] virtual bool instant() const {
 		return false;
+	}
+
+	[[nodiscard]] virtual rpl::producer<> removeRequests() const {
+		return rpl::never<>();
 	}
 
 	virtual ~SectionMemento() = default;

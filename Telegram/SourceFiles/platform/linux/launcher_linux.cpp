@@ -52,9 +52,8 @@ Launcher::Launcher(int argc, char *argv[])
 
 int Launcher::exec() {
 	for (auto i = begin(_arguments), e = end(_arguments); i != e; ++i) {
-		if (*i == "-webviewhelper" && std::distance(i, e) > 2) {
-			Webview::WebKit2Gtk::SetDebug(*(i + 1));
-			Webview::WebKit2Gtk::SetSocketPath(*(i + 2));
+		if (*i == "-webviewhelper" && std::distance(i, e) > 1) {
+			Webview::WebKit2Gtk::SetSocketPath(*(i + 1));
 			return Webview::WebKit2Gtk::Exec();
 		}
 	}

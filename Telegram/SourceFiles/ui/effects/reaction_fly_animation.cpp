@@ -5,10 +5,8 @@ the official desktop application for the Telegram messaging service.
 For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
-#include "history/view/reactions/history_view_reactions_animation.h"
+#include "ui/effects/reaction_fly_animation.h"
 
-#include "history/view/history_view_element.h"
-#include "history/view/history_view_bottom_info.h"
 #include "ui/text/text_custom_emoji.h"
 #include "ui/animated_icon.h"
 #include "ui/painter.h"
@@ -19,7 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/random.h"
 #include "styles/style_chat.h"
 
-namespace HistoryView::Reactions {
+namespace Ui {
 namespace {
 
 constexpr auto kFlyDuration = crl::time(300);
@@ -33,7 +31,7 @@ constexpr auto kMiniCopiesMaxScaleMax = 0.9;
 
 } // namespace
 
-AnimationArgs AnimationArgs::translated(QPoint point) const {
+ReactionFlyAnimationArgs ReactionFlyAnimationArgs::translated(QPoint point) const {
 	return {
 		.id = id,
 		.flyIcon = flyIcon,
@@ -41,7 +39,7 @@ AnimationArgs AnimationArgs::translated(QPoint point) const {
 	};
 }
 
-auto Animation::flyCallback() {
+auto ReactionFlyAnimation::flyCallback() {
 	return [=] {
 		if (!_fly.animating()) {
 			_flyIcon = QImage();
@@ -53,7 +51,7 @@ auto Animation::flyCallback() {
 	};
 }
 
-auto Animation::callback() {
+auto ReactionFlyAnimation::callback() {
 	return [=] {
 		if (_repaint) {
 			_repaint();
@@ -61,9 +59,9 @@ auto Animation::callback() {
 	};
 }
 
-Animation::Animation(
+ReactionFlyAnimation::ReactionFlyAnimation(
 	not_null<::Data::Reactions*> owner,
-	AnimationArgs &&args,
+	ReactionFlyAnimationArgs &&args,
 	Fn<void()> repaint,
 	int size,
 	Data::CustomEmojiSizeTag customSizeTag)
@@ -82,7 +80,7 @@ Animation::Animation(
 			document,
 			callback(),
 			customSizeTag);
-		_colored = std::make_unique<Ui::Text::CustomEmojiColored>();
+		_colored = std::make_unique<Text::CustomEmojiColored>();
 		_customSize = esize;
 		_centerSizeMultiplier = _customSize / float64(size);
 		aroundAnimation = owner->chooseGenericAnimation(document);
@@ -96,7 +94,7 @@ Animation::Animation(
 		_centerSizeMultiplier = 1.;
 	}
 	const auto resolve = [&](
-			std::unique_ptr<Ui::AnimatedIcon> &icon,
+			std::unique_ptr<AnimatedIcon> &icon,
 			DocumentData *document,
 			int size) {
 		if (!document) {
@@ -106,7 +104,7 @@ Animation::Animation(
 		if (!media || !media->loaded()) {
 			return false;
 		}
-		icon = Ui::MakeAnimatedIcon({
+		icon = MakeAnimatedIcon({
 			.generator = DocumentIconFrameGenerator(media),
 			.sizeOverride = QSize(size, size),
 		});
@@ -128,9 +126,9 @@ Animation::Animation(
 	_valid = true;
 }
 
-Animation::~Animation() = default;
+ReactionFlyAnimation::~ReactionFlyAnimation() = default;
 
-QRect Animation::paintGetArea(
+QRect ReactionFlyAnimation::paintGetArea(
 		QPainter &p,
 		QPoint origin,
 		QRect target,
@@ -186,7 +184,7 @@ QRect Animation::paintGetArea(
 	return wide;
 }
 
-void Animation::paintCenterFrame(
+void ReactionFlyAnimation::paintCenterFrame(
 		QPainter &p,
 		QRect target,
 		const QColor &colored,
@@ -220,7 +218,7 @@ void Animation::paintCenterFrame(
 	}
 }
 
-void Animation::paintMiniCopies(
+void ReactionFlyAnimation::paintMiniCopies(
 		QPainter &p,
 		QPoint center,
 		const QColor &colored,
@@ -240,7 +238,7 @@ void Animation::paintMiniCopies(
 	const auto scaleOut = kMiniCopiesScaleOutDuration
 		/ float64(kMiniCopiesDurationMax);
 	_colored->color = colored;
-	auto context = Ui::Text::CustomEmoji::Context{
+	auto context = Text::CustomEmoji::Context{
 		.preview = preview,
 		.colored = _colored.get(),
 		.size = size,
@@ -269,7 +267,7 @@ void Animation::paintMiniCopies(
 	}
 }
 
-void Animation::generateMiniCopies(int size) {
+void ReactionFlyAnimation::generateMiniCopies(int size) {
 	if (!_custom) {
 		return;
 	}
@@ -301,7 +299,7 @@ void Animation::generateMiniCopies(int size) {
 	}
 }
 
-int Animation::computeParabolicTop(
+int ReactionFlyAnimation::computeParabolicTop(
 		Parabolic &cache,
 		int from,
 		int to,
@@ -339,7 +337,7 @@ int Animation::computeParabolicTop(
 	return int(base::SafeRound(cache.a * t * t + cache.b * t + from));
 }
 
-void Animation::startAnimations() {
+void ReactionFlyAnimation::startAnimations() {
 	if (const auto center = _center.get()) {
 		_center->animate(callback());
 	}
@@ -351,19 +349,19 @@ void Animation::startAnimations() {
 	}
 }
 
-void Animation::setRepaintCallback(Fn<void()> repaint) {
+void ReactionFlyAnimation::setRepaintCallback(Fn<void()> repaint) {
 	_repaint = std::move(repaint);
 }
 
-bool Animation::flying() const {
+bool ReactionFlyAnimation::flying() const {
 	return !_flyIcon.isNull();
 }
 
-float64 Animation::flyingProgress() const {
+float64 ReactionFlyAnimation::flyingProgress() const {
 	return _fly.value(1.);
 }
 
-bool Animation::finished() const {
+bool ReactionFlyAnimation::finished() const {
 	return !_valid
 		|| (_flyIcon.isNull()
 			&& (!_center || !_center->animating())

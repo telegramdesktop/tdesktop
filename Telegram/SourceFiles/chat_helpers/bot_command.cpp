@@ -33,7 +33,7 @@ QString WrapCommandInChat(
 		not_null<PeerData*> peer,
 		const QString &command,
 		not_null<UserData*> bot) {
-	if (!bot->isBot() || bot->username.isEmpty()) {
+	if (!bot->isBot() || bot->username().isEmpty()) {
 		return command;
 	}
 	const auto botStatus = peer->isChat()
@@ -42,7 +42,7 @@ QString WrapCommandInChat(
 		? peer->asChannel()->mgInfo->botStatus
 		: -1;
 	return ((command.indexOf('@') < 2) && (botStatus == 0 || botStatus == 2))
-		? command + '@' + bot->username
+		? command + '@' + bot->username()
 		: command;
 }
 

@@ -14,10 +14,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 class HistoryMessage;
 struct HistoryMessageEdited;
 struct HistoryMessageForwarded;
+struct HistoryMessageReplyMarkup;
 
 namespace Data {
 struct ReactionId;
 } // namespace Data
+
+namespace Ui {
+struct BubbleRounding;
+} // namespace Ui
 
 namespace HistoryView {
 
@@ -44,6 +49,11 @@ struct PsaTooltipState : public RuntimeComponent<PsaTooltipState, Element> {
 	mutable ClickHandlerPtr link;
 	mutable Ui::Animations::Simple buttonVisibleAnimation;
 	mutable bool buttonVisible = true;
+};
+
+struct BottomRippleMask {
+	QImage image;
+	int shift = 0;
 };
 
 class Message final : public Element {
@@ -109,6 +119,7 @@ public:
 	bool hasOutLayout() const override;
 	bool drawBubble() const override;
 	bool hasBubble() const override;
+	bool unwrapped() const override;
 	int minWidthForMedia() const override;
 	bool hasFastReply() const override;
 	bool displayFastReply() const override;
@@ -137,13 +148,14 @@ public:
 	void applyGroupAdminChanges(
 		const base::flat_set<UserId> &changes) override;
 
-	void animateReaction(Reactions::AnimationArgs &&args) override;
+	void animateReaction(Ui::ReactionFlyAnimationArgs &&args) override;
 	auto takeReactionAnimations()
 	-> base::flat_map<
 		Data::ReactionId,
-		std::unique_ptr<Reactions::Animation>> override;
+		std::unique_ptr<Ui::ReactionFlyAnimation>> override;
 
 	QRect innerGeometry() const override;
+	[[nodiscard]] BottomRippleMask bottomRippleMask(int buttonHeight) const;
 
 protected:
 	void refreshDataIdHook() override;
@@ -164,6 +176,7 @@ private:
 		TextSelection selection) const;
 
 	void toggleCommentsButtonRipple(bool pressed);
+	void createCommentsRipple();
 
 	void paintCommentsButton(
 		Painter &p,
@@ -221,6 +234,10 @@ private:
 
 	void updateMediaInBubbleState();
 	QRect countGeometry() const;
+	[[nodiscard]] Ui::BubbleRounding countMessageRounding() const;
+	[[nodiscard]] Ui::BubbleRounding countBubbleRounding(
+		Ui::BubbleRounding messageRounding) const;
+	[[nodiscard]] Ui::BubbleRounding countBubbleRounding() const;
 
 	int resizeContentGetHeight(int newWidth);
 	QSize performCountOptimalSize() override;
@@ -240,6 +257,7 @@ private:
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
 
+	void validateInlineKeyboard(HistoryMessageReplyMarkup *markup);
 	void updateViewButtonExistence();
 	[[nodiscard]] int viewButtonHeight() const;
 

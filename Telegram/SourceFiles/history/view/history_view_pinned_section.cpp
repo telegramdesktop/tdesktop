@@ -59,12 +59,12 @@ namespace {
 } // namespace
 
 PinnedMemento::PinnedMemento(
-	not_null<History*> history,
+	not_null<Data::Thread*> thread,
 	UniversalMsgId highlightId)
-: _history(history)
+: _thread(thread)
 , _highlightId(highlightId) {
 	_list.setAroundPosition({
-		.fullId = FullMsgId(history->peer->id, highlightId),
+		.fullId = FullMsgId(_thread->peer()->id, highlightId),
 		.date = TimeId(0),
 	});
 }
@@ -80,7 +80,7 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 	auto result = object_ptr<PinnedWidget>(
 		parent,
 		controller,
-		_history);
+		_thread);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -88,10 +88,13 @@ object_ptr<Window::SectionWidget> PinnedMemento::createWidget(
 PinnedWidget::PinnedWidget(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller,
-	not_null<History*> history)
-: Window::SectionWidget(parent, controller, history->peer)
-, _history(history->migrateToOrMe())
-, _migratedPeer(_history->peer->migrateFrom())
+	not_null<Data::Thread*> thread)
+: Window::SectionWidget(parent, controller, thread->peer())
+, _thread(thread->migrateToOrMe())
+, _history(thread->owningHistory())
+, _migratedPeer(thread->asHistory()
+	? thread->asHistory()->peer->migrateFrom()
+	: nullptr)
 , _topBar(this, controller)
 , _topBarShadow(this)
 , _scroll(std::make_unique<Ui::ScrollArea>(
@@ -102,9 +105,10 @@ PinnedWidget::PinnedWidget(
 	this,
 	QString(),
 	st::historyComposeButton))
-, _scrollDown(
+, _cornerButtons(
 		_scroll.get(),
-		controller->chatStyle()->value(lifetime(), st::historyToDown)) {
+		controller->chatStyle(),
+		static_cast<HistoryView::CornerButtonsDelegate*>(this)) {
 	controller->chatStyle()->paletteChanged(
 	) | rpl::start_with_next([=] {
 		_scroll->updateBars();
@@ -112,7 +116,7 @@ PinnedWidget::PinnedWidget(
 
 	Window::ChatThemeValueFromPeer(
 		controller,
-		history->peer
+		thread->peer()
 	) | rpl::start_with_next([=](std::shared_ptr<Ui::ChatTheme> &&theme) {
 		_theme = std::move(theme);
 		controller->setChatStyleTheme(_theme);
@@ -120,7 +124,7 @@ PinnedWidget::PinnedWidget(
 
 	_topBar->setActiveChat(
 		TopBarWidget::ActiveChat{
-			.key = _history,
+			.key = _thread,
 			.section = Dialogs::EntryState::Section::Pinned,
 		},
 		nullptr);
@@ -161,25 +165,9 @@ PinnedWidget::PinnedWidget(
 	}, lifetime());
 
 	setupClearButton();
-	setupScrollDownButton();
 }
 
 PinnedWidget::~PinnedWidget() = default;
-
-void PinnedWidget::setupScrollDownButton() {
-	_scrollDown->setClickedCallback([=] {
-		scrollDownClicked();
-	});
-	base::install_event_filter(_scrollDown, [=](not_null<QEvent*> event) {
-		if (event->type() != QEvent::Wheel) {
-			return base::EventFilterResult::Continue;
-		}
-		return _scroll->viewportEvent(event)
-			? base::EventFilterResult::Cancel
-			: base::EventFilterResult::Continue;
-	});
-	updateScrollDownVisibility();
-}
 
 void PinnedWidget::setupClearButton() {
 	Data::CanPinMessagesValue(
@@ -196,125 +184,56 @@ void PinnedWidget::setupClearButton() {
 			Window::HidePinnedBar(
 				controller(),
 				_history->peer,
+				_thread->topicRootId(),
 				crl::guard(this, callback));
 		} else {
-			Window::UnpinAllMessages(controller(), _history);
+			Window::UnpinAllMessages(controller(), _thread);
 		}
 	});
 }
 
-void PinnedWidget::scrollDownClicked() {
-	if (base::IsCtrlPressed()) {
-		showAtEnd();
-	//} else if (_replyReturn) {
-	//	showAtPosition(_replyReturn->position());
-	} else {
-		showAtEnd();
+void PinnedWidget::cornerButtonsShowAtPosition(
+		Data::MessagePosition position) {
+	showAtPosition(position);
+}
+
+Data::Thread *PinnedWidget::cornerButtonsThread() {
+	return _thread;
+}
+
+FullMsgId PinnedWidget::cornerButtonsCurrentId() {
+	return {};
+}
+
+bool PinnedWidget::cornerButtonsIgnoreVisibility() {
+	return animatingShow();
+}
+
+std::optional<bool> PinnedWidget::cornerButtonsDownShown() {
+	const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
+	if (top < _scroll->scrollTopMax() || _cornerButtons.replyReturn()) {
+		return true;
+	} else if (_inner->loadedAtBottomKnown()) {
+		return !_inner->loadedAtBottom();
 	}
+	return std::nullopt;
 }
 
-void PinnedWidget::showAtStart() {
-	showAtPosition(Data::MinMessagePosition);
+bool PinnedWidget::cornerButtonsUnreadMayBeShown() {
+	return _inner->loadedAtBottomKnown();
 }
 
-void PinnedWidget::showAtEnd() {
-	showAtPosition(Data::MaxMessagePosition);
+bool PinnedWidget::cornerButtonsHas(CornerButtonType type) {
+	return (type == CornerButtonType::Down);
 }
 
 void PinnedWidget::showAtPosition(
 		Data::MessagePosition position,
-		HistoryItem *originItem) {
-	if (!showAtPositionNow(position, originItem)) {
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, originItem);
-		});
-	}
-}
-
-bool PinnedWidget::showAtPositionNow(
-		Data::MessagePosition position,
-		HistoryItem *originItem,
-		anim::type animated) {
-	using AnimatedScroll = HistoryView::ListWidget::AnimatedScroll;
-
-	const auto item = position.fullId
-		? _history->owner().message(position.fullId)
-		: nullptr;
-	const auto use = item ? item->position() : position;
-	if (const auto scrollTop = _inner->scrollTopForPosition(use)) {
-		const auto currentScrollTop = _scroll->scrollTop();
-		const auto wanted = std::clamp(
-			*scrollTop,
-			0,
-			_scroll->scrollTopMax());
-		const auto fullDelta = (wanted - currentScrollTop);
-		const auto limit = _scroll->height();
-		const auto scrollDelta = std::clamp(fullDelta, -limit, limit);
-		const auto type = (animated == anim::type::instant)
-			? AnimatedScroll::None
-			: (std::abs(fullDelta) > limit)
-			? AnimatedScroll::Part
-			: AnimatedScroll::Full;
-		_inner->scrollTo(
-			wanted,
-			use,
-			scrollDelta,
-			type);
-		if (use != Data::MaxMessagePosition
-			&& use != Data::UnreadMessagePosition) {
-			_inner->highlightMessage(use.fullId);
-		}
-		return true;
-	}
-	return false;
-}
-
-void PinnedWidget::updateScrollDownVisibility() {
-	if (animatingShow()) {
-		return;
-	}
-
-	const auto scrollDownIsVisible = [&]() -> std::optional<bool> {
-		const auto top = _scroll->scrollTop() + st::historyToDownShownAfter;
-		if (top < _scroll->scrollTopMax()) {
-			return true;
-		} else if (_inner->loadedAtBottomKnown()) {
-			return !_inner->loadedAtBottom();
-		}
-		return std::nullopt;
-	};
-	const auto scrollDownIsShown = scrollDownIsVisible();
-	if (!scrollDownIsShown) {
-		return;
-	}
-	if (_scrollDownIsShown != *scrollDownIsShown) {
-		_scrollDownIsShown = *scrollDownIsShown;
-		_scrollDownShown.start(
-			[=] { updateScrollDownPosition(); },
-			_scrollDownIsShown ? 0. : 1.,
-			_scrollDownIsShown ? 1. : 0.,
-			st::historyToDownDuration);
-	}
-}
-
-void PinnedWidget::updateScrollDownPosition() {
-	// _scrollDown is a child widget of _scroll, not me.
-	auto top = anim::interpolate(
-		0,
-		_scrollDown->height() + st::historyToDownPosition.y(),
-		_scrollDownShown.value(_scrollDownIsShown ? 1. : 0.));
-	_scrollDown->moveToRight(
-		st::historyToDownPosition.x(),
-		_scroll->height() - top);
-	auto shouldBeHidden = !_scrollDownIsShown && !_scrollDownShown.animating();
-	if (shouldBeHidden != _scrollDown->isHidden()) {
-		_scrollDown->setVisible(!shouldBeHidden);
-	}
-}
-
-void PinnedWidget::scrollDownAnimationFinish() {
-	_scrollDownShown.stop();
-	updateScrollDownPosition();
+		FullMsgId originId) {
+	_inner->showAtPosition(
+		position,
+		anim::type::normal,
+		_cornerButtons.doneJumpFrom(position.fullId, originId));
 }
 
 void PinnedWidget::updateAdaptiveLayout() {
@@ -323,13 +242,13 @@ void PinnedWidget::updateAdaptiveLayout() {
 		_topBar->height());
 }
 
-not_null<History*> PinnedWidget::history() const {
-	return _history;
+not_null<Data::Thread*> PinnedWidget::thread() const {
+	return _thread;
 }
 
 Dialogs::RowDescriptor PinnedWidget::activeChat() const {
 	return {
-		_history,
+		_thread,
 		FullMsgId(_history->peer->id, ShowAtUnreadMsgId)
 	};
 }
@@ -342,6 +261,10 @@ QPixmap PinnedWidget::grabForShowAnimation(const Window::SectionSlideParams &par
 	return result;
 }
 
+void PinnedWidget::checkActivation() {
+	_inner->checkActivation();
+}
+
 void PinnedWidget::doSetInnerFocus() {
 	_inner->setFocus();
 }
@@ -350,8 +273,8 @@ bool PinnedWidget::showInternal(
 		not_null<Window::SectionMemento*> memento,
 		const Window::SectionShow &params) {
 	if (auto logMemento = dynamic_cast<PinnedMemento*>(memento.get())) {
-		if (logMemento->getHistory() == history()
-			|| logMemento->getHistory()->migrateToOrMe() == history()) {
+		if (logMemento->getThread() == thread()
+			|| logMemento->getThread()->migrateToOrMe() == thread()) {
 			restoreState(logMemento);
 			return true;
 		}
@@ -368,7 +291,7 @@ void PinnedWidget::setInternalState(
 }
 
 std::shared_ptr<Window::SectionMemento> PinnedWidget::createMemento() {
-	auto result = std::make_shared<PinnedMemento>(history());
+	auto result = std::make_shared<PinnedMemento>(thread());
 	saveState(result.get());
 	return result;
 }
@@ -387,15 +310,12 @@ void PinnedWidget::saveState(not_null<PinnedMemento*> memento) {
 void PinnedWidget::restoreState(not_null<PinnedMemento*> memento) {
 	_inner->restoreState(memento->list());
 	if (const auto highlight = memento->getHighlightId()) {
-		const auto position = Data::MessagePosition{
+		_inner->showAtPosition(Data::MessagePosition{
 			.fullId = ((highlight > 0 || !_migratedPeer)
 				? FullMsgId(_history->peer->id, highlight)
 				: FullMsgId(_migratedPeer->id, -highlight)),
 			.date = TimeId(0),
-		};
-		_inner->showAroundPosition(position, [=] {
-			return showAtPositionNow(position, nullptr, anim::type::instant);
-		});
+		}, anim::type::instant);
 	}
 }
 
@@ -463,7 +383,8 @@ void PinnedWidget::updateControlsGeometry() {
 		}
 		updateInnerVisibleArea();
 	}
-	updateScrollDownPosition();
+
+	_cornerButtons.updatePositions();
 }
 
 void PinnedWidget::paintEvent(QPaintEvent *e) {
@@ -490,7 +411,8 @@ void PinnedWidget::onScroll() {
 void PinnedWidget::updateInnerVisibleArea() {
 	const auto scrollTop = _scroll->scrollTop();
 	_inner->setVisibleTopBottom(scrollTop, scrollTop + _scroll->height());
-	updateScrollDownVisibility();
+	_cornerButtons.updateJumpDownVisibility();
+	_cornerButtons.updateUnreadThingsVisibility();
 }
 
 void PinnedWidget::showAnimatedHook(
@@ -503,6 +425,7 @@ void PinnedWidget::showAnimatedHook(
 
 void PinnedWidget::showFinishedHook() {
 	_topBar->setAnimatingMode(false);
+	_inner->showFinished();
 }
 
 bool PinnedWidget::floatPlayerHandleWheelEvent(QEvent *e) {
@@ -517,7 +440,7 @@ Context PinnedWidget::listContext() {
 	return Context::Pinned;
 }
 
-bool PinnedWidget::listScrollTo(int top) {
+bool PinnedWidget::listScrollTo(int top, bool syntetic) {
 	top = std::clamp(top, 0, _scroll->scrollTopMax());
 	if (_scroll->scrollTop() == top) {
 		updateInnerVisibleArea();
@@ -539,28 +462,6 @@ void PinnedWidget::listDeleteRequest() {
 	confirmDeleteSelected();
 }
 
-rpl::producer<int> SharedMediaCountValue(
-		not_null<PeerData*> peer,
-		PeerData *migrated,
-		Storage::SharedMediaType type) {
-	auto aroundId = 0;
-	auto limit = 0;
-	auto updated = SharedMediaMergedViewer(
-		&peer->session(),
-		SharedMediaMergedKey(
-			SparseIdsMergedSlice::Key(
-				peer->id,
-				migrated ? migrated->id : 0,
-				aroundId),
-			type),
-		limit,
-		limit
-	) | rpl::map([](const SparseIdsMergedSlice &slice) {
-		return slice.fullCount();
-	}) | rpl::filter_optional();
-	return rpl::single(0) | rpl::then(std::move(updated));
-}
-
 rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		Data::MessagePosition aroundId,
 		int limitBefore,
@@ -570,10 +471,11 @@ rpl::producer<Data::MessagesSlice> PinnedWidget::listSource(
 		: (ServerMaxMsgId - 1);
 
 	return SharedMediaMergedViewer(
-		&_history->session(),
+		&_thread->session(),
 		SharedMediaMergedKey(
 			SparseIdsMergedSlice::Key(
 				_history->peer->id,
+				_thread->topicRootId(),
 				_migratedPeer ? _migratedPeer->id : 0,
 				messageId),
 			Storage::SharedMediaType::Pinned),
@@ -613,7 +515,7 @@ bool PinnedWidget::listAllowsMultiSelect() {
 
 bool PinnedWidget::listIsItemGoodForSelection(
 		not_null<HistoryItem*> item) {
-	return item->isRegular();
+	return item->isRegular() && !item->isService();
 }
 
 bool PinnedWidget::listIsLessInOrder(
@@ -636,7 +538,11 @@ void PinnedWidget::listSelectionChanged(SelectedItems &&items) {
 	_topBar->showSelected(state);
 }
 
-void PinnedWidget::listVisibleItemsChanged(HistoryItemsList &&items) {
+void PinnedWidget::listMarkReadTill(not_null<HistoryItem*> item) {
+}
+
+void PinnedWidget::listMarkContentsRead(
+	const base::flat_set<not_null<HistoryItem*>> &items) {
 }
 
 MessagesBarData PinnedWidget::listMessagesBar(
@@ -647,16 +553,17 @@ MessagesBarData PinnedWidget::listMessagesBar(
 void PinnedWidget::listContentRefreshed() {
 }
 
-ClickHandlerPtr PinnedWidget::listDateLink(not_null<Element*> view) {
-	return nullptr;
+void PinnedWidget::listUpdateDateLink(
+	ClickHandlerPtr &link,
+	not_null<Element*> view) {
 }
 
 bool PinnedWidget::listElementHideReply(not_null<const Element*> view) {
-	return false;
+	return (view->data()->replyToId() == _thread->topicRootId());
 }
 
 bool PinnedWidget::listElementShownUnread(not_null<const Element*> view) {
-	return view->data()->unread();
+	return view->data()->unread(view->data()->history());
 }
 
 bool PinnedWidget::listIsGoodForAroundPosition(
@@ -681,6 +588,11 @@ CopyRestrictionType PinnedWidget::listCopyRestrictionType(
 	return CopyRestrictionTypeFor(_history->peer, item);
 }
 
+CopyRestrictionType PinnedWidget::listCopyMediaRestrictionType(
+		not_null<HistoryItem*> item) {
+	return CopyMediaRestrictionTypeFor(_history->peer, item);
+}
+
 CopyRestrictionType PinnedWidget::listSelectRestrictionType() {
 	return SelectRestrictionTypeFor(_history->peer);
 }
@@ -691,6 +603,28 @@ auto PinnedWidget::listAllowedReactionsValue()
 }
 
 void PinnedWidget::listShowPremiumToast(not_null<DocumentData*> document) {
+}
+
+void PinnedWidget::listOpenPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId context) {
+	controller()->openPhoto(photo, context, MsgId());
+}
+
+void PinnedWidget::listOpenDocument(
+		not_null<DocumentData*> document,
+		FullMsgId context,
+		bool showInMediaView) {
+	controller()->openDocument(document, context, MsgId(), showInMediaView);
+}
+
+void PinnedWidget::listPaintEmpty(
+	Painter &p,
+	const Ui::ChatPaintContext &context) {
+}
+
+QString PinnedWidget::listElementAuthorRank(not_null<const Element*> view) {
+	return {};
 }
 
 void PinnedWidget::confirmDeleteSelected() {

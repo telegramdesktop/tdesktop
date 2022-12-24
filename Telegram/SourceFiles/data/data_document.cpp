@@ -381,6 +381,10 @@ void DocumentData::setattributes(
 				type = data.is_round_message()
 					? RoundVideoDocument
 					: VideoDocument;
+				if (data.is_round_message()) {
+					_additional = std::make_unique<RoundData>();
+					round()->duration = data.vduration().v;
+				}
 			} else if (const auto info = sticker()) {
 				info->type = StickerType::Webm;
 			}
@@ -397,7 +401,7 @@ void DocumentData::setattributes(
 					_additional = std::make_unique<SongData>();
 				}
 			}
-			if (const auto voiceData = voice()) {
+			if (const auto voiceData = voice() ? voice() : round()) {
 				voiceData->duration = data.vduration().v;
 				voiceData->waveform = documentWaveformDecode(
 					data.vwaveform().value_or_empty());
@@ -967,7 +971,8 @@ void DocumentData::save(
 	if (loading()) {
 		_loader->start();
 	}
-	_owner->notifyDocumentLayoutChanged(this);
+	// This affects a display of tooltips.
+	// _owner->notifyDocumentLayoutChanged(this);
 }
 
 void DocumentData::handleLoaderUpdates() {
@@ -1249,6 +1254,16 @@ VoiceData *DocumentData::voice() {
 
 const VoiceData *DocumentData::voice() const {
 	return const_cast<DocumentData*>(this)->voice();
+}
+
+RoundData *DocumentData::round() {
+	return isVideoMessage()
+		? static_cast<RoundData*>(_additional.get())
+		: nullptr;
+}
+
+const RoundData *DocumentData::round() const {
+	return const_cast<DocumentData*>(this)->round();
 }
 
 bool DocumentData::hasRemoteLocation() const {

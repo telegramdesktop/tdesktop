@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer_values.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_channel.h"
 #include "data/data_changes.h"
 #include "data/data_user.h"
@@ -22,13 +23,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/box_content_divider.h"
 #include "ui/boxes/report_box.h"
+#include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
 #include "ui/toast/toast.h"
 #include "ui/text/text_utilities.h" // Ui::Text::ToUpper
+#include "ui/text/text_variant.h"
 #include "history/history_location_manager.h" // LocationClickHandler.
 #include "history/view/history_view_context_menu.h" // HistoryView::ShowReportPeerBox
 #include "boxes/abstract_box.h"
-#include "ui/boxes/confirm_box.h"
 #include "boxes/peer_list_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "boxes/add_contact_box.h"
@@ -37,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_mute.h"
+#include "history/history.h"
 #include "info/info_controller.h"
 #include "info/info_memento.h"
 #include "info/profile/info_profile_icon.h"
@@ -65,12 +68,60 @@ namespace Info {
 namespace Profile {
 namespace {
 
-object_ptr<Ui::RpWidget> CreateSkipWidget(
+[[nodiscard]] rpl::producer<TextWithEntities> UsernamesSubtext(
+		not_null<PeerData*> peer,
+		rpl::producer<QString> fallback) {
+	return rpl::combine(
+		UsernamesValue(peer),
+		std::move(fallback)
+	) | rpl::map([](std::vector<TextWithEntities> usernames, QString text) {
+		if (usernames.size() < 2) {
+			return TextWithEntities{ .text = text };
+		} else {
+			auto result = TextWithEntities();
+			result.append(tr::lng_info_usernames_label(tr::now));
+			result.append(' ');
+			auto &&subrange = ranges::make_subrange(
+				begin(usernames) + 1,
+				end(usernames));
+			for (auto &username : std::move(subrange)) {
+				const auto isLast = (usernames.back() == username);
+				result.append(Ui::Text::Link(
+					'@' + base::take(username.text),
+					username.entities.front().data()));
+				if (!isLast) {
+					result.append(u", "_q);
+				}
+			}
+			return result;
+		}
+	});
+}
+
+[[nodiscard]] Fn<void(QString)> UsernamesLinkCallback(
+		not_null<PeerData*> peer,
+		Window::Show show,
+		const QString &addToLink) {
+	return [=](QString link) {
+		if (!link.startsWith(u"https://"_q)) {
+			link = peer->session().createInternalLinkFull(peer->userName())
+				+ addToLink;
+		}
+		if (!link.isEmpty()) {
+			QGuiApplication::clipboard()->setText(link);
+			Ui::Toast::Show(
+				show.toastParent(),
+				tr::lng_username_copied(tr::now));
+		}
+	};
+}
+
+[[nodiscard]] object_ptr<Ui::RpWidget> CreateSkipWidget(
 		not_null<Ui::RpWidget*> parent) {
 	return Ui::CreateSkipWidget(parent, st::infoProfileSkip);
 }
 
-object_ptr<Ui::SlideWrap<>> CreateSlideSkipWidget(
+[[nodiscard]] object_ptr<Ui::SlideWrap<>> CreateSlideSkipWidget(
 		not_null<Ui::RpWidget*> parent) {
 	auto result = Ui::CreateSlideSkipWidget(
 		parent,
@@ -111,7 +162,7 @@ auto AddActionButton(
 };
 
 template <typename Text, typename ToggleOn, typename Callback>
-auto AddMainButton(
+[[nodiscard]] auto AddMainButton(
 		not_null<Ui::VerticalLayout*> parent,
 		Text &&text,
 		ToggleOn &&toggleOn,
@@ -132,6 +183,10 @@ public:
 		not_null<Controller*> controller,
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer);
+	DetailsFiller(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::ForumTopic*> topic);
 
 	object_ptr<Ui::RpWidget> fill();
 
@@ -159,6 +214,7 @@ private:
 	not_null<Controller*> _controller;
 	not_null<Ui::RpWidget*> _parent;
 	not_null<PeerData*> _peer;
+	Data::ForumTopic *_topic = nullptr;
 	object_ptr<Ui::VerticalLayout> _wrap;
 
 };
@@ -202,6 +258,17 @@ DetailsFiller::DetailsFiller(
 , _wrap(_parent) {
 }
 
+DetailsFiller::DetailsFiller(
+	not_null<Controller*> controller,
+	not_null<Ui::RpWidget*> parent,
+	not_null<Data::ForumTopic*> topic)
+: _controller(controller)
+, _parent(parent)
+, _peer(topic->peer())
+, _topic(topic)
+, _wrap(_parent) {
+}
+
 template <typename T>
 bool SetClickContext(
 		const ClickHandlerPtr &handler,
@@ -226,7 +293,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		const auto context = ClickContext{
 			button,
 			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(window.get()),
+				.sessionWindow = base::make_weak(window),
 				.peer = peer,
 			})
 		};
@@ -245,23 +312,23 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 	};
 
 	const auto addInfoLineGeneric = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
 		auto line = CreateTextWithLabel(
 			result,
-			std::move(label) | Ui::Text::ToWithEntities(),
+			v::text::take_marked(std::move(label)),
 			std::move(text),
 			textSt,
 			padding);
 		tracker.track(result->add(std::move(line.wrap)));
 
 		line.text->setClickHandlerFilter(infoClickFilter);
-		return line.text;
+		return line;
 	};
 	const auto addInfoLine = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const style::FlatLabel &textSt = st::infoLabeled,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
@@ -272,17 +339,17 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			padding);
 	};
 	const auto addInfoOneLine = [&](
-			rpl::producer<QString> &&label,
+			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
 			const QString &contextCopyText,
 			const style::margins &padding = st::infoProfileLabeledPadding) {
-		const auto result = addInfoLine(
+		auto result = addInfoLine(
 			std::move(label),
 			std::move(text),
 			st::infoLabeledOneLine,
 			padding);
-		result->setDoubleClickSelectsParagraph(true);
-		result->setContextCopyText(contextCopyText);
+		result.text->setDoubleClickSelectsParagraph(true);
+		result.text->setContextCopyText(contextCopyText);
 		return result;
 	};
 	if (const auto user = _peer->asUser()) {
@@ -302,11 +369,16 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			: tr::lng_info_bio_label();
 		addInfoLine(std::move(label), AboutValue(user));
 
-		const auto usernameLabel = addInfoOneLine(
-			tr::lng_info_username_label(),
-			UsernameValue(user),
+		const auto usernameLine = addInfoOneLine(
+			UsernamesSubtext(_peer, tr::lng_info_username_label()),
+			UsernameValue(user, true),
 			tr::lng_context_copy_mention(tr::now),
 			st::infoProfileLabeledUsernamePadding);
+		usernameLine.subtext->overrideLinkClickHandler(UsernamesLinkCallback(
+			_peer,
+			Window::Show(controller),
+			QString()));
+		const auto usernameLabel = usernameLine.text;
 		if (user->isBot()) {
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
 				usernameLabel->parentWidget(),
@@ -338,34 +410,37 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			[=] { controller->window().show(Box(EditContactBox, controller, user)); },
 			tracker);
 	} else {
+		const auto topicRootId = _topic ? _topic->rootId() : 0;
+		const auto addToLink = topicRootId
+			? ('/' + QString::number(topicRootId.bare))
+			: QString();
 		auto linkText = LinkValue(
-			_peer
-		) | rpl::map([](const QString &link) {
+			_peer,
+			true
+		) | rpl::map([=](const QString &link) {
 			return link.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
 					(link.startsWith(qstr("https://"))
 						? link.mid(qstr("https://").size())
-						: link),
-					link);
+						: link) + addToLink,
+					link + addToLink);
 		});
-		auto link = addInfoOneLine(
-			tr::lng_info_link_label(),
+		auto linkLine = addInfoOneLine(
+			(topicRootId
+				? tr::lng_info_link_label(Ui::Text::WithEntities)
+				: UsernamesSubtext(_peer, tr::lng_info_link_label())),
 			std::move(linkText),
 			QString());
 		const auto controller = _controller->parentController();
-		link->overrideLinkClickHandler([=, peer = _peer] {
-			const auto link = peer->session().createInternalLinkFull(
-				peer->userName());
-			if (!link.isEmpty()) {
-				QGuiApplication::clipboard()->setText(link);
-				Ui::Toast::Show(
-					Window::Show(controller).toastParent(),
-					tr::lng_username_copied(tr::now));
-			}
-		});
+		const auto linkCallback = UsernamesLinkCallback(
+			_peer,
+			Window::Show(controller),
+			addToLink);
+		linkLine.text->overrideLinkClickHandler(linkCallback);
+		linkLine.subtext->overrideLinkClickHandler(linkCallback);
 
-		if (const auto channel = _peer->asChannel()) {
+		if (const auto channel = _topic ? nullptr : _peer->asChannel()) {
 			auto locationText = LocationValue(
 				channel
 			) | rpl::map([](const ChannelLocation *location) {
@@ -379,10 +454,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 				tr::lng_info_location_label(),
 				std::move(locationText),
 				QString()
-			)->setLinksTrusted();
+			).text->setLinksTrusted();
 		}
 
-		addInfoLine(tr::lng_info_about_label(), AboutValue(_peer));
+		addInfoLine(
+			tr::lng_info_about_label(),
+			_topic ? rpl::single(TextWithEntities()) : AboutValue(_peer));
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
@@ -400,17 +477,27 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		result,
 		st::infoIconInformation,
 		st::infoInformationIconPosition);
+
 	return result;
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 	const auto peer = _peer;
+	const auto topicRootId = _topic ? _topic->rootId() : MsgId();
+	const auto makeThread = [=] {
+		return topicRootId
+			? static_cast<Data::Thread*>(peer->forumTopicFor(topicRootId))
+			: peer->owner().history(peer).get();
+	};
 	auto result = object_ptr<Ui::SettingsButton>(
 		_wrap,
 		tr::lng_profile_enable_notifications(),
 		st::infoNotificationsButton);
-	result->toggleOn(NotificationsEnabledValue(peer), true);
+	result->toggleOn(_topic
+		? NotificationsEnabledValue(_topic)
+		: NotificationsEnabledValue(peer), true);
 	result->setAcceptBoth();
+	const auto notifySettings = &peer->owner().notifySettings();
 	MuteMenu::SetupMuteMenu(
 		result.data(),
 		result->clicks(
@@ -418,16 +505,26 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupMuteToggle() {
 			if (button == Qt::RightButton) {
 				return true;
 			}
-			if (peer->owner().notifySettings().isMuted(peer)) {
-				peer->owner().notifySettings().update(
-					peer,
-					{ .unmute = true });
+			const auto topic = topicRootId
+				? peer->forumTopicFor(topicRootId)
+				: nullptr;
+			Assert(!topicRootId || topic != nullptr);
+			const auto is = topic
+				? notifySettings->isMuted(topic)
+				: notifySettings->isMuted(peer);
+			if (is) {
+				if (topic) {
+					notifySettings->update(topic, { .unmute = true });
+				} else {
+					notifySettings->update(peer, { .unmute = true });
+				}
 				return false;
 			} else {
 				return true;
 			}
 		}) | rpl::to_empty,
-		{ peer, std::make_shared<Window::Show>(_controller) });
+		makeThread,
+		std::make_shared<Window::Show>(_controller));
 	object_ptr<FloatingIcon>(
 		result,
 		st::infoIconNotifications,
@@ -533,6 +630,8 @@ Ui::MultiSlideTracker DetailsFiller::fillChannelButtons(
 }
 
 object_ptr<Ui::RpWidget> DetailsFiller::fill() {
+	Expects(!_topic || !_topic->creating());
+
 	add(object_ptr<Ui::BoxContentDivider>(_wrap));
 	add(CreateSkipWidget(_wrap));
 	add(setupInfo());
@@ -541,6 +640,7 @@ object_ptr<Ui::RpWidget> DetailsFiller::fill() {
 	}
 	setupMainButtons();
 	add(CreateSkipWidget(_wrap));
+
 	return std::move(_wrap);
 }
 
@@ -579,7 +679,7 @@ void ActionsFiller::addInviteToGroupAction(
 }
 
 void ActionsFiller::addShareContactAction(not_null<UserData*> user) {
-	const auto controller = _controller;
+	const auto controller = _controller->parentController();
 	AddActionButton(
 		_wrap,
 		tr::lng_info_share_contact(),
@@ -640,7 +740,7 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 		BotCommandClickHandler('/' + original).onClick(ClickContext{
 			Qt::LeftButton,
 			QVariant::fromValue(ClickHandlerContext{
-				.sessionWindow = base::make_weak(window.get()),
+				.sessionWindow = base::make_weak(window),
 				.peer = user,
 			})
 		});
@@ -831,6 +931,14 @@ object_ptr<Ui::RpWidget> SetupDetails(
 		not_null<Ui::RpWidget*> parent,
 		not_null<PeerData*> peer) {
 	DetailsFiller filler(controller, parent, peer);
+	return filler.fill();
+}
+
+object_ptr<Ui::RpWidget> SetupDetails(
+		not_null<Controller*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::ForumTopic*> topic) {
+	DetailsFiller filler(controller, parent, topic);
 	return filler.fill();
 }
 

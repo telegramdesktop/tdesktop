@@ -25,13 +25,6 @@ UserpicButton {
 	uploadIconPosition: point;
 }
 
-FeedUserpicButton {
-	size: size;
-	innerSize: pixels;
-	innerPosition: point;
-	innerPart: UserpicButton;
-}
-
 countryRowHeight: 36px;
 countryRowNameFont: semiboldFont;
 countryRowNameFg: boxTextFg;
@@ -68,12 +61,6 @@ defaultUserpicButton: UserpicButton {
 	uploadBg: msgDateImgBgOver;
 	uploadIcon: defaultUploadUserpicIcon;
 	uploadIconPosition: point(-1px, 1px);
-}
-defaultFeedUserpicButton: FeedUserpicButton {
-	size: size(76px, 76px);
-	innerSize: 76px;
-	innerPosition: point(-1px, -1px);
-	innerPart: defaultUserpicButton;
 }
 
 confirmInviteTitle: FlatLabel(defaultFlatLabel) {
@@ -660,7 +647,7 @@ rightsHeaderLabel: FlatLabel(boxLabel) {
 	textFg: windowActiveTextFg;
 }
 rightsUntilMargin: margins(0px, 8px, 0px, 20px);
-rightsRankMargin: margins(0px, 16px, 0px, 20px);
+rightsRankMargin: margins(0px, 7px, 0px, 20px);
 
 mutePhotoButton: UserpicButton(defaultUserpicButton) {
 	size: size(40px, 40px);

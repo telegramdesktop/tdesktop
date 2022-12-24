@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_channel.h"
+#include "data/data_forum.h"
 #include "data/data_user.h"
 #include "data/data_file_origin.h"
 #include "ui/boxes/confirm_box.h"
@@ -107,16 +108,27 @@ void CheckChatInvite(
 		const QString &hash,
 		ChannelData *invitePeekChannel) {
 	const auto session = &controller->session();
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	session->api().checkChatInvite(hash, [=](const MTPChatInvite &result) {
+		const auto strong = weak.get();
+		if (!strong) {
+			return;
+		}
 		Core::App().hideMediaView();
-		result.match([=](const MTPDchatInvite &data) {
-			const auto strongController = weak.get();
-			if (!strongController) {
-				return;
+		const auto show = [&](not_null<PeerData*> chat) {
+			if (const auto forum = chat->forum()) {
+				strong->openForum(
+					forum->channel(),
+					Window::SectionShow::Way::Forward);
+			} else {
+				strong->showPeerHistory(
+					chat,
+					Window::SectionShow::Way::Forward);
 			}
+		};
+		result.match([=](const MTPDchatInvite &data) {
 			const auto isGroup = !data.is_broadcast();
-			const auto box = strongController->show(Box<ConfirmInviteBox>(
+			const auto box = strong->show(Box<ConfirmInviteBox>(
 				session,
 				data,
 				invitePeekChannel,
@@ -139,21 +151,13 @@ void CheckChatInvite(
 				if (const auto channel = chat->asChannel()) {
 					channel->clearInvitePeek();
 				}
-				if (const auto strong = weak.get()) {
-					strong->showPeerHistory(
-						chat,
-						Window::SectionShow::Way::Forward);
-				}
+				show(chat);
 			}
 		}, [=](const MTPDchatInvitePeek &data) {
 			if (const auto chat = session->data().processChat(data.vchat())) {
 				if (const auto channel = chat->asChannel()) {
 					channel->setInvitePeek(hash, data.vexpires().v);
-					if (const auto strong = weak.get()) {
-						strong->showPeerHistory(
-							chat,
-							Window::SectionShow::Way::Forward);
-					}
+					show(chat);
 				}
 			}
 		});

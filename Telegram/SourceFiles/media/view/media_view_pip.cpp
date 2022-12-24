@@ -619,7 +619,8 @@ void PipPanel::handleWaylandResize(QSize size) {
 		? QSize(max, max * _ratio.height() / _ratio.width())
 		: QSize(max * _ratio.width() / _ratio.height(), max);
 
-	// Buffer can't be bigger than surface size.
+	// Buffer can't be bigger than the configured
+	// (suggested by compositor) size.
 	const auto byWidth = (scaled.width() * size.height())
 		> (scaled.height() * size.width());
 	const auto normalized = (byWidth && scaled.width() > size.width())
@@ -905,13 +906,11 @@ void PipPanel::updateDecorations() {
 Pip::Pip(
 	not_null<Delegate*> delegate,
 	not_null<DocumentData*> data,
-	FullMsgId contextId,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
 : _delegate(delegate)
 , _data(data)
-, _contextId(contextId)
 , _instance(std::move(shared), [=] { waitingAnimationCallback(); })
 , _panel(
 	_delegate->pipParentWidget(),

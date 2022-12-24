@@ -18,6 +18,10 @@ class PopupMenu;
 class RpWidget;
 } // namespace Ui
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace SendMenu {
 
 enum class Type {
@@ -55,11 +59,11 @@ void SetupMenuAndShortcuts(
 
 void SetupUnreadMentionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<PeerData*()> currentPeer);
+	Fn<Data::Thread*()> currentThread);
 
 void SetupUnreadReactionsMenu(
 	not_null<Ui::RpWidget*> button,
-	Fn<PeerData*()> currentPeer);
+	Fn<Data::Thread*()> currentThread);
 } // namespace SendMenu
 
 namespace Ui {

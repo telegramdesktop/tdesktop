@@ -242,7 +242,7 @@ void CloudListCheck::paintNotSupported(
 
 	const auto height = st::settingsThemePreviewSize.height();
 	const auto rect = QRect(0, 0, outerWidth, height);
-	const auto radius = st::historyMessageRadius;
+	const auto radius = st::roundRadiusLarge;
 	p.drawRoundedRect(rect, radius, radius);
 	st::settingsThemeNotSupportedIcon.paintInCenter(p, rect);
 }

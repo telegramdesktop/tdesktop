@@ -83,7 +83,7 @@ enum class FilterType {
 	const auto decimalPart = duration % kPrecision;
 	return QString("%1%2%3")
 		.arg(durationString)
-		.arg(QLocale::system().decimalPoint())
+		.arg(QLocale().decimalPoint())
 		.arg(decimalPart);
 }
 
@@ -912,7 +912,7 @@ rpl::producer<> RecordLock::locks() const {
 }
 
 QImage RecordLock::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(_rippleRect.size());
+	return Ui::RippleAnimation::EllipseMask(_rippleRect.size());
 }
 
 QPoint RecordLock::prepareRippleStartPosition() const {
@@ -976,7 +976,7 @@ void CancelButton::init() {
 }
 
 QImage CancelButton::prepareRippleMask() const {
-	return Ui::RippleAnimation::ellipseMask(_rippleRect.size());
+	return Ui::RippleAnimation::EllipseMask(_rippleRect.size());
 }
 
 QPoint CancelButton::prepareRippleStartPosition() const {

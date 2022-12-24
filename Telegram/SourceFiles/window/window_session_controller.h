@@ -69,6 +69,8 @@ class MessageSendingAnimationController;
 namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
+class Thread;
+class ForumTopic;
 } // namespace Data
 
 namespace HistoryView::Reactions {
@@ -118,6 +120,7 @@ public:
 
 private:
 	Dialogs::Key _chat;
+	base::weak_ptr<Data::ForumTopic> _weak;
 	QDate _date;
 
 };
@@ -211,6 +214,14 @@ public:
 		MsgId rootId,
 		MsgId commentId = 0,
 		const SectionShow &params = SectionShow());
+	void showTopic(
+		not_null<Data::ForumTopic*> topic,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
+	void showThread(
+		not_null<Data::Thread*> thread,
+		MsgId itemId = 0,
+		const SectionShow &params = SectionShow());
 
 	void showPeerInfo(
 		PeerId peerId,
@@ -219,7 +230,7 @@ public:
 		not_null<PeerData*> peer,
 		const SectionShow &params = SectionShow());
 	void showPeerInfo(
-		not_null<History*> history,
+		not_null<Data::Thread*> thread,
 		const SectionShow &params = SectionShow());
 
 	virtual void showPeerHistory(
@@ -268,6 +279,9 @@ private:
 		const MTPcontacts_ResolvedPeer &result,
 		Fn<void(not_null<PeerData*>)> done);
 
+	void showMessageByLinkResolved(
+		not_null<HistoryItem*> item,
+		const PeerByLinkInfo &info);
 	void showPeerByLinkResolved(
 		not_null<PeerData*> peer,
 		const PeerByLinkInfo &info);
@@ -340,9 +354,16 @@ public:
 	// is changed in the Dialogs::Widget of the current window.
 	rpl::variable<Dialogs::Key> searchInChat;
 	bool uniqueChatsInSearchResults() const;
+
 	void openFolder(not_null<Data::Folder*> folder);
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
+
+	void openForum(
+		not_null<ChannelData*> forum,
+		const SectionShow &params = SectionShow::Way::ClearStack);
+	void closeForum();
+	const rpl::variable<ChannelData*> &openedForum() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -370,6 +391,9 @@ public:
 	bool isGifPausedAtLeastFor(GifPauseReason reason) const;
 	void floatPlayerAreaUpdated();
 
+	void materializeLocalDrafts();
+	[[nodiscard]] rpl::producer<> materializeLocalDraftsRequests() const;
+
 	struct ColumnLayout {
 		int bodyWidth = 0;
 		int dialogsWidth = 0;
@@ -390,6 +414,7 @@ public:
 	[[nodiscard]] bool canShowSeparateWindow(not_null<PeerData*> peer) const;
 	void showPeer(not_null<PeerData*> peer, MsgId msgId = ShowAtUnreadMsgId);
 
+	void startOrJoinGroupCall(not_null<PeerData*> peer);
 	void startOrJoinGroupCall(
 		not_null<PeerData*> peer,
 		Calls::StartGroupCallArgs args);
@@ -406,7 +431,9 @@ public:
 		const SectionShow &params = SectionShow::Way::ClearStack,
 		MsgId msgId = ShowAtUnreadMsgId) override;
 
-	void showPeerHistoryAtItem(not_null<const HistoryItem*> item);
+	void showMessage(
+		not_null<const HistoryItem*> item,
+		const SectionShow &params = SectionShow::Way::ClearStack);
 	void cancelUploadLayer(not_null<HistoryItem*> item);
 
 	void showLayer(
@@ -434,11 +461,15 @@ public:
 	void showPassportForm(const Passport::FormRequest &request);
 	void clearPassportForm();
 
-	void openPhoto(not_null<PhotoData*> photo, FullMsgId contextId);
+	void openPhoto(
+		not_null<PhotoData*> photo,
+		FullMsgId contextId,
+		MsgId topicRootId);
 	void openPhoto(not_null<PhotoData*> photo, not_null<PeerData*> peer);
 	void openDocument(
 		not_null<DocumentData*> document,
 		FullMsgId contextId,
+		MsgId topicRootId,
 		bool showInMediaView = false);
 
 	void showChooseReportMessages(
@@ -469,7 +500,9 @@ public:
 	[[nodiscard]] int filtersWidth() const;
 	[[nodiscard]] rpl::producer<FilterId> activeChatsFilter() const;
 	[[nodiscard]] FilterId activeChatsFilterCurrent() const;
-	void setActiveChatsFilter(FilterId id);
+	void setActiveChatsFilter(
+		FilterId id,
+		const SectionShow &params = SectionShow::Way::ClearStack);
 
 	void toggleFiltersMenu(bool enabled);
 	[[nodiscard]] rpl::producer<> filtersMenuChanged() const;
@@ -577,6 +610,7 @@ private:
 	const std::unique_ptr<ChatHelpers::TabbedSelector> _tabbedSelector;
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
+	rpl::lifetime _activeHistoryLifetime;
 	base::Variable<bool> _dialogsListFocused = { false };
 	base::Variable<bool> _dialogsListDisplayForced = { false };
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
@@ -594,6 +628,8 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
+	rpl::variable<ChannelData*> _openedForum;
+	rpl::lifetime _openedForumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 
@@ -611,6 +647,8 @@ private:
 	GiftPremiumValidator _giftPremiumValidator;
 
 	QString _premiumRef;
+
+	rpl::event_stream<> _materializeLocalDraftsRequests;
 
 	rpl::lifetime _lifetime;
 

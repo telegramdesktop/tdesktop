@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_user.h"
 #include "data/data_changes.h"
 #include "data/data_group_call.h"
+#include "data/data_peer_values.h"
 #include "main/main_session.h"
 #include "ui/chat/group_call_bar.h"
 #include "ui/chat/group_call_userpics.h"
@@ -348,15 +349,22 @@ rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByCall(
 
 rpl::producer<Ui::GroupCallBarContent> GroupCallBarContentByPeer(
 		not_null<PeerData*> peer,
-		int userpicSize) {
+		int userpicSize,
+		bool showInForum) {
+	const auto channel = peer->asChannel();
 	return rpl::combine(
 		peer->session().changes().peerFlagsValue(
 			peer,
 			Data::PeerUpdate::Flag::GroupCall),
-		Core::App().calls().currentGroupCallValue()
-	) | rpl::map([=](const auto&, Calls::GroupCall *current) {
+		Core::App().calls().currentGroupCallValue(),
+		((showInForum || !channel)
+			? (rpl::single(false) | rpl::type_erased())
+			: Data::PeerFlagValue(channel, ChannelData::Flag::Forum))
+	) | rpl::map([=](auto, Calls::GroupCall *current, bool hiddenByForum) {
 		const auto call = peer->groupCall();
-		return (call && (!current || current->peer() != peer))
+		return (call
+			&& !hiddenByForum
+			&& (!current || current->peer() != peer))
 			? call
 			: nullptr;
 	}) | rpl::distinct_until_changed(

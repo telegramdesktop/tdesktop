@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_chat.h"
 #include "data/data_user.h"
 #include "data/data_changes.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_message_reactions.h"
 #include "main/main_session.h"
@@ -201,10 +202,11 @@ rpl::producer<bool> CanWriteValue(ChatData *chat) {
 		});
 }
 
-rpl::producer<bool> CanWriteValue(ChannelData *channel) {
+rpl::producer<bool> CanWriteValue(ChannelData *channel, bool checkForForum) {
 	using Flag = ChannelDataFlag;
 	const auto mask = 0
 		| Flag::Left
+		| Flag::Forum
 		| Flag::JoinToWrite
 		| Flag::HasLink
 		| Flag::Forbidden
@@ -221,15 +223,19 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		DefaultRestrictionValue(
 			channel,
 			ChatRestriction::SendMessages),
-		[](
+		[=](
 				ChannelDataFlags flags,
 				bool postMessagesRight,
 				bool sendMessagesRestriction,
 				bool defaultSendMessagesRestriction) {
 			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+			const auto forumRestriction = checkForForum
+				&& (flags & Flag::Forum);
 			const auto allowed = !(flags & notAmInFlags)
 				|| ((flags & Flag::HasLink) && !(flags & Flag::JoinToWrite));
-			return allowed && (postMessagesRight
+			return allowed
+				&& !forumRestriction
+				&& (postMessagesRight
 					|| (flags & Flag::Creator)
 					|| (!(flags & Flag::Broadcast)
 						&& !sendMessagesRestriction
@@ -237,15 +243,50 @@ rpl::producer<bool> CanWriteValue(ChannelData *channel) {
 		});
 }
 
-rpl::producer<bool> CanWriteValue(not_null<PeerData*> peer) {
+rpl::producer<bool> CanWriteValue(
+		not_null<PeerData*> peer,
+		bool checkForForum) {
 	if (auto user = peer->asUser()) {
 		return CanWriteValue(user);
 	} else if (auto chat = peer->asChat()) {
 		return CanWriteValue(chat);
 	} else if (auto channel = peer->asChannel()) {
-		return CanWriteValue(channel);
+		return CanWriteValue(channel, checkForForum);
 	}
 	Unexpected("Bad peer value in CanWriteValue");
+}
+
+rpl::producer<bool> CanWriteValue(not_null<ForumTopic*> topic) {
+	using Flag = ChannelDataFlag;
+	const auto mask = 0
+		| Flag::Left
+		| Flag::JoinToWrite
+		| Flag::Forum
+		| Flag::Forbidden;
+	const auto channel = topic->channel();
+	return rpl::combine(
+		PeerFlagsValue(channel.get(), mask),
+		RestrictionValue(
+			channel,
+			ChatRestriction::SendMessages),
+		DefaultRestrictionValue(
+			channel,
+			ChatRestriction::SendMessages),
+		topic->session().changes().topicFlagsValue(
+			topic,
+			TopicUpdate::Flag::Closed),
+		[=](
+				ChannelDataFlags flags,
+				bool sendMessagesRestriction,
+				bool defaultSendMessagesRestriction,
+				auto) {
+			const auto notAmInFlags = Flag::Left | Flag::Forbidden;
+			const auto allowed = !(flags & notAmInFlags);
+			return allowed
+				&& !sendMessagesRestriction
+				&& !defaultSendMessagesRestriction
+				&& (!topic->closed() || topic->canToggleClosed());
+		});
 }
 
 // This is duplicated in PeerData::canPinMessages().
@@ -399,14 +440,15 @@ QString OnlineText(TimeId online, TimeId now) {
 	}
 	const auto onlineFull = base::unixtime::parse(online);
 	const auto nowFull = base::unixtime::parse(now);
+	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(cDateFormat());
+	const auto date = locale.toString(onlineFull.date(), cDateFormat());
 	return tr::lng_status_lastseen_date(tr::now, lt_date, date);
 }
 
@@ -425,15 +467,16 @@ QString OnlineTextFull(not_null<UserData*> user, TimeId now) {
 	}
 	const auto onlineFull = base::unixtime::parse(user->onlineTill);
 	const auto nowFull = base::unixtime::parse(now);
+	const auto locale = QLocale();
 	if (onlineFull.date() == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_today(tr::now, lt_time, onlineTime);
 	} else if (onlineFull.date().addDays(1) == nowFull.date()) {
-		const auto onlineTime = onlineFull.time().toString(cTimeFormat());
+		const auto onlineTime = locale.toString(onlineFull.time(), cTimeFormat());
 		return tr::lng_status_lastseen_yesterday(tr::now, lt_time, onlineTime);
 	}
-	const auto date = onlineFull.date().toString(cDateFormat());
-	const auto time = onlineFull.time().toString(cTimeFormat());
+	const auto date = locale.toString(onlineFull.date(), cDateFormat());
+	const auto time = locale.toString(onlineFull.time(), cTimeFormat());
 	return tr::lng_status_lastseen_date_time(tr::now, lt_date, date, lt_time, time);
 }
 
@@ -458,8 +501,11 @@ bool OnlineTextActive(not_null<UserData*> user, TimeId now) {
 	return OnlineTextActive(user->onlineTill, now);
 }
 
-bool IsUserOnline(not_null<UserData*> user) {
-	return OnlineTextActive(user, base::unixtime::now());
+bool IsUserOnline(not_null<UserData*> user, TimeId now) {
+	if (!now) {
+		now = base::unixtime::now();
+	}
+	return OnlineTextActive(user, now);
 }
 
 bool ChannelHasActiveCall(not_null<ChannelData*> channel) {

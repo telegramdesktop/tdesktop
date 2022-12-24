@@ -156,7 +156,6 @@ public:
 
 	// Windows interface.
 	bool hasActiveWindow(not_null<Main::Session*> session) const;
-	void saveCurrentDraftsToHistories();
 	[[nodiscard]] Window::Controller *primaryWindow() const;
 	[[nodiscard]] Window::Controller *activeWindow() const;
 	[[nodiscard]] Window::Controller *separateWindowForPeer(
@@ -269,6 +268,7 @@ public:
 	[[nodiscard]] bool downloadPreventsQuit();
 	void checkLocalTime();
 	void lockByPasscode();
+	void maybeLockByPasscode();
 	void unlockPasscode();
 	[[nodiscard]] bool passcodeLocked() const;
 	rpl::producer<bool> passcodeLockChanges() const;

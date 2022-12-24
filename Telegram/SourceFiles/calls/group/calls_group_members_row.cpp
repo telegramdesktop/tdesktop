@@ -747,7 +747,7 @@ void MembersRow::rightActionAddRipple(
 		QPoint point,
 		Fn<void()> updateCallback) {
 	if (!_actionRipple) {
-		auto mask = Ui::RippleAnimation::ellipseMask(QSize(
+		auto mask = Ui::RippleAnimation::EllipseMask(QSize(
 			st::groupCallActiveButton.rippleAreaSize,
 			st::groupCallActiveButton.rippleAreaSize));
 		_actionRipple = std::make_unique<Ui::RippleAnimation>(

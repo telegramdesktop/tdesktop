@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/stickers_lottie.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/text/text_custom_emoji.h"
+#include "ui/text/text_utilities.h"
 #include "ui/ui_utility.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
@@ -33,8 +34,27 @@ namespace Data {
 namespace {
 
 constexpr auto kMaxPerRequest = 100;
+#if 0 // inject-to-on_main
+constexpr auto kUnsubscribeUpdatesDelay = 3 * crl::time(1000);
+#endif
 
 using SizeTag = CustomEmojiManager::SizeTag;
+
+class CallbackListener final : public CustomEmojiManager::Listener {
+public:
+	explicit CallbackListener(Fn<void(not_null<DocumentData*>)> callback)
+	: _callback(std::move(callback)) {
+		Expects(_callback != nullptr);
+	}
+
+private:
+	void customEmojiResolveDone(not_null<DocumentData*> document) {
+		_callback(document);
+	}
+
+	Fn<void(not_null<DocumentData*>)> _callback;
+
+};
 
 [[nodiscard]] ChatHelpers::StickerLottieSize LottieSizeFromTag(SizeTag tag) {
 	// NB! onlyCustomEmoji dimensions caching uses last ::EmojiInteraction-s.
@@ -72,7 +92,7 @@ class CustomEmojiLoader final
 public:
 	CustomEmojiLoader(
 		not_null<Session*> owner,
-		const CustomEmojiId id,
+		DocumentId id,
 		SizeTag tag,
 		int sizeOverride);
 	CustomEmojiLoader(
@@ -125,7 +145,7 @@ private:
 
 	[[nodiscard]] static std::variant<Resolve, Lookup, Load> InitialState(
 		not_null<Session*> owner,
-		const CustomEmojiId &id);
+		DocumentId id);
 
 	std::variant<Resolve, Lookup, Load> _state;
 	ushort _sizeOverride = 0;
@@ -135,7 +155,7 @@ private:
 
 CustomEmojiLoader::CustomEmojiLoader(
 	not_null<Session*> owner,
-	const CustomEmojiId id,
+	DocumentId id,
 	SizeTag tag,
 	int sizeOverride)
 : _state(InitialState(owner, id))
@@ -349,9 +369,9 @@ void CustomEmojiLoader::check() {
 
 auto CustomEmojiLoader::InitialState(
 	not_null<Session*> owner,
-	const CustomEmojiId &id)
+	DocumentId id)
 -> std::variant<Resolve, Lookup, Load> {
-	const auto document = owner->document(id.id);
+	const auto document = owner->document(id);
 	if (document->sticker()) {
 		return Lookup{ document };
 	}
@@ -485,8 +505,8 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 		SizeTag tag,
 		int sizeOverride) {
 	const auto parsed = ParseCustomEmojiData(data);
-	return parsed.id
-		? create(parsed.id, std::move(update), tag, sizeOverride)
+	return parsed
+		? create(parsed, std::move(update), tag, sizeOverride)
 		: nullptr;
 }
 
@@ -513,7 +533,7 @@ std::unique_ptr<Ui::Text::CustomEmoji> CustomEmojiManager::create(
 void CustomEmojiManager::resolve(
 		QStringView data,
 		not_null<Listener*> listener) {
-	resolve(ParseCustomEmojiData(data).id, listener);
+	resolve(ParseCustomEmojiData(data), listener);
 }
 
 void CustomEmojiManager::resolve(
@@ -541,6 +561,28 @@ void CustomEmojiManager::unregisterListener(not_null<Listener*> listener) {
 			}
 		}
 	}
+}
+
+rpl::producer<not_null<DocumentData*>> CustomEmojiManager::resolve(
+		DocumentId documentId) {
+	return [=](auto consumer) {
+		auto result = rpl::lifetime();
+		const auto put = [=](not_null<DocumentData*> document) {
+			if (!document->sticker()) {
+				return false;
+			}
+			consumer.put_next_copy(document);
+			return true;
+		};
+		if (!put(owner().document(documentId))) {
+			const auto listener = new CallbackListener(put);
+			result.add([=] {
+				unregisterListener(listener);
+				delete listener;
+			});
+		}
+		return result;
+	};
 }
 
 std::unique_ptr<Ui::CustomEmoji::Loader> CustomEmojiManager::createLoader(
@@ -578,7 +620,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 ) -> LoaderWithSetId {
 	auto result = std::make_unique<CustomEmojiLoader>(
 		_owner,
-		CustomEmojiId{ .id = documentId },
+		documentId,
 		tag,
 		sizeOverride);
 	if (const auto document = result->document()) {
@@ -587,7 +629,7 @@ auto CustomEmojiManager::createLoaderWithSetId(
 		}
 	} else {
 		const auto i = SizeIndex(tag);
-		_loaders[i][documentId].push_back(base::make_weak(result.get()));
+		_loaders[i][documentId].push_back(base::make_weak(result));
 		_pendingForRequest.emplace(documentId);
 		if (!_requestId && _pendingForRequest.size() == 1) {
 			crl::on_main(this, [=] { request(); });
@@ -721,16 +763,49 @@ void CustomEmojiManager::repaintLater(
 		Ui::CustomEmoji::RepaintRequest request) {
 	auto &bunch = _repaints[request.duration];
 	if (bunch.when < request.when) {
+		if (bunch.when > 0) {
+			for (const auto &already : bunch.instances) {
+				if (already.get() == instance) {
+					// Still waiting for full bunch repaint, don't bump.
+					return;
+				}
+			}
+		}
 		bunch.when = request.when;
+#if 0 // inject-to-on_main
+		_repaintsLastAdded = request.when;
+#endif
 	}
 	bunch.instances.emplace_back(instance);
 	scheduleRepaintTimer();
 }
 
+bool CustomEmojiManager::checkEmptyRepaints() {
+	if (!_repaints.empty()) {
+		return false;
+#if 0 // inject-to-on_main
+	} else if (_repaintsLifetime
+		&& crl::now() >= _repaintsLastAdded + kUnsubscribeUpdatesDelay) {
+		_repaintsLifetime.destroy();
+#endif
+	}
+	return true;
+}
+
 void CustomEmojiManager::scheduleRepaintTimer() {
-	if (_repaintTimerScheduled) {
+	if (checkEmptyRepaints() || _repaintTimerScheduled) {
 		return;
 	}
+
+#if 0 // inject-to-on_main
+	if (!_repaintsLifetime) {
+		crl::on_main_update_requests(
+		) | rpl::start_with_next([=] {
+			invokeRepaints();
+		}, _repaintsLifetime);
+	}
+#endif
+
 	_repaintTimerScheduled = true;
 	Ui::PostponeCall(this, [=] {
 		_repaintTimerScheduled = false;
@@ -757,6 +832,9 @@ void CustomEmojiManager::scheduleRepaintTimer() {
 
 void CustomEmojiManager::invokeRepaints() {
 	_repaintNext = 0;
+	if (checkEmptyRepaints()) {
+		return;
+	}
 	const auto now = crl::now();
 	auto repaint = std::vector<base::weak_ptr<Ui::CustomEmoji::Instance>>();
 	for (auto i = begin(_repaints); i != end(_repaints);) {
@@ -775,10 +853,14 @@ void CustomEmojiManager::invokeRepaints() {
 		}
 		i = _repaints.erase(i);
 	}
-	for (const auto &weak : repaint) {
-		if (const auto strong = weak.get()) {
-			strong->repaint();
+	if (!repaint.empty()) {
+		for (const auto &weak : repaint) {
+			if (const auto strong = weak.get()) {
+				strong->repaint();
+			}
 		}
+	} else if (_repaintTimer.isActive()) {
+		return;
 	}
 	scheduleRepaintTimer();
 }
@@ -801,18 +883,24 @@ int FrameSizeFromTag(SizeTag tag) {
 	return Ui::Text::AdjustCustomEmojiSize(emoji / factor) * factor;
 }
 
-QString SerializeCustomEmojiId(const CustomEmojiId &id) {
-	return QString::number(id.id);
+QString SerializeCustomEmojiId(DocumentId id) {
+	return QString::number(id);
 }
 
 QString SerializeCustomEmojiId(not_null<DocumentData*> document) {
-	return SerializeCustomEmojiId({
-		.id = document->id,
-	});
+	return SerializeCustomEmojiId(document->id);
 }
 
-CustomEmojiId ParseCustomEmojiData(QStringView data) {
-	return { .id = data.toULongLong() };
+DocumentId ParseCustomEmojiData(QStringView data) {
+	return data.toULongLong();
+}
+
+TextWithEntities SingleCustomEmoji(DocumentId id) {
+	return Ui::Text::SingleCustomEmoji(SerializeCustomEmojiId(id));
+}
+
+TextWithEntities SingleCustomEmoji(not_null<DocumentData*> document) {
+	return SingleCustomEmoji(document->id);
 }
 
 bool AllowEmojiWithoutPremium(not_null<PeerData*> peer) {

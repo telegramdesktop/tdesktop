@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_file_click_handler.h"
 #include "data/data_file_origin.h"
 #include "data/data_download_manager.h"
+#include "data/data_forum_topic.h"
 #include "history/history_item.h"
 #include "history/history.h"
 #include "history/view/history_view_cursor_state.h"
@@ -55,6 +56,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
 #include "styles/style_menu_icons.h"
+#include "styles/style_chat.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -466,7 +468,7 @@ bool ListWidget::tooltipWindowActive() const {
 }
 
 void ListWidget::openPhoto(not_null<PhotoData*> photo, FullMsgId id) {
-	_controller->parentController()->openPhoto(photo, id);
+	_controller->parentController()->openPhoto(photo, id, topicRootId());
 }
 
 void ListWidget::openDocument(
@@ -476,6 +478,7 @@ void ListWidget::openDocument(
 	_controller->parentController()->openDocument(
 		document,
 		id,
+		topicRootId(),
 		showInMediaView);
 }
 
@@ -738,6 +741,11 @@ void ListWidget::restoreScrollState() {
 	_scrollTopState = ListScrollTopState();
 }
 
+MsgId ListWidget::topicRootId() const {
+	const auto topic = _controller->key().topic();
+	return topic ? topic->rootId() : MsgId(0);
+}
+
 QMargins ListWidget::padding() const {
 	return st::infoMediaMargin;
 }
@@ -776,8 +784,7 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 			if (_dateBadge->corners.p[0].isNull()) {
 				_dateBadge->corners = Ui::PrepareCornerPixmaps(
 					Ui::HistoryServiceMsgRadius(),
-					st::roundedBg,
-					nullptr);
+					st::roundedBg);
 			}
 			HistoryView::ServiceMessagePainter::PaintDate(
 				p,
@@ -1719,7 +1726,7 @@ void ListWidget::mouseActionFinish(
 			QVariant::fromValue(ClickHandlerContext{
 				.itemId = fullId,
 				.sessionWindow = base::make_weak(
-					_controller->parentController().get()),
+					_controller->parentController()),
 			})
 		});
 		return;

@@ -256,7 +256,9 @@ private:
 	const Section _section;
 	const bool _isInstalled;
 
-	int32 _rowHeight;
+	Ui::RoundRect _buttonBgOver, _buttonBg;
+
+	int32 _rowHeight = 0;
 
 	std::vector<std::unique_ptr<Row>> _rows;
 	std::vector<std::unique_ptr<Row>> _oldRows;
@@ -314,7 +316,7 @@ StickersBox::CounterWidget::CounterWidget(
 : RpWidget(parent) {
 	setAttribute(Qt::WA_TransparentForMouseEvents);
 
-	_st.sizeId = Dialogs::Ui::UnreadBadgeInStickersBox;
+	_st.sizeId = Dialogs::Ui::UnreadBadgeSize::StickersBox;
 	_st.textTop = st::stickersFeaturedBadgeTextTop;
 	_st.size = st::stickersFeaturedBadgeSize;
 	_st.padding = st::stickersFeaturedBadgePadding;
@@ -1126,6 +1128,16 @@ StickersBox::Inner::Inner(
 , _api(&_controller->session().mtp())
 , _section(section)
 , _isInstalled(_section == Section::Installed || _section == Section::Masks)
+, _buttonBgOver(
+	ImageRoundRadius::Small,
+	(_isInstalled
+		? st::stickersUndoRemove
+		: st::stickersTrendingAdd).textBgOver)
+, _buttonBg(
+	ImageRoundRadius::Small,
+	(_isInstalled
+		? st::stickersUndoRemove
+		: st::stickersTrendingAdd).textBg)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
 	return shiftingAnimationCallback(now);
@@ -1147,6 +1159,16 @@ StickersBox::Inner::Inner(
 , _api(&_controller->session().mtp())
 , _section(StickersBox::Section::Installed)
 , _isInstalled(_section == Section::Installed || _section == Section::Masks)
+, _buttonBgOver(
+	ImageRoundRadius::Small,
+	(_isInstalled
+		? st::stickersUndoRemove
+		: st::stickersTrendingAdd).textBgOver)
+, _buttonBg(
+	ImageRoundRadius::Small,
+	(_isInstalled
+		? st::stickersUndoRemove
+		: st::stickersTrendingAdd).textBg)
 , _rowHeight(st::contactsPadding.top() + st::contactsPhotoSize + st::contactsPadding.bottom())
 , _shiftingAnimation([=](crl::time now) {
 	return shiftingAnimationCallback(now);
@@ -1566,8 +1588,7 @@ void StickersBox::Inner::paintFakeButton(Painter &p, not_null<Row*> row, int ind
 				: st::stickersTrendingAdd;
 			const auto textWidth = _isInstalled ? _undoWidth : _addWidth;
 			const auto &text = _isInstalled ? _undoText : _addText;
-			const auto &textBg = selected ? st.textBgOver : st.textBg;
-			Ui::FillRoundRect(p, myrtlrect(rect), textBg, ImageRoundRadius::Small);
+			(selected ? _buttonBgOver : _buttonBg).paint(p, myrtlrect(rect));
 			if (row->ripple) {
 				row->ripple->paint(p, rect.x(), rect.y(), width());
 				if (row->ripple->empty()) {
@@ -1618,16 +1639,16 @@ void StickersBox::Inner::setActionDown(int newActionDown) {
 			if (_isInstalled) {
 				if (row->removed) {
 					auto rippleSize = QSize(_undoWidth - st::stickersUndoRemove.width, st::stickersUndoRemove.height);
-					auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
+					auto rippleMask = Ui::RippleAnimation::RoundRectMask(rippleSize, st::roundRadiusSmall);
 					ensureRipple(st::stickersUndoRemove.ripple, std::move(rippleMask), removeButton);
 				} else {
 					auto rippleSize = st::stickersRemove.rippleAreaSize;
-					auto rippleMask = Ui::RippleAnimation::ellipseMask(QSize(rippleSize, rippleSize));
+					auto rippleMask = Ui::RippleAnimation::EllipseMask(QSize(rippleSize, rippleSize));
 					ensureRipple(st::stickersRemove.ripple, std::move(rippleMask), removeButton);
 				}
 			} else if (!row->isInstalled() || row->isArchived() || row->removed) {
 				auto rippleSize = QSize(_addWidth - st::stickersTrendingAdd.width, st::stickersTrendingAdd.height);
-				auto rippleMask = Ui::RippleAnimation::roundRectMask(rippleSize, st::roundRadiusSmall);
+				auto rippleMask = Ui::RippleAnimation::RoundRectMask(rippleSize, st::roundRadiusSmall);
 				ensureRipple(st::stickersTrendingAdd.ripple, std::move(rippleMask), removeButton);
 			}
 		}
@@ -1683,7 +1704,7 @@ void StickersBox::Inner::setPressed(SelectedRow pressed) {
 	if (_megagroupSet && pressedIndex >= 0 && pressedIndex < _rows.size()) {
 		update(0, _itemsTop + pressedIndex * _rowHeight, width(), _rowHeight);
 		auto &set = _rows[pressedIndex];
-		auto rippleMask = Ui::RippleAnimation::rectMask(QSize(width(), _rowHeight));
+		auto rippleMask = Ui::RippleAnimation::RectMask(QSize(width(), _rowHeight));
 		if (!set->ripple) {
 			set->ripple = std::make_unique<Ui::RippleAnimation>(st::defaultRippleAnimation, std::move(rippleMask), [this, pressedIndex] {
 				update(0, _itemsTop + pressedIndex * _rowHeight, width(), _rowHeight);

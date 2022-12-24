@@ -13,6 +13,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_photo.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "data/data_file_origin.h"
 #include "data/data_histories.h"
@@ -197,11 +199,11 @@ void PeerData::updateNameDelayed(
 	if (_name == newName && _nameVersion > 1) {
 		if (isUser()) {
 			if (asUser()->nameOrPhone == newNameOrPhone
-				&& asUser()->username == newUsername) {
+				&& asUser()->editableUsername() == newUsername) {
 				return;
 			}
 		} else if (isChannel()) {
-			if (asChannel()->username == newUsername) {
+			if (asChannel()->editableUsername() == newUsername) {
 				return;
 			}
 		} else if (isChat()) {
@@ -219,15 +221,15 @@ void PeerData::updateNameDelayed(
 		flags |= UpdateFlag::Name;
 	}
 	if (isUser()) {
-		if (asUser()->username != newUsername) {
-			asUser()->username = newUsername;
+		if (asUser()->editableUsername() != newUsername) {
+			asUser()->setUsername(newUsername);
 			flags |= UpdateFlag::Username;
 		}
 		asUser()->setNameOrPhone(newNameOrPhone);
 	} else if (isChannel()) {
-		if (asChannel()->username != newUsername) {
-			asChannel()->username = newUsername;
-			if (newUsername.isEmpty()) {
+		if (asChannel()->editableUsername() != newUsername) {
+			asChannel()->setUsername(newUsername);
+			if (asChannel()->username().isEmpty()) {
 				asChannel()->removeFlags(ChannelDataFlag::Username);
 			} else {
 				asChannel()->addFlags(ChannelDataFlag::Username);
@@ -306,12 +308,22 @@ void PeerData::paintUserpic(
 		int y,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		const auto circled = Images::Option::RoundCircle;
+		const auto rounding = isForum()
+			? Images::Option::RoundLarge
+			: Images::Option::RoundCircle;
 		p.drawPixmap(
 			x,
 			y,
-			userpic->pix(size, size, { .options = circled }));
-	} else {
+			userpic->pix(size, size, { .options = rounding }));
+	} else if (isForum()) {
+		ensureEmptyUserpic()->paintRounded(
+			p,
+			x,
+			y,
+			x + size + x,
+			size,
+			st::roundRadiusLarge);
+	} else{
 		ensureEmptyUserpic()->paint(p, x, y, x + size + x, size);
 	}
 }
@@ -370,8 +382,10 @@ QPixmap PeerData::genUserpic(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
 	if (const auto userpic = currentUserpic(view)) {
-		const auto circle = Images::Option::RoundCircle;
-		return userpic->pix(size, size, { .options = circle });
+		const auto rounding = isForum()
+			? Images::Option::RoundLarge
+			: Images::Option::RoundCircle;
+		return userpic->pix(size, size, { .options = rounding });
 	}
 	const auto ratio = style::DevicePixelRatio();
 	auto result = QImage(
@@ -389,7 +403,10 @@ QPixmap PeerData::genUserpic(
 QImage PeerData::generateUserpicImage(
 		std::shared_ptr<Data::CloudImageView> &view,
 		int size) const {
-	return generateUserpicImage(view, size, ImageRoundRadius::Ellipse);
+	return generateUserpicImage(
+		view,
+		size,
+		isForum() ? ImageRoundRadius::Large : ImageRoundRadius::Ellipse);
 }
 
 QImage PeerData::generateUserpicImage(
@@ -399,9 +416,11 @@ QImage PeerData::generateUserpicImage(
 	if (const auto userpic = currentUserpic(view)) {
 		const auto options = (radius == ImageRoundRadius::Ellipse)
 			? Images::Option::RoundCircle
-			: (radius == ImageRoundRadius::None)
-			? Images::Option()
-			: Images::Option::RoundSmall;
+			: (radius == ImageRoundRadius::Large)
+			? Images::Option::RoundLarge
+			: (radius == ImageRoundRadius::Small)
+			? Images::Option::RoundSmall
+			: Images::Option();
 		return userpic->pixNoCache(
 			{ size, size },
 			{ .options = options }).toImage();
@@ -416,6 +435,9 @@ QImage PeerData::generateUserpicImage(
 			ensureEmptyUserpic()->paint(p, 0, 0, size, size);
 		} else if (radius == ImageRoundRadius::None) {
 			ensureEmptyUserpic()->paintSquare(p, 0, 0, size, size);
+		} else if (radius == ImageRoundRadius::Large) {
+			const auto radius = st::roundRadiusLarge;
+			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size, radius);
 		} else {
 			ensureEmptyUserpic()->paintRounded(p, 0, 0, size, size);
 		}
@@ -503,10 +525,27 @@ bool PeerData::canPinMessages() const {
 	} else if (const auto channel = asChannel()) {
 		return channel->isMegagroup()
 			? !channel->amRestricted(ChatRestriction::PinMessages)
-			: ((channel->adminRights() & ChatAdminRight::EditMessages)
-				|| channel->amCreator());
+			: ((channel->amCreator()
+				|| channel->adminRights() & ChatAdminRight::EditMessages));
 	}
 	Unexpected("Peer type in PeerData::canPinMessages.");
+}
+
+bool PeerData::canCreateTopics() const {
+	if (const auto channel = asChannel()) {
+		return channel->isForum()
+			&& !channel->amRestricted(ChatRestriction::CreateTopics);
+	}
+	return false;
+}
+
+bool PeerData::canManageTopics() const {
+	if (const auto channel = asChannel()) {
+		return channel->isForum()
+			&& (channel->amCreator()
+				|| (channel->adminRights() & ChatAdminRight::ManageTopics));
+	}
+	return false;
 }
 
 bool PeerData::canEditMessagesIndefinitely() const {
@@ -606,7 +645,7 @@ void PeerData::fillNames() {
 		if (user->nameOrPhone != name()) {
 			appendToIndex(user->nameOrPhone);
 		}
-		appendToIndex(user->username);
+		appendToIndex(user->username());
 		if (isSelf()) {
 			const auto english = qsl("Saved messages");
 			const auto localized = tr::lng_saved_messages(tr::now);
@@ -623,7 +662,7 @@ void PeerData::fillNames() {
 			}
 		}
 	} else if (const auto channel = asChannel()) {
-		appendToIndex(channel->username);
+		appendToIndex(channel->username());
 	}
 	auto toIndex = toIndexList.join(' ');
 	toIndex += ' ' + rusKeyboardLayoutSwitch(toIndex);
@@ -795,9 +834,9 @@ const QString &PeerData::shortName() const {
 
 QString PeerData::userName() const {
 	if (const auto user = asUser()) {
-		return user->username;
+		return user->username();
 	} else if (const auto channel = asChannel()) {
-		return channel->username;
+		return channel->username();
 	}
 	return QString();
 }
@@ -844,15 +883,31 @@ bool PeerData::isFake() const {
 }
 
 bool PeerData::isMegagroup() const {
-	return isChannel() && asChannel()->isMegagroup();
+	if (const auto channel = asChannel()) {
+		return channel->isMegagroup();
+	}
+	return false;
 }
 
 bool PeerData::isBroadcast() const {
-	return isChannel() && asChannel()->isBroadcast();
+	if (const auto channel = asChannel()) {
+		return channel->isBroadcast();
+	}
+	return false;
+}
+
+bool PeerData::isForum() const {
+	if (const auto channel = asChannel()) {
+		return channel->isForum();
+	}
+	return false;
 }
 
 bool PeerData::isGigagroup() const {
-	return isChannel() && asChannel()->isGigagroup();
+	if (const auto channel = asChannel()) {
+		return channel->isGigagroup();
+	}
+	return false;
 }
 
 bool PeerData::isRepliesChat() const {
@@ -866,11 +921,28 @@ bool PeerData::isRepliesChat() const {
 		: kTestId) == id;
 }
 
-bool PeerData::canWrite() const {
+Data::Forum *PeerData::forum() const {
+	if (const auto channel = asChannel()) {
+		return channel->forum();
+	}
+	return nullptr;
+}
+
+Data::ForumTopic *PeerData::forumTopicFor(MsgId rootId) const {
+	if (!rootId) {
+		return nullptr;
+	} else if (const auto forum = this->forum()) {
+		return forum->topicFor(rootId);
+	}
+	return nullptr;
+}
+
+
+bool PeerData::canWrite(bool checkForForum) const {
 	if (const auto user = asUser()) {
 		return user->canWrite();
 	} else if (const auto channel = asChannel()) {
-		return channel->canWrite();
+		return channel->canWrite(checkForForum);
 	} else if (const auto chat = asChat()) {
 		return chat->canWrite();
 	}
@@ -892,10 +964,12 @@ Data::RestrictionCheckResult PeerData::amRestricted(
 		ChatRestriction right) const {
 	using Result = Data::RestrictionCheckResult;
 	const auto allowByAdminRights = [](auto right, auto chat) -> bool {
-		if (right == ChatRestriction::InviteUsers) {
-			return chat->adminRights() & ChatAdminRight::InviteUsers;
+		if (right == ChatRestriction::AddParticipants) {
+			return chat->adminRights() & ChatAdminRight::InviteByLinkOrAdd;
 		} else if (right == ChatRestriction::ChangeInfo) {
 			return chat->adminRights() & ChatAdminRight::ChangeInfo;
+		} else if (right == ChatRestriction::CreateTopics) {
+			return chat->adminRights() & ChatAdminRight::ManageTopics;
 		} else if (right == ChatRestriction::PinMessages) {
 			return chat->adminRights() & ChatAdminRight::PinMessages;
 		} else {
@@ -1102,8 +1176,8 @@ std::optional<QString> RestrictionError(
 			auto restrictedUntil = channel->restrictedUntil();
 			if (restrictedUntil > 0 && !ChannelData::IsRestrictedForever(restrictedUntil)) {
 				auto restrictedUntilDateTime = base::unixtime::parse(channel->restrictedUntil());
-				auto date = restrictedUntilDateTime.toString(cDateFormat());
-				auto time = restrictedUntilDateTime.toString(cTimeFormat());
+				auto date = QLocale().toString(restrictedUntilDateTime, cDateFormat());
+				auto time = QLocale().toString(restrictedUntilDateTime, cTimeFormat());
 
 				switch (restriction) {
 				case Flag::SendPolls:
@@ -1180,7 +1254,9 @@ std::optional<QString> RestrictionError(
 	return std::nullopt;
 }
 
-void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
+void SetTopPinnedMessageId(
+		not_null<PeerData*> peer,
+		MsgId messageId) {
 	if (const auto channel = peer->asChannel()) {
 		if (messageId <= channel->availableMinId()) {
 			return;
@@ -1189,11 +1265,15 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 	auto &session = peer->session();
 	const auto hiddenId = session.settings().hiddenPinnedMessageId(peer->id);
 	if (hiddenId != 0 && hiddenId != messageId) {
-		session.settings().setHiddenPinnedMessageId(peer->id, 0);
+		session.settings().setHiddenPinnedMessageId(
+			peer->id,
+			MsgId(0), // topicRootId
+			0);
 		session.saveSettingsDelayed();
 	}
 	session.storage().add(Storage::SharedMediaAddExisting(
 		peer->id,
+		MsgId(0), // topicRootId
 		Storage::SharedMediaType::Pinned,
 		messageId,
 		{ messageId, ServerMaxMsgId }));
@@ -1202,20 +1282,23 @@ void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId) {
 
 FullMsgId ResolveTopPinnedId(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
+				topicRootId,
 				Storage::SharedMediaType::Pinned,
 				ServerMaxMsgId - 1),
 			1,
 			1));
-	const auto old = migrated
+	const auto old = (!topicRootId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
+					MsgId(0), // topicRootId
 					Storage::SharedMediaType::Pinned,
 					ServerMaxMsgId - 1),
 				1,
@@ -1236,20 +1319,23 @@ FullMsgId ResolveTopPinnedId(
 
 FullMsgId ResolveMinPinnedId(
 		not_null<PeerData*> peer,
+		MsgId topicRootId,
 		PeerData *migrated) {
 	const auto slice = peer->session().storage().snapshot(
 		Storage::SharedMediaQuery(
 			Storage::SharedMediaKey(
 				peer->id,
+				topicRootId,
 				Storage::SharedMediaType::Pinned,
 				1),
 			1,
 			1));
-	const auto old = migrated
+	const auto old = (!topicRootId && migrated)
 		? migrated->session().storage().snapshot(
 			Storage::SharedMediaQuery(
 				Storage::SharedMediaKey(
 					migrated->id,
+					MsgId(0), // topicRootId
 					Storage::SharedMediaType::Pinned,
 					1),
 				1,
@@ -1266,36 +1352,6 @@ FullMsgId ResolveMinPinnedId(
 	} else {
 		return FullMsgId();
 	}
-}
-
-std::optional<int> ResolvePinnedCount(
-		not_null<PeerData*> peer,
-		PeerData *migrated) {
-	const auto slice = peer->session().storage().snapshot(
-		Storage::SharedMediaQuery(
-			Storage::SharedMediaKey(
-				peer->id,
-				Storage::SharedMediaType::Pinned,
-				0),
-			0,
-			0));
-	const auto old = migrated
-		? migrated->session().storage().snapshot(
-			Storage::SharedMediaQuery(
-				Storage::SharedMediaKey(
-					migrated->id,
-					Storage::SharedMediaType::Pinned,
-					0),
-				0,
-				0))
-		: Storage::SharedMediaResult{
-			.count = 0,
-			.skippedBefore = 0,
-			.skippedAfter = 0,
-	};
-	return (slice.count.has_value() && old.count.has_value())
-		? std::make_optional(*slice.count + *old.count)
-		: std::nullopt;
 }
 
 } // namespace Data

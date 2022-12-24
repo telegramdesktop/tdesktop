@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_location.h"
 #include "data/data_chat_participant_status.h"
 #include "data/data_peer_bot_commands.h"
+#include "data/data_user_names.h"
 
 struct ChannelLocation {
 	QString address;
@@ -55,12 +56,16 @@ enum class ChannelDataFlag {
 	NoForwards = (1 << 20),
 	JoinToWrite = (1 << 21),
 	RequestToJoin = (1 << 22),
+	Forum = (1 << 23),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
 
 class MegagroupInfo {
 public:
+	MegagroupInfo();
+	~MegagroupInfo();
+
 	struct Admin {
 		explicit Admin(ChatAdminRightsInfo rights)
 		: rights(rights) {
@@ -92,6 +97,10 @@ public:
 		return _botCommands;
 	}
 
+	void ensureForum(not_null<ChannelData*> that);
+	[[nodiscard]] Data::Forum *forum() const;
+	[[nodiscard]] std::unique_ptr<Data::Forum> takeForumData();
+
 	std::deque<not_null<UserData*>> lastParticipants;
 	base::flat_map<not_null<UserData*>, Admin> lastAdmins;
 	base::flat_map<not_null<UserData*>, Restricted> lastRestricted;
@@ -119,10 +128,11 @@ private:
 	ChatData *_migratedFrom = nullptr;
 	ChannelLocation _location;
 	Data::ChatBotCommands _botCommands;
+	std::unique_ptr<Data::Forum> _forum;
 
 };
 
-class ChannelData : public PeerData {
+class ChannelData final : public PeerData {
 public:
 	using Flag = ChannelDataFlag;
 	using Flags = Data::Flags<ChannelDataFlags>;
@@ -137,24 +147,24 @@ public:
 	ChannelData(not_null<Data::Session*> owner, PeerId id);
 
 	void setName(const QString &name, const QString &username);
+	void setUsername(const QString &username);
+	void setUsernames(const Data::Usernames &newUsernames);
 	void setPhoto(const MTPChatPhoto &photo);
 	void setAccessHash(uint64 accessHash);
 
-	void setFlags(ChannelDataFlags which) {
-		_flags.set(which);
-	}
-	void addFlags(ChannelDataFlags which) {
-		_flags.add(which);
-	}
-	void removeFlags(ChannelDataFlags which) {
-		_flags.remove(which);
-	}
+	void setFlags(ChannelDataFlags which);
+	void addFlags(ChannelDataFlags which);
+	void removeFlags(ChannelDataFlags which);
 	[[nodiscard]] auto flags() const {
 		return _flags.current();
 	}
 	[[nodiscard]] auto flagsValue() const {
 		return _flags.value();
 	}
+
+	[[nodiscard]] QString username() const;
+	[[nodiscard]] QString editableUsername() const;
+	[[nodiscard]] const std::vector<QString> &usernames() const;
 
 	[[nodiscard]] int membersCount() const {
 		return std::max(_membersCount, 1);
@@ -243,6 +253,9 @@ public:
 	[[nodiscard]] bool isGigagroup() const {
 		return flags() & Flag::Gigagroup;
 	}
+	[[nodiscard]] bool isForum() const {
+		return flags() & Flag::Forum;
+	}
 	[[nodiscard]] bool hasUsername() const {
 		return flags() & Flag::Username;
 	}
@@ -300,7 +313,7 @@ public:
 	void setDefaultRestrictions(ChatRestrictions rights);
 
 	// Like in ChatData.
-	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] bool canEditInformation() const;
 	[[nodiscard]] bool canEditPermissions() const;
@@ -420,12 +433,14 @@ public:
 	void setAllowedReactions(Data::AllowedReactions value);
 	[[nodiscard]] const Data::AllowedReactions &allowedReactions() const;
 
+	[[nodiscard]] Data::Forum *forum() const {
+		return mgInfo ? mgInfo->forum() : nullptr;
+	}
+
 	// Still public data members.
 	uint64 access = 0;
 
 	MTPinputChannel inputChannel = MTP_inputChannelEmpty();
-
-	QString username;
 
 	int32 date = 0;
 	std::unique_ptr<MegagroupInfo> mgInfo;
@@ -448,6 +463,8 @@ private:
 	Flags _flags = ChannelDataFlags(Flag::Forbidden);
 
 	PtsWaiter _ptsWaiter;
+
+	Data::UsernamesInfo _username;
 
 	int _membersCount = -1;
 	int _adminsCount = 1;
@@ -474,8 +491,6 @@ private:
 
 	int _slowmodeSeconds = 0;
 	TimeId _slowmodeLastMessage = 0;
-
-	rpl::lifetime _lifetime;
 
 };
 

@@ -17,6 +17,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/edit_peer_info_box.h" // CreateButton.
 #include "boxes/peers/edit_peer_invite_link.h"
 #include "boxes/peers/edit_peer_invite_links.h"
+#include "boxes/peers/edit_peer_usernames_list.h"
 #include "chat_helpers/emoji_suggestions_widget.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
@@ -58,6 +59,7 @@ public:
 
 	void createContent();
 	[[nodiscard]] QString getUsernameInput() const;
+	[[nodiscard]] std::vector<QString> usernamesOrder() const;
 	void setFocusUsername();
 
 	[[nodiscard]] rpl::producer<QString> getTitle() const {
@@ -86,6 +88,10 @@ public:
 		return _controls.requestToJoin && _controls.requestToJoin->toggled();
 	}
 
+	[[nodiscard]] rpl::producer<int> scrollToRequests() const {
+		return _scrollToRequests.events();
+	}
+
 	void showError(rpl::producer<QString> text) {
 		_controls.usernameInput->showError();
 		showUsernameError(std::move(text));
@@ -96,6 +102,7 @@ private:
 		std::shared_ptr<Ui::RadioenumGroup<Privacy>> privacy;
 		Ui::SlideWrap<Ui::RpWidget> *usernameWrap = nullptr;
 		Ui::UsernameInput *usernameInput = nullptr;
+		UsernamesList *usernamesList = nullptr;
 		base::unique_qptr<Ui::FlatLabel> usernameResult;
 		const style::FlatLabel *usernameResultStyle = nullptr;
 
@@ -152,6 +159,8 @@ private:
 	UsernameState _usernameState = UsernameState::Normal;
 	rpl::event_stream<rpl::producer<QString>> _usernameResultTexts;
 
+	rpl::event_stream<int> _scrollToRequests;
+
 	rpl::lifetime _lifetime;
 
 };
@@ -173,7 +182,7 @@ Controller::Controller(
 , _isGroup(_peer->isChat() || _peer->isMegagroup())
 , _goodUsername(_dataSavedValue
 	? !_dataSavedValue->username.isEmpty()
-	: (_peer->isChannel() && !_peer->asChannel()->username.isEmpty()))
+	: (_peer->isChannel() && !_peer->asChannel()->editableUsername().isEmpty()))
 , _wrap(container)
 , _checkUsernameTimer([=] { checkUsernameAvailability(); }) {
 	_peer->updateFull();
@@ -199,21 +208,6 @@ void Controller::createContent() {
 	}
 
 	using namespace Settings;
-	AddSkip(_wrap.get());
-	_wrap->add(EditPeerInfoBox::CreateButton(
-		_wrap.get(),
-		tr::lng_group_invite_manage(),
-		rpl::single(QString()),
-		[=] {
-			const auto admin = _peer->session().user();
-			_show->showBox(
-				Box(ManageInviteLinksBox, _peer, admin, 0, 0),
-				Ui::LayerOption::KeepOther);
-		},
-		st::manageGroupButton,
-		{ &st::infoRoundedIconInviteLinks, Settings::kIconLightOrange }));
-	AddSkip(_wrap.get());
-	AddDividerText(_wrap.get(), tr::lng_group_invite_manage_about());
 
 	if (!_linkOnly) {
 		if (_peer->isMegagroup()) {
@@ -402,13 +396,19 @@ QString Controller::getUsernameInput() const {
 	return _controls.usernameInput->getLastText().trimmed();
 }
 
+std::vector<QString> Controller::usernamesOrder() const {
+	return _controls.usernamesList
+		? _controls.usernamesList->order()
+		: std::vector<QString>();
+}
+
 object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	Expects(_wrap != nullptr);
 
 	const auto channel = _peer->asChannel();
 	const auto username = (!_dataSavedValue || !channel)
 		? QString()
-		: channel->username;
+		: channel->editableUsername();
 
 	auto result = object_ptr<Ui::SlideWrap<Ui::VerticalLayout>>(
 		_wrap,
@@ -453,6 +453,18 @@ object_ptr<Ui::RpWidget> Controller::createUsernameEdit() {
 	AddDividerText(
 		container,
 		tr::lng_create_channel_link_about());
+
+	if (channel) {
+		const auto focusCallback = [=] {
+			_scrollToRequests.fire(container->y());
+			_controls.usernameInput->setFocusFast();
+		};
+		_controls.usernamesList = container->add(object_ptr<UsernamesList>(
+			container,
+			channel,
+			_show,
+			focusCallback));
+	}
 
 	QObject::connect(
 		_controls.usernameInput,
@@ -535,7 +547,7 @@ void Controller::checkUsernameAvailability() {
 		_api.request(_checkUsernameRequestId).cancel();
 	}
 	const auto channel = _peer->migrateToOrMe()->asChannel();
-	const auto username = channel ? channel->username : QString();
+	const auto username = channel ? channel->editableUsername() : QString();
 	_checkUsernameRequestId = _api.request(MTPchannels_CheckUsername(
 		channel ? channel->inputChannel : MTP_inputChannelEmpty(),
 		MTP_string(checking)
@@ -720,6 +732,10 @@ void EditPeerTypeBox::prepare() {
 		_peer,
 		_useLocationPhrases,
 		_dataSavedValue);
+	controller->scrollToRequests(
+	) | rpl::start_with_next([=, raw = content.data()](int y) {
+		scrollToY(raw->y() + y);
+	}, lifetime());
 	_focusRequests.events(
 	) | rpl::start_with_next(
 		[=] {
@@ -738,8 +754,11 @@ void EditPeerTypeBox::prepare() {
 		addButton(tr::lng_settings_save(), [=] {
 			const auto v = controller->getPrivacy();
 			if ((v == Privacy::HasUsername) && !controller->goodUsername()) {
-				controller->setFocusUsername();
-				return;
+				if (!controller->getUsernameInput().isEmpty()
+					|| controller->usernamesOrder().empty()) {
+					controller->setFocusUsername();
+					return;
+				}
 			}
 
 			auto local = std::move(*_savedCallback);
@@ -748,6 +767,9 @@ void EditPeerTypeBox::prepare() {
 				.username = (v == Privacy::HasUsername
 					? controller->getUsernameInput()
 					: QString()),
+				.usernamesOrder = (v == Privacy::HasUsername
+					? controller->usernamesOrder()
+					: std::vector<QString>()),
 				.noForwards = controller->noForwards(),
 				.joinToWrite = controller->joinToWrite(),
 				.requestToJoin = controller->requestToJoin(),

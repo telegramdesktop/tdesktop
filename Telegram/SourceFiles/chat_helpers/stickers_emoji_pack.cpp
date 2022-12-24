@@ -189,7 +189,7 @@ std::shared_ptr<LargeEmojiImage> EmojiPack::image(EmojiPtr emoji) {
 	}
 	auto result = std::make_shared<LargeEmojiImage>();
 	const auto raw = result.get();
-	const auto weak = base::make_weak(_session.get());
+	const auto weak = base::make_weak(_session);
 	raw->load = [=] {
 		Core::App().emojiImageLoader().with([=](
 				const EmojiImageLoader &loader) {

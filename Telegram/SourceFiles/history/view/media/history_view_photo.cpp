@@ -44,7 +44,9 @@ using Data::PhotoSize;
 struct Photo::Streamed {
 	explicit Streamed(std::shared_ptr<::Media::Streaming::Document> shared);
 	::Media::Streaming::Instance instance;
+	::Media::Streaming::FrameRequest frozenRequest;
 	QImage frozenFrame;
+	QImage roundingMask;
 };
 
 Photo::Streamed::Streamed(
@@ -258,6 +260,9 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 	if (_serviceWidth > 0) {
 		paintUserpicFrame(p, context, rthumb.topLeft());
 	} else {
+		const auto rounding = inWebPage
+			? std::optional<Ui::BubbleRounding>()
+			: adjustedBubbleRoundingWithCaption(_caption);
 		if (bubble) {
 			if (!_caption.isEmpty()) {
 				painth -= st::mediaCaptionSkip + _caption.countHeight(captionw);
@@ -267,18 +272,13 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 				rthumb = style::rtlrect(paintx, painty, paintw, painth, width());
 			}
 		} else {
-			Ui::FillRoundShadow(p, 0, 0, paintw, painth, sti->msgShadow, sti->msgShadowCorners);
+			Assert(rounding.has_value());
+			fillImageShadow(p, rthumb, *rounding, context);
 		}
-		const auto inWebPage = (_parent->media() != this);
-		const auto roundRadius = inWebPage
-			? ImageRoundRadius::Small
-			: ImageRoundRadius::Large;
-		const auto roundCorners = inWebPage ? RectPart::AllCorners : ((isBubbleTop() ? (RectPart::TopLeft | RectPart::TopRight) : RectPart::None)
-			| ((isRoundedInBubbleBottom() && _caption.isEmpty()) ? (RectPart::BottomLeft | RectPart::BottomRight) : RectPart::None));
-		validateImageCache(rthumb.size(), roundRadius, roundCorners);
+		validateImageCache(rthumb.size(), rounding);
 		p.drawImage(rthumb.topLeft(), _imageCache);
 		if (context.selected()) {
-			Ui::FillComplexOverlayRect(p, st, rthumb, roundRadius, roundCorners);
+			fillImageOverlay(p, rthumb, rounding, context);
 		}
 	}
 	if (radial || (!loaded && !_data->loading())) {
@@ -354,30 +354,20 @@ void Photo::draw(Painter &p, const PaintContext &context) const {
 
 void Photo::validateImageCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	const auto intRadius = static_cast<int>(radius);
-	const auto intCorners = static_cast<int>(corners);
+		std::optional<Ui::BubbleRounding> rounding) const {
 	const auto large = _dataMedia->image(PhotoSize::Large);
 	const auto ratio = style::DevicePixelRatio();
-	const auto shouldBeBlurred = (large != nullptr) ? 0 : 1;
+	const auto shouldBeBlurred = !large;
 	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRoundRadius == intRadius
-		&& _imageCacheRoundCorners == intCorners
+		&& _imageCacheRounding == rounding
 		&& _imageCacheBlurred == shouldBeBlurred) {
 		return;
 	}
-	_imageCache = prepareImageCache(outer, radius, corners);
-	_imageCacheRoundRadius = intRadius;
-	_imageCacheRoundCorners = intCorners;
+	_imageCache = Images::Round(
+		prepareImageCache(outer),
+		MediaRoundingMask(rounding));
+	_imageCacheRounding = rounding;
 	_imageCacheBlurred = shouldBeBlurred;
-}
-
-QImage Photo::prepareImageCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const {
-	return Images::Round(prepareImageCache(outer), radius, corners);
 }
 
 QImage Photo::prepareImageCache(QSize outer) const {
@@ -422,9 +412,20 @@ void Photo::paintUserpicFrame(
 		auto request = ::Media::Streaming::FrameRequest();
 		request.outer = size * cIntRetinaFactor();
 		request.resize = size * cIntRetinaFactor();
-		request.radius = ImageRoundRadius::Ellipse;
+		const auto forum = _parent->data()->history()->peer->isForum();
+		if (forum) {
+			request.rounding = Images::CornersMaskRef(
+				Images::CornersMask(ImageRoundRadius::Large));
+		} else {
+			if (_streamed->roundingMask.size() != request.outer) {
+				_streamed->roundingMask = Images::EllipseMask(size);
+			}
+			request.mask = _streamed->roundingMask;
+		}
 		if (_streamed->instance.playerLocked()) {
-			if (_streamed->frozenFrame.isNull()) {
+			if (_streamed->frozenFrame.isNull()
+				|| _streamed->frozenRequest != request) {
+				_streamed->frozenRequest = request;
 				_streamed->frozenFrame = _streamed->instance.frame(request);
 			}
 			p.drawImage(rect, _streamed->frozenFrame);
@@ -522,7 +523,8 @@ TextState Photo::textState(QPoint point, StateRequest request) const {
 			point,
 			InfoDisplayType::Image);
 		if (bottomInfoResult.link
-			|| bottomInfoResult.cursor != CursorState::None) {
+			|| bottomInfoResult.cursor != CursorState::None
+			|| bottomInfoResult.customTooltip) {
 			return bottomInfoResult;
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()) {
@@ -551,14 +553,14 @@ void Photo::drawGrouped(
 		const PaintContext &context,
 		const QRect &geometry,
 		RectParts sides,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		float64 highlightOpacity,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	ensureDataMediaCreated();
 	_dataMedia->automaticLoad(_realParent->fullId(), _parent->data());
 
-	validateGroupedCache(geometry, corners, cacheKey, cache);
+	validateGroupedCache(geometry, rounding, cacheKey, cache);
 
 	const auto st = context.st;
 	const auto sti = context.imageStyle();
@@ -580,10 +582,9 @@ void Photo::drawGrouped(
 		: highlightOpacity;
 	if (overlayOpacity > 0.) {
 		p.setOpacity(overlayOpacity);
-		const auto roundRadius = ImageRoundRadius::Large;
-		Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+		fillImageOverlay(p, geometry, rounding, context);
 		if (!context.selected()) {
-			Ui::FillComplexOverlayRect(p, st, geometry, roundRadius, corners);
+			fillImageOverlay(p, geometry, rounding, context);
 		}
 		p.setOpacity(1.);
 	}
@@ -687,7 +688,7 @@ bool Photo::needInfoDisplay() const {
 
 void Photo::validateGroupedCache(
 		const QRect &geometry,
-		RectParts corners,
+		Ui::BubbleRounding rounding,
 		not_null<uint64*> cacheKey,
 		not_null<QPixmap*> cache) const {
 	using Option = Images::Option;
@@ -704,18 +705,11 @@ void Photo::validateGroupedCache(
 		: 0;
 	const auto width = geometry.width();
 	const auto height = geometry.height();
-	const auto corner = [&](RectPart part, Option skip) {
-		return !(corners & part) ? skip : Option();
-	};
-	const auto options = Option::RoundLarge
-		| (loaded ? Option() : Option::Blur)
-		| corner(RectPart::TopLeft, Option::RoundSkipTopLeft)
-		| corner(RectPart::TopRight, Option::RoundSkipTopRight)
-		| corner(RectPart::BottomLeft, Option::RoundSkipBottomLeft)
-		| corner(RectPart::BottomRight, Option::RoundSkipBottomRight);
+	const auto options = (loaded ? Option() : Option::Blur);
 	const auto key = (uint64(width) << 48)
 		| (uint64(height) << 32)
 		| (uint64(options) << 16)
+		| (uint64(rounding.key()) << 8)
 		| (uint64(loadLevel));
 	if (*cacheKey == key) {
 		return;
@@ -738,9 +732,14 @@ void Photo::validateGroupedCache(
 		: Image::BlankMedia().get();
 
 	*cacheKey = key;
-	*cache = image->pixNoCache(
+	auto scaled = Images::Prepare(
+		image->original(),
 		pixSize * ratio,
 		{ .options = options, .outer = { width, height } });
+	auto rounded = Images::Round(
+		std::move(scaled),
+		MediaRoundingMask(rounding));
+	*cache = Ui::PixmapFromImage(std::move(rounded));
 }
 
 bool Photo::createStreamingObjects() {

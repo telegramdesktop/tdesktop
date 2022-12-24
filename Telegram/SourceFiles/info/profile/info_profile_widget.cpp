@@ -13,21 +13,33 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/ui_utility.h"
 #include "data/data_peer.h"
 #include "data/data_channel.h"
+#include "data/data_forum_topic.h"
 #include "data/data_user.h"
 #include "lang/lang_keys.h"
 #include "info/info_controller.h"
 
-namespace Info {
-namespace Profile {
+namespace Info::Profile {
 
 Memento::Memento(not_null<Controller*> controller)
 : Memento(
 	controller->peer(),
+	controller->topic(),
 	controller->migratedPeerId()) {
 }
 
 Memento::Memento(not_null<PeerData*> peer, PeerId migratedPeerId)
-: ContentMemento(peer, migratedPeerId) {
+: Memento(peer, nullptr, migratedPeerId) {
+}
+
+Memento::Memento(
+	not_null<PeerData*> peer,
+	Data::ForumTopic *topic,
+	PeerId migratedPeerId)
+: ContentMemento(peer, topic, migratedPeerId) {
+}
+
+Memento::Memento(not_null<Data::ForumTopic*> topic)
+: ContentMemento(topic->channel(), topic, 0) {
 }
 
 Section Memento::section() const {
@@ -38,9 +50,7 @@ object_ptr<ContentWidget> Memento::createWidget(
 		QWidget *parent,
 		not_null<Controller*> controller,
 		const QRect &geometry) {
-	auto result = object_ptr<Widget>(
-		parent,
-		controller);
+	auto result = object_ptr<Widget>(parent, controller);
 	result->setInternalState(geometry, this);
 	return result;
 }
@@ -55,9 +65,7 @@ std::unique_ptr<MembersState> Memento::membersState() {
 
 Memento::~Memento() = default;
 
-Widget::Widget(
-	QWidget *parent,
-	not_null<Controller*> controller)
+Widget::Widget(QWidget *parent, not_null<Controller*> controller)
 : ContentWidget(parent, controller) {
 	controller->setSearchEnabledByContent(false);
 
@@ -81,6 +89,9 @@ void Widget::setInnerFocus() {
 }
 
 rpl::producer<QString> Widget::title() {
+	if (const auto topic = controller()->key().topic()) {
+		return tr::lng_info_topic_title();
+	}
 	const auto peer = controller()->key().peer();
 	if (const auto user = peer->asUser()) {
 		return (user->isBot() && !user->isSupport())
@@ -132,5 +143,4 @@ void Widget::restoreState(not_null<Memento*> memento) {
 	scrollTopRestore(memento->scrollTop());
 }
 
-} // namespace Profile
-} // namespace Info
+} // namespace Info::Profile

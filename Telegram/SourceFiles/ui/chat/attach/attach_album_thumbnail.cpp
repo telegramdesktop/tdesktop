@@ -29,7 +29,7 @@ AlbumThumbnail::AlbumThumbnail(
 	Fn<void()> deleteCallback)
 : _layout(layout)
 , _fullPreview(file.preview)
-, _shrinkSize(int(std::ceil(st::historyMessageRadius / 1.4)))
+, _shrinkSize(int(std::ceil(st::roundRadiusLarge / 1.4)))
 , _isPhoto(file.type == PreparedFile::Type::Photo)
 , _isVideo(file.type == PreparedFile::Type::Video) {
 	Expects(!_fullPreview.isNull());
@@ -68,7 +68,7 @@ AlbumThumbnail::AlbumThumbnail(
 
 	const auto availableFileWidth = st::sendMediaPreviewSize
 		- st.thumbSize
-		- st.padding.right()
+		- st.thumbSkip
 		// Right buttons.
 		- st::sendBoxAlbumGroupButtonFile.width * 2
 		- st::sendBoxAlbumGroupEditInternalSkip * 2
@@ -392,7 +392,7 @@ void AlbumThumbnail::paintFile(
 		int top,
 		int outerWidth) {
 	const auto &st = st::attachPreviewThumbLayout;
-	const auto textLeft = left + st.thumbSize + st.padding.right();
+	const auto textLeft = left + st.thumbSize + st.thumbSkip;
 
 	p.drawPixmap(left, top, _fileThumb);
 	p.setFont(st::semiboldFont);

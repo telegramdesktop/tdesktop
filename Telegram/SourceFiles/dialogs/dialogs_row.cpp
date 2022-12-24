@@ -13,11 +13,15 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "dialogs/dialogs_entry.h"
 #include "dialogs/ui/dialogs_video_userpic.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "data/data_folder.h"
+#include "data/data_forum.h"
+#include "data/data_session.h"
 #include "data/data_peer_values.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "lang/lang_keys.h"
+#include "base/unixtime.h"
 #include "mainwidget.h"
 #include "styles/style_dialogs.h"
 
@@ -46,12 +50,12 @@ namespace {
 		const auto name = history->peer->name();
 		return TextWithEntities{
 			.text = name,
-			.entities = (history->unreadCount() > 0)
+			.entities = (history->chatListBadgesState().unread
 				? EntitiesInText{
 					{ EntityType::Semibold, 0, int(name.size()), QString() },
 					{ EntityType::PlainLink, 0, int(name.size()), QString() },
 				}
-				: EntitiesInText{}
+				: EntitiesInText{}),
 		};
 	};
 	const auto shown = int(peers.size());
@@ -92,7 +96,7 @@ void BasicRow::addRipple(
 		QSize size,
 		Fn<void()> updateCallback) {
 	if (!_ripple) {
-		auto mask = Ui::RippleAnimation::rectMask(size);
+		auto mask = Ui::RippleAnimation::RectMask(size);
 		_ripple = std::make_unique<Ui::RippleAnimation>(
 			st::dialogsRipple,
 			std::move(mask),
@@ -126,20 +130,17 @@ void BasicRow::paintUserpic(
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const {
+		const Ui::PaintContext &context) const {
 	PaintUserpic(
 		p,
 		peer,
 		videoUserpic,
 		_userpic,
-		st::dialogsPadding.x(),
-		st::dialogsPadding.y(),
-		fullWidth,
-		st::dialogsPhotoSize,
-		paused);
+		context.st->padding.left(),
+		context.st->padding.top(),
+		context.width,
+		context.st->photoSize,
+		context.paused);
 }
 
 Row::Row(Key key, int pos) : _id(key), _pos(pos) {
@@ -198,15 +199,20 @@ void Row::setCornerBadgeShown(
 void Row::updateCornerBadgeShown(
 		not_null<PeerData*> peer,
 		Fn<void()> updateCallback) const {
+	const auto user = peer->asUser();
+	const auto now = user ? base::unixtime::now() : TimeId();
 	const auto shown = [&] {
-		if (const auto user = peer->asUser()) {
-			return Data::IsUserOnline(user);
+		if (user) {
+			return Data::IsUserOnline(user, now);
 		} else if (const auto channel = peer->asChannel()) {
 			return Data::ChannelHasActiveCall(channel);
 		}
 		return false;
 	}();
 	setCornerBadgeShown(shown, std::move(updateCallback));
+	if (shown && user) {
+		peer->owner().watchForOffline(user, now);
+	}
 }
 
 void Row::ensureCornerBadgeUserpic() const {
@@ -221,7 +227,7 @@ void Row::PaintCornerBadgeFrame(
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		std::shared_ptr<Data::CloudImageView> &view,
-		bool paused) {
+		const Ui::PaintContext &context) {
 	data->frame.fill(Qt::transparent);
 
 	Painter q(&data->frame);
@@ -233,8 +239,8 @@ void Row::PaintCornerBadgeFrame(
 		0,
 		0,
 		data->frame.width() / data->frame.devicePixelRatio(),
-		st::dialogsPhotoSize,
-		paused);
+		context.st->photoSize,
+		context.paused);
 
 	PainterHighQualityEnabler hq(q);
 	q.setCompositionMode(QPainter::CompositionMode_Source);
@@ -255,8 +261,8 @@ void Row::PaintCornerBadgeFrame(
 		? st::dialogsOnlineBadgeFgActive
 		: st::dialogsOnlineBadgeFg);
 	q.drawEllipse(QRectF(
-		st::dialogsPhotoSize - skip.x() - size,
-		st::dialogsPhotoSize - skip.y() - size,
+		context.st->photoSize - skip.x() - size,
+		context.st->photoSize - skip.y() - size,
 		size,
 		size
 	).marginsRemoved({ shrink, shrink, shrink, shrink }));
@@ -267,10 +273,7 @@ void Row::paintUserpic(
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
-		crl::time now,
-		bool active,
-		int fullWidth,
-		bool paused) const {
+		const Ui::PaintContext &context) const {
 	updateCornerBadgeShown(peer);
 
 	const auto shown = _cornerBadgeUserpic
@@ -282,61 +285,68 @@ void Row::paintUserpic(
 			peer,
 			videoUserpic,
 			historyForCornerBadge,
-			now,
-			active,
-			fullWidth,
-			paused);
+			context);
 		if (!historyForCornerBadge || !_cornerBadgeShown) {
 			_cornerBadgeUserpic = nullptr;
 		}
 		return;
 	}
 	ensureCornerBadgeUserpic();
-	if (_cornerBadgeUserpic->frame.isNull()) {
+	const auto ratio = style::DevicePixelRatio();
+	const auto added = std::max({
+		-st::dialogsCallBadgeSkip.x(),
+		-st::dialogsCallBadgeSkip.y(),
+		0 });
+	const auto frameSide = (context.st->photoSize + added)
+		* style::DevicePixelRatio();
+	const auto frameSize = QSize(frameSide, frameSide);
+	if (_cornerBadgeUserpic->frame.size() != frameSize) {
 		_cornerBadgeUserpic->frame = QImage(
-			st::dialogsPhotoSize * cRetinaFactor(),
-			st::dialogsPhotoSize * cRetinaFactor(),
+			frameSize,
 			QImage::Format_ARGB32_Premultiplied);
-		_cornerBadgeUserpic->frame.setDevicePixelRatio(cRetinaFactor());
+		_cornerBadgeUserpic->frame.setDevicePixelRatio(ratio);
 	}
 	const auto key = peer->userpicUniqueKey(userpicView());
 	const auto frameIndex = videoUserpic ? videoUserpic->frameIndex() : -1;
 	if (_cornerBadgeUserpic->shown != shown
 		|| _cornerBadgeUserpic->key != key
-		|| _cornerBadgeUserpic->active != active
+		|| _cornerBadgeUserpic->active != context.active
 		|| _cornerBadgeUserpic->frameIndex != frameIndex
 		|| videoUserpic) {
 		_cornerBadgeUserpic->shown = shown;
 		_cornerBadgeUserpic->key = key;
-		_cornerBadgeUserpic->active = active;
+		_cornerBadgeUserpic->active = context.active;
 		_cornerBadgeUserpic->frameIndex = frameIndex;
 		PaintCornerBadgeFrame(
 			_cornerBadgeUserpic.get(),
 			peer,
 			videoUserpic,
 			userpicView(),
-			paused);
+			context);
 	}
-	p.drawImage(st::dialogsPadding, _cornerBadgeUserpic->frame);
+	p.drawImage(
+		context.st->padding.left(),
+		context.st->padding.top(),
+		_cornerBadgeUserpic->frame);
 	if (historyForCornerBadge->peer->isUser()) {
 		return;
 	}
 	const auto actionPainter = historyForCornerBadge->sendActionPainter();
-	const auto bg = active
+	const auto bg = context.active
 		? st::dialogsBgActive
 		: st::dialogsBg;
 	const auto size = st::dialogsCallBadgeSize;
 	const auto skip = st::dialogsCallBadgeSkip;
 	p.setOpacity(shown);
-	p.translate(st::dialogsPadding);
+	p.translate(context.st->padding.left(), context.st->padding.top());
 	actionPainter->paintSpeaking(
 		p,
-		st::dialogsPhotoSize - skip.x() - size,
-		st::dialogsPhotoSize - skip.y() - size,
-		fullWidth,
+		context.st->photoSize - skip.x() - size,
+		context.st->photoSize - skip.y() - size,
+		context.width,
 		bg,
-		now);
-	p.translate(-st::dialogsPadding);
+		context.now);
+	p.translate(-context.st->padding.left(), -context.st->padding.top());
 	p.setOpacity(1.);
 }
 
@@ -347,6 +357,25 @@ FakeRow::FakeRow(
 : _searchInChat(searchInChat)
 , _item(item)
 , _repaint(std::move(repaint)) {
+	invalidateTopic();
+}
+
+void FakeRow::invalidateTopic() {
+	_topic = _item->topic();
+	if (_topic) {
+		return;
+	} else if (const auto rootId = _item->topicRootId()) {
+		if (const auto forum = _item->history()->asForum()) {
+			if (!forum->topicDeleted(rootId)) {
+				forum->requestTopic(rootId, crl::guard(this, [=] {
+					_topic = _item->topic();
+					if (_topic) {
+						_repaint();
+					}
+				}));
+			}
+		}
+	}
 }
 
 const Ui::Text::String &FakeRow::name() const {
@@ -355,7 +384,10 @@ const Ui::Text::String &FakeRow::name() const {
 			? _item->displayFrom()
 			: nullptr;
 		const auto peer = from ? from : _item->history()->peer.get();
-		_name.setText(st::msgNameStyle, peer->name(), Ui::NameTextOptions());
+		_name.setText(
+			st::semiboldTextStyle,
+			peer->name(),
+			Ui::NameTextOptions());
 	}
 	return _name;
 }

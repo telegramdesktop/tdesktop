@@ -255,31 +255,24 @@ infoTabs: SettingsSlider(defaultTabsSlider) {
 	labelTop: 19px;
 }
 
+InfoProfileCover {
+	height: pixels;
+	photo: UserpicButton;
+	photoLeft: pixels;
+	photoTop: pixels;
+	name: FlatLabel;
+	nameLeft: pixels;
+	nameTop: pixels;
+	status: FlatLabel;
+	statusLeft: pixels;
+	statusTop: pixels;
+	rightSkip: pixels;
+}
 infoProfilePhotoInnerSize: 72px;
 infoProfilePhotoSize: size(
 	infoProfilePhotoInnerSize,
 	infoProfilePhotoInnerSize);
-infoProfilePhoto: UserpicButton(defaultUserpicButton) {
-	size: infoProfilePhotoSize;
-	photoSize: infoProfilePhotoInnerSize;
-}
-infoFeedProfilePhoto: FeedUserpicButton(defaultFeedUserpicButton) {
-	size: infoProfilePhotoSize;
-	innerSize: infoProfilePhotoInnerSize;
-	innerPart: UserpicButton(defaultUserpicButton) {
-		size: size(35px, 35px);
-		photoSize: 35px;
-	}
-
-}
-infoProfilePhotoLeft: 19px;
-infoProfilePhotoTop: 18px;
-infoProfilePhotoBottom: 18px;
-
-infoProfileStatusLeft: 109px;
-infoProfileStatusRight: 20px;
-infoProfileStatusTop: 58px;
-infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
+infoProfileStatus: FlatLabel(defaultFlatLabel) {
 	maxHeight: 18px;
 	textFg: windowSubTextFg;
 	style: TextStyle(defaultTextStyle) {
@@ -288,25 +281,51 @@ infoProfileStatusLabel: FlatLabel(defaultFlatLabel) {
 		linkFontOver: normalFont;
 	}
 }
-infoProfileMegagroupStatusLabel: FlatLabel(infoProfileStatusLabel) {
-	style: defaultTextStyle;
-	palette: TextPalette(defaultTextPalette) {
-		linkFg: windowSubTextFg;
+infoProfileCover: InfoProfileCover {
+	height: 108px;
+	photo: UserpicButton(defaultUserpicButton) {
+		size: infoProfilePhotoSize;
+		photoSize: infoProfilePhotoInnerSize;
 	}
+	photoLeft: 19px;
+	photoTop: 18px;
+	name: FlatLabel(defaultFlatLabel) {
+		maxHeight: 24px;
+		textFg: windowBoldFg;
+		style: TextStyle(defaultTextStyle) {
+			font: font(16px semibold);
+			linkFont: font(16px semibold);
+			linkFontOver: font(16px semibold underline);
+		}
+	}
+	nameLeft: 109px;
+	nameTop: 32px;
+	status: infoProfileStatus;
+	statusLeft: 109px;
+	statusTop: 58px;
+	rightSkip: 20px;
+}
+infoProfileMegagroupCover: InfoProfileCover(infoProfileCover) {
+	status: FlatLabel(infoProfileStatus) {
+		style: defaultTextStyle;
+		palette: TextPalette(defaultTextPalette) {
+			linkFg: windowSubTextFg;
+		}
+	}
+}
+infoTopicCover: InfoProfileCover(infoProfileMegagroupCover) {
+	height: 77px;
+	photo: UserpicButton(defaultUserpicButton) {
+		size: size(36px, 36px);
+	}
+	photoLeft: 22px;
+	photoTop: 18px;
+	nameLeft: 79px;
+	nameTop: 14px;
+	statusLeft: 79px;
+	statusTop: 38px;
 }
 
-infoProfileNameLeft: infoProfileStatusLeft;
-infoProfileNameRight: infoProfileStatusRight;
-infoProfileNameTop: 32px;
-infoProfileNameLabel: FlatLabel(infoProfileStatusLabel) {
-	maxHeight: 24px;
-	textFg: windowBoldFg;
-	style: TextStyle(defaultTextStyle) {
-		font: font(16px semibold);
-		linkFont: font(16px semibold);
-		linkFontOver: font(16px semibold underline);
-	}
-}
 infoVerifiedCheckPosition: point(4px, 2px);
 infoVerifiedCheck: icon {
 	{ "profile_verified_star", profileVerifiedCheckBg },
@@ -392,7 +411,7 @@ infoLabeled: FlatLabel(infoLabeledOneLine) {
 	margin: margins(5px, 5px, 5px, 5px);
 }
 
-infoBlockHeaderLabel: FlatLabel(infoProfileStatusLabel) {
+infoBlockHeaderLabel: FlatLabel(infoProfileStatus) {
 	textFg: windowBoldFg;
 	style: TextStyle(defaultTextStyle) {
 		font: semiboldFont;
@@ -548,10 +567,11 @@ peerPermissionsButton: SettingsCountButton(managePeerButton) {
 	iconPosition: point(24px, 5px);
 }
 
+manageGroupButtonInner: SettingsButton(infoProfileButton) {
+	padding: margins(60px, 10px, 24px, 8px);
+}
 manageGroupButton: SettingsCountButton(managePeerButton) {
-	button: SettingsButton(infoProfileButton) {
-		padding: margins(60px, 10px, 24px, 8px);
-	}
+	button: manageGroupButtonInner;
 	labelPosition: point(22px, 12px);
 	iconPosition: point(20px, 4px);
 }
@@ -559,6 +579,16 @@ manageGroupButton: SettingsCountButton(managePeerButton) {
 manageGroupTopButtonWithText: SettingsCountButton(manageGroupButton) {
 	labelPosition: point(22px, 10px);
 	iconPosition: point(0px, 0px);
+}
+manageGroupTopicsButton: SettingsCountButton(manageGroupTopButtonWithText) {
+	button: SettingsButton(manageGroupButtonInner) {
+		toggle: Toggle(infoProfileToggle) {
+			lockIcon: icon {{ "info/info_rights_lock", menuIconFg }};
+		}
+		toggleOver: Toggle(infoProfileToggleOver) {
+			lockIcon: icon {{ "info/info_rights_lock", menuIconFgOver }};
+		}
+	}
 }
 
 manageDeleteGroupButton: SettingsCountButton(manageGroupTopButtonWithText) {
@@ -622,7 +652,7 @@ editPeerHistoryVisibilityLabelMargins: margins(34px, 0px, 48px, 0px);
 editPeerPrivacyLabelMargins: margins(42px, 0px, 34px, 0px);
 editPeerPreHistoryLabelMargins: margins(34px, 0px, 34px, 0px);
 editPeerUsernameTitleLabelMargins: margins(22px, 17px, 22px, 10px);
-editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 20px);
+editPeerUsernameFieldMargins: margins(22px, 0px, 22px, 16px);
 editPeerUsername: setupChannelLink;
 editPeerUsernameSkip: 8px;
 editPeerInviteLink: FlatLabel(defaultFlatLabel) {
@@ -719,15 +749,6 @@ topBarInfoButton: UserpicButton(defaultUserpicButton) {
 	photoSize: topBarInfoButtonInnerSize;
 	photoPosition: topBarInfoButtonInnerPosition;
 }
-topBarFeedInfoButton: FeedUserpicButton(defaultFeedUserpicButton) {
-	size: topBarInfoButtonSize;
-	innerSize: topBarInfoButtonInnerSize;
-	innerPosition: topBarInfoButtonInnerPosition;
-	innerPart: UserpicButton(defaultUserpicButton) {
-		size: size(20px, 20px);
-		photoSize: 20px;
-	}
-}
 topBarConnectingPosition: point(2px, 5px);
 topBarConnectingSkip: 6px;
 topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) {
@@ -738,12 +759,8 @@ topBarConnectingAnimation: InfiniteRadialAnimation(defaultInfiniteRadialAnimatio
 
 infoFeedLeaveIconMargins: margins(10px, 12px, 20px, 10px);
 
-inviteLinkField: FlatInput(defaultFlatInput) {
-	font: font(fsize);
-
-	height: 44px;
-	textMrg: margins(14px, 12px, 36px, 9px);
-}
+inviteLinkFieldHeight: 44px;
+inviteLinkFieldMargin: margins(14px, 12px, 36px, 9px);
 inviteLinkThreeDotsIcon: icon {{ "info/edit/dotsmini", dialogsMenuIconFg }};
 inviteLinkThreeDotsIconOver: icon {{ "info/edit/dotsmini", dialogsMenuIconFgOver }};
 inviteLinkThreeDots: IconButton(defaultIconButton) {
@@ -847,6 +864,8 @@ inviteLinkQrPixel: 8px;
 inviteLinkQrSkip: 24px;
 inviteLinkQrMargin: margins(0px, 0px, 0px, 13px);
 inviteLinkQrValuePadding: margins(22px, 0px, 22px, 12px);
+
+usernamesReorderIcon: icon {{ "stickers_reorder", dialogsMenuIconFg }};
 
 infoAboutGigagroup: FlatLabel(defaultFlatLabel) {
 	minWidth: 274px;

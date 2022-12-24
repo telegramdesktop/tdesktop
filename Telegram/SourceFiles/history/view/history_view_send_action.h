@@ -16,6 +16,10 @@ namespace Main {
 class Session;
 } // namespace Main
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
 namespace Api {
 enum class SendProgressType;
 struct SendProgress;
@@ -25,7 +29,9 @@ namespace HistoryView {
 
 class SendActionPainter final {
 public:
-	explicit SendActionPainter(not_null<History*> history);
+	explicit SendActionPainter(not_null<History*> history, MsgId rootId = 0);
+
+	void setTopic(Data::ForumTopic *topic);
 
 	bool paint(
 		Painter &p,
@@ -53,8 +59,10 @@ public:
 
 private:
 	const not_null<History*> _history;
+	const MsgId _rootId = 0;
 	const base::weak_ptr<Main::Session> _weak;
 	const style::TextStyle &_st;
+	Data::ForumTopic *_topic = nullptr;
 	base::flat_map<not_null<UserData*>, crl::time> _typing;
 	base::flat_map<not_null<UserData*>, crl::time> _speaking;
 	base::flat_map<not_null<UserData*>, Api::SendProgress> _sendActions;

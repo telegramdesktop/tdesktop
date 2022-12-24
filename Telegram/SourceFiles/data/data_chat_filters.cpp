@@ -204,17 +204,19 @@ bool ChatFilter::contains(not_null<History*> history) const {
 	if (_never.contains(history)) {
 		return false;
 	}
+	const auto state = (_flags & (Flag::NoMuted | Flag::NoRead))
+		? history->chatListBadgesState()
+		: Dialogs::BadgesState();
 	return false
 		|| ((_flags & flag)
 			&& (!(_flags & Flag::NoMuted)
-				|| !history->mute()
-				|| (history->unreadMentions().has()
+				|| !history->muted()
+				|| (state.mention
 					&& history->folderKnown()
 					&& !history->folder()))
 			&& (!(_flags & Flag::NoRead)
-				|| history->unreadCount()
-				|| history->unreadMark()
-				|| history->unreadMentions().has()
+				|| state.unread
+				|| state.mention
 				|| history->fakeUnreadWhileOpened())
 			&& (!(_flags & Flag::NoArchived)
 				|| (history->folderKnown() && !history->folder())))

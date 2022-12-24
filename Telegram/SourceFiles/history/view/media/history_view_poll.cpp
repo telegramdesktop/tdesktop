@@ -10,7 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_keys.h"
 #include "history/history.h"
 #include "history/history_item.h"
-#include "history/view/history_view_element.h"
+#include "history/view/history_view_message.h"
 #include "history/view/history_view_cursor_state.h"
 #include "calls/calls_instance.h"
 #include "ui/chat/message_bubble.h"
@@ -1519,7 +1519,7 @@ void Poll::toggleRipple(Answer &answer, bool pressed) {
 			- st::msgPadding.left()
 			- st::msgPadding.right();
 		if (!answer.ripple) {
-			auto mask = Ui::RippleAnimation::rectMask(QSize(
+			auto mask = Ui::RippleAnimation::RectMask(QSize(
 				outerWidth,
 				countAnswerHeight(answer, innerWidth)));
 			answer.ripple = std::make_unique<Ui::RippleAnimation>(
@@ -1568,29 +1568,20 @@ void Poll::toggleLinkRipple(bool pressed) {
 		const auto linkWidth = width();
 		const auto linkHeight = bottomButtonHeight();
 		if (!_linkRipple) {
-			const auto drawMask = [&](QPainter &p) {
-				const auto radius = st::historyMessageRadius;
-				p.drawRoundedRect(
-					0,
-					0,
-					linkWidth,
-					linkHeight,
-					radius,
-					radius);
-				p.fillRect(0, 0, linkWidth, radius * 2, Qt::white);
-			};
 			auto mask = isRoundedInBubbleBottom()
-				? Ui::RippleAnimation::maskByDrawer(
-					QSize(linkWidth, linkHeight),
-					false,
-					drawMask)
-				: Ui::RippleAnimation::rectMask({ linkWidth, linkHeight });
+				? static_cast<Message*>(_parent.get())->bottomRippleMask(
+					bottomButtonHeight())
+				: BottomRippleMask{
+					Ui::RippleAnimation::RectMask({ linkWidth, linkHeight }),
+				};
 			_linkRipple = std::make_unique<Ui::RippleAnimation>(
 				st::defaultRippleAnimation,
-				std::move(mask),
+				std::move(mask.image),
 				[=] { repaint(); });
+			_linkRippleShift = mask.shift;
 		}
-		_linkRipple->add(_lastLinkPoint - QPoint(0, height() - linkHeight));
+		_linkRipple->add(_lastLinkPoint
+			+ QPoint(_linkRippleShift, linkHeight - height()));
 	} else if (_linkRipple) {
 		_linkRipple->lastStop();
 	}

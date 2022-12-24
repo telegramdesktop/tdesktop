@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/ui_utility.h"
 #include "ui/painter.h"
+#include "ui/image/image_prepare.h"
 
 #include <QtCore/QCoreApplication>
 
@@ -355,10 +356,15 @@ void RoundCheckbox::prepareInactiveCache() {
 	_inactiveCacheFg = Ui::PixmapFromImage(std::move(cacheFg));
 }
 
-RoundImageCheckbox::RoundImageCheckbox(const style::RoundImageCheckbox &st, Fn<void()> updateCallback, PaintRoundImage &&paintRoundImage)
+RoundImageCheckbox::RoundImageCheckbox(
+	const style::RoundImageCheckbox &st,
+	Fn<void()> updateCallback,
+	PaintRoundImage &&paintRoundImage,
+	Fn<ImageRoundRadius()> roundingRadius)
 : _st(st)
 , _updateCallback(updateCallback)
 , _paintRoundImage(std::move(paintRoundImage))
+, _roundingRadius(std::move(roundingRadius))
 , _check(_st.check, _updateCallback) {
 }
 
@@ -383,6 +389,9 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 	}
 
 	if (selectionLevel > 0) {
+		const auto radius = _roundingRadius
+			? _roundingRadius()
+			: ImageRoundRadius::Ellipse;
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
@@ -390,7 +399,18 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 			_fgOverride ? (*_fgOverride) : _st.selectFg->b,
 			_st.selectWidth);
 		p.setPen(pen);
-		p.drawEllipse(style::rtlrect(x, y, _st.imageRadius * 2, _st.imageRadius * 2, outerWidth));
+		const auto rect = style::rtlrect(
+			x,
+			y,
+			_st.imageRadius * 2,
+			_st.imageRadius * 2,
+			outerWidth);
+		if (radius == ImageRoundRadius::Ellipse) {
+			p.drawEllipse(rect);
+		} else {
+			const auto pxRadius = st::roundRadiusLarge;
+			p.drawRoundedRect(rect, pxRadius, pxRadius);
+		}
 		p.setOpacity(1.);
 	}
 	if (_st.check.size > 0) {

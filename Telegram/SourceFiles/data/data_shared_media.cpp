@@ -109,10 +109,12 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 			limitAfter);
 		auto requestMediaAround = [
 			peer = session->data().peer(key.peerId),
+			topicRootId = key.topicRootId,
 			type = key.type
 		](const SparseIdsSliceBuilder::AroundData &data) {
 			peer->session().api().requestSharedMedia(
 				peer,
+				topicRootId,
 				type,
 				data.aroundId,
 				data.direction);
@@ -128,6 +130,7 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		session->storage().sharedMediaSliceUpdated(
 		) | rpl::filter([=](const SliceUpdate &update) {
 			return (update.peerId == key.peerId)
+				&& (update.topicRootId == key.topicRootId)
 				&& (update.type == key.type);
 		}) | rpl::filter([=](const SliceUpdate &update) {
 			return builder->applyUpdate(update.data);
@@ -146,7 +149,9 @@ rpl::producer<SparseIdsSlice> SharedMediaViewer(
 		session->storage().sharedMediaAllRemoved(
 		) | rpl::filter([=](const AllRemoved &update) {
 			return (update.peerId == key.peerId)
-				&& (update.types.test(key.type));
+				&& (!update.topicRootId
+					|| update.topicRootId == key.topicRootId)
+				&& update.types.test(key.type);
 		}) | rpl::filter([=] {
 			return builder->removeAll();
 		}) | rpl::start_with_next(pushNextSnapshot, lifetime);
@@ -229,6 +234,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 		int limitAfter) {
 	auto createSimpleViewer = [=](
 			PeerId peerId,
+			MsgId topicRootId,
 			SparseIdsSlice::Key simpleKey,
 			int limitBefore,
 			int limitAfter) {
@@ -236,6 +242,7 @@ rpl::producer<SparseIdsMergedSlice> SharedMediaMergedViewer(
 			session,
 			Storage::SharedMediaKey(
 				peerId,
+				topicRootId,
 				key.type,
 				simpleKey),
 			limitBefore,
@@ -462,7 +469,7 @@ rpl::producer<SharedMediaWithLastSlice> SharedMediaWithLastViewer(
 			});
 		}
 
-		if (key.scheduled) {
+		if (key.topicRootId == SharedMediaWithLastSlice::kScheduledTopicId) {
 			return SharedScheduledMediaViewer(
 				session,
 				std::move(viewerKey),

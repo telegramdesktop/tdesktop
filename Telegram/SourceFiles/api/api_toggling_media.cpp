@@ -66,7 +66,7 @@ void ToggleFavedSticker(
 	if (faved && !document->sticker()) {
 		return;
 	}
-	const auto weak = base::make_weak(controller.get());
+	const auto weak = base::make_weak(controller);
 	auto done = [=] {
 		document->owner().stickers().setFaved(weak.get(), document, faved);
 	};

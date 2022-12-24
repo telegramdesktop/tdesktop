@@ -19,10 +19,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace {
 
-[[nodiscard]] bool IsOldForPin(MsgId id, not_null<PeerData*> peer) {
+[[nodiscard]] bool IsOldForPin(
+		MsgId id,
+		not_null<PeerData*> peer,
+		MsgId topicRootId) {
 	const auto normal = peer->migrateToOrMe();
 	const auto migrated = normal->migrateFrom();
-	const auto top = Data::ResolveTopPinnedId(normal, migrated);
+	const auto top = Data::ResolveTopPinnedId(normal, topicRootId, migrated);
 	if (!top) {
 		return false;
 	} else if (peer == migrated) {
@@ -46,7 +49,7 @@ void PinMessageBox(
 		mtpRequestId requestId = 0;
 	};
 
-	const auto pinningOld = IsOldForPin(msgId, peer);
+	const auto pinningOld = IsOldForPin(msgId, peer, MsgId(0));
 	const auto state = box->lifetime().make_state<State>();
 	const auto api = box->lifetime().make_state<MTP::Sender>(
 		&peer->session().mtp());

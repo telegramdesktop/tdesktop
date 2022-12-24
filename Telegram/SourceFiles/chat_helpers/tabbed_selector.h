@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/effects/animations.h"
 #include "ui/effects/message_sending_animation_common.h"
 #include "ui/effects/panel_animation.h"
+#include "ui/cached_round_corners.h"
 #include "mtproto/sender.h"
 #include "base/object_ptr.h"
 
@@ -252,6 +253,8 @@ private:
 	Mode _mode = Mode::Full;
 	int _roundRadius = 0;
 	int _footerTop = 0;
+	Ui::CornersPixmaps _panelRounding;
+	Ui::CornersPixmaps _categoriesRounding;
 	PeerData *_currentPeer = nullptr;
 
 	class SlideAnimation;

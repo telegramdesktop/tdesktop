@@ -70,7 +70,8 @@ constexpr auto kIcons = std::array{
 
 FilterIconPanel::FilterIconPanel(QWidget *parent)
 : RpWidget(parent)
-, _inner(Ui::CreateChild<Ui::RpWidget>(this)) {
+, _inner(Ui::CreateChild<Ui::RpWidget>(this))
+, _innerBg(ImageRoundRadius::Small, st::dialogsBg) {
 	setup();
 }
 
@@ -117,11 +118,7 @@ void FilterIconPanel::setupInner() {
 	_inner->paintRequest(
 		) | rpl::start_with_next([=](QRect clip) {
 		auto p = Painter(_inner);
-		Ui::FillRoundRect(
-			p,
-			_inner->rect(),
-			st::dialogsBg,
-			ImageRoundRadius::Small);
+		_innerBg.paint(p, _inner->rect());
 		p.setFont(st::emojiPanHeaderFont);
 		p.setPen(st::emojiPanHeaderFg);
 		p.drawTextLeft(

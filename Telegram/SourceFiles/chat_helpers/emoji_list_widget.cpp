@@ -1093,11 +1093,8 @@ DocumentData *EmojiListWidget::lookupCustomEmoji(
 	if (section == int(Section::Recent) && index < _recent.size()) {
 		const auto document = std::get_if<RecentEmojiDocument>(
 			&_recent[index].id.data);
-		const auto custom = document
-			? session().data().document(document->id).get()
-			: nullptr;
-		if (custom && custom->sticker()) {
-			return custom;
+		if (document) {
+			return session().data().document(document->id);
 		}
 	} else if (section >= _staticCount
 		&& index < _custom[section - _staticCount].list.size()) {
@@ -1256,6 +1253,9 @@ void EmojiListWidget::mouseReleaseEvent(QMouseEvent *e) {
 				break;
 			case Mode::EmojiStatus:
 				Settings::ShowPremium(_controller, u"emoji_status"_q);
+				break;
+			case Mode::TopicIcon:
+				Settings::ShowPremium(_controller, u"forum_topic_icon"_q);
 				break;
 			}
 		}
@@ -1966,7 +1966,7 @@ std::unique_ptr<Ui::RippleAnimation> EmojiListWidget::createButtonRipple(
 		? st::stickerPanRemoveSet.ripple
 		: st::emojiPanButton.ripple;
 	auto mask = remove
-		? Ui::RippleAnimation::ellipseMask(QSize(
+		? Ui::RippleAnimation::EllipseMask(QSize(
 			st::stickerPanRemoveSet.rippleAreaSize,
 			st::stickerPanRemoveSet.rippleAreaSize))
 		: rightButton(section).rippleMask;

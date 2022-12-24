@@ -21,9 +21,7 @@ using namespace TextUtilities;
 
 [[nodiscard]] QString CustomEmojiEntityData(
 		const MTPDmessageEntityCustomEmoji &data) {
-	return Data::SerializeCustomEmojiId({
-		.id = data.vdocument_id().v,
-	});
+	return Data::SerializeCustomEmojiId(data.vdocument_id().v);
 }
 
 [[nodiscard]] std::optional<MTPMessageEntity> CustomEmojiEntity(
@@ -31,13 +29,13 @@ using namespace TextUtilities;
 		MTPint length,
 		const QString &data) {
 	const auto parsed = Data::ParseCustomEmojiData(data);
-	if (!parsed.id) {
+	if (!parsed) {
 		return {};
 	}
 	return MTP_messageEntityCustomEmoji(
 		offset,
 		length,
-		MTP_long(parsed.id));
+		MTP_long(parsed));
 }
 
 [[nodiscard]] std::optional<MTPMessageEntity> MentionNameEntity(

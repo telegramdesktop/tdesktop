@@ -10,6 +10,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
 
+namespace Data {
+class Thread;
+} // namespace Data
+
 namespace Ui {
 class RoundButton;
 } // namespace Ui
@@ -33,10 +37,10 @@ public:
 	HistoryHider(
 		QWidget *parent,
 		const QString &text,
-		Fn<bool(PeerId)> confirm,
+		Fn<bool(not_null<Data::Thread*>)> confirm,
 		rpl::producer<bool> oneColumnValue);
 
-	void offerPeer(PeerId peer);
+	void offerThread(not_null<Data::Thread*> thread);
 
 	void startHide();
 	void confirm();
@@ -57,7 +61,7 @@ private:
 	void animationCallback();
 
 	QString _text;
-	Fn<bool(PeerId)> _confirm;
+	Fn<bool(not_null<Data::Thread*>)> _confirm;
 	Ui::Animations::Simple _a_opacity;
 
 	QRect _box;

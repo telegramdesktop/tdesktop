@@ -135,7 +135,6 @@ public:
 	Pip(
 		not_null<Delegate*> delegate,
 		not_null<DocumentData*> data,
-		FullMsgId contextId,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
@@ -254,7 +253,6 @@ private:
 
 	const not_null<Delegate*> _delegate;
 	const not_null<DocumentData*> _data;
-	FullMsgId _contextId;
 	Streaming::Instance _instance;
 	bool _opengl = false;
 	PipPanel _panel;

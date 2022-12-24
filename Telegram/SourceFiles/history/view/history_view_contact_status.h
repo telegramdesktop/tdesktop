@@ -11,6 +11,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/wrap/slide_wrap.h"
 #include "ui/widgets/shadow.h"
 
+namespace Data {
+class ForumTopic;
+} // namespace Data
+
 namespace Window {
 class SessionController;
 } // namespace Window
@@ -23,22 +27,55 @@ class FlatLabel;
 
 namespace HistoryView {
 
-class ContactStatus final {
+class SlidingBar final {
 public:
-	ContactStatus(
-		not_null<Window::SessionController*> controller,
+	SlidingBar(
 		not_null<Ui::RpWidget*> parent,
-		not_null<PeerData*> peer);
+		object_ptr<Ui::RpWidget> wrapped);
 
-	void show();
+	void setVisible(bool visible);
 	void raise();
 
 	void move(int x, int y);
 	[[nodiscard]] int height() const;
 	[[nodiscard]] rpl::producer<int> heightValue() const;
+	void toggleContent(bool visible);
+
+	void show() {
+		setVisible(true);
+	}
+	void hide() {
+		setVisible(false);
+	}
 
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
+	}
+
+private:
+	void setup(not_null<Ui::RpWidget*> parent);
+
+	Ui::SlideWrap<Ui::RpWidget> _wrapped;
+	Ui::PlainShadow _shadow;
+	bool _shown = false;
+	bool _contentShown = false;
+
+	rpl::lifetime _lifetime;
+
+};
+
+class ContactStatus final {
+public:
+	ContactStatus(
+		not_null<Window::SessionController*> controller,
+		not_null<Ui::RpWidget*> parent,
+		not_null<PeerData*> peer,
+		bool showInForum);
+
+	void show();
+
+	[[nodiscard]] SlidingBar &bar() {
+		return _bar;
 	}
 
 private:
@@ -62,8 +99,7 @@ private:
 		TimeId requestDate = 0;
 	};
 
-	void setupWidgets(not_null<Ui::RpWidget*> parent);
-	void setupState(not_null<PeerData*> peer);
+	void setupState(not_null<PeerData*> peer, bool showInForum);
 	void setupHandlers(not_null<PeerData*> peer);
 	void setupAddHandler(not_null<UserData*> user);
 	void setupBlockHandler(not_null<UserData*> user);
@@ -80,11 +116,30 @@ private:
 	State _state;
 	TextWithEntities _status;
 	Fn<std::any(Fn<void()> customEmojiRepaint)> _context;
-	Ui::SlideWrap<Bar> _bar;
-	Ui::PlainShadow _shadow;
+	QPointer<Bar> _inner;
+	SlidingBar _bar;
+	bool _hiddenByForum = false;
 	bool _shown = false;
 
-	rpl::lifetime _lifetime;
+};
+
+class TopicReopenBar final {
+public:
+	TopicReopenBar(
+		not_null<Ui::RpWidget*> parent,
+		not_null<Data::ForumTopic*> topic);
+
+	[[nodiscard]] SlidingBar &bar() {
+		return _bar;
+	}
+
+private:
+	void setupState();
+	void setupHandler();
+
+	const not_null<Data::ForumTopic*> _topic;
+	QPointer<Ui::FlatButton> _reopen;
+	SlidingBar _bar;
 
 };
 

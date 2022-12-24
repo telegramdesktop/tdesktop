@@ -163,6 +163,35 @@ rpl::producer<HistoryUpdate> Changes::realtimeHistoryUpdates(
 	return _historyChanges.realtimeUpdates(flag);
 }
 
+void Changes::topicUpdated(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags) {
+	_topicChanges.updated(topic, flags);
+	scheduleNotifications();
+}
+
+rpl::producer<TopicUpdate> Changes::topicUpdates(
+		TopicUpdate::Flags flags) const {
+	return _topicChanges.updates(flags);
+}
+
+rpl::producer<TopicUpdate> Changes::topicUpdates(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags) const {
+	return _topicChanges.updates(topic, flags);
+}
+
+rpl::producer<TopicUpdate> Changes::topicFlagsValue(
+		not_null<ForumTopic*> topic,
+		TopicUpdate::Flags flags) const {
+	return _topicChanges.flagsValue(topic, flags);
+}
+
+rpl::producer<TopicUpdate> Changes::realtimeTopicUpdates(
+		TopicUpdate::Flag flag) const {
+	return _topicChanges.realtimeUpdates(flag);
+}
+
 void Changes::messageUpdated(
 		not_null<HistoryItem*> item,
 		MessageUpdate::Flags flags) {
@@ -242,6 +271,7 @@ void Changes::sendNotifications() {
 	_historyChanges.sendNotifications();
 	_messageChanges.sendNotifications();
 	_entryChanges.sendNotifications();
+	_topicChanges.sendNotifications();
 }
 
 } // namespace Data

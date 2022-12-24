@@ -27,6 +27,7 @@ struct EditorData {
 	enum class CropType {
 		Rect,
 		Ellipse,
+		RoundedRect,
 	};
 
 	CropType cropType = CropType::Rect;

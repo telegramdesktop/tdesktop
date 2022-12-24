@@ -12,6 +12,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QStringList>
 #include <QtCore/QMimeType>
 
+class QMimeData;
+
 namespace Core {
 
 class MimeType {
@@ -46,5 +48,8 @@ private:
 [[nodiscard]] bool IsMimeAcceptedForPhotoVideoAlbum(const QString &mime);
 
 [[nodiscard]] bool FileIsImage(const QString &name, const QString &mime);
+
+[[nodiscard]] std::shared_ptr<QMimeData> ShareMimeMediaData(
+	not_null<const QMimeData*> original);
 
 } // namespace Core

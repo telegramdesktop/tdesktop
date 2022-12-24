@@ -488,7 +488,7 @@ void MainMenu::moveBadge() {
 	_badge->move(
 		left,
 		st::mainMenuCoverNameTop,
-		st::mainMenuCoverNameTop + st::msgNameStyle.font->height);
+		st::mainMenuCoverNameTop + st::semiboldFont->height);
 }
 
 void MainMenu::setupArchive() {
@@ -579,10 +579,10 @@ void MainMenu::setupArchive() {
 		return folder->owner().chatsList(folder)->unreadStateChanges();
 	}) | rpl::flatten_latest() | rpl::to_empty) | rpl::map([=] {
 		const auto loaded = folder();
-		return Badge::UnreadBadge{
-			loaded ? loaded->chatListUnreadCount() : 0,
-			true,
-		};
+		const auto state = loaded
+			? loaded->chatListBadgesState()
+			: Dialogs::BadgesState();
+		return Badge::UnreadBadge{ state.unreadCounter, true };
 	}));
 
 	controller->session().data().chatsListChanges(
@@ -691,9 +691,8 @@ void MainMenu::setupMenu() {
 			tr::lng_saved_messages(),
 			{ &st::settingsIconSavedMessages, kIconLightBlue }
 		)->setClickedCallback([=] {
-			controller->content()->choosePeer(
-				controller->session().userPeerId(),
-				ShowAtUnreadMsgId);
+			const auto self = controller->session().user();
+			controller->content()->chooseThread(self, ShowAtUnreadMsgId);
 		});
 	} else {
 		addAction(
@@ -830,7 +829,7 @@ void MainMenu::paintEvent(QPaintEvent *e) {
 		if (_nameVersion < user->nameVersion()) {
 			_nameVersion = user->nameVersion();
 			_name.setText(
-				st::msgNameStyle,
+				st::semiboldTextStyle,
 				user->name(),
 				Ui::NameTextOptions());
 			moveBadge();

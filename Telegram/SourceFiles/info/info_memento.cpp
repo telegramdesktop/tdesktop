@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_box.h"
 #include "data/data_channel.h"
 #include "data/data_chat.h"
+#include "data/data_forum_topic.h"
 #include "data/data_session.h"
 #include "main/main_session.h"
 
@@ -33,6 +34,14 @@ Memento::Memento(not_null<PeerData*> peer, Section section)
 : Memento(DefaultStack(peer, section)) {
 }
 
+Memento::Memento(not_null<Data::ForumTopic*> topic)
+: Memento(topic, Section::Type::Profile) {
+}
+
+Memento::Memento(not_null<Data::ForumTopic*> topic, Section section)
+: Memento(DefaultStack(topic, section)) {
+}
+
 Memento::Memento(Settings::Tag settings, Section section)
 : Memento(DefaultStack(settings, section)) {
 }
@@ -43,6 +52,27 @@ Memento::Memento(not_null<PollData*> poll, FullMsgId contextId)
 
 Memento::Memento(std::vector<std::shared_ptr<ContentMemento>> stack)
 : _stack(std::move(stack)) {
+	auto topics = base::flat_set<not_null<Data::ForumTopic*>>();
+	for (auto &entry : _stack) {
+		if (const auto topic = entry->topic()) {
+			topics.emplace(topic);
+		}
+	}
+	for (const auto &topic : topics) {
+		topic->destroyed(
+		) | rpl::start_with_next([=] {
+			for (auto i = begin(_stack); i != end(_stack);) {
+				if (i->get()->topic() == topic) {
+					i = _stack.erase(i);
+				} else {
+					++i;
+				}
+			}
+			if (_stack.empty()) {
+				_removeRequests.fire({});
+			}
+		}, _lifetime);
+	}
 }
 
 std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
@@ -50,6 +80,14 @@ std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
 		Section section) {
 	auto result = std::vector<std::shared_ptr<ContentMemento>>();
 	result.push_back(DefaultContent(peer, section));
+	return result;
+}
+
+std::vector<std::shared_ptr<ContentMemento>> Memento::DefaultStack(
+		not_null<Data::ForumTopic*> topic,
+		Section section) {
+	auto result = std::vector<std::shared_ptr<ContentMemento>>();
+	result.push_back(DefaultContent(topic, section));
 	return result;
 }
 
@@ -107,6 +145,18 @@ std::shared_ptr<ContentMemento> Memento::DefaultContent(
 		return std::make_shared<Members::Memento>(
 			peer,
 			migratedPeerId);
+	}
+	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
+}
+
+std::shared_ptr<ContentMemento> Memento::DefaultContent(
+		not_null<Data::ForumTopic*> topic,
+		Section section) {
+	switch (section.type()) {
+	case Section::Type::Profile:
+		return std::make_shared<Profile::Memento>(topic);
+	case Section::Type::Media:
+		return std::make_shared<Media::Memento>(topic, section.mediaType());
 	}
 	Unexpected("Wrong section type in Info::Memento::DefaultContent()");
 }

@@ -117,6 +117,7 @@ QSize GroupedMedia::countOptimalSize() {
 	if (_mode == Mode::Column) {
 		for (const auto &part : _parts) {
 			const auto &media = part.content;
+			media->setBubbleRounding(bubbleRounding());
 			media->initDimensions();
 			accumulate_max(maxWidth, media->maxWidth());
 		}
@@ -244,15 +245,23 @@ void GroupedMedia::refreshParentId(
 	}
 }
 
-RectParts GroupedMedia::cornersFromSides(RectParts sides) const {
+Ui::BubbleRounding GroupedMedia::applyRoundingSides(
+		Ui::BubbleRounding already,
+		RectParts sides) const {
 	auto result = Ui::GetCornersFromSides(sides);
-	if (!isBubbleTop()) {
-		result &= ~(RectPart::TopLeft | RectPart::TopRight);
+	if (!(result & RectPart::TopLeft)) {
+		already.topLeft = Ui::BubbleCornerRounding::None;
 	}
-	if (!isRoundedInBubbleBottom() || !_caption.isEmpty()) {
-		result &= ~(RectPart::BottomLeft | RectPart::BottomRight);
+	if (!(result & RectPart::TopRight)) {
+		already.topRight = Ui::BubbleCornerRounding::None;
 	}
-	return result;
+	if (!(result & RectPart::BottomLeft)) {
+		already.bottomLeft = Ui::BubbleCornerRounding::None;
+	}
+	if (!(result & RectPart::BottomRight)) {
+		already.bottomRight = Ui::BubbleCornerRounding::None;
+	}
+	return already;
 }
 
 QMargins GroupedMedia::groupedPadding() const {
@@ -301,6 +310,11 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 	const auto textSelection = (_mode == Mode::Column)
 		&& !fullSelection
 		&& !IsSubGroupSelection(selection);
+	const auto inWebPage = (_parent->media() != this);
+	constexpr auto kSmall = Ui::BubbleCornerRounding::Small;
+	const auto rounding = inWebPage
+		? Ui::BubbleRounding{ kSmall, kSmall, kSmall, kSmall }
+		: adjustedBubbleRoundingWithCaption(_caption);
 	for (auto i = 0, count = int(_parts.size()); i != count; ++i) {
 		const auto &part = _parts[i];
 		const auto partContext = context.withSelection(fullSelection
@@ -324,7 +338,7 @@ void GroupedMedia::draw(Painter &p, const PaintContext &context) const {
 			partContext,
 			part.geometry.translated(0, groupPadding.top()),
 			part.sides,
-			cornersFromSides(part.sides),
+			applyRoundingSides(rounding, part.sides),
 			highlightOpacity,
 			&part.cacheKey,
 			&part.cache);
@@ -439,7 +453,8 @@ TextState GroupedMedia::textState(QPoint point, StateRequest request) const {
 			point,
 			InfoDisplayType::Image);
 		if (bottomInfoResult.link
-			|| bottomInfoResult.cursor != CursorState::None) {
+			|| bottomInfoResult.cursor != CursorState::None
+			|| bottomInfoResult.customTooltip) {
 			return bottomInfoResult;
 		}
 		if (const auto size = _parent->hasBubble() ? std::nullopt : _parent->rightActionSize()) {

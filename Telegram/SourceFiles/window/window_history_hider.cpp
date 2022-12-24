@@ -20,7 +20,7 @@ namespace Window {
 HistoryHider::HistoryHider(
 	QWidget *parent,
 	const QString &text,
-	Fn<bool(PeerId)> confirm,
+	Fn<bool(not_null<Data::Thread*>)> confirm,
 	rpl::producer<bool> oneColumnValue)
 : RpWidget(parent)
 , _text(text)
@@ -122,8 +122,8 @@ void HistoryHider::updateControlsGeometry() {
 	_box = QRect((width() - w) / 2, (height() - h) / 2, w, h);
 }
 
-void HistoryHider::offerPeer(PeerId peer) {
-	if (_confirm(peer)) {
+void HistoryHider::offerThread(not_null<Data::Thread*> thread) {
+	if (_confirm(thread)) {
 		startHide();
 	}
 }

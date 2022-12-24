@@ -27,6 +27,7 @@ public:
 		bool failed = false;
 		bool toolong = false;
 		bool pending = false;
+		bool roundview = false;
 		mtpRequestId requestId = 0;
 	};
 

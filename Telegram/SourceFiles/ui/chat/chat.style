@@ -26,6 +26,147 @@ GroupCallUserpics {
 	align: align;
 }
 
+msgMaxWidth: 430px;
+msgFont: font(fsize);
+msgNameFont: semiboldFont;
+msgNameStyle: semiboldTextStyle;
+msgServiceFont: semiboldFont;
+msgServiceNameFont: semiboldFont;
+msgServicePhotoWidth: 100px;
+msgDateFont: font(13px);
+msgMinWidth: 160px;
+msgPhotoSize: 33px;
+msgPhotoSkip: 40px;
+msgPadding: margins(13px, 7px, 13px, 8px);
+msgMargin: margins(16px, 6px, 56px, 2px);
+msgMarginTopAttached: 0px;
+msgLnkPadding: 2px; // for media open / save links
+msgShadow: 2px;
+
+msgReplyPadding: margins(6px, 6px, 11px, 6px);
+msgReplyBarPos: point(1px, 0px);
+msgReplyBarSize: size(2px, 36px);
+msgReplyBarSkip: 10px;
+msgServicePadding: margins(12px, 3px, 12px, 4px);
+msgServiceMargin: margins(10px, 10px, 10px, 2px);
+
+msgDateSpace: 12px;
+msgDateDelta: point(2px, 5px);
+
+msgDateImgDelta: 4px;
+msgDateImgPadding: point(8px, 2px);
+msgDateImgCheckSpace: 4px;
+
+messageTextStyle: defaultTextStyle;
+msgDateTextStyle: defaultTextStyle;
+serviceTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgServiceFg;
+	monoFg: msgServiceFg;
+	spoilerFg: msgServiceFg;
+	selectBg: msgServiceBgSelected;
+	selectFg: msgServiceFg;
+	selectLinkFg: msgServiceFg;
+	selectMonoFg: msgServiceFg;
+	selectSpoilerFg: msgServiceFg;
+	selectOverlay: msgServiceBgSelected;
+}
+serviceTextStyle: TextStyle(defaultTextStyle) {
+	font: msgServiceFont;
+	linkFont: msgServiceFont;
+	linkFontOver: font(fsize semibold underline);
+}
+inTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkInFg;
+	monoFg: msgInMonoFg;
+	spoilerFg: msgInDateFg;
+	selectBg: msgInBgSelected;
+	selectFg: historyTextInFgSelected;
+	selectLinkFg: historyLinkInFgSelected;
+	selectMonoFg: msgInMonoFgSelected;
+	selectSpoilerFg: msgInDateFgSelected;
+	selectOverlay: msgSelectOverlay;
+}
+inTextPaletteSelected: TextPalette(inTextPalette) {
+	linkFg: historyLinkInFgSelected;
+	monoFg: msgInMonoFgSelected;
+	spoilerFg: msgInDateFgSelected;
+}
+outTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyLinkOutFg;
+	monoFg: msgOutMonoFg;
+	spoilerFg: msgOutDateFg;
+	selectBg: msgOutBgSelected;
+	selectFg: historyTextOutFgSelected;
+	selectLinkFg: historyLinkOutFgSelected;
+	selectMonoFg: msgOutMonoFgSelected;
+	selectSpoilerFg: msgOutDateFgSelected;
+	selectOverlay: msgSelectOverlay;
+}
+outTextPaletteSelected: TextPalette(outTextPalette) {
+	linkFg: historyLinkOutFgSelected;
+	monoFg: msgOutMonoFgSelected;
+	spoilerFg: msgOutDateFgSelected;
+}
+fwdTextStyle: TextStyle(semiboldTextStyle) {
+	linkFontOver: semiboldFont;
+}
+inFwdTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgInServiceFg;
+}
+outFwdTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgOutServiceFg;
+}
+inFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
+	linkFg: msgInServiceFgSelected;
+}
+outFwdTextPaletteSelected: TextPalette(defaultTextPalette) {
+	linkFg: msgOutServiceFgSelected;
+}
+inReplyTextPalette: TextPalette(inTextPalette) {
+	linkFg: msgInDateFg;
+}
+inReplyTextPaletteSelected: TextPalette(inTextPaletteSelected) {
+	linkFg: msgInDateFgSelected;
+}
+outReplyTextPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutDateFg;
+}
+outReplyTextPaletteSelected: TextPalette(outTextPaletteSelected) {
+	linkFg: msgOutDateFgSelected;
+}
+imgReplyTextPalette: TextPalette(defaultTextPalette) {
+	linkFg: msgImgReplyBarColor;
+}
+inSemiboldPalette: TextPalette(inTextPalette) {
+	linkFg: msgInServiceFg;
+	selectFg: msgInServiceFgSelected;
+	selectLinkFg: msgInServiceFgSelected;
+}
+outSemiboldPalette: TextPalette(outTextPalette) {
+	linkFg: msgOutServiceFg;
+	selectFg: msgOutServiceFgSelected;
+	selectLinkFg: msgOutServiceFgSelected;
+}
+historyComposeAreaPalette: TextPalette(defaultTextPalette) {
+	linkFg: historyComposeAreaFgService;
+}
+
+mediaCaptionSkip: 5px;
+mediaInBubbleSkip: 5px;
+mediaThumbSize: 48px;
+mediaNameTop: 3px;
+mediaDetailsShift: 3px;
+mediaUnreadSize: 7px;
+mediaUnreadSkip: 5px;
+mediaUnreadTop: 6px;
+
+mediaInPalette: TextPalette(defaultTextPalette) {
+	linkFg: mediaInFg;
+}
+mediaInPaletteSelected: TextPalette(defaultTextPalette) {
+	linkFg: mediaInFgSelected;
+}
+
 defaultMessageBar: MessageBar {
 	title: semiboldTextStyle;
 	titleFg: windowActiveTextFg;
@@ -516,7 +657,7 @@ msgBotKbSwitchPmIcon: icon {{ "inline_button_switch", msgBotKbIconFg }};
 msgBotKbPaymentIcon: icon {{ "inline_button_card", msgBotKbIconFg }};
 msgBotKbWebviewIcon: icon {{ "inline_button_web", msgBotKbIconFg }};
 msgBotKbButton: BotKeyboardButton {
-	margin: 5px;
+	margin: 2px;
 	padding: 10px;
 	height: 36px;
 	textTop: 8px;
@@ -562,9 +703,11 @@ historyInfoToast: Toast(defaultToast) {
 	iconPosition: point(13px, 13px);
 }
 
+bubbleRadiusSmall: roundRadiusLarge;
+bubbleRadiusLarge: 16px;
+
 historyPhotoLeft: 14px;
 historyPhotoBubbleMinWidth: 200px;
-historyMessageRadius: roundRadiusLarge;
 historyBubbleTailInLeft: icon {{ "bubble_tail", msgInBg }};
 historyBubbleTailInLeftSelected: icon {{ "bubble_tail", msgInBgSelected }};
 historyBubbleTailOutLeft: icon {{ "bubble_tail", msgOutBg }};
@@ -625,43 +768,50 @@ HistoryFileLayout {
 	statusTop: pixels;
 	linkTop: pixels;
 	thumbSize: pixels;
+	thumbSkip: pixels;
 }
 
+msgFileThumbRadiusSmall: 4px;
+msgFileThumbRadiusLarge: 12px;
 msgFileLayout: HistoryFileLayout {
-	padding: margins(14px, 10px, 11px, 10px);
-	nameTop: 16px;
-	statusTop: 37px;
+	padding: margins(12px, 8px, 10px, 8px);
+	nameTop: 12px;
+	statusTop: 34px;
 	thumbSize: 44px;
+	thumbSkip: 11px;
 }
 msgFileThumbLayout: HistoryFileLayout {
-	padding: margins(10px, 10px, 14px, 10px);
-	nameTop: 12px;
-	statusTop: 32px;
-	linkTop: 60px;
+	padding: margins(6px, 6px, 10px, 6px);
+	nameTop: 11px;
+	statusTop: 31px;
+	linkTop: 55px;
 	thumbSize: 72px;
+	thumbSkip: 14px;
 }
 msgFileLayoutGrouped: HistoryFileLayout(msgFileLayout) {
-	padding: margins(14px, 7px, 11px, 7px);
-	nameTop: 13px;
-	statusTop: 34px;
+	padding: margins(12px, 5px, 10px, 5px);
+	nameTop: 9px;
+	statusTop: 31px;
 }
 msgFileThumbLayoutGrouped: HistoryFileLayout(msgFileThumbLayout) {
-	padding: margins(10px, 7px, 14px, 7px);
-	nameTop: 9px;
-	statusTop: 29px;
-	linkTop: 57px;
+	padding: margins(6px, 3px, 10px, 3px);
+	nameTop: 8px;
+	statusTop: 28px;
+	linkTop: 52px;
 }
 attachPreviewLayout: HistoryFileLayout {
-	padding: margins(0px, 0px, 11px, 0px);
+	padding: margins(0px, 0px, 0px, 0px);
 	nameTop: 6px;
 	statusTop: 27px;
 	thumbSize: 44px;
+	thumbSkip: 11px;
 }
 attachPreviewThumbLayout: HistoryFileLayout {
-	padding: margins(0px, 0px, 10px, 0px);
+	padding: margins(0px, 0px, 0px, 0px);
 	nameTop: 7px;
 	statusTop: 37px;
 	thumbSize: 64px;
+	thumbSkip: 10px;
 }
 
 msgFileMenuSize: size(36px, 36px);
@@ -697,21 +847,6 @@ historyVideoMessageProgressOpacity: 0.72;
 
 historyAdminLogEmptyWidth: 260px;
 historyAdminLogEmptyPadding: margins(10px, 12px, 10px, 12px);
-historyAdminLogSearchField: FlatInput(defaultFlatInput) {
-	textColor: windowFg;
-	bgColor: topBarBg;
-	bgActive: topBarBg;
-
-	font: font(fsize);
-
-	borderWidth: 0px;
-	borderColor: topBarBg;
-	borderActive: topBarBg;
-
-	width: 100px;
-	height: 32px;
-	textMrg: margins(0px, 0px, 0px, 0px);
-}
 historyAdminLogCancelSearch: CrossButton {
 	width: 40px;
 	height: 54px;
@@ -741,6 +876,7 @@ historyFastShareBottom: 5px;
 historyFastShareIcon: icon {{ "fast_share", msgServiceFg }};
 historyGoToOriginalIcon: icon {{ "fast_to_original", msgServiceFg }};
 historyFastCommentsIcon: icon {{ "fast_comments", msgServiceFg }};
+historyFastTranscribeIcon: icon {{ "chat/voice_to_text", msgServiceFg }};
 
 historySavedFont: font(semibold 14px);
 
@@ -1075,11 +1211,11 @@ reactionPremiumLocked: icon{
 	{ "chat/reactions_premium_star", historyPeerUserpicFg },
 };
 reactionExpandPanel: icon{
-	{ "chat/reactions_round_big", windowSubTextFg },
+	{ "chat/reactions_round_big", windowBgRipple },
 	{ "chat/reactions_expand_panel", windowBg },
 };
 reactionsExpandDropdown: icon{
-	{ "chat/reactions_round_small", windowSubTextFg },
+	{ "chat/reactions_round_small", windowBgRipple },
 	{ "chat/reactions_expand_panel", windowBg },
 };
 

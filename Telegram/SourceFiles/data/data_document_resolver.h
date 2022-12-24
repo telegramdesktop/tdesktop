@@ -32,6 +32,7 @@ base::binary_guard ReadBackgroundImageAsync(
 void ResolveDocument(
 	Window::SessionController *controller,
 	not_null<DocumentData*> document,
-	HistoryItem *item);
+	HistoryItem *item,
+	MsgId topicRootId);
 
 } // namespace Data

@@ -8,6 +8,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #pragma once
 
 #include "ui/cached_round_corners.h"
+#include "ui/chat/message_bubble.h"
 #include "ui/style/style_core_palette.h"
 #include "layout/layout_selection.h"
 #include "styles/style_basic.h"
@@ -26,7 +27,8 @@ class ChatStyle;
 struct BubblePattern;
 
 struct MessageStyle {
-	CornersPixmaps msgBgCorners;
+	CornersPixmaps msgBgCornersSmall;
+	CornersPixmaps msgBgCornersLarge;
 	style::color msgBg;
 	style::color msgShadow;
 	style::color msgServiceFg;
@@ -78,8 +80,10 @@ struct MessageStyle {
 
 struct MessageImageStyle {
 	CornersPixmaps msgDateImgBgCorners;
-	CornersPixmaps msgServiceBgCorners;
-	CornersPixmaps msgShadowCorners;
+	CornersPixmaps msgServiceBgCornersSmall;
+	CornersPixmaps msgServiceBgCornersLarge;
+	CornersPixmaps msgShadowCornersSmall;
+	CornersPixmaps msgShadowCornersLarge;
 	style::color msgServiceBg;
 	style::color msgDateImgBg;
 	style::color msgShadow;
@@ -157,6 +161,7 @@ struct ChatPaintContext {
 class ChatStyle final : public style::palette {
 public:
 	ChatStyle();
+	explicit ChatStyle(not_null<const style::palette*> isolated);
 
 	void apply(not_null<ChatTheme*> theme);
 
@@ -188,9 +193,10 @@ public:
 		bool selected) const;
 	[[nodiscard]] const MessageImageStyle &imageStyle(bool selected) const;
 
-	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCorners() const;
-	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersSmall() const;
-	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCornersLarge() const;
+	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersSmall() const;
+	[[nodiscard]] const CornersPixmaps &msgBotKbOverBgAddCornersLarge() const;
+	[[nodiscard]] const CornersPixmaps &msgSelectOverlayCorners(
+		CachedCornerRadius radius) const;
 
 	[[nodiscard]] const style::TextPalette &historyPsaForwardPalette() const {
 		return _historyPsaForwardPalette;
@@ -245,6 +251,9 @@ public:
 	}
 	[[nodiscard]] const style::icon &historyFastShareIcon() const {
 		return _historyFastShareIcon;
+	}
+	[[nodiscard]] const style::icon &historyFastTranscribeIcon() const {
+		return _historyFastTranscribeIcon;
 	}
 	[[nodiscard]] const style::icon &historyGoToOriginalIcon() const {
 		return _historyGoToOriginalIcon;
@@ -315,9 +324,10 @@ private:
 	mutable std::array<MessageStyle, 4> _messageStyles;
 	mutable std::array<MessageImageStyle, 2> _imageStyles;
 
-	mutable CornersPixmaps _msgBotKbOverBgAddCorners;
-	mutable CornersPixmaps _msgSelectOverlayCornersSmall;
-	mutable CornersPixmaps _msgSelectOverlayCornersLarge;
+	mutable CornersPixmaps _msgBotKbOverBgAddCornersSmall;
+	mutable CornersPixmaps _msgBotKbOverBgAddCornersLarge;
+	mutable CornersPixmaps _msgSelectOverlayCorners[
+		int(CachedCornerRadius::kCount)];
 
 	style::TextPalette _historyPsaForwardPalette;
 	style::TextPalette _imgReplyTextPalette;
@@ -337,6 +347,7 @@ private:
 	style::icon _msgBotKbWebviewIcon = { Qt::Uninitialized };
 	style::icon _historyFastCommentsIcon = { Qt::Uninitialized };
 	style::icon _historyFastShareIcon = { Qt::Uninitialized };
+	style::icon _historyFastTranscribeIcon = { Qt::Uninitialized };
 	style::icon _historyGoToOriginalIcon = { Qt::Uninitialized };
 	style::icon _historyMapPoint = { Qt::Uninitialized };
 	style::icon _historyMapPointInner = { Qt::Uninitialized };
@@ -353,15 +364,13 @@ private:
 
 void FillComplexOverlayRect(
 	QPainter &p,
-	not_null<const ChatStyle*> st,
 	QRect rect,
-	ImageRoundRadius radius,
-	RectParts roundCorners);
-void FillComplexLocationRect(
+	const style::color &color,
+	const CornersPixmaps &corners);
+
+void FillComplexEllipse(
 	QPainter &p,
 	not_null<const ChatStyle*> st,
-	QRect rect,
-	ImageRoundRadius radius,
-	RectParts roundCorners);
+	QRect rect);
 
 } // namespace Ui

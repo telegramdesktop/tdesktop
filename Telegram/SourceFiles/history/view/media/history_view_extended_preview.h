@@ -80,12 +80,7 @@ private:
 	bool needInfoDisplay() const;
 	void validateImageCache(
 		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
-	[[nodiscard]] QImage prepareImageCache(
-		QSize outer,
-		ImageRoundRadius radius,
-		RectParts corners) const;
+		std::optional<Ui::BubbleRounding> rounding) const;
 	[[nodiscard]] QImage prepareImageCache(QSize outer) const;
 	void paintButton(
 		Painter &p,
@@ -95,8 +90,7 @@ private:
 	void fillSpoilerMess(
 		QPainter &p,
 		QRect rect,
-		ImageRoundRadius radius,
-		RectParts corners,
+		std::optional<Ui::BubbleRounding> rounding,
 		const PaintContext &context) const;
 
 	const not_null<Data::Invoice*> _invoice;
@@ -109,9 +103,8 @@ private:
 	mutable QImage _buttonBackground;
 	mutable QColor _buttonBackgroundOverlay;
 	mutable Ui::Text::String _buttonText;
-	mutable int _imageCacheRoundRadius : 4 = 0;
-	mutable int _imageCacheRoundCorners : 12 = 0;
-	mutable int _imageCacheInvalid : 1 = 0;
+	mutable std::optional<Ui::BubbleRounding> _imageCacheRounding;
+	mutable bool _imageCacheInvalid = false;
 
 };
 

@@ -1152,6 +1152,19 @@ ServiceAction ParseServiceAction(
 			qs(data.vcurrency())).toUtf8();
 		content.months = data.vmonths().v;
 		result.content = content;
+	}, [&](const MTPDmessageActionTopicCreate &data) {
+		auto content = ActionTopicCreate();
+		content.title = ParseString(data.vtitle());
+		result.content = content;
+	}, [&](const MTPDmessageActionTopicEdit &data) {
+		auto content = ActionTopicEdit();
+		if (const auto title = data.vtitle()) {
+			content.title = ParseString(*title);
+		}
+		if (const auto icon = data.vicon_emoji_id()) {
+			content.iconEmojiId = icon->v;
+		}
+		result.content = content;
 	}, [](const MTPDmessageActionEmpty &data) {});
 	return result;
 }

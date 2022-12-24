@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/premium_preview_box.h"
 #include "lottie/lottie_single_player.h"
 #include "window/window_session_controller.h"
+#include "settings/settings_premium.h"
 #include "apiwrap.h"
 #include "styles/style_chat.h"
 
@@ -50,7 +51,9 @@ StickerToast::~StickerToast() {
 	}
 }
 
-void StickerToast::showFor(not_null<DocumentData*> document) {
+void StickerToast::showFor(
+		not_null<DocumentData*> document,
+		Section section) {
 	const auto sticker = document->sticker();
 	if (!sticker || !document->session().premiumPossible()) {
 		return;
@@ -66,6 +69,7 @@ void StickerToast::showFor(not_null<DocumentData*> document) {
 		cancelRequest();
 	}
 	_for = document;
+	_section = section;
 
 	const auto title = lookupTitle();
 	if (!title.isEmpty()) {
@@ -129,8 +133,11 @@ void StickerToast::showWithTitle(const QString &title) {
 
 	static auto counter = 0;
 	const auto setType = _for->sticker()->setType;
-	const auto isEmoji = (setType == Data::StickersType::Emoji);
-	const auto toSaved = isEmoji && !(++counter % 2);
+	const auto isEmoji = (_section == Section::TopicIcon)
+		|| (setType == Data::StickersType::Emoji);
+	const auto toSaved = isEmoji
+		&& (_section == Section::Message)
+		&& !(++counter % 2);
 	const auto text = Ui::Text::Bold(
 		title
 	).append('\n').append(
@@ -218,6 +225,9 @@ void StickerToast::showWithTitle(const QString &title) {
 				_controller->session().userPeerId(),
 				Window::SectionShow::Way::Forward);
 			hideToast();
+			return;
+		} else if (_section == Section::TopicIcon) {
+			Settings::ShowPremium(_controller, u"forum_topic_icon"_q);
 			return;
 		}
 		const auto id = _for->sticker()->set.id;

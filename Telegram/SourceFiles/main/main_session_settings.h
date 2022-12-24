@@ -101,17 +101,13 @@ public:
 		return _hadLegacyCallsPeerToPeerNobody;
 	}
 
-	[[nodiscard]] MsgId hiddenPinnedMessageId(PeerId peerId) const {
-		const auto i = _hiddenPinnedMessages.find(peerId);
-		return (i != end(_hiddenPinnedMessages)) ? i->second : 0;
-	}
-	void setHiddenPinnedMessageId(PeerId peerId, MsgId msgId) {
-		if (msgId) {
-			_hiddenPinnedMessages[peerId] = msgId;
-		} else {
-			_hiddenPinnedMessages.remove(peerId);
-		}
-	}
+	[[nodiscard]] MsgId hiddenPinnedMessageId(
+		PeerId peerId,
+		MsgId topicRootId = 0) const;
+	void setHiddenPinnedMessageId(
+		PeerId peerId,
+		MsgId topicRootId,
+		MsgId msgId);
 
 	[[nodiscard]] bool dialogsFiltersEnabled() const {
 		return _dialogsFiltersEnabled;
@@ -137,6 +133,15 @@ private:
 	static constexpr auto kDefaultSupportChatsLimitSlice = 7 * 24 * 60 * 60;
 	static constexpr auto kPhotoEditorHintMaxShowsCount = 5;
 
+	struct ThreadId {
+		PeerId peerId;
+		MsgId topicRootId;
+
+		friend inline constexpr auto operator<=>(
+			ThreadId,
+			ThreadId) = default;
+	};
+
 	ChatHelpers::SelectorTab _selectorTab; // per-window
 	base::flat_set<PeerId> _groupStickersSectionHidden;
 	bool _hadLegacyCallsPeerToPeerNobody = false;
@@ -145,7 +150,7 @@ private:
 	rpl::variable<bool> _archiveInMainMenu = false;
 	rpl::variable<bool> _skipArchiveInSearch = false;
 	std::vector<std::pair<DocumentId, crl::time>> _mediaLastPlaybackPosition;
-	base::flat_map<PeerId, MsgId> _hiddenPinnedMessages;
+	base::flat_map<ThreadId, MsgId> _hiddenPinnedMessages;
 	bool _dialogsFiltersEnabled = false;
 	int _photoEditorHintShowsCount = 0;
 	std::vector<TimeId> _mutePeriods;

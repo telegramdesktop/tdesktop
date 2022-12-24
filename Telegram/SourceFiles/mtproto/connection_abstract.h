@@ -14,6 +14,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QObject>
 #include <QtCore/QThread>
 
+#include <deque>
+
 namespace MTP {
 
 class Instance;

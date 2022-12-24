@@ -85,22 +85,22 @@ QImage ArchiveUserpic(not_null<Data::Folder*> folder) {
 	Painter paint(&result);
 
 	auto view = std::shared_ptr<Data::CloudImageView>();
-	folder->paintUserpic(paint, view, 0, 0, result.width());
+	folder->paintUserpic(paint, 0, 0, result.width());
 	return result;
 }
 
 QImage UnreadBadge(not_null<PeerData*> peer) {
 	const auto history = peer->owner().history(peer->id);
-	const auto count = history->unreadCountForBadge();
-	if (!count) {
+	const auto state = history->chatListBadgesState();
+	if (!state.unread) {
 		return QImage();
 	}
-	const auto unread = history->unreadMark()
-		? QString()
-		: QString::number(count);
+	const auto counter = (state.unreadCounter > 0)
+		? QString::number(state.unreadCounter)
+		: QString();
 	Dialogs::Ui::UnreadBadgeStyle unreadSt;
-	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeInTouchBar;
-	unreadSt.muted = history->mute();
+	unreadSt.sizeId = Dialogs::Ui::UnreadBadgeSize::TouchBar;
+	unreadSt.muted = state.unreadMuted;
 	// Use constant values to draw badge regardless of cConfigScale().
 	unreadSt.size = kUnreadBadgeSize * cRetinaFactor();
 	unreadSt.padding = 4 * cRetinaFactor();
@@ -117,7 +117,7 @@ QImage UnreadBadge(not_null<PeerData*> peer) {
 
 	Dialogs::Ui::PaintUnreadBadge(
 		p,
-		unread,
+		counter,
 		result.width(),
 		result.height() - unreadSt.size,
 		unreadSt,
@@ -778,13 +778,14 @@ TimeId CalculateOnlineTill(not_null<PeerData*> peer) {
 		}
 	};
 	Core::Sandbox::Instance().customEnterFromEventLoop([=] {
-		(_hasArchive && (index == (_selfUnpinned ? -2 : -1)))
-			? openFolder()
-			: controller->content()->choosePeer(
-				(_selfUnpinned && index == -1)
-					? _session->userPeerId()
-					: peer->id,
-				ShowAtUnreadMsgId);
+		if (_hasArchive && (index == (_selfUnpinned ? -2 : -1))) {
+			openFolder();
+		} else {
+			const auto chosen = (_selfUnpinned && index == -1)
+				? _session->user()
+				: peer;
+			controller->content()->chooseThread(chosen, ShowAtUnreadMsgId);
+		}
 	});
 }
 

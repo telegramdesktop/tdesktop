@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_histories.h"
 #include "data/data_changes.h"
 #include "dialogs/dialogs_key.h"
+#include "dialogs/ui/dialogs_layout.h"
 #include "history/history.h"
 #include "history/history_item.h"
 #include "ui/painter.h"
@@ -41,8 +42,7 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	&owner->session(),
 	FilterId(),
 	owner->maxPinnedChatsLimitValue(this, FilterId()))
-, _name(tr::lng_archived_name(tr::now))
-, _chatListNameSortKey(owner->nameSortKey(_name)) {
+, _name(tr::lng_archived_name(tr::now)) {
 	indexNameParts();
 
 	session().changes().peerUpdates(
@@ -62,24 +62,12 @@ Folder::Folder(not_null<Data::Session*> owner, FolderId id)
 	}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 		++_chatListViewVersion;
 		notifyUnreadStateChange(old);
-		updateChatListEntryPostponed();
 	}, _lifetime);
 
 	_chatsList.fullSize().changes(
 	) | rpl::start_with_next([=] {
 		updateChatListEntryPostponed();
 	}, _lifetime);
-}
-
-void Folder::updateChatListEntryPostponed() {
-	if (_updateChatListEntryPostponed) {
-		return;
-	}
-	_updateChatListEntryPostponed = true;
-	Ui::PostponeCall(this, [=] {
-		updateChatListEntry();
-		_updateChatListEntryPostponed = false;
-	});
 }
 
 FolderId Folder::id() const {
@@ -226,9 +214,15 @@ void Folder::loadUserpic() {
 void Folder::paintUserpic(
 		Painter &p,
 		std::shared_ptr<Data::CloudImageView> &view,
-		int x,
-		int y,
-		int size) const {
+		const Dialogs::Ui::PaintContext &context) const {
+	paintUserpic(
+		p,
+		context.st->padding.left(),
+		context.st->padding.top(),
+		context.st->photoSize);
+}
+
+void Folder::paintUserpic(Painter &p, int x, int y, int size) const {
 	paintUserpic(p, x, y, size, nullptr, nullptr);
 }
 
@@ -255,7 +249,7 @@ void Folder::paintUserpic(
 		PainterHighQualityEnabler hq(p);
 		p.drawEllipse(x, y, size, size);
 	}
-	if (size == st::dialogsPhotoSize) {
+	if (size == st::defaultDialogRow.photoSize) {
 		const auto rect = QRect{ x, y, size, size };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(
@@ -267,10 +261,10 @@ void Folder::paintUserpic(
 		}
 	} else {
 		p.save();
-		const auto ratio = size / float64(st::dialogsPhotoSize);
+		const auto ratio = size / float64(st::defaultDialogRow.photoSize);
 		p.translate(x + size / 2., y + size / 2.);
 		p.scale(ratio, ratio);
-		const auto skip = st::dialogsPhotoSize;
+		const auto skip = st::defaultDialogRow.photoSize;
 		const auto rect = QRect{ -skip, -skip, 2 * skip, 2 * skip };
 		if (overrideFg) {
 			st::dialogsArchiveUserpic.paintInCenter(
@@ -333,24 +327,20 @@ bool Folder::shouldBeInChatList() const {
 	return !_chatsList.empty();
 }
 
-int Folder::chatListUnreadCount() const {
-	const auto state = chatListUnreadState();
-	return state.marks
-		+ (Core::App().settings().countUnreadMessages()
-			? state.messages
-			: state.chats);
-}
-
 Dialogs::UnreadState Folder::chatListUnreadState() const {
 	return _chatsList.unreadState();
 }
 
-bool Folder::chatListUnreadMark() const {
-	return false;
-}
-
-bool Folder::chatListMutedBadge() const {
-	return true;
+Dialogs::BadgesState Folder::chatListBadgesState() const {
+	auto result = Dialogs::BadgesForUnread(
+		chatListUnreadState(),
+		Dialogs::CountInBadge::Chats,
+		Dialogs::IncludeInBadge::All);
+	result.unreadMuted = result.mentionMuted = result.reactionMuted = true;
+	if (result.unread && !result.unreadCounter) {
+		result.unreadCounter = 1;
+	}
+	return result;
 }
 
 HistoryItem *Folder::chatListMessage() const {
@@ -374,7 +364,8 @@ const base::flat_set<QChar> &Folder::chatListFirstLetters() const {
 }
 
 const QString &Folder::chatListNameSortKey() const {
-	return _chatListNameSortKey;
+	static const auto empty = QString();
+	return empty;
 }
 
 } // namespace Data

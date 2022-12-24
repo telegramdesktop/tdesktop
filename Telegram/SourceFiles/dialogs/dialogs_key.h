@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "base/value_ordering.h"
-
 class History;
 class PeerData;
 
 namespace Data {
+class Thread;
 class Folder;
+class ForumTopic;
 } // namespace Data
 
 namespace Dialogs {
@@ -27,10 +27,14 @@ public:
 	}
 	Key(History *history);
 	Key(Data::Folder *folder);
+	Key(Data::Thread *thread);
+	Key(Data::ForumTopic *topic);
 	Key(not_null<Entry*> entry) : _value(entry) {
 	}
 	Key(not_null<History*> history);
+	Key(not_null<Data::Thread*> thread);
 	Key(not_null<Data::Folder*> folder);
+	Key(not_null<Data::ForumTopic*> topic);
 
 	explicit operator bool() const {
 		return (_value != nullptr);
@@ -38,31 +42,12 @@ public:
 	not_null<Entry*> entry() const;
 	History *history() const;
 	Data::Folder *folder() const;
+	Data::ForumTopic *topic() const;
+	Data::Thread *thread() const;
+	History *owningHistory() const;
 	PeerData *peer() const;
 
-	inline bool operator<(const Key &other) const {
-		return _value < other._value;
-	}
-	inline bool operator>(const Key &other) const {
-		return (other < *this);
-	}
-	inline bool operator<=(const Key &other) const {
-		return !(other < *this);
-	}
-	inline bool operator>=(const Key &other) const {
-		return !(*this < other);
-	}
-	inline bool operator==(const Key &other) const {
-		return _value == other._value;
-	}
-	inline bool operator!=(const Key &other) const {
-		return !(*this == other);
-	}
-
-	// Not working :(
-	//friend inline auto value_ordering_helper(const Key &key) {
-	//	return key.value;
-	//}
+	friend inline constexpr auto operator<=>(Key, Key) noexcept = default;
 
 private:
 	Entry *_value = nullptr;
@@ -117,6 +102,7 @@ struct EntryState {
 		Scheduled,
 		Pinned,
 		Replies,
+		ContextMenu,
 	};
 
 	Key key;

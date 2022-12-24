@@ -10,6 +10,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_file_parser.h"
 #include "ui/integration.h"
 
+#include <QtCore/QLocale>
+
 namespace {
 
 template <typename WithYear, typename WithoutYear>
@@ -218,7 +220,9 @@ QString langDateTime(const QDateTime &date) {
 		lt_date,
 		langDayOfMonth(date.date()),
 		lt_time,
-		date.time().toString(Ui::Integration::Instance().timeFormat()));
+		QLocale().toString(
+			date.time(),
+			Ui::Integration::Instance().timeFormat()));
 }
 
 QString langDateTimeFull(const QDateTime &date) {
@@ -227,5 +231,7 @@ QString langDateTimeFull(const QDateTime &date) {
 		lt_date,
 		langDayOfMonthFull(date.date()),
 		lt_time,
-		date.time().toString(Ui::Integration::Instance().timeFormat()));
+		QLocale().toString(
+			date.time(),
+			Ui::Integration::Instance().timeFormat()));
 }

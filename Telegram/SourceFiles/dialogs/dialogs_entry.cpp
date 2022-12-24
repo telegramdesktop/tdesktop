@@ -12,13 +12,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_changes.h"
 #include "data/data_session.h"
 #include "data/data_folder.h"
+#include "data/data_forum_topic.h"
 #include "data/data_chat_filters.h"
+#include "core/application.h"
+#include "core/core_settings.h"
 #include "mainwidget.h"
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "ui/text/text_options.h"
-#include "history/history_item.h"
 #include "history/history.h"
+#include "history/history_item.h"
 #include "styles/style_dialogs.h" // st::dialogsTextWidthMin
 
 namespace Dialogs {
@@ -43,10 +46,47 @@ uint64 PinnedDialogPos(int pinnedIndex) {
 
 } // namespace
 
+BadgesState BadgesForUnread(
+		const UnreadState &state,
+		CountInBadge count,
+		IncludeInBadge include) {
+	const auto countMessages = (count == CountInBadge::Messages)
+		|| ((count == CountInBadge::Default)
+			&& Core::App().settings().countUnreadMessages());
+	const auto counterFull = state.marks
+		+ (countMessages ? state.messages : state.chats);
+	const auto counterMuted = state.marksMuted
+		+ (countMessages ? state.messagesMuted : state.chatsMuted);
+	const auto unreadMuted = (counterFull <= counterMuted);
+
+	const auto includeMuted = (include == IncludeInBadge::All)
+		|| (include == IncludeInBadge::UnmutedOrAll && unreadMuted)
+		|| ((include == IncludeInBadge::Default)
+			&& Core::App().settings().includeMutedCounter());
+
+	const auto marks = state.marks - (includeMuted ? 0 : state.marksMuted);
+	const auto counter = counterFull - (includeMuted ? 0 : counterMuted);
+	const auto mark = (counter == 1) && (marks == 1);
+	return {
+		.unreadCounter = mark ? 0 : counter,
+		.unread = (counter > 0),
+		.unreadMuted = includeMuted && (counter <= counterMuted),
+		.mention = (state.mentions > 0),
+		.reaction = (state.reactions > 0),
+		.reactionMuted = (state.reactions <= state.reactionsMuted),
+	};
+}
+
 Entry::Entry(not_null<Data::Session*> owner, Type type)
 : _owner(owner)
-, _isFolder(type == Type::Folder) {
+, _flags((type == Type::History)
+	? (Flag::IsThread | Flag::IsHistory)
+	: (type == Type::ForumTopic)
+	? Flag::IsThread
+	: Flag(0)) {
 }
+
+Entry::~Entry() = default;
 
 Data::Session &Entry::owner() const {
 	return *_owner;
@@ -57,11 +97,53 @@ Main::Session &Entry::session() const {
 }
 
 History *Entry::asHistory() {
-	return _isFolder ? nullptr : static_cast<History*>(this);
+	return (_flags & Flag::IsHistory)
+		? static_cast<History*>(this)
+		: nullptr;
+}
+
+Data::Forum *Entry::asForum() {
+	return (_flags & Flag::IsHistory)
+		? static_cast<History*>(this)->peer->forum()
+		: nullptr;
 }
 
 Data::Folder *Entry::asFolder() {
-	return _isFolder ? static_cast<Data::Folder*>(this) : nullptr;
+	return (_flags & Flag::IsThread)
+		? nullptr
+		: static_cast<Data::Folder*>(this);
+}
+
+Data::Thread *Entry::asThread() {
+	return (_flags & Flag::IsThread)
+		? static_cast<Data::Thread*>(this)
+		: nullptr;
+}
+
+Data::ForumTopic *Entry::asTopic() {
+	return ((_flags & Flag::IsThread) && !(_flags & Flag::IsHistory))
+		? static_cast<Data::ForumTopic*>(this)
+		: nullptr;
+}
+
+const History *Entry::asHistory() const {
+	return const_cast<Entry*>(this)->asHistory();
+}
+
+const Data::Forum *Entry::asForum() const {
+	return const_cast<Entry*>(this)->asForum();
+}
+
+const Data::Folder *Entry::asFolder() const {
+	return const_cast<Entry*>(this)->asFolder();
+}
+
+const Data::Thread *Entry::asThread() const {
+	return const_cast<Entry*>(this)->asThread();
+}
+
+const Data::ForumTopic *Entry::asTopic() const {
+	return const_cast<Entry*>(this)->asTopic();
 }
 
 void Entry::pinnedIndexChanged(FilterId filterId, int was, int now) {
@@ -90,22 +172,6 @@ void Entry::cachePinnedIndex(FilterId filterId, int index) {
 		i->second = index;
 	}
 	pinnedIndexChanged(filterId, was, index);
-}
-
-void Entry::cacheTopPromoted(bool promoted) {
-	if (_isTopPromoted == promoted) {
-		return;
-	}
-	_isTopPromoted = promoted;
-	updateChatListSortPosition();
-	updateChatListEntry();
-	if (!_isTopPromoted) {
-		updateChatListExistence();
-	}
-}
-
-bool Entry::isTopPromoted() const {
-	return _isTopPromoted;
 }
 
 bool Entry::needUpdateInChatList() const {
@@ -157,11 +223,27 @@ void Entry::notifyUnreadStateChange(const UnreadState &wasState) {
 	Expects(inChatList());
 
 	const auto nowState = chatListUnreadState();
-	owner().chatsList(folder())->unreadStateChanged(wasState, nowState);
+	owner().chatsListFor(this)->unreadStateChanged(wasState, nowState);
 	auto &filters = owner().chatsFilters();
 	for (const auto &[filterId, links] : _chatListLinks) {
-		filters.chatsList(filterId)->unreadStateChanged(wasState, nowState);
+		if (filterId) {
+			filters.chatsList(filterId)->unreadStateChanged(
+				wasState,
+				nowState);
+		}
 	}
+	if (const auto history = asHistory()) {
+		session().changes().historyUpdated(
+			history,
+			Data::HistoryUpdate::Flag::UnreadView);
+		const auto isForFilters = [](UnreadState state) {
+			return state.messages || state.marks || state.mentions;
+		};
+		if (isForFilters(wasState) != isForFilters(nowState)) {
+			owner().chatsFilters().refreshHistory(history);
+		}
+	}
+	updateChatListEntryPostponed();
 }
 
 const Ui::Text::String &Entry::chatListNameText() const {
@@ -169,7 +251,7 @@ const Ui::Text::String &Entry::chatListNameText() const {
 	if (_chatListNameVersion < version) {
 		_chatListNameVersion = version;
 		_chatListNameText.setText(
-			st::msgNameStyle,
+			st::semiboldTextStyle,
 			chatListName(),
 			Ui::NameTextOptions());
 	}
@@ -251,7 +333,7 @@ not_null<Row*> Entry::addToChatList(
 void Entry::removeFromChatList(
 		FilterId filterId,
 		not_null<MainList*> list) {
-	if (isPinnedDialog(filterId)) {
+	if (!asTopic() && isPinnedDialog(filterId)) {
 		owner().setChatPinned(this, filterId, false);
 	}
 
@@ -281,7 +363,20 @@ void Entry::addChatListEntryByLetter(
 }
 
 void Entry::updateChatListEntry() {
+	_flags &= ~Flag::UpdatePostponed;
 	session().changes().entryUpdated(this, Data::EntryUpdate::Flag::Repaint);
+}
+
+void Entry::updateChatListEntryPostponed() {
+	if (_flags & Flag::UpdatePostponed) {
+		return;
+	}
+	_flags |= Flag::UpdatePostponed;
+	Ui::PostponeCall(this, [=] {
+		if (_flags & Flag::UpdatePostponed) {
+			updateChatListEntry();
+		}
+	});
 }
 
 } // namespace Dialogs

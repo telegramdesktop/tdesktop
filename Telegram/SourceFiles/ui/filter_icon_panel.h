@@ -10,6 +10,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/timer.h"
 #include "ui/rp_widget.h"
 #include "ui/effects/animations.h"
+#include "ui/round_rect.h"
 
 namespace Ui {
 
@@ -69,6 +70,7 @@ private:
 
 	const not_null<Ui::RpWidget*> _inner;
 	rpl::event_stream<FilterIcon> _chosen;
+	Ui::RoundRect _innerBg;
 
 	int _selected = -1;
 	int _pressed = -1;

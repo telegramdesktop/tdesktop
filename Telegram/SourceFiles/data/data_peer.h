@@ -32,6 +32,8 @@ class Session;
 
 namespace Data {
 
+class Forum;
+class ForumTopic;
 class Session;
 class GroupCall;
 class CloudImageView;
@@ -180,6 +182,7 @@ public:
 	[[nodiscard]] bool isFake() const;
 	[[nodiscard]] bool isMegagroup() const;
 	[[nodiscard]] bool isBroadcast() const;
+	[[nodiscard]] bool isForum() const;
 	[[nodiscard]] bool isGigagroup() const;
 	[[nodiscard]] bool isRepliesChat() const;
 	[[nodiscard]] bool sharedMediaInfo() const {
@@ -194,32 +197,17 @@ public:
 		return isUser() && !(id.value % 1000);
 	}
 
-	[[nodiscard]] std::optional<TimeId> notifyMuteUntil() const {
-		return _notify.muteUntil();
+	[[nodiscard]] Data::Forum *forum() const;
+	[[nodiscard]] Data::ForumTopic *forumTopicFor(MsgId rootId) const;
+
+	[[nodiscard]] Data::PeerNotifySettings &notify() {
+		return _notify;
 	}
-	bool notifyChange(const MTPPeerNotifySettings &settings) {
-		return _notify.change(settings);
-	}
-	bool notifyChange(
-			Data::MuteValue muteForSeconds,
-			std::optional<bool> silentPosts,
-			std::optional<Data::NotifySound> sound) {
-		return _notify.change(muteForSeconds, silentPosts, sound);
-	}
-	[[nodiscard]] bool notifySettingsUnknown() const {
-		return _notify.settingsUnknown();
-	}
-	[[nodiscard]] std::optional<bool> notifySilentPosts() const {
-		return _notify.silentPosts();
-	}
-	[[nodiscard]] std::optional<Data::NotifySound> notifySound() const {
-		return _notify.sound();
-	}
-	[[nodiscard]] MTPinputPeerNotifySettings notifySerialize() const {
-		return _notify.serialize();
+	[[nodiscard]] const Data::PeerNotifySettings &notify() const {
+		return _notify;
 	}
 
-	[[nodiscard]] bool canWrite() const;
+	[[nodiscard]] bool canWrite(bool checkForForum = true) const;
 	[[nodiscard]] bool allowsForwarding() const;
 	[[nodiscard]] Data::RestrictionCheckResult amRestricted(
 		ChatRestriction right) const;
@@ -351,7 +339,8 @@ public:
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
-
+	[[nodiscard]] bool canCreateTopics() const;
+	[[nodiscard]] bool canManageTopics() const;
 	[[nodiscard]] bool canExportChatHistory() const;
 
 	// Returns true if about text was changed.
@@ -491,15 +480,16 @@ std::optional<QString> RestrictionError(
 	not_null<PeerData*> peer,
 	UserRestriction restriction);
 
-void SetTopPinnedMessageId(not_null<PeerData*> peer, MsgId messageId);
+void SetTopPinnedMessageId(
+	not_null<PeerData*> peer,
+	MsgId messageId);
 [[nodiscard]] FullMsgId ResolveTopPinnedId(
 	not_null<PeerData*> peer,
-	PeerData *migrated);
+	MsgId topicRootId,
+	PeerData *migrated = nullptr);
 [[nodiscard]] FullMsgId ResolveMinPinnedId(
 	not_null<PeerData*> peer,
-	PeerData *migrated);
-[[nodiscard]] std::optional<int> ResolvePinnedCount(
-	not_null<PeerData*> peer,
-	PeerData *migrated);
+	MsgId topicRootId,
+	PeerData *migrated = nullptr);
 
 } // namespace Data

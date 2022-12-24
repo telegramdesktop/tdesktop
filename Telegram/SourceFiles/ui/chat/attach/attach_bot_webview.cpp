@@ -273,7 +273,9 @@ void Panel::Button::setupProgressGeometry() {
 
 	_progress->widget.show();
 	_progress->widget.raise();
-	if (_progress->shown) {
+	if (_progress->shown
+		&& Ui::AppInFocus()
+		&& Ui::InFocusChain(_progress->widget.window())) {
 		_progress->widget.setFocus();
 	}
 }
@@ -303,17 +305,16 @@ void Panel::Button::paintEvent(QPaintEvent *e) {
 	const auto textTop = _st.padding.top() + _st.textTop;
 	const auto textLeft = padding + (space - textWidth) / 2;
 	p.setPen(_fg);
-	_text.drawLeftElided(p, textLeft, textTop, space, width());
+	_text.drawLeftElided(p, textLeft, textTop, textWidth, width());
 }
 
 QImage Panel::Button::prepareRippleMask() const {
-	const auto drawMask = [&](QPainter &p) {
+	return RippleAnimation::MaskByDrawer(size(), false, [&](QPainter &p) {
 		p.drawRoundedRect(
 			rect().marginsAdded({ 0, st::callRadius * 2, 0, 0 }),
 			st::callRadius,
 			st::callRadius);
-	};
-	return RippleAnimation::maskByDrawer(size(), false, drawMask);
+	});
 }
 
 QPoint Panel::Button::prepareRippleStartPosition() const {
@@ -1086,12 +1087,6 @@ void Panel::showWebviewError(
 	} break;
 	case Error::NoGtkOrWebkit2Gtk:
 		rich.append(tr::lng_payments_webview_install_webkit(tr::now));
-		break;
-	case Error::MutterWM:
-		rich.append(tr::lng_payments_webview_switch_mutter(tr::now));
-		break;
-	case Error::Wayland:
-		rich.append(tr::lng_payments_webview_switch_wayland(tr::now));
 		break;
 	default:
 		rich.append(QString::fromStdString(information.details));

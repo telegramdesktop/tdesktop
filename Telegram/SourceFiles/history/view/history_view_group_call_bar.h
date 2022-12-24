@@ -44,7 +44,8 @@ void GenerateUserpicsInRow(
 
 [[nodiscard]] auto GroupCallBarContentByPeer(
 	not_null<PeerData*> peer,
-	int userpicSize)
+	int userpicSize,
+	bool showInForum)
 -> rpl::producer<Ui::GroupCallBarContent>;
 
 } // namespace HistoryView

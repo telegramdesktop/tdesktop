@@ -244,7 +244,6 @@ struct OverlayWidget::PipWrap {
 	PipWrap(
 		QWidget *parent,
 		not_null<DocumentData*> document,
-		FullMsgId contextId,
 		std::shared_ptr<Streaming::Document> shared,
 		FnMut<void()> closeAndContinue,
 		FnMut<void()> destroy);
@@ -279,7 +278,6 @@ OverlayWidget::Streamed::Streamed(
 OverlayWidget::PipWrap::PipWrap(
 	QWidget *parent,
 	not_null<DocumentData*> document,
-	FullMsgId contextId,
 	std::shared_ptr<Streaming::Document> shared,
 	FnMut<void()> closeAndContinue,
 	FnMut<void()> destroy)
@@ -287,7 +285,6 @@ OverlayWidget::PipWrap::PipWrap(
 , wrapped(
 	&delegate,
 	document,
-	contextId,
 	std::move(shared),
 	std::move(closeAndContinue),
 	std::move(destroy)) {
@@ -566,13 +563,13 @@ QSize OverlayWidget::flipSizeByRotation(QSize size) const {
 	return FlipSizeByRotation(size, _rotation);
 }
 
-bool OverlayWidget::hasCopyRestriction() const {
+bool OverlayWidget::hasCopyMediaRestriction() const {
 	return (_history && !_history->peer->allowsForwarding())
-		|| (_message && _message->forbidsForward());
+		|| (_message && _message->forbidsSaving());
 }
 
-bool OverlayWidget::showCopyRestriction() {
-	if (!hasCopyRestriction()) {
+bool OverlayWidget::showCopyMediaRestriction() {
+	if (!hasCopyMediaRestriction()) {
 		return false;
 	}
 	Ui::ShowMultilineToast({
@@ -702,8 +699,8 @@ void OverlayWidget::documentUpdated(not_null<DocumentData*> document) {
 	}
 }
 
-void OverlayWidget::changingMsgId(not_null<HistoryItem*> row, MsgId oldId) {
-	if (row == _message) {
+void OverlayWidget::changingMsgId(FullMsgId newId, MsgId oldId) {
+	if (_message && _message->fullId() == newId) {
 		refreshMediaViewer();
 	}
 }
@@ -742,7 +739,7 @@ void OverlayWidget::refreshNavVisibility() {
 }
 
 bool OverlayWidget::contentCanBeSaved() const {
-	if (hasCopyRestriction()) {
+	if (hasCopyMediaRestriction()) {
 		return false;
 	} else if (_photo) {
 		return _photo->hasVideo() || _photoMedia->loaded();
@@ -935,7 +932,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { showInFolder(); },
 			&st::mediaMenuIconShowInFolder);
 	}
-	if (!hasCopyRestriction()) {
+	if (!hasCopyMediaRestriction()) {
 		if ((_document && documentContentShown()) || (_photo && _photoMedia->loaded())) {
 			addAction(
 				tr::lng_mediaview_copy(tr::now),
@@ -979,7 +976,7 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 			[=] { deleteMedia(); },
 			&st::mediaMenuIconDelete);
 	}
-	if (!hasCopyRestriction()) {
+	if (!hasCopyMediaRestriction()) {
 		addAction(
 			tr::lng_mediaview_save_as(tr::now),
 			[=] { saveAs(); },
@@ -1037,11 +1034,28 @@ void OverlayWidget::fillContextMenuActions(const MenuCallback &addAction) {
 		}, &st::mediaMenuIconProfile);
 	}();
 	[&] { // Report userpic.
-		if (!_peer
-			|| !_photo
-			|| _peer->isSelf()
-			|| _peer->isNotificationsUser()
-			|| !userPhotosKey()) {
+		if (!_peer || !_photo ) {
+			return;
+		}
+		using Type = SharedMediaType;
+		if (userPhotosKey()) {
+			if (_peer->isSelf() || _peer->isNotificationsUser()) {
+				return;
+			}
+		} else if ((sharedMediaType().value_or(Type::File) == Type::ChatPhoto)
+			|| (_peer->userpicPhotoId() == _photo->id)) {
+			if (const auto chat = _peer->asChat()) {
+				if (chat->canEditInformation()) {
+					return;
+				}
+			} else if (const auto channel = _peer->asChannel()) {
+				if (channel->canEditInformation()) {
+					return;
+				}
+			} else {
+				return;
+			}
+		} else {
 			return;
 		}
 		const auto photo = _photo;
@@ -1571,7 +1585,7 @@ void OverlayWidget::toMessage() {
 	if (const auto item = _message) {
 		close();
 		if (const auto window = findWindow()) {
-			window->showPeerHistoryAtItem(item);
+			window->showMessage(item);
 		}
 	}
 }
@@ -1588,7 +1602,7 @@ void OverlayWidget::notifyFileDialogShown(bool shown) {
 }
 
 void OverlayWidget::saveAs() {
-	if (showCopyRestriction()) {
+	if (showCopyMediaRestriction()) {
 		return;
 	}
 	QString file;
@@ -1708,7 +1722,11 @@ void OverlayWidget::handleDocumentClick() {
 	if (_document->loading()) {
 		saveCancel();
 	} else {
-		Data::ResolveDocument(findWindow(), _document, _message);
+		Data::ResolveDocument(
+			findWindow(),
+			_document,
+			_message,
+			_topicRootId);
 		if (_document->loading() && !_radial.animating()) {
 			_radial.start(_documentMedia->progress());
 		}
@@ -1901,16 +1919,26 @@ void OverlayWidget::showMediaOverview() {
 		close();
 		if (SharedMediaOverviewType(*overviewType)) {
 			if (const auto window = findWindow()) {
-				window->showSection(std::make_shared<Info::Memento>(
-					_history->peer,
-					Info::Section(*overviewType)));
+				const auto topic = _topicRootId
+					? _history->peer->forumTopicFor(_topicRootId)
+					: nullptr;
+				if (_topicRootId && !topic) {
+					return;
+				}
+				window->showSection(_topicRootId
+					? std::make_shared<Info::Memento>(
+						topic,
+						Info::Section(*overviewType))
+					: std::make_shared<Info::Memento>(
+						_history->peer,
+						Info::Section(*overviewType)));
 			}
 		}
 	}
 }
 
 void OverlayWidget::copyMedia() {
-	if (showCopyRestriction()) {
+	if (showCopyMediaRestriction()) {
 		return;
 	}
 	_dropdown->hideAnimated(Ui::DropdownMenu::HideOption::IgnoreShow);
@@ -1975,8 +2003,9 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 		&& !_user
 		&& _photo
 		&& _peer->userpicPhotoId() == _photo->id) {
-		return SharedMediaKey {
+		return SharedMediaKey{
 			_history->peer->id,
+			MsgId(0), // topicRootId
 			_migrated ? _migrated->peer->id : 0,
 			SharedMediaType::ChatPhoto,
 			_photo
@@ -1989,12 +2018,14 @@ auto OverlayWidget::sharedMediaKey() const -> std::optional<SharedMediaKey> {
 	const auto keyForType = [&](SharedMediaType type) -> SharedMediaKey {
 		return {
 			_history->peer->id,
+			(isScheduled
+				? SparseIdsMergedSlice::kScheduledTopicId
+				: _topicRootId),
 			_migrated ? _migrated->peer->id : 0,
 			type,
 			(_message->history() == _history
 				? _message->id
-				: (_message->id - ServerMaxMsgId)),
-			isScheduled
+				: (_message->id - ServerMaxMsgId))
 		};
 	};
 	if (!_message->isRegular() && !isScheduled) {
@@ -2038,8 +2069,8 @@ bool OverlayWidget::validSharedMedia() const {
 		auto inSameDomain = [](const Key &a, const Key &b) {
 			return (a.type == b.type)
 				&& (a.peerId == b.peerId)
-				&& (a.migratedPeerId == b.migratedPeerId)
-				&& (a.scheduled == b.scheduled);
+				&& (a.topicRootId == b.topicRootId)
+				&& (a.migratedPeerId == b.migratedPeerId);
 		};
 		auto countDistanceInData = [&](const Key &a, const Key &b) {
 			return [&](const SharedMediaWithLastSlice &data) {
@@ -2432,6 +2463,7 @@ void OverlayWidget::show(OpenRequest request) {
 	const auto photo = request.photo();
 	const auto contextItem = request.item();
 	const auto contextPeer = request.peer();
+	const auto contextTopicRootId = request.topicRootId();
 	if (photo) {
 		if (contextItem && contextPeer) {
 			return;
@@ -2441,7 +2473,7 @@ void OverlayWidget::show(OpenRequest request) {
 		if (contextPeer) {
 			setContext(contextPeer);
 		} else if (contextItem) {
-			setContext(contextItem);
+			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
 			setContext(v::null);
 		}
@@ -2457,7 +2489,7 @@ void OverlayWidget::show(OpenRequest request) {
 		setSession(&document->session());
 
 		if (contextItem) {
-			setContext(contextItem);
+			setContext(ItemContext{ contextItem, contextTopicRootId });
 		} else {
 			setContext(v::null);
 		}
@@ -3299,19 +3331,20 @@ void OverlayWidget::switchToPip() {
 
 	const auto document = _document;
 	const auto message = _message;
+	const auto topicRootId = _topicRootId;
 	const auto closeAndContinue = [=] {
 		_showAsPip = false;
 		show(OpenRequest(
 			findWindow(false),
 			document,
 			message,
+			topicRootId,
 			true));
 	};
 	_showAsPip = true;
 	_pip = std::make_unique<PipWrap>(
 		_widget,
 		document,
-		message ? message->fullId() : FullMsgId(),
 		_streamed->instance.shared(),
 		closeAndContinue,
 		[=] { _pip = nullptr; });
@@ -4091,9 +4124,9 @@ OverlayWidget::Entity OverlayWidget::entityForCollage(int index) const {
 		return { v::null, nullptr };
 	}
 	if (const auto document = std::get_if<DocumentData*>(&items[index])) {
-		return { *document, _message };
+		return { *document, _message, _topicRootId };
 	} else if (const auto photo = std::get_if<PhotoData*>(&items[index])) {
-		return { *photo, _message };
+		return { *photo, _message, _topicRootId };
 	}
 	return { v::null, nullptr };
 }
@@ -4104,12 +4137,12 @@ OverlayWidget::Entity OverlayWidget::entityForItemId(const FullMsgId &itemId) co
 	if (const auto item = _session->data().message(itemId)) {
 		if (const auto media = item->media()) {
 			if (const auto photo = media->photo()) {
-				return { photo, item };
+				return { photo, item, _topicRootId };
 			} else if (const auto document = media->document()) {
-				return { document, item };
+				return { document, item, _topicRootId };
 			}
 		}
-		return { v::null, item };
+		return { v::null, item, _topicRootId };
 	}
 	return { v::null, nullptr };
 }
@@ -4128,25 +4161,29 @@ OverlayWidget::Entity OverlayWidget::entityByIndex(int index) const {
 void OverlayWidget::setContext(
 	std::variant<
 		v::null_t,
-		not_null<HistoryItem*>,
+		ItemContext,
 		not_null<PeerData*>> context) {
-	if (const auto item = std::get_if<not_null<HistoryItem*>>(&context)) {
-		_message = (*item);
+	if (const auto item = std::get_if<ItemContext>(&context)) {
+		_message = item->item;
+		_topicRootId = item->topicRootId;
 		_history = _message->history();
 		_peer = _history->peer;
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
 		_message = nullptr;
+		_topicRootId = MsgId();
 	} else {
 		_message = nullptr;
+		_topicRootId = MsgId();
 		_history = nullptr;
 		_peer = nullptr;
 	}
 	_migrated = nullptr;
 	if (_history) {
 		if (_history->peer->migrateFrom()) {
-			_migrated = _history->owner().history(_history->peer->migrateFrom());
+			_migrated = _history->owner().history(
+				_history->peer->migrateFrom());
 		} else if (_history->peer->migrateTo()) {
 			_migrated = _history;
 			_history = _history->owner().history(_history->peer->migrateTo());
@@ -4181,7 +4218,7 @@ void OverlayWidget::setSession(not_null<Main::Session*> session) {
 
 	session->data().itemIdChanged(
 	) | rpl::start_with_next([=](const Data::Session::IdChange &change) {
-		changingMsgId(change.item, change.oldId);
+		changingMsgId(change.newId, change.oldId);
 	}, _sessionLifetime);
 
 	session->data().itemRemoved(
@@ -4211,7 +4248,7 @@ bool OverlayWidget::moveToEntity(const Entity &entity, int preloadDelta) {
 		return false;
 	}
 	if (const auto item = entity.item) {
-		setContext(item);
+		setContext(ItemContext{ item, entity.topicRootId });
 	} else if (_peer) {
 		setContext(_peer);
 	} else {
