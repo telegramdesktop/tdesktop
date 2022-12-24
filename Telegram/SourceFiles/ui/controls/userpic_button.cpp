@@ -618,7 +618,6 @@ void UserpicButton::processPeerPhoto() {
 		if (_showPeerUserpic) {
 			_peer->loadUserpic();
 		} else if (_nonPersonalView) {
-			AssertIsDebug();
 			showNonPersonal->load(Data::FileOriginFullUser{
 				peerToUser(user->id),
 			});
