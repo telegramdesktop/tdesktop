@@ -18,15 +18,6 @@ const QStringList &ImageExtensions() {
 		u".gif"_q,
 	};
 	return result;
-}
-
-const QStringList &ExtensionsForCompression() {
-	static const auto result = QStringList{
-		u".bmp"_q,
-		u".jpg"_q,
-		u".jpeg"_q,
-		u".png"_q,
-	};
 	return result;
 }
 

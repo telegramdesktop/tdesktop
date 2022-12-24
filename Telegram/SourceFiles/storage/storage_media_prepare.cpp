@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "core/mime_type.h"
 #include "ui/image/image_prepare.h"
-#include "ui/chat/attach/attach_extensions.h"
 #include "ui/chat/attach/attach_prepare.h"
 #include "core/crash_reports.h"
 
@@ -28,23 +27,12 @@ using Ui::PreparedList;
 
 using Image = PreparedFileInformation::Image;
 
-bool HasExtensionFrom(const QString &file, const QStringList &extensions) {
-	for (const auto &extension : extensions) {
-		const auto ext = file.right(extension.size());
-		if (ext.compare(extension, Qt::CaseInsensitive) == 0) {
-			return true;
-		}
-	}
-	return false;
-}
-
 bool ValidPhotoForAlbum(
 		const Image &image,
 		const QString &mime) {
 	Expects(!image.data.isNull());
 
 	if (image.animated
-		|| Core::IsMimeSticker(mime)
 		|| (!mime.isEmpty() && !mime.startsWith(u"image/"))) {
 		return false;
 	}
@@ -99,10 +87,10 @@ bool ValidatePhotoEditorMediaDragData(not_null<const QMimeData*> data) {
 		const auto url = urls.front();
 		if (url.isLocalFile()) {
 			using namespace Core;
-			const auto info = QFileInfo(Platform::File::UrlToLocal(url));
-			const auto filename = info.fileName();
-			return FileIsImage(filename, MimeTypeForFile(info).name())
-				&& HasExtensionFrom(filename, Ui::ExtensionsForCompression());
+			const auto file = Platform::File::UrlToLocal(url);
+			const auto info = QFileInfo(file);
+			return FileIsImage(file, MimeTypeForFile(info).name())
+				&& QImageReader(file).canRead();
 		}
 	}
 
@@ -145,8 +133,6 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		return MimeDataState::None;
 	}
 
-	auto imageExtensions = Ui::ImageExtensions();
-	imageExtensions.push_back(u".webp"_q);
 	auto files = QStringList();
 	auto allAreSmallImages = true;
 	for (const auto &url : urls) {
@@ -160,6 +146,7 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 			return MimeDataState::None;
 		}
 
+		using namespace Core;
 		const auto filesize = info.size();
 		if (filesize > kFileSizePremiumLimit) {
 			return MimeDataState::None;
@@ -168,7 +155,8 @@ MimeDataState ComputeMimeDataState(const QMimeData *data) {
 		} else if (allAreSmallImages) {
 			if (filesize > Images::kReadBytesLimit) {
 				allAreSmallImages = false;
-			} else if (!HasExtensionFrom(file, imageExtensions)) {
+			} else if (!FileIsImage(file, MimeTypeForFile(info).name())
+				|| !QImageReader(file).canRead()) {
 				allAreSmallImages = false;
 			}
 		}
@@ -304,8 +292,7 @@ void PrepareDetails(PreparedFile &file, int previewWidth) {
 	if (const auto image = std::get_if<Image>(
 			&file.information->media)) {
 		Assert(!image->data.isNull());
-		if (ValidPhotoForAlbum(*image, file.information->filemime)
-			|| Core::IsMimeSticker(file.information->filemime)) {
+		if (ValidPhotoForAlbum(*image, file.information->filemime)) {
 			UpdateImageDetails(file, previewWidth);
 			file.type = PreparedFile::Type::Photo;
 		} else if (image->animated) {
