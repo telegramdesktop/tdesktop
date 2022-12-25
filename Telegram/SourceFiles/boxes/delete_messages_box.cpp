@@ -79,7 +79,7 @@ DeleteMessagesBox::DeleteMessagesBox(
 void DeleteMessagesBox::prepare() {
 	auto details = TextWithEntities();
 	const auto appendDetails = [&](TextWithEntities &&text) {
-		details.append(qstr("\n\n")).append(std::move(text));
+		details.append(u"\n\n"_q).append(std::move(text));
 	};
 	auto deleteText = lifetime().make_state<rpl::variable<QString>>();
 	*deleteText = tr::lng_box_delete();
@@ -232,7 +232,7 @@ void DeleteMessagesBox::prepare() {
 				_revoke.create(
 					this,
 					revoke->checkbox,
-					false,
+					true,
 					st::defaultBoxCheckbox);
 				appendDetails(std::move(revoke->description));
 			} else if (peer->isChannel()) {
@@ -249,6 +249,9 @@ void DeleteMessagesBox::prepare() {
 					tr::lng_delete_for_me_chat_hint(tr::now, lt_count, count)
 				});
 			} else if (!peer->isSelf()) {
+				if (const auto user = peer->asUser(); user && user->isBot()) {
+					_revokeForBot = true;
+				}
 				appendDetails({
 					tr::lng_delete_for_me_hint(tr::now, lt_count, count)
 				});
@@ -466,7 +469,7 @@ void DeleteMessagesBox::keyPressEvent(QKeyEvent *e) {
 }
 
 void DeleteMessagesBox::deleteAndClear() {
-	const auto revoke = _revoke ? _revoke->checked() : false;
+	const auto revoke = _revoke ? _revoke->checked() : _revokeForBot;
 	const auto session = _session;
 	const auto invokeCallbackAndClose = [&] {
 		// deleteMessages can initiate closing of the current section,

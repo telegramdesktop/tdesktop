@@ -11,14 +11,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/tooltip.h"
 #include "ui/effects/animations.h"
 #include "ui/effects/cross_line.h"
+#include "ui/userpic_view.h"
 #include "styles/style_window.h"
 #include "styles/style_widgets.h"
 
 class PeerData;
-
-namespace Data {
-class CloudImageView;
-} // namespace Data
 
 namespace Window {
 class Controller;
@@ -132,7 +129,8 @@ private:
 	void processNewPeerPhoto();
 	void startNewPhotoShowing();
 	void prepareUserpicPixmap();
-	QPoint countPhotoPosition() const;
+	void fillShape(QPainter &p, const style::color &color) const;
+	[[nodiscard]] QPoint countPhotoPosition() const;
 	void startChangeOverlayAnimation();
 	void updateCursorInChangeOverlay(QPoint localPos);
 	void setCursorInChangeOverlay(bool inOverlay);
@@ -158,7 +156,7 @@ private:
 	::Window::SessionController *_controller = nullptr;
 	::Window::Controller *_window = nullptr;
 	PeerData *_peer = nullptr;
-	std::shared_ptr<Data::CloudImageView> _userpicView;
+	PeerUserpicView _userpicView;
 	QString _cropTitle;
 	Role _role = Role::ChangePhoto;
 	bool _notShownYet = true;
@@ -168,28 +166,29 @@ private:
 	bool _userpicCustom = false;
 	bool _requestToUpload = false;
 	InMemoryKey _userpicUniqueKey;
-	Ui::Animations::Simple _a_appearance;
+	Animations::Simple _a_appearance;
 	QImage _result;
 	QImage _ellipseMask;
+	std::array<QImage, 4> _roundingCorners;
 	std::unique_ptr<Media::Streaming::Instance> _streamed;
 	PhotoData *_streamedPhoto = nullptr;
 
-	base::unique_qptr<Ui::PopupMenu> _menu;
+	base::unique_qptr<PopupMenu> _menu;
 
 	bool _showSavedMessagesOnSelf = false;
 	bool _canOpenPhoto = false;
 	bool _cursorInChangeOverlay = false;
 	bool _changeOverlayEnabled = false;
-	Ui::Animations::Simple _changeOverlayShown;
+	Animations::Simple _changeOverlayShown;
 
 	rpl::event_stream<QImage> _chosenImages;
 	rpl::event_stream<> _uploadPhotoRequests;
 
 };
 
-class SilentToggle
-	: public Ui::RippleButton
-	, public Ui::AbstractTooltipShower {
+class SilentToggle final
+	: public RippleButton
+	, public AbstractTooltipShower {
 public:
 	SilentToggle(QWidget *parent, not_null<ChannelData*> channel);
 
@@ -217,7 +216,7 @@ private:
 	not_null<ChannelData*> _channel;
 	bool _checked = false;
 
-	Ui::Animations::Simple _crossLineAnimation;
+	Animations::Simple _crossLineAnimation;
 
 };
 

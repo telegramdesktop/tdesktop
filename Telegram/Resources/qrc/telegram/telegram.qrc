@@ -35,6 +35,7 @@
     <file alias="topic_icons/rose.svg">../../art/topic_icons/rose.svg</file>
     <file alias="topic_icons/red.svg">../../art/topic_icons/red.svg</file>
     <file alias="topic_icons/gray.svg">../../art/topic_icons/gray.svg</file>
+    <file alias="topic_icons/general.svg">../../art/topic_icons/general.svg</file>
   </qresource>
   <qresource prefix="/icons">
     <file alias="calls/hands.lottie">../../icons/calls/hands.lottie</file>
@@ -53,6 +54,6 @@
   </qresource>
   <qresource prefix="/misc">
     <file alias="default_shortcuts-custom.json">../../default_shortcuts-custom.json</file>
-    <file alias="telegramdesktop.desktop">../../../../lib/xdg/telegramdesktop.desktop</file>
+    <file alias="org.telegram.desktop.desktop">../../../../lib/xdg/org.telegram.desktop.desktop</file>
   </qresource>
 </RCC>

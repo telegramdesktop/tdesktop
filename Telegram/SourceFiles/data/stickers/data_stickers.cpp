@@ -1620,7 +1620,8 @@ void Stickers::newSetReceived(const MTPDmessages_stickerSet &set) {
 
 QString Stickers::getSetTitle(const MTPDstickerSet &s) {
 	auto title = qs(s.vtitle());
-	if ((s.vflags().v & MTPDstickerSet::Flag::f_official) && !title.compare(qstr("Great Minds"), Qt::CaseInsensitive)) {
+	if ((s.vflags().v & MTPDstickerSet::Flag::f_official)
+		&& !title.compare(u"Great Minds"_q, Qt::CaseInsensitive)) {
 		return tr::lng_stickers_default_set(tr::now);
 	}
 	return title;

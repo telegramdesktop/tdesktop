@@ -22,6 +22,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/box_content_divider.h"
+#include "ui/widgets/popup_menu.h"
 #include "ui/boxes/report_box.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/layers/generic_box.h"
@@ -37,6 +38,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peers/add_bot_to_chat_box.h"
 #include "boxes/peers/edit_contact_box.h"
 #include "boxes/report_messages_box.h"
+#include "boxes/translate_box.h"
 #include "lang/lang_keys.h"
 #include "menu/menu_mute.h"
 #include "history/history.h"
@@ -57,9 +59,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_common.h"
 #include "apiwrap.h"
 #include "api/api_blocked_peers.h"
-#include "facades.h"
 #include "styles/style_info.h"
 #include "styles/style_boxes.h"
+#include "styles/style_menu_icons.h"
 
 #include <QtGui/QGuiApplication>
 #include <QtGui/QClipboard>
@@ -194,6 +196,7 @@ private:
 	object_ptr<Ui::RpWidget> setupInfo();
 	object_ptr<Ui::RpWidget> setupMuteToggle();
 	void setupMainButtons();
+	Ui::MultiSlideTracker fillTopicButtons();
 	Ui::MultiSlideTracker fillUserButtons(
 		not_null<UserData*> user);
 	Ui::MultiSlideTracker fillChannelButtons(
@@ -311,6 +314,34 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		return true;
 	};
 
+	const auto addTranslateToMenu = [&,
+			peer = _peer.get(),
+			controller = _controller->parentController()](
+			not_null<Ui::FlatLabel*> label,
+			rpl::producer<TextWithEntities> &&text) {
+		struct State {
+			rpl::variable<TextWithEntities> labelText;
+		};
+		const auto state = label->lifetime().make_state<State>();
+		state->labelText = std::move(text);
+		label->setContextMenuHook([=](
+				Ui::FlatLabel::ContextMenuRequest request) {
+			label->fillContextMenu(request);
+			if (Ui::SkipTranslate(state->labelText.current())) {
+				return;
+			}
+			auto item = tr::lng_context_translate(tr::now);
+			request.menu->addAction(std::move(item), [=] {
+				controller->window().show(Box(
+					Ui::TranslateBox,
+					peer,
+					MsgId(),
+					state->labelText.current(),
+					false));
+			});
+		});
+	};
+
 	const auto addInfoLineGeneric = [&](
 			v::text::data &&label,
 			rpl::producer<TextWithEntities> &&text,
@@ -367,17 +398,54 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 		auto label = user->isBot()
 			? tr::lng_info_about_label()
 			: tr::lng_info_bio_label();
-		addInfoLine(std::move(label), AboutValue(user));
+		addTranslateToMenu(
+			addInfoLine(std::move(label), AboutValue(user)).text,
+			AboutValue(user));
 
 		const auto usernameLine = addInfoOneLine(
 			UsernamesSubtext(_peer, tr::lng_info_username_label()),
-			UsernameValue(user, true),
-			tr::lng_context_copy_mention(tr::now),
+			UsernameValue(user, true) | rpl::map([=](TextWithEntities u) {
+				return u.text.isEmpty()
+					? TextWithEntities()
+					: Ui::Text::Link(
+						u,
+						user->session().createInternalLinkFull(
+							u.text.mid(1)));
+			}),
+			QString(),
 			st::infoProfileLabeledUsernamePadding);
-		usernameLine.subtext->overrideLinkClickHandler(UsernamesLinkCallback(
+		const auto callback = UsernamesLinkCallback(
 			_peer,
 			Window::Show(controller),
-			QString()));
+			QString());
+		const auto hook = [=](Ui::FlatLabel::ContextMenuRequest request) {
+			if (!request.link) {
+				return;
+			}
+			const auto text = request.link->copyToClipboardContextItemText();
+			if (text.isEmpty()) {
+				return;
+			}
+			const auto link = request.link->copyToClipboardText();
+			request.menu->addAction(
+				text,
+				[=] { QGuiApplication::clipboard()->setText(link); });
+			const auto last = link.lastIndexOf('/');
+			if (last < 0) {
+				return;
+			}
+			const auto mention = '@' + link.mid(last + 1);
+			if (mention.size() < 2) {
+				return;
+			}
+			request.menu->addAction(
+				tr::lng_context_copy_mention(tr::now),
+				[=] { QGuiApplication::clipboard()->setText(mention); });
+		};
+		usernameLine.text->overrideLinkClickHandler(callback);
+		usernameLine.subtext->overrideLinkClickHandler(callback);
+		usernameLine.text->setContextMenuHook(hook);
+		usernameLine.subtext->setContextMenuHook(hook);
 		const auto usernameLabel = usernameLine.text;
 		if (user->isBot()) {
 			const auto copyUsername = Ui::CreateChild<Ui::IconButton>(
@@ -421,8 +489,8 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			return link.isEmpty()
 				? TextWithEntities()
 				: Ui::Text::Link(
-					(link.startsWith(qstr("https://"))
-						? link.mid(qstr("https://").size())
+					(link.startsWith(u"https://"_q)
+						? link.mid(u"https://"_q.size())
 						: link) + addToLink,
 					link + addToLink);
 		});
@@ -457,9 +525,12 @@ object_ptr<Ui::RpWidget> DetailsFiller::setupInfo() {
 			).text->setLinksTrusted();
 		}
 
-		addInfoLine(
+		const auto about = addInfoLine(
 			tr::lng_info_about_label(),
 			_topic ? rpl::single(TextWithEntities()) : AboutValue(_peer));
+		if (!_topic) {
+			addTranslateToMenu(about.text, AboutValue(_peer));
+		}
 	}
 	if (!_peer->isSelf()) {
 		// No notifications toggle for Self => no separator.
@@ -538,17 +609,41 @@ void DetailsFiller::setupMainButtons() {
 		auto tracker = callback();
 		topSkip->toggleOn(std::move(tracker).atLeastOneShownValue());
 	};
-	if (auto user = _peer->asUser()) {
+	if (_topic) {
+		wrapButtons([=] {
+			return fillTopicButtons();
+		});
+	} else if (const auto user = _peer->asUser()) {
 		wrapButtons([=] {
 			return fillUserButtons(user);
 		});
-	} else if (auto channel = _peer->asChannel()) {
+	} else if (const auto channel = _peer->asChannel()) {
 		if (!channel->isMegagroup()) {
 			wrapButtons([=] {
 				return fillChannelButtons(channel);
 			});
 		}
 	}
+}
+
+Ui::MultiSlideTracker DetailsFiller::fillTopicButtons() {
+	using namespace rpl::mappers;
+
+	Ui::MultiSlideTracker tracker;
+	const auto window = _controller->parentController();
+
+	const auto forum = _topic->forum();
+	auto showTopicsVisible = rpl::combine(
+		window->adaptive().oneColumnValue(),
+		window->shownForum().value(),
+		_1 || (_2 != forum));
+	AddMainButton(
+		_wrap,
+		tr::lng_forum_show_topics_list(),
+		std::move(showTopicsVisible),
+		[=] { window->showForum(forum); },
+		tracker);
+	return tracker;
 }
 
 Ui::MultiSlideTracker DetailsFiller::fillUserButtons(
@@ -758,10 +853,10 @@ void ActionsFiller::addBotCommandActions(not_null<UserData*> user) {
 	};
 	addBotCommand(
 		tr::lng_profile_bot_help(),
-		qsl("help"),
+		u"help"_q,
 		&st::infoIconInformation);
-	addBotCommand(tr::lng_profile_bot_settings(), qsl("settings"));
-	addBotCommand(tr::lng_profile_bot_privacy(), qsl("privacy"));
+	addBotCommand(tr::lng_profile_bot_settings(), u"settings"_q);
+	addBotCommand(tr::lng_profile_bot_privacy(), u"privacy"_q);
 }
 
 void ActionsFiller::addReportAction() {
@@ -780,7 +875,8 @@ void ActionsFiller::addReportAction() {
 }
 
 void ActionsFiller::addBlockAction(not_null<UserData*> user) {
-	const auto window = &_controller->parentController()->window();
+	const auto controller = _controller->parentController();
+	const auto window = &controller->window();
 
 	auto text = user->session().changes().peerFlagsValue(
 		user,
@@ -809,7 +905,7 @@ void ActionsFiller::addBlockAction(not_null<UserData*> user) {
 		if (user->isBlocked()) {
 			Window::PeerMenuUnblockUserWithBotRestart(user);
 			if (user->isBot()) {
-				Ui::showPeerHistory(user, ShowAtUnreadMsgId);
+				controller->showPeerHistory(user);
 			}
 		} else if (user->isBot()) {
 			user->session().api().blockedPeers().block(user);

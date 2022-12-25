@@ -784,9 +784,9 @@ bool DcOptions::loadFromFile(const QString &path) {
 		for (auto &option : components.mid(3)) {
 			if (option.startsWith('#')) {
 				break;
-			} else if (option == qstr("tcpo_only")) {
+			} else if (option == u"tcpo_only"_q) {
 				flags |= Flag::f_tcpo_only;
-			} else if (option == qstr("media_only")) {
+			} else if (option == u"media_only"_q) {
 				flags |= Flag::f_media_only;
 			} else {
 				return error();

@@ -25,6 +25,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/mime_type.h"
 #include "base/event_filter.h"
+#include "base/call_delayed.h"
 #include "boxes/premium_limits_box.h"
 #include "boxes/premium_preview_box.h"
 #include "ui/boxes/confirm_box.h"
@@ -57,7 +58,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "window/window_session_controller.h"
 #include "core/application.h"
 #include "core/core_settings.h"
-#include "facades.h" // App::LambdaDelayed.
 #include "styles/style_chat.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
@@ -102,7 +102,9 @@ void FileDialogCallback(
 rpl::producer<QString> FieldPlaceholder(
 		const Ui::PreparedList &list,
 		SendFilesWay way) {
-	return list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
+	return list.canAddCaption(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())
 		? tr::lng_photo_caption()
 		: tr::lng_photos_comment();
 }
@@ -352,7 +354,7 @@ void SendFilesBox::prepare() {
 
 	_addFile = addLeftButton(
 		tr::lng_stickers_featured_add(),
-		App::LambdaDelayed(st::historyAttach.ripple.hideDuration, this, [=] {
+		base::fn_delayed(st::historyAttach.ripple.hideDuration, this, [=] {
 			openDialogToAddFileToAlbum();
 		}));
 	setupDragArea();
@@ -391,6 +393,11 @@ void SendFilesBox::refreshAllAfterChanges(int fromItem) {
 			break;
 		}
 	}
+	{
+		auto sendWay = _sendWay.current();
+		sendWay.setHasCompressedStickers(_list.hasSticker());
+		_sendWay = sendWay;
+	}
 	generatePreviewFrom(fromBlock);
 	_inner->resizeToWidth(st::boxWideWidth);
 	refreshControls();
@@ -428,6 +435,7 @@ void SendFilesBox::openDialogToAddFileToAlbum() {
 void SendFilesBox::initSendWay() {
 	_sendWay = [&] {
 		auto result = Core::App().settings().sendFilesWay();
+		result.setHasCompressedStickers(_list.hasSticker());
 		if (_sendLimit == SendLimit::One) {
 			result.setGroupFiles(true);
 			return result;
@@ -456,7 +464,9 @@ void SendFilesBox::updateCaptionPlaceholder() {
 		return;
 	}
 	const auto way = _sendWay.current();
-	if (!_list.canAddCaption(way.groupFiles() && way.sendImagesAsPhotos())
+	if (!_list.canAddCaption(
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())
 		&& _sendLimit == SendLimit::One) {
 		_caption->hide();
 		if (_emojiToggle) {
@@ -669,7 +679,7 @@ void SendFilesBox::updateSendWayControlsVisibility() {
 
 	_hintLabel->setVisible(
 		_controller->session().settings().photoEditorHintShown()
-			? _list.hasSendImagesAsPhotosOption(false)
+			? _list.canHaveEditorHintLabel()
 			: false);
 }
 
@@ -1020,7 +1030,8 @@ bool SendFilesBox::validateLength(const QString &text) const {
 	const auto way = _sendWay.current();
 	if (remove <= 0
 		|| !_list.canAddCaption(
-			way.groupFiles() && way.sendImagesAsPhotos())) {
+			way.groupFiles() && way.sendImagesAsPhotos(),
+			way.sendImagesAsPhotos())) {
 		return true;
 	}
 	_controller->show(Box(CaptionLimitReachedBox, session, remove));

@@ -142,7 +142,7 @@ bool ItemBase::hasResultThumb() const {
 			|| !_result->_locationThumbnail.empty());
 }
 
-Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
+QImage *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 	if (_result && !_thumbnail) {
 		if (!_result->_thumbnail.empty()) {
 			_thumbnail = _result->_thumbnail.createView();
@@ -152,17 +152,22 @@ Image *ItemBase::getResultThumb(Data::FileOrigin origin) const {
 			_result->_locationThumbnail.load(_result->_session, origin);
 		}
 	}
-	return _thumbnail->image();
+	return (_thumbnail && !_thumbnail->isNull())
+		? _thumbnail.get()
+		: nullptr;
 }
 
 QPixmap ItemBase::getResultContactAvatar(int width, int height) const {
 	if (_result->_type == Result::Type::Contact) {
 		auto result = Ui::EmptyUserpic(
-			Data::PeerUserpicColor(FakeChatId(BareId(qHash(_result->_id)))),
+			Ui::EmptyUserpic::UserpicColor(BareId(qHash(_result->_id))),
 			_result->getLayoutTitle()
 		).generate(width);
 		if (result.height() != height * cIntRetinaFactor()) {
-			result = result.scaled(QSize(width, height) * cIntRetinaFactor(), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+			result = result.scaled(
+				QSize(width, height) * cIntRetinaFactor(),
+				Qt::IgnoreAspectRatio,
+				Qt::SmoothTransformation);
 		}
 		return result;
 	}

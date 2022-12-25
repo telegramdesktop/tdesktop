@@ -116,14 +116,11 @@ void CheckChatInvite(
 		}
 		Core::App().hideMediaView();
 		const auto show = [&](not_null<PeerData*> chat) {
+			const auto way = Window::SectionShow::Way::Forward;
 			if (const auto forum = chat->forum()) {
-				strong->openForum(
-					forum->channel(),
-					Window::SectionShow::Way::Forward);
+				strong->showForum(forum, way);
 			} else {
-				strong->showPeerHistory(
-					chat,
-					Window::SectionShow::Way::Forward);
+				strong->showPeerHistory(chat, way);
 			}
 		};
 		result.match([=](const MTPDchatInvite &data) {
@@ -173,6 +170,11 @@ void CheckChatInvite(
 }
 
 } // namespace Api
+
+struct ConfirmInviteBox::Participant {
+	not_null<UserData*> user;
+	Ui::PeerUserpicView userpic;
+};
 
 ConfirmInviteBox::ConfirmInviteBox(
 	QWidget*,
@@ -244,7 +246,7 @@ ConfirmInviteBox::ConfirmInviteBox(
 		}
 	} else {
 		_photoEmpty = std::make_unique<Ui::EmptyUserpic>(
-			Data::PeerUserpicColor(0),
+			Ui::EmptyUserpic::UserpicColor(0),
 			invite.title);
 	}
 }
@@ -359,7 +361,7 @@ void ConfirmInviteBox::paintEvent(QPaintEvent *e) {
 					{ .options = Images::Option::RoundCircle }));
 		}
 	} else if (_photoEmpty) {
-		_photoEmpty->paint(
+		_photoEmpty->paintCircle(
 			p,
 			(width() - st::confirmInvitePhotoSize) / 2,
 			st::confirmInvitePhotoTop,

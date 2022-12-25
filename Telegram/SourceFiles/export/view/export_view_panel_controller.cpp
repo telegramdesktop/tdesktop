@@ -220,12 +220,12 @@ void PanelController::showSettings() {
 void PanelController::showError(const ApiErrorState &error) {
 	LOG(("Export Info: API Error '%1'.").arg(error.data.type()));
 
-	if (error.data.type() == qstr("TAKEOUT_INVALID")) {
+	if (error.data.type() == u"TAKEOUT_INVALID"_q) {
 		showError(tr::lng_export_invalid(tr::now));
-	} else if (error.data.type().startsWith(qstr("TAKEOUT_INIT_DELAY_"))) {
+	} else if (error.data.type().startsWith(u"TAKEOUT_INIT_DELAY_"_q)) {
 		const auto seconds = std::max(base::StringViewMid(
 			error.data.type(),
-			qstr("TAKEOUT_INIT_DELAY_").size()).toInt(), 1);
+			u"TAKEOUT_INIT_DELAY_"_q.size()).toInt(), 1);
 		const auto now = QDateTime::currentDateTime();
 		const auto when = now.addSecs(seconds);
 		const auto hours = seconds / 3600;

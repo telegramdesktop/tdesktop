@@ -7,9 +7,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "ui/layers/generic_box.h"
-
 namespace Ui {
+
+class GenericBox;
 
 void AboutSponsoredBox(not_null<Ui::GenericBox*> box);
 

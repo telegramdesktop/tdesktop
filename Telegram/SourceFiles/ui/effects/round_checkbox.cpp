@@ -360,7 +360,7 @@ RoundImageCheckbox::RoundImageCheckbox(
 	const style::RoundImageCheckbox &st,
 	Fn<void()> updateCallback,
 	PaintRoundImage &&paintRoundImage,
-	Fn<ImageRoundRadius()> roundingRadius)
+	Fn<std::optional<int>(int size)> roundingRadius)
 : _st(st)
 , _updateCallback(updateCallback)
 , _paintRoundImage(std::move(paintRoundImage))
@@ -390,8 +390,8 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 
 	if (selectionLevel > 0) {
 		const auto radius = _roundingRadius
-			? _roundingRadius()
-			: ImageRoundRadius::Ellipse;
+			? _roundingRadius(_st.imageRadius * 2)
+			: std::optional<int>();
 		PainterHighQualityEnabler hq(p);
 		p.setOpacity(std::clamp(selectionLevel, 0., 1.));
 		p.setBrush(Qt::NoBrush);
@@ -405,11 +405,10 @@ void RoundImageCheckbox::paint(Painter &p, int x, int y, int outerWidth) const {
 			_st.imageRadius * 2,
 			_st.imageRadius * 2,
 			outerWidth);
-		if (radius == ImageRoundRadius::Ellipse) {
+		if (!radius) {
 			p.drawEllipse(rect);
 		} else {
-			const auto pxRadius = st::roundRadiusLarge;
-			p.drawRoundedRect(rect, pxRadius, pxRadius);
+			p.drawRoundedRect(rect, *radius, *radius);
 		}
 		p.setOpacity(1.);
 	}

@@ -84,7 +84,7 @@ private:
 	};
 	struct PeerButton {
 		not_null<History*> history;
-		std::shared_ptr<Data::CloudImageView> userpic;
+		Ui::PeerUserpicView userpic;
 		Ui::Text::String name;
 		Button button;
 	};

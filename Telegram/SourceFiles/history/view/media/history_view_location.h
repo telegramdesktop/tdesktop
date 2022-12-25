@@ -12,7 +12,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 namespace Data {
 class CloudImage;
-class CloudImageView;
 } // namespace Data
 
 namespace HistoryView {
@@ -81,7 +80,7 @@ private:
 	[[nodiscard]] int fullHeight() const;
 
 	const not_null<Data::CloudImage*> _data;
-	mutable std::shared_ptr<Data::CloudImageView> _media;
+	mutable std::shared_ptr<QImage> _media;
 	Ui::Text::String _title, _description;
 	ClickHandlerPtr _link;
 

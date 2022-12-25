@@ -33,8 +33,8 @@ public:
 	void setAllAreMuted(bool allAreMuted = true);
 	void clear();
 
-	RowsByLetter addEntry(const Key &key);
-	void removeEntry(const Key &key);
+	RowsByLetter addEntry(Key key);
+	void removeEntry(Key key);
 
 	void unreadStateChanged(
 		const UnreadState &wasState,

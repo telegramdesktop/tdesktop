@@ -52,8 +52,12 @@ void AlbumPreview::updateFileRows() {
 	Expects(_order.size() == _thumbs.size());
 
 	const auto isFile = !_sendWay.sendImagesAsPhotos();
+	auto top = 0;
 	for (auto i = 0; i < _order.size(); i++) {
-		_thumbs[i]->updateFileRow(isFile ? _order[i] : -1);
+		const auto &thumb = _thumbs[_order[i]];
+		thumb->setButtonVisible(isFile && !thumb->isCompressedSticker());
+		thumb->moveButtons(top);
+		top += thumb->fileHeight() + st::sendMediaRowSkip;
 	}
 }
 
@@ -110,6 +114,9 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 			this,
 			[=] { changeThumbByIndex(thumbIndex(thumbUnderCursor())); },
 			[=] { deleteThumbByIndex(thumbIndex(thumbUnderCursor())); }));
+		if (_thumbs.back()->isCompressedSticker()) {
+			_hasMixedFileHeights = true;
+		}
 	}
 	_thumbsHeight = countLayoutHeight(layout);
 	_photosHeight = ranges::accumulate(ranges::views::all(
@@ -118,9 +125,16 @@ void AlbumPreview::prepareThumbs(gsl::span<Ui::PreparedFile> items) {
 		return thumb->photoHeight();
 	}), 0) + (count - 1) * st::sendMediaRowSkip;
 
-	const auto &st = st::attachPreviewThumbLayout;
-	_filesHeight = count * st.thumbSize
-		+ (count - 1) * st::sendMediaRowSkip;
+	if (!_hasMixedFileHeights) {
+		_filesHeight = count * _thumbs.front()->fileHeight()
+			+ (count - 1) * st::sendMediaRowSkip;
+	} else {
+		_filesHeight = ranges::accumulate(ranges::views::all(
+			_thumbs
+		) | ranges::views::transform([](const auto &thumb) {
+			return thumb->fileHeight();
+		}), 0) + (count - 1) * st::sendMediaRowSkip;
+	}
 }
 
 int AlbumPreview::contentLeft() const {
@@ -143,7 +157,7 @@ AlbumThumbnail *AlbumPreview::findThumb(QPoint position) const {
 		} else {
 			const auto bottom = top + (isPhotosWay
 				? thumb->photoHeight()
-				: st::attachPreviewThumbLayout.thumbSize);
+				: thumb->fileHeight());
 			const auto isUnderTop = (position.y() > top);
 			top = bottom + skip;
 			return isUnderTop && (position.y() < bottom);
@@ -319,18 +333,44 @@ void AlbumPreview::paintPhotos(Painter &p, QRect clip) const {
 }
 
 void AlbumPreview::paintFiles(Painter &p, QRect clip) const {
-	const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
-		+ st::sendMediaRowSkip;
-	const auto bottom = clip.y() + clip.height();
-	const auto from = std::clamp(clip.y() / fileHeight, 0, int(_thumbs.size()));
-	const auto till = std::clamp((bottom + fileHeight - 1) / fileHeight, 0, int(_thumbs.size()));
 	const auto left = (st::boxWideWidth - st::sendMediaPreviewSize) / 2;
 	const auto outerWidth = width();
+	if (!_hasMixedFileHeights) {
+		const auto fileHeight = st::attachPreviewThumbLayout.thumbSize
+			+ st::sendMediaRowSkip;
+		const auto bottom = clip.y() + clip.height();
+		const auto from = std::clamp(
+			clip.y() / fileHeight,
+			0,
+			int(_thumbs.size()));
+		const auto till = std::clamp(
+			(bottom + fileHeight - 1) / fileHeight,
+			0,
+			int(_thumbs.size()));
 
-	auto top = from * fileHeight;
-	for (auto i = from; i != till; ++i) {
-		_thumbs[i]->paintFile(p, left, top, outerWidth);
-		top += fileHeight;
+		auto top = from * fileHeight;
+		for (auto i = from; i != till; ++i) {
+			_thumbs[i]->paintFile(p, left, top, outerWidth);
+			top += fileHeight;
+		}
+	} else {
+		auto top = 0;
+		for (const auto &thumb : _thumbs) {
+			const auto bottom = top + thumb->fileHeight();
+			const auto guard = gsl::finally([&] {
+				top = bottom + st::sendMediaRowSkip;
+			});
+			if (top >= clip.y() + clip.height()) {
+				break;
+			} else if (bottom <= clip.y()) {
+				continue;
+			}
+			if (thumb->isCompressedSticker()) {
+				thumb->paintPhoto(p, left, top, outerWidth);
+			} else {
+				thumb->paintFile(p, left, top, outerWidth);
+			}
+		}
 	}
 }
 
@@ -421,7 +461,7 @@ void AlbumPreview::mousePressEvent(QMouseEvent *e) {
 }
 
 void AlbumPreview::mouseMoveEvent(QMouseEvent *e) {
-	if (!_sendWay.sendImagesAsPhotos()) {
+	if (!_sendWay.sendImagesAsPhotos() && !_hasMixedFileHeights) {
 		applyCursor(style::cur_default);
 		return;
 	}

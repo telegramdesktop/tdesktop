@@ -31,6 +31,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_media_common.h"
 #include "window/window_session_controller.h"
 #include "core/application.h" // Application::showDocument.
+#include "ui/chat/attach/attach_prepare.h"
 #include "ui/chat/chat_style.h"
 #include "ui/image/image.h"
 #include "ui/text/format_values.h"
@@ -678,7 +679,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 					: InfoDisplayType::Image));
 		}
 		if (const auto size = bubble ? std::nullopt : _parent->rightActionSize()
-			; size || _transcribe) {
+			; size || (_transcribe && !rightAligned)) {
 			const auto rightActionWidth = size
 				? size->width()
 				: _transcribe->size().width();
@@ -702,7 +703,7 @@ void Gif::draw(Painter &p, const PaintContext &context) const {
 				paintTranscribe(p, fastShareLeft, fastShareTop, true, context);
 			}
 		}
-		if (_parent->hasOutLayout() && _transcribe) {
+		if (rightAligned && _transcribe) {
 			paintTranscribe(p, usex, fullBottom, false, context);
 		}
 	}
@@ -730,7 +731,8 @@ void Gif::validateVideoThumbnail() const {
 	if (_videoThumbnailFrame || content.isEmpty()) {
 		return;
 	}
-	auto info = ::Media::Clip::PrepareForSending(QString(), content);
+	auto info = v::get<Ui::PreparedFileInformation::Video>(
+		::Media::Clip::PrepareForSending(QString(), content).media);
 	_videoThumbnailFrame = std::make_unique<Image>(info.thumbnail.isNull()
 		? Image::BlankMedia()->original()
 		: info.thumbnail);
@@ -1030,14 +1032,30 @@ TextState Gif::textState(QPoint point, StateRequest request) const {
 					+ st::msgDateImgPadding.y();
 			}
 			if (QRect(QPoint(fastShareLeft, fastShareTop), *size).contains(point)) {
-				result.link = _parent->rightActionLink();
+				result.link = _parent->rightActionLink(point
+					- QPoint(fastShareLeft, fastShareTop));
 			}
 		}
-		if (_transcribe && _transcribe->lastPaintedRect().contains(point)) {
+		if (_transcribe && _transcribe->contains(point)) {
 			result.link = _transcribe->link();
 		}
 	}
 	return result;
+}
+
+void Gif::clickHandlerPressedChanged(
+		const ClickHandlerPtr &handler,
+		bool pressed) {
+	File::clickHandlerPressedChanged(handler, pressed);
+	if (!handler) {
+		return;
+	} else if (_transcribe && (handler == _transcribe->link())) {
+		if (pressed) {
+			_transcribe->addRipple([=] { repaint(); });
+		} else {
+			_transcribe->stopRipple();
+		}
+	}
 }
 
 TextForMimeData Gif::selectedText(TextSelection selection) const {
@@ -1306,7 +1324,8 @@ bool Gif::needsBubble() const {
 		|| item->viaBot()
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
-		|| _parent->displayFromName();
+		|| _parent->displayFromName()
+		|| _parent->displayedTopicButton();
 	return false;
 }
 

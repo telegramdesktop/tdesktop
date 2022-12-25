@@ -6,7 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "ui/cached_round_corners.h"
-
+#include "ui/chat/chat_style.h"
 #include "ui/painter.h"
 #include "ui/ui_utility.h"
 #include "ui/image/image_prepare.h"
@@ -220,7 +220,7 @@ const CornersPixmaps &CachedCornerPixmaps(CachedRoundCorners index) {
 	return Corners[index];
 }
 
-CornersPixmaps PrepareCornerPixmaps(int32 radius, style::color bg, const style::color *sh) {
+CornersPixmaps PrepareCornerPixmaps(int radius, style::color bg, const style::color *sh) {
 	auto images = PrepareCorners(radius, bg, sh);
 	auto result = CornersPixmaps();
 	for (int j = 0; j < 4; ++j) {
@@ -240,14 +240,32 @@ CornersPixmaps PrepareCornerPixmaps(ImageRoundRadius radius, style::color bg, co
 	Unexpected("Image round radius in PrepareCornerPixmaps.");
 }
 
+CornersPixmaps PrepareInvertedCornerPixmaps(int radius, style::color bg) {
+	const auto size = radius * style::DevicePixelRatio();
+	auto circle = style::colorizeImage(
+		style::createInvertedCircleMask(radius * 2),
+		bg);
+	circle.setDevicePixelRatio(style::DevicePixelRatio());
+	auto result = CornersPixmaps();
+	const auto fill = [&](int index, int xoffset, int yoffset) {
+		result.p[index] = PixmapFromImage(
+			circle.copy(QRect(xoffset, yoffset, size, size)));
+	};
+	fill(0, 0, 0);
+	fill(1, size, 0);
+	fill(2, size, size);
+	fill(3, 0, size);
+	return result;
+}
+
 [[nodiscard]] int CachedCornerRadiusValue(CachedCornerRadius tag) {
 	using Radius = CachedCornerRadius;
 	switch (tag) {
 	case Radius::Small: return st::roundRadiusSmall;
-	case Radius::ThumbSmall: return st::msgFileThumbRadiusSmall;
-	case Radius::ThumbLarge: return st::msgFileThumbRadiusLarge;
-	case Radius::BubbleSmall: return st::bubbleRadiusSmall;
-	case Radius::BubbleLarge: return st::bubbleRadiusLarge;
+	case Radius::ThumbSmall: return MsgFileThumbRadiusSmall();
+	case Radius::ThumbLarge: return MsgFileThumbRadiusLarge();
+	case Radius::BubbleSmall: return BubbleRadiusSmall();
+	case Radius::BubbleLarge: return BubbleRadiusLarge();
 	}
 	Unexpected("Radius tag in CachedCornerRadiusValue.");
 }

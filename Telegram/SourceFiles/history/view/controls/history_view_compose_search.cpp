@@ -101,6 +101,7 @@ void Row::elementsPaint(
 	_outerWidth = outerWidth;
 	Dialogs::Ui::RowPainter::Paint(p, _fakeRow.get(), {
 		.st = &st::defaultDialogRow,
+		.currentBg = st::dialogsBg,
 		.now = crl::now(),
 		.width = outerWidth,
 		.selected = selected,

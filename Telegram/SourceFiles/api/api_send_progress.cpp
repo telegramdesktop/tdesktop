@@ -141,7 +141,7 @@ void SendProgressManager::send(const Key &key, int progress) {
 		MTP_int(key.topMsgId),
 		action
 	)).done([=](const MTPBool &result, mtpRequestId requestId) {
-		done(result, requestId);
+		done(requestId);
 	}).send();
 	_requests.emplace(key, requestId);
 
@@ -171,9 +171,7 @@ bool SendProgressManager::skipRequest(const Key &key) const {
 	}
 }
 
-void SendProgressManager::done(
-		const MTPBool &result,
-		mtpRequestId requestId) {
+void SendProgressManager::done(mtpRequestId requestId) {
 	for (auto i = _requests.begin(), e = _requests.end(); i != e; ++i) {
 		if (i->second == requestId) {
 			_requests.erase(i);

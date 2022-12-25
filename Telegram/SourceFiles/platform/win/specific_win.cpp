@@ -88,7 +88,7 @@ BOOL CALLBACK ActivateProcessByPid(HWND hWnd, LPARAM lParam) {
 		WCHAR nameBuf[nameBufSize];
 		int32 len = GetWindowText(hWnd, nameBuf, nameBufSize);
 		if (len && len < nameBufSize) {
-			if (QRegularExpression(qsl("^Telegram(\\s*\\(\\d+\\))?$")).match(QString::fromStdWString(nameBuf)).hasMatch()) {
+			if (QRegularExpression(u"^Telegram(\\s*\\(\\d+\\))?$"_q).match(QString::fromStdWString(nameBuf)).hasMatch()) {
 				BOOL res = ::SetForegroundWindow(hWnd);
 				::SetFocus(hWnd);
 				return FALSE;
@@ -149,7 +149,7 @@ void ManageAppLink(bool create, bool silent, int path_csidl, const wchar_t *args
 	WCHAR startupFolder[MAX_PATH];
 	HRESULT hr = SHGetFolderPath(0, path_csidl, 0, SHGFP_TYPE_CURRENT, startupFolder);
 	if (SUCCEEDED(hr)) {
-		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + AppFile.utf16() + qsl(".lnk");
+		QString lnk = QString::fromWCharArray(startupFolder) + '\\' + AppFile.utf16() + u".lnk"_q;
 		if (create) {
 			const auto shellLink = base::WinRT::TryCreateInstance<IShellLink>(
 				CLSID_ShellLink,
@@ -203,7 +203,7 @@ QString psAppDataPath() {
 	if (GetEnvironmentVariable(L"APPDATA", wstrPath, maxFileLen)) {
 		QDir appData(QString::fromStdWString(std::wstring(wstrPath)));
 #ifdef OS_WIN_STORE
-		return appData.absolutePath() + qsl("/Telegram Desktop UWP/");
+		return appData.absolutePath() + u"/Telegram Desktop UWP/"_q;
 #else // OS_WIN_STORE
 		return appData.absolutePath() + '/' + AppName.utf16() + '/';
 #endif // OS_WIN_STORE
@@ -341,7 +341,7 @@ void SetApplicationIcon(const QIcon &icon) {
 }
 
 QString SingleInstanceLocalServerName(const QString &hash) {
-	return qsl("Global\\") + hash + '-' + cGUIDStr();
+	return u"Global\\"_q + hash + '-' + cGUIDStr();
 }
 
 std::optional<bool> IsDarkMode() {
@@ -485,12 +485,12 @@ namespace {
 			if (status == ERROR_FILE_NOT_FOUND) {
 				status = RegCreateKeyEx(HKEY_CURRENT_USER, key, 0, 0, REG_OPTION_NON_VOLATILE, KEY_QUERY_VALUE | KEY_WRITE, 0, rkey, 0);
 				if (status != ERROR_SUCCESS) {
-					QString msg = qsl("App Error: could not create '%1' registry key, error %2").arg(QString::fromStdWString(key)).arg(qsl("%1: %2"));
+					QString msg = u"App Error: could not create '%1' registry key, error %2"_q.arg(QString::fromStdWString(key)).arg(u"%1: %2"_q);
 					_psLogError(msg.toUtf8().constData(), status);
 					return false;
 				}
 			} else {
-				QString msg = qsl("App Error: could not open '%1' registry key, error %2").arg(QString::fromStdWString(key)).arg(qsl("%1: %2"));
+				QString msg = u"App Error: could not open '%1' registry key, error %2"_q.arg(QString::fromStdWString(key)).arg(u"%1: %2"_q);
 				_psLogError(msg.toUtf8().constData(), status);
 				return false;
 			}
@@ -504,10 +504,10 @@ namespace {
 		WCHAR defaultStr[bufSize] = { 0 };
 		if (RegQueryValueEx(rkey, value, 0, &defaultType, (BYTE*)defaultStr, &defaultSize) != ERROR_SUCCESS || defaultType != REG_SZ || defaultSize != (v.size() + 1) * 2 || QString::fromStdWString(defaultStr) != v) {
 			WCHAR tmp[bufSize] = { 0 };
-			if (!v.isEmpty()) StringCbPrintf(tmp, bufSize, v.replace(QChar('%'), qsl("%%")).toStdWString().c_str());
+			if (!v.isEmpty()) StringCbPrintf(tmp, bufSize, v.replace(QChar('%'), u"%%"_q).toStdWString().c_str());
 			LSTATUS status = RegSetValueEx(rkey, value, 0, REG_SZ, (BYTE*)tmp, (wcslen(tmp) + 1) * sizeof(WCHAR));
 			if (status != ERROR_SUCCESS) {
-				QString msg = qsl("App Error: could not set %1, error %2").arg(value ? ('\'' + QString::fromStdWString(value) + '\'') : qsl("(Default)")).arg("%1: %2");
+				QString msg = u"App Error: could not set %1, error %2"_q.arg(value ? ('\'' + QString::fromStdWString(value) + '\'') : u"(Default)"_q).arg("%1: %2");
 				_psLogError(msg.toUtf8().constData(), status);
 				return false;
 			}

@@ -188,6 +188,7 @@ struct Verification {
 	mtpRequestId requestId = 0;
 	QString phoneCodeHash;
 	int codeLength = 0;
+	QString fragmentUrl;
 	std::unique_ptr<Ui::SentCodeCall> call;
 
 	QString error;

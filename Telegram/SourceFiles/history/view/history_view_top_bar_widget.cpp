@@ -14,6 +14,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "info/info_memento.h"
 #include "info/info_controller.h"
 #include "info/profile/info_profile_values.h"
+#include "storage/storage_media_prepare.h"
 #include "storage/storage_shared_media.h"
 #include "mainwidget.h"
 #include "mainwindow.h"
@@ -425,7 +426,7 @@ void TopBarWidget::paintEvent(QPaintEvent *e) {
 }
 
 void TopBarWidget::paintTopBar(Painter &p) {
-	if (!_activeChat.key || _narrowMode) {
+	if (!_activeChat.key || _narrowRatio == 1.) {
 		return;
 	}
 	auto nameleft = _leftTaken;
@@ -488,7 +489,8 @@ void TopBarWidget::paintTopBar(Painter &p) {
 				width(),
 				st::historyStatusFgTyping,
 				now)) {
-			paintStatus(p, nameleft, statustop, availableWidth, width());
+			p.setPen(st::historyStatusFg);
+			p.drawTextLeft(nameleft, statustop, width(), _customTitleText);
 		}
 	} else if (folder
 		|| history->peer->sharedMediaInfo()
@@ -674,7 +676,8 @@ void TopBarWidget::mousePressEvent(QMouseEvent *e) {
 		&& !_chooseForReportReason;
 	if (handleClick) {
 		if ((_animatingMode && _back->rect().contains(e->pos()))
-			|| (_activeChat.section == Section::ChatsList)) {
+			|| (_activeChat.section == Section::ChatsList
+				&& _activeChat.key.folder())) {
 			backClicked();
 		} else {
 			infoClicked();
@@ -706,7 +709,7 @@ void TopBarWidget::backClicked() {
 		_controller->closeFolder();
 	} else if (_activeChat.section == Section::ChatsList
 		&& _activeChat.key.history()
-		&& _activeChat.key.history()->peer->isForum()) {
+		&& _activeChat.key.history()->isForum()) {
 		_controller->closeForum();
 	} else {
 		_controller->showBackFromStack();
@@ -774,6 +777,13 @@ void TopBarWidget::setActiveChat(
 				_titlePeerTextOnline = false;
 				update();
 			}, _activeChatLifetime);
+
+			// _menuToggle visibility depends on "View topic info",
+			// "View topic info" visibility depends on activeChatCurrent.
+			_controller->activeChatChanges(
+			) | rpl::start_with_next([=] {
+				updateControlsVisibility();
+			}, _activeChatLifetime);
 		}
 	}
 	updateUnreadBadge();
@@ -784,6 +794,7 @@ void TopBarWidget::setActiveChat(
 	updateOnlineDisplay();
 	updateControlsVisibility();
 	refreshUnreadBadge();
+	setupDragOnBackButton();
 }
 
 void TopBarWidget::handleEmojiInteractionSeen(const QString &emoticon) {
@@ -849,12 +860,6 @@ void TopBarWidget::refreshInfoButton() {
 }
 
 void TopBarWidget::resizeEvent(QResizeEvent *e) {
-	const auto narrowMode = (_activeChat.section == Section::ChatsList)
-		&& (width() < _back->width() + _search->width());
-	if (_narrowMode != narrowMode) {
-		_narrowMode = narrowMode;
-		updateControlsVisibility();
-	}
 	updateSearchVisibility();
 	updateControlsGeometry();
 }
@@ -925,7 +930,10 @@ void TopBarWidget::updateControlsGeometry() {
 	} else if (_back->isHidden()) {
 		_leftTaken = st::topBarArrowPadding.right();
 	} else {
-		_leftTaken = _narrowMode ? (width() - _back->width()) / 2 : 0;
+		_leftTaken = anim::interpolate(
+			0,
+			(_narrowWidth - _back->width()) / 2,
+			_narrowRatio);
 		_back->moveToLeft(_leftTaken, backButtonTop);
 		_leftTaken += _back->width();
 	}
@@ -1083,7 +1091,7 @@ void TopBarWidget::updateControlsVisibility() {
 	}
 	_menuToggle->setVisible(hasMenu
 		&& !_chooseForReportReason
-		&& !_narrowMode);
+		&& (_narrowRatio < 1.));
 	_infoToggle->setVisible(hasInfo
 		&& !isOneColumn
 		&& _controller->canShowThirdSection()
@@ -1354,6 +1362,30 @@ void TopBarWidget::toggleSelectedControls(bool shown) {
 		anim::easeOutCirc);
 }
 
+void TopBarWidget::setGeometryWithNarrowRatio(
+		QRect geometry,
+		int narrowWidth,
+		float64 narrowRatio) {
+	if (_activeChat.section != Section::ChatsList) {
+		narrowRatio = 0.;
+		narrowWidth = 0;
+	}
+	const auto changed = (_narrowRatio != narrowRatio);
+	const auto started = (_narrowRatio == 0.) != (narrowRatio == 0.);
+	const auto finished = (_narrowRatio == 1.) != (narrowRatio == 1.);
+	const auto resized = (size() != geometry.size());
+	_narrowRatio = narrowRatio;
+	_narrowWidth = narrowWidth;
+	if (started || finished) {
+		updateControlsVisibility();
+	}
+	setGeometry(geometry);
+	if (changed && !resized) {
+		updateSearchVisibility();
+		updateControlsGeometry();
+	}
+}
+
 bool TopBarWidget::showSelectedActions() const {
 	return showSelectedState() && !_chooseForReportReason;
 }
@@ -1407,7 +1439,7 @@ void TopBarWidget::updateUnreadBadge() {
 			return QString();
 		}
 		return (counter > 999)
-			? qsl("..%1").arg(counter % 100, 2, 10, QChar('0'))
+			? u"..%1"_q.arg(counter % 100, 2, 10, QChar('0'))
 			: QString::number(counter);
 	}();
 	_unreadBadge->setText(text, !muted);
@@ -1425,6 +1457,45 @@ void TopBarWidget::updateInfoToggleActive() {
 		: nullptr;
 	_infoToggle->setIconOverride(iconOverride, iconOverride);
 	_infoToggle->setRippleColorOverride(rippleOverride);
+}
+
+void TopBarWidget::setupDragOnBackButton() {
+	_backLifetime.destroy();
+	if (_activeChat.section != Section::ChatsList) {
+		_back->setAcceptDrops(false);
+		return;
+	}
+	const auto lifetime = _backLifetime.make_state<rpl::lifetime>();
+	_back->setAcceptDrops(true);
+	_back->events(
+	) | rpl::filter([=](not_null<QEvent*> e) {
+		return e->type() == QEvent::DragEnter;
+	}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+		using namespace Storage;
+		const auto d = static_cast<QDragEnterEvent*>(e.get());
+		const auto data = d->mimeData();
+		if (ComputeMimeDataState(data) == MimeDataState::None) {
+			return;
+		}
+		const auto timer = _backLifetime.make_state<base::Timer>([=] {
+			backClicked();
+		});
+		timer->callOnce(ChoosePeerByDragTimeout);
+		d->setDropAction(Qt::CopyAction);
+		d->accept();
+		_back->events(
+		) | rpl::filter([=](not_null<QEvent*> e) {
+			return e->type() == QEvent::DragMove
+				|| e->type() == QEvent::DragLeave;
+		}) | rpl::start_with_next([=](not_null<QEvent*> e) {
+			if (e->type() == QEvent::DragMove) {
+				timer->callOnce(ChoosePeerByDragTimeout);
+			} else if (e->type() == QEvent::DragLeave) {
+				timer->cancel();
+				lifetime->destroy();
+			}
+		}, *lifetime);
+	}, _backLifetime);
 }
 
 bool TopBarWidget::trackOnlineOf(not_null<PeerData*> user) const {

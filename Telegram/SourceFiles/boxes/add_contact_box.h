@@ -139,6 +139,7 @@ private:
 	mtpRequestId _creationRequestId = 0;
 	bool _creatingInviteLink = false;
 	ChannelData *_createdChannel = nullptr;
+	TimeId _ttlPeriod = 0;
 
 };
 

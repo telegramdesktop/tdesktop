@@ -10,15 +10,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/text/text.h"
 #include "ui/effects/animations.h"
 #include "ui/unread_badge.h"
+#include "ui/userpic_view.h"
 #include "dialogs/dialogs_key.h"
 #include "dialogs/ui/dialogs_message_view.h"
 
 class History;
 class HistoryItem;
 
-namespace Data {
-class CloudImageView;
-} // namespace Data
+namespace style {
+struct DialogRow;
+} // namespace style
 
 namespace Ui {
 class RippleAnimation;
@@ -29,11 +30,14 @@ using namespace ::Ui;
 class RowPainter;
 class VideoUserpic;
 struct PaintContext;
+struct TopicJumpCache;
 } // namespace Dialogs::Ui
 
 namespace Dialogs {
 
 enum class SortMode;
+
+[[nodiscard]] QRect CornerBadgeTTLRect(int photoSize);
 
 class BasicRow {
 public:
@@ -48,7 +52,12 @@ public:
 		const Ui::PaintContext &context) const;
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
-	void stopLastRipple();
+	virtual void stopLastRipple();
+	void addRippleWithMask(
+		QPoint origin,
+		QImage mask,
+		Fn<void()> updateCallback);
+	void clearRipple();
 
 	void paintRipple(
 		QPainter &p,
@@ -57,22 +66,32 @@ public:
 		int outerWidth,
 		const QColor *colorOverride = nullptr) const;
 
-	std::shared_ptr<Data::CloudImageView> &userpicView() const {
+	[[nodiscard]] Ui::PeerUserpicView &userpicView() const {
 		return _userpic;
 	}
 
 private:
-	mutable std::shared_ptr<Data::CloudImageView> _userpic;
+	mutable Ui::PeerUserpicView _userpic;
 	mutable std::unique_ptr<Ui::RippleAnimation> _ripple;
 
 };
 
 class List;
-class Row : public BasicRow {
+class Row final : public BasicRow {
 public:
 	explicit Row(std::nullptr_t) {
 	}
-	Row(Key key, int pos);
+	Row(Key key, int index, int top);
+
+	[[nodiscard]] int top() const {
+		return _top;
+	}
+	[[nodiscard]] int height() const {
+		Expects(_height != 0);
+
+		return _height;
+	}
+	void recountHeight(float64 narrowRatio);
 
 	void updateCornerBadgeShown(
 		not_null<PeerData*> peer,
@@ -83,6 +102,15 @@ public:
 		Ui::VideoUserpic *videoUserpic,
 		History *historyForCornerBadge,
 		const Ui::PaintContext &context) const final override;
+
+	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
+	void stopLastRipple() override;
+	void addTopicJumpRipple(
+		QPoint origin,
+		not_null<Ui::TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback);
+	void clearTopicJumpRipple();
+	[[nodiscard]] bool topicJumpRipple() const;
 
 	[[nodiscard]] Key key() const {
 		return _id;
@@ -102,15 +130,10 @@ public:
 	[[nodiscard]] not_null<Entry*> entry() const {
 		return _id.entry();
 	}
-	[[nodiscard]] int pos() const {
-		return _pos;
+	[[nodiscard]] int index() const {
+		return _index;
 	}
 	[[nodiscard]] uint64 sortKey(FilterId filterId) const;
-
-	void validateListEntryCache() const;
-	[[nodiscard]] const Ui::Text::String &listEntryCache() const {
-		return _listEntryCache;
-	}
 
 	// for any attached data, for example View in contacts list
 	void *attached = nullptr;
@@ -118,32 +141,54 @@ public:
 private:
 	friend class List;
 
+	class CornerLayersManager {
+	public:
+		using Layer = int;
+		CornerLayersManager();
+
+		[[nodiscard]] bool isSameLayer(Layer layer) const;
+		[[nodiscard]] bool isDisplayedNone() const;
+		[[nodiscard]] float64 progressForLayer(Layer layer) const;
+		[[nodiscard]] float64 progress() const;
+		[[nodiscard]] bool isFinished() const;
+		void setLayer(Layer layer, Fn<void()> updateCallback);
+		void markFrameShown();
+
+	private:
+		bool _lastFrameShown = false;
+		Layer _prevLayer = 0;
+		Layer _nextLayer = 0;
+		Ui::Animations::Simple _animation;
+
+	};
+
 	struct CornerBadgeUserpic {
 		InMemoryKey key;
-		float64 shown = 0.;
+		CornerLayersManager layersManager;
 		int frameIndex = -1;
 		bool active = false;
 		QImage frame;
-		Ui::Animations::Simple animation;
+		QImage cacheTTL;
 	};
 
 	void setCornerBadgeShown(
-		bool shown,
+		CornerLayersManager::Layer nextLayer,
 		Fn<void()> updateCallback) const;
 	void ensureCornerBadgeUserpic() const;
 	static void PaintCornerBadgeFrame(
 		not_null<CornerBadgeUserpic*> data,
 		not_null<PeerData*> peer,
 		Ui::VideoUserpic *videoUserpic,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Ui::PaintContext &context);
 
 	Key _id;
-	int _pos = 0;
-	mutable uint32 _listEntryCacheVersion = 0;
-	mutable Ui::Text::String _listEntryCache;
 	mutable std::unique_ptr<CornerBadgeUserpic> _cornerBadgeUserpic;
-	mutable bool _cornerBadgeShown = false;
+	int _top = 0;
+	int _height = 0;
+	int _index : 30 = 0;
+	int _cornerBadgeShown : 1 = 0;
+	int _topicJumpRipple : 1 = 0;
 
 };
 

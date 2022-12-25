@@ -86,7 +86,7 @@ PhoneWidget::PhoneWidget(
 	setupQrLogin();
 
 	if (!_country->chooseCountry(getData()->country)) {
-		_country->chooseCountry(qsl("US"));
+		_country->chooseCountry(u"US"_q);
 	}
 	_changed = false;
 }
@@ -243,11 +243,11 @@ void PhoneWidget::phoneSubmitFail(const MTP::Error &error) {
 	stopCheck();
 	_sentRequest = 0;
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
-	} else if (err == qstr("PHONE_NUMBER_INVALID")) { // show error
+	} else if (err == u"PHONE_NUMBER_INVALID"_q) { // show error
 		showPhoneError(tr::lng_bad_phone());
-	} else if (err == qstr("PHONE_NUMBER_BANNED")) {
+	} else if (err == u"PHONE_NUMBER_BANNED"_q) {
 		Ui::ShowPhoneBannedError(getData()->controller, _sentPhone);
 	} else if (Logs::DebugEnabled()) { // internal server error
 		showPhoneError(rpl::single(err + ": " + error.description()));

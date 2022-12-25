@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "chat_helpers/tabbed_selector.h"
 #include "mtproto/sender.h"
 #include "ui/round_rect.h"
+#include "ui/userpic_view.h"
 
 namespace Ui {
 class InputField;
@@ -21,7 +22,6 @@ namespace Data {
 class StickersSet;
 class StickersSetThumbnailView;
 class DocumentMedia;
-class CloudImageView;
 } // namespace Data
 
 namespace Lottie {
@@ -73,7 +73,7 @@ struct StickerIcon {
 	ChannelData *megagroup = nullptr;
 	mutable std::shared_ptr<Data::StickersSetThumbnailView> thumbnailMedia;
 	mutable std::shared_ptr<Data::DocumentMedia> stickerMedia;
-	mutable std::shared_ptr<Data::CloudImageView> megagroupUserpic;
+	mutable Ui::PeerUserpicView megagroupUserpic;
 	int pixw = 0;
 	int pixh = 0;
 	mutable rpl::lifetime lifetime;

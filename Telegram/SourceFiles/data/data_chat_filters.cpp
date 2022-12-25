@@ -236,12 +236,12 @@ not_null<Dialogs::MainList*> ChatFilters::chatsList(FilterId filterId) {
 		auto limit = rpl::single(rpl::empty_value()) | rpl::then(
 			_owner->session().account().appConfig().refreshed()
 		) | rpl::map([=] {
-			return _owner->pinnedChatsLimit(nullptr, filterId);
+			return _owner->pinnedChatsLimit(filterId);
 		});
 		pointer = std::make_unique<Dialogs::MainList>(
 			&_owner->session(),
 			filterId,
-			_owner->maxPinnedChatsLimitValue(nullptr, filterId));
+			_owner->maxPinnedChatsLimitValue(filterId));
 	}
 	return pointer.get();
 }
@@ -476,7 +476,7 @@ const ChatFilter &ChatFilters::applyUpdatedPinned(
 	const auto i = ranges::find(_list, id, &ChatFilter::id);
 	Assert(i != end(_list));
 
-	const auto limit = _owner->pinnedChatsLimit(nullptr, id);
+	const auto limit = _owner->pinnedChatsLimit(id);
 	auto always = i->always();
 	auto pinned = std::vector<not_null<History*>>();
 	pinned.reserve(dialogs.size());

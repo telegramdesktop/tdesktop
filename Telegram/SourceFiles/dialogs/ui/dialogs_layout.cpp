@@ -51,9 +51,12 @@ const auto kPsaBadgePrefix = "cloud_lng_badge_psa_";
 
 [[nodiscard]] bool ShowSendActionInDialogs(Data::Thread *thread) {
 	const auto history = thread ? thread->owningHistory().get() : nullptr;
-	return history
-		&& (!history->peer->isUser()
-			|| history->peer->asUser()->onlineTill > 0);
+	if (!history) {
+		return false;
+	} else if (const auto user = history->peer->asUser()) {
+		return (user->onlineTill > 0);
+	}
+	return !history->isForum();
 }
 
 void PaintRowTopRight(
@@ -109,7 +112,32 @@ int PaintBadges(
 		bool displayPinnedIcon = false,
 		int pinnedIconTop = 0) {
 	auto initial = right;
-	if (badgesState.unread) {
+	if (badgesState.unread
+		&& !badgesState.unreadCounter
+		&& context.st->unreadMarkDiameter > 0) {
+		const auto d = context.st->unreadMarkDiameter;
+		UnreadBadgeStyle st;
+		PainterHighQualityEnabler hq(p);
+		const auto rect = QRect(
+			right - st.size + (st.size - d) / 2,
+			top + (st.size - d) / 2,
+			d,
+			d);
+		p.setPen(Qt::NoPen);
+		p.setBrush(badgesState.unreadMuted
+			? (context.active
+				? st::dialogsUnreadBgMutedActive
+				: context.selected
+				? st::dialogsUnreadBgMutedOver
+				: st::dialogsUnreadBgMuted)
+			: (context.active
+				? st::dialogsUnreadBgActive
+				: context.selected
+				? st::dialogsUnreadBgOver
+				: st::dialogsUnreadBg));
+		p.drawEllipse(rect);
+		right -= st.size + st.padding;
+	} else if (badgesState.unread) {
 		UnreadBadgeStyle st;
 		st.active = context.active;
 		st.selected = context.selected;
@@ -158,6 +186,22 @@ int PaintBadges(
 	return (initial - right);
 }
 
+void PaintExpandedTopicsBar(QPainter &p, float64 progress) {
+	auto hq = PainterHighQualityEnabler(p);
+	const auto radius = st::roundRadiusLarge;
+	const auto width = st::forumDialogRow.padding.left() / 2;
+	p.setPen(Qt::NoPen);
+	p.setBrush(st::dialogsBgActive);
+	p.drawRoundedRect(
+		QRectF(
+			-3. * radius - width * (1. - progress),
+			st::forumDialogRow.padding.top(),
+			3. * radius + width,
+			st::forumDialogRow.photoSize),
+		radius,
+		radius);
+}
+
 void PaintNarrowCounter(
 		QPainter &p,
 		const PaintContext &context,
@@ -195,35 +239,29 @@ int PaintWideCounter(
 	return availableWidth - used;
 }
 
-void PaintListEntryText(
+void PaintFolderEntryText(
 		Painter &p,
-		not_null<const Row*> row,
+		not_null<Data::Folder*> folder,
 		const PaintContext &context,
 		QRect rect) {
 	if (rect.isEmpty()) {
 		return;
 	}
-	row->validateListEntryCache();
+	folder->validateListEntryCache();
 	p.setFont(st::dialogsTextFont);
 	p.setPen(context.active
 		? st::dialogsTextFgActive
 		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	row->listEntryCache().draw(p, {
+	folder->listEntryCache().draw(p, {
 		.position = rect.topLeft(),
 		.availableWidth = rect.width(),
-		.palette = &(row->folder()
-			? (context.active
-				? st::dialogsTextPaletteArchiveActive
-				: context.selected
-				? st::dialogsTextPaletteArchiveOver
-				: st::dialogsTextPaletteArchive)
-			: (context.active
-				? st::dialogsTextPaletteActive
-				: context.selected
-				? st::dialogsTextPaletteOver
-				: st::dialogsTextPalette)),
+		.palette = &(context.active
+			? st::dialogsTextPaletteArchiveActive
+			: context.selected
+			? st::dialogsTextPaletteArchiveOver
+			: st::dialogsTextPaletteArchive),
 		.spoiler = Text::DefaultSpoilerCache(),
 		.now = context.now,
 		.paused = context.paused,
@@ -235,6 +273,7 @@ enum class Flag {
 	SavedMessages    = 0x08,
 	RepliesMessages  = 0x10,
 	AllowUserOnline  = 0x20,
+	TopicJumpRipple  = 0x40,
 };
 inline constexpr bool is_flag_type(Flag) { return true; }
 
@@ -242,12 +281,13 @@ template <typename PaintItemCallback>
 void PaintRow(
 		Painter &p,
 		not_null<const BasicRow*> row,
+		QRect geometry,
 		not_null<Entry*> entry,
 		VideoUserpic *videoUserpic,
 		PeerData *from,
-		Ui::PeerBadge &fromBadge,
+		PeerBadge &fromBadge,
 		Fn<void()> customEmojiRepaint,
-		const Ui::Text::String &fromName,
+		const Text::String &fromName,
 		const HiddenSenderInfo *hiddenSenderInfo,
 		HistoryItem *item,
 		const Data::Draft *draft,
@@ -261,17 +301,18 @@ void PaintRow(
 		draft = nullptr;
 	}
 
-	auto fullRect = QRect(0, 0, context.width, context.st->height);
 	auto bg = context.active
 		? st::dialogsBgActive
 		: context.selected
 		? st::dialogsBgOver
-		: st::dialogsBg;
-	auto ripple = context.active
-		? st::dialogsRippleBgActive
-		: st::dialogsRippleBg;
-	p.fillRect(fullRect, bg);
-	row->paintRipple(p, 0, 0, context.width, &ripple->c);
+		: context.currentBg;
+	p.fillRect(geometry, bg);
+	if (!(flags & Flag::TopicJumpRipple)) {
+		auto ripple = context.active
+			? st::dialogsRippleBgActive
+			: st::dialogsRippleBg;
+		row->paintRipple(p, 0, 0, context.width, &ripple->c);
+	}
 
 	const auto history = entry->asHistory();
 	const auto thread = entry->asThread();
@@ -298,7 +339,7 @@ void PaintRow(
 			(flags & Flag::AllowUserOnline) ? history : nullptr,
 			context);
 	} else if (hiddenSenderInfo) {
-		hiddenSenderInfo->emptyUserpic.paint(
+		hiddenSenderInfo->emptyUserpic.paintCircle(
 			p,
 			context.st->padding.left(),
 			context.st->padding.top(),
@@ -309,6 +350,9 @@ void PaintRow(
 	}
 
 	auto nameleft = context.st->nameLeft;
+	if (context.topicsExpanded > 0.) {
+		PaintExpandedTopicsBar(p, context.topicsExpanded);
+	}
 	if (context.narrow) {
 		if (!draft && item && !item->isEmpty()) {
 			PaintNarrowCounter(p, context, badgesState);
@@ -345,7 +389,21 @@ void PaintRow(
 		}
 	}
 	auto texttop = context.st->textTop;
-	if (promoted && !history->topPromotionMessage().isEmpty()) {
+	if (const auto folder = entry->asFolder()) {
+		const auto availableWidth = PaintWideCounter(
+			p,
+			context,
+			badgesState,
+			texttop,
+			namewidth,
+			false);
+		const auto rect = QRect(
+			nameleft,
+			texttop,
+			availableWidth,
+			st::dialogsTextFont->height);
+		PaintFolderEntryText(p, folder, context, rect);
+	} else if (promoted && !history->topPromotionMessage().isEmpty()) {
 		auto availableWidth = namewidth;
 		p.setFont(st::dialogsTextFont);
 		if (history->cloudDraftTextCache().isEmpty()) {
@@ -735,11 +793,18 @@ void PaintUnreadBadge(QPainter &p, const QRect &rect, const UnreadBadgeStyle &st
 	const QString &unreadCount,
 	int allowDigits) {
 	return (allowDigits > 0) && (unreadCount.size() > allowDigits + 1)
-		? qsl("..") + unreadCount.mid(unreadCount.size() - allowDigits)
+		? u".."_q + unreadCount.mid(unreadCount.size() - allowDigits)
 		: unreadCount;
 }
 
 } // namespace
+
+const style::icon *ChatTypeIcon(not_null<PeerData*> peer) {
+	return ChatTypeIcon(peer, {
+		.st = &st::defaultDialogRow,
+		.currentBg = st::windowBg,
+	});
+}
 
 const style::icon *ChatTypeIcon(
 		not_null<PeerData*> peer,
@@ -879,7 +944,8 @@ void RowPainter::Paint(
 	const auto allowUserOnline = !context.narrow || badgesState.empty();
 	const auto flags = (allowUserOnline ? Flag::AllowUserOnline : Flag(0))
 		| (peer && peer->isSelf() ? Flag::SavedMessages : Flag(0))
-		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0));
+		| (peer && peer->isRepliesChat() ? Flag::RepliesMessages : Flag(0))
+		| (row->topicJumpRipple() ? Flag::TopicJumpRipple : Flag(0));
 	const auto paintItemCallback = [&](int nameleft, int namewidth) {
 		const auto texttop = context.st->textTop;
 		const auto availableWidth = PaintWideCounter(
@@ -894,7 +960,7 @@ void RowPainter::Paint(
 			: context.selected
 			? st::dialogsTextFgServiceOver
 			: st::dialogsTextFgService;
-		const auto rect = QRect(
+		auto rect = QRect(
 			nameleft,
 			texttop,
 			availableWidth,
@@ -914,14 +980,19 @@ void RowPainter::Paint(
 			: thread
 			? &thread->lastItemDialogsView()
 			: nullptr;
-		if (const auto folder = row->folder()) {
-			PaintListEntryText(p, row, context, rect);
-		} else if (view) {
-			if (!view->prepared(item)) {
+		if (view) {
+			const auto forum = context.st->topicsHeight
+				? row->history()->peer->forum()
+				: nullptr;
+			if (!view->prepared(item, forum)) {
 				view->prepare(
 					item,
+					forum,
 					[=] { entry->updateChatListEntry(); },
-					{ .ignoreTopic = (!history || !peer->isForum()) });
+					{});
+			}
+			if (forum) {
+				rect.setHeight(context.st->topicsHeight + rect.height());
 			}
 			view->paint(p, rect, context);
 		}
@@ -929,6 +1000,7 @@ void RowPainter::Paint(
 	PaintRow(
 		p,
 		row,
+		QRect(0, 0, context.width, row->height()),
 		entry,
 		videoUserpic,
 		from,
@@ -1010,10 +1082,10 @@ void RowPainter::Paint(
 			availableWidth,
 			st::dialogsTextFont->height);
 		auto &view = row->itemView();
-		if (!view.prepared(item)) {
-			view.prepare(item, row->repaint(), previewOptions);
+		if (!view.prepared(item, nullptr)) {
+			view.prepare(item, nullptr, row->repaint(), previewOptions);
 		}
-		row->itemView().paint(p, itemRect, context);
+		view.paint(p, itemRect, context);
 	};
 	const auto showSavedMessages = history
 		&& history->peer->isSelf()
@@ -1026,6 +1098,7 @@ void RowPainter::Paint(
 	PaintRow(
 		p,
 		row,
+		QRect(0, 0, context.width, context.st->height),
 		entry,
 		nullptr,
 		from,
@@ -1068,7 +1141,7 @@ void PaintCollapsedRow(
 		const PaintContext &context) {
 	p.fillRect(
 		QRect{ 0, 0, context.width, st::dialogsImportantBarHeight },
-		context.selected ? st::dialogsBgOver : st::dialogsBg);
+		context.selected ? st::dialogsBgOver : context.currentBg);
 
 	row.paintRipple(p, 0, 0, context.width);
 

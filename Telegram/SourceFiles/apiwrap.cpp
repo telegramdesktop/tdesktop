@@ -39,6 +39,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_web_page.h"
 #include "data/data_folder.h"
 #include "data/data_forum_topic.h"
+#include "data/data_forum.h"
 #include "data/data_media_types.h"
 #include "data/data_sparse_ids.h"
 #include "data/data_search_controller.h"
@@ -95,7 +96,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/storage_shared_media.h"
 #include "storage/storage_media_prepare.h"
 #include "storage/storage_account.h"
-#include "facades.h"
 
 #include <fakepasscode/hooks/fake_messages.h>
 #include <fakepasscode/mtp_holder/crit_api.h>
@@ -387,10 +387,8 @@ void ApiWrap::checkChatInvite(
 }
 
 void ApiWrap::savePinnedOrder(Data::Folder *folder) {
-	const auto &order = _session->data().pinnedChatsOrder(
-		folder,
-		FilterId());
-	const auto input = [](const Dialogs::Key &key) {
+	const auto &order = _session->data().pinnedChatsOrder(folder);
+	const auto input = [](Dialogs::Key key) {
 		if (const auto history = key.history()) {
 			return MTP_inputDialogPeer(history->peer->input);
 		} else if (const auto folder = key.folder()) {
@@ -409,6 +407,29 @@ void ApiWrap::savePinnedOrder(Data::Folder *folder) {
 		MTP_int(folder ? folder->id() : 0),
 		MTP_vector(peers)
 	)).send();
+}
+
+void ApiWrap::savePinnedOrder(not_null<Data::Forum*> forum) {
+	const auto &order = _session->data().pinnedChatsOrder(forum);
+	const auto input = [](Dialogs::Key key) {
+		if (const auto topic = key.topic()) {
+			return MTP_int(topic->rootId().bare);
+		}
+		Unexpected("Key type in pinnedDialogsOrder().");
+	};
+	auto topics = QVector<MTPint>();
+	topics.reserve(order.size());
+	ranges::transform(
+		order,
+		ranges::back_inserter(topics),
+		input);
+	request(MTPchannels_ReorderPinnedForumTopics(
+		MTP_flags(MTPchannels_ReorderPinnedForumTopics::Flag::f_force),
+		forum->channel()->inputChannel,
+		MTP_vector(topics)
+	)).done([=](const MTPUpdates &result) {
+		applyUpdates(result);
+	}).send();
 }
 
 void ApiWrap::toggleHistoryArchived(
@@ -461,15 +482,15 @@ void ApiWrap::sendMessageFail(
 		FullMsgId itemId) {
 	const auto show = ShowForPeer(peer);
 
-	if (error == qstr("PEER_FLOOD")) {
+	if (error == u"PEER_FLOOD"_q) {
 		show->showBox(
 			Ui::MakeInformBox(
 				PeerFloodErrorText(&session(), PeerFloodType::Send)),
 			Ui::LayerOption::CloseOther);
-	} else if (error == qstr("USER_BANNED_IN_CHANNEL")) {
+	} else if (error == u"USER_BANNED_IN_CHANNEL"_q) {
 		const auto link = Ui::Text::Link(
 			tr::lng_cant_more_info(tr::now),
-			session().createInternalLinkFull(qsl("spambot")));
+			session().createInternalLinkFull(u"spambot"_q));
 		show->showBox(
 			Ui::MakeInformBox(
 				tr::lng_error_public_groups_denied(
@@ -478,8 +499,8 @@ void ApiWrap::sendMessageFail(
 					link,
 					Ui::Text::WithEntities)),
 			Ui::LayerOption::CloseOther);
-	} else if (error.startsWith(qstr("SLOWMODE_WAIT_"))) {
-		const auto chop = qstr("SLOWMODE_WAIT_").size();
+	} else if (error.startsWith(u"SLOWMODE_WAIT_"_q)) {
+		const auto chop = u"SLOWMODE_WAIT_"_q.size();
 		const auto left = base::StringViewMid(error, chop).toInt();
 		if (const auto channel = peer->asChannel()) {
 			const auto seconds = channel->slowmodeSeconds();
@@ -490,7 +511,7 @@ void ApiWrap::sendMessageFail(
 				requestFullPeer(peer);
 			}
 		}
-	} else if (error == qstr("SCHEDULE_STATUS_PRIVATE")) {
+	} else if (error == u"SCHEDULE_STATUS_PRIVATE"_q) {
 		auto &scheduled = _session->data().scheduledMessages();
 		Assert(peer->isUser());
 		if (const auto item = scheduled.lookupItem(peer->id, itemId.msg)) {
@@ -499,7 +520,7 @@ void ApiWrap::sendMessageFail(
 				Ui::MakeInformBox(tr::lng_cant_do_this()),
 				Ui::LayerOption::CloseOther);
 		}
-	} else if (error == qstr("CHAT_FORWARDS_RESTRICTED")) {
+	} else if (error == u"CHAT_FORWARDS_RESTRICTED"_q) {
 		if (show->valid()) {
 			Ui::ShowMultilineToast({
 				.parentOverride = show->toastParent(),
@@ -510,7 +531,7 @@ void ApiWrap::sendMessageFail(
 				.duration = kJoinErrorDuration
 			});
 		}
-	} else if (error == qstr("PREMIUM_ACCOUNT_REQUIRED")) {
+	} else if (error == u"PREMIUM_ACCOUNT_REQUIRED"_q) {
 		Settings::ShowPremium(&session(), "premium_stickers");
 	}
 	if (const auto item = _session->data().message(itemId)) {
@@ -671,7 +692,7 @@ QString ApiWrap::exportDirectMessageLink(
 		auto linkItemId = item->id;
 		auto linkCommentId = MsgId();
 		auto linkThreadId = MsgId();
-		//auto linkThreadIsTopic = false;
+		auto linkThreadIsTopic = false;
 		if (inRepliesContext) {
 			if (const auto rootId = item->replyToTop()) {
 				const auto root = item->history()->owner().message(
@@ -693,7 +714,7 @@ QString ApiWrap::exportDirectMessageLink(
 				} else {
 					// Reply in a thread, maybe comment in a private channel.
 					linkThreadId = rootId;
-					//linkThreadIsTopic = (item->topicRootId() == rootId);
+					linkThreadIsTopic = (item->topicRootId() == rootId);
 				}
 			}
 		}
@@ -705,7 +726,7 @@ QString ApiWrap::exportDirectMessageLink(
 			+ '/'
 			+ (linkCommentId
 				? (post + "?comment=" + QString::number(linkCommentId.bare))
-				: (linkThreadId/* && !linkThreadIsTopic*/)
+				: (linkThreadId && !linkThreadIsTopic)
 				? (post + "?thread=" + QString::number(linkThreadId.bare))
 				: linkThreadId
 				? (QString::number(linkThreadId.bare) + '/' + post)
@@ -717,7 +738,7 @@ QString ApiWrap::exportDirectMessageLink(
 			if (const auto media = item->media()) {
 				if (const auto document = media->document()) {
 					if (document->isVideoMessage()) {
-						return qsl("https://telesco.pe/") + query;
+						return u"https://telesco.pe/"_q + query;
 					}
 				}
 			}
@@ -2118,6 +2139,7 @@ void ApiWrap::saveDraftsToCloud() {
 			if (const auto cloudDraft = history->cloudDraft(topicRootId)) {
 				if (cloudDraft->saveRequestId == requestId) {
 					history->clearCloudDraft(topicRootId);
+					history->applyCloudDraft(topicRootId);
 				}
 			}
 			const auto i = _draftsSaveRequestIds.find(weak);
@@ -2876,18 +2898,18 @@ void ApiWrap::requestMessageAfterDate(
 			};
 			const auto list = result.match([&](
 					const MTPDmessages_messages &data) {
-				return handleMessages(result.c_messages_messages());
+				return handleMessages(data);
 			}, [&](const MTPDmessages_messagesSlice &data) {
-				return handleMessages(result.c_messages_messagesSlice());
+				return handleMessages(data);
 			}, [&](const MTPDmessages_channelMessages &data) {
-				const auto &messages = result.c_messages_channelMessages();
-				if (peer && peer->isChannel()) {
-					peer->asChannel()->ptsReceived(messages.vpts().v);
+				if (const auto channel = peer->asChannel()) {
+					channel->ptsReceived(data.vpts().v);
+					channel->processTopics(data.vtopics());
 				} else {
 					LOG(("API Error: received messages.channelMessages when "
 						"no channel was passed! (ApiWrap::jumpToDate)"));
 				}
-				return handleMessages(messages);
+				return handleMessages(data);
 			}, [&](const MTPDmessages_messagesNotModified &) {
 				LOG(("API Error: received messages.messagesNotModified! "
 					"(ApiWrap::jumpToDate)"));
@@ -3039,7 +3061,7 @@ void ApiWrap::sharedMediaDone(
 }
 
 void ApiWrap::sendAction(const SendAction &action) {
-	if (!action.options.scheduled) {
+	if (!action.options.scheduled && !action.replaceMediaOf) {
 		const auto topic = action.topicRootId
 			? action.history->peer->forumTopicFor(action.topicRootId)
 			: nullptr;
@@ -3359,7 +3381,10 @@ void ApiWrap::sendFiles(
 		std::shared_ptr<SendingAlbum> album,
 		const SendAction &action) {
 	const auto haveCaption = !caption.text.isEmpty();
-	if (haveCaption && !list.canAddCaption(album != nullptr)) {
+	if (haveCaption
+		&& !list.canAddCaption(
+			album != nullptr,
+			type == SendMediaType::Photo)) {
 		auto message = MessageToSend(action);
 		message.textWithTags = base::take(caption);
 		message.action.clearDraft = false;
@@ -3471,10 +3496,12 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 	const auto replyTo = replyToId
 		? peer->owner().message(peer, replyToId)
 		: nullptr;
-	const auto topicRootId = replyTo ? replyTo->topicRootId() : replyToId;
-	const auto topic = topicRootId
-		? peer->forumTopicFor(topicRootId)
-		: nullptr;
+	const auto topicRootId = replyTo
+		? replyTo->topicRootId()
+		: action.topicRootId
+		? action.topicRootId
+		: Data::ForumTopic::kGeneralId;
+	const auto topic = peer->forumTopicFor(topicRootId);
 	if (!(topic ? topic->canWrite() : peer->canWrite())
 		|| Api::SendDice(message)) {
 		return;
@@ -3599,7 +3626,7 @@ void ApiWrap::sendMessage(MessageToSend &&message) {
 					UnixtimeFromMsgId(response.outerMsgId));
 			}
 		}, [=](const MTP::Error &error, const MTP::Response &response) {
-			if (error.type() == qstr("MESSAGE_EMPTY")) {
+			if (error.type() == u"MESSAGE_EMPTY"_q) {
 				lastMessage->destroy();
 			} else {
 				sendMessageFail(error, peer, randomId, newId);

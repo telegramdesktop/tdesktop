@@ -480,20 +480,9 @@ const CornersPixmaps &ChatStyle::serviceBgCornersNormal() const {
 
 const CornersPixmaps &ChatStyle::serviceBgCornersInverted() const {
 	if (_serviceBgCornersInverted.p[0].isNull()) {
-		const auto radius = HistoryServiceMsgInvertedRadius();
-		const auto size = radius * style::DevicePixelRatio();
-		auto circle = style::colorizeImage(
-			style::createInvertedCircleMask(radius * 2),
+		_serviceBgCornersInverted = Ui::PrepareInvertedCornerPixmaps(
+			HistoryServiceMsgInvertedRadius(),
 			msgServiceBg());
-		circle.setDevicePixelRatio(style::DevicePixelRatio());
-		const auto fill = [&](int index, int xoffset, int yoffset) {
-			_serviceBgCornersInverted.p[index] = PixmapFromImage(
-				circle.copy(QRect(xoffset, yoffset, size, size)));
-		};
-		fill(0, 0, 0);
-		fill(1, size, 0);
-		fill(2, size, size);
-		fill(3, 0, size);
 	}
 	return _serviceBgCornersInverted;
 }
@@ -502,12 +491,12 @@ const MessageStyle &ChatStyle::messageStyle(bool outbg, bool selected) const {
 	auto &result = messageStyleRaw(outbg, selected);
 	EnsureCorners(
 		result.msgBgCornersSmall,
-		st::bubbleRadiusSmall,
+		BubbleRadiusSmall(),
 		result.msgBg,
 		&result.msgShadow);
 	EnsureCorners(
 		result.msgBgCornersLarge,
-		st::bubbleRadiusLarge,
+		BubbleRadiusLarge(),
 		result.msgBg,
 		&result.msgShadow);
 	return result;
@@ -521,19 +510,19 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 		result.msgDateImgBg);
 	EnsureCorners(
 		result.msgServiceBgCornersSmall,
-		st::bubbleRadiusSmall,
+		BubbleRadiusSmall(),
 		result.msgServiceBg);
 	EnsureCorners(
 		result.msgServiceBgCornersLarge,
-		st::bubbleRadiusLarge,
+		BubbleRadiusLarge(),
 		result.msgServiceBg);
 	EnsureCorners(
 		result.msgShadowCornersSmall,
-		st::bubbleRadiusSmall,
+		BubbleRadiusSmall(),
 		result.msgShadow);
 	EnsureCorners(
 		result.msgShadowCornersLarge,
-		st::bubbleRadiusLarge,
+		BubbleRadiusLarge(),
 		result.msgShadow);
 	return result;
 }
@@ -541,7 +530,7 @@ const MessageImageStyle &ChatStyle::imageStyle(bool selected) const {
 const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
 	EnsureCorners(
 		_msgBotKbOverBgAddCornersSmall,
-		st::bubbleRadiusSmall,
+		BubbleRadiusSmall(),
 		msgBotKbOverBgAdd());
 	return _msgBotKbOverBgAddCornersSmall;
 }
@@ -549,7 +538,7 @@ const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersSmall() const {
 const CornersPixmaps &ChatStyle::msgBotKbOverBgAddCornersLarge() const {
 	EnsureCorners(
 		_msgBotKbOverBgAddCornersLarge,
-		st::bubbleRadiusLarge,
+		BubbleRadiusLarge(),
 		msgBotKbOverBgAdd());
 	return _msgBotKbOverBgAddCornersLarge;
 }

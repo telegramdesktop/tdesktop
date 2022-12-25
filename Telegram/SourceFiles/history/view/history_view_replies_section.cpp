@@ -82,7 +82,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "inline_bots/inline_bot_result.h"
 #include "info/profile/info_profile_values.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -255,7 +254,7 @@ RepliesWidget::RepliesWidget(
 	setupRootView();
 	setupShortcuts();
 
-	session().api().requestFullPeer(_history->peer);
+	_history->peer->updateFull();
 
 	refreshTopBarActiveChat();
 
@@ -1467,7 +1466,11 @@ void RepliesWidget::refreshTopBarActiveChat() {
 
 MsgId RepliesWidget::replyToId() const {
 	const auto custom = _composeControls->replyingToMessage().msg;
-	return custom ? custom : _rootId;
+	return custom
+		? custom
+		: (_rootId == Data::ForumTopic::kGeneralId)
+		? MsgId()
+		: _rootId;
 }
 
 void RepliesWidget::refreshUnreadCountBadge(std::optional<int> count) {
@@ -1569,19 +1572,15 @@ void RepliesWidget::checkPinnedBarState() {
 		: currentPinnedId.msg;
 	if (universalPinnedId == hiddenId) {
 		if (_pinnedBar) {
+			_pinnedBar->setContent(rpl::single(Ui::MessageBarContent()));
 			_pinnedTracker->reset();
-			auto qobject = base::unique_qptr{
-				Ui::WrapAsQObject(this, std::move(_pinnedBar)).get()
-			};
-			auto destroyer = [this, object = std::move(qobject)]() mutable {
-				object = nullptr;
-				_pinnedBarHeight = 0;
-				updateControlsGeometry();
-			};
-			base::call_delayed(
-				st::defaultMessageBar.duration,
-				this,
-				std::move(destroyer));
+			_hidingPinnedBar = base::take(_pinnedBar);
+			const auto raw = _hidingPinnedBar.get();
+			base::call_delayed(st::defaultMessageBar.duration, this, [=] {
+				if (_hidingPinnedBar.get() == raw) {
+					clearHidingPinnedBar();
+				}
+			});
 		}
 		return;
 	}
@@ -1589,6 +1588,7 @@ void RepliesWidget::checkPinnedBarState() {
 		return;
 	}
 
+	clearHidingPinnedBar();
 	_pinnedBar = std::make_unique<Ui::PinnedBar>(this, [=] {
 		return controller()->isGifPausedAtLeastFor(
 			Window::GifPauseReason::Any);
@@ -1623,9 +1623,12 @@ void RepliesWidget::checkPinnedBarState() {
 			_pinnedTracker->shownMessageId(),
 			[bar = _pinnedBar.get()] { bar->customEmojiRepaint(); }),
 		std::move(pinnedRefreshed),
-		std::move(markupRefreshed)
-	) | rpl::map([](Ui::MessageBarContent &&content, bool, HistoryItem*) {
-		return std::move(content);
+		std::move(markupRefreshed),
+		_rootVisible.value()
+	) | rpl::map([](Ui::MessageBarContent &&content, auto, auto, bool show) {
+		return (show || content.count > 1)
+			? std::move(content)
+			: Ui::MessageBarContent();
 	}));
 
 	controller()->adaptive().oneColumnValue(
@@ -1669,6 +1672,17 @@ void RepliesWidget::checkPinnedBarState() {
 	if (animatingShow()) {
 		_pinnedBar->hide();
 	}
+}
+
+void RepliesWidget::clearHidingPinnedBar() {
+	if (!_hidingPinnedBar) {
+		return;
+	}
+	if (const auto delta = -_pinnedBarHeight) {
+		_pinnedBarHeight = 0;
+		setGeometryWithTopMoved(geometry(), delta);
+	}
+	_hidingPinnedBar = nullptr;
 }
 
 void RepliesWidget::refreshPinnedBarButton(bool many, HistoryItem *item) {
@@ -1792,8 +1806,7 @@ std::optional<bool> RepliesWidget::cornerButtonsDownShown() {
 }
 
 bool RepliesWidget::cornerButtonsUnreadMayBeShown() {
-	return _inner->loadedAtBottomKnown()
-		&& !_composeControls->isLockPresent();
+	return _loaded && !_composeControls->isLockPresent();
 }
 
 bool RepliesWidget::cornerButtonsHas(CornerButtonType type) {
@@ -2046,20 +2059,28 @@ void RepliesWidget::setReplies(std::shared_ptr<Data::RepliesList> replies) {
 		? _replies->unreadCountCurrent()
 		: std::optional<int>());
 
-	if (_topic) {
-		return;
-	}
+	const auto isTopic = (_topic != nullptr);
+	const auto isTopicCreating = isTopic && _topic->creating();
 	rpl::combine(
-		rpl::single(0) | rpl::then(_replies->fullCount()),
+		rpl::single(
+			std::optional<int>()
+		) | rpl::then(_replies->maybeFullCount()),
 		_areComments.value()
-	) | rpl::map([=](int count, bool areComments) {
-		return count
-			? (areComments
+	) | rpl::map([=](std::optional<int> count, bool areComments) {
+		const auto sub = isTopic ? 1 : 0;
+		return (count && (*count > sub))
+			? (isTopic
+				? tr::lng_forum_messages
+				: areComments
 				? tr::lng_comments_header
 				: tr::lng_replies_header)(
 					lt_count_decimal,
-					rpl::single(count) | tr::to_count())
-			: (areComments
+					rpl::single(*count - sub) | tr::to_count())
+			: (isTopic
+				? ((count.has_value() || isTopicCreating)
+					? tr::lng_forum_no_messages
+					: tr::lng_contacts_loading)
+				: areComments
 				? tr::lng_comments_header_none
 				: tr::lng_replies_header_none)();
 	}) | rpl::flatten_latest(
@@ -2163,7 +2184,7 @@ void RepliesWidget::paintEvent(QPaintEvent *e) {
 	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	} else if (Ui::skipPaintEvent(this, e)) {
+	} else if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
 
@@ -2207,26 +2228,28 @@ void RepliesWidget::updateInnerVisibleArea() {
 void RepliesWidget::updatePinnedVisibility() {
 	if (!_loaded) {
 		return;
-	} else if (!_root || _root->isEmpty()) {
+	} else if (!_topic && (!_root || _root->isEmpty())) {
 		setPinnedVisibility(!_root);
 		return;
 	}
-	const auto item = [&] {
+	const auto rootItem = [&] {
 		if (const auto group = _history->owner().groups().find(_root)) {
 			return group->items.front().get();
 		}
 		return _root;
-	}();
-	const auto view = _inner->viewByPosition(item->position());
+	};
+	const auto view = _inner->viewByPosition(_topic
+		? Data::MinMessagePosition
+		: rootItem()->position());
 	const auto visible = !view
 		|| (view->y() + view->height() <= _scroll->scrollTop());
-	setPinnedVisibility(visible);
+	setPinnedVisibility(visible || (_topic && !view->data()->isPinned()));
 }
 
 void RepliesWidget::setPinnedVisibility(bool shown) {
-	if (animatingShow() || _topic) {
+	if (animatingShow()) {
 		return;
-	} else if (!_rootViewInited) {
+	} else if (!_topic && !_rootViewInited) {
 		const auto height = shown ? st::historyReplyHeight : 0;
 		if (const auto delta = height - _rootViewHeight) {
 			_rootViewHeight = height;
@@ -2565,7 +2588,7 @@ void RepliesWidget::setupShortcuts() {
 		return _topic
 			&& Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& (Core::App().activeWindow() == &controller()->window());
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;

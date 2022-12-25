@@ -248,7 +248,7 @@ void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
 		const auto top = (st::historyReplyHeight
 			- st::lineWidth
 			- button->height()) / 2 + st::lineWidth;
-		const auto narrow = (outerWidth < st::columnMinimalWidthLeft);
+		const auto narrow = (outerWidth < st::columnMinimalWidthLeft / 2);
 		if (narrow) {
 			button->moveToLeft(
 				(outerWidth - buttonWidth) / 2,
@@ -265,7 +265,7 @@ void GroupCallBar::setupRightButton(not_null<RoundButton*> button) {
 void GroupCallBar::paint(Painter &p) {
 	p.fillRect(_inner->rect(), st::historyComposeAreaBg);
 
-	const auto narrow = (_inner->width() < st::columnMinimalWidthLeft);
+	const auto narrow = (_inner->width() < st::columnMinimalWidthLeft / 2);
 	if (!narrow) {
 		paintTitleAndStatus(p);
 		paintUserpics(p);

@@ -121,7 +121,20 @@ TopicIconView::TopicIconView(
 	not_null<Data::ForumTopic*> topic,
 	Fn<bool()> paused,
 	Fn<void()> update)
+: TopicIconView(
+	topic,
+	std::move(paused),
+	std::move(update),
+	st::windowSubTextFg) {
+}
+
+TopicIconView::TopicIconView(
+	not_null<Data::ForumTopic*> topic,
+	Fn<bool()> paused,
+	Fn<void()> update,
+	const style::color &generalIconFg)
 : _topic(topic)
+, _generalIconFg(generalIconFg)
 , _paused(std::move(paused))
 , _update(std::move(update)) {
 	setup(topic);
@@ -216,11 +229,22 @@ void TopicIconView::setupPlayer(not_null<Data::ForumTopic*> topic) {
 }
 
 void TopicIconView::setupImage(not_null<Data::ForumTopic*> topic) {
+	using namespace Data;
+	if (topic->isGeneral()) {
+		rpl::single(rpl::empty) | rpl::then(
+			style::PaletteChanged()
+		) | rpl::start_with_next([=] {
+			_image = ForumTopicGeneralIconFrame(
+				st::infoForumTopicIcon.size,
+				_generalIconFg);
+			_update();
+		}, _lifetime);
+		return;
+	}
 	rpl::combine(
 		TitleValue(topic),
 		ColorIdValue(topic)
 	) | rpl::map([=](const QString &title, int32 colorId) {
-		using namespace Data;
 		return ForumTopicIconFrame(colorId, title, st::infoForumTopicIcon);
 	}) | rpl::start_with_next([=](QImage &&image) {
 		_image = std::move(image);

@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/cached_round_corners.h"
 #include "ui/chat/message_bubble.h"
+#include "ui/chat/chat_style_radius.h"
 #include "ui/style/style_core_palette.h"
 #include "layout/layout_selection.h"
 #include "styles/style_basic.h"

@@ -383,8 +383,8 @@ namespace File {
 
 QString UrlToLocal(const QUrl &url) {
 	auto result = url.toLocalFile();
-	if (result.startsWith(qsl("/.file/id="))) {
-		NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (qsl("file://") + result).toUtf8().constData()]] filePathURL] path];
+	if (result.startsWith(u"/.file/id="_q)) {
+		NSString *nsurl = [[[NSURL URLWithString: [NSString stringWithUTF8String: (u"file://"_q + result).toUtf8().constData()]] filePathURL] path];
 		if (!nsurl) return QString();
 
 		return NS2QString(nsurl);

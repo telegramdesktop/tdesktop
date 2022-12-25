@@ -678,7 +678,11 @@ EmptyPainter::EmptyPainter(
 : _history(topic->history())
 , _topic(topic)
 , _icon(
-	std::make_unique<Info::Profile::TopicIconView>(topic, paused, update))
+	std::make_unique<Info::Profile::TopicIconView>(
+		topic,
+		paused,
+		update,
+		st::msgServiceFg))
 , _header(st::msgMinWidth)
 , _text(st::msgMinWidth) {
 	fillAboutTopic();

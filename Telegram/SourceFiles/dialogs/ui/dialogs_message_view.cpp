@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/history_view_item_preview.h"
 #include "main/main_session.h"
 #include "dialogs/ui/dialogs_layout.h"
+#include "dialogs/ui/dialogs_topics_view.h"
 #include "ui/text/text_options.h"
 #include "ui/text/text_utilities.h"
 #include "ui/image/image.h"
@@ -111,7 +112,6 @@ struct MessageView::LoadingContext {
 
 MessageView::MessageView()
 : _senderCache(st::dialogsTextWidthMin)
-, _topicCache(st::dialogsTextWidthMin)
 , _textCache(st::dialogsTextWidthMin) {
 }
 
@@ -127,19 +127,36 @@ bool MessageView::dependsOn(not_null<const HistoryItem*> item) const {
 	return (_textCachedFor == item.get());
 }
 
-bool MessageView::prepared(not_null<const HistoryItem*> item) const {
-	return (_textCachedFor == item.get());
+bool MessageView::prepared(
+		not_null<const HistoryItem*> item,
+		Data::Forum *forum) const {
+	return (_textCachedFor == item.get())
+		&& (!forum
+			|| (_topics
+				&& _topics->forum() == forum
+				&& _topics->prepared()));
 }
 
 void MessageView::prepare(
 		not_null<const HistoryItem*> item,
+		Data::Forum *forum,
 		Fn<void()> customEmojiRepaint,
 		ToPreviewOptions options) {
+	if (!forum) {
+		_topics = nullptr;
+	} else if (!_topics || _topics->forum() != forum) {
+		_topics = std::make_unique<TopicsView>(forum);
+		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	} else if (!_topics->prepared()) {
+		_topics->prepare(item->topicRootId(), customEmojiRepaint);
+	}
+	if (_textCachedFor == item.get()) {
+		return;
+	}
 	options.existing = &_imagesCache;
+	options.ignoreTopic = true;
 	auto preview = item->toPreview(options);
 	const auto hasImages = !preview.images.empty();
-	const auto hasArrow = (preview.arrowInTextPosition > 0)
-		&& (preview.imagesInTextPosition > preview.arrowInTextPosition);
 	const auto history = item->history();
 	const auto context = Core::MarkedTextContext{
 		.session = &history->session(),
@@ -149,32 +166,15 @@ void MessageView::prepare(
 	const auto senderTill = (preview.arrowInTextPosition > 0)
 		? preview.arrowInTextPosition
 		: preview.imagesInTextPosition;
-	if ((hasImages || hasArrow) && senderTill > 0) {
+	if (hasImages && senderTill > 0) {
 		auto sender = Text::Mid(preview.text, 0, senderTill);
 		TextUtilities::Trim(sender);
 		_senderCache.setMarkedText(
 			st::dialogsTextStyle,
 			std::move(sender),
 			DialogTextOptions());
-		const auto topicTill = preview.imagesInTextPosition;
-		if (hasArrow && hasImages) {
-			auto topic = Text::Mid(
-				preview.text,
-				senderTill,
-				topicTill - senderTill);
-			TextUtilities::Trim(topic);
-			_topicCache.setMarkedText(
-				st::dialogsTextStyle,
-				std::move(topic),
-				DialogTextOptions(),
-				context);
-			preview.text = Text::Mid(preview.text, topicTill);
-		} else {
-			preview.text = Text::Mid(preview.text, senderTill);
-			_topicCache = { st::dialogsTextWidthMin };
-		}
+		preview.text = Text::Mid(preview.text, senderTill);
 	} else {
-		_topicCache = { st::dialogsTextWidthMin };
 		_senderCache = { st::dialogsTextWidthMin };
 	}
 	TextUtilities::Trim(preview.text);
@@ -199,6 +199,45 @@ void MessageView::prepare(
 	}
 }
 
+bool MessageView::isInTopicJump(int x, int y) const {
+	return _topics && _topics->isInTopicJumpArea(x, y);
+}
+
+void MessageView::addTopicJumpRipple(
+		QPoint origin,
+		not_null<TopicJumpCache*> topicJumpCache,
+		Fn<void()> updateCallback) {
+	if (_topics) {
+		_topics->addTopicJumpRipple(
+			origin,
+			topicJumpCache,
+			std::move(updateCallback));
+	}
+}
+
+void MessageView::stopLastRipple() {
+	if (_topics) {
+		_topics->stopLastRipple();
+	}
+}
+
+int MessageView::countWidth() const {
+	auto result = 0;
+	if (!_senderCache.isEmpty()) {
+		result += _senderCache.maxWidth();
+		if (!_imagesCache.empty()) {
+			result += st::dialogsMiniPreviewSkip
+				+ st::dialogsMiniPreviewRight;
+		}
+	}
+	if (!_imagesCache.empty()) {
+		result += (_imagesCache.size()
+			* (st::dialogsMiniPreview + st::dialogsMiniPreviewSkip))
+			+ st::dialogsMiniPreviewRight;
+	}
+	return result + _textCache.maxWidth();
+}
+
 void MessageView::paint(
 		Painter &p,
 		const QRect &geometry,
@@ -212,13 +251,38 @@ void MessageView::paint(
 		: context.selected
 		? st::dialogsTextFgOver
 		: st::dialogsTextFg);
-	const auto palette = &(context.active
-		? st::dialogsTextPaletteActive
-		: context.selected
-		? st::dialogsTextPaletteOver
-		: st::dialogsTextPalette);
+	const auto withTopic = _topics && context.st->topicsHeight;
+	const auto palette = &(withTopic
+		? (context.active
+			? st::dialogsTextPaletteInTopicActive
+			: context.selected
+			? st::dialogsTextPaletteInTopicOver
+			: st::dialogsTextPaletteInTopic)
+		: (context.active
+			? st::dialogsTextPaletteActive
+			: context.selected
+			? st::dialogsTextPaletteOver
+			: st::dialogsTextPalette));
 
 	auto rect = geometry;
+	const auto checkJump = withTopic && !context.active;
+	const auto jump1 = checkJump ? _topics->jumpToTopicWidth() : 0;
+	if (jump1) {
+		paintJumpToLast(p, rect, context, jump1);
+	} else if (_topics) {
+		_topics->clearTopicJumpGeometry();
+	}
+
+	if (withTopic) {
+		_topics->paint(p, rect, context);
+		rect.setTop(rect.top() + context.st->topicsHeight);
+	}
+
+	auto finalRight = rect.x() + rect.width();
+	if (jump1) {
+		rect.setWidth(rect.width() - st::forumDialogJumpArrowSkip);
+		finalRight -= st::forumDialogJumpArrowSkip;
+	}
 	const auto lines = rect.height() / st::dialogsTextFont->height;
 	if (!_senderCache.isEmpty()) {
 		_senderCache.draw(p, {
@@ -228,32 +292,6 @@ void MessageView::paint(
 			.elisionLines = lines,
 		});
 		rect.setLeft(rect.x() + _senderCache.maxWidth());
-		if (!_topicCache.isEmpty() || _imagesCache.empty()) {
-			const auto skip = st::dialogsTopicArrowSkip;
-			if (rect.width() >= skip) {
-				const auto &icon = st::dialogsTopicArrow;
-				icon.paint(
-					p,
-					rect.x() + (skip - icon.width()) / 2,
-					rect.y() + st::dialogsTopicArrowTop,
-					geometry.width());
-			}
-			rect.setLeft(rect.x() + skip);
-		}
-		if (!_topicCache.isEmpty()) {
-			if (!rect.isEmpty()) {
-				_topicCache.draw(p, {
-					.position = rect.topLeft(),
-					.availableWidth = rect.width(),
-					.palette = palette,
-					.spoiler = Text::DefaultSpoilerCache(),
-					.now = context.now,
-					.paused = context.paused,
-					.elisionLines = lines,
-				});
-			}
-			rect.setLeft(rect.x() + _topicCache.maxWidth());
-		}
 		if (!_imagesCache.empty()) {
 			const auto skip = st::dialogsMiniPreviewSkip
 				+ st::dialogsMiniPreviewRight;
@@ -275,18 +313,66 @@ void MessageView::paint(
 	if (!_imagesCache.empty()) {
 		rect.setLeft(rect.x() + st::dialogsMiniPreviewRight);
 	}
-	if (rect.isEmpty()) {
+	if (!rect.isEmpty()) {
+		_textCache.draw(p, {
+			.position = rect.topLeft(),
+			.availableWidth = rect.width(),
+			.palette = palette,
+			.spoiler = Text::DefaultSpoilerCache(),
+			.now = context.now,
+			.paused = context.paused,
+			.elisionLines = lines,
+		});
+		rect.setLeft(rect.x() + _textCache.maxWidth());
+	}
+	if (jump1) {
+		const auto position = st::forumDialogJumpArrowPosition
+			+ QPoint((rect.width() > 0) ? rect.x() : finalRight, rect.y());
+		(context.selected
+			? st::forumDialogJumpArrowOver
+			: st::forumDialogJumpArrow).paint(p, position, context.width);
+	}
+}
+
+void MessageView::paintJumpToLast(
+		Painter &p,
+		const QRect &rect,
+		const PaintContext &context,
+		int width1) const {
+	if (!context.topicJumpCache) {
+		_topics->clearTopicJumpGeometry();
 		return;
 	}
-	_textCache.draw(p, {
-		.position = rect.topLeft(),
-		.availableWidth = rect.width(),
-		.palette = palette,
-		.spoiler = Text::DefaultSpoilerCache(),
-		.now = context.now,
-		.paused = context.paused,
-		.elisionLines = lines,
+	const auto width2 = countWidth() + st::forumDialogJumpArrowSkip;
+	const auto geometry = FillJumpToLastBg(p, {
+		.st = context.st,
+		.corners = (context.selected
+			? &context.topicJumpCache->over
+			: &context.topicJumpCache->corners),
+		.geometry = rect,
+		.bg = (context.selected
+			? st::dialogsRippleBg
+			: st::dialogsBgOver),
+		.width1 = width1,
+		.width2 = width2,
 	});
+	if (context.topicJumpSelected) {
+		p.setOpacity(0.1);
+		FillJumpToLastPrepared(p, {
+			.st = context.st,
+			.corners = &context.topicJumpCache->selected,
+			.bg = st::dialogsTextFg,
+			.prepared = geometry,
+		});
+		p.setOpacity(1.);
+	}
+	if (!_topics->changeTopicJumpGeometry(geometry)) {
+		auto color = st::dialogsTextFg->c;
+		color.setAlpha(color.alpha() / 10);
+		if (color.alpha() > 0) {
+			_topics->paintRipple(p, 0, 0, context.width, &color);
+		}
+	}
 }
 
 HistoryView::ItemPreview PreviewWithSender(

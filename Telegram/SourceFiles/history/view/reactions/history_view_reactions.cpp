@@ -524,9 +524,9 @@ void InlineList::resolveUserpicsImage(const Button &button) const {
 		for (auto &entry : userpics->list) {
 			const auto peer = entry.peer;
 			auto &view = entry.view;
-			const auto wasView = view.get();
+			const auto wasView = view.cloud.get();
 			if (peer->userpicUniqueKey(view) != entry.uniqueKey
-				|| view.get() != wasView) {
+				|| view.cloud.get() != wasView) {
 				return true;
 			}
 		}

@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_flags.h"
 #include "data/notify/data_peer_notify_settings.h"
 #include "data/data_cloud_file.h"
+#include "ui/userpic_view.h"
 
 struct BotInfo;
 class PeerData;
@@ -36,15 +37,12 @@ class Forum;
 class ForumTopic;
 class Session;
 class GroupCall;
-class CloudImageView;
 struct ReactionId;
 
-int PeerColorIndex(PeerId peerId);
-int PeerColorIndex(BareId bareId);
-style::color PeerUserpicColor(PeerId peerId);
+[[nodiscard]] int PeerColorIndex(PeerId peerId);
 
 // Must be used only for PeerColor-s.
-PeerId FakePeerIdForJustName(const QString &name);
+[[nodiscard]] PeerId FakePeerIdForJustName(const QString &name);
 
 class RestrictionCheckResult {
 public:
@@ -266,13 +264,13 @@ public:
 	void setUserpicPhoto(const MTPPhoto &data);
 	void paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int x,
 		int y,
 		int size) const;
 	void paintUserpicLeft(
 			Painter &p,
-			std::shared_ptr<Data::CloudImageView> &view,
+			Ui::PeerUserpicView &view,
 			int x,
 			int y,
 			int w,
@@ -281,30 +279,14 @@ public:
 	}
 	void loadUserpic();
 	[[nodiscard]] bool hasUserpic() const;
-	[[nodiscard]] std::shared_ptr<Data::CloudImageView> activeUserpicView();
-	[[nodiscard]] std::shared_ptr<Data::CloudImageView> createUserpicView();
-	[[nodiscard]] bool useEmptyUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const;
-	[[nodiscard]] InMemoryKey userpicUniqueKey(
-		std::shared_ptr<Data::CloudImageView> &view) const;
-	void saveUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const;
-	void saveUserpicRounded(
-		std::shared_ptr<Data::CloudImageView> &view,
-		const QString &path,
-		int size) const;
-	[[nodiscard]] QPixmap genUserpic(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const;
+	[[nodiscard]] Ui::PeerUserpicView activeUserpicView();
+	[[nodiscard]] Ui::PeerUserpicView createUserpicView();
+	[[nodiscard]] bool useEmptyUserpic(Ui::PeerUserpicView &view) const;
+	[[nodiscard]] InMemoryKey userpicUniqueKey(Ui::PeerUserpicView &view) const;
 	[[nodiscard]] QImage generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
-		int size) const;
-	[[nodiscard]] QImage generateUserpicImage(
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		int size,
-		ImageRoundRadius radius) const;
+		std::optional<int> radius = {}) const;
 	[[nodiscard]] ImageLocation userpicLocation() const {
 		return _userpic.location();
 	}
@@ -334,8 +316,7 @@ public:
 		return _openLink;
 	}
 
-	[[nodiscard]] Image *currentUserpic(
-		std::shared_ptr<Data::CloudImageView> &view) const;
+	[[nodiscard]] QImage *userpicCloudImage(Ui::PeerUserpicView &view) const;
 
 	[[nodiscard]] bool canPinMessages() const;
 	[[nodiscard]] bool canEditMessagesIndefinitely() const;
@@ -425,6 +406,7 @@ protected:
 		const QString &newUsername);
 	void updateUserpic(PhotoId photoId, MTP::DcId dcId, bool hasVideo);
 	void clearUserpic();
+	void invalidateEmptyUserpic();
 
 private:
 	void fillNames();

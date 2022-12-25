@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/core_settings.h"
 #include "main/main_session.h"
 #include "apiwrap.h"
-#include "facades.h"
 #include "styles/style_layers.h"
 #include "styles/style_boxes.h"
 
@@ -78,7 +77,7 @@ EditInfoBox::EditInfoBox(
 	this,
 	st::supportInfoField,
 	Ui::InputField::Mode::MultiLine,
-	rpl::single(qsl("Support information")), // #TODO hard_lang
+	rpl::single(u"Support information"_q), // #TODO hard_lang
 	text)
 , _submit(std::move(submit)) {
 	_field->setMaxLength(kMaxSupportInfoLength);
@@ -96,7 +95,7 @@ EditInfoBox::EditInfoBox(
 }
 
 void EditInfoBox::prepare() {
-	setTitle(rpl::single(qsl("Edit support information"))); // #TODO hard_lang
+	setTitle(rpl::single(u"Edit support information"_q)); // #TODO hard_lang
 
 	const auto save = [=] {
 		const auto done = crl::guard(this, [=](bool success) {
@@ -187,13 +186,13 @@ uint32 ParseOccupationTag(History *history) {
 	auto valid = false;
 	auto result = uint32();
 	for (const auto &part : parts) {
-		if (part.startsWith(qstr("t:"))) {
+		if (part.startsWith(u"t:"_q)) {
 			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
 			}
-		} else if (part.startsWith(qstr("u:"))) {
+		} else if (part.startsWith(u"u:"_q)) {
 			result = base::StringViewMid(part, 2).toUInt();
 		}
 	}
@@ -213,13 +212,13 @@ QString ParseOccupationName(History *history) {
 	auto valid = false;
 	auto result = QString();
 	for (const auto &part : parts) {
-		if (part.startsWith(qstr("t:"))) {
+		if (part.startsWith(u"t:"_q)) {
 			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
 				valid = true;
 			} else {
 				return 0;
 			}
-		} else if (part.startsWith(qstr("n:"))) {
+		} else if (part.startsWith(u"n:"_q)) {
 			result = base::StringViewMid(part, 2).toString();
 		}
 	}
@@ -239,13 +238,13 @@ TimeId OccupiedBySomeoneTill(History *history) {
 	auto valid = false;
 	auto result = TimeId();
 	for (const auto &part : parts) {
-		if (part.startsWith(qstr("t:"))) {
+		if (part.startsWith(u"t:"_q)) {
 			if (base::StringViewMid(part, 2).toInt() >= base::unixtime::now()) {
 				result = base::StringViewMid(part, 2).toInt();
 			} else {
 				return 0;
 			}
-		} else if (part.startsWith(qstr("u:"))) {
+		} else if (part.startsWith(u"u:"_q)) {
 			if (base::StringViewMid(part, 2).toUInt() != OccupationTag()) {
 				valid = true;
 			} else {
@@ -271,7 +270,7 @@ Helper::Helper(not_null<Main::Session*> session)
 		});
 	}).fail([=] {
 		setSupportName(
-			qsl("[rand^")
+			u"[rand^"_q
 			+ QString::number(Core::Sandbox::Instance().installationTag())
 			+ ']');
 	}).send();
@@ -279,7 +278,7 @@ Helper::Helper(not_null<Main::Session*> session)
 
 std::unique_ptr<Helper> Helper::Create(not_null<Main::Session*> session) {
 	//return std::make_unique<Helper>(session); AssertIsDebug();
-	const auto valid = session->user()->phone().startsWith(qstr("424"));
+	const auto valid = session->user()->phone().startsWith(u"424"_q);
 	return valid ? std::make_unique<Helper>(session) : nullptr;
 }
 
@@ -547,7 +546,7 @@ Templates &Helper::templates() {
 QString ChatOccupiedString(not_null<History*> history) {
 	const auto hand = QString::fromUtf8("\xe2\x9c\x8b\xef\xb8\x8f");
 	const auto name = ParseOccupationName(history);
-	return (name.isEmpty() || name.startsWith(qstr("[rand^")))
+	return (name.isEmpty() || name.startsWith(u"[rand^"_q))
 		? hand + " chat taken"
 		: hand + ' ' + name + " is here";
 }
@@ -566,26 +565,26 @@ QString InterpretSendPath(
 	auto filePath = QString();
 	auto caption = QString();
 	for (const auto &line : lines) {
-		if (line.startsWith(qstr("from: "))) {
+		if (line.startsWith(u"from: "_q)) {
 			if (window->session().userId().bare
 				!= base::StringViewMid(
 					line,
-					qstr("from: ").size()).toULongLong()) {
+					u"from: "_q.size()).toULongLong()) {
 				return "App Error: Wrong current user.";
 			}
-		} else if (line.startsWith(qstr("channel: "))) {
+		} else if (line.startsWith(u"channel: "_q)) {
 			const auto channelId = base::StringViewMid(
 				line,
-				qstr("channel: ").size()).toULongLong();
+				u"channel: "_q.size()).toULongLong();
 			toId = peerFromChannel(channelId);
-		} else if (line.startsWith(qstr("file: "))) {
-			const auto path = line.mid(qstr("file: ").size());
+		} else if (line.startsWith(u"file: "_q)) {
+			const auto path = line.mid(u"file: "_q.size());
 			if (!QFile(path).exists()) {
 				return "App Error: Could not find file with path: " + path;
 			}
 			filePath = path;
-		} else if (line.startsWith(qstr("caption: "))) {
-			caption = line.mid(qstr("caption: ").size());
+		} else if (line.startsWith(u"caption: "_q)) {
+			caption = line.mid(u"caption: "_q.size());
 		} else if (!caption.isEmpty()) {
 			caption += '\n' + line;
 		} else {
@@ -597,7 +596,7 @@ QString InterpretSendPath(
 		return "App Error: Could not find channel with id: "
 			+ QString::number(peerToChannel(toId).bare);
 	}
-	Ui::showPeerHistory(history, ShowAtUnreadMsgId);
+	window->showPeerHistory(history);
 	const auto premium = window->session().user()->isPremium();
 	history->session().api().sendFiles(
 		Storage::PrepareMediaList(

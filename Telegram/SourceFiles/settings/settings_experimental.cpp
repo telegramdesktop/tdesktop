@@ -13,8 +13,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/gl/gl_detection.h"
+#include "ui/chat/chat_style_radius.h"
 #include "base/options.h"
 #include "core/application.h"
+#include "platform/platform_specific.h"
 #include "chat_helpers/tabbed_panel.h"
 #include "dialogs/dialogs_inner_widget.h"
 #include "history/history_widget.h"
@@ -136,11 +138,14 @@ void SetupExperimental(
 	addToggle(ChatHelpers::kOptionTabbedPanelShowOnClick);
 	addToggle(Window::kOptionViewProfileInChatsListContextMenu);
 	addToggle(Dialogs::kOptionCtrlClickChatNewWindow);
+	addToggle(Window::kOptionShowChatNameInNewWindow);
 	addToggle(Ui::GL::kOptionAllowLinuxNvidiaOpenGL);
+	addToggle(Ui::kOptionUseSmallMsgBubbleRadius);
 	addToggle(Media::Player::kOptionDisableAutoplayNext);
 	addToggle(Settings::kOptionMonoSettingsIcons);
 	addToggle(Webview::kOptionWebviewDebugEnabled);
 	addToggle(kOptionAutoScrollInactiveChat);
+	addToggle(Platform::kOptionGApplication);
 }
 
 } // namespace

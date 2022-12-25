@@ -41,6 +41,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/report_messages_box.h"
 #include "boxes/sticker_set_box.h"
 #include "boxes/stickers_box.h"
+#include "boxes/translate_box.h"
 #include "data/data_photo.h"
 #include "data/data_photo_media.h"
 #include "data/data_document.h"
@@ -57,6 +58,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/click_handler_types.h"
 #include "base/platform/base_platform_info.h"
+#include "base/call_delayed.h"
 #include "window/window_peer_menu.h"
 #include "window/window_controller.h"
 #include "window/window_session_controller.h"
@@ -65,7 +67,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_session.h"
 #include "main/main_session_settings.h"
 #include "apiwrap.h"
-#include "facades.h" // LambdaDelayed
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -109,8 +110,8 @@ void SavePhotoToFile(not_null<PhotoData*> photo) {
 	FileDialog::GetWritePath(
 		Core::App().getFileDialogParent(),
 		tr::lng_save_photo(tr::now),
-		qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter(),
-		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
+		u"JPEG Image (*.jpg);;"_q + FileDialog::AllFilesFilter(),
+		filedialogDefaultName(u"photo"_q, u".jpg"_q),
 		crl::guard(&photo->session(), [=](const QString &result) {
 			if (!result.isEmpty()) {
 				media->saveToFile(result);
@@ -150,7 +151,7 @@ void AddPhotoActions(
 	if (!list->hasCopyMediaRestriction(item)) {
 		menu->addAction(
 			tr::lng_context_save_image(tr::now),
-			App::LambdaDelayed(
+			base::fn_delayed(
 				st::defaultDropdownMenu.menu.ripple.hideDuration,
 				&photo->session(),
 				[=] { SavePhotoToFile(photo); }),
@@ -235,7 +236,7 @@ void AddSaveDocumentAction(
 					: (document->sticker()
 						? tr::lng_context_save_image(tr::now)
 						: tr::lng_context_save_file(tr::now))))),
-		App::LambdaDelayed(
+		base::fn_delayed(
 			st::defaultDropdownMenu.menu.ripple.hideDuration,
 			&document->session(),
 			save),
@@ -616,7 +617,7 @@ bool AddViewRepliesAction(
 		|| (context != Context::History && context != Context::Pinned)) {
 		return false;
 	}
-	const auto topicRootId = item->history()->peer->isForum()
+	const auto topicRootId = item->history()->isForum()
 		? item->topicRootId()
 		: 0;
 	const auto repliesCount = item->repliesCount();
@@ -1004,6 +1005,20 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 			}
 		}, &st::menuIconCopy);
 	}
+	if (request.overSelection
+		&& !Ui::SkipTranslate(list->getSelectedText().rich)) {
+		const auto owner = &view->history()->owner();
+		result->addAction(tr::lng_context_translate_selected(tr::now), [=] {
+			if (const auto item = owner->message(itemId)) {
+				list->controller()->show(Box(
+					Ui::TranslateBox,
+					item->history()->peer,
+					MsgId(),
+					list->getSelectedText().rich,
+					list->hasCopyRestrictionForSelected()));
+			}
+		}, &st::menuIconTranslate);
+	}
 
 	AddTopMessageActions(result, request, list);
 	if (lnkPhoto && request.selectedItems.empty()) {
@@ -1037,6 +1052,20 @@ base::unique_qptr<Ui::PopupMenu> FillContextMenu(
 					}
 				}
 			}, &st::menuIconCopy);
+		}
+		if (!link
+			&& (view->hasVisibleText() || mediaHasTextForCopy)
+			&& !Ui::SkipTranslate(item->originalText())) {
+			result->addAction(tr::lng_context_translate(tr::now), [=] {
+				if (const auto item = owner->message(itemId)) {
+					list->controller()->show(Box(
+						Ui::TranslateBox,
+						item->history()->peer,
+						item->fullId().msg,
+						item->originalText(),
+						list->hasCopyRestriction(view->data())));
+				}
+			}, &st::menuIconTranslate);
 		}
 	}
 
@@ -1103,6 +1132,24 @@ void AddPollActions(
 		not_null<HistoryItem*> item,
 		Context context,
 		not_null<Window::SessionController*> controller) {
+	{
+		constexpr auto kRadio = "\xf0\x9f\x94\x98";
+		const auto radio = QString::fromUtf8(kRadio);
+		auto text = poll->question;
+		for (const auto &answer : poll->answers) {
+			text += '\n' + radio + answer.text;
+		}
+		if (!Ui::SkipTranslate({ text })) {
+			menu->addAction(tr::lng_context_translate(tr::now), [=] {
+				Window::Show(controller).showBox(Box(
+					Ui::TranslateBox,
+					item->history()->peer,
+					MsgId(),
+					TextWithEntities{ .text = text },
+					item->forbidsForward()));
+			}, &st::menuIconTranslate);
+		}
+	}
 	if ((context != Context::History)
 		&& (context != Context::Replies)
 		&& (context != Context::Pinned)) {
@@ -1162,11 +1209,11 @@ void AddSaveSoundForNotifications(
 		Api::ToggleSavedRingtone(
 			document,
 			item->fullId(),
-			[=] {
+			crl::guard(toastParent, [=] {
 				Ui::Toast::Show(
 					toastParent,
 					tr::lng_ringtones_toast_added(tr::now));
-			},
+			}),
 			true);
 	}, &st::menuIconSoundAdd);
 }

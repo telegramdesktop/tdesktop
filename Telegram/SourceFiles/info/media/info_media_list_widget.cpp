@@ -46,12 +46,12 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "mainwindow.h"
 #include "base/platform/base_platform_info.h"
 #include "base/weak_ptr.h"
+#include "base/call_delayed.h"
 #include "media/player/media_player_instance.h"
 #include "boxes/delete_messages_box.h"
 #include "boxes/peer_list_controllers.h"
 #include "core/file_utilities.h"
 #include "core/application.h"
-#include "facades.h"
 #include "styles/style_overview.h"
 #include "styles/style_info.h"
 #include "styles/style_layers.h"
@@ -932,7 +932,7 @@ void ListWidget::showContextMenu(
 					item,
 					lnkDocument);
 				if (!filepath.isEmpty()) {
-					auto handler = App::LambdaDelayed(
+					auto handler = base::fn_delayed(
 						st::defaultDropdownMenu.menu.ripple.hideDuration,
 						this,
 						[filepath] {
@@ -945,7 +945,7 @@ void ListWidget::showContextMenu(
 						std::move(handler),
 						&st::menuIconShowInFolder);
 				}
-				auto handler = App::LambdaDelayed(
+				auto handler = base::fn_delayed(
 					st::defaultDropdownMenu.menu.ripple.hideDuration,
 					this,
 					[=] {
@@ -1645,7 +1645,7 @@ void ListWidget::performDrag() {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
 	//			session().data().setMimeForwardIds(collectSelectedIds());
-	//			mimeData->setData(qsl("application/x-td-forward"), "1");
+	//			mimeData->setData(u"application/x-td-forward"_q, "1");
 	//		}
 	//	}
 	//	_controller->parentController()->window()->launchDrag(std::move(mimeData));
@@ -1657,14 +1657,14 @@ void ListWidget::performDrag() {
 	//		pressedMedia = pressedItem->getMedia();
 	//		if (_mouseCursorState == CursorState::Date || (pressedMedia && pressedMedia->dragItem())) {
 	//			session().data().setMimeForwardIds(session().data().itemOrItsGroup(pressedItem));
-	//			forwardMimeType = qsl("application/x-td-forward");
+	//			forwardMimeType = u"application/x-td-forward"_q;
 	//		}
 	//	}
 	//	if (auto pressedLnkItem = App::pressedLinkItem()) {
 	//		if ((pressedMedia = pressedLnkItem->getMedia())) {
 	//			if (forwardMimeType.isEmpty() && pressedMedia->dragItemByHandler(pressedHandler)) {
 	//				session().data().setMimeForwardIds({ 1, pressedLnkItem->fullId() });
-	//				forwardMimeType = qsl("application/x-td-forward");
+	//				forwardMimeType = u"application/x-td-forward"_q;
 	//			}
 	//		}
 	//	}

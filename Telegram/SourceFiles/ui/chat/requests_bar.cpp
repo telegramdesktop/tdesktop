@@ -151,7 +151,7 @@ void RequestsBar::paint(Painter &p) {
 	p.setPen(st::defaultMessageBar.titleFg);
 	p.setFont(font);
 
-	if (width >= st::columnMinimalWidthLeft) {
+	if (width >= st::columnMinimalWidthLeft / 2) {
 		const auto textLeft = userpicsLeft + _userpicsWidth + userpicsLeft;
 		const auto available = width - textLeft - userpicsLeft;
 		if (_textFull.isEmpty() || available < _textFull.maxWidth()) {

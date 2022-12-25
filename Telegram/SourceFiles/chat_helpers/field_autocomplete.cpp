@@ -165,6 +165,20 @@ struct FieldAutocomplete::StickerSuggestion {
 	QImage premiumLock;
 };
 
+struct FieldAutocomplete::MentionRow {
+	not_null<UserData*> user;
+	Ui::Text::String name;
+	Ui::PeerUserpicView userpic;
+};
+
+struct FieldAutocomplete::BotCommandRow {
+	not_null<UserData*> user;
+	QString command;
+	QString description;
+	Ui::PeerUserpicView userpic;
+	Ui::Text::String descriptionText;
+};
+
 FieldAutocomplete::FieldAutocomplete(
 	QWidget *parent,
 	not_null<Window::SessionController*> controller)
@@ -693,7 +707,7 @@ void FieldAutocomplete::hideAnimated() {
 void FieldAutocomplete::hideFinish() {
 	hide();
 	_hiding = false;
-	_filter = qsl("-");
+	_filter = u"-"_q;
 	_inner->clearSel(true);
 }
 

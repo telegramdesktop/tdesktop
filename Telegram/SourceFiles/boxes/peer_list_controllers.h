@@ -235,7 +235,8 @@ private:
 
 		QString generateName() override;
 		QString generateShortName() override;
-		PaintRoundImageCallback generatePaintUserpicCallback() override;
+		PaintRoundImageCallback generatePaintUserpicCallback(
+			bool forceRound) override;
 
 		auto generateNameFirstLetters() const
 			-> const base::flat_set<QChar> & override;

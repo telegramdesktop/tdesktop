@@ -9,6 +9,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "ui/layers/generic_box.h"
 
+namespace Data {
+class Forum;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -41,6 +45,9 @@ void FolderPinsLimitBox(
 void PinsLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session);
+void ForumPinsLimitBox(
+	not_null<Ui::GenericBox*> box,
+	not_null<Data::Forum*> forum);
 void CaptionLimitBox(
 	not_null<Ui::GenericBox*> box,
 	not_null<Main::Session*> session,

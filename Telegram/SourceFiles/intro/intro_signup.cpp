@@ -129,14 +129,14 @@ void SignupWidget::nameSubmitFail(const MTP::Error &error) {
 	}
 
 	auto &err = error.type();
-	if (err == qstr("PHONE_NUMBER_FLOOD")) {
+	if (err == u"PHONE_NUMBER_FLOOD"_q) {
 		Ui::show(Ui::MakeInformBox(tr::lng_error_phone_flood()));
-	} else if (err == qstr("PHONE_NUMBER_INVALID")
-		|| err == qstr("PHONE_NUMBER_BANNED")
-		|| err == qstr("PHONE_CODE_EXPIRED")
-		|| err == qstr("PHONE_CODE_EMPTY")
-		|| err == qstr("PHONE_CODE_INVALID")
-		|| err == qstr("PHONE_NUMBER_OCCUPIED")) {
+	} else if (err == u"PHONE_NUMBER_INVALID"_q
+		|| err == u"PHONE_NUMBER_BANNED"_q
+		|| err == u"PHONE_CODE_EXPIRED"_q
+		|| err == u"PHONE_CODE_EMPTY"_q
+		|| err == u"PHONE_CODE_INVALID"_q
+		|| err == u"PHONE_NUMBER_OCCUPIED"_q) {
 		goBack();
 	} else if (err == "FIRSTNAME_INVALID") {
 		showError(tr::lng_bad_name());

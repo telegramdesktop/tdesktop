@@ -80,7 +80,7 @@ void Viewport::RendererSW::validateUserpicFrame(
 		tile->row()->peer()->generateUserpicImage(
 			tile->row()->ensureUserpicView(),
 			size.width(),
-			ImageRoundRadius::None),
+			0),
 		kBlurRadius);
 }
 

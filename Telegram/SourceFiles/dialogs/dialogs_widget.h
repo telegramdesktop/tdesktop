@@ -20,6 +20,10 @@ namespace MTP {
 class Error;
 } // namespace MTP
 
+namespace Data {
+class Forum;
+} // namespace Data
+
 namespace Main {
 class Session;
 } // namespace Main
@@ -47,6 +51,7 @@ class FadeWrapScaled;
 namespace Window {
 class SessionController;
 class ConnectionState;
+struct SectionShow;
 } // namespace Window
 
 namespace Dialogs {
@@ -61,7 +66,14 @@ enum class SearchRequestType;
 
 class Widget final : public Window::AbstractSectionWidget {
 public:
-	Widget(QWidget *parent, not_null<Window::SessionController*> controller);
+	enum class Layout {
+		Main,
+		Child,
+	};
+	Widget(
+		QWidget *parent,
+		not_null<Window::SessionController*> controller,
+		Layout layout);
 
 	// When resizing the widget with top edge moved up or down and we
 	// want to add this top movement to the scroll position, so inner
@@ -70,6 +82,9 @@ public:
 
 	void updateDragInScroll(bool inScroll);
 
+	void showForum(
+		not_null<Data::Forum*> forum,
+		const Window::SectionShow &params);
 	void searchInChat(Key chat);
 	void setInnerFocus();
 
@@ -81,18 +96,17 @@ public:
 	bool hasTopBarShadow() const {
 		return true;
 	}
-	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
+	void showAnimated(
+		Window::SlideDirection direction,
+		const Window::SectionSlideParams &params);
 	void showFast();
+	[[nodiscard]] rpl::producer<float64> shownProgressValue() const;
 
 	void scrollToEntry(const RowDescriptor &entry);
 
 	void searchMessages(const QString &query, Key inChat = {});
 	void searchTopics();
 	void searchMore();
-
-	void updateForwardBar();
-
-	[[nodiscard]] rpl::producer<> closeForwardBarRequests() const;
 
 	[[nodiscard]] RowDescriptor resolveChatNext(RowDescriptor from = {}) const;
 	[[nodiscard]] RowDescriptor resolveChatPrevious(RowDescriptor from = {}) const;
@@ -115,11 +129,6 @@ protected:
 	void paintEvent(QPaintEvent *e) override;
 
 private:
-	enum class ShowAnimation {
-		External,
-		Internal,
-	};
-
 	void chosenRow(const ChosenRow &row);
 	void listScrollUpdated();
 	void cancelSearchInChat();
@@ -131,7 +140,7 @@ private:
 	bool searchMessages(bool searchCache = false);
 	void needSearchMessages();
 
-	void animationCallback();
+	void slideFinished();
 	void searchReceived(
 		SearchRequestType type,
 		const MTPmessages_Messages &result,
@@ -152,7 +161,7 @@ private:
 	void setupShortcuts();
 	[[nodiscard]] bool searchForPeersRequired(const QString &query) const;
 	[[nodiscard]] bool searchForTopicsRequired(const QString &query) const;
-	void setSearchInChat(Key chat, PeerData *from = nullptr);
+	bool setSearchInChat(Key chat, PeerData *from = nullptr);
 	void showCalendar();
 	void showSearchFrom();
 	void showMainMenu();
@@ -171,9 +180,19 @@ private:
 		bool fromRight,
 		anim::type animated);
 	void changeOpenedFolder(Data::Folder *folder, anim::type animated);
-	void changeOpenedForum(ChannelData *forum, anim::type animated);
-	QPixmap grabForFolderSlideAnimation();
-	void startSlideAnimation();
+	void changeOpenedForum(Data::Forum *forum, anim::type animated);
+	void hideChildList();
+	void destroyChildListCanvas();
+	[[nodiscard]] QPixmap grabForFolderSlideAnimation();
+	void startSlideAnimation(
+		QPixmap oldContentCache,
+		QPixmap newContentCache,
+		Window::SlideDirection direction);
+
+	void openChildList(
+		not_null<Data::Forum*> forum,
+		const Window::SectionShow &params);
+	void closeChildList(anim::type animated);
 
 	void fullSearchRefreshOn(rpl::producer<> events);
 	void applyFilterUpdate(bool force = false);
@@ -198,7 +217,8 @@ private:
 	bool _dragForward = false;
 	base::Timer _chooseByDragTimer;
 
-	object_ptr<Ui::IconButton> _forwardCancel = { nullptr };
+	Layout _layout = Layout::Main;
+	int _narrowWidth = 0;
 	object_ptr<Ui::RpWidget> _searchControls;
 	object_ptr<HistoryView::TopBarWidget> _subsectionTopBar = { nullptr } ;
 	object_ptr<Ui::IconButton> _mainMenuToggle;
@@ -223,10 +243,8 @@ private:
 	std::unique_ptr<Window::ConnectionState> _connecting;
 
 	Ui::Animations::Simple _scrollToAnimation;
-	Ui::Animations::Simple _a_show;
-	Window::SlideDirection _showDirection = Window::SlideDirection();
-	QPixmap _cacheUnder, _cacheOver;
-	ShowAnimation _showAnimationType = ShowAnimation::External;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
+	rpl::variable<float64> _shownProgressValue;
 
 	Ui::Animations::Simple _scrollToTopShown;
 	object_ptr<Ui::HistoryDownButton> _scrollToTop;
@@ -234,7 +252,7 @@ private:
 	bool _forumSearchRequested = false;
 
 	Data::Folder *_openedFolder = nullptr;
-	ChannelData *_openedForum = nullptr;
+	Data::Forum *_openedForum = nullptr;
 	Dialogs::Key _searchInChat;
 	History *_searchInMigrated = nullptr;
 	PeerData *_searchFromAuthor = nullptr;
@@ -275,7 +293,11 @@ private:
 
 	int _topDelta = 0;
 
-	rpl::event_stream<> _closeForwardBarRequests;
+	std::unique_ptr<Widget> _childList;
+	std::unique_ptr<Ui::RpWidget> _childListShadow;
+	rpl::variable<float64> _childListShown;
+	rpl::variable<PeerId> _childListPeerId;
+	std::unique_ptr<Ui::RpWidget> _hideChildListCanvas;
 
 };
 

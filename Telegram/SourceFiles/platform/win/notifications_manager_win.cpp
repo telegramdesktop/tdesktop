@@ -369,6 +369,12 @@ bool SkipFlashBounceForCustom() {
 	return SkipToastForCustom();
 }
 
+bool WaitForInputForCustom() {
+	QuerySystemNotificationSettings();
+
+	return UserNotificationState != QUNS_BUSY;
+}
+
 bool Supported() {
 #ifndef __MINGW32__
 	if (!Checked) {
@@ -405,15 +411,13 @@ void Create(Window::Notifications::System *system) {
 #ifndef __MINGW32__
 class Manager::Private {
 public:
-	using Type = Window::Notifications::CachedUserpics::Type;
-
-	explicit Private(Manager *instance, Type type);
+	explicit Private(Manager *instance);
 	bool init();
 
 	bool showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -438,7 +442,7 @@ private:
 	bool showNotificationInTryCatch(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -460,9 +464,8 @@ private:
 
 };
 
-Manager::Private::Private(Manager *instance, Type type)
-: _cachedUserpics(type)
-, _guarded(std::make_shared<Manager*>(instance)) {
+Manager::Private::Private(Manager *instance)
+: _guarded(std::make_shared<Manager*>(instance)) {
 	ToastActivations(
 	) | rpl::start_with_next([=](const ToastActivation &activation) {
 		handleActivation(activation);
@@ -657,7 +660,7 @@ void Manager::Private::handleActivation(const ToastActivation &activation) {
 bool Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -692,7 +695,7 @@ std::wstring Manager::Private::ensureSendButtonIcon() {
 bool Manager::Private::showNotificationInTryCatch(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -870,7 +873,7 @@ void Manager::Private::tryHide(const ToastNotification &notification) {
 
 Manager::Manager(Window::Notifications::System *system)
 : NativeManager(system)
-, _private(std::make_unique<Private>(this, Private::Type::Rounded)) {
+, _private(std::make_unique<Private>(this)) {
 }
 
 bool Manager::init() {
@@ -890,7 +893,7 @@ Manager::~Manager() = default;
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

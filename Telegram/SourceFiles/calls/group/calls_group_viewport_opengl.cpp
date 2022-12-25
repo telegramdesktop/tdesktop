@@ -462,7 +462,7 @@ void Viewport::RendererGL::validateUserpicFrame(
 	tileData.userpicFrame = tile->row()->peer()->generateUserpicImage(
 		tile->row()->ensureUserpicView(),
 		size.width(),
-		ImageRoundRadius::None);
+		0);
 }
 
 void Viewport::RendererGL::paintTile(

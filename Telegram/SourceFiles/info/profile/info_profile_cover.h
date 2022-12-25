@@ -50,6 +50,11 @@ public:
 		not_null<Data::ForumTopic*> topic,
 		Fn<bool()> paused,
 		Fn<void()> update);
+	TopicIconView(
+		not_null<Data::ForumTopic*> topic,
+		Fn<bool()> paused,
+		Fn<void()> update,
+		const style::color &generalIconFg);
 
 	void paintInRect(QPainter &p, QRect rect);
 
@@ -61,6 +66,7 @@ private:
 	void setupImage(not_null<Data::ForumTopic*> topic);
 
 	const not_null<Data::ForumTopic*> _topic;
+	const style::color &_generalIconFg;
 	Fn<bool()> _paused;
 	Fn<void()> _update;
 	std::shared_ptr<StickerPlayer> _player;

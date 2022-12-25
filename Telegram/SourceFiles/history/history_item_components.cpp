@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/painter.h"
 #include "history/history.h"
 #include "history/history_message.h"
+#include "history/view/history_view_message.h" // FromNameFg.
 #include "history/view/history_view_service_message.h"
 #include "history/view/media/history_view_document.h"
 #include "core/click_handler_types.h"
@@ -45,6 +46,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 namespace {
 
 const auto kPsaForwardedPrefix = "cloud_lng_forwarded_psa_";
+constexpr auto kReplyBarAlpha = 230. / 255.;
 
 } // namespace
 
@@ -103,7 +105,7 @@ HiddenSenderInfo::HiddenSenderInfo(const QString &name, bool external)
 : name(name)
 , colorPeerId(Data::FakePeerIdForJustName(name))
 , emptyUserpic(
-	Data::PeerUserpicColor(colorPeerId),
+	Ui::EmptyUserpic::UserpicColor(Data::PeerColorIndex(colorPeerId)),
 	(external
 		? Ui::EmptyUserpic::ExternalName()
 		: name)) {
@@ -142,22 +144,31 @@ ClickHandlerPtr HiddenSenderInfo::ForwardClickHandler() {
 
 bool HiddenSenderInfo::paintCustomUserpic(
 		Painter &p,
+		Ui::PeerUserpicView &view,
 		int x,
 		int y,
 		int outerWidth,
 		int size) const {
-	const auto view = customUserpic.activeView();
-	if (const auto image = view ? view->image() : nullptr) {
-		const auto circled = Images::Option::RoundCircle;
-		p.drawPixmap(
-			x,
-			y,
-			image->pix(size, size, { .options = circled }));
-		return true;
-	} else {
-		emptyUserpic.paint(p, x, y, outerWidth, size);
-		return false;
+	Expects(!customUserpic.empty());
+
+	auto valid = true;
+	if (!customUserpic.isCurrentView(view.cloud)) {
+		view.cloud = customUserpic.createView();
+		valid = false;
 	}
+	const auto image = *view.cloud;
+	if (image.isNull()) {
+		emptyUserpic.paintCircle(p, x, y, outerWidth, size);
+		return valid;
+	}
+	Ui::ValidateUserpicCache(
+		view,
+		image.isNull() ? nullptr : &image,
+		image.isNull() ? &emptyUserpic : nullptr,
+		size * style::DevicePixelRatio(),
+		false);
+	p.drawImage(QRect(x, y, size, size), view.cached);
+	return valid;
 }
 
 void HistoryMessageForwarded::create(const HistoryMessageVia *via) const {
@@ -292,8 +303,17 @@ bool HistoryMessageReply::updateData(
 					peerToUser(bot->id));
 			}
 		}
+
+		{
+			const auto peer = replyToMsg->history()->peer;
+			replyToColorKey = (!holder->out()
+					&& (peer->isMegagroup() || peer->isChat()))
+				? replyToMsg->from()->id
+				: PeerId(0);
+		}
 	} else if (force) {
 		replyToMsgId = 0;
+		replyToColorKey = PeerId(0);
 	}
 	if (force) {
 		holder->history()->owner().requestItemResize(holder);
@@ -422,11 +442,23 @@ void HistoryMessageReply::paint(
 	const auto st = context.st;
 	const auto stm = context.messageStyle();
 
-	const auto &bar = inBubble
-		? stm->msgReplyBarColor
-		: st->msgImgReplyBarColor();
-	QRect rbar(style::rtlrect(x + st::msgReplyBarPos.x(), y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(), st::msgReplyBarSize.width(), st::msgReplyBarSize.height(), w + 2 * x));
-	p.fillRect(rbar, bar);
+	{
+		const auto &bar = !inBubble
+			? st->msgImgReplyBarColor()
+			: replyToColorKey
+			? HistoryView::FromNameFg(context, replyToColorKey)
+			: stm->msgReplyBarColor;
+		const auto rbar = style::rtlrect(
+			x + st::msgReplyBarPos.x(),
+			y + st::msgReplyPadding.top() + st::msgReplyBarPos.y(),
+			st::msgReplyBarSize.width(),
+			st::msgReplyBarSize.height(),
+			w + 2 * x);
+		const auto opacity = p.opacity();
+		p.setOpacity(opacity * kReplyBarAlpha);
+		p.fillRect(rbar, bar);
+		p.setOpacity(opacity);
+	}
 
 	if (w > st::msgReplyBarSkip) {
 		if (replyToMsg) {
@@ -452,9 +484,11 @@ void HistoryMessageReply::paint(
 				}
 			}
 			if (w > st::msgReplyBarSkip + previewSkip) {
-				p.setPen(inBubble
-					? stm->msgServiceFg
-					: st->msgImgReplyBarColor());
+				p.setPen(!inBubble
+					? st->msgImgReplyBarColor()
+					: replyToColorKey
+					? HistoryView::FromNameFg(context, replyToColorKey)
+					: stm->msgServiceFg);
 				replyToName.drawLeftElided(p, x + st::msgReplyBarSkip + previewSkip, y + st::msgReplyPadding.top(), w - st::msgReplyBarSkip - previewSkip, w + 2 * x);
 				if (replyToVia && w > st::msgReplyBarSkip + previewSkip + replyToName.maxWidth() + st::msgServiceFont->spacew) {
 					p.setFont(st::msgServiceFont);
@@ -474,6 +508,8 @@ void HistoryMessageReply::paint(
 						? stm->replyTextPalette
 						: st->imgReplyTextPalette()),
 					.spoiler = Ui::Text::DefaultSpoilerCache(),
+					.now = context.now,
+					.paused = context.paused,
 					.elisionLines = 1,
 				});
 				p.setTextPalette(stm->textPalette);

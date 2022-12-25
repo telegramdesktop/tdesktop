@@ -460,6 +460,8 @@ void FieldHeader::init() {
 	paintRequest(
 	) | rpl::start_with_next([=] {
 		Painter p(this);
+		p.setInactive(
+			_controller->isGifPausedAtLeastFor(Window::GifPauseReason::Any));
 		p.fillRect(rect(), st::historyComposeAreaBg);
 
 		const auto position = st::historyReplyIconPosition;
@@ -795,6 +797,8 @@ void FieldHeader::paintEditOrReplyToMessage(Painter &p) {
 		.availableWidth = availableWidth,
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = crl::now(),
+		.paused = p.inactive(),
 		.elisionLines = 1,
 	});
 }
@@ -926,15 +930,15 @@ ComposeControls::ComposeControls(
 	_wrap.get(),
 	st::historyBotCommandStart))
 , _autocomplete(std::make_unique<FieldAutocomplete>(
-		parent,
-		window))
+	parent,
+	window))
 , _header(std::make_unique<FieldHeader>(_wrap.get(), _window))
 , _voiceRecordBar(std::make_unique<VoiceRecordBar>(
-		_wrap.get(),
-		parent,
-		window,
-		_send,
-		st::historySendSize.height()))
+	_wrap.get(),
+	parent,
+	window,
+	_send,
+	st::historySendSize.height()))
 , _sendMenuType(sendMenuType)
 , _unavailableEmojiPasted(unavailableEmojiPasted)
 , _saveDraftTimer([=] { saveDraft(); })
@@ -1002,6 +1006,7 @@ void ComposeControls::setHistory(SetHistoryArgs &&args) {
 	}
 	session().local().readDraftsWithCursors(_history);
 	applyDraft();
+	orderControls();
 }
 
 void ComposeControls::setCurrentDialogsEntryState(Dialogs::EntryState state) {
@@ -1371,6 +1376,7 @@ void ComposeControls::init() {
 		if (_history && updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
+			orderControls();
 		}
 		registerDraftSource();
 	}, _wrap->lifetime());
@@ -2061,6 +2067,7 @@ void ComposeControls::initSendAsButton() {
 		if (updateSendAsButton()) {
 			updateControlsVisibility();
 			updateControlsGeometry(_wrap->size());
+			orderControls();
 		}
 	}, _wrap->lifetime());
 }

@@ -213,8 +213,6 @@ ShareBox::ShareBox(QWidget*, Descriptor &&descriptor)
 }
 
 void ShareBox::prepareCommentField() {
-	using namespace rpl::mappers;
-
 	_comment->hide(anim::type::instant);
 
 	rpl::combine(
@@ -479,7 +477,7 @@ void ShareBox::showMenu(not_null<Ui::RpWidget*> parent) {
 			auto item = base::make_unique_q<Menu::ItemWithCheck>(
 				_menu->menu(),
 				st::popupMenuWithIcons.menu,
-				new QAction(QString(), _menu->menu()),
+				Ui::CreateChild<QAction>(_menu->menu().get()),
 				nullptr,
 				nullptr);
 			std::move(
@@ -539,25 +537,6 @@ void ShareBox::createButtons() {
 void ShareBox::applyFilterUpdate(const QString &query) {
 	scrollToY(0);
 	_inner->updateFilter(query);
-}
-
-PaintRoundImageCallback ForceRoundUserpicCallback(not_null<PeerData*> peer) {
-	auto userpic = std::shared_ptr<Data::CloudImageView>();
-	auto cache = std::make_shared<QImage>();
-	return [=](Painter &p, int x, int y, int outerWidth, int size) mutable {
-		const auto ratio = style::DevicePixelRatio();
-		const auto cacheSize = QSize(size, size) * ratio;
-		if (cache->size() != cacheSize) {
-			*cache = QImage(cacheSize, QImage::Format_ARGB32_Premultiplied);
-			cache->setDevicePixelRatio(ratio);
-		}
-		auto q = Painter(cache.get());
-		peer->paintUserpicLeft(q, userpic, 0, 0, outerWidth, size);
-		q.end();
-
-		*cache = Images::Circle(std::move(*cache));
-		p.drawImage(x, y, *cache);
-	};
 }
 
 void ShareBox::addPeerToMultiSelect(not_null<Data::Thread*> thread) {
@@ -704,7 +683,7 @@ ShareBox::Inner::Inner(
 	}
 	addList(_descriptor.session->data().contactsNoChatsList());
 
-	_filter = qsl("a");
+	_filter = u"a"_q;
 	updateFilter();
 
 	_descriptor.session->changes().peerUpdates(
@@ -806,7 +785,9 @@ ShareBox::Inner::Chat *ShareBox::Inner::getChatAtIndex(int index) {
 	}
 	const auto row = [=] {
 		if (_filter.isEmpty()) {
-			return _chatsIndexed->rowAtY(index, 1);
+			return (index < _chatsIndexed->size())
+				? (_chatsIndexed->begin() + index)->get()
+				: nullptr;
 		}
 		return (index < _filtered.size())
 			? _filtered[index].get()
@@ -876,9 +857,11 @@ void ShareBox::Inner::loadProfilePhotos(int yFrom) {
 
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->empty()) {
-			auto i = _chatsIndexed->cfind(yFrom, _rowHeight);
+			const auto index = yFrom / _rowHeight;
+			auto i = _chatsIndexed->begin()
+				+ std::min(index, _chatsIndexed->size());;
 			for (auto end = _chatsIndexed->cend(); i != end; ++i) {
-				if (((*i)->pos() * _rowHeight) >= yTo) {
+				if (((*i)->index() * _rowHeight) >= yTo) {
 					break;
 				}
 				(*i)->entry()->loadUserpic();
@@ -965,9 +948,9 @@ ShareBox::Inner::Chat::Chat(
 	st.checkbox,
 	updateCallback,
 	PaintUserpicCallback(peer, true),
-	[=] { return peer->isForum()
-	? ImageRoundRadius::Large
-	: ImageRoundRadius::Ellipse; })
+	[=](int size) { return peer->isForum()
+		? int(size * Ui::ForumUserpicRadiusMultiplier())
+		: std::optional<int>(); })
 , name(st.checkbox.imageRadius * 2) {
 }
 
@@ -984,7 +967,8 @@ void ShareBox::Inner::paintEvent(QPaintEvent *e) {
 	auto indexTo = rowTo * _columnCount;
 	if (_filter.isEmpty()) {
 		if (!_chatsIndexed->empty()) {
-			auto i = _chatsIndexed->cfind(indexFrom, 1);
+			auto i = _chatsIndexed->begin()
+				+ std::min(indexFrom, _chatsIndexed->size());
 			for (auto end = _chatsIndexed->cend(); i != end; ++i) {
 				if (indexFrom >= indexTo) {
 					break;
@@ -1331,9 +1315,9 @@ QString AppendShareGameScoreUrl(
 	}
 
 	auto shareHash = shareHashEncrypted.toBase64(QByteArray::Base64UrlEncoding | QByteArray::OmitTrailingEquals);
-	auto shareUrl = qsl("tg://share_game_score?hash=") + QString::fromLatin1(shareHash);
+	auto shareUrl = u"tg://share_game_score?hash="_q + QString::fromLatin1(shareHash);
 
-	auto shareComponent = qsl("tgShareScoreUrl=") + qthelp::url_encode(shareUrl);
+	auto shareComponent = u"tgShareScoreUrl="_q + qthelp::url_encode(shareUrl);
 
 	auto hashPosition = url.indexOf('#');
 	if (hashPosition < 0) {
@@ -1349,75 +1333,23 @@ QString AppendShareGameScoreUrl(
 	return url + shareComponent;
 }
 
-void FastShareMessage(
-		not_null<Window::SessionController*> controller,
-		not_null<HistoryItem*> item) {
-	struct ShareData {
-		ShareData(not_null<PeerData*> peer, MessageIdsList &&ids)
-		: peer(peer)
-		, msgIds(std::move(ids)) {
-		}
-		not_null<PeerData*> peer;
-		MessageIdsList msgIds;
+ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
+		std::shared_ptr<Ui::Show> show,
+		not_null<History*> history,
+		MessageIdsList msgIds) {
+	struct State final {
 		base::flat_set<mtpRequestId> requests;
 	};
-	const auto show = std::make_shared<Window::Show>(controller);
-	const auto history = item->history();
-	const auto owner = &history->owner();
-	const auto session = &history->session();
-	const auto data = std::make_shared<ShareData>(
-		history->peer,
-		owner->itemOrItsGroup(item));
-	const auto isGame = item->getMessageBot()
-		&& item->media()
-		&& (item->media()->game() != nullptr);
-	const auto canCopyLink = item->hasDirectLink() || isGame;
-
-	const auto items = owner->idsToItems(data->msgIds);
-	const auto hasCaptions = ranges::any_of(items, [](auto item) {
-		return item->media()
-			&& !item->originalText().text.isEmpty()
-			&& item->media()->allowsEditCaption();
-	});
-	const auto hasOnlyForcedForwardedInfo = hasCaptions
-		? false
-		: ranges::all_of(items, [](auto item) {
-			return item->media() && item->media()->forceForwardedInfo();
-		});
-
-	auto copyCallback = [=, toastParent = show->toastParent()] {
-		const auto item = owner->message(data->msgIds[0]);
-		if (!item) {
-			return;
-		}
-		if (item->hasDirectLink()) {
-			using namespace HistoryView;
-			CopyPostLink(controller, item->fullId(), Context::History);
-		} else if (const auto bot = item->getMessageBot()) {
-			if (const auto media = item->media()) {
-				if (const auto game = media->game()) {
-					const auto link = session->createInternalLinkFull(
-						bot->username() + qsl("?game=") + game->shortName);
-
-					QGuiApplication::clipboard()->setText(link);
-
-					Ui::Toast::Show(
-						toastParent,
-						tr::lng_share_game_link_copied(tr::now));
-				}
-			}
-		}
-	};
-
-	auto submitCallback = [=](
+	const auto state = std::make_shared<State>();
+	return [=](
 			std::vector<not_null<Data::Thread*>> &&result,
 			TextWithTags &&comment,
 			Api::SendOptions options,
 			Data::ForwardOptions forwardOptions) {
-		if (!data->requests.empty()) {
+		if (!state->requests.empty()) {
 			return; // Share clicked already.
 		}
-		auto items = history->owner().idsToItems(data->msgIds);
+		auto items = history->owner().idsToItems(msgIds);
 		if (items.empty() || result.empty()) {
 			return;
 		}
@@ -1457,21 +1389,21 @@ void FastShareMessage(
 			| ((forwardOptions == Data::ForwardOptions::NoNamesAndCaptions)
 				? Flag::f_drop_media_captions
 				: Flag(0));
-		auto msgIds = QVector<MTPint>();
-		msgIds.reserve(data->msgIds.size());
-		for (const auto &fullId : data->msgIds) {
-			msgIds.push_back(MTP_int(fullId.msg));
+		auto mtpMsgIds = QVector<MTPint>();
+		mtpMsgIds.reserve(msgIds.size());
+		for (const auto &fullId : msgIds) {
+			mtpMsgIds.push_back(MTP_int(fullId.msg));
 		}
 		const auto generateRandom = [&] (PeerId peer) {
-			auto result = QVector<MTPlong>(data->msgIds.size());
+			auto result = QVector<MTPlong>(msgIds.size());
 			for (auto &value : result) {
 				value = base::RandomValue<MTPlong>();
-				FakePasscode::RegisterMessageRandomId(&owner->session(), value.v, peer, options);
+				FakePasscode::RegisterMessageRandomId(&history->owner().session(), value.v, peer, options);
 			}
 			return result;
 		};
-		auto &api = owner->session().api();
-		auto &histories = owner->histories();
+		auto &api = history->owner().session().api();
+		auto &histories = history->owner().histories();
 		const auto requestType = Data::Histories::RequestType::Send;
 		for (const auto thread : result) {
 			if (!comment.text.isEmpty()) {
@@ -1493,17 +1425,17 @@ void FastShareMessage(
 				history->sendRequestId = api.request(
 					MTPmessages_ForwardMessages(
 						MTP_flags(sendFlags),
-						data->peer->input,
-						MTP_vector<MTPint>(msgIds),
-						MTP_vector<MTPlong>(generateRandom(peer->id)),
+						history->peer->input,
+                        MTP_vector<MTPint>(mtpMsgIds),
+                        MTP_vector<MTPlong>(generateRandom(peer->id)),
 						peer->input,
 						MTP_int(topicRootId),
 						MTP_int(options.scheduled),
 						MTP_inputPeerEmpty() // send_as
 				)).done([=](const MTPUpdates &updates, mtpRequestId reqId) {
 					history->session().api().applyUpdates(updates);
-					data->requests.remove(reqId);
-					if (data->requests.empty()) {
+					state->requests.remove(reqId);
+					if (state->requests.empty()) {
 						if (show->valid()) {
 							Ui::Toast::Show(
 								show->toastParent(),
@@ -1527,9 +1459,60 @@ void FastShareMessage(
 				}).afterRequest(history->sendRequestId).send();
 				return history->sendRequestId;
 			});
-			data->requests.insert(history->sendRequestId);
+			state->requests.insert(history->sendRequestId);
 		}
 	};
+}
+
+void FastShareMessage(
+		not_null<Window::SessionController*> controller,
+		not_null<HistoryItem*> item) {
+	const auto show = std::make_shared<Window::Show>(controller);
+	const auto history = item->history();
+	const auto owner = &history->owner();
+	const auto session = &history->session();
+	const auto msgIds = owner->itemOrItsGroup(item);
+	const auto isGame = item->getMessageBot()
+		&& item->media()
+		&& (item->media()->game() != nullptr);
+	const auto canCopyLink = item->hasDirectLink() || isGame;
+
+	const auto items = owner->idsToItems(msgIds);
+	const auto hasCaptions = ranges::any_of(items, [](auto item) {
+		return item->media()
+			&& !item->originalText().text.isEmpty()
+			&& item->media()->allowsEditCaption();
+	});
+	const auto hasOnlyForcedForwardedInfo = hasCaptions
+		? false
+		: ranges::all_of(items, [](auto item) {
+			return item->media() && item->media()->forceForwardedInfo();
+		});
+
+	auto copyCallback = [=, toastParent = show->toastParent()] {
+		const auto item = owner->message(msgIds[0]);
+		if (!item) {
+			return;
+		}
+		if (item->hasDirectLink()) {
+			using namespace HistoryView;
+			CopyPostLink(controller, item->fullId(), Context::History);
+		} else if (const auto bot = item->getMessageBot()) {
+			if (const auto media = item->media()) {
+				if (const auto game = media->game()) {
+					const auto link = session->createInternalLinkFull(
+						bot->username() + u"?game="_q + game->shortName);
+
+					QGuiApplication::clipboard()->setText(link);
+
+					Ui::Toast::Show(
+						toastParent,
+						tr::lng_share_game_link_copied(tr::now));
+				}
+			}
+		}
+	};
+
 	auto filterCallback = [isGame](not_null<Data::Thread*> thread) {
 		return thread->canWrite()
 			&& (!isGame || !thread->peer()->isBroadcast());
@@ -1541,10 +1524,13 @@ void FastShareMessage(
 		Box<ShareBox>(ShareBox::Descriptor{
 			.session = session,
 			.copyCallback = std::move(copyLinkCallback),
-			.submitCallback = std::move(submitCallback),
+			.submitCallback = ShareBox::DefaultForwardCallback(
+				show,
+				history,
+				msgIds),
 			.filterCallback = std::move(filterCallback),
 			.forwardOptions = {
-				.messagesCount = int(data->msgIds.size()),
+				.messagesCount = int(msgIds.size()),
 				.show = !hasOnlyForcedForwardedInfo,
 				.hasCaptions = hasCaptions,
 			},

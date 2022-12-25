@@ -33,7 +33,6 @@ protected:
 private:
 	using Languages = Lang::CloudManager::Languages;
 
-	not_null<Ui::MultiSelect*> createMultiSelect();
 	int rowsInPage() const;
 
 	Fn<void()> _setInnerFocus;

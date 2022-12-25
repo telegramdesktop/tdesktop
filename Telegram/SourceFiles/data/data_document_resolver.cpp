@@ -7,7 +7,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "data/data_document_resolver.h"
 
-#include "facades.h"
 #include "base/platform/base_platform_info.h"
 #include "ui/boxes/confirm_box.h"
 #include "core/application.h"
@@ -153,14 +152,14 @@ bool IsExecutableName(const QString &filepath) {
 	static const auto kExtensions = [] {
 		const auto joined =
 #ifdef Q_OS_MAC
-			qsl("\
+			u"\
 applescript action app bin command csh osx workflow terminal url caction \
-mpkg pkg scpt scptd xhtm webarchive");
+mpkg pkg scpt scptd xhtm webarchive"_q;
 #elif defined Q_OS_UNIX // Q_OS_MAC
-			qsl("bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
-slp zsh");
+			u"bin csh deb desktop ksh out pet pkg pup rpm run sh shar \
+slp zsh"_q;
 #else // Q_OS_MAC || Q_OS_UNIX
-			qsl("\
+			u"\
 ad ade adp app application appref-ms asp asx bas bat bin cab cdxml cer cfg \
 chi chm cmd cnt com cpl crt csh der diagcab dll drv eml exe fon fxp gadget \
 grp hlp hpj hta htt inf ini ins inx isp isu its jar jnlp job js jse key ksh \
@@ -171,7 +170,7 @@ php-s pht phtml pif pl plg pm pod prf prg ps1 ps2 ps1xml ps2xml psc1 psc2 \
 psd1 psm1 pssc pst py py3 pyc pyd pyi pyo pyw pywz pyz rb reg rgs scf scr \
 sct search-ms settingcontent-ms sh shb shs slk sys t tmp u3p url vb vbe vbp \
 vbs vbscript vdx vsmacros vsd vsdm vsdx vss vssm vssx vst vstm vstx vsw vsx \
-vtx website ws wsc wsf wsh xbap xll xnk xs");
+vtx website ws wsc wsf wsh xbap xll xnk xs"_q;
 #endif // !Q_OS_MAC && !Q_OS_UNIX
 		const auto list = joined.split(' ');
 		return base::flat_set<QString>(list.begin(), list.end());

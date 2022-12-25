@@ -636,19 +636,19 @@ QString TcpConnection::transport() const {
 	if (!isConnected()) {
 		return QString();
 	}
-	auto result = qsl("TCP");
+	auto result = u"TCP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	}
 	return result;
 }
 
 QString TcpConnection::tag() const {
-	auto result = qsl("TCP");
+	auto result = u"TCP"_q;
 	if (qthelp::is_ipv6(_address)) {
-		result += qsl("/IPv6");
+		result += u"/IPv6"_q;
 	} else {
-		result += qsl("/IPv4");
+		result += u"/IPv4"_q;
 	}
 	return result;
 }
