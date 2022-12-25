@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: API issue
+    url: https://bugs.telegram.org
+    about: Any bug report or feature request affecting more than only Telegram Desktop.
+  - name: Issue of other client
+    url: https://bugs.telegram.org
+    about: Any bug report or feature request not about Telegram Desktop.
+  - name: Question
+    url: https://t.me/TelegramDesktopTalk
+    about: Ask a question.

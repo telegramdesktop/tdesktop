@@ -114,7 +114,7 @@ struct Context {
 struct Userpic {
 	not_null<PeerData*> peer;
 	QString customEntityData;
-	mutable std::shared_ptr<Data::CloudImageView> view;
+	mutable Ui::PeerUserpicView view;
 	mutable InMemoryKey uniqueKey;
 };
 
@@ -380,7 +380,7 @@ bool UpdateUserpics(
 		const auto peer = not_null{ resolved.peer };
 		const auto &data = ReactionEntityData(resolved.reaction);
 		const auto i = ranges::find(was, peer, &Userpic::peer);
-		if (i != end(was) && i->view) {
+		if (i != end(was) && i->view.cloud) {
 			now.push_back(std::move(*i));
 			now.back().customEntityData = data;
 			continue;

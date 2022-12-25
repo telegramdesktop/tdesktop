@@ -29,7 +29,6 @@ class PowerSaveBlocker;
 
 namespace Data {
 class PhotoMedia;
-class CloudImageView;
 class GroupCall;
 } // namespace Data
 

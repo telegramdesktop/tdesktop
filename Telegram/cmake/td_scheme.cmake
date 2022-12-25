@@ -5,7 +5,7 @@
 # https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 add_library(td_scheme OBJECT)
-init_non_host_target(td_scheme)
+init_non_host_target(td_scheme ltcg)
 add_library(tdesktop::td_scheme ALIAS td_scheme)
 
 include(cmake/generate_scheme.cmake)
@@ -33,6 +33,14 @@ PUBLIC
     desktop-app::lib_base
     desktop-app::lib_tl
 )
+
+if (WIN32 AND NOT build_win64 AND DESKTOP_APP_SPECIAL_TARGET)
+    target_compile_options(td_scheme
+    PRIVATE
+        $<IF:$<CONFIG:Debug>,,/GL>
+    )
+    set_property(TARGET td_scheme APPEND_STRING PROPERTY STATIC_LIBRARY_OPTIONS "$<IF:$<CONFIG:Debug>,,/LTCG>")
+endif()
 
 if (CMAKE_SYSTEM_PROCESSOR STREQUAL "mips64")
     # Sometimes final linking may fail with error "relocation truncated to fit"

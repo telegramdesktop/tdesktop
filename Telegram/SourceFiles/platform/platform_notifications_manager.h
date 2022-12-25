@@ -15,6 +15,7 @@ namespace Notifications {
 [[nodiscard]] bool SkipAudioForCustom();
 [[nodiscard]] bool SkipToastForCustom();
 [[nodiscard]] bool SkipFlashBounceForCustom();
+[[nodiscard]] bool WaitForInputForCustom();
 
 [[nodiscard]] bool Supported();
 [[nodiscard]] bool Enforced();

@@ -245,17 +245,16 @@ void Location::draw(Painter &p, const PaintContext &context) const {
 void Location::validateImageCache(
 		QSize outer,
 		Ui::BubbleRounding rounding) const {
+	Expects(_media != nullptr);
+
 	const auto ratio = style::DevicePixelRatio();
-	if (_imageCache.size() == (outer * ratio)
-		&& _imageCacheRounding == rounding) {
-		return;
-	}
-	const auto thumbnail = _media->image();
-	if (!thumbnail) {
+	if ((_imageCache.size() == (outer * ratio)
+			&& _imageCacheRounding == rounding)
+		|| _media->isNull()) {
 		return;
 	}
 	_imageCache = Images::Round(
-		thumbnail->original().scaled(
+		_media->scaled(
 			outer * ratio,
 			Qt::IgnoreAspectRatio,
 			Qt::SmoothTransformation),
@@ -335,7 +334,8 @@ TextState Location::textState(QPoint point, StateRequest request) const {
 			auto fastShareLeft = (fullRight + st::historyFastShareLeft);
 			auto fastShareTop = (fullBottom - st::historyFastShareBottom - size->height());
 			if (QRect(fastShareLeft, fastShareTop, size->width(), size->height()).contains(point)) {
-				result.link = _parent->rightActionLink();
+				result.link = _parent->rightActionLink(point
+					- QPoint(fastShareLeft, fastShareTop));
 			}
 		}
 	}
@@ -377,7 +377,8 @@ bool Location::needsBubble() const {
 		|| item->viaBot()
 		|| _parent->displayedReply()
 		|| _parent->displayForwardedFrom()
-		|| _parent->displayFromName();
+		|| _parent->displayFromName()
+		|| _parent->displayedTopicButton();
 }
 
 QPoint Location::resolveCustomInfoRightBottom() const {

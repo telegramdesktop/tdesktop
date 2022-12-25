@@ -7,7 +7,19 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
+namespace base::options {
+
+template <typename Type>
+class option;
+
+using toggle = option<bool>;
+
+} // namespace base::options
+
 namespace Platform {
+
+extern const char kOptionGApplication[];
+extern base::options::toggle OptionGApplication;
 
 void start();
 void finish();

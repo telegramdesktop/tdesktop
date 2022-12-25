@@ -1216,6 +1216,9 @@ void History::applyServiceChanges(
 			if (const auto closed = data.vclosed()) {
 				topic->setClosed(mtpIsTrue(*closed));
 			}
+			if (const auto hidden = data.vhidden()) {
+				topic->setHidden(mtpIsTrue(*hidden));
+			}
 		}
 	}, [](const auto &) {
 	});
@@ -1268,7 +1271,7 @@ void History::newItemAdded(not_null<HistoryItem*> item) {
 		if (item->unread(this)) {
 			if (unreadCountKnown()) {
 				setUnreadCount(unreadCount() + 1);
-			} else if (!peer->isForum()) {
+			} else if (!isForum()) {
 				owner().histories().requestDialogEntry(this);
 			}
 		} else {
@@ -1797,7 +1800,7 @@ void History::setUnreadCount(int newUnreadCount) {
 	if (_unreadCount == newUnreadCount) {
 		return;
 	}
-	const auto notifier = unreadStateChangeNotifier(!peer->isForum());
+	const auto notifier = unreadStateChangeNotifier(!isForum());
 	_unreadCount = newUnreadCount;
 
 	const auto lastOutgoing = [&] {
@@ -1836,7 +1839,7 @@ void History::setUnreadMark(bool unread) {
 		return;
 	}
 	const auto notifier = unreadStateChangeNotifier(
-		!unreadCount() && !peer->isForum());
+		!unreadCount() && !isForum());
 	Thread::setUnreadMarkFlag(unread);
 }
 
@@ -1868,7 +1871,7 @@ void History::setMuted(bool muted) {
 	if (this->muted() == muted) {
 		return;
 	} else {
-		const auto state = peer->isForum()
+		const auto state = isForum()
 			? Dialogs::BadgesState()
 			: computeBadgesState();
 		const auto notify = (state.unread || state.reaction);
@@ -1981,7 +1984,7 @@ int History::chatListNameVersion() const {
 }
 
 void History::hasUnreadMentionChanged(bool has) {
-	if (peer->isForum()) {
+	if (isForum()) {
 		return;
 	}
 	auto was = chatListUnreadState();
@@ -1994,7 +1997,7 @@ void History::hasUnreadMentionChanged(bool has) {
 }
 
 void History::hasUnreadReactionChanged(bool has) {
-	if (peer->isForum()) {
+	if (isForum()) {
 		return;
 	}
 	auto was = chatListUnreadState();
@@ -2259,7 +2262,7 @@ void History::loadUserpic() {
 
 void History::paintUserpic(
 		Painter &p,
-		std::shared_ptr<Data::CloudImageView> &view,
+		Ui::PeerUserpicView &view,
 		const Dialogs::Ui::PaintContext &context) const {
 	peer->paintUserpic(
 		p,
@@ -2761,11 +2764,10 @@ void History::applyDialog(
 			MsgId(0), // topicRootId
 			draft->c_draftMessage());
 	}
-	owner().histories().dialogEntryApplied(this);
-
-	if (const auto forum = inChatList() ? peer->forum() : nullptr) {
-		forum->preloadTopics();
+	if (const auto ttl = data.vttl_period()) {
+		peer->setMessagesTTL(ttl->v);
 	}
+	owner().histories().dialogEntryApplied(this);
 }
 
 void History::dialogEntryApplied() {
@@ -2964,18 +2966,22 @@ HistoryItem *History::lastEditableMessage() const {
 }
 
 void History::resizeToWidth(int newWidth) {
-	const auto resizeAllItems = (_width != newWidth);
-
-	if (!resizeAllItems && !hasPendingResizedItems()) {
+	using Request = HistoryBlock::ResizeRequest;
+	const auto request = (_flags & Flag::PendingAllItemsResize)
+		? Request::ReinitAll
+		: (_width != newWidth)
+		? Request::ResizeAll
+		: Request::ResizePending;
+	if (request == Request::ResizePending && !hasPendingResizedItems()) {
 		return;
 	}
-	_flags &= ~(Flag::HasPendingResizedItems);
+	_flags &= ~(Flag::HasPendingResizedItems | Flag::PendingAllItemsResize);
 
 	_width = newWidth;
 	int y = 0;
 	for (const auto &block : blocks) {
 		block->setY(y);
-		y += block->resizeGetHeight(newWidth, resizeAllItems);
+		y += block->resizeGetHeight(newWidth, request);
 	}
 	_height = y;
 }
@@ -3011,12 +3017,22 @@ void History::forumChanged(Data::Forum *old) {
 		}) | rpl::start_with_next([=](const Dialogs::UnreadState &old) {
 			notifyUnreadStateChange(old);
 		}, forum->lifetime());
+
+		forum->chatsListChanges(
+		) | rpl::start_with_next([=] {
+			updateChatListEntry();
+		}, forum->lifetime());
 	} else {
 		_flags &= ~Flag::IsForum;
 	}
 	if (cloudDraft(MsgId(0))) {
 		updateChatListSortPosition();
 	}
+	_flags |= Flag::PendingAllItemsResize;
+}
+
+bool History::isForum() const {
+	return (_flags & Flag::IsForum);
 }
 
 not_null<History*> History::migrateToOrMe() const {
@@ -3434,14 +3450,25 @@ HistoryBlock::HistoryBlock(not_null<History*> history)
 : _history(history) {
 }
 
-int HistoryBlock::resizeGetHeight(int newWidth, bool resizeAllItems) {
+int HistoryBlock::resizeGetHeight(int newWidth, ResizeRequest request) {
 	auto y = 0;
-	for (const auto &message : messages) {
-		message->setY(y);
-		if (resizeAllItems || message->pendingResize()) {
+	if (request == ResizeRequest::ReinitAll) {
+		for (const auto &message : messages) {
+			message->setY(y);
+			message->initDimensions();
 			y += message->resizeGetHeight(newWidth);
-		} else {
-			y += message->height();
+		}
+	} else if (request == ResizeRequest::ResizeAll) {
+		for (const auto &message : messages) {
+			message->setY(y);
+			y += message->resizeGetHeight(newWidth);
+		}
+	} else {
+		for (const auto &message : messages) {
+			message->setY(y);
+			y += message->pendingResize()
+				? message->resizeGetHeight(newWidth)
+				: message->height();
 		}
 	}
 	_height = y;

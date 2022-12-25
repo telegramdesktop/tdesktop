@@ -945,7 +945,7 @@ CancelButton::CancelButton(not_null<Ui::RpWidget*> parent, int height)
 : Ui::RippleButton(parent, st::defaultLightButton.ripple)
 , _width(st::historyRecordCancelButtonWidth)
 , _rippleRect(QRect(0, (height - _width) / 2, _width, _width))
-, _text(st::semiboldTextStyle, tr::lng_selected_clear(tr::now).toUpper()) {
+, _text(st::semiboldTextStyle, tr::lng_selected_clear(tr::now)) {
 	resize(_width, height);
 	init();
 }

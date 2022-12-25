@@ -33,7 +33,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_peer.h"
 #include "mainwindow.h"
 #include "apiwrap.h" // ApiWrap::acceptTerms.
-#include "facades.h"
 #include "styles/style_layers.h"
 
 #include <QtGui/QWindow>
@@ -104,10 +103,11 @@ void Controller::showAccount(
 		_sessionController = session
 			? std::make_unique<SessionController>(session, this)
 			: nullptr;
-		setupSideBar();
+		auto oldContentCache = _widget.grabForSlideAnimation();
 		_widget.updateWindowIcon();
 		if (session) {
-			setupMain(singlePeerShowAtMsgId);
+			setupSideBar();
+			setupMain(singlePeerShowAtMsgId, std::move(oldContentCache));
 
 			session->updates().isIdleValue(
 			) | rpl::filter([=](bool idle) {
@@ -126,7 +126,8 @@ void Controller::showAccount(
 
 			session->updates().updateOnline(crl::now());
 		} else {
-			setupIntro();
+			sideBarChanged();
+			setupIntro(std::move(oldContentCache));
 			_widget.updateGlobalMenu();
 		}
 
@@ -139,11 +140,9 @@ PeerData *Controller::singlePeer() const {
 }
 
 void Controller::setupSideBar() {
+	Expects(_sessionController != nullptr);
+
 	if (!isPrimary()) {
-		return;
-	}
-	if (!_sessionController) {
-		sideBarChanged();
 		return;
 	}
 	_sessionController->filtersMenuChanged(
@@ -284,16 +283,19 @@ void Controller::clearPasscodeLock() {
 	}
 }
 
-void Controller::setupIntro() {
-	_widget.setupIntro(Core::App().domain().maybeLastOrSomeAuthedAccount()
+void Controller::setupIntro(QPixmap oldContentCache) {
+	const auto point = Core::App().domain().maybeLastOrSomeAuthedAccount()
 		? Intro::EnterPoint::Qr
-		: Intro::EnterPoint::Start);
+		: Intro::EnterPoint::Start;
+	_widget.setupIntro(point, std::move(oldContentCache));
 }
 
-void Controller::setupMain(MsgId singlePeerShowAtMsgId) {
+void Controller::setupMain(
+		MsgId singlePeerShowAtMsgId,
+		QPixmap oldContentCache) {
 	Expects(_sessionController != nullptr);
 
-	_widget.setupMain(singlePeerShowAtMsgId);
+	_widget.setupMain(singlePeerShowAtMsgId, std::move(oldContentCache));
 
 	if (const auto id = Ui::Emoji::NeedToSwitchBackToId()) {
 		Ui::Emoji::LoadAndSwitchTo(&_sessionController->session(), id);
@@ -340,6 +342,10 @@ void Controller::hideLayer(anim::type animated) {
 
 void Controller::hideSettingsAndLayer(anim::type animated) {
 	_widget.ui_hideSettingsAndLayer(animated);
+}
+
+bool Controller::isLayerShown() const {
+	return _widget.ui_isLayerShown();
 }
 
 void Controller::sideBarChanged() {

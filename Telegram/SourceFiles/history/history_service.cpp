@@ -138,7 +138,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				lt_from,
 				fromLinkText(), // Link 1.
 				lt_user,
-				{ .text = qsl("somebody") },
+				{ .text = u"somebody"_q },
 				Ui::Text::WithEntities);
 		} else {
 			result.links.push_back(fromLink());
@@ -329,7 +329,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		result.text = tr::lng_action_bot_allowed_from_domain(
 			tr::now,
 			lt_domain,
-			Ui::Text::Link(domain, qstr("http://") + domain),
+			Ui::Text::Link(domain, u"http://"_q + domain),
 			Ui::Text::WithEntities);
 		return result;
 	};
@@ -512,6 +512,20 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 		const auto duration = (period == 5)
 			? u"5 seconds"_q
 			: Ui::FormatTTL(period);
+		if (const auto from = action.vauto_setting_from()) {
+			if (const auto peer = _from->owner().peer(peerFromUser(*from))) {
+				if (!peer->isSelf() && period) {
+					result.text = tr::lng_action_ttl_global(
+						tr::now,
+						lt_from,
+						fromLinkText(), // Link 1.
+						lt_duration,
+						{ .text = duration },
+						Ui::Text::WithEntities);
+					return result;
+				}
+			}
+		}
 		if (isPost()) {
 			if (!period) {
 				result.text = tr::lng_action_ttl_removed_channel(
@@ -646,6 +660,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			lt_topic,
 			Ui::Text::Link(
 				Data::ForumTopicIconWithTitle(
+					id,
 					action.vicon_emoji_id().value_or_empty(),
 					qs(action.vtitle())),
 				topicUrl),
@@ -659,6 +674,10 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 			result.text = { mtpIsTrue(*closed)
 				? tr::lng_action_topic_closed_inside(tr::now)
 				: tr::lng_action_topic_reopened_inside(tr::now) };
+		} else if (const auto hidden = action.vhidden()) {
+			result.text = { mtpIsTrue(*hidden)
+				? tr::lng_action_topic_hidden_inside(tr::now)
+				: tr::lng_action_topic_unhidden_inside(tr::now) };
 		} else if (!action.vtitle()) {
 			if (const auto icon = action.vicon_emoji_id()) {
 				if (const auto iconId = icon->v) {
@@ -693,6 +712,7 @@ void HistoryService::setMessageByAction(const MTPmessageAction &action) {
 				{ tr::lng_action_topic_placeholder(tr::now) },
 				lt_title,
 				Data::ForumTopicIconWithTitle(
+					topicRootId(),
 					action.vicon_emoji_id().value_or_empty(),
 					qs(*action.vtitle())),
 				Ui::Text::WithEntities);
@@ -926,7 +946,7 @@ HistoryService::PreparedText HistoryService::prepareInvitedToCallText(
 			lt_from,
 			fromLinkText(), // Link 1.
 			lt_user,
-			{ .text = qsl("somebody") },
+			{ .text = u"somebody"_q },
 			lt_chat,
 			chatText,
 			Ui::Text::WithEntities);
@@ -1341,10 +1361,12 @@ MsgId HistoryService::topicRootId() const {
 	if (const auto data = GetDependentData()
 		; data && data->topicPost && data->topId) {
 		return data->topId;
-	} else if (Has<HistoryServiceTopicInfo>()) {
-		return id;
+	} else if (const auto info = Get<HistoryServiceTopicInfo>()) {
+		if (info->created()) {
+			return id;
+		}
 	}
-	return 0;
+	return Data::ForumTopic::kGeneralId;
 }
 
 void HistoryService::setReplyFields(
@@ -1511,6 +1533,10 @@ void HistoryService::createFromMtp(const MTPDmessageService &message) {
 			if (const auto closed = data.vclosed()) {
 				info->closed = mtpIsTrue(*closed);
 				info->reopened = !info->closed;
+			}
+			if (const auto hidden = data.vhidden()) {
+				info->hidden = mtpIsTrue(*hidden);
+				info->unhidden = !info->hidden;
 			}
 		} else {
 			const auto &data = action.c_messageActionTopicCreate();

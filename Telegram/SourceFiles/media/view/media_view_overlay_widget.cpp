@@ -314,7 +314,7 @@ OverlayWidget::OverlayWidget()
 		? Core::App().settings().videoVolume()
 		: Core::Settings::kDefaultVolume;
 
-	_widget->setWindowTitle(qsl("Media viewer"));
+	_widget->setWindowTitle(u"Media viewer"_q);
 
 	const auto text = tr::lng_mediaview_saved_to(
 		tr::now,
@@ -1617,20 +1617,20 @@ void OverlayWidget::saveAs() {
 			QStringList p = mimeType.globPatterns();
 			QString pattern = p.isEmpty() ? QString() : p.front();
 			if (name.isEmpty()) {
-				name = pattern.isEmpty() ? qsl(".unknown") : pattern.replace('*', QString());
+				name = pattern.isEmpty() ? u".unknown"_q : pattern.replace('*', QString());
 			}
 
 			if (pattern.isEmpty()) {
 				filter = QString();
 			} else {
-				filter = mimeType.filterString() + qsl(";;") + FileDialog::AllFilesFilter();
+				filter = mimeType.filterString() + u";;"_q + FileDialog::AllFilesFilter();
 			}
 
 			file = FileNameForSave(
 				_session,
 				tr::lng_save_file(tr::now),
 				filter,
-				qsl("doc"),
+				u"doc"_q,
 				name,
 				true,
 				alreadyDir);
@@ -1667,14 +1667,14 @@ void OverlayWidget::saveAs() {
 		constexpr auto large = Data::PhotoSize::Large;
 		if (const auto bytes = _photoMedia->videoContent(large); !bytes.isEmpty()) {
 			const auto photo = _photo;
-			auto filter = qsl("Video Files (*.mp4);;") + FileDialog::AllFilesFilter();
+			auto filter = u"Video Files (*.mp4);;"_q + FileDialog::AllFilesFilter();
 			FileDialog::GetWritePath(
 				_widget.get(),
 				tr::lng_save_video(tr::now),
 				filter,
 				filedialogDefaultName(
-					qsl("photo"),
-					qsl(".mp4"),
+					u"photo"_q,
+					u".mp4"_q,
 					QString(),
 					false,
 					_photo->date),
@@ -1697,15 +1697,15 @@ void OverlayWidget::saveAs() {
 
 		const auto media = _photoMedia;
 		const auto photo = _photo;
-		const auto filter = qsl("JPEG Image (*.jpg);;")
+		const auto filter = u"JPEG Image (*.jpg);;"_q
 			+ FileDialog::AllFilesFilter();
 		FileDialog::GetWritePath(
 			_widget.get(),
 			tr::lng_save_photo(tr::now),
 			filter,
 			filedialogDefaultName(
-				qsl("photo"),
-				qsl(".jpg"),
+				u"photo"_q,
+				u".jpg"_q,
 				QString(),
 				false,
 				_photo->date),
@@ -1745,11 +1745,12 @@ void OverlayWidget::downloadMedia() {
 	const auto session = _photo ? &_photo->session() : &_document->session();
 	if (Core::App().settings().downloadPath().isEmpty()) {
 		path = File::DefaultDownloadPath(session);
-	} else if (Core::App().settings().downloadPath() == qsl("tmp")) {
+	} else if (Core::App().settings().downloadPath() == FileDialog::Tmp()) {
 		path = session->local().tempDirectory();
 	} else {
 		path = Core::App().settings().downloadPath();
 	}
+	if (path.isEmpty()) return;
 	QString toName;
 	if (_document) {
 		const auto &location = _document->location(true);
@@ -1791,7 +1792,7 @@ void OverlayWidget::downloadMedia() {
 			if (!QDir().exists(path)) {
 				QDir().mkpath(path);
 			}
-			toName = filedialogDefaultName(qsl("photo"), qsl(".mp4"), path);
+			toName = filedialogDefaultName(u"photo"_q, u".mp4"_q, path);
 			if (!_photoMedia->saveToFile(toName)) {
 				toName = QString();
 			}
@@ -1807,7 +1808,7 @@ void OverlayWidget::downloadMedia() {
 			if (!QDir().exists(path)) {
 				QDir().mkpath(path);
 			}
-			toName = filedialogDefaultName(qsl("photo"), qsl(".jpg"), path);
+			toName = filedialogDefaultName(u"photo"_q, u".jpg"_q, path);
 			const auto saved = _photoMedia->saveToFile(toName);
 			if (!saved) {
 				toName = QString();
@@ -2675,7 +2676,7 @@ void OverlayWidget::displayDocument(
 			_docName = (_document->type == StickerDocument)
 				? tr::lng_in_dlg_sticker(tr::now)
 				: (_document->type == AnimatedDocument
-					? qsl("GIF")
+					? u"GIF"_q
 					: (_document->filename().isEmpty()
 						? tr::lng_mediaview_doc_image(tr::now)
 						: _document->filename()));
@@ -2826,14 +2827,16 @@ void OverlayWidget::initStreamingThumbnail() {
 
 	_touchbarDisplay.fire(TouchBarItemType::Video);
 
+	auto userpicImage = std::optional<Image>();
 	const auto computePhotoThumbnail = [&] {
 		const auto thumbnail = _photoMedia->image(Data::PhotoSize::Thumbnail);
 		if (thumbnail) {
 			return thumbnail;
 		} else if (_peer && _peer->userpicPhotoId() == _photo->id) {
-			if (const auto view = _peer->activeUserpicView()) {
-				if (const auto image = view->image()) {
-					return image;
+			if (const auto view = _peer->activeUserpicView(); view.cloud) {
+				if (!view.cloud->isNull()) {
+					userpicImage.emplace(base::duplicate(*view.cloud));
+					return &*userpicImage;
 				}
 			}
 		}
@@ -3454,8 +3457,11 @@ void OverlayWidget::validatePhotoCurrentImage() {
 		&& !_message
 		&& _peer
 		&& _peer->hasUserpic()) {
-		if (const auto view = _peer->activeUserpicView()) {
-			validatePhotoImage(view->image(), true);
+		if (const auto view = _peer->activeUserpicView(); view.cloud) {
+			if (!view.cloud->isNull()) {
+				auto image = Image(base::duplicate(*view.cloud));
+				validatePhotoImage(&image, true);
+			}
 		}
 	}
 	if (_staticContent.isNull()) {
@@ -4165,9 +4171,9 @@ void OverlayWidget::setContext(
 		not_null<PeerData*>> context) {
 	if (const auto item = std::get_if<ItemContext>(&context)) {
 		_message = item->item;
-		_topicRootId = item->topicRootId;
 		_history = _message->history();
 		_peer = _history->peer;
+		_topicRootId = _peer->isForum() ? item->topicRootId : MsgId();
 	} else if (const auto peer = std::get_if<not_null<PeerData*>>(&context)) {
 		_peer = *peer;
 		_history = _peer->owner().history(_peer);
@@ -4522,7 +4528,7 @@ void OverlayWidget::handleMouseRelease(
 	updateOver(position);
 
 	if (const auto activated = ClickHandler::unpressed()) {
-		if (activated->dragText() == qstr("internal:show_saved_message")) {
+		if (activated->dragText() == u"internal:show_saved_message"_q) {
 			showSaveMsgFile();
 			return;
 		}

@@ -71,7 +71,7 @@ TimeId DurationForTimestampLinks(not_null<WebPageData*> webpage) {
 	} else if (const auto document = webpage->document) {
 		return DurationForTimestampLinks(document);
 	} else if (webpage->type != WebPageType::Video
-		|| webpage->siteName != qstr("YouTube")) {
+		|| webpage->siteName != u"YouTube"_q) {
 		return TimeId(0);
 	} else if (webpage->duration > 0) {
 		return webpage->duration;

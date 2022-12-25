@@ -354,6 +354,8 @@ void ForwardPanel::paint(
 		.availableWidth = available,
 		.palette = &st::historyComposeAreaPalette,
 		.spoiler = Ui::Text::DefaultSpoilerCache(),
+		.now = crl::now(),
+		.paused = p.inactive(),
 		.elisionLines = 1,
 	});
 }

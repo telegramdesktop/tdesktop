@@ -276,6 +276,10 @@ rpl::producer<int> RepliesList::fullCount() const {
 	return _fullCount.value() | rpl::filter_optional();
 }
 
+rpl::producer<std::optional<int>> RepliesList::maybeFullCount() const {
+	return _fullCount.value();
+}
+
 bool RepliesList::unreadCountKnown() const {
 	return _unreadCount.current().has_value();
 }
@@ -300,7 +304,9 @@ void RepliesList::injectRootMessage(not_null<Viewer*> viewer) {
 		return;
 	}
 	const auto root = lookupRoot();
-	if (!root || root->topicRootId()) {
+	if (!root
+		|| (_rootId == Data::ForumTopic::kGeneralId)
+		|| (root->topicRootId() != Data::ForumTopic::kGeneralId)) {
 		return;
 	}
 	injectRootDivider(root, slice);
@@ -657,25 +663,6 @@ void RepliesList::loadAfter() {
 bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 	const auto guard = gsl::finally([&] { _listChanges.fire({}); });
 
-	const auto fullCount = result.match([&](
-			const MTPDmessages_messagesNotModified &) {
-		LOG(("API Error: received messages.messagesNotModified! "
-			"(HistoryWidget::messagesReceived)"));
-		return 0;
-	}, [&](const MTPDmessages_messages &data) {
-		return int(data.vmessages().v.size());
-	}, [&](const MTPDmessages_messagesSlice &data) {
-		return data.vcount().v;
-	}, [&](const MTPDmessages_channelMessages &data) {
-		if (_history->peer->isChannel()) {
-			_history->peer->asChannel()->ptsReceived(data.vpts().v);
-		} else {
-			LOG(("API Error: received messages.channelMessages when "
-				"no channel was passed! (HistoryWidget::messagesReceived)"));
-		}
-		return data.vcount().v;
-	});
-
 	auto &owner = _history->owner();
 	const auto list = result.match([&](
 			const MTPDmessages_messagesNotModified &) {
@@ -687,6 +674,27 @@ bool RepliesList::processMessagesIsEmpty(const MTPmessages_Messages &result) {
 		owner.processChats(data.vchats());
 		return data.vmessages().v;
 	});
+
+	const auto fullCount = result.match([&](
+			const MTPDmessages_messagesNotModified &) {
+		LOG(("API Error: received messages.messagesNotModified! "
+			"(HistoryWidget::messagesReceived)"));
+		return 0;
+	}, [&](const MTPDmessages_messages &data) {
+		return int(data.vmessages().v.size());
+	}, [&](const MTPDmessages_messagesSlice &data) {
+		return data.vcount().v;
+	}, [&](const MTPDmessages_channelMessages &data) {
+		if (const auto channel = _history->peer->asChannel()) {
+			channel->ptsReceived(data.vpts().v);
+			channel->processTopics(data.vtopics());
+		} else {
+			LOG(("API Error: received messages.channelMessages when "
+				"no channel was passed! (HistoryWidget::messagesReceived)"));
+		}
+		return data.vcount().v;
+	});
+
 	if (list.isEmpty()) {
 		return true;
 	}
@@ -852,7 +860,13 @@ std::optional<int> RepliesList::computeUnreadCountLocally(
 		MsgId afterId) const {
 	Expects(afterId >= _inboxReadTillId);
 
-	const auto wasUnreadCountAfter = _unreadCount.current();
+	const auto currentUnreadCountAfter = _unreadCount.current();
+	const auto startingMarkingAsRead = (currentUnreadCountAfter == 0)
+		&& (_inboxReadTillId == 1)
+		&& (afterId > 1);
+	const auto wasUnreadCountAfter = startingMarkingAsRead
+		? _fullCount.current().value_or(0)
+		: currentUnreadCountAfter;
 	const auto readTillId = std::max(afterId, _rootId);
 	const auto wasReadTillId = _inboxReadTillId;
 	const auto backLoaded = (_skippedBefore == 0);

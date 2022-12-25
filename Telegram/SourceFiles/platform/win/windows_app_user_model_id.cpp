@@ -188,7 +188,7 @@ QString systemShortcutPath() {
 void cleanupShortcut() {
 	static const int maxFileLen = MAX_PATH * 10;
 
-	QString path = systemShortcutPath() + qsl("Telegram.lnk");
+	QString path = systemShortcutPath() + u"Telegram.lnk"_q;
 	std::wstring p = QDir::toNativeSeparators(path).toStdWString();
 
 	DWORD attributes = GetFileAttributes(p.c_str());

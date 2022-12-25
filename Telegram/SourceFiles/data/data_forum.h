@@ -53,7 +53,6 @@ public:
 	void requestTopics();
 	[[nodiscard]] rpl::producer<> chatsListChanges() const;
 	[[nodiscard]] rpl::producer<> chatsListLoadedEvents() const;
-	void unpinTopic();
 
 	void requestTopic(MsgId rootId, Fn<void()> done = nullptr);
 	ForumTopic *applyTopicAdded(
@@ -75,6 +74,9 @@ public:
 	void applyReceivedTopics(
 		const MTPmessages_ForumTopics &topics,
 		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
+	void applyReceivedTopics(
+		const MTPVector<MTPForumTopic> &topics,
+		Fn<void(not_null<ForumTopic*>)> callback = nullptr);
 
 	[[nodiscard]] MsgId reserveCreatingId(
 		const QString &title,
@@ -88,6 +90,12 @@ public:
 	void clearAllUnreadReactions();
 	void enumerateTopics(Fn<void(not_null<ForumTopic*>)> action) const;
 
+	void listMessageChanged(HistoryItem *from, HistoryItem *to);
+	[[nodiscard]] int recentTopicsListVersion() const;
+	void recentTopicsInvalidate(not_null<ForumTopic*> topic);
+	[[nodiscard]] auto recentTopics() const
+		-> const std::vector<not_null<ForumTopic*>> &;
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -98,6 +106,7 @@ private:
 		std::vector<Fn<void()>> callbacks;
 	};
 
+	void reorderLastTopics();
 	void requestSomeStale();
 	void finishTopicRequest(MsgId rootId);
 
@@ -116,6 +125,9 @@ private:
 	ForumOffsets _offset;
 
 	base::flat_set<MsgId> _creatingRootIds;
+
+	std::vector<not_null<ForumTopic*>> _lastTopics;
+	int _lastTopicsVersion = 0;
 
 	rpl::event_stream<> _chatsListChanges;
 	rpl::event_stream<> _chatsListLoadedEvents;

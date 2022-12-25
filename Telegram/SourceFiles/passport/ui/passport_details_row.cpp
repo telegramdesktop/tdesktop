@@ -885,9 +885,9 @@ std::unique_ptr<AbstractCheckView> GenderRow::createRadioView(
 
 auto GenderRow::StringToGender(const QString &value)
 -> std::optional<Gender> {
-	if (value == qstr("male")) {
+	if (value == u"male"_q) {
 		return Gender::Male;
-	} else if (value == qstr("female")) {
+	} else if (value == u"female"_q) {
 		return Gender::Female;
 	}
 	return std::nullopt;

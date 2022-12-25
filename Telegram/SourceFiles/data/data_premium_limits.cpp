@@ -101,6 +101,10 @@ int PremiumLimits::dialogsFolderPinnedCurrent() const {
 		: dialogsFolderPinnedDefault();
 }
 
+int PremiumLimits::topicsPinnedCurrent() const {
+	return appConfigLimit("topics_pinned_limit", 5);
+}
+
 int PremiumLimits::channelsPublicDefault() const {
 	return appConfigLimit("channels_public_limit_default", 10);
 }

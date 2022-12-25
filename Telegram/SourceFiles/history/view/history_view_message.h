@@ -56,6 +56,10 @@ struct BottomRippleMask {
 	int shift = 0;
 };
 
+[[nodiscard]] style::color FromNameFg(
+	const Ui::ChatPaintContext &context,
+	PeerId peerId);
+
 class Message final : public Element {
 public:
 	Message(
@@ -119,6 +123,7 @@ public:
 	bool hasOutLayout() const override;
 	bool drawBubble() const override;
 	bool hasBubble() const override;
+	TopicButton *displayedTopicButton() const override;
 	bool unwrapped() const override;
 	int minWidthForMedia() const override;
 	bool hasFastReply() const override;
@@ -131,7 +136,8 @@ public:
 		int left,
 		int top,
 		int outerWidth) const override;
-	[[nodiscard]] ClickHandlerPtr rightActionLink() const override;
+	[[nodiscard]] ClickHandlerPtr rightActionLink(
+		std::optional<QPoint> pressPoint) const override;
 	[[nodiscard]] TimeId displayedEditDate() const override;
 	[[nodiscard]] HistoryMessageReply *displayedReply() const override;
 	[[nodiscard]] bool toggleSelectionByHandlerClick(
@@ -163,6 +169,7 @@ protected:
 private:
 	struct CommentsButton;
 	struct FromNameStatus;
+	struct RightAction;
 
 	void initLogEntryOriginal();
 	void initPsa();
@@ -176,13 +183,23 @@ private:
 		TextSelection selection) const;
 
 	void toggleCommentsButtonRipple(bool pressed);
-	void createCommentsRipple();
+	void createCommentsButtonRipple();
+
+	void toggleTopicButtonRipple(bool pressed);
+	void createTopicButtonRipple();
+
+	void toggleRightActionRipple(bool pressed);
+	void createRightActionRipple();
 
 	void paintCommentsButton(
 		Painter &p,
 		QRect &g,
 		const PaintContext &context) const;
 	void paintFromName(
+		Painter &p,
+		QRect &trect,
+		const PaintContext &context) const;
+	void paintTopicButton(
 		Painter &p,
 		QRect &trect,
 		const PaintContext &context) const;
@@ -210,6 +227,10 @@ private:
 		QRect &g,
 		not_null<TextState*> outResult) const;
 	bool getStateFromName(
+		QPoint point,
+		QRect &trect,
+		not_null<TextState*> outResult) const;
+	bool getStateTopicButton(
 		QPoint point,
 		QRect &trect,
 		not_null<TextState*> outResult) const;
@@ -252,7 +273,10 @@ private:
 	[[nodiscard]] bool displayFastShare() const;
 	[[nodiscard]] bool displayGoToOriginal() const;
 	[[nodiscard]] ClickHandlerPtr fastReplyLink() const;
+	[[nodiscard]] ClickHandlerPtr prepareRightActionLink() const;
 
+	void ensureRightAction() const;
+	void refreshTopicButton();
 	void refreshInfoSkipBlock();
 	[[nodiscard]] int plainMaxWidth() const;
 	[[nodiscard]] int monospaceMaxWidth() const;
@@ -271,10 +295,11 @@ private:
 	void refreshReactions();
 	void validateFromNameText(PeerData *from) const;
 
-	mutable ClickHandlerPtr _rightActionLink;
+	mutable std::unique_ptr<RightAction> _rightAction;
 	mutable ClickHandlerPtr _fastReplyLink;
 	mutable std::unique_ptr<ViewButton> _viewButton;
 	std::unique_ptr<Reactions::InlineList> _reactions;
+	std::unique_ptr<TopicButton> _topicButton;
 	mutable std::unique_ptr<CommentsButton> _comments;
 
 	mutable Ui::Text::String _fromName;

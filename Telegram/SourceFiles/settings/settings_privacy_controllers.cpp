@@ -43,7 +43,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/peer_list_controllers.h"
 #include "ui/boxes/confirm_box.h"
 #include "settings/settings_privacy_security.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_boxes.h"
 #include "styles/style_settings.h"
@@ -354,8 +353,9 @@ void BlockedBoxController::loadMoreRows() {
 
 void BlockedBoxController::rowClicked(not_null<PeerListRow*> row) {
 	const auto peer = row->peer();
-	crl::on_main(&peer->session(), [=] {
-		Ui::showPeerHistory(peer, ShowAtUnreadMsgId);
+	const auto window = _window;
+	crl::on_main(window, [=] {
+		window->showPeerHistory(peer);
 	});
 }
 

@@ -15,6 +15,8 @@ class Launcher : public Core::Launcher {
 public:
 	Launcher(int argc, char *argv[]);
 
+	static Launcher &Instance();
+
 	int exec() override;
 
 private:

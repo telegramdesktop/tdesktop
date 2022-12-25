@@ -44,7 +44,7 @@ TextForMimeData HistoryItemText(not_null<HistoryItem*> item) {
 	if (result.empty()) {
 		result = std::move(logEntryOriginalResult);
 	} else if (!logEntryOriginalResult.empty()) {
-		result.append(qstr("\n\n")).append(std::move(logEntryOriginalResult));
+		result.append(u"\n\n"_q).append(std::move(logEntryOriginalResult));
 	}
 	return result;
 }
@@ -72,7 +72,7 @@ TextForMimeData HistoryGroupText(not_null<const Data::Group*> group) {
 				if (result.empty()) {
 					result = HistoryItemText(item);
 				} else {
-					result.append(qstr("\n\n")).append(HistoryItemText(item));
+					result.append(u"\n\n"_q).append(HistoryItemText(item));
 				}
 			}
 			return result;

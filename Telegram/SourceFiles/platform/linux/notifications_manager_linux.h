@@ -22,7 +22,7 @@ protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

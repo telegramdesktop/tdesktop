@@ -32,7 +32,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include <QtCore/QJsonDocument>
 #include <QtCore/QJsonObject>
 #include <QtCore/QJsonArray>
-#include <QtGui/QDesktopServices>
 
 namespace Ui::BotWebView {
 namespace {
@@ -743,7 +742,7 @@ void Panel::openExternalLink(const QJsonObject &args) {
 	if (_mainButtonLastClick
 		&& _mainButtonLastClick + kProcessClickTimeout >= now) {
 		_mainButtonLastClick = 0;
-		QDesktopServices::openUrl(url);
+		File::OpenUrl(url);
 	} else {
 		const auto string = EncodeForJs(url);
 		_webview->window.eval(("window.open(\"" + string + "\");").toUtf8());

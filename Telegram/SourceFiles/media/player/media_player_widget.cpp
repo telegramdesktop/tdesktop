@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/history_item.h"
 #include "storage/storage_account.h"
 #include "main/main_session.h"
-#include "facades.h"
 
 namespace Media {
 namespace Player {
@@ -859,7 +858,7 @@ void Widget::updateLabelsGeometry() {
 	const auto widthForName = width()
 		- left
 		- getNameRight();
-	_nameLabel->resizeToWidth(widthForName);
+	_nameLabel->resizeToNaturalWidth(widthForName);
 	_nameLabel->moveToLeft(left, st::mediaPlayerNameTop - st::mediaPlayerName.style.font->ascent);
 
 	const auto right = getTimeRight();
@@ -1056,8 +1055,8 @@ void Widget::handleSongChange() {
 			.textWithEntities(true);
 	}
 	_nameLabel->setMarkedText(textWithEntities);
-
 	handlePlaylistUpdate();
+	updateLabelsGeometry();
 }
 
 void Widget::handlePlaylistUpdate() {

@@ -166,7 +166,7 @@ void AddParticipantsBoxController::updateTitle() {
 		&& _peer->isChannel()
 		&& !_peer->isMegagroup())
 		? QString()
-		: qsl("%1 / %2"
+		: (u"%1 / %2"_q
 		).arg(fullCount()
 		).arg(session().serverConfig().megagroupSizeMax);
 	delegate()->peerListSetTitle(tr::lng_profile_add_participant());

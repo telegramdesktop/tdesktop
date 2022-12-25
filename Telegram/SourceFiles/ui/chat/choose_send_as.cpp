@@ -325,7 +325,7 @@ void SetupSendAsButton(
 		not_null<SendAsButton*> button,
 		not_null<Window::SessionController*> window) {
 	auto active = window->activeChatValue(
-	) | rpl::map([=](const Dialogs::Key &key) {
+	) | rpl::map([=](Dialogs::Key key) {
 		return key.history() ? key.history()->peer.get() : nullptr;
 	});
 	SetupSendAsButton(button, std::move(active), window);

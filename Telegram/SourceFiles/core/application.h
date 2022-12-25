@@ -182,6 +182,7 @@ public:
 	[[nodiscard]] Settings &settings();
 	void saveSettingsDelayed(crl::time delay = kDefaultSaveDelay);
 	void saveSettings();
+	[[nodiscard]] bool canSaveFileWithoutAskingForPath() const;
 
 	// Fallback config and proxy.
 	[[nodiscard]] MTP::Config &fallbackProductionConfig() const;
@@ -239,6 +240,7 @@ public:
 
 	// Internal links.
 	void checkStartUrl();
+	void checkSendPaths();
 	bool openLocalUrl(const QString &url, QVariant context);
 	bool openInternalUrl(const QString &url, QVariant context);
 	[[nodiscard]] QString changelogLink() const;
@@ -301,8 +303,6 @@ public:
 	void writeInstallBetaVersionsSetting();
 
 	void preventOrInvoke(Fn<void()> &&callback);
-
-	void call_handleObservables();
 
 	// Global runtime variables.
 	void setScreenIsLocked(bool locked);

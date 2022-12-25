@@ -15,9 +15,12 @@ architectures:
 
 apps:
   telegram-desktop:
-    command: bin/desktop-launch telegram-desktop
+    command: usr/bin/telegram-desktop
+    command-chain:
+      - bin/desktop-launch
     common-id: org.telegram.desktop
-    desktop: usr/share/applications/telegramdesktop.desktop
+    desktop: usr/share/applications/org.telegram.desktop.desktop
+    autostart: telegram-desktop_telegram-desktop.desktop
     environment:
       # Tell glib to use portals on file associations handling.
       GTK_USE_PORTAL: 1
@@ -86,7 +89,7 @@ parts:
     plugin: cmake
     source: .
     source-type: git
-    parse-info: [usr/share/metainfo/telegramdesktop.metainfo.xml]
+    parse-info: [usr/share/metainfo/org.telegram.desktop.metainfo.xml]
     build-environment:
       - LD_LIBRARY_PATH: $CRAFT_STAGE/usr/lib/$CRAFT_ARCH_TRIPLET${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
     build-packages:
@@ -144,7 +147,7 @@ parts:
 
       craftctl set version="$version"
 
-      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/telegramdesktop.desktop
+      sed -i 's|^Icon=telegram$|Icon=${SNAP}/meta/gui/icon.png|g' lib/xdg/org.telegram.desktop.desktop
     override-build: |
       craftctl default
       rm -rf "$CRAFT_PART_INSTALL/usr/share/icons"
@@ -160,6 +163,7 @@ parts:
       - mozjpeg
       - openal
       - openssl
+      - protobuf
       - rnnoise
       - webrtc
 
@@ -219,8 +223,8 @@ parts:
     source-tag: 2.72.1
     plugin: meson
     build-packages:
-      - curl
       - meson
+      - mm-common
       - ninja-build
       - libglib2.0-dev
       - libxml-parser-perl
@@ -234,7 +238,6 @@ parts:
       - -Dsigc++-3.0:build-documentation=false
       - -Dsigc++-3.0:build-examples=false
       - -Dsigc++-3.0:validation=false
-      - -Dmm-common:use-network=true
     prime:
       - -./usr/include
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
@@ -340,6 +343,28 @@ parts:
       - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
       - -./usr/share
 
+  protobuf:
+    source: https://github.com/protocolbuffers/protobuf.git
+    source-depth: 1
+    source-tag: v21.9
+    plugin: cmake
+    build-packages:
+      - zlib1g-dev
+    stage-packages:
+      - zlib1g
+    cmake-generator: Ninja
+    cmake-parameters:
+      - -DCMAKE_BUILD_TYPE=Release
+      - -DCMAKE_INSTALL_PREFIX=/usr
+      - -DBUILD_SHARED_LIBS=ON
+      - -Dprotobuf_BUILD_TESTS=OFF
+    prime:
+      - -./usr/bin
+      - -./usr/include
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/cmake
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/pkgconfig
+      - -./usr/lib/$CRAFT_ARCH_TRIPLET/*.so
+
   qt:
     plugin: nil
     build-packages:
@@ -420,9 +445,9 @@ parts:
       - libxkbcommon-x11-0
       - zlib1g
     override-pull: |
-      QT=6_4_0
+      QT=6_4_1
 
-      git clone -b v6.4.0 --depth=1 git://code.qt.io/qt/qt5.git .
+      git clone -b v6.4.1 --depth=1 git://code.qt.io/qt/qt5.git .
       git submodule update --init --recursive --depth=1 qtbase qtdeclarative qtwayland qtimageformats qtsvg qt5compat qtshadertools
 
       cd qtbase
@@ -488,7 +513,7 @@ parts:
   webrtc:
     source: https://github.com/desktop-app/tg_owt.git
     source-depth: 1
-    source-commit: 10d5f4bf77333ef6b43516f90d2ce13273255f41
+    source-commit: cc8edd5719556e1711f50da9a3f7a4c59bba574d
     plugin: cmake
     build-packages:
       - yasm

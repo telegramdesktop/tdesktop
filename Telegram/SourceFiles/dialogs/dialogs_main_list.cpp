@@ -89,7 +89,7 @@ void MainList::clear() {
 	_cloudListSize = 0;
 }
 
-RowsByLetter MainList::addEntry(const Key &key) {
+RowsByLetter MainList::addEntry(Key key) {
 	const auto result = _all.addToEnd(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
@@ -99,8 +99,8 @@ RowsByLetter MainList::addEntry(const Key &key) {
 	return result;
 }
 
-void MainList::removeEntry(const Key &key) {
-	_all.del(key);
+void MainList::removeEntry(Key key) {
+	_all.remove(key);
 
 	const auto unread = key.entry()->chatListUnreadState();
 	unreadEntryChanged(unread, false);

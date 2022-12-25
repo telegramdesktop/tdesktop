@@ -28,7 +28,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_channel.h"
 #include "data/data_session.h"
 #include "lang/lang_keys.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_window.h"
 #include "styles/style_info.h"
@@ -398,7 +397,7 @@ void Widget::setupShortcuts() {
 	) | rpl::filter([=] {
 		return Ui::AppInFocus()
 			&& Ui::InFocusChain(this)
-			&& !Ui::isLayerShown()
+			&& !controller()->isLayerShown()
 			&& isActiveWindow();
 	}) | rpl::start_with_next([=](not_null<Shortcuts::Request*> request) {
 		using Command = Shortcuts::Command;
@@ -462,7 +461,7 @@ void Widget::paintEvent(QPaintEvent *e) {
 	if (animatingShow()) {
 		SectionWidget::paintEvent(e);
 		return;
-	} else if (Ui::skipPaintEvent(this, e)) {
+	} else if (controller()->contentOverlapped(this, e)) {
 		return;
 	}
 	//if (hasPendingResizedItems()) {

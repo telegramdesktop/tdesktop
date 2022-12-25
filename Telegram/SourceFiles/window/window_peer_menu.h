@@ -118,13 +118,23 @@ Fn<void()> DeleteMyMessagesHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer);
 
-QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+QPointer<Ui::BoxContent> ShowChooseRecipientBox(
 	not_null<Window::SessionNavigation*> navigation,
-	Data::ForwardDraft &&draft,
+	FnMut<bool(not_null<Data::Thread*>)> &&chosen,
+	rpl::producer<QString> titleOverride = nullptr,
 	FnMut<void()> &&successCallback = nullptr);
 QPointer<Ui::BoxContent> ShowForwardMessagesBox(
 	not_null<Window::SessionNavigation*> navigation,
+	Data::ForwardDraft &&draft,
+	Fn<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowForwardMessagesBox(
+	not_null<Window::SessionNavigation*> navigation,
 	MessageIdsList &&items,
+	Fn<void()> &&successCallback = nullptr);
+QPointer<Ui::BoxContent> ShowShareUrlBox(
+	not_null<Window::SessionNavigation*> navigation,
+	const QString &url,
+	const QString &text,
 	FnMut<void()> &&successCallback = nullptr);
 QPointer<Ui::BoxContent> ShowShareGameBox(
 	not_null<Window::SessionNavigation*> navigation,

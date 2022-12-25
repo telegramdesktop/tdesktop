@@ -325,30 +325,30 @@ QString ComputeDocumentName(
 	}
 	const auto mimeString = QString::fromUtf8(data.mime);
 	const auto mimeType = Core::MimeTypeForName(mimeString);
-	const auto hasMimeType = [&](QLatin1String mime) {
+	const auto hasMimeType = [&](const auto &mime) {
 		return !mimeString.compare(mime, Qt::CaseInsensitive);
 	};
 	const auto patterns = mimeType.globPatterns();
 	const auto pattern = patterns.isEmpty() ? QString() : patterns.front();
 	if (data.isVoiceMessage) {
-		const auto isMP3 = hasMimeType(qstr("audio/mp3"));
-		return qsl("audio_")
+		const auto isMP3 = hasMimeType(u"audio/mp3"_q);
+		return u"audio_"_q
 			+ QString::number(++context.audios)
 			+ PrepareFileNameDatePart(date)
-			+ (isMP3 ? qsl(".mp3") : qsl(".ogg"));
+			+ (isMP3 ? u".mp3"_q : u".ogg"_q);
 	} else if (data.isVideoFile) {
 		const auto extension = pattern.isEmpty()
-			? qsl(".mov")
+			? u".mov"_q
 			: QString(pattern).replace('*', QString());
-		return qsl("video_")
+		return u"video_"_q
 			+ QString::number(++context.videos)
 			+ PrepareFileNameDatePart(date)
 			+ extension;
 	} else {
 		const auto extension = pattern.isEmpty()
-			? qsl(".unknown")
+			? u".unknown"_q
 			: QString(pattern).replace('*', QString());
-		return qsl("file_")
+		return u"file_"_q
 			+ QString::number(++context.files)
 			+ PrepareFileNameDatePart(date)
 			+ extension;

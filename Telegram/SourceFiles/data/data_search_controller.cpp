@@ -137,9 +137,10 @@ SearchResult ParseSearchResult(
 		} break;
 
 		case mtpc_messages_channelMessages: {
-			auto &d = data.c_messages_channelMessages();
-			if (auto channel = peer->asChannel()) {
+			const auto &d = data.c_messages_channelMessages();
+			if (const auto channel = peer->asChannel()) {
 				channel->ptsReceived(d.vpts().v);
+				channel->processTopics(d.vtopics());
 			} else {
 				LOG(("API Error: received messages.channelMessages when "
 					"no channel was passed! (ParseSearchResult)"));

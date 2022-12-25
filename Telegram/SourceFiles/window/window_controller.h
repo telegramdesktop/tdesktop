@@ -62,8 +62,6 @@ public:
 
 	void setupPasscodeLock();
 	void clearPasscodeLock();
-	void setupIntro();
-	void setupMain(MsgId singlePeerShowAtMsgId);
 
 	void showLogoutConfirmation();
 
@@ -90,6 +88,7 @@ public:
 
 	void hideLayer(anim::type animated = anim::type::normal);
 	void hideSettingsAndLayer(anim::type animated = anim::type::normal);
+	[[nodiscard]] bool isLayerShown() const;
 
 	void activate();
 	void reActivate();
@@ -119,6 +118,9 @@ private:
 		PeerData *singlePeer = nullptr;
 	};
 	explicit Controller(CreateArgs &&args);
+
+	void setupIntro(QPixmap oldContentCache);
+	void setupMain(MsgId singlePeerShowAtMsgId, QPixmap oldContentCache);
 
 	void showAccount(
 		not_null<Main::Account*> account,

@@ -36,7 +36,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/mac/base_utilities_mac.h"
 #include "ui/widgets/input_fields.h"
 #include "ui/ui_utility.h"
-#include "facades.h"
 
 #include <QtWidgets/QApplication>
 #include <QtGui/QClipboard>
@@ -292,7 +291,7 @@ void MainWindow::createGlobalMenu() {
 		}
 	};
 
-	auto main = psMainMenu.addMenu(qsl("Telegram"));
+	auto main = psMainMenu.addMenu(u"Telegram"_q);
 	{
 		auto callback = [=] {
 			ensureWindowShown();
@@ -302,7 +301,7 @@ void MainWindow::createGlobalMenu() {
 			tr::lng_mac_menu_about_telegram(
 				tr::now,
 				lt_telegram,
-				qsl("Telegram")),
+				u"Telegram"_q),
 			std::move(callback))
 		->setMenuRole(QAction::AboutQtRole);
 	}

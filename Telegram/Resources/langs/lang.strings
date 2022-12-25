@@ -204,6 +204,9 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_filter_pin_limit2#one" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chat.";
 "lng_filter_pin_limit2#other" = "Unpin some of the currently pinned ones or subscribe to **Telegram Premium** to double the limit to **{count}** chats.";
 
+"lng_forum_pin_limit#one" = "Sorry, you can't pin more than **{count}** topic to the top.";
+"lng_forum_pin_limit#other" = "Sorry, you can't pin more than **{count}** topics to the top.";
+
 "lng_fave_sticker_limit_title#one" = "The Limit of {count} Stickers Reached";
 "lng_fave_sticker_limit_title#other" = "The Limit of {count} Stickers Reached";
 "lng_fave_sticker_limit_more#one" = "An older sticker was replaced with this one.\nYou can {link} to {count} sticker.";
@@ -314,7 +317,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_intro_qr_title" = "Scan From Mobile Telegram";
 "lng_intro_qr_step1" = "Open Telegram on your phone";
-"lng_intro_qr_step2" = "Go to Settings > Devices > Scan QR Code";
+"lng_intro_qr_step2" = "Go to Settings > Devices > Link Desktop";
 "lng_intro_qr_step3" = "Scan this image to Log In";
 "lng_intro_qr_skip" = "Or log in using your phone number";
 
@@ -399,6 +402,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_username_invalid" = "This username is invalid.";
 "lng_username_occupied" = "This username is already occupied.";
 "lng_username_too_short" = "This username is too short.";
+"lng_username_purchase_available" = "Sorry, this link is occupied by someone. But it's available for purchase through\nofficial {link}.";
 "lng_username_bad_symbols" = "Only a-z, 0-9, and underscores allowed.";
 "lng_username_available" = "This username is available.";
 "lng_username_not_found" = "User @{user} not found.";
@@ -662,6 +666,38 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_settings_cloud_password_save" = "Save and Finish";
 "lng_settings_cloud_password_email_confirm" = "Confirm and Finish";
 "lng_settings_cloud_password_reset_in" = "You can reset your password in {duration}.";
+
+"lng_settings_ttl_title" = "Auto-Delete Messages";
+"lng_settings_ttl_about" = "Automatically delete messages for everyone after a period of time in all new chats you start.";
+"lng_settings_ttl_after" = "After {after_duration}";
+"lng_settings_ttl_after_hours#one" = "{count} hour";
+"lng_settings_ttl_after_hours#other" = "{count} hours";
+"lng_settings_ttl_after_days#one" = "{count} day";
+"lng_settings_ttl_after_days#other" = "{count} days";
+"lng_settings_ttl_after_weeks#one" = "{count} week";
+"lng_settings_ttl_after_weeks#other" = "{count} weeks";
+"lng_settings_ttl_after_months#one" = "{count} month";
+"lng_settings_ttl_after_months#other" = "{count} months";
+"lng_settings_ttl_after_years#one" = "{count} year";
+"lng_settings_ttl_after_years#other" = "{count} years";
+"lng_settings_ttl_after_off" = "Off";
+"lng_settings_ttl_after_custom" = "Set Custom Time";
+"lng_settings_ttl_after_about" = "If enabled, all new messages in chats you start will be automatically deleted for everyone at some point after they have been sent. You can also {link}.";
+"lng_settings_ttl_after_about_link" = "apply this setting for your existing chats";
+"lng_settings_ttl_after_subtitle" = "Self-destruct timer";
+"lng_settings_ttl_after_sure" = "Are you sure you want all messages in new chats started by you to be automatically deleted for everyone {after_duration} after they have been sent?";
+"lng_settings_ttl_after_toast" = "Messages in all new chats you start will be automatically deleted after {after_duration}.";
+
+"lng_settings_ttl_select_chats_title" = "Select Chats";
+"lng_settings_ttl_select_chats_subtitle" = "to apply the self-destruct timer";
+"lng_settings_ttl_select_chats_subtitle_chosen" = "will have the self-destruct timer";
+"lng_settings_ttl_select_chats_sorry" = "Sorry, you can't set self-destruct timer for this chat.";
+"lng_settings_ttl_select_chats_status" = "auto-delete after {after_duration}";
+"lng_settings_ttl_select_chats_status_disabled" = "auto-deletion disabled";
+"lng_settings_ttl_select_chats_toast#one" = "Self-destruct timer for {duration} has been enabled in {count} selected chat.";
+"lng_settings_ttl_select_chats_toast#other" = "Self-destruct timer for {duration} has been enabled in {count} selected chats.";
+"lng_settings_ttl_select_chats_disabled_toast#one" = "Self-destruct timer has been disabled in {count} selected chat.";
+"lng_settings_ttl_select_chats_disabled_toast#other" = "Self-destruct timer has been disabled in {count} selected chats.";
 
 "lng_clear_payment_info_title" = "Clear payment info";
 "lng_clear_payment_info_sure" = "Are you sure you want to clear your payment and shipping info?";
@@ -1235,6 +1271,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_manage_peer_reactions_some_title" = "Only allow these reactions";
 "lng_manage_peer_reactions_available" = "Available reactions";
 
+"lng_manage_peer_antispam" = "Aggressive Anti-Spam";
+"lng_manage_peer_antispam_about" = "Telegram will filter more spam but may occasionally affect ordinary messages. You can report False Positives in Recent Actions.";
+"lng_manage_peer_antispam_not_enough#one" = "Aggressive filtering can be enabled only in groups with more than **{count} member**.";
+"lng_manage_peer_antispam_not_enough#other" = "Aggressive filtering can be enabled only in groups with more than **{count} members**.";
+
 "lng_manage_peer_group_type" = "Group type";
 "lng_manage_peer_channel_type" = "Channel type";
 "lng_manage_peer_link_type" = "Link type";
@@ -1294,6 +1335,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_ttl_edit_about" = "Automatically delete new messages after a certain period of time for you and {user}.";
 "lng_ttl_edit_about_group" = "Automatically delete new messages sent in this chat after a certain period of time.";
 "lng_ttl_edit_about_channel" = "Automatically delete new messages sent in this channel after a certain period of time.";
+"lng_ttl_edit_about2" = "You can also set your default {link} for all chats in Settings.";
+"lng_ttl_edit_about2_link" = "self-destruct timer";
 "lng_ttl_edit_save" = "Confirm";
 "lng_ttl_about_tooltip" = "New messages in this chat will be automatically deleted in {duration}.";
 "lng_ttl_about_tooltip_channel" = "New messages in this chat will be automatically deleted in {duration}.";
@@ -1361,6 +1404,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_group_next" = "Next";
 "lng_create_group_create" = "Create";
 "lng_create_group_title" = "New Group";
+"lng_create_group_ttl_about" = "Automatically delete messages in this group for everyone after a period of time.";
 "lng_create_channel_title" = "New Channel";
 "lng_create_public_channel_title" = "Public Channel";
 "lng_create_public_channel_about" = "Anyone can find the channel in search and join";
@@ -1383,6 +1427,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_create_channel_link_too_short" = "Sorry, this link is too short";
 "lng_create_channel_link_bad_symbols" = "Only 0-9, a-z, and underscores allowed.";
 "lng_create_channel_link_available" = "This link is available";
+"lng_create_channel_link_pending" = "Checking name...";
 "lng_create_channel_link_copied" = "Link copied to clipboard";
 
 "lng_create_group_crop" = "Select an area for group photo";
@@ -1454,6 +1499,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_ttl_changed" = "{from} has set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_you" = "You set messages to auto-delete in {duration}";
 "lng_action_ttl_changed_channel" = "New messages will auto-delete in {duration}";
+"lng_action_ttl_global" = "{from} uses a self-destruct timer for all chats. All new messages in this chat will be automatically deleted after {duration} they've been sent.";
 "lng_action_ttl_removed" = "{from} has set messages not to auto-delete";
 "lng_action_ttl_removed_you" = "You disabled the auto-delete timer";
 "lng_action_ttl_removed_channel" = "New messages will not auto-delete";
@@ -1512,9 +1558,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_action_topic_created_inside" = "Topic created";
 "lng_action_topic_closed_inside" = "Topic closed";
 "lng_action_topic_reopened_inside" = "Topic reopened";
+"lng_action_topic_hidden_inside" = "Topic hidden";
+"lng_action_topic_unhidden_inside" = "Topic unhidden";
 "lng_action_topic_created" = "«{topic}» was created";
 "lng_action_topic_closed" = "«{topic}» was closed";
 "lng_action_topic_reopened" = "«{topic}» was reopened";
+"lng_action_topic_hidden" = "«{topic}» was hidden";
+"lng_action_topic_unhidden" = "«{topic}» was unhidden";
 "lng_action_topic_placeholder" = "topic";
 "lng_action_topic_renamed" = "{from} renamed the {link} to «{title}»";
 "lng_action_topic_icon_changed" = "{from} changed the {link} icon to {emoji}";
@@ -1937,6 +1987,16 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_in_dlg_sticker" = "Sticker";
 "lng_in_dlg_sticker_emoji" = "{emoji} Sticker";
 "lng_in_dlg_poll" = "Poll";
+"lng_in_dlg_media_count#one" = "{count} media";
+"lng_in_dlg_media_count#other" = "{count} media";
+"lng_in_dlg_photo_count#one" = "{count} photo";
+"lng_in_dlg_photo_count#other" = "{count} photos";
+"lng_in_dlg_video_count#one" = "{count} video";
+"lng_in_dlg_video_count#other" = "{count} videos";
+"lng_in_dlg_file_count#one" = "{count} file";
+"lng_in_dlg_file_count#other" = "{count} files";
+"lng_in_dlg_audio_count#one" = "{count} audio";
+"lng_in_dlg_audio_count#other" = "{count} audio";
 
 "lng_ban_user" = "Ban User";
 "lng_delete_all_from_user" = "Delete all from {user}";
@@ -2187,6 +2247,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_copy_link" = "Copy Link";
 "lng_context_copy_message_link" = "Copy Message Link";
 "lng_context_copy_post_link" = "Copy Post Link";
+"lng_context_copy_topic_link" = "Copy Topic Link";
 "lng_context_copy_email" = "Copy Email Address";
 "lng_context_copy_hashtag" = "Copy Hashtag";
 "lng_context_copy_mention" = "Copy Username";
@@ -2246,6 +2307,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_context_delete_from_disk" = "Delete from disk";
 "lng_context_delete_all_files" = "Delete all files";
 "lng_context_save_custom_sound" = "Save for notifications";
+"lng_context_translate" = "Translate";
+"lng_context_translate_selected" = "Translate Selected Text";
 
 "lng_context_animated_emoji" = "This message contains emoji from **{name} pack**.";
 "lng_context_animated_emoji_many#one" = "This message contains emoji from **{count} pack**.";
@@ -3082,6 +3145,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_disallowed_unmute_self_channel" = "{from} started muting new live stream members";
 "lng_admin_log_participant_volume" = "{from} changed voice chat volume for {user} to {percent}";
 "lng_admin_log_participant_volume_channel" = "{from} changed live stream volume for {user} to {percent}";
+"lng_admin_log_antispam_enabled" = "{from} enabled aggressive anti-spam";
+"lng_admin_log_antispam_disabled" = "{from} disabled aggressive anti-spam";
 "lng_admin_log_user_with_username" = "{name} ({mention})";
 "lng_admin_log_messages_ttl_set" = "{from} enabled messages auto-delete after {duration}";
 "lng_admin_log_messages_ttl_changed" = "{from} changed messages auto-delete period from {previous} to {duration}";
@@ -3102,6 +3167,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_topics_changed" = "{from} changed topic {topic} to {new_topic}";
 "lng_admin_log_topics_closed" = "{from} closed topic {topic}";
 "lng_admin_log_topics_reopened" = "{from} reopened topic {topic}";
+"lng_admin_log_topics_hidden" = "{from} hid topic {topic}";
+"lng_admin_log_topics_unhidden" = "{from} unhid topic {topic}";
 "lng_admin_log_topics_deleted" = "{from} deleted topic {topic}";
 "lng_admin_log_topics_pinned" = "{from} pinned topic {topic}";
 "lng_admin_log_topics_unpinned" = "{from} unpinned topic {topic}";
@@ -3126,6 +3193,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_admin_manage_calls" = "Manage voice chats";
 "lng_admin_log_admin_manage_calls_channel" = "Manage live streams";
 "lng_admin_log_admin_add_admins" = "Add new admins";
+
+"lng_admin_log_antispam_menu_report" = "Report False Positive";
+"lng_admin_log_antispam_menu_report_toast" = "You can manage anti-spam settings in {link}.";
+"lng_admin_log_antispam_menu_report_toast_link" = "Group Info > Administrators";
 
 "lng_terms_signup" = "By signing up,\nyou agree to the {link}.";
 "lng_terms_signup_link" = "Terms of Service";
@@ -3373,6 +3444,14 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_language_not_ready_about" = "Unfortunately, this custom language pack ({lang_name}) doesn't contain data for Telegram Desktop. You can contribute to this language pack using the {link}.";
 "lng_language_not_ready_link" = "translations platform";
 
+"lng_translate_box_original" = "Original";
+"lng_translate_box_error" = "Translate failed.";
+
+"lng_translate_settings_subtitle" = "Translate Messages";
+"lng_translate_settings_show" = "Show Translate Button";
+"lng_translate_settings_choose" = "Do Not Translate";
+"lng_translate_settings_about" = "The 'Translate' button will appear when you open a context menu on a text message.";
+
 "lng_launch_exe_warning" = "This file has a {extension} extension.\nAre you sure you want to run it?";
 "lng_launch_svg_warning" = "Opening this file can potentially expose your IP address to its sender. Continue?";
 "lng_launch_exe_sure" = "Run";
@@ -3557,6 +3636,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_forum_create_topic" = "Create topic";
 "lng_forum_discard_sure" = "Are you sure you want to discard this topic?";
 "lng_forum_view_as_messages" = "View as Messages";
+"lng_forum_no_messages" = "No messages";
+"lng_forum_messages#one" = "{count} message";
+"lng_forum_messages#other" = "{count} messages";
+"lng_forum_show_topics_list" = "Show Topics List";
 
 // Wnd specific
 

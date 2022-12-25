@@ -276,7 +276,7 @@ void StatusText::update(
 	if (_size == Ui::FileStatusSizeReady) {
 		_text = (duration >= 0) ? Ui::FormatDurationAndSizeText(duration, fullSize) : (duration < -1 ? Ui::FormatGifAndSizeText(fullSize) : Ui::FormatSizeText(fullSize));
 	} else if (_size == Ui::FileStatusSizeLoaded) {
-		_text = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? qsl("GIF") : Ui::FormatSizeText(fullSize));
+		_text = (duration >= 0) ? Ui::FormatDurationText(duration) : (duration < -1 ? u"GIF"_q : Ui::FormatSizeText(fullSize));
 	} else if (_size == Ui::FileStatusSizeFailed) {
 		_text = tr::lng_attach_failed(tr::now);
 	} else if (_size >= 0) {
@@ -1132,9 +1132,10 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				if (thumbnail || blurred) {
 					if (_thumb.isNull() || (thumbnail && !_thumbLoaded)) {
 						_thumbLoaded = (thumbnail != nullptr);
-						const auto options = _thumbLoaded
-							? Images::Option()
-							: Images::Option::Blur;
+						const auto options = Images::Option::RoundSmall
+							| (_thumbLoaded
+								? Images::Option()
+								: Images::Option::Blur);
 						const auto image = thumbnail ? thumbnail : blurred;
 						_thumb = image->pixNoCache(
 							_thumbw * style::DevicePixelRatio(),
@@ -1147,10 +1148,20 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 					}
 					p.drawPixmap(rthumb.topLeft(), _thumb);
 				} else {
-					p.fillRect(rthumb, st::overviewFileThumbBg);
+					p.setPen(Qt::NoPen);
+					p.setBrush(st::overviewFileThumbBg);
+					p.drawRoundedRect(
+						rthumb,
+						st::roundRadiusSmall,
+						st::roundRadiusSmall);
 				}
 			} else {
-				p.fillRect(rthumb, _generic.color);
+				p.setPen(Qt::NoPen);
+				p.setBrush(_generic.color);
+				p.drawRoundedRect(
+					rthumb,
+					st::roundRadiusSmall,
+					st::roundRadiusSmall);
 				if (!radial && loaded && !_ext.isEmpty()) {
 					p.setFont(st::overviewFileExtFont);
 					p.setPen(st::overviewFileExtFg);
@@ -1158,7 +1169,12 @@ void Document::paint(Painter &p, const QRect &clip, TextSelection selection, con
 				}
 			}
 			if (selected) {
-				p.fillRect(rthumb, st::defaultTextPalette.selectOverlay);
+				p.setPen(Qt::NoPen);
+				p.setBrush(st::defaultTextPalette.selectOverlay);
+				p.drawRoundedRect(
+					rthumb,
+					st::roundRadiusSmall,
+					st::roundRadiusSmall);
 			}
 
 			if (radial || (!loaded && !_data->loading())) {
@@ -1515,7 +1531,7 @@ Link::Link(
 		}
 		int32 afterLinkStart = entity.offset() + entity.length();
 		if (till > afterLinkStart) {
-			if (!QRegularExpression(qsl("^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
+			if (!QRegularExpression(u"^[,.\\s_=+\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$"_q).match(text.mid(afterLinkStart, till - afterLinkStart)).hasMatch()) {
 				++lnk;
 				break;
 			}
@@ -1523,7 +1539,7 @@ Link::Link(
 		till = entity.offset();
 	}
 	if (!lnk) {
-		if (QRegularExpression(qsl("^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$")).match(text.mid(from, till - from)).hasMatch()) {
+		if (QRegularExpression(u"^[,.\\s\\-;:`'\"\\(\\)\\[\\]\\{\\}<>*&^%\\$#@!\\\\/]+$"_q).match(text.mid(from, till - from)).hasMatch()) {
 			till = from;
 		}
 	}
@@ -1547,8 +1563,8 @@ Link::Link(
 			if (_page->type == WebPageType::Profile || _page->type == WebPageType::Video) {
 				_photol = createHandler(_page->url);
 			} else if (_page->type == WebPageType::Photo
-				|| _page->siteName == qstr("Twitter")
-				|| _page->siteName == qstr("Facebook")) {
+				|| _page->siteName == u"Twitter"_q
+				|| _page->siteName == u"Facebook"_q) {
 				_photol = std::make_shared<PhotoOpenClickHandler>(
 					_page->photo,
 					crl::guard(this, [=](FullMsgId id) {

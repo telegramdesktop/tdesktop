@@ -55,19 +55,19 @@ struct LangPackData {
 		const QString &word) {
 	if ((word.size() == 1) && !word[0].isLetter()) {
 		return true;
-	} else if (word == qstr("10")) {
+	} else if (word == u"10"_q) {
 		return true;
-	} else if (language != qstr("en")) {
+	} else if (language != u"en"_q) {
 		return false;
 	} else if ((word.size() == 1)
 		&& (word[0] != '$')
 		&& (word[0].unicode() != 8364)) { // Euro.
 		return true;
 	} else if ((word.size() == 2)
-		&& (word != qstr("us"))
-		&& (word != qstr("uk"))
-		&& (word != qstr("hi"))
-		&& (word != qstr("ok"))) {
+		&& (word != u"us"_q)
+		&& (word != u"uk"_q)
+		&& (word != u"hi"_q)
+		&& (word != u"ok"_q)) {
 		return true;
 	}
 	return false;
@@ -80,7 +80,7 @@ struct LangPackData {
 }
 
 void CreateCacheFilePath() {
-	QDir().mkpath(internal::CacheFileFolder() + qstr("/keywords"));
+	QDir().mkpath(internal::CacheFileFolder() + u"/keywords"_q);
 }
 
 [[nodiscard]] QString CacheFilePath(QString id) {
@@ -89,7 +89,7 @@ void CreateCacheFilePath() {
 	if (id.isEmpty()) {
 		return QString();
 	}
-	return internal::CacheFileFolder() + qstr("/keywords/") + id;
+	return internal::CacheFileFolder() + u"/keywords/"_q + id;
 }
 
 [[nodiscard]] LangPackData ReadLocalCache(const QString &id) {

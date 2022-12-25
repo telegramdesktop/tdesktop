@@ -33,6 +33,7 @@ public:
 	void resetLayoutAnimation();
 
 	int photoHeight() const;
+	int fileHeight() const;
 
 	void paintInAlbum(
 		QPainter &p,
@@ -53,7 +54,10 @@ public:
 	void suggestMove(float64 delta, Fn<void()> callback);
 	void finishAnimations();
 
-	void updateFileRow(int row);
+	void setButtonVisible(bool value);
+	void moveButtons(int thumbTop);
+
+	bool isCompressedSticker() const;
 
 	static constexpr auto kShrinkDuration = crl::time(150);
 
@@ -88,6 +92,8 @@ private:
 	Animations::Simple _suggestedMoveAnimation;
 	int _lastShrinkValue = 0;
 	AttachControls _buttons;
+
+	bool _isCompressedSticker = false;
 
 	QRect _lastRectOfModify;
 	QRect _lastRectOfButtons;

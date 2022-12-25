@@ -840,6 +840,10 @@ void ContactStatus::show() {
 	_bar.show();
 }
 
+void ContactStatus::hide() {
+	_bar.hide();
+}
+
 TopicReopenBar::TopicReopenBar(
 	not_null<Ui::RpWidget*> parent,
 	not_null<Data::ForumTopic*> topic)

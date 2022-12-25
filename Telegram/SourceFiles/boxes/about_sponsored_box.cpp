@@ -7,13 +7,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/about_sponsored_box.h"
 
+#include "core/file_utilities.h"
 #include "lang/lang_keys.h"
+#include "ui/layers/generic_box.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "styles/style_boxes.h"
 #include "styles/style_layers.h"
-
-#include <QtGui/QDesktopServices>
 
 namespace Ui {
 namespace {
@@ -49,7 +49,7 @@ void AboutSponsoredBox(not_null<Ui::GenericBox*> box) {
 				(rowSize.height() - buttonSize.height()) / 2);
 		}, row->lifetime());
 		button->addClickHandler([=] {
-			QDesktopServices::openUrl({ kUrl.utf8() });
+			File::OpenUrl(kUrl.utf8());
 		});
 	};
 

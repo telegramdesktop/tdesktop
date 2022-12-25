@@ -52,27 +52,30 @@ jobs:
     steps:
       - name: Prepare directories.
         run: |
+          mkdir %userprofile%\TBuild
+          mklink /d %GITHUB_WORKSPACE%\TBuild %userprofile%\TBuild
+          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
+
           mkdir %userprofile%\TBuild Libraries
           mklink /d %userprofile%\TBuild\Libraries %GITHUB_WORKSPACE%\Libraries
-          echo TBUILD=%userprofile%\TBuild>>%GITHUB_ENV%
       - name: Get repository name.
         shell: bash
         run: echo "REPO_NAME=${GITHUB_REPOSITORY##*/}" >> $GITHUB_ENV
 
-      - uses: ilammy/msvc-dev-cmd@v1.10.0
+      - uses: ilammy/msvc-dev-cmd@v1.12.0
         name: Native Tools Command Prompt.
         with:
           arch: ${{ matrix.arch }}
 
       - name: Clone.
-        uses: LebedevRI/checkout@issue197
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit == ''
         with:
           submodules: recursive
           path: ${{ env.TBUILD }}\${{ env.REPO_NAME }}
 
       - name: Clone with checkout.
-        uses: LebedevRI/checkout@issue197
+        uses: actions/checkout@v3.1.0
         if: github.event.inputs.buildCommit != ''
         with:
           submodules: recursive
@@ -96,7 +99,7 @@ jobs:
           nuget sources Add -Source https://api.nuget.org/v3/index.json & exit 0
       - name: Libraries cache.
         id: cache-libs
-        uses: actions/cache@v2
+        uses: actions/cache@v3.0.11
         with:
           path: Libraries
           key: ${{ runner.OS }}-${{ matrix.arch }}-libs-${{ env.CACHE_KEY }}
@@ -109,10 +112,8 @@ jobs:
         env:
           GYP_MSVS_OVERRIDE_PATH: 'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\'
           GYP_MSVS_VERSION: 2022
-        run: |
-          C:
-          cd %TBUILD%
-          %REPO_NAME%/Telegram/build/prepare/win.bat silent skip-qt6
+        run: '%TBUILD%\%REPO_NAME%\Telegram\build\prepare\win.bat silent'
+
       - name: Read defines.
         shell: bash
         run: |
@@ -133,7 +134,6 @@ jobs:
       - name: Telegram Desktop build.
         if: env.ONLY_CACHE == 'false'
         run: |
-          C:
           cd %TBUILD%\%REPO_NAME%\Telegram
           SET CXXFLAGS="-bigobj"
           call configure.bat ^

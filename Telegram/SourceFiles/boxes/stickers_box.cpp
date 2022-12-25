@@ -1179,13 +1179,13 @@ StickersBox::Inner::Inner(
 , _megagroupSetField(
 	this,
 	st::groupStickersField,
-	rpl::single(qsl("stickerset")),
+	rpl::single(u"stickerset"_q),
 	QString(),
 	_controller->session().createInternalLink(QString()))
 , _megagroupDivider(this)
 , _megagroupSubTitle(this, tr::lng_stickers_group_from_your(tr::now), st::boxTitle) {
 	_megagroupSetField->setLinkPlaceholder(
-		_controller->session().createInternalLink(qsl("addstickers/")));
+		_controller->session().createInternalLink(u"addstickers/"_q));
 	_megagroupSetField->setPlaceholderHidden(false);
 	_megagroupSetAddressChangedTimer.setCallback([this] { handleMegagroupSetAddressChange(); });
 	connect(
@@ -1993,15 +1993,15 @@ void StickersBox::Inner::AddressField::correctValue(
 	auto newText = now;
 	auto newCursor = nowCursor;
 	auto removeFromBeginning = {
-		qstr("http://"),
-		qstr("https://"),
-		qstr("www.t.me/"),
-		qstr("www.telegram.me/"),
-		qstr("www.telegram.dog/"),
-		qstr("t.me/"),
-		qstr("telegram.me/"),
-		qstr("telegram.dog/"),
-		qstr("addstickers/"),
+		u"http://"_q,
+		u"https://"_q,
+		u"www.t.me/"_q,
+		u"www.telegram.me/"_q,
+		u"www.telegram.dog/"_q,
+		u"t.me/"_q,
+		u"telegram.me/"_q,
+		u"telegram.dog/"_q,
+		u"addstickers/"_q,
 	};
 	for (auto &removePhrase : removeFromBeginning) {
 		if (newText.startsWith(removePhrase)) {

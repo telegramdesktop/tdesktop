@@ -19,6 +19,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/empty_userpic.h"
 #include "main/main_session.h"
 #include "mainwindow.h"
+#include "window/notifications_utilities.h"
 #include "styles/style_window.h"
 
 #include <thread>
@@ -162,6 +163,10 @@ bool SkipFlashBounceForCustom() {
 	return false;
 }
 
+bool WaitForInputForCustom() {
+	return true;
+}
+
 bool Supported() {
 	return true;
 }
@@ -189,7 +194,7 @@ public:
 	void showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -265,7 +270,7 @@ Manager::Private::Private(Manager *manager)
 void Manager::Private::showNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -302,12 +307,8 @@ void Manager::Private::showNotification(
 	[notification setInformativeText:Q2NSString(msg)];
 	if (!options.hideNameAndPhoto
 		&& [notification respondsToSelector:@selector(setContentImage:)]) {
-		auto userpic = peer->isSelf()
-			? Ui::EmptyUserpic::GenerateSavedMessages(st::notifyMacPhotoSize)
-			: peer->isRepliesChat()
-			? Ui::EmptyUserpic::GenerateRepliesMessages(st::notifyMacPhotoSize)
-			: peer->genUserpic(userpicView, st::notifyMacPhotoSize);
-		NSImage *img = Q2NSImage(userpic.toImage());
+		NSImage *img = Q2NSImage(
+			Window::Notifications::GenerateUserpic(peer, userpicView));
 		[notification setContentImage:img];
 	}
 
@@ -475,7 +476,7 @@ Manager::~Manager() = default;
 void Manager::doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

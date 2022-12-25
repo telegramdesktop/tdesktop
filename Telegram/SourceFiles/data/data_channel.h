@@ -57,6 +57,7 @@ enum class ChannelDataFlag {
 	JoinToWrite = (1 << 21),
 	RequestToJoin = (1 << 22),
 	Forum = (1 << 23),
+	AntiSpam = (1 << 24),
 };
 inline constexpr bool is_flag_type(ChannelDataFlag) { return true; };
 using ChannelDataFlags = base::flags<ChannelDataFlag>;
@@ -274,6 +275,9 @@ public:
 	[[nodiscard]] bool requestToJoin() const {
 		return flags() & Flag::RequestToJoin;
 	}
+	[[nodiscard]] bool antiSpamMode() const {
+		return flags() & Flag::AntiSpam;
+	}
 
 	[[nodiscard]] auto adminRights() const {
 		return _adminRights.current();
@@ -436,6 +440,8 @@ public:
 	[[nodiscard]] Data::Forum *forum() const {
 		return mgInfo ? mgInfo->forum() : nullptr;
 	}
+
+	void processTopics(const MTPVector<MTPForumTopic> &topics);
 
 	// Still public data members.
 	uint64 access = 0;

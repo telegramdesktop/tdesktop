@@ -44,8 +44,8 @@ using PeersMap = details::PeersMap;
 using MediaData = details::MediaData;
 
 bool IsGlobalLink(const QString &link) {
-	return link.startsWith(qstr("http://"), Qt::CaseInsensitive)
-		|| link.startsWith(qstr("https://"), Qt::CaseInsensitive);
+	return link.startsWith(u"http://"_q, Qt::CaseInsensitive)
+		|| link.startsWith(u"https://"_q, Qt::CaseInsensitive);
 }
 
 QByteArray NoFileDescription(Data::File::SkipReason reason) {

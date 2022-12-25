@@ -39,7 +39,7 @@ void UnsafeOpenUrl(const QString &url) {
 }
 
 void UnsafeOpenEmailLink(const QString &email) {
-	UnsafeOpenUrl(qstr("mailto:") + email);
+	UnsafeOpenUrl(u"mailto:"_q + email);
 }
 
 bool UnsafeShowOpenWith(const QString &filepath) {

@@ -17,7 +17,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "media/player/media_player_instance.h"
 #include "ui/gl/gl_detection.h"
 #include "calls/group/calls_group_common.h"
-#include "facades.h"
 
 namespace Core {
 namespace {
@@ -267,7 +266,8 @@ QByteArray Settings::serialize() const {
 			<< qint32(_chatQuickAction)
 			<< qint32(_hardwareAcceleratedVideo ? 1 : 0)
 			<< qint32(_suggestAnimatedEmoji ? 1 : 0)
-			<< qint32(_cornerReaction.current() ? 1 : 0);
+			<< qint32(_cornerReaction.current() ? 1 : 0)
+			<< qint32(_skipTranslationForLanguage);
 	}
 	return result;
 }
@@ -361,6 +361,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	qint32 chatQuickAction = static_cast<qint32>(_chatQuickAction);
 	qint32 suggestAnimatedEmoji = _suggestAnimatedEmoji ? 1 : 0;
 	qint32 cornerReaction = _cornerReaction.current() ? 1 : 0;
+	qint32 skipTranslationForLanguage = _skipTranslationForLanguage;
 
 	stream >> themesAccentColors;
 	if (!stream.atEnd()) {
@@ -558,6 +559,9 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	if (!stream.atEnd()) {
 		stream >> cornerReaction;
 	}
+	if (!stream.atEnd()) {
+		stream >> skipTranslationForLanguage;
+	}
 	if (stream.status() != QDataStream::Ok) {
 		LOG(("App Error: "
 			"Bad data for Core::Settings::constructFromSerialized()"));
@@ -727,6 +731,7 @@ void Settings::addFromSerialized(const QByteArray &serialized) {
 	}
 	_suggestAnimatedEmoji = (suggestAnimatedEmoji == 1);
 	_cornerReaction = (cornerReaction == 1);
+	_skipTranslationForLanguage = skipTranslationForLanguage;
 }
 
 QString Settings::getSoundPath(const QString &key) const {
@@ -734,7 +739,7 @@ QString Settings::getSoundPath(const QString &key) const {
 	if (it != _soundOverrides.end()) {
 		return it->second;
 	}
-	return qsl(":/sounds/") + key + qsl(".mp3");
+	return u":/sounds/"_q + key + u".mp3"_q;
 }
 
 void Settings::setTabbedSelectorSectionEnabled(bool enabled) {
@@ -1034,6 +1039,21 @@ float64 Settings::DefaultDialogsWidthRatio() {
 	return ThirdColumnByDefault()
 		? kDefaultBigDialogsWidthRatio
 		: kDefaultDialogsWidthRatio;
+}
+
+void Settings::setTranslateButtonEnabled(bool value) {
+	_skipTranslationForLanguage = std::abs(_skipTranslationForLanguage)
+		* (value ? 1 : -1);
+}
+bool Settings::translateButtonEnabled() const {
+	return _skipTranslationForLanguage > 0;
+}
+void Settings::setSkipTranslationForLanguage(QLocale::Language language) {
+	const auto enabled = translateButtonEnabled();
+	_skipTranslationForLanguage = language * (enabled ? 1 : -1);
+}
+QLocale::Language Settings::skipTranslationForLanguage() const {
+	return QLocale::Language(std::abs(_skipTranslationForLanguage));
 }
 
 } // namespace Core

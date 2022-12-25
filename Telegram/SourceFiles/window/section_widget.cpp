@@ -143,7 +143,9 @@ void SectionWidget::setGeometryWithTopMoved(
 void SectionWidget::showAnimated(
 		SlideDirection direction,
 		const SectionSlideParams &params) {
-	if (_showAnimation) return;
+	if (_showAnimation) {
+		return;
+	}
 
 	showChildren();
 	auto myContentCache = grabForShowAnimation(params);

@@ -45,6 +45,8 @@ void ConfirmPhone::resolve(
 				return 0;
 			}, [&](const MTPDauth_sentCodeTypeSms &data) {
 				return data.vlength().v;
+			}, [&](const MTPDauth_sentCodeTypeFragmentSms &data) {
+				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeCall &data) {
 				return data.vlength().v;
 			}, [&](const MTPDauth_sentCodeTypeFlashCall &) {

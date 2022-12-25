@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "boxes/abstract_box.h"
 #include "storage/localstorage.h"
-#include "storage/storage_account.h"
 #include "base/platform/base_platform_info.h"
 #include "base/platform/base_platform_file_utilities.h"
 #include "platform/platform_file_utilities.h"
@@ -84,8 +83,8 @@ QString filedialogDefaultName(
 		time_t t = time(NULL);
 		mylocaltime(&tm, &t);
 
-		QChar zero('0');
-		base = prefix + qsl("_%1-%2-%3_%4-%5-%6").arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
+		const auto zero = QChar('0');
+		base = prefix + u"_%1-%2-%3_%4-%5-%6"_q.arg(tm.tm_year + 1900).arg(tm.tm_mon + 1, 2, 10, zero).arg(tm.tm_mday, 2, 10, zero).arg(tm.tm_hour, 2, 10, zero).arg(tm.tm_min, 2, 10, zero).arg(tm.tm_sec, 2, 10, zero);
 	}
 
 	QString name;
@@ -98,7 +97,7 @@ QString filedialogDefaultName(
 			+ base;
 		name = nameBase + extension;
 		for (int i = 0; QFileInfo::exists(name); ++i) {
-			name = nameBase + qsl(" (%1)").arg(i + 2) + extension;
+			name = nameBase + u" (%1)"_q.arg(i + 2) + extension;
 		}
 	}
 	return name;
@@ -119,7 +118,7 @@ QString filedialogNextFilename(
 	const auto nameBase = (dir.endsWith('/') ? dir : (dir + '/')) + prefix;
 	auto result = nameBase + extension;
 	for (int i = 0; result.toLower() != cur.toLower() && QFileInfo::exists(result); ++i) {
-		result = nameBase + qsl(" (%1)").arg(i + 2) + extension;
+		result = nameBase + u" (%1)"_q.arg(i + 2) + extension;
 	}
 	return result;
 }
@@ -163,7 +162,7 @@ void ShowInFolder(const QString &filepath) {
 		Ui::PreventDelayedActivation();
 		if (Platform::IsLinux()) {
 			// Hide mediaview to make other apps visible.
-			Ui::hideLayer(anim::type::instant);
+			Core::App().hideMediaView();
 		}
 		base::Platform::ShowInFolder(filepath);
 	});
@@ -174,30 +173,32 @@ QString DefaultDownloadPathFolder(not_null<Main::Session*> session) {
 }
 
 QString DefaultDownloadPath(not_null<Main::Session*> session) {
-	static auto Choosing = false;
-	const auto realDefaultPath = QStandardPaths::writableLocation(
-		QStandardPaths::DownloadLocation)
+	const auto standardLocation = QStandardPaths::writableLocation(
+		QStandardPaths::DownloadLocation);
+	const auto realDefaultPath = standardLocation
 		+ '/'
 		+ DefaultDownloadPathFolder(session)
 		+ '/';
-	if (KSandbox::isInside() && Core::App().settings().downloadPath().isEmpty()) {
-		if (Choosing) {
-			return session->local().tempDirectory();
-		}
-		Choosing = true;
-		FileDialog::GetFolder(
+	if (KSandbox::isInside()
+		&& Core::App().settings().downloadPath().isEmpty()
+		&& !base::CanReadDirectory(standardLocation)) {
+		QStringList files;
+		QByteArray remoteContent;
+		const auto success = Platform::FileDialog::Get(
 			nullptr,
+			files,
+			remoteContent,
 			tr::lng_download_path_choose(tr::now),
-			realDefaultPath,
-			[](const QString &result) {
-				Core::App().settings().setDownloadPath(result.endsWith('/')
-					? result
-					: (result + '/'));
-				Core::App().saveSettings();
-				Choosing = false;
-			},
-			[] { Choosing = false; });
-		return session->local().tempDirectory();
+			QString(),
+			FileDialog::internal::Type::ReadFolder,
+			realDefaultPath);
+		if (success && !files.isEmpty() && !files[0].isEmpty()) {
+			const auto result = files[0].endsWith('/') ? files[0] : (files[0] + '/');
+			Core::App().settings().setDownloadPath(result);
+			Core::App().saveSettings();
+			return result;
+		}
+		return QString();
 	}
 	return realDefaultPath;
 }
@@ -209,7 +210,7 @@ void UnsafeOpenUrlDefault(const QString &url) {
 }
 
 void UnsafeOpenEmailLinkDefault(const QString &email) {
-	auto url = QUrl(qstr("mailto:") + email);
+	auto url = QUrl(u"mailto:"_q + email);
 	QDesktopServices::openUrl(url);
 }
 
@@ -335,9 +336,9 @@ void GetFolder(
 
 QString AllFilesFilter() {
 #ifdef Q_OS_WIN
-	return qsl("All files (*.*)");
+	return u"All files (*.*)"_q;
 #else // Q_OS_WIN
-	return qsl("All files (*)");
+	return u"All files (*)"_q;
 #endif // Q_OS_WIN
 }
 
@@ -356,6 +357,11 @@ QString ImagesOrAllFilter() {
 QString PhotoVideoFilesFilter() {
 	return u"Image and Video Files (*.png *.jpg *.jpeg *.mp4 *.mov);;"_q
 		+ AllFilesFilter();
+}
+
+const QString &Tmp() {
+	static const auto tmp = u"tmp"_q;
+	return tmp;
 }
 
 namespace internal {

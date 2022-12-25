@@ -20,10 +20,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "styles/style_boxes.h"
 #include "styles/style_chat.h"
 
-namespace Data {
-class CloudImageView;
-} // namespace Data
-
 namespace AdminLog {
 namespace {
 
@@ -64,7 +60,7 @@ private:
 	QRect _checkRect;
 
 	const not_null<UserData*> _user;
-	std::shared_ptr<Data::CloudImageView> _userpic;
+	Ui::PeerUserpicView _userpic;
 	Ui::Text::String _name;
 	QString _statusText;
 	bool _statusOnline = false;

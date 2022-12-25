@@ -17,6 +17,10 @@ DialogRow {
 	nameTop: pixels;
 	textLeft: pixels;
 	textTop: pixels;
+	topicsSkip: pixels;
+	topicsSkipBig: pixels;
+	topicsHeight: pixels;
+	unreadMarkDiameter: pixels;
 }
 
 ForumTopicIcon {
@@ -71,6 +75,20 @@ defaultDialogRow: DialogRow {
 	textLeft: 68px;
 	textTop: 34px;
 }
+forumDialogRow: DialogRow(defaultDialogRow) {
+	height: 80px;
+	textTop: 32px;
+	topicsSkip: 8px;
+	topicsSkipBig: 14px;
+	topicsHeight: 21px;
+}
+
+forumDialogJumpArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFg }};
+forumDialogJumpArrowOver: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgOver }};
+forumDialogJumpArrowSkip: 8px;
+forumDialogJumpArrowPosition: point(3px, 3px);
+forumDialogJumpPadding: margins(8px, 3px, 8px, 3px);
+forumDialogJumpRadius: 11px;
 
 dialogsOnlineBadgeStroke: 2px;
 dialogsOnlineBadgeSize: 10px;
@@ -79,6 +97,11 @@ dialogsOnlineBadgeDuration: 150;
 
 dialogsCallBadgeSize: 16px;
 dialogsCallBadgeSkip: point(-3px, -3px);
+
+dialogsTTLBadgeSize: 20px;
+dialogsTTLBadgeInnerMargins: margins(2px, 2px, 2px, 2px);
+// Relative to a photo place, not a whole userpic place.
+dialogsTTLBadgeSkip: point(1px, 1px);
 
 dialogsSpeakingStrokeNumerator: 16px;
 dialogsSpeakingDenominator: 8.;
@@ -145,6 +168,21 @@ dialogsTextPaletteArchiveOver: TextPalette(defaultTextPalette) {
 }
 dialogsTextPaletteArchiveActive: TextPalette(defaultTextPalette) {
 	linkFg: dialogsTextFgActive;
+	monoFg: dialogsTextFgActive;
+	spoilerFg: dialogsTextFgActive;
+}
+dialogsTextPaletteInTopic: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFg;
+	monoFg: dialogsTextFg;
+	spoilerFg: dialogsTextFg;
+}
+dialogsTextPaletteInTopicOver: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgOver;
+	monoFg: dialogsTextFgOver;
+	spoilerFg: dialogsTextFgOver;
+}
+dialogsTextPaletteInTopicActive: TextPalette(defaultTextPalette) {
+	linkFg: dialogsNameFgActive;
 	monoFg: dialogsTextFgActive;
 	spoilerFg: dialogsTextFgActive;
 }
@@ -286,6 +324,7 @@ dialogsForumIconOver: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgOver, po
 dialogsForumIconActive: icon {{ "dialogs/dialogs_forum", dialogsChatIconFgActive, point(1px, 4px) }};
 dialogsArchiveUserpic: icon {{ "archive_userpic", historyPeerUserpicFg }};
 dialogsRepliesUserpic: icon {{ "replies_userpic", historyPeerUserpicFg }};
+dialogsInaccessibleUserpic: icon {{ "dialogs/inaccessible_userpic", historyPeerUserpicFg }};
 
 dialogsSendStateSkip: 20px;
 dialogsSendingIcon: icon {{ "dialogs/dialogs_sending", dialogsSendingIconFg, point(8px, 4px) }};
@@ -366,19 +405,6 @@ dialogsLoadMoreLoading: InfiniteRadialAnimation(defaultInfiniteRadialAnimation) 
 	size: size(12px, 12px);
 }
 
-dialogsForwardHeight: 32px;
-dialogsForwardTextLeft: 35px;
-dialogsForwardTextTop: 6px;
-dialogsForwardCancel: IconButton {
-	width: 34px;
-	height: dialogsForwardHeight;
-
-	icon: dialogsForwardCancelIcon;
-	iconOver: dialogsForwardCancelIcon;
-	iconPosition: point(12px, 11px);
-}
-dialogsForwardFont: semiboldFont;
-
 dialogsSearchInHeight: 52px;
 dialogsSearchInPhotoSize: 36px;
 dialogsSearchInPhotoPadding: 10px;
@@ -440,6 +466,7 @@ forumTopicRow: DialogRow(defaultDialogRow) {
 	nameTop: 7px;
 	textLeft: 68px;
 	textTop: 29px;
+	unreadMarkDiameter: 8px;
 }
 forumTopicIconPosition: point(2px, 0px);
 editTopicTitleMargin: margins(70px, 2px, 22px, 18px);
@@ -460,7 +487,3 @@ chooseTopicListItem: PeerListItem(defaultPeerListItem) {
 chooseTopicList: PeerList(defaultPeerList) {
 	item: chooseTopicListItem;
 }
-
-dialogsTopicArrow: icon{{ "dialogs/dialogs_topic_arrow", dialogsTextFgService }};
-dialogsTopicArrowSkip: 13px;
-dialogsTopicArrowTop: 4px;

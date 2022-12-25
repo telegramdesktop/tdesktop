@@ -348,7 +348,7 @@ WallPaper WallPaper::withUrlParams(
 	if (auto mode = params.value("mode"); !mode.isEmpty()) {
 		const auto list = mode.replace('+', ' ').split(' ');
 		for (const auto &change : list) {
-			if (change == qstr("blur")) {
+			if (change == u"blur"_q) {
 				result._blurred = true;
 			}
 		}

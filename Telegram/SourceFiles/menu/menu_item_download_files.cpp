@@ -76,14 +76,19 @@ void AddAction(
 		: &st::menuIconDownload;
 	const auto showToast = documents.empty();
 
-	const auto saveImages = [=] {
+	const auto saveImages = [=](const QString &folderPath) {
 		const auto session = &controller->session();
-		const auto downloadPath = Core::App().settings().downloadPath();
+		const auto downloadPath = folderPath.isEmpty()
+			? Core::App().settings().downloadPath()
+			: folderPath;
 		const auto path = downloadPath.isEmpty()
 			? File::DefaultDownloadPath(session)
-			: (downloadPath == u"tmp"_q)
+			: (downloadPath == FileDialog::Tmp())
 			? session->local().tempDirectory()
 			: downloadPath;
+		if (path.isEmpty()) {
+			return;
+		}
 
 		const auto fullPath = [&](int i) {
 			return filedialogDefaultName(
@@ -118,16 +123,49 @@ void AddAction(
 			Ui::Toast::Show(Window::Show(controller).toastParent(), config);
 		}
 	};
-	const auto saveDocuments = [=] {
+	const auto saveDocuments = [=](const QString &folderPath) {
 		for (const auto &pair : documents) {
-			DocumentSaveClickHandler::Save(pair.second, pair.first->owner());
+			const auto &document = pair.first->owner();
+			const auto &origin = pair.second;
+			if (!folderPath.isEmpty()) {
+				document->save(origin, folderPath + document->filename());
+			} else {
+				DocumentSaveClickHandler::SaveAndTrack(origin, document);
+			}
 		}
 	};
 
 	menu->addAction(text, [=] {
-		saveImages();
-		saveDocuments();
-		callback();
+		const auto save = [=](const QString &folderPath) {
+			saveImages(folderPath);
+			saveDocuments(folderPath);
+			callback();
+		};
+		if (Core::App().settings().askDownloadPath()) {
+			const auto initialPath = [] {
+				const auto path = Core::App().settings().downloadPath();
+				if (!path.isEmpty() && path != FileDialog::Tmp()) {
+					return path.left(path.size()
+						- (path.endsWith('/') ? 1 : 0));
+				}
+				return QString();
+			}();
+			const auto handleFolder = [=](const QString &result) {
+				if (!result.isEmpty()) {
+					const auto folderPath = result.endsWith('/')
+						? result
+						: (result + '/');
+					save(folderPath);
+				}
+			};
+			FileDialog::GetFolder(
+				nullptr,
+				tr::lng_download_path_choose(tr::now),
+				initialPath,
+				handleFolder);
+		} else {
+			save(QString());
+		}
 	}, icon);
 }
 
@@ -138,7 +176,7 @@ void AddDownloadFilesAction(
 		not_null<Window::SessionController*> window,
 		const std::vector<HistoryView::SelectedItem> &selectedItems,
 		not_null<HistoryView::ListWidget*> list) {
-	if (selectedItems.empty() || Core::App().settings().askDownloadPath()) {
+	if (selectedItems.empty()) {
 		return;
 	}
 	auto docs = Documents();
@@ -164,7 +202,7 @@ void AddDownloadFilesAction(
 		not_null<Window::SessionController*> window,
 		const std::map<HistoryItem*, TextSelection, std::less<>> &items,
 		not_null<HistoryInner*> list) {
-	if (items.empty() || Core::App().settings().askDownloadPath()) {
+	if (items.empty()) {
 		return;
 	}
 	auto docs = Documents();

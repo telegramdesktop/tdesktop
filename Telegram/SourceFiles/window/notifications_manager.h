@@ -15,12 +15,15 @@ class History;
 
 namespace Data {
 class Session;
-class CloudImageView;
 class ForumTopic;
 class Thread;
 struct ItemNotification;
 enum class ItemNotificationType;
 } // namespace Data
+
+namespace Ui {
+struct PeerUserpicView;
+} // namespace Ui
 
 namespace Main {
 class Session;
@@ -84,7 +87,7 @@ public:
 
 	void createManager();
 	void setManager(std::unique_ptr<Manager> manager);
-	[[nodiscard]] ManagerType managerType() const;
+	[[nodiscard]] Manager &manager() const;
 
 	void checkDelayed();
 	void schedule(Data::ItemNotification notification);
@@ -217,6 +220,22 @@ public:
 		friend inline auto operator<=>(
 			const ContextId&,
 			const ContextId&) = default;
+
+		[[nodiscard]] auto toTuple() const {
+			return std::make_tuple(
+				sessionId,
+				peerId.value,
+				topicRootId.bare);
+		}
+
+		template<typename T>
+		[[nodiscard]] static auto FromTuple(const T &tuple) {
+			return ContextId{
+				std::get<0>(tuple),
+				PeerIdHelper(std::get<1>(tuple)),
+				std::get<2>(tuple),
+			};
+		}
 	};
 	struct NotificationId {
 		ContextId contextId;
@@ -225,6 +244,20 @@ public:
 		friend inline auto operator<=>(
 			const NotificationId&,
 			const NotificationId&) = default;
+
+		[[nodiscard]] auto toTuple() const {
+			return std::make_tuple(
+				contextId.toTuple(),
+				msgId.bare);
+		}
+
+		template<typename T>
+		[[nodiscard]] static auto FromTuple(const T &tuple) {
+			return NotificationId{
+				ContextId::FromTuple(std::get<0>(tuple)),
+				std::get<1>(tuple),
+			};
+		}
 	};
 	struct NotificationFields {
 		not_null<HistoryItem*> item;
@@ -362,7 +395,7 @@ protected:
 	virtual void doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,
@@ -383,7 +416,7 @@ protected:
 	void doShowNativeNotification(
 		not_null<PeerData*> peer,
 		MsgId topicRootId,
-		std::shared_ptr<Data::CloudImageView> &userpicView,
+		Ui::PeerUserpicView &userpicView,
 		MsgId msgId,
 		const QString &title,
 		const QString &subtitle,

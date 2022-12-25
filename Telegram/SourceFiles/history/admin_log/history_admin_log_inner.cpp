@@ -24,6 +24,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_info.h"
 #include "base/qt/qt_key_modifiers.h"
 #include "base/unixtime.h"
+#include "base/call_delayed.h"
 #include "mainwindow.h"
 #include "mainwidget.h"
 #include "core/application.h"
@@ -56,7 +57,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "data/data_cloud_file.h"
 #include "data/data_channel.h"
 #include "data/data_user.h"
-#include "facades.h"
 #include "styles/style_chat.h"
 #include "styles/style_menu_icons.h"
 
@@ -250,7 +250,8 @@ InnerWidget::InnerWidget(
 , _emptyText(
 		st::historyAdminLogEmptyWidth
 		- st::historyAdminLogEmptyPadding.left()
-		- st::historyAdminLogEmptyPadding.left()) {
+		- st::historyAdminLogEmptyPadding.left())
+, _antiSpamValidator(_controller, _channel) {
 	Window::ChatThemeValueFromPeer(
 		controller,
 		channel
@@ -326,7 +327,9 @@ InnerWidget::InnerWidget(
 
 	updateEmptyText();
 
-	requestAdmins();
+	_antiSpamValidator.resolveUser(crl::guard(
+		this,
+		[=] { requestAdmins(); }));
 }
 
 Main::Session &InnerWidget::session() const {
@@ -470,6 +473,9 @@ void InnerWidget::requestAdmins() {
 				data);
 			_admins.clear();
 			_adminsCanEdit.clear();
+			if (const auto user = _antiSpamValidator.maybeAppendUser()) {
+				_admins.emplace_back(user);
+			}
 			for (const auto &parsed : list) {
 				if (parsed.isUser()) {
 					const auto user = _channel->owner().userLoaded(
@@ -530,7 +536,7 @@ void InnerWidget::updateEmptyText() {
 		: _channel->isMegagroup()
 		? tr::lng_admin_log_no_events_text(tr::now)
 		: tr::lng_admin_log_no_events_text_channel(tr::now);
-	text.text.append(qstr("\n\n") + description);
+	text.text.append(u"\n\n"_q + description);
 	_emptyText.setMarkedText(st::defaultTextStyle, text);
 }
 
@@ -823,20 +829,32 @@ void InnerWidget::addEvents(Direction direction, const QVector<MTPChannelAdminLo
 		? _items
 		: newItemsForDownDirection;
 	addToItems.reserve(oldItemsCount + events.size() * 2);
+
+	const auto antiSpamUserId = _antiSpamValidator.userId();
 	for (const auto &event : events) {
 		const auto &data = event.data();
 		const auto id = data.vid().v;
 		if (_eventIds.find(id) != _eventIds.end()) {
 			return;
 		}
+		const auto rememberRealMsgId = (antiSpamUserId
+			== peerToUser(peerFromUser(data.vuser_id())));
 
 		auto count = 0;
-		const auto addOne = [&](OwnedItem item, TimeId sentDate) {
+		const auto addOne = [&](
+				OwnedItem item,
+				TimeId sentDate,
+				MsgId realId) {
 			if (sentDate) {
 				_itemDates.emplace(item->data(), sentDate);
 			}
 			_eventIds.emplace(id);
 			_itemsByData.emplace(item->data(), item.get());
+			if (rememberRealMsgId && realId) {
+				_antiSpamValidator.addEventMsgId(
+					item->data()->fullId(),
+					realId);
+			}
 			addToItems.push_back(std::move(item));
 			++count;
 		};
@@ -938,7 +956,7 @@ void InnerWidget::restoreScrollPosition() {
 }
 
 void InnerWidget::paintEvent(QPaintEvent *e) {
-	if (Ui::skipPaintEvent(this, e)) {
+	if (_controller->contentOverlapped(this, e)) {
 		return;
 	}
 
@@ -1175,7 +1193,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 
 	_menu = base::make_unique_q<Ui::PopupMenu>(
 		this,
-		st::popupMenuWithIcons);
+		st::popupMenuExpandedSeparator);
 
 	const auto link = ClickHandler::getActive();
 	auto view = Element::Hovered()
@@ -1204,7 +1222,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		if (lnkPhoto) {
 			const auto media = lnkPhoto->activeMediaView();
 			if (!lnkPhoto->isNull() && media && media->loaded()) {
-				_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
+				_menu->addAction(tr::lng_context_save_image(tr::now), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [=] {
 					savePhotoToFile(lnkPhoto);
 				}), &st::menuIconSaveImage);
 				_menu->addAction(tr::lng_context_copy_image(tr::now), [=] {
@@ -1250,7 +1268,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						showContextInFolder(lnkDocument);
 					}, &st::menuIconShowInFolder);
 				}
-				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, lnkDocument] {
+				_menu->addAction(lnkIsVideo ? tr::lng_context_save_video(tr::now) : (lnkIsVoice ?  tr::lng_context_save_audio(tr::now) : (lnkIsAudio ?  tr::lng_context_save_audio_file(tr::now) :  tr::lng_context_save_file(tr::now))), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, lnkDocument] {
 					saveDocumentToFile(lnkDocument);
 				}), &st::menuIconDownload);
 				if (lnkDocument->hasAttachedStickers()) {
@@ -1274,6 +1292,8 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 		const auto item = view ? view->data().get() : nullptr;
 		const auto itemId = item ? item->fullId() : FullMsgId();
 
+		_antiSpamValidator.addAction(_menu, itemId);
+
 		auto msg = dynamic_cast<HistoryMessage*>(item);
 		if (isUponSelected > 0) {
 			_menu->addAction(
@@ -1286,7 +1306,7 @@ void InnerWidget::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 				const auto mediaHasTextForCopy = media && media->hasTextForCopy();
 				if (const auto document = media ? media->getDocument() : nullptr) {
 					if (document->sticker()) {
-						_menu->addAction(tr::lng_context_save_image(tr::now), App::LambdaDelayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
+						_menu->addAction(tr::lng_context_save_image(tr::now), base::fn_delayed(st::defaultDropdownMenu.menu.ripple.hideDuration, this, [this, document] {
 							saveDocumentToFile(document);
 						}), &st::menuIconDownload);
 					}
@@ -1330,12 +1350,12 @@ void InnerWidget::savePhotoToFile(not_null<PhotoData*> photo) {
 		return;
 	}
 
-	auto filter = qsl("JPEG Image (*.jpg);;") + FileDialog::AllFilesFilter();
+	auto filter = u"JPEG Image (*.jpg);;"_q + FileDialog::AllFilesFilter();
 	FileDialog::GetWritePath(
 		this,
 		tr::lng_save_photo(tr::now),
 		filter,
-		filedialogDefaultName(qsl("photo"), qsl(".jpg")),
+		filedialogDefaultName(u"photo"_q, u".jpg"_q),
 		crl::guard(this, [=](const QString &result) {
 			if (!result.isEmpty()) {
 				media->saveToFile(result);
@@ -1885,7 +1905,7 @@ void InnerWidget::performDrag() {
 	//		auto selectedState = getSelectionState();
 	//		if (selectedState.count > 0 && selectedState.count == selectedState.canForwardCount) {
 	//			session().data().setMimeForwardIds(getSelectedItems());
-	//			mimeData->setData(qsl("application/x-td-forward"), "1");
+	//			mimeData->setData(u"application/x-td-forward"_q, "1");
 	//		}
 	//	}
 	//	_controller->window()->launchDrag(std::move(mimeData));
@@ -1897,7 +1917,7 @@ void InnerWidget::performDrag() {
 	//		pressedMedia = pressedItem->media();
 	//		if (_mouseCursorState == CursorState::Date
 	//			|| (pressedMedia && pressedMedia->dragItem())) {
-	//			forwardMimeType = qsl("application/x-td-forward");
+	//			forwardMimeType = u"application/x-td-forward"_q;
 	//			session().data().setMimeForwardIds(
 	//				session().data().itemOrItsGroup(pressedItem->data()));
 	//		}
@@ -1906,7 +1926,7 @@ void InnerWidget::performDrag() {
 	//		if ((pressedMedia = pressedLnkItem->media())) {
 	//			if (forwardMimeType.isEmpty()
 	//				&& pressedMedia->dragItemByHandler(pressedHandler)) {
-	//				forwardMimeType = qsl("application/x-td-forward");
+	//				forwardMimeType = u"application/x-td-forward"_q;
 	//				session().data().setMimeForwardIds(
 	//					{ 1, pressedLnkItem->fullId() });
 	//			}

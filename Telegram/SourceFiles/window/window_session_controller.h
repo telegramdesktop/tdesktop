@@ -9,7 +9,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "base/flags.h"
 #include "base/object_ptr.h"
-#include "base/observer.h"
 #include "base/weak_ptr.h"
 #include "base/timer.h"
 #include "boxes/gift_premium_box.h" // GiftPremiumValidator.
@@ -70,6 +69,7 @@ namespace Data {
 struct CloudTheme;
 enum class CloudThemeType;
 class Thread;
+class Forum;
 class ForumTopic;
 } // namespace Data
 
@@ -152,12 +152,17 @@ struct SectionShow {
 	, activation(activation) {
 	}
 
-	SectionShow withWay(Way newWay) const {
+	[[nodiscard]] SectionShow withWay(Way newWay) const {
 		return SectionShow(newWay, animated, activation);
 	}
-	SectionShow withThirdColumn() const {
+	[[nodiscard]] SectionShow withThirdColumn() const {
 		auto copy = *this;
 		copy.thirdColumn = true;
+		return copy;
+	}
+	[[nodiscard]] SectionShow withChildColumn() const {
+		auto copy = *this;
+		copy.childColumn = true;
 		return copy;
 	}
 
@@ -165,6 +170,7 @@ struct SectionShow {
 	anim::type animated = anim::type::normal;
 	anim::activation activation = anim::activation::normal;
 	bool thirdColumn = false;
+	bool childColumn = false;
 	Origin origin;
 
 };
@@ -320,15 +326,6 @@ public:
 		return *_emojiInteractions;
 	}
 
-	// We need access to this from MainWidget::MainWidget, where
-	// we can't call content() yet.
-	void setSelectingPeer(bool selecting) {
-		_selectingPeer = selecting;
-	}
-	[[nodiscard]] bool selectingPeer() const {
-		return _selectingPeer;
-	}
-
 	void setConnectingBottomSkip(int skip);
 	rpl::producer<int> connectingBottomSkipValue() const;
 
@@ -359,11 +356,11 @@ public:
 	void closeFolder();
 	const rpl::variable<Data::Folder*> &openedFolder() const;
 
-	void openForum(
-		not_null<ChannelData*> forum,
+	void showForum(
+		not_null<Data::Forum*> forum,
 		const SectionShow &params = SectionShow::Way::ClearStack);
 	void closeForum();
-	const rpl::variable<ChannelData*> &openedForum() const;
+	const rpl::variable<Data::Forum*> &shownForum() const;
 
 	void setActiveChatEntry(Dialogs::RowDescriptor row);
 	void setActiveChatEntry(Dialogs::Key key);
@@ -449,6 +446,7 @@ public:
 		showSpecialLayer(nullptr, animated);
 	}
 	void removeLayerBlackout();
+	[[nodiscard]] bool isLayerShown() const;
 
 	void showCalendar(
 		Dialogs::Key chat,
@@ -480,17 +478,24 @@ public:
 
 	void toggleChooseChatTheme(not_null<PeerData*> peer);
 
-	base::Variable<bool> &dialogsListFocused() {
-		return _dialogsListFocused;
+	[[nodiscard]] bool dialogsListFocused() const {
+		return _dialogsListFocused.current();
 	}
-	const base::Variable<bool> &dialogsListFocused() const {
-		return _dialogsListFocused;
+	[[nodiscard]] rpl::producer<bool> dialogsListFocusedChanges() const {
+		return _dialogsListFocused.changes();
 	}
-	base::Variable<bool> &dialogsListDisplayForced() {
-		return _dialogsListDisplayForced;
+	void setDialogsListFocused(bool value) {
+		_dialogsListFocused = value;
 	}
-	const base::Variable<bool> &dialogsListDisplayForced() const {
-		return _dialogsListDisplayForced;
+	[[nodiscard]] bool dialogsListDisplayForced() const {
+		return _dialogsListDisplayForced.current();
+	}
+	[[nodiscard]] auto dialogsListDisplayForcedChanges() const
+	-> rpl::producer<bool> {
+		return _dialogsListDisplayForced.changes();
+	}
+	void setDialogsListDisplayForced(bool value) {
+		_dialogsListDisplayForced = value;
 	}
 
 	not_null<SessionController*> parentController() override {
@@ -550,7 +555,9 @@ public:
 	void setPremiumRef(const QString &ref);
 	[[nodiscard]] QString premiumRef() const;
 
-	rpl::lifetime &lifetime() {
+	[[nodiscard]] bool contentOverlapped(QWidget *w, QPaintEvent *e);
+
+	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
 
@@ -611,12 +618,11 @@ private:
 
 	rpl::variable<Dialogs::RowDescriptor> _activeChatEntry;
 	rpl::lifetime _activeHistoryLifetime;
-	base::Variable<bool> _dialogsListFocused = { false };
-	base::Variable<bool> _dialogsListDisplayForced = { false };
+	rpl::variable<bool> _dialogsListFocused = false;
+	rpl::variable<bool> _dialogsListDisplayForced = false;
 	std::deque<Dialogs::RowDescriptor> _chatEntryHistory;
 	int _chatEntryHistoryPosition = -1;
 	bool _filtersActivated = false;
-	bool _selectingPeer = false;
 
 	base::Timer _invitePeekTimer;
 
@@ -628,8 +634,8 @@ private:
 
 	PeerData *_showEditPeer = nullptr;
 	rpl::variable<Data::Folder*> _openedFolder;
-	rpl::variable<ChannelData*> _openedForum;
-	rpl::lifetime _openedForumLifetime;
+	rpl::variable<Data::Forum*> _shownForum;
+	rpl::lifetime _shownForumLifetime;
 
 	rpl::event_stream<> _filtersMenuChanged;
 

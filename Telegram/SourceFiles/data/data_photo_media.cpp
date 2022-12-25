@@ -101,14 +101,6 @@ void PhotoMedia::set(
 		QImage image,
 		QByteArray bytes) {
 	const auto index = PhotoSizeIndex(size);
-	const auto limit = PhotoData::SideLimit();
-	if (image.width() > limit || image.height() > limit) {
-		image = image.scaled(
-			limit,
-			limit,
-			Qt::KeepAspectRatio,
-			Qt::SmoothTransformation);
-	}
 	_images[index] = PhotoImage{
 		.data = std::make_unique<Image>(std::move(image)),
 		.bytes = std::move(bytes),

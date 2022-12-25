@@ -97,3 +97,6 @@
 [submodule "Telegram/ThirdParty/kcoreaddons"]
 	path = Telegram/ThirdParty/kcoreaddons
 	url = https://github.com/KDE/kcoreaddons.git
+[submodule "Telegram/ThirdParty/cld3"]
+	path = Telegram/ThirdParty/cld3
+	url = https://github.com/google/cld3.git

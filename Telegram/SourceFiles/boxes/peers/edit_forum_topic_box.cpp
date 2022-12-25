@@ -194,6 +194,38 @@ bool DefaultIconEmoji::readyInDefaultState() {
 	return result;
 }
 
+[[nodiscard]] not_null<Ui::AbstractButton*> GeneralIconPreview(
+		not_null<QWidget*> parent) {
+	using namespace Info::Profile;
+	struct State {
+		QImage frame;
+	};
+	const auto size = EditIconSize();
+	const auto result = Ui::CreateChild<Ui::AbstractButton>(parent.get());
+	result->show();
+	result->setAttribute(Qt::WA_TransparentForMouseEvents);
+	const auto state = result->lifetime().make_state<State>();
+
+	rpl::single(rpl::empty) | rpl::then(
+		style::PaletteChanged()
+	) | rpl::start_with_next([=] {
+		state->frame = Data::ForumTopicGeneralIconFrame(
+			st::largeForumTopicIcon.size,
+			st::windowSubTextFg);
+		result->update();
+	}, result->lifetime());
+
+	result->resize(size, size);
+	result->paintRequest(
+	) | rpl::start_with_next([=](QRect clip) {
+		auto p = QPainter(result);
+		const auto skip = (size - st::largeForumTopicIcon.size) / 2;
+		p.drawImage(skip, skip, state->frame);
+	}, result->lifetime());
+
+	return result;
+}
+
 struct IconSelector {
 	Fn<bool(not_null<Ui::RpWidget*>)> paintIconFrame;
 	rpl::producer<DocumentId> iconIdValue;
@@ -404,14 +436,16 @@ void EditForumTopicBox(
 	});
 
 	const auto paintIconFrame = [=](not_null<Ui::RpWidget*> widget) {
-		return state->paintIconFrame(widget);
+		return state->paintIconFrame && state->paintIconFrame(widget);
 	};
-	const auto icon = EditIconButton(
-		title->parentWidget(),
-		controller,
-		state->defaultIcon.value(),
-		state->iconId.value(),
-		paintIconFrame);
+	const auto icon = (topic && topic->isGeneral())
+		? GeneralIconPreview(title->parentWidget())
+		: EditIconButton(
+			title->parentWidget(),
+			controller,
+			state->defaultIcon.value(),
+			state->iconId.value(),
+			paintIconFrame);
 
 	title->geometryValue(
 	) | rpl::start_with_next([=](QRect geometry) {
@@ -444,27 +478,29 @@ void EditForumTopicBox(
 		};
 	}, box->lifetime());
 
-	Settings::AddDividerText(
-		top,
-		tr::lng_forum_choose_title_and_icon());
+	if (!topic || !topic->isGeneral()) {
+		Settings::AddDividerText(
+			top,
+			tr::lng_forum_choose_title_and_icon());
 
-	box->setScrollStyle(st::reactPanelScroll);
+		box->setScrollStyle(st::reactPanelScroll);
 
-	auto selector = AddIconSelector(
-		box,
-		icon,
-		controller,
-		state->defaultIcon.value(),
-		top->heightValue(),
-		state->iconId.current(),
-		[&](object_ptr<Ui::RpWidget> footer) {
-			top->add(std::move(footer)); });
-	state->paintIconFrame = std::move(selector.paintIconFrame);
-	std::move(
-		selector.iconIdValue
-	) | rpl::start_with_next([=](DocumentId iconId) {
-		state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
-	}, box->lifetime());
+		auto selector = AddIconSelector(
+			box,
+			icon,
+			controller,
+			state->defaultIcon.value(),
+			top->heightValue(),
+			state->iconId.current(),
+			[&](object_ptr<Ui::RpWidget> footer) {
+				top->add(std::move(footer)); });
+		state->paintIconFrame = std::move(selector.paintIconFrame);
+		std::move(
+			selector.iconIdValue
+		) | rpl::start_with_next([=](DocumentId iconId) {
+			state->iconId = (iconId != kDefaultIconId) ? iconId : 0;
+		}, box->lifetime());
+	}
 
 	const auto create = [=] {
 		const auto channel = forum->peer->asChannel();
@@ -508,12 +544,14 @@ void EditForumTopicBox(
 			const auto api = &forum->session().api();
 			const auto weak = Ui::MakeWeak(box.get());
 			state->requestId = api->request(MTPchannels_EditForumTopic(
-				MTP_flags(Flag::f_title | Flag::f_icon_emoji_id),
+				MTP_flags(Flag::f_title
+					| (topic->isGeneral() ? Flag() : Flag::f_icon_emoji_id)),
 				topic->channel()->inputChannel,
 				MTP_int(rootId),
 				MTP_string(title->getLastText().trimmed()),
 				MTP_long(state->iconId.current()),
-				MTPBool() // closed
+				MTPBool(), // closed
+				MTPBool() // hidden
 			)).done([=](const MTPUpdates &result) {
 				api->applyUpdates(result);
 				if (const auto strong = weak.data()) {

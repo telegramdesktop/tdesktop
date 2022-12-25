@@ -90,7 +90,7 @@ private:
 	bool updated(const Key &key, bool doing);
 
 	void send(const Key &key, int progress);
-	void done(const MTPBool &result, mtpRequestId requestId);
+	void done(mtpRequestId requestId);
 
 	[[nodiscard]] bool skipRequest(const Key &key) const;
 

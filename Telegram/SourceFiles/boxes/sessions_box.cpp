@@ -77,7 +77,8 @@ public:
 
 	QString generateName() override;
 	QString generateShortName() override;
-	PaintRoundImageCallback generatePaintUserpicCallback() override;
+	PaintRoundImageCallback generatePaintUserpicCallback(
+		bool forceRound) override;
 
 	int elementsCount() const override;
 	QRect elementGeometry(int element, int outerWidth) const override;
@@ -217,29 +218,43 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 	return Type::Other;
 }
 
-[[nodiscard]] style::color ColorForType(Type type) {
-	switch (type) {
-	case Type::Windows:
-	case Type::Mac:
-	case Type::Other:
-		return st::historyPeer4UserpicBg; // blue
-	case Type::Ubuntu:
-		return st::historyPeer8UserpicBg; // orange
-	case Type::Linux:
-		return st::historyPeer5UserpicBg; // purple
-	case Type::iPhone:
-	case Type::iPad:
-		return st::historyPeer7UserpicBg; // sea
-	case Type::Android:
-		return st::historyPeer2UserpicBg; // green
-	case Type::Web:
-	case Type::Chrome:
-	case Type::Edge:
-	case Type::Firefox:
-	case Type::Safari:
-		return st::historyPeer6UserpicBg; // pink
-	}
-	Unexpected("Type in ColorForType.");
+[[nodiscard]] QBrush GradientForType(Type type, int size) {
+	const auto colors = [&]() -> std::pair<style::color, style::color> {
+		switch (type) {
+		case Type::Windows:
+		case Type::Mac:
+		case Type::Other:
+			// Blue.
+			return { st::historyPeer4UserpicBg, st::historyPeer4UserpicBg2 };
+		case Type::Ubuntu:
+			// Orange.
+			return { st::historyPeer8UserpicBg, st::historyPeer8UserpicBg2 };
+		case Type::Linux:
+			// Purple.
+			return { st::historyPeer5UserpicBg, st::historyPeer5UserpicBg2 };
+		case Type::iPhone:
+		case Type::iPad:
+			// Sea.
+			return { st::historyPeer7UserpicBg, st::historyPeer7UserpicBg2 };
+		case Type::Android:
+			// Green.
+			return { st::historyPeer2UserpicBg, st::historyPeer2UserpicBg2 };
+		case Type::Web:
+		case Type::Chrome:
+		case Type::Edge:
+		case Type::Firefox:
+		case Type::Safari:
+			// Pink.
+			return { st::historyPeer6UserpicBg, st::historyPeer6UserpicBg2 };
+		}
+		Unexpected("Type in GradientForType.");
+	}();
+	auto gradient = QLinearGradient(0, 0, 0, size);
+	gradient.setStops({
+		{ 0.0, colors.first->c },
+		{ 1.0, colors.second->c },
+	});
+	return QBrush(std::move(gradient));
 }
 
 [[nodiscard]] const style::icon &IconForType(Type type) {
@@ -307,7 +322,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 
 	auto p = QPainter(&result);
 	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(ColorForType(type));
+	p.setBrush(GradientForType(type, size));
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(rect);
 	IconForType(type).paintInCenter(p, rect);
@@ -343,7 +358,7 @@ void RenameBox(not_null<Ui::GenericBox*> box) {
 
 	auto p = QPainter(&state->background);
 	auto hq = PainterHighQualityEnabler(p);
-	p.setBrush(ColorForType(type));
+	p.setBrush(GradientForType(type, size));
 	p.setPen(Qt::NoPen);
 	p.drawEllipse(rect);
 	if (const auto icon = IconBigForType(type)) {
@@ -520,7 +535,7 @@ QString Row::generateShortName() {
 	return generateName();
 }
 
-PaintRoundImageCallback Row::generatePaintUserpicCallback() {
+PaintRoundImageCallback Row::generatePaintUserpicCallback(bool forceRound) {
 	return [=](
 			QPainter &p,
 			int x,

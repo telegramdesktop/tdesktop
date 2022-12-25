@@ -93,6 +93,7 @@ settingsIconPin: icon {{ "settings/pin", settingsIconFg }};
 settingsIconDownload: icon {{ "settings/download", settingsIconFg }};
 settingsIconMention: icon {{ "settings/mention", settingsIconFg }};
 settingsIconTopics: icon {{ "settings/topics", settingsIconFg }};
+settingsIconTTL: icon {{ "settings/ttl", settingsIconFg }};
 
 settingsPremiumIconChannelsOff: icon {{ "settings/premium/channels_off", settingsIconFg }};
 settingsPremiumIconDouble: icon {{ "settings/premium/double", settingsIconFg }};
@@ -103,6 +104,9 @@ settingsPremiumIconSpeed: icon {{ "settings/premium/speed", settingsIconFg }};
 settingsPremiumIconStar: icon {{ "settings/premium/star", settingsIconFg }};
 settingsPremiumIconVoice: icon {{ "settings/premium/voice", settingsIconFg }};
 settingsPremiumIconFiles: icon {{ "settings/premium/files", settingsIconFg }};
+
+settingsTTLChatsOff: icon {{ "settings/ttl/autodelete_off", windowSubTextFg }};
+settingsTTLChatsOn: icon {{ "settings/ttl/autodelete_on", windowActiveTextFg }};
 
 settingsIconAdd: icon {{ "settings/add", windowFgActive }};
 settingsIconRemove: icon {{ "settings/remove", windowFgActive }};

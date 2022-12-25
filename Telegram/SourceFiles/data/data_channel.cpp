@@ -83,7 +83,6 @@ std::unique_ptr<Data::Forum> MegagroupInfo::takeForumData() {
 		return result;
 	}
 	return nullptr;
-
 }
 
 ChannelData::ChannelData(not_null<Data::Session*> owner, PeerId id)
@@ -165,9 +164,7 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 	const auto taken = ((diff & Flag::Forum) && !(which & Flag::Forum))
 		? mgInfo->takeForumData()
 		: nullptr;
-	if (const auto raw = taken.get()) {
-		owner().forumIcons().clearUserpicsReset(taken.get());
-	} else if ((diff & Flag::Forum) && (which & Flag::Forum)) {
+	if ((diff & Flag::Forum) && (which & Flag::Forum)) {
 		mgInfo->ensureForum(this);
 	}
 	_flags.set(which);
@@ -184,8 +181,17 @@ void ChannelData::setFlags(ChannelDataFlags which) {
 			}
 			if (diff & Flag::Forum) {
 				Core::App().notifications().clearFromHistory(history);
+				history->updateChatListEntryHeight();
+				if (history->inChatList()) {
+					if (const auto forum = this->forum()) {
+						forum->preloadTopics();
+					}
+				}
 			}
 		}
+	}
+	if (const auto raw = taken.get()) {
+		owner().forumIcons().clearUserpicsReset(raw);
 	}
 }
 
@@ -876,6 +882,12 @@ const Data::AllowedReactions &ChannelData::allowedReactions() const {
 	return _allowedReactions;
 }
 
+void ChannelData::processTopics(const MTPVector<MTPForumTopic> &topics) {
+	if (const auto forum = this->forum()) {
+		forum->applyReceivedTopics(topics);
+	}
+}
+
 namespace Data {
 
 void ApplyMigration(
@@ -931,12 +943,14 @@ void ApplyChannelUpdate(
 		| Flag::CanViewParticipants
 		| Flag::CanSetStickers
 		| Flag::PreHistoryHidden
+		| Flag::AntiSpam
 		| Flag::Location;
 	channel->setFlags((channel->flags() & ~mask)
 		| (update.is_can_set_username() ? Flag::CanSetUsername : Flag())
 		| (update.is_can_view_participants() ? Flag::CanViewParticipants : Flag())
 		| (update.is_can_set_stickers() ? Flag::CanSetStickers : Flag())
 		| (update.is_hidden_prehistory() ? Flag::PreHistoryHidden : Flag())
+		| (update.is_antispam() ? Flag::AntiSpam : Flag())
 		| (update.vlocation() ? Flag::Location : Flag()));
 	channel->setUserpicPhoto(update.vchat_photo());
 	if (const auto migratedFrom = update.vmigrated_from_chat_id()) {

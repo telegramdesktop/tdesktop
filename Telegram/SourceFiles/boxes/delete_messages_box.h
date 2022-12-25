@@ -7,7 +7,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #pragma once
 
-#include "boxes/abstract_box.h"
+#include "ui/layers/box_content.h"
 
 namespace Main {
 class Session;
@@ -68,6 +68,8 @@ private:
 	ChannelData *_moderateInChannel = nullptr;
 	bool _moderateBan = false;
 	bool _moderateDeleteAll = false;
+
+	bool _revokeForBot = false;
 
 	object_ptr<Ui::FlatLabel> _text = { nullptr };
 	object_ptr<Ui::Checkbox> _revoke = { nullptr };

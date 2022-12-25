@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "boxes/max_invite_box.h"
 #include "boxes/add_contact_box.h"
 #include "main/main_session.h"
+#include "menu/menu_antispam_validator.h"
 #include "mtproto/mtproto_config.h"
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
@@ -112,7 +113,7 @@ void SaveChatAdmin(
 		const auto &type = error.type();
 		if (retryOnNotParticipant
 			&& isAdmin
-			&& (type == qstr("USER_NOT_PARTICIPANT"))) {
+			&& (type == u"USER_NOT_PARTICIPANT"_q)) {
 			AddChatParticipant(chat, user, [=] {
 				SaveChatAdmin(chat, user, isAdmin, onDone, onFail, false);
 			}, onFail);
@@ -1186,6 +1187,15 @@ void ParticipantsBoxController::prepare() {
 		}
 		Unexpected("Role in ParticipantsBoxController::prepare()");
 	}();
+	if (const auto megagroup = _peer->asMegagroup()) {
+		if ((_role == Role::Admins)
+			&& (megagroup->amCreator() || megagroup->hasAdminRights())) {
+			const auto validator = AntiSpamMenu::AntiSpamValidator(
+				_navigation->parentController(),
+				_peer->asChannel());
+			delegate()->peerListSetAboveWidget(validator.createButton());
+		}
+	}
 	delegate()->peerListSetSearchMode(PeerListSearchMode::Enabled);
 	delegate()->peerListSetTitle(std::move(title));
 	setDescriptionText(tr::lng_contacts_loading(tr::now));

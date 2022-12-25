@@ -8,5 +8,6 @@
     <file alias="cloud_password/password_input.tgs">../../animations/cloud_password/password_input.tgs</file>
     <file alias="cloud_password/hint.tgs">../../animations/cloud_password/hint.tgs</file>
     <file alias="cloud_password/email.tgs">../../animations/cloud_password/email.tgs</file>
+    <file alias="ttl.tgs">../../animations/ttl.tgs</file>
   </qresource>
 </RCC>

@@ -162,7 +162,9 @@ public:
 	bool hasTopBarShadow() const {
 		return peer() != nullptr;
 	}
-	void showAnimated(Window::SlideDirection direction, const Window::SectionSlideParams &params);
+	void showAnimated(
+		Window::SlideDirection direction,
+		const Window::SectionSlideParams &params);
 	void finishAnimating();
 
 	void doneShow();
@@ -404,7 +406,7 @@ private:
 
 	auto computeSendButtonType() const;
 
-	void animationCallback();
+	void showFinished();
 	void updateOverStates(QPoint pos);
 	void chooseAttach(std::optional<bool> overrideSendImagesAsPhotos = {});
 	void sendButtonClicked();
@@ -488,6 +490,7 @@ private:
 	void updatePinnedViewer();
 	void setupPinnedTracker();
 	void checkPinnedBarState();
+	void clearHidingPinnedBar();
 	void refreshPinnedBarButton(bool many, HistoryItem *item);
 	void checkLastPinnedClickedIdReset(
 		int wasScrollTop,
@@ -522,10 +525,10 @@ private:
 	void checkPreview();
 	void requestPreview();
 	void gotPreview(QString links, const MTPMessageMedia &media, mtpRequestId req);
-	void messagesReceived(PeerData *peer, const MTPmessages_Messages &messages, int requestId);
+	void messagesReceived(not_null<PeerData*> peer, const MTPmessages_Messages &messages, int requestId);
 	void messagesFailed(const MTP::Error &error, int requestId);
-	void addMessagesToFront(PeerData *peer, const QVector<MTPMessage> &messages);
-	void addMessagesToBack(PeerData *peer, const QVector<MTPMessage> &messages);
+	void addMessagesToFront(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
+	void addMessagesToBack(not_null<PeerData*> peer, const QVector<MTPMessage> &messages);
 
 	void updateHistoryGeometry(bool initial = false, bool loadedDown = false, const ScrollChange &change = { ScrollChangeNone, 0 });
 	void updateListSize();
@@ -629,6 +632,7 @@ private:
 
 	std::unique_ptr<HistoryView::PinnedTracker> _pinnedTracker;
 	std::unique_ptr<Ui::PinnedBar> _pinnedBar;
+	std::unique_ptr<Ui::PinnedBar> _hidingPinnedBar;
 	int _pinnedBarHeight = 0;
 	FullMsgId _pinnedClickedId;
 	std::optional<FullMsgId> _minPinnedId;
@@ -753,9 +757,7 @@ private:
 
 	QString _confirmSource;
 
-	Ui::Animations::Simple _a_show;
-	Window::SlideDirection _showDirection;
-	QPixmap _cacheUnder, _cacheOver;
+	std::unique_ptr<Window::SlideAnimation> _showAnimation;
 
 	HistoryView::ElementHighlighter _highlighter;
 

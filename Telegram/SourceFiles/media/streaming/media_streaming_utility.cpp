@@ -51,7 +51,7 @@ FFmpeg::AvErrorWrap ProcessPacket(Stream &stream, FFmpeg::Packet &&packet) {
 		stream.codec.get(),
 		native->data ? native : nullptr); // Drain on eof.
 	if (error) {
-		LogError(qstr("avcodec_send_packet"), error);
+		LogError(u"avcodec_send_packet"_q, error);
 		if (error.code() == AVERROR_INVALIDDATA
 			// There is a sample voice message where skipping such packet
 			// results in a crash (read_access to nullptr) in swr_convert().
@@ -119,7 +119,7 @@ bool TransferFrame(
 	const auto error = FFmpeg::AvErrorWrap(
 		av_hwframe_transfer_data(transferredFrame, decodedFrame, 0));
 	if (error) {
-		LogError(qstr("av_hwframe_transfer_data"), error);
+		LogError(u"av_hwframe_transfer_data"_q, error);
 		return false;
 	}
 	FFmpeg::ClearFrameMemory(decodedFrame);
