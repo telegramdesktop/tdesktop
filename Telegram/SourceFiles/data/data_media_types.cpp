@@ -540,6 +540,10 @@ MediaPhoto::MediaPhoto(
 , _photo(photo)
 , _spoiler(spoiler) {
 	parent->history()->owner().registerPhotoItem(_photo, parent);
+
+	if (_spoiler) {
+		Ui::PrepareImageSpoiler();
+	}
 }
 
 MediaPhoto::MediaPhoto(
@@ -752,6 +756,10 @@ MediaFile::MediaFile(
 		if (const auto emoji = Ui::Emoji::Find(_emoji)) {
 			_emoji = emoji->text();
 		}
+	}
+
+	if (_spoiler) {
+		Ui::PrepareImageSpoiler();
 	}
 }
 
