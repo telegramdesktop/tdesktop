@@ -3805,7 +3805,9 @@ void ApiWrap::uploadAlbumMedia(
 			failed();
 			return;
 		}
+		auto spoiler = false;
 		if (const auto media = item->media()) {
+			spoiler = media->hasSpoiler();
 			if (const auto photo = media->photo()) {
 				photo->setWaitingForAlbum();
 			} else if (const auto document = media->document()) {
@@ -3822,10 +3824,10 @@ void ApiWrap::uploadAlbumMedia(
 				return;
 			}
 			const auto &fields = photo->c_photo();
-			const auto flags = MTPDinputMediaPhoto::Flags(0)
-				| (data.vttl_seconds()
-					? MTPDinputMediaPhoto::Flag::f_ttl_seconds
-					: MTPDinputMediaPhoto::Flag(0));
+			using Flag = MTPDinputMediaPhoto::Flag;
+			const auto flags = Flag()
+				| (data.vttl_seconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoiler ? Flag::f_spoiler : Flag());
 			const auto media = MTP_inputMediaPhoto(
 				MTP_flags(flags),
 				MTP_inputPhoto(
@@ -3844,10 +3846,10 @@ void ApiWrap::uploadAlbumMedia(
 				return;
 			}
 			const auto &fields = document->c_document();
-			const auto flags = MTPDinputMediaDocument::Flags(0)
-				| (data.vttl_seconds()
-					? MTPDinputMediaDocument::Flag::f_ttl_seconds
-					: MTPDinputMediaDocument::Flag(0));
+			using Flag = MTPDinputMediaDocument::Flag;
+			const auto flags = Flag()
+				| (data.vttl_seconds() ? Flag::f_ttl_seconds : Flag())
+				| (spoiler ? Flag::f_spoiler : Flag());
 			const auto media = MTP_inputMediaDocument(
 				MTP_flags(flags),
 				MTP_inputDocument(
