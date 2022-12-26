@@ -39,7 +39,6 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include <QtCore/QBuffer>
 #include <QtGui/QImageWriter>
-#include <QtGui/QColorSpace>
 
 namespace {
 
@@ -181,10 +180,6 @@ struct PreparedFileThumbnail {
 		return bytes;
 	}
 
-	// We have an example of dark .png image that when being sent without
-	// removing its color space is displayed fine on tdesktop, but with
-	// a light gray background on mobile apps.
-	full.setColorSpace(QColorSpace());
 	auto result = QByteArray();
 	QBuffer buffer(&result);
 	QImageWriter writer(&buffer, "JPEG");
