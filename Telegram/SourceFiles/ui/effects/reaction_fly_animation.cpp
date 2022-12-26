@@ -227,7 +227,6 @@ void ReactionFlyAnimation::paintMiniCopies(
 	}
 	auto hq = PainterHighQualityEnabler(p);
 	const auto size = QSize(_customSize, _customSize);
-	const auto preview = QColor(0, 0, 0, 0);
 	const auto progress = _minis.value(1.);
 	const auto middle = center - QPoint(_customSize / 2, _customSize / 2);
 	const auto scaleIn = kMiniCopiesScaleInDuration

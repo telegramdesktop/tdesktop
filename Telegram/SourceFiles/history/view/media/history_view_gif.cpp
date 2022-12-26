@@ -846,7 +846,6 @@ void Gif::validateSpoilerImageCache(
 			Qt::SmoothTransformation));
 		return &*container;
 	};
-	const auto videothumb = _videoThumbnailFrame.get();
 	const auto embedded = _dataMedia->thumbnailInline();
 	const auto blurred = embedded ? embedded : downscale(normal);
 	_spoiler->background = Images::Round(

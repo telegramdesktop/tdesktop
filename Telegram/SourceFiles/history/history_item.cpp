@@ -4070,7 +4070,6 @@ void HistoryItem::setSelfDestruct(HistoryServiceSelfDestruct::Type type, int ttl
 PreparedServiceText HistoryItem::prepareInvitedToCallText(
 		const std::vector<not_null<UserData*>> &users,
 		CallId linkCallId) {
-	const auto owner = &_history->owner();
 	auto chatText = tr::lng_action_invite_user_chat(
 		tr::now,
 		Ui::Text::WithEntities);
