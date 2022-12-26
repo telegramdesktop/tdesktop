@@ -17,10 +17,10 @@ namespace Ui {
 namespace {
 
 [[nodiscard]] QImage PrepareSnowflake(QBrush brush) {
-	constexpr auto kPenWidth = 1.5;
+	constexpr auto kPenWidth = 1.;
 	constexpr auto kTailCount = 6;
 	constexpr auto kAngle = (-M_PI / 2.);
-	constexpr auto kTailSize = 8.;
+	constexpr auto kTailSize = 6.;
 	constexpr auto kSubtailPositionRatio = 2 / 3.;
 	constexpr auto kSubtailSize = kTailSize / 3;
 	constexpr auto kSubtailAngle1 = -M_PI / 6.;
@@ -95,7 +95,7 @@ Snowflakes::Snowflakes(Fn<void(const QRect &r)> updateCallback)
 }) {
 	{
 		const auto from = _deathTime.from + _deathTime.length;
-		auto r = bytes::vector(from);
+		auto r = bytes::vector(from + 1);
 		base::RandomFill(r.data(), r.size());
 
 		const auto now = crl::now();
