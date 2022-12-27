@@ -36,6 +36,10 @@ get_filename_component(third_party_loc "Telegram/ThirdParty" REALPATH)
 get_filename_component(submodules_loc "Telegram" REALPATH)
 get_filename_component(cmake_helpers_loc "cmake" REALPATH)
 
+if (NOT DESKTOP_APP_USE_PACKAGED AND WIN32)
+    set(Python_EXECUTABLE ${CMAKE_CURRENT_SOURCE_DIR}/../ThirdParty/python/Scripts/python)
+endif()
+
 include(cmake/variables.cmake)
 include(cmake/nice_target_sources.cmake)
 include(cmake/target_compile_options_if_exists.cmake)
