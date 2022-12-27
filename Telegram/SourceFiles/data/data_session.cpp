@@ -1176,6 +1176,7 @@ void Session::deleteConversationLocally(not_null<PeerData*> peer) {
 			setChatPinned(history, FilterId(), false);
 		}
 		removeChatListEntry(history);
+		history->clearFolder();
 		history->clear(peer->isChannel()
 			? History::ClearType::Unload
 			: History::ClearType::DeleteChat);
