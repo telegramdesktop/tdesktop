@@ -43,7 +43,7 @@ MiniStars::MiniStars(Fn<void(const QRect &r)> updateCallback, bool opaque)
 }) {
 	if (anim::Disabled()) {
 		const auto from = _deathTime.from + _deathTime.length;
-		auto r = bytes::vector(from);
+		auto r = bytes::vector(from + 1);
 		base::RandomFill(r.data(), r.size());
 
 		for (auto i = -from; i < 0; i += randomInterval(_lifeLength, r[-i])) {
