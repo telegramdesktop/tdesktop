@@ -1066,15 +1066,15 @@ void TopBarWidget::updateControlsVisibility() {
 			? (hasPollsMenu || hasFakeMenu)
 			: (section == Section::Replies)
 			? (hasPollsMenu || hasTopicMenu || hasFakeMenu)
-                : (section == Section::ChatsList)
-                ? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
-                : false);
-        const auto hasInfo = !_activeChat.key.folder()
-            && (section == Section::History
-                ? true
-                : (section == Section::Replies)
-                ? (_activeChat.key.topic() != nullptr)
-                : false);
+			: (section == Section::ChatsList)
+			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
+			: false);
+	const auto hasInfo = !_activeChat.key.folder()
+		&& (section == Section::History
+			? true
+			: (section == Section::Replies)
+			? (_activeChat.key.topic() != nullptr)
+			: false);
 	updateSearchVisibility();
 	if (_searchMode) {
 		const auto hasSearchQuery = _searchField
