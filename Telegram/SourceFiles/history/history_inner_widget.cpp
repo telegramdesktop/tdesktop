@@ -2404,28 +2404,34 @@ void HistoryInner::showContextMenu(QContextMenuEvent *e, bool showFromTouch) {
 						Settings::ShowPremium(_controller, "no_ads");
 					}, &st::menuIconBlock);
 				}
-				if (!item->isService()
-					&& view
-					&& actionText.isEmpty()
-					&& !hasCopyRestriction(item)
-					&& (view->hasVisibleText() || mediaHasTextForCopy)) {
-					_menu->addAction(tr::lng_context_copy_text(tr::now), [=] {
-						copyContextText(itemId);
-					}, &st::menuIconCopy);
-				}
-				if (!item->isService()
-					&& view
-					&& actionText.isEmpty()
-					&& (view->hasVisibleText() || mediaHasTextForCopy)
-					&& !Ui::SkipTranslate(item->originalText())) {
-					_menu->addAction(tr::lng_context_translate(tr::now), [=] {
-						_controller->show(Box(
-							Ui::TranslateBox,
-							item->history()->peer,
-							item->fullId().msg,
-							item->originalText(),
-							hasCopyRestriction(item)));
-					}, &st::menuIconTranslate);
+				if (!item->isService() && view && actionText.isEmpty()) {
+					if (!hasCopyRestriction(item)
+						&& (view->hasVisibleText() || mediaHasTextForCopy)) {
+						_menu->addAction(
+							tr::lng_context_copy_text(tr::now),
+							[=] { copyContextText(itemId); },
+							&st::menuIconCopy);
+					}
+					if (view->hasVisibleText() || mediaHasTextForCopy) {
+						const auto translate = mediaHasTextForCopy
+							? (HistoryView::TransribedText(item)
+								.append('\n')
+								.append(item->originalText()))
+							: item->originalText();
+						if (!translate.text.isEmpty()
+							&& !Ui::SkipTranslate(translate)) {
+							_menu->addAction(tr::lng_context_translate(tr::now), [=] {
+								_controller->show(Box(
+									Ui::TranslateBox,
+									item->history()->peer,
+									mediaHasTextForCopy
+										? MsgId()
+										: item->fullId().msg,
+									translate,
+									hasCopyRestriction(item)));
+							}, &st::menuIconTranslate);
+						}
+					}
 				}
 			}
 		}
