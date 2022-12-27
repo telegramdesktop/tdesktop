@@ -3157,7 +3157,11 @@ void ApiWrap::forwardMessages(
 	if (sendAs) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_send_as;
 	}
-	if (action.topicRootId) {
+	const auto kGeneralId = Data::ForumTopic::kGeneralId;
+	const auto topMsgId = (action.topicRootId == kGeneralId)
+		? MsgId(0)
+		: action.topicRootId;
+	if (topMsgId) {
 		sendFlags |= MTPmessages_ForwardMessages::Flag::f_top_msg_id;
 	}
 
@@ -3179,7 +3183,7 @@ void ApiWrap::forwardMessages(
 				MTP_vector<MTPint>(ids),
 				MTP_vector<MTPlong>(randomIds),
 				peer->input,
-				MTP_int(action.topicRootId),
+				MTP_int(topMsgId),
 				MTP_int(action.options.scheduled),
 				(sendAs ? sendAs->input : MTP_inputPeerEmpty())
 			)).done([=](const MTPUpdates &result) {
@@ -3232,7 +3236,7 @@ void ApiWrap::forwardMessages(
 				messageFromId,
 				messagePostAuthor,
 				item,
-				action.topicRootId);
+				topMsgId);
 			_session->data().registerMessageRandomId(randomId, newId);
 			if (!localIds) {
 				localIds = std::make_shared<base::flat_map<uint64, FullMsgId>>();
