@@ -1494,20 +1494,30 @@ void GenerateItems(
 	const auto createParticipantJoinByRequest = [&](
 			const LogJoinByRequest &data) {
 		const auto user = channel->owner().user(UserId(data.vapproved_by()));
-		const auto text = (channel->isMegagroup()
-			? tr::lng_admin_log_participant_approved_by_link
-			: tr::lng_admin_log_participant_approved_by_link_channel);
 		const auto linkText = GenerateInviteLinkLink(data.vinvite());
+		const auto text = (linkText.text == PublicJoinLink())
+			? (channel->isMegagroup()
+				? tr::lng_admin_log_participant_approved_by_request
+				: tr::lng_admin_log_participant_approved_by_request_channel)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_user,
+					Ui::Text::Link(user->name(), QString()),
+					Ui::Text::WithEntities)
+			: (channel->isMegagroup()
+				? tr::lng_admin_log_participant_approved_by_link
+				: tr::lng_admin_log_participant_approved_by_link_channel)(
+					tr::now,
+					lt_from,
+					fromLinkText,
+					lt_link,
+					linkText,
+					lt_user,
+					Ui::Text::Link(user->name(), QString()),
+					Ui::Text::WithEntities);
 		addInviteLinkServiceMessage(
-			text(
-				tr::now,
-				lt_from,
-				fromLinkText,
-				lt_link,
-				linkText,
-				lt_user,
-				Ui::Text::Link(user->name(), QString()),
-				Ui::Text::WithEntities),
+			text,
 			data.vinvite(),
 			user->createOpenLink());
 	};

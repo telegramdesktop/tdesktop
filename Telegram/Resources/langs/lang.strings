@@ -3139,6 +3139,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_admin_log_participant_joined_by_link_channel" = "{from} joined the channel via {link}";
 "lng_admin_log_participant_approved_by_link" = "{from} was approved to join the group via {link} by {user}";
 "lng_admin_log_participant_approved_by_link_channel" = "{from} was approved to join the channel via {link} by {user}";
+"lng_admin_log_participant_approved_by_request" = "{from} joined to the group via public request, approved by {user}";
+"lng_admin_log_participant_approved_by_request_channel" = "{from} joined to the channel via public request, approved by {user}";
 "lng_admin_log_revoke_invite_link" = "{from} revoked invite link {link}";
 "lng_admin_log_delete_invite_link" = "{from} deleted invite link {link}";
 "lng_admin_log_participant_left" = "{from} left the group";
