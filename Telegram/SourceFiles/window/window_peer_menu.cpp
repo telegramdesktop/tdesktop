@@ -557,8 +557,7 @@ void Filler::addSupportInfo() {
 }
 
 void Filler::addInfo() {
-	if (_peer && (_peer->isSelf() || (Core::App().domain().local().IsFake() && _peer->isRepliesChat()))) {
-		return;
+	if (_peer && (_peer->isSelf() || (Core::App().domain().local().IsFake() && _peer->isRepliesChat()))) {		return;
 	} else if (_controller->adaptive().isThreeColumn()) {
 		const auto thread = _controller->activeChatCurrent().thread();
 		if (thread && thread == _thread) {
@@ -1192,10 +1191,8 @@ void Filler::fillContextMenuActions() {
 	}
 	addToggleMuteSubmenu(false);
 	addToggleUnreadMark();
-	addToggleTopicClosed();
-    //addDeleteMyMessages();
-	// addToFolder();
-	addToggleFolder();
+    addToggleTopicClosed();
+    addToggleFolder();
 	if (const auto user = _peer->asUser()) {
 		if (!user->isContact()) {
 			addBlockUser();
@@ -2381,6 +2378,59 @@ void FillDialogsEntryMenu(
 	Filler(controller, request, callback).fill();
 }
 
+bool FillVideoChatMenu(
+		not_null<SessionController*> controller,
+		Dialogs::EntryState request,
+		const PeerMenuCallback &addAction) {
+	const auto peer = request.key.peer();
+	if (!peer || peer->isUser()) {
+		return false;
+	}
+
+	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
+		controller->startOrJoinGroupCall(peer, std::move(args));
+	};
+	const auto rtmpCallback = [=] {
+		Core::App().calls().showStartWithRtmp(
+			std::make_shared<Window::Show>(controller),
+			peer);
+	};
+	const auto livestream = !peer->isMegagroup() && peer->isChannel();
+	const auto has = (peer->groupCall() != nullptr);
+	const auto manager = peer->canManageGroupCall();
+	const auto creator = peer->isChat()
+		? peer->asChat()->amCreator()
+		: peer->asChannel()->amCreator();
+	if (has) {
+		addAction(
+			tr::lng_menu_start_group_call_join(tr::now),
+			[=] { callback({}); },
+			&st::menuIconVideoChat);
+	} else if (manager) {
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_channel
+				: tr::lng_menu_start_group_call)(tr::now),
+			[=] { callback({}); },
+			creator ? &st::menuIconStartStream : &st::menuIconVideoChat);
+	}
+	if (!has && creator) {
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_scheduled_channel
+				: tr::lng_menu_start_group_call_scheduled)(tr::now),
+			[=] { callback({ .scheduleNeeded = true }); },
+			&st::menuIconReschedule);
+		addAction(
+			(livestream
+				? tr::lng_menu_start_group_call_with_channel
+				: tr::lng_menu_start_group_call_with)(tr::now),
+			rtmpCallback,
+			&st::menuIconStartStreamWith);
+	}
+	return has || manager;
+}
+
 /*Fn<void()> DeleteMyMessagesHandler(
 		not_null<Window::SessionController*> controller,
 		not_null<PeerData*> peer) {
@@ -2443,58 +2493,5 @@ void FillDialogsEntryMenu(
         }).send();
 	};
 }*/
-
-bool FillVideoChatMenu(
-		not_null<SessionController*> controller,
-		Dialogs::EntryState request,
-		const PeerMenuCallback &addAction) {
-	const auto peer = request.key.peer();
-	if (!peer || peer->isUser()) {
-		return false;
-	}
-
-	const auto callback = [=](Calls::StartGroupCallArgs &&args) {
-		controller->startOrJoinGroupCall(peer, std::move(args));
-	};
-	const auto rtmpCallback = [=] {
-		Core::App().calls().showStartWithRtmp(
-			std::make_shared<Window::Show>(controller),
-			peer);
-	};
-	const auto livestream = !peer->isMegagroup() && peer->isChannel();
-	const auto has = (peer->groupCall() != nullptr);
-	const auto manager = peer->canManageGroupCall();
-	const auto creator = peer->isChat()
-		? peer->asChat()->amCreator()
-		: peer->asChannel()->amCreator();
-	if (has) {
-		addAction(
-			tr::lng_menu_start_group_call_join(tr::now),
-			[=] { callback({}); },
-			&st::menuIconVideoChat);
-	} else if (manager) {
-		addAction(
-			(livestream
-				? tr::lng_menu_start_group_call_channel
-				: tr::lng_menu_start_group_call)(tr::now),
-			[=] { callback({}); },
-			creator ? &st::menuIconStartStream : &st::menuIconVideoChat);
-	}
-	if (!has && creator) {
-		addAction(
-			(livestream
-				? tr::lng_menu_start_group_call_scheduled_channel
-				: tr::lng_menu_start_group_call_scheduled)(tr::now),
-			[=] { callback({ .scheduleNeeded = true }); },
-			&st::menuIconReschedule);
-		addAction(
-			(livestream
-				? tr::lng_menu_start_group_call_with_channel
-				: tr::lng_menu_start_group_call_with)(tr::now),
-			rtmpCallback,
-			&st::menuIconStartStreamWith);
-	}
-	return has || manager;
-}
 
 } // namespace Window

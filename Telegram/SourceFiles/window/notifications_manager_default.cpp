@@ -729,7 +729,9 @@ bool Notification::checkLastInput(
 		std::optional<crl::time> lastInputTime) {
 	if (!_waitingForInput) return true;
 
-	const auto waitForUserInput = lastInputTime.has_value()
+	using namespace Platform::Notifications;
+	const auto waitForUserInput = WaitForInputForCustom()
+		&& lastInputTime.has_value()
 		&& (*lastInputTime <= _started);
 
 	if (!waitForUserInput) {

@@ -317,7 +317,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 "lng_intro_qr_title" = "Scan From Mobile Telegram";
 "lng_intro_qr_step1" = "Open Telegram on your phone";
-"lng_intro_qr_step2" = "Go to Settings > Devices > Scan QR Code";
+"lng_intro_qr_step2" = "Go to Settings > Devices > Link Desktop";
 "lng_intro_qr_step3" = "Scan this image to Log In";
 "lng_intro_qr_skip" = "Or log in using your phone number";
 

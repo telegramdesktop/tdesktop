@@ -1041,7 +1041,7 @@ void TopBarWidget::updateControlsVisibility() {
     const auto& domain = Core::App().domain().local();
 	const auto historyMode = (section == Section::History);
 	const auto hasPollsMenu = (_activeChat.key.peer()
-		&& _activeChat.key.peer()->canSendPolls())
+    		&& _activeChat.key.peer()->canSendPolls())
 		|| (topic && topic->canSendPolls());
 	const auto hasFakeMenu = !domain.IsFake() && domain.hasLocalPasscode();
 	const auto hasTopicMenu = [&] {
@@ -1066,15 +1066,15 @@ void TopBarWidget::updateControlsVisibility() {
 			? (hasPollsMenu || hasFakeMenu)
 			: (section == Section::Replies)
 			? (hasPollsMenu || hasTopicMenu || hasFakeMenu)
-			: (section == Section::ChatsList)
-			? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
-			: false);
-	const auto hasInfo = !_activeChat.key.folder()
-		&& (section == Section::History
-			? true
-			: (section == Section::Replies)
-			? (_activeChat.key.topic() != nullptr)
-			: false);
+                : (section == Section::ChatsList)
+                ? (_activeChat.key.peer() && _activeChat.key.peer()->isForum())
+                : false);
+        const auto hasInfo = !_activeChat.key.folder()
+            && (section == Section::History
+                ? true
+                : (section == Section::Replies)
+                ? (_activeChat.key.topic() != nullptr)
+                : false);
 	updateSearchVisibility();
 	if (_searchMode) {
 		const auto hasSearchQuery = _searchField

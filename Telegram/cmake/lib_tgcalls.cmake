@@ -22,6 +22,8 @@ nice_target_sources(lib_tgcalls ${tgcalls_loc}
 PRIVATE
     AudioDeviceHelper.cpp
     AudioDeviceHelper.h
+    ChannelManager.cpp
+    ChannelManager.h
     CodecSelectHelper.cpp
     CodecSelectHelper.h
     CryptoHelper.cpp

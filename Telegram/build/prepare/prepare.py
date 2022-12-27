@@ -338,7 +338,7 @@ def runStages():
             continue
         index = index + 1
         version = ('#' + str(stage['version'])) if (stage['version'] != '0') else ''
-        prefix = '[' + os.path.join(str(index), str(count)) + '](' + os.path.join(stage['location'], stage['name']) + version + ')'
+        prefix = '[' + str(index) + '/' + str(count) + '](' + stage['location'] + '/' + stage['name'] + version + ')'
         print(prefix + ': ', end = '', flush=True)
         stage['key'] = computeCacheKey(stage)
         commands = removeDir(stage['name']) + '\n' + stage['commands']
@@ -397,7 +397,7 @@ if customRunCommand:
 stage('patches', """
     git clone https://github.com/desktop-app/patches.git
     cd patches
-    git checkout e1117dfb86
+    git checkout b842feb5f8
 """)
 
 stage('msys64', """
@@ -406,12 +406,22 @@ win:
     SET PATH=%ROOT_DIR%\\ThirdParty\\msys64\\usr\\bin;%PATH%
     SET CHERE_INVOKING=enabled_from_arguments
     SET MSYS2_PATH_TYPE=inherit
+
     powershell -Command "iwr -OutFile ./msys64.exe https://repo.msys2.org/distrib/x86_64/msys2-base-x86_64-20221028.sfx.exe"
     msys64.exe
     del msys64.exe
     bash -c "pacman-key --init; pacman-key --populate; pacman -Syu --noconfirm"
     pacman -S --noconfirm mingw-w64-x86_64-perl mingw-w64-x86_64-nasm mingw-w64-x86_64-yasm mingw-w64-x86_64-ninja
     SET PATH=%PATH_BACKUP_%
+""", 'ThirdParty')
+
+stage('python', """
+version: """ + (subprocess.run(['python', '-V'], capture_output=True, env=modifiedEnv).stdout.decode().strip().split()[-1] if win else '0') + """
+win:
+    python -m venv python
+    python\\Scripts\\activate.bat
+    pip install pywin32 six meson
+    deactivate
 """, 'ThirdParty')
 
 stage('NuGet', """
@@ -465,7 +475,7 @@ win:
 
 stage('xz', """
 !win:
-    git clone -b v5.2.5 https://git.tukaani.org/xz.git
+    git clone -b v5.2.9 https://git.tukaani.org/xz.git
     cd xz
     sed -i '' '\\@check_symbol_exists(futimens "sys/types.h;sys/stat.h" HAVE_FUTIMENS)@d' CMakeLists.txt
     CFLAGS="$UNGUARDED" CPPFLAGS="$UNGUARDED" cmake -B build . \\
@@ -649,6 +659,133 @@ mac:
     mv lib/.libs/libiconv.a out.x86_64
     lipo -create out.arm64/libiconv.a out.x86_64/libiconv.a -output lib/.libs/libiconv.a
     make install
+""")
+
+stage('dav1d', """
+win:
+    git clone -b 1.0.0 --depth 1 https://code.videolan.org/videolan/dav1d.git
+    cd dav1d
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
+    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=debug -Denable_tools=false -Denable_tests=false -Db_vscrt=mtd builddir-debug
+    meson compile -C builddir-debug
+    meson install -C builddir-debug
+release:
+    meson setup --prefix %LIBS_DIR%/local --default-library=static --buildtype=release -Denable_tools=false -Denable_tests=false -Db_vscrt=mt builddir-release
+    meson compile -C builddir-release
+    meson install -C builddir-release
+win:
+    copy %LIBS_DIR%\\local\\lib\\libdav1d.a %LIBS_DIR%\\local\\lib\\dav1d.lib
+    deactivate
+""")
+
+stage('libavif', """
+win:
+    git clone -b v0.11.1 --depth 1 https://github.com/AOMediaCodec/libavif.git
+    cd libavif
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DAVIF_ENABLE_WERROR=OFF ^
+        -DAVIF_CODEC_DAV1D=ON
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libde265', """
+win:
+    git clone https://github.com/strukturag/libde265.git
+    cd libde265
+    git checkout c96962cf6a0259f1678e9a0e1566eb9b5516093a
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS="/DLIBDE265_STATIC_BUILD" ^
+        -DCMAKE_CXX_FLAGS="/DLIBDE265_STATIC_BUILD" ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DENABLE_SDL=OFF ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DENABLE_DECODER=OFF ^
+        -DENABLE_ENCODER=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libheif', """
+win:
+    git clone --depth 1 -b v1.14.0 https://github.com/strukturag/libheif.git
+    cd libheif
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/LIBHEIF_EXPORTS/LIBDE265_STATIC_BUILD/g' libheif/CMakeLists.txt
+    %THIRDPARTY_DIR%\\msys64\\usr\\bin\\sed.exe -i 's/HAVE_VISIBILITY/LIBHEIF_STATIC_BUILD/g' libheif/CMakeLists.txt
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DENABLE_PLUGIN_LOADING=OFF ^
+        -DWITH_LIBDE265=ON ^
+        -DWITH_SvtEnc=OFF ^
+        -DWITH_RAV1E=OFF ^
+        -DWITH_EXAMPLES=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
+""")
+
+stage('libjxl', """
+win:
+    git clone -b v0.7.0 --depth 1 --recursive --shallow-submodules https://github.com/libjxl/libjxl.git
+    cd libjxl
+    cmake . ^
+        -A %WIN32X64% ^
+        -DCMAKE_INSTALL_PREFIX=%LIBS_DIR%/local ^
+        -DCMAKE_C_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_CXX_FLAGS="/DJXL_STATIC_DEFINE /DJXL_THREADS_STATIC_DEFINE" ^
+        -DCMAKE_C_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_CXX_FLAGS_DEBUG="/MTd /Zi /Ob0 /Od /RTC1" ^
+        -DCMAKE_C_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DCMAKE_CXX_FLAGS_RELEASE="/MT /O2 /Ob2 /DNDEBUG" ^
+        -DBUILD_SHARED_LIBS=OFF ^
+        -DBUILD_TESTING=OFF ^
+        -DJPEGXL_ENABLE_FUZZERS=OFF ^
+        -DJPEGXL_ENABLE_DEVTOOLS=OFF ^
+        -DJPEGXL_ENABLE_TOOLS=OFF ^
+        -DJPEGXL_ENABLE_DOXYGEN=OFF ^
+        -DJPEGXL_ENABLE_MANPAGES=OFF ^
+        -DJPEGXL_ENABLE_EXAMPLES=OFF ^
+        -DJPEGXL_ENABLE_JNI=OFF ^
+        -DJPEGXL_ENABLE_SJPEG=OFF ^
+        -DJPEGXL_ENABLE_OPENEXR=OFF ^
+        -DJPEGXL_ENABLE_SKCMS=ON ^
+        -DJPEGXL_BUNDLE_SKCMS=ON ^
+        -DJPEGXL_ENABLE_VIEWERS=OFF ^
+        -DJPEGXL_ENABLE_TCMALLOC=OFF ^
+        -DJPEGXL_ENABLE_PLUGINS=OFF ^
+        -DJPEGXL_ENABLE_COVERAGE=OFF ^
+        -DJPEGXL_ENABLE_PROFILER=OFF ^
+        -DJPEGXL_WARNINGS_AS_ERRORS=OFF
+    cmake --build . --config Debug
+    cmake --install . --config Debug
+release:
+    cmake --build . --config Release
+    cmake --install . --config Release
 """)
 
 stage('libvpx', """
@@ -949,6 +1086,8 @@ win:
     ) else (
         SET "FolderPostfix="
     )
+depends:python/Scripts/activate.bat
+    %THIRDPARTY_DIR%\\python\\Scripts\\activate.bat
     cd src\\client\\windows
     gyp --no-circular-check breakpad_client.gyp --format=ninja
     cd ..\\..
@@ -957,6 +1096,8 @@ win:
     gyp dump_syms.gyp --format=ninja
     cd ..\\..\\..
     ninja -C out/Release%FolderPostfix% dump_syms
+win:
+    deactivate
 mac:
     git clone https://chromium.googlesource.com/linux-syscall-support src/third_party/lss
     cd src/third_party/lss
@@ -1033,28 +1174,28 @@ win:
 """)
 
 if buildQt5:
-    stage('qt_5_15_4', """
-    git clone https://code.qt.io/qt/qt5.git qt_5_15_4
-    cd qt_5_15_4
+    stage('qt_5_15_7', """
+    git clone https://code.qt.io/qt/qt5.git qt_5_15_7
+    cd qt_5_15_7
     perl init-repository --module-subset=qtbase,qtimageformats,qtsvg
-    git checkout v5.15.4-lts-lgpl
+    git checkout v5.15.7-lts-lgpl
     git submodule update qtbase qtimageformats qtsvg
-depends:patches/qtbase_5_15_4/*.patch
+depends:patches/qtbase_5_15_7/*.patch
     cd qtbase
 win:
-    for /r %%i in (..\\..\\patches\\qtbase_5_15_4\\*) do git apply %%i
+    for /r %%i in (..\\..\\patches\\qtbase_5_15_7\\*) do git apply %%i
     cd ..
 
     SET CONFIGURATIONS=-debug-and-release
 win:
-    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.4\"") + """
+    """ + removeDir("\"%LIBS_DIR%\\Qt-5.15.7\"") + """
     SET ANGLE_DIR=%LIBS_DIR%\\tg_angle
     SET ANGLE_LIBS_DIR=%ANGLE_DIR%\\out
     SET MOZJPEG_DIR=%LIBS_DIR%\\mozjpeg
     SET OPENSSL_DIR=%LIBS_DIR%\\openssl
     SET OPENSSL_LIBS_DIR=%OPENSSL_DIR%\\out
     SET ZLIB_LIBS_DIR=%LIBS_DIR%\\zlib
-    configure -prefix "%LIBS_DIR%\\Qt-5.15.4" ^
+    configure -prefix "%LIBS_DIR%\\Qt-5.15.7" ^
         %CONFIGURATIONS% ^
         -force-debug-info ^
         -opensource ^
@@ -1090,12 +1231,12 @@ win:
     del /S qt_5_15_4\*.pdb
     del /S qt_5_15_4\*.obj
 mac:
-    find ../../patches/qtbase_5_15_4 -type f -print0 | sort -z | xargs -0 git apply
+    find ../../patches/qtbase_5_15_7 -type f -print0 | sort -z | xargs -0 git apply
     cd ..
 
     CONFIGURATIONS=-debug-and-release
 mac:
-    ./configure -prefix "$USED_PREFIX/Qt-5.15.4" \
+    ./configure -prefix "$USED_PREFIX/Qt-5.15.7" \
         $CONFIGURATIONS \
         -force-debug-info \
         -opensource \
@@ -1151,9 +1292,9 @@ mac:
 stage('tg_owt', """
     git clone https://github.com/desktop-app/tg_owt.git
     cd tg_owt
-    git checkout bab760d7bd
+    git checkout 9b70d7679e
     git submodule init
-    git submodule update src/third_party/libyuv src/third_party/crc32c/src
+    git submodule update src/third_party/libyuv src/third_party/crc32c/src src/third_party/abseil-cpp
 win:
     SET MOZJPEG_PATH=$LIBS_DIR/mozjpeg
     SET OPUS_PATH=$USED_PREFIX/include/opus

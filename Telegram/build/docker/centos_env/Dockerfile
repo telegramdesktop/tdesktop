@@ -56,7 +56,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout c1f8effd69 \
+	&& git checkout b842feb5f8 \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -462,6 +462,7 @@ RUN git clone -b n11.1.5.1 --depth=1 {{ GIT }}/FFmpeg/nv-codec-headers.git \
 
 FROM builder AS ffmpeg
 COPY --link --from=opus {{ LibrariesPath }}/opus-cache /
+COPY --link --from=dav1d {{ LibrariesPath }}/dav1d-cache /
 COPY --link --from=libvpx {{ LibrariesPath }}/libvpx-cache /
 COPY --link --from=nv-codec-headers {{ LibrariesPath }}/nv-codec-headers-cache /
 
@@ -481,6 +482,7 @@ RUN git init ffmpeg \
 		--disable-network \
 		--disable-autodetect \
 		--disable-everything \
+		--enable-libdav1d \
 		--enable-libopus \
 		--enable-libvpx \
 		--enable-ffnvcodec \
@@ -506,6 +508,7 @@ RUN git init ffmpeg \
 		--enable-decoder=gif \
 		--enable-decoder=h264 \
 		--enable-decoder=hevc \
+		--enable-decoder=libdav1d \
 		--enable-decoder=libvpx_vp8 \
 		--enable-decoder=libvpx_vp9 \
 		--enable-decoder=mp1 \
@@ -748,7 +751,7 @@ COPY --link --from=pipewire {{ LibrariesPath }}/pipewire-cache /
 RUN git init tg_owt \
 	&& cd tg_owt \
 	&& git remote add origin {{ GIT }}/desktop-app/tg_owt.git \
-	&& git fetch --depth=1 origin 442d5bb593c0ae314960308d78f2016ad1f80c3e \
+	&& git fetch --depth=1 origin 9b70d7679e86e6c216127d5a6a06ef5aa4f54793 \
 	&& git reset --hard FETCH_HEAD \
 	&& git submodule update --init --recursive --depth=1 \
 	&& rm -rf .git \

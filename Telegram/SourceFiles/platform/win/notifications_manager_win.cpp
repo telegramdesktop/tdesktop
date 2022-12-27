@@ -369,6 +369,12 @@ bool SkipFlashBounceForCustom() {
 	return SkipToastForCustom();
 }
 
+bool WaitForInputForCustom() {
+	QuerySystemNotificationSettings();
+
+	return UserNotificationState != QUNS_BUSY;
+}
+
 bool Supported() {
 #ifndef __MINGW32__
 	if (!Checked) {

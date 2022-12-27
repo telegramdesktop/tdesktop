@@ -1426,8 +1426,8 @@ ShareBox::SubmitCallback ShareBox::DefaultForwardCallback(
 					MTPmessages_ForwardMessages(
 						MTP_flags(sendFlags),
 						history->peer->input,
-						MTP_vector<MTPint>(mtpMsgIds),
-						MTP_vector<MTPlong>(generateRandom(peer->id)),
+                        MTP_vector<MTPint>(mtpMsgIds),
+                        MTP_vector<MTPlong>(generateRandom(peer->id)),
 						peer->input,
 						MTP_int(topicRootId),
 						MTP_int(options.scheduled),
