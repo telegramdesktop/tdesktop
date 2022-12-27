@@ -18,9 +18,10 @@ const QStringList &ImageExtensions() {
 		return formats | ranges::views::transform([](const auto &format) {
 			return '.' + format.toLower();
 		}) | ranges::views::filter([](const auto &format) {
-			const auto mimes = QMimeDatabase().mimeTypesForFileName(format);
-			return mimes.isEmpty()
-				|| !mimes.front().name().startsWith(u"image/"_q);
+			const auto mimes = QMimeDatabase().mimeTypesForFileName(
+				u"test"_q + format);
+			return !mimes.isEmpty()
+				&& mimes.front().name().startsWith(u"image/"_q);
 		}) | ranges::to<QStringList>;
 	}();
 	return result;
