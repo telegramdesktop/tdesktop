@@ -577,9 +577,6 @@ colorResultInput: InputField(colorValueInput) {
 
 changePhoneButton: RoundButton(defaultActiveButton) {
 	width: 256px;
-	height: 42px;
-	textTop: 11px;
-	font: boxButtonFont;
 }
 changePhoneButtonPadding: margins(0px, 32px, 0px, 44px);
 changePhoneTitle: FlatLabel(boxTitle) {

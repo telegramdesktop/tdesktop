@@ -128,6 +128,8 @@ Widget::Widget(
 	_back->hide(anim::type::instant);
 
 	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
+	_next->entity()->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
 
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();

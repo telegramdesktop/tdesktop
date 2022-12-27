@@ -308,11 +308,11 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_edit_caption_voice" = "Sorry, you can't edit your message while you're having an unsent voice message.";
 
 "lng_intro_about" = "Welcome to the official Telegram Desktop app.\nIt's fast and secure.";
-"lng_start_msgs" = "START MESSAGING";
+"lng_start_msgs" = "Start messaging";
 
-"lng_intro_next" = "NEXT";
-"lng_intro_finish" = "SIGN UP";
-"lng_intro_submit" = "SUBMIT";
+"lng_intro_next" = "Next";
+"lng_intro_finish" = "Sign up";
+"lng_intro_submit" = "Submit";
 
 "lng_photo_caption" = "Caption";
 "lng_photos_comment" = "Comment";
