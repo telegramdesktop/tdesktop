@@ -542,7 +542,7 @@ MediaPhoto::MediaPhoto(
 	parent->history()->owner().registerPhotoItem(_photo, parent);
 
 	if (_spoiler) {
-		Ui::PrepareImageSpoiler();
+		Ui::PreloadImageSpoiler();
 	}
 }
 
@@ -759,7 +759,7 @@ MediaFile::MediaFile(
 	}
 
 	if (_spoiler) {
-		Ui::PrepareImageSpoiler();
+		Ui::PreloadImageSpoiler();
 	}
 }
 
@@ -1621,7 +1621,7 @@ MediaInvoice::MediaInvoice(
 	.isTest = data.isTest,
 } {
 	if (_invoice.extendedPreview && !_invoice.extendedMedia) {
-		Ui::PrepareImageSpoiler();
+		Ui::PreloadImageSpoiler();
 	}
 }
 
