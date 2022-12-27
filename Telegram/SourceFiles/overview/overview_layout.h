@@ -27,6 +27,10 @@ class PhotoMedia;
 class DocumentMedia;
 } // namespace Data
 
+namespace Ui {
+class SpoilerAnimation;
+} // namespace Ui
+
 namespace Overview {
 namespace Layout {
 
@@ -36,9 +40,12 @@ class Delegate;
 
 class PaintContext : public PaintContextBase {
 public:
-	PaintContext(crl::time ms, bool selecting) : PaintContextBase(ms, selecting) {
+	PaintContext(crl::time ms, bool selecting, bool paused)
+	: PaintContextBase(ms, selecting)
+	, paused(paused) {
 	}
 	bool skipBorder = false;
+	bool paused = false;
 
 };
 
@@ -101,6 +108,9 @@ public:
 	RadialProgressItem(const RadialProgressItem &other) = delete;
 
 	void clickHandlerActiveChanged(const ClickHandlerPtr &action, bool active) override;
+
+	virtual void clearSpoiler() {
+	}
 
 	~RadialProgressItem();
 
@@ -178,7 +188,8 @@ public:
 	Photo(
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
-		not_null<PhotoData*> photo);
+		not_null<PhotoData*> photo,
+		bool spoiler);
 
 	void initDimensions() override;
 	int32 resizeGetHeight(int32 width) override;
@@ -192,10 +203,12 @@ public:
 private:
 	void ensureDataMediaCreated() const;
 	void setPixFrom(not_null<Image*> image);
+	void clearSpoiler();
 
 	const not_null<PhotoData*> _data;
 	mutable std::shared_ptr<Data::PhotoMedia> _dataMedia;
 	ClickHandlerPtr _link;
+	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
 
 	QPixmap _pix;
 	bool _goodLoaded = false;
@@ -265,7 +278,8 @@ public:
 	Video(
 		not_null<Delegate*> delegate,
 		not_null<HistoryItem*> parent,
-		not_null<DocumentData*> video);
+		not_null<DocumentData*> video,
+		bool spoiler);
 	~Video();
 
 	void initDimensions() override;
@@ -276,6 +290,7 @@ public:
 		StateRequest request) const override;
 
 	void clearHeavyPart() override;
+	void clearSpoiler() override;
 
 protected:
 	float64 dataProgress() const override;
@@ -292,6 +307,8 @@ private:
 	StatusText _status;
 
 	QString _duration;
+	std::unique_ptr<Ui::SpoilerAnimation> _spoiler;
+
 	QPixmap _pix;
 	bool _pixBlurred = true;
 

@@ -761,8 +761,11 @@ void ListWidget::paintEvent(QPaintEvent *e) {
 	auto tillSectionIt = findSectionAfterBottom(
 		fromSectionIt,
 		clip.y() + clip.height());
-	auto context = ListContext {
-		Overview::Layout::PaintContext(ms, hasSelectedItems()),
+	const auto window = _controller->parentController();
+	const auto paused = window->isGifPausedAtLeastFor(
+		Window::GifPauseReason::Layer);
+	auto context = ListContext{
+		Overview::Layout::PaintContext(ms, hasSelectedItems(), paused),
 		&_selected,
 		&_dragSelected,
 		_dragSelectAction

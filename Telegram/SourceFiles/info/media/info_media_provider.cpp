@@ -416,10 +416,16 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	};
 	const auto getFile = [&]() -> DocumentData* {
-		if (auto media = item->media()) {
+		if (const auto media = item->media()) {
 			return media->document();
 		}
 		return nullptr;
+	};
+	const auto spoiler = [&] {
+		if (const auto media = item->media()) {
+			return media->hasSpoiler();
+		}
+		return false;
 	};
 
 	const auto &songSt = st::overviewFileLayout;
@@ -427,7 +433,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 	switch (type) {
 	case Type::Photo:
 		if (const auto photo = getPhoto()) {
-			return std::make_unique<Photo>(delegate, item, photo);
+			return std::make_unique<Photo>(delegate, item, photo, spoiler());
 		}
 		return nullptr;
 	case Type::GIF:
@@ -437,7 +443,7 @@ std::unique_ptr<BaseLayout> Provider::createLayout(
 		return nullptr;
 	case Type::Video:
 		if (const auto file = getFile()) {
-			return std::make_unique<Video>(delegate, item, file);
+			return std::make_unique<Video>(delegate, item, file, spoiler());
 		}
 		return nullptr;
 	case Type::File:

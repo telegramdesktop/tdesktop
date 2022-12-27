@@ -40,6 +40,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "history/view/media/history_view_document.h" // DrawThumbnailAsSongCover
 #include "base/unixtime.h"
 #include "ui/effects/round_checkbox.h"
+#include "ui/effects/spoiler_mess.h"
 #include "ui/image/image.h"
 #include "ui/text/format_song_document_name.h"
 #include "ui/text/format_values.h"
@@ -201,6 +202,7 @@ void RadialProgressItem::setDocumentLinks(
 		std::make_shared<DocumentOpenClickHandler>(
 			document,
 			crl::guard(this, [=](FullMsgId id) {
+				clearSpoiler();
 				delegate()->openDocument(document, id, forceOpen);
 			}),
 			context),
@@ -294,13 +296,20 @@ void StatusText::setSize(int64 newSize) {
 Photo::Photo(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
-	not_null<PhotoData*> photo)
+	not_null<PhotoData*> photo,
+	bool spoiler)
 : ItemBase(delegate, parent)
 , _data(photo)
 , _link(std::make_shared<PhotoOpenClickHandler>(
 	photo,
-	crl::guard(this, [=](FullMsgId id) { delegate->openPhoto(photo, id); }),
-	parent->fullId())) {
+	crl::guard(this, [=](FullMsgId id) {
+		clearSpoiler();
+		delegate->openPhoto(photo, id);
+	}),
+	parent->fullId()))
+, _spoiler(spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
+	delegate->repaintItem(this);
+}) : nullptr) {
 	if (_data->inlineThumbnailBytes().isEmpty()
 		&& (_data->hasExact(Data::PhotoSize::Small)
 			|| _data->hasExact(Data::PhotoSize::Thumbnail))) {
@@ -327,8 +336,9 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 	const auto widthChanged = _pix.width() != _width * cIntRetinaFactor();
 	if (!_goodLoaded || widthChanged) {
 		ensureDataMediaCreated();
-		const auto good = _dataMedia->loaded()
-			|| (_dataMedia->image(Data::PhotoSize::Thumbnail) != nullptr);
+		const auto good = !_spoiler
+			&& (_dataMedia->loaded()
+				|| _dataMedia->image(Data::PhotoSize::Thumbnail));
 		if ((good && !_goodLoaded) || widthChanged) {
 			_goodLoaded = good;
 			_pix = QPixmap();
@@ -336,8 +346,9 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 				setPixFrom(_dataMedia->image(Data::PhotoSize::Large)
 					? _dataMedia->image(Data::PhotoSize::Large)
 					: _dataMedia->image(Data::PhotoSize::Thumbnail));
-			} else if (const auto small = _dataMedia->image(
-					Data::PhotoSize::Small)) {
+			} else if (const auto small = _spoiler
+				? nullptr
+				: _dataMedia->image(Data::PhotoSize::Small)) {
 				setPixFrom(small);
 			} else if (const auto blurred = _dataMedia->thumbnailInline()) {
 				setPixFrom(blurred);
@@ -349,6 +360,14 @@ void Photo::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.fillRect(0, 0, _width, _height, st::overviewPhotoBg);
 	} else {
 		p.drawPixmap(0, 0, _pix);
+	}
+
+	if (_spoiler) {
+		Ui::FillSpoilerRect(
+			p,
+			QRect(0, 0, _width, _height),
+			Ui::DefaultImageSpoiler().frame(
+				_spoiler->index(context->ms, context->paused)));
 	}
 
 	if (selected) {
@@ -399,6 +418,14 @@ void Photo::ensureDataMediaCreated() const {
 	delegate()->registerHeavyItem(this);
 }
 
+void Photo::clearSpoiler() {
+	if (_spoiler) {
+		_spoiler = nullptr;
+		_pix = QPixmap();
+		delegate()->repaintItem(this);
+	}
+}
+
 void Photo::clearHeavyPart() {
 	_dataMedia = nullptr;
 }
@@ -415,10 +442,14 @@ TextState Photo::getState(
 Video::Video(
 	not_null<Delegate*> delegate,
 	not_null<HistoryItem*> parent,
-	not_null<DocumentData*> video)
+	not_null<DocumentData*> video,
+	bool spoiler)
 : RadialProgressItem(delegate, parent)
 , _data(video)
-, _duration(Ui::FormatDurationText(_data->getDuration())) {
+, _duration(Ui::FormatDurationText(_data->getDuration()))
+, _spoiler(spoiler ? std::make_unique<Ui::SpoilerAnimation>([=] {
+	delegate->repaintItem(this);
+}) : nullptr) {
 	setDocumentLinks(_data);
 	_data->loadThumbnail(parent->fullId());
 }
@@ -441,8 +472,8 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 
 	const auto selected = (selection == FullSelection);
 	const auto blurred = _dataMedia->thumbnailInline();
-	const auto thumbnail = _dataMedia->thumbnail();
-	const auto good = _dataMedia->goodThumbnail();
+	const auto thumbnail = _spoiler ? nullptr : _dataMedia->thumbnail();
+	const auto good = _spoiler ? nullptr : _dataMedia->goodThumbnail();
 
 	bool loaded = dataLoaded(), displayLoading = _data->displayLoading();
 	if (displayLoading) {
@@ -483,6 +514,14 @@ void Video::paint(Painter &p, const QRect &clip, TextSelection selection, const 
 		p.fillRect(0, 0, _width, _height, st::overviewPhotoBg);
 	} else {
 		p.drawPixmap(0, 0, _pix);
+	}
+
+	if (_spoiler) {
+		Ui::FillSpoilerRect(
+			p,
+			QRect(0, 0, _width, _height),
+			Ui::DefaultImageSpoiler().frame(
+				_spoiler->index(context->ms, context->paused)));
 	}
 
 	if (selected) {
@@ -552,6 +591,14 @@ void Video::ensureDataMediaCreated() const {
 	_dataMedia->goodThumbnailWanted();
 	_dataMedia->thumbnailWanted(parent()->fullId());
 	delegate()->registerHeavyItem(this);
+}
+
+void Video::clearSpoiler() {
+	if (_spoiler) {
+		_spoiler = nullptr;
+		_pix = QPixmap();
+		delegate()->repaintItem(this);
+	}
 }
 
 void Video::clearHeavyPart() {
@@ -2060,7 +2107,7 @@ void Gif::paint(
 		const auto pixmap = _gif->current({
 			.frame = frame,
 			.outer = r.size(),
-		}, /*context->paused ? 0 : */context->ms);
+		}, context->paused ? 0 : context->ms);
 		if (_thumb.isNull()) {
 			_thumb = pixmap;
 			_thumbGood = true;
