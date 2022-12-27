@@ -35,7 +35,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: ${{ matrix.experimental }}
     container:
-      image: ghcr.io/telegramdesktop/tdesktop/centos_env@sha256:ded5ce99e5a84ab53be0b4faf442efd7d56730c419b4f7ec5c7a0d8651056358
+      image: ghcr.io/telegramdesktop/tdesktop/centos_env
       credentials:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
