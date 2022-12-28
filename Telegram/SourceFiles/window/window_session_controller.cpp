@@ -1749,7 +1749,15 @@ void SessionController::showSection(
 }
 
 void SessionController::showBackFromStack(const SectionShow &params) {
-	content()->showBackFromStack(params);
+	const auto bad = [&] {
+		// If we show a currently-being-destroyed topic, then
+		// skip it and show back one more.
+		const auto topic = _activeChatEntry.current().key.topic();
+		return topic && topic->forum()->topicDeleted(topic->rootId());
+	};
+	do {
+		content()->showBackFromStack(params);
+	} while (bad());
 }
 
 void SessionController::showSpecialLayer(
