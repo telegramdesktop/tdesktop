@@ -376,6 +376,7 @@ parts:
       - libharfbuzz-dev
       - libice-dev
       - libicu-dev
+      - liblcms2-dev
       - libopengl-dev
       - libpcre2-dev
       - libpng-dev
@@ -413,6 +414,7 @@ parts:
       - libharfbuzz0b
       - libice6
       - libicu70
+      - liblcms2-2
       - libopengl0
       - libpcre2-16-0
       - libpng16-16
