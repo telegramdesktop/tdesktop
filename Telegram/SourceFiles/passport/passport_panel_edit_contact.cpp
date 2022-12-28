@@ -144,6 +144,10 @@ void VerifyBox::setupControls(
 				tr::lng_intro_fragment_button(),
 				st::fragmentBoxButton),
 			small);
+		_content->widthValue(
+		) | rpl::start_with_next([=](int w) {
+			button->setFullWidth(w - small.left() - small.right());
+		}, button->lifetime());
 		button->setClickedCallback([=] { ::File::OpenUrl(openUrl); });
 		button->setTextTransform(
 			Ui::RoundButton::TextTransform::NoTransform);
