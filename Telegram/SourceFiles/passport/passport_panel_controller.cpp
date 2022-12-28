@@ -1322,6 +1322,7 @@ void PanelController::processVerificationNeeded(
 			return show(VerifyPhoneBox(
 				text,
 				value->verification.codeLength,
+				value->verification.fragmentUrl,
 				[=](const QString &code) { _form->verify(value, code); },
 
 				value->verification.call ? rpl::single(
