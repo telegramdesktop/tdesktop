@@ -1,3 +1,9 @@
+4.4.2 beta (28.12.22)
+
+- Send photos and video files hidden by a spoiler effect.
+- Set a public photo for those who are restricted to see your profile photo in the Privacy Settings.
+- Bug fixes and other minor improvements.
+
 4.4.1 (07.12.22)
 
 - Bug fixes and other minor improvements.
