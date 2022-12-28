@@ -107,21 +107,36 @@ void LayerWidget::checkBackgroundStale() {
 }
 
 QImage LayerWidget::renderBackground() {
-	const auto target = parentWidget()->parentWidget();
+	const auto parent = parentWidget();
+	const auto target = parent->parentWidget();
 	Ui::SendPendingMoveResizeEvents(target);
 
 	const auto ratio = style::DevicePixelRatio();
 	auto image = QImage(size() * ratio, QImage::Format_ARGB32_Premultiplied);
 	image.setDevicePixelRatio(ratio);
 
-	const auto shown = !parentWidget()->isHidden();
-	if (shown) parentWidget()->hide();
-
+	const auto shown = !parent->isHidden();
+	const auto focused = shown && Ui::InFocusChain(parent);
+	if (shown) {
+		if (focused) {
+			target->setFocus();
+		}
+		parent->hide();
+	}
 	auto p = QPainter(&image);
 	Ui::RenderWidget(p, target, QPoint(), geometry());
 	p.end();
 
-	if (shown) parentWidget()->show();
+	if (shown) {
+		parent->show();
+		if (focused) {
+			if (isHidden()) {
+				parent->setFocus();
+			} else {
+				setInnerFocus();
+			}
+		}
+	}
 
 	return image;
 }
