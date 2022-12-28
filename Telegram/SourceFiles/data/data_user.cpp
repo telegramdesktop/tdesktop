@@ -384,10 +384,12 @@ void ApplyUserUpdate(not_null<UserData*> user, const MTPDuserFull &update) {
 	}
 	if (const auto photo = update.vfallback_photo()) {
 		const auto data = user->owner().processPhoto(*photo);
-		user->session().storage().add(Storage::UserPhotosSetBack(
-			peerToUser(user->id),
-			data->id
-		));
+		if (!data->isNull()) { // Sometimes there is photoEmpty :shrug:
+			user->session().storage().add(Storage::UserPhotosSetBack(
+				peerToUser(user->id),
+				data->id
+			));
+		}
 	}
 	user->setSettings(update.vsettings());
 	user->owner().notifySettings().apply(user, update.vnotify_settings());
