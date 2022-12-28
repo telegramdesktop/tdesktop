@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "passport/passport_panel_controller.h"
 
+#include "main/main_account.h"
+#include "main/main_session.h"
 #include "lang/lang_keys.h"
 #include "passport/passport_panel_edit_document.h"
 #include "passport/passport_panel_edit_contact.h"
@@ -1319,12 +1321,16 @@ void PanelController::processVerificationNeeded(
 	});
 	const auto box = [&] {
 		if (type == Value::Type::Phone) {
-			return show(VerifyPhoneBox(
+			const auto submit = [=](const QString &code) {
+				_form->verify(value, code);
+			};
+			const auto account = &_form->window()->session().account();
+			account->setHandleLoginCode(submit);
+			const auto box = show(VerifyPhoneBox(
 				text,
 				value->verification.codeLength,
 				value->verification.fragmentUrl,
-				[=](const QString &code) { _form->verify(value, code); },
-
+				submit,
 				value->verification.call ? rpl::single(
 					value->verification.call->getText()
 				) | rpl::then(rpl::duplicate(
@@ -1340,6 +1346,11 @@ void PanelController::processVerificationNeeded(
 				) | rpl::map([=](not_null<const Value*> field) {
 					return field->verification.error;
 				}) | rpl::distinct_until_changed()));
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				account->setHandleLoginCode(nullptr);
+			}, box->lifetime());
+			return box;
 		} else if (type == Value::Type::Email) {
 			return show(VerifyEmailBox(
 				text,

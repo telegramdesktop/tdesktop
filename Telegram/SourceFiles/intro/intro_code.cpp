@@ -105,6 +105,11 @@ CodeWidget::CodeWidget(
 		? rpl::single(Ui::FormatPhone(getData()->phone))
 		: tr::lng_intro_fragment_title());
 	updateDescText();
+
+	account->setHandleLoginCode([=](const QString &code) {
+		_code->setText(code);
+		submitCode();
+	});
 }
 
 void CodeWidget::refreshLang() {
@@ -217,6 +222,7 @@ void CodeWidget::activate() {
 
 void CodeWidget::finished() {
 	Step::finished();
+	account().setHandleLoginCode(nullptr);
 	_checkRequestTimer.cancel();
 	_callTimer.cancel();
 	apiClear();

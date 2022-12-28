@@ -602,6 +602,16 @@ void Account::destroyStaleAuthorizationKeys() {
 	}
 }
 
+void Account::setHandleLoginCode(Fn<void(QString)> callback) {
+	_handleLoginCode = std::move(callback);
+}
+
+void Account::handleLoginCode(const QString &code) const {
+	if (_handleLoginCode) {
+		_handleLoginCode(code);
+	}
+}
+
 void Account::resetAuthorizationKeys() {
 	Expects(_mtp != nullptr);
 

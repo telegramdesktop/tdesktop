@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "apiwrap.h"
 #include "lang/lang_keys.h"
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/boxes/confirm_phone_box.h"
@@ -77,6 +78,12 @@ void ConfirmPhone::resolve(
 				fragmentUrl,
 				timeout);
 			const auto boxWeak = Ui::MakeWeak(box.data());
+			using LoginCode = rpl::event_stream<QString>;
+			const auto codeHandles = box->lifetime().make_state<LoginCode>();
+			controller->session().account().setHandleLoginCode([=](
+					const QString &code) {
+				codeHandles->fire_copy(code);
+			});
 			box->resendRequests(
 			) | rpl::start_with_next([=] {
 				_api.request(MTPauth_ResendCode(
@@ -88,7 +95,9 @@ void ConfirmPhone::resolve(
 					}
 				}).send();
 			}, box->lifetime());
-			box->checkRequests(
+			rpl::merge(
+				codeHandles->events(),
+				box->checkRequests()
 			) | rpl::start_with_next([=](const QString &code) {
 				if (_checkRequestId) {
 					return;
@@ -119,6 +128,10 @@ void ConfirmPhone::resolve(
 						: Lang::Hard::ServerError();
 					boxWeak->showServerError(errorText);
 				}).handleFloodErrors().send();
+			}, box->lifetime());
+			box->boxClosing(
+			) | rpl::start_with_next([=] {
+				controller->session().account().setHandleLoginCode(nullptr);
 			}, box->lifetime());
 
 			controller->show(std::move(box), Ui::LayerOption::CloseOther);

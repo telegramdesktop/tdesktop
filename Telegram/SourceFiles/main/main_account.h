@@ -110,6 +110,9 @@ public:
 	void suggestMainDcId(MTP::DcId mainDcId);
 	void destroyStaleAuthorizationKeys();
 
+	void setHandleLoginCode(Fn<void(QString)> callback);
+	void handleLoginCode(const QString &code) const;
+
 	[[nodiscard]] rpl::lifetime &lifetime() {
 		return _lifetime;
 	}
@@ -151,6 +154,8 @@ private:
 
 	std::unique_ptr<Session> _session;
 	rpl::variable<Session*> _sessionValue;
+
+	Fn<void(QString)> _handleLoginCode = nullptr;
 
 	UserId _sessionUserId = 0;
 	QByteArray _sessionUserSerialized;

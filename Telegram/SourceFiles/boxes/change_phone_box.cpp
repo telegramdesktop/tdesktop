@@ -20,6 +20,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/boxes/confirm_box.h"
 #include "boxes/phone_banned_box.h"
 #include "countries/countries_instance.h" // Countries::ExtractPhoneCode.
+#include "main/main_account.h"
 #include "main/main_session.h"
 #include "data/data_session.h"
 #include "data/data_user.h"
@@ -126,7 +127,7 @@ protected:
 	void prepare() override;
 
 private:
-	void submit();
+	void submit(const QString &code);
 	void sendCall();
 	void updateCall();
 	void sendCodeFail(const MTP::Error &error);
@@ -344,18 +345,20 @@ void ChangePhone::EnterCode::prepare() {
 		st::changePhoneLabel);
 	description->moveToLeft(st::boxPadding.left(), 0);
 
+	const auto submitInput = [=] { submit(_code->getDigitsOnly()); };
+
 	const auto phoneValue = QString();
 	_code.create(
 		this,
 		st::defaultInputField,
 		tr::lng_change_phone_code_title(),
 		phoneValue);
-	_code->setAutoSubmit(_codeLength, [=] { submit(); });
+	_code->setAutoSubmit(_codeLength, submitInput);
 	_code->setChangedCallback([=] { hideError(); });
 
 	_code->resize(width - 2 * st::boxPadding.left(), _code->height());
 	_code->moveToLeft(st::boxPadding.left(), description->bottomNoMargins());
-	connect(_code, &Ui::InputField::submitted, [=] { submit(); });
+	connect(_code, &Ui::InputField::submitted, submitInput);
 
 	if (!_openUrl.isEmpty()) {
 		_fragment.create(
@@ -372,6 +375,14 @@ void ChangePhone::EnterCode::prepare() {
 			codeBottom + ErrorSkip() + st::boxLittleSkip);
 	}
 
+	_controller->session().account().setHandleLoginCode([=](QString code) {
+		submit(code);
+	});
+	boxClosing(
+	) | rpl::start_with_next([controller = _controller] {
+		controller->session().account().setHandleLoginCode(nullptr);
+	}, lifetime());
+
 	setDimensions(width, countHeight());
 
 	if (_callTimeout > 0) {
@@ -379,7 +390,7 @@ void ChangePhone::EnterCode::prepare() {
 		updateCall();
 	}
 
-	addButton(tr::lng_change_phone_new_submit(), [=] { submit(); });
+	addButton(tr::lng_change_phone_new_submit(), submitInput);
 	addButton(tr::lng_cancel(), [=] { closeBox(); });
 }
 
@@ -390,14 +401,13 @@ int ChangePhone::EnterCode::countHeight() const {
 		+ (_fragment ? _fragment->height() : 0);
 }
 
-void ChangePhone::EnterCode::submit() {
+void ChangePhone::EnterCode::submit(const QString &code) {
 	if (_requestId) {
 		return;
 	}
 	hideError();
 
 	const auto session = &_controller->session();
-	const auto code = _code->getDigitsOnly();
 	const auto weak = Ui::MakeWeak(this);
 	_requestId = session->api().request(MTPaccount_ChangePhone(
 		MTP_string(_phone),
