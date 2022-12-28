@@ -58,6 +58,10 @@ void ConfirmPhone::resolve(
 			}, [&](const MTPDauth_sentCodeTypeSetUpEmailRequired &) {
 				return bad("SetUpEmailRequired");
 			});
+			const auto fragmentUrl = data.vtype().match([](
+					const MTPDauth_sentCodeTypeFragmentSms &data) {
+				return qs(data.vurl());
+			}, [](const auto &) { return QString(); });
 			const auto phoneHash = qs(data.vphone_code_hash());
 			const auto timeout = [&]() -> std::optional<int> {
 				if (const auto nextType = data.vnext_type()) {
@@ -70,6 +74,7 @@ void ConfirmPhone::resolve(
 			auto box = Box<Ui::ConfirmPhoneBox>(
 				phone,
 				sentCodeLength,
+				fragmentUrl,
 				timeout);
 			const auto boxWeak = Ui::MakeWeak(box.data());
 			box->resendRequests(
