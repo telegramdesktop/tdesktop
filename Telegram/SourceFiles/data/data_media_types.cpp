@@ -101,7 +101,8 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 
 [[nodiscard]] QImage PreparePreviewImage(
 		not_null<const Image*> image,
-		ImageRoundRadius radius = ImageRoundRadius::Small) {
+		ImageRoundRadius radius,
+		bool spoiler) {
 	const auto original = image->original();
 	if (original.width() * 10 < original.height()
 		|| original.height() * 10 < original.width()) {
@@ -119,6 +120,11 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 		size,
 		size
 	).convertToFormat(QImage::Format_ARGB32_Premultiplied);
+	if (spoiler) {
+		square = Images::BlurLargeImage(
+			std::move(square),
+			style::ConvertScale(3) * factor);
+	}
 	if (radius == ImageRoundRadius::Small) {
 		struct Cache {
 			base::flat_map<int, std::array<QImage, 4>> all;
@@ -146,27 +152,33 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 	return square;
 }
 
+template <typename MediaType>
+[[nodiscard]] uint64 CountCacheKey(not_null<MediaType*> data, bool spoiler) {
+	return (reinterpret_cast<uint64>(data.get()) & ~1) | (spoiler ? 1 : 0);
+}
+
 [[nodiscard]] ItemPreviewImage PreparePhotoPreview(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<PhotoMedia> &media,
-		ImageRoundRadius radius) {
+		ImageRoundRadius radius,
+		bool spoiler) {
 	const auto photo = media->owner();
-	const auto readyCacheKey = reinterpret_cast<uint64>(photo.get());
+	const auto counted = CountCacheKey(photo, spoiler);
 	if (const auto small = media->image(PhotoSize::Small)) {
-		return { PreparePreviewImage(small, radius), readyCacheKey };
+		return { PreparePreviewImage(small, radius, spoiler), counted };
 	} else if (const auto thumbnail = media->image(PhotoSize::Thumbnail)) {
-		return { PreparePreviewImage(thumbnail, radius), readyCacheKey };
+		return { PreparePreviewImage(thumbnail, radius, spoiler), counted };
 	} else if (const auto large = media->image(PhotoSize::Large)) {
-		return { PreparePreviewImage(large, radius), readyCacheKey };
+		return { PreparePreviewImage(large, radius, spoiler), counted };
 	}
 	const auto allowedToDownload = media->autoLoadThumbnailAllowed(
 		item->history()->peer);
-	const auto cacheKey = allowedToDownload ? 0 : readyCacheKey;
+	const auto cacheKey = allowedToDownload ? 0 : counted;
 	if (allowedToDownload) {
 		media->owner()->load(PhotoSize::Small, item->fullId());
 	}
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius), cacheKey };
+		return { PreparePreviewImage(blurred, radius, spoiler), cacheKey };
 	}
 	return { QImage(), allowedToDownload ? 0 : cacheKey };
 }
@@ -174,17 +186,21 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 [[nodiscard]] ItemPreviewImage PrepareFilePreviewImage(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<DocumentMedia> &media,
-		ImageRoundRadius radius) {
+		ImageRoundRadius radius,
+		bool spoiler) {
 	Expects(media->owner()->hasThumbnail());
 
 	const auto document = media->owner();
-	const auto readyCacheKey = reinterpret_cast<uint64>(document.get());
+	const auto readyCacheKey = CountCacheKey(document, spoiler);
 	if (const auto thumbnail = media->thumbnail()) {
-		return { PreparePreviewImage(thumbnail, radius), readyCacheKey };
+		return {
+			PreparePreviewImage(thumbnail, radius, spoiler),
+			readyCacheKey,
+		};
 	}
 	document->loadThumbnail(item->fullId());
 	if (const auto blurred = media->thumbnailInline()) {
-		return { PreparePreviewImage(blurred, radius), 0 };
+		return { PreparePreviewImage(blurred, radius, spoiler), 0 };
 	}
 	return { QImage(), 0 };
 }
@@ -204,8 +220,9 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 [[nodiscard]] ItemPreviewImage PrepareFilePreview(
 		not_null<const HistoryItem*> item,
 		const std::shared_ptr<DocumentMedia> &media,
-		ImageRoundRadius radius) {
-	auto result = PrepareFilePreviewImage(item, media, radius);
+		ImageRoundRadius radius,
+		bool spoiler) {
+	auto result = PrepareFilePreviewImage(item, media, radius, spoiler);
 	const auto document = media->owner();
 	if (!result.data.isNull()
 		&& (document->isVideoFile() || document->isVideoMessage())) {
@@ -223,13 +240,14 @@ using ItemPreviewImage = HistoryView::ItemPreviewImage;
 template <typename MediaType>
 [[nodiscard]] ItemPreviewImage FindCachedPreview(
 		const std::vector<ItemPreviewImage> *existing,
-		not_null<MediaType*> data) {
+		not_null<MediaType*> data,
+		bool spoiler) {
 	if (!existing) {
 		return {};
 	}
 	const auto i = ranges::find(
 		*existing,
-		reinterpret_cast<uint64>(data.get()),
+		CountCacheKey(data, spoiler),
 		&ItemPreviewImage::cacheKey);
 	return (i != end(*existing)) ? *i : ItemPreviewImage();
 }
@@ -619,14 +637,18 @@ ItemPreview MediaPhoto::toPreview(ToPreviewOptions options) const {
 	}
 	auto images = std::vector<ItemPreviewImage>();
 	auto context = std::any();
-	if (auto cached = FindCachedPreview(options.existing, _photo)) {
-		images.push_back(std::move(cached));
+	if (auto found = FindCachedPreview(options.existing, _photo, _spoiler)) {
+		images.push_back(std::move(found));
 	} else {
 		const auto media = _photo->createMediaView();
 		const auto radius = _chat
 			? ImageRoundRadius::Ellipse
 			: ImageRoundRadius::Small;
-		if (auto prepared = PreparePhotoPreview(parent(), media, radius)
+		if (auto prepared = PreparePhotoPreview(
+				parent(),
+				media,
+				radius,
+				_spoiler)
 			; prepared || !prepared.cacheKey) {
 			images.push_back(std::move(prepared));
 			if (!prepared.cacheKey) {
@@ -848,14 +870,19 @@ ItemPreview MediaFile::toPreview(ToPreviewOptions options) const {
 	}
 	auto images = std::vector<ItemPreviewImage>();
 	auto context = std::any();
-	if (auto cached = FindCachedPreview(options.existing, _document)) {
-		images.push_back(std::move(cached));
+	const auto existing = options.existing;
+	if (auto found = FindCachedPreview(existing, _document, _spoiler)) {
+		images.push_back(std::move(found));
 	} else if (TryFilePreview(_document)) {
 		const auto media = _document->createMediaView();
 		const auto radius = _document->isVideoMessage()
 			? ImageRoundRadius::Ellipse
 			: ImageRoundRadius::Small;
-		if (auto prepared = PrepareFilePreview(parent(), media, radius)
+		if (auto prepared = PrepareFilePreview(
+				parent(),
+				media,
+				radius,
+				_spoiler)
 			; prepared || !prepared.cacheKey) {
 			images.push_back(std::move(prepared));
 			if (!prepared.cacheKey) {
