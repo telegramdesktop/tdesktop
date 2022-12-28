@@ -1024,6 +1024,7 @@ void EmojiListWidget::drawRecent(
 	_recentPainted = true;
 	auto &recent = _recent[index];
 	if (const auto custom = recent.custom) {
+		_emojiPaintContext->scale = context.progress;
 		_emojiPaintContext->position = position
 			+ _innerPosition
 			+ _customPosition;
@@ -1067,6 +1068,7 @@ void EmojiListWidget::drawCustom(
 	auto &custom = _custom[set];
 	custom.painted = true;
 	auto &entry = custom.list[index];
+	_emojiPaintContext->scale = context.progress;
 	_emojiPaintContext->position = position
 		+ _innerPosition
 		+ _customPosition;
