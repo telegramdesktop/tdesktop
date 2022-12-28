@@ -56,7 +56,7 @@ ENV CXXFLAGS $CFLAGS
 FROM builder AS patches
 RUN git clone {{ GIT }}/desktop-app/patches.git \
 	&& cd patches \
-	&& git checkout 8edd80d889 \
+	&& git checkout 4ecd75fad8 \
 	&& rm -rf .git
 
 FROM builder AS nasm
@@ -678,6 +678,7 @@ FROM patches AS qt
 COPY --link --from=libffi {{ LibrariesPath }}/libffi-cache /
 COPY --link --from=zlib {{ LibrariesPath }}/zlib-cache /
 COPY --link --from=libproxy {{ LibrariesPath }}/libproxy-cache /
+COPY --link --from=lcms2 {{ LibrariesPath }}/lcms2-cache /
 COPY --link --from=mozjpeg {{ LibrariesPath }}/mozjpeg-cache /
 COPY --link --from=xcb {{ LibrariesPath }}/xcb-cache /
 COPY --link --from=xcb-wm {{ LibrariesPath }}/xcb-wm-cache /
