@@ -55,6 +55,8 @@ public:
 	void finished() override;
 	void cancelled() override;
 	void submit() override;
+	rpl::producer<QString> nextButtonText() const override;
+	const style::RoundButton *nextButtonStyle() const override;
 
 	void updateDescText();
 
@@ -82,6 +84,8 @@ private:
 
 	void noTelegramCodeDone(const MTPauth_SentCode &result);
 	void noTelegramCodeFail(const MTP::Error &result);
+
+	void submitCode();
 
 	void stopCheck();
 

@@ -323,6 +323,10 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 "lng_intro_qr_step3" = "Scan this image to Log In";
 "lng_intro_qr_skip" = "Or log in using your phone number";
 
+"lng_intro_fragment_title" = "Enter code";
+"lng_intro_fragment_about" = "Get the code for {phone_number} in the Anonymous Numbers section on Fragment.";
+"lng_intro_fragment_button" = "Open Fragment";
+
 "lng_phone_title" = "Your Phone Number";
 "lng_phone_desc" = "Please confirm your country code and\nenter your mobile phone number.";
 "lng_phone_to_qr" = "Quick log in using QR code";

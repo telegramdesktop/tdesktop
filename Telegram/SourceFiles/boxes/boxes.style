@@ -293,6 +293,13 @@ membersAbout: FlatLabel(defaultFlatLabel) {
 	style: boxLabelStyle;
 }
 
+fragmentBoxButton: RoundButton(introNextButton) {
+	width: 256px;
+	icon: icon {{ "fragment", activeButtonFg }};
+	iconOver: icon {{ "fragment", activeButtonFgOver }};
+	iconPosition: point(-10px, 9px);
+}
+
 passcodeHeaderFont: font(19px);
 passcodeHeaderHeight: 80px;
 passcodeInput: InputField(introPhone) {

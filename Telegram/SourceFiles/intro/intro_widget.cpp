@@ -74,6 +74,7 @@ Widget::Widget(
 : RpWidget(parent)
 , _account(account)
 , _data(details::Data{ .controller = controller })
+, _nextStyle(&st::introNextButton)
 , _back(this, object_ptr<Ui::IconButton>(this, st::introBackButton))
 , _settings(
 	this,
@@ -83,7 +84,7 @@ Widget::Widget(
 		st::defaultBoxButton))
 , _next(
 	this,
-	object_ptr<Ui::RoundButton>(this, nullptr, st::introNextButton))
+	object_ptr<Ui::RoundButton>(this, nullptr, *_nextStyle))
 , _connecting(std::make_unique<Window::ConnectionState>(
 		this,
 		account,
@@ -126,10 +127,6 @@ Widget::Widget(
 
 	_back->entity()->setClickedCallback([=] { backRequested(); });
 	_back->hide(anim::type::instant);
-
-	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
-	_next->entity()->setTextTransform(
-		Ui::RoundButton::TextTransform::NoTransform);
 
 	if (_changeLanguage) {
 		_changeLanguage->finishAnimating();
@@ -344,13 +341,31 @@ void Widget::historyMove(StackAction action, Animate animate) {
 	if (_terms) {
 		hideAndDestroy(std::exchange(_terms, { nullptr }));
 	}
+	{
+		const auto st = getStep()->nextButtonStyle();
+		const auto nextStyle = st ? st : &st::introNextButton;
+		if (_nextStyle != nextStyle) {
+			_nextStyle = nextStyle;
+			_next = nullptr;
+			_next.create(
+				this,
+				object_ptr<Ui::RoundButton>(this, nullptr, *nextStyle));
+			showControls();
+			updateControlsGeometry();
+		}
+	}
 
 	getStep()->finishInit();
 	getStep()->prepareShowAnimated(wasStep);
 	if (wasStep->hasCover() != getStep()->hasCover()) {
 		_nextTopFrom = wasStep->contentTop() + st::introNextTop;
 		_controlsTopFrom = wasStep->hasCover() ? st::introCoverHeight : 0;
-		_coverShownAnimation.start([this] { updateControlsGeometry(); }, 0., 1., st::introCoverDuration, wasStep->hasCover() ? anim::linear : anim::easeOutCirc);
+		_coverShownAnimation.start(
+			[this] { updateControlsGeometry(); },
+			0.,
+			1.,
+			st::introCoverDuration,
+			wasStep->hasCover() ? anim::linear : anim::easeOutCirc);
 	}
 
 	_stepLifetime.destroy();
@@ -665,6 +680,10 @@ void Widget::showControls() {
 }
 
 void Widget::setupNextButton() {
+	_next->entity()->setClickedCallback([=] { getStep()->submit(); });
+	_next->entity()->setTextTransform(
+		Ui::RoundButton::TextTransform::NoTransform);
+
 	_next->entity()->setText(getStep()->nextButtonText(
 	) | rpl::filter([](const QString &text) {
 		return !text.isEmpty();
@@ -757,13 +776,18 @@ void Widget::resizeEvent(QResizeEvent *e) {
 }
 
 void Widget::updateControlsGeometry() {
-	auto shown = _coverShownAnimation.value(1.);
+	const auto skip = st::introSettingsSkip;
+	const auto shown = _coverShownAnimation.value(1.);
 
-	auto controlsTopTo = getStep()->hasCover() ? st::introCoverHeight : 0;
-	auto controlsTop = anim::interpolate(_controlsTopFrom, controlsTopTo, shown);
-	_settings->moveToRight(st::introSettingsSkip, controlsTop + st::introSettingsSkip);
+	const auto controlsTop = anim::interpolate(
+		_controlsTopFrom,
+		getStep()->hasCover() ? st::introCoverHeight : 0,
+		shown);
+	_settings->moveToRight(skip, controlsTop + skip);
 	if (_update) {
-		_update->moveToRight(st::introSettingsSkip + _settings->width() + st::introSettingsSkip, _settings->y());
+		_update->moveToRight(
+			skip + _settings->width() + skip,
+			_settings->y());
 	}
 	_back->moveToLeft(0, controlsTop);
 
@@ -779,13 +803,19 @@ void Widget::updateControlsGeometry() {
 		? QRect(0, 0, width(), realNextTop)
 		: QRect());
 	if (_changeLanguage) {
-		_changeLanguage->moveToLeft((width() - _changeLanguage->width()) / 2, _next->y() + _next->height() + _changeLanguage->height());
+		_changeLanguage->moveToLeft(
+			(width() - _changeLanguage->width()) / 2,
+			_next->y() + _next->height() + _changeLanguage->height());
 	}
 	if (_resetAccount) {
-		_resetAccount->moveToLeft((width() - _resetAccount->width()) / 2, height() - st::introResetBottom - _resetAccount->height());
+		_resetAccount->moveToLeft(
+			(width() - _resetAccount->width()) / 2,
+			height() - st::introResetBottom - _resetAccount->height());
 	}
 	if (_terms) {
-		_terms->moveToLeft((width() - _terms->width()) / 2, height() - st::introTermsBottom - _terms->height());
+		_terms->moveToLeft(
+			(width() - _terms->width()) / 2,
+			height() - st::introTermsBottom - _terms->height());
 	}
 }
 

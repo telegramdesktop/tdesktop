@@ -186,6 +186,8 @@ private:
 	int _nextTopFrom = 0;
 	int _controlsTopFrom = 0;
 
+	const style::RoundButton *_nextStyle = nullptr;
+
 	object_ptr<Ui::FadeWrap<Ui::IconButton>> _back;
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _update = { nullptr };
 	object_ptr<Ui::FadeWrap<Ui::RoundButton>> _settings;
