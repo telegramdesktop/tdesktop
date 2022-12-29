@@ -1,3 +1,9 @@
+4.4.3 beta (29.12.22)
+
+- Support for anonymous numbers from the Fragment.com platform.
+- Fix a crash in own profile photo updating.
+- Bug fixes and other minor improvements.
+
 4.4.2 beta (28.12.22)
 
 - Send photos and video files hidden by a spoiler effect.

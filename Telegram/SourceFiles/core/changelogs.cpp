@@ -85,6 +85,14 @@ std::map<int, const char*> BetaLogs() {
 		"your profile photo in the Privacy Settings.\n"
 
 		"- Bug fixes and other minor improvements.\n"
+	},
+	{
+		4004003,
+		"- Support for anonymous numbers from the Fragment.com platform.\n"
+
+		"- Fix a crash in own profile photo updating.\n"
+
+		"- Bug fixes and other minor improvements.\n"
 	}
 	};
 };
