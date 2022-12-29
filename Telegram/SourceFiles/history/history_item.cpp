@@ -1431,12 +1431,18 @@ void HistoryItem::applyEdition(const MTPDmessageService &message) {
 		if (wasGrouped) {
 			history()->owner().groups().unregisterMessage(this);
 		}
+		if (const auto reply = Get<HistoryMessageReply>()) {
+			reply->clearData(this);
+		}
 		clearDependencyMessage();
 		UpdateComponents(0);
 		createServiceFromMtp(message);
 		applyServiceDateEdition(message);
 		finishEditionToEmpty();
 	} else if (isService()) {
+		if (const auto reply = Get<HistoryMessageReply>()) {
+			reply->clearData(this);
+		}
 		clearDependencyMessage();
 		UpdateComponents(0);
 		createServiceFromMtp(message);
