@@ -926,7 +926,8 @@ void Stickers::specialSetReceived(
 			LOG(("API Error: "
 				"received recent attached stickers hash %1 "
 				"while counted hash is %2"
-				).arg(hash, counted));
+				).arg(hash
+				).arg(counted));
 		}
 		session().local().writeRecentMasks();
 	} break;
