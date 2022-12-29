@@ -477,6 +477,7 @@ object_ptr<Ui::RpWidget> Controller::createPhotoEdit() {
 			st::defaultUserpicButton),
 		st::editPeerPhotoMargins);
 	_controls.photo = photoWrap->entity();
+	_controls.photo->showCustomOnChosen();
 
 	return photoWrap;
 }

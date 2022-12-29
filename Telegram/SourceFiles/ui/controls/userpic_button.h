@@ -100,6 +100,7 @@ public:
 
 	void showCustom(QImage &&image);
 	void showSource(Source source);
+	void showCustomOnChosen();
 
 	void overrideHasPersonalPhoto(bool has);
 	[[nodiscard]] rpl::producer<> resetPersonalRequests() const;

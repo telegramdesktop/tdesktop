@@ -207,13 +207,13 @@ void UserpicButton::prepare() {
 		prepareUserpicPixmap();
 	}
 	setClickHandlerByRole();
+}
 
-	if (_role == Role::ChangePhoto) {
-		chosenImages(
-		) | rpl::start_with_next([=](ChosenImage &&chosen) {
-			showCustom(std::move(chosen.image));
-		}, lifetime());
-	}
+void UserpicButton::showCustomOnChosen() {
+	chosenImages(
+	) | rpl::start_with_next([=](ChosenImage &&chosen) {
+		showCustom(std::move(chosen.image));
+	}, lifetime());
 }
 
 void UserpicButton::requestSuggestAvailability() {

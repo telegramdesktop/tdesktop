@@ -467,6 +467,7 @@ void GroupInfoBox::prepare() {
 		&_navigation->parentController()->window(),
 		Ui::UserpicButton::Role::ChoosePhoto,
 		st::defaultUserpicButton);
+	_photo->showCustomOnChosen();
 	_title.create(
 		this,
 		st::defaultInputField,

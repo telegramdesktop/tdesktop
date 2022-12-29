@@ -34,6 +34,8 @@ SignupWidget::SignupWidget(
 , _first(this, st::introName, tr::lng_signup_firstname())
 , _last(this, st::introName, tr::lng_signup_lastname())
 , _invertOrder(langFirstNameGoesSecond()) {
+	_photo->showCustomOnChosen();
+
 	Lang::Updated(
 	) | rpl::start_with_next([=] {
 		refreshLang();
