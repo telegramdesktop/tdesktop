@@ -73,6 +73,7 @@ public:
 		not_null<TopicJumpCache*> topicJumpCache,
 		Fn<void()> updateCallback);
 	void stopLastRipple();
+	void clearRipple();
 
 private:
 	struct LoadingContext;

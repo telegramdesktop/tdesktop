@@ -53,11 +53,11 @@ public:
 
 	void addRipple(QPoint origin, QSize size, Fn<void()> updateCallback);
 	virtual void stopLastRipple();
+	virtual void clearRipple();
 	void addRippleWithMask(
 		QPoint origin,
 		QImage mask,
 		Fn<void()> updateCallback);
-	void clearRipple();
 
 	void paintRipple(
 		QPainter &p,
@@ -82,6 +82,7 @@ public:
 	explicit Row(std::nullptr_t) {
 	}
 	Row(Key key, int index, int top);
+	~Row();
 
 	[[nodiscard]] int top() const {
 		return _top;
@@ -105,6 +106,7 @@ public:
 
 	[[nodiscard]] bool lookupIsInTopicJump(int x, int y) const;
 	void stopLastRipple() override;
+	void clearRipple() override;
 	void addTopicJumpRipple(
 		QPoint origin,
 		not_null<Ui::TopicJumpCache*> topicJumpCache,
