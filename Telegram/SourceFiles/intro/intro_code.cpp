@@ -391,7 +391,7 @@ void CodeWidget::submitCode() {
 	const auto text = QString(
 		_code->getLastText()
 	).remove(
-		QRegularExpression("[^\\d]")
+		TextUtilities::RegExpDigitsExclude()
 	).mid(0, getData()->codeLength);
 
 	if (_sentRequest

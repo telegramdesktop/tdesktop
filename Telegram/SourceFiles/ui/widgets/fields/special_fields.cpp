@@ -136,7 +136,7 @@ void PhonePartInput::correctValue(
 		int &nowCursor) {
 	if (!now.isEmpty() && (_lastDigits != now)) {
 		_lastDigits = now;
-		_lastDigits.replace(QRegularExpression("[^\\d]"), QString());
+		_lastDigits.replace(TextUtilities::RegExpDigitsExclude(), QString());
 		updatePattern(_groupsCallback(_code + _lastDigits));
 	}
 
@@ -359,7 +359,7 @@ void PhoneInput::correctValue(
 		QString &now,
 		int &nowCursor) {
 	auto digits = now;
-	digits.replace(QRegularExpression("[^\\d]"), QString());
+	digits.replace(TextUtilities::RegExpDigitsExclude(), QString());
 	_pattern = _groupsCallback(digits);
 
 	QString newPlaceholder;

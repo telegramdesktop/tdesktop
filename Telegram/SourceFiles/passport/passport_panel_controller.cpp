@@ -487,7 +487,9 @@ EditContactScheme GetContactScheme(Scope::Type type) {
 			return Ui::FormatPhone(value);
 		};
 		result.postprocess = [](QString value) {
-			return value.replace(QRegularExpression("[^\\d]"), QString());
+			return value.replace(
+				TextUtilities::RegExpDigitsExclude(),
+				QString());
 		};
 		return result;
 	} break;
