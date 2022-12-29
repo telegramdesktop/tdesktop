@@ -342,17 +342,21 @@ void Widget::historyMove(StackAction action, Animate animate) {
 		hideAndDestroy(std::exchange(_terms, { nullptr }));
 	}
 	{
-		const auto st = getStep()->nextButtonStyle();
-		const auto nextStyle = st ? st : &st::introNextButton;
-		if (_nextStyle != nextStyle) {
-			_nextStyle = nextStyle;
-			_next = nullptr;
-			_next.create(
-				this,
-				object_ptr<Ui::RoundButton>(this, nullptr, *nextStyle));
-			showControls();
-			updateControlsGeometry();
-		}
+		getStep()->nextButtonStyle(
+		) | rpl::start_with_next([=](const style::RoundButton *st) {
+			const auto nextStyle = st ? st : &st::introNextButton;
+			if (_nextStyle != nextStyle) {
+				_nextStyle = nextStyle;
+				const auto wasShown = _next->toggled();
+				_next.destroy();
+				_next.create(
+					this,
+					object_ptr<Ui::RoundButton>(this, nullptr, *nextStyle));
+				showControls();
+				updateControlsGeometry();
+				_next->toggle(wasShown, anim::type::instant);
+			}
+		}, _next->lifetime());
 	}
 
 	getStep()->finishInit();

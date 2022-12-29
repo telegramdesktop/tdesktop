@@ -119,8 +119,8 @@ rpl::producer<QString> Step::nextButtonText() const {
 	return tr::lng_intro_next();
 }
 
-const style::RoundButton *Step::nextButtonStyle() const {
-	return nullptr;
+rpl::producer<const style::RoundButton*> Step::nextButtonStyle() const {
+	return rpl::single((const style::RoundButton*)(nullptr));
 }
 
 void Step::goBack() {

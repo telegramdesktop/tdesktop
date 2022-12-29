@@ -100,10 +100,13 @@ CodeWidget::CodeWidget(
 
 	_code->setDigitsCountMax(getData()->codeLength);
 
-	setTitleText(getData()->codeByFragmentUrl.isEmpty()
-		? rpl::single(Ui::FormatPhone(getData()->phone))
-		: tr::lng_intro_fragment_title());
 	updateDescText();
+	setTitleText(_isFragment.value(
+	) | rpl::map([=](bool isFragment) {
+		return !isFragment
+			? rpl::single(Ui::FormatPhone(getData()->phone))
+			: tr::lng_intro_fragment_title();
+	}) | rpl::flatten_latest());
 
 	account->setHandleLoginCode([=](const QString &code) {
 		_code->setText(code);
@@ -126,6 +129,7 @@ int CodeWidget::errorTop() const {
 void CodeWidget::updateDescText() {
 	const auto byTelegram = getData()->codeByTelegram;
 	const auto isFragment = !getData()->codeByFragmentUrl.isEmpty();
+	_isFragment = isFragment;
 	setDescriptionText(
 		isFragment
 			? tr::lng_intro_fragment_about(
@@ -136,8 +140,7 @@ void CodeWidget::updateDescText() {
 				Ui::Text::RichLangValue)
 			: (byTelegram ? tr::lng_code_from_telegram : tr::lng_code_desc)(
 				Ui::Text::RichLangValue));
-	if (isFragment) {
-	} else if (getData()->codeByTelegram) {
+	if (getData()->codeByTelegram) {
 		_noTelegramCode->show();
 		_callTimer.cancel();
 	} else {
@@ -420,15 +423,19 @@ void CodeWidget::submitCode() {
 }
 
 rpl::producer<QString> CodeWidget::nextButtonText() const {
-	return getData()->codeByFragmentUrl.isEmpty()
-		? Step::nextButtonText()
-		: tr::lng_intro_fragment_button();
+	return _isFragment.value(
+	) | rpl::map([=](bool isFragment) {
+		return isFragment
+			? tr::lng_intro_fragment_button()
+			: Step::nextButtonText();
+	}) | rpl::flatten_latest();
 }
 
-const style::RoundButton *CodeWidget::nextButtonStyle() const {
-	return !getData()->codeByFragmentUrl.isEmpty()
-		? &st::introFragmentButton
-		: nullptr;
+rpl::producer<const style::RoundButton*> CodeWidget::nextButtonStyle() const {
+	return _isFragment.value(
+	) | rpl::map([](bool isFragment) {
+		return isFragment ? &st::introFragmentButton : nullptr;
+	});
 }
 
 void CodeWidget::noTelegramCode() {

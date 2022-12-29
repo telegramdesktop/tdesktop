@@ -81,7 +81,8 @@ public:
 
 	virtual void submit() = 0;
 	[[nodiscard]] virtual rpl::producer<QString> nextButtonText() const;
-	[[nodiscard]] virtual const style::RoundButton *nextButtonStyle() const;
+	[[nodiscard]] virtual auto nextButtonStyle() const
+		-> rpl::producer<const style::RoundButton*>;
 
 	[[nodiscard]] int contentLeft() const;
 	[[nodiscard]] int contentTop() const;

@@ -56,7 +56,7 @@ public:
 	void cancelled() override;
 	void submit() override;
 	rpl::producer<QString> nextButtonText() const override;
-	const style::RoundButton *nextButtonStyle() const override;
+	rpl::producer<const style::RoundButton*> nextButtonStyle() const override;
 
 	void updateDescText();
 
@@ -95,6 +95,8 @@ private:
 	object_ptr<CodeInput> _code;
 	QString _sentCode;
 	mtpRequestId _sentRequest = 0;
+
+	rpl::variable<bool> _isFragment = false;
 
 	base::Timer _callTimer;
 	CallStatus _callStatus = CallStatus();
