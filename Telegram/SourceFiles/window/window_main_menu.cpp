@@ -956,8 +956,12 @@ OthersUnreadState OtherAccountsUnreadStateCurrent() {
 			}
 		}
 	}
+	// In case we are logging out in the last paint for the slide animation
+	// the account doesn't have the session here already.
+	const auto current = active->maybeSession();
 	return {
-		.count = (app.unreadBadge() - active->session().data().unreadBadge()),
+		.count = (app.unreadBadge()
+			- (current ? current->data().unreadBadge() : 0)),
 		.allMuted = allMuted,
 	};
 }
