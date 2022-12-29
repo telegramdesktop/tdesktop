@@ -1537,6 +1537,7 @@ bool Instance::Private::onErrorDefault(
 
 		const auto session = getSession(qAbs(dcWithShift));
 		request->needsLayer = true;
+		session->setConnectionNotInited();
 		session->sendPrepared(request);
 		return true;
 	} else if (type == u"CONNECTION_LANG_CODE_INVALID"_q) {
