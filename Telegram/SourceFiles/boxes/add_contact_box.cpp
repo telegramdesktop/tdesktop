@@ -641,10 +641,11 @@ void GroupInfoBox::createGroup(
 		MTP_int(_ttlPeriod)
 	)).done([=](const MTPUpdates &result) {
 		auto image = _photo->takeResultImage();
+		const auto period = _ttlPeriod;
 		const auto navigation = _navigation;
 
 		getDelegate()->hideLayer(); // Destroys 'this'.
-		ChatCreateDone(navigation, std::move(image), _ttlPeriod, result);
+		ChatCreateDone(navigation, std::move(image), period, result);
 	}).fail([=](const MTP::Error &error) {
 		const auto &type = error.type();
 		_creationRequestId = 0;
