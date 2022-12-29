@@ -595,16 +595,19 @@ void Application::saveSettings() {
 	Local::writeSettings();
 }
 
-bool Application::canSaveFileWithoutAskingForPath() const {
-	if (Core::App().settings().askDownloadPath()) {
-		return false;
-	} else if (KSandbox::isInside()
-		&& Core::App().settings().downloadPath().isEmpty()) {
+bool Application::canReadDefaultDownloadPath(bool always) const {
+	if (KSandbox::isInside()
+		&& (always || Core::App().settings().downloadPath().isEmpty())) {
 		const auto path = QStandardPaths::writableLocation(
 			QStandardPaths::DownloadLocation);
 		return base::CanReadDirectory(path);
 	}
 	return true;
+}
+
+bool Application::canSaveFileWithoutAskingForPath() const {
+	return !Core::App().settings().askDownloadPath()
+		&& canReadDefaultDownloadPath();
 }
 
 MTP::Config &Application::fallbackProductionConfig() const {
